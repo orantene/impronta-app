@@ -33,12 +33,12 @@ test("the pay page and view use it, with the retry action and copy in en and es"
   const page = readFileSync("src/app/(public)/pay/[code]/pay-page.tsx", "utf8");
   assert.match(page, /status=\{payStartViewStatus\(opened\.reason\)\}/);
   const view = readFileSync("src/app/(public)/pay/[code]/CheckoutView.tsx", "utf8");
-  assert.match(view, /phase === "startFailed"[\s\S]{0,500}startFailedRetry/);
-  for (const loc of ["en", "es"]) {
-    const thread = (JSON.parse(readFileSync(`messages/${loc}.json`, "utf8")) as { public: { thread: Record<string, string> } }).public.thread;
-    for (const k of ["startFailedTitle", "startFailedBody", "startFailedRetry"]) assert.ok(thread[k], `${loc}.${k}`);
+  assert.match(view, /case "startFailed"[\s\S]{0,600}public\.payPage\.tryAgain/);
+  for (const loc of ["en", "es", "fr"]) {
+    const pp = (JSON.parse(readFileSync(`messages/${loc}.json`, "utf8")) as { public: { payPage: Record<string, string> } }).public.payPage;
+    for (const k of ["errorTitle", "errorBody", "tryAgain", "contactBusiness"]) assert.ok(pp[k], `${loc}.${k}`);
   }
-  const es = (JSON.parse(readFileSync("messages/es.json", "utf8")) as { public: { thread: Record<string, string> } }).public.thread;
-  assert.equal(es.startFailedTitle, "No se pudo iniciar el pago");
-  assert.equal(es.startFailedRetry, "Reintentar");
+  const es = (JSON.parse(readFileSync("messages/es.json", "utf8")) as { public: { payPage: Record<string, string> } }).public.payPage;
+  assert.equal(es.errorTitle, "Algo salió mal");
+  assert.equal(es.tryAgain, "Intentar de nuevo");
 });

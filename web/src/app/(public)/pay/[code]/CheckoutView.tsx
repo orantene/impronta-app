@@ -1,20 +1,34 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
-import { EngineFeeLines } from "@/components/payments/FeeLines";
 import { interpolate } from "@/i18n/interpolate";
-import { useT } from "@/i18n/use-t";
+import { translatorFor, useT } from "@/i18n/use-t";
 import type { FeeLine } from "@/lib/billing/processing-fee-payer";
-import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import type { PayLinkPathPrefix } from "@/lib/payments/pay-link-url";
+import { payMoney } from "@/lib/payments/pay-page-format";
+
+import {
+  Action,
+  AmountBlock,
+  CalendarMenu,
+  ExpiryRow,
+  INK,
+  MUTED,
+  PolicyLine,
+  Shell,
+  StatusHeader,
+  SummaryCard,
+  TrustRow,
+  type SummaryRow,
+} from "./PayParts";
 
 /**
- * TOKENS ONLY (TUL-437). This page sits on the seller's own site: `--token-color-*`,
- * `--site-radius-*` and `--site-heading-font` are her palette and type, projected by
- * the public layout (the ticket page does the same). An `admin-*` class here paints
- * the dashboard's look on a noir or editorial site; a static test pins their absence.
+ * The pay page, every state (TUL-467): ready, confirming, paid, taking longer,
+ * cancelled-back-from-Stripe, expired, already paid, replaced, refunded, error. It wears
+ * the seller's site tokens only (see PayParts) and carries one primary action per state.
+ * Copy lives under `public.payPage` (a DRAFT until the owner approves the deck).
  */
 
 export type CheckoutCalendarLinks = {
@@ -22,388 +36,92 @@ export type CheckoutCalendarLinks = {
   readonly googleHref: string;
 };
 
+export type CheckoutStatus =
+  | "open"
+  | "paid"
+  | "expired"
+  | "cancelled"
+  | "replaced"
+  | "unknown"
+  | "startFailed"
+  | "declined"
+  | "processing"
+  | "refunded"
+  | "cancelledReturn";
+
 export type CheckoutViewProps = {
   readonly code: string;
   /** Presentation path; defaults to branded `/pay`. */
   readonly pathPrefix?: PayLinkPathPrefix;
-  /** What the kept time is: drives the "kept while valid" wording. */
+  /** What the kept time is: drives the "time is held" line. */
   readonly slotKind?: "appointment" | "appointment_no_time" | "pickup" | null;
   /** Closed page only: a session completed or money settled, so never say "nothing was taken". */
   readonly moneyMayHaveMoved?: boolean;
   readonly amountCents: number;
   readonly currency: string;
-  readonly expiresAt: string;
-  readonly status: "open" | "paid" | "expired" | "cancelled" | "replaced" | "unknown" | "startFailed" | "declined" | "processing" | "refunded" | "cancelledReturn";
+  /** "Válido hasta las 9:24 pm", as parts (talent's zone); null = say nothing about validity. */
+  readonly expiry?: { readonly time: string; readonly day: string | null } | null;
+  readonly status: CheckoutStatus;
   readonly lines: readonly { label: string; units: number; unitCents: number }[];
-  readonly holdUntil: string | null;
   readonly stripeUrl: string | null;
   readonly threadHref: string | null;
   readonly receiptHref: string | null;
-  /** Engine client fee lines (open state only); [] / absent = no breakdown. */
+  /** Engine client fee lines; [] / absent = no breakdown. */
   readonly feeLines?: readonly FeeLine[];
-  /** Client service fee on top of the amount (the checkout collect minus the principal). */
-  readonly serviceFeeCents?: number;
-  /** Seller shown on the confirmation ("Pagado a ..."). */
+  /** The business the client pays ("Pagado a ..."). */
   readonly sellerName?: string | null;
-  /** UI locale for money formatting ("es" | "en"). */
+  readonly logoUrl?: string | null;
+  /** UI locale for money and copy ("es" | "en" | "fr"). */
   readonly locale?: string;
-  /** The link came from a conversation: the paid page sends the client back to it. */
-  readonly autoReturn?: boolean;
+  /** Paid link opened again later (not the return from Stripe). */
+  readonly alreadyPaid?: boolean;
   /** Dated booking: .ics download + Google Calendar (paid confirmation only). */
   readonly calendar?: CheckoutCalendarLinks | null;
+  /** "Sáb 10 oct · 5:00 pm (CST)" and the place, when the booking has them. */
+  readonly whenLabel?: string | null;
+  readonly whereLabel?: string | null;
+  /** "≈ US$55" under a non-USD amount. */
+  readonly usdLine?: string | null;
+  /** Deposit link: what remains for the day of the appointment. */
+  readonly depositBalanceCents?: number | null;
+  /** The talent's own cancellation text; absent = the default line. */
+  readonly policyText?: string | null;
+  /** The newer link when this one was replaced. */
+  readonly newLinkHref?: string | null;
+  /** Partly refunded: how much came back. */
+  readonly refundedCents?: number | null;
+  /** The site home on the seller's host: the way out when there is no conversation. */
+  readonly siteHref?: string;
   /** The link's currency differs from its order's: say so plainly instead of "status unknown". */
   readonly currencyMismatch?: { readonly linkCurrency: string; readonly orderCurrency: string };
 };
 
+type T = (key: string) => string;
+
+/** Runtime bits the stateful wrappers feed the pure view. */
+export type PayRuntime = {
+  readonly timedOut?: boolean;
+  readonly onCheckAgain?: () => void;
+};
+
 export function CheckoutView(props: CheckoutViewProps) {
-  const t = useT();
-  const [phase, setPhase] = useState<CheckoutViewProps["status"]>(props.status);
+  const dashboardT = useT();
+  const t: T = props.locale ? translatorFor(props.locale) : dashboardT;
+  const [phase, setPhase] = useState<CheckoutStatus>(props.status);
   // The server re-renders with a new status once the webhook settles; follow it.
   useEffect(() => setPhase(props.status), [props.status]);
-  const pathPrefix = props.pathPrefix ?? "/pay";
-  const keepSlotKey =
-    props.slotKind === "appointment"
-      ? "public.thread.keepSlotAppointment"
-      : props.slotKind === "appointment_no_time"
-        ? "public.thread.keepSlotNoTime"
-        : props.slotKind === "pickup"
-        ? "public.thread.keepSlot"
-        : "public.thread.keepSlotGeneric";
-  const total = formatDashboardMoneyCents(props.amountCents, props.currency || null, props.locale ?? "es");
-
-  if (phase === "paid") {
-    return (
-      <Shell>
-        <PaidConfirmation
-          title={t("public.thread.paidTitle")}
-          sellerLine={props.sellerName ? interpolate(t("public.thread.paidTo"), { seller: props.sellerName }) : null}
-          lines={props.lines.map((l) => `${l.units > 1 ? `${l.units} × ` : ""}${l.label}`)}
-          total={total}
-          note={t("public.thread.paidNote")}
-          receiptHref={props.receiptHref}
-          receiptLabel={t("public.thread.receipt")}
-          threadHref={props.threadHref}
-          backLabel={t("public.thread.backToThread")}
-          autoReturn={props.autoReturn === true}
-          redirectingLabel={t("public.thread.redirecting")}
-          calendar={props.calendar ?? null}
-          addToCalendarLabel={t("public.thread.addToCalendar")}
-          googleCalendarLabel={t("public.thread.googleCalendar")}
-        />
-      </Shell>
-    );
-  }
-
-  if (phase === "refunded") {
-    return (
-      <Shell>
-        <h1 className="text-[22px] font-semibold" style={titleStyle}>
-          {t("public.thread.refunded")}
-        </h1>
-        <p className="mt-3 text-[16px]" style={{ color: INK }}>
-          {total}
-        </p>
-        {props.threadHref ? (
-          <Action kind="secondary" href={props.threadHref}>
-            {t("public.thread.backToThread")}
-          </Action>
-        ) : null}
-      </Shell>
-    );
-  }
-
-  if (phase === "processing") {
-    return (
-      <Shell>
-        <ProcessingConfirmation
-          title={t("public.thread.processingTitle")}
-          body={t("public.thread.processingBody")}
-          timeoutBody={t("public.thread.processingTimeout")}
-          checkAgain={t("public.thread.checkAgain")}
-          total={total}
-          threadHref={props.threadHref}
-          backLabel={t("public.thread.backToThread")}
-        />
-      </Shell>
-    );
-  }
-
-  if (phase === "cancelledReturn") {
-    return (
-      <Shell>
-        <h1 className="text-[24px] font-semibold leading-tight" style={titleStyle}>
-          {t("public.thread.cancelledReturnTitle")}
-        </h1>
-        <p className="text-[15px]" style={{ color: MUTED }}>
-          {t("public.thread.cancelledReturnBody")}
-        </p>
-        <p className="text-[20px] font-semibold tabular-nums" style={{ color: INK }}>
-          {total}
-        </p>
-        <div className="mt-4 flex flex-col gap-3">
-          <Action kind="primary" href={`${pathPrefix}/${props.code}`}>
-            {t("public.thread.tryAgain")}
-          </Action>
-          {props.threadHref ? (
-            <Action kind="secondary" href={props.threadHref}>
-              {t("public.thread.backToThread")}
-            </Action>
-          ) : null}
-        </div>
-      </Shell>
-    );
-  }
-
-  if (phase === "declined") {
-    return (
-      <Shell>
-        <h1 className="text-[22px] font-semibold" style={titleStyle}>
-          {t("public.thread.declined")}
-        </h1>
-        <p className="mt-3" style={{ color: INK }}>
-          {total}
-        </p>
-      </Shell>
-    );
-  }
-
-  if (phase === "expired") {
-    // The conversation is where a fresh request is asked for (D-150): the
-    // page hands the thread over; this view used to drop it on the floor.
-    return (
-      <Shell>
-        <h1 className="text-[22px] font-semibold" style={titleStyle}>
-          {t("public.thread.expired")}
-        </h1>
-        {props.threadHref ? (
-          <Action kind="secondary" href={props.threadHref}>
-            {t("public.thread.backToThread")}
-          </Action>
-        ) : null}
-      </Shell>
-    );
-  }
-
-  if (phase === "cancelled") {
-    return (
-      <Shell>
-        <h1 className="text-[22px] font-semibold" style={titleStyle}>
-          {props.moneyMayHaveMoved ? t("public.thread.closedMaybePaid") : t("public.thread.cancelled")}
-        </h1>
-      </Shell>
-    );
-  }
-
-  if (phase === "replaced") {
-    return (
-      <Shell>
-        <h1 className="text-[22px] font-semibold" style={titleStyle}>
-          {t("public.thread.replaced")}
-        </h1>
-      </Shell>
-    );
-  }
-
-  if (phase === "unknown" && props.currencyMismatch) {
-    const text = interpolate(t("public.thread.currencyMismatch"), props.currencyMismatch);
-    return (
-      <Shell>
-        <h1 className="text-[22px] font-semibold" style={titleStyle}>
-          {text}
-        </h1>
-      </Shell>
-    );
-  }
-
-  if (phase === "startFailed") {
-    return (
-      <Shell>
-        <h1 className="text-[22px] font-semibold" style={titleStyle}>
-          {t("public.thread.startFailedTitle")}
-        </h1>
-        <p className="text-[15px]" style={{ color: MUTED }}>
-          {t("public.thread.startFailedBody")}
-        </p>
-        <div className="mt-4 flex flex-col gap-3">
-          <Action kind="primary" href={`${pathPrefix}/${props.code}`}>
-            {t("public.thread.startFailedRetry")}
-          </Action>
-          {props.threadHref ? (
-            <Action kind="secondary" href={props.threadHref}>
-              {t("public.thread.backToThread")}
-            </Action>
-          ) : null}
-        </div>
-      </Shell>
-    );
-  }
-
-  if (phase === "unknown") {
-    return (
-      <Shell>
-        <h1 className="text-[22px] font-semibold" style={titleStyle}>
-          {t("public.thread.unknown")}
-        </h1>
-      </Shell>
-    );
-  }
-
-  const serviceFee = Math.max(0, Math.round(props.serviceFeeCents ?? 0));
-  // Engine fee lines already itemise the whole charge; the plain fee row is for when they are absent.
-  const showServiceFee = serviceFee > 0 && !props.feeLines?.length;
-  return (
-    <Shell>
-      <h1 className="text-[22px] font-semibold" style={titleStyle}>
-        {t("public.thread.pay")}
-      </h1>
-      <p className="mt-2 text-[13px]" style={{ color: MUTED }}>
-        {t(props.slotKind === "appointment_no_time" ? "public.thread.payByNoTime" : "public.thread.payBy")}
-      </p>
-      <ol className="mt-4 space-y-2">
-        {props.lines.map((line, index) => (
-          <li key={`${line.label}-${index}`} className="flex justify-between text-[15px]" style={{ color: INK }}>
-            <span>
-              {line.units} · {line.label}
-            </span>
-            <span className="tabular-nums">
-              {formatDashboardMoneyCents(line.unitCents * line.units, props.currency || null, props.locale ?? "es")}
-            </span>
-          </li>
-        ))}
-      </ol>
-      {showServiceFee ? (
-        <p data-service-fee="" className="mt-3 flex justify-between text-[13px] tabular-nums" style={{ color: MUTED }}>
-          <span>{t("public.thread.fees.client_service_fee")}</span>
-          <span>{formatDashboardMoneyCents(serviceFee, props.currency || null, props.locale ?? "es")}</span>
-        </p>
-      ) : null}
-      <p className="mt-4 text-[20px] font-semibold tabular-nums" style={{ color: INK }}>
-        {showServiceFee ? formatDashboardMoneyCents(props.amountCents + serviceFee, props.currency || null, props.locale ?? "es") : total}
-      </p>
-      {props.feeLines?.length ? (
-        <EngineFeeLines
-          lines={props.feeLines}
-          currency={props.currency}
-          label={(c) => t(`public.thread.fees.${c}`)}
-          nonRefundable={t("public.thread.fees.nonRefundable")}
-        />
-      ) : (
-        <p data-refund-fees-note="" className="mt-2 text-[13px]" style={{ color: MUTED }}>
-          {t("public.thread.fees.nonRefundable")}
-        </p>
-      )}
-      {props.holdUntil ? (
-        <p className="mt-2 text-[13px]" style={{ color: MUTED }}>
-          {props.holdUntil}
-        </p>
-      ) : null}
-      <p className="mt-1 text-[13px]" style={{ color: MUTED }}>
-        {props.expiresAt}
-      </p>
-      <p className="text-[13px]" style={{ color: MUTED }}>
-        {t(keepSlotKey)}
-      </p>
-      <div className="mt-6 flex flex-col gap-3">
-        {props.stripeUrl ? (
-          <Action kind="primary" href={props.stripeUrl}>
-            {t("public.thread.pay")}
-          </Action>
-        ) : (
-          <Action kind="primary" href={`${pathPrefix}/${props.code}?confirm=mock`} onNavigate={() => setPhase("processing")}>
-            {t("public.thread.pay")}
-          </Action>
-        )}
-      </div>
-    </Shell>
+  const view = (runtime: PayRuntime) => (
+    <PayStateView {...props} status={phase} t={t} runtime={runtime} onPayNavigate={() => setPhase("processing")} />
   );
-}
-
-const INK = "var(--token-color-ink, #1a1a1a)";
-const MUTED = "var(--token-color-muted, #6b6b6b)";
-const LINE = "var(--token-color-line, #e5e5e5)";
-const RAISED = "var(--token-color-surface-raised, #ffffff)";
-const SURFACE = "var(--token-color-background, var(--token-color-surface, #fafafa))";
-const PRIMARY = "var(--token-color-primary, #1a1a1a)";
-const PRIMARY_ON = "var(--token-color-primary-on, #ffffff)";
-const RADIUS = "var(--site-radius-base, 0.75rem)";
-const RADIUS_LG = "var(--site-radius-lg, 1rem)";
-const HEADING = "var(--site-heading-font, inherit)";
-
-const actionBase: CSSProperties = {
-  display: "inline-flex",
-  minHeight: 48,
-  width: "100%",
-  alignItems: "center",
-  justifyContent: "center",
-  borderRadius: RADIUS,
-  padding: "0 16px",
-  fontSize: 15,
-  fontWeight: 600,
-  textDecoration: "none",
-  cursor: "pointer",
-};
-const primaryStyle: CSSProperties = {
-  ...actionBase,
-  background: PRIMARY,
-  color: PRIMARY_ON,
-  border: `1px solid ${PRIMARY}`,
-};
-const secondaryStyle: CSSProperties = {
-  ...actionBase,
-  background: "transparent",
-  color: INK,
-  border: `1px solid ${LINE}`,
-};
-const titleStyle: CSSProperties = { fontFamily: HEADING, color: INK };
-
-function Action(props: {
-  kind: "primary" | "secondary";
-  href?: string;
-  download?: string;
-  external?: boolean;
-  onClick?: () => void;
-  onNavigate?: () => void;
-  "data-pay-calendar"?: "ics" | "google";
-  children: ReactNode;
-}) {
-  const style = props.kind === "primary" ? primaryStyle : secondaryStyle;
-  if (props.href) {
-    return (
-      <a
-        style={style}
-        href={props.href}
-        download={props.download}
-        onClick={props.onNavigate}
-        data-pay-calendar={props["data-pay-calendar"]}
-        {...(props.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-      >
-        {props.children}
-      </a>
-    );
-  }
-  return (
-    <button type="button" style={style} onClick={props.onClick} data-pay-calendar={props["data-pay-calendar"]}>
-      {props.children}
-    </button>
-  );
+  if (phase === "processing") return <ProcessingRuntime>{view}</ProcessingRuntime>;
+  return view({});
 }
 
 const POLL_MS = 2500;
 const POLL_MAX_MS = 45_000;
-const RETURN_AFTER_S = 8;
-
-type ProcessingCopy = {
-  title: string;
-  body: string;
-  timeoutBody: string;
-  checkAgain: string;
-  total: string;
-  threadHref: string | null;
-  backLabel: string;
-};
 
 /** Stripe sent the client back before the webhook settled: re-read until it has, then say so. */
-function ProcessingConfirmation(props: ProcessingCopy) {
+function ProcessingRuntime(props: { children: (rt: PayRuntime) => ReactNode }) {
   const router = useRouter();
   const [timedOut, setTimedOut] = useState(false);
   useEffect(() => {
@@ -419,151 +137,370 @@ function ProcessingConfirmation(props: ProcessingCopy) {
     }, POLL_MS);
     return () => clearInterval(id);
   }, [router, timedOut]);
-  return <ProcessingView {...props} timedOut={timedOut} onCheckAgain={() => setTimedOut(false)} />;
+  return <>{props.children({ timedOut, onCheckAgain: () => setTimedOut(false) })}</>;
 }
 
-export function ProcessingView(props: ProcessingCopy & { timedOut: boolean; onCheckAgain: () => void }) {
-  return (
-    <div role="status" aria-live="polite" data-pay-return="processing" className="flex flex-col gap-3">
-      {props.timedOut ? null : (
-        <span
-          aria-hidden
-          className="h-8 w-8 animate-spin rounded-full border-2"
-          style={{ borderColor: LINE, borderTopColor: INK }}
-        />
-      )}
-      <h1 className="text-[24px] font-semibold leading-tight" style={titleStyle}>
-        {props.title}
-      </h1>
-      <p className="text-[15px]" style={{ color: MUTED }}>
-        {props.timedOut ? props.timeoutBody : props.body}
-      </p>
-      <p className="text-[20px] font-semibold tabular-nums" style={{ color: INK }}>
-        {props.total}
-      </p>
-      {props.timedOut ? (
-        <div className="mt-4 flex flex-col gap-3">
-          <Action kind="primary" onClick={props.onCheckAgain}>
-            {props.checkAgain}
-          </Action>
-          {props.threadHref ? (
-            <Action kind="secondary" href={props.threadHref}>
-              {props.backLabel}
-            </Action>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-type PaidCopy = {
-  title: string;
-  sellerLine: string | null;
-  lines: string[];
-  total: string;
-  note: string;
-  receiptHref: string | null;
-  receiptLabel: string;
-  threadHref: string | null;
-  backLabel: string;
-  autoReturn: boolean;
-  redirectingLabel: string;
-  calendar: CheckoutCalendarLinks | null;
-  addToCalendarLabel: string;
-  googleCalendarLabel: string;
+const FEE_LABEL_KEY: Partial<Record<FeeLine["code"], string>> = {
+  service_subtotal: "public.thread.fees.service_subtotal",
+  base_reservation_fee: "public.thread.fees.base_reservation_fee",
+  platform_fee: "public.thread.fees.platform_fee",
+  processing_fee: "public.thread.fees.processing_fee",
+  total_charged: "public.thread.fees.total_charged",
 };
 
-/** The paid page: a clear confirmation, then back to the conversation it came from. */
-function PaidConfirmation(props: PaidCopy) {
-  const [left, setLeft] = useState(RETURN_AFTER_S);
-  const returning = props.autoReturn && Boolean(props.threadHref);
-  useEffect(() => {
-    if (!returning || !props.threadHref) return;
-    if (left <= 0) {
-      window.location.assign(props.threadHref);
-      return;
-    }
-    const id = setTimeout(() => setLeft((n) => n - 1), 1000);
-    return () => clearTimeout(id);
-  }, [left, returning, props.threadHref]);
-  return <PaidView {...props} secondsLeft={returning ? Math.max(left, 0) : null} />;
+function chargedOf(props: CheckoutViewProps): number {
+  return props.feeLines?.find((l) => l.code === "total_charged")?.cents ?? props.amountCents;
 }
 
-export function PaidView(props: PaidCopy & { secondsLeft: number | null }) {
+/** The place the client goes when there is no conversation: the seller's site. */
+function SiteAction(props: CheckoutViewProps & { t: T; kind: "primary" | "secondary" | "link" }) {
+  const label = props.sellerName
+    ? interpolate(props.t("public.payPage.goToSite"), { business: props.sellerName })
+    : props.t("public.payPage.goToSiteFallback");
   return (
-    <div role="status" aria-live="polite" data-pay-return="paid" className="flex flex-col gap-3">
-      <span
-        aria-hidden
-        className="flex h-12 w-12 items-center justify-center rounded-full"
-        style={{ background: PRIMARY, color: PRIMARY_ON }}
-      >
-        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M5 12.5l4.5 4.5L19 7.5" />
-        </svg>
-      </span>
-      <h1 className="text-[26px] font-semibold leading-tight" style={titleStyle}>
-        {props.title}
-      </h1>
-      {props.sellerLine ? (
-        <p className="text-[15px]" style={{ color: MUTED }}>
-          {props.sellerLine}
-        </p>
-      ) : null}
-      <div
-        className="mt-2 p-4"
-        style={{ borderRadius: RADIUS_LG, border: `1px solid ${LINE}`, background: RAISED, color: INK }}
-      >
-        {props.lines.map((line, i) => (
-          <p key={`${line}-${i}`} className="text-[15px]">
-            {line}
-          </p>
-        ))}
-        <p className="mt-2 text-[22px] font-semibold tabular-nums">{props.total}</p>
-      </div>
-      <p className="text-[13px]" style={{ color: MUTED }}>
-        {props.note}
-      </p>
-      <div className="mt-3 flex flex-col gap-3">
-        {props.threadHref ? (
-          <Action kind="primary" href={props.threadHref}>
-            {props.backLabel}
-          </Action>
-        ) : null}
-        {props.receiptHref ? (
-          <Action kind="secondary" href={props.receiptHref}>
-            {props.receiptLabel}
-          </Action>
-        ) : null}
-        {props.calendar ? (
-          <>
-            <Action kind="secondary" href={props.calendar.icsHref} download="booking.ics" data-pay-calendar="ics">
-              {props.addToCalendarLabel}
-            </Action>
-            <Action kind="secondary" href={props.calendar.googleHref} external data-pay-calendar="google">
-              {props.googleCalendarLabel}
-            </Action>
-          </>
-        ) : null}
-      </div>
-      {props.secondsLeft !== null ? (
-        <p className="text-[13px]" style={{ color: MUTED }}>
-          {interpolate(props.redirectingLabel, { n: String(props.secondsLeft) })}
-        </p>
-      ) : null}
-    </div>
+    <Action kind={props.kind} href={props.siteHref ?? "/"}>
+      {label}
+    </Action>
   );
 }
 
-function Shell(props: { children: ReactNode }) {
+/** "Volver a la conversación" when a thread exists, else "Ir al sitio de <negocio>". */
+function WayBack(props: CheckoutViewProps & { t: T; kind: "primary" | "secondary" | "link" }) {
+  return props.threadHref ? (
+    <Action kind={props.kind} href={props.threadHref}>
+      {props.t("public.thread.backToThread")}
+    </Action>
+  ) : (
+    <SiteAction {...props} />
+  );
+}
+
+function summaryRows(props: CheckoutViewProps): SummaryRow[] {
+  const rows: SummaryRow[] = [];
+  if (props.whenLabel) rows.push({ key: "when", icon: "calendar", label: "", value: props.whenLabel });
+  if (props.whereLabel) rows.push({ key: "where", icon: "pin", label: "", value: props.whereLabel });
+  return rows;
+}
+
+function feeRows(props: CheckoutViewProps & { t: T }, money: (cents: number) => string): SummaryRow[] {
+  // The client's lines only: seller-side codes (talent_quote, workspace_margin...) never print here.
+  const rows: SummaryRow[] = [];
+  const single = props.lines.length <= 1;
+  for (const l of props.feeLines ?? []) {
+    // One item: the item row IS the subtotal, so "Servicio" would repeat it.
+    if (single && l.code === "service_subtotal") continue;
+    const key = FEE_LABEL_KEY[l.code];
+    if (key) rows.push({ key: l.code, label: props.t(key), value: money(l.cents), strong: l.code === "total_charged" });
+  }
+  return rows;
+}
+
+export function PayStateView(props: CheckoutViewProps & { t: T; runtime?: PayRuntime; onPayNavigate?: () => void }) {
+  const { t } = props;
+  const locale = props.locale ?? "es";
+  const money = (cents: number) => payMoney(cents, props.currency || null, locale);
+  const charged = money(chargedOf(props));
+  const business = props.sellerName ?? null;
+  const frame = (children: ReactNode) => (
+    <Shell business={business} logoUrl={props.logoUrl}>
+      {children}
+    </Shell>
+  );
+  const stack = (children: ReactNode) => <div className="mt-2 flex flex-col gap-2">{children}</div>;
+
+  switch (props.status) {
+    case "paid": {
+      const alreadyPaid = props.alreadyPaid === true;
+      const fees = feeRows(props, money);
+      const hasTotalRow = fees.some((f) => f.key === "total_charged");
+      return frame(
+        <>
+          <StatusHeader
+            icon="check"
+            tone="success"
+            dataReturn="paid"
+            title={t(alreadyPaid ? "public.payPage.alreadyPaidTitle" : "public.payPage.paidTitle")}
+            body={
+              alreadyPaid
+                ? t("public.payPage.alreadyPaidBody")
+                : business
+                  ? interpolate(t("public.payPage.paidTo"), { business })
+                  : null
+            }
+          />
+          <SummaryCard
+            items={props.lines.map((l) => ({ label: `${l.units > 1 ? `${l.units} × ` : ""}${l.label}`, price: money(l.unitCents * l.units) }))}
+            fees={fees}
+            rows={summaryRows(props)}
+          />
+          {hasTotalRow ? null : (
+            <p className="m-0 text-[20px] font-semibold tabular-nums" style={{ color: INK }} data-pay-charged="">
+              {interpolate(t("public.payPage.charged"), { amount: charged })}
+            </p>
+          )}
+          {stack(
+            <>
+              <WayBack {...props} kind="primary" />
+              {props.calendar ? (
+                <CalendarMenu
+                  label={t("public.payPage.addToCalendar")}
+                  icsLabel={t("public.payPage.calendarIcs")}
+                  googleLabel={t("public.payPage.googleCalendar")}
+                  icsHref={props.calendar.icsHref}
+                  googleHref={props.calendar.googleHref}
+                />
+              ) : null}
+              {props.receiptHref ? (
+                <Action kind="link" href={props.receiptHref}>
+                  {t("public.payPage.viewReceipt")}
+                </Action>
+              ) : null}
+            </>,
+          )}
+        </>,
+      );
+    }
+
+    case "processing": {
+      const slow = props.runtime?.timedOut === true;
+      return frame(
+        <>
+          <StatusHeader
+            icon="clock"
+            spinner={!slow}
+            dataReturn="processing"
+            title={t(slow ? "public.payPage.slowTitle" : "public.payPage.processingTitle")}
+            body={t(slow ? "public.payPage.slowBody" : "public.payPage.processingBody")}
+          />
+          <p className="m-0 text-[22px] font-semibold tabular-nums" style={{ color: INK }}>
+            {charged}
+          </p>
+          {slow
+            ? stack(
+                <>
+                  <Action kind="primary" onClick={props.runtime?.onCheckAgain}>
+                    {t("public.payPage.checkAgain")}
+                  </Action>
+                  <WayBack {...props} kind="link" />
+                </>,
+              )
+            : null}
+        </>,
+      );
+    }
+
+    case "cancelledReturn":
+      return frame(
+        <>
+          <StatusHeader icon="undo" tone="neutral" title={t("public.payPage.cancelledTitle")} body={t("public.payPage.cancelledBody")} />
+          <p className="m-0 text-[22px] font-semibold tabular-nums" style={{ color: INK }}>
+            {charged}
+          </p>
+          {stack(
+            <>
+              <Action kind="primary" href={`${props.pathPrefix ?? "/pay"}/${props.code}`}>
+                {t("public.payPage.tryAgain")}
+              </Action>
+              <WayBack {...props} kind="link" />
+            </>,
+          )}
+        </>,
+      );
+
+    case "expired":
+      return frame(
+        <>
+          <StatusHeader
+            icon="clock"
+            tone="neutral"
+            title={t("public.payPage.expiredTitle")}
+            body={business ? interpolate(t("public.payPage.expiredBody"), { business }) : t("public.payPage.expiredBodyGeneric")}
+          />
+          {stack(
+            props.threadHref ? (
+              <Action kind="primary" href={props.threadHref}>
+                {t("public.payPage.askNewLink")}
+              </Action>
+            ) : (
+              <SiteAction {...props} kind="primary" />
+            ),
+          )}
+        </>,
+      );
+
+    case "replaced":
+      return frame(
+        <>
+          <StatusHeader
+            icon="link"
+            tone="neutral"
+            title={t("public.payPage.replacedTitle")}
+            body={business ? interpolate(t("public.payPage.replacedBody"), { business }) : t("public.payPage.replacedBodyUnknown")}
+          />
+          {stack(
+            props.newLinkHref ? (
+              <>
+                <Action kind="primary" href={props.newLinkHref}>
+                  {t("public.payPage.viewNewLink")}
+                </Action>
+                <WayBack {...props} kind="link" />
+              </>
+            ) : (
+              <WayBack {...props} kind="primary" />
+            ),
+          )}
+        </>,
+      );
+
+    case "refunded": {
+      const partial = props.refundedCents != null && props.refundedCents > 0 && props.refundedCents < chargedOf(props);
+      const back = props.refundedCents != null && props.refundedCents > 0 ? props.refundedCents : chargedOf(props);
+      return frame(
+        <>
+          <StatusHeader
+            icon="undo"
+            tone="neutral"
+            title={t(partial ? "public.payPage.refundedPartialTitle" : "public.payPage.refundedTitle")}
+            body={interpolate(t("public.payPage.refundedBody"), { amount: money(back) })}
+          />
+          {stack(
+            <>
+              <WayBack {...props} kind="primary" />
+              {props.receiptHref ? (
+                <Action kind="secondary" href={props.receiptHref}>
+                  {t("public.payPage.viewReceipt")}
+                </Action>
+              ) : null}
+            </>,
+          )}
+        </>,
+      );
+    }
+
+    case "startFailed":
+      return frame(
+        <>
+          <StatusHeader icon="alert" tone="neutral" title={t("public.payPage.errorTitle")} body={t("public.payPage.errorBody")} />
+          {stack(
+            <>
+              <Action kind="primary" href={`${props.pathPrefix ?? "/pay"}/${props.code}`}>
+                {t("public.payPage.tryAgain")}
+              </Action>
+              {props.threadHref ? (
+                <Action kind="secondary" href={props.threadHref}>
+                  {business ? interpolate(t("public.payPage.contactBusiness"), { business }) : t("public.thread.backToThread")}
+                </Action>
+              ) : (
+                <SiteAction {...props} kind="secondary" />
+              )}
+            </>,
+          )}
+        </>,
+      );
+
+    case "declined":
+      return frame(
+        <>
+          <StatusHeader icon="alert" tone="neutral" title={t("public.payPage.declinedTitle")} body={t("public.payPage.declinedBody")} />
+          {stack(
+            <>
+              <Action kind="primary" href={`${props.pathPrefix ?? "/pay"}/${props.code}`}>
+                {t("public.payPage.tryAgain")}
+              </Action>
+              <WayBack {...props} kind="link" />
+            </>,
+          )}
+        </>,
+      );
+
+    case "cancelled":
+      return frame(
+        <>
+          <StatusHeader
+            icon="alert"
+            tone="neutral"
+            title={t("public.payPage.closedTitle")}
+            body={t(props.moneyMayHaveMoved ? "public.payPage.closedMaybePaid" : "public.payPage.closedBody")}
+          />
+          {stack(<WayBack {...props} kind="primary" />)}
+        </>,
+      );
+
+    case "unknown": {
+      if (props.currencyMismatch) {
+        return frame(
+          <>
+            <StatusHeader
+              icon="alert"
+              tone="neutral"
+              title={t("public.payPage.errorTitle")}
+              body={interpolate(t("public.thread.currencyMismatch"), props.currencyMismatch)}
+            />
+            {stack(<WayBack {...props} kind="primary" />)}
+          </>,
+        );
+      }
+      return frame(
+        <>
+          <StatusHeader icon="alert" tone="neutral" title={t("public.payPage.unknownTitle")} body={t("public.payPage.unknownBody")} />
+          {stack(<WayBack {...props} kind="primary" />)}
+        </>,
+      );
+    }
+
+    default:
+      return frame(<ReadyToPay {...props} money={money} charged={charged} />);
+  }
+}
+
+/** State A: who, what, when, where, how much, how long, the policy, one button. */
+function ReadyToPay(props: CheckoutViewProps & { t: T; money: (cents: number) => string; charged: string; onPayNavigate?: () => void }) {
+  const { t } = props;
+  const business = props.sellerName ?? null;
+  const expiryText = props.expiry
+    ? props.expiry.day
+      ? interpolate(t("public.payPage.validUntilDay"), { day: props.expiry.day, time: props.expiry.time })
+      : interpolate(t("public.payPage.validUntil"), { time: props.expiry.time })
+    : null;
+  const deposit =
+    props.depositBalanceCents && props.depositBalanceCents > 0
+      ? interpolate(t("public.payPage.depositNote"), { balance: props.money(props.depositBalanceCents) })
+      : null;
+  const holdsTime = props.slotKind === "appointment" || props.slotKind === "pickup";
+  const payHref = props.stripeUrl ?? `${props.pathPrefix ?? "/pay"}/${props.code}?confirm=mock`;
   return (
-    <main
-      className="mx-auto flex min-h-screen w-full max-w-[440px] flex-col justify-center gap-3 px-5 py-10"
-      style={{ background: SURFACE, color: INK }}
-      data-pos-messages="checkout"
-      data-pay-theme="tokens"
-    >
-      {props.children}
-    </main>
+    <>
+      <div className="flex flex-col gap-1">
+        <h1 className="m-0 text-[15px] font-medium" style={{ color: MUTED }}>
+          {business ? interpolate(t("public.payPage.payTo"), { business }) : t("public.thread.pay")}
+        </h1>
+        <AmountBlock
+          amount={props.charged}
+          usdLine={props.usdLine}
+          approxHint={interpolate(t("public.payPage.approxHint"), { currency: (props.currency || "").toUpperCase() })}
+          note={deposit}
+        />
+      </div>
+      <SummaryCard
+        items={props.lines.map((l) => ({ label: `${l.units > 1 ? `${l.units} × ` : ""}${l.label}`, price: props.money(l.unitCents * l.units) }))}
+        fees={feeRows(props, props.money)}
+        rows={summaryRows(props)}
+      />
+      {expiryText ? <ExpiryRow text={expiryText} hint={holdsTime ? t("public.payPage.keepSlotNote") : null} /> : null}
+      <PolicyLine
+        line={props.policyText ? props.policyText.split(/(?<=[.!?])\s/)[0] : t("public.payPage.policyDefault")}
+        link={t("public.payPage.policyLink")}
+        title={t("public.payPage.policyTitle")}
+        body={props.policyText ?? t("public.payPage.policyDefault")}
+        refunds={`${t("public.payPage.policyRefunds")} ${t("public.thread.fees.nonRefundable")}`}
+      />
+      <div className="flex flex-col gap-2">
+        <Action kind="primary" href={payHref} onNavigate={props.stripeUrl ? undefined : props.onPayNavigate}>
+          {interpolate(t("public.payPage.payCta"), { amount: props.charged })}
+        </Action>
+        <TrustRow label={t("public.payPage.trust")} />
+        <WayBack {...props} kind="link" />
+      </div>
+    </>
   );
 }

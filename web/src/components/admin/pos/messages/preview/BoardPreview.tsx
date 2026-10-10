@@ -33,13 +33,12 @@ export function BoardPreview(props: { readonly board: string }) {
           code="pay-fixture"
           amountCents={60000}
           currency="MXN"
-          expiresAt="19:15"
+          expiry={{ time: "7:15 pm", day: null }}
           status={preview.checkoutStatus}
           lines={[
             { label: "Margherita", units: 2, unitCents: 18000 },
             { label: "Diavola", units: 1, unitCents: 21000 },
           ]}
-          holdUntil="19:40"
           stripeUrl={null}
           threadHref="/c/t/preview"
           receiptHref="/r/fixture"
