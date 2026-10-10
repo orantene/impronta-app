@@ -37,102 +37,62 @@ function makeFakeSb(opts: {
     updates: [] as Row[],
   };
 
-  function chain(kind: "session" | "domain" | "write") {
-    const filters: Record<string, unknown> = {};
-    const api = {
-      select() {
-        return api;
-      },
-      eq(col: string, val: unknown) {
-        filters[col] = val;
-        return api;
-      },
-      maybeSingle: async () => {
-        if (kind === "session" || filters.stripe_checkout_session_id) {
-          return { data: opts.bySession ?? null, error: null };
-        }
-        return { data: opts.byDomain ?? null, error: null };
-      },
-      update(row: Row) {
-        state.updates.push(row);
-        opts.onUpdate?.(row);
-        return {
-          eq: async () => ({ error: null }),
-        };
-      },
-      insert(row: Row) {
-        state.inserts.push(row);
-        opts.onInsert?.(row);
-        return Promise.resolve({ error: null });
-      },
-    };
-    return api;
-  }
-
+  // Track call index so by-session then by-domain selects resolve correctly.
+  let selectCalls = 0;
   const client = {
     from(table: string) {
       assert.equal(table, "talent_site_domains");
-      // First call in fulfill is by-session select; subsequent by-domain or write.
-      // Use a call counter so select chains resolve correctly.
-      return chain("session");
-    },
-    _state: state,
-  };
+      selectCalls += 1;
+      const call = selectCalls;
+      const filters: Record<string, unknown> = {};
+      let mode: "select" | "update" | "insert" = "select";
+      let updateRow: Row | null = null;
 
-  // Refine: track call index so by-session then by-domain work.
-  let selectCalls = 0;
-  client.from = (table: string) => {
-    assert.equal(table, "talent_site_domains");
-    selectCalls += 1;
-    const call = selectCalls;
-    const filters: Record<string, unknown> = {};
-    let mode: "select" | "update" | "insert" = "select";
-    let updateRow: Row | null = null;
-
-    const api = {
-      select() {
-        mode = "select";
-        return api;
-      },
-      eq(col: string, val: unknown) {
-        filters[col] = val;
-        if (mode === "update" && updateRow) {
+      const api = {
+        select() {
+          mode = "select";
+          return api;
+        },
+        eq(col: string, val: unknown) {
+          filters[col] = val;
+          if (mode === "update" && updateRow) {
+            return {
+              eq: async () => {
+                state.updates.push(updateRow!);
+                opts.onUpdate?.(updateRow!);
+                return { error: null };
+              },
+            };
+          }
+          return api;
+        },
+        maybeSingle: async () => {
+          if (filters.stripe_checkout_session_id != null || call === 1) {
+            return { data: opts.bySession ?? null, error: null };
+          }
+          return { data: opts.byDomain ?? null, error: null };
+        },
+        update(row: Row) {
+          mode = "update";
+          updateRow = row;
           return {
             eq: async () => {
-              state.updates.push(updateRow!);
-              opts.onUpdate?.(updateRow!);
+              state.updates.push(row);
+              opts.onUpdate?.(row);
               return { error: null };
             },
-            then: undefined as unknown,
           };
-        }
-        return api;
-      },
-      maybeSingle: async () => {
-        if (filters.stripe_checkout_session_id != null || call === 1) {
-          return { data: opts.bySession ?? null, error: null };
-        }
-        return { data: opts.byDomain ?? null, error: null };
-      },
-      update(row: Row) {
-        mode = "update";
-        updateRow = row;
-        return {
-          eq: async () => {
-            state.updates.push(row);
-            opts.onUpdate?.(row);
-            return { error: null };
-          },
-        };
-      },
-      insert(row: Row) {
-        mode = "insert";
-        state.inserts.push(row);
-        opts.onInsert?.(row);
-        return Promise.resolve({ error: null });
-      },
-    };
-    return api;
+        },
+        insert(row: Row) {
+          mode = "insert";
+          state.inserts.push(row);
+          opts.onInsert?.(row);
+          return Promise.resolve({ error: null });
+        },
+      };
+      return api;
+    },
+    _state: state,
   };
 
   return client;

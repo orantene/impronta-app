@@ -54,47 +54,36 @@ function memoryStore(seed: StoreRow[] = []) {
         select() {
           return api;
         },
-        insert(payload: Record<string, unknown>) {
+        insert(payload: Record<string, unknown>): Promise<{
+          error: { code: string } | null;
+        }> {
           pendingInsert = payload;
-          return Promise.resolve({
-            error: rows.some(
+          if (
+            rows.some(
               (r) =>
                 r.domain === payload.domain &&
                 r.talent_profile_id === payload.talent_profile_id,
             )
-              ? { code: "23505" }
-              : null,
-            then(onfulfilled: (v: { error: null }) => unknown) {
-              if (
-                rows.some(
-                  (r) =>
-                    r.domain === payload.domain &&
-                    r.talent_profile_id === payload.talent_profile_id,
-                )
-              ) {
-                return Promise.resolve(onfulfilled({ error: null })).then(() => ({
-                  error: { code: "23505" },
-                }));
-              }
-              const row: StoreRow = {
-                id: `dom-${seq++}`,
-                talent_profile_id: String(payload.talent_profile_id),
-                domain: String(payload.domain),
-                status: String(payload.status ?? "pending"),
-                verification_token: (payload.verification_token as string) ?? null,
-                is_primary: Boolean(payload.is_primary),
-                acquisition: payload.acquisition as string | undefined,
-                verified_at: (payload.verified_at as string) ?? null,
-                ssl_provisioned_at: (payload.ssl_provisioned_at as string) ?? null,
-                failure_reason: (payload.failure_reason as string) ?? null,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-                last_health_check_at: null,
-              };
-              rows.push(row);
-              return Promise.resolve(onfulfilled({ error: null }));
-            },
-          });
+          ) {
+            return Promise.resolve({ error: { code: "23505" } });
+          }
+          const row: StoreRow = {
+            id: `dom-${seq++}`,
+            talent_profile_id: String(payload.talent_profile_id),
+            domain: String(payload.domain),
+            status: String(payload.status ?? "pending"),
+            verification_token: (payload.verification_token as string) ?? null,
+            is_primary: Boolean(payload.is_primary),
+            acquisition: payload.acquisition as string | undefined,
+            verified_at: (payload.verified_at as string) ?? null,
+            ssl_provisioned_at: (payload.ssl_provisioned_at as string) ?? null,
+            failure_reason: (payload.failure_reason as string) ?? null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            last_health_check_at: null,
+          };
+          rows.push(row);
+          return Promise.resolve({ error: null });
         },
         update(payload: Record<string, unknown>) {
           pendingUpdate = payload;
@@ -172,37 +161,6 @@ function memoryStore(seed: StoreRow[] = []) {
           });
           return { data: found ?? null, error: null };
         },
-      };
-
-      // Fix insert to be awaitable as `{ error }`
-      api.insert = (payload: Record<string, unknown>) => {
-        pendingInsert = payload;
-        if (
-          rows.some(
-            (r) =>
-              r.domain === payload.domain &&
-              r.talent_profile_id === payload.talent_profile_id,
-          )
-        ) {
-          return Promise.resolve({ error: { code: "23505" } });
-        }
-        const row: StoreRow = {
-          id: `dom-${seq++}`,
-          talent_profile_id: String(payload.talent_profile_id),
-          domain: String(payload.domain),
-          status: String(payload.status ?? "pending"),
-          verification_token: (payload.verification_token as string) ?? null,
-          is_primary: Boolean(payload.is_primary),
-          acquisition: payload.acquisition as string | undefined,
-          verified_at: (payload.verified_at as string) ?? null,
-          ssl_provisioned_at: (payload.ssl_provisioned_at as string) ?? null,
-          failure_reason: (payload.failure_reason as string) ?? null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          last_health_check_at: null,
-        };
-        rows.push(row);
-        return Promise.resolve({ error: null });
       };
       void pendingInsert;
 
