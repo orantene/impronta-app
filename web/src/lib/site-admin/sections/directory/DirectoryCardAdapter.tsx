@@ -270,13 +270,22 @@ export function DirectoryCardAdapter({
   // card root's soft <Link> navigation into a hard load. Capture-phase so it
   // runs before Next's Link handler; overlay action buttons are siblings of
   // the root link, so closest() keeps them unaffected.
+  // E3-J4 — also hard-nav when the tap is on [data-card-name] even if a nested
+  // interactive repaired the DOM and left the caption outside a.talent-card.
   const handleClickCapture =
     cardClickAction === "page" && data.profileHref
       ? (event: React.MouseEvent) => {
-          const link = (event.target as HTMLElement).closest?.(
-            "a.talent-card",
-          );
-          if (!link) return;
+          const target = event.target as HTMLElement;
+          if (
+            target.closest?.(
+              "button, [data-card-inquiry-toggle], [data-card-favorite-toggle]",
+            )
+          ) {
+            return;
+          }
+          const link = target.closest?.("a.talent-card");
+          const nameEl = target.closest?.("[data-card-name]");
+          if (!link && !nameEl) return;
           // Every browser new-tab / save-link gesture must keep native
           // behavior: cmd/ctrl (new tab), shift (new window), alt
           // (save/download), middle button (new tab).

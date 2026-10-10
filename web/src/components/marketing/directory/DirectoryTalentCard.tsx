@@ -95,11 +95,22 @@ export function DirectoryTalentCard({
       />
     ) : undefined;
 
+  // E3-J4 — name taps must open the profile even when nested interactives
+  // leave [data-card-name] outside a.talent-card (HTML parser repair).
   const handleClickCapture =
     design.profilePopup === "off" && data.profileHref
       ? (event: React.MouseEvent) => {
-          const link = (event.target as HTMLElement).closest?.("a.talent-card");
-          if (!link) return;
+          const target = event.target as HTMLElement;
+          if (
+            target.closest?.(
+              "button, [data-card-inquiry-toggle], [data-card-favorite-toggle]",
+            )
+          ) {
+            return;
+          }
+          const link = target.closest?.("a.talent-card");
+          const nameEl = target.closest?.("[data-card-name]");
+          if (!link && !nameEl) return;
           // Preserve every native new-tab / save-link gesture.
           if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
           if (event.button !== 0) return;
