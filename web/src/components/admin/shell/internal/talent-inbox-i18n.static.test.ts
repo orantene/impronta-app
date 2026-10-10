@@ -154,7 +154,7 @@ describe("talent inbox i18n", () => {
   it("synthetic talent previews use system sender so inboxPreviewText can translate", () => {
     const adapter = read("talent/shared/conversation-adapter-1.tsx");
     assert.match(adapter, /sender:\s*"system"/);
-    assert.match(adapter, /Awaiting your response\./);
-    assert.match(adapter, /Booking confirmed\. Check the logistics tab\./);
+    assert.match(adapter, /INBOX_PREVIEW_AWAITING/);
+    assert.match(adapter, /INBOX_PREVIEW_BOOKED/);
   });
 });
