@@ -3,7 +3,7 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { supportFrom } from "./support-from";
-import { hqQueueRequesterEmail } from "./support-hq-presentation";
+import { hqQueueRequesterEmail, hqRequesterName } from "./support-hq-presentation";
 import {
   mapMessageRow,
   mapTicketRow,
@@ -19,6 +19,8 @@ export type HqQueueRow = {
   planTier: string | null;
   requesterName: string | null;
   requesterEmail: string | null;
+  /** Talent profile code (TAL-…) when the requester is a talent. */
+  requesterCode?: string | null;
 };
 
 export type HqTicketContext = {
@@ -54,7 +56,13 @@ export type HqTicketContext = {
 };
 
 type AgencyLite = { id: string; slug: string | null; display_name: string | null; plan_tier: string | null };
-type ProfileLite = { id: string; display_name: string | null; created_at?: string | null };
+type ProfileLite = {
+  id: string;
+  display_name: string | null;
+  created_at?: string | null;
+  talent_name?: string | null;
+  profile_code?: string | null;
+};
 
 async function hydrateTenants(
   admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
@@ -78,9 +86,25 @@ async function hydrateProfiles(
 ): Promise<Map<string, ProfileLite>> {
   const map = new Map<string, ProfileLite>();
   if (userIds.length === 0) return map;
-  const { data } = await admin.from("profiles").select("id, display_name, created_at").in("id", userIds);
+  const [{ data }, { data: talents, error: talentErr }] = await Promise.all([
+    admin.from("profiles").select("id, display_name, created_at").in("id", userIds),
+    admin
+      .from("talent_profiles")
+      .select("user_id, display_name, profile_code")
+      .in("user_id", userIds)
+      .is("deleted_at", null),
+  ]);
   for (const row of data ?? []) {
     map.set(row.id, row as ProfileLite);
+  }
+  if (talentErr) {
+    logServerError("support.hq.hydrateTalentNames", talentErr);
+    return map;
+  }
+  for (const t of (talents ?? []) as Array<{ user_id: string | null; display_name: string | null; profile_code: string | null }>) {
+    if (!t.user_id) continue;
+    const base = map.get(t.user_id) ?? { id: t.user_id, display_name: null };
+    map.set(t.user_id, { ...base, talent_name: t.display_name, profile_code: t.profile_code });
   }
   return map;
 }
@@ -128,8 +152,13 @@ export async function loadHqSupportQueue(): Promise<HqQueueRow[]> {
         tenantName: tenant?.display_name ?? tenant?.slug ?? null,
         tenantSlug: tenant?.slug ?? null,
         planTier: tenant?.plan_tier ?? null,
-        requesterName: profile?.display_name ?? ticket.contactName ?? null,
+        requesterName: hqRequesterName({
+          talentName: profile?.talent_name,
+          profileName: profile?.display_name,
+          contactName: ticket.contactName,
+        }),
         requesterEmail: hqQueueRequesterEmail(ticket),
+        requesterCode: profile?.profile_code ?? null,
       };
     });
   } catch (err) {
@@ -295,7 +324,11 @@ export async function loadHqTicketDetail(ticketId: string): Promise<{
         tenantName: tenant?.display_name ?? tenant?.slug ?? null,
         tenantSlug: tenant?.slug ?? null,
         planTier: tenant?.plan_tier ?? null,
-        requesterName: profile?.display_name ?? ticket.contactName ?? null,
+        requesterName: hqRequesterName({
+          talentName: profile?.talent_name,
+          profileName: profile?.display_name,
+          contactName: ticket.contactName,
+        }),
         requesterEmail:
           ticket.contactEmail ??
           (ticket.requesterUserId

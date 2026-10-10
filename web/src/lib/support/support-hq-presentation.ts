@@ -15,8 +15,21 @@ export function hqQueueSearchHaystack(row: {
   tenantName: string | null;
   requesterName: string | null;
   requesterEmail: string | null;
+  requesterCode?: string | null;
 }): string {
-  return `${row.ticket.subject} ${row.ticket.category ?? ""} ${row.tenantName ?? ""} ${row.requesterName ?? ""} ${row.ticket.contactEmail ?? ""} ${row.ticket.contactName ?? ""} ${row.requesterEmail ?? ""}`.toLowerCase();
+  return `${row.ticket.subject} ${row.ticket.category ?? ""} ${row.tenantName ?? ""} ${row.requesterName ?? ""} ${row.ticket.contactEmail ?? ""} ${row.ticket.contactName ?? ""} ${row.requesterEmail ?? ""} ${row.requesterCode ?? ""}`.toLowerCase();
+}
+
+/**
+ * Desk requester label. A fresh account's `profiles.display_name` is often the
+ * email handle, so the talent's own name wins over it.
+ */
+export function hqRequesterName(input: {
+  talentName: string | null | undefined;
+  profileName: string | null | undefined;
+  contactName: string | null | undefined;
+}): string | null {
+  return input.talentName?.trim() || input.profileName?.trim() || input.contactName?.trim() || null;
 }
 
 export function guestHasNoReplyChannel(ticket: {

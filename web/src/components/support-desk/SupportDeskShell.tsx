@@ -428,6 +428,11 @@ export function SupportDeskShell({
                     <span className="rounded-full bg-admin-surface-alt px-1.5 py-0.5 text-[10px] text-admin-ink-muted">
                       {statusLabel(row)}
                     </span>
+                    {row.requesterCode ? (
+                      <span className="rounded-full bg-admin-surface-alt px-1.5 py-0.5 text-[10px] text-admin-ink-muted">
+                        {row.requesterCode}
+                      </span>
+                    ) : null}
                     {row.ticket.surface === "workspace" ? (
                       <span className="rounded-full bg-admin-indigo-soft px-1.5 py-0.5 text-[10px] text-admin-indigo-deep">
                         {row.tenantSlug ?? "agency"}
@@ -465,7 +470,7 @@ export function SupportDeskShell({
           </button>
         </div>
       </div>
-      <div className="mb-1.5 text-[11px] text-admin-ink-dim">
+      <div className="mb-1.5 truncate text-[11px] text-admin-ink-dim">
         {noteMode
           ? t("dashboard.platform.support.deskRecipientNote")
           : interpolate(t("dashboard.platform.support.deskRecipientReply"), {

@@ -9,6 +9,7 @@ import {
   guestHasNoReplyChannel,
   hqQueueRequesterEmail,
   hqQueueSearchHaystack,
+  hqRequesterName,
   surfaceIcon,
 } from "./support-hq-presentation";
 
@@ -86,4 +87,22 @@ test("escalated guest with no contact_email is a no-reply-channel ticket", () =>
     }),
     false,
   );
+});
+
+test("desk row names the talent, not the account handle, and search finds the TAL code (TUL-51)", () => {
+  assert.equal(
+    hqRequesterName({ talentName: "Rosa Pérez", profileName: "qa-onb-rosa", contactName: null }),
+    "Rosa Pérez",
+  );
+  assert.equal(hqRequesterName({ talentName: " ", profileName: "Valeria", contactName: "V" }), "Valeria");
+  assert.equal(hqRequesterName({ talentName: null, profileName: null, contactName: "Guest" }), "Guest");
+  assert.equal(hqRequesterName({ talentName: null, profileName: null, contactName: null }), null);
+  const hay = hqQueueSearchHaystack({
+    ticket: { subject: "Help", category: null, contactEmail: null, contactName: null },
+    tenantName: null,
+    requesterName: "Rosa",
+    requesterEmail: null,
+    requesterCode: "TAL-93900",
+  });
+  assert.ok(hay.includes("tal-93900"));
 });

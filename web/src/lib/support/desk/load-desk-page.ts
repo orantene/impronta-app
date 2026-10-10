@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { getCachedActorSession } from "@/lib/server/request-cache";
+import { logServerError } from "@/lib/server/safe-error";
 import { loadSupportCannedReplies } from "@/lib/platform/support-canned";
 import { isSupportDeskEnabled } from "@/lib/support/desk-flag";
 import { decideDeskAccess } from "@/lib/support/desk/desk-access";
@@ -27,7 +28,7 @@ export type DeskPageData = {
 
 export type DeskPageResult =
   | { ok: true; data: DeskPageData }
-  | { ok: false; reason: "forbidden"; email: string | null };
+  | { ok: false; reason: "forbidden"; email: string | null; savedLocale: string | null };
 
 /**
  * Shared gate + loader for `/desk`.
@@ -54,10 +55,23 @@ export async function loadDeskPage(opts: {
     redirect(`/login?next=${encodeURIComponent(opts.loginNext)}`);
   }
   if (decision.allow === false && decision.reason === "forbidden") {
+    let savedLocale: string | null = null;
+    if (session.user) {
+      const { data, error } = await session.supabase
+        .from("talent_profiles")
+        .select("preferred_locale")
+        .eq("user_id", session.user.id)
+        .is("deleted_at", null)
+        .limit(1)
+        .maybeSingle();
+      if (error) logServerError("support.desk.forbiddenLocale", error);
+      savedLocale = (data as { preferred_locale?: string | null } | null)?.preferred_locale ?? null;
+    }
     return {
       ok: false,
       reason: "forbidden",
       email: session.user?.email ?? null,
+      savedLocale,
     };
   }
 

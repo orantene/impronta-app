@@ -32,7 +32,7 @@ export default async function SupportDeskPage({
   });
 
   if (!result.ok) {
-    return <SupportDeskForbidden email={result.email} />;
+    return <SupportDeskForbidden email={result.email} savedLocale={result.savedLocale} />;
   }
 
   const data = result.data;
