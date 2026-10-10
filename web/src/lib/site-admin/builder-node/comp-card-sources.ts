@@ -77,6 +77,18 @@ export function resolveCompCardGroupLabel(
     availability: { en: "Availability", es: "Disponibilidad" },
     experience: { en: "Experience", es: "Experiencia" },
     basic_info: { en: "Basics", es: "Básicos" },
+    // Field-architecture catalog titles (match profile_field_groups seeds).
+    "context-best-fit": { en: "Best Fit / Contexts", es: "Mejor Uso / Contexto" },
+    "operational-requirements": {
+      en: "Operational Requirements",
+      es: "Requisitos Operativos",
+    },
+    "certifications-documents": {
+      en: "Certifications / Documents",
+      es: "Certificaciones / Documentos",
+    },
+    "media-portfolio": { en: "Media / Portfolio", es: "Media / Portafolio" },
+    "rates-booking": { en: "Rates / Booking Terms", es: "Tarifas / Condiciones" },
   };
   const hit = curated[slug];
   if (hit) return pickLocale(locale, hit);
