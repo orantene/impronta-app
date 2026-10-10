@@ -20,14 +20,14 @@ import { FOLIO_STYLE_TOKEN_DEFAULTS } from "./folio-defaults";
 import { MAGAZINE_TYPE_SYSTEM_CSS } from "./design-type-system";
 
 const PINS = {
-  editorial: "2c29e6f06863523b", // re-pinned after rebase onto #2527/#2528/#2529 + soft chrome (#2530)
+  editorial: "e11afe5bba3a69fe", // was 2c29e6f06863523b; TUL-121 Maison v2 QA minors (#3116, soft type system). Before: re-pinned after rebase onto #2527/#2528/#2529 + soft chrome (#2530)
   utility: "5450f057f44cf0b4", // TUL-474: area title hooks + sticky work_order clearance + hero kicker nowrap
   highlight: "154aa0752c478aa5", // TUL-474: TITLE_HOOKS includes .sb-area-title
   booking: "8f87f1ae1e51bc17",
   // Re-pinned: only added props.i18n (es + en seed copy), see seed-i18n.ts.
-  maison: "ff484407b68ec492", // was ca897a06ce5564b6; TUL-345: aftercare + before-after seed explicit en overlays. Before (42d225e3c02a4810): TUL-230: the About paragraph is liveText "bio". Before: #88 Book an appointment leads in header + hero; #209: + es/en overlay on portfolio, reviews, header labels
+  maison: "347695625983b226", // was ff484407b68ec492; TUL-121 Maison v2 QA minors (#3116). Before: ca897a06ce5564b6; TUL-345: aftercare + before-after seed explicit en overlays. Before (42d225e3c02a4810): TUL-230: the About paragraph is liveText "bio". Before: #88 Book an appointment leads in header + hero; #209: + es/en overlay on portfolio, reviews, header labels
   // Re-pinned after Gridline contentWidth/full + matrix viewport MQ (#2530), then es + en seed copy.
-  gridline: "3651b5df563fe3b0", // was 428ba73e1fe694a3; TUL-230: the About paragraph is liveText "bio". Before: #209: + es/en overlay on utility bar, alert band, task picker, spec table, visit, portfolio
+  gridline: "ae8c700f7439ee2d", // was 3651b5df563fe3b0; TUL-496 proof/area phone gutter (paddingX/Y m). Before: TUL-230 liveText bio; #209 es/en overlays
 
 };
 
@@ -82,6 +82,17 @@ test("magazine CSS: desktop sizes come from tokens with the TH02 desktop default
   assert.match(PORTFOLIO_MAGAZINE_CSS, /var\(--token-type-group-title-size-desktop,56px\)/);
   assert.match(STATEMENT_FOOTER_MAGAZINE_CSS, /var\(--token-type-footer-title-size-desktop,140px\)/);
   assert.match(MASTHEAD_MAGAZINE_CSS, /aspect-ratio:var\(--sb-mag-cover-aspect-d,4\/3\.4\)/);
+});
+
+test("TUL-476 Folio magazine: cover keeps heads, caption has a scrim, phone intro clears sticky chrome, chapters collapse empty columns", () => {
+  assert.match(MASTHEAD_MAGAZINE_CSS, /\.sb-mag-cover img\{[^}]*object-position:center 18%/);
+  assert.match(MASTHEAD_MAGAZINE_CSS, /\.sb-mag-cover::after\{/);
+  assert.match(MASTHEAD_MAGAZINE_CSS, /color-mix\(in srgb,black 55%,transparent\)/);
+  assert.match(MASTHEAD_MAGAZINE_CSS, /\.sb-mag-tag\{scroll-margin-top:72px/);
+  assert.match(MASTHEAD_MAGAZINE_CSS, /padding-bottom:max\(20px,calc\(72px \+ env\(safe-area-inset-bottom/);
+  assert.match(PORTFOLIO_MAGAZINE_CSS, /\.sb-portfolio--chapter:has\(>:nth-child\(2\):last-child\)\{grid-template-columns:1\.4fr minmax\(0,1fr\)\}/);
+  assert.match(PORTFOLIO_MAGAZINE_CSS, /\.sb-portfolio--chapter:has\(>:only-child\)\{grid-template-columns:minmax\(0,1fr\)\}/);
+  assert.match(PORTFOLIO_MAGAZINE_CSS, /\.sb-portfolio-chapter\{margin:0 0 28px;padding:0\}/);
 });
 
 test("comp strip keeps the TH02 desktop grid and the keyed section is the dark box", () => {

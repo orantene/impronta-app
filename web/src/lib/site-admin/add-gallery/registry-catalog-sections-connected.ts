@@ -149,6 +149,7 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     category: "gallery-section",
     icon: "gallery",
     sectionTemplateId: "gallery",
+    searchTerms: ["gallery", "galería", "galeria", "photos", "fotos", "portfolio", "masonry"],
   }),
   section({
     id: "sec-gallery-strip",
@@ -157,6 +158,7 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     category: "gallery-section",
     icon: "gallery-strip",
     sectionTemplateId: "gallery-strip",
+    searchTerms: ["gallery", "galería", "galeria", "strip", "mosaic", "fotos", "photos"],
   }),
 
   // ── Sections / Featured Talent ──────────────────────────────────────────
@@ -214,7 +216,16 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     category: "testimonials",
     icon: "testimonials",
     sectionTemplateId: "testimonials-trio",
-    searchTerms: ["testimonial", "social proof"],
+    searchTerms: [
+      "testimonial",
+      "testimonials",
+      "testimonios",
+      "reseñas",
+      "reseña",
+      "reviews",
+      "social proof",
+      "prueba social",
+    ],
   }),
 
   // ── Sections / CTA ──────────────────────────────────────────────────────
@@ -243,6 +254,15 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     category: "faq",
     icon: "faq",
     sectionTemplateId: "faq-accordion",
+    searchTerms: [
+      "faq",
+      "faqs",
+      "questions",
+      "preguntas",
+      "acordeón",
+      "acordeon",
+      "preguntas frecuentes",
+    ],
   }),
 
   // ── Sections / Contact ──────────────────────────────────────────────────

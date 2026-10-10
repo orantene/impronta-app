@@ -98,9 +98,11 @@ test("Gridline FAQ heading follows the section-title tokens (25px phone, 40px de
   assert.ok(!/#[0-9a-fA-F]{3,8}\b/.test(UTILITY_TYPE_SYSTEM_CSS.replace(/#(hero|faq)\b/g, "")), "no hex");
 });
 
-test("Gridline utility bar keeps subtitle and status text down to a 330px bar", async () => {
+test("Gridline utility bar keeps its subtitle and status pill down to a 330px bar", async () => {
   const { UTILITY_BAR_CSS } = await import("@/lib/site-admin/builder-node/utility-bar-block");
-  assert.match(UTILITY_BAR_CSS, /@container sbub \(max-width:330px\)\{\.sb-ub-nm small\{display:none\}/);
+  // TUL-474/496 (#3117): below 330px the whole status pill drops (no stray dot); the subtitle stays.
+  assert.match(UTILITY_BAR_CSS, /@container sbub \(max-width:330px\)\{\.sb-ub-pill\{display:none\}/);
+  assert.doesNotMatch(UTILITY_BAR_CSS, /\(max-width:330px\)\{[^}]*\.sb-ub-nm small\{display:none/);
   assert.ok(!UTILITY_BAR_CSS.includes("max-width:370px"));
   // TUL-474: subtitle wraps instead of truncating "Electricista · Monterrey".
   assert.match(UTILITY_BAR_CSS, /\.sb-ub-nm small\{[^}]*white-space:normal/);

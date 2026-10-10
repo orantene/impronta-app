@@ -267,6 +267,10 @@ function maisonV2Hero(makeId: KitIdFactory): BuilderNode {
         style: { ...rest, aspectRatioFree: "4 / 4.3", responsive: { mobile: { aspectRatioFree: "4 / 4.6" } } },
       });
     }
+    if (node.kind === "container" && p.layerLabel === "Hero media") {
+      // TUL-475: clip the inset so the eye photo cannot spill past the hero edge.
+      return withProps(node, { style: { ...styleOf(node), overflow: "hidden" } }, kids.length ? kids : undefined);
+    }
     if (node.kind === "image" && p.src === "{{gallery1}}") {
       const { bottom: _b, right: _r, maxWidthFree: _m, aspectRatio: _a, ...rest } = unrounded(styleOf(node));
       void _b;
@@ -276,10 +280,11 @@ function maisonV2Hero(makeId: KitIdFactory): BuilderNode {
       // Release 2.1: the inset sits bottom-left (above the next-free chip).
       // Its own slotKey makes it a new keyed node, so existing sites take the
       // move as an opt-in layout item rather than an automatic prop change.
+      // TUL-475: keep left >= 0 so the inset stays inside the clipped media stack.
       return withProps(node, {
         slotKey: "hero_inset_bl",
         layerLabel: "Hero inset",
-        style: { ...rest, left: "-22px", bottom: "92px", width: "32%", aspectRatioFree: "3 / 4", borderWidth: "6px" },
+        style: { ...rest, left: "0px", bottom: "92px", width: "32%", aspectRatioFree: "3 / 4", borderWidth: "6px" },
       });
     }
     return kids.length ? withProps(node, {}, kids) : node;

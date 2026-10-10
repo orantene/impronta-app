@@ -1,0 +1,106 @@
+{
+  "generatedAt": "2026-10-08T17:30:00Z",
+  "results": [
+    {
+      "id": 72,
+      "status": "PASS",
+      "line": "390 sticky shows Reservar cita; click only scrolls to #services (external claim CONFIRMED)",
+      "shot": "TUL-72-sticky-390.png"
+    },
+    {
+      "id": 88,
+      "status": "FAIL",
+      "line": "alba 1280: header CTA=Men\u00fa y precios; hero=Ver servicios+Ver trabajos \u2014 theme seed release not on demos",
+      "shot": "TUL-88-alba-1280.png"
+    },
+    {
+      "id": 106,
+      "status": "PASS",
+      "line": "book-jorgelina 390: WA+IG+TikTok with website prefill",
+      "shot": "TUL-106-social-390.png"
+    },
+    {
+      "id": 118,
+      "status": "FAIL",
+      "line": "live-site: name+empty-bands OK; E-14 /en h1 still Spanish on qa-fresh-studio",
+      "shot": "TUL-118-fresh-en-1280.png"
+    },
+    {
+      "id": 123,
+      "status": "NEEDS PM",
+      "line": "needs PM: Turnstile key + guest_captcha_enforced ON + qa-journeys widget/token proof",
+      "shot": null
+    },
+    {
+      "id": 125,
+      "status": "NEEDS PM",
+      "line": "needs PM: isolated qa-journeys fresh signup + DB evidence",
+      "shot": null
+    },
+    {
+      "id": 133,
+      "status": "PASS",
+      "line": "qa-fresh-studio header shows business name (not white-on-white)",
+      "shot": "TUL-133-header-1280.png"
+    },
+    {
+      "id": 139,
+      "status": "NEEDS PM",
+      "line": "needs PM: qa-journeys test booking for single lightbox book event",
+      "shot": null
+    },
+    {
+      "id": 165,
+      "status": "NEEDS PM",
+      "line": "needs PM: design version not in public HTML; Done-when needs drift-monitor 0-behind \u00d77 days",
+      "shot": "maison-v2-versions.json"
+    },
+    {
+      "id": 187,
+      "status": "FAIL",
+      "line": "/en jorg-beauty-qa: no (in Spanish) bio hint; Spanish bio still present",
+      "shot": "TUL-187-qa-en-gallery-1280.png"
+    },
+    {
+      "id": 189,
+      "status": "FAIL",
+      "line": "jorg-beauty-qa ES still shows Semi-permanent gel in ticker/menu",
+      "shot": "TUL-189-ticker-es-1280.png"
+    },
+    {
+      "id": 206,
+      "status": "PASS",
+      "line": "hub TAL-93938 Book/Reservar controls visible (27)",
+      "shot": "TUL-206-hub-1280.png"
+    },
+    {
+      "id": 209,
+      "status": "FAIL",
+      "line": "alba /en portfolio titles + nail promo still Spanish (external /en-Spanish CONFIRMED)",
+      "shot": "TUL-209-alba-en-1280.png"
+    },
+    {
+      "id": 232,
+      "status": "FAIL",
+      "line": "alba chip only scrolls to #services; jorg-beauty-qa has no chip (external CONFIRMED)",
+      "shot": "TUL-232-alba-after-click-1280.png"
+    },
+    {
+      "id": 240,
+      "status": "PASS",
+      "line": "book-jorgelina 390 header social links present",
+      "shot": "TUL-240-header-social-390.png"
+    },
+    {
+      "id": 246,
+      "status": "FAIL",
+      "line": "#book opens guest dock not booking sheet",
+      "shot": "TUL-246-hash-book-1280.png"
+    }
+  ],
+  "counts": {
+    "PASS": 5,
+    "FAIL": 7,
+    "NEEDS PM": 4
+  }
+}

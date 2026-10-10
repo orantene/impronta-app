@@ -29,3 +29,11 @@ test("K9 Folio brand is ink (beats transparent-tone inherit) and contents clear 
     );
     assert.match(MAGAZINE_TYPE_SYSTEM_CSS, /\.sb-mag-toc small\{margin-inline-end:max\(0px,calc\(54px \+ 16px \+ 8px - var\(/);
 });
+
+test("K10 TUL-476 Folio cover crop + caption scrim + chapter empty-column collapse", async () => {
+    const { MASTHEAD_MAGAZINE_CSS } = await import("./masthead-block");
+    const { PORTFOLIO_MAGAZINE_CSS } = await import("./portfolio-block");
+    assert.match(MASTHEAD_MAGAZINE_CSS, /object-position:center 18%/);
+    assert.match(MASTHEAD_MAGAZINE_CSS, /\.sb-mag-cover::after\{/);
+    assert.match(PORTFOLIO_MAGAZINE_CSS, /:has\(>:nth-child\(2\):last-child\)\{grid-template-columns:1\.4fr minmax\(0,1fr\)\}/);
+});
