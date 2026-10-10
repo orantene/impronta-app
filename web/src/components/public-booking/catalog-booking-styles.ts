@@ -43,7 +43,8 @@ export const CATALOG_BOOKING_CSS = `
 .jb-lines{border-top:1px solid var(--cb-line);padding-top:14px;display:grid;gap:8px}
 .jb-lines>div{display:flex;justify-content:space-between;gap:16px;font-size:.9375rem;color:var(--cb-muted)}
 .jb-lines>div span:last-child{font-variant-numeric:tabular-nums;color:var(--cb-ink)}
-.jb-back-link{appearance:none;border:0;background:none;padding:0 0 16px;cursor:pointer;font-family:inherit;font-size:.875rem;color:var(--cb-primary);font-weight:600;min-height:40px}
+/* display:block so stacked back links (start-over + step back) never run together (GRK-069). */
+.jb-back-link{display:block;appearance:none;border:0;background:none;padding:0 0 16px;cursor:pointer;font-family:inherit;font-size:.875rem;color:var(--cb-primary);font-weight:600;min-height:40px;text-align:left;width:100%}
 .jb-recap{margin:0 0 18px;font-size:.9375rem;color:var(--cb-muted)}
 .jb-days{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px}
 .jb-day{flex:0 0 auto;width:64px;min-height:76px;border-radius:12px;cursor:pointer;background:var(--cb-surface);border:1px solid var(--cb-edge);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:inherit;color:var(--cb-ink)}
@@ -87,7 +88,8 @@ export const CATALOG_BOOKING_CSS = `
 .jb-total b{font-size:1.1875rem;font-variant-numeric:tabular-nums}
 .jb-cta{appearance:none;border:0;cursor:pointer;min-height:52px;padding:0 24px;border-radius:10px;background:var(--cb-primary);color:#fff;font-family:inherit;font-size:.9375rem;font-weight:600}
 .jb-cta:hover:not(:disabled){filter:brightness(.92)}
-.jb-cta:disabled{background:var(--cb-edge);color:#fff;cursor:not-allowed}
+/* GRK-070: white-on-edge was nearly invisible; muted ink on soft fill stays readable. */
+.jb-cta:disabled{background:var(--cb-soft);color:var(--cb-muted);cursor:not-allowed}
 .jb-ask{appearance:none;border:0;background:none;padding:14px 0 0;cursor:pointer;font-family:inherit;font-size:.875rem;font-weight:700;color:var(--cb-ink);text-align:left;min-height:44px}
 /* AUD-005 — long CTA labels overflow a single footer row at 360. */
 @media (max-width:400px){.jb-foot{flex-direction:column;align-items:stretch;gap:10px}.jb-total{width:100%}.jb-cta{width:100%}}

@@ -461,7 +461,9 @@ export function CatalogBookingSheet({
         />
 
         <div className="jb-body">
-          {step !== "choose" && step !== "done" ? (
+          {/* GRK-069: only on who — when already has "← Cambiar servicio", and both
+              used to render as one run-on line ("Empezar de nuevo← Cambiar…"). */}
+          {step === "who" ? (
             <button type="button" className="jb-back-link" data-catalog-start-over="" onClick={startOver}>
               {es ? "Empezar de nuevo" : "Start over"}
             </button>

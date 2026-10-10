@@ -17,10 +17,34 @@ export function useScrollSelectedDayIntoView(dayIndex: number, count: number) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const strip = ref.current;
-    const el = strip?.querySelector<HTMLElement>('[data-on="true"]');
-    if (!strip || !el) return;
-    const left = el.offsetLeft - (strip.clientWidth - el.offsetWidth) / 2;
-    strip.scrollLeft = Math.max(0, left);
+    if (!strip) return;
+    // GRK-071: layout often settles after first paint; double-rAF + scrollIntoView
+    // keeps the selected day in view (offsetLeft alone left early days off-strip).
+    let cancelled = false;
+    const run = () => {
+      if (cancelled) return;
+      const el = strip.querySelector<HTMLElement>('[data-on="true"]');
+      if (!el) return;
+      if (typeof el.scrollIntoView === "function") {
+        el.scrollIntoView({ inline: "center", block: "nearest", behavior: "auto" });
+        return;
+      }
+      const left = el.offsetLeft - (strip.clientWidth - el.offsetWidth) / 2;
+      strip.scrollLeft = Math.max(0, left);
+    };
+    const raf =
+      typeof window !== "undefined" && typeof window.requestAnimationFrame === "function"
+        ? window.requestAnimationFrame.bind(window)
+        : (cb: FrameRequestCallback) => window.setTimeout(() => cb(0), 0);
+    const id1 = raf(() => {
+      const id2 = raf(run);
+      void id2;
+    });
+    return () => {
+      cancelled = true;
+      if (typeof window.cancelAnimationFrame === "function") window.cancelAnimationFrame(id1);
+      else window.clearTimeout(id1);
+    };
   }, [dayIndex, count]);
   return ref;
 }
