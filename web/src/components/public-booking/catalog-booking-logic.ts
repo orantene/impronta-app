@@ -239,23 +239,12 @@ export function catalogCollectNowCents(
   return totalCents;
 }
 
-/** Min bookable cents for a row — base amount or cheapest variant. */
-export function catalogRowMinCents(
-  o: Pick<TalentOffering, "amountCents" | "variants">,
-): number | null {
-  const prices = [
-    ...(o.variants ?? []).map((v) => v.amountCents ?? o.amountCents),
-    o.amountCents,
-  ].filter((c): c is number => typeof c === "number" && c > 0);
-  return prices.length ? Math.min(...prices) : o.amountCents ?? null;
-}
-
-/** Maison ladder: "from" display OR more than one variant → DESDE / From. */
-export function catalogRowShowsFrom(
-  o: Pick<TalentOffering, "variants"> & { priceDisplay?: TalentOffering["priceDisplay"] | null },
-): boolean {
-  return o.priceDisplay === "from" || (o.variants ?? []).length > 1;
-}
+// TUL-516: min / from helpers live in public-price-format (one source).
+export {
+  catalogRowMinCents,
+  catalogRowShowsFrom,
+  offeringPriceUnit,
+} from "@/lib/talent/public-price-format";
 
 /** Published hours for demo / canvas: Monday–Saturday. Sunday is closed. */
 export function demoSlotsFor(date: Date, durationMinutes: number | null): string[] {
@@ -425,24 +414,4 @@ export function catalogDayKey(date: Date): string {
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
   return `${date.getFullYear()}-${m}-${d}`;
-}
-
-/**
- * The unit a service is priced by ("uña" in "Desde $120 por uña"), from the
- * offering's long-tail `attributes.price_unit`: a plain string or `{ es, en }`.
- * Null when the service is not priced per unit.
- */
-export function offeringPriceUnit(
-  attributes: Record<string, unknown> | null | undefined,
-  locale: string,
-): string | null {
-  const raw = attributes?.price_unit;
-  if (typeof raw === "string") return raw.trim() || null;
-  if (raw && typeof raw === "object") {
-    const map = raw as Record<string, unknown>;
-    const lang = locale.startsWith("es") ? "es" : "en";
-    const pick = map[lang] ?? map.en ?? map.es;
-    return typeof pick === "string" && pick.trim() ? pick.trim() : null;
-  }
-  return null;
 }

@@ -411,12 +411,22 @@ export function MaisonMenu({
         <div className="mn-bar-text">
           <strong>{selection ? selection.title : labels.barIdleTitle}</strong>
           <span>
-            {selection
-              ? `${selection.detail ? `${selection.detail} · ` : ""}${money(selection.totalCents, selection.currency)}${(() => {
+            {selection ? (
+              <>
+                {selection.detail ? `${selection.detail} · ` : null}
+                {money(selection.totalCents, selection.currency)}
+                {(() => {
                   const usd = usdEquivalentLabel(selection.totalCents, selection.currency, usdRates, locale);
-                  return usd ? ` (${usd})` : "";
-                })()}`
-              : labels.barIdleHint}
+                  return usd ? (
+                    <span data-usd-equivalent className="mn-bar-usd" style={{ display: "block", fontSize: "0.72em", fontWeight: 400, opacity: 0.62 }}>
+                      {usd}
+                    </span>
+                  ) : null;
+                })()}
+              </>
+            ) : (
+              labels.barIdleHint
+            )}
           </span>
         </div>
         {selection ? (

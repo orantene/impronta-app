@@ -226,7 +226,7 @@
       "durationLabel": "30 min",
       "durationMinutes": 30,
       "priceLabel": "Sin costo",
-      "priceAmount": 0,
+      "priceAmount": null,
       "currency": "MXN",
       "mode": "instant",
       "ctaLabel": "Ver horarios",
@@ -255,7 +255,8 @@
         "17:30"
       ],
       "slotNote": "Horarios en CDMX. Para castings fuera de la ciudad, usa Consultar.",
-      "policy": "Si cambia el casting, avísame 12 h antes."
+      "policy": "Si cambia el casting, avísame 12 h antes.",
+      "priceFrom": false
     }
   ],
   "reviews": {

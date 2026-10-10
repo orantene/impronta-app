@@ -47,6 +47,7 @@ import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 import { verifyTalentOfferingIntent } from "@/lib/messaging/talent-offering-intent";
 import { clampTaskBrief } from "@/lib/talent/offering-task-brief";
 import { formatIntakeBlock } from "@/lib/talent/offering-intake";
+import { formatOfferingPrice } from "@/lib/talent/offerings-types";
 import { resolveTalentSiteHostTenant } from "@/lib/messaging/talent-inquiry-tenant.server";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 import { captureGuestMessageDetails } from "@/lib/inquiry/guest-message-extract";
@@ -719,7 +720,7 @@ export async function startGuestChatInquiry(
     offering && !clientPrefixed
       ? `${requestingWord(input.locale)}: ${offeringTitle}${
           offeringAmount != null
-            ? ` (${offering.currency} ${(offeringAmount / 100).toLocaleString()})`
+            ? ` (${formatOfferingPrice(offeringAmount, offering.currency || "USD", input.locale ?? "en")})`
             : ""
         }\n\n`
       : "";

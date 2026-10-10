@@ -224,7 +224,7 @@ h3.mn-display { font-size: 1.625rem; line-height: 1.15; letter-spacing: -0.02em;
 .mn-row-meta { margin: 11px 0 0; font-size: 0.8125rem; color: var(--mn-ink-2); }
 .mn-row-buy { flex: 1 0 100%; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .mn-row-price { font-size: 1.125rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; letter-spacing: -0.01em; }
-.mn-row-price small { display: block; font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mn-ink-2); }
+.mn-row-price small { display: block; font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.04em; text-transform: none; color: var(--mn-ink-2); }
 .mn-row-action { appearance: none; cursor: pointer; font-family: inherit; font-size: 0.9375rem; font-weight: 600; min-height: 46px; padding: 0 20px; border-radius: var(--mn-r); border: 1px solid var(--mn-ink); background: var(--mn-white); color: var(--mn-ink); white-space: nowrap; transition: background-color 200ms var(--mn-ease), color 200ms var(--mn-ease), border-color 200ms var(--mn-ease); }
 .mn-row-action:hover { background: var(--mn-ink); color: var(--mn-white); }
 .mn-row[data-selected="true"] .mn-row-action { border-color: var(--mn-rose); background: var(--mn-blush); color: var(--mn-ink); }

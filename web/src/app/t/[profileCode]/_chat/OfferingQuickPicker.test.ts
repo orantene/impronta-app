@@ -27,14 +27,14 @@ describe("offeringChipPriceLabel", () => {
     assert.equal(offeringChipPriceLabel(offering({ amountCents: 50000, currency: "USD" }), "en"), "$500 USD");
   });
 
-  it("formats MXN chips as amount + code (Hablar mockup)", () => {
+  it("formats MXN chips as $amount CODE with grouping (TUL-516)", () => {
     assert.equal(
-      offeringChipPriceLabel(offering({ amountCents: 50000, currency: "MXN" }), "es"),
-      "500 MXN",
+      offeringChipPriceLabel(offering({ amountCents: 50000, currency: "MXN" }), "es").replace(/\u00a0/g, " "),
+      "$500 MXN",
     );
     assert.equal(
-      offeringChipPriceLabel(offering({ amountCents: 30000, currency: "MXN" }), "es"),
-      "300 MXN",
+      offeringChipPriceLabel(offering({ amountCents: 150000, currency: "MXN" }), "es").replace(/\u00a0/g, " "),
+      "$1,500 MXN",
     );
   });
 

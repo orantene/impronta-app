@@ -1,16 +1,17 @@
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
+import {
+  catalogRowMinCents,
+  catalogRowShowsFrom,
+  isPublicUnpriced,
+  publicConsultLabel,
+  publicQuoteLabel,
+} from "@/lib/talent/public-price-format";
 
-import { catalogRowMinCents, catalogRowShowsFrom } from "./catalog-booking-logic";
-
-/** Quote / custom / missing amount — never paint as $0 (AUD-006). */
+/** Quote / custom / missing / zero amount — never paint as $0 (AUD-006 / TUL-516). */
 export function catalogIsQuote(
   detail: Pick<OfferingRequestDetail, "priceDisplay" | "priceType" | "amountCents">,
 ): boolean {
-  return (
-    detail.priceDisplay === "quote" ||
-    detail.priceType === "custom" ||
-    detail.amountCents == null
-  );
+  return isPublicUnpriced(detail.amountCents, detail.priceDisplay, detail.priceType);
 }
 
 export function catalogPriceLabel(
@@ -19,8 +20,11 @@ export function catalogPriceLabel(
   locale: string,
   money: (cents: number, currency: string) => string,
 ): string {
-  if (catalogIsQuote(detail)) {
-    return locale.toLowerCase().startsWith("es") ? "A cotizar" : "Quote";
+  if (detail.priceDisplay === "quote" || detail.priceType === "custom" || detail.amountCents == null) {
+    return publicQuoteLabel(locale);
+  }
+  if (cents <= 0 || detail.amountCents <= 0) {
+    return publicConsultLabel(locale);
   }
   return money(cents, detail.currency);
 }

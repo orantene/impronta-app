@@ -1,31 +1,24 @@
 /**
  * Price line for a talent's own service rows inside the guest dock catalog.
- * Criteria form: "$500 MXN · ≈ US$28". Refuses a fake USD line when rates are
- * missing — then prints only the local amount ("$500 MXN").
+ * TUL-516: primary is `$500 MXN` only. The ≈ US$ hint is a separate string so
+ * the dock can put it on its own muted line (never `$500 MXN · ≈ US$28`).
  */
 import {
   usdEquivalentLabel,
   type UsdRates,
 } from "@/lib/pricing/usd-equivalent";
+import { formatPublicMoney, publicPricedParts } from "@/lib/talent/public-price-format";
 
 export type DockServiceMenuItem = {
   title: string;
   category: string;
   amountCents?: number | null;
   currency?: string | null;
-  /** Preformatted "$500 MXN · ≈ US$28" (or local-only). Null/absent = unpriced. */
+  /** Preformatted `$500 MXN` (local only). Null/absent = unpriced. */
   priceLabel?: string | null;
+  /** Optional `≈ US$28` for a second muted line. */
+  usdLabel?: string | null;
 };
-
-function localMoneyFigure(amountCents: number): string {
-  const amount = amountCents / 100;
-  const whole = Number.isInteger(amount);
-  const shown = amount.toLocaleString("en-US", {
-    minimumFractionDigits: whole ? 0 : 2,
-    maximumFractionDigits: whole ? 0 : 2,
-  });
-  return `$${shown}`;
-}
 
 export function guestDockServicePriceLabel(
   amountCents: number | null | undefined,
@@ -37,8 +30,26 @@ export function guestDockServicePriceLabel(
     return null;
   }
   const cur = (currency ?? "USD").trim().toUpperCase() || "USD";
-  const fig = localMoneyFigure(amountCents);
-  const withCode = cur === "USD" ? fig : `${fig} ${cur}`;
-  const usd = usdEquivalentLabel(amountCents, cur, fx, locale);
-  return usd ? `${withCode} · ${usd}` : withCode;
+  return formatPublicMoney(amountCents, cur, locale);
+}
+
+/** Separate USD hint for the dock's muted second line. */
+export function guestDockServiceUsdLabel(
+  amountCents: number | null | undefined,
+  currency: string | null | undefined,
+  fx: UsdRates | null | undefined,
+  locale: string,
+): string | null {
+  return usdEquivalentLabel(amountCents, currency, fx, locale);
+}
+
+/** Primary + USD parts (tests / callers that want both). */
+export function guestDockServicePriceParts(
+  amountCents: number | null | undefined,
+  currency: string | null | undefined,
+  fx: UsdRates | null | undefined,
+  locale: string,
+) {
+  const usd = usdEquivalentLabel(amountCents, currency, fx, locale);
+  return publicPricedParts(amountCents, currency, locale, usd);
 }

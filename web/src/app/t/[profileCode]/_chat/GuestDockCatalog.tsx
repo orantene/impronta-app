@@ -81,6 +81,8 @@ export type GuestDockCatalogProps = {
     amountCents?: number | null;
     currency?: string | null;
     priceLabel?: string | null;
+    /** Optional ≈ US$ on its own muted line (TUL-516). */
+    usdLabel?: string | null;
     /** Derived CTA (deriveOfferingCta). Absent reads as an inquiry: "Ask". */
     cta?: OfferingCtaKind | null;
   }[];
@@ -253,11 +255,13 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</div>
                 {item.priceLabel ? (
-                  <div
-                    data-guest-service-price
-                    style={{ fontSize: 11.5, color: C.inkDim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-                  >
-                    {item.priceLabel}
+                  <div data-guest-service-price style={{ fontSize: 11.5, color: C.inkDim, lineHeight: 1.25 }}>
+                    <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.priceLabel}</div>
+                    {item.usdLabel ? (
+                      <div data-usd-equivalent style={{ opacity: 0.72, fontSize: 10.5 }}>
+                        {item.usdLabel}
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
               </div>

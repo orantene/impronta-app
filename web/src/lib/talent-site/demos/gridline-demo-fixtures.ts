@@ -59,7 +59,7 @@ const COPY: Record<Lang, {
     faqTitle: "Questions",
     locTitle: "Where I work",
     by: "By quote",
-    from: "From",
+    from: "from",
     cta: { instant: "See times", request: "Request a visit", quote: "Ask for a quote" },
     note: { instant: "Book online", request: "I confirm by message", quote: "Quote first" },
     prices: (c) => `Prices in ${c}`,
@@ -83,7 +83,7 @@ const COPY: Record<Lang, {
     faqTitle: "Preguntas",
     locTitle: "Dónde trabajo",
     by: "A cotizar",
-    from: "Desde",
+    from: "desde",
     cta: { instant: "Ver horarios", request: "Solicitar visita", quote: "Pedir cotización" },
     note: { instant: "Agenda en línea", request: "Confirmo por mensaje", quote: "Primero cotizo" },
     prices: (c) => `Precios en ${c}`,
@@ -92,21 +92,34 @@ const COPY: Record<Lang, {
   },
 };
 
-const money = (n: number, lang: Lang) => `$${n.toLocaleString(lang === "es" ? "es-MX" : "en-US")}`;
+/** TUL-516: `$550 MXN` — never bare `$550`. */
+const money = (n: number, lang: Lang, cur: string) => {
+  const shown = n.toLocaleString(lang === "es" ? "es-MX" : "en-US");
+  return `$${shown} ${cur}`;
+};
 
 function service(s: Svc, d: Def): FixtureService {
   const c = COPY[d.lang];
   const quote = s.mode === "quote";
+  // Ladder / options: label the cheapest option (hero fact = card).
+  const optionPrices = (s.options ?? []).map(([, , delta]) => s.price + delta).filter((p) => p > 0);
+  const minPrice = optionPrices.length ? Math.min(...optionPrices) : s.price;
+  const showFrom = Boolean(s.from) || (s.options?.length ?? 0) > 1;
   return {
     id: s.id,
     category: s.cat,
     name: s.name,
     durationLabel: s.mins ? s.dur : null,
     durationMinutes: s.mins || null,
-    priceLabel: `${s.from ? `${c.from} ` : ""}${money(s.price, d.lang)}${s.unit ? ` ${s.unit}` : ""}`,
+    priceLabel:
+      s.price <= 0 && !quote
+        ? d.lang === "es"
+          ? "Consultar"
+          : "Ask"
+        : `${showFrom ? `${c.from} ` : ""}${money(minPrice > 0 ? minPrice : s.price, d.lang, d.currency)}${s.unit ? ` ${s.unit}` : ""}`,
     priceAmount: s.price,
     currency: d.currency,
-    ...(s.from ? { priceFrom: true } : {}),
+    ...(showFrom ? { priceFrom: true } : {}),
     ...(s.unit ? { priceUnit: s.unit } : {}),
     mode: s.mode,
     ctaLabel: c.cta[s.mode],

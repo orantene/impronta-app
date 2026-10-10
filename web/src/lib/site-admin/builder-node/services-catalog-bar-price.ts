@@ -1,32 +1,22 @@
 import type { TalentOffering } from "@/lib/talent/offerings-types";
-import { formatMoney } from "@/lib/talent/offerings-money";
-import {
-  catalogRowMinCents,
-  catalogRowShowsFrom,
-  offeringPriceUnit,
-} from "@/components/public-booking/catalog-booking-logic";
+import { publicBarPriceLabel, publicCatalogPriceLabel } from "@/lib/talent/public-price-format";
 
 /**
  * F6 (Phase 0): the price the selection bar shows for a row picked straight
  * from the catalog. A quote-priced offering has no amount, and the bar used to
  * print it as $0.00; it now says it is quoted. A "from" ladder says so too.
+ * TUL-516: shared public formatter (min cents, lowercase desde, Consultar).
  */
 export function catalogBarPriceLabel(
   item: Pick<TalentOffering, "priceDisplay" | "priceType" | "amountCents" | "currency" | "variants">,
   locale: string,
 ): string {
-  const es = locale.startsWith("es");
-  const minCents = catalogRowMinCents(item);
-  if (item.priceDisplay === "quote" || item.priceType === "custom" || minCents == null) {
-    return es ? "A cotizar" : "Quote";
-  }
-  const money = formatMoney(minCents, item.currency, locale);
-  return catalogRowShowsFrom(item) ? `${es ? "Desde" : "From"} ${money}` : money;
+  return publicBarPriceLabel(item, locale);
 }
 
 /**
- * The one-line price a menu row shows ("Desde $120 por uña", "Desde $650",
- * "$900", "A cotizar", "Bajo consulta"). The in-chat service list reuses it so
+ * The one-line price a menu row shows ("desde $120 por uña", "desde $650",
+ * "$900 MXN", "A cotizar", "Bajo consulta"). The in-chat service list reuses it so
  * the per-unit, "from" and quote labels never disagree with the menu.
  */
 export function catalogRowPriceText(
@@ -36,14 +26,20 @@ export function catalogRowPriceText(
   >,
   locale: string,
 ): string {
-  const es = locale.startsWith("es");
-  const onRequest = item.visibility === "on_request";
-  const quote = item.priceDisplay === "quote" || item.priceType === "custom" || item.amountCents == null;
-  const minCents = catalogRowMinCents(item);
-  if (onRequest) return es ? "Bajo consulta" : "On request";
-  if (quote || minCents == null) return es ? "A cotizar" : "Quote";
-  const money = formatMoney(minCents, item.currency, locale);
-  const unit = offeringPriceUnit(item.attributes, locale);
-  if (unit) return `${es ? "Desde" : "From"} ${money} ${es ? "por" : "per"} ${unit}`;
-  return catalogRowShowsFrom(item) ? `${es ? "Desde" : "From"} ${money}` : money;
+  return publicCatalogPriceLabel(item, locale);
+}
+
+/** Buy-column unpriced labels (TUL-516): Consultar / Ask, never `$0 MXN`. */
+export function catalogRowBuyUnpricedLabel(opts: {
+  onRequest: boolean;
+  quote: boolean;
+  minCents: number | null;
+  locale: string;
+}): string {
+  const es = opts.locale.toLowerCase().startsWith("es");
+  if (opts.onRequest) return es ? "Bajo consulta" : "On request";
+  if (opts.minCents != null && opts.minCents <= 0 && !opts.quote) {
+    return es ? "Consultar" : "Ask";
+  }
+  return es ? "Cotización a pedido" : "Quote on request";
 }

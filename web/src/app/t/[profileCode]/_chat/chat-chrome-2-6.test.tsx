@@ -208,7 +208,7 @@ test("CH-4 the in-chat list shows each service with Add and Ask, and a way back"
 test("CH-4 the list uses the menu's own price line: per unit, from, quote", async () => {
   const { catalogRowPriceText } = await import("@/lib/site-admin/builder-node/services-catalog-bar-price");
   const base = { visibility: "public", priceDisplay: "exact", priceType: "flat_package", amountCents: 12000, currency: "MXN", variants: [], attributes: {} } as never;
-  assert.equal(catalogRowPriceText({ ...(base as object), attributes: { price_unit: "nail" } } as never, "es").startsWith("Desde"), true, "per unit shows Desde");
+  assert.equal(catalogRowPriceText({ ...(base as object), attributes: { price_unit: "nail" } } as never, "es").startsWith("desde"), true, "per unit shows desde");
   assert.equal(catalogRowPriceText({ ...(base as object), amountCents: null, priceDisplay: "quote" } as never, "es"), "A cotizar");
   assert.equal(catalogRowPriceText({ ...(base as object), visibility: "on_request" } as never, "en"), "On request");
   // The browser prints that line and drops the duration for a per-unit price.
