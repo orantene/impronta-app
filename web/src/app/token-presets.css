@@ -5955,6 +5955,15 @@ html[data-theme="dark"] [data-tone="light"] {
   .site-header[data-variant="split"] .site-header__brand-label {
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
+  /* TUL-79 / TUL-397: phone CTA must stay inside 390 without blanket ellipsis.
+   * Allow the button to shrink + wrap so "Get in touch" / long ES labels fit. */
+  .site-header__cta {
+    flex: 0 1 auto;
+    min-width: 0;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.2;
+  }
 }
 
 /* Same invariant for the two ROW variants whose brand sits BETWEEN two
