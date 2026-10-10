@@ -8,7 +8,9 @@
     "bio": "Electricista certificado con 12 años en casas y locales. Diagnóstico claro, precio antes de empezar y garantía de 6 meses.",
     "trade": "electrician",
     "city": "Monterrey",
-    "languages": ["Español"],
+    "languages": [
+      "Español"
+    ],
     "yearsOfCraft": 12
   },
   "topBar": {
@@ -27,23 +29,67 @@
       "safety": "si hay chispas u olor a quemado, corta la luz en el interruptor principal y no toques el tablero."
     },
     "dock": {
-      "on": { "label": "Consultar", "serviceId": "emerg" },
-      "off": { "label": "Ver horarios", "serviceId": "rev" }
+      "on": {
+        "label": "Consultar",
+        "serviceId": "emerg"
+      },
+      "off": {
+        "label": "Ver horarios",
+        "serviceId": "rev"
+      }
     }
   },
   "hero": {
     "eyebrow": "Agenda abierta · Monterrey y área metro",
     "headline": "Instalaciones eléctricas seguras, {i}con garantía por escrito.{/i}",
-    "ctas": ["Ver horarios", "¿Qué necesitas?"],
+    "ctas": [
+      "Ver horarios",
+      "¿Qué necesitas?"
+    ],
     "imageKey": "th16-gridline-alex",
     "imageAlt": "Alex Treviño",
     "facts": [
-      { "label": "Respuesta", "value": "24 h" },
-      { "label": "Garantía", "value": "6 meses" },
-      { "label": "Precio", "value": "Antes de empezar" },
-      { "label": "Revisión", "value": "$550" }
+      {
+        "label": "Respuesta",
+        "value": "24 h"
+      },
+      {
+        "label": "Garantía",
+        "value": "6 meses"
+      },
+      {
+        "label": "Precio",
+        "value": "Antes de empezar"
+      },
+      {
+        "label": "Revisión",
+        "value": "$550"
+      }
     ],
-    "badges": ["12 años", "Casas y locales"]
+    "badges": [
+      "12 años",
+      "Casas y locales"
+    ],
+    "factsI18n": {
+      "en": [
+        {
+          "label": "Response",
+          "value": "24 h"
+        },
+        {
+          "label": "Warranty",
+          "value": "6 months"
+        },
+        {
+          "label": "Price",
+          "value": "Before we start"
+        },
+        {
+          "label": "Inspection",
+          "value": "$550"
+        }
+      ]
+    }
   },
   "tasks": {
     "title": "¿Qué está pasando?",
@@ -51,12 +97,48 @@
     "recommendKicker": "Te conviene",
     "detailsLabel": "Detalles",
     "items": [
-      { "id": "t1", "label": "Se fue la luz en una zona", "icon": "dark", "serviceId": "rev", "hint": "Una revisión encuentra el circuito que falla y te da precio antes de reparar." },
-      { "id": "t2", "label": "Instalar lámparas o ventiladores", "icon": "lamp", "serviceId": "lamp", "hint": "Se cobra por pieza. Mándame fotos del techo y de la lámpara." },
-      { "id": "t3", "label": "Se bota el breaker", "icon": "trip", "serviceId": "rev", "hint": "Suele ser sobrecarga o un corto. Primero se revisa, luego se cotiza la reparación." },
-      { "id": "t4", "label": "Tablero viejo o de fusibles", "icon": "panel", "serviceId": "tablero", "hint": "Un cambio de tablero se cotiza con fotos del tablero actual y el número de circuitos." },
-      { "id": "t5", "label": "Contactos que no sirven", "icon": "plug", "serviceId": "rev", "hint": "En la revisión se prueban todos los contactos y se reparan los sencillos ahí mismo." },
-      { "id": "t6", "label": "Chispas u olor a quemado", "icon": "spark", "serviceId": "emerg", "hint": "Corta la luz en el interruptor principal y escríbeme. Atiendo el mismo día cuando hay espacio." }
+      {
+        "id": "t1",
+        "label": "Se fue la luz en una zona",
+        "icon": "dark",
+        "serviceId": "rev",
+        "hint": "Una revisión encuentra el circuito que falla y te da precio antes de reparar."
+      },
+      {
+        "id": "t2",
+        "label": "Instalar lámparas o ventiladores",
+        "icon": "lamp",
+        "serviceId": "lamp",
+        "hint": "Se cobra por pieza. Mándame fotos del techo y de la lámpara."
+      },
+      {
+        "id": "t3",
+        "label": "Se bota el breaker",
+        "icon": "trip",
+        "serviceId": "rev",
+        "hint": "Suele ser sobrecarga o un corto. Primero se revisa, luego se cotiza la reparación."
+      },
+      {
+        "id": "t4",
+        "label": "Tablero viejo o de fusibles",
+        "icon": "panel",
+        "serviceId": "tablero",
+        "hint": "Un cambio de tablero se cotiza con fotos del tablero actual y el número de circuitos."
+      },
+      {
+        "id": "t5",
+        "label": "Contactos que no sirven",
+        "icon": "plug",
+        "serviceId": "rev",
+        "hint": "En la revisión se prueban todos los contactos y se reparan los sencillos ahí mismo."
+      },
+      {
+        "id": "t6",
+        "label": "Chispas u olor a quemado",
+        "icon": "spark",
+        "serviceId": "emerg",
+        "hint": "Corta la luz en el interruptor principal y escríbeme. Atiendo el mismo día cuando hay espacio."
+      }
     ],
     "fallback": {
       "kicker": "¿No sabes qué es?",
@@ -72,35 +154,92 @@
   },
   "matrix": {
     "rows": [
-      { "key": "price", "label": "Precio" },
-      { "key": "dur", "label": "Duración" },
-      { "key": "mode", "label": "Cómo se agenda" },
-      { "key": "mat", "label": "Materiales" },
-      { "key": "war", "label": "Garantía" },
-      { "key": "resp", "label": "Respuesta" }
+      {
+        "key": "price",
+        "label": "Precio"
+      },
+      {
+        "key": "dur",
+        "label": "Duración"
+      },
+      {
+        "key": "mode",
+        "label": "Cómo se agenda"
+      },
+      {
+        "key": "mat",
+        "label": "Materiales"
+      },
+      {
+        "key": "war",
+        "label": "Garantía"
+      },
+      {
+        "key": "resp",
+        "label": "Respuesta"
+      }
     ]
   },
   "specTable": {
     "title": "Especificaciones",
     "subtitle": "Cómo trabajo",
     "rows": [
-      { "label": "Voltaje", "value": "127 V y 220 V, residencial y comercial" },
-      { "label": "Garantía", "value": "6 meses por escrito en mano de obra" },
-      { "label": "Materiales", "value": "Marca y precio en la cotización, antes de comprar" },
-      { "label": "Precio", "value": "Siempre antes de empezar" },
-      { "label": "Pago", "value": "En la visita: efectivo o transferencia" }
+      {
+        "label": "Voltaje",
+        "value": "127 V y 220 V, residencial y comercial"
+      },
+      {
+        "label": "Garantía",
+        "value": "6 meses por escrito en mano de obra"
+      },
+      {
+        "label": "Materiales",
+        "value": "Marca y precio en la cotización, antes de comprar"
+      },
+      {
+        "label": "Precio",
+        "value": "Siempre antes de empezar"
+      },
+      {
+        "label": "Pago",
+        "value": "En la visita: efectivo o transferencia"
+      }
     ]
   },
   "portfolio": {
     "eyebrow": null,
     "title": null,
     "items": [
-      { "imageKey": "th16-gridline-board", "title": "Cambio de tablero", "caption": "OT-0412 · San Pedro · 1 día" },
-      { "imageKey": "th16-gridline-pendant", "title": "Lámpara colgante", "caption": "OT-0398 · Centro · 1 h" },
-      { "imageKey": "th16-gridline-breakers", "title": "Pastillas nuevas", "caption": "OT-0391 · Cumbres · 3 h" },
-      { "imageKey": "th16-gridline-meter", "title": "Revisión de carga", "caption": "OT-0385 · Local, Santa Catarina" },
-      { "imageKey": "th16-gridline-work", "title": "Acometida", "caption": "OT-0377 · Guadalupe · 4 h" },
-      { "imageKey": "th16-gridline-lamps", "title": "6 lámparas", "caption": "OT-0370 · Restaurante, Obispado" }
+      {
+        "imageKey": "th16-gridline-board",
+        "title": "Cambio de tablero",
+        "caption": "OT-0412 · San Pedro · 1 día"
+      },
+      {
+        "imageKey": "th16-gridline-pendant",
+        "title": "Lámpara colgante",
+        "caption": "OT-0398 · Centro · 1 h"
+      },
+      {
+        "imageKey": "th16-gridline-breakers",
+        "title": "Pastillas nuevas",
+        "caption": "OT-0391 · Cumbres · 3 h"
+      },
+      {
+        "imageKey": "th16-gridline-meter",
+        "title": "Revisión de carga",
+        "caption": "OT-0385 · Local, Santa Catarina"
+      },
+      {
+        "imageKey": "th16-gridline-work",
+        "title": "Acometida",
+        "caption": "OT-0377 · Guadalupe · 4 h"
+      },
+      {
+        "imageKey": "th16-gridline-lamps",
+        "title": "6 lámparas",
+        "caption": "OT-0370 · Restaurante, Obispado"
+      }
     ]
   },
   "services": [
@@ -125,19 +264,54 @@
       "free": true,
       "payMode": "free",
       "modeNote": "Agenda en línea",
-      "matrix": { "materials": "Se cotizan", "warranty": "6 meses", "response": "Desde mañana" },
+      "matrix": {
+        "materials": "Se cotizan",
+        "warranty": "6 meses",
+        "response": "Desde mañana"
+      },
       "optionsLabel": "Tipo de inmueble",
       "variants": [
-        { "id": "casa", "label": "Casa", "note": "Hasta 3 recámaras", "priceDelta": 0, "minutesDelta": 0, "deltaLabel": "" },
-        { "id": "depa", "label": "Departamento", "note": "Hasta 2 recámaras", "priceDelta": -50, "minutesDelta": 0, "deltaLabel": "-$50" },
-        { "id": "local", "label": "Local comercial", "note": "Hasta 120 m²", "priceDelta": 250, "minutesDelta": 0, "deltaLabel": "+$250" }
+        {
+          "id": "casa",
+          "label": "Casa",
+          "note": "Hasta 3 recámaras",
+          "priceDelta": 0,
+          "minutesDelta": 0,
+          "deltaLabel": ""
+        },
+        {
+          "id": "depa",
+          "label": "Departamento",
+          "note": "Hasta 2 recámaras",
+          "priceDelta": -50,
+          "minutesDelta": 0,
+          "deltaLabel": "-$50"
+        },
+        {
+          "id": "local",
+          "label": "Local comercial",
+          "note": "Hasta 120 m²",
+          "priceDelta": 250,
+          "minutesDelta": 0,
+          "deltaLabel": "+$250"
+        }
       ],
-      "slots": ["08:00", "10:00", "12:00", "15:00", "17:00"],
+      "slots": [
+        "08:00",
+        "10:00",
+        "12:00",
+        "15:00",
+        "17:00"
+      ],
       "slotNote": "Llego en una ventana de 30 min. Te aviso por mensaje cuando voy en camino.",
       "policy": "Pagas en la visita. Cambios de horario hasta 4 h antes.",
       "payNote": "Pagas en la visita, en efectivo o transferencia. No se cobra nada en línea.",
       "whoFields": [
-        { "key": "col", "label": "Colonia", "placeholder": "Ej. Del Valle, San Pedro" }
+        {
+          "key": "col",
+          "label": "Colonia",
+          "placeholder": "Ej. Del Valle, San Pedro"
+        }
       ]
     },
     {
@@ -160,26 +334,97 @@
       ],
       "imageKey": "th16-gridline-lamps",
       "modeNote": "Solicitud, Alex confirma",
-      "matrix": { "materials": "Tú pones la lámpara", "warranty": "6 meses", "response": "24 a 48 h" },
+      "matrix": {
+        "materials": "Tú pones la lámpara",
+        "warranty": "6 meses",
+        "response": "24 a 48 h"
+      },
       "optionsLabel": "Cuántas piezas",
       "variants": [
-        { "id": "p1", "label": "1 a 2 piezas", "note": "", "priceDelta": 0, "minutesDelta": 0, "deltaLabel": "" },
-        { "id": "p3", "label": "3 a 5 piezas", "note": "", "priceDelta": 0, "minutesDelta": 0, "deltaPct": -5, "deltaLabel": "-5% por pieza" },
-        { "id": "p6", "label": "6 o más", "note": "Se agenda medio día", "priceDelta": 0, "minutesDelta": 0, "deltaPct": -10, "deltaLabel": "-10% por pieza" }
+        {
+          "id": "p1",
+          "label": "1 a 2 piezas",
+          "note": "",
+          "priceDelta": 0,
+          "minutesDelta": 0,
+          "deltaLabel": ""
+        },
+        {
+          "id": "p3",
+          "label": "3 a 5 piezas",
+          "note": "",
+          "priceDelta": 0,
+          "minutesDelta": 0,
+          "deltaPct": -5,
+          "deltaLabel": "-5% por pieza"
+        },
+        {
+          "id": "p6",
+          "label": "6 o más",
+          "note": "Se agenda medio día",
+          "priceDelta": 0,
+          "minutesDelta": 0,
+          "deltaPct": -10,
+          "deltaLabel": "-10% por pieza"
+        }
       ],
       "extras": [
-        { "id": "heavy", "label": "Lámpara de más de 5 kg", "priceDelta": 150, "minutesDelta": 0, "deltaLabel": "+$150", "note": "Requiere soporte reforzado" },
-        { "id": "old", "label": "Retiro de lámpara anterior", "priceDelta": 80, "minutesDelta": 0, "deltaLabel": "+$80", "note": "Por pieza" }
+        {
+          "id": "heavy",
+          "label": "Lámpara de más de 5 kg",
+          "priceDelta": 150,
+          "minutesDelta": 0,
+          "deltaLabel": "+$150",
+          "note": "Requiere soporte reforzado"
+        },
+        {
+          "id": "old",
+          "label": "Retiro de lámpara anterior",
+          "priceDelta": 80,
+          "minutesDelta": 0,
+          "deltaLabel": "+$80",
+          "note": "Por pieza"
+        }
       ],
       "flow": {
         "title": "Solicitar visita",
         "intro": "Esto es una solicitud: Alex confirma el horario antes de apartarlo.",
         "submit": "Enviar solicitud",
         "brief": [
-          { "key": "n", "label": "Número de piezas", "placeholder": "Ej. 3", "inputMode": "numeric" },
-          { "key": "h", "label": "Altura del techo", "type": "select", "options": ["Hasta 2.7 m", "2.7 a 3.5 m", "Más de 3.5 m"] },
-          { "key": "when", "label": "Días que te funcionan", "type": "chips", "options": ["Entre semana", "Sábado", "Mañana", "Tarde"] },
-          { "key": "pic", "label": "Foto del techo y la lámpara", "type": "upload", "placeholder": "Subir foto", "help": "Opcional. Ayuda a llegar con el material correcto." }
+          {
+            "key": "n",
+            "label": "Número de piezas",
+            "placeholder": "Ej. 3",
+            "inputMode": "numeric"
+          },
+          {
+            "key": "h",
+            "label": "Altura del techo",
+            "type": "select",
+            "options": [
+              "Hasta 2.7 m",
+              "2.7 a 3.5 m",
+              "Más de 3.5 m"
+            ]
+          },
+          {
+            "key": "when",
+            "label": "Días que te funcionan",
+            "type": "chips",
+            "options": [
+              "Entre semana",
+              "Sábado",
+              "Mañana",
+              "Tarde"
+            ]
+          },
+          {
+            "key": "pic",
+            "label": "Foto del techo y la lámpara",
+            "type": "upload",
+            "placeholder": "Subir foto",
+            "help": "Opcional. Ayuda a llegar con el material correcto."
+          }
         ]
       }
     },
@@ -202,16 +447,49 @@
       ],
       "imageKey": "th16-gridline-board",
       "modeNote": "Cotización con fotos",
-      "matrix": { "materials": "Incluidos", "warranty": "6 meses", "response": "24 a 48 h" },
+      "matrix": {
+        "materials": "Incluidos",
+        "warranty": "6 meses",
+        "response": "24 a 48 h"
+      },
       "flow": {
         "title": "Pedir cotización",
         "intro": "Con estas fotos te mando una cotización para aceptar o rechazar.",
         "submit": "Pedir cotización",
         "brief": [
-          { "key": "type", "label": "Inmueble", "type": "chips", "options": ["Casa", "Departamento", "Local"] },
-          { "key": "circ", "label": "Circuitos aproximados", "type": "select", "options": ["Hasta 6", "7 a 12", "Más de 12", "No sé"] },
-          { "key": "pic", "label": "Foto del tablero actual", "type": "upload", "placeholder": "Subir foto del tablero" },
-          { "key": "why", "label": "¿Qué pasa?", "type": "area", "placeholder": "Se bota, es de fusibles, huele a quemado…" }
+          {
+            "key": "type",
+            "label": "Inmueble",
+            "type": "chips",
+            "options": [
+              "Casa",
+              "Departamento",
+              "Local"
+            ]
+          },
+          {
+            "key": "circ",
+            "label": "Circuitos aproximados",
+            "type": "select",
+            "options": [
+              "Hasta 6",
+              "7 a 12",
+              "Más de 12",
+              "No sé"
+            ]
+          },
+          {
+            "key": "pic",
+            "label": "Foto del tablero actual",
+            "type": "upload",
+            "placeholder": "Subir foto del tablero"
+          },
+          {
+            "key": "why",
+            "label": "¿Qué pasa?",
+            "type": "area",
+            "placeholder": "Se bota, es de fusibles, huele a quemado…"
+          }
         ]
       }
     },
@@ -234,28 +512,65 @@
       ],
       "imageKey": "th16-gridline-wires",
       "modeNote": "Por chat",
-      "matrix": { "materials": "Se cotizan", "warranty": "6 meses", "response": "Mismo día si hay espacio" },
+      "matrix": {
+        "materials": "Se cotizan",
+        "warranty": "6 meses",
+        "response": "Mismo día si hay espacio"
+      },
       "flow": {
         "title": "Consultar emergencia",
         "intro": "Cuéntame qué pasa. Si hay chispas, corta la luz en el interruptor principal.",
         "submit": "Enviar consulta",
         "brief": [
-          { "key": "what", "label": "¿Qué pasa?", "type": "chips", "options": ["Sin luz en toda la casa", "Sin luz en una zona", "Chispas", "Olor a quemado"] },
-          { "key": "col", "label": "Colonia y municipio", "placeholder": "Ej. Cumbres, Monterrey" },
-          { "key": "pic", "label": "Foto (opcional)", "type": "upload", "placeholder": "Subir foto" }
+          {
+            "key": "what",
+            "label": "¿Qué pasa?",
+            "type": "chips",
+            "options": [
+              "Sin luz en toda la casa",
+              "Sin luz en una zona",
+              "Chispas",
+              "Olor a quemado"
+            ]
+          },
+          {
+            "key": "col",
+            "label": "Colonia y municipio",
+            "placeholder": "Ej. Cumbres, Monterrey"
+          },
+          {
+            "key": "pic",
+            "label": "Foto (opcional)",
+            "type": "upload",
+            "placeholder": "Subir foto"
+          }
         ]
       }
     }
   ],
-  "reviews": { "items": [] },
+  "reviews": {
+    "items": []
+  },
   "about": null,
   "faq": {
     "title": "Preguntas",
     "items": [
-      { "q": "¿La garantía es por escrito?", "a": "Sí. Al terminar te dejo una nota con el trabajo, la fecha y 6 meses de garantía en mano de obra." },
-      { "q": "¿Cobras por ir a ver?", "a": "La revisión cuesta $550 y la pagas en la visita. Si decides reparar, te doy el precio antes." },
-      { "q": "¿Tú compras el material?", "a": "Puedo comprarlo yo con ticket, o lo compras tú con la lista que te mando." },
-      { "q": "¿Atiendes locales comerciales?", "a": "Sí, hasta 120 m² en revisión estándar. Locales más grandes se cotizan." }
+      {
+        "q": "¿La garantía es por escrito?",
+        "a": "Sí. Al terminar te dejo una nota con el trabajo, la fecha y 6 meses de garantía en mano de obra."
+      },
+      {
+        "q": "¿Cobras por ir a ver?",
+        "a": "La revisión cuesta $550 y la pagas en la visita. Si decides reparar, te doy el precio antes."
+      },
+      {
+        "q": "¿Tú compras el material?",
+        "a": "Puedo comprarlo yo con ticket, o lo compras tú con la lista que te mando."
+      },
+      {
+        "q": "¿Atiendes locales comerciales?",
+        "a": "Sí, hasta 120 m² en revisión estándar. Locales más grandes se cotizan."
+      }
     ]
   },
   "stats": [],
@@ -270,7 +585,14 @@
     "headline": "Zona",
     "sub": "Aproximada",
     "rows": [],
-    "areas": ["Monterrey", "San Pedro", "Guadalupe", "San Nicolás", "Santa Catarina", "Apodaca"],
+    "areas": [
+      "Monterrey",
+      "San Pedro",
+      "Guadalupe",
+      "San Nicolás",
+      "Santa Catarina",
+      "Apodaca"
+    ],
     "arrivalNote": "Fuera de esta zona se agrega traslado a la cotización."
   },
   "footer": {
@@ -285,8 +607,12 @@
     "note": "Fictional mockup data. Never written to the database by the demo rebuild.",
     "domain": "alextrevino.tulala.digital",
     "footerFine": "Hecho con Tulala",
-    "heroBadgesExtra": ["Certificado · ficticio de demo"],
-    "areaMap": { "pinLabel": "MTY" },
+    "heroBadgesExtra": [
+      "Certificado · ficticio de demo"
+    ],
+    "areaMap": {
+      "pinLabel": "MTY"
+    },
     "workOrderCaptions": "OT-#### numbers, neighbourhoods and durations on the job cards are sample captions.",
     "samples": {
       "chatReply": "Hola, soy Alex. Mándame una foto de lo que ves y tu colonia, y te digo qué conviene hacer.",
@@ -295,10 +621,180 @@
         "emerg": "Hoy tengo espacio después de las 16:00 en Cumbres. La visita de emergencia es $750 y la reparación te la cotizo ahí."
       },
       "briefAnswers": {
-        "lamp": { "n": "3", "h": "2.7 a 3.5 m", "when": ["Sábado", "Mañana"] },
-        "tablero": { "type": ["Casa"], "circ": "7 a 12" },
-        "emerg": { "what": ["Sin luz en una zona"], "col": "Cumbres, Monterrey" }
+        "lamp": {
+          "n": "3",
+          "h": "2.7 a 3.5 m",
+          "when": [
+            "Sábado",
+            "Mañana"
+          ]
+        },
+        "tablero": {
+          "type": [
+            "Casa"
+          ],
+          "circ": "7 a 12"
+        },
+        "emerg": {
+          "what": [
+            "Sin luz en una zona"
+          ],
+          "col": "Cumbres, Monterrey"
+        }
       }
+    }
+  },
+  "translations": {
+    "en": {
+      "tagline": "Safe electrical work, with a written warranty.",
+      "bio": "Certified electrician with 12 years in homes and businesses. Clear diagnosis, price before we start, and a 6-month warranty.",
+      "topBar": {
+        "subtitle": "Electrician · Monterrey",
+        "phoneAriaLabel": "Call"
+      },
+      "urgency": {
+        "statusOn": "Emergencies today",
+        "statusOff": "No emergencies today",
+        "band": {
+          "title": "Same-day emergency",
+          "safetyLead": "Meanwhile:",
+          "safety": "if you see sparks or smell burning, shut off power at the main breaker and do not touch the panel."
+        },
+        "ctaLabel": "Ask now"
+      },
+      "hero": {
+        "eyebrow": "Schedule open · Monterrey metro area",
+        "headline": "Safe electrical work, {i}with a written warranty.{/i}",
+        "badges": [
+          "12 years",
+          "Homes and businesses"
+        ],
+        "ctas": [
+          "See times",
+          "What do you need?"
+        ]
+      },
+      "tasksTitle": "What is going on?",
+      "tasks": {
+        "t1": {
+          "label": "Power out in one area",
+          "hint": "An inspection finds the failing circuit and quotes the repair before we start."
+        },
+        "t2": {
+          "label": "Install lights or ceiling fans",
+          "hint": "Priced per piece. Send photos of the ceiling and the fixture."
+        },
+        "t3": {
+          "label": "Breaker keeps tripping",
+          "hint": "Usually overload or a short. We inspect first, then quote the repair."
+        },
+        "t4": {
+          "label": "Old or fuse panel",
+          "hint": "A panel upgrade is quoted from photos of the current panel and circuit count."
+        },
+        "t5": {
+          "label": "Outlets that do not work",
+          "hint": "During the inspection we test every outlet and fix simple ones on the spot."
+        },
+        "t6": {
+          "label": "Sparks or burning smell",
+          "hint": "Shut off power at the main breaker and message me. Same-day when there is room."
+        }
+      },
+      "taskDefault": {
+        "kicker": "Not sure what it is?",
+        "hint": "Pick what you see at home and I will tell you what to book. If you are not sure, an inspection finds the fault and I quote before we repair."
+      },
+      "specTable": {
+        "title": "Specifications",
+        "subtitle": "How I work",
+        "rows": [
+          {
+            "label": "Voltage",
+            "value": "127 V and 220 V, residential and commercial"
+          },
+          {
+            "label": "Warranty",
+            "value": "6 months in writing on labor"
+          },
+          {
+            "label": "Materials",
+            "value": "Brand and price in the quote, before buying"
+          },
+          {
+            "label": "Price",
+            "value": "Always before we start"
+          },
+          {
+            "label": "Payment",
+            "value": "On the visit: cash or transfer"
+          }
+        ]
+      },
+      "menu": {
+        "title": "Services",
+        "subtitle": "Prices in MXN"
+      },
+      "services": {
+        "rev": {
+          "name": "Electrical inspection",
+          "description": "I check the panel, outlets and circuits, and explain what is fine and what is not. If repair is needed, I quote before we start.",
+          "category": "Inspection",
+          "matrix": {
+            "materials": "Quoted separately",
+            "warranty": "6 months",
+            "response": "From tomorrow"
+          }
+        },
+        "lamp": {
+          "name": "Light fixture installation",
+          "description": "I install pendants, flush mounts and ceiling fans. I check the box and wiring before hanging anything.",
+          "category": "Installation",
+          "matrix": {
+            "materials": "You supply the fixture",
+            "warranty": "6 months",
+            "response": "24 to 48 h"
+          }
+        },
+        "tablero": {
+          "name": "Panel upgrade",
+          "description": "I replace fuse or overloaded panels with a new breaker panel and labeled circuits. I quote from photos before the visit.",
+          "category": "Panel",
+          "matrix": {
+            "materials": "Included",
+            "warranty": "6 months",
+            "response": "24 to 48 h"
+          }
+        },
+        "emerg": {
+          "name": "Same-day emergency",
+          "description": "If you lost power or something smells burned, message me. I tell you if I can come today and what the visit costs before I leave.",
+          "category": "Emergency",
+          "matrix": {
+            "materials": "Quoted separately",
+            "warranty": "6 months",
+            "response": "Same day when there is room"
+          }
+        }
+      },
+      "faq": [
+        {
+          "q": "Is the warranty in writing?",
+          "a": "Yes. When I finish I leave a note with the work, the date and 6 months of warranty on labor."
+        },
+        {
+          "q": "Do you charge to come look?",
+          "a": "The inspection is $550 and you pay on the visit. If you hire the repair, I quote the price first."
+        },
+        {
+          "q": "Do you buy materials?",
+          "a": "I can buy them with a receipt, or you buy them with the list I send."
+        },
+        {
+          "q": "Do you take commercial jobs?",
+          "a": "Yes, up to 120 m² on the standard inspection. Larger spaces are quoted."
+        }
+      ]
     }
   }
 }

@@ -28,7 +28,7 @@ const MATEO_EN: FolioSiteCopyOverlay = {
 export const FOLIO_DEMO_SITE_COPY: FolioSiteCopy = {
   chapters: [
     { heading: "Editorial", creditLine: "Créditos ficticios de demo · Estudio en CDMX", tocCredit: "Estudio, luz dura" },
-    { heading: "Runway", creditLine: "Show ficticio de demo · 3 salidas", tocCredit: "Salidas y detalles" },
+    { heading: "Pasarela", creditLine: "Show ficticio de demo · 3 salidas", tocCredit: "Salidas y detalles" },
   ],
   coverStatement: "Editorial, runway y campañas.",
   ratesSubtitle: "Tarifas base en MXN. El uso en pauta y los viajes se cotizan aparte.",

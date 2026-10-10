@@ -48,7 +48,19 @@ test("folio: the demo wording lives in the demo site-copy, and applying it resto
   const p = buildFolioPayload();
   const out = applyDemoSiteCopy(p.shellTree as never, p.homeTree as never, { folio: FOLIO_DEMO_SITE_COPY }, () => null, () => "x");
   const text = JSON.stringify(out);
+  // Spanish-primary base (Mateo / FOLIO_DEMO_SITE_COPY) plus EN overlays in i18n (TUL-407 / TUL-494).
   for (const s of [
+    "Créditos ficticios de demo · Estudio en CDMX",
+    "Show ficticio de demo · 3 salidas",
+    "Estudio, luz dura",
+    "Salidas y detalles",
+    "Editorial, runway y campañas.",
+    "Tarifas base en MXN. El uso en pauta y los viajes se cotizan aparte.",
+    "Para editoriales, runway y campañas. Respondo en el día.",
+    "Calzado MX",
+    '"label":"Pasarela","href":"#chapter-2"',
+    '"label":"Pasarela","anchor":"chapter-2"',
+    // EN overlay still lands on props.i18n.en (not base label props).
     "Demo studio credit · CDMX",
     "Demo show credit · 3 exits",
     "Studio, hard light",
@@ -57,10 +69,10 @@ test("folio: the demo wording lives in the demo site-copy, and applying it resto
     "Base rates in MXN. Ad use and travel are quoted separately.",
     "For editorials, runway and campaigns. I reply the same day.",
     "Shoe MX",
-    '"label":"Runway","href":"#chapter-2"',
-    '"label":"Runway","anchor":"chapter-2"',
+    "Runway",
   ]) {
     assert.ok(text.includes(s), `demo copy restores ${s}`);
   }
   assert.ok(!JSON.stringify({ s: p.shellTree, h: p.homeTree }).includes("Runway"));
+  assert.ok(!JSON.stringify({ s: p.shellTree, h: p.homeTree }).includes("Pasarela"));
 });
