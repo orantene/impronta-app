@@ -12,6 +12,9 @@
  *
  * TUL-528:
  * - GRK-033: hero first-viewport CTAs clear the consent card (pad hero chrome).
+ *   Residual (Still on Gridline trades): split/spec `#hero` is in-flow, so
+ *   carousel `padding-bottom` alone does not lift CTAs — phone compact + defer
+ *   the who-card while consent is open.
  * - GRK-034: catalog/footer bottom reserve follows --cb-bar-h on phone + desktop
  *   while the bar/dock is painted (not a hardcoded 72px undershoot).
  * - GRK-039: guest chat panels use aria-modal=false; consent yields to
@@ -58,6 +61,8 @@ body:has(${CONSENT_BANNER_SELECTOR}) .site-bn-hero__inner{padding-bottom:max(cla
 body:has(${CONSENT_BANNER_SELECTOR}) .site-bn-hero__meta{bottom:max(clamp(74px,11vh,134px),calc(var(--floating-consent-clearance) + 12px))}
 body:has(${CONSENT_BANNER_SELECTOR}) .site-bn-hero__cue{bottom:max(30px,calc(var(--floating-consent-clearance) + 8px))}
 body:has(${CONSENT_BANNER_SELECTOR}) #hero{padding-bottom:max(2rem,calc(var(--floating-consent-clearance) + 12px));box-sizing:border-box}
+/* GRK-033 residual: Gridline/split heroes — compact phone + defer who-card. */
+@media (max-width:640px){body:has(${CONSENT_BANNER_SELECTOR}) #hero.site-builder-node--split{padding-top:1.25rem!important;padding-bottom:calc(var(--floating-consent-clearance) + 16px)!important;box-sizing:border-box}body:has(${CONSENT_BANNER_SELECTOR}) #hero.site-builder-node--split > .site-builder-node--container[data-builder-layout="stack"]{padding-top:0!important;padding-bottom:0!important;--bn-gap:0.5rem}body:has(${CONSENT_BANNER_SELECTOR}) #hero.site-builder-node--split > .site-builder-node--container[data-builder-layout="stack"] > .site-builder-node--container:has(> .site-builder-node--button){scroll-margin-bottom:calc(var(--floating-consent-clearance) + 16px)}body:has(${CONSENT_BANNER_SELECTOR}) #hero.site-builder-node--split > :last-child{display:none}}
 `.replace(/\n/g, "");
 
 /**
@@ -116,7 +121,10 @@ export function floatingChromeClearsHeroCtas(css: string): boolean {
   return (
     css.includes(`body:has(${CONSENT_BANNER_SELECTOR}) .site-bn-hero__inner`) &&
     css.includes(`body:has(${CONSENT_BANNER_SELECTOR}) #hero`) &&
-    css.includes("--floating-consent-clearance")
+    css.includes("--floating-consent-clearance") &&
+    // Residual Still on Gridline trades (split/spec #hero).
+    css.includes(`#hero.site-builder-node--split`) &&
+    css.includes(`#hero.site-builder-node--split > :last-child`)
   );
 }
 
