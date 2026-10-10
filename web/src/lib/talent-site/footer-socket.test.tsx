@@ -26,6 +26,9 @@ import {
   talentSiteHelpHref,
   siteHostFromOrigin,
   TULALA_LEGAL_TERMS_URL,
+  talentPolicyPageHref,
+  TALENT_BOOKING_POLICY_PATH,
+  TALENT_PRIVACY_PATH,
 } from "./footer-socket";
 
 const DESIGNS = [...BUILTIN_DESIGNS, MAISON_BUILTIN_DESIGN, ...COLLECTION_DESIGNS];
@@ -184,6 +187,47 @@ test("TUL-498: EN visitor on an ES-primary site gets /en/politicas (and /en/priv
       publicPathPrefix: "/t/site/jor/",
     }).siteLinks[0]!.href,
     "/t/site/jor/en/politicas",
+  );
+});
+
+test("GRK-029: talentPolicyPageHref localizes /politicas for location + socket", () => {
+  assert.equal(
+    talentPolicyPageHref({
+      path: TALENT_BOOKING_POLICY_PATH,
+      locale: "en",
+      primaryLocale: "es",
+      supportedLocales: ["es", "en"],
+    }),
+    "/en/politicas",
+  );
+  assert.equal(
+    talentPolicyPageHref({
+      path: TALENT_PRIVACY_PATH,
+      locale: "en",
+      primaryLocale: "es",
+      supportedLocales: ["es", "en"],
+      publicPathPrefix: "/t/site/sofia/",
+    }),
+    "/t/site/sofia/en/privacidad",
+  );
+  assert.equal(
+    talentPolicyPageHref({
+      path: TALENT_BOOKING_POLICY_PATH,
+      locale: "es",
+      primaryLocale: "es",
+      supportedLocales: ["es", "en"],
+    }),
+    "/politicas",
+  );
+});
+
+test("GRK-029: visit/location block wires talentPolicyPageHref (not bare /politicas)", () => {
+  const render = readFileSync("src/lib/site-admin/builder-node/render.tsx", "utf8");
+  assert.match(render, /talentPolicyPageHref/);
+  assert.match(render, /TALENT_BOOKING_POLICY_PATH/);
+  assert.doesNotMatch(
+    render,
+    /policyHref:\s*`\$\{\(options\.publicPathPrefix[^`]*\}\/politicas`/,
   );
 });
 
