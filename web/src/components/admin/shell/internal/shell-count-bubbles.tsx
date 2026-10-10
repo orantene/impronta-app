@@ -86,13 +86,16 @@ export function ShellCountBubbles({
     countsProp?.find((c) => c.kind === "money")?.count ??
     shellCounts?.money ??
     0;
+  // Talent attention = inbox "esperando tu respuesta" only (same rows +
+  // predicate as Hoy). Do not prefer shellCounts.attention — that stub can
+  // diverge and produced bubble=2 / Hoy clear / inbox=5 (TUL-536).
   const awaiting = inWorkspace
     ? 0
     : countTalentAwaitingInquiries(effectiveTalentInquiries);
   const attention =
     countsProp?.find((c) => c.kind === "attention")?.count ??
-    (shellCounts?.attention && shellCounts.attention > 0
-      ? shellCounts.attention
+    (inWorkspace
+      ? (shellCounts?.attention ?? 0)
       : awaiting);
 
   const visible = visibleShellCountBubbles([

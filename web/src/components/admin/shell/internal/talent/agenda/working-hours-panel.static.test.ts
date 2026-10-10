@@ -37,6 +37,10 @@ test("TUL-358: Horario panel opens on profile id alone (never week calendar with
   const legacyCal = read("talent/pages/CalendarPage.tsx");
   assert.match(legacyCal, /openWorkingHoursPanel/);
   assert.doesNotMatch(legacyCal, /openDrawer\("talent-block-dates"\)/);
+  // Zona horaria control lives on the hours form the panel embeds (TUL-536).
+  const hours = read("talent/agenda/AgendaAvailabilityPage.tsx");
+  assert.match(hours, /TimezonePicker/);
+  assert.match(panel, /AgendaAvailabilityPage/);
 });
 
 test("the panel is a drawer on desktop and a bottom sheet on a phone, and closes after a real save", () => {
