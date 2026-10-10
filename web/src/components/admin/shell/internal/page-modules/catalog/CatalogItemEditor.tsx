@@ -19,7 +19,7 @@ import { useT } from "@/i18n/use-t";
 import { MobileDetailHeaderSyncer } from "../mobile-header-store";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import type { OfferingsEditor } from "@/components/talent/services/use-offerings-editor";
-import { formatOfferingPrice, type TalentOffering } from "@/lib/talent/offerings-types";
+import { type TalentOffering } from "@/lib/talent/offerings-types";
 import { ActionButton, Outcome, StatePill, UsedIn } from "../appointments-classes-ui";
 import type { CatalogNav } from "./CatalogPage";
 import { ITEM_TABS, PUBLISH_BLOCKER_KEY, itemType, publishBlockers, type ItemTab } from "./catalog-model";
@@ -32,6 +32,7 @@ import { AvailabilityTab, AvailabilitySide, FulfillmentTab } from "./item-tab-av
 import { ChannelsTab, ChannelsSide, PoliciesTab } from "./item-tab-channels";
 import { WhoPerforms } from "@/components/admin/people/WhoPerforms";
 import { useAdminShell } from "../../state";
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 
 export type ItemPatch = (p: Partial<TalentOffering>) => void;
 
@@ -116,7 +117,7 @@ export function CatalogItemEditor({
   }));
 
   const tabProps: TabProps = { item, patch, editor, tenantId, isDraft, saving: editor.saving };
-  const price = item.amountCents == null ? t("dashboard.catalog.dash") : formatOfferingPrice(item.amountCents, item.currency, locale);
+  const price = item.amountCents == null ? t("dashboard.catalog.dash") : formatDashboardMoneyCents(item.amountCents, item.currency, locale);
 
   let body: ReactNode;
   let side: ReactNode;

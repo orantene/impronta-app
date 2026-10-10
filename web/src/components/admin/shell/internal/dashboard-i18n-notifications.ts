@@ -24,4 +24,7 @@ export const NOTIFICATIONS_ES_TEXT: Record<string, string> = {
   "A guest time is confirmed.": "El horario de un invitado quedó confirmado.",
   "A held time is about to lapse.": "Un horario apartado está por vencer.",
   "A workspace asked for help.": "Un espacio de trabajo pidió ayuda.",
+  // TUL-390 — popover chrome (category tabs + See all)
+  "Attention": "Atención",
+  "See all notifications": "Ver todas las notificaciones",
 };
