@@ -55,10 +55,23 @@ export type TalentSiteDomainRecord = {
   sslProvisionedAt: string | null;
   lastHealthCheckAt: string | null;
   failureReason: string | null;
+  /** How the domain was obtained (migration 20261231300000). */
+  acquisition: string | null;
+  /** WAVE 1B D6 — plan grace / detach markers. */
+  planGraceStartedAt: string | null;
+  planGraceEndsAt: string | null;
+  vercelDetachedAt: string | null;
+  registrarAutoRenewDisabledAt: string | null;
+  domainDisposition: string | null;
 };
 
-const DOMAIN_COLUMNS =
-  "id, talent_profile_id, domain, status, verification_token, is_primary, created_at, updated_at, verified_at, ssl_provisioned_at, last_health_check_at, failure_reason";
+const DOMAIN_COLUMNS_BASE =
+  "id, talent_profile_id, domain, status, verification_token, is_primary, created_at, updated_at, verified_at, ssl_provisioned_at, last_health_check_at, failure_reason, acquisition";
+
+// Parked for PM in `supabase/migrations/_pending_pm/20261231357100_…` until
+// `db:push`. Prefer selecting them; fall back when PostgREST says missing.
+const DOMAIN_COLUMNS_WITH_GRACE =
+  `${DOMAIN_COLUMNS_BASE}, plan_grace_started_at, plan_grace_ends_at, vercel_detached_at, registrar_auto_renew_disabled_at, domain_disposition`;
 
 type DomainRowDb = {
   id: string;
@@ -73,7 +86,27 @@ type DomainRowDb = {
   ssl_provisioned_at: string | null;
   last_health_check_at: string | null;
   failure_reason: string | null;
+  acquisition?: string | null;
+  plan_grace_started_at?: string | null;
+  plan_grace_ends_at?: string | null;
+  vercel_detached_at?: string | null;
+  registrar_auto_renew_disabled_at?: string | null;
+  domain_disposition?: string | null;
 };
+
+function isMissingGraceColumnError(error: unknown): boolean {
+  const msg = String(
+    (error as { message?: string } | null)?.message ?? error ?? "",
+  ).toLowerCase();
+  return (
+    msg.includes("plan_grace_") ||
+    msg.includes("vercel_detached_at") ||
+    msg.includes("registrar_auto_renew_disabled_at") ||
+    msg.includes("domain_disposition") ||
+    msg.includes("does not exist") ||
+    msg.includes("schema cache")
+  );
+}
 
 function mapDomainRow(row: DomainRowDb): TalentSiteDomainRecord {
   return {
@@ -89,6 +122,12 @@ function mapDomainRow(row: DomainRowDb): TalentSiteDomainRecord {
     sslProvisionedAt: row.ssl_provisioned_at,
     lastHealthCheckAt: row.last_health_check_at,
     failureReason: row.failure_reason,
+    acquisition: row.acquisition ?? null,
+    planGraceStartedAt: row.plan_grace_started_at ?? null,
+    planGraceEndsAt: row.plan_grace_ends_at ?? null,
+    vercelDetachedAt: row.vercel_detached_at ?? null,
+    registrarAutoRenewDisabledAt: row.registrar_auto_renew_disabled_at ?? null,
+    domainDisposition: row.domain_disposition ?? null,
   };
 }
 
@@ -113,14 +152,29 @@ export async function loadTalentSiteDomains(
   supabase: SupabaseClient,
   talentProfileId: string,
 ): Promise<TalentSiteDomainRecord[]> {
-  const { data, error } = await supabase
+  const withGrace = await supabase
     .from("talent_site_domains")
-    .select(DOMAIN_COLUMNS)
+    .select(DOMAIN_COLUMNS_WITH_GRACE)
     .eq("talent_profile_id", talentProfileId)
     .order("is_primary", { ascending: false })
     .order("created_at", { ascending: true });
+  let data: DomainRowDb[] | null =
+    (withGrace.data as DomainRowDb[] | null) ?? null;
+  let error = withGrace.error;
+  // Grace cols parked until PM `db:push` — BASE select is a narrower string,
+  // so keep `data` as DomainRowDb[] (not the WITH_GRACE inferred shape).
+  if (error && isMissingGraceColumnError(error)) {
+    const base = await supabase
+      .from("talent_site_domains")
+      .select(DOMAIN_COLUMNS_BASE)
+      .eq("talent_profile_id", talentProfileId)
+      .order("is_primary", { ascending: false })
+      .order("created_at", { ascending: true });
+    data = (base.data as DomainRowDb[] | null) ?? null;
+    error = base.error;
+  }
   if (error) throw error;
-  return ((data ?? []) as DomainRowDb[]).map(mapDomainRow);
+  return (data ?? []).map(mapDomainRow);
 }
 
 /** Load one domain row for a talent by its hostname. */
@@ -129,15 +183,28 @@ export async function loadTalentSiteDomain(
   talentProfileId: string,
   domain: string,
 ): Promise<TalentSiteDomainRecord | null> {
-  const { data, error } = await supabase
+  const withGrace = await supabase
     .from("talent_site_domains")
-    .select(DOMAIN_COLUMNS)
+    .select(DOMAIN_COLUMNS_WITH_GRACE)
     .eq("talent_profile_id", talentProfileId)
     .eq("domain", domain)
     .maybeSingle();
+  let data: DomainRowDb | null =
+    (withGrace.data as DomainRowDb | null) ?? null;
+  let error = withGrace.error;
+  if (error && isMissingGraceColumnError(error)) {
+    const base = await supabase
+      .from("talent_site_domains")
+      .select(DOMAIN_COLUMNS_BASE)
+      .eq("talent_profile_id", talentProfileId)
+      .eq("domain", domain)
+      .maybeSingle();
+    data = (base.data as DomainRowDb | null) ?? null;
+    error = base.error;
+  }
   if (error) throw error;
   if (!data) return null;
-  return mapDomainRow(data as DomainRowDb);
+  return mapDomainRow(data);
 }
 
 /**

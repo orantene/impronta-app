@@ -17071,44 +17071,77 @@ export type Database = {
       }
       talent_site_domains: {
         Row: {
+          acquisition: string | null
           created_at: string
           domain: string
+          domain_disposition: string | null
           failure_reason: string | null
+          grace_notice_sent_at: string | null
+          disposition_notice_sent_at: string | null
           id: string
           is_primary: boolean
           last_health_check_at: string | null
+          plan_grace_ends_at: string | null
+          plan_grace_started_at: string | null
+          registrant_email: string | null
+          registrar_auto_renew_disabled_at: string | null
           ssl_provisioned_at: string | null
           status: string
+          stripe_checkout_session_id: string | null
           talent_profile_id: string
           updated_at: string
+          vercel_detached_at: string | null
+          vercel_order_id: string | null
           verification_token: string | null
           verified_at: string | null
         }
         Insert: {
+          acquisition?: string | null
           created_at?: string
           domain: string
+          domain_disposition?: string | null
           failure_reason?: string | null
+          grace_notice_sent_at?: string | null
+          disposition_notice_sent_at?: string | null
           id?: string
           is_primary?: boolean
           last_health_check_at?: string | null
+          plan_grace_ends_at?: string | null
+          plan_grace_started_at?: string | null
+          registrant_email?: string | null
+          registrar_auto_renew_disabled_at?: string | null
           ssl_provisioned_at?: string | null
           status?: string
+          stripe_checkout_session_id?: string | null
           talent_profile_id: string
           updated_at?: string
+          vercel_detached_at?: string | null
+          vercel_order_id?: string | null
           verification_token?: string | null
           verified_at?: string | null
         }
         Update: {
+          acquisition?: string | null
           created_at?: string
           domain?: string
+          domain_disposition?: string | null
           failure_reason?: string | null
+          grace_notice_sent_at?: string | null
+          disposition_notice_sent_at?: string | null
           id?: string
           is_primary?: boolean
           last_health_check_at?: string | null
+          plan_grace_ends_at?: string | null
+          plan_grace_started_at?: string | null
+          registrant_email?: string | null
+          registrar_auto_renew_disabled_at?: string | null
           ssl_provisioned_at?: string | null
           status?: string
+          stripe_checkout_session_id?: string | null
           talent_profile_id?: string
           updated_at?: string
+          vercel_detached_at?: string | null
+          vercel_order_id?: string | null
           verification_token?: string | null
           verified_at?: string | null
         }

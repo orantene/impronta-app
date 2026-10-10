@@ -4,11 +4,13 @@ import assert from "node:assert/strict";
 import {
   buyDomain,
   checkRegistrarSearchRateLimit,
+  getDomainAuthCode,
   getDomainAvailability,
   getDomainPrice,
   readVercelRegistrarConfig,
   resetRegistrarSearchRateLimitForTests,
   searchDomainQuote,
+  setDomainAutoRenew,
 } from "./vercel-domains-registrar";
 
 test("readVercelRegistrarConfig returns null when token missing", () => {
@@ -151,4 +153,41 @@ test("checkRegistrarSearchRateLimit caps per talent id", () => {
   const blocked = checkRegistrarSearchRateLimit("tal_1", now + 11);
   assert.equal(blocked.ok, false);
   assert.equal(checkRegistrarSearchRateLimit("tal_2", now + 11).ok, true);
+});
+
+test("setDomainAutoRenew skips without token and PATCHes when configured", async () => {
+  const skipped = await setDomainAutoRenew("bought.test", false, { env: {} });
+  assert.equal(skipped.attempted, false);
+
+  let method = "";
+  let body = "";
+  const updated = await setDomainAutoRenew("bought.test", false, {
+    env: { VERCEL_API_TOKEN: "tok", VERCEL_TEAM_ID: "team_1" },
+    fetchFn: async (url, init) => {
+      method = String(init?.method ?? "");
+      body = String(init?.body ?? "");
+      assert.match(url, /\/v1\/registrar\/domains\/bought\.test\/auto-renew/);
+      assert.match(url, /teamId=team_1/);
+      return new Response(null, { status: 204 });
+    },
+  });
+  assert.equal(updated.attempted, true);
+  assert.equal(updated.updated, true);
+  assert.equal(method, "PATCH");
+  assert.match(body, /"autoRenew":false/);
+});
+
+test("getDomainAuthCode skips without token and returns authCode", async () => {
+  const skipped = await getDomainAuthCode("bought.test", { env: {} });
+  assert.equal(skipped.attempted, false);
+
+  const got = await getDomainAuthCode("bought.test", {
+    env: { VERCEL_TOKEN: "tok" },
+    fetchFn: async (url) => {
+      assert.match(url, /\/v1\/registrar\/domains\/bought\.test\/auth-code/);
+      return new Response(JSON.stringify({ authCode: "AUTH-99" }), { status: 200 });
+    },
+  });
+  assert.equal(got.attempted, true);
+  assert.equal(got.authCode, "AUTH-99");
 });

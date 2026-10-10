@@ -130,6 +130,18 @@ export const WEBSITE_ES_TEXT: Record<string, string> = {
   "Connect domain": "Conectar dominio",
   "Loading domains…": "Cargando dominios…",
   "Connecting your own domain is a Web Office feature. Upgrade to Web Office to point a custom domain at your site.": "Conectar tu propio dominio es una función de Oficina Web. Mejora a Oficina Web para apuntar un dominio personalizado a tu sitio.",
+  "Your Web Office plan ended. Your custom domain is paused. Restore Web Office by {date} to keep it.":
+    "Tu plan de Oficina Web terminó. Tu dominio propio está en pausa. Restaura Oficina Web antes del {date} para conservarlo.",
+  "Your Web Office plan ended. Your custom domain is paused. Restore Web Office within 30 days to keep it.":
+    "Tu plan de Oficina Web terminó. Tu dominio propio está en pausa. Restaura Oficina Web en 30 días para conservarlo.",
+  "After the grace period we disconnect the domain from Tulala. Purchased domains will not keep auto-renewing at our cost.":
+    "Después del periodo de gracia desconectamos el dominio de Tulala. Los dominios comprados no seguirán renovándose a nuestro costo.",
+  "Restore plan": "Restaurar plan",
+  "Restore plan to keep your domain": "Restaura el plan para conservar tu dominio",
+  "Transfer out (auth code)": "Transferir (código de autorización)",
+  "Let it expire": "Dejar que expire",
+  "Transfer-out selected. Auto-renew is off.": "Transferencia elegida. La renovación automática está desactivada.",
+  "This domain will expire. Auto-renew is off.": "Este dominio expirará. La renovación automática está desactivada.",
   "No custom domain yet. Add one above to serve your site from your own address. We will show the DNS records to add.": "Aún no hay dominio personalizado. Agrega uno arriba para servir tu sitio desde tu propia dirección. Te mostraremos los registros DNS a agregar.",
   "Serve your site from your own domain": "Sirve tu sitio desde tu propio dominio",
   "Awaiting TXT": "Esperando TXT",
