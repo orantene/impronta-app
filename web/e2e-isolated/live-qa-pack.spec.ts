@@ -704,16 +704,30 @@ test("TUL-391 · money/approval notification catalog includes refund.failed, pay
 });
 
 test("TUL-397 · builder device switch: content returns; inspector does not cover the whole canvas", async ({ browser }) => {
-  const fx = need(FIX.myself, "myself");
-  const { ctx, page } = await openAs(browser, fx.userId, { width: 1280, height: 900 });
-  await go(page, `${APP}/talent/page-builder`, 20_000);
+  // Pack 2026-10-10 FAIL on myself:/talent/page-builder was the Web Office upsell
+  // ("El editor de páginas es una función de Web Office") — no canvas iframe.
+  // Blank-frame product fix already on main via #3257. Prefer a studio edit
+  // surface that has the builder; skip clearly when the fixture is paywalled.
+  const studio = FIX.studio;
+  const myself = FIX.myself;
+  const fx = studio ?? myself;
+  need(fx, "studio (or myself with Web Office)");
+  const { ctx, page } = await openAs(browser, fx!.userId, { width: 1280, height: 900 });
+  if (studio?.slug) {
+    await go(page, `http://localhost:${SITE_PORT}/w/${studio.slug}?edit=1`, 25_000);
+  } else {
+    await go(page, `${APP}/talent/page-builder`, 20_000);
+  }
+  const paywalled = await page.getByText(/función de Web Office|Web Office feature|no puedes editar este sitio/i).first().isVisible().catch(() => false);
+  test.skip(paywalled, "fixture missing: Web Office / page-builder access (upsell wall, no canvas)");
   const phone = page.getByRole("button", { name: /390|phone|m[oó]vil/i }).or(page.locator("[data-viewport=phone]")).first();
   if (await phone.isVisible().catch(() => false)) {
     await phone.click();
     await page.waitForTimeout(2500);
   }
+  // Require a real canvas — do not accept bare <main> (paywall / empty shell false-pass).
   const canvas = page.locator("iframe, [data-edit-canvas]").first();
-  await expect(canvas).toBeVisible({ timeout: 20_000 });
+  await expect(canvas, "builder canvas iframe after device switch").toBeVisible({ timeout: 20_000 });
   const canvasBox = await canvas.boundingBox();
   const inspector = page.locator("[data-edit-inspector], [data-edit-drawer]").first();
   if (canvasBox && (await inspector.count())) {
