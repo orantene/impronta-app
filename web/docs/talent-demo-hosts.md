@@ -37,6 +37,18 @@ These labels are **not** `talent_sites.site_slug` values. They alias to each des
 
 Do **not** seed these (or talent `{siteSlug}-demo` hosts) into `agency_domains` — that table wins first and would serve them as agency/app hosts instead of talent sites.
 
+## Nickname shorthand hosts (GRK-089)
+
+QA and docs sometimes use first-name / trade nicknames that are not `site_slug` values. Migration `20261231357000_demo_nickname_host_aliases.sql` aliases them the same way as design vanity, then the existing 308 lands on the canonical `-demo` host:
+
+| Host | Resolves to | Redirects to |
+|---|---|---|
+| `alba-demo.tulala.digital` (also bare `alba`) | `alba-nail-artist` | `alba-nail-artist-demo.tulala.digital` |
+| `linh-demo.tulala.digital` (also bare `linh`) | `linh-tran` | `linh-tran-demo.tulala.digital` |
+| `sofia-nails-demo.tulala.digital` (also bare `sofia-nails`) | `camila-nails` | `camila-nails-demo.tulala.digital` |
+
+`sofia-nails` maps by **profession** (nails → Camila), not by the Sofía name (`sofia-rinaldi` is makeup).
+
 ## Going forward
 
 New demo seeds keep an unsuffixed `siteSlug`. Seed/apply scripts verify lookup with `{siteSlug}-demo` and log that host. Do not rename `site_slug` to include `-demo`.
