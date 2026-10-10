@@ -21,3 +21,15 @@ test("talentSiteHostResponse 308s non-canonical demo hosts to the -demo suffix",
   assert.match(SRC, /hostContext\.isDemo === true/);
   assert.match(SRC, /design vanity aliases/);
 });
+
+test("TUL-516: ?lang= is read like ?locale= and stripped on redirect", () => {
+  assert.match(SRC, /talentSiteQueryLocale\(request\.nextUrl\.searchParams\)/);
+  assert.match(SRC, /searchParams\.delete\("lang"\)/);
+  assert.match(SRC, /_talent-locale-unavailable/);
+  assert.match(SRC, /unsupportedLocale/);
+});
+
+test("TUL-516: talent host forwards LOCALE_HEADER so <html lang> matches the body", () => {
+  assert.match(SRC, /talentHeaders\.set\(LOCALE_HEADER, talentLocale\.locale\)/);
+  assert.match(SRC, /ORIGINAL_SEARCH_HEADER/);
+});

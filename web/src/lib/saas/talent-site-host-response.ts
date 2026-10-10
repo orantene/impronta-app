@@ -6,7 +6,7 @@ import {
   localeCookieOptions,
   syncLocaleCookieForPath,
 } from "@/i18n/locale-middleware";
-import { LOCALE_HEADER, ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
+import { LOCALE_HEADER, ORIGINAL_PATHNAME_HEADER, ORIGINAL_SEARCH_HEADER } from "@/i18n/request-locale";
 import { getLanguageSettingsForMiddleware } from "@/lib/language-settings/middleware-locale-cache";
 import {
   HOST_CONTEXT_HEADER,
@@ -20,7 +20,7 @@ import { isTalentSiteHostPathAllowed, talentSiteHostRewritePath } from "@/lib/sa
 import { PUBLIC_PATH_PREFIX_HEADER, TENANT_HEADER_NAME } from "@/lib/saas/scope";
 import { talentDemoBareHostRedirectHost } from "@/lib/talent-site/site-public-url";
 import { loadTalentLocaleSettingsForProxy } from "@/lib/talent-site/talent-site-locale-proxy";
-import { decideTalentSiteLocale } from "@/lib/talent-site/talent-site-locale-routing";
+import { decideTalentSiteLocale, talentSiteQueryLocale } from "@/lib/talent-site/talent-site-locale-routing";
 
 /**
  * Talent custom-domain host (`kind: "talent_site"`, resolved only AFTER
@@ -32,8 +32,10 @@ import { decideTalentSiteLocale } from "@/lib/talent-site/talent-site-locale-rou
  * here, so a client can never spoof it.
  *
  * Language (PR 4, 2026-09-29): the talent's OWN languages and URL grammar,
- * decided by `decideTalentSiteLocale` (prefix > `?locale=` 302 >
+ * decided by `decideTalentSiteLocale` (prefix > `?locale=` / `?lang=` 302 >
  * primary; the cookie never overrides the URL). An explicit choice is remembered in the `locale` cookie.
+ * TUL-516: `?lang=en` is the same choice as `/en`; unsupported query languages
+ * get an honest single-language notice instead of a silent ignore.
  */
 export async function talentSiteHostResponse(
   request: NextRequest,
@@ -76,12 +78,24 @@ export async function talentSiteHostResponse(
   const talentGrammar = { ...talentLangSettings, defaultLocale: talentLocales.defaultLocale, publicLocales: [...talentLocales.supportedLocales] };
   const talentLocale = decideTalentSiteLocale({
     pathname,
-    queryLocale: request.nextUrl.searchParams.get("locale"),
+    queryLocale: talentSiteQueryLocale(request.nextUrl.searchParams),
     primary: talentLocales.defaultLocale,
     supported: talentLocales.supportedLocales,
     knownLocales: talentLangSettings.publicLocales,
   });
   const localeStripped = talentLocale.innerPath;
+
+  const talentHeaders = new Headers(sanitizedInboundHeaders);
+  talentHeaders.set(LOCALE_HEADER, talentLocale.locale);
+  talentHeaders.set(ORIGINAL_PATHNAME_HEADER, request.nextUrl.pathname);
+  talentHeaders.set(ORIGINAL_SEARCH_HEADER, request.nextUrl.search);
+  talentHeaders.set(HOST_CONTEXT_HEADER, "talent_site");
+  talentHeaders.set(HOST_NAME_HEADER, hostContext.hostname);
+  talentHeaders.set(HOST_TALENT_PROFILE_HEADER, hostContext.talentProfileId);
+  // A talent_site host is NOT tenant-scoped — never let a tenant id leak.
+  talentHeaders.delete(TENANT_HEADER_NAME);
+  talentHeaders.delete(HOST_TENANT_SLUG_HEADER);
+  talentHeaders.delete(PUBLIC_PATH_PREFIX_HEADER);
 
   const decision = isTalentSiteHostPathAllowed(localeStripped);
   if (!decision) {
@@ -102,23 +116,26 @@ export async function talentSiteHostResponse(
     }
     return res;
   };
+
+  // TUL-516: unsupported `?lang=` / `?locale=` → explicit single-language notice.
+  if (
+    talentLocale.unsupportedLocale &&
+    (request.method === "GET" || request.method === "HEAD")
+  ) {
+    return rememberChoice(
+      NextResponse.rewrite(new URL("/_talent-locale-unavailable", request.url), {
+        request: { headers: talentHeaders },
+      }),
+    );
+  }
+
   if (talentLocale.redirectPath && (request.method === "GET" || request.method === "HEAD")) {
     const target = request.nextUrl.clone();
     target.pathname = talentLocale.redirectPath;
     target.searchParams.delete("locale");
+    target.searchParams.delete("lang");
     return rememberChoice(NextResponse.redirect(target, 302));
   }
-
-  const talentHeaders = new Headers(sanitizedInboundHeaders);
-  talentHeaders.set(LOCALE_HEADER, talentLocale.locale);
-  talentHeaders.set(ORIGINAL_PATHNAME_HEADER, request.nextUrl.pathname);
-  talentHeaders.set(HOST_CONTEXT_HEADER, "talent_site");
-  talentHeaders.set(HOST_NAME_HEADER, hostContext.hostname);
-  talentHeaders.set(HOST_TALENT_PROFILE_HEADER, hostContext.talentProfileId);
-  // A talent_site host is NOT tenant-scoped — never let a tenant id leak.
-  talentHeaders.delete(TENANT_HEADER_NAME);
-  talentHeaders.delete(HOST_TENANT_SLUG_HEADER);
-  talentHeaders.delete(PUBLIC_PATH_PREFIX_HEADER);
 
   const attachGuestCookie = attachTalentSiteGuestIdentity(request, talentHeaders);
   const finish = (res: NextResponse): NextResponse =>
