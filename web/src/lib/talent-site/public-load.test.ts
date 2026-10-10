@@ -72,26 +72,27 @@ test("dashboard public URL prefers the published personal site, then hub /t/code
     "utf8",
   );
   // Live website first (custom domain / vanity /t/site/<slug>); hub is fallback.
-  // TUL-347 / TUL-180: business owners then override from workspaceSite.publicUrl
-  // (already loaded via getTenantPreviewUrl on the effective-user probe).
+  // TUL-347: business owners then override to the workspace live URL.
   // Never invent `/t/<code>/site` — that path is not a real surface.
   assert.match(
     dashState,
     /let publicSiteUrl: string \| null = personalSiteUrl \?\? \(profileCode \? `\/t\/\$\{profileCode\}` : null\)/,
   );
-  assert.match(dashState, /workspaceSite\?\.publicUrl/);
+  assert.match(dashState, /resolveWorkspaceSitePublicUrl/);
   assert.match(dashState, /publishedPersonalSiteUrl/);
   assert.match(dashState, /talentSitePathUrl/);
   assert.match(dashState, /maxSitePublicGate/);
   assert.equal(dashState.includes("`/t/${profileCode}/site`"), false);
-  // TUL-180: personal field stays personal; workspace loaded for dual primary.
+  // TUL-371: personal field stays personal; workspace loaded for dual primary.
   assert.match(dashState, /personalPublicSiteUrl: personalSiteUrl/);
   assert.match(dashState, /loadOwnedBusinessWorkspace/);
-  // Impersonation-safe (#2824): effective id + pickReadClient, never raw actor/admin.
   assert.match(dashState, /readUserId\(scope\.session\.user\.id, ctx\)/);
   assert.match(dashState, /pickReadClient\(/);
   assert.match(dashState, /loadOwnedBusinessWorkspace\(workspaceClient, subjectUserId\)/);
   assert.equal(dashState.includes("loadOwnedBusinessWorkspace(admin, scope.session.user.id)"), false);
   assert.match(dashState, /getTenantPreviewUrl/);
+  // TUL-371 review: draft-only workspace is not live — published gate + skip URL.
+  assert.match(dashState, /hasPublishedWorkspaceSite/);
+  assert.match(dashState, /isPublished/);
   assert.match(dashState, /isDualSiteOwner: Boolean\(workspaceSite && site\)/);
 });

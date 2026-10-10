@@ -112,9 +112,9 @@ export type TalentSiteDashboardState = {
    */
   talentProfileId: string | null;
   /**
-   * Personal live website or hub `/t/<code>` fallback. Kept for callers that
-   * still mean "personal surface". Dual-owner "My website" primary uses
-   * `resolveTalentDashboardMyWebsite` / `workspaceSite` instead (TUL-180).
+   * Personal site URL or hub `/t/<code>` fallback. Callers that need the
+   * dashboard primary website (Hoy live pill, My website) must use
+   * `resolveTalentDashboardMyWebsite` / `workspaceSite` instead (TUL-371).
    */
   publicSiteUrl: string | null;
   /** Live personal website only (no hub fallback). Null when unpublished. */
@@ -125,6 +125,8 @@ export type TalentSiteDashboardState = {
     publicUrl: string | null;
     adminHref: string;
     tenantId: string;
+    /** True only when at least one cms_pages row is status=published. */
+    isPublished: boolean;
   } | null;
   /** Owns a business workspace site AND has a personal talent_sites row. */
   isDualSiteOwner: boolean;

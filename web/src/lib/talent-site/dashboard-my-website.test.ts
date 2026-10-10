@@ -4,6 +4,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import {
+  isTalentDashboardWebsiteLive,
   PERSONAL_SITE_BUILDER_HREF,
   resolveTalentDashboardMyWebsite,
 } from "./dashboard-my-website";
@@ -22,22 +23,25 @@ const personalSite = {
   draftSnapshot: null,
 };
 
-test("dual owner: My website primary is the business workspace", () => {
+test("TUL-371 dual owner: live pill / My website primary is the business workspace", () => {
   const resolved = resolveTalentDashboardMyWebsite({
-    publicSiteUrl: "https://jorg.tulala.digital",
-    personalPublicSiteUrl: "https://jorg.tulala.digital",
+    publicSiteUrl: "https://studio-2.tulala.digital",
+    personalPublicSiteUrl: "https://studio-2.tulala.digital",
     workspaceSite: {
-      slug: "maison",
-      publicUrl: "https://maison.tulala.digital",
-      adminHref: "/maison/admin/website",
+      slug: "studio",
+      publicUrl: "https://studio.tulala.digital",
+      adminHref: "/studio/admin/website",
       tenantId: "t1",
+      isPublished: true,
     },
     site: personalSite,
     profileCode: "TAL-93900",
   });
   assert.equal(resolved.kind, "workspace");
-  assert.equal(resolved.publicUrl, "https://maison.tulala.digital");
-  assert.equal(resolved.editHref, "/maison/admin/website");
+  assert.equal(resolved.publicUrl, "https://studio.tulala.digital");
+  assert.equal(resolved.editHref, "/studio/admin/website");
+  assert.equal(resolved.workspacePublished, true);
+  assert.equal(isTalentDashboardWebsiteLive("draft", resolved), true);
 });
 
 test("business-only: workspace still wins without a personal row", () => {
@@ -49,12 +53,56 @@ test("business-only: workspace still wins without a personal row", () => {
       publicUrl: "https://tulala.digital/w/maison",
       adminHref: "/maison/admin/website",
       tenantId: "t1",
+      isPublished: true,
     },
     site: null,
     profileCode: "TAL-93900",
   });
   assert.equal(resolved.kind, "workspace");
   assert.equal(resolved.editHref, "/maison/admin/website");
+  assert.equal(resolved.workspacePublished, true);
+});
+
+test("TUL-371 draft-only workspace is NOT live; edit href still workspace", () => {
+  const resolved = resolveTalentDashboardMyWebsite({
+    publicSiteUrl: "https://studio-2.tulala.digital",
+    personalPublicSiteUrl: "https://studio-2.tulala.digital",
+    workspaceSite: {
+      slug: "studio",
+      publicUrl: "https://studio.tulala.digital",
+      adminHref: "/studio/admin/website",
+      tenantId: "t1",
+      isPublished: false,
+    },
+    site: { ...personalSite, status: "draft", publishedAt: null, hasPublishedSnapshot: false },
+    profileCode: "TAL-93900",
+  });
+  assert.equal(resolved.kind, "workspace");
+  assert.equal(resolved.workspacePublished, false);
+  assert.equal(resolved.publicUrl, null);
+  assert.equal(resolved.editHref, "/studio/admin/website");
+  // reward not published → pill must not say Sitio en vivo
+  assert.equal(isTalentDashboardWebsiteLive("draft", resolved), false);
+  assert.equal(isTalentDashboardWebsiteLive("notReady", resolved), false);
+});
+
+test("draft-only workspace: personal reward can still mark live (open personal URL)", () => {
+  const resolved = resolveTalentDashboardMyWebsite({
+    publicSiteUrl: "https://studio-2.tulala.digital",
+    personalPublicSiteUrl: "https://studio-2.tulala.digital",
+    workspaceSite: {
+      slug: "studio",
+      publicUrl: "https://studio.tulala.digital",
+      adminHref: "/studio/admin/website",
+      tenantId: "t1",
+      isPublished: false,
+    },
+    site: personalSite,
+    profileCode: "TAL-93900",
+  });
+  assert.equal(resolved.workspacePublished, false);
+  assert.equal(resolved.publicUrl, null);
+  assert.equal(isTalentDashboardWebsiteLive("published", resolved), true);
 });
 
 test("pure talent: personal site stays primary", () => {
@@ -68,6 +116,7 @@ test("pure talent: personal site stays primary", () => {
   assert.equal(resolved.kind, "personal");
   assert.equal(resolved.editHref, "/talent/page-builder");
   assert.equal(resolved.personalStatus, "published");
+  assert.equal(resolved.workspacePublished, false);
 });
 
 test("hub-only fallback when personal is unpublished", () => {
@@ -101,7 +150,6 @@ test("personal builder escape hatch keeps ?site=personal", () => {
 test("?site=personal is honored: dual owner stays on personal builder", () => {
   const qs = new URL(PERSONAL_SITE_BUILDER_HREF, "https://app.example").searchParams;
   assert.equal(qs.get("site"), "personal");
-  // Same flag page-builder sets from `sp.site === "personal"`.
   const target = resolveMyWebsiteTarget({
     ownsBusinessWorkspace: true,
     hasWorkspaceSite: true,
@@ -113,15 +161,24 @@ test("?site=personal is honored: dual owner stays on personal builder", () => {
   assert.equal(target.href, "/talent/page-builder");
 });
 
-test("page-builder wires sp.site === personal to explicitPersonal", () => {
+test("WebsiteRewardControl prefers resolveTalentDashboardMyWebsite for the live pill", () => {
   const src = readFileSync(
-    join(process.cwd(), "src/app/(workspace)/talent/page-builder/page.tsx"),
+    join(process.cwd(), "src/components/talent/website-reward/WebsiteRewardControl.tsx"),
     "utf8",
   );
-  assert.match(src, /sp\.site\s*===\s*["']personal["']/);
-  // Main probe uses resolveEditSiteRedirect (wraps resolveMyWebsiteTarget) and
-  // object-shorthand `explicitPersonal` on the redirect input.
-  assert.match(src, /explicitPersonal/);
-  assert.match(src, /resolveEditSiteRedirect\(\{[\s\S]*explicitPersonal/);
-  assert.match(src, /editSiteNeedsPersonalProbe\(\{[\s\S]*explicitPersonal/);
+  assert.match(src, /resolveTalentDashboardMyWebsite/);
+  assert.match(src, /isTalentDashboardWebsiteLive/);
+  assert.match(src, /myWebsite\.publicUrl|siteUrl/);
+  // Must not treat any workspace kind as live without the published gate.
+  assert.doesNotMatch(src, /isLive = reward === "published" \|\| myWebsite\?\.kind === "workspace"/);
+});
+
+test("workspace probe requires published for live; draft still counts as hasWorkspaceSite", () => {
+  const src = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/server/workspace-site-context.ts"),
+    "utf8",
+  );
+  assert.match(src, /hasPublishedWorkspaceSite/);
+  assert.match(src, /\.eq\("status", "published"\)/);
+  assert.match(src, /\.neq\("status", "archived"\)/);
 });

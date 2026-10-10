@@ -14,6 +14,10 @@ import { useWebsiteFlow } from "@/components/talent/website-reward/useWebsiteFlo
 import { websiteFlowPending, websitePillProgress } from "@/lib/talent/website-flow";
 import { isWebsitePublished } from "@/lib/talent/website-published-truth";
 import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
+import {
+  isTalentDashboardWebsiteLive,
+  resolveTalentDashboardMyWebsite,
+} from "@/lib/talent-site/dashboard-my-website";
 import { loadMyBio, saveMyBio } from "@/lib/server-actions/ai-writing-helper";
 
 // Missing-item keys come from buildTalentChecklist (src/lib/talent-dashboard.ts).
@@ -79,8 +83,15 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
     detail: flow.state === "notReady" ? pillProgress.detail : flow.text.pillLead,
   };
 
+  // TUL-371: for business / dual owners the workspace site IS the website
+  // (TUL-77). Never open the personal talent_sites `-2` vanity host from Hoy.
+  const myWebsite = siteLoad?.ok ? resolveTalentDashboardMyWebsite(siteLoad.state) : null;
   const goWebsite = () => {
     setOpen(false);
+    if (myWebsite?.kind === "workspace") {
+      router.push(myWebsite.editHref);
+      return;
+    }
     setTalentPage("public-page");
     router.push("/talent/site");
   };
@@ -91,9 +102,15 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
     openSliceTarget(key);
   };
 
-  const siteUrl = siteLoad?.ok ? siteLoad.state.publicSiteUrl : null;
+  // Draft-only workspace withholds publicUrl; fall back to personal / hub.
+  const siteUrl =
+    myWebsite?.publicUrl ??
+    (siteLoad?.ok
+      ? siteLoad.state.personalPublicSiteUrl ?? siteLoad.state.publicSiteUrl
+      : null);
   const siteHost = siteUrl ? siteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "") : null;
-  const isLive = reward === "published";
+  // Workspace is live only when published; draft-only keeps reward as truth.
+  const isLive = isTalentDashboardWebsiteLive(reward, myWebsite);
   const onWebOffice = state.talentTier === "max";
   const onPress = () => {
     if (isLive && onWebOffice) {

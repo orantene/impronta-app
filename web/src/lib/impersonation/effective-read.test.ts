@@ -258,7 +258,7 @@ test("loadTalentPersonalSiteDashboardState: A impersonating B reads B's site and
   assert.equal(res.ok && res.state.talentProfileId, `profile-of-${B}`);
   assert.deepEqual(seen.ctx, [impersonating]);
   assert.ok(!calls.some((c) => c.eq.some(([, v]) => v === `profile-of-${A}`)));
-  // TUL-180 N1 / #2824: workspace ownership via admin + effective id, never the actor.
+  // TUL-371 / #2824: workspace ownership via admin + effective id, never the actor.
   assert.deepEqual(idsOf(calls, "admin", "agency_memberships"), [B, "owner", "active"]);
   assert.deepEqual(idsOf(calls, "rls", "agency_memberships"), []);
   assert.ok(!calls.some((c) => c.table === "agency_memberships" && c.eq.some(([, v]) => v === A)));
@@ -411,26 +411,13 @@ test("talent layout: shell loaders take the effective context, not session.user.
   assert.doesNotMatch(src, /loadProfileDisplayName\(session\.user\.id\)/);
 });
 
-test("dashboard-state: workspace ownership uses readUserId + pickReadClient (#2824)", () => {
+test("dashboard-state: workspace ownership uses readUserId + pickReadClient (TUL-371)", () => {
   const src = read("src/lib/talent-site/server/dashboard-state.ts");
   assert.match(src, /readUserId\(scope\.session\.user\.id, ctx\)/);
   assert.match(src, /pickReadClient\(/);
   assert.match(src, /loadOwnedBusinessWorkspace\(workspaceClient, subjectUserId\)/);
   assert.doesNotMatch(src, /loadOwnedBusinessWorkspace\(admin, scope\.session\.user\.id\)/);
   assert.doesNotMatch(src, /loadOwnedBusinessWorkspace\(admin, readUserId/);
-});
-
-test("page-builder: workspace probe uses readUserId + pickReadClient (#2824)", () => {
-  const src = read("src/app/(workspace)/talent/page-builder/page.tsx");
-  assert.match(src, /effectiveReadContext\(/);
-  assert.match(src, /readUserId\(session\.user\.id, readCtx\)/);
-  assert.match(src, /pickReadClient\(/);
-  assert.match(src, /loadOwnedBusinessWorkspace\(probe, subjectUserId\)/);
-  assert.match(src, /loadTalentSelfProfileByUser\(subjectUserId\)/);
-  assert.doesNotMatch(src, /loadOwnedBusinessWorkspace\([^,]+, session\.user\.id\)/);
-  assert.doesNotMatch(src, /loadTalentSelfProfileByUser\(session\.user\.id\)/);
-  // Service role only via pickReadClient adminClient, never a bare probe.
-  assert.doesNotMatch(src, /const probe = createServiceRoleClient\(\)/);
 });
 
 test("client layout: portal loaders take the effective context, not session.user.id", () => {

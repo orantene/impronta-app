@@ -7,15 +7,22 @@ import { isRetiredWorkspaceStatus } from "@/lib/saas/workspace-lifecycle";
 
 export type OwnedBusinessWorkspace = {
   ownsBusinessWorkspace: boolean;
+  /** Any non-archived cms_pages row (draft or published) — enough for edit href. */
   hasWorkspaceSite: boolean;
+  /**
+   * At least one cms_pages row with status=published. Hoy "Sitio en vivo"
+   * must require this; draft-only sites are not live (TUL-371 review).
+   */
+  hasPublishedWorkspaceSite: boolean;
   workspaceSlug: string | null;
-  /** Owning business workspace tenant id when known (for live URL / editor resolve). */
+  /** Business tenant id when ownership is found; used for public URL resolve. */
   tenantId: string | null;
 };
 
 const NONE: OwnedBusinessWorkspace = {
   ownsBusinessWorkspace: false,
   hasWorkspaceSite: false,
+  hasPublishedWorkspaceSite: false,
   workspaceSlug: null,
   tenantId: null,
 };
@@ -43,24 +50,39 @@ export async function loadOwnedBusinessWorkspace(
   for (const row of (data ?? []) as unknown as Array<{ tenant_id: string; agencies: AgencyJoin | AgencyJoin[] | null }>) {
     const agency = Array.isArray(row.agencies) ? row.agencies[0] ?? null : row.agencies;
     if (!agency?.slug || agency.workspace_type !== "business" || isRetiredWorkspaceStatus(agency.status)) continue;
-    const { data: page, error: pageErr } = await admin
-      .from("cms_pages")
-      .select("id")
-      .eq("tenant_id", row.tenant_id)
-      .neq("status", "archived")
-      .limit(1);
-    if (pageErr) {
-      logServerError("talentSite.workspaceContext.pages", pageErr);
+    // Parallel probes: any editable page vs a published (live) page.
+    const [anyRes, publishedRes] = await Promise.all([
+      admin
+        .from("cms_pages")
+        .select("id")
+        .eq("tenant_id", row.tenant_id)
+        .neq("status", "archived")
+        .limit(1),
+      admin
+        .from("cms_pages")
+        .select("id")
+        .eq("tenant_id", row.tenant_id)
+        .eq("status", "published")
+        .limit(1),
+    ]);
+    if (anyRes.error) {
+      logServerError("talentSite.workspaceContext.pages", anyRes.error);
       return {
         ownsBusinessWorkspace: true,
         hasWorkspaceSite: false,
+        hasPublishedWorkspaceSite: false,
         workspaceSlug: agency.slug,
         tenantId: row.tenant_id,
       };
     }
+    if (publishedRes.error) {
+      logServerError("talentSite.workspaceContext.publishedPages", publishedRes.error);
+    }
     return {
       ownsBusinessWorkspace: true,
-      hasWorkspaceSite: (page ?? []).length > 0,
+      hasWorkspaceSite: (anyRes.data ?? []).length > 0,
+      hasPublishedWorkspaceSite:
+        !publishedRes.error && (publishedRes.data ?? []).length > 0,
       workspaceSlug: agency.slug,
       tenantId: row.tenant_id,
     };

@@ -30,6 +30,7 @@ import { getTenantPreviewUrl } from "@/lib/site-admin/server/tenant-hosts";
 const NO_OWNED_WORKSPACE: OwnedBusinessWorkspace = {
   ownsBusinessWorkspace: false,
   hasWorkspaceSite: false,
+  hasPublishedWorkspaceSite: false,
   workspaceSlug: null,
   tenantId: null,
 };
@@ -103,7 +104,7 @@ export async function loadTalentPersonalSiteDashboardState(
    */
   ctx?: EffectiveReadContext,
   deps: PersonalSiteStateDeps = DEFAULT_STATE_DEPS,
-  /** TUL-180: request host for workspace preview URL resolution. */
+  /** TUL-371: request host for workspace preview URL resolution. */
   options?: { requestHost?: string | null },
 ): Promise<
   | { ok: true; state: TalentSiteDashboardState }
@@ -120,8 +121,8 @@ export async function loadTalentPersonalSiteDashboardState(
   const profileCode = scope.talentProfile.profileCode;
 
   const admin = deps.admin();
-  // TUL-180 / TUL-245 (#2824): workspace ownership is keyed on the effective
-  // user; service client only for a verified impersonation of that target.
+  // TUL-371 / TUL-245: workspace ownership is keyed on the effective user;
+  // service client only for a verified impersonation of that target.
   const subjectUserId = readUserId(scope.session.user.id, ctx);
   const workspaceClient = pickReadClient({
     sessionUserId: scope.session.user.id,
@@ -201,21 +202,29 @@ export async function loadTalentPersonalSiteDashboardState(
       });
     }
 
-    // TUL-180: business workspace site for dual-owner "My website" primary.
+    // TUL-371: business workspace site for dual-owner Hoy primary / Manage website.
+    // Draft-only still gets adminHref; public URL only when published (live pill).
     if (
       ownedWorkspace.ownsBusinessWorkspace &&
       ownedWorkspace.hasWorkspaceSite &&
       ownedWorkspace.workspaceSlug &&
       ownedWorkspace.tenantId
     ) {
-      const publicUrl = await getTenantPreviewUrl(admin, ownedWorkspace.tenantId, {
-        requestHost: options?.requestHost,
-      });
+      const isPublished = ownedWorkspace.hasPublishedWorkspaceSite;
+      // Preview URL is only needed when the site is live; skip the sequential
+      // host resolve for draft-only workspaces (review note on #2972).
+      const publicUrl = isPublished
+        ? await getTenantPreviewUrl(admin, ownedWorkspace.tenantId, {
+            // requestHost is only used for the local-dev port in getTenantPreviewUrl.
+            requestHost: options?.requestHost,
+          })
+        : null;
       workspaceSite = {
         slug: ownedWorkspace.workspaceSlug,
         publicUrl,
         adminHref: workspaceSiteBuilderHref(ownedWorkspace.workspaceSlug),
         tenantId: ownedWorkspace.tenantId,
+        isPublished,
       };
     }
   }
@@ -226,15 +235,6 @@ export async function loadTalentPersonalSiteDashboardState(
     blurb: t.blurb,
     thumbnailUrl: t.thumbnailUrl,
   }));
-
-  // TUL-77 / TUL-347 / TUL-180: when the effective owner has a business
-  // workspace site, surface that live URL on Hoy / presence. Reuse the
-  // workspaceSite already loaded via pickReadClient + subjectUserId — never a
-  // second actor-keyed probe (impersonation would resolve the staff actor).
-  let publicSiteUrl: string | null = personalSiteUrl ?? (profileCode ? `/t/${profileCode}` : null);
-  if (workspaceSite?.publicUrl) {
-    publicSiteUrl = workspaceSite.publicUrl;
-  }
 
   const state: TalentSiteDashboardState = {
     planKey: membership.planKey,
@@ -247,7 +247,8 @@ export async function loadTalentPersonalSiteDashboardState(
     canUseCustomBuilder: membership.capabilities.canUseCustomBuilder,
     profileCode,
     talentProfileId: scope.talentProfile.id,
-    publicSiteUrl,
+    // Prefer the live personal website; hub `/t/<code>` is the discovery fallback.
+    publicSiteUrl: personalSiteUrl ?? (profileCode ? `/t/${profileCode}` : null),
     personalPublicSiteUrl: personalSiteUrl,
     workspaceSite,
     isDualSiteOwner: Boolean(workspaceSite && site),

@@ -288,6 +288,8 @@ export async function TalentLayoutInner({
       : Promise.resolve({ items: [], hours: null, error: null as string | null }),
     loadTalentEarningsByCurrency(talentSelfProfile.id),
     loadTalentPersonalSiteDashboardState(undefined, readCtx, undefined, {
+      // Host is only used for the local-dev port inside getTenantPreviewUrl
+      // (workspace live URL). Production ignores it for host selection.
       requestHost: hdrs.get("x-forwarded-host") ?? hdrs.get("host"),
     }),
     // Stripe Connect payout snapshot for the in-shell Payouts section.
