@@ -15,6 +15,11 @@
  * it honestly. The decision was "stay listed, rank below the ones that are
  * ready". This is that rule.
  *
+ * The one exception (Oran, 2026-10-10, GRK-053): a tier-0 card — no photo
+ * AND nothing to read — is an empty box, not an early profile, so
+ * `fetchDirectoryPage` drops it from every sort. Anyone who has added a
+ * photo or a single trait, fit or price line stays listed.
+ *
  * THE RULE, in plain words — deliberately identical in shape to
  * `applyPortfolioPlacementBoost`, because a fourth different ordering idiom
  * on the same array is how ranking bugs get written:
@@ -30,8 +35,9 @@
  *      presentable cards move ahead of bare ones. Order inside each group is
  *      preserved exactly (stable), so whatever demand and tier decided is
  *      still what decides within a cohort.
- *   5. NOBODY IS HIDDEN. The set of rows on the page, the offset/limit window
- *      and `nextCursor` are all unchanged. It is a permutation of one page.
+ *   5. THIS FUNCTION HIDES NOBODY. The set of rows on the page, the
+ *      offset/limit window and `nextCursor` are all unchanged. It is a
+ *      permutation of one page; the tier-0 drop above is the caller's.
  *
  * WHAT COUNTS AS PRESENTABLE
  * Only what a visitor can actually see on the card: a photo and something to
