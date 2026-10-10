@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { translateDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { agendaI18n } from "./agenda-i18n";
 
 describe("T9.4 agenda i18n", () => {
@@ -44,5 +45,18 @@ describe("T9.4 agenda i18n", () => {
     assert.equal(t("No time"), "Sin hora");
     assert.equal(t("Set a time"), "Asignar hora");
     assert.equal(t("No time assigned"), "Sin hora asignada");
+  });
+
+  it("TUL-358 follow-up: buffer labels are Spanish, not English loanwords", () => {
+    const t = agendaI18n("es");
+    assert.equal(t("Buffer (minutes)"), "Margen entre citas (minutos)");
+    assert.doesNotMatch(t("Buffer (minutes)"), /buffer/i);
+    assert.doesNotMatch(
+      t("Weekly hours, time off, buffer, and timezone. Travel stays on each booking."),
+      /buffer/i,
+    );
+    // Services editor uses the dashboard catalog for the same concept.
+    assert.equal(translateDashboardText("Buffer after", "es"), "Margen después");
+    assert.doesNotMatch(translateDashboardText("Buffer after", "es"), /buffer/i);
   });
 });
