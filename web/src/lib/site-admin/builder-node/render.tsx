@@ -6190,6 +6190,7 @@ function renderBuilderNodeElement(
         node: localizeBlockNode(node, options.contentLocale),
         liveStatus: options.dataSources?.liveStatus,
         callHref: options.dataSources?.callHref,
+        publicPathPrefix: options.publicPathPrefix,
         styleAttr: sharedNodeStyle(node.props.style),
       });
     }

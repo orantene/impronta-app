@@ -4,6 +4,7 @@ import type { BuilderUtilityBarNode, BuilderAlertBandNode } from "./types";
 export const UTILITY_BAR_DEFAULT_PROPS: BuilderUtilityBarNode["props"] = {
   name: "{{displayName}}",
   subtitle: "",
+  homeHref: "/",
   showStatus: true,
   statusOnLabel: "Emergencies today",
   statusOffLabel: "No emergencies today",

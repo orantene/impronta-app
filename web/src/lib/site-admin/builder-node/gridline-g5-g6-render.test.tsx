@@ -85,6 +85,17 @@ test("utility bar: status ON shows the on label and data-on=true", () => {
   assert.match(html, /Pedir visita/);
 });
 
+test("utility bar: logo + name always link home (default /)", () => {
+  const html = render([bar()]);
+  assert.match(html, /<a class="sb-ub-brand" href="\/" data-ub-brand-home="true"/);
+  assert.match(html, /sb-ub-brand[^>]*>[\s\S]*sb-ub-logo[\s\S]*Alex Treviño/);
+});
+
+test("utility bar: homeHref is rendered on the brand anchor", () => {
+  const html = render([bar({ homeHref: "/t/site/alex" })]);
+  assert.match(html, /<a class="sb-ub-brand" href="\/t\/site\/alex" data-ub-brand-home="true"/);
+});
+
 test("utility bar: status OFF (and absent flag) shows the off label", () => {
   for (const ds of [{ liveStatus: LIVE_STATUS_OFF }, {}]) {
     const html = render([bar()], ds);
@@ -149,6 +160,7 @@ test("kit shell: utilityBar option stamps a utility_bar header with the callHref
   assert.equal(child.kind, "utility_bar");
   assert.equal(child.props.callHref, "{{callHref}}");
   assert.equal(child.props.name, "{{displayName}}");
+  assert.equal(child.props.homeHref, "/");
 });
 
 test("emergency kit block carries the emergency slot", () => {

@@ -24,6 +24,7 @@ import { talentPlanGrantsSiteCapability } from "@/lib/access/talent-membership";
 import { readI18n } from "@/lib/i18n/i18n-columns";
 import type { BuilderNode, BuilderNavLink } from "@/lib/site-admin/builder-node/types";
 import { mirrorPropsI18nOntoNodes } from "@/lib/site-admin/builder-node/i18n-overlay";
+import { ensureHeaderCta } from "./header-ensure-cta";
 
 /** Effective tier for the gate. `talent_portfolio` is the Max plan key. */
 export const TALENT_MAX_PLAN_KEY = "talent_portfolio";
@@ -345,7 +346,7 @@ const SITE_HEADER_MAX_NAV_LABEL = 60;
  * page set so a multi-page site's header reflects the talent's pages without the
  * talent hand-maintaining links.
  *
- * TWO header shapes are hydrated, because the shell was refactored underneath
+ * THREE header shapes are hydrated, because the shell was refactored underneath
  * this function and it silently stopped working:
  *
  *  1. a `nav` BUILDER NODE (`props.links`) — the original shape, still valid for
@@ -357,10 +358,15 @@ const SITE_HEADER_MAX_NAV_LABEL = 60;
  *     than holding links itself. Walking only for `kind === "nav"` matched
  *     nothing here, so every multi-page talent Max site rendered a header
  *     containing just the seeded "Home".
+ *  3. a Gridline `utility_bar` (`props.homeHref`) — logo + name brand control;
+ *     same site-home rewrite as `site_header.brand.href`.
+ *  4. kit-shell brand `heading`/`image` (`props.href`) — stale solace/frame
+ *     shells that never adopted `site_header` still need a way home.
  *
  * PURE + non-mutating — returns a new tree (structural clone of the touched
- * branches). A shell with neither shape is returned unchanged. When the site has
- * no published pages, existing links are preserved (never blanked).
+ * branches). A shell with none of these shapes is returned unchanged. When the
+ * site has no published pages, existing links are preserved (never blanked).
+ * After nav rewrite, `ensureHeaderCta` fills any missing header CTA (GRK-081).
  */
 export function hydrateShellNav(
   tree: readonly BuilderNode[],
@@ -369,7 +375,7 @@ export function hydrateShellNav(
   publicPathPrefix = "",
   hrefMode: MaxSiteHrefMode = "path",
 ): BuilderNode[] {
-  if (nav.length === 0) return tree.slice();
+  if (nav.length === 0) return ensureHeaderCta(tree.slice());
 
   const links: BuilderNavLink[] = nav.map((item) => ({
     id: `maxsite-nav-${item.slug}`,
@@ -444,14 +450,39 @@ export function hydrateShellNav(
         },
       } as BuilderNode;
     }
+    // Shape 3 — Gridline `utility_bar`: logo + name must link home (same as
+    // site_header.brand.href). Seeded `homeHref: "/"` is rewritten here.
+    if (node.kind === "utility_bar") {
+      return {
+        ...node,
+        props: {
+          ...node.props,
+          homeHref: brandHref,
+        },
+      } as BuilderNode;
+    }
     const children = (node as { children?: BuilderNode[] }).children;
     if (Array.isArray(children) && children.length > 0) {
-      return { ...node, children: children.map(visit) } as BuilderNode;
+      const visited = children.map(visit);
+      // Shape 4 — kit shell: brand heading/image sibling of `nav` → home.
+      const hasNav = visited.some((c) => c.kind === "nav");
+      if (hasNav) {
+        return {
+          ...node,
+          children: visited.map((c) => {
+            if (c.kind !== "heading" && c.kind !== "image") return c;
+            const layer = String(((c.props ?? {}) as { layerLabel?: unknown }).layerLabel ?? "");
+            if (layer && layer !== "Wordmark" && layer !== "Logo") return c;
+            return { ...c, props: { ...c.props, href: brandHref } } as BuilderNode;
+          }),
+        } as BuilderNode;
+      }
+      return { ...node, children: visited } as BuilderNode;
     }
     return node;
   };
 
-  return tree.map(visit);
+  return ensureHeaderCta(tree.map(visit));
 }
 
 /**

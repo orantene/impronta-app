@@ -148,3 +148,35 @@ test("homeAnchorHref", () => {
   assert.equal(homeAnchorHref("/en", "services"), "/en/#services");
   assert.equal(homeAnchorHref("/en/", "about"), "/en/#about");
 });
+
+test("utility_bar ctaHref and site_header primaryCta rewrite off home (TUL-530)", () => {
+  const bar: BuilderNode[] = [
+    {
+      id: "ub",
+      kind: "utility_bar",
+      props: { name: "Alex", ctaLabel: "Book", ctaHref: "#services" },
+    } as unknown as BuilderNode,
+  ];
+  const home = [section("services")];
+  const out = pruneDeadSectionLinks(bar, home, [], { homePath: "/" });
+  assert.equal((out[0]!.props as { ctaHref: string }).ctaHref, "/#services");
+
+  const hdr: BuilderNode[] = [
+    {
+      id: "h",
+      kind: "section",
+      props: {
+        sectionTypeKey: "site_header",
+        sectionProps: { primaryCta: { label: "Book", href: "#services" }, navItems: [], regions: {} },
+      },
+    } as unknown as BuilderNode,
+  ];
+  const hdrOut = pruneDeadSectionLinks(hdr, home, [], { homePath: "/en" });
+  const sp = (hdrOut[0]!.props as { sectionProps: { primaryCta: { href: string } } }).sectionProps;
+  assert.equal(sp.primaryCta.href, "/en/#services");
+});
+
+test("slotKey alone keeps #services (parity with render id heal)", () => {
+  const page = [{ id: "s", kind: "container", props: { slotKey: "services" } }] as unknown as BuilderNode[];
+  assert.deepEqual(hrefs(pruneDeadSectionLinks(footer("#services"), page)), ["#services"]);
+});
