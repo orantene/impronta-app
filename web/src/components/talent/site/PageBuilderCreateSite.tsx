@@ -26,7 +26,7 @@ function Body() {
       </h1>
       <CreateMySiteCard />
       <p style={{ margin: "16px 0 0", fontSize: 12.5 }}>
-        <Link href="/talent/public-page" style={{ color: COLORS.inkMuted }}>
+        <Link href="/talent/site" style={{ color: COLORS.inkMuted }}>
           {copy.t("Back to my presence")}
         </Link>
       </p>

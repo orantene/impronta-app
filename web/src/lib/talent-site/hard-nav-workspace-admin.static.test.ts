@@ -19,3 +19,15 @@ test("live4-01: talent workspace Edit site hard-navs into admin/website", () => 
   assert.match(pill, /resolveTalentDashboardMyWebsite/);
   assert.match(pill, /window\.location\.assign\(myWebsite\.editHref\)/);
 });
+
+test("live3-01: create/fallback My website hrefs skip the public-page redirect alias", () => {
+  const target = read("src/lib/talent-site/my-website-target.ts");
+  assert.match(target, /CREATE_WEBSITE_HREF = "\/talent\/site"/);
+  assert.doesNotMatch(target, /CREATE_WEBSITE_HREF = "\/talent\/public-page"/);
+
+  const menu = read(
+    "src/components/admin/shell/internal/page-modules/TalentAccountMenuSection.tsx",
+  );
+  assert.match(menu, /\/talent\/site/);
+  assert.doesNotMatch(menu, /\/talent\/public-page/);
+});

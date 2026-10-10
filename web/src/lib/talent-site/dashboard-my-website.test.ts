@@ -91,7 +91,7 @@ test("no site yet points at create", () => {
     profileCode: "TAL-93900",
   });
   assert.equal(resolved.kind, "create");
-  assert.equal(resolved.editHref, "/talent/public-page");
+  assert.equal(resolved.editHref, "/talent/site");
 });
 
 test("personal builder escape hatch keeps ?site=personal", () => {
