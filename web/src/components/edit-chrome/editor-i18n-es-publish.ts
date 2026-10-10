@@ -100,8 +100,6 @@ export const ES_PUBLISH_TEXT: Record<string, string> = {
   "Page version is unavailable. Reload and try again.":
     "La versión de la página no está disponible. Recarga e inténtalo de nuevo.",
   // ── TUL-81 / W5-1 Spanish publish blockers ────────────────────────────────
-  "Add at least one section to": "Agrega al menos una sección a",
-  "before publishing.": "antes de publicar.",
   "Saving your last edit…": "Guardando tu último cambio...",
   "You have unsaved edits. Wait for them to save first.":
     "Tienes cambios sin guardar. Espera a que se guarden primero.",
