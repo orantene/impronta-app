@@ -46,7 +46,10 @@ import {
   getDemandScores,
 } from "@/lib/directory/demand-score";
 import { applyPortfolioPlacementBoost } from "@/lib/directory/portfolio-boost";
-import { applyPresentabilityOrdering } from "@/lib/directory/presentability-order";
+import {
+  applyPresentabilityOrdering,
+  presentabilityTier,
+} from "@/lib/directory/presentability-order";
 import { isTalentPortfolioTier } from "@/lib/access/talent-membership";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
@@ -1431,13 +1434,19 @@ export async function fetchDirectoryPage(
   // Presentability is the OUTERMOST key of "recommended", so it runs last.
   // 78 profiles are publicly listed and one meets the publish floor; without
   // this a client's first screen can be mostly grey boxes. Featured and
-  // manually-arranged slots are untouched, nobody is hidden, and the window
-  // and cursor are unchanged — it is a permutation of this page. Deliberately
-  // after the Portfolio boost: a paying tier buys placement among comparable
-  // cards, not the right to lead with an empty one.
+  // manually-arranged slots are untouched and the window and cursor are
+  // unchanged — it is a permutation of this page. Deliberately after the
+  // Portfolio boost: a paying tier buys placement among comparable cards, not
+  // the right to lead with an empty one.
   if (sort === "recommended") {
     applyPresentabilityOrdering(items);
   }
+
+  // Empty cards (no photo AND no trait, fit or price line) are not listed at
+  // all, in every sort (Oran, 2026-10-10, GRK-053). Partly filled profiles stay
+  // and only rank lower. `nextCursor` below is computed from the raw row count,
+  // so dropping cards here never skips or repeats a page.
+  const visibleItems = items.filter((card) => presentabilityTier(card) > 0);
 
   if (audit) {
     timings.mapProfilesToDtoMs = performance.now() - mapStart;
@@ -1460,13 +1469,13 @@ export async function fetchDirectoryPage(
         hasQuery: queryText.length > 0,
         hasLocationSlug: locationSlug.length > 0,
         taxonomyTermIdsCount: taxonomyTermIds.length,
-        itemCount: items.length,
+        itemCount: visibleItems.length,
       }),
     });
   }
 
   return {
-    items,
+    items: visibleItems,
     nextCursor,
     ...(totalCount !== undefined ? { totalCount } : {}),
     taxonomyTermIds,
