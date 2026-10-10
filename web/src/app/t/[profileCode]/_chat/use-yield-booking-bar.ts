@@ -15,7 +15,7 @@ import {
 } from "./mini-chat-styles";
 
 /** Gap between a sticky bottom chrome top edge and the launcher bottom edge. */
-const BOOKING_BAR_CLEARANCE_PX = 16;
+const BOOKING_BAR_CLEARANCE_PX = 24;
 
 function visibleFixedChrome(el: HTMLElement | null): el is HTMLElement {
   if (!el) return false;

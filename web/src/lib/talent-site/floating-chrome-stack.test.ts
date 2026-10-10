@@ -96,4 +96,11 @@ describe("TUL-516 / TUL-528 floating chrome stack", () => {
     assert.match(hook, /if \(reserve > 0\) root\.style\.setProperty\("--cb-bar-h"/);
     assert.match(hook, /else root\.style\.removeProperty\("--cb-bar-h"\)/);
   });
+
+  test("GRK-037: phone catalog + footer keep a right gutter clear of Hablar", () => {
+    assert.match(FLOATING_CHROME_STACK_CSS, /--floating-launcher-gutter:calc\(72px/);
+    assert.match(FLOATING_CHROME_STACK_CSS, /site-builder-node--services-catalog-groups/);
+    assert.match(FLOATING_CHROME_STACK_CSS, /sb-statement-footer-meta/);
+    assert.match(FLOATING_CHROME_STACK_CSS, /padding-inline-end:max\(12px,var\(--floating-launcher-gutter\)\)/);
+  });
 });
