@@ -50,6 +50,10 @@ test("G4-LIB: suggested + all apps copy and library screen with Web Office badge
   assert.match(html, /gallery-app-pro/);
   assert.match(html, />Oficina Web</);
   assert.doesNotMatch(html, />Pro</);
+  // live1 app-back / TUL-536: library back is Mi sitio web, never Hoy.
+  assert.match(html, /apps-library-back/);
+  assert.match(html, /Mi sitio web/);
+  assert.doesNotMatch(html, /‹ Hoy/);
 });
 
 test("G4-APP: free plan sees Upgrade to use (preview stays); paid sees Add", () => {
