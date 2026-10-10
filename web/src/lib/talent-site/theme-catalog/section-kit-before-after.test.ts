@@ -82,3 +82,20 @@ test("F77: the builder shows the prompt (EN + ES, no em dash)", () => {
   assert.match(es, /No se muestra en tu sitio/);
   assert.ok(!en.includes("—") && !es.includes("—"));
 });
+
+test("TUL-207: beforeAfterBlock heading and captions ship es + en overlays", () => {
+  const block = beforeAfterBlock(ids());
+  const texts: Array<{ text: string; es?: string; en?: string }> = [];
+  const walk = (n: BuilderNode) => {
+    const p = n.props as { text?: string; i18n?: { es?: { text?: string }; en?: { text?: string } } };
+    if (typeof p.text === "string") texts.push({ text: p.text, es: p.i18n?.es?.text, en: p.i18n?.en?.text });
+    for (const c of (n as { children?: BuilderNode[] }).children ?? []) walk(c);
+  };
+  walk(block);
+  assert.ok(texts.some((t) => t.text === "Before and after"));
+  for (const t of texts) {
+    assert.ok(t.es && t.es.length > 0, `"${t.text}" needs es`);
+    assert.ok(t.en && t.en.length > 0, `"${t.text}" needs en`);
+    assert.ok(!`${t.text}${t.es}${t.en}`.includes("—"));
+  }
+});
