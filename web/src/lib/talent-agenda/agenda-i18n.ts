@@ -266,7 +266,7 @@ const ES: Record<string, string> = {
   "Search, like Cancun or Madrid": "Busca, por ejemplo Cancún o Madrid",
   "Pick a time zone": "Elige una zona horaria",
   "Weekly hours, time off, buffer, and timezone. Travel stays on each booking.":
-    "Horario semanal, ausencias, buffer y zona. El viaje queda en cada reserva.",
+    "Horario semanal, ausencias, margen entre citas y zona. El viaje queda en cada reserva.",
   "Closed dates block bookings. Alternate windows replace that day's weekly hours.":
     "Las fechas cerradas bloquean reservas. Ventanas alternativas reemplazan el horario de ese día.",
   "No exceptions yet.": "Sin excepciones aún.",
