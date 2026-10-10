@@ -16,7 +16,9 @@ const day = new Date().toISOString().slice(0, 10);
 
 export default defineConfig({
   testDir: "./e2e-isolated",
+  testMatch: /paid-qa(-after-pay)?\.spec\.ts/,
   globalSetup: "./e2e-isolated/global-setup.ts",
+  globalTeardown: "./e2e-isolated/global-teardown.ts",
   fullyParallel: false,
   workers: 1,
   retries: 0,
