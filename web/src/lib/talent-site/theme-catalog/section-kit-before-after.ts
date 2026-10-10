@@ -82,7 +82,13 @@ export function beforeAfterBlock(
         kind: "heading",
         props: {
           text: opts.heading ?? "Before and after",
-          i18n: { es: { text: opts.headingEs ?? "Antes y después" } },
+          // Both languages on the kit itself (TUL-207): seedI18n can fill a
+          // missing en from the base, but a kit used outside that walker must
+          // already ship es + en so a Spanish site never reads the English base.
+          i18n: {
+            en: { text: opts.heading ?? "Before and after" },
+            es: { text: opts.headingEs ?? "Antes y después" },
+          },
           level: 2,
           style: { size: "xl" },
           layerLabel: "Before and after heading",
