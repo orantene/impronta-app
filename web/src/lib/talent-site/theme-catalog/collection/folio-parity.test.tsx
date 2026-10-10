@@ -20,15 +20,14 @@ import { FOLIO_STYLE_TOKEN_DEFAULTS } from "./folio-defaults";
 import { MAGAZINE_TYPE_SYSTEM_CSS } from "./design-type-system";
 
 const PINS = {
-  // Recompute after rebase (TUL-528/530 main + TUL-532 visuals) via folio-parity pin test.
   editorial: "8e8ebb03a63e214c", // TUL-528: soft catalog-groups pad uses var(--cb-bar-h)
-  utility: "fe78b6ccfefe12ed", // TUL-528 base; may shift if type-system CSS changes land later in this rebase
+  utility: "3884c61692ea6f35", // TUL-532 phone ≥16px gutter on TUL-528 utility trees
   highlight: "154aa0752c478aa5", // TUL-474: TITLE_HOOKS includes .sb-area-title
   booking: "8f87f1ae1e51bc17",
   // Re-pinned: only added props.i18n (es + en seed copy), see seed-i18n.ts.
   maison: "4154551e03a4b4ea", // TUL-532 hero face crop + phone paddingX on TUL-121 Maison v2 base (#3116)
   // Re-pinned after Gridline contentWidth/full + matrix viewport MQ (#2530), then es + en seed copy.
-  gridline: "a0a148cca5d4853d", // TUL-530 utility_bar homeHref; TUL-532 face crop may re-pin after full rebase
+  gridline: "647493210a4b4f58", // TUL-532 heroSpec face crop on TUL-530 utility_bar homeHref base
 };
 
 function kinds(nodes: BuilderNode[]): string[] {
