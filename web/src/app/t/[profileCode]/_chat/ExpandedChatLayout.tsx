@@ -80,6 +80,7 @@ export function ExpandedChatLayout({
     <div
       role="dialog"
       aria-modal="false"
+      data-guest-chat-panel=""
       aria-label={ariaLabel}
       style={expandedShellStyle(P)}
     >

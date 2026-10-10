@@ -67,12 +67,16 @@ function useStickyBarVisible(
     const root = document.documentElement;
     const measure = () => {
       const cs = window.getComputedStyle(el);
+      // Opacity-hidden (data-top) still occupies layout; only display:none is "off".
+      // Never write 0 over the CSS default — that wiped phone reserve and left
+      // service rows under the bar (GRK-034) until the next positive measure.
       const reserve = stickyBarReservePx({
         displayed: cs.display !== "none",
         heightPx: el.offsetHeight,
         bottomPx: Number.parseFloat(cs.bottom),
       });
-      root.style.setProperty("--cb-bar-h", `${reserve}px`);
+      if (reserve > 0) root.style.setProperty("--cb-bar-h", `${reserve}px`);
+      else root.style.removeProperty("--cb-bar-h");
     };
     measure();
     const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
