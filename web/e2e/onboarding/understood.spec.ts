@@ -71,7 +71,7 @@ test.describe("onboarding · understanding", () => {
     await page.getByTestId("onb-style-vibrant").click();
     await page.getByTestId("onb-style-continue").click();
     await expect(page.getByTestId("onb-ready")).toBeVisible();
-    await expect(page.getByTestId("onb-link-value")).toContainText("unas-mariana.tulala.digital");
+    await expect(page.getByTestId("onb-link-value")).toContainText("tulala.digital/w/unas-mariana");
     // The check must return a verdict. On a branch where an earlier build run
     // already holds `unas-mariana`, the verdict is "taken" with alternatives;
     // taking the first one is the same path a person takes.
@@ -110,7 +110,7 @@ test.describe("onboarding · understanding", () => {
     await expect(page.getByTestId("onb-ready")).toBeVisible();
     await expect(page.getByTestId("onb-ready-facts")).toContainText("Parrilla El Paisa");
     await expect(page.getByTestId("onb-ready-facts")).toContainText("+529981234567");
-    await expect(page.getByTestId("onb-link-value")).toContainText("parrilla-el-paisa.tulala.digital");
+    await expect(page.getByTestId("onb-link-value")).toContainText("tulala.digital/w/parrilla-el-paisa");
   });
 
   test("ambiguous words ask the fork; the choice re-plans the questions", async ({ page }) => {

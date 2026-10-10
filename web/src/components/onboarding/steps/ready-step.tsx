@@ -11,7 +11,7 @@ import type { OnboardingPath } from "@/lib/onboarding/module-state";
 import type { Understanding } from "@/lib/onboarding/understanding";
 import type { LinkCheck } from "@/lib/server-actions/onboarding-module";
 
-import { promisedHost, type DesignLookKey } from "@/lib/onboarding/finish-url";
+import { promisedPathHost, type DesignLookKey } from "@/lib/onboarding/finish-url";
 import { DesignPick } from "./design-pick";
 import { GhostLink, Notice, PrimaryButton, Sub, Title } from "../ui";
 
@@ -137,7 +137,7 @@ export function ReadyStep({
           ) : (
             <div className="mt-1 flex items-center justify-between gap-3">
               <span className="min-w-0 truncate text-[1rem] font-semibold" style={{ color: "var(--tl-ink)" }} data-testid="onb-link-value">
-                {promisedHost(shown) ?? "…"}
+                {promisedPathHost(shown) ?? "…"}
               </span>
               <span className="flex shrink-0 items-center gap-2 text-[0.75rem]">
                 {checking ? <span style={{ color: "var(--tl-muted)" }}>{t("public.onboarding.ready.linkChecking")}</span>
