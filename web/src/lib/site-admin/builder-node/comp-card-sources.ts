@@ -28,8 +28,8 @@ type DefEmbed = {
   default_visibility: string[] | null;
   deprecated_at: string | null;
   profile_field_groups:
-    | { sort_order: number | null; slug: string | null }
-    | { sort_order: number | null; slug: string | null }[]
+    | { sort_order: number | null; slug: string | null; name_i18n: unknown }
+    | { sort_order: number | null; slug: string | null; name_i18n: unknown }[]
     | null;
 };
 
@@ -57,7 +57,21 @@ function labelFromI18n(raw: unknown, locale: string, fallbackKey: string): strin
   return map[lang] || map.en || map.es || fallbackKey.split(".").pop() || fallbackKey;
 }
 
-function groupLabel(slug: string | null, locale: string): string {
+/**
+ * Public-facing field-group heading for the comp card details list.
+ * Order: locale hit in `name_i18n` → curated ES/EN map → other `name_i18n`
+ * locale → title-case slug. Never title-case the slug when a curated ES
+ * string exists (Live QA: "Context Best Fit" on Sofía ES).
+ */
+export function resolveCompCardGroupLabel(
+  slug: string | null,
+  locale: string,
+  nameI18n: unknown = null,
+): string {
+  const map = asLocalizedMap(nameI18n);
+  const lang = locale.toLowerCase().startsWith("es") ? "es" : "en";
+  if (map[lang]) return map[lang];
+
   if (!slug) return pickLocale(locale, { en: "Details", es: "Detalles" });
   const curated: Record<string, { en: string; es: string }> = {
     measurements: { en: "Measurements", es: "Medidas" },
@@ -66,9 +80,23 @@ function groupLabel(slug: string | null, locale: string): string {
     availability: { en: "Availability", es: "Disponibilidad" },
     experience: { en: "Experience", es: "Experiencia" },
     basic_info: { en: "Basics", es: "Básicos" },
+    "context-best-fit": { en: "Best-fit contexts", es: "Contextos ideales" },
+    "operational-requirements": {
+      en: "Operational requirements",
+      es: "Requisitos operativos",
+    },
+    "certifications-documents": {
+      en: "Certifications & documents",
+      es: "Certificaciones y documentos",
+    },
+    "media-portfolio": { en: "Media & portfolio", es: "Medios y portafolio" },
+    "rates-booking": { en: "Rates & booking", es: "Tarifas y reservas" },
   };
   const hit = curated[slug];
   if (hit) return pickLocale(locale, hit);
+
+  if (map.en || map.es) return map.en || map.es;
+
   return slug
     .replace(/[_-]+/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase())
@@ -150,7 +178,7 @@ export async function loadCompCardSources(
           id, field_key, label_i18n, kind, unit, options, option_labels_i18n,
           display_order, admin_only, is_sensitive, show_in_public,
           default_visibility, deprecated_at,
-          profile_field_groups ( sort_order, slug )
+          profile_field_groups ( sort_order, slug, name_i18n )
         )
       `,
       )
@@ -202,7 +230,7 @@ export async function loadCompCardSources(
         fieldKey: def.field_key,
         label: labelFromI18n(def.label_i18n, locale, def.field_key),
         value: formatted,
-        group: groupLabel(slug, locale),
+        group: resolveCompCardGroupLabel(slug, locale, fg?.name_i18n ?? null),
         unit: def.unit?.trim() || null,
       });
     }
