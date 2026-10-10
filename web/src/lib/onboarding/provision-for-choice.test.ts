@@ -107,7 +107,8 @@ function counts(db: Db) {
 
 const EXPECTED: Record<OnboardingChoice, ReturnType<typeof counts>> = {
   myself: { app_role: "talent", home: "talent", talent_profiles: 1, talent_sites: 1, hub_roster: 1, agencies: 0, owner_memberships: 0, agency_domains: 0, self_roster: 0 },
-  studio: { app_role: "agency_staff", home: "workspace", talent_profiles: 0, talent_sites: 0, hub_roster: 0, agencies: 1, owner_memberships: 1, agency_domains: 1, self_roster: 0 },
+  // studio defaults to "the owner also takes clients": a roster provider (bookable), no personal site.
+  studio: { app_role: "talent", home: "workspace", talent_profiles: 1, talent_sites: 0, hub_roster: 1, agencies: 1, owner_memberships: 1, agency_domains: 1, self_roster: 1 },
   both: { app_role: "talent", home: "workspace", talent_profiles: 1, talent_sites: 1, hub_roster: 1, agencies: 1, owner_memberships: 1, agency_domains: 1, self_roster: 1 },
 };
 
@@ -134,6 +135,32 @@ for (const choice of ["myself", "studio", "both"] as const) {
     assert.deepEqual(counts(db), once);
   });
 }
+
+test("studio where the owner does NOT take clients stays business-only (inquiry-only until a provider joins)", async () => {
+  const db = freshDb();
+  const r = await runChoiceProvisioning("studio", fakeDeps(db), { studioOwnerProvides: false });
+  assert.equal(r.ok, true);
+  assert.deepEqual(counts(db), { app_role: "agency_staff", home: "workspace", talent_profiles: 0, talent_sites: 0, hub_roster: 0, agencies: 1, owner_memberships: 1, agency_domains: 1, self_roster: 0 });
+});
+
+test("studio where the owner takes clients: she is a bookable roster provider, live, with no personal site", async () => {
+  const db = freshDb();
+  const r = await runChoiceProvisioning("studio", fakeDeps(db), { studioOwnerProvides: true });
+  assert.equal(r.ok, true);
+  assert.equal(db.roster.length, 1);
+  assert.equal(db.roster[0].direct_booking_enabled, true);
+  assert.equal(db.talent_profiles[0].workflow_status, "approved");
+  assert.equal(db.talent_sites.length, 0);
+  assert.equal(db.profile.home_surface_preference, "workspace");
+});
+
+test("studio owner-provider: a failed self roster fails the build (she must be bookable)", async () => {
+  const db = freshDb();
+  const deps = fakeDeps(db);
+  deps.ensureSelfRoster = async () => ({ ok: false, code: "self_roster_failed", message: "x" });
+  assert.equal((await runChoiceProvisioning("studio", deps)).ok, false);
+  assert.equal((await runChoiceProvisioning("studio", deps, { studioOwnerProvides: false })).ok, true);
+});
 
 test("a failed owner membership leaves no orphan and the retry has no -2 slug", async () => {
   const db = freshDb();
@@ -223,7 +250,7 @@ test("both: a failed profile promotion fails the build (retry finishes it)", asy
   assert.equal(db.talent_profiles[0].visibility, "public");
 });
 
-test("myself: the profile ends approved/public; studio never promotes", async () => {
+test("myself: the profile ends approved/public; a business-only studio (owner takes no clients) never promotes", async () => {
   const db = freshDb();
   const r = await runChoiceProvisioning("myself", fakeDeps(db));
   assert.equal(r.ok, true);
@@ -234,8 +261,13 @@ test("myself: the profile ends approved/public; studio never promotes", async ()
   const deps = fakeDeps(studio);
   let called = false;
   deps.promoteTalentProfileLive = async () => { called = true; return { ok: true }; };
-  await runChoiceProvisioning("studio", deps);
+  await runChoiceProvisioning("studio", deps, { studioOwnerProvides: false });
   assert.equal(called, false);
+
+  // A studio whose owner takes clients is a provider like "both": the profile goes live so she can be booked.
+  const provider = freshDb();
+  await runChoiceProvisioning("studio", fakeDeps(provider));
+  assert.equal(provider.talent_profiles[0].workflow_status, "approved");
 });
 
 test("myself: a failed promotion fails the build so Finish never says ready on a draft profile", async () => {

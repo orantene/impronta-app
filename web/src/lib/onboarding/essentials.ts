@@ -53,6 +53,11 @@ export type Essentials = {
   /** Studio only: the first provider to invite (optional, "Add later"). */
   firstProviderEmail: string | null;
   firstProviderName: string | null;
+  /**
+   * Studio only: the owner also takes clients themselves (default true). Then onboarding seeds the owner as a
+   * bookable provider with these hours, as "both" does; false keeps the studio inquiry-only until a provider joins.
+   */
+  ownerProvides: boolean;
   /** The person tapped confirm on the essentials screen (or filled it by hand). */
   confirmed: boolean;
   /** Where the lines came from: typed by hand, read by the AI, or a trade pack. */
@@ -177,6 +182,7 @@ export function suggestedEssentials(ctx: PackContext & { name?: string | null })
     place: null,
     firstProviderEmail: null,
     firstProviderName: null,
+    ownerProvides: true,
     confirmed: false,
     source: services.length ? "pack" : "manual",
   };
@@ -268,6 +274,7 @@ export function parseEssentials(raw: unknown): Essentials | null {
     place,
     firstProviderEmail: EMAIL_RE.test(email) ? email : null,
     firstProviderName: typeof r.firstProviderName === "string" && r.firstProviderName.trim() ? r.firstProviderName.trim().slice(0, 120) : null,
+    ownerProvides: r.ownerProvides !== false,
     confirmed: r.confirmed === true,
     source: r.source === "ai" || r.source === "pack" ? r.source : "manual",
   };
@@ -405,6 +412,7 @@ export type EssentialsRunResult = {
  *   both   : her offerings + hours + bookable + place            (workspace tenant)
  *            + workspace appointments ON (timezone)
  *   studio : house offerings + opening hours + place + workspace
+ *            (+ the owner as a bookable provider when ownerProvides, the default)
  *            appointments ON (timezone, same writer as both); first provider invite
  *            (#178 owner hours when solo). TUL-457: do not wait for a roster
  *            provider before writing settings.appointments — both never did.
@@ -478,6 +486,20 @@ export async function runEssentialsWrites(store: EssentialsStore, input: Essenti
       out.ownerHoursWritten = await store.upsertTalentHours({ talentProfileId: owner.talentProfileId, tenantId: workspace.tenantId, weekly, timezone: e.timezone });
       if (!out.ownerHoursWritten) out.warnings.push("essentials:ownerHours:no_timezone");
     });
+    // The owner takes clients too (studio + ownerProvides): they are on the roster as a provider, so they must be
+    // bookable with the hours just entered even when a first provider is also invited (then the services stay
+    // house-owned and the sole-owner step above does not apply).
+    if (talent) {
+      await step("ownerProvider", async () => {
+        const hasHours = store.talentHasOpenHours ? await store.talentHasOpenHours(talent.talentProfileId) : out.ownerHoursWritten;
+        if (!hasHours) {
+          out.ownerHoursWritten = await store.upsertTalentHours({ talentProfileId: talent.talentProfileId, tenantId: workspace.tenantId, weekly, timezone: e.timezone });
+          if (!out.ownerHoursWritten) out.warnings.push("essentials:ownerHours:no_timezone");
+        }
+        await store.setTalentBookable(talent.talentProfileId);
+        out.ownerBookable = true;
+      });
+    }
     if (e.firstProviderEmail) {
       const email = e.firstProviderEmail;
       await step("invite", async () => {

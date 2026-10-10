@@ -220,5 +220,5 @@ export async function provisionForChoice(
       }
       return { ok: true };
     },
-  });
+  }, { studioOwnerProvides: input.essentials?.ownerProvides !== false });
 }
