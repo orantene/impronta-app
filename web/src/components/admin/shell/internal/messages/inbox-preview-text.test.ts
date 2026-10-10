@@ -35,6 +35,35 @@ test("system previews and mock conversations are translated", () => {
   );
 });
 
+test("TUL-379 residual: synthetic awaiting line translates under agency sender", () => {
+  // Shell prefixes "Impronta: " when sender is agency; body must still translate.
+  assert.equal(
+    inboxPreviewText(t, {
+      sender: "agency",
+      isMock: false,
+      preview: "Awaiting your response.",
+    }),
+    "Esperando tu respuesta.",
+  );
+  assert.equal(
+    inboxPreviewText(t, {
+      sender: "system",
+      isMock: false,
+      preview: "Impronta: Awaiting your response.",
+    }),
+    "Impronta: Esperando tu respuesta.",
+  );
+  // Real agency prose that happens to contain a dictionary key stays verbatim.
+  assert.equal(
+    inboxPreviewText(t, {
+      sender: "agency",
+      isMock: false,
+      preview: "Confirmed",
+    }),
+    "Confirmed",
+  );
+});
+
 test("TalentJobShell no longer runs the raw last-message preview through copy.t", () => {
   const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "TalentJobShell.tsx"), "utf8");
   assert.doesNotMatch(src, /copy\.t\(conv\.lastMessage\.preview\)/);
