@@ -558,6 +558,7 @@ export async function reapplyMaisonDemoLayoutAction(): Promise<
       siteId,
       userId: g.userId,
       displayName: g.displayName,
+      locale: await getRequestLocale(),
       pendingDesign: {
         kind: "live_pending",
         source: "reapply_layout",

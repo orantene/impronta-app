@@ -28,9 +28,13 @@ test("a design-apply refusal reaches the talent in her language", () => {
   for (const file of [
     "src/lib/talent-site/server/maison-apply-actions.ts",
     "src/lib/talent-site/server/maison-options-actions.ts",
+    "src/lib/talent-site/server/theme-actions.ts",
   ]) {
     assert.ok(read(file).includes("locale: await getRequestLocale()"), `${file} must pass the request locale`);
   }
+  const pending = read("src/lib/talent-site/server/maison-pending-apply.ts");
+  assert.match(pending, /materializeMaisonLivePendingIfAny\(admin, \{[^}]*locale: input\.locale/);
+  assert.match(pending, /applyDesign\(admin, \{[^}]*locale: input\.locale/, "publish-time apply must carry the locale");
 });
 
 test("the guard never lets a failed read through", () => {
