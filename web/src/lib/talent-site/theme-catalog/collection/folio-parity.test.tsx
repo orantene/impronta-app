@@ -27,7 +27,7 @@ const PINS = {
   // Re-pinned: only added props.i18n (es + en seed copy), see seed-i18n.ts.
   maison: "347695625983b226", // was ff484407b68ec492; TUL-121 Maison v2 QA minors (#3116). Before: ca897a06ce5564b6; TUL-345: aftercare + before-after seed explicit en overlays. Before (42d225e3c02a4810): TUL-230: the About paragraph is liveText "bio". Before: #88 Book an appointment leads in header + hero; #209: + es/en overlay on portfolio, reviews, header labels
   // Re-pinned after Gridline contentWidth/full + matrix viewport MQ (#2530), then es + en seed copy.
-  gridline: "a0a148cca5d4853d", // was ae8c700f7439ee2d; TUL-530 utility_bar homeHref + default CTA #services. Before: TUL-496 proof/area phone gutter
+  gridline: "db9941635ba232fa", // TUL-516 C2 emergencies pill i18n on TUL-530 utility_bar homeHref base
 
 };
 
