@@ -4,7 +4,7 @@ import { loadHistoryPreviewSnapshot } from "../history/history.server";
 import { loadThemeUpdatePreviewSnapshot } from "../theme-releases/talent-update/talent-update.server";
 import { early } from "@/lib/server/early";
 import { failOnReadTimeout } from "@/lib/supabase/bounded-fetch-scope";
-import { loadMaxSiteIsDemo, MaxSiteDemoFooter, MaxSiteDemoPill, withHeaderSiteChrome } from "./render-max-site-demo";
+import { loadMaxSiteAcceptingBookings, loadMaxSiteIsDemo, MaxSiteDemoFooter, MaxSiteDemoPill, withHeaderSiteChrome } from "./render-max-site-demo";
 import { splitShell } from "./render-max-site-shell";
 import { builderTreeHasFaqBind, builderTreeHasKind } from "./builder-tree-has-kind";
 import { pruneEmptyBoundSections } from "@/lib/talent-site/my-content-prune";
@@ -193,7 +193,7 @@ async function renderTalentMaxSiteUnguarded(
     // The talent's own languages: bounds the locale, feeds the header switch, the `node.i18n` overlays and hreflang (PR 4 + 5).
     const pLocale = early(loadTalentSiteLocaleContext({ talentProfileId, requestedLocale: input.locale, hrefMode: input.hrefMode, pagePath: input.canonicalPath })); // TUL-444: independent reads start together
     const pPlan = early(loadTalentPlanKey(talentProfileId)), pPages = early(loadMaxSitePages(talentProfileId)), pDesign = early(loadMaxSiteDesignSlug(talentProfileId));
-    const pTenant = early(loadTalentManagingTenantId(talentProfileId)), pIdentity = early(loadTalentSiteIdentity(talentProfileId)), pDemo = early(loadMaxSiteIsDemo(talentProfileId)); const pCta = early(pPlan.then((plan) => loadTalentSiteCtaMode(talentProfileId, plan)));
+    const pTenant = early(loadTalentManagingTenantId(talentProfileId)), pIdentity = early(loadTalentSiteIdentity(talentProfileId)), pDemo = early(loadMaxSiteIsDemo(talentProfileId)); const pDemoBookings = early(pDemo.then((demo) => (demo ? loadMaxSiteAcceptingBookings(talentProfileId) : true))); const pCta = early(pPlan.then((plan) => loadTalentSiteCtaMode(talentProfileId, plan)));
     const localeCtx = await pLocale, locale = localeCtx.locale, pSeoFacts = early(loadMaxSiteSeoFacts(talentProfileId, locale));
     // ── Owner gate for draft preview (owner-only, like the profile preview) ──
     let isOwnerDraftPreview = false;
@@ -283,7 +283,7 @@ async function renderTalentMaxSiteUnguarded(
     const identity = await pIdentity;
 
     // Demo pill + theme tokens (Design slug already loaded above).
-    const isDemo = await pDemo;
+    const isDemo = await pDemo, demoAcceptingBookings = await pDemoBookings;
     const siteTokens = snap?.tokens ?? (await loadMaxSiteThemeTokens(talentProfileId, { draft: isOwnerDraftPreview }));
     const designSlug = designSlugEarly;
     const policyModel = policyDoc ? await loadTalentPolicyModel(talentProfileId, policyDoc, locale) : null;
@@ -309,6 +309,7 @@ async function renderTalentMaxSiteUnguarded(
       // PHASE 1 — a free site carries the "Made with Tulala" mark; a paid plan removes it (same predicate as /t/[code]).
       showPlatformBadge: talentSiteShowsPlatformBadge(planKey),
       isDemo,
+      demoAcceptingBookings,
       talentName: identity?.name ?? null,
       profileCode: identity?.profileCode ?? null,
       siteHost: siteHostFromOrigin(input.canonicalOrigin ?? process.env.NEXT_PUBLIC_SITE_URL),
@@ -372,6 +373,8 @@ async function renderMaxSiteDocument(args: {
   showPlatformBadge: boolean;
   /** Fictional demo talent: a Demo pill above the header + a footer line. */
   isDemo?: boolean;
+  /** `talent_sites.accepting_bookings`: the demo footer line must agree with the booking widget. */
+  demoAcceptingBookings?: boolean;
   /** The talent's display name: labels the first group of the Tulala strip. */
   talentName?: string | null;
   /** TUL-310 footer Help context. */
@@ -784,7 +787,7 @@ async function renderMaxSiteDocument(args: {
         </footer>
       ) : null}
 
-      {args.isDemo ? <MaxSiteDemoFooter locale={locale} /> : null}
+      {args.isDemo ? <MaxSiteDemoFooter locale={locale} acceptingBookings={args.demoAcceptingBookings !== false} /> : null}
 
       {/* Global Tulala footer socket: one shared bottom strip under every
           design's own footer (replaces the scattered "Made with Tulala"). */}
