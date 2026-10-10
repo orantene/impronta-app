@@ -27,7 +27,10 @@ import {
 } from "./catalog-booking-chat";
 import {
   catalogBookingDurationMinutes,
+  catalogApplyDayPick,
   catalogCanContinueWhen,
+  catalogLiveDraftDayIndex,
+  catalogSameInstant,
   catalogDayKey,
   catalogDetailIsPurchase,
   catalogNeedsOptions,
@@ -165,16 +168,16 @@ export function CatalogBookingSheet({
       const draftDay = draft && mode === "demo" ? days.findIndex((x) => catalogDayKey(x) === draft.dayKey) : -1;
       setVariantId(draft?.variantId ?? null);
       setAddOnIds(draft?.addOnIds ?? []);
-      setDayIndex(mode === "live" ? 0 : draftDay >= 0 ? draftDay : firstOpenDemoDayIndex(days));
-      // TUL-232: an explicit slotStart beats the draft's time; the draft's other fields still restore.
+      // GRK-067: keep draft.dayIndex on live reopen so the chip stays lit while slots reload.
+      setDayIndex(mode === "live" ? catalogLiveDraftDayIndex(draft) : draftDay >= 0 ? draftDay : firstOpenDemoDayIndex(days));
+      // TUL-232: explicit slotStart beats draft time; other draft fields still restore.
       const opening = resolveSheetOpening({ mode, slotStart: d.slotStart, needsOptions: catalogNeedsOptions(d), startAt: d.startAt, draft });
       pendingSlotRef.current = opening.slot;
       setTime(opening.time); setLiveStarts(opening.liveStarts); liveStartsRef.current = opening.liveStarts;
       setName(draft?.name ?? ""); setPhone(draft?.phone ?? ""); setEmail(draft?.email ?? "");
       setTouched(false); setError(null); setWrote(false); setAskAttempted(false); setTakenNotice(null);
       clearBookingResume();
-      // Live slots are re-fetched on the "when" step (which also re-validates the picked start), so a
-      // live draft that left from "who" resumes there rather than on a day the strip has not loaded.
+      // Live drafts that left "who" resume on "when" so the strip can re-validate the start.
       setStep(opening.step);
     };
     const names = ["tulala:offering-instant", "tulala:offering-slot", "tulala:offering-request"];
@@ -214,35 +217,23 @@ export function CatalogBookingSheet({
 
   const variant = (detail?.variants ?? []).find((v) => v.id === variantId) ?? null;
   const extras = (detail?.addOns ?? []).filter((a) => addOnIds.includes(a.id));
-  const bookingDurationMinutes = catalogBookingDurationMinutes(
-    detail?.durationMinutes,
-    detail?.addOns ?? [],
-    addOnIds,
-  );
+  const bookingDurationMinutes = catalogBookingDurationMinutes(detail?.durationMinutes, detail?.addOns ?? [], addOnIds);
   const needsVariant = (detail?.variants ?? []).length > 0;
   const summaryCents = detail ? catalogSheetSummaryCents(detail, variantId) ?? 0 : 0;
   const total = detail ? catalogTotalCents(detail, variantId, addOnIds) : 0;
 
   useEffect(() => {
-    if (!detail) return;
-    if (needsVariant && !variant) return;
+    if (!detail || (needsVariant && !variant)) return;
     const bits = [variant?.label, ...extras.map((e) => e.label)].filter(Boolean);
-    window.dispatchEvent(
-      new window.CustomEvent("tulala:maison-selected", {
-        detail: {
-          offeringId: detail.offeringId,
-          title: detail.title,
-          detail: bits.length ? bits.join(" · ") : null,
-          totalCents: total,
-          currency: detail.currency,
-        },
-      }),
-    );
+    window.dispatchEvent(new window.CustomEvent("tulala:maison-selected", {
+      detail: {
+        offeringId: detail.offeringId, title: detail.title,
+        detail: bits.length ? bits.join(" · ") : null, totalCents: total, currency: detail.currency,
+      },
+    }));
   }, [detail, variant, needsVariant, extras, total]);
 
-  useEffect(() => {
-    liveStartsRef.current = liveStarts;
-  }, [liveStarts]);
+  useEffect(() => { liveStartsRef.current = liveStarts; }, [liveStarts]);
 
   useBookingDraftEffects({
     detail, step, variantId, addOnIds, dayIndex, time, liveStarts, name, email, phone, mode, days, draftKey,
@@ -271,7 +262,7 @@ export function CatalogBookingSheet({
         // clear clock + ISO so confirm cannot send a start that no longer fits.
         const prev = liveStartsRef.current;
         if (catalogSelectedStartStillOpen(prev, r.slots)) {
-          const idx = grouped.findIndex((d) => d.starts.includes(prev!));
+          const idx = grouped.findIndex((d) => d.starts.some((s) => catalogSameInstant(s, prev!)));
           if (idx >= 0) setDayIndex(idx);
           return;
         }
@@ -600,25 +591,23 @@ export function CatalogBookingSheet({
                   timeGroupLabel={timeGroupLabel}
                   emptyConsultButton={emptyConsultButton}
                   takenNotice={takenNotice}
-                  onPickDay={(i) => { setDayIndex(i); setTime(null); setLiveStarts(null); }}
+                  onPickDay={(i) => {
+                    const n = catalogApplyDayPick(dayIndex, i, { time, liveStarts });
+                    setDayIndex(n.dayIndex); setTime(n.time); setLiveStarts(n.liveStarts);
+                  }}
                   onPickStart={(iso, label, i) => {
                     if (i !== undefined && i >= 0) setDayIndex(i);
-                    setLiveStarts(iso);
-                    setTime(label);
-                    setTakenNotice(null);
+                    setLiveStarts(iso); setTime(label); setTakenNotice(null);
                   }}
                 />
               ) : (
                 <CatalogDemoWhenPicker
-                  es={es}
-                  days={days}
-                  day={day}
-                  dayIndex={dayIndex}
-                  time={time}
-                  demoTimes={demoTimes}
-                  timeGroupLabel={timeGroupLabel}
-                  emptyConsultButton={emptyConsultButton}
-                  onPickDay={(i) => { setDayIndex(i); setTime(null); }}
+                  es={es} days={days} day={day} dayIndex={dayIndex} time={time}
+                  demoTimes={demoTimes} timeGroupLabel={timeGroupLabel} emptyConsultButton={emptyConsultButton}
+                  onPickDay={(i) => {
+                    const n = catalogApplyDayPick(dayIndex, i, { time, liveStarts: null });
+                    setDayIndex(n.dayIndex); setTime(n.time);
+                  }}
                   onPickTime={setTime}
                 />
               )}
@@ -762,7 +751,7 @@ export function CatalogBookingSheet({
               className="jb-cta"
               data-catalog-continue="when"
               disabled={!selectedTime}
-              onClick={() => setStep("who")}
+              onClick={() => { if (catalogCanContinueWhen(time)) setStep("who"); }}
             >
               {es ? "Continuar" : "Continue"}
             </button>
