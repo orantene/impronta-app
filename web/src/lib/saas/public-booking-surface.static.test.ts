@@ -42,3 +42,15 @@ test("the slot picker's endpoint is reachable on every public surface", () => {
     );
   }
 });
+
+test("TUL-539: public slots fall back to demo roster hours when the row is missing", () => {
+  const route = readFileSync(join(SRC, "app/api/public/booking/slots/route.ts"), "utf8");
+  assert.match(route, /demoPublicBookingHoursFallback/);
+  assert.match(route, /is_demo/);
+  assert.match(route, /profile_code/);
+  const fallback = readFileSync(
+    join(SRC, "lib/talent-site/demos/demo-hours-fallback.ts"),
+    "utf8",
+  );
+  assert.match(fallback, /TAL-93005/);
+});

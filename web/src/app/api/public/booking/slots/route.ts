@@ -30,6 +30,7 @@ import {
   parsePublicSlotFrom,
 } from "@/lib/scheduling/public-slots";
 import { addUtcDays, utcToZonedYmd } from "@/lib/scheduling/tz";
+import { demoPublicBookingHoursFallback } from "@/lib/talent-site/demos/demo-hours-fallback";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -168,7 +169,9 @@ export async function GET(request: Request) {
 
     const { data: talent, error: talentErr } = await admin
       .from("talent_profiles")
-      .select("id, profile_kind, booking_terms, created_by_agency_id, selling_defaults")
+      .select(
+        "id, profile_code, profile_kind, booking_terms, created_by_agency_id, selling_defaults, is_demo, home_city_text",
+      )
       .eq("id", offering.talent_profile_id)
       .maybeSingle();
 
@@ -226,7 +229,21 @@ export async function GET(request: Request) {
       .eq("talent_profile_id", talent.id)
       .maybeSingle();
 
-    const hours = parseBookingHours(hoursRow);
+    let hours = parseBookingHours(hoursRow);
+    if (!hours) {
+      // TUL-539 / GRK-002: demos whose seed hours never landed still need a
+      // bookable when-step. Real talents stay fail-closed (no invented calendar).
+      const offeringDurationGuess =
+        typeof offering.duration_minutes === "number" && offering.duration_minutes > 0
+          ? offering.duration_minutes
+          : 60;
+      hours = demoPublicBookingHoursFallback({
+        isDemo: talent.is_demo === true,
+        profileCode: typeof talent.profile_code === "string" ? talent.profile_code : null,
+        homeCity: typeof talent.home_city_text === "string" ? talent.home_city_text : null,
+        durationMinutes: offeringDurationGuess,
+      });
+    }
     if (!hours) {
       // Two different failures. No row means nobody has configured hours -
       // today that is EVERY bookable offering in production. A row that will
