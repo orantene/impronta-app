@@ -355,11 +355,13 @@ export function CatalogBookingSheet({
     payAtVisit: detail.reserveMode === "free", orderStatus: null, transactionStatus: null,
     holdExpiresAt: null, now: new Date(), locale,
   });
+  const payAtClientPlace = Array.isArray(detail.where) && detail.where.includes("client");
   const { whoAction, whoCtaText, paymentFixture } = resolveWhoStepPaymentUi({
     reserveMode: detail.reserveMode,
     allowPayInPerson: detail.allowPayInPerson,
     depositPct: detail.depositPct,
     onlineCollectReady,
+    payAtClientPlace,
     locale,
     offeringIntent: detail.intent,
     bookingSettings,
@@ -637,6 +639,7 @@ export function CatalogBookingSheet({
                 time={time}
                 tz={mode === "live" ? liveTz : null}
                 total={isQuote ? (es ? "A cotizar" : "Quote") : money(total, detail.currency)}
+                addressNote={addr.rule === "required" ? "client" : "studio"}
               />
               <label className="jb-field">
                 <span>{es ? "Nombre" : "Name"}</span>
@@ -718,6 +721,7 @@ export function CatalogBookingSheet({
                 allowPayInPerson: detail.allowPayInPerson,
                 depositPct: detail.depositPct,
                 onlineCollectReady,
+                payAtClientPlace,
                 locale,
                 wrote,
                 isRequest,

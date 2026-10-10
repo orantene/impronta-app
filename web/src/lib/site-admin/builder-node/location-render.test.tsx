@@ -97,6 +97,15 @@ test("exact address after booking: says so, shows no address", () => {
   assert.doesNotMatch(html, /Get directions/);
 });
 
+test("GRK-065: home_visits exact-address row asks at book time, never studio send-on-confirm", () => {
+  const en = render("after_booking", { kind: "home_visits" });
+  assert.match(en, /We ask for it when you book/);
+  assert.doesNotMatch(en, /We send you the exact location when you confirm/);
+  const es = render("zone_only", { kind: "home_visits", locale: "es" });
+  assert.match(es, /La pedimos al reservar/);
+  assert.doesNotMatch(es, /Te enviamos la ubicaci(ó|&#xF3;)n exacta/);
+});
+
 test("public address: the address, a pin instead of the dashed area, and directions", () => {
   const html = render("public");
   assert.match(html, /Calle Privada 42/);
