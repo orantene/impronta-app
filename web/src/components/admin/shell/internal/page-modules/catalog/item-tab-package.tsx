@@ -27,13 +27,14 @@ import { useT } from "@/i18n/use-t";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { Icon } from "../../primitives";
 import type { OfferingsEditor } from "@/components/talent/services/use-offerings-editor";
-import { formatOfferingPrice, type TalentOffering } from "@/lib/talent/offerings-types";
+import { type TalentOffering } from "@/lib/talent/offerings-types";
 import { loadOfferingComponentsAction, type OfferingComponentRow } from "@/lib/server-actions/catalog-engine-reads";
 import { setOfferingComponentsAction } from "@/lib/server-actions/scheduling-engine";
 import { ActionButton, Outcome } from "../appointments-classes-ui";
 import type { TabProps } from "./CatalogItemEditor";
 import { engineRefusalKey, packageAllocation } from "./catalog-model";
 import { AddPill, BlockPill, CARD, DragHandle, Eyebrow, INPUT, ListHead, ListRow, ModeCard, Note, SectionHead, SELECT, SelectShell } from "./catalog-ui";
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 
 const COLS = "grid-cols-[12px_1.6fr_110px_80px_1fr_110px_22px]";
 
@@ -88,7 +89,7 @@ export function PackageComposition({ item, editor, isDraft, saving }: TabProps) 
     item.amountCents,
     current.map((r) => ({ qty: r.qty, unitCents: byId.get(r.componentOfferingId)?.amountCents ?? null })),
   );
-  const money = (c: number | null) => (c == null ? t("dashboard.catalog.dash") : formatOfferingPrice(c, item.currency, locale));
+  const money = (c: number | null) => (c == null ? t("dashboard.catalog.dash") : formatDashboardMoneyCents(c, item.currency, locale));
   const off = saving || busy || rows === null;
 
   function update(i: number, patch: Partial<OfferingComponentRow>) {
@@ -278,7 +279,7 @@ export function PackageSide({ item, editor, price }: { item: TalentOffering; edi
     };
   }, [item.id]);
   const byId = new Map<string, TalentOffering>(editor.items.map((o) => [o.id, o]));
-  const money = (c: number | null) => (c == null ? t("dashboard.catalog.dash") : formatOfferingPrice(c, item.currency, locale));
+  const money = (c: number | null) => (c == null ? t("dashboard.catalog.dash") : formatDashboardMoneyCents(c, item.currency, locale));
   return (
     <>
       <Eyebrow>{t("dashboard.catalog.package.guestPreview")}</Eyebrow>

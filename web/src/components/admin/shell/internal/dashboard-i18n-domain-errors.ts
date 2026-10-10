@@ -39,4 +39,19 @@ export const DOMAIN_ERRORS_ES_TEXT: Record<string, string> = {
   "Your primary domain could not be updated.": "No pudimos actualizar tu dominio principal.",
   "That custom domain could not be removed.": "No pudimos quitar ese dominio propio.",
   "Download my data": "Descargar mis datos",
+  "This domain is used by another Vercel project. Remove it from that project or transfer it to Tulala, then try again.":
+    "Este dominio lo usa otro proyecto de Vercel. Quítalo de ese proyecto o transfiérelo a Tulala y vuelve a intentar.",
+  "Vercel could not attach this domain. Check the domain status and try again.":
+    "Vercel no pudo conectar este dominio. Revisa el estado del dominio e inténtalo de nuevo.",
+  "Vercel could not attach this domain.": "Vercel no pudo conectar este dominio.",
+  "Vercel could not verify this domain.": "Vercel no pudo verificar este dominio.",
+  "DNS instructions are ready for {domain}. Add the records below to verify it.":
+    "Las instrucciones DNS ya están listas para {domain}. Agrega los registros de abajo para verificarlo.",
+  "1. Add these DNS records from Vercel": "1. Agrega estos registros DNS de Vercel",
+  "2. Also add this ownership TXT record": "2. También agrega este registro TXT de propiedad",
+  "3. Then point the domain at Vercel": "3. Luego apunta el dominio a Vercel",
+  "Vercel API timed out": "La API de Vercel agotó el tiempo de espera",
+  "Could not add domain to Vercel project.": "No pudimos agregar el dominio al proyecto de Vercel.",
+  "Could not verify domain ownership on Vercel project.":
+    "No pudimos verificar la propiedad del dominio en el proyecto de Vercel.",
 };

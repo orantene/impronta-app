@@ -23,10 +23,11 @@ import { useT } from "@/i18n/use-t";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { Icon } from "../../primitives";
 import { setWorkspaceMenuItemOptions } from "@/lib/talent/menu-offerings-actions";
-import { formatOfferingPrice, type OfferingAddOn, type OfferingVariant, type TalentOffering } from "@/lib/talent/offerings-types";
+import { type OfferingAddOn, type OfferingVariant, type TalentOffering } from "@/lib/talent/offerings-types";
 import { ActionButton, Outcome, StatePill } from "../appointments-classes-ui";
 import type { TabProps } from "./CatalogItemEditor";
 import { AddPill, BUTTON_SMALL, CARD, DragHandle, Eyebrow, Field, INPUT, Note, SectionHead } from "./catalog-ui";
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 
 /** The board's option row: the handle, the name, the price, the station code, the availability pill, the row's control; 34px. */
 const ROW = "grid min-h-[34px] grid-cols-[12px_1fr_100px_1fr_110px_22px] items-center gap-[10px] px-[16px] py-[7px] font-admin-body text-[12.5px] leading-[1.2]";
@@ -184,7 +185,7 @@ function GroupCard({
           <DragHandle reason={t("dashboard.catalog.options.reorderReason")} />
           <span className="truncate text-admin-ink">{r.label}</span>
           <span className="tabular-nums text-admin-ink">
-            {priceOf(r) ?? `+${formatOfferingPrice(r.amountCents ?? 0, item.currency, locale)}`}
+            {priceOf(r) ?? `+${formatDashboardMoneyCents(r.amountCents ?? 0, item.currency, locale)}`}
           </span>
           <span className="text-admin-ink-dim" title={t("dashboard.catalog.options.stationReason")}>
             {t("dashboard.catalog.dash")}
