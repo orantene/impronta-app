@@ -1,17 +1,27 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { DirectoryInquiryModalProvider } from "@/components/directory/directory-inquiry-modal-context";
+import { DocumentLang } from "@/components/i18n/DocumentLang";
 import { getPublicHostContext } from "@/lib/saas/scope";
+import {
+  HOST_NAME_HEADER,
+  HOST_TALENT_PROFILE_HEADER,
+} from "@/lib/saas/host-context";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { resolveNotFoundSlug } from "@/lib/site-admin/server/page-roles";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { isLocale } from "@/lib/site-admin/locales";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { renderTalentMaxSite } from "@/lib/talent-site/server/render-max-site";
 import CmsPublicPage from "@/app/(public)/p/[[...slug]]/page";
 
 // E.2 — Branded 404 page (server component).
 //
 // When the request is on an agency host we render the agency's brand
-// instead of generic Tulala chrome. Otherwise we render the canonical
-// Tulala fallback. Both surfaces stay calm — no scary stack chrome.
+// instead of generic Tulala chrome. On a talent_site host we render the
+// Max shell with a soft-404 body (TUL-516 S2). Otherwise we render the
+// canonical Tulala fallback. Both surfaces stay calm — no scary stack chrome.
 
 export const dynamic = "force-dynamic";
 
@@ -44,12 +54,48 @@ async function loadAgencyBrand(): Promise<AgencyBrand | null> {
   }
 }
 
+async function renderTalentSiteSoft404(): Promise<ReactNode | null> {
+  if (!isSupabaseConfigured()) return null;
+  try {
+    const h = await headers();
+    const talentProfileId = h.get(HOST_TALENT_PROFILE_HEADER)?.trim();
+    if (!talentProfileId) return null;
+    const host = h.get(HOST_NAME_HEADER)?.trim();
+    const locale = await getRequestLocale();
+    const result = await renderTalentMaxSite({
+      talentProfileId,
+      pageSlug: null,
+      locale,
+      hrefMode: "host-root",
+      soft404: true,
+      canonicalOrigin: host ? `https://${host}` : undefined,
+      canonicalPath: "/",
+    });
+    if (result.kind !== "render") return null;
+    return (
+      <>
+        <DocumentLang locale={result.locale} />
+        {result.node}
+      </>
+    );
+  } catch {
+    return null;
+  }
+}
+
 export default async function NotFound() {
   // PAGE ROLES — if this agency assigned a page the `notFound` role, render THAT
   // page (with the shell) as the 404 body. This boundary already renders with a
   // 404 status, so SEO stays correct. resolveNotFoundSlug only returns a slug
   // when a published page exists at it, so the not-found boundary can't recurse.
   const roleCtx = await getPublicHostContext();
+
+  // Talent vanity host: site header/footer + locale + "Volver al inicio" (TUL-516 S2).
+  if (roleCtx?.kind === "talent_site") {
+    const soft = await renderTalentSiteSoft404();
+    if (soft) return soft;
+  }
+
   if (roleCtx?.kind === "agency" && roleCtx.tenantId) {
     const locale = await getRequestLocale();
     const notFoundSlug = await resolveNotFoundSlug(

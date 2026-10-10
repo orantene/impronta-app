@@ -100,6 +100,10 @@ const RESERVED_TALENT_SITE_SLUGS = new Set([
   // bare `/pay` or `/link` must not render as a talent page slug.
   "pay",
   "link",
+  // Booking aliases redirect to `/#book` in talentSiteHostResponse; reserve so
+  // they never become authored page slugs if the redirect is skipped.
+  "agendar",
+  "book",
 ]);
 
 export type TalentSiteHostPath =

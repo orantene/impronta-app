@@ -36,6 +36,7 @@ import {
   HOST_CONTEXT_HEADER,
   HOST_NAME_HEADER,
   HOST_TALENT_PROFILE_HEADER,
+  HOST_TALENT_SOFT_404_HEADER,
 } from "@/lib/saas/host-context";
 import { LEGACY_PRIVACY_SLUG, POLICY_SLUG } from "@/lib/talent-policies/public";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -90,6 +91,16 @@ async function resolveCanonicalOrigin(): Promise<string | undefined> {
   }
 }
 
+/** Proxy sets this on allow-list rejects so we paint a site-branded soft 404. */
+async function isTalentSoft404Request(): Promise<boolean> {
+  try {
+    const h = await headers();
+    return h.get(HOST_TALENT_SOFT_404_HEADER) === "1";
+  } catch {
+    return false;
+  }
+}
+
 function firstSegment(pageSlug: string[] | undefined): string | null {
   if (!pageSlug || pageSlug.length === 0) return null;
   // The proxy only ever rewrites a single page segment here, but guard anyway:
@@ -119,7 +130,8 @@ export async function generateMetadata({
     getRequestLocale(),
     resolveCanonicalOrigin(),
   ]);
-  const seg = firstSegment(pageSlug);
+  const soft404 = await isTalentSoft404Request();
+  const seg = soft404 ? null : firstSegment(pageSlug);
   const result = await renderTalentMaxSite({
     talentProfileId,
     pageSlug: seg,
@@ -131,6 +143,7 @@ export async function generateMetadata({
     previewDraft: preview === "draft",
     canonicalOrigin,
     canonicalPath: apexPath(seg),
+    soft404,
   });
   if (result.kind !== "render") return { title: "Not found" };
   return maxSiteSeoToMetadata(result.seo, { ogLocale: result.locale });
@@ -155,11 +168,12 @@ export default async function TalentSiteHostPage({
     const href = await resolveGuestTokenResumeHref({ token: resumeToken, orderId: order ?? null });
     if (href) redirect(href);
   }
-  const [locale, canonicalOrigin] = await Promise.all([
+  const [locale, canonicalOrigin, soft404] = await Promise.all([
     getRequestLocale(),
     resolveCanonicalOrigin(),
+    isTalentSoft404Request(),
   ]);
-  const seg = firstSegment(pageSlug);
+  const seg = soft404 ? null : firstSegment(pageSlug);
 
   const result = await renderTalentMaxSite({
     talentProfileId,
@@ -172,10 +186,12 @@ export default async function TalentSiteHostPage({
     previewDraft: preview === "draft",
     canonicalOrigin,
     canonicalPath: apexPath(seg),
+    soft404,
   });
   // `/privacy` is the English word talents and footers guess; it used to 404
   // unless authored. The policy page lives at `/privacidad`.
   if (result.kind !== "render" && seg === LEGACY_PRIVACY_SLUG) permanentRedirect(`/${POLICY_SLUG.privacy}`);
+  // Unknown page slug → notFound() so HTTP 404; root not-found paints the soft site.
   if (result.kind !== "render") notFound();
   const jsonLd = maxSiteJsonLdString(result.seo);
   return (

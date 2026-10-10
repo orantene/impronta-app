@@ -587,3 +587,9 @@ export const HOST_TENANT_SLUG_HEADER = "x-impronta-tenant-slug";
  * can never spoof a talent profile id.
  */
 export const HOST_TALENT_PROFILE_HEADER = "x-impronta-talent-profile";
+/**
+ * Soft 404 on a talent_site host: rewrite to `/_talent-site` with this header
+ * and HTTP 404 so the Max shell renders with a site-branded not-found body
+ * instead of the platform `/_page-not-found` card (TUL-516 S2).
+ */
+export const HOST_TALENT_SOFT_404_HEADER = "x-impronta-talent-soft-404";

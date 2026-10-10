@@ -98,7 +98,8 @@ import { buildMaxSiteSeo, type MaxSiteSeo } from "./max-site-seo.server";
 import { loadMaxSiteSeoFacts } from "./max-site-seo-facts.server";
 import { loadTalentSiteLocaleContext, type TalentSiteLocaleContext } from "./talent-site-locale.server";
 import { loadUsdRatesForSitePrices } from "./vanity-usd-rates"; import { loadTalentSocialLinks } from "./talent-social-links"; import { webOfficeCtxFor, webOfficeFooter, webOfficeHeaderSocial, type WebOfficeCtx } from "./web-office-footer"; import { webOfficeSocialEnabled } from "../web-office-social";
-import { loadTalentPolicyModel, policyMainNode, policySeo } from "./policy-main";
+import { loadTalentPolicyModel } from "./policy-main";
+import { talentSiteFinalSeo, talentSiteMainOverride } from "./talent-site-main-override";
 import { policyDocForSlug } from "@/lib/talent-policies/public";
 
 /** Re-export so existing `import type { MaxSiteSeo } from "./render-max-site"` stays valid. */
@@ -162,6 +163,8 @@ export interface RenderTalentMaxSiteInput {
    * `/[<page>]` for a custom-domain apex).
    */
   canonicalPath?: string;
+  /** TUL-516 S2 — home shell + soft-404 body (allow-list rejects / unknown slugs). */
+  soft404?: boolean;
 }
 
 export type RenderTalentMaxSiteResult =
@@ -243,22 +246,21 @@ async function renderTalentMaxSiteUnguarded(
     // Owner draft preview renders draft pages too; the public path requires
     // published (the pure core re-applies this — defense in depth over RLS).
     const requirePublished = !isOwnerDraftPreview;
-    // `/politicas` and `/privacidad` are platform pages: the site's shell and theme (from home), only the body swaps.
-    const policyDoc = policyDocForSlug(input.pageSlug);
+    // Policy + soft-404 pages keep the home shell; only `<main>` swaps.
+    const soft404 = input.soft404 === true;
+    const policyDoc = soft404 ? null : policyDocForSlug(input.pageSlug);
     const page = selectMaxSitePage(pages, {
-      pageSlug: policyDoc ? null : input.pageSlug,
+      pageSlug: policyDoc || soft404 ? null : input.pageSlug,
       requirePublished,
     });
     if (!page) return NOT_FOUND;
 
-    // Guest body + early design slug (live media / Maison trade-app fixups).
     const designSlugEarly = await pDesign;
     const snapBlocks = snap?.pages?.[page.id];
     const body = coerceTree(snapBlocks ?? publicPageBody(page, { draftPreview: isOwnerDraftPreview }));
     const fixed = await prepareTalentSiteTrees({ talentProfileId, locale, chain: localeCtx.chain, logoUrl: site.logoUrl, shellTree, body, ctaMode, designSlug: designSlugEarly, siteSlug: site.siteSlug });
     const blocks = pruneUnconfirmedGuestStubs(fixed.body);
-    if (!policyDoc && !hasRenderableBuilderNodes(blocks, { mode: "freeform" })) {
-      // A published-but-empty page → 404 rather than a blank document.
+    if (!policyDoc && !soft404 && !hasRenderableBuilderNodes(blocks, { mode: "freeform" })) {
       return NOT_FOUND;
     }
 
@@ -287,13 +289,10 @@ async function renderTalentMaxSiteUnguarded(
     const siteTokens = snap?.tokens ?? (await loadMaxSiteThemeTokens(talentProfileId, { draft: isOwnerDraftPreview }));
     const designSlug = designSlugEarly;
     const policyModel = policyDoc ? await loadTalentPolicyModel(talentProfileId, policyDoc, locale) : null;
-    // Policy pages keep the home shell but swap the body: give the document a
-    // locale-aware home link so white-on-white chrome never traps the visitor.
-    const policyHomeHref = policyModel
-      ? talentSiteLocalePath("/", locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales)
-      : null;
+    const homeHref = talentSiteLocalePath("/", locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales);
+    const mainOverride = talentSiteMainOverride({ soft404, locale, homeHref, policyModel });
     const node = await renderMaxSiteDocument({
-      mainOverride: policyModel ? policyMainNode(policyModel, { homeHref: policyHomeHref ?? "/" }) : undefined,
+      mainOverride,
       siteTokens,
       designSlug,
       shellTree: hydratedShell,
@@ -330,14 +329,19 @@ async function renderTalentMaxSiteUnguarded(
       ),
       identity,
       locale,
-      noindex: isOwnerDraftPreview,
+      noindex: isOwnerDraftPreview || soft404,
       canonicalOrigin: input.canonicalOrigin,
       canonicalPath: input.canonicalPath,
-      ignoreExplicitCanonical: Boolean(policyDoc),
+      ignoreExplicitCanonical: Boolean(policyDoc) || soft404,
       locales: { primary: localeCtx.settings.defaultLocale, urlDefault: localeCtx.grammar.defaultLocale, supported: localeCtx.settings.supportedLocales },
     });
 
-    return { kind: "render", node, seo: policyModel ? policySeo(seo, policyModel) : seo, locale };
+    return {
+      kind: "render",
+      node,
+      seo: talentSiteFinalSeo({ soft404, locale, seo, policyModel }),
+      locale,
+    };
   } catch {
     // Degrade safe — any unexpected failure becomes a 404, never a throw.
     return NOT_FOUND;
