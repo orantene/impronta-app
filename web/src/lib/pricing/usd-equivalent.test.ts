@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { formatUsdEquivalent, needsUsdRates, usdEquivalentCents, usdEquivalentLabel, type UsdRates } from "./usd-equivalent";
+import { formatUsdEquivalent, needsUsdRates, showsUsdEquivalent, usdEquivalentCents, usdEquivalentLabel, type UsdRates } from "./usd-equivalent";
 
 const FX: UsdRates = { rateDate: "2026-09-23", perUsd: { MXN: 18.5, EUR: 0.9 } };
 
@@ -34,6 +34,15 @@ test("a page only needs rates when something is priced outside USD", () => {
   assert.equal(needsUsdRates([{ currency: "USD", amountCents: 100 }]), false);
   assert.equal(needsUsdRates([{ currency: "MXN", amountCents: null }]), false);
   assert.equal(needsUsdRates([{ currency: "USD", amountCents: 100 }, { currency: "MXN", amountCents: 95000 }]), true);
+});
+
+test("Spanish public pages print no ≈ US$ line (TUL-551 / GRK-063)", () => {
+  assert.equal(showsUsdEquivalent("es"), false);
+  assert.equal(showsUsdEquivalent("es-MX"), false);
+  assert.equal(showsUsdEquivalent(" ES "), false);
+  assert.equal(showsUsdEquivalent("en"), true);
+  assert.equal(showsUsdEquivalent("en-US"), true);
+  assert.equal(showsUsdEquivalent(null), true);
 });
 
 test("a talent prices in pesos or dollars, nothing else", async () => {
