@@ -11,16 +11,21 @@ import { MarketingSupportLauncher } from "./MarketingSupportLauncher";
 /**
  * The floating "?" launcher is hidden on marketing hosts unless
  * `NEXT_PUBLIC_MARKETING_SUPPORT_FAB=1` is set (owner ruling 2026-09-17).
- * Nothing else dispatches TULALA_SUPPORT_OPEN_EVENT, so with the flag off the
- * guest support panel is unreachable from tulala.digital by design.
+ * The launcher owns the TULALA_SUPPORT_OPEN_EVENT listener, so with the flag
+ * off the guest support panel is unreachable from tulala.digital by design,
+ * and any in-page button that dispatches the event must check
+ * `marketingSupportPanelAvailable()` first or it is a dead click.
  */
 const SUPPORT_FAB_ENABLED = process.env.NEXT_PUBLIC_MARKETING_SUPPORT_FAB === "1";
 
+export function marketingSupportPanelAvailable(): boolean {
+  return SUPPORT_FAB_ENABLED && guestSupportMayServe(guestCookieSigningEnabled());
+}
+
 export async function MarketingSupportLauncherMount() {
-  if (!SUPPORT_FAB_ENABLED) return null;
+  if (!marketingSupportPanelAvailable()) return null;
   const ctx = await getPublicHostContext();
   if (ctx.kind !== "marketing") return null;
-  if (!guestSupportMayServe(guestCookieSigningEnabled())) return null;
 
   const locale = await getRequestLocale();
   const actor = await getCachedActorSession();
