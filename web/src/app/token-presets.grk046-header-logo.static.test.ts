@@ -51,3 +51,13 @@ test("GRK-073: type-system header phone padding floors at 16px", () => {
     "magazine phone header must max(16px, gutter-phone)",
   );
 });
+
+test("GRK-073: full-bleed never wipes the site_header side gutter (desktop, tablet, phone)", () => {
+  for (const attr of ["data-section-container", "data-section-tablet-container", "data-section-mobile-container"]) {
+    assert.match(
+      CSS,
+      new RegExp(`\\.site-header\\[${attr}="full-bleed"\\] > \\.site-header__inner--freeform \\{\\s*padding-inline: clamp\\(16px, 3vw, 44px\\) !important;`),
+      `${attr} full-bleed keeps a ≥16px header gutter`,
+    );
+  }
+});

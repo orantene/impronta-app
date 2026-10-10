@@ -822,6 +822,12 @@ html[data-token-typography-scale-preset="editorial"] {
 [data-section-container="editorial"]   > *[class*="__inner"] { width: min(1240px, 100% - 48px) !important; }
 [data-section-container="full-bleed"]  > * > *[class*="__inner"],
 [data-section-container="full-bleed"]  > *[class*="__inner"] { width: 100% !important; max-width: 100% !important; padding-inline: 0 !important; }
+/* GRK-073: site_header is chrome, not a content band — full-bleed must not
+ * wipe its side gutter (brand flush to x=0 on phone demos). ≥16px floor. */
+.site-header[data-section-container="full-bleed"] > .site-header__inner,
+.site-header[data-section-container="full-bleed"] > .site-header__inner--freeform {
+  padding-inline: clamp(16px, 3vw, 44px) !important;
+}
 
 /* Alignment (applies to text children). */
 [data-section-align="left"]   { text-align: left; }
@@ -911,6 +917,10 @@ html[data-token-typography-scale-preset="editorial"] {
   [data-section-tablet-container="editorial"]  > *[class*="__inner"] { width: min(960px, 100% - 32px) !important; }
   [data-section-tablet-container="full-bleed"] > * > *[class*="__inner"],
   [data-section-tablet-container="full-bleed"] > *[class*="__inner"] { width: 100% !important; max-width: 100% !important; padding-inline: 0 !important; }
+  .site-header[data-section-tablet-container="full-bleed"] > .site-header__inner,
+  .site-header[data-section-tablet-container="full-bleed"] > .site-header__inner--freeform {
+    padding-inline: clamp(16px, 3vw, 44px) !important;
+  }
 
   /* Tablet alignment. */
   [data-section-tablet-align="left"]   { text-align: left; }
@@ -955,6 +965,10 @@ html[data-token-typography-scale-preset="editorial"] {
   [data-section-mobile-container="editorial"]  > *[class*="__inner"] { width: 100% !important; max-width: calc(100% - 16px); }
   [data-section-mobile-container="full-bleed"] > * > *[class*="__inner"],
   [data-section-mobile-container="full-bleed"] > *[class*="__inner"] { width: 100% !important; max-width: 100% !important; padding-inline: 0 !important; }
+  .site-header[data-section-mobile-container="full-bleed"] > .site-header__inner,
+  .site-header[data-section-mobile-container="full-bleed"] > .site-header__inner--freeform {
+    padding-inline: clamp(16px, 3vw, 44px) !important;
+  }
 
   /* Mobile alignment. */
   [data-section-mobile-align="left"]   { text-align: left; }
