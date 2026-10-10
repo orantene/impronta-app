@@ -29,8 +29,10 @@ async function timeOne(name: string, work: () => Promise<unknown>): Promise<Span
   return { name, ms: Math.round(performance.now() - t0) };
 }
 
+const ISOLATED_RUN = process.env.JOURNEYS_ISOLATED === "1";
+
 describe("max-site loader timing on fxlank (TUL-444 B1)", () => {
-  it("ranks the slowest public-path loaders for diego-navarro-dj /en", async () => {
+  it("ranks the slowest public-path loaders for diego-navarro-dj /en", { skip: !ISOLATED_RUN && "needs JOURNEYS_ISOLATED=1 (fxlank)" }, async () => {
     assertIsolated();
     assert.equal(FORBIDDEN_SLUGS.has(TARGET_SLUG), false);
 
