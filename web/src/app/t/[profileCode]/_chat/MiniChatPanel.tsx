@@ -776,6 +776,7 @@ export function MiniChatPanel({
     <div
       role="dialog"
       aria-modal="false"
+      data-guest-chat-panel=""
       aria-label={interpolate(t("public.guestChat.messageBrandAria"), { brand: brand.agencyName })}
       style={miniPanelContainerStyle(P, compactSheet, keyboardInsetPx)}
     >

@@ -115,7 +115,7 @@ test("TUL-474: utility chrome clears work_order captions under sticky dock/bar",
   );
   assert.match(
     UTILITY_TYPE_SYSTEM_CSS,
-    /\.sb-portfolio\[data-portfolio-layout="work_order"\]\{padding-bottom:calc\(72px \+ env\(safe-area-inset-bottom,0px\)\)\}/,
+    /\.sb-portfolio\[data-portfolio-layout="work_order"\]\{padding-bottom:var\(--cb-bar-h,calc\(86px \+ env\(safe-area-inset-bottom,0px\)\)\)\}/,
   );
   assert.match(UTILITY_TYPE_SYSTEM_CSS, /\.sb-area-title/);
   assert.match(UTILITY_TYPE_SYSTEM_CSS, /#hero \.site-builder-node--container\[data-builder-layout="row"\]\{flex-wrap:nowrap\}/);

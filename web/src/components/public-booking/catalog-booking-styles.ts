@@ -114,9 +114,9 @@ export const CATALOG_BOOKING_CSS = `
      on the same bottom-right corner (BJ-07). */
   .cb-bar[data-show="true"][data-has-selection="true"]{left:auto;right:max(32px,calc(16px + 56px + 16px));bottom:32px;width:min(420px,calc(100vw - 120px));border:1px solid var(--cb-line);border-radius:18px;padding:16px 20px;box-shadow:0 24px 50px -30px rgba(36,33,38,.4)}
 }
-/* Mobile: full-width idle/selected bar — Hablar FAB lifts via data-yield-booking-bar. */
-.cb-island{padding-bottom:calc(72px + env(safe-area-inset-bottom))}
-@media (min-width:720px){.cb-island{padding-bottom:0}}
+/* GRK-034: catalog rows clear the sticky bar via --cb-bar-h (theme chrome), not a hardcoded 72px. */
+.cb-island{padding-bottom:var(--cb-bar-h,calc(86px + env(safe-area-inset-bottom,0px)))}
+@media (min-width:720px){.cb-island{padding-bottom:var(--cb-bar-h,0px)}}
 /* AUD-044 — frosted selection dock (prototype: selection-dock.html). Brand via
    --cb-primary (theme token); glass via --cb-surface mixes. No hex literals. */
 .cb-dock{--cb-ease:cubic-bezier(.2,.9,.25,1.15);--cb-ease-out:cubic-bezier(.16,1,.3,1);--cb-deep:color-mix(in srgb,var(--cb-primary) 76%,black);position:fixed;left:12px;right:12px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:81;display:flex;align-items:center;gap:10px;padding:10px;border-radius:22px;background:color-mix(in srgb,var(--cb-surface) 78%,transparent);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);border:1px solid color-mix(in srgb,var(--cb-surface) 70%,transparent);box-shadow:0 18px 50px -12px color-mix(in srgb,var(--cb-deep) 35%,transparent),0 2px 6px color-mix(in srgb,var(--cb-deep) 8%,transparent);color:var(--cb-ink);font-family:var(--token-font-body,var(--font-inter-body),Inter,system-ui,sans-serif);transform:translateY(140%);opacity:0;pointer-events:none;transition:transform .55s var(--cb-ease),opacity .3s}

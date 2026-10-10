@@ -11,12 +11,14 @@ import {
   FLOATING_CHROME_STACK_CSS,
   floatingBannerUp,
   floatingChromeBottomUsesMax,
+  floatingChromeClearsHeroCtas,
+  floatingChromeYieldsToGuestChat,
   helpBubbleFilterNavBlocking,
 } from "./floating-chrome-stack";
 
 const root = join(process.cwd(), "src");
 
-describe("TUL-516 floating chrome stack", () => {
+describe("TUL-516 / TUL-528 floating chrome stack", () => {
   test("F1/F2: consent hides locale + chat launcher; reserves bottom for legal CTAs", () => {
     assert.match(FLOATING_CHROME_STACK_CSS, /body:has\(\[data-consent-banner\]\) \[data-locale-suggestion\]\{display:none\}/);
     assert.match(FLOATING_CHROME_STACK_CSS, /body:has\(\[data-consent-banner\]\) \[data-guest-chat-launcher\]/);
@@ -36,6 +38,32 @@ describe("TUL-516 floating chrome stack", () => {
     assert.match(CATALOG_BAR_RESERVE_CSS, /--cb-bar-h:calc\(/);
     assert.match(CATALOG_BAR_RESERVE_CSS, /\.cb-bar\[data-top="true"\]\{opacity:0/);
     assert.doesNotMatch(CATALOG_BAR_RESERVE_CSS, /body\{padding-bottom/);
+  });
+
+  test("GRK-034: desktop restores --cb-bar-h while the bar or dock is painted", () => {
+    assert.match(
+      CATALOG_BAR_RESERVE_CSS,
+      /:root:has\(\.cb-bar\[data-show="true"\]:not\(\[data-top="true"\]\),\.cb-dock\[data-show="true"\]\)\{--cb-bar-h:calc\(/,
+    );
+    const island = readFileSync(join(root, "components/public-booking/catalog-booking-styles.ts"), "utf8");
+    assert.match(island, /\.cb-island\{padding-bottom:var\(--cb-bar-h/);
+    assert.doesNotMatch(island, /\.cb-island\{padding-bottom:calc\(72px/);
+  });
+
+  test("GRK-033: consent-open heroes pad CTAs above the cookie card", () => {
+    assert.equal(floatingChromeClearsHeroCtas(FLOATING_CHROME_STACK_CSS), true);
+    assert.match(FLOATING_CHROME_STACK_CSS, /site-bn-hero__inner\{padding-bottom:max\(/);
+  });
+
+  test("GRK-039: consent yields to guest chat panel; shells mark data-guest-chat-panel", () => {
+    assert.equal(floatingChromeYieldsToGuestChat(FLOATING_CHROME_STACK_CSS), true);
+    for (const file of [
+      "app/t/[profileCode]/_chat/MiniChatPanel.tsx",
+      "app/t/[profileCode]/_chat/CardDockFrame.tsx",
+      "app/t/[profileCode]/_chat/ExpandedChatLayout.tsx",
+    ]) {
+      assert.match(readFileSync(join(root, file), "utf8"), /data-guest-chat-panel/);
+    }
   });
 
   test("floatingBannerUp is true only for painted consent/locale nodes", () => {
@@ -61,5 +89,11 @@ describe("TUL-516 floating chrome stack", () => {
     assert.match(layout, /FloatingChromeStackStyles/);
     const consent = readFileSync(join(root, "components/analytics/analytics-consent-banner.tsx"), "utf8");
     assert.match(consent, /z-\[98\]|zIndex:\s*98|z-index:\s*98/);
+  });
+
+  test("sticky bar measure never writes zero over the CSS default", () => {
+    const hook = readFileSync(join(root, "lib/site-admin/builder-node/use-sticky-bar-visible.ts"), "utf8");
+    assert.match(hook, /if \(reserve > 0\) root\.style\.setProperty\("--cb-bar-h"/);
+    assert.match(hook, /else root\.style\.removeProperty\("--cb-bar-h"\)/);
   });
 });
