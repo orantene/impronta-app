@@ -32,7 +32,7 @@ const REFERENCES: DemoRegistryEntry[] = [
 /** Live demos outside THEME_DEMOS: rebuilt to the newest design but always in their CURRENT look. */
 const EXTRAS: DemoRegistryEntry[] = [
   { design: "maison-v2", profileCode: "TAL-93006", palette: "current", reference: false, keepLook: true },
-  { design: "folio", profileCode: "TAL-93007", palette: "current", reference: false, keepLook: true },
+  { design: "folio", profileCode: "TAL-93007", palette: "current", reference: false, keepLook: true, contentFixture: "TAL-93007" },
 ];
 
 export const DEMO_REGISTRY: readonly DemoRegistryEntry[] = [
