@@ -100,6 +100,17 @@ export function buildTalentLocaleSwaps(
     add(bioEn.slice(0, TAGLINE_MAX), clampWords(bio));
     add(clampWords(bioEn), clampWords(bio));
   }
+  // GRK-075: ES-primary trees bake `bioEs.slice(0,160)` mid-word with no EN key
+  // (e.g. Valeria "…preparo coreogra"). Heal every locale's raw mid-slice.
+  for (const raw of Object.values(src.bioI18n ?? {})) {
+    const t = typeof raw === "string" ? raw.trim() : "";
+    if (t.length > TAGLINE_MAX) {
+      add(t.slice(0, TAGLINE_MAX), clampWords(bio || t));
+    }
+  }
+  if (bio.length > TAGLINE_MAX) {
+    add(bio.slice(0, TAGLINE_MAX), clampWords(bio));
+  }
   for (const names of src.typeNames) {
     const en = names?.en?.trim();
     if (en) add(en, pick(names, key, chain));
