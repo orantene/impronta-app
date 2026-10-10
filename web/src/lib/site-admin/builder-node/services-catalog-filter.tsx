@@ -240,9 +240,9 @@ export function ServicesCatalogFilter({
 
   const onRowAction = (item: TalentOffering, inclusion?: string | null) => {
     demoToast.ping();
-    // Maison DoR: option / consult rows open the sheet; plain Seleccionar only
-    // paints Seleccionado + Continuar. continueFromBar opens the sheet.
-    if (catalogRowOpensSheetImmediately(item)) {
+    // Gridline (matrix) and Maison DoR option / consult rows open the sheet; plain
+    // Seleccionar only paints Seleccionado + Continuar. continueFromBar opens the sheet.
+    if (matrix || catalogRowOpensSheetImmediately(item)) {
       dispatchOffering(item, confirmsByHand, undefined, inclusion, bookingPosture);
       return;
     }

@@ -92,7 +92,7 @@ function buildGridlinePayloadUnseeded(): DesignPayload {
       utilityBar: {
         subtitle: "{{primaryTypeLabel}}",
         ctaLabel: "Book a visit",
-        ctaHref: "#services",
+        ctaHref: "#book",
       },
     }),
     homeTree: [
@@ -100,10 +100,12 @@ function buildGridlinePayloadUnseeded(): DesignPayload {
       heroSpecBlock(id, {
         // Spec cells are typed by the talent; an empty grid renders nothing.
         specs: [],
+        // TUL-516 W3-4: shared booking engine CTA (every theme hero).
         ctaRow: {
-          primaryLabel: "See services",
-          primaryHref: "#services",
-          secondaryLabel: "Ask a question",
+          primaryLabel: "Book an appointment",
+          primaryHref: "#book",
+          secondaryLabel: "See services",
+          secondaryHref: "#services",
         },
       }),
       patchChild(taskPickerBlock(id, { title: "What do you need?" }), "task_picker", {}),
