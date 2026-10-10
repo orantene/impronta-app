@@ -35,7 +35,21 @@ export function withHeaderBrandName(node: BuilderNode, name: string): BuilderNod
   if (node.kind !== "section" || props.sectionTypeKey !== "site_header" || !name) return node;
   const sp = (props.sectionProps ?? {}) as Rec;
   const brand = (sp.brand ?? {}) as Rec;
-  if (usable(brand.label) || usable(brand.logoUrl)) return node;
+  if (usable(brand.label)) return node;
+  // TUL-532 / GRK-046: a logo alone still needs the business name next to the mark.
+  if (usable(brand.logoUrl)) {
+    return {
+      ...node,
+      props: {
+        ...props,
+        sectionProps: {
+          ...sp,
+          brand: { ...brand, label: name, ...(usable(brand.logoAlt) ? {} : { logoAlt: name }) },
+          brandDisplay: "image-and-text",
+        },
+      },
+    } as unknown as BuilderNode;
+  }
   const next: Rec = {
     ...sp,
     brand: { ...brand, label: name, ...(usable(brand.logoAlt) ? {} : { logoAlt: name }) },

@@ -75,10 +75,14 @@ export const PORTFOLIO_CSS = `
 .sb-portfolio-header{margin-bottom:1rem}
 .sb-portfolio-eyebrow{margin:0 0 0.35rem;font-size:0.75rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--token-color-muted)}
 .sb-portfolio-title{margin:0;font-size:clamp(1.35rem,2.5vw,1.85rem);font-weight:600;letter-spacing:-0.02em;line-height:1.15}
-.sb-portfolio-empty{padding:2rem 0;color:var(--token-color-muted);font-size:0.95rem}
+.sb-portfolio-empty{padding:2rem 0;color:var(--token-color-muted);font-size:0.95rem;min-height:12rem}
 .sb-portfolio-shot{position:relative;display:block;overflow:hidden;border:0;padding:0;margin:0;background:var(--token-color-surface-raised,transparent);color:inherit;text-align:left;cursor:pointer;text-decoration:none;width:100%}
 .sb-portfolio-shot:focus-visible{outline:2px solid var(--token-color-ink);outline-offset:2px}
-.sb-portfolio-shot img{display:block;width:100%;height:100%;object-fit:cover}
+/* TUL-532 / GRK-076: prefer faces; center crop often clips the head. */
+.sb-portfolio-shot img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 18%}
+/* Reserve frame height before decode so gallery tiles do not jump (GRK-044). */
+.sb-portfolio--grid,.sb-portfolio--contact_sheet{min-height:min(52vw,22rem);content-visibility:auto}
+.sb-portfolio--grid .sb-portfolio-frame,.sb-portfolio--contact_sheet .sb-portfolio-frame{background:color-mix(in srgb,var(--token-color-ink) 6%,transparent)}
 .sb-portfolio-cap{display:block;margin-top:0.4rem;font-size:0.8125rem;line-height:1.35;color:var(--token-color-muted)}
 .sb-portfolio-service{display:block;font-size:0.75rem;letter-spacing:0.04em;text-transform:uppercase;color:var(--token-color-ink);margin-top:0.15rem}
 .sb-portfolio--filmstrip{display:flex;gap:0.75rem;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;padding-bottom:0.25rem}
@@ -205,6 +209,36 @@ function ShotFigure({
       ? wantLabel
       : shot.offeringTitle?.trim() || null;
 
+  // TUL-532 / GRK-044: captions stay outside the lightbox <button> (figcaption
+  // inside a button is invalid HTML and some browsers strip the click target).
+  const caption =
+    showCaptions && magazineIndex ? (
+      <figcaption className="sb-portfolio-cap">
+        {[String(magazineIndex).padStart(2, "0"), shot.caption?.trim() || serviceLine]
+          .filter(Boolean)
+          .join(" · ")}
+        {hint}
+      </figcaption>
+    ) : showCaptions && framed && (shot.caption?.trim() || shot.offeringTitle?.trim() || shot.offeringId) ? (
+      <figcaption className="sb-portfolio-cap">
+        <span className="sb-portfolio-name">{shot.caption?.trim() || shot.offeringTitle?.trim() || null}{hint}</span>
+        {shot.offeringId ? (
+          <>
+            <span className="sb-portfolio-arrow" aria-hidden="true">
+              {"\u2192"}
+            </span>
+            <span className="sb-portfolio-sr">{serviceLine}</span>
+          </>
+        ) : null}
+      </figcaption>
+    ) : showCaptions && (shot.caption?.trim() || serviceLine) ? (
+      <figcaption className="sb-portfolio-cap">
+        {shot.caption?.trim() || null}
+        {hint}
+        {serviceLine ? <span className="sb-portfolio-service">{serviceLine}</span> : null}
+      </figcaption>
+    ) : null;
+
   return (
     <figure
       className={itemClass ? `sb-portfolio-item ${itemClass}` : "sb-portfolio-item"}
@@ -234,39 +268,8 @@ function ShotFigure({
           {/* eslint-disable-next-line @next/next/no-img-element -- public CDN URLs; sizes vary by layout */}
           <img src={shot.url} alt={shot.alt || label} loading="lazy" decoding="async" />
         </span>
-        {showCaptions && magazineIndex ? (
-          <figcaption className="sb-portfolio-cap">
-            {[String(magazineIndex).padStart(2, "0"), shot.caption?.trim() || serviceLine]
-              .filter(Boolean)
-              .join(" · ")}
-            {hint}
-          </figcaption>
-        ) : showCaptions && framed ? (
-          <figcaption className="sb-portfolio-cap">
-            <span className="sb-portfolio-name">
-              {shot.caption?.trim() ||
-                shot.offeringTitle?.trim() ||
-                serviceLine ||
-                (es ? `Trabajo ${gallery.index + 1}` : `Work ${gallery.index + 1}`)}
-              {hint}
-            </span>
-            {shot.offeringId ? (
-              <>
-                <span className="sb-portfolio-arrow" aria-hidden="true">
-                  {"\u2192"}
-                </span>
-                <span className="sb-portfolio-sr">{serviceLine}</span>
-              </>
-            ) : null}
-          </figcaption>
-        ) : showCaptions && (shot.caption?.trim() || serviceLine) ? (
-          <figcaption className="sb-portfolio-cap">
-            {shot.caption?.trim() || null}
-            {hint}
-            {serviceLine ? <span className="sb-portfolio-service">{serviceLine}</span> : null}
-          </figcaption>
-        ) : null}
       </PortfolioShotLink>
+      {caption}
     </figure>
   );
 }
