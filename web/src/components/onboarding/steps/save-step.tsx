@@ -93,6 +93,11 @@ export function SaveStep({
           className="mt-1 h-12 w-full rounded-[14px] px-3 text-[1rem] outline-none placeholder:text-[var(--tl-muted-soft)]"
           style={{ background: "var(--tl-surface-raised)", border: "1px solid var(--tl-hairline)", color: "var(--tl-ink)" }}
         />
+        {email.includes("+") && email.includes("@") ? (
+          <p className="mt-2 text-[0.8125rem] leading-snug" style={{ color: "var(--tl-muted)" }} data-testid="onb-plus-email-hint">
+            {t("public.onboarding.save.plusEmailHint")}
+          </p>
+        ) : null}
         <label className="mt-3 flex items-start gap-2 text-[0.8125rem] leading-snug" style={{ color: "var(--tl-muted)" }}>
           <input
             type="checkbox"
