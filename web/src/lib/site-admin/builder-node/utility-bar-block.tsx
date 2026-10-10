@@ -23,7 +23,9 @@ import type { BuilderUtilityBarNode } from "./types";
 export const UTILITY_BAR_CSS = `
 .sb-ub{container:sbub/inline-size;position:sticky;top:0;z-index:7;display:flex;align-items:center;gap:10px;padding:10px 12px;box-sizing:border-box;width:100%;background:var(--token-color-ink);color:var(--token-color-background);border-bottom:1px solid color-mix(in srgb,var(--token-color-background) 10%,transparent)}
 .sb-ub-brand{display:flex;align-items:center;gap:10px;flex:1;min-width:0;color:inherit;text-decoration:none}
-.sb-ub-logo{flex:0 0 auto;width:36px;height:36px;border-radius:6px;background:var(--token-color-accent,var(--token-color-primary));color:var(--token-color-on-accent,var(--token-color-ink));display:grid;place-items:center;overflow:hidden;font-weight:800;font-size:15px}
+/* GRK-074: paint with accent-on (resolved token), not the missing on-accent alias
+   that fell back to ink. Karla light has accent===ink on an ink bar. */
+.sb-ub-logo{flex:0 0 auto;width:36px;height:36px;border-radius:6px;background:var(--token-color-accent,var(--token-color-primary));color:var(--token-color-accent-on,var(--token-color-primary-on,var(--token-color-background)));display:grid;place-items:center;overflow:hidden;font-weight:800;font-size:15px;border:1px solid color-mix(in srgb,var(--token-color-background) 22%,transparent)}
 .sb-ub-logo img{width:100%;height:100%;object-fit:cover;display:block}
 .sb-ub-nm{flex:1;min-width:0;line-height:1.1}
 .sb-ub-nm b{display:block;font-weight:800;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -36,12 +38,13 @@ export const UTILITY_BAR_CSS = `
 @keyframes sbUbPulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--token-color-accent,var(--token-color-primary)) 55%,transparent)}70%,100%{box-shadow:0 0 0 7px transparent}}
 @media (prefers-reduced-motion:reduce){.sb-ub-pill i{animation:none!important}}
 /* TUL-496: phone header keeps the visit CTA (was desktop-only). */
-.sb-ub-cta{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 12px;border-radius:6px;background:var(--token-color-accent,var(--token-color-primary));color:var(--token-color-on-accent,var(--token-color-ink));font-weight:700;font-size:13px;text-decoration:none;white-space:nowrap;flex:0 0 auto}
+.sb-ub-cta{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 12px;border-radius:6px;background:var(--token-color-accent,var(--token-color-primary));color:var(--token-color-accent-on,var(--token-color-primary-on,var(--token-color-background)));font-weight:700;font-size:13px;text-decoration:none;white-space:nowrap;flex:0 0 auto;border:1px solid color-mix(in srgb,var(--token-color-background) 22%,transparent)}
 .sb-ub-tel{flex:0 0 auto;width:44px;height:44px;border-radius:99px;border:1.5px solid color-mix(in srgb,var(--token-color-background) 28%,transparent);color:var(--token-color-background);display:grid;place-items:center;text-decoration:none;box-sizing:border-box}
 .sb-ub-tel svg{width:18px;height:18px}
 /* TUL-474/496: never hide only the pill label (left a stray status dot). Drop the whole pill. */
 @container sbub (max-width:330px){.sb-ub-pill{display:none}.sb-ub-cta{padding:0 10px;font-size:12px}}
-@container sbub (min-width:900px){.sb-ub{padding:12px 40px;gap:14px}.sb-ub-cta{padding:0 18px;font-size:14px}.sb-ub-nm small{display:block;-webkit-line-clamp:unset;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}}
+/* GRK-074: keep 2-line wrap on desktop too (nowrap+ellipsis cut trade·city). */
+@container sbub (min-width:900px){.sb-ub{padding:12px 40px;gap:14px}.sb-ub-cta{padding:0 18px;font-size:14px}}
 `;
 
 const PHONE_ICON = (
