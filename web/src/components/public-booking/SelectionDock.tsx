@@ -8,9 +8,14 @@
  * booking sheet, unchanged behavior). While `data-show="true"` the guest chat
  * FAB tucks itself away (see use-yield-booking-bar), so there is only ever one
  * floating control. Styles live in catalog-booking-styles (`.cb-dock*`).
+ *
+ * E6-tab-count (TUL-534): the dock mounts at the end of the catalog DOM, so
+ * after "Seleccionar" Tab would walk ~50 controls before Continuar. On the
+ * hidden→shown edge, move focus to Continuar so keyboard guests land on the
+ * booking action (≤10 Tabs done-when).
  */
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 
 import { useEmergenciesToday } from "@/components/talent-site/LiveStatusExpiry";
 import type { LiveStatusRenderContext } from "@/lib/talent/live-status-render";
@@ -94,6 +99,8 @@ export function SelectionDock({
   const emergenciesOn = useEmergenciesToday(liveStatus);
   // The chat button shows online / unread dots when the chat is live on this page.
   const presence = useSyncExternalStore(subscribeChatPresence, peekChatPresence, () => null);
+  const continueRef = useRef<HTMLButtonElement>(null);
+  const wasDockShown = useRef(false);
   const front = items[0] ?? null;
   const { name, line } = dockSummary(items, locale, formatPrice);
   const thumbs = items
@@ -114,6 +121,13 @@ export function SelectionDock({
   ) : null;
 
   const dockShown = show && items.length > 0 && !presence?.open;
+
+  useEffect(() => {
+    if (dockShown && !wasDockShown.current) {
+      continueRef.current?.focus({ preventScroll: true });
+    }
+    wasDockShown.current = dockShown;
+  }, [dockShown]);
   // ONE bar at the bottom: while the dock is up the toast lives INSIDE it
   // (rising from its top edge); only when the dock is gone (Undo after
   // removing the last service) does it stand alone, and then it is the only
@@ -180,7 +194,7 @@ export function SelectionDock({
           <b>{name}</b>
           <span>{line}</span>
         </div>
-        <button type="button" className="cb-dock-go" onClick={onContinue}>
+        <button type="button" ref={continueRef} className="cb-dock-go" onClick={onContinue}>
           {emergenciesOn ? (
             <>
               <span className="cb-dock-lbl-off">{copy.continueLabel}</span>
