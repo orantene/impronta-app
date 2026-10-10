@@ -127,14 +127,7 @@ async function mint(): Promise<void> {
     mkdirSync(evidence, { recursive: true });
     writeFileSync(join(evidence, `minted-${currency}.json`), JSON.stringify(out, null, 2));
   };
-  try {
-    for (const c of CASES) await mintCase(c);
-  } finally {
-    record();
-  }
-  console.log(JSON.stringify(out));
-
-  async function mintCase(c: (typeof CASES)[number]) {
+  const mintCase = async (c: (typeof CASES)[number]) => {
     const sub = must("submitInquiry", (await submitInquiry(admin, {
       tenant_id: tenantId,
       contact_name: `QA paid-qa ${c} ${currency}`,
@@ -178,7 +171,14 @@ async function mint(): Promise<void> {
     if (!pay.ok || !pay.payCode) throw new Error(`no pay link for ${c}: ${JSON.stringify(pay).slice(0, 200)}`);
     out.orders.push(pay.orderId ?? "");
     out.links[c] = `${base}/pay/${pay.payCode}`;
+  };
+
+  try {
+    for (const c of CASES) await mintCase(c);
+  } finally {
+    record();
   }
+  console.log(JSON.stringify(out));
 }
 
 async function teardown(file: string): Promise<void> {
