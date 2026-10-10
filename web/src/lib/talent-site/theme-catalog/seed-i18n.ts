@@ -40,6 +40,21 @@ export type SeedI18nOverlay = {
   en: Record<string, string>;
 };
 
+/**
+ * Gridline utility-bar emergencies status pill (TUL-516 C2).
+ * One pair for seed overlays + the render-time design-label map — they must
+ * not drift (saul / karla / alex Spanish pages show English without this).
+ */
+export const EMERGENCIES_TODAY_LABEL = {
+  en: "Emergencies today",
+  es: "Urgencias hoy",
+} as const;
+
+export const NO_EMERGENCIES_TODAY_LABEL = {
+  en: "No emergencies today",
+  es: "Sin urgencias hoy",
+} as const;
+
 /** English seed text -> neutral Mexican Spanish (tuteo). Exact seed strings. */
 export const SEED_TEXT_ES: Readonly<Record<string, string>> = {
   // Hero / actions
@@ -116,8 +131,8 @@ export const SEED_TEXT_ES: Readonly<Record<string, string>> = {
   Call: "Llamar",
   "See times": "Ver horarios",
   "Ask now": "Consultar",
-  "Emergencies today": "Urgencias hoy",
-  "No emergencies today": "Sin urgencias hoy",
+  [EMERGENCIES_TODAY_LABEL.en]: EMERGENCIES_TODAY_LABEL.es,
+  [NO_EMERGENCIES_TODAY_LABEL.en]: NO_EMERGENCIES_TODAY_LABEL.es,
   Specifications: "Especificaciones",
   "How I work": "Cómo trabajo",
 };

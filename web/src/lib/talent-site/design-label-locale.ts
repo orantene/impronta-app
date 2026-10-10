@@ -11,6 +11,10 @@ import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { parseSellingBookingSettings } from "@/lib/talent/selling-booking-settings";
 import { registeredAuthoredOverlays } from "./theme-catalog/collection/authored";
 import { localiseBakedLanguagesLine } from "./talent-locale-swaps";
+import {
+  EMERGENCIES_TODAY_LABEL,
+  NO_EMERGENCIES_TODAY_LABEL,
+} from "./theme-catalog/seed-i18n";
 
 /** Seeded English label -> Spanish. Keys are exact seed strings. */
 const CODE_SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
@@ -27,8 +31,9 @@ const CODE_SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "How it works": "Cómo funciona",
   "Where I work": "Dónde trabajo",
   "Emergency": "Emergencia",
-  "Emergencies today": "Emergencias hoy",
-  "No emergencies today": "Sin emergencias hoy",
+  // TUL-516 C2: Gridline utility-bar status pill (same pair as seed-i18n).
+  [EMERGENCIES_TODAY_LABEL.en]: EMERGENCIES_TODAY_LABEL.es,
+  [NO_EMERGENCIES_TODAY_LABEL.en]: NO_EMERGENCIES_TODAY_LABEL.es,
   "Call": "Llamar",
   "Same-day emergency": "Emergencia el mismo día",
   "Meanwhile:": "Mientras tanto:",
@@ -415,6 +420,20 @@ export function localiseSeededDesignLabels(
       if (typeof v !== "string") continue;
       const out = one(v, key === "label" ? props.href : undefined);
       if (out !== null) (next ??= { ...props })[key] = out;
+    }
+    // TUL-516 C2: Gridline utility bars often omit status labels; the block
+    // then hardcodes English. Fill the seed English so the map can localise
+    // without a per-talent fixture or reapply (saul / Spanish-only trades).
+    if (node.kind === "utility_bar" && props.showStatus !== false) {
+      for (const [key, seedEn] of [
+        ["statusOnLabel", EMERGENCIES_TODAY_LABEL.en],
+        ["statusOffLabel", NO_EMERGENCIES_TODAY_LABEL.en],
+      ] as const) {
+        const cur = ((next ?? props)[key] as unknown);
+        if (typeof cur === "string" && cur.trim()) continue;
+        const out = one(seedEn);
+        (next ??= { ...props })[key] = out ?? seedEn;
+      }
     }
     if (node.kind === "section" && props.sectionTypeKey === "site_header") {
       const header = localiseHeaderProps(props.sectionProps, one);
