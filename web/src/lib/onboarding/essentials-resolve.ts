@@ -16,19 +16,36 @@ import { timezoneFromPlaceText } from "@/lib/scheduling/timezone-from-place";
 import { isValidIanaTimeZone } from "@/lib/scheduling/tz";
 
 /**
- * TUL-77: the zone hours are written in. Confirmed zone first, then the city
- * (+ country) the person typed, then the country default. Null only when
+ * TUL-77 / TUL-540: the zone hours are written in. A person-confirmed zone
+ * wins; a soft pack default (Mexico_City with no picker confirm) yields to
+ * the city. Then city (+ country), then the country default. Null only when
  * nothing is known; hours are never written in a guessed UTC.
  */
 export function resolveEssentialsTimezone(input: {
   timezone: string | null | undefined;
   city: string | null | undefined;
   country: string | null | undefined;
+  /**
+   * When true, `timezone` is treated as a soft pack default: a city-derived
+   * zone (e.g. Cancún → America/Cancun) may override America/Mexico_City.
+   */
+  softTimezone?: boolean;
 }): string | null {
-  const own = input.timezone?.trim();
-  if (own && isValidIanaTimeZone(own)) return own;
   const place = [input.city, input.country].map((x) => x?.trim()).filter(Boolean).join(", ");
   const fromPlace = place ? timezoneFromPlaceText(place) : null;
+  const own = input.timezone?.trim();
+  if (own && isValidIanaTimeZone(own)) {
+    if (
+      input.softTimezone &&
+      own === "America/Mexico_City" &&
+      fromPlace &&
+      isValidIanaTimeZone(fromPlace) &&
+      fromPlace !== own
+    ) {
+      return fromPlace;
+    }
+    return own;
+  }
   if (fromPlace && isValidIanaTimeZone(fromPlace)) return fromPlace;
   return defaultTimezoneForCountry(input.country);
 }
@@ -53,7 +70,13 @@ export function resolveEssentialsForBuild(input: {
     name: e?.name ?? null,
     services,
     hours: hoursHaveAnyOpenDay(e?.hours ?? null) ? e!.hours : defaultWeeklyHours(),
-    timezone: resolveEssentialsTimezone({ timezone: e?.timezone, city: input.city, country: input.country }),
+    timezone: resolveEssentialsTimezone({
+      timezone: e?.timezone,
+      city: input.city,
+      country: input.country,
+      // Unconfirmed pack prefill must not lock Mexico_City over Cancún (onb1-04).
+      softTimezone: !e?.confirmed,
+    }),
     place: e?.place ?? null,
     firstProviderEmail: e?.firstProviderEmail ?? null,
     firstProviderName: e?.firstProviderName ?? null,

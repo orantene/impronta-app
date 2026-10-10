@@ -81,7 +81,16 @@ export const BUSINESS_TYPES: readonly BusinessType[] = [
   t("sushi-restaurant", "dining", "Sushi restaurant", "Restaurante de sushi", ["sushi"]),
   t("home-takeaway", "dining", "Home takeaway", "Comida para llevar", ["takeaway kitchen", "takeout", "comida para llevar"]),
   t("nail-salon", "beauty", "Nail salon", "Salón de uñas", ["manicure", "unas", "uñas", "salón de uñas"], "salon_barber"),
-  t("hair-salon", "beauty", "Hair salon", "Peluquería", ["hairdresser", "peluqueria", "peluquería"], "salon_barber"),
+  // TUL-540 / onb1-02: "salón de belleza" must not fall through to beauty-academy via bare "belleza".
+  t(
+    "beauty-salon",
+    "beauty",
+    "Beauty salon",
+    "Salón de belleza",
+    ["salon de belleza", "salón de belleza", "beauty salon", "estetica", "estética", "centro de belleza"],
+    "salon_barber",
+  ),
+  t("hair-salon", "beauty", "Hair salon", "Peluquería", ["hairdresser", "peluqueria", "peluquería", "hair salon"], "salon_barber"),
   t("eyelash-studio", "beauty", "Eyelash studio", "Estudio de pestañas", ["lash studio", "eyelash extensions", "pestañas"]),
   t("makeup-artist", "beauty", "Makeup artist", "Maquillador", ["makeup", "maquillista"]),
   t("spa", "wellness", "Spa", "Spa", ["day spa", "spa de día", "spa de dia"], "spa_wellness"),

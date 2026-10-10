@@ -18,6 +18,7 @@
 import type { Brief, BriefFact, FactSource } from "@/lib/tulala/brief-store";
 import { booleanFact, listFact, stringFact } from "@/lib/tulala/brief-store";
 import { looksLikeUrl, normalizeWorkspaceSlugCandidate } from "@/lib/saas/workspace-signup";
+import { formatCanonicalHoursForLocale } from "@/lib/tulala/normalize-facts";
 
 import type { OnboardingIntent, OnboardingPath } from "./module-state";
 import { MODULE_QUESTIONS, type ModuleQuestionId } from "./module-questions";
@@ -79,14 +80,26 @@ function lineStatus(f: BriefFact | null, hasValue: boolean): LineStatus {
   return "assumed";
 }
 
-function displayValue(f: BriefFact | null): string | null {
+function displayValue(f: BriefFact | null, locale: "en" | "es" = "en"): string | null {
   if (!f) return null;
   const v = f.value;
-  if (typeof v === "string") return v.trim() || null;
+  if (typeof v === "string") {
+    const s = v.trim() || null;
+    if (!s) return null;
+    // TUL-540 / onb1-01: hours stay EN canonical in the brief; show ES shorts on ES flows.
+    if (f.factKey === "business.hours") return formatCanonicalHoursForLocale(s, locale);
+    return s;
+  }
   if (typeof v === "number") return String(v);
   if (Array.isArray(v)) {
     const strs = v.filter((x): x is string => typeof x === "string" && !!x.trim());
-    if (strs.length) return strs.join(" · ");
+    if (strs.length) {
+      const shown =
+        f.factKey === "business.hours"
+          ? strs.map((s) => formatCanonicalHoursForLocale(s, locale))
+          : strs;
+      return shown.join(" · ");
+    }
     const titled = v
       .map((x) => (x && typeof x === "object" && "title" in x ? String((x as { title: unknown }).title) : null))
       .filter((x): x is string => !!x);
@@ -144,10 +157,10 @@ function line(
   id: EssentialId,
   factKey: string,
   edit: UnderstoodLine["edit"],
-  opts: { later?: boolean } = {},
+  opts: { later?: boolean; locale?: "en" | "es" } = {},
 ): UnderstoodLine {
   const f = fact(brief, factKey);
-  const value = displayValue(f);
+  const value = displayValue(f, opts.locale ?? "en");
   const status: LineStatus = opts.later ? "later" : lineStatus(f, value !== null);
   return {
     id,
@@ -162,27 +175,31 @@ function line(
 }
 
 /** The person's name for the card: professional name first, else name. */
-function personNameLine(brief: Brief): UnderstoodLine {
+function personNameLine(brief: Brief, locale: "en" | "es" = "en"): UnderstoodLine {
   const pro = fact(brief, "person.professional_name");
-  const key = pro && displayValue(pro) ? "person.professional_name" : "person.name";
-  return line(brief, "name", key, { kind: "question", questionId: "name" });
+  const key = pro && displayValue(pro, locale) ? "person.professional_name" : "person.name";
+  return line(brief, "name", key, { kind: "question", questionId: "name" }, { locale });
 }
 
-export function essentialsFor(brief: Brief, path: OnboardingPath): UnderstoodLine[] {
+export function essentialsFor(
+  brief: Brief,
+  path: OnboardingPath,
+  locale: "en" | "es" = "en",
+): UnderstoodLine[] {
   const talent: UnderstoodLine[] = [
-    personNameLine(brief),
-    line(brief, "what", "work.discipline", { kind: "question", questionId: "basics" }),
-    line(brief, "city", "person.city", { kind: "question", questionId: "basics" }),
-    line(brief, "services", "work.services", { kind: "question", questionId: "services" }),
+    personNameLine(brief, locale),
+    line(brief, "what", "work.discipline", { kind: "question", questionId: "basics" }, { locale }),
+    line(brief, "city", "person.city", { kind: "question", questionId: "basics" }, { locale }),
+    line(brief, "services", "work.services", { kind: "question", questionId: "services" }, { locale }),
   ];
   const business: UnderstoodLine[] = [
-    line(brief, "businessName", "business.name", { kind: "inline" }),
-    line(brief, "kind", "work.industry", { kind: "question", questionId: "kind_of_business" }),
-    line(brief, "offer", "work.services", { kind: "question", questionId: "services" }),
-    line(brief, "city", "person.city", { kind: "question", questionId: "basics" }),
-    line(brief, "hours", "business.hours", { kind: "question", questionId: "two_quick_things" }),
-    line(brief, "whatsapp", "presence.whatsapp", { kind: "question", questionId: "two_quick_things" }),
-    line(brief, "logo", "brand.logo_url", { kind: "none" }, { later: true }),
+    line(brief, "businessName", "business.name", { kind: "inline" }, { locale }),
+    line(brief, "kind", "work.industry", { kind: "question", questionId: "kind_of_business" }, { locale }),
+    line(brief, "offer", "work.services", { kind: "question", questionId: "services" }, { locale }),
+    line(brief, "city", "person.city", { kind: "question", questionId: "basics" }, { locale }),
+    line(brief, "hours", "business.hours", { kind: "question", questionId: "two_quick_things" }, { locale }),
+    line(brief, "whatsapp", "presence.whatsapp", { kind: "question", questionId: "two_quick_things" }, { locale }),
+    line(brief, "logo", "brand.logo_url", { kind: "none" }, { later: true, locale }),
   ];
   if (path === "talent") return talent;
   if (path === "business") return business;
@@ -233,9 +250,11 @@ export function buildUnderstanding(input: {
   brief: Brief;
   intent: OnboardingIntent;
   userPath?: OnboardingPath | null;
+  /** Flow locale; hours lines render ES day shorts when "es" (TUL-540). */
+  locale?: "en" | "es";
 }): Understanding {
   const decided = decidePath(input.brief, input.intent, input.userPath ?? null);
-  const lines = essentialsFor(input.brief, decided.path);
+  const lines = essentialsFor(input.brief, decided.path, input.locale ?? "en");
   const followUps: ModuleQuestionId[] = [];
   if (decided.pathConfidence === "ambiguous") followUps.push("fork");
   for (const q of MODULE_QUESTIONS) {

@@ -65,8 +65,14 @@ export async function understandingFor(input: {
   brief: Brief;
   intent: OnboardingIntent;
   userPath: OnboardingPath | null;
+  locale?: "en" | "es";
 }): Promise<{ understanding: Understanding; chip: TypeChipProposal | null }> {
-  const understanding = buildUnderstanding({ brief: input.brief, intent: input.intent, userPath: input.userPath });
+  const understanding = buildUnderstanding({
+    brief: input.brief,
+    intent: input.intent,
+    userPath: input.userPath,
+    locale: input.locale,
+  });
   const chip = understanding.typeChip
     ? await proposeTypeChip({
         kind: understanding.path === "talent" ? "talent" : "business",
@@ -92,7 +98,12 @@ export async function understandBrief(input: {
   if (providerState === "ai_not_configured") return reportAiProblem("ai_not_configured", await getResolvedAiChatKind());
   if (providerState === "degrade") {
     // Honest degradation: nothing read, everything asked by the short form.
-    const { understanding, chip } = await understandingFor({ brief: input.brief, intent: input.intent, userPath: input.userPath });
+    const { understanding, chip } = await understandingFor({
+      brief: input.brief,
+      intent: input.intent,
+      userPath: input.userPath,
+      locale: input.locale,
+    });
     return { ok: true, understanding, chip, learned: [], brief: input.brief };
   }
 
@@ -177,6 +188,11 @@ export async function understandBrief(input: {
   // Re-read: recordFacts applies precedence, so a proposal may have lost to an
   // existing confirmed fact. The card must describe the brief, not the model.
   const refreshed = (await loadBrief(input.owner)) ?? input.brief;
-  const { understanding, chip } = await understandingFor({ brief: refreshed, intent: input.intent, userPath: input.userPath });
+  const { understanding, chip } = await understandingFor({
+    brief: refreshed,
+    intent: input.intent,
+    userPath: input.userPath,
+    locale: input.locale,
+  });
   return { ok: true, understanding, chip, learned, brief: refreshed };
 }
