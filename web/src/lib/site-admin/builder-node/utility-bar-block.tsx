@@ -39,6 +39,11 @@ export const UTILITY_BAR_CSS = `
 .sb-ub-cta{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 12px;border-radius:6px;background:var(--token-color-accent,var(--token-color-primary));color:var(--token-color-on-accent,var(--token-color-ink));font-weight:700;font-size:13px;text-decoration:none;white-space:nowrap;flex:0 0 auto}
 .sb-ub-tel{flex:0 0 auto;width:44px;height:44px;border-radius:99px;border:1.5px solid color-mix(in srgb,var(--token-color-background) 28%,transparent);color:var(--token-color-background);display:grid;place-items:center;text-decoration:none;box-sizing:border-box}
 .sb-ub-tel svg{width:18px;height:18px}
+/* GRK-030: sticky language switch on phone (footer-only was under the cookie banner). */
+.sb-ub-lang{display:inline-flex;align-items:center;gap:0;flex:0 0 auto;min-height:44px;font-size:12px;font-weight:700;letter-spacing:.04em}
+.sb-ub-lang a{color:inherit;text-decoration:none;opacity:.72;padding:0 4px}
+.sb-ub-lang a[data-active]{opacity:1}
+.sb-ub-lang-sep{opacity:.45;padding:0 1px}
 /* TUL-474/496: never hide only the pill label (left a stray status dot). Drop the whole pill. */
 @container sbub (max-width:330px){.sb-ub-pill{display:none}.sb-ub-cta{padding:0 10px;font-size:12px}}
 @container sbub (min-width:900px){.sb-ub{padding:12px 40px;gap:14px}.sb-ub-cta{padding:0 18px;font-size:14px}.sb-ub-nm small{display:block;-webkit-line-clamp:unset;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}}
@@ -57,6 +62,8 @@ export function safeCallHref(href: unknown): string {
   return /^tel:\+?\d{6,16}$/.test(h) ? h : "";
 }
 
+const LANGUAGE_LABEL = { en: "Language", es: "Idioma" } as const;
+
 export function renderUtilityBarBlock(args: {
   node: BuilderUtilityBarNode;
   liveStatus?: LiveStatusRenderContext;
@@ -64,6 +71,12 @@ export function renderUtilityBarBlock(args: {
   callHref?: string;
   /** Public path prefix (host-root sites pass ""). */
   publicPathPrefix?: string;
+  /** GRK-030: sticky ES / EN when the talent publishes 2+ languages. */
+  siteLocales?: {
+    locales: readonly string[];
+    hrefs: Readonly<Record<string, string>>;
+    current: string;
+  };
   styleAttr?: CSSProperties;
 }): ReactNode {
   const { node, styleAttr } = args;
@@ -77,6 +90,10 @@ export function renderUtilityBarBlock(args: {
   const ctaHref = (p.ctaHref ?? "").trim();
   const onLabel = (p.statusOnLabel ?? "").trim() || "Emergencies today";
   const offLabel = (p.statusOffLabel ?? "").trim() || "No emergencies today";
+  const locales = args.siteLocales?.locales ?? [];
+  const hrefs = args.siteLocales?.hrefs;
+  const current = args.siteLocales?.current ?? "";
+  const langLabel = current.toLowerCase().startsWith("es") ? LANGUAGE_LABEL.es : LANGUAGE_LABEL.en;
   return (
     <header
       className="sb-ub"
@@ -110,6 +127,28 @@ export function renderUtilityBarBlock(args: {
           </span>
         </>
       )}
+      {locales.length >= 2 && hrefs ? (
+        <nav className="sb-ub-lang" aria-label={langLabel} data-ub-lang="">
+          {locales.map((code, i) => (
+            <span key={code}>
+              {i > 0 ? (
+                <span className="sb-ub-lang-sep" aria-hidden>
+                  /
+                </span>
+              ) : null}
+              <a
+                href={hrefs[code] ?? `?locale=${code}`}
+                hrefLang={code}
+                lang={code}
+                data-active={code === current ? "" : undefined}
+                aria-current={code === current ? "true" : undefined}
+              >
+                {code.toUpperCase()}
+              </a>
+            </span>
+          ))}
+        </nav>
+      ) : null}
       {ctaLabel && ctaHref ? (
         <a className="sb-ub-cta" href={ctaHref}>
           {ctaLabel}
