@@ -59,9 +59,14 @@ test("resolveCompCardGroupLabel uses EN name_i18n on /en", () => {
 test("resolveCompCardGroupLabel falls back to curated / slug when catalog empty", () => {
   assert.equal(resolveCompCardGroupLabel("physical", "es", null), "Físico");
   assert.equal(resolveCompCardGroupLabel("physical", "en", {}), "Physical");
+  // Folio Live QA slugs: curated ES even if name_i18n missing from the join.
   assert.equal(
     resolveCompCardGroupLabel("context-best-fit", "es", null),
-    "Context Best Fit",
+    "Mejor Uso / Contexto",
+  );
+  assert.equal(
+    resolveCompCardGroupLabel("unknown-group-xyz", "es", null),
+    "Unknown Group Xyz",
   );
   assert.equal(resolveCompCardGroupLabel(null, "es"), "Detalles");
 });
