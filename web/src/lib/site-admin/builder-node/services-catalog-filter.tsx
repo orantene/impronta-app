@@ -240,9 +240,8 @@ export function ServicesCatalogFilter({
 
   const onRowAction = (item: TalentOffering, inclusion?: string | null) => {
     demoToast.ping();
-    // Gridline (matrix): one behaviour — Seleccionar always opens the sheet (TUL-516 W3-4).
-    // Maison DoR: option / consult rows open the sheet; plain Seleccionar only
-    // paints Seleccionado + Continuar. continueFromBar opens the sheet.
+    // Gridline (matrix) and Maison DoR option / consult rows open the sheet; plain
+    // Seleccionar only paints Seleccionado + Continuar. continueFromBar opens the sheet.
     if (matrix || catalogRowOpensSheetImmediately(item)) {
       dispatchOffering(item, confirmsByHand, undefined, inclusion, bookingPosture);
       return;
