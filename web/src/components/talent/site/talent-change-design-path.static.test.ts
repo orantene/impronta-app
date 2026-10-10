@@ -11,8 +11,8 @@ const root = join(process.cwd(), "src");
 
 test("live MyWebsiteCard keeps maison-change-design", () => {
   const card = readFileSync(join(root, "components/talent/site/maison-setup/MyWebsiteCard.tsx"), "utf8");
-  assert.match(card, /data-testid="maison-change-design"/);
-  assert.match(card, /onChangeDesign/);
+  assert.match(card, /(data-testid|testId)="maison-change-design"/);
+  assert.match(card, /onClick=\{onChangeDesign\}/);
 });
 
 test("pre-publish Mi sitio exposes maison-change-design (TUL-559)", () => {
