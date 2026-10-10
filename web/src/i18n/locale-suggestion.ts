@@ -74,6 +74,17 @@ import { isDashboardInnerPath } from "@/i18n/locale-middleware";
 export const LOCALE_SUGGESTION_DISMISSED_COOKIE = "locale-suggest-dismissed";
 
 /**
+ * Session mirror of the dismiss cookie (live2b-05).
+ *
+ * "No thanks" must stay closed for the rest of the tab even when a later
+ * consent Accept reloads the page to load TikTok/LinkedIn pixels, or when the
+ * first-party dismiss cookie is delayed / stripped on first paint. Cookie stays
+ * the durable signal for later visits; this key is belt-and-braces for the
+ * same session.
+ */
+export const LOCALE_SUGGESTION_DISMISSED_SESSION_KEY = "locale-suggest-dismissed";
+
+/**
  * Pre-auth path prefixes that are public HTML but are not storefront browsing.
  * Mirrors the segment list `resolveLocaleForPathname` uses.
  *

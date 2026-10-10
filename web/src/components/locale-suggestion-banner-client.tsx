@@ -1,9 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { clearLocaleAutoMarkerLine, localeCookieLine } from "@/i18n/locale-cookies";
-import { LOCALE_SUGGESTION_DISMISSED_COOKIE } from "@/i18n/locale-suggestion";
+import {
+  LOCALE_SUGGESTION_DISMISSED_COOKIE,
+  LOCALE_SUGGESTION_DISMISSED_SESSION_KEY,
+} from "@/i18n/locale-suggestion";
 import { cn } from "@/lib/utils";
 
 /**
@@ -31,6 +34,10 @@ import { cn } from "@/lib/utils";
  * cookie write happens in the click handler and the browser follows the link
  * normally afterwards — so it still works with JS disabled, minus the cookie
  * (the proxy's own locale sync then covers it on arrival).
+ *
+ * live2b-05: dismiss writes the cookie AND a sessionStorage mirror so a later
+ * consent Accept reload (TikTok/LinkedIn pixel load) cannot resurrect the bar
+ * in the same tab when the cookie is slow or missing on the next SSR.
  */
 export function LocaleSuggestionBannerClient({
   href,
@@ -53,6 +60,26 @@ export function LocaleSuggestionBannerClient({
   regionLabel: string;
 }) {
   const [hidden, setHidden] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (window.sessionStorage.getItem(LOCALE_SUGGESTION_DISMISSED_SESSION_KEY) === "1") {
+        setHidden(true);
+        return;
+      }
+    } catch {
+      /* ignore */
+    }
+    // Soft-nav / stale RSC: cookie may already be set while this mount still
+    // painted from an earlier SSR decision.
+    if (
+      typeof document !== "undefined" &&
+      document.cookie.split("; ").some((c) => c.startsWith(`${LOCALE_SUGGESTION_DISMISSED_COOKIE}=`))
+    ) {
+      setHidden(true);
+    }
+  }, []);
+
   if (hidden) return null;
 
   const writeCookie = (name: string, value: string) => {
@@ -73,6 +100,16 @@ export function LocaleSuggestionBannerClient({
   const acceptSuggestion = () => {
     writeCookie(localeCookieName, locale);
     document.cookie = clearLocaleAutoMarkerLine(secureCookies);
+  };
+
+  const dismissSuggestion = () => {
+    writeCookie(LOCALE_SUGGESTION_DISMISSED_COOKIE, "1");
+    try {
+      window.sessionStorage.setItem(LOCALE_SUGGESTION_DISMISSED_SESSION_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+    setHidden(true);
   };
 
   return (
@@ -106,10 +143,7 @@ export function LocaleSuggestionBannerClient({
           </a>
           <button
             type="button"
-            onClick={() => {
-              writeCookie(LOCALE_SUGGESTION_DISMISSED_COOKIE, "1");
-              setHidden(true);
-            }}
+            onClick={dismissSuggestion}
             className={cn(
               "inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium",
               "text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
