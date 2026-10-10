@@ -39,7 +39,14 @@ import { TalentCardEmptyPlate } from "./talent-card-empty-plate";
  * Card Design (P2) or applying the editorial-noir kit (P3) repaints every card
  * with ZERO per-card edits. Portrait + Editorial are the two live renders; the
  * other schema styles fall through to portrait until their kits land.
+ *
+ * E3-J4: the root is a navigating `<Link>`. Large caption type (name) must not
+ * steal the click into a text selection — photo worked, name only highlighted.
+ * `select-none` on every root keeps the whole tile a hit-target.
  */
+
+/** E3-J4 — directory card name must navigate, not highlight. */
+const CARD_HIT_TARGET = "select-none";
 
 function resolveName(
   name: string,
@@ -208,7 +215,7 @@ export function TalentCard({
       <Root
         {...rootProps}
         data-card-style="showcase"
-        className={`${TALENT_CARD_CLASS} @container group/card flex flex-col overflow-hidden rounded-2xl @[280px]:rounded-[20px] border border-[var(--token-card-border,#e7e3da)] bg-[var(--token-card-surface,#ffffff)] text-[var(--token-card-name-color,#17160f)] shadow-[0_1px_2px_rgba(23,22,15,0.06)] outline-none transition-[transform,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_-22px_rgba(23,22,15,0.55)] focus-visible:ring-2 focus-visible:ring-foreground/30 ${
+        className={`${TALENT_CARD_CLASS} ${CARD_HIT_TARGET} @container group/card flex flex-col overflow-hidden rounded-2xl @[280px]:rounded-[20px] border border-[var(--token-card-border,#e7e3da)] bg-[var(--token-card-surface,#ffffff)] text-[var(--token-card-name-color,#17160f)] shadow-[0_1px_2px_rgba(23,22,15,0.06)] outline-none transition-[transform,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_-22px_rgba(23,22,15,0.55)] focus-visible:ring-2 focus-visible:ring-foreground/30 ${
           rootMode === "button" ? "cursor-pointer" : ""
         }`}
       >
@@ -341,7 +348,7 @@ export function TalentCard({
       <Root
         {...rootProps}
         data-card-style="editorial"
-        className={`${TALENT_CARD_CLASS} group/card flex flex-col gap-3 outline-none focus-visible:ring-2 focus-visible:ring-foreground/30 ${
+        className={`${TALENT_CARD_CLASS} ${CARD_HIT_TARGET} group/card flex flex-col gap-3 outline-none focus-visible:ring-2 focus-visible:ring-foreground/30 ${
           rootMode === "button" ? "cursor-pointer" : ""
         }`}
       >
@@ -482,7 +489,7 @@ export function TalentCard({
       <Root
         {...rootProps}
         data-card-style="profile"
-        className={`${TALENT_CARD_CLASS} @container group/card relative block overflow-hidden rounded-2xl bg-[#141416] font-[family-name:var(--font-inter-body,ui-sans-serif,system-ui,sans-serif)] @[280px]:rounded-[22px] text-[#f3efe6] outline-none ring-1 ring-white/[0.06] transition-[box-shadow] duration-300 hover:shadow-[0_18px_40px_-22px_rgba(0,0,0,0.7)] focus-visible:ring-2 focus-visible:ring-[var(--dir-accent,#c8a04a)] ${
+        className={`${TALENT_CARD_CLASS} ${CARD_HIT_TARGET} @container group/card relative block overflow-hidden rounded-2xl bg-[#141416] font-[family-name:var(--font-inter-body,ui-sans-serif,system-ui,sans-serif)] @[280px]:rounded-[22px] text-[#f3efe6] outline-none ring-1 ring-white/[0.06] transition-[box-shadow] duration-300 hover:shadow-[0_18px_40px_-22px_rgba(0,0,0,0.7)] focus-visible:ring-2 focus-visible:ring-[var(--dir-accent,#c8a04a)] ${
           rootMode === "button" ? "cursor-pointer" : ""
         }`}
       >
@@ -586,7 +593,7 @@ export function TalentCard({
     <Root
       {...rootProps}
       data-card-style="portrait"
-      className={`${TALENT_CARD_CLASS} group/card relative block overflow-hidden rounded-2xl border border-border outline-none transition-[border-color,box-shadow] duration-200 hover:border-[var(--dir-accent-line)] hover:shadow-[0_14px_36px_-18px_rgba(0,0,0,0.75)] focus-visible:ring-2 focus-visible:ring-foreground/30 ${
+      className={`${TALENT_CARD_CLASS} ${CARD_HIT_TARGET} group/card relative block overflow-hidden rounded-2xl border border-border outline-none transition-[border-color,box-shadow] duration-200 hover:border-[var(--dir-accent-line)] hover:shadow-[0_14px_36px_-18px_rgba(0,0,0,0.75)] focus-visible:ring-2 focus-visible:ring-foreground/30 ${
         rootMode === "button" ? "cursor-pointer" : ""
       }`}
     >
