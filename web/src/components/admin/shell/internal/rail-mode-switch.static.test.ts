@@ -45,3 +45,13 @@ test("the talent layout feeds ownedWorkspaceSlug to the bridge from the owned bu
   const bridge = readFileSync(join(here, "data-bridge.ts"), "utf8");
   assert.match(bridge, /ownedWorkspaceSlug\?: string \| null;/);
 });
+
+// live2b-03 — soft router.push talent→/admin sticks TalentShell; hard-assign.
+test("flipMode hard-assigns when leaving talent for the admin workspace", () => {
+  const ctx = read("state/context.tsx");
+  assert.match(ctx, /live2b-03/);
+  const flip = ctx.slice(ctx.indexOf("const flipMode = useCallback"));
+  const workspaceArm = flip.slice(0, flip.indexOf("Preserve last talent page"));
+  assert.match(workspaceArm, /window\.location\.assign\(nextHref\)/);
+  assert.doesNotMatch(workspaceArm, /router\.push\(nextHref\)/);
+});
