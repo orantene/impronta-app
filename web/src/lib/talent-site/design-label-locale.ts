@@ -105,6 +105,7 @@ export function warnGuessMapFallback(input: {
   ]
     .filter(Boolean)
     .join(" ");
+  // eslint-disable-next-line no-console -- dev-only signal for an unhealed seed
   console.warn(
     `[talent-site] guess-map fallback (${input.locale}) ${where}: ${JSON.stringify(input.from)} → ${JSON.stringify(input.to)} (no props.i18n.${input.locale}; heal via qa:heal-seed-i18n-missing-es)`,
   );

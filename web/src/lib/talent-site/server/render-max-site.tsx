@@ -255,18 +255,7 @@ async function renderTalentMaxSiteUnguarded(
     const [designSlugEarly, identity] = await Promise.all([pDesign, pIdentity]);
     const snapBlocks = snap?.pages?.[page.id];
     const body = coerceTree(snapBlocks ?? publicPageBody(page, { draftPreview: isOwnerDraftPreview }));
-    const fixed = await prepareTalentSiteTrees({
-      talentProfileId,
-      locale,
-      chain: localeCtx.chain,
-      logoUrl: site.logoUrl,
-      shellTree,
-      body,
-      ctaMode,
-      designSlug: designSlugEarly,
-      siteSlug: site.siteSlug,
-      profileCode: identity?.profileCode ?? null,
-    });
+    const fixed = await prepareTalentSiteTrees({ talentProfileId, locale, chain: localeCtx.chain, logoUrl: site.logoUrl, shellTree, body, ctaMode, designSlug: designSlugEarly, siteSlug: site.siteSlug, profileCode: identity?.profileCode ?? null });
     const blocks = pruneUnconfirmedGuestStubs(fixed.body);
     if (!policyDoc && !hasRenderableBuilderNodes(blocks, { mode: "freeform" })) {
       // A published-but-empty page → 404 rather than a blank document.
@@ -289,9 +278,6 @@ async function renderTalentMaxSiteUnguarded(
 
     // ── Managing tenant — section-embed render context for the page body ─────
     const tenantId = await pTenant;
-
-    // ── Talent identity for the SITE's JSON-LD + OG image (degrade-safe) ──────
-    // (identity already awaited above with designSlugEarly)
 
     // Demo pill + theme tokens (Design slug already loaded above).
     const isDemo = await pDemo;
