@@ -12,6 +12,7 @@ import {
   floatingBannerUp,
   floatingChromeBottomUsesMax,
   floatingChromeClearsHeroCtas,
+  floatingChromeReservesBarForIsland,
   floatingChromeYieldsToGuestChat,
   helpBubbleFilterNavBlocking,
 } from "./floating-chrome-stack";
@@ -48,6 +49,10 @@ describe("TUL-516 / TUL-528 floating chrome stack", () => {
     const island = readFileSync(join(root, "components/public-booking/catalog-booking-styles.ts"), "utf8");
     assert.match(island, /\.cb-island\{padding-bottom:var\(--cb-bar-h/);
     assert.doesNotMatch(island, /\.cb-island\{padding-bottom:calc\(72px/);
+  });
+
+  test("GRK-034: root stack reserves --cb-bar-h from SSR .cb-island before catalog CSS hydrates", () => {
+    assert.equal(floatingChromeReservesBarForIsland(FLOATING_CHROME_STACK_CSS), true);
   });
 
   test("GRK-033: consent-open heroes pad CTAs above the cookie card", () => {
@@ -91,9 +96,9 @@ describe("TUL-516 / TUL-528 floating chrome stack", () => {
     assert.match(consent, /z-\[98\]|zIndex:\s*98|z-index:\s*98/);
   });
 
-  test("sticky bar measure never writes zero over the CSS default", () => {
+  test("sticky bar measure only tightens --cb-bar-h; never wipes the CSS default", () => {
     const hook = readFileSync(join(root, "lib/site-admin/builder-node/use-sticky-bar-visible.ts"), "utf8");
     assert.match(hook, /if \(reserve > 0\) root\.style\.setProperty\("--cb-bar-h"/);
-    assert.match(hook, /else root\.style\.removeProperty\("--cb-bar-h"\)/);
+    assert.doesNotMatch(hook, /else root\.style\.removeProperty\("--cb-bar-h"\)/);
   });
 });

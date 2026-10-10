@@ -75,8 +75,10 @@ function useStickyBarVisible(
         heightPx: el.offsetHeight,
         bottomPx: Number.parseFloat(cs.bottom),
       });
+      // Only tighten the CSS default when we have a real measure. Writing 0 /
+      // removeProperty wiped phone reserve and left service rows + footer
+      // links under the bar (GRK-034) until the next positive paint.
       if (reserve > 0) root.style.setProperty("--cb-bar-h", `${reserve}px`);
-      else root.style.removeProperty("--cb-bar-h");
     };
     measure();
     const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
