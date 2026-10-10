@@ -100,9 +100,9 @@ export function TalentProfileInquireButton({
   }, [chooserOpen]);
 
   const othersInLineup = cart.cartIds.filter((id) => id !== talentId).length;
-  // Already in the inquiry: the CTA stops saying "Inquire about {name}" (which
-  // reads as if nothing happened when they tap it again) and becomes an active
-  // way back into the conversation they already started.
+  // Lineup membership alone is not a sent inquiry (GRK-057). Keep the inquire
+  // label until a real submit — tapping still reopens the launcher. The chooser
+  // below still explains "already in" when other talent is in the lineup.
   const alreadyInLineup = cart.isInCart(talentId);
 
   const addToCurrent = (path: "direct" | "add_to_current" = "direct") => {
@@ -201,9 +201,7 @@ export function TalentProfileInquireButton({
     <div ref={wrapRef} style={{ position: "relative", display: "inline-block" }}>
       <Button type="button" onClick={handleClick} className={className} style={ctaTypeStyle}>
         <Mail className="size-4" />
-        {alreadyInLineup
-          ? t("public.profileCta.viewInquiry")
-          : interpolate(t("public.profileCta.inquireAbout"), { name: firstName })}
+        {interpolate(t("public.profileCta.inquireAbout"), { name: firstName })}
       </Button>
       {chooserOpen && (
         <div
