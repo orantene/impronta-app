@@ -15,7 +15,6 @@ import {
   offeringPriceUnit,
   catalogRowMinCents,
   catalogRowOpensSheetImmediately,
-  catalogRowShowsFrom,
   type CatalogBookingMode,
 } from "@/components/public-booking/catalog-booking-logic";
 import { CatalogPurchaseMount } from "@/components/public-booking/CatalogPurchaseMount";
@@ -629,7 +628,6 @@ export function CatalogRow({
   const quote =
     item.priceDisplay === "quote" || item.priceType === "custom" || item.amountCents == null;
   const minCents = catalogRowMinCents(item);
-  const ladder = catalogRowShowsFrom(item);
   const usd = usdEquivalentLabel(minCents, item.currency, usdRates, locale);
   const derived = deriveFor(item, confirmsByHand, bookingPosture);
   const cta = derived.cta;
@@ -756,14 +754,8 @@ export function CatalogRow({
       <span className="site-builder-node--services-catalog-buy">
         {priceInMeta ? null : showPrice ? (
           <span className="site-builder-node--services-catalog-price">
-            {onRequest || quote || minCents == null ? (
-              <strong>{es ? (onRequest ? "Bajo consulta" : "Cotización a pedido") : onRequest ? "On request" : "Quote on request"}</strong>
-            ) : (
-              <>
-                {ladder ? <small>{es ? "Desde" : "From"}</small> : null}
-                <strong>{formatMoney(minCents, item.currency, locale)}</strong>
-              </>
-            )}
+            {/* TUL-533: buy-column shares catalogRowPriceText ($0 → Consultar/Ask). */}
+            <strong>{priceText}</strong>
             {showUsdEquivalent && usd ? <span className="site-builder-node--services-catalog-usd">{usd}</span> : null}
           </span>
         ) : (

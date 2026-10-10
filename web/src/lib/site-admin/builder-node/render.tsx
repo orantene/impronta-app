@@ -6294,6 +6294,8 @@ function renderBuilderNodeElement(
         // TUL-383: one public money format (`$700 MXN`) via shared formatter.
         const locale = options.contentLocale?.locale ?? "en";
         const es = locale.toLowerCase().startsWith("es");
+        // TUL-533 / GRK-064: never paint "$0 MXN" on public Max-site menus.
+        if (item.amountCents <= 0) return es ? "Consultar" : "Ask";
         const formatted = formatMoney(item.amountCents, item.currency, locale);
         if (item.priceDisplay === "from") return es ? `desde ${formatted}` : `from ${formatted}`;
         return formatted;
