@@ -45,6 +45,11 @@ test("popover wires Apple popup + finalize; stays on host; tick-only ageTerms", 
   assert.doesNotMatch(ui, /navigateToAuthPopupDestination/);
   assert.match(ui, /appleSignInEnabled/);
   assert.match(ui, /appleSignInEnabled \? \(/);
+  assert.match(ui, /public\.clientAccount\.subtitleNoApple/);
+  assert.match(
+    ui,
+    /appleSignInEnabled\s*\?\s*"public\.clientAccount\.subtitle"\s*:\s*"public\.clientAccount\.subtitleNoApple"/,
+  );
   assert.match(ui, /requireAgeTermsTick/);
   assert.match(ui, /function startApple\(\) \{\n\s*if \(!requireAgeTermsTick\(\)\) return;/);
   assert.match(ui, /finalizeClientAccountAppleSession\(\{\n\s*locale: loc,\n\s*ageTerms: ageTermsRef\.current === true,/);
@@ -106,4 +111,9 @@ test("ClientAuthMethod union and appleFailed keys stay aligned", () => {
   assert.equal(typeof es.public.clientAccount.appleFailed, "string");
   assert.equal(typeof en.public.auth.login.apple, "string");
   assert.equal(typeof es.public.auth.login.apple, "string");
+  assert.match(en.public.clientAccount.subtitle, /Apple/);
+  assert.doesNotMatch(en.public.clientAccount.subtitleNoApple, /Apple/);
+  assert.match(es.public.clientAccount.subtitle, /Apple/);
+  assert.doesNotMatch(es.public.clientAccount.subtitleNoApple, /Apple/);
+  assert.match(es.public.clientAccount.subtitleNoApple, /Google/);
 });
