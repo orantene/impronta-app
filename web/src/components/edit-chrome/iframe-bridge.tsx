@@ -56,6 +56,13 @@
 
 import { useEffect, useRef } from "react";
 
+import {
+  getActiveContentLocaleSnapshot,
+  publishActiveContentLocale,
+  useActiveContentLocale,
+  type ActiveContentLocaleState,
+} from "@/lib/i18n/active-content-locale-store";
+
 import { useEditContext } from "./edit-context";
 import { useHoveredSectionId } from "./hover-bridge";
 import {
@@ -81,10 +88,30 @@ type BridgeMessage =
   // local affordances hide. The iframe has an independent EditContext
   // so we sync it explicitly rather than rely on a shared store.
   | { type: "editor:setPreviewing"; previewing: boolean }
+  // parent → child — editing/content locale (TUL-397 / TUL-79). The iframe
+  // has its own active-content-locale store; without this push, mobile
+  // preview paints EN seeded labels while the parent pill is on ES.
+  | {
+      type: "editor:setContentLocale";
+      locale: string;
+      defaultLocale: string;
+      chain: readonly string[];
+    }
   // parent → child (MOTION-1) — replay the animation for a section or
   // builder node inside the iframe canvas. Handled by IframeBridgeChild
   // which calls performAnimationReplay from the motion-animation-replay kit.
   | ReplayAnimationMessage;
+
+function contentLocaleMessage(
+  state: ActiveContentLocaleState,
+): Extract<BridgeMessage, { type: "editor:setContentLocale" }> {
+  return {
+    type: "editor:setContentLocale",
+    locale: state.locale,
+    defaultLocale: state.defaultLocale,
+    chain: state.chain,
+  };
+}
 
 const BRIDGE_NAMESPACE = "editor:";
 
@@ -203,6 +230,15 @@ export function IframeBridgeChild() {
         return;
       }
 
+      if (msg.type === "editor:setContentLocale") {
+        publishActiveContentLocale({
+          locale: msg.locale,
+          defaultLocale: msg.defaultLocale,
+          chain: msg.chain,
+        });
+        return;
+      }
+
       // MOTION-1: replay the animation for a section or builder node
       // rendered inside this iframe. The performAnimationReplay function
       // lives in the shared kit and handles the DOM class-flip + rAF.
@@ -266,6 +302,8 @@ export function IframeBridgeParent() {
   const selectedSectionIdRef = useRef(selectedSectionId);
   const selectedBuilderNodeIdRef = useRef(selectedBuilderNodeId);
   const previewingRef = useRef(previewing);
+  const contentLocale = useActiveContentLocale();
+  const contentLocaleRef = useRef(contentLocale);
   useEffect(() => {
     selectedSectionIdRef.current = selectedSectionId;
   }, [selectedSectionId]);
@@ -275,6 +313,9 @@ export function IframeBridgeParent() {
   useEffect(() => {
     previewingRef.current = previewing;
   }, [previewing]);
+  useEffect(() => {
+    contentLocaleRef.current = contentLocale;
+  }, [contentLocale]);
 
   // Helper: post to the ACTIVE iframe's contentWindow if it's mounted.
   //
@@ -333,6 +374,9 @@ export function IframeBridgeParent() {
           type: "editor:setPreviewing",
           previewing: previewingRef.current,
         });
+        // Push the parent's editing locale so seeded labels (e.g. Menú y
+        // precios) match the ES/EN pill — iframe store starts at DEFAULT en.
+        postToIframe(contentLocaleMessage(contentLocaleRef.current));
         // Read selection from refs, not closure — the listener effect's
         // dep array intentionally omits selection state to avoid
         // re-registering on every selection change. See ref-mirror
@@ -401,6 +445,24 @@ export function IframeBridgeParent() {
     postToIframe({ type: "editor:setPreviewing", previewing });
   }, [previewing]);
 
+  // Keep iframe content-locale store aligned with the parent pill.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!iframeReadyRef.current) return;
+    postToIframe(contentLocaleMessage(contentLocale));
+  }, [contentLocale]);
+
+  // Also re-push when the visible device tier flips — the newly active
+  // warm-kept iframe may not have received the earlier ready handshake
+  // locale push (that went to whichever frame answered first).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (device === "desktop") return;
+    postToIframe(
+      contentLocaleMessage(getActiveContentLocaleSnapshot()),
+    );
+  }, [device]);
+
   // When the device toggle flips back to desktop the iframe unmounts;
   // reset the ready handshake so the next mount re-syncs cleanly.
   //
@@ -437,6 +499,12 @@ export function postToActiveIframe(msg: BridgeMessage): boolean {
   // post selection/scroll messages into a hidden frame. Fallback to
   // the bare selector for the single-iframe case (back-compat with any
   // surface that mounts a lone iframe-host).
+  //
+  // Content-locale sync fans out to every warm-kept frame — a hidden
+  // tablet iframe that later becomes visible must already hold ES labels.
+  if (msg.type === "editor:setContentLocale") {
+    return postToAllDeviceIframes(msg);
+  }
   const iframe =
     document.querySelector<HTMLIFrameElement>(
       "[data-edit-iframe-host] iframe[data-active=\"true\"]",
@@ -447,4 +515,19 @@ export function postToActiveIframe(msg: BridgeMessage): boolean {
   if (!iframe || !iframe.contentWindow) return false;
   iframe.contentWindow.postMessage(msg, window.location.origin);
   return true;
+}
+
+/** Fan-out helper for state that every warm-kept device iframe must share. */
+export function postToAllDeviceIframes(msg: BridgeMessage): boolean {
+  if (typeof document === "undefined") return false;
+  const frames = document.querySelectorAll<HTMLIFrameElement>(
+    "[data-edit-iframe-host] iframe",
+  );
+  let sent = false;
+  for (const iframe of frames) {
+    if (!iframe.contentWindow) continue;
+    iframe.contentWindow.postMessage(msg, window.location.origin);
+    sent = true;
+  }
+  return sent;
 }

@@ -95,10 +95,8 @@ import {
 } from "./canvas-viewport";
 import { DEFAULT_WORKSPACE_CANVAS_MODE } from "./workspace-layout";
 import { resolveDeviceFrameHostPadding } from "./device-frame-layout";
-import {
-  DeviceFrameSkeleton,
-  useDeviceFrameLoadTracking,
-} from "./device-frame-skeleton";
+import { DeviceFrameSkeleton } from "./device-frame-skeleton";
+import { useDeviceFrameWarmKeep } from "./use-device-frame-warm-keep";
 import { BodyPaddingController } from "./body-padding-controller";
 import { useEditorLocale } from "./use-editor-locale";
 import { presenceBannerMessage } from "./presence-banner-copy";
@@ -1848,10 +1846,13 @@ function DeviceFrameSurface({
   // Drag state — live width while dragging (null = not dragging).
   const [dragging, setDragging] = useState<boolean>(false);
   const [dragReadout, setDragReadout] = useState<number | null>(null);
-  const { loadedTiers, markTierLoaded } = useDeviceFrameLoadTracking(
-    pageVersion,
-    pageSlug,
-  );
+  const {
+    orderedVisited,
+    loadedTiers,
+    markTierLoaded,
+    displayedTier,
+    showSkeleton,
+  } = useDeviceFrameWarmKeep({ device, pageVersion, pageSlug });
   // Ref to the start-of-drag data so pointermove doesn't close over stale state.
   const dragStartRef = useRef<{
     startX: number;
@@ -1883,34 +1884,8 @@ function DeviceFrameSurface({
     return () => window.removeEventListener("resize", update);
   }, []);
 
-  // QA 2026-05-13 — warm-keep iframes across device toggles.
-  // Previously each Desktop↔Tablet↔Mobile click full-unmounted the
-  // current iframe and mounted a fresh one for the new device, which
-  // burned 3–5s on every toggle (full storefront reload + composition
-  // re-render + bridge handshake). Now we track which non-desktop
-  // tiers have ever been activated in this session and keep each one
-  // mounted (display:none for inactive). The visible iframe is the
-  // one whose device matches `device`; others stay in the DOM with
-  // hot `contentWindow` state so flipping back is instant.
-  //
-  // Trade-offs: the second tier loads on first use (so the first
-  // tablet→mobile flip still pays a one-time cost), but every
-  // subsequent flip is a CSS `display` change. Memory cost is two
-  // iframes worth of storefront DOM — same as one fully-rendered
-  // public page each, negligible on any operator laptop. We never
-  // mount iframes the operator hasn't asked for.
-  const [everVisited, setEverVisited] = useState<ReadonlySet<EditDevice>>(
-    () => new Set(),
-  );
-  useEffect(() => {
-    if (device === "desktop") return;
-    setEverVisited((prev) => {
-      if (prev.has(device)) return prev;
-      const next = new Set(prev);
-      next.add(device);
-      return next;
-    });
-  }, [device]);
+  // Warm-keep + hold-previous live in useDeviceFrameWarmKeep (TUL-397):
+  // idle-prewarm both tiers, hold last ready frame on switch (no blank).
 
   // Job #18 — pointer-drag resize for the canvas frame.
   // All mutable values accessed inside the window-level pointermove/pointerup
@@ -2013,10 +1988,9 @@ function DeviceFrameSurface({
     };
   };
 
-  // Nothing to mount until at least one non-desktop tier has been
-  // visited. Once the operator clicks Tablet or Mobile, the host
-  // stays in the DOM for the rest of the session.
-  if (everVisited.size === 0) return null;
+  // Nothing to mount until warm-keep has claimed a tier (idle prewarm
+  // or the operator's first Tablet/Mobile click).
+  if (orderedVisited.length === 0) return null;
 
   const isDesktop = device === "desktop";
   // `width` is the active device's effective frame width (job #17: honours a
@@ -2070,13 +2044,6 @@ function DeviceFrameSurface({
     u.searchParams.delete("edit");
     return u.pathname + u.search + u.hash;
   };
-
-  // Order the visited devices so the iframe DOM order is stable across
-  // renders (React reconciles by index/key for unkeyed lists; we use
-  // keys anyway, but consistent ordering keeps z-index predictable).
-  const orderedVisited: EditDevice[] = (["tablet", "mobile"] as const).filter(
-    (d) => everVisited.has(d),
-  );
 
   return (
     <>
@@ -2162,15 +2129,19 @@ function DeviceFrameSurface({
               const dWidth = frameWidthForTier(d, device, previewFrame);
               const dScale = Math.min(1, containerWidth / dWidth);
               const dDisplayedW = dWidth * dScale;
-              const isActive = d === device;
+              // Paint the operator's tier when ready; otherwise hold the
+              // last ready frame so switches never flash a blank card.
+              // data-active follows the painted frame so the bridge keeps
+              // talking to whatever the operator can see.
+              const isDisplayed = d === displayedTier;
               return (
                 <iframe
                   key={`${d}:${pageSlug ?? "/"}:${pageVersion ?? "pending"}`}
                   src={iframeSrcForTier(d)}
                   title={`${d} preview`}
-                  data-active={isActive ? "true" : undefined}
+                  data-active={isDisplayed ? "true" : undefined}
                   data-device-tier={d}
-                  hidden={!isActive}
+                  hidden={!isDisplayed}
                   onLoad={() => markTierLoaded(d)}
                   style={{
                     // Absolute layering so the inactive iframes stack
@@ -2185,7 +2156,7 @@ function DeviceFrameSurface({
                     boxShadow:
                       "0 24px 64px -16px rgba(0,0,0,0.30), 0 4px 12px rgba(0,0,0,0.10), 0 0 0 1px rgba(24,24,27,0.08)",
                     background: "white",
-                    display: isActive ? "block" : "none",
+                    display: isDisplayed ? "block" : "none",
                     transform: `scale(${dScale})`,
                     transformOrigin: "top left",
                     // Suppress iframe pointer events during drag so the
@@ -2195,7 +2166,9 @@ function DeviceFrameSurface({
                 />
               );
             })}
-            <DeviceFrameSkeleton device={device} loadedTiers={loadedTiers} />
+            {showSkeleton ? (
+              <DeviceFrameSkeleton device={device} loadedTiers={loadedTiers} />
+            ) : null}
           </div>
           {/* Job #18 — resize grabber on the right edge of the active frame.
               Thin vertical strip; cursor:ew-resize. onPointerDown starts the

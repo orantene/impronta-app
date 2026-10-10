@@ -20,7 +20,7 @@
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
 
-import { isSeedContact, shouldRefuseGuestSend } from "./guest-send-gate";
+import { displayableContact, isSeedContact, shouldRefuseGuestSend } from "./guest-send-gate";
 
 const SEED_EMAIL = "pending-session-abc123@guest.impronta";
 
@@ -64,6 +64,36 @@ describe("isSeedContact", () => {
   it("handles null/undefined contactName gracefully", () => {
     assert.equal(isSeedContact(null, "jane@example.com"), false);
     assert.equal(isSeedContact(undefined, SEED_EMAIL), true);
+  });
+});
+
+describe("displayableContact (TUL-379)", () => {
+  it("strips seed Guest + pending email for inbox display", () => {
+    assert.deepEqual(displayableContact("Guest", SEED_EMAIL), {
+      contactName: "",
+      contactEmail: null,
+    });
+  });
+
+  it("strips seed when only pending email remains", () => {
+    assert.deepEqual(displayableContact("Someone", SEED_EMAIL), {
+      contactName: "",
+      contactEmail: null,
+    });
+  });
+
+  it("keeps promoted real contacts", () => {
+    assert.deepEqual(displayableContact("Jane Doe", "jane@example.com"), {
+      contactName: "Jane Doe",
+      contactEmail: "jane@example.com",
+    });
+  });
+
+  it("keeps a real person literally named Guest with a real email", () => {
+    assert.deepEqual(displayableContact("Guest", "guest@realmail.com"), {
+      contactName: "Guest",
+      contactEmail: "guest@realmail.com",
+    });
   });
 });
 

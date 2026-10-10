@@ -64,6 +64,23 @@ export function isSeedContact(
   return looksLikePendingEmail || (name === SEED_CONTACT_NAME && email.length === 0);
 }
 
+/**
+ * TUL-379: talent/admin inbox must never surface the synthetic early-row
+ * seed (`Guest` + `pending-…@guest.impronta`). Empty name → UI visitor /
+ * localized Guest; null email → no raw seed address in details panes.
+ */
+export function displayableContact(
+  contactName: string | null | undefined,
+  contactEmail: string | null | undefined,
+): { contactName: string; contactEmail: string | null } {
+  if (isSeedContact(contactName, contactEmail)) {
+    return { contactName: "", contactEmail: null };
+  }
+  const name = (contactName ?? "").trim();
+  const email = (contactEmail ?? "").trim();
+  return { contactName: name, contactEmail: email.length > 0 ? email : null };
+}
+
 export type GuestSendGateInput = {
   /** inquiries.status at the moment of send (pre-insert read). */
   status: string;
