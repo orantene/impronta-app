@@ -8,7 +8,8 @@ import "server-only";
 
 import type { CSSProperties, ReactNode } from "react";
 import { timed } from "@/lib/server/perf-trace";
-import { MaxSiteDemoBadge, MaxSiteDemoFooter, withHeaderSiteChrome } from "./render-max-site-demo";
+import { withHeaderSiteChrome } from "./render-max-site-demo";
+import { MaxSiteDemoBadge, MaxSiteDemoFooter } from "@/lib/talent-site/max-site-demo-chrome";
 import { splitShell } from "./render-max-site-shell";
 import { builderTreeHasFaqBind, builderTreeHasKind } from "./builder-tree-has-kind";
 import { pruneEmptyBoundSections } from "@/lib/talent-site/my-content-prune";

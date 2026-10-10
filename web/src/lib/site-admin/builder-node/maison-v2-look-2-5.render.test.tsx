@@ -13,7 +13,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { MaxSiteDemoBadge } from "@/lib/talent-site/server/render-max-site-demo";
+import { MaxSiteDemoBadge } from "@/lib/talent-site/max-site-demo-chrome";
 import { EDITORIAL_SOFT_CHROME_CSS } from "@/lib/talent-site/theme-catalog/collection/design-type-system-soft";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 
