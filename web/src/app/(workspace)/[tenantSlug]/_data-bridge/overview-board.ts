@@ -56,6 +56,7 @@ import { loadHostStand, type HostStandState } from "../admin/reservations/host-s
 import { loadTenantOwedOrders, loadTenantTakings } from "./payments-activity";
 import { loadWorkspaceOrders } from "./orders";
 import { timed } from "@/lib/server/perf-trace";
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import { loadSetupItems, readAgencySetupRow } from "./setup-checklist";
 
 const DEFAULT_ZONE = "UTC";
@@ -77,15 +78,7 @@ function clock(iso: string | Date, timeZone: string): string {
 }
 
 function money(currency: string, cents: number): string {
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency,
-      maximumFractionDigits: cents % 100 === 0 ? 0 : 2,
-    }).format(cents / 100);
-  } catch {
-    return `${(cents / 100).toFixed(2)} ${currency}`;
-  }
+  return formatDashboardMoneyCents(cents, currency);
 }
 
 async function readMoney(
