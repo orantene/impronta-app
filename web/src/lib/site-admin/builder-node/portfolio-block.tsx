@@ -211,6 +211,7 @@ function ShotFigure({
 
   // TUL-532 / GRK-044: captions stay outside the lightbox <button> (figcaption
   // inside a button is invalid HTML and some browsers strip the click target).
+  // TUL-475: framed cards always show a name — bare shots fall back to Work N.
   const caption =
     showCaptions && magazineIndex ? (
       <figcaption className="sb-portfolio-cap">
@@ -219,9 +220,15 @@ function ShotFigure({
           .join(" · ")}
         {hint}
       </figcaption>
-    ) : showCaptions && framed && (shot.caption?.trim() || shot.offeringTitle?.trim() || shot.offeringId) ? (
+    ) : showCaptions && framed ? (
       <figcaption className="sb-portfolio-cap">
-        <span className="sb-portfolio-name">{shot.caption?.trim() || shot.offeringTitle?.trim() || null}{hint}</span>
+        <span className="sb-portfolio-name">
+          {shot.caption?.trim() ||
+            shot.offeringTitle?.trim() ||
+            serviceLine ||
+            (es ? `Trabajo ${gallery.index + 1}` : `Work ${gallery.index + 1}`)}
+          {hint}
+        </span>
         {shot.offeringId ? (
           <>
             <span className="sb-portfolio-arrow" aria-hidden="true">
