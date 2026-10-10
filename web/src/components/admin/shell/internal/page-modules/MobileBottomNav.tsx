@@ -513,7 +513,7 @@ export function MobileBottomNav() {
                   margin: "8px auto 12px",
                 }}
               />
-              <div style={{ padding: "0 14px 8px" }}>
+              <div className="px-[14px] pb-2">
                 <PhoneRailModeSwitch active="talent" onAfterSwitch={() => setMoreOpen(false)} className="" />
               </div>
               {overflow.map((t) => (
