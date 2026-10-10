@@ -39,6 +39,7 @@ import {
 } from "@/lib/saas/host-context";
 import { LEGACY_PRIVACY_SLUG, POLICY_SLUG } from "@/lib/talent-policies/public";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { talentGuestAliasTarget } from "@/lib/talent-site/guest-path-aliases";
 import { renderTalentMaxSite } from "@/lib/talent-site/server/render-max-site";
 import {
   maxSiteJsonLdString,
@@ -160,6 +161,9 @@ export default async function TalentSiteHostPage({
     resolveCanonicalOrigin(),
   ]);
   const seg = firstSegment(pageSlug);
+  // GRK-028 defense-in-depth: guest path aliases (also handled in the proxy).
+  const guestAlias = talentGuestAliasTarget(seg);
+  if (guestAlias) redirect(guestAlias);
 
   const result = await renderTalentMaxSite({
     talentProfileId,
