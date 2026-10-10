@@ -170,7 +170,8 @@ function RowIcon({ children }: { children: ReactNode }) {
 }
 
 export function TalentAccountMenuSection({ onNavigate }: { onNavigate: () => void }) {
-  const { bridgeTalentSelfProfile, bridgeTalentRepresentation, openDrawer } = useAdminShell();
+  const { bridgeTalentSelfProfile, bridgeTalentRepresentation, openDrawer, setTalentPage } =
+    useAdminShell();
   const copy = useDashboardText();
   const siteLoad = useTalentSiteDashboardInitialLoad();
 
@@ -237,7 +238,15 @@ export function TalentAccountMenuSection({ onNavigate }: { onNavigate: () => voi
         onClick={() => {
           onNavigate();
           if (!hasWebsiteLink) {
-            window.location.assign(myWebsite?.editHref ?? "/talent/public-page");
+            // live3-01: never hard-nav to the legacy `/talent/public-page`
+            // alias when dashboard seed is missing — that redirect hop showed
+            // the global error card until a full reload. Soft-nav into
+            // Presence (`/talent/site`) instead; use editHref when we have it.
+            if (myWebsite?.editHref) {
+              window.location.assign(myWebsite.editHref);
+            } else {
+              setTalentPage("public-page");
+            }
           }
         }}
       >
