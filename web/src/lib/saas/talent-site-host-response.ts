@@ -16,6 +16,7 @@ import {
 } from "@/lib/saas/host-context";
 import { applyTalentSiteAnonCacheHeaders } from "@/lib/saas/talent-site-anon-cache";
 import { attachTalentSiteGuestIdentity } from "@/lib/saas/talent-site-guest-identity";
+import { resolveTalentSiteCanonicalRedirectHost } from "@/lib/saas/talent-site-canonical-redirect";
 import { isTalentSiteHostPathAllowed, talentSiteHostRewritePath } from "@/lib/saas/talent-site-host-routing";
 import { PUBLIC_PATH_PREFIX_HEADER, TENANT_HEADER_NAME } from "@/lib/saas/scope";
 import { talentDemoBareHostRedirectHost } from "@/lib/talent-site/site-public-url";
@@ -34,6 +35,10 @@ import { decideTalentSiteLocale } from "@/lib/talent-site/talent-site-locale-rou
  * Language (PR 4, 2026-09-29): the talent's OWN languages and URL grammar,
  * decided by `decideTalentSiteLocale` (prefix > `?locale=` 302 >
  * primary; the cookie never overrides the URL). An explicit choice is remembered in the `locale` cookie.
+ *
+ * D1 — when the talent has an ACTIVE primary custom domain, this path 308s
+ * `<slug>.tulala.digital/*` and non-primary custom hosts (apex ↔ www) to that
+ * primary via the same helper agencies use (`resolveCanonicalCustomDomainRedirectHost`).
  */
 export async function talentSiteHostResponse(
   request: NextRequest,
@@ -45,8 +50,34 @@ export async function talentSiteHostResponse(
     hostKind?: "subdomain" | "custom";
     isDemo?: boolean;
     siteSlug?: string | null;
+    isPrimary?: boolean;
+    canonicalHost?: string | null;
+    canonicalHostKind?: "subdomain" | "custom" | null;
   },
 ): Promise<NextResponse> {
+  // Primary custom-domain redirect (subdomain → custom, apex ↔ www). Same
+  // helper as the agency branch in proxy.ts. Path, query, and locale prefixes
+  // (`/en/...`) are preserved via nextUrl.clone().
+  if (
+    (request.method === "GET" || request.method === "HEAD") &&
+    hostContext.hostKind
+  ) {
+    const canonicalHost = resolveTalentSiteCanonicalRedirectHost({
+      hostname: hostContext.hostname,
+      hostKind: hostContext.hostKind,
+      // Undefined (legacy callers) → treat as primary so we never bounce dark.
+      isPrimary: hostContext.isPrimary ?? true,
+      canonicalHost: hostContext.canonicalHost ?? null,
+      canonicalHostKind: hostContext.canonicalHostKind ?? null,
+    });
+    if (canonicalHost) {
+      const target = request.nextUrl.clone();
+      target.hostname = canonicalHost;
+      target.protocol = "https:";
+      return NextResponse.redirect(target, 308);
+    }
+  }
+
   // Demo convention: any demo subdomain that is not already
   // `{site_slug}-demo.<apex>` 308s to that canonical host (bare cutover and
   // design vanity aliases like folio-demo → mateo-ferrer-demo). Custom domains

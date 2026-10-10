@@ -46,10 +46,31 @@ test("resolves a published talent subdomain to a talent_site context", async () 
     hostKind: "subdomain",
     isDemo: false,
     siteSlug: "sofia",
+    isPrimary: true,
+    canonicalHost: null,
+    canonicalHostKind: null,
   });
   assert.deepEqual(calls, [
     { fn: "talent_site_subdomain_lookup", args: { p_slug: "sofia" } },
   ]);
+});
+
+test("subdomain with active primary custom domain carries redirect fields", async () => {
+  const { client } = fakeClient({
+    data: [
+      {
+        talent_profile_id: PROFILE,
+        site_slug: "sofia",
+        is_demo: false,
+        primary_custom_domain: "sofia.com",
+      },
+    ],
+    error: null,
+  });
+  const ctx = await resolveTalentSubdomainContext(client, "sofia.tulala.digital");
+  assert.equal(ctx?.isPrimary, false);
+  assert.equal(ctx?.canonicalHost, "sofia.com");
+  assert.equal(ctx?.canonicalHostKind, "custom");
 });
 
 test("resolves a demo -demo host label and flags isDemo", async () => {
@@ -69,6 +90,9 @@ test("resolves a demo -demo host label and flags isDemo", async () => {
     hostKind: "subdomain",
     isDemo: true,
     siteSlug: "alba-nail-artist",
+    isPrimary: true,
+    canonicalHost: null,
+    canonicalHostKind: null,
   });
   assert.deepEqual(calls, [
     { fn: "talent_site_subdomain_lookup", args: { p_slug: "alba-nail-artist-demo" } },
