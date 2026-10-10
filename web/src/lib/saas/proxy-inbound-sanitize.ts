@@ -25,7 +25,7 @@ export const HOST_CONTEXT_HEADERS_TO_STRIP = [
   TENANT_HEADER_NAME,
   PUBLIC_PATH_PREFIX_HEADER,
   GUEST_HEADER_NAME,
-] as const;
+];
 
 export function stripInboundHostContextHeaders(request: NextRequest): Headers {
   const headers = new Headers(request.headers);
