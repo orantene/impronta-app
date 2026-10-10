@@ -1,5 +1,5 @@
 /**
- * TUL-516 F1–F5 + TUL-528 (GRK-033/034/039) — shared floating-UI stacking +
+ * TUL-516 F1–F5 + TUL-528 (GRK-033/034/036/039) — shared floating-UI stacking +
  * safe-area clearance (theme/chrome core).
  *
  * Layers that share the phone bottom corner (cookie banner, language strip,
@@ -23,6 +23,7 @@
  *   while the bar/dock is painted (not a hardcoded 72px undershoot).
  * - GRK-037: phone footer + catalog groups keep a right gutter so Hablar does
  *   not sit on prices / Reservar / footer links (FAB fill clamp lives in chat).
+ * - GRK-036: phone Hablar FAB clears float/default sticky bar before JS measure.
  * - GRK-039: guest chat panels use aria-modal=false; consent yields to
  *   [data-guest-chat-panel] so the message box stays reachable.
  */
@@ -79,6 +80,9 @@ body:has(${CONSENT_BANNER_SELECTOR}) .site-bn-hero__meta{bottom:max(clamp(74px,1
 body:has(${CONSENT_BANNER_SELECTOR}) .site-bn-hero__cue{bottom:max(30px,calc(var(--floating-consent-clearance) + 8px))}
 body:has(${CONSENT_BANNER_SELECTOR}) #hero{padding-bottom:max(2rem,calc(var(--floating-consent-clearance) + 12px));box-sizing:border-box}
 @media (max-width:480px){body:has([data-guest-chat-launcher]){--floating-launcher-gutter:calc(72px + env(safe-area-inset-right,0px))}body:has([data-guest-chat-launcher]) .site-builder-node--services-catalog-groups,body:has([data-guest-chat-launcher]) .sb-statement-footer-meta,body:has([data-guest-chat-launcher]) .sb-statement-footer-contact,body:has([data-guest-chat-launcher]) .sb-statement-footer-inner{padding-inline-end:max(12px,var(--floating-launcher-gutter))}}
+/* GRK-036: Hablar clears float/default sticky booking chrome before JS measure.
+   Pill bars already tuck the FAB via .cb-bar-chat (GUEST_CHAT_FAB_CSS). */
+@media (max-width:719px){body:has(.cb-bar[data-show="true"]:not([data-top="true"])) [data-guest-chat-launcher],body:has(.mn-bar[data-show="true"]) [data-guest-chat-launcher]{bottom:max(calc(24px + env(safe-area-inset-bottom,0px)),calc(var(--cb-bar-h) + 24px))!important;right:max(72px,calc(16px + 56px + env(safe-area-inset-right,0px)))!important}}
 `.replace(/\n/g, "");
 
 /**
@@ -144,4 +148,13 @@ export function floatingChromeClearsHeroCtas(css: string): boolean {
 /** GRK-039: consent yields to the open guest chat panel (not only aria-modal dialogs). */
 export function floatingChromeYieldsToGuestChat(css: string): boolean {
   return css.includes(`body:has(${GUEST_CHAT_PANEL_SELECTOR}) ${CONSENT_BANNER_SELECTOR}`);
+}
+
+/** GRK-036: phone FAB clears painted sticky booking chrome before JS yield runs. */
+export function floatingChromeClearsStickyBarFab(css: string): boolean {
+  return (
+    css.includes('body:has(.cb-bar[data-show="true"]:not([data-top="true"])) [data-guest-chat-launcher]') &&
+    css.includes("var(--cb-bar-h)") &&
+    css.includes("!important")
+  );
 }
