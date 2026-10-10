@@ -61,6 +61,7 @@ import {
 import type { MaxSiteManagerState } from "@/lib/talent-site/server/site-management-types";
 import { isThemeApplyBusy, useThemeApplyBusy } from "@/lib/talent-site/history/apply-busy";
 import { CustomDomainRow } from "@/components/talent/site/CustomDomainRow";
+import { FreeTierAppsEntry } from "@/components/talent/site/FreeTierAppsEntry";
 import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
 import {
   PERSONAL_SITE_BUILDER_HREF,
@@ -170,7 +171,18 @@ export function TalentMaxSiteManager({
   }
 
   if (!state.canManage) {
-    return <UpsellCard />;
+    // TUL-39: free / flags-off still browses Apps (Nail Designer + Web Office
+    // badge + Upgrade). Upsell alone left the pack with no Apps entry.
+    return (
+      <div
+        style={{ display: "flex", flexDirection: "column", gap: 14 }}
+        data-talent-max-site-manager
+        data-testid="talent-site-free-upsell"
+      >
+        <UpsellCard />
+        <FreeTierAppsEntry locale={locale === "es" ? "es" : "en"} />
+      </div>
+    );
   }
 
   if (!state.siteExists) {
