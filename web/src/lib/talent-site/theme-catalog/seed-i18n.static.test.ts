@@ -133,8 +133,8 @@ test("the seed Spanish table has no em dash and no voseo", () => {
 
 test("TUL-516 C1: Recent jobs seed and render-time map stay one pair", () => {
   assert.equal(SEED_TEXT_ES[RECENT_JOBS_LABEL.en], RECENT_JOBS_LABEL.es);
-  assert.equal(localiseOne(RECENT_JOBS_LABEL.en, "es"), RECENT_JOBS_LABEL.es);
-  assert.equal(localiseOne(RECENT_JOBS_LABEL.es, "en"), RECENT_JOBS_LABEL.en);
+  assert.equal(localiseOne(RECENT_JOBS_LABEL.en, "es", null), RECENT_JOBS_LABEL.es);
+  assert.equal(localiseOne(RECENT_JOBS_LABEL.es, "en", null), RECENT_JOBS_LABEL.en);
 });
 
 test("the scanner flags a missing overlay (guard against a vacuous pass)", () => {
