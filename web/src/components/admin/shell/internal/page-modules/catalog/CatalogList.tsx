@@ -41,6 +41,7 @@ import {
   type ListFilters,
 } from "./catalog-model";
 import { BlockPill, CARD, Chip, ListHead, ListRow, Note, PageHeading, RowMenuButton, SegmentLinks, type BlockTone } from "./catalog-ui";
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 
 // The board's columns at 1144: Item 193 · Type 120 · Channels 183 · Price 90 · Availability 150 · Preparation 120 · Status 150 · the menu.
 const COLS = "grid-cols-[1.35fr_120px_1.3fr_90px_150px_120px_150px_24px]";
@@ -262,7 +263,7 @@ function CatalogRow({
       <span className="min-w-0 flex-1">
         <span className="block truncate font-admin-body text-[14.5px] font-semibold text-admin-ink">{o.title || t("dashboard.catalog.untitled")}</span>
         <span className="mt-[2px] block truncate font-admin-body text-admin-12h text-admin-ink-muted">
-          {t(TYPE_KEY[type])} · {offeringPriceLabel(o, locale)} · {availability}
+          {t(TYPE_KEY[type])} · {offeringPriceLabel(o, locale, formatDashboardMoneyCents)} · {availability}
           {channels.includes("pos") ? ` · ${t("dashboard.catalog.channel.posCounter")}` : ""}
           {channels.includes("website") ? ` · ${t("dashboard.catalog.channel.website")}` : ""}
         </span>
@@ -285,7 +286,7 @@ function CatalogRow({
         {channels.includes("website") ? <Chip>{t("dashboard.catalog.channel.website")}</Chip> : null}
         {channels.includes("pos") ? <Chip tone="brand">{t("dashboard.catalog.channel.posCounter")}</Chip> : null}
       </span>
-      <span className="font-semibold tabular-nums">{offeringPriceLabel(o, locale)}</span>
+      <span className="font-semibold tabular-nums">{offeringPriceLabel(o, locale, formatDashboardMoneyCents)}</span>
       <span className="text-admin-ink-muted">{availability}</span>
       <span className="text-admin-ink-muted" title={t("dashboard.catalog.preparation.reason")}>
         {t("dashboard.catalog.dash")}
