@@ -17,3 +17,10 @@ test("catalog booking CTA primary prefers token-color-primary over accent blush"
     "accent-first CTA fill regresses white-on-blush Continuar",
   );
 });
+
+/** E2-karla-slot-width — slot/time grid must fill the sheet, not shrink-wrap ~270px. */
+test("catalog booking when-step times grid pins full sheet width", () => {
+  assert.match(css, /\.jb-times\{[^}]*width:100%/);
+  assert.match(css, /\.jb-body\{[^}]*width:100%/);
+  assert.match(css, /\.jb-times\{grid-template-columns:repeat\(auto-fill,minmax\(104px,1fr\)\)/);
+});
