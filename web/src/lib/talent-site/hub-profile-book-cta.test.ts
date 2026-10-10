@@ -69,6 +69,14 @@ test("site bridge opens on the INITIAL fragment, not only on hashchange", () => 
   assert.match(src, /<span id="book" data-talent-book-target=""/);
 });
 
+test("TUL-77: ask-label clicks open the guest entry even when href is /agendar", () => {
+  const src = readFileSync(join(process.cwd(), "src/app/%5Ftalent-site/TalentSiteContactBridge.tsx"), "utf8");
+  // Intercept by label as well as href — otherwise Escríbenos → /agendar only reloads.
+  assert.match(src, /!isAskHref\(href\) && !isAskLabel\(label\)/);
+  assert.match(src, /"escríbenos"/);
+  assert.match(src, /"get in touch"/);
+});
+
 test("hub profile wires askEntry and no longer drops Book behind the slot picker", () => {
   const src = readFileSync(join(process.cwd(), "src/app/t/[profileCode]/profile-view.tsx"), "utf8");
   assert.match(src, /<HubProfileCta [^>]*askEntry=\{talentAskEntry\}/);
