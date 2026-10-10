@@ -52,9 +52,7 @@ export async function PlanFeatureCompareTable({
           color: "var(--plt-muted)",
         }}
       >
-        Plan-comparison data isn&rsquo;t available right now. Check{" "}
-        <code>/platform/admin/commerce?tab=discounts</code> &rarr; to add
-        per-tier feature rows.
+        {copy.unavailable}
       </div>
     );
   }
@@ -225,6 +223,8 @@ type CompareTableCopy = {
   tier: string;
   included: string;
   notIncluded: string;
+  /** Shown to visitors when the plan catalog has no compare rows. */
+  unavailable: string;
   captions: Record<string, string>;
   categories: Record<string, string>;
 };
@@ -234,6 +234,7 @@ const COPY_EN: CompareTableCopy = {
   tier: "Tier",
   included: "Included",
   notIncluded: "Not included",
+  unavailable: "The full plan comparison isn’t available right now. Every plan above lists what it includes.",
   captions: {
     free:   "Every operator, forever.",
     studio: "Solo + small team, on WhatsApp.",
@@ -248,6 +249,7 @@ const COPY_ES: CompareTableCopy = {
   tier: "Plan",
   included: "Incluido",
   notIncluded: "No incluido",
+  unavailable: "La comparación completa de planes no está disponible ahora. Cada plan de arriba muestra lo que incluye.",
   captions: {
     free:   "Para cualquier negocio, para siempre.",
     studio: "Solo o equipo pequeño, por WhatsApp.",
