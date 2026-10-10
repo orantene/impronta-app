@@ -8,7 +8,7 @@
 export function TodaySkeleton() {
   return (
     <div
-      className="min-h-[70vh] space-y-4 bg-[var(--color-admin-surface,#f4f7fb)] p-1"
+      className="min-h-[70vh] space-y-4 bg-admin-surface p-1"
       aria-busy="true"
       data-testid="today-skeleton"
     >

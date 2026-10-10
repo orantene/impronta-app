@@ -433,16 +433,20 @@ export async function loadOverviewSnapshot(input: {
   // seeds MXN services in Mexico but does not always write preferred_currency).
   let workspaceCurrency = agency?.preferred_currency ?? null;
   if (!workspaceCurrency && admin) {
-    const { data: offering } = await admin
+    const { data: offering, error: offeringError } = await admin
       .from("talent_offerings")
       .select("currency")
       .eq("tenant_id", input.tenantId)
       .not("currency", "is", null)
       .limit(1)
       .maybeSingle();
-    const raw = (offering as { currency?: string | null } | null)?.currency;
-    if (typeof raw === "string" && /^[A-Za-z]{3}$/.test(raw.trim())) {
-      workspaceCurrency = raw.trim().toUpperCase();
+    if (offeringError) {
+      logServerError("overview.workspaceCurrency", offeringError);
+    } else {
+      const raw = (offering as { currency?: string | null } | null)?.currency;
+      if (typeof raw === "string" && /^[A-Za-z]{3}$/.test(raw.trim())) {
+        workspaceCurrency = raw.trim().toUpperCase();
+      }
     }
   }
   const money = await timed("overview.money", () =>
