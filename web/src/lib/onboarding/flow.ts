@@ -14,7 +14,10 @@ export type FlowStepNumber = 1 | 2 | 3 | 4;
 
 /**
  * 1 How do you work? · 2 Tell us what you do · 3 Set up the essentials ·
- * 4 Your page is ready (account, build and arrival live here).
+ * 4 Style, ready, account, build and arrival.
+ *
+ * onb1-09: style + readyToBuild used to sit in step 3 with essentials/setup, so
+ * the "Paso 3 de 4" label stuck across four distinct screens. They advance to 4.
  */
 export const FLOW_STEP_OF: Record<ModuleStep, FlowStepNumber> = {
   choose: 1,
@@ -27,8 +30,8 @@ export const FLOW_STEP_OF: Record<ModuleStep, FlowStepNumber> = {
   question: 3,
   essentials: 3,
   setup: 3,
-  style: 3,
-  readyToBuild: 3,
+  style: 4,
+  readyToBuild: 4,
   save: 4,
   code: 4,
   building: 4,
