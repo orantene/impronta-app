@@ -348,8 +348,15 @@ export async function saveOnboardingEssentials(input: EssentialsAnswer): Promise
     if (/^[A-Z]{2}$/.test(input.city.countryIso2)) facts.push({ factKey: "person.country", value: input.city.countryIso2, source: "user_stated", status: "confirmed", confidence: 1 });
   }
   if (typeof input.name === "string" && input.name.trim()) {
-    facts.push({ factKey: business ? "business.name" : "person.professional_name", value: input.name.trim(), source: "user_stated", status: "confirmed", confidence: 1 });
-    if (path === "both") facts.push({ factKey: "person.professional_name", value: input.name.trim(), source: "user_stated", status: "confirmed", confidence: 1 });
+    // onb1-06: business name stays on business.name only — never overwrite
+    // person.professional_name on the "both" path (that made the summary rename).
+    facts.push({
+      factKey: business ? "business.name" : "person.professional_name",
+      value: input.name.trim(),
+      source: "user_stated",
+      status: "confirmed",
+      confidence: 1,
+    });
   }
   if (input.services) {
     const list = input.services.map((x) => x.trim()).filter(Boolean).slice(0, 12);

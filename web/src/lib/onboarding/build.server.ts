@@ -155,7 +155,8 @@ export async function runOnboardingBuild(input: {
     // 1D: one source for the address: the promised link when the workspace got that slug.
     const finish = resolveWorkspaceFinishUrl({ linkSlug: input.state.linkSlug ?? null, tenantSlug: result.tenantSlug, delivered: deliveredUrl });
     const publicUrl = finish.url;
-    const finishName = businessName ?? result.tenantName;
+    // onb1-06: stated essentials/business name wins over lead/tenant fallback.
+    const finishName = businessName ?? essentials?.name ?? result.tenantName;
     const wsCheck = await verifyLivePageWithRetry({ url: publicUrl, name: finishName });
     if (!wsCheck.ok) logServerError("onboarding.build.verifyLive", new Error(`workspace:${wsCheck.reason}`));
     // "both" also owns a talent site: it must exist and open with her name, or the finish is not "ready".

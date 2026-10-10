@@ -15,6 +15,7 @@
 
 import { useState } from "react";
 
+import { isMexicoPlace } from "@/lib/onboarding/essentials";
 import type { ChipOption, TypeChipProposal } from "@/lib/onboarding/type-chip";
 import type { Understanding } from "@/lib/onboarding/understanding";
 import type { EssentialsAnswer } from "@/lib/server-actions/onboarding-module";
@@ -62,7 +63,18 @@ export function EssentialsStep({
   const [other, setOther] = useState("");
   const knownWhat = known(business ? "kind" : "what");
   const knownCity = known("city");
-  const [city, setCity] = useState<OnboardingCity | null>(knownCity ? { id: null, slug: "", name: { en: knownCity, es: knownCity }, countryIso2: "", subtitle: null } : null);
+  const [city, setCity] = useState<OnboardingCity | null>(
+    knownCity
+      ? {
+          id: null,
+          slug: "",
+          name: { en: knownCity, es: knownCity },
+          // Cancún (etc.) from the brief still counts as MX so currency/country stick.
+          countryIso2: isMexicoPlace(knownCity) ? "MX" : "",
+          subtitle: null,
+        }
+      : null,
+  );
   const [name, setName] = useState(known(business ? "businessName" : "name") ?? "");
   // Only a phone-shaped value may prefill the phone field (a stray "true" from
   // "WhatsApp orders" is refused at record time too; belt and braces).
@@ -74,10 +86,16 @@ export function EssentialsStep({
 
   const submit = () => {
     if (!ready || busy || !city) return;
+    const cityUnchanged = !city.slug && city.id === null && city.name.en === knownCity;
+    // Unchanged AI city: still write MX when the city implies Mexico (onb1-03).
+    const cityPayload = cityUnchanged
+      ? isMexicoPlace(knownCity) || city.countryIso2 === "MX"
+        ? { id: null as string | null, slug: "", name: knownCity!, countryIso2: "MX" }
+        : null
+      : { id: city.id, slug: city.slug, name: city.name[locale] || city.name.en, countryIso2: city.countryIso2 };
     onSave({
       type: type ? { kind, id: type.id, slug: type.slug, label: type.label[locale] } : other.trim().length >= 3 ? { kind, id: "", slug: "", label: other.trim() } : null,
-      // The prefilled city (no slug, no id) is what the words gave: leave it unless changed.
-      city: !city.slug && city.id === null && city.name.en === knownCity ? null : { id: city.id, slug: city.slug, name: city.name[locale] || city.name.en, countryIso2: city.countryIso2 },
+      city: cityPayload,
       name: name.trim() || null,
       // 1B: services and hours live on the step-3 setup screen now.
       services: null,
@@ -88,8 +106,9 @@ export function EssentialsStep({
     });
   };
 
-  // What the AI read shows as the selected value; "Change" opens the picker.
-  const typeSelected: ChipOption | null = type ?? (knownWhat && !typeCleared ? { id: "", slug: "", label: { en: knownWhat, es: knownWhat } } : null);
+  // Prefer the catalogue proposal (bilingual labels) over mirroring the AI English string into ES.
+  const typeSelected: ChipOption | null =
+    type ?? (knownWhat && !typeCleared ? (chip?.proposed ?? { id: "", slug: "", label: { en: knownWhat, es: knownWhat } }) : null);
 
   return (
     <div data-testid="onb-essentials">
@@ -133,7 +152,7 @@ export function EssentialsStep({
           locale={locale}
           selected={city}
           selectedLabel={(c) => c.name[locale] || c.name.en}
-          search={(q) => searchOnboardingCities({ query: q })}
+          search={(q) => searchOnboardingCities({ query: q, locale })}
           itemLabel={(c) => c.name[locale] || c.name.en}
           itemSub={(c) => c.subtitle}
           itemKey={(c) => `${c.slug}:${c.countryIso2}`}

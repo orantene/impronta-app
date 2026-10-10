@@ -24,7 +24,7 @@ const TRADE_RULES: readonly TradeRule[] = [
   { key: "chef", businessType: null, words: ["chef", "cocinero", "cocinera", "cook", "catering", "baker", "panadero", "reposter"] },
   { key: "makeup", businessType: "makeup-artist", words: ["makeup", "make up", "maquillaj", "maquillador"] },
   { key: "nails", businessType: null, words: ["nail", "manicur", "unas"] },
-  { key: "hair", businessType: null, words: ["hair", "barber", "peluquer", "estilista", "colorist"] },
+  { key: "hair", businessType: null, words: ["hair", "barber", "peluquer", "estilista", "colorist", "belleza", "estetica", "beauty salon", "salon de belleza"] },
   { key: "design_3d", businessType: null, words: ["3d", "render"] },
   { key: "photography", businessType: null, words: ["photograph", "fotograf", "videograph", "videograf"] },
   { key: "music", businessType: null, words: ["dj", "musician", "musico", "singer", "cantante", "band"] },

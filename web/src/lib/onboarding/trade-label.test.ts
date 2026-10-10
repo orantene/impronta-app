@@ -76,6 +76,7 @@ test("a tapped chip slug wins over the words", () => {
 test("keyword table: barber, DJ, nail artist and makeup each map to their own trade", () => {
   const cases: Array<[string, string]> = [
     ["barber", "hair"], ["Barbería", "hair"], ["barber shop owner", "hair"],
+    ["salón de belleza", "hair"], ["belleza", "hair"], ["beauty salon", "hair"],
     ["DJ", "music"], ["wedding DJ", "music"], ["dj para bodas", "music"],
     ["nail artist", "nails"], ["nail technician", "nails"], ["manicurista", "nails"],
     ["makeup artist", "makeup"], ["maquillaje de novias", "makeup"], ["make up", "makeup"],

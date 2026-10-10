@@ -57,23 +57,25 @@ function titleFromSlug(slug: string): string {
   return slug.split("-").filter(Boolean).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 }
 
-function toCity(c: CitySuggestion): OnboardingCity {
+function toCity(c: CitySuggestion, locale: "en" | "es" = "en"): OnboardingCity {
   // A curated row with no display name (seed drift) still has a slug; never show an empty line.
   const en = c.name_en?.trim() || titleFromSlug(c.slug);
+  const countryFallback = locale === "es" ? (c.country_name_es?.trim() || c.country_name_en) : c.country_name_en;
   return {
     id: c.id,
     slug: c.slug,
     name: { en, es: c.name_es?.trim() || en },
     countryIso2: c.country_iso2,
-    subtitle: c.subtitle ?? c.country_name_en ?? null,
+    subtitle: c.subtitle ?? countryFallback ?? null,
   };
 }
 
 /** Curated cities first (the ones the platform knows); Google fills in when fewer than three match. */
-export async function searchOnboardingCities(input: { query: string }): Promise<OnboardingCity[]> {
+export async function searchOnboardingCities(input: { query: string; locale?: "en" | "es" }): Promise<OnboardingCity[]> {
   const q = input.query.trim();
+  const locale = input.locale === "es" ? "es" : "en";
   if (q.length < 2) return [];
-  const curated = (await searchCuratedCitiesGlobal(q)).map(toCity);
+  const curated = (await searchCuratedCitiesGlobal(q)).map((c) => toCity(c, locale));
   if (curated.length >= 3) return curated.slice(0, MAX);
   const seen = new Set(curated.flatMap((c) => [fold(c.name.en), c.slug]));
   const extra: OnboardingCity[] = [];
@@ -85,7 +87,7 @@ export async function searchOnboardingCities(input: { query: string }): Promise<
       if (seen.has(key) || seen.has(c.slug)) continue;
       seen.add(key);
       seen.add(c.slug);
-      extra.push(toCity(c));
+      extra.push(toCity(c, locale));
     }
   } catch {
     // Google unavailable: curated only.
