@@ -56,12 +56,16 @@ export function instagramHandle(href: string | null | undefined): string {
   }
 }
 
-/** Footer contact line with real links (the paragraph renders `[text](url)`): Instagram handle, WhatsApp click-to-chat. */
+/**
+ * Footer contact line with real links (the paragraph renders `[text](url)`).
+ * Instagram is ONE link (`Instagram · @handle`) so the middot never wraps as a
+ * dangling separator before the handle (unfinished-footer / TUL-532).
+ */
 export function contactLine(handle: string, instagramHref?: string | null, whatsappHref?: string | null): string {
   const parts: string[] = [];
   if (handle) {
     const url = instagramHref && /^https:\/\//i.test(instagramHref) ? instagramHref : `https://instagram.com/${handle.slice(1)}`;
-    parts.push(`Instagram · [${handle}](${url})`);
+    parts.push(`[Instagram · ${handle}](${url})`);
   }
   if (whatsappHref && /^https:\/\/(wa\.me|api\.whatsapp\.com)\//i.test(whatsappHref)) parts.push(`[WhatsApp](${whatsappHref})`);
   return parts.join(" · ");
