@@ -93,6 +93,23 @@ test("folio: inquiry keeps its price, free instant casting is a zero price", () 
   assert.equal(rows[3]!.amount_cents, 0);
 });
 
+test("folio Mateo: Spanish primary offering titles + EN title_i18n (W2-5 C3)", () => {
+  assert.equal(mateo.statsTitle, "Medidas · Ficha");
+  assert.doesNotMatch(mateo.statsTitle ?? "", /Comp card/);
+  const rows = planOfferingOps(mateo, []).map((o) => (o.op === "insert" ? o.row : {}));
+  assert.equal(rows[0]!.title, "Sesión editorial, media jornada");
+  assert.equal(rows[1]!.title, "Reserva de pasarela");
+  assert.equal(rows[2]!.title, "Día lookbook / e-commerce");
+  assert.equal((rows[0]!.title_i18n as { es?: string; en?: string }).es, "Sesión editorial, media jornada");
+  assert.equal((rows[0]!.title_i18n as { es?: string; en?: string }).en, "Editorial shoot, half day");
+  assert.equal((rows[1]!.title_i18n as { es?: string; en?: string }).en, "Runway show booking");
+  assert.equal((rows[1]!.category_i18n as { es?: string; en?: string }).es, "Pasarela");
+  assert.equal((rows[1]!.category_i18n as { es?: string; en?: string }).en, "Runway");
+  for (const row of rows.slice(0, 3)) {
+    assert.doesNotMatch(String(row.title), /Editorial shoot|Runway show|Lookbook \/ e-commerce day/);
+  }
+});
+
 test("faq: positional insert/update, extras go back to draft", () => {
   const items = alba.faq.items;
   assert.equal(planFaqOps(items, []).length, items.length);

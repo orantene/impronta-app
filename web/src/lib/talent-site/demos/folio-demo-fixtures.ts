@@ -221,7 +221,7 @@ function buildFixture(d: FolioDemoJson): DemoContentFixture {
       items: faqFor(d),
     },
     stats: statsFor(d),
-    statsTitle: lang === "es" ? "Medidas · Comp card" : "Measures · Comp card",
+    statsTitle: lang === "es" ? "Medidas · Ficha" : "Measures · Comp card",
     location: null,
     footer: {
       headline: lang === "es" ? "Siguiente número." : "Next number.",

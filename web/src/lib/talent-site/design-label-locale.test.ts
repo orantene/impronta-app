@@ -78,6 +78,23 @@ test("en: a Spanish-authored tree localises; an untouched tree is returned as is
   assert.equal(localiseSeededDesignLabels(es, "es"), es);
 });
 
+test("Folio Comp card + Runway localise without English leftovers on ES (W2-5 C3)", async () => {
+  const { localiseSeededDesignLabel } = await import("./design-label-locale");
+  assert.equal(localiseSeededDesignLabel("Measures · Comp card", "es"), "Medidas · Ficha");
+  assert.equal(localiseSeededDesignLabel("Medidas · Ficha", "en"), "Measures · Comp card");
+  assert.equal(localiseSeededDesignLabel("Runway", "es"), "Pasarela");
+  assert.equal(localiseSeededDesignLabel("Pasarela", "en"), "Runway");
+  const folio = [
+    { id: "c", kind: "comp_card", props: { title: "Measures · Comp card" } },
+    { id: "p", kind: "portfolio", props: { title: "Runway" } },
+  ] as unknown as BuilderNode[];
+  const out = JSON.stringify(localiseSeededDesignLabels(folio, "es"));
+  assert.ok(out.includes("Medidas · Ficha"));
+  assert.ok(out.includes("Pasarela"));
+  assert.ok(!out.includes("Comp card"));
+  assert.ok(!out.includes("Runway"));
+});
+
 test("hydrated seeded labels with a token localise as patterns", async () => {
   const { localiseSeededDesignLabel } = await import("./design-label-locale");
   assert.equal(localiseSeededDesignLabel("Hello, I'm Alba", "es"), "Hola, soy Alba");

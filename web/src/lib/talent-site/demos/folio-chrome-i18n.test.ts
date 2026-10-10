@@ -93,6 +93,13 @@ test("Mateo fixture offerings plan bilingual titles for runway and editorial ser
   assert.ok(edTitles?.es && edTitles.en === "Editorial shoot, half day");
 });
 
+test("Mateo ES chapter II is Pasarela, not Runway; EN overlay keeps Runway (W2-5 C3)", () => {
+  const copy = folioSiteCopyFor("TAL-93011");
+  assert.equal(copy.chapters[1]?.heading, "Pasarela");
+  assert.notEqual(copy.chapters[1]?.heading, "Runway");
+  assert.equal(copy.overlays?.en?.chapters?.[1]?.heading, "Runway");
+});
+
 test("site-copy writes props.i18n.en on Folio masthead, chapters, catalog and footer", () => {
   const { copy, out } = applyMateo();
   const mast = findKind(out.home as Node[], "masthead")!;
@@ -109,10 +116,17 @@ test("site-copy writes props.i18n.en on Folio masthead, chapters, catalog and fo
   assert.match(enBag(footer).contactLine, /reply the same day/);
 
   let chapterEn = 0;
+  let chapterEsPasarela = 0;
   walk(out.home as Node[], (n) => {
     if (n.kind === "portfolio" && enBag(n).title === "Editorial") chapterEn += 1;
+    if (n.kind === "portfolio") {
+      const title = (n.props as { title?: string } | undefined)?.title;
+      if (title === "Pasarela") chapterEsPasarela += 1;
+      assert.notEqual(title, "Runway", "ES chapter portfolio must not keep English Runway");
+    }
   });
   assert.ok(chapterEn >= 1, "chapter portfolio carries EN title overlay");
+  assert.ok(chapterEsPasarela >= 1, "chapter II ES title is Pasarela");
 });
 
 test("Lucía ES cover uses Ciudad de México, EN overlay uses Mexico City", () => {
