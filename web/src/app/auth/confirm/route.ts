@@ -8,6 +8,9 @@ import {
 } from "@/lib/auth-flow";
 import { loadAccessProfile } from "@/lib/access-profile";
 import { relinkFirstConfirmedClaim } from "@/lib/auth/guest-claim-relink";
+import { activateGuestBookerIfEligible } from "@/lib/client-account/guest-activate.server";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { logServerError } from "@/lib/server/safe-error";
 import { NextResponse } from "next/server";
 
 /**
@@ -66,6 +69,14 @@ export async function GET(request: Request) {
     // the passwordless code path). Runs BEFORE the redirect.
     if (user) {
       await relinkFirstConfirmedClaim(user.id);
+      // W5-11: magic-link from the OTP email — same activate as typed code.
+      const adminForActivate = createServiceRoleClient();
+      if (adminForActivate) {
+        await activateGuestBookerIfEligible(adminForActivate, {
+          userId: user.id,
+          emailProven: true,
+        }).catch((e) => logServerError("auth/confirm/guestActivate", e));
+      }
     }
     const ensuredProfile = user
       ? await loadAccessProfile(supabase, user.id)
