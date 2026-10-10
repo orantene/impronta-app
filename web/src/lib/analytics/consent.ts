@@ -21,6 +21,12 @@ export const CONSENT_COOKIE_VALUE = "analytics";
 export const CONSENT_COOKIE_MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
 /** Fired on window after the choice changes. detail: { consent }. */
 export const CONSENT_CHANGE_EVENT = "tulala:consent-change";
+/**
+ * Fired when the consent card leaves the DOM for any reason (accept, decline,
+ * or the session-only ×). Language suggestion listens so it does not stay
+ * `display:none`-queued forever after a soft dismiss (live2b-05).
+ */
+export const CONSENT_BANNER_CLOSED_EVENT = "tulala:consent-banner-closed";
 /** Fire to reopen the banner. */
 export const PRIVACY_CHOICES_EVENT = "tulala:privacy-choices";
 

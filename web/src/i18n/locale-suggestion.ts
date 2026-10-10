@@ -69,9 +69,10 @@ import {
   type LocaleUrlSettings,
 } from "@/i18n/pathnames";
 import { isDashboardInnerPath } from "@/i18n/locale-middleware";
+import { LOCALE_SUGGESTION_DISMISSED_COOKIE as _DISMISSED } from "@/i18n/locale-cookies";
 
-/** Persistent "stop asking" cookie. Separate from `locale` on purpose: dismissing is not choosing. */
-export const LOCALE_SUGGESTION_DISMISSED_COOKIE = "locale-suggest-dismissed";
+/** Re-export: canonical definition lives in `@/i18n/locale-cookies` (client-safe leaf). */
+export const LOCALE_SUGGESTION_DISMISSED_COOKIE = _DISMISSED;
 
 /**
  * Pre-auth path prefixes that are public HTML but are not storefront browsing.

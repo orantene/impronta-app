@@ -3,12 +3,9 @@ import "server-only";
 import { cookies, headers } from "next/headers";
 
 import { createTranslator } from "@/i18n/messages";
-import { LOCALE_AUTO_COOKIE } from "@/i18n/locale-cookies";
+import { LOCALE_AUTO_COOKIE, LOCALE_SUGGESTION_DISMISSED_COOKIE } from "@/i18n/locale-cookies";
 import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
-import {
-  LOCALE_SUGGESTION_DISMISSED_COOKIE,
-  shouldSuggestLocale,
-} from "@/i18n/locale-suggestion";
+import { shouldSuggestLocale } from "@/i18n/locale-suggestion";
 import { localeUrlSettings, stripLocaleFromPathname } from "@/i18n/pathnames";
 import { ORIGINAL_PATHNAME_HEADER, ORIGINAL_SEARCH_HEADER } from "@/i18n/request-locale";
 import { getRequestLocaleUrlSettings } from "@/i18n/tenant-url-locale";
