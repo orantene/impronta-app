@@ -67,3 +67,15 @@ test("sign-in activates only inside the verified-claim gate, after the claim rel
   const activate = src.indexOf("activateGuestBookerIfEligible(adminForClaim", gate);
   assert.ok(gate > 0 && relink > gate && activate > relink, "activation must follow the claim relink inside the mayClaim gate");
 });
+
+test("W5-11: passwordless code + magic-link confirm activate after claim relink", () => {
+  const otp = readFileSync(join(process.cwd(), "src/app/auth/otp-actions.ts"), "utf8");
+  const otpRelink = otp.indexOf("await relinkFirstConfirmedClaim(user.id)");
+  const otpActivate = otp.indexOf("activateGuestBookerIfEligible(adminForActivate", otpRelink);
+  assert.ok(otpRelink > 0 && otpActivate > otpRelink, "submitEmailCode must activate after relink");
+
+  const confirm = readFileSync(join(process.cwd(), "src/app/auth/confirm/route.ts"), "utf8");
+  const confirmRelink = confirm.indexOf("await relinkFirstConfirmedClaim(user.id)");
+  const confirmActivate = confirm.indexOf("activateGuestBookerIfEligible(adminForActivate", confirmRelink);
+  assert.ok(confirmRelink > 0 && confirmActivate > confirmRelink, "auth/confirm must activate after relink");
+});

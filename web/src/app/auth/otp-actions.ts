@@ -43,6 +43,8 @@ import { createTranslator } from "@/i18n/messages";
 import { logServerError } from "@/lib/server/safe-error";
 import { relinkFirstConfirmedClaim } from "@/lib/auth/guest-claim-relink";
 import { promoteFreshProfileToTalent } from "@/lib/auth/promote-talent-signup";
+import { activateGuestBookerIfEligible } from "@/lib/client-account/guest-activate.server";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { hostSafeRedirectDestination } from "@/lib/saas/host-safe-destination";
 import {
@@ -321,6 +323,15 @@ export async function submitEmailCode(
     // emailed-link route runs, so a booker who types the code keeps the
     // conversation they started as a guest. Best-effort + non-fatal.
     await relinkFirstConfirmedClaim(user.id);
+    // W5-11 / TUL-465: verified email-code guest bookers with a booking become
+    // active clients and skip /onboarding/role (popover path already did this).
+    const adminForActivate = createServiceRoleClient();
+    if (adminForActivate) {
+      await activateGuestBookerIfEligible(adminForActivate, {
+        userId: user.id,
+        emailProven: true,
+      }).catch((e) => logServerError("auth/submitEmailCode/guestActivate", e));
+    }
     // Legal 2.2: the create path confirmed 18+ and Terms/Privacy at step 1.
     // Idempotent per revision; best effort, never blocks sign-in.
     if (String(formData.get("create") ?? "") === "1" && isAgeAndTermsConfirmed(formData.get("age_terms"))) {
