@@ -8,7 +8,8 @@ import {
 } from "@/components/auth/auth-ui";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
-import { getSiteUrl, isTalentSignupNext, normalizeOptionalNextPath } from "@/lib/auth-flow";
+import { isTalentSignupNext, normalizeOptionalNextPath } from "@/lib/auth-flow";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { readInviteFromCookieStore } from "@/lib/invites/cookie";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { prefersPasswordlessFirst } from "@/lib/auth/otp-flow";
@@ -91,7 +92,7 @@ export default async function LoginPage({
     : legacySignupRedirect({
         flagOn: (await getOnboardingFlags()).onboarding_module_enabled,
         surface: "register",
-        siteUrl: getSiteUrl(),
+        siteUrl: resolveMarketingOrigin(),
         lang: await legacyFlowLang(),
         hostKind: (await getPublicHostContext()).kind,
         intent: readRegisterIntent(params),
