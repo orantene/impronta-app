@@ -1,12 +1,10 @@
 import "server-only";
 
 import { getResendClient } from "@/lib/email/resend-client";
+import { isValidAuthEmail } from "@/lib/auth/otp-flow";
 import { sendEmailResult } from "@/lib/email";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-
-/** Platform inbox for inbound mail forwarded from Resend receiving. */
-export const DEFAULT_INBOUND_FORWARD_TO = "orantene@gmail.com";
 
 /** Cap stored HTML/text so a single inbound cannot blow up a row. */
 export const INBOUND_BODY_STORE_BYTES = 200_000;
@@ -31,11 +29,28 @@ export type InboundProcessResult = {
   forwardStatus?: InboundForwardStatus;
 };
 
-export function resolveInboundForwardTo(): string {
-  return (
-    process.env.RESEND_INBOUND_FORWARD_TO?.trim() ||
-    DEFAULT_INBOUND_FORWARD_TO
-  );
+/**
+ * Forward target comes ONLY from RESEND_INBOUND_FORWARD_TO. Returns null when
+ * the variable is unset or is not exactly one plausible email address (lists,
+ * inner whitespace and display names are all rejected).
+ */
+export function resolveInboundForwardTo(): string | null {
+  const raw = process.env.RESEND_INBOUND_FORWARD_TO?.trim();
+  if (!raw) return null;
+  if (/[\s,;<>]/.test(raw)) return null;
+  return isValidAuthEmail(raw) ? raw : null;
+}
+
+export const INBOUND_FORWARD_SKIPPED_REASON =
+  "forward skipped: RESEND_INBOUND_FORWARD_TO unset or invalid";
+
+let warnedForwardUnset = false;
+
+function warnForwardSkippedOnce(): void {
+  if (warnedForwardUnset) return;
+  warnedForwardUnset = true;
+  // eslint-disable-next-line no-console
+  console.warn("inbound forward skipped: RESEND_INBOUND_FORWARD_TO unset");
 }
 
 export function normalizeToAddresses(
@@ -106,7 +121,7 @@ type InboundStore = {
     body_text: string | null;
     body_html: string | null;
     body_truncated: boolean;
-    forward_to: string;
+    forward_to: string | null;
     provider_payload: Record<string, unknown>;
   }) => Promise<StoreRow | null>;
   markForward: (
@@ -172,7 +187,7 @@ function createDbStore(): InboundStore | null {
 
 /**
  * Fetch a received message from Resend, persist it, then best-effort forward
- * to the platform Gmail. Persistence is the retention guarantee; forward is
+ * to the env-configured target (skipped when unset). Persistence is the retention guarantee; forward is
  * convenience until Support Desk Phase 3.
  */
 export async function processResendInboundEmail(
@@ -269,6 +284,18 @@ export async function processResendInboundEmail(
       stored: true,
       rowId: stored.id,
       forwardStatus: "sent",
+    };
+  }
+
+  if (!forwardTo) {
+    warnForwardSkippedOnce();
+    await store.markForward(stored.id, "skipped", INBOUND_FORWARD_SKIPPED_REASON);
+    return {
+      ok: true,
+      detail: `stored ${emailId}; forward skipped: no forward target configured`,
+      stored: true,
+      rowId: stored.id,
+      forwardStatus: "skipped",
     };
   }
 
