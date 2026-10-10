@@ -384,7 +384,7 @@ export function expandedShellStyle(p: Palette = C): CSSProperties {
     position: "fixed",
     right: "max(16px, env(safe-area-inset-right))",
     bottom: `calc(${GUEST_CHAT_PANEL_BOTTOM_PX}px + env(safe-area-inset-bottom))`,
-    zIndex: 90,
+    zIndex: 96,
     width: EXPANDED_WIDTH,
     maxHeight: EXPANDED_MAX_HEIGHT,
     display: "flex",

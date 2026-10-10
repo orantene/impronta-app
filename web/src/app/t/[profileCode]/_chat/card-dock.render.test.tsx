@@ -280,10 +280,12 @@ test("Hablar: her greeting renders, the disclaimer is the composer placeholder, 
   clearPendingOffering();
   const { host, unmount } = render(<CardDockAskFooter t={es} threadEmpty onPick={(q) => picked.push(q)} />);
   const row = host.querySelector<HTMLElement>("[data-card-chat-chips]")!;
-  assert.equal(row.style.flexWrap, "nowrap", "one scrollable row");
-  assert.equal(row.style.overflowX, "auto");
+  assert.equal(row.style.flexWrap, "wrap", "wrap so chips are not fade-truncated");
+  assert.equal(row.style.overflowX, "");
   const chips = row.querySelectorAll<HTMLButtonElement>("button");
   assert.equal(chips.length, 3);
+  assert.equal(chips[2]!.textContent, es("public.guestChat.askQuickPrice"));
+  assert.doesNotMatch(chips[2]!.textContent ?? "", /diseño|design/i);
   act(() => chips[0]!.click());
   assert.deepEqual(picked, [es("public.guestChat.askQuickWhen")]);
   unmount();
@@ -594,7 +596,8 @@ test("chips: the service-aware phrasing uses the short name, and the row fades a
   setPendingOffering({ ...OFFERING, intent: "request", askAbout: ["Gel semipermanente en manos"] } as never);
   const { host, unmount } = render(<CardDockAskFooter t={es} threadEmpty={false} onPick={() => undefined} />);
   assert.equal(host.querySelector("[data-card-chat-chips] button")?.textContent, "\u00bfHay hueco esta semana para Gel semipermanente?");
-  assert.match(src("CardChatExtras.tsx"), /maskImage: "linear-gradient\(to right, black calc\(100% - 28px\), transparent\)"/);
+  assert.match(src("CardChatExtras.tsx"), /flexWrap: "wrap"/);
+  assert.doesNotMatch(src("CardChatExtras.tsx"), /maskImage:/);
   unmount();
   clearPendingOffering();
 });
