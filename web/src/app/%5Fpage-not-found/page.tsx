@@ -2,28 +2,68 @@
  * Branded "page not found" 404.
  *
  * Rendered by the middleware (proxy.ts) when a request hits a KNOWN host
- * (marketing / app / agency / hub) on a path that isn't served there — a
- * mistyped or stale URL. The middleware rewrites here with a 404 status
- * instead of returning bare "Not found" text, so a wrong URL lands on branded
- * chrome with a clear way home, never a dead end.
+ * (marketing / app / agency / hub / talent_site) on a path that isn't served
+ * there — a mistyped or stale URL. The middleware rewrites here with a 404
+ * status instead of returning bare "Not found" text, so a wrong URL lands on
+ * branded chrome with a clear way home, never a dead end.
+ *
+ * GRK-028 / TUL-547: on a talent_site host with a Spanish locale, copy and the
+ * primary CTA stay on that site (home `/`), never the English Tulala marketing
+ * chrome. Other hosts keep the absolute marketing / app links.
  *
  * Lives outside every tenant-aware route group so it renders safely without a
  * host context (mirrors `/_host-unregistered`). Whitelisted in the proxy
- * short-circuit so the rewrite doesn't recurse. Links are absolute (the
- * homepage lives on the marketing host, sign-in on the app host) so they work
- * regardless of which host produced the 404.
+ * short-circuit so the rewrite doesn't recurse.
  */
 import type { Metadata } from "next";
+import { headers } from "next/headers";
+
 import { getAppUrl, getSiteUrl } from "@/lib/auth-flow";
+import { LOCALE_HEADER } from "@/i18n/request-locale";
+import { HOST_CONTEXT_HEADER } from "@/lib/saas/host-context";
 
 export const metadata: Metadata = {
   title: "Page not found — Tulala",
   robots: { index: false, follow: false },
 };
 
-export default function PageNotFound() {
+const COPY = {
+  en: {
+    eyebrow: "Tulala",
+    heading: "Page not found",
+    body: "The page you're looking for doesn't exist or may have moved. Head back to the homepage, or sign in to your workspace.",
+    home: "Go to homepage",
+    signIn: "Sign in",
+    talentEyebrow: "This site",
+    talentBody: "That page isn't on this site. Head back home to keep browsing.",
+    talentHome: "Back to home",
+  },
+  es: {
+    eyebrow: "Tulala",
+    heading: "Página no encontrada",
+    body: "La página que buscas no existe o se movió. Vuelve al inicio, o inicia sesión en tu espacio de trabajo.",
+    home: "Ir al inicio",
+    signIn: "Iniciar sesión",
+    talentEyebrow: "Este sitio",
+    talentBody: "Esa página no está en este sitio. Vuelve al inicio para seguir navegando.",
+    talentHome: "Volver al inicio",
+  },
+} as const;
+
+export default async function PageNotFound() {
+  const h = await headers();
+  const isTalentSite = h.get(HOST_CONTEXT_HEADER) === "talent_site";
+  const localeRaw = (h.get(LOCALE_HEADER) ?? "en").toLowerCase();
+  const lang = localeRaw.startsWith("es") ? "es" : "en";
+  const t = COPY[lang];
+
   const site = getSiteUrl();
   const app = getAppUrl();
+  const primaryHref = isTalentSite ? "/" : site;
+  const primaryLabel = isTalentSite ? t.talentHome : t.home;
+  const eyebrow = isTalentSite ? t.talentEyebrow : t.eyebrow;
+  const body = isTalentSite ? t.talentBody : t.body;
+
   return (
     <div
       style={{
@@ -56,7 +96,7 @@ export default function PageNotFound() {
             margin: 0,
           }}
         >
-          Tulala
+          {eyebrow}
         </p>
         <h1
           style={{
@@ -69,7 +109,7 @@ export default function PageNotFound() {
             marginBottom: 0,
           }}
         >
-          Page not found
+          {t.heading}
         </h1>
         <p
           style={{
@@ -81,13 +121,12 @@ export default function PageNotFound() {
             marginBottom: 0,
           }}
         >
-          The page you&apos;re looking for doesn&apos;t exist or may have moved.
-          Head back to the homepage, or sign in to your workspace.
+          {body}
         </p>
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 24 }}>
           <a
-            href={site}
+            href={primaryHref}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -101,26 +140,28 @@ export default function PageNotFound() {
               textDecoration: "none",
             }}
           >
-            Go to homepage
+            {primaryLabel}
           </a>
-          <a
-            href={`${app}/login`}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              padding: "9px 18px",
-              borderRadius: 999,
-              background: "#ffffff",
-              border: "1px solid rgba(24,24,27,0.14)",
-              color: "#0B0B0D",
-              fontFamily: '"Inter", system-ui, sans-serif',
-              fontSize: 13.5,
-              fontWeight: 600,
-              textDecoration: "none",
-            }}
-          >
-            Sign in
-          </a>
+          {isTalentSite ? null : (
+            <a
+              href={`${app}/login`}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                padding: "9px 18px",
+                borderRadius: 999,
+                background: "#ffffff",
+                border: "1px solid rgba(24,24,27,0.14)",
+                color: "#0B0B0D",
+                fontFamily: '"Inter", system-ui, sans-serif',
+                fontSize: 13.5,
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
+            >
+              {t.signIn}
+            </a>
+          )}
         </div>
       </div>
     </div>
