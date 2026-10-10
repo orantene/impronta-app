@@ -140,10 +140,10 @@ test("the seed Spanish table has no em dash and no voseo", () => {
 test("TUL-516 C2: emergencies pill seed pair matches the design-label map", () => {
   assert.equal(SEED_TEXT_ES[EMERGENCIES_TODAY_LABEL.en], EMERGENCIES_TODAY_LABEL.es);
   assert.equal(SEED_TEXT_ES[NO_EMERGENCIES_TODAY_LABEL.en], NO_EMERGENCIES_TODAY_LABEL.es);
-  assert.equal(localiseOne(EMERGENCIES_TODAY_LABEL.en, "es"), EMERGENCIES_TODAY_LABEL.es);
-  assert.equal(localiseOne(NO_EMERGENCIES_TODAY_LABEL.en, "es"), NO_EMERGENCIES_TODAY_LABEL.es);
-  assert.equal(localiseOne(EMERGENCIES_TODAY_LABEL.es, "en"), EMERGENCIES_TODAY_LABEL.en);
-  assert.equal(localiseOne(NO_EMERGENCIES_TODAY_LABEL.es, "en"), NO_EMERGENCIES_TODAY_LABEL.en);
+  assert.equal(localiseOne(EMERGENCIES_TODAY_LABEL.en, "es", null), EMERGENCIES_TODAY_LABEL.es);
+  assert.equal(localiseOne(NO_EMERGENCIES_TODAY_LABEL.en, "es", null), NO_EMERGENCIES_TODAY_LABEL.es);
+  assert.equal(localiseOne(EMERGENCIES_TODAY_LABEL.es, "en", null), EMERGENCIES_TODAY_LABEL.en);
+  assert.equal(localiseOne(NO_EMERGENCIES_TODAY_LABEL.es, "en", null), NO_EMERGENCIES_TODAY_LABEL.en);
 });
 
 test("the scanner flags a missing overlay (guard against a vacuous pass)", () => {
