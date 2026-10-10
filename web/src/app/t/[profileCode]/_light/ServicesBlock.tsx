@@ -103,12 +103,19 @@ export function ServicesBlock({
                 }}
               >
                 {label}
+                {/* GRK-052: bare "· FEE" with no amount read as a placeholder.
+                    There is no fee amount on service areas — say travel fee
+                    applies in plain language, or omit. */}
                 {area.travel_fee_required ? (
                   <span
                     className="plt-mono ml-1.5 text-[0.625rem] uppercase tracking-[0.1em]"
                     style={{ color: "var(--plt-muted-soft)" }}
                   >
-                    · fee
+                    ·{" "}
+                    {pickLocale(locale, {
+                      en: "travel fee applies",
+                      es: "aplica tarifa de viaje",
+                    })}
                   </span>
                 ) : null}
               </span>
