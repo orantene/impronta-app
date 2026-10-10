@@ -53,6 +53,14 @@ describe("TUL-516 / TUL-528 floating chrome stack", () => {
   test("GRK-033: consent-open heroes pad CTAs above the cookie card", () => {
     assert.equal(floatingChromeClearsHeroCtas(FLOATING_CHROME_STACK_CSS), true);
     assert.match(FLOATING_CHROME_STACK_CSS, /site-bn-hero__inner\{padding-bottom:max\(/);
+    assert.match(
+      FLOATING_CHROME_STACK_CSS,
+      /#hero\.site-builder-node--split\{padding-top:1\.25rem!important/,
+    );
+    assert.match(
+      FLOATING_CHROME_STACK_CSS,
+      /#hero\.site-builder-node--split > :last-child\{display:none\}/,
+    );
   });
 
   test("GRK-039: consent yields to guest chat panel; shells mark data-guest-chat-panel", () => {
