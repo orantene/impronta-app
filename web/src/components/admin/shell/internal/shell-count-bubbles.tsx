@@ -89,11 +89,12 @@ export function ShellCountBubbles({
   const awaiting = inWorkspace
     ? 0
     : countTalentAwaitingInquiries(effectiveTalentInquiries);
+  // TUL-389: bridge attention is notification unread (approvals / offers /
+  // bookings). Talent also folds in awaiting-you inquiries so Hoy / inbox
+  // chips cannot drift below the bubble when both signals fire.
   const attention =
     countsProp?.find((c) => c.kind === "attention")?.count ??
-    (shellCounts?.attention && shellCounts.attention > 0
-      ? shellCounts.attention
-      : awaiting);
+    Math.max(shellCounts?.attention ?? 0, awaiting);
 
   const visible = visibleShellCountBubbles([
     { kind: "messages", count: messages },
