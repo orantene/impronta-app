@@ -1,12 +1,14 @@
 "use client";
 
-import { intakeDetail } from "@/lib/talent/offering-intake";
 import { useEffect, useReducer, useRef, useState, type ReactNode } from "react";
 import { type TalentOffering } from "@/lib/talent/offerings-types";
 import { deriveOfferingCta } from "@/lib/talent/offering-cta-derivation";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import { formatMoney } from "@/lib/talent/offerings-money";
-import { formatOfferingWhereLabel, offeringWhereFromAttributes, type OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
+import {
+  formatOfferingWhereLabel,
+  offeringWhereFromAttributes,
+} from "@/lib/talent/offering-request-detail";
 import { BookingSheetReadyBeacon } from "@/components/public-booking/BookingSheetReadyBeacon";
 import { CatalogBookingSheet, type CatalogSheetBookingSettings } from "@/components/public-booking/CatalogBookingSheet";
 import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptchaField";
@@ -19,7 +21,12 @@ import {
   type CatalogBookingMode,
 } from "@/components/public-booking/catalog-booking-logic";
 import { CatalogPurchaseMount } from "@/components/public-booking/CatalogPurchaseMount";
-import { catalogBarPriceLabel, catalogRowPriceText } from "./services-catalog-bar-price";
+import {
+  catalogBarPriceLabel,
+  catalogRowBuyUnpricedLabel,
+  catalogRowPriceText,
+} from "./services-catalog-bar-price";
+import { detailFor, dispatchOffering } from "./services-catalog-detail";
 import { ServicesCatalogDemoToast, useDemoToast } from "./services-catalog-demo-toast";
 import { catalogDurationShort, railCount } from "./services-catalog-format";
 import { CatalogIdleBarGo, CatalogIdleBarText, CatalogOverlayStyles } from "./services-catalog-idle-bar";
@@ -37,7 +44,6 @@ import { useDockBookingResume } from "@/components/public-booking/use-dock-booki
 import { useDockToast } from "@/components/public-booking/use-dock-toast";
 import { useStickyBarProps } from "./use-sticky-bar-visible";
 import { catalogCategoryJumpId, catalogDurationPhrase } from "./services-catalog-title";
-import { dispatchCatalogOffering } from "./catalog-offering-dispatch";
 import {
   DEFAULT_SHEET_BOOKING_SETTINGS,
   PLATFORM_DEFAULT_BOOKING_POSTURE,
@@ -48,70 +54,7 @@ export type CatalogGroup = { name: string | null; label?: string | null; items: 
 
 export type CatalogNavMode = "pills" | "tabs" | "rail" | "jump" | "sections" | "accordion" | "flat";
 
-// F4 / WSF-B: one derivation (deriveOfferingCta) shared with OfferingCta and
-// catalogRowCtaLabel. The talent default applies only to services that
-// inherit; a service with its own instant mode books instantly, which the
-// server (assertInstantPosture) already accepts.
-function deriveFor(
-  offering: TalentOffering,
-  confirmsByHand: boolean,
-  bookingPosture: TalentBookingPosture,
-) {
-  return deriveOfferingCta({ offering, defaults: { bookingPosture }, confirmsByHand });
-}
-
-export function detailFor(
-  offering: TalentOffering,
-  confirmsByHand: boolean,
-  bookingPosture: TalentBookingPosture = PLATFORM_DEFAULT_BOOKING_POSTURE,
-): OfferingRequestDetail {
-  const { instant } = deriveFor(offering, confirmsByHand, bookingPosture);
-  const where = offeringWhereFromAttributes(offering.attributes);
-  return {
-    offeringId: offering.id,
-    talentProfileId: offering.talentProfileId,
-    title: offering.title,
-    kind: offering.kind,
-    priceType: offering.priceType,
-    priceDisplay: offering.priceDisplay,
-    amountCents: offering.amountCents,
-    currency: offering.currency,
-    durationMinutes: offering.durationMinutes,
-    allowPayInPerson: offering.allowPayInPerson,
-    requireAccountToBook: offering.requireAccountToBook === true,
-    reserveMode: offering.reserveMode,
-    depositPct: offering.depositPct,
-    cancellationHours: offering.cancellationHours,
-    imageUrl: offering.imageUrls[0] ?? null,
-    variants: offering.variants ?? [],
-    addOns: offering.addOns ?? [],
-    inventoryQty: offering.inventoryQty,
-    capacityPoolId: offering.capacityPoolId,
-    intent: instant ? "instant" : "request",
-    description: offering.description,
-    where: where.length ? where : undefined,
-    ...intakeDetail(offering.attributes),
-  };
-}
-
-function dispatchOffering(
-  offering: TalentOffering,
-  confirmsByHand: boolean,
-  startAt?: "when",
-  inclusion?: string | null,
-  bookingPosture: TalentBookingPosture = PLATFORM_DEFAULT_BOOKING_POSTURE,
-) {
-  dispatchCatalogOffering({
-    offering,
-    confirmsByHand,
-    bookingPosture,
-    detail: {
-      ...detailFor(offering, confirmsByHand, bookingPosture),
-      startAt,
-      inclusion: inclusion ?? undefined,
-    },
-  });
-}
+export { detailFor } from "./services-catalog-detail";
 
 export function ServicesCatalogFilter({
   groups,
@@ -631,7 +574,11 @@ export function CatalogRow({
   const minCents = catalogRowMinCents(item);
   const ladder = catalogRowShowsFrom(item);
   const usd = usdEquivalentLabel(minCents, item.currency, usdRates, locale);
-  const derived = deriveFor(item, confirmsByHand, bookingPosture);
+  const derived = deriveOfferingCta({
+    offering: item,
+    defaults: { bookingPosture },
+    confirmsByHand,
+  });
   const cta = derived.cta;
   const label = catalogRowCtaLabel({
     selected,
@@ -758,17 +705,7 @@ export function CatalogRow({
           <span className="site-builder-node--services-catalog-price">
             {onRequest || quote || minCents == null || minCents <= 0 ? (
               <strong>
-                {onRequest
-                  ? es
-                    ? "Bajo consulta"
-                    : "On request"
-                  : minCents != null && minCents <= 0 && !quote
-                    ? es
-                      ? "Consultar"
-                      : "Ask"
-                    : es
-                      ? "Cotización a pedido"
-                      : "Quote on request"}
+                {catalogRowBuyUnpricedLabel({ onRequest, quote, minCents, locale })}
               </strong>
             ) : (
               <>

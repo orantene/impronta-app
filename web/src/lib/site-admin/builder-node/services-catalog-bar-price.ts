@@ -28,3 +28,18 @@ export function catalogRowPriceText(
 ): string {
   return publicCatalogPriceLabel(item, locale);
 }
+
+/** Buy-column unpriced labels (TUL-516): Consultar / Ask, never `$0 MXN`. */
+export function catalogRowBuyUnpricedLabel(opts: {
+  onRequest: boolean;
+  quote: boolean;
+  minCents: number | null;
+  locale: string;
+}): string {
+  const es = opts.locale.toLowerCase().startsWith("es");
+  if (opts.onRequest) return es ? "Bajo consulta" : "On request";
+  if (opts.minCents != null && opts.minCents <= 0 && !opts.quote) {
+    return es ? "Consultar" : "Ask";
+  }
+  return es ? "Cotización a pedido" : "Quote on request";
+}

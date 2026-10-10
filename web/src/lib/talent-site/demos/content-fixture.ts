@@ -313,7 +313,7 @@ export function validateDemoContentFixture(f: DemoContentFixture): string[] {
     need(s.currency === "MXN" || s.currency === "USD", `service ${s.id}: currency must be MXN or USD`);
     need(str(s.priceLabel) && str(s.ctaLabel) && str(s.imageKey), `service ${s.id}: priceLabel/ctaLabel/imageKey missing`);
     need(s.priceAmount === null || (Number.isFinite(s.priceAmount) && s.priceAmount >= 0), `service ${s.id}: bad priceAmount`);
-    need(s.mode === "quote" || s.mode === "inquiry" || s.priceAmount !== null, `service ${s.id}: priced mode without amount`);
+    // TUL-516: null amount is valid unpriced (Consultar / Ask), including instant/request.
     need(s.durationMinutes === null || s.durationMinutes > 0, `service ${s.id}: bad durationMinutes`);
   }
   for (const r of f?.reviews?.items ?? []) need(str(r.quote) && str(r.author), "review quote/author missing");
