@@ -117,6 +117,25 @@ test("the editorial stylesheet is token-driven: no hex, no design slug, no fixed
   }
 });
 
+test("editorial pins header brand + social to ink so transparent-over-hero #fff cannot bleach Maison (OnbDev-maison-header)", () => {
+  const css = EDITORIAL_TYPE_SYSTEM_CSS;
+  assert.match(
+    css,
+    /\.site-header__brand-label\{color:var\(--token-color-ink\)!important\}|\.site-header \.site-header__brand-label\{color:var\(--token-color-ink\)!important\}/,
+  );
+  assert.ok(
+    css.includes(".site-header .site-header__brand") &&
+      css.includes(".site-header .site-header__brand-label") &&
+      css.includes("color:var(--token-color-ink)!important"),
+    "brand lock must beat freeform inherit / over-hero #fff",
+  );
+  assert.ok(
+    css.includes(".site-header .site-header__social") &&
+      css.includes("color:var(--token-color-muted,color-mix(in srgb,var(--token-color-ink) 60%,transparent))!important"),
+    "social icons must not inherit #fff on light bars",
+  );
+});
+
 test("editorial component defaults: pill radius bound to the token, pinned text colours dropped", () => {
   const base = {
     heading: { textColor: "token:color.ink" },
