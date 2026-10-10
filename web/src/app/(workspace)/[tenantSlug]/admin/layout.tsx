@@ -53,6 +53,7 @@ import { clampWorkspacePage, normalizeWorkspaceType } from "@/lib/saas/workspace
 import { resolveWorkspaceAdminPage } from "./workspace-page-routing";
 import { RealIdentityBanner } from "./_real-identity-banner";
 import { loadTenantIdentity, loadProfileDisplayName } from "../_layout-identity";
+import { resolveHybridSessionDisplayName } from "@/lib/saas/session-display-name";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { DashboardLocaleProvider } from "@/i18n/use-dashboard-locale";
 
@@ -301,7 +302,12 @@ export default async function WorkspaceAdminLayout({
     canManageDomains,
     email: session.user.email ?? "",
     role: scope.membership.role,
-    displayName: profileDisplayName,
+    // onb1-22: hybrid owners greet with the talent profile name, not the
+    // email-local `profiles.display_name` leftover from signup.
+    displayName: resolveHybridSessionDisplayName({
+      profileDisplayName,
+      talentDisplayName: talentSelfProfile?.displayName,
+    }),
     // Platform admins get a "Platform" entry point in the workspace
     // switcher — the HQ console isn't a tenant, so it can't surface
     // through agency_memberships like ordinary workspaces.
