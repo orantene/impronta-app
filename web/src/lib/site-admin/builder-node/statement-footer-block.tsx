@@ -27,11 +27,12 @@ export const STATEMENT_FOOTER_CSS = `
 
 /** Magazine closing page: ink rule, giant serif line (last word italic), CTA. */
 export const STATEMENT_FOOTER_MAGAZINE_CSS = `
-.sb-statement-footer[data-edition="magazine"]{${MAGAZINE_ROOT_VARS};margin-top:52px;padding:30px 16px 120px;border-top:1px solid var(--sb-mag-ink);color:var(--sb-mag-ink)}
-.sb-statement-footer[data-edition="magazine"] h2{margin:0;font:400 var(--token-type-footer-title-size,64px)/.9 var(--sb-mag-serif);letter-spacing:-.01em;color:var(--sb-mag-ink);text-wrap:balance}
+.sb-statement-footer[data-edition="magazine"]{${MAGAZINE_ROOT_VARS};margin-top:52px;padding:30px 16px 120px;border-top:1px solid var(--sb-mag-ink);color:var(--sb-mag-ink);max-width:100%;min-width:0;box-sizing:border-box;overflow-x:clip}
+.sb-statement-footer[data-edition="magazine"] h2{margin:0;font:400 var(--token-type-footer-title-size,64px)/.9 var(--sb-mag-serif);letter-spacing:-.01em;color:var(--sb-mag-ink);text-wrap:balance;max-width:100%}
 .sb-statement-footer[data-edition="magazine"] h2 em{font-style:italic}
-.sb-statement-footer[data-edition="magazine"] .sb-mag-copy{margin:12px 0 16px;color:var(--sb-mag-mute);font:400 14px/21px var(--sb-mag-sans)}
-.sb-statement-footer[data-edition="magazine"] .sb-mag-fine{margin-top:24px;display:flex;justify-content:space-between;gap:12px;font:600 10px/1.2 var(--sb-mag-label);letter-spacing:.16em;text-transform:uppercase;color:var(--sb-mag-mute)}
+.sb-statement-footer[data-edition="magazine"] .sb-mag-copy{margin:12px 0 16px;color:var(--sb-mag-mute);font:400 14px/21px var(--sb-mag-sans);max-width:100%}
+.sb-statement-footer[data-edition="magazine"] .sb-mag-btn{max-width:100%;box-sizing:border-box}
+.sb-statement-footer[data-edition="magazine"] .sb-mag-fine{margin-top:24px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;min-width:0;max-width:100%;font:600 10px/1.2 var(--sb-mag-label);letter-spacing:.16em;text-transform:uppercase;color:var(--sb-mag-mute)}
 ${MAGAZINE_BUTTON_CSS}
 @media (min-width:900px){
   .sb-statement-footer[data-edition="magazine"]{margin:90px 40px 0;padding:40px 0 120px}
