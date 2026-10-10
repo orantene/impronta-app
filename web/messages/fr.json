@@ -887,7 +887,7 @@
       "contactBusiness": "Contacter {business}",
       "closedTitle": "Ce paiement n'est plus disponible",
       "closedBody": "Aucun débit n'a été effectué.",
-      "closedMaybePaid": "Cette page de paiement est fermée. Si vous avez déjà payé, l'entreprise vous remboursera.",
+      "closedMaybePaid": "Cette page de paiement est fermée. Si vous avez déjà payé, contactez l'entreprise pour être remboursé.",
       "unknownTitle": "Nous n'avons pas pu confirmer ce paiement",
       "unknownBody": "Ne payez pas à nouveau. L'entreprise vous le confirmera.",
       "declinedTitle": "Le paiement a été refusé",

@@ -2354,7 +2354,7 @@
       "contactBusiness": "Contactar a {business}",
       "closedTitle": "Este pago ya no está disponible",
       "closedBody": "No se hizo ningún cargo.",
-      "closedMaybePaid": "Esta página de pago está cerrada. Si ya pagaste, el negocio te reembolsará.",
+      "closedMaybePaid": "Esta página de pago está cerrada. Si ya pagaste, escribe al negocio para recibir tu reembolso.",
       "unknownTitle": "No pudimos confirmar este pago",
       "unknownBody": "No pagues de nuevo. El negocio te lo confirma.",
       "declinedTitle": "El pago fue rechazado",

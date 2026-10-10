@@ -2354,7 +2354,7 @@
       "contactBusiness": "Contact {business}",
       "closedTitle": "This payment is no longer available",
       "closedBody": "No charge was made.",
-      "closedMaybePaid": "This payment page is closed. If you already paid, the business will refund you.",
+      "closedMaybePaid": "This payment page is closed. If you already paid, contact the business to get your refund.",
       "unknownTitle": "We could not confirm this payment",
       "unknownBody": "Do not pay again. The business will confirm.",
       "declinedTitle": "The payment was declined",
