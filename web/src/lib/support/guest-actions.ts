@@ -23,6 +23,8 @@ import {
   type SupportTicketRow,
 } from "./support-types";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { logServerError } from "@/lib/server/safe-error";
+import { parseTalentSiteHelpContactInput } from "@/lib/support/talent-site-help-context";
 
 export type GuestSupportFail = { ok: false; error: string };
 export type GuestSupportOk<T extends object = object> = { ok: true } & T;
@@ -358,6 +360,10 @@ export async function submitMarketingContactAction(input: {
   phone?: string | null;
   honeypot?: string | null;
   locale?: "en" | "es";
+  /** TUL-310: from talent-site footer Help (`?source=talent-site&host=&code=`). */
+  source?: string | null;
+  host?: string | null;
+  code?: string | null;
 }): Promise<GuestSupportOk<{ ticketId: string }> | GuestSupportFail> {
   await requireNotImpersonating();
   const ident = await requireSignedGuest();
@@ -375,6 +381,33 @@ export async function submitMarketingContactAction(input: {
     return { ok: false, error: "Name, email, and a message are required." };
   }
 
+  const talentSite = parseTalentSiteHelpContactInput({
+    source: input.source,
+    host: input.host,
+    code: input.code,
+  });
+  let talentProfileId: string | null = null;
+  if (talentSite?.profileCode) {
+    const { data, error: profileLookupError } = await ident.admin
+      .from("talent_profiles")
+      .select("id")
+      .eq("profile_code", talentSite.profileCode)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (profileLookupError) {
+      logServerError("support.guestContact.talentProfileLookup", profileLookupError);
+    } else {
+      talentProfileId = typeof data?.id === "string" ? data.id : null;
+    }
+  }
+
+  const metadata: Record<string, unknown> = {
+    locale: input.locale === "es" ? "es" : "en",
+    source: talentSite ? talentSite.source : "contact_form",
+  };
+  if (talentSite?.host) metadata.host = talentSite.host;
+  if (talentSite?.profileCode) metadata.profile_code = talentSite.profileCode;
+
   const result = await supportEngine.createTicket({
     tenantId: null,
     surface: "guest",
@@ -383,15 +416,16 @@ export async function submitMarketingContactAction(input: {
       guestSessionId: ident.guestSessionId,
       userId: ident.userId,
     },
+    talentProfileId,
     subject: `[guest] ${input.topic.trim() || "Contact form"}`,
     body: input.message.trim(),
-    originSlug: "/contact",
+    originSlug: talentSite ? "talent-site" : "/contact",
     contactEmail: email,
     contactName: input.name.trim(),
     contactPhone: input.phone?.trim() || null,
     handledBy: "human",
     messageOranDirectly: true,
-    metadata: { locale: input.locale === "es" ? "es" : "en", source: "contact_form" },
+    metadata,
   });
   if (!result.ok) return result;
   await stampLeadId(ident.admin, result.data.ticket, email);
