@@ -5,7 +5,7 @@ import { withHeaderLogo } from "@/lib/talent-site/header-logo";
 import { withShellBrandName } from "../header-brand-name";
 import { loadTalentDisplayName } from "./load-header-brand-name.server";
 import { contrastRatio } from "@/lib/site-admin/tokens/contrast-pair";
-import { localiseSeededDesignLabels, type SiteCtaMode } from "../design-label-locale";
+import { localiseSeededDesignLabels, type SiteCtaMode } from "../design-cta-mode";
 import { placeMaisonTradeApps, tradesFromTypeLabels } from "../demos/app-placement";
 import { applyTalentLiveMedia, treeHasLiveMediaCandidates } from "../live-media";
 import { applyTalentLiveText, treeHasLiveCandidates } from "../live-text";
@@ -43,6 +43,8 @@ export async function prepareTalentSiteTrees(input: {
   designSlug?: string | null;
   /** Last-resort header name when the profile has none. */
   siteSlug?: string | null;
+  /** Profile code for guess-map fallback warnings (TUL-369 split). */
+  profileCode?: string | null;
 }): Promise<{ shellTree: BuilderNode[]; body: BuilderNode[] }> {
   const combined = [...input.shellTree, ...input.body];
   const wantsLive = treeHasLiveCandidates(combined);
@@ -71,15 +73,16 @@ export async function prepareTalentSiteTrees(input: {
   const bodyWithApps = placeMaisonTradeApps(input.body, trades, {
     designSlug: input.designSlug,
   }).tree;
+  const localiseCtx = { profileCode: input.profileCode ?? null };
   const shell = withLive(
-    localiseSeededDesignLabels(input.shellTree, input.locale, input.ctaMode ?? null, swaps),
+    localiseSeededDesignLabels(input.shellTree, input.locale, input.ctaMode ?? null, swaps, localiseCtx),
   );
   return {
     shellTree: input.logoUrl
       ? shell.map((n) => withHeaderLogo(n, input.logoUrl!))
       : withShellBrandName(shell, [brandName, input.siteSlug]),
     body: withLive(
-      localiseSeededDesignLabels(bodyWithApps, input.locale, input.ctaMode ?? null, swaps),
+      localiseSeededDesignLabels(bodyWithApps, input.locale, input.ctaMode ?? null, swaps, localiseCtx),
     ),
   };
 }

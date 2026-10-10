@@ -125,6 +125,23 @@ export async function saveThemeDraftTree(
   return casUpdate(admin, cur.value, input.expectedRev, { payload }, input.actorId);
 }
 
+/** Replace the whole design payload in one CAS write (code-seed review path). */
+export async function saveThemeDraftPayload(
+  admin: SupabaseClient,
+  input: {
+    design: string;
+    payload: DesignPayload;
+    expectedRev: number;
+    actorId: string | null;
+  },
+): Promise<ThemeDraftResult<ThemeDraft>> {
+  const cur = await readOpen(admin, input.design);
+  if (!cur.ok) return cur;
+  if (cur.value.rev !== input.expectedRev) return fail("stale_rev", STALE);
+  const payload = rekeyOnSave(cur.value.payload, freezeDesignKeysHook(canonicalDesignPayload(input.payload)));
+  return casUpdate(admin, cur.value, input.expectedRev, { payload }, input.actorId);
+}
+
 export async function saveThemeDraftTokens(
   admin: SupabaseClient,
   input: ThemeDraftSaveTokens,

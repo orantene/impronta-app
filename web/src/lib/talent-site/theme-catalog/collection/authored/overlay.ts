@@ -430,6 +430,147 @@ export function applyAuthoredOverlay(rawCodePayload: DesignPayload, overlay: Aut
   return JSON.parse(JSON.stringify(out)) as DesignPayload;
 }
 
+/**
+ * Recover the editor's code-seed base from an authored snapshot + its overlay.
+ * Used when history no longer has a row whose hash equals `overlay.codeHash`
+ * (Folio and other overlay-only designs). Removed nodes are restored from
+ * `donorForRemoved` (usually the current code seed) when still present.
+ */
+export function recoverCodeBaseFromAuthored(
+  authoredPayload: DesignPayload,
+  overlay: AuthoredOverlayFile,
+  donorForRemoved: DesignPayload | null,
+): DesignPayload {
+  const P = canonicalOverlayPayload(authoredPayload);
+  const idx = indexPayload(P);
+  const donorIdx = donorForRemoved ? indexPayload(canonicalOverlayPayload(donorForRemoved)) : null;
+
+  // 1. Invert token defaults (authored `to` → code `from`).
+  const tok: Record<string, string> = { ...(P.tokenDefaults ?? {}) };
+  for (const [k, ch] of Object.entries(overlay.tokenDefaults ?? {})) {
+    const has = Object.prototype.hasOwnProperty.call(tok, k);
+    const wantHas = ch.to !== undefined;
+    if (has !== wantHas || (has && tok[k] !== ch.to)) {
+      throw new AuthoredOverlayError(
+        `token default "${k}" is ${show(tok[k], has)} in authored, the overlay expects ${show(ch.to, wantHas)}`,
+      );
+    }
+    if (ch.from === undefined) delete tok[k];
+    else tok[k] = ch.from;
+  }
+
+  // 1b. Invert palette overrides.
+  const pal: Record<string, Record<string, string>> = JSON.parse(JSON.stringify(P.palettes ?? {}));
+  for (const [pk, changes] of Object.entries(overlay.palettes ?? {})) {
+    for (const [k, ch] of Object.entries(changes)) {
+      const cur = pal[pk] ?? {};
+      const has = Object.prototype.hasOwnProperty.call(cur, k);
+      const wantHas = ch.to !== undefined;
+      if (has !== wantHas || (has && cur[k] !== ch.to)) {
+        throw new AuthoredOverlayError(
+          `palette "${pk}" ${k} is ${show(cur[k], has)} in authored, the overlay expects ${show(ch.to, wantHas)}`,
+        );
+      }
+      if (ch.from === undefined) delete cur[k];
+      else cur[k] = ch.from;
+      pal[pk] = cur;
+    }
+  }
+  const palettes = canonicalPalettes(pal);
+
+  // 2. Invert leaf props on surviving nodes.
+  const patched = new Map<string, Record<string, unknown>>();
+  for (const [key, changes] of Object.entries(overlay.props ?? {})) {
+    const node = idx.nodes.get(key);
+    if (!node) throw new AuthoredOverlayError(`patched node "${key}" is not in the authored payload`);
+    const obj = clone(node) as unknown as Record<string, unknown>;
+    // Reverse of apply: set `from` (or delete) after checking current matches `to`.
+    const ordered = [...changes].sort((a, b) => Number(a.from !== undefined) - Number(b.from !== undefined));
+    for (const ch of ordered) {
+      const cur = readLeaf(obj, ch.path);
+      const leaf = cur.has && !(isPlainObject(cur.value) && Object.keys(cur.value).length > 0);
+      const wantHas = Object.prototype.hasOwnProperty.call(ch, "to");
+      if (leaf !== wantHas || (leaf && !same(cur.value, ch.to))) {
+        throw new AuthoredOverlayError(
+          `"${key}" ${ch.path} is ${show(cur.value, leaf)} in authored, the overlay expects ${show(ch.to, wantHas)}`,
+        );
+      }
+      writeLeaf(obj, ch.path, Object.prototype.hasOwnProperty.call(ch, "from"), ch.from);
+    }
+    patched.set(key, obj);
+  }
+
+  // 3. Structure: drop overlay-added nodes; restore overlay-removed from donor.
+  const addedKeys = new Set((overlay.added ?? []).map((a) => childPath(a.parentKey, keyOfAdded(a))));
+  for (const key of addedKeys) {
+    if (!idx.nodes.has(key)) throw new AuthoredOverlayError(`added node "${key}" is not in the authored payload`);
+  }
+  const restored = new Map<string, BuilderNode>();
+  for (const key of overlay.removed ?? []) {
+    const node = donorIdx?.nodes.get(key);
+    if (!node) {
+      throw new AuthoredOverlayError(
+        `removed node "${key}" is not in the donor code seed; cannot recover the editor base`,
+      );
+    }
+    restored.set(key, clone(node));
+  }
+
+  // Parent lists: start from authored, remove added, insert restored removed.
+  const listKeys = new Set<string>([
+    ...idx.lists.keys(),
+    ...(overlay.removed ?? []).map((k) => (k.includes("/") ? k.slice(0, k.lastIndexOf("/")) : `${treeOfKey(k)}:`)),
+  ]);
+  const lists = new Map<string, string[]>();
+  for (const listKey of listKeys) {
+    const authoredLocals = (idx.lists.get(listKey) ?? []).filter((l) => !addedKeys.has(childPath(listKey, l)));
+    // Insert restored removed locals that belong to this list (append; order overlay wins later).
+    for (const key of overlay.removed ?? []) {
+      const parent = key.includes("/") ? key.slice(0, key.lastIndexOf("/")) : `${treeOfKey(key)}:`;
+      if (parent !== listKey) continue;
+      const local = key.includes("/") ? key.slice(key.lastIndexOf("/") + 1) : key.slice(key.indexOf(":") + 1);
+      if (!authoredLocals.includes(local)) authoredLocals.push(local);
+    }
+    lists.set(listKey, authoredLocals);
+  }
+  // Prefer overlay.order when present (authored order); else keep recovered order.
+  for (const [listKey, want] of Object.entries(overlay.order ?? {})) {
+    // Invert of apply order: the overlay.order is the authored order. Code order is
+    // not stored; keep the recovered list as built (donor insert at end is best-effort).
+    void want;
+    void listKey;
+  }
+
+  const build = (listKey: string): BuilderNode[] =>
+    (lists.get(listKey) ?? []).map((local) => {
+      const key = childPath(listKey, local);
+      const fromDonor = restored.get(key);
+      if (fromDonor) {
+        // Restored removed subtree comes from the donor as-is (its own children).
+        return fromDonor;
+      }
+      const base = (patched.get(key) ?? clone(idx.nodes.get(key)!)) as Record<string, unknown>;
+      const orig = idx.nodes.get(key)!;
+      if (hasKids(orig) || lists.has(key)) base.children = build(key);
+      return base as unknown as BuilderNode;
+    });
+
+  const out: DesignPayload = {
+    shellTree: build(rootOf("shellTree")),
+    homeTree: build(rootOf("homeTree")),
+    ...(P.optionalBlocks ? { optionalBlocks: build(rootOf("optionalBlocks")) } : {}),
+    ...(P.tokenDefaults || Object.keys(tok).length > 0 ? { tokenDefaults: sortedRecord(tok) } : {}),
+    ...(palettes ? { palettes } : {}),
+  };
+  const recovered = JSON.parse(JSON.stringify(out)) as DesignPayload;
+  // Round-trip: applying the overlay to the recovered base must reproduce authored.
+  const roundTrip = applyAuthoredOverlay(recovered, overlay);
+  if (!same(canonicalOverlayPayload(roundTrip) as unknown as Json, P as unknown as Json)) {
+    throw new AuthoredOverlayError("recovered code base does not round-trip through the overlay to the authored snapshot");
+  }
+  return recovered;
+}
+
 /** Overlay palette overrides as `paletteKey -> token -> value` (only set values). */
 export function overlayPaletteOverrides(o: Pick<AuthoredOverlayFile, "palettes"> | null): Record<string, Record<string, string>> {
   const out: Record<string, Record<string, string>> = {};

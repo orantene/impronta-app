@@ -13,7 +13,7 @@ import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 import type { TalentPortfolioShot } from "@/lib/site-admin/builder-node/portfolio-types";
 import { buildMaisonDesignPayload } from "./theme-catalog/maison/design-payload";
-import { localiseSeededDesignLabels } from "./design-label-locale";
+import { SEED_TEXT_ES } from "./theme-catalog/seed-i18n";
 import { pruneEmptyBoundSections } from "./my-content-prune";
 
 const homeTree = () => buildMaisonDesignPayload().homeTree;
@@ -61,8 +61,9 @@ test("published + empty: services, gallery and FAQ bands are all gone", () => {
   assert.equal(bandCount(out), bandsBefore - 3);
   // Real content (hero, about) stays.
   assert.ok(kindCount(out, "heading") > 0);
-  const markup = html(localiseSeededDesignLabels(out, "es"), empty);
-  assert.doesNotMatch(markup, /Servicios|No photos|Aún no hay|Preguntas/);
+  // Empty bands pruned before render; English empty-state copy must not appear either.
+  const markup = html(out, empty);
+  assert.doesNotMatch(markup, /Servicios|No photos|Aún no hay|Preguntas|No services are published/);
 });
 
 test("builder canvas keeps the empty states (raw tree, editorPreview)", () => {
@@ -106,8 +107,13 @@ test("a data source that was never loaded keeps the block (conservative)", () =>
   assert.equal(kindCount(out, "portfolio"), 1);
 });
 
-test("E-12: the portfolio empty message has a Spanish seed label", () => {
-  const out = localiseSeededDesignLabels(homeTree(), "es");
-  const p = find(out, (n) => n.kind === "portfolio")[0]!;
-  assert.equal((p.props as { emptyMessage?: string }).emptyMessage, "Aún no hay fotos en tu portafolio.");
+test("E-12: the portfolio empty message carries a Spanish seed overlay (TUL-369)", () => {
+  const p = find(homeTree(), (n) => n.kind === "portfolio")[0]!;
+  const props = p.props as {
+    emptyMessage?: string;
+    i18n?: { es?: { emptyMessage?: string } };
+  };
+  assert.equal(props.emptyMessage, "No photos in your portfolio yet.");
+  assert.equal(props.i18n?.es?.emptyMessage, "Aún no hay fotos en tu portafolio.");
+  assert.equal(SEED_TEXT_ES["No photos in your portfolio yet."], "Aún no hay fotos en tu portafolio.");
 });

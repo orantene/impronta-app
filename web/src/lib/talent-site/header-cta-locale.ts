@@ -1,17 +1,17 @@
 /**
- * AUD-027: the talent-site header CTA is seeded as the English default
- * "Inquire" (default-max-site-trees.ts) and saved into every shell tree, so a
- * Spanish site showed "INQUIRE". Rather than migrate saved trees, the renderer
- * localises the untouched seeded label at render time. A label the talent
- * typed themselves is never rewritten.
+ * TUL-369 split (PM 2026-10-09): header CTA guess kept as a FALLBACK only.
+ *
+ * New themes carry `props.i18n` overlays (`header-i18n.ts` + `seed-i18n.ts`).
+ * This rewrites the untouched seeded English "Inquire" label for legacy
+ * header trees that never got an overlay. Prefer overlays when present.
+ * Follow-up PR deletes this file once missing-es recount is 0.
  */
+import { SEED_TEXT_ES } from "./theme-catalog/seed-i18n";
+import { warnGuessMapFallback } from "./design-label-locale";
 
 const SEEDED_CTA_LABEL = "inquire";
-
-const CTA_LABEL_BY_LOCALE: Record<string, string> = {
-  en: "Inquire",
-  es: "Escríbeme",
-};
+const SEEDED_CTA_EN = "Inquire";
+const SEEDED_CTA_ES = SEED_TEXT_ES[SEEDED_CTA_EN] ?? "Escríbeme";
 
 function localeKey(locale: string | null | undefined): string {
   return (locale ?? "").trim().toLowerCase().slice(0, 2);
@@ -22,7 +22,7 @@ export { headerSectionProps } from "./header-i18n";
 
 /** The header CTA label for a locale ("Inquire" / "Escríbeme"). */
 export function talentHeaderCtaLabel(locale: string | null | undefined): string {
-  return CTA_LABEL_BY_LOCALE[localeKey(locale)] ?? "Inquire";
+  return localeKey(locale) === "es" ? SEEDED_CTA_ES : SEEDED_CTA_EN;
 }
 
 function localiseLabel(label: unknown, locale: string): unknown {
@@ -34,12 +34,13 @@ function localiseLabel(label: unknown, locale: string): unknown {
 
 /**
  * Returns a copy of `site_header` sectionProps with the seeded CTA labels
- * (`primaryCta.label` and any `regions.*[type=cta].label`) localised. Returns
- * the input unchanged for English or non-object input.
+ * localised when there is no i18n overlay covering them. Returns the input
+ * unchanged for English or non-object input.
  */
 export function localiseTalentHeaderDefaults(
   sectionProps: unknown,
   locale: string | null | undefined,
+  context?: { profileCode?: string | null; nodeKey?: string | null },
 ): unknown {
   const key = localeKey(locale);
   if (!key || key === "en") return sectionProps;
@@ -49,7 +50,20 @@ export function localiseTalentHeaderDefaults(
   const cta = props.primaryCta;
   if (cta && typeof cta === "object") {
     const c = cta as Record<string, unknown>;
-    props.primaryCta = { ...c, label: localiseLabel(c.label, key) };
+    const before = c.label;
+    const after = localiseLabel(before, key);
+    if (after !== before && typeof before === "string" && typeof after === "string") {
+      warnGuessMapFallback({
+        profileCode: context?.profileCode,
+        nodeKey: context?.nodeKey ?? "shell/site_header",
+        nodeKind: "section",
+        locale: "es",
+        path: "sectionProps.primaryCta.label",
+        from: before,
+        to: after,
+      });
+      props.primaryCta = { ...c, label: after };
+    }
   }
 
   const regions = props.regions;
@@ -57,12 +71,25 @@ export function localiseTalentHeaderDefaults(
     const next: Record<string, unknown> = {};
     for (const [slot, items] of Object.entries(regions as Record<string, unknown>)) {
       next[slot] = Array.isArray(items)
-        ? items.map((item) => {
+        ? items.map((item, idx) => {
             if (!item || typeof item !== "object") return item;
             const it = item as Record<string, unknown>;
-            return it.type === "cta" && "label" in it
-              ? { ...it, label: localiseLabel(it.label, key) }
-              : it;
+            if (it.type !== "cta" || !("label" in it)) return item;
+            const before = it.label;
+            const after = localiseLabel(before, key);
+            if (after !== before && typeof before === "string" && typeof after === "string") {
+              warnGuessMapFallback({
+                profileCode: context?.profileCode,
+                nodeKey: context?.nodeKey ?? "shell/site_header",
+                nodeKind: "section",
+                locale: "es",
+                path: `sectionProps.regions.${slot}.${idx}.label`,
+                from: before,
+                to: after,
+              });
+              return { ...it, label: after };
+            }
+            return item;
           })
         : items;
     }
@@ -76,40 +103,4 @@ export function isTalentAskHref(href: unknown): boolean {
   if (typeof href !== "string") return false;
   const h = href.trim();
   return h === "#talent-ask" || h.endsWith("#talent-ask") || h.includes("inquire=1");
-}
-
-/**
- * Drop Ask / Escríbeme header CTAs when site switches hide ask entry points
- * (chat off + inquiries off). Prevents the SSR flash that TalentSiteContactBridge
- * used to hide after paint.
- */
-export function stripHiddenAskHeaderCta(
-  sectionProps: unknown,
-  askVisible: boolean,
-): unknown {
-  if (askVisible) return sectionProps;
-  if (!sectionProps || typeof sectionProps !== "object") return sectionProps;
-  const props = { ...(sectionProps as Record<string, unknown>) };
-
-  const cta = props.primaryCta;
-  if (cta && typeof cta === "object" && isTalentAskHref((cta as Record<string, unknown>).href)) {
-    delete props.primaryCta;
-  }
-
-  const regions = props.regions;
-  if (regions && typeof regions === "object") {
-    const next: Record<string, unknown> = {};
-    for (const [slot, items] of Object.entries(regions as Record<string, unknown>)) {
-      next[slot] = Array.isArray(items)
-        ? items.filter((item) => {
-            if (!item || typeof item !== "object") return true;
-            const it = item as Record<string, unknown>;
-            if (it.type === "cta" && isTalentAskHref(it.href)) return false;
-            return true;
-          })
-        : items;
-    }
-    props.regions = next;
-  }
-  return props;
 }
