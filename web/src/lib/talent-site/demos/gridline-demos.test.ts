@@ -87,6 +87,8 @@ test("fixtures: modes, currency and language follow demos.json", () => {
     assert.equal(fx(code).locale, "es");
     assert.ok(fx(code).services.every((s) => s.currency === "MXN"));
   }
+  // TUL-537: header uses the person name, not the workshop brand.
+  assert.equal(fx("TAL-93208").talent.displayName, "Saúl");
   // Only the urgent trades carry the emergencies setting.
   for (const code of TRADE_CODES) assert.equal(!!fx(code).urgency, ["TAL-93206", "TAL-93207", "TAL-93209", "TAL-93212"].includes(code), code);
   // 93212 is bilingual: the second language is written for every service, FAQ item, task and page chrome.
