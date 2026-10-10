@@ -25,6 +25,7 @@ import { publicThreadPath } from "@/lib/messaging/thread-token";
 import { hostSafeRedirectDestination } from "@/lib/saas/host-safe-destination";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { getAppUrl } from "@/lib/auth-flow";
+import { clientAccountEnabledFor } from "@/lib/client-account/flag";
 
 import {
   getGuestThreadMessages,
@@ -85,6 +86,11 @@ export default async function GuestFullConversationPage({
         // and opened from anywhere), but `/<slug>/client/messages` only exists
         // on the app + agency surfaces.
         redirect(await hostSafeRedirectDestination(workspacePath));
+      }
+      // TUL-62: a signed-in client who just booked on a talent site stays on
+      // that site, on the visit in their account area, not the app dashboard.
+      if (clientAccountEnabledFor("talent")) {
+        redirect(`/account/visits/${encodeURIComponent(inquiryId)}`);
       }
       // Talent host: render the guest thread when this browser owns it, and
       // only fall back to the app host (absolute, session cookie is parent

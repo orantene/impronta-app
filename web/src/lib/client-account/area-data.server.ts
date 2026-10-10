@@ -11,7 +11,7 @@ import { refundableCentsFromPolicy } from "@/lib/scheduling/cancel-booking";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
-import { groupVisits, shapeReceiptLines, type ReceiptLine } from "./area-pure";
+import { CLOSED_BOOKING_STATUSES, groupVisits, owedCents, shapeReceiptLines, type ReceiptLine } from "./area-pure";
 import { loadVisitZones } from "./visit-zones.server";
 
 /** Every query here is `client_user_id = session user` AND `tenant_id = this site's tenant`. */
@@ -43,6 +43,8 @@ export type VisitDetail = {
   timeZone: string | null;
   canManage: boolean;
   payCode: string | null;
+  /** Owed, owned and no open link yet: the page offers `payMyBookingForm`. */
+  canPay: boolean;
 };
 
 export async function loadVisitDetail(userId: string, tenantId: string, inquiryId: string): Promise<VisitDetail | null> {
@@ -119,7 +121,7 @@ export async function loadVisitDetail(userId: string, tenantId: string, inquiryI
   const nowMs = requestNowMs();
   const window = resolveCancellationWindow({ cancellationHours: policy.cancelFreeHours, startsAt: b?.starts_at ?? null, eventDate: null, nowMs });
   const status = (b?.status ?? i.status ?? "").toLowerCase();
-  const closed = ["cancelled", "completed", "archived", "declined", "expired", "closed"].includes(status);
+  const closed = (CLOSED_BOOKING_STATUSES as readonly string[]).includes(status);
   const startMs = b?.starts_at ? Date.parse(b.starts_at) : NaN;
   const amount = b?.total_client_revenue == null ? null : Math.round(Number(b.total_client_revenue) * 100);
   return {
@@ -152,6 +154,11 @@ export async function loadVisitDetail(userId: string, tenantId: string, inquiryI
     // The server action re-checks ownership; this only decides whether to show the buttons.
     canManage: !!b && b.client_user_id === userId && !closed && Number.isFinite(startMs) && startMs > nowMs,
     payCode,
+    canPay:
+      !payCode &&
+      !!b?.order_id &&
+      b.client_user_id === userId &&
+      owedCents({ bookingStatus: status, paymentStatus: b.payment_status, amountCents: amount, paidCents }) > 0,
   };
 }
 
@@ -375,23 +382,28 @@ export async function loadAccountProfile(userId: string) {
   };
 }
 
-/** Open pay links for this client's unpaid or part-paid bookings on this tenant. */
-export async function loadOwedPayLinks(userId: string, tenantId: string): Promise<Array<{ title: string; code: string }>> {
+/**
+ * This client's unpaid or part-paid open bookings on this tenant, each with its
+ * open pay link when one exists. `code: null` means nobody has minted a link yet
+ * (a self-booked visit): the page offers `payMyBookingForm` for it instead.
+ */
+export async function loadOwedPayLinks(userId: string, tenantId: string): Promise<Array<{ title: string; code: string | null; bookingId: string }>> {
   const admin = createServiceRoleClient();
   if (!admin) return [];
   const { data, error } = await admin
     .from("agency_bookings")
-    .select("title, order_id")
+    .select("id, title, order_id")
     .eq("client_user_id", userId)
     .eq("tenant_id", tenantId)
     .in("payment_status", ["unpaid", "partial"])
+    .not("status", "in", `(${CLOSED_BOOKING_STATUSES.join(",")})`)
     .not("order_id", "is", null)
     .limit(50);
   if (error) {
     logServerError("clientAccount.payLinks.bookings", error);
     return [];
   }
-  const rows = (data ?? []) as Array<{ title: string | null; order_id: string }>;
+  const rows = (data ?? []) as Array<{ id: string; title: string | null; order_id: string }>;
   if (rows.length === 0) return [];
   const { data: links, error: linkErr } = await admin
     .from("payment_links")
@@ -406,10 +418,7 @@ export async function loadOwedPayLinks(userId: string, tenantId: string): Promis
   }
   const byOrder = new Map<string, string>();
   for (const l of (links ?? []) as Array<{ code: string; order_id: string }>) if (!byOrder.has(l.order_id)) byOrder.set(l.order_id, l.code);
-  return rows.flatMap((r) => {
-    const code = byOrder.get(r.order_id);
-    return code ? [{ title: r.title?.trim() || "", code }] : [];
-  });
+  return rows.map((r) => ({ title: r.title?.trim() || "", code: byOrder.get(r.order_id) ?? null, bookingId: r.id }));
 }
 
 /** The zone the offering's talent takes bookings in (talent_booking_hours), or null. */
