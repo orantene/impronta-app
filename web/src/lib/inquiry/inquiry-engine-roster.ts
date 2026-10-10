@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isMutablePhase } from "./inquiry-lifecycle";
 import { validateActorPermission } from "./inquiry-permissions";
+import { isOfferOutstanding } from "./offer-awaiting-talent";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
 import { assertConsistencyAfterWrite, inquiryWriteClient, runWithEngineLog } from "./inquiry-engine.helpers";
 import { buildInquiryBells } from "./inquiry-notifications";
@@ -46,7 +47,7 @@ async function invalidateOfferIfRosterChanged(
   // be reverted (a booking already exists), hence the explicit `approved` gate.
   if (!offer) return;
   const offerIsLive =
-    offer.status === "sent" ||
+    isOfferOutstanding(offer.status as string | null) ||
     (offer.status === "accepted" && inq.status === "approved");
   if (!offerIsLive) return;
 

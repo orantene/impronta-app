@@ -363,3 +363,14 @@ test("outcome cards match the front-door mockup sentences", () => {
   assert.match(es, /Oferta rechazada/);
   assert.match(es, /No se cobró nada\. Puedes pedir otro horario\./);
 });
+
+test("hold-the-send: an offer awaiting a talent's approval shows no Accept, only the waiting line; Ask for a change and Decline remain", () => {
+  const html = renderToStaticMarkup(<ClientOfferCard {...base} offer={{ ...offer, awaitingApproval: true }} now={now} onAccept={() => {}} />);
+  assert.doesNotMatch(html, /data-client-action="accept_offer"/);
+  assert.match(html, /data-client-offer-awaiting-approval/);
+  assert.match(html, /reviewing this offer/i);
+  assert.match(html, /data-client-action="ask_change"/);
+  const normal = renderToStaticMarkup(<ClientOfferCard {...base} offer={offer} now={now} onAccept={() => {}} />);
+  assert.match(normal, /data-client-action="accept_offer"/);
+  assert.doesNotMatch(normal, /data-client-offer-awaiting-approval/);
+});

@@ -1,4 +1,5 @@
 import type { AlertRow, NeedsAttentionPanelData } from "@/lib/inquiry/alert-types";
+import { isOfferOutstanding } from "@/lib/inquiry/offer-awaiting-talent";
 
 /**
  * Admin Workspace V3 — Needs Attention derivation (spec §5.2.6, roadmap M4.6).
@@ -77,7 +78,7 @@ export function deriveWorkspaceAlerts(
   }
 
   // 3. Pending approvals on the current offer.
-  if (input.approvals.pending > 0 && input.currentOfferStatus === "sent") {
+  if (input.approvals.pending > 0 && isOfferOutstanding(input.currentOfferStatus)) {
     alerts.push({
       key: "approvals_pending",
       severity: "info",

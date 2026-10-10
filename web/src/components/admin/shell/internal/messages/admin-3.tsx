@@ -1,6 +1,8 @@
 "use client";
 
 import React from "react";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { useRouter } from "next/navigation";
 import { orderCardView, type OrderForCard } from "@/lib/orders/order-card";
 import { OrderCard, OfferCard, PaymentRequestCard, BookingConfirmedCard, BalanceDueCard, CoordinatorRequestCard, TalentRateCard, CallSheetUpdateCard, SystemEventCard, SuggestedTalentCard, ReservationCard } from "@/components/chat-cards/ChatCard";
@@ -38,6 +40,7 @@ import type { Offer } from "./shared/machinery-9";
  * its inner body, not the shell.
  */
 export function AdminReservationView({ inquiry, onBack }: { inquiry: RichInquiry; onBack: () => void }) {
+  const t = useT();
   const { effectiveTenant, toast } = useAdminShell();
   const router = useRouter();
   const planTier = usePlanTierFromShell();
@@ -70,6 +73,7 @@ export function AdminReservationView({ inquiry, onBack }: { inquiry: RichInquiry
     if (!inquiry.offer) return { text: "Not started", tone: "neutral" };
     const o = inquiry.offer;
     if (o.status === "draft")     return { text: `Draft · ${o.total}`,            tone: "neutral" };
+    if (o.status === "sent" && o.awaitingTalent) return { text: interpolate(t("dashboard.adminThread.offerAwaitingTalentPill"), { total: o.total }), tone: "warn" };
     if (o.status === "sent")      return { text: `${o.total} · awaiting client`,  tone: "warn" };
     if (o.status === "accepted")  return { text: `${o.total} · approved`,         tone: "ok" };
     if (o.status === "rejected")  return { text: `${o.total} · declined`,         tone: "alert" };

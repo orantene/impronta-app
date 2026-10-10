@@ -3,6 +3,7 @@ import type { WorkspaceStatus } from "./inquiry-workspace-types";
 export type OfferInvariantStatus =
   | "draft"
   | "sent"
+  | "awaiting_talent"
   | "accepted"
   | "rejected"
   | "withdrawn"
@@ -29,6 +30,7 @@ export function assertStatusOfferInvariant(
   const ok =
     (offerStatus === "draft" && ["reviewing", "coordination"].includes(inquiryStatus)) ||
     (offerStatus === "sent" && inquiryStatus === "offer_pending") ||
+    (offerStatus === "awaiting_talent" && inquiryStatus === "offer_pending") ||
     (offerStatus === "accepted" && ["approved", "booked"].includes(inquiryStatus)) ||
     (offerStatus === "rejected" && ["reviewing", "coordination"].includes(inquiryStatus)) ||
     (offerStatus === "withdrawn" && ["reviewing", "coordination"].includes(inquiryStatus)) ||

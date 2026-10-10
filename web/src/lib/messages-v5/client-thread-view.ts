@@ -298,6 +298,8 @@ export type ClientOfferSummary = {
   readonly refundPolicy: string | null;
   readonly validUntil: string | null;
   readonly noteToClient: string | null;
+  /** A talent (or other party) still has to approve this `sent` offer: the client cannot accept yet. */
+  readonly awaitingApproval?: boolean;
   readonly lines: readonly { readonly label: string; readonly units: number; readonly amountCents: number }[];
 };
 

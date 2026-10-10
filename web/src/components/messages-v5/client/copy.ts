@@ -90,6 +90,7 @@ export function buildClientCopy(t: Translator) {
       acceptPay: t("dashboard.messagesV5.client.link.offer.acceptPay"),
       accept: t("dashboard.messagesV5.client.link.offer.accept"),
       accepting: t("dashboard.messagesV5.client.link.offer.accepting"),
+      awaitingApproval: t("dashboard.messagesV5.client.link.offer.awaitingApproval"),
       askChange: t("dashboard.messagesV5.client.link.offer.askChange"),
       decline: t("dashboard.messagesV5.client.link.offer.decline"),
       titleVersion: t("dashboard.messagesV5.client.link.offer.titleVersion"),

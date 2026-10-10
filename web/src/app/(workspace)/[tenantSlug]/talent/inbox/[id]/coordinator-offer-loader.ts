@@ -37,6 +37,8 @@ function mapOfferStatus(
       return s;
     case "invalidated":
       return "superseded";
+    case "awaiting_talent":
+      return "sent";
     default:
       return "draft";
   }
@@ -156,6 +158,7 @@ export async function loadCoordinatorInquiryOffer(
       id: offerRow.id as string,
       version: (offerRow.version as number | null) ?? 1,
       status: offerStatus,
+      ...(offerRow.status === "awaiting_talent" ? { awaitingTalent: true } : {}),
       total: totalCents > 0 ? formatMoneyCents(totalCents, currencyCode) : "",
       sentAt: sentAtRaw,
       lineItems,
