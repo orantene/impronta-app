@@ -51,12 +51,23 @@ const VOICE = [
  * claim about their own business.
  */
 export function buildExtractionPrompt(
-  options: { pack?: IndustryPack | null } = {},
+  options: { pack?: IndustryPack | null; locale?: "en" | "es" } = {},
 ): string {
   // Physical attributes are offered ONLY inside the modelling pack. Withholding
   // the key is the enforcement: the model cannot record a description of
   // somebody's body if it has never been told the key exists.
   const allowPhysicalAttributes = options.pack?.id === "model";
+  const locale = options.locale ?? "en";
+  const keepLanguageRule =
+    locale === "es"
+      ? "7. They are writing in Spanish. Keep service names, industry/kind phrases, and free-text values in Spanish — do not translate them into English."
+      : null;
+  const packLabel =
+    options.pack == null
+      ? null
+      : locale === "es"
+        ? options.pack.label.es
+        : options.pack.label.en;
   return [
     "You extract structured facts from what someone says about their work.",
     "",
@@ -69,6 +80,7 @@ export function buildExtractionPrompt(
     "4. `quote` must be their exact words, copied, not paraphrased. Empty if there is no phrase to quote.",
     "5. Booleans are exactly 'true' or 'false'. Numbers are digits. Lists are comma separated.",
     "6. For keys with an allowed list, use one of those values exactly.",
+    ...(keepLanguageRule ? [keepLanguageRule] : []),
     "",
     "COMMON MISTAKES TO AVOID",
     "- 'I work at a spa' does NOT mean they own a spa. That is business.works_from = someone_elses_premises.",
@@ -77,9 +89,9 @@ export function buildExtractionPrompt(
     "- A number of people means total headcount only if they say 'including me'. Otherwise record what they said and let the follow-up settle it.",
     "- brand.visual_direction only from style words they used ('luxury', 'family', 'on the beach', 'minimal'); never from the trade or the name, and never above 0.6.",
     "",
-    ...(options.pack
+    ...(packLabel
       ? [
-          `They appear to work in: ${options.pack.label.en}. Facts about the craft itself are welcome, but do not assume anything about the SHAPE of their operation from the trade alone.`,
+          `They appear to work in: ${packLabel}. Facts about the craft itself are welcome, but do not assume anything about the SHAPE of their operation from the trade alone.`,
           "",
         ]
       : []),

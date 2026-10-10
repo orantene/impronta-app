@@ -5,11 +5,14 @@
  * person said them ("de lunes a sábado", "martes a domingo de 1 a 11 de la
  * noche", a list of day names). The hours preset, the arrival sentence and
  * the site all want one shape. Shaping is not the model's job; it is this
- * file's. Pure, locale-agnostic, never invents: a phrase it cannot read is
- * left exactly as it came.
+ * file's. Pure, never invents: a phrase it cannot read is left exactly as it
+ * came. Day labels follow the onboarding locale (onb1-01) so an ES signup
+ * does not surface "Tue-Sun" on the understood card.
  */
 
 import type { FactInput } from "./brief-store";
+
+export type HoursLocale = "en" | "es";
 
 const DAY_INDEX: Record<string, number> = {
   // en
@@ -19,7 +22,20 @@ const DAY_INDEX: Record<string, number> = {
   lun: 0, lunes: 0, mar: 1, martes: 1, mie: 2, miercoles: 2, jue: 3, jueves: 3, vie: 4, viernes: 4,
   sab: 5, sabado: 5, dom: 6, domingo: 6,
 };
-const DAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAY_SHORT_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAY_SHORT_ES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+
+function dayShorts(locale: HoursLocale): readonly string[] {
+  return locale === "es" ? DAY_SHORT_ES : DAY_SHORT_EN;
+}
+
+function everyDayLabel(locale: HoursLocale): string {
+  return locale === "es" ? "Todos los días" : "Every day";
+}
+
+function byAppointmentLabel(locale: HoursLocale): string {
+  return locale === "es" ? "Con cita" : "By appointment";
+}
 
 function strip(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -46,23 +62,36 @@ function parseClock(raw: string, hint: "am" | "pm" | null): string | null {
 }
 
 /**
- * One hours phrase → "Mon-Sat 09:00-19:00", "Tue-Sun 13:00-23:00",
- * "Mon-Sat", "Every day 10:00-20:00", or null when unreadable.
+ * One hours phrase → "Mon-Sat 09:00-19:00" / "Mar-Dom 13:00-23:00",
+ * "Every day" / "Todos los días", "By appointment" / "Con cita", or null
+ * when unreadable. `locale` selects the day / every-day / appointment labels.
  */
-export function normalizeHoursPhrase(phrase: string): string | null {
+export function normalizeHoursPhrase(
+  phrase: string,
+  locale: HoursLocale = "en",
+): string | null {
+  const shorts = dayShorts(locale);
   const s = strip(phrase).replace(/\s+/g, " ").trim();
   if (!s) return null;
-  if (/^(mon|tue|wed|thu|fri|sat|sun|every day)(-| )/.test(s) && /\d{2}:\d{2}-\d{2}:\d{2}$/.test(s)) return phrase.trim(); // already canonical
-  if (/by appointment|con cita|previa cita/.test(s)) return "By appointment";
+  // Already shaped (EN or ES day shorts + HH:MM-HH:MM) — leave alone.
+  if (
+    /^(mon|tue|wed|thu|fri|sat|sun|lun|mar|mie|jue|vie|sab|dom|every day|todos los dias)(-| )/.test(s)
+    && /\d{2}:\d{2}-\d{2}:\d{2}$/.test(s)
+  ) {
+    return phrase.trim();
+  }
+  if (/by appointment|con cita|previa cita/.test(s)) return byAppointmentLabel(locale);
 
   // Days: "de lunes a sabado", "lunes a sabado", "mon to sat", "mon-sat", "todos los dias", "every day"
   let days: string | null = null;
-  if (/todos los dias|every ?day|diario|all week|toda la semana/.test(s)) days = "Every day";
+  if (/todos los dias|every ?day|diario|all week|toda la semana/.test(s)) {
+    days = everyDayLabel(locale);
+  }
   const range = s.match(/(?:de |from )?([a-z]+)\s*(?:a|to|-|–|hasta)\s*([a-z]+)/);
   if (!days && range) {
     const a = dayIndex(range[1]);
     const b = dayIndex(range[2]);
-    if (a != null && b != null) days = a === b ? DAY_SHORT[a] : `${DAY_SHORT[a]}-${DAY_SHORT[b]}`;
+    if (a != null && b != null) days = a === b ? shorts[a] : `${shorts[a]}-${shorts[b]}`;
   }
   if (!days) {
     // A list of day names ("lunes, martes, miercoles, jueves, viernes, sabado")
@@ -70,10 +99,15 @@ export function normalizeHoursPhrase(phrase: string): string | null {
     if (found.length >= 2) {
       const uniq = [...new Set(found)].sort((x, y) => x - y);
       const contiguous = uniq.every((d, i) => i === 0 || d === uniq[i - 1] + 1);
-      if (contiguous) days = uniq.length === 7 ? "Every day" : `${DAY_SHORT[uniq[0]]}-${DAY_SHORT[uniq[uniq.length - 1]]}`;
-      else days = uniq.map((d) => DAY_SHORT[d]).join(", ");
+      if (contiguous) {
+        days = uniq.length === 7
+          ? everyDayLabel(locale)
+          : `${shorts[uniq[0]]}-${shorts[uniq[uniq.length - 1]]}`;
+      } else {
+        days = uniq.map((d) => shorts[d]).join(", ");
+      }
     } else if (found.length === 1) {
-      days = DAY_SHORT[found[0]];
+      days = shorts[found[0]];
     }
   }
 
@@ -109,14 +143,17 @@ function finish(days: string | null, time: string | null): string | null {
 }
 
 /** Whole `business.hours` value (string or list) → canonical lines; unreadable lines kept verbatim. */
-export function normalizeHoursValue(value: unknown): unknown {
+export function normalizeHoursValue(
+  value: unknown,
+  locale: HoursLocale = "en",
+): unknown {
   const lines = Array.isArray(value) ? value.map(String) : typeof value === "string" ? [value] : null;
   if (!lines) return value;
   // A list of bare day names is one phrase, not seven.
   if (lines.length >= 2 && lines.every((l) => dayIndex(l) != null)) {
-    return [normalizeHoursPhrase(lines.join(", ")) ?? lines.join(", ")];
+    return [normalizeHoursPhrase(lines.join(", "), locale) ?? lines.join(", ")];
   }
-  const out = lines.map((l) => normalizeHoursPhrase(l) ?? l.trim()).filter((l) => l.length > 0);
+  const out = lines.map((l) => normalizeHoursPhrase(l, locale) ?? l.trim()).filter((l) => l.length > 0);
   return [...new Set(out)];
 }
 
@@ -147,11 +184,15 @@ export function normalizeServiceList(value: unknown): unknown {
   return out;
 }
 
-export function normalizeExtractedFacts(facts: FactInput[]): FactInput[] {
+export function normalizeExtractedFacts(
+  facts: FactInput[],
+  options: { locale?: HoursLocale } = {},
+): FactInput[] {
+  const locale = options.locale ?? "en";
   const country = facts.find((f) => f.factKey === "person.country" || f.factKey === "business.country");
   const countryHint = typeof country?.value === "string" ? country.value : null;
   return facts.map((f) => {
-    if (f.factKey === "business.hours") return { ...f, value: normalizeHoursValue(f.value) };
+    if (f.factKey === "business.hours") return { ...f, value: normalizeHoursValue(f.value, locale) };
     if (f.factKey === "presence.whatsapp" || f.factKey === "presence.phone") return { ...f, value: normalizePhoneValue(f.value, countryHint) };
     if (f.factKey === "work.services" || f.factKey === "menu.categories") return { ...f, value: normalizeServiceList(f.value) };
     return f;
