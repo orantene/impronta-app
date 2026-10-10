@@ -80,7 +80,11 @@ test("source invariant: falls back to requireStaff() when not dev/preview", () =
 
 test("source invariant: refuses with 404 (never 403) when neither gate passes", () => {
   assert.match(ROUTE_SRC, /if\s*\(!allowed\)\s*{[\s\S]*?status:\s*404/);
-  assert.doesNotMatch(ROUTE_SRC, /status:\s*403/);
+  // The impersonation read-only guard ahead of the gate answers 403 by design;
+  // the "never advertise the route" rule covers the dev/staff gate onward.
+  const gate = ROUTE_SRC.slice(ROUTE_SRC.indexOf("let allowed"));
+  assert.ok(gate.length < ROUTE_SRC.length, "gate section not found");
+  assert.doesNotMatch(gate, /status:\s*403/);
 });
 
 test("source invariant: expires the cookie with the same attributes it was set with (host-only, no domain)", () => {

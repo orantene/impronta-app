@@ -193,7 +193,10 @@ describe("ShellCountBubbles mount (static)", () => {
     );
     const jobShell = readFileSync(join(DIR, "messages/TalentJobShell.tsx"), "utf8");
     assert.match(adapter, /talentInquiryMsgStageFromStatus/);
+    assert.match(adapter, /isTalentAwaitingYouStage\(stage\)/);
     assert.match(jobShell, /isTalentAwaitingYouStage/);
+    // Closed / booked rows must not look like "awaiting you" in the inbox list.
+    assert.match(adapter, /Conversation closed/);
   });
 
   it("Attention label + tooltip have ES catalog rows", () => {
