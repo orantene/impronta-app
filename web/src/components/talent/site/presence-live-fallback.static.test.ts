@@ -21,6 +21,19 @@ test("live fallback mounts when Maison bootstrap settles off with a forced scree
   assert.match(fallback, /AppsLibraryScreen/);
 });
 
+test("TUL-39: free / !canManage upsell still exposes Apps entry", () => {
+  const mgr = read("TalentMaxSiteManager.tsx");
+  assert.match(mgr, /FreeTierAppsEntry/);
+  assert.match(mgr, /talent-site-free-upsell/);
+  const entry = read("FreeTierAppsEntry.tsx");
+  assert.match(entry, /presence-tile-apps/);
+  assert.match(entry, /PresenceLiveFallback/);
+  assert.match(entry, /tab"\) === "apps"/);
+  const lib = read("maison-setup/AppsLibraryScreen.tsx");
+  assert.match(lib, /apps-library-upgrade-hint/);
+  assert.match(lib, /canAddLibraryApp/);
+});
+
 test("TUL-325: manager gallery applySuccess wires Publish CTA", () => {
   const mgr = read("TalentMaxSiteManager.tsx");
   assert.match(mgr, /onPublish=\{handlePublish\}/);

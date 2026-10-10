@@ -497,7 +497,7 @@ test("TUL-39 · free talent Apps: premium Nail Designer shows Web Office badge a
   await shot(page, "TUL-39-apps");
   expect(t, "Nail Designer is listed").toMatch(/Nail Designer|Diseñador de uñas/i);
   expect(t, "Web Office / Oficina Web badge on premium").toMatch(/Web Office|Oficina Web/);
-  expect(t, "free plan sees Upgrade to use (or Spanish equivalent)").toMatch(/Upgrade to use|Mejorar para usar|Actualizar para usar/i);
+  expect(t, "free plan sees Upgrade to use (or Spanish equivalent)").toMatch(/Upgrade to use|Mejora(?:r)? tu plan para usarla|Mejorar para usar|Actualizar para usar/i);
   await ctx.close();
 });
 
