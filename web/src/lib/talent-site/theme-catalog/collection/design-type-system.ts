@@ -88,6 +88,11 @@ export const EDITORIAL_TYPE_SYSTEM_CSS = [
   `${S} .site-header .site-header__inner.site-header__inner{width:auto;max-width:none;margin:0;min-height:0;padding:${v("layout.header-pad-y-phone")} ${v("layout.gutter-phone")};gap:12px}`,
   `${S} .site-header__brand{display:flex;align-items:baseline;gap:7px;line-height:1}`,
   `${S} .site-header__brand-label{font-family:var(--site-heading-font,Georgia,serif);font-style:${v("type.accent-style")};font-weight:500;font-size:${v("type.logo-size")};line-height:normal;letter-spacing:-0.02em;text-transform:none;color:var(--token-color-ink)}`,
+  // Brand + social: freeform ritems use color:inherit, and the transparent-over-hero
+  // rule (token-presets.css) can paint #fff onto a light Maison bar (OnbDev-maison-header /
+  // sofia). Pin ink like magazine's brand lock — over-hero white stays for non-editorial.
+  `${S} .site-header .site-header__brand,${S} .site-header .site-header__brand-label{color:var(--token-color-ink)!important}`,
+  `${S} .site-header .site-header__social{color:var(--token-color-muted,color-mix(in srgb,var(--token-color-ink) 60%,transparent))!important}`,
   `${S} .site-header__brand-tagline{font-family:var(--site-body-font,inherit);font-size:9.5px;line-height:normal;font-weight:${v("type.label-weight")};letter-spacing:0.2em;text-transform:uppercase;color:var(--token-color-muted)}`,
   `${S} .site-header__nav-list{gap:22px}`,
   `${S} .site-header__nav-link{font-size:${v("type.nav-size")};font-weight:400;color:var(--token-color-muted);text-transform:none;letter-spacing:0;text-decoration:none}`,
