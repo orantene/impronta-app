@@ -449,6 +449,109 @@ test("TUL-120 · support AI answers a Spanish ticket in Spanish", async () => {
   test.skip(process.env.QA_PACK_AI_SUPPORT !== "1", "needs platform_settings.workspace_support_enabled and settings.ai_support_enabled on fxlank: a shared-row change that needs the PM's yes, backed up and restored (QA_PACK_AI_SUPPORT=1 only inside that window)");
 });
 
+// ───────────────────────── TUL-51 Support Desk (entry + permissions; AI/write steps stay TUL-120 / signed-in sitting) ─────────────────────────
+
+test("TUL-51 · Support Desk: marketing /support, talent panel chrome, /desk permissions (anon + talent + client + admin)", async ({
+  browser,
+}) => {
+  // Automates the packable slice of the 30-step script (B1, A1 chrome, E2/E3, D1 chrome).
+  // Ticket/chat writes, email, AI answers → TUL-120 + signed-in stack sitting (Oran admin once).
+
+  // B1 — marketing /support ES + EN (anonymous)
+  {
+    const { ctx, page } = await guestPage(browser);
+    await go(page, `${MARKETING}/es/support`, 8_000);
+    let t = await bodyText(page);
+    await shot(page, "TUL-51-support-es");
+    expect(t, "ES support promise").toMatch(/Soporte:\s*te responde una persona real|Te responde una persona real/i);
+    expect(t, "no personal names on marketing support").not.toMatch(/\b(Oran|Vic|Valeria|Jorgelina)\b/);
+    await go(page, `${MARKETING}/support`, 8_000);
+    t = await bodyText(page);
+    await shot(page, "TUL-51-support-en");
+    expect(t, "EN support promise").toMatch(/Support:\s*a real person answers|A real person answers/i);
+
+    // E2 anon — /desk must not show the queue (login bounce or soft 404 when flag off)
+    const resp = await page.goto(`${APP}/desk`, { waitUntil: "domcontentloaded" }).catch(() => null);
+    await page.waitForTimeout(6_000);
+    const url = page.url();
+    t = await bodyText(page);
+    await shot(page, "TUL-51-desk-anon");
+    const bounced =
+      /\/login/i.test(url) ||
+      /sign[\s-]?in|iniciar sesi[oó]n|accede|log in/i.test(t) ||
+      /Page not found|No encontramos|not found/i.test(t);
+    expect(bounced, `anon /desk must not show the desk queue; url=${url} status=${resp?.status()}`).toBeTruthy();
+    await ctx.close();
+  }
+
+  // A1 — talent Support launcher → Home / Tickets / Guide
+  {
+    const fx = need(FIX.myself, "myself");
+    const { ctx, page } = await openAs(browser, fx.userId, { width: 1440, height: 1000 });
+    await go(page, `${APP}/talent`, 12_000);
+    const launcher = page.locator("[data-tulala-support-launcher]").first();
+    await expect(launcher, "support launcher is mounted in the talent shell").toBeVisible({ timeout: 15_000 });
+    await launcher.click();
+    await page.waitForTimeout(2_500);
+    const panel = page
+      .getByRole("dialog")
+      .or(page.locator('[aria-label="Conversación de soporte"], [aria-label="Support conversation"]'))
+      .first();
+    await expect(panel, "support panel opens").toBeVisible({ timeout: 10_000 });
+    let t = await bodyText(page);
+    await shot(page, "TUL-51-talent-panel");
+    expect(t, "Home tab").toMatch(/\bInicio\b|\bHome\b/);
+    expect(t, "Tickets tab").toMatch(/\bTickets\b/);
+    expect(t, "Guide tab").toMatch(/\bGu[ií]a\b|\bGuide\b/);
+
+    // E3 — talent /desk is honest forbidden (or soft 404 when flag off)
+    await go(page, `${APP}/desk`, 10_000);
+    t = await bodyText(page);
+    await shot(page, "TUL-51-desk-talent");
+    const talentBlocked =
+      /Se necesita acceso de administrador de plataforma|Platform admin sign-in required/i.test(t) ||
+      /\/login/i.test(page.url()) ||
+      /Page not found|No encontramos/i.test(t);
+    expect(talentBlocked, "talent /desk is forbidden or hidden").toBeTruthy();
+    await ctx.close();
+  }
+
+  // E2 signed-in client (throwaway from beforeAll)
+  if (!created.clientUserId) {
+    created.notes.push("TUL-51 client /desk step skipped: throwaway client missing");
+  } else {
+    const { ctx, page } = await openAs(browser, created.clientUserId, { width: 1440, height: 900 });
+    await go(page, `${APP}/desk`, 10_000);
+    const t = await bodyText(page);
+    await shot(page, "TUL-51-desk-client");
+    const clientBlocked =
+      /Se necesita acceso de administrador de plataforma|Platform admin sign-in required/i.test(t) ||
+      /\/login/i.test(page.url()) ||
+      /Page not found|No encontramos/i.test(t);
+    expect(clientBlocked, "client /desk is forbidden or hidden").toBeTruthy();
+    await ctx.close();
+  }
+
+  // D1 chrome — platform admin /desk (no ticket writes). Soft-404 when flag off is recorded, not a fail.
+  if (!FIX.superAdmin) {
+    created.notes.push("TUL-51 admin /desk step skipped: fixture missing superAdmin");
+  } else {
+    const { ctx, page } = await openAs(browser, FIX.superAdmin.userId, { width: 1440, height: 1000 });
+    await go(page, `${APP}/desk`, 14_000);
+    const t = await bodyText(page);
+    await shot(page, "TUL-51-desk-admin");
+    if (/Page not found|No encontramos/i.test(t)) {
+      created.notes.push("TUL-51 admin /desk soft-404: SUPPORT_DESK_ENABLED off on this stack");
+    } else {
+      expect(t, "admin is not bounced to the talent forbidden gate").not.toMatch(
+        /Se necesita acceso de administrador de plataforma|Platform admin sign-in required/i,
+      );
+      expect(t, "desk shell shows support chrome").toMatch(/Soporte|Support|Tickets|Ideas|Insights/i);
+    }
+    await ctx.close();
+  }
+});
+
 test("TUL-421 · theme A to B to A: business data identical and the live page restored byte for byte", async ({ browser }) => {
   // Publishes to the fixture site and back (restores it). Run on a throwaway talent only.
   test.skip(process.env.QA_PACK_THEME_ROUNDTRIP !== "1", "publishes to the fixture site and back: set QA_PACK_THEME_ROUNDTRIP=1 on a throwaway talent");

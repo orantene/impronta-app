@@ -44,6 +44,7 @@ A person or CI runs it. **Agent sessions do not run it**: it types card numbers 
 
 | Test (card id) | Expected today | Why |
 |---|---|---|
+| TUL-51 Support Desk entry + permissions | UNKNOWN until first stack run; SKIP admin step without superAdmin / flag | marketing /support ES+EN; talent panel Home/Tickets/Guide; anon+talent+client /desk blocked; admin /desk chrome when SUPPORT_DESK_ENABLED |
 | TUL-62 client /account list + cancel/reschedule | FAIL until fixed | list row shows "Servicio", date one day early; no cancel/reschedule (booking client_user_id NULL) |
 | TUL-64 client not bounced on the app host | FAIL until fixed | active client lands on /start or /onboarding/role |
 | TUL-116 guest chat price answer | PASS | verified by hand 2026-10-09 |
