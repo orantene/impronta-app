@@ -7,7 +7,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { askEntryPointsVisible, resolveTalentAskEntry } from "@/lib/talent/chat-entry";
-import { isAskControl, isAskHref } from "@/app/%5Ftalent-site/TalentSiteContactBridge";
+import {
+  isAskControl,
+  isAskHref,
+  isServicesBookControl,
+} from "@/app/%5Ftalent-site/TalentSiteContactBridge";
 import { resolveSiteCtaMode } from "@/lib/talent-site/design-label-locale";
 import { bookingModeLabel } from "@/lib/talent/publication-state";
 import { resolveEffectiveBookingMode } from "@/lib/scheduling/instant-book-gates";
@@ -43,6 +47,19 @@ describe("/contact is an ask link", () => {
   it("does not capture unrelated paths or mailto", () => {
     assert.equal(isAskHref("/contact-us/team"), false);
     assert.equal(isAskHref("mailto:a@b.co"), false);
+  });
+});
+
+describe("TUL-534: book-labeled #services opens the sheet", () => {
+  it("captures Reservar / Agendar / Book CTAs on #services", () => {
+    for (const label of ["Reservar cita", "Agendar visita", "Book an appointment", "Book a visit"]) {
+      assert.equal(isServicesBookControl("#services", label), true, label);
+    }
+  });
+  it("leaves See services scroll-only", () => {
+    assert.equal(isServicesBookControl("#services", "See services"), false);
+    assert.equal(isServicesBookControl("#services", "Ver servicios"), false);
+    assert.equal(isServicesBookControl("#book", "Reservar cita"), false);
   });
 });
 

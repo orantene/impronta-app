@@ -37,6 +37,7 @@ import {
 } from "@/lib/talent/offering-matrix";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 
+import { catalogCtaTabIndex, moveCatalogCtaFocus } from "./catalog-keyboard";
 import { catalogRowPriceText } from "./services-catalog-bar-price";
 import { catalogDurationPhrase } from "./services-catalog-title";
 
@@ -106,6 +107,8 @@ type Props = {
   ctaLabel?: string;
   liveStatus?: LiveStatusRenderContext | null;
   selectedIds?: ReadonlyArray<string>;
+  /** First bookable offering id — sole Tab stop when nothing is selected (TUL-534). */
+  rovingAnchorId?: string | null;
   onSelect: (item: TalentOffering) => void;
 };
 
@@ -123,6 +126,7 @@ export function CatalogMatrix({
   ctaLabel,
   liveStatus,
   selectedIds = [],
+  rovingAnchorId = null,
   onSelect,
 }: Props): ReactNode {
   const es = locale.startsWith("es");
@@ -177,7 +181,22 @@ export function CatalogMatrix({
         data-primary={c.derived.effectiveMode === "instant" ? "1" : undefined}
         data-selected={c.selected ? "true" : undefined}
         aria-pressed={c.selected}
+        tabIndex={catalogCtaTabIndex({
+          selected: c.selected,
+          rovingAnchor: selectedIds.length === 0 && c.item.id === rovingAnchorId,
+        })}
         onClick={() => onSelect(c.item)}
+        onKeyDown={(e) => {
+          if (
+            e.key === "ArrowDown" ||
+            e.key === "ArrowUp" ||
+            e.key === "ArrowRight" ||
+            e.key === "ArrowLeft"
+          ) {
+            e.preventDefault();
+            moveCatalogCtaFocus(e.currentTarget, e.key);
+          }
+        }}
       >
         {c.cta}
       </button>

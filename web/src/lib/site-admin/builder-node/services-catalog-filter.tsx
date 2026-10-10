@@ -39,6 +39,11 @@ import { useStickyBarProps } from "./use-sticky-bar-visible";
 import { catalogCategoryJumpId, catalogDurationPhrase } from "./services-catalog-title";
 import { dispatchCatalogOffering } from "./catalog-offering-dispatch";
 import {
+  catalogCtaTabIndex,
+  focusCatalogDockContinue,
+} from "./catalog-keyboard";
+import { CatalogRow } from "./services-catalog-row";
+import {
   DEFAULT_SHEET_BOOKING_SETTINGS,
   PLATFORM_DEFAULT_BOOKING_POSTURE,
   type TalentBookingPosture,
@@ -240,15 +245,13 @@ export function ServicesCatalogFilter({
 
   const onRowAction = (item: TalentOffering, inclusion?: string | null) => {
     demoToast.ping();
-    // Maison DoR: option / consult rows open the sheet; plain Seleccionar only
-    // paints Seleccionado + Continuar. continueFromBar opens the sheet.
+    // Option / consult rows open the sheet; plain Seleccionar → dock Continuar.
     if (catalogRowOpensSheetImmediately(item)) {
       dispatchOffering(item, confirmsByHand, undefined, inclusion, bookingPosture);
       return;
     }
-    // Single-select (MULTI_SERVICE_ENABLED=false): a second pick REPLACES the
-    // first, announced with an Undo toast so nothing is dropped silently.
     const switching = dockPickSwitches(dock, item.id);
+    const wasPicked = dock.picked.some((p) => p.id === item.id);
     dispatchDock({
       type: "toggle",
       pick: {
@@ -260,9 +263,16 @@ export function ServicesCatalogFilter({
       },
     });
     if (switching) showToast({ kind: "switched", name: item.title });
-    else if (!dock.picked.some((p) => p.id === item.id)) showToast({ kind: "added", name: item.title });
+    else if (!wasPicked) showToast({ kind: "added", name: item.title });
     else clearToast();
+    // TUL-534: after select, focus Continuar so Enter opens the sheet (≤10 Tabs).
+    if (!wasPicked || switching) focusCatalogDockContinue();
   };
+
+  // First bookable row CTA is the sole Tab stop until a row is selected (roving).
+  const firstCtaId =
+    groups.flatMap((g) => g.items).find((o) => !deriveFor(o, confirmsByHand, bookingPosture).hidden)?.id ??
+    null;
 
   const findOffering = (id: string | null) => {
     const group = groups.find((g) => g.items.some((o) => o.id === id));
@@ -421,7 +431,7 @@ export function ServicesCatalogFilter({
       ) : null}
 
       <div className="site-builder-node--services-catalog-groups">
-      {matrix ? <CatalogMatrix items={groups.flatMap((g) => g.items.filter(matchesSearch))} locale={locale} confirmsByHand={confirmsByHand} bookingPosture={bookingPosture} ctaLabel={ctaLabel} liveStatus={liveStatus} selectedIds={dock.picked.map((p) => p.id)} onSelect={(item) => onRowAction(item)} /> : groups.map((g) => {
+      {matrix ? <CatalogMatrix items={groups.flatMap((g) => g.items.filter(matchesSearch))} locale={locale} confirmsByHand={confirmsByHand} bookingPosture={bookingPosture} ctaLabel={ctaLabel} liveStatus={liveStatus} selectedIds={dock.picked.map((p) => p.id)} rovingAnchorId={firstCtaId} onSelect={(item) => onRowAction(item)} /> : groups.map((g) => {
         // Changing filter must not clear selectedId / booking sheet state (brief §7).
         const hidden =
           filterNav && active !== null && Boolean(g.name) && active !== g.name;
@@ -493,6 +503,10 @@ export function ServicesCatalogFilter({
                       ctaLabel={ctaLabel}
                       durationFormat={durationFormat}
                       selected={dock.picked.some((p) => p.id === item.id)}
+                      ctaTabIndex={catalogCtaTabIndex({
+                        selected: dock.picked.some((p) => p.id === item.id),
+                        rovingAnchor: selectedId === null && item.id === firstCtaId,
+                      })}
                       onSelect={() => onRowAction(item, g.note)}
                     />
                   ))}
@@ -578,223 +592,4 @@ export function ServicesCatalogFilter({
   );
 }
 
-export function CatalogRow({
-  item,
-  locale,
-  showPhoto,
-  showDescription = true,
-  showCategory = false,
-  showDuration,
-  showDelivery = false,
-  showAvailability = false,
-  showPrice = true,
-  showUsdEquivalent,
-  showBadges = false,
-  showModeChip = false,
-  priceInMeta = false,
-  rowCard = false,
-  confirmsByHand,
-  bookingPosture = PLATFORM_DEFAULT_BOOKING_POSTURE,
-  usdRates,
-  ctaLabel,
-  durationFormat = "auto",
-  selected = false,
-  onSelect,
-}: {
-  item: TalentOffering;
-  locale: string;
-  showPhoto: boolean;
-  showDescription?: boolean;
-  showCategory?: boolean;
-  showDuration: boolean;
-  showDelivery?: boolean;
-  showAvailability?: boolean;
-  showPrice?: boolean;
-  showUsdEquivalent: boolean;
-  showBadges?: boolean;
-  showModeChip?: boolean;
-  priceInMeta?: boolean;
-  rowCard?: boolean;
-  confirmsByHand: boolean;
-  bookingPosture?: TalentBookingPosture;
-  usdRates: UsdRates | null;
-  ctaLabel?: string;
-  durationFormat?: "auto" | "minutes" | "hours_minutes";
-  selected?: boolean;
-  onSelect?: () => void;
-}) {
-  const es = locale.startsWith("es");
-  const cover = showPhoto ? item.imageUrls[0] : undefined;
-  const onRequest = item.visibility === "on_request";
-  const quote =
-    item.priceDisplay === "quote" || item.priceType === "custom" || item.amountCents == null;
-  const minCents = catalogRowMinCents(item);
-  const ladder = catalogRowShowsFrom(item);
-  const usd = usdEquivalentLabel(minCents, item.currency, usdRates, locale);
-  const derived = deriveFor(item, confirmsByHand, bookingPosture);
-  const cta = derived.cta;
-  const label = catalogRowCtaLabel({
-    selected,
-    offering: item,
-    locale,
-    inspectorLabel: selected ? undefined : ctaLabel,
-    confirmsByHand,
-    bookingPosture,
-  });
-  const where = offeringWhereFromAttributes(item.attributes);
-  const deliveryText = formatOfferingWhereLabel(where, locale);
-  const modeChip =
-    derived.effectiveMode === "request"
-      ? es
-        ? "Con confirmación"
-        : "Needs confirmation"
-      : derived.effectiveMode === "inquiry" || quote
-        ? rowCard
-          ? es
-            ? "Por evento"
-            : "By event"
-          : es
-            ? "Por cotización"
-            : "By quote"
-        : null;
-  // One-line price for the meta row: "Desde $120 por uña" / "Desde $650" / "$900" / "A cotizar".
-  const priceText = catalogRowPriceText(item, locale);
-  // Priced per unit: the unit replaces the duration in the meta row.
-  const perUnit = !!offeringPriceUnit(item.attributes, locale) && !onRequest && !quote && minCents != null;
-  const badges: string[] = [];
-  if (showBadges) {
-    if (derived.effectiveMode === "instant") badges.push(es ? "Reserva inmediata" : "Instant booking");
-    if (item.reserveMode === "deposit") badges.push(es ? "Seña" : "Deposit required");
-    if (where.includes("remote")) badges.push(es ? "En línea" : "Online session");
-  }
-  const activate = () => {
-    if (onSelect) onSelect();
-    else dispatchOffering(item, confirmsByHand, undefined, undefined, bookingPosture);
-  };
-  // Empty grey placeholders look like a repeated "stock" thumb on every row.
-  // Only paint a photo slot when the offering has a real public image.
-  const photo = cover ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={cover} alt="" className="site-builder-node--services-catalog-photo" />
-  ) : null;
-  return (
-    <li
-      className="site-builder-node--services-catalog-row"
-      data-selected={selected ? "true" : undefined}
-      data-has-photo={cover || showPhoto ? "true" : "false"}
-      // Row card: whole-card click is a pointer convenience; the button stays the accessible control.
-      onClick={
-        rowCard && !derived.hidden
-          ? (e) => {
-              if ((e.target as HTMLElement).closest("button,a")) return;
-              activate();
-            }
-          : undefined
-      }
-    >
-      {photo && rowCard ? <span className="site-builder-node--services-catalog-thumb">{photo}</span> : photo}
-      <span className="site-builder-node--services-catalog-copy">
-        <strong className="site-builder-node--services-catalog-name" title={item.title}>
-          <span className="site-builder-node--services-catalog-name-text">{item.title}</span>
-          {selected ? (
-            <span className="site-builder-node--services-catalog-check" aria-hidden>
-              ✓
-            </span>
-          ) : null}
-        </strong>
-        {showCategory && item.category ? (
-          <span className="site-builder-node--services-catalog-meta">{item.categoryLabel ?? item.category}</span>
-        ) : null}
-        {showDescription && item.description ? (
-          <span className="site-builder-node--services-catalog-desc">{item.description}</span>
-        ) : null}
-        {priceInMeta ? (
-          <span className="site-builder-node--services-catalog-duration" data-price-in-meta="true">
-            {showDuration && !perUnit && item.durationMinutes && item.kind !== "product" ? (
-              <>
-                <span>{catalogDurationShort(item.durationMinutes)}</span>
-                {showPrice ? <span aria-hidden>·</span> : null}
-              </>
-            ) : null}
-            {showPrice ? <span className="site-builder-node--services-catalog-price">{priceText}</span> : null}
-            {showModeChip && modeChip ? (
-              <span className="site-builder-node--services-catalog-mode">{modeChip}</span>
-            ) : null}
-          </span>
-        ) : showDuration && item.durationMinutes && item.kind !== "product" ? (
-          <span className="site-builder-node--services-catalog-duration">
-            {catalogDurationPhrase(item.durationMinutes, locale, durationFormat)}
-          </span>
-        ) : null}
-        {showDelivery && deliveryText ? (
-          <span className="site-builder-node--services-catalog-meta">{deliveryText}</span>
-        ) : null}
-        {showAvailability ? (
-          <span className="site-builder-node--services-catalog-meta">
-            {derived.effectiveMode === "instant"
-              ? es
-                ? "Confirmación inmediata"
-                : "Instant confirmation"
-              : es
-                ? "Sujeto a confirmación"
-                : "Subject to confirmation"}
-          </span>
-        ) : null}
-        {showModeChip && modeChip && !priceInMeta ? (
-          <span className="site-builder-node--services-catalog-mode">{modeChip}</span>
-        ) : null}
-        {badges.length ? (
-          <span className="site-builder-node--services-catalog-badges">
-            {badges.map((b) => (
-              <span key={b} className="site-builder-node--services-catalog-badge">
-                {b}
-              </span>
-            ))}
-          </span>
-        ) : null}
-      </span>
-      <span className="site-builder-node--services-catalog-buy">
-        {priceInMeta ? null : showPrice ? (
-          <span className="site-builder-node--services-catalog-price">
-            {onRequest || quote || minCents == null ? (
-              <strong>{es ? (onRequest ? "Bajo consulta" : "Cotización a pedido") : onRequest ? "On request" : "Quote on request"}</strong>
-            ) : (
-              <>
-                {ladder ? <small>{es ? "Desde" : "From"}</small> : null}
-                <strong>{formatMoney(minCents, item.currency, locale)}</strong>
-              </>
-            )}
-            {showUsdEquivalent && usd ? <span className="site-builder-node--services-catalog-usd">{usd}</span> : null}
-          </span>
-        ) : (
-          <span className="site-builder-node--services-catalog-price" aria-hidden />
-        )}
-        {/* WSF-C §8: no route left for this service, no button. */}
-        {derived.hidden ? (
-          rowCard ? (
-            <button
-              type="button"
-              disabled
-              data-paused="true"
-              className="site-builder-node--services-catalog-cta"
-            >
-              {es ? "En pausa" : "Paused"}
-            </button>
-          ) : null
-        ) : (
-          <button
-            type="button"
-            onClick={activate}
-            data-offering-cta={cta}
-            data-offering-id={item.id}
-            data-selected={selected ? "true" : undefined}
-            className="site-builder-node--services-catalog-cta"
-            aria-pressed={selected}
-          >
-            {label}
-          </button>
-        )}
-      </span>
-    </li>
-  );
-}
+export { CatalogRow } from "./services-catalog-row";

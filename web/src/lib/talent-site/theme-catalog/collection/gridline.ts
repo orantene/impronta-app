@@ -92,7 +92,7 @@ function buildGridlinePayloadUnseeded(): DesignPayload {
       utilityBar: {
         subtitle: "{{primaryTypeLabel}}",
         ctaLabel: "Book a visit",
-        ctaHref: "#services",
+        ctaHref: "#book",
       },
     }),
     homeTree: [
