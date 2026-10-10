@@ -28,6 +28,7 @@ import es from "../../../messages/es.json";
 import {
   authEmailLinkNext,
   buildOtpEmailRedirect,
+  hasPlusLocalPart,
   isCompleteOtpCode,
   isValidAuthEmail,
   normalizeAuthEmail,
@@ -37,6 +38,7 @@ import {
   otpSendErrorKey,
   otpVerifyErrorKey,
   prefersPasswordlessFirst,
+  withPlusAddressHint,
 } from "./otp-flow";
 
 function lookup(catalog: unknown, key: string): unknown {
@@ -115,6 +117,28 @@ test("isValidAuthEmail accepts real addresses and rejects the usual near-misses"
   }
 });
 
+/* ─────────────────────────── plus-address hint (TUL-558) ────────────────── */
+
+test("hasPlusLocalPart detects a +tag in the local part only", () => {
+  assert.equal(hasPlusLocalPart("tulala-qa+uno@mail.example.com"), true);
+  assert.equal(hasPlusLocalPart("booker+tag@sub.studio.co.uk"), true);
+  assert.equal(hasPlusLocalPart("plain@mail.example.com"), false);
+  assert.equal(hasPlusLocalPart("plus@mail+weird.com"), false);
+  assert.equal(hasPlusLocalPart(""), false);
+  assert.equal(hasPlusLocalPart("not-an-email"), false);
+});
+
+test("withPlusAddressHint appends only for plus-addressed inboxes", () => {
+  const hint = "Try without the +tag.";
+  assert.equal(
+    withPlusAddressHint("Code sent.", "a+b@x.com", hint),
+    "Code sent. Try without the +tag.",
+  );
+  assert.equal(withPlusAddressHint("Code sent.", "a@x.com", hint), "Code sent.");
+  assert.equal(withPlusAddressHint("", "a+b@x.com", hint), hint);
+  assert.equal(withPlusAddressHint("Code sent.", "a+b@x.com", "  "), "Code sent.");
+});
+
 /* ──────────────────────────── who gets it first ─────────────────────────── */
 
 test("only the client intent is passwordless-first in this phase", () => {
@@ -189,6 +213,7 @@ const FORM_KEYS = [
   "public.auth.passwordless.emailHint",
   "public.auth.passwordless.sentNotice",
   "public.auth.passwordless.resentNotice",
+  "public.auth.passwordless.plusAddressHint",
   "public.auth.passwordless.codeLabel",
   "public.auth.passwordless.codeHint",
   "public.auth.passwordless.verifySubmit",

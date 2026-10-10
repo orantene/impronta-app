@@ -245,13 +245,20 @@ export async function requestEmailCode(
     }
   }
 
+  const baseNotice = resent
+    ? t("public.auth.passwordless.resentNotice")
+    : t("public.auth.passwordless.sentNotice");
+  // TUL-558: we send to the full `name+tag@` address; some inboxes drop those.
+  const { withPlusAddressHint } = await import("@/lib/auth/otp-flow");
   return {
     step: "sent",
     email,
     resent,
-    notice: resent
-      ? t("public.auth.passwordless.resentNotice")
-      : t("public.auth.passwordless.sentNotice"),
+    notice: withPlusAddressHint(
+      baseNotice,
+      email,
+      t("public.auth.passwordless.plusAddressHint"),
+    ),
   };
 }
 
@@ -434,10 +441,16 @@ export async function resendSignupCode(
     return { step: "code", error: t(otpSendErrorKey(error)), email };
   }
 
+  // TUL-558: same plus-address delivery hint as requestEmailCode.
+  const { withPlusAddressHint } = await import("@/lib/auth/otp-flow");
   return {
     step: "sent",
     email,
     resent: true,
-    notice: t("public.auth.signupCode.resentNotice"),
+    notice: withPlusAddressHint(
+      t("public.auth.signupCode.resentNotice"),
+      email,
+      t("public.auth.passwordless.plusAddressHint"),
+    ),
   };
 }

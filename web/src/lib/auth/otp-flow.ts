@@ -84,6 +84,25 @@ export function isValidAuthEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+/**
+ * True when the local part has a `+tag` (`name+tag@host`). We still send the
+ * OTP to the full address (RFC 5233); some inboxes drop those deliveries
+ * (TUL-558 / onb1-20). Callers show a short "try without +tag" hint.
+ */
+export function hasPlusLocalPart(email: string): boolean {
+  const at = email.indexOf("@");
+  if (at <= 0) return false;
+  return email.slice(0, at).includes("+");
+}
+
+/** Append the plus-address delivery hint when the inbox uses a `+tag`. */
+export function withPlusAddressHint(notice: string, email: string, hint: string): string {
+  const h = hint.trim();
+  if (!h || !hasPlusLocalPart(email)) return notice;
+  const base = notice.trim();
+  return base ? `${base} ${h}` : h;
+}
+
 /* ──────────────────────────── who gets it first ─────────────────────────── */
 
 /**

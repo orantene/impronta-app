@@ -195,6 +195,7 @@
         "emailHint": "No password needed. We email you a sign-in code plus a sign-in link.",
         "sentNotice": "Code sent to {email}. Enter it below, or open the link in the same email.",
         "resentNotice": "New code sent to {email}. Use the newest one.",
+        "plusAddressHint": "Plus-address inboxes (+tag) often miss this code. Try the address without the +tag.",
         "codeLabel": "Code from your email",
         "codeHint": "Single use. You can also open the sign-in link in the same email instead. Check your spam folder if nothing arrives.",
         "verifySubmit": "Continue",

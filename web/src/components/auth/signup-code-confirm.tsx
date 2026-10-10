@@ -32,6 +32,7 @@ import {
 } from "@/app/auth/otp-actions";
 import { AuthNotice, AuthSubmitButton } from "@/components/auth/auth-ui";
 import { OtpCodeInput } from "@/components/auth/otp-code-input";
+import { hasPlusLocalPart } from "@/lib/auth/otp-flow";
 import { createTranslator } from "@/i18n/messages";
 
 /** Seconds before "resend" becomes tappable. Mirrors Supabase's interval. */
@@ -95,6 +96,13 @@ export function SignupCodeConfirm({
     resendState && resendState.step !== "sent" ? resendState.error : undefined;
   const error = lane === "verify" ? verifyError : resendError;
   const resent = lane === "resend" && resendSucceeded;
+  const plusHint = hasPlusLocalPart(email)
+    ? t("public.auth.passwordless.plusAddressHint")
+    : null;
+  const resentNotice =
+    lane === "resend" && resendState?.step === "sent" && resendState.notice
+      ? resendState.notice
+      : t("public.auth.signupCode.resentNotice");
 
   return (
     <div className="space-y-5">
@@ -111,6 +119,11 @@ export function SignupCodeConfirm({
             {email}
           </span>
         </p>
+        {plusHint ? (
+          <p className="text-[0.8125rem]" style={{ color: "var(--plt-muted)" }}>
+            {plusHint}
+          </p>
+        ) : null}
       </div>
 
       <form
@@ -133,7 +146,7 @@ export function SignupCodeConfirm({
 
         {error ? <AuthNotice tone="error">{error}</AuthNotice> : null}
         {resent ? (
-          <AuthNotice tone="success">{t("public.auth.signupCode.resentNotice")}</AuthNotice>
+          <AuthNotice tone="success">{resentNotice}</AuthNotice>
         ) : null}
 
         <AuthSubmitButton

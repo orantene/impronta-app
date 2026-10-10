@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import { OtpCodeInput } from "@/components/auth/otp-code-input";
 import { SIGNUP_RESEND_COOLDOWN_SECONDS } from "@/components/auth/signup-code-confirm";
+import { hasPlusLocalPart } from "@/lib/auth/otp-flow";
 
 import { GhostLink, Notice, Sub, Title } from "../ui";
 
@@ -35,10 +36,18 @@ export function CodeStep({
     const id = window.setTimeout(() => setCooldown((c) => c - 1), 1000);
     return () => window.clearTimeout(id);
   }, [cooldown]);
+  const plusHint = hasPlusLocalPart(email)
+    ? t("public.auth.passwordless.plusAddressHint")
+    : null;
   return (
     <div data-testid="onb-code">
       <Title>{t("public.onboarding.code.title")}</Title>
       <Sub>{t("public.onboarding.code.sub").replace("{email}", email)}</Sub>
+      {plusHint ? (
+        <p className="mt-2 text-[0.8125rem]" style={{ color: "var(--tl-muted)" }} data-testid="onb-plus-hint">
+          {plusHint}
+        </p>
+      ) : null}
       <div className="mt-5" aria-busy={busy}>
         <OtpCodeInput name="code" disabled={busy} invalid={!!error} resetKey={resetKey} onComplete={(code) => onVerify(code)} />
       </div>

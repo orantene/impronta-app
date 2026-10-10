@@ -195,6 +195,7 @@
         "emailHint": "Sin contraseña. Te enviamos por correo un código de acceso y también un enlace de acceso.",
         "sentNotice": "Código enviado a {email}. Escríbelo abajo o abre el enlace del mismo correo.",
         "resentNotice": "Enviamos un código nuevo a {email}. Usa el más reciente.",
+        "plusAddressHint": "Los correos con +etiqueta a menudo no reciben este código. Prueba sin el +etiqueta.",
         "codeLabel": "Código de tu correo",
         "codeHint": "De un solo uso. También puedes abrir el enlace de acceso del mismo correo. Revisa tu carpeta de spam si no llega.",
         "verifySubmit": "Continuar",
