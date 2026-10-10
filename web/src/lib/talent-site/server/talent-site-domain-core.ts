@@ -191,6 +191,29 @@ export async function verifyTalentSiteDomainRecord(
 }
 
 /**
+ * Persist attach/verify failure visibility (existing columns only — no
+ * migration). Vercel challenges are read live from the Vercel API, not stored.
+ */
+export async function persistTalentSiteDomainVercelState(
+  supabase: SupabaseClient,
+  domainId: string,
+  patch: {
+    status?: TalentSiteDomainStatus;
+    failureReason: string | null;
+  },
+): Promise<void> {
+  const update: Record<string, unknown> = {
+    failure_reason: patch.failureReason,
+  };
+  if (patch.status) update.status = patch.status;
+  const { error } = await supabase
+    .from("talent_site_domains")
+    .update(update)
+    .eq("id", domainId);
+  if (error) throw error;
+}
+
+/**
  * Probe DNS + HTTPS for a verified domain and advance
  * `verified`/`ssl_provisioned` → `active` (routing + HTTPS from Vercel),
  * `ssl_provisioned` (routing detected, HTTPS pending), or hold at `verified`.

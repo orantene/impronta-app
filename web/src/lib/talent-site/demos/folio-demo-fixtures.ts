@@ -69,6 +69,27 @@ function priceLabel(amount: number, cur: string, from: boolean, lang: "es" | "en
 
 function statsFor(d: FolioDemoJson): DemoContentFixture["stats"] {
   const langs = d.siteLangs.map((l) => l.toUpperCase()).join("/");
+  if (d.code === "TAL-93007") {
+    return [
+      { label: d.locale === "es" ? "Capacidad" : "Capacity", value: d.locale === "es" ? "Hasta 60 invitados" : "Up to 60 guests" },
+      { label: d.locale === "es" ? "Ciudad" : "City", value: "Cancún" },
+      { label: d.locale === "es" ? "Idiomas" : "Languages", value: langs },
+    ];
+  }
+  if (d.code === "TAL-93115") {
+    return [
+      { label: d.locale === "es" ? "Entrega" : "Delivery", value: d.locale === "es" ? "20–40 fotos" : "20–40 photos" },
+      { label: d.locale === "es" ? "Locación" : "Location", value: "Guadalajara" },
+      { label: d.locale === "es" ? "Idiomas" : "Languages", value: langs },
+    ];
+  }
+  if (d.code === "TAL-93116") {
+    return [
+      { label: d.locale === "es" ? "Enfoque" : "Focus", value: d.locale === "es" ? "Marca e impresos" : "Brand and print" },
+      { label: d.locale === "es" ? "Ciudad" : "City", value: "Puebla" },
+      { label: d.locale === "es" ? "Idiomas" : "Languages", value: langs },
+    ];
+  }
   if (d.code === "TAL-93110") {
     return [
       { label: d.locale === "es" ? "Altura cm" : "Height cm", value: "183" },
@@ -132,6 +153,27 @@ function faqFor(d: FolioDemoJson): Array<{ q: string; a: string }> {
       ...base.slice(1),
     ];
   }
+  if (d.code === "TAL-93007") {
+    return [
+      { q: "¿Incluye el alcohol?", a: "No. Te mando la lista de compras; tú compras botellas y yo llevo herramientas y cristalería." },
+      { q: "¿Atiendes fuera de Cancún?", a: "Sí, con traslado cotizado en la Riviera Maya." },
+      ...base.slice(1),
+    ];
+  }
+  if (d.code === "TAL-93115") {
+    return [
+      { q: "¿Cuánto tarda la entrega?", a: "Entre 5 y 10 días hábiles con galería en línea para descargar." },
+      { q: "¿Haces sesiones en pareja?", a: "Sí. La sesión de pareja dura un poco más y entrega más fotos." },
+      ...base.slice(1),
+    ];
+  }
+  if (d.code === "TAL-93116") {
+    return [
+      { q: "¿Incluye impresión?", a: "Entrego archivos listos para imprenta o redes. La impresión la cotizas con tu proveedor." },
+      { q: "¿Cuántas revisiones incluye?", a: "La identidad básica incluye dos rondas de cambios sobre el logotipo." },
+      ...base.slice(1),
+    ];
+  }
   if (d.code === "TAL-93113") {
     return [
       { q: "¿Trabajas en español e inglés?", a: "Sí. Puedo dirigir la sesión en cualquiera de los dos." },
@@ -170,8 +212,54 @@ function buildFixture(d: FolioDemoJson): DemoContentFixture {
   });
 
   const domain = d.site.replace(/^https?:\/\//, "");
-  const chapterA = d.code === "TAL-93114" ? (lang === "es" ? "Modelaje" : "Modeling") : lang === "es" ? "Editorial" : "Editorial";
-  const chapterB = d.code === "TAL-93114" ? (lang === "es" ? "Música" : "Music") : lang === "es" ? "Campaña" : "Campaign";
+  const chapterA =
+    d.code === "TAL-93114"
+      ? lang === "es"
+        ? "Modelaje"
+        : "Modeling"
+      : d.code === "TAL-93007"
+        ? lang === "es"
+          ? "Barra"
+          : "Bar"
+        : d.code === "TAL-93115"
+          ? lang === "es"
+            ? "Retrato"
+            : "Portrait"
+          : d.code === "TAL-93116"
+            ? lang === "es"
+              ? "Identidad"
+              : "Identity"
+            : lang === "es"
+              ? "Editorial"
+              : "Editorial";
+  const chapterB =
+    d.code === "TAL-93114"
+      ? lang === "es"
+        ? "Música"
+        : "Music"
+      : d.code === "TAL-93007"
+        ? lang === "es"
+          ? "Carta"
+          : "Menu"
+        : d.code === "TAL-93115"
+          ? lang === "es"
+            ? "Marca"
+            : "Brand"
+          : d.code === "TAL-93116"
+            ? lang === "es"
+              ? "Digital"
+              : "Digital"
+            : lang === "es"
+              ? "Campaña"
+              : "Campaign";
+  const statsTitle =
+    d.code === "TAL-93007" || d.code === "TAL-93115" || d.code === "TAL-93116"
+      ? lang === "es"
+        ? "Detalles · Servicios"
+        : "Details · Services"
+      : lang === "es"
+        ? "Medidas · Comp card"
+        : "Measures · Comp card";
 
   return {
     design: "folio",
@@ -221,7 +309,7 @@ function buildFixture(d: FolioDemoJson): DemoContentFixture {
       items: faqFor(d),
     },
     stats: statsFor(d),
-    statsTitle: lang === "es" ? "Medidas · Comp card" : "Measures · Comp card",
+    statsTitle,
     location: null,
     footer: {
       headline: lang === "es" ? "Siguiente número." : "Next number.",

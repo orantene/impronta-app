@@ -161,6 +161,72 @@ const BY_CODE: Readonly<Record<string, FolioSiteCopy>> = {
       },
     },
   },
+  "TAL-93007": {
+    chapters: [
+      { heading: "Barra", creditLine: "Eventos · Cancún", tocCredit: "Servicio en vivo" },
+      { heading: "Carta", creditLine: "Cócteles a la medida", tocCredit: "Clásicos y autor" },
+    ],
+    coverStatement: "Bartender y mixóloga para eventos en Cancún.",
+    ratesSubtitle: "Tarifas base en MXN. El alcohol lo compras tú con mi lista.",
+    footerCredit: "sofia-barra.tulala.digital",
+    footerContact: "Para bodas, fiestas privadas y talleres. Respondo en el día.",
+    shoeLabel: { en: "N/A", es: "N/A" },
+    overlays: {
+      en: {
+        chapters: [
+          { heading: "Bar", creditLine: "Events · Cancún", tocCredit: "Live service" },
+          { heading: "Menu", creditLine: "Custom cocktails", tocCredit: "Classics and signature" },
+        ],
+        coverStatement: "Bartender and mixologist for events in Cancún.",
+        ratesSubtitle: "Base rates in MXN. You buy the spirits using my shopping list.",
+        footerContact: "For weddings, private parties and workshops. I reply the same day.",
+      },
+    },
+  },
+  "TAL-93115": {
+    chapters: [
+      { heading: "Retrato", creditLine: "Luz natural · Guadalajara", tocCredit: "Calle y estudio" },
+      { heading: "Marca", creditLine: "Personal y pareja", tocCredit: "Entrega digital" },
+    ],
+    coverStatement: "Retratos personales y de marca en Guadalajara.",
+    ratesSubtitle: "Tarifas base en MXN. Más locaciones se cotizan aparte.",
+    footerCredit: "claudia-retratos.tulala.digital",
+    footerContact: "Para sesiones personales, pareja o marca. Respondo en el día.",
+    shoeLabel: { en: "N/A", es: "N/A" },
+    overlays: {
+      en: {
+        chapters: [
+          { heading: "Portrait", creditLine: "Natural light · Guadalajara", tocCredit: "Street and studio" },
+          { heading: "Brand", creditLine: "Personal and couples", tocCredit: "Digital delivery" },
+        ],
+        coverStatement: "Personal and brand portraits in Guadalajara.",
+        ratesSubtitle: "Base rates in MXN. Extra locations are quoted separately.",
+        footerContact: "For personal, couple or brand sessions. I reply the same day.",
+      },
+    },
+  },
+  "TAL-93116": {
+    chapters: [
+      { heading: "Identidad", creditLine: "Logotipo y manual", tocCredit: "Marca desde cero" },
+      { heading: "Digital", creditLine: "Redes e impresos", tocCredit: "Piezas listas" },
+    ],
+    coverStatement: "Identidad visual y piezas digitales en Puebla.",
+    ratesSubtitle: "Tarifas base en MXN. Proyectos grandes se cotizan por paquete.",
+    footerCredit: "ivan-reyes-diseno.tulala.digital",
+    footerContact: "Cuéntame tu proyecto y te mando propuesta con tiempos.",
+    shoeLabel: { en: "N/A", es: "N/A" },
+    overlays: {
+      en: {
+        chapters: [
+          { heading: "Identity", creditLine: "Logo and guide", tocCredit: "Brand from scratch" },
+          { heading: "Digital", creditLine: "Social and print", tocCredit: "Ready-to-use files" },
+        ],
+        coverStatement: "Visual identity and digital pieces in Puebla.",
+        ratesSubtitle: "Base rates in MXN. Larger projects are quoted as packages.",
+        footerContact: "Tell me about your project and I will send a proposal with timing.",
+      },
+    },
+  },
 };
 
 export function folioSiteCopyFor(profileCode: string): FolioSiteCopy {
