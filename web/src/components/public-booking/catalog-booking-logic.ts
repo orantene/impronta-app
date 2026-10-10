@@ -1,6 +1,5 @@
 import { zoneCity } from "@/lib/events/public-event-time";
 import { bookingDurationMinutes } from "@/lib/scheduling/reservation-window";
-import { zoneCity } from "@/lib/events/public-event-time";
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 import { resolveOfferingCta, type TalentOffering } from "@/lib/talent/offerings-types";
 import {
