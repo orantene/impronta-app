@@ -108,12 +108,12 @@ function DesignEntryCard({
 export function WebsiteDesignHub() {
   const t = useT();
   const router = useRouter();
-  const { adminBasePath, workspaceType, locale } = useAdminShell();
+  const { adminBasePath, state, locale } = useAdminShell();
   const siteDesignUrl = useSiteDesignUrl();
   // Null until the server confirms the shell surface is reachable. Rendering
   // the card on an inconclusive answer hands the operator a 404.
   const siteShellUrl = useSiteShellEditorUrl();
-  const isTalent = workspaceType === "talent";
+  const isTalent = state.workspaceType === "talent";
   const es = locale === "es";
 
   return (
