@@ -43,7 +43,7 @@ export const PORTFOLIO_WORK_ORDER_CSS = `
 `;
 
 /** Internal demo work-order codes (OT-0412 · …) stay out of public captions. */
-const WORK_ORDER_CODE_PREFIX = /^OT-\d+\s*[·•.\-–—]\s*/i;
+const WORK_ORDER_CODE_PREFIX = /^OT-\d+\s*[·.•\-]\s*/i;
 
 /** Split the two-line caption convention: first line title, the rest detail. */
 export function splitWorkOrderCaption(caption: string | null | undefined): { title: string; detail: string } {
