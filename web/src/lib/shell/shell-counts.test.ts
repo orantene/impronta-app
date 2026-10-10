@@ -12,6 +12,8 @@ import { test } from "node:test";
 
 import {
   loadShellCounts,
+  sanitizeShellCount,
+  sumTalentInquiryUnread,
   type ShellCountLoaders,
   type ShellCounts,
 } from "./shell-counts";
@@ -193,8 +195,16 @@ test("talent layout no longer hardcodes totalUnread: 0; uses loadShellCounts", (
     "talent layout must call loadShellCounts for the talent surface",
   );
   assert.ok(
-    /totalUnread:\s*shellCounts\.messages/.test(src),
-    "talent layout must keep totalUnread === shellCounts.messages",
+    /sumTalentInquiryUnread\(talentInquiries\)/.test(src),
+    "talent layout must sum bridge unread across agencies for Messages",
+  );
+  assert.ok(
+    /countTalentAwaitingInquiries\(talentInquiries\)/.test(src),
+    "talent layout must stamp attention from the awaiting-you predicate",
+  );
+  assert.ok(
+    /totalUnread:\s*shellCountsResolved\.messages/.test(src),
+    "talent layout must keep totalUnread === shellCountsResolved.messages",
   );
   // The bug this card fixes: a literal zero on the bridge.
   assert.ok(
@@ -202,9 +212,23 @@ test("talent layout no longer hardcodes totalUnread: 0; uses loadShellCounts", (
     "talent layout must not hardcode totalUnread: 0",
   );
   assert.ok(
-    /talentUnread:\s*shellCounts\.messages/.test(src),
-    "talent layout must set talentUnread from shellCounts.messages for the identity bar",
+    /talentUnread:\s*shellCountsResolved\.messages/.test(src),
+    "talent layout must set talentUnread from shellCountsResolved.messages for the identity bar",
   );
+});
+
+test("sumTalentInquiryUnread matches agency-filter All chip math", () => {
+  assert.equal(
+    sumTalentInquiryUnread([
+      { unreadCount: 2 },
+      { unreadCount: 0 },
+      { unreadCount: 2 },
+      { unreadCount: null },
+    ]),
+    4,
+  );
+  assert.equal(sumTalentInquiryUnread([]), 0);
+  assert.equal(sanitizeShellCount(-3), 0);
 });
 
 test("BridgeData carries optional shellCounts; context exposes it", () => {
