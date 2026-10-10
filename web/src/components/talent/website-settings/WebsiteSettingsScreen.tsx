@@ -37,6 +37,7 @@ import {
   chatSummary,
   visibilitySummary,
 } from "./WebsiteSettingsSwitchGroups";
+import type { WebsiteSettingsIntentView } from "./website-settings-intent";
 import { DEFAULT_TALENT_SITE_SWITCHES, type TalentSiteSwitches } from "@/lib/talent/site-switches";
 import {
   READINESS_GAP_COPY,
@@ -84,8 +85,8 @@ export function WebsiteSettingsScreen({
 }: {
   talentId: string;
   onClose: () => void;
-  /** Deep link (PR 7): open straight on a group, e.g. "lang". */
-  initialView?: "lang";
+  /** Deep link (PR 7): open straight on a group, e.g. "lang" or "chat". */
+  initialView?: WebsiteSettingsIntentView;
   /** Parent sheet registers the guarded close (back / Escape / backdrop). */
   onRegisterClose?: (close: (() => void) | null) => void;
 }) {
