@@ -259,3 +259,32 @@ describe("F69 talentOwedSummary: Today card and Money page share one number", ()
     assert.ok(today.includes("loadTalentClients("), "Today reads the same client ledger");
   });
 });
+
+describe("buildMoneyHomeView net of refunds", () => {
+  const row = (over: Partial<TalentEarningsRow>): TalentEarningsRow => ({
+    id: "r1", bookingId: "b1", workDate: "2026-10-09", payoutDate: null, agencyName: "A", client: "C",
+    grossCents: 100000, netCents: 100000, status: "pending", source: "direct", paymentMethod: "card",
+    paymentStatus: "paid", collectedCents: 100000, collectedByMethod: { card: 100000 }, ...over,
+  } as TalentEarningsRow);
+  const earnings = (rows: TalentEarningsRow[]): TalentEarnings => ({ ...EMPTY_TALENT_EARNINGS, totals: { ...EMPTY_TALENT_EARNINGS.totals, currency: "MXN" }, rows });
+
+  it("Collected is the month total minus refunds, with the refunded amount exposed for the sub-line", () => {
+    const v = buildMoneyHomeView({ earnings: earnings([row({ refundedCents: 60000 })]), clients: [], month: "2026-10" });
+    assert.equal(v.collectedCents, 40000);
+    assert.equal(v.refundedCents, 60000);
+    assert.equal(v.byMethod.card, 40000);
+  });
+  it("no refunds leaves Collected unchanged", () => {
+    const v = buildMoneyHomeView({ earnings: earnings([row({})]), clients: [], month: "2026-10" });
+    assert.equal(v.collectedCents, 100000);
+    assert.equal(v.refundedCents, 0);
+  });
+  it("never goes below zero", () => {
+    const v = buildMoneyHomeView({ earnings: earnings([row({ refundedCents: 150000 })]), clients: [], month: "2026-10" });
+    assert.equal(v.collectedCents, 0);
+  });
+  it("the card shows the refunded sub-line", () => {
+    const src = readFileSync(new URL("../../components/talent/money/MoneyHomePage.tsx", import.meta.url), "utf8");
+    assert.match(src, /view\.refundedCents > 0/);
+  });
+});

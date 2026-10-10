@@ -18,6 +18,8 @@ export type LedgerPaidRow = {
   metadata?: unknown;
   currency?: string | null;
   paid_at?: string | null;
+  /** Set on a refund row: the sale it refunds. */
+  refund_of_transaction_id?: string | null;
 };
 
 export type LedgerPaid = {
@@ -27,6 +29,8 @@ export type LedgerPaid = {
   lastMethod: string | null;
   lastPaidAt: string | null;
   currency: string | null;
+  /** Money handed back through linked refund rows (status refunded + refund_of_transaction_id). Not part of paidCents. */
+  refundedCents?: number;
   /** True when any money-in row was stamped paid_after_cancellation (refund from Money). */
   paidAfterCancellation?: boolean;
 };
@@ -42,6 +46,15 @@ export function ledgerRowMethod(row: Pick<LedgerPaidRow, "provider" | "metadata"
 export function summarizeLedgerPaid(rows: readonly LedgerPaidRow[]): Map<string, LedgerPaid> {
   const out = new Map<string, LedgerPaid>();
   for (const r of rows) {
+    if (r.status === "refunded" && r.refund_of_transaction_id) {
+      const refunded = Math.max(0, Math.round(Number(r.gross_amount_cents)) || 0);
+      if (refunded > 0) {
+        const cur = out.get(r.booking_id) ?? { paidCents: 0, byMethod: {}, lastMethod: null, lastPaidAt: null, currency: null };
+        cur.refundedCents = (cur.refundedCents ?? 0) + refunded;
+        out.set(r.booking_id, cur);
+      }
+      continue;
+    }
     if (!(MONEY_IN_STATUSES as readonly string[]).includes(r.status)) continue;
     const cents = Math.max(0, Math.round(Number(r.gross_amount_cents)) || 0);
     if (cents === 0) continue;
@@ -82,9 +95,9 @@ export async function loadLedgerPaidByBooking(
   if (bookingIds.length === 0) return new Map();
   const { data, error } = await client
     .from("booking_transactions")
-    .select("booking_id, gross_amount_cents, status, provider, metadata, currency, paid_at")
+    .select("booking_id, gross_amount_cents, status, provider, metadata, currency, paid_at, refund_of_transaction_id")
     .in("booking_id", [...bookingIds])
-    .in("status", [...MONEY_IN_STATUSES]);
+    .in("status", [...MONEY_IN_STATUSES, "refunded"]);
   if (error) return new Map();
   return summarizeLedgerPaid((data ?? []) as LedgerPaidRow[]);
 }

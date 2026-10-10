@@ -29,3 +29,19 @@ describe("summarizeLedgerPaid paidAfterCancellation", () => {
     assert.equal(map.get("b1")?.paidCents, 30000);
   });
 });
+
+describe("summarizeLedgerPaid refunds", () => {
+  it("counts linked refund rows as refunded, never as paid, and keeps the sale paid", () => {
+    const map = summarizeLedgerPaid([
+      { booking_id: "b1", gross_amount_cents: 101500, status: "paid", provider: "stripe", paid_at: "2026-10-01T12:00:00Z" },
+      { booking_id: "b1", gross_amount_cents: 30000, status: "refunded", provider: "stripe", refund_of_transaction_id: "t1" },
+      { booking_id: "b1", gross_amount_cents: 64824, status: "refunded", provider: "stripe", refund_of_transaction_id: "t1" },
+    ]);
+    assert.equal(map.get("b1")?.paidCents, 101500);
+    assert.equal(map.get("b1")?.refundedCents, 94824);
+  });
+  it("a refunded row with no refund_of_transaction_id (an old whole-sale refund) is ignored, as before", () => {
+    const map = summarizeLedgerPaid([{ booking_id: "b2", gross_amount_cents: 5000, status: "refunded", provider: "stripe" }]);
+    assert.equal(map.get("b2"), undefined);
+  });
+});
