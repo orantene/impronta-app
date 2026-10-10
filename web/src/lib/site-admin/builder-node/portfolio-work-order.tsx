@@ -3,13 +3,14 @@
  *
  * Each tile is a photo with a two-line work-order caption. Convention (no
  * schema change): the media caption is two lines, first = the job title,
- * second = the detail ("OT-0412 · San Pedro · 1 día"). The tile never links
- * to an offering (work_order shots stay unlinked); a tap opens the shared
- * portfolio lightbox (TUL-474 / TUL-440). Alt text is the job title, else a
- * generic portfolio label (TUL-384: empty alt marked content photos as
- * decorative). A tile without a caption shows the
- * photo alone. Phone: 2 columns, square. Desktop (the block's own container
- * >= 900px): 6 columns, 4:5 tiles. Token colours only.
+ * second = the detail (neighborhood / duration). Demo fixtures sometimes
+ * prefix that line with an internal job code ("OT-0412 · …"); public render
+ * strips those codes (GRK-020 / TUL-537). The tile never links to an offering
+ * (work_order shots stay unlinked); a tap opens the shared portfolio lightbox
+ * (TUL-474 / TUL-440). Alt text is the job title, else a generic portfolio
+ * label (TUL-384: empty alt marked content photos as decorative). A tile
+ * without a caption shows the photo alone. Phone: 2 columns, square. Desktop
+ * (the block's own container >= 900px): 6 columns, 4:5 tiles. Token colours only.
  */
 import type { ReactNode } from "react";
 
@@ -41,13 +42,19 @@ export const PORTFOLIO_WORK_ORDER_CSS = `
 @media (prefers-reduced-motion:reduce){.sb-wo-job{transition:none}.sb-wo-job:hover{transform:none}}
 `;
 
+/** Internal demo work-order codes (OT-0412 · …) stay out of public captions. */
+const WORK_ORDER_CODE_PREFIX = /^OT-\d+\s*[·•.\-–—]\s*/i;
+
 /** Split the two-line caption convention: first line title, the rest detail. */
 export function splitWorkOrderCaption(caption: string | null | undefined): { title: string; detail: string } {
   const lines = (caption ?? "")
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean);
-  return { title: lines[0] ?? "", detail: lines.slice(1).join(" ") };
+  const title = lines[0] ?? "";
+  const rawDetail = lines.slice(1).join(" ");
+  const detail = rawDetail.replace(WORK_ORDER_CODE_PREFIX, "").trim();
+  return { title, detail };
 }
 
 export function WorkOrderFigure({

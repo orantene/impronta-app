@@ -102,7 +102,9 @@ test("work_order: job cards with a two-line caption, lightbox photo button, alt 
   });
   assert.match(html, /data-portfolio-layout="work_order"/);
   assert.equal((html.match(/class="sb-wo-job"/g) ?? []).length, 2);
-  assert.match(html, /<figcaption><b>Cambio de tablero<\/b>OT-0412 · San Pedro · 1 día<\/figcaption>/);
+  assert.match(html, /<figcaption><b>Cambio de tablero<\/b>San Pedro · 1 día<\/figcaption>/);
+  assert.doesNotMatch(html, /OT-0412/);
+  assert.doesNotMatch(html, /OT-0377/);
   // TUL-474: photo-only lightbox (no offering link) — same TUL-440 path as other layouts.
   assert.match(html, /data-portfolio-photo/);
   assert.doesNotMatch(html, /data-portfolio-shot-link|data-offering-id|data-offering-cta/, "tiles never link to an offering");
@@ -120,9 +122,17 @@ test("work_order: container query matches the mockup (6 columns, 4:5 tiles from 
 });
 
 test("work_order caption convention splits title and detail", () => {
-  assert.deepEqual(splitWorkOrderCaption("Lampara\nOT-1 · Centro"), { title: "Lampara", detail: "OT-1 · Centro" });
+  assert.deepEqual(splitWorkOrderCaption("Lampara\nOT-1 · Centro"), { title: "Lampara", detail: "Centro" });
   assert.deepEqual(splitWorkOrderCaption("Solo titulo"), { title: "Solo titulo", detail: "" });
   assert.deepEqual(splitWorkOrderCaption(null), { title: "", detail: "" });
+  assert.deepEqual(splitWorkOrderCaption("Job\nOT-0412 · San Pedro · 1 día"), {
+    title: "Job",
+    detail: "San Pedro · 1 día",
+  });
+  assert.deepEqual(splitWorkOrderCaption("Job\nSan Pedro · 1 día"), {
+    title: "Job",
+    detail: "San Pedro · 1 día",
+  });
 });
 
 // ── area card ─────────────────────────────────────────────────────────────
