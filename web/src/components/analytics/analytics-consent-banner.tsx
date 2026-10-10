@@ -75,6 +75,25 @@ const CONSENT_BANNER_SHELL_OFFSET_CSS = `
 `;
 
 /**
+ * TUL-561: one card, two palettes. The platform (marketing, app, dashboards)
+ * paints the Tulala palette; an agency storefront or talent site
+ * (`data-consent-themed`) paints its own theme tokens, so the card matches the
+ * site's surface, ink, primary button, radius and fonts. Every value goes
+ * through `--consent-*` so the markup never branches.
+ *
+ * The wrapper is transparent on purpose: `[data-platform-surface="marketing"]`
+ * paints `--tl-bone` on any element that carries it, which showed as a square
+ * behind the rounded card.
+ */
+export const CONSENT_CARD_CSS = `
+[data-consent-banner]{background:transparent;--consent-surface:var(--tl-surface-raised,#fff);--consent-ink:var(--tl-ink,#161a16);--consent-soft:var(--tl-ink-soft,#3e4640);--consent-muted:var(--tl-muted,#5f645a);--consent-line:var(--tl-hairline,#e0d8c8);--consent-line-strong:var(--tl-hairline-strong,#c7beac);--consent-quiet:var(--tl-surface,#faf6ee);--consent-primary:var(--tl-forest,#1e3a2d);--consent-primary-on:var(--tl-forest-on,#f4efe6);--consent-link:var(--tl-forest,#1e3a2d);--consent-radius:var(--tl-radius-lg,22px);--consent-btn-radius:var(--tl-radius-sm,8px)}
+[data-consent-banner][data-consent-themed]{--consent-surface:var(--token-color-surface-raised,var(--token-color-background,#fff));--consent-ink:var(--token-color-ink,#111);--consent-soft:color-mix(in srgb,var(--consent-ink) 82%,var(--consent-surface));--consent-muted:var(--token-color-muted,#737373);--consent-line:var(--token-color-line,#e5e5e5);--consent-line-strong:color-mix(in srgb,var(--consent-ink) 24%,var(--consent-surface));--consent-quiet:transparent;--consent-primary:var(--token-color-primary,var(--consent-ink));--consent-primary-on:var(--token-color-primary-on,var(--consent-surface));--consent-link:var(--consent-ink);--consent-radius:var(--token-shape-radius-card,16px);--consent-btn-radius:var(--token-button-radius,10px);font-family:var(--site-body-font,inherit)}
+[data-consent-banner][data-consent-themed] [data-consent-title]{font-family:var(--site-heading-font,inherit)}
+[data-consent-card]{background:var(--consent-surface);color:var(--consent-ink);border:1px solid var(--consent-line);border-radius:var(--consent-radius);box-shadow:0 18px 40px -22px color-mix(in srgb,var(--consent-ink) 40%,transparent)}
+@media (max-width:639px){[data-consent-card]{border-bottom:0;border-bottom-left-radius:0;border-bottom-right-radius:0;padding-bottom:calc(0.875rem + env(safe-area-inset-bottom,0px))}body:has([data-tulala-mobile-bottom-nav]) [data-consent-banner],body:has(.cb-bar[data-show="true"]:not([data-top="true"])) [data-consent-banner]{left:.75rem;right:.75rem}body:has([data-tulala-mobile-bottom-nav]) [data-consent-card],body:has(.cb-bar[data-show="true"]:not([data-top="true"])) [data-consent-card]{border-bottom:1px solid var(--consent-line);border-radius:var(--consent-radius);padding-bottom:.875rem}}
+`;
+
+/**
  * Consent card for analytics storage and ad pixels. Mounted in the root
  * layout. Honours Global Privacy Control (treated as a "no"), and can be
  * reopened from the footer "Privacy choices" link.
@@ -91,7 +110,14 @@ export function pageLocaleOverride(root: ParentNode | null | undefined): string 
   return v ? v : null;
 }
 
-export function AnalyticsConsentBanner({ locale: rootLocale = "en" }: { locale?: string }) {
+export function AnalyticsConsentBanner({
+  locale: rootLocale = "en",
+  themed = false,
+}: {
+  locale?: string;
+  /** Agency storefront or talent site: paint the site's theme tokens, not the Tulala palette. */
+  themed?: boolean;
+}) {
   const [pageLocale, setPageLocale] = useState<string | null>(null);
   const locale = pageLocale ?? rootLocale;
   const [open, setOpen] = useState(false);
@@ -151,27 +177,20 @@ export function AnalyticsConsentBanner({ locale: rootLocale = "en" }: { locale?:
   return (
     <>
       <style>{CONSENT_BANNER_SHELL_OFFSET_CSS}</style>
+      <style>{CONSENT_CARD_CSS}</style>
       <div
         role="dialog"
         aria-label={t("public.consent.ariaLabel")}
         data-consent-banner=""
-        data-platform-surface="marketing"
-        className="site-theme-platform fixed inset-x-3 bottom-3 z-[98] sm:inset-x-auto sm:left-1/2 sm:bottom-5 sm:w-[min(36rem,calc(100vw-2.5rem))] sm:-translate-x-1/2 md:left-auto md:right-5 md:translate-x-0 md:w-[22.5rem]"
-        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+        data-consent-themed={themed ? "" : undefined}
+        data-platform-surface={themed ? undefined : "marketing"}
+        className={`${themed ? "" : "site-theme-platform "}fixed inset-x-0 bottom-0 z-[98] sm:inset-x-auto sm:left-1/2 sm:bottom-5 sm:w-[min(36rem,calc(100vw-2.5rem))] sm:-translate-x-1/2 md:left-auto md:right-5 md:translate-x-0 md:w-[22.5rem]`}
       >
-        <div
-          className="rounded-[var(--tl-radius-lg,22px)] px-4 pb-3.5 pt-3.5 sm:px-5 sm:pb-4 sm:pt-4"
-          style={{
-            background: "var(--tl-surface-raised, #ffffff)",
-            color: "var(--tl-ink, #161a16)",
-            border: "1px solid var(--tl-hairline, #e0d8c8)",
-            boxShadow: "0 18px 40px -22px rgba(22, 26, 22, 0.28)",
-          }}
-        >
-          <div className="flex items-start justify-between gap-3">
+        <div data-consent-card="" className="px-4 pb-3.5 pt-3 sm:px-5 sm:pb-4 sm:pt-4">
+          <div className="flex items-center justify-between gap-3 sm:items-start">
             <p
-              className="plt-display text-[1.0625rem] font-medium leading-tight tracking-[-0.02em] sm:text-[1.125rem]"
-              style={{ color: "var(--tl-ink, #161a16)" }}
+              data-consent-title=""
+              className="plt-display text-[1rem] font-medium leading-tight tracking-[-0.02em] sm:text-[1.125rem]"
             >
               {t("public.consent.title")}
             </p>
@@ -180,8 +199,8 @@ export function AnalyticsConsentBanner({ locale: rootLocale = "en" }: { locale?:
               onClick={dismiss}
               aria-label={t("public.consent.closeLabel")}
               title={t("public.consent.closeLabel")}
-              className="grid size-8 shrink-0 place-items-center rounded-[var(--tl-radius-sm,8px)] transition-colors"
-              style={{ color: "var(--tl-muted, #5f645a)" }}
+              className="-mr-1.5 grid size-8 shrink-0 place-items-center rounded-[var(--consent-btn-radius)] transition-opacity hover:opacity-70"
+              style={{ color: "var(--consent-muted)" }}
             >
               <span aria-hidden className="text-lg leading-none font-normal">
                 ×
@@ -190,41 +209,41 @@ export function AnalyticsConsentBanner({ locale: rootLocale = "en" }: { locale?:
           </div>
 
           <p
-            className="mt-2 text-[0.8125rem] leading-relaxed sm:text-[0.875rem]"
-            style={{ color: "var(--tl-ink-soft, #3e4640)" }}
+            className="mt-1.5 text-[0.8125rem] leading-snug sm:mt-2 sm:text-[0.875rem] sm:leading-relaxed"
+            style={{ color: "var(--consent-soft)" }}
           >
             {t("public.consent.message")}
           </p>
 
-          <p className="mt-2.5 flex flex-wrap gap-x-2 gap-y-1 text-[0.75rem] leading-snug">
+          <p className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-[0.75rem] leading-snug sm:mt-2.5">
             <a
               href={privacyHref}
               className="underline underline-offset-[3px] transition-opacity hover:opacity-80"
-              style={{ color: "var(--tl-forest, #1e3a2d)" }}
+              style={{ color: "var(--consent-link)" }}
             >
               {t("public.consent.privacyLink")}
             </a>
-            <span aria-hidden style={{ color: "var(--tl-muted-soft, #8e938a)" }}>
+            <span aria-hidden style={{ color: "var(--consent-muted)" }}>
               ·
             </span>
             <a
               href={cookiesHref}
               className="underline underline-offset-[3px] transition-opacity hover:opacity-80"
-              style={{ color: "var(--tl-forest, #1e3a2d)" }}
+              style={{ color: "var(--consent-link)" }}
             >
               {t("public.consent.cookiesLink")}
             </a>
           </p>
 
-          <div className="mt-3.5 grid grid-cols-2 gap-2 sm:mt-4">
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-4">
             <button
               type="button"
               onClick={() => choose("denied")}
-              className="h-10 rounded-[var(--tl-radius-sm,8px)] text-[0.8125rem] font-medium transition-colors"
+              className="h-10 rounded-[var(--consent-btn-radius)] text-[0.8125rem] font-medium transition-opacity hover:opacity-80"
               style={{
-                color: "var(--tl-ink, #161a16)",
-                background: "var(--tl-surface, #faf6ee)",
-                border: "1px solid var(--tl-hairline-strong, #c7beac)",
+                color: "var(--consent-ink)",
+                background: "var(--consent-quiet)",
+                border: "1px solid var(--consent-line-strong)",
               }}
             >
               {t("public.consent.decline")}
@@ -232,10 +251,10 @@ export function AnalyticsConsentBanner({ locale: rootLocale = "en" }: { locale?:
             <button
               type="button"
               onClick={() => choose("granted")}
-              className="h-10 rounded-[var(--tl-radius-sm,8px)] text-[0.8125rem] font-medium transition-colors"
+              className="h-10 rounded-[var(--consent-btn-radius)] text-[0.8125rem] font-medium transition-opacity hover:opacity-90"
               style={{
-                color: "var(--tl-forest-on, #f4efe6)",
-                background: "var(--tl-forest, #1e3a2d)",
+                color: "var(--consent-primary-on)",
+                background: "var(--consent-primary)",
               }}
             >
               {t("public.consent.accept")}

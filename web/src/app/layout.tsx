@@ -21,6 +21,7 @@ import { getPublicFontPreset } from "@/lib/site-font-preset";
 import { getSiteTheme } from "@/lib/site-theme";
 import { backgroundModeToPolarity } from "@/lib/site-admin/tokens/polarity";
 import { getPublicTenantScope } from "@/lib/saas/scope";
+import { HOST_CONTEXT_HEADER } from "@/lib/saas/host-context";
 // The three token helpers from their leaf, NOT the `@/lib/site-admin` barrel:
 // the barrel re-exports the sections registry, which imports every section's
 // Editor and Component, which put the whole website builder (its editors,
@@ -280,7 +281,10 @@ export default async function RootLayout({
             (gtag config above uses send_page_view:false; this owns it). */}
         <SpaPageViewTracker />
         {/* Consent banner + reopen target for the footer "Privacy choices" link. */}
-        <AnalyticsConsentBanner locale={locale} />
+        <AnalyticsConsentBanner
+          locale={locale}
+          themed={Boolean(publicScope) || reqHeaders.get(HOST_CONTEXT_HEADER) === "talent_site"}
+        />
         <WebVitalsReporter />
         <CspViolationReporter />
         {children}
