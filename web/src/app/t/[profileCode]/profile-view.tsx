@@ -128,7 +128,9 @@ import { TalentProfileInquireButton } from "./talent-profile-inquire-button";
 import { TalentProfileInstantBookButton } from "./talent-profile-instant-book-button";
 import { HubProfileCta } from "./hub-profile-book-cta";
 import { FreeformHubBook } from "./freeform-hub-book";
+import { HubProfileBookingChrome } from "./hub-profile-booking-chrome";
 import type { HubProfileCtaSlot } from "@/lib/talent-site/hub-profile-book-cta";
+import { hubProfileBookEntry } from "@/lib/talent-site/hub-profile-book-entry";
 import { loadInstantBookEligibility } from "@/lib/scheduling/instant-book-eligibility";
 import { servicesMenuForPublicHost } from "@/lib/talent/services-menu-for-host";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
@@ -138,7 +140,6 @@ import { formatMoney } from "@/lib/talent/offerings-money";
 import { TalentIntakeSurfaces } from "./_chat/TalentIntakeSurfaces";
 import { askEntryPointsVisible } from "@/lib/talent/chat-entry";
 import { loadTalentIntake } from "./_chat/talent-intake.server";
-import { ProfileInstantBookingMount } from "./_shared/ProfileInstantBookingMount";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { publicNameOrGeneric } from "@/lib/messaging/public-name";
 import { isTalentExclusiveToTenant } from "@/lib/agency/talent-exclusivity";
@@ -1966,6 +1967,7 @@ export async function TalentProfileView({
     legacyEligible: instantBook.eligible && instantBook.fixedRateDollars != null,
   });
   const showSlotPicker = profileCtas.showSlotPicker;
+  const hubBookEntry = hubProfileBookEntry(storefrontOfferings, profile.talent_plan_key);
   const slotTenantSlug = booking.tenantSlug ?? chatTenantSlug;
   const slotTenantId = booking.tenantId ?? chatTenantId;
   const chatBrandName =
@@ -2261,9 +2263,9 @@ export async function TalentProfileView({
     "inline-flex items-center justify-center rounded-full bg-[var(--plt-forest)] px-5 py-2.5 text-sm font-medium text-[var(--plt-forest-on)] shadow-[var(--plt-shadow-forest)] transition-[background,transform] hover:bg-[var(--plt-forest-deep)] hover:-translate-y-[1px]";
   const inquireBtnClassFull = `${inquireBtnClass} w-full`;
 
-  // TUL-170: the hub Book CTA also shows when the slot picker replaces the Inquire controls.
+  // TUL-246: Book when bookable; Inquire otherwise (also when the slot picker is up).
   const inquireButtons = (btnClass: string, slot: HubProfileCtaSlot) => (
-      <HubProfileCta slot={slot} platformHost={platformHost} maxSiteUrl={maxSiteUrl} askEntry={talentAskEntry} locale={locale} className={btnClass}>
+      <HubProfileCta slot={slot} platformHost={platformHost} hasBookableServices={hubBookEntry.kind === "sheet"} locale={locale} className={btnClass}>
         {showSlotPicker ? null : <>
         {profileCtas.showLegacyInstantBook ? (
           <TalentProfileInstantBookButton
@@ -2562,15 +2564,7 @@ export async function TalentProfileView({
           CTA; renders only on the agency surface AND when the tenant has guest
           chat enabled + shown on talent profiles (tenant_guest_chat_settings).
           Self-positions fixed bottom-right, so DOM placement here is logical. */}
-      {/* Storefront Book now / Buy — armed when a seller tenant resolved. */}
-      {slotTenantId ? (
-        <ProfileInstantBookingMount
-          tenantId={slotTenantId}
-          talentProfileId={profile.id}
-          sourcePage={`/t/${profile.profile_code}`}
-          locale={locale}
-        />
-      ) : null}
+      <HubProfileBookingChrome platformHost={platformHost} tenantId={slotTenantId} talentProfileId={profile.id} sourcePage={`/t/${profile.profile_code}`} locale={locale} bookEntry={hubBookEntry} />
       {!isModal ? <TalentIntakeSurfaces askEntry={talentAskEntry} switches={talentSwitches} agencyChatOn={guestChatSettings.enabled && guestChatSettings.showOnTalent} agencyGreeting={guestChatSettings.greeting} launcher={{ talentProfileId: profile.id, talentProfileCode: profile.profile_code, talentDisplayName: name, tenantSlug: chatTenantSlug, tenantId: chatTenantId, agencyName: chatBrandName, accentColor: chatAccentColor, logoUrl: watermarkLogoUrl, sourcePage: profileSourcePage, locale, backgroundMode: chatBackgroundMode, omitPlatformBrand: Boolean(chatHub) }} /> : null}
     </>
   );
