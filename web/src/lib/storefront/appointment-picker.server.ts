@@ -39,14 +39,16 @@ import { commandIdempotentRunner } from "./idempotent";
 import { mapEngineRefusal } from "./refusals";
 import { publicOrigin, resolveStorefrontIdentity, storefrontLocale } from "./request-context";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { getRequestLocaleUrlSettings } from "@/i18n/tenant-url-locale";
 
 async function bind(locale: string | null | undefined): Promise<AppointmentPickerDeps | null> {
   const admin = createServiceRoleClient();
   if (!admin) return null;
-  const [identity, origin, lang] = await Promise.all([
+  const [identity, origin, lang, localeSettings] = await Promise.all([
     resolveStorefrontIdentity(),
     publicOrigin(),
     storefrontLocale(locale),
+    getRequestLocaleUrlSettings(),
   ]);
   return {
     admin,
@@ -54,6 +56,7 @@ async function bind(locale: string | null | undefined): Promise<AppointmentPicke
     identity,
     locale: lang,
     origin,
+    localeSettings,
     loadOfferings: (tenantId, lc) =>
       loadPublicBookableOfferings({ tenantId, locale: lc, host: { kind: "agency", tenantId } }),
     loadPortraits: async (tenantId, ids) => {

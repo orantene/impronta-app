@@ -18,8 +18,10 @@ import { headers } from "next/headers";
 
 import { getRequestLocale } from "@/i18n/request-locale";
 import { getGuestSessionKey } from "@/lib/guest-session";
+import { getPublicHostContext } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
+import { resolveTrustedPublicOrigin } from "@/lib/storefront/trusted-public-origin";
 
 export type StorefrontIdentity = {
   /** The middleware guest id, or null when the request carried none. */
@@ -58,14 +60,23 @@ export async function resolveStorefrontIdentity(): Promise<StorefrontIdentity> {
   return { guestKey, userId: null, email: null, displayName: null };
 }
 
-/** `https://host` for this request; null when the host header is missing. */
+/**
+ * `https://host` for this request; null when no trusted host is available.
+ *
+ * Uses the middleware-stamped hostname (agency_domains gate) and the `Host`
+ * header — never an unvalidated `x-forwarded-host` alone (TUL-350 / money
+ * open-redirect review).
+ */
 export async function publicOrigin(): Promise<string | null> {
   try {
     const h = await headers();
-    const host = h.get("x-forwarded-host") ?? h.get("host") ?? "";
-    if (!host) return null;
-    const proto = h.get("x-forwarded-proto") ?? "https";
-    return `${proto}://${host}`;
+    const ctx = await getPublicHostContext();
+    return resolveTrustedPublicOrigin({
+      stampedHostname: ctx.hostname,
+      hostHeader: h.get("host"),
+      forwardedHost: h.get("x-forwarded-host"),
+      proto: h.get("x-forwarded-proto"),
+    });
   } catch (error) {
     logServerError("storefront.origin", error);
     return null;

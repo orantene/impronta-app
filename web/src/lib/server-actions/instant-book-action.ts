@@ -8,11 +8,13 @@
  * service-role client (auth.role() = service_role).
  */
 
-import { headers } from "next/headers";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { getRequestLocaleUrlSettings } from "@/i18n/tenant-url-locale";
+import { buildCheckoutReturnUrls } from "@/lib/payments/checkout-return-urls";
 import { createCheckoutSessionForTransaction } from "@/lib/payments/stripe-checkout";
+import { publicOrigin } from "@/lib/storefront/request-context";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
 import {
   convertClientForActor,
@@ -185,10 +187,34 @@ export async function createInstantBookingAction(
         }
         let checkoutUrl: string | null = null;
         if (booked.collectCents > 0 && booked.transactionId && booked.bookingId) {
-          const hdrs = await headers();
-          const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "localhost";
-          const proto = hdrs.get("x-forwarded-proto") ?? "https";
-          const origin = process.env.NEXT_PUBLIC_BASE_URL ?? `${proto}://${host}`;
+          // TUL-350 slice 1: return to the host + locale the guest paid from,
+          // never NEXT_PUBLIC_BASE_URL (that dropped talent branding).
+          const origin = await publicOrigin();
+          if (!origin) {
+            // Booking + hold already placed; without an origin nobody can pay.
+            // Unwind the same way as a refused Stripe session.
+            const admin = createServiceRoleClient();
+            if (admin) {
+              await unwindFailedCheckout(admin, {
+                orderId: booked.orderId,
+                transactionId: booked.transactionId,
+                allocationIds: booked.allocationIds,
+                reservationHoldId: booked.reservationHoldId,
+                why: "checkout_origin_unavailable",
+              });
+            }
+            return {
+              ok: false as const,
+              reason: "engine_error" as const,
+              error: "Could not open payment.",
+            };
+          }
+          const localeSettings = await getRequestLocaleUrlSettings();
+          const { successUrl, cancelUrl } = buildCheckoutReturnUrls({
+            origin,
+            locale: bookingLocale,
+            localeSettings,
+          });
           const session = await createCheckoutSessionForTransaction({
             transactionId: booked.transactionId,
             amountCents: booked.collectCents,
@@ -203,8 +229,8 @@ export async function createInstantBookingAction(
             bookingId: booked.bookingId,
             // Stripe fills the session id; /checkout/success reads the
             // transaction it paid and only says paid once it is settled.
-            successUrl: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-            cancelUrl: `${origin}/checkout/cancel`,
+            successUrl,
+            cancelUrl,
             description: "Booking deposit",
             locale: bookingLocale,
           });
