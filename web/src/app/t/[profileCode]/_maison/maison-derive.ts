@@ -11,6 +11,7 @@
  */
 
 import type { TalentOffering } from "@/lib/talent/offerings-types";
+import { isTestServiceOffering } from "@/lib/talent/qa-test-service";
 
 import type { MaisonContent } from "./maison-content";
 import type { MaisonShot } from "./MaisonGallery";
@@ -148,7 +149,9 @@ export function publicOfferings(offerings: TalentOffering[]): TalentOffering[] {
       (o) =>
         o.status === "published" &&
         o.moderationState === "approved" &&
-        o.visibility !== "agency_only",
+        o.visibility !== "agency_only" &&
+        // TUL-537: same strip as services_catalog / loadPublicOfferingsForProfile.
+        !isTestServiceOffering(o),
     )
     .sort((a, b) => a.sortOrder - b.sortOrder);
 }
