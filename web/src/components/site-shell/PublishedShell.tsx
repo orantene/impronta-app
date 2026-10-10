@@ -2,24 +2,12 @@
  * Phase B.1 — `<PublishedShell>` wrapper.
  *
  * Server Component. Wraps a page body with the tenant's snapshot-rendered
- * header + footer when the site-shell feature flag is on AND the tenant has
- * a published shell row. Falls back to rendering the children alone (no
- * header/footer) when either gate is closed; the calling layout still has
- * `PublicHeader` mounted around it, which means:
- *
- *   - Default tenants (flag off OR no shell) get the existing
- *     `PublicHeader` + body + existing footer (no behavior change).
- *   - Opted-in tenants with a published shell get the snapshot-rendered
- *     header + body + snapshot-rendered footer; the calling layout MUST
- *     un-mount `PublicHeader` to avoid double-headers.
- *
- * Phase B.2 wires the un-mount logic into `agency-home-storefront.tsx`.
- * For B.1, this component is built but never reached at runtime — the
- * feature flag in `site-shell-flag.ts` defaults to "off".
- *
- * Renders the snapshot via the same `getSectionType()` lookup the homepage
- * composer uses, so theming, presentation tokens, and layout tokens behave
- * identically to body sections.
+ * header + footer when the site-shell flag is on AND a published shell exists.
+ * Otherwise renders children alone (caller still mounts `PublicHeader`):
+ *   - Flag off / no shell → existing PublicHeader + body + footer.
+ *   - Opted-in with shell → snapshot header/footer; caller must un-mount PublicHeader.
+ * Phase B.2 wires that un-mount into `agency-home-storefront.tsx`.
+ * Snapshot sections use `getSectionType()` like the homepage composer.
  */
 
 import { Fragment } from "react";
@@ -74,7 +62,7 @@ import {
 import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
 import type { Locale } from "@/i18n/config";
 import { getPublicPathPrefix } from "@/lib/saas";
-import { prefixPublicHrefsDeep } from "@/lib/saas/public-hrefs";
+import { publishedShellLandmarkProps } from "./published-shell-landmark-props";
 
 interface Props {
   tenantId: string;
@@ -293,7 +281,8 @@ async function renderShellSlot(
   const sectionEjected = builderSectionNode?.props.ejected === true;
   // Inline `sectionProps` on the landmark node wins over the slot row — the same
   // precedence the freeform path uses. See `resolveShellLandmarkSectionProps`.
-  const props = prefixPublicHrefsDeep(
+  const props = publishedShellLandmarkProps(
+    slot.sectionTypeKey,
     resolveShellLandmarkSectionProps(builderSectionNode, slot),
     publicPathPrefix,
   );
@@ -730,8 +719,11 @@ function renderFreeformShellLandmark({
     sortOrder: node.props.sortOrder,
   });
   const slot = addressKey ? slotByAddress.get(addressKey) : undefined;
-  const rawProps = resolveShellLandmarkSectionProps(node, slot);
-  const props = prefixPublicHrefsDeep(rawProps, publicPathPrefix);
+  const props = publishedShellLandmarkProps(
+    sectionTypeKey,
+    resolveShellLandmarkSectionProps(node, slot),
+    publicPathPrefix,
+  );
   const sectionId = slot?.sectionId ?? node.props.sectionId ?? node.id;
   const children = node.children ?? [];
   const roleBindingResult = buildBuilderNodeRoleBindings(
