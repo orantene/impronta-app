@@ -16,7 +16,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import { translatorFor } from "@/i18n/use-t";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 import { BACK, initialMachineState, reduceMachine, type MachineErrorCode } from "@/lib/onboarding/machine";
-import { CHOOSE_COPY, FLOW_TOTAL, flowStepOf, type FlowLocale } from "@/lib/onboarding/flow";
+import { CHOOSE_COPY, FLOW_TOTAL, flowStepOf, urlChoiceBeatsGuestDraft, type FlowLocale } from "@/lib/onboarding/flow";
 import type { VisualDirection } from "@/lib/onboarding/module-state";
 import type { ModuleStep, OnboardingIntent } from "@/lib/onboarding/module-state";
 import {
@@ -306,12 +306,21 @@ export function OnboardingModule({
   }, [isPage, state.resume, state.isAuthenticated]);
   const startChoiceAppliedRef = useRef(false);
   useEffect(() => {
-    if (!isPage || !startChoice || startChoiceAppliedRef.current || state.step !== "choose" || state.choice || state.resume) return;
-    // Wait for the resume lookup: a saved choice and step win over the URL.
+    if (!isPage || !startChoice || startChoiceAppliedRef.current || state.step !== "choose" || state.choice) return;
+    // Wait for the resume lookup before deciding.
     if (!resumeChecked) return;
+    // GRK-102: a marketing CTA's explicit `?choice=` wins over a guest draft
+    // ("Bienvenido de nuevo"). Signed-in owners still resume where they left off.
+    if (state.resume) {
+      if (!urlChoiceBeatsGuestDraft({ hasUrlChoice: true, hasResume: true, isAuthenticated: state.isAuthenticated })) {
+        return;
+      }
+      dispatch({ type: "resumeFresh" });
+      void resetOnboardingDraft();
+    }
     startChoiceAppliedRef.current = true;
     void chooseHow(startChoice);
-  }, [isPage, startChoice, resumeChecked, state.step, state.choice, state.resume, chooseHow]);
+  }, [isPage, startChoice, resumeChecked, state.step, state.choice, state.resume, state.isAuthenticated, chooseHow]);
 
   const saveEssentials = useCallback(async (a: EssentialsAnswer) => {
     dispatch({ type: "sendStarted" });
