@@ -103,6 +103,9 @@ export const WEBSITE_ES_TEXT: Record<string, string> = {
   "Point a domain you already own at your website.": "Apunta un dominio que ya tengas a tu sitio.",
   "Ask Tulala to help finish domain setup.": "Pide a Tulala que te ayude a terminar la configuración del dominio.",
   "Payment received. We are registering and attaching your domain.": "Pago recibido. Estamos registrando y conectando tu dominio.",
+  "No DNS steps for you. Domains bought here go live automatically once registration finishes.":
+    "No tienes que configurar DNS. Los dominios comprados aquí quedan en vivo solos cuando termina el registro.",
+  "Bought through Tulala. No DNS setup needed.": "Comprado con Tulala. No hace falta configurar DNS.",
   "This usually finishes within a few minutes. You can close this drawer and check the Custom domain row.": "Suele terminar en unos minutos. Puedes cerrar este panel y revisar la fila de Dominio personalizado.",
   "View domain status": "Ver estado del dominio",
   "Tell us the domain and anything we should know.": "Cuéntanos el dominio y lo que debamos saber.",

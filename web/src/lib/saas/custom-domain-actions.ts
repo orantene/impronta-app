@@ -360,6 +360,98 @@ export async function ensureCustomDomainOnVercelProject(
   };
 }
 
+/**
+ * Ask Vercel to re-check project-domain ownership
+ * (`POST /v9/projects/{id}/domains/{hostname}/verify`). Used after attach for
+ * registrar-purchased hosts (Vercel DNS) so fulfillment can mark the row active
+ * without a talent TXT step.
+ */
+export async function verifyCustomDomainOnVercelProject(
+  hostname: string,
+  options: {
+    env?: EnvLike;
+    fetchFn?: FetchLike;
+  } = {},
+): Promise<VercelDomainSyncResult> {
+  const config = readVercelDomainApiConfig(options.env);
+  if (!config) {
+    return {
+      attempted: false,
+      attached: false,
+      verified: null,
+      alreadyExists: false,
+      skippedReason: "VERCEL_API_TOKEN/VERCEL_TOKEN or VERCEL_PROJECT_ID is not configured.",
+      errorCode: null,
+      errorMessage: null,
+      challenges: [],
+    };
+  }
+
+  const fetchFn = options.fetchFn ?? fetch;
+  const query = vercelQuery(config);
+  const verifyUrl = `https://api.vercel.com${vercelDomainPath(config.projectId, hostname)}/verify${query}`;
+
+  let response: Response;
+  try {
+    response = await fetchFn(verifyUrl, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${config.token}`,
+      },
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "TimeoutError") {
+      return {
+        attempted: true,
+        attached: false,
+        verified: null,
+        alreadyExists: false,
+        skippedReason: null,
+        errorCode: "timeout",
+        errorMessage: "Vercel API timed out",
+        challenges: [],
+      };
+    }
+    return {
+      attempted: true,
+      attached: false,
+      verified: null,
+      alreadyExists: false,
+      skippedReason: null,
+      errorCode: "network_error",
+      errorMessage: error instanceof Error ? error.message : "Network error",
+      challenges: [],
+    };
+  }
+
+  if (response.ok) {
+    const payload = (await response.json()) as VercelDomainPayload;
+    return {
+      attempted: true,
+      attached: true,
+      verified: typeof payload.verified === "boolean" ? payload.verified : null,
+      alreadyExists: false,
+      skippedReason: null,
+      errorCode: null,
+      errorMessage: null,
+      challenges: normalizeVercelChallenges(payload),
+    };
+  }
+
+  const err = await parseVercelError(response);
+  return {
+    attempted: true,
+    attached: false,
+    verified: null,
+    alreadyExists: false,
+    skippedReason: null,
+    errorCode: err.code ?? `http_${response.status}`,
+    errorMessage: err.message ?? "Could not verify domain on Vercel project.",
+    challenges: [],
+  };
+}
+
 export async function removeCustomDomainFromVercelProject(
   hostname: string,
   options: {

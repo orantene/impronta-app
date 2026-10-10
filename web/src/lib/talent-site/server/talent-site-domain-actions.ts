@@ -53,6 +53,8 @@ export type TalentSiteDomainView = {
   domain: string;
   status: TalentSiteDomainRecord["status"];
   isPrimary: boolean;
+  /** How the domain was obtained; purchased hosts need no DNS steps. */
+  acquisition: TalentSiteDomainRecord["acquisition"];
   verificationToken: string | null;
   failureReason: string | null;
   verifiedAt: string | null;
@@ -77,19 +79,23 @@ function txtRecordHostFor(domain: string): string {
 
 function toView(row: TalentSiteDomainRecord): TalentSiteDomainView {
   const isLive = row.status === "active";
+  // Purchased domains sit on Vercel DNS — never surface DIY TXT / routing cards.
+  const purchased = row.acquisition === "purchased";
   return {
     domain: row.domain,
     status: row.status,
     isPrimary: row.isPrimary,
-    verificationToken: row.verificationToken,
+    acquisition: row.acquisition,
+    verificationToken: purchased ? null : row.verificationToken,
     failureReason: row.failureReason,
     verifiedAt: row.verifiedAt,
     sslProvisionedAt: row.sslProvisionedAt,
     lastHealthCheckAt: row.lastHealthCheckAt,
-    routingRecords: buildCustomDomainRoutingRecords(row.domain),
-    txtRecord: row.verificationToken
-      ? { host: txtRecordHostFor(row.domain), value: row.verificationToken }
-      : null,
+    routingRecords: purchased ? [] : buildCustomDomainRoutingRecords(row.domain),
+    txtRecord:
+      purchased || !row.verificationToken
+        ? null
+        : { host: txtRecordHostFor(row.domain), value: row.verificationToken },
     canBecomePrimary: !row.isPrimary && isLive,
   };
 }

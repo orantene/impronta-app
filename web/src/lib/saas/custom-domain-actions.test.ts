@@ -8,6 +8,7 @@ import {
   removeCustomDomainFromVercelProject,
   resolveDomainProvisioningTransition,
   resolveDomainVerificationTransition,
+  verifyCustomDomainOnVercelProject,
 } from "./custom-domain-actions";
 import {
   buildCustomDomainRoutingRecords,
@@ -278,6 +279,40 @@ test("ensureCustomDomainOnVercelProject treats already-existing domains as attac
   assert.equal(result.alreadyExists, true);
   assert.equal(result.verified, false);
   assert.equal(result.challenges.length, 1);
+});
+
+test("verifyCustomDomainOnVercelProject posts /verify and reports verified", async () => {
+  const calls: Array<{ url: string; method: string }> = [];
+  const fetchFn = async (input: string | URL, init?: RequestInit) => {
+    calls.push({ url: String(input), method: init?.method ?? "GET" });
+    return new Response(JSON.stringify({ verified: true }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  };
+
+  const result = await verifyCustomDomainOnVercelProject("brand.example", {
+    env: {
+      VERCEL_API_TOKEN: "token",
+      VERCEL_PROJECT_ID: "project",
+    },
+    fetchFn,
+  });
+
+  assert.equal(result.attempted, true);
+  assert.equal(result.attached, true);
+  assert.equal(result.verified, true);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]?.method, "POST");
+  assert.match(calls[0]?.url ?? "", /\/domains\/brand\.example\/verify/);
+});
+
+test("verifyCustomDomainOnVercelProject skips when Vercel env is missing", async () => {
+  const result = await verifyCustomDomainOnVercelProject("brand.example", {
+    env: {},
+  });
+  assert.equal(result.attempted, false);
+  assert.equal(result.verified, null);
 });
 
 test("removeCustomDomainFromVercelProject skips when Vercel env is missing", async () => {
