@@ -134,6 +134,6 @@ test("copy: conflict notice and draft chip in EN + ES, no em dashes", () => {
   assert.equal(pick(CONFLICT_COPY, "en"), "Updated in another tab · Reload");
   assert.equal(pick(CONFLICT_COPY, "es-MX"), "Actualizado en otra pestaña · Recargar");
   assert.equal(pick(unpublishedChangesLabel(1), "en"), "Draft · 1 unpublished change");
-  assert.equal(pick(unpublishedChangesLabel(3), "es"), "Borrador · 3 cambios sin publicar");
+  assert.equal(pick(unpublishedChangesLabel(3), "es"), "Borrador · 3 sin publicar");
   assert.equal(/—/.test(JSON.stringify([CONFLICT_COPY, unpublishedChangesLabel(2)])), false);
 });
