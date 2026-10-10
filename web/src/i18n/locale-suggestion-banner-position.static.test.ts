@@ -51,6 +51,11 @@ test("TUL-560: the toast waits for the cookie card, and yields to modals, chat a
   assert.match(CATALOG_BOOKING_CSS, /body:has\(\.cb-dock\[data-show="true"\]\) \[data-locale-suggestion\]/);
 });
 
+test("TUL-560: the chat launcher does not jump when the toast appears", () => {
+  const launcherLift = readFileSync(join(root, "app/t/[profileCode]/_chat/use-yield-booking-bar.ts"), "utf8");
+  assert.doesNotMatch(launcherLift, /querySelector[^;]*data-locale-suggestion/);
+});
+
 test("TUL-560: the demo badge sits bottom-right, clears the phone chat launcher, and gives way to the toast", () => {
   assert.match(FLOATING_CHROME_STACK_CSS, /\[data-demo-badge\]\{position:fixed;right:max\(16px,[^}]*bottom:calc\(var\(--floating-chrome-bottom\) \+ 12px\)/);
   assert.doesNotMatch(FLOATING_CHROME_STACK_CSS, /\[data-demo-badge\]\{[^}]*\b(top|left):/);
