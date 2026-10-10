@@ -52,10 +52,9 @@ export function GalleryDesignCard({
   const appChip = cardApps.length ? `🧩 ${appNames(cardApps, locale)}` : null;
   const chips = [trade, langs, demosChip, appChip].filter(Boolean) as string[];
   const tip = d.description[locale];
-  const demoParam =
-    demo && demo.status === "built" && demo.source.kind === "demo-talent"
-      ? `${d.slug}:${demo.key}`
-      : null;
+  // W5-8 / TUL-519: browse cards promise "with your photos and services" — never
+  // pass ?demo= here. The owner's talentProfileId on useThemePreview hydrates
+  // her content; Demo mode stays on Theme detail via the content toggle.
 
   return (
     <article
@@ -91,11 +90,7 @@ export function GalleryDesignCard({
         >
           <ThemeGalleryPreviewFrame
             preview={preview}
-            url={preview.src(
-              d.slug,
-              galleryPreviewLookSlug(d, demo?.defaultPalette),
-              demoParam,
-            )}
+            url={preview.src(d.slug, galleryPreviewLookSlug(d, demo?.defaultPalette))}
             locale={locale}
             title={d.name}
             virtualWidth={1280}

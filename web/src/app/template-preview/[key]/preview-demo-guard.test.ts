@@ -86,7 +86,8 @@ test("theme preview renders with no tenant, so services_catalog booking is demo"
     "utf8",
   );
   assert.match(mine, /catalogBookingLive: false/);
-  assert.match(preview, /<ThemeTokenPreviewFrame initialTokens=\{effectiveTokens\} locale=/);
+  assert.match(preview, /<ThemeTokenPreviewFrame/);
+  assert.match(preview, /previewContent=\{demoSource \? "demo" : "mine"\}/);
   const render = readFileSync(
     join(process.cwd(), "src/lib/site-admin/builder-node/render.tsx"),
     "utf8",

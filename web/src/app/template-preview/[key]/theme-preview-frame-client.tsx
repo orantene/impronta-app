@@ -23,12 +23,15 @@ export function ThemeTokenPreviewFrame({
   initialTokens,
   locale = "en",
   designSlug,
+  /** W5-8: Folio masthead DEMO pill only when previewing demo packs, not My content. */
+  previewContent = "mine",
   children,
 }: {
   initialTokens: Record<string, string>;
   locale?: "en" | "es";
   /** The Design slug (a marker; its token defaults come from `design-type-system.ts`). */
   designSlug?: string;
+  previewContent?: "demo" | "mine";
   children: React.ReactNode;
 }) {
   const [tokens, setTokens] = useState(initialTokens);
@@ -88,6 +91,7 @@ export function ThemeTokenPreviewFrame({
     <div
       data-theme-canvas-root=""
       data-talent-theme-preview=""
+      data-preview-content={previewContent}
       {...(designSlug ? { "data-talent-design": designSlug } : {})}
       {...dataAttrs}
       style={{

@@ -9,15 +9,18 @@ import {
 } from "./maison-choices";
 
 describe("maison-choices", () => {
-  it("defaults to gallery + pink demo preview", () => {
+  it("defaults to gallery + pink + My content preview (W5-8)", () => {
     const d = defaultMaisonChoices();
     assert.equal(d.screen, "gallery");
     assert.equal(d.paletteKey, "pink");
-    assert.equal(d.contentMode, "demo");
+    assert.equal(d.contentMode, "mine");
     assert.equal(d.status, "Preview");
     assert.equal(d.phoneSheet, null);
     assert.equal(d.useCustomPalette, false);
     assert.equal(d.customPalette, null);
+    // Missing contentMode must not flip back to demo.
+    assert.equal(parseMaisonChoices({ screen: "gallery" }).contentMode, "mine");
+    assert.equal(parseMaisonChoices({ contentMode: "demo" }).contentMode, "demo");
   });
 
   it("resumes detail + lilac + mine (W33)", () => {

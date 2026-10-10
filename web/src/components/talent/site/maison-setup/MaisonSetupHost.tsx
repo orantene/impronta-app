@@ -160,9 +160,10 @@ export function MaisonSetupHost({
         ...prev,
         screen: forceScreen,
         phoneSheet: null,
-        // Wave 3: browsing the gallery defaults to Demo so cards change the preview.
+        // W5-8 / TUL-519: gallery + detail open on My content (her photos/services).
+        // Demo mode remains available via the Theme detail toggle.
         ...(forceScreen === "detail" || forceScreen === "gallery"
-          ? { contentMode: "demo" as const }
+          ? { contentMode: "mine" as const }
           : {}),
         // Wave 4: presence Apps tile opens the library, not a stale app page.
         ...(forceScreen === "apps" ? { appId: null } : {}),
