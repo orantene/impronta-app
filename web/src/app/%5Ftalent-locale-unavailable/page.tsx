@@ -4,26 +4,38 @@
  * Talent hosts rewrite here when the URL carries a platform locale the talent
  * does not publish (e.g. `/en` on a Spanish-only demo). Explicit, not a silent
  * redirect to the Spanish home. Whitelisted in the proxy short-circuit.
+ *
+ * `?requested=` is the prefix the visitor asked for (set by the host rewrite);
+ * the request locale header is the site's own language.
  */
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { talentLocaleUnavailableCopy } from "@/lib/saas/talent-locale-unavailable-copy";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const locale = await getRequestLocale();
-  const copy = talentLocaleUnavailableCopy(locale);
+type Props = { searchParams: Promise<{ requested?: string | string[] }> };
+
+async function copyFor(props: Props) {
+  const { requested } = await props.searchParams;
+  return talentLocaleUnavailableCopy({
+    requested: Array.isArray(requested) ? requested[0] : requested,
+    site: await getRequestLocale(),
+  });
+}
+
+export async function generateMetadata(props: Props): Promise<Metadata> {
+  const copy = await copyFor(props);
   return {
     title: { absolute: copy.title },
     robots: { index: false, follow: false },
   };
 }
 
-export default async function TalentLocaleUnavailablePage() {
-  const locale = await getRequestLocale();
-  const copy = talentLocaleUnavailableCopy(locale);
+export default async function TalentLocaleUnavailablePage(props: Props) {
+  const copy = await copyFor(props);
   return (
     <div
+      lang={copy.lang}
       style={{
         minHeight: "100dvh",
         display: "flex",
@@ -68,6 +80,21 @@ export default async function TalentLocaleUnavailablePage() {
         >
           {copy.body}
         </p>
+        {copy.siteLine ? (
+          <p
+            lang={copy.siteLine.lang}
+            style={{
+              fontFamily: '"Inter", system-ui, sans-serif',
+              fontSize: 12.5,
+              color: "rgba(11,11,13,0.50)",
+              lineHeight: 1.5,
+              marginTop: 8,
+              marginBottom: 0,
+            }}
+          >
+            {copy.siteLine.text}
+          </p>
+        ) : null}
         <div style={{ marginTop: 24 }}>
           <Link
             href="/"

@@ -123,8 +123,11 @@ export async function talentSiteHostResponse(
     talentLocale.unsupportedLocale &&
     (request.method === "GET" || request.method === "HEAD")
   ) {
+    const notice = new URL("/_talent-locale-unavailable", request.url);
+    notice.search = "";
+    notice.searchParams.set("requested", talentLocale.unsupportedLocale);
     return rememberChoice(
-      NextResponse.rewrite(new URL("/_talent-locale-unavailable", request.url), {
+      NextResponse.rewrite(notice, {
         request: { headers: talentHeaders },
       }),
     );
