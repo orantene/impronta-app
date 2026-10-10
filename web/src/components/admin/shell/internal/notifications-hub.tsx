@@ -3,19 +3,16 @@
 /**
  * Notifications hub — centralized dropdown anchored to the bell icon.
  *
- * Replaces the bell-opens-drawer pattern with a popover that surfaces
- * actionable items inline. Three sections:
- *   • Action needed — approvals, pending offers, expired invites
- *   • Updates       — new inquiries, replies, payments
- *   • System        — plan limits, billing reminders
+ * TUL-390: category tabs (Messages / Money / Attention / Updates), dual
+ * Talent|Admin owner tabs when `alsoTalent`, and >8 items → "See all"
+ * opens the notification center drawer (light-07 NotificationsDrawer /
+ * TalentNotificationsDrawer). Empty state + prefs footer kept.
  *
  * Uses native `popover` attribute (browser handles outside-click + Esc
  * + a11y). Falls back gracefully on older browsers.
  *
- * TUL-389: read state for real rows is `user_notifications.read_at`
- * (mapped to `UserNotification.read` by the data-bridge). localStorage
- * is no longer the source of truth for unread badges. A one-shot mount
- * migrates any leftover `tulala_notif_read_v1` ids onto server `read_at`.
+ * Read state lives in localStorage (`tulala_notif_read_v1`) so dismissed
+ * items don't reappear after page reload. (TUL-389 moves this to read_at.)
  */
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
@@ -26,32 +23,35 @@ import { useDashboardText } from "./dashboard-i18n";
 import { formatNotificationAge, localizeNotificationText } from "./notification-localize";
 import type { UserNotification } from "./data-bridge";
 import {
-  countUnreadRealNotifications,
   hubClickTarget,
   scopeRealNotifications,
   staffQueuesVisible,
 } from "./notification-hub-scope";
 import {
-  uiCategoryForKind,
-  type NotificationUiCategory,
-} from "@/lib/notifications/categories-ui";
+  HUB_CATEGORY_LABEL,
+  HUB_OWNER_LABEL,
+  HUB_UI_CATEGORIES,
+  hubUiCategoryForKind,
+  notificationCenterDrawerId,
+  selectPopoverList,
+  type HubOwnerSurface,
+  type HubUiCategory,
+} from "./notification-hub-popover";
 import {
   markAllAdminNotificationsRead,
   markAdminNotificationRead,
 } from "@/lib/notifications/admin-notifications-actions";
-import { markNotificationsRead } from "@/lib/notifications/my-notifications-actions";
-import {
-  LEGACY_NOTIF_READ_KEY,
-  parseLegacyReadIdSet,
-  realNotificationIdsFromLegacyReadIds,
-} from "@/lib/notifications/migrate-local-read";
+import { cn } from "@/lib/utils";
 
-/** Display section for the popover (TUL-390 will replace with category tabs).
- *  Derived from the shared kind→UI-category map so bubbles and the hub agree. */
+/** Bucket inference from the structured `kind` column on user_notifications.
+ *  - approval, offer (when awaiting decision) → action
+ *  - payment, plan, system → system
+ *  - everything else (message, booking confirm, profile) → update */
 function bucketForKind(kind: UserNotification["kind"]): "action" | "update" | "system" {
-  const cat = uiCategoryForKind(kind);
-  if (cat === "attention") return "action";
-  if (cat === "money" || cat === "updates") return "system";
+  if (kind === "approval") return "action";
+  if (kind === "system") return "system";
+  if (kind === "payment") return "system";
+  // 'message' / 'offer' / 'booking' / 'profile' → update (recap, not blocking)
   return "update";
 }
 
@@ -72,18 +72,18 @@ function iconForKind(kind: UserNotification["kind"]): string {
 export type HubItem = {
   id: string;
   bucket: "action" | "update" | "system";
-  /** UI category from the shared kind map (TUL-389); used by bubble filters. */
-  category?: NotificationUiCategory;
-  /** True when the row's server `read_at` is set (or just optimistically marked). */
-  read: boolean;
+  /** UI category for TUL-390 popover tabs (mirrors TUL-389 categories-ui). */
+  category: HubUiCategory;
+  /** Dual-owner tab: Admin (workspace) vs Talent. */
+  owner: HubOwnerSurface;
   icon: string;        // emoji or short symbol
   title: string;
   body: string;
-  whenLabel: string;   // already-formatted relative time
+  whenLabel: string;   // already-formatted relative time (Intl, 24h-friendly)
   cta?: { label: string; run: () => void };
 };
 
-/** Dismiss stays local-only (no dismiss column). Read state is server `read_at`. */
+const READ_KEY = "tulala_notif_read_v1";
 const DISMISSED_KEY = "tulala_notif_dismissed_v1";
 
 function escapeCssIdent(value: string): string {
@@ -121,6 +121,8 @@ export function NotificationsBell({
   size?: "sm" | "md";
 }) {
   const { state, openDrawer, pendingTalent, bridgeUserNotifications, adminBasePath } = useAdminShell();
+  const [categoryTab, setCategoryTab] = useState<HubUiCategory | "all">("all");
+  const [ownerTab, setOwnerTab] = useState<HubOwnerSurface | "all">("all");
   const realNotifications = useMemo(
     () => (bridgeUserNotifications ? scopeRealNotifications(bridgeUserNotifications, state.surface) : null),
     [bridgeUserNotifications, state.surface],
@@ -130,37 +132,39 @@ export function NotificationsBell({
   const popoverId = useId();
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
-  // Optimistic reads for the current session only — server `read_at` is the
-  // source of truth after the next layout reload. Fixture-mode rows (no
-  // server id) also use this set. TUL-109: start empty so SSR + first paint
-  // match (a lazy localStorage read here caused React #418).
-  const [optimisticRead, setOptimisticRead] = useState<Set<string>>(() => new Set());
+  // TUL-109: start empty so the server pass and the first client pass render
+  // the same unread badge; the stored sets are merged in after mount. A lazy
+  // localStorage initializer here was a React #418 on every page with the bell.
+  const [readSetState, setReadSetState] = useState<Set<string>>(() => new Set());
   const [dismissedState, setDismissedState] = useState<Set<string>>(() => new Set());
+  // Declared before the read_at seed effect below so its writeSet merges onto
+  // the loaded set, not an empty one.
   useEffect(() => {
+    const stored = readSet(READ_KEY);
+    if (stored.size > 0) setReadSetState((prev) => new Set([...prev, ...stored]));
     const gone = readSet(DISMISSED_KEY);
     if (gone.size > 0) setDismissedState((prev) => new Set([...prev, ...gone]));
-
-    // One-shot: flush pre-TUL-389 localStorage reads onto server `read_at`
-    // so cutover does not resurrect unread badges. Clear the key immediately
-    // so this never re-runs (same fire-and-forget tolerance as mark-all-read).
-    try {
-      const raw = window.localStorage.getItem(LEGACY_NOTIF_READ_KEY);
-      const legacy = parseLegacyReadIdSet(raw);
-      if (legacy.size === 0) {
-        if (raw !== null) window.localStorage.removeItem(LEGACY_NOTIF_READ_KEY);
-        return;
-      }
-      window.localStorage.removeItem(LEGACY_NOTIF_READ_KEY);
-      setOptimisticRead((prev) => new Set([...prev, ...legacy]));
-      const realIds = realNotificationIdsFromLegacyReadIds(legacy);
-      if (realIds.length > 0) {
-        void markNotificationsRead(realIds);
-      }
-    } catch {
-      // localStorage / mark failures must not break the bell.
-    }
   }, []);
   const [, force] = useState(0);
+
+  // A9 — seed the read-set with notifications whose row already has
+  // `read_at` set on the server (mapped to `read: true` by the loader).
+  // Otherwise opening the bell shows stale unread counts after a tab
+  // refresh.
+  useEffect(() => {
+    if (!realNotifications || realNotifications.length === 0) return;
+    const alreadyRead = realNotifications.filter((n) => n.read).map((n) => `notif-${n.id}`);
+    if (alreadyRead.length === 0) return;
+    setReadSetState((prev) => {
+      let changed = false;
+      const next = new Set(prev);
+      for (const id of alreadyRead) {
+        if (!next.has(id)) { next.add(id); changed = true; }
+      }
+      if (changed) writeSet(READ_KEY, next);
+      return changed ? next : prev;
+    });
+  }, [realNotifications]);
 
   // Native popover="auto" places the element in the browser's top layer,
   // so position:absolute relative to its DOM parent no longer applies.
@@ -234,12 +238,11 @@ export function NotificationsBell({
     // Action: pending approvals — derived from shell state, NOT routed
     // notifications. Stays regardless of which mode we're in.
     (staffQueues ? pendingTalent : []).forEach((p) => {
-      const id = `pending-${p.id}`;
       out.push({
-        id,
+        id: `pending-${p.id}`,
         bucket: "action",
         category: "attention",
-        read: optimisticRead.has(id),
+        owner: "admin",
         icon: "👤",
         title: `${p.name} · ${copy.t("pending approval")}`,
         body: copy.isSpanish
@@ -252,14 +255,15 @@ export function NotificationsBell({
 
     if (useRealData) {
       // Real notifications path — one HubItem per `user_notifications` row.
-      // Read comes from server `read_at` (+ optimistic session marks).
+      // Bucket inferred from `kind`; icon picked from a small vocab.
+      // ID prefix keeps these in their own namespace so localStorage
+      // read/dismissed sets don't collide with fixture items.
       for (const n of realNotifications!) {
-        const id = `notif-${n.id}`;
         out.push({
-          id,
+          id: `notif-${n.id}`,
           bucket: bucketForKind(n.kind),
-          category: uiCategoryForKind(n.kind),
-          read: n.read || optimisticRead.has(id) || optimisticRead.has(n.id),
+          category: hubUiCategoryForKind(n.kind),
+          owner: n.surface === "talent" ? "talent" : "admin",
           icon: iconForKind(n.kind),
           title: localizeNotificationText(n.title, copy.locale),
           body: localizeNotificationText(n.body ?? "", copy.locale),
@@ -271,12 +275,11 @@ export function NotificationsBell({
       // Legacy fixture-mode (dev dashboards / synthetic data demos).
       // Brand-new (unseen) inquiries from MOCK_CONVERSATIONS + RICH_INQUIRIES.
       MOCK_CONVERSATIONS.filter(c => c.seen === false).forEach(c => {
-        const id = `new-conv-${c.id}`;
         out.push({
-          id,
+          id: `new-conv-${c.id}`,
           bucket: "action",
           category: "attention",
-          read: optimisticRead.has(id),
+          owner: "admin",
           icon: "📥",
           title: `${copy.t("New inquiry")} · ${c.client}`,
           body: c.lastMessage.preview.slice(0, 90),
@@ -284,12 +287,11 @@ export function NotificationsBell({
         });
       });
       RICH_INQUIRIES.filter(i => i.seen === false).forEach(i => {
-        const id = `new-inq-${i.id}`;
         out.push({
-          id,
+          id: `new-inq-${i.id}`,
           bucket: "action",
           category: "attention",
-          read: optimisticRead.has(id),
+          owner: "admin",
           icon: "📥",
           title: `${copy.t("New inquiry")} · ${i.clientName}`,
           body: i.brief,
@@ -298,8 +300,7 @@ export function NotificationsBell({
       });
       // Demo "booking confirmed" item — only in legacy mode.
       out.push({
-        id: "rev-203", bucket: "update", category: "updates",
-        read: optimisticRead.has("rev-203"), icon: "✓",
+        id: "rev-203", bucket: "update", category: "updates", owner: "admin", icon: "✓",
         title: `${copy.t("Booking confirmed")} · Bvlgari`,
         body: copy.isSpanish
           ? `Kai Lin · 2 días · €3,200 · ${copy.t("payment cleared.")}`
@@ -311,10 +312,8 @@ export function NotificationsBell({
     // System: plan-cap nudge stays in both modes (it's not a notification,
     // it's a contextual prompt derived from the workspace plan).
     if (staffQueues && state.plan === "free") {
-      const id = "plan-cap";
       out.push({
-        id, bucket: "system", category: "updates",
-        read: optimisticRead.has(id), icon: "↑",
+        id: "plan-cap", bucket: "system", category: "updates", owner: "admin", icon: "↑",
         title: copy.t("4 of 5 talent slots used"),
         body: copy.t("You'll hit the Free cap with 1 more talent. Studio is €29/mo."),
         whenLabel: copy.t("ongoing"),
@@ -322,45 +321,38 @@ export function NotificationsBell({
       });
     }
     return out.filter(i => !dismissedState.has(i.id));
-  }, [copy, pendingTalent, state.plan, openDrawer, dismissedState, useRealData, realNotifications, staffQueues, hubCta, optimisticRead]);
+  }, [copy, pendingTalent, state.plan, openDrawer, dismissedState, useRealData, realNotifications, staffQueues, hubCta]);
 
-  // Real-path unread prefers the shared helper (read_at). Fixture / derived
-  // shell items fall back to HubItem.read. Dismissed real rows are excluded
-  // so the badge matches the popover list.
-  const totalUnread = useRealData
-    ? countUnreadRealNotifications(
-        (realNotifications ?? []).filter((n) => !dismissedState.has(`notif-${n.id}`)),
-        optimisticRead,
-      ) + items.filter((i) => !i.id.startsWith("notif-") && !i.read).length
-    : items.filter((i) => !i.read).length;
-  const unreadActionCount = items.filter((i) => i.bucket === "action" && !i.read).length;
+  const unreadActionCount = items.filter(i => i.bucket === "action" && !readSetState.has(i.id)).length;
+  const totalUnread = items.filter(i => !readSetState.has(i.id)).length;
 
-  // A9 — when an item is a real notification (`notif-<uuid>`), fire the
-  // server action so `read_at` persists. Fixture rows stay optimistic-only.
+  // A9 — when an item is a real notification (`notif-<uuid>`), also fire
+  // the server action to persist read state. Otherwise localStorage-only
+  // (legacy fixture items have no server-side row to update).
   const realNotifIdFromItemId = (id: string): string | null => {
     if (!id.startsWith("notif-")) return null;
     return id.slice("notif-".length);
   };
   const markRead = useCallback((id: string) => {
-    setOptimisticRead((prev) => {
-      if (prev.has(id)) return prev;
-      const next = new Set(prev);
-      next.add(id);
-      return next;
-    });
+    const next = new Set(readSetState);
+    next.add(id);
+    writeSet(READ_KEY, next);
+    setReadSetState(next);
     const realId = realNotifIdFromItemId(id);
     if (realId) {
       void markAdminNotificationRead(realId);
     }
-  }, []);
+  }, [readSetState]);
   const markAllRead = useCallback(() => {
-    setOptimisticRead((prev) => new Set([...prev, ...items.map((i) => i.id)]));
+    const next = new Set([...readSetState, ...items.map(i => i.id)]);
+    writeSet(READ_KEY, next);
+    setReadSetState(next);
     if (useRealData) {
       // Fire-and-forget bulk action — UI is already optimistic. Failures
-      // get re-shown on the next layout reload (read_at still null).
+      // get re-shown on the next layout reload.
       void markAllAdminNotificationsRead();
     }
-  }, [items, useRealData]);
+  }, [readSetState, items, useRealData]);
   const dismiss = useCallback((id: string) => {
     const next = new Set(dismissedState);
     next.add(id);
@@ -368,23 +360,25 @@ export function NotificationsBell({
     setDismissedState(next);
     // Dismiss = mark-read on the server side too (we treat dismissal as
     // the strongest form of "I've seen this and don't want to see it again").
-    setOptimisticRead((prev) => {
-      if (prev.has(id)) return prev;
-      const n = new Set(prev);
-      n.add(id);
-      return n;
-    });
     const realId = realNotifIdFromItemId(id);
     if (realId) {
       void markAdminNotificationRead(realId);
     }
   }, [dismissedState]);
 
-  // Group items by bucket for rendering
-  const grouped = {
-    action: items.filter(i => i.bucket === "action"),
-    update: items.filter(i => i.bucket === "update"),
-    system: items.filter(i => i.bucket === "system"),
+  // TUL-390 — category + dual-owner filters, then cap at 8 with See all.
+  const dualOwner = state.alsoTalent;
+  const list = selectPopoverList(items, {
+    category: categoryTab,
+    owner: dualOwner ? ownerTab : "all",
+  });
+  const openNotificationCenter = () => {
+    closePopover();
+    const drawerId = notificationCenterDrawerId(state.surface);
+    openDrawer(drawerId, {
+      category: categoryTab === "all" ? undefined : categoryTab,
+      owner: dualOwner && ownerTab !== "all" ? ownerTab : undefined,
+    });
   };
 
   const dim = size === "sm" ? 28 : 32;
@@ -470,39 +464,100 @@ export function NotificationsBell({
           )}
         </div>
 
+        {/* TUL-390 — dual owner tabs (hybrid users only) */}
+        {dualOwner && (
+          <div
+            role="tablist"
+            aria-label={copy.t("Workspace")}
+            data-tulala-notif-owner-tabs
+            className="flex gap-1 border-b border-admin-border-soft px-3 pt-2 font-admin-body"
+          >
+            {(["all", "admin", "talent"] as const).map((key) => {
+              const active = ownerTab === key;
+              const label = key === "all" ? copy.t("All") : copy.t(HUB_OWNER_LABEL[key]);
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setOwnerTab(key)}
+                  className={cn(
+                    "flex-1 cursor-pointer rounded-lg border-0 px-2 py-1.5 text-[11.5px]",
+                    active
+                      ? "bg-admin-indigo-soft font-bold text-admin-ink"
+                      : "bg-transparent font-medium text-admin-ink-muted",
+                  )}
+                >{label}</button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* TUL-390 — category tabs */}
+        <div
+          role="tablist"
+          aria-label={copy.t("Notifications")}
+          data-tulala-notif-category-tabs
+          className="flex flex-wrap gap-1 border-b border-admin-border-soft px-2.5 py-2 font-admin-body"
+        >
+          {(["all", ...HUB_UI_CATEGORIES] as const).map((key) => {
+            const active = categoryTab === key;
+            const label = key === "all" ? copy.t("All") : copy.t(HUB_CATEGORY_LABEL[key]);
+            return (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                data-notif-category-tab={key}
+                onClick={() => setCategoryTab(key)}
+                className={cn(
+                  "cursor-pointer rounded-full border-0 px-2.5 py-1 text-[11px]",
+                  active
+                    ? "bg-admin-fill font-bold text-white"
+                    : "bg-[rgba(11,11,13,0.04)] font-medium text-admin-ink",
+                )}
+              >{label}</button>
+            );
+          })}
+        </div>
+
         {/* Body */}
         <div style={{ flex: 1, overflowY: "auto", padding: 4 }}>
-          {items.length === 0 && (
+          {list.filteredCount === 0 && (
             <div style={{ padding: "30px 16px", textAlign: "center", fontSize: 12.5 }} className="text-admin-ink-muted">
               <div style={{ fontSize: 28, marginBottom: 6 }}>✓</div>
               {copy.t("All caught up.")}
             </div>
           )}
 
-          {grouped.action.length > 0 && (
-            <SectionGroup label={copy.t("Action needed")} items={grouped.action}
+          {list.visible.length > 0 && (
+            <SectionGroup
+              label={categoryTab === "all" ? copy.t("Notifications") : copy.t(HUB_CATEGORY_LABEL[categoryTab])}
+              items={list.visible}
+              readSet={readSetState}
               onClick={(it) => { closePopover(); markRead(it.id); it.cta?.run(); }}
               onDismiss={(id) => { dismiss(id); }}
-              accent={COLORS.amberDeep}
+              accent={categoryTab === "attention" ? COLORS.amberDeep : COLORS.indigoDeep}
             />
           )}
-          {grouped.update.length > 0 && (
-            <SectionGroup label={copy.t("Updates")} items={grouped.update}
-              onClick={(it) => { closePopover(); markRead(it.id); it.cta?.run(); }}
-              onDismiss={(id) => { dismiss(id); }}
-              accent={COLORS.indigoDeep}
-            />
-          )}
-          {grouped.system.length > 0 && (
-            <SectionGroup label={copy.t("System")} items={grouped.system}
-              onClick={(it) => { closePopover(); markRead(it.id); it.cta?.run(); }}
-              onDismiss={(id) => { dismiss(id); }}
-              accent={COLORS.inkMuted}
-            />
+
+          {list.showSeeAll && (
+            <div className="px-2.5 pt-1.5 pb-2.5">
+              <button
+                type="button"
+                data-tulala-notif-see-all
+                onClick={openNotificationCenter}
+                className="w-full cursor-pointer rounded-[10px] border border-admin-border-soft bg-admin-indigo-soft px-3 py-2.5 font-admin-body text-xs font-semibold text-admin-indigo-deep"
+              >
+                {copy.t("See all notifications")} →
+              </button>
+            </div>
           )}
         </div>
 
-        {/* Footer */}
+        {/* Footer — prefs kept */}
         <div style={{ padding: "10px 14px", borderTop: `1px solid ${COLORS.borderSoft}`, fontSize: 11, textAlign: "center" }} className="text-admin-ink-muted">
           <button type="button" onClick={() => { popoverRef.current?.hidePopover?.(); openDrawer("notifications-prefs"); }} style={{
             background: "transparent", border: "none", padding: 0, cursor: "pointer",
@@ -514,9 +569,10 @@ export function NotificationsBell({
   );
 }
 
-function SectionGroup({ label, items, onClick, onDismiss, accent }: {
+function SectionGroup({ label, items, readSet, onClick, onDismiss, accent }: {
   label: string;
   items: HubItem[];
+  readSet: Set<string>;
   onClick: (it: HubItem) => void;
   onDismiss: (id: string) => void;
   accent: string;
@@ -530,7 +586,7 @@ function SectionGroup({ label, items, onClick, onDismiss, accent }: {
         <span style={{ color: COLORS.inkDim, fontWeight: 500, letterSpacing: 0 }}>· {items.length}</span>
       </div>
       {items.map(it => {
-        const isRead = it.read;
+        const isRead = readSet.has(it.id);
         return (
           <div key={it.id} style={{
             position: "relative",
