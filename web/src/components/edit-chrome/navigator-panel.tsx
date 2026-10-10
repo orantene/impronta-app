@@ -64,6 +64,7 @@ import {
   computeNavigatorDisclosure,
   navigatorSelectedAncestors,
 } from "./navigator-collapse";
+import { sectionLayerMatchesSearch } from "./navigator-layer-search";
 
 import type {
   CompositionSectionRef,
@@ -3404,16 +3405,17 @@ function sectionMatchesNavigatorSearch(
   // label can be a headline string. Search BOTH the headline and the
   // cleaned stored name so an operator hunting for "Featured talent" still
   // matches a section the navigator labels as real page copy.
-  const cleanedName = (cleanSectionName(row.ref.name) || row.ref.name).toLowerCase();
-  const probedHeadline = (displayNameById.get(row.ref.sectionId) ?? "").toLowerCase();
-  const typeKey = row.ref.sectionTypeKey.toLowerCase();
-  const typeKeyHumanized = typeKey.replace(/_/g, " ");
-  return (
-    cleanedName.includes(query) ||
-    probedHeadline.includes(query) ||
-    typeKey.includes(query) ||
-    typeKeyHumanized.includes(query)
-  );
+  //
+  // TUL-80 — also match EN/ES type aliases (servicios, galeria) via the
+  // shared layer-search helper (accent-insensitive).
+  const cleanedName = cleanSectionName(row.ref.name) || row.ref.name;
+  const probedHeadline = displayNameById.get(row.ref.sectionId) ?? "";
+  return sectionLayerMatchesSearch({
+    cleanedName,
+    displayName: probedHeadline,
+    sectionTypeKey: row.ref.sectionTypeKey,
+    query,
+  });
 }
 
 function builderChildMatchesNavigatorSearch(
