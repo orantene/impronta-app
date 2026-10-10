@@ -180,11 +180,6 @@ describe("ShellCountBubbles mount (static)", () => {
     assert.match(src, /Attention/);
   });
 
-  it("attention bubble maxes bridge notif unread with awaiting inquiries (TUL-389)", () => {
-    const src = readFileSync(join(DIR, "shell-count-bubbles.tsx"), "utf8");
-    assert.match(src, /Math\.max\(shellCounts\?\.attention \?\? 0, awaiting\)/);
-  });
-
   it("Hoy Requiere atención uses the same awaiting count as the bubble", () => {
     const today = readFileSync(join(DIR, "talent/pages/TodayPage.tsx"), "utf8");
     assert.match(today, /countTalentAwaitingInquiries\(effectiveTalentInquiries\)/);

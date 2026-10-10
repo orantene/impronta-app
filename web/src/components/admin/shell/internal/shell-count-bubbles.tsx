@@ -86,15 +86,17 @@ export function ShellCountBubbles({
     countsProp?.find((c) => c.kind === "money")?.count ??
     shellCounts?.money ??
     0;
+  // Talent attention = inbox "esperando tu respuesta" only (same rows +
+  // predicate as Hoy). Do not prefer shellCounts.attention — that stub can
+  // diverge and produced bubble=2 / Hoy clear / inbox=5 (TUL-536).
   const awaiting = inWorkspace
     ? 0
     : countTalentAwaitingInquiries(effectiveTalentInquiries);
-  // TUL-389: bridge attention is notification unread (approvals / offers /
-  // bookings). Talent also folds in awaiting-you inquiries so Hoy / inbox
-  // chips cannot drift below the bubble when both signals fire.
   const attention =
     countsProp?.find((c) => c.kind === "attention")?.count ??
-    Math.max(shellCounts?.attention ?? 0, awaiting);
+    (inWorkspace
+      ? (shellCounts?.attention ?? 0)
+      : awaiting);
 
   const visible = visibleShellCountBubbles([
     { kind: "messages", count: messages },
