@@ -40,7 +40,13 @@ export async function GET(request: Request) {
   try {
     const result = await sweepSocialTokens(admin);
     const talent = await sweepTalentInstagramTokens(admin);
-    void improntaLog("cron.refresh_social_tokens", { ...result, talent });
+    void improntaLog("cron.refresh_social_tokens", {
+      ...result,
+      talentScanned: talent.scanned,
+      talentRefreshed: talent.refreshed,
+      talentFailed: talent.failed,
+      talentNeedsReconnect: talent.needsReconnect,
+    });
     return NextResponse.json({ ok: true, ...result, talent });
   } catch (err) {
     logServerError("cron/refresh-social-tokens", err);
