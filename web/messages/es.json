@@ -1936,6 +1936,7 @@
         "listening": "Escuchando…",
         "transcribing": "Anotando…",
         "typePlaceholder": "O escríbelo aquí…",
+        "typePlaceholderDirect": "Escribe qué haces…",
         "linkPlaceholder": "https:// o @tunegocio",
         "send": "Enviar",
         "forExample": "Por ejemplo",

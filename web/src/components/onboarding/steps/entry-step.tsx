@@ -30,6 +30,7 @@ export function EntryStep({
   onText,
   onDictation,
   onReview,
+  onSendTyped,
   onSendLink,
   busy,
   error,
@@ -39,7 +40,10 @@ export function EntryStep({
   text: string;
   onText: (text: string) => void;
   onDictation: (on: boolean) => void;
+  /** Voice path: show "Is this right?" before send. */
   onReview: () => void;
+  /** Type path (onb1-13): send without the voice-style confirm step. */
+  onSendTyped: () => void;
   onSendLink: (url: string) => void;
   intent?: OnboardingIntent;
   busy: boolean;
@@ -102,7 +106,9 @@ export function EntryStep({
     if (listening) voice.cancel();
     if (text.trim()) {
       clearFormPersistence(PERSIST_STEP);
-      onReview();
+      // onb1-13: typed Escribir already shows the sentence — skip confirmWords.
+      if (mode === "type") onSendTyped();
+      else onReview();
     }
   };
 
@@ -173,8 +179,9 @@ export function EntryStep({
       ) : null}
 
       <div
-        className="mt-5 rounded-[22px] p-3"
-        style={{ background: "var(--tl-surface-raised)", border: "1px solid var(--tl-hairline)" }}
+        className="mt-5 rounded-[22px] p-3 focus-within:outline-none"
+        style={{ background: "var(--tl-surface-raised)", border: "1px solid var(--tl-hairline)", boxShadow: "none" }}
+        data-onb-entry-box=""
       >
         {linkMode ? (
           <input
@@ -187,7 +194,7 @@ export function EntryStep({
             placeholder={t("public.onboarding.entry.linkPlaceholder")}
             aria-label={t("public.onboarding.entry.linkPlaceholder")}
             data-testid="onb-link"
-            className="h-11 w-full bg-transparent px-2 text-[0.9375rem] outline-none placeholder:text-[var(--tl-muted-soft)]"
+            className="h-11 w-full bg-transparent px-2 text-[0.9375rem] outline-none ring-0 focus:outline-none focus:ring-0 placeholder:text-[var(--tl-muted-soft)]"
             style={{ color: "var(--tl-ink)" }}
           />
         ) : (
@@ -202,10 +209,18 @@ export function EntryStep({
               }
             }}
             rows={mode === "voice" ? 3 : 4}
-            placeholder={t("public.onboarding.entry.typePlaceholder")}
-            aria-label={t("public.onboarding.entry.typePlaceholder")}
+            placeholder={
+              mode === "voice"
+                ? t("public.onboarding.entry.typePlaceholder")
+                : t("public.onboarding.entry.typePlaceholderDirect")
+            }
+            aria-label={
+              mode === "voice"
+                ? t("public.onboarding.entry.typePlaceholder")
+                : t("public.onboarding.entry.typePlaceholderDirect")
+            }
             data-testid="onb-sentence"
-            className="w-full resize-none bg-transparent px-2 py-1 text-[0.9375rem] leading-[1.5] outline-none placeholder:text-[var(--tl-muted-soft)]"
+            className="w-full resize-none bg-transparent px-2 py-1 text-[0.9375rem] leading-[1.5] outline-none ring-0 focus:outline-none focus:ring-0 placeholder:text-[var(--tl-muted-soft)]"
             style={{ color: "var(--tl-ink)" }}
           />
         )}
