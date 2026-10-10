@@ -84,10 +84,40 @@ export const CONTENT: Readonly<Record<string, ProfileContent>> = {
   "TAL-93105": {
     siteSlug: "sofia-rinaldi",
     label: "Sofía Rinaldi",
-    services: [],
+    // GRK-018: Mexican tú (buscas / te llevas / cuéntame), never Argentine vos.
+    services: [
+      {
+        title: { es: "Maquillaje de noche en estudio", en: "Evening studio makeup" },
+        description: {
+          es: "Piel, ojos y labios para un evento, con pestañas de tira incluidas.",
+          en: "Skin, eyes and lips for an event, strip lashes included.",
+        },
+      },
+      {
+        title: { es: "Maquillaje a domicilio", en: "Home makeup" },
+        description: {
+          es: "Voy a tu casa u hotel en Buenos Aires; el traslado va incluido en barrios céntricos.",
+          en: "I come to your home or hotel in Buenos Aires; travel included in central neighborhoods.",
+        },
+      },
+      {
+        title: { es: "Clase de automaquillaje", en: "Self-makeup class" },
+        description: {
+          es: "Dos horas con tus productos; te llevas por escrito los pasos de tu rutina.",
+          en: "Two hours with your own products; you get your routine steps in writing.",
+        },
+      },
+      {
+        title: { es: "Maquillaje para grupo", en: "Group makeup" },
+        description: {
+          es: "Maquillaje para 3 o más personas el mismo día, en un solo lugar.",
+          en: "Makeup for 3 or more people on the same day, in one place.",
+        },
+      },
+    ],
     categories: [],
     faq: [],
-    needsContent: ["services, FAQ and category labels (the Spanish source lives outside the repo, in the Demo Foundation batch files)"],
+    needsContent: ["FAQ and category labels (the Spanish source lives outside the repo, in the Demo Foundation batch files)"],
   },
   "TAL-93007": {
     siteSlug: "sofia-barra",

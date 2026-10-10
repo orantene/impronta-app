@@ -74,7 +74,7 @@ export function buildDefaultShellTree(
       left: [{ type: "wordmark" }],
       center: [{ type: "nav", responsive: { mobile: "menu" } }],
       right: [
-        { type: "language", responsive: { mobile: "menu" } },
+        { type: "language", responsive: { mobile: "show" } },
         { type: "social", responsive: { tablet: "icon", mobile: "menu" } },
         { type: "phone", responsive: { desktop: "label", mobile: "menu" } },
         { type: "saved", responsive: { mobile: "menu" } },
