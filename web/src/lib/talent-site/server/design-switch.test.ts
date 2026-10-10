@@ -59,7 +59,7 @@ test("carry-over: matched keys keep her content text and i18n", () => {
   assert.ok(plan.mappedKeys.includes("hero/heading"));
 });
 
-test("carry-over: unmatched stamped section is kept and warned (not deleted)", () => {
+test("TUL-527: unmatched stamped section is dropped and warned (not appended)", () => {
   const from = built(1, { withGallery: true });
   // Target has no gallery key.
   const to = stampAs(built(2, { withGallery: false }), "folio", 1);
@@ -75,8 +75,13 @@ test("carry-over: unmatched stamped section is kept and warned (not deleted)", (
     toVersion: 1,
   });
 
-  assert.ok(plan.home.some((n) => (propsOf(n).__origin as { key?: string } | undefined)?.key === "gallery"));
+  assert.equal(
+    plan.home.some((n) => (propsOf(n).__origin as { key?: string } | undefined)?.key === "gallery"),
+    false,
+    "gallery from the prior Design must not stack under Folio",
+  );
   assert.ok(plan.warned.some((w) => w.key === "gallery" && w.reason === "no_match" && w.tree === "home"));
+  assert.equal(plan.home.length, to.home.length, "top-level count equals the target Design");
 });
 
 test("carry-over: talent-added top-level node is kept and warned", () => {
@@ -127,11 +132,87 @@ test("first apply on a fresh site (no Design pinned): the unstamped starter tree
   assert.deepEqual(blank.home, to.home);
 });
 
-test("a site already on a Design still keeps unmatched and talent-added sections when she switches", () => {
-  const from = built(1, { withGallery: true });
+test("a site already on a Design warns unmatched theme sections and keeps only talent-added", () => {
+  let from = built(1, { withGallery: true });
+  from = addNode(from, "home", null, plain("paragraph", { text: "My note" }));
   const to = stampAs(built(2, { withGallery: false }), "folio", 1);
-  const plan = planDesignSwitch({ fromShell: from.trees.shell!, fromHome: from.trees.home!, toShell: to.shell, toHome: to.home, fromSlug: "maison-v2", toSlug: "folio", fromVersion: 1, toVersion: 1 });
-  assert.ok(plan.warned.length > 0);
+  const plan = planDesignSwitch({
+    fromShell: from.trees.shell!,
+    fromHome: from.trees.home!,
+    toShell: to.shell,
+    toHome: to.home,
+    fromSlug: "maison-v2",
+    toSlug: "folio",
+    fromVersion: 1,
+    toVersion: 1,
+  });
+  assert.ok(plan.warned.some((w) => w.key === "gallery" && w.reason === "no_match"));
+  assert.ok(plan.warned.some((w) => w.reason === "talent_added" && w.kind === "paragraph"));
+  assert.ok(plan.home.some((n) => n.kind === "paragraph" && getPath(propsOf(n), "text").value === "My note"));
+  assert.equal(
+    plan.home.some((n) => (propsOf(n).__origin as { key?: string } | undefined)?.key === "gallery"),
+    false,
+  );
+});
+
+test("TUL-527: A→B→C→A carry chain leaves no foreign theme prefixes and restores top-level count", () => {
+  // Simulates gallery switches without restore-exact (draft moved / third Design).
+  const a = stampAs(built(1, { withGallery: true }), "maison-v2", 1);
+  const b = stampAs(built(2, { withGallery: false, heroVariant: "stacked" }), "gridline", 1);
+  const c = stampAs(built(3, { withGallery: false, dropFaq: true }), "folio", 1);
+  const aAgain = stampAs(built(1, { withGallery: true }), "maison-v2", 1);
+
+  const origins = (home: BuilderNode[]) =>
+    home
+      .map((n) => (propsOf(n).__origin as { design?: string } | undefined)?.design)
+      .filter((d): d is string => typeof d === "string");
+
+  const ab = planDesignSwitch({
+    fromShell: a.shell,
+    fromHome: a.home,
+    toShell: b.shell,
+    toHome: b.home,
+    fromSlug: "maison-v2",
+    toSlug: "gridline",
+    fromVersion: 1,
+    toVersion: 1,
+  });
+  assert.equal(ab.home.length, b.home.length);
+  assert.deepEqual([...new Set(origins(ab.home))], ["gridline"]);
+
+  const bc = planDesignSwitch({
+    fromShell: ab.shell,
+    fromHome: ab.home,
+    toShell: c.shell,
+    toHome: c.home,
+    fromSlug: "gridline",
+    toSlug: "folio",
+    fromVersion: 1,
+    toVersion: 1,
+  });
+  assert.equal(bc.home.length, c.home.length);
+  assert.deepEqual([...new Set(origins(bc.home))], ["folio"]);
+
+  const ca = planDesignSwitch({
+    fromShell: bc.shell,
+    fromHome: bc.home,
+    toShell: aAgain.shell,
+    toHome: aAgain.home,
+    fromSlug: "folio",
+    toSlug: "maison-v2",
+    fromVersion: 1,
+    toVersion: 1,
+  });
+  assert.equal(ca.home.length, a.home.length, "restored top-level count equals original A");
+  assert.deepEqual([...new Set(origins(ca.home))], ["maison-v2"]);
+  assert.equal(
+    ca.home.some((n) => {
+      const d = (propsOf(n).__origin as { design?: string } | undefined)?.design;
+      return d === "gridline" || d === "folio";
+    }),
+    false,
+    "no foreign theme prefix remains after A→B→C→A",
+  );
 });
 
 test("draft-first: apply site patch keys never include published columns", () => {

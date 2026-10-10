@@ -1,9 +1,11 @@
 /**
- * L3 / TUL-421: pure plan for switching Designs on a talent site draft.
+ * L3 / TUL-421 + TUL-527: pure plan for switching Designs on a talent site draft.
  *
  * - Matched design keys: content-owned props + i18n carry (`carryContent`).
- * - Unmatched stamped sections and talent-added top-level nodes: kept
- *   (appended) and listed as warnings. Never silently deleted.
+ * - Unmatched stamped (theme) sections: dropped and listed as warnings
+ *   (`no_match`). Keeping them stacked every prior Design under the new one
+ *   (Maison → Gridline → Folio doubled the live home page).
+ * - Talent-added (unstamped) nodes: kept (appended) and warned.
  * - Does not touch business tables or published columns (caller's job).
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
@@ -42,7 +44,7 @@ function mapList(
   from: ReadonlyArray<BuilderNode>,
   to: ReadonlyArray<BuilderNode>,
   tree: DesignSwitchTree,
-  keepOrphans: boolean,
+  keepTalentAdded: boolean,
 ): { nodes: BuilderNode[]; mappedKeys: string[]; warned: DesignSwitchWarn[] } {
   const fromMap = keyedMap(from);
   const toMap = keyedMap(to);
@@ -59,7 +61,7 @@ function mapList(
     const prevKids = kidsOf(prev);
     const nextKids = kidsOf(carried);
     if (prevKids.length === 0 || nextKids.length === 0) return carried;
-    const child = mapList(prevKids, nextKids, tree, keepOrphans);
+    const child = mapList(prevKids, nextKids, tree, keepTalentAdded);
     // Child origin keys are already absolute (`hero/heading`), so push as-is.
     mappedKeys.push(...child.mappedKeys);
     warned.push(...child.warned);
@@ -69,7 +71,7 @@ function mapList(
   const orphans: BuilderNode[] = [];
   const seenTo = new Set(toMap.keys());
   // A site that was never on a Design has only the starter tree: nothing of hers to keep.
-  for (const node of keepOrphans ? from : []) {
+  for (const node of keepTalentAdded ? from : []) {
     const k = keyOf(node);
     if (!k) {
       orphans.push(node);
@@ -77,7 +79,8 @@ function mapList(
       continue;
     }
     if (seenTo.has(k)) continue;
-    orphans.push(node);
+    // Theme section with no key in the new Design: drop it (TUL-527). Warn so
+    // restore-from-history / Opciones de diseño remains the undo path.
     warned.push({ tree, key: k, kind: node.kind, reason: "no_match" });
   }
 
@@ -86,7 +89,7 @@ function mapList(
 
 /**
  * Build the draft trees for a Design switch: new layout with her content
- * carried where keys match; unmatched / added content kept and warned.
+ * carried where keys match; theme-only unmatched sections dropped; talent-added kept.
  */
 export function planDesignSwitch(input: {
   fromShell: ReadonlyArray<BuilderNode>;
@@ -101,9 +104,9 @@ export function planDesignSwitch(input: {
   // First apply on a fresh site (no Design pinned yet, e.g. onboarding): the old tree is the unstamped starter
   // (default-talent-*), so it is REPLACED by the design. Keeping it as "talent-added" orphans stacked a second
   // header, hero, about, services and footer under Maison v2 and buried the booking CTAs (TUL-421 follow-up).
-  const keepOrphans = input.fromSlug != null && input.fromSlug.trim() !== "";
-  const shell = mapList(input.fromShell, input.toShell, "shell", keepOrphans);
-  const home = mapList(input.fromHome, input.toHome, "home", keepOrphans);
+  const keepTalentAdded = input.fromSlug != null && input.fromSlug.trim() !== "";
+  const shell = mapList(input.fromShell, input.toShell, "shell", keepTalentAdded);
+  const home = mapList(input.fromHome, input.toHome, "home", keepTalentAdded);
   const mappedKeys = [...shell.mappedKeys, ...home.mappedKeys];
   const warned = [...shell.warned, ...home.warned];
   return {
