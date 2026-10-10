@@ -89,7 +89,8 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
   const goWebsite = () => {
     setOpen(false);
     if (myWebsite?.kind === "workspace") {
-      router.push(myWebsite.editHref);
+      // live4-01: soft push into admin/website sticks Hoy until F5.
+      window.location.assign(myWebsite.editHref);
       return;
     }
     setTalentPage("public-page");
