@@ -91,6 +91,28 @@ test("1D: a studio whose page does not verify becomes draft_saved with its edito
   assert.equal(a.urlDiffers, true);
 });
 
+test("onb1-15: Free path URL that verifies is ready, never draft_saved", () => {
+  const a = arrivalFromStamp({
+    path: "business",
+    stamp: { outcome: "composed", placed: { photos: { hero: "type" }, hoursPresent: true } },
+    person: { name: "QA Grok Uno", city: "Cancún" },
+    businessName: "QA Grok Salon",
+    services: 2,
+    site: {
+      publicUrl: "https://tulala.digital/w/qa-grok-salon",
+      editorUrl: "https://tulala.digital/w/qa-grok-salon/?edit=1",
+      adminPath: "https://app.tulala.digital/qa-grok-salon/admin",
+    },
+    talent: null,
+    liveCheck: { ok: true },
+  });
+  assert.equal(a.variant, "business");
+  assert.equal(a.verified, true);
+  assert.notEqual(a.variant, "draft_saved");
+  assert.equal(a.link?.href, "https://tulala.digital/w/qa-grok-salon");
+  assert.equal(a.link?.display, "tulala.digital/w/qa-grok-salon");
+});
+
 test("1D: unchecked callers keep the old behaviour", () => {
   const a = arrivalFromStamp({ path: "talent", stamp: null, ...liveBase });
   assert.equal(a.verified, undefined);
