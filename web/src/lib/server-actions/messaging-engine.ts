@@ -702,6 +702,10 @@ export async function messagingSendOffer(input: { inquiryId: string; offerId: st
     if (sent.error === "offer_currency_seller_mismatch") return fail("offer_currency_seller_mismatch");
     return fail("unavailable");
   }
+  // Hold-the-send: a held offer (a talent has not approved) must put NOTHING in the client stream.
+  // The card is posted when the last talent approves (releaseOfferToClient).
+  const { data: afterSend } = await scoped(g.admin, "inquiry_offers", g.tenantId).select("status").eq("id", parsed.data.offerId).maybeSingle();
+  if ((afterSend as { status?: string } | null)?.status === "awaiting_talent") return { ok: true as const };
   // The offer card in the stream (D06): the client link renders it with
   // Accept / Ask for changes / Decline; the operator sees Sent → Viewed → ....
   await insertMessage(g.admin, {
