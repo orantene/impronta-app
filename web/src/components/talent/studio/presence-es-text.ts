@@ -256,7 +256,6 @@ export const PRESENCE_ES_TEXT: Record<string, string> = {
   "Disconnect Instagram? Your website stops showing your posts.":
     "¿Desconectar Instagram? Tu sitio dejará de mostrar tus publicaciones.",
   "Yes, disconnect": "Sí, desconectar",
-  "Cancel": "Cancelar",
   "Instagram stopped letting us read your posts. Reconnect to keep your feed up to date.":
     "Instagram dejó de darnos acceso a tus publicaciones. Vuelve a conectar para mantener tu feed al día.",
   "We could not reach Instagram on the last try. Your website keeps showing your last posts.":
