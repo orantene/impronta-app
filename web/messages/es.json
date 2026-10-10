@@ -1171,7 +1171,7 @@
       "askQuickLabel": "Preguntas rápidas",
       "askQuickWhen": "¿Tienes hueco esta semana?",
       "askQuickDuration": "¿Cuánto dura?",
-      "askQuickChange": "¿Puedo cambiar el diseño?",
+      "askQuickPrice": "¿Cuánto cuesta?",
       "removedToastDismissAria": "Descartar",
       "gateRecapOne": "Usaremos esto para enviarte la respuesta de {agency} sobre {names}.",
       "gateRecapOverflow": "{names}, +{count}",

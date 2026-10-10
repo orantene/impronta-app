@@ -417,7 +417,7 @@
       "askQuickLabel": "Questions rapides",
       "askQuickWhen": "Avez-vous un créneau cette semaine ?",
       "askQuickDuration": "Combien de temps ça dure ?",
-      "askQuickChange": "Puis-je changer le design ?",
+      "askQuickPrice": "Combien ça coûte ?",
       "removedToastDismissAria": "Fermer",
       "gateRecapOne": "Nous l'utiliserons pour vous envoyer la reponse de {agency} concernant {names}.",
       "gateRecapOverflow": "{names}, +{count}",

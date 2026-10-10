@@ -21,8 +21,12 @@ const root = join(process.cwd(), "src");
 describe("TUL-516 / TUL-528 floating chrome stack", () => {
   test("F1/F2: consent hides locale + chat launcher; reserves bottom for legal CTAs", () => {
     assert.match(FLOATING_CHROME_STACK_CSS, /body:has\(\[data-consent-banner\]\) \[data-locale-suggestion\]\{display:none\}/);
-    assert.match(FLOATING_CHROME_STACK_CSS, /body:has\(\[data-consent-banner\]\) \[data-guest-chat-launcher\]/);
-    assert.match(FLOATING_CHROME_STACK_CSS, /pointer-events:none/);
+    assert.match(FLOATING_CHROME_STACK_CSS, /body:has\(\[data-consent-banner\]\) \[data-guest-chat-launcher\]\{opacity:0;pointer-events:none\}/);
+    // visibility:hidden would drop the dock from the accessibility tree (W4-5).
+    assert.doesNotMatch(
+      FLOATING_CHROME_STACK_CSS,
+      /body:has\(\[data-consent-banner\]\) \[data-guest-chat-launcher\]\{[^}]*visibility:\s*hidden/,
+    );
     assert.match(FLOATING_CHROME_STACK_CSS, new RegExp(`--floating-consent-clearance:calc\\(${CONSENT_BANNER_RESERVE_PX}px`));
     assert.equal(FLOATING_CHROME_CONSENT_Z, 98);
   });

@@ -1171,7 +1171,7 @@
       "askQuickLabel": "Quick questions",
       "askQuickWhen": "Do you have a slot this week?",
       "askQuickDuration": "How long does it take?",
-      "askQuickChange": "Can I change the design?",
+      "askQuickPrice": "How much does it cost?",
       "removedToastDismissAria": "Dismiss",
       "gateRecapOne": "We will use this to send you {agency} reply about {names}.",
       "gateRecapOverflow": "{names}, +{count}",

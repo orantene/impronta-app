@@ -80,7 +80,9 @@ export function miniPanelContainerStyle(
     position: "fixed",
     right: "max(16px, env(safe-area-inset-right))",
     bottom: `calc(${GUEST_CHAT_PANEL_BOTTOM_PX}px + env(safe-area-inset-bottom))`,
-    zIndex: 90,
+    // Above the launcher stacking context (95) so desktop header controls
+    // (especially ✕) stay clickable — card/phone sheets already use 96.
+    zIndex: 96,
     width: "min(408px, calc(100vw - 32px))",
     // The panel is anchored GUEST_CHAT_PANEL_BOTTOM_PX (194) up from the bottom,
     // so the vertical room it may occupy is (100vh - bottom anchor - a top
