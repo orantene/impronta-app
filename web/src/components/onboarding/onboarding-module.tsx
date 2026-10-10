@@ -458,6 +458,7 @@ export function OnboardingModule({
         onText={(text) => dispatch({ type: "textChanged", text })}
         onDictation={(on) => dispatch({ type: "dictation", on })}
         onReview={() => dispatch({ type: "reviewWords" })}
+        onSendTyped={() => void send(state.text)}
         onSendLink={(url) => void send(url)}
         busy={state.busy}
         error={state.error}
