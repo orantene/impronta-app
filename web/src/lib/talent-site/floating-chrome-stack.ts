@@ -19,6 +19,9 @@
  *
  * TUL-528:
  * - GRK-033: hero first-viewport CTAs clear the consent card (pad hero chrome).
+ *   Residual (Still on Gridline trades): split/spec `#hero` is in-flow, so
+ *   carousel `padding-bottom` alone does not lift CTAs — phone compact + defer
+ *   the who-card while consent is open.
  * - GRK-034: root stack reserves --cb-bar-h from SSR `.cb-island` (phone) and
  *   painted bar/dock (desktop) so body/footer clear before catalog CSS hydrates.
  * - GRK-037: phone footer + catalog groups keep a right gutter so Hablar does
@@ -94,6 +97,8 @@ body:has(${CONSENT_BANNER_SELECTOR}) #hero{padding-bottom:max(2rem,calc(var(--fl
 /* GRK-036: Hablar clears float/default sticky booking chrome before JS measure.
    Pill bars already tuck the FAB via .cb-bar-chat (GUEST_CHAT_FAB_CSS). */
 @media (max-width:719px){body:has(.cb-bar[data-show="true"]:not([data-top="true"])) [data-guest-chat-launcher],body:has(.mn-bar[data-show="true"]) [data-guest-chat-launcher]{bottom:max(calc(24px + env(safe-area-inset-bottom,0px)),calc(var(--cb-bar-h) + 24px))!important;right:max(72px,calc(16px + 56px + env(safe-area-inset-right,0px)))!important}}
+/* GRK-033 residual: Gridline/split heroes — compact phone + defer who-card. */
+@media (max-width:640px){body:has(${CONSENT_BANNER_SELECTOR}) #hero.site-builder-node--split{padding-top:1.25rem!important;padding-bottom:calc(var(--floating-consent-clearance) + 16px)!important;box-sizing:border-box}body:has(${CONSENT_BANNER_SELECTOR}) #hero.site-builder-node--split > .site-builder-node--container[data-builder-layout="stack"]{padding-top:0!important;padding-bottom:0!important;--bn-gap:0.5rem}body:has(${CONSENT_BANNER_SELECTOR}) #hero.site-builder-node--split > .site-builder-node--container[data-builder-layout="stack"] > .site-builder-node--container:has(> .site-builder-node--button){scroll-margin-bottom:calc(var(--floating-consent-clearance) + 16px)}body:has(${CONSENT_BANNER_SELECTOR}) #hero.site-builder-node--split > :last-child{display:none}}
 `.replace(/\n/g, "");
 
 /**
@@ -162,7 +167,10 @@ export function floatingChromeClearsHeroCtas(css: string): boolean {
   return (
     css.includes(`body:has(${CONSENT_BANNER_SELECTOR}) .site-bn-hero__inner`) &&
     css.includes(`body:has(${CONSENT_BANNER_SELECTOR}) #hero`) &&
-    css.includes("--floating-consent-clearance")
+    css.includes("--floating-consent-clearance") &&
+    // Residual Still on Gridline trades (split/spec #hero).
+    css.includes(`#hero.site-builder-node--split`) &&
+    css.includes(`#hero.site-builder-node--split > :last-child`)
   );
 }
 
