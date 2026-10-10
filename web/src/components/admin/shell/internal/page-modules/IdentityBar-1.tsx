@@ -34,6 +34,10 @@ import { WebsiteRewardControl } from "@/components/talent/website-reward/Website
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
 import { shouldShowTalentActingChip } from "@/lib/impersonation/acting-as";
 import { TalentPreviewEyeControl } from "./TalentPreviewEyeControl";
+import {
+  canShowRailModeSwitch,
+  leaveRailHat,
+} from "./rail-mode-switch-action";
 
 
 export function TulalaIdentityBar() {
@@ -50,6 +54,7 @@ export function TulalaIdentityBar() {
     overviewMetrics,
     bridgeTalentUnread,
     bridgeWorkspaceUnread,
+    bridgeOwnedWorkspaceSlug,
     bridgeFirstRunToggleTipSeen,
     effectiveTenant,
     tenantSlug,
@@ -389,23 +394,52 @@ export function TulalaIdentityBar() {
 
             <div className="flex-1" />
 
-            {/* Mode toggle — only for hybrid users (talent who also have a
-                workspace). Hidden on the client surface — clients are
-                single-mode and don't have a talent/workspace dual identity. */}
+            {/* Mode toggle — dual owners only (hybrid OR owned business slug),
+                same gate as the talent rail. Phone Más also mounts the switch
+                (TUL-378) when this pill is clipped at 390. */}
             {inTalent && <WebsiteRewardControl placement="topbar" />}
 
-            {alsoTalent && (
+            {inTalent &&
+              canShowRailModeSwitch({
+                active: "talent",
+                alsoTalent,
+                ownedWorkspaceSlug: bridgeOwnedWorkspaceSlug,
+                talentSelfProfile: bridgeTalentSelfProfile,
+              }) && (
               <ModeTogglePill
                 surface={surface}
-                flipMode={flipMode}
+                onSwitch={() =>
+                  leaveRailHat({
+                    active: "talent",
+                    alsoTalent,
+                    ownedWorkspaceSlug: bridgeOwnedWorkspaceSlug,
+                    flipMode,
+                  })
+                }
                 workspaceUnread={bridgeTotalUnread > 0 ? bridgeTotalUnread : (bridgeWorkspaceUnread ?? 0)}
                 talentUnread={bridgeTalentUnread !== undefined ? bridgeTalentUnread : TALENT_UNREAD}
                 showFirstRunTip={bridgeFirstRunToggleTipSeen === false && alsoTalent}
               />
             )}
 
-            {/* PR 7: talent language switch (ES | EN pill); also seeds the content locale. */}
-            {inTalent ? <LanguageMenu /> : null}
+            {/* PR 7: talent language switch (ES | EN pill); also seeds the content locale.
+                Hide on phone when the dual-owner pill is present so Admin stays tappable. */}
+            {inTalent ? (
+              <span
+                className={
+                  canShowRailModeSwitch({
+                    active: "talent",
+                    alsoTalent,
+                    ownedWorkspaceSlug: bridgeOwnedWorkspaceSlug,
+                    talentSelfProfile: bridgeTalentSelfProfile,
+                  })
+                    ? "max-[720px]:hidden"
+                    : undefined
+                }
+              >
+                <LanguageMenu />
+              </span>
+            ) : null}
             <ShellCountBubbles />
             <NotificationsBell />
 
