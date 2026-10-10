@@ -1,5 +1,6 @@
 /**
  * Live-site Change design / Apps must not no-op when Maison cohort is off.
+ * Overlay chrome matches Maison setup; Apps → design stays in the overlay.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -40,4 +41,27 @@ test("TUL-325: manager gallery applySuccess wires Publish CTA", () => {
   assert.match(card, /maison-live-publish/);
   assert.match(card, /publishMaxSiteAction/);
   assert.match(card, /Publish site/);
+});
+
+test("TUL-329: cohort-off fallback uses MaisonSetupOverlay chrome", () => {
+  const fallback = read("PresenceLiveFallback.tsx");
+  assert.match(fallback, /MaisonSetupOverlay/);
+  assert.match(fallback, /from "@\/components\/talent\/site\/maison-setup\/MaisonSetupOverlay"/);
+  // Thin sticky Close bar is gone; gallery uses Maison Today / ✕ chrome.
+  assert.doesNotMatch(fallback, /sticky top-0/);
+  assert.doesNotMatch(fallback, /fixed inset-0 z-\[320\]/);
+  assert.match(fallback, /presence-live-fallback-close/);
+  assert.match(fallback, /maisonSetupT\(maisonLocale, "Today"\)/);
+});
+
+test("TUL-329: Apps → design keeps overlay open (gallery view, not onClose)", () => {
+  const fallback = read("PresenceLiveFallback.tsx");
+  assert.match(fallback, /onOpenDesign=\{\(\) => \{/);
+  assert.match(fallback, /setView\(\{ kind: "gallery" \}\)/);
+  // Must not close the overlay from onOpenDesign (the G10 bug).
+  const onOpenBlock = fallback.match(
+    /onOpenDesign=\{\(\) => \{([\s\S]*?)\}\}/,
+  );
+  assert.ok(onOpenBlock, "onOpenDesign handler present");
+  assert.doesNotMatch(onOpenBlock[1]!, /\bonClose\b/);
 });
