@@ -708,6 +708,38 @@ test("ES: the booking sheet renders no English UI chrome on the choose step", ()
   unmount();
 });
 
+test("GRK-097: closing the booking sheet returns focus to the opening CTA", async () => {
+  const book = mockBook();
+  const { host, unmount } = mount("demo", book);
+  const opener = dom.window.document.createElement("button");
+  opener.textContent = "Reservar";
+  dom.window.document.body.appendChild(opener);
+  opener.focus();
+  assert.equal(dom.window.document.activeElement, opener);
+
+  open(detail({ addOns: [] }));
+  assert.ok(host.querySelector('[data-catalog-booking="demo"]'));
+
+  const close = host.querySelector<HTMLButtonElement>('button.jb-x[aria-label="Cerrar"]');
+  assert.ok(close);
+  act(() => {
+    close!.click();
+  });
+  assert.equal(host.querySelector("[data-catalog-booking]"), null);
+
+  // useFocusTrap restores on a double rAF so sticky/dock can drop inert.
+  await act(async () => {
+    await new Promise<void>((resolve) => {
+      dom.window.requestAnimationFrame(() => {
+        dom.window.requestAnimationFrame(() => resolve());
+      });
+    });
+  });
+  assert.equal(dom.window.document.activeElement, opener, "focus returns to the CTA, not the page top");
+  opener.remove();
+  unmount();
+});
+
 test("Track D10: quote tulala:offering-request never opens the booking sheet", () => {
   const sheet = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "CatalogBookingSheet.tsx"), "utf8");
   assert.match(sheet, /priceDisplay === "quote"/);
