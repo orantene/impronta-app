@@ -42,7 +42,13 @@ export async function GET(request: Request) {
   try {
     const result = await sweepSocialFeeds(admin);
     const talent = await sweepTalentSocialFeeds(admin);
-    void improntaLog("cron.refresh_social_feeds", { ...result, talent });
+    void improntaLog("cron.refresh_social_feeds", {
+      ...result,
+      talentScanned: talent.scanned,
+      talentSucceeded: talent.succeeded,
+      talentFailed: talent.failed,
+      talentItems: talent.items,
+    });
     return NextResponse.json({ ok: true, ...result, talent });
   } catch (err) {
     logServerError("cron/refresh-social-feeds", err);
