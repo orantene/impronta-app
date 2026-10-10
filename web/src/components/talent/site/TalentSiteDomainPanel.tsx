@@ -297,8 +297,11 @@ function DomainRow({
   onRemove: () => void;
 }) {
   const meta = statusMeta(domain.status, copy);
+  const vercelChallenges = domain.vercelChallenges ?? [];
   const needsTxt =
-    domain.status === "pending" || domain.status === "dns_verification_sent";
+    domain.status === "pending" ||
+    domain.status === "dns_verification_sent" ||
+    domain.status === "error";
   const needsRouting =
     domain.status === "verified" || domain.status === "ssl_provisioned";
 
@@ -391,14 +394,29 @@ function DomainRow({
       </div>
 
       {domain.failureReason ? (
-        <p style={{ margin: "8px 0 0", fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.45 }}>
-          {domain.failureReason}
+        <p style={{ margin: "8px 0 0", fontSize: 11.5, color: COLORS.criticalDeep, lineHeight: 1.45 }}>
+          {copy.t(domain.failureReason)}
         </p>
+      ) : null}
+
+      {needsTxt && vercelChallenges.length > 0 ? (
+        <DnsBlock
+          title={copy.t("1. Add these DNS records from Vercel")}
+          rows={vercelChallenges.map((c) => ({
+            type: c.type.toUpperCase(),
+            host: c.domain,
+            value: c.value,
+          }))}
+        />
       ) : null}
 
       {needsTxt && domain.txtRecord ? (
         <DnsBlock
-          title={copy.t("1. Add this TXT record to prove you own the domain")}
+          title={
+            vercelChallenges.length > 0
+              ? copy.t("2. Also add this ownership TXT record")
+              : copy.t("1. Add this TXT record to prove you own the domain")
+          }
           rows={[
             { type: "TXT", host: domain.txtRecord.host, value: domain.txtRecord.value },
           ]}
@@ -409,7 +427,9 @@ function DomainRow({
         <DnsBlock
           title={
             needsTxt
-              ? copy.t("2. Then point the domain at Vercel")
+              ? vercelChallenges.length > 0
+                ? copy.t("3. Then point the domain at Vercel")
+                : copy.t("2. Then point the domain at Vercel")
               : copy.t("Point the domain at Vercel")
           }
           rows={domain.routingRecords.map((r) => ({

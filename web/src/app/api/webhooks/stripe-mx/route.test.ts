@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const src = readFileSync(join(process.cwd(), "src/app/api/webhooks/stripe-mx/route.ts"), "utf8");
-const handler = readFileSync(join(process.cwd(), "src/lib/stripe/webhook-handler.ts"), "utf8");
+const handler = readFileSync(join(process.cwd(), "src/lib/stripe/webhook-http.ts"), "utf8");
 
 test("MX route delegates to the shared handler tagged mx", () => {
   assert.match(src, /handleStripeWebhook\(req, \{ account: "mx" \}\)/);

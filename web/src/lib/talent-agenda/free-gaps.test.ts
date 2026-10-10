@@ -1,3 +1,6 @@
+// The JOR fixture is written in UTC-05:00 and freeGaps works in local wall-clock time.
+process.env.TZ = "America/Bogota";
+
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
