@@ -10,28 +10,39 @@ export async function loadMaxSiteIsDemo(talentProfileId: string): Promise<boolea
   return demoDb ? await anyDemoTalent(demoDb, [talentProfileId]) : false;
 }
 
-/** The Demo pill rendered above the site header. */
-export function MaxSiteDemoPill() {
+/**
+ * TUL-560: the one demo marker on every template — a small fixed badge in the
+ * bottom-left corner. Never above or inside the header, never in the layout
+ * flow. Sits above whatever the floating chrome stack reserves at the bottom
+ * (booking bar, chat launcher, consent card), so it never covers those.
+ */
+export function MaxSiteDemoBadge({ locale }: { locale: string }) {
+  const es = locale.toLowerCase().startsWith("es");
   return (
-    <div
-      data-talent-max-site-demo-pill=""
-      style={{ display: "flex", justifyContent: "center", padding: "6px 16px 0" }}
+    <span
+      data-demo-badge=""
+      title={es ? DEMO_SITE_FOOTER.es : DEMO_SITE_FOOTER.en}
+      style={{
+        position: "fixed",
+        left: 12,
+        bottom: "calc(var(--floating-chrome-bottom, 0px) + 12px)",
+        zIndex: 90,
+        pointerEvents: "none",
+        fontFamily: '"Inter", system-ui, sans-serif',
+        fontSize: 10,
+        fontWeight: 600,
+        letterSpacing: "0.1em",
+        textTransform: "uppercase",
+        lineHeight: 1,
+        padding: "5px 9px",
+        borderRadius: 999,
+        color: "#fff",
+        background: "rgba(11,11,13,0.62)",
+        backdropFilter: "blur(6px)",
+      }}
     >
-      <span
-        style={{
-          fontSize: 11,
-          fontWeight: 600,
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          padding: "2px 10px",
-          borderRadius: 999,
-          border: "1px solid currentColor",
-          color: "var(--token-color-ink-muted, rgba(11,11,13,0.55))",
-        }}
-      >
-        Demo
-      </span>
-    </div>
+      Demo
+    </span>
   );
 }
 
