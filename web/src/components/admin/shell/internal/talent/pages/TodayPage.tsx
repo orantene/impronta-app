@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
 import { BioHelperCard } from "@/components/talent/bio-helper-card";
 import Link from "next/link";
+import { setTalentAcceptingBookingsAction } from "@/lib/talent/accepting-bookings";
 import { logServerError } from "@/lib/server/safe-error";
 import { useDashboardText } from "../../dashboard-i18n";
 import { computePaidThisMonth } from "@/lib/talent/paid-this-month";
@@ -74,10 +75,21 @@ export function TalentTodayPage() {
   // Live-site fact for Today's mode + live card (same source as the header
   // reward control). Above the agenda early return (hooks rule).
   const siteLoad = useTalentSiteDashboardInitialLoad();
+  // TUL-538 — optimistic accepting_bookings for the Today banner 1-click.
+  const [acceptingBookings, setAcceptingBookings] = useState(
+    bridgeTalentSelfProfile?.acceptingBookings !== false,
+  );
+  const [activatingAvailability, startActivateAvailability] = useTransition();
+  useEffect(() => {
+    setAcceptingBookings(bridgeTalentSelfProfile?.acceptingBookings !== false);
+  }, [bridgeTalentSelfProfile?.id, bridgeTalentSelfProfile?.acceptingBookings]);
   // Use real bridge data when available so a freshly-provisioned talent
   // sees their own name/photo/city in the Today header instead of Marta's.
   const profile = bridgeTalentSelfProfile
-    ? buildFreshTalentProfile(bridgeTalentSelfProfile, bridgeTalentPageAnalytics?.data ?? null)
+    ? {
+        ...buildFreshTalentProfile(bridgeTalentSelfProfile, bridgeTalentPageAnalytics?.data ?? null),
+        availableForWork: acceptingBookings,
+      }
     : MY_TALENT_PROFILE;
   const completionPercent =
     websiteEligibility.percent ?? bridgeTalentCompletion?.percent ?? profile.completeness;
@@ -553,6 +565,22 @@ export function TalentTodayPage() {
             : () => setTalentPage("messages")
         }
         onAvailability={() => openDrawer("talent-block-dates")}
+        onActivateAvailability={
+          bridgeTalentSelfProfile
+            ? () => {
+                const prev = acceptingBookings;
+                setAcceptingBookings(true);
+                startActivateAvailability(async () => {
+                  const res = await setTalentAcceptingBookingsAction(true);
+                  if (!res.ok) {
+                    setAcceptingBookings(prev);
+                    logServerError("talent.today.activateAvailability", res.error);
+                  }
+                });
+              }
+            : undefined
+        }
+        activatingAvailability={activatingAvailability}
         onOpenProfile={() => openSection("identity")}
         onOpenCalendar={() => setTalentPage("calendar")}
         onOpenActivity={() => setTalentPage("activity")}

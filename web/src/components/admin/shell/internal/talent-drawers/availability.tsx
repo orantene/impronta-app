@@ -8,10 +8,12 @@
 // Bodies copied byte-for-byte from talent-drawers.tsx; no behavior change.
 // ════════════════════════════════════════════════════════════════════
 
-import { useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useT } from "@/i18n/use-t";
 import { useDashboardText } from "../dashboard-i18n";
 import { interpolate } from "@/i18n/interpolate";
+import { setTalentAcceptingBookingsAction } from "@/lib/talent/accepting-bookings";
+import { logServerError } from "@/lib/server/safe-error";
 import { AVAILABILITY_BLOCKS, COLORS, FONTS, MY_TALENT_PROFILE, useAdminShell } from "../state";
 import {
   DrawerShell,
@@ -107,7 +109,7 @@ export function TalentAvailabilityDrawer() {
  * for travel) than blocking specific date ranges.
  */
 export function TalentBlockDatesDrawer() {
-  const { state, closeDrawer, setTalentPage, bridgeTalentSelfProfile, bridgeTalentCalendarEntries } = useAdminShell();
+  const { state, closeDrawer, setTalentPage, bridgeTalentSelfProfile, bridgeTalentCalendarEntries, toast } = useAdminShell();
   const t = useT();
   const copy = useDashboardText();
   const open = state.drawer.drawerId === "talent-block-dates";
@@ -121,8 +123,16 @@ export function TalentBlockDatesDrawer() {
     : p.currentLocation;
 
   const [location, setLocation] = useState(seedLocation);
-  const [availableForWork, setAvailableForWork] = useState(isBridged ? true : p.availableForWork);
+  const [availableForWork, setAvailableForWork] = useState(
+    isBridged ? bridgeTalentSelfProfile.acceptingBookings !== false : p.availableForWork,
+  );
   const [availableToTravel, setAvailableToTravel] = useState(isBridged ? true : p.availableToTravel);
+  const [savingAccepting, startSavingAccepting] = useTransition();
+  useEffect(() => {
+    if (bridgeTalentSelfProfile) {
+      setAvailableForWork(bridgeTalentSelfProfile.acceptingBookings !== false);
+    }
+  }, [bridgeTalentSelfProfile?.id, bridgeTalentSelfProfile?.acceptingBookings]);
   // Real blocks for the bridged talent (same rows the Calendar's block form
   // writes). The mock AVAILABILITY_BLOCKS fixture is demo-only.
   const realBlockCount = (bridgeTalentCalendarEntries ?? []).filter((e) => e.kind === "block").length;
@@ -137,10 +147,35 @@ export function TalentBlockDatesDrawer() {
       footer={<SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
-        {/* Sections 1+2 (location + work/travel toggles) are DEMO-ONLY: there is
-            no talent_profiles column behind them, so for a real bridged talent
-            they showed the demo talent's values and silently discarded edits.
-            Real talents get the working blocks view below instead. */}
+        {/* TUL-538 — real accepting_bookings switch for bridged talents.
+            Location / travel toggles stay demo-only (no DB columns). */}
+        {isBridged && (
+          <section>
+            <SubsectionLabel>{t("dashboard.talentDrawers.availability.takingWorkTitle")}</SubsectionLabel>
+            <div className="mt-2.5 overflow-hidden rounded-[10px] border border-admin-border-soft">
+              <AvailabilityToggleRow
+                label={copy.t(availableForWork ? "Taking new bookings" : "New bookings paused")}
+                hint={copy.t("Turn this on so guests can book you on your public page.")}
+                on={availableForWork}
+                onChange={(next) => {
+                  const prev = availableForWork;
+                  setAvailableForWork(next);
+                  startSavingAccepting(async () => {
+                    const res = await setTalentAcceptingBookingsAction(next);
+                    if (!res.ok) {
+                      setAvailableForWork(prev);
+                      logServerError("talent.availability.acceptingBookings", res.error);
+                      toast(copy.t("Couldn't save. Try again."));
+                      return;
+                    }
+                  });
+                }}
+                disabled={savingAccepting}
+              />
+            </div>
+          </section>
+        )}
+
         {isBridged && (
           <section>
             <div className="rounded-[10px] border border-admin-border-soft bg-admin-surface-alt px-3.5 py-3">
