@@ -16,8 +16,8 @@
  *     cookie, is resolved server-side inside those actions).
  */
 
-import { setPendingOffering } from "./pending-offering-store";
 import { useAskQuestionOpen } from "./use-ask-question-open";
+import { useOfferingRequestOpen } from "./use-offering-request-open";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { CSSProperties } from "react";
 
@@ -26,7 +26,6 @@ import type {
   ScanGuestConversationCallback,
   TalentChatLauncherProps,
 } from "@/lib/inquiry/guest-chat-contract";
-import { announceTalentOpenReady } from "@/lib/talent-site/open-intent-client";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 import { useOptionalDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
 import { usePublicDiscoveryStateOptional } from "@/components/directory/public-discovery-state";
@@ -192,44 +191,8 @@ export function TalentProfileChatLauncher({
   // pill's own count badge instead of rendering as a separate floating stack.
   const narrowLauncher = useNarrowLauncherViewport();
 
-  // Storefront CTA seam: a service card's "Book/Request/Ask for quote" opens
-  // this launcher carrying the clicked offering (structured provenance +
-  // visible "Requesting: …" first-message prefix downstream).
-  // Booking-sheet Ask / Chat now uses `tulala:ask-question` so the sheet
-  // (which also listens for offering-request) does not reopen on top.
-  // TUL-246: wait briefly so CatalogBookingSheet can claim the click via
-  // `tulala:maison-sheet` (same pattern as TalentInquiryFormSheet).
-  useEffect(() => {
-    let sheetOpen = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const onSheet = (e: Event) => {
-      sheetOpen = Boolean((e as CustomEvent<{ open?: boolean }>).detail?.open);
-    };
-    const onOfferingRequest = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => {
-        if (sheetOpen) return;
-        if (detail && typeof detail === "object") setPendingOffering(detail);
-        setOpen(true);
-      }, 150);
-    };
-    window.addEventListener("tulala:maison-sheet", onSheet);
-    window.addEventListener("tulala:offering-request", onOfferingRequest);
-    const onOpenClean = () => {
-      setPendingOffering(null);
-      setOpen(true);
-    };
-    window.addEventListener("tulala:open-guest-chat", onOpenClean);
-    const unready = announceTalentOpenReady("chat");
-    return () => {
-      unready();
-      if (timer) clearTimeout(timer);
-      window.removeEventListener("tulala:maison-sheet", onSheet);
-      window.removeEventListener("tulala:offering-request", onOfferingRequest);
-      window.removeEventListener("tulala:open-guest-chat", onOpenClean);
-    };
-  }, []);
+  // Storefront CTA seam + guest-chat open (extracted for max-lines).
+  useOfferingRequestOpen(setOpen);
   useAskQuestionOpen(setOpen);
   // F4: expanded state — grows the panel into a 2-pane layout in-place.
   const [expanded, setExpanded] = useState(false);
