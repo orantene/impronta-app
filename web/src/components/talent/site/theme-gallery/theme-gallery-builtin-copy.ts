@@ -2,9 +2,11 @@
  * Spanish card copy for the in-code built-in Designs. The catalog stores one
  * `title` / `summary` (English) per row, so the gallery localizes the built-ins
  * here by slug; an authored row, or a slug not listed, shows its stored copy.
+ * Collection Designs reuse `COLLECTION_DESIGN_SUMMARY_ES` (product titles stay).
  * No em dashes (copy rule).
  */
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { COLLECTION_DESIGN_SUMMARY_ES } from "@/lib/talent-site/theme-catalog/collection/design-summaries-es";
 import type { GalleryCatalogEntry } from "./types";
 
 const ES_DESIGN_COPY: Record<string, { title?: string; summary: string }> = {
@@ -32,7 +34,12 @@ const ES_DESIGN_COPY: Record<string, { title?: string; summary: string }> = {
 };
 
 function esCopy(entry: GalleryCatalogEntry) {
-  return entry.kind === "design" ? ES_DESIGN_COPY[entry.slug] : undefined;
+  if (entry.kind !== "design") return undefined;
+  const legacy = ES_DESIGN_COPY[entry.slug];
+  if (legacy) return legacy;
+  const collectionSummary = COLLECTION_DESIGN_SUMMARY_ES[entry.slug];
+  if (collectionSummary) return { summary: collectionSummary };
+  return undefined;
 }
 
 export function themeGalleryEntryTitle(
