@@ -117,12 +117,11 @@ export function TulalaIdentityBar() {
     return letters.toUpperCase() || talentBridgeName.slice(0, 2).toUpperCase();
   })();
 
-  const userName = (inWorkspace && realUserName)
-      ? realUserName
-      : (talentBridgeName ?? realUserName ?? MY_TALENT_PROFILE.name);
-  const userInitials = (inWorkspace && realUserInitials)
-      ? realUserInitials
-      : (talentBridgeInitials ?? realUserInitials ?? MY_TALENT_PROFILE.initials);
+  // onb1-22: hybrid owners keep the same name on Admin and Talento — prefer
+  // the talent profile over `profiles.display_name` (often the email local-part).
+  const userName = talentBridgeName ?? realUserName ?? MY_TALENT_PROFILE.name;
+  const userInitials =
+    talentBridgeInitials ?? realUserInitials ?? MY_TALENT_PROFILE.initials;
   // The talent's own headshot doubles as their account-menu avatar photo;
   // workspace members (no talent profile in context) show initials only.
   const userPhotoUrl = bridgeTalentSelfProfile?.headshotUrl ?? undefined;
