@@ -174,7 +174,6 @@ src/lib/profile-fields-service.test.ts
 src/lib/qa/final-campaign-ready.static.test.ts
 src/lib/saas/agency-surface-roster-gate.static.test.ts
 src/lib/saas/canonical-hosts.test.ts
-src/lib/saas/custom-domain-actions.test.ts
 src/lib/saas/custom-domain-routing.security.test.ts
 src/lib/saas/custom-domain-routing.test.ts
 src/lib/saas/domain-canonical.test.ts
@@ -208,7 +207,6 @@ src/lib/server-actions/validation-contract.test.ts
 src/lib/server/action-guards.security.test.ts
 src/lib/stripe/account-routing.test.ts
 src/lib/stripe/client-subscription-webhook.test.ts
-src/lib/supabase/database-types-freshness.static.test.ts
 src/lib/talent-agenda/__fixtures__/jor-week.test.ts
 src/lib/talent-agenda/__fixtures__/trade-days.test.ts
 src/lib/talent-agenda/a1-units.static.test.ts

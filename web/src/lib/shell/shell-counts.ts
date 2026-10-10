@@ -107,3 +107,25 @@ async function loadMessagesCount(
   }
   return loaders.loadTalentUnread(talentProfileId, opts.tenantId);
 }
+
+
+/**
+ * Talent inbox + agency filter chips sum `unreadCount` across every agency
+ * thread on the bridge. `loadTalentUnreadCount` is single-tenant, so the
+ * Messages bubble drifted below the inbox "All" unread total (TUL-387 FAIL).
+ */
+export function sumTalentInquiryUnread(
+  rows: ReadonlyArray<{ unreadCount?: number | null }>,
+): number {
+  let n = 0;
+  for (const row of rows) {
+    const c = row.unreadCount;
+    if (typeof c === "number" && Number.isFinite(c) && c > 0) n += Math.floor(c);
+  }
+  return n;
+}
+
+export function sanitizeShellCount(n: number): number {
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.floor(n);
+}
