@@ -34,6 +34,24 @@ export function makeStore() {
   };
 }
 
+/**
+ * `agencies` reads serve `default_currency: "USD"` unless a test sets one.
+ * A tenant with no seeded row, or a row that never mentions the column, gets
+ * the default; an explicit `null` (or junk) is kept so a test can model an
+ * unreadable workspace default. Rows stay shared, so writes still land.
+ */
+const AGENCY_DEFAULTS = { default_currency: "USD" };
+
+function withAgencyDefaults(table: string, rows: Row[], eqs: Array<[string, unknown]>): Row[] {
+  if (table !== "agencies") return rows;
+  for (const row of rows) if (!("default_currency" in row)) Object.assign(row, AGENCY_DEFAULTS);
+  const idEq = eqs.find(([k]) => k === "id");
+  if (idEq && typeof idEq[1] === "string" && !rows.some((r) => r.id === idEq[1])) {
+    rows.push({ id: idEq[1], ...AGENCY_DEFAULTS });
+  }
+  return rows;
+}
+
 export function fakeAdmin(store: ReturnType<typeof makeStore>) {
   const tables: Record<string, Row[]> = store;
   const from = (table: string) => {
@@ -42,7 +60,7 @@ export function fakeAdmin(store: ReturnType<typeof makeStore>) {
     let patch: Row = {};
     const eqs: Array<[string, unknown]> = [];
     const match = () =>
-      (tables[table] ?? []).filter((row) =>
+      withAgencyDefaults(table, tables[table] ?? [], eqs).filter((row) =>
         eqs.every(([k, v]) => {
           if (v && typeof v === "object" && v !== null && "__neq" in v) {
             return row[k] !== (v as { __neq: unknown }).__neq;

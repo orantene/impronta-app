@@ -32,14 +32,35 @@ export type CreateDraftOrderResult =
   | { ok: true; orderId: string; guestSessionId: string }
   | { ok: false; reason: "unavailable" | "invalid"; error: string };
 
+/** The workspace's `agencies.default_currency`, or null when unreadable or not a 3-letter code. */
+async function workspaceDefaultCurrency(admin: Admin, tenantId: string): Promise<string | null> {
+  const { data, error } = await admin.from("agencies").select("default_currency").eq("id", tenantId).maybeSingle();
+  if (error) {
+    logServerError("pos.createDraftOrder.defaultCurrency", error);
+    return null;
+  }
+  const raw = (data as { default_currency?: unknown } | null)?.default_currency;
+  const code = typeof raw === "string" ? raw.trim().toUpperCase() : "";
+  if (!/^[A-Z]{3}$/.test(code)) {
+    logServerError("pos.createDraftOrder.defaultCurrency", new Error(`Unreadable default currency for ${tenantId}`));
+    return null;
+  }
+  return code;
+}
+
 export async function createDraftOrder(
   admin: Admin,
   input: CreateDraftOrderInput,
 ): Promise<CreateDraftOrderResult> {
   if (!input.tenantId) return { ok: false, reason: "invalid", error: "Missing workspace." };
   const guestSessionId = posGuestSessionId();
-  const currency = (input.currency ?? "USD").toUpperCase();
   try {
+    const currency = input.currency
+      ? input.currency.toUpperCase()
+      : await workspaceDefaultCurrency(admin, input.tenantId);
+    if (!currency) {
+      return { ok: false, reason: "unavailable", error: "This workspace has no default currency set." };
+    }
     const { data, error } = await admin
       .from("orders")
       .insert({

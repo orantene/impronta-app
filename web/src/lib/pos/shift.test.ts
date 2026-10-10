@@ -172,7 +172,7 @@ test("cash still collects when no shift is open", async () => {
     talent_profile_id: null,
     status: "published",
   });
-  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
+  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1", currency: "USD" });
   assert.equal(created.ok, true);
   if (!created.ok) return;
   await addLine(fakeAdmin(store), {
@@ -227,7 +227,7 @@ test("closing a shift totals opening plus cash allocations, not tendered", async
     openingCashCents: 1000,
   });
   assert.equal(opened.ok, true);
-  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
+  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1", currency: "USD" });
   assert.equal(created.ok, true);
   if (!created.ok) return;
   await addLine(fakeAdmin(store), {
