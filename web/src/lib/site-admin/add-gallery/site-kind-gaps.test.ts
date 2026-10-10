@@ -3,6 +3,10 @@ import { test } from "node:test";
 
 import { createBuilderSectionEmbed } from "@/lib/site-admin/builder-node/section-embed-presets";
 
+import {
+  GALLERY_PLACEHOLDERS,
+  isStockTalentGallerySrc,
+} from "./gallery-placeholder-images";
 import { ADD_GALLERY_ITEMS, listGalleryCategoriesForTabFrom } from "./registry";
 import { buildAddGallerySectionTemplate } from "./section-templates";
 import type { TemplateCopyContext } from "./section-template-copy";
@@ -109,4 +113,23 @@ test("agency hero keeps /directory and /contact", () => {
     const links = hrefs(buildAddGallerySectionTemplate("hero", { siteKind: "agency", locale }));
     assert.ok(links.includes("/directory") && links.includes("/contact"));
   }
+});
+
+// (e) gallery placeholders: trade-appropriate / no stock talent portraits
+
+test("gallery grid uses equal-aspect first-party placeholders, not stock talent portraits", () => {
+  const out = JSON.stringify(buildAddGallerySectionTemplate("gallery", { siteKind: "business", locale: "es" }));
+  assert.ok(!isStockTalentGallerySrc(out));
+  assert.ok(!/images\.unsplash\.com/i.test(out), "no Unsplash stock in gallery grid");
+  for (const tile of GALLERY_PLACEHOLDERS.slice(0, 3)) {
+    assert.ok(out.includes(tile.src), tile.src);
+  }
+  assert.ok(out.includes('"aspectRatio":"4:3"'), "equal aspect keeps masonry level");
+});
+
+test("gallery_strip embed has no stock talent portraits", () => {
+  const out = JSON.stringify(createBuilderSectionEmbed("gallery_strip", { siteKind: "business", locale: "en" }));
+  assert.ok(!isStockTalentGallerySrc(out));
+  assert.ok(!/images\.unsplash\.com/i.test(out));
+  assert.ok(out.includes("data:image/svg+xml"));
 });

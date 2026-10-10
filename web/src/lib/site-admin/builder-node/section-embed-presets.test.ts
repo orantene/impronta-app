@@ -215,12 +215,13 @@ test("gallery_strip preset has 3 items with valid src URLs", () => {
   assert.ok(preset);
   const items = preset.config.items as Array<{ src: string; aspect: string }>;
   assert.equal(items.length, 3);
-  // gallerySchemaV1 requires src to be z.string().url()
+  // gallerySchemaV1 requires src to be z.string().url() — soft data: tiles or https.
   for (const item of items) {
     assert.ok(
-      item.src.startsWith("https://"),
-      `Gallery item aspect "${item.aspect}" has non-https src`,
+      item.src.startsWith("https://") || item.src.startsWith("data:image/"),
+      `Gallery item aspect "${item.aspect}" has non-URL src`,
     );
+    assert.ok(!/images\.unsplash\.com/i.test(item.src), "no Unsplash stock portraits");
   }
 });
 
