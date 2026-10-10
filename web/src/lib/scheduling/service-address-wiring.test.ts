@@ -69,3 +69,10 @@ test("the sheet shows the field for client-place services and blocks confirm unt
   assert.match(sheet, /addr\.rule === "required" \? <ServiceAddressField/);
   assert.match(read("components/public-booking/use-catalog-booking-confirm.ts"), /serviceAddressValid === false/);
 });
+
+test("TUL-516 E2: the sheet passes where into payment copy and the who-step place note", () => {
+  const sheet = read("components/public-booking/CatalogBookingSheet.tsx");
+  assert.match(sheet, /resolveWhoStepPaymentUi\(\{[\s\S]*where: detail\.where/);
+  assert.match(sheet, /<CatalogWhoSummary[\s\S]*where=\{detail\.where\}/);
+  assert.match(sheet, /doneStepNextActionCopy\(\{[\s\S]*where: detail\.where/);
+});

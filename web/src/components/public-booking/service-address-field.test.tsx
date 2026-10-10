@@ -10,8 +10,10 @@ test("renders visible labels bound to inputs, privacy line, street-address autoc
   const html = renderToStaticMarkup(
     <ServiceAddressField value="" note="" onChange={noop} locale="es" />,
   );
+  assert.match(html, /Vamos a tu domicilio/);
   assert.match(html, /Dirección del servicio/);
-  assert.match(html, /Nota de acceso \(opcional\)/);
+  assert.match(html, /Referencias \(opcional\)/);
+  assert.match(html, /Calle, número, colonia, ciudad/);
   assert.match(html, /Solo tu profesional ve esta dirección/);
   assert.match(html, /autoComplete="street-address"|autocomplete="street-address"/);
   const labelFors = [...html.matchAll(/<label for="([^"]+)"/g)].map((m) => m[1]);
@@ -25,7 +27,9 @@ test("english copy", () => {
   const html = renderToStaticMarkup(
     <ServiceAddressField value="" note="" onChange={noop} locale="en" />,
   );
+  assert.match(html, /We(&#x27;|'|&apos;)ll come to your place/);
   assert.match(html, /Service address/);
+  assert.match(html, /References \(optional\)/);
   assert.match(html, /Only your provider sees this address/);
 });
 

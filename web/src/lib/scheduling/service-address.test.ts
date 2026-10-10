@@ -83,4 +83,8 @@ test("copy: en and es have the same keys, no empty strings, no em dashes", () =>
   assert.ok(!all.includes("—") && !all.includes("–"), "no em/en dashes");
   assert.equal(en.privacy, "Only your provider sees this address");
   assert.equal(es.privacy, "Solo tu profesional ve esta dirección");
+  assert.equal(es.visitHeading, "Vamos a tu domicilio");
+  assert.equal(en.visitHeading, "We'll come to your place");
+  assert.match(es.addressPlaceholder, /colonia/i);
+  assert.match(es.noteLabel, /Referencias/i);
 });

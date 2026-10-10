@@ -8,6 +8,9 @@
  * `mockupOnly` is never read: no planned write can carry it (see `planHasMockupOnly`).
  */
 import { normalizeIntakeQuestions } from "@/lib/talent/offering-intake";
+
+import gridlineDemosJson from "../../../../design-references/gridline/demos.json";
+
 import { sameStable } from "./stable";
 import type { FixtureService } from "./content-fixture";
 import type { DemoContentFixture as MockupFixture } from "./content-fixture";
@@ -109,16 +112,62 @@ export function intakeOf(s: FixtureService): ReturnType<typeof normalizeIntakeQu
   return normalizeIntakeQuestions([...(s.whoFields ?? []), ...(s.flow?.brief ?? []).filter((q) => q.type !== "upload")]);
 }
 
+/**
+ * TUL-516 E2: when an offering has no `attributes.where` yet, infer it so
+ * home-visit demos (alex) get `client` and show the service address field.
+ * Prefer per-service `loc` from demos.json (Omar remote vs in-home); else the
+ * fixture's studio kind. Never overwrite a where the row already carries.
+ */
+const LOC_TO_WHERE: Record<string, string> = {
+  studio: "studio",
+  client_home: "client",
+  online: "remote",
+  on_location: "agreed",
+  venue: "agreed",
+};
+
+export function whereFromStudioKind(studioKind: string | null | undefined): string[] {
+  if (studioKind === "home_visits") return ["client"];
+  if (studioKind === "both") return ["studio", "client"];
+  if (studioKind === "studio") return ["studio"];
+  return [];
+}
+
+export function whereFromDemosLoc(profileCode: string | null | undefined, serviceIndex: number): string[] {
+  if (!profileCode) return [];
+  const demo = (gridlineDemosJson.demos as Array<{ code: string; services: Array<{ loc?: string }> }>).find(
+    (d) => d.code === profileCode,
+  );
+  const loc = demo?.services[serviceIndex]?.loc;
+  if (!loc) return [];
+  const w = LOC_TO_WHERE[loc];
+  return w ? [w] : [];
+}
+
+export function inferOfferingWhere(
+  f: MockupFixture,
+  serviceIndex: number,
+): string[] {
+  const fromLoc = whereFromDemosLoc(f.profileCode, serviceIndex);
+  if (fromLoc.length) return fromLoc;
+  return whereFromStudioKind(f.location?.studioKind);
+}
+
 /** The offering's long-tail attributes: what it has now plus the fixture's matrix and intake. Null when the fixture says nothing. */
-function desiredAttributes(s: FixtureService, f: MockupFixture, have: Row | null): Row | null {
+function desiredAttributes(s: FixtureService, f: MockupFixture, have: Row | null, serviceIndex: number): Row | null {
   const matrix = matrixAttr(s, f);
   const intake = intakeOf(s);
-  if (!matrix && intake.length === 0) return null;
+  const inferredWhere = inferOfferingWhere(f, serviceIndex);
+  if (!matrix && intake.length === 0 && inferredWhere.length === 0) return null;
   const next: Row = { ...((have?.attributes as Row | null) ?? {}) };
   if (matrix) next.matrix = matrix;
   else delete next.matrix;
   if (intake.length) next.intake = intake;
   else delete next.intake;
+  const haveWhere = next.where;
+  if (!Array.isArray(haveWhere) || haveWhere.length === 0) {
+    if (inferredWhere.length) next.where = inferredWhere;
+  }
   return next;
 }
 
@@ -130,7 +179,7 @@ export function desiredOffering(s: FixtureService, index: number, f: MockupFixtu
   const payMode = s.payMode ?? (s.free ? "free" : "free");
   const deposit = instant && payMode === "deposit";
   const priceType = quote ? "custom" : have && have.price_type !== "custom" ? (have.price_type as string) : "flat_package";
-  const attributes = isGridline(f) ? desiredAttributes(s, f, have) : null;
+  const attributes = isGridline(f) ? desiredAttributes(s, f, have, index) : null;
   return {
     title: s.name,
     description: s.description,

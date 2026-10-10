@@ -108,6 +108,8 @@ test("offerings: the plan writes matrix cells and intake, and an identical rerun
       if (op.op !== "insert") throw new Error("insert");
       const attrs = op.row.attributes as Record<string, unknown>;
       assert.ok(attrs.matrix && attrs.intake, `${code} ${i} attributes`);
+      // TUL-516 E2: every Gridline offering gets a delivery where (demos.json loc or studioKind).
+      assert.ok(Array.isArray(attrs.where) && (attrs.where as string[]).length > 0, `${code} ${i} where`);
       return {
         ...op.row,
         id: `o${i}`,
@@ -138,12 +140,36 @@ test("offerings: existing demo rows keep their ids and other attributes, quote k
   assert.deepEqual((a.patch.attributes as Record<string, unknown>).where, ["client"]);
   assert.equal((a.patch.attributes as Record<string, unknown>).demo_batch, "demo-2026-09-28");
   assert.equal(a.patch.cancellation_hours, 4);
+  const c = ops[2]!;
+  assert.equal(c.op, "update");
+  if (c.op === "update") {
+    // Empty where on an existing row is filled from demos.json loc (client_home).
+    assert.deepEqual((c.patch.attributes as Record<string, unknown>).where, ["client"]);
+  }
   const d = ops[3]!;
   if (d.op !== "update") throw new Error("update");
   assert.equal(d.patch.booking_mode, "inquiry");
   assert.equal(d.patch.price_display, "from");
   assert.equal(d.patch.amount_cents, 450000);
   assert.equal(matchOfferings(f, have).get(2)?.id, "c");
+});
+
+test("TUL-516 E2: alex home visits get client where; Omar remote stays remote", () => {
+  const alex = planOfferingOps(fx("TAL-93030"), []);
+  for (const op of alex) {
+    assert.equal(op.op, "insert");
+    if (op.op !== "insert") continue;
+    assert.deepEqual((op.row.attributes as { where: string[] }).where, ["client"]);
+  }
+  const omar = planOfferingOps(fx("TAL-93210"), []);
+  assert.equal(omar[0]!.op, "insert");
+  if (omar[0]!.op === "insert") {
+    assert.deepEqual((omar[0]!.row.attributes as { where: string[] }).where, ["remote"]);
+  }
+  assert.equal(omar[1]!.op, "insert");
+  if (omar[1]!.op === "insert") {
+    assert.deepEqual((omar[1]!.row.attributes as { where: string[] }).where, ["client"]);
+  }
 });
 
 test("offerings: the emergency flag follows the urgency service, and a bilingual demo carries both languages", () => {
