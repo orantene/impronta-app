@@ -41,8 +41,11 @@ test("soft-404 copy is es+en with Volver al inicio / Back to home", () => {
 
 test("renderTalentMaxSite accepts soft404 mainOverride", () => {
   assert.match(RENDER, /soft404\?: boolean/);
-  assert.match(RENDER, /soft404MainNode/);
-  assert.match(RENDER, /soft404Seo/);
+  assert.match(RENDER, /talentSiteMainOverride/);
+  assert.match(RENDER, /talentSiteFinalSeo/);
+  const override = read("src/lib/talent-site/server/talent-site-main-override.ts");
+  assert.match(override, /soft404MainNode/);
+  assert.match(override, /soft404Seo/);
 });
 
 test("talent host route reads soft-404 header and unknown slug calls notFound()", () => {
