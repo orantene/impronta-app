@@ -9,9 +9,17 @@ cd web
 set -a; . ../.paidqa.server.env; set +a        # the isolated env, never production
 export JOURNEYS_ISOLATED=1
 export PAID_QA_BASE_URL=http://hub.localhost:3001
-export PAID_QA_PAY_URLS='{"success":"http://hub.localhost:3001/pay/<code1>","decline":"http://hub.localhost:3001/pay/<code2>","threeDS":"http://hub.localhost:3001/pay/<code3>"}'
 npm run qa:paid-isolated
 ```
+
+With no `PAID_QA_PAY_URLS`, `global-setup.ts` mints the links: `scripts/qa/paid-qa-mint-links.mts` drives one real
+sale per card case (client inquiry -> talent offer -> talent + client accept -> `ensureAcceptedOfferPayment`) on the
+hub tenant, once per currency in `PAID_QA_CURRENCIES` (default `MXN,USD`; sellers TAL-93023 for MXN, TAL-93026 for USD,
+because an offer must be in the seller's currency). `global-teardown.ts` cancels every minted link still open and reads
+back 0. Paid sales stay as evidence. Needs `STRIPE_SECRET_KEY` (a `sk_test_` key) in the env and the QA client from
+`scripts/qa/paid-qa-isolated-setup.mjs --apply`. To pay links you made yourself, pass
+`PAID_QA_PAY_URLS='{"success":"...","decline":"...","threeDS":"..."}'` (or one such set per currency:
+`{"MXN":{...},"USD":{...}}`); `PAID_QA_MINT=0` turns minting off.
 
 Evidence (a screenshot per step, `results.json`, `summary.md`) lands in
 `docs/plans/qa-evidence/paid-qa-<date>/`.
@@ -32,11 +40,11 @@ A person or CI runs it. **Agent sessions do not run it**: it types card numbers 
 
 ## What is NOT covered yet
 
-- Minting the pay links (book -> offer -> pay link) is still done by hand or by the end-to-end run; links are single use,
-  so each case needs a fresh one. A missing case URL is reported as *skipped* (never as pass).
-- MXN + USD variants: run once per currency by passing links created in each currency.
-- Money page and full/partial refund steps: not automated in this first version.
-- Status: written 2026-10-09, **not yet run**. First run: adjust `fillCard` selectors if Stripe changed its markup.
+- A missing case URL is reported as *skipped* (never as pass).
+- Money page and partial refund: `paid-qa-after-pay.spec.ts`, gated by `PAID_QA_LIVE` and `PAID_QA_PAID_ORDER` (take the
+  order id from the success row of `summary.md`). A full refund is not automated yet.
+- Status: the minter and teardown ran on the isolated project on 2026-10-10 (MXN and USD, 0 links left open). The
+  card-typing cases have **not yet run**: first run, adjust `fillCard` selectors if Stripe changed its markup.
 
 ## Live-QA regression pack (`live-qa-pack.spec.ts`)
 

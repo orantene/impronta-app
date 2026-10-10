@@ -14,8 +14,9 @@
  * asserts the checkout is a test session (cs_test_ URL + "Sandbox"/"Test mode" badge) BEFORE it types anything.
  *
  * Inputs (env): PAID_QA_BASE_URL (local app origin), PAID_QA_PAY_URLS (JSON: {"success": "...", "decline": "...",
- * "threeDS": "..."} one fresh pay link per case; a link is single use), JOURNEYS_ISOLATED=1,
- * NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY (isolated project, read-only GETs here).
+ * "threeDS": "..."} one fresh pay link per case, or {"MXN": {...}, "USD": {...}} one set per currency; a link is
+ * single use), JOURNEYS_ISOLATED=1, NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY (isolated project, read-only
+ * GETs here). When PAID_QA_PAY_URLS is unset, global-setup.ts mints one set per currency (scripts/qa/paid-qa-mint-links.mts).
  * Missing case URLs SKIP that case; a skipped case is NOT a pass and shows as skipped in the table.
  *
  * Status: written 2026-10-09, not yet run. Stripe's hosted-checkout DOM is matched by label/role first;
@@ -29,7 +30,11 @@ const day = new Date().toISOString().slice(0, 10);
 const evidence = join(process.cwd(), "docs/plans/qa-evidence", `paid-qa-${day}`);
 mkdirSync(evidence, { recursive: true });
 
-const PAY_URLS: Record<string, string> = process.env.PAID_QA_PAY_URLS ? JSON.parse(process.env.PAID_QA_PAY_URLS) : {};
+const RAW_URLS: Record<string, unknown> = process.env.PAID_QA_PAY_URLS ? JSON.parse(process.env.PAID_QA_PAY_URLS) : {};
+/** Currency -> case -> URL. A flat {"success": ...} set runs once, unlabelled. */
+const SETS: Record<string, Record<string, string>> = Object.values(RAW_URLS).some((v) => typeof v === "object" && v !== null)
+  ? (RAW_URLS as Record<string, Record<string, string>>)
+  : { "": RAW_URLS as Record<string, string> };
 
 type Row = { case: string; result: "pass" | "fail" | "skipped"; detail: string };
 const rows: Row[] = [];
@@ -111,76 +116,81 @@ test.afterAll(() => {
   console.log(`\n${md}\n`);
 });
 
-test("success 4242: pays, returns to 'Payment received', transaction paid, snapshot gross equals the charge", async ({ page }) => {
-  const url = PAY_URLS.success;
-  if (!url) { rows.push({ case: "success", result: "skipped", detail: "no PAID_QA_PAY_URLS.success" }); test.skip(true, "no success pay URL"); return; }
-  try {
-    await openStripeCheckout(page, url, "success");
-    await fillCard(page, "4242 4242 4242 4242");
-    await shot(page, "success-3-card-filled");
-    await submit(page);
-    await page.waitForURL((u) => u.hostname !== "checkout.stripe.com", { timeout: 120_000 });
-    await expect(page.getByText(/payment received|pago recibido/i).first()).toBeVisible({ timeout: 90_000 });
-    await shot(page, "success-4-return-paid");
+for (const [cur, PAY_URLS] of Object.entries(SETS)) {
+  const label = (name: string) => (cur ? `${cur} ${name}` : name);
+  const tag = (name: string) => (cur ? `${cur.toLowerCase()}-${name}` : name);
 
-    const link = await paymentFor(url);
-    const txns = await rest<{ id: string; status: string; gross_amount_cents: number; net_amount_cents: number; platform_fee_cents: number; booking_id: string | null }>(
-      "booking_transactions",
-      `select=id,status,gross_amount_cents,net_amount_cents,platform_fee_cents,booking_id&order_id=eq.${link.order_id}&status=eq.paid`,
-    ).catch(() => []);
-    expect(txns.length, "exactly one paid transaction").toBe(1);
-    // The link names the PRINCIPAL; the card is charged the collect (principal + the pass_through
-    // client service fee when armed): net == principal, gross == net + platform fee (#3051).
-    expect(Number(txns[0].net_amount_cents), "net == link principal").toBe(Number(link.amount_cents));
-    expect(Number(txns[0].gross_amount_cents), "gross == principal + service fee").toBe(Number(txns[0].net_amount_cents) + Number(txns[0].platform_fee_cents));
-    if (txns[0].booking_id) {
-      const snaps = await rest<{ gross_charged_cents: number }>("booking_commission_snapshot", `select=gross_charged_cents&booking_id=eq.${txns[0].booking_id}`);
-      const sum = snaps.reduce((n, s) => n + Number(s.gross_charged_cents), 0);
-      expect(sum, "snapshot gross == amount charged").toBe(txns[0].gross_amount_cents);
+  test(label("success 4242: pays, returns to 'Payment received', transaction paid, snapshot gross equals the charge"), async ({ page }) => {
+    const url = PAY_URLS.success;
+    if (!url) { rows.push({ case: label("success"), result: "skipped", detail: "no PAID_QA_PAY_URLS.success" }); test.skip(true, "no success pay URL"); return; }
+    try {
+      await openStripeCheckout(page, url, tag("success"));
+      await fillCard(page, "4242 4242 4242 4242");
+      await shot(page, tag("success-3-card-filled"));
+      await submit(page);
+      await page.waitForURL((u) => u.hostname !== "checkout.stripe.com", { timeout: 120_000 });
+      await expect(page.getByText(/payment received|pago recibido/i).first()).toBeVisible({ timeout: 90_000 });
+      await shot(page, tag("success-4-return-paid"));
+
+      const link = await paymentFor(url);
+      const txns = await rest<{ id: string; status: string; gross_amount_cents: number; net_amount_cents: number; platform_fee_cents: number; booking_id: string | null }>(
+        "booking_transactions",
+        `select=id,status,gross_amount_cents,net_amount_cents,platform_fee_cents,booking_id&order_id=eq.${link.order_id}&status=eq.paid`,
+      ).catch(() => []);
+      expect(txns.length, "exactly one paid transaction").toBe(1);
+      // The link names the PRINCIPAL; the card is charged the collect (principal + the pass_through
+      // client service fee when armed): net == principal, gross == net + platform fee (#3051).
+      expect(Number(txns[0].net_amount_cents), "net == link principal").toBe(Number(link.amount_cents));
+      expect(Number(txns[0].gross_amount_cents), "gross == principal + service fee").toBe(Number(txns[0].net_amount_cents) + Number(txns[0].platform_fee_cents));
+      if (txns[0].booking_id) {
+        const snaps = await rest<{ gross_charged_cents: number }>("booking_commission_snapshot", `select=gross_charged_cents&booking_id=eq.${txns[0].booking_id}`);
+        const sum = snaps.reduce((n, s) => n + Number(s.gross_charged_cents), 0);
+        expect(sum, "snapshot gross == amount charged").toBe(txns[0].gross_amount_cents);
+      }
+      rows.push({ case: label("success"), result: "pass", detail: `paid ${txns[0].gross_amount_cents} (order ${link.order_id})` });
+    } catch (e) {
+      rows.push({ case: label("success"), result: "fail", detail: String((e as Error).message).slice(0, 160) });
+      throw e;
     }
-    rows.push({ case: "success", result: "pass", detail: `paid ${txns[0].gross_amount_cents}` });
-  } catch (e) {
-    rows.push({ case: "success", result: "fail", detail: String((e as Error).message).slice(0, 160) });
-    throw e;
-  }
-});
+  });
 
-test("decline 4000 0000 0000 0002: declined, nothing paid", async ({ page }) => {
-  const url = PAY_URLS.decline;
-  if (!url) { rows.push({ case: "decline", result: "skipped", detail: "no PAID_QA_PAY_URLS.decline" }); test.skip(true, "no decline pay URL"); return; }
-  try {
-    await openStripeCheckout(page, url, "decline");
-    await fillCard(page, "4000 0000 0000 0002");
-    await submit(page);
-    await expect(page.getByText(/declined|rechaz/i).first()).toBeVisible({ timeout: 60_000 });
-    await shot(page, "decline-3-declined");
-    const link = await paymentFor(url);
-    const paid = await rest("booking_transactions", `select=id&order_id=eq.${link.order_id}&status=eq.paid`).catch(() => []);
-    expect(paid.length, "no paid transaction after a decline").toBe(0);
-    rows.push({ case: "decline", result: "pass", detail: "declined, nothing paid" });
-  } catch (e) {
-    rows.push({ case: "decline", result: "fail", detail: String((e as Error).message).slice(0, 160) });
-    throw e;
-  }
-});
+  test(label("decline 4000 0000 0000 0002: declined, nothing paid"), async ({ page }) => {
+    const url = PAY_URLS.decline;
+    if (!url) { rows.push({ case: label("decline"), result: "skipped", detail: "no PAID_QA_PAY_URLS.decline" }); test.skip(true, "no decline pay URL"); return; }
+    try {
+      await openStripeCheckout(page, url, tag("decline"));
+      await fillCard(page, "4000 0000 0000 0002");
+      await submit(page);
+      await expect(page.getByText(/declined|rechaz/i).first()).toBeVisible({ timeout: 60_000 });
+      await shot(page, tag("decline-3-declined"));
+      const link = await paymentFor(url);
+      const paid = await rest("booking_transactions", `select=id&order_id=eq.${link.order_id}&status=eq.paid`).catch(() => []);
+      expect(paid.length, "no paid transaction after a decline").toBe(0);
+      rows.push({ case: label("decline"), result: "pass", detail: "declined, nothing paid" });
+    } catch (e) {
+      rows.push({ case: label("decline"), result: "fail", detail: String((e as Error).message).slice(0, 160) });
+      throw e;
+    }
+  });
 
-test("3-D Secure 4000 0000 0000 3220: challenge completed, paid", async ({ page }) => {
-  const url = PAY_URLS.threeDS;
-  if (!url) { rows.push({ case: "3ds", result: "skipped", detail: "no PAID_QA_PAY_URLS.threeDS" }); test.skip(true, "no 3DS pay URL"); return; }
-  try {
-    await openStripeCheckout(page, url, "3ds");
-    await fillCard(page, "4000 0000 0000 3220");
-    await submit(page);
-    await completeThreeDS(page);
-    await page.waitForURL((u) => u.hostname !== "checkout.stripe.com", { timeout: 120_000 });
-    await expect(page.getByText(/payment received|pago recibido/i).first()).toBeVisible({ timeout: 90_000 });
-    await shot(page, "3ds-4-return-paid");
-    const link = await paymentFor(url);
-    const txns = await rest("booking_transactions", `select=id&order_id=eq.${link.order_id}&status=eq.paid`).catch(() => []);
-    expect(txns.length).toBe(1);
-    rows.push({ case: "3ds", result: "pass", detail: "authenticated and paid" });
-  } catch (e) {
-    rows.push({ case: "3ds", result: "fail", detail: String((e as Error).message).slice(0, 160) });
-    throw e;
-  }
-});
+  test(label("3-D Secure 4000 0000 0000 3220: challenge completed, paid"), async ({ page }) => {
+    const url = PAY_URLS.threeDS;
+    if (!url) { rows.push({ case: label("3ds"), result: "skipped", detail: "no PAID_QA_PAY_URLS.threeDS" }); test.skip(true, "no 3DS pay URL"); return; }
+    try {
+      await openStripeCheckout(page, url, tag("3ds"));
+      await fillCard(page, "4000 0000 0000 3220");
+      await submit(page);
+      await completeThreeDS(page);
+      await page.waitForURL((u) => u.hostname !== "checkout.stripe.com", { timeout: 120_000 });
+      await expect(page.getByText(/payment received|pago recibido/i).first()).toBeVisible({ timeout: 90_000 });
+      await shot(page, tag("3ds-4-return-paid"));
+      const link = await paymentFor(url);
+      const txns = await rest("booking_transactions", `select=id&order_id=eq.${link.order_id}&status=eq.paid`).catch(() => []);
+      expect(txns.length).toBe(1);
+      rows.push({ case: label("3ds"), result: "pass", detail: "authenticated and paid" });
+    } catch (e) {
+      rows.push({ case: label("3ds"), result: "fail", detail: String((e as Error).message).slice(0, 160) });
+      throw e;
+    }
+  });
+}
