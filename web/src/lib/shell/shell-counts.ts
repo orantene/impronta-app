@@ -1,15 +1,17 @@
 import "server-only";
 
 /**
- * shell-counts.ts — TUL-387 (Notifications 1/6).
+ * shell-counts.ts — TUL-387 + TUL-389 (Notifications 1/6 + 3/6).
  *
  * Single loader for the three chrome badge counts the shell will paint as
  * bubbles (TUL-388): messages, money, attention. Layouts call this once per
  * surface and stamp the result onto the bridge as `shellCounts`, keeping
  * `totalUnread === shellCounts.messages` for existing consumers.
  *
- * messages reuses the existing unread loaders in `lib/saas/unread-counts.ts`.
- * money / attention stay at 0 until TUL-389 wires their producers.
+ * messages reuses the existing unread loaders in `lib/saas/unread-counts.ts`
+ * (inquiry watermarks — not the notifications "messages" category).
+ * money / attention come from `countUnreadNotifications` (`read_at IS NULL`
+ * rollup by UI category — TUL-389).
  *
  * Never throws — returns zeros on any error so a flaky count cannot blank
  * the shell.
@@ -20,6 +22,14 @@ import {
   loadWorkspaceUnreadCount,
   loadTalentUnreadCount,
 } from "@/lib/saas/unread-counts";
+import {
+  countUnreadNotifications,
+  type CountUnreadOptions,
+} from "@/lib/notifications/self";
+import {
+  emptyUnreadCounts,
+  type UnreadNotificationCounts,
+} from "@/lib/notifications/categories-ui";
 
 export type ShellCounts = {
   messages: number;
@@ -42,6 +52,10 @@ export type ShellCountLoaders = {
     talentProfileId: string,
     tenantId: string,
   ) => Promise<number>;
+  /** TUL-389 — unread notification rollup by UI category. */
+  countUnreadNotifications?: (
+    opts: CountUnreadOptions,
+  ) => Promise<UnreadNotificationCounts>;
 };
 
 const ZERO_COUNTS: ShellCounts = { messages: 0, money: 0, attention: 0 };
@@ -49,6 +63,7 @@ const ZERO_COUNTS: ShellCounts = { messages: 0, money: 0, attention: 0 };
 const defaultLoaders: ShellCountLoaders = {
   loadWorkspaceUnread: loadWorkspaceUnreadCount,
   loadTalentUnread: loadTalentUnreadCount,
+  countUnreadNotifications,
 };
 
 function sanitizeCount(n: number): number {
@@ -59,10 +74,8 @@ function sanitizeCount(n: number): number {
 /**
  * Load chrome badge counts for the named shell surface.
  *
- * - workspace → `loadWorkspaceUnreadCount` / `loadTotalUnreadMessages`
- * - talent → `loadTalentUnreadCount`
- *
- * money / attention: always 0 until TUL-389.
+ * - messages: workspace / talent inquiry unread loaders
+ * - money / attention: `countUnreadNotifications` for that surface (TUL-389)
  */
 export async function loadShellCounts(
   surface: ShellCountSurface,
@@ -70,15 +83,14 @@ export async function loadShellCounts(
   loaders: ShellCountLoaders = defaultLoaders,
 ): Promise<ShellCounts> {
   try {
-    const messages = sanitizeCount(
-      await loadMessagesCount(surface, opts, loaders),
-    );
+    const [messages, notif] = await Promise.all([
+      loadMessagesCount(surface, opts, loaders),
+      loadNotifCategoryCounts(surface, loaders),
+    ]);
     return {
-      messages,
-      // TODO(TUL-389): wire money / attention producers (no schema yet —
-      // prefer an honest zero over inventing a DB read).
-      money: 0,
-      attention: 0,
+      messages: sanitizeCount(messages),
+      money: sanitizeCount(notif.money),
+      attention: sanitizeCount(notif.attention),
     };
   } catch (err) {
     logServerError("shell-counts.loadShellCounts", err);
@@ -106,4 +118,17 @@ async function loadMessagesCount(
     return 0;
   }
   return loaders.loadTalentUnread(talentProfileId, opts.tenantId);
+}
+
+async function loadNotifCategoryCounts(
+  surface: ShellCountSurface,
+  loaders: ShellCountLoaders,
+): Promise<UnreadNotificationCounts> {
+  const countFn = loaders.countUnreadNotifications ?? countUnreadNotifications;
+  try {
+    return await countFn({ surface });
+  } catch (err) {
+    logServerError("shell-counts.loadNotifCategoryCounts", err);
+    return emptyUnreadCounts();
+  }
 }
