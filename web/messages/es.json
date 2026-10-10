@@ -885,7 +885,8 @@
         "whatsapp": "WhatsApp",
         "email": "Correo",
         "confirmByHand": "Ella confirma a mano.",
-        "bookInstant": "Puedes reservar un horario en esta página."
+        "bookInstant": "Puedes reservar un horario en esta página.",
+        "bookingsPaused": "No estoy tomando nuevas reservas por ahora. Puedes consultarme."
       }
     },
     "guestChat": {

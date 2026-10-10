@@ -5,7 +5,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { toI18nMap } from "@/lib/i18n/i18n-columns";
 import { isTalentThemeGalleryEnabled } from "@/lib/access/talent-theme-gallery";
 import { talentOffersInstantBooking } from "@/lib/scheduling/talent-booking-mode";
-import { loadWorkingHoursPresence } from "@/lib/talent/site-switches-server";
+import { loadTalentSiteSwitches, loadWorkingHoursPresence } from "@/lib/talent/site-switches-server";
 import { resolveSiteCtaMode, type SiteCtaMode } from "@/lib/talent-site/design-label-locale";
 import { resolveDesignSource } from "@/lib/talent-site/theme-template/design-lineage.server";
 import type {
@@ -177,19 +177,24 @@ export async function loadTalentSellingDefaults(talentProfileId: string): Promis
 
 /**
  * Site-wide CTA mode for seeded action copy (Folio footer line, Frame
- * "Book a session", ...): booking posture with the plan ceiling applied.
+ * "Book a session", ...): booking posture with the plan ceiling applied,
+ * and accepting_bookings (GRK-068) so a paused site never seeds "Reservar".
  */
 export async function loadTalentSiteCtaMode(
   talentProfileId: string,
   planKey: string | null,
 ): Promise<SiteCtaMode> {
   const admin = createServiceRoleClient();
-  const hours = admin ? await loadWorkingHoursPresence(admin, [talentProfileId]) : new Map<string, boolean>();
+  const [hours, switches] = await Promise.all([
+    admin ? loadWorkingHoursPresence(admin, [talentProfileId]) : Promise.resolve(new Map<string, boolean>()),
+    admin ? loadTalentSiteSwitches(admin, talentProfileId) : Promise.resolve(null),
+  ]);
   return resolveSiteCtaMode({
     sellingDefaults: await loadTalentSellingDefaults(talentProfileId),
     confirmsByHand: !talentOffersInstantBooking(planKey),
     // An unknown hours read never downgrades (same rule as the offering loader).
     instantReady: hours.get(talentProfileId) !== false,
+    acceptingBookings: switches?.acceptingBookings,
   });
 }
 
