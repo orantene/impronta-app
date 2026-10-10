@@ -82,6 +82,9 @@ export const WEBSITE_ES_TEXT: Record<string, string> = {
   "Site address, logo, pages and custom domain": "Dirección del sitio, logo, páginas y dominio propio",
   "Address, logo, pages, booking, payments and cancelling":
     "Dirección, logo, páginas, reservas, pagos y cancelaciones",
+  "Chat & inquiries": "Chat y consultas",
+  "Website chat, inquiries and booking assistant":
+    "Chat del sitio, consultas y asistente de reservas",
   // Custom domain unlock (Web Office) — kept here so dashboard-i18n.ts stays at 3968.
   "Domain setup": "Configurar dominio",
   "Buy a domain at the registrar price, connect one you own, or get help.": "Compra un dominio al precio del registrador, conecta uno propio, o pide ayuda.",

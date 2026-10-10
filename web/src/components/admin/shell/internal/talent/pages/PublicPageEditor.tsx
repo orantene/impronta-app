@@ -52,7 +52,11 @@ export function PublicPageEditor({ locale = "en" }: Props) {
   const { bridgeTalentSelfProfile } = useAdminShell();
   const [tab, setTab] = useState<PresenceTab>("site");
   // PR 7: "Manage languages" / "Change in Website settings" deep-link here.
+  // Mi sitio Chat & inquiries entry sets settingsView to "chat" on open.
   const [intent] = useState<WebsiteSettingsIntentView | null>(() => takeWebsiteSettingsIntent());
+  const [settingsView, setSettingsView] = useState<WebsiteSettingsIntentView | undefined>(
+    intent ?? undefined,
+  );
   const [settingsOpen, setSettingsOpen] = useState(intent !== null);
   const [faqOpen, setFaqOpen] = useState(false);
   // Dark launch (TALENT_WEBSITE_SETTINGS_ENABLED): flag off → no entry row, no screen.
@@ -85,8 +89,10 @@ export function PublicPageEditor({ locale = "en" }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [settingsOpen]);
   const talentId = settingsEnabled ? (bridgeTalentSelfProfile?.id ?? null) : null;
-  const openWebsiteSettings = () => {
-    if (talentId) setSettingsOpen(true);
+  const openWebsiteSettings = (view?: WebsiteSettingsIntentView) => {
+    if (!talentId) return;
+    setSettingsView(view);
+    setSettingsOpen(true);
   };
   const settingsSheet =
     settingsOpen && talentId ? (
@@ -109,7 +115,7 @@ export function PublicPageEditor({ locale = "en" }: Props) {
           <div className="flex-1 overflow-auto px-4 py-3">
             <WebsiteSettingsScreen
               talentId={talentId}
-              initialView={intent ?? undefined}
+              initialView={settingsView}
               onRegisterClose={registerSettingsClose}
               onClose={() => setSettingsOpen(false)}
             />
@@ -122,7 +128,12 @@ export function PublicPageEditor({ locale = "en" }: Props) {
       <NavRow
         title={copy.t("Website settings")}
         summary={copy.t("Address, logo, pages, booking, payments and cancelling")}
-        onOpen={openWebsiteSettings}
+        onOpen={() => openWebsiteSettings()}
+      />
+      <NavRow
+        title={copy.t("Chat & inquiries")}
+        summary={copy.t("Website chat, inquiries and booking assistant")}
+        onOpen={() => openWebsiteSettings("chat")}
       />
     </div>
   ) : null;
@@ -176,7 +187,7 @@ export function PublicPageEditor({ locale = "en" }: Props) {
             locale={locale}
             hideDomainRow
             onOpenQuestions={() => setFaqOpen(true)}
-            onOpenSettings={openWebsiteSettings}
+            onOpenSettings={() => openWebsiteSettings()}
           />
           {faqOpen ? (
             <div
