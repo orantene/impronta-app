@@ -290,7 +290,7 @@ const ES_TEXT: Record<string, string> = {
   "Deposit percentage": "Porcentaje de anticipo",
   "Cancelling hours": "Horas para cancelar",
   "Rescheduling hours": "Horas para reprogramar",
-  "Buffer after": "Buffer después",
+  "Buffer after": "Margen después",
   "Shortest notice (minutes)": "Aviso mínimo (minutos)",
   "with a photo": "con foto",
   "Rename": "Renombrar",
