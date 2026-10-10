@@ -42,6 +42,15 @@ test("registry: Gridline owns eight demos, Alex is the one reference, palettes e
   for (const d of all) assert.ok(d.contentFixture, `${d.profileCode} has a content fixture`);
 });
 
+test("TUL-537: Saúl header uses person name, not workshop brand alone", () => {
+  const saul = fx("TAL-93208");
+  assert.equal(saul.talent.displayName, "Saúl Tapia");
+  assert.match(saul.topBar?.subtitle ?? "", /Madera Tapia/);
+  const gallery = getGalleryDesign("gridline")!.demos.find((d) => d.source.kind === "demo-talent" && d.source.profileCode === "TAL-93208");
+  assert.ok(gallery && gallery.source.kind === "demo-talent");
+  assert.equal(gallery.source.displayName, "Saúl Tapia");
+});
+
 test("guard: the eight codes are accepted, Jor, QA users and real talents are refused", () => {
   for (const code of CODES) {
     const d = decideDemoTarget({ profileCode: code, inRegistry: !!findDemo(code), isDemoFlag: true, email: `demo-x@demo.tulala.digital`, demoBatch: DEMO_BATCH });
