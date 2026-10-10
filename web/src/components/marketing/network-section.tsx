@@ -143,7 +143,7 @@ function NetworkDiagram({ locale }: { locale: string }) {
         <div className="absolute inset-x-4 bottom-4">
           <span
             className="plt-mono text-[0.625rem] font-medium uppercase"
-            style={{ color: "rgba(241,237,227,0.72)" }}
+            style={{ color: "var(--plt-on-inverse)" }}
           >
             {preview.eyebrow}
           </span>

@@ -1176,8 +1176,9 @@ html[data-public-font-preset="editorial"] {
   /* Signal — calm, editorial */
   --tl-positive: #2e6b52;
   --tl-positive-bg: rgba(46, 107, 82, 0.12);
-  --tl-warning: #9c7b2e;
-  --tl-warning-bg: rgba(156, 123, 46, 0.12);
+  /* E1-3176: Coming soon pills — #9c7b2e on 12% wash was ~3.0:1; darken for AA 4.5:1. */
+  --tl-warning: #5c481c;
+  --tl-warning-bg: rgba(92, 72, 28, 0.14);
   --tl-error: #8e3f2e;
   --tl-error-bg: rgba(142, 63, 46, 0.12);
   --tl-info: #2b4f7a;

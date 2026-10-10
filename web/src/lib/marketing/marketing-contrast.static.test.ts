@@ -69,4 +69,28 @@ describe("marketing contrast (TUL-518)", () => {
       /brand\.tagline[\s\S]{0,200}--plt-muted-soft/,
     );
   });
+
+  it("E1-3176: warning token clears AA 4.5:1 on bone (Coming soon pills)", () => {
+    const ratio = contrastRatio(tlHex("warning"), tlHex("bone"));
+    assert.ok(ratio != null && ratio >= 4.5, `warning/bone ratio ${ratio}`);
+  });
+
+  it("E1-3176: /start Continue uses solid disabled colors (not opacity-40)", () => {
+    const ui = readFileSync(join(process.cwd(), "src/components/onboarding/ui.tsx"), "utf8");
+    const start = ui.indexOf("export function PrimaryButton");
+    const end = ui.indexOf("export function SecondaryButton");
+    assert.ok(start >= 0 && end > start, "PrimaryButton/SecondaryButton markers missing");
+    const primary = ui.slice(start, end);
+    assert.match(primary, /color-mix\(in srgb, var\(--tl-forest\) 35%, var\(--tl-bone\)\)/);
+    assert.doesNotMatch(primary, /disabled:opacity-40/);
+  });
+
+  it("E1-3176: Agencies & hubs preview eyebrow uses solid on-inverse", () => {
+    const network = readFileSync(
+      join(process.cwd(), "src/components/marketing/network-section.tsx"),
+      "utf8",
+    );
+    assert.match(network, /preview\.eyebrow[\s\S]{0,200}--plt-on-inverse/);
+    assert.doesNotMatch(network, /rgba\(241,\s*237,\s*227,\s*0\.72\)/);
+  });
 });
