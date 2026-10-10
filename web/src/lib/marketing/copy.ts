@@ -636,7 +636,7 @@ const es: MarketingCopy = {
 
   network: {
     eyebrow: "La red",
-    titleLine1: "No estás solo con un enlace.",
+    titleLine1: "Hay más que un enlace.",
     titleLine2: "Estás en una red.",
     paragraph:
       "El talento encuentra agencias y hubs para postularse, los clientes descubren a las personas indicadas, y los negocios crecen más allá de su propio sitio. Es un feed de oportunidades, no una lista estática.",
@@ -663,7 +663,7 @@ const es: MarketingCopy = {
 
   pricing: {
     eyebrow: "Precios",
-    title: "Empieza gratis. Crece cuando estés listo.",
+    title: "Empieza gratis. Crece cuando quieras.",
     subtitle:
       "Todos los planes te llevan de la solicitud a reservado y pagado, gratis. Los planes de pago suman tamaño de catálogo, marca y canales conforme creces.",
     footnote:
@@ -736,7 +736,7 @@ const es: MarketingCopy = {
     titleLine1: "Convierte tu trabajo en dinero.",
     titleLine2: "Lleva un negocio de verdad.",
     subhead:
-      "Abre una página gratis y empieza a recibir solicitudes hoy. Cuando estés listo, lanza tu propio sitio, recibe tus solicitudes y lleva todo el negocio.",
+      "Abre una página gratis y empieza a recibir solicitudes hoy. Cuando quieras, lanza tu propio sitio, recibe tus solicitudes y lleva todo el negocio.",
     ctaTalent: "Vende tu trabajo · gratis",
     ctaBusiness: "Abre tu negocio",
     trust: [

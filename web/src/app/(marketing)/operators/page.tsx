@@ -140,7 +140,7 @@ function getShifts(locale: string): Shift[] {
       },
       {
         before: "Sin forma de crecer más allá de ti.",
-        after: "Accesos por rol cuando estés listo para delegar.",
+        after: "Accesos por rol cuando quieras delegar.",
       },
     ],
   });
