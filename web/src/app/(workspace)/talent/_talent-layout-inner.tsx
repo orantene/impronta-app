@@ -42,6 +42,7 @@ import { TalentShellClient } from "@/components/admin/shell/admin-shell-client";
 import { SupportLauncherShellMount } from "@/components/support/SupportLauncherShellMount";
 import type { TalentPage } from "@/components/admin/shell/internal/state";
 import { loadTenantIdentity, loadProfileDisplayName, type TenantIdentityPayload } from "../[tenantSlug]/_layout-identity";
+import { resolveHybridSessionDisplayName } from "@/lib/saas/session-display-name";
 import { getActiveTalentAgencyContext } from "@/lib/talent/active-agency-context";
 import { TalentSiteDashboardProvider } from "@/components/talent/site/TalentSiteDashboardProvider";
 import { loadTalentPersonalSiteDashboardState } from "@/lib/talent-site/server/dashboard-state";
@@ -388,7 +389,11 @@ export async function TalentLayoutInner({
     userId: session.user.id,
     email: session.user.email ?? "",
     role: membership?.role ?? "viewer",
-    displayName: profileDisplayName,
+    // onb1-22: keep Admin/Talento greeting aligned on the talent profile name.
+    displayName: resolveHybridSessionDisplayName({
+      profileDisplayName,
+      talentDisplayName: talentSelfProfile.displayName,
+    }),
     isPlatformAdmin: isPlatformAdmin(session.profile),
     // TUL-164: set only for a validated impersonation cookie, never for an owner.
     actingAs,
