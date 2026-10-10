@@ -1792,7 +1792,9 @@ function PublishSplitButton({
   }, [menuOpen]);
 
   return (
-    <div className="sticky right-[20px] z-[2] shrink-0" data-publish-split>
+    // Sticky lives on the publish cluster wrapper in EditTopBar (chip + this
+    // control), so Publicar never overlays the draft chip while the bar scrolls.
+    <div className="shrink-0" data-publish-split>
       <div
         className="inline-flex items-stretch overflow-hidden rounded-[10px]"
         role="group"
@@ -3160,18 +3162,31 @@ export function TopBar({
         onSaveDraft={onSaveDraft}
       />
       <TopBarPresence />
-      <TalentDraftChip />
-      {/* ── Publish split (primary CTA) ── */}
-      {/* Perf spine — no `disabled={saving}` here: the button and its menu only
-          OPEN surfaces or ride the coalesced save queue (named checkpoint has its
-          own pending state). Greying the CTA during autosaves was pure friction. */}
-      {editCtx?.surfaceKind === "theme_template" ? null : (
-        <PublishSplitButton
-          onPublish={gatedPublish}
-          onMenuSelect={handleMenuSelect}
-          replaceOnly={Boolean(editCtx?.discardDraftToLive)}
-        />
-      )}
+      {/* TUL-519 W5-2 — sticky cluster: draft chip + Publish travel together.
+          Sticky used to sit only on Publish, so horizontal scroll (BUG-010)
+          painted Publicar over "Borrador · N cambios sin publicar". */}
+      <div
+        className="sticky right-[20px] z-[2] inline-flex shrink-0 items-center gap-[12px] max-[1100px]:gap-[6px]"
+        data-publish-cluster
+        style={{
+          // Match the glass bar so scrolled chrome cannot show through the gap.
+          background: "rgba(249, 249, 251, 0.96)",
+          paddingLeft: 4,
+        }}
+      >
+        <TalentDraftChip />
+        {/* ── Publish split (primary CTA) ── */}
+        {/* Perf spine — no `disabled={saving}` here: the button and its menu only
+            OPEN surfaces or ride the coalesced save queue (named checkpoint has its
+            own pending state). Greying the CTA during autosaves was pure friction. */}
+        {editCtx?.surfaceKind === "theme_template" ? null : (
+          <PublishSplitButton
+            onPublish={gatedPublish}
+            onMenuSelect={handleMenuSelect}
+            replaceOnly={Boolean(editCtx?.discardDraftToLive)}
+          />
+        )}
+      </div>
       {draftReset.dialog}
       </div>
 
