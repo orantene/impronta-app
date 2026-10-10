@@ -14,6 +14,12 @@ export const DEMO_SITE_FOOTER = {
   en: "Demo profile. Bookings are simulated.",
 } as const;
 
+/** (i) tooltip on the floating Demo corner badge (TUL-516 P1). */
+export const DEMO_SITE_BADGE_TIP = {
+  en: "Demo site: sample content",
+  es: "Sitio de muestra: contenido de ejemplo",
+} as const;
+
 export const DEMO_SUBMIT_REFUSAL =
   "Este es un perfil de demostración: no recibe mensajes ni reservas reales. / This is a demo profile: it does not take real messages or bookings.";
 
