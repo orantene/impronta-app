@@ -136,7 +136,7 @@ export function MarketingHeader({
         <Link
           href={L("/")}
           className="group relative -mx-1 flex items-center rounded-md px-1 py-1"
-          aria-label={`${PLATFORM_BRAND.name} home`}
+          aria-label={copy.nav.homeAria.replace("{name}", PLATFORM_BRAND.name)}
           style={{ color: "var(--plt-ink)" }}
         >
           <TulalaHeaderLogo descriptor={copy.brand.descriptor} />
