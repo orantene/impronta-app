@@ -90,9 +90,9 @@ export const EDITORIAL_TYPE_SYSTEM_CSS = [
   `${S} .site-header__brand-label{font-family:var(--site-heading-font,Georgia,serif);font-style:${v("type.accent-style")};font-weight:500;font-size:${v("type.logo-size")};line-height:normal;letter-spacing:-0.02em;text-transform:none;color:var(--token-color-ink)}`,
   `${S} .site-header__brand-tagline{font-family:var(--site-body-font,inherit);font-size:9.5px;line-height:normal;font-weight:${v("type.label-weight")};letter-spacing:0.2em;text-transform:uppercase;color:var(--token-color-muted)}`,
   `${S} .site-header__nav-list{gap:22px}`,
-  `${S} .site-header__nav-link{font-size:${v("type.nav-size")};font-weight:400;color:var(--token-color-muted);text-transform:none;letter-spacing:0;text-decoration:none}`,
+  `${S} .site-header__nav-link{font-size:${v("type.nav-size")};font-weight:400;color:var(--token-color-muted-text,var(--token-color-muted));text-transform:none;letter-spacing:0;text-decoration:none}`,
   `${S} .site-header__nav-link:hover{color:var(--token-color-ink)}`,
-  `${S} .site-header__lang{gap:0;font-size:11.5px;font-weight:${v("type.label-weight")};letter-spacing:0.06em;color:var(--token-color-muted)}`,
+  `${S} .site-header__lang{gap:0;font-size:11.5px;font-weight:${v("type.label-weight")};letter-spacing:0.06em;color:var(--token-color-muted-text,var(--token-color-muted))}`,
   `${S} .site-header__lang .site-header__lang-code{font-size:inherit;letter-spacing:inherit;opacity:1;color:inherit;font-weight:500}`,
   `${S} .site-header__lang .site-header__lang-code[data-active]{color:var(--token-color-ink);font-weight:700}`,
   `${S} .site-header__lang .site-header__lang-sep{opacity:1}`,
@@ -190,9 +190,9 @@ export const EDITORIAL_TYPE_SYSTEM_CSS = [
   // ── Footer: ink band, big accent-style line, page-colour pill.
   `${S} #site-footer{background:var(--token-color-ink);color:var(--token-color-background)}`,
   `${S} #site-footer h2{margin:0;font-style:${v("type.accent-style")};font-weight:${v("type.accent-weight")};font-size:${v("type.footer-title-size")};line-height:1;color:var(--token-color-background)}`,
-  `${S} #site-footer p.site-builder-node--paragraph{color:color-mix(in srgb,var(--token-color-background) 60%,transparent);font-size:11.5px}`,
+  `${S} #site-footer p.site-builder-node--paragraph{color:color-mix(in srgb,var(--token-color-background) 72%,transparent);font-size:11.5px}`,
   `${S} #site-footer .site-builder-node--button{background:var(--token-color-background);color:var(--token-color-ink);border:0}`,
-  `${S} #site-footer h2 + p.site-builder-node--paragraph{margin:10px 0 18px;font-size:${v("type.body-size")};color:color-mix(in srgb,var(--token-color-background) 70%,transparent)}`,
+  `${S} #site-footer h2 + p.site-builder-node--paragraph{margin:10px 0 18px;font-size:${v("type.body-size")};color:color-mix(in srgb,var(--token-color-background) 78%,transparent)}`,
   `${MQ_DESK}{${S} #site-footer h2{font-size:${v("type.footer-title-size-desktop")}}}`,
 
   // ── Dock: one frosted capsule.

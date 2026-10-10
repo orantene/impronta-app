@@ -3179,10 +3179,10 @@ function clampFreeWidthForMobile(value: string): string {
 
 /**
  * Muted tone: inside a band that sets its own ink (`--bn-ink`), fine print is
- * that ink at 60%; elsewhere the theme's muted token (unchanged).
+ * that ink at ~60–72%; elsewhere the AA-guaranteed muted-text token (GRK-077).
  */
 const MUTED_TONE_COLOR =
-  "var(--bn-ink-muted, var(--token-color-muted, rgba(18, 18, 18, 0.62)))";
+  "var(--bn-ink-muted, var(--token-color-muted-text, var(--token-color-muted, rgba(18, 18, 18, 0.62))))";
 
 export function inlineNodeStyle(
   style: BuilderNodeStyle | undefined,
@@ -3213,16 +3213,27 @@ export function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSPropert
   if (style.radius) out.borderRadius = NODE_RADIUS[style.radius];
   if (style.background === "surface") out.background = "var(--token-color-surface-raised, rgba(246, 241, 232, 0.92))";
   if (style.background === "contrast") {
+    // Pair ink fill with the page paper as text (not hardcoded white) so dark
+    // Looks keep readable chrome. Publish band ink so child `tone: muted`
+    // copyright/© lines use soft paper, not page muted-on-ink (GRK-077/100).
+    const contrastInk = "var(--token-color-background,#fff)";
     out.background = "var(--token-color-ink,#111)";
-    out.color = "#fff";
+    out.color = contrastInk;
+    (out as Record<string, string>)["--bn-ink"] = contrastInk;
+    (out as Record<string, string>)["--bn-ink-muted"] =
+      `color-mix(in oklab, ${contrastInk} 72%, transparent)`;
   }
   // AIQ-13 — theme-paired band roles. Each emits a background AND its guaranteed
   // paired foreground (like "contrast" does), so a tenant's own brand color paints
   // the band and the text stays readable on every theme. Kept AFTER surface/
   // contrast and BEFORE tone so an explicit tone/textColor still wins.
   if (style.background === "accent") {
+    const accentInk = "var(--token-color-surface-raised, #fff)";
     out.background = "var(--token-color-primary, var(--token-color-ink, #111))";
-    out.color = "var(--token-color-surface-raised, #fff)";
+    out.color = accentInk;
+    (out as Record<string, string>)["--bn-ink"] = accentInk;
+    (out as Record<string, string>)["--bn-ink-muted"] =
+      `color-mix(in oklab, ${accentInk} 72%, transparent)`;
   }
   if (style.background === "muted") {
     out.background =
