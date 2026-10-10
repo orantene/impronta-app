@@ -256,7 +256,17 @@ export function CardDockHeader({
           <Expand size={16} strokeWidth={1.8} aria-hidden />
         </button>
       ) : null}
-      <button type="button" onClick={onClose} aria-label={t("public.guestChat.closeAria")} title={t("public.guestChat.closeAria")} className={a11y.focusRing} style={ROUND_BTN}>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
+        aria-label={t("public.guestChat.closeAria")}
+        title={t("public.guestChat.closeAria")}
+        className={a11y.focusRing}
+        style={ROUND_BTN}
+      >
         <XIcon />
       </button>
     </div>
