@@ -58,6 +58,8 @@ export const UTILITY_TYPE_SYSTEM_CSS = [
   // TUL-474: keep the hero status-dot kicker on one line (seed still says wrap; CSS wins at render).
   `${U} #hero .site-builder-node--container[data-builder-layout="row"]{flex-wrap:nowrap}`,
   `${U} #hero .site-builder-node--container[data-builder-layout="row"] > .site-builder-node--paragraph{align-self:center}`,
+  // TUL-532 / GRK-073: heal published trees that still seed paddingX:none (phone ≥16px).
+  `@media (max-width:899px){${U} :is(#hero,#services,#proof,#area,#faq,[data-cms-block]>.site-builder-node--container,[data-cms-block]>.site-builder-node--services-catalog,[data-cms-block]>.sb-portfolio,[data-cms-block]>.sb-area){padding-inline:max(16px,${v("layout.gutter-phone")})!important;box-sizing:border-box}}`,
 ].join("\n");
 
 /**

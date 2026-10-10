@@ -26,7 +26,8 @@ export const PORTFOLIO_WORK_ORDER_CSS = `
 .sb-wo-job{margin:0;border-radius:8px;overflow:hidden;background:var(--token-color-surface-raised,var(--token-color-background));border:1px solid var(--token-color-line);transition:transform .18s}
 .sb-wo-job:hover{transform:translateY(-2px)}
 .sb-wo-shot{display:block;width:100%;padding:0;border:0;background:transparent;cursor:pointer;text-align:inherit;font:inherit;color:inherit}
-.sb-wo-job img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block}
+/* TUL-532 / GRK-076: face-forward crop on job tiles. */
+.sb-wo-job img{width:100%;aspect-ratio:1/1;object-fit:cover;object-position:center 18%;display:block}
 .sb-wo-job figcaption{padding:8px;font:500 10.5px/1.4 var(--site-mono-font,ui-monospace,monospace);color:var(--token-color-muted);overflow-wrap:anywhere}
 .sb-wo-job figcaption b{display:block;color:var(--token-color-ink);font:800 13px var(--token-typography-heading-font-family,var(--site-heading-font,inherit));margin-bottom:2px}
 /* TUL-474/496: last job captions clear sticky book bar + chat bubble on phone. */

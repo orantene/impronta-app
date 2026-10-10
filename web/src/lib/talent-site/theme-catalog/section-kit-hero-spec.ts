@@ -132,7 +132,7 @@ function whoCard(makeId: MaxSiteTemplateIdFactory, opts: HeroSpecBlockOptions): 
             width: "100%",
             height: "340px",
             objectFit: "cover",
-            objectPosition: "50% 20%",
+            objectPosition: "center 18%",
             radius: "none",
             responsive: { mobile: { width: "92px", height: "92px", minWidth: "92px", radius: "sm" } },
           },

@@ -5909,7 +5909,8 @@ html[data-theme="dark"] [data-tone="light"] {
 .site-header[data-variant="minimal"] .site-header__inner { flex-direction: column; align-items: center; gap: 8px; padding-block: 8px; }
 
 .site-header__brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: var(--token-color-ink); font-family: var(--site-heading-font); font-weight: 600; letter-spacing: -0.005em; }
-.site-header__brand-mark { width: clamp(20px, 2vw, 28px); height: clamp(20px, 2vw, 28px); object-fit: contain; }
+/* TUL-532 / GRK-046: readable mark (was clamp from 20px — unreadably small). */
+.site-header__brand-mark { width: clamp(32px, 3.5vw, 44px); height: clamp(32px, 3.5vw, 44px); object-fit: contain; }
 .site-header__brand-label { font-size: clamp(14px, 1.1vw, 16px); }
 /* Phones: the header is ONE row on every design and variant. A long name gives way (ellipsis), never wraps the bar. */
 @media (max-width: 767px) {

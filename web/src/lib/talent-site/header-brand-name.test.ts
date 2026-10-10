@@ -42,11 +42,17 @@ test("nothing set falls back to the site slug", () => {
   assert.equal(labelOf(out[0]), "qa-fresh-studio");
 });
 
-test("an existing brand label or logo is kept", () => {
+test("an existing brand label is kept", () => {
   const named = header({ brand: { label: "My Own Name" } });
   assert.equal(withHeaderBrandName(named, "Other"), named);
+});
+
+test("logo without a name gets the business name beside the mark (GRK-046)", () => {
   const logo = header({ brand: { label: "", logoUrl: "https://x/y.png" }, brandDisplay: "image" });
-  assert.equal(withHeaderBrandName(logo, "Other"), logo);
+  const out = withHeaderBrandName(logo, "Studio Bella");
+  assert.equal(labelOf(out), "Studio Bella");
+  assert.equal(spOf(out).brandDisplay, "image-and-text");
+  assert.equal(((spOf(out).brand as Rec).logoUrl), "https://x/y.png");
 });
 
 test("image-only display with no logo switches to text so the slot is never empty", () => {

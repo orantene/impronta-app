@@ -4439,6 +4439,10 @@ const SERVICES_CATALOG_CSS = `
    gets the same side gutter a paddingX:"m" container has. Inline authored
    padding still wins; nested catalogs keep their parent's padding. */
 [data-cms-block]>.site-builder-node--services-catalog{padding-inline:1.5rem}
+/* A stack container with align start/center/end shrink-wraps its children; the
+   fixed-layout comparison table has a near-zero min-content width, so the
+   catalog must always fill the column or its cells collapse to one letter. */
+.site-builder-node--container:not([data-builder-layout="row"],[data-builder-layout="grid"],[data-builder-display="grid"])>.site-builder-node--services-catalog{align-self:stretch;min-width:0}
 .site-builder-node--services-catalog-header{display:flex;flex-wrap:wrap;justify-content:space-between;gap:1.25rem;margin-bottom:1.5rem}
 .site-builder-node--services-catalog-eyebrow{margin:0 0 .35rem;font-size:.6875rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--token-color-primary,var(--token-color-ink))}
 .site-builder-node--services-catalog-title{margin:0;font-size:clamp(1.75rem,4vw,2.75rem);font-weight:500;line-height:1.1;font-family:var(--token-font-display,inherit)}
@@ -4498,18 +4502,22 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-list{display:grid;grid-template-columns:repeat(var(--svc-columns,3),minmax(0,1fr));gap:.85rem}
 .site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-list{display:grid;grid-template-columns:repeat(var(--svc-columns,2),minmax(0,1fr));gap:1.75rem}
 .site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-row,
-.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-row{display:flex;flex-direction:column;align-items:stretch;gap:.75rem;padding:0;border:1px solid var(--token-color-line);border-radius:12px;overflow:hidden;background:var(--token-color-surface-raised,#fff)}
-.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-row{display:flex;flex-direction:column;align-items:stretch;gap:.5rem;padding:0;border:0;border-radius:0;overflow:hidden;background:transparent}
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-row{display:flex;flex-direction:column;align-items:stretch;gap:.75rem;padding:0;border:1px solid var(--token-color-line);border-radius:12px;overflow:visible;background:var(--token-color-surface-raised,#fff)}
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-row{display:flex;flex-direction:column;align-items:stretch;gap:.5rem;padding:0;border:0;border-radius:0;overflow:visible;background:transparent}
 .site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-photo,
-.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-photo{width:100%;height:auto;aspect-ratio:4/3}
-.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-photo{width:100%;height:auto;aspect-ratio:1/1}
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-photo{width:100%;height:auto;aspect-ratio:4/3;overflow:hidden;border-radius:12px 12px 0 0}
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-photo{width:100%;height:auto;aspect-ratio:1/1;overflow:hidden}
 .site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-copy,
 .site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-copy,
 .site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-copy{padding:0 1rem}
 .site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-copy{padding:0}
 .site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-buy,
-.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-buy{margin:0 1rem 1rem;flex:0 0 auto;min-width:0;width:auto;justify-content:flex-start;gap:.75rem}
-.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-buy{margin:.25rem 0 0;flex:0 0 auto;justify-content:flex-start;gap:.5rem}
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-buy{margin:0 1rem 1rem;flex:0 0 auto;min-width:0;width:100%;max-width:100%;box-sizing:border-box;justify-content:flex-start;align-items:stretch;gap:.75rem;flex-wrap:wrap}
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-buy{margin:.25rem 0 0;flex:0 0 auto;min-width:0;width:100%;justify-content:flex-start;gap:.5rem;flex-wrap:wrap}
+/* TUL-532 / GRK-083: never clip "Solicitar cita" to "Soli" on phone cards. */
+.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-cta,
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-cta,
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-cta{flex:1 1 auto;min-width:0;max-width:100%;white-space:normal;text-wrap:balance;overflow-wrap:anywhere}
 .site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-price,
 .site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-price,
 .site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-price{align-items:flex-start;text-align:left}
@@ -4568,14 +4576,17 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row[data-has-photo="true"] .site-builder-node--services-catalog-buy{grid-area:buy;flex:none;width:100%;min-width:0;justify-content:space-between;gap:10px}
 .site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row[data-has-photo="false"] .site-builder-node--services-catalog-buy,
 .site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row[data-has-photo="false"] .site-builder-node--services-catalog-buy{flex:1 0 100%}
-.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-list,
-.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-list,
-.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-list{grid-template-columns:1fr}
 .site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:first-child{grid-template-columns:1fr}
 .site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:not(:first-child){display:grid;grid-template-columns:64px minmax(0,1fr);grid-template-areas:"photo copy" "photo buy";gap:8px 12px}
 .site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:not(:first-child) .site-builder-node--services-catalog-photo{grid-area:photo;width:64px;height:64px}
 .site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:not(:first-child) .site-builder-node--services-catalog-copy{grid-area:copy}
 .site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:not(:first-child) .site-builder-node--services-catalog-buy{grid-area:buy;flex:none;width:100%}
+}
+/* TUL-532 / GRK-083: phone + tablet stay one column so CTA labels never clip. */
+@media (max-width:899px){
+.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-list,
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-list,
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-list{grid-template-columns:1fr}
 }
 @media (min-width:561px){
 .site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row,
