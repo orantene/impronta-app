@@ -24,6 +24,7 @@
  *   NODE_PATH=scripts/demo-talents/stubs DEMO_SEED_TARGET_REF=<ref> \
  *     npx tsx --tsconfig scripts/demo-talents/tsconfig.json --env-file=.env.local \
  *     scripts/theme-releases/backfill-default-design.mts                      # dry run
+ * Demo-only by default (`is_demo`); real null-design sites are reported as excluded.
  *   ... backfill-default-design.mts --apply --yes [--only TAL-90001,TAL-90002] [--include-test]
  *   ... backfill-default-design.mts --restore scripts/theme-releases/backups/<file>.json [--yes] [--force-restore]
  */
