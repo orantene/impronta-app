@@ -4,7 +4,9 @@ import assert from "node:assert/strict";
 import {
   boundTalentSiteLocale,
   decideTalentSiteLocale,
+  TALENT_SITE_LOCALE_QUERY_KEYS,
   talentSiteLocalePath,
+  talentSiteQueryLocale,
   talentSiteSwitcherHrefs,
   talentSiteUrlSettings,
 } from "./talent-site-locale-routing";
@@ -39,6 +41,16 @@ test("?locale= inside the set redirects to the prefixed path", () => {
   assert.equal(decideTalentSiteLocale({ pathname: "/services", queryLocale: "en", ...ALBA }).redirectPath, "/en/services");
   assert.equal(decideTalentSiteLocale({ pathname: "/", queryLocale: "EN", ...ALBA }).redirectPath, "/en");
   assert.equal(decideTalentSiteLocale({ pathname: "/services", queryLocale: "es", ...ALBA }).redirectPath, "/services");
+});
+
+test("GRK-006: ?lang= is read like ?locale= (locale wins) and both are dropped on redirect", () => {
+  const q = (s: string) => talentSiteQueryLocale(new URLSearchParams(s));
+  assert.equal(q("lang=en"), "en");
+  assert.equal(q("locale=es&lang=en"), "es");
+  assert.equal(q("lang=%20"), null);
+  assert.equal(q("utm_source=ig"), null);
+  assert.deepEqual([...TALENT_SITE_LOCALE_QUERY_KEYS], ["locale", "lang"]);
+  assert.equal(decideTalentSiteLocale({ pathname: "/", queryLocale: q("lang=en"), ...ALBA }).redirectPath, "/en");
 });
 
 test("prefix beats query beats primary", () => {

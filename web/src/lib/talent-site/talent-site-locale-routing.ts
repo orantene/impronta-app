@@ -9,7 +9,8 @@
  *
  * Precedence for the locale a request renders in:
  *   1. a `/<locale>/` prefix in the talent's set (explicit choice);
- *   2. `?locale=<code>` in the set: 302 to the prefixed URL (explicit);
+ *   2. `?locale=<code>` (or the common `?lang=<code>`) in the set: 302 to the
+ *      prefixed URL (explicit);
  *   3. the talent's primary.
  * The URL decides the language. The `locale` cookie is deliberately NOT an
  * input: an unprefixed URL always renders the primary, so a cookie left by an
@@ -50,6 +51,18 @@ export interface TalentSiteLocaleDecision {
 
 function norm(v: string | null | undefined): string {
   return (v ?? "").trim().toLowerCase();
+}
+
+/** Query keys that pick a language on a talent host; dropped on the redirect. */
+export const TALENT_SITE_LOCALE_QUERY_KEYS = ["locale", "lang"] as const;
+
+/** The requested language from the query string (`?locale=` wins over `?lang=`). */
+export function talentSiteQueryLocale(params: URLSearchParams): string | null {
+  for (const key of TALENT_SITE_LOCALE_QUERY_KEYS) {
+    const v = params.get(key);
+    if (v && v.trim()) return v;
+  }
+  return null;
 }
 
 /** The talent URL grammar: primary unprefixed, secondaries prefixed. */
