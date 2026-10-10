@@ -6,6 +6,7 @@ import {
   checkRegistrarSearchRateLimit,
   getDomainAvailability,
   getDomainPrice,
+  getDomainRegistrarInfo,
   readVercelRegistrarConfig,
   resetRegistrarSearchRateLimitForTests,
   searchDomainQuote,
@@ -151,4 +152,30 @@ test("checkRegistrarSearchRateLimit caps per talent id", () => {
   const blocked = checkRegistrarSearchRateLimit("tal_1", now + 11);
   assert.equal(blocked.ok, false);
   assert.equal(checkRegistrarSearchRateLimit("tal_2", now + 11).ok, true);
+});
+
+test("getDomainRegistrarInfo skips without token and parses expiresAt", async () => {
+  const skipped = await getDomainRegistrarInfo("example.com", { env: {} });
+  assert.equal(skipped.attempted, false);
+  assert.equal(skipped.expiresAtIso, null);
+
+  const expiresMs = Date.parse("2027-06-01T00:00:00Z");
+  const calls: string[] = [];
+  const result = await getDomainRegistrarInfo("bought.test", {
+    env: { VERCEL_API_TOKEN: "tok", VERCEL_TEAM_ID: "team_1" },
+    fetchFn: async (url) => {
+      calls.push(url);
+      return new Response(
+        JSON.stringify({
+          domain: { expiresAt: expiresMs, renew: true, name: "bought.test" },
+        }),
+        { status: 200 },
+      );
+    },
+  });
+  assert.equal(result.attempted, true);
+  assert.equal(result.expiresAtIso, "2027-06-01T00:00:00.000Z");
+  assert.equal(result.autoRenew, true);
+  assert.match(calls[0] ?? "", /\/v5\/domains\/bought\.test/);
+  assert.match(calls[0] ?? "", /teamId=team_1/);
 });

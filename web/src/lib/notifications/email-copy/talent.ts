@@ -144,6 +144,34 @@ export const TALENT_EN = {
     note: "Your earnings dashboard always shows your current payout status.",
     button: "View payouts →",
   },
+
+  // talent.domain_broken — emails/talent/DomainBroken.tsx (Wave 1B D4)
+  "talent.domain_broken": {
+    subject: "Your custom domain needs attention",
+    preview: "{domain} needs attention",
+    heading: "Your custom domain needs attention",
+    fallbackName: "there",
+    intro:
+      "Hi {name}, {domain} is not reaching your site right now. Visitors may see an error until DNS and HTTPS are fixed.",
+    reason: "What we found: {reason}",
+    note: "Open your website settings to review the DNS steps, or reconnect the domain after you update them.",
+    button: "Open website settings →",
+  },
+
+  // talent.domain_renewal_notice — emails/talent/DomainRenewal.tsx (Wave 1B D4)
+  "talent.domain_renewal_notice": {
+    subject: "Your domain renews soon",
+    preview: "{domain} renews in {days} days",
+    heading: "Your domain renews in {days} days",
+    fallbackName: "there",
+    intro30:
+      "Hi {name}, {domain} is set to renew in about 30 days. Keep your contact details current so the renewal goes through smoothly.",
+    intro7:
+      "Hi {name}, {domain} is set to renew in about 7 days. Keep your contact details current so the renewal goes through smoothly.",
+    expires: "Registrar expiry: {expiresLabel}.",
+    note: "This is a heads-up only. Billing for renewals is handled separately.",
+    button: "Open website settings →",
+  },
 };
 
 export const TALENT_ES: typeof TALENT_EN = {
@@ -267,5 +295,31 @@ export const TALENT_ES: typeof TALENT_EN = {
     labelAmountReversed: "Monto revertido",
     note: "Tu panel de ganancias siempre muestra el estado actual de tus pagos.",
     button: "Ver pagos →",
+  },
+
+  "talent.domain_broken": {
+    subject: "Tu dominio personalizado necesita atención",
+    preview: "{domain} necesita atención",
+    heading: "Tu dominio personalizado necesita atención",
+    fallbackName: "hola",
+    intro:
+      "Hola {name}, {domain} no está llegando a tu sitio ahora. Las visitas pueden ver un error hasta que se corrijan el DNS y el HTTPS.",
+    reason: "Lo que encontramos: {reason}",
+    note: "Abre la configuración de tu sitio para revisar los pasos de DNS, o vuelve a conectar el dominio después de actualizarlos.",
+    button: "Abrir configuración del sitio →",
+  },
+
+  "talent.domain_renewal_notice": {
+    subject: "Tu dominio se renueva pronto",
+    preview: "{domain} se renueva en {days} días",
+    heading: "Tu dominio se renueva en {days} días",
+    fallbackName: "hola",
+    intro30:
+      "Hola {name}, {domain} está programado para renovarse en unos 30 días. Mantén tus datos de contacto al día para que la renovación se complete sin problemas.",
+    intro7:
+      "Hola {name}, {domain} está programado para renovarse en unos 7 días. Mantén tus datos de contacto al día para que la renovación se complete sin problemas.",
+    expires: "Vencimiento en el registrador: {expiresLabel}.",
+    note: "Esto es solo un aviso. La facturación de renovaciones se maneja por separado.",
+    button: "Abrir configuración del sitio →",
   },
 };
