@@ -11,7 +11,7 @@ import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { anyDemoTalent } from "./demo-talent";
+import { anyDemoTalent, DEMO_SITE_FOOTER } from "./demo-talent";
 
 function stub(rows: { id: string }[] | null, error = false) {
   const calls: string[][] = [];
@@ -35,6 +35,14 @@ function stub(rows: { id: string }[] | null, error = false) {
   } as unknown as SupabaseClient;
   return { db, calls };
 }
+
+describe("DEMO_SITE_FOOTER", () => {
+  it("GRK-027: ES and EN both say bookings are disabled (not simulated)", () => {
+    assert.match(DEMO_SITE_FOOTER.es, /desactivadas/i);
+    assert.match(DEMO_SITE_FOOTER.en, /disabled/i);
+    assert.doesNotMatch(DEMO_SITE_FOOTER.en, /simulated/i);
+  });
+});
 
 describe("anyDemoTalent", () => {
   it("is true when a demo row comes back", async () => {
