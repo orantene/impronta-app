@@ -9151,6 +9151,7 @@ function normalizeBuilderNodeRenderOptions(
     experimentSeed: options.experimentSeed,
     experimentTenantId: options.experimentTenantId,
     experimentSurface: options.experimentSurface,
+    publicHost: options.publicHost ?? null,
     repeatItem: null,
     repeatDepth: 0,
   };
