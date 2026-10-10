@@ -275,6 +275,13 @@ export function utcToZonedHmm(instant: Date, timeZone: string): string | null {
   return minutesToHmm(z.hour * 60 + z.minute);
 }
 
+/** Local hour 0–23 for an instant in `timeZone`, or null. */
+export function utcToZonedHour(instant: Date, timeZone: string): number | null {
+  if (!isValidIanaTimeZone(timeZone) || Number.isNaN(instant.getTime())) return null;
+  const z = formatInZone(instant, timeZone);
+  return z ? z.hour : null;
+}
+
 /** Add `days` civil days to a YYYY-MM-DD string (UTC calendar, not zone). */
 export function addUtcDays(ymd: string, days: number): string | null {
   const parsed = parseYmd(ymd);
