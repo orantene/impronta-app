@@ -3,8 +3,9 @@
 import { useState } from "react";
 
 import { useT } from "@/i18n/use-t";
-import { DrawerShell, AsyncButton } from "@/components/admin/shell/internal/primitives";
+import { DrawerShell, AsyncButton, PrimaryButton } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS, RADIUS } from "@/components/admin/shell/internal/state";
+import { useUpgradeModal } from "@/components/admin/site-control-center/upgrade-context";
 import type { IntegrationView } from "@/app/(workspace)/[tenantSlug]/admin/settings/integration-actions";
 import { saveCustomCode } from "@/app/(workspace)/[tenantSlug]/admin/settings/integration-actions-specialised";
 
@@ -16,9 +17,9 @@ type Feedback = { tone: "success" | "error"; message: string } | null;
 /**
  * Custom-code drawer — two HTML textareas (head + body) injected into the
  * tenant's OWN public storefront. Entitlement-gated (custom_css_allowed): when
- * locked, the inputs are read-only and a clear upgrade prompt replaces the save
- * action. A prominent warning explains the code runs on the public storefront
- * only.
+ * locked, the inputs are read-only and a clear upgrade CTA opens the real
+ * Stripe plan modal (TUL-39 live FAIL: badge alone with no button). A prominent
+ * warning explains the code runs on the public storefront only.
  */
 export function CustomCodeDrawer({
   tenantSlug,
@@ -34,6 +35,7 @@ export function CustomCodeDrawer({
   onChanged: () => void;
 }) {
   const t = useT();
+  const { openUpgrade } = useUpgradeModal();
   const locked = integration.locked;
   const visual = resolveIntegrationStatus(integration, { locked });
 
@@ -71,9 +73,11 @@ export function CustomCodeDrawer({
     background: editable ? "#fff" : COLORS.surfaceAlt,
     fontSize: 12.5,
     fontFamily: FONTS.mono,
-    color: COLORS.ink,
+    color: editable ? COLORS.ink : COLORS.inkDim,
     outline: "none",
     resize: "vertical" as const,
+    cursor: editable ? "text" : "not-allowed",
+    opacity: editable ? 1 : 0.72,
   };
 
   return (
@@ -89,9 +93,17 @@ export function CustomCodeDrawer({
             {t("dashboard.adminWorkspace.integrations.noPermission")}
           </span>
         ) : locked ? (
-          <span style={{ fontSize: 12, color: COLORS.inkMuted }}>
+          <PrimaryButton
+            onClick={() =>
+              openUpgrade({
+                feature: t(integration.labelKey),
+                why: t("dashboard.adminWorkspace.integrations.codeLockedBanner"),
+                requiredPlan: "studio",
+              })
+            }
+          >
             {t("dashboard.adminWorkspace.integrations.codeUpgradeFooter")}
-          </span>
+          </PrimaryButton>
         ) : (
           <AsyncButton onClick={handleSave} pendingLabel={t("dashboard.adminWorkspace.integrations.savingPending")}>
             {t("dashboard.adminWorkspace.integrations.save")}
