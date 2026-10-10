@@ -83,13 +83,18 @@ export async function talentSiteHostResponse(
   });
   const localeStripped = talentLocale.innerPath;
 
-  const decision = isTalentSiteHostPathAllowed(localeStripped);
-  if (!decision) {
-    return NextResponse.rewrite(
-      new URL("/_page-not-found", request.url),
-      { status: 404 },
-    );
-  }
+  /** Locale + host context for talent rewrites, including hard-404 and B1 notice. */
+  const talentHeaders = new Headers(sanitizedInboundHeaders);
+  talentHeaders.set(LOCALE_HEADER, talentLocale.locale);
+  talentHeaders.set(ORIGINAL_PATHNAME_HEADER, request.nextUrl.pathname);
+  talentHeaders.set(HOST_CONTEXT_HEADER, "talent_site");
+  talentHeaders.set(HOST_NAME_HEADER, hostContext.hostname);
+  talentHeaders.set(HOST_TALENT_PROFILE_HEADER, hostContext.talentProfileId);
+  // A talent_site host is NOT tenant-scoped — never let a tenant id leak.
+  talentHeaders.delete(TENANT_HEADER_NAME);
+  talentHeaders.delete(HOST_TENANT_SLUG_HEADER);
+  talentHeaders.delete(PUBLIC_PATH_PREFIX_HEADER);
+
   const rememberChoice = (res: NextResponse): NextResponse => {
     if (talentLocale.explicit) {
       res.cookies.set(LOCALE_COOKIE, talentLocale.locale, localeCookieOptions);
@@ -102,23 +107,35 @@ export async function talentSiteHostResponse(
     }
     return res;
   };
+
+  const decision = isTalentSiteHostPathAllowed(localeStripped);
+  if (!decision) {
+    return rememberChoice(
+      NextResponse.rewrite(new URL("/_page-not-found", request.url), {
+        status: 404,
+        request: { headers: talentHeaders },
+      }),
+    );
+  }
+
+  // TUL-516 B1: unsupported platform locale → explicit single-language notice.
+  if (
+    talentLocale.unsupportedLocale &&
+    (request.method === "GET" || request.method === "HEAD")
+  ) {
+    return rememberChoice(
+      NextResponse.rewrite(new URL("/_talent-locale-unavailable", request.url), {
+        request: { headers: talentHeaders },
+      }),
+    );
+  }
+
   if (talentLocale.redirectPath && (request.method === "GET" || request.method === "HEAD")) {
     const target = request.nextUrl.clone();
     target.pathname = talentLocale.redirectPath;
     target.searchParams.delete("locale");
     return rememberChoice(NextResponse.redirect(target, 302));
   }
-
-  const talentHeaders = new Headers(sanitizedInboundHeaders);
-  talentHeaders.set(LOCALE_HEADER, talentLocale.locale);
-  talentHeaders.set(ORIGINAL_PATHNAME_HEADER, request.nextUrl.pathname);
-  talentHeaders.set(HOST_CONTEXT_HEADER, "talent_site");
-  talentHeaders.set(HOST_NAME_HEADER, hostContext.hostname);
-  talentHeaders.set(HOST_TALENT_PROFILE_HEADER, hostContext.talentProfileId);
-  // A talent_site host is NOT tenant-scoped — never let a tenant id leak.
-  talentHeaders.delete(TENANT_HEADER_NAME);
-  talentHeaders.delete(HOST_TENANT_SLUG_HEADER);
-  talentHeaders.delete(PUBLIC_PATH_PREFIX_HEADER);
 
   const attachGuestCookie = attachTalentSiteGuestIdentity(request, talentHeaders);
   const finish = (res: NextResponse): NextResponse =>

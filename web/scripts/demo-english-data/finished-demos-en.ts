@@ -17,6 +17,7 @@
 
 import { addEnglishLine, HERO_FACTS } from "../../src/lib/talent-site/demos/hero-facts";
 import { finishedDemoSecondaryLocales } from "../../src/lib/talent-site/demos/finished-demo-locales";
+import { demoSiteSettingsFor } from "../../src/lib/talent-site/demos/demo-site-settings";
 
 export interface Target {
   profileCode: string;
@@ -138,7 +139,12 @@ export async function planTarget(io: Io, t: Target): Promise<TargetPlan | null> 
   let secondaryAfter: string[] | null = null;
   if ((profile.preferred_locale ?? "es") !== "es") notes.push(`primary language is ${profile.preferred_locale}: locales left alone`);
   else {
-    secondaryAfter = finishedDemoSecondaryLocales({ theme: "maison-v2", preferredLocale: profile.preferred_locale, currentSecondary: secondaryBefore });
+    secondaryAfter = finishedDemoSecondaryLocales({
+      theme: "maison-v2",
+      preferredLocale: profile.preferred_locale,
+      currentSecondary: secondaryBefore,
+      siteLangs: demoSiteSettingsFor(t.profileCode).siteLangs,
+    });
     if (!secondaryAfter) notes.push(secondaryBefore.includes("en") ? "English already enabled" : `secondary locales already set (${secondaryBefore.join(",")}): left alone`);
   }
 

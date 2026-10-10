@@ -486,7 +486,10 @@ export async function SiteHeaderComponent({
           );
         }
         case "language":
+          // TUL-516 B1: talent sites never show tenant locale pills without real
+          // switcher hrefs (no EN pill when the talent does not publish English).
           if (siteLocales.length > 1) return <HeaderSiteLocales key={key} locales={siteLocales} hrefs={props.siteChrome?.hrefs} locale={locale} attrs={attrs} />;
+          if (props.siteChrome) return null;
           return tenantLocaleSettings.supportedLocales.length > 1 ? (
             <div key={key} {...attrs} className="site-header__ritem site-header__lang">
               {tenantLocaleSettings.supportedLocales.map((code) => (
