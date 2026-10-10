@@ -12,7 +12,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useT } from "@/i18n/use-t";
 import { useDashboardText } from "../dashboard-i18n";
 import { interpolate } from "@/i18n/interpolate";
-import { setTalentAcceptingBookingsAction } from "@/lib/server-actions/accepting-bookings";
+import { setTalentAcceptingBookingsAction } from "@/lib/talent/accepting-bookings";
 import { logServerError } from "@/lib/server/safe-error";
 import { AVAILABILITY_BLOCKS, COLORS, FONTS, MY_TALENT_PROFILE, useAdminShell } from "../state";
 import {
@@ -152,14 +152,7 @@ export function TalentBlockDatesDrawer() {
         {isBridged && (
           <section>
             <SubsectionLabel>{t("dashboard.talentDrawers.availability.takingWorkTitle")}</SubsectionLabel>
-            <div
-              style={{
-                marginTop: 10,
-                border: `1px solid ${COLORS.borderSoft}`,
-                borderRadius: 10,
-                overflow: "hidden",
-              }}
-            >
+            <div className="mt-2.5 overflow-hidden rounded-[10px] border border-admin-border-soft">
               <AvailabilityToggleRow
                 label={copy.t(availableForWork ? "Taking new bookings" : "New bookings paused")}
                 hint={copy.t("Turn this on so guests can book you on your public page.")}

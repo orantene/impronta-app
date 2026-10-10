@@ -3,7 +3,7 @@
 import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
 import { BioHelperCard } from "@/components/talent/bio-helper-card";
 import Link from "next/link";
-import { setTalentAcceptingBookingsAction } from "@/lib/server-actions/accepting-bookings";
+import { setTalentAcceptingBookingsAction } from "@/lib/talent/accepting-bookings";
 import { logServerError } from "@/lib/server/safe-error";
 import { useDashboardText } from "../../dashboard-i18n";
 import { computePaidThisMonth } from "@/lib/talent/paid-this-month";

@@ -460,7 +460,9 @@ const BUDGETS: Record<string, number> = {
   // 2026-10-03 #2495 Codex P2: +6 offering save/validation ES strings (server
   // config, name, currency, book-how, deposit %, cancel hours). Keep adjacent
   // to the other services-editor keys in ES_TEXT; raise with the growth.
-  "src/components/admin/shell/internal/dashboard-i18n.ts": 3842,
+  // 2026-10-10 TUL-538: +4 ES for availability switch ("Turn on availability",
+  // taking/paused bookings, public-page hint). Raise with the growth.
+  "src/components/admin/shell/internal/dashboard-i18n.ts": 3846,
   "src/components/admin/shell/internal/help.tsx": 744,
   // 2026-08-28 support M2: DRAWER_HELP extracted so the AI corpus can import
   // the registry from a server module without pulling the HelpPanel island.
