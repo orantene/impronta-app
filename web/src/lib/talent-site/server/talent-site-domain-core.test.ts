@@ -4,6 +4,7 @@ import test from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
+  persistTalentSiteDomainVercelState,
   syncTalentSiteDomainProvisioning,
   verifyTalentSiteDomainRecord,
   type TalentSiteDomainRecord,
@@ -116,4 +117,17 @@ test("sync holds at 'verified' while routing records are not yet live", async ()
 
   assert.equal(transition.status, "verified");
   assert.equal(read()?.status, "verified");
+});
+
+test("persistTalentSiteDomainVercelState writes status + failure_reason", async () => {
+  const { client, read } = captureClient();
+  await persistTalentSiteDomainVercelState(client, "dom-1", {
+    status: "error",
+    failureReason:
+      "This domain is used by another Vercel project. Remove it from that project or transfer it to Tulala, then try again.",
+  });
+
+  assert.equal(read()?.status, "error");
+  assert.match(String(read()?.failure_reason ?? ""), /another Vercel project/);
+  assert.equal(read()?.vercel_challenges, undefined);
 });

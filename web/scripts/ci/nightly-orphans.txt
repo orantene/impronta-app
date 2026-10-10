@@ -174,7 +174,6 @@ src/lib/profile-fields-service.test.ts
 src/lib/qa/final-campaign-ready.static.test.ts
 src/lib/saas/agency-surface-roster-gate.static.test.ts
 src/lib/saas/canonical-hosts.test.ts
-src/lib/saas/custom-domain-actions.test.ts
 src/lib/saas/custom-domain-routing.security.test.ts
 src/lib/saas/custom-domain-routing.test.ts
 src/lib/saas/domain-canonical.test.ts
