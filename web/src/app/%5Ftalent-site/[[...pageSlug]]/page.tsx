@@ -31,6 +31,7 @@ import { resolveGuestTokenResumeHref } from "@/app/t/[profileCode]/_actions/gues
 import { headers } from "next/headers";
 
 import { DocumentLang } from "@/components/i18n/DocumentLang";
+import { TalentSiteHostFullNav } from "@/components/talent-site/talent-site-host-full-nav";
 import { getRequestLocale } from "@/i18n/request-locale";
 import {
   HOST_CONTEXT_HEADER,
@@ -79,15 +80,20 @@ async function resolveTalentProfileId(): Promise<string | null> {
  * (NEVER the /t/[code] discovery profile). Returns null if the header is absent
  * → render falls back to NEXT_PUBLIC_SITE_URL.
  */
-async function resolveCanonicalOrigin(): Promise<string | undefined> {
+async function resolveServedHost(): Promise<string | undefined> {
   try {
     const h = await headers();
     const host = h.get(HOST_NAME_HEADER)?.trim();
-    if (!host) return undefined;
-    return `https://${host}`;
+    return host || undefined;
   } catch {
     return undefined;
   }
+}
+
+async function resolveCanonicalOrigin(): Promise<string | undefined> {
+  const host = await resolveServedHost();
+  if (!host) return undefined;
+  return `https://${host}`;
 }
 
 function firstSegment(pageSlug: string[] | undefined): string | null {
@@ -155,9 +161,10 @@ export default async function TalentSiteHostPage({
     const href = await resolveGuestTokenResumeHref({ token: resumeToken, orderId: order ?? null });
     if (href) redirect(href);
   }
-  const [locale, canonicalOrigin] = await Promise.all([
+  const [locale, canonicalOrigin, servedHost] = await Promise.all([
     getRequestLocale(),
     resolveCanonicalOrigin(),
+    resolveServedHost(),
   ]);
   const seg = firstSegment(pageSlug);
 
@@ -187,6 +194,7 @@ export default async function TalentSiteHostPage({
         />
       ) : null}
       <DocumentLang locale={result.locale} />
+      {servedHost ? <TalentSiteHostFullNav servedHost={servedHost} /> : null}
       {result.node}
       <TalentOfferingIntentQuery />
       <TalentSiteMessagesDock talentProfileId={talentProfileId} locale={result.locale} orderId={order ?? null} />

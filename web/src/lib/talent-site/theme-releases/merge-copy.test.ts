@@ -18,7 +18,7 @@ import { copyLeaves, getCopyLeaf, isNodeEdited, propsOf, refreshOriginFingerprin
 import { reverseMerge } from "./reverse-merge";
 import { edit, prop } from "./test-fixtures";
 import type { DesignSide, ReleaseItem } from "./types";
-import { appliedToast, copyKeptLine } from "./talent-update/copy";
+import { appliedToast, copyKeptLine, keptLine } from "./talent-update/copy";
 import { summarizeReport } from "./talent-update/view";
 
 interface Spec {
@@ -238,4 +238,95 @@ test("copy conflicts reach the summary, the sheet line and the toast in ES and E
   assert.equal(appliedToast(3, "es", 1), "Actualización aplicada a tu borrador · conservamos 3 de tus cambios y 1 texto que cambiaste");
   assert.equal(appliedToast(3, "en"), "Update applied to your draft · we kept 3 of your edits");
   assert.equal(appliedToast(0, "es"), "Actualización aplicada a tu borrador");
+});
+
+/**
+ * Oran PM theme review on #2916: apply-side proof (4th layer).
+ * Apply function: `mergeDesignUpdate` → `mergeCopy` (copy-merge.ts).
+ * Talent on v24 with (a) untouched seed heading, (b) heading she edited,
+ * (c) her own i18n.es on a third node. v25 copy items must update only (a),
+ * leave (b)+(c) byte-identical, and surface (b) as kept-her-edit in the notice.
+ */
+test("apply-side proof: mergeCopy updates only untouched seed copy; keeps her edit + her i18n.es", () => {
+  const A = "services/heading";
+  const B = "about/heading";
+  const C = "contact/heading";
+
+  function threeHeadings(version: number, texts: { a: string; b: string; c: string; cEs: string }): DesignSide {
+    const home = [
+      node("container", { slotKey: "services" }, [node("heading", { text: texts.a, level: 2 })]),
+      node("container", { slotKey: "about" }, [node("heading", { text: texts.b, level: 2 })]),
+      node("container", { slotKey: "contact" }, [
+        node("heading", { text: texts.c, level: 2, i18n: { es: { text: texts.cEs } } }),
+      ]),
+    ];
+    return {
+      trees: {
+        shell: [],
+        home: refreshOriginFingerprints(stampDesignOrigin(home, { design: "maison-v2", version })),
+      },
+      tokens: {},
+    };
+  }
+
+  const v24 = threeHeadings(24, {
+    a: "Our services",
+    b: "About me",
+    c: "Get in touch",
+    cEs: "Contáctame",
+  });
+  const v25 = threeHeadings(25, {
+    a: "Services",
+    b: "About",
+    c: "Contact",
+    cEs: "Contacto",
+  });
+
+  // (a) untouched; (b) she rewrote the base heading; (c) she rewrote only i18n.es
+  let ours = edit(v24, "home", B, "text", "My story");
+  ours = edit(ours, "home", C, "i18n.es.text", "Escríbeme");
+  const beforeB = JSON.stringify(propsOf((ours.trees.home![1] as unknown as { children: BuilderNode[] }).children[0]!));
+  const beforeC = JSON.stringify(propsOf((ours.trees.home![2] as unknown as { children: BuilderNode[] }).children[0]!));
+
+  const items: ReleaseItem[] = [
+    { type: "copy", key: A, tree: "home" },
+    { type: "copy", key: B, tree: "home" },
+    { type: "copy", key: C, tree: "home" },
+  ];
+  const r = mergeDesignUpdate({ base: v24, ours, theirs: v25, items });
+  const out: DesignSide = { trees: r.trees, tokens: r.tokens };
+
+  // (a) untouched seed heading ships (design node rule under a copy item)
+  assert.equal(prop(out, "home", A, "text"), "Services");
+  assert.ok(
+    r.report.applied.some((e) => e.key === A && e.itemType === "copy" && (e.changes ?? []).some((c) => c.path === "text")),
+    "untouched seed heading is applied under the copy item (mergeDesignUpdate → mergeCopy)",
+  );
+
+  // (b) her heading stays byte-identical and is kept-her-edit
+  const afterB = propsOf((out.trees.home![1] as unknown as { children: BuilderNode[] }).children[0]!);
+  assert.equal(JSON.stringify(afterB), beforeB);
+  assert.equal(prop(out, "home", B, "text"), "My story");
+  assert.ok(
+    r.report.kept.some((e) => e.key === B && e.reason === "edited"),
+    "her edited heading is kept-her-edit in the merge report",
+  );
+
+  // (c) her i18n.es leaf stays byte-identical (base text on that node may still ship)
+  const afterC = propsOf((out.trees.home![2] as unknown as { children: BuilderNode[] }).children[0]!);
+  const beforeCEs = (JSON.parse(beforeC) as { i18n: { es: { text: string } } }).i18n.es.text;
+  assert.equal((afterC.i18n as { es: { text: string } }).es.text, beforeCEs);
+  assert.equal((afterC.i18n as { es: { text: string } }).es.text, "Escríbeme");
+  assert.equal(countCopyKept(r.report.conflicts), 1);
+  assert.ok(r.report.conflicts.some((e) => e.key === C && e.reason === "copy_edited"));
+
+  // Upgrade notice: kept-her-edit (b) + copy-kept (c)
+  const sum = summarizeReport(r.report);
+  assert.ok(sum.kept >= 1, "notice counts her design edit as kept");
+  assert.ok((sum.keptKeys ?? []).includes("about"), "keptKeys names the about part (from about/heading)");
+  assert.match(keptLine(sum, "en"), /We keep \d+ of your edits/);
+  assert.match(keptLine(sum, "en"), /About/);
+  assert.equal(sum.copyKept, 1);
+  assert.equal(copyKeptLine(sum, "en"), "We keep 1 text you changed");
+  assert.match(appliedToast(sum.kept, "en", sum.copyKept ?? 0), /we kept .+ of your edits/);
 });

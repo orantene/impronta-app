@@ -31,6 +31,10 @@ test("F88: topbar, health panel, zoom HUD and tip wrap their copy in t()", () =>
   }
   const mh = read("components/edit-chrome/MobileHealthPanel.tsx");
   assert.ok(mh.includes('t("Mobile health")') && mh.includes('t("All clear")'));
+  assert.ok(
+    read("components/edit-chrome/mobile-edit-panel.tsx").includes('t("Mobile checks")'),
+    'mobile HUD t("Mobile checks")',
+  );
   assert.ok(read("components/edit-chrome/canvas-viewport.tsx").includes('t("Canvas zoom controls")'));
   assert.ok(read("components/edit-chrome/edit-shell.tsx").includes('t("Click any section to edit'));
   assert.ok(read("components/edit-chrome/topbar-icon-button.tsx").includes("t(title)"));
@@ -43,6 +47,7 @@ test("F88: every newly wrapped key resolves to Spanish", () => {
     "Publish options",
     "Exit to live site",
     "Mobile health",
+    "Mobile checks",
     "All clear",
     "Canvas zoom controls",
     "Zoom in (⌘+)",
@@ -54,6 +59,7 @@ test("F88: every newly wrapped key resolves to Spanish", () => {
   }
   assert.equal(editorT("Publish", "es"), "Publicar");
   assert.equal(editorT("Mobile health", "es"), "Salud en móvil");
+  assert.equal(editorT("Mobile checks", "es"), "Revisiones móvil");
 });
 
 test("TUL-519: mobile/tablet HUD structure hint and phone-menu card resolve in Spanish", () => {
