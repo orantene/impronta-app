@@ -11,7 +11,9 @@ export function headerItemMobileDefault(item: HeaderItem): "show" | "menu" {
 }
 
 /** Effective phone visibility: language always shows (GRK-030), even if a seed pinned menu. */
-export function headerItemMobileResolved(item: HeaderItem): "show" | "menu" | "hide" {
+export function headerItemMobileResolved(
+  item: HeaderItem,
+): "show" | "label" | "icon" | "hide" | "menu" {
   if (item.type === "language") return "show";
   return item.responsive?.mobile ?? headerItemMobileDefault(item);
 }
