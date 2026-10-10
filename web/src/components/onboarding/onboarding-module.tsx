@@ -340,8 +340,11 @@ export function OnboardingModule({
     dispatch({ type: "sendStarted" });
     ageTermsRef.current = ageTerms;
     const r = await requestOnboardingCode({ email, locale, resend, ageTerms });
-    if (r.ok) dispatch({ type: "codeSent", email: r.email, notice: resend ? t("public.onboarding.code.resent") : null });
-    else dispatch({ type: "accountFailed", message: r.code === "module_off" ? t("public.onboarding.errors.moduleOff") : r.message });
+    if (r.ok) {
+      // Guest path defers ready-step 18+ (onb1-10); stamp publish gate when they tick age+terms here.
+      if (ageTerms) void saveOnboardingAge18();
+      dispatch({ type: "codeSent", email: r.email, notice: resend ? t("public.onboarding.code.resent") : null });
+    } else dispatch({ type: "accountFailed", message: r.code === "module_off" ? t("public.onboarding.errors.moduleOff") : r.message });
   }, [locale, t]);
 
   const verifyCode = useCallback(async (code: string) => {
@@ -355,7 +358,9 @@ export function OnboardingModule({
     } else dispatch({ type: "accountFailed", message: r.code === "module_off" ? t("public.onboarding.errors.moduleOff") : r.message });
   }, [state.codeEmail, locale, path, t]);
 
-  const onGoogleSuccess = useCallback(() => {
+  const onGoogleSuccess = useCallback((ageTerms = false) => {
+    // Guest ready-step defers 18+ (onb1-10); stamp publish gate from the save tick.
+    if (ageTerms) void saveOnboardingAge18();
     dispatch({ type: "authed", email: null });
     trackRef.current("onboarding_account_created", { method: "google" });
     void saveOnboardingStep({ step: "building", locale });
@@ -538,6 +543,7 @@ export function OnboardingModule({
         onPickDesign={(look) => { dispatch({ type: "designPicked", look }); void saveOnboardingDesign({ look }); }}
         onConfirmAge18={saveOnboardingAge18}
         ageRequiredNotice={ageRequired}
+        deferAge18ToAccountStep={!state.isAuthenticated}
         onBuild={() => {
           // Already signed in: nothing to save, straight to the build.
           const next: ModuleStep = state.isAuthenticated ? "building" : "save";
