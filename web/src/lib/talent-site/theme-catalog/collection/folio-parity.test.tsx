@@ -20,7 +20,7 @@ import { FOLIO_STYLE_TOKEN_DEFAULTS } from "./folio-defaults";
 import { MAGAZINE_TYPE_SYSTEM_CSS } from "./design-type-system";
 
 const PINS = {
-  editorial: "8e8ebb03a63e214c", // TUL-528: soft catalog-groups pad uses var(--cb-bar-h). Was e11afe5bba3a69fe (TUL-121 Maison v2 #3116)
+  editorial: "1c3a6db11718d6fb", // GRK-073: header phone pad max(16px, gutter). Was 8e8ebb03a63e214c (TUL-528)
   utility: "fe78b6ccfefe12ed", // TUL-528: work_order pad uses var(--cb-bar-h). Was 5450f057f44cf0b4 (TUL-474)
   highlight: "154aa0752c478aa5", // TUL-474: TITLE_HOOKS includes .sb-area-title
   booking: "8f87f1ae1e51bc17",
