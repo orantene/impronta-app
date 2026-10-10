@@ -482,7 +482,7 @@ async function renderMaxSiteDocument(args: {
   const usdRates = await loadUsdRatesForSitePrices([
     ...talentOfferings,
     ...(dataSources.menuOfferings ?? []),
-  ]);
+  ], locale);
   // D-MSG-421 loads offerings for the talent vanity even when there is no
   // agency `tenantId` (so `loadBuilderNodeDataSources` is skipped). Merge them
   // onto the render dataSources — otherwise `services_catalog` always renders

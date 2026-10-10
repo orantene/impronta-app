@@ -16,6 +16,25 @@ test("the vanity loader refuses the fetch when rates are not needed", () => {
     join(process.cwd(), "src/lib/talent-site/server/vanity-usd-rates.ts"),
     "utf8",
   );
+  assert.match(source, /if \(!showsUsdEquivalent\(locale\)\) return null/);
   assert.match(source, /if \(!needsUsdRates\(items\)\) return null/);
   assert.match(source, /return loadUsdRates\(\)/);
+});
+
+test("every public rate loader skips Spanish pages (TUL-551 / GRK-063)", () => {
+  const read = (rel: string) => readFileSync(join(process.cwd(), rel), "utf8");
+  for (const rel of [
+    "src/app/t/[profileCode]/_shared/TalentStorefront.tsx",
+    "src/app/t/[profileCode]/profile-storefront-payload.ts",
+    "src/components/home/homepage-cms-data-sources.ts",
+  ]) {
+    assert.match(read(rel), /showsUsdEquivalent\(locale\) && needsUsdRates\(/, rel);
+  }
+  for (const rel of [
+    "src/lib/talent-site/server/render-max-site.tsx",
+    "src/lib/talent-site/server/preview-my-content.server.ts",
+    "src/app/t/[profileCode]/_chat/TalentProfileChatLauncherMount.tsx",
+  ]) {
+    assert.match(read(rel), /loadUsdRatesForSitePrices\([\s\S]*?, locale( \?\? "en")?\)/, rel);
+  }
 });

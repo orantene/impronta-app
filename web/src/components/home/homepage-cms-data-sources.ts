@@ -15,7 +15,7 @@ import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { loadPublishedFaqForProfile } from "@/lib/talent/faq-public";
 import { talentOffersInstantBooking } from "@/lib/scheduling/talent-booking-mode";
 import { parseSellingBookingSettings } from "@/lib/talent/selling-booking-settings";
-import { needsUsdRates } from "@/lib/pricing/usd-equivalent";
+import { needsUsdRates, showsUsdEquivalent } from "@/lib/pricing/usd-equivalent";
 import { loadUsdRates } from "@/lib/pricing/usd-rates";
 import {
   collectBuilderCollectionSourceKeys,
@@ -490,7 +490,7 @@ export async function loadServicesCatalogSources(
       };
     }
   }
-  const usdRates = needsUsdRates(offerings) ? await loadUsdRates() : null;
+  const usdRates = showsUsdEquivalent(locale) && needsUsdRates(offerings) ? await loadUsdRates() : null;
   // WSF-C §8: the same switches the offerings loader applied, for the banner.
   const talentSitePause = admin && channel === "direct"
     ? publicContactMode(await loadTalentSiteSwitches(admin, talentProfileId))

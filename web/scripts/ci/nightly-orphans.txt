@@ -169,7 +169,6 @@ src/lib/pitch/pitch-share-token.test.ts
 src/lib/platform/default-template-chain.test.ts
 src/lib/platform/operating-currency.test.ts
 src/lib/platform/support-contact.static.test.ts
-src/lib/pricing/usd-equivalent.test.ts
 src/lib/profile-fields-service.test.ts
 src/lib/qa/final-campaign-ready.static.test.ts
 src/lib/saas/agency-surface-roster-gate.static.test.ts

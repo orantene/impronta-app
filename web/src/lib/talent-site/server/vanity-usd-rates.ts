@@ -1,6 +1,6 @@
 import "server-only";
 
-import { needsUsdRates, type UsdRates } from "@/lib/pricing/usd-equivalent";
+import { needsUsdRates, showsUsdEquivalent, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import { loadUsdRates } from "@/lib/pricing/usd-rates";
 
 /**
@@ -8,11 +8,14 @@ import { loadUsdRates } from "@/lib/pricing/usd-rates";
  * price is not already in dollars. The profile storefront already did this;
  * `renderTalentMaxSite` did not, so a peso menu printed no ≈ US$ line.
  *
- * Refuses rather than guesses: USD-only or unpriced lists skip the fetch.
+ * Refuses rather than guesses: USD-only or unpriced lists skip the fetch, and so
+ * does a Spanish page, which prints no ≈ US$ line (TUL-551 / GRK-063).
  */
 export async function loadUsdRatesForSitePrices(
   items: ReadonlyArray<{ currency?: string | null; amountCents?: number | null }>,
+  locale: string,
 ): Promise<UsdRates | null> {
+  if (!showsUsdEquivalent(locale)) return null;
   if (!needsUsdRates(items)) return null;
   return loadUsdRates();
 }
