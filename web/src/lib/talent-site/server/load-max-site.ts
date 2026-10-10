@@ -5,7 +5,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { toI18nMap } from "@/lib/i18n/i18n-columns";
 import { isTalentThemeGalleryEnabled } from "@/lib/access/talent-theme-gallery";
 import { talentOffersInstantBooking } from "@/lib/scheduling/talent-booking-mode";
-import { loadWorkingHoursPresence } from "@/lib/talent/site-switches-server";
+import { loadTalentSiteSwitches, loadWorkingHoursPresence } from "@/lib/talent/site-switches-server";
 import { resolveSiteCtaMode, type SiteCtaMode } from "@/lib/talent-site/design-label-locale";
 import { resolveDesignSource } from "@/lib/talent-site/theme-template/design-lineage.server";
 import type {
@@ -185,11 +185,14 @@ export async function loadTalentSiteCtaMode(
 ): Promise<SiteCtaMode> {
   const admin = createServiceRoleClient();
   const hours = admin ? await loadWorkingHoursPresence(admin, [talentProfileId]) : new Map<string, boolean>();
+  const switches = admin ? await loadTalentSiteSwitches(admin, talentProfileId) : null;
   return resolveSiteCtaMode({
     sellingDefaults: await loadTalentSellingDefaults(talentProfileId),
     confirmsByHand: !talentOffersInstantBooking(planKey),
     // An unknown hours read never downgrades (same rule as the offering loader).
     instantReady: hours.get(talentProfileId) !== false,
+    // TUL-516 W3-4: CTAs follow the bookings-enabled switch (Mateo / Valeria).
+    acceptingBookings: switches?.acceptingBookings,
   });
 }
 

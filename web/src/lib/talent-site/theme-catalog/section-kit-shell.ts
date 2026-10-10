@@ -73,6 +73,8 @@ export interface KitShellOptions {
   navLinks?: ReadonlyArray<KitShellNavLink>;
   /** Override `site_header` primary CTA + freeform region CTA label. */
   primaryCtaLabel?: string;
+  /** Override `site_header` primary CTA href (default seed is `/contact`). */
+  primaryCtaHref?: string;
   /**
    * Gridline utility bar as the shell header (`buildKitShell` only): dark ink
    * bar with name, subtitle, emergencies pill, desktop action and tap-to-call.
@@ -274,7 +276,7 @@ export function buildKitStandardShell(
   makeId: KitIdFactory,
   opts: Pick<
     KitShellOptions,
-    "displayName" | "logoUrl" | "homeHref" | "year" | "navChrome" | "navLinks" | "primaryCtaLabel"
+    "displayName" | "logoUrl" | "homeHref" | "year" | "navChrome" | "navLinks" | "primaryCtaLabel" | "primaryCtaHref"
   > & {
     /** Add the client `account` header item right after `language` (renders only when the flag is on). */
     accountItem?: boolean;
@@ -301,12 +303,13 @@ export function buildKitStandardShell(
     const props = (rawHeader.props ?? {}) as Record<string, unknown>;
     const sectionProps = (props.sectionProps ?? {}) as Record<string, unknown>;
     const ctaLabel = opts.primaryCtaLabel?.trim();
+    const ctaHref = opts.primaryCtaHref?.trim() || "#book";
     const primaryCta = sectionProps.primaryCta;
     const nextPrimaryCta =
       hasCta && primaryCta && typeof primaryCta === "object"
-        ? { ...(primaryCta as Record<string, unknown>), label: ctaLabel }
+        ? { ...(primaryCta as Record<string, unknown>), label: ctaLabel, href: ctaHref }
         : hasCta
-          ? { label: ctaLabel, href: "/contact" }
+          ? { label: ctaLabel, href: ctaHref }
           : primaryCta;
     const regions = sectionProps.regions;
     let nextRegions = regions;
@@ -317,7 +320,7 @@ export function buildKitStandardShell(
           ? items.map((it) => {
               if (!it || typeof it !== "object") return it;
               const row = it as Record<string, unknown>;
-              return row.type === "cta" ? { ...row, label: ctaLabel } : it;
+              return row.type === "cta" ? { ...row, label: ctaLabel, href: ctaHref } : it;
             })
           : items;
       }

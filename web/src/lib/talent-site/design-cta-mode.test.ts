@@ -84,13 +84,14 @@ for (const [name, build] of Object.entries(PAYLOADS)) {
   });
 }
 
-test("folio: chapter nav + Consultar CTA (tip Folio magazine)", () => {
+test("folio: chapter nav + shared booking CTA (#book)", () => {
   const p = buildFolioPayload();
   const nav = JSON.stringify(p.shellTree);
   assert.ok(nav.includes('"label":"Selected work","href":"#chapter-1"'));
   assert.ok(nav.includes('"label":"More work","href":"#chapter-2"'));
   assert.ok(nav.includes('"label":"Rates","href":"#services"'));
-  assert.ok(nav.includes('"label":"Consultar"') || nav.includes("Consultar"));
+  assert.ok(nav.includes('"label":"Book an appointment"'));
+  assert.ok(nav.includes("#book"));
   assert.ok(!nav.includes('"label":"Book","href":"#gallery"'));
   // Legacy applied Folio trees still carry "Book" -> #gallery.
   const legacy = [
@@ -111,15 +112,14 @@ test("folio footer line per mode per locale", () => {
     assert.equal(localiseSeededDesignLabel("Inquire for bookings", "en", mode), en);
     assert.equal(localiseSeededDesignLabel("Inquire for bookings", "es", mode), es);
   }
-  // Tip Folio stamps Consultar (not mode-swapped Inquire); the contact line ships empty
-  // (demo wording lives in demos/folio-site-copy.ts, never the payload).
   const tip = rendered(buildFolioPayload, "es", "inquiry");
   assert.ok(
     !tip.some((s) => /editorials|editoriales|campaigns|campañas|runway|pasarela/i.test(s)),
     "tip Folio carries no editorial claim",
   );
   assert.ok(!tip.includes("Reserva en línea"));
-  assert.ok(JSON.stringify(buildFolioPayload()).includes("Consultar"));
+  // Inquiry mode rewrites the shared booking seed to Escríbeme (not Consultar chat).
+  assert.ok(tip.includes("Escríbeme"));
 });
 
 test("talent-edited copy is never rewritten", () => {
@@ -132,4 +132,23 @@ test("resolveSiteCtaMode: posture with the plan ceiling", () => {
   assert.equal(resolveSiteCtaMode({ sellingDefaults: { bookingPosture: "inquiry" }, confirmsByHand: false }), "inquiry");
   assert.equal(resolveSiteCtaMode({ sellingDefaults: { bookingPosture: "request" }, confirmsByHand: true }), "request");
   assert.equal(resolveSiteCtaMode({ sellingDefaults: null, confirmsByHand: false }), "instant");
+});
+
+test("resolveSiteCtaMode: bookings paused forces inquiry (no booking promise)", () => {
+  assert.equal(
+    resolveSiteCtaMode({
+      sellingDefaults: { bookingPosture: "instant" },
+      confirmsByHand: false,
+      acceptingBookings: false,
+    }),
+    "inquiry",
+  );
+  assert.equal(
+    localiseSeededDesignLabel("You can book a time on this page.", "es", "inquiry"),
+    "Consulta un horario en esta página.",
+  );
+  assert.equal(
+    localiseSeededDesignLabel("Book an appointment", "es", "inquiry"),
+    "Escríbeme",
+  );
 });

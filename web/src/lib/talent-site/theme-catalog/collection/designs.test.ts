@@ -449,7 +449,7 @@ test("maison-v2 hero has one CTA row: primary booking + ghost See services", () 
 });
 
 /** Ticket #88: the booking button leads in the header AND the hero, same anchor, mode-aware label. */
-test("maison-v2 leads with a primary 'Book an appointment' button in the header and the hero (#services)", () => {
+test("maison-v2 leads with a primary 'Book an appointment' button in the header and the hero (#book)", () => {
   const payload = COLLECTION_DESIGNS.find((d) => d.slug === "maison-v2")!.buildPayload();
   // The label must be one the render-time booking-mode map rewrites (Reservar cita / inquiry wording).
   assert.ok(MODE_DEPENDENT_LABELS.includes("Book an appointment"));
@@ -469,7 +469,7 @@ test("maison-v2 leads with a primary 'Book an appointment' button in the header 
   const [primary, secondary] = row.children!.filter((c) => c.kind === "button");
   assert.deepEqual(
     [primary!.props!.label, primary!.props!.href, primary!.props!.tone],
-    ["Book an appointment", "#services", "primary"],
+    ["Book an appointment", "#book", "primary"],
   );
   assert.equal(primary!.props!.i18n, undefined, "mode-dependent: no frozen overlay");
   assert.deepEqual([secondary!.props!.label, secondary!.props!.href, secondary!.props!.tone], ["See services", "#services", "secondary"]);
@@ -478,8 +478,8 @@ test("maison-v2 leads with a primary 'Book an appointment' button in the header 
   const header = (payload.shellTree as unknown as N[]).find((n) => n.props?.sectionTypeKey === "site_header")!;
   const sp = header.props!.sectionProps as { primaryCta: { label: string; href: string }; regions: { right: Array<Record<string, unknown>> } };
   const cta = sp.regions.right.find((i) => i.type === "cta")!;
-  assert.deepEqual([cta.label, cta.href], ["Book an appointment", "#services"]);
-  assert.deepEqual(sp.primaryCta, { label: "Book an appointment", href: "#services" });
+  assert.deepEqual([cta.label, cta.href], ["Book an appointment", "#book"]);
+  assert.deepEqual(sp.primaryCta, { label: "Book an appointment", href: "#book" });
   // The language switch stays; the pill hides on the phone like it did before (the dock carries booking there).
   assert.ok(sp.regions.right.some((i) => i.type === "language"));
   assert.deepEqual(cta.responsive, { mobile: "hide" });

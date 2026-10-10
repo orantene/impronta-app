@@ -14,7 +14,7 @@ import type { DesignPayload } from "./types";
 export const CTA_ALLOWED_SLUGS = ["maison-v2"] as const;
 export type CtaAllowedSlug = (typeof CTA_ALLOWED_SLUGS)[number];
 export const BOOK_LABEL = "Book an appointment";
-export const BOOK_HREF = "#services";
+export const BOOK_HREF = "#book";
 const OLD_HEADER_LABELS: readonly string[] = ["Menu and prices", BOOK_LABEL];
 
 type Rec = Record<string, unknown>;
@@ -175,7 +175,7 @@ function patchHero(home: readonly CtaNode[], seed: SeedTrees, edits: CtaEdit[], 
             prefix: `${here}/children[1]`,
             what: "hero secondary",
             before: { label: l2, href: rec(second.props).href },
-            after: { label: "See services", href: BOOK_HREF },
+            after: { label: "See services", href: "#services" },
           },
         );
         return { ...n, children: [nf, ns] };

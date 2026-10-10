@@ -15,7 +15,6 @@
  * flag-owned, so only `TALENT_MAISON_THEME_ENABLED` talents see them.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
-import { TALENT_ASK_HREF } from "@/lib/talent-site/contact-channels";
 import type { BuiltinDesignEntry } from "../builtins/types";
 import type { DesignPayload } from "../types";
 import { FOLIO_STYLE_TOKEN_DEFAULTS } from "./folio-defaults";
@@ -135,7 +134,7 @@ export function buildFramePayload(): DesignPayload {
       navChrome: "filter_bar",
       navLinks: [
         { label: "Work", href: "#gallery" },
-        { label: "Book", href: "#services" },
+        { label: "Book", href: "#book" },
         { label: "Contact", href: "#contact" },
         { label: "About", href: "#about" },
       ],
@@ -231,9 +230,9 @@ export function buildFolioPayload(): DesignPayload {
               bio: "{{bio}}",
               // TUL-230: live, her bio in the visitor's language (the baked token text is the fallback).
               liveText: "bio",
-              // Folio artifact cover CTA is Consultar (inquiry), not mode-swapped Book.
-              ctaLabel: "Consultar",
-              ctaHref: TALENT_ASK_HREF,
+              // TUL-516 W3-4: shared booking CTA (`#book`); mode rewrites the label.
+              ctaLabel: "Book an appointment",
+              ctaHref: "#book",
               bookLabel: "See the book",
               bookHref: "#chapter-1",
               contentsTitle: "In this issue",
@@ -257,8 +256,9 @@ export function buildFolioPayload(): DesignPayload {
         ...FOLIO_CHAPTER_SEEDS.map((c, i) => ({ label: c.heading, href: `#chapter-${i + 1}` })),
         { label: "Rates", href: "#services" },
       ],
-      // Folio artifact header CTA reads Consultar (inquiry), not Inquire/Escríbeme.
-      primaryCtaLabel: "Consultar",
+      // TUL-516 W3-4: header booking CTA follows site mode (same seed as other themes).
+      primaryCtaLabel: "Book an appointment",
+      primaryCtaHref: "#book",
     }),
     tokenDefaults: { ...FOLIO_STYLE_TOKEN_DEFAULTS },
     homeTree: [
@@ -377,8 +377,8 @@ function withFooterCta(node: BuilderNode): BuilderNode {
             ...k,
             props: {
               ...(k.props as Record<string, unknown>),
-              ctaLabel: "Consultar",
-              ctaHref: TALENT_ASK_HREF,
+              ctaLabel: "Book an appointment",
+              ctaHref: "#book",
             },
           } as BuilderNode)
         : k,
