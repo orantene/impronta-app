@@ -426,6 +426,9 @@ test("price unit reads a string or a per-locale map from attributes", () => {
   assert.equal(offeringPriceUnit({ price_unit: "uña" }, "es"), "uña");
   assert.equal(offeringPriceUnit({ price_unit: { es: "uña", en: "nail" } }, "en-US"), "nail");
   assert.equal(offeringPriceUnit({ price_unit: { es: "uña", en: "nail" } }, "es"), "uña");
+  // TUL-533 / GRK-026: English unit words must not leak onto ES price lines.
+  assert.equal(offeringPriceUnit({ price_unit: "session" }, "es"), "sesión");
+  assert.equal(offeringPriceUnit({ price_unit: "session" }, "en"), "session");
   assert.equal(offeringPriceUnit({ price_unit: "  " }, "es"), null);
   assert.equal(offeringPriceUnit({}, "es"), null);
   assert.equal(offeringPriceUnit(null, "es"), null);

@@ -29,6 +29,7 @@ import {
   parsePublicSlotDuration,
   parsePublicSlotFrom,
 } from "@/lib/scheduling/public-slots";
+import { cityLabelFromPlaceText } from "@/lib/scheduling/timezone-from-place";
 import { addUtcDays, utcToZonedYmd } from "@/lib/scheduling/tz";
 
 export const runtime = "nodejs";
@@ -59,12 +60,14 @@ type SlotsReason =
 function slotsJson(
   slots: string[],
   status = 200,
-  extra?: { timezone?: string; reason?: SlotsReason | null },
+  extra?: { timezone?: string; placeCity?: string | null; reason?: SlotsReason | null },
 ): NextResponse {
   return NextResponse.json(
     {
       slots,
       ...(extra?.timezone ? { timezone: extra.timezone } : {}),
+      // Talent's home city for the zone chip (Houston time, not Chicago time).
+      ...(extra?.placeCity ? { placeCity: extra.placeCity } : {}),
       // Only when empty: a caller with slots does not need a reason, and
       // sending one anyway invites a client to branch on it.
       ...(slots.length === 0 && extra?.reason ? { reason: extra.reason } : {}),
@@ -168,7 +171,7 @@ export async function GET(request: Request) {
 
     const { data: talent, error: talentErr } = await admin
       .from("talent_profiles")
-      .select("id, profile_kind, booking_terms, created_by_agency_id, selling_defaults")
+      .select("id, profile_kind, booking_terms, created_by_agency_id, selling_defaults, home_city_text")
       .eq("id", offering.talent_profile_id)
       .maybeSingle();
 
@@ -282,7 +285,10 @@ export async function GET(request: Request) {
           ? offeringBuffers.bufferBeforeMin
           : null,
     });
-    return slotsJson(slots, 200, { timezone: hours.timezone, reason });
+    const placeCity = cityLabelFromPlaceText(
+      typeof talent.home_city_text === "string" ? talent.home_city_text : null,
+    );
+    return slotsJson(slots, 200, { timezone: hours.timezone, placeCity, reason });
   } catch (err) {
     logServerError("api.public.booking.slots", err);
     return NextResponse.json({ error: "query_failed" }, { status: 500 });

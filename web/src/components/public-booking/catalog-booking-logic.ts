@@ -1,5 +1,5 @@
-import { zoneCity } from "@/lib/events/public-event-time";
 import { bookingDurationMinutes } from "@/lib/scheduling/reservation-window";
+import { zoneCity } from "@/lib/events/public-event-time";
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 import { resolveOfferingCta, type TalentOffering } from "@/lib/talent/offerings-types";
 import {
@@ -7,6 +7,7 @@ import {
   type TalentBookingPosture,
 } from "@/lib/talent/selling-booking-settings";
 import { deriveOfferingCta, offeringCtaLabel } from "@/lib/talent/offering-cta-derivation";
+import { localizePlaceCity } from "@/lib/talent-site/city-label";
 
 export type CatalogBookingMode = "demo" | "live";
 
@@ -407,14 +408,24 @@ const ZONE_CITY_DISPLAY: Record<string, string> = {
 };
 
 /**
- * TUL-59 / TUL-494: "Hora de {city}" / "{city} time" from an IANA zone.
- * City name follows the page language (America/Mexico_City → "Ciudad de México"
- * on ES, not "Mexico City"). Accent-only overrides keep Cancún / Mérida etc.
- * when the shared zone map has no entry.
+ * TUL-59 / TUL-533: "Hora de {city}" / "{city} time".
+ * Prefer the talent's place city when known (Houston over Chicago for
+ * America/Chicago; Morelia over Mexico City for America/Mexico_City). Otherwise
+ * name the IANA zone in the page language (ES → Ciudad de México, not Mexico City).
+ * Accent-only overrides keep Cancún / Mérida etc. when the shared zone map has no entry.
  */
-export function catalogTimezoneLabel(tz: string | null | undefined, es: boolean): string {
+export function catalogTimezoneLabel(
+  tz: string | null | undefined,
+  es: boolean,
+  placeCity?: string | null,
+): string {
   const zone = (tz ?? "").trim();
   if (!zone) return "";
+  const place = placeCity?.trim();
+  if (place) {
+    const city = localizePlaceCity(place, es ? "es" : "en");
+    return es ? `Hora de ${city}` : `${city} time`;
+  }
   const raw = zone.includes("/") ? (zone.split("/").pop() ?? zone) : zone;
   const city = ZONE_CITY_DISPLAY[raw] ?? zoneCity(zone, es ? "es" : "en");
   return es ? `Hora de ${city}` : `${city} time`;
@@ -432,17 +443,37 @@ export function catalogDayKey(date: Date): string {
  * offering's long-tail `attributes.price_unit`: a plain string or `{ es, en }`.
  * Null when the service is not priced per unit.
  */
+/** English unit words that must not leak onto Spanish price lines (GRK-026). */
+const PRICE_UNIT_ES: Record<string, string> = {
+  session: "sesión",
+  hour: "hora",
+  day: "día",
+  week: "semana",
+  event: "evento",
+  person: "persona",
+  nail: "uña",
+};
+
 export function offeringPriceUnit(
   attributes: Record<string, unknown> | null | undefined,
   locale: string,
 ): string | null {
+  const es = locale.toLowerCase().startsWith("es");
+  const localize = (unit: string): string => {
+    if (!es) return unit;
+    return PRICE_UNIT_ES[unit.toLowerCase()] ?? unit;
+  };
   const raw = attributes?.price_unit;
-  if (typeof raw === "string") return raw.trim() || null;
+  if (typeof raw === "string") {
+    const t = raw.trim();
+    return t ? localize(t) : null;
+  }
   if (raw && typeof raw === "object") {
     const map = raw as Record<string, unknown>;
-    const lang = locale.startsWith("es") ? "es" : "en";
+    const lang = es ? "es" : "en";
     const pick = map[lang] ?? map.en ?? map.es;
-    return typeof pick === "string" && pick.trim() ? pick.trim() : null;
+    if (typeof pick === "string" && pick.trim()) return localize(pick.trim());
+    return null;
   }
   return null;
 }

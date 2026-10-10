@@ -539,11 +539,13 @@ export function offeringPriceLabel(
   o: Pick<TalentOffering, "priceType" | "priceDisplay" | "amountCents" | "currency" | "visibility">,
   locale: string,
 ): string {
-  const es = locale === "es";
+  const es = locale.toLowerCase().startsWith("es");
   if (o.visibility === "on_request") return es ? "Bajo consulta" : "On request";
   if (o.priceDisplay === "quote" || o.priceType === "custom" || o.amountCents == null) {
     return es ? "Cotización a pedido" : "Quote on request";
   }
+  // TUL-533 / GRK-064: $0 → Consultar / Ask (display only; free can still book).
+  if (o.amountCents <= 0) return es ? "Consultar" : "Ask";
   const price = formatOfferingPrice(o.amountCents, o.currency, locale);
   const suffix = (es ? SERVICE_PRICING_SUFFIX_ES : SERVICE_PRICING_SUFFIX)[o.priceType];
   const core = suffix ? `${price} ${suffix}` : price;

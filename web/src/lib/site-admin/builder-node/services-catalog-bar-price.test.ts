@@ -27,3 +27,10 @@ test("exact pricing is just the money", () => {
   assert.match(label, /500/);
   assert.doesNotMatch(label, /Desde|cotizar/);
 });
+
+test("zero-priced offering shows Consultar / Ask, never $0 MXN (TUL-533 GRK-064)", () => {
+  const item = { ...base, priceDisplay: "exact", amountCents: 0 } as never;
+  assert.equal(catalogBarPriceLabel(item, "es"), "Consultar");
+  assert.equal(catalogBarPriceLabel(item, "en"), "Ask");
+  assert.doesNotMatch(catalogBarPriceLabel(item, "es"), /\$0|0 MXN/);
+});
