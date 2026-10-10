@@ -5,6 +5,7 @@
  * Reset / reapply / discard / restore. Behind TALENT_MAISON_THEME_ENABLED.
  */
 
+import { getRequestLocale } from "@/i18n/request-locale";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { COLLECTION_DESIGNS } from "@/lib/talent-site/theme-catalog/collection/designs";
 import { isTalentMaisonThemeEnabled } from "@/lib/access/talent-maison-theme";
@@ -587,6 +588,7 @@ export async function reapplyMaisonDemoLayoutAction(): Promise<
     design,
     displayName: g.displayName,
     userId: g.userId,
+    locale: await getRequestLocale(),
   });
   if (!designRes.ok) return designRes;
 

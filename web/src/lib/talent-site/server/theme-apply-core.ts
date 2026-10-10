@@ -22,7 +22,7 @@ import {
   type StampSource,
 } from "../theme-releases/origin";
 import { stripDesignKeys } from "../theme-releases/design-keys";
-import { designApplySummary, lookSummary } from "../history/copy";
+import { designApplySummary, lookSummary, pick } from "../history/copy";
 import { isHistorySnapshot, planRestore } from "../history/restore-plan";
 import type { HistoryActor, HistorySnapshot } from "../history/types";
 import { writeSiteDraft } from "../history/writer";
@@ -236,6 +236,8 @@ export interface ApplyDesignInput {
   expectedDraftRev?: number | null;
   /** History actor (a Tulala-run demo rebuild passes "tulala"). */
   actor?: HistoryActor;
+  /** Language of the talent-facing refusal text ("es…" = Spanish, else English). */
+  locale?: string | null;
 }
 
 type DraftRead = {
@@ -395,7 +397,7 @@ export async function applyDesign(
     version: design.version,
     where: "applyDesign",
   });
-  if (!pin.ok) return { ok: false, code: "invalid_theme", error: pin.reason.en };
+  if (!pin.ok) return { ok: false, code: "invalid_theme", error: pick(pin.reason, input.locale) };
 
   const draft = await readApplyDraft(admin, {
     talentProfileId: input.talentProfileId,

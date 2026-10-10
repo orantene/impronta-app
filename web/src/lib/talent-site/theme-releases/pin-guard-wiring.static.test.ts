@@ -21,6 +21,18 @@ for (const [file, call] of GUARDED) {
   });
 }
 
+test("a design-apply refusal reaches the talent in her language", () => {
+  const core = read("src/lib/talent-site/server/theme-apply-core.ts");
+  assert.ok(core.includes("pick(pin.reason, input.locale)"), "applyDesign must pick the refusal by locale");
+  assert.ok(!core.includes("pin.reason.en"), "applyDesign must not hard-code the English refusal");
+  for (const file of [
+    "src/lib/talent-site/server/maison-apply-actions.ts",
+    "src/lib/talent-site/server/maison-options-actions.ts",
+  ]) {
+    assert.ok(read(file).includes("locale: await getRequestLocale()"), `${file} must pass the request locale`);
+  }
+});
+
 test("the guard never lets a failed read through", () => {
   const src = read("src/lib/talent-site/theme-releases/pin-guard.server.ts");
   assert.match(src, /READ_FAILED/);
