@@ -111,7 +111,23 @@ export type TalentSiteDashboardState = {
    * so the slot-template preview shows THIS talent's real name/photo/bio.
    */
   talentProfileId: string | null;
+  /**
+   * Personal live website or hub `/t/<code>` fallback. Kept for callers that
+   * still mean "personal surface". Dual-owner "My website" primary uses
+   * `resolveTalentDashboardMyWebsite` / `workspaceSite` instead (TUL-180).
+   */
   publicSiteUrl: string | null;
+  /** Live personal website only (no hub fallback). Null when unpublished. */
+  personalPublicSiteUrl: string | null;
+  /** Business workspace site when the talent owns one with cms_pages. */
+  workspaceSite: {
+    slug: string;
+    publicUrl: string | null;
+    adminHref: string;
+    tenantId: string;
+  } | null;
+  /** Owns a business workspace site AND has a personal talent_sites row. */
+  isDualSiteOwner: boolean;
   publicProfileUrl: string | null;
   isPubliclyHidden: boolean;
   templateKey: string | null;

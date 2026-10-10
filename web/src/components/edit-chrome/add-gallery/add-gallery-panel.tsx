@@ -435,10 +435,14 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       setPending(true);
       try {
         // W1-L4 — selection → viewport section → end-of-tree; never the far bottom.
-        const copy = {
-          siteKind: templateCopySiteKind(surfaceKind, window.location.pathname),
-          locale: getActiveContentLocaleSnapshot().locale,
-        };
+        // Same workspace type + site locale as the insert payload (TUL-80).
+        const copy = buildTemplateCopyContext({
+          surfaceKind,
+          pathname: window.location.pathname,
+          workspaceType: workspaceCopyType,
+          active: getActiveContentLocaleSnapshot(),
+          siteDefaultLocale,
+        });
         // TUL-78 (B-1): a whole section never nests inside the selected hero.
         const anchor = resolveInsertAnchor(
           builderTree,
@@ -450,15 +454,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
           item,
           anchor,
           { insertBuilderNode, insertBuilderSectionEmbed, insertBuilderComponent },
-          {
-            copy: buildTemplateCopyContext({
-              surfaceKind,
-              pathname: window.location.pathname,
-              workspaceType: workspaceCopyType,
-              active: getActiveContentLocaleSnapshot(),
-              siteDefaultLocale,
-            }),
-          },
+          { copy },
         );
         if (!result.ok && result.error) {
           reportMutationError(result.error);

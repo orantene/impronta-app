@@ -72,6 +72,11 @@ export const EDITORIAL_SOFT_CHROME_CSS = [
   // Keep the last menu rows above the sticky See-services / Continuar chrome.
   `html:has([data-theme-canvas-root][data-token-shape-chrome="soft"]):has(.cb-dock[data-show="true"],.cb-bar[data-show="true"]){scroll-padding-bottom:calc(92px + env(safe-area-inset-bottom,0px))}`,
   `body:has(.cb-dock[data-show="true"],.cb-bar[data-show="true"]) ${SOFT} .site-builder-node--services-catalog-groups{padding-bottom:calc(72px + env(safe-area-inset-bottom,0px))}`,
+  // TUL-498 / DS-13: gallery + last cards clear the sticky booking / chat chrome.
+  `body:has(.cb-dock[data-show="true"],.cb-bar[data-show="true"]) ${SOFT} #gallery{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}`,
+  // Grok S3: when the sticky Reservar bar is up, hide the on-photo next-free chip on phone
+  // so it does not sit on the hero (the bar carries booking).
+  `@media (max-width:899px){body:has(.cb-bar[data-show="true"]) ${SOFT} .site-builder-node--next-free-chip{display:none!important}}`,
 
   // ── Reviews: tint-mixed cards (not hard white-on-white when page≈section) (RV-2),
   // 84% slides and an edge fade on the phone, three cards and no dead arrows on desktop (RV-3).

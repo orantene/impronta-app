@@ -207,6 +207,26 @@ test("MN-6 MN-7 MN-8: sticky phone chips under the header, desktop rail below it
     soft,
     /html:has\(\[data-theme-canvas-root\]\[data-token-shape-chrome="soft"\]\):has\(\.cb-dock\[data-show="true"\],\.cb-bar\[data-show="true"\]\)\{scroll-padding-bottom:calc\(92px/,
   );
+  // TUL-498 / DS-13 / Grok S3: gallery clears sticky chrome; on-photo chip hides when bar shows.
+  assert.match(soft, /#gallery\{padding-bottom:calc\(88px/);
+  assert.match(soft, /@media \(max-width:899px\)\{body:has\(\.cb-bar\[data-show="true"\]\)[^}]*next-free-chip\{display:none!important\}/);
+});
+
+test("TUL-475: Maison hero inset stays inside a clipped media stack; logo tokens are mockup-scale", () => {
+  const hero = slot(buildMaisonV2Payload().homeTree, "hero");
+  const media = find([hero], (n) => propsOf(n).layerLabel === "Hero media")!;
+  assert.equal(styleOf(media).overflow, "hidden");
+  const inset = find([hero], (n) => propsOf(n).slotKey === "hero_inset_bl")!;
+  assert.equal(styleOf(inset).left, "0px");
+  const tokens = buildMaisonV2Payload().tokenDefaults!;
+  assert.equal(tokens["type.logo-size"], "32px");
+  assert.equal(tokens["type.logo-size-desktop"], "40px");
+});
+
+test("TUL-498: selected day/slot uses surface ink-on (not hard white) for dark looks", () => {
+  assert.match(CATALOG_BOOKING_CSS, /\.jb-day\[data-on="true"\]\{[^}]*color:var\(--cb-surface\)/);
+  assert.match(CATALOG_BOOKING_CSS, /\.jb-time\[data-on="true"\]\{[^}]*color:var\(--cb-surface\)/);
+  assert.doesNotMatch(CATALOG_BOOKING_CSS, /\.jb-day\[data-on="true"\]\{[^}]*color:#fff/);
 });
 
 // ── FAQ (FQ-1) ───────────────────────────────────────────────────────────────

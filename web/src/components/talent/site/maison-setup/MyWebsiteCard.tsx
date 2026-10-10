@@ -30,6 +30,8 @@ import { DesignOptionsPanel } from "./DesignOptionsPanel";
 import { loadMaisonSetupBootstrapAction } from "./maison-setup-bootstrap";
 import { legacyPaletteLabel, liveCardDesignLabel } from "./maison-live-summary";
 import { lookSlugToGalleryPaletteKey, paletteDisplayName } from "./live-design-change";
+import { SitePublishEntry } from "./SitePublishEntry";
+import { sitePublishEntryState } from "./site-publish-entry";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
 
 type Props = {
@@ -42,6 +44,10 @@ type Props = {
   publishedAt: string | null;
   contentModeLabel?: "mine" | "demo";
   onChangeDesign: () => void;
+  /** Opens the Review (publish) step. */
+  onOpenReview?: () => void;
+  /** False when the Review host is off: Republish links to the builder. */
+  hasReviewHost?: boolean;
   onRestoredToReview?: () => void;
   liveToast?: string | null;
   onLiveToastDone?: () => void;
@@ -51,6 +57,8 @@ type Props = {
   onOpenSettings?: () => void;
   onOpenApps?: () => void;
   showTiles?: boolean;
+  /** TUL-180: override Edit site when primary is the workspace builder. */
+  editHref?: string;
 };
 
 /** Real iframe viewports so phone CSS breakpoints fire (not a shrunk desktop). */
@@ -177,6 +185,8 @@ export function MyWebsiteCard({
   publishedAt,
   contentModeLabel = "mine",
   onChangeDesign,
+  onOpenReview,
+  hasReviewHost = true,
   onRestoredToReview,
   liveToast = null,
   onLiveToastDone,
@@ -185,6 +195,7 @@ export function MyWebsiteCard({
   onOpenSettings,
   onOpenApps,
   showTiles = true,
+  editHref = "/talent/page-builder",
 }: Props) {
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [restoreOpen, setRestoreOpen] = useState(false);
@@ -475,7 +486,7 @@ export function MyWebsiteCard({
           ) : null}
 
           <Link
-            href="/talent/page-builder"
+            href={editHref}
             data-testid="maison-edit-site"
             className={`inline-flex min-h-12 items-center justify-center rounded-xl border px-5 text-[14px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tulala-primary-fill,#3B8277)] ${
               hasPending
@@ -485,6 +496,16 @@ export function MyWebsiteCard({
           >
             {t("Edit site")}
           </Link>
+
+          {onOpenReview ? (
+            <SitePublishEntry
+              locale={locale}
+              state={sitePublishEntryState({ published: true, publishable: true, hasPending })}
+              publicSiteUrl={publicSiteUrl}
+              onOpenReview={onOpenReview}
+              hasReviewHost={hasReviewHost}
+            />
+          ) : null}
 
           <div className="flex flex-wrap gap-2" data-testid="maison-site-secondary-actions">
             <IconBtn

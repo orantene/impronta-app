@@ -33,6 +33,9 @@ export type SetupCopy = {
   providerEmail: string;
   providerLater: string;
   providerNote: string;
+  /** Studio only: the owner also takes clients (default on) / does not. */
+  ownerProvides: string;
+  ownerProvidesHint: string;
   errors: { services: string; hours: string; place: string; timezone: string; providerEmail: string; save: string };
   next: string;
 };
@@ -72,6 +75,8 @@ export const SETUP_COPY: Record<FlowLocale, SetupCopy> = {
     providerEmail: "Their email",
     providerLater: "Add later",
     providerNote: "Bookings start when a provider is added.",
+    ownerProvides: "I also take clients myself",
+    ownerProvidesHint: "Your site takes bookings from day one, with the hours above. Turn it off if other people take the clients: it then takes enquiries until a provider joins.",
     errors: {
       services: "Add at least one service with a name.",
       hours: "Open at least one day.",
@@ -116,6 +121,8 @@ export const SETUP_COPY: Record<FlowLocale, SetupCopy> = {
     providerEmail: "Su correo",
     providerLater: "Agregar después",
     providerNote: "Las reservas empiezan cuando agregas a un proveedor.",
+    ownerProvides: "Yo también atiendo clientes",
+    ownerProvidesHint: "Tu sitio recibe reservas desde el primer día, con el horario de arriba. Desactívalo si otras personas atienden a los clientes: entonces recibe consultas hasta que se una un proveedor.",
     errors: {
       services: "Agrega al menos un servicio con nombre.",
       hours: "Abre al menos un día.",

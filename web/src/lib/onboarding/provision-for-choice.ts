@@ -69,12 +69,18 @@ export type ChoiceProvisionResult<W, S> =
 export async function runChoiceProvisioning<W, S>(
   choice: OnboardingChoice,
   deps: ChoiceProvisionDeps<W, S>,
+  /**
+   * studio: the owner also takes clients (default true), so they are provisioned as a roster provider
+   * (talent profile + self roster + live) and bookable, exactly as in "both" but without a personal site.
+   */
+  opts: { studioOwnerProvides?: boolean } = {},
 ): Promise<ChoiceProvisionResult<W, S>> {
   const warnings: string[] = [];
-  const wantsTalent = choice !== "studio";
+  const studioOwnerProvider = choice === "studio" && opts.studioOwnerProvides !== false;
+  const wantsTalent = choice !== "studio" || studioOwnerProvider;
   const wantsWorkspace = choice !== "myself";
 
-  await deps.promoteFreshAppRole(freshAppRoleForChoice(choice));
+  await deps.promoteFreshAppRole(studioOwnerProvider ? "talent" : freshAppRoleForChoice(choice));
 
   let talent: EnsuredTalent | null = null;
   if (wantsTalent) {

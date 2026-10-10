@@ -241,6 +241,49 @@ test("solo studio: an existing row with no open day is filled in", async () => {
   assert.ok(Object.values(db.hours.own1 as Record<string, unknown[]>).some((d) => d.length > 0));
 });
 
+// ── studio where the owner also takes clients ──────────────────────────────
+
+const studioOwnerInput = (over: Partial<Essentials> = {}) => ({ choice: "studio" as const, essentials: ess(over), talent: { talentProfileId: "own1", tenantId: "ws1" }, workspace });
+
+test("studio owner-provider: hours written and bookable on, even when a first provider is also invited", async () => {
+  const typed = { ...defaultWeeklyHours(), "0": [], "6": [{ startMin: 600, endMin: 840 }] };
+  for (const over of [{ hours: typed }, { hours: typed, firstProviderEmail: "pro@studio.com" }]) {
+    const db = fresh();
+    const r = await runEssentialsWrites(ownerStore(db, { talentProfileId: "own1", providerCount: 2 }), studioOwnerInput(over));
+    assert.equal(r.ownerHoursWritten, true);
+    assert.deepEqual(db.hours.own1, typed);
+    assert.ok(db.bookable.has("own1"));
+    assert.equal(r.ownerBookable, true);
+  }
+});
+
+test("studio owner-provider: second run is idempotent and edited hours are kept, still bookable", async () => {
+  const db = fresh();
+  const s = ownerStore(db, { talentProfileId: "own1", providerCount: 1 });
+  await runEssentialsWrites(s, studioOwnerInput());
+  const edited = { ...defaultWeeklyHours(), "1": [{ startMin: 720, endMin: 780 }] };
+  db.hours.own1 = edited;
+  const again = await runEssentialsWrites(s, studioOwnerInput());
+  assert.equal(again.ownerHoursWritten, false);
+  assert.equal(db.hours.own1, edited);
+  assert.ok(db.bookable.has("own1"));
+});
+
+test("studio owner-provider with no timezone known: reported, still bookable flag set, nothing else lost", async () => {
+  const db = fresh();
+  const r = await runEssentialsWrites(ownerStore(db, { talentProfileId: "own1", providerCount: 1 }, false), studioOwnerInput({ timezone: null }));
+  assert.equal(r.ownerHoursWritten, false);
+  assert.ok(r.warnings.includes("essentials:ownerHours:no_timezone"));
+  assert.ok(db.businessInfo.has("ws1"));
+});
+
+test("ownerProvides: defaults to true, only an explicit false turns it off, and it survives parse and resolve", () => {
+  assert.equal(suggestedEssentials({ trade: "lashes", country: "Mexico", locale: "en", name: "V" }).ownerProvides, true);
+  assert.equal(parseEssentials({ services: [], hours: null })?.ownerProvides, true);
+  assert.equal(parseEssentials({ services: [], ownerProvides: false })?.ownerProvides, false);
+  assert.equal(parseEssentials({ services: [], ownerProvides: "no" })?.ownerProvides, true);
+});
+
 test("three choices: target owner of the offerings written", async () => {
   const keys = async (choice: "myself" | "studio" | "both") => {
     const db = fresh();

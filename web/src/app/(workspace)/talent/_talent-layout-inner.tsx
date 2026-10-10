@@ -287,7 +287,9 @@ export async function TalentLayoutInner({
       ? loadTalentAgendaForLayout(talentSelfProfile.id)
       : Promise.resolve({ items: [], hours: null, error: null as string | null }),
     loadTalentEarningsByCurrency(talentSelfProfile.id),
-    loadTalentPersonalSiteDashboardState(undefined, readCtx),
+    loadTalentPersonalSiteDashboardState(undefined, readCtx, undefined, {
+      requestHost: hdrs.get("x-forwarded-host") ?? hdrs.get("host"),
+    }),
     // Stripe Connect payout snapshot for the in-shell Payouts section.
     // Returns { ok:false } on any failure, so it never breaks the layout.
     getTalentConnectedAccountSnapshot(talentSelfProfile.id),

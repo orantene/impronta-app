@@ -47,14 +47,15 @@ export const CATALOG_BOOKING_CSS = `
 .jb-recap{margin:0 0 18px;font-size:.9375rem;color:var(--cb-muted)}
 .jb-days{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px}
 .jb-day{flex:0 0 auto;width:64px;min-height:76px;border-radius:12px;cursor:pointer;background:var(--cb-surface);border:1px solid var(--cb-edge);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:inherit;color:var(--cb-ink)}
-.jb-day[data-on="true"]{background:var(--cb-ink);border-color:var(--cb-ink);color:#fff}
+/* TUL-498: ink fill + white text fails on dark looks (sofia ink ≈ surface). Use surface ink-on. */
+.jb-day[data-on="true"]{background:var(--cb-ink);border-color:var(--cb-ink);color:var(--cb-surface)}
 .jb-day:disabled{opacity:.32;cursor:not-allowed}
 .jb-day span{font-size:.625rem;text-transform:uppercase;letter-spacing:.08em;opacity:.7}
 .jb-day b{font-size:1.125rem}
 .jb-day small{font-size:.625rem;opacity:.7}
 .jb-times{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:8px;margin-top:16px}
 .jb-time{min-height:48px;border-radius:10px;background:var(--cb-surface);border:1px solid var(--cb-edge);cursor:pointer;font-family:inherit;font-size:.9375rem;color:var(--cb-ink)}
-.jb-time[data-on="true"]{background:var(--cb-ink);border-color:var(--cb-ink);color:#fff}
+.jb-time[data-on="true"]{background:var(--cb-ink);border-color:var(--cb-ink);color:var(--cb-surface)}
 .jb-empty{margin-top:18px;border:1px dashed var(--cb-edge);border-radius:14px;padding:22px;text-align:center}
 .jb-empty strong{display:block;margin-bottom:6px;font-size:.9375rem}
 .jb-empty p{margin:0;font-size:.875rem;color:var(--cb-muted);line-height:1.55}
