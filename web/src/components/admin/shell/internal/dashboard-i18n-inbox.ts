@@ -59,7 +59,8 @@ export const INBOX_ES_TEXT: Record<string, string> = {
   "Resize jobs list": "Cambiar el ancho de la lista de trabajos",
   "Awaiting your response.": "Esperando tu respuesta.",
   "Booking confirmed. Check logistics tab.": "Reserva confirmada. Revisa la pestaña de logística.",
-  // Legacy key (em dash) kept so older seeded previews still translate.
+  "Booking confirmed. Check the logistics tab.": "Reserva confirmada. Revisa la pestaña de logística.",
+  // Legacy em-dash key (bridge used this before TUL-518 / TUL-519).
   "Booking confirmed — check logistics tab.": "Reserva confirmada. Revisa la pestaña de logística.",
   "Submit your rate to see this": "Envía tu tarifa para verlo",
   "Submit your rate": "Envía tu tarifa",

@@ -124,6 +124,10 @@ describe("talent inbox i18n", () => {
       translateDashboardText("Booking confirmed. Check logistics tab.", "es"),
       "Reserva confirmada. Revisa la pestaña de logística.",
     );
+    assert.equal(
+      translateDashboardText("Booking confirmed. Check the logistics tab.", "es"),
+      "Reserva confirmada. Revisa la pestaña de logística.",
+    );
   });
 
   it("Today checklist chip labels have ES rows (TUL-519 card 146)", () => {
@@ -150,7 +154,7 @@ describe("talent inbox i18n", () => {
   it("synthetic talent previews use system sender so inboxPreviewText can translate", () => {
     const adapter = read("talent/shared/conversation-adapter-1.tsx");
     assert.match(adapter, /sender:\s*"system"/);
-    assert.match(adapter, /Awaiting your response\./);
-    assert.match(adapter, /Booking confirmed\. Check logistics tab\./);
+    assert.match(adapter, /INBOX_PREVIEW_AWAITING/);
+    assert.match(adapter, /INBOX_PREVIEW_BOOKED/);
   });
 });
