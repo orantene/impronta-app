@@ -5742,9 +5742,14 @@ html[data-theme="dark"] [data-tone="light"] {
  * within that wrapper's (header-height) box → the bar scrolls away. Promote the
  * sticky to the WRAPPER, whose containing block is the tall page column, so the
  * header actually pins. Scoped to the header slot + gated on the inner header
- * opting into sticky, so nothing else is affected. */
+ * opting into sticky, so nothing else is affected.
+ *
+ * Agency keeps `:not([data-tone="transparent"])`: transparent agency headers
+ * use `position:fixed` below (overlay path). Talent max-site includes
+ * transparent sticky (Folio scroll-to-solid) — excluding it left the bar
+ * scrolling away after the hero (GRK-082 "header blank after scroll"). */
 [data-cms-section][data-section-type-key="site_header"]:has(> .site-header[data-sticky="true"]:not([data-tone="transparent"])),
-[data-talent-max-site-header]:has(.site-header[data-sticky="true"]:not([data-tone="transparent"])) {
+[data-talent-max-site-header]:has(.site-header[data-sticky="true"]) {
   position: sticky;
   top: 0;
   z-index: 40;
