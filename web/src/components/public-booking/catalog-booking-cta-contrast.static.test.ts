@@ -17,3 +17,12 @@ test("catalog booking CTA primary prefers token-color-primary over accent blush"
     "accent-first CTA fill regresses white-on-blush Continuar",
   );
 });
+
+test("GRK-070: disabled Continuar keeps muted ink (not white-on-edge)", () => {
+  assert.match(css, /\.jb-cta:disabled\{[^}]*color:var\(--cb-muted\)/);
+  assert.doesNotMatch(
+    css,
+    /\.jb-cta:disabled\{[^}]*color:#fff/,
+    "white disabled label regresses nearly-invisible Continuar",
+  );
+});
