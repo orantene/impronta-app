@@ -17,3 +17,10 @@ test("catalog booking CTA primary prefers token-color-primary over accent blush"
     "accent-first CTA fill regresses white-on-blush Continuar",
   );
 });
+
+test("GRK-072: selected day/slot fill stays on brand primary (not ink↔surface)", () => {
+  assert.match(css, /--cb-selected:var\(--token-color-primary/);
+  assert.match(css, /\.jb-day\[data-on="true"\]\{[^}]*background:var\(--cb-selected\)/);
+  assert.match(css, /\.jb-time\[data-on="true"\]\{[^}]*background:var\(--cb-selected\)/);
+  assert.match(css, /\.jb-day\[data-on="true"\]\{[^}]*color:var\(--cb-on-selected\)/);
+});
