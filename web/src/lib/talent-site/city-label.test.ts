@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { canonicalCityName, citySlug, hasAccent } from "./city-label";
+import { canonicalCityName, citySlug, hasAccent, localizePlaceCity } from "./city-label";
 
 test("citySlug folds accents and punctuation to the locations slug", () => {
   assert.equal(citySlug("Cancún"), "cancun");
@@ -31,4 +31,12 @@ test("Valeria's data: the location row is ASCII in both languages, the place tex
 test("hasAccent", () => {
   assert.ok(hasAccent("Cancún"));
   assert.ok(!hasAccent("Cancun"));
+});
+
+test("localizePlaceCity renames Mexico City for the page language", () => {
+  assert.equal(localizePlaceCity("Mexico City", "es"), "Ciudad de México");
+  assert.equal(localizePlaceCity("mexico city", "es-MX"), "Ciudad de México");
+  assert.equal(localizePlaceCity("Ciudad de México", "en"), "Mexico City");
+  assert.equal(localizePlaceCity("Morelia", "es"), "Morelia");
+  assert.equal(localizePlaceCity("Houston", "en"), "Houston");
 });

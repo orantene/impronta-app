@@ -119,7 +119,14 @@ export function OfferingInstantMount({
   const addOnCents = addOns.filter((a) => addOnIds.includes(a.id)).reduce((s, a) => s + a.amountCents, 0);
   const totalCents = baseCents != null ? baseCents * effQty + addOnCents : null;
 
-  const price = totalCents != null ? formatOfferingPrice(totalCents, d.currency, locale) : "";
+  const price =
+    totalCents == null
+      ? ""
+      : totalCents <= 0
+        ? locale.toLowerCase().startsWith("es")
+          ? "Consultar"
+          : "Ask"
+        : formatOfferingPrice(totalCents, d.currency, locale);
   const depositAmount =
     d.reserveMode === "deposit" && d.depositPct && totalCents
       ? formatOfferingPrice(Math.round((totalCents * d.depositPct) / 100), d.currency, locale)

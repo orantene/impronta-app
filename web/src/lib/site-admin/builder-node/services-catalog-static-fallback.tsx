@@ -101,6 +101,9 @@ export function ServicesCatalogStaticFallback({
                               ? "On request"
                               : "Quote on request"}
                         </strong>
+                      ) : minCents <= 0 ? (
+                        // TUL-533 / GRK-064: SSR fallback must not paint "$0 MXN".
+                        <strong>{es ? "Consultar" : "Ask"}</strong>
                       ) : (
                         <>
                           {ladder ? <small>{es ? "Desde" : "From"}</small> : null}

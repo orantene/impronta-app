@@ -111,7 +111,13 @@ export function CatalogPurchaseMount({
   const totalCents = baseCents != null ? baseCents * effQty + addOnCents : null;
   const collectCents = catalogCollectNowCents(totalCents, d.reserveMode, d.depositPct);
   const price =
-    totalCents != null ? formatOfferingPrice(totalCents, d.currency, locale) : "";
+    totalCents == null
+      ? ""
+      : totalCents <= 0
+        ? locale.toLowerCase().startsWith("es")
+          ? "Consultar"
+          : "Ask"
+        : formatOfferingPrice(totalCents, d.currency, locale);
   const collectPrice =
     collectCents != null && collectCents > 0
       ? formatOfferingPrice(collectCents, d.currency, locale)

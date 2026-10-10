@@ -9,6 +9,7 @@
  */
 
 import { platformServiceTitle } from "@/lib/talent/offering-title-fallback";
+import { localizePlaceCity } from "./city-label";
 import { accentHeadline, seedHeadlineFor } from "./hero-headline";
 import {
   formatHeroEyebrow,
@@ -107,10 +108,15 @@ export function buildTalentLocaleSwaps(
   const cityEn = src.homeCity?.en?.trim();
   const cityNames = [cityEn, ...(src.cityAliases ?? [])].map((c) => c?.trim() ?? "").filter(Boolean);
   if (cityEn || cityNames.length) {
-    const city = pick(src.homeCity, key, chain) || cityNames[0]!;
-    for (const name of new Set(cityNames)) {
+    let city = pick(src.homeCity, key, chain) || cityNames[0]!;
+    // TUL-516: English place name "Mexico City" must not paint on Spanish pages.
+    city = localizePlaceCity(city, key);
+    for (const name of new Set([...cityNames, "Mexico City", cityEn].filter(Boolean) as string[])) {
       add(name, city);
-      if (key === "es") add(`Based in ${name}`, `Con base en ${city}`);
+      if (key === "es") {
+        add(`Based in ${name}`, `Con base en ${city}`);
+        add(`BASED IN ${name.toUpperCase()}`, `CON BASE EN ${city.toUpperCase()}`);
+      }
     }
   }
   for (const o of src.offerings ?? []) {
@@ -131,7 +137,7 @@ export function buildTalentLocaleSwaps(
   // The hero eyebrow is the trade and the city joined ("Nail Artist · Mérida"): a value of its own.
   const tradeEn = src.typeNames[0]?.en?.trim();
   if (tradeEn) {
-    const city = pick(src.homeCity, key, chain) || cityNames[0] || "";
+    const city = localizePlaceCity(pick(src.homeCity, key, chain) || cityNames[0] || "", key);
     for (const name of new Set(cityNames)) {
       add(formatHeroEyebrow(tradeEn, name), formatHeroEyebrow(pick(src.typeNames[0], key, chain), city));
     }

@@ -15,6 +15,7 @@ export function CatalogWhoSummary({
   day,
   time,
   tz,
+  placeCity,
   total,
 }: {
   es: boolean;
@@ -22,9 +23,10 @@ export function CatalogWhoSummary({
   day: Date;
   time: string | null;
   tz: string | null;
+  placeCity?: string | null;
   total: string;
 }) {
-  const zone = tz ? catalogTimezoneLabel(tz, es) : "";
+  const zone = tz ? catalogTimezoneLabel(tz, es, placeCity) : "";
   const val = { textAlign: "right" } as const;
   return (
     <div className="jb-recap" data-catalog-who-summary="">
