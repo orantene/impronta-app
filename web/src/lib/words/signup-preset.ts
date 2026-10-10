@@ -67,6 +67,18 @@ const KEYWORD_PRESETS: ReadonlyArray<{
     words: ["restaurant", "restaurante", "cafe", "café", "bistro", "kitchen", "cocina", "taqueria", "taquería", "dining"],
     presetId: "restaurant",
   },
+  // Dry cleaning BEFORE home services: it contains "cleaning" but is drop-off.
+  { words: ["dry cleaning", "dry cleaner", "dry cleaners", "tintoreria", "tintorería"], presetId: "dropoff_service" },
+  // Home services BEFORE studio_gym: "estudio de limpieza" is a cleaner, not a gym.
+  {
+    words: [
+      "cleaning", "cleaner", "cleaners", "housekeeping", "limpieza", "limpiezas", "aseo",
+      "home service", "home services", "a domicilio", "handyman", "plumbing", "plumber",
+      "plomeria", "plomería", "plomero", "electrician", "electricista", "mantenimiento",
+      "gardening", "jardineria", "jardinería", "jardinero", "fumigacion", "fumigación",
+    ],
+    presetId: "home_services",
+  },
   // Portfolio BEFORE studio_gym, and this ordering is load-bearing: a
   // "photography studio" and an "estudio fotográfico" both contain the word
   // this list gives to gyms. Without this row above it, every photographer in
