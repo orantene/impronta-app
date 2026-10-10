@@ -180,6 +180,10 @@ export function reduceMachine(state: MachineState, event: MachineEvent): Machine
         isAuthenticated: snapshot?.isAuthenticated ?? false,
         email: snapshot?.email ?? null,
       };
+      // GRK-109: a late resume lookup must not yank the person off a choice
+      // they already made this session (first Continuar looked ignored; the
+      // "Bienvenido de nuevo" card appeared after a radio tap alone).
+      if (state.choice !== null || state.busy || state.briefId) return base;
       if (!snapshot || !snapshot.briefId || !canResume(snapshot.state)) return base;
       return { ...base, resume: snapshot };
     }
