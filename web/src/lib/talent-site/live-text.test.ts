@@ -120,7 +120,7 @@ test("live values: Spanish and English come from real facts, empty parts drop ou
   assert.equal(es.footer_intro, "Manicurista en Mérida.");
   assert.equal(es.footer_where, "Centro, Mérida");
   assert.equal(es.footer_hours, "Con cita, lun a sáb");
-  assert.match(es.footer_contact ?? "", /^Instagram · \[@alba\.unas\.demo\]\(https:\/\/[^)]+\)$/);
+  assert.match(es.footer_contact ?? "", /^\[Instagram · @alba\.unas\.demo\]\(https:\/\/[^)]+\)$/);
   const en = buildTalentLiveText(SRC, "en").values;
   assert.equal(en.hero_eyebrow, "Nail Artist · Merida");
   assert.equal(en.hero_proof, "9 years of craft · Español · English · ★ 4.9 · 212 reviews");
@@ -426,9 +426,9 @@ test("TUL-59 C: contact line links the Instagram handle and a WhatsApp link she 
   const { contactLine } = await import("./live-text-values");
   assert.equal(
     contactLine("@alba", "https://instagram.com/alba", "https://wa.me/5219990000000"),
-    "Instagram · [@alba](https://instagram.com/alba) · [WhatsApp](https://wa.me/5219990000000)",
+    "[Instagram · @alba](https://instagram.com/alba) · [WhatsApp](https://wa.me/5219990000000)",
   );
-  assert.equal(contactLine("@alba", null, null), "Instagram · [@alba](https://instagram.com/alba)");
+  assert.equal(contactLine("@alba", null, null), "[Instagram · @alba](https://instagram.com/alba)");
   assert.equal(contactLine("", null, "javascript:alert(1)"), "");
   assert.equal(contactLine("", null, "https://wa.me/5219990000000"), "[WhatsApp](https://wa.me/5219990000000)");
 });
