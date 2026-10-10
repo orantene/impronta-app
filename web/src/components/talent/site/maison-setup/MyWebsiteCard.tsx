@@ -33,6 +33,7 @@ import { lookSlugToGalleryPaletteKey, paletteDisplayName } from "./live-design-c
 import { SitePublishEntry } from "./SitePublishEntry";
 import { sitePublishEntryState } from "./site-publish-entry";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
+import { talentLeaveForWorkspaceAdminHref } from "@/lib/talent-site/hard-nav-workspace-admin";
 
 type Props = {
   locale: MaisonSetupLocale;
@@ -485,17 +486,31 @@ export function MyWebsiteCard({
             </div>
           ) : null}
 
-          <Link
-            href={editHref}
-            data-testid="maison-edit-site"
-            className={`inline-flex min-h-12 items-center justify-center rounded-xl border px-5 text-[14px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tulala-primary-fill,#3B8277)] ${
-              hasPending
-                ? "border-admin-border-soft bg-white text-admin-ink hover:bg-admin-surface-alt"
-                : "border-[var(--tulala-primary-fill,#3B8277)] bg-[var(--tulala-primary-fill,#3B8277)] text-white hover:border-[var(--tulala-primary-fill-deep,#326F66)] hover:bg-[var(--tulala-primary-fill-deep,#326F66)]"
-            }`}
-          >
-            {t("Edit site")}
-          </Link>
+          {talentLeaveForWorkspaceAdminHref(editHref) ? (
+            <a
+              href={editHref}
+              data-testid="maison-edit-site"
+              className={`inline-flex min-h-12 items-center justify-center rounded-xl border px-5 text-[14px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tulala-primary-fill,#3B8277)] ${
+                hasPending
+                  ? "border-admin-border-soft bg-white text-admin-ink hover:bg-admin-surface-alt"
+                  : "border-[var(--tulala-primary-fill,#3B8277)] bg-[var(--tulala-primary-fill,#3B8277)] text-white hover:border-[var(--tulala-primary-fill-deep,#326F66)] hover:bg-[var(--tulala-primary-fill-deep,#326F66)]"
+              }`}
+            >
+              {t("Edit site")}
+            </a>
+          ) : (
+            <Link
+              href={editHref}
+              data-testid="maison-edit-site"
+              className={`inline-flex min-h-12 items-center justify-center rounded-xl border px-5 text-[14px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tulala-primary-fill,#3B8277)] ${
+                hasPending
+                  ? "border-admin-border-soft bg-white text-admin-ink hover:bg-admin-surface-alt"
+                  : "border-[var(--tulala-primary-fill,#3B8277)] bg-[var(--tulala-primary-fill,#3B8277)] text-white hover:border-[var(--tulala-primary-fill-deep,#326F66)] hover:bg-[var(--tulala-primary-fill-deep,#326F66)]"
+              }`}
+            >
+              {t("Edit site")}
+            </Link>
+          )}
 
           {onOpenReview ? (
             <SitePublishEntry
