@@ -41,6 +41,8 @@ export type CheckoutViewProps = {
   readonly receiptHref: string | null;
   /** Engine client fee lines (open state only); [] / absent = no breakdown. */
   readonly feeLines?: readonly FeeLine[];
+  /** Client service fee on top of the amount (the checkout collect minus the principal). */
+  readonly serviceFeeCents?: number;
   /** Seller shown on the confirmation ("Pagado a ..."). */
   readonly sellerName?: string | null;
   /** UI locale for money formatting ("es" | "en"). */
@@ -77,7 +79,7 @@ export function CheckoutView(props: CheckoutViewProps) {
           sellerLine={props.sellerName ? interpolate(t("public.thread.paidTo"), { seller: props.sellerName }) : null}
           lines={props.lines.map((l) => `${l.units > 1 ? `${l.units} × ` : ""}${l.label}`)}
           total={total}
-          note={t(keepSlotKey)}
+          note={t("public.thread.paidNote")}
           receiptHref={props.receiptHref}
           receiptLabel={t("public.thread.receipt")}
           threadHref={props.threadHref}
@@ -246,6 +248,9 @@ export function CheckoutView(props: CheckoutViewProps) {
     );
   }
 
+  const serviceFee = Math.max(0, Math.round(props.serviceFeeCents ?? 0));
+  // Engine fee lines already itemise the whole charge; the plain fee row is for when they are absent.
+  const showServiceFee = serviceFee > 0 && !props.feeLines?.length;
   return (
     <Shell>
       <h1 className="text-[22px] font-semibold" style={titleStyle}>
@@ -266,8 +271,14 @@ export function CheckoutView(props: CheckoutViewProps) {
           </li>
         ))}
       </ol>
+      {showServiceFee ? (
+        <p data-service-fee="" className="mt-3 flex justify-between text-[13px] tabular-nums" style={{ color: MUTED }}>
+          <span>{t("public.thread.fees.client_service_fee")}</span>
+          <span>{formatDashboardMoneyCents(serviceFee, props.currency || null, props.locale ?? "es")}</span>
+        </p>
+      ) : null}
       <p className="mt-4 text-[20px] font-semibold tabular-nums" style={{ color: INK }}>
-        {total}
+        {showServiceFee ? formatDashboardMoneyCents(props.amountCents + serviceFee, props.currency || null, props.locale ?? "es") : total}
       </p>
       {props.feeLines?.length ? (
         <EngineFeeLines
