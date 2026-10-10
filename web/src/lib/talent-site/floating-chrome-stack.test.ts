@@ -13,6 +13,9 @@ import {
   floatingChromeBottomUsesMax,
   floatingChromeClearsHeroCtas,
   floatingChromeYieldsToGuestChat,
+  HELP_BUBBLE_CHIP_CLEARANCE_PX,
+  HELP_BUBBLE_FILTER_BAND_RATIO,
+  helpBubbleFilterBandProtectsChips,
   helpBubbleFilterNavBlocking,
 } from "./floating-chrome-stack";
 
@@ -75,13 +78,23 @@ describe("TUL-516 / TUL-528 floating chrome stack", () => {
     assert.equal(floatingBannerUp(dom.window.document), false);
   });
 
-  test("F4: help teaser blocks when filter chips sit in the lower viewport band", () => {
-    const dom = new JSDOM(`<nav class="site-builder-node--services-catalog-nav"><button>Gel</button></nav>`);
+  test("F4 / GRK-038: help teaser blocks when filter chips sit in the lower viewport band", () => {
+    assert.equal(helpBubbleFilterBandProtectsChips(HELP_BUBBLE_FILTER_BAND_RATIO, HELP_BUBBLE_CHIP_CLEARANCE_PX), true);
+    const dom = new JSDOM(
+      `<nav class="site-builder-node--services-catalog-nav"><button class="site-builder-node--services-catalog-pill">Gel</button></nav>`,
+    );
     const nav = dom.window.document.querySelector(".site-builder-node--services-catalog-nav") as HTMLElement;
-    nav.getBoundingClientRect = () => ({ width: 300, height: 40, top: 500, bottom: 540, left: 0, right: 300 }) as DOMRect;
+    // Mid-lower row that 0.55 used to miss relative to the teaser (~y 500 on 844).
+    nav.getBoundingClientRect = () => ({ width: 300, height: 40, top: 360, bottom: 400, left: 0, right: 300 }) as DOMRect;
     assert.equal(helpBubbleFilterNavBlocking(dom.window.document, 844), true);
     nav.getBoundingClientRect = () => ({ width: 300, height: 40, top: 72, bottom: 112, left: 0, right: 300 }) as DOMRect;
     assert.equal(helpBubbleFilterNavBlocking(dom.window.document, 844), false);
+    // Pill alone in the FAB clearance zone.
+    const pill = dom.window.document.querySelector(".site-builder-node--services-catalog-pill") as HTMLElement;
+    nav.getBoundingClientRect = () => ({ width: 0, height: 0, top: 0, bottom: 0, left: 0, right: 0 }) as DOMRect;
+    pill.getBoundingClientRect = () =>
+      ({ width: 80, height: 36, top: 720, bottom: 756, left: 12, right: 92 }) as DOMRect;
+    assert.equal(helpBubbleFilterNavBlocking(dom.window.document, 844), true);
   });
 
   test("root layout mounts the stack styles; consent z-index is above the chat FAB", () => {
