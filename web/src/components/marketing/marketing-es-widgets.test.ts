@@ -43,3 +43,17 @@ test("the network preview has the same cards and tags in both languages, all tra
   assert.match(view, /networkPreviewCopy\(locale\)/);
   assert.doesNotMatch(view, /Search the network before you apply/);
 });
+
+test("the /pricing compare table has no hard-coded English chrome and names every category in Spanish", () => {
+  const view = read("src/components/marketing/plan-feature-compare-table.tsx");
+  assert.doesNotMatch(view, />\s*Feature\s*</);
+  assert.doesNotMatch(view, />\s*Tier \{/);
+  assert.doesNotMatch(view, /aria-label="(Not included|Included)"/);
+  assert.match(view, /localizeTierName\(/);
+  const types = read("src/lib/pricing/pricing-types.ts");
+  const order = types.match(/COMPARE_CATEGORY_ORDER[^=]*=\s*\[([\s\S]*?)\]/)?.[1] ?? "";
+  const esBlock = view.slice(view.indexOf("const COPY_ES"));
+  for (const cat of order.match(/"([a-z_]+)"/g) ?? []) {
+    assert.match(esBlock, new RegExp(`${cat.slice(1, -1)}:\\s*"`), `missing ES label for ${cat}`);
+  }
+});
