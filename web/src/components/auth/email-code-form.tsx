@@ -42,7 +42,7 @@ import {
   AuthNotice,
   AuthSubmitButton,
 } from "@/components/auth/auth-ui";
-import { OTP_CODE_MAX_LENGTH } from "@/lib/auth/otp-flow";
+import { authEmailHasPlusTag, OTP_CODE_MAX_LENGTH } from "@/lib/auth/otp-flow";
 import { createTranslator } from "@/i18n/messages";
 import { AgeTermsCheckbox } from "@/components/auth/age-terms-checkbox";
 
@@ -114,6 +114,8 @@ export function EmailCodeForm({
   // "Use a different email" pins the form back to step 1 until the next send.
   const [backToEmail, setBackToEmail] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  // TUL-558: warn before send when the visitor types a +tag alias.
+  const [emailDraft, setEmailDraft] = useState(defaultEmail ?? "");
   // Which action the visitor most recently triggered. Both `useActionState`
   // hooks keep their last result forever, so without this a stale "that code
   // isn't right" would sit on top of a fresh "new code sent" (and vice versa).
@@ -270,7 +272,11 @@ export function EmailCodeForm({
         <AuthField
           label={t("public.auth.form.email")}
           htmlFor="email"
-          hint={t("public.auth.passwordless.emailHint")}
+          hint={
+            authEmailHasPlusTag(emailDraft)
+              ? t("public.auth.passwordless.plusEmailHint")
+              : t("public.auth.passwordless.emailHint")
+          }
         >
           <input
             id="email"
@@ -279,6 +285,7 @@ export function EmailCodeForm({
             autoComplete="email"
             required
             defaultValue={email}
+            onChange={(e) => setEmailDraft(e.target.value)}
             placeholder="you@studio.com"
             className={AUTH_INPUT_CLASS}
             style={AUTH_INPUT_STYLE}

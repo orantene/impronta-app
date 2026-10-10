@@ -29,6 +29,7 @@ import {
   authEmailLinkNext,
   buildOtpEmailRedirect,
   isCompleteOtpCode,
+  authEmailHasPlusTag,
   isValidAuthEmail,
   normalizeAuthEmail,
   normalizeOtpCode,
@@ -105,6 +106,13 @@ test("normalizeAuthEmail trims and lowercases (Supabase stores lowercase)", () =
   assert.equal(normalizeAuthEmail("  Booker@Studio.COM "), "booker@studio.com");
   assert.equal(normalizeAuthEmail(undefined), "");
   assert.equal(normalizeAuthEmail(["a@b.co", "c@d.co"]), "a@b.co");
+});
+
+test("authEmailHasPlusTag detects name+tag aliases only", () => {
+  assert.equal(authEmailHasPlusTag("booker+uno@mail.example.com"), true);
+  assert.equal(authEmailHasPlusTag("booker@mail.example.com"), false);
+  assert.equal(authEmailHasPlusTag("a+b+c@x.co"), true);
+  assert.equal(authEmailHasPlusTag("not-an-email"), false);
 });
 
 test("isValidAuthEmail accepts real addresses and rejects the usual near-misses", () => {
@@ -187,8 +195,11 @@ const FORM_KEYS = [
   "public.auth.passwordless.emailSubmit",
   "public.auth.passwordless.emailPending",
   "public.auth.passwordless.emailHint",
+  "public.auth.passwordless.plusEmailHint",
   "public.auth.passwordless.sentNotice",
   "public.auth.passwordless.resentNotice",
+  "public.auth.passwordless.plusSentNotice",
+  "public.auth.passwordless.plusResentNotice",
   "public.auth.passwordless.codeLabel",
   "public.auth.passwordless.codeHint",
   "public.auth.passwordless.verifySubmit",
@@ -244,6 +255,8 @@ test("the sent notices keep the {email} placeholder the form substitutes", () =>
   for (const key of [
     "public.auth.passwordless.sentNotice",
     "public.auth.passwordless.resentNotice",
+    "public.auth.passwordless.plusSentNotice",
+    "public.auth.passwordless.plusResentNotice",
   ]) {
     for (const [locale, catalog] of [
       ["en", en],

@@ -340,8 +340,16 @@ export function OnboardingModule({
     dispatch({ type: "sendStarted" });
     ageTermsRef.current = ageTerms;
     const r = await requestOnboardingCode({ email, locale, resend, ageTerms });
-    if (r.ok) dispatch({ type: "codeSent", email: r.email, notice: resend ? t("public.onboarding.code.resent") : null });
-    else dispatch({ type: "accountFailed", message: r.code === "module_off" ? t("public.onboarding.errors.moduleOff") : r.message });
+    if (r.ok) {
+      const plus = r.email.includes("+") && r.email.includes("@");
+      dispatch({
+        type: "codeSent",
+        email: r.email,
+        notice: resend
+          ? t(plus ? "public.onboarding.code.plusResent" : "public.onboarding.code.resent")
+          : null,
+      });
+    } else dispatch({ type: "accountFailed", message: r.code === "module_off" ? t("public.onboarding.errors.moduleOff") : r.message });
   }, [locale, t]);
 
   const verifyCode = useCallback(async (code: string) => {
