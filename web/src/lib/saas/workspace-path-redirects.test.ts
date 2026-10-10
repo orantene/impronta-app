@@ -1,7 +1,50 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { shouldRedirectMarketingWorkspacePath } from "./workspace-path-redirects";
+import {
+  freeSubdomainToPathRedirectUrl,
+  shouldRedirectMarketingWorkspacePath,
+} from "./workspace-path-redirects";
+
+test("onb1-17: Free subdomain redirects to the path-canonical /w URL", () => {
+  assert.equal(
+    freeSubdomainToPathRedirectUrl({
+      hostname: "qa-grok-salon.tulala.digital",
+      tenantSlug: "qa-grok-salon",
+      planTier: "free",
+    }),
+    "https://tulala.digital/w/qa-grok-salon",
+  );
+  assert.equal(
+    freeSubdomainToPathRedirectUrl({
+      hostname: "qa-grok-salon.tulala.digital",
+      tenantSlug: "qa-grok-salon",
+      planTier: "free",
+      pathname: "/menu",
+      search: "?x=1",
+    }),
+    "https://tulala.digital/w/qa-grok-salon/menu?x=1",
+  );
+});
+
+test("onb1-17: paid / mismatched hosts do not path-redirect", () => {
+  assert.equal(
+    freeSubdomainToPathRedirectUrl({
+      hostname: "qa-grok-salon.tulala.digital",
+      tenantSlug: "qa-grok-salon",
+      planTier: "studio",
+    }),
+    null,
+  );
+  assert.equal(
+    freeSubdomainToPathRedirectUrl({
+      hostname: "other.tulala.digital",
+      tenantSlug: "qa-grok-salon",
+      planTier: "free",
+    }),
+    null,
+  );
+});
 
 test("marketing /{slug}/admin redirects to the app origin", () => {
   assert.equal(

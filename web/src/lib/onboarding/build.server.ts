@@ -152,11 +152,19 @@ export async function runOnboardingBuild(input: {
     if (agencyErr) logServerError("onboarding.build.stampRead", agencyErr);
     const stamp = agencyErr ? null : parseArrivalStamp((agency?.settings as Record<string, unknown> | null)?.site_compose);
     const deliveredUrl = (await getTenantPreviewUrl(admin, result.tenantId, { requestHost: input.requestHost })) ?? result.publicUrl;
-    // 1D: one source for the address: the promised link when the workspace got that slug.
+    // 1D: Free path-canonical finish (`/w/<slug>`). Never verify a subdomain over a delivered path URL.
     const finish = resolveWorkspaceFinishUrl({ linkSlug: input.state.linkSlug ?? null, tenantSlug: result.tenantSlug, delivered: deliveredUrl });
-    const publicUrl = finish.url;
+    let publicUrl = finish.url;
     const finishName = businessName ?? result.tenantName;
-    const wsCheck = await verifyLivePageWithRetry({ url: publicUrl, name: finishName });
+    let wsCheck = await verifyLivePageWithRetry({ url: publicUrl, name: finishName });
+    // Defense: if finish URL failed but provision delivered a different live URL, trust the delivered one.
+    if (!wsCheck.ok && deliveredUrl && deliveredUrl !== publicUrl) {
+      const deliveredCheck = await verifyLivePageWithRetry({ url: deliveredUrl, name: finishName });
+      if (deliveredCheck.ok) {
+        publicUrl = deliveredUrl;
+        wsCheck = deliveredCheck;
+      }
+    }
     if (!wsCheck.ok) logServerError("onboarding.build.verifyLive", new Error(`workspace:${wsCheck.reason}`));
     // "both" also owns a talent site: it must exist and open with her name, or the finish is not "ready".
     let talentCheck: LiveCheck | null = null;

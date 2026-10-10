@@ -8,6 +8,29 @@ import {
   resolveWorkspacePathTenantPublicPath,
   WORKSPACE_PATH_SEGMENT,
 } from "@/lib/saas/surface-allow-list";
+import { brandedSubdomainEligible, workspacePathUrl } from "@/lib/saas/workspace-public-url";
+import { normalizeWorkspaceUrlPlan } from "@/lib/saas/workspace-live-url";
+
+/**
+ * onb1-17 · Free workspaces advertise `tulala.digital/w/<slug>`. When a leftover
+ * branded subdomain host is hit, callers redirect here (308) so there is one
+ * public URL. Paid plans keep their subdomain. Pure — proxy supplies planTier.
+ */
+export function freeSubdomainToPathRedirectUrl(input: {
+  hostname: string;
+  tenantSlug: string;
+  planTier: string | null | undefined;
+  pathname?: string;
+  search?: string;
+}): string | null {
+  const slug = input.tenantSlug.trim().toLowerCase();
+  const host = input.hostname.trim().toLowerCase();
+  if (!slug || host !== `${slug}.tulala.digital`) return null;
+  if (brandedSubdomainEligible(normalizeWorkspaceUrlPlan(input.planTier))) return null;
+  const path = input.pathname && input.pathname !== "/" ? input.pathname : "";
+  const search = input.search ?? "";
+  return `${workspacePathUrl(slug)}${path}${search}`;
+}
 
 /**
  * `/w` workspace-parent redirects, owned here so proxy.ts stays under its
