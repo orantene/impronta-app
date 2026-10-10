@@ -41,7 +41,12 @@ import {
   groupIsoSlotsByDay,
   type CatalogBookingMode,
 } from "./catalog-booking-logic";
-import { catalogIsQuote, catalogPriceLabel } from "./catalog-booking-price";
+import {
+  catalogIsQuote,
+  catalogPriceLabel,
+  catalogSheetSummaryCaption,
+  catalogSheetSummaryCents,
+} from "./catalog-booking-price";
 import { CatalogInquiryBrief } from "./catalog-inquiry-brief";
 import { CatalogTaskNote, catalogTaskBrief } from "./catalog-task-note";
 import { CatalogIntakeFields } from "./catalog-intake-fields";
@@ -215,7 +220,7 @@ export function CatalogBookingSheet({
     addOnIds,
   );
   const needsVariant = (detail?.variants ?? []).length > 0;
-  const base = variant?.amountCents ?? detail?.amountCents ?? 0;
+  const summaryCents = detail ? catalogSheetSummaryCents(detail, variantId) ?? 0 : 0;
   const total = detail ? catalogTotalCents(detail, variantId, addOnIds) : 0;
 
   useEffect(() => {
@@ -465,9 +470,9 @@ export function CatalogBookingSheet({
             <>
               <div className="jb-summary">
                 <div>
-                  <span>{isQuote ? (es ? "Precio" : "Price") : es ? "Precio base" : "Base price"}</span>
+                  <span>{catalogSheetSummaryCaption(detail, variantId, locale)}</span>
                   <strong data-catalog-price={isQuote ? "quote" : "money"}>
-                    {catalogPriceLabel(detail, detail.amountCents ?? 0, locale, money)}
+                    {catalogPriceLabel(detail, summaryCents, locale, money)}
                   </strong>
                 </div>
                 {bookingDurationMinutes ? (
@@ -559,7 +564,7 @@ export function CatalogBookingSheet({
               <div className="jb-lines">
                 <div>
                   <span>{variant ? `${detail.title} · ${variant.label}` : detail.title}</span>
-                  <span>{catalogPriceLabel(detail, base, locale, money)}</span>
+                  <span>{catalogPriceLabel(detail, summaryCents, locale, money)}</span>
                 </div>
                 {extras.map((e) => (
                   <div key={e.id}>

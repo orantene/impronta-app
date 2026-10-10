@@ -121,6 +121,15 @@ export const DEMOS: DemoTalent[] = [
     serviceCategorySlug: "djs",
     talentTypeSlug: "open-format-dj",
     theme: "frame",
+    // TUL-489 / TUL-516 S1: without hours the sheet is "Sin horarios disponibles".
+    // Window must fit the 5h wedding set (300 min).
+    hours: {
+      timezone: "America/Monterrey",
+      days: [4, 5, 6, 0],
+      startMin: 16 * 60,
+      endMin: 23 * 60,
+      slotMinutes: 60,
+    },
     tagline: "DJ para bodas, fiestas y eventos en Monterrey",
     bio: "Soy DJ open format: latino, pop, house y clásicos. Llevo mi equipo de sonido y armo la música contigo antes del evento.",
     services: [

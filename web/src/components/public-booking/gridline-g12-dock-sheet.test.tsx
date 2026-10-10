@@ -34,7 +34,7 @@ const html = (locale: string, liveStatus?: typeof ON | typeof OFF | null) =>
 
 // TUL-344: re-pinned on purpose (sticky bar hides at the top and reserves --cb-bar-h for every theme).
 test("existing designs: the base booking stylesheet is byte-pinned", () => {
-  assert.equal(createHash("sha256").update(CATALOG_BOOKING_CSS).digest("hex"), "8d7bb28b30400701ae39e60e5b71cefe0798c203ef72d09f5d66e9142d5692d5");
+  assert.equal(createHash("sha256").update(CATALOG_BOOKING_CSS).digest("hex"), "9c19cd7f51381cc59abcdca9943cddc09e1ed6a3b6c2e2b30597c06f6f28f7c0"); // re-pinned: TUL-121 Maison v2 minors (#3116) edit the base booking CSS
 });
 
 test("existing designs: dock markup is identical with no status, null or off", () => {

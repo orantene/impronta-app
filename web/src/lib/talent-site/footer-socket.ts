@@ -13,6 +13,7 @@
  *   document links stay.
  */
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { talentSiteLocalePath } from "@/lib/talent-site/talent-site-locale-routing";
 
 export const TULALA_LEGAL_TERMS_URL = "https://tulala.digital/legal/terms";
 export const TULALA_LEGAL_PRIVACY_URL = "https://tulala.digital/legal/privacy";
@@ -116,6 +117,11 @@ export function buildSocketModel(input: {
   /** "" on a talent host; "/t/site/<slug>" on the platform path form. */
   publicPathPrefix: string;
   supportedLocales: readonly string[];
+  /**
+   * Talent primary language (unprefixed URL). Defaults to `locale` when omitted
+   * so older callers keep compiling; pass the real primary so `/en/politicas` works.
+   */
+  primaryLocale?: string;
   switcherHrefs?: Readonly<Record<string, string>>;
   /** Attribution wanted (plan gate). */
   showCredit: boolean;
@@ -135,18 +141,26 @@ export function buildSocketModel(input: {
 }): SocketModel {
   const { locale } = input;
   const prefix = input.publicPathPrefix.replace(/\/+$/, "");
+  const primary = (input.primaryLocale ?? locale).trim() || locale;
+  const supported =
+    input.supportedLocales.length > 0 ? input.supportedLocales : [primary];
+  /** TUL-498: keep /politicas under the visitor locale (`/en/politicas` on EN). */
+  const policyHref = (path: string) => {
+    const localized = talentSiteLocalePath(path, locale, primary, supported);
+    return prefix ? `${prefix}${localized}` : localized;
+  };
 
   const siteLinks: SocketLink[] = [
     {
       key: "booking-policy",
       label: pickLocale(locale, { en: "Booking policies", es: "Políticas de reserva" }),
-      href: `${prefix}${TALENT_BOOKING_POLICY_PATH}`,
+      href: policyHref(TALENT_BOOKING_POLICY_PATH),
       external: false,
     },
     {
       key: "privacy",
       label: pickLocale(locale, { en: "Privacy", es: "Privacidad" }),
-      href: `${prefix}${TALENT_PRIVACY_PATH}`,
+      href: policyHref(TALENT_PRIVACY_PATH),
       external: false,
     },
   ];
@@ -157,7 +171,7 @@ export function buildSocketModel(input: {
     siteLinks.push({
       key: "privacy-choices",
       label: pickLocale(locale, { en: "Your privacy choices", es: "Tus opciones de privacidad" }),
-      href: `${prefix}${TALENT_PRIVACY_CHOICES_PATH}`,
+      href: policyHref(TALENT_PRIVACY_CHOICES_PATH),
       external: false,
     });
   }

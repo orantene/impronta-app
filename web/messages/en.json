@@ -973,7 +973,7 @@
       "cardAddService": "Add",
       "cardRailOne": "1 service · {label}",
       "cardRailMany": "{count} services · {label}",
-      "cardComposerPlaceholder": "Nothing is sent until you tap send.",
+      "cardComposerPlaceholder": "Type your message…",
       "cardNoBookings": "You have no bookings yet. Pick a service to get started.",
       "cardSeeServices": "See services",
       "cardChipWhenFor": "Any room this week for {service}?",

@@ -973,7 +973,7 @@
       "cardAddService": "Agregar",
       "cardRailOne": "1 servicio · {label}",
       "cardRailMany": "{count} servicios · {label}",
-      "cardComposerPlaceholder": "Nada se envía hasta que toques enviar.",
+      "cardComposerPlaceholder": "Escribe tu mensaje…",
       "cardNoBookings": "Aún no tienes citas. Elige un servicio para empezar.",
       "cardSeeServices": "Ver servicios",
       "cardChipWhenFor": "¿Hay hueco esta semana para {service}?",

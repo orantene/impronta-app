@@ -539,6 +539,7 @@ async function renderMaxSiteDocument(args: {
     locale,
     publicPathPrefix,
     supportedLocales: args.localeCtx.settings.supportedLocales,
+    primaryLocale: args.localeCtx.settings.defaultLocale,
     switcherHrefs: args.localeCtx.switcherHrefs,
     showCredit: showPlatformBadge,
     whitelabel: tenantId ? await loadTenantWhitelabel(tenantId) : false,
