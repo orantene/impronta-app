@@ -48,6 +48,7 @@ import {
 import { headers } from "next/headers";
 import { getFavoriteTalentIds, getSavedTalentIds } from "@/lib/public-discovery";
 import { readPublicSidebarVisibility } from "@/lib/field-engine/read-source-public-sidebar";
+import { resolveFieldGroupLabel } from "@/lib/field-engine/field-group-label";
 import { createTranslator } from "@/i18n/messages";
 import { buildDirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 import { PublicFlashHost } from "@/components/directory/public-flash-host";
@@ -256,7 +257,20 @@ type PublicFieldDefinitionEmbed = {
   internal_only?: boolean;
   public_visible?: boolean;
   profile_visible?: boolean;
-  field_groups?: { sort_order: number; slug?: string } | { sort_order: number; slug?: string }[] | null;
+  field_groups?:
+    | {
+        sort_order: number;
+        slug?: string;
+        name_en?: string | null;
+        name_es?: string | null;
+      }
+    | {
+        sort_order: number;
+        slug?: string;
+        name_en?: string | null;
+        name_es?: string | null;
+      }[]
+    | null;
 };
 
 type PublicFieldValueRow = {
@@ -547,8 +561,18 @@ async function fetchPublicFieldValues(
     default_visibility: string[] | null;
     deprecated_at: string | null;
     profile_field_groups:
-      | { sort_order: number | null; slug: string | null }
-      | { sort_order: number | null; slug: string | null }[]
+      | {
+          sort_order: number | null;
+          slug: string | null;
+          name_en: string | null;
+          name_es: string | null;
+        }
+      | {
+          sort_order: number | null;
+          slug: string | null;
+          name_en: string | null;
+          name_es: string | null;
+        }[]
       | null;
   };
   type NewValueRow = {
@@ -572,7 +596,7 @@ async function fetchPublicFieldValues(
       profile_field_definitions (
         id, field_key, label_i18n, kind, tier, unit, options, option_labels_i18n, display_order, field_group_id,
         admin_only, is_sensitive, show_in_public, default_visibility, deprecated_at,
-        profile_field_groups ( sort_order, slug )
+        profile_field_groups ( sort_order, slug, name_en, name_es )
       )
     `,
     )
@@ -872,7 +896,12 @@ async function fetchPublicFieldValues(
         public_visible: true,
         profile_visible: true,
         field_groups: resolvedGroupSlug
-          ? { sort_order: resolvedGroupSort, slug: resolvedGroupSlug }
+          ? {
+              sort_order: resolvedGroupSort,
+              slug: resolvedGroupSlug,
+              name_en: fg?.name_en ?? null,
+              name_es: fg?.name_es ?? null,
+            }
           : null,
       },
     });
@@ -1693,29 +1722,6 @@ export async function TalentProfileView({
     return typeof slug === "string" && slug.trim() ? slug.trim() : null;
   }
 
-  // Humanize a field-group slug into a card heading. The new catalog stores
-  // group identity as a slug only (no per-locale label on the public embed),
-  // so we title-case the slug and apply a few curated labels. Ungrouped rows
-  // fall back to a generic "Details" bucket.
-  const groupLabelFromSlug = (slug: string | null): string => {
-    if (!slug) return pickLocale(locale, { en: "Details", es: "Detalles" });
-    const curated: Record<string, { en: string; es: string }> = {
-      measurements: { en: "Measurements", es: "Medidas" },
-      physical: { en: "Physical", es: "Físico" },
-      logistics: { en: "Logistics", es: "Logística" },
-      availability: { en: "Availability", es: "Disponibilidad" },
-      experience: { en: "Experience", es: "Experiencia" },
-      rates: { en: "Rates", es: "Tarifas" },
-      preferences: { en: "Preferences", es: "Preferencias" },
-    };
-    const hit = curated[slug];
-    if (hit) return pickLocale(locale, hit);
-    return slug
-      .replace(/[_-]+/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase())
-      .trim();
-  };
-
   // FREE-TIER CONTACT GATE: on the free default profile, the ONLY contact path
   // is the in-Tulala inquiry — so any field VALUE that is a social handle,
   // external link, or direct contact channel is suppressed (clients must not be
@@ -1760,13 +1766,17 @@ export async function TalentProfileView({
       const value = formatFieldValue(row, locale);
       if (!value) return acc;
       const fg = def.field_groups;
-      const groupSort = Array.isArray(fg) ? fg[0]?.sort_order ?? 0 : fg?.sort_order ?? 0;
+      const groupMeta = Array.isArray(fg) ? (fg[0] ?? null) : fg;
+      const groupSort = groupMeta?.sort_order ?? 0;
       const slug = groupSlugFromDef(def);
       const entry: DetailEntry = {
         key: def.key,
         label: pickFieldLabel(locale, def.label_en, def.label_es),
         value,
-        group: groupLabelFromSlug(slug),
+        group: resolveFieldGroupLabel(slug, locale, {
+          name_en: groupMeta?.name_en ?? null,
+          name_es: groupMeta?.name_es ?? null,
+        }),
         groupSort,
         sort: def.sort_order ?? 0,
       };
