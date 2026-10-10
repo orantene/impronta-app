@@ -29,3 +29,8 @@ test("TUL-52 P5: Vista previa hides the inspector dock instead of painting an em
   const src = read("inspector-dock.tsx");
   assert.match(src, /const dockOpen = inspectorDockOpen && !previewing;/);
 });
+
+test("TUL-52 P5 390: the Publish split scrolls with the phone top bar instead of pinning over it", () => {
+  const src = read("topbar.tsx");
+  assert.match(src, /className="sticky right-\[20px\][^"]*max-\[640px\]:static[^"]*"\s+data-publish-split/);
+});
