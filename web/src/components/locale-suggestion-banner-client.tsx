@@ -15,16 +15,13 @@ import { cn } from "@/lib/utils";
  * Spanish speaker reads Spanish, not an English sentence asking whether they
  * would like Spanish.
  *
- * Layout contract (TUL-394): a thin row IN DOCUMENT FLOW at the very top of
- * the page (mounted as the first child of `<body>`, which is a flex column).
- * It is never a fixed overlay, so it can never sit over a primary action: the
- * /start "Continuar" footer, the booking dock and the sticky booking bar all
- * live at the bottom and keep their space. It is rendered in the SSR HTML (not
- * mounted by an effect), so it is in the first paint and shifts nothing after
- * it; dismissing it removes the row and the content moves up once.
- *
- * Booking CSS still hides `[data-locale-suggestion]` while the dock/bar is up
- * (see `catalog-booking-styles.ts`); harmless for a top row, kept for parity.
+ * Layout contract (TUL-560, replaces the TUL-394 top row): a small toast fixed
+ * in the bottom-left corner. Nothing ever sits above the site header, and the
+ * toast takes no layout space, so showing or dismissing it shifts nothing.
+ * It floats above `--floating-chrome-bottom` (booking bar, phone chat
+ * launcher) and above the demo badge, and yields entirely while the consent
+ * card, a modal, the guest chat panel, or the booking dock/bar is up (see
+ * `floating-chrome-stack.ts`), so it never sits over a primary action.
  *
  * Accept is a real `<a href>`, not a router push: the locale switch is a full
  * navigation to a different URL, exactly like `PublicLanguageToggle`. The
@@ -77,17 +74,16 @@ export function LocaleSuggestionBannerClient({
 
   return (
     <div
-      // In flow, top of the page: never overlays content or a bottom CTA.
-      className="relative flex shrink-0 justify-center px-3 py-2 print:hidden"
+      className="fixed left-3 z-[96] w-[calc(100%-24px)] max-w-[340px] print:hidden"
       role="region"
       aria-label={regionLabel}
       data-locale-suggestion={locale}
     >
       <div
         className={cn(
-          "flex w-full max-w-lg flex-wrap items-center gap-x-3 gap-y-2",
-          "rounded-lg border border-border/60 bg-background/95 px-3 py-2 shadow-sm",
-          "text-sm text-foreground",
+          "flex w-full flex-wrap items-center gap-x-3 gap-y-2",
+          "rounded-lg border border-border/60 bg-background/95 px-3 py-2 shadow-md backdrop-blur",
+          "text-[13px] text-foreground",
         )}
       >
         <p className="min-w-0 flex-1 leading-snug">{prompt}</p>

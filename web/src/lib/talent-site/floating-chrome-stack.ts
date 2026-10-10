@@ -6,9 +6,13 @@
  * sticky booking bar, chat FAB, help teaser) must coordinate from ONE place so
  * every theme inherits the same rules. Per-talent patches are out of scope.
  *
- * Stack (bottom → top): sticky bar (80) / dock (81) → chat FAB (95) → help
- * teaser (97) → consent (98). Modals stay above (120). Language suggestion is
- * an in-flow top row (TUL-394), never a fixed bottom overlay.
+ * Stack (bottom → top): sticky bar (80) / dock (81) → demo badge (90) → chat
+ * FAB (95) → language toast (96) → help teaser (97) → consent (98). Modals
+ * stay above (120).
+ *
+ * TUL-560: nothing sits above the site header. The language suggestion is a
+ * bottom-left toast and the demo marker a bottom-left badge; both float above
+ * `--floating-chrome-bottom`, the toast one badge-height higher on demo sites.
  *
  * TUL-528:
  * - GRK-033: hero first-viewport CTAs clear the consent card (pad hero chrome).
@@ -53,6 +57,8 @@ body:has(${CONSENT_BANNER_SELECTOR}) [data-help-bubble]{display:none!important}
 body:has(${CONSENT_BANNER_SELECTOR}){--floating-consent-clearance:calc(${CONSENT_BANNER_RESERVE_PX}px + env(safe-area-inset-bottom,0px))}
 @media (max-width:480px){body:has([data-guest-chat-launcher]){--floating-launcher-clearance:calc(${GUEST_CHAT_LAUNCHER_CLEARANCE_PX}px + env(safe-area-inset-bottom,0px))}}
 body{padding-bottom:var(--floating-chrome-bottom)}
+${LOCALE_SUGGESTION_SELECTOR}{bottom:calc(var(--floating-chrome-bottom) + 12px)}
+body:has([data-demo-badge]) ${LOCALE_SUGGESTION_SELECTOR}{bottom:calc(var(--floating-chrome-bottom) + 44px)}
 html{scroll-padding-bottom:var(--floating-chrome-bottom)}
 body:has(${CONSENT_BANNER_SELECTOR}) .site-bn-hero__inner{padding-bottom:max(clamp(74px,11vh,134px),calc(var(--floating-consent-clearance) + 12px))}
 body:has(${CONSENT_BANNER_SELECTOR}) .site-bn-hero__meta{bottom:max(clamp(74px,11vh,134px),calc(var(--floating-consent-clearance) + 12px))}
