@@ -31,10 +31,12 @@
  * are unusable here: `text-foreground` is the known white-on-white failure.
  */
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { useT } from "@/i18n/use-t";
 import { InfoTip } from "@/components/ui/info-tip";
+import { requestWebsiteSetup } from "@/components/talent/website-reward/useWebsiteFlow";
 
 import { Icon, type AdminShellIconName } from "../primitives";
 import { useAdminShell } from "../state";
@@ -106,11 +108,13 @@ function DesignEntryCard({
 export function WebsiteDesignHub() {
   const t = useT();
   const router = useRouter();
-  const { adminBasePath } = useAdminShell();
+  const { adminBasePath, workspaceType, locale } = useAdminShell();
   const siteDesignUrl = useSiteDesignUrl();
   // Null until the server confirms the shell surface is reachable. Rendering
   // the card on an inconclusive answer hands the operator a 404.
   const siteShellUrl = useSiteShellEditorUrl();
+  const isTalent = workspaceType === "talent";
+  const es = locale === "es";
 
   return (
     <>
@@ -119,7 +123,34 @@ export function WebsiteDesignHub() {
         title={t("dashboard.adminWebsite.designHub.title")}
         subtitle={t("dashboard.adminWebsite.designHub.subtitle")}
       />
-      <HomepageDesignSwap />
+      {/* TUL-559 / TUL-331: talent look = finished theme gallery on Mi sitio,
+          not PAGE_DESIGN starters. Keep a one-click path while swap is hidden. */}
+      {isTalent ? (
+        <section
+          aria-label={es ? "Cambiar diseño" : "Change design"}
+          data-testid="talent-change-design-hub"
+          className="mb-[18px] rounded-admin-lg border border-admin-border bg-admin-card p-[16px]"
+        >
+          <h2 className="m-0 text-admin-13h font-semibold text-admin-ink">
+            {es ? "Cambiar diseño" : "Change design"}
+          </h2>
+          <p className="mt-[6px] mb-0 text-admin-11h leading-relaxed text-admin-ink-muted">
+            {es
+              ? "Elige Maison, Folio o Gridline desde Mi sitio. Un clic abre la galería."
+              : "Pick Maison, Folio, or Gridline from My website. One click opens the gallery."}
+          </p>
+          <Link
+            href="/talent/site"
+            data-testid="talent-change-design-hub-cta"
+            onClick={() => requestWebsiteSetup("gallery")}
+            className="mt-[12px] inline-flex min-h-11 cursor-pointer items-center rounded-admin-md border border-admin-ink bg-admin-ink px-[12px] py-[6px] text-admin-12h font-semibold text-admin-surface"
+          >
+            {es ? "Abrir galería de diseños" : "Open design gallery"}
+          </Link>
+        </section>
+      ) : (
+        <HomepageDesignSwap />
+      )}
       <section className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-[14px]">
         {siteDesignUrl ? (
           <DesignEntryCard
