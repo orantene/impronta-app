@@ -333,6 +333,10 @@ export function OnboardingModule({
 
   // Phase 4 · account. Signed-in people never see the save step.
   const path: OnboardingPath = state.choice ? choiceToPath(state.choice) : state.understanding?.path ?? "talent";
+  // onb1-11: keep the cuenta email/terms draft on the module so a SaveStep
+  // remount (step-body swap) cannot wipe mid-typing down to one character.
+  const [saveEmailDraft, setSaveEmailDraft] = useState("");
+  const [saveAgeTermsDraft, setSaveAgeTermsDraft] = useState(false);
   // The 18+/Terms tick from the save step; carried to the verify step so the
   // acceptance is recorded once the account exists (Legal 2.2).
   const ageTermsRef = useRef(false);
@@ -554,6 +558,10 @@ export function OnboardingModule({
         choice={state.choice}
         busy={state.busy}
         error={state.accountMessage}
+        email={saveEmailDraft}
+        onEmailChange={setSaveEmailDraft}
+        ageTerms={saveAgeTermsDraft}
+        onAgeTermsChange={setSaveAgeTermsDraft}
         onEmail={(email, ageTerms) => void sendCode(email, false, ageTerms)}
         onGoogleSuccess={onGoogleSuccess}
       />
@@ -568,7 +576,10 @@ export function OnboardingModule({
         notice={state.accountNotice}
         onVerify={(code) => void verifyCode(code)}
         onResend={() => void sendCode(state.codeEmail!, true)}
-        onChangeEmail={() => dispatch({ type: "toStep", step: "save" })}
+        onChangeEmail={() => {
+          if (state.codeEmail) setSaveEmailDraft(state.codeEmail);
+          dispatch({ type: "toStep", step: "save" });
+        }}
       />
     );
   } else if (state.step === "building") {
