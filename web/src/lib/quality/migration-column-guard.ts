@@ -106,19 +106,19 @@ export function stripSqlComments(sql: string): string {
 }
 
 const INSERT_RE =
-  /INSERT\s+INTO\s+(?:public\.)?([a-z_][a-z0-9_]*)\s*\(\s*([^)]+)\s*\)/gis;
+  /INSERT\s+INTO\s+(?:public\.)?([a-z_][a-z0-9_]*)\s*\(\s*([^)]+)\s*\)/gi;
 
 /**
  * UPDATE [public.]table [AS alias]
  * SET col = …, col2 = …
  */
 const UPDATE_RE =
-  /UPDATE\s+(?:ONLY\s+)?(?:public\.)?([a-z_][a-z0-9_]*)(?:\s+(?:AS\s+)?[a-z_][a-z0-9_]*)?\s+SET\s+([\s\S]*?)(?=\bWHERE\b|\bRETURNING\b|\bFROM\b|;|$)/gis;
+  /UPDATE\s+(?:ONLY\s+)?(?:public\.)?([a-z_][a-z0-9_]*)(?:\s+(?:AS\s+)?[a-z_][a-z0-9_]*)?\s+SET\s+([\s\S]*?)(?=\bWHERE\b|\bRETURNING\b|\bFROM\b|;|$)/gi;
 
 const SET_LHS_RE = /(?:^|,)\s*"?([a-z_][a-z0-9_]*)"?\s*=/gi;
 
 const ADD_COLUMN_RE =
-  /ALTER\s+TABLE\s+(?:ONLY\s+)?(?:public\.)?([a-z_][a-z0-9_]*)\s+ADD\s+COLUMN\s+(?:IF\s+NOT\s+EXISTS\s+)?"?([a-z_][a-z0-9_]*)"?/gis;
+  /ALTER\s+TABLE\s+(?:ONLY\s+)?(?:public\.)?([a-z_][a-z0-9_]*)\s+ADD\s+COLUMN\s+(?:IF\s+NOT\s+EXISTS\s+)?"?([a-z_][a-z0-9_]*)"?/gi;
 
 export function extractColumnRefs(sql: string): ColumnRef[] {
   const cleaned = stripSqlComments(sql);
