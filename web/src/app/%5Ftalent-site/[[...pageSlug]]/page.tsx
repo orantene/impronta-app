@@ -49,9 +49,10 @@ import { TalentOfferingIntentQuery } from "../TalentOfferingIntentQuery";
 import { TalentSiteMessagesDock } from "../TalentSiteMessagesDock";
 import { ClientAccountDock } from "@/components/client-account/ClientAccountDock";
 
-export const dynamic = "force-dynamic";
-export const fetchCache = "force-no-store";
-export const revalidate = 0;
+// TUL-445: anonymous cookieless GETs are CDN-cached at the proxy
+// (s-maxage=60, SWR=300). Keep the route eligible for short revalidation;
+// signed-in / guest-cookied responses stay private, no-store via proxy.
+export const revalidate = 60;
 
 /**
  * Resolve the talent_profile_id from the proxy-set host header — but ONLY when

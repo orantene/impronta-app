@@ -19,7 +19,7 @@ import { resolveEventPathRewrite } from "@/lib/events/event-page-paths";
 import { rateLimitHtmlResponse, rateLimitJsonResponse, tryConsumeRateLimit } from "@/lib/rate-limit";
 import { updateSession } from "@/lib/supabase/middleware";
 import { attachTalentSiteGuestIdentity } from "@/lib/saas/talent-site-guest-identity";
-import { resolveTenantContext, HOST_CONTEXT_HEADER, HOST_NAME_HEADER, HOST_TENANT_SLUG_HEADER, HOST_TALENT_PROFILE_HEADER } from "@/lib/saas/host-context";
+import { resolveTenantContext, HOST_CONTEXT_HEADER, HOST_NAME_HEADER, HOST_TENANT_SLUG_HEADER } from "@/lib/saas/host-context";
 import { offRosterTalentResponse } from "@/lib/saas/off-roster-talent-gate";
 import { suspendedWorkspaceResponse } from "@/lib/saas/suspended-workspace-gate";
 import {
@@ -43,6 +43,7 @@ import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolve
 import { talentSiteHostResponse } from "@/lib/saas/talent-site-host-response";
 import { withTalentHostClientSession } from "@/lib/client-account/talent-host-session";
 import { isTenantHostContext, resolveProxyLocaleContext } from "@/lib/saas/proxy-locale-context";
+import { clientIp, stripInboundHostContextHeaders } from "@/lib/saas/proxy-inbound-sanitize";
 import {
   PREVIEW_COOKIE_OPTIONS,
   PREVIEW_QUERY_PARAM,
@@ -54,33 +55,6 @@ import { TULALA_APEX_HOST, TULALA_WWW_HOST } from "@/lib/brand/tulala";
 import { timed } from "@/lib/server/perf-trace";
 import { startDoorRedirect } from "@/lib/onboarding/start-door-redirect";
 import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
-
-function clientIp(request: NextRequest): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) {
-    const first = forwarded.split(",")[0]?.trim();
-    if (first) return first;
-  }
-  const real = request.headers.get("x-real-ip")?.trim();
-  if (real) return real;
-  return "unknown";
-}
-
-/**
- * Strip client-forged host-context headers on every inbound path so only the
- * proxy-written values reach `/_talent-site` (and mirrors actor-header hygiene
- * in `lib/supabase/middleware.ts`).
- */
-const HOST_CONTEXT_HEADERS_TO_STRIP = [
-  HOST_CONTEXT_HEADER, HOST_TALENT_PROFILE_HEADER, HOST_NAME_HEADER,
-  HOST_TENANT_SLUG_HEADER, TENANT_HEADER_NAME, PUBLIC_PATH_PREFIX_HEADER,
-];
-
-function stripInboundHostContextHeaders(request: NextRequest): Headers {
-  const headers = new Headers(request.headers);
-  for (const h of HOST_CONTEXT_HEADERS_TO_STRIP) headers.delete(h);
-  return headers;
-}
 
 export async function proxy(request: NextRequest) {
   const ip = clientIp(request);

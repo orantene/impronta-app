@@ -81,6 +81,8 @@ const ACTOR_HEADERS_TO_STRIP = [
   ACTOR_STATUS_HEADER,
   ACTOR_ONBOARDED_HEADER,
   ACTOR_HOME_PREF_HEADER,
+  // Never trust a client-supplied guest id; only re-bind from the verified cookie.
+  GUEST_HEADER_NAME,
 ];
 
 

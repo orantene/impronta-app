@@ -169,21 +169,38 @@ export interface GuestIdentity {
 }
 
 /**
+ * Verify an inbound guest cookie without minting. Returns the plain id when
+ * the cookie is trusted, otherwise `null`.
+ *
+ * TUL-445: anonymous GETs of public talent pages use this so they never
+ * `Set-Cookie` a fresh `impronta_guest` (which would force CDN `no-store`).
+ * Minting stays in `resolveGuestIdentity`, called from guest actions
+ * (chat / booking) via `ensureGuestIdentity`.
+ */
+export function peekGuestIdentity(
+  rawGuestCookie: string | null | undefined,
+): { guestKey: string } | null {
+  const guestKey = verifyGuestCookie(rawGuestCookie);
+  return guestKey ? { guestKey } : null;
+}
+
+/**
  * Resolve (or mint) the guest identity for a request, from the raw
  * `impronta_guest` cookie value.
  *
- * THIS IS THE ONLY PLACE THIS LOGIC MAY LIVE. `updateSession` runs it for
- * every ordinary request. A surface that returns from middleware BEFORE
- * `updateSession` runs — a talent vanity host's rewrite in `proxy.ts` is the
- * known case — must call this directly instead of skipping guest identity
- * entirely. Two independent implementations of "verify or mint a guest id"
- * WILL drift (a `session_key` minted by one that the other's cookie options
- * don't match, a re-mint on every request because the two disagree on when
- * a cookie "needs" replacing), and a guest that never gets a stable session
- * id can never open a second server action successfully — every one of them
- * reads `x-impronta-guest`, gets nothing or a fresh id each time, and
- * refuses as `forbidden`. See the 2026-09-24 incident: a talent vanity host
- * never called this at all and no guest could start a conversation.
+ * THIS IS THE ONLY PLACE A GUEST ID MAY BE MINTED. `updateSession` and
+ * action-time `ensureGuestIdentity` both call it. A surface that returns from
+ * middleware BEFORE `updateSession` runs — a talent vanity host's rewrite in
+ * `proxy.ts` is the known case — must either peek (`peekGuestIdentity`) on
+ * anonymous GETs or call this when a guest action needs a stable id. Two
+ * independent implementations of "verify or mint a guest id" WILL drift (a
+ * `session_key` minted by one that the other's cookie options don't match, a
+ * re-mint on every request because the two disagree on when a cookie "needs"
+ * replacing), and a guest that never gets a stable session id can never open
+ * a second server action successfully — every one of them reads
+ * `x-impronta-guest`, gets nothing or a fresh id each time, and refuses as
+ * `forbidden`. See the 2026-09-24 incident: a talent vanity host never called
+ * this at all and no guest could start a conversation.
  */
 export function resolveGuestIdentity(rawGuestCookie: string | null | undefined): GuestIdentity {
   const verifiedGuestId = verifyGuestCookie(rawGuestCookie);

@@ -15,6 +15,8 @@ export function bustTalentSiteCache(
 ): void {
   revalidateTag(tagForTalentSite(talentProfileId, "site"), "default");
   revalidateTag(tagForTalentSite(talentProfileId, "site-list"), "default");
+  // Vanity host rewrite target (TUL-445 CDN / short s-maxage).
+  revalidatePath("/_talent-site");
   if (profileCode) {
     revalidatePath(`/t/${profileCode}`);
   }
