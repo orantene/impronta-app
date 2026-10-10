@@ -39,7 +39,15 @@ export function DesktopMegaMenu({
         aria-haspopup="true"
         aria-expanded={open}
         onClick={onToggle}
-        onFocus={onOpen}
+        /* GRK-098: never open on focus. Tabbing onto the trigger used to
+           expand all ~26 feature links into the tab order, so keyboard users
+           never reached the hero CTA. Hover/click (and ArrowDown) open it. */
+        onKeyDown={(e) => {
+          if (e.key === "ArrowDown" && !open) {
+            e.preventDefault();
+            onOpen();
+          }
+        }}
         className={cn(
           "inline-flex items-center gap-1 rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:bg-[var(--plt-bg-raised)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)]",
           open
