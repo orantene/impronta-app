@@ -10,8 +10,21 @@ import { test } from "node:test";
 import { buildFolioPayload } from "@/lib/talent-site/theme-catalog/collection/designs";
 import { loadDemoContentFixture } from "./content-fixture";
 import { planOfferingOps } from "./fixture-plan";
+import { creditLineLooksLikeHost } from "@/lib/site-admin/builder-node/statement-footer-block";
 import { folioSiteCopyFor } from "./folio-site-copy";
 import { applyDemoSiteCopy } from "./site-copy";
+
+/** Every Folio demo pack in folio-site-copy.ts (TUL-537 footer host hygiene). */
+const FOLIO_DEMO_CODES = [
+  "TAL-93011",
+  "TAL-93004",
+  "TAL-93109",
+  "TAL-93110",
+  "TAL-93111",
+  "TAL-93112",
+  "TAL-93113",
+  "TAL-93114",
+] as const;
 
 /** English-only strings that must not appear on Mateo's Spanish-primary fixture base. */
 const MATEO_ES_LEAKS = [
@@ -126,4 +139,13 @@ test("no em dash in Mateo Folio EN chrome", () => {
   const en = folioSiteCopyFor("TAL-93011").overlays?.en;
   assert.ok(en);
   assert.ok(!/—|–/.test(JSON.stringify(en)));
+});
+
+test("TUL-537: Folio seed footerCredit never bakes a mockup host domain", () => {
+  for (const code of FOLIO_DEMO_CODES) {
+    const copy = folioSiteCopyFor(code);
+    assert.equal(copy.footerCredit ?? "", "", `${code} footerCredit`);
+    assert.equal(copy.overlays?.en?.footerCredit ?? "", "", `${code} EN footerCredit`);
+    assert.equal(creditLineLooksLikeHost(copy.footerCredit ?? ""), false, code);
+  }
 });
