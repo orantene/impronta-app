@@ -21,6 +21,8 @@ import { logServerError } from "@/lib/server/safe-error";
 import { buildQuerySuffix } from "@/lib/saas/redirect-query";
 import { TULALA_APEX_HOST } from "@/lib/brand/tulala";
 import { legacyClientEntryRedirectFor } from "@/lib/client-account/entry-redirect.server";
+import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
+import { effectiveReadContext } from "@/lib/impersonation/effective-read";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +41,16 @@ export default async function ClientRootPage({
     redirect(`/login?next=${encodeURIComponent(`/client${querySuffix}`)}`);
   }
 
-  const slug = await loadClientPrimaryTenantSlug(session.user.id).catch(() => null);
+  // TUL-255: under staff impersonation the subject has the agency relationship,
+  // not the actor. Resolving with session.user.id bounced staff to
+  // /onboarding/role → /admin → /client (infinite loop).
+  const readCtx = effectiveReadContext(
+    session.user.id,
+    await resolveDashboardIdentity().catch(() => null),
+  );
+  const subjectUserId = readCtx.userId;
+
+  const slug = await loadClientPrimaryTenantSlug(subjectUserId).catch(() => null);
   if (slug) redirect(`/${slug}/client/today${querySuffix}`);
 
   // Determine onboarding completion. If a client_profiles row exists, the
@@ -50,7 +61,7 @@ export default async function ClientRootPage({
     const { data: profile, error } = await admin
       .from("client_profiles")
       .select("user_id")
-      .eq("user_id", session.user.id)
+      .eq("user_id", subjectUserId)
       .maybeSingle();
     if (error) {
       logServerError("client/root-resolver/profile-lookup", error);

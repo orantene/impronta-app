@@ -443,3 +443,12 @@ test("client layout: portal loaders take the effective context, not session.user
   assert.doesNotMatch(src, /loadClientSelfProfile\(session\.user\.id/);
   assert.doesNotMatch(src, /loadClientSubscription\(session\.user\.id/);
 });
+
+test("client root resolver: bare /client keys tenant + profile on the effective user", () => {
+  const src = read("src/app/client/page.tsx");
+  assert.match(src, /effectiveReadContext\(/);
+  assert.match(src, /resolveDashboardIdentity\(\)/);
+  assert.match(src, /loadClientPrimaryTenantSlug\(subjectUserId\)/);
+  assert.match(src, /\.eq\("user_id", subjectUserId\)/);
+  assert.doesNotMatch(src, /loadClientPrimaryTenantSlug\(session\.user\.id\)/);
+});

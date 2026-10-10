@@ -21,6 +21,7 @@ import { requireAdmin } from "@/lib/server/action-guards";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { logImpersonation } from "@/lib/platform/staff-access-log";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { loadClientPrimaryTenantSlug } from "@/lib/saas/role-tenant-resolver";
 
 function impersonationSecret(): string | undefined {
   return process.env.IMPERSONATION_COOKIE_SECRET?.trim() || undefined;
@@ -101,7 +102,11 @@ export async function startImpersonationAsQaClient(): Promise<void> {
   await logImpersonation({ actorUserId: admin.user.id, targetUserId: target, phase: "start", targetRole: "client" });
 
   revalidatePath("/", "layout");
-  redirect("/client");
+  // Prefer the subject's tenant shell so we never depend on the bare /client
+  // resolver (TUL-255 loop). Fall back to /client when the subject has no
+  // primary agency relationship yet.
+  const slug = await loadClientPrimaryTenantSlug(target).catch(() => null);
+  redirect(slug ? `/${slug}/client/today` : "/client");
 }
 
 export async function endImpersonationToAdmin(): Promise<void> {
