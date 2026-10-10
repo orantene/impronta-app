@@ -51,7 +51,7 @@ export function maisonV2RichFooter(makeId: KitIdFactory, node: BuilderNode): Bui
   const lead = col(makeId, "footer_lead", "s-foot-lead", [
     { id: makeId(), kind: "heading", props: { text: "See you {i}soon.{/i}", level: 2, layerLabel: "Footer line" } } as unknown as BuilderNode,
     live(makeId, "footer_intro", "footerIntro", "Footer intro"),
-    { id: makeId(), kind: "button", props: { label: "Book an appointment", href: "#services", tone: "primary", layerLabel: "Footer CTA" } } as unknown as BuilderNode,
+    { id: makeId(), kind: "button", props: { label: "Book an appointment", href: "#book", tone: "primary", layerLabel: "Footer CTA" } } as unknown as BuilderNode,
   ]);
 
   const where = col(makeId, "footer_where", "s-foot-where", [

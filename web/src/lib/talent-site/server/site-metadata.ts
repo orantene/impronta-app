@@ -31,9 +31,9 @@ export function ogLocaleTags(
  * that turns the SEO envelope into `openGraph` + `alternates` + `robots`.
  *
  * - `openGraph` carries og:title/og:description/og:image (with the page-level
- *   override falling back to title/description). The route-level
- *   `opengraph-image.tsx` ALSO contributes an `og:image` via the file
- *   convention; an explicit `ogImageUrl` here is an additional/override image.
+ *   override falling back to title/description). `buildMaxSiteSeo` always
+ *   supplies `ogImageUrl` (column → logo → generated `/opengraph-image` card)
+ *   so share previews never ship without a picture (TUL-534 / GRK-091).
  * - `alternates` reuse the SHARED platform locale-alternates builder (canonical
  *   + hreflang) when an English-relative `localePathWithoutLocale` is supplied
  *   (the `/t/site/...` routes, which are served from the platform apex and so

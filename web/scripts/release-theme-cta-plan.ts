@@ -8,7 +8,7 @@
  * exactly two places and releases it through Builder Lab's own functions:
  *
  *   1. home tree: the "Hero actions" row. Primary button -> "Book an appointment"
- *      (mode-dependent label, `#services`), the old secondary becomes
+ *      (mode-dependent label, `#book`), the old secondary becomes
  *      "See services" (ghost, `#services`, own es/en overlay).
  *   2. shell tree: the site_header cta item (and `primaryCta`) -> the same
  *      booking label/href; a cta item is added from the code seed when absent.
@@ -39,7 +39,7 @@ import {
 
 export const CTA_ALLOWED_SLUGS = ["maison-v2"] as const;
 export const BOOK_LABEL = "Book an appointment";
-export const BOOK_HREF = "#services";
+export const BOOK_HREF = "#book";
 /** What the header cta says in the Maison v2 versions released before this change. */
 const OLD_HEADER_LABELS: readonly string[] = ["Menu and prices", BOOK_LABEL];
 
@@ -189,7 +189,7 @@ function patchHero(home: readonly TNode[], seed: SeedTrees, edits: Edit[], refus
         const ns = retargetButton(second, sb[1]);
         edits.push(
           { tree: "homeTree", prefix: `${here}/children[0]`, what: "hero primary", before: { label: l1, href: rec(first.props).href }, after: { label: BOOK_LABEL, href: BOOK_HREF } },
-          { tree: "homeTree", prefix: `${here}/children[1]`, what: "hero secondary", before: { label: l2, href: rec(second.props).href }, after: { label: "See services", href: BOOK_HREF } },
+          { tree: "homeTree", prefix: `${here}/children[1]`, what: "hero secondary", before: { label: l2, href: rec(second.props).href }, after: { label: "See services", href: "#services" } },
         );
         return { ...n, children: [nf, ns] };
       }

@@ -99,3 +99,16 @@ test("client account area (TUL-62): nothing else under /account is reachable on 
   // `/accounts` is an ordinary page slug, not the account area.
   assert.deepEqual(isTalentSiteHostPathAllowed("/accounts"), { kind: "render", pageSlug: "accounts" });
 });
+
+test("TUL-534: /opengraph-image rewrites to the talent-site card, not a CMS slug", () => {
+  for (const p of ["/opengraph-image", "/twitter-image", "/opengraph-image-abc123", "/twitter-image-x"]) {
+    assert.deepEqual(isTalentSiteHostPathAllowed(p), {
+      kind: "render",
+      pageSlug: "opengraph-image",
+    }, p);
+  }
+  assert.equal(
+    talentSiteHostRewritePath("opengraph-image"),
+    `${TALENT_SITE_HOST_ROUTE_PREFIX}/opengraph-image`,
+  );
+});

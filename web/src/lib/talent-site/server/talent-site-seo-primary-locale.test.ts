@@ -79,6 +79,16 @@ test("secondary page uses its own title and description", () => {
   assert.equal(es.description, "Manicura de lujo");
 });
 
+test("TUL-534 / GRK-091: og:image falls back to /t/site/<slug>/opengraph-image when column null", () => {
+  const out = seo("es", "en", "es");
+  assert.ok(out.ogImageUrl, "ogImageUrl must be set");
+  assert.match(out.ogImageUrl!, /\/t\/site\/qa\/opengraph-image$/);
+  const meta = maxSiteSeoToMetadata(out);
+  const og = meta.openGraph as { images?: Array<{ url?: string }> };
+  assert.ok(Array.isArray(og.images) && og.images.length > 0);
+  assert.equal(og.images![0]!.url, out.ogImageUrl);
+});
+
 test("sitemap: ES-primary lists / and /en with matching alternates, never /es", () => {
   const entries = talentProfileSitemapEntries({
     origin: ORIGIN,

@@ -54,6 +54,14 @@ export function TalentSiteContactBridge({
       const link = target.closest("a");
       if (!link) return;
       const href = link.getAttribute("href") ?? "";
+      const label = link.textContent ?? "";
+      // TUL-534: seeded book CTAs still on `#services` (Reservar / Agendar) must open
+      // the sheet, not only scroll. Plain "See services" keeps native scroll.
+      if (isServicesBookControl(href, label)) {
+        event.preventDefault();
+        requestTalentOpen(openIntentFor("book", bookEntry));
+        return;
+      }
       if (!isAskHref(href)) return;
       event.preventDefault();
       requestTalentOpen(intentForHref(href, bookEntry) ?? openIntentFor("ask", bookEntry));
@@ -171,8 +179,36 @@ const ASK_LABELS = new Set([
   "inquire",
 ]);
 
+/** Book CTAs still hashed to `#services` on live trees (TUL-534 / E6-kbd-open). */
+const BOOK_LABELS = new Set([
+  "book an appointment",
+  "reservar cita",
+  "request an appointment",
+  "solicitar cita",
+  "book a visit",
+  "agendar visita",
+  "book now",
+  "reservar",
+  "book online",
+  "reserva en línea",
+  "reserva en linea",
+  "book a session",
+  "reserva una sesión",
+  "reserva una sesion",
+]);
+
 export function isAskLabel(text: string): boolean {
   return ASK_LABELS.has(text.trim().toLowerCase());
+}
+
+export function isBookLabel(text: string): boolean {
+  return BOOK_LABELS.has(text.trim().toLowerCase());
+}
+
+/** `#services` + booking label → open sheet (not scroll-only). */
+export function isServicesBookControl(href: string, label: string): boolean {
+  const hash = href.includes("#") ? `#${href.split("#").pop() ?? ""}` : href;
+  return hash === "#services" && isBookLabel(label);
 }
 
 /** An ask / inquire control: an ask href, or an ask label on a link or button. */

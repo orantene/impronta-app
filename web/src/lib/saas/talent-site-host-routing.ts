@@ -102,9 +102,32 @@ const RESERVED_TALENT_SITE_SLUGS = new Set([
   "link",
 ]);
 
+/**
+ * Share-card file routes under `%5Ftalent-site/` (TUL-534 / GRK-091). Must rewrite
+ * to `/_talent-site/opengraph-image` — not passthrough (that hits the root
+ * agency/Tulala card) and not a CMS page slug.
+ */
+const TALENT_SITE_OG_IMAGE_SLUGS = new Set(["opengraph-image", "twitter-image"]);
+
 export type TalentSiteHostPath =
   | { kind: "passthrough" }
   | { kind: "render"; pageSlug: string | null };
+
+/**
+ * Exact or hashed Next metadata image path → internal `%5Ftalent-site/opengraph-image`
+ * slug (no separate twitter-image file; same card).
+ */
+export function talentSiteOgImageSlug(pathname: string): "opengraph-image" | null {
+  if (
+    pathname === "/opengraph-image" ||
+    pathname === "/twitter-image" ||
+    /^\/opengraph-image-[a-zA-Z0-9_-]+$/.test(pathname) ||
+    /^\/twitter-image-[a-zA-Z0-9_-]+$/.test(pathname)
+  ) {
+    return "opengraph-image";
+  }
+  return null;
+}
 
 /**
  * Decide how a path resolves on a talent_site host. `pathname` must already be
@@ -128,13 +151,20 @@ export function isTalentSiteHostPathAllowed(
     return { kind: "render", pageSlug: null };
   }
 
+  // Share cards → rewrite to `%5Ftalent-site/opengraph-image.tsx` (not root OG).
+  const ogSlug = talentSiteOgImageSlug(pathname);
+  if (ogSlug) {
+    return { kind: "render", pageSlug: ogSlug };
+  }
+
   // Single-segment page slug → an inner site page (unless it's a reserved
   // platform word, which 404s here rather than routing into the talent site).
   const segments = pathname.split("/").filter(Boolean);
   if (
     segments.length === 1 &&
     TALENT_PAGE_SLUG.test(segments[0]) &&
-    !RESERVED_TALENT_SITE_SLUGS.has(segments[0])
+    !RESERVED_TALENT_SITE_SLUGS.has(segments[0]) &&
+    !TALENT_SITE_OG_IMAGE_SLUGS.has(segments[0])
   ) {
     return { kind: "render", pageSlug: segments[0] };
   }
