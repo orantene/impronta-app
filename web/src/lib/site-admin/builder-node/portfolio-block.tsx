@@ -75,10 +75,13 @@ export const PORTFOLIO_CSS = `
 .sb-portfolio-header{margin-bottom:1rem}
 .sb-portfolio-eyebrow{margin:0 0 0.35rem;font-size:0.75rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--token-color-muted)}
 .sb-portfolio-title{margin:0;font-size:clamp(1.35rem,2.5vw,1.85rem);font-weight:600;letter-spacing:-0.02em;line-height:1.15}
-.sb-portfolio-empty{padding:2rem 0;color:var(--token-color-muted);font-size:0.95rem}
+.sb-portfolio-empty{padding:2rem 0;color:var(--token-color-muted);font-size:0.95rem;min-height:12rem}
 .sb-portfolio-shot{position:relative;display:block;overflow:hidden;border:0;padding:0;margin:0;background:var(--token-color-surface-raised,transparent);color:inherit;text-align:left;cursor:pointer;text-decoration:none;width:100%}
 .sb-portfolio-shot:focus-visible{outline:2px solid var(--token-color-ink);outline-offset:2px}
-.sb-portfolio-shot img{display:block;width:100%;height:100%;object-fit:cover}
+.sb-portfolio-shot img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 18%}
+/* Reserve frame height before images decode so Trabajos does not jump (TUL-497). */
+.sb-portfolio--grid,.sb-portfolio--contact_sheet{min-height:min(52vw,22rem);content-visibility:auto}
+.sb-portfolio--grid .sb-portfolio-frame,.sb-portfolio--contact_sheet .sb-portfolio-frame{background:color-mix(in srgb,var(--token-color-ink) 6%,transparent)}
 .sb-portfolio-cap{display:block;margin-top:0.4rem;font-size:0.8125rem;line-height:1.35;color:var(--token-color-muted)}
 .sb-portfolio-service{display:block;font-size:0.75rem;letter-spacing:0.04em;text-transform:uppercase;color:var(--token-color-ink);margin-top:0.15rem}
 .sb-portfolio--filmstrip{display:flex;gap:0.75rem;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;padding-bottom:0.25rem}
