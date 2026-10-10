@@ -46,6 +46,27 @@ describe("white-text rule is gated on the over-hero marker", () => {
   });
 });
 
+describe("talent sticky wrapper includes transparent tone (GRK-082)", () => {
+  it("promotes sticky to [data-talent-max-site-header] for any sticky tone, including transparent", () => {
+    const css = readFileSync(path.join(process.cwd(), "src/app/token-presets.css"), "utf8");
+    assert.match(
+      css,
+      /\[data-talent-max-site-header\]:has\(\.site-header\[data-sticky="true"\]\)\s*\{\s*position:\s*sticky/,
+    );
+    assert.ok(
+      !css.includes(
+        '[data-talent-max-site-header]:has(.site-header[data-sticky="true"]:not([data-tone="transparent"]))',
+      ),
+      "talent path must not exclude transparent sticky (Folio header blank after scroll)",
+    );
+    assert.match(
+      css,
+      /\[data-cms-section\]\[data-section-type-key="site_header"\]:has\(> \.site-header\[data-sticky="true"\]:not\(\[data-tone="transparent"\]\)\)/,
+      "agency path still excludes transparent (fixed overlay)",
+    );
+  });
+});
+
 describe("policy / mainOverride pages never stamp over-hero (TUL-516 H1)", () => {
   it("render-max-site gates data-over-hero on !mainOverride", () => {
     const src = readFileSync(path.join(process.cwd(), "src/lib/talent-site/server/render-max-site.tsx"), "utf8");
