@@ -480,6 +480,22 @@ function ManagerBody({
             onOpenReview={() => openSetup("review")}
             hasReviewHost={maisonSetupEnabled}
           />
+          {/* TUL-559: Cambiar diseño must be reachable before publish too
+              (live card is the only place that had it). */}
+          <div className="flex flex-wrap gap-2" data-testid="maison-site-secondary-actions">
+            <button
+              type="button"
+              data-testid="maison-change-design"
+              onClick={() => {
+                setMaisonForceReason("restored");
+                setMaisonForceScreen("gallery");
+                openSetup("gallery");
+              }}
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-admin-border-soft bg-white px-3 text-[13px] font-semibold text-admin-ink hover:bg-admin-surface-alt focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tc-action,#3B8277)]"
+            >
+              {locale === "es" ? "Cambiar diseño" : "Change design"}
+            </button>
+          </div>
           {/* Pre-publish: Domain / Questions / Settings / Apps stay reachable
               when MyWebsiteCard (live-only) is not mounted. */}
           {hideDomainRow || onOpenQuestions || onOpenSettings || onOpenApps ? (
