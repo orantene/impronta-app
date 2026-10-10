@@ -744,7 +744,7 @@ function getSteps(locale: string) {
       },
       {
         numeral: "04",
-        title: "Cobra, y crece cuando estés listo.",
+        title: "Cobra, y crece cuando quieras.",
         body: "Recibe pagos en el chat, agrega tu propio dominio, suma a tu equipo, ábrete al hub de descubrimiento. Sube de plan solo cuando empiece a pagarse solo.",
         caption: "Pagos · dominio · equipo",
       },
@@ -1478,7 +1478,7 @@ function FinalCtaSection({ locale }: { locale: string }) {
       seeHow: "See how it works",
     },
     es: {
-      eyebrow: "Cuando estés listo",
+      eyebrow: "Cuando quieras",
       titleA: "Empieza tu negocio.",
       titleB: "Gratis, en minutos.",
       subhead:
