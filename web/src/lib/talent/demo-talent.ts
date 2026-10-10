@@ -10,9 +10,23 @@ import { logServerError } from "@/lib/server/safe-error";
  */
 
 export const DEMO_SITE_FOOTER = {
-  es: "Perfil de demostración. Las reservas están desactivadas.",
+  es: "Perfil de demostración. Las reservas son simuladas.",
   en: "Demo profile. Bookings are simulated.",
 } as const;
+
+export const DEMO_SITE_FOOTER_BOOKINGS_OFF = {
+  es: "Perfil de demostración. Las reservas están desactivadas.",
+  en: "Demo profile. Bookings are turned off.",
+} as const;
+
+/**
+ * The demo footer line. It must agree with the booking widget, so it follows
+ * the same `talent_sites.accepting_bookings` switch the slots API reads.
+ */
+export function demoSiteFooterText(locale: string, acceptingBookings: boolean): string {
+  const copy = acceptingBookings ? DEMO_SITE_FOOTER : DEMO_SITE_FOOTER_BOOKINGS_OFF;
+  return locale.toLowerCase().startsWith("es") ? copy.es : copy.en;
+}
 
 export const DEMO_SUBMIT_REFUSAL =
   "Este es un perfil de demostración: no recibe mensajes ni reservas reales. / This is a demo profile: it does not take real messages or bookings.";
