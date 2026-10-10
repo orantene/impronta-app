@@ -16,6 +16,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { sweepSocialTokens } from "./logic";
+import { sweepTalentInstagramTokens } from "./talent-sweep";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,8 +39,9 @@ export async function GET(request: Request) {
 
   try {
     const result = await sweepSocialTokens(admin);
-    void improntaLog("cron.refresh_social_tokens", result);
-    return NextResponse.json({ ok: true, ...result });
+    const talent = await sweepTalentInstagramTokens(admin);
+    void improntaLog("cron.refresh_social_tokens", { ...result, talent });
+    return NextResponse.json({ ok: true, ...result, talent });
   } catch (err) {
     logServerError("cron/refresh-social-tokens", err);
     return NextResponse.json({ error: "Sweep failed" }, { status: 500 });
