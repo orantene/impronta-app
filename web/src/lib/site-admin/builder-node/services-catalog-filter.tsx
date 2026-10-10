@@ -1,12 +1,10 @@
 "use client";
 
-import { intakeDetail } from "@/lib/talent/offering-intake";
 import { useEffect, useReducer, useRef, useState, type ReactNode } from "react";
 import { type TalentOffering } from "@/lib/talent/offerings-types";
-import { deriveOfferingCta } from "@/lib/talent/offering-cta-derivation";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import { formatMoney } from "@/lib/talent/offerings-money";
-import { formatOfferingWhereLabel, offeringWhereFromAttributes, type OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
+import { formatOfferingWhereLabel, offeringWhereFromAttributes } from "@/lib/talent/offering-request-detail";
 import { BookingSheetReadyBeacon } from "@/components/public-booking/BookingSheetReadyBeacon";
 import { CatalogBookingSheet, type CatalogSheetBookingSettings } from "@/components/public-booking/CatalogBookingSheet";
 import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptchaField";
@@ -37,81 +35,25 @@ import { useDockBookingResume } from "@/components/public-booking/use-dock-booki
 import { useDockToast } from "@/components/public-booking/use-dock-toast";
 import { useStickyBarProps } from "./use-sticky-bar-visible";
 import { catalogCategoryJumpId, catalogDurationPhrase } from "./services-catalog-title";
-import { dispatchCatalogOffering } from "./catalog-offering-dispatch";
 import {
   DEFAULT_SHEET_BOOKING_SETTINGS,
   PLATFORM_DEFAULT_BOOKING_POSTURE,
   type TalentBookingPosture,
 } from "@/lib/talent/selling-booking-settings";
+import { deriveFor, detailFor, dispatchOffering } from "./services-catalog-detail";
 
 export type CatalogGroup = { name: string | null; label?: string | null; items: TalentOffering[]; note?: string | null };
 
 export type CatalogNavMode = "pills" | "tabs" | "rail" | "jump" | "sections" | "accordion" | "flat";
 
-// F4 / WSF-B: one derivation (deriveOfferingCta) shared with OfferingCta and
-// catalogRowCtaLabel. The talent default applies only to services that
-// inherit; a service with its own instant mode books instantly, which the
-// server (assertInstantPosture) already accepts.
-function deriveFor(
-  offering: TalentOffering,
-  confirmsByHand: boolean,
-  bookingPosture: TalentBookingPosture,
-) {
-  return deriveOfferingCta({ offering, defaults: { bookingPosture }, confirmsByHand });
-}
+export {
+  CATALOG_UNCATEGORISED_TAB,
+  catalogGroupNavLabel,
+  catalogGroupTabKey,
+} from "./catalog-group-nav";
+import { catalogGroupNavLabel, catalogGroupTabKey } from "./catalog-group-nav";
 
-export function detailFor(
-  offering: TalentOffering,
-  confirmsByHand: boolean,
-  bookingPosture: TalentBookingPosture = PLATFORM_DEFAULT_BOOKING_POSTURE,
-): OfferingRequestDetail {
-  const { instant } = deriveFor(offering, confirmsByHand, bookingPosture);
-  const where = offeringWhereFromAttributes(offering.attributes);
-  return {
-    offeringId: offering.id,
-    talentProfileId: offering.talentProfileId,
-    title: offering.title,
-    kind: offering.kind,
-    priceType: offering.priceType,
-    priceDisplay: offering.priceDisplay,
-    amountCents: offering.amountCents,
-    currency: offering.currency,
-    durationMinutes: offering.durationMinutes,
-    allowPayInPerson: offering.allowPayInPerson,
-    requireAccountToBook: offering.requireAccountToBook === true,
-    reserveMode: offering.reserveMode,
-    depositPct: offering.depositPct,
-    cancellationHours: offering.cancellationHours,
-    imageUrl: offering.imageUrls[0] ?? null,
-    variants: offering.variants ?? [],
-    addOns: offering.addOns ?? [],
-    inventoryQty: offering.inventoryQty,
-    capacityPoolId: offering.capacityPoolId,
-    intent: instant ? "instant" : "request",
-    description: offering.description,
-    where: where.length ? where : undefined,
-    ...intakeDetail(offering.attributes),
-  };
-}
-
-function dispatchOffering(
-  offering: TalentOffering,
-  confirmsByHand: boolean,
-  startAt?: "when",
-  inclusion?: string | null,
-  bookingPosture: TalentBookingPosture = PLATFORM_DEFAULT_BOOKING_POSTURE,
-) {
-  dispatchCatalogOffering({
-    offering,
-    confirmsByHand,
-    bookingPosture,
-    detail: {
-      ...detailFor(offering, confirmsByHand, bookingPosture),
-      startAt,
-      inclusion: inclusion ?? undefined,
-    },
-  });
-}
+export { detailFor } from "./services-catalog-detail";
 
 export function ServicesCatalogFilter({
   groups,
@@ -189,8 +131,10 @@ export function ServicesCatalogFilter({
   matrix?: boolean;
   liveStatus?: LiveStatusRenderContext | null;
 }) {
-  const named = groups.filter((g) => g.name);
-  const first = named[0]?.name ?? null;
+  // Include the uncategorised bucket so "Otros" is a real chip (pills/tabs/rail),
+  // not only a jump/sections heading.
+  const filterGroups = groups.filter((g) => g.name || g.items.length > 0);
+  const first = filterGroups[0] ? catalogGroupTabKey(filterGroups[0].name) : null;
   const [active, setActive] = useState<string | null>(categoryShowAll ? null : first);
   const [openAccordion, setOpenAccordion] = useState<string | null>(first);
   const [dock, dispatchDock] = useReducer(dockReducer, EMPTY_DOCK); // AUD-044 multi-select dock state (front = first picked)
@@ -383,20 +327,21 @@ export function ServicesCatalogFilter({
                 : ""}
             </button>
           ) : null}
-          {named.map((g) => {
-            const selected = active === g.name;
+          {filterGroups.map((g) => {
+            const tabKey = catalogGroupTabKey(g.name);
+            const selected = active === tabKey;
             const count = g.items.filter(matchesSearch).length;
             return (
               <button
-                key={g.name}
+                key={tabKey}
                 type="button"
                 aria-pressed={selected}
-                data-catalog-tab={g.name ?? ""}
+                data-catalog-tab={tabKey}
                 className="site-builder-node--services-catalog-pill"
                 data-active={selected ? "true" : "false"}
-                onClick={() => setActive(g.name)}
+                onClick={() => setActive(tabKey)}
               >
-                {g.label ?? g.name}
+                {catalogGroupNavLabel(g, es)}
                 {categoryShowCounts ? railCount(nav, count) : ""}
               </button>
             );
@@ -410,11 +355,11 @@ export function ServicesCatalogFilter({
         >
           {groups.map((g) => (
             <a
-              key={g.name ?? "_"}
+              key={catalogGroupTabKey(g.name)}
               href={`#${catalogCategoryJumpId(nodeId, g.name ?? "_")}`}
               className="site-builder-node--services-catalog-pill"
             >
-              {g.label ?? g.name ?? (es ? "Otros" : "Other")}
+              {catalogGroupNavLabel(g, es)}
             </a>
           ))}
         </nav>
@@ -423,15 +368,15 @@ export function ServicesCatalogFilter({
       <div className="site-builder-node--services-catalog-groups">
       {matrix ? <CatalogMatrix items={groups.flatMap((g) => g.items.filter(matchesSearch))} locale={locale} confirmsByHand={confirmsByHand} bookingPosture={bookingPosture} ctaLabel={ctaLabel} liveStatus={liveStatus} selectedIds={dock.picked.map((p) => p.id)} onSelect={(item) => onRowAction(item)} /> : groups.map((g) => {
         // Changing filter must not clear selectedId / booking sheet state (brief §7).
-        const hidden =
-          filterNav && active !== null && Boolean(g.name) && active !== g.name;
+        const tabKey = catalogGroupTabKey(g.name);
+        const hidden = filterNav && active !== null && active !== tabKey;
         const accordionOpen =
-          nav !== "accordion" || openAccordion === g.name || (!g.name && openAccordion === null);
+          nav !== "accordion" || openAccordion === tabKey;
         const showGroupHeading = nav === "jump" || nav === "sections" || nav === "rail";
         const visibleItems = g.items.filter(matchesSearch);
         return (
           <div
-            key={g.name ?? "_"}
+            key={tabKey}
             hidden={hidden}
             id={showGroupHeading ? catalogCategoryJumpId(nodeId, g.name ?? "_") : undefined}
             data-catalog-category={g.name ?? "_"}
@@ -439,7 +384,7 @@ export function ServicesCatalogFilter({
           >
             {showGroupHeading ? (
               <h3 className="site-builder-node--services-catalog-group-title">
-                {g.label ?? g.name ?? (es ? "Otros" : "Other")}
+                {catalogGroupNavLabel(g, es)}
                 {nav === "rail" ? (
                   <small className="site-builder-node--services-catalog-group-count">
                     {es
@@ -449,18 +394,18 @@ export function ServicesCatalogFilter({
                 ) : null}
               </h3>
             ) : null}
-            {nav === "accordion" && g.name ? (
+            {nav === "accordion" ? (
               <button
                 type="button"
                 className="site-builder-node--services-catalog-accordion-trigger"
                 aria-expanded={accordionOpen}
-                onClick={() => setOpenAccordion(accordionOpen ? null : g.name)}
+                onClick={() => setOpenAccordion(accordionOpen ? null : tabKey)}
               >
-                <span>{g.label ?? g.name}</span>
+                <span>{catalogGroupNavLabel(g, es)}</span>
                 <span aria-hidden>{accordionOpen ? "−" : "+"}</span>
               </button>
             ) : null}
-            {nav !== "accordion" || accordionOpen || !g.name ? (
+            {nav !== "accordion" || accordionOpen ? (
               visibleItems.length === 0 && q ? (
                 <p className="site-builder-node--services-catalog-empty">
                   {es ? "Sin resultados." : "No results."}{" "}
@@ -681,7 +626,7 @@ export function CatalogRow({
     <li
       className="site-builder-node--services-catalog-row"
       data-selected={selected ? "true" : undefined}
-      data-has-photo={cover || showPhoto ? "true" : "false"}
+      data-has-photo={cover ? "true" : "false"}
       // Row card: whole-card click is a pointer convenience; the button stays the accessible control.
       onClick={
         rowCard && !derived.hidden
