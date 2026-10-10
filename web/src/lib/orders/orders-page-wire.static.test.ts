@@ -76,6 +76,17 @@ test("TUL-434 — default render is today's live list; door only behind ?door=pr
   assert.match(afterElse, /OrdersRefundForm/, "default arm keeps the live refund form");
 });
 
+test("TUL-434 — phone sheet and inline door split the width with no gap at 390 px", () => {
+  // Tailwind v4: `max-[N]` is `width < N`, `min-[N]` is `width >= N`. The pair
+  // must share one N, or a width (390 on the card's phone) shows neither.
+  const src = read("src/app/(workspace)/[tenantSlug]/admin/orders/orders-door-mock-list.tsx");
+  const sheet = src.match(/max-\[(\d+)px\]:flex/);
+  const inline = src.match(/min-\[(\d+)px\]:block/);
+  assert.ok(sheet && inline, "sheet and inline door breakpoints must exist");
+  assert.equal(sheet[1], inline[1], "sheet max-[N] and inline min-[N] must use the same N");
+  assert.ok(Number(sheet[1]) > 390, "a 390 px phone must get the sheet");
+});
+
 test("layer 2 — a canonical-route matcher claims /admin/orders", () => {
   // The matchers are now a projection of the destination registry (no
   // hand-written `s[1] === "orders"` line), so ask the real matcher list.

@@ -292,9 +292,10 @@ export function OrdersDoorMockList({
 
       {sheetMode && openRow ? (
         <>
-          {/* ≤390 px: full-height sheet with back arrow */}
+          {/* ≤390 px: full-height sheet with back arrow. Tailwind v4 `max-[N]` is
+              `width < N`, so 391 here pairs with the inline `min-[391px]` below. */}
           <div
-            className="fixed inset-0 z-50 hidden flex-col bg-white max-[390px]:flex"
+            className="fixed inset-0 z-50 hidden flex-col bg-white max-[391px]:flex"
             role="dialog"
             aria-modal="true"
             data-testid="orders-door-sheet"
