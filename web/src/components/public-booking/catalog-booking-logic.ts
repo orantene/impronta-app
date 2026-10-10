@@ -108,12 +108,49 @@ export function catalogBookingDurationMinutes(
   return bookingDurationMinutes(baseMinutes, addOns, selectedIds);
 }
 
+/** Same calendar instant even when ISO spelling differs (`Z` vs `+00:00`). */
+export function catalogSameInstant(a: string, b: string): boolean {
+  const x = Date.parse(a);
+  return Number.isFinite(x) && x === Date.parse(b);
+}
+
 /** True when the guest's picked ISO is still in the freshly projected list. */
 export function catalogSelectedStartStillOpen(
   selectedStartsAt: string | null | undefined,
   openStarts: readonly string[],
 ): boolean {
-  return Boolean(selectedStartsAt && openStarts.includes(selectedStartsAt));
+  return Boolean(
+    selectedStartsAt && openStarts.some((s) => catalogSameInstant(s, selectedStartsAt)),
+  );
+}
+
+/**
+ * GRK-067: picking the already-selected day must keep the time. Clearing on a
+ * same-day re-tap made Continuar look like it deselected the slot (day strip
+ * under the footer / accidental re-tap).
+ */
+export function catalogApplyDayPick<T extends { time: string | null; liveStarts: string | null }>(
+  prevDayIndex: number,
+  nextDayIndex: number,
+  current: T,
+): T & { dayIndex: number } {
+  if (prevDayIndex === nextDayIndex) {
+    return { ...current, dayIndex: nextDayIndex };
+  }
+  return { ...current, dayIndex: nextDayIndex, time: null, liveStarts: null };
+}
+
+/**
+ * Live reopen: keep the draft day while slots reload so the selected chip stays
+ * lit (forcing 0 hid the pick until fetch finished — Continuar → reopen looked empty).
+ */
+export function catalogLiveDraftDayIndex(
+  draft: { dayIndex?: number; time?: string | null; liveStarts?: string | null } | null,
+): number {
+  if (!draft) return 0;
+  if (!(draft.liveStarts || draft.time)) return 0;
+  const i = draft.dayIndex;
+  return typeof i === "number" && i >= 0 ? i : 0;
 }
 
 export function catalogCanContinueWhen(time: string | null): boolean {
