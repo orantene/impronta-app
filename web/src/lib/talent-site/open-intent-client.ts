@@ -6,6 +6,7 @@
  * Targets announce once their window listener is attached: the guest dock and
  * the inquiry form sheet announce "chat", the catalog booking sheet "sheet".
  */
+import { rememberBookingSheetOpener } from "@/components/public-booking/booking-sheet-opener";
 import {
   createOpenIntentQueue,
   type OpenChannel,
@@ -18,6 +19,8 @@ let queue: Queue | null = null;
 function dispatchIntent(intent: OpenIntent): void {
   if (typeof window === "undefined") return;
   if (intent.channel === "sheet") {
+    // GRK-097: capture CTA before the sheet mounts (queue may fire after click).
+    rememberBookingSheetOpener();
     window.dispatchEvent(new CustomEvent(intent.eventName, { detail: intent.detail }));
     return;
   }

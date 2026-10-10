@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { useFocusTrap } from "@/components/support/use-focus-trap";
 import { deriveGuestBookingPresentation } from "@/lib/booking/guest-booking-presentation";
+
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 import { durationLabel } from "@/lib/talent/duration-label";
 import { formatMoney } from "@/lib/talent/offerings-money";
@@ -72,6 +72,7 @@ import { resolveSheetOpening, slotArrivalPlan } from "./booking-slot-selection";
 import { ServiceAddressField } from "./ServiceAddressField";
 import { useServiceAddress } from "./use-service-address";
 import { useCatalogBookingConfirm } from "./use-catalog-booking-confirm";
+import { useBookingSheetFocusTrap } from "./use-booking-sheet-focus";
 import { CatalogDonePanel, CatalogSheetHeader } from "./catalog-done-panel";
 
 type Step = "choose" | "when" | "who" | "done";
@@ -136,7 +137,7 @@ export function CatalogBookingSheet({
     !skipCaptcha && captcha != null && captcha.provider !== "none" && Boolean(captcha.siteKey);
 
   const days = useMemo(() => catalogNextDays(), []);
-  const trapRef = useFocusTrap<HTMLDivElement>(detail !== null);
+  const { trapRef, captureOpener, clearStaleOpener } = useBookingSheetFocusTrap(detail !== null);
   const money = useCallback(
     (cents: number, currency: string) => formatMoney(cents, currency, locale),
     [locale],
@@ -158,6 +159,7 @@ export function CatalogBookingSheet({
       }
       // PKG-2: products / untimed packages use CatalogPurchaseMount; skip only when that rail handles it.
       if (d.intent === "instant" && catalogDetailIsPurchase(d)) return;
+      captureOpener();
       // G13: a picked task pre-selects matching intake chips (still editable).
       setDetail(d.intake?.length ? { ...d, answers: preselectIntakeFromTask(d.intake, d.task, d.answers) } : d);
       // TUL-59: same service reopened in this session keeps every pick and field.
@@ -180,7 +182,7 @@ export function CatalogBookingSheet({
     const names = ["tulala:offering-instant", "tulala:offering-slot", "tulala:offering-request"];
     names.forEach((n) => window.addEventListener(n, open));
     return () => names.forEach((n) => window.removeEventListener(n, open));
-  }, [mode, days, draftKey]);
+  }, [mode, days, draftKey, captureOpener]);
 
   // CH-3: "back to my booking" re-opens the sheet with every pick kept (G9b: the task note rides on detail).
   useEffect(() => {
@@ -199,7 +201,7 @@ export function CatalogBookingSheet({
     window.dispatchEvent(
       new window.CustomEvent("tulala:maison-sheet", { detail: { open: detail !== null } }),
     );
-    if (!detail) return;
+    if (!detail) { clearStaleOpener(); return; }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setDetail(null);
     };

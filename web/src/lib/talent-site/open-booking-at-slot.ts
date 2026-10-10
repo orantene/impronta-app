@@ -8,9 +8,10 @@
  * offering cards has. Those emitters call `registerBookableOffering` so a deep link (which
  * carries only an id) can resolve it.
  */
-import { parseBookingDeepLink } from "./booking-deep-link";
+import { rememberBookingSheetOpener } from "@/components/public-booking/booking-sheet-opener";
 import { catalogDetailIsPurchase } from "@/components/public-booking/catalog-booking-logic";
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
+import { parseBookingDeepLink } from "./booking-deep-link";
 
 export type BookingEventName =
   | "tulala:offering-instant"
@@ -70,6 +71,8 @@ export function openBookingAtSlot(
   const detail = input.detail ?? lookupBookableOffering(input.offeringId);
   if (!detail || !target) return false;
   if (catalogDetailIsPurchase(detail)) return false;
+  // GRK-097: sticky / next-free-slot taps open via CustomEvent — remember the CTA now.
+  if (typeof document !== "undefined") rememberBookingSheetOpener();
   target.dispatchEvent(
     new CustomEvent(input.eventName ?? bookingEventNameFor(detail), {
       detail: bookingEventDetail(detail, sanitizeSlotStart(input.slotStart, input.now)),
