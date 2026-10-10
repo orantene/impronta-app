@@ -47,6 +47,19 @@ test("/c/<id> keeps a signed-in client on the talent site after booking (TUL-62)
   assert.match(talentBranch, /clientAccountEnabledFor\("talent"\)[\s\S]{0,40}redirect\(`\/account\/visits\/\$\{encodeURIComponent\(inquiryId\)\}`\)/);
 });
 
+test("/c/<id> keeps a signed-in client on the inquiry's own agency host when the account is on there", () => {
+  const page = read("src/app/c/[inquiryId]/page.tsx");
+  const agencyBranch = page.slice(page.indexOf('hostCtx.kind === "agency"'), page.indexOf("if (!onTalentSite)"));
+  assert.match(agencyBranch, /hostCtx\.tenantSlug === clientRedirect\.tenantSlug/);
+  assert.match(agencyBranch, /clientAccountEnabledFor\("agency"\)[\s\S]{0,40}redirect\(`\/account\/visits\/\$\{encodeURIComponent\(inquiryId\)\}`\)/);
+});
+
+test("/account button styles come from a plain module (a client-module object is empty on the server)", () => {
+  const view = read("src/components/client-account/ClientAccountArea.tsx");
+  assert.match(view, /import \{ btnPrimary \} from "\.\/account-button-styles"/);
+  assert.doesNotMatch(read("src/components/client-account/account-button-styles.ts"), /^["']use client["']/m);
+});
+
 test("pickClientBooking: the client's own open booking beats a newer draft without a client", () => {
   const rows = [
     { id: "draft", client_user_id: null, status: "draft" },

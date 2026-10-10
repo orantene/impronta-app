@@ -12,7 +12,8 @@ import type { AccountSummary } from "@/lib/client-account/pure";
 import { payMyBookingForm } from "@/lib/client-account/booking-actions";
 
 import { ClientAccountButton } from "./ClientAccountButton";
-import { LogOutButton, SettingsForm, ThreadReply, VisitActions, btnPrimary, type VisitActionsCopy } from "./AccountClientIslands";
+import { LogOutButton, SettingsForm, ThreadReply, VisitActions, type VisitActionsCopy } from "./AccountClientIslands";
+import { btnPrimary } from "./account-button-styles";
 
 const INK = "var(--token-color-ink, #111)";
 const BG = "var(--token-color-background, #fff)";
@@ -139,7 +140,7 @@ export function ClientAccountArea(props: Props) {
           {v.amountCents !== null ? (<><dt style={{ color: MUTED }}>{a("price")}</dt><dd style={{ margin: 0 }}>{money(v.amountCents, v.currency)}</dd></>) : null}
           <dt style={{ color: MUTED }}>{a("status")}</dt><dd style={{ margin: 0 }}>{statusLabel(v.status)}</dd>
         </dl>
-        <p style={{ fontSize: 13, color: MUTED }}>{interpolate(a("timeZoneNote"), { zone: when?.tzLabel || props.timeZone })}</p>
+        {when ? <p style={{ fontSize: 13, color: MUTED }}>{interpolate(a("timeZoneNote"), { zone: when.tzLabel || props.timeZone })}</p> : null}
         {v.canManage && v.bookingId ? (
           <VisitActions
             bookingId={v.bookingId}
