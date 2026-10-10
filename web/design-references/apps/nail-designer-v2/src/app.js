@@ -1136,7 +1136,16 @@
     if (bw / bh > A) { var h = bw / A; if (h > bh * 1.35) { var w2 = bh * 1.35 * A; bw = Math.max(w2, bw * 0.84); h = bw / A; return [box[0] + (box[2] - bw) / 2 + 20, box[1] - (h - bh) * 0.35, bw, h]; } return [box[0], box[1] - (h - bh) * 0.3, bw, h]; }
     var w = bh * A; return [box[0] - (w - bw) / 2, box[1], w, bh];
   }
-  function aspect() { return stage && stage.clientHeight > 0 ? stage.clientWidth / stage.clientHeight : 1.25; }
+  function aspect() {
+    if (!stage) return 1.25;
+    var w = stage.clientWidth, h = stage.clientHeight;
+    // Width 0 + height > 0 → A=0 → Inf viewBox → NaN. Wait for a real box.
+    if (!(w > 0 && h > 0 && Number.isFinite(w) && Number.isFinite(h))) return 1.25;
+    return w / h;
+  }
+  function finiteVB(box) {
+    return Array.isArray(box) && box.length === 4 && box.every(function (n) { return Number.isFinite(n); });
+  }
   function targetVB() {
     var base = fitBox(handBox(), aspect()), sc = VIEW.scale, w = base[2] / sc, h = base[3] / sc;
     var cx = VIEW.cx == null ? base[0] + base[2] / 2 : VIEW.cx, cy = VIEW.cy == null ? base[1] + base[3] / 2 : VIEW.cy;
@@ -1164,18 +1173,25 @@
     $('[data-act=zin]').disabled = VIEW.scale >= 3.99;
     stage.classList.toggle('nd-zoomed', z);
   }
-  function snapView() { cancelAnimationFrame(raf); vb = targetVB(); svg.setAttribute('viewBox', vb.map(f2).join(' ')); }
+  function snapView() {
+    cancelAnimationFrame(raf);
+    var next = targetVB();
+    if (!finiteVB(next) || !svg) return;
+    vb = next;
+    svg.setAttribute('viewBox', vb.map(f2).join(' '));
+  }
   function zoomTo() {
     if (S.target === 'one' && S.sel != null) focusNail(S.sel); else if (S.target === 'all' && zoomTo.fromNail) resetView();
     zoomTo.fromNail = S.target === 'one';
     if (svg) updateZoomUI();
     var to = targetVB(), from = vb.slice(), t0 = performance.now();
     cancelAnimationFrame(raf);
+    if (!finiteVB(to) || !svg) return;
     if (reduceMotion) { vb = to; svg.setAttribute('viewBox', vb.map(f2).join(' ')); return; }
     function step(now) {
       var k = Math.min(1, (now - t0) / 420), e = 1 - Math.pow(1 - k, 3);
       vb = from.map(function (v, j) { return v + (to[j] - v) * e; });
-      svg.setAttribute('viewBox', vb.map(f2).join(' '));
+      if (finiteVB(vb)) svg.setAttribute('viewBox', vb.map(f2).join(' '));
       if (k < 1) raf = requestAnimationFrame(step);
     }
     raf = requestAnimationFrame(step);

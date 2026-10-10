@@ -61,6 +61,7 @@ const CODE_SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "Before your appointment": "Antes de tu cita",
   "Hello, I'm {{displayName}}": "Hola, soy {{displayName}}",
   Sessions: "Sesiones",
+  "Dance instructor": "Instructora de baile",
   "Take your time": "Tómate tu tiempo",
   "The space": "El espacio",
   "When you are ready": "Cuando quieras",

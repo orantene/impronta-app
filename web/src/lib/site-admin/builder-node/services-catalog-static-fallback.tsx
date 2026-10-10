@@ -71,13 +71,15 @@ export function ServicesCatalogStaticFallback({
                 inspectorLabel: ctaLabel,
               });
               return (
-                <li key={item.id} className="site-builder-node--services-catalog-row" data-has-photo="true">
+                <li
+                  key={item.id}
+                  className="site-builder-node--services-catalog-row"
+                  data-has-photo={cover ? "true" : "false"}
+                >
                   {cover ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={cover} alt="" className="site-builder-node--services-catalog-photo" />
-                  ) : (
-                    <span className="site-builder-node--services-catalog-photo" aria-hidden />
-                  )}
+                  ) : null}
                   <span className="site-builder-node--services-catalog-copy">
                     <strong className="site-builder-node--services-catalog-name">{item.title}</strong>
                     {item.description ? (

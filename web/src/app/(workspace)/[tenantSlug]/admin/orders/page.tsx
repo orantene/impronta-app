@@ -9,6 +9,10 @@
 //
 // All filtering and shaping comes from `lib/orders/orders-list.ts`, which is
 // pure and tested; this file reads and renders.
+//
+// TUL-434 slice 1: the order-door mockup mounts ONLY with `?door=preview`.
+// Default `/admin/orders` is the live flat list (table + phone cards). The
+// mock keeps columns/refund path and marks New chrome for Oran's look pass.
 
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
@@ -32,13 +36,15 @@ import {
   type OrderListRow,
 } from "@/lib/orders/orders-list";
 import { OrdersRefundForm, type RefundFormCopy } from "./orders-refund-form";
+import { OrdersDoorMockList, type OrdersDoorMockCopy } from "./orders-door-mock-list";
 import { type RefundEffect } from "@/lib/orders/refund-effects";
 import { REFUND_DESK_KEY } from "@/lib/orders/refund-desk-copy";
+import { DOOR_SECTIONS, isDoorPreview, type DoorSectionId } from "@/lib/orders/orders-door-mock";
 
 export const dynamic = "force-dynamic";
 
 type PageParams = Promise<{ tenantSlug: string }>;
-type PageSearch = Promise<{ bucket?: string; q?: string }>;
+type PageSearch = Promise<{ bucket?: string; q?: string; order?: string; door?: string }>;
 
 const C = {
   ink: "#0B0B0D",
@@ -87,9 +93,114 @@ const STATUS_KEY: Record<string, string> = {
   partially_refunded: "statusPartiallyRefunded",
 };
 
+/**
+ * Full catalog paths for every door string. Relative dotted keys like
+ * `door.newBadge` would fail `message-key-usage.static.test.ts` (it treats any
+ * dotted literal as a root catalog path). Same pattern as REFUND_EFFECT_KEY.
+ */
+const DOOR_SECTION_KEYS: Record<
+  DoorSectionId,
+  { title: string; preview: string; body: string }
+> = {
+  summary: {
+    title: "dashboard.orders.door.sections.summary.title",
+    preview: "dashboard.orders.door.sections.summary.preview",
+    body: "dashboard.orders.door.sections.summary.body",
+  },
+  client: {
+    title: "dashboard.orders.door.sections.client.title",
+    preview: "dashboard.orders.door.sections.client.preview",
+    body: "dashboard.orders.door.sections.client.body",
+  },
+  items: {
+    title: "dashboard.orders.door.sections.items.title",
+    preview: "dashboard.orders.door.sections.items.preview",
+    body: "dashboard.orders.door.sections.items.body",
+  },
+  appointment: {
+    title: "dashboard.orders.door.sections.appointment.title",
+    preview: "dashboard.orders.door.sections.appointment.preview",
+    body: "dashboard.orders.door.sections.appointment.body",
+  },
+  payments: {
+    title: "dashboard.orders.door.sections.payments.title",
+    preview: "dashboard.orders.door.sections.payments.preview",
+    body: "dashboard.orders.door.sections.payments.body",
+  },
+  conversation: {
+    title: "dashboard.orders.door.sections.conversation.title",
+    preview: "dashboard.orders.door.sections.conversation.preview",
+    body: "dashboard.orders.door.sections.conversation.body",
+  },
+  origin: {
+    title: "dashboard.orders.door.sections.origin.title",
+    preview: "dashboard.orders.door.sections.origin.preview",
+    body: "dashboard.orders.door.sections.origin.body",
+  },
+  activity: {
+    title: "dashboard.orders.door.sections.activity.title",
+    preview: "dashboard.orders.door.sections.activity.preview",
+    body: "dashboard.orders.door.sections.activity.body",
+  },
+  notes: {
+    title: "dashboard.orders.door.sections.notes.title",
+    preview: "dashboard.orders.door.sections.notes.preview",
+    body: "dashboard.orders.door.sections.notes.body",
+  },
+};
 
 function shortId(id: string): string {
   return id.slice(0, 8).toUpperCase();
+}
+
+function doorMockCopy(
+  t: (k: string) => string,
+  tr: (k: string) => string,
+): OrdersDoorMockCopy {
+  const sections = {} as OrdersDoorMockCopy["sections"];
+  for (const s of DOOR_SECTIONS) {
+    const keys = DOOR_SECTION_KEYS[s.id];
+    sections[s.id] = {
+      title: tr(keys.title),
+      preview: tr(keys.preview),
+      body: tr(keys.body),
+    };
+  }
+  return {
+    newBadge: tr("dashboard.orders.door.newBadge"),
+    mockBanner: tr("dashboard.orders.door.mockBanner"),
+    mockPreview: tr("dashboard.orders.door.mockPreview"),
+    colOrder: t("colOrder"),
+    colCustomer: t("colCustomer"),
+    colChannel: t("colChannel"),
+    colTotal: t("colTotal"),
+    colOutstanding: t("colOutstanding"),
+    colStatus: t("colStatus"),
+    lineCount: t("lineCount"),
+    noCustomer: t("noCustomer"),
+    openThread: t("openThread"),
+    copyCode: tr("dashboard.orders.door.copyCode"),
+    codeCopied: tr("dashboard.orders.door.codeCopied"),
+    back: tr("dashboard.orders.door.back"),
+    moreMenu: tr("dashboard.orders.door.moreMenu"),
+    primary: {
+      send_pay_link: tr("dashboard.orders.door.primary.sendPayLink"),
+      collect_pos: tr("dashboard.orders.door.primary.collectPos"),
+      send_receipt: tr("dashboard.orders.door.primary.sendReceipt"),
+      view_refund: tr("dashboard.orders.door.primary.viewRefund"),
+    },
+    sections,
+    status: {
+      draft: t("statusDraft"),
+      quoted: t("statusQuoted"),
+      pending_payment: t("statusPendingPayment"),
+      paid: t("statusPaid"),
+      fulfilled: t("statusFulfilled"),
+      cancelled: t("statusCancelled"),
+      refunded: t("statusRefunded"),
+      partially_refunded: t("statusPartiallyRefunded"),
+    },
+  };
 }
 
 export default async function OrdersPage({
@@ -123,6 +234,8 @@ export default async function OrdersPage({
     ? (sp.bucket as OrderListBucket)
     : "all";
   const query = typeof sp.q === "string" ? sp.q : "";
+  const orderParam = typeof sp.order === "string" ? sp.order : "";
+  const doorPreview = isDoorPreview(typeof sp.door === "string" ? sp.door : "");
 
   const rows: OrderListRow[] = load.ok ? filterOrders(load.rows, { bucket, query }) : [];
   const totals = totalsFor(rows);
@@ -169,6 +282,20 @@ export default async function OrdersPage({
     },
   };
 
+  const doorQs = doorPreview ? "&door=preview" : "";
+  const orderQs = doorPreview && orderParam ? `&order=${encodeURIComponent(orderParam)}` : "";
+  const doorListProps = doorPreview
+    ? ({
+        rows,
+        locale,
+        copy: doorMockCopy(t, tr),
+        refundCopy,
+        orderParam,
+        bucket,
+        query,
+      } as const)
+    : null;
+
   return (
     <main style={{ padding: "32px 28px", maxWidth: 1180, margin: "0 auto", color: C.ink }} className="max-[720px]:p-0!">
       <h1 style={{ fontSize: 26, fontWeight: 600, margin: 0 }} className="max-[720px]:text-[22px]! max-[720px]:tracking-[-0.02em]">{t("pageTitle")}</h1>
@@ -201,7 +328,7 @@ export default async function OrdersPage({
               return (
                 <Link
                   key={b}
-                  href={`?bucket=${b}${query ? `&q=${encodeURIComponent(query)}` : ""}`}
+                  href={`?bucket=${b}${query ? `&q=${encodeURIComponent(query)}` : ""}${doorQs}${orderQs}`}
                   style={{
                     padding: "7px 14px",
                     borderRadius: 999,
@@ -295,146 +422,163 @@ export default async function OrdersPage({
                 </span>
               </section>
 
-              {/* MW17: the phone's list is one card of rows — the order and
-                  who it is for, its lines and total, its status as a pill. The
-                  refund form stays on the desktop table (D-POS-68). */}
-              <ul className="m-0 hidden list-none overflow-hidden rounded-[14px] border border-admin-border bg-admin-card p-0 max-[720px]:block">
-                {rows.map((row) => {
-                  const owed = outstandingCents(row);
-                  const statusKey = STATUS_KEY[row.status];
-                  const toPay = bucketOf(row.status) === "to_pay";
-                  const pill = toPay
-                    ? "bg-admin-coral-soft text-admin-coral-deep"
-                    : row.status === "paid"
-                      ? "bg-admin-success-soft text-admin-green"
-                      : "bg-admin-amber-soft text-admin-amber";
-                  const body = (
-                    <>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-[14.5px] font-semibold leading-[1.3] text-admin-ink">
-                          #{shortId(row.id)} · {row.customerName ?? t("noCustomer")}
-                        </span>
-                        <span className="mt-0.5 block text-[12.5px] leading-[1.35] text-admin-ink-muted">
-                          {lines(row.lineCount)} · {channel(row.sourceChannel)} ·{" "}
-                          <span className="whitespace-nowrap tabular-nums">{money(row.totalCents, row.currency)}</span>
-                          {owed > 0 ? (
-                            <>
-                              {" "}
-                              · {t("colOutstanding")}{" "}
-                              <span className="whitespace-nowrap tabular-nums">{money(owed, row.currency)}</span>
-                            </>
-                          ) : null}
-                        </span>
-                      </span>
-                      <span className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${pill}`}>
-                        {statusKey ? t(statusKey) : row.status}
-                      </span>
-                    </>
-                  );
-                  const cls = "flex w-full items-center gap-2.5 px-3.5 py-3 text-left no-underline";
-                  return (
-                    <li key={row.id} className="border-t border-admin-border-soft first:border-t-0">
-                      {row.inquiryId ? (
-                        <Link href={threadHref(row.inquiryId)} title={t("openThread")} className={cls}>
-                          {body}
-                        </Link>
-                      ) : (
-                        <div className={cls}>{body}</div>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-              <div style={{ overflowX: "auto" }} className="max-[720px]:hidden">
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-                  <thead>
-                    <tr style={{ textAlign: "left", color: C.inkMuted, fontSize: 12 }}>
-                      <th style={{ padding: "10px 12px", fontWeight: 500 }}>{t("colOrder")}</th>
-                      <th style={{ padding: "10px 12px", fontWeight: 500 }}>{t("colCustomer")}</th>
-                      <th style={{ padding: "10px 12px", fontWeight: 500 }}>{t("colChannel")}</th>
-                      <th style={{ padding: "10px 12px", fontWeight: 500, textAlign: "right" }}>
-                        {t("colTotal")}
-                      </th>
-                      <th style={{ padding: "10px 12px", fontWeight: 500, textAlign: "right" }}>
-                        {t("colOutstanding")}
-                      </th>
-                      <th style={{ padding: "10px 12px", fontWeight: 500 }}>{t("colStatus")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+              {doorListProps ? (
+                <>
+                  {/*
+                    PM HOLD: mock door is opt-in. `?door=preview` mounts the
+                    accordion; without it the live list below remains the desk.
+                  */}
+                  <div className="max-[720px]:hidden">
+                    <OrdersDoorMockList {...doorListProps} variant="desktop" />
+                  </div>
+                  <div className="hidden max-[720px]:block">
+                    <OrdersDoorMockList {...doorListProps} variant="mobile" />
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* MW17: the phone's list is one card of rows — the order and
+                      who it is for, its lines and total, its status as a pill. The
+                      refund form stays on the desktop table (D-POS-68). */}
+                  <ul className="m-0 hidden list-none overflow-hidden rounded-[14px] border border-admin-border bg-admin-card p-0 max-[720px]:block">
                     {rows.map((row) => {
                       const owed = outstandingCents(row);
                       const statusKey = STATUS_KEY[row.status];
-                      return (
-                        <tr key={row.id} style={{ borderTop: `1px solid ${C.border}` }}>
-                          <td style={{ padding: "12px", fontVariantNumeric: "tabular-nums" }}>
-                            {row.inquiryId ? (
-                              <Link
-                                href={threadHref(row.inquiryId)}
-                                style={{ color: C.ink }}
-                                title={t("openThread")}
-                              >
-                                {shortId(row.id)}
-                              </Link>
-                            ) : (
-                              shortId(row.id)
-                            )}
-                            <div style={{ color: C.inkDim, fontSize: 12 }}>
-                              {lines(row.lineCount)}
-                            </div>
-                          </td>
-                          <td style={{ padding: "12px" }}>
-                            {row.customerName ?? (
-                              <span style={{ color: C.inkDim }}>{t("noCustomer")}</span>
-                            )}
-                            {row.customerEmail ? (
-                              <div style={{ color: C.inkDim, fontSize: 12 }}>{row.customerEmail}</div>
-                            ) : null}
-                          </td>
-                          <td style={{ padding: "12px", color: C.inkMuted }}>{channel(row.sourceChannel)}</td>
-                          <td
-                            style={{
-                              padding: "12px",
-                              textAlign: "right",
-                              fontVariantNumeric: "tabular-nums",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {money(row.totalCents, row.currency)}
-                          </td>
-                          <td
-                            style={{
-                              padding: "12px",
-                              textAlign: "right",
-                              fontVariantNumeric: "tabular-nums",
-                              whiteSpace: "nowrap",
-                              color: owed > 0 ? C.amber : C.inkDim,
-                            }}
-                          >
-                            {owed > 0 ? money(owed, row.currency) : "—"}
-                          </td>
-                          {/*
-                            An unrecognised status shows its raw value rather than
-                            blank. A row a staff member cannot read is recoverable;
-                            one that renders as nothing looks like a bug in the data.
-                          */}
-                          <td style={{ padding: "12px" }}>
+                      const toPay = bucketOf(row.status) === "to_pay";
+                      const pill = toPay
+                        ? "bg-admin-coral-soft text-admin-coral-deep"
+                        : row.status === "paid"
+                          ? "bg-admin-success-soft text-admin-green"
+                          : "bg-admin-amber-soft text-admin-amber";
+                      const body = (
+                        <>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-[14.5px] font-semibold leading-[1.3] text-admin-ink">
+                              #{shortId(row.id)} · {row.customerName ?? t("noCustomer")}
+                            </span>
+                            <span className="mt-0.5 block text-[12.5px] leading-[1.35] text-admin-ink-muted">
+                              {lines(row.lineCount)} · {channel(row.sourceChannel)} ·{" "}
+                              <span className="whitespace-nowrap tabular-nums">{money(row.totalCents, row.currency)}</span>
+                              {owed > 0 ? (
+                                <>
+                                  {" "}
+                                  · {t("colOutstanding")}{" "}
+                                  <span className="whitespace-nowrap tabular-nums">{money(owed, row.currency)}</span>
+                                </>
+                              ) : null}
+                            </span>
+                          </span>
+                          <span className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${pill}`}>
                             {statusKey ? t(statusKey) : row.status}
-                            {bucketOf(row.status) === "to_pay" ? (
-                              <span style={{ color: C.amber }}> ●</span>
-                            ) : null}
-                            {row.status === "paid" || row.status === "partially_refunded" ? (
-                              <div style={{ marginTop: 8 }}>
-                                <OrdersRefundForm orderId={row.id} currency={row.currency} copy={refundCopy} />
-                              </div>
-                            ) : null}
-                          </td>
-                        </tr>
+                          </span>
+                        </>
+                      );
+                      const cls = "flex w-full items-center gap-2.5 px-3.5 py-3 text-left no-underline";
+                      return (
+                        <li key={row.id} className="border-t border-admin-border-soft first:border-t-0">
+                          {row.inquiryId ? (
+                            <Link href={threadHref(row.inquiryId)} title={t("openThread")} className={cls}>
+                              {body}
+                            </Link>
+                          ) : (
+                            <div className={cls}>{body}</div>
+                          )}
+                        </li>
                       );
                     })}
-                  </tbody>
-                </table>
-              </div>
+                  </ul>
+                  <div style={{ overflowX: "auto" }} className="max-[720px]:hidden">
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+                      <thead>
+                        <tr style={{ textAlign: "left", color: C.inkMuted, fontSize: 12 }}>
+                          <th style={{ padding: "10px 12px", fontWeight: 500 }}>{t("colOrder")}</th>
+                          <th style={{ padding: "10px 12px", fontWeight: 500 }}>{t("colCustomer")}</th>
+                          <th style={{ padding: "10px 12px", fontWeight: 500 }}>{t("colChannel")}</th>
+                          <th style={{ padding: "10px 12px", fontWeight: 500, textAlign: "right" }}>
+                            {t("colTotal")}
+                          </th>
+                          <th style={{ padding: "10px 12px", fontWeight: 500, textAlign: "right" }}>
+                            {t("colOutstanding")}
+                          </th>
+                          <th style={{ padding: "10px 12px", fontWeight: 500 }}>{t("colStatus")}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((row) => {
+                          const owed = outstandingCents(row);
+                          const statusKey = STATUS_KEY[row.status];
+                          return (
+                            <tr key={row.id} style={{ borderTop: `1px solid ${C.border}` }}>
+                              <td style={{ padding: "12px", fontVariantNumeric: "tabular-nums" }}>
+                                {row.inquiryId ? (
+                                  <Link
+                                    href={threadHref(row.inquiryId)}
+                                    style={{ color: C.ink }}
+                                    title={t("openThread")}
+                                  >
+                                    {shortId(row.id)}
+                                  </Link>
+                                ) : (
+                                  shortId(row.id)
+                                )}
+                                <div style={{ color: C.inkDim, fontSize: 12 }}>
+                                  {lines(row.lineCount)}
+                                </div>
+                              </td>
+                              <td style={{ padding: "12px" }}>
+                                {row.customerName ?? (
+                                  <span style={{ color: C.inkDim }}>{t("noCustomer")}</span>
+                                )}
+                                {row.customerEmail ? (
+                                  <div style={{ color: C.inkDim, fontSize: 12 }}>{row.customerEmail}</div>
+                                ) : null}
+                              </td>
+                              <td style={{ padding: "12px", color: C.inkMuted }}>{channel(row.sourceChannel)}</td>
+                              <td
+                                style={{
+                                  padding: "12px",
+                                  textAlign: "right",
+                                  fontVariantNumeric: "tabular-nums",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {money(row.totalCents, row.currency)}
+                              </td>
+                              <td
+                                style={{
+                                  padding: "12px",
+                                  textAlign: "right",
+                                  fontVariantNumeric: "tabular-nums",
+                                  whiteSpace: "nowrap",
+                                  color: owed > 0 ? C.amber : C.inkDim,
+                                }}
+                              >
+                                {owed > 0 ? money(owed, row.currency) : "—"}
+                              </td>
+                              {/*
+                                An unrecognised status shows its raw value rather than
+                                blank. A row a staff member cannot read is recoverable;
+                                one that renders as nothing looks like a bug in the data.
+                              */}
+                              <td style={{ padding: "12px" }}>
+                                {statusKey ? t(statusKey) : row.status}
+                                {bucketOf(row.status) === "to_pay" ? (
+                                  <span style={{ color: C.amber }}> ●</span>
+                                ) : null}
+                                {row.status === "paid" || row.status === "partially_refunded" ? (
+                                  <div style={{ marginTop: 8 }}>
+                                    <OrdersRefundForm orderId={row.id} currency={row.currency} copy={refundCopy} />
+                                  </div>
+                                ) : null}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
             </>
           )}
         </>

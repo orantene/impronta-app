@@ -13809,7 +13809,69 @@
       "lineCountOne": "artículo",
       "lineCountOther": "artículos",
       "refundAmount": "Monto a reembolsar",
-      "refundAmountHint": "Por defecto es el restante completo ({max}). Bájalo para un reembolso parcial."
+      "refundAmountHint": "Por defecto es el restante completo ({max}). Bájalo para un reembolso parcial.",
+      "door": {
+        "newBadge": "Nuevo",
+        "mockBanner": "Mockup de la puerta del pedido en el escritorio real de Pedidos. Lo punteado y Nuevo marca solo lo que agrega este corte; las columnas y el reembolso siguen como hoy.",
+        "mockPreview": "Contenido mock: los siguientes cortes llenan cada sección con datos reales y abren nombres en cajones apilados.",
+        "copyCode": "Copiar código del pedido",
+        "codeCopied": "Copiado",
+        "back": "Volver a la lista",
+        "moreMenu": "Más acciones",
+        "primary": {
+          "sendPayLink": "Enviar enlace de pago",
+          "collectPos": "Cobrar en mostrador",
+          "sendReceipt": "Enviar recibo",
+          "viewRefund": "Ver reembolso"
+        },
+        "sections": {
+          "summary": {
+            "title": "Resumen",
+            "preview": "Línea de tiempo y dinero",
+            "body": "Mock de línea de tiempo: creado, oferta, pagado, cumplido. Las líneas de dinero (total, pagado, pendiente, comisión, neto) llegan en el siguiente corte."
+          },
+          "client": {
+            "title": "Cliente",
+            "preview": "Nombre y contacto",
+            "body": "Mock del cajón del cliente: pedidos anteriores, Mensaje, WhatsApp, Copiar correo. El nombre abrirá un cajón lateral sin salir de Pedidos."
+          },
+          "items": {
+            "title": "Artículos",
+            "preview": "Líneas de este pedido",
+            "body": "Cada línea mostrará servicio, cantidad, precio, persona y espacio. El reembolso por línea se mueve aquí desde la celda de la tabla."
+          },
+          "appointment": {
+            "title": "Cita y fechas",
+            "preview": "Cuándo y dónde",
+            "body": "Fecha, inicio a fin, zona horaria y ubicación. Necesita el campo de ubicación de TUL-426 antes de que esta sección sea real."
+          },
+          "payments": {
+            "title": "Pagos",
+            "preview": "Transacciones y enlaces",
+            "body": "Cada transacción abre el cajón de pago. Reembolsar líneas sigue disponible abajo mientras dure este mock."
+          },
+          "conversation": {
+            "title": "Conversación",
+            "preview": "Sin hilo todavía",
+            "body": "Origen y vista previa del último mensaje. Abre el cajón de conversación; nunca te saca de la página."
+          },
+          "origin": {
+            "title": "Origen y dispositivo",
+            "preview": "Canal y dispositivo",
+            "body": "Canal de venta, página o terminal de origen, y familia de dispositivo de forma general. Sin IP ni ubicación precisa."
+          },
+          "activity": {
+            "title": "Actividad",
+            "preview": "Quién y cuándo",
+            "body": "Cambios de estado, mensajes enviados, reembolsos y notas. El nombre de cada actor abre el cajón de persona."
+          },
+          "notes": {
+            "title": "Notas internas",
+            "preview": "Sin notas todavía",
+            "body": "Notas del equipo sobre el pedido. Agregar una nota en línea llega en un corte posterior."
+          }
+        }
+      }
     },
     "sales": {
       "pageTitle": "Ventas",
