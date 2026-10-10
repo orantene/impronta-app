@@ -50,6 +50,16 @@ const PHONE_ICON = (
   </svg>
 );
 
+/** Built-in copy when the node leaves a label empty (older seeds carry none). */
+const UB_DEFAULT_LABELS = {
+  en: { on: "Emergencies today", off: "No emergencies today", call: "Call" },
+  es: { on: "Emergencias hoy", off: "Sin emergencias hoy", call: "Llamar" },
+} as const;
+
+function defaultLabels(locale: string | undefined) {
+  return (locale ?? "").trim().toLowerCase().startsWith("es") ? UB_DEFAULT_LABELS.es : UB_DEFAULT_LABELS.en;
+}
+
 /** Only an explicit `tel:` link with digits is a call target. */
 export function safeCallHref(href: unknown): string {
   if (typeof href !== "string") return "";
@@ -65,9 +75,12 @@ export function renderUtilityBarBlock(args: {
   /** Public path prefix (host-root sites pass ""). */
   publicPathPrefix?: string;
   styleAttr?: CSSProperties;
+  /** Page content locale; picks the fallback copy for empty labels. */
+  locale?: string;
 }): ReactNode {
   const { node, styleAttr } = args;
   const p = node.props;
+  const fallback = defaultLabels(args.locale);
   const on = args.liveStatus?.emergenciesToday === true;
   const name = (p.name ?? "").trim();
   const subtitle = (p.subtitle ?? "").trim();
@@ -75,8 +88,8 @@ export function renderUtilityBarBlock(args: {
   const call = p.showCall === false ? "" : safeCallHref(args.callHref || p.callHref);
   const ctaLabel = (p.ctaLabel ?? "").trim();
   const ctaHref = (p.ctaHref ?? "").trim();
-  const onLabel = (p.statusOnLabel ?? "").trim() || "Emergencies today";
-  const offLabel = (p.statusOffLabel ?? "").trim() || "No emergencies today";
+  const onLabel = (p.statusOnLabel ?? "").trim() || fallback.on;
+  const offLabel = (p.statusOffLabel ?? "").trim() || fallback.off;
   return (
     <header
       className="sb-ub"
@@ -116,7 +129,7 @@ export function renderUtilityBarBlock(args: {
         </a>
       ) : null}
       {call ? (
-        <a className="sb-ub-tel" href={call} aria-label={(p.callLabel ?? "").trim() || "Call"}>
+        <a className="sb-ub-tel" href={call} aria-label={(p.callLabel ?? "").trim() || fallback.call}>
           {PHONE_ICON}
         </a>
       ) : null}

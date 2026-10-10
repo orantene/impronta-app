@@ -6192,6 +6192,7 @@ function renderBuilderNodeElement(
         callHref: options.dataSources?.callHref,
         publicPathPrefix: options.publicPathPrefix,
         styleAttr: sharedNodeStyle(node.props.style),
+        locale: options.contentLocale?.locale ?? options.visitorLocale,
       });
     }
     case "alert_band": {

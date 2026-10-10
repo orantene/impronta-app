@@ -130,6 +130,29 @@ test("utility bar: showStatus false removes the pill", () => {
   assert.doesNotMatch(render([bar({ showStatus: false })], { liveStatus: ON }), /class="sb-ub-pill"/);
 });
 
+test("utility bar: empty labels fall back to the page language (GRK-023 saul)", () => {
+  const empty = bar({ statusOnLabel: undefined, statusOffLabel: undefined, callLabel: undefined });
+  const at = (visitorLocale?: string) =>
+    renderToStaticMarkup(
+      renderBuilderNodes([empty], {
+        mode: "freeform",
+        includeRendererStyles: false,
+        includeFontLinks: false,
+        dataSources: { liveStatus: ON, callHref: "tel:+524431234567" },
+        visitorLocale,
+      }) as Parameters<typeof renderToStaticMarkup>[0],
+    );
+  const es = at("es");
+  assert.match(es, />Emergencias hoy</);
+  assert.match(es, />Sin emergencias hoy</);
+  assert.match(es, /aria-label="Llamar"/);
+  assert.doesNotMatch(es, /No emergencies today|Emergencies today|aria-label="Call"/);
+  const en = at("en");
+  assert.match(en, />No emergencies today</);
+  assert.match(en, /aria-label="Call"/);
+  assert.match(at(undefined), />No emergencies today</);
+});
+
 test("alert band: absent while the flag is off or missing, present while on", () => {
   assert.doesNotMatch(render([band()]), /data-builder-node-kind="alert_band"/);
   assert.doesNotMatch(render([band()], { liveStatus: LIVE_STATUS_OFF }), /data-builder-node-kind="alert_band"/);
