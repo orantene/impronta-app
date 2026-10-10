@@ -27,7 +27,7 @@ const PINS = {
   // Re-pinned: only added props.i18n (es + en seed copy), see seed-i18n.ts.
   maison: "4154551e03a4b4ea", // TUL-532 hero face crop + phone paddingX on TUL-121 Maison v2 base (#3116)
   // Re-pinned after Gridline contentWidth/full + matrix viewport MQ (#2530), then es + en seed copy.
-  gridline: "a0a148cca5d4853d", // TUL-530 utility_bar homeHref; TUL-532 face crop may re-pin after full rebase
+  gridline: "647493210a4b4f58", // TUL-532 heroSpec face crop on TUL-530 utility_bar homeHref base
 };
 
 function kinds(nodes: BuilderNode[]): string[] {
