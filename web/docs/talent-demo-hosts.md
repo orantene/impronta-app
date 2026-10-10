@@ -35,6 +35,16 @@ These labels are **not** `talent_sites.site_slug` values. They alias to each des
 | `folio-demo.tulala.digital` (also bare `folio`) | `mateo-ferrer` | `mateo-ferrer-demo.tulala.digital` |
 | `gridline-demo.tulala.digital` (also bare `gridline`) | `alex-trevino` | `alex-trevino-demo.tulala.digital` |
 
+## QA shorthand hosts (GRK-089 / TUL-537)
+
+Short labels that QA typed against demos. They are **not** `site_slug` values. Lookup aliases them (migration `20261231357000_demo_host_shorthand_aliases.sql`), then the host response **308s** to the featured demo’s canonical `-demo` host:
+
+| Host | Resolves to | Redirects to |
+|---|---|---|
+| `alba-demo.tulala.digital` | `alba-nail-artist` | `alba-nail-artist-demo.tulala.digital` |
+| `linh-demo.tulala.digital` | `linh-tran` | `linh-tran-demo.tulala.digital` |
+| `sofia-nails-demo.tulala.digital` | `camila-nails` (live nails demo; no `sofia-nails` slug) | `camila-nails-demo.tulala.digital` |
+
 Do **not** seed these (or talent `{siteSlug}-demo` hosts) into `agency_domains` — that table wins first and would serve them as agency/app hosts instead of talent sites.
 
 ## Going forward

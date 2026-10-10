@@ -103,6 +103,31 @@ test("demo hosts append the -demo suffix without renaming site_slug", () => {
     }),
     "alba-nail-artist-demo.tulala.digital",
   );
+  // GRK-089 / TUL-537 shorthand hosts resolve in SQL then 308 here.
+  assert.equal(
+    talentDemoBareHostRedirectHost({
+      hostname: "alba-demo.tulala.digital",
+      siteSlug: "alba-nail-artist",
+      isDemo: true,
+    }),
+    "alba-nail-artist-demo.tulala.digital",
+  );
+  assert.equal(
+    talentDemoBareHostRedirectHost({
+      hostname: "linh-demo.tulala.digital",
+      siteSlug: "linh-tran",
+      isDemo: true,
+    }),
+    "linh-tran-demo.tulala.digital",
+  );
+  assert.equal(
+    talentDemoBareHostRedirectHost({
+      hostname: "sofia-nails-demo.tulala.digital",
+      siteSlug: "camila-nails",
+      isDemo: true,
+    }),
+    "camila-nails-demo.tulala.digital",
+  );
   assert.equal(
     talentDemoBareHostRedirectHost({
       hostname: "valeria-baila-demo.tulala.digital",
