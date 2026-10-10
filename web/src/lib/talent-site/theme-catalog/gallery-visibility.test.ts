@@ -79,5 +79,17 @@ test("each visible design features a built demo", () => {
   assert.deepEqual(built("maison"), ["seed:nails"]);
   // Alba (the proposal demo) is Maison v2's featured demo: first built.
   assert.deepEqual(built("maison-v2"), ["alba-nail-artist", "camila-nails", "renata-lashes", "linh-tran", "leo-haddad", "sofia-rinaldi", "marcus-bell", "terrence-coleman"]);
-  assert.deepEqual(built("folio"), ["mateo-ferrer", "lucia-herrera", "priya-shah", "andre-castillo", "noemi-castaneda", "daniel-kim", "elena-garza-trevino", "rafael-hernandez-cuevas"]);
+  assert.deepEqual(built("folio"), [
+    "mateo-ferrer",
+    "lucia-herrera",
+    "priya-shah",
+    "andre-castillo",
+    "noemi-castaneda",
+    "daniel-kim",
+    "elena-garza-trevino",
+    "rafael-hernandez-cuevas",
+    "sofia-barra",
+    "claudia-retratos",
+    "ivan-reyes-diseno",
+  ]);
 });
