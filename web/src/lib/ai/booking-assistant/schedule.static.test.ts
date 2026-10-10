@@ -31,3 +31,24 @@ test("scheduleBookingAssistantTurn uses next/server after()", () => {
   assert.match(src, /AbortController|signal:\s*controller\.signal/);
   assert.match(src, /LLM_TIMEOUT_MS\s*=\s*5_000/);
 });
+
+test("maybeRun logs every silent skip branch (Live QA: no silent OFF)", () => {
+  const src = readFileSync(TURN, "utf8");
+  for (const reason of [
+    "no_talent_profile_id",
+    "no_service_role_client",
+    "ai_master_disabled",
+  ] as const) {
+    assert.match(src, new RegExp(`reason:\\s*"${reason}"`));
+  }
+  assert.match(src, /booking_assistant_skip/);
+  assert.match(src, /booking_assistant_schedule/);
+  assert.match(src, /booking_assistant_run/);
+});
+
+test("sendGuestMessageAction resolves talent via lineup spine when participants empty", () => {
+  const src = readFileSync(ACTIONS, "utf8");
+  assert.match(src, /resolveBookingAssistantTalentId/);
+  assert.match(src, /readSelectedIds/);
+  assert.match(src, /interpreted_query/);
+});
