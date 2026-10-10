@@ -14,6 +14,8 @@
  * - GRK-033: hero first-viewport CTAs clear the consent card (pad hero chrome).
  * - GRK-034: catalog/footer bottom reserve follows --cb-bar-h on phone + desktop
  *   while the bar/dock is painted (not a hardcoded 72px undershoot).
+ * - GRK-037: phone footer + catalog groups keep a right gutter so Hablar does
+ *   not sit on prices / Reservar / footer links (FAB fill clamp lives in chat).
  * - GRK-039: guest chat panels use aria-modal=false; consent yields to
  *   [data-guest-chat-panel] so the message box stays reachable.
  */
@@ -58,6 +60,7 @@ body:has(${CONSENT_BANNER_SELECTOR}) .site-bn-hero__inner{padding-bottom:max(cla
 body:has(${CONSENT_BANNER_SELECTOR}) .site-bn-hero__meta{bottom:max(clamp(74px,11vh,134px),calc(var(--floating-consent-clearance) + 12px))}
 body:has(${CONSENT_BANNER_SELECTOR}) .site-bn-hero__cue{bottom:max(30px,calc(var(--floating-consent-clearance) + 8px))}
 body:has(${CONSENT_BANNER_SELECTOR}) #hero{padding-bottom:max(2rem,calc(var(--floating-consent-clearance) + 12px));box-sizing:border-box}
+@media (max-width:480px){body:has([data-guest-chat-launcher]){--floating-launcher-gutter:calc(72px + env(safe-area-inset-right,0px))}body:has([data-guest-chat-launcher]) .site-builder-node--services-catalog-groups,body:has([data-guest-chat-launcher]) .sb-statement-footer-meta,body:has([data-guest-chat-launcher]) .sb-statement-footer-contact,body:has([data-guest-chat-launcher]) .sb-statement-footer-inner{padding-inline-end:max(12px,var(--floating-launcher-gutter))}}
 `.replace(/\n/g, "");
 
 /**
