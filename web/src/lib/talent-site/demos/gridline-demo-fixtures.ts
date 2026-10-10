@@ -397,15 +397,16 @@ const TAMIKA: Def = {
   arrival: "Outside this area I add travel to the quote.",
 };
 
-// ── TAL-93208 Madera Tapia, carpenter, Morelia (es, MXN) ────────────────────
+// ── TAL-93208 Saúl Tapia, carpenter, Morelia (es, MXN) ──────────────────────
+// Header shows the person (Saúl); workshop brand stays in the trade subtitle.
 const MADERA: Def = {
   code: "TAL-93208",
   lang: "es",
   currency: "MXN",
-  name: "Madera Tapia",
+  name: "Saúl Tapia",
   trade: "carpenter",
   city: "Morelia",
-  topSub: "Carpintero · Morelia",
+  topSub: "Madera Tapia · Carpintero · Morelia",
   call: "Llamar",
   hero: {
     eyebrow: "Agenda abierta · Morelia y alrededores",
