@@ -538,6 +538,8 @@ export function formatOfferingPrice(amountCents: number, currency: string, local
 export function offeringPriceLabel(
   o: Pick<TalentOffering, "priceType" | "priceDisplay" | "amountCents" | "currency" | "visibility">,
   locale: string,
+  /** The dashboard passes `formatDashboardMoneyCents`; public surfaces keep the default. */
+  format: (amountCents: number, currency: string, locale: string) => string = formatOfferingPrice,
 ): string {
   const es = locale.toLowerCase().startsWith("es");
   if (o.visibility === "on_request") return es ? "Bajo consulta" : "On request";
@@ -546,7 +548,7 @@ export function offeringPriceLabel(
   }
   // TUL-533 / GRK-064: $0 → Consultar / Ask (display only; free can still book).
   if (o.amountCents <= 0) return es ? "Consultar" : "Ask";
-  const price = formatOfferingPrice(o.amountCents, o.currency, locale);
+  const price = format(o.amountCents, o.currency, locale);
   const suffix = (es ? SERVICE_PRICING_SUFFIX_ES : SERVICE_PRICING_SUFFIX)[o.priceType];
   const core = suffix ? `${price} ${suffix}` : price;
   return o.priceDisplay === "from" ? (es ? `desde ${core}` : `from ${core}`) : core;

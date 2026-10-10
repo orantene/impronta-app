@@ -121,10 +121,13 @@ test("public render reads per request, applies expiry, hands widgets one liveSta
   assert.match(RENDER_SRC, /\n\s+liveStatus,\n\s+\};/, "liveStatus on the page dataSources");
   assert.match(RENDER_SRC, /liveStatusRootAttrs\(liveStatus\)/);
   assert.match(RENDER_SRC, /<LiveStatusExpiry until=\{liveStatus\.emergenciesUntil\} \/>/);
-  for (const route of ["src/app/%5Ftalent-site/[[...pageSlug]]/page.tsx", "src/app/t/site/[siteSlug]/page.tsx"]) {
-    const src = readFileSync(join(WEB, route), "utf8");
-    assert.match(src, /export const revalidate = 0;/, `${route} must stay per-request`);
-  }
+  const siteRoute = "src/app/t/site/[siteSlug]/page.tsx";
+  assert.match(readFileSync(join(WEB, siteRoute), "utf8"), /export const revalidate = 0;/, `${siteRoute} must stay per-request`);
+  // TUL-445: the custom-domain route is CDN-cacheable for anonymous GETs. The toggle
+  // busts that cache and the client island lapses an expired status, so the window stays short.
+  const hostRoute = "src/app/%5Ftalent-site/[[...pageSlug]]/page.tsx";
+  const m = /export const revalidate = (\d+);/.exec(readFileSync(join(WEB, hostRoute), "utf8"));
+  assert.ok(m && Number(m[1]) <= 60, `${hostRoute} must revalidate within 60s`);
 });
 
 test("toggle action routes through the busting helper", () => {

@@ -212,7 +212,9 @@ export function GuestTrustChip({
             marginRight: 2,
           }}
         >
-          {displayName}
+          {displayName.trim() === "" || (displayName.trim() === "Guest" && identity === "guest")
+            ? copy.t("Guest")
+            : displayName}
         </span>
 
         {/* Identity chip */}
