@@ -13,7 +13,7 @@ import { TALENT_AGENDA_VARS } from "./primitives";
 import { useAgendaCopy } from "./use-agenda-copy";
 import { formatHoursDate, formatHoursRange } from "@/lib/talent-agenda/hours-display-format";
 import { HoursDateField, HoursTimeField } from "./HoursFields";
-import { TimezonePicker, isListedTimeZone, listIanaTimeZones } from "./TimezonePicker";
+import { TimezonePicker, ianaTimeZoneLabel, isListedTimeZone, listIanaTimeZones } from "./TimezonePicker";
 import { readDeviceTimeZone, suggestDeviceTimeZone } from "./timezone-suggestion";
 
 const LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
@@ -415,7 +415,8 @@ export function AgendaAvailabilityPage({
               className="mt-2 text-left text-[13px] text-[var(--tc-accent)]"
               onClick={() => { setTz(suggestedTz); setUnsaved(true); }}
             >
-              {copy.t("Use this device's time zone")}: {suggestedTz.replaceAll("_", " ")}
+              {copy.t("Use this device's time zone")}:{" "}
+              {ianaTimeZoneLabel(suggestedTz, copy.locale).replace(/\s*\(UTC[^)]*\)\s*$/, "")}
             </button>
           ) : null}
         </label>
