@@ -152,22 +152,29 @@ export async function loadTalentSiteDomains(
   supabase: SupabaseClient,
   talentProfileId: string,
 ): Promise<TalentSiteDomainRecord[]> {
-  let { data, error } = await supabase
+  const withGrace = await supabase
     .from("talent_site_domains")
     .select(DOMAIN_COLUMNS_WITH_GRACE)
     .eq("talent_profile_id", talentProfileId)
     .order("is_primary", { ascending: false })
     .order("created_at", { ascending: true });
+  let data: DomainRowDb[] | null =
+    (withGrace.data as DomainRowDb[] | null) ?? null;
+  let error = withGrace.error;
+  // Grace cols parked until PM `db:push` — BASE select is a narrower string,
+  // so keep `data` as DomainRowDb[] (not the WITH_GRACE inferred shape).
   if (error && isMissingGraceColumnError(error)) {
-    ({ data, error } = await supabase
+    const base = await supabase
       .from("talent_site_domains")
       .select(DOMAIN_COLUMNS_BASE)
       .eq("talent_profile_id", talentProfileId)
       .order("is_primary", { ascending: false })
-      .order("created_at", { ascending: true }));
+      .order("created_at", { ascending: true });
+    data = (base.data as DomainRowDb[] | null) ?? null;
+    error = base.error;
   }
   if (error) throw error;
-  return ((data ?? []) as DomainRowDb[]).map(mapDomainRow);
+  return (data ?? []).map(mapDomainRow);
 }
 
 /** Load one domain row for a talent by its hostname. */
@@ -176,23 +183,28 @@ export async function loadTalentSiteDomain(
   talentProfileId: string,
   domain: string,
 ): Promise<TalentSiteDomainRecord | null> {
-  let { data, error } = await supabase
+  const withGrace = await supabase
     .from("talent_site_domains")
     .select(DOMAIN_COLUMNS_WITH_GRACE)
     .eq("talent_profile_id", talentProfileId)
     .eq("domain", domain)
     .maybeSingle();
+  let data: DomainRowDb | null =
+    (withGrace.data as DomainRowDb | null) ?? null;
+  let error = withGrace.error;
   if (error && isMissingGraceColumnError(error)) {
-    ({ data, error } = await supabase
+    const base = await supabase
       .from("talent_site_domains")
       .select(DOMAIN_COLUMNS_BASE)
       .eq("talent_profile_id", talentProfileId)
       .eq("domain", domain)
-      .maybeSingle());
+      .maybeSingle();
+    data = (base.data as DomainRowDb | null) ?? null;
+    error = base.error;
   }
   if (error) throw error;
   if (!data) return null;
-  return mapDomainRow(data as DomainRowDb);
+  return mapDomainRow(data);
 }
 
 /**
