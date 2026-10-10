@@ -5,7 +5,13 @@ import { resumeGuestThreadAction } from "@/lib/support/guest-actions";
 import { MarketingContactForm } from "./MarketingContactForm";
 import { MarketingContactResume } from "./MarketingContactResume";
 
-export async function MarketingContactPage({ token }: { token?: string }) {
+export async function MarketingContactPage({
+  token,
+  talentSite,
+}: {
+  token?: string;
+  talentSite?: { source: string; host: string | null; code: string | null } | null;
+}) {
   const locale = await getRequestLocale();
   const copy = getMarketingSupportCopy(locale);
   let resumeTicketId: string | null = null;
@@ -20,7 +26,7 @@ export async function MarketingContactPage({ token }: { token?: string }) {
         {resumeTicketId ? <MarketingContactResume ticketId={resumeTicketId} /> : null}
         <h1 className="font-display text-3xl font-normal tracking-wide">{copy.contactTitle}</h1>
         <p className="mt-4 text-[var(--plt-ink-soft)]">{copy.contactBody}</p>
-        <MarketingContactForm locale={locale} />
+        <MarketingContactForm locale={locale} talentSite={talentSite} />
       </main>
     </MarketingShell>
   );

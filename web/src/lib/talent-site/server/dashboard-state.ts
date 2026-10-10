@@ -15,10 +15,24 @@ import { parseTalentSiteSnapshot } from "@/lib/talent-site/validation";
 import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomains";
 import { maxSitePublicGate } from "@/lib/talent-site/resolve-max-site-core";
 import { talentSitePathUrl, talentSitePublicUrl } from "@/lib/talent-site/site-public-url";
-import type { EffectiveReadContext } from "@/lib/impersonation/effective-read";
-import { resolveMyWebsiteTarget } from "@/lib/talent-site/my-website-target";
-import { loadOwnedBusinessWorkspace } from "@/lib/talent-site/server/workspace-site-context";
-import { resolveWorkspaceSitePublicUrl } from "@/lib/talent-site/workspace-site-editor-url";
+import {
+  pickReadClient,
+  readUserId,
+  type EffectiveReadContext,
+} from "@/lib/impersonation/effective-read";
+import { workspaceSiteBuilderHref } from "@/lib/talent-site/my-website-target";
+import {
+  loadOwnedBusinessWorkspace,
+  type OwnedBusinessWorkspace,
+} from "@/lib/talent-site/server/workspace-site-context";
+import { getTenantPreviewUrl } from "@/lib/site-admin/server/tenant-hosts";
+
+const NO_OWNED_WORKSPACE: OwnedBusinessWorkspace = {
+  ownsBusinessWorkspace: false,
+  hasWorkspaceSite: false,
+  workspaceSlug: null,
+  tenantId: null,
+};
 
 function mapSiteRow(row: TalentSiteRow): TalentSiteDashboardState["site"] {
   const draftSnapshot = parseTalentSiteSnapshot(row.draft_snapshot);
@@ -89,6 +103,8 @@ export async function loadTalentPersonalSiteDashboardState(
    */
   ctx?: EffectiveReadContext,
   deps: PersonalSiteStateDeps = DEFAULT_STATE_DEPS,
+  /** TUL-180: request host for workspace preview URL resolution. */
+  options?: { requestHost?: string | null },
 ): Promise<
   | { ok: true; state: TalentSiteDashboardState }
   | { ok: false; code: string; error: string }
@@ -104,18 +120,29 @@ export async function loadTalentPersonalSiteDashboardState(
   const profileCode = scope.talentProfile.profileCode;
 
   const admin = deps.admin();
+  // TUL-180 / TUL-245 (#2824): workspace ownership is keyed on the effective
+  // user; service client only for a verified impersonation of that target.
+  const subjectUserId = readUserId(scope.session.user.id, ctx);
+  const workspaceClient = pickReadClient({
+    sessionUserId: scope.session.user.id,
+    userId: subjectUserId,
+    ctx,
+    rlsClient: scope.session.supabase,
+    adminClient: deps.admin,
+  });
   let site: TalentSiteDashboardState["site"] = null;
   /** Published personal website (custom domain / vanity host / path), if any. */
   let personalSiteUrl: string | null = null;
   let templateKey: string | null = null;
   let compositionMode: TalentSiteDashboardState["compositionMode"] = null;
+  let workspaceSite: TalentSiteDashboardState["workspaceSite"] = null;
 
   // READ-ONLY (TUL-179): this runs in the talent layout on every page view, so
   // it must never create a site. Creation is an explicit click
   // (`ensureMaxSiteAction`).
 
   if (admin) {
-    const [{ data }, demoRes] = await Promise.all([
+    const [{ data }, demoRes, ownedWorkspace] = await Promise.all([
       admin
         .from("talent_sites")
         .select(
@@ -124,6 +151,9 @@ export async function loadTalentPersonalSiteDashboardState(
         .eq("talent_profile_id", scope.talentProfile.id)
         .maybeSingle(),
       admin.from("talent_profiles").select("is_demo").eq("id", scope.talentProfile.id).maybeSingle(),
+      workspaceClient
+        ? loadOwnedBusinessWorkspace(workspaceClient, subjectUserId)
+        : Promise.resolve(NO_OWNED_WORKSPACE),
     ]);
     const isDemo = (demoRes.data as { is_demo?: boolean } | null)?.is_demo === true;
 
@@ -170,6 +200,24 @@ export async function loadTalentPersonalSiteDashboardState(
         isDemo,
       });
     }
+
+    // TUL-180: business workspace site for dual-owner "My website" primary.
+    if (
+      ownedWorkspace.ownsBusinessWorkspace &&
+      ownedWorkspace.hasWorkspaceSite &&
+      ownedWorkspace.workspaceSlug &&
+      ownedWorkspace.tenantId
+    ) {
+      const publicUrl = await getTenantPreviewUrl(admin, ownedWorkspace.tenantId, {
+        requestHost: options?.requestHost,
+      });
+      workspaceSite = {
+        slug: ownedWorkspace.workspaceSlug,
+        publicUrl,
+        adminHref: workspaceSiteBuilderHref(ownedWorkspace.workspaceSlug),
+        tenantId: ownedWorkspace.tenantId,
+      };
+    }
   }
 
   const availableTemplates = listTemplatesForTier(membership.tier).map((t) => ({
@@ -179,23 +227,13 @@ export async function loadTalentPersonalSiteDashboardState(
     thumbnailUrl: t.thumbnailUrl,
   }));
 
-  // TUL-77 / TUL-347: when "My website" is the business workspace, surface that
-  // live URL on Hoy / presence (not the personal subdomain the owner may also have).
+  // TUL-77 / TUL-347 / TUL-180: when the effective owner has a business
+  // workspace site, surface that live URL on Hoy / presence. Reuse the
+  // workspaceSite already loaded via pickReadClient + subjectUserId — never a
+  // second actor-keyed probe (impersonation would resolve the staff actor).
   let publicSiteUrl: string | null = personalSiteUrl ?? (profileCode ? `/t/${profileCode}` : null);
-  if (admin && scope.session.user?.id) {
-    const owned = await loadOwnedBusinessWorkspace(admin, scope.session.user.id);
-    const target = resolveMyWebsiteTarget({
-      ownsBusinessWorkspace: owned.ownsBusinessWorkspace,
-      hasWorkspaceSite: owned.hasWorkspaceSite,
-      workspaceSlug: owned.workspaceSlug,
-      hasPersonalSite: Boolean(site),
-    });
-    if (target.kind === "workspace" && owned.tenantId) {
-      publicSiteUrl = await resolveWorkspaceSitePublicUrl(admin, {
-        tenantId: owned.tenantId,
-        slug: target.slug,
-      });
-    }
+  if (workspaceSite?.publicUrl) {
+    publicSiteUrl = workspaceSite.publicUrl;
   }
 
   const state: TalentSiteDashboardState = {
@@ -210,6 +248,9 @@ export async function loadTalentPersonalSiteDashboardState(
     profileCode,
     talentProfileId: scope.talentProfile.id,
     publicSiteUrl,
+    personalPublicSiteUrl: personalSiteUrl,
+    workspaceSite,
+    isDualSiteOwner: Boolean(workspaceSite && site),
     // `preview=1` forces the standard profile renderer when a published site exists.
     publicProfileUrl: profileCode ? `/t/${profileCode}?preview=1` : null,
     isPubliclyHidden: scope.talentProfile.isPubliclyHidden,

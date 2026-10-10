@@ -6,7 +6,14 @@ import { submitMarketingContactAction } from "@/lib/support/guest-actions";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 
-export function MarketingContactForm({ locale }: { locale: string }) {
+export function MarketingContactForm({
+  locale,
+  talentSite,
+}: {
+  locale: string;
+  /** TUL-310: seeded from `?source=talent-site&host=&code=` on the Help link. */
+  talentSite?: { source: string; host: string | null; code: string | null } | null;
+}) {
   const copy = getMarketingSupportCopy(locale);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -43,6 +50,9 @@ export function MarketingContactForm({ locale }: { locale: string }) {
             phone: phone || null,
             honeypot,
             locale: locale === "es" ? "es" : "en",
+            source: talentSite?.source ?? null,
+            host: talentSite?.host ?? null,
+            code: talentSite?.code ?? null,
           });
           setBusy(false);
           if (!result.ok) {

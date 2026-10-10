@@ -754,7 +754,9 @@ export function LightProfileLayout({
       ) : null}
 
       {/* ── 7. Footer (agency host only) ─────────────────────────────────── */}
-      {showFooter ? <LightProfileFooter locale={locale} whitelabel={whitelabel} /> : null}
+      {showFooter ? (
+        <LightProfileFooter locale={locale} whitelabel={whitelabel} profileCode={profileCode} />
+      ) : null}
 
       {/* Spacer so the fixed mobile bar never covers the footer content. */}
       <div className="h-20 lg:hidden" aria-hidden="true" />
