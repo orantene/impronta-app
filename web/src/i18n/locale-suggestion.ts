@@ -88,6 +88,11 @@ const NON_STOREFRONT_FIRST_SEGMENTS = new Set([
   "forgot-password",
   "auth",
   "onboarding",
+  // TUL-394 /start: signup flow already picks language via ?lang / Accept-Language
+  // (resolveDocumentLocale). Offering "¿Prefieres ver… en español?" on an
+  // already-Spanish /start covered the Continuar CTA.
+  "start",
+  "get-started",
   "update-password",
   "api",
   "_next",
