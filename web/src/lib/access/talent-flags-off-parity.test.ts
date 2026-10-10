@@ -347,7 +347,7 @@ test("flags on: tier labels read Free / Web Office and Pro is folded", () => {
     assert.equal(planDisplayName("talent_portfolio"), "Web Office");
 
     assert.match(siteCapabilityDeniedMessage("site_pages", "en"), /part of Web Office\./);
-    assert.match(siteCapabilityDeniedMessage("site_pages", "es"), /parte de Web Office\./);
+    assert.match(siteCapabilityDeniedMessage("site_pages", "es"), /parte de Oficina Web\./);
     assert.match(planDeniedMessage("custom_builder", "en"), /Upgrade to Web Office\b/);
   });
 });

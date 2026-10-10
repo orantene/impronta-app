@@ -3251,6 +3251,7 @@ const ES_TEXT: Record<string, string> = {
   "Profile performance": "Desempeño del perfil",
   "Last 7 days": "Últimos 7 días",
   "Your personal Tulala page": "Tu página personal de Tulala",
+  "Your personal page plan": "Tu plan de página personal",
   "Manage your templates, media embeds, press band, media kit and custom domain on Public page.": "Administra tus plantillas, embeds de medios, banda de prensa, kit de medios y dominio propio en Página pública.",
   "Open Public page": "Abrir Página pública",
   "It's published at": "Está publicada en",

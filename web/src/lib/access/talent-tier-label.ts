@@ -26,6 +26,8 @@ export type TalentTierLabelTier = "free" | "pro" | "max";
 
 /** The one paid tier's label once the free website is live. */
 export const TALENT_PAID_TIER_LABEL = "Web Office";
+/** Spanish product name for the paid tier (TUL-146 — matches dashboard-i18n). */
+export const TALENT_PAID_TIER_LABEL_ES = "Oficina Web";
 /** What the paid tier was called before the fold, and still is while dark. */
 export const TALENT_PAID_TIER_LABEL_LEGACY = "Portfolio";
 /** The folded middle tier's legacy label, still shown while dark. */
@@ -47,19 +49,24 @@ export function isTalentTierRenameEnabled(): boolean {
 }
 
 /**
- * The label a talent reads for a tier bucket. Tier labels are product names,
- * so they are identical in en and es (the es dashboard dictionary may still
- * translate the free tier as "Gratis" at its own call site).
+ * The label a talent reads for a tier bucket.
+ * When the rename is on, ES uses "Oficina Web" (TUL-146) so refusal copy and
+ * chips match the dashboard dictionary instead of leaking "Web Office".
  */
-export function talentTierLabel(tier: TalentTierLabelTier): string {
+export function talentTierLabel(
+  tier: TalentTierLabelTier,
+  locale?: string | null,
+): string {
   if (tier === "free") return TALENT_FREE_TIER_LABEL;
-  if (isTalentTierRenameEnabled()) return TALENT_PAID_TIER_LABEL;
+  if (isTalentTierRenameEnabled()) {
+    return locale === "es" ? TALENT_PAID_TIER_LABEL_ES : TALENT_PAID_TIER_LABEL;
+  }
   return tier === "pro" ? TALENT_PRO_TIER_LABEL_LEGACY : TALENT_PAID_TIER_LABEL_LEGACY;
 }
 
 /** The label of the tier a talent upgrades TO. */
-export function talentPaidTierLabel(): string {
-  return talentTierLabel("max");
+export function talentPaidTierLabel(locale?: string | null): string {
+  return talentTierLabel("max", locale);
 }
 
 /**
@@ -69,9 +76,14 @@ export function talentPaidTierLabel(): string {
  *   withTalentPaidTierLabel("Upgrade to {tier} to add pages.")
  *     switch on  -> "Upgrade to Web Office to add pages."
  *     switch off -> "Upgrade to Portfolio to add pages."
+ *   withTalentPaidTierLabel("...{tier}...", "es")
+ *     switch on  -> "...Oficina Web..."
  */
-export function withTalentPaidTierLabel(template: string): string {
-  return withTalentTierLabel(template, "max");
+export function withTalentPaidTierLabel(
+  template: string,
+  locale?: string | null,
+): string {
+  return withTalentTierLabel(template, "max", locale);
 }
 
 /**
@@ -81,9 +93,13 @@ export function withTalentPaidTierLabel(template: string): string {
  * (profile embeds, the press band, premium templates, the media kit). Those
  * sentences named "Pro" before the fold and must keep naming "Pro" while the
  * switch is off, or a dark build points a Free talent at the $15 plan for a
- * $9 feature. Once the switch is on both buckets resolve to "Web Office",
- * which is exactly the fold.
+ * $9 feature. Once the switch is on both buckets resolve to "Web Office"
+ * (EN) / "Oficina Web" (ES), which is exactly the fold.
  */
-export function withTalentTierLabel(template: string, tier: TalentTierLabelTier): string {
-  return template.split("{tier}").join(talentTierLabel(tier));
+export function withTalentTierLabel(
+  template: string,
+  tier: TalentTierLabelTier,
+  locale?: string | null,
+): string {
+  return template.split("{tier}").join(talentTierLabel(tier, locale));
 }
