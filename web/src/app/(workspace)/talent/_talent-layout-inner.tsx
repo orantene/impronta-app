@@ -30,7 +30,13 @@ import { findTenantMembership } from "@/lib/saas/tenant";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { loadWorkspaceUnreadCount } from "@/lib/saas/unread-counts";
-import { loadShellCounts, type ShellCounts } from "@/lib/shell/shell-counts";
+import {
+  loadShellCounts,
+  sanitizeShellCount,
+  sumTalentInquiryUnread,
+  type ShellCounts,
+} from "@/lib/shell/shell-counts";
+import { countTalentAwaitingInquiries } from "@/components/admin/shell/internal/shell-count-bubbles-logic";
 import { loadUserPrefs, type UserPrefs } from "@/lib/server-actions/user-prefs";
 import { TalentShellClient } from "@/components/admin/shell/admin-shell-client";
 import { SupportLauncherShellMount } from "@/components/support/SupportLauncherShellMount";
@@ -337,6 +343,17 @@ export async function TalentLayoutInner({
 
   const userNotifications = scopeTalentNotificationsToInbox(userNotificationsAll, visibleInquiryIds);
 
+  // TUL-387: Messages bubble = sum of bridge unread (cross-agency), matching
+  // TalentAgencyFilterChips "All". Attention = awaiting-you inquiry count
+  // (same predicate as Hoy / inbox chip) so shellCounts.attention is honest
+  // when the bubble prefers the bridge over the client recompute.
+  const shellCountsResolved: ShellCounts = {
+    messages: sanitizeShellCount(sumTalentInquiryUnread(talentInquiries)),
+    money: sanitizeShellCount(shellCounts.money),
+    attention: sanitizeShellCount(countTalentAwaitingInquiries(talentInquiries)),
+  };
+
+
   // Platform currency policy: unless a super-admin has turned multi-currency
   // display ON, collapse the talent's earnings to the single operating currency
   // (default USD) so the dashboard shows one clean figure, not EUR/USD tabs.
@@ -408,10 +425,10 @@ export async function TalentLayoutInner({
         pitches: null,
         teamMembers: null,
         // Compat: totalUnread mirrors shellCounts.messages for existing consumers.
-        totalUnread: shellCounts.messages,
+        totalUnread: shellCountsResolved.messages,
         // Identity bar / mobile nav read talentUnread on the talent surface.
-        talentUnread: shellCounts.messages,
-        shellCounts,
+        talentUnread: shellCountsResolved.messages,
+        shellCounts: shellCountsResolved,
         // Stamp the talent's exclusivity to the active agency onto the identity
         // payload. Whitelabel branding on the talent dashboard shows the agency
         // logo only when the talent is EXCLUSIVE to it (is_primary) AND the
