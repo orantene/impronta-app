@@ -24,6 +24,8 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { PlatformTopbar } from "./platform-topbar";
 import { PlatformWorkspaceSwitcher } from "./platform-workspace-switcher";
+import { WorkspaceSwitcher } from "@/components/dashboard/workspace-switcher";
+import { qaClientUserIdEnv, qaTalentUserIdEnv } from "@/lib/impersonation/validate";
 import { loadHqSupportOpenCount } from "@/lib/support/load-hq";
 import { isSupportDeskEnabled } from "@/lib/support/desk-flag";
 
@@ -251,6 +253,19 @@ export default async function PlatformAdminLayout({
                 the user belongs to. Without it the platform console is a
                 one-way door (the ↩ button only signs out). */}
             <PlatformWorkspaceSwitcher />
+
+            {/* TUL-255: QA impersonation entry (super_admin + env allow-list).
+                Hidden when neither QA persona id is configured. */}
+            {qaTalentUserIdEnv() || qaClientUserIdEnv() ? (
+              <WorkspaceSwitcher
+                label={t("dashboard.switchWorkspace")}
+                hint={t("dashboard.workspaceSwitcherHint")}
+                talentLabel={t("dashboard.workspaceTalentQa")}
+                clientLabel={t("dashboard.workspaceClientQa")}
+                hasTalent={Boolean(qaTalentUserIdEnv())}
+                hasClient={Boolean(qaClientUserIdEnv())}
+              />
+            ) : null}
 
             {/* Sign-out */}
             <form action={signOut}>

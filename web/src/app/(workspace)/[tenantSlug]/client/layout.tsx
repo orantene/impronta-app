@@ -28,6 +28,11 @@ import {
 import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
 import { effectiveReadContext, mayMergeGuestActivity } from "@/lib/impersonation/effective-read";
 import {
+  clientActingAsBannerCopy,
+  resolveClientActingAs,
+} from "@/lib/impersonation/acting-as";
+import { ImpersonationBanner } from "@/components/dashboard/impersonation-banner";
+import {
   DiscoveryStateBridge,
   PublicDiscoveryStateProvider,
 } from "@/components/directory/public-discovery-state";
@@ -121,10 +126,8 @@ export default async function ClientLayout({
   // the admin dashboard (workspace owners land here by accident often).
   // TUL-245: the portal loads the EFFECTIVE user's data. The context comes only
   // from the verified impersonation helper; a throw means "not acting".
-  const readCtx = effectiveReadContext(
-    session.user.id,
-    await resolveDashboardIdentity().catch(() => null),
-  );
+  const impersonationIdentity = await resolveDashboardIdentity().catch(() => null);
+  const readCtx = effectiveReadContext(session.user.id, impersonationIdentity);
   const clientProfile = await loadClientSelfProfile(readCtx.userId, scope.tenantId, readCtx);
   if (!clientProfile) {
     const tenantDisplayName = tenantSlug
@@ -231,10 +234,25 @@ export default async function ClientLayout({
 
   const userInitials = initials(clientProfile.displayName);
 
+  // TUL-255: real impersonation banner with Exit (mirrors talent shell).
+  const actingAs = resolveClientActingAs(impersonationIdentity);
+  const actingAsCopy = actingAs ? clientActingAsBannerCopy(locale, actingAs.name) : null;
+
   // Seed client dashboard copy with the SERVER-resolved locale (as the admin
   // layout does) so the first paint is not English on a Spanish cookie.
   return (
     <DashboardLocaleProvider locale={locale}>
+      {actingAs && actingAsCopy ? (
+        <ImpersonationBanner
+          effectiveName={actingAsCopy.effectiveName}
+          effectiveAvatarUrl={impersonationIdentity?.effectiveProfile?.avatar_url ?? null}
+          roleLabel={actingAsCopy.roleLabel}
+          readOnlyLine={actingAsCopy.readOnlyLine}
+          v1ReadOnlyQaLine={actingAsCopy.v1ReadOnlyQaLine}
+          returnCta={actingAsCopy.returnCta}
+          ariaLabel={actingAsCopy.ariaLabel}
+        />
+      ) : null}
       <style>{`
         .client-root {
           --admin-workspace-fg:  ${C.ink};
@@ -467,20 +485,6 @@ export default async function ClientLayout({
               minWidth: 0,
             }}
           >
-            {readCtx.impersonated ? (
-              <p
-                role="status"
-                style={{
-                  margin: "0 0 16px",
-                  padding: "10px 14px",
-                  borderRadius: 10,
-                  background: "rgba(0,0,0,0.04)",
-                  fontSize: 13,
-                }}
-              >
-                {t("dashboard.clientSettings.readOnlyViewingAs")}
-              </p>
-            ) : null}
             {children}
           </main>
         </div>

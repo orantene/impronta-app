@@ -293,6 +293,29 @@ test("super admin impersonating talent is redirected away from /admin", () => {
   );
 });
 
+test("super admin impersonating client: /admin → /client; /client stays", () => {
+  assert.equal(
+    resolveAuthRoutingDecision({
+      pathname: "/admin",
+      userId: "admin-1",
+      sessionProfile: activeAdmin,
+      routingProfile: activeClient,
+      isImpersonating: true,
+    }).redirectTo,
+    "/client",
+  );
+  assert.equal(
+    resolveAuthRoutingDecision({
+      pathname: "/client",
+      userId: "admin-1",
+      sessionProfile: activeAdmin,
+      routingProfile: activeClient,
+      isImpersonating: true,
+    }).redirectTo,
+    null,
+  );
+});
+
 test("anonymous users attempting a dashboard route are sent to login with next", () => {
   const decision = resolveAuthRoutingDecision({
     pathname: "/client",
