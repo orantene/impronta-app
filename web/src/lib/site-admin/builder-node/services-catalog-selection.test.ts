@@ -55,6 +55,20 @@ test("isPublicEligibleOffering rejects draft and agency_only", () => {
   assert.equal(isPublicEligibleOffering(offering({ visibility: "agency_only" })), false);
 });
 
+test("isPublicEligibleOffering rejects QA / E2E / Test harness leftovers (TUL-537)", () => {
+  assert.equal(isPublicEligibleOffering(offering({ title: "QA US E2E $100" })), false);
+  assert.equal(isPublicEligibleOffering(offering({ title: "Soft Gel QA17 2004" })), false);
+  assert.equal(
+    isPublicEligibleOffering(offering({ title: "Corte", titleI18n: { en: "QA cut" } })),
+    false,
+  );
+  assert.equal(isPublicEligibleOffering(offering({ title: "Manicure gel" })), true);
+  assert.equal(
+    isPublicEligibleOffering(offering({ title: "Prueba de peinado de novia" })),
+    true,
+  );
+});
+
 test("ineligibleSelectedOfferingIds lists stale ids", () => {
   const eligible = [offering({ id: "live" })];
   assert.deepEqual(ineligibleSelectedOfferingIds(["live", "gone"], eligible), ["gone"]);
