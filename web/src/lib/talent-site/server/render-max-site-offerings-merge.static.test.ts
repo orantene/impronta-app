@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 const SRC = readFileSync(
-  join(process.cwd(), "src/lib/talent-site/server/render-max-site.tsx"),
+  join(process.cwd(), "src/lib/talent-site/server/render-max-site-document.tsx"),
   "utf8",
 );
 

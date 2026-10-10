@@ -88,18 +88,27 @@ export async function buildTalentBuilderCanvasData(input: {
   const { talentProfileId } = input;
   const galleryOn = isTalentThemeGalleryEnabled();
 
+  // Edit canvas (?edit=1): always bypass the public Data Cache so a save is
+  // visible on the next paint (pages include draft blocks).
+  const bypassCache = true;
   const [site, pages, designSlug, siteTokens, platformDefault, localeCtx, planKey, isDemo] =
     await Promise.all([
       loadMaxSiteByProfileId(talentProfileId),
-      loadMaxSitePages(talentProfileId),
-      loadMaxSiteDesignSlug(talentProfileId),
+      loadMaxSitePages(talentProfileId, { bypassCache }),
+      loadMaxSiteDesignSlug(talentProfileId, { bypassCache }),
       loadMaxSiteThemeTokens(talentProfileId, { draft: true }),
       loadPlatformDefaultTheme("talent"),
       // The talent's languages; the canvas previews the primary, and a
       // translated node reads through its `node.i18n` overlay (dimmed when it
       // falls back, editor only).
-      loadTalentSiteLocaleContext({ talentProfileId, requestedLocale: null, hrefMode: "host-root", editorPreview: true }),
-      loadTalentPlanKey(talentProfileId),
+      loadTalentSiteLocaleContext({
+        talentProfileId,
+        requestedLocale: null,
+        hrefMode: "host-root",
+        editorPreview: true,
+        bypassCache,
+      }),
+      loadTalentPlanKey(talentProfileId, { bypassCache }),
       loadMaxSiteIsDemo(talentProfileId),
     ]);
   const siteLocale = localeCtx.locale;
@@ -149,18 +158,13 @@ export async function buildTalentBuilderCanvasData(input: {
     ctaMode,
     chain: localeCtx.chain,
   });
-  const nav = buildMaxSiteNav(
-    pages.map((p) => ({ ...p, status: "published" })),
-    siteLocale,
-    localeCtx.chain,
-  );
+  const nav = buildMaxSiteNav(pages.map((p) => ({ ...p, status: "published" })));
   const shell = site?.siteSlug
     ? hydrateShellNav(fixed.shellTree, nav, site.siteSlug, "", "host-root")
     : fixed.shellTree;
   const [headerTree, rawFooterTree] = splitShell(shell);
   // The socket carries the ONE Tulala credit, so the canvas hides any design-level one too.
   const footerTree = stripDesignCredits(rawFooterTree);
-  const canvasIdentity = await loadTalentSiteIdentity(talentProfileId);
   const socketModel = buildSocketModel({
     locale: siteLocale,
     publicPathPrefix: "",
@@ -170,11 +174,8 @@ export async function buildTalentBuilderCanvasData(input: {
     showCredit: talentSiteShowsPlatformBadge(planKey),
     whitelabel: input.tenantId ? await loadTenantWhitelabel(input.tenantId) : false,
     consentTooling: socketConsentToolingEnabled(),
-    talentName: canvasIdentity?.name ?? null,
+    talentName: (await loadTalentSiteIdentity(talentProfileId, { bypassCache }))?.name ?? null,
     headerHasLanguageSwitch: headerShowsLanguageSwitch(headerTree),
-    helpContext: canvasIdentity?.profileCode
-      ? { profileCode: canvasIdentity.profileCode, siteHost: null }
-      : null,
   });
 
   const dataSources = await dataSourcesP;

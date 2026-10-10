@@ -18,6 +18,7 @@ import { isTalentCurrency } from "@/lib/billing/currencies";
 import { loadUsdRates } from "@/lib/pricing/usd-rates";
 import type { UsdRates } from "@/lib/pricing/usd-equivalent";
 import { revalidatePath } from "next/cache";
+import { bustTalentSiteCache } from "@/lib/talent-site/cache-tags";
 import { authorizeForTalent, loadTalentDefaultPosture } from "@/lib/talent/offerings-auth.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -269,6 +270,9 @@ export async function upsertTalentOffering(
     }
 
     revalidatePath("/talent/services");
+    // Public Max-site offerings/seoFacts sit behind unstable_cache — bust so
+    // the storefront shows the save without waiting for the 120 s TTL.
+    bustTalentSiteCache(talentProfileId, null);
     return {
       ok: true,
       item: rowToOffering(saved, auth.primaryLocale, offering.imageUrls ?? [], [auth.primaryLocale]),
@@ -299,6 +303,7 @@ export async function deleteTalentOffering(
     return { ok: false, error: "Failed to delete." };
   }
   revalidatePath("/talent/services");
+  bustTalentSiteCache(talentProfileId, null);
   return { ok: true };
 }
 
@@ -392,6 +397,7 @@ export async function reorderTalentOfferings(
     }
   }
   revalidatePath("/talent/services");
+  bustTalentSiteCache(talentProfileId, null);
   return { ok: true };
 }
 
@@ -457,6 +463,7 @@ export async function setOfferingImages(
     }
   }
   revalidatePath("/talent/services");
+  bustTalentSiteCache(talentProfileId, null);
   return { ok: true };
 }
 
@@ -574,6 +581,7 @@ export async function setOfferingOptions(
     const saved = await replaceOfferingChildren(admin, offeringId, input, "talent.offerings", auth.primaryLocale);
     if (!saved.ok) return saved;
     revalidatePath("/talent/services");
+    bustTalentSiteCache(talentProfileId, null);
     return saved;
   } catch (err) {
     logServerError("talent.offerings.setOptions", err);

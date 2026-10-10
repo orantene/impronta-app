@@ -111,7 +111,7 @@ const SCANNED: { rel: string; note: string }[] = [
   // landmark + analytics. The route files forward result.node; the document
   // below is the source that must carry the tokens.
   {
-    rel: "lib/talent-site/server/render-max-site.tsx",
+    rel: "lib/talent-site/server/render-max-site-document.tsx",
     note: "talent-site document — owns landmark for all 3 talent-site routes",
   },
 ];
