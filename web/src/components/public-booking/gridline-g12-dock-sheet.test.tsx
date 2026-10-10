@@ -34,7 +34,7 @@ const html = (locale: string, liveStatus?: typeof ON | typeof OFF | null) =>
 
 // TUL-344: re-pinned on purpose (sticky bar hides at the top and reserves --cb-bar-h for every theme).
 test("existing designs: the base booking stylesheet is byte-pinned", () => {
-  assert.equal(createHash("sha256").update(CATALOG_BOOKING_CSS).digest("hex"), "80ae0da7ed57720ae24137f45ad83b9247adc8b3d4d674f621cf74f38f84feb3"); // re-pinned: TUL-528 --cb-bar-h island reserve on tip after #3125
+  assert.equal(createHash("sha256").update(CATALOG_BOOKING_CSS).digest("hex"), "0b2cc536ea7c138367dcde781e2a5e35b018259835c3cb5c0ab8e4513bd4b0e6"); // re-pinned: GRK-072 selected day/slot → --cb-selected
 });
 
 test("existing designs: dock markup is identical with no status, null or off", () => {

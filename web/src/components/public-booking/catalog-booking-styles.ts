@@ -5,7 +5,7 @@ export const CATALOG_BOOKING_CSS = `
    Continuar/Confirmar made white labels unreadable (BJ-01). Soft fills are a
    mix of the solid primary, not the blush token. Ink sheet accent stays ink
    when the operator picks it (data-sheet-accent); default is primary. */
-.jb-back,.cb-island{--cb-ink:var(--token-color-ink,var(--plt-ink,#242126));--cb-primary:var(--token-color-primary,var(--plt-accent,#A82458));--cb-muted:var(--token-color-muted,#66616B);--cb-line:var(--token-color-line,#ECE8EB);--cb-edge:var(--token-color-line,#DAD4D9);--cb-surface:var(--token-color-surface-raised,#fff);--cb-blush:color-mix(in srgb,var(--cb-primary) 14%,var(--cb-surface));--cb-soft:color-mix(in srgb,var(--cb-primary) 22%,var(--cb-surface))}
+.jb-back,.cb-island{--cb-ink:var(--token-color-ink,var(--plt-ink,#242126));--cb-primary:var(--token-color-primary,var(--plt-accent,#A82458));--cb-muted:var(--token-color-muted,#66616B);--cb-line:var(--token-color-line,#ECE8EB);--cb-edge:var(--token-color-line,#DAD4D9);--cb-surface:var(--token-color-surface-raised,#fff);--cb-blush:color-mix(in srgb,var(--cb-primary) 14%,var(--cb-surface));--cb-soft:color-mix(in srgb,var(--cb-primary) 22%,var(--cb-surface));--cb-selected:var(--token-color-primary,var(--plt-accent,#A82458));--cb-on-selected:var(--token-color-on-primary,#fff)}
 .cb-island[data-sheet-accent="ink"]{--cb-primary:var(--token-color-ink,var(--plt-ink,#242126));--cb-blush:color-mix(in srgb,var(--cb-primary) 8%,var(--cb-surface));--cb-soft:color-mix(in srgb,var(--cb-primary) 14%,var(--cb-surface))}
 .cb-island[data-sheet-accent="primary"]{--cb-primary:var(--token-color-primary,var(--plt-accent,#A82458));--cb-blush:color-mix(in srgb,var(--cb-primary) 14%,var(--cb-surface));--cb-soft:color-mix(in srgb,var(--cb-primary) 22%,var(--cb-surface))}
 .jb-back{position:fixed;inset:0;z-index:120;background:rgba(36,33,38,.42);backdrop-filter:blur(3px);display:flex;align-items:flex-end;justify-content:center;animation:jb-fade 200ms cubic-bezier(.22,1,.36,1)}
@@ -47,15 +47,17 @@ export const CATALOG_BOOKING_CSS = `
 .jb-recap{margin:0 0 18px;font-size:.9375rem;color:var(--cb-muted)}
 .jb-days{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px}
 .jb-day{flex:0 0 auto;width:64px;min-height:76px;border-radius:12px;cursor:pointer;background:var(--cb-surface);border:1px solid var(--cb-edge);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:inherit;color:var(--cb-ink)}
-/* TUL-498: ink fill + white text fails on dark looks (sofia ink ≈ surface). Use surface ink-on. */
-.jb-day[data-on="true"]{background:var(--cb-ink);border-color:var(--cb-ink);color:var(--cb-surface)}
+/* GRK-072 / TUL-498: ink↔surface swap fails when tokens collapse (sofia dark:
+   selected day/slot white-on-near-white). Brand primary stays distinct even when
+   sheet-accent remaps --cb-primary to ink. */
+.jb-day[data-on="true"]{background:var(--cb-selected);border-color:var(--cb-selected);color:var(--cb-on-selected)}
 .jb-day:disabled{opacity:.32;cursor:not-allowed}
 .jb-day span{font-size:.625rem;text-transform:uppercase;letter-spacing:.08em;opacity:.7}
 .jb-day b{font-size:1.125rem}
 .jb-day small{font-size:.625rem;opacity:.7}
 .jb-times{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:8px;margin-top:16px}
 .jb-time{min-height:48px;border-radius:10px;background:var(--cb-surface);border:1px solid var(--cb-edge);cursor:pointer;font-family:inherit;font-size:.9375rem;color:var(--cb-ink)}
-.jb-time[data-on="true"]{background:var(--cb-ink);border-color:var(--cb-ink);color:var(--cb-surface)}
+.jb-time[data-on="true"]{background:var(--cb-selected);border-color:var(--cb-selected);color:var(--cb-on-selected)}
 .jb-empty{margin-top:18px;border:1px dashed var(--cb-edge);border-radius:14px;padding:22px;text-align:center}
 .jb-empty strong{display:block;margin-bottom:6px;font-size:.9375rem}
 .jb-empty p{margin:0;font-size:.875rem;color:var(--cb-muted);line-height:1.55}
