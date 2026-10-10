@@ -100,3 +100,10 @@ test("ES About Languages line localises even when swaps only carry the current l
   ] as unknown as BuilderNode[];
   assert.equal(localiseSeededDesignLabels(custom, "es", null, swaps), custom);
 });
+
+test("TUL-516: Based in Mexico City localises on Spanish pages", async () => {
+  const { localiseSeededDesignLabel } = await import("./design-label-locale");
+  assert.equal(localiseSeededDesignLabel("Based in Mexico City", "es"), "Con base en Ciudad de México");
+  assert.equal(localiseSeededDesignLabel("BASED IN MEXICO CITY", "es"), "CON BASE EN CIUDAD DE MÉXICO");
+  assert.equal(localiseSeededDesignLabel("Based in Mexico City", "en"), "Based in Mexico City");
+});
