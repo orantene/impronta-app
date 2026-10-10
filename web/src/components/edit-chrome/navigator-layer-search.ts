@@ -88,6 +88,38 @@ function aliasesForTypeKey(typeKey: string | null | undefined): string[] {
   return [];
 }
 
+/**
+ * Freeform gallery/services templates often carry English `layerLabel`s
+ * ("Gallery Grid") without a sectionTypeKey. Infer the same EN/ES aliases from
+ * the visible label so "galeria" / "servicios" still hit.
+ */
+function aliasesInferredFromLabel(label: string | null | undefined): string[] {
+  const folded = foldSearchText(label ?? "");
+  if (!folded) return [];
+  const out: string[] = [];
+  if (
+    folded.includes("gallery") ||
+    folded.includes("galeria") ||
+    folded.includes("fotos")
+  ) {
+    out.push(...(LAYER_TYPE_ALIASES.gallery ?? []));
+  }
+  if (folded.includes("service") || folded.includes("servicio")) {
+    out.push(...(LAYER_TYPE_ALIASES.services ?? []));
+  }
+  if (folded.includes("faq") || folded.includes("pregunta")) {
+    out.push(...(LAYER_TYPE_ALIASES.faq_accordion ?? []));
+  }
+  if (
+    folded.includes("testimonial") ||
+    folded.includes("testimonio") ||
+    folded.includes("resena")
+  ) {
+    out.push(...(LAYER_TYPE_ALIASES.testimonials_trio ?? []));
+  }
+  return out;
+}
+
 /** Build a folded haystack for a layer / section search row. */
 export function layerSearchHaystack(parts: {
   label?: string | null;
@@ -108,6 +140,7 @@ export function layerSearchHaystack(parts: {
       typeKey.replace(/_/g, " "),
       typeKey.replace(/-/g, " "),
       ...aliasesForTypeKey(typeKey),
+      ...aliasesInferredFromLabel(parts.label),
       ...(parts.extra ?? []),
     ]
       .filter((v): v is string => typeof v === "string" && v.length > 0)

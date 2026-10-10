@@ -94,3 +94,18 @@ test("empty query keeps every freeform row", () => {
   ];
   assert.equal(filterFreeformRowsWithAncestors(rows, "  ").length, 1);
 });
+
+test("layer search matches galeria against English Gallery Grid layerLabel", () => {
+  assert.equal(
+    builderNodeRowMatchesSearch(
+      {
+        id: "gg",
+        label: "Gallery Grid",
+        kind: "container",
+        sectionTypeKey: null,
+      },
+      "galeria",
+    ),
+    true,
+  );
+});
