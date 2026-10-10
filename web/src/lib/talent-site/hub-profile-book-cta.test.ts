@@ -7,47 +7,29 @@ import { TALENT_BOOK_HREF, isTalentOpenHash } from "./contact-channels";
 import { resolveHubProfileCta, talentSiteBookHref } from "./hub-profile-book-cta";
 import { resolveMaxSiteLinkUrl } from "./max-site-link-url";
 
-test("platform host + site: primary Book deep-links to the dedicated #book anchor", () => {
+test("platform host + bookable services: primary Book is on-page #book", () => {
   assert.deepEqual(
-    resolveHubProfileCta({ platformHost: true, maxSiteUrl: "https://jorgelina.example.com" }),
-    { kind: "book", href: "https://jorgelina.example.com#book", external: true },
+    resolveHubProfileCta({ platformHost: true, hasBookableServices: true }),
+    { kind: "book", href: "#book", external: false },
   );
 });
 
-test("platform host + path-address site: relative href, not external", () => {
+test("non-bookable keeps Inquire even on the platform host", () => {
   assert.deepEqual(
-    resolveHubProfileCta({ platformHost: true, maxSiteUrl: "/t/site/jorgelina" }),
-    { kind: "book", href: "/t/site/jorgelina#book", external: false },
-  );
-});
-
-test("no site keeps Inquire", () => {
-  for (const maxSiteUrl of [null, undefined, "", "   "]) {
-    assert.deepEqual(resolveHubProfileCta({ platformHost: true, maxSiteUrl }), { kind: "inquire" });
-  }
-});
-
-test("agency host keeps Inquire even with a site", () => {
-  assert.deepEqual(
-    resolveHubProfileCta({ platformHost: false, maxSiteUrl: "https://x.example.com" }),
+    resolveHubProfileCta({ platformHost: true, hasBookableServices: false }),
     { kind: "inquire" },
   );
 });
 
-test("an existing hash is replaced, never stacked", () => {
-  assert.equal(talentSiteBookHref("https://x.example.com/#about"), "https://x.example.com/#book");
+test("agency host keeps Inquire even when bookable", () => {
+  assert.deepEqual(
+    resolveHubProfileCta({ platformHost: false, hasBookableServices: true }),
+    { kind: "inquire" },
+  );
 });
 
-test("intake switches: Book only when the ask entry has a working entry point", () => {
-  const site = "https://x.example.com";
-  for (const askEntry of ["chat", "form"] as const) {
-    assert.equal(resolveHubProfileCta({ platformHost: true, maxSiteUrl: site, askEntry }).kind, "book");
-  }
-  for (const askEntry of ["unavailable", "hidden", "closed_notice", "existing_client"] as const) {
-    assert.deepEqual(resolveHubProfileCta({ platformHost: true, maxSiteUrl: site, askEntry }), {
-      kind: "inquire",
-    });
-  }
+test("talentSiteBookHref replaces an existing hash, never stacks", () => {
+  assert.equal(talentSiteBookHref("https://x.example.com/#about"), "https://x.example.com/#book");
 });
 
 test("#book and #talent-ask both open the guest entry", () => {
@@ -69,9 +51,9 @@ test("site bridge opens on the INITIAL fragment, not only on hashchange", () => 
   assert.match(src, /<span id="book" data-talent-book-target=""/);
 });
 
-test("hub profile wires askEntry and no longer drops Book behind the slot picker", () => {
+test("hub profile wires hasBookableServices and no longer drops Book behind the slot picker", () => {
   const src = readFileSync(join(process.cwd(), "src/app/t/[profileCode]/profile-view.tsx"), "utf8");
-  assert.match(src, /<HubProfileCta [^>]*askEntry=\{talentAskEntry\}/);
+  assert.match(src, /<HubProfileCta [^>]*hasBookableServices=\{hubBookEntry\.kind === "sheet"\}/);
   assert.doesNotMatch(src, /const inquireButtons = \(btnClass: string\) =>\s*showSlotPicker \? null/);
 });
 

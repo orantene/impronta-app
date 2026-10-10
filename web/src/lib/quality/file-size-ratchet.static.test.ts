@@ -637,7 +637,7 @@ const BUDGETS: Record<string, number> = {
   // +37 — option labels keep their English key AND their unit; without this
   // the public profile discarded both (TS also needs unit on NewDefEmbed).
   // 2026-09-24 services-rebuild: +11 (2682). Measured wc -l.
-  "src/app/t/[profileCode]/profile-view.tsx": 2683,
+  "src/app/t/[profileCode]/profile-view.tsx": 2677,
   // 2026-08-16 T4 attachments off the Server Action body: +123. Files used to
   // ride the submit FormData, which put the whole inquiry behind the ~4 MB
   // body cap while the drawer advertised 10 x 20 MB. Added:
