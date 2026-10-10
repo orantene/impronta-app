@@ -21,7 +21,7 @@ export const CATALOG_BOOKING_CSS = `
 .jb-head h2{margin:5px 0 0;font-family:var(--token-font-display,var(--font-fraunces),Georgia,serif);font-weight:400;font-size:1.5rem;letter-spacing:-.02em;line-height:1.1}
 .jb-kicker{margin:0;font-size:.6875rem;letter-spacing:.14em;text-transform:uppercase;font-weight:600;color:var(--cb-primary)}
 .jb-x{appearance:none;border:0;background:color-mix(in srgb,var(--cb-ink) 6%,var(--cb-surface));width:40px;height:40px;border-radius:99px;font-size:1rem;cursor:pointer;color:var(--cb-ink);flex:0 0 auto}
-.jb-body{padding:18px 20px 22px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.jb-body{padding:18px 20px 22px;overflow-y:auto;-webkit-overflow-scrolling:touch;width:100%;min-width:0;box-sizing:border-box}
 .jb-summary{background:var(--cb-blush);border-radius:14px;padding:14px 16px;margin-bottom:20px}
 .jb-summary>div{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
 .jb-summary span{font-size:.8125rem;color:var(--cb-muted)}
@@ -45,7 +45,7 @@ export const CATALOG_BOOKING_CSS = `
 .jb-lines>div span:last-child{font-variant-numeric:tabular-nums;color:var(--cb-ink)}
 .jb-back-link{appearance:none;border:0;background:none;padding:0 0 16px;cursor:pointer;font-family:inherit;font-size:.875rem;color:var(--cb-primary);font-weight:600;min-height:40px}
 .jb-recap{margin:0 0 18px;font-size:.9375rem;color:var(--cb-muted)}
-.jb-days{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px}
+.jb-days{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;width:100%;min-width:0}
 .jb-day{flex:0 0 auto;width:64px;min-height:76px;border-radius:12px;cursor:pointer;background:var(--cb-surface);border:1px solid var(--cb-edge);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:inherit;color:var(--cb-ink)}
 /* TUL-498: ink fill + white text fails on dark looks (sofia ink ≈ surface). Use surface ink-on. */
 .jb-day[data-on="true"]{background:var(--cb-ink);border-color:var(--cb-ink);color:var(--cb-surface)}
@@ -53,8 +53,10 @@ export const CATALOG_BOOKING_CSS = `
 .jb-day span{font-size:.625rem;text-transform:uppercase;letter-spacing:.08em;opacity:.7}
 .jb-day b{font-size:1.125rem}
 .jb-day small{font-size:.625rem;opacity:.7}
-.jb-times{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:8px;margin-top:16px}
-.jb-time{min-height:48px;border-radius:10px;background:var(--cb-surface);border:1px solid var(--cb-edge);cursor:pointer;font-family:inherit;font-size:.9375rem;color:var(--cb-ink)}
+/* E2-karla-slot-width: auto-fill + indefinite containing block shrink-wraps the
+   grid to ~3×86px (~270). Pin width so the table fills the sheet body. */
+.jb-times{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:8px;margin-top:16px;width:100%;min-width:0;box-sizing:border-box}
+.jb-time{min-height:48px;width:100%;border-radius:10px;background:var(--cb-surface);border:1px solid var(--cb-edge);cursor:pointer;font-family:inherit;font-size:.9375rem;color:var(--cb-ink)}
 .jb-time[data-on="true"]{background:var(--cb-ink);border-color:var(--cb-ink);color:var(--cb-surface)}
 .jb-empty{margin-top:18px;border:1px dashed var(--cb-edge);border-radius:14px;padding:22px;text-align:center}
 .jb-empty strong{display:block;margin-bottom:6px;font-size:.9375rem}
@@ -91,7 +93,7 @@ export const CATALOG_BOOKING_CSS = `
 .jb-ask{appearance:none;border:0;background:none;padding:14px 0 0;cursor:pointer;font-family:inherit;font-size:.875rem;font-weight:700;color:var(--cb-ink);text-align:left;min-height:44px}
 /* AUD-005 — long CTA labels overflow a single footer row at 360. */
 @media (max-width:400px){.jb-foot{flex-direction:column;align-items:stretch;gap:10px}.jb-total{width:100%}.jb-cta{width:100%}}
-@media (min-width:720px){.jb-back{align-items:center}.jb-sheet{border-radius:20px;max-height:86vh}.jb-foot{border-radius:0 0 20px 20px}}
+@media (min-width:720px){.jb-back{align-items:center}.jb-sheet{border-radius:20px;max-height:86vh;width:min(560px,100%)}.jb-times{grid-template-columns:repeat(auto-fill,minmax(104px,1fr))}.jb-foot{border-radius:0 0 20px 20px}}
 .cb-bar{position:fixed;left:0;right:0;bottom:0;z-index:80;display:none;align-items:center;justify-content:space-between;gap:16px;padding:14px 18px calc(14px + env(safe-area-inset-bottom));background:var(--cb-surface);color:var(--cb-ink);border-top:1px solid var(--cb-line);box-shadow:0 -12px 32px -20px rgba(36,33,38,.4)}
 .cb-bar[data-show="true"]{display:flex}
 .cb-bar-text{min-width:0;display:grid;gap:2px}
