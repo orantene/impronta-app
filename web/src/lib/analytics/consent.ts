@@ -2,9 +2,18 @@
  * consent.ts — the single client-side source of truth for analytics consent.
  *
  * Stored in localStorage (`impronta_analytics_consent`: granted | denied) and
- * mirrored into a first-party cookie (`tulala_consent=analytics`, only while
- * granted) so the server, which cannot read localStorage, can tell whether it
- * may set optional cookies such as the experiment visitor id.
+ * mirrored into a first-party cookie so the server, which cannot read
+ * localStorage, can tell whether it may set optional cookies such as the
+ * experiment visitor id — and so a choice made on tulala.digital is visible
+ * on app.tulala.digital (and sibling *.tulala.digital hosts).
+ *
+ * Cookie values:
+ *   - `tulala_consent=analytics` while granted (server gating unchanged)
+ *   - `tulala_consent=denied` while denied (so decline also crosses hosts;
+ *     previously Max-Age=0 left nothing for the other host to read)
+ *
+ * Cookie domain: same parent scoping as auth (`cookieDomainForHost`) →
+ * `.tulala.digital` on production platform hosts; host-only elsewhere.
  *
  * Global Privacy Control: when the browser sends GPC and the visitor has made
  * no explicit choice, consent resolves to "denied" and the banner is not shown
@@ -15,9 +24,13 @@
  * break a page.
  */
 
+import { cookieDomainForHost } from "@/lib/supabase/cookie-domain";
+
 export const CONSENT_STORAGE_KEY = "impronta_analytics_consent";
 export const CONSENT_COOKIE = "tulala_consent";
 export const CONSENT_COOKIE_VALUE = "analytics";
+/** Cookie value when the visitor explicitly declined (shared across hosts). */
+export const CONSENT_COOKIE_DENIED = "denied";
 export const CONSENT_COOKIE_MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
 /** Fired on window after the choice changes. detail: { consent }. */
 export const CONSENT_CHANGE_EVENT = "tulala:consent-change";
@@ -61,17 +74,87 @@ export function cookieGrantsAnalytics(cookieValue: string | undefined | null): b
   return cookieValue === CONSENT_COOKIE_VALUE;
 }
 
+/** Pure: map a cookie value to a stored choice (or null if absent / junk). */
+export function consentFromCookieValue(cookieValue: string | undefined | null): StoredConsent | null {
+  if (cookieValue === CONSENT_COOKIE_VALUE) return "granted";
+  if (cookieValue === CONSENT_COOKIE_DENIED) return "denied";
+  return null;
+}
+
+/**
+ * Pure: `document.cookie` assignment strings for a consent choice on `hostname`.
+ * Production platform hosts get `Domain=.tulala.digital` so apex ↔ app share
+ * one cookie; localhost / custom domains stay host-only. When a parent domain
+ * is used, also emit a host-only Max-Age=0 clear so a legacy host-only cookie
+ * cannot shadow the shared one.
+ */
+export function buildConsentCookieAssignments(args: {
+  next: StoredConsent;
+  hostname: string | null | undefined;
+  secure: boolean;
+}): string[] {
+  const domain = cookieDomainForHost(args.hostname);
+  const secure = args.secure ? "; Secure" : "";
+  const value = args.next === "granted" ? CONSENT_COOKIE_VALUE : CONSENT_COOKIE_DENIED;
+  const domainAttr = domain ? `; Domain=${domain}` : "";
+  const out: string[] = [
+    `${CONSENT_COOKIE}=${value}; Path=/; Max-Age=${CONSENT_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax${domainAttr}${secure}`,
+  ];
+  if (domain) {
+    // Expire any pre-fix host-only shadow (same name, no Domain attribute).
+    out.push(`${CONSENT_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax${secure}`);
+  }
+  return out;
+}
+
 export function isGpcEnabled(): boolean {
   if (typeof navigator === "undefined") return false;
   return (navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl === true;
 }
 
-export function readStoredConsent(): StoredConsent | null {
+function readConsentCookieRaw(): string | null {
+  if (typeof document === "undefined") return null;
+  try {
+    const m = /(?:^|;\s*)tulala_consent=([^;]*)/.exec(document.cookie || "");
+    if (!m) return null;
+    let value = m[1] ?? "";
+    try {
+      value = decodeURIComponent(value);
+    } catch {
+      /* keep raw */
+    }
+    return value;
+  } catch {
+    return null;
+  }
+}
+
+function readLocalStorageConsent(): StoredConsent | null {
   try {
     const v = localStorage.getItem(CONSENT_STORAGE_KEY);
     if (v === "granted" || v === "denied") return v;
   } catch {
     /* ignore */
+  }
+  return null;
+}
+
+/**
+ * Explicit choice from localStorage, else from the shared parent-domain cookie
+ * (hydrating localStorage when the cookie is the only signal — the case when
+ * the visitor chose on the other host).
+ */
+export function readStoredConsent(): StoredConsent | null {
+  const local = readLocalStorageConsent();
+  if (local) return local;
+  const fromCookie = consentFromCookieValue(readConsentCookieRaw());
+  if (fromCookie) {
+    try {
+      localStorage.setItem(CONSENT_STORAGE_KEY, fromCookie);
+    } catch {
+      /* ignore */
+    }
+    return fromCookie;
   }
   return null;
 }
@@ -90,11 +173,16 @@ export function hasAnalyticsConsent(): boolean {
 function mirrorCookie(next: StoredConsent) {
   try {
     if (typeof document === "undefined") return;
-    const secure = typeof location !== "undefined" && location.protocol === "https:" ? "; Secure" : "";
-    if (next === "granted") {
-      document.cookie = `${CONSENT_COOKIE}=${CONSENT_COOKIE_VALUE}; Path=/; Max-Age=${CONSENT_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax${secure}`;
-    } else {
-      document.cookie = `${CONSENT_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax${secure}`;
+    const hostname =
+      typeof location !== "undefined" ? location.hostname : undefined;
+    const secure =
+      typeof location !== "undefined" && location.protocol === "https:";
+    for (const assignment of buildConsentCookieAssignments({
+      next,
+      hostname,
+      secure,
+    })) {
+      document.cookie = assignment;
     }
   } catch {
     /* ignore */
