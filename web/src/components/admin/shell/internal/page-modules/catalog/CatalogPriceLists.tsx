@@ -15,6 +15,7 @@ import { offeringPriceLabel } from "@/lib/talent/offerings-types";
 import { ActionButton } from "../appointments-classes-ui";
 import type { CatalogNav } from "./CatalogPage";
 import { CARD, ListHead, ListRow, PageHeading, SegmentLinks } from "./catalog-ui";
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 
 const COLS = "grid-cols-[1.5fr_200px_120px_1fr]";
 
@@ -55,7 +56,7 @@ export function CatalogPriceLists({ editor, nav }: { editor: OfferingsEditor; na
           <ListRow key={o.id} cols={COLS}>
             <span className="truncate font-semibold">{o.title || t("dashboard.catalog.untitled")}</span>
             <span className="text-admin-ink-muted">{t("dashboard.catalog.pricing.defaultList")}</span>
-            <span className="font-semibold tabular-nums">{offeringPriceLabel(o, locale)}</span>
+            <span className="font-semibold tabular-nums">{offeringPriceLabel(o, locale, formatDashboardMoneyCents)}</span>
             <span className="text-admin-ink-muted">{t("dashboard.catalog.pricing.always")}</span>
           </ListRow>
         ))}

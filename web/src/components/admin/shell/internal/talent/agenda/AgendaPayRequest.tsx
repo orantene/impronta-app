@@ -7,9 +7,9 @@ import {
   agendaPayRequestKey,
   newPaymentRequestAttemptId,
 } from "@/lib/payments/payment-request-attempt";
-import { formatOfferingPrice } from "@/lib/talent/offerings-types";
 import { PayQrPopover } from "./AgendaPayQr";
 import { useAgendaCopy } from "./use-agenda-copy";
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 
 /**
  * T8.1 / G3.4 Request payment as a panel (mockup mc_req_amount, mc_req_created,
@@ -68,7 +68,7 @@ export function AgendaPayRequest({
   const shareText = result?.url
     ? `${clientName ? `${clientName}, ` : ""}${copy.t("here is the link to pay")}: ${result.url}`
     : "";
-  const amountLabel = result?.cents ? formatOfferingPrice(result.cents, "MXN", copy.locale) : undefined;
+  const amountLabel = result?.cents ? formatDashboardMoneyCents(result.cents, "MXN", copy.locale) : undefined;
 
   return (
     <TaskShell
