@@ -78,6 +78,7 @@ import {
   collectPresentContainerQueryBreakpoints,
 } from "./renderer-css-scope";
 import { anchorIdAttrs } from "./anchor-id";
+import { humanImageAlt } from "./portfolio-i18n";
 import {
   groupMenuByCategory,
   shouldShowCategoryNav,
@@ -5484,9 +5485,11 @@ function renderBuilderNodeElement(
             )
           : null;
       const baseSrc = mediaAsset?.publicUrl ?? node.props.src ?? "";
-      const baseAlt = node.props.alt?.trim()
+      // GRK-101: skip asset-key alts (`f-hero`) so empty falls through cleanly.
+      const rawAlt = node.props.alt?.trim()
         ? node.props.alt
         : (mediaAsset?.alt ?? "");
+      const baseAlt = humanImageAlt(rawAlt) ?? "";
       const src = renderImageSrc(
         resolveNodeStringProp(node, "src", baseSrc, options.repeatItem),
       );
