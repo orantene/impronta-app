@@ -82,6 +82,8 @@ export const BUSINESS_TYPES: readonly BusinessType[] = [
   t("home-takeaway", "dining", "Home takeaway", "Comida para llevar", ["takeaway kitchen", "takeout", "comida para llevar"]),
   t("nail-salon", "beauty", "Nail salon", "Salón de uñas", ["manicure", "unas", "uñas", "salón de uñas"], "salon_barber"),
   t("hair-salon", "beauty", "Hair salon", "Peluquería", ["hairdresser", "peluqueria", "peluquería"], "salon_barber"),
+  // Generic beauty shop (ES "salón de belleza") — must beat beauty-academy on bare "belleza".
+  t("beauty-salon", "beauty", "Beauty salon", "Salón de belleza", ["salon de belleza", "beauty salon", "estetica", "estética", "belleza"], "salon_barber"),
   t("eyelash-studio", "beauty", "Eyelash studio", "Estudio de pestañas", ["lash studio", "eyelash extensions", "pestañas"]),
   t("makeup-artist", "beauty", "Makeup artist", "Maquillador", ["makeup", "maquillista"]),
   t("spa", "wellness", "Spa", "Spa", ["day spa", "spa de día", "spa de dia"], "spa_wellness"),

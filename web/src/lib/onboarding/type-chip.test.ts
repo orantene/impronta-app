@@ -65,4 +65,9 @@ test("business chip: whole phrase then words; restaurant family for a grill", ()
   assert.equal(proposeBusinessType("barbershop Barbería Norte").proposed?.family, "beauty");
   assert.equal(proposeBusinessType("spa Casa Selva Spa").proposed?.family, "wellness");
   assert.deepEqual(queryWords("the Argentine grill of Cancún"), ["argentine", "cancun", "grill"]);
+  // onb1-02: "salón de belleza" is a beauty salon, not a beauty academy.
+  assert.equal(proposeBusinessType("salón de belleza").proposed?.id, "beauty-salon");
+  assert.equal(proposeBusinessType("salon de belleza").proposed?.id, "beauty-salon");
+  assert.equal(proposeBusinessType("beauty salon").proposed?.id, "beauty-salon");
+  assert.equal(proposeBusinessType("belleza").proposed?.id, "beauty-salon");
 });

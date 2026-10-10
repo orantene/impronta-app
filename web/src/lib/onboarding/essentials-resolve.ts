@@ -7,6 +7,7 @@
 
 import {
   defaultTimezoneForCountry,
+  defaultTimezoneForPlace,
   defaultWeeklyHours,
   hoursHaveAnyOpenDay,
   servicesFromFacts,
@@ -17,8 +18,9 @@ import { isValidIanaTimeZone } from "@/lib/scheduling/tz";
 
 /**
  * TUL-77: the zone hours are written in. Confirmed zone first, then the city
- * (+ country) the person typed, then the country default. Null only when
- * nothing is known; hours are never written in a guessed UTC.
+ * (+ country) the person typed, then the country default. A soft country
+ * default (Mexico City) does not block a city that implies Cancún.
+ * Null only when nothing is known; hours are never written in a guessed UTC.
  */
 export function resolveEssentialsTimezone(input: {
   timezone: string | null | undefined;
@@ -26,11 +28,19 @@ export function resolveEssentialsTimezone(input: {
   country: string | null | undefined;
 }): string | null {
   const own = input.timezone?.trim();
-  if (own && isValidIanaTimeZone(own)) return own;
-  const place = [input.city, input.country].map((x) => x?.trim()).filter(Boolean).join(", ");
-  const fromPlace = place ? timezoneFromPlaceText(place) : null;
+  const fromPlace = defaultTimezoneForPlace(input.country, input.city);
+  const countryDefault = defaultTimezoneForCountry(input.country);
+  // Soft pack default: if the stored zone is only the country fallback and the
+  // city implies a different zone, prefer the city.
+  if (own && isValidIanaTimeZone(own)) {
+    if (countryDefault && own === countryDefault && fromPlace && fromPlace !== own) return fromPlace;
+    return own;
+  }
   if (fromPlace && isValidIanaTimeZone(fromPlace)) return fromPlace;
-  return defaultTimezoneForCountry(input.country);
+  const place = [input.city, input.country].map((x) => x?.trim()).filter(Boolean).join(", ");
+  const legacy = place ? timezoneFromPlaceText(place) : null;
+  if (legacy && isValidIanaTimeZone(legacy)) return legacy;
+  return countryDefault;
 }
 
 export function resolveEssentialsForBuild(input: {
@@ -43,7 +53,13 @@ export function resolveEssentialsForBuild(input: {
   city?: string | null;
   locale: "en" | "es";
 }): Essentials | null {
-  const ctx = { trade: input.tradeSlug, discipline: input.discipline, country: input.country, locale: input.locale };
+  const ctx = {
+    trade: input.tradeSlug,
+    discipline: input.discipline,
+    country: input.country,
+    city: input.city,
+    locale: input.locale,
+  };
   const e = input.essentials;
   const services = e?.services.length
     ? e.services

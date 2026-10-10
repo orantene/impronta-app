@@ -20,6 +20,21 @@ const DAY_INDEX: Record<string, number> = {
   sab: 5, sabado: 5, dom: 6, domingo: 6,
 };
 const DAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAY_SHORT_ES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+
+/** Canonical EN hours line → Spanish day shorts for the ES understood card. */
+export function localizeHoursCanonical(line: string, locale: "en" | "es"): string {
+  if (locale !== "es") return line;
+  let out = line;
+  if (/^By appointment$/i.test(out)) return "Con cita";
+  if (/^Every day\b/i.test(out)) out = out.replace(/^Every day/i, "Todos los días");
+  // Longer tokens first so "Mon" does not eat into "Monday" leftovers; canonical uses shorts.
+  const pairs = DAY_SHORT.map((en, i) => [en, DAY_SHORT_ES[i]!] as const).sort((a, b) => b[0].length - a[0].length);
+  for (const [en, es] of pairs) {
+    out = out.replace(new RegExp(`\\b${en}\\b`, "gi"), es);
+  }
+  return out;
+}
 
 function strip(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -154,6 +169,11 @@ export function normalizeExtractedFacts(facts: FactInput[]): FactInput[] {
     if (f.factKey === "business.hours") return { ...f, value: normalizeHoursValue(f.value) };
     if (f.factKey === "presence.whatsapp" || f.factKey === "presence.phone") return { ...f, value: normalizePhoneValue(f.value, countryHint) };
     if (f.factKey === "work.services" || f.factKey === "menu.categories") return { ...f, value: normalizeServiceList(f.value) };
+    // Names stay verbatim aside from trim — never paraphrase in post-process.
+    if (f.factKey === "business.name" && typeof f.value === "string") {
+      const trimmed = f.value.trim().replace(/\s+/g, " ");
+      return trimmed === f.value ? f : { ...f, value: trimmed };
+    }
     return f;
   });
 }

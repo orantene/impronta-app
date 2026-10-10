@@ -131,7 +131,7 @@ export function SetupStep({
             style={field}
           >
             <option value="">{c.timezoneHint}</option>
-            {TIMEZONE_OPTIONS.map((z) => <option key={z.id} value={z.id}>{z.label}</option>)}
+            {TIMEZONE_OPTIONS.map((z) => <option key={z.id} value={z.id}>{z.label[locale]}</option>)}
           </select>
           {show("timezone") ? <Notice tone="error">{c.errors.timezone}</Notice> : null}
         </section>

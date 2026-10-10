@@ -7,7 +7,6 @@ import {
   MAX_ESSENTIAL_SERVICES,
   defaultWeeklyHours,
   hoursHaveAnyOpenDay,
-  isMexico,
   type DayKey,
   type EssentialService,
   type Essentials,
@@ -24,21 +23,31 @@ export const DAY_LABELS: Record<"en" | "es", Record<DayKey, string>> = {
   es: { "1": "Lun", "2": "Mar", "3": "Mié", "4": "Jue", "5": "Vie", "6": "Sáb", "0": "Dom" },
 };
 
-/** Zones offered when the person is not in Mexico. The list is short on purpose; the rest is "Other". */
-export const TIMEZONE_OPTIONS: ReadonlyArray<{ id: string; label: string }> = [
-  { id: "America/New_York", label: "New York (ET)" },
-  { id: "America/Chicago", label: "Chicago (CT)" },
-  { id: "America/Denver", label: "Denver (MT)" },
-  { id: "America/Los_Angeles", label: "Los Angeles (PT)" },
-  { id: "America/Bogota", label: "Bogota" },
-  { id: "America/Argentina/Buenos_Aires", label: "Buenos Aires" },
-  { id: "Europe/Madrid", label: "Madrid" },
-  { id: "Europe/London", label: "London" },
+/** Zones offered on setup. MX first so Cancún/CDMX are choosable; labels bilingual. */
+export const TIMEZONE_OPTIONS: ReadonlyArray<{ id: string; label: { en: string; es: string } }> = [
+  { id: "America/Cancun", label: { en: "Cancún", es: "Cancún" } },
+  { id: "America/Mexico_City", label: { en: "Mexico City (CDMX)", es: "Ciudad de México (CDMX)" } },
+  { id: "America/Tijuana", label: { en: "Tijuana", es: "Tijuana" } },
+  { id: "America/Mazatlan", label: { en: "Mazatlán", es: "Mazatlán" } },
+  { id: "America/Hermosillo", label: { en: "Hermosillo", es: "Hermosillo" } },
+  { id: "America/Chihuahua", label: { en: "Chihuahua", es: "Chihuahua" } },
+  { id: "America/Ciudad_Juarez", label: { en: "Ciudad Juárez", es: "Ciudad Juárez" } },
+  { id: "America/New_York", label: { en: "New York (ET)", es: "Nueva York (ET)" } },
+  { id: "America/Chicago", label: { en: "Chicago (CT)", es: "Chicago (CT)" } },
+  { id: "America/Denver", label: { en: "Denver (MT)", es: "Denver (MT)" } },
+  { id: "America/Los_Angeles", label: { en: "Los Angeles (PT)", es: "Los Ángeles (PT)" } },
+  { id: "America/Bogota", label: { en: "Bogotá", es: "Bogotá" } },
+  { id: "America/Argentina/Buenos_Aires", label: { en: "Buenos Aires", es: "Buenos Aires" } },
+  { id: "Europe/Madrid", label: { en: "Madrid", es: "Madrid" } },
+  { id: "Europe/London", label: { en: "London", es: "Londres" } },
 ];
 
-/** Only outside Mexico: inside, the zone comes from the country and is never asked. */
-export function needsTimezoneQuestion(country: string | null | undefined): boolean {
-  return !isMexico(country);
+/**
+ * Always ask: Mexico has several zones (Cancún ≠ CDMX). Country/city still
+ * preselects; the picker lets the person correct it.
+ */
+export function needsTimezoneQuestion(_country: string | null | undefined): boolean {
+  return true;
 }
 
 /** "12:30" <-> minutes. */

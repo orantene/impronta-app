@@ -1,7 +1,14 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 
-import { normalizeExtractedFacts, normalizeHoursPhrase, normalizeHoursValue, normalizePhoneValue, normalizeServiceList } from "./normalize-facts";
+import {
+  localizeHoursCanonical,
+  normalizeExtractedFacts,
+  normalizeHoursPhrase,
+  normalizeHoursValue,
+  normalizePhoneValue,
+  normalizeServiceList,
+} from "./normalize-facts";
 
 describe("hours phrases", () => {
   const cases: Array<[string, string | null]> = [
@@ -27,6 +34,14 @@ describe("hours phrases", () => {
     assert.deepEqual(normalizeHoursValue(["de lunes a viernes", "cuando se pueda"]), ["Mon-Fri", "cuando se pueda"]);
     assert.equal(normalizeHoursValue(42), 42);
   });
+
+  test("onb1-01: ES flow shows Spanish day shorts for canonical hours", () => {
+    assert.equal(localizeHoursCanonical("Tue-Sun 13:00-23:00", "es"), "Mar-Dom 13:00-23:00");
+    assert.equal(localizeHoursCanonical("Mon-Sat", "es"), "Lun-Sáb");
+    assert.equal(localizeHoursCanonical("Every day 10:00-20:00", "es"), "Todos los días 10:00-20:00");
+    assert.equal(localizeHoursCanonical("By appointment", "es"), "Con cita");
+    assert.equal(localizeHoursCanonical("Tue-Sun 13:00-23:00", "en"), "Tue-Sun 13:00-23:00");
+  });
 });
 
 describe("phones and services", () => {
@@ -48,6 +63,6 @@ describe("phones and services", () => {
     ]);
     assert.equal(out[1].value, "+529981234567");
     assert.deepEqual(out[2].value, ["Tue-Sun 13:00-23:00"]);
-    assert.equal(out[3].value, "  Parrilla El Paisa "); // untouched keys stay untouched
+    assert.equal(out[3].value, "Parrilla El Paisa"); // onb1-06: trim only, never paraphrase
   });
 });

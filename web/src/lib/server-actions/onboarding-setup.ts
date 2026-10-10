@@ -15,11 +15,14 @@ import { resolveBriefOwner } from "@/lib/tulala/owner.server";
 import { choiceToPath, localePatch, parsePersistedModuleState } from "@/lib/onboarding/module-state";
 import { choiceToIntent } from "@/lib/onboarding/module-state";
 import {
+  isMexicoPlace,
   parseEssentials,
   servicesFromFacts,
   suggestedEssentials,
+  weeklyHoursFromCanonical,
   type Essentials,
 } from "@/lib/onboarding/essentials";
+import { resolveEssentialsTimezone } from "@/lib/onboarding/essentials-resolve";
 import type { OnboardingChoice } from "@/lib/onboarding/choice";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
@@ -49,13 +52,16 @@ export async function loadOnboardingSetup(): Promise<SetupLoadResult> {
   if ("error" in got && got.error) return { ok: false, code: got.error };
   const { brief, state } = got as Exclude<typeof got, { error: string }>;
   const choice = state.choice ?? (state.path === "business" ? "studio" : state.path === "both" ? "both" : "myself");
-  const country = stringFact(brief, "person.country");
+  const city = stringFact(brief, "person.city");
+  // Cancún (etc.) with a missing country still counts as Mexico for MXN / zones.
+  const country = stringFact(brief, "person.country") ?? (isMexicoPlace(city) ? "MX" : null);
   const locale = state.locale ?? "en";
   const name = stringFact(brief, "business.name") ?? stringFact(brief, "person.professional_name") ?? stringFact(brief, "person.name");
   const ctx = {
     trade: state.typeChoice?.slug ?? null,
     discipline: stringFact(brief, "work.discipline") ?? stringFact(brief, "work.industry"),
     country,
+    city,
     locale,
   } as const;
   const saved = state.essentials ?? null;
@@ -66,6 +72,13 @@ export async function loadOnboardingSetup(): Promise<SetupLoadResult> {
     const fromWords = servicesFromFacts(listFact(brief, "work.services"), ctx);
     // What the person said wins over a trade pack; the pack fills in when they said nothing.
     essentials = fromWords.length ? { ...base, services: fromWords, source: "ai" } : base;
+    const fromHours = weeklyHoursFromCanonical(listFact(brief, "business.hours"));
+    if (fromHours) essentials = { ...essentials, hours: fromHours };
+    essentials = {
+      ...essentials,
+      timezone: resolveEssentialsTimezone({ timezone: essentials.timezone, city, country }),
+      name: essentials.name ?? name,
+    };
     if (saved) essentials = { ...essentials, hours: saved.hours ?? essentials.hours, place: saved.place, timezone: saved.timezone ?? essentials.timezone };
   }
   return { ok: true, setup: { choice, country, essentials, saved: !!saved?.confirmed } };

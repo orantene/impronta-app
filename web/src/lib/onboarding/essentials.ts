@@ -12,6 +12,8 @@
  * through `parseEssentials`, `suggestedEssentials` and `essentialsReady`.
  */
 
+import { timezoneFromPlaceText } from "@/lib/scheduling/timezone-from-place";
+
 import type { OnboardingChoice } from "./choice";
 import { offeringOwnerFor } from "./offering-owner";
 import { isSoleOwnerProvider } from "./owner-hours";
@@ -83,21 +85,121 @@ export function hoursHaveAnyOpenDay(w: WeeklyEssentialHours | null): boolean {
   return !!w && (Object.values(w) as HourRange[][]).some((r) => r.length > 0);
 }
 
+const CANON_DAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+
+function dayKeyFromShortIndex(i: number): DayKey {
+  // Mon=0 → "1" … Sat=5 → "6"; Sun=6 → "0"
+  return (i === 6 ? "0" : String(i + 1)) as DayKey;
+}
+
+function expandCanonicalDayPart(part: string): DayKey[] {
+  const p = part.trim();
+  if (!p) return [];
+  if (/^every day$/i.test(p)) return ["0", "1", "2", "3", "4", "5", "6"];
+  const idx = (name: string) => CANON_DAY_SHORT.findIndex((d) => d.toLowerCase() === name.toLowerCase());
+  if (p.includes(",")) {
+    return p
+      .split(",")
+      .map((x) => idx(x.trim()))
+      .filter((i): i is number => i >= 0)
+      .map(dayKeyFromShortIndex);
+  }
+  const range = /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)-(Mon|Tue|Wed|Thu|Fri|Sat|Sun)$/i.exec(p);
+  if (range) {
+    const a = idx(range[1]!);
+    const b = idx(range[2]!);
+    if (a < 0 || b < 0) return [];
+    const out: DayKey[] = [];
+    if (a <= b) {
+      for (let i = a; i <= b; i++) out.push(dayKeyFromShortIndex(i));
+    } else {
+      for (let i = a; i <= 6; i++) out.push(dayKeyFromShortIndex(i));
+      for (let i = 0; i <= b; i++) out.push(dayKeyFromShortIndex(i));
+    }
+    return out;
+  }
+  const single = idx(p);
+  return single >= 0 ? [dayKeyFromShortIndex(single)] : [];
+}
+
+/**
+ * Canonical hours lines from `normalizeHoursPhrase` → weekly grid.
+ * "Tue-Sun 13:00-23:00", "Mon-Sat", "Every day 10:00-20:00". Null when nothing usable.
+ */
+export function weeklyHoursFromCanonical(lines: readonly string[]): WeeklyEssentialHours | null {
+  const w = emptyWeek();
+  let any = false;
+  for (const raw of lines) {
+    const s = raw.trim();
+    if (!s || /^by appointment$/i.test(s)) continue;
+    const timeM = /(\d{2}):(\d{2})-(\d{2}):(\d{2})$/.exec(s);
+    const startMin = timeM ? Number(timeM[1]) * 60 + Number(timeM[2]) : 9 * 60;
+    const endMin = timeM ? Number(timeM[3]) * 60 + Number(timeM[4]) : 19 * 60;
+    if (!(endMin > startMin)) continue;
+    const dayPart = timeM ? s.slice(0, timeM.index!).trim() : s;
+    const days = expandCanonicalDayPart(dayPart);
+    if (!days.length) continue;
+    for (const d of days) {
+      w[d] = [{ startMin, endMin }];
+      any = true;
+    }
+  }
+  return any ? w : null;
+}
+
 // ── country → currency / timezone ──────────────────────────────────────────
 
 const MX_NAMES = new Set(["mx", "mex", "mexico", "méxico", "méjico", "mejico"]);
+
+const MX_ZONES = new Set([
+  "America/Mexico_City",
+  "America/Cancun",
+  "America/Tijuana",
+  "America/Mazatlan",
+  "America/Hermosillo",
+  "America/Chihuahua",
+  "America/Ciudad_Juarez",
+]);
 
 export function isMexico(country: string | null | undefined): boolean {
   return !!country && MX_NAMES.has(country.trim().toLowerCase());
 }
 
-/** Mexico -> MXN; everything else USD until a screen asks. */
-export function currencyForCountry(country: string | null | undefined): string {
-  return isMexico(country) ? "MXN" : "USD";
+/** True when the city alone maps to a Mexican IANA zone (Cancún, CDMX, …). */
+export function isMexicoPlace(city: string | null | undefined): boolean {
+  const raw = city?.trim();
+  if (!raw) return false;
+  // Do not append ", Mexico" — that would classify any city as Mexican.
+  const tz = timezoneFromPlaceText(raw);
+  return !!tz && MX_ZONES.has(tz);
+}
+
+export function isMexicoContext(country: string | null | undefined, city?: string | null | undefined): boolean {
+  return isMexico(country) || isMexicoPlace(city);
+}
+
+/** Mexico (or a Mexican city) -> MXN; everything else USD until a screen asks. */
+export function currencyForCountry(country: string | null | undefined, city?: string | null | undefined): string {
+  return isMexicoContext(country, city) ? "MXN" : "USD";
 }
 
 export function defaultTimezoneForCountry(country: string | null | undefined): string | null {
   return isMexico(country) ? "America/Mexico_City" : null;
+}
+
+/** City wins over the country fallback so Cancún is not stuck on Mexico City. */
+export function defaultTimezoneForPlace(
+  country: string | null | undefined,
+  city?: string | null | undefined,
+): string | null {
+  const place = [city, country].map((x) => x?.trim()).filter(Boolean).join(", ");
+  const fromPlace = place ? timezoneFromPlaceText(place) : null;
+  if (fromPlace) return fromPlace;
+  if (city?.trim()) {
+    const cityOnly = timezoneFromPlaceText(city.trim());
+    if (cityOnly) return cityOnly;
+  }
+  return defaultTimezoneForCountry(country);
 }
 
 // ── per-trade default packs (beauty first) ─────────────────────────────────
@@ -141,7 +243,7 @@ const TRADE_PATTERNS: Array<[string, RegExp]> = [
   ["nails", /nail|u[ñn]a|manicur|pedicur/i],
   ["brows", /brow|ceja/i],
   ["makeup", /make-?up|maquill|\bmua\b/i],
-  ["hair", /hair|cabello|peluq|barber|stylist|estilista|colorist/i],
+  ["hair", /hair|cabello|peluq|barber|stylist|estilista|colorist|belleza|est[eé]tica|beauty\s*salon|sal[oó]n de belleza/i],
 ];
 
 /** Pack key for a trade slug or free-text discipline; null when no pack exists. */
@@ -153,13 +255,20 @@ export function packKeyForTrade(...candidates: Array<string | null | undefined>)
   return null;
 }
 
-export type PackContext = { trade?: string | null; discipline?: string | null; country?: string | null; locale: "en" | "es" };
+export type PackContext = {
+  trade?: string | null;
+  discipline?: string | null;
+  country?: string | null;
+  /** City from the brief; used when country is missing (Cancún → MXN / America/Cancun). */
+  city?: string | null;
+  locale: "en" | "es";
+};
 
 /** Suggested services for a trade, with MX defaults (MXN) in Mexico; other countries get durations and "quote". */
 export function suggestedServices(ctx: PackContext): EssentialService[] {
   const key = packKeyForTrade(ctx.trade, ctx.discipline);
   if (!key) return [];
-  const currency = currencyForCountry(ctx.country);
+  const currency = currencyForCountry(ctx.country, ctx.city);
   const mx = currency === "MXN";
   return BEAUTY_PACKS[key].services.map((s) => ({
     name: ctx.locale === "es" ? s.es : s.en,
@@ -171,14 +280,14 @@ export function suggestedServices(ctx: PackContext): EssentialService[] {
   }));
 }
 
-/** What the essentials screen opens with: pack services, Mon-Sat 9-19, country currency/timezone. */
+/** What the essentials screen opens with: pack services, Mon-Sat 9-19, country/city currency/timezone. */
 export function suggestedEssentials(ctx: PackContext & { name?: string | null }): Essentials {
   const services = suggestedServices(ctx);
   return {
     name: ctx.name?.trim() || null,
     services,
     hours: defaultWeeklyHours(),
-    timezone: defaultTimezoneForCountry(ctx.country),
+    timezone: defaultTimezoneForPlace(ctx.country, ctx.city),
     place: null,
     firstProviderEmail: null,
     firstProviderName: null,
@@ -190,7 +299,7 @@ export function suggestedEssentials(ctx: PackContext & { name?: string | null })
 
 /** AI-read service names -> essentials services, matching the pack for durations/prices (names are kept as said). */
 export function servicesFromFacts(names: string[], ctx: PackContext): EssentialService[] {
-  const currency = currencyForCountry(ctx.country);
+  const currency = currencyForCountry(ctx.country, ctx.city);
   const pack = (() => { const k = packKeyForTrade(ctx.trade, ctx.discipline); return k ? BEAUTY_PACKS[k] : null; })();
   const seen = new Set<string>();
   const out: EssentialService[] = [];

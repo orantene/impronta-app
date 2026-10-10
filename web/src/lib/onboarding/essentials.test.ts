@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   currencyForCountry,
+  defaultTimezoneForPlace,
   defaultWeeklyHours,
   essentialsReady,
   packKeyForTrade,
@@ -12,13 +13,14 @@ import {
   servicesFromFacts,
   suggestedEssentials,
   suggestedServices,
+  weeklyHoursFromCanonical,
   type Essentials,
   type EssentialsStore,
   type ExistingOffering,
   type OfferingOwnerRef,
   type OfferingRowDraft,
 } from "./essentials";
-import { resolveEssentialsForBuild } from "./essentials-resolve";
+import { resolveEssentialsForBuild, resolveEssentialsTimezone } from "./essentials-resolve";
 import { parsePersistedModuleState } from "./module-state";
 
 type Db = {
@@ -61,13 +63,38 @@ const workspace = { tenantId: "ws1", tenantSlug: "studio" };
 test("beauty pack: Mexico gets MXN prices, others get quotes; trade detection covers the five trades", () => {
   assert.equal(currencyForCountry("México"), "MXN");
   assert.equal(currencyForCountry("Spain"), "USD");
+  // onb1-03: Cancún city with no country still MXN
+  assert.equal(currencyForCountry(null, "Cancún"), "MXN");
+  assert.equal(currencyForCountry(null, "Cancun"), "MXN");
+  assert.equal(currencyForCountry(null, "Madrid"), "USD");
   for (const t of ["lashes", "nails", "brows", "hair", "makeup"]) assert.ok(suggestedServices({ trade: t, country: "MX", locale: "en" }).length > 0, t);
   const mx = suggestedServices({ trade: "lash artist", country: "Mexico", locale: "es" });
   assert.ok(mx.every((s) => s.currency === "MXN" && s.priceCents && s.durationMin && !s.quote));
   assert.equal(mx[0].name, "Pestañas clásicas");
   assert.ok(suggestedServices({ trade: "nails", country: "Spain", locale: "en" }).every((s) => s.quote && s.priceCents === null));
   assert.equal(packKeyForTrade("pestañas", null), "lashes");
+  assert.equal(packKeyForTrade("salón de belleza", null), "hair");
+  assert.equal(packKeyForTrade("belleza"), "hair");
   assert.equal(packKeyForTrade("dentist"), null);
+  // onb1-04: Cancún city → America/Cancun; soft Mexico_City does not win over city
+  assert.equal(defaultTimezoneForPlace("MX", "Cancún"), "America/Cancun");
+  assert.equal(resolveEssentialsTimezone({ timezone: "America/Mexico_City", city: "Cancún", country: "MX" }), "America/Cancun");
+  assert.equal(suggestedEssentials({ trade: "hair", country: null, city: "Cancún", locale: "es" }).timezone, "America/Cancun");
+  assert.ok(suggestedEssentials({ trade: "hair", country: null, city: "Cancún", locale: "es" }).services.every((s) => s.currency === "MXN"));
+});
+
+test("onb1-05: canonical hours lines become the weekly grid", () => {
+  const tueSun = weeklyHoursFromCanonical(["Tue-Sun 13:00-23:00"]);
+  assert.ok(tueSun);
+  assert.deepEqual(tueSun!["2"], [{ startMin: 13 * 60, endMin: 23 * 60 }]);
+  assert.deepEqual(tueSun!["0"], [{ startMin: 13 * 60, endMin: 23 * 60 }]);
+  assert.deepEqual(tueSun!["1"], []);
+  const monSat = weeklyHoursFromCanonical(["Mon-Sat"]);
+  assert.equal(monSat!["1"][0]?.startMin, 9 * 60);
+  assert.equal(monSat!["1"][0]?.endMin, 19 * 60);
+  assert.equal(monSat!["0"].length, 0);
+  assert.equal(weeklyHoursFromCanonical(["By appointment"]), null);
+  assert.equal(weeklyHoursFromCanonical(["cuando se pueda"]), null);
 });
 
 test("myself: services published+bookable, hours written, owner bookable, retry changes nothing", async () => {

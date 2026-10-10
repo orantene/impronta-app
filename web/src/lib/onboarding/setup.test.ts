@@ -2,15 +2,18 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { suggestedEssentials, essentialsReady, parseEssentials } from "./essentials";
 import {
-  DAY_ORDER, cleanServices, copyDayToAll, finalizeSetup, minToTime, needsTimezoneQuestion,
+  DAY_ORDER, TIMEZONE_OPTIONS, cleanServices, copyDayToAll, finalizeSetup, minToTime, needsTimezoneQuestion,
   parsePriceToCents, setupIssues, timeToMin, toggleDay,
 } from "./setup";
 
-test("timezone is asked only outside Mexico", () => {
-  assert.equal(needsTimezoneQuestion("Mexico"), false);
-  assert.equal(needsTimezoneQuestion("MX"), false);
+test("timezone is always asked; MX zones include Cancún", () => {
+  assert.equal(needsTimezoneQuestion("Mexico"), true);
+  assert.equal(needsTimezoneQuestion("MX"), true);
   assert.equal(needsTimezoneQuestion("United States"), true);
   assert.equal(needsTimezoneQuestion(null), true);
+  assert.ok(TIMEZONE_OPTIONS.some((z) => z.id === "America/Cancun"));
+  assert.ok(TIMEZONE_OPTIONS.some((z) => z.id === "America/Mexico_City"));
+  assert.equal(TIMEZONE_OPTIONS.find((z) => z.id === "America/Cancun")?.label.es, "Cancún");
 });
 
 test("prices and times round-trip", () => {
@@ -48,7 +51,7 @@ test("manual path: finalize confirms, cleans, and makes the build run with no de
 });
 
 test("issues: services, place, timezone abroad, bad provider email; empty email is Add later", () => {
-  const empty = suggestedEssentials({ country: "United States", locale: "en" });
+  const empty = { ...suggestedEssentials({ country: "United States", locale: "en" }), timezone: null };
   const issues = setupIssues({ choice: "studio", essentials: empty, country: "United States", providerEmailDraft: "nope" });
   assert.deepEqual(issues.sort(), ["place", "providerEmail", "services", "timezone"]);
   const ok = { ...empty, services: [{ name: "Cut", durationMin: 30, priceCents: 4000, quote: false, currency: "USD" }], place: { mode: "client" as const, area: null }, timezone: "America/Chicago" };
