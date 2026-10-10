@@ -172,6 +172,32 @@ test("commitBuilderNodeText: secondary-locale edit on a localizable prop writes 
   assert.equal("text" in patches[0].patch, false);
 });
 
+test("commitBuilderNodeText: TUL-52 P4 default-locale edit writes the i18n[default] entry that shadows the base", async () => {
+  // Seeded themes carry `i18n.es` + `i18n.en` over an English base; on an
+  // ES-default site the canvas renders i18n.es, so the edit must land there.
+  const tree: BuilderNodeTree = [
+    {
+      id: "h1",
+      kind: "heading",
+      props: { text: "The detail is my craft.", level: 2 },
+      i18n: { es: { text: "El detalle es mi oficio." }, en: { text: "The detail is my craft." } },
+    },
+  ];
+  const { deps, patches } = nodeDeps({ tree, defaultLocale: "es" });
+  const applied = await runCommitBuilderNodeText(
+    deps,
+    { ...TARGET, locale: "es" },
+    "El detalle es mi oficio.",
+    "El detalle es todo.",
+  );
+  assert.equal(applied, true);
+  assert.equal(patches.length, 1);
+  const i18n = patches[0].patch.i18n as Record<string, Record<string, unknown>>;
+  assert.equal(i18n.es.text, "El detalle es todo.");
+  assert.equal(i18n.en.text, "The detail is my craft.");
+  assert.equal("text" in patches[0].patch, false);
+});
+
 test("commitBuilderNodeText: section_embed config edit patches config[key] with a plain string", async () => {
   const tree: BuilderNodeTree = [
     {

@@ -255,6 +255,7 @@ export function InspectorDock() {
     setInspectorDockOpen,
     setInspectorActiveTab,
     inspectorTabRequest,
+    previewing,
   } = useEditContext();
   // WAVE 4.6 — the dock header prints builder-REGISTRY node-kind labels
   // ("Container", "CTA group"…) and composes them into "<kind> block" /
@@ -965,9 +966,9 @@ export function InspectorDock() {
       )
     : [];
 
-  // Visibility is operator-controlled (persisted). Content still reflects the
-  // current canvas selection — closing the dock no longer clears selection.
-  const dockOpen = inspectorDockOpen;
+  // Visibility is operator-controlled (persisted); preview clears the selection, so the
+  // dock hides there instead of painting an empty card. Closing it keeps the selection.
+  const dockOpen = inspectorDockOpen && !previewing;
 
   // T2-1 — Use the skeleton hint (name + type known from slots) when the
   // field-draft fetch hasn't resolved yet. Falls back to "Inspector" only
