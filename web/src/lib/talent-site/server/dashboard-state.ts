@@ -30,6 +30,7 @@ import { getTenantPreviewUrl } from "@/lib/site-admin/server/tenant-hosts";
 const NO_OWNED_WORKSPACE: OwnedBusinessWorkspace = {
   ownsBusinessWorkspace: false,
   hasWorkspaceSite: false,
+  hasPublishedWorkspaceSite: false,
   workspaceSlug: null,
   tenantId: null,
 };
@@ -216,6 +217,7 @@ export async function loadTalentPersonalSiteDashboardState(
         publicUrl,
         adminHref: workspaceSiteBuilderHref(ownedWorkspace.workspaceSlug),
         tenantId: ownedWorkspace.tenantId,
+        isPublished: ownedWorkspace.hasPublishedWorkspaceSite,
       };
     }
   }
