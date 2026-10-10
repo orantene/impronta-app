@@ -62,5 +62,14 @@ export default async function ClientRootPage({
     }
   }
 
+  // TUL-64: an already-active client must never re-enter /onboarding/role
+  // (on the app host that door becomes /start). Send them to discovery.
+  if (
+    session.profile?.app_role === "client" &&
+    session.profile?.account_status === "active"
+  ) {
+    redirect(`https://${TULALA_APEX_HOST}`);
+  }
+
   redirect(`/onboarding/role${querySuffix}`);
 }
