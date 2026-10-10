@@ -26,9 +26,12 @@ export function titlesOf(row) {
   return out;
 }
 
+/** Visibilities that public loaders still surface (see offerings-public.ts). */
+const PUBLIC_VIS = new Set(["public", "on_request"]);
+
 /** A row is a public leftover when it is test data AND listed to the public. */
 export function isPublicTestService(row) {
-  if (row?.status !== "published" || row?.visibility !== "public") return false;
+  if (row?.status !== "published" || !PUBLIC_VIS.has(row?.visibility)) return false;
   return titlesOf(row).some(isTestServiceTitle);
 }
 

@@ -12,7 +12,7 @@
 -- Mapping:
 --   alba[-demo]         → alba-nail-artist
 --   linh[-demo]         → linh-tran
---   sofia-nails[-demo]  → sofia-rinaldi  (Sofía name; no nails slug exists)
+--   sofia-nails[-demo]  → camila-nails   (nails demo; no sofia-nails slug)
 --
 -- After lookup, `talentDemoBareHostRedirectHost` 308s non-canonical labels to
 -- `{site_slug}-demo.<apex>` (already on main via TUL-491).
@@ -81,7 +81,7 @@ as $function$
         when label.v in ('gridline', 'gridline-demo') then 'alex-trevino'
         when label.v in ('alba', 'alba-demo') then 'alba-nail-artist'
         when label.v in ('linh', 'linh-demo') then 'linh-tran'
-        when label.v in ('sofia-nails', 'sofia-nails-demo') then 'sofia-rinaldi'
+        when label.v in ('sofia-nails', 'sofia-nails-demo') then 'camila-nails'
         else null
       end as featured_slug
     from label

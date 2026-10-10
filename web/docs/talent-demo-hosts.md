@@ -45,9 +45,9 @@ QA sometimes hits a first-name or checklist label that is not the `site_slug`. T
 |---|---|
 | `alba-demo.tulala.digital` (also bare `alba`) | `alba-nail-artist` |
 | `linh-demo.tulala.digital` (also bare `linh`) | `linh-tran` |
-| `sofia-nails-demo.tulala.digital` (also bare `sofia-nails`) | `sofia-rinaldi` |
+| `sofia-nails-demo.tulala.digital` (also bare `sofia-nails`) | `camila-nails` |
 
-`sofia-nails` has no seed slug; it maps to Sofía Rinaldi by name (makeup, not nails). Prefer canonical hosts in new checklists.
+`sofia-nails` has no seed slug; it maps to Camila Rivas (nails). Prefer canonical hosts in new checklists.
 
 ## Going forward
 

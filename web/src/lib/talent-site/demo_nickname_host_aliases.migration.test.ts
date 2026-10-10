@@ -23,7 +23,7 @@ test("QA nickname aliases map short labels to featured demo slugs", () => {
   assert.match(MIGRATION, /linh-demo/);
   assert.match(MIGRATION, /linh-tran/);
   assert.match(MIGRATION, /sofia-nails-demo/);
-  assert.match(MIGRATION, /sofia-rinaldi/);
+  assert.match(MIGRATION, /camila-nails/);
   assert.match(MIGRATION, /design_alias as \(/i);
 });
 
