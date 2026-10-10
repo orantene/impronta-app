@@ -23,7 +23,7 @@ function site(over: Partial<SiteCandidate> = {}): SiteCandidate {
     hasLivePages: false,
     hasTalentEdits: false,
     hasHomePage: true,
-    isDemo: false,
+    isDemo: true,
     isTestAccount: false,
     ...over,
   };
@@ -32,7 +32,7 @@ function site(over: Partial<SiteCandidate> = {}): SiteCandidate {
 const opts = { only: [] as string[], includeTest: false };
 
 describe("planBackfill", () => {
-  it("touches an untouched null-design starter site", () => {
+  it("touches an untouched null-design demo starter site", () => {
     const [e] = planBackfill([site()], opts);
     assert.equal(e!.action, "touch");
   });
@@ -76,11 +76,16 @@ describe("planBackfill", () => {
     assert.equal(entries.find((e) => e.candidate.profileCode === "TAL-90001")!.reason, "not_in_only");
   });
 
-  it("skips demo and test accounts unless --include-test", () => {
-    const demo = site({ isDemo: true });
-    const flagged = site({ siteId: "s3", profileCode: "TAL-90004", isTestAccount: true });
-    const qa = site({ siteId: "s4", profileCode: "TAL-93900", siteSlug: "qa" });
-    for (const c of [demo, flagged, qa]) {
+  it("skips non-demo real accounts with not_demo", () => {
+    const real = site({ isDemo: false });
+    assert.deepEqual(planBackfill([real], opts)[0], { candidate: real, action: "skip", reason: "not_demo" });
+    assert.deepEqual(planBackfill([real], { only: [], includeTest: true })[0]!.reason, "not_demo");
+  });
+
+  it("skips test and QA accounts unless --include-test", () => {
+    const flagged = site({ siteId: "s3", profileCode: "TAL-90004", isDemo: false, isTestAccount: true });
+    const qa = site({ siteId: "s4", profileCode: "TAL-93900", siteSlug: "qa", isDemo: false });
+    for (const c of [flagged, qa]) {
       assert.equal(planBackfill([c], opts)[0]!.reason, "demo_or_test");
       assert.equal(planBackfill([c], { only: [], includeTest: true })[0]!.action, "touch");
     }
@@ -129,6 +134,7 @@ describe("formatPlan", () => {
         site(),
         site({ siteId: "s2", profileId: "prof-2", profileCode: "TAL-90002", siteSlug: "pub", sitePublishedAt: "2026-10-01" }),
         site({ siteId: "s3", profileCode: "TAL-93938", siteSlug: "book-jorgelina" }),
+        site({ siteId: "s4", profileId: "prof-4", profileCode: "TAL-90005", siteSlug: "real", isDemo: false }),
       ],
       opts,
     );
@@ -136,6 +142,7 @@ describe("formatPlan", () => {
     assert.match(text, /DRY RUN, nothing is written/);
     assert.match(text, /TAL-90001 {2}id=prof-1 {2}site=ana-lopez/);
     assert.match(text, /TAL-90002 {2}id=prof-2 {2}site=pub {2}-> site is published/);
+    assert.match(text, /TAL-90005 {2}id=prof-4 {2}site=real {2}-> not a demo account/);
     assert.match(text, /Needs publish after apply .*: 1/);
   });
   it("shows (none) for an empty plan", () => {
