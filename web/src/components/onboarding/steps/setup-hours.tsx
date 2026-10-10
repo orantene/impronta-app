@@ -53,34 +53,38 @@ export function SetupHours({
           );
         })}
       </div>
-      {active && range ? (
-        <div className="mt-3 rounded-[18px] p-3" style={{ background: "var(--tl-surface)", border: "1px solid var(--tl-hairline)" }}>
-          <div className="grid grid-cols-2 gap-2">
-            {(["startMin", "endMin"] as const).map((k) => (
-              <label key={k} className="block">
-                <span className="mb-1 block text-[0.6875rem] font-semibold uppercase tracking-[0.08em]" style={{ color: "var(--tl-muted)" }}>{k === "startMin" ? copy.from : copy.to}</span>
-                <input
-                  type="time"
-                  step={900}
-                  value={minToTime(range[k])}
-                  onChange={(e) => {
-                    const m = timeToMin(e.target.value);
-                    if (m !== null) onChange(setDayRange(week, active, { ...range, [k]: m }));
-                  }}
-                  data-testid={`onb-hours-${k}`}
-                  className="h-12 w-full rounded-[12px] px-3 text-[1rem] outline-none"
-                  style={field}
-                />
-              </label>
-            ))}
+      {/* Fixed detail slot — onb1-07: collapsing the editor into a one-line
+          "Cerrado" was jumping the step layout and sliding +Agregar under the cursor. */}
+      <div className="mt-3 min-h-[9.75rem]" data-testid="onb-hours-detail" aria-live="polite">
+        {active && range ? (
+          <div className="rounded-[18px] p-3" style={{ background: "var(--tl-surface)", border: "1px solid var(--tl-hairline)" }}>
+            <div className="grid grid-cols-2 gap-2">
+              {(["startMin", "endMin"] as const).map((k) => (
+                <label key={k} className="block">
+                  <span className="mb-1 block text-[0.6875rem] font-semibold uppercase tracking-[0.08em]" style={{ color: "var(--tl-muted)" }}>{k === "startMin" ? copy.from : copy.to}</span>
+                  <input
+                    type="time"
+                    step={900}
+                    value={minToTime(range[k])}
+                    onChange={(e) => {
+                      const m = timeToMin(e.target.value);
+                      if (m !== null) onChange(setDayRange(week, active, { ...range, [k]: m }));
+                    }}
+                    data-testid={`onb-hours-${k}`}
+                    className="h-12 w-full rounded-[12px] px-3 text-[1rem] outline-none"
+                    style={field}
+                  />
+                </label>
+              ))}
+            </div>
+            <button type="button" onClick={() => onChange(copyDayToAll(week, active))} data-testid="onb-hours-apply-all" className="mt-2 min-h-11 text-[0.8125rem] font-medium underline underline-offset-4" style={{ color: "var(--tl-forest)" }}>
+              {copy.applyAll}
+            </button>
           </div>
-          <button type="button" onClick={() => onChange(copyDayToAll(week, active))} data-testid="onb-hours-apply-all" className="mt-2 min-h-11 text-[0.8125rem] font-medium underline underline-offset-4" style={{ color: "var(--tl-forest)" }}>
-            {copy.applyAll}
-          </button>
-        </div>
-      ) : (
-        <p className="mt-2 text-[0.8125rem]" style={{ color: "var(--tl-muted)" }}>{copy.closed}</p>
-      )}
+        ) : (
+          <p className="pt-1 text-[0.8125rem]" style={{ color: "var(--tl-muted)" }}>{copy.closed}</p>
+        )}
+      </div>
     </div>
   );
 }
