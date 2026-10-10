@@ -14,6 +14,8 @@ import type {
   BuilderNodeStyle,
 } from "@/lib/site-admin/builder-node/types";
 
+import { galleryPlaceholderAt } from "./gallery-placeholder-images";
+
 /** Operator-facing layer name stored on node props (display-only). */
 export type SectionTemplateLayerLabel = string;
 
@@ -236,6 +238,21 @@ export function tplImageLayer(
   };
 }
 
+/** Gallery tiles: trade-appropriate first-party photos, equal aspect (TUL-398). */
+export function tplGalleryImageLayer(index = 0, layerLabel = "Gallery Image"): BuilderNode {
+  const tile = galleryPlaceholderAt(index);
+  return {
+    id: makeId("image"),
+    kind: "image",
+    props: {
+      src: tile.src,
+      alt: tile.alt,
+      layerLabel,
+      style: { ...tile.style },
+    },
+  };
+}
+
 export function tplSplitColumn(
   left: BuilderNode[],
   right: BuilderNode[],
@@ -275,7 +292,7 @@ export function tplMasonryGrid(
 ): BuilderNode {
   const prefix = options.imageLabelPrefix ?? "Gallery Image";
   const children = Array.from({ length: imageCount }, (_, i) =>
-    tplImageLayer(i, `${prefix} ${i + 1}`),
+    tplGalleryImageLayer(i, `${prefix} ${i + 1}`),
   );
   return {
     id: makeId("masonry"),

@@ -91,6 +91,8 @@ export function ElementLibraryInsertPicker({
   const [rawQuery, setQuery] = useState("");
   // Typing stays instant; the catalog filtering runs on the deferred value.
   const query = useDeferredValue(rawQuery);
+  // English labels + Spanish ES_TEXT + catalog searchTerms + EN/ES aliases
+  // (accent-folded inside searchSections) so Structure finds what Add finds.
   const sectionHits = useMemo(
     () => searchSections(query, (en) => ES_TEXT[en] ?? en),
     [query],
