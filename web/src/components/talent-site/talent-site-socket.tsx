@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { GUEST_CHAT_LAUNCHER_GAP_PX, GUEST_CHAT_LAUNCHER_HEIGHT_PX } from "@/app/t/[profileCode]/_chat/launcher-clearance";
 import { GUEST_CHAT_LAUNCHER_BOTTOM_PX } from "@/app/t/[profileCode]/_chat/mini-chat-styles";
+import { LocaleSwitchLink } from "@/components/locale-switch-link";
 import type { SocketLink, SocketModel } from "@/lib/talent-site/footer-socket";
 
 /**
@@ -92,7 +93,7 @@ export function TalentSiteSocket({
           <nav aria-label={model.langGroupLabel} data-socket-languages="">
             <span className="tulala-socket__label">{model.langGroupLabel}</span>
             {model.languages.map((l) => (
-              <Link
+              <LocaleSwitchLink
                 key={l.locale}
                 href={l.href}
                 hrefLang={l.locale}
@@ -100,7 +101,7 @@ export function TalentSiteSocket({
                 aria-current={l.current ? "true" : undefined}
               >
                 {l.label}
-              </Link>
+              </LocaleSwitchLink>
             ))}
           </nav>
         ) : null}
