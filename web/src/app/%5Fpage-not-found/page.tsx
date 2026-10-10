@@ -7,9 +7,10 @@
  * status instead of returning bare "Not found" text, so a wrong URL lands on
  * branded chrome with a clear way home, never a dead end.
  *
- * GRK-028 / TUL-547: on a talent_site host with a Spanish locale, copy and the
- * primary CTA stay on that site (home `/`), never the English Tulala marketing
- * chrome. Other hosts keep the absolute marketing / app links.
+ * GRK-028 / TUL-547: on a talent_site host it renders the talent 404 (site
+ * name, site language, back to the site's home), the same card as the
+ * `/_talent-site` not-found boundary. Other hosts keep the absolute marketing /
+ * app links.
  *
  * Lives outside every tenant-aware route group so it renders safely without a
  * host context (mirrors `/_host-unregistered`). Whitelisted in the proxy
@@ -20,12 +21,16 @@ import { headers } from "next/headers";
 
 import { getAppUrl, getSiteUrl } from "@/lib/auth-flow";
 import { LOCALE_HEADER } from "@/i18n/request-locale";
-import { HOST_CONTEXT_HEADER } from "@/lib/saas/host-context";
+import { TalentSiteNotFoundCard } from "@/components/talent-site/talent-site-not-found-card";
+import { loadTalentNotFoundCopy } from "@/lib/talent-site/server/talent-not-found.server";
 
-export const metadata: Metadata = {
-  title: "Page not found — Tulala",
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const talent = await loadTalentNotFoundCopy();
+  return {
+    title: { absolute: talent ? talent.documentTitle : "Page not found · Tulala" },
+    robots: { index: false, follow: false },
+  };
+}
 
 const COPY = {
   en: {
@@ -34,9 +39,6 @@ const COPY = {
     body: "The page you're looking for doesn't exist or may have moved. Head back to the homepage, or sign in to your workspace.",
     home: "Go to homepage",
     signIn: "Sign in",
-    talentEyebrow: "This site",
-    talentBody: "That page isn't on this site. Head back home to keep browsing.",
-    talentHome: "Back to home",
   },
   es: {
     eyebrow: "Tulala",
@@ -44,25 +46,20 @@ const COPY = {
     body: "La página que buscas no existe o se movió. Vuelve al inicio, o inicia sesión en tu espacio de trabajo.",
     home: "Ir al inicio",
     signIn: "Iniciar sesión",
-    talentEyebrow: "Este sitio",
-    talentBody: "Esa página no está en este sitio. Vuelve al inicio para seguir navegando.",
-    talentHome: "Volver al inicio",
   },
 } as const;
 
 export default async function PageNotFound() {
+  const talent = await loadTalentNotFoundCopy();
+  if (talent) return <TalentSiteNotFoundCard copy={talent} />;
+
   const h = await headers();
-  const isTalentSite = h.get(HOST_CONTEXT_HEADER) === "talent_site";
   const localeRaw = (h.get(LOCALE_HEADER) ?? "en").toLowerCase();
   const lang = localeRaw.startsWith("es") ? "es" : "en";
   const t = COPY[lang];
 
   const site = getSiteUrl();
   const app = getAppUrl();
-  const primaryHref = isTalentSite ? "/" : site;
-  const primaryLabel = isTalentSite ? t.talentHome : t.home;
-  const eyebrow = isTalentSite ? t.talentEyebrow : t.eyebrow;
-  const body = isTalentSite ? t.talentBody : t.body;
 
   return (
     <div
@@ -96,7 +93,7 @@ export default async function PageNotFound() {
             margin: 0,
           }}
         >
-          {eyebrow}
+          {t.eyebrow}
         </p>
         <h1
           style={{
@@ -121,12 +118,12 @@ export default async function PageNotFound() {
             marginBottom: 0,
           }}
         >
-          {body}
+          {t.body}
         </p>
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 24 }}>
           <a
-            href={primaryHref}
+            href={site}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -140,28 +137,26 @@ export default async function PageNotFound() {
               textDecoration: "none",
             }}
           >
-            {primaryLabel}
+            {t.home}
           </a>
-          {isTalentSite ? null : (
-            <a
-              href={`${app}/login`}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                padding: "9px 18px",
-                borderRadius: 999,
-                background: "#ffffff",
-                border: "1px solid rgba(24,24,27,0.14)",
-                color: "#0B0B0D",
-                fontFamily: '"Inter", system-ui, sans-serif',
-                fontSize: 13.5,
-                fontWeight: 600,
-                textDecoration: "none",
-              }}
-            >
-              {t.signIn}
-            </a>
-          )}
+          <a
+            href={`${app}/login`}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              padding: "9px 18px",
+              borderRadius: 999,
+              background: "#ffffff",
+              border: "1px solid rgba(24,24,27,0.14)",
+              color: "#0B0B0D",
+              fontFamily: '"Inter", system-ui, sans-serif',
+              fontSize: 13.5,
+              fontWeight: 600,
+              textDecoration: "none",
+            }}
+          >
+            {t.signIn}
+          </a>
         </div>
       </div>
     </div>
