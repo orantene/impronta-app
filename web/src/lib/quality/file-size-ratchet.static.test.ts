@@ -253,7 +253,8 @@ const BUDGETS: Record<string, number> = {
   // Schedule card mount. The schedule FORM itself was extracted to
   // schedule-form.tsx (shared with ScheduleDrawer); what lives here is only
   // the drawer's own tab state and wiring.
-  "src/components/edit-chrome/publish-drawer.tsx": 2372,
+  // 2372 → 2179 (TUL-524 first publish with zero blockers, 2026-10-10).
+  "src/components/edit-chrome/publish-drawer.tsx": 2179,
   // 1826 → 1844 (+18), 2026-08-16, footer inspector parity.
   //   +2  import of <SiteFooterInspector> and its routing predicate
   //   +14 the `isSiteFooterSelected` block: a 4-line const plus the comment
