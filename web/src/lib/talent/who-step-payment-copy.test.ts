@@ -17,6 +17,7 @@ test("free + in-person → studio pay copy (es/en)", () => {
       allowPayInPerson: true,
       depositPct: null,
       locale: "es",
+      where: ["studio"],
     }),
     /estudio/,
   );
@@ -26,9 +27,62 @@ test("free + in-person → studio pay copy (es/en)", () => {
       allowPayInPerson: true,
       depositPct: null,
       locale: "en",
+      where: ["studio"],
     }),
     /studio/i,
   );
+});
+
+test("TUL-516 E2: free + in-person pay place across studio / client / remote", () => {
+  const cases: Array<{
+    where: ("studio" | "client" | "remote")[];
+    es: RegExp;
+    en: RegExp;
+    banEs: RegExp;
+    banEn: RegExp;
+  }> = [
+    {
+      where: ["studio"],
+      es: /estudio/,
+      en: /studio/i,
+      banEs: /domicilio/,
+      banEn: /\bvisit\b/i,
+    },
+    {
+      where: ["client"],
+      es: /visita/,
+      en: /visit/i,
+      banEs: /estudio/,
+      banEn: /studio/i,
+    },
+    {
+      where: ["remote"],
+      es: /acordado/,
+      en: /as agreed/i,
+      banEs: /estudio/,
+      banEn: /studio/i,
+    },
+  ];
+  for (const c of cases) {
+    const es = whoStepPaymentCopy({
+      reserveMode: "free",
+      allowPayInPerson: true,
+      depositPct: null,
+      locale: "es",
+      where: c.where,
+    });
+    const en = whoStepPaymentCopy({
+      reserveMode: "free",
+      allowPayInPerson: true,
+      depositPct: null,
+      locale: "en",
+      where: c.where,
+    });
+    assert.match(es, c.es, `es ${JSON.stringify(c.where)}`);
+    assert.match(en, c.en, `en ${JSON.stringify(c.where)}`);
+    assert.doesNotMatch(es, c.banEs, `es ban ${JSON.stringify(c.where)}`);
+    assert.doesNotMatch(en, c.banEn, `en ban ${JSON.stringify(c.where)}`);
+  }
 });
 
 test("deposit copy includes percent and never promises studio-only", () => {
@@ -203,6 +257,31 @@ test("done-step next action restates studio vs payment (never silent paid)", () 
       locale: "es",
       wrote: true,
       isRequest: false,
+      where: ["studio"],
+    }),
+    /estudio/,
+  );
+  assert.match(
+    doneStepNextActionCopy({
+      reserveMode: "free",
+      allowPayInPerson: true,
+      depositPct: null,
+      locale: "es",
+      wrote: true,
+      isRequest: false,
+      where: ["client"],
+    }),
+    /visita/,
+  );
+  assert.doesNotMatch(
+    doneStepNextActionCopy({
+      reserveMode: "free",
+      allowPayInPerson: true,
+      depositPct: null,
+      locale: "es",
+      wrote: true,
+      isRequest: false,
+      where: ["client"],
     }),
     /estudio/,
   );

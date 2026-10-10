@@ -9,6 +9,7 @@
  */
 
 import { resolveOfferingPolicy } from "@/lib/talent/offering-policy-resolver";
+import type { OfferingDeliveryWhere } from "@/lib/talent/offering-request-detail";
 
 import type { OfferingReserveMode } from "@/lib/talent/offerings-types";
 import {
@@ -28,7 +29,52 @@ export type WhoStepPaymentCopyInput = {
    */
   onlineCollectReady?: boolean;
   locale: string;
+  /**
+   * TUL-516 E2: delivery place. Client-place / remote must never promise
+   * "pay at the studio". Omit / empty keeps the studio wording (legacy).
+   */
+  where?: readonly OfferingDeliveryWhere[] | null;
 };
+
+/** In-person pay place for free + pay-at-visit: studio vs visit vs agreed. */
+export function whoStepPayAtPlaceLine(
+  where: readonly OfferingDeliveryWhere[] | null | undefined,
+  locale: string,
+): { who: string; done: string } {
+  const es = locale.toLowerCase().startsWith("es");
+  const list = Array.isArray(where) ? where : [];
+  if (list.includes("client")) {
+    return es
+      ? {
+          who: "No se cobra nada ahora. El pago se realiza en la visita.",
+          done: "Recibirás la confirmación por correo. El pago se realiza en la visita.",
+        }
+      : {
+          who: "Nothing is charged now. Pay at the visit.",
+          done: "You will get the confirmation by email. Pay at the visit.",
+        };
+  }
+  if (list.length === 1 && list[0] === "remote") {
+    return es
+      ? {
+          who: "No se cobra nada ahora. El pago se realiza según lo acordado.",
+          done: "Recibirás la confirmación por correo. El pago se realiza según lo acordado.",
+        }
+      : {
+          who: "Nothing is charged now. Payment is as agreed.",
+          done: "You will get the confirmation by email. Payment is as agreed.",
+        };
+  }
+  return es
+    ? {
+        who: "No se cobra nada ahora. El pago se realiza en el estudio.",
+        done: "Recibirás la confirmación por correo. El pago se realiza en el estudio.",
+      }
+    : {
+        who: "Nothing is charged now. Pay at the studio.",
+        done: "You will get the confirmation by email. Pay at the studio.",
+      };
+}
 
 /** True when this offering expects online collection at confirm time. */
 export function offeringRequiresOnlineCollect(input: {
@@ -80,9 +126,7 @@ export function whoStepPaymentCopy(input: WhoStepPaymentCopyInput): string {
       ? "El pago se cobra en línea al confirmar."
       : "Payment is collected online when you confirm.";
   }
-  return es
-    ? "No se cobra nada ahora. El pago se realiza en el estudio."
-    : "Nothing is charged now. Pay at the studio.";
+  return whoStepPayAtPlaceLine(input.where, input.locale).who;
 }
 
 /**
@@ -95,6 +139,7 @@ export function whoStepPaymentCopyFor(input: {
   allowPayInPerson: boolean;
   onlineCollectReady?: boolean;
   locale: string;
+  where?: readonly OfferingDeliveryWhere[] | null;
 }): string {
   const effective = resolveOfferingPolicy(input.offering, input.sellingDefaults);
   return whoStepPaymentCopy({
@@ -103,6 +148,7 @@ export function whoStepPaymentCopyFor(input: {
     allowPayInPerson: input.allowPayInPerson,
     onlineCollectReady: input.onlineCollectReady,
     locale: input.locale,
+    where: input.where,
   });
 }
 
@@ -156,9 +202,7 @@ export function doneStepNextActionCopy(input: WhoStepPaymentCopyInput & {
       ? "Sigue al pago para terminar la reserva. El horario se libera si el pago no se completa."
       : "Continue to payment to finish the booking. The time is released if payment is not completed.";
   }
-  return es
-    ? "Recibirás la confirmación por correo. El pago se realiza en el estudio."
-    : "You will get the confirmation by email. Pay at the studio.";
+  return whoStepPayAtPlaceLine(input.where, input.locale).done;
 }
 
 /** Resolve who-step action, CTA label, and payment fixture together. */
@@ -170,6 +214,7 @@ export function resolveWhoStepPaymentUi(input: {
   locale: string;
   offeringIntent: "instant" | "request";
   bookingSettings: CatalogSheetBookingSettings;
+  where?: readonly OfferingDeliveryWhere[] | null;
 }): { whoAction: "confirm" | "chat"; whoCtaText: string; paymentFixture: string } {
   const es = input.locale.toLowerCase().startsWith("es");
   const needsOnline = offeringRequiresOnlineCollect(input);
@@ -208,6 +253,7 @@ export function resolveWhoStepPaymentUi(input: {
           depositPct: input.depositPct,
           onlineCollectReady: input.onlineCollectReady,
           locale: input.locale,
+          where: input.where,
         });
   return {
     whoAction,

@@ -2,13 +2,16 @@
 
 import { useEffect } from "react";
 
+import type { OfferingDeliveryWhere } from "@/lib/talent/offering-request-detail";
+
 import { clearBookingDraft, saveBookingDraft } from "./booking-draft-store";
+import { catalogWhoPlaceNote } from "./catalog-who-place-copy";
 import { preloadGuestCaptchaScript } from "./GuestCaptchaField";
 import { catalogDayKey, catalogSelectedDateLabel, catalogTimezoneLabel } from "./catalog-booking-logic";
 
 const ROW = { display: "flex", justifyContent: "space-between", gap: 12, padding: "3px 0" } as const;
 
-/** TUL-59: confirm-step recap above "Confirmar cita": service, date, time, total, address note. */
+/** TUL-59 / TUL-516 E2: confirm-step recap: service, date, time, total, place note. */
 export function CatalogWhoSummary({
   es,
   service,
@@ -16,6 +19,7 @@ export function CatalogWhoSummary({
   time,
   tz,
   total,
+  where,
 }: {
   es: boolean;
   service: string;
@@ -23,9 +27,12 @@ export function CatalogWhoSummary({
   time: string | null;
   tz: string | null;
   total: string;
+  /** Offering delivery place; drives the home-visit vs studio note. */
+  where?: readonly OfferingDeliveryWhere[] | null;
 }) {
   const zone = tz ? catalogTimezoneLabel(tz, es) : "";
   const val = { textAlign: "right" } as const;
+  const placeNote = catalogWhoPlaceNote(where, es ? "es" : "en");
   return (
     <div className="jb-recap" data-catalog-who-summary="">
       <div style={ROW}>
@@ -44,9 +51,11 @@ export function CatalogWhoSummary({
         <span>Total</span>
         <b style={val}>{total}</b>
       </div>
-      <p className="jb-fixture" data-catalog-address-note="">
-        {es ? "Te enviamos la ubicación exacta al confirmar" : "We'll send the exact address when you confirm"}
-      </p>
+      {placeNote ? (
+        <p className="jb-fixture" data-catalog-address-note="">
+          {placeNote}
+        </p>
+      ) : null}
     </div>
   );
 }
