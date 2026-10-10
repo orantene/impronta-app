@@ -4439,6 +4439,10 @@ const SERVICES_CATALOG_CSS = `
    gets the same side gutter a paddingX:"m" container has. Inline authored
    padding still wins; nested catalogs keep their parent's padding. */
 [data-cms-block]>.site-builder-node--services-catalog{padding-inline:1.5rem}
+/* A stack container with align start/center/end shrink-wraps its children; the
+   fixed-layout comparison table has a near-zero min-content width, so the
+   catalog must always fill the column or its cells collapse to one letter. */
+.site-builder-node--container:not([data-builder-layout="row"],[data-builder-layout="grid"],[data-builder-display="grid"])>.site-builder-node--services-catalog{align-self:stretch;min-width:0}
 .site-builder-node--services-catalog-header{display:flex;flex-wrap:wrap;justify-content:space-between;gap:1.25rem;margin-bottom:1.5rem}
 .site-builder-node--services-catalog-eyebrow{margin:0 0 .35rem;font-size:.6875rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--token-color-primary,var(--token-color-ink))}
 .site-builder-node--services-catalog-title{margin:0;font-size:clamp(1.75rem,4vw,2.75rem);font-weight:500;line-height:1.1;font-family:var(--token-font-display,inherit)}

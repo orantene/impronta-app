@@ -38,6 +38,13 @@ test("GRK-048: Trades matrix fills the band with no H-scroll", () => {
   assert.match(json, /"maxWidth":"full"/);
 });
 
+test("GRK-048: catalog stretches inside an align:start stack (no one-letter columns)", () => {
+  assert.match(
+    renderCss,
+    /\.site-builder-node--container:not\(\[data-builder-layout="row"\],\[data-builder-layout="grid"\],\[data-builder-display="grid"\]\)>\.site-builder-node--services-catalog\{align-self:stretch;min-width:0\}/,
+  );
+});
+
 test("GRK-073: phone padding ≥16px on utility chrome + proof bands", () => {
   assert.match(UTILITY_BAR_CSS, /padding:10px 16px/);
   assert.match(UTILITY_TYPE_SYSTEM_CSS, /padding-inline:max\(16px/);
