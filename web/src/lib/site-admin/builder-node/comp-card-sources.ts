@@ -9,9 +9,11 @@ import {
   canViewerSee,
   effectiveFieldVisibility,
 } from "@/lib/field-engine/effective-visibility";
-import { pickLocale } from "@/lib/i18n/pick-locale";
 
+import { resolveCompCardGroupLabel } from "./comp-card-group-label";
 import type { TalentCompCardSource, TalentCompFieldRow } from "./comp-card-types";
+
+export { resolveCompCardGroupLabel } from "./comp-card-group-label";
 
 type DefEmbed = {
   id: string;
@@ -28,8 +30,8 @@ type DefEmbed = {
   default_visibility: string[] | null;
   deprecated_at: string | null;
   profile_field_groups:
-    | { sort_order: number | null; slug: string | null }
-    | { sort_order: number | null; slug: string | null }[]
+    | { sort_order: number | null; slug: string | null; name_i18n: unknown }
+    | { sort_order: number | null; slug: string | null; name_i18n: unknown }[]
     | null;
 };
 
@@ -55,24 +57,6 @@ function labelFromI18n(raw: unknown, locale: string, fallbackKey: string): strin
   const map = asLocalizedMap(raw);
   const lang = locale.toLowerCase().startsWith("es") ? "es" : "en";
   return map[lang] || map.en || map.es || fallbackKey.split(".").pop() || fallbackKey;
-}
-
-function groupLabel(slug: string | null, locale: string): string {
-  if (!slug) return pickLocale(locale, { en: "Details", es: "Detalles" });
-  const curated: Record<string, { en: string; es: string }> = {
-    measurements: { en: "Measurements", es: "Medidas" },
-    physical: { en: "Physical", es: "Físico" },
-    logistics: { en: "Logistics", es: "Logística" },
-    availability: { en: "Availability", es: "Disponibilidad" },
-    experience: { en: "Experience", es: "Experiencia" },
-    basic_info: { en: "Basics", es: "Básicos" },
-  };
-  const hit = curated[slug];
-  if (hit) return pickLocale(locale, hit);
-  return slug
-    .replace(/[_-]+/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase())
-    .trim();
 }
 
 function optionLabel(
@@ -150,7 +134,7 @@ export async function loadCompCardSources(
           id, field_key, label_i18n, kind, unit, options, option_labels_i18n,
           display_order, admin_only, is_sensitive, show_in_public,
           default_visibility, deprecated_at,
-          profile_field_groups ( sort_order, slug )
+          profile_field_groups ( sort_order, slug, name_i18n )
         )
       `,
       )
@@ -202,7 +186,7 @@ export async function loadCompCardSources(
         fieldKey: def.field_key,
         label: labelFromI18n(def.label_i18n, locale, def.field_key),
         value: formatted,
-        group: groupLabel(slug, locale),
+        group: resolveCompCardGroupLabel(slug, locale, fg?.name_i18n ?? null),
         unit: def.unit?.trim() || null,
       });
     }
