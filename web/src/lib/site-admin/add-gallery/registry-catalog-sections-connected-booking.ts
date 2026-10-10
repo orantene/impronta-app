@@ -3,6 +3,7 @@ import { connected } from "./registry-helpers";
 import { AREA_DEFAULT_PROPS, LOCATION_DEFAULT_PROPS } from "../builder-node/visit-defaults";
 import { PORTFOLIO_DEFAULT_PROPS } from "../builder-node/portfolio-defaults";
 import { SERVICES_CATALOG_DEFAULT_PROPS } from "../builder-node/services-catalog-defaults";
+import { RECENT_JOBS_LABEL } from "@/lib/talent-site/theme-catalog/seed-i18n";
 
 export const ADD_GALLERY_SECTIONS_CONNECTED_BOOKING_BEFORE_ITEMS: ReadonlyArray<AddGalleryItem> = [
   // ── Connected / Booking & Inquiry ─────────────────────────────────────────
@@ -173,7 +174,7 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_BOOKING_AFTER_ITEMS: ReadonlyArray<A
     insertMethod: "nativeNode",
     nativeKind: "portfolio",
     // Same node kind as `conn-portfolio-native`; this card starts in the work_order layout.
-    defaultProps: { ...PORTFOLIO_DEFAULT_PROPS, layout: "work_order", title: "Recent jobs", limit: 6 },
+    defaultProps: { ...PORTFOLIO_DEFAULT_PROPS, layout: "work_order", title: RECENT_JOBS_LABEL.en, limit: 6 },
     sourceType: "native-freeform",
     connectedSource: "Your media",
     searchTerms: ["jobs", "work order", "job cards", "trabajos", "orden de trabajo", "portfolio", "recent work"],

@@ -40,6 +40,16 @@ export type SeedI18nOverlay = {
   en: Record<string, string>;
 };
 
+/**
+ * Gridline work_order portfolio gallery heading (TUL-516 C1).
+ * One pair for seed overlays + the render-time design-label map — they must
+ * not drift (alex / gridline / karla / saul Spanish pages).
+ */
+export const RECENT_JOBS_LABEL = {
+  en: "Recent jobs",
+  es: "Trabajos recientes",
+} as const;
+
 /** English seed text -> neutral Mexican Spanish (tuteo). Exact seed strings. */
 export const SEED_TEXT_ES: Readonly<Record<string, string>> = {
   // Hero / actions
@@ -94,7 +104,7 @@ export const SEED_TEXT_ES: Readonly<Record<string, string>> = {
   "The space": "El espacio",
   "Selected work": "Trabajos elegidos",
   "More work": "Más trabajos",
-  "Recent jobs": "Trabajos recientes",
+  [RECENT_JOBS_LABEL.en]: RECENT_JOBS_LABEL.es,
   "No photos in your portfolio yet.": "Aún no hay fotos en el portafolio.",
   "Where I work": "Dónde trabajo",
   "Measures · Comp card": "Medidas · Comp card",
