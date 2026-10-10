@@ -1,13 +1,28 @@
 /**
  * #187: when a visitor's language has no bio and the bio of another language
  * is shown instead, a small neutral line says which language it is in.
- * "(Text in Spanish)" for an English visitor, "(Texto en inglés)" for a
- * Spanish one. Pure; the language names are the platform's own.
+ * English visitor seeing Spanish: "Disponible en español". Spanish visitor
+ * seeing English: "Disponible en inglés". Same wording for photo captions.
+ * Pure; the language names are the platform's own.
  */
 
-import { localizeLanguageName } from "@/lib/i18n/language-names";
-
 type BioMap = Readonly<Record<string, string | null | undefined>> | null | undefined;
+
+/** Spanish language names for the "Disponible en …" hint (TUL-187). */
+const NAME_ES: Record<string, string> = {
+  en: "inglés",
+  es: "español",
+  fr: "francés",
+  it: "italiano",
+  pt: "portugués",
+  de: "alemán",
+  nl: "neerlandés",
+  ru: "ruso",
+  ar: "árabe",
+  zh: "chino",
+  ja: "japonés",
+  ko: "coreano",
+};
 
 export const ENGLISH_NAME: Record<string, string> = {
   en: "English", es: "Spanish", fr: "French", it: "Italian", pt: "Portuguese",
@@ -40,8 +55,8 @@ export function bioFallbackLanguage(
 }
 
 /**
- * The hint line for the visitor, or null when none is needed. The one hint style for the bio and for
- * photo captions (and the lightbox caption).
+ * The hint line for the visitor, or null when none is needed. One style for
+ * bio and photo captions (and the lightbox caption): "Disponible en español".
  */
 export function bioLanguageHint(
   bioI18n: BioMap,
@@ -50,7 +65,6 @@ export function bioLanguageHint(
 ): string | null {
   const shown = bioFallbackLanguage(bioI18n, locale, chain);
   if (!shown) return null;
-  const visitor = key(locale);
-  const name = localizeLanguageName(shown, ENGLISH_NAME[shown] ?? shown.toUpperCase(), visitor).toLowerCase();
-  return visitor === "es" ? `(Texto en ${name})` : `(Text in ${name.charAt(0).toUpperCase()}${name.slice(1)})`;
+  const name = NAME_ES[shown] ?? ENGLISH_NAME[shown]?.toLowerCase() ?? shown;
+  return `Disponible en ${name}`;
 }

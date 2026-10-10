@@ -1227,7 +1227,7 @@ export const mastheadPropsSchema = z.object({
   bio: z.string().max(600).optional(),
   /** `"bio"`: the blurb follows her bio in the visitor's language (TUL-230, live-text-keys.ts). */
   liveText: z.literal("bio").optional(),
-  /** Muted "(Text in Spanish)" line after the blurb; written by the live-bio pass only. */
+  /** Muted "Disponible en español" line after the blurb; written by the live-bio pass only. */
   bioHint: z.string().max(80).optional(),
   ctaLabel: z.string().max(60).optional(),
   ctaHref: z.string().max(500).optional(),

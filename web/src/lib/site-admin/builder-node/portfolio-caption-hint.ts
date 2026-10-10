@@ -1,9 +1,10 @@
 /**
- * TUL-15: a photo caption the talent wrote in one language only. When the visitor's language has no
- * caption and the primary-language caption is shown instead, a small muted line names the caption's
- * language. ONE hint style everywhere: captions use the bio's helper (`bio-language-hint.ts`) and its
- * wording, "(Text in Spanish)" for an English visitor, "(Texto en inglés)" for a Spanish one. Nothing is
- * translated; alt text is never touched. The same hint rides on the lightbox caption.
+ * TUL-15 / TUL-187: a photo caption the talent wrote in one language only. When
+ * the visitor's language has no caption and the primary-language caption is
+ * shown instead, a small muted line names the caption's language. ONE hint
+ * style everywhere: captions use the bio's helper (`bio-language-hint.ts`) —
+ * "Disponible en español" / "Disponible en inglés". Nothing is translated; alt
+ * text is never touched. The same hint rides on the lightbox caption.
  *
  * Pure (no React / no IO).
  */
@@ -31,7 +32,7 @@ export function captionMapField(
 
 /**
  * The hint line, or null when none is needed: no caption, the visitor's own
- * language exists (or IS the primary one), or the primary language is unknown.
+ * language exists (or IS the primary one), or we cannot name a source language.
  */
 export function captionLanguageHint(args: {
   caption: string | null | undefined;
@@ -41,8 +42,18 @@ export function captionLanguageHint(args: {
 }): string | null {
   if (!args.caption?.trim()) return null;
   const visitor = key(args.locale);
-  const primary = key(args.primaryLocale);
-  if (!visitor || !primary || visitor === primary) return null;
-  // ONE hint style everywhere: the bio's helper ("(Text in Spanish)" / "(Texto en inglés)").
+  if (!visitor) return null;
+  let primary = key(args.primaryLocale);
+  // When the page forgot primaryLocale, infer from the sole other map key so a
+  // Spanish-only caption on /en never stays silent (TUL-187).
+  if (!primary) {
+    const others = Object.entries(args.captionI18n ?? {})
+      .filter(([, v]) => typeof v === "string" && v.trim())
+      .map(([k]) => key(k))
+      .filter((k) => k && k !== visitor);
+    if (others.length === 1) primary = others[0]!;
+  }
+  if (!primary || visitor === primary) return null;
+  // ONE hint style everywhere: the bio's helper ("Disponible en español").
   return bioLanguageHint({ ...(args.captionI18n ?? {}), [primary]: args.caption }, visitor, [primary]);
 }
