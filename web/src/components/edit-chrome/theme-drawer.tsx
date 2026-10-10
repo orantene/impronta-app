@@ -66,6 +66,7 @@ import {
   type SegmentedOption,
 } from "./kit";
 import { useEditContext } from "./edit-context";
+import { useEditorLocale } from "./use-editor-locale";
 // Direct file import, NOT the inspectors/kit barrel — avoids the barrel
 // module cycle documented in kit/field.tsx.
 import { InspectorInfoTip } from "./inspectors/kit/inspector-info-tip";
@@ -386,6 +387,7 @@ function patchesEqual(
 export function ThemeDrawer(): ReactElement | null {
   const { themeOpen, closeTheme, queueRouterRefresh, surfaceKind, pageSlug } =
     useEditContext();
+  const { t } = useEditorLocale();
 
   // Surface-aware theme backend: talent_page → talent_pages.theme; everything
   // else → tenant agency_branding. Memoized so the action closures are stable
@@ -677,7 +679,7 @@ export function ThemeDrawer(): ReactElement | null {
       ariaLabelledBy="theme-drawer-title"
       onRequestClose={busy === "publishing" ? undefined : closeTheme}
       floating
-      floatLabel="Theme"
+      floatLabel={t("Theme")}
       floatPanelId="theme"
     >
       {/* QA 2026-05-13 — during the first ~2s while `loadDesignAction`
@@ -694,32 +696,37 @@ export function ThemeDrawer(): ReactElement | null {
         titleId="theme-drawer-title"
         title={
           !snapshot && busy === "loading"
-            ? "Theme · loading…"
+            ? t("Theme · loading…")
             : snapshot?.designDisplayName
               ? snapshot.paletteDisplayName
                 ? `${snapshot.designDisplayName} · ${snapshot.paletteDisplayName}`
                 : snapshot.designDisplayName
               : snapshot?.presetSlug
-                ? `Theme · ${prettyPreset(snapshot.presetSlug)}`
-                : "Theme · Custom"
+                ? `${t("Theme")} · ${prettyPreset(snapshot.presetSlug)}`
+                : t("Theme · Custom")
         }
         icon={<ThemeIcon />}
         saveChip={<SaveChip status={chipStatus} />}
         meta={
           !snapshot && busy === "loading" ? (
-            <span style={{ color: CHROME.muted2 }}>Loading theme…</span>
+            <span style={{ color: CHROME.muted2 }}>{t("Loading theme…")}</span>
           ) : snapshot?.designDisplayName ? (
             <>
-              {lastPublishedLabel ? `Published ${lastPublishedLabel}` : "Site theme"}
+              {lastPublishedLabel
+                ? `${t("Published")} ${lastPublishedLabel}`
+                : t("Site theme")}
               {dirty ? (
                 <>
-                  <span style={{ color: CHROME.muted2 }}> · </span>Unsaved
+                  <span style={{ color: CHROME.muted2 }}> · </span>
+                  {t("Unsaved")}
                 </>
               ) : null}
             </>
           ) : (
             <>
-              {lastPublishedLabel ? `Published ${lastPublishedLabel}` : "Never published"}
+              {lastPublishedLabel
+                ? `${t("Published")} ${lastPublishedLabel}`
+                : t("Never published")}
               {snapshot ? (
                 <>
                   <span style={{ color: CHROME.muted2 }}> · </span>v{snapshot.version}
@@ -732,25 +739,29 @@ export function ThemeDrawer(): ReactElement | null {
       />
 
       <DrawerTabs>
-        {TABS.map((t) => (
+        {TABS.map((tabItem) => (
           <DrawerTab
-            key={t.key}
-            active={tab === t.key}
-            onClick={() => setTab(t.key)}
+            key={tabItem.key}
+            active={tab === tabItem.key}
+            onClick={() => setTab(tabItem.key)}
           >
-            {t.key === "style" ? <SiteStyleTabLabel /> : t.label}
+            {tabItem.key === "style" ? (
+              <SiteStyleTabLabel />
+            ) : (
+              t(tabItem.label)
+            )}
           </DrawerTab>
         ))}
       </DrawerTabs>
 
       <DrawerBody>
         {loadError ? (
-          <ErrorBanner>{loadError}</ErrorBanner>
+          <ErrorBanner>{t(loadError)}</ErrorBanner>
         ) : !snapshot || !draft ? (
           <DrawerSkeleton rows={3} />
         ) : (
           <>
-            {error ? <ErrorBanner>{error}</ErrorBanner> : null}
+            {error ? <ErrorBanner>{t(error)}</ErrorBanner> : null}
 
             {tab === "colors" ? (
               <ColorsTab draft={draft} onChange={set} />
@@ -936,10 +947,14 @@ export function ThemeDrawer(): ReactElement | null {
                     return classifyContrast(r) === "fail";
                   });
                   const base = draftDiffersFromLive
-                    ? "This will replace what visitors see."
-                    : "Re-publish current draft?";
+                    ? t("This will replace what visitors see.")
+                    : t("Re-publish current draft?");
                   if (failing.length > 0) {
-                    return `⚠ ${failing.length} color pair${failing.length > 1 ? "s fail" : " fails"} WCAG AA. ${base}`;
+                    const pair =
+                      failing.length > 1
+                        ? t("color pairs fail WCAG AA")
+                        : t("color pair fails WCAG AA");
+                    return `⚠ ${failing.length} ${pair}. ${base}`;
                   }
                   return base;
                 })()}
@@ -962,7 +977,7 @@ export function ThemeDrawer(): ReactElement | null {
                   textUnderlineOffset: 3,
                 }}
               >
-                Discard changes
+                {t("Discard changes")}
               </button>
             )
           }
@@ -975,7 +990,7 @@ export function ThemeDrawer(): ReactElement | null {
                   disabled={busy === "publishing"}
                   style={btnGhostStyle(busy === "publishing")}
                 >
-                  Cancel
+                  {t("Cancel")}
                 </button>
                 <button
                   type="button"
@@ -983,7 +998,7 @@ export function ThemeDrawer(): ReactElement | null {
                   disabled={busy === "publishing"}
                   style={btnPrimaryStyle(busy === "publishing")}
                 >
-                  {busy === "publishing" ? "Publishing…" : "Yes, publish"}
+                  {busy === "publishing" ? t("Publishing…") : t("Yes, publish")}
                 </button>
               </>
             ) : (
@@ -993,9 +1008,9 @@ export function ThemeDrawer(): ReactElement | null {
                   onClick={() => void handleSaveDraft()}
                   disabled={!dirty || busy !== "idle"}
                   style={btnGhostStyle(!dirty || busy !== "idle")}
-                  title="Save your changes without going live"
+                  title={t("Save your changes without going live")}
                 >
-                  {busy === "saving" ? "Saving…" : "Save draft"}
+                  {busy === "saving" ? t("Saving…") : t("Save draft")}
                 </button>
                 {surfaceKind === "theme_template" ? null : (
                 <button
@@ -1009,11 +1024,11 @@ export function ThemeDrawer(): ReactElement | null {
                   )}
                   title={
                     dirty || draftDiffersFromLive
-                      ? "Publish theme to live storefront"
-                      : "Draft already matches live"
+                      ? t("Publish theme to live storefront")
+                      : t("Draft already matches live")
                   }
                 >
-                  Publish theme
+                  {t("Publish theme")}
                 </button>
                 )}
               </>
@@ -1221,6 +1236,7 @@ function AdvancedTab({
   currentPreset: string | null;
   presetBusy: boolean;
 }) {
+  const { t } = useEditorLocale();
   const [copied, setCopied] = useState(false);
   const json = useMemo(() => {
     const sorted: Record<string, string> = {};
@@ -1259,7 +1275,7 @@ function AdvancedTab({
       <Card>
         <CardHead
           icon={<CodeIcon />}
-          title="Theme JSON"
+          title={t("Theme JSON")}
           sub={`${Object.keys(draft).length} tokens`}
           action={
             <button
@@ -1276,10 +1292,10 @@ function AdvancedTab({
               }}
             >
               {copied
-                ? "Copied"
+                ? t("Copied")
                 : copyError
-                  ? "Select all (clipboard blocked)"
-                  : "Copy"}
+                  ? t("Select all (clipboard blocked)")
+                  : t("Copy")}
             </button>
           }
         />
@@ -1313,7 +1329,7 @@ function AdvancedTab({
               borderTop: `1px solid ${CHROME.line}`,
             }}
           >
-            <CardSubHead borderTop={false} marginBottom={8}>Theme preset</CardSubHead>
+            <CardSubHead borderTop={false} marginBottom={8}>{t("Theme preset")}</CardSubHead>
             <div style={{ opacity: presetBusy ? 0.5 : 1, pointerEvents: presetBusy ? "none" : undefined }}>
               <Segmented
                 value={currentPreset ?? ""}
@@ -1334,8 +1350,9 @@ function AdvancedTab({
                 lineHeight: 1.45,
               }}
             >
-              Applies the preset bundle to your <b>draft</b>. Click{" "}
-              <b>Publish</b> to make it live on the storefront.
+              {t(
+                "Applies the preset bundle to your draft. Click Publish to make it live on the storefront.",
+              )}
             </p>
           </div>
           <div
@@ -1348,7 +1365,7 @@ function AdvancedTab({
             }}
           >
             <span style={{ fontSize: 11, color: CHROME.muted }}>
-              Read-only. Edit through the controls above.
+              {t("Read-only. Edit through the controls above.")}
             </span>
             <button
               type="button"
@@ -1365,7 +1382,7 @@ function AdvancedTab({
                 textUnderlineOffset: 3,
               }}
             >
-              Reset to platform defaults
+              {t("Reset to platform defaults")}
             </button>
           </div>
         </CardBody>
@@ -1374,21 +1391,21 @@ function AdvancedTab({
       <Card>
         <CardHead
           icon={null}
-          title="Power tools"
-          sub="Bulk-apply tokens or generate visual recipes."
+          title={t("Power tools")}
+          sub={t("Bulk-apply tokens or generate visual recipes.")}
         />
         <CardBody padding="flush">
           <AccordionSection
-            title="Brand-kit import"
-            sub="Paste a JSON token bundle or extract from a URL."
+            title={t("Brand-kit import")}
+            sub={t("Paste a JSON token bundle or extract from a URL.")}
             data-theme-control="brand-kit-import"
           >
             <BrandKitImport onApply={onBulkApply} />
           </AccordionSection>
 
           <AccordionSection
-            title="Mesh gradient generator"
-            sub="Compose a free mesh background and copy the CSS."
+            title={t("Mesh gradient generator")}
+            sub={t("Compose a free mesh background and copy the CSS.")}
             marginBottom={0}
             data-theme-control="mesh-gradient-generator"
           >

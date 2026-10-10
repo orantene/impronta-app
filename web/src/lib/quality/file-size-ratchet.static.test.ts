@@ -273,7 +273,8 @@ const BUDGETS: Record<string, number> = {
   // +10 (info-tip program): six standing <Helper> paragraphs moved behind ⓘ
   // via `info=` on their FieldLabel; multi-line labels cost more lines than the
   // single-line helpers they replaced, while the panel renders shorter.
-  "src/components/edit-chrome/theme-drawer.tsx": 1461,
+  // +17 (live1 theme-editor ES): ThemeDrawer + AdvancedTab chrome through t().
+  "src/components/edit-chrome/theme-drawer.tsx": 1478,
   "src/components/edit-chrome/command-palette.tsx": 1287,
   // `assets-drawer.tsx` (1,244) is GONE — the pre-unification media library it
   // implemented was fully subsumed by <MediaLibrary>. The left rail's Assets

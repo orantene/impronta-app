@@ -6,7 +6,6 @@
  * detection + `editorT` resolver behind. Import `ES_TEXT` from `editor-i18n`
  * (it is re-exported there) so consumers never need to know about this file.
  */
-
 import { ES_ANIMATION_TEXT } from "./editor-i18n-es-animation";
 import { ES_BUILDER_REGISTRY_TEXT } from "./editor-i18n-es-registry";
 import { ES_CANVAS_CHROME_TEXT } from "./editor-i18n-es-canvas";
@@ -21,6 +20,7 @@ import { ES_APPS_TEXT } from "./editor-i18n-es-apps";
 import { ES_CAROUSEL_TEXT } from "./editor-i18n-es-carousel";
 import { ES_MEDIA_TEXT } from "./editor-i18n-es-media";
 import { ES_PUBLISH_TEXT } from "./editor-i18n-es-publish";
+import { ES_THEME_TEXT } from "./editor-i18n-es-theme"; // live1 theme-editor
 import { ES_SECTION_CATALOG_TEXT } from "./editor-i18n-es-sections";
 import { ES_SECTION_PANEL_TEXT } from "./editor-i18n-es-section-panels";
 import { ES_SECTION_PANEL_TEXT_2 } from "./editor-i18n-es-section-panels-2";
@@ -52,7 +52,7 @@ export const ES_TEXT: Record<string, string> = {
   // ── Slider inspector (2026-08-17 rebuild onto the field kit) ──────────
   ...ES_CAROUSEL_TEXT,
   // ── Publish drawer: tabs, one-click blocker fix, schedule form ────────
-  ...ES_PUBLISH_TEXT,
+  ...ES_PUBLISH_TEXT, ...ES_THEME_TEXT,
   // ── Gaps surfaced by the wave-0 ES parity guard (2026-08-05) ──────────
   'Optional "Browse all services" style link under the grid.':
     'Enlace opcional tipo "Ver todos los servicios" debajo de la cuadrícula.',
