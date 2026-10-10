@@ -5955,14 +5955,14 @@ html[data-theme="dark"] [data-tone="light"] {
   .site-header[data-variant="split"] .site-header__brand-label {
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  /* TUL-79 / TUL-397: phone CTA must stay inside 390 without blanket ellipsis.
-   * Allow the button to shrink + wrap so "Get in touch" / long ES labels fit. */
+  /* TUL-79: shrink phone CTA so long labels stay inside 390.
+   * Keep nowrap + flex:none (F79 forbids re-enabling wrap). No blanket ellipsis. */
+  .site-header__cta.site-btn,
   .site-header__cta {
-    flex: 0 1 auto;
-    min-width: 0;
-    white-space: normal;
-    text-align: center;
-    line-height: 1.2;
+    font-size: 12px;
+    padding-block: 0.4rem;
+    padding-inline: 0.65rem;
+    letter-spacing: 0.01em;
   }
 }
 
