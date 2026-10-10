@@ -1889,8 +1889,13 @@ export function AdminShellProvider({
   // points at /talent/X but the inline render already shows the workspace
   // shell — which the user (correctly) reads as "URL is stuck." So in
   // bridge mode we navigate FIRST and let the destination layout's
-  // `initialSurface` drive the surface change. The destination layout's
-  // `loading.tsx` covers the brief render gap.
+  // `initialSurface` drive the surface change.
+  //
+  // live2b-03 — the inverse sticky is worse: soft `router.push` from the
+  // talent tree to `/admin` (or `/{slug}/admin`) updates the URL while
+  // TalentShellClient stays mounted, so Admin never paints until F5. Hard-
+  // assign when leaving talent for workspace (same as the hub dual-owner
+  // path and WorkspaceShell → /talent/today).
   // In standalone prototype mode (no tenantSlug, no bridge) we keep the
   // legacy behavior — flip state inline since there's no real route to
   // navigate to.
@@ -1902,6 +1907,15 @@ export function AdminShellProvider({
     else if (surface === "workspace") nextSurface = "talent";
     if (!nextSurface) return;
 
+    // Persist before hard assign — the document unloads.
+    if (initialBridgeData != null) {
+      const target = nextSurface as "talent" | "workspace";
+      // Dynamic import keeps the server action out of the standalone bundle.
+      import("@/lib/server-actions/user-prefs")
+        .then(({ setPreferredSurface }) => setPreferredSurface(target))
+        .catch((err: unknown) => logServerError("flipmode", err));
+    }
+
     const slug = tenantSlugRef.current;
     if (slug) {
       // Production / cutover mode — URL leads.
@@ -1912,25 +1926,17 @@ export function AdminShellProvider({
         const base = adminBasePathRef.current;
         const segment = pageToSegment(page);
         nextHref = segment ? `${base}/${segment}` : base;
-      } else {
-        // Preserve last talent page similarly.
-        const segment = talentPageToSegment(talentPage) ?? "calendar";
-        nextHref = `/${slug}/talent/${segment}`;
+        window.location.assign(nextHref);
+        return;
       }
+      // Preserve last talent page similarly.
+      const segment = talentPageToSegment(talentPage) ?? "calendar";
+      nextHref = `/${slug}/talent/${segment}`;
       router.push(nextHref);
       setDrawer({ drawerId: null });
     } else {
       // Standalone prototype mode — just flip state inline.
       handleSetSurface(nextSurface);
-    }
-
-    // Persist preference when in production (bridge) mode.
-    if (initialBridgeData != null) {
-      const target = nextSurface as "talent" | "workspace";
-      // Dynamic import keeps the server action out of the standalone bundle.
-      import("@/lib/server-actions/user-prefs")
-        .then(({ setPreferredSurface }) => setPreferredSurface(target))
-        .catch((err: unknown) => logServerError("flipmode", err));
     }
   }, [alsoTalent, surface, page, talentPage, handleSetSurface, initialBridgeData, router]);
 
