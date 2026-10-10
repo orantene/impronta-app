@@ -20,6 +20,7 @@ import { interpolate } from "@/i18n/interpolate";
 import { markInquiryPaidInCash, type InquiryPaymentState } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import { COLORS } from "../../state";
 import { ghostBtn, primaryBtn } from "./machinery-13";
+import { depositMoney } from "./deposit-money";
 
 type OffPlatformMethod = "cash" | "wire" | "venue_paid";
 
@@ -76,8 +77,7 @@ export function CashSettleControls({
             {pending
               ? t("dashboard.adminTabs.saving")
               : interpolate(t("dashboard.adminTabs.payment.markPaidCashDeposit"), {
-                  amount: (state.depositAmountCents / 100).toFixed(2),
-                  currency: state.currency ?? "USD",
+                  amount: depositMoney(state.depositAmountCents, state.currency),
                 })}
           </button>
           <button type="button" disabled={pending} onClick={() => settle("full")} style={ghostBtn()}>

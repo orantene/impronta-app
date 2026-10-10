@@ -277,6 +277,7 @@ const en = {
     footnote:
       "Currency converts for LATAM & EU. Annual billing gives you 12 months for the price of 10. No setup fees, and your data is always yours: export anytime.",
     mostPopular: "Most popular",
+    sale: "Sale",
   },
 
   faq: {
@@ -663,6 +664,7 @@ const es: MarketingCopy = {
     footnote:
       "La moneda se ajusta para LATAM y la UE. Con el plan anual pagas 10 meses y tienes 12. Sin costos de instalación, y tus datos siempre son tuyos: expórtalos cuando quieras.",
     mostPopular: "Más popular",
+    sale: "Oferta",
   },
 
   faq: {

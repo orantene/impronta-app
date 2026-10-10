@@ -22,6 +22,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { CHROME } from "./kit";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
+import { useEditorLocale } from "./use-editor-locale";
 
 /** Every nav node in the tree, with the labels that identify it to a human. */
 export interface HudNavSummary {
@@ -44,6 +45,7 @@ export function collectHudNavs(tree: BuilderNodeTree): HudNavSummary[] {
       if (node.kind === "nav" && typeof node.id === "string") {
         out.push({
           id: node.id,
+          // English default; the card translates via t() at render.
           label: node.props?.ariaLabel || node.props?.brand || "Navigation",
           linkCount: Array.isArray(node.props?.links) ? node.props!.links!.length : 0,
         });
@@ -81,6 +83,7 @@ export function MobilePhoneMenuCard({
 }: {
   builderTree: BuilderNodeTree;
 }) {
+  const { t } = useEditorLocale();
   const navs = useMemo(() => collectHudNavs(builderTree), [builderTree]);
   const [pinnedId, setPinnedId] = useState<string | null>(null);
 
@@ -105,7 +108,7 @@ export function MobilePhoneMenuCard({
           paddingLeft: 2,
         }}
       >
-        Phone menu
+        {t("Phone menu")}
       </span>
 
       {pinnedId ? (
@@ -117,6 +120,12 @@ export function MobilePhoneMenuCard({
 
       {navs.map((nav) => {
         const open = pinnedId === nav.id;
+        // Aria/brand labels stay as authored; the English default key translates.
+        const label =
+          nav.label && nav.label !== "Navigation" ? nav.label : t("Navigation");
+        const linkLabel = t(
+          nav.linkCount === 1 ? "{count} link" : "{count} links",
+        ).replace("{count}", String(nav.linkCount));
         return (
           <button
             key={nav.id}
@@ -138,22 +147,23 @@ export function MobilePhoneMenuCard({
             }}
           >
             <span style={{ fontSize: 11, color: CHROME.ink }}>
-              {nav.label}
+              {label}
               <span style={{ color: CHROME.muted2 }}>
                 {" "}
-                · {nav.linkCount} link{nav.linkCount === 1 ? "" : "s"}
+                · {linkLabel}
               </span>
             </span>
             <span style={{ fontSize: 10, color: open ? CHROME.accent : CHROME.muted }}>
-              {open ? "Close" : "Open on canvas"}
+              {open ? t("Close") : t("Open on canvas")}
             </span>
           </button>
         );
       })}
 
       <p style={{ fontSize: 10, lineHeight: 1.4, color: CHROME.muted, margin: 0 }}>
-        Opens the menu on the canvas so you can style it while you look at it.
-        Nothing is saved by opening it.
+        {t(
+          "Opens the menu on the canvas so you can style it while you look at it. Nothing is saved by opening it.",
+        )}
       </p>
     </div>
   );

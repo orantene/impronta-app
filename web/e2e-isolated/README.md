@@ -37,3 +37,46 @@ A person or CI runs it. **Agent sessions do not run it**: it types card numbers 
 - MXN + USD variants: run once per currency by passing links created in each currency.
 - Money page and full/partial refund steps: not automated in this first version.
 - Status: written 2026-10-09, **not yet run**. First run: adjust `fillCard` selectors if Stripe changed its markup.
+
+## Live-QA regression pack (`live-qa-pack.spec.ts`)
+
+**Expected state on 2026-10-09 (read a red test as a KNOWN DEFECT, not a regression, until its row says PASS):**
+
+| Test (card id) | Expected today | Why |
+|---|---|---|
+| TUL-62 client /account list + cancel/reschedule | FAIL until fixed | list row shows "Servicio", date one day early; no cancel/reschedule (booking client_user_id NULL) |
+| TUL-64 client not bounced on the app host | FAIL until fixed | active client lands on /start or /onboarding/role |
+| TUL-116 guest chat price answer | PASS | verified by hand 2026-10-09 |
+| TUL-401 chat dock present | PASS (may flake: absent 30 s on 1 of 14 first loads) | stalls on the isolated stack |
+| TUL-182 money formats | PASS | verified by hand |
+| TUL-378 dual-owner switch desktop + phone | FAIL until fixed | no route to the business side on phone 390 |
+| TUL-255 impersonation portal pages | FAIL until fixed | generic 404 on every portal page, /client redirect loop |
+| TUL-398 builder Spanish search + defaults | FAIL until fixed | search matches English only; Gallery/Services defaults in English |
+| TUL-81 draft-saved toast | PASS | verified by hand |
+| TUL-381 offer draft editor | FAIL until fixed | "Anadir linea" typo, English "elige Talent" |
+| TUL-519 count bubble == inbox count | FAIL until #3181 lands | bubble 2 vs inbox 5 vs Hoy "Todo al día" |
+| FIRST-RUN studio greeting / POS rail / first publish | FAIL until the P1 cards ship | handle greeting, POS rail, 3 publish blockers |
+| T1/DS-62 header CTA target | UNKNOWN: the first run decides | batch t1 risk (primaryCta not pruned) |
+| TUL-421 theme round trip | SKIP unless QA_PACK_THEME_ROUNDTRIP=1; PASS when run | verified by hand |
+| TUL-117, TUL-120 | SKIP | delegated / needs a shared-row change |
+
+**NOT enrolled anywhere:** this spec is in no CI lane, no nightly list and no orphan list (`web/package.json` lanes,
+`web/scripts/ci/nightly-orphans.txt`, `.github/` do not mention it); only `tsconfig.json` type-checks `e2e-isolated/`.
+It runs only through `npm run qa:live-pack` against an isolated stack.
+
+One Playwright test per Notion card id, replacing the hand-run Live QA checks (Spanish workspace, client portal,
+builder, first-run publish, header CTA). Isolated stack only; `live-qa-pack-setup.ts` refuses first.
+
+```bash
+cd web
+# stack built from the release commit, on 3008/3105/3106, TULALA_PERF_TRACE optional
+export JOURNEYS_ISOLATED=1
+export QA_PACK_FIXTURES=/abs/path/fixtures.json     # shape: e2e-isolated/live-qa-pack.fixtures.example.json
+export IMPERSONATION_COOKIE_SECRET=<same throwaway secret as the stack>   # only for TUL-255
+npm run qa:live-pack
+```
+
+A missing fixture SKIPS the test (a skip is not a pass). Tests that encode a defect open today are written to FAIL
+until the fix ships. The pack creates one throwaway QA client and removes it in `afterAll` with a read-back; the
+inquiries/bookings that client makes are listed in `fixtures-created.json` for the TUL-3 clean-up. Status: written
+2026-10-09, NOT YET RUN end to end; adjust selectors on the first run.

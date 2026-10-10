@@ -173,7 +173,7 @@ export function AgendaTodayPage({
   eligibility?: TodayEligibility | null;
   /** Non-archived services; null while loading. */
   bookableCount?: number | null;
-  /** Client threads awaiting her reply: the inbox "Needs reply" count (countAwaitingReply). null = still reading, "unavailable" = read failed. */
+  /** Client threads awaiting her reply: same count as the attention bubble / inbox "esperando tu respuesta" (countTalentAwaitingInquiries). null = still reading, "unavailable" = read failed. */
   awaitingReplyCount?: number | "unavailable" | null;
   sitePublished?: boolean;
   siteUrl?: string | null;
