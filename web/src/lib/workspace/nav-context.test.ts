@@ -124,8 +124,20 @@ test("the nav context is built from the bridge objects, whole", () => {
     takesReservations: true,
     runsEvents: true,
     posEnabled: true,
+    counterOps: true,
     canManageBilling: false,
   });
+});
+
+test("TUL-525: a salon loses POS / counter ops on the rail", () => {
+  const salon = workspaceNavContext({
+    ...BRIDGE,
+    tenantIdentity: { industryPreset: APPOINTMENTS },
+    teamMemberCount: 3,
+  });
+  assert.equal(salon.preset, "hybrid");
+  assert.equal(salon.counterOps, false);
+  assert.equal(salon.posEnabled, false);
 });
 
 test("the preset is READ off the tenant row, not defaulted", () => {

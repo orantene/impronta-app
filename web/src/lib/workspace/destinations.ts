@@ -229,6 +229,8 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     label: "Orders",
     shortLabel: "Orders",
     built: true,
+    // TUL-525: Pedidos is a counter surface — hide for appointment studios.
+    requires: { counterOps: true },
     mobilePriority: 7,
     // Preparation is the kitchen's view of the same orders (W36: "Acceptance,
     // preparation, pickup/delivery, handoff, returns"), so it hangs here.
@@ -287,6 +289,7 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     label: "Preparation",
     built: true,
     parent: "orders",
+    requires: { counterOps: true },
   },
   catalog: {
     id: "catalog",
@@ -347,7 +350,8 @@ export const DESTINATIONS: Readonly<Record<DestinationId, Destination>> = {
     icon: "layers",
     label: "Spaces & Resources",
     built: true,
-    requires: { roles: ["owner", "manager"] },
+    // TUL-525: Mesas / Espacios is restaurant floor — not a salon rail.
+    requires: { roles: ["owner", "manager"], counterOps: true },
   },
   discounts: {
     id: "discounts",
@@ -687,6 +691,7 @@ function requirementsMet(
   if (requires.professional && !context.professional) return false;
   if (requires.billing && !context.canManageBilling) return false;
   if (requires.posEnabled && !context.posEnabled) return false;
+  if (requires.counterOps && !context.counterOps) return false;
   return true;
 }
 

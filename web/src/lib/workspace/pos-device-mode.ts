@@ -99,6 +99,11 @@ export function writeDevicePosMode(
 export type PosSwitchInput = {
   /** `platform_settings.workspace_pos_enabled`, off the shell bridge. */
   readonly posEnabled: boolean;
+  /**
+   * TUL-525: false for appointment studios so "POS · Mostrador" never appears.
+   * Absent = fail-open.
+   */
+  readonly counterOps?: boolean;
   /** The signed-in person's tenant rank, raw. */
   readonly role: PosPersonRole;
   /** `agencies.settings.pos.locations.default.modes`, already parsed. */
@@ -140,6 +145,7 @@ export type PosSwitchModel =
  */
 export function posSwitchModel(input: PosSwitchInput): PosSwitchModel {
   if (!input.posEnabled) return { visible: false };
+  if (input.counterOps === false) return { visible: false };
   const modes = modesForPerson({
     role: input.role,
     workspaceEnabledModes: input.workspaceEnabledModes,

@@ -14,8 +14,9 @@ import { finishPlan, type FinishPlan } from "@/lib/onboarding/finish-plan";
 import { PrimaryButton, Sub, Title } from "../ui";
 
 /**
- * TUL-16 · Studio with no provider yet: honest "ready for requests", then ONE
- * primary action (add the first team member) and one small secondary link.
+ * TUL-16 / TUL-525 · Studio with no provider yet: honest "ready for requests",
+ * then the same clear CTA stack as Para mí — Abrir mi panel first, site /
+ * customize, then add-member and also-book as real options (not footnotes).
  * Never says "bookable".
  */
 function InquiryOnlyArrival({ t, arrival, plan }: { t: (key: string) => string; arrival: ArrivalPayload; plan: Extract<FinishPlan, { kind: "inquiry_only" }> }) {
@@ -26,17 +27,59 @@ function InquiryOnlyArrival({ t, arrival, plan }: { t: (key: string) => string; 
       </div>
       <Title size={30}>{t(plan.titleKey)}</Title>
       <Sub>{t(plan.subKey)}</Sub>
-      <div className="mt-5 flex flex-col items-center gap-3">
-        <a href={plan.primary.href} data-testid="onb-arrival-add-member" className="inline-flex min-h-12 w-full items-center justify-center rounded-full px-6 py-2 text-center text-[0.9375rem] font-semibold" style={{ background: "var(--tl-forest)", color: "var(--tl-forest-on)" }}>
+      <div className="mt-5 flex flex-col gap-2">
+        <a
+          href={plan.primary.href}
+          data-testid="onb-arrival-panel"
+          className="inline-flex min-h-12 w-full items-center justify-center rounded-full px-6 py-2 text-center text-[0.9375rem] font-semibold"
+          style={{ background: "var(--tl-forest)", color: "var(--tl-forest-on)" }}
+        >
           {t(plan.primary.labelKey)}
         </a>
-        <a href={plan.secondary.href} data-testid="onb-arrival-also-book" className="text-[0.8125rem] font-semibold underline underline-offset-2" style={{ color: "var(--tl-ink-soft)" }}>
+        {arrival.link ? (
+          <a
+            href={arrival.link.href}
+            target="_blank"
+            rel="noreferrer"
+            data-testid="onb-arrival-view"
+            className="inline-flex min-h-12 w-full items-center justify-center rounded-full px-6 text-[0.9375rem] font-semibold"
+            style={{ background: "transparent", color: "var(--tl-ink)", border: "1px solid var(--tl-hairline-strong)" }}
+          >
+            {t("public.onboarding.arrival.viewMyWebsite")}
+          </a>
+        ) : null}
+        {arrival.editorHref ? (
+          <a
+            href={arrival.editorHref}
+            data-testid="onb-arrival-cta"
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-full px-6 text-[0.875rem] font-semibold"
+            style={{ background: "transparent", color: "var(--tl-ink-soft)" }}
+          >
+            {t("public.onboarding.arrival.customizeInBuilder")}
+          </a>
+        ) : null}
+        <a
+          href={plan.addMember.href}
+          data-testid="onb-arrival-add-member"
+          className="inline-flex min-h-11 w-full items-center justify-center rounded-full px-6 text-[0.875rem] font-semibold"
+          style={{ background: "transparent", color: "var(--tl-ink)", border: "1px solid var(--tl-hairline)" }}
+        >
+          {t(plan.addMember.labelKey)}
+        </a>
+        <a
+          href={plan.secondary.href}
+          data-testid="onb-arrival-also-book"
+          className="inline-flex min-h-11 w-full items-center justify-center rounded-full px-6 text-[0.875rem] font-semibold"
+          style={{ background: "transparent", color: "var(--tl-ink)", border: "1px solid var(--tl-hairline)" }}
+        >
           {t(plan.secondary.labelKey)}
         </a>
       </div>
       {arrival.link ? (
         <p className="mt-6 text-center text-[0.8125rem]" style={{ color: "var(--tl-muted)" }} data-testid="onb-arrival-link">
-          <a href={arrival.link.href} target="_blank" rel="noreferrer" className="underline underline-offset-2" data-testid="onb-arrival-visit">{arrival.link.display}</a>
+          <a href={arrival.link.href} target="_blank" rel="noreferrer" className="underline underline-offset-2" data-testid="onb-arrival-visit">
+            {arrival.link.display}
+          </a>
         </p>
       ) : null}
     </div>

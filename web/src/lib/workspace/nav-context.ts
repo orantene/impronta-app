@@ -29,6 +29,7 @@ import { isKnownTenantRole, type TenantRoleKey } from "@/lib/access/roles";
 import type { Plan } from "@/components/admin/shell/internal/state/types";
 import type { WorkspaceType } from "@/lib/saas/workspace-type";
 import type { WorkRole, WorkspaceNavContext, WorkspacePreset } from "./destinations";
+import { industryCounterOps } from "./industry-ops";
 
 export type PresetInput = {
   /** Raw `agencies.settings.industry_preset`. Anything unparseable is tolerated. */
@@ -161,6 +162,7 @@ export function workspaceNavContext(input: WorkspaceNavContextInput): WorkspaceN
     membershipRole: input.sessionIdentity?.role ?? input.fallbackRole,
     hasTalentProfile: input.hasTalentProfile,
   });
+  const counterOps = industryCounterOps(input.tenantIdentity?.industryPreset);
   return {
     workspaceType: input.workspaceType,
     plan: input.plan,
@@ -172,7 +174,10 @@ export function workspaceNavContext(input: WorkspaceNavContextInput): WorkspaceN
     professional: hats.professional,
     takesReservations: input.visiblePages.includes("reservations"),
     runsEvents: input.visiblePages.includes("events"),
-    posEnabled: input.visiblePages.includes("pos"),
+    // POS page id alone is not enough: a salon still has `pos` in
+    // visiblePages, but counter ops are off for appointment businesses.
+    posEnabled: input.visiblePages.includes("pos") && counterOps,
+    counterOps,
     // The server-resolved capability when we have it; the role ladder's own
     // answer otherwise. Never a guess from the plan tier.
     canManageBilling: input.sessionIdentity?.canManageBilling ?? canManageBilling(hats.role),

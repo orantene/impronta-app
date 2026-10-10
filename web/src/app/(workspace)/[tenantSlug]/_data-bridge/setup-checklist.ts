@@ -42,6 +42,8 @@ export type AgencySetupRow = {
   stripe_payouts_enabled: boolean | null;
   display_name: string | null;
   settings: Record<string, unknown> | null;
+  /** Workspace presentment currency (ISO). Used when no takings yet (TUL-525). */
+  preferred_currency: string | null;
 };
 
 export async function readAgencySetupRow(tenantId: string): Promise<AgencySetupRow | null> {
@@ -49,7 +51,9 @@ export async function readAgencySetupRow(tenantId: string): Promise<AgencySetupR
   if (!admin) return null;
   const { data, error } = await admin
     .from("agencies")
-    .select("timezone, takes_reservations, stripe_account_id, stripe_payouts_enabled, display_name, settings")
+    .select(
+      "timezone, takes_reservations, stripe_account_id, stripe_payouts_enabled, display_name, settings, preferred_currency",
+    )
     .eq("id", tenantId)
     .maybeSingle();
   if (error) {
