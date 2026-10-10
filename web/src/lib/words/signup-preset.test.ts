@@ -67,6 +67,10 @@ test("Spanish descriptions derive too", () => {
   assert.equal(pickSignupPreset({ businessDescription: "Clínica dental" }), "clinic");
   assert.equal(pickSignupPreset({ businessDescription: "Taquería" }), "restaurant");
   assert.equal(pickSignupPreset({ businessDescription: "Renta de bicis" }), "rentals");
+  // TUL-525: an accented "Salón de belleza" fell through to custom and kept POS.
+  assert.equal(pickSignupPreset({ businessDescription: "Salón de belleza" }), "salon_barber");
+  assert.equal(pickSignupPreset({ businessDescription: "Uñas y pestañas en Cancún" }), "salon_barber");
+  assert.equal(pickSignupPreset({ businessDescription: "Salón de eventos" }), "custom");
 });
 
 test("an agency says what it is by choosing the word", () => {
