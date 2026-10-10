@@ -136,3 +136,17 @@ test("GRK-053: the directory page drops tier-0 cards in every sort and keeps the
   assert.equal(presentabilityTier(photoOnly("p")), 1);
   assert.equal(presentabilityTier({ thumbnail: null, priceFromCents: 45000 }), 1);
 });
+
+test("GRK-053: an all-empty window hops forward and the header count drops hidden cards", () => {
+  const src = readFileSync(join(process.cwd(), "src/lib/directory/fetch-directory-page.ts"), "utf8");
+  assert.match(
+    src,
+    /while \(page\.items\.length === 0 && page\.nextCursor && hops < MAX_EMPTY_WINDOW_HOPS\)/,
+    "a window of only empty cards must not render as a blank page with Load more",
+  );
+  assert.match(src, /page\.totalCount = Math\.max\(page\.totalCount - hiddenCount, page\.items\.length\)/);
+  assert.match(src, /hiddenCount: items\.length - visibleItems\.length/);
+  assert.match(src, /params\.keepEmptyCards\s*\?\s*items/);
+  const cap = readFileSync(join(process.cwd(), "src/lib/saas/public-profile-cap.ts"), "utf8");
+  assert.match(cap, /keepEmptyCards: true/, "the public-profile cap must still see empty cards");
+});

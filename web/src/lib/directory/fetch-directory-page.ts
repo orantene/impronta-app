@@ -344,10 +344,45 @@ function applySort<T extends { order: (column: string, options?: { ascending?: b
     .order("id", { ascending: false });
 }
 
+/**
+ * A window made only of empty cards would render as a blank page with a
+ * "Load more" button, so the next windows are fetched instead, at most this
+ * many times per request.
+ */
+const MAX_EMPTY_WINDOW_HOPS = 3;
+
 export async function fetchDirectoryPage(
   supabase: SupabaseClient,
   params: DirectoryListParams = {},
 ): Promise<DirectoryPageResponse> {
+  const first = await fetchDirectoryWindow(supabase, params);
+  let { hiddenCount = 0, ...page } = first;
+  let hops = 0;
+  while (page.items.length === 0 && page.nextCursor && hops < MAX_EMPTY_WINDOW_HOPS) {
+    hops += 1;
+    const { hiddenCount: nextHidden = 0, ...next } = await fetchDirectoryWindow(supabase, {
+      ...params,
+      cursor: page.nextCursor,
+      skipTotalCount: true,
+    });
+    hiddenCount += nextHidden;
+    page = {
+      ...next,
+      ...(first.totalCount !== undefined ? { totalCount: first.totalCount } : {}),
+    };
+  }
+  // Exact once every window is loaded; otherwise it only discounts the empty
+  // cards seen so far, so the header never counts a card that was dropped here.
+  if (page.totalCount !== undefined && hiddenCount > 0) {
+    page.totalCount = Math.max(page.totalCount - hiddenCount, page.items.length);
+  }
+  return page;
+}
+
+async function fetchDirectoryWindow(
+  supabase: SupabaseClient,
+  params: DirectoryListParams = {},
+): Promise<DirectoryPageResponse & { hiddenCount?: number }> {
   const audit = isDirectoryApiAudit();
   const timings: Record<string, number> = {};
   const wallStart = performance.now();
@@ -1446,7 +1481,9 @@ export async function fetchDirectoryPage(
   // all, in every sort (Oran, 2026-10-10, GRK-053). Partly filled profiles stay
   // and only rank lower. `nextCursor` below is computed from the raw row count,
   // so dropping cards here never skips or repeats a page.
-  const visibleItems = items.filter((card) => presentabilityTier(card) > 0);
+  const visibleItems = params.keepEmptyCards
+    ? items
+    : items.filter((card) => presentabilityTier(card) > 0);
 
   if (audit) {
     timings.mapProfilesToDtoMs = performance.now() - mapStart;
@@ -1480,6 +1517,7 @@ export async function fetchDirectoryPage(
     ...(totalCount !== undefined ? { totalCount } : {}),
     taxonomyTermIds,
     reviewsEnabled: reviewsStandingEnabled,
+    hiddenCount: items.length - visibleItems.length,
   };
 }
 
