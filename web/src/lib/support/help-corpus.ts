@@ -3,6 +3,7 @@
  * Server-safe: imports the registry, not the HelpPanel client island.
  */
 import { DRAWER_HELP, type HelpEntry } from "@/components/admin/shell/internal/help-registry";
+import { DASHBOARD_AREA_HELP_ENTRIES } from "@/components/admin/shell/internal/help-registry-dashboard";
 import { SCHEDULING_HELP } from "@/components/admin/shell/internal/help-registry-scheduling";
 
 /**
@@ -10,12 +11,14 @@ import { SCHEDULING_HELP } from "@/components/admin/shell/internal/help-registry
  *
  * DRAWER_HELP is keyed by DRAWER ids, so the scheduling PAGES — events,
  * sessions, reservations — had no entry and the assistant denied they existed.
- * Merged here rather than in help-registry.ts, which sits exactly on its
- * line-count budget.
+ * Dashboard AREAS (Settings > Hours / Ajustes > Horarios, …) are bilingual
+ * sources merged the same way. Kept out of help-registry.ts, which sits
+ * exactly on its line-count budget.
  */
 export const SUPPORT_HELP_REGISTRY: Partial<Record<string, HelpEntry>> = {
   ...DRAWER_HELP,
   ...SCHEDULING_HELP,
+  ...DASHBOARD_AREA_HELP_ENTRIES,
 };
 
 export type HelpCorpusEntry = {
@@ -61,7 +64,43 @@ const STOP = new Set([
   "be",
   "not",
   "if",
+  // Spanish question glue — folded accents land here as ascii.
+  "el",
+  "la",
+  "los",
+  "las",
+  "un",
+  "una",
+  "de",
+  "del",
+  "al",
+  "en",
+  "y",
+  "o",
+  "mi",
+  "mis",
+  "su",
+  "sus",
+  "me",
+  "te",
+  "se",
+  "que",
+  "por",
+  "para",
+  "con",
+  "sin",
+  "es",
+  "son",
+  "como",
+  "donde",
 ]);
+
+/** Fold accents so "cómo"/"horarios" match ascii corpus tokens. */
+function foldAscii(text: string): string {
+  // Combining marks only (same house fold as location-settings / offering-intake).
+  // Prefer the explicit range over \p{M} so tokenize stays ES2017-safe.
+  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
 
 export function flattenHelpCorpus(
   registry: Partial<Record<string, HelpEntry>> = SUPPORT_HELP_REGISTRY,
@@ -90,7 +129,7 @@ export const SUPPORT_CATEGORIES: string[] = [
 ].sort((a, b) => a.localeCompare(b));
 
 export function tokenize(text: string): string[] {
-  return text
+  return foldAscii(text)
     .toLowerCase()
     .split(/[^a-z0-9]+/i)
     .map((t) => t.trim())
@@ -99,9 +138,11 @@ export function tokenize(text: string): string[] {
 
 function entryText(entry: HelpCorpusEntry): string {
   const faqBits = entry.faqs.flatMap((f) => [f.q, f.a]);
-  return [entry.slug, entry.purpose, ...entry.youCanHere, ...faqBits, entry.category, entry.ticketCategory ?? ""]
-    .join(" ")
-    .toLowerCase();
+  return foldAscii(
+    [entry.slug, entry.purpose, ...entry.youCanHere, ...faqBits, entry.category, entry.ticketCategory ?? ""]
+      .join(" ")
+      .toLowerCase(),
+  );
 }
 
 export function insightRowsToCorpus(
