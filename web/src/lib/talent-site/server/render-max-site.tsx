@@ -554,6 +554,20 @@ async function renderMaxSiteDocument(args: {
   const overHeroAttr =
     !args.mainOverride && headerOverlayAllowed(renderedBlocks) ? { "data-over-hero": "true" } : {};
   const hasSocialNode = builderTreeHasKind(footerTree, "social_links"); const { records: footerSocialLinks, strip: webOfficeStrip } = webOfficeFooter(args.webOffice, hasSocialNode || args.webOffice ? await loadTalentSocialLinks(talentProfileId) : [], hasSocialNode, locale);
+  // GRK-030: Gridline utility_bar has no site_header language item; paint ES/EN
+  // in the sticky bar and drop the duplicate group from the footer socket.
+  const utilityBarLocales =
+    args.localeCtx.settings.supportedLocales.length >= 2 &&
+    args.localeCtx.switcherHrefs &&
+    builderTreeHasKind(headerTree, "utility_bar")
+      ? {
+          locales: args.localeCtx.settings.supportedLocales,
+          hrefs: args.localeCtx.switcherHrefs,
+          current: locale,
+        }
+      : undefined;
+  const headerHasLanguageSwitch =
+    headerShowsLanguageSwitch(headerTree) || Boolean(utilityBarLocales);
   const socketModel = buildSocketModel({
     locale,
     publicPathPrefix,
@@ -564,7 +578,7 @@ async function renderMaxSiteDocument(args: {
     whitelabel: tenantId ? await loadTenantWhitelabel(tenantId) : false,
     consentTooling: socketConsentToolingEnabled(),
     talentName: args.talentName,
-    headerHasLanguageSwitch: headerShowsLanguageSwitch(headerTree),
+    headerHasLanguageSwitch,
     helpContext: args.profileCode ? { profileCode: args.profileCode, siteHost: args.siteHost ?? null } : null,
   });
 
@@ -735,7 +749,13 @@ async function renderMaxSiteDocument(args: {
               mode: "freeform",
               includeRendererStyles: false,
               includeFontLinks: false,
-              dataSources: { liveStatus },
+              dataSources: {
+                liveStatus,
+                ...(utilityBarLocales ? { siteLocales: utilityBarLocales } : {}),
+                ...(typeof pricedDataSources.callHref === "string"
+                  ? { callHref: pricedDataSources.callHref }
+                  : {}),
+              },
               captcha: formCaptchaConfig,
               bookingCaptcha: bookingCaptchaConfig,
               visitorLocale: locale,

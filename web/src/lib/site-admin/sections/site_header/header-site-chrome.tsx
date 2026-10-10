@@ -1,9 +1,13 @@
 import { languageToggleGroupLabel } from "@/i18n/language-toggle-label";
 import type { HeaderItem } from "./schema";
 
-/** How an item behaves on each breakpoint when the owner has not chosen (phone: brand stays, rest folds into the menu). */
+/** How an item behaves on each breakpoint when the owner has not chosen (phone: brand + language stay; rest folds into the menu). */
 export function headerItemMobileDefault(item: HeaderItem): "show" | "menu" {
-  return item.type === "wordmark" || item.type === "logo" || item.type === "section_switcher" ? "show" : "menu";
+  // GRK-030: language stays in the bar on phone so bilingual demos are not
+  // footer-only (cookie banner covers the socket language group).
+  return item.type === "wordmark" || item.type === "logo" || item.type === "section_switcher" || item.type === "language"
+    ? "show"
+    : "menu";
 }
 
 /** `data-header-item` + per-breakpoint attrs. The section switcher is phone-only unless the owner says otherwise. */

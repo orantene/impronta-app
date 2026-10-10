@@ -29,6 +29,7 @@ import { BreakpointStyleEngine } from "@/components/edit-chrome/breakpoint-style
 import { BUILTIN_EXTRA_TIERS } from "@/lib/site-admin/builder-node/custom-breakpoint-css";
 import { designTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/design-token-defaults";
 import { typeSystemComponentStyleDefaults } from "@/lib/talent-site/theme-catalog/collection/design-type-system";
+import { builderTreeHasKind } from "./builder-tree-has-kind";
 import { loadMaxSiteIsDemo, withHeaderSiteChrome } from "./render-max-site-demo";
 import { splitShell } from "./render-max-site-shell";
 import {
@@ -161,6 +162,16 @@ export async function buildTalentBuilderCanvasData(input: {
   // The socket carries the ONE Tulala credit, so the canvas hides any design-level one too.
   const footerTree = stripDesignCredits(rawFooterTree);
   const canvasIdentity = await loadTalentSiteIdentity(talentProfileId);
+  const utilityBarLocales =
+    localeCtx.settings.supportedLocales.length >= 2 &&
+    localeCtx.switcherHrefs &&
+    builderTreeHasKind(headerTree, "utility_bar")
+      ? {
+          locales: localeCtx.settings.supportedLocales,
+          hrefs: localeCtx.switcherHrefs,
+          current: siteLocale,
+        }
+      : undefined;
   const socketModel = buildSocketModel({
     locale: siteLocale,
     publicPathPrefix: "",
@@ -171,18 +182,23 @@ export async function buildTalentBuilderCanvasData(input: {
     whitelabel: input.tenantId ? await loadTenantWhitelabel(input.tenantId) : false,
     consentTooling: socketConsentToolingEnabled(),
     talentName: canvasIdentity?.name ?? null,
-    headerHasLanguageSwitch: headerShowsLanguageSwitch(headerTree),
+    headerHasLanguageSwitch: headerShowsLanguageSwitch(headerTree) || Boolean(utilityBarLocales),
     helpContext: canvasIdentity?.profileCode
       ? { profileCode: canvasIdentity.profileCode, siteHost: null }
       : null,
   });
 
-  const dataSources = await dataSourcesP;
+  const dataSources = {
+    ...(await dataSourcesP),
+    ...(utilityBarLocales ? { siteLocales: utilityBarLocales } : {}),
+  };
 
   const renderShell = (roots: BuilderNode[]): ReactNode =>
     roots.length === 0 ? null : (
       <>
-        {roots.map((root) => renderShellRoot(root, localeCtx, isDemo))}
+        {roots.map((root) =>
+          renderShellRoot(root, localeCtx, isDemo, utilityBarLocales ? { siteLocales: utilityBarLocales } : undefined),
+        )}
       </>
     );
 
@@ -223,7 +239,12 @@ export async function buildTalentBuilderCanvasData(input: {
 }
 
 /** One shell root, as `renderMaxSiteDocument` renders it (read-only). */
-export function renderShellRoot(root: BuilderNode, localeCtx: TalentSiteLocaleContext, isDemo: boolean): ReactNode {
+export function renderShellRoot(
+  root: BuilderNode,
+  localeCtx: TalentSiteLocaleContext,
+  isDemo: boolean,
+  dataSources?: { siteLocales?: { locales: readonly string[]; hrefs: Readonly<Record<string, string>>; current: string } },
+): ReactNode {
   const locale = localeCtx.locale;
   const opts = {
     publicPathPrefix: "",
@@ -232,6 +253,7 @@ export function renderShellRoot(root: BuilderNode, localeCtx: TalentSiteLocaleCo
     includeFontLinks: false,
     visitorLocale: locale,
     contentLocale: localeCtx.contentLocale,
+    ...(dataSources ? { dataSources } : {}),
   };
   if (
     root.kind === "section" &&
