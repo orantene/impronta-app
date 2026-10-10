@@ -234,6 +234,10 @@ export function AdminShellClient({
     <ShellBoundary supportSlot={supportSlot}>
       <AdminShellProvider
         initialBridgeData={initialBridgeData}
+        // live2b-03 — URL is an explicit workspace intent. Without this,
+        // hybrid users whose preferredSurface is still "talent" keep the
+        // Talento chrome on `/admin` / `/{slug}/admin` until a full reload.
+        initialSurface="workspace"
         initialPage={initialPage}
         tenantSlug={tenantSlug}
         brandedHost={brandedHost}
