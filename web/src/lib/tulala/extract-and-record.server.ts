@@ -14,7 +14,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import type { Brief } from "./brief-store";
 import { recordFacts } from "./brief-store.server";
 import { EXTRACTION_SCHEMA, parseExtraction } from "./extraction";
-import { normalizeExtractedFacts } from "./normalize-facts";
+import { normalizeExtractedFacts, type HoursLocale } from "./normalize-facts";
 import type { IndustryPack } from "./industry-packs";
 import { buildExtractionMessage, buildExtractionPrompt } from "./prompts";
 import type { Question } from "./questions";
@@ -42,6 +42,8 @@ export async function extractAndRecord(input: {
   userMessage: string;
   question: Question | null;
   pack: IndustryPack | null;
+  /** Onboarding locale — shapes hours labels + keep-language extraction (onb1-01). */
+  locale?: HoursLocale;
   /**
    * Called once with the model call's outcome so a caller can record cost
    * and fail over to another provider. The return value (the facts written)
@@ -49,10 +51,11 @@ export async function extractAndRecord(input: {
    */
   report?: (outcome: ExtractionOutcome) => void;
 }): Promise<LearnedFact[]> {
+  const locale = input.locale ?? "en";
   try {
     const completion = await withTimeout(
       input.adapter.chatCompletion({
-        systemPrompt: buildExtractionPrompt({ pack: input.pack }),
+        systemPrompt: buildExtractionPrompt({ pack: input.pack, locale }),
         userMessage: buildExtractionMessage({
           userMessage: input.userMessage,
           brief: input.brief,
@@ -92,9 +95,9 @@ export async function extractAndRecord(input: {
     }
     if (parsed.facts.length === 0) return [];
 
-    // Shape before store: hours to one canonical form, phones to E.164 when
-    // the country is known, service lists tidy. The model reads; this shapes.
-    const facts = normalizeExtractedFacts(parsed.facts);
+    // Shape before store: hours to one canonical form (locale day labels),
+    // phones to E.164 when the country is known, service lists tidy.
+    const facts = normalizeExtractedFacts(parsed.facts, { locale });
     const result = await recordFacts(input.brief.id, facts);
     const written = new Set(result.written);
     return facts

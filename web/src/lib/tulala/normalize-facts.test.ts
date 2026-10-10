@@ -29,6 +29,30 @@ describe("hours phrases", () => {
   });
 });
 
+describe("hours phrases (es locale · onb1-01)", () => {
+  const cases: Array<[string, string | null]> = [
+    ["de lunes a sábado", "Lun-Sáb"],
+    ["lunes a sabado de 9 a 7", "Lun-Sáb 09:00-19:00"],
+    ["martes a domingo de 1 a 11 de la noche", "Mar-Dom 13:00-23:00"],
+    ["todos los dias de 10 a 20", "Todos los días 10:00-20:00"],
+    ["every day", "Todos los días"],
+    ["con cita", "Con cita"],
+    ["lunes, martes, miercoles, jueves, viernes, sabado", "Lun-Sáb"],
+    ["lunes y jueves", "Lun, Jue"],
+    ["cuando se pueda", null],
+  ];
+  for (const [input, expected] of cases) {
+    test(`es ${JSON.stringify(input)}`, () => assert.equal(normalizeHoursPhrase(input, "es"), expected));
+  }
+
+  test("es value list collapses with Spanish day shorts", () => {
+    assert.deepEqual(
+      normalizeHoursValue(["lunes", "martes", "miercoles", "jueves", "viernes", "sabado"], "es"),
+      ["Lun-Sáb"],
+    );
+  });
+});
+
 describe("phones and services", () => {
   test("E.164 kept; +52 added only with an MX hint", () => {
     assert.equal(normalizePhoneValue("+52 998 123 4567", null), "+529981234567");
@@ -49,5 +73,15 @@ describe("phones and services", () => {
     assert.equal(out[1].value, "+529981234567");
     assert.deepEqual(out[2].value, ["Tue-Sun 13:00-23:00"]);
     assert.equal(out[3].value, "  Parrilla El Paisa "); // untouched keys stay untouched
+  });
+  test("whole batch with es locale keeps Spanish hour labels (onb1-01)", () => {
+    const out = normalizeExtractedFacts(
+      [
+        { factKey: "person.country", value: "MX", source: "ai_inference" },
+        { factKey: "business.hours", value: ["martes a domingo de 1 a 11 de la noche"], source: "ai_inference" },
+      ],
+      { locale: "es" },
+    );
+    assert.deepEqual(out[1].value, ["Mar-Dom 13:00-23:00"]);
   });
 });
