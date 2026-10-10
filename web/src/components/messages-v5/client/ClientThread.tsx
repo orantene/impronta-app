@@ -9,16 +9,21 @@
  *
  * Locale follows the WORKSPACE (D-151): the page resolves it server-side and
  * hands it down; nothing here reads the visitor's cookie.
+ *
+ * W5-10 / TUL-280: accepting an offer requires a signed-in client. Unsigned
+ * guests see "Sign in to accept" / "Inicia sesión para aceptar" and the same
+ * inline email-code form as the guest dock — never the dead-end `not_allowed`
+ * surface refusal.
  */
 
 import { useRouter } from "next/navigation";
-import { payLinkTarget } from "@/lib/payments/pay-link-target";
-import { resolvePayLinkPublicUrl } from "@/lib/server-actions/pay-link-public-url";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { GuestOfferSignIn } from "@/app/t/[profileCode]/_chat/GuestOfferSignIn";
 import { translatorFor } from "@/i18n/use-t";
 import type { MessagingRefusal, ThreadMessage } from "@/lib/messaging/types";
 import type { ClientOfferSummary } from "@/lib/messages-v5/client-thread-view";
+import { payLinkTarget } from "@/lib/payments/pay-link-target";
 import {
   messagingClientAcceptOffer,
   messagingClientChoose,
@@ -28,6 +33,7 @@ import {
   messagingClientRequestChange,
   messagingClientSaveToEmail,
 } from "@/lib/server-actions/messaging-client";
+import { resolvePayLinkPublicUrl } from "@/lib/server-actions/pay-link-public-url";
 
 import { buildKitCopy } from "../kit/copy";
 import { ClientThreadView, type CardActivity, type ComposerPhase, type SaveEmailPhase } from "./ClientThreadView";
@@ -59,6 +65,9 @@ export function ClientThread(props: ClientThreadProps) {
   const [activity, setActivity] = useState<Readonly<Record<string, CardActivity>>>({});
   const [now, setNow] = useState(() => new Date());
   const [saveEmail, setSaveEmail] = useState<SaveEmailPhase>("idle");
+  // null = still checking; false = guest; true = signed-in client.
+  const [clientSignedIn, setClientSignedIn] = useState<boolean | null>(null);
+  const [signInOffer, setSignInOffer] = useState<ClientOfferSummary | null>(null);
 
   // A held time shows a countdown; tick once a second while any card is held.
   const anyHold = props.messages.some((m) => m.kind === "professional_times" && typeof m.payload?.holdExpiresAt === "string");
@@ -67,6 +76,22 @@ export function ClientThread(props: ClientThreadProps) {
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, [anyHold]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const qs = new URLSearchParams({ locale: props.locale.startsWith("es") ? "es" : "en" });
+    void fetch(`/api/client/account?${qs.toString()}`, { credentials: "same-origin" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((me: { signedIn?: boolean } | null) => {
+        if (!cancelled) setClientSignedIn(Boolean(me?.signedIn));
+      })
+      .catch(() => {
+        if (!cancelled) setClientSignedIn(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [props.locale]);
 
   // Soft return from /pay: refresh while an unpaid Pay card can still flip.
   const refresh = useCallback(() => {
@@ -168,7 +193,7 @@ export function ClientThread(props: ClientThreadProps) {
       .then((r) => window.location.assign(payLinkTarget(code, r.url)));
   }, []);
 
-  const onAcceptOffer = useCallback(
+  const acceptOfferDirect = useCallback(
     async (offer: ClientOfferSummary) => {
       setAct(offer.id, { phase: "busy" });
       const result = await messagingClientAcceptOffer({ token: props.token, offerId: offer.id, offerVersion: offer.version });
@@ -185,6 +210,40 @@ export function ClientThread(props: ClientThreadProps) {
     },
     [onPay, props.token, refused, router, setAct],
   );
+
+  const onAcceptOffer = useCallback(
+    async (offer: ClientOfferSummary) => {
+      if (clientSignedIn !== true) {
+        setSignInOffer(offer);
+        return;
+      }
+      await acceptOfferDirect(offer);
+    },
+    [acceptOfferDirect, clientSignedIn],
+  );
+
+  const onSignInComplete = useCallback(async () => {
+    const offer = signInOffer;
+    setClientSignedIn(true);
+    setSignInOffer(null);
+    if (offer) await acceptOfferDirect(offer);
+    else router.refresh();
+  }, [acceptOfferDirect, router, signInOffer]);
+
+  const onCancelSignIn = useCallback(() => setSignInOffer(null), []);
+
+  const requireSignInToAccept = clientSignedIn !== true;
+  const signInToAcceptLabel = t("public.guestChat.signInToAccept");
+  const offerSignInPanel = signInOffer ? (
+    <GuestOfferSignIn
+      locale={props.locale}
+      t={t}
+      accent="#111"
+      accentInk="#fff"
+      onSignedIn={onSignInComplete}
+      onCancel={onCancelSignIn}
+    />
+  ) : null;
 
   const onDeclineOffer = useCallback(
     async (offer: ClientOfferSummary, reason: string) => {
@@ -261,6 +320,9 @@ export function ClientThread(props: ClientThreadProps) {
       onPay={onPay}
       onSaveToEmail={() => void onSaveToEmail()}
       threadTokenExpiresAt={props.threadTokenExpiresAt}
+      offerAcceptLabel={requireSignInToAccept ? signInToAcceptLabel : undefined}
+      offerSignInOfferId={signInOffer?.id ?? null}
+      offerSignInPanel={offerSignInPanel}
     />
   );
 }

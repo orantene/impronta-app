@@ -65,11 +65,11 @@ import { BRAND_IDENTITY_MESSAGE, brandIdentityAppliesTo, brandIdentityVerdict } 
 import { isAdvancedElementLibraryEnabledForPlan } from "@/lib/site-admin/builder-node/element-library-policy";
 import { resolveSnapshotBuilderTree } from "@/lib/site-admin/builder-node/snapshot-tree";
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
-import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import {
   collectContrastPreflightIssues,
   loadThemeDraftTokens,
 } from "./publish-preflight-contrast-rules";
+import { finalizeOwnerPreflightIssues } from "./publish-preflight-owner-filter";
 
 export type PreflightSeverity = "error" | "warn";
 
@@ -319,10 +319,8 @@ export async function runPublishPreflight(input?: {
   const issues: PreflightIssue[] = [];
   const featuredChecks: Array<Promise<void>> = [];
 
-  // Brand identity (owner decision 1): a logo or the wordmark choice before
-  // a COMPOSED site can publish. Scoped to tenants carrying a site_compose
-  // stamp so sites that went live before the rule are never blocked. Read
-  // once; a read failure is reported as "no identity" rather than waved through.
+  // Brand identity (TUL-524): soft tip only. New sites default to the
+  // business-name wordmark at seed; a missing choice is never a publish wall.
   if (brandIdentityAppliesTo(input?.surfaceKind)) {
     const [{ data: branding, error: brandingErr }, { data: agency, error: agencyErr }] = await Promise.all([
       auth.supabase.from("agency_branding").select("logo_media_asset_id").eq("tenant_id", scope.tenantId).maybeSingle<{ logo_media_asset_id: string | null }>(),
@@ -336,7 +334,7 @@ export async function runPublishPreflight(input?: {
       wordmarkChosen: !agencyErr && agency?.settings?.brand_identity === "wordmark",
     });
     if (composed && !verdict.ok) {
-      issues.push({ severity: "error", category: "brand_identity", message: BRAND_IDENTITY_MESSAGE });
+      issues.push({ severity: "warn", category: "brand_identity", message: BRAND_IDENTITY_MESSAGE });
     }
   }
 
@@ -693,37 +691,9 @@ export async function runPublishPreflight(input?: {
     });
   }
 
-  // Locale completeness guardrail for multi-locale workspaces.
-  try {
-    const localeSettings = await loadTenantLocaleSettings(scope.tenantId);
-    const supportedLocales = localeSettings.supportedLocales ?? [];
-    if (supportedLocales.length > 1) {
-      const { data: homepageLocales } = await auth.supabase
-        .from("cms_pages")
-        .select("locale, status, published_homepage_snapshot")
-        .eq("tenant_id", scope.tenantId)
-        .eq("system_template_key", "homepage")
-        .in("locale", supportedLocales);
-      const byLocale = new Map(
-        (homepageLocales ?? []).map((row) => [row.locale as string, row]),
-      );
-      const missingPublishedLocales = supportedLocales.filter((supported) => {
-        const row = byLocale.get(supported);
-        if (!row) return true;
-        if (row.status !== "published") return true;
-        return row.published_homepage_snapshot == null;
-      });
-      if (missingPublishedLocales.length > 0) {
-        issues.push({
-          severity: "warn",
-          category: "seo",
-          message: `Missing published homepage snapshot for locale${missingPublishedLocales.length > 1 ? "s" : ""}: ${missingPublishedLocales.join(", ")}.`,
-        });
-      }
-    }
-  } catch {
-    // Locale completeness is best-effort.
-  }
+  // TUL-524: multi-locale homepage snapshot completeness is a platform concern.
+  // The seed/publish path creates what it needs; never surface snapshot/locale
+  // jargon to the owner.
 
   // WS4 — WCAG AA contrast check against the workspace's brand token palette.
   // Advisory only (severity "warn") — a failing palette is a design issue, not
@@ -768,27 +738,8 @@ export async function runPublishPreflight(input?: {
     // Preflight is best-effort; ARIA check failures don't block publish.
   }
 
-  const normalizedIssues = issues.map((issue) => {
-    if (issue.category === "alt_text" && issue.severity === "warn") {
-      return {
-        ...issue,
-        severity: "error" as const,
-        message: `${issue.message} Add alt text before publishing.`,
-      };
-    }
-    if (
-      workspacePlan === "free" &&
-      issue.severity === "warn" &&
-      (issue.category === "link_integrity" || issue.category === "seo")
-    ) {
-      return {
-        ...issue,
-        severity: "error" as const,
-        message: `${issue.message} (Free publish policy)`,
-      };
-    }
-    return issue;
-  });
-
-  return { ok: true, issues: normalizedIssues };
+  return {
+    ok: true,
+    issues: finalizeOwnerPreflightIssues(issues, workspacePlan),
+  };
 }

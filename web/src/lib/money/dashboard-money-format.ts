@@ -17,6 +17,7 @@
  *
  * Pure module: no React, no server code. A bad currency code never throws.
  */
+import { minorUnitDivisor } from "@/lib/orders/money-format";
 import { moneyLocale } from "@/lib/talent/offerings-money";
 
 export type DashboardMoneyOptions = {
@@ -62,5 +63,5 @@ export function formatDashboardMoneyCents(
   currency: string | null | undefined,
   locale: string = "en",
 ): string {
-  return formatDashboardMoney(Math.round(amountCents) / 100, currency, locale);
+  return formatDashboardMoney(Math.round(amountCents) / minorUnitDivisor(currency || "USD"), currency, locale);
 }

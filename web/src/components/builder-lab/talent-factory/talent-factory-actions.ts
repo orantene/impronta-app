@@ -14,6 +14,10 @@ import type { FactoryOverview } from "./factory-model";
 import { evaluateFactoryGate, guardedFactoryRun, type FactoryResult } from "./talent-factory-gate";
 import { loadTalentFactory, syncTalentCatalog } from "./talent-factory.server";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import {
+  exportAuthoredOverlayForGit,
+  openCodeSeedReviewDraft,
+} from "@/lib/talent-site/theme-catalog/code-seed-review.server";
 
 export type TalentSyncJson = {
   created: number;
@@ -66,6 +70,70 @@ export async function actionSyncTalentCatalog(): Promise<FactoryResult<TalentSyn
     } catch (err) {
       logServerError("talentFactory.sync", err);
       return { ok: false, error: err instanceof Error ? err.message : "Sync failed." };
+    }
+  });
+}
+
+export type CodeSeedReviewJson = {
+  design: string;
+  kind: string;
+  summary: string;
+  summaryEs: string;
+  editHref: string;
+  alreadyDone: boolean;
+};
+
+/** TUL-366: open a Builder Lab draft with code-seed changes (no publish). */
+export async function actionOpenCodeSeedReview(design: string): Promise<FactoryResult<CodeSeedReviewJson>> {
+  await requireNotImpersonating();
+  return guardedFactoryRun(await gate(), async (userId) => {
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, error: "Server configuration error." };
+    try {
+      const res = await openCodeSeedReviewDraft(admin, design.trim().toLowerCase(), userId);
+      if (!res.ok) return { ok: false, error: res.errorEs ?? res.error };
+      return {
+        ok: true,
+        data: {
+          design: res.design,
+          kind: res.kind,
+          summary: res.summary,
+          summaryEs: res.summaryEs,
+          editHref: res.editHref,
+          alreadyDone: res.alreadyDone,
+        },
+      };
+    } catch (err) {
+      logServerError("talentFactory.codeSeedReview", err);
+      return { ok: false, error: err instanceof Error ? err.message : "Code-seed review failed." };
+    }
+  });
+}
+
+export type AuthoredOverlayExportJson = {
+  file: string;
+  overlayJson: string;
+  authoredVersion: number;
+};
+
+/** TUL-366: export authored overlay JSON for git after a Builder Lab publish. */
+export async function actionExportAuthoredOverlay(
+  design: string,
+): Promise<FactoryResult<AuthoredOverlayExportJson>> {
+  await requireNotImpersonating();
+  return guardedFactoryRun(await gate(), async () => {
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, error: "Server configuration error." };
+    try {
+      const res = await exportAuthoredOverlayForGit(admin, design.trim().toLowerCase());
+      if (!res.ok) return { ok: false, error: res.error };
+      return {
+        ok: true,
+        data: { file: res.file, overlayJson: res.overlayJson, authoredVersion: res.authoredVersion },
+      };
+    } catch (err) {
+      logServerError("talentFactory.exportOverlay", err);
+      return { ok: false, error: err instanceof Error ? err.message : "Export failed." };
     }
   });
 }

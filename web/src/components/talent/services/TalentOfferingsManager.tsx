@@ -40,6 +40,7 @@ import { OfferingOptionsEditor } from "./OfferingOptionsEditor";
 import type { ServicePricingType } from "@/lib/talent/services-menu-types";
 import { DEFAULT_CURRENCY_OPTIONS, CURRENCY_LABELS, TALENT_CURRENCY_OPTIONS } from "@/lib/billing/currencies";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 
 const C = {
   ink: "#0B0B0D",
