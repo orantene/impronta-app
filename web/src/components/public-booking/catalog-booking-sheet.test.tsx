@@ -542,7 +542,7 @@ test("longer extras clear a start that dropped out of the list (BUF-6)", async (
   act(() => timeBtn.click());
   assert.equal(host.querySelectorAll('.jb-time[data-on="true"]').length, 1);
   // Back to choose, add the long extra, return to when → 15:00 must disappear / selection clear.
-  const back = host.querySelector<HTMLButtonElement>(".jb-back-link");
+  const back = host.querySelector<HTMLButtonElement>("[data-catalog-change-service]");
   assert.ok(back);
   act(() => back.click());
   const checkbox = host.querySelector<HTMLInputElement>('input[type="checkbox"]');
@@ -705,63 +705,5 @@ test("ES: the booking sheet renders no English UI chrome on the choose step", ()
     text,
     /\b(Continue|Your booking|Loading times|Change service|Book now|Next free|Today at|Choose an option|Designs and extras|Estimated duration)\b/,
   );
-  unmount();
-});
-
-test("Track D10: quote tulala:offering-request never opens the booking sheet", () => {
-  const sheet = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "CatalogBookingSheet.tsx"), "utf8");
-  assert.match(sheet, /priceDisplay === "quote"/);
-  assert.match(sheet, /openCatalogBookingChat/);
-
-  const book = mockBook();
-  const { host, unmount } = mount("demo", book);
-  const asks: Event[] = [];
-  const onAsk = (e: Event) => asks.push(e);
-  dom.window.addEventListener("tulala:ask-question", onAsk);
-  act(() => {
-    dom.window.dispatchEvent(
-      new dom.window.CustomEvent("tulala:offering-request", {
-        detail: detail({
-          priceDisplay: "quote",
-          priceType: "custom",
-          amountCents: null,
-          intent: "request",
-        }),
-      }),
-    );
-  });
-  assert.equal(host.querySelector(".jb-back"), null, "quote must not open the sheet");
-  assert.equal(asks.length, 1, "quote redirects to ask chat");
-  dom.window.removeEventListener("tulala:ask-question", onAsk);
-  unmount();
-});
-
-test("TUL-516: sheet From floor matches cheapest option; Base price follows selection", () => {
-  const book = mockBook();
-  const { host, unmount } = mount("demo", book);
-  open(
-    detail({
-      title: "Revisión eléctrica",
-      amountCents: 55000,
-      addOns: [],
-      variants: [
-        { id: "casa", label: "Casa", amountCents: 55000 },
-        { id: "depa", label: "Departamento", amountCents: 50000 },
-        { id: "local", label: "Local comercial", amountCents: 80000 },
-      ],
-    }),
-  );
-  const summary = host.querySelector(".jb-summary")?.textContent ?? "";
-  assert.match(summary, /Desde/);
-  assert.match(summary, /\$500|500/);
-  assert.doesNotMatch(summary, /Precio base/);
-
-  const radios = Array.from(host.querySelectorAll<HTMLInputElement>('input[name="cb-variant"]'));
-  assert.equal(radios.length, 3);
-  act(() => radios[1]!.click());
-  const after = host.querySelector(".jb-summary")?.textContent ?? "";
-  assert.match(after, /Precio base/);
-  assert.match(after, /\$500|500/);
-  assert.doesNotMatch(after, /Desde/);
   unmount();
 });

@@ -73,6 +73,7 @@ import { ServiceAddressField } from "./ServiceAddressField";
 import { useServiceAddress } from "./use-service-address";
 import { useCatalogBookingConfirm } from "./use-catalog-booking-confirm";
 import { CatalogDonePanel, CatalogSheetHeader } from "./catalog-done-panel";
+import { CatalogBookingBackNav } from "./catalog-booking-back-nav";
 
 type Step = "choose" | "when" | "who" | "done";
 export type CatalogBookingDetail = OfferingRequestDetail & {
@@ -381,15 +382,9 @@ export function CatalogBookingSheet({
   };
 
   const slotLabel = time != null ? catalogSlotDateLabel(day, time, es) : null;
-
   const buildSelection = (): CatalogBookingSelection => ({
-    variantId,
-    variantLabel: variant?.label ?? null,
-    addOnIds,
-    addOnLabels: extras.map((e) => e.label),
-    slotLabel,
-    startsAt: liveStarts,
-    totalCents: total,
+    variantId, variantLabel: variant?.label ?? null, addOnIds,
+    addOnLabels: extras.map((e) => e.label), slotLabel, startsAt: liveStarts, totalCents: total,
   });
 
   /** CH-3: remember where she left so the chat can offer the way back. */
@@ -404,13 +399,8 @@ export function CatalogBookingSheet({
     // Product: Nombre + WhatsApp required to start chat / create client-or-prospect.
     if (!chatNameValid || !chatPhoneValid) return;
     const handoff: CatalogBookingChatHandoff = {
-      detail,
-      selection: buildSelection(),
-      visitor: {
-        name: name.trim(),
-        phone: phone.trim(),
-        email: email.trim() || undefined,
-      },
+      detail, selection: buildSelection(),
+      visitor: { name: name.trim(), phone: phone.trim(), email: email.trim() || undefined },
       from: "sheet",
       sourcePage: typeof window !== "undefined" ? window.location.pathname : undefined,
       demo: mode === "demo",
@@ -461,11 +451,16 @@ export function CatalogBookingSheet({
         />
 
         <div className="jb-body">
-          {step !== "choose" && step !== "done" ? (
-            <button type="button" className="jb-back-link" data-catalog-start-over="" onClick={startOver}>
-              {es ? "Empezar de nuevo" : "Start over"}
-            </button>
-          ) : null}
+          <CatalogBookingBackNav
+            step={step}
+            es={es}
+            onChangeService={() => {
+              setTakenNotice(null);
+              setStep("choose");
+            }}
+            onChangeTime={() => setStep("when")}
+            onStartOver={startOver}
+          />
           {step === "choose" ? (
             <>
               <div className="jb-summary">
@@ -581,9 +576,6 @@ export function CatalogBookingSheet({
 
           {step === "when" ? (
             <>
-              <button type="button" className="jb-back-link" onClick={() => { setTakenNotice(null); setStep("choose"); }}>
-                {es ? "← Cambiar servicio u opciones" : "← Change service or options"}
-              </button>
               {mode === "live" && (slotsLoading || !slotsReady) ? (
                 <p className="jb-fixture">
                   <span className="cb-spinner" aria-hidden="true" />
@@ -600,7 +592,13 @@ export function CatalogBookingSheet({
                   timeGroupLabel={timeGroupLabel}
                   emptyConsultButton={emptyConsultButton}
                   takenNotice={takenNotice}
-                  onPickDay={(i) => { setDayIndex(i); setTime(null); setLiveStarts(null); }}
+                  onPickDay={(i) => {
+                    // Re-tapping the selected day must not clear the time (TUL-516 E1).
+                    if (i === dayIndex) return;
+                    setDayIndex(i);
+                    setTime(null);
+                    setLiveStarts(null);
+                  }}
                   onPickStart={(iso, label, i) => {
                     if (i !== undefined && i >= 0) setDayIndex(i);
                     setLiveStarts(iso);
@@ -618,7 +616,11 @@ export function CatalogBookingSheet({
                   demoTimes={demoTimes}
                   timeGroupLabel={timeGroupLabel}
                   emptyConsultButton={emptyConsultButton}
-                  onPickDay={(i) => { setDayIndex(i); setTime(null); }}
+                  onPickDay={(i) => {
+                    if (i === dayIndex) return;
+                    setDayIndex(i);
+                    setTime(null);
+                  }}
                   onPickTime={setTime}
                 />
               )}
@@ -627,9 +629,6 @@ export function CatalogBookingSheet({
 
           {step === "who" ? (
             <>
-              <button type="button" className="jb-back-link" onClick={() => setStep("when")}>
-                {es ? "← Cambiar horario" : "← Change time"}
-              </button>
               <CatalogWhoSummary
                 es={es}
                 service={variant ? `${detail.title} · ${variant.label}` : detail.title}
@@ -688,15 +687,8 @@ export function CatalogBookingSheet({
               </p>
               {captchaRequired ? <GuestCaptchaField captcha={captcha} locale={locale} onToken={(token) => setCaptchaToken(token)} /> : null}
               {showAsk ? (
-                <button
-                  type="button"
-                  className="jb-ask"
-                  data-catalog-ask=""
-                  onClick={() => startChat()}
-                >
-                  {es
-                    ? "¿Tienes una duda? Pregunta antes de reservar →"
-                    : "Have a question? Ask before booking →"}
+                <button type="button" className="jb-ask" data-catalog-ask="" onClick={() => startChat()}>
+                  {es ? "¿Tienes una duda? Pregunta antes de reservar →" : "Have a question? Ask before booking →"}
                 </button>
               ) : null}
               {error ? <p className="jb-error">{error}</p> : null}
@@ -777,11 +769,7 @@ export function CatalogBookingSheet({
               disabled={busy}
               onClick={() => (whoAction === "chat" ? startChat() : void confirm())}
             >
-              {busy && whoAction === "confirm"
-                ? es
-                  ? "Enviando…"
-                  : "Sending…"
-                : whoCtaText}
+              {busy && whoAction === "confirm" ? (es ? "Enviando…" : "Sending…") : whoCtaText}
             </button>
           ) : null}
           {step === "done" ? (
