@@ -1798,14 +1798,14 @@ export function PublishDrawer() {
                   lineHeight: 1.45,
                 }}
               >
-                Add at least one section to{" "}
+                {t("Add at least one section to")}{" "}
                 {summary.missing.map((s, i) => (
                   <span key={s.key}>
                     <strong>{s.label}</strong>
                     {i < summary.missing.length - 1 ? ", " : ""}
                   </span>
                 ))}{" "}
-                before publishing.
+                {t("before publishing.")}
               </div>
             ) : null}
 
@@ -1825,8 +1825,8 @@ export function PublishDrawer() {
                 }}
               >
                 {saving
-                  ? "Saving your last edit…"
-                  : "You have unsaved edits. Wait for them to save first."}
+                  ? t("Saving your last edit…")
+                  : t("You have unsaved edits. Wait for them to save first.")}
               </div>
             ) : null}
 

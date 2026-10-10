@@ -91,4 +91,12 @@ export const ES_PUBLISH_TEXT: Record<string, string> = {
     "{count} bloques se desbordan horizontalmente en la vista móvil. Una página que se desplaza de lado en teléfonos no se puede publicar. Usa \"Mostrar en el lienzo\" arriba para corregir cada uno, y luego publica.",
   "Page version is unavailable. Reload and try again.":
     "La versión de la página no está disponible. Recarga e inténtalo de nuevo.",
+  // ── TUL-81 / W5-1 Spanish publish blockers ────────────────────────────────
+  "Add at least one section to": "Agrega al menos una sección a",
+  "before publishing.": "antes de publicar.",
+  "Saving your last edit…": "Guardando tu último cambio...",
+  "You have unsaved edits. Wait for them to save first.":
+    "Tienes cambios sin guardar. Espera a que se guarden primero.",
+  " (Free publish policy)": " (política de publicación del plan gratuito)",
+  " Add alt text before publishing.": " Agrega texto alternativo antes de publicar.",
 };
