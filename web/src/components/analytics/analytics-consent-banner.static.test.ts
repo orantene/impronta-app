@@ -61,6 +61,37 @@ test("consent banner keeps accept / decline / dismiss + policy links", () => {
   assert.match(src, /data-consent-banner/);
 });
 
+test("TUL-561: outside EU/EEA, UK and CH the card is a one-line notice with OK, styled the same", () => {
+  assert.match(src, /useState<"card" \| "notice">\(region === "notice" \? "notice" : "card"\)/);
+  const block = src.slice(src.indexOf('if (variant === "notice")'));
+  const noticeJsx = block.slice(0, block.indexOf("\n  return ("));
+  assert.match(noticeJsx, /data-consent-notice=""/);
+  assert.match(noticeJsx, /data-consent-card=""/, "same card styles");
+  assert.match(noticeJsx, /public\.consent\.noticeMessage/);
+  assert.match(noticeJsx, /href=\{privacyHref\}/);
+  assert.match(noticeJsx, /choose\("granted"\)[\s\S]*public\.consent\.noticeOk/);
+  assert.doesNotMatch(noticeJsx, /choose\("denied"\)/);
+  assert.match(src, /const reopen = \(\) => \{[\s\S]*setVariant\("card"\)/, "Privacy choices always opens the full card");
+  for (const lang of ["en", "es"]) {
+    const msgs = JSON.parse(readFileSync(join(here, `../../../messages/${lang}.json`), "utf8"));
+    const consent = msgs.public?.consent ?? {};
+    assert.ok(consent.noticeMessage && consent.noticeOk, `${lang} notice copy`);
+  }
+  const layout = readFileSync(join(here, "../../app/layout.tsx"), "utf8");
+  assert.match(layout, /consentRegionForCountry\(reqHeaders\.get\("x-vercel-ip-country"\)\)/);
+  assert.match(layout, /data-consent-region=\{consentRegion\}/);
+  assert.match(layout, /region=\{consentRegion\}/);
+});
+
+test("TUL-561: every inline tag snippet reads consent through the shared region-aware check", () => {
+  const scripts = readFileSync(join(here, "analytics-scripts.tsx"), "utf8");
+  const tracking = readFileSync(join(here, "../../lib/site-admin/tracking.ts"), "utf8");
+  for (const [name, text] of [["analytics-scripts", scripts], ["tracking", tracking]] as const) {
+    assert.doesNotMatch(text, /localStorage\.getItem\('impronta_analytics_consent'\)/, `${name} has no private consent check`);
+    assert.match(text, /\$\{ANALYTICS_ALLOWED_JS\}/, `${name} uses ANALYTICS_ALLOWED_JS`);
+  }
+});
+
 test("consent banner does not enable unfinished talent consent tooling", () => {
   assert.doesNotMatch(src, /TALENT_SITE_CONSENT_TOOLING_ENABLED/);
 });

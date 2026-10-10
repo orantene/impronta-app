@@ -2167,7 +2167,9 @@
       "accept": "Accept",
       "decline": "Decline",
       "closeLabel": "Close and decide later",
-      "privacyChoices": "Privacy choices"
+      "privacyChoices": "Privacy choices",
+      "noticeMessage": "This site uses cookies and analytics to understand how it is used.",
+      "noticeOk": "OK"
     },
     "clientAccountArea": {
       "title": "Your account",

@@ -3,6 +3,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { ClientSpeedInsights } from "@/components/analytics/client-speed-insights";
 import { AnalyticsScripts } from "@/components/analytics/analytics-scripts";
 import { AnalyticsConsentBanner } from "@/components/analytics/analytics-consent-banner";
+import { consentRegionForCountry } from "@/lib/analytics/consent";
 import { SpaPageViewTracker } from "@/components/analytics/spa-page-view-tracker";
 import { CspViolationReporter } from "@/components/csp-violation-reporter";
 import { EditChromeMount } from "@/components/edit-chrome/edit-chrome-mount";
@@ -173,6 +174,7 @@ export default async function RootLayout({
     { acceptLanguage: reqHeaders.get("accept-language"), country: reqHeaders.get("x-vercel-ip-country") },
   );
   const { dir, hreflang } = getLocaleMetadata(locale);
+  const consentRegion = consentRegionForCountry(reqHeaders.get("x-vercel-ip-country"));
 
   // M6 — Governed design tokens. Public scope is non-null only for
   // tenant-resolved storefront requests (middleware sets the header).
@@ -215,6 +217,7 @@ export default async function RootLayout({
       dir={dir}
       suppressHydrationWarning
       data-public-font-preset={publicFontPreset}
+      data-consent-region={consentRegion}
       {...tokenDataAttrs}
       style={tokenCssVars as React.CSSProperties}
       className={`${bodySans.variable} ${geistSans.variable} ${geistMono.variable} ${cinzel.variable} ${interBody.variable} ${playfairDisplay.variable} ${fraunces.variable} h-full antialiased`}
@@ -284,6 +287,7 @@ export default async function RootLayout({
         <AnalyticsConsentBanner
           locale={locale}
           themed={Boolean(publicScope) || reqHeaders.get(HOST_CONTEXT_HEADER) === "talent_site"}
+          region={consentRegion}
         />
         <WebVitalsReporter />
         <CspViolationReporter />

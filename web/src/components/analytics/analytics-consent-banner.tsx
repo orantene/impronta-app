@@ -12,6 +12,7 @@ import {
   shouldShowBanner,
   syncConsentCookie,
   writeConsent,
+  type ConsentRegion,
   type StoredConsent,
 } from "@/lib/analytics/consent";
 
@@ -90,7 +91,7 @@ export const CONSENT_CARD_CSS = `
 [data-consent-banner][data-consent-themed]{--consent-surface:var(--token-color-surface-raised,var(--token-color-background,#fff));--consent-ink:var(--token-color-ink,#111);--consent-soft:color-mix(in srgb,var(--consent-ink) 82%,var(--consent-surface));--consent-muted:var(--token-color-muted,#737373);--consent-line:var(--token-color-line,#e5e5e5);--consent-line-strong:color-mix(in srgb,var(--consent-ink) 24%,var(--consent-surface));--consent-quiet:transparent;--consent-primary:var(--token-color-primary,var(--consent-ink));--consent-primary-on:var(--token-color-primary-on,var(--consent-surface));--consent-link:var(--consent-ink);--consent-radius:var(--token-shape-radius-card,min(var(--site-radius-lg,16px),1.25rem));--consent-btn-radius:var(--token-button-radius,10px);font-family:var(--site-body-font,inherit)}
 [data-consent-banner][data-consent-themed] [data-consent-title]{font-family:var(--site-heading-font,inherit)}
 [data-consent-card]{background:var(--consent-surface);color:var(--consent-ink);border:1px solid var(--consent-line);border-radius:var(--consent-radius);box-shadow:0 18px 40px -22px color-mix(in srgb,var(--consent-ink) 40%,transparent)}
-@media (max-width:639px){[data-consent-card]{border-bottom:0;border-bottom-left-radius:0;border-bottom-right-radius:0;padding-bottom:calc(0.875rem + env(safe-area-inset-bottom,0px))}body:has([data-tulala-mobile-bottom-nav]) [data-consent-banner],body:has(.cb-bar[data-show="true"]:not([data-top="true"])) [data-consent-banner]{left:.75rem;right:.75rem}body:has([data-tulala-mobile-bottom-nav]) [data-consent-card],body:has(.cb-bar[data-show="true"]:not([data-top="true"])) [data-consent-card]{border-bottom:1px solid var(--consent-line);border-radius:var(--consent-radius);padding-bottom:.875rem}}
+@media (max-width:639px){[data-consent-card]{border-bottom:0;border-bottom-left-radius:0;border-bottom-right-radius:0;padding-bottom:calc(0.875rem + env(safe-area-inset-bottom,0px))}[data-consent-notice] [data-consent-card]{padding-bottom:calc(0.625rem + env(safe-area-inset-bottom,0px))}body:has([data-tulala-mobile-bottom-nav]) [data-consent-banner],body:has(.cb-bar[data-show="true"]:not([data-top="true"])) [data-consent-banner]{left:.75rem;right:.75rem}body:has([data-tulala-mobile-bottom-nav]) [data-consent-card],body:has(.cb-bar[data-show="true"]:not([data-top="true"])) [data-consent-card]{border-bottom:1px solid var(--consent-line);border-radius:var(--consent-radius);padding-bottom:.875rem}}
 `;
 
 /**
@@ -113,14 +114,18 @@ export function pageLocaleOverride(root: ParentNode | null | undefined): string 
 export function AnalyticsConsentBanner({
   locale: rootLocale = "en",
   themed = false,
+  region = "strict",
 }: {
   locale?: string;
   /** Agency storefront or talent site: paint the site's theme tokens, not the Tulala palette. */
   themed?: boolean;
+  /** "notice": a one-line notice with OK instead of the card (outside EU/EEA, UK, CH). */
+  region?: ConsentRegion;
 }) {
   const [pageLocale, setPageLocale] = useState<string | null>(null);
   const locale = pageLocale ?? rootLocale;
   const [open, setOpen] = useState(false);
+  const [variant, setVariant] = useState<"card" | "notice">(region === "notice" ? "notice" : "card");
   const [mounted, setMounted] = useState(false);
   // Prototype routes (e.g. /prototypes/drawer-preview) are designer/dev
   // sandboxes, not customer-facing; suppress on those paths.
@@ -146,6 +151,7 @@ export function AnalyticsConsentBanner({
     if (shouldShowBanner(stored, isGpcEnabled()) && !dismissed) setOpen(true);
     const reopen = () => {
       setPageLocale(pageLocaleOverride(document));
+      setVariant("card");
       setOpen(true);
     };
     window.addEventListener(PRIVACY_CHOICES_EVENT, reopen);
@@ -173,6 +179,45 @@ export function AnalyticsConsentBanner({
 
   const privacyHref = `${getSiteUrl()}/legal/privacy`;
   const cookiesHref = `${getSiteUrl()}/legal/cookies`;
+
+  if (variant === "notice") {
+    return (
+      <>
+        <style>{CONSENT_BANNER_SHELL_OFFSET_CSS}</style>
+        <style>{CONSENT_CARD_CSS}</style>
+        <div
+          role="region"
+          aria-label={t("public.consent.ariaLabel")}
+          data-consent-banner=""
+          data-consent-notice=""
+          data-consent-themed={themed ? "" : undefined}
+          data-platform-surface={themed ? undefined : "marketing"}
+          className={`${themed ? "" : "site-theme-platform "}fixed inset-x-0 bottom-0 z-[98] sm:inset-x-auto sm:left-1/2 sm:bottom-5 sm:w-max sm:max-w-[min(36rem,calc(100vw-2.5rem))] sm:-translate-x-1/2 md:left-auto md:right-5 md:translate-x-0`}
+        >
+          <div data-consent-card="" className="flex items-center gap-3 px-4 py-2.5">
+            <p className="min-w-0 flex-1 text-[0.8125rem] leading-snug" style={{ color: "var(--consent-soft)" }}>
+              {t("public.consent.noticeMessage")}{" "}
+              <a
+                href={privacyHref}
+                className="underline underline-offset-[3px] transition-opacity hover:opacity-80"
+                style={{ color: "var(--consent-link)" }}
+              >
+                {t("public.consent.privacyLink")}
+              </a>
+            </p>
+            <button
+              type="button"
+              onClick={() => choose("granted")}
+              className="h-8 shrink-0 rounded-[var(--consent-btn-radius)] px-4 text-[0.8125rem] font-medium transition-opacity hover:opacity-90"
+              style={{ color: "var(--consent-primary-on)", background: "var(--consent-primary)" }}
+            >
+              {t("public.consent.noticeOk")}
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
