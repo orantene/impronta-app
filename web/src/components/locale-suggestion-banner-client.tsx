@@ -106,7 +106,7 @@ export function LocaleSuggestionBannerClient({
       <div
         className={cn(
           "flex w-full flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2 shadow-md",
-          "rounded-[var(--token-shape-radius-card,0.75rem)] border",
+          "rounded-[var(--token-shape-radius-card,min(var(--site-radius-lg,0.75rem),1.25rem))] border",
           "border-[var(--token-color-line,var(--border))]",
           "bg-[var(--token-color-surface-raised,var(--token-color-background,var(--background)))]",
           "text-[13px] text-[var(--token-color-ink,var(--foreground))]",
@@ -122,8 +122,8 @@ export function LocaleSuggestionBannerClient({
             onClick={acceptSuggestion}
             className={cn(
               "inline-flex items-center rounded-[var(--token-button-radius,0.375rem)] px-2.5 py-1 text-xs font-medium",
-              "bg-[var(--token-color-accent,var(--token-color-primary,var(--foreground)))]",
-              "text-[var(--token-color-accent-on,var(--token-color-primary-on,var(--background)))]",
+              "bg-[var(--token-color-primary,var(--foreground))]",
+              "text-[var(--token-color-primary-on,var(--background))]",
               "no-underline transition-opacity hover:opacity-90",
             )}
           >

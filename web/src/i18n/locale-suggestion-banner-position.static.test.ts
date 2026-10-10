@@ -39,8 +39,8 @@ test("TUL-560: the toast is not in the first paint; it appears after the page se
 test("TUL-560: the toast takes the site's theme tokens, not a fixed black bar", () => {
   assert.match(client, /bg-\[var\(--token-color-surface-raised,/);
   assert.match(client, /text-\[var\(--token-color-ink,/);
-  assert.match(client, /rounded-\[var\(--token-shape-radius-card,/);
-  assert.match(client, /bg-\[var\(--token-color-accent,/);
+  assert.match(client, /rounded-\[var\(--token-shape-radius-card,min\(var\(--site-radius-lg,/, "sharp themes get square corners");
+  assert.match(client, /bg-\[var\(--token-color-primary,/, "same color as .site-btn--primary");
   assert.doesNotMatch(client, /bg-(black|neutral-9\d\d|zinc-9\d\d)\b/);
 });
 
