@@ -257,9 +257,9 @@ export function getPricingLaddersCopy(locale: string): PricingLaddersCopy {
 }
 
 /**
- * Plan names and the "Free" price come from the English catalog rows
- * (`loadMarketingTiers`), so the Spanish page printed "Free". Localize the
- * known ones at render; an unknown name passes through unchanged.
+ * Plan names and the "Free" price come from English catalog rows
+ * (`loadMarketingTiers`), so Spanish pages printed "Free". Localize the known
+ * ones at render; an unknown name passes through unchanged.
  */
 const ES_TIER_NAMES: Readonly<Record<string, string>> = {
   Free: "Gratis",
@@ -268,10 +268,26 @@ const ES_TIER_NAMES: Readonly<Record<string, string>> = {
   Agency: "Agencia",
 };
 
+function isSpanishLocale(locale: string): boolean {
+  return locale.toLowerCase().startsWith("es");
+}
+
 export function localizeTierName(name: string, locale: string): string {
-  return locale.toLowerCase().startsWith("es") ? (ES_TIER_NAMES[name] ?? name) : name;
+  return isSpanishLocale(locale) ? (ES_TIER_NAMES[name] ?? name) : name;
 }
 
 export function localizeTierPrice(price: string, locale: string): string {
-  return locale.toLowerCase().startsWith("es") && price.trim() === "Free" ? "Gratis" : price;
+  return isSpanishLocale(locale) && price.trim() === "Free" ? "Gratis" : price;
+}
+
+/**
+ * `loadMarketingTiers` pre-formats cadence in English. Re-key known English
+ * strings so Spanish marketing surfaces never leak "per month".
+ */
+export function localizeTierCadence(cadence: string, locale: string): string {
+  const c = getPricingLaddersCopy(locale).cadence;
+  if (cadence === "per month") return c.month;
+  if (cadence === "per year") return c.year;
+  if (cadence === "forever") return c.free;
+  return "";
 }

@@ -172,6 +172,7 @@ export async function runOnboardingBuild(input: {
       path, stamp, person, businessName: finishName, services,
       site: { publicUrl, editorUrl, adminPath: `${appUrl}${result.adminPath}` },
       talent, liveCheck, urlDiffers: finish.differs, firstService,
+      ownerProvides: choice === "studio" && !!prov.talent,
     });
     return done(input, { status: "done", path, tenantId: result.tenantId, tenantSlug: result.tenantSlug, talentProfileId, arrival, finishedAt: new Date().toISOString() });
   } catch (err) {

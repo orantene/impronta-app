@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { MARKETING_PHOTOS, type MarketingPhoto } from "@/lib/marketing/photography";
 import { getMarketingCopy } from "@/lib/marketing/copy";
+import { marketingShowSlideLabel } from "@/lib/marketing/chrome-aria";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { withLocaleHref } from "@/i18n/pathnames";
 import { MarketingContainer } from "./container";
@@ -190,7 +191,7 @@ export function HeroSection({ locale }: { locale: string }) {
             key={photo.key}
             type="button"
             onClick={() => setActive(idx)}
-            aria-label={`Show slide ${idx + 1}`}
+            aria-label={marketingShowSlideLabel(locale, idx + 1)}
             aria-current={idx === active}
             className="flex items-center justify-center px-1.5 py-3"
           >

@@ -2,11 +2,12 @@
 
 import React, { useState, useTransition, useEffect, useRef } from "react";
 import { OfferColumnHeaders, OfferMoneySplit, OfferEditorFooter } from "@/components/admin/offer/offer-money-split";
+import { isSoloSeller } from "@/components/admin/offer/offer-solo-seller";
 import { useRouter } from "next/navigation";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { loadInquiryLineup, removeInquiryLineupParticipant, addInquiryLineupTalent, reorderInquiryLineup, saveOfferDraft, loadOfferDraft, createOfferAction, type InquiryParticipant, type OfferDraftSnapshot } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
-import type { SendGateResult } from "./offer-save-state";
+import { classifySaveError, type SendGateResult } from "./offer-save-state";
 import { OfferSaveBanner, OfferStatusChip } from "./offer-save-banner";
 import { useOfferSave } from "./use-offer-save";
 import { useAdminShell, FONTS, COLORS, RADIUS } from "../../state";
@@ -413,7 +414,8 @@ export function LiveLineupPanel({
  * matches the engine contract.
  */
 export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange }: { inquiryId: string; offerId: string; canEdit: boolean; onSendGateChange?: (gate: SendGateResult) => void }) {
-  const { toast, effectiveRoster, effectiveTenant } = useAdminShell();
+  const { state: shellState, toast, effectiveRoster, effectiveTenant, bridgeTalentSelfProfile } = useAdminShell();
+  const workspaceType = shellState.workspaceType;
   const t = useT();
   // Latest-`t` ref for async callbacks (see LiveLineupPanel note).
   const tRef = useRef(t);
@@ -463,7 +465,7 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
   useEffect(() => { reload(); }, [reload]);
   // W0 — save orchestration (state machine + auth recovery + local snapshot)
   // lives in useOfferSave so this file stays under the admin-shell line cap.
-  const { saveState, save, pending: savePending } = useOfferSave({
+  const { saveState, setSaveState, save, pending: savePending } = useOfferSave({
     tenantSlug: effectiveTenant.slug,
     offerId,
     snapshotRef,
@@ -491,6 +493,11 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
   // hand-typed — so the client sees and is charged exactly the same number
   // (convert already books the line-item sum). This removes the shown≠charged
   // drift that was the third structural root cause of the workflow audit.
+  const solo = isSoloSeller({
+    workspaceType,
+    ownTalentProfileId: bridgeTalentSelfProfile?.id,
+    lineTalentProfileIds: snapshot.lineItems.map((li) => li.talentProfileId),
+  });
   const computedTotal = snapshot.lineItems.reduce(
     (sum, li) => sum + (Number(li.totalPrice) || 0),
     0,
@@ -613,6 +620,7 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
         total={computedTotal}
         currencyCode={snapshot.currencyCode}
         coordinatorFee={snapshot.coordinatorFee}
+        hideFee={solo}
         onAddLine={addLineItem}
         onFeeChange={(v) => setSnapshot((s) => (s == null ? s : { ...s, coordinatorFee: v }))}
         onSave={save}
@@ -625,6 +633,7 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
         clientTotal={computedTotal}
         coordinatorFee={snapshot.coordinatorFee}
         currencyCode={snapshot.currencyCode}
+        hideWorkspaceTake={solo}
       />
 
       {/* W6a — negotiated booking terms, persisted via saveOfferDraft. */}
@@ -637,6 +646,9 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
           refundPolicy: snapshot.terms.refundPolicy,
         }}
         onSave={async (terms) => {
+          // TUL-472: terms save used to bypass useOfferSave, so a successful
+          // retry left the chip on "Error al guardar". Mirror the shared
+          // save-state machine (success clears; failure classifies).
           const r = await saveOfferDraft(effectiveTenant.slug, offerId, {
             inquiryExpectedVersion: snapshot.inquiryVersion,
             offerExpectedVersion: snapshot.offerVersion,
@@ -658,7 +670,16 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
             })),
             terms,
           });
-          if (r.ok) reload();
+          if (r.ok) {
+            setSaveState({ status: "saved", at: Date.now() });
+            reload();
+          } else {
+            setSaveState({
+              status: "error",
+              cls: classifySaveError(r.error),
+              rawError: r.error ?? "",
+            });
+          }
           return r;
         }}
       />
@@ -669,8 +690,17 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
 /**
  * "Start drafting offer" button shown in the OfferTab empty state. Calls
  * the real createOffer engine action and refreshes router state.
+ * TUL-472: optional `onCreated` re-hydrates the talent coord offer so the
+ * Oferta tab does not stay on "Aún no hay oferta" after a successful create
+ * (router.refresh alone does not re-run the loader effect).
  */
-export function CreateOfferButton({ inquiryId }: { inquiryId: string }) {
+export function CreateOfferButton({
+  inquiryId,
+  onCreated,
+}: {
+  inquiryId: string;
+  onCreated?: () => void | Promise<void>;
+}) {
   const { toast, effectiveTenant } = useAdminShell();
   const t = useT();
   const router = useRouter();
@@ -681,7 +711,12 @@ export function CreateOfferButton({ inquiryId }: { inquiryId: string }) {
     const r = await createOfferAction(effectiveTenant.slug, inquiryId, currencyCode);
     if (!r.ok && r.code === "offer_currency_unresolved") { setChooseCurrency(true); return; }
     if (!r.ok) toast(interpolate(t("dashboard.adminTabs.lineup.startOfferFailed"), { error: r.error }));
-    else { setChooseCurrency(false); toast(t("dashboard.adminTabs.lineup.offerCreated")); router.refresh(); }
+    else {
+      setChooseCurrency(false);
+      toast(t("dashboard.adminTabs.lineup.offerCreated"));
+      await onCreated?.();
+      router.refresh();
+    }
   });
   return (
     <div className="mt-3">

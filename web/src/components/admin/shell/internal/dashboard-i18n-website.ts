@@ -20,6 +20,17 @@ export const WEBSITE_ES_TEXT: Record<string, string> = {
   // lazy screen (WEBSITE_SETTINGS_ES_TEXT) to keep the admin bundle lean.
   "Website settings": "Ajustes del sitio",
   "How clients book, timing, payments and cancelling": "Cómo reservan tus clientes, horarios, pagos y cancelaciones",
+  // TUL-180 Option A — dual-owner primary = business workspace
+  "Your business website": "Tu sitio de negocio",
+  "This is your business site. Edit pages, design and domain here.":
+    "Este es tu sitio de negocio. Edita páginas, diseño y dominio aquí.",
+  "Open site": "Abrir sitio",
+  "Other websites": "Otros sitios",
+  "Personal site": "Sitio personal",
+  "Edit your personal site separately from your business site.":
+    "Edita tu sitio personal aparte de tu sitio de negocio.",
+  "Your personal site is under Website settings, Other websites.":
+    "Tu sitio personal está en Ajustes del sitio, Otros sitios.",
   "Website reward": "Recompensa del sitio",
   "What is left": "Lo que falta",
   "Continue your profile": "Sigue tu perfil",

@@ -18,7 +18,8 @@
  * returns. Stripe then emits `charge.refunded`, and the existing, well-tested
  * webhook path (`handleBookingRefund`) does all the bookkeeping: marks the
  * transaction, records the linked refund row, and reverses the talent /
- * workspace legs talent-protectively.
+ * workspace legs talent-protectively. A later `refund.failed` is handled by
+ * the webhook `refund_settlement` path (TUL-391: metadata + workspace bells).
  *
  * Doing it that way means there is exactly ONE code path that writes a refund
  * into our books, and it is driven by what Stripe actually did rather than by
@@ -35,6 +36,7 @@ import { getStripeFor, isStripeConfigured } from "@/lib/stripe/client";
 import { loadChargePlatformForTransaction } from "@/lib/stripe/charge-platform";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { formatOrderMoney } from "@/lib/orders/money-format";
 import { recordRefundOnOrderLines } from "@/lib/orders/refund-record-lines";
 
 /**
@@ -397,7 +399,7 @@ export async function executeBookingRefund(input: {
   if (amountCents > eligibility.remainingCents) {
     return {
       ok: false,
-      error: `That is more than is left to refund. At most ${(eligibility.remainingCents / 100).toFixed(2)} ${eligibility.currency} can still be returned.`,
+      error: `That is more than is left to refund. At most ${formatOrderMoney(eligibility.remainingCents, eligibility.currency)} can still be returned.`,
       code: "amount",
     };
   }

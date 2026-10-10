@@ -8,8 +8,18 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { buildFolioPayload } from "@/lib/talent-site/theme-catalog/collection/designs";
+import { loadDemoContentFixture } from "./content-fixture";
+import { planOfferingOps } from "./fixture-plan";
 import { folioSiteCopyFor } from "./folio-site-copy";
 import { applyDemoSiteCopy } from "./site-copy";
+
+/** English-only strings that must not appear on Mateo's Spanish-primary fixture base. */
+const MATEO_ES_LEAKS = [
+  "Runway show booking",
+  "Editorial shoot, half day",
+  "Lookbook / e-commerce day",
+  "Medidas · Comp card",
+] as const;
 
 type Node = { id?: string; kind: string; props?: Record<string, unknown>; children?: Node[] };
 
@@ -50,12 +60,37 @@ test("folioSiteCopyFor: Mateo Spanish primary carries overlays.en for every chro
   const copy = folioSiteCopyFor("TAL-93011");
   assert.match(copy.coverStatement, /campañas/);
   assert.doesNotMatch(copy.coverStatement, /Mexico City/);
+  assert.equal(copy.chapters?.[1]?.heading, "Pasarela");
   const en = copy.overlays?.en;
   assert.ok(en, "overlays.en");
   assert.equal(en!.coverStatement, "Editorial, runway and campaigns.");
   assert.match(en!.ratesSubtitle ?? "", /Base rates/);
   assert.equal(en!.chapters?.length, 2);
+  assert.equal(en!.chapters?.[1]?.heading, "Runway");
   assert.match(en!.footerContact ?? "", /reply the same day/);
+});
+
+test("Mateo content fixture: Spanish base has no known English service or comp-card leaks", () => {
+  const mateo = loadDemoContentFixture("folio");
+  const base = JSON.stringify({
+    services: mateo.services.map((s) => ({ name: s.name, category: s.category })),
+    portfolio: mateo.portfolio?.items?.map((p) => p.group),
+    statsTitle: mateo.statsTitle,
+  });
+  for (const leak of MATEO_ES_LEAKS) assert.ok(!base.includes(leak), leak);
+  assert.ok(mateo.portfolio?.items?.every((p) => p.group !== "Runway"));
+});
+
+test("Mateo fixture offerings plan bilingual titles for runway and editorial services", () => {
+  const mateo = loadDemoContentFixture("folio");
+  const rows = planOfferingOps(mateo, []).map((o) => (o.op === "insert" ? o.row : null)).filter(Boolean);
+  const run = rows.find((r) => r!.title === "Reserva de show de pasarela");
+  const ed = rows.find((r) => r!.title === "Sesión editorial, medio día");
+  // Row values are unknown; cast like gridline-demos.test.ts so tsc accepts .es/.en.
+  const runTitles = run?.title_i18n as Record<string, string> | undefined;
+  const edTitles = ed?.title_i18n as Record<string, string> | undefined;
+  assert.ok(runTitles?.es && runTitles.en === "Runway show booking");
+  assert.ok(edTitles?.es && edTitles.en === "Editorial shoot, half day");
 });
 
 test("site-copy writes props.i18n.en on Folio masthead, chapters, catalog and footer", () => {

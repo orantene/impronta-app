@@ -1,3 +1,4 @@
+import { languageToggleGroupLabel } from "@/i18n/language-toggle-label";
 import { withLocalePath } from "@/i18n/pathnames";
 import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 import { cn } from "@/lib/utils";
@@ -43,7 +44,7 @@ export function MarketingLanguageToggle({
   return (
     <div
       role="group"
-      aria-label="Language"
+      aria-label={languageToggleGroupLabel(activeLocale)}
       className={cn("inline-flex items-center gap-0.5 rounded-lg p-0.5", className)}
       style={{
         border: "1px solid var(--plt-hairline)",

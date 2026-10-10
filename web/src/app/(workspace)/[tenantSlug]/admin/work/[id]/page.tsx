@@ -271,10 +271,20 @@ export default async function WorkspaceWorkDetailPage({
   const grossRevenueCents = readRevenueCents(
     (booking as { total_client_revenue: number | string | null } | null)?.total_client_revenue ?? null,
   );
-  const preview =
-    grossRevenueCents > 0
-      ? calculateTransactionAmountsForBasisPoints(grossRevenueCents, commission.feeBasisPoints)
-      : null;
+  // Skip the flat-% preview when snapshots already own the display (paid path).
+  // Also swallow calculateTransactionAmounts throws so a bad bps cannot take
+  // down the page behind ShellBoundary "Something broke" (TUL-473).
+  let preview: ReturnType<typeof calculateTransactionAmountsForBasisPoints> | null = null;
+  if (grossRevenueCents > 0 && commissionSnapshots.length === 0) {
+    try {
+      preview = calculateTransactionAmountsForBasisPoints(
+        grossRevenueCents,
+        commission.feeBasisPoints,
+      );
+    } catch {
+      preview = null;
+    }
+  }
   const breakdown = transaction
     ? {
         grossCents: transaction.grossAmountCents,

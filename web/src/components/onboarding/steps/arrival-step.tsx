@@ -89,7 +89,7 @@ export function ArrivalStep({ t, arrival, onRetry, busy = false }: { t: (key: st
       </div>
       <Title size={30}>{title}</Title>
       <Sub>{sub}</Sub>
-      {arrival.variant === "business" ? (
+      {arrival.variant === "business" && !arrival.ownerBookable ? (
         <p className="mt-2 text-[0.8125rem]" style={{ color: "var(--tl-muted)" }} data-testid="onb-arrival-bookings-note">{t("public.onboarding.arrival.bookingsStartStudio")}</p>
       ) : null}
       {arrival.urlDiffers ? (

@@ -1,20 +1,26 @@
 import { getRequestLocale } from "@/i18n/request-locale";
 import { withLocaleHref } from "@/i18n/pathnames";
 import { getMarketingCopy } from "@/lib/marketing/copy";
+import {
+  getPricingLaddersCopy,
+  localizeTierCadence,
+  localizeTierName,
+  localizeTierPrice,
+} from "@/lib/marketing/pricing-ladders-copy";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 import { MarketingCta } from "./cta-link";
-import {
-  loadMarketingTiers,
-  type MarketingTier,
-} from "@/lib/pricing/get-active-prices";
+import { loadMarketingTiers } from "@/lib/pricing/get-active-prices";
 import { resolveCurrency } from "@/lib/pricing/currency-resolver";
 import type { DefaultCurrencyCode } from "@/lib/billing/currencies";
 
 /**
- * The CTA copy + URL intent for each workspace tier slug. Kept in code
- * (not in the DB) because copy + intent are surface-specific, not
- * pricing-data. The tier `name` + `tagline` + `price` come from the
- * `product_*` tables via `loadMarketingTiers` (Phase 2).
+ * Funnel href + intent per workspace tier slug. Labels come from
+ * `getPricingLaddersCopy(locale).workspace[slug].cta` (marketing i18n core)
+ * so /es never ships English CTAs. Tier `name` + `price` come from the
+ * `product_*` tables via `loadMarketingTiers`; names/prices/cadence are
+ * localized at render. Tagline + highlights stay on the catalog rows for
+ * English; Spanish overlays `line` / `bullets` from marketing i18n because
+ * the catalog columns are English-only.
  *
  * The DB tier slug for the 4th tier is `hub` (the renamed Network from
  * Phase 1); the funnel URL param keeps `network` for backward-compat
@@ -26,16 +32,27 @@ import type { DefaultCurrencyCode } from "@/lib/billing/currencies";
  * it and the card is absent either way. When the row is activated the CTA is
  * already here and the card appears with no further code change.
  */
-const TIER_CTA: Record<string, { label: string; href: string; intent: string }> = {
-  free:    { label: "Start free",          href: "/get-started?tier=free",    intent: "free"    },
-  website: { label: "Get started",         href: "/get-started?tier=website", intent: "website" },
-  studio: { label: "Start on Studio",     href: "/get-started?tier=studio",  intent: "studio"  },
-  agency: { label: "Start 14-day trial",  href: "/get-started?tier=agency",  intent: "agency"  },
-  hub:    { label: "Book a walkthrough",  href: "/get-started?tier=network", intent: "network" },
+const TIER_CTA: Record<string, { href: string; intent: string }> = {
+  free: { href: "/get-started?tier=free", intent: "free" },
+  website: { href: "/get-started?tier=website", intent: "website" },
+  studio: { href: "/get-started?tier=studio", intent: "studio" },
+  agency: { href: "/get-started?tier=agency", intent: "agency" },
+  hub: { href: "/get-started?tier=network", intent: "network" },
 };
 
-type Tier = MarketingTier & {
+type Tier = {
+  key: string;
+  name: string;
+  price: string;
+  cadence: string;
+  tagline: string;
+  highlights: string[];
+  featured: boolean;
+  isOnSale: boolean;
+  canonicalPrice: string;
   cta: { label: string; href: string; intent: string };
+  mostPopular: string;
+  sale: string;
 };
 
 export async function PricingTeaserSection({
@@ -54,16 +71,35 @@ export async function PricingTeaserSection({
   const rows = await loadMarketingTiers("workspace", resolvedCurrency);
   const locale = await getRequestLocale();
   const copy = getMarketingCopy(locale).pricing;
-  // Attach CTAs + filter out unknown tiers gracefully.
+  const ladders = getPricingLaddersCopy(locale);
+  // Code-copy tagline/bullets only for Spanish — English keeps product_* rows.
+  const esCopy = locale.toLowerCase().startsWith("es");
+  // Attach localized CTAs + filter out unknown tiers gracefully.
   const TIERS: Tier[] = rows
     .filter((t) => TIER_CTA[t.key] !== undefined)
-    .map((t) => ({
-      ...t,
-      cta: {
-        ...TIER_CTA[t.key]!,
-        href: withLocaleHref(TIER_CTA[t.key]!.href, locale),
-      },
-    }));
+    .map((t) => {
+      const hrefMeta = TIER_CTA[t.key]!;
+      const tierCopy = ladders.workspace[t.key as keyof typeof ladders.workspace];
+      const salesLed = t.cadence === "" && !/\d/.test(t.price);
+      return {
+        key: t.key,
+        name: localizeTierName(t.name, locale),
+        price: salesLed ? ladders.salesLed : localizeTierPrice(t.price, locale),
+        cadence: salesLed ? "" : localizeTierCadence(t.cadence, locale),
+        tagline: esCopy ? (tierCopy?.line ?? t.tagline) : t.tagline,
+        highlights: esCopy && tierCopy ? [...tierCopy.bullets] : t.highlights,
+        featured: t.featured,
+        isOnSale: t.isOnSale && !salesLed,
+        canonicalPrice: t.canonicalPrice,
+        mostPopular: copy.mostPopular,
+        sale: copy.sale,
+        cta: {
+          label: tierCopy?.cta ?? ladders.workspace.free.cta,
+          href: withLocaleHref(hrefMeta.href, locale),
+          intent: hrefMeta.intent,
+        },
+      };
+    });
   return (
     <MarketingSection id="pricing">
       <MarketingContainer size="wide">
@@ -135,7 +171,7 @@ function TierCard({ tier }: { tier: Tier }) {
             border: "1px solid rgba(241,237,227,0.18)",
           }}
         >
-          Most popular
+          {tier.mostPopular}
         </span>
       ) : null}
 
@@ -182,9 +218,9 @@ function TierCard({ tier }: { tier: Tier }) {
                     : "rgba(204,135,42,0.14)",
                   color: featured ? "var(--plt-on-inverse)" : "#92621f",
                 }}
-                aria-label="Sale price"
+                aria-label={tier.sale}
               >
-                Sale
+                {tier.sale}
               </span>
             </>
           )}

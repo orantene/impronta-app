@@ -442,7 +442,8 @@ async function acceptDirect(l: Link, offer: OfferRow, expectedVersion: number): 
     offer.created_by_user_id ?? null,
     owners,
   );
-  if (split.blocking.length > 0) return fail("not_allowed");
+  // Someone else (the talent) still has to approve: say so, never the generic "you cannot do that from here".
+  if (split.blocking.length > 0) return fail("awaiting_approval");
   const own = split.settle;
   if (own.length > 0) {
     await scoped(l.admin, "inquiry_approvals", l.tenantId).update({ status: "accepted", decided_at: new Date().toISOString(), updated_at: new Date().toISOString() }).in("id", own);

@@ -15,6 +15,7 @@ import {
   tplDescription,
   tplDirectorySearchForm,
   tplFaqAccordion,
+  tplGalleryImageLayer,
   tplImageLayer,
   tplIntroText,
   tplLabeledParagraph,
@@ -454,10 +455,10 @@ function buildGalleryStrip(): BuilderNode {
       tplDescription("Editorial mosaic image rail.", "Description"),
       tplContainer(
         [
-          tplImageLayer(0, "Gallery Image 1"),
-          tplImageLayer(1, "Gallery Image 2"),
-          tplImageLayer(2, "Gallery Image 3"),
-          tplImageLayer(3, "Gallery Image 4"),
+          tplGalleryImageLayer(0, "Gallery Image 1"),
+          tplGalleryImageLayer(1, "Gallery Image 2"),
+          tplGalleryImageLayer(2, "Gallery Image 3"),
+          tplGalleryImageLayer(3, "Gallery Image 4"),
         ],
         {
           layerLabel: "Gallery Strip",

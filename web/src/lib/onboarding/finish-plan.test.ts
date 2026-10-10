@@ -62,3 +62,24 @@ test("studio draft, reused workspace and missing site stay on their existing sta
   const none = arrivalFromStamp({ path: "business", stamp: null, person, businessName: "X", services: 0, site: null, talent: null });
   assert.equal(finishPlan(none).kind, "standard");
 });
+
+test("studio whose owner takes clients: the finish is the standard one, bookable from day one, with no add-a-provider prompt", () => {
+  for (const stamp of [composed, parseArrivalStamp({ outcome: "fallback_used" })]) {
+    const a = arrivalFromStamp({ path: "business", stamp, person, businessName: "Uñas Mariana", services: 3, site, talent: null, liveCheck: { ok: true }, ownerProvides: true });
+    assert.equal(a.ownerBookable, true);
+    assert.equal(a.inquiryOnly, undefined);
+    assert.equal(a.addMemberHref, undefined);
+    assert.equal(finishPlan(a).kind, "standard");
+  }
+  // The owner opted out: inquiry-only as before.
+  const out = arrivalFromStamp({ path: "business", stamp: composed, person, businessName: "X", services: 3, site, talent: null, liveCheck: { ok: true }, ownerProvides: false });
+  assert.equal(out.ownerBookable, undefined);
+  assert.equal(finishPlan(out).kind, "inquiry_only");
+});
+
+test("the build passes ownerProvides to the arrival, and the studio note 'bookings start when you add a provider' is hidden when the owner is bookable", () => {
+  const build = readFileSync(join(process.cwd(), "src/lib/onboarding/build.server.ts"), "utf8");
+  assert.match(build, /ownerProvides: choice === "studio" && !!prov\.talent/);
+  const step = readFileSync(join(process.cwd(), "src/components/onboarding/steps/arrival-step.tsx"), "utf8");
+  assert.match(step, /arrival\.variant === "business" && !arrival\.ownerBookable/);
+});

@@ -225,7 +225,8 @@ export function MarketingHeader({
                   className="pointer-events-none absolute -right-2 -top-2 inline-flex items-center rounded-full px-1.5 py-[3px] text-[0.5625rem] font-bold uppercase leading-none tracking-[0.04em]"
                   style={{
                     background: "var(--plt-accent)",
-                    color: "#fff",
+                    /* TUL-518 / J3: white on accent was 2.46:1; ink clears AA. */
+                    color: "var(--tl-ink)",
                     boxShadow:
                       "0 2px 6px -1px rgba(255,131,50,0.55), 0 0 0 2px var(--plt-bg)",
                   }}
@@ -242,7 +243,7 @@ export function MarketingHeader({
           <button
             type="button"
             className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] text-[var(--plt-ink)] transition-[background-color,border-color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)] lg:hidden"
-            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            aria-label={menuOpen ? copy.nav.closeMenu : copy.nav.openMenu}
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((o) => !o)}
           >
@@ -379,7 +380,8 @@ export function MarketingHeader({
                       className="pointer-events-none absolute -right-1.5 -top-1.5 inline-flex items-center rounded-full px-1.5 py-[3px] text-[0.5625rem] font-bold uppercase leading-none tracking-[0.04em]"
                       style={{
                         background: "var(--plt-accent)",
-                        color: "#fff",
+                        /* TUL-518 / J3: white on accent was 2.46:1; ink clears AA. */
+                        color: "var(--tl-ink)",
                         boxShadow:
                           "0 2px 6px -1px rgba(255,131,50,0.55), 0 0 0 2px var(--plt-bg)",
                       }}

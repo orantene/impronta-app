@@ -215,12 +215,13 @@ export const WELL_KNOWN_PREFIX = "/.well-known" as const;
 
 /**
  * Post-checkout landing pages reachable on every surface, regardless of host
- * kind. Stripe builds `success_url` / `cancel_url` from the request origin
- * (see `client-pipeline.ts`), so after a client pays, Stripe redirects them to
- * `/checkout/success` (or `/checkout/cancel`) on whatever host they started
- * from (app, agency subdomain, custom domain, hub). These pages read only the
- * returned checkout session and carry no cross-tenant data. Without this entry
- * a paying customer hits a branded 404 the instant they complete payment.
+ * kind. Stripe `success_url` / `cancel_url` come from the request host + locale
+ * via `buildCheckoutReturnUrls` (instant-book, appointment picker, client
+ * pipeline — TUL-350), never `NEXT_PUBLIC_BASE_URL`. After payment Stripe
+ * redirects to `/checkout/success` (or `/es/checkout/success`, etc.) on
+ * whatever host they started from. These pages read only the returned checkout
+ * session and carry no cross-tenant data. Without this entry a paying customer
+ * hits a branded 404 the instant they complete payment.
  */
 export const CHECKOUT_PREFIX = "/checkout" as const;
 

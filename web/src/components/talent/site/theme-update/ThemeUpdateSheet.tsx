@@ -24,6 +24,7 @@ import {
   bannerTitle,
   changesLine,
   copyKeptLine,
+  decisionLine,
   keptLine,
   keptRemovedLine,
   type UpdateLocale,
@@ -150,6 +151,11 @@ export function ThemeUpdateSheet(props: ThemeUpdateSheetProps): ReactElement {
                   {keptRemovedLine(preview.summary, locale) ? (
                     <p className="m-0 mt-1 text-[13px] text-admin-ink-muted" data-theme-update-kept-removed>
                       {keptRemovedLine(preview.summary, locale)}
+                    </p>
+                  ) : null}
+                  {decisionLine(preview.summary, locale) ? (
+                    <p className="m-0 mt-1 text-[13px] text-admin-ink-muted" data-theme-update-decision>
+                      {decisionLine(preview.summary, locale)}
                     </p>
                   ) : null}
                   {preview.previewUrl ? (

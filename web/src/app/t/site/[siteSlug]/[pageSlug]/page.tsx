@@ -60,6 +60,9 @@ export async function generateMetadata({
   return maxSiteSeoToMetadata(result.seo, {
     localePathWithoutLocale: path,
     locale,
+    // Bounded language the body actually rendered in (may differ from the
+    // platform request locale on Spanish-only sites at unprefixed /t/site/…).
+    ogLocale: result.locale,
   });
 }
 

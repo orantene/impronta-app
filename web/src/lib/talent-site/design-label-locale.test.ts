@@ -11,6 +11,7 @@ const tree = [
     props: {},
     children: [
       { id: "h", kind: "heading", props: { text: "Recent work", level: 2 } },
+      { id: "j", kind: "heading", props: { text: "Recent jobs", level: 2 } },
       { id: "e", kind: "heading", props: { text: "Mi trabajo", level: 2 } },
       { id: "b", kind: "button", props: { label: "Ask a question", href: "#talent-ask" } },
       { id: "s", kind: "services_catalog", props: { eyebrow: "The menu", title: "Services {i}and prices{/i}" } },
@@ -20,10 +21,18 @@ const tree = [
 
 test("es: seeded labels localise, talent-edited text is untouched", () => {
   const out = JSON.stringify(localiseSeededDesignLabels(tree, "es-MX"));
-  for (const s of ["Trabajo reciente", "Mi trabajo", "Hacer una pregunta", "El menú", "Servicios {i}y precios{/i}"]) {
+  for (const s of [
+    "Trabajo reciente",
+    "Trabajos recientes",
+    "Mi trabajo",
+    "Hacer una pregunta",
+    "El menú",
+    "Servicios {i}y precios{/i}",
+  ]) {
     assert.ok(out.includes(s), s);
   }
   assert.ok(!out.includes("Recent work"));
+  assert.ok(!out.includes("Recent jobs"));
 });
 
 test("en: tree returned unchanged", () => {
@@ -75,4 +84,19 @@ test("hydrated seeded labels with a token localise as patterns", async () => {
   assert.equal(localiseSeededDesignLabel("Hello, I'm Alba", "en"), "Hello, I'm Alba");
   assert.equal(localiseSeededDesignLabel("Before you come", "es"), "Antes de venir");
   assert.equal(localiseSeededDesignLabel("Menu and prices", "es"), "Menú y precios");
+});
+
+test("ES About Languages line localises even when swaps only carry the current list (TUL-121 Codex P2)", () => {
+  // Applied tree still has the bake-time line; loadProofInput now lists Spanish+English.
+  const about = [
+    { id: "p", kind: "paragraph", props: { text: "Languages: English" } },
+  ] as unknown as BuilderNode[];
+  const swaps = { "Languages: Spanish · English": "Idiomas: Español · Inglés" };
+  const out = localiseSeededDesignLabels(about, "es", null, swaps);
+  assert.equal((out[0]!.props as { text: string }).text, "Idiomas: Inglés");
+  // Custom / non-seed About copy stays put.
+  const custom = [
+    { id: "p", kind: "paragraph", props: { text: "I speak English at home" } },
+  ] as unknown as BuilderNode[];
+  assert.equal(localiseSeededDesignLabels(custom, "es", null, swaps), custom);
 });

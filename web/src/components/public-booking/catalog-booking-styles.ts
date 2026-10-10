@@ -47,14 +47,15 @@ export const CATALOG_BOOKING_CSS = `
 .jb-recap{margin:0 0 18px;font-size:.9375rem;color:var(--cb-muted)}
 .jb-days{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px}
 .jb-day{flex:0 0 auto;width:64px;min-height:76px;border-radius:12px;cursor:pointer;background:var(--cb-surface);border:1px solid var(--cb-edge);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:inherit;color:var(--cb-ink)}
-.jb-day[data-on="true"]{background:var(--cb-ink);border-color:var(--cb-ink);color:#fff}
+/* TUL-498: ink fill + white text fails on dark looks (sofia ink ≈ surface). Use surface ink-on. */
+.jb-day[data-on="true"]{background:var(--cb-ink);border-color:var(--cb-ink);color:var(--cb-surface)}
 .jb-day:disabled{opacity:.32;cursor:not-allowed}
 .jb-day span{font-size:.625rem;text-transform:uppercase;letter-spacing:.08em;opacity:.7}
 .jb-day b{font-size:1.125rem}
 .jb-day small{font-size:.625rem;opacity:.7}
 .jb-times{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:8px;margin-top:16px}
 .jb-time{min-height:48px;border-radius:10px;background:var(--cb-surface);border:1px solid var(--cb-edge);cursor:pointer;font-family:inherit;font-size:.9375rem;color:var(--cb-ink)}
-.jb-time[data-on="true"]{background:var(--cb-ink);border-color:var(--cb-ink);color:#fff}
+.jb-time[data-on="true"]{background:var(--cb-ink);border-color:var(--cb-ink);color:var(--cb-surface)}
 .jb-empty{margin-top:18px;border:1px dashed var(--cb-edge);border-radius:14px;padding:22px;text-align:center}
 .jb-empty strong{display:block;margin-bottom:6px;font-size:.9375rem}
 .jb-empty p{margin:0;font-size:.875rem;color:var(--cb-muted);line-height:1.55}
@@ -113,9 +114,9 @@ export const CATALOG_BOOKING_CSS = `
      on the same bottom-right corner (BJ-07). */
   .cb-bar[data-show="true"][data-has-selection="true"]{left:auto;right:max(32px,calc(16px + 56px + 16px));bottom:32px;width:min(420px,calc(100vw - 120px));border:1px solid var(--cb-line);border-radius:18px;padding:16px 20px;box-shadow:0 24px 50px -30px rgba(36,33,38,.4)}
 }
-/* Mobile: full-width idle/selected bar — Hablar FAB lifts via data-yield-booking-bar. */
-.cb-island{padding-bottom:calc(72px + env(safe-area-inset-bottom))}
-@media (min-width:720px){.cb-island{padding-bottom:0}}
+/* GRK-034: catalog rows clear the sticky bar via --cb-bar-h (theme chrome), not a hardcoded 72px. */
+.cb-island{padding-bottom:var(--cb-bar-h,calc(86px + env(safe-area-inset-bottom,0px)))}
+@media (min-width:720px){.cb-island{padding-bottom:var(--cb-bar-h,0px)}}
 /* AUD-044 — frosted selection dock (prototype: selection-dock.html). Brand via
    --cb-primary (theme token); glass via --cb-surface mixes. No hex literals. */
 .cb-dock{--cb-ease:cubic-bezier(.2,.9,.25,1.15);--cb-ease-out:cubic-bezier(.16,1,.3,1);--cb-deep:color-mix(in srgb,var(--cb-primary) 76%,black);position:fixed;left:12px;right:12px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:81;display:flex;align-items:center;gap:10px;padding:10px;border-radius:22px;background:color-mix(in srgb,var(--cb-surface) 78%,transparent);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);border:1px solid color-mix(in srgb,var(--cb-surface) 70%,transparent);box-shadow:0 18px 50px -12px color-mix(in srgb,var(--cb-deep) 35%,transparent),0 2px 6px color-mix(in srgb,var(--cb-deep) 8%,transparent);color:var(--cb-ink);font-family:var(--token-font-body,var(--font-inter-body),Inter,system-ui,sans-serif);transform:translateY(140%);opacity:0;pointer-events:none;transition:transform .55s var(--cb-ease),opacity .3s}

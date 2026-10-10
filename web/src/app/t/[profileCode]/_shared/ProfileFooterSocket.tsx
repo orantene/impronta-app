@@ -20,10 +20,15 @@ export function ProfileFooterSocket({
   locale,
   whitelabel,
   tokens,
+  profileCode,
+  siteHost,
 }: {
   locale: string;
   whitelabel: boolean | undefined;
   tokens: ProfileSocketTokens;
+  /** TUL-310: Help in the Tulala strip with talent code (+ optional host). */
+  profileCode?: string | null;
+  siteHost?: string | null;
 }) {
   const model = buildSocketModel({
     locale,
@@ -33,6 +38,7 @@ export function ProfileFooterSocket({
     whitelabel: Boolean(whitelabel),
     consentTooling: false,
     siteLinks: [],
+    helpContext: profileCode ? { profileCode, siteHost: siteHost ?? null } : null,
   });
   const style = {
     "--token-color-surface-raised": tokens.surface,

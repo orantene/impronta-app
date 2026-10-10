@@ -15,6 +15,13 @@ export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
     "Cancelación, anticipo y lo que leen tus clientas antes de reservar",
   "Website settings": "Ajustes del sitio",
   "How clients book, timing, payments and cancelling": "Cómo reservan tus clientes, horarios, pagos y cancelaciones",
+  // TUL-180 Option A
+  "Other websites": "Otros sitios",
+  "Personal site": "Sitio personal",
+  "Edit your personal site separately from your business site.":
+    "Edita tu sitio personal aparte de tu sitio de negocio.",
+  "Personal": "Personal",
+  "Open personal site editor": "Abrir editor del sitio personal",
   "Services & booking": "Servicios y reservas",
   "Availability & timing": "Disponibilidad y horarios",
   "Client self-service": "Autogestión del cliente",

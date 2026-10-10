@@ -173,7 +173,7 @@ test("explicit live lines take the profile value; eyebrow and headline keep thei
   assert.equal(textOf(left[1]!), "Nail Artist");
 });
 
-test("a footer column with no live line disappears whole; the contact column keeps its button", () => {
+test("a footer column with no live line disappears whole (WHERE and CONTACT)", () => {
   const col = (slot: string, lines: BuilderNode[]) => box(slot, [h(`${slot}-h`, "x", {}), ...lines, p(`${slot}-l`, "link")], { slotKey: slot });
   const footer = box("f", [
     box("cols", [
@@ -183,12 +183,11 @@ test("a footer column with no live line disappears whole; the contact column kee
   ]);
   const full = applyTalentLiveText([footer], LIVE);
   assert.equal(JSON.stringify(full).includes("footer_where"), true);
+  assert.equal(JSON.stringify(full).includes("footer_contact"), true);
 
   const empty = applyTalentLiveText([footer], { values: {} });
-  const cols = ((empty[0] as unknown as { children: BuilderNode[] }).children[0] as unknown as { children: BuilderNode[] }).children;
-  assert.equal(cols.length, 1, "only the contact column is left");
-  assert.equal((cols[0]!.props as { slotKey?: string }).slotKey, "footer_contact");
-  assert.equal(((cols[0] as unknown as { children: BuilderNode[] }).children).length, 2, "heading + link, the Instagram line is gone");
+  // Both columns are husks without live data; the whole cols wrapper goes.
+  assert.equal(empty.length, 0, "empty WHERE + CONTACT columns drop the footer cols row");
 
   const nothing = applyTalentLiveText([box("f2", [box("cols", [col("footer_where", [p("w", "​", { liveText: "footer_where" })])])])], { values: {} });
   assert.equal(nothing.length, 0, "an empty row of nothing goes too");

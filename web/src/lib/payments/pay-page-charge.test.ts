@@ -33,12 +33,10 @@ test("the paid card is stamped with the charge only when it is more than the pri
 
 test("the pay page wires the preview (open) and the paid charge (paid), and the view shows the charged total", () => {
   const page = readFileSync(join(process.cwd(), "src/app/(public)/pay/[code]/pay-page.tsx"), "utf8");
-  assert.match(page, /loadPreviewChargeLines\(admin,/);
+  assert.match(page, /collectForOrderPrincipal\(admin,/);
   assert.match(page, /loadPaidChargeLines\(admin, loaded\.orderId\)/);
   assert.match(page, /feeLines=\{paidFeeLines\}/);
   const view = readFileSync(join(process.cwd(), "src/app/(public)/pay/[code]/CheckoutView.tsx"), "utf8");
   assert.match(view, /find\(\(l\) => l\.code === "total_charged"\)\?\.cents \?\? props\.amountCents/);
   assert.match(view, /data-pay-fee-note/);
-  const loader = readFileSync(join(process.cwd(), "src/lib/payments/pay-page-charge.ts"), "utf8");
-  assert.match(loader, /collectForOrderPrincipal\(/, "the preview reads the same collect the checkout charges");
 });

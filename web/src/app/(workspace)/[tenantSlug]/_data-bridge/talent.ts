@@ -24,6 +24,7 @@ import {
   hasIntroFromSources,
   homeCityFromSources,
 } from "@/lib/talent/website-eligibility-facts";
+import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 
 /**
  * _data-bridge/talent.ts — talent-side dashboard loaders.
@@ -68,6 +69,12 @@ export type TalentSelfProfile = {
   hasBio: boolean;
   /** Drawer availability (talent_profiles.availability_data) holds a pattern or day cells. */
   hasAvailabilityPattern: boolean;
+  /**
+   * TUL-538 — `talent_sites.accepting_bookings`. Drives the Today banner
+   * ("sin aceptar trabajos") and the Disponibilidad master switch. Missing
+   * site row → true (same fail-open as loadTalentSiteSwitches).
+   */
+  acceptingBookings: boolean;
   /** True if height_cm is non-null */
   hasHeight: boolean;
   /** Contact policy — which client trust tiers can initiate inbound contact */
@@ -204,6 +211,7 @@ export async function loadTalentSelfProfile(
     // About writes bios to the catalog field value, not the legacy columns.
     const blobValues = await readBlobFieldValuesFromCatalog(mediaClient, p.id);
     const membership = buildTalentMembershipState(p.talent_plan_key);
+    const siteSwitches = await loadTalentSiteSwitches(trusted, p.id);
 
     return {
       id: p.id,
@@ -225,6 +233,7 @@ export async function loadTalentSelfProfile(
         biosFieldValue: blobValues.bios,
       }),
       hasAvailabilityPattern: hasAvailabilityPattern(p.availability_data),
+      acceptingBookings: siteSwitches.acceptingBookings,
       hasHeight: p.height_cm !== null,
       contactPolicy: p.contact_policy ?? { basic: true, verified: true, silver: true, gold: true },
       portfolioCount: galleryCount ?? 0,
@@ -359,6 +368,7 @@ export async function loadTalentSelfProfileByUser(
     // About writes bios to the catalog field value, not the legacy columns.
     const blobValues = await readBlobFieldValuesFromCatalog(trusted, p.id);
     const membership = buildTalentMembershipState(p.talent_plan_key);
+    const siteSwitches = await loadTalentSiteSwitches(trusted, p.id);
 
     return {
       id: p.id,
@@ -380,6 +390,7 @@ export async function loadTalentSelfProfileByUser(
         biosFieldValue: blobValues.bios,
       }),
       hasAvailabilityPattern: hasAvailabilityPattern(p.availability_data),
+      acceptingBookings: siteSwitches.acceptingBookings,
       hasHeight: p.height_cm !== null,
       contactPolicy: p.contact_policy ?? { basic: true, verified: true, silver: true, gold: true },
       portfolioCount: galleryCount ?? 0,

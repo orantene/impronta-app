@@ -6,6 +6,7 @@
  */
 
 import type { CSSProperties, ReactNode } from "react";
+import Link from "next/link";
 
 import type { PolicyPageModel } from "@/lib/talent-policies/public";
 
@@ -31,11 +32,25 @@ export function versionLine(model: PolicyPageModel): string | null {
   return es ? `Versión ${model.version}${when ? `, publicada el ${when}` : ""}` : `Version ${model.version}${when ? `, published ${when}` : ""}`;
 }
 
+/** Locale-aware "back to site" label for the policy page escape hatch (TUL-516 H1). */
+export function policyHomeLabel(locale: string): string {
+  return (locale ?? "").toLowerCase().startsWith("es") ? "Volver al sitio" : "Back to site";
+}
+
 const INK = "var(--token-color-ink, CanvasText)";
 const SOFT = "color-mix(in srgb, var(--token-color-ink, CanvasText) 66%, var(--token-color-background, Canvas))";
 const LINE = "var(--token-color-line, color-mix(in srgb, CanvasText 16%, Canvas))";
 
-export function TalentPolicyDocument({ model, headingTag = "h1" }: { model: PolicyPageModel; headingTag?: "h1" | "h2" }) {
+export function TalentPolicyDocument({
+  model,
+  headingTag = "h1",
+  homeHref,
+}: {
+  model: PolicyPageModel;
+  headingTag?: "h1" | "h2";
+  /** When set (full policy pages), a home link sits above the title so the visitor is never stuck. */
+  homeHref?: string;
+}) {
   const Heading = headingTag;
   const line = versionLine(model);
   const wrap: CSSProperties = {
@@ -46,6 +61,13 @@ export function TalentPolicyDocument({ model, headingTag = "h1" }: { model: Poli
   };
   return (
     <article data-talent-policy-doc={model.doc} data-policy-default={model.isDefault ? "true" : "false"} lang={model.locale} style={wrap}>
+      {homeHref ? (
+        <p data-policy-home="" style={{ margin: "0 0 18px", fontSize: 14 }}>
+          <Link href={homeHref} style={{ color: INK, textUnderlineOffset: 3 }}>
+            {policyHomeLabel(model.locale)}
+          </Link>
+        </p>
+      ) : null}
       <Heading style={{ fontFamily: "var(--site-heading-font, inherit)", fontSize: 28, lineHeight: 1.2, margin: "0 0 6px" }}>{model.title}</Heading>
       {line ? (
         <p data-policy-version={model.version ?? "default"} style={{ margin: "0 0 24px", fontSize: 13, color: SOFT }}>

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
 import { BioHelperCard } from "@/components/talent/bio-helper-card";
 import Link from "next/link";
+import { setTalentAcceptingBookingsAction } from "@/lib/talent/accepting-bookings";
 import { logServerError } from "@/lib/server/safe-error";
 import { useDashboardText } from "../../dashboard-i18n";
 import { computePaidThisMonth } from "@/lib/talent/paid-this-month";
@@ -31,9 +32,7 @@ import { readAgendaNowClient } from "@/lib/talent-agenda/agenda-now";
 import { resolveTradeProfile } from "@/lib/talent-agenda/trades";
 import { todayPrimaryAction } from "@/lib/talent-agenda/today-view";
 import { type MoneyLanding } from "@/lib/money/today-money-tiles";
-import { safeLoadInbox } from "@/components/messages-v5/shell/safe-load-inbox";
-import { talentShellEngine } from "@/components/messages-v5/shell/talent-engine";
-import { countAwaitingReply } from "@/lib/messages-v5/inbox-view";
+import { countTalentAwaitingInquiries } from "../../shell-count-bubbles-logic";
 import { TodaySkeleton } from "./today-skeleton";
 
 export { TodaySkeleton } from "./today-skeleton";
@@ -58,6 +57,7 @@ export function TalentTodayPage() {
     bridgeTalentPayoutSnapshot,
     bridgeTalentRepresentation,
     bridgeTalentChecklistDismissed,
+    effectiveTalentInquiries,
   } = useAdminShell();
   // ONE completion value (mockup rule): the website-eligibility model is the
   // single source read by Today, the header reward control and the website
@@ -68,33 +68,28 @@ export function TalentTodayPage() {
   // and the browser (React #418). Until hydration finishes, BOTH Agenda V2 and
   // legacy Today render the same static skeleton; the real page mounts after.
   const hydrated = useSyncExternalStore(subscribeNever, () => true, () => false);
-  // Client threads awaiting her reply: the SAME loader and rule as the inbox
-  // "Needs reply" filter (talentShellEngine.loadInbox + countAwaitingReply).
-  // null while the read is in flight, "unavailable" when it failed: neither is 0.
-  // The read is a GET (not a server action), so it gets the GET budget, not the
-  // 4 s server-action stall budget that cut a 3-4 s cold read to "clear".
-  const [awaitingReplyCount, setAwaitingReplyCount] = useState<number | "unavailable" | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    void safeLoadInbox(
-      talentShellEngine.loadInbox,
-      { locationSlug: "all", filter: "all" },
-      2000,
-      talentShellEngine.loadInboxBudgetMs,
-    ).then((r) => {
-      if (!cancelled) setAwaitingReplyCount(r.ok ? countAwaitingReply(r.rows) : "unavailable");
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // Same predicate + rows as the attention bubble and inbox "esperando tu
+  // respuesta" chip (countTalentAwaitingInquiries / isTalentAwaitingYouStage).
+  // Do not use a second messages-v5 count — that disagreed with the chip (TUL-519).
+  const awaitingReplyCount = countTalentAwaitingInquiries(effectiveTalentInquiries);
   // Live-site fact for Today's mode + live card (same source as the header
   // reward control). Above the agenda early return (hooks rule).
   const siteLoad = useTalentSiteDashboardInitialLoad();
+  // TUL-538 — optimistic accepting_bookings for the Today banner 1-click.
+  const [acceptingBookings, setAcceptingBookings] = useState(
+    bridgeTalentSelfProfile?.acceptingBookings !== false,
+  );
+  const [activatingAvailability, startActivateAvailability] = useTransition();
+  useEffect(() => {
+    setAcceptingBookings(bridgeTalentSelfProfile?.acceptingBookings !== false);
+  }, [bridgeTalentSelfProfile?.id, bridgeTalentSelfProfile?.acceptingBookings]);
   // Use real bridge data when available so a freshly-provisioned talent
   // sees their own name/photo/city in the Today header instead of Marta's.
   const profile = bridgeTalentSelfProfile
-    ? buildFreshTalentProfile(bridgeTalentSelfProfile, bridgeTalentPageAnalytics?.data ?? null)
+    ? {
+        ...buildFreshTalentProfile(bridgeTalentSelfProfile, bridgeTalentPageAnalytics?.data ?? null),
+        availableForWork: acceptingBookings,
+      }
     : MY_TALENT_PROFILE;
   const completionPercent =
     websiteEligibility.percent ?? bridgeTalentCompletion?.percent ?? profile.completeness;
@@ -570,6 +565,22 @@ export function TalentTodayPage() {
             : () => setTalentPage("messages")
         }
         onAvailability={() => openDrawer("talent-block-dates")}
+        onActivateAvailability={
+          bridgeTalentSelfProfile
+            ? () => {
+                const prev = acceptingBookings;
+                setAcceptingBookings(true);
+                startActivateAvailability(async () => {
+                  const res = await setTalentAcceptingBookingsAction(true);
+                  if (!res.ok) {
+                    setAcceptingBookings(prev);
+                    logServerError("talent.today.activateAvailability", res.error);
+                  }
+                });
+              }
+            : undefined
+        }
+        activatingAvailability={activatingAvailability}
         onOpenProfile={() => openSection("identity")}
         onOpenCalendar={() => setTalentPage("calendar")}
         onOpenActivity={() => setTalentPage("activity")}

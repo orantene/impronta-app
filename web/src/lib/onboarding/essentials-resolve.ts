@@ -57,6 +57,7 @@ export function resolveEssentialsForBuild(input: {
     place: e?.place ?? null,
     firstProviderEmail: e?.firstProviderEmail ?? null,
     firstProviderName: e?.firstProviderName ?? null,
+    ownerProvides: e?.ownerProvides ?? true,
     confirmed: e?.confirmed ?? false,
     source: e?.source ?? (input.serviceFacts.length ? "ai" : "pack"),
   };

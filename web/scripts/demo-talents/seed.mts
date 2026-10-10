@@ -47,6 +47,7 @@ import { ALBA_PHOTO_SOURCES } from "./alba";
 import { ALEX_PHOTO_SOURCES } from "./alex";
 import { applyHeroFacts } from "../../src/lib/talent-site/demos/hero-facts";
 import { finishedDemoSecondaryLocales } from "../../src/lib/talent-site/demos/finished-demo-locales";
+import { resolvedDemoBookingHours } from "../../src/lib/talent-site/demos/demo-booking-hours";
 import { demoSiteSwitchColumns } from "../../src/lib/talent-site/demos/demo-site-settings";
 import { isDemoEmail } from "./demo-identity";
 
@@ -432,23 +433,25 @@ async function setQaPassword(d: DemoTalent, userId: string, envFile: string) {
   console.log("  QA password set; written to", envFile, "as", key);
 }
 
-// Working hours so instant services show real time slots. Bookings are still
-// refused server-side by the is_demo guard: the visitor can pick a time, the
-// submit shows the demo message.
+// Working hours so timed services show real time slots (TUL-489). Bookings are
+// still refused server-side by the is_demo guard: the visitor can pick a time,
+// the submit shows the demo message. Resolves an explicit hours plan or a
+// default window wide enough for the longest timed service.
 async function writeBookingHours(d: DemoTalent, profileId: string, entry: ManifestEntry) {
-  if (!d.hours) return;
+  const hours = resolvedDemoBookingHours({ city: d.city, services: d.services, hours: d.hours ?? null });
+  if (!hours) return;
   const weekly: Record<string, { startMin: number; endMin: number }[]> = {};
   for (let day = 0; day < 7; day += 1) {
-    weekly[String(day)] = d.hours.days.includes(day) ? [{ startMin: d.hours.startMin, endMin: d.hours.endMin }] : [];
+    weekly[String(day)] = hours.days.includes(day) ? [{ startMin: hours.startMin, endMin: hours.endMin }] : [];
   }
   const { error } = await admin.from("talent_booking_hours").upsert(
     {
       talent_profile_id: profileId,
       tenant_id: HUB_TENANT_ID,
-      timezone: d.hours.timezone,
+      timezone: hours.timezone,
       weekly,
       exceptions: [],
-      slot_minutes: d.hours.slotMinutes,
+      slot_minutes: hours.slotMinutes,
       buffer_before_min: 0,
       buffer_after_min: 15,
       min_notice_min: 120,

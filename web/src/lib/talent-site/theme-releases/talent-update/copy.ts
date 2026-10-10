@@ -161,6 +161,20 @@ export function keptRemovedLine(s: UpdateSummary, locale: UpdateLocale): string 
     : `We kept ${names.join(", ")} removed, as you left ${names.length > 1 ? "them" : "it"}`;
 }
 
+/**
+ * L2 (TUL-420): where she and the Design both changed the same part, we keep
+ * her version and say so before Apply. Null when there are no conflicts.
+ * New blocks stay a separate choice ("Add this block").
+ */
+export function decisionLine(s: UpdateSummary, locale: UpdateLocale): string | null {
+  if ((s.conflicts ?? 0) <= 0) return null;
+  const names = [...new Set((s.conflictKeys ?? []).map((k) => keptPartLabel(k, locale)))];
+  const parts = names.length > 0 ? `: ${names.join(", ")}` : "";
+  return locale === "es"
+    ? `Donde el diseño también cambió, conservamos tu versión${parts}`
+    : `Where the design also changed, we keep your version${parts}`;
+}
+
 /** F125: history summary for an important fix applied to a site with no exact base. */
 export function criticalFixSummary(designTitle: string): Bilingual {
   return {

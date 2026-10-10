@@ -1279,6 +1279,7 @@ export const utilityBarPropsSchema = z.object({
   name: z.string().max(120).optional(),
   subtitle: z.string().max(120).optional(),
   logoUrl: z.string().max(2000).optional(),
+  homeHref: z.string().max(500).optional(),
   showStatus: z.boolean().optional(),
   statusOnLabel: z.string().max(60).optional(),
   statusOffLabel: z.string().max(60).optional(),

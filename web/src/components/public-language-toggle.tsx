@@ -2,6 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { getLocaleMetadata, type Locale } from "@/i18n/config";
+import { languageToggleGroupLabel } from "@/i18n/language-toggle-label";
 import { withLocalePath } from "@/i18n/pathnames";
 import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 import { cn } from "@/lib/utils";
@@ -53,7 +54,7 @@ export function PublicLanguageToggle({
         className,
       )}
       role="group"
-      aria-label="Language"
+      aria-label={languageToggleGroupLabel(activeLocale)}
     >
       {locales.map((code, index) => {
         const active = activeLocale === code;

@@ -247,14 +247,13 @@ export function TulalaIdentityBar() {
           account on the right. The brand lives at the head of the rail. On
           the talent and client surfaces (no rail) the bar keeps the brand and
           the acting-as switcher. */}
-      {/* MW00: below 720px the workspace surface draws the phone's bar
-          instead (MobileChromeStyles swaps the two). */}
-      {inWorkspace ? (
-        <div data-tulala-identity-mobile className="hidden h-full w-full">
-          <MobileChromeStyles />
-          <MobileTopBar />
-        </div>
-      ) : null}
+      {/* MW00: below 720px the phone bar replaces the desktop identity row
+          (MobileChromeStyles swaps the two). Talent needs the same swap so
+          ShellCountBubbles stay reachable (TUL-519 / card 385). */}
+      <div data-tulala-identity-mobile className="hidden h-full w-full">
+        <MobileChromeStyles />
+        <MobileTopBar />
+      </div>
       <div data-tulala-identity-desktop className="flex h-full w-full items-center gap-[14px]">
         {inWorkspace ? (
           <>

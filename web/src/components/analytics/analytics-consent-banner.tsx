@@ -156,7 +156,7 @@ export function AnalyticsConsentBanner({ locale: rootLocale = "en" }: { locale?:
         aria-label={t("public.consent.ariaLabel")}
         data-consent-banner=""
         data-platform-surface="marketing"
-        className="site-theme-platform fixed inset-x-3 bottom-3 z-40 sm:inset-x-auto sm:left-1/2 sm:bottom-5 sm:w-[min(36rem,calc(100vw-2.5rem))] sm:-translate-x-1/2 md:left-auto md:right-5 md:translate-x-0 md:w-[22.5rem]"
+        className="site-theme-platform fixed inset-x-3 bottom-3 z-[98] sm:inset-x-auto sm:left-1/2 sm:bottom-5 sm:w-[min(36rem,calc(100vw-2.5rem))] sm:-translate-x-1/2 md:left-auto md:right-5 md:translate-x-0 md:w-[22.5rem]"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
         <div
@@ -181,7 +181,7 @@ export function AnalyticsConsentBanner({ locale: rootLocale = "en" }: { locale?:
               aria-label={t("public.consent.closeLabel")}
               title={t("public.consent.closeLabel")}
               className="grid size-8 shrink-0 place-items-center rounded-[var(--tl-radius-sm,8px)] transition-colors"
-              style={{ color: "var(--tl-muted, #6b7065)" }}
+              style={{ color: "var(--tl-muted, #5f645a)" }}
             >
               <span aria-hidden className="text-lg leading-none font-normal">
                 ×

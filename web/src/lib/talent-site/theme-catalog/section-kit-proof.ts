@@ -24,7 +24,8 @@ const band = (layerLabel: string, slot: { slotKey: string; originRole: string })
   gap: "m",
   align: "stretch",
   layerLabel,
-  style: { maxWidth: "wide", paddingY: "none", paddingX: "none" },
+  // TUL-496: phone sections need side gutter (was flush to the screen edge).
+  style: { maxWidth: "wide", paddingY: "m", paddingX: "m" },
   ...slot,
   anchorId: slot.slotKey,
 });

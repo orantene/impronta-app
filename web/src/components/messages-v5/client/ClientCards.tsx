@@ -233,9 +233,9 @@ export function ClientOfferCard({ offer, offers, copy, kit, business, locale, no
   readonly onDecline?: (offer: ClientOfferSummary, reason: string) => void;
   readonly onChange?: (offer: ClientOfferSummary, text: string) => void;
   readonly onPay?: (code: string) => void;
-  /** Guest dock (TUL-280): unsigned clients see "Sign in to accept" instead of Accept. */
+  /** Guest dock + `/c/t` (TUL-280 / W5-10): unsigned clients see "Sign in to accept" instead of Accept. */
   readonly acceptLabel?: string;
-  /** Guest dock: inline email-code form under the offer actions. */
+  /** Guest dock + `/c/t`: inline email-code form under the offer actions. */
   readonly signInPanel?: ReactNode;
 }) {
   const [mode, setMode] = useState<OfferMode>("view");

@@ -7,7 +7,11 @@ import { fileURLToPath } from "node:url";
 import { inboxPreviewText } from "./inbox-preview-text";
 
 // A tiny dictionary standing in for the Spanish dashboard one; "Confirmed" is a key.
-const DICT: Record<string, string> = { Confirmed: "Confirmada", "Thanks!": "¡Gracias!" };
+const DICT: Record<string, string> = {
+  Confirmed: "Confirmada",
+  "Thanks!": "¡Gracias!",
+  "Awaiting your response.": "Esperando tu respuesta.",
+};
 const t = (s: string) => DICT[s] ?? s;
 
 test("a client's own message equal to a dictionary key is shown verbatim", () => {
@@ -20,6 +24,15 @@ test("a client's own message equal to a dictionary key is shown verbatim", () =>
 test("system previews and mock conversations are translated", () => {
   assert.equal(inboxPreviewText(t, { sender: "system", isMock: false, preview: "Confirmed" }), "Confirmada");
   assert.equal(inboxPreviewText(t, { sender: "client", isMock: true, preview: "Thanks!" }), "¡Gracias!");
+  // TUL-519: synthetic talent rows use system + the catalog English keys.
+  assert.equal(
+    inboxPreviewText(t, {
+      sender: "system",
+      isMock: false,
+      preview: "Awaiting your response.",
+    }),
+    "Esperando tu respuesta.",
+  );
 });
 
 test("TalentJobShell no longer runs the raw last-message preview through copy.t", () => {

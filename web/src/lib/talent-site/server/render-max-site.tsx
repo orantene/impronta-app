@@ -1,5 +1,4 @@
 import "server-only";
-
 import type { ReactNode } from "react";
 import { loadHistoryPreviewSnapshot } from "../history/history.server";
 import { loadThemeUpdatePreviewSnapshot } from "../theme-releases/talent-update/talent-update.server";
@@ -11,10 +10,8 @@ import { builderTreeHasFaqBind, builderTreeHasKind } from "./builder-tree-has-ki
 import { pruneEmptyBoundSections } from "@/lib/talent-site/my-content-prune";
 import { pruneDeadSectionLinks } from "@/lib/talent-site/dead-section-links"; import { headerOverlayAllowed } from "@/lib/talent-site/header-overlay";
 import { talentSiteLocalePath } from "@/lib/talent-site/talent-site-locale-routing";
-
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
 import { SitePageViewAnalytics } from "@/components/analytics/site-page-view-analytics";
-
 import {
   BuilderNodeFontLinks,
   BuilderNodeRendererStyles,
@@ -56,7 +53,6 @@ import { TypeSystemStyle, typeSystemSheetsForTokens } from "@/lib/talent-site/th
 import { designTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/design-token-defaults";
 import { typeSystemComponentStyleDefaults } from "@/lib/talent-site/theme-catalog/collection/design-type-system";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-
 import {
   buildMaxSiteNav,
   coerceTree,
@@ -75,6 +71,7 @@ import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import {
   buildSocketModel,
   headerShowsLanguageSwitch,
+  siteHostFromOrigin,
   socketConsentToolingEnabled,
   stripDesignCredits,
 } from "@/lib/talent-site/footer-socket";
@@ -86,7 +83,6 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { DEFAULT_TALENT_LIVE_STATUS, loadTalentLiveStatus } from "@/lib/talent/live-status";
 import { LIVE_STATUS_CSS, liveStatusRootAttrs, toLiveStatusRenderContext } from "@/lib/talent/live-status-render";
 import { LiveStatusExpiry } from "@/components/talent-site/LiveStatusExpiry";
-
 import {
   loadMaxSiteByProfileId,
   loadMaxSiteBySlug,
@@ -126,7 +122,6 @@ export type { MaxSiteSeo };
  *
  * NEVER throws to the visitor — every resolution miss degrades to `not_found`.
  */
-
 export interface RenderTalentMaxSiteInput {
   /** Resolve the site by its globally-unique slug (the /t/site/<slug> path). */
   siteSlug?: string;
@@ -271,7 +266,7 @@ async function renderTalentMaxSiteUnguarded(
     const navSource: readonly MaxSitePageRow[] = requirePublished
       ? pages
       : pages.map((p) => ({ ...p, status: "published" }));
-    const nav = buildMaxSiteNav(navSource);
+    const nav = buildMaxSiteNav(navSource, locale, localeCtx.chain);
     const publicPathPrefix = input.publicPathPrefix ?? "";
     const hydratedShell = hydrateShellNav(
       fixed.shellTree,
@@ -292,8 +287,13 @@ async function renderTalentMaxSiteUnguarded(
     const siteTokens = snap?.tokens ?? (await loadMaxSiteThemeTokens(talentProfileId, { draft: isOwnerDraftPreview }));
     const designSlug = designSlugEarly;
     const policyModel = policyDoc ? await loadTalentPolicyModel(talentProfileId, policyDoc, locale) : null;
+    // Policy pages keep the home shell but swap the body: give the document a
+    // locale-aware home link so white-on-white chrome never traps the visitor.
+    const policyHomeHref = policyModel
+      ? talentSiteLocalePath("/", locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales)
+      : null;
     const node = await renderMaxSiteDocument({
-      mainOverride: policyModel ? policyMainNode(policyModel) : undefined,
+      mainOverride: policyModel ? policyMainNode(policyModel, { homeHref: policyHomeHref ?? "/" }) : undefined,
       siteTokens,
       designSlug,
       shellTree: hydratedShell,
@@ -309,7 +309,11 @@ async function renderTalentMaxSiteUnguarded(
       // PHASE 1 — a free site carries the "Made with Tulala" mark; a paid plan removes it (same predicate as /t/[code]).
       showPlatformBadge: talentSiteShowsPlatformBadge(planKey),
       isDemo,
-      talentName: identity?.name ?? null, webOffice: webOfficeCtxFor(webOfficeSocialEnabled(planKey), { canonicalOrigin: input.canonicalOrigin ?? process.env.NEXT_PUBLIC_SITE_URL, canonicalPath: input.canonicalPath, siteSlug: site.siteSlug }),
+      talentName: identity?.name ?? null,
+      profileCode: identity?.profileCode ?? null,
+      siteHost: siteHostFromOrigin(input.canonicalOrigin ?? process.env.NEXT_PUBLIC_SITE_URL),
+      webOffice: webOfficeCtxFor(webOfficeSocialEnabled(planKey), { canonicalOrigin: input.canonicalOrigin ?? process.env.NEXT_PUBLIC_SITE_URL, canonicalPath: input.canonicalPath, siteSlug: site.siteSlug }),
+      canonicalOrigin: input.canonicalOrigin,
     });
 
     const seoFacts = await pSeoFacts; // services, links, city; never throws
@@ -369,7 +373,13 @@ async function renderMaxSiteDocument(args: {
   /** Fictional demo talent: a Demo pill above the header + a footer line. */
   isDemo?: boolean;
   /** The talent's display name: labels the first group of the Tulala strip. */
-  talentName?: string | null; /** Paid Web Office only: footer links + source WhatsApp text. */ webOffice?: WebOfficeCtx | null;
+  talentName?: string | null;
+  /** TUL-310 footer Help context. */
+  profileCode?: string | null;
+  siteHost?: string | null;
+  /** Paid Web Office only: footer links + source WhatsApp text. */ webOffice?: WebOfficeCtx | null;
+  /** Request origin for magazine footer credit (hostname only). */
+  canonicalOrigin?: string;
 }): Promise<ReactNode> {
   const {
     siteTokens,
@@ -383,6 +393,12 @@ async function renderMaxSiteDocument(args: {
     draftPreview,
     showPlatformBadge,
   } = args;
+  let publicHost = "";
+  try {
+    publicHost = new URL(args.canonicalOrigin ?? "").hostname.replace(/^www\./, "");
+  } catch {
+    publicHost = "";
+  }
 
   // Page-scoped theme cascade — identical to the published talent page route.
   const designSlice = readTalentDesignSlice(page.theme);
@@ -533,18 +549,23 @@ async function renderMaxSiteDocument(args: {
   // The header's section links get the same treatment (a talent with no reviews has no #reviews band, so the link goes).
   const liveHeaderTree = pruneDeadSectionLinks(headerTree, renderedBlocks, [footerTree], { homePath });
   // TUL-133: a transparent header gets white text only over a dark full-bleed hero.
-  const overHeroAttr = headerOverlayAllowed(renderedBlocks) ? { "data-over-hero": "true" } : {};
+  // Policy / override bodies are light documents: never stamp over-hero from the
+  // home tree, or brand + nav stay white-on-white with no readable way home (TUL-516 H1).
+  const overHeroAttr =
+    !args.mainOverride && headerOverlayAllowed(renderedBlocks) ? { "data-over-hero": "true" } : {};
   const hasSocialNode = builderTreeHasKind(footerTree, "social_links"); const { records: footerSocialLinks, strip: webOfficeStrip } = webOfficeFooter(args.webOffice, hasSocialNode || args.webOffice ? await loadTalentSocialLinks(talentProfileId) : [], hasSocialNode, locale);
   const socketModel = buildSocketModel({
     locale,
     publicPathPrefix,
     supportedLocales: args.localeCtx.settings.supportedLocales,
+    primaryLocale: args.localeCtx.settings.defaultLocale,
     switcherHrefs: args.localeCtx.switcherHrefs,
     showCredit: showPlatformBadge,
     whitelabel: tenantId ? await loadTenantWhitelabel(tenantId) : false,
     consentTooling: socketConsentToolingEnabled(),
     talentName: args.talentName,
     headerHasLanguageSwitch: headerShowsLanguageSwitch(headerTree),
+    helpContext: args.profileCode ? { profileCode: args.profileCode, siteHost: args.siteHost ?? null } : null,
   });
 
   // Render one shell root. A `site_header`/`site_footer` SECTION LANDMARK carries
@@ -590,6 +611,7 @@ async function renderMaxSiteDocument(args: {
                 visitorLocale: locale,
                 contentLocale: args.localeCtx.contentLocale,
                 renderSectionEmbed,
+                publicHost: publicHost || undefined,
               })
             : null}
         </div>
@@ -608,6 +630,7 @@ async function renderMaxSiteDocument(args: {
           visitorLocale: locale,
           contentLocale: args.localeCtx.contentLocale,
           renderSectionEmbed,
+          publicHost: publicHost || undefined,
         })}
       </div>
     );
@@ -718,6 +741,7 @@ async function renderMaxSiteDocument(args: {
               visitorLocale: locale,
               contentLocale: args.localeCtx.contentLocale,
               renderSectionEmbed,
+              publicHost: publicHost || undefined,
             })}
           </header>
         )
@@ -739,6 +763,7 @@ async function renderMaxSiteDocument(args: {
           contentLocale: args.localeCtx.contentLocale,
           ...experimentContext,
           renderSectionEmbed,
+          publicHost: publicHost || undefined,
         })}
       </main>
 
@@ -754,6 +779,7 @@ async function renderMaxSiteDocument(args: {
             visitorLocale: locale,
             contentLocale: args.localeCtx.contentLocale,
             renderSectionEmbed,
+            publicHost: publicHost || undefined,
           })}{webOfficeStrip}
         </footer>
       ) : null}

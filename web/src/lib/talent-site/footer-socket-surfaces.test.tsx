@@ -88,7 +88,8 @@ test("agency surface: its own policy pages lead, otherwise only Tulala documents
 test("agency surface: Spanish copy", () => {
   const out = agencyHtml({ locale: "es" });
   assert.match(out, /Sitio creado con/);
-  assert.match(out, /Términos/);
+  assert.match(out, /Términos Tulala/);
+  assert.match(out, /Privacidad Tulala/);
 });
 
 test("legacy profile templates: one socket, one credit, token-styled", () => {

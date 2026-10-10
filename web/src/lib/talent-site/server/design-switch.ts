@@ -1,9 +1,11 @@
 /**
- * L3 / TUL-421: pure plan for switching Designs on a talent site draft.
+ * L3 / TUL-421 + TUL-527: pure plan for switching Designs on a talent site draft.
  *
  * - Matched design keys: content-owned props + i18n carry (`carryContent`).
- * - Unmatched stamped sections and talent-added top-level nodes: kept
- *   (appended) and listed as warnings. Never silently deleted.
+ * - Unmatched stamped (theme) sections: dropped and warned. Keeping them across
+ *   A→B→C stacked every prior design on the page (TUL-527). Restore the old
+ *   design from Design options / history when she wants those sections back.
+ * - Talent-added (unstamped) top-level nodes: kept (appended) and warned.
  * - Does not touch business tables or published columns (caller's job).
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
@@ -20,6 +22,9 @@ export type DesignSwitchWarn = {
   kind: string;
   reason: "no_match" | "talent_added";
 };
+
+/** History kinds that are only Design gallery switches (not content edits). */
+export const DESIGN_SWITCH_ONLY_HISTORY_KINDS = ["design_apply"] as const;
 
 export type DesignSwitchReport = {
   fromSlug: string | null;
@@ -77,7 +82,8 @@ function mapList(
       continue;
     }
     if (seenTo.has(k)) continue;
-    orphans.push(node);
+    // Theme-stamped, no match in the new Design: drop (TUL-527). Still warn so
+    // the apply report can list what did not carry.
     warned.push({ tree, key: k, kind: node.kind, reason: "no_match" });
   }
 
@@ -86,7 +92,7 @@ function mapList(
 
 /**
  * Build the draft trees for a Design switch: new layout with her content
- * carried where keys match; unmatched / added content kept and warned.
+ * carried where keys match; talent-added nodes kept; unmatched theme sections dropped.
  */
 export function planDesignSwitch(input: {
   fromShell: ReadonlyArray<BuilderNode>;
@@ -138,15 +144,41 @@ export function snapshotDesignSlug(snapshot: {
 }
 
 /**
- * Gallery re-pick may restore-exact only when the draft has not moved since
- * the leave entry was written (`talent_site_history.draft_rev` == current
- * `talent_sites.draft_rev`). Any later edit → carry-over instead.
+ * Gallery re-pick may restore-exact when the draft has not moved since the
+ * leave entry was written (`talent_site_history.draft_rev` == current
+ * `talent_sites.draft_rev`).
  */
 export function draftUnchangedSinceSwitch(
   currentDraftRev: number,
   leaveEntryDraftRev: number | null | undefined,
 ): boolean {
   return typeof leaveEntryDraftRev === "number" && currentDraftRev === leaveEntryDraftRev;
+}
+
+/**
+ * TUL-527: A→B→C→A with no content edits must restore A exactly. Intermediate
+ * gallery switches bump `draft_rev`, so equality alone is not enough. When every
+ * history row with `draft_rev` after the leave is a `design_apply`, she only
+ * tried other Designs — restore-exact is safe. Any edit/colors/etc. → carry-over.
+ */
+export function onlyDesignAppliesSinceLeave(
+  entriesAfterLeave: ReadonlyArray<{ kind?: string | null }>,
+): boolean {
+  if (entriesAfterLeave.length === 0) return false;
+  const allowed = new Set<string>(DESIGN_SWITCH_ONLY_HISTORY_KINDS);
+  return entriesAfterLeave.every((e) => typeof e.kind === "string" && allowed.has(e.kind));
+}
+
+/** True when gallery re-pick of a prior Design may restore-exact. */
+export function canRestoreExactSinceLeave(input: {
+  currentDraftRev: number;
+  leaveEntryDraftRev: number | null | undefined;
+  entriesAfterLeave: ReadonlyArray<{ kind?: string | null }>;
+}): boolean {
+  if (draftUnchangedSinceSwitch(input.currentDraftRev, input.leaveEntryDraftRev)) return true;
+  if (typeof input.leaveEntryDraftRev !== "number") return false;
+  if (input.currentDraftRev <= input.leaveEntryDraftRev) return false;
+  return onlyDesignAppliesSinceLeave(input.entriesAfterLeave);
 }
 
 /** Site patch keys a Design apply may write (draft-first: never published columns). */

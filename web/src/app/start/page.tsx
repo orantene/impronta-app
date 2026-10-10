@@ -10,7 +10,8 @@ import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
-  title: "Tulala",
+  // Absolute so the root `%s · Tulala` template does not yield "Tulala · Tulala".
+  title: { absolute: "Tulala" },
 };
 
 /**

@@ -56,8 +56,11 @@ export const DEMO_SITE_SETTINGS: Readonly<Record<string, DemoSiteSettings>> = {
   "TAL-93112": base({ siteLangs: ["en"], bookingMode: "quote", currency: "USD", acceptingBookings: false }),
   "TAL-93113": base({ siteLangs: ["es", "en"], bookingMode: "request", currency: "MXN" }),
   "TAL-93114": base({ siteLangs: ["es", "en"], bookingMode: "mixed", currency: "MXN" }),
+  "TAL-93007": base({ siteLangs: ["es", "en"], bookingMode: "request", currency: "MXN" }),
+  "TAL-93115": base({ siteLangs: ["es", "en"], bookingMode: "mixed", currency: "MXN" }),
+  "TAL-93116": base({ siteLangs: ["es"], bookingMode: "mixed", currency: "MXN", chatEnabled: false }),
   // Gridline
-  "TAL-93030": base({ siteLangs: ["es"], bookingMode: "instant", currency: "MXN" }),
+  "TAL-93030": base({ siteLangs: ["es", "en"], bookingMode: "instant", currency: "MXN" }),
   "TAL-93206": base({ siteLangs: ["en"], bookingMode: "request", currency: "USD", chatEnabled: false }),
   "TAL-93207": base({ siteLangs: ["en"], bookingMode: "instant", currency: "USD" }),
   "TAL-93208": base({ siteLangs: ["es"], bookingMode: "quote", currency: "MXN", acceptingBookings: false }),

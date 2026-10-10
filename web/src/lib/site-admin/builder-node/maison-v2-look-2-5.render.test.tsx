@@ -19,6 +19,7 @@ import type { TalentOffering } from "@/lib/talent/offerings-types";
 
 import { createBuilderNode } from "./create";
 import { safeChipHref } from "./next-free-chip-href";
+import { PORTFOLIO_CSS } from "./portfolio-block";
 import { PORTFOLIO_FRAMED_CSS } from "./portfolio-framed-css";
 import { renderBuilderNodes, type BuilderNodeRenderDataSources } from "./render";
 import { SERVICES_CATALOG_ROW_CARD_CSS } from "./services-catalog-row-card-css";
@@ -74,6 +75,26 @@ test("portfolio cardStyle=framed in Spanish: the hint and the arrow name are Spa
   const html = render([portfolio({ cardStyle: "framed" })], { talentPortfolioShots: shots }, "es");
   assert.match(html, /Desliza para ver más/);
   assert.match(html, /Quiero esto/);
+});
+
+test("TUL-475: framed cards always show a name; phone strip keeps a gutter (no negative margin)", () => {
+  const bare = [
+    {
+      id: "bare-1",
+      url: "https://example.test/bare.jpg",
+      alt: "",
+      caption: null,
+      offeringId: null,
+      offeringTitle: null,
+    },
+  ];
+  const es = render([portfolio({ cardStyle: "framed", limit: 1 })], { talentPortfolioShots: bare }, "es");
+  assert.match(es, /sb-portfolio-name/);
+  assert.match(es, /Trabajo 1/);
+  const en = render([portfolio({ cardStyle: "framed", limit: 1 })], { talentPortfolioShots: bare });
+  assert.match(en, /Work 1/);
+  assert.match(PORTFOLIO_CSS, /@media \(max-width:899px\)\{\.sb-portfolio--staggered\{margin:0;padding:0 18px 6px\}\}/);
+  assert.doesNotMatch(PORTFOLIO_CSS, /margin:0 -18px/);
 });
 
 test("portfolio without cardStyle is exactly the old markup: no framed attribute, stylesheet or hint; five tiles", () => {

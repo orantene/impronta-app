@@ -86,7 +86,7 @@ const LEGACY_HERO_KEYS: Readonly<Record<string, LiveTextKey>> = {
 };
 
 /** Columns that disappear whole when none of their live lines has data. */
-const HIDE_WHEN_EMPTY_SLOTS: ReadonlySet<string> = new Set(["footer_where"]);
+const HIDE_WHEN_EMPTY_SLOTS: ReadonlySet<string> = new Set(["footer_where", "footer_contact"]);
 
 type AnyNode = BuilderNode & { children?: BuilderNode[] };
 type Props = Record<string, unknown>;

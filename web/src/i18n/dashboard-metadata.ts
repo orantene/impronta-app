@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 
+import { platformBrandTagline } from "@/lib/brand/platform-brand-locale";
 import { TULALA_BRAND } from "@/lib/brand/tulala";
 import { getRequestLocale } from "@/i18n/request-locale";
 
-const TAGLINE_ES = "Vende lo que haces, no lo que envías";
-
 /** Browser-tab title for dashboard pages, in the dashboard language. */
 export function dashboardTabTitle(locale: string): string {
-  return `${TULALA_BRAND.name} · ${locale === "es" ? TAGLINE_ES : TULALA_BRAND.tagline}`;
+  return `${TULALA_BRAND.name} · ${platformBrandTagline(locale)}`;
 }
 
 /**

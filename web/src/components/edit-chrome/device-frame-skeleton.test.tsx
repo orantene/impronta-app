@@ -69,7 +69,9 @@ test("skeleton shows at t=0 for an unloaded tablet tier", () => {
   const m = mount("tablet", new Set());
   const el = m.host.querySelector("[data-device-frame-skeleton]");
   assert.ok(el, "expected data-device-frame-skeleton at t=0");
-  assert.match(el?.textContent ?? "", /Loading preview/);
+  assert.equal(el?.getAttribute("data-device-frame-skeleton"), "tablet");
+  assert.ok(el?.querySelector("[data-device-frame-skeleton-bezel]"), "expected bezel");
+  assert.equal(el?.getAttribute("aria-label"), "Loading preview…");
   m.unmount();
 });
 

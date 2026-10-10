@@ -34,7 +34,7 @@ const AUDIENCE_CONFIG: AudienceConfig[] = [
     key: "hub",
     href: "/organizations",
     intent: "hub",
-    accent: "var(--tl-sage, #8a907b)",
+    accent: "var(--tl-sage, #5f6556)",
     photo: MARKETING_PHOTOS.audienceHub,
   },
 ];

@@ -36,6 +36,7 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { withLocaleHref } from "@/i18n/pathnames";
 import {
   getPricingLaddersCopy,
+  localizeTierCadence,
   localizeTierName,
   localizeTierPrice,
   type PricingLaddersCopy,
@@ -101,18 +102,6 @@ type Card = {
   cta: { label: string; href: string; intent: string };
 };
 
-/**
- * `loadMarketingTiers` pre-formats cadence in English (it is shared with
- * surfaces that are English-only). Re-key it off the known English strings so
- * the Spanish page never leaks "per month".
- */
-function localizeCadence(cadence: string, c: LadderCopy): string {
-  if (cadence === "per month") return c.cadence.month;
-  if (cadence === "per year") return c.cadence.year;
-  if (cadence === "forever") return c.cadence.free;
-  return "";
-}
-
 function buildCards(
   rows: MarketingTier[],
   copyByKey: Partial<Record<string, TierCopy>>,
@@ -129,7 +118,7 @@ function buildCards(
       key: t.key,
       name: localizeTierName(t.name, locale),
       price: salesLed ? c.salesLed : localizeTierPrice(t.price, locale),
-      cadence: salesLed ? "" : localizeCadence(t.cadence, c),
+      cadence: salesLed ? "" : localizeTierCadence(t.cadence, locale),
       line: tierCopy?.line ?? t.tagline,
       bullets: tierCopy ? [...tierCopy.bullets] : t.highlights,
       featured: t.featured,

@@ -252,7 +252,7 @@ html[data-public-font-preset="editorial"] {
     --secondary: var(--tl-surface-deep, #ebe4d5);
     --secondary-foreground: var(--tl-ink, #161a16);
     --muted: var(--tl-surface-deep, #ebe4d5);
-    --muted-foreground: var(--tl-muted, #6b7065);
+    --muted-foreground: var(--tl-muted, #5f645a);
     --accent: var(--tl-forest-soft, rgba(30, 58, 45, 0.08));
     --accent-solid: var(--tl-forest, #1e3a2d);
     --accent-foreground: var(--tl-ink, #161a16);
@@ -1129,7 +1129,9 @@ html[data-public-font-preset="editorial"] {
   --tl-ink: #161a16;
   --tl-ink-soft: #3e4640;
   --tl-ink-strong: #0a0e0b;
-  --tl-muted: #6b7065;
+  /* TUL-518 / J3: was #6b7065 (4.44:1 on bone). #5f645a clears AA on bone
+     and on --tl-surface-deep (footer column headings). */
+  --tl-muted: #5f645a;
   --tl-muted-soft: #8e938a;
   --tl-on-inverse: #f1ede3;
   --tl-on-inverse-muted: rgba(241, 237, 227, 0.68);
@@ -1161,9 +1163,11 @@ html[data-public-font-preset="editorial"] {
   --tl-accent: #ff8332;
   --tl-accent-soft: #ffb583;
 
-  /* Editorial supports — used as accents in editorial composition, not UI */
-  --tl-sage: #8a907b;
-  --tl-sage-soft: rgba(138, 144, 123, 0.16);
+  /* Editorial supports. Sage was #8a907b (~2.9:1 on bone) so "For hubs"
+     failed AA; #5f6556 clears 4.5:1 on bone / surface / white. Soft tint
+     keeps the old hue so washes stay soft. */
+  --tl-sage: #5f6556;
+  --tl-sage-soft: rgba(95, 101, 86, 0.16);
   --tl-stone: #d4ccbd;
   --tl-stone-soft: rgba(212, 204, 189, 0.4);
   --tl-clay: #b3886b;

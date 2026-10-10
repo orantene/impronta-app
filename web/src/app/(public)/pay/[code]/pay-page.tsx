@@ -17,7 +17,8 @@ import { CheckoutView } from "./CheckoutView";
 import { payCalendarEvent } from "@/lib/payments/pay-calendar-event";
 import { resolvePaidLinkDisplayStatus } from "@/lib/payments/pay-refund-status";
 import { loadPayLinkFeeLines } from "@/lib/payments/pay-link-fee-lines";
-import { loadPaidChargeLines, loadPreviewChargeLines } from "@/lib/payments/pay-page-charge";
+import { loadPaidChargeLines } from "@/lib/payments/pay-page-charge";
+import { collectForOrderPrincipal } from "@/lib/orders/purchase-collect";
 import { resolveOrderPayeeName } from "@/lib/payments/payee-name";
 import { interpolate } from "@/i18n/interpolate";
 import { createTranslator } from "@/i18n/messages";
@@ -104,7 +105,7 @@ export async function PayByCodePage({
 
   const { data: order, error: orderError } = await admin
     .from("orders")
-    .select("id, currency, inquiry_id, receipt_code, hold_expires_at, status")
+    .select("id, currency, inquiry_id, receipt_code, hold_expires_at, status, total_cents")
     .eq("id", loaded.orderId)
     .maybeSingle();
   if (orderError) notFound();
@@ -114,6 +115,7 @@ export async function PayByCodePage({
     receipt_code: string | null;
     hold_expires_at: string | null;
     status: string | null;
+    total_cents?: number | string | null;
   } | null;
   const { data: lines, error: linesError } = await admin
     .from("order_lines")
@@ -422,17 +424,19 @@ export async function PayByCodePage({
     );
   }
 
-  // Before Pay the client must see the fee and the total the card will be charged. The booking
-  // snapshot only exists after payment, so fall back to the amount Checkout will charge.
-  const snapshotLines = await loadPayLinkFeeLines(admin, loaded.orderId, loaded.amountCents);
-  const feeLines = snapshotLines.length
-    ? snapshotLines
-    : await loadPreviewChargeLines(admin, {
-        tenantId: loaded.tenantId ?? null,
+  // What the card will be charged: the SAME helper the checkout uses (never a second computation).
+  // The part above the principal is the client service fee, shown as its own line.
+  const collectCents = loaded.tenantId
+    ? await collectForOrderPrincipal(admin, {
+        tenantId: loaded.tenantId,
         orderId: loaded.orderId,
-        currency: orderRow?.currency ?? "",
+        orderCurrency: orderRow?.currency ?? "",
         principalCents: loaded.amountCents,
-      });
+        subtotalCents: Number(orderRow?.total_cents ?? 0),
+      })
+    : loaded.amountCents;
+  const serviceFeeCents = Math.max(0, collectCents - loaded.amountCents);
+  const feeLines = await loadPayLinkFeeLines(admin, loaded.orderId, collectCents);
   return (
     <CheckoutView
       code={code}
@@ -444,6 +448,7 @@ export async function PayByCodePage({
       status="open"
       locale={uiLocale}
       feeLines={feeLines}
+      serviceFeeCents={serviceFeeCents}
       lines={((lines ?? []) as { label: string | null; units: number; unit_cents: number }[]).map((line) => ({
         label: line.label ?? "",
         units: Number(line.units) || 1,

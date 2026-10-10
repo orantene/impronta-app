@@ -334,7 +334,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
           <BuilderNodeRendererStyles kinds={storefrontScopedKinds} nodes={storefrontBodyTree} />
         ) : null}
         {/* A11Y-2 — skip link must be first focusable element before any nav. */}
-        <SkipToContent />
+        <SkipToContent locale={locale} />
         {/* ANALYTICS-2 — first-party page-view for the storefront home (slug "/")
             so storefront feeds the SAME view_site_page stream + admin loader as
             talent-profile/talent-site. Suppressed under edit/preview chrome so

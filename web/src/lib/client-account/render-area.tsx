@@ -29,7 +29,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  */
 export async function renderClientAccountPage(view: AccountView) {
   const host = await readAccountHost();
-  // Agency, hub and app hosts (TUL-64) have their own renderer behind the `app` flag.
+  // Agency, hub and app hosts (TUL-64) have their own renderer; flag kind follows
+  // x-impronta-host-context (agency / hub / app / marketing).
   if (host.hostContext !== "talent_site") return renderTenantAccountPage(view, host.hostContext);
   const talentProfileId = resolveGatedTalentProfileId({ hostContext: host.hostContext, talentProfileId: host.talentProfileId });
   if (accountAreaGate({ flagOn: clientAccountEnabledFor("talent"), hostContext: host.hostContext }) !== "render" || !talentProfileId) {

@@ -764,6 +764,7 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
         <ProfileFooterSocket
           locale={locale}
           whitelabel={props.whitelabel}
+          profileCode={props.profileCode}
           tokens={{ surface: "var(--pp-bg)", ink: "var(--pp-ink)", line: "var(--pp-line)" }}
         />
       ) : null}

@@ -121,7 +121,7 @@ const ALL_CASES: Case[] = [
       assert.equal(p.alt, "Nails close-up");
       assert.equal(p.layerLabel, "My inset");
       const style = p.style as Props;
-      assert.equal(style.left, "-22px", "the new position still lands");
+      assert.equal(style.left, "0px", "the new position still lands (TUL-475: no negative spill)");
       assert.equal(style.top, undefined, "no old position left behind");
     },
     // She nudged the old top-right position: the bottom-left layout has no `top`.

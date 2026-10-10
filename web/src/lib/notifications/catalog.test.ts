@@ -694,9 +694,13 @@ test("catalog: offer.sent.talent is offers, email + in_app on the talent surface
   assert.equal(entry!.in_app!.kind, "offer");
 });
 
-test("catalog: offer.sent routes to both the client and the talent entries", () => {
+test("catalog: offer.sent routes to client, talent, and workspace pending-approval entries", () => {
   const ids = findCatalogEntries("offer.sent").map((e) => e.id).sort();
-  assert.deepEqual(ids, ["offer.sent.client", "offer.sent.talent"]);
+  assert.deepEqual(ids, [
+    "offer.pending_approval.workspace",
+    "offer.sent.client",
+    "offer.sent.talent",
+  ]);
 });
 
 test("catalog: offer.sent.talent shows the recipient's OWN net rate, never the client total", () => {

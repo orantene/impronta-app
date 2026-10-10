@@ -89,6 +89,7 @@ export function CardDockFrame({
       ref={ref}
       role="dialog"
       aria-modal="false"
+      data-guest-chat-panel=""
       aria-label={ariaLabel}
       data-chat-variant="card"
       data-chat-expanded={expanded ? "true" : "false"}

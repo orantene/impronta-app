@@ -128,7 +128,7 @@ export async function MarketingFooter() {
             <div key={col.label}>
               <h4
                 className="plt-mono text-[0.6875rem] font-medium uppercase tracking-[0.22em]"
-                style={{ color: "var(--plt-muted-soft)" }}
+                style={{ color: "var(--plt-muted)" }}
               >
                 {col.label}
               </h4>

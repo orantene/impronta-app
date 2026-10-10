@@ -1,5 +1,7 @@
 import "server-only";
 
+import { displayableContact } from "@/lib/inquiry/guest-send-gate";
+
 import { currentInquiryName } from "./inquiry-name";
 import { toRecordChip, type ConversationRecordRow } from "./record-chip";
 import type { Essentials, IdentityLevel } from "./types";
@@ -49,15 +51,17 @@ export async function loadMessagingEssentials(
   ]);
 
   const ident = (identity ?? null) as { level: IdentityLevel; method: string | null } | null;
-  const name = await currentInquiryName(admin, input.inquiryId, row.contact_name);
+  // TUL-379: hide seed Guest / pending-…@guest.impronta from details panes.
+  const contact = displayableContact(row.contact_name, row.contact_email);
+  const name = await currentInquiryName(admin, input.inquiryId, contact.contactName);
   return {
     ok: true,
     essentials: {
       name,
       version: row.version,
       customer: {
-        name: row.contact_name,
-        email: row.contact_email,
+        name: contact.contactName,
+        email: contact.contactEmail,
         phone: row.contact_phone,
         identityLevel: ident?.level ?? "none",
         identityMethod: ident?.method ?? null,

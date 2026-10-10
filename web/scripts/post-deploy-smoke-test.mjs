@@ -36,6 +36,7 @@
 // Exit code: 0 = all checks pass, 1 = at least one failure.
 
 import { judgeGetStartedRedirect, cronSecretPlan } from "./lib/smoke-decisions.mjs";
+import { checkPublicTalentHosts } from "./lib/public-talent-hosts.mjs";
 
 const args = process.argv.slice(2);
 const hostFlag = args.indexOf("--host");
@@ -114,6 +115,23 @@ async function check_served_release_matches_production() {
 }
 
 // 1) Root reachable
+// A talent site with published offerings must render its services band. A payload
+// strip (TUL-446, 2026-10-09) emptied every catalog and pruned the band, the
+// #services anchor and the booking bar while all unit tests and this smoke stayed
+// green. The demo site below has published offerings by design.
+const SERVICES_DEMO_HOST = process.env.SMOKE_SERVICES_HOST || "https://book-jorgelina.tulala.digital";
+async function check_services_band_renders() {
+  console.log("\nTalent site services band");
+  try {
+    const r = await get(SERVICES_DEMO_HOST + "/");
+    if (r.status !== 200) return fail("services band", `${SERVICES_DEMO_HOST}/ status=${r.status}`);
+    if (/id="services"/.test(r.body)) pass(`${SERVICES_DEMO_HOST} renders id="services"`);
+    else fail("services band", `${SERVICES_DEMO_HOST} has no id="services": catalog pruned or offerings stripped`);
+  } catch (e) {
+    fail("services band", e.message);
+  }
+}
+
 async function check_root_reachable() {
   console.log("\nDomain reachability");
   for (const url of [HOST, PUBLIC_HOST]) {
@@ -761,6 +779,8 @@ async function check_auth_surface_matrix() {
 console.log(`Smoke-testing ${HOST} (and ${PUBLIC_HOST})…`);
 for (const check of [
   check_root_reachable,
+  check_services_band_renders,
+  () => checkPublicTalentHosts({ get, pass, fail, warn, env: process.env, fetchJson: async (u, t) => (await fetch(u, { headers: { Authorization: `Bearer ${t}` } })).json() }),
   check_csp,
   check_image_optimizer,
   check_places_route,

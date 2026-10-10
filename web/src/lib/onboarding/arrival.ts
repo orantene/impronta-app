@@ -51,6 +51,8 @@ export type ArrivalPayload = {
   addMemberHref?: string;
   /** TUL-16: where "also take bookings yourself" goes (workspace settings, 1E). */
   alsoBookHref?: string;
+  /** Studio whose owner takes clients too (seeded as a bookable provider): the page takes bookings from day one. */
+  ownerBookable?: boolean;
 };
 
 export function parseArrivalStamp(raw: unknown): ArrivalStamp {
@@ -78,6 +80,8 @@ type ArrivalInput = {
   liveCheck?: { ok: boolean } | null;
   urlDiffers?: boolean;
   firstService?: string | null;
+  /** Studio only: the owner was provisioned as a bookable provider (essentials.ownerProvides), so the studio is not inquiry-only. */
+  ownerProvides?: boolean;
 };
 
 /**
@@ -94,8 +98,9 @@ export function arrivalFromStamp(input: ArrivalInput): ArrivalPayload {
   }
   const studio = input.path === "business" && !input.reusedExisting && !!input.site && (base.variant === "business" || base.variant === "fallback");
   const admin = input.site?.adminPath.replace(/\/+$/, "");
-  const inquiry = studio && admin ? { inquiryOnly: true, addMemberHref: `${admin}/roster/new`, alsoBookHref: `${admin}/settings` } : {};
-  return { ...base, ...common, ...inquiry, ...(input.liveCheck?.ok ? { verified: true } : {}) };
+  const ownerBookable = studio && input.ownerProvides === true;
+  const inquiry = studio && admin && !ownerBookable ? { inquiryOnly: true, addMemberHref: `${admin}/roster/new`, alsoBookHref: `${admin}/settings` } : {};
+  return { ...base, ...common, ...inquiry, ...(ownerBookable ? { ownerBookable: true } : {}), ...(input.liveCheck?.ok ? { verified: true } : {}) };
 }
 
 function baseArrival(input: ArrivalInput): ArrivalPayload {

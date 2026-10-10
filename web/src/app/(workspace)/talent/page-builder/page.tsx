@@ -27,6 +27,12 @@
 import { redirect } from "next/navigation";
 
 import { getCachedActorSession } from "@/lib/server/request-cache";
+import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
+import {
+  effectiveReadContext,
+  pickReadClient,
+  readUserId,
+} from "@/lib/impersonation/effective-read";
 import { loadTalentSelfProfileByUser } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent";
 import { getActiveTalentAgencyContext } from "@/lib/talent/active-agency-context";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -160,16 +166,25 @@ export default async function TalentPageBuilderRoute({
   const explicitPersonal =
     sp.site === "personal" || shellMode || requestedPage !== null || typeof sp.panel === "string" || typeof sp.app === "string";
 
-  // TUL-77 / TUL-373: for the owner of a business workspace the workspace site
-  // IS the website. Decide that FIRST, in parallel with the profile read and
-  // before the locale-seed hop and the talent locale loads, so a business owner
-  // is redirected in one server pass (no skeleton while unrelated work runs,
-  // no extra seed round trip). A failed or unknown lookup yields `null` and
-  // falls through to the editor below.
-  const probe = createServiceRoleClient();
+  // TUL-77 / TUL-373 / TUL-180 N1: for the owner of a business workspace the
+  // workspace site IS the website. Key ownership on the effective user
+  // (readUserId + pickReadClient / #2824) so verified impersonation resolves
+  // the acted-as talent, not the staff actor. Decide FIRST, in parallel with
+  // the profile read, so a business owner is redirected in one server pass.
+  // A failed or unknown lookup yields `null` and falls through to the editor.
+  const impersonationIdentity = await resolveDashboardIdentity().catch(() => null);
+  const readCtx = effectiveReadContext(session.user.id, impersonationIdentity);
+  const subjectUserId = readUserId(session.user.id, readCtx);
+  const probe = pickReadClient({
+    sessionUserId: session.user.id,
+    userId: subjectUserId,
+    ctx: readCtx,
+    rlsClient: session.supabase,
+    adminClient: () => createServiceRoleClient(),
+  });
   const [profile, owned] = await Promise.all([
-    loadTalentSelfProfileByUser(session.user.id),
-    probe ? loadOwnedBusinessWorkspace(probe, session.user.id) : Promise.resolve(null),
+    loadTalentSelfProfileByUser(subjectUserId),
+    probe ? loadOwnedBusinessWorkspace(probe, subjectUserId) : Promise.resolve(null),
   ]);
   if (!profile) {
     redirect("/talent/today");

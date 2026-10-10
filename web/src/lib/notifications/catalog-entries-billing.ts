@@ -18,6 +18,10 @@ import type { CatalogEntry } from "./types";
 import type { FeeLine } from "@/lib/billing/processing-fee-payer";
 import { PAYMENT_DISPUTE_OPENED_PLATFORM } from "./catalog-entries-disputes";
 import {
+  PAYMENT_NEEDS_ATTENTION_WORKSPACE,
+  REFUND_FAILED_WORKSPACE,
+} from "./catalog-entries-refund-attention";
+import {
   invitedTalent,
   loadInquiryView,
   payoutReceiverTalent,
@@ -757,6 +761,8 @@ export const BILLING_CATALOG_ENTRIES: CatalogEntry[] = [
   PAYMENT_INVOICE_ISSUED_CLIENT,
   PAYMENT_DEPOSIT_RECEIVED_CLIENT,
   PAYMENT_FAILED_WORKSPACE,
+  REFUND_FAILED_WORKSPACE,
+  PAYMENT_NEEDS_ATTENTION_WORKSPACE,
   PAYMENT_PAYOUT_SETTLED_TALENT,
   PAYMENT_PAYOUT_REVERSED_TALENT,
   PAYMENT_REFUNDED_CLIENT,

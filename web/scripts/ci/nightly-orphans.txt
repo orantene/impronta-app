@@ -28,7 +28,6 @@ src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/
 src/components/admin/shell/internal/live-category-fields-editor.test.ts
 src/components/admin/shell/internal/messages-thread-helpers.test.ts
 src/components/admin/shell/internal/messages/shared/offer-local-snapshot.test.ts
-src/components/admin/shell/internal/messages/shared/offer-save-state.test.ts
 src/components/admin/shell/internal/notification-localize.test.ts
 src/components/admin/shell/internal/page-modules/card-design-drift.test.ts
 src/components/admin/shell/internal/page-modules/design-hub-copy.static.test.ts
@@ -57,7 +56,6 @@ src/components/public-booking/CatalogPurchaseMount.render.test.tsx
 src/components/public-booking/catalog-booking-chat.test.ts
 src/components/public-booking/catalog-booking-cta-contrast.static.test.ts
 src/components/public-booking/selection-dock-state.test.ts
-src/components/public-booking/talent-policy-document.test.tsx
 src/components/shared/ThreadShell.test.ts
 src/components/site-shell/shell-nav-data.static.test.ts
 src/components/support/support-deep-link.test.ts
@@ -115,7 +113,6 @@ src/lib/field-engine/sort-comparators.test.ts
 src/lib/field-engine/tenant-catalog-scope.test.ts
 src/lib/field-engine/workspace-field-settings-safety.test.ts
 src/lib/fields/coerce-select-value.test.ts
-src/lib/guest-cookie.test.ts
 src/lib/i18n/builder-i18n-props-coverage.static.test.ts
 src/lib/i18n/pick-locale.test.ts
 src/lib/inquiry/acceptance-summary.test.ts
@@ -177,7 +174,6 @@ src/lib/profile-fields-service.test.ts
 src/lib/qa/final-campaign-ready.static.test.ts
 src/lib/saas/agency-surface-roster-gate.static.test.ts
 src/lib/saas/canonical-hosts.test.ts
-src/lib/saas/custom-domain-actions.test.ts
 src/lib/saas/custom-domain-routing.security.test.ts
 src/lib/saas/custom-domain-routing.test.ts
 src/lib/saas/domain-canonical.test.ts
@@ -192,7 +188,6 @@ src/lib/saas/signup-uses-the-brief.test.ts
 src/lib/saas/storefront-discovery.test.ts
 src/lib/saas/talent-demo-host-redirect.test.ts
 src/lib/saas/talent-self-tenant.test.ts
-src/lib/saas/talent-site-guest-identity.test.ts
 src/lib/saas/talent-site-host-context.test.ts
 src/lib/saas/talent-site-rewrite-reentry.test.ts
 src/lib/saas/workspace-path-redirects.test.ts
@@ -212,7 +207,6 @@ src/lib/server-actions/validation-contract.test.ts
 src/lib/server/action-guards.security.test.ts
 src/lib/stripe/account-routing.test.ts
 src/lib/stripe/client-subscription-webhook.test.ts
-src/lib/supabase/database-types-freshness.static.test.ts
 src/lib/talent-agenda/__fixtures__/jor-week.test.ts
 src/lib/talent-agenda/__fixtures__/trade-days.test.ts
 src/lib/talent-agenda/a1-units.static.test.ts

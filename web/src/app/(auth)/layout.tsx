@@ -32,9 +32,10 @@ const AUTH_ROBOTS: Metadata = { robots: { index: false, follow: false } };
  * is titled with the agency's name, not "Tulala". Everything else is unchanged.
  */
 export async function generateMetadata(): Promise<Metadata> {
-  if (!clientAccountEnabledFor("app")) return AUTH_ROBOTS;
   const ctx = await getPublicHostContext();
   if (ctx.kind !== "agency" && ctx.kind !== "hub") return AUTH_ROBOTS;
+  // TUL-64: flag kind matches x-impronta-host-context (agency / hub), not `app`.
+  if (!clientAccountEnabledFor(ctx.kind)) return AUTH_ROBOTS;
   const [identity, whitelabel] = await Promise.all([
     loadPublicIdentity(ctx.tenantId).catch(() => null),
     loadTenantWhitelabel(ctx.tenantId).catch(() => false),

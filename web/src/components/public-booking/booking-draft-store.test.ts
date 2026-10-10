@@ -74,10 +74,13 @@ test("selected date label is localized", () => {
 });
 
 test("timezone label uses the city, falling back to the zone name", () => {
-  assert.equal(catalogTimezoneLabel("America/Mexico_City", true), "Hora de Mexico City");
+  // TUL-494: Spanish pages must not leak the English city name.
+  assert.equal(catalogTimezoneLabel("America/Mexico_City", true), "Hora de Ciudad de México");
   assert.equal(catalogTimezoneLabel("America/Mexico_City", false), "Mexico City time");
   assert.equal(catalogTimezoneLabel("America/Cancun", true), "Hora de Cancún");
   assert.equal(catalogTimezoneLabel("America/Cancun", false), "Cancún time");
+  assert.equal(catalogTimezoneLabel("America/New_York", true), "Hora de Nueva York");
+  assert.equal(catalogTimezoneLabel("America/New_York", false), "New York time");
   assert.equal(catalogTimezoneLabel("UTC", false), "UTC time");
   assert.equal(catalogTimezoneLabel("", true), "");
 });

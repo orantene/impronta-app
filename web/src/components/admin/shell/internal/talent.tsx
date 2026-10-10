@@ -172,7 +172,10 @@ function TalentSidebar() {
   const previewResolved = bridgeTalentSelfProfile?.profileCode
     ? resolveTalentPublicPreviewDestinations({
         profileCode: bridgeTalentSelfProfile.profileCode,
-        publicSiteUrl: siteLoad?.ok ? siteLoad.state.publicSiteUrl : null,
+        // TUL-180: dual owners prefer the business workspace URL.
+        publicSiteUrl: siteLoad?.ok
+          ? (siteLoad.state.workspaceSite?.publicUrl ?? siteLoad.state.publicSiteUrl)
+          : null,
         currentOrigin: origin,
       })
     : null;

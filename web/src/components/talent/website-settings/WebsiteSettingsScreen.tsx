@@ -15,6 +15,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { WEBSITE_SETTINGS_ES_TEXT } from "@/components/admin/shell/internal/dashboard-i18n-website-settings";
+import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
+import { PERSONAL_SITE_BUILDER_HREF } from "@/lib/talent-site/dashboard-my-website";
 import {
   loadSellingDefaults,
   saveSellingDefaults,
@@ -88,6 +90,8 @@ export function WebsiteSettingsScreen({
   onRegisterClose?: (close: (() => void) | null) => void;
 }) {
   const copy = useDashboardText();
+  const siteDash = useTalentSiteDashboardInitialLoad();
+  const isDualSiteOwner = Boolean(siteDash?.ok && siteDash.state.isDualSiteOwner);
   // Screen strings live in the lazy chunk, not the global admin map.
   // Stable per locale: the load effect below depends on it, and a new function
   // every render re-ran the load and wiped the unsaved draft (~3 s after a tap).
@@ -376,6 +380,29 @@ export function WebsiteSettingsScreen({
     <div className="mx-auto max-w-xl px-4 font-admin-body">
       {header}
       {view === "home" ? <LiveStatusCard t={t} /> : null}
+      {view === "home" && isDualSiteOwner ? (
+        <div className="mb-4 overflow-hidden rounded-xl border border-admin-border-soft bg-white" data-testid="other-websites">
+          <div className="border-b border-admin-border-soft px-3.5 py-2.5">
+            <p className="m-0 text-[11px] font-bold uppercase tracking-[0.06em] text-admin-ink-muted">
+              {t("Other websites")}
+            </p>
+            <p className="m-0 mt-1 text-[12.5px] text-admin-ink-muted">
+              {t("Edit your personal site separately from your business site.")}
+            </p>
+          </div>
+          <NavRow
+            title={t("Personal site")}
+            summary={
+              siteDash?.ok && siteDash.state.personalPublicSiteUrl
+                ? siteDash.state.personalPublicSiteUrl.replace(/^https?:\/\//, "")
+                : t("Open personal site editor")
+            }
+            onOpen={() => {
+              window.location.assign(PERSONAL_SITE_BUILDER_HREF);
+            }}
+          />
+        </div>
+      ) : null}
       {view === "home" ? (
         <div className="overflow-hidden rounded-xl border border-admin-border-soft bg-white">
           <NavRow

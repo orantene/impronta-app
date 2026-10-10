@@ -7,6 +7,7 @@ import { formatOrderMoney } from "@/lib/orders/money-format";
 import { pickAProfessional } from "@/lib/people/hats";
 import { fetchOwnerTalentIds, workspaceOfferingOrFilter } from "@/lib/offerings/workspace-offering-scope";
 import type { SetupItem } from "@/lib/overview/model";
+import { timed } from "@/lib/server/perf-trace";
 import { loadPeopleSurface } from "../admin/people/people-data";
 
 /**
@@ -84,7 +85,7 @@ export async function loadSetupItems(tenantId: string, agency: AgencySetupRow | 
         .limit(1),
       admin.from("talent_booking_hours").select("talent_profile_id", { count: "exact", head: true }).eq("tenant_id", tenantId),
       admin.from("cms_pages").select("title").eq("tenant_id", tenantId).eq("status", "published").limit(1),
-      loadPeopleSurface(tenantId).catch((e: unknown) => {
+      timed("setup.people", () => loadPeopleSurface(tenantId)).catch((e: unknown) => {
         logServerError("setupChecklist.people", e);
         return null;
       }),

@@ -8,6 +8,7 @@ import { formatShortDate, isSpanishLocale } from "@/lib/locale-time";
 const ISO_DATE_LIKE = /^\d{4}-\d{2}-\d{2}/;
 import { COLORS, FONTS, useAdminShell } from "../state";
 import { useDashboardText } from "../dashboard-i18n";
+import { isTalentAwaitingYouStage } from "../shell-count-bubbles-logic";
 import { Avatar, useKeyboardListNav } from "../primitives";
 import { useTalentConversations, type Conversation } from "../talent";
 import { TalentAgencyFilterChips } from "../talent/shared/TalentAgencyFilterChips";
@@ -255,8 +256,10 @@ export function TalentJobRow({
   // "Awaiting you" only when the talent actually owes a response. The
   // "✓ confirmed" pill on booked rows was duplicate signal — the funnel
   // step already says Booked and the take-home rate already says Paid /
-  // confirmed. Drop it.
-  const showAwaiting = myStatus === "pending";
+  // confirmed. Drop it. Predicate shared with ShellCountBubbles
+  // (`isTalentAwaitingYouStage` / countTalentAwaitingInquiries) so the
+  // attention bubble and inbox chip cannot disagree (TUL-519).
+  const showAwaiting = isTalentAwaitingYouStage(conv.stage);
 
   // Stage-tinted row backgrounds — subtle wash that helps the eye sort
   // the inbox at a glance. Brand-new (unseen) inquiries get a coral

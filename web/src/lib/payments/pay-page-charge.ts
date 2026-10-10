@@ -1,10 +1,10 @@
 /**
- * What the client is (or was) charged on /pay, as fee lines, so the page can say it BEFORE Pay and
- * after: service price + service fee = the total the card is charged. Found in paid QA (2026-10-09):
+ * What the client was charged on /pay, as fee lines, so the paid page says it: service price +
+ * service fee = the total the card was charged (before Pay, `pay-page.tsx` reads
+ * `collectForOrderPrincipal` itself). Found in paid QA (2026-10-09):
  * the page showed "$1,000" while Stripe charged MX$1,015.00 and the thread then said "$1,000 paid".
  *
- * The pure builders are testable; the two loaders read the SAME sources the charge uses
- * (`collectForOrderPrincipal` for the preview, the paid money row for the receipt).
+ * The pure builders are testable; the loader reads the paid money row(s) the receipt uses.
  */
 import "server-only";
 
@@ -12,7 +12,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { FeeLine } from "@/lib/billing/processing-fee-payer";
 import { MONEY_IN_STATUSES } from "@/lib/bookings/manual-payment";
-import { collectForOrderPrincipal } from "@/lib/orders/purchase-collect";
 import { logServerError } from "@/lib/server/safe-error";
 
 /** principal + fee = charge. [] when nothing is added on top (no fee line to show, never a guess). */
@@ -31,33 +30,6 @@ export function chargeFeeLines(input: { principalCents: number; chargeCents: num
 export function chargedTotalCents(lines: readonly FeeLine[] | undefined | null): number | null {
   const total = lines?.find((l) => l.code === "total_charged");
   return total ? total.cents : null;
-}
-
-/** Before Pay: the amount Checkout WILL charge for this link (the one implementation the checkout uses). */
-export async function loadPreviewChargeLines(
-  admin: SupabaseClient,
-  input: { tenantId: string | null; orderId: string; currency: string; principalCents: number },
-): Promise<FeeLine[]> {
-  if (!input.tenantId || !(input.principalCents > 0)) return [];
-  try {
-    const { data, error } = await admin.from("orders").select("subtotal_cents").eq("id", input.orderId).maybeSingle();
-    if (error) {
-      logServerError("payments.payPageCharge.preview", error);
-      return [];
-    }
-    const subtotal = Number((data as { subtotal_cents?: number | string | null } | null)?.subtotal_cents ?? 0) || input.principalCents;
-    const charge = await collectForOrderPrincipal(admin, {
-      tenantId: input.tenantId,
-      orderId: input.orderId,
-      orderCurrency: input.currency,
-      principalCents: input.principalCents,
-      subtotalCents: subtotal,
-    });
-    return chargeFeeLines({ principalCents: input.principalCents, chargeCents: charge });
-  } catch (err) {
-    logServerError("payments.payPageCharge.preview", err);
-    return [];
-  }
 }
 
 /** After Pay: what the card was charged, from the paid money row(s) of the order. */

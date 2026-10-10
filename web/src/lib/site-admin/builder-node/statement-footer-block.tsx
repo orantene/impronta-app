@@ -47,7 +47,7 @@ function splitLastWord(text: string): [string, string, string] {
 }
 
 /** Fine-print host from a max-site URL or plain credit line. */
-function formatMagazineCredit(raw: string): string {
+export function formatMagazineCredit(raw: string): string {
   const t = raw.trim();
   if (!t) return "";
   try {
@@ -58,11 +58,38 @@ function formatMagazineCredit(raw: string): string {
   }
 }
 
+/** True when credit is a hostname / URL, not a person or studio credit. */
+export function creditLineLooksLikeHost(raw: string): boolean {
+  const t = raw.trim().toLowerCase();
+  if (!t) return false;
+  if (t.includes("://") || t.startsWith("www.")) return true;
+  if (!t.includes(".")) return false;
+  // Domain-shaped: label.label… with no spaces (mateoferrer.tulala.digital).
+  return /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/i.test(t);
+}
+
+/**
+ * Magazine fine print: prefer the request host when credit is empty or a baked
+ * domain mockup. Non-host credit lines (names, studio notes) stay as written.
+ */
+export function resolveMagazineCreditLine(
+  creditLine: string,
+  publicHost?: string | null,
+): string {
+  const host = (publicHost ?? "").trim().replace(/^www\./, "");
+  if (host && (!creditLine.trim() || creditLineLooksLikeHost(creditLine))) {
+    return formatMagazineCredit(host);
+  }
+  return formatMagazineCredit(creditLine);
+}
+
 export function renderStatementFooterBlock(args: {
   node: BuilderStatementFooterNode;
   styleAttr?: CSSProperties;
+  /** Request host for magazine fine print (never a baked mockup domain). */
+  publicHost?: string | null;
 }): ReactNode {
-  const { node, styleAttr } = args;
+  const { node, styleAttr, publicHost } = args;
   const p = node.props;
   const statement = (p.statement ?? STATEMENT_FOOTER_DEFAULT_PROPS.statement ?? "").trim();
   const creditLine = (p.creditLine ?? "").trim();
@@ -78,6 +105,7 @@ export function renderStatementFooterBlock(args: {
     const [head, last, tail] = splitLastWord(statement);
     const ctaLabel = (p.ctaLabel ?? "").trim();
     const ctaHref = (p.ctaHref ?? "").trim();
+    const magazineCredit = resolveMagazineCreditLine(creditLine, publicHost);
     return (
       <footer
         className="sb-statement-footer"
@@ -104,7 +132,7 @@ export function renderStatementFooterBlock(args: {
           </a>
         ) : null}
         <div className="sb-mag-fine">
-          <span>{formatMagazineCredit(creditLine)}</span>
+          <span>{magazineCredit}</span>
         </div>
       </footer>
     );

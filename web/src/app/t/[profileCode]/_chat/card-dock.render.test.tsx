@@ -275,7 +275,7 @@ test("Hablar: her greeting renders, the disclaimer is the composer placeholder, 
   assert.match(intro.host.textContent ?? "", /Hola, soy Jorgelina/);
   assert.doesNotMatch(intro.host.textContent ?? "", /Nada se env/, "no separate disclaimer line");
   intro.unmount();
-  assert.equal(es("public.guestChat.cardComposerPlaceholder"), "Nada se env\u00eda hasta que toques enviar.");
+  assert.equal(es("public.guestChat.cardComposerPlaceholder"), "Escribe tu mensaje\u2026");
   assert.match(src("MiniChatPanelColumn.tsx"), /cardComposerPlaceholder/);
   clearPendingOffering();
   const { host, unmount } = render(<CardDockAskFooter t={es} threadEmpty onPick={(q) => picked.push(q)} />);

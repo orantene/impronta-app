@@ -29,6 +29,7 @@ import { createRoot } from "react-dom/client";
 import { SectionSwitcher } from "./SectionSwitcher";
 import {
   hashTargetOf,
+  isHomePrefixedHash,
   pickActiveSection,
   sectionIndexLabel,
   switchDirection,
@@ -68,6 +69,23 @@ test("only in-page anchors with a label can be spied on", () => {
   assert.deepEqual(
     switcherLinksFrom([...LINKS, { label: "Blog", href: "/blog" }, { label: " ", href: "#x" }]).map((l) => l.href),
     ["#gallery", "#services", "#reviews", "#visit"],
+  );
+});
+
+test("home-prefixed hashes (policy pages) resolve and stay in the switcher list", () => {
+  assert.equal(hashTargetOf("/#services"), "services");
+  assert.equal(hashTargetOf("/en/#gallery"), "gallery");
+  assert.equal(hashTargetOf("/es/#reviews"), "reviews");
+  assert.equal(isHomePrefixedHash("/#services"), true);
+  assert.equal(isHomePrefixedHash("/en/#gallery"), true);
+  assert.equal(isHomePrefixedHash("#services"), false);
+  assert.deepEqual(
+    switcherLinksFrom([
+      { label: "Menu", href: "/#services" },
+      { label: "Work", href: "/en/#gallery" },
+      { label: "Blog", href: "/blog" },
+    ]).map((l) => l.href),
+    ["/#services", "/en/#gallery"],
   );
 });
 

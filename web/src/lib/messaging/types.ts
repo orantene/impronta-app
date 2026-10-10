@@ -97,6 +97,8 @@ export type MessagingRefusal =
   | "hold_ended"
   | "basket_changed"
   | "not_allowed"
+  /** The offer still needs a talent or other party to approve it; the client can accept once they have. */
+  | "awaiting_approval"
   /** A rostered talent asked for a payment on a sale the agency owns. */
   | "not_her_sale"
   | "expired"

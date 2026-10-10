@@ -36,8 +36,11 @@ import {
  *
  * Key invariants:
  *  - The dispatch_log row is inserted BEFORE the channel send. The unique
- *    index on `dedupe_key` makes a duplicate `(event, recipient, channel)` a
- *    no-op — this is the idempotency guarantee.
+ *    index on `dedupe_key` makes a duplicate
+ *    `(event, catalog entry, recipient, channel)` a no-op — this is the
+ *    idempotency guarantee. Entry id is part of the key so two catalog
+ *    entries on the same engine event (e.g. offer.sent.talent +
+ *    offer.pending_approval.workspace) both land for a solo owner-talent.
  *  - Channel handlers are pure send-effects: they don't pick recipients,
  *    dedupe, or read preferences.
  *  - One failed send never blocks the rest. Failures flip the log row to
@@ -145,7 +148,7 @@ export async function dispatchEventNotifications(
         )
           continue;
 
-        const dedupeKey = `${enriched.eventId}:${recipient.dedupeId}:${channel}`;
+        const dedupeKey = `${enriched.eventId}:${entry.id}:${recipient.dedupeId}:${channel}`;
         // §7 digest: an email entry that opts into batching is logged `queued`
         // with `payload.digest = true` and NOT sent now — the digest cron sweeps
         // and collapses it. The flag must be on the persisted payload (the sweep

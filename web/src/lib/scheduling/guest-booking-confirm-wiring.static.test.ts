@@ -38,6 +38,20 @@ test("TUL-93: a booking with no online charge emits booking.confirmed", () => {
   assert.match(src, /else if \(booked\.bookingId && booked\.inquiryId\)/);
 });
 
+test("TUL-93: live-qa pack selects event_kind (not kind) on notification_dispatch_log", () => {
+  const pack = readFileSync(
+    join(process.cwd(), "e2e-isolated/live-qa-pack.spec.ts"),
+    "utf8",
+  );
+  const tul93 = pack.slice(pack.indexOf('test("TUL-93'));
+  const body = tul93.slice(0, tul93.indexOf('test("TUL-146'));
+  assert.match(body, /event_kind/);
+  assert.ok(
+    !body.includes("channel, kind"),
+    "pack must not select nonexistent column `kind` (false empty rows)",
+  );
+});
+
 test("TUL-93: the talent gets an in-app notification and malformed emails are skipped", () => {
   const cat = read("lib/notifications/catalog-entries-inquiry.ts");
   const talent = cat.slice(cat.indexOf('id: "booking.confirmed.talent"'));

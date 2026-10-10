@@ -215,10 +215,12 @@ export function talentSitePathRedirectTarget(input: {
 }
 
 /**
- * Canonical demo host when a bare demo subdomain was hit, e.g.
- * `alba-nail-artist.tulala.digital` → `alba-nail-artist-demo.tulala.digital`.
- * Returns null when the host is not a talent subdomain, not a demo, or already
- * uses the `-demo` suffix.
+ * Canonical demo host when the request host is not already that host.
+ *
+ * Covers bare demo cutover (`alba-nail-artist` → `alba-nail-artist-demo`) and
+ * design vanity `*-demo` aliases (`folio-demo` → `mateo-ferrer-demo`). Returns
+ * null when not a demo subdomain, when `siteSlug` is missing, or when the
+ * request host is already `{siteSlug}-demo.<root>`.
  */
 export function talentDemoBareHostRedirectHost(input: {
   hostname: string;
@@ -228,6 +230,9 @@ export function talentDemoBareHostRedirectHost(input: {
   if (!input.isDemo) return null;
   const parts = splitTalentSiteHost(input.hostname);
   if (!parts) return null;
-  if (parts.label.endsWith(TALENT_DEMO_HOST_SUFFIX)) return null;
-  return talentSiteHost(input.siteSlug ?? parts.label, parts.root, { isDemo: true });
+  const slug = (input.siteSlug ?? "").trim();
+  if (!slug) return null;
+  const canonical = talentSiteHost(slug, parts.root, { isDemo: true });
+  if (!canonical || canonical === `${parts.label}.${parts.root}`) return null;
+  return canonical;
 }

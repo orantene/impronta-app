@@ -23,7 +23,8 @@ import type { TalentVisitFact } from "./visit-types";
 export const AREA_CSS = `
 .sb-area{color:var(--token-color-ink);font:inherit;width:100%;min-width:0;box-sizing:border-box}
 .sb-area[data-area-empty="1"]{display:none!important}
-.sb-area-header{margin-bottom:.75rem}
+/* TUL-474: keep Where I work clear of the job grid above. */
+.sb-area-header{margin:12px 0 .75rem;scroll-margin-top:72px}
 .sb-area-eyebrow{margin:0 0 .35rem;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--token-color-muted)}
 .sb-area-title{margin:0;font-size:clamp(1.35rem,2.5vw,1.85rem);font-weight:600;letter-spacing:-.02em;line-height:1.15}
 .sb-area-card{display:grid;gap:10px;background:var(--token-color-surface-raised,var(--token-color-background));border:1.5px solid var(--token-color-ink);border-radius:var(--site-radius-md,8px);padding:12px}

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import {
   SWITCHER_LINE_RATIO,
   hashTargetOf,
+  isHomePrefixedHash,
   pickActiveSection,
   sectionIndexLabel,
   switchDirection,
@@ -46,7 +47,11 @@ export function SectionSwitcher({
   useEffect(() => {
     setLive(links.filter((l) => {
       const id = hashTargetOf(l.href);
-      return id !== null && document.getElementById(id) !== null;
+      if (id === null) return false;
+      // Off the home page, dead-section-links rewrites `#services` → `/#services`.
+      // Those still belong in the menu even when the section is not on this document.
+      if (isHomePrefixedHash(l.href)) return true;
+      return document.getElementById(id) !== null;
     }));
   }, [links]);
 
@@ -96,9 +101,14 @@ export function SectionSwitcher({
 
   const current = Math.max(0, live.findIndex((l) => hashTargetOf(l.href) === activeId));
   const go = (href: string) => {
+    setOpen(false);
+    // Home-prefixed hashes leave this page (policy pages) and land on the section.
+    if (isHomePrefixedHash(href)) {
+      window.location.assign(href);
+      return;
+    }
     const id = hashTargetOf(href);
     const el = id ? document.getElementById(id) : null;
-    setOpen(false);
     if (!el) return;
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
     el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });

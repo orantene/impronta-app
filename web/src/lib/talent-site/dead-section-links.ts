@@ -85,13 +85,24 @@ function fixItems<T extends LinkItem>(items: readonly T[], anchors: ReadonlySet<
   return out;
 }
 
-/** A header landmark's section props: nav links and region items with an in-page href. */
+/** A header landmark's section props: nav links, primary CTA, and region items with an in-page href. */
 function fixSectionProps(sp: Record<string, unknown>, anchors: ReadonlySet<string>, ctx?: HomeCtx): Record<string, unknown> {
   let next = sp;
   if (Array.isArray(sp.navItems)) {
     const orig = sp.navItems as LinkItem[];
     const items = fixItems(orig, anchors, ctx);
     if (items.length !== orig.length || items.some((it, i) => it !== orig[i])) next = { ...next, navItems: items };
+  }
+  const primary = sp.primaryCta;
+  if (primary && typeof primary === "object" && typeof (primary as LinkItem).href === "string") {
+    const href = (primary as LinkItem).href as string;
+    const resolved = resolveHref(href, anchors, ctx);
+    if (resolved === null) {
+      const { primaryCta: _drop, ...rest } = next;
+      next = rest;
+    } else if (resolved !== href) {
+      next = { ...next, primaryCta: { ...(primary as object), href: resolved } };
+    }
   }
   const regions = sp.regions;
   if (regions && typeof regions === "object") {
@@ -140,6 +151,16 @@ export function pruneDeadSectionLinks(
       const next = resolveHref(props.href, anchors, ctx);
       if (next === null) return null;
       if (next !== props.href) node = { ...node, props: { ...props, href: next } } as BuilderNode;
+    }
+    // Gridline utility_bar CTA is a prop, not a child button with href.
+    if (node.kind === "utility_bar" && typeof props.ctaHref === "string") {
+      const next = resolveHref(props.ctaHref, anchors, ctx);
+      if (next === null) {
+        const { ctaHref: _d, ctaLabel: _l, ...rest } = props;
+        node = { ...node, props: rest } as BuilderNode;
+      } else if (next !== props.ctaHref) {
+        node = { ...node, props: { ...props, ctaHref: next } } as BuilderNode;
+      }
     }
     const sp = props.sectionProps;
     if (sp && typeof sp === "object") {

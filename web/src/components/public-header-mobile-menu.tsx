@@ -37,6 +37,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 
 import type { PublicNavLink } from "@/lib/cms/public-navigation";
 import { getLocaleMetadata, type Locale } from "@/i18n/config";
+import { languageToggleGroupLabel } from "@/i18n/language-toggle-label";
 import { withLocalePath } from "@/i18n/pathnames";
 import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 
@@ -319,17 +320,18 @@ function LanguageRow({
     publicLocales: localeOptions,
   };
 
+  const groupLabel = languageToggleGroupLabel(locale);
   return (
     <div className="flex items-center gap-3 text-xs">
       <span
         aria-hidden
         className="font-display uppercase tracking-[0.16em] text-muted-foreground"
       >
-        Language
+        {groupLabel}
       </span>
       <div
         role="group"
-        aria-label="Language"
+        aria-label={groupLabel}
         className="flex items-center gap-1 rounded-md border border-border/60 bg-background/80 px-1 py-0.5 text-xs font-medium"
       >
         {localeOptions.map((code, i) => {

@@ -735,3 +735,33 @@ test("Track D10: quote tulala:offering-request never opens the booking sheet", (
   dom.window.removeEventListener("tulala:ask-question", onAsk);
   unmount();
 });
+
+test("TUL-516: sheet From floor matches cheapest option; Base price follows selection", () => {
+  const book = mockBook();
+  const { host, unmount } = mount("demo", book);
+  open(
+    detail({
+      title: "Revisión eléctrica",
+      amountCents: 55000,
+      addOns: [],
+      variants: [
+        { id: "casa", label: "Casa", amountCents: 55000 },
+        { id: "depa", label: "Departamento", amountCents: 50000 },
+        { id: "local", label: "Local comercial", amountCents: 80000 },
+      ],
+    }),
+  );
+  const summary = host.querySelector(".jb-summary")?.textContent ?? "";
+  assert.match(summary, /Desde/);
+  assert.match(summary, /\$500|500/);
+  assert.doesNotMatch(summary, /Precio base/);
+
+  const radios = Array.from(host.querySelectorAll<HTMLInputElement>('input[name="cb-variant"]'));
+  assert.equal(radios.length, 3);
+  act(() => radios[1]!.click());
+  const after = host.querySelector(".jb-summary")?.textContent ?? "";
+  assert.match(after, /Precio base/);
+  assert.match(after, /\$500|500/);
+  assert.doesNotMatch(after, /Desde/);
+  unmount();
+});

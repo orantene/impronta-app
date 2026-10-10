@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { summarizeLedgerPaid } from "./ledger-paid";
-import { PAID_AFTER_CANCEL_ATTENTION } from "@/lib/payments/paid-after-cancel";
+import { PAID_AFTER_CANCEL_ATTENTION } from "@/lib/payments/paid-after-cancel-attention";
 
 describe("summarizeLedgerPaid paidAfterCancellation", () => {
   it("flags bookings whose money-in row needs paid_after_cancellation attention", () => {

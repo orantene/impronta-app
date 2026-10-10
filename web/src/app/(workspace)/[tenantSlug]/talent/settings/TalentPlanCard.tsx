@@ -25,6 +25,7 @@
  */
 
 import { type CSSProperties, useEffect, useRef, useState } from "react";
+import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import {
   loadTalentPlanSummary,
   type TalentPlanSummary,
@@ -234,6 +235,7 @@ export function TalentPlanCard({
   /** Primary upgrade / restore action (Compare drawer until checkout is live). */
   onUpgrade: () => void;
 }) {
+  const copy = useDashboardText();
   const [load, setLoad] = useState<LoadState>({ status: "loading" });
   const startedRef = useRef(false);
 
@@ -332,16 +334,16 @@ export function TalentPlanCard({
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", color: C.inkDim, marginBottom: 3 }}>
-            Your personal page plan
+            {copy.t("Your personal page plan")}
           </div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
             <span style={{ fontSize: 18, fontWeight: 600, letterSpacing: -0.2, color: C.ink, lineHeight: 1.1 }}>
-              {data.planLabel}
+              {copy.t(data.planLabel)}
             </span>
             <span style={{ fontSize: 12.5, fontWeight: 600, color: C.inkMuted }}>{data.priceLabel}</span>
           </div>
           {data.tagline && (
-            <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 3, lineHeight: 1.45 }}>{data.tagline}</div>
+            <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 3, lineHeight: 1.45 }}>{copy.t(data.tagline)}</div>
           )}
         </div>
         <span
@@ -359,7 +361,7 @@ export function TalentPlanCard({
             whiteSpace: "nowrap",
           }}
         >
-          {data.planLabel}
+          {copy.t(data.planLabel)}
         </span>
       </div>
 

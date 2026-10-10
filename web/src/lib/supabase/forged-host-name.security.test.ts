@@ -11,7 +11,8 @@ const src = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 
 test("proxy strips every proxy-written host header from inbound requests", () => {
   const proxy = src("src/proxy.ts");
-  const list = proxy.match(/HOST_CONTEXT_HEADERS_TO_STRIP = \[([\s\S]*?)\];/)?.[1] ?? "";
+  const sanitize = src("src/lib/saas/proxy-inbound-sanitize.ts");
+  const list = sanitize.match(/HOST_CONTEXT_HEADERS_TO_STRIP = \[([\s\S]*?)\];/)?.[1] ?? "";
   for (const h of [
     "HOST_CONTEXT_HEADER",
     "HOST_TALENT_PROFILE_HEADER",
@@ -19,9 +20,11 @@ test("proxy strips every proxy-written host header from inbound requests", () =>
     "HOST_TENANT_SLUG_HEADER",
     "TENANT_HEADER_NAME",
     "PUBLIC_PATH_PREFIX_HEADER",
+    "GUEST_HEADER_NAME",
   ]) {
     assert.match(list, new RegExp(`\\b${h}\\b`), `${h} must be stripped`);
   }
+  assert.match(proxy, /stripInboundHostContextHeaders/);
   // The main path re-sets the host name from the resolved context after the strip.
   assert.match(proxy, /requestHeaders\.set\(HOST_NAME_HEADER, effectiveHostContext\.hostname\)/);
 });

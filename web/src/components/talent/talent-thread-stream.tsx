@@ -111,7 +111,7 @@ export function RealThreadStream({
     return (
       <EmptyState
         title="No messages yet"
-        body="Start the conversation below — your message will go to the right people in this thread."
+        body="Start the conversation below. Your message will go to the right people in this thread."
       />
     );
   }

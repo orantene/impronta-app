@@ -1551,6 +1551,8 @@ export interface BuilderUtilityBarNode extends BuilderNodeBase {
     name?: string;
     subtitle?: string;
     logoUrl?: string;
+    /** Site home URL for the logo + name brand control (hydrated like site_header.brand.href). */
+    homeHref?: string;
     showStatus?: boolean;
     statusOnLabel?: string;
     statusOffLabel?: string;
