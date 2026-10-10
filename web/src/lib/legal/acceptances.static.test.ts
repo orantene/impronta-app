@@ -80,3 +80,19 @@ test("onboarding OTP path requires the 18+ confirmation; portal_entry forwards i
   assert.doesNotMatch(portal, /age_terms_required/, "portal_entry never refuses on a missing tick");
   assert.match(portal, /if \(ageTerms\) \{\s*form\.set\("terms_form", "1"\);\s*form\.set\("age_terms", "on"\);/);
 });
+
+/** onb1-10: one 18+/terms ask for guests; no duplicate footer; ready defers to save. */
+test("onb1-10: guest defers ready 18+; save has a single age+terms checkbox", () => {
+  const ready = read("src/components/onboarding/steps/ready-step.tsx");
+  assert.match(ready, /deferAge18ToAccountStep/);
+  assert.match(ready, /!!onConfirmAge18 && !deferAge18ToAccountStep/);
+  const moduleSrc = read("src/components/onboarding/onboarding-module.tsx");
+  assert.match(moduleSrc, /deferAge18ToAccountStep=\{!state\.isAuthenticated\}/);
+  assert.match(moduleSrc, /if \(ageTerms\) void saveOnboardingAge18\(\)/);
+  const save = read("src/components/onboarding/steps/save-step.tsx");
+  assert.match(save, /data-testid="onb-age-terms"/);
+  assert.equal((save.match(/data-testid="onb-age-terms"/g) ?? []).length, 1);
+  assert.doesNotMatch(save, /public\.onboarding\.save\.terms/, "no second by-continuing footer");
+  assert.ok(save.indexOf('data-testid="onb-age-terms"') < save.indexOf('data-testid="onb-google"'), "checkbox before Google + email");
+  assert.match(save, /onGoogleSuccess\(ageTerms\)/);
+});

@@ -29,6 +29,8 @@ export function ReadyStep({
   onPickDesign,
   onConfirmAge18,
   ageRequiredNotice = false,
+  /** Guests hit save next and tick 18+/terms there (onb1-10) — skip the ready checkbox. */
+  deferAge18ToAccountStep = false,
 }: {
   t: (key: string) => string;
   understanding: Understanding;
@@ -46,9 +48,10 @@ export function ReadyStep({
   onConfirmAge18?: () => Promise<{ ok: boolean }>;
   /** The build route refused for a missing confirmation: say so here. */
   ageRequiredNotice?: boolean;
+  deferAge18ToAccountStep?: boolean;
 }) {
   const talentOnly = path === "talent";
-  const needsAge = path !== "business" && !!onConfirmAge18;
+  const needsAge = path !== "business" && !!onConfirmAge18 && !deferAge18ToAccountStep;
   const [age18, setAge18] = useState(false);
   const [ageSaving, setAgeSaving] = useState(false);
   const [ageFailed, setAgeFailed] = useState(false);
