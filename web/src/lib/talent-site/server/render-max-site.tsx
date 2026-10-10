@@ -308,6 +308,7 @@ async function renderTalentMaxSiteUnguarded(
       profileCode: identity?.profileCode ?? null,
       siteHost: siteHostFromOrigin(input.canonicalOrigin ?? process.env.NEXT_PUBLIC_SITE_URL),
       webOffice: webOfficeCtxFor(webOfficeSocialEnabled(planKey), { canonicalOrigin: input.canonicalOrigin ?? process.env.NEXT_PUBLIC_SITE_URL, canonicalPath: input.canonicalPath, siteSlug: site.siteSlug }),
+      canonicalOrigin: input.canonicalOrigin,
     });
 
     const seoFacts = await pSeoFacts; // services, links, city; never throws
@@ -372,6 +373,8 @@ async function renderMaxSiteDocument(args: {
   profileCode?: string | null;
   siteHost?: string | null;
   /** Paid Web Office only: footer links + source WhatsApp text. */ webOffice?: WebOfficeCtx | null;
+  /** Request origin for magazine footer credit (hostname only). */
+  canonicalOrigin?: string;
 }): Promise<ReactNode> {
   const {
     siteTokens,
@@ -385,6 +388,12 @@ async function renderMaxSiteDocument(args: {
     draftPreview,
     showPlatformBadge,
   } = args;
+  let publicHost = "";
+  try {
+    publicHost = new URL(args.canonicalOrigin ?? "").hostname.replace(/^www\./, "");
+  } catch {
+    publicHost = "";
+  }
 
   // Page-scoped theme cascade — identical to the published talent page route.
   const designSlice = readTalentDesignSlice(page.theme);
@@ -594,6 +603,7 @@ async function renderMaxSiteDocument(args: {
                 visitorLocale: locale,
                 contentLocale: args.localeCtx.contentLocale,
                 renderSectionEmbed,
+                publicHost: publicHost || undefined,
               })
             : null}
         </div>
@@ -612,6 +622,7 @@ async function renderMaxSiteDocument(args: {
           visitorLocale: locale,
           contentLocale: args.localeCtx.contentLocale,
           renderSectionEmbed,
+          publicHost: publicHost || undefined,
         })}
       </div>
     );
@@ -722,6 +733,7 @@ async function renderMaxSiteDocument(args: {
               visitorLocale: locale,
               contentLocale: args.localeCtx.contentLocale,
               renderSectionEmbed,
+              publicHost: publicHost || undefined,
             })}
           </header>
         )
@@ -743,6 +755,7 @@ async function renderMaxSiteDocument(args: {
           contentLocale: args.localeCtx.contentLocale,
           ...experimentContext,
           renderSectionEmbed,
+          publicHost: publicHost || undefined,
         })}
       </main>
 
@@ -758,6 +771,7 @@ async function renderMaxSiteDocument(args: {
             visitorLocale: locale,
             contentLocale: args.localeCtx.contentLocale,
             renderSectionEmbed,
+            publicHost: publicHost || undefined,
           })}{webOfficeStrip}
         </footer>
       ) : null}

@@ -46,8 +46,10 @@ export async function talentSiteHostResponse(
     siteSlug?: string | null;
   },
 ): Promise<NextResponse> {
-  // Demo convention: bare `{site_slug}.tulala.digital` 308s to the canonical
-  // `{site_slug}-demo.tulala.digital` public host. Custom domains are untouched.
+  // Demo convention: any demo subdomain that is not already
+  // `{site_slug}-demo.<apex>` 308s to that canonical host (bare cutover and
+  // design vanity aliases like folio-demo → mateo-ferrer-demo). Custom domains
+  // are untouched.
   if (
     hostContext.hostKind === "subdomain" &&
     (request.method === "GET" || request.method === "HEAD")

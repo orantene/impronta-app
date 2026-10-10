@@ -81,9 +81,49 @@ test("demo hosts append the -demo suffix without renaming site_slug", () => {
   );
   assert.equal(
     talentDemoBareHostRedirectHost({
+      hostname: "folio-demo.tulala.digital",
+      siteSlug: "mateo-ferrer",
+      isDemo: true,
+    }),
+    "mateo-ferrer-demo.tulala.digital",
+  );
+  assert.equal(
+    talentDemoBareHostRedirectHost({
+      hostname: "gridline-demo.tulala.digital",
+      siteSlug: "alex-trevino",
+      isDemo: true,
+    }),
+    "alex-trevino-demo.tulala.digital",
+  );
+  assert.equal(
+    talentDemoBareHostRedirectHost({
+      hostname: "maison-v2-demo.tulala.digital",
+      siteSlug: "alba-nail-artist",
+      isDemo: true,
+    }),
+    "alba-nail-artist-demo.tulala.digital",
+  );
+  assert.equal(
+    talentDemoBareHostRedirectHost({
+      hostname: "valeria-baila-demo.tulala.digital",
+      siteSlug: "valeria-baila",
+      isDemo: true,
+    }),
+    null,
+  );
+  assert.equal(
+    talentDemoBareHostRedirectHost({
       hostname: "sofia.tulala.digital",
       siteSlug: "sofia",
       isDemo: false,
+    }),
+    null,
+  );
+  assert.equal(
+    talentDemoBareHostRedirectHost({
+      hostname: "folio-demo.tulala.digital",
+      siteSlug: null,
+      isDemo: true,
     }),
     null,
   );

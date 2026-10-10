@@ -604,6 +604,12 @@ export interface BuilderNodeRenderOptions {
   // track-client). Optional/advisory — absent → unscoped payload.
   experimentTenantId?: string | null;
   experimentSurface?: string | null;
+  /**
+   * Request hostname for magazine statement_footer fine print (TUL-491). When
+   * set, domain-shaped baked credit lines are replaced with this host so vanity
+   * and canonical demo hosts never show a stale mockup domain.
+   */
+  publicHost?: string | null;
 }
 
 export interface BuilderNodeContentLocaleOptions {
@@ -6176,6 +6182,7 @@ function renderBuilderNodeElement(
       return renderStatementFooterBlock({
         node: localizeBlockNode(node, options.contentLocale),
         styleAttr: sharedNodeStyle(node.props.style),
+        publicHost: options.publicHost,
       });
     }
     case "utility_bar": {
