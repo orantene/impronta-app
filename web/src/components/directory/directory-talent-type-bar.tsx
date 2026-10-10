@@ -69,6 +69,10 @@ export function DirectoryTalentTypeBar({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  // Latest query string for filter commits — avoid a stale closure when the
+  // first tap races a concurrent replace (GRK-055 scroll/reset).
+  const searchParamsRef = useRef(searchParams.toString());
+  searchParamsRef.current = searchParams.toString();
   const [pending, startTransition] = useTransition();
   const [overflowOpen, setOverflowOpen] = useState(false);
   const [overflowQuery, setOverflowQuery] = useState("");
@@ -76,6 +80,14 @@ export function DirectoryTalentTypeBar({
   const [overflowHighlight, setOverflowHighlight] = useState(-1);
   // Child refine sub-row: a single scroll row by default; expands to show all.
   const [childrenExpanded, setChildrenExpanded] = useState(false);
+  /**
+   * Optimistic selection for the pill UI. `undefined` means "mirror the URL".
+   * Without this, the first tap waits on the router before any chip highlights,
+   * and a scroll/replace can look like the selection was ignored (GRK-055).
+   */
+  const [optimisticTermId, setOptimisticTermId] = useState<
+    string | null | undefined
+  >(undefined);
   const overflowRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
 
@@ -100,7 +112,15 @@ export function DirectoryTalentTypeBar({
     () => selectedIds.filter((id) => siblingIds.has(id)),
     [selectedIds, siblingIds],
   );
-  const activeId = selectedInGroup[0] ?? null;
+  const urlActiveId = selectedInGroup[0] ?? null;
+  const activeId =
+    optimisticTermId !== undefined ? optimisticTermId : urlActiveId;
+
+  // Drop the optimistic override once the URL catches up (or clears).
+  useEffect(() => {
+    if (optimisticTermId === undefined) return;
+    if (urlActiveId === optimisticTermId) setOptimisticTermId(undefined);
+  }, [urlActiveId, optimisticTermId]);
 
   // Collapse the "show all types" expansion when the active PARENT changes
   // (but NOT when refining to a child within the same parent).
@@ -121,7 +141,7 @@ export function DirectoryTalentTypeBar({
         commitDirectoryListingUrl(
           router,
           pathname,
-          searchParams.toString(),
+          searchParamsRef.current,
           (p) => {
             if (nextIds.length > 0) {
               p.set("tax", [...nextIds].sort().join(","));
@@ -132,11 +152,12 @@ export function DirectoryTalentTypeBar({
         );
       });
     },
-    [router, pathname, searchParams, startTransition],
+    [router, pathname, startTransition],
   );
 
   const setActiveTerm = useCallback(
     (termId: string | null) => {
+      setOptimisticTermId(termId);
       const rest = selectedIds.filter((id) => !siblingIds.has(id));
       pushTax(termId ? [...rest, termId] : rest);
       setOverflowOpen(false);
@@ -172,7 +193,7 @@ export function DirectoryTalentTypeBar({
 
   const pillClass = (on: boolean) =>
     cn(
-      "snap-start shrink-0 max-w-[min(100%,14rem)] truncate rounded-full border-0 px-4 py-2.5 text-[12px] font-semibold tracking-[0.12em] shadow-none sm:py-2 sm:text-[11px]",
+      "shrink-0 max-w-[min(100%,14rem)] truncate rounded-full border-0 px-4 py-2.5 text-[12px] font-semibold tracking-[0.12em] shadow-none sm:py-2 sm:text-[11px]",
       on ? ACTIVE_PILL : INACTIVE_PILL,
     );
 
@@ -217,11 +238,15 @@ export function DirectoryTalentTypeBar({
       <div className="relative">
         <FilterChips
           className={cn(
-            "mb-3 flex-nowrap snap-x snap-proximity overscroll-x-contain gap-2 overflow-x-auto scroll-pb-1 scroll-pl-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-            pending && "pointer-events-none opacity-60",
+            // No scroll-snap: proximity snap steals the first tap on touch
+            // (GRK-055). Keep horizontal scroll; do not disable pointer-events
+            // while the URL transition is pending — that also ate the first tap.
+            "mb-3 flex-nowrap overscroll-x-contain gap-2 overflow-x-auto scroll-pb-1 scroll-pl-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+            pending && "opacity-60",
           )}
           role="group"
           aria-label={barAriaLabel}
+          aria-busy={pending || undefined}
         >
           <FilterChip
             label={allLabel}
@@ -266,9 +291,10 @@ export function DirectoryTalentTypeBar({
           <div
             className={cn(
               "-mt-1 mb-4 flex items-start gap-2",
-              pending && "pointer-events-none opacity-60",
+              pending && "opacity-60",
             )}
             data-directory-type-children
+            aria-busy={pending || undefined}
           >
             <div
               role="group"
@@ -277,7 +303,7 @@ export function DirectoryTalentTypeBar({
                 "flex min-w-0 flex-1 items-center gap-1.5",
                 childrenExpanded
                   ? "flex-wrap"
-                  : "flex-nowrap snap-x snap-proximity overscroll-x-contain overflow-x-auto scroll-pl-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+                  : "flex-nowrap overscroll-x-contain overflow-x-auto scroll-pl-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
               )}
             >
               {activeParent.children.map((c) => {
@@ -290,7 +316,7 @@ export function DirectoryTalentTypeBar({
                     aria-pressed={on}
                     title={c.label}
                     className={cn(
-                      "snap-start shrink-0 whitespace-nowrap rounded-full border px-3 py-2 text-[12px] sm:py-1.5 sm:text-[10px] font-medium tracking-[0.08em] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-foreground/25 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                      "shrink-0 whitespace-nowrap rounded-full border px-3 py-2 text-[12px] sm:py-1.5 sm:text-[10px] font-medium tracking-[0.08em] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-foreground/25 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                       on
                         ? "border-[var(--dir-accent)] bg-[var(--dir-accent-soft)] text-[var(--dir-accent)]"
                         : "border-border bg-muted/30 text-muted-foreground hover:border-foreground/25 hover:text-foreground/85",
@@ -466,11 +492,12 @@ export function DirectoryTalentTypeBar({
     <div className="relative">
       <FilterChips
         className={cn(
-          "mb-4 flex-nowrap snap-x snap-proximity overscroll-x-contain gap-2 overflow-x-auto scroll-pb-1 scroll-pl-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-          pending && "pointer-events-none opacity-60",
+          "mb-4 flex-nowrap overscroll-x-contain gap-2 overflow-x-auto scroll-pb-1 scroll-pl-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+          pending && "opacity-60",
         )}
         role="group"
         aria-label={barAriaLabel}
+        aria-busy={pending || undefined}
       >
         <FilterChip
           label={allLabel}

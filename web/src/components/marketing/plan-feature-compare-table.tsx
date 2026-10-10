@@ -20,9 +20,11 @@ import { loadCompareTable } from "@/lib/pricing/get-compare-table";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import {
-  COMPARE_CATEGORY_LABEL,
-  type CompareTableRow,
-} from "@/lib/pricing/pricing-types";
+  compareCategoryLabel,
+  compareFeatureColumnLabel,
+  compareTierCaptions,
+} from "@/lib/pricing/compare-table-locale";
+import type { CompareTableRow } from "@/lib/pricing/pricing-types";
 
 export async function PlanFeatureCompareTable({
   packageSlug = "workspace",
@@ -57,7 +59,8 @@ export async function PlanFeatureCompareTable({
     );
   }
 
-  const captions = tierCaptions ?? DEFAULT_CAPTIONS;
+  const captions = tierCaptions ?? compareTierCaptions(locale);
+  const featureColumnLabel = compareFeatureColumnLabel(locale);
   const columnCount = table.tierSlugs.length;
   // Tailwind class for grid: 1 feature-label col + N tier cols, all flex-1.
   const gridTemplate = `1.5fr ${"1fr ".repeat(columnCount).trim()}`;
@@ -84,7 +87,7 @@ export async function PlanFeatureCompareTable({
             className="plt-mono text-[0.6875rem] uppercase tracking-[0.24em]"
             style={{ color: "var(--plt-muted)" }}
           >
-            Feature
+            {featureColumnLabel}
           </span>
           {table.tierSlugs.map((slug) => (
             <div key={slug}>
@@ -120,7 +123,7 @@ export async function PlanFeatureCompareTable({
                 color: "var(--plt-forest)",
               }}
             >
-              {COMPARE_CATEGORY_LABEL[section.category] ?? section.category}
+              {compareCategoryLabel(section.category, locale)}
             </div>
             <ul>
               {section.rows.map((row) => (
@@ -185,7 +188,7 @@ export async function PlanFeatureCompareTable({
                     className="plt-mono text-[0.625rem] uppercase tracking-[0.22em]"
                     style={{ color: "var(--plt-forest)" }}
                   >
-                    {COMPARE_CATEGORY_LABEL[section.category] ?? section.category}
+                    {compareCategoryLabel(section.category, locale)}
                   </div>
                   <ul className="mt-2 space-y-2">
                     {section.rows.map((row) => {
@@ -214,13 +217,6 @@ export async function PlanFeatureCompareTable({
     </div>
   );
 }
-
-const DEFAULT_CAPTIONS: Record<string, string> = {
-  free:   "Every operator, forever.",
-  studio: "Solo + small team, on WhatsApp.",
-  agency: "Teams running representation.",
-  hub:    "Staffing, casting, and scale.",
-};
 
 function Cell({ cell }: { cell: CompareTableRow["cells"][number] }) {
   if ("missing" in cell || !cell.included) {
