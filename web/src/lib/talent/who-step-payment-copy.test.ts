@@ -161,7 +161,7 @@ test("PAY-2: readiness request intent (no hours) hides deposit honesty on chat p
     bookingSettings: DEFAULT_SHEET_BOOKING_SETTINGS,
   });
   assert.equal(ui.whoAction, "chat");
-  assert.match(ui.whoCtaText, /Chatea ahora/);
+  assert.match(ui.whoCtaText, /Enviar consulta/);
   assert.match(ui.paymentFixture, /Te respondemos para confirmar el horario/);
   assert.doesNotMatch(ui.paymentFixture, /seña/);
 });
