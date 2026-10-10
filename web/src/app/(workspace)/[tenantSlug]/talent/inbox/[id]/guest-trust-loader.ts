@@ -4,6 +4,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { loadClientTrustState } from "@/lib/client-trust/evaluator";
+import { displayableContact } from "@/lib/inquiry/guest-send-gate";
 import { mapToGuestTrustChipProps } from "@/lib/inquiry/guest-trust-chip-mapper";
 import type { GuestTrustChipProps, TrustSignalState } from "@/lib/inquiry/guest-chat-contract";
 import {
@@ -195,10 +196,13 @@ export async function loadTalentInquiryGuestTrust(
       }
     }
 
+    // TUL-379: seed rows keep identity=guest but never show English "Guest"
+    // or pending-…@guest.impronta — chip falls back to localized Guest label.
+    const contact = displayableContact(inq.contact_name, inq.contact_email);
     const props = mapToGuestTrustChipProps({
       trustSummary: null,
-      contactName: inq.contact_name?.trim() || "Guest",
-      contactEmail: inq.contact_email?.trim() || null,
+      contactName: contact.contactName || "Guest",
+      contactEmail: contact.contactEmail,
       contactPhone: inq.contact_phone?.trim() || null,
       clientTrustLevel,
       completedBookings,

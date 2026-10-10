@@ -1,5 +1,7 @@
 import "server-only";
 
+import { displayableContact } from "@/lib/inquiry/guest-send-gate";
+
 import { toRecordChip, type ConversationRecordRow } from "./record-chip";
 import { readConversationState, readOpportunityState } from "./state";
 import type { InboxFilter, InboxNextAction, InboxRow, MessagingChannel, RecordChip } from "./types";
@@ -71,13 +73,15 @@ export async function loadMessagingInbox(
     const unread = isUnread(row, reads.get(row.id) ?? null);
     if (unread) unreadCount += 1;
     const paid = (chips.get(row.id) ?? []).some((chip) => chip.paymentState === "paid" || chip.paymentState === "partially_refunded");
+    // TUL-379: never surface seed Guest / pending-…@guest.impronta in the list.
+    const contact = displayableContact(row.contact_name, row.contact_email);
     const mapped: InboxRow = {
       id: row.id,
       tenantId: row.tenant_id,
       locationSlug: row.location_slug ?? "default",
-      contactName: row.contact_name,
+      contactName: contact.contactName,
       contactPhone: row.contact_phone,
-      contactEmail: row.contact_email,
+      contactEmail: contact.contactEmail,
       conversationState: readConversationState({
         conversationState: row.conversation_state,
         opportunityState: row.opportunity_state,
@@ -106,7 +110,7 @@ export async function loadMessagingInbox(
       ownerLabel: row.owner_user_id ? (owners.get(row.owner_user_id) ?? null) : null,
       unread,
       unreadCount: unread ? 1 : 0,
-      subject: clip(row.message ?? "") || clip(previews.get(row.id) ?? "") || displayName(row.contact_name),
+      subject: clip(row.message ?? "") || clip(previews.get(row.id) ?? "") || displayName(contact.contactName),
       lastMessagePreview: clip(previews.get(row.id) ?? row.message ?? ""),
       nextAction: deriveNextAction({
         ownerUserId: row.owner_user_id,
