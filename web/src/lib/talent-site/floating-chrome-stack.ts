@@ -1,5 +1,5 @@
 /**
- * TUL-516 F1–F5 + TUL-528 (GRK-033/034/039) — shared floating-UI stacking +
+ * TUL-516 F1–F5 + TUL-528 (GRK-033/034/038/039) — shared floating-UI stacking +
  * safe-area clearance (theme/chrome core).
  *
  * Layers that share the phone bottom corner (cookie banner, language strip,
@@ -14,6 +14,8 @@
  * - GRK-033: hero first-viewport CTAs clear the consent card (pad hero chrome).
  * - GRK-034: catalog/footer bottom reserve follows --cb-bar-h on phone + desktop
  *   while the bar/dock is painted (not a hardcoded 72px undershoot).
+ * - GRK-038: help teaser yields earlier when catalog filter chips enter the
+ *   lower phone band (jorg rail), including individual pills.
  * - GRK-039: guest chat panels use aria-modal=false; consent yields to
  *   [data-guest-chat-panel] so the message box stays reachable.
  */
@@ -27,12 +29,19 @@ export const FLOATING_CHROME_CONSENT_Z = 98;
 /** Approximate consent card height used for body clearance on legal pages (F1). */
 export const CONSENT_BANNER_RESERVE_PX = 220;
 
-/** Lower band of the viewport where a help teaser must not cover filter chips (F4). */
-export const HELP_BUBBLE_FILTER_BAND_RATIO = 0.55;
+/**
+ * Lower band of the viewport where a help teaser must not cover filter chips
+ * (F4 / GRK-038). 0.55 left jorg rail chips mid-lower viewport under the teaser.
+ */
+export const HELP_BUBBLE_FILTER_BAND_RATIO = 0.38;
+
+/** Absolute bottom clearance (FAB + teaser) — chips here always block the bubble. */
+export const HELP_BUBBLE_CHIP_CLEARANCE_PX = 160;
 
 export const CONSENT_BANNER_SELECTOR = "[data-consent-banner]";
 export const LOCALE_SUGGESTION_SELECTOR = "[data-locale-suggestion]";
-export const CATALOG_FILTER_NAV_SELECTOR = ".site-builder-node--services-catalog-nav";
+export const CATALOG_FILTER_NAV_SELECTOR =
+  ".site-builder-node--services-catalog-nav, .site-builder-node--services-catalog-pill";
 /** Open guest chat shell (MiniChat / CardDock / Expanded). aria-modal is false by design. */
 export const GUEST_CHAT_PANEL_SELECTOR = "[data-guest-chat-panel]";
 
@@ -88,17 +97,27 @@ export function floatingBannerUp(doc: Document): boolean {
 }
 
 /**
- * F4: the "Can I help you choose?" teaser must not sit over category filter chips
- * while those chips occupy the lower band of the phone viewport (jorg rail/chips).
+ * F4 / GRK-038: the "Can I help you choose?" teaser must not sit over category
+ * filter chips while those chips occupy the lower phone band (jorg rail).
+ * Protects both the nav row and individual pills; band is the larger of the
+ * ratio cut and the FAB+teaser clearance.
  */
 export function helpBubbleFilterNavBlocking(doc: Document, viewportH: number): boolean {
   if (!(viewportH > 0)) return false;
-  const bandTop = viewportH * HELP_BUBBLE_FILTER_BAND_RATIO;
+  const bandTop = Math.min(
+    viewportH * HELP_BUBBLE_FILTER_BAND_RATIO,
+    viewportH - HELP_BUBBLE_CHIP_CLEARANCE_PX,
+  );
   return Array.from(doc.querySelectorAll<HTMLElement>(CATALOG_FILTER_NAV_SELECTOR)).some((el) => {
     const r = el.getBoundingClientRect();
     if (!(r.width > 0 && r.height > 0)) return false;
     return r.bottom > bandTop && r.top < viewportH;
   });
+}
+
+/** GRK-038: F4 band covers chips before they reach the Hablar teaser. */
+export function helpBubbleFilterBandProtectsChips(ratio: number, clearancePx: number): boolean {
+  return ratio <= 0.4 && clearancePx >= 140;
 }
 
 /** Bottom padding CSS `max()` must mention every clearance variable (static pin). */
