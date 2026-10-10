@@ -14,6 +14,7 @@ import {
   writeConsent,
   type StoredConsent,
 } from "@/lib/analytics/consent";
+import { CONSENT_BANNER_RESERVE_PX } from "@/lib/talent-site/floating-chrome-stack";
 
 // Session-only dismiss flag — user wants to close the banner without
 // committing to accept/decline for now. Cleared by tab close.
@@ -58,8 +59,12 @@ function activatePixelsAfterConsent() {
  * On the authenticated dashboard the banner must never sit on a control:
  * below 720px the shell draws a fixed bottom tab bar (lift the banner above
  * it), and from 721px the shell draws a 240px left rail whose last rows are
- * Support and Settings (start the banner to the right of it). Keyed off the
- * shell's own hooks, so public pages and the marketing site are unchanged.
+ * Support and Settings (start the banner to the right of it).
+ *
+ * GRK-040: on the marketing shell at phone widths the same card sat on top of
+ * the last pricing tiers and the open mobile-menu footer. Talent sites already
+ * reserve `--floating-consent-clearance`; marketing gets an equivalent pad so
+ * scrollable content clears the card without moving the banner itself.
  */
 const CONSENT_BANNER_SHELL_OFFSET_CSS = `
 @media (max-width: 720px) {
@@ -70,6 +75,14 @@ const CONSENT_BANNER_SHELL_OFFSET_CSS = `
 @media (min-width: 721px) {
   body:has([data-tulala-app-sidebar]) [data-consent-banner] {
     left: calc(240px + 1rem);
+  }
+}
+@media (max-width: 640px) {
+  body:has([data-consent-banner]) [data-platform-surface="marketing"] {
+    padding-bottom: calc(${CONSENT_BANNER_RESERVE_PX}px + env(safe-area-inset-bottom, 0px));
+  }
+  html:has([data-consent-banner]):has([data-platform-surface="marketing"]) {
+    scroll-padding-bottom: calc(${CONSENT_BANNER_RESERVE_PX}px + env(safe-area-inset-bottom, 0px));
   }
 }
 `;
