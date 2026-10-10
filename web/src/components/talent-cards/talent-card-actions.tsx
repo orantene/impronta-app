@@ -123,8 +123,8 @@ export function TalentCardActions({
       inquiryModal.requestSeparateInquiry({
         talentProfileId,
         profileCode,
-        displayName,
-        portraitUrl,
+        displayName: fallbackName,
+        portraitUrl: portraitUrl ?? null,
       });
       return;
     }
