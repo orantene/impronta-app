@@ -70,6 +70,9 @@ test("folio: the demo wording lives in the demo site-copy, and applying it resto
     "For editorials, runway and campaigns. I reply the same day.",
     "Shoe MX",
     "Runway",
+    // EN overlay keys for chapter II (ES primary is Pasarela above).
+    '"contents.1.label":"Runway"',
+    '"title":"Runway"',
   ]) {
     assert.ok(text.includes(s), `demo copy restores ${s}`);
   }

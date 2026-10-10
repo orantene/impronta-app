@@ -97,7 +97,9 @@ export const SEED_TEXT_ES: Readonly<Record<string, string>> = {
   "Recent jobs": "Trabajos recientes",
   "No photos in your portfolio yet.": "Aún no hay fotos en el portafolio.",
   "Where I work": "Dónde trabajo",
-  "Measures · Comp card": "Medidas · Comp card",
+  // Folio comp card: keep "Comp card" out of Spanish (W2-5 / TUL-516 C3).
+  "Measures · Comp card": "Medidas · Ficha",
+  Runway: "Pasarela",
   "Next issue.": "Siguiente número.",
   "In this issue": "En este número",
   "See the book": "Ver el libro",

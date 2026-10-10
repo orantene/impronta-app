@@ -118,7 +118,9 @@ const CODE_SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "Studio session": "Sesión de estudio",
   "Seasonal story": "Historia de temporada",
   Measures: "Medidas",
-  "Measures · Comp card": "Medidas · Comp card",
+  // Folio comp card: keep "Comp card" out of Spanish (W2-5 / TUL-516 C3).
+  "Measures · Comp card": "Medidas · Ficha",
+  Runway: "Pasarela",
   Rates: "Contratación",
   "Base rates in MXN. Ad use and travel are quoted separately.": "Tarifas base en MXN. El uso en pauta y los viajes se cotizan aparte.",
 
