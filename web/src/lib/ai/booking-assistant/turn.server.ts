@@ -34,11 +34,23 @@ import {
   bookingAssistantMonthlyCapCents,
   bookingAssistantMonthlyCapReached,
 } from "./credits";
+import { improntaLog } from "@/lib/server/structured-log";
 
 export { BOOKING_ASSISTANT_MODEL } from "./model";
 
 /** Hard cut for deferred LLM work (guest already got their send response). */
 const LLM_TIMEOUT_MS = 5_000;
+
+/**
+ * Live QA / ops: every silent skip must leave a greppable line.
+ * Event name: booking_assistant_skip | booking_assistant_run | booking_assistant_schedule.
+ */
+function logBookingAssistant(
+  event: "booking_assistant_skip" | "booking_assistant_run" | "booking_assistant_schedule",
+  fields: Record<string, string | number | boolean | null | undefined>,
+): void {
+  void improntaLog(event, fields);
+}
 
 const SYSTEM_PROMPT = `You are a booking assistant on a talent's public site chat.
 Answer ONLY from the SERVICE_CATALOG JSON. Never invent a price, duration, or availability.
@@ -84,7 +96,23 @@ export function scheduleBookingAssistantTurn(args: MaybeRunBookingAssistantTurnA
   };
   try {
     after(run);
+    logBookingAssistant("booking_assistant_schedule", {
+      mode: "after",
+      inquiry_id: args.inquiryId,
+      tenant_id: args.tenantId,
+      talent_profile_id: args.talentProfileId ?? null,
+      instant_answered: args.instantAnswered === true,
+      guest_len: args.guestMessage.trim().length,
+    });
   } catch {
+    logBookingAssistant("booking_assistant_schedule", {
+      mode: "fallback",
+      inquiry_id: args.inquiryId,
+      tenant_id: args.tenantId,
+      talent_profile_id: args.talentProfileId ?? null,
+      instant_answered: args.instantAnswered === true,
+      guest_len: args.guestMessage.trim().length,
+    });
     void run();
   }
 }
@@ -263,15 +291,31 @@ function catalogGrounding(offerings: readonly BookingAssistantOfferingGround[]):
 export async function maybeRunBookingAssistantTurn(
   args: MaybeRunBookingAssistantTurnArgs,
 ): Promise<GuestThreadMessage | null> {
+  const base = {
+    inquiry_id: args.inquiryId,
+    tenant_id: args.tenantId,
+    talent_profile_id: args.talentProfileId ?? null,
+    guest_len: args.guestMessage.trim().length,
+    instant_answered: args.instantAnswered === true,
+  };
   try {
-    if (!args.talentProfileId) return null;
+    if (!args.talentProfileId) {
+      logBookingAssistant("booking_assistant_skip", { ...base, reason: "no_talent_profile_id" });
+      return null;
+    }
     const admin = createServiceRoleClient();
-    if (!admin) return null;
+    if (!admin) {
+      logBookingAssistant("booking_assistant_skip", { ...base, reason: "no_service_role_client" });
+      return null;
+    }
 
     // Design §5: platform kill switch — master off means the assistant never runs.
     // Distinct from per-talent monthly credits (below): master off is silent skip.
     const flags = await getAiFeatureFlags();
-    if (!flags.ai_master_enabled) return null;
+    if (!flags.ai_master_enabled) {
+      logBookingAssistant("booking_assistant_skip", { ...base, reason: "ai_master_disabled" });
+      return null;
+    }
 
     const switches = await loadTalentSiteSwitches(admin, args.talentProfileId);
     const enabled = switches.chatConfig.aiBookingAssistantEnabled === true;
@@ -283,9 +327,24 @@ export async function maybeRunBookingAssistantTurn(
       instantAnswered: args.instantAnswered === true,
     });
 
-    if (decision.action === "skip") return null;
+    if (decision.action === "skip") {
+      logBookingAssistant("booking_assistant_skip", {
+        ...base,
+        reason: decision.reason,
+        enabled,
+        prior_count: prior.length,
+      });
+      return null;
+    }
 
     const locale = normalizeBookingAssistantLocale(args.locale);
+    logBookingAssistant("booking_assistant_run", {
+      ...base,
+      action: decision.action,
+      decision_reason: decision.action === "handoff" ? decision.reason : "llm_facts",
+      locale,
+      enabled,
+    });
 
     if (decision.action === "handoff") {
       return insertSystemEvent({
