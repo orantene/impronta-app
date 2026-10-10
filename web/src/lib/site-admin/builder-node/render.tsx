@@ -1363,6 +1363,14 @@ export const BUILDER_NODE_RENDERER_CSS = `
    paddingX/paddingLeft/Right are inline styles and the mobile lane is
    !important. Full-bleed and background-media blocks are untouched. */
 [data-talent-max-site-main] [data-cms-block]>.site-builder-node--container:not([data-builder-full-bleed]):not([data-bn-bg-media]){padding-inline:1.5rem}
+/* Same gutter for the kit-shell header bar: trees seeded before the shell
+   carried paddingX:"m" put the wordmark and CTA at x=0 (tomas, valeria).
+   Row only, so the utility_bar stack wrapper keeps its own padding and colour.
+   The bar sits outside the talent main, so without an ink colour its nav
+   inherited the body's light foreground; inline textColor/contrast still wins.
+   The nav shrinks to its links so brand · nav · CTA share one row on desktop. */
+[data-talent-max-site-header]>.site-builder-node--container[data-builder-layout="row"]:not([data-builder-full-bleed]):not([data-bn-bg-media]){padding-inline:1.5rem;color:var(--token-color-ink)}
+[data-talent-max-site-header]>.site-builder-node--container[data-builder-layout="row"]>.site-builder-node--nav{width:auto;margin:0}
 .site-builder-node--container[data-builder-layout="row"]{flex-direction:row;flex-wrap:wrap}
 .site-builder-node--container[data-builder-layout="grid"],.site-builder-node--container[data-builder-display="grid"]{display:grid;grid-template-columns:repeat(var(--bn-columns,2),minmax(0,1fr))}
 .site-builder-node--container[data-builder-display="slider"]{display:flex;flex-direction:row;flex-wrap:nowrap;gap:var(--bn-slider-gap,var(--bn-gap,16px));overflow-x:auto;scroll-snap-type:x mandatory}
