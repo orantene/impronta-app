@@ -84,7 +84,9 @@ export function AppsLibraryScreen({
             data-testid="apps-library-back"
             className="min-h-11 shrink-0 text-[13.5px] font-semibold text-admin-ink"
           >
-            ‹ {maisonSetupT(locale, "Today")}
+            {/* live1 app-back / TUL-536: not Today — library opens from Mi sitio /
+                theme gallery / builder, so back names Mi sitio web. */}
+            ‹ {maisonSetupT(locale, "My website")}
           </button>
           <div className="min-w-0 flex-1 text-center">
             <h1 className="text-[15px] font-semibold text-admin-ink">
