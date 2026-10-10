@@ -1881,6 +1881,7 @@
         "listening": "Listening…",
         "transcribing": "Writing it down…",
         "typePlaceholder": "Or type it here…",
+        "typePlaceholderDirect": "Type what you do…",
         "linkPlaceholder": "https:// or @yourbusiness",
         "send": "Send",
         "forExample": "For example",
