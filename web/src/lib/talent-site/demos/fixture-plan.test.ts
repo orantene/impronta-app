@@ -98,8 +98,8 @@ test("folio Mateo: Spanish primary offering titles + EN title_i18n (W2-5 C3)", (
   assert.doesNotMatch(mateo.statsTitle ?? "", /Comp card/);
   const rows = planOfferingOps(mateo, []).map((o) => (o.op === "insert" ? o.row : {}));
   assert.equal(rows[0]!.title, "Sesión editorial, medio día");
-  assert.equal(rows[1]!.title, "Reserva de pasarela");
-  assert.equal(rows[2]!.title, "Día lookbook / e-commerce");
+  assert.equal(rows[1]!.title, "Reserva de show de pasarela");
+  assert.equal(rows[2]!.title, "Día de lookbook y e-commerce");
   assert.equal((rows[0]!.title_i18n as { es?: string; en?: string }).es, "Sesión editorial, medio día");
   assert.equal((rows[0]!.title_i18n as { es?: string; en?: string }).en, "Editorial shoot, half day");
   assert.equal((rows[1]!.title_i18n as { es?: string; en?: string }).en, "Runway show booking");
