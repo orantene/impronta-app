@@ -1,9 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { clearLocaleAutoMarkerLine, localeCookieLine } from "@/i18n/locale-cookies";
-import { LOCALE_SUGGESTION_DISMISSED_COOKIE } from "@/i18n/locale-suggestion";
+import {
+  clearLocaleAutoMarkerLine,
+  localeCookieLine,
+  LOCALE_SUGGESTION_DISMISSED_COOKIE,
+} from "@/i18n/locale-cookies";
 import { cn } from "@/lib/utils";
 
 /**
@@ -22,6 +25,10 @@ import { cn } from "@/lib/utils";
  * launcher) and above the demo badge, and yields entirely while the consent
  * card, a modal, the guest chat panel, or the booking dock/bar is up (see
  * `floating-chrome-stack.ts`), so it never sits over a primary action.
+ * It is not in the SSR paint: it appears `LOCALE_SUGGESTION_SETTLE_MS` after
+ * the window `load` event, so it never flashes over the hero while the page
+ * is still arriving. Colors, radius and font come from the site's theme
+ * tokens, falling back to the app palette off a talent site.
  *
  * Accept is a real `<a href>`, not a router push: the locale switch is a full
  * navigation to a different URL, exactly like `PublicLanguageToggle`. The
@@ -29,6 +36,8 @@ import { cn } from "@/lib/utils";
  * normally afterwards — so it still works with JS disabled, minus the cookie
  * (the proxy's own locale sync then covers it on arrival).
  */
+export const LOCALE_SUGGESTION_SETTLE_MS = 1500;
+
 export function LocaleSuggestionBannerClient({
   href,
   locale,
@@ -50,7 +59,22 @@ export function LocaleSuggestionBannerClient({
   regionLabel: string;
 }) {
   const [hidden, setHidden] = useState(false);
-  if (hidden) return null;
+  const [settled, setSettled] = useState(false);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const arm = () => {
+      timer = setTimeout(() => setSettled(true), LOCALE_SUGGESTION_SETTLE_MS);
+    };
+    if (document.readyState === "complete") arm();
+    else window.addEventListener("load", arm, { once: true });
+    return () => {
+      window.removeEventListener("load", arm);
+      if (timer) clearTimeout(timer);
+    };
+  }, []);
+
+  if (hidden || !settled) return null;
 
   const writeCookie = (name: string, value: string) => {
     document.cookie = localeCookieLine(name, value, { secure: secureCookies });
@@ -81,9 +105,12 @@ export function LocaleSuggestionBannerClient({
     >
       <div
         className={cn(
-          "flex w-full flex-wrap items-center gap-x-3 gap-y-2",
-          "rounded-lg border border-border/60 bg-background/95 px-3 py-2 shadow-md backdrop-blur",
-          "text-[13px] text-foreground",
+          "flex w-full flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2 shadow-md",
+          "rounded-[var(--token-shape-radius-card,0.75rem)] border",
+          "border-[var(--token-color-line,var(--border))]",
+          "bg-[var(--token-color-surface-raised,var(--token-color-background,var(--background)))]",
+          "text-[13px] text-[var(--token-color-ink,var(--foreground))]",
+          "[font-family:var(--site-body-font,inherit)]",
         )}
       >
         <p className="min-w-0 flex-1 leading-snug">{prompt}</p>
@@ -94,8 +121,10 @@ export function LocaleSuggestionBannerClient({
             lang={locale}
             onClick={acceptSuggestion}
             className={cn(
-              "inline-flex items-center rounded-md bg-foreground px-2.5 py-1 text-xs font-medium",
-              "text-background no-underline transition-opacity hover:opacity-90",
+              "inline-flex items-center rounded-[var(--token-button-radius,0.375rem)] px-2.5 py-1 text-xs font-medium",
+              "bg-[var(--token-color-accent,var(--token-color-primary,var(--foreground)))]",
+              "text-[var(--token-color-accent-on,var(--token-color-primary-on,var(--background)))]",
+              "no-underline transition-opacity hover:opacity-90",
             )}
           >
             {acceptLabel}
@@ -107,8 +136,8 @@ export function LocaleSuggestionBannerClient({
               setHidden(true);
             }}
             className={cn(
-              "inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium",
-              "text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+              "inline-flex items-center rounded-[var(--token-button-radius,0.375rem)] px-2.5 py-1 text-xs font-medium",
+              "text-[var(--token-color-muted,var(--muted-foreground))] transition-opacity hover:opacity-80",
             )}
           >
             {dismissLabel}

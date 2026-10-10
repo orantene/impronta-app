@@ -11,8 +11,11 @@
  * stay above (120).
  *
  * TUL-560: nothing sits above the site header. The language suggestion is a
- * bottom-left toast and the demo marker a bottom-left badge; both float above
- * `--floating-chrome-bottom`, the toast one badge-height higher on demo sites.
+ * bottom-left toast and the demo marker a bottom-right badge; both float above
+ * `--floating-chrome-bottom`. On phones (≤700px, where the chat launcher drops
+ * to the corner) the badge clears the launcher and gives way to the toast.
+ * Both yield to the consent card, modals, the open chat panel and booking
+ * chrome; the demo footer line stays as the permanent marker.
  *
  * TUL-528:
  * - GRK-033: hero first-viewport CTAs clear the consent card (pad hero chrome).
@@ -22,8 +25,7 @@
  *   [data-guest-chat-panel] so the message box stays reachable.
  */
 
-import { GUEST_CHAT_LAUNCHER_CLEARANCE_PX } from "@/app/t/[profileCode]/_chat/launcher-clearance";
-import { STICKY_BAR_DEFAULT_RESERVE_PX } from "@/lib/talent-site/sticky-bar-visibility";
+import { GUEST_CHAT_LAUNCHER_CLEARANCE_PX } from "@/app/t/[profileCode]/_chat/launcher-clearance";import { STICKY_BAR_DEFAULT_RESERVE_PX } from "@/lib/talent-site/sticky-bar-visibility";
 
 /** Consent owns the corner while open; above the chat FAB so Aceptar stays tappable (F2). */
 export const FLOATING_CHROME_CONSENT_Z = 98;
@@ -36,6 +38,7 @@ export const HELP_BUBBLE_FILTER_BAND_RATIO = 0.55;
 
 export const CONSENT_BANNER_SELECTOR = "[data-consent-banner]";
 export const LOCALE_SUGGESTION_SELECTOR = "[data-locale-suggestion]";
+export const DEMO_BADGE_SELECTOR = "[data-demo-badge]";
 export const CATALOG_FILTER_NAV_SELECTOR = ".site-builder-node--services-catalog-nav";
 /** Open guest chat shell (MiniChat / CardDock / Expanded). aria-modal is false by design. */
 export const GUEST_CHAT_PANEL_SELECTOR = "[data-guest-chat-panel]";
@@ -49,8 +52,10 @@ const BAR_RESERVE = `calc(${STICKY_BAR_DEFAULT_RESERVE_PX}px + env(safe-area-ins
  */
 export const FLOATING_CHROME_STACK_CSS = `
 body:has(${CONSENT_BANNER_SELECTOR}) ${LOCALE_SUGGESTION_SELECTOR}{display:none}
-body:has([role="dialog"][aria-modal="true"]) ${CONSENT_BANNER_SELECTOR},body:has([role="dialog"][aria-modal="true"]) ${LOCALE_SUGGESTION_SELECTOR}{display:none}
-body:has(${GUEST_CHAT_PANEL_SELECTOR}) ${CONSENT_BANNER_SELECTOR},body:has(${GUEST_CHAT_PANEL_SELECTOR}) ${LOCALE_SUGGESTION_SELECTOR}{display:none}
+body:has(${CONSENT_BANNER_SELECTOR}) ${DEMO_BADGE_SELECTOR}{display:none}
+body:has(.cb-dock[data-show="true"]) ${DEMO_BADGE_SELECTOR},body:has(.cb-bar[data-show="true"]:not([data-top="true"])) ${DEMO_BADGE_SELECTOR}{display:none}
+body:has([role="dialog"][aria-modal="true"]) ${CONSENT_BANNER_SELECTOR},body:has([role="dialog"][aria-modal="true"]) ${LOCALE_SUGGESTION_SELECTOR},body:has([role="dialog"][aria-modal="true"]) ${DEMO_BADGE_SELECTOR}{display:none}
+body:has(${GUEST_CHAT_PANEL_SELECTOR}) ${CONSENT_BANNER_SELECTOR},body:has(${GUEST_CHAT_PANEL_SELECTOR}) ${LOCALE_SUGGESTION_SELECTOR},body:has(${GUEST_CHAT_PANEL_SELECTOR}) ${DEMO_BADGE_SELECTOR}{display:none}
 body:has(${CONSENT_BANNER_SELECTOR}) [data-guest-chat-launcher]{opacity:0;visibility:hidden;pointer-events:none}
 body:has(${CONSENT_BANNER_SELECTOR}) [data-help-bubble]{display:none!important}
 :root{--cb-bar-h:0px;--floating-launcher-clearance:0px;--floating-consent-clearance:0px;--floating-chrome-bottom:max(var(--cb-bar-h),var(--floating-launcher-clearance),var(--floating-consent-clearance),env(safe-area-inset-bottom,0px))}
@@ -58,7 +63,11 @@ body:has(${CONSENT_BANNER_SELECTOR}){--floating-consent-clearance:calc(${CONSENT
 @media (max-width:480px){body:has([data-guest-chat-launcher]){--floating-launcher-clearance:calc(${GUEST_CHAT_LAUNCHER_CLEARANCE_PX}px + env(safe-area-inset-bottom,0px))}}
 body{padding-bottom:var(--floating-chrome-bottom)}
 ${LOCALE_SUGGESTION_SELECTOR}{bottom:calc(var(--floating-chrome-bottom) + 12px)}
-body:has([data-demo-badge]) ${LOCALE_SUGGESTION_SELECTOR}{bottom:calc(var(--floating-chrome-bottom) + 44px)}
+${LOCALE_SUGGESTION_SELECTOR}>div{animation:floating-toast-in .3s ease-out both}
+@keyframes floating-toast-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){${LOCALE_SUGGESTION_SELECTOR}>div{animation:none}}
+${DEMO_BADGE_SELECTOR}{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(var(--floating-chrome-bottom) + 12px);z-index:90;pointer-events:none}
+@media (max-width:700px){body:has([data-guest-chat-launcher]) ${DEMO_BADGE_SELECTOR}{bottom:calc(max(var(--floating-chrome-bottom),${GUEST_CHAT_LAUNCHER_CLEARANCE_PX}px + env(safe-area-inset-bottom,0px)) + 4px)}body:has(${LOCALE_SUGGESTION_SELECTOR}) ${DEMO_BADGE_SELECTOR}{display:none}}
 html{scroll-padding-bottom:var(--floating-chrome-bottom)}
 body:has(${CONSENT_BANNER_SELECTOR}) .site-bn-hero__inner{padding-bottom:max(clamp(74px,11vh,134px),calc(var(--floating-consent-clearance) + 12px))}
 body:has(${CONSENT_BANNER_SELECTOR}) .site-bn-hero__meta{bottom:max(clamp(74px,11vh,134px),calc(var(--floating-consent-clearance) + 12px))}

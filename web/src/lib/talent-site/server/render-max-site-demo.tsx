@@ -12,9 +12,9 @@ export async function loadMaxSiteIsDemo(talentProfileId: string): Promise<boolea
 
 /**
  * TUL-560: the one demo marker on every template — a small fixed badge in the
- * bottom-left corner. Never above or inside the header, never in the layout
- * flow. Sits above whatever the floating chrome stack reserves at the bottom
- * (booking bar, chat launcher, consent card), so it never covers those.
+ * bottom-right corner, the same neutral chip on every theme. Never above or
+ * inside the header, never in the layout flow. Position, launcher clearance
+ * and yielding live in `FLOATING_CHROME_STACK_CSS` (`[data-demo-badge]`).
  */
 export function MaxSiteDemoBadge({ locale }: { locale: string }) {
   const es = locale.toLowerCase().startsWith("es");
@@ -23,11 +23,6 @@ export function MaxSiteDemoBadge({ locale }: { locale: string }) {
       data-demo-badge=""
       title={es ? DEMO_SITE_FOOTER.es : DEMO_SITE_FOOTER.en}
       style={{
-        position: "fixed",
-        left: 12,
-        bottom: "calc(var(--floating-chrome-bottom, 0px) + 12px)",
-        zIndex: 90,
-        pointerEvents: "none",
         fontFamily: '"Inter", system-ui, sans-serif',
         fontSize: 10,
         fontWeight: 600,
@@ -65,8 +60,8 @@ export function MaxSiteDemoFooter({ locale }: { locale: string }) {
 }
 
 /**
- * The header carries the site chrome: the Demo pill (demo talents, the only
- * demo marker) and the talent site's ES / EN switch. Site header only.
+ * The header carries the site chrome: the talent site's ES / EN switch (the
+ * demo marker is `MaxSiteDemoBadge`, never header chrome). Site header only.
  */
 export function withHeaderSiteChrome(
   sectionProps: unknown,

@@ -223,12 +223,11 @@ test("row cards: the whole row opens the service, the button stays the accessibl
 
 // ── demo marker (H-5 → TUL-560) and the published header height (MN-6) ───────
 
-test("TUL-560: the demo marker is a fixed bottom-left badge, not header chrome", () => {
+test("TUL-560: the demo marker is one neutral corner badge, not header chrome", () => {
   const html = renderToStaticMarkup(<MaxSiteDemoBadge locale="es" />);
   assert.match(html, /data-demo-badge=""/);
-  assert.match(html, /position:fixed/);
-  assert.match(html, /left:12px/);
-  assert.match(html, /bottom:calc\(var\(--floating-chrome-bottom, 0px\) \+ 12px\)/);
+  assert.match(html, />Demo<\/span>$/);
+  assert.doesNotMatch(html, /var\(--token-/, "identical on every theme");
   const headerSrc = readFileSync(
     resolve(dirname(fileURLToPath(import.meta.url)), "../sections/site_header/Component.tsx"),
     "utf8",
