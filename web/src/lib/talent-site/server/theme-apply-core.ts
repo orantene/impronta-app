@@ -30,7 +30,7 @@ import { ensureSiteThemeUpdates } from "../theme-releases/lazy-fan-out.server";
 import { checkSitePin } from "../theme-releases/pin-guard.server";
 import {
   DESIGN_APPLY_DRAFT_SITE_KEYS,
-  draftUnchangedSinceSwitch,
+  canRestoreExactSinceLeave,
   planDesignSwitch,
   snapshotDesignSlug,
 } from "./design-switch";
@@ -353,6 +353,30 @@ export async function findPreLeaveSnapshot(
   return null;
 }
 
+/**
+ * History rows written after leaving a Design (`draft_rev` greater than the
+ * leave entry). Used so A→B→C→A with only gallery switches can restore-exact.
+ */
+export async function loadHistoryKindsAfterLeave(
+  admin: SupabaseClient,
+  input: { talentProfileId: string; leaveDraftRev: number },
+): Promise<Array<{ kind: string }> | null> {
+  const { data, error } = await admin
+    .from("talent_site_history")
+    .select("kind, draft_rev")
+    .eq("talent_profile_id", input.talentProfileId)
+    .gt("draft_rev", input.leaveDraftRev)
+    .order("draft_rev", { ascending: true })
+    .limit(40);
+  if (error) {
+    logServerError("talentTheme.applyDesign.historyAfterLeave", error);
+    return null;
+  }
+  return ((data ?? []) as Array<{ kind?: string | null }>).map((r) => ({
+    kind: typeof r.kind === "string" ? r.kind : "",
+  }));
+}
+
 export async function applyDesign(
   admin: SupabaseClient,
   input: ApplyDesignInput,
@@ -386,18 +410,32 @@ export async function applyDesign(
   const switchingAway =
     !!draft.designSlug && draft.designSlug.trim().toLowerCase() !== design.slug.trim().toLowerCase();
 
-  // Switch back: restore-exact ONLY when the draft is unchanged since she left
-  // that Design. Any edit since → fall through to carry-over (keep her work).
+  // Switch back: restore-exact when the draft is unchanged since she left that
+  // Design, OR she only tried other Designs in between (TUL-527 A→B→C→A).
+  // Any content edit since → fall through to carry-over (keep her work).
   if (switchingAway) {
     const prior = await findPreLeaveSnapshot(admin, {
       talentProfileId: input.talentProfileId,
       designSlug: design.slug,
     });
-    if (
-      prior &&
-      draft.homeId &&
-      draftUnchangedSinceSwitch(draft.draftRev, prior.leaveDraftRev)
-    ) {
+    let restoreExactOk = false;
+    if (prior && draft.homeId && typeof prior.leaveDraftRev === "number") {
+      const after =
+        draft.draftRev === prior.leaveDraftRev
+          ? []
+          : await loadHistoryKindsAfterLeave(admin, {
+              talentProfileId: input.talentProfileId,
+              leaveDraftRev: prior.leaveDraftRev,
+            });
+      restoreExactOk =
+        after !== null &&
+        canRestoreExactSinceLeave({
+          currentDraftRev: draft.draftRev,
+          leaveEntryDraftRev: prior.leaveDraftRev,
+          entriesAfterLeave: after,
+        });
+    }
+    if (prior && draft.homeId && restoreExactOk) {
       const restore = planRestore(prior.snapshot, {
         shell: draft.shell,
         pages: { [draft.homeId]: draft.home },

@@ -57,6 +57,8 @@ type Props = {
   onOpenSettings?: () => void;
   onOpenApps?: () => void;
   showTiles?: boolean;
+  /** TUL-180: override Edit site when primary is the workspace builder. */
+  editHref?: string;
 };
 
 /** Real iframe viewports so phone CSS breakpoints fire (not a shrunk desktop). */
@@ -193,6 +195,7 @@ export function MyWebsiteCard({
   onOpenSettings,
   onOpenApps,
   showTiles = true,
+  editHref = "/talent/page-builder",
 }: Props) {
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [restoreOpen, setRestoreOpen] = useState(false);
@@ -483,7 +486,7 @@ export function MyWebsiteCard({
           ) : null}
 
           <Link
-            href="/talent/page-builder"
+            href={editHref}
             data-testid="maison-edit-site"
             className={`inline-flex min-h-12 items-center justify-center rounded-xl border px-5 text-[14px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tulala-primary-fill,#3B8277)] ${
               hasPending

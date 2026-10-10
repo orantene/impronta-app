@@ -26,6 +26,7 @@
 import type { ReactNode } from "react";
 import type { EffectiveVisibility } from "@/lib/talent/representation";
 import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
+import { resolveTalentDashboardMyWebsite } from "@/lib/talent-site/dashboard-my-website";
 import { useDashboardText } from "../dashboard-i18n";
 import { Avatar, Icon } from "../primitives";
 import { useAdminShell } from "../state";
@@ -92,8 +93,7 @@ const ROW_SHELL_CLASS =
  * page builder, Money/Messages/Settings match the left rail
  * (`messages` → `/talent/inbox`).
  */
-const AVATAR_DESTINATIONS = [
-  { testId: "builder", label: "Builder", href: "/talent/page-builder", icon: "layers" },
+const AVATAR_DESTINATIONS_BASE = [
   { testId: "money", label: "Money", href: "/talent/money", icon: "credit" },
   { testId: "messages", label: "Messages", href: "/talent/inbox", icon: "mail" },
   { testId: "settings", label: "Settings", href: "/talent/settings", icon: "settings" },
@@ -183,7 +183,25 @@ export function TalentAccountMenuSection({ onNavigate }: { onNavigate: () => voi
   })();
 
   const site = siteLoad && siteLoad.ok ? siteLoad.state : null;
-  const hasSite = Boolean(site?.site && site.publicSiteUrl);
+  const myWebsite = site ? resolveTalentDashboardMyWebsite(site) : null;
+  const websiteHref = myWebsite?.publicUrl ?? null;
+  const hasWebsiteLink = Boolean(websiteHref);
+  const websiteSubtitle = (() => {
+    if (!myWebsite || !websiteHref) return copy.t("Set up your public page");
+    const host = websiteHref.replace(/^https:\/\//, "");
+    if (myWebsite.kind === "workspace") {
+      return `${host} · ${copy.isSpanish ? "En vivo" : "Live"}`;
+    }
+    if (myWebsite.personalStatus) {
+      return `${host} · ${siteStageLabel(myWebsite.personalStatus, copy.isSpanish)}`;
+    }
+    return host;
+  })();
+  const builderHref = myWebsite?.kind === "workspace" ? myWebsite.editHref : "/talent/page-builder";
+  const avatarDestinations = [
+    { testId: "builder", label: "Builder", href: builderHref, icon: "layers" as const },
+    ...AVATAR_DESTINATIONS_BASE,
+  ];
 
   const selfEntry = bridgeTalentRepresentation?.entries.find((e) => e.kind === "self_page") ?? null;
   const appearances = (bridgeTalentRepresentation?.entries ?? []).filter((e) => e.kind !== "self_page");
@@ -209,17 +227,17 @@ export function TalentAccountMenuSection({ onNavigate }: { onNavigate: () => voi
         </div>
       </div>
 
-      {/* My website — public surface; always a new tab when a URL exists
-          (absolute personal site OR root-relative `/t/<code>` fallback). */}
+      {/* My website — TUL-180: dual owners open the business workspace URL;
+          personal stays under Website settings → Other websites. */}
       <RowShell
         testId="website"
         ariaLabel={copy.t("My website")}
-        href={hasSite && site?.publicSiteUrl ? site.publicSiteUrl : undefined}
+        href={hasWebsiteLink && websiteHref ? websiteHref : undefined}
         navigation="new-tab"
         onClick={() => {
           onNavigate();
-          if (!(hasSite && site?.publicSiteUrl)) {
-            window.location.assign("/talent/public-page");
+          if (!hasWebsiteLink) {
+            window.location.assign(myWebsite?.editHref ?? "/talent/public-page");
           }
         }}
       >
@@ -229,9 +247,7 @@ export function TalentAccountMenuSection({ onNavigate }: { onNavigate: () => voi
         <span className="min-w-0 flex-1">
           <span className="block text-[13px] font-medium text-admin-ink">{copy.t("My website")}</span>
           <span className="mt-px block overflow-hidden text-admin-11 text-ellipsis whitespace-nowrap text-admin-ink-muted">
-            {hasSite && site?.publicSiteUrl
-              ? `${site.publicSiteUrl.replace(/^https:\/\//, "")} · ${siteStageLabel(site.site!.status, copy.isSpanish)}`
-              : copy.t("Set up your public page")}
+            {websiteSubtitle}
           </span>
         </span>
       </RowShell>
@@ -339,7 +355,7 @@ export function TalentAccountMenuSection({ onNavigate }: { onNavigate: () => voi
         </div>
       )}
 
-      {AVATAR_DESTINATIONS.map((link) => (
+      {avatarDestinations.map((link) => (
         <RowShell
           key={link.testId}
           testId={link.testId}
