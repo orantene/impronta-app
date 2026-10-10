@@ -1499,6 +1499,22 @@ test("nav: defaults apply when optional props are omitted", () => {
   );
 });
 
+test("nav: seeded ariaLabel Primary localizes to Principal on Spanish pages", () => {
+  const en = render([navNode({ ariaLabel: "Primary" })], {
+    contentLocale: { locale: "en", defaultLocale: "en", chain: ["en"] },
+  });
+  const es = render([navNode({ ariaLabel: "Primary" })], {
+    contentLocale: { locale: "es", defaultLocale: "es", chain: ["es"] },
+  });
+  assert.ok(en.includes('aria-label="Primary"'), "en keeps Primary");
+  assert.ok(es.includes('aria-label="Principal"'), "es heals seeded Primary");
+  assert.ok(!es.includes('aria-label="Primary"'), "es does not keep English sentinel");
+  const custom = render([navNode({ ariaLabel: "Main" })], {
+    contentLocale: { locale: "es", defaultLocale: "es", chain: ["es"] },
+  });
+  assert.ok(custom.includes('aria-label="Main"'), "custom labels pass through");
+});
+
 test("nav: dangerous link + brand hrefs are neutralized at render time", () => {
   const html = render([
     navNode({

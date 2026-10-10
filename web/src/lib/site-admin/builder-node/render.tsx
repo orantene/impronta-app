@@ -16,6 +16,7 @@ import {
   navChromeNeedsScrollSpy,
   normalizeNavChrome,
 } from "@/lib/site-admin/nav-chrome";
+import { navLandmarkAriaLabel } from "@/lib/site-admin/nav-landmark-label";
 import { BuilderIconSvg } from "./builder-icon-svg";
 import type { BuilderIconName } from "./icon-registry";
 import { socialPlatformIconName } from "./social-platform-icons";
@@ -7462,7 +7463,11 @@ function renderBuilderNodeElement(
       );
       const navEs = (options.contentLocale?.locale ?? options.visitorLocale ?? "").toLowerCase().startsWith("es");
       const menuLabel = navProps.menuLabel?.trim() || (navEs ? "Menú" : "Menu");
-      const navAriaLabel = navProps.ariaLabel?.trim() || (navEs ? "Principal" : "Primary");
+      // Seeded `ariaLabel: "Primary"` must localize at render (heal published trees).
+      const navAriaLabel = navLandmarkAriaLabel(
+        options.contentLocale?.locale ?? options.visitorLocale,
+        navProps.ariaLabel,
+      );
       const menuId = `${node.id}-menu`;
       // A4 follow-up — when bound to a collection nav source (cms_page /
       // cms_posts) AND the SHELL/server caller supplied resolved records, auto-

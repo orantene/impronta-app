@@ -35,6 +35,7 @@ import {
   resolveRosterSafeHref,
 } from "./directory-nav-href";
 import { renderRightZone } from "./EditorialSplitRightZone";
+import { navLandmarkAriaLabel } from "@/lib/site-admin/nav-landmark-label";
 
 function textAlignFor(align?: "left" | "center" | "right"): CSSProperties["textAlign"] {
   if (align === "left") return "left";
@@ -417,7 +418,7 @@ export async function SiteHeaderComponent({
           ) : null;
         case "nav":
           return navLinks.length > 0 ? (
-            <nav key={key} {...attrs} className="site-header__ritem site-header__nav" aria-label="Primary">
+            <nav key={key} {...attrs} className="site-header__ritem site-header__nav" aria-label={navLandmarkAriaLabel(locale)}>
               <ul className="site-header__nav-list">
                 {navLinks.map((l, i) => (
                   <li key={i} className="site-header__nav-item">
@@ -668,7 +669,7 @@ export async function SiteHeaderComponent({
           ) : null}
         </a>
         {navLinks.length > 0 ? (
-          <nav className="site-header__nav" aria-label="Primary">
+          <nav className="site-header__nav" aria-label={navLandmarkAriaLabel(locale)}>
             <ul className="site-header__nav-list">
               {navLinks.map((item, i) => (
                 <li key={i} className="site-header__nav-item">
