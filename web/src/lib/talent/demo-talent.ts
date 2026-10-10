@@ -11,7 +11,8 @@ import { logServerError } from "@/lib/server/safe-error";
 
 export const DEMO_SITE_FOOTER = {
   es: "Perfil de demostración. Las reservas están desactivadas.",
-  en: "Demo profile. Bookings are simulated.",
+  // GRK-027 / TUL-529: EN must match ES meaning (disabled), not "simulated".
+  en: "Demo profile. Bookings are disabled.",
 } as const;
 
 export const DEMO_SUBMIT_REFUSAL =
