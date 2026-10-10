@@ -107,7 +107,13 @@ export async function renderMaxSiteDocument(args: {
   /** Fictional demo talent: a Demo pill above the header + a footer line. */
   isDemo?: boolean;
   /** The talent's display name: labels the first group of the Tulala strip. */
-  talentName?: string | null; /** Paid Web Office only: footer links + source WhatsApp text. */ webOffice?: WebOfficeCtx | null;
+  talentName?: string | null;
+  /** TUL-310 footer Help context. */
+  profileCode?: string | null;
+  siteHost?: string | null;
+  /** Request origin for magazine footer credit (hostname only). */
+  canonicalOrigin?: string;
+  /** Paid Web Office only: footer links + source WhatsApp text. */ webOffice?: WebOfficeCtx | null;
 }): Promise<ReactNode> {
   const {
     siteTokens,
@@ -121,6 +127,13 @@ export async function renderMaxSiteDocument(args: {
     draftPreview,
     showPlatformBadge,
   } = args;
+
+  let publicHost = "";
+  try {
+    publicHost = new URL(args.canonicalOrigin ?? "").hostname.replace(/^www\./, "");
+  } catch {
+    publicHost = "";
+  }
 
   // Page-scoped theme cascade — identical to the published talent page route.
   const designSlice = readTalentDesignSlice(page.theme);
@@ -286,7 +299,10 @@ export async function renderMaxSiteDocument(args: {
   // The header's section links get the same treatment (a talent with no reviews has no #reviews band, so the link goes).
   const liveHeaderTree = pruneDeadSectionLinks(headerTree, renderedBlocks, [footerTree], { homePath });
   // TUL-133: a transparent header gets white text only over a dark full-bleed hero.
-  const overHeroAttr = headerOverlayAllowed(renderedBlocks) ? { "data-over-hero": "true" } : {};
+  // Policy / override bodies are light documents: never stamp over-hero from the
+  // home tree, or brand + nav stay white-on-white with no readable way home (TUL-516 H1).
+  const overHeroAttr =
+    !args.mainOverride && headerOverlayAllowed(renderedBlocks) ? { "data-over-hero": "true" } : {};
   const hasSocialNode = builderTreeHasKind(footerTree, "social_links");
   const socialLinks =
     hasSocialNode || args.webOffice
@@ -311,6 +327,7 @@ export async function renderMaxSiteDocument(args: {
     whitelabel,
     consentTooling: socketConsentToolingEnabled(),
     talentName: args.talentName,
+    helpContext: args.profileCode ? { profileCode: args.profileCode, siteHost: args.siteHost ?? null } : null,
     headerHasLanguageSwitch: headerShowsLanguageSwitch(headerTree),
   });
 
@@ -357,6 +374,7 @@ export async function renderMaxSiteDocument(args: {
                 visitorLocale: locale,
                 contentLocale: args.localeCtx.contentLocale,
                 renderSectionEmbed,
+                publicHost: publicHost || undefined,
               })
             : null}
         </div>
@@ -375,6 +393,7 @@ export async function renderMaxSiteDocument(args: {
           visitorLocale: locale,
           contentLocale: args.localeCtx.contentLocale,
           renderSectionEmbed,
+          publicHost: publicHost || undefined,
         })}
       </div>
     );
@@ -485,6 +504,7 @@ export async function renderMaxSiteDocument(args: {
               visitorLocale: locale,
               contentLocale: args.localeCtx.contentLocale,
               renderSectionEmbed,
+              publicHost: publicHost || undefined,
             })}
           </header>
         )
@@ -506,6 +526,7 @@ export async function renderMaxSiteDocument(args: {
           contentLocale: args.localeCtx.contentLocale,
           ...experimentContext,
           renderSectionEmbed,
+          publicHost: publicHost || undefined,
         })}
       </main>
 
@@ -521,6 +542,7 @@ export async function renderMaxSiteDocument(args: {
             visitorLocale: locale,
             contentLocale: args.localeCtx.contentLocale,
             renderSectionEmbed,
+            publicHost: publicHost || undefined,
           })}{webOfficeStrip}
         </footer>
       ) : null}

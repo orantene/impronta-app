@@ -43,6 +43,8 @@ import { buildMaxSiteSeo, type MaxSiteSeo } from "./max-site-seo.server";
 import { loadMaxSiteSeoFacts } from "./max-site-seo-facts.server";
 import { loadTalentSiteLocaleContext } from "./talent-site-locale.server";
 import { webOfficeCtxFor } from "./web-office-footer";
+import { siteHostFromOrigin } from "@/lib/talent-site/footer-socket";
+import { talentSiteLocalePath } from "@/lib/talent-site/talent-site-locale-routing";
 import { webOfficeSocialEnabled } from "../web-office-social";
 import { loadTalentPolicyModel, policyMainNode, policySeo } from "./policy-main";
 import { policyDocForSlug } from "@/lib/talent-policies/public";
@@ -275,9 +277,14 @@ async function renderTalentMaxSiteUnguarded(
     const policyModel = policyDoc
       ? await timed("maxSite.policyModel", () => loadTalentPolicyModel(talentProfileId, policyDoc, locale))
       : null;
+    // Policy pages keep the home shell but swap the body: give the document a
+    // locale-aware home link so white-on-white chrome never traps the visitor.
+    const policyHomeHref = policyModel
+      ? talentSiteLocalePath("/", locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales)
+      : null;
     const node = await timed("maxSite.document", () =>
       renderMaxSiteDocument({
-        mainOverride: policyModel ? policyMainNode(policyModel) : undefined,
+        mainOverride: policyModel ? policyMainNode(policyModel, { homeHref: policyHomeHref ?? "/" }) : undefined,
         siteTokens,
         designSlug,
         shellTree: hydratedShell,
@@ -294,6 +301,9 @@ async function renderTalentMaxSiteUnguarded(
         showPlatformBadge: talentSiteShowsPlatformBadge(planKey),
         isDemo,
         talentName: identity?.name ?? null,
+        profileCode: identity?.profileCode ?? null,
+        siteHost: siteHostFromOrigin(input.canonicalOrigin ?? process.env.NEXT_PUBLIC_SITE_URL),
+        canonicalOrigin: input.canonicalOrigin,
         webOffice: webOfficeCtxFor(webOfficeSocialEnabled(planKey), {
           canonicalOrigin: input.canonicalOrigin ?? process.env.NEXT_PUBLIC_SITE_URL,
           canonicalPath: input.canonicalPath,
