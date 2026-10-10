@@ -10,10 +10,14 @@
  * TAL-93900 are refused by name.
  *
  * Run (from web/), by the Project Manager:
- *   npx tsx --env-file=.env.local scripts/demo-talents/ensure-demo-booking-hours.mts
- *   npx tsx --env-file=.env.local scripts/demo-talents/ensure-demo-booking-hours.mts --apply --yes
- *   npx tsx --env-file=.env.local scripts/demo-talents/ensure-demo-booking-hours.mts --only TAL-93005 --apply --yes
+ *   npm run demo:ensure-booking-hours
+ *   npm run demo:ensure-booking-hours -- --apply --yes
+ *   npm run demo:ensure-booking-hours:diego -- --apply --yes
  *   npx tsx --env-file=.env.local scripts/demo-talents/ensure-demo-booking-hours.mts --restore <backup.json> --apply --yes
+ *
+ * TUL-538: Diego (TAL-93005) was live without hours after #3089; PM should
+ * re-run `demo:ensure-booking-hours:diego -- --apply --yes` whenever a demo
+ * seed drifts and the when-step shows "No hay horarios libres".
  */
 import { createClient } from "@supabase/supabase-js";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";

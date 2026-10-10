@@ -169,6 +169,8 @@ export function TalentTodayHero({
   isDay1,
   onReplyNow,
   onAvailability,
+  onActivateAvailability,
+  activatingAvailability = false,
   onOpenProfile,
   onOpenCalendar,
   onOpenActivity,
@@ -194,6 +196,11 @@ export function TalentTodayHero({
   isDay1: boolean;
   onReplyNow: () => void;
   onAvailability: () => void;
+  /** TUL-538 — 1-click turn-on when paused. When set and !availableForWork, the
+   *  hero CTA activates bookings instead of opening the drawer. */
+  onActivateAvailability?: () => void;
+  /** True while the activate action is in flight. */
+  activatingAvailability?: boolean;
   onOpenProfile: () => void;
   /** Audit #11 — drill-in handlers for the stats strip. */
   onOpenCalendar?: () => void;
@@ -388,8 +395,17 @@ export function TalentTodayHero({
               onPrimary={onReplyNow}
             />
           )}
-          <SecondaryButton onClick={onAvailability}>
-            {copy.t("Availability")}
+          <SecondaryButton
+            onClick={
+              !availableForWork && onActivateAvailability
+                ? onActivateAvailability
+                : onAvailability
+            }
+            disabled={activatingAvailability}
+          >
+            {!availableForWork && onActivateAvailability
+              ? copy.t("Turn on availability")
+              : copy.t("Availability")}
           </SecondaryButton>
         </div>
       </div>
