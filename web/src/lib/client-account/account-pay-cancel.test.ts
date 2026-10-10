@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 
-import { owedCents } from "./area-pure";
+import { formatZonedWhen, owedCents, pickClientBooking } from "./area-pure";
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 
@@ -45,4 +45,44 @@ test("/c/<id> keeps a signed-in client on the talent site after booking (TUL-62)
   const page = read("src/app/c/[inquiryId]/page.tsx");
   const talentBranch = page.slice(page.indexOf("if (!onTalentSite)"));
   assert.match(talentBranch, /clientAccountEnabledFor\("talent"\)[\s\S]{0,40}redirect\(`\/account\/visits\/\$\{encodeURIComponent\(inquiryId\)\}`\)/);
+});
+
+test("pickClientBooking: the client's own open booking beats a newer draft without a client", () => {
+  const rows = [
+    { id: "draft", client_user_id: null, status: "draft" },
+    { id: "old-cancelled", client_user_id: "u1", status: "cancelled" },
+    { id: "mine", client_user_id: "u1", status: "confirmed" },
+  ];
+  assert.equal(pickClientBooking(rows, "u1")?.id, "mine");
+  assert.equal(pickClientBooking(rows.slice(0, 2), "u1")?.id, "old-cancelled");
+  assert.equal(pickClientBooking(rows.slice(0, 1), "u1")?.id, "draft");
+  assert.equal(pickClientBooking([], "u1"), null);
+});
+
+test("Pagos reads owed bookings without a SQL status filter (non-enum values made Postgres reject it)", () => {
+  const data = read("src/lib/client-account/area-data.server.ts");
+  const owed = data.slice(data.indexOf("export async function loadOwedPayLinks"));
+  assert.doesNotMatch(owed, /\.not\("status", "in"/);
+  assert.match(owed, /CLOSED_BOOKING_STATUSES as readonly string\[\]\)\.includes/);
+});
+
+test("a request with no booking yet shows the picked slot and service from its reservation stamp", () => {
+  const data = read("src/lib/client-account/area-data.server.ts");
+  assert.match(data, /parseReservationStamp\(i\.source_context\)/);
+  assert.match(data, /startsAt: b\?\.starts_at \?\? \(b \? null : stamp\?\.starts_at \?\? null\)/);
+  const w = formatZonedWhen("2026-10-13", "America/Mexico_City", "es");
+  assert.equal(w?.time, "");
+  assert.match(w?.date ?? "", /13 de octubre/);
+});
+
+test("the public booking drawer's follow-up link stays on the site (/c/<id>)", () => {
+  const view = read("src/components/inquiry/InquirySubmittedView.tsx");
+  assert.match(view, /followUpOnSite\s*\?\s*`\/c\/\$\{encodeURIComponent\(state\.inquiryId\)\}`/);
+  assert.match(read("src/components/public-booking/BookableComposer.tsx"), /\n\s*followUpOnSite\n/);
+});
+
+test("payMyBookingForm runs the impersonation guard before anything else", () => {
+  const src = read("src/lib/client-account/booking-actions.ts");
+  const form = src.slice(src.indexOf("export async function payMyBookingForm"));
+  assert.match(form, /^export async function payMyBookingForm[^\n]*\n\s*if \(!\(await assertNotImpersonating\(\)\)\.ok\)/);
 });

@@ -8,10 +8,11 @@ import { CLIENT_THREAD, INTERNAL_NOTE_KIND } from "@/lib/messaging/thread-rule";
 import { requestNowMs } from "@/lib/projects/request-clock";
 import { bookingOfferingId, loadBookingCancelPolicy, type BookingCancelPolicy } from "@/lib/scheduling/booking-cancel-policy";
 import { refundableCentsFromPolicy } from "@/lib/scheduling/cancel-booking";
+import { parseReservationStamp } from "@/lib/scheduling/reservation-intent";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
-import { CLOSED_BOOKING_STATUSES, groupVisits, owedCents, shapeReceiptLines, type ReceiptLine } from "./area-pure";
+import { CLOSED_BOOKING_STATUSES, groupVisits, owedCents, pickClientBooking, shapeReceiptLines, type ReceiptLine } from "./area-pure";
 import { loadVisitZones } from "./visit-zones.server";
 
 /** Every query here is `client_user_id = session user` AND `tenant_id = this site's tenant`. */
@@ -52,7 +53,7 @@ export async function loadVisitDetail(userId: string, tenantId: string, inquiryI
   if (!admin) return null;
   const { data: inq, error } = await admin
     .from("inquiries")
-    .select("id, company, status, event_date, event_location")
+    .select("id, company, status, event_date, event_location, source_context")
     .eq("id", inquiryId)
     .eq("client_user_id", userId)
     .eq("tenant_id", tenantId)
@@ -62,20 +63,29 @@ export async function loadVisitDetail(userId: string, tenantId: string, inquiryI
     return null;
   }
   if (!inq) return null;
-  const i = inq as { id: string; company: string | null; status: string | null; event_date: string | null; event_location: string | null };
+  const i = inq as {
+    id: string;
+    company: string | null;
+    status: string | null;
+    event_date: string | null;
+    event_location: string | null;
+    source_context: unknown;
+  };
+  // A request sent from the slot picker has no booking yet; the picked slot
+  // (instant, zone, offering) lives on the inquiry's reservation stamp.
+  const stamp = parseReservationStamp(i.source_context);
   const { data: bk, error: bkErr } = await admin
     .from("agency_bookings")
     .select("id, title, status, starts_at, order_id, currency_code, total_client_revenue, payment_status, client_user_id, venue_name, venue_address")
     .eq("source_inquiry_id", inquiryId)
     .eq("tenant_id", tenantId)
     .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(20);
   if (bkErr) {
     logServerError("clientAccount.visit.booking", bkErr);
     return null;
   }
-  const b = bk as {
+  const b = pickClientBooking((bk ?? []) as Array<{ client_user_id: string | null; status: string | null }>, userId) as {
     id: string;
     title: string | null;
     status: string | null;
@@ -118,6 +128,18 @@ export async function loadVisitDetail(userId: string, tenantId: string, inquiryI
     if (linkErr) logServerError("clientAccount.visit.payLink", linkErr);
     payCode = (link as { code?: string } | null)?.code ?? null;
   }
+  let requestedService: string | null = null;
+  if (!b && stamp) {
+    offeringId = stamp.offering_id;
+    const { data: off, error: offErr } = await admin
+      .from("talent_offerings")
+      .select("title")
+      .eq("id", stamp.offering_id)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (offErr) logServerError("clientAccount.visit.requestedOffering", offErr);
+    requestedService = (off as { title?: string | null } | null)?.title?.trim() || null;
+  }
   const nowMs = requestNowMs();
   const window = resolveCancellationWindow({ cancellationHours: policy.cancelFreeHours, startsAt: b?.starts_at ?? null, eventDate: null, nowMs });
   const status = (b?.status ?? i.status ?? "").toLowerCase();
@@ -127,9 +149,9 @@ export async function loadVisitDetail(userId: string, tenantId: string, inquiryI
   return {
     inquiryId,
     bookingId: b?.id ?? null,
-    service: b?.title?.trim() || i.company?.trim() || "",
+    service: b?.title?.trim() || requestedService || i.company?.trim() || "",
     status,
-    startsAt: b?.starts_at ?? null,
+    startsAt: b?.starts_at ?? (b ? null : stamp?.starts_at ?? null),
     eventDate: i.event_date,
     place: [b?.venue_name, b?.venue_address].filter(Boolean).join(" · ") || i.event_location,
     amountCents: amount !== null && Number.isFinite(amount) ? amount : null,
@@ -150,7 +172,7 @@ export async function loadVisitDetail(userId: string, tenantId: string, inquiryI
       }),
     },
     offeringId,
-    timeZone: await offeringTalentZone(admin, offeringId),
+    timeZone: (await offeringTalentZone(admin, offeringId)) ?? (b ? null : stamp?.timezone ?? null),
     // The server action re-checks ownership; this only decides whether to show the buttons.
     canManage: !!b && b.client_user_id === userId && !closed && Number.isFinite(startMs) && startMs > nowMs,
     payCode,
@@ -392,18 +414,21 @@ export async function loadOwedPayLinks(userId: string, tenantId: string): Promis
   if (!admin) return [];
   const { data, error } = await admin
     .from("agency_bookings")
-    .select("id, title, order_id")
+    .select("id, title, order_id, status")
     .eq("client_user_id", userId)
     .eq("tenant_id", tenantId)
     .in("payment_status", ["unpaid", "partial"])
-    .not("status", "in", `(${CLOSED_BOOKING_STATUSES.join(",")})`)
     .not("order_id", "is", null)
     .limit(50);
   if (error) {
     logServerError("clientAccount.payLinks.bookings", error);
     return [];
   }
-  const rows = (data ?? []) as Array<{ id: string; title: string | null; order_id: string }>;
+  // Closed statuses are filtered here, not in SQL: some of them ("declined", "expired")
+  // are not `booking_status` enum values and Postgres rejects the whole query (22P02).
+  const rows = ((data ?? []) as Array<{ id: string; title: string | null; order_id: string; status: string | null }>).filter(
+    (r) => !(CLOSED_BOOKING_STATUSES as readonly string[]).includes((r.status ?? "").toLowerCase()),
+  );
   if (rows.length === 0) return [];
   const { data: links, error: linkErr } = await admin
     .from("payment_links")

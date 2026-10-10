@@ -75,16 +75,17 @@ test("two visits with different talents read in different zones in the list", ()
 
 test("TUL-62: list when uses starts_at (not date-only UTC midnight) in the talent zone", () => {
   const zone = visitZone("America/Mexico_City", "UTC");
-  // Date-only → UTC midnight → previous evening in Mexico City (the Live QA bug).
+  // Date-only stays that calendar day with no clock (it used to read as UTC
+  // midnight: the previous evening in Mexico City, the Live QA bug).
   const dateOnly = formatZonedWhen("2026-10-20", zone, "es");
   assert.ok(dateOnly);
-  assert.match(dateOnly.time, /6:00|18:00/);
+  assert.equal(dateOnly.time, "");
   // Full timestamptz (what detail uses / what loadMeData now maps into eventDate).
   const startsAt = formatZonedWhen("2026-10-20T16:00:00.000Z", zone, "es");
   assert.ok(startsAt);
   assert.match(startsAt.time, /10:00/);
   assert.match(startsAt.date, /20/);
-  assert.notEqual(dateOnly.date, startsAt.date);
+  assert.equal(dateOnly.date, startsAt.date);
 });
 
 test("TUL-62: Cancel/Reschedule show when canManage; list uses MeItem title/status/when", () => {

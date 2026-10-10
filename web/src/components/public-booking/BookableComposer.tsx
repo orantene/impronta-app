@@ -327,6 +327,7 @@ export function BookableComposer({
           }
           enableDraftAutosave={false}
           bookableOffering={active}
+          followUpOnSite
           initialIntent={initialIntent}
           onClose={() => setOpen(false)}
         />

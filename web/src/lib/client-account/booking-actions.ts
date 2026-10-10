@@ -242,6 +242,7 @@ async function payMyBooking(bookingId: string): Promise<{ ok: true; code: string
 
 /** The "Pagar" form on `/account`: mint (or reuse) the link, then go pay on this site. */
 export async function payMyBookingForm(formData: FormData): Promise<void> {
+  if (!(await assertNotImpersonating()).ok) redirect("/account?tab=payments&pay=failed");
   const parsed = uuid.safeParse(formData.get("bookingId"));
   const res = parsed.success ? await payMyBooking(parsed.data) : null;
   redirect(res?.ok ? `/pay/${encodeURIComponent(res.code)}` : "/account?tab=payments&pay=failed");
