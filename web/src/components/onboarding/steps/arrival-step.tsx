@@ -10,6 +10,7 @@ import type { ArrivalPayload } from "@/lib/onboarding/arrival";
 import { ARRIVAL_THUMB_FRAME_NAME } from "@/components/edit-chrome/embedded-frame";
 
 import { finishPlan, type FinishPlan } from "@/lib/onboarding/finish-plan";
+import { buildArrivalNextSteps } from "@/lib/onboarding/arrival-next-steps";
 
 import { PrimaryButton, Sub, Title } from "../ui";
 
@@ -76,11 +77,8 @@ export function ArrivalStep({ t, arrival, onRetry, busy = false }: { t: (key: st
 
   const business = arrival.variant === "business" || arrival.variant === "both" || arrival.variant === "fallback";
   const title = arrival.variant === "talent" ? t("public.onboarding.arrival.readyTalent") : business ? t("public.onboarding.arrival.readyBusiness") : t("public.onboarding.arrival.youreIn");
-  const nextSteps = arrival.siteLive
-    ? [t("public.onboarding.arrival.nextTalentLive"), t("public.onboarding.arrival.nextTalentPhotos"), t("public.onboarding.arrival.nextTalentBio")]
-    : business
-    ? [t("public.onboarding.arrival.nextVisit"), t("public.onboarding.arrival.nextCustomize"), t("public.onboarding.arrival.nextPhotos"), t("public.onboarding.arrival.nextDomain"), t("public.onboarding.arrival.nextPremium")]
-    : [t("public.onboarding.arrival.nextTalentPhotos"), t("public.onboarding.arrival.nextTalentBio"), t("public.onboarding.arrival.nextTalentShare")];
+  // onb1-19: only tick rows with evidence (siteLive). Never i===0.
+  const nextSteps = buildArrivalNextSteps({ siteLive: Boolean(arrival.siteLive), business }, t);
 
   return (
     <div data-testid="onb-arrival" data-variant={arrival.variant}>
@@ -167,10 +165,10 @@ export function ArrivalStep({ t, arrival, onRetry, busy = false }: { t: (key: st
       <div className="mt-6" data-testid="onb-next-steps">
         <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em]" style={{ color: "var(--tl-muted)" }}>{t("public.onboarding.arrival.nextSteps")}</p>
         <ul className="mt-2 flex flex-col gap-2">
-          {nextSteps.map((step, i) => (
-            <li key={step} className="flex items-center gap-3 text-[0.9375rem]" style={{ color: "var(--tl-ink)" }}>
-              <span aria-hidden className="grid size-5 shrink-0 place-items-center rounded-full text-[0.7rem]" style={{ background: i === 0 ? "var(--tl-positive)" : "transparent", color: i === 0 ? "#fff" : "var(--tl-muted)", border: i === 0 ? "none" : "1px solid var(--tl-hairline-strong)" }}>{i === 0 ? "✓" : ""}</span>
-              {step}
+          {nextSteps.map((step) => (
+            <li key={step.label} className="flex items-center gap-3 text-[0.9375rem]" style={{ color: "var(--tl-ink)" }} data-done={step.done ? "true" : "false"}>
+              <span aria-hidden className="grid size-5 shrink-0 place-items-center rounded-full text-[0.7rem]" style={{ background: step.done ? "var(--tl-positive)" : "transparent", color: step.done ? "#fff" : "var(--tl-muted)", border: step.done ? "none" : "1px solid var(--tl-hairline-strong)" }}>{step.done ? "✓" : ""}</span>
+              {step.label}
             </li>
           ))}
         </ul>
