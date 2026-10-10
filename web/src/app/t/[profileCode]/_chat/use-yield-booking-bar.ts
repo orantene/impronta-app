@@ -6,7 +6,7 @@
  * same bottom-right corner (and so Seleccionar on the last rows stays tappable).
  */
 
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 
 import {
   GUEST_CHAT_LAUNCHER_BOOKING_BAR_LIFT_PX,
@@ -14,8 +14,8 @@ import {
   GUEST_CHAT_LAUNCHER_BOTTOM_PX,
 } from "./mini-chat-styles";
 
-/** Gap between a sticky bottom chrome top edge and the launcher bottom edge. */
-const BOOKING_BAR_CLEARANCE_PX = 16;
+/** Gap between a sticky bottom chrome top edge and the launcher bottom edge (GRK-036). */
+export const BOOKING_BAR_CLEARANCE_PX = 24;
 
 function visibleFixedChrome(el: HTMLElement | null): el is HTMLElement {
   if (!el) return false;
@@ -38,7 +38,9 @@ export function useYieldBookingBar(mounted: boolean, narrowLauncher: boolean): {
   const [selectionDockUp, setSelectionDockUp] = useState(false);
   const [chromeLiftPx, setChromeLiftPx] = useState(0);
 
-  useEffect(() => {
+  // GRK-036: layout effect so Hablar clears the sticky bar before first paint
+  // (useEffect left the FAB at bottom:24 for a frame on top of Continuar).
+  useLayoutEffect(() => {
     if (!mounted) return;
     const measure = () => {
       // The pill capsule carries its own chat button: the FAB tucks away too.
