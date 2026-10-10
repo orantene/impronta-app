@@ -58,20 +58,20 @@
         "caption": "03 · Textura"
       },
       {
-        "group": "Runway",
+        "group": "Pasarela",
         "numeral": "II",
         "contents": "Salidas y detalles",
         "imageKey": "f-d-stride",
         "caption": "Salida 1"
       },
       {
-        "group": "Runway",
+        "group": "Pasarela",
         "numeral": "II",
         "imageKey": "f-d-feet",
-        "caption": "Fitting"
+        "caption": "Prueba de vestuario"
       },
       {
-        "group": "Runway",
+        "group": "Pasarela",
         "numeral": "II",
         "imageKey": "f-d-shirt",
         "caption": "Salida 3"
@@ -82,7 +82,7 @@
     {
       "id": "ed",
       "category": "Editorial",
-      "name": "Editorial shoot, half day",
+      "name": "Sesión editorial, medio día",
       "durationLabel": "4 h",
       "durationMinutes": 240,
       "priceLabel": "$9,500",
@@ -134,8 +134,8 @@
     },
     {
       "id": "run",
-      "category": "Runway",
-      "name": "Runway show booking",
+      "category": "Pasarela",
+      "name": "Reserva de show de pasarela",
       "durationLabel": "Por show",
       "durationMinutes": null,
       "priceLabel": "Desde $7,000",
@@ -182,7 +182,7 @@
     {
       "id": "look",
       "category": "E-commerce",
-      "name": "Lookbook / e-commerce day",
+      "name": "Día de lookbook y e-commerce",
       "durationLabel": "8 h",
       "durationMinutes": 480,
       "priceLabel": "$16,000",
@@ -300,7 +300,7 @@
       "value": "ES/EN"
     }
   ],
-  "statsTitle": "Medidas · Comp card",
+  "statsTitle": "Medidas · Ficha",
   "location": null,
   "footer": {
     "headline": "Siguiente número.",
@@ -330,6 +330,21 @@
           "name": "In-person casting",
           "description": "My open slots for castings and go-sees in Mexico City. You pick the time; I arrive with book, polaroids and up-to-date measurements.",
           "category": "Casting"
+        },
+        "ed": {
+          "name": "Editorial shoot, half day",
+          "description": "Half day for a magazine or brand editorial. I arrive with hair and skin ready for camera and work with your stylist.",
+          "category": "Editorial"
+        },
+        "run": {
+          "name": "Runway show booking",
+          "description": "Runway for fashion weeks, brand presentations or showrooms. Includes a fitting the day before.",
+          "category": "Runway"
+        },
+        "look": {
+          "name": "Lookbook / e-commerce day",
+          "description": "Full day of catalogue or lookbook. Fast pace and look changes without losing consistency.",
+          "category": "E-commerce"
         }
       },
       "faq": [
