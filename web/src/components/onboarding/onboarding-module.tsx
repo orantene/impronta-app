@@ -430,7 +430,20 @@ export function OnboardingModule({
     : state.step === "confirmWords" || state.step === "tooLittle" || state.step === "entry" || state.step === "essentials" || state.step === "setup" || state.step === "style" || state.step === "readyToBuild" || state.step === "save";
 
   let body: React.ReactNode;
-  if (state.resume) {
+  // GRK-109: wait for the resume cookie lookup before painting Choose / Entry.
+  // Otherwise a late "Bienvenido de nuevo" card replaces the first Continuar.
+  if (!resumeChecked) {
+    body = (
+      <div
+        aria-busy
+        className="py-16 text-center text-[0.875rem]"
+        style={{ color: "var(--tl-muted)" }}
+        data-testid="onb-resume-loading"
+      >
+        …
+      </div>
+    );
+  } else if (state.resume) {
     body = (
       <ResumeCard
         t={t}

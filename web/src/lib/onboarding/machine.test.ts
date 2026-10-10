@@ -47,6 +47,30 @@ test("resume: only a resumable snapshot offers Continue; Fresh keeps auth and in
   assert.equal(none.resume, null);
 });
 
+test("GRK-109: late resumeLoaded does not overlay after a choice this session", () => {
+  const snap = {
+    briefId: "b-late",
+    isAuthenticated: false,
+    email: null,
+    state: { step: "entry" as const, choice: "studio" as const },
+  };
+  const afterChoice = run(
+    [{ type: "choiceChosen", choice: "myself" }, { type: "resumeLoaded", snapshot: snap }],
+    initialMachineState("unknown", "choose"),
+  );
+  assert.equal(afterChoice.resume, null);
+  assert.equal(afterChoice.choice, "myself");
+  assert.equal(afterChoice.step, "entry");
+  assert.equal(afterChoice.isAuthenticated, false);
+
+  const whileBusy = run(
+    [{ type: "sendStarted" }, { type: "resumeLoaded", snapshot: snap }],
+    initialMachineState("unknown", "choose"),
+  );
+  assert.equal(whileBusy.resume, null);
+  assert.equal(whileBusy.busy, true);
+});
+
 test("phase 3: card → accept → essentials → (style for a business) → ready; back", async () => {
   const { buildUnderstanding } = await import("./understanding");
   const { briefFromOnboardingFixture, fixtureById } = await import("./fixtures");
