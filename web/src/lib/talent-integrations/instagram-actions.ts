@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { fetchInstagramProfile } from "@/lib/connection-oauth/instagram";
 import { isConnectionOAuthConfigured } from "@/lib/connection-oauth/providers";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import {
   assertTalentCanInsertSiteSections,
@@ -48,6 +49,8 @@ export async function loadTalentInstagramCardAction(): Promise<CardResult> {
  * retryable `error`.
  */
 export async function syncTalentInstagramAction(): Promise<CardResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   const guard = await requireTalentSelf();
   if (!guard.ok) return { ok: false, error: guard.error };
   if (!assertTalentCanInsertSiteSections(guard.planKey)) {
