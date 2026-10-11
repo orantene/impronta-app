@@ -182,6 +182,7 @@ import { renderAlertBandBlock } from "./alert-band-block";
 import { renderTaskPickerBlock } from "./task-picker-block";
 import { renderNailDesignerBlock } from "./nail-designer-block";
 import { NextFreeChipView } from "./next-free-chip";
+import { headerLogoDeclarations } from "../header-logo-limits";
 import type { LiveStatusRenderContext } from "@/lib/talent/live-status-render";
 
 export interface BuilderNodeRenderDataSources {
@@ -1369,6 +1370,9 @@ export const BUILDER_NODE_RENDERER_CSS = `
    !important. Full-bleed and background-media blocks are untouched. */
 [data-talent-max-site-main] [data-cms-block]>.site-builder-node--container:not([data-builder-full-bleed]):not([data-bn-bg-media]){padding-inline:1.5rem}
 .site-builder-node--container[data-builder-layout="row"]{flex-direction:row;flex-wrap:wrap}
+/* TUL-532: a kit-shell header logo is a plain image node (inline width:100% + cover), so a
+   wordmark was cropped or blown up. Same platform limits as .site-header__brand-mark. */
+[data-talent-max-site-header] .site-builder-node--container[data-builder-layout="row"]>.site-builder-node--image,[data-talent-max-site-header] .site-builder-node--container[data-builder-layout="row"]>.site-builder-node--image-link>.site-builder-node--image{${headerLogoDeclarations(true)};flex:0 0 auto}
 .site-builder-node--container[data-builder-layout="grid"],.site-builder-node--container[data-builder-display="grid"]{display:grid;grid-template-columns:repeat(var(--bn-columns,2),minmax(0,1fr))}
 .site-builder-node--container[data-builder-display="slider"]{display:flex;flex-direction:row;flex-wrap:nowrap;gap:var(--bn-slider-gap,var(--bn-gap,16px));overflow-x:auto;scroll-snap-type:x mandatory}
 .site-builder-node--container[data-builder-display="slider"] > *{flex:0 0 calc((100% - (var(--bn-items-per-view,3) - 1) * var(--bn-slider-gap,var(--bn-gap,16px))) / var(--bn-items-per-view,3));min-width:0;scroll-snap-align:start}
