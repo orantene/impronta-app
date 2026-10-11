@@ -22,7 +22,7 @@ import { StorefrontBody } from "./StorefrontBody";
 import { StorefrontFilter } from "./StorefrontFilter";
 import { orderCategoryNames } from "@/lib/site-admin/builder-node/services-catalog-title";
 import { LightSectionLabel } from "../_light/section-label";
-import { needsUsdRates } from "@/lib/pricing/usd-equivalent";
+import { needsUsdRates, showsUsdEquivalent } from "@/lib/pricing/usd-equivalent";
 import { loadUsdRates } from "@/lib/pricing/usd-rates";
 
 export async function TalentStorefront({
@@ -66,7 +66,7 @@ export async function TalentStorefront({
 
   // "≈ US$" beside prices in another currency. Fetched only when one exists;
   // a failed fetch prints no line rather than a guessed one.
-  const usdRates = needsUsdRates(visible) ? await loadUsdRates() : null;
+  const usdRates = showsUsdEquivalent(locale) && needsUsdRates(visible) ? await loadUsdRates() : null;
 
   return (
     <section aria-labelledby="storefront-heading" data-profile-section="storefront">
