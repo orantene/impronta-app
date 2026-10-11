@@ -11,6 +11,7 @@ import { checkInquiryCurrencyMatchesSeller, resolveNewOfferCurrency } from "./of
 import { majorToMinor, tryMajorToMinor } from "./offer-minor-units";
 import type { EngineResult } from "./inquiry-engine.types";
 import { logServerError } from "@/lib/server/safe-error";
+import { resolveSoloSafeCoordinatorFee } from "./offer-solo-fee";
 import {
   parseTenantCommercialTerms,
   parseTalentBookingTerms,
@@ -1039,12 +1040,19 @@ export async function updateOfferDraft(
       fallbackTerms,
     );
 
+    const coordinatorFee = await resolveSoloSafeCoordinatorFee(supabase, {
+      tenantId: ctx.tenantId,
+      actorUserId: ctx.actorUserId,
+      requestedFee: ctx.coordinator_fee,
+      lineTalentProfileIds: ctx.lineItems.map((line) => line.talent_profile_id?.trim() || null),
+    });
+
     const writeDraft = await inquiryWriteClient(supabase);
     const { data: offerUp, error: oerr } = await writeDraft
       .from("inquiry_offers")
       .update({
         total_client_price: reconciledTotal,
-        coordinator_fee: ctx.coordinator_fee,
+        coordinator_fee: coordinatorFee,
         currency_code: ctx.currency_code,
         notes: ctx.notes,
         // W6a — negotiated terms (display + snapshot only). deposit_amount_cents
