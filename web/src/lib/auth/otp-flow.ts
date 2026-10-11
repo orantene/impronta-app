@@ -84,6 +84,17 @@ export function isValidAuthEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+/**
+ * TUL-558: `name+tag@` aliases. We still send to the full address (Supabase
+ * accepts them), but many inboxes never deliver the OTP. The form warns so a
+ * visitor can switch to a plain address instead of waiting forever.
+ */
+export function authEmailHasPlusTag(email: string): boolean {
+  const at = email.indexOf("@");
+  if (at <= 0) return false;
+  return email.slice(0, at).includes("+");
+}
+
 /* ──────────────────────────── who gets it first ─────────────────────────── */
 
 /**

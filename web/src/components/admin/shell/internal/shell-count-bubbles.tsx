@@ -89,11 +89,15 @@ export function ShellCountBubbles({
   const awaiting = inWorkspace
     ? 0
     : countTalentAwaitingInquiries(effectiveTalentInquiries);
+  // Talent: the layout's count is the inbox "Needs reply" number (TUL-388), so
+  // it wins even at 0; the row recompute is only for a missing bridge.
   const attention =
     countsProp?.find((c) => c.kind === "attention")?.count ??
-    (shellCounts?.attention && shellCounts.attention > 0
-      ? shellCounts.attention
-      : awaiting);
+    (inWorkspace
+      ? shellCounts?.attention && shellCounts.attention > 0
+        ? shellCounts.attention
+        : awaiting
+      : (shellCounts?.attention ?? awaiting));
 
   const visible = visibleShellCountBubbles([
     { kind: "messages", count: messages },

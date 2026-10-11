@@ -38,6 +38,7 @@ test("dual owner: My website primary is the business workspace", () => {
   assert.equal(resolved.kind, "workspace");
   assert.equal(resolved.publicUrl, "https://maison.tulala.digital");
   assert.equal(resolved.editHref, "/maison/admin/website");
+  assert.equal(resolved.designHref, "/maison/admin/website/design");
 });
 
 test("business-only: workspace still wins without a personal row", () => {
