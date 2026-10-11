@@ -10,6 +10,7 @@ import {
 import type { DiscoverMapPoint } from "./shared";
 import { FOCUS_RING } from "./shared";
 import { DirectoryTalentCard } from "./DirectoryTalentCard";
+import { useDirectoryCopy } from "./directory-copy-context";
 
 // Forest marker hexes (canonical --tl-* values). Inline literals because the
 // Google Maps canvas + Symbol markers live outside the token cascade. Cool
@@ -48,6 +49,7 @@ export function MarketingDirectoryMapClient({
   unmappedCount: number;
   onBackToGrid: () => void;
 }) {
+  const t = useDirectoryCopy();
   const [bounds, setBounds] = useState<ViewBounds | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -79,8 +81,8 @@ export function MarketingDirectoryMapClient({
   if (!apiKey) {
     return (
       <MapNotice
-        title="Map view is unavailable"
-        body="The map needs a Google Maps key that isn't configured here."
+        title={t.mapUnavailableTitle}
+        body={t.mapUnavailableBody}
         onBackToGrid={onBackToGrid}
       />
     );
@@ -89,12 +91,8 @@ export function MarketingDirectoryMapClient({
   if (points.length === 0) {
     return (
       <MapNotice
-        title="No mappable talent in this view"
-        body={`Profiles need a structured home city to appear on the map.${
-          unmappedCount > 0
-            ? ` ${unmappedCount} ${unmappedCount === 1 ? "profile has" : "profiles have"} only free-text locations.`
-            : ""
-        }`}
+        title={t.mapEmptyTitle}
+        body={t.mapEmptyBody(unmappedCount)}
         onBackToGrid={onBackToGrid}
       />
     );
@@ -110,19 +108,19 @@ export function MarketingDirectoryMapClient({
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <p className="text-[0.8125rem]" style={{ color: "var(--plt-muted)" }}>
             <strong style={{ color: "var(--plt-ink)" }}>{visible.length}</strong>{" "}
-            {visible.length === 1 ? "profile" : "profiles"} in view
+            {t.mapInViewSuffix(visible.length)}
             {filteredByView ? (
-              <span style={{ color: "var(--plt-muted-soft)" }}> · {points.length} mapped</span>
+              <span style={{ color: "var(--plt-muted-soft)" }}> · {t.mapMapped(points.length)}</span>
             ) : null}
             {unmappedCount > 0 ? (
               <span style={{ color: "var(--plt-muted-soft)" }}>
                 {" "}
-                · {unmappedCount} without a map location
+                · {t.mapWithoutLocation(unmappedCount)}
               </span>
             ) : null}
           </p>
           <span className="text-[0.6875rem]" style={{ color: "var(--plt-muted-soft)" }}>
-            Zoom or drag the map to filter
+            {t.mapZoomHint}
           </span>
         </div>
 
@@ -252,6 +250,7 @@ function MapNotice({
   body: string;
   onBackToGrid: () => void;
 }) {
+  const t = useDirectoryCopy();
   return (
     <div
       className="flex flex-col items-center justify-center gap-2 rounded-[22px] px-6 py-16 text-center"
@@ -269,7 +268,7 @@ function MapNotice({
         className={`mt-2 rounded text-[0.8125rem] font-semibold transition-colors hover:underline ${FOCUS_RING}`}
         style={{ color: "var(--plt-forest)" }}
       >
-        Back to grid →
+        {t.backToGrid}
       </button>
     </div>
   );
