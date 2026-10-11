@@ -8,18 +8,16 @@ import type { GallerySearchResult } from "@/lib/talent-site/theme-catalog/galler
 import { galleryPreviewLookSlug } from "@/lib/talent-site/theme-catalog/gallery-meta";
 import { countUsableDemos } from "@/lib/talent-site/theme-catalog/usable-demos";
 import { ThemeGalleryPreviewFrame } from "@/components/talent/site/theme-gallery/ThemeGalleryPreviewFrame";
-import type { useThemePreview } from "@/components/talent/site/theme-gallery/useThemePreview";
+import { useThemePreview } from "@/components/talent/site/theme-gallery/useThemePreview";
 import { demoProfileMetaFor } from "@/lib/talent-site/demos/demo-profile-meta";
 import { AppBadge } from "./GalleryAppsUi";
 import { appNames, appsOnDesign } from "./gallery-apps";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
 
-type Preview = ReturnType<typeof useThemePreview>;
-
 export function GalleryDesignCard({
   result,
   locale,
-  preview,
+  talentProfileId,
   suggested,
   lastViewed,
   matching,
@@ -28,13 +26,15 @@ export function GalleryDesignCard({
 }: {
   result: GallerySearchResult;
   locale: MaisonSetupLocale;
-  preview: Preview;
+  talentProfileId?: string | null;
   suggested: boolean;
   lastViewed: boolean;
   matching: boolean;
   onExplore: () => void;
   onOpenApps: () => void;
 }) {
+  // Per card: a shared load state drops every spinner when the first frame loads.
+  const preview = useThemePreview({ talentProfileId, locale });
   const d = result.design;
   const demo = result.featuredDemo;
   const n = matching ? countUsableDemos(result.matchingDemos) : countUsableDemos(d.demos);
@@ -100,6 +100,7 @@ export function GalleryDesignCard({
             title={d.name}
             virtualWidth={1280}
             aspectRatio="3 / 4"
+            lazy
           />
         </div>
       </button>

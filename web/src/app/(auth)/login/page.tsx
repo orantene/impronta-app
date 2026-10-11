@@ -1,3 +1,4 @@
+import type { Metadata, ResolvingMetadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import {
@@ -24,6 +25,21 @@ import { LoginForm } from "./login-form";
 import { isAppleAuthProviderEnabled } from "@/lib/auth/apple-provider-flag";
 import { LoginAppleButton } from "./login-apple-button";
 import { LoginGoogleButton } from "./login-google-button";
+import { PLATFORM_BRAND } from "@/lib/platform/brand";
+
+/**
+ * The tab reads "Iniciar sesión · Tulala" / "Log in · Tulala" in the request
+ * language. A whitelabel agency title set by the auth layout (TUL-64) wins.
+ */
+export async function generateMetadata(
+  _props: unknown,
+  parent: ResolvingMetadata,
+): Promise<Metadata> {
+  const inherited = (await parent).title?.absolute;
+  if (inherited && inherited !== `${PLATFORM_BRAND.name} · ${PLATFORM_BRAND.tagline}`) return {};
+  const t = createTranslator(await getRequestLocale());
+  return { title: t("public.auth.login.title") };
+}
 
 async function loadInviterAgencyName(nextPath: string | undefined): Promise<string | null> {
   if (!nextPath?.startsWith("/invite/")) return null;
