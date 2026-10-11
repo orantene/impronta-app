@@ -15,6 +15,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { loadTalentOrders, markBookingFulfillment } from "@/lib/talent/fulfillment-actions";
 import type { TalentOrderRow } from "@/lib/bookings/fulfillment";
+import { settleServerAction } from "@/lib/client/settle-server-action";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 
 const C = {
@@ -46,6 +47,18 @@ function isHandedOff(status: string): boolean {
   return ["shipped", "delivered", "picked_up", "downloaded", "completed"].includes(status);
 }
 
+/** Server actions run one at a time, so this load can queue behind the services list. */
+const LOAD_BUDGET_MS = 15_000;
+
+/** A stalled or failed load reads as "no orders", so the queue stays quiet instead of loading forever. */
+function settleOrders(talentId: string): Promise<TalentOrderRow[]> {
+  return settleServerAction(() => loadTalentOrders(talentId), {
+    label: "loadTalentOrders",
+    area: "talent-services",
+    budgetMs: LOAD_BUDGET_MS,
+  }).catch(() => []);
+}
+
 export function TalentOrdersQueue({ talentId }: { talentId: string }) {
   const copy = useDashboardText();
   const [orders, setOrders] = useState<TalentOrderRow[] | null>(null);
@@ -56,14 +69,13 @@ export function TalentOrdersQueue({ talentId }: { talentId: string }) {
 
   const reload = () => {
     startTransition(async () => {
-      const rows = await loadTalentOrders(talentId);
-      setOrders(rows);
+      setOrders(await settleOrders(talentId));
     });
   };
 
   useEffect(() => {
     let live = true;
-    loadTalentOrders(talentId).then((rows) => {
+    void settleOrders(talentId).then((rows) => {
       if (live) setOrders(rows);
     });
     return () => {

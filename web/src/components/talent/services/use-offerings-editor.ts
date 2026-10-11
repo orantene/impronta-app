@@ -16,6 +16,7 @@
  * to the Menu actions (with the stock RPC). Nothing here renders.
  */
 
+import { settleServerAction } from "@/lib/client/settle-server-action";
 import type { UsdRates } from "@/lib/pricing/usd-equivalent";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import {
@@ -89,6 +90,9 @@ export type OfferingsEditor = {
   reload: () => void;
 };
 
+/** Long enough for a slow list; a discarded action never settles, so the hook needs a bound. */
+const LOAD_BUDGET_MS = 15_000;
+
 export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
   const isWorkspace = owner.kind === "workspace";
   const talentId = owner.kind === "talent" ? owner.talentProfileId : "";
@@ -123,8 +127,16 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
   useEffect(() => {
     let cancelled = false;
     const load = isWorkspace
-      ? loadWorkspaceMenuForEditor(workspaceTenantId)
-      : loadTalentOfferingsForEditor(talentId);
+      ? settleServerAction(() => loadWorkspaceMenuForEditor(workspaceTenantId), {
+          label: "loadWorkspaceMenuForEditor",
+          area: "workspace-menu",
+          budgetMs: LOAD_BUDGET_MS,
+        })
+      : settleServerAction(() => loadTalentOfferingsForEditor(talentId), {
+          label: "loadTalentOfferingsForEditor",
+          area: "talent-services",
+          budgetMs: LOAD_BUDGET_MS,
+        });
     load
       .then((res) => {
         if (cancelled) return;
