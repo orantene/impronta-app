@@ -7,12 +7,13 @@ import { messagingTalentQuoteSend, messagingTalentQuoteStart } from "@/lib/serve
 import { loadTalentClients } from "@/lib/talent/clients-actions";
 import { clientPickerHint, dedupeClientsByPerson, type TalentClientRow } from "@/lib/talent/clients-merge";
 import { loadTalentOfferingsForEditor } from "@/lib/talent/offerings-actions";
-import { formatOfferingPrice, type TalentOffering } from "@/lib/talent/offerings-types";
+import { type TalentOffering } from "@/lib/talent/offerings-types";
 
 import { useAdminShell } from "../../state";
 import { AgendaPanelFrame, createPanelStore } from "./AgendaPanelFrame";
 import { TaskShell } from "./primitives/TaskShell";
 import { useAgendaCopy } from "./use-agenda-copy";
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 
 /**
  * Send quote as ONE shared panel over Today and Messages (mockup tc_ctas,
@@ -367,7 +368,7 @@ function SendQuoteForm({
               {offerings.map((o) => (
                 <option key={o.id} value={o.id}>
                   {o.title}
-                  {o.amountCents != null ? ` · ${formatOfferingPrice(o.amountCents, o.currency, copy.locale)}` : ""}
+                  {o.amountCents != null ? ` · ${formatDashboardMoneyCents(o.amountCents, o.currency, copy.locale)}` : ""}
                 </option>
               ))}
             </select>

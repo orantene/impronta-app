@@ -33,11 +33,11 @@ export function shouldShowTalentActingChip(actingAs: TalentActingAs | undefined)
   return actingAs != null;
 }
 
-export function talentActingAsBannerCopy(locale: string, name: string | null) {
+function actingAsBannerCopy(locale: string, name: string | null, role: { en: string; es: string }) {
   const es = locale.toLowerCase().startsWith("es");
   return {
     effectiveName: name ?? (es ? "otro usuario" : "another user"),
-    roleLabel: es ? "Talento" : "Talent",
+    roleLabel: es ? role.es : role.en,
     readOnlyLine: es ? "Estás actuando como" : "You are acting as",
     v1ReadOnlyQaLine: es
       ? "Vista de solo lectura. Los cambios están desactivados mientras actúas como este usuario."
@@ -46,3 +46,15 @@ export function talentActingAsBannerCopy(locale: string, name: string | null) {
     ariaLabel: es ? "Aviso de suplantación" : "Impersonation notice",
   };
 }
+
+export function talentActingAsBannerCopy(locale: string, name: string | null) {
+  return actingAsBannerCopy(locale, name, { en: "Talent", es: "Talento" });
+}
+
+/** Same banner copy as talent, with a Client role label (TUL-255). */
+export function clientActingAsBannerCopy(locale: string, name: string | null) {
+  return actingAsBannerCopy(locale, name, { en: "Client", es: "Cliente" });
+}
+
+/** Alias: acting-as resolution is role-agnostic (cookie + display name only). */
+export const resolveClientActingAs = resolveTalentActingAs;

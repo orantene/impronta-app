@@ -1,24 +1,16 @@
 /**
- * Hub profile primary CTA decision (TUL-170). PURE.
+ * Hub profile primary CTA decision (TUL-170 / TUL-246). PURE.
  *
- * On the tulala.digital hub a talent WITH a published site (the same
- * `loadTalentMaxSiteLink` URL that drives "Visit my site") gets a primary
- * "Book" button that lands on her site's booking entry; a talent WITHOUT one
- * keeps the existing "Inquire about {name}" button. Agency hosts are untouched.
+ * On the tulala.digital hub a talent WITH bookable services (the same
+ * `resolveBookEntry` → sheet rule that `#book` uses) gets a primary "Book"
+ * button that opens the on-page booking sheet via `#book`. A talent WITHOUT
+ * bookable services keeps "Inquire about {name}". Agency hosts are untouched.
  *
  * The booking entry is the dedicated `#book` anchor (TUL-206,
- * `TALENT_BOOK_HREF`): every talent site opens the booking sheet on it (TUL-246:
- * preferred bookable service), on a cold load as well as on click. The old
- * `#talent-ask` anchor still opens the guest chat. Nothing here hand-builds a
- * site URL; the site URL comes from the caller.
- *
- * The CTA honours the talent's intake switches: when the ask entry has no
- * working entry point (`unavailable`, `hidden`, `closed_notice`,
- * `existing_client`) the site has nothing for Book to open, so the existing
- * Inquire controls (which already carry their own guard) stay.
+ * `TALENT_BOOK_HREF`): cold load, paste, hashchange and click all open the
+ * preferred bookable service's sheet. `#talent-ask` still opens the guest chat.
  */
 import { TALENT_BOOK_HREF } from "@/lib/talent-site/contact-channels";
-import { askEntryPointsVisible, type TalentAskEntry } from "@/lib/talent/chat-entry";
 
 /** Where on the hub profile a Book CTA renders; every slot carries one, none carries an id. */
 export type HubProfileCtaSlot = "header" | "sidebar" | "footer" | "freeform";
@@ -35,18 +27,13 @@ export function talentSiteBookHref(siteUrl: string): string {
 
 export function resolveHubProfileCta(input: {
   platformHost: boolean;
-  maxSiteUrl: string | null | undefined;
-  /** Resolved intake state; omitted means unknown, treated as open. */
-  askEntry?: TalentAskEntry;
+  /** True when the profile has ≥1 bookable service (`resolveBookEntry` → sheet). */
+  hasBookableServices: boolean;
 }): HubProfileCta {
-  const site = input.maxSiteUrl?.trim() ?? "";
-  if (!input.platformHost || !site) return { kind: "inquire" };
-  if (input.askEntry !== undefined && !askEntryPointsVisible(input.askEntry)) {
-    return { kind: "inquire" };
-  }
+  if (!input.platformHost || !input.hasBookableServices) return { kind: "inquire" };
   return {
     kind: "book",
-    href: talentSiteBookHref(site),
-    external: /^https?:\/\//i.test(site),
+    href: TALENT_BOOK_HREF,
+    external: false,
   };
 }

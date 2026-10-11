@@ -302,7 +302,10 @@ export function siteCapabilityDeniedMessage(
   capability: TalentSiteDeniedCapability,
   locale?: string | null,
 ): string {
-  return withTalentPaidTierLabel(pickLocale(locale, SITE_DENIED_COPY[capability]));
+  return withTalentPaidTierLabel(
+    pickLocale(locale, SITE_DENIED_COPY[capability]),
+    locale,
+  );
 }
 
 export function planDeniedMessage(
@@ -332,17 +335,19 @@ export function planDeniedMessage(
     return withTalentTierLabel(
       "Upgrade to {tier} to add social and video embeds and a press band to your profile.",
       "pro",
+      locale,
     );
   }
   if (capability === "template") {
-    return withTalentTierLabel("Upgrade to {tier} to choose premium templates.", "pro");
+    return withTalentTierLabel("Upgrade to {tier} to choose premium templates.", "pro", locale);
   }
   if (capability === "media_kit") {
-    return withTalentTierLabel("Upgrade to {tier} to download your media kit.", "pro");
+    return withTalentTierLabel("Upgrade to {tier} to download your media kit.", "pro", locale);
   }
   if (capability === "custom_builder") {
     return withTalentPaidTierLabel(
       "Upgrade to {tier} to customize sections and build your service website.",
+      locale,
     );
   }
   if (!isTalentSiteTierExpansionEnabled()) {
@@ -350,6 +355,7 @@ export function planDeniedMessage(
   }
   return withTalentPaidTierLabel(
     "Upgrade to {tier} to customize sections and build your service website.",
+    locale,
   );
 }
 
