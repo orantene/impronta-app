@@ -52,3 +52,10 @@ test("the pay page hands the zone to every view that shows the expiry", () => {
   assert.match(view, /t\("public\.thread\.slotKeptUntil"\), \{ time: props\.holdUntil/);
   assert.doesNotMatch(view, /\{props\.expiresAt\}/);
 });
+
+test("a booking stamped with its own zone names that zone, not the workspace default", () => {
+  const page = readFileSync("src/app/(public)/pay/[code]/pay-page.tsx", "utf8");
+  assert.match(page, /\.select\("id, status, title, venue_name, venue_location_text, timezone"\)/);
+  const bookingFirst = page.indexOf("isValidIanaTimeZone(bookingZone)");
+  assert.ok(bookingFirst > 0 && bookingFirst < page.indexOf("resolveTenantTimezone(loaded.tenantId)"));
+});
