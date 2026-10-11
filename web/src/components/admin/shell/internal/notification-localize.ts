@@ -8,6 +8,8 @@
  * content), and the age is computed from the row's timestamp with Intl.
  */
 
+import { themeUpdateCopy } from "@/lib/talent-site/theme-releases/manager/notify";
+
 import { translateDashboardText } from "./dashboard-i18n";
 
 /**
@@ -40,6 +42,8 @@ export function localizeNotificationText(
   locale: string,
 ): string {
   if (!text) return "";
+  const themeUpdate = localizeThemeUpdateText(text, locale);
+  if (themeUpdate) return themeUpdate;
   if (!locale.toLowerCase().startsWith("es")) return text;
   const direct = translateDashboardText(text, locale);
   if (direct !== text) return direct;
@@ -50,4 +54,17 @@ export function localizeNotificationText(
   const ticket = text.match(/^New support ticket #(\d+)$/u);
   if (ticket) return `Nuevo ticket de soporte #${ticket[1]}`;
   return text;
+}
+
+/**
+ * Theme-release bells are written once, in the talent's preferred language at
+ * fan-out, so they are re-rendered here in whichever language the viewer reads.
+ */
+function localizeThemeUpdateText(text: string, locale: string): string | null {
+  const title = text.match(/^(.+) (?:tiene una actualización|has an update)$/u);
+  if (title) return themeUpdateCopy(title[1], locale).title;
+  for (const from of ["es", "en"]) {
+    if (text === themeUpdateCopy("", from).body) return themeUpdateCopy("", locale).body;
+  }
+  return null;
 }

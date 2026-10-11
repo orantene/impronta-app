@@ -116,11 +116,11 @@ export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
   "Website chat": "Chat del sitio",
   "Off hides the chat button. Existing conversations stay and you can still reply.":
     "Apagado oculta el botón de chat. Las conversaciones actuales se quedan y puedes seguir respondiendo.",
-  "'Consultar' will open an inquiry form so inquiry-only services still reach you.":
+  "'Ask about this' will open an inquiry form so inquiry-only services still reach you.":
     "'Consultar' abrirá un formulario de consulta para que los servicios solo por consulta te sigan llegando.",
   "Accept new inquiries": "Aceptar nuevas consultas",
-  "Off hides Ask and Consultar. Clients with a booking can still message you.":
-    "Apagado oculta Preguntar y Consultar. Los clientes con una reserva aún pueden escribirte.",
+  "Off hides the Ask and 'Ask about this' buttons. Clients with a booking can still message you.":
+    "Apagado oculta los botones Preguntar y Consultar. Los clientes con una reserva aún pueden escribirte.",
   "Booking assistant (AI)": "Asistente de reservas (IA)",
   "Off keeps today's scripted chat. On lets the assistant answer from your public services and hand off to you when unsure. It does not book or send pay links yet. Starts off.":
     "Apagado deja el chat con guion de hoy. Encendido deja que el asistente responda con tus servicios públicos y te pase la conversación cuando no esté seguro. Todavía no reserva ni envía enlaces de pago. Empieza apagado.",

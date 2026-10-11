@@ -57,13 +57,13 @@ export function ChatInquiriesGroup({
         />
         {!switches.chatEnabled ? (
           <p className="mb-2 rounded-lg bg-emerald-50 px-3 py-2 text-[12.5px] text-emerald-900">
-            {t("'Consultar' will open an inquiry form so inquiry-only services still reach you.")}
+            {t("'Ask about this' will open an inquiry form so inquiry-only services still reach you.")}
           </p>
         ) : null}
         <Switch
           checked={switches.acceptingInquiries}
           label={t("Accept new inquiries")}
-          detail={t("Off hides Ask and Consultar. Clients with a booking can still message you.")}
+          detail={t("Off hides the Ask and 'Ask about this' buttons. Clients with a booking can still message you.")}
           onChange={(v) => setSwitches({ ...switches, acceptingInquiries: v })}
         />
         <Switch
