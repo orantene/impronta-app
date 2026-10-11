@@ -43,9 +43,9 @@ export const CATALOG_BOOKING_CSS = `
 .jb-lines{border-top:1px solid var(--cb-line);padding-top:14px;display:grid;gap:8px}
 .jb-lines>div{display:flex;justify-content:space-between;gap:16px;font-size:.9375rem;color:var(--cb-muted)}
 .jb-lines>div span:last-child{font-variant-numeric:tabular-nums;color:var(--cb-ink)}
-.jb-back-link{appearance:none;border:0;background:none;padding:0 0 16px;cursor:pointer;font-family:inherit;font-size:.875rem;color:var(--cb-primary);font-weight:600;min-height:40px}
+.jb-back-link{display:block;appearance:none;border:0;background:none;padding:0 0 16px;cursor:pointer;font-family:inherit;font-size:.875rem;color:var(--cb-primary);font-weight:600;min-height:40px;text-align:left}
 .jb-recap{margin:0 0 18px;font-size:.9375rem;color:var(--cb-muted)}
-.jb-days{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px}
+.jb-days{position:relative;display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;scroll-behavior:smooth}
 .jb-day{flex:0 0 auto;width:64px;min-height:76px;border-radius:12px;cursor:pointer;background:var(--cb-surface);border:1px solid var(--cb-edge);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:inherit;color:var(--cb-ink)}
 /* TUL-498: ink fill + white text fails on dark looks (sofia ink ≈ surface). Use surface ink-on. */
 .jb-day[data-on="true"]{background:var(--cb-ink);border-color:var(--cb-ink);color:var(--cb-surface)}
@@ -92,10 +92,10 @@ export const CATALOG_BOOKING_CSS = `
 /* AUD-005 — long CTA labels overflow a single footer row at 360. */
 @media (max-width:400px){.jb-foot{flex-direction:column;align-items:stretch;gap:10px}.jb-total{width:100%}.jb-cta{width:100%}}
 @media (min-width:720px){.jb-back{align-items:center}.jb-sheet{border-radius:20px;max-height:86vh}.jb-foot{border-radius:0 0 20px 20px}}
-.cb-bar{position:fixed;left:0;right:0;bottom:0;z-index:80;display:none;align-items:center;justify-content:space-between;gap:16px;padding:14px 18px calc(14px + env(safe-area-inset-bottom));background:var(--cb-surface);color:var(--cb-ink);border-top:1px solid var(--cb-line);box-shadow:0 -12px 32px -20px rgba(36,33,38,.4)}
+.cb-bar{position:fixed;left:0;right:0;bottom:0;z-index:80;display:none;align-items:center;justify-content:space-between;gap:16px;padding:14px 18px calc(14px + env(safe-area-inset-bottom));background:var(--cb-surface);color:var(--cb-ink);border-top:1px solid var(--cb-line);box-shadow:0 -8px 20px -18px rgba(36,33,38,.18)}
 .cb-bar[data-show="true"]{display:flex}
 .cb-bar-text{min-width:0;display:grid;gap:2px}
-.cb-bar[data-bar-style="pill"]{left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));gap:8px;padding:6px;border-radius:999px;border:1px solid color-mix(in srgb,var(--cb-line) 80%,transparent);background:color-mix(in srgb,var(--cb-surface) 82%,transparent);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);box-shadow:0 18px 40px -18px color-mix(in srgb,var(--cb-ink) 45%,transparent)}
+.cb-bar[data-bar-style="pill"]{left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));gap:8px;padding:6px;border-radius:999px;border:1px solid color-mix(in srgb,var(--cb-line) 80%,transparent);background:color-mix(in srgb,var(--cb-surface) 82%,transparent);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);box-shadow:0 12px 28px -20px color-mix(in srgb,var(--cb-ink) 22%,transparent)}
 .cb-bar[data-bar-style="pill"] .cb-bar-chat{width:48px;height:48px;min-height:48px;padding:0;border-radius:50%;display:grid;place-items:center;background:var(--cb-blush,color-mix(in srgb,var(--cb-primary) 12%,var(--cb-surface)));color:var(--cb-primary)}
 .cb-bar[data-bar-style="pill"] .cb-bar-go{flex:1;height:48px;border-radius:999px;font-size:15px}
 @media (min-width:720px){.cb-bar[data-bar-style="pill"][data-show="true"]{display:flex!important;left:50%;right:auto;bottom:22px;transform:translateX(-50%)}.cb-bar[data-bar-style="pill"] .cb-bar-go{flex:0 0 auto;padding:0 22px}}
@@ -147,8 +147,11 @@ export const CATALOG_BOOKING_CSS = `
 /* One bar at the bottom: consent + language suggestion step aside while the
    booking dock or "See services" pill is up. Without this the locale banner
    (z-50) sits behind the dock (z-80+) and its Switch / No thanks controls
-   cannot be reached — the prompt looks "stuck". */
-body:has(.cb-dock[data-show="true"]) [data-consent-banner],body:has(.cb-bar[data-show="true"]:not([data-top="true"])) [data-consent-banner],body:has(.cb-dock[data-show="true"]) [data-locale-suggestion],body:has(.cb-bar[data-show="true"]:not([data-top="true"])) [data-locale-suggestion]{display:none}
+   cannot be reached — the prompt looks "stuck".
+   TUL-561: the cookie card no longer vanishes when the "See services" pill
+   slides in on scroll; it rides above the pill and only yields to the dock. */
+body:has(.cb-dock[data-show="true"]) [data-consent-banner],body:has(.cb-dock[data-show="true"]) [data-locale-suggestion],body:has(.cb-bar[data-show="true"]:not([data-top="true"])) [data-locale-suggestion]{display:none}
+body:has(.cb-bar[data-show="true"]:not([data-top="true"])) [data-consent-banner]{bottom:calc(var(--cb-bar-h) + 8px)}
 .cb-dock-toast button{appearance:none;background:color-mix(in srgb,var(--cb-surface) 14%,transparent);color:var(--cb-surface);border:0;border-radius:999px;padding:5px 11px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
 .cb-dock-th-icon{display:grid;place-items:center;background:var(--cb-blush);color:var(--cb-primary)}
 .cb-dock-unread{position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:var(--cb-primary);box-shadow:0 0 0 2px var(--cb-surface)}

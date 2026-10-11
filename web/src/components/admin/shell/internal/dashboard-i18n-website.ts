@@ -25,6 +25,7 @@ export const WEBSITE_ES_TEXT: Record<string, string> = {
   "This is your business site. Edit pages, design and domain here.":
     "Este es tu sitio de negocio. Edita páginas, diseño y dominio aquí.",
   "Open site": "Abrir sitio",
+  "Change design": "Cambiar diseño",
   "Other websites": "Otros sitios",
   "Personal site": "Sitio personal",
   "Edit your personal site separately from your business site.":

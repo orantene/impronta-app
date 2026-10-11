@@ -70,8 +70,7 @@ import {
 } from "@/i18n/pathnames";
 import { isDashboardInnerPath } from "@/i18n/locale-middleware";
 
-/** Persistent "stop asking" cookie. Separate from `locale` on purpose: dismissing is not choosing. */
-export const LOCALE_SUGGESTION_DISMISSED_COOKIE = "locale-suggest-dismissed";
+export { LOCALE_SUGGESTION_DISMISSED_COOKIE } from "@/i18n/locale-cookies";
 
 /**
  * Pre-auth path prefixes that are public HTML but are not storefront browsing.

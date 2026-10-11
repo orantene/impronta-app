@@ -79,9 +79,9 @@ test("renderTalentMaxSite reads the actor session ONLY under previewDraft", () =
 });
 
 test("renderTalentMaxSite loads USD rates on the vanity path (D-MSG-421)", () => {
-  const source = src("src/lib/talent-site/server/render-max-site.tsx");
+  const source = src("src/lib/talent-site/server/render-max-site-document.tsx");
   assert.match(source, /loadUsdRatesForSitePrices/);
-  assert.match(source, /loadPublicOfferingsForProfile\(talentProfileId, locale, null\)/);
+  assert.match(source, /loadPublicOfferingsForProfile\(talentProfileId, locale, null[,)]/);
 });
 
 test("proxy rebinds talent headers on /_talent-site rewrite re-entry (D-MSG-431)", () => {
