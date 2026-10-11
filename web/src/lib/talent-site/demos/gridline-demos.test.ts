@@ -164,7 +164,8 @@ test("variants carry the delta label text and the profile keeps both bios", () =
   const op = planOfferingOps(f, [])[0]!;
   if (op.op !== "insert") throw new Error("insert");
   assert.equal(op.variants.length, 3);
-  assert.equal((op.variants[1]!.presentation as { deltaLabel?: string }).deltaLabel, "-$10");
+  // TUL-569: typed prices are written with the code, like the services table.
+  assert.equal((op.variants[1]!.presentation as { deltaLabel?: string }).deltaLabel, "-$10 USD");
   assert.equal(op.variants[1]!.amount_cents, 8500);
   // The English fixture writes the English bio and leaves the Spanish one alone.
   const patch = planProfilePatch(f, { short_bio: f.talent.tagline, home_city_text: f.talent.city, bio_i18n: { en: f.talent.bio, es: "Hago trabajos" } });
