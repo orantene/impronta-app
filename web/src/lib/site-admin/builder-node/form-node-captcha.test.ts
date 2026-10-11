@@ -121,7 +121,7 @@ test("talent and share freeform renderers thread resolveTenantCaptcha", () => {
   const files = [
     "src/app/(public)/p/[[...slug]]/page.tsx",
     "src/app/t/[profileCode]/[pageSlug]/page.tsx",
-    "src/lib/talent-site/server/render-max-site.tsx",
+    "src/lib/talent-site/server/render-max-site-document.tsx",
     "src/app/share/[token]/page.tsx",
     "src/components/talent/site/TalentSiteFreeformRenderer.tsx",
   ];
@@ -148,7 +148,7 @@ test("talent and share freeform renderers thread resolveTenantCaptcha", () => {
 test("talent Max/freeform guest captcha respects HQ enforcement switch", () => {
   const webRoot = join(__dirname, "../../../..");
   const files = [
-    "src/lib/talent-site/server/render-max-site.tsx",
+    "src/lib/talent-site/server/render-max-site-document.tsx",
     "src/components/talent/site/TalentSiteFreeformRenderer.tsx",
     "src/app/t/[profileCode]/[pageSlug]/page.tsx",
   ];
