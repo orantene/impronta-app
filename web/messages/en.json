@@ -17864,6 +17864,8 @@
       "list": {
         "langMissing": "{lang} missing",
         "langMissingHint": "No title in {language} yet",
+        "needsPrice": "Needs a price",
+        "needsPriceHint": "Not on your site until it has a price. Add one, then publish.",
         "title": "Catalog",
         "intro": "Everything the POS, the website and the profile can sell · one record per item",
         "import": "Import",

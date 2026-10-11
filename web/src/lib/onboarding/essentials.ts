@@ -32,6 +32,10 @@ export type EssentialService = {
   currency: string;
   /** Pack key the suggestion came from (lashes, nails, ...), when any. */
   packKey?: string | null;
+  /** Both languages' names when the line matched a pack entry; written to `title_i18n`. */
+  nameI18n?: { en: string; es: string } | null;
+  /** The words the person used when the line was renamed to the pack name (finds the AI draft row). */
+  saidAs?: string | null;
 };
 
 export type PlaceMode = "studio" | "home" | "client";
@@ -102,7 +106,7 @@ export function defaultTimezoneForCountry(country: string | null | undefined): s
 
 // ── per-trade default packs (beauty first) ─────────────────────────────────
 
-export type PackService = { en: string; es: string; durationMin: number; mxnCents: number };
+export type PackService = { en: string; es: string; durationMin: number; mxnCents: number; aliases?: readonly string[] };
 export type TradePack = { key: string; services: PackService[] };
 
 export const BEAUTY_PACKS: Record<string, TradePack> = {
@@ -124,9 +128,9 @@ export const BEAUTY_PACKS: Record<string, TradePack> = {
     { en: "Brow tint", es: "Tinte de cejas", durationMin: 30, mxnCents: 20000 },
   ] },
   hair: { key: "hair", services: [
-    { en: "Haircut", es: "Corte de cabello", durationMin: 45, mxnCents: 35000 },
-    { en: "Color", es: "Color", durationMin: 120, mxnCents: 120000 },
-    { en: "Blowout", es: "Peinado y secado", durationMin: 45, mxnCents: 30000 },
+    { en: "Haircut", es: "Corte de cabello", durationMin: 45, mxnCents: 35000, aliases: ["cut", "corte", "corte de pelo"] },
+    { en: "Color", es: "Color", durationMin: 120, mxnCents: 120000, aliases: ["colour", "coloring", "coloración", "tinte"] },
+    { en: "Blowout", es: "Peinado y secado", durationMin: 45, mxnCents: 30000, aliases: ["styling", "peinado", "blow dry"] },
     { en: "Hair treatment", es: "Tratamiento capilar", durationMin: 60, mxnCents: 60000 },
   ] },
   makeup: { key: "makeup", services: [
@@ -168,7 +172,20 @@ export function suggestedServices(ctx: PackContext): EssentialService[] {
     quote: !mx,
     currency,
     packKey: key,
+    nameI18n: { en: s.en, es: s.es },
   }));
+}
+
+/** A word and its plural-stripped forms ("cortes" -> corte, "haircuts" -> haircut). */
+const wordForms = (w: string): string[] => (w.length > 3 ? [w, w.replace(/s$/, ""), w.replace(/es$/, "")] : [w]);
+
+/** The pack entry a said service name means, by either language, an alias, or a plural. */
+export function packServiceFor(pack: TradePack | null, said: string): PackService | null {
+  if (!pack) return null;
+  const key = said.trim().toLowerCase();
+  if (!key) return null;
+  const forms = new Set(wordForms(key));
+  return pack.services.find((s) => [s.en, s.es, ...(s.aliases ?? [])].some((n) => forms.has(n.toLowerCase()))) ?? null;
 }
 
 /** What the essentials screen opens with: pack services, Mon-Sat 9-19, country currency/timezone. */
@@ -188,18 +205,23 @@ export function suggestedEssentials(ctx: PackContext & { name?: string | null })
   };
 }
 
-/** AI-read service names -> essentials services, matching the pack for durations/prices (names are kept as said). */
+/**
+ * AI-read service names -> essentials services, matching the pack for durations/prices. A pack match is named
+ * in the person's language (the AI may answer "Haircuts" in a Spanish flow); anything else is kept as said.
+ */
 export function servicesFromFacts(names: string[], ctx: PackContext): EssentialService[] {
   const currency = currencyForCountry(ctx.country);
   const pack = (() => { const k = packKeyForTrade(ctx.trade, ctx.discipline); return k ? BEAUTY_PACKS[k] : null; })();
   const seen = new Set<string>();
   const out: EssentialService[] = [];
   for (const raw of names) {
-    const name = raw.trim();
+    const said = raw.trim();
+    if (!said) continue;
+    const hit = packServiceFor(pack, said);
+    const name = hit ? (ctx.locale === "es" ? hit.es : hit.en) : said;
     const key = name.toLowerCase();
-    if (!name || seen.has(key)) continue;
+    if (seen.has(key)) continue;
     seen.add(key);
-    const hit = pack?.services.find((s) => s.en.toLowerCase() === key || s.es.toLowerCase() === key);
     out.push({
       name,
       durationMin: hit?.durationMin ?? null,
@@ -207,6 +229,8 @@ export function servicesFromFacts(names: string[], ctx: PackContext): EssentialS
       quote: !(hit && currency === "MXN"),
       currency,
       packKey: hit ? pack!.key : null,
+      nameI18n: hit ? { en: hit.en, es: hit.es } : null,
+      saidAs: hit && name !== said ? said : null,
     });
   }
   return out.slice(0, MAX_ESSENTIAL_SERVICES);
@@ -242,6 +266,10 @@ export function parseEssentialService(raw: unknown, fallbackCurrency = "USD"): E
   if (!name) return null;
   const priceCents = typeof r.priceCents === "number" && Number.isFinite(r.priceCents) && r.priceCents >= 0 ? Math.round(r.priceCents) : null;
   const currency = typeof r.currency === "string" && /^[A-Za-z]{3}$/.test(r.currency) ? r.currency.toUpperCase() : fallbackCurrency;
+  const i18n = r.nameI18n && typeof r.nameI18n === "object" ? (r.nameI18n as Record<string, unknown>) : null;
+  const en = typeof i18n?.en === "string" ? i18n.en.trim() : "";
+  const es = typeof i18n?.es === "string" ? i18n.es.trim() : "";
+  const saidAs = typeof r.saidAs === "string" ? r.saidAs.trim().slice(0, 120) : "";
   return {
     name,
     durationMin: posInt(r.durationMin, 1440),
@@ -250,6 +278,9 @@ export function parseEssentialService(raw: unknown, fallbackCurrency = "USD"): E
     quote: r.quote === true || priceCents === null,
     currency,
     packKey: typeof r.packKey === "string" ? r.packKey : null,
+    // Kept only while the line still carries one of the pack names: an edited name is the person's own words.
+    nameI18n: en && es && (name === en || name === es) ? { en, es } : null,
+    saidAs: saidAs || null,
   };
 }
 
@@ -302,14 +333,17 @@ export type OfferingRowDraft = {
   allow_pay_in_person: boolean;
   duration_minutes: number | null;
   category: string | null;
-  status: "published";
+  /** A service without a price is never published by onboarding; the owner adds the price, then publishes. */
+  status: "published" | "draft";
   visibility: "public";
   sort_order: number;
+  title_i18n?: { en: string; es: string };
 };
 
 export function offeringRowFor(s: EssentialService, sortOrder: number): OfferingRowDraft {
   const exact = !s.quote && s.priceCents !== null && s.priceCents > 0;
   return {
+    ...(s.nameI18n ? { title_i18n: s.nameI18n } : {}),
     title: s.name.trim(),
     description: null,
     kind: "service",
@@ -325,7 +359,7 @@ export function offeringRowFor(s: EssentialService, sortOrder: number): Offering
     allow_pay_in_person: true,
     duration_minutes: s.durationMin,
     category: s.packKey ?? null,
-    status: "published",
+    status: exact ? "published" : "draft",
     visibility: "public",
     sort_order: sortOrder,
   };
@@ -333,23 +367,30 @@ export function offeringRowFor(s: EssentialService, sortOrder: number): Offering
 
 export type OfferingPlan = {
   insert: OfferingRowDraft[];
-  /** Same title already there (e.g. the AI draft): publish it with the confirmed details. */
+  /** Same service already there (e.g. the AI draft): fill in the confirmed details, published only when priced. */
   update: Array<{ id: string; patch: OfferingRowDraft }>;
 };
 
 const norm = (t: string) => t.trim().toLowerCase();
 
-/** Dedupe by title: a retry plans nothing new; an existing draft is upgraded in place. */
+/**
+ * Dedupe by title: a retry plans nothing new; an existing draft is upgraded in place. A line renamed to its
+ * pack name also finds the row under the words first said or the pack's other language.
+ */
 export function planOfferingWrites(existing: ExistingOffering[], services: EssentialService[]): OfferingPlan {
   const byTitle = new Map(existing.filter((o) => o.status !== "archived").map((o) => [norm(o.title), o]));
   const plan: OfferingPlan = { insert: [], update: [] };
   const seen = new Set<string>();
+  const claimed = new Set<string>();
   services.forEach((s, i) => {
     const key = norm(s.name);
     if (!key || seen.has(key)) return;
     seen.add(key);
     const row = offeringRowFor(s, i);
-    const hit = byTitle.get(key);
+    const hit = [s.name, s.saidAs, s.nameI18n?.en, s.nameI18n?.es]
+      .map((t) => (t ? byTitle.get(norm(t)) : undefined))
+      .find((o) => o && !claimed.has(o.id));
+    if (hit) claimed.add(hit.id);
     if (!hit) plan.insert.push(row);
     else if (hit.status === "draft") plan.update.push({ id: hit.id, patch: row });
   });
