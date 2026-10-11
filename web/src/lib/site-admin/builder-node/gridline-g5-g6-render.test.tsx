@@ -130,6 +130,44 @@ test("utility bar: showStatus false removes the pill", () => {
   assert.doesNotMatch(render([bar({ showStatus: false })], { liveStatus: ON }), /class="sb-ub-pill"/);
 });
 
+test("GRK-030: a bilingual site gets a language switch in the utility bar, linking this page per language", () => {
+  const siteLocales = { locales: ["es", "en"], hrefs: { es: "/servicios", en: "/en/servicios" } };
+  const es = render([bar()], { siteLocales });
+  assert.match(es, /data-ub-lang=""/);
+  assert.match(es, /<nav class="sb-ub-lang" aria-label="Idioma">/);
+  assert.match(es, /<a href="\/servicios" hrefLang="es" lang="es" aria-current="true" aria-label="Español">ES<\/a>/);
+  assert.match(es, /<a href="\/en\/servicios" hrefLang="en" lang="en" aria-label="English">EN<\/a>/);
+  const en = renderToStaticMarkup(
+    renderBuilderNodes([bar()], { mode: "freeform", includeRendererStyles: false, includeFontLinks: false, visitorLocale: "en", dataSources: { siteLocales } }) as Parameters<typeof renderToStaticMarkup>[0],
+  );
+  assert.match(en, /aria-label="Language"/);
+  assert.match(en, /lang="en" aria-current="true"/);
+  assert.match(render([bar()], { siteLocales: { locales: ["es", "en"] } }), /href="\?locale=en"/);
+});
+
+test("GRK-030: one language (or none) renders no switch and keeps the name", () => {
+  for (const ds of [{}, { siteLocales: { locales: ["es"] } }] as BuilderNodeRenderDataSources[]) {
+    const html = render([bar()], ds);
+    assert.equal(html.includes('<nav class="sb-ub-lang"'), false);
+    assert.equal(html.includes('data-ub-lang=""'), false);
+  }
+});
+
+test("GRK-030: on a phone the switch is one 44px button to the other language; the name gives way only on bilingual bars", () => {
+  const phone = UTILITY_BAR_CSS.match(/@container sbub \(max-width:479px\)\{(.*)\}\n/)?.[1] ?? "";
+  assert.match(phone, /\.sb-ub\[data-ub-lang\] \.sb-ub-nm\{display:none\}/);
+  assert.match(phone, /\.sb-ub-lang a\[aria-current\],\.sb-ub-lang i\{display:none\}/);
+  assert.match(phone, /\.sb-ub-lang a\{min-width:44px/);
+  assert.match(UTILITY_BAR_CSS, /\.sb-ub-lang a\{[^}]*min-height:44px/);
+});
+
+test("GRK-030: the live document and the builder canvas hand the site languages to header blocks", () => {
+  const doc = libAt("talent-site/server/render-max-site-document.tsx");
+  assert.match(doc, /const headerSiteLocales = \{ locales: args\.localeCtx\.settings\.supportedLocales, hrefs: args\.localeCtx\.switcherHrefs \}/);
+  assert.equal((doc.match(/dataSources: \{ liveStatus, siteLocales: headerSiteLocales \}/g) ?? []).length, 3);
+  assert.match(libAt("talent-site/server/talent-builder-canvas.server.tsx"), /dataSources: \{ siteLocales: \{ locales: localeCtx\.settings\.supportedLocales, hrefs: localeCtx\.switcherHrefs \} \}/);
+});
+
 test("alert band: absent while the flag is off or missing, present while on", () => {
   assert.doesNotMatch(render([band()]), /data-builder-node-kind="alert_band"/);
   assert.doesNotMatch(render([band()], { liveStatus: LIVE_STATUS_OFF }), /data-builder-node-kind="alert_band"/);
