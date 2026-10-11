@@ -47,8 +47,12 @@ function isHandedOff(status: string): boolean {
   return ["shipped", "delivered", "picked_up", "downloaded", "completed"].includes(status);
 }
 
-/** Server actions run one at a time, so this load can queue behind the services list. */
-const LOAD_BUDGET_MS = 15_000;
+/**
+ * Per attempt: one retry re-issues a discarded action, and the whole sequence
+ * (2 x budget + delay = 14 s) stays under the 15 s the page may spin.
+ */
+const LOAD_BUDGET_MS = 6_500;
+const LOAD_RETRY_DELAY_MS = 1_000;
 
 /** A stalled or failed load reads as "no orders", so the queue stays quiet instead of loading forever. */
 function settleOrders(talentId: string): Promise<TalentOrderRow[]> {
@@ -56,6 +60,8 @@ function settleOrders(talentId: string): Promise<TalentOrderRow[]> {
     label: "loadTalentOrders",
     area: "talent-services",
     budgetMs: LOAD_BUDGET_MS,
+    retries: 1,
+    retryDelayMs: LOAD_RETRY_DELAY_MS,
   }).catch(() => []);
 }
 

@@ -90,8 +90,12 @@ export type OfferingsEditor = {
   reload: () => void;
 };
 
-/** Long enough for a slow list; a discarded action never settles, so the hook needs a bound. */
-const LOAD_BUDGET_MS = 15_000;
+/**
+ * Per attempt: one retry re-issues a discarded action, and the whole sequence
+ * (2 x budget + delay = 14 s) stays under the 15 s the page may spin.
+ */
+const LOAD_BUDGET_MS = 6_500;
+const LOAD_RETRY_DELAY_MS = 1_000;
 
 export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
   const isWorkspace = owner.kind === "workspace";
@@ -131,11 +135,15 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
           label: "loadWorkspaceMenuForEditor",
           area: "workspace-menu",
           budgetMs: LOAD_BUDGET_MS,
+          retries: 1,
+          retryDelayMs: LOAD_RETRY_DELAY_MS,
         })
       : settleServerAction(() => loadTalentOfferingsForEditor(talentId), {
           label: "loadTalentOfferingsForEditor",
           area: "talent-services",
           budgetMs: LOAD_BUDGET_MS,
+          retries: 1,
+          retryDelayMs: LOAD_RETRY_DELAY_MS,
         });
     load
       .then((res) => {

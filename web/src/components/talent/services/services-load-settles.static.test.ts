@@ -25,3 +25,14 @@ test("the services list loads through settleServerAction", () => {
   assert.match(src, /settleServerAction\(\(\) => loadWorkspaceMenuForEditor\(workspaceTenantId\)/);
   assert.match(src, /setError\("Could not refresh your services\."\)/, "a stall ends in the error state");
 });
+
+test("every load, retry included, ends within 15 s", () => {
+  for (const file of ["TalentOrdersQueue.tsx", "use-offerings-editor.ts"]) {
+    const src = read(file);
+    const budget = Number(/const LOAD_BUDGET_MS = ([\d_]+);/.exec(src)?.[1]?.replace(/_/g, ""));
+    const delay = Number(/const LOAD_RETRY_DELAY_MS = ([\d_]+);/.exec(src)?.[1]?.replace(/_/g, ""));
+    const calls = src.match(/budgetMs: LOAD_BUDGET_MS,\s*retries: 1,\s*retryDelayMs: LOAD_RETRY_DELAY_MS,/g)?.length ?? 0;
+    assert.equal(calls, src.match(/settleServerAction\(/g)?.length, `${file}: every settle call carries the bounded retry`);
+    assert.ok(2 * budget + delay <= 15_000, `${file}: ${2 * budget + delay} ms`);
+  }
+});
