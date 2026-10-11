@@ -42,6 +42,9 @@ export const UTILITY_BAR_CSS = `
 .sb-ub-tel{flex:0 0 auto;width:44px;height:44px;border-radius:99px;border:1.5px solid color-mix(in srgb,var(--token-color-background) 28%,transparent);color:var(--token-color-background);display:grid;place-items:center;text-decoration:none;box-sizing:border-box}
 .sb-ub-tel svg{width:18px;height:18px}
 /* TUL-474/496: never hide only the pill label (left a stray status dot). Drop the whole pill. */
+/* TUL-549: on a phone bar the pill + CTA left the name ~20px ("M…"); the status drops to its own slim line.
+   A media query, not @container: the bar is its own container and cannot query itself to wrap. */
+@media (max-width:559px){.sb-ub{flex-wrap:wrap;row-gap:4px}.sb-ub-pill{order:3;flex:1 0 100%;min-height:0;padding:0 0 0 46px;background:none;font-size:11.5px}}
 @container sbub (max-width:330px){.sb-ub-pill{display:none}.sb-ub-cta{padding:0 10px;font-size:12px}}
 /* GRK-074: keep 2-line wrap on desktop too (nowrap+ellipsis cut trade·city). */
 @container sbub (min-width:900px){.sb-ub{padding:12px 40px;gap:14px}.sb-ub-cta{padding:0 18px;font-size:14px}}

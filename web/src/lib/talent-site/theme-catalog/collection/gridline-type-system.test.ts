@@ -115,6 +115,15 @@ test("Gridline utility bar keeps its subtitle and status pill down to a 330px ba
   );
 });
 
+test("TUL-549: on a phone bar the status pill wraps below the name instead of squeezing it", async () => {
+  const { UTILITY_BAR_CSS } = await import("@/lib/site-admin/builder-node/utility-bar-block");
+  const phone = UTILITY_BAR_CSS.match(/@media \(max-width:559px\)\{(.*)\}\n/)?.[1] ?? "";
+  assert.match(phone, /\.sb-ub\{[^}]*flex-wrap:wrap/);
+  assert.match(phone, /\.sb-ub-pill\{[^}]*order:3;flex:1 0 100%/);
+  assert.doesNotMatch(UTILITY_BAR_CSS, /@container sbub \(max-width:559px\)/, "the bar cannot container-query itself");
+  assert.match(UTILITY_BAR_CSS, /@container sbub \(max-width:330px\)\{\.sb-ub-pill\{display:none\}/);
+});
+
 test("TUL-474: utility chrome clears work_order captions under sticky dock/bar", () => {
   assert.match(
     UTILITY_TYPE_SYSTEM_CSS,
