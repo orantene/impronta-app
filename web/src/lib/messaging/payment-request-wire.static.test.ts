@@ -34,9 +34,9 @@ test("the pay page leads back to the link's conversation when the order names no
   // ...and the view renders what it is handed: the expired branch itself
   // carries the link (the page computed it and the view dropped it).
   const view = readFileSync(join(process.cwd(), "src/app/(public)/pay/[code]/CheckoutView.tsx"), "utf8");
-  const expiredView = view.slice(view.indexOf('phase === "expired"'), view.indexOf('phase === "cancelled"'));
+  const expiredView = view.slice(view.indexOf('case "expired"'), view.indexOf('case "replaced"'));
   assert.match(expiredView, /props\.threadHref/);
-  assert.match(expiredView, /public\.thread\.backToThread/);
+  assert.match(expiredView, /public\.payPage\.askNewLink/);
 });
 
 test("Stripe confirm=stripe builds absolute success_url from request host when BASE_URL unset (D-MSG-329)", () => {
