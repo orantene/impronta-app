@@ -298,6 +298,8 @@ export function heroSplit(
         radius: "lg",
         aspectRatio: opts.inset ? "3:4" : "4:3",
         objectFit: "cover",
+        // Prefer faces: default center crop often clips the head on tall phone heroes.
+        objectPosition: "center 18%",
         width: "100%",
       },
     },
@@ -362,6 +364,8 @@ export function heroSplit(
         paddingX: "m",
         alignItems: "center",
         minHeight: opts.minHeight ?? "70vh",
+        // Phone: keep the name clear of the viewport edge (TUL-497 diego).
+        responsive: { mobile: { paddingX: "l" } },
       },
     }),
     children: [copy, image],
@@ -435,7 +439,7 @@ export const COVER_SCRIM =
  */
 export function heroCover(
   makeId: KitIdFactory,
-  opts: { accent?: boolean } = {},
+  opts: { accent?: boolean; /** Seed English eyebrow; default {{primaryTypeLabel}}. */ eyebrow?: string } = {},
 ): BuilderNode {
   return {
     id: makeId(),
@@ -453,7 +457,8 @@ export function heroCover(
         justifyContent: "flex-end",
         backgroundImage: `${COVER_SCRIM}, url({{headshotUrl}})`,
         backgroundSize: "cover",
-        backgroundPosition: "center",
+        // Face-forward crop (Valeria cover was clipping mid-forehead at center).
+        backgroundPosition: "center 18%",
         textColor: KIT_COLOR.background,
       },
     }),
@@ -462,12 +467,13 @@ export function heroCover(
         id: makeId(),
         kind: "paragraph",
         props: {
-          text: "{{primaryTypeLabel}}",
+          text: opts.eyebrow ?? "{{primaryTypeLabel}}",
           style: {
             textTransform: "uppercase",
             letterSpacing: "0.22em",
             size: "sm",
             textColor: opts.accent === false ? KIT_COLOR.background : KIT_COLOR.accent,
+            textWrap: "balance",
           },
         },
       },
@@ -477,7 +483,11 @@ export function heroCover(
         props: {
           text: "{{displayName}}",
           level: 1,
-          style: { size: "xl", textColor: KIT_COLOR.background, textWrap: "balance" },
+          style: {
+            size: "xl",
+            textColor: KIT_COLOR.background,
+            textWrap: "balance",
+          },
         },
       },
       {
@@ -490,6 +500,7 @@ export function heroCover(
             textColor: KIT_COLOR.background,
             opacity: 0.85,
             maxWidth: "reading",
+            textWrap: "pretty",
           },
         },
       },

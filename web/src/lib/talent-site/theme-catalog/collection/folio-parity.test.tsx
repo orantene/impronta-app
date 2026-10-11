@@ -20,12 +20,12 @@ import { FOLIO_STYLE_TOKEN_DEFAULTS } from "./folio-defaults";
 import { MAGAZINE_TYPE_SYSTEM_CSS } from "./design-type-system";
 
 const PINS = {
-  editorial: "8e8ebb03a63e214c", // TUL-528: soft catalog-groups pad uses var(--cb-bar-h). Was e11afe5bba3a69fe (TUL-121 Maison v2 #3116)
+  editorial: "3b56ba0f8448b381", // TUL-121/497 Frame+Solace demo minors (#3134). Was 8e8ebb03a63e214c (TUL-528 soft catalog-groups pad)
   utility: "fe78b6ccfefe12ed", // TUL-528: work_order pad uses var(--cb-bar-h). Was 5450f057f44cf0b4 (TUL-474)
   highlight: "154aa0752c478aa5", // TUL-474: TITLE_HOOKS includes .sb-area-title
   booking: "8f87f1ae1e51bc17",
   // Re-pinned: only added props.i18n (es + en seed copy), see seed-i18n.ts.
-  maison: "347695625983b226", // was ff484407b68ec492; TUL-121 Maison v2 QA minors (#3116). Before: ca897a06ce5564b6; TUL-345: aftercare + before-after seed explicit en overlays. Before (42d225e3c02a4810): TUL-230: the About paragraph is liveText "bio". Before: #88 Book an appointment leads in header + hero; #209: + es/en overlay on portfolio, reviews, header labels
+  maison: "4154551e03a4b4ea", // TUL-121/497 Frame+Solace demo minors (#3134). Was 347695625983b226 (TUL-121 Maison v2 #3116)
   // Re-pinned after Gridline contentWidth/full + matrix viewport MQ (#2530), then es + en seed copy.
   gridline: "a0a148cca5d4853d", // was ae8c700f7439ee2d; TUL-530 utility_bar homeHref + default CTA #services. Before: TUL-496 proof/area phone gutter
 
