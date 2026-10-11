@@ -33,7 +33,7 @@ test("hidden ask: strip #talent-ask primary CTA before render", () => {
 });
 
 test("render-max-site strips hidden ask CTAs; header-cta-locale is FALLBACK only (TUL-369 split)", () => {
-  const src = readFileSync(path.join(__dirname, "server", "render-max-site.tsx"), "utf8");
+  const src = readFileSync(path.join(__dirname, "server", "render-max-site-document.tsx"), "utf8");
   assert.match(src, /stripHiddenAskHeaderCta/);
   assert.doesNotMatch(src, /localiseTalentHeaderDefaults/);
   assert.doesNotMatch(src, /header-cta-locale/);
