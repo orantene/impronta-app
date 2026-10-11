@@ -8,7 +8,8 @@ import "server-only";
 
 import type { CSSProperties, ReactNode } from "react";
 import { timed } from "@/lib/server/perf-trace";
-import { MaxSiteDemoFooter, MaxSiteDemoPill, withHeaderSiteChrome } from "./render-max-site-demo";
+import { withHeaderSiteChrome } from "./render-max-site-demo";
+import { MaxSiteDemoBadge, MaxSiteDemoFooter } from "@/lib/talent-site/max-site-demo-chrome";
 import { splitShell } from "./render-max-site-shell";
 import { builderTreeHasFaqBind, builderTreeHasKind } from "./builder-tree-has-kind";
 import { pruneEmptyBoundSections } from "@/lib/talent-site/my-content-prune";
@@ -489,7 +490,7 @@ export async function renderMaxSiteDocument(args: {
         </div>
       ) : null}
 
-      {args.isDemo && !(hasShell && headerTree.length > 0 && headerHasLandmark) ? <MaxSiteDemoPill /> : null /* the landmark paints its own pill */}
+      {args.isDemo ? <MaxSiteDemoBadge locale={locale} /> : null}
 
       {hasShell && headerTree.length > 0 ? (
         headerHasLandmark ? (
