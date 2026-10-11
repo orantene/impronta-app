@@ -149,7 +149,7 @@ export const LOCALIZABLE_PROPS_BY_KIND: Partial<
   alert_band: ["title", "body", "safetyLabel", "safetyNote", "ctaLabel"],
   task_picker: ["eyebrow", "title"],
   spec_table: ["eyebrow", "title"],
-  visit: ["eyebrow", "title", "titleAccent", "mapCaption"],
+  visit: ["eyebrow", "title", "titleAccent", "mapCaption", "arrivalNote"],
   masthead: [
     "subline",
     "creditLine",

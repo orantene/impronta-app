@@ -23,6 +23,7 @@ import { offeringPriceLabel, type TalentOffering } from "@/lib/talent/offerings-
 import { listLocales } from "@/lib/talent/offering-missing-translation";
 import { useAdminShell } from "../../state";
 import { MissingTranslationChip } from "./MissingTranslationChip";
+import { NeedsPriceChip } from "./NeedsPriceChip";
 import { useTalentFieldLocales } from "@/components/locale-field/use-talent-field-locales";
 import type { OfferingsEditor } from "@/components/talent/services/use-offerings-editor";
 import { ActionButton, FilterChip, Outcome, StatePill, ToggleChip, UsedIn, type PillTone } from "../appointments-classes-ui";
@@ -267,6 +268,7 @@ function CatalogRow({
           {channels.includes("pos") ? ` · ${t("dashboard.catalog.channel.posCounter")}` : ""}
           {channels.includes("website") ? ` · ${t("dashboard.catalog.channel.website")}` : ""}
         </span>
+        <NeedsPriceChip item={o} t={t} className="mt-[3px] block" />
         <MissingTranslationChip item={o} primary={primary} locales={locales} uiLocale={locale} t={t} className="mt-[3px] block" />
       </span>
       <StatePill tone={STATUS_TONE[status]} state={status}>
@@ -278,6 +280,7 @@ function CatalogRow({
         <Link href={nav.href({ item: o.id })} prefetch={false} className="min-w-0 truncate font-semibold text-admin-ink no-underline hover:underline" data-testid="catalog-row-title">
           {o.title || t("dashboard.catalog.untitled")}
         </Link>
+        <NeedsPriceChip item={o} t={t} />
         <MissingTranslationChip item={o} primary={primary} locales={locales} uiLocale={locale} t={t} />
       </span>
       <BlockPill tone="slate">{t(TYPE_KEY[type])}</BlockPill>
