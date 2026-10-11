@@ -1,5 +1,8 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+import { ownTalentInquiryHref } from "@/lib/inquiry/own-talent-inquiry-href";
+import { getCachedActorSession } from "@/lib/server/request-cache";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
@@ -184,7 +187,12 @@ export default async function WorkspaceWorkDetailPage({
     .eq("tenant_id", scope.tenantId)
     .eq("id", inquiryId)
     .maybeSingle();
-  if (!inquiry) notFound();
+  if (!inquiry) {
+    const admin = createServiceRoleClient();
+    const own = admin ? await ownTalentInquiryHref(admin, (await getCachedActorSession()).user?.id, inquiryId) : null;
+    if (own) redirect(own);
+    notFound();
+  }
 
   const { data: booking } = await supabase
     .from("agency_bookings")
