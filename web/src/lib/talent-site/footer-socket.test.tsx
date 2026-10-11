@@ -236,7 +236,7 @@ test("Maison v2 credit is hidden at render time, not by a payload edit", () => {
 
 test("renderers wire the socket and the old badge div is gone", () => {
   const root = join(process.cwd(), "src");
-  const render = readFileSync(join(root, "lib/talent-site/server/render-max-site.tsx"), "utf8");
+  const render = readFileSync(join(root, "lib/talent-site/server/render-max-site-document.tsx"), "utf8");
   const canvas = readFileSync(join(root, "lib/talent-site/server/talent-builder-canvas.server.tsx"), "utf8");
   const stmt = readFileSync(join(root, "lib/site-admin/builder-node/statement-footer-block.tsx"), "utf8");
   assert.match(render, /<TalentSiteSocket/);
@@ -341,6 +341,9 @@ test("the language group is dropped when the header already has a language switc
   assert.equal(headerShowsLanguageSwitch(withSwitch), true);
   assert.equal(headerShowsLanguageSwitch(without), false);
   assert.equal(headerShowsLanguageSwitch([]), false);
+  // GRK-030: the Gridline utility bar draws the switch itself, so the strip drops its group.
+  assert.equal(headerShowsLanguageSwitch([{ kind: "utility_bar", props: {} }]), true);
+  assert.equal(headerShowsLanguageSwitch([{ kind: "container", children: [{ kind: "utility_bar", props: {} }] }]), true);
 });
 
 test("legal links: Spanish sites link /es/legal, English sites keep /legal", () => {

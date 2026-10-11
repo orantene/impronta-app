@@ -195,6 +195,12 @@ export type DirectoryListParams = {
   /** When true, skip COUNT(*) (used for cursor / infinite-scroll pages). */
   skipTotalCount?: boolean;
   /**
+   * Keep empty (presentability tier 0) cards instead of dropping them. Only
+   * for callers that ask "is this talent in the visible window", not for
+   * anything a visitor sees.
+   */
+  keepEmptyCards?: boolean;
+  /**
    * SaaS tenant scope for storefront (agency) requests. When set, the result
    * set is gated to the tenant's `agency_talent_roster` (status=active,
    * agency_visibility in {site_visible,featured}). Pass `null` or omit for

@@ -12,11 +12,11 @@ import path from "node:path";
 import { test } from "node:test";
 import vm from "node:vm";
 
-import { loadDemoContentFixture, validateDemoContentFixture, type FixtureBriefQuestion, type FixtureVariant } from "./content-fixture";
+import { loadAuthoredDemoContentFixture, validateDemoContentFixture, type FixtureBriefQuestion, type FixtureVariant } from "./content-fixture";
 
 const REF_DIR = path.resolve(process.cwd(), "design-references/gridline");
 const html = fs.readFileSync(path.join(REF_DIR, "index.html"), "utf8");
-const fx = loadDemoContentFixture("gridline");
+const fx = loadAuthoredDemoContentFixture("gridline");
 
 type MockBrief = { k: string; l: string; p?: string; im?: string; type?: string; opts?: string[]; h?: string; demo?: unknown };
 type MockService = {
