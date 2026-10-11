@@ -24,7 +24,9 @@ import { cn } from "@/lib/utils";
  * It floats above `--floating-chrome-bottom` (booking bar, phone chat
  * launcher) and above the demo badge, and yields entirely while the consent
  * card, a modal, the guest chat panel, or the booking dock/bar is up (see
- * `floating-chrome-stack.ts`), so it never sits over a primary action.
+ * `floating-chrome-stack.ts`), so it never sits over a primary action. On
+ * short desktop windows it collapses to a one-row pill (the two buttons; the
+ * question stays for screen readers) so it clears the hero buttons.
  * It is not in the SSR paint: it appears `LOCALE_SUGGESTION_SETTLE_MS` after
  * the window `load` event, so it never flashes over the hero while the page
  * is still arriving. Colors, radius and font come from the site's theme
@@ -104,6 +106,7 @@ export function LocaleSuggestionBannerClient({
       data-locale-suggestion={locale}
     >
       <div
+        data-locale-suggestion-card=""
         className={cn(
           "flex w-full flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2 shadow-md",
           "rounded-[var(--token-shape-radius-card,min(var(--site-radius-lg,0.75rem),1.25rem))] border",
@@ -113,7 +116,9 @@ export function LocaleSuggestionBannerClient({
           "[font-family:var(--site-body-font,inherit)]",
         )}
       >
-        <p className="min-w-0 flex-1 leading-snug">{prompt}</p>
+        <p data-locale-suggestion-prompt="" className="min-w-0 flex-1 leading-snug">
+          {prompt}
+        </p>
         <div className="flex shrink-0 items-center gap-1.5">
           <a
             href={href}

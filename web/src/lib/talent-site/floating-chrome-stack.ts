@@ -39,6 +39,8 @@ export const HELP_BUBBLE_FILTER_BAND_RATIO = 0.55;
 export const CONSENT_BANNER_SELECTOR = "[data-consent-banner]";
 export const LOCALE_SUGGESTION_SELECTOR = "[data-locale-suggestion]";
 export const DEMO_BADGE_SELECTOR = "[data-demo-badge]";
+/** Desktop windows shorter than this show the language toast as a one-row pill (hero CTAs sit lower). */
+export const LOCALE_SUGGESTION_SHORT_WINDOW_MAX_H = 859;
 export const CATALOG_FILTER_NAV_SELECTOR = ".site-builder-node--services-catalog-nav";
 /** Open guest chat shell (MiniChat / CardDock / Expanded). aria-modal is false by design. */
 export const GUEST_CHAT_PANEL_SELECTOR = "[data-guest-chat-panel]";
@@ -66,6 +68,7 @@ ${LOCALE_SUGGESTION_SELECTOR}{bottom:calc(var(--floating-chrome-bottom) + 12px)}
 ${LOCALE_SUGGESTION_SELECTOR}>div{animation:floating-toast-in .3s ease-out both}
 @keyframes floating-toast-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){${LOCALE_SUGGESTION_SELECTOR}>div{animation:none}}
+@media (min-width:701px) and (max-height:${LOCALE_SUGGESTION_SHORT_WINDOW_MAX_H}px){html ${LOCALE_SUGGESTION_SELECTOR}{width:auto;bottom:calc(var(--floating-chrome-bottom) + 8px)}html ${LOCALE_SUGGESTION_SELECTOR} [data-locale-suggestion-card]{flex-wrap:nowrap;gap:2px;padding:3px;border-radius:var(--token-button-radius,999px)}html ${LOCALE_SUGGESTION_SELECTOR} [data-locale-suggestion-prompt]{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}}
 ${DEMO_BADGE_SELECTOR}{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(var(--floating-chrome-bottom) + 12px);z-index:90;pointer-events:none}
 @media (max-width:700px){body:has([data-guest-chat-launcher]) ${DEMO_BADGE_SELECTOR}{bottom:calc(max(var(--floating-chrome-bottom),${GUEST_CHAT_LAUNCHER_CLEARANCE_PX}px + env(safe-area-inset-bottom,0px)) + 4px)}body:has(${LOCALE_SUGGESTION_SELECTOR}) ${DEMO_BADGE_SELECTOR}{display:none}}
 html{scroll-padding-bottom:var(--floating-chrome-bottom)}

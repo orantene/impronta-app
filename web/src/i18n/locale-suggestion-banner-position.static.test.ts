@@ -27,6 +27,17 @@ test("TUL-560: the language suggestion is a fixed bottom-left toast, never a row
   assert.doesNotMatch(FLOATING_CHROME_STACK_CSS, /\[data-locale-suggestion\]\{[^}]*\btop:/);
 });
 
+test("TUL-560: on short desktop windows the toast is a one-row pill that keeps the question for screen readers", () => {
+  const short = FLOATING_CHROME_STACK_CSS.match(/@media \(min-width:701px\) and \(max-height:859px\)\{(.*?\})\}/)?.[1] ?? "";
+  assert.ok(short, "short-window rule present (under 860px tall)");
+  assert.match(short, /\[data-locale-suggestion-card\]\{flex-wrap:nowrap;/);
+  assert.match(short, /border-radius:var\(--token-button-radius,999px\)/);
+  assert.match(short, /\[data-locale-suggestion-prompt\]\{position:absolute;width:1px;height:1px;overflow:hidden;clip:/);
+  assert.doesNotMatch(short, /display:none/, "the question is visually hidden, not removed");
+  assert.match(client, /data-locale-suggestion-card=""/);
+  assert.match(client, /<p data-locale-suggestion-prompt=""/);
+});
+
 test("TUL-560: the toast is not in the first paint; it appears after the page settles", () => {
   const ms = Number(client.match(/LOCALE_SUGGESTION_SETTLE_MS = (\d+)/)?.[1]);
   assert.ok(ms >= 1000 && ms <= 3000, `settle delay ${ms}ms`);

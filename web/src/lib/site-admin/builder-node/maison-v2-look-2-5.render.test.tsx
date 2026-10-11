@@ -13,7 +13,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { MaxSiteDemoBadge } from "@/lib/talent-site/max-site-demo-chrome";
+import { MaxSiteDemoBadge, MaxSiteDemoFooter } from "@/lib/talent-site/max-site-demo-chrome";
 import { EDITORIAL_SOFT_CHROME_CSS } from "@/lib/talent-site/theme-catalog/collection/design-type-system-soft";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 
@@ -233,6 +233,14 @@ test("TUL-560: the demo marker is one neutral corner badge, not header chrome", 
     "utf8",
   );
   assert.doesNotMatch(headerSrc, /site-header__demo|HeaderDemoPill|demoPill/);
+});
+
+test("TUL-560: the demo footer only says bookings are off; the corner badge is the one demo label", () => {
+  const es = renderToStaticMarkup(<MaxSiteDemoFooter locale="es" />);
+  const en = renderToStaticMarkup(<MaxSiteDemoFooter locale="en" />);
+  assert.match(es, />Las reservas están desactivadas\.<\/p>$/);
+  assert.match(en, />Bookings are disabled\.<\/p>$/);
+  assert.doesNotMatch((es + en).replace(/<[^>]+>/g, ""), /demostraci|demo/i);
 });
 
 test("the header publishes --site-header-h (ResizeObserver, removed on unmount) from the freeform header", () => {
