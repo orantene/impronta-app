@@ -27,8 +27,9 @@ export const UTILITY_BAR_CSS = `
 .sb-ub-brand{display:flex;align-items:center;gap:10px;flex:1;min-width:0;color:inherit;text-decoration:none}
 .sb-ub-logo{flex:0 0 auto;width:36px;height:36px;border-radius:6px;background:var(--token-color-accent,var(--token-color-primary));color:var(--token-color-on-accent,var(--token-color-ink));display:grid;place-items:center;overflow:hidden;font-weight:800;font-size:15px}
 .sb-ub-logo img{width:100%;height:100%;object-fit:cover;display:block}
-/* TUL-532: an owner logo keeps its proportions (a wordmark was cropped to a 36px square). */
-.sb-ub-logo[data-logo-img]{width:auto;max-width:min(160px,40cqi);padding:0 6px;box-sizing:border-box}
+/* TUL-532: an owner logo keeps its proportions (a wordmark was cropped to a 36px square) and sits
+   on the site background it was made for, not the accent (accent = ink on some themes). */
+.sb-ub-logo[data-logo-img]{width:auto;max-width:min(160px,40cqi);padding:0 6px;box-sizing:border-box;background:var(--token-color-background)}
 .sb-ub-logo[data-logo-img] img{width:auto;max-width:100%;height:100%;min-height:${HEADER_LOGO_LIMITS.minHeightPx}px;object-fit:contain}
 .sb-ub-nm{flex:1;min-width:0;line-height:1.1}
 .sb-ub-nm b{display:block;font-weight:800;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

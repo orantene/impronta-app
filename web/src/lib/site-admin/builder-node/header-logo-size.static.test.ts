@@ -94,7 +94,7 @@ test("TUL-532: kit-shell header logo (builder image node) gets the same limits o
 });
 
 test("TUL-532: utility-bar logo keeps its proportions instead of a cropped square", () => {
-  assert.match(UTILITY_BAR_CSS, /\.sb-ub-logo\[data-logo-img\]\{width:auto;max-width:/);
+  assert.match(UTILITY_BAR_CSS, /\.sb-ub-logo\[data-logo-img\]\{width:auto;max-width:[^}]*background:var\(--token-color-background\)\}/);
   assert.match(UTILITY_BAR_CSS, /\.sb-ub-logo\[data-logo-img\] img\{width:auto;[^}]*object-fit:contain/);
   assert.ok(UTILITY_BAR_CSS.includes(`min-height:${HEADER_LOGO_LIMITS.minHeightPx}px`));
   const phone = /@container sbub \(max-width:480px\)\{(.*)\}\s*$/m.exec(UTILITY_BAR_CSS)?.[1] ?? "";
