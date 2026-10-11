@@ -48,7 +48,9 @@ describe("white-text rule is gated on the over-hero marker", () => {
 
 describe("policy / mainOverride pages never stamp over-hero (TUL-516 H1)", () => {
   it("render-max-site gates data-over-hero on !mainOverride", () => {
-    const src = readFileSync(path.join(process.cwd(), "src/lib/talent-site/server/render-max-site.tsx"), "utf8");
+    const src = ["render-max-site.tsx", "render-max-site-document.tsx"]
+      .map((f) => readFileSync(path.join(process.cwd(), "src/lib/talent-site/server", f), "utf8"))
+      .join("\n");
     assert.match(src, /!args\.mainOverride\s*&&\s*headerOverlayAllowed/);
     assert.match(src, /policyMainNode\(policyModel,\s*\{\s*homeHref:/);
   });

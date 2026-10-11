@@ -113,7 +113,7 @@ test("CSS hides the variant the root does not match", () => {
 });
 
 const WEB = process.cwd();
-const RENDER_SRC = readFileSync(join(WEB, "src/lib/talent-site/server/render-max-site.tsx"), "utf8");
+const RENDER_SRC = readFileSync(join(WEB, "src/lib/talent-site/server/render-max-site-document.tsx"), "utf8");
 
 test("public render reads per request, applies expiry, hands widgets one liveStatus, mounts the island", () => {
   assert.match(RENDER_SRC, /loadTalentLiveStatus\(admin, talentProfileId\)/);
