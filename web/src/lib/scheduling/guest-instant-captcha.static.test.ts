@@ -37,7 +37,7 @@ test("guest instant confirm surfaces render GuestCaptchaField", () => {
     "utf8",
   );
   const maxSite = readFileSync(
-    join(SRC, "lib/talent-site/server/render-max-site.tsx"),
+    join(SRC, "lib/talent-site/server/render-max-site-document.tsx"),
     "utf8",
   );
   assert.ok(contact.includes("GuestCaptchaField"));

@@ -2,8 +2,11 @@ import assert from "node:assert/strict";
 import { beforeEach, describe, test } from "node:test";
 
 import {
+  ANALYTICS_ALLOWED_JS,
   CONSENT_COOKIE,
+  CONSENT_REGION_ATTR,
   CONSENT_STORAGE_KEY,
+  consentRegionForCountry,
   cookieGrantsAnalytics,
   hasAnalyticsConsent,
   isAnalyticsAllowed,
@@ -34,6 +37,39 @@ describe("consent resolution", () => {
   });
   test("junk stored values are ignored", () => {
     assert.equal(resolveConsent("yes", false), null);
+  });
+});
+
+describe("TUL-561: consent region", () => {
+  test("EU/EEA, UK and Switzerland get the full card; unknown is treated as strict", () => {
+    for (const c of ["DE", "fr", "ES", "IE", "NO", "IS", "LI", "GB", "CH", "RE"]) {
+      assert.equal(consentRegionForCountry(c), "strict", c);
+    }
+    for (const c of [null, undefined, "", "XX1", " "]) assert.equal(consentRegionForCountry(c), "strict");
+  });
+  test("everyone else gets the notice", () => {
+    for (const c of ["MX", "US", "AR", "CO", "CA", "BR"]) assert.equal(consentRegionForCountry(c), "notice", c);
+  });
+  test("notice region: analytics on with no choice, but a decline or GPC still wins", () => {
+    assert.equal(resolveConsent(null, false, "notice"), "granted");
+    assert.equal(resolveConsent("denied", false, "notice"), "denied");
+    assert.equal(resolveConsent(null, true, "notice"), "denied");
+    assert.equal(resolveConsent(null, false, "strict"), null);
+    assert.equal(shouldShowBanner(null, false), true, "the notice still shows until OK");
+  });
+  test("the inline tag snippet makes the same decision", () => {
+    const run = (stored: string | null, region: string | null, gpc: boolean) =>
+      new Function("localStorage", "document", "navigator", `return ${ANALYTICS_ALLOWED_JS};`)(
+        { getItem: (k: string) => (k === CONSENT_STORAGE_KEY ? stored : null) },
+        { documentElement: { getAttribute: (a: string) => (a === CONSENT_REGION_ATTR ? region : null) } },
+        { globalPrivacyControl: gpc },
+      ) as boolean;
+    assert.equal(run(null, "strict", false), false);
+    assert.equal(run(null, null, false), false);
+    assert.equal(run(null, "notice", false), true);
+    assert.equal(run(null, "notice", true), false);
+    assert.equal(run("denied", "notice", false), false);
+    assert.equal(run("granted", "strict", true), true);
   });
 });
 

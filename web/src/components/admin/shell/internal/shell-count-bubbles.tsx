@@ -86,17 +86,18 @@ export function ShellCountBubbles({
     countsProp?.find((c) => c.kind === "money")?.count ??
     shellCounts?.money ??
     0;
-  // Talent attention = inbox "esperando tu respuesta" only (same rows +
-  // predicate as Hoy). Do not prefer shellCounts.attention — that stub can
-  // diverge and produced bubble=2 / Hoy clear / inbox=5 (TUL-536).
+  // Row recompute of "esperando tu respuesta" for when the layout sent no
+  // attention count. The workspace never falls back to talent rows (TUL-536).
   const awaiting = inWorkspace
     ? 0
     : countTalentAwaitingInquiries(effectiveTalentInquiries);
+  // Talent: the layout's count is the inbox "Needs reply" number (TUL-388), so
+  // it wins even at 0; the row recompute is only for a missing bridge.
   const attention =
     countsProp?.find((c) => c.kind === "attention")?.count ??
     (inWorkspace
       ? (shellCounts?.attention ?? 0)
-      : awaiting);
+      : (shellCounts?.attention ?? awaiting));
 
   const visible = visibleShellCountBubbles([
     { kind: "messages", count: messages },

@@ -15,10 +15,9 @@ const contactForm = readFileSync(
   "utf8",
 );
 const footerSocket = readFileSync(join(process.cwd(), "src/lib/talent-site/footer-socket.ts"), "utf8");
-const renderMax = readFileSync(
-  join(process.cwd(), "src/lib/talent-site/server/render-max-site.tsx"),
-  "utf8",
-);
+const renderMax = ["render-max-site.tsx", "render-max-site-document.tsx"]
+  .map((f) => readFileSync(join(process.cwd(), "src/lib/talent-site/server", f), "utf8"))
+  .join("\n");
 
 function actionBody(name: string): string {
   const start = guestActions.indexOf(`export async function ${name}(`);
