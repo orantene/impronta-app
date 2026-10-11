@@ -16,6 +16,7 @@ import { isWebsitePublished } from "@/lib/talent/website-published-truth";
 import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
 import { resolveTalentDashboardLivePill } from "@/lib/talent-site/dashboard-my-website";
 import { loadMyBio, saveMyBio } from "@/lib/server-actions/ai-writing-helper";
+import { resolveTalentDashboardMyWebsite } from "@/lib/talent-site/dashboard-my-website";
 
 // Missing-item keys come from buildTalentChecklist (src/lib/talent-dashboard.ts).
 const SLICE_LABEL = {
@@ -80,8 +81,16 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
     detail: flow.state === "notReady" ? pillProgress.detail : flow.text.pillLead,
   };
 
+  // live1 admin-site + live4-01: Max "Administrar sitio" / workspace Edit must
+  // leave the talent shell. Soft router.push to /{slug}/admin/website sticks
+  // Hoy until F5 — hard-assign so admin layout mounts.
+  const myWebsite = siteLoad?.ok ? resolveTalentDashboardMyWebsite(siteLoad.state) : null;
   const goWebsite = () => {
     setOpen(false);
+    if (myWebsite?.kind === "workspace") {
+      window.location.assign(myWebsite.editHref);
+      return;
+    }
     setTalentPage("public-page");
     router.push("/talent/site");
   };

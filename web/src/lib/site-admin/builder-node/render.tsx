@@ -345,6 +345,11 @@ export interface BuilderNodeRenderDataSources {
   talentVisitFacts?: ReadonlyArray<import("./visit-types").TalentVisitFact>;
   /** G4 public `tel:` link for the utility bar; absent/empty = no call button. */
   callHref?: string;
+  /**
+   * The talent site's own languages (primary first) and, per code, THIS page in
+   * that language: the utility bar's language switch. Fewer than two = no switch.
+   */
+  siteLocales?: { locales: readonly string[]; hrefs?: Readonly<Record<string, string>> };
   /** Public-safe location (exact address present only in "public" mode). */
   talentLocation?: import("@/lib/talent/location-settings").TalentLocationPublic | null;
   /**
@@ -4439,6 +4444,9 @@ const SERVICES_CATALOG_CSS = `
    gets the same side gutter a paddingX:"m" container has. Inline authored
    padding still wins; nested catalogs keep their parent's padding. */
 [data-cms-block]>.site-builder-node--services-catalog{padding-inline:1.5rem}
+/* A catalog has no intrinsic width (the matrix table shrinks to ~200px), so a
+   stack container aligned start/center must still give it the full row. */
+.site-builder-node--container:not([data-builder-layout="row"]):not([data-builder-layout="grid"]):not([data-builder-display="grid"])>.site-builder-node--services-catalog{align-self:stretch}
 .site-builder-node--services-catalog-header{display:flex;flex-wrap:wrap;justify-content:space-between;gap:1.25rem;margin-bottom:1.5rem}
 .site-builder-node--services-catalog-eyebrow{margin:0 0 .35rem;font-size:.6875rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--token-color-primary,var(--token-color-ink))}
 .site-builder-node--services-catalog-title{margin:0;font-size:clamp(1.75rem,4vw,2.75rem);font-weight:500;line-height:1.1;font-family:var(--token-font-display,inherit)}
@@ -6190,6 +6198,8 @@ function renderBuilderNodeElement(
         node: localizeBlockNode(node, options.contentLocale),
         liveStatus: options.dataSources?.liveStatus,
         callHref: options.dataSources?.callHref,
+        siteLocales: options.dataSources?.siteLocales,
+        locale: options.visitorLocale ?? options.contentLocale?.locale,
         publicPathPrefix: options.publicPathPrefix,
         styleAttr: sharedNodeStyle(node.props.style),
       });

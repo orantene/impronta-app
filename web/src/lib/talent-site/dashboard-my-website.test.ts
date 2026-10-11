@@ -40,6 +40,7 @@ test("dual owner: My website primary is the business workspace", () => {
   assert.equal(resolved.kind, "workspace");
   assert.equal(resolved.publicUrl, "https://maison.tulala.digital");
   assert.equal(resolved.editHref, "/maison/admin/website");
+  assert.equal(resolved.designHref, "/maison/admin/website/design");
 });
 
 test("business-only: workspace still wins without a personal row", () => {
@@ -94,7 +95,7 @@ test("no site yet points at create", () => {
     profileCode: "TAL-93900",
   });
   assert.equal(resolved.kind, "create");
-  assert.equal(resolved.editHref, "/talent/public-page");
+  assert.equal(resolved.editHref, "/talent/site");
 });
 
 test("personal builder escape hatch keeps ?site=personal", () => {
