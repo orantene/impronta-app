@@ -83,13 +83,6 @@ export async function talentSiteHostResponse(
   });
   const localeStripped = talentLocale.innerPath;
 
-  const decision = isTalentSiteHostPathAllowed(localeStripped);
-  if (!decision) {
-    return NextResponse.rewrite(
-      new URL("/_page-not-found", request.url),
-      { status: 404 },
-    );
-  }
   const rememberChoice = (res: NextResponse): NextResponse => {
     if (talentLocale.explicit) {
       res.cookies.set(LOCALE_COOKIE, talentLocale.locale, localeCookieOptions);
@@ -102,13 +95,8 @@ export async function talentSiteHostResponse(
     }
     return res;
   };
-  if (talentLocale.redirectPath && (request.method === "GET" || request.method === "HEAD")) {
-    const target = request.nextUrl.clone();
-    target.pathname = talentLocale.redirectPath;
-    target.searchParams.delete("locale");
-    return rememberChoice(NextResponse.redirect(target, 302));
-  }
 
+  /** Locale + host context for talent rewrites, including hard-404. */
   const talentHeaders = new Headers(sanitizedInboundHeaders);
   talentHeaders.set(LOCALE_HEADER, talentLocale.locale);
   talentHeaders.set(ORIGINAL_PATHNAME_HEADER, request.nextUrl.pathname);
@@ -119,6 +107,26 @@ export async function talentSiteHostResponse(
   talentHeaders.delete(TENANT_HEADER_NAME);
   talentHeaders.delete(HOST_TENANT_SLUG_HEADER);
   talentHeaders.delete(PUBLIC_PATH_PREFIX_HEADER);
+
+  const decision = isTalentSiteHostPathAllowed(localeStripped);
+  if (!decision) {
+    // TUL-121 theme9 P2: allow-list rejects used to rewrite without forwarding
+    // the resolved talent locale, so `/_page-not-found` kept English child
+    // metadata. Carry locale (and host context) on the rewrite request and
+    // remember the choice the same way as a successful render.
+    return rememberChoice(
+      NextResponse.rewrite(new URL("/_page-not-found", request.url), {
+        status: 404,
+        request: { headers: talentHeaders },
+      }),
+    );
+  }
+  if (talentLocale.redirectPath && (request.method === "GET" || request.method === "HEAD")) {
+    const target = request.nextUrl.clone();
+    target.pathname = talentLocale.redirectPath;
+    target.searchParams.delete("locale");
+    return rememberChoice(NextResponse.redirect(target, 302));
+  }
 
   const attachGuestCookie = attachTalentSiteGuestIdentity(request, talentHeaders);
   const finish = (res: NextResponse): NextResponse =>

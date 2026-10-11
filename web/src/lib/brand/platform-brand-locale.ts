@@ -1,10 +1,12 @@
 /**
  * Locale-aware platform brand lines for public surfaces.
  *
- * Root `layout.tsx` metadata is English-only. Talent sites without a page
- * meta description inherit that English pitch on Spanish pages (live on
- * qa-fresh-studio). Marketing `/es` already ships Spanish; keep one helper
- * so Max-site metadata can match.
+ * Root `layout.tsx` metadata defaults are English-only. Talent sites without a
+ * page meta description inherit that English pitch on Spanish pages (live on
+ * qa-fresh-studio). On Spanish talent hosts, missing pages (404) and any route
+ * that inherits the root default still show `Tulala · Sell what you do…` in the
+ * tab unless callers use `platformDefaultTitle`. Marketing `/es` already ships
+ * Spanish; keep one helper so Max-site metadata and dashboard tabs match.
  *
  * Neutral Mexican Spanish (tú). No em dashes.
  */
@@ -30,6 +32,11 @@ export function platformBrandTagline(locale: string | undefined | null): string 
 
 export function platformBrandDescription(locale: string | undefined | null): string {
   return isSpanishLocale(locale) ? PLATFORM_DESCRIPTION_ES : TULALA_BRAND.description;
+}
+
+/** Root / dashboard default tab title: `Tulala · <tagline>`. */
+export function platformDefaultTitle(locale: string | undefined | null): string {
+  return `${TULALA_BRAND.name} · ${platformBrandTagline(locale)}`;
 }
 
 /**

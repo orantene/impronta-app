@@ -16,6 +16,10 @@ import {
   ORIGINAL_SEARCH_HEADER,
   resolveDocumentLocale,
 } from "@/i18n/request-locale";
+import {
+  platformBrandDescription,
+  platformDefaultTitle,
+} from "@/lib/brand/platform-brand-locale";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { getPublicFontPreset } from "@/lib/site-font-preset";
 import { getSiteTheme } from "@/lib/site-theme";
@@ -66,68 +70,78 @@ import { FloatingChromeStackStyles } from "@/lib/talent-site/floating-chrome-sta
 
 import "./globals.css";
 
-const BASE_METADATA: Metadata = {
-  // Marketing apex base so the inherited `opengraph-image` file-route and any
-  // relative canonical resolve to tulala.digital, not the request host. Every
-  // non-marketing surface overrides this in its own generateMetadata.
-  metadataBase: new URL(`https://${PLATFORM_BRAND.domain}`),
-  title: {
-    default: `${PLATFORM_BRAND.name} · ${PLATFORM_BRAND.tagline}`,
-    template: `%s · ${PLATFORM_BRAND.name}`,
-  },
-  description: PLATFORM_BRAND.description,
-  // PWA / installable-app metadata — lets users add Tulala to their
-  // home screen on iOS/Android. The manifest itself lives at
-  // /manifest.webmanifest (public/).
-  manifest: "/manifest.webmanifest",
-  // Platform icon is CONFIG-based (a public/ asset), NOT the app/icon.svg
-  // file convention: file-based icons outrank metadata icons in Next, which
-  // would make the per-tenant favicon override in (public)/layout.tsx
-  // impossible.
-  icons: { icon: [{ url: "/platform-icon.svg", type: "image/svg+xml" }] },
-  appleWebApp: {
-    capable: true,
-    title: PLATFORM_BRAND.name,
-    statusBarStyle: "default",
-  },
-  // Google Search Console ownership for the https://tulala.digital/ URL-prefix
-  // property. Not a secret: it is served in the public <head> by design, and
-  // Google requires it to stay in place or the property silently un-verifies.
-  verification: {
-    google: "AT_7Nj7SfihEJhb9W1jP4oFW5fyoguijnMpqpIN7x0k",
-  },
-  openGraph: {
-    siteName: PLATFORM_BRAND.name,
-    title: `${PLATFORM_BRAND.name} · ${PLATFORM_BRAND.tagline}`,
-    description: PLATFORM_BRAND.description,
-    url: `https://${PLATFORM_BRAND.domain}/`,
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: `${PLATFORM_BRAND.name} · ${PLATFORM_BRAND.tagline}`,
-    description: PLATFORM_BRAND.description,
-  },
-};
+/**
+ * Platform defaults inherited by routes that omit their own title/description
+ * (talent-site 404s, scrubbed SEO). TUL-121 theme9: follow request locale so
+ * ES public hosts do not show the English tagline in the tab.
+ */
+function platformBaseMetadata(locale: string): Metadata {
+  const title = platformDefaultTitle(locale);
+  const description = platformBrandDescription(locale);
+  return {
+    // Marketing apex base so the inherited `opengraph-image` file-route and any
+    // relative canonical resolve to tulala.digital, not the request host. Every
+    // non-marketing surface overrides this in its own generateMetadata.
+    metadataBase: new URL(`https://${PLATFORM_BRAND.domain}`),
+    title: {
+      default: title,
+      template: `%s · ${PLATFORM_BRAND.name}`,
+    },
+    description,
+    // PWA / installable-app metadata — lets users add Tulala to their
+    // home screen on iOS/Android. The manifest itself lives at
+    // /manifest.webmanifest (public/).
+    manifest: "/manifest.webmanifest",
+    // Platform icon is CONFIG-based (a public/ asset), NOT the app/icon.svg
+    // file convention: file-based icons outrank metadata icons in Next, which
+    // would make the per-tenant favicon override in (public)/layout.tsx
+    // impossible.
+    icons: { icon: [{ url: "/platform-icon.svg", type: "image/svg+xml" }] },
+    appleWebApp: {
+      capable: true,
+      title: PLATFORM_BRAND.name,
+      statusBarStyle: "default",
+    },
+    // Google Search Console ownership for the https://tulala.digital/ URL-prefix
+    // property. Not a secret: it is served in the public <head> by design, and
+    // Google requires it to stay in place or the property silently un-verifies.
+    verification: {
+      google: "AT_7Nj7SfihEJhb9W1jP4oFW5fyoguijnMpqpIN7x0k",
+    },
+    openGraph: {
+      siteName: PLATFORM_BRAND.name,
+      title,
+      description,
+      url: `https://${PLATFORM_BRAND.domain}/`,
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
+  };
+}
 
 /**
- * Root metadata is a function (not a static export) for one reason: the
- * per-tenant favicon. Branded-host storefront routes span several route
- * groups, so the root — which every request passes — is the one place a
- * tenant's uploaded favicon (Settings → Brand identity, carried as the
- * theme_json.favicon_url piggyback) can override the platform icon without
- * per-segment duplication. Non-tenant hosts keep BASE_METADATA verbatim.
- * loadPublicBranding is unstable_cache'd + tag-busted, and the body below
- * calls it too, so this adds no extra query.
+ * Root metadata is a function (not a static export) for the per-tenant favicon
+ * and (TUL-121) locale-aware platform defaults. Branded-host storefront routes
+ * span several route groups, so the root — which every request passes — is the
+ * one place a tenant's uploaded favicon (Settings → Brand identity, carried as
+ * the theme_json.favicon_url piggyback) can override the platform icon without
+ * per-segment duplication. loadPublicBranding is unstable_cache'd + tag-busted,
+ * and the body below calls it too, so this adds no extra query.
  */
 export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const base = platformBaseMetadata(locale);
   const publicScope = await getPublicTenantScope();
-  if (!publicScope) return BASE_METADATA;
+  if (!publicScope) return base;
   const branding = await loadPublicBranding(publicScope.tenantId);
   const theme = (branding?.theme_json ?? {}) as Record<string, unknown>;
   const faviconUrl = typeof theme.favicon_url === "string" ? theme.favicon_url : null;
-  if (!faviconUrl) return BASE_METADATA;
-  return { ...BASE_METADATA, icons: { icon: [{ url: faviconUrl }] } };
+  if (!faviconUrl) return base;
+  return { ...base, icons: { icon: [{ url: faviconUrl }] } };
 }
 
 // Theme color drives the iOS/Android browser chrome tint when the app is

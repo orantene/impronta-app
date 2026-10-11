@@ -21,3 +21,15 @@ test("talentSiteHostResponse 308s non-canonical demo hosts to the -demo suffix",
   assert.match(SRC, /hostContext\.isDemo === true/);
   assert.match(SRC, /design vanity aliases/);
 });
+
+test("TUL-121 theme9 P2: hard-404 rewrite forwards talent locale headers", () => {
+  // Allow-list rejects must not drop the resolved locale before
+  // `/_page-not-found` generateMetadata reads getRequestLocale().
+  assert.match(SRC, /isTalentSiteHostPathAllowed\(localeStripped\)/);
+  assert.match(SRC, /LOCALE_HEADER, talentLocale\.locale/);
+  assert.match(SRC, /ORIGINAL_PATHNAME_HEADER, request\.nextUrl\.pathname/);
+  const hard404 = SRC.slice(SRC.indexOf("if (!decision)"));
+  assert.match(hard404, /_page-not-found/);
+  assert.match(hard404, /request:\s*\{\s*headers:\s*talentHeaders\s*\}/);
+  assert.match(hard404, /rememberChoice\(/);
+});
