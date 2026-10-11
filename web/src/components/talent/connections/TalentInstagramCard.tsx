@@ -67,7 +67,9 @@ function InstagramGlyph() {
 export function TalentInstagramCard({ onUpgrade }: { onUpgrade: () => void }) {
   const { t, es } = usePresenceText();
   const [state, setState] = useState<TalentInstagramCardState | null>(null);
-  const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string; localize?: boolean } | null>(
+    null,
+  );
   const [confirmingDisconnect, setConfirmingDisconnect] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -78,8 +80,8 @@ export function TalentInstagramCard({ onUpgrade }: { onUpgrade: () => void }) {
     if (notice) {
       setMessage(
         notice.key === "connected"
-          ? { tone: "ok", text: t("Instagram connected.") }
-          : { tone: "error", text: t(NOTICE_COPY[notice.key]) },
+          ? { tone: "ok", text: "Instagram connected.", localize: true }
+          : { tone: "error", text: NOTICE_COPY[notice.key], localize: true },
       );
       for (const key of RETURN_PARAMS) search.delete(key);
       const query = search.toString();
@@ -95,8 +97,6 @@ export function TalentInstagramCard({ onUpgrade }: { onUpgrade: () => void }) {
     return () => {
       live = false;
     };
-    // Runs once on mount: the return params are read a single time.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function connect() {
@@ -289,7 +289,7 @@ export function TalentInstagramCard({ onUpgrade }: { onUpgrade: () => void }) {
             message.tone === "ok" ? "text-admin-success-deep" : "text-admin-critical"
           }`}
         >
-          {message.text}
+          {message.localize ? t(message.text) : message.text}
         </p>
       ) : null}
     </div>
