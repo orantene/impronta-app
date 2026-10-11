@@ -48,7 +48,7 @@ import { ALEX_PHOTO_SOURCES } from "./alex";
 import { applyHeroFacts } from "../../src/lib/talent-site/demos/hero-facts";
 import { finishedDemoSecondaryLocales } from "../../src/lib/talent-site/demos/finished-demo-locales";
 import { resolvedDemoBookingHours } from "../../src/lib/talent-site/demos/demo-booking-hours";
-import { demoSiteSwitchColumns } from "../../src/lib/talent-site/demos/demo-site-settings";
+import { demoSiteSettingsFor, demoSiteSwitchColumns } from "../../src/lib/talent-site/demos/demo-site-settings";
 import { isDemoEmail } from "./demo-identity";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
@@ -659,6 +659,7 @@ async function seedOne(d: DemoTalent, manifest: Manifest, pack: Pack | null) {
     theme: d.theme,
     preferredLocale: (locRow as { preferred_locale: string | null } | null)?.preferred_locale,
     currentSecondary: (locRow as { secondary_locales: string[] | null } | null)?.secondary_locales,
+    siteLangs: demoSiteSettingsFor(d.profileCode).siteLangs,
   });
   if (secondary) {
     const { error } = await admin.from("talent_profiles").update({ secondary_locales: secondary }).eq("id", profileId);

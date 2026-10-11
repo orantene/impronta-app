@@ -87,6 +87,18 @@ export async function talentSiteHostResponse(
   });
   const localeStripped = talentLocale.innerPath;
 
+  /** Locale + host context for talent rewrites, including hard-404 and B1 notice. */
+  const talentHeaders = new Headers(sanitizedInboundHeaders);
+  talentHeaders.set(LOCALE_HEADER, talentLocale.locale);
+  talentHeaders.set(ORIGINAL_PATHNAME_HEADER, request.nextUrl.pathname);
+  talentHeaders.set(HOST_CONTEXT_HEADER, "talent_site");
+  talentHeaders.set(HOST_NAME_HEADER, hostContext.hostname);
+  talentHeaders.set(HOST_TALENT_PROFILE_HEADER, hostContext.talentProfileId);
+  // A talent_site host is NOT tenant-scoped — never let a tenant id leak.
+  talentHeaders.delete(TENANT_HEADER_NAME);
+  talentHeaders.delete(HOST_TENANT_SLUG_HEADER);
+  talentHeaders.delete(PUBLIC_PATH_PREFIX_HEADER);
+
   // GRK-028: /agendar|/servicios|/contacto (and EN twins) are guest guesses,
   // not page slugs — send them to the home anchors before the allow-list 404s.
   {
@@ -105,21 +117,6 @@ export async function talentSiteHostResponse(
     }
   }
 
-  const decision = isTalentSiteHostPathAllowed(localeStripped);
-  if (!decision) {
-    // Keep talent host + locale on the branded 404 so Spanish sites never see
-    // the English Tulala chrome (GRK-028).
-    const missHeaders = new Headers(sanitizedInboundHeaders);
-    missHeaders.set(LOCALE_HEADER, talentLocale.locale);
-    missHeaders.set(HOST_CONTEXT_HEADER, "talent_site");
-    missHeaders.set(HOST_NAME_HEADER, hostContext.hostname);
-    missHeaders.set(HOST_TALENT_PROFILE_HEADER, hostContext.talentProfileId);
-    missHeaders.delete(TENANT_HEADER_NAME);
-    return NextResponse.rewrite(new URL("/_page-not-found", request.url), {
-      status: 404,
-      request: { headers: missHeaders },
-    });
-  }
   const rememberChoice = (res: NextResponse, redirect = false): NextResponse => {
     if (talentLocale.explicit) {
       if (talentSiteShouldRememberLocale(request, talentLocale.locale, { redirect })) {
@@ -134,23 +131,40 @@ export async function talentSiteHostResponse(
     }
     return res;
   };
+
+  const decision = isTalentSiteHostPathAllowed(localeStripped);
+  if (!decision) {
+    // Keep talent host + locale on the branded 404 so Spanish sites never see
+    // the English Tulala chrome (GRK-028).
+    return rememberChoice(
+      NextResponse.rewrite(new URL("/_page-not-found", request.url), {
+        status: 404,
+        request: { headers: talentHeaders },
+      }),
+    );
+  }
+
+  // TUL-516 B1: unsupported platform locale → explicit single-language notice.
+  if (
+    talentLocale.unsupportedLocale &&
+    (request.method === "GET" || request.method === "HEAD")
+  ) {
+    const notice = new URL("/_talent-locale-unavailable", request.url);
+    notice.search = "";
+    notice.searchParams.set("requested", talentLocale.unsupportedLocale);
+    return rememberChoice(
+      NextResponse.rewrite(notice, {
+        request: { headers: talentHeaders },
+      }),
+    );
+  }
+
   if (talentLocale.redirectPath && (request.method === "GET" || request.method === "HEAD")) {
     const target = request.nextUrl.clone();
     target.pathname = talentLocale.redirectPath;
     target.searchParams.delete("locale");
     return rememberChoice(NextResponse.redirect(target, 302), true);
   }
-
-  const talentHeaders = new Headers(sanitizedInboundHeaders);
-  talentHeaders.set(LOCALE_HEADER, talentLocale.locale);
-  talentHeaders.set(ORIGINAL_PATHNAME_HEADER, request.nextUrl.pathname);
-  talentHeaders.set(HOST_CONTEXT_HEADER, "talent_site");
-  talentHeaders.set(HOST_NAME_HEADER, hostContext.hostname);
-  talentHeaders.set(HOST_TALENT_PROFILE_HEADER, hostContext.talentProfileId);
-  // A talent_site host is NOT tenant-scoped — never let a tenant id leak.
-  talentHeaders.delete(TENANT_HEADER_NAME);
-  talentHeaders.delete(HOST_TENANT_SLUG_HEADER);
-  talentHeaders.delete(PUBLIC_PATH_PREFIX_HEADER);
 
   const attachGuestCookie = attachTalentSiteGuestIdentity(request, talentHeaders);
   const finish = (res: NextResponse): NextResponse =>
