@@ -10,6 +10,7 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { publicThreadPath, signThreadToken } from "@/lib/messaging/thread-token";
 import { resolveTenantTimezone } from "@/lib/spaces/venues";
 import { venueHhmm } from "@/lib/spaces/venue-clock";
+import { payZoneName } from "./pay-zone-name";
 
 import { googleCalendarUrl, icsDataHref } from "@/lib/payments/calendar-links";
 import { moneyMayHaveMoved } from "@/lib/payments/pay-closed-money";
@@ -168,6 +169,7 @@ export async function PayByCodePage({
   const { timezone } = loaded.tenantId ? await resolveTenantTimezone(loaded.tenantId) : { timezone: "UTC" };
   const expiresAtLabel = venueHhmm(loaded.expiresAt, timezone, "en");
   const holdUntilLabel = orderRow?.hold_expires_at ? venueHhmm(orderRow.hold_expires_at, timezone, "en") : null;
+  const zoneName = payZoneName(timezone);
 
   // The conversation behind the sale: the order's, or the link's own when
   // the request came from Messages (D-145: that flow left orders.inquiry_id
@@ -197,6 +199,7 @@ export async function PayByCodePage({
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? "USD"}
         expiresAt={expiresAtLabel}
+        zoneName={zoneName}
         status="processing"
         locale={uiLocale}
         lines={orderLines}
@@ -260,6 +263,7 @@ export async function PayByCodePage({
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? ""}
         expiresAt={expiresAtLabel}
+        zoneName={zoneName}
         status={paidDisplay}
         locale={uiLocale}
         sellerName={sellerName}
@@ -284,6 +288,7 @@ export async function PayByCodePage({
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? ""}
         expiresAt={expiresAtLabel}
+        zoneName={zoneName}
         status="cancelledReturn"
         locale={uiLocale}
         lines={[]}
@@ -315,6 +320,7 @@ export async function PayByCodePage({
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? ""}
         expiresAt={expiresAtLabel}
+        zoneName={zoneName}
         status={
           loaded.status === "cancelled" || orderCancelled
             ? "cancelled"
@@ -350,6 +356,7 @@ export async function PayByCodePage({
           amountCents={loaded.amountCents}
           currency={orderRow?.currency ?? ""}
           expiresAt={expiresAtLabel}
+          zoneName={zoneName}
           status="unknown"
           lines={[]}
           holdUntil={null}
@@ -384,6 +391,7 @@ export async function PayByCodePage({
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? ""}
         expiresAt={expiresAtLabel}
+        zoneName={zoneName}
         status={payStartViewStatus(opened.reason)}
         lines={[]}
         holdUntil={null}
@@ -410,6 +418,7 @@ export async function PayByCodePage({
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? ""}
         expiresAt={expiresAtLabel}
+        zoneName={zoneName}
         status="unknown"
         lines={[]}
         holdUntil={null}
@@ -441,6 +450,7 @@ export async function PayByCodePage({
       amountCents={loaded.amountCents}
       currency={orderRow?.currency ?? ""}
       expiresAt={expiresAtLabel}
+      zoneName={zoneName}
       status="open"
       locale={uiLocale}
       feeLines={feeLines}
