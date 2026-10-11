@@ -143,3 +143,32 @@ test("deleting one root never hoists a surviving container's children (delete !=
   );
   assert.equal(afterRows.filter((r) => r.depth === 0).length, 1);
 });
+
+function labelled(id: string, layerLabel: string): BuilderNode {
+  return { id, kind: "container", props: { layerLabel }, children: [] } as unknown as BuilderNode;
+}
+
+function heading(id: string, text: string): BuilderNode {
+  return { id, kind: "heading", props: { text } } as unknown as BuilderNode;
+}
+
+test("flattenTree names design-kit layers in Spanish for an es editor, keeps talent names and text", () => {
+  const tree: BuilderNodeTree = [
+    labelled("t", "Ticker and recent work"),
+    labelled("m", "Menu"),
+    labelled("r", "Reviews"),
+    labelled("a", "About"),
+    labelled("own", "Mis favoritos"),
+    heading("h", "Menu"),
+  ];
+  const es = Object.fromEntries(flattenTree(tree, "es").rows.map((r) => [r.id, r.label]));
+  assert.equal(es.t, "Novedades y trabajos recientes");
+  assert.equal(es.m, "Menú");
+  assert.equal(es.r, "Reseñas");
+  assert.equal(es.a, "Sobre mí");
+  assert.equal(es.own, "Mis favoritos");
+  assert.equal(es.h, "Menu");
+  const en = Object.fromEntries(flattenTree(tree).rows.map((r) => [r.id, r.label]));
+  assert.equal(en.t, "Ticker and recent work");
+  assert.equal(en.m, "Menu");
+});

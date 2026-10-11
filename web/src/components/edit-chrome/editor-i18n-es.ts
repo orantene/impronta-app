@@ -797,4 +797,9 @@ export const ES_TEXT: Record<string, string> = {
     "Idioma de la página (abre la versión de esta página en ese idioma)",
   "Open the {label} version of this page":
     "Abrir la versión en {label} de esta página",
+  "Page layers": "Capas de la página",
+  "Add block to page": "Agregar bloque a la página",
+  "Add block inside {name}": "Agregar bloque dentro de {name}",
+  "No layers match “{query}”.": "Ninguna capa coincide con “{query}”.",
+  "Clear search": "Borrar búsqueda",
 };
