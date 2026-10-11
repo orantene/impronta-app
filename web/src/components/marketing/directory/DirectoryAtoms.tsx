@@ -45,8 +45,8 @@ export function TalentAvatar({
   );
 }
 
-export function TrustBadge({ tier }: { tier: string | null }) {
-  const meta = trustTierMeta(tier);
+export function TrustBadge({ tier, locale }: { tier: string | null; locale: string }) {
+  const meta = trustTierMeta(tier, locale);
   if (!meta) return null;
   const strong = meta.weight === "strong";
   return (
@@ -68,10 +68,12 @@ export function TrustBadge({ tier }: { tier: string | null }) {
 
 export function AvailabilityLine({
   availableDaysInNext30,
+  locale,
 }: {
   availableDaysInNext30: number | null;
+  locale: string;
 }) {
-  const { text, open } = availabilityLine(availableDaysInNext30);
+  const { text, open } = availabilityLine(availableDaysInNext30, locale);
   return (
     <span
       className="inline-flex items-center gap-1.5 text-[0.8125rem] leading-none"

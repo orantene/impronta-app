@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { DirectoryCardRow } from "./shared";
 import { agencyLine, locationLine, FOCUS_RING } from "./shared";
 import { TalentAvatar, TrustBadge, AvailabilityLine } from "./DirectoryAtoms";
+import { directoryCopy } from "./directory-copy";
 import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
 
 /**
@@ -10,7 +11,9 @@ import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
  * `DirectoryCardRow` (the exact field set the row reads) so the grid + list
  * views feed off one row shape.
  */
-export function DirectoryTalentRow({ talent }: { talent: DirectoryCardRow }) {
+export function DirectoryTalentRow({ talent, locale }: { talent: DirectoryCardRow; locale: string }) {
+  const c = directoryCopy(locale);
+  const agency = agencyLine(talent.agencyName, talent.isExclusive, locale);
   const loc = locationLine(talent.homeCity, talent.homeCountry);
   const href = talent.profileCode ? `/t/${talent.profileCode}` : null;
   // STANDING chip — verified review aggregate off the discover matview, shown
@@ -34,7 +37,7 @@ export function DirectoryTalentRow({ talent }: { talent: DirectoryCardRow }) {
           >
             {talent.displayName}
           </h3>
-          <TrustBadge tier={talent.trustTier} />
+          <TrustBadge tier={talent.trustTier} locale={locale} />
           {showStanding ? (
             <span
               data-directory-standing
@@ -44,7 +47,7 @@ export function DirectoryTalentRow({ talent }: { talent: DirectoryCardRow }) {
                 border: "1px solid var(--plt-hairline)",
                 color: "var(--plt-ink-soft)",
               }}
-              title={`Verified standing from ${talent.ratingCount} completed bookings`}
+              title={c.standingTitle(talent.ratingCount ?? 0)}
             >
               <span aria-hidden style={{ color: "var(--plt-forest, #4a6b52)" }}>
                 ★
@@ -64,11 +67,11 @@ export function DirectoryTalentRow({ talent }: { talent: DirectoryCardRow }) {
         <span
           className="truncate text-[0.8125rem]"
           style={{ color: "var(--plt-ink-soft)" }}
-          title={agencyLine(talent.agencyName, talent.isExclusive)}
+          title={agency}
         >
-          {agencyLine(talent.agencyName, talent.isExclusive)}
+          {agency}
         </span>
-        <AvailabilityLine availableDaysInNext30={talent.availableDaysInNext30} />
+        <AvailabilityLine availableDaysInNext30={talent.availableDaysInNext30} locale={locale} />
       </div>
 
       <ArrowGlyph />

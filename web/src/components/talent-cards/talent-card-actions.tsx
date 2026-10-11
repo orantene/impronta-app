@@ -76,7 +76,6 @@ export function TalentCardActions({
   const cartPending = cart.isPending(talentProfileId);
   const compact = variant === "compact";
   const isPill = variant === "pill";
-  const nameSuffix = displayName ? ` ${displayName}` : "";
 
   // Phase 3 — the per-card inquiry control is resolver-driven (single source of
   // truth for CTA state). The card only carries the lineup inputs (it has no
@@ -101,7 +100,8 @@ export function TalentCardActions({
   });
   const inLineupState = ctaState.kind === "in_lineup";
   const copy = withInterpolation(createTranslator(locale));
-  const fallbackName = displayName?.trim() || copy("public.directory.fallbackPrimaryTalentType");
+  const favoriteName = displayName?.trim() ?? "";
+  const fallbackName = favoriteName || copy("public.directory.fallbackPrimaryTalentType");
   const inquiryLabel = inLineupState
     ? copy("public.directory.card.inLineup")
     : copy("public.directory.card.inquire");
@@ -177,9 +177,18 @@ export function TalentCardActions({
           disabled={favPending}
           aria-pressed={favorited}
           aria-label={
-            favorited
-              ? `Remove${nameSuffix} from favorites`
-              : `Save${nameSuffix} to favorites`
+            favoriteName
+              ? copy(
+                  favorited
+                    ? "public.directory.card.removeFavoriteAria"
+                    : "public.directory.card.saveFavoriteAria",
+                  { name: favoriteName },
+                )
+              : copy(
+                  favorited
+                    ? "public.directory.ui.card.removeFavoriteAria"
+                    : "public.directory.ui.card.saveFavoriteAria",
+                )
           }
           className={cn(
             // Lane E — the circle is CONSTANT in both states; only the

@@ -42,11 +42,13 @@ export function MarketingDirectoryMapClient({
   apiKey,
   unmappedCount,
   onBackToGrid,
+  locale,
 }: {
   points: DiscoverMapPoint[];
   apiKey: string | null;
   unmappedCount: number;
   onBackToGrid: () => void;
+  locale: string;
 }) {
   const [bounds, setBounds] = useState<ViewBounds | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -183,7 +185,7 @@ export function MarketingDirectoryMapClient({
                   : undefined
               }
             >
-              <DirectoryTalentCard talent={p} />
+              <DirectoryTalentCard talent={p} locale={locale} />
             </div>
           ))}
         </div>

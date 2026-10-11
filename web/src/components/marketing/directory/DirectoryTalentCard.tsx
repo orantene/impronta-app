@@ -19,6 +19,7 @@ import {
 } from "@/lib/site-admin/server/card-design-shape";
 import type { DirectoryCardRow } from "./shared";
 import { toCanonicalCardData } from "./shared";
+import { directoryCopy } from "./directory-copy";
 
 /**
  * Grid card for the public global directory — now a thin wrapper over the
@@ -49,6 +50,7 @@ export function DirectoryTalentCard({
   talent,
   priority,
   captionNorms = NO_CAPTION_NORMS,
+  locale,
 }: {
   /** The directory row. Carries its own resolved `design` (per `agencyTenantId`,
    *  attached server-side by the page); independents / load-more rows omit it
@@ -57,10 +59,12 @@ export function DirectoryTalentCard({
   priority?: boolean;
   /** What is NORMAL for this grid — matching lines are dropped (see lib/directory/caption-norms). */
   captionNorms?: CaptionNorms;
+  locale: string;
 }) {
   const mediaRef = useRef<HTMLDivElement>(null);
   const design = talent.design ?? DEFAULT_CARD_DESIGN;
-  const data = toCanonicalCardData(talent);
+  const copy = directoryCopy(locale);
+  const data = toCanonicalCardData(talent, locale);
   // The tenant's explicit Card Design layout defaults win; the family only
   // decides the render branch when no explicit style was published.
   // Phase 2 (TUL-19): Showcase or Cinematic, chosen in Card Design. Unset
@@ -124,6 +128,7 @@ export function DirectoryTalentCard({
         displayName={data.name}
         sourcePage="/directory"
         variant="pill"
+        locale={locale}
         hideFavorite
         portraitUrl={talent.headshotUrl ?? null}
         getInquiryPhotoRect={() =>
@@ -172,11 +177,11 @@ export function DirectoryTalentCard({
               displayName={data.name}
               profileHref={data.profileHref}
               thumbnailUrl={talent.headshotUrl ?? null}
-              locale="en"
+              locale={locale}
               sourcePage="/directory"
-              openLabel="Quick view"
-              closeLabel="Close"
-              viewProfileLabel="View profile"
+              openLabel={copy.quickView}
+              closeLabel={copy.close}
+              viewProfileLabel={copy.viewProfile}
             />
           ) : null}
           {showFavorite ? (
@@ -186,6 +191,7 @@ export function DirectoryTalentCard({
               displayName={data.name}
               sourcePage="/directory"
               variant="compact"
+              locale={locale}
               hideInquiry
             />
           ) : null}

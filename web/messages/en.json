@@ -507,6 +507,8 @@
         "inLineup": "In lineup",
         "inquireAria": "Add {name} to your lineup",
         "inLineupAria": "{name} is in your lineup. Tap to remove.",
+        "saveFavoriteAria": "Save {name} to favorites",
+        "removeFavoriteAria": "Remove {name} from favorites",
         "booksByAppointment": "Books by appointment",
         "reserve": "Reserve"
       },

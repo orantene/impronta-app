@@ -26,6 +26,7 @@ export function MarketingDirectoryMap(props: {
   apiKey: string | null;
   unmappedCount: number;
   onBackToGrid: () => void;
+  locale: string;
 }) {
   return <MapClient {...props} />;
 }

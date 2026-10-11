@@ -12,7 +12,11 @@
  * Reads ONLY the discoverable set the materialized view exposes (is_discoverable
  * + approved/published). It never widens that set or tenant-scopes it.
  */
-import { loadDiscoverTalents } from "@/app/(workspace)/[tenantSlug]/_data-bridge/discover";
+import {
+  loadDiscoverTalents,
+  loadTalentTypeLabels,
+} from "@/app/(workspace)/[tenantSlug]/_data-bridge/discover";
+import { getRequestLocale } from "@/i18n/request-locale";
 import {
   DIRECTORY_PAGE_SIZE,
   type DirectoryCardRow,
@@ -47,8 +51,18 @@ export async function loadMoreDirectoryTalents(
   const design = hub
     ? await resolveCardDesign(hub.tenantId)
     : DEFAULT_CARD_DESIGN;
+  const typeLabels = await loadTalentTypeLabels(
+    page.items.flatMap((row) => (row.primaryTypeSlug ? [row.primaryTypeSlug] : [])),
+    await getRequestLocale(),
+  );
   return {
-    items: page.items.map((row) => ({ ...row, design })),
+    items: page.items.map((row) => ({
+      ...row,
+      primaryTypeLabel:
+        (row.primaryTypeSlug ? typeLabels.get(row.primaryTypeSlug) : undefined) ??
+        row.primaryTypeLabel,
+      design,
+    })),
     total: page.total,
   };
 }

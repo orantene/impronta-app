@@ -259,8 +259,6 @@ export const DEAD_MESSAGE_KEY_BASELINE: readonly string[] = [
   "public.directory.ui.card.availableFrom",
   "public.directory.ui.card.favoriteUpdateFailed",
   "public.directory.ui.card.inquiryUpdateFailed",
-  "public.directory.ui.card.removeFavoriteAria",
-  "public.directory.ui.card.saveFavoriteAria",
   "public.directory.ui.favorites.inquireAboutThese",
   "public.errors.directoryLoad",
   "public.errors.generic",

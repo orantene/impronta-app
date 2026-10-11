@@ -4,6 +4,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { resolveTalentCardThumbsForHub } from "@/lib/media/talent-media-for-hub";
 import { byLabel } from "@/lib/field-engine/sort-comparators";
+import { defaultLocale } from "@/i18n/config";
 import {
   buildLocationCatalog,
   buildLocationFacets,
@@ -397,7 +398,39 @@ export type DirectoryFacets = {
   trustTiers: Array<{ value: string; count: number }>;
 };
 
-export async function loadDirectoryFacets(): Promise<DirectoryFacets> {
+/**
+ * Talent-type labels in `locale`, keyed by slug. The discover matview stores the
+ * English label only; this reads `taxonomy_terms.name_i18n`. Empty for the
+ * default locale or on error, so callers keep the stored English label.
+ */
+export async function loadTalentTypeLabels(
+  slugs: readonly string[],
+  locale: string,
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const unique = Array.from(new Set(slugs.filter(Boolean)));
+  if (locale === defaultLocale || unique.length === 0) return out;
+  const admin = createServiceRoleClient();
+  if (!admin) return out;
+
+  const { data, error } = await admin
+    .from("taxonomy_terms")
+    .select("slug, name_i18n")
+    .eq("kind", "talent_type")
+    .in("slug", unique);
+  if (error) {
+    logServerError("workspace.loadTalentTypeLabels", error);
+    return out;
+  }
+  for (const row of (data ?? []) as Array<{ slug: string; name_i18n: unknown }>) {
+    const names = row.name_i18n as Record<string, unknown> | null;
+    const label = names?.[locale];
+    if (typeof label === "string" && label.trim()) out.set(row.slug, label.trim());
+  }
+  return out;
+}
+
+export async function loadDirectoryFacets(locale: string = defaultLocale): Promise<DirectoryFacets> {
   const admin = createServiceRoleClient();
   const empty: DirectoryFacets = { countries: [], categories: [], cities: [], trustTiers: [] };
   if (!admin) return empty;
@@ -439,11 +472,12 @@ export async function loadDirectoryFacets(): Promise<DirectoryFacets> {
   }
 
   const { countries, cities } = buildLocationFacets(rows, await loadLocationCatalog(admin));
+  const localLabels = await loadTalentTypeLabels(Array.from(categoryCounts.keys()), locale);
 
   return {
     countries,
     categories: Array.from(categoryCounts.entries())
-      .map(([value, { label, count }]) => ({ value, label, count }))
+      .map(([value, { label, count }]) => ({ value, label: localLabels.get(value) ?? label, count }))
       .sort((a, b) => b.count - a.count || byLabel(a, b)),
     cities,
     trustTiers: Array.from(trustCounts.entries())

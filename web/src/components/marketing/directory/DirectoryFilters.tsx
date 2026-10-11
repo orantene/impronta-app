@@ -10,6 +10,7 @@ import {
   type DirectoryActiveFilters,
   type DirectoryFacets,
 } from "./shared";
+import { directoryCopy, type DirectoryCopy } from "./directory-copy";
 
 const COLLAPSE_AT = 8;
 
@@ -28,6 +29,7 @@ export function DirectoryFilters({
   onAvailableOnly,
   onTrust,
   onClearAll,
+  locale,
 }: {
   facets: DirectoryFacets;
   active: DirectoryActiveFilters;
@@ -37,16 +39,18 @@ export function DirectoryFilters({
   onAvailableOnly: (value: boolean) => void;
   onTrust: (value: string | null) => void;
   onClearAll: () => void;
+  locale: string;
 }) {
-  const trustFacets = orderedTrustFacets(facets.trustTiers);
+  const c = directoryCopy(locale);
+  const trustFacets = orderedTrustFacets(facets.trustTiers, locale);
   const cities = active.country
-    ? facets.cities.filter((c) => c.country === active.country)
+    ? facets.cities.filter((row) => row.country === active.country)
     : facets.cities;
   // When the same city name spans countries in the visible set (no country
   // filter narrowing it), append the country to disambiguate the two rows.
   const cityNameCounts = new Map<string, number>();
-  for (const c of cities) {
-    const k = c.city.toLowerCase();
+  for (const row of cities) {
+    const k = row.city.toLowerCase();
     cityNameCounts.set(k, (cityNameCounts.get(k) ?? 0) + 1);
   }
 
@@ -65,7 +69,7 @@ export function DirectoryFilters({
               className="plt-mono text-[0.6875rem] uppercase tracking-[0.22em]"
               style={{ color: "var(--plt-muted)" }}
             >
-              Filters
+              {c.filters}
             </span>
           ) : null}
           {anyActive ? (
@@ -75,27 +79,28 @@ export function DirectoryFilters({
               className={`rounded text-[0.75rem] font-medium transition-colors hover:underline ${FOCUS_RING}`}
               style={{ color: "var(--plt-forest)" }}
             >
-              Clear all
+              {c.clearAll}
             </button>
           ) : null}
         </div>
       ) : null}
 
-      <FilterSection title="Availability">
+      <FilterSection title={c.availability}>
         <ToggleRow
-          label="Open in the next 30 days"
+          label={c.openNext30}
           checked={active.availableOnly}
           onClick={() => onAvailableOnly(!active.availableOnly)}
         />
       </FilterSection>
 
       {facets.countries.length > 0 ? (
-        <FilterSection title="Country">
+        <FilterSection title={c.country}>
           <FacetList
-            items={facets.countries.map((c) => ({
-              value: c.value,
-              label: smartTitleCase(c.value),
-              count: c.count,
+            copy={c}
+            items={facets.countries.map((row) => ({
+              value: row.value,
+              label: smartTitleCase(row.value),
+              count: row.count,
             }))}
             activeValue={active.country}
             onToggle={(v) => onCountry(active.country === v ? null : v)}
@@ -104,15 +109,16 @@ export function DirectoryFilters({
       ) : null}
 
       {cities.length > 0 ? (
-        <FilterSection title={active.country ? `Cities in ${smartTitleCase(active.country)}` : "City"}>
+        <FilterSection title={active.country ? c.citiesIn(smartTitleCase(active.country)) : c.city}>
           <FacetList
-            items={cities.map((c) => {
-              const ambiguous = (cityNameCounts.get(c.city.toLowerCase()) ?? 0) > 1;
+            copy={c}
+            items={cities.map((row) => {
+              const ambiguous = (cityNameCounts.get(row.city.toLowerCase()) ?? 0) > 1;
               const label =
-                ambiguous && c.country
-                  ? `${smartTitleCase(c.city)}, ${smartTitleCase(c.country)}`
-                  : smartTitleCase(c.city);
-              return { value: cityFacetKey(c.city, c.country), label, count: c.count };
+                ambiguous && row.country
+                  ? `${smartTitleCase(row.city)}, ${smartTitleCase(row.country)}`
+                  : smartTitleCase(row.city);
+              return { value: cityFacetKey(row.city, row.country), label, count: row.count };
             })}
             activeValue={active.city ? cityFacetKey(active.city, active.country) : null}
             onToggle={(v) => {
@@ -131,7 +137,7 @@ export function DirectoryFilters({
       ) : null}
 
       {trustFacets.length > 0 ? (
-        <FilterSection title="Verification">
+        <FilterSection title={c.verification}>
           <div className="flex flex-col gap-1">
             {trustFacets.map((t) => (
               <ToggleRow
@@ -164,10 +170,12 @@ function FilterSection({ title, children }: { title: string; children: React.Rea
 }
 
 function FacetList({
+  copy,
   items,
   activeValue,
   onToggle,
 }: {
+  copy: DirectoryCopy;
   items: Array<{ value: string; label: string; count: number }>;
   activeValue: string | null;
   onToggle: (value: string) => void;
@@ -207,7 +215,7 @@ function FacetList({
           className={`mt-1 self-start rounded text-[0.75rem] font-medium transition-colors hover:underline ${FOCUS_RING}`}
           style={{ color: "var(--plt-forest)" }}
         >
-          {expanded ? "Show less" : `Show all ${items.length}`}
+          {expanded ? copy.showLess : copy.showAll(items.length)}
         </button>
       ) : null}
     </div>

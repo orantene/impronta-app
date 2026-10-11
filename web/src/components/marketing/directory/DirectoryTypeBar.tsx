@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { DIRECTORY_TOP_TYPES, FOCUS_RING, type DirectoryFacets } from "./shared";
+import { directoryCopy } from "./directory-copy";
 
 type Category = DirectoryFacets["categories"][number];
 
@@ -14,12 +15,15 @@ export function DirectoryTypeBar({
   categories,
   active,
   onSelect,
+  locale,
 }: {
   categories: Category[];
   active: string | null;
   onSelect: (slug: string | null) => void;
+  locale: string;
 }) {
   const [overflowOpen, setOverflowOpen] = useState(false);
+  const c = directoryCopy(locale);
 
   // Escape closes the overflow popover (click-away is handled by the backdrop).
   useEffect(() => {
@@ -39,14 +43,14 @@ export function DirectoryTypeBar({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Pill label="All talent" selected={active === null} onClick={() => onSelect(null)} />
-      {top.map((c) => (
+      <Pill label={c.allTalent} selected={active === null} onClick={() => onSelect(null)} />
+      {top.map((cat) => (
         <Pill
-          key={c.value}
-          label={c.label}
-          count={c.count}
-          selected={active === c.value}
-          onClick={() => onSelect(active === c.value ? null : c.value)}
+          key={cat.value}
+          label={cat.label}
+          count={cat.count}
+          selected={active === cat.value}
+          onClick={() => onSelect(active === cat.value ? null : cat.value)}
         />
       ))}
       {/* If the active type is hidden in the overflow, surface it as a pill so
@@ -74,7 +78,7 @@ export function DirectoryTypeBar({
               color: "var(--plt-ink-soft)",
             }}
           >
-            More
+            {c.more}
             <ChevronGlyph open={overflowOpen} />
           </button>
           {overflowOpen ? (
@@ -94,22 +98,22 @@ export function DirectoryTypeBar({
                   boxShadow: "var(--plt-shadow-lg)",
                 }}
               >
-                {rest.map((c) => {
-                  const selected = c.value === active;
+                {rest.map((cat) => {
+                  const selected = cat.value === active;
                   return (
                     <button
-                      key={c.value}
+                      key={cat.value}
                       type="button"
                       onClick={() => {
-                        onSelect(selected ? null : c.value);
+                        onSelect(selected ? null : cat.value);
                         setOverflowOpen(false);
                       }}
                       className={`flex w-full items-center justify-between gap-3 rounded-[11px] px-3 py-2 text-left text-[0.8125rem] transition-colors hover:bg-[var(--plt-bg-deep)] ${FOCUS_RING}`}
                       style={{ color: selected ? "var(--plt-forest)" : "var(--plt-ink-soft)" }}
                     >
-                      <span className="truncate">{c.label}</span>
+                      <span className="truncate">{cat.label}</span>
                       <span className="shrink-0 text-[0.6875rem]" style={{ color: "var(--plt-muted-soft)" }}>
-                        {c.count}
+                        {cat.count}
                       </span>
                     </button>
                   );

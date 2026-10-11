@@ -19,6 +19,7 @@ import { computeCaptionNorms } from "@/lib/directory/caption-norms";
 import { DirectoryTalentCard } from "./DirectoryTalentCard";
 import { DirectoryTalentRow } from "./DirectoryTalentRow";
 import { MarketingDirectoryMap } from "./MarketingDirectoryMap";
+import { directoryCopy, type DirectoryCopy } from "./directory-copy";
 
 type Props = {
   view: DirectoryView;
@@ -41,6 +42,7 @@ type Props = {
    * off-by-one lives in one tested place rather than in JSX.
    */
   pageWindow: DirectoryPageWindow;
+  locale: string;
 };
 
 export function MarketingDirectoryShell({
@@ -56,7 +58,9 @@ export function MarketingDirectoryShell({
   mapUnmappedCount,
   mapApiKey,
   pageWindow,
+  locale,
 }: Props) {
+  const c = directoryCopy(locale);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -71,11 +75,11 @@ export function MarketingDirectoryShell({
           locationLabel: locationLine(t.homeCity, t.homeCountry),
           availabilityLabel:
             typeof t.availableDaysInNext30 === "number" && t.availableDaysInNext30 > 0
-              ? availabilityLine(t.availableDaysInNext30).text
+              ? availabilityLine(t.availableDaysInNext30, locale).text
               : null,
         })),
       ),
-    [items],
+    [items, locale],
   );
   const [total, setTotal] = useState(initialTotal);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -186,6 +190,7 @@ export function MarketingDirectoryShell({
       onAvailableOnly={(v) => updateParams({ avail: v ? "1" : null })}
       onTrust={(v) => updateParams({ trust: v })}
       onClearAll={() => updateParams({ country: null, city: null, avail: null, trust: null })}
+      locale={locale}
     />
   );
 
@@ -196,11 +201,12 @@ export function MarketingDirectoryShell({
   return (
     <MarketingContainer size="wide" className="pb-24">
       <div className="flex flex-col gap-5">
-        <DirectorySearch value={activeFilters.q} onCommit={(v) => updateParams({ q: v })} />
+        <DirectorySearch value={activeFilters.q} onCommit={(v) => updateParams({ q: v })} locale={locale} />
         <DirectoryTypeBar
           categories={facets.categories}
           active={activeFilters.category}
           onSelect={(slug) => updateParams({ tax: slug })}
+          locale={locale}
         />
       </div>
 
@@ -210,12 +216,12 @@ export function MarketingDirectoryShell({
         </aside>
 
         <div className="min-w-0 flex-1">
-          <h2 className="sr-only">Directory results</h2>
+          <h2 className="sr-only">{c.resultsHeading}</h2>
           {/* Announce result-count / loading changes to screen readers. */}
           <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
             {isPending
-              ? "Updating results…"
-              : `${total.toLocaleString()} ${total === 1 ? "profile" : "profiles"}`}
+              ? c.updating
+              : `${total.toLocaleString(locale)} ${c.profileWord(total)}`}
           </p>
           <DirectoryToolbar
             total={total}
@@ -225,6 +231,7 @@ export function MarketingDirectoryShell({
             onView={(v) => updateParams({ view: v === "grid" ? null : v })}
             onSort={(s) => updateParams({ sort: s === "recommended" ? null : s })}
             onOpenFilters={() => setSheetOpen(true)}
+            locale={locale}
           />
 
           <div className="mt-6" aria-busy={isPending}>
@@ -234,11 +241,13 @@ export function MarketingDirectoryShell({
                 apiKey={mapApiKey}
                 unmappedCount={mapUnmappedCount}
                 onBackToGrid={() => updateParams({ view: null })}
+                locale={locale}
               />
             ) : isPending ? (
               <DirectorySkeleton view={view} />
             ) : showEmpty ? (
               <DirectoryEmpty
+                copy={c}
                 hasFilters={activeFilterCount > 0 || !!activeFilters.q || !!activeFilters.category}
                 onClear={() =>
                   updateParams({ country: null, city: null, avail: null, trust: null, tax: null, q: null })
@@ -248,7 +257,7 @@ export function MarketingDirectoryShell({
               <div className="flex flex-col gap-2.5">
                 {items.map((t, i) => (
                   <Entrance key={t.id} index={i} reduce={!!reduceMotion}>
-                    <DirectoryTalentRow talent={t} />
+                    <DirectoryTalentRow talent={t} locale={locale} />
                   </Entrance>
                 ))}
               </div>
@@ -256,7 +265,7 @@ export function MarketingDirectoryShell({
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 xl:grid-cols-4">
                 {items.map((t, i) => (
                   <Entrance key={t.id} index={i} reduce={!!reduceMotion}>
-                    <DirectoryTalentCard talent={t} captionNorms={captionNorms} />
+                    <DirectoryTalentCard talent={t} captionNorms={captionNorms} locale={locale} />
                   </Entrance>
                 ))}
               </div>
@@ -271,7 +280,7 @@ export function MarketingDirectoryShell({
             {view !== "map" && pageWindow.totalPages > 1 ? (
               <nav
                 className="mt-10 flex flex-wrap items-center justify-center gap-1.5"
-                aria-label="Directory pages"
+                aria-label={c.pagesLabel}
               >
                 {pageWindow.prev ? (
                   <Link
@@ -280,7 +289,7 @@ export function MarketingDirectoryShell({
                     className="rounded-full px-3 py-2 text-[0.8125rem]"
                     style={{ color: "var(--plt-muted)" }}
                   >
-                    Previous
+                    {c.previous}
                   </Link>
                 ) : null}
                 {pageWindow.pages.map((p, i) =>
@@ -316,7 +325,7 @@ export function MarketingDirectoryShell({
                     className="rounded-full px-3 py-2 text-[0.8125rem]"
                     style={{ color: "var(--plt-muted)" }}
                   >
-                    Next
+                    {c.next}
                   </Link>
                 ) : null}
               </nav>
@@ -335,11 +344,11 @@ export function MarketingDirectoryShell({
                     color: "var(--plt-ink)",
                   }}
                 >
-                  {loadingMore ? "Loading…" : `Show more (${total - items.length} left)`}
+                  {loadingMore ? c.loading : c.showMore(total - items.length)}
                 </button>
                 {loadMoreError ? (
                   <p className="text-[0.8125rem]" style={{ color: "var(--plt-muted)" }} role="alert">
-                    Couldn&apos;t load more. Tap to try again.
+                    {c.loadMoreError}
                   </p>
                 ) : null}
               </div>
@@ -363,7 +372,7 @@ export function MarketingDirectoryShell({
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="Filters"
+          aria-label={c.filters}
           className="absolute left-0 top-0 flex h-full w-[86%] max-w-sm flex-col transition-transform duration-300"
           style={{
             background: "var(--plt-bg)",
@@ -376,13 +385,13 @@ export function MarketingDirectoryShell({
             style={{ borderBottom: "1px solid var(--plt-hairline)" }}
           >
             <span className="plt-display text-[1.0625rem] font-semibold" style={{ color: "var(--plt-ink)" }}>
-              Filters
+              {c.filters}
             </span>
             <button
               ref={sheetCloseRef}
               type="button"
               onClick={() => setSheetOpen(false)}
-              aria-label="Close filters"
+              aria-label={c.closeFilters}
               className={`flex h-9 w-9 items-center justify-center rounded-full ${FOCUS_RING}`}
               style={{ border: "1px solid var(--plt-hairline-strong)", color: "var(--plt-ink)" }}
             >
@@ -399,7 +408,7 @@ export function MarketingDirectoryShell({
               className={`inline-flex h-12 w-full items-center justify-center rounded-full text-[0.9375rem] font-semibold ${FOCUS_RING}`}
               style={{ background: "var(--plt-forest)", color: "var(--plt-forest-on)" }}
             >
-              Show {total.toLocaleString()} {total === 1 ? "profile" : "profiles"}
+              {c.showProfiles(total.toLocaleString(locale), total)}
             </button>
           </div>
         </div>
@@ -479,7 +488,15 @@ function Shimmer({ className }: { className?: string }) {
   );
 }
 
-function DirectoryEmpty({ hasFilters, onClear }: { hasFilters: boolean; onClear: () => void }) {
+function DirectoryEmpty({
+  copy,
+  hasFilters,
+  onClear,
+}: {
+  copy: DirectoryCopy;
+  hasFilters: boolean;
+  onClear: () => void;
+}) {
   return (
     <div
       className="flex flex-col items-center justify-center gap-3 rounded-[22px] px-6 py-20 text-center"
@@ -496,12 +513,10 @@ function DirectoryEmpty({ hasFilters, onClear }: { hasFilters: boolean; onClear:
         </svg>
       </span>
       <h3 className="plt-display text-[1.25rem] font-semibold" style={{ color: "var(--plt-ink)" }}>
-        No profiles match yet
+        {copy.emptyTitle}
       </h3>
       <p className="max-w-md text-[0.9375rem] leading-relaxed" style={{ color: "var(--plt-muted)" }}>
-        {hasFilters
-          ? "Try widening your filters. Fewer constraints surface more of the network."
-          : "The directory is still filling in. Talent control their own visibility, so new profiles appear here as they opt in."}
+        {hasFilters ? copy.emptyFiltered : copy.emptyUnfiltered}
       </p>
       {hasFilters ? (
         <button
@@ -510,7 +525,7 @@ function DirectoryEmpty({ hasFilters, onClear }: { hasFilters: boolean; onClear:
           className={`mt-1 inline-flex h-11 items-center rounded-full px-6 text-[0.875rem] font-semibold ${FOCUS_RING}`}
           style={{ background: "var(--plt-forest)", color: "var(--plt-forest-on)" }}
         >
-          Clear filters
+          {copy.clearFilters}
         </button>
       ) : null}
     </div>

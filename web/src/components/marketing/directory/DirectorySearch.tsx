@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { FOCUS_RING } from "./shared";
+import { directoryCopy } from "./directory-copy";
 
 /**
  * Primary directory search — bound to the `q` URL param. Debounced so typing
@@ -11,12 +12,13 @@ import { FOCUS_RING } from "./shared";
 export function DirectorySearch({
   value,
   onCommit,
-  placeholder = "Search talent by name",
+  locale,
 }: {
   value: string | null;
   onCommit: (value: string | null) => void;
-  placeholder?: string;
+  locale: string;
 }) {
+  const c = directoryCopy(locale);
   const [draft, setDraft] = useState(value ?? "");
   const lastCommitted = useRef(value ?? "");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -69,8 +71,8 @@ export function DirectorySearch({
             clear();
           }
         }}
-        placeholder={placeholder}
-        aria-label="Search talent"
+        placeholder={c.searchPlaceholder}
+        aria-label={c.searchLabel}
         className="h-12 w-full rounded-full pl-11 pr-11 text-[0.9375rem] outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[var(--plt-muted-soft)] focus:shadow-[0_0_0_4px_var(--plt-forest-ring)] [&::-webkit-search-cancel-button]:appearance-none"
         style={{
           background: "var(--plt-bg-raised)",
@@ -82,7 +84,7 @@ export function DirectorySearch({
         <button
           type="button"
           onClick={clear}
-          aria-label="Clear search"
+          aria-label={c.clearSearch}
           className={`absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full transition-colors hover:bg-[var(--plt-bg-deep)] ${FOCUS_RING}`}
           style={{ color: "var(--plt-muted)" }}
         >

@@ -15,11 +15,11 @@ import type {
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge/discover";
 import type { CanonicalTalentCardData } from "@/components/talent-cards/talent-card-shape";
 import {
-  AVAILABILITY_UNKNOWN,
   type DirectoryCardAttribute,
   type DirectoryCardFitLabel,
 } from "@/lib/site-admin/sections/directory/card-data";
 import type { CardDesign } from "@/lib/site-admin/server/card-design-shape";
+import { directoryCopy } from "./directory-copy";
 
 export type {
   DiscoverTalentListItem,
@@ -138,6 +138,7 @@ export function attachCardDesigns<
  */
 export function toCanonicalCardData(
   talent: DirectoryCardRow,
+  locale = "en",
 ): CanonicalTalentCardData {
   const days = talent.availableDaysInNext30;
   const known = typeof days === "number" && days > 0;
@@ -156,8 +157,8 @@ export function toCanonicalCardData(
     // same fact, so no new field — "basic" is the unverified default.
     verified: talent.trustTier != null && talent.trustTier !== "basic",
     availabilityLabel: known
-      ? availabilityLine(days).text
-      : AVAILABILITY_UNKNOWN,
+      ? availabilityLine(days, locale).text
+      : directoryCopy(locale).availabilityUnknown,
     availabilityKnown: known,
     availableDaysInNext30: days,
     fitLabels: talent.fitLabels,
@@ -229,35 +230,34 @@ export function isTruthyFlag(raw: string | undefined): boolean {
  */
 export function trustTierMeta(
   tier: string | null,
+  locale = "en",
 ): { label: string; weight: "soft" | "strong" } | null {
+  const c = directoryCopy(locale);
   switch ((tier ?? "").toLowerCase()) {
     case "verified":
-      return { label: "Verified", weight: "soft" };
+      return { label: c.trustVerified, weight: "soft" };
     case "silver":
-      return { label: "Silver", weight: "soft" };
+      return { label: c.trustSilver, weight: "soft" };
     case "gold":
-      return { label: "Gold", weight: "strong" };
+      return { label: c.trustGold, weight: "strong" };
     default:
       return null;
   }
 }
 
-const TRUST_TIER_ORDER: Array<{ value: string; label: string }> = [
-  { value: "verified", label: "Verified" },
-  { value: "silver", label: "Silver" },
-  { value: "gold", label: "Gold" },
-];
+const TRUST_TIER_ORDER = ["verified", "silver", "gold"] as const;
 
 /** Trust tiers to expose as filter rows, in ladder order, intersected with
  *  whatever the facet pass actually found. `basic` is omitted — it's the
  *  unverified default, not a meaningful filter. */
 export function orderedTrustFacets(
   facetTiers: Array<{ value: string; count: number }>,
+  locale = "en",
 ): Array<{ value: string; label: string; count: number }> {
   const byValue = new Map(facetTiers.map((t) => [t.value.toLowerCase(), t.count]));
-  return TRUST_TIER_ORDER.map(({ value, label }) => ({
+  return TRUST_TIER_ORDER.map((value) => ({
     value,
-    label,
+    label: trustTierMeta(value, locale)?.label ?? value,
     count: byValue.get(value) ?? 0,
   })).filter((t) => t.count > 0);
 }
@@ -274,20 +274,27 @@ export function initialsOf(name: string): string {
 
 /** Subtle agency attribution string. Product decision: "show agency, subtle".
  *  Independent talents read "Independent"; exclusive rosters get a quiet tag. */
-export function agencyLine(agencyName: string | null, isExclusive: boolean): string {
-  if (!agencyName) return "Independent";
-  return isExclusive ? `${agencyName} · exclusive` : agencyName;
+export function agencyLine(
+  agencyName: string | null,
+  isExclusive: boolean,
+  locale = "en",
+): string {
+  const c = directoryCopy(locale);
+  if (!agencyName) return c.independent;
+  return isExclusive ? c.exclusive(agencyName) : agencyName;
 }
 
 /** Restrained availability copy. Never buyer-framed; "on request" when the
  *  30-day window is fully blocked or the snapshot is missing. */
 export function availabilityLine(
   availableDaysInNext30: number | null,
+  locale = "en",
 ): { text: string; open: boolean } {
+  const c = directoryCopy(locale);
   if (typeof availableDaysInNext30 === "number" && availableDaysInNext30 > 0) {
-    return { text: `Open ${availableDaysInNext30} of next 30 days`, open: true };
+    return { text: c.openDays(availableDaysInNext30), open: true };
   }
-  return { text: "Availability on request", open: false };
+  return { text: c.availabilityOnRequest, open: false };
 }
 
 /**

@@ -108,7 +108,7 @@ export default async function MarketingDirectoryPage({
   // Parallel SSR loads: facets always; then either the first grid/list page
   // or the (cap-500) map point set — never both.
   const [facets, gridData, mapData] = await Promise.all([
-    loadDirectoryFacets(),
+    loadDirectoryFacets(locale),
     isMap
       ? Promise.resolve({ items: [], total: 0 })
       : loadDiscoverTalents({
@@ -161,8 +161,14 @@ export default async function MarketingDirectoryPage({
     gridData.items.map((row) => row.id),
     locale,
   );
+  // Facets cover every category in the index, so their (localized) labels
+  // translate the card's type line without a second lookup.
+  const typeLabels = new Map(facets.categories.map((c) => [c.value, c.label]));
   const gridItems = gridData.items.map((row) => ({
     ...row,
+    primaryTypeLabel:
+      (row.primaryTypeSlug ? typeLabels.get(row.primaryTypeSlug) : undefined) ??
+      row.primaryTypeLabel,
     design: hubDesign,
     ...(traitsByProfile.get(row.id) ?? {}),
   }));
@@ -301,6 +307,7 @@ export default async function MarketingDirectoryPage({
             mapPoints={mapPoints}
             mapUnmappedCount={mapData.unmappedCount}
             mapApiKey={mapApiKey}
+            locale={locale}
           />
           {/* Floating "Message {hub}" guest-chat launcher. On the marketing
               apex this self-resolves the platform hub (getPlatformHubTenant)
