@@ -20,6 +20,7 @@ import {
   readPayment,
   readTickets,
   readTimes,
+  threadHasPaidPayment,
   ticketsIssued,
   timesSlotOpen,
   timesState,
@@ -250,4 +251,13 @@ test("a failed payment stays failed", () => {
   const view = readChange("change_result", { state: "failed", summary: "Payment failed" }, "");
   assert.equal(view.state, "failed");
   assert.equal(view.body, "Payment failed");
+});
+
+test("sitting 3: a paid money card on the thread marks it paid; an open request, a note or a deleted row does not", () => {
+  assert.equal(threadHasPaidPayment([msg({ id: "p1", kind: "payment_paid", payload: {} })]), true);
+  assert.equal(threadHasPaidPayment([msg({ id: "p2", kind: "payment_request", payload: { state: "paid" } })]), true);
+  assert.equal(threadHasPaidPayment([msg({ id: "p3", kind: "payment_request", payload: { state: "open" } })]), false);
+  assert.equal(threadHasPaidPayment([msg({ id: "p4", kind: "payment_paid", payload: {}, internal: true })]), false);
+  assert.equal(threadHasPaidPayment([msg({ id: "p5", kind: "payment_paid", payload: {}, deletedAt: "2026-10-01T00:00:00Z" })]), false);
+  assert.equal(threadHasPaidPayment([]), false);
 });

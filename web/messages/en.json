@@ -19645,6 +19645,7 @@
             "accepted": "Accepted",
             "acceptedPayNext": "Accepted. Next: pay the deposit to confirm.",
             "acceptedPayLater": "Accepted. {business} will send you a payment link to confirm.",
+            "acceptedPaid": "Accepted. Payment received.",
             "declined": "Declined",
             "expired": "This offer has expired. Ask {business} for a new one.",
             "superseded": "A newer version replaced this offer.",

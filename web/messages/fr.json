@@ -8078,6 +8078,7 @@
             "accepted": "Acceptée",
             "acceptedPayNext": "Acceptée. Prochaine étape : payer l'acompte pour confirmer.",
             "acceptedPayLater": "Acceptée. {business} vous enverra un lien de paiement pour confirmer.",
+            "acceptedPaid": "Acceptée. Paiement reçu.",
             "declined": "Refusée",
             "expired": "Cette offre a expiré. Demandez-en une nouvelle à {business}.",
             "superseded": "Une version plus récente a remplacé cette offre.",

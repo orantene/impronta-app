@@ -21,6 +21,7 @@ import {
   formatClientDate,
   formatClientTime,
   offerCardMessageIds,
+  threadHasPaidPayment,
   readChange,
   readChoices,
   readConfirmation,
@@ -96,6 +97,7 @@ export function ClientThreadView(p: ClientThreadViewProps) {
   const name = business.name;
   const items = buildClientStream(p.messages, p.offers);
   const offerCards = offerCardMessageIds(p.messages, p.offers);
+  const paid = threadHasPaidPayment(p.messages);
   const act = (key: string): CardActivity => p.activity?.[key] ?? { phase: "idle" };
   const savePhase = p.saveEmail ?? "idle";
 
@@ -136,7 +138,7 @@ export function ClientThreadView(p: ClientThreadViewProps) {
               const offerId = typeof it.message.payload?.offer_id === "string" ? it.message.payload.offer_id : typeof it.message.payload?.offerId === "string" ? it.message.payload.offerId : null;
               const recordId = typeof it.message.payload?.recordId === "string" ? it.message.payload.recordId : null;
               const epoch = act(it.message.id).epoch ?? (offerId ? act(offerId).epoch : null) ?? (recordId ? act(recordId).epoch : null) ?? 0;
-              return <div key={`${it.key}:${epoch}`}>{renderCard(p, it.message, it.cardKind, act, offerCards)}</div>;
+              return <div key={`${it.key}:${epoch}`}>{renderCard(p, it.message, it.cardKind, act, offerCards, paid)}</div>;
             })
           )}
         </main>
@@ -168,7 +170,7 @@ export function ClientThreadView(p: ClientThreadViewProps) {
   );
 }
 
-function renderCard(p: ClientThreadViewProps, message: ThreadMessage, kind: ClientCardKind, act: (key: string) => CardActivity, offerCards: ReadonlySet<string>) {
+function renderCard(p: ClientThreadViewProps, message: ThreadMessage, kind: ClientCardKind, act: (key: string) => CardActivity, offerCards: ReadonlySet<string>, paid: boolean) {
   const { copy, kit, locale, business, now } = p;
   const name = business.name;
   const payload = message.payload;
@@ -214,6 +216,7 @@ function renderCard(p: ClientThreadViewProps, message: ThreadMessage, kind: Clie
           phase={a.phase}
           refusal={a.refusal}
           payCode={p.payCode}
+          paid={paid}
           onAccept={p.onAcceptOffer}
           onDecline={p.onDeclineOffer}
           onChange={p.onChangeOffer}

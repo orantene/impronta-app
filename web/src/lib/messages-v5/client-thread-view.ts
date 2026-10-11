@@ -404,6 +404,16 @@ export function readPaidPayment(payload: Record<string, unknown> | null): Paymen
   return { ...readPayment(payload), state: "paid" };
 }
 
+/** The client already paid on this thread, so an accepted offer stops promising a payment link. */
+export function threadHasPaidPayment(messages: readonly Pick<ThreadMessage, "kind" | "payload" | "internal" | "deletedAt">[]): boolean {
+  return messages.some(
+    (m) =>
+      !m.internal &&
+      !m.deletedAt &&
+      (m.kind === "payment_paid" || (m.kind === "payment_request" && readPayment(m.payload).state === "paid")),
+  );
+}
+
 export type ConfirmationView = { readonly recordKind: string | null; readonly recordId: string | null; readonly when: string | null; readonly title: string | null; readonly summary: string | null; readonly receiptCode: string | null; readonly lines: readonly { readonly label: string; readonly units: number; readonly amountCents: number }[]; readonly currency: string };
 
 export function readConfirmation(payload: Record<string, unknown> | null): ConfirmationView {
