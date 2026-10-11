@@ -16,4 +16,12 @@ export const THREAD_ES_TEXT: Record<string, string> = {
   "Start the conversation below. Your message will go to the right people in this thread.":
     "Empieza la conversación abajo. Tu mensaje llegará a las personas correctas de este hilo.",
   "Offer sent": "Oferta enviada",
+  // Thread chrome leftovers (TUL-536 / TUL-500). "Loading…" lives in the
+  // inline dashboard-i18n.ts table (Cargando...).
+  "No offer yet": "Aún no hay oferta",
+  // Apostrophe / "it is" alias so a paraphrased key still resolves.
+  "No offer yet. Your coordinator will send one when it is ready.":
+    "Aún no hay oferta. Tu coordinador enviará una cuando esté lista.",
+  "No offer yet. Your coordinator will send one when it is ready":
+    "Aún no hay oferta. Tu coordinador enviará una cuando esté lista.",
 };

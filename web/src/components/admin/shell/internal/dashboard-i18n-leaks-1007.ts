@@ -12,7 +12,6 @@ export const LEAKS_1007_ES_TEXT: Record<string, string> = {
   "Which currency tab opens first on Money when multiple are present. Display only, no FX conversion.":
     "Qué moneda se abre primero en Dinero cuando hay varias. Solo de visualización, sin conversión de divisas.",
   // Product orders queue
-  "Loading orders…": "Cargando pedidos…",
   "Product orders": "Pedidos de productos",
   "Mark an order shipped to release its payout. The money was collected at purchase and is held until you ship.":
     "Marca un pedido como enviado para liberar su pago. El dinero se cobró al comprar y se retiene hasta que lo envíes.",

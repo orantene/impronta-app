@@ -4,8 +4,9 @@
  * Messages lists the conversations she can see (tenant scope, participant,
  * QA fixtures hidden). A conversation notification that points at a thread
  * outside that list is an orphan: counting it made the bell say 25 unread
- * while Messages showed 0 (TUL-52 B). Rows with no thread that are not
- * conversation kinds (theme update, payout notice) are kept.
+ * while Messages showed 0 (TUL-52 B). Every other kind (booking confirmed,
+ * payment, theme update, payout notice) always counts, with or without a
+ * thread: the bell counts all her unread (TUL-536).
  */
 
 import type { UserNotification } from "@/app/(workspace)/[tenantSlug]/_data-bridge/notifications";
@@ -21,8 +22,8 @@ export function scopeTalentNotificationsToInbox<T extends Scopable>(
   // Visibility unknown (load failed): do not hide anything.
   if (!visibleInquiryIds) return [...rows];
   return rows.filter((n) => {
-    if (n.originInquiryId) return visibleInquiryIds.has(n.originInquiryId);
-    return !THREAD_KINDS.has(n.kind);
+    if (!THREAD_KINDS.has(n.kind)) return true;
+    return n.originInquiryId ? visibleInquiryIds.has(n.originInquiryId) : false;
   });
 }
 
@@ -31,5 +32,7 @@ export function unreadConversationNotificationCount<T extends Scopable & { read:
   rows: readonly T[],
   visibleInquiryIds: ReadonlySet<string> | null,
 ): number {
-  return scopeTalentNotificationsToInbox(rows, visibleInquiryIds).filter((n) => !n.read).length;
+  return scopeTalentNotificationsToInbox(rows, visibleInquiryIds).filter(
+    (n) => !n.read && THREAD_KINDS.has(n.kind),
+  ).length;
 }
