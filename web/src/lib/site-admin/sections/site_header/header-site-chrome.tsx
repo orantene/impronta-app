@@ -20,19 +20,12 @@ export function headerItemAttrs(item: HeaderItem): Record<string, string> {
 
 /**
  * Render-time site chrome for the freeform header (`siteChrome`, injected by
- * the talent site renderer): the Demo pill and the talent site's own
- * language switch ("ES / EN"). Each code links to THIS page in that language
- * (`hrefs`, built in the talent's URL grammar); a `?locale=` link is the
- * fallback, which the talent host redirects to the prefixed URL.
+ * the talent site renderer): the talent site's own language switch
+ * ("ES / EN"). Each code links to THIS page in that language (`hrefs`, built
+ * in the talent's URL grammar); a `?locale=` link is the fallback, which the
+ * talent host redirects to the prefixed URL. The demo marker is not header
+ * chrome (TUL-560): it is the fixed corner badge, `MaxSiteDemoBadge`.
  */
-export function HeaderDemoPill({ show }: { show: boolean | undefined }) {
-  return show ? (
-    <span className="site-header__demo" title="Demo">
-      Demo
-    </span>
-  ) : null;
-}
-
 export function HeaderSiteLocales({
   locales,
   hrefs,

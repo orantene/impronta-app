@@ -78,14 +78,16 @@ export function AgendaAvailabilityPage({
           end: fromMin(win.endMin),
         };
       }
+      // live2b-01: when bridge hours already seeded a closed day (no window),
+      // keep it closed. Mon–Sat "suggested open" is only for the empty form.
       return {
         day: idx,
         label,
-        open: idx >= 1 && idx <= 6,
+        open: seeded ? false : idx >= 1 && idx <= 6,
         start: "10:00",
         end: idx === 6 ? "15:00" : "19:00",
       };
-    }).map((r) => (seeded ? r : r.day === 0 ? { ...r, open: false } : r)),
+    }),
   );
   const [exceptions, setExceptions] = useState<HoursException[]>(
     () => seeded?.exceptions ?? [],

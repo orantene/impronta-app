@@ -17,6 +17,8 @@ export type ThemeActionErrorCode =
   | "tier_required"
   /** The row failed publish-time validation (should never reach a talent). */
   | "invalid_theme"
+  /** Pin guard: no open release covers that version. `error` is localized. */
+  | "unreleased_version"
   /** Theme publish lost the compare-and-swap on theme_version. */
   | "conflict";
 
