@@ -17,6 +17,7 @@
  * wraps, which nothing else used.
  */
 
+import { unstable_rethrow } from "next/navigation";
 import { Component, Suspense, type ReactNode } from "react";
 
 import { DashboardDocumentLang } from "@/components/i18n/DashboardDocumentLang";
@@ -41,6 +42,9 @@ class ErrorBoundary extends Component<
   }
   override render() {
     if (this.state.caught) {
+      // notFound() / redirect() / forbidden() from a page below travel as
+      // errors; they belong to Next's boundaries, not this crash screen.
+      unstable_rethrow(this.state.caught);
       // Tailwind rather than `style={{…}}`: the shell's inline-style ratchet
       // treats this moved file as new code, and a static fallback screen is the
       // easiest possible place to pay that debt off instead of carrying it.
