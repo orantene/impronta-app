@@ -233,6 +233,7 @@ export function renderShellRoot(root: BuilderNode, localeCtx: TalentSiteLocaleCo
     includeFontLinks: false,
     visitorLocale: locale,
     contentLocale: localeCtx.contentLocale,
+    dataSources: { siteLocales: { locales: localeCtx.settings.supportedLocales, hrefs: localeCtx.switcherHrefs } },
   };
   if (
     root.kind === "section" &&

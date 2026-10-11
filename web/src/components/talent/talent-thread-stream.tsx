@@ -29,18 +29,20 @@ export const MONEY_KINDS = new Set([
 function realInitials(name: string): string {
   return name.split(/\s+/).map((w) => w[0]?.toUpperCase() ?? "").slice(0, 2).join("") || "?";
 }
-function realTimeLabel(iso: string): string {
+function realTimeLabel(iso: string, locale: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  const mon = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()];
+  const tag = locale.toLowerCase().startsWith("es") ? "es" : "en";
+  const mon = new Intl.DateTimeFormat(tag, { month: "short" }).format(d);
   const hh = String(d.getHours()).padStart(2, "0");
   const mm = String(d.getMinutes()).padStart(2, "0");
   return `${mon} ${d.getDate()} · ${hh}:${mm}`;
 }
-function realDayKey(iso: string): string {
+function realDayKey(iso: string, locale: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  const mon = ["January","February","March","April","May","June","July","August","September","October","November","December"][d.getMonth()];
+  const tag = locale.toLowerCase().startsWith("es") ? "es" : "en";
+  const mon = new Intl.DateTimeFormat(tag, { month: "long" }).format(d);
   return `${mon} ${d.getDate()}`;
 }
 
@@ -66,10 +68,11 @@ export function RealThreadStream({
   /** Called after a pin toggle reconciles so the host refreshes the strip. */
   onPinChanged?: () => void;
 }) {
+  const copy = useDashboardText();
   if (messages === null) {
     return (
       <div style={{ padding: "28px 16px", textAlign: "center", fontFamily: FONTS.body, fontSize: 12.5 }} className="text-admin-ink-muted">
-        Loading…
+        {copy.t("Loading…")}
       </div>
     );
   }
@@ -95,7 +98,7 @@ export function RealThreadStream({
             <div key={m.id} style={{ alignSelf: "stretch" }}>
               {node}
               <div style={{ fontSize: 10, color: COLORS.inkDim, marginTop: 3, paddingLeft: 2 }}>
-                {realTimeLabel(m.ts)}
+                {realTimeLabel(m.ts, copy.locale)}
               </div>
             </div>
           );
@@ -119,8 +122,8 @@ export function RealThreadStream({
     <div className="flex flex-col gap-2.5">
       {chatMessages.map((m, idx) => {
         const mine = m.isMine;
-        const prevDay = idx > 0 ? realDayKey(chatMessages[idx - 1]!.ts) : null;
-        const thisDay = realDayKey(m.ts);
+        const prevDay = idx > 0 ? realDayKey(chatMessages[idx - 1]!.ts, copy.locale) : null;
+        const thisDay = realDayKey(m.ts, copy.locale);
         const showDay = thisDay !== prevDay;
         return (
           <React.Fragment key={m.id}>
@@ -170,7 +173,7 @@ export function RealThreadStream({
                   ) : null;
                 })()}
                 <div style={{ fontSize: 10, color: mine ? "rgba(255,255,255,0.55)" : COLORS.inkDim, marginTop: 4 }}>
-                  {realTimeLabel(m.ts)}
+                  {realTimeLabel(m.ts, copy.locale)}
                 </div>
               </div>
               {/* Pin control — inquiry-wide (shared). Sits on the outer edge of
