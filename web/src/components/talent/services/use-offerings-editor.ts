@@ -125,17 +125,16 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
     let cancelled = false;
     // Services fires several actions on mount and they run one at a time, so
     // the list read gets a longer budget than the 4 s default.
-    const load = settleServerAction(
-      () =>
-        isWorkspace
-          ? loadWorkspaceMenuForEditor(workspaceTenantId)
-          : loadTalentOfferingsForEditor(talentId),
-      {
-        label: isWorkspace ? "loadWorkspaceMenuForEditor" : "loadTalentOfferingsForEditor",
-        area: "talent-services",
-        budgetMs: 10_000,
-      },
-    );
+    const settle = { area: "talent-services", budgetMs: 10_000 };
+    const load = isWorkspace
+      ? settleServerAction(() => loadWorkspaceMenuForEditor(workspaceTenantId), {
+          ...settle,
+          label: "loadWorkspaceMenuForEditor",
+        })
+      : settleServerAction(() => loadTalentOfferingsForEditor(talentId), {
+          ...settle,
+          label: "loadTalentOfferingsForEditor",
+        });
     load
       .then((res) => {
         if (cancelled) return;
