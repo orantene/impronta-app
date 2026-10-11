@@ -32,6 +32,7 @@ import { SkillsExperienceBlock } from "./SkillsExperienceBlock";
 import { BookingCard } from "./BookingCard";
 import { AvailabilityWidget } from "./AvailabilityWidget";
 import { LightSectionLabel } from "./section-label";
+import { DetailCard } from "./DetailCard";
 import { PortfolioGalleryLightbox } from "@/components/directory/portfolio-gallery-lightbox";
 import {
   PublicFeaturedMedia,
@@ -272,40 +273,6 @@ function groupDetailRows(rows: DetailRow[]): Array<{ group: string; rows: Detail
     byGroup.get(g)!.push(row);
   }
   return order.map((group) => ({ group, rows: byGroup.get(group)! }));
-}
-
-function DetailCard({ rows, group }: { group: string; rows: DetailRow[] }) {
-  return (
-    <div
-      className="rounded-[var(--plt-radius-lg)] border p-5"
-      style={{
-        borderColor: "var(--plt-hairline)",
-        background: "var(--plt-bg-raised)",
-      }}
-    >
-      <p
-        className="plt-mono text-[0.625rem] font-semibold uppercase tracking-[0.2em]"
-        style={{ color: "var(--plt-forest)" }}
-      >
-        {group}
-      </p>
-      <dl className="mt-4 grid gap-x-6 gap-y-3.5 sm:grid-cols-2">
-        {rows.map((r) => (
-          <div key={r.key} className="flex flex-col gap-0.5">
-            <dt
-              className="plt-mono text-[0.625rem] font-medium uppercase tracking-[0.14em]"
-              style={{ color: "var(--plt-muted-soft)" }}
-            >
-              {r.label}
-            </dt>
-            <dd className="text-sm font-medium" style={{ color: "var(--plt-ink)" }}>
-              {r.value}
-            </dd>
-          </div>
-        ))}
-      </dl>
-    </div>
-  );
 }
 
 export function LightProfileLayout({
@@ -599,7 +566,15 @@ export function LightProfileLayout({
                 </LightSectionLabel>
                 <div className="mt-5 space-y-4">
                   {detailGroups.map((g) => (
-                    <DetailCard key={g.group} group={g.group} rows={g.rows} />
+                    <DetailCard
+                      key={g.group}
+                      group={g.group}
+                      rows={g.rows}
+                      hideGroupTitle={
+                        g.group.trim().toLowerCase() ===
+                        detailsLabels.details.trim().toLowerCase()
+                      }
+                    />
                   ))}
                 </div>
               </section>
