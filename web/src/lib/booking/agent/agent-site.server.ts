@@ -4,9 +4,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { headers } from "next/headers";
 
 import { getRequestLocale } from "@/i18n/request-locale";
-import { catalogTenantForPublicHost } from "@/lib/ai/booking-assistant/catalog-tenant";
+import { loadTalentSiteInquiryTenant } from "@/lib/messaging/talent-inquiry-tenant.server";
 import { signTalentOfferingIntent } from "@/lib/messaging/talent-offering-intent";
 import { HOST_TALENT_PROFILE_HEADER } from "@/lib/saas/host-context";
+import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import {
   loadPublicOpenTimes,
@@ -20,7 +21,7 @@ import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 import { loadTalentPublicSiteByProfileCode } from "@/lib/talent-site/server/public-load";
 
 import { type AgentService, toAgentServices } from "./catalog";
-import { agentBookingRefusal, agentHandoffUrl, agentOpenTimesView, AGENT_HANDOFF_TTL_MS } from "./handoff";
+import { agentBookingRefusal, agentCatalogScope, agentHandoffUrl, agentOpenTimesView, AGENT_HANDOFF_TTL_MS } from "./handoff";
 import type { AgentToolDeps, AgentToolResult } from "./mcp";
 
 /** One talent's booking site, as an outside AI assistant reaches it. */
@@ -31,7 +32,8 @@ export type AgentSite = {
   /** Where the talent's page lives on this host: "/" on their own domain. */
   basePath: string;
   host: PublicOpenTimesHost;
-  catalogTenantId: string | null;
+  /** The tenant the hand-off chat lands in (null: unresolved, so no services). */
+  handoffTenantId: string | null;
   locale: string;
 };
 
@@ -89,13 +91,32 @@ export async function resolveAgentSite(admin: SupabaseClient, request: Request):
       tenantId: host.kind === "agency" || host.kind === "hub" ? host.tenantId : null,
       talentSiteId: host.kind === "talent_site" ? talentProfileId : null,
     },
-    catalogTenantId: catalogTenantForPublicHost(host.kind, host.tenantId),
+    handoffTenantId: await agentHandoffTenant(admin, host.kind, host.tenantId ?? null, talentProfileId),
     locale: await getRequestLocale(),
   };
 }
 
+/** Same tenant the guest chat resolves for this host, so the seeded service is accepted. */
+async function agentHandoffTenant(
+  admin: SupabaseClient,
+  hostKind: string,
+  hostTenantId: string | null,
+  talentProfileId: string,
+): Promise<string | null> {
+  if (hostKind === "agency" || hostKind === "hub") return hostTenantId;
+  if (hostKind === "talent_site") {
+    const loaded = await loadTalentSiteInquiryTenant(admin, talentProfileId);
+    return loaded.ok ? loaded.tenant.tenantId : null;
+  }
+  return (await getPlatformHubTenant())?.tenantId ?? null;
+}
+
 export async function loadAgentServices(site: AgentSite): Promise<AgentService[]> {
-  const offerings = await loadPublicOfferingsForProfile(site.talentProfileId, site.locale, site.catalogTenantId);
+  const scope = agentCatalogScope(site.host.kind, site.handoffTenantId);
+  if (!scope) return [];
+  const offerings = await loadPublicOfferingsForProfile(site.talentProfileId, site.locale, scope.tenantId, {
+    channel: scope.channel,
+  });
   return toAgentServices(offerings, site.locale);
 }
 
@@ -151,6 +172,7 @@ export function agentToolDeps(admin: SupabaseClient, site: AgentSite): AgentTool
         serviceBookable: service.bookable,
         agentBookingEnabled: switches.chatConfig.agentBookingEnabled,
         acceptingBookings: switches.acceptingBookings,
+        agencyHost: site.host.kind === "agency",
       });
       if (refusal === "agent_booking_off") {
         return fail(

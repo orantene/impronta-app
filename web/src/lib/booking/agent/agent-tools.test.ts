@@ -9,6 +9,7 @@ import {
   AGENT_HANDOFF_TTL_MS,
   AGENT_SLOTS_MAX,
   agentBookingRefusal,
+  agentCatalogScope,
   agentHandoffUrl,
   agentOpenTimesView,
 } from "./handoff";
@@ -125,6 +126,21 @@ test("paused or opted-out talent: request_booking refuses", () => {
   assert.equal(agentBookingRefusal({ ...on, agentBookingEnabled: false }), "agent_booking_off");
   assert.equal(agentBookingRefusal({ ...on, acceptingBookings: false }), "not_accepting_bookings");
   assert.equal(agentBookingRefusal({ ...on, serviceBookable: false }), "not_bookable");
+});
+
+test("an agency host ignores the talent's own pause, like its open times", () => {
+  const paused = { serviceBookable: true, agentBookingEnabled: true, acceptingBookings: false };
+  assert.equal(agentBookingRefusal({ ...paused, agencyHost: true }), null);
+  assert.equal(agentBookingRefusal({ ...paused, agencyHost: false }), "not_accepting_bookings");
+  assert.equal(agentBookingRefusal({ ...paused, agentBookingEnabled: false, agencyHost: true }), "agent_booking_off");
+});
+
+test("services come only from the tenant the hand-off chat lands in", () => {
+  assert.deepEqual(agentCatalogScope("agency", "t-agency"), { tenantId: "t-agency", channel: "agency" });
+  assert.deepEqual(agentCatalogScope("talent_site", "t-hub"), { tenantId: "t-hub", channel: "direct" });
+  assert.deepEqual(agentCatalogScope("app", "t-hub"), { tenantId: "t-hub", channel: "direct" });
+  assert.equal(agentCatalogScope("talent_site", null), null);
+  assert.equal(agentCatalogScope("marketing", null), null);
 });
 
 test("hand-off link carries the signed choice; tampered and expired tokens fail", () => {

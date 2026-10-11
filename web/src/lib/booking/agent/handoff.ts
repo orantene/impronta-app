@@ -19,11 +19,26 @@ export function agentBookingRefusal(input: {
   serviceBookable: boolean;
   agentBookingEnabled: boolean;
   acceptingBookings: boolean;
+  /** An agency host owns its routing: the talent's pause never applies there (as in open times). */
+  agencyHost?: boolean;
 }): AgentBookingRefusal | null {
   if (!input.agentBookingEnabled) return "agent_booking_off";
-  if (!input.acceptingBookings) return "not_accepting_bookings";
+  if (!input.acceptingBookings && !input.agencyHost) return "not_accepting_bookings";
   if (!input.serviceBookable) return "not_bookable";
   return null;
+}
+
+/**
+ * Which catalog the agent may offer. The hand-off chat lands in one tenant and
+ * only seeds that tenant's offerings, so services from any other tenant would
+ * give a link that silently drops the chosen service. No tenant → nothing.
+ */
+export function agentCatalogScope(
+  hostKind: string,
+  handoffTenantId: string | null,
+): { tenantId: string; channel: "agency" | "direct" } | null {
+  if (!handoffTenantId) return null;
+  return { tenantId: handoffTenantId, channel: hostKind === "agency" ? "agency" : "direct" };
 }
 
 export function agentHandoffUrl(origin: string, basePath: string, token: string): string {
