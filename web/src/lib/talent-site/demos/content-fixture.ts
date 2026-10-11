@@ -19,6 +19,7 @@ import maisonContent from "../../../../design-references/maison-v2/content.json"
 import type { DemoDesign } from "./types";
 import { GRIDLINE_DEMO_FIXTURES } from "./gridline-demo-fixtures";
 import { FOLIO_DEMO_FIXTURES } from "./folio-demo-fixtures";
+import { withCurrencyCodes } from "./demo-money-copy";
 
 export type FixtureMode = "instant" | "request" | "inquiry" | "quote";
 
@@ -140,6 +141,10 @@ export interface FixtureTranslation {
   menu?: { title: string; subtitle: string };
   /** Task picker section title (item labels stay on `tasks`). */
   tasksTitle?: string;
+  /** Job-card captions (Gridline), in `portfolio.items` order: written to `metadata.caption_i18n.<lang>`. */
+  portfolio?: Array<{ title: string; caption: string }>;
+  /** Area note under the zone chips (Gridline): written on the area `visit` node as `props.i18n.<lang>.arrivalNote`. */
+  arrivalNote?: string;
 }
 
 export interface DemoContentFixture {
@@ -281,12 +286,24 @@ const FIXTURES: Readonly<Record<string, DemoContentFixture>> = {
   ...FOLIO_DEMO_FIXTURES,
 };
 
-export function loadDemoContentFixture(key: string): DemoContentFixture {
+export function demoContentFixtureKeys(): string[] {
+  return Object.keys(FIXTURES);
+}
+
+/** The fixture exactly as authored. Mockup-parity tests read this; writers use `loadDemoContentFixture`. */
+export function loadAuthoredDemoContentFixture(key: string): DemoContentFixture {
   const fixture = FIXTURES[key];
   if (!fixture) throw new Error(`no content fixture for ${key}`);
   const problems = validateDemoContentFixture(fixture);
   if (problems.length) throw new Error(`content fixture ${key} invalid: ${problems.join("; ")}`);
   return fixture;
+}
+
+/** What a demo rebuild writes: the authored fixture with every typed price coded ("$550 MXN", TUL-569). */
+export function loadDemoContentFixture(key: string): DemoContentFixture {
+  const fixture = loadAuthoredDemoContentFixture(key);
+  const currency = fixture.services[0]?.currency;
+  return currency ? withCurrencyCodes(fixture, currency) : fixture;
 }
 
 const MODES: ReadonlySet<string> = new Set(["instant", "request", "inquiry", "quote"]);

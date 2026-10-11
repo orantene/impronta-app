@@ -13,7 +13,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { HeaderDemoPill } from "@/lib/site-admin/sections/site_header/header-site-chrome";
+import { MaxSiteDemoBadge, MaxSiteDemoFooter } from "@/lib/talent-site/max-site-demo-chrome";
 import { EDITORIAL_SOFT_CHROME_CSS } from "@/lib/talent-site/theme-catalog/collection/design-type-system-soft";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 
@@ -212,8 +212,7 @@ test("row cards: a quote-only service reads 'Por evento' / 'By event'; other cat
 });
 
 test("row cards: the whole row opens the service, the button stays the accessible control, a paused service shows a disabled pill", () => {
-  // CatalogRow lives in services-catalog-row.tsx (max-lines split from the filter).
-  const src = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "services-catalog-row.tsx"), "utf8");
+  const src = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "services-catalog-filter.tsx"), "utf8");
   assert.match(src, /rowCard && !derived\.hidden/);
   assert.match(src, /closest\("button,a"\)/, "a click on the button or a link is not doubled");
   assert.match(src, /data-paused="true"/);
@@ -222,12 +221,26 @@ test("row cards: the whole row opens the service, the button stays the accessibl
   assert.match(SERVICES_CATALOG_ROW_CARD_CSS, /:not\(\[disabled\]\)/, "a paused pill takes no hover fill");
 });
 
-// ── header: demo pill (H-5) and the published header height (MN-6) ───────────
+// ── demo marker (H-5 → TUL-560) and the published header height (MN-6) ───────
 
-test("H-5: the Demo pill renders only for demo profiles", () => {
-  assert.equal(renderToStaticMarkup(<HeaderDemoPill show={false} />), "");
-  assert.equal(renderToStaticMarkup(<HeaderDemoPill show={undefined} />), "");
-  assert.match(renderToStaticMarkup(<HeaderDemoPill show />), /site-header__demo/);
+test("TUL-560: the demo marker is one neutral corner badge, not header chrome", () => {
+  const html = renderToStaticMarkup(<MaxSiteDemoBadge locale="es" />);
+  assert.match(html, /data-demo-badge=""/);
+  assert.match(html, />Demo<\/span>$/);
+  assert.doesNotMatch(html, /var\(--token-/, "identical on every theme");
+  const headerSrc = readFileSync(
+    resolve(dirname(fileURLToPath(import.meta.url)), "../sections/site_header/Component.tsx"),
+    "utf8",
+  );
+  assert.doesNotMatch(headerSrc, /site-header__demo|HeaderDemoPill|demoPill/);
+});
+
+test("TUL-560: the demo footer only says bookings are off; the corner badge is the one demo label", () => {
+  const es = renderToStaticMarkup(<MaxSiteDemoFooter locale="es" />);
+  const en = renderToStaticMarkup(<MaxSiteDemoFooter locale="en" />);
+  assert.match(es, />Las reservas están desactivadas\.<\/p>$/);
+  assert.match(en, />Bookings are disabled\.<\/p>$/);
+  assert.doesNotMatch((es + en).replace(/<[^>]+>/g, ""), /demostraci|demo/i);
 });
 
 test("the header publishes --site-header-h (ResizeObserver, removed on unmount) from the freeform header", () => {

@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * BJ-07 / AUD-025 — lift Hablar when bottom chrome is showing so Continuar,
- * the language suggestion strip, and the legacy Maison bar do not fight the
- * same bottom-right corner (and so Seleccionar on the last rows stays tappable).
+ * BJ-07 / AUD-025 — lift Hablar when bottom chrome is showing so Continuar
+ * and the legacy Maison bar do not fight the same bottom-right corner (and so
+ * Seleccionar on the last rows stays tappable).
  */
 
 import { useEffect, useState } from "react";
@@ -58,12 +58,9 @@ export function useYieldBookingBar(mounted: boolean, narrowLauncher: boolean): {
         }
       }
 
-      // Locale suggestion + legacy Maison bar: lift Hablar even when the booking
-      // dock owns language-bar stacking (dock idle → strip is still guest-visible).
-      const locale = document.querySelector<HTMLElement>("[data-locale-suggestion]");
-      if (visibleFixedChrome(locale)) {
-        lift = Math.max(lift, chromeLiftFor(locale));
-      }
+      // The locale toast is not measured: it sits bottom-left and clears the
+      // launcher through --floating-chrome-bottom, so lifting Hablar over it
+      // would only make the launcher jump when the toast appears.
       const mnBar = document.querySelector<HTMLElement>(".mn-bar[data-show='true']");
       if (visibleFixedChrome(mnBar)) {
         bookingUp = true;
@@ -88,7 +85,6 @@ export function useYieldBookingBar(mounted: boolean, narrowLauncher: boolean): {
         "data-show",
         "data-top",
         "data-has-selection",
-        "data-locale-suggestion",
         "data-consent-banner",
         "class",
         "style",

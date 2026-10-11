@@ -9,6 +9,8 @@
  * close on Esc/outside (built into `Sheet`).
  */
 
+import { localiseInquiryName } from "@/lib/messaging/inquiry-name-pure";
+
 import "../kit/tokens.css";
 import { Sheet } from "../kit/Sheet";
 
@@ -23,7 +25,7 @@ export type ContextDrawerProps = ContextPanelProps & {
 export function ContextDrawer(props: ContextDrawerProps) {
   const { open, copy, onClose, essentials } = props;
   return (
-    <Sheet open={open} title={essentials?.name || copy.state.noIdentity} copy={copy} onClose={onClose} variant="desktop" width={520}>
+    <Sheet open={open} title={localiseInquiryName(essentials?.name ?? "", copy.inbox.visitor) || copy.state.noIdentity} copy={copy} onClose={onClose} variant="desktop" width={520}>
       <ContextPanel {...props} />
     </Sheet>
   );

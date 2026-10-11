@@ -11,6 +11,9 @@
  * (the signal is treated as the choice). An explicit choice always wins, and
  * the "Privacy choices" link lets the visitor change it.
  *
+ * Region: visitors outside the EU/EEA, UK and Switzerland get a notice
+ * instead of the card, and with no choice and no GPC analytics may run.
+ *
  * Every storage touch is wrapped: private mode and blocked storage must never
  * break a page.
  */
@@ -27,11 +30,47 @@ export const PRIVACY_CHOICES_EVENT = "tulala:privacy-choices";
 export type StoredConsent = "granted" | "denied";
 export type Consent = StoredConsent | null;
 
-/** Pure: what consent applies given a stored value and the GPC signal. */
-export function resolveConsent(stored: unknown, gpc: boolean): Consent {
-  if (stored === "granted" || stored === "denied") return stored;
-  return gpc ? "denied" : null;
+/**
+ * "strict": the full card, analytics off until an explicit Accept.
+ * "notice": a one-line notice; analytics run unless the visitor declines
+ * (via Privacy choices) or the browser sends GPC.
+ */
+export type ConsentRegion = "strict" | "notice";
+
+/** `<html data-consent-region>`: set by the root layout from the request country. */
+export const CONSENT_REGION_ATTR = "data-consent-region";
+
+/** EU/EEA (with EU outermost regions that carry their own ISO code), UK, Switzerland. */
+const STRICT_CONSENT_COUNTRIES = new Set([
+  "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IE", "IT", "LV",
+  "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE",
+  "AX", "GF", "GP", "MQ", "RE", "YT", "MF",
+  "IS", "LI", "NO",
+  "GB", "CH",
+]);
+
+/** Pure: an unknown country (no geo header, e.g. off Vercel) is treated as strict. */
+export function consentRegionForCountry(country: string | null | undefined): ConsentRegion {
+  const code = country?.trim().toUpperCase();
+  if (!code || code.length !== 2) return "strict";
+  return STRICT_CONSENT_COUNTRIES.has(code) ? "strict" : "notice";
 }
+
+/** Pure: what consent applies given a stored value, the GPC signal and the region. */
+export function resolveConsent(stored: unknown, gpc: boolean, region: ConsentRegion = "strict"): Consent {
+  if (stored === "granted" || stored === "denied") return stored;
+  if (gpc) return "denied";
+  return region === "notice" ? "granted" : null;
+}
+
+/**
+ * The same decision for the inline tag snippets that run before React: a JS
+ * expression that is true when analytics may run. Keep in step with
+ * `resolveConsent`.
+ */
+export const ANALYTICS_ALLOWED_JS =
+  `(function(){try{var s=localStorage.getItem('${CONSENT_STORAGE_KEY}');if(s==='granted'||s==='denied')return s==='granted';}catch(e){}` +
+  `return document.documentElement.getAttribute('${CONSENT_REGION_ATTR}')==='notice'&&navigator.globalPrivacyControl!==true;})()`;
 
 /** Pure: should the banner appear on its own (no reopen request)? */
 export function shouldShowBanner(stored: unknown, gpc: boolean): boolean {
@@ -51,7 +90,7 @@ export function isConsentBannerSuppressedPath(pathname: string | null | undefine
   return /^\/(prototypes|template-preview|start)(\/|$)/.test(pathname);
 }
 
-/** Pure: may optional analytics storage / pixels run? Only on explicit grant. */
+/** Pure: may optional analytics storage / pixels run? */
 export function isAnalyticsAllowed(consent: Consent): boolean {
   return consent === "granted";
 }
@@ -76,10 +115,15 @@ export function readStoredConsent(): StoredConsent | null {
   return null;
 }
 
-/** Effective consent for this browser (stored choice, else GPC, else null). */
+export function readConsentRegion(): ConsentRegion {
+  if (typeof document === "undefined") return "strict";
+  return document.documentElement.getAttribute(CONSENT_REGION_ATTR) === "notice" ? "notice" : "strict";
+}
+
+/** Effective consent for this browser (stored choice, else GPC, else the region default). */
 export function readConsent(): Consent {
   if (typeof window === "undefined") return null;
-  return resolveConsent(readStoredConsent(), isGpcEnabled());
+  return resolveConsent(readStoredConsent(), isGpcEnabled(), readConsentRegion());
 }
 
 /** True only when the visitor explicitly granted analytics. Safe on the server. */
@@ -132,8 +176,8 @@ export function writeConsent(next: StoredConsent): void {
 
 /** Keep the cookie in step with a choice made before the cookie existed. */
 export function syncConsentCookie(): void {
-  const stored = readStoredConsent();
-  if (stored) mirrorCookie(stored);
+  const effective = readConsent();
+  if (effective) mirrorCookie(effective);
 }
 
 /** Reopen the consent banner (used by the footer "Privacy choices" link). */

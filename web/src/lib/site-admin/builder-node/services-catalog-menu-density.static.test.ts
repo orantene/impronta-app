@@ -59,16 +59,15 @@ test("AUD-026: bare top-level catalog gets side gutter via cms-block rule", () =
 });
 
 test("catalog row chrome wraps price+CTA in buy cluster", () => {
-  // Live rows: services-catalog-row.tsx (split from filter for max-lines).
-  const row = read("lib/site-admin/builder-node/services-catalog-row.tsx");
+  const filter = read("lib/site-admin/builder-node/services-catalog-filter.tsx");
   const fallback = read("lib/site-admin/builder-node/services-catalog-static-fallback.tsx");
   const loading = read("lib/site-admin/builder-node/services-catalog-loading.tsx");
   for (const [name, src] of [
-    ["row", row],
+    ["filter", filter],
     ["static-fallback", fallback],
     ["loading", loading],
   ] as const) {
     assert.match(src, /site-builder-node--services-catalog-buy/, `${name} must wrap buy cluster`);
   }
-  assert.match(row, /data-has-photo=/, "live rows advertise photo presence for mobile grid");
+  assert.match(filter, /data-has-photo=/, "filter rows advertise photo presence for mobile grid");
 });

@@ -1,20 +1,25 @@
 "use client";
 
-import { useEffect, useReducer, useRef, useState } from "react";
+import { useEffect, useReducer, useRef, useState, type ReactNode } from "react";
 import { type TalentOffering } from "@/lib/talent/offerings-types";
-import { type UsdRates } from "@/lib/pricing/usd-equivalent";
+import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import { formatMoney } from "@/lib/talent/offerings-money";
+import { formatOfferingWhereLabel, offeringWhereFromAttributes } from "@/lib/talent/offering-request-detail";
 import { BookingSheetReadyBeacon } from "@/components/public-booking/BookingSheetReadyBeacon";
 import { CatalogBookingSheet, type CatalogSheetBookingSettings } from "@/components/public-booking/CatalogBookingSheet";
 import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptchaField";
 import {
+  catalogRowCtaLabel,
+  offeringPriceUnit,
+  catalogRowMinCents,
   catalogRowOpensSheetImmediately,
+  catalogRowShowsFrom,
   type CatalogBookingMode,
 } from "@/components/public-booking/catalog-booking-logic";
 import { CatalogPurchaseMount } from "@/components/public-booking/CatalogPurchaseMount";
-import { catalogBarPriceLabel } from "./services-catalog-bar-price";
+import { catalogBarPriceLabel, catalogRowPriceText } from "./services-catalog-bar-price";
 import { ServicesCatalogDemoToast, useDemoToast } from "./services-catalog-demo-toast";
-import { railCount } from "./services-catalog-format";
+import { catalogDurationShort, railCount } from "./services-catalog-format";
 import { CatalogIdleBarGo, CatalogIdleBarText, CatalogOverlayStyles } from "./services-catalog-idle-bar";
 import { CatalogMatrix } from "./services-catalog-matrix";
 import type { LiveStatusRenderContext } from "@/lib/talent/live-status-render";
@@ -29,20 +34,26 @@ import { useChatAddService } from "@/components/public-booking/use-chat-add-serv
 import { useDockBookingResume } from "@/components/public-booking/use-dock-booking-resume";
 import { useDockToast } from "@/components/public-booking/use-dock-toast";
 import { useStickyBarProps } from "./use-sticky-bar-visible";
-import { catalogCategoryJumpId } from "./services-catalog-title";
-import { DEFAULT_SHEET_BOOKING_SETTINGS } from "@/lib/talent/selling-booking-settings";
+import { catalogCategoryJumpId, catalogDurationPhrase } from "./services-catalog-title";
 import {
-  CatalogRow,
-  detailFor,
-  dispatchOffering,
-} from "./services-catalog-row";
+  DEFAULT_SHEET_BOOKING_SETTINGS,
+  PLATFORM_DEFAULT_BOOKING_POSTURE,
+  type TalentBookingPosture,
+} from "@/lib/talent/selling-booking-settings";
+import { deriveFor, detailFor, dispatchOffering } from "./services-catalog-detail";
 
 export type CatalogGroup = { name: string | null; label?: string | null; items: TalentOffering[]; note?: string | null };
 
 export type CatalogNavMode = "pills" | "tabs" | "rail" | "jump" | "sections" | "accordion" | "flat";
 
-// Re-export helpers that lived here before the max-lines split (TUL-62).
-export { CatalogRow, detailFor } from "./services-catalog-row";
+export {
+  CATALOG_UNCATEGORISED_TAB,
+  catalogGroupNavLabel,
+  catalogGroupTabKey,
+} from "./catalog-group-nav";
+import { catalogGroupNavLabel, catalogGroupTabKey } from "./catalog-group-nav";
+
+export { detailFor } from "./services-catalog-detail";
 
 export function ServicesCatalogFilter({
   groups,
@@ -123,8 +134,10 @@ export function ServicesCatalogFilter({
   /** TUL-62: signed-in catalog purchase skips empty guest contact fields. */
   signedIn?: boolean;
 }) {
-  const named = groups.filter((g) => g.name);
-  const first = named[0]?.name ?? null;
+  // Include the uncategorised bucket so "Otros" is a real chip (pills/tabs/rail),
+  // not only a jump/sections heading.
+  const filterGroups = groups.filter((g) => g.name || g.items.length > 0);
+  const first = filterGroups[0] ? catalogGroupTabKey(filterGroups[0].name) : null;
   const [active, setActive] = useState<string | null>(categoryShowAll ? null : first);
   const [openAccordion, setOpenAccordion] = useState<string | null>(first);
   const [dock, dispatchDock] = useReducer(dockReducer, EMPTY_DOCK); // AUD-044 multi-select dock state (front = first picked)
@@ -317,20 +330,21 @@ export function ServicesCatalogFilter({
                 : ""}
             </button>
           ) : null}
-          {named.map((g) => {
-            const selected = active === g.name;
+          {filterGroups.map((g) => {
+            const tabKey = catalogGroupTabKey(g.name);
+            const selected = active === tabKey;
             const count = g.items.filter(matchesSearch).length;
             return (
               <button
-                key={g.name}
+                key={tabKey}
                 type="button"
                 aria-pressed={selected}
-                data-catalog-tab={g.name ?? ""}
+                data-catalog-tab={tabKey}
                 className="site-builder-node--services-catalog-pill"
                 data-active={selected ? "true" : "false"}
-                onClick={() => setActive(g.name)}
+                onClick={() => setActive(tabKey)}
               >
-                {g.label ?? g.name}
+                {catalogGroupNavLabel(g, es)}
                 {categoryShowCounts ? railCount(nav, count) : ""}
               </button>
             );
@@ -344,11 +358,11 @@ export function ServicesCatalogFilter({
         >
           {groups.map((g) => (
             <a
-              key={g.name ?? "_"}
+              key={catalogGroupTabKey(g.name)}
               href={`#${catalogCategoryJumpId(nodeId, g.name ?? "_")}`}
               className="site-builder-node--services-catalog-pill"
             >
-              {g.label ?? g.name ?? (es ? "Otros" : "Other")}
+              {catalogGroupNavLabel(g, es)}
             </a>
           ))}
         </nav>
@@ -357,15 +371,15 @@ export function ServicesCatalogFilter({
       <div className="site-builder-node--services-catalog-groups">
       {matrix ? <CatalogMatrix items={groups.flatMap((g) => g.items.filter(matchesSearch))} locale={locale} confirmsByHand={confirmsByHand} bookingPosture={bookingPosture} ctaLabel={ctaLabel} liveStatus={liveStatus} selectedIds={dock.picked.map((p) => p.id)} onSelect={(item) => onRowAction(item)} /> : groups.map((g) => {
         // Changing filter must not clear selectedId / booking sheet state (brief §7).
-        const hidden =
-          filterNav && active !== null && Boolean(g.name) && active !== g.name;
+        const tabKey = catalogGroupTabKey(g.name);
+        const hidden = filterNav && active !== null && active !== tabKey;
         const accordionOpen =
-          nav !== "accordion" || openAccordion === g.name || (!g.name && openAccordion === null);
+          nav !== "accordion" || openAccordion === tabKey;
         const showGroupHeading = nav === "jump" || nav === "sections" || nav === "rail";
         const visibleItems = g.items.filter(matchesSearch);
         return (
           <div
-            key={g.name ?? "_"}
+            key={tabKey}
             hidden={hidden}
             id={showGroupHeading ? catalogCategoryJumpId(nodeId, g.name ?? "_") : undefined}
             data-catalog-category={g.name ?? "_"}
@@ -373,7 +387,7 @@ export function ServicesCatalogFilter({
           >
             {showGroupHeading ? (
               <h3 className="site-builder-node--services-catalog-group-title">
-                {g.label ?? g.name ?? (es ? "Otros" : "Other")}
+                {catalogGroupNavLabel(g, es)}
                 {nav === "rail" ? (
                   <small className="site-builder-node--services-catalog-group-count">
                     {es
@@ -383,18 +397,18 @@ export function ServicesCatalogFilter({
                 ) : null}
               </h3>
             ) : null}
-            {nav === "accordion" && g.name ? (
+            {nav === "accordion" ? (
               <button
                 type="button"
                 className="site-builder-node--services-catalog-accordion-trigger"
                 aria-expanded={accordionOpen}
-                onClick={() => setOpenAccordion(accordionOpen ? null : g.name)}
+                onClick={() => setOpenAccordion(accordionOpen ? null : tabKey)}
               >
-                <span>{g.label ?? g.name}</span>
+                <span>{catalogGroupNavLabel(g, es)}</span>
                 <span aria-hidden>{accordionOpen ? "−" : "+"}</span>
               </button>
             ) : null}
-            {nav !== "accordion" || accordionOpen || !g.name ? (
+            {nav !== "accordion" || accordionOpen ? (
               visibleItems.length === 0 && q ? (
                 <p className="site-builder-node--services-catalog-empty">
                   {es ? "Sin resultados." : "No results."}{" "}
@@ -513,3 +527,223 @@ export function ServicesCatalogFilter({
   );
 }
 
+export function CatalogRow({
+  item,
+  locale,
+  showPhoto,
+  showDescription = true,
+  showCategory = false,
+  showDuration,
+  showDelivery = false,
+  showAvailability = false,
+  showPrice = true,
+  showUsdEquivalent,
+  showBadges = false,
+  showModeChip = false,
+  priceInMeta = false,
+  rowCard = false,
+  confirmsByHand,
+  bookingPosture = PLATFORM_DEFAULT_BOOKING_POSTURE,
+  usdRates,
+  ctaLabel,
+  durationFormat = "auto",
+  selected = false,
+  onSelect,
+}: {
+  item: TalentOffering;
+  locale: string;
+  showPhoto: boolean;
+  showDescription?: boolean;
+  showCategory?: boolean;
+  showDuration: boolean;
+  showDelivery?: boolean;
+  showAvailability?: boolean;
+  showPrice?: boolean;
+  showUsdEquivalent: boolean;
+  showBadges?: boolean;
+  showModeChip?: boolean;
+  priceInMeta?: boolean;
+  rowCard?: boolean;
+  confirmsByHand: boolean;
+  bookingPosture?: TalentBookingPosture;
+  usdRates: UsdRates | null;
+  ctaLabel?: string;
+  durationFormat?: "auto" | "minutes" | "hours_minutes";
+  selected?: boolean;
+  onSelect?: () => void;
+}) {
+  const es = locale.startsWith("es");
+  const cover = showPhoto ? item.imageUrls[0] : undefined;
+  const onRequest = item.visibility === "on_request";
+  const quote =
+    item.priceDisplay === "quote" || item.priceType === "custom" || item.amountCents == null;
+  const minCents = catalogRowMinCents(item);
+  const ladder = catalogRowShowsFrom(item);
+  const usd = usdEquivalentLabel(minCents, item.currency, usdRates, locale);
+  const derived = deriveFor(item, confirmsByHand, bookingPosture);
+  const cta = derived.cta;
+  const label = catalogRowCtaLabel({
+    selected,
+    offering: item,
+    locale,
+    inspectorLabel: selected ? undefined : ctaLabel,
+    confirmsByHand,
+    bookingPosture,
+  });
+  const where = offeringWhereFromAttributes(item.attributes);
+  const deliveryText = formatOfferingWhereLabel(where, locale);
+  const modeChip =
+    derived.effectiveMode === "request"
+      ? es
+        ? "Con confirmación"
+        : "Needs confirmation"
+      : derived.effectiveMode === "inquiry" || quote
+        ? rowCard
+          ? es
+            ? "Por evento"
+            : "By event"
+          : es
+            ? "Por cotización"
+            : "By quote"
+        : null;
+  // One-line price for the meta row: "Desde $120 por uña" / "Desde $650" / "$900" / "A cotizar".
+  const priceText = catalogRowPriceText(item, locale);
+  // Priced per unit: the unit replaces the duration in the meta row.
+  const perUnit = !!offeringPriceUnit(item.attributes, locale) && !onRequest && !quote && minCents != null;
+  const badges: string[] = [];
+  if (showBadges) {
+    if (derived.effectiveMode === "instant") badges.push(es ? "Reserva inmediata" : "Instant booking");
+    if (item.reserveMode === "deposit") badges.push(es ? "Seña" : "Deposit required");
+    if (where.includes("remote")) badges.push(es ? "En línea" : "Online session");
+  }
+  const activate = () => {
+    if (onSelect) onSelect();
+    else dispatchOffering(item, confirmsByHand, undefined, undefined, bookingPosture);
+  };
+  // Empty grey placeholders look like a repeated "stock" thumb on every row.
+  // Only paint a photo slot when the offering has a real public image.
+  const photo = cover ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={cover} alt="" className="site-builder-node--services-catalog-photo" />
+  ) : null;
+  return (
+    <li
+      className="site-builder-node--services-catalog-row"
+      data-selected={selected ? "true" : undefined}
+      data-has-photo={cover ? "true" : "false"}
+      // Row card: whole-card click is a pointer convenience; the button stays the accessible control.
+      onClick={
+        rowCard && !derived.hidden
+          ? (e) => {
+              if ((e.target as HTMLElement).closest("button,a")) return;
+              activate();
+            }
+          : undefined
+      }
+    >
+      {photo && rowCard ? <span className="site-builder-node--services-catalog-thumb">{photo}</span> : photo}
+      <span className="site-builder-node--services-catalog-copy">
+        <strong className="site-builder-node--services-catalog-name" title={item.title}>
+          <span className="site-builder-node--services-catalog-name-text">{item.title}</span>
+          {selected ? (
+            <span className="site-builder-node--services-catalog-check" aria-hidden>
+              ✓
+            </span>
+          ) : null}
+        </strong>
+        {showCategory && item.category ? (
+          <span className="site-builder-node--services-catalog-meta">{item.categoryLabel ?? item.category}</span>
+        ) : null}
+        {showDescription && item.description ? (
+          <span className="site-builder-node--services-catalog-desc">{item.description}</span>
+        ) : null}
+        {priceInMeta ? (
+          <span className="site-builder-node--services-catalog-duration" data-price-in-meta="true">
+            {showDuration && !perUnit && item.durationMinutes && item.kind !== "product" ? (
+              <>
+                <span>{catalogDurationShort(item.durationMinutes)}</span>
+                {showPrice ? <span aria-hidden>·</span> : null}
+              </>
+            ) : null}
+            {showPrice ? <span className="site-builder-node--services-catalog-price">{priceText}</span> : null}
+            {showModeChip && modeChip ? (
+              <span className="site-builder-node--services-catalog-mode">{modeChip}</span>
+            ) : null}
+          </span>
+        ) : showDuration && item.durationMinutes && item.kind !== "product" ? (
+          <span className="site-builder-node--services-catalog-duration">
+            {catalogDurationPhrase(item.durationMinutes, locale, durationFormat)}
+          </span>
+        ) : null}
+        {showDelivery && deliveryText ? (
+          <span className="site-builder-node--services-catalog-meta">{deliveryText}</span>
+        ) : null}
+        {showAvailability ? (
+          <span className="site-builder-node--services-catalog-meta">
+            {derived.effectiveMode === "instant"
+              ? es
+                ? "Confirmación inmediata"
+                : "Instant confirmation"
+              : es
+                ? "Sujeto a confirmación"
+                : "Subject to confirmation"}
+          </span>
+        ) : null}
+        {showModeChip && modeChip && !priceInMeta ? (
+          <span className="site-builder-node--services-catalog-mode">{modeChip}</span>
+        ) : null}
+        {badges.length ? (
+          <span className="site-builder-node--services-catalog-badges">
+            {badges.map((b) => (
+              <span key={b} className="site-builder-node--services-catalog-badge">
+                {b}
+              </span>
+            ))}
+          </span>
+        ) : null}
+      </span>
+      <span className="site-builder-node--services-catalog-buy">
+        {priceInMeta ? null : showPrice ? (
+          <span className="site-builder-node--services-catalog-price">
+            {onRequest || quote || minCents == null ? (
+              <strong>{es ? (onRequest ? "Bajo consulta" : "Cotización a pedido") : onRequest ? "On request" : "Quote on request"}</strong>
+            ) : (
+              <>
+                {ladder ? <small>{es ? "Desde" : "From"}</small> : null}
+                <strong>{formatMoney(minCents, item.currency, locale)}</strong>
+              </>
+            )}
+            {showUsdEquivalent && usd ? <span className="site-builder-node--services-catalog-usd">{usd}</span> : null}
+          </span>
+        ) : (
+          <span className="site-builder-node--services-catalog-price" aria-hidden />
+        )}
+        {/* WSF-C §8: no route left for this service, no button. */}
+        {derived.hidden ? (
+          rowCard ? (
+            <button
+              type="button"
+              disabled
+              data-paused="true"
+              className="site-builder-node--services-catalog-cta"
+            >
+              {es ? "En pausa" : "Paused"}
+            </button>
+          ) : null
+        ) : (
+          <button
+            type="button"
+            onClick={activate}
+            data-offering-cta={cta}
+            data-offering-id={item.id}
+            data-selected={selected ? "true" : undefined}
+            className="site-builder-node--services-catalog-cta"
+            aria-pressed={selected}
+          >
+            {label}
+          </button>
+        )}
+      </span>
+    </li>
+  );
+}

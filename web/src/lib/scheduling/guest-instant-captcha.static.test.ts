@@ -37,7 +37,7 @@ test("guest instant confirm surfaces render GuestCaptchaField", () => {
     "utf8",
   );
   const maxSite = readFileSync(
-    join(SRC, "lib/talent-site/server/render-max-site.tsx"),
+    join(SRC, "lib/talent-site/server/render-max-site-document.tsx"),
     "utf8",
   );
   assert.ok(contact.includes("GuestCaptchaField"));
@@ -69,10 +69,6 @@ test("TUL-62: signed-in booking form prefill wires chrome.client into InquiryDra
     join(SRC, "lib/site-admin/builder-node/services-catalog-filter.tsx"),
     "utf8",
   );
-  const catalogRow = readFileSync(
-    join(SRC, "lib/site-admin/builder-node/services-catalog-row.tsx"),
-    "utf8",
-  );
   assert.match(chrome, /client:\s*GuestInstantClient\s*\|\s*null/);
   assert.match(chrome, /client_profiles/);
   assert.match(composer, /client\?:/);
@@ -90,10 +86,7 @@ test("TUL-62: signed-in booking form prefill wires chrome.client into InquiryDra
     /options\.headerWidgets\?\.account/,
     "options.headerWidgets is not on NormalizedBuilderNodeRenderOptions",
   );
-  // max-lines headroom: CatalogRow lives beside the filter, not inside it.
-  assert.match(catalogFilter, /from "\.\/services-catalog-row"/);
-  assert.match(catalogRow, /export function CatalogRow/);
-  assert.match(catalogFilter, /signedIn/);
+  assert.match(catalogFilter, /signedIn=\{signedIn\}/);
 });
 
 /** TUL-452: studio Live booking band must not inherit English cookie / light-on-white. */
