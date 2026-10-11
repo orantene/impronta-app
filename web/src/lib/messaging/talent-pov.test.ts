@@ -43,6 +43,10 @@ test("a guest chat that names only her is hers, a shared lineup is not", () => {
   assert.equal(inquiryIsHers({ profileId: HER, participant: false, talentIds: [HER] }), true);
   assert.equal(inquiryIsHers({ profileId: HER, participant: false, talentIds: [HER, OTHER] }), false);
   assert.equal(inquiryIsHers({ profileId: HER, participant: true, talentIds: [HER, OTHER] }), true);
+  // TUL-484 live: a guest's unsent draft names her but has no participants; no quote can start on it.
+  assert.equal(inquiryIsHers({ profileId: HER, participant: false, talentIds: [HER], status: "draft" }), false);
+  assert.equal(inquiryIsHers({ profileId: HER, participant: false, talentIds: [HER], status: "new" }), true);
+  assert.equal(inquiryIsHers({ profileId: HER, participant: true, talentIds: [HER], status: "draft" }), true);
   assert.deepEqual(
     talentIdsOnInquiry({ talent_ids: [HER, 3] }, { talent: { selected_ids: [HER] } }),
     [HER],

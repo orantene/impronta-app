@@ -114,13 +114,14 @@ export async function loadOwnedTalentInquiry(
   if (partErr) return fail("unavailable");
   const { data: inquiry, error } = await admin
     .from("inquiries")
-    .select("id, tenant_id, version, source_context, interpreted_query")
+    .select("id, tenant_id, version, status, source_context, interpreted_query")
     .eq("id", inquiryId)
     .maybeSingle();
   if (error) return fail("unavailable");
   const row = inquiry as {
     tenant_id?: string;
     version?: number;
+    status?: string | null;
     source_context?: unknown;
     interpreted_query?: unknown;
   } | null;
@@ -130,6 +131,7 @@ export async function loadOwnedTalentInquiry(
     profileId: talentProfileId,
     participant: Boolean(part),
     talentIds: talentIdsOnInquiry(row?.source_context, row?.interpreted_query),
+    status: row?.status ?? null,
   });
   if (!hers) return fail("not_found");
   const hub = await getPlatformHubTenant();
@@ -162,16 +164,16 @@ export async function listTalentInquiryIds(
   const [bySource, byLineup] = await Promise.all([
     admin
       .from("inquiries")
-      .select("id, source_context, interpreted_query")
+      .select("id, status, source_context, interpreted_query")
       .contains("source_context", { talent_ids: [profileId] }),
     admin
       .from("inquiries")
-      .select("id, source_context, interpreted_query")
+      .select("id, status, source_context, interpreted_query")
       .contains("interpreted_query", { talent: { selected_ids: [profileId] } }),
   ]);
   const namedRows = [
-    ...((bySource.error ? [] : bySource.data ?? []) as { id: string; source_context: unknown; interpreted_query: unknown }[]),
-    ...((byLineup.error ? [] : byLineup.data ?? []) as { id: string; source_context: unknown; interpreted_query: unknown }[]),
+    ...((bySource.error ? [] : bySource.data ?? []) as { id: string; status: string | null; source_context: unknown; interpreted_query: unknown }[]),
+    ...((byLineup.error ? [] : byLineup.data ?? []) as { id: string; status: string | null; source_context: unknown; interpreted_query: unknown }[]),
   ];
   const ids = [
     ...new Set([
@@ -182,6 +184,7 @@ export async function listTalentInquiryIds(
             profileId,
             participant: participantIds.has(row.id),
             talentIds: talentIdsOnInquiry(row.source_context, row.interpreted_query),
+            status: row.status,
           }),
         )
         .map((row) => row.id),
