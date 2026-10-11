@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const RENDER_MAX = readFileSync(join(HERE, "render-max-site.tsx"), "utf8");
+const RENDER_MAX = readFileSync(join(HERE, "render-max-site-document.tsx"), "utf8");
 const DATA_SOURCES = readFileSync(
   join(HERE, "../../../components/home/homepage-cms-data-sources.ts"),
   "utf8",

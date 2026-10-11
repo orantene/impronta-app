@@ -37,7 +37,7 @@ test("AUD-027: English and custom labels are left alone", () => {
 
 test("AUD-027: render-max-site localises the header landmark props", () => {
   const src = readFileSync(
-    path.join(__dirname, "server", "render-max-site.tsx"),
+    path.join(__dirname, "server", "render-max-site-document.tsx"),
     "utf8",
   );
   assert.match(src, /localiseTalentHeaderDefaults/);
