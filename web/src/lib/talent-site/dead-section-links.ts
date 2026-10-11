@@ -162,6 +162,13 @@ export function pruneDeadSectionLinks(
         node = { ...node, props: { ...props, ctaHref: next } } as BuilderNode;
       }
     }
+    if (node.kind === "utility_bar" && Array.isArray(props.navLinks)) {
+      const orig = props.navLinks as LinkItem[];
+      const links = fixItems(orig, anchors, ctx);
+      if (links.length !== orig.length || links.some((it, i) => it !== orig[i])) {
+        node = { ...node, props: { ...(node.props as object), navLinks: links } } as BuilderNode;
+      }
+    }
     const sp = props.sectionProps;
     if (sp && typeof sp === "object") {
       const fixedSp = fixSectionProps(sp as Record<string, unknown>, anchors, ctx);
