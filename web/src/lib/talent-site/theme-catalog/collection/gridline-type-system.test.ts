@@ -106,6 +106,22 @@ test("Gridline utility bar keeps its subtitle and status pill down to a 330px ba
   assert.ok(!UTILITY_BAR_CSS.includes("max-width:370px"));
   // TUL-474: subtitle wraps instead of truncating "Electricista · Monterrey".
   assert.match(UTILITY_BAR_CSS, /\.sb-ub-nm small\{[^}]*white-space:normal/);
+  // GRK-074: accent-on (not missing on-accent→ink); desktop keeps wrap (no nowrap ellipsis).
+  assert.match(UTILITY_BAR_CSS, /--token-color-accent-on/);
+  assert.doesNotMatch(UTILITY_BAR_CSS, /--token-color-on-accent/);
+  assert.doesNotMatch(
+    UTILITY_BAR_CSS,
+    /@container sbub \(min-width:900px\)\{[^}]*\.sb-ub-nm small\{[^}]*white-space:nowrap/,
+  );
+});
+
+test("TUL-549: on a phone bar the status pill wraps below the name instead of squeezing it", async () => {
+  const { UTILITY_BAR_CSS } = await import("@/lib/site-admin/builder-node/utility-bar-block");
+  const phone = UTILITY_BAR_CSS.match(/@media \(max-width:559px\)\{(.*)\}\n/)?.[1] ?? "";
+  assert.match(phone, /\.sb-ub\{[^}]*flex-wrap:wrap/);
+  assert.match(phone, /\.sb-ub-pill\{[^}]*order:3;flex:1 0 100%/);
+  assert.doesNotMatch(UTILITY_BAR_CSS, /@container sbub \(max-width:559px\)/, "the bar cannot container-query itself");
+  assert.match(UTILITY_BAR_CSS, /@container sbub \(max-width:330px\)\{\.sb-ub-pill\{display:none\}/);
 });
 
 test("TUL-474: utility chrome clears work_order captions under sticky dock/bar", () => {

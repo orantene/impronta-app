@@ -49,6 +49,17 @@ test("missing translation falls back to English (no swap)", () => {
   assert.equal(m[en.slice(0, 160).trim()], clampWords(en));
 });
 
+test("GRK-075: ES-only mid-word bio slice maps to clampWords (Valeria coreogra…)", () => {
+  const longEs =
+    "Bailarina y coreógrafa. Enseño en tu casa o en estudio, y preparo coreografías a medida para eventos, bodas y presentaciones con ensayo guiado paso a paso hasta el día.";
+  const mid = longEs.slice(0, 160);
+  assert.ok(mid.endsWith("coreogra") || mid.includes("coreogra"), "fixture still mid-cuts");
+  const m = buildTalentLocaleSwaps({ bioI18n: { es: longEs }, typeNames: [], homeCity: null }, "es");
+  assert.equal(m[mid.trim()], clampWords(longEs));
+  assert.ok(m[mid.trim()]!.includes("coreografías") || m[mid.trim()]!.endsWith("…"));
+  assert.ok(!m[mid.trim()]!.includes("coreogra…") || m[mid.trim()]!.includes("coreografías"));
+});
+
 test("the marquee's baked English service titles swap to the locale's title (platform)", () => {
   const offerings = [
     { title: "Russian manicure with gel", titleI18n: { en: "Russian manicure with gel", es: "Manicura rusa con gel" } },
