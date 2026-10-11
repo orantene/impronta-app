@@ -87,6 +87,8 @@ export function ShellCountBubbles({
     countsProp?.find((c) => c.kind === "money")?.count ??
     shellCounts?.money ??
     0;
+  // Row recompute of "esperando tu respuesta" for when the layout sent no
+  // attention count. The workspace never falls back to talent rows (TUL-536).
   const awaiting = inWorkspace
     ? 0
     : countTalentAwaitingInquiries(effectiveTalentInquiries);
@@ -98,9 +100,7 @@ export function ShellCountBubbles({
   const attention =
     countsProp?.find((c) => c.kind === "attention")?.count ??
     (inWorkspace
-      ? shellCounts?.attention && shellCounts.attention > 0
-        ? shellCounts.attention
-        : awaiting
+      ? (shellCounts?.attention ?? 0)
       : (shellCounts?.attention ?? awaiting) + signals);
 
   const visible = visibleShellCountBubbles([
