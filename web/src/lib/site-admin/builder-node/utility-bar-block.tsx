@@ -19,6 +19,7 @@ import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import type { LiveStatusRenderContext } from "@/lib/talent/live-status-render";
 
 import { anchorIdAttrs } from "./anchor-id";
+import { HEADER_LOGO_LIMITS } from "../header-logo-limits";
 import type { BuilderUtilityBarNode } from "./types";
 
 export const UTILITY_BAR_CSS = `
@@ -26,6 +27,10 @@ export const UTILITY_BAR_CSS = `
 .sb-ub-brand{display:flex;align-items:center;gap:10px;flex:1;min-width:0;color:inherit;text-decoration:none}
 .sb-ub-logo{flex:0 0 auto;width:36px;height:36px;border-radius:6px;background:var(--token-color-accent,var(--token-color-primary));color:var(--token-color-on-accent,var(--token-color-ink));display:grid;place-items:center;overflow:hidden;font-weight:800;font-size:15px}
 .sb-ub-logo img{width:100%;height:100%;object-fit:cover;display:block}
+/* TUL-532: an owner logo keeps its proportions (a wordmark was cropped to a 36px square) and sits
+   on the site background it was made for, not the accent (accent = ink on some themes). */
+.sb-ub-logo[data-logo-img]{width:auto;max-width:min(160px,40cqi);padding:0 6px;box-sizing:border-box;background:var(--token-color-background)}
+.sb-ub-logo[data-logo-img] img{width:auto;max-width:100%;height:100%;min-height:${HEADER_LOGO_LIMITS.minHeightPx}px;object-fit:contain}
 .sb-ub-nm{flex:1;min-width:0;line-height:1.1}
 .sb-ub-nm b{display:block;font-weight:800;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* TUL-474: trade · city wraps 2 lines on phone instead of cutting mid-word (Monterr…). */
@@ -48,6 +53,9 @@ export const UTILITY_BAR_CSS = `
 .sb-ub-lang a[aria-current]{opacity:1;text-decoration:underline;text-underline-offset:4px}
 .sb-ub-lang i{font-style:normal;opacity:.4}
 @container sbub (max-width:479px){.sb-ub[data-ub-lang] .sb-ub-nm{display:none}.sb-ub-lang a[aria-current],.sb-ub-lang i{display:none}.sb-ub-lang a{min-width:44px;border-radius:99px;border:1.5px solid color-mix(in srgb,var(--token-color-background) 28%,transparent);opacity:1}}
+/* TUL-532: on a phone a logo cannot be readable beside the status pill + CTA. The logo is the
+   name, so the name text stays for screen readers only (it names the home link). */
+@container sbub (max-width:480px){.sb-ub-logo[data-logo-img]{max-width:min(160px,50cqi)}.sb-ub-logo[data-logo-img]+.sb-ub-nm{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}.sb-ub:has(.sb-ub-logo[data-logo-img]) .sb-ub-pill{display:none}}
 @container sbub (min-width:900px){.sb-ub{padding:12px 40px;gap:14px}.sb-ub-cta{padding:0 18px;font-size:14px}.sb-ub-nm small{display:block;-webkit-line-clamp:unset;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}}
 `;
 
@@ -105,7 +113,7 @@ export function renderUtilityBarBlock(args: {
     >
       <style>{UTILITY_BAR_CSS}</style>
       <a className="sb-ub-brand" href={homeHref} data-ub-brand-home="true">
-        <span className="sb-ub-logo" aria-hidden="true">
+        <span className="sb-ub-logo" aria-hidden="true" {...(p.logoUrl ? { "data-logo-img": "" } : {})}>
           {p.logoUrl ? <img src={p.logoUrl} alt="" /> : (name.charAt(0) || "·").toUpperCase()}
         </span>
         <div className="sb-ub-nm">
