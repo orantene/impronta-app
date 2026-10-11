@@ -62,16 +62,16 @@ describe("anyDemoTalent", () => {
 describe("demoSiteFooterText (TUL-531 eyes-0433-01)", () => {
   it("never says bookings are off while the widget offers slots", () => {
     assert.doesNotMatch(demoSiteFooterText("es", true), /desactivadas/);
-    assert.doesNotMatch(demoSiteFooterText("en", true), /turned off/);
+    assert.doesNotMatch(demoSiteFooterText("en", true), /disabled/);
   });
 
   it("says bookings are off when the switch is off", () => {
     assert.match(demoSiteFooterText("es-MX", false), /desactivadas/);
-    assert.match(demoSiteFooterText("en", false), /turned off/);
+    assert.match(demoSiteFooterText("en", false), /disabled/);
   });
 
   it("matches ES and EN meaning when bookings are on", () => {
-    assert.equal(demoSiteFooterText("es", true), "Perfil de demostración. Las reservas son simuladas.");
-    assert.equal(demoSiteFooterText("en", true), "Demo profile. Bookings are simulated.");
+    assert.equal(demoSiteFooterText("es", true), "Las reservas son simuladas.");
+    assert.equal(demoSiteFooterText("en", true), "Bookings are simulated.");
   });
 });

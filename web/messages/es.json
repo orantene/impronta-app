@@ -2173,7 +2173,9 @@
       "accept": "Aceptar",
       "decline": "Rechazar",
       "closeLabel": "Cerrar y decidir después",
-      "privacyChoices": "Opciones de privacidad"
+      "privacyChoices": "Opciones de privacidad",
+      "noticeMessage": "Este sitio usa cookies y analítica para entender cómo se usa.",
+      "noticeOk": "OK"
     },
     "clientAccountArea": {
       "title": "Tu cuenta",
@@ -13146,7 +13148,33 @@
       "markAllFailed": "No se pudieron marcar todas como leídas. Inténtalo de nuevo.",
       "empty": "Todo en orden. No hay notificaciones ahora mismo.",
       "emptyArchive": "Nada archivado todavía. Las novedades que descartes aparecerán aquí.",
-      "demoNotice": "Datos de demostración. Tus notificaciones aparecerán aquí en la superficie de talento."
+      "demoNotice": "Datos de demostración. Tus notificaciones aparecerán aquí en la superficie de talento.",
+      "title": "Notificaciones",
+      "liveDescription": "Lo que espera tu respuesta y lo que te llega por email y push.",
+      "tabRecent": "Recientes",
+      "tabArchive": "Archivo",
+      "oldest": "la más antigua: {age}",
+      "settingsTitle": "Ajustes de notificaciones",
+      "settingsHint": "Email y push por evento",
+      "colEvent": "Evento",
+      "colEmail": "Email",
+      "colPush": "Push",
+      "categoryAction": "Requiere acción",
+      "categoryActionHint": "queda aquí hasta que respondas",
+      "categorySystem": "Configuración",
+      "categorySystemHint": "se borra sola al completarse",
+      "categoryUpdate": "Novedades",
+      "categoryUpdateHint": "se pueden descartar",
+      "prefNewOffer": "Nueva oferta",
+      "prefNewOfferHint": "Cuando una agencia te envía una oferta.",
+      "prefHoldExpiring": "Reserva por vencer",
+      "prefHoldExpiringHint": "Cuando una reserva provisional está por liberarse.",
+      "prefBookingReminder": "Recordatorios de reservas",
+      "prefBookingReminderHint": "24 h y 2 h antes de una reserva confirmada.",
+      "prefPayouts": "Pagos",
+      "prefPayoutsHint": "Cuando se paga una reserva.",
+      "prefWeeklySummary": "Resumen semanal",
+      "prefWeeklySummaryHint": "Resumen de los lunes con la actividad de la semana pasada."
     },
     "talentHubFace": {
       "title": "Fotos en este sitio",
@@ -17862,6 +17890,8 @@
       "list": {
         "langMissing": "Falta {lang}",
         "langMissingHint": "Aún no tiene título en {language}",
+        "needsPrice": "Falta precio",
+        "needsPriceHint": "No aparece en tu sitio hasta que tenga precio. Agrégalo y publícalo.",
         "title": "Catálogo",
         "intro": "Todo lo que el POS, el sitio web y el perfil pueden vender · un registro por artículo",
         "import": "Importar",
@@ -20748,6 +20778,8 @@
       "detail": {
         "workflowDetail": "Detalle del flujo",
         "backToPipeline": "← Pipeline",
+        "notFoundTitle": "Esta solicitud no está en este espacio",
+        "notFoundBody": "Puede pertenecer a otro espacio o al marketplace de Tulala, o se eliminó. Ábrela desde el espacio al que pertenece.",
         "messages": "💬 Mensajes",
         "createBooking": "+ Crear reserva",
         "viewBooking": "Ver reserva →",

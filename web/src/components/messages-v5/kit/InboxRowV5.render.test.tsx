@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { InboxRowV5 } from "./InboxRowV5";
-import { EN_COPY } from "./test-copy";
+import { EN_COPY, ES_COPY } from "./test-copy";
 import { NOW, inboxRow } from "./test-fixtures";
 
 test("ready: name, time, subject, preview, one state line, channel, count, owner", () => {
@@ -41,4 +41,11 @@ test("mobile variant uses the mx-row grammar with the count inline", () => {
   assert.match(html, /class="mx-row unread needs"/);
   assert.match(html, /class="l1"><b>Valentina Ruiz<\/b><span>2m<\/span>/);
   assert.match(html, /<i class="cnt">2<\/i>/);
+});
+
+test("ES: a nameless visitor row reads Visitante in both the name and the subject line", () => {
+  const html = renderToStaticMarkup(<InboxRowV5 row={inboxRow({ contactName: "", subject: "Visitor" })} copy={ES_COPY} now={NOW} locale="es" />);
+  assert.match(html, /<span>Visitante<\/span>/);
+  assert.match(html, /class="sub">Visitante</);
+  assert.doesNotMatch(html, /Visitor/);
 });

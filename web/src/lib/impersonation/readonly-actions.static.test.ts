@@ -156,6 +156,7 @@ const BASE_ALLOW: AllowEntry[] = [
   ["lib/server-actions/talent-plan-summary.ts", ["loadTalentPlanSummary"], READ],
   ["lib/server-actions/talent-media-release.ts", ["actionLoadTalentMediaLocks"], READ],
   ["lib/server-actions/ai-writing-helper.ts", ["loadMyBio"], READ],
+  ["lib/talent-integrations/instagram-actions.ts", ["loadTalentInstagramCardAction"], READ],
 ];
 
 const ALLOW: AllowEntry[] = [...BASE_ALLOW, ...EXTRA_ALLOW];

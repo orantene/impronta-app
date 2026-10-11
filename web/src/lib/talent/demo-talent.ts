@@ -10,13 +10,14 @@ import { logServerError } from "@/lib/server/safe-error";
  */
 
 export const DEMO_SITE_FOOTER = {
-  es: "Perfil de demostración. Las reservas son simuladas.",
-  en: "Demo profile. Bookings are simulated.",
+  es: "Las reservas están desactivadas.",
+  en: "Bookings are disabled.",
 } as const;
 
-export const DEMO_SITE_FOOTER_BOOKINGS_OFF = {
-  es: "Perfil de demostración. Las reservas están desactivadas.",
-  en: "Demo profile. Bookings are turned off.",
+/** While the demo's booking switch is on, its widget offers (simulated) slots. */
+export const DEMO_SITE_FOOTER_SIMULATED = {
+  es: "Las reservas son simuladas.",
+  en: "Bookings are simulated.",
 } as const;
 
 /**
@@ -24,7 +25,7 @@ export const DEMO_SITE_FOOTER_BOOKINGS_OFF = {
  * the same `talent_sites.accepting_bookings` switch the slots API reads.
  */
 export function demoSiteFooterText(locale: string, acceptingBookings: boolean): string {
-  const copy = acceptingBookings ? DEMO_SITE_FOOTER : DEMO_SITE_FOOTER_BOOKINGS_OFF;
+  const copy = acceptingBookings ? DEMO_SITE_FOOTER_SIMULATED : DEMO_SITE_FOOTER;
   return locale.toLowerCase().startsWith("es") ? copy.es : copy.en;
 }
 
