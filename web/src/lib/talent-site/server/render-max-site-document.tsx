@@ -423,6 +423,7 @@ export async function renderMaxSiteDocument(args: {
       style={{
         ...(cssVars as CSSProperties),
         backgroundColor: "var(--token-color-background, #ffffff)",
+        color: "var(--token-color-ink, inherit)",
         minHeight: "100vh",
         display: "flex",
         flexDirection: "column",
