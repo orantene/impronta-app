@@ -36,17 +36,20 @@ async function wire(input: { url: string; canonicalPath: string; plan: string | 
       return input.plan;
     },
   });
-  return res ? { status: res.status, location: res.headers.get("location") } : null;
+  return res
+    ? { status: res.status, location: res.headers.get("location"), cacheControl: res.headers.get("cache-control") }
+    : null;
 }
 
-test("onb1-17 proxy wire: Free subdomain storefront → 308 to /w, locale kept before /w", async () => {
+test("onb1-17 proxy wire: Free subdomain storefront → 307 no-store to /w, locale kept before /w", async () => {
   assert.deepEqual(await wire({ url: "https://qa-grok-salon.tulala.digital/", canonicalPath: "/", plan: "free" }), {
-    status: 308,
+    status: 307,
     location: "https://tulala.digital/w/qa-grok-salon",
+    cacheControl: "no-store",
   });
   assert.deepEqual(
     await wire({ url: "https://qa-grok-salon.tulala.digital/es/menu?x=1", canonicalPath: "/menu", plan: "free" }),
-    { status: 308, location: "https://tulala.digital/es/w/qa-grok-salon/menu?x=1" },
+    { status: 307, location: "https://tulala.digital/es/w/qa-grok-salon/menu?x=1", cacheControl: "no-store" },
   );
 });
 

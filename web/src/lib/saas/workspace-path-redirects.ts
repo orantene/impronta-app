@@ -14,7 +14,7 @@ import { normalizeWorkspaceUrlPlan } from "@/lib/saas/workspace-live-url";
 
 /**
  * onb1-17 · Free workspaces advertise `tulala.digital/w/<slug>`. When a leftover
- * branded subdomain host is hit, callers redirect here (308) so there is one
+ * branded subdomain host is hit, callers redirect here (307) so there is one
  * public URL. Paid plans keep their subdomain. Pure — proxy supplies planTier.
  */
 export function freeSubdomainToPathRedirectUrl(input: {
@@ -91,7 +91,9 @@ async function cachedPlanTier(tenantId: string, read: WorkspacePlanReader, now: 
 
 /**
  * onb1-17 proxy wire: a Free workspace opened on its leftover
- * `<slug>.tulala.digital` host gets a 308 to `tulala.digital/w/<slug>/...`.
+ * `<slug>.tulala.digital` host gets a 307 to `tulala.digital/w/<slug>/...`.
+ * Temporary and no-store: the plan can be upgraded, and a cached permanent
+ * redirect would keep bouncing returning visitors off the now-paid host.
  *
  * Fails OPEN: only a plan read that says exactly `free` redirects. An unknown
  * plan or a read error serves the subdomain as before, because
@@ -121,7 +123,10 @@ export async function freeSubdomainPathRedirect(params: {
     search: request.nextUrl.search,
     localePrefix: pathname.slice(0, pathname.length - canonicalPath.length),
   });
-  return target ? NextResponse.redirect(target, 308) : null;
+  if (!target) return null;
+  const res = NextResponse.redirect(target, 307);
+  res.headers.set("Cache-Control", "no-store");
+  return res;
 }
 
 /**
