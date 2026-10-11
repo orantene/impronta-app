@@ -29,6 +29,17 @@ test("G3-LIB: browse uses Wave 3 cards + one Filters sheet", () => {
   assert.match(card, /Suggested for you/);
 });
 
+test("G3-LIB: each card owns its preview load state and lazy-loads its frame", () => {
+  const browse = read("GalleryBrowseScreen.tsx");
+  assert.doesNotMatch(browse, /useThemePreview/);
+  assert.doesNotMatch(browse, /preview=\{preview\}/);
+  const card = read("GalleryDesignCard.tsx");
+  assert.match(card, /const preview = useThemePreview\(\{ talentProfileId, locale \}\)/);
+  assert.match(card, /aspectRatio="3 \/ 4"\s+lazy\s*\/>/);
+  const frame = readFileSync(join(process.cwd(), "src/components/talent/site/theme-gallery/ThemeGalleryPreviewFrame.tsx"), "utf8");
+  assert.match(frame, /loading=\{lazy \? "lazy" : undefined\}/);
+});
+
 test("G3-CHROME: quiet toggles, Unpublished, preview-first layout", () => {
   const detail = read("ThemeDetailScreen.tsx");
   assert.match(detail, /DetailDesktopHeader/);
@@ -149,6 +160,13 @@ test("G3-PRESENCE: settings reachable before publish; domain tile entitlement-ga
   // Website settings open in the Presence right drawer (not a full-page takeover).
   assert.match(editor, /presence-website-settings-sheet/);
   assert.match(editor, /onOpenSettings=\{openWebsiteSettings\}/);
+  // Card 36: Mi sitio Settings lands on Chat & inquiries (Booking assistant AI).
+  assert.match(editor, /setSettingsView\("chat"\)/);
+  const intent = readFileSync(
+    join(process.cwd(), "src/components/talent/website-settings/website-settings-intent.ts"),
+    "utf8",
+  );
+  assert.match(intent, /WebsiteSettingsIntentView = "lang" \| "chat"/);
   // Codex P1: backdrop/Escape go through the screen's guarded close, not setSettingsOpen(false).
   assert.match(editor, /requestSettingsCloseRef/);
   assert.match(editor, /onRegisterClose/);

@@ -232,4 +232,45 @@ export const PRESENCE_ES_TEXT: Record<string, string> = {
   "Hide everywhere": "Ocultar en todas partes",
   "One switch that overrides every page and listing.": "Un solo interruptor que manda sobre cada página y ficha.",
   "Active": "Activa",
+  // Settings, Connections: Instagram feed card.
+  "Connections": "Conexiones",
+  "Your latest posts on your website.": "Tus últimas publicaciones en tu sitio web.",
+  "Loading Instagram…": "Cargando Instagram…",
+  "Show your Instagram posts on your website with a paid plan.":
+    "Muestra tus publicaciones de Instagram en tu sitio web con un plan de pago.",
+  "Your latest posts appear on their own, in your website's style.":
+    "Tus últimas publicaciones aparecen solas, con el estilo de tu sitio.",
+  "Still connected as": "Sigue conectado como",
+  "See plans": "Ver planes",
+  "Show your latest Instagram posts on your website.":
+    "Muestra tus últimas publicaciones de Instagram en tu sitio web.",
+  "Connect once and they update on their own. Works with Business and Creator accounts.":
+    "Conéctalo una vez y se actualizan solas. Funciona con cuentas Business y Creator.",
+  "Connect Instagram": "Conectar Instagram",
+  "Connected as": "Conectado como",
+  "Last sync": "Última sincronización",
+  "Not synced yet": "Aún sin sincronizar",
+  "Sync now": "Sincronizar ahora",
+  "Syncing…": "Sincronizando…",
+  "Disconnect": "Desconectar",
+  "Disconnect Instagram? Your website stops showing your posts.":
+    "¿Desconectar Instagram? Tu sitio dejará de mostrar tus publicaciones.",
+  "Yes, disconnect": "Sí, desconectar",
+  "Instagram stopped letting us read your posts. Reconnect to keep your feed up to date.":
+    "Instagram dejó de darnos acceso a tus publicaciones. Vuelve a conectar para mantener tu feed al día.",
+  "We could not reach Instagram on the last try. Your website keeps showing your last posts.":
+    "No pudimos comunicarnos con Instagram en el último intento. Tu sitio sigue mostrando tus últimas publicaciones.",
+  "Reconnect": "Volver a conectar",
+  "Try again": "Reintentar",
+  "Instagram connected.": "Instagram conectado.",
+  "Instagram disconnected.": "Instagram desconectado.",
+  "You cancelled the Instagram connection.": "Cancelaste la conexión con Instagram.",
+  "Instagram did not accept the connection. Make sure your account is Business or Creator, then try again.":
+    "Instagram no aceptó la conexión. Asegúrate de que tu cuenta sea Business o Creator e inténtalo de nuevo.",
+  "We could not confirm it was you. Please try again.":
+    "No pudimos confirmar que eras tú. Inténtalo de nuevo.",
+  "Instagram connection is not available yet. We will let you know when it is.":
+    "La conexión con Instagram aún no está disponible. Te avisaremos cuando lo esté.",
+  "Something went wrong while connecting. Please try again.":
+    "Algo salió mal al conectar. Inténtalo de nuevo.",
 };

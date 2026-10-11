@@ -4,6 +4,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { NavNode } from "./marketing-header-nav";
 import { ArrowTiny, ChevronDownGlyph } from "./marketing-header-glyphs";
+import { useStickyDesktopMenu } from "./marketing-header-sticky-menu";
 
 /**
  * The platform panel: all twenty one features, in the five stages of the
@@ -24,7 +25,7 @@ export function DesktopMegaMenu({
   open,
   onOpen,
   onClose,
-  onToggle,
+  onToggle: _onToggle,
 }: {
   node: Extract<NavNode, { kind: "mega" }>;
   open: boolean;
@@ -32,14 +33,18 @@ export function DesktopMegaMenu({
   onClose: () => void;
   onToggle: () => void;
 }) {
+  // live4-02: click pins open; hover-only leave still closes.
+  const sticky = useStickyDesktopMenu(open, onOpen, onClose);
   return (
-    <div className="relative" onMouseEnter={onOpen} onMouseLeave={onClose}>
+    <div className="relative" onMouseEnter={sticky.onMouseEnter} onMouseLeave={sticky.onMouseLeave}>
       <button
         type="button"
         aria-haspopup="true"
         aria-expanded={open}
-        onClick={onToggle}
-        onFocus={onOpen}
+        onClick={sticky.onClick}
+        /* GRK-098: do not open on keyboard focus. Focus-open put all ~26 panel
+           links into the Tab order as soon as the trigger received focus, so
+           Tab never reached the hero CTA. Hover + click still open. */
         className={cn(
           "inline-flex items-center gap-1 rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:bg-[var(--plt-bg-raised)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)]",
           open

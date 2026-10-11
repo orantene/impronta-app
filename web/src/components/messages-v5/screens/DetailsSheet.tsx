@@ -9,6 +9,8 @@
 
 import { useState } from "react";
 
+import { localiseInquiryName } from "@/lib/messaging/inquiry-name-pure";
+
 import "../kit/tokens.css";
 import { LineEditorRow } from "../kit/LineEditor";
 import { PanelSection, SummaryBlock } from "../kit/Panel";
@@ -34,7 +36,7 @@ export function DetailsSheet(props: DetailsSheetProps) {
   const main = mainRecordChip(chips);
 
   return (
-    <Sheet open={open} title={essentials?.name || copy.state.noIdentity} copy={copy} onClose={onClose} variant="mobile-h92" tight>
+    <Sheet open={open} title={localiseInquiryName(essentials?.name ?? "", copy.inbox.visitor) || copy.state.noIdentity} copy={copy} onClose={onClose} variant="mobile-h92" tight>
       <div className="msgv5" data-details-sheet>
         {loading || !essentials ? (
           <SummaryBlock name="" identityLabel="" next="" main="" amount="" copy={copy} loading />

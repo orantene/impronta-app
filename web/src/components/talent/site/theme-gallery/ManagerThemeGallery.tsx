@@ -93,7 +93,13 @@ export function ManagerThemeGallery({
   const current = bootstrap;
 
   async function onApply({ designSlug, lookSlug }: ThemeGalleryApplyInput): Promise<ThemeGalleryApplyResult> {
-    const fail = (code: string) => ({ ok: false, error: themeGalleryCopy(locale, themeErrorCopyKey(code)) });
+    const fail = (code: string, serverError?: string) => ({
+      ok: false,
+      error:
+        code === "unreleased_version" && serverError
+          ? serverError
+          : themeGalleryCopy(locale, themeErrorCopyKey(code)),
+    });
     // Re-applying the Design the site already has would rebuild the home page
     // from the talent's profile and throw away their edits, so a Look-only
     // change never touches the Design (and never asks to replace content).
@@ -122,7 +128,7 @@ export function ManagerThemeGallery({
     }
     if (designToApply) {
       const res = await runThemeApply(() => applySiteDesignAction({ designSlug: designToApply }));
-      if (!res.ok) return fail(res.code);
+      if (!res.ok) return fail(res.code, res.error);
       setBootstrap({ ...current, currentDesignSlug: designToApply });
     }
     if (lookSlug) {
