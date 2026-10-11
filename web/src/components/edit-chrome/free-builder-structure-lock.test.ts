@@ -14,6 +14,10 @@ import {
   isStructureEditLocked,
 } from "@/lib/site-admin/add-gallery/structural-lock";
 import type { BuilderNodeOperationKind } from "@/lib/site-admin/builder-node";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { talentSiteLockedUpsellLabel } from "@/components/talent/site/TalentSiteWebOfficeLockChip";
+import { themeGalleryCopy } from "@/components/talent/site/theme-gallery/theme-gallery-i18n";
 
 const FREE_OPS: BuilderNodeOperationKind[] = [
   "insert",
@@ -78,4 +82,14 @@ test("locked hint is Disponible en Oficina Web / Available on Web Office + Ver p
     assert.doesNotMatch(copy, /—/);
     assert.doesNotMatch(copy, /reorder/i);
   }
+});
+
+test("TUL-529: Spanish lock chips and the builder upsell say Oficina Web, never Web Office", () => {
+  assert.equal(talentSiteLockedUpsellLabel("es"), "Oficina Web");
+  assert.equal(talentSiteLockedUpsellLabel("en"), "Web Office");
+  assert.equal(themeGalleryCopy("es", "lockedPill"), "Oficina Web");
+  assert.equal(themeGalleryCopy("en", "lockedPill"), "Web Office");
+  const screen = readFileSync(join(process.cwd(), "src/components/talent/site/TalentPageBuilderScreen.tsx"), "utf8");
+  assert.match(screen, /es: "El editor de páginas es una función de Oficina Web"/);
+  assert.match(screen, /isEs \? "OFICINA WEB" : "WEB OFFICE"/);
 });
