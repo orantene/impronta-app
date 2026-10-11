@@ -13,6 +13,10 @@ import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import type { NavChromeStyle } from "@/lib/site-admin/nav-chrome";
 import { buildDefaultShellTree } from "../default-max-site-trees";
 import type { MaxSiteTemplateIdFactory } from "../max-site-templates/types";
+import {
+  EMERGENCIES_TODAY_LABEL,
+  NO_EMERGENCIES_TODAY_LABEL,
+} from "./seed-i18n";
 
 type KitIdFactory = MaxSiteTemplateIdFactory;
 
@@ -163,8 +167,10 @@ export function buildKitShell(
               homeHref,
               ...(opts.logoUrl ? { logoUrl: opts.logoUrl } : {}),
               showStatus: true,
-              ...(opts.utilityBar.statusOnLabel ? { statusOnLabel: opts.utilityBar.statusOnLabel } : {}),
-              ...(opts.utilityBar.statusOffLabel ? { statusOffLabel: opts.utilityBar.statusOffLabel } : {}),
+              // TUL-516 C2: always seed the pill labels so seed-i18n writes es+en
+              // overlays (omitting them left the block's English fallback on ES).
+              statusOnLabel: opts.utilityBar.statusOnLabel ?? EMERGENCIES_TODAY_LABEL.en,
+              statusOffLabel: opts.utilityBar.statusOffLabel ?? NO_EMERGENCIES_TODAY_LABEL.en,
               showCall: true,
               callHref: "{{callHref}}",
               ...(opts.utilityBar.callLabel ? { callLabel: opts.utilityBar.callLabel } : {}),
