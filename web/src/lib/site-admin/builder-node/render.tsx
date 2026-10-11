@@ -1364,6 +1364,11 @@ export const BUILDER_NODE_RENDERER_CSS = `
    !important. Full-bleed and background-media blocks are untouched. */
 [data-talent-max-site-main] [data-cms-block]>.site-builder-node--container:not([data-builder-full-bleed]):not([data-bn-bg-media]){padding-inline:1.5rem}
 .site-builder-node--container[data-builder-layout="row"]{flex-direction:row;flex-wrap:wrap}
+/* GRK-080: the base container rule centres with margin:0 auto, so a fixed-size
+   container in a row (the Gridline hero status dot) split the free space into
+   two auto margins and floated away from its label. Same specificity as the
+   base rule, so authored inline margins and theme rules still win. */
+:where(.site-builder-node--container[data-builder-layout="row"])>.site-builder-node--container{margin-inline:0}
 .site-builder-node--container[data-builder-layout="grid"],.site-builder-node--container[data-builder-display="grid"]{display:grid;grid-template-columns:repeat(var(--bn-columns,2),minmax(0,1fr))}
 .site-builder-node--container[data-builder-display="slider"]{display:flex;flex-direction:row;flex-wrap:nowrap;gap:var(--bn-slider-gap,var(--bn-gap,16px));overflow-x:auto;scroll-snap-type:x mandatory}
 .site-builder-node--container[data-builder-display="slider"] > *{flex:0 0 calc((100% - (var(--bn-items-per-view,3) - 1) * var(--bn-slider-gap,var(--bn-gap,16px))) / var(--bn-items-per-view,3));min-width:0;scroll-snap-align:start}
