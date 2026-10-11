@@ -27,6 +27,13 @@ test("AUD-042: desktop list rows pin price + CTA right", () => {
   assert.match(block, /services-catalog-copy\{max-width:none\}/);
 });
 
+// SPRINT-GRIDLINE-MATRIX: in an align-items:start stack the catalog shrank to
+// its intrinsic width; the matrix's inline-size containment reports ~0, so the
+// table collapsed to ~198px inside a 960px container and wrapped letter by letter.
+test("SPRINT-GRIDLINE-MATRIX: catalog fills its container in a start-aligned stack", () => {
+  assert.match(css, /\.site-builder-node--services-catalog\{align-self:stretch;/);
+});
+
 test("AUD-042: phone layout from AUD-026 untouched", () => {
   assert.ok(css.includes("@media (max-width:560px){"));
   assert.ok(css.includes("[data-cms-block]>.site-builder-node--services-catalog{padding-inline:1.5rem}"));
