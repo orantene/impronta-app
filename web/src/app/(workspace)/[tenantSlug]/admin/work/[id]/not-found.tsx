@@ -10,7 +10,7 @@ export default async function WorkDetailNotFound() {
         maxWidth: 560,
         margin: "0 auto",
         fontFamily: '"Inter", system-ui, sans-serif',
-        color: "#0B0B0D",
+        color: "var(--color-admin-ink)",
       }}
     >
       <h1 style={{ margin: 0, fontSize: 22, letterSpacing: 0 }}>{t("admin.work.detail.notFoundTitle")}</h1>
@@ -26,7 +26,7 @@ export default async function WorkDetailNotFound() {
           borderRadius: 8,
           border: "1px solid rgba(24,24,27,0.08)",
           textDecoration: "none",
-          color: "#0B0B0D",
+          color: "var(--color-admin-ink)",
           display: "inline-flex",
           alignItems: "center",
           fontSize: 13,
