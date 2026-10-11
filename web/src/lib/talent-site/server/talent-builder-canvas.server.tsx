@@ -29,7 +29,6 @@ import { BreakpointStyleEngine } from "@/components/edit-chrome/breakpoint-style
 import { BUILTIN_EXTRA_TIERS } from "@/lib/site-admin/builder-node/custom-breakpoint-css";
 import { designTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/design-token-defaults";
 import { typeSystemComponentStyleDefaults } from "@/lib/talent-site/theme-catalog/collection/design-type-system";
-import { builderTreeHasKind } from "./builder-tree-has-kind";
 import { loadMaxSiteIsDemo, withHeaderSiteChrome } from "./render-max-site-demo";
 import { splitShell } from "./render-max-site-shell";
 import {
@@ -166,16 +165,6 @@ export async function buildTalentBuilderCanvasData(input: {
   const [headerTree, rawFooterTree] = splitShell(shell);
   // The socket carries the ONE Tulala credit, so the canvas hides any design-level one too.
   const footerTree = stripDesignCredits(rawFooterTree);
-  const utilityBarLocales =
-    localeCtx.settings.supportedLocales.length >= 2 &&
-    localeCtx.switcherHrefs &&
-    builderTreeHasKind(headerTree, "utility_bar")
-      ? {
-          locales: localeCtx.settings.supportedLocales,
-          hrefs: localeCtx.switcherHrefs,
-          current: siteLocale,
-        }
-      : undefined;
   const socketModel = buildSocketModel({
     locale: siteLocale,
     publicPathPrefix: "",
@@ -186,20 +175,15 @@ export async function buildTalentBuilderCanvasData(input: {
     whitelabel: input.tenantId ? await loadTenantWhitelabel(input.tenantId) : false,
     consentTooling: socketConsentToolingEnabled(),
     talentName: (await loadTalentSiteIdentity(talentProfileId, { bypassCache }))?.name ?? null,
-    headerHasLanguageSwitch: headerShowsLanguageSwitch(headerTree) || Boolean(utilityBarLocales),
+    headerHasLanguageSwitch: headerShowsLanguageSwitch(headerTree),
   });
 
-  const dataSources = {
-    ...(await dataSourcesP),
-    ...(utilityBarLocales ? { siteLocales: utilityBarLocales } : {}),
-  };
+  const dataSources = await dataSourcesP;
 
   const renderShell = (roots: BuilderNode[]): ReactNode =>
     roots.length === 0 ? null : (
       <>
-        {roots.map((root) =>
-          renderShellRoot(root, localeCtx, isDemo, utilityBarLocales ? { siteLocales: utilityBarLocales } : undefined),
-        )}
+        {roots.map((root) => renderShellRoot(root, localeCtx, isDemo))}
       </>
     );
 
@@ -240,12 +224,7 @@ export async function buildTalentBuilderCanvasData(input: {
 }
 
 /** One shell root, as `renderMaxSiteDocument` renders it (read-only). */
-export function renderShellRoot(
-  root: BuilderNode,
-  localeCtx: TalentSiteLocaleContext,
-  isDemo: boolean,
-  dataSources?: { siteLocales?: { locales: readonly string[]; hrefs: Readonly<Record<string, string>>; current: string } },
-): ReactNode {
+export function renderShellRoot(root: BuilderNode, localeCtx: TalentSiteLocaleContext, isDemo: boolean): ReactNode {
   const locale = localeCtx.locale;
   const opts = {
     publicPathPrefix: "",
@@ -254,7 +233,7 @@ export function renderShellRoot(
     includeFontLinks: false,
     visitorLocale: locale,
     contentLocale: localeCtx.contentLocale,
-    ...(dataSources ? { dataSources } : {}),
+    dataSources: { siteLocales: { locales: localeCtx.settings.supportedLocales, hrefs: localeCtx.switcherHrefs } },
   };
   if (
     root.kind === "section" &&

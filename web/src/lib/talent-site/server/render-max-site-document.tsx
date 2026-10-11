@@ -318,20 +318,7 @@ export async function renderMaxSiteDocument(args: {
   const whitelabel = tenantId
     ? await timed("maxSite.whitelabel", () => loadTenantWhitelabel(tenantId))
     : false;
-  // GRK-030: Gridline utility_bar has no site_header language item; paint ES/EN
-  // in the sticky bar and drop the duplicate group from the footer socket.
-  const utilityBarLocales =
-    args.localeCtx.settings.supportedLocales.length >= 2 &&
-    args.localeCtx.switcherHrefs &&
-    builderTreeHasKind(headerTree, "utility_bar")
-      ? {
-          locales: args.localeCtx.settings.supportedLocales,
-          hrefs: args.localeCtx.switcherHrefs,
-          current: locale,
-        }
-      : undefined;
-  const headerHasLanguageSwitch =
-    headerShowsLanguageSwitch(headerTree) || Boolean(utilityBarLocales);
+  const headerSiteLocales = { locales: args.localeCtx.settings.supportedLocales, hrefs: args.localeCtx.switcherHrefs };
   const socketModel = buildSocketModel({
     locale,
     publicPathPrefix,
@@ -343,7 +330,7 @@ export async function renderMaxSiteDocument(args: {
     consentTooling: socketConsentToolingEnabled(),
     talentName: args.talentName,
     helpContext: args.profileCode ? { profileCode: args.profileCode, siteHost: args.siteHost ?? null } : null,
-    headerHasLanguageSwitch,
+    headerHasLanguageSwitch: headerShowsLanguageSwitch(headerTree),
   });
 
   // Render one shell root. A `site_header`/`site_footer` SECTION LANDMARK carries
@@ -383,7 +370,7 @@ export async function renderMaxSiteDocument(args: {
                 mode: "freeform",
                 includeRendererStyles: false,
                 includeFontLinks: false,
-                dataSources: { liveStatus },
+                dataSources: { liveStatus, siteLocales: headerSiteLocales },
                 captcha: formCaptchaConfig,
                 bookingCaptcha: bookingCaptchaConfig,
                 visitorLocale: locale,
@@ -402,7 +389,7 @@ export async function renderMaxSiteDocument(args: {
           mode: "freeform",
           includeRendererStyles: false,
           includeFontLinks: false,
-          dataSources: { liveStatus },
+          dataSources: { liveStatus, siteLocales: headerSiteLocales },
           captcha: formCaptchaConfig,
           bookingCaptcha: bookingCaptchaConfig,
           visitorLocale: locale,
@@ -513,13 +500,7 @@ export async function renderMaxSiteDocument(args: {
               mode: "freeform",
               includeRendererStyles: false,
               includeFontLinks: false,
-              dataSources: {
-                liveStatus,
-                ...(utilityBarLocales ? { siteLocales: utilityBarLocales } : {}),
-                ...(typeof pricedDataSources.callHref === "string"
-                  ? { callHref: pricedDataSources.callHref }
-                  : {}),
-              },
+              dataSources: { liveStatus, siteLocales: headerSiteLocales },
               captcha: formCaptchaConfig,
               bookingCaptcha: bookingCaptchaConfig,
               visitorLocale: locale,
