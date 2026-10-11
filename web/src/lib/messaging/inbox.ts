@@ -2,6 +2,8 @@ import "server-only";
 
 import { displayableContact } from "@/lib/inquiry/guest-send-gate";
 
+import { VISITOR_FALLBACK_NAME } from "./inquiry-name-pure";
+
 import { toRecordChip, type ConversationRecordRow } from "./record-chip";
 import { readConversationState, readOpportunityState } from "./state";
 import type { InboxFilter, InboxNextAction, InboxRow, MessagingChannel, RecordChip } from "./types";
@@ -192,7 +194,7 @@ function matchesFilter(row: InboxRow, filter: InboxFilter, actorUserId: string):
 
 function displayName(name: string): string {
   const trimmed = name.trim();
-  return trimmed === "" ? "Visitor" : trimmed;
+  return trimmed === "" ? VISITOR_FALLBACK_NAME : trimmed;
 }
 
 function clip(value: string): string {
