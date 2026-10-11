@@ -18,6 +18,7 @@ import { applyTalentSiteAnonCacheHeaders } from "@/lib/saas/talent-site-anon-cac
 import { attachTalentSiteGuestIdentity } from "@/lib/saas/talent-site-guest-identity";
 import { isTalentSiteHostPathAllowed, talentSiteHostRewritePath } from "@/lib/saas/talent-site-host-routing";
 import { PUBLIC_PATH_PREFIX_HEADER, TENANT_HEADER_NAME } from "@/lib/saas/scope";
+import { talentGuestAliasTarget } from "@/lib/talent-site/guest-path-aliases";
 import { talentDemoBareHostRedirectHost } from "@/lib/talent-site/site-public-url";
 import { loadTalentLocaleSettingsForProxy } from "@/lib/talent-site/talent-site-locale-proxy";
 import { decideTalentSiteLocale } from "@/lib/talent-site/talent-site-locale-routing";
@@ -94,6 +95,24 @@ export async function talentSiteHostResponse(
   talentHeaders.delete(TENANT_HEADER_NAME);
   talentHeaders.delete(HOST_TENANT_SLUG_HEADER);
   talentHeaders.delete(PUBLIC_PATH_PREFIX_HEADER);
+
+  // GRK-028: /agendar|/servicios|/contacto (and EN twins) are guest guesses,
+  // not page slugs — send them to the home anchors before the allow-list 404s.
+  {
+    const guestSeg = localeStripped.replace(/^\/+/, "").split("/")[0] ?? "";
+    const localePrefix =
+      talentLocale.locale !== talentLocales.defaultLocale ? talentLocale.locale : null;
+    const guestTarget = talentGuestAliasTarget(guestSeg, { localePrefix });
+    if (guestTarget && (request.method === "GET" || request.method === "HEAD")) {
+      const target = new URL(guestTarget, request.nextUrl.origin);
+      const res = NextResponse.redirect(target, 302);
+      if (talentLocale.explicit) {
+        res.cookies.set(LOCALE_COOKIE, talentLocale.locale, localeCookieOptions);
+        clearLocaleCookieAutoMarker(res);
+      }
+      return res;
+    }
+  }
 
   const rememberChoice = (res: NextResponse): NextResponse => {
     if (talentLocale.explicit) {

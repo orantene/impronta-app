@@ -21,7 +21,6 @@ src/app/api/cron/expire-free-reserves/logic.test.ts
 src/app/api/dev/preview-qa-signin/route.test.ts
 src/app/api/dev/reset-guest/route.test.ts
 src/app/api/webhooks/stripe-mx/route.test.ts
-src/app/sitemap.platform-talent.test.ts
 src/components/account/account-export-links.test.ts
 src/components/admin/shell/internal/drawers/profile-shell/profile-polaroids-policy.test.ts
 src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/new-talent-taxonomy.test.ts
@@ -101,7 +100,6 @@ src/lib/discover/hub-split-independent-talents.test.ts
 src/lib/discover/pro-gate.test.ts
 src/lib/email/order-confirmation.test.ts
 src/lib/email/reply-to.test.ts
-src/lib/email/resend-inbound-forward.test.ts
 src/lib/email/ticket-issued.test.ts
 src/lib/field-engine/canonical-shadow.test.ts
 src/lib/field-engine/client-field-source.test.ts

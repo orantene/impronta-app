@@ -2173,7 +2173,9 @@
       "accept": "Aceptar",
       "decline": "Rechazar",
       "closeLabel": "Cerrar y decidir después",
-      "privacyChoices": "Opciones de privacidad"
+      "privacyChoices": "Opciones de privacidad",
+      "noticeMessage": "Este sitio usa cookies y analítica para entender cómo se usa.",
+      "noticeOk": "OK"
     },
     "clientAccountArea": {
       "title": "Tu cuenta",
