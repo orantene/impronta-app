@@ -40,6 +40,9 @@ import {
 } from "@/lib/saas/host-context";
 import { LEGACY_PRIVACY_SLUG, POLICY_SLUG } from "@/lib/talent-policies/public";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { talentGuestAliasTarget } from "@/lib/talent-site/guest-path-aliases";
+import { talentNotFoundCopy } from "@/lib/talent-site/talent-not-found-copy";
+import { loadTalentNotFoundCopy } from "@/lib/talent-site/server/talent-not-found.server";
 import { renderTalentMaxSite } from "@/lib/talent-site/server/render-max-site";
 import {
   maxSiteJsonLdString,
@@ -109,6 +112,12 @@ function apexPath(pageSlug: string | null): string {
   return pageSlug ? `/${encodeURIComponent(pageSlug)}` : "/";
 }
 
+/** GRK-028: a missing page keeps the site's own name and language in the tab. */
+async function talentNotFoundMetadata(): Promise<Metadata> {
+  const copy = (await loadTalentNotFoundCopy()) ?? talentNotFoundCopy("en", null);
+  return { title: { absolute: copy.documentTitle }, robots: { index: false, follow: false } };
+}
+
 export async function generateMetadata({
   params,
   searchParams,
@@ -118,7 +127,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   if (!isSupabaseConfigured()) return {};
   const talentProfileId = await resolveTalentProfileId();
-  if (!talentProfileId) return { title: "Not found" };
+  if (!talentProfileId) return talentNotFoundMetadata();
   const { pageSlug } = await params;
   const { preview } = await searchParams;
   const [locale, canonicalOrigin] = await Promise.all([
@@ -138,7 +147,7 @@ export async function generateMetadata({
     canonicalOrigin,
     canonicalPath: apexPath(seg),
   });
-  if (result.kind !== "render") return { title: "Not found" };
+  if (result.kind !== "render") return talentNotFoundMetadata();
   return maxSiteSeoToMetadata(result.seo, { ogLocale: result.locale });
 }
 
@@ -167,6 +176,9 @@ export default async function TalentSiteHostPage({
     resolveServedHost(),
   ]);
   const seg = firstSegment(pageSlug);
+  // GRK-028 defense-in-depth: guest path aliases (also handled in the proxy).
+  const guestAlias = talentGuestAliasTarget(seg);
+  if (guestAlias) redirect(guestAlias);
 
   const result = await renderTalentMaxSite({
     talentProfileId,

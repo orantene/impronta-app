@@ -110,7 +110,7 @@ export function renderAreaBlock(args: {
   const zone = location ? zoneLabel(location) : "";
   const chips = areaChips(facts);
   const empty = !zone && chips.length === 0;
-  const note = location?.arrivalNote?.trim() ?? "";
+  const note = (p.arrivalNote ?? "").trim() || (location?.arrivalNote?.trim() ?? "");
   const eyebrow = (p.eyebrow ?? "").trim();
   const title = (p.title ?? "").trim();
   const mapLabel = es
