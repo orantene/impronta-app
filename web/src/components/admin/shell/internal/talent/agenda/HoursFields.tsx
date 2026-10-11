@@ -10,7 +10,8 @@ import {
   usesTwentyFourHour,
 } from "@/lib/talent-agenda/hours-display-format";
 
-const FIELD = "rounded-xl border border-black/10 bg-white px-2 py-2 text-[14px]";
+const FIELD_BASE = "rounded-xl border border-black/10 bg-white py-2 text-[14px]";
+const FIELD = `${FIELD_BASE} px-2`;
 
 /**
  * A clock-time field for the Working hours editor. The value is always "HH:MM".
@@ -38,7 +39,7 @@ export function HoursTimeField({
       <input
         type="time"
         aria-label={label}
-        className={`${FIELD} w-full min-w-0`}
+        className={`${FIELD_BASE} w-full min-w-0 px-1.5`}
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />

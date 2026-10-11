@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { themeUpdateCopy } from "@/lib/talent-site/theme-releases/manager/notify";
+
 import { formatNotificationAge, localizeNotificationText } from "./notification-localize";
 
 const now = new Date("2026-10-07T12:00:00Z");
@@ -27,4 +29,14 @@ test("localizeNotificationText translates catalog titles in ES, leaves EN and un
   assert.equal(localizeNotificationText("You have an offer to review", "en"), "You have an offer to review");
   assert.equal(localizeNotificationText("Marta says hi", "es"), "Marta says hi");
   assert.equal(localizeNotificationText("New support ticket #42", "es"), "Nuevo ticket de soporte #42");
+});
+
+test("sdb-1011-01: a theme-update bell written in Spanish reads in English for an EN viewer, and back", () => {
+  const es = themeUpdateCopy("Maison v2", "es");
+  const en = themeUpdateCopy("Maison v2", "en");
+  assert.equal(localizeNotificationText(es.title, "en"), en.title);
+  assert.equal(localizeNotificationText(es.body, "en"), en.body);
+  assert.equal(localizeNotificationText(en.title, "es"), es.title);
+  assert.equal(localizeNotificationText(en.body, "es"), es.body);
+  assert.equal(localizeNotificationText(es.title, "es"), es.title);
 });
