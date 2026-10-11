@@ -59,12 +59,48 @@ export function defaultFlowLocale(input: { saved?: string | null; acceptLanguage
 }
 
 /**
- * TUL-146: an explicit `/es/start` URL is a language choice. The middleware
- * rewrites it to `/start`, so the page reads the browser pathname it recorded
- * and uses it as the saved locale (`?lang` still wins). `/start` returns null.
+ * TUL-146 / GRK-102: an explicit `/{en|es}/start` URL is a language choice.
+ * The middleware rewrites or strips it to `/start`, so the page reads the
+ * browser pathname it recorded and uses it as the saved locale (`?lang` still
+ * wins). Bare `/start` returns null.
  */
 export function flowLocaleFromPath(originalPath: string | null | undefined): FlowLocale | null {
-  return /^\/es\/start\/?$/.test(originalPath ?? "") ? "es" : null;
+  const m = /^\/(en|es)\/start\/?$/.exec(originalPath ?? "");
+  return m ? (m[1] as FlowLocale) : null;
+}
+
+/**
+ * GRK-102: stripping the default-locale prefix (`/en/start` → `/start` when
+ * default is `en`) must keep the flow language as `?lang=`. `/start` does not
+ * read the locale cookie — only `?lang`, the path, Accept-Language, and IP —
+ * so an English CTA that lands on `/en/start` otherwise opens Spanish for a
+ * Mexico / es-* browser.
+ */
+export function langQueryForStartAfterDefaultLocaleStrip(input: {
+  pathnameAfterStrip: string;
+  defaultLocale: string;
+  existingLang?: string | null;
+}): FlowLocale | null {
+  if (input.existingLang === "en" || input.existingLang === "es") return null;
+  const path = input.pathnameAfterStrip.length > 1
+    ? input.pathnameAfterStrip.replace(/\/+$/, "")
+    : input.pathnameAfterStrip;
+  if (path !== "/start") return null;
+  if (input.defaultLocale === "en" || input.defaultLocale === "es") return input.defaultLocale;
+  return null;
+}
+
+/**
+ * GRK-102: a CTA's `?choice=` must not be blocked by a guest "Bienvenido de
+ * nuevo" draft. Signed-in owners still resume. Pure so the module effect stays
+ * thin and the rule is unit-tested.
+ */
+export function urlChoiceBeatsGuestDraft(input: {
+  hasUrlChoice: boolean;
+  hasResume: boolean;
+  isAuthenticated: boolean;
+}): boolean {
+  return input.hasUrlChoice && input.hasResume && !input.isAuthenticated;
 }
 
 type ChoiceCopy = { title: string; sub: string; creates: string };

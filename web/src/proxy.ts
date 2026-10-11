@@ -54,6 +54,7 @@ import { ensureExperimentVisitorCookie } from "@/lib/site-admin/builder-node/exp
 import { TULALA_APEX_HOST, TULALA_WWW_HOST } from "@/lib/brand/tulala";
 import { timed } from "@/lib/server/perf-trace";
 import { startDoorRedirect } from "@/lib/onboarding/start-door-redirect";
+import { langQueryForStartAfterDefaultLocaleStrip } from "@/lib/onboarding/flow";
 import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 
 export async function proxy(request: NextRequest) {
@@ -327,6 +328,14 @@ export async function proxy(request: NextRequest) {
   ) {
     const url = request.nextUrl.clone();
     url.pathname = withoutLocalePrefix;
+    // GRK-102: `/en/start` → `/start` must carry `?lang=en`. The flow ignores
+    // the locale cookie and would otherwise open Spanish for MX / es-* browsers.
+    const startLang = langQueryForStartAfterDefaultLocaleStrip({
+      pathnameAfterStrip: withoutLocalePrefix,
+      defaultLocale: effectiveLangSettings.defaultLocale,
+      existingLang: url.searchParams.get("lang"),
+    });
+    if (startLang) url.searchParams.set("lang", startLang);
     const res = NextResponse.redirect(url, 308);
     // QA 2026-05-13 — without setting the locale cookie here, the redirected
     // page renders in the DEFAULT locale even though the operator's URL was
