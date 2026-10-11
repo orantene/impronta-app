@@ -1173,6 +1173,7 @@ export const visitPropsSchema = z.object({
   showMap: z.boolean().optional(),
   mapImageUrl: z.string().max(2000).optional(),
   mapCaption: z.string().max(160).optional(),
+  arrivalNote: z.string().max(400).optional(),
   band: z.boolean().optional(),
   extraFacts: z
     .array(
