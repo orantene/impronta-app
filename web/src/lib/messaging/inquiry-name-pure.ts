@@ -6,9 +6,21 @@
  * these two live here and `inquiry-name.ts` re-exports them unchanged.
  */
 
+const VISITOR_FALLBACK_NAME = "Visitor";
+
 export function fallbackName(contactName: string): string {
   const trimmed = contactName.trim();
-  return trimmed === "" ? "Visitor" : trimmed;
+  return trimmed === "" ? VISITOR_FALLBACK_NAME : trimmed;
+}
+
+/**
+ * Display form of an inquiry name or subject. The stored fallback for a
+ * nameless contact is the English "Visitor" (rename + action logs key off it),
+ * so UI shows the caller's localized visitor label instead.
+ */
+export function displayInquiryName(name: string, visitorLabel: string): string {
+  const trimmed = name.trim();
+  return trimmed === "" || trimmed === VISITOR_FALLBACK_NAME ? visitorLabel : trimmed;
 }
 
 /**

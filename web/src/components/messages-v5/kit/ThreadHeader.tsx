@@ -7,6 +7,7 @@
 
 import type { Essentials, InquiryMessagingState, MessagingChannel, RecordChip } from "@/lib/messaging/types";
 
+import { displayInquiryName } from "@/lib/messaging/inquiry-name-pure";
 import type { KitCopy } from "./copy";
 import { Avatar, Btn, ChannelTag, Icon } from "./primitives";
 import { IdentityPill, StateTags } from "./StateTags";
@@ -38,7 +39,9 @@ export type ThreadHeaderProps = {
 
 export function ThreadHeader({ essentials, state, chips, channel, subject, when, owner, copy, variant = "desktop", busy, onBack, onAssign, onResolve, onReopen, onMore, seller }: ThreadHeaderProps) {
   const isVisitor = essentials.customer.identityLevel === "none" && !essentials.customer.name.trim();
-  const name = essentials.name.trim() || (isVisitor ? copy.inbox.visitor : essentials.customer.name);
+  const name = essentials.name.trim()
+    ? displayInquiryName(essentials.name, copy.inbox.visitor)
+    : isVisitor ? copy.inbox.visitor : essentials.customer.name;
   const resolved = state.conversation === "resolved";
 
   if (variant === "mobile") {

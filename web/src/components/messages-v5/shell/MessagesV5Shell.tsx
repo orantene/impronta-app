@@ -20,7 +20,7 @@ import { duplicateHint } from "@/lib/messages-v5/duplicates";
 import { latestHoldExpiresAt } from "@/lib/messages-v5/hold-expiry-from-messages";
 import { applyInboxRowPatch, useMessagingInboxLive } from "@/lib/messages-v5/use-inbox-live";
 import { keepActiveRow } from "@/lib/messaging/inbox-search";
-import { isGeneratedName } from "@/lib/messaging/inquiry-name-pure";
+import { displayInquiryName, isGeneratedName } from "@/lib/messaging/inquiry-name-pure";
 import { customerThreadUrl } from "@/lib/messaging/thread-link";
 import { deriveTasks } from "@/lib/messaging/tasks";
 import { localizeTasks } from "@/lib/messages-v5/localize-tasks";
@@ -646,8 +646,8 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
       mergeSlot={
         dupe && dupe.forId === activeRow.id ? (
           <MergeCard
-            duplicate={{ inquiryId: activeRow.id, name: essentials?.name ?? activeRow.subject }}
-            into={{ inquiryId: dupe.other.id, name: dupe.other.subject, version: dupe.other.version }}
+            duplicate={{ inquiryId: activeRow.id, name: displayInquiryName(essentials?.name ?? activeRow.subject, copy.kit.inbox.visitor) }}
+            into={{ inquiryId: dupe.other.id, name: displayInquiryName(dupe.other.subject, copy.kit.inbox.visitor), version: dupe.other.version }}
             busy={dupeBusy}
             refusal={dupeRefusal}
             onMerge={() => {

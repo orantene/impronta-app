@@ -6,6 +6,7 @@
  */
 
 import { localiseEngineLine } from "@/lib/messages-v5/engine-lines";
+import { displayInquiryName } from "@/lib/messaging/inquiry-name-pure";
 import type { InboxRow } from "@/lib/messaging/types";
 
 import type { KitCopy } from "./copy";
@@ -28,6 +29,7 @@ export type InboxRowV5Props = {
 export function InboxRowV5({ row, copy, selected, variant = "desktop", currentUserId, now = new Date(), locale, onOpen, seller }: InboxRowV5Props) {
   const name = row.contactName.trim() || copy.inbox.visitor;
   const isVisitor = !row.contactName.trim();
+  const subject = row.subject ? displayInquiryName(row.subject, copy.inbox.visitor) : row.subject;
   const state = { conversation: row.conversationState, opportunity: row.opportunityState, records: [] };
   const stamp = row.lastCustomerMessageAt ?? row.updatedAt;
   const needsReply = row.conversationState === "needs_reply";
@@ -49,7 +51,7 @@ export function InboxRowV5({ row, copy, selected, variant = "desktop", currentUs
             <b>{name}</b>
             <span className={needsReply && seller ? "wait-age" : undefined}>{when}</span>
           </span>
-          <span className="l2">{row.subject}</span>
+          <span className="l2">{subject}</span>
           <span className="l3">{localiseEngineLine(row.lastMessagePreview, copy)}</span>
           <span className="l4">
             <StateTags state={state} chips={row.recordChips} copy={copy} maxRecords={1} identityLevel={isVisitor ? "none" : undefined} />
@@ -73,7 +75,7 @@ export function InboxRowV5({ row, copy, selected, variant = "desktop", currentUs
         <span className="nm">
           <span>{name}</span>
         </span>
-        <span className="sub">{row.subject}</span>
+        <span className="sub">{subject}</span>
         <span className="pv">{localiseEngineLine(row.lastMessagePreview, copy)}</span>
         <span className="tags">
           <StateTags state={state} chips={row.recordChips} copy={copy} maxRecords={1} identityLevel={isVisitor ? "none" : undefined} />
