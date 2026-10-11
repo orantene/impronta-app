@@ -75,7 +75,7 @@ export async function loadPreviewDataSources(
   const usdRates = await loadUsdRatesForSitePrices([
     ...talentOfferings,
     ...(dataSources.menuOfferings ?? []),
-  ]);
+  ], locale);
   return { ...dataSources, talentOfferings, usdRates, catalogBookingLive: false };
 }
 
