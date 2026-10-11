@@ -54,3 +54,21 @@ test("the legacy /onboarding/role URL: marketing host hands it to /start, every 
   }
   assert.equal(startDoorRedirect({ ...base, method: "POST", pathname: "/onboarding/role", hostKind: "marketing" }), null);
 });
+
+test("a Spanish prefix is kept: app/agency/talent /es/start goes to the marketing /es/start", () => {
+  for (const hostKind of ["app", "agency", "talent_site"]) {
+    assert.equal(startDoorRedirect({ ...base, pathname: "/es/start", hostKind }), "https://tulala.digital/es/start", hostKind);
+    assert.equal(startDoorRedirect({ ...base, pathname: "/es/signup/", hostKind }), "https://tulala.digital/es/start", hostKind);
+  }
+  assert.equal(
+    startDoorRedirect({ ...base, pathname: "/es/start", hostKind: "app", search: "?choice=myself" }),
+    "https://tulala.digital/es/start?choice=myself",
+  );
+  assert.equal(startDoorRedirect({ ...base, pathname: "/es/start", hostKind: "marketing" }), null);
+  assert.equal(startDoorRedirect({ ...base, pathname: "/es/signup", hostKind: "marketing" }), "https://tulala.digital/es/start");
+  assert.equal(startDoorRedirect({ ...base, pathname: "/es/onboarding/role", hostKind: "marketing" }), "https://tulala.digital/es/start");
+  assert.equal(startDoorRedirect({ ...base, pathname: "/es/onboarding/role", hostKind: "app" }), null);
+  assert.equal(startDoorRedirect({ ...base, pathname: "/es/start", hostKind: "hub" }), null);
+  assert.equal(startDoorRedirect({ ...base, pathname: "/es", hostKind: "app" }), null);
+  assert.equal(startDoorRedirect({ ...base, pathname: "/esx/start", hostKind: "app" }), null);
+});

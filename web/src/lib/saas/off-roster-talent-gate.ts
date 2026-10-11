@@ -1,9 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { LOCALE_HEADER } from "@/i18n/request-locale";
+
 import { isProfileCodeOnTenantRoster } from "./host-context";
 
 /** Matches `/t/<code>` and `/<locale>/t/<code>`, with or without a trailing slash. */
-const TALENT_PATH = /^\/(?:[a-z]{2}\/)?t\/([^/]+)\/?$/;
+const TALENT_PATH = /^\/(?:([a-z]{2})\/)?t\/([^/]+)\/?$/;
 
 /**
  * An agency host may only serve talent on its OWN visible roster — decided at
@@ -30,6 +32,10 @@ const TALENT_PATH = /^\/(?:[a-z]{2}\/)?t\/([^/]+)\/?$/;
  *   • It fails OPEN: a DB blip degrades to the old soft-404 rather than hiding
  *     a real profile, and the page gate is still behind it either way.
  *
+ * `inboundHeaders` must be the proxy's sanitized inbound headers: on a
+ * `/<locale>/t/<code>` miss they are forwarded with the locale header set, so
+ * the 404 answers in the visitor's language.
+ *
  * @returns a 404 rewrite when the talent is not carried here, else null.
  */
 export async function offRosterTalentResponse(
@@ -37,6 +43,7 @@ export async function offRosterTalentResponse(
   pathname: string,
   tenantId: string,
   previewParam: string,
+  inboundHeaders: Headers,
 ): Promise<NextResponse | null> {
   if (request.method !== "GET" && request.method !== "HEAD") return null;
   if (
@@ -46,7 +53,9 @@ export async function offRosterTalentResponse(
     return null;
   }
 
-  const code = TALENT_PATH.exec(pathname)?.[1];
+  const match = TALENT_PATH.exec(pathname);
+  const locale = match?.[1];
+  const code = match?.[2];
   if (!code) return null;
 
   const onRoster = await isProfileCodeOnTenantRoster(
@@ -60,7 +69,9 @@ export async function offRosterTalentResponse(
   // host on a disallowed path, already whitelisted against rewrite recursion.
   // NOT `/_host-unregistered`, which says "Domain not connected" and would
   // wrongly tell the visitor the whole site is down.
-  return NextResponse.rewrite(new URL("/_page-not-found", request.url), {
-    status: 404,
-  });
+  const target = new URL("/_page-not-found", request.url);
+  if (!locale) return NextResponse.rewrite(target, { status: 404 });
+  const headers = new Headers(inboundHeaders);
+  headers.set(LOCALE_HEADER, locale);
+  return NextResponse.rewrite(target, { status: 404, request: { headers } });
 }
