@@ -14,7 +14,10 @@ import {
   HOST_TALENT_PROFILE_HEADER,
   HOST_TENANT_SLUG_HEADER,
 } from "@/lib/saas/host-context";
-import { applyTalentSiteAnonCacheHeaders } from "@/lib/saas/talent-site-anon-cache";
+import {
+  applyTalentSiteAnonCacheHeaders,
+  talentSiteShouldRememberLocale,
+} from "@/lib/saas/talent-site-anon-cache";
 import { attachTalentSiteGuestIdentity } from "@/lib/saas/talent-site-guest-identity";
 import { isTalentSiteHostPathAllowed, talentSiteHostRewritePath } from "@/lib/saas/talent-site-host-routing";
 import { PUBLIC_PATH_PREFIX_HEADER, TENANT_HEADER_NAME } from "@/lib/saas/scope";
@@ -114,10 +117,12 @@ export async function talentSiteHostResponse(
     }
   }
 
-  const rememberChoice = (res: NextResponse): NextResponse => {
+  const rememberChoice = (res: NextResponse, redirect = false): NextResponse => {
     if (talentLocale.explicit) {
-      res.cookies.set(LOCALE_COOKIE, talentLocale.locale, localeCookieOptions);
-      clearLocaleCookieAutoMarker(res);
+      if (talentSiteShouldRememberLocale(request, talentLocale.locale, { redirect })) {
+        res.cookies.set(LOCALE_COOKIE, talentLocale.locale, localeCookieOptions);
+        clearLocaleCookieAutoMarker(res);
+      }
     } else if (request.cookies.get(LOCALE_COOKIE)?.value) {
       // Returning visitor with a locale cookie — keep sync bookkeeping.
       // TUL-445: do NOT auto-stamp locale on a fresh cookieless GET; that
@@ -129,6 +134,8 @@ export async function talentSiteHostResponse(
 
   const decision = isTalentSiteHostPathAllowed(localeStripped);
   if (!decision) {
+    // Keep talent host + locale on the branded 404 so Spanish sites never see
+    // the English Tulala chrome (GRK-028).
     return rememberChoice(
       NextResponse.rewrite(new URL("/_page-not-found", request.url), {
         status: 404,
@@ -156,7 +163,7 @@ export async function talentSiteHostResponse(
     const target = request.nextUrl.clone();
     target.pathname = talentLocale.redirectPath;
     target.searchParams.delete("locale");
-    return rememberChoice(NextResponse.redirect(target, 302));
+    return rememberChoice(NextResponse.redirect(target, 302), true);
   }
 
   const attachGuestCookie = attachTalentSiteGuestIdentity(request, talentHeaders);

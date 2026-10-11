@@ -63,8 +63,8 @@ test("decideAuthoredSync: reflected authored or non-authored latest is a normal 
 });
 
 test("overlay loader: absent and malformed overlays read as null / version 0", () => {
-  assert.equal(loadAuthoredOverlay("maison-v2"), null);
-  assert.equal(authoredOverlayVersion("maison-v2"), 0);
+  assert.equal(loadAuthoredOverlay("gridline"), null);
+  assert.equal(authoredOverlayVersion("gridline"), 0);
   assert.deepEqual(loadAuthoredOverlay("x", { x: { authoredVersion: 4 } }), { authoredVersion: 4 });
   assert.equal(loadAuthoredOverlay("x", { x: { authoredVersion: "4" } }), null);
   assert.equal(loadAuthoredOverlay("x", { x: { authoredVersion: -1 } }), null);
