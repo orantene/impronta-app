@@ -14,6 +14,7 @@
  */
 import type { CSSProperties, ReactNode } from "react";
 
+import { languageToggleGroupLabel } from "@/i18n/language-toggle-label";
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import type { LiveStatusRenderContext } from "@/lib/talent/live-status-render";
 
@@ -41,6 +42,12 @@ export const UTILITY_BAR_CSS = `
 .sb-ub-tel svg{width:18px;height:18px}
 /* TUL-474/496: never hide only the pill label (left a stray status dot). Drop the whole pill. */
 @container sbub (max-width:330px){.sb-ub-pill{display:none}.sb-ub-cta{padding:0 10px;font-size:12px}}
+/* GRK-030: language switch. Wide: "ES / EN", current marked. Phone: one 44px button to the other language; the name text (already cut to 2 letters) gives way, the logo tile still links home. */
+.sb-ub-lang{flex:0 0 auto;display:inline-flex;align-items:center;font:600 12px/1 var(--site-mono-font,ui-monospace,monospace);letter-spacing:.06em}
+.sb-ub-lang a{display:inline-grid;place-items:center;min-width:32px;min-height:44px;padding:0 4px;color:inherit;text-decoration:none;opacity:.6;box-sizing:border-box}
+.sb-ub-lang a[aria-current]{opacity:1;text-decoration:underline;text-underline-offset:4px}
+.sb-ub-lang i{font-style:normal;opacity:.4}
+@container sbub (max-width:479px){.sb-ub[data-ub-lang] .sb-ub-nm{display:none}.sb-ub-lang a[aria-current],.sb-ub-lang i{display:none}.sb-ub-lang a{min-width:44px;border-radius:99px;border:1.5px solid color-mix(in srgb,var(--token-color-background) 28%,transparent);opacity:1}}
 @container sbub (min-width:900px){.sb-ub{padding:12px 40px;gap:14px}.sb-ub-cta{padding:0 18px;font-size:14px}.sb-ub-nm small{display:block;-webkit-line-clamp:unset;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}}
 `;
 
@@ -49,6 +56,9 @@ const PHONE_ICON = (
     <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z" />
   </svg>
 );
+
+/** Each language named in itself, so the switch reads right from either page. */
+const LANGUAGE_NAMES: Record<string, string> = { es: "Español", en: "English", fr: "Français", pt: "Português", it: "Italiano", de: "Deutsch" };
 
 /** Only an explicit `tel:` link with digits is a call target. */
 export function safeCallHref(href: unknown): string {
@@ -62,11 +72,17 @@ export function renderUtilityBarBlock(args: {
   liveStatus?: LiveStatusRenderContext;
   /** Call link from the page (G4 `callHref`); wins over the node's own. */
   callHref?: string;
+  /** The site's languages + this page per language (`dataSources.siteLocales`). */
+  siteLocales?: { locales: readonly string[]; hrefs?: Readonly<Record<string, string>> };
+  /** The language the page rendered in. */
+  locale?: string;
   /** Public path prefix (host-root sites pass ""). */
   publicPathPrefix?: string;
   styleAttr?: CSSProperties;
 }): ReactNode {
   const { node, styleAttr } = args;
+  const langs = (args.siteLocales?.locales ?? []).slice(0, 4);
+  const current = args.locale ?? langs[0] ?? "";
   const p = node.props;
   const on = args.liveStatus?.emergenciesToday === true;
   const name = (p.name ?? "").trim();
@@ -83,6 +99,7 @@ export function renderUtilityBarBlock(args: {
       data-builder-kind="utility_bar"
       data-builder-node-kind="utility_bar"
       data-builder-node-id={node.id}
+      data-ub-lang={langs.length > 1 ? "" : undefined}
       style={styleAttr}
       {...anchorIdAttrs(node)}
     >
@@ -110,6 +127,24 @@ export function renderUtilityBarBlock(args: {
           </span>
         </>
       )}
+      {langs.length > 1 ? (
+        <nav className="sb-ub-lang" aria-label={languageToggleGroupLabel(current)}>
+          {langs.map((code, i) => (
+            <span key={code} style={{ display: "contents" }}>
+              {i > 0 ? <i aria-hidden="true">/</i> : null}
+              <a
+                href={args.siteLocales?.hrefs?.[code] ?? `?locale=${code}`}
+                hrefLang={code}
+                lang={code}
+                aria-current={code === current ? "true" : undefined}
+                aria-label={LANGUAGE_NAMES[code] ?? code.toUpperCase()}
+              >
+                {code.toUpperCase()}
+              </a>
+            </span>
+          ))}
+        </nav>
+      ) : null}
       {ctaLabel && ctaHref ? (
         <a className="sb-ub-cta" href={ctaHref}>
           {ctaLabel}

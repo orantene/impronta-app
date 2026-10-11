@@ -84,8 +84,8 @@ export function WebsiteSettingsScreen({
 }: {
   talentId: string;
   onClose: () => void;
-  /** Deep link (PR 7): open straight on a group, e.g. "lang". */
-  initialView?: "lang";
+  /** Deep link (PR 7 / card 36): open straight on a group, e.g. "lang" or "chat". */
+  initialView?: "lang" | "chat";
   /** Parent sheet registers the guarded close (back / Escape / backdrop). */
   onRegisterClose?: (close: (() => void) | null) => void;
 }) {

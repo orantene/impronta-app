@@ -1409,6 +1409,8 @@ export interface BuilderVisitNode extends BuilderNodeBase {
     showMap?: boolean;
     mapImageUrl?: string;
     mapCaption?: string;
+    /** area layout: note under the chips, per language via `i18n`; empty = the location settings' note. */
+    arrivalNote?: string;
     /** Soft surface band behind the section. */
     band?: boolean;
     /** Talent-written facts shown after the live ones (e.g. a deposit note). */
