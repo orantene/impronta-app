@@ -18,6 +18,7 @@
  * site (resolved from the gate, never from input).
  */
 
+import { getRequestLocale } from "@/i18n/request-locale";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { loadApplyDesignRow } from "@/lib/talent-site/theme-releases/release-design.server";
 import type { TalentSiteCapability } from "@/lib/access/talent-membership";
@@ -94,6 +95,7 @@ export async function applySiteDesignAction(input: {
     design,
     displayName: r.g.displayName,
     userId: r.g.userId,
+    locale: await getRequestLocale(),
   });
 }
 

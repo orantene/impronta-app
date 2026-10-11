@@ -171,16 +171,28 @@ export async function refreshInstagramToken(
   }
 }
 
-/** Public profile proof used for the Settings card label. */
+/**
+ * Public profile proof used for the Settings card label. `status` follows the
+ * same contract as `refreshInstagramToken`: present for a vendor HTTP error,
+ * absent for a transport failure.
+ */
 export async function fetchInstagramProfile(
   accessToken: string,
-): Promise<{ ok: true; profile: InstagramProfile } | { ok: false; error: string }> {
+): Promise<
+  { ok: true; profile: InstagramProfile } | { ok: false; error: string; status?: number }
+> {
   const url = new URL(`${GRAPH}/me`);
   url.searchParams.set("fields", "id,username,account_type,media_count");
   url.searchParams.set("access_token", accessToken);
   try {
     const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) return { ok: false, error: `Instagram profile fetch failed (${res.status}).` };
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: `Instagram profile fetch failed (${res.status}).`,
+        status: res.status,
+      };
+    }
     const json = (await res.json().catch(() => null)) as {
       id?: string;
       username?: string;

@@ -13,6 +13,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
+import { bustTalentSiteCache } from "@/lib/talent-site/cache-tags";
 import { loadOwnTalentProfileId, writeTalentLanguages } from "@/lib/talent/talent-languages-store";
 import { countHeldTalentPayoutLegs } from "@/lib/payments/booking-payouts-ledger";
 import { loadMyInquiryTakeHome as loadMyInquiryTakeHomeImpl, type TalentTakeHome } from "@/lib/talent/inquiry-take-home";
@@ -360,6 +361,8 @@ export async function updateTalentLanguages(
 
     invalidateTalentLocaleSettings(who.talentProfileId);
     revalidatePath("/talent", "layout");
+    // Max-site locale context is Data-Cache tagged — bust so language saves stick.
+    bustTalentSiteCache(who.talentProfileId, null);
     return { ok: true, data: { primary: pair.primary, secondary } };
   } catch (err) {
     logServerError("talent-self.languages.update", err);

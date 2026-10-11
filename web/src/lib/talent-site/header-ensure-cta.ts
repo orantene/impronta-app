@@ -3,12 +3,17 @@
  *
  * Heals three shell shapes at render/hydrate time so stale demo trees (kit
  * heading+nav only, empty utility_bar CTA, site_header missing primaryCta) get
- * a Book → `#services` control without a per-talent rebuild.
+ * a Book → `#book` control without a per-talent rebuild.
+ *
+ * E6-kbd-open (TUL-534): `#services` only scrolls; `#book` opens the booking
+ * sheet (TalentSiteContactBridge). Primary booking CTAs must not dead-end on
+ * a scroll target when activated from the keyboard.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import { TALENT_BOOK_HREF } from "@/lib/talent-site/contact-channels";
 
 const DEFAULT_CTA_LABEL = "Book";
-const DEFAULT_CTA_HREF = "#services";
+const DEFAULT_CTA_HREF = TALENT_BOOK_HREF;
 
 type Rec = Record<string, unknown>;
 type AnyNode = BuilderNode & { children?: BuilderNode[] };
@@ -37,7 +42,22 @@ function ensureSiteHeaderCta(node: BuilderNode): BuilderNode {
     String((primary as Rec).label).trim() &&
     typeof (primary as Rec).href === "string" &&
     String((primary as Rec).href).trim();
-  if (hasPrimary || regionHasCta(cfg.regions)) return node;
+  if (hasPrimary) {
+    const href = String((primary as Rec).href);
+    const next = bookingHref(href);
+    if (next === href) return node;
+    return {
+      ...node,
+      props: {
+        ...node.props,
+        sectionProps: {
+          ...cfg,
+          primaryCta: { ...(primary as Rec), href: next },
+        },
+      },
+    };
+  }
+  if (regionHasCta(cfg.regions)) return node;
 
   const cta = { label: DEFAULT_CTA_LABEL, href: DEFAULT_CTA_HREF };
   const regions = cfg.regions && typeof cfg.regions === "object" ? ({ ...(cfg.regions as Rec) } as Rec) : {};
@@ -58,18 +78,29 @@ function ensureSiteHeaderCta(node: BuilderNode): BuilderNode {
   };
 }
 
+/** Primary CTA that still points at the services band — rewrite to open booking. */
+function bookingHref(href: string): string {
+  const h = href.trim();
+  if (h === "#services" || h === "/#services" || /\/#services$/.test(h)) return DEFAULT_CTA_HREF;
+  return h || DEFAULT_CTA_HREF;
+}
+
 function ensureUtilityBarCta(node: BuilderNode): BuilderNode {
   if (node.kind !== "utility_bar") return node;
   const props = (node.props ?? {}) as Rec;
   const label = typeof props.ctaLabel === "string" ? props.ctaLabel.trim() : "";
   const href = typeof props.ctaHref === "string" ? props.ctaHref.trim() : "";
-  if (label && href) return node;
+  if (label && href) {
+    const next = bookingHref(href);
+    if (next === href) return node;
+    return { ...node, props: { ...props, ctaHref: next } } as BuilderNode;
+  }
   return {
     ...node,
     props: {
       ...props,
       ctaLabel: label || DEFAULT_CTA_LABEL,
-      ctaHref: href || DEFAULT_CTA_HREF,
+      ctaHref: href ? bookingHref(href) : DEFAULT_CTA_HREF,
     },
   } as BuilderNode;
 }
@@ -108,9 +139,21 @@ function ensureKitShellCta(node: BuilderNode): BuilderNode {
   } as BuilderNode;
 }
 
+function ensureButtonBookHref(node: BuilderNode): BuilderNode {
+  if (node.kind !== "button") return node;
+  const props = (node.props ?? {}) as Rec;
+  const layer = String(props.layerLabel ?? "");
+  if (layer !== "Header CTA" && layer !== "CTA") return node;
+  const href = typeof props.href === "string" ? props.href : "";
+  const next = bookingHref(href);
+  if (next === href) return node;
+  return { ...node, props: { ...props, href: next } } as BuilderNode;
+}
+
 function ensureHeaderCtaNode(node: BuilderNode): BuilderNode {
   let next = ensureSiteHeaderCta(node);
   next = ensureUtilityBarCta(next);
+  next = ensureButtonBookHref(next);
   const kids = (next as AnyNode).children;
   if (Array.isArray(kids) && kids.length > 0) {
     // Kit shell header: container with brand + nav (and maybe no button yet).
