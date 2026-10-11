@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import { beforeEach, describe, test } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
   ANALYTICS_ALLOWED_JS,
@@ -70,6 +74,23 @@ describe("TUL-561: consent region", () => {
     assert.equal(run(null, "notice", true), false);
     assert.equal(run("denied", "notice", false), false);
     assert.equal(run("granted", "strict", true), true);
+  });
+  test("TUL-534: the snippet survives the production minifier unchanged", async () => {
+    const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "consent.ts"), "utf8");
+    const expr = /export const ANALYTICS_ALLOWED_JS =\s*([\s\S]*?`)\s*;\s*\n/.exec(src)?.[1];
+    assert.ok(expr, "ANALYTICS_ALLOWED_JS source found");
+    const swc = createRequire(import.meta.url)("next/dist/build/swc") as {
+      loadBindings: () => Promise<unknown>;
+      minify: (code: string, opts: object) => Promise<{ code: string }>;
+    };
+    await swc.loadBindings();
+    const mod =
+      `const CONSENT_STORAGE_KEY=${JSON.stringify(CONSENT_STORAGE_KEY)},` +
+      `CONSENT_REGION_ATTR=${JSON.stringify(CONSENT_REGION_ATTR)};export const A=${expr};`;
+    const { code } = await swc.minify(mod, { compress: { passes: 2 }, mangle: true, module: true });
+    const minified = new Function(code.replace(/^export const A=/, "return "))() as string;
+    assert.equal(minified, ANALYTICS_ALLOWED_JS);
+    assert.doesNotThrow(() => new Function(`return ${minified};`));
   });
 });
 

@@ -8,6 +8,7 @@ import { CHROME_MAC } from "@/i18n/locale-suggestion-fixtures";
 import { localeUrlSettings } from "@/i18n/pathnames";
 import { CATALOG_BOOKING_CSS } from "@/components/public-booking/catalog-booking-styles";
 import { FLOATING_CHROME_STACK_CSS } from "@/lib/talent-site/floating-chrome-stack";
+import { CONSENT_BANNER_TOP_VAR } from "@/lib/talent-site/consent-banner-top";
 
 const root = join(__dirname, "..");
 const client = readFileSync(join(root, "components/locale-suggestion-banner-client.tsx"), "utf8");
@@ -71,10 +72,21 @@ test("TUL-560: the demo badge sits bottom-right, clears the phone chat launcher,
   assert.match(FLOATING_CHROME_STACK_CSS, /\[data-demo-badge\]\{position:fixed;right:max\(16px,[^}]*bottom:calc\(var\(--floating-chrome-bottom\) \+ 12px\)/);
   assert.doesNotMatch(FLOATING_CHROME_STACK_CSS, /\[data-demo-badge\]\{[^}]*\b(top|left):/);
   assert.match(FLOATING_CHROME_STACK_CSS, /@media \(max-width:700px\)\{body:has\(\[data-guest-chat-launcher\]\) \[data-demo-badge\]\{bottom:calc\(max\(/);
-  assert.match(FLOATING_CHROME_STACK_CSS, /body:has\(\[data-locale-suggestion\]\) \[data-demo-badge\]\{display:none\}/);
-  assert.match(FLOATING_CHROME_STACK_CSS, /body:has\(\[data-consent-banner\]\) \[data-demo-badge\]/);
+  assert.match(FLOATING_CHROME_STACK_CSS, /body:has\(\[data-locale-suggestion\]\):not\(:has\(\[data-consent-banner\]\)\) \[data-demo-badge\]\{display:none\}/);
   assert.match(FLOATING_CHROME_STACK_CSS, /body:has\(\.cb-dock\[data-show="true"\]\) \[data-demo-badge\]/);
   assert.match(FLOATING_CHROME_STACK_CSS, /body:has\(\.cb-bar\[data-show="true"\]:not\(\[data-top="true"\]\)\) \[data-demo-badge\]/);
+});
+
+test("TUL-528 PM-LIVE7: the demo badge stays visible above the consent card instead of hiding under it", () => {
+  assert.doesNotMatch(FLOATING_CHROME_STACK_CSS, /body:has\(\[data-consent-banner\]\) \[data-demo-badge\]\{display:none\}/);
+  const lift = /html body:has\(\[data-consent-banner\]\) \[data-demo-badge\]\{bottom:calc\(var\(--consent-banner-top,\d+px\) \+ 10px\)\}/;
+  assert.match(FLOATING_CHROME_STACK_CSS, lift);
+  const phoneLauncher = FLOATING_CHROME_STACK_CSS.indexOf("body:has([data-guest-chat-launcher]) [data-demo-badge]{bottom:");
+  assert.ok(phoneLauncher >= 0 && FLOATING_CHROME_STACK_CSS.search(lift) > phoneLauncher, "the lift wins over the phone launcher clearance");
+  const banner = readFileSync(join(root, "components/analytics/analytics-consent-banner.tsx"), "utf8");
+  assert.equal((banner.match(/ref=\{bannerRef\}/g) ?? []).length, 2, "both the card and the notice publish their top");
+  assert.match(banner, /trackConsentBannerTop\(el\)/);
+  assert.ok(FLOATING_CHROME_STACK_CSS.includes(`var(${CONSENT_BANNER_TOP_VAR},`), "CSS reads the variable the card publishes");
 });
 
 test("TUL-560: a single-language site never gets the toast, whatever the browser says", () => {

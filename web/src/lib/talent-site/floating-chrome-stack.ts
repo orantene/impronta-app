@@ -14,8 +14,10 @@
  * bottom-left toast and the demo marker a bottom-right badge; both float above
  * `--floating-chrome-bottom`. On phones (≤700px, where the chat launcher drops
  * to the corner) the badge clears the launcher and gives way to the toast.
- * Both yield to the consent card, modals, the open chat panel and booking
- * chrome; the demo footer line stays as the permanent marker.
+ * Both yield to modals, the open chat panel and booking chrome; the demo
+ * footer line stays as the permanent marker. The toast also yields to the
+ * consent card, while the badge rides just above it (TUL-528 PM-LIVE7) at the
+ * card's measured top, `--consent-banner-top`.
  *
  * TUL-528:
  * - GRK-033: hero first-viewport CTAs clear the consent card (pad hero chrome).
@@ -54,7 +56,6 @@ const BAR_RESERVE = `calc(${STICKY_BAR_DEFAULT_RESERVE_PX}px + env(safe-area-ins
  */
 export const FLOATING_CHROME_STACK_CSS = `
 body:has(${CONSENT_BANNER_SELECTOR}) ${LOCALE_SUGGESTION_SELECTOR}{display:none}
-body:has(${CONSENT_BANNER_SELECTOR}) ${DEMO_BADGE_SELECTOR}{display:none}
 body:has(.cb-dock[data-show="true"]) ${DEMO_BADGE_SELECTOR},body:has(.cb-bar[data-show="true"]:not([data-top="true"])) ${DEMO_BADGE_SELECTOR}{display:none}
 body:has([role="dialog"][aria-modal="true"]) ${CONSENT_BANNER_SELECTOR},body:has([role="dialog"][aria-modal="true"]) ${LOCALE_SUGGESTION_SELECTOR},body:has([role="dialog"][aria-modal="true"]) ${DEMO_BADGE_SELECTOR}{display:none}
 body:has(${GUEST_CHAT_PANEL_SELECTOR}) ${CONSENT_BANNER_SELECTOR},body:has(${GUEST_CHAT_PANEL_SELECTOR}) ${LOCALE_SUGGESTION_SELECTOR},body:has(${GUEST_CHAT_PANEL_SELECTOR}) ${DEMO_BADGE_SELECTOR}{display:none}
@@ -70,7 +71,8 @@ ${LOCALE_SUGGESTION_SELECTOR}>div{animation:floating-toast-in .3s ease-out both}
 @media (prefers-reduced-motion:reduce){${LOCALE_SUGGESTION_SELECTOR}>div{animation:none}}
 @media (min-width:701px) and (max-height:${LOCALE_SUGGESTION_SHORT_WINDOW_MAX_H}px){html ${LOCALE_SUGGESTION_SELECTOR}{width:auto;bottom:calc(var(--floating-chrome-bottom) + 8px)}html ${LOCALE_SUGGESTION_SELECTOR} [data-locale-suggestion-card]{flex-wrap:nowrap;gap:2px;padding:3px;border-radius:var(--token-button-radius,999px)}html ${LOCALE_SUGGESTION_SELECTOR} [data-locale-suggestion-prompt]{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}}
 ${DEMO_BADGE_SELECTOR}{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(var(--floating-chrome-bottom) + 12px);z-index:90;pointer-events:none}
-@media (max-width:700px){body:has([data-guest-chat-launcher]) ${DEMO_BADGE_SELECTOR}{bottom:calc(max(var(--floating-chrome-bottom),${GUEST_CHAT_LAUNCHER_CLEARANCE_PX}px + env(safe-area-inset-bottom,0px)) + 4px)}body:has(${LOCALE_SUGGESTION_SELECTOR}) ${DEMO_BADGE_SELECTOR}{display:none}}
+@media (max-width:700px){body:has([data-guest-chat-launcher]) ${DEMO_BADGE_SELECTOR}{bottom:calc(max(var(--floating-chrome-bottom),${GUEST_CHAT_LAUNCHER_CLEARANCE_PX}px + env(safe-area-inset-bottom,0px)) + 4px)}body:has(${LOCALE_SUGGESTION_SELECTOR}):not(:has(${CONSENT_BANNER_SELECTOR})) ${DEMO_BADGE_SELECTOR}{display:none}}
+html body:has(${CONSENT_BANNER_SELECTOR}) ${DEMO_BADGE_SELECTOR}{bottom:calc(var(--consent-banner-top,${CONSENT_BANNER_RESERVE_PX}px) + 10px)}
 html{scroll-padding-bottom:var(--floating-chrome-bottom)}
 body:has(${CONSENT_BANNER_SELECTOR}) .site-bn-hero__inner{padding-bottom:max(clamp(74px,11vh,134px),calc(var(--floating-consent-clearance) + 12px))}
 body:has(${CONSENT_BANNER_SELECTOR}) .site-bn-hero__meta{bottom:max(clamp(74px,11vh,134px),calc(var(--floating-consent-clearance) + 12px))}
