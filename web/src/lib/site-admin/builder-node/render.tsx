@@ -1370,6 +1370,7 @@ export const BUILDER_NODE_RENDERER_CSS = `
 [data-talent-max-site-main] [data-cms-block]>.site-builder-node--container:not([data-builder-full-bleed]):not([data-bn-bg-media]){padding-inline:1.5rem}
 .site-builder-node--container[data-builder-layout="row"]{flex-direction:row;flex-wrap:wrap}
 .site-builder-node--container[data-builder-layout="grid"],.site-builder-node--container[data-builder-display="grid"]{display:grid;grid-template-columns:repeat(var(--bn-columns,2),minmax(0,1fr))}
+@media (min-width:641px){.site-builder-node--container[data-bn-odd-tail]{grid-template-columns:repeat(4,minmax(0,1fr))}.site-builder-node--container[data-bn-odd-tail]>*{grid-column:span 2}.site-builder-node--container[data-bn-odd-tail]>:last-child{grid-column:2/span 2}}
 .site-builder-node--container[data-builder-display="slider"]{display:flex;flex-direction:row;flex-wrap:nowrap;gap:var(--bn-slider-gap,var(--bn-gap,16px));overflow-x:auto;scroll-snap-type:x mandatory}
 .site-builder-node--container[data-builder-display="slider"] > *{flex:0 0 calc((100% - (var(--bn-items-per-view,3) - 1) * var(--bn-slider-gap,var(--bn-gap,16px))) / var(--bn-items-per-view,3));min-width:0;scroll-snap-align:start}
 .site-builder-node--split{width:100%;max-width:1120px;margin:0 auto;display:grid;grid-template-columns:var(--bn-split-left,1fr) var(--bn-split-right,1fr);gap:var(--bn-gap,1.25rem);align-items:center}
@@ -4020,6 +4021,22 @@ function customTierLayoutAttrs(
   return out;
 }
 
+/**
+ * A two-column photo grid with an odd count centres its last photo instead of
+ * leaving it alone under the left column. Only plain stored image children
+ * qualify (no data binding, linked instance, moving background, tablet or
+ * custom-tier override), so every other container keeps identical markup.
+ */
+export function containerOddTailAttrs(node: Extract<BuilderNode, { kind: "container" }>): { "data-bn-odd-tail"?: "" } {
+  const p = node.props;
+  if (p.layout !== "grid" || p.display === "slider" || (p.columns ?? 2) !== 2) return {};
+  if (p.dataBinding || p.instanceOf || p.backgroundMedia) return {};
+  if (p.responsive && Object.keys(p.responsive).some((tier) => tier !== "mobile")) return {};
+  const kids = node.children ?? [];
+  if (kids.length < 3 || kids.length % 2 === 0 || !kids.every((k) => k.kind === "image")) return {};
+  return { "data-bn-odd-tail": "" };
+}
+
 function containerStyle(node: Extract<BuilderNode, { kind: "container" }>): CSSProperties {
   return inlineNodeStyle(node.props.style, builderNodeStyleVars({
     "--bn-gap": GAP_BY_SIZE[node.props.gap ?? "m"],
@@ -4737,6 +4754,7 @@ function renderBuilderNodeElement(
           data-builder-data-source={node.props.dataBinding?.sourceKey}
           data-builder-data-mode={node.props.dataBinding?.mode}
           data-builder-data-max-items={node.props.dataBinding?.maxItems}
+          {...containerOddTailAttrs(node)}
           className="site-builder-node site-builder-node--container"
           style={containerStyle(node)}
         >
