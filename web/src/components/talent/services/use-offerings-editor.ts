@@ -33,6 +33,7 @@ import {
   reorderWorkspaceMenuItems,
 } from "@/lib/talent/menu-offerings-actions";
 import { invalidateWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
+import { settleServerAction } from "@/lib/client/settle-server-action";
 import { loadTalentServicePerformance, type ServicePerformanceStat } from "@/lib/talent/services-menu-actions";
 import {
   blankOffering,

@@ -15,7 +15,7 @@ const read = (file: string) =>
 test("the orders queue loads through settleServerAction and falls back to no orders", () => {
   const src = read("TalentOrdersQueue.tsx");
   assert.match(src, /settleServerAction\(\(\) => loadTalentOrders\(talentId\)/);
-  assert.match(src, /\.catch\(\(\) => \[\]\)/);
+  assert.match(src, /\.catch\(\(\) => \[\] as TalentOrderRow\[\]\)/);
   assert.equal(src.match(/[^.\w]loadTalentOrders\(/g)?.length, 1, "only the settled call reaches the action");
 });
 

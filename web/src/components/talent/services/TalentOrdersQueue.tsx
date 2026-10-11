@@ -15,8 +15,8 @@
 import { useEffect, useState, useTransition } from "react";
 import { loadTalentOrders, markBookingFulfillment } from "@/lib/talent/fulfillment-actions";
 import type { TalentOrderRow } from "@/lib/bookings/fulfillment";
-import { settleServerAction } from "@/lib/client/settle-server-action";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
+import { settleServerAction } from "@/lib/client/settle-server-action";
 
 const C = {
   ink: "#14161d",
@@ -54,7 +54,6 @@ function isHandedOff(status: string): boolean {
 const LOAD_BUDGET_MS = 6_500;
 const LOAD_RETRY_DELAY_MS = 1_000;
 
-/** A stalled or failed load reads as "no orders", so the queue stays quiet instead of loading forever. */
 function settleOrders(talentId: string): Promise<TalentOrderRow[]> {
   return settleServerAction(() => loadTalentOrders(talentId), {
     label: "loadTalentOrders",
@@ -62,7 +61,7 @@ function settleOrders(talentId: string): Promise<TalentOrderRow[]> {
     budgetMs: LOAD_BUDGET_MS,
     retries: 1,
     retryDelayMs: LOAD_RETRY_DELAY_MS,
-  }).catch(() => []);
+  });
 }
 
 export function TalentOrdersQueue({ talentId }: { talentId: string }) {
@@ -75,15 +74,20 @@ export function TalentOrdersQueue({ talentId }: { talentId: string }) {
 
   const reload = () => {
     startTransition(async () => {
-      setOrders(await settleOrders(talentId));
+      const rows = await settleOrders(talentId).catch(() => null);
+      if (rows) setOrders(rows);
     });
   };
 
   useEffect(() => {
     let live = true;
-    void settleOrders(talentId).then((rows) => {
-      if (live) setOrders(rows);
-    });
+    // A discarded or failed action must not leave the queue pending forever;
+    // with no rows the section stays hidden.
+    settleOrders(talentId)
+      .catch(() => [] as TalentOrderRow[])
+      .then((rows) => {
+        if (live) setOrders(rows);
+      });
     return () => {
       live = false;
     };
@@ -101,13 +105,10 @@ export function TalentOrdersQueue({ talentId }: { talentId: string }) {
     else setError(res.error);
   };
 
-  // The surface stays quiet until the talent actually has product orders.
-  if (orders === null) {
-    return (
-      <div style={{ marginTop: 28, fontSize: 13, color: C.inkSoft, fontFamily: FONT }}>{copy.t("Loading orders…")}</div>
-    );
-  }
-  if (orders.length === 0) return null;
+  // The surface stays quiet until the talent actually has product orders: it
+  // loads after every other Services action, so a loading line here read as
+  // the whole page being stuck (TUL-336).
+  if (orders === null || orders.length === 0) return null;
 
   return (
     <section style={{ marginTop: 32, fontFamily: FONT }} data-talent-orders>

@@ -6,6 +6,8 @@
 // deliberately ordered. Each is asserted.
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import test from "node:test";
 
 import {
@@ -121,4 +123,30 @@ test("degenerate pages are left alone", () => {
   const allFeatured: Card[] = [bare("a", { isFeatured: true }), full("b", { isFeatured: true })];
   applyPresentabilityOrdering(allFeatured);
   assert.deepEqual(ids(allFeatured), ["a", "b"]);
+});
+
+test("GRK-053: the directory page drops tier-0 cards in every sort and keeps the raw-count cursor", () => {
+  const src = readFileSync(join(process.cwd(), "src/lib/directory/fetch-directory-page.ts"), "utf8");
+  const drop = src.indexOf("items.filter((card) => presentabilityTier(card) > 0)");
+  assert.ok(drop > 0, "fetchDirectoryPage must filter tier-0 cards");
+  assert.ok(drop > src.indexOf("applyPresentabilityOrdering(items)"), "drop after ordering");
+  assert.match(src, /items: visibleItems,/);
+  assert.match(src, /profiles\.length === limit/);
+  // A half-finished profile is never dropped.
+  assert.equal(presentabilityTier(photoOnly("p")), 1);
+  assert.equal(presentabilityTier({ thumbnail: null, priceFromCents: 45000 }), 1);
+});
+
+test("GRK-053: an all-empty window hops forward and the header count drops hidden cards", () => {
+  const src = readFileSync(join(process.cwd(), "src/lib/directory/fetch-directory-page.ts"), "utf8");
+  assert.match(
+    src,
+    /while \(page\.items\.length === 0 && page\.nextCursor && hops < MAX_EMPTY_WINDOW_HOPS\)/,
+    "a window of only empty cards must not render as a blank page with Load more",
+  );
+  assert.match(src, /page\.totalCount = Math\.max\(page\.totalCount - hiddenCount, page\.items\.length\)/);
+  assert.match(src, /hiddenCount: items\.length - visibleItems\.length/);
+  assert.match(src, /params\.keepEmptyCards\s*\?\s*items/);
+  const cap = readFileSync(join(process.cwd(), "src/lib/saas/public-profile-cap.ts"), "utf8");
+  assert.match(cap, /keepEmptyCards: true/, "the public-profile cap must still see empty cards");
 });
