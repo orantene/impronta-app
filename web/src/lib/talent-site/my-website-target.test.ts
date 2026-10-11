@@ -41,7 +41,7 @@ test("an explicit personal request keeps the personal builder reachable", () => 
 
 test("pure talent opens the personal site; none yet points at the create path", () => {
   assert.equal(resolveMyWebsiteTarget({ ...base, hasPersonalSite: true }).kind, "personal");
-  assert.deepEqual(resolveMyWebsiteTarget(base), { kind: "create", href: "/talent/public-page" });
+  assert.deepEqual(resolveMyWebsiteTarget(base), { kind: "create", href: "/talent/site" });
 });
 
 test("a business owner whose site is not ready yet never falls into a personal site", () => {
