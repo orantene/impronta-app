@@ -20750,6 +20750,8 @@
       "detail": {
         "workflowDetail": "Detalle del flujo",
         "backToPipeline": "← Pipeline",
+        "notFoundTitle": "Esta solicitud no está en este espacio",
+        "notFoundBody": "Puede pertenecer a otro espacio o al marketplace de Tulala, o se eliminó. Ábrela desde el espacio al que pertenece.",
         "messages": "💬 Mensajes",
         "createBooking": "+ Crear reserva",
         "viewBooking": "Ver reserva →",
