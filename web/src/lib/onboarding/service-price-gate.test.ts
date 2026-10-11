@@ -5,6 +5,7 @@ import { test } from "node:test";
 
 import { offeringNeedsPrice } from "../talent/offering-needs-price";
 import { missingTitleLocale } from "../talent/offering-missing-translation";
+import { blankOffering, validateOffering } from "../talent/offerings-types";
 import { offeringRowFor, parseEssentialService, planOfferingWrites, servicesFromFacts, suggestedServices } from "./essentials";
 
 const root = join(__dirname, "..", "..", "..");
@@ -21,8 +22,24 @@ test("TUL-567: onboarding never publishes a service without a price", () => {
   ]) {
     const row = offeringRowFor(s, 0);
     assert.equal(row.status, "draft", JSON.stringify(s));
-    assert.equal(row.price_display, "quote");
+    assert.equal(row.amount_cents, null);
   }
+});
+
+test("TUL-567: Publish on an unpriced onboarding draft is refused until it has a price", () => {
+  const row = offeringRowFor({ name: "Corte", durationMin: 45, priceCents: null, quote: true, currency: "MXN" }, 0);
+  const asOffering = {
+    ...blankOffering("tp-1", row.currency, 0),
+    title: row.title,
+    priceType: row.price_type,
+    priceDisplay: row.price_display,
+    amountCents: row.amount_cents,
+    bookingMode: row.booking_mode,
+  };
+  assert.deepEqual(validateOffering({ ...asOffering, status: "draft" }), []);
+  assert.ok(validateOffering({ ...asOffering, status: "published" }).some((e) => e.includes("needs a price")));
+  assert.deepEqual(validateOffering({ ...asOffering, status: "published", amountCents: 35000 }), []);
+  assert.equal(offeringNeedsPrice({ status: "draft", priceDisplay: row.price_display, amountCents: row.amount_cents }), true);
 });
 
 test("TUL-567: a Spanish flow names pack services in Spanish even when the AI said them in English", () => {

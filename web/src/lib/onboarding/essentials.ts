@@ -324,8 +324,9 @@ export type OfferingRowDraft = {
   title: string;
   description: null;
   kind: "service";
-  price_type: "flat_package" | "custom";
-  price_display: "exact" | "quote";
+  price_type: "flat_package";
+  price_display: "exact";
+  /** Null = no price yet: publishing is refused until one is set (or the owner picks "Contact for price"). */
   amount_cents: number | null;
   currency: string;
   booking_mode: "instant" | "request";
@@ -347,8 +348,9 @@ export function offeringRowFor(s: EssentialService, sortOrder: number): Offering
     title: s.name.trim(),
     description: null,
     kind: "service",
-    price_type: exact ? "flat_package" : "custom",
-    price_display: exact ? "exact" : "quote",
+    // Not "quote": a quote row passes publish validation, so one click would put an unpriced service live.
+    price_type: "flat_package",
+    price_display: "exact",
     amount_cents: exact ? s.priceCents : null,
     currency: s.currency,
     // Instant needs a fixed price; a quote is a request. Fresh accounts have
