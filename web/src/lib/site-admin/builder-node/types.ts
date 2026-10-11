@@ -1563,6 +1563,11 @@ export interface BuilderUtilityBarNode extends BuilderNodeBase {
     callHref?: string;
     ctaLabel?: string;
     ctaHref?: string;
+    /** Section links (desktop inline, phone menu). Talent sites fill them at render from the page's sections. */
+    navLinks?: { label: string; href: string }[];
+    /** Accessible name of the section nav and its phone menu button. */
+    navLabel?: string;
+    menuLabel?: string;
     style?: BuilderNodeStyle;
   };
 }
