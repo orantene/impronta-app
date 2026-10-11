@@ -32,6 +32,7 @@ import {
   reorderWorkspaceMenuItems,
 } from "@/lib/talent/menu-offerings-actions";
 import { invalidateWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
+import { settleServerAction } from "@/lib/client/settle-server-action";
 import { loadTalentServicePerformance, type ServicePerformanceStat } from "@/lib/talent/services-menu-actions";
 import {
   blankOffering,
@@ -122,9 +123,19 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
 
   useEffect(() => {
     let cancelled = false;
-    const load = isWorkspace
-      ? loadWorkspaceMenuForEditor(workspaceTenantId)
-      : loadTalentOfferingsForEditor(talentId);
+    // Services fires several actions on mount and they run one at a time, so
+    // the list read gets a longer budget than the 4 s default.
+    const load = settleServerAction(
+      () =>
+        isWorkspace
+          ? loadWorkspaceMenuForEditor(workspaceTenantId)
+          : loadTalentOfferingsForEditor(talentId),
+      {
+        label: isWorkspace ? "loadWorkspaceMenuForEditor" : "loadTalentOfferingsForEditor",
+        area: "talent-services",
+        budgetMs: 10_000,
+      },
+    );
     load
       .then((res) => {
         if (cancelled) return;
