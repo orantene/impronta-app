@@ -95,3 +95,18 @@ test("TUL-561: every inline tag snippet reads consent through the shared region-
 test("consent banner does not enable unfinished talent consent tooling", () => {
   assert.doesNotMatch(src, /TALENT_SITE_CONSENT_TOOLING_ENABLED/);
 });
+
+test("consent banner reserves marketing phone clearance so pricing clears the card (GRK-040)", () => {
+  assert.match(src, /CONSENT_BANNER_RESERVE_PX/);
+  assert.match(
+    src,
+    /body:has\(\[data-consent-banner\]\) \[data-platform-surface="marketing"\]/,
+  );
+  assert.match(src, /padding-bottom: calc\(\$\{CONSENT_BANNER_RESERVE_PX\}px/);
+  assert.match(
+    src,
+    /html:has\(\[data-consent-banner\]\):has\(\[data-platform-surface="marketing"\]\)/,
+  );
+  assert.match(src, /scroll-padding-bottom: calc\(\$\{CONSENT_BANNER_RESERVE_PX\}px/);
+  assert.match(src, /@media \(max-width: 640px\)/);
+});
