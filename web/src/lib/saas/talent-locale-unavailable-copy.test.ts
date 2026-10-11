@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { talentLocaleUnavailableCopy } from "./talent-locale-unavailable-copy";
+import {
+  talentLocaleUnavailableCopy,
+  talentNoticeDisplayName,
+} from "./talent-locale-unavailable-copy";
 
 const all = (c: ReturnType<typeof talentLocaleUnavailableCopy>) =>
   `${c.title}${c.heading}${c.body}${c.homeCta}${c.siteLine?.text ?? ""}`;
@@ -30,4 +33,10 @@ test("TUL-516 B1: an unknown request language falls back to English", () => {
   const c = talentLocaleUnavailableCopy({ requested: null, site: "es" });
   assert.equal(c.lang, "en");
   assert.equal(c.heading, "This site is in Spanish only");
+});
+
+test("TUL-570: the notice names the talent, never a bare profile code", () => {
+  assert.equal(talentNoticeDisplayName({ name: " Sofía Barra ", profileCode: "TAL-93102" }), "Sofía Barra");
+  assert.equal(talentNoticeDisplayName({ name: "TAL-93102", profileCode: "TAL-93102" }), null);
+  assert.equal(talentNoticeDisplayName(null), null);
 });

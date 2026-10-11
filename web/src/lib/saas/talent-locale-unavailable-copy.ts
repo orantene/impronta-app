@@ -20,6 +20,15 @@ export type TalentLocaleUnavailableCopy = {
   siteLine: { lang: "es" | "en"; text: string } | null;
 };
 
+/** Talent name for the notice header; null when only the profile code is known. */
+export function talentNoticeDisplayName(
+  identity: { name: string; profileCode: string } | null | undefined,
+): string | null {
+  const name = identity?.name.trim();
+  if (!name || name === identity?.profileCode) return null;
+  return name;
+}
+
 export function talentLocaleUnavailableCopy(input: {
   /** Prefix the visitor asked for (e.g. "en"); falls back to English. */
   requested: string | undefined | null;

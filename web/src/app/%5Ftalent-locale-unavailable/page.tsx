@@ -6,12 +6,21 @@
  * redirect to the Spanish home. Whitelisted in the proxy short-circuit.
  *
  * `?requested=` is the prefix the visitor asked for (set by the host rewrite);
- * the request locale header is the site's own language.
+ * the request locale header is the site's own language. The talent comes from
+ * the same gated proxy headers as `_talent-site` (never from the URL).
  */
+import { cache } from "react";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Link from "next/link";
 import { getRequestLocale } from "@/i18n/request-locale";
-import { talentLocaleUnavailableCopy } from "@/lib/saas/talent-locale-unavailable-copy";
+import { HOST_CONTEXT_HEADER, HOST_TALENT_PROFILE_HEADER } from "@/lib/saas/host-context";
+import {
+  talentLocaleUnavailableCopy,
+  talentNoticeDisplayName,
+} from "@/lib/saas/talent-locale-unavailable-copy";
+import { loadMaxSiteByProfileId, loadTalentSiteIdentity } from "@/lib/talent-site/server/load-max-site";
+import { resolveGatedTalentProfileId } from "@/lib/talent-site/server/talent-site-host-gate";
 
 type Props = { searchParams: Promise<{ requested?: string | string[] }> };
 
@@ -23,28 +32,81 @@ async function copyFor(props: Props) {
   });
 }
 
+const loadTalentBrand = cache(async (): Promise<{ name: string | null; logoUrl: string | null }> => {
+  try {
+    const h = await headers();
+    const talentProfileId = resolveGatedTalentProfileId({
+      hostContext: h.get(HOST_CONTEXT_HEADER),
+      talentProfileId: h.get(HOST_TALENT_PROFILE_HEADER),
+    });
+    if (!talentProfileId) return { name: null, logoUrl: null };
+    const [site, identity] = await Promise.all([
+      loadMaxSiteByProfileId(talentProfileId),
+      loadTalentSiteIdentity(talentProfileId),
+    ]);
+    return { name: talentNoticeDisplayName(identity), logoUrl: site?.logoUrl ?? null };
+  } catch {
+    return { name: null, logoUrl: null };
+  }
+});
+
 export async function generateMetadata(props: Props): Promise<Metadata> {
-  const copy = await copyFor(props);
+  const [copy, brand] = await Promise.all([copyFor(props), loadTalentBrand()]);
   return {
-    title: { absolute: copy.title },
+    title: { absolute: brand.name ? `${brand.name} · ${copy.title}` : copy.title },
     robots: { index: false, follow: false },
   };
 }
 
 export default async function TalentLocaleUnavailablePage(props: Props) {
-  const copy = await copyFor(props);
+  const [copy, brand] = await Promise.all([copyFor(props), loadTalentBrand()]);
   return (
     <div
       lang={copy.lang}
       style={{
         minHeight: "100dvh",
         display: "flex",
+        flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
+        gap: 20,
         padding: "48px 24px",
         background: "#FAFAF7",
       }}
     >
+      {brand.name || brand.logoUrl ? (
+        <Link
+          href="/"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 10,
+            color: "#0B0B0D",
+            textDecoration: "none",
+          }}
+        >
+          {brand.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- talent logo is any remote host
+            <img
+              src={brand.logoUrl}
+              alt={brand.name ?? ""}
+              style={{ height: 36, width: "auto", maxWidth: 160, objectFit: "contain" }}
+            />
+          ) : null}
+          {brand.name ? (
+            <span
+              style={{
+                fontFamily: '"Inter", system-ui, sans-serif',
+                fontSize: 17,
+                fontWeight: 600,
+                letterSpacing: -0.2,
+              }}
+            >
+              {brand.name}
+            </span>
+          ) : null}
+        </Link>
+      ) : null}
       <div
         style={{
           width: "100%",
