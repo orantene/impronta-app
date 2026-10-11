@@ -11,6 +11,7 @@ import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { authPageBrand } from "@/lib/client-account/agency-area-pure";
 import { clientAccountEnabledFor } from "@/lib/client-account/flag";
+import { dashboardTabTitle } from "@/i18n/dashboard-metadata";
 import { getRequestLocale, ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { getMarketingCopy } from "@/lib/marketing/copy";
@@ -33,9 +34,11 @@ const AUTH_ROBOTS: Metadata = { robots: { index: false, follow: false } };
  */
 export async function generateMetadata(): Promise<Metadata> {
   const ctx = await getPublicHostContext();
-  if (ctx.kind !== "agency" && ctx.kind !== "hub") return AUTH_ROBOTS;
+  // TUL-518: the root default title is the English brand line; follow the page language.
+  const localized: Metadata = { ...AUTH_ROBOTS, title: { absolute: dashboardTabTitle(await getRequestLocale()) } };
+  if (ctx.kind !== "agency" && ctx.kind !== "hub") return localized;
   // TUL-64: flag kind matches x-impronta-host-context (agency / hub), not `app`.
-  if (!clientAccountEnabledFor(ctx.kind)) return AUTH_ROBOTS;
+  if (!clientAccountEnabledFor(ctx.kind)) return localized;
   const [identity, whitelabel] = await Promise.all([
     loadPublicIdentity(ctx.tenantId).catch(() => null),
     loadTenantWhitelabel(ctx.tenantId).catch(() => false),
@@ -46,7 +49,7 @@ export async function generateMetadata(): Promise<Metadata> {
     whitelabel,
     publicName: identity?.public_name,
   });
-  return brand ? { ...AUTH_ROBOTS, title: { absolute: brand.title } } : AUTH_ROBOTS;
+  return brand ? { ...AUTH_ROBOTS, title: { absolute: brand.title } } : localized;
 }
 
 /** What the layout needs beyond the brand object itself. */
