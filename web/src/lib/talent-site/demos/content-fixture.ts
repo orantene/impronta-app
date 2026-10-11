@@ -140,6 +140,10 @@ export interface FixtureTranslation {
   menu?: { title: string; subtitle: string };
   /** Task picker section title (item labels stay on `tasks`). */
   tasksTitle?: string;
+  /** Job-card captions (Gridline), in `portfolio.items` order: written to `metadata.caption_i18n.<lang>`. */
+  portfolio?: Array<{ title: string; caption: string }>;
+  /** Area note under the zone chips (Gridline): written on the area `visit` node as `props.i18n.<lang>.arrivalNote`. */
+  arrivalNote?: string;
 }
 
 export interface DemoContentFixture {

@@ -203,6 +203,25 @@ test("faq, areas and captions: planned from the fixture, idempotent, home base u
   assert.deepEqual(planCaptionOps(loadDemoContentFixture("maison-v2"), gallery), []);
 });
 
+test("TUL-572: bilingual Gridline demos write the English job captions to caption_i18n.en", () => {
+  for (const f of [loadDemoContentFixture("gridline"), fx("TAL-93212")]) {
+    const en = f.translations!.en!.portfolio!;
+    assert.equal(en.length, f.portfolio.items.length, f.profileCode);
+    const gallery = Array.from({ length: 6 }, (_, i) => ({ id: `m${i}`, metadata: { source: "ai", caption_i18n: { fr: "x" } } }));
+    const caps = planCaptionOps(f, gallery);
+    assert.equal(caps.length, 6, f.profileCode);
+    caps.forEach((c, i) => {
+      const meta = c.metadata as { caption: string; caption_i18n: Record<string, string> };
+      assert.equal(meta.caption, `${f.portfolio.items[i]!.title}\n${f.portfolio.items[i]!.caption}`);
+      assert.deepEqual(meta.caption_i18n, { fr: "x", en: `${en[i]!.title}\n${en[i]!.caption}` });
+      assert.doesNotMatch(meta.caption_i18n.en!, /\bOT-|\b(de|con|día|lámparas?|revisión)\b/i, `${f.profileCode} job ${i}`);
+    });
+    const done = gallery.map((g, i) => ({ ...g, metadata: caps[i]!.metadata }));
+    assert.deepEqual(planCaptionOps(f, done), [], `${f.profileCode} idempotent`);
+    assert.match(f.translations!.en!.arrivalNote!, /^Outside this area/);
+  }
+});
+
 test("restore: a backup without the newer tables leaves service areas and photos alone", () => {
   const before = emptySnapshot();
   const current = emptySnapshot();
