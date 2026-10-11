@@ -232,7 +232,7 @@ export async function renderMaxSiteDocument(args: {
     loadUsdRatesForSitePrices([
       ...talentOfferings,
       ...(dataSources.menuOfferings ?? []),
-    ]),
+    ], locale),
   );
   // D-MSG-421 loads offerings for the talent vanity even when there is no
   // agency `tenantId` (so `loadBuilderNodeDataSources` is skipped). Merge them
@@ -318,6 +318,7 @@ export async function renderMaxSiteDocument(args: {
   const whitelabel = tenantId
     ? await timed("maxSite.whitelabel", () => loadTenantWhitelabel(tenantId))
     : false;
+  const headerSiteLocales = { locales: args.localeCtx.settings.supportedLocales, hrefs: args.localeCtx.switcherHrefs };
   const socketModel = buildSocketModel({
     locale,
     publicPathPrefix,
@@ -369,7 +370,7 @@ export async function renderMaxSiteDocument(args: {
                 mode: "freeform",
                 includeRendererStyles: false,
                 includeFontLinks: false,
-                dataSources: { liveStatus },
+                dataSources: { liveStatus, siteLocales: headerSiteLocales },
                 captcha: formCaptchaConfig,
                 bookingCaptcha: bookingCaptchaConfig,
                 visitorLocale: locale,
@@ -388,7 +389,7 @@ export async function renderMaxSiteDocument(args: {
           mode: "freeform",
           includeRendererStyles: false,
           includeFontLinks: false,
-          dataSources: { liveStatus },
+          dataSources: { liveStatus, siteLocales: headerSiteLocales },
           captcha: formCaptchaConfig,
           bookingCaptcha: bookingCaptchaConfig,
           visitorLocale: locale,
@@ -499,7 +500,7 @@ export async function renderMaxSiteDocument(args: {
               mode: "freeform",
               includeRendererStyles: false,
               includeFontLinks: false,
-              dataSources: { liveStatus },
+              dataSources: { liveStatus, siteLocales: headerSiteLocales },
               captcha: formCaptchaConfig,
               bookingCaptcha: bookingCaptchaConfig,
               visitorLocale: locale,
