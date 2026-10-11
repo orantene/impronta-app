@@ -19646,6 +19646,7 @@
             "acceptedPayNext": "Aceptada. Siguiente paso: paga el depósito para confirmar.",
             "acceptedPayLater": "Aceptada. {business} te enviará un enlace de pago para confirmar.",
             "acceptedPaid": "Aceptada. Pago recibido.",
+            "acceptedRefunded": "Aceptada. Tu pago fue reembolsado.",
             "declined": "Rechazada",
             "expired": "Esta oferta venció. Pide una nueva a {business}.",
             "superseded": "Una versión más reciente reemplazó esta oferta.",

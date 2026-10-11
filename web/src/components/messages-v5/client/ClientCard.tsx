@@ -46,8 +46,8 @@ export type ClientCardProps = {
   readonly payCode: string | null;
   /** Ids of the offer rows that draw the live offer card (`offerCardMessageIds`). */
   readonly offerCards: ReadonlySet<string>;
-  /** A paid money card is already on the thread. */
-  readonly paid?: boolean;
+  /** Where the thread's money stands: paid, fully refunded, or nothing yet. */
+  readonly payment?: "paid" | "refunded" | null;
   readonly actions: ClientCardActions;
   /** Prefills the composer. The expired-hold Ask button uses it. */
   readonly onAsk?: (text: string) => void;
@@ -67,7 +67,7 @@ export function clientCardActivityKey(message: Pick<ThreadMessage, "id" | "paylo
   return offerId ?? recordId ?? message.id;
 }
 
-export function ClientCard({ message, kind, copy, kit, locale, business, now, offers, payCode, offerCards, paid = false, actions, onAsk, offerAcceptLabel, offerSignInOfferId, offerSignInPanel }: ClientCardProps) {
+export function ClientCard({ message, kind, copy, kit, locale, business, now, offers, payCode, offerCards, payment = null, actions, onAsk, offerAcceptLabel, offerSignInOfferId, offerSignInPanel }: ClientCardProps) {
   const act = (key: string): CardActivity => actions.activity[key] ?? { phase: "idle" };
   const payload = message.payload;
   const outcome = ClientOutcomeFromMessage({
@@ -139,7 +139,7 @@ export function ClientCard({ message, kind, copy, kit, locale, business, now, of
           phase={a.phase}
           refusal={a.refusal}
           payCode={payCode}
-          paid={paid}
+          payment={payment}
           onAccept={actions.onAcceptOffer}
           onDecline={actions.onDeclineOffer}
           onChange={(o, text) => actions.onChangeRecord("offer", o.id, text, o.id)}

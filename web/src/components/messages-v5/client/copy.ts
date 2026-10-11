@@ -97,6 +97,7 @@ export function buildClientCopy(t: Translator) {
       acceptedPayNext: t("dashboard.messagesV5.client.link.offer.acceptedPayNext"),
       acceptedPayLater: t("dashboard.messagesV5.client.link.offer.acceptedPayLater"),
       acceptedPaid: t("dashboard.messagesV5.client.link.offer.acceptedPaid"),
+      acceptedRefunded: t("dashboard.messagesV5.client.link.offer.acceptedRefunded"),
       declined: t("dashboard.messagesV5.client.link.offer.declined"),
       expired: t("dashboard.messagesV5.client.link.offer.expired"),
       superseded: t("dashboard.messagesV5.client.link.offer.superseded"),
