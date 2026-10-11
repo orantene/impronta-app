@@ -7,7 +7,7 @@ function Block({ className }: { className?: string }) {
   return (
     <div
       className={`animate-pulse rounded-md ${className ?? ""}`}
-      style={{ background: "var(--plt-bg-deep, #ece8e1)" }}
+      style={{ background: "var(--tl-surface-deep)" }}
     />
   );
 }
@@ -19,7 +19,7 @@ export default function GlobalDirectoryLoading() {
       data-platform-surface="marketing"
       aria-busy="true"
       className="mx-auto w-full max-w-7xl flex-1 px-4 py-10 sm:px-6 lg:px-8"
-      style={{ background: "var(--plt-bg, #f7f4ee)", color: "var(--plt-ink, #171411)" }}
+      style={{ background: "var(--tl-bone)", color: "var(--tl-ink)" }}
     >
       <Block className="h-3 w-24" />
       <Block className="mt-4 h-9 w-72 max-w-full" />
