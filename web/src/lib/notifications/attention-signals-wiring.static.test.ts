@@ -10,14 +10,16 @@ import { test } from "node:test";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 
-test("talent layout adds the signals to the Attention count and the bridge", () => {
+test("signals reach the bridge and the Atención bubble, not Hoy's needs-reply count", () => {
   const src = read("../../app/(workspace)/talent/_talent-layout-inner.tsx");
   assert.match(src, /loadTalentAttentionSignals\(talentSelfProfile\.id\)/);
   assert.match(
     src,
-    /attention: sanitizeShellCount\(\s*countTalentAwaitingInquiries\(talentInquiries\) \+ \(talentAttentionSignals\?\.length \?\? 0\)/,
+    /attention: sanitizeShellCount\(\s*talentInboxSummary\?\.needsReply \?\? countTalentAwaitingInquiries\(talentInquiries\),/,
   );
   assert.match(src, /talentAttentionSignals,/);
+  const bubble = read("../../components/admin/shell/internal/shell-count-bubbles.tsx");
+  assert.match(bubble, /const signals = inWorkspace \? 0 : \(bridgeTalentAttentionSignals\?\.length \?\? 0\);/);
 });
 
 test("server loader is read-only and never throws", () => {

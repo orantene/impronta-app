@@ -288,8 +288,8 @@ export type BridgeData = {
     | null;
   /**
    * TUL-392: derived Attention signals (theme update waiting, site needs
-   * publish). Already counted in `shellCounts.attention`; the bell and the
-   * talent notifications drawer list them. `null` = not loaded / unknown.
+   * publish). The Atención bubble adds them to `shellCounts.attention`; the
+   * bell and the talent notifications drawer list them. `null` = not loaded.
    */
   talentAttentionSignals?:
     | import("@/lib/notifications/attention-signals").TalentAttentionSignal[]
