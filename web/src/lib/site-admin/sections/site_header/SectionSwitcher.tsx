@@ -46,7 +46,7 @@ export function SectionSwitcher({
   const activeIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const kept = links.flatMap((link) => {
+    const kept = links.flatMap((link): Array<{ link: SwitcherLink; el: HTMLElement | null }> => {
       const id = hashTargetOf(link.href);
       if (id === null) return [];
       // Off the home page, dead-section-links rewrites `#services` → `/#services`.
