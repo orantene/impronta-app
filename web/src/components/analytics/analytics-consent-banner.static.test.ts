@@ -95,3 +95,10 @@ test("TUL-561: every inline tag snippet reads consent through the shared region-
 test("consent banner does not enable unfinished talent consent tooling", () => {
   assert.doesNotMatch(src, /TALENT_SITE_CONSENT_TOOLING_ENABLED/);
 });
+
+test("TUL-528: consent opens in useLayoutEffect and re-syncs when guest chat panel leaves", () => {
+  assert.match(src, /useLayoutEffect/);
+  assert.match(src, /data-guest-chat-panel/);
+  assert.match(src, /MutationObserver/);
+  assert.match(src, /syncOpen/);
+});
