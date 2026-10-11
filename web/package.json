@@ -52,6 +52,7 @@
     "test:alias-guard": "node --test scripts/lib/alias-guard.test.mjs scripts/lib/public-talent-hosts.test.mjs scripts/lib/smoke-decisions.test.mjs scripts/baseline/gen-baseline.test.mjs scripts/baseline/baseline-plan.test.mjs scripts/cleanup/cleanup-qa-onb-choice-users.test.mjs",
     "deploy:smoke": "node scripts/post-deploy-smoke-test.mjs",
     "qa:host": "node scripts/qa-host.mjs",
+    "qa:stall-probe": "node scripts/talent-site-stall-probe.mjs",
     "test:wt": "bash scripts/dev/test-in-worktree.sh",
     "qa:sync-test-talent": "node scripts/sync-qa-talent-from-real.mjs",
     "test:sync-test-talent": "node --test scripts/lib/sync-qa-talent.test.mjs scripts/lib/site-design-drift.test.mjs scripts/lib/qa-test-service.test.mjs",
