@@ -84,6 +84,19 @@ test("folio authored version: buildPayload, designTokenDefaults and the sync rul
   assert.equal(checkAuthoredChannelGate("optin", { version: V + 1, source: "authored" }, authoredOverlayVersion("folio")).ok, false);
 });
 
+test("maison-v2 overlay reflects v24's hero padding and keeps the footer bindings", () => {
+  assert.equal(authoredOverlayVersion("maison-v2"), 24);
+  const shipped = COLLECTION_DESIGNS.find((d) => d.slug === "maison-v2")!.buildPayload();
+  const json = JSON.stringify(shipped.shellTree);
+  for (const token of ["{{footerIntro}}", "{{footerWhere}}", "{{footerHours}}", "{{footerContact}}"]) {
+    assert.ok(json.includes(token), `maison-v2 footer keeps ${token}`);
+  }
+  assert.ok(!json.includes("\u200b"), "no zero-width placeholder text in the maison-v2 shell");
+  const hero = shipped.homeTree.find((n) => (n as unknown as { designKey?: string }).designKey === "hero");
+  assert.equal((props(hero ?? shipped.homeTree[0]!).style as { paddingTop?: string }).paddingTop, "57px");
+  assert.equal(checkAuthoredChannelGate("optin", { version: 24, source: "authored" }, authoredOverlayVersion("maison-v2")).ok, true);
+});
+
 // ---- round-trip property ---------------------------------------------------
 
 function firstWithKids(tree: BuilderNode[]): BuilderNode | null {

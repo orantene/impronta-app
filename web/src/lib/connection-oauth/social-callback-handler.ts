@@ -10,17 +10,24 @@ import {
 } from "./providers";
 import { connectionPopupResponse } from "./popup-response";
 import { verifyConnectionOAuthState } from "./state";
-import { connectWorkspaceSocialAccount } from "./social-connect";
+import {
+  connectTalentInstagramAccount,
+  connectWorkspaceSocialAccount,
+} from "./social-connect";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { requireSession } from "@/lib/server/action-guards";
 import { logServerError } from "@/lib/server/safe-error";
+import {
+  assertTalentCanInsertSiteSections,
+  requireTalentSelf,
+} from "@/lib/server/talent-self-guard";
 
 /**
  * One OAuth-callback handler for both social feed vendors.
  *
  * The Google/YouTube callback predates this and owns three OWNER kinds
- * (talent / client / workspace); the feed providers are workspace-only, so this
- * stays deliberately narrow rather than being generalised into that route.
+ * (talent / client / workspace). Here: workspace for both vendors, talent for
+ * Instagram only (the paid personal-site feed). Client stays refused.
  *
  * Every failure path redirects back with a `connection_error` code instead of
  * rendering an error page — the operator started in Settings and must land back
@@ -64,6 +71,44 @@ export async function handleSocialOAuthCallback(
   const session = await requireSession();
   if (!session.ok || session.user.id !== stateResult.state.actorUserId) {
     return redirectBack(returnTo, { connection_error: "not_authorized" });
+  }
+
+  if (stateResult.state.owner === "talent") {
+    if (provider !== "instagram") {
+      return redirectBack(returnTo, { connection_error: "unsupported_owner" });
+    }
+    // The signed state names the profile; the live session must still own it
+    // and still be on a plan that includes the feed block.
+    const guard = await requireTalentSelf();
+    if (
+      !guard.ok ||
+      guard.session.user.id !== session.user.id ||
+      guard.talentProfile.id !== stateResult.state.subjectId ||
+      !assertTalentCanInsertSiteSections(guard.planKey)
+    ) {
+      return redirectBack(returnTo, { connection_error: "not_authorized" });
+    }
+    try {
+      const result = await connectTalentInstagramAccount({
+        talentProfileId: guard.talentProfile.id,
+        actorUserId: session.user.id,
+        code,
+        redirectUri: getConnectionOAuthRedirectUri(providerDef, getAppUrl()),
+      });
+      if (!result.ok) {
+        return redirectBack(returnTo, {
+          connection_error: "connect_failed",
+          connection_message: result.error,
+        });
+      }
+      return redirectBack(returnTo, {
+        connection_success: provider,
+        connection_account: result.label,
+      });
+    } catch (err) {
+      logServerError(`connection_oauth.${provider}_talent_callback`, err);
+      return redirectBack(returnTo, { connection_error: "save_failed" });
+    }
   }
 
   if (stateResult.state.owner !== "workspace") {

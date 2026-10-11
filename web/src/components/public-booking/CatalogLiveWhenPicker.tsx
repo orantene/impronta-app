@@ -11,6 +11,9 @@ import {
 } from "./catalog-booking-logic";
 import type { CatalogTakenSlotNotice } from "./catalog-taken-slot";
 import { CatalogTakenSlotNoticeView } from "./CatalogTakenSlotNotice";
+import { selectedDayScrollLeft } from "./catalog-selected-day-scroll";
+
+export { selectedDayScrollLeft } from "./catalog-selected-day-scroll";
 
 /** Scroll the strip so the selected day is visible (mount and whenever the pick changes). */
 export function useScrollSelectedDayIntoView(dayIndex: number, count: number) {
@@ -19,8 +22,7 @@ export function useScrollSelectedDayIntoView(dayIndex: number, count: number) {
     const strip = ref.current;
     const el = strip?.querySelector<HTMLElement>('[data-on="true"]');
     if (!strip || !el) return;
-    const left = el.offsetLeft - (strip.clientWidth - el.offsetWidth) / 2;
-    strip.scrollLeft = Math.max(0, left);
+    strip.scrollLeft = selectedDayScrollLeft(strip, el);
   }, [dayIndex, count]);
   return ref;
 }

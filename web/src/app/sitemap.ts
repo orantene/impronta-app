@@ -182,10 +182,11 @@ async function loadPlatformTalentSitemapEntries(): Promise<MetadataRoute.Sitemap
 
 /**
  * Sitemap for a talent site HOST (`<name>.<apex>` / talent custom domain): the
- * site's own published pages at the host's origin. Gated the same way the page
- * route is (published site + plan gate + plan page scoping), AND on the
- * talent's public-listing predicates used for the platform sitemap, so a
- * hidden / unlisted / deleted talent advertises nothing.
+ * site's own published pages at the host's origin. Gated like the page route
+ * (alive profile + published site + plan gate + plan page scoping). Directory
+ * listing flags (`is_publicly_listed` / `visibility`) belong only on the
+ * platform `/t/<code>` sitemap — a live unlisted QA host (e.g. jorg-beauty-qa)
+ * still serves pages and must advertise them (TUL-534 / GRK-096).
  */
 async function loadTalentSiteHostSitemapEntries(base: URL): Promise<MetadataRoute.Sitemap> {
   const admin = createServiceRoleClient();
@@ -208,8 +209,6 @@ async function loadTalentSiteHostSitemapEntries(base: URL): Promise<MetadataRout
     .eq("id", talentProfileId)
     .is("deleted_at", null)
     .eq("is_publicly_hidden", false)
-    .eq("is_publicly_listed", true)
-    .eq("visibility", "public")
     .neq("profile_kind", "resource")
     .maybeSingle();
   if (profileError || !profile) return [];

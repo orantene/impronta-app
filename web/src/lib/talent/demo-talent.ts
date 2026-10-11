@@ -10,8 +10,8 @@ import { logServerError } from "@/lib/server/safe-error";
  */
 
 export const DEMO_SITE_FOOTER = {
-  es: "Perfil de demostración. Las reservas están desactivadas.",
-  en: "Demo profile. Bookings are simulated.",
+  es: "Las reservas están desactivadas.",
+  en: "Bookings are disabled.",
 } as const;
 
 export const DEMO_SUBMIT_REFUSAL =

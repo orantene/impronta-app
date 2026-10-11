@@ -75,10 +75,11 @@ export type TalentNotif = {
   target?: TalentNotifTarget;
 };
 
+/** Message keys (`dashboard.talentNotifications.*`), rendered through `t()`. */
 export const NOTIF_CATEGORY_META: Record<NotifCategory, { label: string; hint: string }> = {
-  action: { label: "Action needed", hint: "stays here until you respond" },
-  system: { label: "Setup", hint: "auto-clears when complete" },
-  update: { label: "Updates", hint: "dismissible" },
+  action: { label: "dashboard.talentNotifications.categoryAction", hint: "dashboard.talentNotifications.categoryActionHint" },
+  system: { label: "dashboard.talentNotifications.categorySystem", hint: "dashboard.talentNotifications.categorySystemHint" },
+  update: { label: "dashboard.talentNotifications.categoryUpdate", hint: "dashboard.talentNotifications.categoryUpdateHint" },
 };
 
 /**
