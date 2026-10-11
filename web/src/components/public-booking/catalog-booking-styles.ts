@@ -59,7 +59,8 @@ export const CATALOG_BOOKING_CSS = `
 .jb-empty{margin-top:18px;border:1px dashed var(--cb-edge);border-radius:14px;padding:22px;text-align:center}
 .jb-empty strong{display:block;margin-bottom:6px;font-size:.9375rem}
 .jb-empty p{margin:0;font-size:.875rem;color:var(--cb-muted);line-height:1.55}
-.jb-empty .jb-ask{display:inline-block;margin-top:14px;padding:10px 4px;text-align:center;text-decoration:underline;text-underline-offset:3px}
+.jb-empty .jb-ask,.jb-empty .jb-try-date{display:inline-block;margin-top:14px;padding:10px 4px;text-align:center;text-decoration:underline;text-underline-offset:3px;appearance:none;border:0;background:transparent;color:inherit;font:inherit;cursor:pointer}
+.jb-empty .jb-ask{margin-top:8px}
 .jb-field{display:grid;gap:6px;margin-bottom:16px}
 .jb-field span{font-size:.875rem;font-weight:600;display:flex;align-items:center;gap:8px}
 .jb-field span i{font-style:normal;font-size:.6875rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--cb-muted);background:var(--cb-soft);border-radius:99px;padding:3px 8px}

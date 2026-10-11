@@ -293,6 +293,14 @@ export function firstOpenDemoDayIndex(days: readonly Date[]): number {
   return index >= 0 ? index : 0;
 }
 
+/** Next open demo day after `fromIndex` (Sunday closed). Null when none remain. */
+export function nextOpenDemoDayIndex(days: readonly Date[], fromIndex: number): number | null {
+  for (let i = fromIndex + 1; i < days.length; i += 1) {
+    if (days[i]!.getDay() !== 0) return i;
+  }
+  return null;
+}
+
 export function localDayKey(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -300,10 +308,15 @@ export function localDayKey(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+/** Public catalog sheet window — same length the slots fetch requests. */
+export const LIVE_SLOT_STRIP_DAYS = 14;
+
+export type LiveDayStripEntry = { key: string; date: Date; starts: string[] };
+
 export function groupIsoSlotsByDay(
   slots: string[],
   timezone: string,
-): Array<{ key: string; date: Date; starts: string[] }> {
+): LiveDayStripEntry[] {
   const map = new Map<string, { date: Date; starts: string[] }>();
   for (const start of slots) {
     const key = ymdInTimezone(start, timezone);
@@ -317,6 +330,69 @@ export function groupIsoSlotsByDay(
   return [...map.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([key, v]) => ({ key, date: v.date, starts: v.starts }));
+}
+
+/**
+ * Continuous day strip for the live when-step (TUL-531 / GRK-003).
+ *
+ * Days without free starts stay in the strip so an empty today (after hours,
+ * closed weekday, fully booked) is visible and "try another date" can move
+ * the selection forward. Previously only days with slots were listed, so the
+ * empty copy's "Prueba otra fecha" had nowhere to go.
+ */
+export function buildLiveDayStrip(input: {
+  slots: readonly string[];
+  timezone: string;
+  fromYmd: string;
+  dayCount?: number;
+}): LiveDayStripEntry[] {
+  const count = Math.max(1, input.dayCount ?? LIVE_SLOT_STRIP_DAYS);
+  const byDay = new Map<string, string[]>();
+  for (const start of input.slots) {
+    const key = ymdInTimezone(start, input.timezone);
+    const list = byDay.get(key);
+    if (list) list.push(start);
+    else byDay.set(key, [start]);
+  }
+  const out: LiveDayStripEntry[] = [];
+  let ymd = input.fromYmd;
+  for (let i = 0; i < count; i += 1) {
+    out.push({ key: ymd, date: dateFromYmd(ymd), starts: byDay.get(ymd) ?? [] });
+    const next = addCalendarDays(ymd, 1);
+    if (!next) break;
+    ymd = next;
+  }
+  return out;
+}
+
+/** First strip index that still has free starts; 0 when the strip is empty or fully closed. */
+export function firstDayWithSlotsIndex(days: readonly { starts: readonly string[] }[]): number {
+  const index = days.findIndex((d) => d.starts.length > 0);
+  return index >= 0 ? index : 0;
+}
+
+/**
+ * Next strip index after `fromIndex` that has free starts.
+ * Null when nothing later in the window is open (caller keeps consult).
+ */
+export function nextDayWithSlotsIndex(
+  days: readonly { starts: readonly string[] }[],
+  fromIndex: number,
+): number | null {
+  for (let i = fromIndex + 1; i < days.length; i += 1) {
+    if (days[i]!.starts.length > 0) return i;
+  }
+  return null;
+}
+
+/** YYYY-MM-DD plus N calendar days (UTC date arithmetic on the YMD parts). */
+export function addCalendarDays(ymd: string, days: number): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
+  if (!m) return null;
+  const dt = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  if (Number.isNaN(dt.getTime())) return null;
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
 }
 
 export function ymdInTimezone(iso: string, timezone: string): string {

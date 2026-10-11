@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  addCalendarDays,
+  buildLiveDayStrip,
   offeringPriceUnit,
   catalogBookingDurationMinutes,
   catalogCanContinueWhen,
@@ -15,7 +17,11 @@ import {
   catalogTotalCents,
   catalogWillWriteBooking,
   demoSlotsFor,
+  firstDayWithSlotsIndex,
   firstOpenDemoDayIndex,
+  LIVE_SLOT_STRIP_DAYS,
+  nextDayWithSlotsIndex,
+  nextOpenDemoDayIndex,
   resolveCatalogConfirmOutcome,
   submitCatalogBooking,
 } from "./catalog-booking-logic";
@@ -133,6 +139,40 @@ test("the demo strip does not open on a leading Sunday", () => {
   assert.equal(firstOpenDemoDayIndex([sunday, monday]), 1);
   assert.equal(firstOpenDemoDayIndex([monday]), 0);
   assert.equal(firstOpenDemoDayIndex([sunday]), 0);
+});
+
+test("TUL-531: live strip keeps empty days and jumps to the next free date", () => {
+  assert.equal(addCalendarDays("2026-10-10", 1), "2026-10-11");
+  assert.equal(LIVE_SLOT_STRIP_DAYS, 14);
+  const slots = [
+    "2026-10-12T15:00:00.000Z", // Cancun 10:00 on the 12th
+    "2026-10-12T16:00:00.000Z",
+    "2026-10-14T15:00:00.000Z",
+  ];
+  const strip = buildLiveDayStrip({
+    slots,
+    timezone: "America/Cancun",
+    fromYmd: "2026-10-10",
+    dayCount: 7,
+  });
+  assert.equal(strip.length, 7);
+  assert.equal(strip[0]!.key, "2026-10-10");
+  assert.equal(strip[0]!.starts.length, 0);
+  assert.equal(strip[2]!.key, "2026-10-12");
+  assert.equal(strip[2]!.starts.length, 2);
+  assert.equal(firstDayWithSlotsIndex(strip), 2);
+  assert.equal(nextDayWithSlotsIndex(strip, 0), 2);
+  assert.equal(nextDayWithSlotsIndex(strip, 2), 4);
+  assert.equal(nextDayWithSlotsIndex(strip, 4), null);
+});
+
+test("TUL-531: demo next open day skips Sunday", () => {
+  const sunday = new Date(2026, 9, 4);
+  const monday = new Date(2026, 9, 5);
+  const tuesday = new Date(2026, 9, 6);
+  assert.equal(nextOpenDemoDayIndex([sunday, monday, tuesday], 0), 1);
+  assert.equal(nextOpenDemoDayIndex([sunday, monday, tuesday], 1), 2);
+  assert.equal(nextOpenDemoDayIndex([sunday, monday, tuesday], 2), null);
 });
 
 test("row CTA follows Maison labels", () => {

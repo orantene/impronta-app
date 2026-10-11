@@ -26,6 +26,7 @@ import {
   type CatalogBookingSelection,
 } from "./catalog-booking-chat";
 import {
+  buildLiveDayStrip,
   catalogBookingDurationMinutes,
   catalogCanContinueWhen,
   catalogDayKey,
@@ -36,9 +37,10 @@ import {
   catalogSlotDateLabel,
   catalogTotalCents,
   demoSlotsFor,
+  firstDayWithSlotsIndex,
   firstOpenDemoDayIndex,
   formatClock,
-  groupIsoSlotsByDay,
+  LIVE_SLOT_STRIP_DAYS,
   type CatalogBookingMode,
 } from "./catalog-booking-logic";
 import {
@@ -261,21 +263,34 @@ export function CatalogBookingSheet({
       .then((r) => {
         if (cancelled) return;
         setLiveTz(r.timezone);
-        const grouped = groupIsoSlotsByDay(r.slots, r.timezone);
-        setLiveDays(grouped);
+        // TUL-531: continuous 14-day strip (empty days kept) so "Prueba otra fecha" can jump.
+        // Prefer the fetch's `from`; fall back to the earliest returned slot day so fixture
+        // mocks without fromYmd still land inside the strip.
+        const fromYmd =
+          r.fromYmd ??
+          r.slots.map((s) => s.slice(0, 10)).sort()[0] ??
+          new Date().toISOString().slice(0, 10);
+        const strip = buildLiveDayStrip({
+          slots: r.slots,
+          timezone: r.timezone,
+          fromYmd,
+          dayCount: LIVE_SLOT_STRIP_DAYS,
+        });
+        setLiveDays(strip);
         // TUL-232: opened at a slot: select it, or fall back to its day / the first day with the notice.
-        const arrival = slotArrivalPlan(pendingSlotRef.current, grouped, r.timezone, locale);
+        const arrival = slotArrivalPlan(pendingSlotRef.current, strip, r.timezone, locale);
         pendingSlotRef.current = null;
         if (arrival) { setDayIndex(arrival.dayIndex); setTime(arrival.time); setLiveStarts(arrival.liveStarts); setTakenNotice(arrival.notice); return; }
         // BUF-6: keep the pick only when that ISO is still offered; otherwise
         // clear clock + ISO so confirm cannot send a start that no longer fits.
         const prev = liveStartsRef.current;
         if (catalogSelectedStartStillOpen(prev, r.slots)) {
-          const idx = grouped.findIndex((d) => d.starts.includes(prev!));
+          const idx = strip.findIndex((d) => d.starts.includes(prev!));
           if (idx >= 0) setDayIndex(idx);
           return;
         }
-        setDayIndex(0);
+        // Land on the first free day in the window (today may be closed after hours).
+        setDayIndex(firstDayWithSlotsIndex(strip));
         setTime(null);
         setLiveStarts(null);
       })
