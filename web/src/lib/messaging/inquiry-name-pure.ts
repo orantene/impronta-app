@@ -6,21 +6,17 @@
  * these two live here and `inquiry-name.ts` re-exports them unchanged.
  */
 
-const VISITOR_FALLBACK_NAME = "Visitor";
+/** Stored/derived name for an inquiry whose contact never gave one. English data, not UI copy. */
+export const VISITOR_FALLBACK_NAME = "Visitor";
 
 export function fallbackName(contactName: string): string {
   const trimmed = contactName.trim();
   return trimmed === "" ? VISITOR_FALLBACK_NAME : trimmed;
 }
 
-/**
- * Display form of an inquiry name or subject. The stored fallback for a
- * nameless contact is the English "Visitor" (rename + action logs key off it),
- * so UI shows the caller's localized visitor label instead.
- */
-export function displayInquiryName(name: string, visitorLabel: string): string {
-  const trimmed = name.trim();
-  return trimmed === "" || trimmed === VISITOR_FALLBACK_NAME ? visitorLabel : trimmed;
+/** Display form of an inquiry name or subject: the English visitor fallback reads in the UI's language. */
+export function localiseInquiryName(name: string, visitorLabel: string): string {
+  return name.trim() === VISITOR_FALLBACK_NAME ? visitorLabel : name;
 }
 
 /**

@@ -20750,6 +20750,8 @@
       "detail": {
         "workflowDetail": "Workflow detail",
         "backToPipeline": "← Pipeline",
+        "notFoundTitle": "This request isn't in this workspace",
+        "notFoundBody": "It may belong to another workspace or to the Tulala marketplace, or it was removed. Open it from the workspace it belongs to.",
         "messages": "💬 Messages",
         "createBooking": "+ Create booking",
         "viewBooking": "View booking →",

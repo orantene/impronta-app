@@ -6,7 +6,7 @@
  */
 
 import { localiseEngineLine } from "@/lib/messages-v5/engine-lines";
-import { displayInquiryName } from "@/lib/messaging/inquiry-name-pure";
+import { localiseInquiryName } from "@/lib/messaging/inquiry-name-pure";
 import type { InboxRow } from "@/lib/messaging/types";
 
 import type { KitCopy } from "./copy";
@@ -29,7 +29,7 @@ export type InboxRowV5Props = {
 export function InboxRowV5({ row, copy, selected, variant = "desktop", currentUserId, now = new Date(), locale, onOpen, seller }: InboxRowV5Props) {
   const name = row.contactName.trim() || copy.inbox.visitor;
   const isVisitor = !row.contactName.trim();
-  const subject = row.subject ? displayInquiryName(row.subject, copy.inbox.visitor) : row.subject;
+  const subject = localiseInquiryName(row.subject, copy.inbox.visitor);
   const state = { conversation: row.conversationState, opportunity: row.opportunityState, records: [] };
   const stamp = row.lastCustomerMessageAt ?? row.updatedAt;
   const needsReply = row.conversationState === "needs_reply";
