@@ -135,13 +135,13 @@ export function switchChangeCount(
     acceptingBookings: boolean;
     acceptingInquiries: boolean;
     chatEnabled: boolean;
-    chatConfig?: { aiBookingAssistantEnabled?: boolean };
+    chatConfig?: { aiBookingAssistantEnabled?: boolean; agentBookingEnabled?: boolean };
   },
   draft: {
     acceptingBookings: boolean;
     acceptingInquiries: boolean;
     chatEnabled: boolean;
-    chatConfig?: { aiBookingAssistantEnabled?: boolean };
+    chatConfig?: { aiBookingAssistantEnabled?: boolean; agentBookingEnabled?: boolean };
   },
 ): number {
   const top = (["acceptingBookings", "acceptingInquiries", "chatEnabled"] as const).filter(
@@ -149,7 +149,9 @@ export function switchChangeCount(
   ).length;
   const aiSaved = saved.chatConfig?.aiBookingAssistantEnabled === true;
   const aiDraft = draft.chatConfig?.aiBookingAssistantEnabled === true;
-  return top + (aiSaved !== aiDraft ? 1 : 0);
+  const agentSaved = saved.chatConfig?.agentBookingEnabled === true;
+  const agentDraft = draft.chatConfig?.agentBookingEnabled === true;
+  return top + (aiSaved !== aiDraft ? 1 : 0) + (agentSaved !== agentDraft ? 1 : 0);
 }
 
 /**
@@ -164,13 +166,13 @@ export function pendingChangeLabels(input: {
     acceptingBookings: boolean;
     acceptingInquiries: boolean;
     chatEnabled: boolean;
-    chatConfig?: { aiBookingAssistantEnabled?: boolean };
+    chatConfig?: { aiBookingAssistantEnabled?: boolean; agentBookingEnabled?: boolean };
   };
   draftSwitches: {
     acceptingBookings: boolean;
     acceptingInquiries: boolean;
     chatEnabled: boolean;
-    chatConfig?: { aiBookingAssistantEnabled?: boolean };
+    chatConfig?: { aiBookingAssistantEnabled?: boolean; agentBookingEnabled?: boolean };
   };
   serviceTitle: (id: string) => string;
   labels: { defaults: string; bookings: string; chat: string };
@@ -184,10 +186,13 @@ export function pendingChangeLabels(input: {
   if (s.acceptingBookings !== n.acceptingBookings) out.push(input.labels.bookings);
   const aiSaved = s.chatConfig?.aiBookingAssistantEnabled === true;
   const aiDraft = n.chatConfig?.aiBookingAssistantEnabled === true;
+  const agentSaved = s.chatConfig?.agentBookingEnabled === true;
+  const agentDraft = n.chatConfig?.agentBookingEnabled === true;
   if (
     s.acceptingInquiries !== n.acceptingInquiries ||
     s.chatEnabled !== n.chatEnabled ||
-    aiSaved !== aiDraft
+    aiSaved !== aiDraft ||
+    agentSaved !== agentDraft
   ) {
     out.push(input.labels.chat);
   }
