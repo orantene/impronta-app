@@ -7,7 +7,9 @@ import {
   TALENT_SITE_ANON_CDN_CACHE,
   TALENT_SITE_PRIVATE_NO_STORE,
   talentSiteLocaleIsPathOnly,
+  talentSiteShouldRememberLocale,
 } from "./talent-site-anon-cache";
+import { LOCALE_AUTO_COOKIE } from "@/i18n/locale-cookies";
 import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
 import { GUEST_COOKIE_NAME, GUEST_COOKIE_OPTIONS, signGuestCookie } from "@/lib/guest-cookie";
 
@@ -58,5 +60,30 @@ describe("applyTalentSiteAnonCacheHeaders", () => {
   it("stays private for POST", () => {
     const res = applyTalentSiteAnonCacheHeaders(NextResponse.next(), req(undefined, "POST"));
     assert.equal(res.headers.get("Cache-Control"), TALENT_SITE_PRIVATE_NO_STORE);
+  });
+});
+
+describe("talentSiteShouldRememberLocale", () => {
+  it("skips the write on a cookieless /en page view so it stays cacheable", () => {
+    assert.equal(talentSiteShouldRememberLocale(req(), "en", { redirect: false }), false);
+  });
+
+  it("writes on a ?locale= redirect", () => {
+    assert.equal(talentSiteShouldRememberLocale(req(), "en", { redirect: true }), true);
+  });
+
+  it("writes when the cookie names another language", () => {
+    assert.equal(talentSiteShouldRememberLocale(req(`${LOCALE_COOKIE}=es`), "en", { redirect: false }), true);
+  });
+
+  it("writes when the matching cookie was machine-written", () => {
+    assert.equal(
+      talentSiteShouldRememberLocale(req(`${LOCALE_COOKIE}=en; ${LOCALE_AUTO_COOKIE}=1`), "en", { redirect: false }),
+      true,
+    );
+  });
+
+  it("skips when the visitor already chose this language", () => {
+    assert.equal(talentSiteShouldRememberLocale(req(`${LOCALE_COOKIE}=en`), "en", { redirect: false }), false);
   });
 });

@@ -92,9 +92,9 @@ test("an existing AI draft with the same title is published in place, not duplic
   assert.equal(db.offerings.find((o) => o.id === "d1")!.status, "published");
 });
 
-test("quote service is request-to-book with no number", () => {
+test("quote service is a request-to-book draft with no number", () => {
   const plan = planOfferingWrites([], [{ name: "Custom set", durationMin: 90, priceCents: null, quote: true, currency: "MXN" }]);
-  assert.equal(plan.insert[0].price_display, "quote");
+  assert.equal(plan.insert[0].status, "draft");
   assert.equal(plan.insert[0].booking_mode, "request");
   assert.equal(plan.insert[0].amount_cents, null);
 });
