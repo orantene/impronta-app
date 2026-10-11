@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
+import { signOutRedirectPath } from "@/lib/auth/sign-out-redirect";
 import { guestCookieExpiryHeader } from "@/lib/guest-cookie";
 import { authCookieExpiryHeaders } from "@/lib/supabase/cookie-domain";
 
@@ -40,7 +41,10 @@ export async function POST(request: Request) {
 
   const host =
     request.headers.get("x-impronta-host-name") ?? request.headers.get("host");
-  const res = NextResponse.redirect(new URL("/", request.url), 303);
+  const res = NextResponse.redirect(
+    new URL(signOutRedirectPath(request.headers.get("referer"), request.url), request.url),
+    303,
+  );
   for (const h of authCookieExpiryHeaders(
     pairs.map((p) => p.name),
     host,
