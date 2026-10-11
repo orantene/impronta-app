@@ -130,11 +130,8 @@ export function CatalogBookingSheet({
   const [takenNotice, setTakenNotice] = useState<CatalogTakenSlotNotice | null>(null);
   const liveStartsRef = useRef<string | null>(null);
   const pendingSlotRef = useRef<string | null>(null); // TUL-232: slotStart awaiting the first live fetch
-  const errorRef = useRef<HTMLParagraphElement | null>(null);
-  // The error sits under the form, below the sheet's fold on most screens.
-  useEffect(() => {
-    if (error) errorRef.current?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
-  }, [error]);
+  const errorRef = useRef<HTMLParagraphElement | null>(null); // the error sits below the sheet's fold on most screens
+  useEffect(() => { if (error) errorRef.current?.scrollIntoView?.({ block: "nearest", behavior: "smooth" }); }, [error]);
   const draftKey = bookingDraftKey(tenantId);
   const skipCaptcha = shouldSkipGuestCaptchaOnHost();
   const captchaRequired =
