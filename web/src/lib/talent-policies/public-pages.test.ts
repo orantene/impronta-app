@@ -93,7 +93,8 @@ test("footer socket hrefs resolve to the routes built here", () => {
 });
 
 test("the renderer swaps only the body: shell, theme and footer still wrap it", () => {
-  const src = read("src/lib/talent-site/server/render-max-site.tsx");
+  const src =
+    read("src/lib/talent-site/server/render-max-site.tsx") + read("src/lib/talent-site/server/render-max-site-document.tsx");
   assert.match(src, /policyDocForSlug\(input\.pageSlug\)/);
   assert.match(src, /args\.mainOverride \?\? renderFreeformPageRootTree/);
   // main is painted before the footer, so the socket (rendered with the footer) follows it.

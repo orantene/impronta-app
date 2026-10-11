@@ -41,7 +41,7 @@ test("task_picker: schema, renderer, inspector and element library are all wired
 
 test("task_picker: the page loads the offerings it recommends from", () => {
   assert.match(libAt("site-admin/builder-node/native-data-block-needs.ts"), /"services_catalog" \|\| node\.kind === "task_picker"/);
-  assert.match(libAt("talent-site/server/render-max-site.tsx"), /builderTreeHasKind\(blocks, "task_picker"\)/);
+  assert.match(libAt("talent-site/server/render-max-site-document.tsx"), /builderTreeHasKind\(blocks, "task_picker"\)/);
 });
 
 test("the island marks the picked task with aria-pressed and reuses the catalog events", () => {

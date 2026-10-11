@@ -79,7 +79,7 @@ test("static: no design payload or theme seed injects the social item (render ti
   const root = join(process.cwd(), "src/lib/talent-site");
   const kit = readFileSync(join(root, "theme-catalog/section-kit-shell.ts"), "utf8");
   assert.doesNotMatch(kit, /withSocialItem|type:\s*"social"/);
-  const render = readFileSync(join(root, "server/render-max-site.tsx"), "utf8");
+  const render = readFileSync(join(root, "server/render-max-site-document.tsx"), "utf8");
   assert.match(render, /webOfficeSocial:\s*Boolean\(args\.webOffice\)/);
   const shell = readFileSync(join(root, "server/render-max-site-shell.ts"), "utf8");
   assert.match(shell, /opts\.webOfficeSocial \? raw\.map\(withSocialItem\) : raw/);
