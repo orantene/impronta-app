@@ -66,6 +66,7 @@ import {
   PERSONAL_SITE_BUILDER_HREF,
   resolveTalentDashboardMyWebsite,
 } from "@/lib/talent-site/dashboard-my-website";
+import { talentLeaveForWorkspaceAdminHref } from "@/lib/talent-site/hard-nav-workspace-admin";
 
 type Props = { locale?: "en" | "es" };
 
@@ -224,14 +225,33 @@ function WorkspacePrimaryWebsiteCard({
         {copy.t("This is your business site. Edit pages, design and domain here.")}
       </p>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-        <Link
-          href={editHref}
-          data-testid="workspace-primary-edit-site"
-          className="inline-flex min-h-12 items-center justify-center rounded-xl border border-[var(--tulala-primary-fill,#3B8277)] bg-[var(--tulala-primary-fill,#3B8277)] px-5 text-[14px] font-semibold text-white no-underline hover:border-[var(--tulala-primary-fill-deep,#326F66)] hover:bg-[var(--tulala-primary-fill-deep,#326F66)]"
-        >
-          {copy.t("Edit site")}
-        </Link>
-        {designHref ? (
+        {/* live4-01: hard nav into workspace admin — soft Link leaves Hoy stuck. */}
+        {talentLeaveForWorkspaceAdminHref(editHref) ? (
+          <a
+            href={editHref}
+            data-testid="workspace-primary-edit-site"
+            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-[var(--tulala-primary-fill,#3B8277)] bg-[var(--tulala-primary-fill,#3B8277)] px-5 text-[14px] font-semibold text-white no-underline hover:border-[var(--tulala-primary-fill-deep,#326F66)] hover:bg-[var(--tulala-primary-fill-deep,#326F66)]"
+          >
+            {copy.t("Edit site")}
+          </a>
+        ) : (
+          <Link
+            href={editHref}
+            data-testid="workspace-primary-edit-site"
+            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-[var(--tulala-primary-fill,#3B8277)] bg-[var(--tulala-primary-fill,#3B8277)] px-5 text-[14px] font-semibold text-white no-underline hover:border-[var(--tulala-primary-fill-deep,#326F66)] hover:bg-[var(--tulala-primary-fill-deep,#326F66)]"
+          >
+            {copy.t("Edit site")}
+          </Link>
+        )}
+        {designHref && talentLeaveForWorkspaceAdminHref(designHref) ? (
+          <a
+            href={designHref}
+            data-testid="maison-change-design"
+            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-admin-border-soft bg-white px-5 text-[14px] font-semibold text-admin-ink no-underline"
+          >
+            {copy.t("Change design")}
+          </a>
+        ) : designHref ? (
           <Link
             href={designHref}
             data-testid="maison-change-design"

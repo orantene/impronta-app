@@ -41,6 +41,7 @@ export async function isTalentIdWithinTenantPublicDisplayCap(
     limit: cap,
     sort: "recommended",
     skipTotalCount: true,
+    keepEmptyCards: true,
   });
   return page.items.some((item) => item.id === talentProfileId);
 }

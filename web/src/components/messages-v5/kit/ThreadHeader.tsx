@@ -5,6 +5,7 @@
  * Mobile: back, name, subject, "channel · owner", more; state row underneath.
  */
 
+import { localiseInquiryName } from "@/lib/messaging/inquiry-name-pure";
 import type { Essentials, InquiryMessagingState, MessagingChannel, RecordChip } from "@/lib/messaging/types";
 
 import type { KitCopy } from "./copy";
@@ -38,7 +39,7 @@ export type ThreadHeaderProps = {
 
 export function ThreadHeader({ essentials, state, chips, channel, subject, when, owner, copy, variant = "desktop", busy, onBack, onAssign, onResolve, onReopen, onMore, seller }: ThreadHeaderProps) {
   const isVisitor = essentials.customer.identityLevel === "none" && !essentials.customer.name.trim();
-  const name = essentials.name.trim() || (isVisitor ? copy.inbox.visitor : essentials.customer.name);
+  const name = localiseInquiryName(essentials.name, copy.inbox.visitor).trim() || (isVisitor ? copy.inbox.visitor : essentials.customer.name);
   const resolved = state.conversation === "resolved";
 
   if (variant === "mobile") {
