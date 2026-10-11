@@ -100,7 +100,7 @@ export function buildKitShell(
   const homeHref = opts.homeHref ?? "/";
 
   const ctaLabel = (opts.primaryCtaLabel ?? opts.utilityBar?.ctaLabel ?? "Book").trim() || "Book";
-  const ctaHref = opts.utilityBar?.ctaHref ?? "#services";
+  const ctaHref = opts.utilityBar?.ctaHref ?? "#book";
 
   const brand: BuilderNode = opts.logoUrl
     ? ({

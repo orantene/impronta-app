@@ -6,6 +6,7 @@ import {
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { translatorFor } from "@/i18n/use-t";
 import { MissingTranslationChip } from "@/components/admin/shell/internal/page-modules/catalog/MissingTranslationChip";
+import { NeedsPriceChip } from "@/components/admin/shell/internal/page-modules/catalog/NeedsPriceChip";
 
 export function ItemStateChips({
   item,
@@ -72,6 +73,7 @@ export function ItemStateChips({
           {locale.startsWith("es") ? "Solo agencias" : "Agencies only"}
         </span>
       )}
+      <NeedsPriceChip item={item} t={translatorFor(locale)} />
       {primary && locales ? (
         <MissingTranslationChip item={item} primary={primary} locales={locales} uiLocale={locale} t={translatorFor(locale)} />
       ) : null}
