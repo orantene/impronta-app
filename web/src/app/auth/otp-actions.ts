@@ -67,6 +67,7 @@ import {
 import {
   buildOtpEmailRedirect,
   isCompleteOtpCode,
+  authEmailHasPlusTag,
   isValidAuthEmail,
   normalizeAuthEmail,
   normalizeOtpCode,
@@ -245,13 +246,21 @@ export async function requestEmailCode(
     }
   }
 
+  // TUL-558: plus-tag inboxes often never get the OTP (sender delivers; the
+  // inbox drops or remaps). Warn so the visitor can switch to a plain address.
+  const noticeKey = authEmailHasPlusTag(email)
+    ? resent
+      ? "public.auth.passwordless.plusResentNotice"
+      : "public.auth.passwordless.plusSentNotice"
+    : resent
+      ? "public.auth.passwordless.resentNotice"
+      : "public.auth.passwordless.sentNotice";
+
   return {
     step: "sent",
     email,
     resent,
-    notice: resent
-      ? t("public.auth.passwordless.resentNotice")
-      : t("public.auth.passwordless.sentNotice"),
+    notice: t(noticeKey),
   };
 }
 
