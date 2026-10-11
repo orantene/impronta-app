@@ -315,7 +315,7 @@
   "src/lib/site-admin/edit-mode/composition-actions.ts": 11,
   "src/lib/site-admin/edit-mode/page-composer-action.ts": 4,
   "src/lib/site-admin/edit-mode/page-design-apply-action.ts": 1,
-  "src/lib/site-admin/edit-mode/publish-preflight-action.ts": 4,
+  "src/lib/site-admin/edit-mode/publish-preflight-action.ts": 3,
   "src/lib/site-admin/edit-mode/publish-preflight-contrast-rules.ts": 1,
   "src/lib/site-admin/edit-mode/revisions-actions.ts": 2,
   "src/lib/site-admin/edit-mode/schedule-actions.ts": 1,
