@@ -38,11 +38,15 @@ async function notifyTalentNeedsReconnect(
   reason: string,
 ): Promise<void> {
   try {
-    const { data } = await admin
+    const { data, error } = await admin
       .from("talent_profiles")
       .select("user_id")
       .eq("id", talentProfileId)
       .maybeSingle();
+    if (error) {
+      logServerError("cron/refresh-social-tokens:talent-notify-lookup", error);
+      return;
+    }
     const userId = (data as { user_id: string | null } | null)?.user_id;
     if (!userId) return;
     await emitNotification({
