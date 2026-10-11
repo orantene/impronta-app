@@ -497,6 +497,7 @@ export type DiscoverMapPoint = {
   displayName: string;
   profileCode: string | null;
   primaryTypeLabel: string | null;
+  primaryTypeSlug: string | null;
   homeCity: string | null;
   homeCountry: string | null;
   agencyName: string | null;
@@ -525,7 +526,7 @@ export async function loadDiscoverMapPoints(
     .select(
       `id, display_name, first_name, last_name, profile_code,
        home_country_text, home_city_text, residence_city_id,
-       agency_name, is_exclusive, category_label,
+       agency_name, is_exclusive, category_label, category_slug,
        trust_tier, available_days_in_next_30`,
     )
     .order("display_name", { ascending: true, nullsFirst: false })
@@ -569,6 +570,7 @@ export async function loadDiscoverMapPoints(
     agency_name: string | null;
     is_exclusive: boolean;
     category_label: string | null;
+    category_slug: string | null;
     trust_tier: string | null;
     available_days_in_next_30: number | null;
   };
@@ -613,6 +615,7 @@ export async function loadDiscoverMapPoints(
       displayName,
       profileCode: row.profile_code,
       primaryTypeLabel: row.category_label,
+      primaryTypeSlug: row.category_slug,
       homeCity: row.home_city_text,
       homeCountry: row.home_country_text,
       agencyName: row.agency_name,

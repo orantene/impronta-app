@@ -190,6 +190,9 @@ export default async function MarketingDirectoryPage({
   ]);
   const mapPoints = mapData.points.map((point) => ({
     ...point,
+    primaryTypeLabel:
+      (point.primaryTypeSlug ? typeLabels.get(point.primaryTypeSlug) : undefined) ??
+      point.primaryTypeLabel,
     design: hubDesign,
   }));
 

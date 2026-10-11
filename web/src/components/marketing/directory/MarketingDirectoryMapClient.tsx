@@ -10,6 +10,7 @@ import {
 import type { DiscoverMapPoint } from "./shared";
 import { FOCUS_RING } from "./shared";
 import { DirectoryTalentCard } from "./DirectoryTalentCard";
+import { directoryCopy } from "./directory-copy";
 
 // Forest marker hexes (canonical --tl-* values). Inline literals because the
 // Google Maps canvas + Symbol markers live outside the token cascade. Cool
@@ -50,6 +51,7 @@ export function MarketingDirectoryMapClient({
   onBackToGrid: () => void;
   locale: string;
 }) {
+  const c = directoryCopy(locale);
   const [bounds, setBounds] = useState<ViewBounds | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -81,8 +83,9 @@ export function MarketingDirectoryMapClient({
   if (!apiKey) {
     return (
       <MapNotice
-        title="Map view is unavailable"
-        body="The map needs a Google Maps key that isn't configured here."
+        title={c.mapUnavailableTitle}
+        body={c.mapUnavailableBody}
+        backLabel={c.backToGrid}
         onBackToGrid={onBackToGrid}
       />
     );
@@ -91,12 +94,13 @@ export function MarketingDirectoryMapClient({
   if (points.length === 0) {
     return (
       <MapNotice
-        title="No mappable talent in this view"
-        body={`Profiles need a structured home city to appear on the map.${
+        title={c.mapEmptyTitle}
+        body={
           unmappedCount > 0
-            ? ` ${unmappedCount} ${unmappedCount === 1 ? "profile has" : "profiles have"} only free-text locations.`
-            : ""
-        }`}
+            ? `${c.mapEmptyBody} ${c.mapFreeTextOnly(unmappedCount)}`
+            : c.mapEmptyBody
+        }
+        backLabel={c.backToGrid}
         onBackToGrid={onBackToGrid}
       />
     );
@@ -112,19 +116,19 @@ export function MarketingDirectoryMapClient({
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <p className="text-[0.8125rem]" style={{ color: "var(--plt-muted)" }}>
             <strong style={{ color: "var(--plt-ink)" }}>{visible.length}</strong>{" "}
-            {visible.length === 1 ? "profile" : "profiles"} in view
+            {c.mapInView(visible.length)}
             {filteredByView ? (
-              <span style={{ color: "var(--plt-muted-soft)" }}> · {points.length} mapped</span>
+              <span style={{ color: "var(--plt-muted-soft)" }}> · {c.mapMapped(points.length)}</span>
             ) : null}
             {unmappedCount > 0 ? (
               <span style={{ color: "var(--plt-muted-soft)" }}>
                 {" "}
-                · {unmappedCount} without a map location
+                · {c.mapWithoutLocation(unmappedCount)}
               </span>
             ) : null}
           </p>
           <span className="text-[0.6875rem]" style={{ color: "var(--plt-muted-soft)" }}>
-            Zoom or drag the map to filter
+            {c.mapHint}
           </span>
         </div>
 
@@ -166,10 +170,10 @@ export function MarketingDirectoryMapClient({
           style={{ background: "var(--plt-bg-raised)", border: "1px dashed var(--plt-hairline-strong)" }}
         >
           <p className="plt-display text-[1rem] font-semibold" style={{ color: "var(--plt-ink)" }}>
-            No talent in this area
+            {c.mapAreaEmptyTitle}
           </p>
           <p className="text-[0.875rem]" style={{ color: "var(--plt-muted)" }}>
-            Zoom out or drag the map to bring profiles back into view.
+            {c.mapAreaEmptyBody}
           </p>
         </div>
       ) : (
@@ -248,10 +252,12 @@ function DirectoryMarkers({
 function MapNotice({
   title,
   body,
+  backLabel,
   onBackToGrid,
 }: {
   title: string;
   body: string;
+  backLabel: string;
   onBackToGrid: () => void;
 }) {
   return (
@@ -271,7 +277,7 @@ function MapNotice({
         className={`mt-2 rounded text-[0.8125rem] font-semibold transition-colors hover:underline ${FOCUS_RING}`}
         style={{ color: "var(--plt-forest)" }}
       >
-        Back to grid →
+        {backLabel}
       </button>
     </div>
   );

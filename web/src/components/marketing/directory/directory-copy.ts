@@ -62,6 +62,20 @@ export type DirectoryCopy = {
   independent: string;
   exclusive: (agency: string) => string;
   standingTitle: (bookings: number) => string;
+  mapUnavailableTitle: string;
+  mapUnavailableBody: string;
+  mapEmptyTitle: string;
+  mapEmptyBody: string;
+  /** Appended to mapEmptyBody when some matches have free-text locations only. */
+  mapFreeTextOnly: (n: number) => string;
+  /** Trails a separately rendered bold count: "{n} profiles in view". */
+  mapInView: (n: number) => string;
+  mapMapped: (n: number) => string;
+  mapWithoutLocation: (n: number) => string;
+  mapHint: string;
+  mapAreaEmptyTitle: string;
+  mapAreaEmptyBody: string;
+  backToGrid: string;
 };
 
 const EN: DirectoryCopy = {
@@ -115,6 +129,19 @@ const EN: DirectoryCopy = {
   independent: "Independent",
   exclusive: (agency) => `${agency} · exclusive`,
   standingTitle: (bookings) => `Verified standing from ${bookings} completed bookings`,
+  mapUnavailableTitle: "Map view is unavailable",
+  mapUnavailableBody: "The map needs a Google Maps key that isn't configured here.",
+  mapEmptyTitle: "No mappable talent in this view",
+  mapEmptyBody: "Profiles need a structured home city to appear on the map.",
+  mapFreeTextOnly: (n) =>
+    `${n} ${n === 1 ? "profile has" : "profiles have"} only free-text locations.`,
+  mapInView: (n) => `${n === 1 ? "profile" : "profiles"} in view`,
+  mapMapped: (n) => `${n} mapped`,
+  mapWithoutLocation: (n) => `${n} without a map location`,
+  mapHint: "Zoom or drag the map to filter",
+  mapAreaEmptyTitle: "No talent in this area",
+  mapAreaEmptyBody: "Zoom out or drag the map to bring profiles back into view.",
+  backToGrid: "Back to grid →",
 };
 
 const ES: DirectoryCopy = {
@@ -168,6 +195,21 @@ const ES: DirectoryCopy = {
   independent: "Independiente",
   exclusive: (agency) => `${agency} · en exclusiva`,
   standingTitle: (bookings) => `Reputación verificada con ${bookings} reservas completadas`,
+  mapUnavailableTitle: "El mapa no está disponible",
+  mapUnavailableBody: "El mapa necesita una clave de Google Maps que aquí no está configurada.",
+  mapEmptyTitle: "No hay talento para mostrar en el mapa",
+  mapEmptyBody: "Los perfiles necesitan una ciudad de residencia registrada para aparecer en el mapa.",
+  mapFreeTextOnly: (n) =>
+    n === 1
+      ? "1 perfil solo tiene la ubicación escrita a mano."
+      : `${n} perfiles solo tienen la ubicación escrita a mano.`,
+  mapInView: (n) => (n === 1 ? "perfil a la vista" : "perfiles a la vista"),
+  mapMapped: (n) => `${n} en el mapa`,
+  mapWithoutLocation: (n) => `${n} sin ubicación en el mapa`,
+  mapHint: "Acerca o arrastra el mapa para filtrar",
+  mapAreaEmptyTitle: "No hay talento en esta zona",
+  mapAreaEmptyBody: "Aleja o arrastra el mapa para volver a ver perfiles.",
+  backToGrid: "Volver a la cuadrícula →",
 };
 
 export function directoryCopy(locale: string | null | undefined): DirectoryCopy {
