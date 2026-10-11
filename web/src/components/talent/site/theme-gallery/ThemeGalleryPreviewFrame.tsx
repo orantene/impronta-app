@@ -21,7 +21,10 @@ export function ThemeGalleryPreviewFrame({
   retryLabel,
   virtualWidth,
   aspectRatio,
+  lazy = false,
 }: {
+  /** Defer the load until the frame nears the viewport (gallery grids of many frames). */
+  lazy?: boolean;
   /** Render the page at this width and scale it down to the box (desktop thumbnail). */
   virtualWidth?: number;
   /** Box shape, e.g. "4 / 3". Defaults to the phone-shaped 9 / 16. */
@@ -67,6 +70,7 @@ export function ThemeGalleryPreviewFrame({
         key={`${url}::${attempt}`}
         ref={iframeRef}
         src={url}
+        loading={lazy ? "lazy" : undefined}
         title={title}
         onLoad={onLoad}
         onError={onError}
