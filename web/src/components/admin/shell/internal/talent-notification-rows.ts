@@ -205,8 +205,8 @@ export function talentNotifsFromBridge(
 
 /**
  * TUL-392: derived Attention signals as drawer rows. Sticky action rows (they
- * clear when the state does: update applied or dismissed, site published), and
- * the id carries the state, so a row marked read returns when the state moves.
+ * clear when the state does: site published), and the id carries the state, so
+ * a row marked read returns when the state moves.
  */
 export function talentNotifsFromSignals(
   signals: readonly TalentAttentionSignal[],
@@ -216,7 +216,7 @@ export function talentNotifsFromSignals(
   return signals.map((s) => ({
     id: `signal-${s.id}`,
     category: "action" as const,
-    icon: s.kind === "theme-update" ? ("sparkle" as const) : ("bolt" as const),
+    icon: "bolt" as const,
     tone: "coral" as const,
     title: pickSignalText(s.title, locale),
     sub: pickSignalText(s.body, locale),
@@ -224,18 +224,6 @@ export function talentNotifsFromSignals(
     sticky: true,
     target: notificationDrawerFields(s.targetDrawer, null, adminBasePath),
   }));
-}
-
-/**
- * With signals loaded, the theme-update signal replaces the stored theme bell
- * rows (one source per update, never both). Null signals keep every row.
- */
-export function withoutSignalledThemeRows(
-  rows: readonly UserNotification[],
-  signals: readonly TalentAttentionSignal[] | null,
-): UserNotification[] {
-  if (!signals) return [...rows];
-  return rows.filter((n) => targetOf(n) !== "theme-update");
 }
 
 /** The drawer's live source: signals first (sticky action rows), then real rows. */
@@ -247,6 +235,6 @@ export function talentDrawerNotifs(
 ): TalentNotif[] {
   return [
     ...talentNotifsFromSignals(signals ?? [], locale, adminBasePath),
-    ...talentNotifsFromBridge(withoutSignalledThemeRows(rows, signals), adminBasePath),
+    ...talentNotifsFromBridge(rows, adminBasePath),
   ];
 }

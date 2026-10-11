@@ -31,7 +31,7 @@ test("bell shows signals on the talent surface only, with no server mark-read", 
   const src = read("../../components/admin/shell/internal/notifications-hub.tsx");
   assert.match(src, /state\.surface === "talent" \? bridgeTalentAttentionSignals : null/);
   assert.match(src, /talentNotifsFromSignals\(talentSignals \?\? \[\]/);
-  assert.match(src, /withoutSignalledThemeRows\(/);
+  assert.doesNotMatch(src, /withoutSignalledThemeRows/);
 });
 
 test("talent drawer renders signals and skips the server for signal ids", () => {

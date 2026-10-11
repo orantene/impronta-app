@@ -21,7 +21,7 @@ import { MOCK_CONVERSATIONS } from "./talent/shared/conversations-1";
 import { ageLabel } from "./messages/messages-shared";
 import { useDashboardText } from "./dashboard-i18n";
 import { formatNotificationAge, localizeNotificationText } from "./notification-localize";
-import { talentNotifsFromSignals, withoutSignalledThemeRows } from "./talent-notification-rows";
+import { talentNotifsFromSignals } from "./talent-notification-rows";
 import type { UserNotification } from "./data-bridge";
 import {
   hubClickTarget,
@@ -126,11 +126,8 @@ export function NotificationsBell({
   const [categoryTab, setCategoryTab] = useState<HubUiCategory | "all">("all");
   const [ownerTab, setOwnerTab] = useState<HubOwnerSurface | "all">("all");
   const realNotifications = useMemo(
-    () =>
-      bridgeUserNotifications
-        ? withoutSignalledThemeRows(scopeRealNotifications(bridgeUserNotifications, state.surface), talentSignals)
-        : null,
-    [bridgeUserNotifications, state.surface, talentSignals],
+    () => (bridgeUserNotifications ? scopeRealNotifications(bridgeUserNotifications, state.surface) : null),
+    [bridgeUserNotifications, state.surface],
   );
   const staffQueues = staffQueuesVisible(state.surface);
   const copy = useDashboardText();
@@ -258,7 +255,7 @@ export function NotificationsBell({
       });
     });
 
-    // TUL-392: derived Attention signals (theme update, site needs publish).
+    // TUL-392: derived Attention signal (site needs publish).
     // Already counted in the Attention bubble; no server row to mark read.
     for (const n of talentNotifsFromSignals(talentSignals ?? [], copy.locale, adminBasePath)) {
       const href = n.target?.targetHref;
@@ -267,7 +264,7 @@ export function NotificationsBell({
         bucket: "action",
         category: "attention",
         owner: "talent",
-        icon: n.icon === "sparkle" ? "✦" : "↑",
+        icon: "↑",
         title: n.title,
         body: n.sub ?? "",
         whenLabel: copy.t("ongoing"),
