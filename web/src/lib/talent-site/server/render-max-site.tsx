@@ -46,6 +46,7 @@ import { webOfficeCtxFor } from "./web-office-footer";
 import { siteHostFromOrigin } from "@/lib/talent-site/footer-socket";
 import { talentSiteLocalePath } from "@/lib/talent-site/talent-site-locale-routing";
 import { webOfficeSocialEnabled } from "../web-office-social";
+import { localiseSeededDesignLabel } from "../design-label-locale";
 import { loadTalentPolicyModel, policyMainNode, policySeo } from "./policy-main";
 import { policyDocForSlug } from "@/lib/talent-policies/public";
 import { renderMaxSiteDocument } from "./render-max-site-document";
@@ -257,6 +258,7 @@ async function renderTalentMaxSiteUnguarded(
       site.siteSlug,
       publicPathPrefix,
       input.hrefMode ?? "path",
+      localiseSeededDesignLabel("Book", locale, ctaMode),
     );
 
     // TUL-444 Step 2: settle tenant / identity / demo / published tokens together
