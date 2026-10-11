@@ -1,5 +1,6 @@
 import type { NextRequest, NextResponse } from "next/server";
 
+import { LOCALE_AUTO_COOKIE } from "@/i18n/locale-cookies";
 import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
 import { hasSupabaseAuthCookie } from "@/lib/client-account/talent-host-session";
 import { GUEST_COOKIE_NAME } from "@/lib/guest-cookie";
@@ -32,6 +33,26 @@ function responseSetsCookies(res: NextResponse): boolean {
  */
 export function talentSiteLocaleIsPathOnly(request: NextRequest): boolean {
   return !request.cookies.get(LOCALE_COOKIE)?.value;
+}
+
+/**
+ * Whether an explicit talent-site language (a `/<code>/` prefix or a
+ * `?locale=` switch) must be written to the `locale` cookie. On a talent host
+ * the URL decides the language and the cookie never overrides it, so a
+ * cookieless page view under `/en` gains nothing from the write, and the
+ * Set-Cookie alone makes every anonymous `/en` view an uncacheable MISS. The
+ * write still happens when it records a real change: a `?locale=` redirect, a
+ * cookie naming another language, or a machine-written cookie becoming a choice.
+ */
+export function talentSiteShouldRememberLocale(
+  request: NextRequest,
+  locale: string,
+  opts: { redirect: boolean },
+): boolean {
+  if (opts.redirect) return true;
+  const existing = request.cookies.get(LOCALE_COOKIE)?.value;
+  if (!existing) return false;
+  return existing !== locale || Boolean(request.cookies.get(LOCALE_AUTO_COOKIE)?.value);
 }
 
 /**

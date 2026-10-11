@@ -9,6 +9,7 @@
 
 import type { DerivedTask, Essentials, IdentityLevel, RecordChip } from "@/lib/messaging/types";
 import { formatRecordMoney } from "@/lib/messages-v5/record-money";
+import { localiseInquiryName } from "@/lib/messaging/inquiry-name-pure";
 import { resolveIndustryPreset } from "@/lib/words/presets";
 
 import type { KitCopy } from "@/components/messages-v5/kit/copy";
@@ -144,7 +145,7 @@ export function summaryFor(input: {
   const primary = tasks.find((t) => t.primary) ?? tasks[0] ?? null;
   const main = mainRecordChip(chips);
   return {
-    name: essentials.name || copy.state.noIdentity,
+    name: localiseInquiryName(essentials.name, copy.inbox.visitor) || copy.state.noIdentity,
     isVisitor,
     identityLabel: (copy.identity as Record<IdentityLevel, string>)[essentials.customer.identityLevel] ?? copy.identity.none,
     phone: essentials.customer.phone,

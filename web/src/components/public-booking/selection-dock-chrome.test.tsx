@@ -291,6 +291,9 @@ test("one bar: the in-dock toast rule and the consent/locale-banner yield rules 
   assert.match(css, /body:has\(\.cb-dock\[data-show="true"\]\) \[data-locale-suggestion\]/);
   // TUL-344: the bar only displaces the banners once it has shown (not while hidden at the top).
   assert.match(css, /body:has\(\.cb-bar\[data-show="true"\]:not\(\[data-top="true"\]\)\) \[data-locale-suggestion\]/);
+  // TUL-561: scrolling the pill in lifts the cookie card above it instead of hiding it.
+  assert.match(css, /body:has\(\.cb-bar\[data-show="true"\]:not\(\[data-top="true"\]\)\) \[data-consent-banner\]\{bottom:calc\(var\(--cb-bar-h\) \+ 8px\)\}/);
+  assert.doesNotMatch(css, /body:has\(\.cb-bar\[data-show="true"\]:not\(\[data-top="true"\]\)\) \[data-consent-banner\],/);
   const banner = readFileSync(join(here, "../analytics/analytics-consent-banner.tsx"), "utf8");
   assert.match(banner, /data-consent-banner/);
   const localeBanner = readFileSync(join(here, "../locale-suggestion-banner-client.tsx"), "utf8");

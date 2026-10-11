@@ -62,6 +62,14 @@ export const LOCALE_AUTO_COOKIE = "locale_auto";
  */
 export const LOCALE_OWNER_COOKIE = "locale_owner";
 
+/**
+ * Persistent "stop asking" cookie for the language suggestion. Separate from
+ * `locale` on purpose: dismissing is not choosing. Lives in this leaf module so
+ * the client toast never imports `locale-suggestion` (which pulls `next/server`
+ * through `locale-middleware` into the client bundle).
+ */
+export const LOCALE_SUGGESTION_DISMISSED_COOKIE = "locale-suggest-dismissed";
+
 /** ~13 months. The locale cookie and its marker must expire together or the marker outlives its subject. */
 export const LOCALE_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 400;
 

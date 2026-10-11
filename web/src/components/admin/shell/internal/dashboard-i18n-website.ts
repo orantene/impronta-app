@@ -25,6 +25,7 @@ export const WEBSITE_ES_TEXT: Record<string, string> = {
   "This is your business site. Edit pages, design and domain here.":
     "Este es tu sitio de negocio. Edita páginas, diseño y dominio aquí.",
   "Open site": "Abrir sitio",
+  "Change design": "Cambiar diseño",
   "Other websites": "Otros sitios",
   "Personal site": "Sitio personal",
   "Edit your personal site separately from your business site.":
@@ -80,8 +81,8 @@ export const WEBSITE_ES_TEXT: Record<string, string> = {
   "Something went wrong.": "Algo salió mal.",
   "Address, logo and pages": "Dirección, logo y páginas",
   "Site address, logo, pages and custom domain": "Dirección del sitio, logo, páginas y dominio propio",
-  "Address, logo, pages, booking, payments and cancelling":
-    "Dirección, logo, páginas, reservas, pagos y cancelaciones",
+  "Address, logo, pages, booking, chat, payments and cancelling":
+    "Dirección, logo, páginas, reservas, chat, pagos y cancelaciones",
   // Custom domain unlock (Web Office) — kept here so dashboard-i18n.ts stays at 3968.
   "Domain setup": "Configurar dominio",
   "Buy a domain at the registrar price, connect one you own, or get help.": "Compra un dominio al precio del registrador, conecta uno propio, o pide ayuda.",

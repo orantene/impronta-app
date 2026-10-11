@@ -356,5 +356,14 @@ export const RAMON: Def = {
       ],
     },
     menu: { title: "Services and prices", subtitle: "Prices in MXN" },
+    portfolio: [
+      { title: "Repair list", caption: "WO-0350 · Centro Histórico · 1 h" },
+      { title: "Cabinet hinge", caption: "WO-0347 · Playa Sur · 30 min" },
+      { title: "Bed frame assembled", caption: "WO-0344 · Zona Dorada · 1 h 30" },
+      { title: "Home ready", caption: "WO-0341 · Marina · 1 day" },
+      { title: "Picture hung", caption: "WO-0338 · Centro Histórico · 30 min" },
+      { title: "Wall hook", caption: "WO-0335 · Telleria · 30 min" },
+    ],
+    arrivalNote: "Outside this area, travel is added to the quote.",
   },
 };
