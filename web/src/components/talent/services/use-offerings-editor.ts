@@ -16,7 +16,6 @@
  * to the Menu actions (with the stock RPC). Nothing here renders.
  */
 
-import { settleServerAction } from "@/lib/client/settle-server-action";
 import type { UsdRates } from "@/lib/pricing/usd-equivalent";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import {
