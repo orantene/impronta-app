@@ -176,3 +176,10 @@ test("G3-PRESENCE: settings reachable before publish; domain tile entitlement-ga
   assert.match(manager, /talent-tier-compare/);
   assert.match(manager, /personalSiteCustomDomain/);
 });
+
+test("TUL-536 eyes-0319-01: Mi sitio web thumb clears its placeholder after a pre-hydration load", () => {
+  const card = read("MyWebsiteCard.tsx");
+  assert.match(card, /ref=\{thumbRef\}/);
+  assert.match(card, /contentDocument[\s\S]{0,120}readyState === "complete"[\s\S]{0,80}setThumbLoaded\(true\)/);
+  assert.match(card, /thumbSrc \? " animate-pulse" : ""/);
+});
