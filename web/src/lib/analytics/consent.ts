@@ -67,10 +67,18 @@ export function resolveConsent(stored: unknown, gpc: boolean, region: ConsentReg
  * The same decision for the inline tag snippets that run before React: a JS
  * expression that is true when analytics may run. Keep in step with
  * `resolveConsent`.
+ *
+ * Built with `join`, never `template + template`: the production minifier
+ * folds two concatenated template literals and drops the first one's tail.
  */
-export const ANALYTICS_ALLOWED_JS =
-  `(function(){try{var s=localStorage.getItem('${CONSENT_STORAGE_KEY}');if(s==='granted'||s==='denied')return s==='granted';}catch(e){}` +
-  `return document.documentElement.getAttribute('${CONSENT_REGION_ATTR}')==='notice'&&navigator.globalPrivacyControl!==true;})()`;
+export const ANALYTICS_ALLOWED_JS = [
+  "(function(){try{var s=localStorage.getItem('",
+  CONSENT_STORAGE_KEY,
+  "');if(s==='granted'||s==='denied')return s==='granted';}catch(e){}",
+  "return document.documentElement.getAttribute('",
+  CONSENT_REGION_ATTR,
+  "')==='notice'&&navigator.globalPrivacyControl!==true;})()",
+].join("");
 
 /** Pure: should the banner appear on its own (no reopen request)? */
 export function shouldShowBanner(stored: unknown, gpc: boolean): boolean {

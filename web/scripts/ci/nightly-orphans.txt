@@ -78,7 +78,6 @@ src/lib/agency/exclusivity-resolver.test.ts
 src/lib/ai/build-ai-search-document.test.ts
 src/lib/ai/openai-image-request.test.ts
 src/lib/ai/run-ai-directory-search.test.ts
-src/lib/analytics/consent.test.ts
 src/lib/auth/preview-qa-token.test.ts
 src/lib/booking/guest-booking-presentation.test.ts
 src/lib/catalog/entitlement-credits.test.ts
