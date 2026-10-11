@@ -10,6 +10,7 @@
 import type { DesignPayload } from "../../types";
 import { applyAuthoredOverlay, overlayPaletteOverrides, type AuthoredOverlayFile } from "./overlay";
 import folioOverlay from "./folio.overlay.json";
+import maisonV2Overlay from "./maison-v2.overlay.json";
 // pull-authored:imports
 
 export type { AuthoredOverlayFile } from "./overlay";
@@ -22,6 +23,7 @@ export interface AuthoredOverlay {
 // The pull script inserts imports and entries at the pull-authored markers.
 const OVERLAYS: Readonly<Record<string, unknown>> = {
   folio: folioOverlay,
+  "maison-v2": maisonV2Overlay,
   // pull-authored:entries
 };
 
