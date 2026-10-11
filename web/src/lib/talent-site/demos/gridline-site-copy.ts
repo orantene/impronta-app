@@ -73,6 +73,7 @@ function overlayFromFixture(
     };
   }
   if (tr?.menu) out.services = { title: tr.menu.title, subtitle: tr.menu.subtitle };
+  if (tr?.arrivalNote) out.area = { arrivalNote: tr.arrivalNote };
   return Object.keys(out).length ? out : undefined;
 }
 
@@ -131,6 +132,7 @@ export function gridlineCopyFromFixture(
     out.specTable = { eyebrow: f.specTable.subtitle, title: f.specTable.title, rows: f.specTable.rows, ...(f.specTable.i18n ? { i18n: f.specTable.i18n } : {}) };
   }
   out.services = { title: f.menu.title, subtitle: f.menu.subtitle };
+  if (f.location?.arrivalNote) out.area = { arrivalNote: f.location.arrivalNote };
 
   const overlays: NonNullable<GridlineSiteCopy["overlays"]> = {};
   for (const lang of ["en", "es"] as const) {

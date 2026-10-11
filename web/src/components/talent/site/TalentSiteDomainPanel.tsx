@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 
 import { COLORS, FONTS } from "@/components/admin/shell/internal/state";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
+import { translateDomainActionText } from "@/components/admin/shell/internal/dashboard-i18n-domain-errors";
 import { PrimaryButton, SecondaryButton } from "@/components/admin/shell/internal/primitives";
 import {
   checkTalentSiteDomainProvisioningAction,
@@ -75,11 +76,11 @@ export function TalentSiteDomainPanel({
 
   function applyResult(result: TalentSiteDomainActionResult) {
     if (result.ok) {
-      setMessage(result.message || null);
+      setMessage(result.message ? translateDomainActionText(result.message, copy.t) : null);
       setError(null);
       setDomains(result.domains);
     } else {
-      setError(copy.t(result.error));
+      setError(translateDomainActionText(result.error, copy.t));
       setMessage(null);
       if (result.domains) setDomains(result.domains);
     }
@@ -148,7 +149,7 @@ export function TalentSiteDomainPanel({
               connect();
             }
           }}
-          placeholder="yourname.com"
+          placeholder={copy.t("yourname.com")}
           spellCheck={false}
           autoCapitalize="none"
           autoCorrect="off"
