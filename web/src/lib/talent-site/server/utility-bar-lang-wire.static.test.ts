@@ -13,6 +13,7 @@ const chrome = readFileSync(
   join(here, "../../site-admin/sections/site_header/header-site-chrome.tsx"),
   "utf8",
 );
+const trees = readFileSync(join(here, "../default-max-site-trees.ts"), "utf8");
 
 test("render-max-site-document paints utility_bar siteLocales and suppresses the socket duplicate", () => {
   assert.match(src, /utilityBarLocales/);
@@ -25,4 +26,8 @@ test("render-max-site-document paints utility_bar siteLocales and suppresses the
 test("header language item stays visible on phone even when a seed pins it to the menu", () => {
   assert.match(chrome, /if \(item\.type === "language"\) return "show";/);
   assert.match(chrome, /"data-bp-mobile": headerItemMobileResolved\(item\)/);
+});
+
+test("default shell tree keeps language at mobile menu (the header resolves it to show)", () => {
+  assert.match(trees, /type: "language", responsive: \{ mobile: "menu" \}/);
 });
