@@ -14,7 +14,7 @@ test("F75: draft preview banner has no em dash in EN or ES", () => {
 });
 
 test("F75: both renderers use the shared copy, not a literal", () => {
-  for (const f of ["server/render-max-site.tsx", "../../components/talent/site/PlatformTalentMaxSiteView.tsx"]) {
+  for (const f of ["server/render-max-site-document.tsx", "../../components/talent/site/PlatformTalentMaxSiteView.tsx"]) {
     const src = readFileSync(new URL(f, import.meta.url), "utf8");
     assert.ok(src.includes("draftPreviewBannerText("), f);
     assert.ok(!/Draft preview\s*\u2014/.test(src), f);
