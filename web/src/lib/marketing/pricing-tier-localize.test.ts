@@ -85,3 +85,22 @@ test("teaser overlays tagline/highlights from code copy only for Spanish", () =>
     /highlights: esCopy && tierCopy \? \[\.\.\.tierCopy\.bullets\] : t\.highlights/,
   );
 });
+
+// GRK-013 — compare table chrome + Free tier name on /es/pricing.
+test("compare table routes tier names and chrome through locale helpers", () => {
+  const compare = readFileSync(
+    join(process.cwd(), "src/components/marketing/plan-feature-compare-table.tsx"),
+    "utf8",
+  );
+  assert.match(compare, /compareFeatureColumnLabel/);
+  assert.match(compare, /compareCategoryLabel/);
+  assert.match(compare, /compareTierCaptions/);
+  assert.doesNotMatch(compare, /Every operator, forever\./);
+  assert.doesNotMatch(compare, />\s*Feature\s*</);
+
+  const loader = readFileSync(
+    join(process.cwd(), "src/lib/pricing/get-compare-table.ts"),
+    "utf8",
+  );
+  assert.match(loader, /localizeTierName\(t\.name, locale\)/);
+});

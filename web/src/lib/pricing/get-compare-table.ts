@@ -17,6 +17,7 @@
 import "server-only";
 import { cache } from "react";
 import { pickLabel } from "./compare-table-locale";
+import { localizeTierName } from "@/lib/marketing/pricing-ladders-copy";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import {
@@ -200,7 +201,11 @@ export const loadCompareTable = cache(
 
     return {
       tierSlugs: tiers.map((t) => t.slug),
-      tierLabels: Object.fromEntries(tiers.map((t) => [t.slug, t.name])),
+      // Catalog names are English rows; localize known Free/Website/… labels
+      // so /es/pricing never prints "Free" in the compare header (GRK-013).
+      tierLabels: Object.fromEntries(
+        tiers.map((t) => [t.slug, localizeTierName(t.name, locale)]),
+      ),
       sections,
     };
   },

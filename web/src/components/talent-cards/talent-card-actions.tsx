@@ -29,7 +29,6 @@ import { useFavorites } from "@/lib/talent-cards/use-favorites";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 import { resolveInquiryCta } from "@/lib/inquiry/inquiry-context-resolver";
 import { useOptionalDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
-import { usePublicDiscoveryStateOptional } from "@/components/directory/public-discovery-state";
 import { registerCartTalent } from "@/app/t/[profileCode]/_chat/cart-talent-registry";
 import { createTranslator } from "@/i18n/messages";
 import { withInterpolation } from "@/i18n/interpolate";
@@ -56,15 +55,12 @@ export function TalentCardActions({
   hideInquiry = false,
   className,
   portraitUrl = null,
-  getInquiryPhotoRect,
   locale = "en",
 }: TalentCardActionsProps) {
   const mounted = useClientMounted();
   const favorites = useFavorites();
   const cart = useInquiryCart();
   const inquiryModal = useOptionalDirectoryInquiryModal();
-  // For the reversible-remove cue only (the public flash host owns the toast UI).
-  const discovery = usePublicDiscoveryStateOptional();
 
   // No PublicDiscoveryState provider on this surface → favorites + inquiry
   // stores are unreachable. Render nothing rather than dead controls.
@@ -78,11 +74,10 @@ export function TalentCardActions({
   const isPill = variant === "pill";
   const nameSuffix = displayName ? ` ${displayName}` : "";
 
-  // Phase 3 — the per-card inquiry control is resolver-driven (single source of
-  // truth for CTA state). The card only carries the lineup inputs (it has no
-  // active-inquiry context client-side), so the resolver yields add_first /
-  // add_to_lineup (-> "Inquire") or in_lineup (-> "In lineup, tap to remove").
-  // One tap toggles the shared lineup; never a modal, never drops the lineup.
+  // Phase 3 / GRK-054 — card Inquire opens the inquiry surface. It must not
+  // silently toggle the shortlist/cart and leave the user on the directory.
+  // Labels stay resolver-driven for lineup state; the tap always routes to chat
+  // (or the sheet fallback) instead of a quiet cart flip.
   const ctaState = resolveInquiryCta({
     talentProfileId,
     isInLineup: inCart,
@@ -119,43 +114,21 @@ export function TalentCardActions({
   const handleInquiry = (event: MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
-    const willAdd = !inCart;
-    // On ADD only: record the portrait/name for the launcher rail (single
-    // source stays cartIds; this only supplies presentation data) and request
-    // the card→pill fly animation from the photo rect. Removal stays a plain
-    // cart toggle. Reduced-motion is handled inside useFlyToRail downstream.
-    if (willAdd) {
-      registerCartTalent(talentProfileId, { displayName, portraitUrl });
-      const rect = getInquiryPhotoRect?.() ?? null;
-      if (rect && inquiryModal) {
-        inquiryModal.animateAdd({ fromRect: rect, portraitUrl, talentProfileId });
-      }
-    }
-    cart.toggleInCart({ talentProfileId, profileCode, displayName }, sourcePage);
-
-    // Phase 6 — reversibility. A card removal is always a DRAFT-stage cart op
-    // (the card is a pre-send acquisition surface; it carries no sent-inquiry
-    // context), so it is always safe to offer Undo. Restoring the cart id is the
-    // faithful inverse of the card's only mutation: the card never patched the
-    // inquiry record on remove, so re-adding the id replays the exact same path.
-    // The launcher rail X-remove (which DOES patch the record) owns the both
-    // cart+record restore. Reuses the existing public flash host, no new dep.
-    if (!willAdd && discovery) {
-      const t = withInterpolation(createTranslator(locale));
-      const name = displayName?.trim() || t("public.guestChat.sectionTalent");
-      discovery.setFlash({
-        tone: "info",
-        durationMs: 5000,
-        title: t("public.guestChat.removedToast", { name }),
-        action: {
-          label: t("public.guestChat.removedToastUndo"),
-          onAction: () => {
-            registerCartTalent(talentProfileId, { displayName, portraitUrl });
-            cart.setInCart({ talentProfileId, profileCode, displayName }, true, sourcePage);
-          },
-        },
+    // GRK-054 — Inquire opens a conversation about this talent. It must not
+    // silently toggle `saved_talent` (the shortlist) and leave the user on the
+    // directory. Portrait is registered for the rail; membership for a separate
+    // draft is owned by the chat launcher's separate-inquiry path.
+    registerCartTalent(talentProfileId, { displayName, portraitUrl });
+    if (inquiryModal) {
+      inquiryModal.requestSeparateInquiry({
+        talentProfileId,
+        profileCode,
+        displayName: fallbackName,
+        portraitUrl: portraitUrl ?? null,
       });
+      return;
     }
+    cart.openInquiry({ sourcePage });
   };
 
   const glyphSize = compact ? "size-3.5" : "size-4";

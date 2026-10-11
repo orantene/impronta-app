@@ -7,12 +7,18 @@
  * below can be tested without a server runtime.
  */
 
+import { COMPARE_CATEGORY_LABEL } from "./pricing-types";
+
 /**
  * A locale map as it arrives from the database: `jsonb`, which is `unknown`
  * shaped. Typing it as a Record would be a claim about data the database does
  * not enforce, so the narrowing happens here instead of at the cast site.
  */
 export type LocaleMap = unknown;
+
+function isSpanishLocale(locale: string): boolean {
+  return locale.toLowerCase().startsWith("es");
+}
 
 /**
  * Read a locale map, falling back to the English column.
@@ -36,4 +42,49 @@ export function pickLabel(
   }
   const value = (map as Record<string, unknown>)[locale];
   return typeof value === "string" && value.trim() !== "" ? value : fallback;
+}
+
+/** Column chrome: the "Feature" header on the compare matrix (GRK-013). */
+export function compareFeatureColumnLabel(locale: string): string {
+  return isSpanishLocale(locale) ? "Función" : "Feature";
+}
+
+const ES_COMPARE_CATEGORY_LABEL: Record<string, string> = {
+  pipeline: "Pipeline de solicitud a reserva",
+  notifications: "Notificaciones y mensajería",
+  roster_site: "Roster y sitio",
+  media: "Medios y marca",
+  team_access: "Equipo y acceso",
+  network_data: "Red y datos",
+};
+
+/** Section headings for `product_features.category` (GRK-013). */
+export function compareCategoryLabel(category: string, locale: string): string {
+  if (isSpanishLocale(locale)) {
+    return (
+      ES_COMPARE_CATEGORY_LABEL[category] ??
+      COMPARE_CATEGORY_LABEL[category] ??
+      category
+    );
+  }
+  return COMPARE_CATEGORY_LABEL[category] ?? category;
+}
+
+const EN_TIER_CAPTIONS: Record<string, string> = {
+  free: "Every operator, forever.",
+  studio: "Solo + small team, on WhatsApp.",
+  agency: "Teams running representation.",
+  hub: "Staffing, casting, and scale.",
+};
+
+const ES_TIER_CAPTIONS: Record<string, string> = {
+  free: "Para todo operador, siempre.",
+  studio: "Solo o equipo pequeño, en WhatsApp.",
+  agency: "Equipos de representación.",
+  hub: "Staffing, casting y escala.",
+};
+
+/** Default one-line captions under each tier name (GRK-013). */
+export function compareTierCaptions(locale: string): Record<string, string> {
+  return isSpanishLocale(locale) ? ES_TIER_CAPTIONS : EN_TIER_CAPTIONS;
 }

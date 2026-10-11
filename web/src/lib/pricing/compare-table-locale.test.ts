@@ -1,7 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { pickLabel } from "./compare-table-locale";
+import {
+  compareCategoryLabel,
+  compareFeatureColumnLabel,
+  compareTierCaptions,
+  pickLabel,
+} from "./compare-table-locale";
 
 /**
  * The fallback is the load-bearing behaviour here.
@@ -60,4 +65,21 @@ test("a non-object json value falls back rather than throwing", () => {
   for (const bad of ["just a string", 42, ["es"], true]) {
     assert.equal(pickLabel(bad, "Seats", "es"), "Seats");
   }
+});
+
+// GRK-013 — /es/pricing compare chrome must not print English FEATURE / Free captions.
+test("Spanish compare chrome localizes Feature, categories, and Free caption", () => {
+  assert.equal(compareFeatureColumnLabel("es"), "Función");
+  assert.equal(compareFeatureColumnLabel("en"), "Feature");
+  assert.equal(
+    compareCategoryLabel("pipeline", "es"),
+    "Pipeline de solicitud a reserva",
+  );
+  assert.equal(
+    compareCategoryLabel("pipeline", "en"),
+    "Inquiry → booking pipeline",
+  );
+  assert.equal(compareTierCaptions("es").free, "Para todo operador, siempre.");
+  assert.equal(compareTierCaptions("en").free, "Every operator, forever.");
+  assert.doesNotMatch(compareTierCaptions("es").free, /Every operator/);
 });
