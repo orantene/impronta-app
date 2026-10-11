@@ -75,3 +75,19 @@ test("the page-level gate is still there as defence in depth", () => {
     "the page gate must remain: the edge fails open, and the directory modal " +
       "route does not pass through the /t/ path match.");
 });
+
+test("both branded-404 rewrites carry the locale, never forged host headers", () => {
+  const gate = readFileSync(GATE, "utf8");
+  assert.match(gate, /stripInboundHostContextHeaders\(request\)/,
+    "the gate's rewrite must forward sanitized headers, not the raw inbound set");
+  assert.match(gate, /headers\.set\(LOCALE_HEADER, match\[1\]\)/,
+    "a /<locale>/t/<code> 404 must render in that locale");
+
+  const src = readFileSync(PROXY, "utf8");
+  const i = src.indexOf('new URL("/_page-not-found", request.url)');
+  assert.ok(i > 0, "proxy.ts must rewrite disallowed paths to the branded 404");
+  const block = src.slice(Math.max(0, i - 700), i + 200);
+  assert.match(block, /new Headers\(sanitizedInboundHeaders\)/);
+  assert.match(block, /LOCALE_HEADER/, "/es/<typo> must render the Spanish card");
+  assert.match(block, /request: \{ headers: notFoundHeaders \}/);
+});

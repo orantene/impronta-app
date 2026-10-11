@@ -5,6 +5,7 @@ import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { resolveNotFoundSlug } from "@/lib/site-admin/server/page-roles";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { isLocale } from "@/lib/site-admin/locales";
+import { pickLocale } from "@/lib/i18n/pick-locale";
 import CmsPublicPage from "@/app/(public)/p/[[...slug]]/page";
 
 // E.2 — Branded 404 page (server component).
@@ -82,19 +83,41 @@ export default async function NotFound() {
 
   const brand = await loadAgencyBrand();
   const isAgency = brand !== null;
+  const t = pickLocale(await getRequestLocale(), {
+    en: {
+      agencyHeading: "This page is no longer here",
+      agencyBody: (name: string) =>
+        `We couldn't find that page on ${name}. The roster, news, or campaign you were looking for may have moved.`,
+      heading: "Page not found",
+      body: "We couldn't find the page you're looking for.",
+      backHome: "Back to homepage",
+      goHome: "Go home",
+      inquiry: "Send an inquiry",
+      signIn: "Sign in",
+      poweredBy: "Powered by Tulala",
+    },
+    es: {
+      agencyHeading: "Esta página ya no está aquí",
+      agencyBody: (name: string) =>
+        `No encontramos esa página en ${name}. El roster, la noticia o la campaña que buscabas puede haberse movido.`,
+      heading: "Página no encontrada",
+      body: "No encontramos la página que buscas.",
+      backHome: "Volver al inicio",
+      goHome: "Ir al inicio",
+      inquiry: "Enviar una consulta",
+      signIn: "Iniciar sesión",
+      poweredBy: "Con la tecnología de Tulala",
+    },
+  });
   const eyebrow = isAgency && brand ? brand.name.toUpperCase() : "TULALA";
-  const heading = isAgency && brand
-    ? "This page is no longer here"
-    : "Page not found";
-  const body = isAgency && brand
-    ? `We couldn't find that page on ${brand.name}. The roster, news, or campaign you were looking for may have moved.`
-    : "We couldn't find the page you're looking for.";
+  const heading = isAgency && brand ? t.agencyHeading : t.heading;
+  const body = isAgency && brand ? t.agencyBody(brand.name) : t.body;
   const primaryCta = isAgency
-    ? { label: "Back to homepage", href: "/" }
-    : { label: "Go home", href: "/" };
+    ? { label: t.backHome, href: "/" }
+    : { label: t.goHome, href: "/" };
   const secondaryCta = isAgency
-    ? { label: "Send an inquiry", href: "/client/inquiries/new" }
-    : { label: "Sign in", href: "/login" };
+    ? { label: t.inquiry, href: "/client/inquiries/new" }
+    : { label: t.signIn, href: "/login" };
 
   return (
     <div
@@ -211,7 +234,7 @@ export default async function NotFound() {
               marginBottom: 0,
             }}
           >
-            Powered by Tulala
+            {t.poweredBy}
           </p>
         ) : null}
       </div>

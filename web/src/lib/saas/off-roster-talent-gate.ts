@@ -1,9 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { LOCALE_HEADER } from "@/i18n/request-locale";
+
 import { isProfileCodeOnTenantRoster } from "./host-context";
+import { stripInboundHostContextHeaders } from "./proxy-inbound-sanitize";
 
 /** Matches `/t/<code>` and `/<locale>/t/<code>`, with or without a trailing slash. */
-const TALENT_PATH = /^\/(?:[a-z]{2}\/)?t\/([^/]+)\/?$/;
+const TALENT_PATH = /^\/(?:([a-z]{2})\/)?t\/([^/]+)\/?$/;
 
 /**
  * An agency host may only serve talent on its OWN visible roster — decided at
@@ -46,7 +49,8 @@ export async function offRosterTalentResponse(
     return null;
   }
 
-  const code = TALENT_PATH.exec(pathname)?.[1];
+  const match = TALENT_PATH.exec(pathname);
+  const code = match?.[2];
   if (!code) return null;
 
   const onRoster = await isProfileCodeOnTenantRoster(
@@ -59,8 +63,12 @@ export async function offRosterTalentResponse(
   // `/_page-not-found` is the existing branded not-found target for a known
   // host on a disallowed path, already whitelisted against rewrite recursion.
   // NOT `/_host-unregistered`, which says "Domain not connected" and would
-  // wrongly tell the visitor the whole site is down.
+  // wrongly tell the visitor the whole site is down. A `/<locale>/` prefix is
+  // forwarded so `/es/t/<code>` gets the Spanish card.
+  const headers = stripInboundHostContextHeaders(request);
+  if (match?.[1]) headers.set(LOCALE_HEADER, match[1]);
   return NextResponse.rewrite(new URL("/_page-not-found", request.url), {
     status: 404,
+    request: { headers },
   });
 }

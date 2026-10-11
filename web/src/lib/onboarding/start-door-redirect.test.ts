@@ -37,6 +37,24 @@ test("the hub and unregistered hosts are left alone", () => {
   }
 });
 
+test("a Spanish prefix survives the hop instead of 404ing", () => {
+  assert.equal(startDoorRedirect({ ...base, pathname: "/es/start", hostKind: "app" }), "https://tulala.digital/es/start");
+  assert.equal(
+    startDoorRedirect({ ...base, pathname: "/es/signup/", hostKind: "talent_site", search: "?choice=myself" }),
+    "https://tulala.digital/es/start?choice=myself",
+  );
+  assert.equal(startDoorRedirect({ ...base, pathname: "/es/signup", hostKind: "marketing" }), "https://tulala.digital/es/start");
+  assert.equal(startDoorRedirect({ ...base, pathname: "/es/onboarding/role", hostKind: "marketing" }), "https://tulala.digital/es/start");
+  assert.equal(startDoorRedirect({ ...base, pathname: "/es/start", hostKind: "marketing" }), null);
+  assert.equal(startDoorRedirect({ ...base, pathname: "/es/start", hostKind: "hub" }), null);
+});
+
+test("only a known locale counts as a prefix", () => {
+  assert.equal(startDoorRedirect({ ...base, pathname: "/xx/start", hostKind: "app" }), null);
+  assert.equal(startDoorRedirect({ ...base, pathname: "/es", hostKind: "app" }), null);
+  assert.equal(startDoorRedirect({ ...base, pathname: "/es/es/start", hostKind: "app" }), null);
+});
+
 test("never redirects unsafe methods or other paths", () => {
   assert.equal(startDoorRedirect({ ...base, method: "POST", pathname: "/start", hostKind: "app" }), null);
   assert.equal(startDoorRedirect({ ...base, pathname: "/starting", hostKind: "app" }), null);
