@@ -31,6 +31,7 @@ import { resolveGuestTokenResumeHref } from "@/app/t/[profileCode]/_actions/gues
 import { headers } from "next/headers";
 
 import { DocumentLang } from "@/components/i18n/DocumentLang";
+import { TalentSiteHostFullNav } from "@/components/talent-site/talent-site-host-full-nav";
 import { getRequestLocale } from "@/i18n/request-locale";
 import {
   HOST_CONTEXT_HEADER,
@@ -39,6 +40,9 @@ import {
 } from "@/lib/saas/host-context";
 import { LEGACY_PRIVACY_SLUG, POLICY_SLUG } from "@/lib/talent-policies/public";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { talentGuestAliasTarget } from "@/lib/talent-site/guest-path-aliases";
+import { talentNotFoundCopy } from "@/lib/talent-site/talent-not-found-copy";
+import { loadTalentNotFoundCopy } from "@/lib/talent-site/server/talent-not-found.server";
 import { renderTalentMaxSite } from "@/lib/talent-site/server/render-max-site";
 import {
   maxSiteJsonLdString,
@@ -79,15 +83,20 @@ async function resolveTalentProfileId(): Promise<string | null> {
  * (NEVER the /t/[code] discovery profile). Returns null if the header is absent
  * → render falls back to NEXT_PUBLIC_SITE_URL.
  */
-async function resolveCanonicalOrigin(): Promise<string | undefined> {
+async function resolveServedHost(): Promise<string | undefined> {
   try {
     const h = await headers();
     const host = h.get(HOST_NAME_HEADER)?.trim();
-    if (!host) return undefined;
-    return `https://${host}`;
+    return host || undefined;
   } catch {
     return undefined;
   }
+}
+
+async function resolveCanonicalOrigin(): Promise<string | undefined> {
+  const host = await resolveServedHost();
+  if (!host) return undefined;
+  return `https://${host}`;
 }
 
 function firstSegment(pageSlug: string[] | undefined): string | null {
@@ -103,6 +112,12 @@ function apexPath(pageSlug: string | null): string {
   return pageSlug ? `/${encodeURIComponent(pageSlug)}` : "/";
 }
 
+/** GRK-028: a missing page keeps the site's own name and language in the tab. */
+async function talentNotFoundMetadata(): Promise<Metadata> {
+  const copy = (await loadTalentNotFoundCopy()) ?? talentNotFoundCopy("en", null);
+  return { title: { absolute: copy.documentTitle }, robots: { index: false, follow: false } };
+}
+
 export async function generateMetadata({
   params,
   searchParams,
@@ -112,7 +127,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   if (!isSupabaseConfigured()) return {};
   const talentProfileId = await resolveTalentProfileId();
-  if (!talentProfileId) return { title: "Not found" };
+  if (!talentProfileId) return talentNotFoundMetadata();
   const { pageSlug } = await params;
   const { preview } = await searchParams;
   const [locale, canonicalOrigin] = await Promise.all([
@@ -132,7 +147,7 @@ export async function generateMetadata({
     canonicalOrigin,
     canonicalPath: apexPath(seg),
   });
-  if (result.kind !== "render") return { title: "Not found" };
+  if (result.kind !== "render") return talentNotFoundMetadata();
   return maxSiteSeoToMetadata(result.seo, { ogLocale: result.locale });
 }
 
@@ -155,11 +170,15 @@ export default async function TalentSiteHostPage({
     const href = await resolveGuestTokenResumeHref({ token: resumeToken, orderId: order ?? null });
     if (href) redirect(href);
   }
-  const [locale, canonicalOrigin] = await Promise.all([
+  const [locale, canonicalOrigin, servedHost] = await Promise.all([
     getRequestLocale(),
     resolveCanonicalOrigin(),
+    resolveServedHost(),
   ]);
   const seg = firstSegment(pageSlug);
+  // GRK-028 defense-in-depth: guest path aliases (also handled in the proxy).
+  const guestAlias = talentGuestAliasTarget(seg);
+  if (guestAlias) redirect(guestAlias);
 
   const result = await renderTalentMaxSite({
     talentProfileId,
@@ -187,6 +206,7 @@ export default async function TalentSiteHostPage({
         />
       ) : null}
       <DocumentLang locale={result.locale} />
+      {servedHost ? <TalentSiteHostFullNav servedHost={servedHost} /> : null}
       {result.node}
       <TalentOfferingIntentQuery />
       <TalentSiteMessagesDock talentProfileId={talentProfileId} locale={result.locale} orderId={order ?? null} />

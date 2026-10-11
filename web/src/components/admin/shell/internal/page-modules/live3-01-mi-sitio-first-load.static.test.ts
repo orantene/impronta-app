@@ -4,8 +4,8 @@
  *
  * QA (dual-owner Grok Salon): account-menu fallback assigned that alias when
  * dashboard seed was missing; the redirect hop painted the global error card
- * until a full reload. Soft-nav to Presence (`setTalentPage("public-page")` →
- * `/talent/site`) is the recovery path.
+ * until a full reload. The menu hard-navs to the edit href or straight to
+ * `/talent/site`, never the alias.
  *
  * Run: node_modules/.bin/tsx --test \
  *   src/components/admin/shell/internal/page-modules/live3-01-mi-sitio-first-load.static.test.ts
@@ -30,10 +30,10 @@ test("create / Presence canonical href is /talent/site", () => {
   assert.equal(CREATE_WEBSITE_HREF, "/talent/site");
 });
 
-test("account menu soft-navs into Presence when seed is missing", () => {
+test("account menu goes straight to /talent/site when seed is missing", () => {
   const src = readFileSync(MENU, "utf8");
   assert.doesNotMatch(src, /location\.assign\([^)]*public-page/);
-  assert.match(src, /setTalentPage\("public-page"\)/);
+  assert.match(src, /location\.assign\(myWebsite\?\.editHref \?\? "\/talent\/site"\)/);
 });
 
 test("dashboard panel retries a failed layout seed", () => {

@@ -15,7 +15,7 @@ import {
   loadTalentAgencies,
   loadTalentRepresentation,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent";
-import { loadTalentVisibleInquiryIds } from "@/lib/messaging/talent-inbox-rows";
+import { loadTalentInboxSummary } from "@/lib/messaging/talent-inbox-rows";
 import { scopeTalentNotificationsToInbox } from "@/lib/notifications/talent-inbox-scope";
 import { loadTalentSurfaceNotifications } from "@/app/(workspace)/[tenantSlug]/_data-bridge/notifications";
 import { loadTalentCalendarEntries } from "@/components/admin/shell/internal/data-bridge";
@@ -30,7 +30,13 @@ import { findTenantMembership } from "@/lib/saas/tenant";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { loadWorkspaceUnreadCount } from "@/lib/saas/unread-counts";
-import { loadShellCounts, type ShellCounts } from "@/lib/shell/shell-counts";
+import {
+  loadShellCounts,
+  sanitizeShellCount,
+  sumTalentInquiryUnread,
+  type ShellCounts,
+} from "@/lib/shell/shell-counts";
+import { countTalentAwaitingInquiries } from "@/components/admin/shell/internal/shell-count-bubbles-logic";
 import { loadUserPrefs, type UserPrefs } from "@/lib/server-actions/user-prefs";
 import { TalentShellClient } from "@/components/admin/shell/admin-shell-client";
 import { SupportLauncherShellMount } from "@/components/support/SupportLauncherShellMount";
@@ -258,7 +264,7 @@ export async function TalentLayoutInner({
     talentPageAnalytics,
     workspaceUi,
     talentDashboardLoad,
-    visibleInquiryIds,
+    talentInboxSummary,
     talentPlanGrants,
     operatingCurrency,
     requestLocale,
@@ -329,13 +335,27 @@ export async function TalentLayoutInner({
     // above, stacking four round trips onto every talent page before the shell
     // could stream. None depends on the batch, so they ride in it.
     // The bell counts only conversations she can open in Messages (TUL-52 B).
-    loadTalentVisibleInquiryIds(readCtx).catch(() => null),
+    loadTalentInboxSummary(readCtx).catch(() => null),
     loadTalentPlanGrants(talentSelfProfile.id).catch(() => null),
     loadPlatformOperatingCurrency(),
     getRequestLocale(),
   ]);
 
-  const userNotifications = scopeTalentNotificationsToInbox(userNotificationsAll, visibleInquiryIds);
+  const userNotifications = scopeTalentNotificationsToInbox(userNotificationsAll, talentInboxSummary?.ids ?? null);
+
+  // TUL-387/388: Messages and Attention say what the inbox says (its unread
+  // count and its "Needs reply" count). Only when that read fails do they fall
+  // back to the bridge rows (cross-agency unread, awaiting-you statuses).
+  const shellCountsResolved: ShellCounts = {
+    messages: sanitizeShellCount(
+      talentInboxSummary?.unreadCount ?? sumTalentInquiryUnread(talentInquiries),
+    ),
+    money: sanitizeShellCount(shellCounts.money),
+    attention: sanitizeShellCount(
+      talentInboxSummary?.needsReply ?? countTalentAwaitingInquiries(talentInquiries),
+    ),
+  };
+
 
   // Platform currency policy: unless a super-admin has turned multi-currency
   // display ON, collapse the talent's earnings to the single operating currency
@@ -408,10 +428,10 @@ export async function TalentLayoutInner({
         pitches: null,
         teamMembers: null,
         // Compat: totalUnread mirrors shellCounts.messages for existing consumers.
-        totalUnread: shellCounts.messages,
+        totalUnread: shellCountsResolved.messages,
         // Identity bar / mobile nav read talentUnread on the talent surface.
-        talentUnread: shellCounts.messages,
-        shellCounts,
+        talentUnread: shellCountsResolved.messages,
+        shellCounts: shellCountsResolved,
         // Stamp the talent's exclusivity to the active agency onto the identity
         // payload. Whitelabel branding on the talent dashboard shows the agency
         // logo only when the talent is EXCLUSIVE to it (is_primary) AND the

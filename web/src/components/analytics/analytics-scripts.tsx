@@ -1,5 +1,6 @@
 import Script from "next/script";
 
+import { ANALYTICS_ALLOWED_JS } from "@/lib/analytics/consent";
 import { sanitizeAnalyticsId } from "@/lib/integrations/analytics-id-guard";
 import { GA4_INTEGRATION_KEY } from "@/lib/integrations/catalog";
 
@@ -41,8 +42,9 @@ const PLATFORM_GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() || null
 /**
  * GA4 via gtag.js with Consent Mode v2 defaults read from `localStorage` on
  * first paint (`impronta_analytics_consent`: granted | denied). First-time
- * visitors default to denied until the user accepts in
- * {@link AnalyticsConsentBanner}.
+ * visitors in the strict consent region default to denied until the user
+ * accepts in {@link AnalyticsConsentBanner}; elsewhere the region default
+ * applies (see `ANALYTICS_ALLOWED_JS`).
  *
  * All per-tenant analytics are injected here: GA4 (gtag), GTM, Meta Pixel,
  * TikTok Pixel, and LinkedIn Insight Tag. Each is only injected when its ID is
@@ -107,11 +109,7 @@ export function AnalyticsScripts({
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   window.gtag = gtag;
-  var consent='denied';
-  try{
-    var s=localStorage.getItem('impronta_analytics_consent');
-    if(s==='granted') consent='granted';
-  }catch(e){}
+  var consent=${ANALYTICS_ALLOWED_JS}?'granted':'denied';
   gtag('consent','default',{
     analytics_storage: consent,
     ad_storage: consent,
@@ -196,11 +194,7 @@ n.queue=[];t=b.createElement(e);t.async=!0;
 t.src=v;s=b.getElementsByTagName(e)[0];
 s.parentNode.insertBefore(t,s)}(window,document,'script',
 'https://connect.facebook.net/en_US/fbevents.js');
-(function(){
-  var granted=false;
-  try{granted=localStorage.getItem('impronta_analytics_consent')==='granted';}catch(e){}
-  fbq('consent',granted?'grant':'revoke');
-})();
+fbq('consent',${ANALYTICS_ALLOWED_JS}?'grant':'revoke');
 fbq('init','${meta}');
 fbq('track','PageView');`,
           }}
@@ -218,9 +212,7 @@ fbq('track','PageView');`,
   // Configured for this tenant — set BEFORE the consent gate so the consent
   // banner knows a reload would actually load this pixel.
   window.__ttqConfigured = true;
-  var granted=false;
-  try{granted=localStorage.getItem('impronta_analytics_consent')==='granted';}catch(e){}
-  if(!granted) return;
+  if(!${ANALYTICS_ALLOWED_JS}) return;
   !function(w,d,t){
     w.TiktokAnalyticsObject=t;
     var ttq=w[t]=w[t]||[];
@@ -246,9 +238,7 @@ fbq('track','PageView');`,
             __html: `
 (function(){
   window.__lintrkConfigured = true;
-  var granted=false;
-  try{granted=localStorage.getItem('impronta_analytics_consent')==='granted';}catch(e){}
-  if(!granted) return;
+  if(!${ANALYTICS_ALLOWED_JS}) return;
   window._linkedin_partner_id='${linkedin}';
   window._linkedin_data_partner_ids=window._linkedin_data_partner_ids||[];
   window._linkedin_data_partner_ids.push(window._linkedin_partner_id);
