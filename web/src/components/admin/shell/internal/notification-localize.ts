@@ -8,7 +8,23 @@
  * content), and the age is computed from the row's timestamp with Intl.
  */
 
+import { themeUpdateCopy } from "@/lib/talent-site/theme-releases/manager/notify";
 import { translateDashboardText } from "./dashboard-i18n";
+
+const THEME_UPDATE_TITLE = /^(.+) (?:has an update|tiene una actualización)$/u;
+
+/**
+ * Theme-release bells are stored in the talent's preferred locale at fan-out,
+ * so either language can arrive here; re-render them in the viewer's.
+ */
+function localizeThemeUpdateText(text: string, locale: string): string | null {
+  const title = text.match(THEME_UPDATE_TITLE);
+  if (title) return themeUpdateCopy(title[1], locale).title;
+  if (text === themeUpdateCopy("", "en").body || text === themeUpdateCopy("", "es").body) {
+    return themeUpdateCopy("", locale).body;
+  }
+  return null;
+}
 
 /**
  * Short relative age via Intl ("hace 5 d", "5d ago", "ahora"/"now").
@@ -40,6 +56,8 @@ export function localizeNotificationText(
   locale: string,
 ): string {
   if (!text) return "";
+  const themeUpdate = localizeThemeUpdateText(text, locale);
+  if (themeUpdate !== null) return themeUpdate;
   if (!locale.toLowerCase().startsWith("es")) return text;
   const direct = translateDashboardText(text, locale);
   if (direct !== text) return direct;
