@@ -938,6 +938,17 @@ export async function updateOfferDraft(
       }
     }
 
+    // Before any write: an unclassifiable fee refuses the save instead of
+    // persisting a solo owner's stale workspace fee.
+    const soloFee = await resolveSoloSafeCoordinatorFee(supabase, {
+      tenantId: ctx.tenantId,
+      actorUserId: ctx.actorUserId,
+      requestedFee: ctx.coordinator_fee,
+      lineTalentProfileIds: ctx.lineItems.map((line) => line.talent_profile_id?.trim() || null),
+    });
+    if (!soloFee.ok) return { success: false, error: "offer_fee_unresolved" };
+    const coordinatorFee = soloFee.fee;
+
     await supabase
       .from("inquiry_offer_line_items")
       .delete()
@@ -1039,13 +1050,6 @@ export async function updateOfferDraft(
       totalClientPriceCents,
       fallbackTerms,
     );
-
-    const coordinatorFee = await resolveSoloSafeCoordinatorFee(supabase, {
-      tenantId: ctx.tenantId,
-      actorUserId: ctx.actorUserId,
-      requestedFee: ctx.coordinator_fee,
-      lineTalentProfileIds: ctx.lineItems.map((line) => line.talent_profile_id?.trim() || null),
-    });
 
     const writeDraft = await inquiryWriteClient(supabase);
     const { data: offerUp, error: oerr } = await writeDraft
