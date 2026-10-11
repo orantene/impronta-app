@@ -345,6 +345,11 @@ export interface BuilderNodeRenderDataSources {
   talentVisitFacts?: ReadonlyArray<import("./visit-types").TalentVisitFact>;
   /** G4 public `tel:` link for the utility bar; absent/empty = no call button. */
   callHref?: string;
+  /**
+   * The talent site's own languages (primary first) and, per code, THIS page in
+   * that language: the utility bar's language switch. Fewer than two = no switch.
+   */
+  siteLocales?: { locales: readonly string[]; hrefs?: Readonly<Record<string, string>> };
   /** Public-safe location (exact address present only in "public" mode). */
   talentLocation?: import("@/lib/talent/location-settings").TalentLocationPublic | null;
   /**
@@ -6190,6 +6195,8 @@ function renderBuilderNodeElement(
         node: localizeBlockNode(node, options.contentLocale),
         liveStatus: options.dataSources?.liveStatus,
         callHref: options.dataSources?.callHref,
+        siteLocales: options.dataSources?.siteLocales,
+        locale: options.visitorLocale ?? options.contentLocale?.locale,
         publicPathPrefix: options.publicPathPrefix,
         styleAttr: sharedNodeStyle(node.props.style),
       });
