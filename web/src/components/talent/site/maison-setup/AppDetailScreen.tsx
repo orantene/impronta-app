@@ -56,7 +56,8 @@ export function AppDetailScreen({
   const app = findLibraryApp(appId);
   const designs = app ? designsThatSuitApp(app) : [];
   const play = app ? PLAYGROUND[app.nativeKind] : null;
-  const bridgePlan = useAdminShellOptional()?.bridgeTalentSelfProfile?.talentPlanKey ?? null;
+  const shell = useAdminShellOptional();
+  const bridgePlan = shell?.bridgeTalentSelfProfile?.talentPlanKey ?? null;
   // Gate only premium apps (`isPremiumApp && !canAdd` → Upgrade). `canAddApps`
   // is a test/host override for the Web Office capability.
   const planAllowsPremium = canAddApps ?? canAddLibraryApp(bridgePlan);
@@ -189,6 +190,12 @@ export function AppDetailScreen({
           <a
             href={GALLERY_LOCKED_UPGRADE_HREF}
             data-testid="app-detail-upgrade-to-use"
+            onClick={(e) => {
+              if (!shell) return;
+              e.preventDefault();
+              onClose();
+              shell.openDrawer("talent-tier-compare");
+            }}
             className="inline-flex min-h-12 items-center justify-center rounded-xl bg-admin-ink px-5 text-[14px] font-semibold text-white"
           >
             {galleryAppsT(locale, "upgradeToUse")}
