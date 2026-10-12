@@ -15,7 +15,7 @@ import {
   loadTalentAgencies,
   loadTalentRepresentation,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent";
-import { loadTalentVisibleInquiryIds } from "@/lib/messaging/talent-inbox-rows";
+import { loadTalentInboxSummary } from "@/lib/messaging/talent-inbox-rows";
 import { scopeTalentNotificationsToInbox } from "@/lib/notifications/talent-inbox-scope";
 import { loadTalentSurfaceNotifications } from "@/app/(workspace)/[tenantSlug]/_data-bridge/notifications";
 import { loadTalentCalendarEntries } from "@/components/admin/shell/internal/data-bridge";
@@ -265,7 +265,7 @@ export async function TalentLayoutInner({
     talentPageAnalytics,
     workspaceUi,
     talentDashboardLoad,
-    visibleInquiryIds,
+    talentInboxSummary,
     talentPlanGrants,
     operatingCurrency,
     requestLocale,
@@ -336,22 +336,25 @@ export async function TalentLayoutInner({
     // above, stacking four round trips onto every talent page before the shell
     // could stream. None depends on the batch, so they ride in it.
     // The bell counts only conversations she can open in Messages (TUL-52 B).
-    loadTalentVisibleInquiryIds(readCtx).catch(() => null),
+    loadTalentInboxSummary(readCtx).catch(() => null),
     loadTalentPlanGrants(talentSelfProfile.id).catch(() => null),
     loadPlatformOperatingCurrency(),
     getRequestLocale(),
   ]);
 
-  const userNotifications = scopeTalentNotificationsToInbox(userNotificationsAll, visibleInquiryIds);
+  const userNotifications = scopeTalentNotificationsToInbox(userNotificationsAll, talentInboxSummary?.ids ?? null);
 
-  // TUL-387: Messages bubble = sum of bridge unread (cross-agency), matching
-  // TalentAgencyFilterChips "All". Attention = awaiting-you inquiry count
-  // (same predicate as Hoy / inbox chip) so shellCounts.attention is honest
-  // when the bubble prefers the bridge over the client recompute.
+  // TUL-387/388: Messages and Attention say what the inbox says (its unread
+  // count and its "Needs reply" count). Only when that read fails do they fall
+  // back to the bridge rows (cross-agency unread, awaiting-you statuses).
   const shellCountsResolved: ShellCounts = {
-    messages: sanitizeShellCount(sumTalentInquiryUnread(talentInquiries)),
+    messages: sanitizeShellCount(
+      talentInboxSummary?.unreadCount ?? sumTalentInquiryUnread(talentInquiries),
+    ),
     money: sanitizeShellCount(shellCounts.money),
-    attention: sanitizeShellCount(countTalentAwaitingInquiries(talentInquiries)),
+    attention: sanitizeShellCount(
+      talentInboxSummary?.needsReply ?? countTalentAwaitingInquiries(talentInquiries),
+    ),
   };
 
 

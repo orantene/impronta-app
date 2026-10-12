@@ -124,7 +124,7 @@ test("#talent-ask is never pruned: it is a real target on every talent page", ()
 });
 
 test("the home page renders the header and footer through the pruner", () => {
-  const src = readFileSync(join(process.cwd(), "src/lib/talent-site/server/render-max-site.tsx"), "utf8");
+  const src = readFileSync(join(process.cwd(), "src/lib/talent-site/server/render-max-site-document.tsx"), "utf8");
   assert.match(src, /pruneDeadSectionLinks\(headerTree, renderedBlocks, \[footerTree\], \{ homePath \}\)/);
   assert.match(src, /pruneDeadSectionLinks\(footerTree, renderedBlocks, \[headerTree\], \{ homePath \}\)/);
   assert.match(src, /renderBuilderNodes\(liveHeaderTree/);

@@ -20,7 +20,7 @@ import { rateLimitHtmlResponse, rateLimitJsonResponse, tryConsumeRateLimit } fro
 import { updateSession } from "@/lib/supabase/middleware";
 import { attachTalentSiteGuestIdentity } from "@/lib/saas/talent-site-guest-identity";
 import { resolveTenantContext, HOST_CONTEXT_HEADER, HOST_NAME_HEADER, HOST_TENANT_SLUG_HEADER } from "@/lib/saas/host-context";
-import { offRosterTalentResponse } from "@/lib/saas/off-roster-talent-gate";
+import { offRosterTalentResponse, unknownTalentCodeResponse } from "@/lib/saas/off-roster-talent-gate";
 import { suspendedWorkspaceResponse } from "@/lib/saas/suspended-workspace-gate";
 import {
   supportDeskAdminRedirectResponse,
@@ -54,6 +54,7 @@ import { ensureExperimentVisitorCookie } from "@/lib/site-admin/builder-node/exp
 import { TULALA_APEX_HOST, TULALA_WWW_HOST } from "@/lib/brand/tulala";
 import { timed } from "@/lib/server/perf-trace";
 import { startDoorRedirect } from "@/lib/onboarding/start-door-redirect";
+import { marketingSpanishAliasRedirect } from "@/lib/marketing/spanish-path-alias";
 import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 
 export async function proxy(request: NextRequest) {
@@ -183,6 +184,14 @@ export async function proxy(request: NextRequest) {
   });
   if (startDoor) return NextResponse.redirect(startDoor, 308);
 
+  const spanishAlias = marketingSpanishAliasRedirect({
+    pathname: request.nextUrl.pathname,
+    search: request.nextUrl.search,
+    method: request.method,
+    hostKind: hostContext.kind,
+  });
+  if (spanishAlias) return NextResponse.redirect(new URL(spanishAlias, request.url), 308);
+
   // Support Desk host: DEAD while SUPPORT_DESK_ENABLED is off — even when
   // support.tulala.digital is seeded in agency_domains (Phase 1a). When the
   // flag is on, still restrict to the desk surface (not a full app host).
@@ -243,6 +252,10 @@ export async function proxy(request: NextRequest) {
     }
     const off = await timed("proxy.offRoster", offRosterTalentResponse(request, pathname, hostContext.tenantId, PREVIEW_QUERY_PARAM));
     if (off) return off;
+  }
+  if (hostContext.kind === "app" || hostContext.kind === "marketing" || hostContext.kind === "hub") {
+    const unknownCode = await timed("proxy.unknownTalentCode", unknownTalentCodeResponse(request, pathname, PREVIEW_QUERY_PARAM));
+    if (unknownCode) return unknownCode;
   }
 
   // ── Preview handoff ─────────────────────────────────────────────────────

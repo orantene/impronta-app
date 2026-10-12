@@ -191,9 +191,10 @@ body{margin:0;background:#F3ECE6}
 .nd-seg button.on{background:var(--ink);color:var(--panel)}
 .nd-copy{align-self:flex-start;height:36px;padding:0 12px;display:inline-flex;align-items:center;gap:6px;border:1px dashed #CDBDB2;border-radius:999px;background:transparent;font-size:13px;font-weight:600;color:var(--accent);cursor:pointer}
 .nd-copy:hover{background:var(--tint)}
-.nd-tabs{display:flex;gap:0;border-bottom:1px solid #EFE6DF;overflow-x:auto;scrollbar-width:none}
-.nd-tabs::-webkit-scrollbar{display:none}
-.nd-tab{flex:1 0 auto;display:flex;align-items:center;justify-content:center;gap:2px;border-bottom:2px solid transparent}
+.nd-tabs{display:flex;gap:0;border-bottom:1px solid #EFE6DF;overflow-x:auto;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
+.nd-tabs::-webkit-scrollbar{height:3px}
+.nd-tabs::-webkit-scrollbar-thumb{background:#D8CBC3;border-radius:99px}
+.nd-tab{flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:2px;border-bottom:2px solid transparent}
 .nd-tab.on{border-bottom-color:var(--accent)}
 .nd-tab.on [data-act=tab]{color:var(--ink)}
 .nd-tabs .nd-tog{flex:0 0 auto;width:22px;height:22px;padding:0;margin:0 1px 0 -2px;border:0;border-radius:50%;background:transparent;color:#A89A94;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
@@ -280,7 +281,7 @@ body{margin:0;background:#F3ECE6}
   .nd:not([data-layout="desktop"]) .nd-skinpick button{width:32px;height:32px}
   .nd:not([data-layout="desktop"]) .nd-skin-cur{width:34px!important;height:34px!important}
   .nd:not([data-layout="desktop"]) .nd-zc button{width:38px;height:38px}
-  .nd:not([data-layout="desktop"]) .nd-panel{order:3;flex:1 1 auto;min-height:0;margin-top:10px;border-left:0;border-radius:22px 22px 0 0;background:var(--panel);box-shadow:0 -4px 18px rgba(43,34,33,.07)}
+  .nd:not([data-layout="desktop"]) .nd-panel{order:3;flex:1 1 auto;min-height:0;margin-top:10px;border-left:0;border-radius:22px 22px 0 0;background:var(--panel);box-shadow:0 -2px 10px rgba(43,34,33,.04)}
   .nd:not([data-layout="desktop"]) .nd-ptop{padding:14px 14px 0;gap:8px}
   .nd:not([data-layout="desktop"]) .nd-ptop .nd-label{display:none}
   .nd:not([data-layout="desktop"]) .nd-tab{flex:0 0 auto}
@@ -298,7 +299,7 @@ body{margin:0;background:#F3ECE6}
 .nd-tabs .nd-rand{flex:0 0 auto;align-self:center;width:32px;height:32px;margin-left:2px;padding:0;border:1px solid var(--line);border-radius:50%;background:var(--panel);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s,transform .2s}
 .nd-tabs .nd-rand:hover{background:var(--tint);color:var(--accent);transform:rotate(-12deg)}
 .nd-tabs{position:relative}
-@media (max-width:820px){.nd:not([data-layout="desktop"]) .nd-tabs .nd-rand{position:sticky;right:0;box-shadow:-8px 0 8px var(--panel)}}
+/* Do not sticky-mask the last tab on phone; guests swipe the strip instead. */}
 </style>
 </head>
 <body>
@@ -1442,7 +1443,16 @@ body{margin:0;background:#F3ECE6}
     if (bw / bh > A) { var h = bw / A; if (h > bh * 1.35) { var w2 = bh * 1.35 * A; bw = Math.max(w2, bw * 0.84); h = bw / A; return [box[0] + (box[2] - bw) / 2 + 20, box[1] - (h - bh) * 0.35, bw, h]; } return [box[0], box[1] - (h - bh) * 0.3, bw, h]; }
     var w = bh * A; return [box[0] - (w - bw) / 2, box[1], w, bh];
   }
-  function aspect() { return stage && stage.clientHeight > 0 ? stage.clientWidth / stage.clientHeight : 1.25; }
+  function aspect() {
+    if (!stage) return 1.25;
+    var w = stage.clientWidth, h = stage.clientHeight;
+    // Width 0 + height > 0 → A=0 → Inf viewBox → NaN. Wait for a real box.
+    if (!(w > 0 && h > 0 && Number.isFinite(w) && Number.isFinite(h))) return 1.25;
+    return w / h;
+  }
+  function finiteVB(box) {
+    return Array.isArray(box) && box.length === 4 && box.every(function (n) { return Number.isFinite(n); });
+  }
   function targetVB() {
     var base = fitBox(handBox(), aspect()), sc = VIEW.scale, w = base[2] / sc, h = base[3] / sc;
     var cx = VIEW.cx == null ? base[0] + base[2] / 2 : VIEW.cx, cy = VIEW.cy == null ? base[1] + base[3] / 2 : VIEW.cy;
@@ -1470,18 +1480,25 @@ body{margin:0;background:#F3ECE6}
     $('[data-act=zin]').disabled = VIEW.scale >= 3.99;
     stage.classList.toggle('nd-zoomed', z);
   }
-  function snapView() { cancelAnimationFrame(raf); vb = targetVB(); svg.setAttribute('viewBox', vb.map(f2).join(' ')); }
+  function snapView() {
+    cancelAnimationFrame(raf);
+    var next = targetVB();
+    if (!finiteVB(next) || !svg) return;
+    vb = next;
+    svg.setAttribute('viewBox', vb.map(f2).join(' '));
+  }
   function zoomTo() {
     if (S.target === 'one' && S.sel != null) focusNail(S.sel); else if (S.target === 'all' && zoomTo.fromNail) resetView();
     zoomTo.fromNail = S.target === 'one';
     if (svg) updateZoomUI();
     var to = targetVB(), from = vb.slice(), t0 = performance.now();
     cancelAnimationFrame(raf);
+    if (!finiteVB(to) || !svg) return;
     if (reduceMotion) { vb = to; svg.setAttribute('viewBox', vb.map(f2).join(' ')); return; }
     function step(now) {
       var k = Math.min(1, (now - t0) / 420), e = 1 - Math.pow(1 - k, 3);
       vb = from.map(function (v, j) { return v + (to[j] - v) * e; });
-      svg.setAttribute('viewBox', vb.map(f2).join(' '));
+      if (finiteVB(vb)) svg.setAttribute('viewBox', vb.map(f2).join(' '));
       if (k < 1) raf = requestAnimationFrame(step);
     }
     raf = requestAnimationFrame(step);

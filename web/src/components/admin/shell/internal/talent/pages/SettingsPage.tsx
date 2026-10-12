@@ -14,6 +14,8 @@ import { TalentPlanCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/T
 import { HowYouWorkCard } from "@/components/settings/how-you-work-card";
 import { HYW_DESC, HYW_TITLE } from "@/components/settings/how-you-work-copy";
 import { AccountDeletionCard } from "@/components/account/AccountDeletionCard";
+import { TalentInstagramCard } from "@/components/talent/connections/TalentInstagramCard";
+import { TALENT_INSTAGRAM_RETURN_MARKER } from "@/lib/talent-integrations/instagram-card-state";
 import { usePresenceText } from "@/components/talent/studio/presence-i18n";
 import { useDashboardText } from "../../dashboard-i18n";
 import { PasskeysCard } from "../../modern-features";
@@ -40,8 +42,22 @@ type Row = {
   panel?: ReactNode;
 };
 
-function SettingsGroup({ title, rows, tone = "plain" }: { title: string; rows: Row[]; tone?: "plain" | "risk" }) {
+function SettingsGroup({
+  title,
+  rows,
+  tone = "plain",
+  openKeyRequest = null,
+}: {
+  title: string;
+  rows: Row[];
+  tone?: "plain" | "risk";
+  /** Unfold this row once it is known, e.g. when returning from an OAuth connect. */
+  openKeyRequest?: string | null;
+}) {
   const [openKey, setOpenKey] = useState<string | null>(null);
+  useEffect(() => {
+    if (openKeyRequest) setOpenKey(openKeyRequest);
+  }, [openKeyRequest]);
   if (rows.length === 0) return null;
   return (
     <section
@@ -119,6 +135,14 @@ export function SettingsPage() {
     return () => {
       live = false;
     };
+  }, []);
+  const [instagramReturn, setInstagramReturn] = useState(false);
+  useEffect(() => {
+    const search = new URLSearchParams(window.location.search);
+    setInstagramReturn(
+      search.get("connection_success") === "instagram" ||
+        search.get(TALENT_INSTAGRAM_RETURN_MARKER) === "instagram",
+    );
   }, []);
   const copy = useDashboardText();
   const dashboardLocale = useDashboardLocale();
@@ -276,6 +300,17 @@ export function SettingsPage() {
     },
   );
 
+  const connections: Row[] = bridgeTalentSelfProfile
+    ? [
+        {
+          key: "instagram",
+          label: "Instagram",
+          sub: tx("Your latest posts on your website."),
+          panel: <TalentInstagramCard onUpgrade={() => openDrawer("talent-tier-compare")} />,
+        },
+      ]
+    : [];
+
   const hard: Row[] = [
     {
       key: "hide",
@@ -344,6 +379,11 @@ export function SettingsPage() {
         </div>
         <div className="flex min-w-0 flex-col gap-[16px]">
           <SettingsGroup title={tx("You and your account")} rows={account} />
+          <SettingsGroup
+            title={tx("Connections")}
+            rows={connections}
+            openKeyRequest={instagramReturn ? "instagram" : null}
+          />
           <SettingsGroup title={tx("Things that are hard to undo")} rows={hard} tone="risk" />
           <SettingsGroup title={tx("Who you work with")} rows={workWith} />
         </div>

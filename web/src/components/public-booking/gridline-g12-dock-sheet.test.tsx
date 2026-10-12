@@ -34,7 +34,7 @@ const html = (locale: string, liveStatus?: typeof ON | typeof OFF | null) =>
 
 // TUL-344: re-pinned on purpose (sticky bar hides at the top and reserves --cb-bar-h for every theme).
 test("existing designs: the base booking stylesheet is byte-pinned", () => {
-  assert.equal(createHash("sha256").update(CATALOG_BOOKING_CSS).digest("hex"), "80ae0da7ed57720ae24137f45ad83b9247adc8b3d4d674f621cf74f38f84feb3"); // re-pinned: TUL-528 --cb-bar-h island reserve on tip after #3125
+  assert.equal(createHash("sha256").update(CATALOG_BOOKING_CSS).digest("hex"), "456540ffb451f28875a19ef8906b6106bdb69a0a566363cb13004f19485e8b0d"); // re-pinned: LIVE12 .jb-error is an ink notice box (was accent text). Before: f436c9a5 (TUL-561 cookie card rides above the "See services" pill)
 });
 
 test("existing designs: dock markup is identical with no status, null or off", () => {

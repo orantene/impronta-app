@@ -1409,6 +1409,8 @@ export interface BuilderVisitNode extends BuilderNodeBase {
     showMap?: boolean;
     mapImageUrl?: string;
     mapCaption?: string;
+    /** area layout: note under the chips, per language via `i18n`; empty = the location settings' note. */
+    arrivalNote?: string;
     /** Soft surface band behind the section. */
     band?: boolean;
     /** Talent-written facts shown after the live ones (e.g. a deposit note). */
@@ -1561,6 +1563,11 @@ export interface BuilderUtilityBarNode extends BuilderNodeBase {
     callHref?: string;
     ctaLabel?: string;
     ctaHref?: string;
+    /** Section links (desktop inline, phone menu). Talent sites fill them at render from the page's sections. */
+    navLinks?: { label: string; href: string }[];
+    /** Accessible name of the section nav and its phone menu button. */
+    navLabel?: string;
+    menuLabel?: string;
     style?: BuilderNodeStyle;
   };
 }

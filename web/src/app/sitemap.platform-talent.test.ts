@@ -97,3 +97,18 @@ test("the sitemap never lists /get-started while it only redirects", () => {
   assert.match(SITEMAP_SRC, /getOnboardingFlags\(\)\)\.onboarding_module_enabled/);
   assert.match(SITEMAP_SRC, /getStartedIsRedirect \? \[\] : \["\/get-started"\]/);
 });
+
+test("talent SITE HOST sitemap does not require directory listing flags", () => {
+  // TUL-534 / GRK-096: jorg-beauty-qa (and other unlisted-but-live hosts) served
+  // pages while /sitemap.xml returned an empty urlset because the host branch
+  // reused the platform directory gate (`is_publicly_listed` + `visibility`).
+  const hostBranch = SITEMAP_SRC.slice(
+    SITEMAP_SRC.indexOf("loadTalentSiteHostSitemapEntries"),
+    SITEMAP_SRC.indexOf("export default async function sitemap"),
+  );
+  assert.match(hostBranch, /\.is\("deleted_at", null\)/);
+  assert.match(hostBranch, /\.eq\("is_publicly_hidden", false\)/);
+  assert.match(hostBranch, /maxSitePublicGate/);
+  assert.doesNotMatch(hostBranch, /\.eq\("is_publicly_listed", true\)/);
+  assert.doesNotMatch(hostBranch, /\.eq\("visibility", "public"\)/);
+});
