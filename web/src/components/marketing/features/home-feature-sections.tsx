@@ -66,8 +66,8 @@ export function HomeFeatureSectionOne({ locale }: { locale: string }) {
             {copy.eyebrow}
           </p>
           <h2
-            className="plt-display mt-4"
-            style={{ fontSize: "clamp(1.9rem, 5vw, 3rem)", lineHeight: 1.06, color: "var(--plt-ink)" }}
+            className="mkt-display mt-4 text-[2rem] font-medium tracking-[-0.02em] sm:text-[2.75rem] md:text-[3rem]"
+            style={{ color: "var(--plt-ink)" }}
           >
             {copy.title}
           </h2>
@@ -113,8 +113,8 @@ export function HomeFeatureSectionTwo({ locale }: { locale: string }) {
             {copy.eyebrow}
           </p>
           <h2
-            className="plt-display mt-4"
-            style={{ fontSize: "clamp(1.9rem, 5vw, 3rem)", lineHeight: 1.06, color: "var(--plt-ink)" }}
+            className="mkt-display mt-4 text-[2rem] font-medium tracking-[-0.02em] sm:text-[2.75rem] md:text-[3rem]"
+            style={{ color: "var(--plt-ink)" }}
           >
             {copy.title}
           </h2>
