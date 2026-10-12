@@ -2461,6 +2461,7 @@
     "switchWorkspace": "Cambiar espacio",
     "workspaceTalentQa": "Usuario QA talento",
     "workspaceClientQa": "Usuario QA cliente",
+    "workspaceQaUnavailable": "Esta cuenta QA aún no está configurada aquí. Revisa la configuración del usuario QA.",
     "workspaceSwitcherHint": "Vista previa QA, solo lectura",
     "impersonationActorNote": "Sesión de admin",
     "impersonationReadOnly": "Viendo como",
