@@ -2461,6 +2461,7 @@
     "switchWorkspace": "Switch workspace",
     "workspaceTalentQa": "Talent QA user",
     "workspaceClientQa": "Client QA user",
+    "workspaceQaUnavailable": "This QA account isn't set up here yet. Check the QA user setting.",
     "workspaceSwitcherHint": "QA preview, read-only",
     "impersonationActorNote": "Admin session",
     "impersonationReadOnly": "Viewing as",
