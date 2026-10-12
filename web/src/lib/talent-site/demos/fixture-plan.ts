@@ -449,15 +449,24 @@ export interface CaptionOp {
  * Work-order job cards read a two-line caption from the media (`metadata.caption`:
  * title, then detail). The first gallery photos, in display order, take the
  * fixture's portfolio items in order. Only items with a `title` (Gridline) apply.
+ * A fixture translation's `portfolio` goes to `metadata.caption_i18n.<lang>`.
  */
 export function planCaptionOps(f: MockupFixture, gallery: Row[]): CaptionOp[] {
   const ops: CaptionOp[] = [];
+  const other = f.locale === "es" ? "en" : "es";
+  const translated = f.translations?.[other]?.portfolio;
   f.portfolio.items.forEach((it, i) => {
     const asset = gallery[i];
     if (!asset || !it.title) return;
     const caption = `${it.title}\n${it.caption}`;
     const meta = (asset.metadata as Row | null) ?? {};
-    if (!same(meta.caption ?? null, caption)) ops.push({ id: asset.id as string, metadata: { ...meta, caption } });
+    const next: Row = { ...meta, caption };
+    const t = translated?.[i];
+    if (t) {
+      const have = meta.caption_i18n && typeof meta.caption_i18n === "object" && !Array.isArray(meta.caption_i18n) ? (meta.caption_i18n as Row) : {};
+      next.caption_i18n = { ...have, [other]: `${t.title}\n${t.caption}` };
+    }
+    if (!same(meta, next)) ops.push({ id: asset.id as string, metadata: next });
   });
   return ops;
 }

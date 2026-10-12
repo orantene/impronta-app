@@ -17,6 +17,7 @@ import {
   resolveCardShow,
   resolveHubCardStyle,
 } from "@/lib/site-admin/server/card-design-shape";
+import { useDirectoryCopy } from "./directory-copy-context";
 import type { DirectoryCardRow } from "./shared";
 import { toCanonicalCardData } from "./shared";
 
@@ -59,8 +60,10 @@ export function DirectoryTalentCard({
   captionNorms?: CaptionNorms;
 }) {
   const mediaRef = useRef<HTMLDivElement>(null);
+  const t = useDirectoryCopy();
+  const locale = t.locale;
   const design = talent.design ?? DEFAULT_CARD_DESIGN;
-  const data = toCanonicalCardData(talent);
+  const data = toCanonicalCardData(talent, t);
   // The tenant's explicit Card Design layout defaults win; the family only
   // decides the render branch when no explicit style was published.
   // Phase 2 (TUL-19): Showcase or Cinematic, chosen in Card Design. Unset
@@ -124,6 +127,7 @@ export function DirectoryTalentCard({
         displayName={data.name}
         sourcePage="/directory"
         variant="pill"
+        locale={locale}
         hideFavorite
         portraitUrl={talent.headshotUrl ?? null}
         getInquiryPhotoRect={() =>
@@ -172,11 +176,11 @@ export function DirectoryTalentCard({
               displayName={data.name}
               profileHref={data.profileHref}
               thumbnailUrl={talent.headshotUrl ?? null}
-              locale="en"
+              locale={locale}
               sourcePage="/directory"
-              openLabel="Quick view"
-              closeLabel="Close"
-              viewProfileLabel="View profile"
+              openLabel={t.quickView}
+              closeLabel={t.close}
+              viewProfileLabel={t.viewProfile}
             />
           ) : null}
           {showFavorite ? (
@@ -186,6 +190,7 @@ export function DirectoryTalentCard({
               displayName={data.name}
               sourcePage="/directory"
               variant="compact"
+              locale={locale}
               hideInquiry
             />
           ) : null}
