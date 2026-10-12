@@ -6,6 +6,7 @@ import { withShellBrandName } from "../header-brand-name";
 import { loadTalentDisplayName } from "./load-header-brand-name.server";
 import { contrastRatio } from "@/lib/site-admin/tokens/contrast-pair";
 import { localiseSeededDesignLabels, type SiteCtaMode } from "../design-label-locale";
+import { withUtilityBarNav } from "../utility-bar-nav";
 import { placeMaisonTradeApps, tradesFromTypeLabels } from "../demos/app-placement";
 import { applyTalentLiveMedia, treeHasLiveMediaCandidates } from "../live-media";
 import { applyTalentLiveText, treeHasLiveCandidates } from "../live-text";
@@ -72,7 +73,7 @@ export async function prepareTalentSiteTrees(input: {
     designSlug: input.designSlug,
   }).tree;
   const shell = withLive(
-    localiseSeededDesignLabels(input.shellTree, input.locale, input.ctaMode ?? null, swaps),
+    localiseSeededDesignLabels(withUtilityBarNav(input.shellTree, input.locale), input.locale, input.ctaMode ?? null, swaps),
   );
   return {
     shellTree: input.logoUrl

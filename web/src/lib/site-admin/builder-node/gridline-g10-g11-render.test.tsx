@@ -219,3 +219,9 @@ test("the area drawing is deterministic for a zone and differs between zones", (
   const other = toPublicLocation({ ...DEFAULT_LOCATION_SETTINGS, zoneNeighbourhood: "Obispado" }, "Monterrey");
   assert.notEqual(a1, render([areaNode()], { talentLocation: other, talentVisitFacts: [travel] }));
 });
+
+test("work-order viewer books 'this service', never the beauty 'this look' (karla, alex)", async () => {
+  const src = await import("node:fs").then((fs) => fs.readFileSync(new URL("./portfolio-work-order.tsx", import.meta.url), "utf8"));
+  assert.match(src, /bookLabel: es \? "Reservar este servicio" : "Book this service"/);
+  assert.doesNotMatch(src, /este look|this look/);
+});

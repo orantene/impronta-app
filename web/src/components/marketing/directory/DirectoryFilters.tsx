@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useDirectoryCopy } from "./directory-copy-context";
 import {
   FOCUS_RING,
   orderedTrustFacets,
@@ -38,7 +39,8 @@ export function DirectoryFilters({
   onTrust: (value: string | null) => void;
   onClearAll: () => void;
 }) {
-  const trustFacets = orderedTrustFacets(facets.trustTiers);
+  const t = useDirectoryCopy();
+  const trustFacets = orderedTrustFacets(facets.trustTiers, t);
   const cities = active.country
     ? facets.cities.filter((c) => c.country === active.country)
     : facets.cities;
@@ -65,7 +67,7 @@ export function DirectoryFilters({
               className="plt-mono text-[0.6875rem] uppercase tracking-[0.22em]"
               style={{ color: "var(--plt-muted)" }}
             >
-              Filters
+              {t.filters}
             </span>
           ) : null}
           {anyActive ? (
@@ -75,22 +77,22 @@ export function DirectoryFilters({
               className={`rounded text-[0.75rem] font-medium transition-colors hover:underline ${FOCUS_RING}`}
               style={{ color: "var(--plt-forest)" }}
             >
-              Clear all
+              {t.clearAll}
             </button>
           ) : null}
         </div>
       ) : null}
 
-      <FilterSection title="Availability">
+      <FilterSection title={t.availability}>
         <ToggleRow
-          label="Open in the next 30 days"
+          label={t.openNext30}
           checked={active.availableOnly}
           onClick={() => onAvailableOnly(!active.availableOnly)}
         />
       </FilterSection>
 
       {facets.countries.length > 0 ? (
-        <FilterSection title="Country">
+        <FilterSection title={t.country}>
           <FacetList
             items={facets.countries.map((c) => ({
               value: c.value,
@@ -104,7 +106,7 @@ export function DirectoryFilters({
       ) : null}
 
       {cities.length > 0 ? (
-        <FilterSection title={active.country ? `Cities in ${smartTitleCase(active.country)}` : "City"}>
+        <FilterSection title={active.country ? t.citiesIn(smartTitleCase(active.country)) : t.city}>
           <FacetList
             items={cities.map((c) => {
               const ambiguous = (cityNameCounts.get(c.city.toLowerCase()) ?? 0) > 1;
@@ -131,15 +133,15 @@ export function DirectoryFilters({
       ) : null}
 
       {trustFacets.length > 0 ? (
-        <FilterSection title="Verification">
+        <FilterSection title={t.verification}>
           <div className="flex flex-col gap-1">
-            {trustFacets.map((t) => (
+            {trustFacets.map((tier) => (
               <ToggleRow
-                key={t.value}
-                label={t.label}
-                count={t.count}
-                checked={active.trustTier === t.value}
-                onClick={() => onTrust(active.trustTier === t.value ? null : t.value)}
+                key={tier.value}
+                label={tier.label}
+                count={tier.count}
+                checked={active.trustTier === tier.value}
+                onClick={() => onTrust(active.trustTier === tier.value ? null : tier.value)}
               />
             ))}
           </div>
@@ -172,6 +174,7 @@ function FacetList({
   activeValue: string | null;
   onToggle: (value: string) => void;
 }) {
+  const t = useDirectoryCopy();
   const [expanded, setExpanded] = useState(false);
   const visible = expanded ? items : items.slice(0, COLLAPSE_AT);
   // Always show the active value even if it would be hidden below the fold.
@@ -207,7 +210,7 @@ function FacetList({
           className={`mt-1 self-start rounded text-[0.75rem] font-medium transition-colors hover:underline ${FOCUS_RING}`}
           style={{ color: "var(--plt-forest)" }}
         >
-          {expanded ? "Show less" : `Show all ${items.length}`}
+          {expanded ? t.showLess : t.showAll(items.length)}
         </button>
       ) : null}
     </div>

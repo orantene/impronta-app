@@ -121,9 +121,10 @@ jobs:
         id: policy
         # Runs BEFORE checkout, so web/ (the job default) does not exist yet.
         working-directory: .
-        # Labels are read LIVE (not from the event payload), so after adding
-        # full-ci a re-run of this check picks it up; no "labeled" trigger
-        # (any label event would cancel an in-flight gate on this ref).
+        # Labels are read LIVE (not from the event payload), so a re-run picks
+        # up full-ci. ci-full-ci-rerun.yml does that re-run when the label is
+        # added; no "labeled" trigger here (any label event would cancel an
+        # in-flight gate on this ref, and its skipped gate would count as passing).
         env:
           IS_PR: ${{ github.event_name == 'pull_request' }}
           IS_INTEG: ${{ startsWith(github.head_ref, 'integ/') }}
@@ -139,7 +140,7 @@ jobs:
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "::error::Ordinary PRs ship inside an integ/* batch, whose gate covers them. To merge this PR on its own, add the full-ci label, then re-run this check."
+            echo "::error::Ordinary PRs ship inside an integ/* batch, whose gate covers them. To merge this PR on its own, add the full-ci label; this check then re-runs on its own."
             exit 1
           fi
 

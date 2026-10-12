@@ -24,6 +24,10 @@
 import type { UserNotification } from "./data-bridge";
 import type { DrawerId } from "./state/drawer-ids";
 import { notificationDrawerFields } from "./notification-drawer-targets";
+import {
+  pickSignalText,
+  type TalentAttentionSignal,
+} from "@/lib/notifications/attention-signals";
 
 /**
  * Three categories, each with its own behavior contract:
@@ -75,10 +79,11 @@ export type TalentNotif = {
   target?: TalentNotifTarget;
 };
 
+/** Message keys (`dashboard.talentNotifications.*`), rendered through `t()`. */
 export const NOTIF_CATEGORY_META: Record<NotifCategory, { label: string; hint: string }> = {
-  action: { label: "Action needed", hint: "stays here until you respond" },
-  system: { label: "Setup", hint: "auto-clears when complete" },
-  update: { label: "Updates", hint: "dismissible" },
+  action: { label: "dashboard.talentNotifications.categoryAction", hint: "dashboard.talentNotifications.categoryActionHint" },
+  system: { label: "dashboard.talentNotifications.categorySystem", hint: "dashboard.talentNotifications.categorySystemHint" },
+  update: { label: "dashboard.talentNotifications.categoryUpdate", hint: "dashboard.talentNotifications.categoryUpdateHint" },
 };
 
 /**
@@ -197,4 +202,40 @@ export function talentNotifsFromBridge(
           : undefined,
       };
     });
+}
+
+/**
+ * TUL-392: derived Attention signals as drawer rows. Sticky action rows (they
+ * clear when the state does: site published), and the id carries the state, so
+ * a row marked read returns when the state moves.
+ */
+export function talentNotifsFromSignals(
+  signals: readonly TalentAttentionSignal[],
+  locale: string,
+  adminBasePath: string,
+): TalentNotif[] {
+  return signals.map((s) => ({
+    id: `signal-${s.id}`,
+    category: "action" as const,
+    icon: "bolt" as const,
+    tone: "coral" as const,
+    title: pickSignalText(s.title, locale),
+    sub: pickSignalText(s.body, locale),
+    unread: true,
+    sticky: true,
+    target: notificationDrawerFields(s.targetDrawer, null, adminBasePath),
+  }));
+}
+
+/** The drawer's live source: signals first (sticky action rows), then real rows. */
+export function talentDrawerNotifs(
+  rows: readonly UserNotification[],
+  signals: readonly TalentAttentionSignal[] | null,
+  locale: string,
+  adminBasePath: string,
+): TalentNotif[] {
+  return [
+    ...talentNotifsFromSignals(signals ?? [], locale, adminBasePath),
+    ...talentNotifsFromBridge(rows, adminBasePath),
+  ];
 }

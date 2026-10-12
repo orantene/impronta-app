@@ -12,6 +12,14 @@ import {
 } from "@/lib/integrations/repository";
 import { emitNotificationToUsers } from "@/lib/notifications/emit";
 import { logServerError } from "@/lib/server/safe-error";
+import {
+  IG_REFRESH_WINDOW_MS,
+  TT_REFRESH_WINDOW_MS,
+  backoffElapsed,
+  failureConfig,
+  isFatalFailure,
+  needsRefresh,
+} from "./token-policy";
 
 /**
  * Social token refresh sweep.
@@ -49,21 +57,11 @@ import { logServerError } from "@/lib/server/safe-error";
  *   - Any success resets the counter to zero.
  */
 
-const IG_REFRESH_WINDOW_MS = 15 * 24 * 60 * 60 * 1000;
-const TT_REFRESH_WINDOW_MS = 6 * 60 * 60 * 1000;
-
-/**
- * Transient failures tolerated before a tenant is declared needs-reconnect.
- * Against the 6h cron and the backoff below this is ~a day and a half of a
- * vendor being down before we tell the operator to reconnect — long enough that
- * a real outage does not generate false alarms, short enough that a genuinely
- * broken integration is not discovered by the feed going blank.
- */
-const MAX_CONSECUTIVE_FAILURES = 5;
-
-/** First retry delay; doubles per consecutive failure up to the cap. */
-const BACKOFF_BASE_MS = 30 * 60 * 1000; // 30 minutes
-const BACKOFF_MAX_MS = 24 * 60 * 60 * 1000; // 1 day
+// MAX_CONSECUTIVE_FAILURES (5): against the 6h cron and the backoff this is ~a
+// day and a half of a vendor being down before we tell the operator to
+// reconnect — long enough that a real outage does not generate false alarms,
+// short enough that a genuinely broken integration is not discovered by the
+// feed going blank.
 
 export type SocialTokenSweepResult = {
   scanned: number;
@@ -80,44 +78,6 @@ const PROVIDER_LABEL: Record<string, string> = {
   instagram: "Instagram",
   tiktok: "TikTok",
 };
-
-function needsRefresh(expiresAt: unknown, windowMs: number): boolean {
-  if (typeof expiresAt !== "string" || !expiresAt) return true; // unknown → try
-  const ms = Date.parse(expiresAt);
-  if (Number.isNaN(ms)) return true;
-  return ms - Date.now() < windowMs;
-}
-
-function readFailureCount(config: Record<string, unknown>): number {
-  const raw = config.refresh_consecutive_failures;
-  if (typeof raw !== "number" || !Number.isFinite(raw) || raw < 0) return 0;
-  return Math.floor(raw);
-}
-
-/**
- * Has this row's backoff elapsed? A row with no recorded failure is always due.
- * Delay doubles per consecutive failure (30m, 1h, 2h, 4h, 8h…) capped at a day,
- * so a vendor outage does not turn into a retry storm.
- */
-function backoffElapsed(config: Record<string, unknown>, now: number): boolean {
-  const failures = readFailureCount(config);
-  if (failures === 0) return true;
-  const last = config.refresh_last_failure_at;
-  if (typeof last !== "string" || !last) return true;
-  const lastMs = Date.parse(last);
-  if (Number.isNaN(lastMs)) return true;
-  const delay = Math.min(BACKOFF_BASE_MS * 2 ** (failures - 1), BACKOFF_MAX_MS);
-  return now - lastMs >= delay;
-}
-
-/**
- * A vendor 4xx means the grant itself is dead — retrying cannot help. Anything
- * else (5xx, unreachable host, malformed 200) is transient. An ABSENT status is
- * a transport failure, which is the retryable direction.
- */
-function isFatalFailure(status: number | undefined): boolean {
-  return typeof status === "number" && status >= 400 && status < 500;
-}
 
 /**
  * Tell the workspace's owners/admins their social connection needs attention.
@@ -183,26 +143,19 @@ async function recordFailure(
   error: string,
   opts: { fatal: boolean },
 ): Promise<boolean> {
-  const failures = readFailureCount(config) + 1;
-  const alreadyFlagged = config.needs_reconnect === true;
-  const shouldFlag = opts.fatal || failures >= MAX_CONSECUTIVE_FAILURES;
+  const next = failureConfig(config, error, {
+    fatal: opts.fatal,
+    nowIso: new Date().toISOString(),
+  });
 
-  await setIntegrationConfig(
-    tenantId,
-    key,
-    {
-      ...config,
-      needs_reconnect: shouldFlag ? true : false,
-      refresh_consecutive_failures: failures,
-      refresh_last_failure_at: new Date().toISOString(),
-      refresh_last_error: error,
-    },
-    { status: "error", lastError: error },
-  );
+  await setIntegrationConfig(tenantId, key, next.config, {
+    status: "error",
+    lastError: error,
+  });
 
   // Notify only on the TRANSITION, so a stuck integration does not re-bell the
   // owners on every sweep.
-  if (shouldFlag && !alreadyFlagged) {
+  if (next.transitioned) {
     await notifyNeedsReconnect(admin, tenantId, key, error);
     return true;
   }

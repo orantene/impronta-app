@@ -6,6 +6,7 @@ import {
   countUnreadRealNotifications,
   filterNotificationsByUiCategory,
   hubClickTarget,
+  hubReadItemIds,
   scopeRealNotifications,
   staffQueuesVisible,
 } from "./notification-hub-scope";
@@ -83,4 +84,19 @@ test("TUL-389: unread count follows read_at (n.read) and optimistic mark-read id
   assert.equal(countUnreadRealNotifications(rows, new Set(["u1"])), 1);
   assert.equal(countUnreadRealNotifications(rows, new Set(["notif-u3"])), 1);
   assert.equal(countUnreadRealNotifications(rows, new Set(["u1", "notif-u3"])), 0);
+});
+
+test("TUL-389: bell read ids include server-read rows before any effect runs (no all-unread first paint)", () => {
+  const rows = [
+    row({ id: "a", read: true }),
+    row({ id: "b", read: true }),
+    row({ id: "c", read: false }),
+  ];
+  const ids = hubReadItemIds(new Set(), rows);
+  assert.deepEqual([...ids].sort(), ["notif-a", "notif-b"]);
+  const itemIds = rows.map((r) => `notif-${r.id}`);
+  assert.equal(itemIds.filter((id) => !ids.has(id)).length, 1);
+  // Local (optimistic / fixture) ids survive the merge.
+  assert.ok(hubReadItemIds(new Set(["plan-cap", "notif-c"]), rows).has("notif-c"));
+  assert.ok(hubReadItemIds(new Set(["plan-cap"]), null).has("plan-cap"));
 });

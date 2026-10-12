@@ -76,8 +76,6 @@ export function TalentCardActions({
   const cartPending = cart.isPending(talentProfileId);
   const compact = variant === "compact";
   const isPill = variant === "pill";
-  const nameSuffix = displayName ? ` ${displayName}` : "";
-
   // Phase 3 — the per-card inquiry control is resolver-driven (single source of
   // truth for CTA state). The card only carries the lineup inputs (it has no
   // active-inquiry context client-side), so the resolver yields add_first /
@@ -178,8 +176,8 @@ export function TalentCardActions({
           aria-pressed={favorited}
           aria-label={
             favorited
-              ? `Remove${nameSuffix} from favorites`
-              : `Save${nameSuffix} to favorites`
+              ? copy("public.directory.card.removeFavoriteAria", { name: fallbackName })
+              : copy("public.directory.card.saveFavoriteAria", { name: fallbackName })
           }
           className={cn(
             // Lane E — the circle is CONSTANT in both states; only the

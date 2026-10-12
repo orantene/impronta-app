@@ -45,6 +45,7 @@ import {
 import { siblingDropGapToMoveIndex } from "@/lib/site-admin/builder-node/sibling-drop-gap";
 import {
   overlayHasProp,
+  overlayWriteLocale,
   setOverlayProp,
 } from "@/lib/site-admin/builder-node/i18n-overlay";
 import { stripLockedKeysFromPatch } from "@/lib/site-admin/builder-node/prop-lock";
@@ -5574,27 +5575,32 @@ export function BuilderNodeLocalizableTextField({
   const { availableLocales, defaultLocale } = useEditContext();
   const talentAi = useTalentAiTranslateEnabled();
   const { locale: activeContentLocale } = useActiveContentLocale();
+  const overlay = node.i18n;
+  // The text the canvas shows in the default locale: an `i18n[default]` entry
+  // shadows the base prop (seeded themes ship one).
+  const primaryValue = overlayWriteLocale(overlay, defaultLocale, defaultLocale, prop)
+    ? (overlay?.[defaultLocale]?.[prop] ?? baseValue)
+    : baseValue;
   // PR 7: a secondary tab ghosts the primary text (native placeholder, never a
   // pre-filled value), and talent surfaces get the AI translate button.
-  const ghost = (isDefault: boolean) => (isDefault ? placeholder : baseValue.trim() || placeholder);
+  const ghost = (isDefault: boolean) => (isDefault ? placeholder : primaryValue.trim() || placeholder);
   const aiOn = talentAi && (fieldKind === "input" || fieldKind === "textarea");
 
-  const overlay = node.i18n;
   const supported = inspectorLocales(availableLocales, defaultLocale, activeContentLocale);
 
-  // Value for a given locale: default → base prop; secondary → overlay entry.
+  // Value for a given locale: default → what the canvas shows; secondary → overlay entry.
   const valueForLocale = (locale: string): string => {
-    if (locale === defaultLocale) return baseValue;
+    if (locale === defaultLocale) return primaryValue;
     return overlay?.[locale]?.[prop] ?? "";
   };
   const hasValueForLocale = (locale: string): boolean => {
-    if (locale === defaultLocale) return baseValue.trim().length > 0;
+    if (locale === defaultLocale) return primaryValue.trim().length > 0;
     return overlayHasProp(overlay, locale, prop);
   };
 
-  // Commit for a given locale: default → onCommitBase; secondary → patch overlay.
+  // Commit for a given locale: base prop, or the overlay entry the canvas reads.
   const commitForLocale = (locale: string) => async (next: string) => {
-    if (locale === defaultLocale) {
+    if (overlayWriteLocale(overlay, locale, defaultLocale, prop) === null) {
       await onCommitBase(next);
       return;
     }
@@ -5652,7 +5658,7 @@ export function BuilderNodeLocalizableTextField({
       hasValueForLocale={hasValueForLocale}
       renderField={renderField}
       ariaLabel={`${ariaLabel} language`}
-      ai={aiOn ? { sourceText: baseValue, valueFor: valueForLocale, commit: (l, v) => commitForLocale(l)(v) } : undefined}
+      ai={aiOn ? { sourceText: primaryValue, valueFor: valueForLocale, commit: (l, v) => commitForLocale(l)(v) } : undefined}
     />
   );
 }

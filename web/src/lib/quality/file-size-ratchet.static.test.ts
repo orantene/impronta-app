@@ -382,7 +382,7 @@ const BUDGETS: Record<string, number> = {
   // mapping); the ~80 lines that landed here are rendering only: live-vs-mock
   // source selection, per-row + mark-all read-through to
   // @/lib/notifications/actions, and the deep-link dispatch.
-  "src/components/admin/shell/internal/wave2.tsx": 4599,
+  "src/components/admin/shell/internal/wave2.tsx": 4598,
   "src/components/admin/shell/internal/workspace.tsx": 3330,
   // 2026-08-10 branding-media: +18 Spanish entries for the Brand identity
   // favicon slot + Brand images manager (translations belong in this map).
@@ -594,7 +594,9 @@ const BUDGETS: Record<string, number> = {
   // 2026-09-25 Agenda V2: +5 — stamp bridgeTalentAgendaV2 (server flag) so
   // the client shell does not re-read non-NEXT_PUBLIC env.
   // 2026-09-25: +3 — preserve agendaNow QA clock across shell URL rewrites.
-  "src/components/admin/shell/internal/state/context.tsx": 2496,
+  // 2026-10-10 TUL-392: +5 — thread bridgeTalentAttentionSignals (type, read,
+  // value, deps); the signal logic lives in lib/notifications.
+  "src/components/admin/shell/internal/state/context.tsx": 2501,
 
   // Workspace routes and server actions.
   "src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx": 3769,
