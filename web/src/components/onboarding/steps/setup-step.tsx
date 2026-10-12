@@ -13,7 +13,7 @@ import type { Essentials, PlaceMode } from "@/lib/onboarding/essentials";
 import { currencyForCountry } from "@/lib/onboarding/essentials";
 import type { FlowLocale } from "@/lib/onboarding/flow";
 import { SETUP_COPY } from "@/lib/onboarding/setup-copy";
-import { TIMEZONE_OPTIONS, defaultWeekFallback, finalizeSetup, needsTimezoneQuestion, setupIssues, type SetupIssue } from "@/lib/onboarding/setup";
+import { defaultWeekFallback, finalizeSetup, needsTimezoneQuestion, setupIssues, timezoneChoices, type SetupIssue } from "@/lib/onboarding/setup";
 import type { SetupPayload } from "@/lib/server-actions/onboarding-setup";
 
 import { Notice, PrimaryButton } from "../ui";
@@ -21,6 +21,14 @@ import { SetupHours } from "./setup-hours";
 import { SetupServices } from "./setup-services";
 
 const field = { background: "var(--tl-surface-raised)", border: "1px solid var(--tl-hairline)", color: "var(--tl-ink)" } as const;
+
+function browserTimezone(): string | null {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+  } catch {
+    return null;
+  }
+}
 
 function Label({ children }: { children: React.ReactNode }) {
   return <h3 className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-[0.08em]" style={{ color: "var(--tl-muted)" }}>{children}</h3>;
@@ -41,7 +49,11 @@ export function SetupStep({
 }) {
   const c = SETUP_COPY[locale];
   const { choice, country } = setup;
-  const [e, setE] = useState<Essentials>({ ...setup.essentials, hours: setup.essentials.hours ?? defaultWeekFallback() });
+  const [e, setE] = useState<Essentials>(() => ({
+    ...setup.essentials,
+    hours: setup.essentials.hours ?? defaultWeekFallback(),
+    timezone: setup.essentials.timezone ?? (needsTimezoneQuestion(country) ? browserTimezone() : null),
+  }));
   const [edited, setEdited] = useState(false);
   const [providerEmail, setProviderEmail] = useState(setup.essentials.firstProviderEmail ?? "");
   const [later, setLater] = useState(!setup.essentials.firstProviderEmail);
@@ -131,7 +143,7 @@ export function SetupStep({
             style={field}
           >
             <option value="">{c.timezoneHint}</option>
-            {TIMEZONE_OPTIONS.map((z) => <option key={z.id} value={z.id}>{z.label}</option>)}
+            {timezoneChoices(e.timezone).map((z) => <option key={z.id} value={z.id}>{z.label}</option>)}
           </select>
           {show("timezone") ? <Notice tone="error">{c.errors.timezone}</Notice> : null}
         </section>
