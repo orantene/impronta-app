@@ -580,7 +580,7 @@ export function ServicesHome({
       <ul className="mt-4 divide-y divide-admin-border-soft overflow-hidden rounded-[12px] border border-admin-border-soft bg-white">
         {derived.map((item) => (
           <li key={item.id} className={`relative flex flex-wrap items-center gap-3 px-3 py-3 ${bannerId === item.id ? "bg-[rgba(15,79,62,0.06)]" : ""}`}>
-            <button type="button" className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => openEditor(item)}>
+            <button type="button" className="flex min-w-0 flex-[1_1_240px] items-center gap-3 text-left" onClick={() => openEditor(item)}>
               {item.imageUrls[0] ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={item.imageUrls[0]} alt="" className="h-12 w-12 rounded-md object-cover" />
