@@ -22,7 +22,7 @@ test("TUL-387/388: talent Messages and Attention counts come from the inbox read
 
 test("TUL-388: the talent Attention bubble and Hoy use the layout count, even at 0", () => {
   const bubble = read("src/components/admin/shell/internal/shell-count-bubbles.tsx");
-  assert.match(bubble, /: \(shellCounts\?\.attention \?\? awaiting\)\);/);
+  assert.match(bubble, /: \(shellCounts\?\.attention \?\? awaiting\) \+ signals\);/);
   const today = read("src/components/admin/shell/internal/talent/pages/TodayPage.tsx");
   assert.match(today, /shellCounts\?\.attention \?\? countTalentAwaitingInquiries\(effectiveTalentInquiries\)/);
 });

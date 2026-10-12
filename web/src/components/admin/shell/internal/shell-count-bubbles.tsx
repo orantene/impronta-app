@@ -72,6 +72,7 @@ export function ShellCountBubbles({
     bridgeTalentUnread,
     shellCounts,
     effectiveTalentInquiries,
+    bridgeTalentAttentionSignals,
   } = useAdminShell();
   const copy = useDashboardText();
   const inWorkspace = state.surface === "workspace";
@@ -92,12 +93,15 @@ export function ShellCountBubbles({
     ? 0
     : countTalentAwaitingInquiries(effectiveTalentInquiries);
   // Talent: the layout's count is the inbox "Needs reply" number (TUL-388), so
-  // it wins even at 0; the row recompute is only for a missing bridge.
+  // it wins even at 0; the row recompute is only for a missing bridge. Site
+  // signals (TUL-392) add on top here, not in shellCounts.attention, because
+  // Hoy reads that count as "esperando tu respuesta".
+  const signals = inWorkspace ? 0 : (bridgeTalentAttentionSignals?.length ?? 0);
   const attention =
     countsProp?.find((c) => c.kind === "attention")?.count ??
     (inWorkspace
       ? (shellCounts?.attention ?? 0)
-      : (shellCounts?.attention ?? awaiting));
+      : (shellCounts?.attention ?? awaiting) + signals);
 
   const visible = visibleShellCountBubbles([
     { kind: "messages", count: messages },

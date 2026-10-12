@@ -131,7 +131,7 @@ export const APPOINTMENTS_FEATURE: Feature = {
     faq: [
       {
         q: "Can I use this today?",
-        a: "Not yet. The scheduling engine and the public slots endpoint already exist, but self serve online booking is not shipped yet. It is on the roadmap, and this page will update the day clients can book for themselves.",
+        a: "Not yet. The scheduling engine and public open-slot lookup already exist, but self serve online booking is not shipped yet. It is on the roadmap, and this page will update the day clients can book for themselves.",
       },
       {
         q: "Do my clients need an account to book?",
@@ -266,7 +266,7 @@ export const APPOINTMENTS_FEATURE: Feature = {
     faq: [
       {
         q: "¿Puedo usarlo hoy?",
-        a: "Todavía no. El motor de agenda y el endpoint público de horarios ya existen, pero la reserva en línea por cuenta propia todavía no se lanza. Está en la hoja de ruta, y esta página se actualiza el día en que tus clientes puedan reservar solos.",
+        a: "Todavía no. El motor de agenda y la consulta pública de horarios disponibles ya existen, pero la reserva en línea por cuenta propia todavía no se lanza. Está en la hoja de ruta, y esta página se actualiza el día en que tus clientes puedan reservar solos.",
       },
       {
         q: "¿Mis clientes necesitan cuenta para reservar?",
