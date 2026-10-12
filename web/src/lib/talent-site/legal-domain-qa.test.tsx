@@ -33,8 +33,14 @@ test("banner follows the page marker, else the root locale", () => {
 });
 
 test("socket clears the desktop guest-chat launcher", () => {
-  assert.match(SOCKET_LAUNCHER_CLEARANCE_CSS, /min-width:768px/);
-  assert.match(SOCKET_LAUNCHER_CLEARANCE_CSS, /194px/);
+  assert.match(SOCKET_LAUNCHER_CLEARANCE_CSS, /@media \(min-width:768px\)\{body:has\(\[data-guest-chat-launcher\]\) \.tulala-socket__inner\{padding-right:34px\}\}/);
+  assert.match(SOCKET_LAUNCHER_CLEARANCE_CSS, /^body:has\(\[data-guest-chat-launcher\]\) \.tulala-socket__inner\{padding-right:64px\}/);
+  // Narrow + booking bar: the launcher sits 24 + max(88, bar + 16) up, 54 tall; the strip ends 12px above it.
+  assert.match(
+    SOCKET_LAUNCHER_CLEARANCE_CSS,
+    /@media \(max-width:700px\)\{body:has\(\[data-guest-chat-launcher\]\[data-yield-booking-bar\]\) \.tulala-socket\[data-clear-dock="true"\]\{padding-bottom:calc\(max\(88px,var\(--floating-chrome-bottom,0px\) \+ 16px\) \+ 90px\)\}\}$/,
+  );
+  assert.doesNotMatch(SOCKET_LAUNCHER_CLEARANCE_CSS, /194px/);
   assert.match(renderToStaticMarkup(<TalentSiteSocket model={sock("en")} clearDock={false} />), /data-guest-chat-launcher/);
 });
 

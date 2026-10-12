@@ -109,3 +109,9 @@ test("Spanish save errors localize exact + title templates", () => {
     "Some unknown English blow-up",
   );
 });
+
+test("TUL-567: at phone width a row's chips wrap below the title instead of crushing it", () => {
+  const row = src.slice(src.indexOf("{derived.map((item) => ("), src.indexOf("<ServicesHomeItemChips"));
+  assert.match(row, /className="flex min-w-0 flex-\[1_1_240px\] items-center gap-3 text-left"/,
+    "the title button needs a real flex-basis; with flex-1 (basis 0) it shrinks to a letter per line at 390px");
+});

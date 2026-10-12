@@ -4,6 +4,7 @@ import {
   loadBuilderNodeDataSources,
   loadPersonalMaxNativeSources,
 } from "@/components/home/homepage-cms-data-sources";
+import { collectSocialFeedProviders } from "@/lib/site-admin/builder-node/social-feed-source";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import type { BuilderNodeRenderDataSources } from "@/lib/site-admin/builder-node/render";
 import { loadTalentLocaleSettings } from "@/lib/site-admin/server/talent-locale-settings";
@@ -63,6 +64,7 @@ export async function loadPreviewDataSources(
           visit: has("visit"),
           compCard: has("comp_card"),
           talentFaq: builderTreeHasFaqBind(tree),
+          socialFeedProviders: collectSocialFeedProviders(tree),
         }),
     loadPublicOfferingsForProfile(talentProfileId, locale, null),
   ]);
@@ -73,7 +75,7 @@ export async function loadPreviewDataSources(
   const usdRates = await loadUsdRatesForSitePrices([
     ...talentOfferings,
     ...(dataSources.menuOfferings ?? []),
-  ]);
+  ], locale);
   return { ...dataSources, talentOfferings, usdRates, catalogBookingLive: false };
 }
 
