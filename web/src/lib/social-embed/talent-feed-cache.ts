@@ -117,7 +117,7 @@ export async function refreshTalentInstagramFeed(
 
   if (rows.length > 0) {
     const { error } = await admin
-      .from(TABLE)
+      .from("talent_social_feed_items")
       .upsert(rows, { onConflict: "talent_profile_id,provider,external_id" });
     if (error) return { ...base, ok: false, written: 0, error: error.message };
   }
