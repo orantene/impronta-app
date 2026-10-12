@@ -34,6 +34,11 @@ import {
   type DirectoryActiveFilters,
 } from "@/components/marketing/directory/shared";
 import { loadHubCardTraits } from "@/lib/directory/hub-card-traits";
+import {
+  localizeCategoryFacets,
+  localizeRowTypeLabels,
+} from "@/lib/directory/talent-type-labels";
+import { loadTalentTypeLabels } from "@/lib/directory/talent-type-labels.server";
 import { resolveCardDesign } from "@/lib/site-admin/server/card-design-resolver";
 import { DEFAULT_CARD_DESIGN } from "@/lib/site-admin/server/card-design-shape";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
@@ -107,7 +112,7 @@ export default async function MarketingDirectoryPage({
 
   // Parallel SSR loads: facets always; then either the first grid/list page
   // or the (cap-500) map point set — never both.
-  const [facets, gridData, mapData] = await Promise.all([
+  const [rawFacets, gridData, mapData, typeLabels] = await Promise.all([
     loadDirectoryFacets(),
     isMap
       ? Promise.resolve({ items: [], total: 0 })
@@ -132,7 +137,13 @@ export default async function MarketingDirectoryPage({
           availableOnly: activeFilters.availableOnly || undefined,
         })
       : Promise.resolve({ points: [], unmappedCount: 0 }),
+    loadTalentTypeLabels(locale),
   ]);
+  // The discover index stores English type names; /es shows the taxonomy's own.
+  const facets = {
+    ...rawFacets,
+    categories: localizeCategoryFacets(rawFacets.categories, typeLabels),
+  };
 
   // Resolver, not raw env: an operator who sets the Maps key in the HQ
   // Integrations panel expects it to be used. Reading process.env directly
@@ -161,7 +172,7 @@ export default async function MarketingDirectoryPage({
     gridData.items.map((row) => row.id),
     locale,
   );
-  const gridItems = gridData.items.map((row) => ({
+  const gridItems = localizeRowTypeLabels(gridData.items, typeLabels).map((row) => ({
     ...row,
     design: hubDesign,
     ...(traitsByProfile.get(row.id) ?? {}),
@@ -182,7 +193,7 @@ export default async function MarketingDirectoryPage({
     getSavedTalentIds(),
     getFavoriteTalentIds(),
   ]);
-  const mapPoints = mapData.points.map((point) => ({
+  const mapPoints = localizeRowTypeLabels(mapData.points, typeLabels).map((point) => ({
     ...point,
     design: hubDesign,
   }));
@@ -290,6 +301,7 @@ export default async function MarketingDirectoryPage({
           initialFavoriteIds={initialFavoriteIds}
         >
           <MarketingDirectoryShell
+            locale={locale}
             view={view}
             sort={sort}
             facets={facets}

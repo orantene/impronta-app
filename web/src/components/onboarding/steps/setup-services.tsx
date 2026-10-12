@@ -70,6 +70,11 @@ export function SetupServices({
             <input type="checkbox" checked={s.quote} onChange={(e) => patch(i, { quote: e.target.checked, priceCents: e.target.checked ? null : s.priceCents })} className="size-5" data-testid={`onb-service-quote-${i}`} />
             {copy.quote}
           </label>
+          {s.quote || !s.priceCents ? (
+            <p className="mt-1 text-[0.8125rem]" style={{ color: "var(--tl-muted)" }} data-testid={`onb-service-hidden-${i}`}>
+              {copy.hiddenUntilPriced}
+            </p>
+          ) : null}
         </div>
       ))}
       {services.length < MAX_ESSENTIAL_SERVICES ? (

@@ -374,8 +374,10 @@ export function hydrateShellNav(
   siteSlug: string,
   publicPathPrefix = "",
   hrefMode: MaxSiteHrefMode = "path",
+  /** Site-language label for a header CTA this fills in (default "Book"). */
+  ctaLabel?: string,
 ): BuilderNode[] {
-  if (nav.length === 0) return ensureHeaderCta(tree.slice());
+  if (nav.length === 0) return ensureHeaderCta(tree.slice(), ctaLabel);
 
   const links: BuilderNavLink[] = nav.map((item) => ({
     id: `maxsite-nav-${item.slug}`,
@@ -482,7 +484,7 @@ export function hydrateShellNav(
     return node;
   };
 
-  return ensureHeaderCta(tree.map(visit));
+  return ensureHeaderCta(tree.map(visit), ctaLabel);
 }
 
 /**

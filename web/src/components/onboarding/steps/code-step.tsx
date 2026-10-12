@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import { OtpCodeInput } from "@/components/auth/otp-code-input";
 import { SIGNUP_RESEND_COOLDOWN_SECONDS } from "@/components/auth/signup-code-confirm";
+import { authEmailHasPlusTag } from "@/lib/auth/otp-flow";
 
 import { GhostLink, Notice, Sub, Title } from "../ui";
 
@@ -38,7 +39,13 @@ export function CodeStep({
   return (
     <div data-testid="onb-code">
       <Title>{t("public.onboarding.code.title")}</Title>
-      <Sub>{t("public.onboarding.code.sub").replace("{email}", email)}</Sub>
+      <Sub>
+        {t(
+          authEmailHasPlusTag(email)
+            ? "public.onboarding.code.plusSub"
+            : "public.onboarding.code.sub",
+        ).replace("{email}", email)}
+      </Sub>
       <div className="mt-5" aria-busy={busy}>
         <OtpCodeInput name="code" disabled={busy} invalid={!!error} resetKey={resetKey} onComplete={(code) => onVerify(code)} />
       </div>
