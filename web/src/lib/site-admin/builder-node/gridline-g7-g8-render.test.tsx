@@ -121,6 +121,14 @@ test("heroSpecBlock: no typed spec cells and no badges makes no claim", () => {
   assert.doesNotMatch(json, /"fontFamily"/, "no raw font stack in the kit");
 });
 
+test("heroSpecBlock: the kicker dot stays beside its label on phone, centred on the line (GRK-080)", () => {
+  const html = render([heroSpecBlock(ids(), { kicker: "Agenda abierta · Hermosillo" })]);
+  const kicker = html.match(/<div[^>]*data-builder-layout="row"[^>]*>(?:(?!<\/div>)[^])*?<\/div><p[^>]*><span>Agenda abierta/);
+  assert.ok(kicker, "kicker row renders the dot then the label");
+  assert.match(kicker[0], /^<div[^>]*data-builder-mobile-layout="row"/, "phones keep the kicker a row");
+  assert.match(kicker[0], /align-self:center/, "the dot centres on the label's line");
+});
+
 test("heroSpecBlock: the who card is a row on phone and a stacked photo card on desktop", () => {
   const hero = heroSpecBlock(ids(), { badges: ["x"] });
   const who = ((hero as BuilderNode & { children?: BuilderNode[] }).children ?? [])[1] as BuilderNode & {
