@@ -10,18 +10,31 @@ import Link from "next/link";
 
 import type { PolicyPageModel } from "@/lib/talent-policies/public";
 
-const URL_RE = /(https?:\/\/[^\s]+)/g;
+// "Términos: https://…" links the word; a bare URL shows without its scheme.
+const URL_RE = /(?:(\p{L}+): )?(https?:\/\/[^\s]+)/gu;
+
+const LINK_STYLE: CSSProperties = { color: "inherit", textDecoration: "underline" };
 
 function linkify(text: string): ReactNode[] {
-  return text.split(URL_RE).map((part, i) =>
-    /^https?:\/\//.test(part) ? (
-      <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "underline" }}>
-        {part}
-      </a>
-    ) : (
-      part
-    ),
-  );
+  const out: ReactNode[] = [];
+  let last = 0;
+  let prevLabelled = false;
+  for (const m of text.matchAll(URL_RE)) {
+    const [whole, label, url] = m;
+    const at = m.index ?? 0;
+    const gap = text.slice(last, at);
+    if (prevLabelled && label && /^\s+$/.test(gap)) out.push(" · ");
+    else if (gap) out.push(gap);
+    prevLabelled = Boolean(label);
+    out.push(
+      <a key={at} href={url} target="_blank" rel="noopener noreferrer" style={LINK_STYLE}>
+        {label ?? url.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+      </a>,
+    );
+    last = at + whole.length;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out;
 }
 
 /** The platform default is shown as a plain policy: no version line, never an "not published yet" admission. */
