@@ -393,6 +393,46 @@ export async function isProfileCodeOnTenantRoster(
   }
 }
 
+/**
+ * Does this /t/<code> segment name ANY talent profile (live code or retired
+ * alias)? Platform hosts (app, marketing, hub) serve every talent, so an
+ * unknown code is the only case the edge can 404 there; hidden or unpublished
+ * profiles are left to the page. Same `loading.tsx` reason as the roster gate
+ * above: a page-level notFound() lands on a 200 already on the wire.
+ *
+ * Cached on the same 60s TTL. `resolve_talent_profile_code` is SECURITY
+ * DEFINER and matches the code exactly, so the key keeps its case. Fails OPEN.
+ */
+export async function talentProfileCodeExists(
+  request: NextRequest,
+  profileCode: string,
+): Promise<boolean> {
+  const key = `_code/${profileCode}`;
+  const cached = cacheGet(key);
+  if (cached) return cached.kind !== "not_found";
+
+  const supabase = buildEdgeSupabase(request);
+  if (!supabase) return true; // no client — fail open, never hide a real page
+
+  try {
+    const { data, error } = await supabase.rpc("resolve_talent_profile_code", {
+      p_code: profileCode,
+    });
+    if (error) return true; // fail open
+    const row = Array.isArray(data) ? data[0] : data;
+    const exists = Boolean(row?.profile_id);
+    cacheSet(
+      key,
+      exists
+        ? { kind: "app", tenantId: null, hostname: key }
+        : { kind: "not_found", tenantId: null, hostname: key },
+    );
+    return exists;
+  } catch {
+    return true; // fail open
+  }
+}
+
 export type TalentSiteEdgeClient = {
   rpc: (
     fn: "talent_site_domain_lookup" | "talent_site_subdomain_lookup",

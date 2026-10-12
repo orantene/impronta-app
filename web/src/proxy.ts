@@ -20,7 +20,7 @@ import { rateLimitHtmlResponse, rateLimitJsonResponse, tryConsumeRateLimit } fro
 import { updateSession } from "@/lib/supabase/middleware";
 import { attachTalentSiteGuestIdentity } from "@/lib/saas/talent-site-guest-identity";
 import { resolveTenantContext, HOST_CONTEXT_HEADER, HOST_NAME_HEADER, HOST_TENANT_SLUG_HEADER } from "@/lib/saas/host-context";
-import { offRosterTalentResponse } from "@/lib/saas/off-roster-talent-gate";
+import { offRosterTalentResponse, unknownTalentCodeResponse } from "@/lib/saas/off-roster-talent-gate";
 import { suspendedWorkspaceResponse } from "@/lib/saas/suspended-workspace-gate";
 import {
   supportDeskAdminRedirectResponse,
@@ -252,6 +252,10 @@ export async function proxy(request: NextRequest) {
     }
     const off = await timed("proxy.offRoster", offRosterTalentResponse(request, pathname, hostContext.tenantId, PREVIEW_QUERY_PARAM));
     if (off) return off;
+  }
+  if (hostContext.kind === "app" || hostContext.kind === "marketing" || hostContext.kind === "hub") {
+    const unknownCode = await timed("proxy.unknownTalentCode", unknownTalentCodeResponse(request, pathname, PREVIEW_QUERY_PARAM));
+    if (unknownCode) return unknownCode;
   }
 
   // ── Preview handoff ─────────────────────────────────────────────────────
