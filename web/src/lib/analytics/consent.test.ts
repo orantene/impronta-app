@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { resolve } from "node:path";
 import { beforeEach, describe, test } from "node:test";
 
 import {
@@ -70,6 +73,21 @@ describe("TUL-561: consent region", () => {
     assert.equal(run(null, "notice", true), false);
     assert.equal(run("denied", "notice", false), false);
     assert.equal(run("granted", "strict", true), true);
+  });
+  test("the production minifier keeps the whole snippet", async () => {
+    const src = readFileSync(resolve(process.cwd(), "src/lib/analytics/consent.ts"), "utf8");
+    const decl = /export const ANALYTICS_ALLOWED_JS =[\s\S]*?;\n/.exec(src)?.[0];
+    assert.ok(decl, "ANALYTICS_ALLOWED_JS declaration not found");
+    const swc = createRequire(resolve(process.cwd(), "package.json"))("next/dist/build/swc/index.js");
+    await swc.loadBindings();
+    const { code } = await swc.minify(
+      `const CONSENT_STORAGE_KEY=${JSON.stringify(CONSENT_STORAGE_KEY)};` +
+        `const CONSENT_REGION_ATTR=${JSON.stringify(CONSENT_REGION_ATTR)};${decl}`,
+      { compress: true, mangle: true, module: true },
+    );
+    const literal = /ANALYTICS_ALLOWED_JS=("(?:[^"\\]|\\.)*")/.exec(code)?.[1];
+    assert.ok(literal, `minified output not recognised: ${code}`);
+    assert.equal(JSON.parse(literal), ANALYTICS_ALLOWED_JS);
   });
 });
 
