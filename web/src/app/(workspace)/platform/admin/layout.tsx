@@ -262,6 +262,7 @@ export default async function PlatformAdminLayout({
                 hint={t("dashboard.workspaceSwitcherHint")}
                 talentLabel={t("dashboard.workspaceTalentQa")}
                 clientLabel={t("dashboard.workspaceClientQa")}
+                unavailableLabel={t("dashboard.workspaceQaUnavailable")}
                 hasTalent={Boolean(qaTalentUserIdEnv())}
                 hasClient={Boolean(qaClientUserIdEnv())}
               />
