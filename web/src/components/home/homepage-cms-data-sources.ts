@@ -27,6 +27,7 @@ import { fetchFeaturedTalentForSection } from "@/lib/site-admin/sections/feature
 import { listBuilderImageMediaAssets } from "@/lib/site-admin/media/assets";
 import { resolveCollectionDataSources } from "@/lib/site-admin/collections/server";
 import { resolveSocialFeedDataSources } from "@/lib/social-embed/feed-cache";
+import { resolveTalentSocialFeedDataSources } from "@/lib/social-embed/talent-feed-cache";
 import { collectSocialFeedProviders } from "@/lib/site-admin/builder-node/social-feed-source";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { withSecondaryReadDegrade } from "@/lib/supabase/bounded-fetch-scope";
@@ -220,6 +221,8 @@ export async function loadBuilderNodeDataSources(
       ? createServiceRoleClient()
       : null;
   const mediaSupabase = mediaIds.length > 0 ? serviceSupabase : null;
+  const feedTalentId =
+    talentProfileId ?? (previewSubject?.kind === "talent" ? previewSubject.id : null);
 
   const [
     featuredTalentProfiles,
@@ -326,9 +329,12 @@ export async function loadBuilderNodeDataSources(
       : Promise.resolve(undefined),
     // Phase 3 — one cache read per connected provider, scoped to the tenant
     // whose page this is (never the preview subject: the feed belongs to the
-    // workspace that connected the account).
+    // workspace that connected the account). TUL-562: a talent's own site reads
+    // the talent's cache instead, even when an agency manages the talent.
     serviceSupabase && socialFeedProviders.length > 0
-      ? resolveSocialFeedDataSources(serviceSupabase, tenantId, socialFeedProviders)
+      ? feedTalentId
+        ? resolveTalentSocialFeedDataSources(serviceSupabase, feedTalentId, socialFeedProviders)
+        : resolveSocialFeedDataSources(serviceSupabase, tenantId, socialFeedProviders)
       : Promise.resolve(undefined),
     // TUL-77: live published catalog + real booking flow inputs.
     nativeNeeds.liveBooking
@@ -528,21 +534,26 @@ export async function loadPersonalMaxNativeSources(args: {
   compCard?: boolean;
   /** An accordion bound to `talent_faq_items` (the agency path already loads it). */
   talentFaq?: boolean;
+  /** Connected `social_feed` providers on the tree (TUL-562 talent Instagram cache). */
+  socialFeedProviders?: ReadonlyArray<"instagram" | "tiktok">;
 }): Promise<BuilderNodeRenderDataSources> {
   const needCatalog = args.servicesCatalog || args.portfolio || args.nextFreeChip;
+  const feedProviders = args.socialFeedProviders ?? [];
   if (
     !needCatalog &&
     !args.portfolio &&
     !args.reviews &&
     !args.visit &&
     !args.compCard &&
-    !args.talentFaq
+    !args.talentFaq &&
+    feedProviders.length === 0
   ) {
     return {};
   }
+  const feedAdmin = feedProviders.length > 0 ? createServiceRoleClient() : null;
   // TUL-449: reviews / gallery / chip-only catalog degrade on timeout; the page stays 200.
   const catalogOnlyForChip = args.nextFreeChip && !args.servicesCatalog && !args.portfolio;
-  const [catalog, portfolio, reviews, visit, compCard, faq] = await Promise.all([
+  const [catalog, portfolio, reviews, visit, compCard, faq, socialFeeds] = await Promise.all([
     needCatalog
       ? catalogOnlyForChip
         ? withSecondaryReadDegrade(
@@ -571,6 +582,17 @@ export async function loadPersonalMaxNativeSources(args: {
     args.talentFaq
       ? loadPublishedFaqForProfile(args.talentProfileId, args.locale).then((talentFaqItems) => ({ talentFaqItems }))
       : {},
+    feedAdmin
+      ? resolveTalentSocialFeedDataSources(feedAdmin, args.talentProfileId, feedProviders)
+      : undefined,
   ]);
-  return { ...catalog, ...portfolio, ...reviews, ...visit, ...compCard, ...faq };
+  return {
+    ...catalog,
+    ...portfolio,
+    ...reviews,
+    ...visit,
+    ...compCard,
+    ...faq,
+    ...(socialFeeds ? { socialFeeds } : {}),
+  };
 }
