@@ -137,7 +137,7 @@ import {
 import { resolveLocalized } from "@/lib/i18n/resolve-localized";
 import { isLocalizableProp } from "@/lib/i18n/builder-i18n-props";
 import { localizeBlockNode } from "./block-i18n";
-import { categoryLabelFor } from "./catalog-category-label";
+import { mergeCategoriesByLabel } from "./catalog-category-label";
 import type {
   BuilderNavLink,
   BuilderNode,
@@ -5968,7 +5968,10 @@ function renderBuilderNodeElement(
         const c = o.category?.trim();
         if (c && !seen.includes(c)) seen.push(c);
       }
-      const categories = orderCategoryNames(seen, options.dataSources.talentOfferingsCategoryOrder);
+      const categories = mergeCategoriesByLabel(
+        visible,
+        orderCategoryNames(seen, options.dataSources.talentOfferingsCategoryOrder),
+      );
       const showCategoryNav = p.categoryNav !== "none" && categories.length >= 2;
       const categoryNav = p.categoryNav ?? "pills";
       const filterNav =
@@ -5983,10 +5986,10 @@ function renderBuilderNodeElement(
       const groups: Array<{ name: string | null; label?: string; items: TalentOffering[]; note?: string | null }> = groupByCategory
         ? [
             ...categories.map((c) => ({
-              name: c,
-              ...(categoryLabelFor(visible, c) ? { label: categoryLabelFor(visible, c) } : {}),
-              note: notes?.[c] ?? null,
-              items: visible.filter((o) => o.category?.trim() === c),
+              name: c.name,
+              ...(c.label ? { label: c.label } : {}),
+              note: notes?.[c.name] ?? null,
+              items: visible.filter((o) => c.keys.includes(o.category?.trim() ?? "")),
             })),
             ...(visible.some((o) => !o.category?.trim())
               ? [{ name: null, items: visible.filter((o) => !o.category?.trim()) }]
