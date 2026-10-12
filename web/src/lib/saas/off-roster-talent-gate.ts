@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { isProfileCodeOnTenantRoster } from "./host-context";
+import { isProfileCodeOnTenantRoster, talentProfileCodeExists } from "./host-context";
 
 /** Matches `/t/<code>` and `/<locale>/t/<code>`, with or without a trailing slash. */
 const TALENT_PATH = /^\/(?:[a-z]{2}\/)?t\/([^/]+)\/?$/;
@@ -56,10 +56,46 @@ export async function offRosterTalentResponse(
   );
   if (onRoster) return null;
 
-  // `/_page-not-found` is the existing branded not-found target for a known
-  // host on a disallowed path, already whitelisted against rewrite recursion.
-  // NOT `/_host-unregistered`, which says "Domain not connected" and would
-  // wrongly tell the visitor the whole site is down.
+  return pageNotFound(request);
+}
+
+/**
+ * Platform hosts (app, marketing, hub) carry every talent, so the only edge
+ * 404 there is a code that names no profile at all (`/t/TAL-00001`,
+ * `/t/zz-nope`). Same status problem and same safety rules as the roster gate.
+ */
+export async function unknownTalentCodeResponse(
+  request: NextRequest,
+  pathname: string,
+  previewParam: string,
+): Promise<NextResponse | null> {
+  if (request.method !== "GET" && request.method !== "HEAD") return null;
+  if (
+    request.nextUrl.searchParams.has("preview") ||
+    request.nextUrl.searchParams.has(previewParam)
+  ) {
+    return null;
+  }
+
+  const raw = TALENT_PATH.exec(pathname)?.[1];
+  if (!raw) return null;
+  let code: string;
+  try {
+    code = decodeURIComponent(raw).trim();
+  } catch {
+    return null;
+  }
+  if (!code) return null;
+
+  if (await talentProfileCodeExists(request, code)) return null;
+  return pageNotFound(request);
+}
+
+// `/_page-not-found` is the existing branded not-found target for a known
+// host on a disallowed path, already whitelisted against rewrite recursion.
+// NOT `/_host-unregistered`, which says "Domain not connected" and would
+// wrongly tell the visitor the whole site is down.
+function pageNotFound(request: NextRequest): NextResponse {
   return NextResponse.rewrite(new URL("/_page-not-found", request.url), {
     status: 404,
   });
