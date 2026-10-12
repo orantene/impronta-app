@@ -4,6 +4,7 @@
  */
 import { DRAWER_HELP, type HelpEntry } from "@/components/admin/shell/internal/help-registry";
 import { SCHEDULING_HELP } from "@/components/admin/shell/internal/help-registry-scheduling";
+import { TALENT_HELP } from "@/components/admin/shell/internal/help-registry-talent";
 
 /**
  * What the in-product assistant is allowed to know.
@@ -16,6 +17,7 @@ import { SCHEDULING_HELP } from "@/components/admin/shell/internal/help-registry
 export const SUPPORT_HELP_REGISTRY: Partial<Record<string, HelpEntry>> = {
   ...DRAWER_HELP,
   ...SCHEDULING_HELP,
+  ...TALENT_HELP,
 };
 
 export type HelpCorpusEntry = {
@@ -61,7 +63,84 @@ const STOP = new Set([
   "be",
   "not",
   "if",
+  // Spanish function words: retrieval is substring-based, so these would
+  // otherwise match almost every entry.
+  "de",
+  "la",
+  "el",
+  "los",
+  "las",
+  "un",
+  "una",
+  "uno",
+  "en",
+  "es",
+  "mi",
+  "mis",
+  "tu",
+  "tus",
+  "como",
+  "que",
+  "por",
+  "para",
+  "con",
+  "al",
+  "del",
+  "se",
+  "lo",
+  "le",
+  "me",
+  "soy",
+  "hola",
+  "gracias",
+  "puedo",
+  "quiero",
 ]);
+
+/**
+ * The in-app corpus is written in English, so a Spanish word in a question also
+ * searches for its English equivalent. The original word is kept for the
+ * Spanish guest corpus.
+ */
+const ES_TO_EN: Record<string, string> = {
+  precio: "price",
+  precios: "price",
+  servicio: "service",
+  servicios: "service",
+  cambiar: "change",
+  cambio: "change",
+  foto: "photo",
+  fotos: "photo",
+  publicar: "publish",
+  borrador: "draft",
+  reserva: "booking",
+  reservas: "booking",
+  reservar: "book",
+  cotizacion: "quote",
+  cotizar: "quote",
+  pago: "payment",
+  pagos: "payment",
+  cobrar: "payment",
+  cliente: "client",
+  clientes: "client",
+  clienta: "client",
+  clientas: "client",
+  sitio: "site",
+  pagina: "page",
+  dominio: "domain",
+  horario: "hours",
+  horarios: "hours",
+  mensaje: "message",
+  mensajes: "message",
+  factura: "invoice",
+  cancelar: "cancel",
+  perfil: "profile",
+  enlace: "link",
+  ocultar: "hide",
+  minutos: "minutes",
+  duracion: "minutes",
+  ingles: "english",
+};
 
 export function flattenHelpCorpus(
   registry: Partial<Record<string, HelpEntry>> = SUPPORT_HELP_REGISTRY,
@@ -92,9 +171,12 @@ export const SUPPORT_CATEGORIES: string[] = [
 export function tokenize(text: string): string[] {
   return text
     .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .split(/[^a-z0-9]+/i)
     .map((t) => t.trim())
-    .filter((t) => t.length >= 2 && !STOP.has(t));
+    .filter((t) => t.length >= 2 && !STOP.has(t))
+    .flatMap((t) => (ES_TO_EN[t] ? [t, ES_TO_EN[t]] : [t]));
 }
 
 function entryText(entry: HelpCorpusEntry): string {
