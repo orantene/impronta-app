@@ -84,7 +84,8 @@ export function WorkOrderFigure({
         ariaLabel={`${es ? "Ver foto" : "View photo"} ${gallery.index + 1}: ${label}`}
         lightbox={{
           gallery,
-          bookLabel: es ? "Reservar este look" : "Book this look",
+          // Trades photos show a job, not a look.
+          bookLabel: es ? "Reservar este servicio" : "Book this service",
           closeLabel: es ? "Cerrar" : "Close",
           prevLabel: es ? "Foto anterior" : "Previous photo",
           nextLabel: es ? "Foto siguiente" : "Next photo",
