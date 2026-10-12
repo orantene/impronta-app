@@ -117,6 +117,13 @@ test("the editorial stylesheet is token-driven: no hex, no design slug, no fixed
   }
 });
 
+test("SPRINT-348-NAILS: a menu row without a photo drops the 64px thumb track", () => {
+  const css = EDITORIAL_TYPE_SYSTEM_CSS;
+  const noPhoto = css.indexOf('[data-has-photo="false"]{grid-template-columns:minmax(0,1fr) auto}');
+  assert.ok(noPhoto > 0);
+  assert.ok(noPhoto > css.indexOf("[data-has-photo]{display:grid;grid-template-columns:64px"), "must follow the thumb-row rule");
+});
+
 test("editorial component defaults: pill radius bound to the token, pinned text colours dropped", () => {
   const base = {
     heading: { textColor: "token:color.ink" },
@@ -136,4 +143,12 @@ test("editorial component defaults: pill radius bound to the token, pinned text 
   assert.equal(folioOut.paragraph, undefined);
   assert.deepEqual(folioOut.card, base.card);
   assert.equal(typeSystemComponentStyleDefaults({ "type.system": "off" }, base), base);
+});
+
+test("SPRINT-348-NAILS: a photo-less menu row gives its copy the full width, not the 64px thumb track", () => {
+  const css = EDITORIAL_TYPE_SYSTEM_CSS;
+  const rowRule = css.indexOf('services-catalog-row[data-has-photo]{display:grid;grid-template-columns:64px');
+  const noPhoto = css.indexOf('services-catalog-row[data-has-photo="false"]{grid-template-columns:minmax(0,1fr) auto}');
+  assert.ok(rowRule > 0, "thumb row rule present");
+  assert.ok(noPhoto > rowRule, "photo-less override must come after the thumb row rule");
 });

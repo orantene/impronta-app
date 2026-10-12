@@ -34,6 +34,7 @@ import { unwindFailedCheckout } from "@/lib/orders/unwind-failed-checkout";
 import { serviceAddressCopy } from "@/components/public-booking/service-address-copy";
 import { loadOfferingWhere, resolveBookingLocation } from "@/lib/scheduling/service-address-server";
 import { notifyBookingConfirmed } from "@/lib/notifications/producers/booking-confirmed-notify";
+import { anyDemoTalent, DEMO_SUBMIT_REFUSAL } from "@/lib/talent/demo-talent";
 
 export type {
   InstantBookActionResult,
@@ -50,6 +51,9 @@ export async function createInstantBookingAction(
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return { ok: false, error: "Service unavailable. Please try again." };
+    if (await anyDemoTalent(createServiceRoleClient() ?? supabase, [payload.talentProfileId])) {
+      return { ok: false, error: DEMO_SUBMIT_REFUSAL };
+    }
     const {
       data: { user },
     } = await supabase.auth.getUser();

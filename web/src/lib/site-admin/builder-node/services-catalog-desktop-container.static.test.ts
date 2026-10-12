@@ -27,6 +27,14 @@ test("AUD-042: desktop list rows pin price + CTA right", () => {
   assert.match(block, /services-catalog-copy\{max-width:none\}/);
 });
 
+test("SPRINT-GRIDLINE-MATRIX: a start-aligned stack container still gives the catalog the full row", () => {
+  assert.ok(
+    css.includes(
+      '.site-builder-node--container:not([data-builder-layout="row"]):not([data-builder-layout="grid"]):not([data-builder-display="grid"])>.site-builder-node--services-catalog{align-self:stretch}',
+    ),
+  );
+});
+
 test("AUD-042: phone layout from AUD-026 untouched", () => {
   assert.ok(css.includes("@media (max-width:560px){"));
   assert.ok(css.includes("[data-cms-block]>.site-builder-node--services-catalog{padding-inline:1.5rem}"));

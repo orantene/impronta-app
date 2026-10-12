@@ -21,9 +21,11 @@ import { MOCK_CONVERSATIONS } from "./talent/shared/conversations-1";
 import { ageLabel } from "./messages/messages-shared";
 import { useDashboardText } from "./dashboard-i18n";
 import { formatNotificationAge, localizeNotificationText } from "./notification-localize";
+import { talentNotifsFromSignals } from "./talent-notification-rows";
 import type { UserNotification } from "./data-bridge";
 import {
   hubClickTarget,
+  hubReadItemIds,
   scopeRealNotifications,
   staffQueuesVisible,
 } from "./notification-hub-scope";
@@ -120,7 +122,8 @@ export function NotificationsBell({
 }: {
   size?: "sm" | "md";
 }) {
-  const { state, openDrawer, pendingTalent, bridgeUserNotifications, adminBasePath } = useAdminShell();
+  const { state, openDrawer, pendingTalent, bridgeUserNotifications, bridgeTalentAttentionSignals, adminBasePath } = useAdminShell();
+  const talentSignals = state.surface === "talent" ? bridgeTalentAttentionSignals : null;
   const [categoryTab, setCategoryTab] = useState<HubUiCategory | "all">("all");
   const [ownerTab, setOwnerTab] = useState<HubOwnerSurface | "all">("all");
   const realNotifications = useMemo(
@@ -253,6 +256,23 @@ export function NotificationsBell({
       });
     });
 
+    // TUL-392: derived Attention signal (site needs publish).
+    // Already counted in the Attention bubble; no server row to mark read.
+    for (const n of talentNotifsFromSignals(talentSignals ?? [], copy.locale, adminBasePath)) {
+      const href = n.target?.targetHref;
+      out.push({
+        id: n.id,
+        bucket: "action",
+        category: "attention",
+        owner: "talent",
+        icon: "↑",
+        title: n.title,
+        body: n.sub ?? "",
+        whenLabel: copy.t("ongoing"),
+        cta: href ? { label: copy.t("Open"), run: () => window.location.assign(href) } : undefined,
+      });
+    }
+
     if (useRealData) {
       // Real notifications path — one HubItem per `user_notifications` row.
       // Bucket inferred from `kind`; icon picked from a small vocab.
@@ -321,10 +341,11 @@ export function NotificationsBell({
       });
     }
     return out.filter(i => !dismissedState.has(i.id));
-  }, [copy, pendingTalent, state.plan, openDrawer, dismissedState, useRealData, realNotifications, staffQueues, hubCta]);
+  }, [copy, pendingTalent, state.plan, openDrawer, dismissedState, useRealData, realNotifications, staffQueues, hubCta, talentSignals, adminBasePath]);
 
-  const unreadActionCount = items.filter(i => i.bucket === "action" && !readSetState.has(i.id)).length;
-  const totalUnread = items.filter(i => !readSetState.has(i.id)).length;
+  const readIds = useMemo(() => hubReadItemIds(readSetState, realNotifications), [readSetState, realNotifications]);
+  const unreadActionCount = items.filter(i => i.bucket === "action" && !readIds.has(i.id)).length;
+  const totalUnread = items.filter(i => !readIds.has(i.id)).length;
 
   // A9 — when an item is a real notification (`notif-<uuid>`), also fire
   // the server action to persist read state. Otherwise localStorage-only
@@ -536,7 +557,7 @@ export function NotificationsBell({
             <SectionGroup
               label={categoryTab === "all" ? copy.t("Notifications") : copy.t(HUB_CATEGORY_LABEL[categoryTab])}
               items={list.visible}
-              readSet={readSetState}
+              readSet={readIds}
               onClick={(it) => { closePopover(); markRead(it.id); it.cta?.run(); }}
               onDismiss={(id) => { dismiss(id); }}
               accent={categoryTab === "attention" ? COLORS.amberDeep : COLORS.indigoDeep}
