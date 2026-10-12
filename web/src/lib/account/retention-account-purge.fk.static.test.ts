@@ -36,7 +36,7 @@ const NON_FINANCIAL = new Set([
   "talent_profile_embeds", "talent_profile_external_calendars", "talent_profile_field_values",
   "talent_profile_taxonomy", "talent_profile_trust_badges", "talent_representation_requests",
   "talent_reviews", "talent_service_areas", "talent_site_domains", "talent_site_history",
-  "talent_site_revisions", "talent_site_theme_updates", "talent_sites", "talent_skill_metrics",
+  "talent_site_revisions", "talent_site_theme_updates", "talent_sites", "talent_skill_metrics", "talent_social_feed_items",
   "talent_submission_consents", "talent_submission_history", "talent_submission_snapshots",
   "talent_workflow_events", "taxonomy_term_requests", "tenant_testimonials", "tulala_briefs",
   "user_admin_notes",

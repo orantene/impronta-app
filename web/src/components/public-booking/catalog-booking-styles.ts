@@ -75,7 +75,7 @@ export const CATALOG_BOOKING_CSS = `
 .jb-taken{margin-top:14px;padding:12px 14px;border-radius:12px;border:1px solid var(--cb-primary);background:var(--cb-surface)}
 .jb-taken p{margin:0;font-size:.875rem;line-height:1.5;color:var(--cb-ink)}
 .jb-taken .jb-times{margin-top:10px}
-.jb-error{margin:0 0 12px;font-size:.875rem;color:var(--cb-primary)}
+.jb-error{margin:12px 0;padding:12px 14px;border-radius:12px;border:1px solid var(--cb-primary);background:var(--cb-blush);font-size:.875rem;line-height:1.5;color:var(--cb-ink)}
 .jb-done{text-align:center;padding:8px 0 4px}
 .jb-check{width:60px;height:60px;border-radius:99px;background:var(--cb-soft);color:var(--cb-primary);display:grid;place-items:center;font-size:1.5rem;margin:0 auto 16px}
 .jb-done h3{margin:0 0 8px;font-family:var(--token-font-display,var(--font-fraunces),Georgia,serif);font-weight:400;font-size:1.375rem;letter-spacing:-.02em}

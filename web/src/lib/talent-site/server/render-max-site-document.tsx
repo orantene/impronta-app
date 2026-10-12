@@ -12,6 +12,7 @@ import { withHeaderSiteChrome } from "./render-max-site-demo";
 import { MaxSiteDemoBadge, MaxSiteDemoFooter } from "@/lib/talent-site/max-site-demo-chrome";
 import { splitShell } from "./render-max-site-shell";
 import { builderTreeHasFaqBind, builderTreeHasKind } from "./builder-tree-has-kind";
+import { collectSocialFeedProviders } from "@/lib/site-admin/builder-node/social-feed-source";
 import { pruneEmptyBoundSections } from "@/lib/talent-site/my-content-prune";
 import { pruneDeadSectionLinks } from "@/lib/talent-site/dead-section-links";
 import { headerOverlayAllowed } from "@/lib/talent-site/header-overlay";
@@ -163,6 +164,7 @@ export async function renderMaxSiteDocument(args: {
   const pageNeedsNextFreeChip = builderTreeHasKind(blocks, "next_free_chip");
   const pageNeedsTalentOfferings =
     pageNeedsServicesCatalog || pageNeedsPortfolio || pageNeedsNextFreeChip;
+  const pageSocialFeedProviders = collectSocialFeedProviders(blocks);
 
   // Codex P2: catalogBookingLive=false mounts demo booking on published free vanity; own-work Path A uses the platform hub (like Agenda).
   let bookingTenantId: string | null = tenantId;
@@ -179,7 +181,12 @@ export async function renderMaxSiteDocument(args: {
       timed("maxSite.dataSources", () =>
         tenantId
           ? loadBuilderNodeDataSources(blocks, tenantId, locale, null, talentProfileId, args.localeCtx.settings.defaultLocale)
-          : pageNeedsTalentOfferings || pageNeedsReviews || pageNeedsVisit || pageNeedsCompCard || pageNeedsFaq
+          : pageNeedsTalentOfferings ||
+              pageNeedsReviews ||
+              pageNeedsVisit ||
+              pageNeedsCompCard ||
+              pageNeedsFaq ||
+              pageSocialFeedProviders.length > 0
             ? loadPersonalMaxNativeSources({
                 talentProfileId,
                 locale,
@@ -191,6 +198,7 @@ export async function renderMaxSiteDocument(args: {
                 visit: pageNeedsVisit,
                 compCard: pageNeedsCompCard,
                 talentFaq: pageNeedsFaq,
+                socialFeedProviders: pageSocialFeedProviders,
               })
             : Promise.resolve({} as BuilderNodeRenderDataSources),
       ),
@@ -232,7 +240,7 @@ export async function renderMaxSiteDocument(args: {
     loadUsdRatesForSitePrices([
       ...talentOfferings,
       ...(dataSources.menuOfferings ?? []),
-    ]),
+    ], locale),
   );
   // D-MSG-421 loads offerings for the talent vanity even when there is no
   // agency `tenantId` (so `loadBuilderNodeDataSources` is skipped). Merge them

@@ -25,6 +25,7 @@ import { talentNotifsFromSignals } from "./talent-notification-rows";
 import type { UserNotification } from "./data-bridge";
 import {
   hubClickTarget,
+  hubReadItemIds,
   scopeRealNotifications,
   staffQueuesVisible,
 } from "./notification-hub-scope";
@@ -342,8 +343,9 @@ export function NotificationsBell({
     return out.filter(i => !dismissedState.has(i.id));
   }, [copy, pendingTalent, state.plan, openDrawer, dismissedState, useRealData, realNotifications, staffQueues, hubCta, talentSignals, adminBasePath]);
 
-  const unreadActionCount = items.filter(i => i.bucket === "action" && !readSetState.has(i.id)).length;
-  const totalUnread = items.filter(i => !readSetState.has(i.id)).length;
+  const readIds = useMemo(() => hubReadItemIds(readSetState, realNotifications), [readSetState, realNotifications]);
+  const unreadActionCount = items.filter(i => i.bucket === "action" && !readIds.has(i.id)).length;
+  const totalUnread = items.filter(i => !readIds.has(i.id)).length;
 
   // A9 — when an item is a real notification (`notif-<uuid>`), also fire
   // the server action to persist read state. Otherwise localStorage-only
@@ -555,7 +557,7 @@ export function NotificationsBell({
             <SectionGroup
               label={categoryTab === "all" ? copy.t("Notifications") : copy.t(HUB_CATEGORY_LABEL[categoryTab])}
               items={list.visible}
-              readSet={readSetState}
+              readSet={readIds}
               onClick={(it) => { closePopover(); markRead(it.id); it.cta?.run(); }}
               onDismiss={(id) => { dismiss(id); }}
               accent={categoryTab === "attention" ? COLORS.amberDeep : COLORS.indigoDeep}

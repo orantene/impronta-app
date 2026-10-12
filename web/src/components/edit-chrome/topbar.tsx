@@ -1792,7 +1792,9 @@ function PublishSplitButton({
   }, [menuOpen]);
 
   return (
-    <div className="sticky right-[20px] z-[2] shrink-0" data-publish-split>
+    // Phone: the bar holds ~1300px of controls, so a pinned Publish covers a
+    // third of it (account chip, ES/EN, Vista previa); it scrolls instead.
+    <div className="sticky right-[20px] z-[2] shrink-0 max-[640px]:static" data-publish-split>
       <div
         className="inline-flex items-stretch overflow-hidden rounded-[10px]"
         role="group"

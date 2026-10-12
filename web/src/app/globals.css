@@ -1513,6 +1513,46 @@ html[data-public-font-preset="editorial"] {
    border, and the icon tile answers with it, which is enough movement for a
    grid of twenty one without any of them shouting. */
 
+/* A band is centred rows of equal-width cards. Card width is always the
+   four/three/two-up width of the full row; a band that uses fewer columns
+   (bandColumns) narrows itself instead, so short rows centre and no band ends
+   on one lone card. Breakpoints match Tailwind sm / lg / xl. */
+.mkt-band {
+  --gap: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--gap);
+  margin-inline: auto;
+}
+.mkt-band > * {
+  width: 100%;
+}
+@media (min-width: 640px) {
+  .mkt-band {
+    max-width: calc((100% - var(--gap)) / 2 * var(--cols-sm) + (var(--cols-sm) - 1) * var(--gap));
+  }
+  .mkt-band > * {
+    width: calc((100% - (var(--cols-sm) - 1) * var(--gap)) / var(--cols-sm));
+  }
+}
+@media (min-width: 1024px) {
+  .mkt-band {
+    max-width: calc((100% - 2 * var(--gap)) / 3 * var(--cols-lg) + (var(--cols-lg) - 1) * var(--gap));
+  }
+  .mkt-band > * {
+    width: calc((100% - (var(--cols-lg) - 1) * var(--gap)) / var(--cols-lg));
+  }
+}
+@media (min-width: 1280px) {
+  .mkt-band {
+    max-width: calc((100% - 3 * var(--gap)) / 4 * var(--cols-xl) + (var(--cols-xl) - 1) * var(--gap));
+  }
+  .mkt-band > * {
+    width: calc((100% - (var(--cols-xl) - 1) * var(--gap)) / var(--cols-xl));
+  }
+}
+
 .mkt-feature-card {
   transition:
     transform 200ms cubic-bezier(0.2, 0, 0, 1),

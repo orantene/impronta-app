@@ -144,3 +144,11 @@ test("editorial component defaults: pill radius bound to the token, pinned text 
   assert.deepEqual(folioOut.card, base.card);
   assert.equal(typeSystemComponentStyleDefaults({ "type.system": "off" }, base), base);
 });
+
+test("SPRINT-348-NAILS: a photo-less menu row gives its copy the full width, not the 64px thumb track", () => {
+  const css = EDITORIAL_TYPE_SYSTEM_CSS;
+  const rowRule = css.indexOf('services-catalog-row[data-has-photo]{display:grid;grid-template-columns:64px');
+  const noPhoto = css.indexOf('services-catalog-row[data-has-photo="false"]{grid-template-columns:minmax(0,1fr) auto}');
+  assert.ok(rowRule > 0, "thumb row rule present");
+  assert.ok(noPhoto > rowRule, "photo-less override must come after the thumb row rule");
+});
