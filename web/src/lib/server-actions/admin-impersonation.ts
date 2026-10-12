@@ -20,14 +20,20 @@ import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity
 import { requireAdmin } from "@/lib/server/action-guards";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { logImpersonation } from "@/lib/platform/staff-access-log";
+import { logServerError } from "@/lib/server/safe-error";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { loadClientPrimaryTenantSlug } from "@/lib/saas/role-tenant-resolver";
+
+/** `unavailable`: the QA persona id is unset, missing, or has the wrong role. */
+export type QaImpersonationState = { error: "unavailable" | null };
 
 function impersonationSecret(): string | undefined {
   return process.env.IMPERSONATION_COOKIE_SECRET?.trim() || undefined;
 }
 
-export async function startImpersonationAsQaTalent(): Promise<void> {
+export async function startImpersonationAsQaTalent(
+  _prev?: QaImpersonationState,
+): Promise<QaImpersonationState> {
   await requireNotImpersonating();
   const admin = await requireAdmin();
   if (!admin.ok) redirect("/login");
@@ -40,11 +46,12 @@ export async function startImpersonationAsQaTalent(): Promise<void> {
   const secret = impersonationSecret();
   const target = qaTalentUserIdEnv();
   if (!secret || !target) {
-    throw new Error("Impersonation is not configured (secret or QA talent id).");
+    logServerError("admin-impersonation.startTalent", new Error("QA talent switch unavailable: secret or QA talent id not set"));
+    return { error: "unavailable" };
   }
 
   const supabase = await getCachedServerSupabase();
-  if (!supabase) throw new Error("Not configured.");
+  if (!supabase) return { error: "unavailable" };
 
   const targetProfile = await loadProfileRowById(supabase, target);
   const check = validateImpersonationTargetProfile({
@@ -54,7 +61,8 @@ export async function startImpersonationAsQaTalent(): Promise<void> {
     targetProfile,
   });
   if (!check.ok || !targetRoleMatchesWorkspace(targetProfile, "talent")) {
-    throw new Error("Invalid QA talent user for impersonation.");
+    logServerError("admin-impersonation.startTalent", new Error("QA talent switch unavailable: configured id is not an active talent user"));
+    return { error: "unavailable" };
   }
 
   const token = await signImpersonationCookie(secret, target);
@@ -66,7 +74,9 @@ export async function startImpersonationAsQaTalent(): Promise<void> {
   redirect("/talent");
 }
 
-export async function startImpersonationAsQaClient(): Promise<void> {
+export async function startImpersonationAsQaClient(
+  _prev?: QaImpersonationState,
+): Promise<QaImpersonationState> {
   await requireNotImpersonating();
   const admin = await requireAdmin();
   if (!admin.ok) redirect("/login");
@@ -79,11 +89,12 @@ export async function startImpersonationAsQaClient(): Promise<void> {
   const secret = impersonationSecret();
   const target = qaClientUserIdEnv();
   if (!secret || !target) {
-    throw new Error("Impersonation is not configured (secret or QA client id).");
+    logServerError("admin-impersonation.startClient", new Error("QA client switch unavailable: secret or QA client id not set"));
+    return { error: "unavailable" };
   }
 
   const supabase = await getCachedServerSupabase();
-  if (!supabase) throw new Error("Not configured.");
+  if (!supabase) return { error: "unavailable" };
 
   const targetProfile = await loadProfileRowById(supabase, target);
   const check = validateImpersonationTargetProfile({
@@ -93,7 +104,8 @@ export async function startImpersonationAsQaClient(): Promise<void> {
     targetUserId: target,
   });
   if (!check.ok || !targetRoleMatchesWorkspace(targetProfile, "client")) {
-    throw new Error("Invalid QA client user for impersonation.");
+    logServerError("admin-impersonation.startClient", new Error("QA client switch unavailable: configured id is not an active client user"));
+    return { error: "unavailable" };
   }
 
   const token = await signImpersonationCookie(secret, target);
