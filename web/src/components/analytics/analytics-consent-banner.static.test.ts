@@ -95,3 +95,12 @@ test("TUL-561: every inline tag snippet reads consent through the shared region-
 test("consent banner does not enable unfinished talent consent tooling", () => {
   assert.doesNotMatch(src, /TALENT_SITE_CONSENT_TOOLING_ENABLED/);
 });
+
+test("TUL-528: on the phone dashboard the support launcher stands down while the banner is up (it covered OK)", () => {
+  const mobile = readFileSync(join(here, "../admin/shell/internal/messages-mobile-css.ts"), "utf8");
+  const rule = mobile.match(/((?:html:has\([^)]*\)\)? \[data-tulala-support-launcher\],?\s*)+)\{\s*display: none !important;/g) ?? [];
+  assert.ok(
+    rule.some((r) => r.includes("html:has([data-consent-banner]) [data-tulala-support-launcher]")),
+    "the consent banner is one of the launcher's yield conditions at 390",
+  );
+});
