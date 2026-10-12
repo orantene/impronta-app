@@ -44,6 +44,27 @@ export function catalogSheetSummaryCents(
   return catalogRowMinCents(detail);
 }
 
+/**
+ * Footer total. Until a required option is picked it is the summary's "From"
+ * floor plus extras, so it never disagrees with the line above it (the stale
+ * offering base can sit above the cheapest option).
+ */
+export function catalogSheetFooterTotal(
+  detail: Pick<OfferingRequestDetail, "amountCents" | "variants" | "addOns">,
+  variantId: string | null,
+  addOnIds: readonly string[],
+): { cents: number; from: boolean } {
+  const variants = detail.variants ?? [];
+  const extrasCents = (detail.addOns ?? [])
+    .filter((a) => addOnIds.includes(a.id))
+    .reduce((sum, a) => sum + a.amountCents, 0);
+  const picked = variants.find((v) => v.id === variantId) ?? null;
+  if (variants.length === 0 || picked) {
+    return { cents: (picked?.amountCents ?? detail.amountCents ?? 0) + extrasCents, from: false };
+  }
+  return { cents: (catalogSheetSummaryCents(detail, null) ?? 0) + extrasCents, from: true };
+}
+
 /** Caption above the sheet summary price ("From" until an option is chosen). */
 export function catalogSheetSummaryCaption(
   detail: SheetPriceDetail,
