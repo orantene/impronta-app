@@ -5,7 +5,7 @@
  * one primary Edit site, labeled secondary actions, presence tiles below.
  */
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -33,6 +33,7 @@ import { lookSlugToGalleryPaletteKey, paletteDisplayName } from "./live-design-c
 import { SitePublishEntry } from "./SitePublishEntry";
 import { sitePublishEntryState } from "./site-publish-entry";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
+import { talentLeaveForWorkspaceAdminHref } from "@/lib/talent-site/hard-nav-workspace-admin";
 
 type Props = {
   locale: MaisonSetupLocale;
@@ -212,6 +213,15 @@ export function MyWebsiteCard({
   const thumbSrc = talentId
     ? `/template-preview/current?kind=live-site&talent=${encodeURIComponent(talentId)}&locale=${locale}`
     : null;
+  const thumbRef = useRef<HTMLIFrameElement>(null);
+
+  // A frame that finished loading before hydration never fires React's onLoad.
+  useEffect(() => {
+    const doc = thumbRef.current?.contentDocument;
+    if (doc && doc.readyState === "complete" && doc.URL !== "about:blank") {
+      setThumbLoaded(true);
+    }
+  }, [thumbSrc]);
 
   useEffect(() => {
     if (hasNamedPalette) return;
@@ -386,7 +396,7 @@ export function MyWebsiteCard({
               <div
                 data-testid="maison-live-thumb-placeholder"
                 aria-hidden
-                className="absolute inset-0 flex animate-pulse flex-col items-center justify-center gap-1.5 px-4 text-center"
+                className={`absolute inset-0 flex flex-col items-center justify-center gap-1.5 px-4 text-center${thumbSrc ? " animate-pulse" : ""}`}
               >
                 <span className="text-[14px] font-semibold text-admin-ink">{address}</span>
                 <span className="text-[12px] text-admin-ink-muted">{t("Website preview")}</span>
@@ -394,6 +404,7 @@ export function MyWebsiteCard({
             ) : null}
             {thumbSrc ? (
               <iframe
+                ref={thumbRef}
                 src={thumbSrc}
                 title={t("Website preview")}
                 onLoad={() => setThumbLoaded(true)}
@@ -485,17 +496,31 @@ export function MyWebsiteCard({
             </div>
           ) : null}
 
-          <Link
-            href={editHref}
-            data-testid="maison-edit-site"
-            className={`inline-flex min-h-12 items-center justify-center rounded-xl border px-5 text-[14px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tulala-primary-fill,#3B8277)] ${
-              hasPending
-                ? "border-admin-border-soft bg-white text-admin-ink hover:bg-admin-surface-alt"
-                : "border-[var(--tulala-primary-fill,#3B8277)] bg-[var(--tulala-primary-fill,#3B8277)] text-white hover:border-[var(--tulala-primary-fill-deep,#326F66)] hover:bg-[var(--tulala-primary-fill-deep,#326F66)]"
-            }`}
-          >
-            {t("Edit site")}
-          </Link>
+          {talentLeaveForWorkspaceAdminHref(editHref) ? (
+            <a
+              href={editHref}
+              data-testid="maison-edit-site"
+              className={`inline-flex min-h-12 items-center justify-center rounded-xl border px-5 text-[14px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tulala-primary-fill,#3B8277)] ${
+                hasPending
+                  ? "border-admin-border-soft bg-white text-admin-ink hover:bg-admin-surface-alt"
+                  : "border-[var(--tulala-primary-fill,#3B8277)] bg-[var(--tulala-primary-fill,#3B8277)] text-white hover:border-[var(--tulala-primary-fill-deep,#326F66)] hover:bg-[var(--tulala-primary-fill-deep,#326F66)]"
+              }`}
+            >
+              {t("Edit site")}
+            </a>
+          ) : (
+            <Link
+              href={editHref}
+              data-testid="maison-edit-site"
+              className={`inline-flex min-h-12 items-center justify-center rounded-xl border px-5 text-[14px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tulala-primary-fill,#3B8277)] ${
+                hasPending
+                  ? "border-admin-border-soft bg-white text-admin-ink hover:bg-admin-surface-alt"
+                  : "border-[var(--tulala-primary-fill,#3B8277)] bg-[var(--tulala-primary-fill,#3B8277)] text-white hover:border-[var(--tulala-primary-fill-deep,#326F66)] hover:bg-[var(--tulala-primary-fill-deep,#326F66)]"
+              }`}
+            >
+              {t("Edit site")}
+            </Link>
+          )}
 
           {onOpenReview ? (
             <SitePublishEntry

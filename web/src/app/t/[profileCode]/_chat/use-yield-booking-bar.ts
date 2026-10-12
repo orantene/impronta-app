@@ -17,6 +17,8 @@ import {
 /** Gap between a sticky bottom chrome top edge and the launcher bottom edge (GRK-036). */
 export const BOOKING_BAR_CLEARANCE_PX = 24;
 
+export const BOTTOM_CHROME_SELECTOR = ".cb-bar, .cb-dock, .mn-bar";
+
 function visibleFixedChrome(el: HTMLElement | null): el is HTMLElement {
   if (!el) return false;
   const style = window.getComputedStyle(el);
@@ -94,9 +96,16 @@ export function useYieldBookingBar(mounted: boolean, narrowLauncher: boolean): {
       ],
     });
     window.addEventListener("resize", measure);
+    // The bar fades in when data-top drops: the mutation fires while its
+    // visibility still reads "hidden", so measure again once the fade ends.
+    const onTransitionEnd = (e: TransitionEvent) => {
+      if (e.target instanceof Element && e.target.matches(BOTTOM_CHROME_SELECTOR)) measure();
+    };
+    document.addEventListener("transitionend", onTransitionEnd, true);
     return () => {
       mo?.disconnect();
       window.removeEventListener("resize", measure);
+      document.removeEventListener("transitionend", onTransitionEnd, true);
     };
   }, [mounted]);
 

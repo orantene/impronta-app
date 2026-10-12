@@ -58,6 +58,7 @@ export function TalentTodayPage() {
     bridgeTalentRepresentation,
     bridgeTalentChecklistDismissed,
     effectiveTalentInquiries,
+    shellCounts,
   } = useAdminShell();
   // ONE completion value (mockup rule): the website-eligibility model is the
   // single source read by Today, the header reward control and the website
@@ -68,10 +69,11 @@ export function TalentTodayPage() {
   // and the browser (React #418). Until hydration finishes, BOTH Agenda V2 and
   // legacy Today render the same static skeleton; the real page mounts after.
   const hydrated = useSyncExternalStore(subscribeNever, () => true, () => false);
-  // Same predicate + rows as the attention bubble and inbox "esperando tu
-  // respuesta" chip (countTalentAwaitingInquiries / isTalentAwaitingYouStage).
-  // Do not use a second messages-v5 count — that disagreed with the chip (TUL-519).
-  const awaitingReplyCount = countTalentAwaitingInquiries(effectiveTalentInquiries);
+  // The attention bubble's number: the inbox "Needs reply" count the layout
+  // read (TUL-388), so Hoy, the bubble and Messages agree. The status
+  // recompute is only for a missing bridge.
+  const awaitingReplyCount =
+    shellCounts?.attention ?? countTalentAwaitingInquiries(effectiveTalentInquiries);
   // Live-site fact for Today's mode + live card (same source as the header
   // reward control). Above the agenda early return (hooks rule).
   const siteLoad = useTalentSiteDashboardInitialLoad();
@@ -399,11 +401,11 @@ export function TalentTodayPage() {
             fontFamily: FONTS.body,
           }}
         >
-          <div className="flex items-center gap-3.5">
+          <div className="flex flex-wrap items-center gap-3.5">
             <div style={{ flexShrink: 0, width: 56, height: 56, borderRadius: "50%", background: "#fff", border: `2px solid ${COLORS.accent}`, display: "inline-flex", alignItems: "center", justifyContent: "center", fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, fontVariantNumeric: "tabular-nums" }} className="text-admin-accent-deep">
               {onboardingCompleteness.percent}%
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="min-w-0 flex-[1_1_180px]">
               <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 2 }} className="text-admin-ink">
                 {copy.t("Finish setting up your profile")}
               </div>

@@ -67,4 +67,29 @@ describe("help-corpus", () => {
     });
     assert.equal(hits[0]?.slug.startsWith("insight:"), true);
   });
+
+  test("Spanish words keep their accents' letters and also search the English word", () => {
+    const toks = tokenize("¿Cómo cambio el precio de uno de mis servicios?");
+    for (const t of ["cambio", "change", "precio", "price", "servicios", "service"]) {
+      assert.ok(toks.includes(t), t);
+    }
+    for (const t of ["c", "mo", "como", "de", "uno", "mis", "el"]) {
+      assert.ok(!toks.includes(t), t);
+    }
+  });
+
+  test("a talent asking how to change a service price is grounded on the services entry, in ES and EN", () => {
+    for (const q of [
+      "Hola, soy QA Grok. ¿Cómo cambio el precio de uno de mis servicios? Gracias.",
+      "How do I change the price of a service?",
+    ]) {
+      assert.equal(retrieveHelpEntries(q, { extraTexts: [q] })[0]?.slug, "talent-services", q);
+    }
+  });
+
+  test("a talent asking how to add a photo to a service is grounded on the services entry", () => {
+    for (const q of ["¿Cómo agrego una foto a un servicio?", "How do I add a photo to a service?"]) {
+      assert.equal(retrieveHelpEntries(q)[0]?.slug, "talent-services", q);
+    }
+  });
 });

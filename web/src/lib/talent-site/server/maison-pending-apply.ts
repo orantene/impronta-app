@@ -74,6 +74,7 @@ export async function prepareMaisonSiteForPublish(
       userId: input.userId,
       displayName: input.displayName,
       pendingDesign: pre.pending_design,
+      locale: input.locale,
     });
     if (!materialized.ok) {
       return { ok: false, code: "server_error", error: materialized.error };
@@ -122,6 +123,8 @@ export async function materializeMaisonLivePendingIfAny(
     userId: string | null;
     displayName: string;
     pendingDesign: unknown;
+    /** Language of a design-apply refusal ("es…" = Spanish, else English). */
+    locale?: string | null;
   },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!isMaisonLivePending(input.pendingDesign)) {
@@ -159,6 +162,7 @@ export async function materializeMaisonLivePendingIfAny(
       design,
       displayName: input.displayName,
       userId: input.userId,
+      locale: input.locale,
     });
     if (!designRes.ok) {
       return { ok: false, error: designRes.error };
