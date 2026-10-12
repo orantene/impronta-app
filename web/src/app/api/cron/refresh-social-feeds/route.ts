@@ -18,6 +18,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { sweepSocialFeeds } from "@/lib/social-embed/feed-cache";
+import { sweepTalentSocialFeeds } from "@/lib/social-embed/talent-feed-cache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,8 +41,15 @@ export async function GET(request: Request) {
 
   try {
     const result = await sweepSocialFeeds(admin);
-    void improntaLog("cron.refresh_social_feeds", result);
-    return NextResponse.json({ ok: true, ...result });
+    const talent = await sweepTalentSocialFeeds(admin);
+    void improntaLog("cron.refresh_social_feeds", {
+      ...result,
+      talentScanned: talent.scanned,
+      talentSucceeded: talent.succeeded,
+      talentFailed: talent.failed,
+      talentItems: talent.items,
+    });
+    return NextResponse.json({ ok: true, ...result, talent });
   } catch (err) {
     logServerError("cron/refresh-social-feeds", err);
     return NextResponse.json({ error: "Sweep failed" }, { status: 500 });
