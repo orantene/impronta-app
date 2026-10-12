@@ -13,7 +13,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { rowToOffering, type TalentOffering, type TalentOfferingRow } from "@/lib/talent/offerings-types";
 
-import { categoryLabelFor } from "./catalog-category-label";
+import { categoryLabelFor, mergeCategoriesByLabel } from "./catalog-category-label";
 import { createBuilderNode } from "./create";
 import {
   renderBuilderNodes,
@@ -234,6 +234,37 @@ test("categoryLabelFor picks the first labelled service of the category", () => 
   assert.equal(categoryLabelFor(LABELLED, "Uñas"), "Nails");
   assert.equal(categoryLabelFor(OFFERINGS, "Uñas"), undefined);
   assert.equal(categoryLabelFor(LABELLED, "Other"), undefined);
+});
+
+const TWO_NAIL_KEYS: TalentOffering[] = [
+  offering({ id: "n1", title: "Rubber Gel", category: "Uñas" }),
+  offering({ id: "n2", title: "Manicure", category: "nails", categoryLabel: "Uñas" }),
+  offering({ id: "l1", title: "Lifting", category: "Pestañas" }),
+];
+
+test("SPRINT-348-NAILS: two keys shown with the same label are one group, at the first key's place", () => {
+  assert.deepEqual(mergeCategoriesByLabel(TWO_NAIL_KEYS, ["Uñas", "Pestañas", "nails"]), [
+    { name: "Uñas", keys: ["Uñas", "nails"] },
+    { name: "Pestañas", keys: ["Pestañas"] },
+  ]);
+  assert.deepEqual(
+    mergeCategoriesByLabel(LABELLED, ["Uñas", "Pestañas"]).map((g) => g.label),
+    ["Nails", "Lashes"],
+  );
+});
+
+test("SPRINT-348-NAILS: the catalog draws one Uñas tab holding both keys' services", () => {
+  const html = render(
+    [node("services_catalog", "c4", { ...CATALOG_PROPS, categoryNav: "sections", showStats: true })],
+    { talentOfferings: TWO_NAIL_KEYS },
+    ES_BASE,
+  );
+  assert.deepEqual(
+    [...html.matchAll(/services-catalog-group-title">([^<]+)</g)].map((m) => m[1]),
+    ["Uñas", "Pestañas"],
+  );
+  assert.ok(html.includes("Rubber Gel") && html.includes("Manicure"));
+  assert.match(html, /<strong>2<\/strong><span>categorías<\/span>/);
 });
 
 // ── loader mapping: category_i18n -> categoryLabel ──────────────────────────

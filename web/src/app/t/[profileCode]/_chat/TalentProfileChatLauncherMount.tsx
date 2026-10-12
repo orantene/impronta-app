@@ -216,7 +216,7 @@ export async function TalentProfileChatLauncherMount({
   // requestable from the chat.
   const publicOfferings = await loadPublicOfferingsForProfile(talentProfileId, locale ?? "en");
   const [usdRates, sellingDefaults, planKey] = await Promise.all([
-    loadUsdRatesForSitePrices(publicOfferings),
+    loadUsdRatesForSitePrices(publicOfferings, locale ?? "en"),
     loadTalentSellingDefaults(talentProfileId),
     loadTalentPlanKey(talentProfileId),
   ]);

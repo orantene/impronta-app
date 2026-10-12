@@ -21,10 +21,13 @@ import {
 import { resolveCardDesign } from "@/lib/site-admin/server/card-design-resolver";
 import { DEFAULT_CARD_DESIGN } from "@/lib/site-admin/server/card-design-shape";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
+import { localizeRowTypeLabels } from "@/lib/directory/talent-type-labels";
+import { loadTalentTypeLabels } from "@/lib/directory/talent-type-labels.server";
 
 export async function loadMoreDirectoryTalents(
   query: DirectoryQuery,
   offset: number,
+  locale = "en",
 ): Promise<{ items: DirectoryCardRow[]; total: number }> {
   const page = await loadDiscoverTalents({
     q: query.q ?? undefined,
@@ -43,12 +46,15 @@ export async function loadMoreDirectoryTalents(
   // render in the platform-default palette while rows above the fold carry the
   // hub palette — a visible inconsistency the moment a visitor clicks
   // "Show more".
-  const hub = await getPlatformHubTenant();
+  const [hub, typeLabels] = await Promise.all([
+    getPlatformHubTenant(),
+    loadTalentTypeLabels(locale),
+  ]);
   const design = hub
     ? await resolveCardDesign(hub.tenantId)
     : DEFAULT_CARD_DESIGN;
   return {
-    items: page.items.map((row) => ({ ...row, design })),
+    items: localizeRowTypeLabels(page.items, typeLabels).map((row) => ({ ...row, design })),
     total: page.total,
   };
 }

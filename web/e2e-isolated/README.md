@@ -75,7 +75,7 @@ A person or CI runs it. **Agent sessions do not run it**: it types card numbers 
 | TUL-420 theme update decision | UNKNOWN until first stack run | keep/update/conflict copy |
 | TUL-441 starter fail retry | SKIP unless QA_PACK_STARTER_FAIL=1 | Tu sitio no se pudo preparar + Reintentar |
 | TUL-449 secondary-read degrade | PASS when home 200 | no whole-page 500 |
-| TUL-458 hub chat second send | FAIL until second send works | composer clears |
+| TUL-458 hub chat second send | FAIL until launcher opens on hub/marketing directory + second send clears | composer clears; targets MARKETING /global-directory (not talent siteHost) |
 | TUL-472 offer papercuts | FAIL until draft persists | no Abriendo la lista / Error al guardar |
 | TUL-473 admin work paid booking | SKIP without paidBooking fixture | not Something broke |
 | TUL-503 client zone labels | SKIP without visits | zone label on hub account |
