@@ -174,6 +174,23 @@ function line(
   };
 }
 
+/**
+ * The fact that says what kind of work or business this is. The model often
+ * files "salón de belleza" only as `business.description` (onb1-02), so a
+ * short description stands in when neither kind fact has a value; a long one
+ * is a pitch, not a kind.
+ */
+function kindFactKey(brief: Brief, order: readonly string[], allowDescription: boolean): string {
+  for (const key of order) {
+    if (displayValue(fact(brief, key))) return key;
+  }
+  if (allowDescription) {
+    const d = displayValue(fact(brief, "business.description"));
+    if (d && d.split(/\s+/).length <= 4) return "business.description";
+  }
+  return order[0];
+}
+
 /** The person's name for the card: professional name first, else name. */
 function personNameLine(brief: Brief, locale: "en" | "es" = "en"): UnderstoodLine {
   const pro = fact(brief, "person.professional_name");
@@ -188,13 +205,13 @@ export function essentialsFor(
 ): UnderstoodLine[] {
   const talent: UnderstoodLine[] = [
     personNameLine(brief, locale),
-    line(brief, "what", "work.discipline", { kind: "question", questionId: "basics" }, { locale }),
+    line(brief, "what", kindFactKey(brief, ["work.discipline", "work.industry"], false), { kind: "question", questionId: "basics" }, { locale }),
     line(brief, "city", "person.city", { kind: "question", questionId: "basics" }, { locale }),
     line(brief, "services", "work.services", { kind: "question", questionId: "services" }, { locale }),
   ];
   const business: UnderstoodLine[] = [
     line(brief, "businessName", "business.name", { kind: "inline" }, { locale }),
-    line(brief, "kind", "work.industry", { kind: "question", questionId: "kind_of_business" }, { locale }),
+    line(brief, "kind", kindFactKey(brief, ["work.industry"], true), { kind: "question", questionId: "kind_of_business" }, { locale }),
     line(brief, "offer", "work.services", { kind: "question", questionId: "services" }, { locale }),
     line(brief, "city", "person.city", { kind: "question", questionId: "basics" }, { locale }),
     line(brief, "hours", "business.hours", { kind: "question", questionId: "two_quick_things" }, { locale }),
@@ -211,9 +228,10 @@ export function essentialsFor(
 
 /** A discipline that reads as a kind of business, for the type chip. */
 export function typeChipFor(brief: Brief, path: OnboardingPath): TypeChip | null {
-  const industry = fact(brief, "work.industry");
-  const discipline = fact(brief, "work.discipline");
-  const f = path === "talent" ? (discipline ?? industry) : (industry ?? discipline);
+  const f =
+    path === "talent"
+      ? fact(brief, kindFactKey(brief, ["work.discipline", "work.industry"], false))
+      : fact(brief, kindFactKey(brief, ["work.industry", "work.discipline"], true));
   let query = displayValue(f);
   if (!f || !query) return null;
   // "Taquería El Güero" says more about the kind of business than the model's
