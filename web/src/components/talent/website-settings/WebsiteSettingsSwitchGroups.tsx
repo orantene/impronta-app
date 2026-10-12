@@ -63,7 +63,7 @@ export function ChatInquiriesGroup({
         <Switch
           checked={switches.acceptingInquiries}
           label={t("Accept new inquiries")}
-          detail={t("Off hides Ask and Consultar. Clients with a booking can still message you.")}
+          detail={t("Off hides Ask and Inquire. Clients with a booking can still message you.")}
           onChange={(v) => setSwitches({ ...switches, acceptingInquiries: v })}
         />
         <Switch

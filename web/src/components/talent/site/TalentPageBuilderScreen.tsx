@@ -194,7 +194,7 @@ export function TalentPageBuilderScreen({
               {isEs ? UPSELL_SEE_PLANS.es : UPSELL_SEE_PLANS.en}
             </Link>
             <Link
-              href="/talent/public-page"
+              href="/talent/site"
               style={{
                 display: "inline-flex",
                 alignItems: "center",

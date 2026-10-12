@@ -794,7 +794,16 @@
           "q": "Do you take commercial jobs?",
           "a": "Yes, up to 120 m² on the standard inspection. Larger spaces are quoted."
         }
-      ]
+      ],
+      "portfolio": [
+        { "title": "Panel upgrade", "caption": "WO-0412 · San Pedro · 1 day" },
+        { "title": "Pendant light", "caption": "WO-0398 · Centro · 1 h" },
+        { "title": "New breakers", "caption": "WO-0391 · Cumbres · 3 h" },
+        { "title": "Load check", "caption": "WO-0385 · Shop, Santa Catarina" },
+        { "title": "Service entrance", "caption": "WO-0377 · Guadalupe · 4 h" },
+        { "title": "6 light fixtures", "caption": "WO-0370 · Restaurant, Obispado" }
+      ],
+      "arrivalNote": "Outside this area, travel is added to the quote."
     }
   }
 }

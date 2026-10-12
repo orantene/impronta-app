@@ -1,0 +1,56 @@
+# Re-runs the structural gate when the `full-ci` label is added to a PR.
+#
+# Why a separate workflow and not `labeled` on ci.yml: every label event on
+# ci.yml would start a run in the gate's per-ref concurrency group, cancelling
+# an in-flight gate, and its gate job would be skipped by the label filter. A
+# skipped job counts as passing for the required "Structural quality gate"
+# check, so adding any other label would turn an unlabelled PR's red gate green
+# (see ci-pr-trigger-types.static.test.ts). Here, other labels only skip a job
+# that is not a required check.
+#
+# The gate's policy step reads labels live, so re-running the failed job on
+# the existing ci.yml run is enough. A run that is still in progress (e.g. its
+# tsc job) is awaited first: GitHub only re-runs jobs of a completed run.
+
+name: CI — re-run gate on full-ci label
+
+on:
+  pull_request:
+    branches: [main]
+    types: [labeled]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  rerun-gate:
+    name: Re-run gate for full-ci
+    if: github.event.label.name == 'full-ci' && github.event.pull_request.draft == false && !startsWith(github.head_ref, 'integ/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Re-run the policy-refused gate job
+        run: |
+          run_id=$(gh run list --workflow ci.yml --event pull_request --commit "$HEAD_SHA" --limit 1 --json databaseId -q '.[0].databaseId')
+          if [ -z "$run_id" ]; then
+            echo "::notice::No ci.yml run for $HEAD_SHA yet; when it starts it reads the full-ci label itself."
+            exit 0
+          fi
+          gh run watch "$run_id" --interval 30 >/dev/null || true
+          policy=$(gh run view "$run_id" --json jobs -q '.jobs[] | select(.name == "Structural quality gate") | .steps[] | select(.name | startswith("Gate policy")) | .conclusion')
+          if [ "$policy" != "failure" ]; then
+            echo "::notice::Gate in run $run_id was not refused by the policy step (policy=$policy); nothing to re-run."
+            exit 0
+          fi
+          job_id=$(gh run view "$run_id" --json jobs -q '.jobs[] | select(.name == "Structural quality gate") | .databaseId')
+          gh run rerun "$run_id" --job "$job_id"
+          echo "Re-ran Structural quality gate (run $run_id, job $job_id) for $HEAD_SHA."
