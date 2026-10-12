@@ -35,7 +35,7 @@ type Call = { client: string; table: string; eq: Array<[string, unknown]> };
 function fakeClient(
   name: string,
   calls: Call[],
-  opts: { userId?: string; data?: (table: string) => unknown } = {},
+  opts: { userId?: string; email?: string; data?: (table: string) => unknown } = {},
 ): SupabaseClient {
   const dataFor = opts.data ?? (() => []);
   const from = (table: string) => {
@@ -60,7 +60,10 @@ function fakeClient(
   return {
     from,
     auth: {
-      getUser: async () => ({ data: { user: opts.userId ? { id: opts.userId } : null }, error: null }),
+      getUser: async () => ({
+        data: { user: opts.userId ? { id: opts.userId, email: opts.email } : null },
+        error: null,
+      }),
     },
   } as unknown as SupabaseClient;
 }
@@ -174,9 +177,9 @@ test("loadTalentSurfaceNotifications: no impersonation and forged context read t
 
 // ── loadTalentActor / loadTalentInboxSummary ───────────────────────────
 
-function actorDeps(calls: Call[]) {
+function actorDeps(calls: Call[], email?: string) {
   return {
-    rlsClient: async () => fakeClient("rls", calls, { userId: A }),
+    rlsClient: async () => fakeClient("rls", calls, { userId: A, email }),
     adminClient: () => fakeClient("admin", calls, { data: (t) => (t === "talent_profiles" ? [{ id: "tp", is_demo: false }] : []) }),
   };
 }
@@ -196,6 +199,15 @@ test("loadTalentActor: no context and forged context resolve the real user", asy
     assert.equal(actor.ok && actor.userId, A);
     assert.deepEqual(idsOf(calls, "admin", "talent_profiles"), [A]);
   }
+});
+
+test("loadTalentActor: a QA login sees fixture threads; a real login and an impersonated QA login do not", async () => {
+  const qa = await loadTalentActor(undefined, actorDeps([], "qa-talent-free@impronta.test"));
+  assert.equal(qa.ok && qa.isDemo, true);
+  const real = await loadTalentActor(undefined, actorDeps([], "jorge@gmail.com"));
+  assert.equal(real.ok && real.isDemo, false);
+  const actingAs = await loadTalentActor(impersonating, actorDeps([], "qa-staff@impronta.test"));
+  assert.equal(actingAs.ok && actingAs.isDemo, false);
 });
 
 test("loadTalentInboxSummary: resolves the acting-as talent from B, not A", async () => {

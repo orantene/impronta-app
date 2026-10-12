@@ -88,6 +88,7 @@ import { PublishPreflight } from "./PublishPreflight";
 import { MobileHealthPanel } from "./MobileHealthPanel";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 import { useEditorLocale } from "./use-editor-locale";
+import { publishTargetHost, useTalentBuilderIdentity } from "./talent-builder-identity";
 import { announceSitePublished, runPublishOnce } from "./site-published-event";
 import {
   formatPublishDisabledReason,
@@ -407,9 +408,10 @@ export function PublishDrawer() {
     [],
   );
 
+  const talentSiteUrl = useTalentBuilderIdentity()?.siteUrl ?? null;
   useEffect(() => {
-    if (typeof window !== "undefined") setHost(window.location.host);
-  }, []);
+    if (typeof window !== "undefined") setHost(publishTargetHost(talentSiteUrl, window.location.host));
+  }, [talentSiteUrl]);
 
   // Watchdog — `preflightLoading` is optimistically set true when the drawer
   // opens and is cleared by PublishPreflight's status callback. A run that is

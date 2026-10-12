@@ -20,12 +20,18 @@ const QA_NAME = /^(QA\b|Bozo\b|Tip\b|PATHB\b)/i;
 const QA_BODY =
   /\b(QA test|please ignore|PATHB|TIP-OFERTA-PROVE|D-MSG-|controlled submit|tip prove|Story \d+ QA)\b/i;
 
+/** A login on a test domain: a QA account, which is itself a fixture surface. */
+export function isTestAccountEmail(email: string | null | undefined): boolean {
+  const value = (email ?? "").trim().toLowerCase();
+  return value !== "" && TEST_EMAIL_SUFFIXES.some((suffix) => value.endsWith(suffix));
+}
+
 export function isQaFixtureInboxRow(
   row: Pick<InboxRow, "contactName" | "contactEmail" | "subject" | "lastMessagePreview">,
 ): boolean {
   const email = (row.contactEmail ?? "").trim().toLowerCase();
   if (email) {
-    if (TEST_EMAIL_SUFFIXES.some((suffix) => email.endsWith(suffix))) return true;
+    if (isTestAccountEmail(email)) return true;
     const local = email.split("@")[0] ?? "";
     if (QA_EMAIL_LOCAL.test(local)) return true;
   }

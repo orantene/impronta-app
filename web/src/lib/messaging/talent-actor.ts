@@ -9,6 +9,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { readUserId, type EffectiveReadContext } from "@/lib/impersonation/effective-read";
 
 import { majorToMinorForDisplay } from "@/lib/inquiry/offer-minor-units";
+import { isTestAccountEmail } from "@/lib/messages-v5/qa-fixture-row";
 import { fail } from "./refusals";
 import { inquiryIsHers, talentIdsOnInquiry, talentIsSeller, type TalentOrderLine } from "./talent-pov";
 
@@ -22,7 +23,7 @@ export type TalentActor = {
   ok: true;
   userId: string;
   talentProfileId: string;
-  /** Demo/fixture talents keep journey threads in Messages; live talents hide them. */
+  /** Demo/fixture talents and QA logins keep journey threads in Messages; live talents hide them. */
   isDemo: boolean;
   admin: SupabaseClient;
   supabase: SupabaseClient;
@@ -62,11 +63,14 @@ export async function loadTalentActor(
   if (error) return fail("unavailable");
   if (!data) return fail("not_allowed");
   const row = data as { id: string; is_demo?: boolean | null };
+  // A QA login (qa-talent-*@impronta.test) must see the QA guests it is tested
+  // with. Only her own session email is known, so impersonation keeps is_demo.
+  const isTestLogin = subjectId === user.id && isTestAccountEmail(user.email);
   return {
     ok: true,
     userId: subjectId,
     talentProfileId: row.id,
-    isDemo: row.is_demo === true,
+    isDemo: row.is_demo === true || isTestLogin,
     admin,
     supabase,
   };
