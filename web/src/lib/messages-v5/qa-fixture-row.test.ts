@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { filterQaFixtureInboxRows, isQaFixtureInboxRow } from "./qa-fixture-row";
+import { filterQaFixtureInboxRows, isQaFixtureInboxRow, isTestAccountEmail } from "./qa-fixture-row";
+
+test("isTestAccountEmail: test domains only", () => {
+  assert.equal(isTestAccountEmail("qa-talent-free@impronta.test"), true);
+  assert.equal(isTestAccountEmail(" QA-Talent-Max@Impronta.Test "), true);
+  assert.equal(isTestAccountEmail("jorgelina@gmail.com"), false);
+  assert.equal(isTestAccountEmail(""), false);
+  assert.equal(isTestAccountEmail(null), false);
+});
 
 function row(partial: {
   contactName?: string;
