@@ -5800,9 +5800,11 @@ html[data-theme="dark"] [data-tone="light"] {
   box-shadow: 0 1px 0 color-mix(in srgb, var(--token-color-line) 45%, transparent), 0 10px 30px rgba(0, 0, 0, 0.28);
   padding-block: clamp(8px, 1vw, 12px);
 }
+/* TUL-524: scrolled transparent chrome is near-black; white clears AA.
+   Gold primary on that band often washed out (grey-on-grey feel). */
 .site-header[data-tone="transparent"][data-scrolled="true"] .site-header__brand,
 .site-header[data-tone="transparent"][data-scrolled="true"] .site-header__brand-label {
-  color: var(--token-color-primary, #c6a14e);
+  color: #ffffff;
 }
 @media (prefers-reduced-motion: reduce) {
   [data-cms-section][data-section-type-key="site_header"] .site-header[data-tone="transparent"] { transition: none; }
@@ -5842,8 +5844,6 @@ html[data-theme="dark"] [data-tone="light"] {
 .site-header[data-variant="freeform"] .site-header__lang-item { display: inline-flex; align-items: center; }
 .site-header[data-variant="freeform"] a.site-header__lang-code { color: inherit; text-decoration: none; }
 .site-header[data-variant="freeform"] .site-header__lang-sep { opacity: 0.55; white-space: pre; }
-/* Demo talent marker: one small pill in the header (all designs). */
-.site-header__demo { display: inline-flex; align-items: center; font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; line-height: 1.2; padding: 3px 7px; border-radius: 99px; border: 1px solid var(--token-color-line, currentColor); color: var(--token-color-muted, currentColor); background: var(--token-color-surface-raised, transparent); white-space: nowrap; }
 /* Desktop (>=1024) */
 @media (min-width: 1024px) {
   .site-header[data-variant="freeform"] .site-header__region [data-bp-desktop="hide"],
@@ -5908,9 +5908,17 @@ html[data-theme="dark"] [data-tone="light"] {
 .site-header[data-variant="split"] .site-header__inner { display: grid; grid-template-columns: 1fr auto 1fr; }
 .site-header[data-variant="minimal"] .site-header__inner { flex-direction: column; align-items: center; gap: 8px; padding-block: 8px; }
 
-.site-header__brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: var(--token-color-ink); font-family: var(--site-heading-font); font-weight: 600; letter-spacing: -0.005em; }
+.site-header__brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: var(--token-color-ink); font-family: var(--site-heading-font); font-weight: 600; letter-spacing: -0.005em; opacity: 1; }
 .site-header__brand-mark { width: clamp(20px, 2vw, 28px); height: clamp(20px, 2vw, 28px); object-fit: contain; }
-.site-header__brand-label { font-size: clamp(14px, 1.1vw, 16px); }
+/* TUL-524: name must stay full-ink readable on every theme header band. */
+.site-header__brand-label { font-size: clamp(14px, 1.1vw, 16px); color: inherit; opacity: 1; font-weight: 600; }
+.site-header[data-tone="surface"] .site-header__brand,
+.site-header[data-tone="solid"] .site-header__brand,
+.site-header[data-tone="surface"] .site-header__brand-label,
+.site-header[data-tone="solid"] .site-header__brand-label {
+  color: var(--token-color-ink);
+  opacity: 1;
+}
 /* Phones: the header is ONE row on every design and variant. A long name gives way (ellipsis), never wraps the bar. */
 @media (max-width: 767px) {
   .site-header__inner { flex-wrap: nowrap; }

@@ -21,6 +21,26 @@ for (const [file, call] of GUARDED) {
   });
 }
 
+test("a design-apply refusal reaches the talent in her language", () => {
+  const core = read("src/lib/talent-site/server/theme-apply-core.ts");
+  assert.ok(core.includes("pick(pin.reason, input.locale)"), "applyDesign must pick the refusal by locale");
+  assert.ok(!core.includes("pin.reason.en"), "applyDesign must not hard-code the English refusal");
+  for (const file of [
+    "src/lib/talent-site/server/maison-apply-actions.ts",
+    "src/lib/talent-site/server/maison-options-actions.ts",
+    "src/lib/talent-site/server/theme-actions.ts",
+  ]) {
+    assert.ok(read(file).includes("locale: await getRequestLocale()"), `${file} must pass the request locale`);
+  }
+  const pending = read("src/lib/talent-site/server/maison-pending-apply.ts");
+  assert.match(pending, /materializeMaisonLivePendingIfAny\(admin, \{[^}]*locale: input\.locale/);
+  assert.match(pending, /applyDesign\(admin, \{[^}]*locale: input\.locale/, "publish-time apply must carry the locale");
+  assert.ok(core.includes('code: "unreleased_version", error: pick(pin.reason'), "the refusal has its own code");
+  const gallery = read("src/components/talent/site/theme-gallery/ManagerThemeGallery.tsx");
+  assert.ok(gallery.includes('code === "unreleased_version" && serverError'), "the gallery shows the refusal text");
+  assert.ok(gallery.includes("fail(res.code, res.error)"), "the gallery passes the server's refusal through");
+});
+
 test("the guard never lets a failed read through", () => {
   const src = read("src/lib/talent-site/theme-releases/pin-guard.server.ts");
   assert.match(src, /READ_FAILED/);

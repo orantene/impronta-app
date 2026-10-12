@@ -14,7 +14,6 @@ import {
   type GallerySearchResult,
   type GalleryStyleTag,
 } from "@/lib/talent-site/theme-catalog/gallery-meta";
-import { useThemePreview } from "@/components/talent/site/theme-gallery/useThemePreview";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
 import {
   DEFAULT_GALLERY_BROWSE_STATE,
@@ -71,7 +70,6 @@ export function GalleryBrowseScreen({
 }: Props) {
   const t = (k: string, vars?: Record<string, string | number>) =>
     vars ? fill(maisonSetupT(locale, k), vars) : maisonSetupT(locale, k);
-  const preview = useThemePreview({ talentProfileId, locale });
   const [state, setState] = useState<GalleryBrowseState>(DEFAULT_GALLERY_BROWSE_STATE);
   const [hydrated, setHydrated] = useState(false);
   const [draft, setDraft] = useState("");
@@ -171,7 +169,7 @@ export function GalleryBrowseScreen({
       key={r.design.slug}
       result={r}
       locale={locale}
-      preview={preview}
+      talentProfileId={talentProfileId}
       suggested={suggested.includes(r.design.slug)}
       lastViewed={state.lastViewed === r.design.slug}
       matching={searching || Boolean(state.chip)}

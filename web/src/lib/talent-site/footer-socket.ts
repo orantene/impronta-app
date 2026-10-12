@@ -122,18 +122,21 @@ export function shortTalentName(name: string | null | undefined): string | null 
 }
 
 interface HeaderLike {
+  kind?: unknown;
   props?: { sectionProps?: { regions?: Record<string, unknown> } };
   children?: unknown;
 }
 
 /**
  * True when the header already carries a language switch (a `language` item in
- * its regions). The strip then drops its own language group: the language lives
- * in the header, never twice.
+ * its regions, or a Gridline `utility_bar`, which draws one from
+ * `dataSources.siteLocales`). The strip then drops its own language group: the
+ * language lives in the header, never twice.
  */
 export function headerShowsLanguageSwitch(headerTree: readonly unknown[]): boolean {
   for (const raw of headerTree) {
     const n = raw as HeaderLike;
+    if (n?.kind === "utility_bar") return true;
     const regions = n?.props?.sectionProps?.regions;
     if (regions && typeof regions === "object") {
       for (const items of Object.values(regions)) {

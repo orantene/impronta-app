@@ -48,6 +48,7 @@ import {
 } from "./homepage";
 import { resolveSignupStarterTreeForOnboard } from "./signup-ai-draft-serve";
 import { composeSiteFromBrief } from "@/lib/site-admin/builder-core/site-templates/compose-site-from-brief.server";
+import { ensureBrandIdentityWordmark } from "@/lib/site-admin/server/ensure-brand-identity-wordmark";
 import { loadBriefForTenant } from "@/lib/tulala/brief-store-tenant.server";
 import { isVisualDirection, LOOK_BY_DIRECTION } from "@/lib/onboarding/module-state";
 import { recordStarterPrepareFailed } from "@/lib/onboarding/starter-prepare.server";
@@ -300,6 +301,10 @@ async function seedFreeStarterHomepage(params: {
     tenantId: params.tenantId,
     actorProfileId: params.actorProfileId,
   });
+
+  // TUL-524: business name is the logo by default so first publish has no
+  // brand-identity wall. Non-fatal; a write miss only leaves the soft tip.
+  await ensureBrandIdentityWordmark(params.client, params.tenantId);
 
   const rosterSeededCount = await seedFreeStarterRosterProfiles({
     client: params.client,
