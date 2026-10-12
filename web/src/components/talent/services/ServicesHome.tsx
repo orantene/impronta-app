@@ -25,7 +25,7 @@ import { foldAccent, publicationLabel, publicationWord } from "@/lib/talent/publ
 import { blankOffering, type OfferingKind, type TalentOffering } from "@/lib/talent/offerings-types";
 import { usdEquivalentLabel } from "@/lib/pricing/usd-equivalent";
 import { useOfferingsEditor } from "./use-offerings-editor";
-import { resolveOfferingEditorSaveStatus } from "./offering-editor-save";
+import { offeringRowErrorText, resolveOfferingEditorSaveStatus } from "./offering-editor-save";
 import { ServicesHomeItemChips } from "./ServicesHomeItemChips";
 import { useLocationSettings } from "./LocationSettingsCard";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
@@ -659,13 +659,14 @@ export function ServicesHome({
                     next.delete(item.id);
                     return next;
                   });
-                  await setOfferingPublication(talentId, item.id, "archived");
+                  const res = await setOfferingPublication(talentId, item.id, "archived");
                   editor.reload();
-                  setToast(copy.t("Archived"));
+                  setToast(res.ok ? copy.t("Archived") : offeringRowErrorText(res.error, copy));
                 }}
                 onRestore={async () => {
-                  await setOfferingPublication(talentId, item.id, "draft");
+                  const res = await setOfferingPublication(talentId, item.id, "draft");
                   editor.reload();
+                  if (!res.ok) setToast(offeringRowErrorText(res.error, copy));
                 }}
                 onDelete={async () => {
                   const ok = window.confirm(
