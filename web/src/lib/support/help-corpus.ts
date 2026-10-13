@@ -185,6 +185,8 @@ const ES_TO_EN: Record<string, string> = {
   retener: "held",
   retenido: "held",
   margen: "gap",
+  diseno: "design",
+  tema: "theme",
   cita: "booking",
   citas: "booking",
 };

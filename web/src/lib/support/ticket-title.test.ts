@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 
 import type { HqQueueRow } from "@/lib/support/load-hq";
 import { filterDeskQueue } from "@/lib/support/desk/desk-filters";
-import { deriveTicketSubject, displayTicketTitle } from "./ticket-title";
+import { aiSuggestedSubjectFor, deriveTicketSubject, displayTicketTitle } from "./ticket-title";
 
 function qrow(over: {
   n: number;
@@ -79,5 +79,18 @@ describe("desk search", () => {
   });
   it("without a query the view still applies", () => {
     assert.deepEqual(filterDeskQueue(rows, "needs_you", "", null).map((r) => r.ticket.ticketNumber), [12]);
+  });
+});
+
+describe("aiSuggestedSubjectFor (TUL-657)", () => {
+  it("never replaces a title the requester typed", () => {
+    assert.equal(aiSuggestedSubjectFor("QA Grok test 1", "QA test acknowledgment"), null);
+  });
+  it("fills an empty or placeholder title", () => {
+    assert.equal(aiSuggestedSubjectFor("Direct message", " Cambiar mi horario "), "Cambiar mi horario");
+    assert.equal(aiSuggestedSubjectFor(null, "Hours"), "Hours");
+  });
+  it("returns null when the model suggested nothing", () => {
+    assert.equal(aiSuggestedSubjectFor("Direct message", "  "), null);
   });
 });
