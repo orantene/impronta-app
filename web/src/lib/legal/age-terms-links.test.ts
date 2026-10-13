@@ -22,4 +22,15 @@ describe("ageTermsLinks (TUL-614)", () => {
     assert.match(src, /ageTermsLinks\(getSiteUrl\(\), locale\)/);
     assert.doesNotMatch(src, /\/legal\/terms`/);
   });
+  it("TUL-678: the auth footer links follow the page language", () => {
+    const chrome = readFileSync("src/app/(auth)/auth-shell-chrome.tsx", "utf8");
+    assert.match(chrome, /ageTermsLinks\(getSiteUrl\(\), locale\)/);
+    assert.doesNotMatch(chrome, /getSiteUrl\(\)\}\/legal\//);
+    const layout = readFileSync("src/app/(auth)/layout.tsx", "utf8");
+    assert.match(layout, /<AuthFooter[\s\S]*?locale=\{locale\}/);
+  });
+  it("TUL-679: /en/login strip records a deliberate locale (fixed by TUL-146)", () => {
+    const proxy = readFileSync("src/proxy.ts", "utf8");
+    assert.match(proxy, /syncLocaleCookieForDefaultPrefixStrip\(res, pathname/);
+  });
 });
