@@ -134,7 +134,8 @@
         "whatsapp": "WhatsApp",
         "email": "E-mail",
         "confirmByHand": "Elle confirme à la main.",
-        "bookInstant": "Vous pouvez réserver un horaire sur cette page."
+        "bookInstant": "Vous pouvez réserver un horaire sur cette page.",
+        "bookingsPaused": "Je ne prends pas de nouvelles réservations pour le moment. Vous pouvez toujours m'écrire."
       }
     },
     "guestChat": {
