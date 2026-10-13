@@ -78,6 +78,7 @@ export async function PayByCodePage({
   const admin = createServiceRoleClient();
   if (!admin) notFound();
 
+  const uiLocale = (await getRequestLocale()) === "en" ? "en" : "es";
   const loaded = await loadPaymentLinkByCode(admin, code);
   if (!loaded.ok && loaded.reason === "expired") {
     // An expired request is exactly when the customer needs the conversation
@@ -87,6 +88,7 @@ export async function PayByCodePage({
     return (
       <CheckoutView
         code={code}
+        locale={uiLocale}
         pathPrefix={pathPrefix}
         amountCents={0}
         currency=""
@@ -176,7 +178,6 @@ export async function PayByCodePage({
   const threadToken = inquiryId && loaded.tenantId ? signThreadToken(inquiryId, loaded.tenantId) : null;
   const threadHref = threadToken ? publicThreadPath(threadToken) : null;
   const receiptHref = orderRow?.receipt_code ? `/r/${orderRow.receipt_code}` : null;
-  const uiLocale = (await getRequestLocale()) === "en" ? "en" : "es";
   const cameFromConversation = Boolean(inquiryId);
   const orderLines = ((lines ?? []) as { label: string | null; units: number; unit_cents: number }[]).map((line) => ({
     label: line.label ?? "",
@@ -309,6 +310,7 @@ export async function PayByCodePage({
     return (
       <CheckoutView
         code={code}
+        locale={uiLocale}
         pathPrefix={pathPrefix}
         moneyMayHaveMoved={moneyMoved}
         slotKind={slotKind}
@@ -345,6 +347,7 @@ export async function PayByCodePage({
       return (
         <CheckoutView
           code={code}
+          locale={uiLocale}
           pathPrefix={pathPrefix}
         slotKind={slotKind}
           amountCents={loaded.amountCents}
@@ -379,6 +382,7 @@ export async function PayByCodePage({
     return (
       <CheckoutView
         code={code}
+        locale={uiLocale}
         pathPrefix={pathPrefix}
         slotKind={slotKind}
         amountCents={loaded.amountCents}
@@ -405,6 +409,7 @@ export async function PayByCodePage({
     return (
       <CheckoutView
         code={code}
+        locale={uiLocale}
         pathPrefix={pathPrefix}
         slotKind={slotKind}
         amountCents={loaded.amountCents}

@@ -20,3 +20,23 @@ describe("paid return page copy (TUL-466)", () => {
     }
   });
 });
+
+describe("pay page language comes from the page, not the dashboard cookie (TUL-466)", () => {
+  const page = readFileSync(join(WEB, "src/app/(public)/pay/[code]/pay-page.tsx"), "utf8");
+  it("every CheckoutView on the pay page gets the page locale", () => {
+    const views = page.split("<CheckoutView").slice(1).map((v) => v.slice(0, v.indexOf("/>")));
+    assert.ok(views.length >= 9);
+    for (const v of views) assert.match(v, /locale=\{uiLocale\}/);
+    assert.ok(page.indexOf("const uiLocale") < page.indexOf("loadPaymentLinkByCode(admin"), "locale is known before the expired view");
+  });
+  it("CheckoutView translates with the passed locale", () => {
+    assert.match(view, /const t = props\.locale \? translatorFor\(props\.locale\) : dashboardT;/);
+  });
+  it("es public.thread copy carries its accents", () => {
+    const es = JSON.parse(readFileSync(join(WEB, "messages/es.json"), "utf8")).public.thread as Record<string, unknown>;
+    const text = Object.values(es).filter((v): v is string => typeof v === "string").join("\n");
+    assert.doesNotMatch(text, /\b(pagina|conversacion|sesion|codigo|envio)\b/);
+    assert.doesNotMatch(text, /\besta (cerrada|llena|disponible|en camino)\b/);
+    assert.match(es.expired as string, /^Esta página de pago está cerrada\./);
+  });
+});
