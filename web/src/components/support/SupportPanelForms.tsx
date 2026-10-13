@@ -183,7 +183,13 @@ export function Composer({
     if (!text || busy) return;
     setBusy(true);
     setFailed(false);
-    const ok = await onSend(text);
+    let ok = false;
+    try {
+      ok = await onSend(text);
+    } catch {
+      // A thrown send (network drop) is a failed send: keep the text, free the box.
+      ok = false;
+    }
     setBusy(false);
     if (ok) {
       // Clear only AFTER a confirmed send — a failure must never eat the text.
