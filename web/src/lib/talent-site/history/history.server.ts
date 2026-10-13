@@ -500,17 +500,22 @@ export async function loadGoLiveSummary(
   talentProfileId: string,
   locale: "en" | "es",
 ): Promise<GoLiveSummary | null> {
-  const state = await loadSiteDraftState(admin, talentProfileId);
+  // PERF-SITE: the history row is keyed by talent_profile_id too, so it runs
+  // in parallel with the draft state instead of waiting for the site id.
+  const [state, historyRes] = await Promise.all([
+    loadSiteDraftState(admin, talentProfileId),
+    admin
+      .from("talent_site_history")
+      .select("kind, last_at")
+      .eq("talent_profile_id", talentProfileId)
+      .eq("kind", "publish")
+      .order("last_at", { ascending: false })
+      .limit(1),
+  ]);
   if (!state) return null;
-  // supabase-read-unchecked-ok: without history the Live chip falls back to site_published_at.
-  const { data } = await admin
-    .from("talent_site_history")
-    .select("kind, last_at")
-    .eq("site_id", state.siteId)
-    .eq("kind", "publish")
-    .order("last_at", { ascending: false })
-    .limit(1);
-  const lastPublish = ((data ?? []) as Array<{ last_at: string }>)[0];
+  // Without history the Live chip falls back to site_published_at.
+  if (historyRes.error) logServerError("talentSiteHistory.goLive.lastPublish", historyRes.error);
+  const lastPublish = ((historyRes.data ?? []) as Array<{ last_at: string }>)[0];
   const input = {
     shell: { draft: state.shell, live: state.shellPublished },
     pages: state.pages.map((p) => ({ id: p.id, title: p.title, draft: p.blocks, live: p.blocksPublished })),

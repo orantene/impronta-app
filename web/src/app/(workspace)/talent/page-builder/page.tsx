@@ -122,7 +122,7 @@ async function resolveSiteExists(input: { profileId: string; canEdit: boolean })
   const [siteRes, pagesRes] = await Promise.all([
     admin
       .from("talent_sites")
-      .select("site_slug, shell_tree")
+      .select("site_slug, shell_head:shell_tree->0")
       .eq("talent_profile_id", input.profileId)
       .maybeSingle(),
     admin.from("talent_pages").select("is_home").eq("talent_profile_id", input.profileId),
