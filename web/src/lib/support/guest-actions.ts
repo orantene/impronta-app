@@ -14,7 +14,7 @@ import {
   checkGuestSupportEmailCapture,
   checkGuestSupportMessageAbuse,
 } from "./guest-support-abuse-guard";
-import { signGuestResumeToken, verifyGuestResumeToken } from "./guest-resume-token";
+import { evaluateResumeClaim, signGuestResumeToken, verifyGuestResumeToken } from "./guest-resume-token";
 import { supportFrom } from "./support-from";
 import {
   mapMessageRow,
@@ -293,13 +293,28 @@ export async function resumeGuestThreadAction(input: {
   const verified = verifyGuestResumeToken(input.token);
   if (!verified.ok) return { ok: false, error: "That resume link is not valid anymore." };
 
-  const { data } = await supportFrom(ident.admin, "support_tickets")
+  const { data, error: loadError } = await supportFrom(ident.admin, "support_tickets")
     .select("*")
     .eq("id", verified.ticketId)
     .maybeSingle();
+  if (loadError) return { ok: false, error: "Could not load that thread. Try again." };
   const ticket = mapTicketRow(data);
   if (!ticket || ticket.surface !== "guest") {
     return { ok: false, error: "Thread not found." };
+  }
+
+  // TUL-618: first session to use this link owns it; a forwarded copy opened
+  // from another session is refused.
+  const claim = evaluateResumeClaim(
+    ticket.metadata.resume_claims,
+    verified.issuedAtMs,
+    ident.guestSessionId,
+  );
+  if (!claim.allow) {
+    return {
+      ok: false,
+      error: "This link was already opened on another device. Start from the contact page to get a new link.",
+    };
   }
 
   const prior = Array.isArray(ticket.metadata.prior_guest_sessions)
@@ -308,12 +323,13 @@ export async function resumeGuestThreadAction(input: {
   if (ticket.guestSessionId && ticket.guestSessionId !== ident.guestSessionId) {
     prior.push(ticket.guestSessionId);
   }
-  await supportFrom(ident.admin, "support_tickets")
+  const { error: updateError } = await supportFrom(ident.admin, "support_tickets")
     .update({
       guest_session_id: ident.guestSessionId,
-      metadata: { ...ticket.metadata, prior_guest_sessions: prior },
+      metadata: { ...ticket.metadata, prior_guest_sessions: prior, resume_claims: claim.claims },
     })
     .eq("id", ticket.id);
+  if (updateError) return { ok: false, error: "Could not resume that thread. Try again." };
   return { ok: true, ticketId: ticket.id };
 }
 
