@@ -207,11 +207,11 @@ test("a business workspace's CTAs do not point at the talent directory", () => {
 });
 
 test("the public /directory route refuses a business workspace", () => {
-  assert.match(
-    read("app/(public)/directory/page.tsx"),
-    /await assertRosterWorkspace\(tenantId\);/,
-    "the ONE public roster surface that had no workspace_type check",
-  );
+  // TUL-505: still never renders a roster for a roster-less workspace, but now
+  // soft-redirects to /book instead of a hard 404 (seeded CTAs land here).
+  const src = read("app/(public)/directory/page.tsx");
+  assert.match(src, /const type = await resolveWorkspaceType\(tenantId\);/, "the ONE public roster surface that had no workspace_type check");
+  assert.match(src, /if \(!rosterEnabled\(type\)\) \{[\s\S]*?redirect\(/, "a roster-less workspace is redirected before any roster renders");
 });
 
 // ── FIX 4: the demo-roster seed itself ─────────────────────────────────────
