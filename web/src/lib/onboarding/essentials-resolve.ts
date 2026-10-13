@@ -13,6 +13,7 @@ import {
   type Essentials,
 } from "./essentials";
 import { timezoneFromPlaceText } from "@/lib/scheduling/timezone-from-place";
+import { timezoneFromCountry } from "@/lib/scheduling/country-timezone";
 import { isValidIanaTimeZone } from "@/lib/scheduling/tz";
 
 /**
@@ -30,7 +31,7 @@ export function resolveEssentialsTimezone(input: {
   const place = [input.city, input.country].map((x) => x?.trim()).filter(Boolean).join(", ");
   const fromPlace = place ? timezoneFromPlaceText(place) : null;
   if (fromPlace && isValidIanaTimeZone(fromPlace)) return fromPlace;
-  return defaultTimezoneForCountry(input.country);
+  return defaultTimezoneForCountry(input.country) ?? timezoneFromCountry(input.country);
 }
 
 export function resolveEssentialsForBuild(input: {

@@ -26,6 +26,8 @@ import { getEmailSubject, interpolate } from "../email-copy";
 import { bookingNoun } from "../booking-noun";
 import type { EmailBrand } from "@/lib/brand/resolve-tenant-brand";
 import { logServerError } from "@/lib/server/safe-error";
+import { isReservedDomainAddress } from "@/lib/email/reserved-domains";
+import type { ChannelSkip } from "../dispatcher-outcome";
 /**
  * What this channel reports back: the provider message id plus the envelope it
  * actually sent with, so the dispatcher can record `from` / `replyTo` on the
@@ -65,12 +67,21 @@ export async function sendEmailNotification(
   entry: CatalogEntry,
   recipient: ResolvedRecipient,
   ctx: AudienceContext,
-): Promise<EmailSendOutcome | null> {
+): Promise<EmailSendOutcome | ChannelSkip | null> {
   const cfg = entry.email;
-  if (!cfg || !recipient.email) return null;
+  if (!cfg) return null;
+  // TUL-640: every skip says WHY on the dispatch row. "channel not configured
+  // or no endpoint" hid that QA/demo recipients (.test, example.com) are
+  // deliberately never mailed, which read as a broken talent email pipeline.
+  if (!recipient.email) return skip("recipient has no email address");
   // A malformed address would make Resend throw "Invalid `to` field" and log a
-  // `failed` row; skip it with the standard "no endpoint" reason instead.
-  if (!/^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(recipient.email.trim())) return null;
+  // `failed` row; skip it with a reason instead.
+  if (!/^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(recipient.email.trim())) {
+    return skip("recipient address is malformed");
+  }
+  if (isReservedDomainAddress(recipient.email)) {
+    return skip("reserved domain (QA or demo address, mail is never sent)");
+  }
 
   // payload.platformFrom: platform-service mail (e.g. support) must send under
   // the PLATFORM identity even for a tenant-scoped event — a white-label
@@ -98,7 +109,9 @@ export async function sendEmailNotification(
       };
     }
   } else if (!entry.required && !recipient.userId && recipient.email) {
-    if (await isGuestEmailUnsubscribed(ctx.admin, recipient.email)) return null;
+    if (await isGuestEmailUnsubscribed(ctx.admin, recipient.email)) {
+      return skip("guest unsubscribed");
+    }
     const token = await getGuestUnsubscribeToken(ctx.admin, recipient.email);
     if (token) {
       unsubscribeUrl = buildUnsubscribeUrl(token, entry.category);
@@ -199,7 +212,15 @@ export async function sendEmailNotification(
   if (result.status === "failed") {
     throw new Error(`Resend send failed for ${entry.id}: ${result.error}`);
   }
-  if (result.status !== "sent") return null;
+  if (result.status !== "sent") {
+    return skip(
+      result.reason === "no_api_key"
+        ? "email provider key not configured"
+        : result.reason === "reserved_domain"
+          ? "reserved domain (QA or demo address, mail is never sent)"
+          : "provider skipped the send",
+    );
+  }
   // Report the envelope we actually sent with. The dispatcher records it on
   // the dispatch_log row, so a later "did that email carry a Reply-To?" is a
   // SQL read rather than a request to open someone's inbox — the exact
@@ -209,6 +230,10 @@ export async function sendEmailNotification(
     from: result.from,
     replyTo: result.replyTo ?? null,
   };
+}
+
+function skip(reason: string): ChannelSkip {
+  return { skipped: true, reason };
 }
 
 /** String-only vars for subject interpolation: recipient/brand + flat payload. */
