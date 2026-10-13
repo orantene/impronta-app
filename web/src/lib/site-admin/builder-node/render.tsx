@@ -3956,6 +3956,20 @@ function renderDirectorySearchChildren(
   );
 }
 
+/** An image node the renderer will skip (no usable src), so a slide wrapping it would be blank. */
+function isEmptyImageNode(
+  node: BuilderNode,
+  options: Pick<NormalizedBuilderNodeRenderOptions, "dataSources">,
+): boolean {
+  if (node.kind !== "image") return false;
+  const asset =
+    node.props.mediaId && options.dataSources.mediaAssets
+      ? options.dataSources.mediaAssets.find((a) => a.id === node.props.mediaId)
+      : null;
+  const src = renderImageSrc({ value: asset?.publicUrl ?? node.props.src ?? "", bound: false });
+  return !src || !isSafeBuilderImageSrc(src);
+}
+
 function shouldRenderNode(
   node: BuilderNode,
   options: Pick<NormalizedBuilderNodeRenderOptions, "mode" | "visibilityContext">,
@@ -5286,7 +5300,7 @@ function renderBuilderNodeElement(
       }
       const carouselVars = carouselSlideVars(node.props);
       const carouselItems = nodeChildren(node)
-        .filter((child) => shouldRenderNode(child, options))
+        .filter((child) => shouldRenderNode(child, options) && !isEmptyImageNode(child, options))
         .map((child, index) => (
           <div
             key={`${node.id}:slide:${child.id}`}
@@ -5296,6 +5310,8 @@ function renderBuilderNodeElement(
             <BuilderNodeView key={child.id} node={child} options={options} />
           </div>
         ));
+      // No slide can paint (e.g. image slides with no src): no blank band.
+      if (carouselItems.length === 0) return null;
       return (
         <div
           key={node.id}
@@ -7252,7 +7268,18 @@ function renderBuilderNodeElement(
               fills it; a bot that does gets the submission flagged as spam. */}
           <div
             aria-hidden="true"
-            style={{ position: "absolute", left: "-9999px", width: 1, height: 1, overflow: "hidden" }}
+            style={{
+              position: "absolute",
+              width: 1,
+              height: 1,
+              margin: -1,
+              padding: 0,
+              overflow: "hidden",
+              clip: "rect(0 0 0 0)",
+              clipPath: "inset(50%)",
+              whiteSpace: "nowrap",
+              border: 0,
+            }}
           >
             <label>
               {honeypotLabel}
