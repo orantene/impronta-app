@@ -149,7 +149,7 @@ export async function loadMaxSiteManagerAction(): Promise<
   if (!sb) return { ok: false, code: "server_error", error: "Not configured." };
 
   // F74: parallel reads. No provisioning on load (TUL-179).
-  const cols = "id, site_slug, logo_url, site_published_at, shell_published, shell_tree, theme_design_slug, theme_look_slug";
+  const cols = "id, site_slug, logo_url, site_published_at, shell_published_head:shell_published->0, shell_head:shell_tree->0, theme_design_slug, theme_look_slug";
   const readAll = () =>
     Promise.all([
       sb.from("talent_sites").select(cols).eq("talent_profile_id", scope.talentProfile.id).maybeSingle(),
@@ -176,7 +176,7 @@ export async function loadMaxSiteManagerAction(): Promise<
     site_slug: string | null;
     logo_url: string | null;
     site_published_at: string | null;
-    shell_published: unknown;
+    shell_published_head: unknown;
     theme_design_slug: string | null;
     theme_look_slug: string | null;
   } | null;
@@ -223,7 +223,7 @@ export async function loadMaxSiteManagerAction(): Promise<
       sitePublishedAt: site?.site_published_at ?? null,
       siteExists,
       hasPublishedShell:
-        Array.isArray(site?.shell_published) && site!.shell_published.length > 0,
+        site?.shell_published_head != null,
       publicSiteUrl,
       themeDesignSlug: site?.theme_design_slug ?? null,
       themeLookSlug: site?.theme_look_slug ?? null,
