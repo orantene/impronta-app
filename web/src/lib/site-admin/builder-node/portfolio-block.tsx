@@ -21,9 +21,8 @@ import { MAGAZINE_ROOT_VARS } from "./magazine-edition";
 import { eyebrowDuplicatesHeading } from "./portfolio-eyebrow";
 import { PORTFOLIO_FRAMED_CSS } from "./portfolio-framed-css";
 import { filterShotsForPortfolio } from "./portfolio-selection";
-import { bookEntryFrom, listBookableOfferings } from "@/lib/talent-site/book-entry";
+import { bookEntryFrom, listBookableOfferings, openIntentFor } from "@/lib/talent-site/book-entry";
 import type { OpenIntent } from "@/lib/talent-site/open-intent-queue";
-import { stickyBarAction, stickyBarIntent } from "@/lib/talent-site/sticky-bar-tap";
 import { buildPortfolioGallery, generalBookLabel, type PortfolioGallery } from "./portfolio-lightbox-logic";
 import { captionLanguageHint } from "./portfolio-caption-hint";
 import { NotShownOnSiteBadge } from "./not-shown-on-site-badge";
@@ -321,9 +320,10 @@ export function renderPortfolioBlock(args: {
   const magazine = isChapter && p.edition === "magazine";
 
   const workOrder = layout === "work_order";
-  // TUL-440: the header CTA's decision (one service: its sheet; several: the picker; none: hidden).
+  // TUL-440: lightbox general Book follows `#book` (preferred sheet when bookable).
   const bookable = listBookableOfferings({ offerings: args.offerings ?? [], confirmsByHand: args.confirmsByHand ?? true });
-  const generalIntent = stickyBarIntent(stickyBarAction(bookable.length), bookEntryFrom(bookable));
+  const entry = bookEntryFrom(bookable);
+  const generalIntent: OpenIntent | null = entry.kind === "sheet" ? openIntentFor("book", entry) : null;
   const galleryItems = buildPortfolioGallery(visible, (id) => byOffering.has(id), es, showCaptions ? (shot) => {
     const full = visible.find((v) => v.id === shot.id);
     return captionLanguageHint({ caption: full?.caption, captionI18n: full?.captionI18n, locale: args.locale, primaryLocale: args.primaryLocale });
