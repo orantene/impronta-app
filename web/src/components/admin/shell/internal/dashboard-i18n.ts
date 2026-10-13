@@ -306,8 +306,6 @@ const ES_TEXT: Record<string, string> = {
   "From portfolio": "Del portafolio",
   "How the price works": "Cómo funciona el precio",
   "Fixed price": "Precio fijo",
-  "Starting at": "Desde",
-  "Quote each time": "Cotizar cada vez",
   "Get a quote": "Pedir cotización",
   "Show as starting at": "Mostrar como desde",
   "Clients see Request a quote. Add a price to take bookings.": "Tus clientes ven Pedir cotización. Agrega un precio para recibir reservas.",

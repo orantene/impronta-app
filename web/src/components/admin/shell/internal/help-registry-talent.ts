@@ -32,7 +32,7 @@ export const TALENT_HELP: Record<string, HelpEntry> = {
       },
       {
         q: "Why can't I publish my service?",
-        a: "A service needs a name, a price and its minutes before it can be published. If the price depends on the job, choose Quote each time and it only needs a name. A draft without a price shows Needs a price (Falta precio) on its row.",
+        a: "A service needs a name, a price and its minutes before it can be published. If the price depends on the job, switch it to Get a quote and it only needs a name. A draft without a price shows Needs a price (Falta precio) on its row.",
       },
       {
         q: "What do Instant booking, Request to book and quote mean?",
