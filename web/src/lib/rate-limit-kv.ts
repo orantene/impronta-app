@@ -467,14 +467,14 @@ async function getLimiter(): Promise<KvLimiter> {
 
     const supportTicketCreateLimiter = new Ratelimit({
       redis,
-      limiter: Ratelimit.slidingWindow(5, "60 m"),
+      limiter: Ratelimit.slidingWindow(10, "60 m"),
       prefix: "rl:support_ticket_create",
       analytics: false,
     });
 
     const supportMessageSendLimiter = new Ratelimit({
       redis,
-      limiter: Ratelimit.slidingWindow(30, "60 m"),
+      limiter: Ratelimit.slidingWindow(60, "60 m"),
       prefix: "rl:support_message_send",
       analytics: false,
     });

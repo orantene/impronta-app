@@ -24,6 +24,8 @@ export type TalentActor = {
   talentProfileId: string;
   /** Demo/fixture talents keep journey threads in Messages; live talents hide them. */
   isDemo: boolean;
+  /** Profile display name; QA accounts ("QA ...") keep their fixture threads. */
+  displayName?: string | null;
   admin: SupabaseClient;
   supabase: SupabaseClient;
 };
@@ -58,15 +60,16 @@ export async function loadTalentActor(
   const admin = deps.adminClient();
   if (!admin) return fail("unavailable");
   const subjectId = readUserId(user.id, ctx);
-  const { data, error } = await admin.from("talent_profiles").select("id, is_demo").eq("user_id", subjectId).maybeSingle();
+  const { data, error } = await admin.from("talent_profiles").select("id, is_demo, display_name").eq("user_id", subjectId).maybeSingle();
   if (error) return fail("unavailable");
   if (!data) return fail("not_allowed");
-  const row = data as { id: string; is_demo?: boolean | null };
+  const row = data as { id: string; is_demo?: boolean | null; display_name?: string | null };
   return {
     ok: true,
     userId: subjectId,
     talentProfileId: row.id,
     isDemo: row.is_demo === true,
+    displayName: row.display_name ?? null,
     admin,
     supabase,
   };

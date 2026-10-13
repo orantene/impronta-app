@@ -10,6 +10,8 @@ import {
 import { resolveSupportRequester, assertTicketAccess } from "./support-access";
 import { supportEngine } from "./support-engine";
 import type { SupportCallbackPref, SupportSurface } from "./support-types";
+import { rateLimited, type SupportActionFail } from "./rate-limit-result";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
@@ -72,15 +74,7 @@ const createSchema = z.object({
 });
 
 export type SupportActionOk<T extends object = object> = { ok: true } & T;
-export type SupportActionFail = { ok: false; error: string };
-
-async function rateLimited(
-  check: Promise<{ ok: true } | { ok: false; code: string; retryAfterMs: number }>,
-): Promise<SupportActionFail | null> {
-  const r = await check;
-  if (r.ok) return null;
-  return { ok: false, error: "Too many requests. Try again shortly." };
-}
+export type { SupportActionFail } from "./rate-limit-result";
 
 export async function createSupportTicketAction(
   // diagnostics arrives untyped from the client; the zod schema (with .catch)
@@ -182,6 +176,12 @@ export async function markSupportTicketReadAction(raw: {
     userId: session.userId,
   });
   if (!result.ok) return result;
+  // Keep the bell in step with the Tickets badge (see mark-ticket-bell-read).
+  const admin = createServiceRoleClient();
+  if (admin) {
+    const { markTicketBellRead } = await import("./mark-ticket-bell-read");
+    await markTicketBellRead(admin as unknown as import("./mark-ticket-bell-read").BellUpdateClient, session.userId, parsed.data.ticketId);
+  }
   return { ok: true };
 }
 
