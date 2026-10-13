@@ -5,7 +5,26 @@
 
 export const SKIPPED_DISPATCH_ERROR = "channel not configured or no endpoint";
 
-export function dispatchLogPatchFromHandlerResult(result: string | null): {
+/**
+ * A channel that deliberately sent nothing and knows why (TUL-640). The reason
+ * is a short, PII-free label stored on the dispatch row so "why was this
+ * skipped" is a SQL read, not a guess.
+ */
+export type ChannelSkip = { skipped: true; reason: string };
+
+export function isChannelSkip(value: unknown): value is ChannelSkip {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    (value as { skipped?: unknown }).skipped === true &&
+    typeof (value as { reason?: unknown }).reason === "string"
+  );
+}
+
+export function dispatchLogPatchFromHandlerResult(
+  result: string | null,
+  skipReason?: string,
+): {
   status: "sent" | "skipped";
   provider_reference: string | null;
   error_message: string | null;
@@ -15,7 +34,7 @@ export function dispatchLogPatchFromHandlerResult(result: string | null): {
     return {
       status: "skipped",
       provider_reference: null,
-      error_message: SKIPPED_DISPATCH_ERROR,
+      error_message: skipReason ? `skipped: ${skipReason}` : SKIPPED_DISPATCH_ERROR,
       sent_at: null,
     };
   }
