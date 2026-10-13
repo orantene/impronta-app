@@ -341,6 +341,9 @@ export type OfferingRowDraft = {
   title_i18n?: { en: string; es: string };
 };
 
+/** Same default the manual "add a service" row starts with (setup.ts blankService). A row with no length offers no slots. */
+export const DEFAULT_SERVICE_MINUTES = 60;
+
 export function offeringRowFor(s: EssentialService, sortOrder: number): OfferingRowDraft {
   const exact = !s.quote && s.priceCents !== null && s.priceCents > 0;
   return {
@@ -359,7 +362,7 @@ export function offeringRowFor(s: EssentialService, sortOrder: number): Offering
     booking_mode: exact ? "instant" : "request",
     reserve_mode: "free",
     allow_pay_in_person: true,
-    duration_minutes: s.durationMin,
+    duration_minutes: s.durationMin && s.durationMin > 0 ? s.durationMin : DEFAULT_SERVICE_MINUTES,
     category: s.packKey ?? null,
     status: exact ? "published" : "draft",
     visibility: "public",
