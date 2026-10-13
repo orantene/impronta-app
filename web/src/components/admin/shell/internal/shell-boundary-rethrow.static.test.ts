@@ -6,14 +6,15 @@ import { join } from "node:path";
 const web = join(__dirname, "../../../../..");
 const read = (p: string) => readFileSync(join(web, p), "utf8");
 
-test("ShellBoundary hands notFound/redirect back to Next before its crash screen", () => {
+test("ShellBoundary hands notFound/redirect back to Next from getDerivedStateFromError, never in render", () => {
   const src = read("src/components/admin/shell/internal/shell-boundary.tsx");
   assert.match(src, /import\s*\{\s*unstable_rethrow\s*\}\s*from\s*"next\/navigation"/);
-  const caught = src.indexOf("if (this.state.caught)");
-  assert.ok(caught > 0, "ErrorBoundary render branch moved");
-  const rethrow = src.indexOf("unstable_rethrow(this.state.caught)", caught);
-  const fallback = src.indexOf("Something broke", caught);
-  assert.ok(rethrow > caught && rethrow < fallback, "rethrow must run before the fallback renders");
+  const gdse = src.indexOf("static getDerivedStateFromError");
+  const render = src.indexOf("override render()");
+  assert.ok(gdse > 0 && render > gdse, "ErrorBoundary shape moved");
+  const rethrow = src.indexOf("unstable_rethrow(err)", gdse);
+  assert.ok(rethrow > gdse && rethrow < render, "rethrow must run in getDerivedStateFromError");
+  assert.doesNotMatch(src.slice(render), /unstable_rethrow\(/);
 });
 
 test("work detail has its own not-found screen with ES and EN copy", () => {

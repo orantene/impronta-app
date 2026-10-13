@@ -29,7 +29,7 @@ import { SupportSlotContext } from "./support-slot-gate";
 // ─── Error boundary (#26) ─────────────────────────────────────────────
 // Catches render-time exceptions and shows a friendly fallback page.
 
-class ErrorBoundary extends Component<
+export class ErrorBoundary extends Component<
   { children: ReactNode },
   { caught: Error | null }
 > {
@@ -38,13 +38,15 @@ class ErrorBoundary extends Component<
     this.state = { caught: null };
   }
   static getDerivedStateFromError(err: Error) {
+    // notFound() / redirect() / forbidden() from a page below travel as
+    // errors; they belong to Next's boundaries, not this crash screen. Throwing
+    // here (as Next's own boundaries do) hands them to the parent boundary
+    // before any fallback state exists; throwing in render crashed the page.
+    unstable_rethrow(err);
     return { caught: err };
   }
   override render() {
     if (this.state.caught) {
-      // notFound() / redirect() / forbidden() from a page below travel as
-      // errors; they belong to Next's boundaries, not this crash screen.
-      unstable_rethrow(this.state.caught);
       // Tailwind rather than `style={{…}}`: the shell's inline-style ratchet
       // treats this moved file as new code, and a static fallback screen is the
       // easiest possible place to pay that debt off instead of carrying it.
