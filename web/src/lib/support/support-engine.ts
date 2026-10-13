@@ -63,19 +63,15 @@ export async function createTicket(input: {
     input.requester.kind === "user"
       ? input.requester.userId
       : (input.requester.userId ?? null);
-  const guestSessionId =
-    input.requester.kind === "guest" ? input.requester.guestSessionId : null;
+  const guestSessionId = input.requester.kind === "guest" ? input.requester.guestSessionId : null;
 
   const handledBy: SupportHandledBy = input.messageOranDirectly
     ? "human"
     : (input.handledBy ?? "human");
   const now = new Date().toISOString();
-  // "Direct message" survives only when nothing was typed (the panel's canned
-  // body); a contact-form subject or first message always wins.
-  const subject =
-    input.messageOranDirectly && !(input.subject ?? "").trim()
-      ? "Direct message"
-      : deriveTicketSubject({ subject: input.subject, body: input.body });
+  const subject = input.messageOranDirectly && !(input.subject ?? "").trim()
+    ? "Direct message" // only the panel's canned body; a typed subject/message wins
+    : deriveTicketSubject({ subject: input.subject, body: input.body });
 
   const insertRow: Record<string, unknown> = {
     tenant_id: input.tenantId,
@@ -88,7 +84,7 @@ export async function createTicket(input: {
     category: input.category ?? null,
     origin_surface_slug: input.originSlug ?? null,
     status: "open",
-    waiting_on: handledBy === "ai" ? "support" : "support",
+    waiting_on: "support",
     priority: "normal",
     handled_by: handledBy,
     contact_email: input.contactEmail ?? null,
