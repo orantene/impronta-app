@@ -2927,6 +2927,7 @@ export function TalentProfileShellDrawer() {
             // empty panel when tapped.
             if ((s === "physical" || s === "wardrobe" || s === "details") && newEngineActive) return null;
             if ((s === "profile_fields" || s === "agency_fields") && !newEngineActive) return null;
+            if (s === "agency_fields" && !adminVisible) return null;
             const meta = metaFor(s);
             const active = activeSection === s;
             const done = sectionComplete[s];
@@ -3034,7 +3035,9 @@ export function TalentProfileShellDrawer() {
               if (s === "profile_fields" && !newEngineActive) return false;
               // Agency Fields = the live DB-resolved field catalog; only
               // meaningful with a real talent + tenant (same as the engine).
-              if (s === "agency_fields" && !newEngineActive) return false;
+              // TUL-671: staff-only (the action behind it is staff-gated); a talent
+              // editing their own profile never sees it.
+              if (s === "agency_fields" && (!newEngineActive || !adminVisible)) return false;
               return true;
             };
             // Top-of-rail summary: how many sections are complete out of
@@ -3440,7 +3443,7 @@ export function TalentProfileShellDrawer() {
                 diagnostic; opens from the "Agency Fields" rail entry
                 under Back office. Real talent + tenant only. */}
             {payload.talentId && bridgeTenantIdentity?.tenantId &&
-              activeSection === "agency_fields" && (
+              activeSection === "agency_fields" && adminVisible && (
               <div style={{ padding: "0 24px" }}>
                 <LiveCategoryFieldsPanel
                   talentProfileId={payload.talentId}
