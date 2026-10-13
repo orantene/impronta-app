@@ -1,0 +1,147 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta charset="utf-8">
+<title>Frame · Tomás Aguilar (DRAFT)</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=Geist:wght@500;600&display=swap">
+<style>
+.site{--k-fd:'Space Grotesk',system-ui,sans-serif;--k-fb:'Inter',system-ui,sans-serif;--k-fdw:600;--k-fdls:.02em;--k-rad:0px;--k-btnrad:0px;--k-dockrad:4px}
+.fr-top{position:sticky;top:44px;z-index:6}
+.fr-hdr{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--k-bg);border-bottom:1px solid var(--k-line)}
+.fr-hdr b{font:700 13px var(--k-fd);letter-spacing:.08em;text-transform:uppercase}
+.fr-hdr .sp{flex:1}
+.fr-filter{display:flex;gap:4px;overflow-x:auto;padding:8px 16px;border-bottom:1px solid var(--k-line);background:var(--k-bg)}
+.fr-filter a{flex:none;padding:6px 12px;border:1px solid var(--k-line);font:600 12px var(--k-fd);letter-spacing:.06em;text-transform:uppercase;color:var(--k-ink);text-decoration:none;cursor:pointer}
+.fr-filter a:first-child{background:var(--k-ink);color:var(--k-bg);border-color:var(--k-ink)}
+.fr-hero{display:grid;gap:0}
+.fr-hero .ph{aspect-ratio:4/3;overflow:hidden;background:var(--k-tint)}
+.fr-hero .ph img{width:100%;height:100%;object-fit:cover;display:block}
+.fr-hero .tx{padding:22px 16px 8px;display:grid;gap:12px;align-content:end}
+.fr-hero small{font:600 11px var(--k-fd);letter-spacing:.14em;text-transform:uppercase;color:var(--k-mute)}
+.fr-hero h1{margin:0;font:600 40px/0.95 var(--k-fd);letter-spacing:.02em;text-transform:uppercase}
+.fr-hero p{margin:0;color:var(--k-mute);max-width:40ch;line-height:1.5}
+.fr-hero .row{display:flex;gap:8px;flex-wrap:wrap}
+.fr-work{padding:40px 16px 0}
+.fr-work .hd,.fr-svc .hd{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.fr-work h2,.fr-svc h2,.fr-end h2,.fr-about h2{margin:0;font:600 26px var(--k-fd);letter-spacing:.02em;text-transform:uppercase}
+.fr-work .hd small,.fr-svc .hd small{font:600 11px var(--k-fd);letter-spacing:.12em;text-transform:uppercase;color:var(--k-mute)}
+.fr-sheet{display:grid;grid-template-columns:repeat(2,1fr);gap:4px}
+.fr-sheet figure{margin:0}
+.fr-sheet img{width:100%;aspect-ratio:4/5;object-fit:cover;display:block}
+.fr-sheet figcaption{padding:4px 0 8px;font:500 11px var(--k-fd);letter-spacing:.06em;text-transform:uppercase;color:var(--k-mute)}
+.fr-svc{padding:56px 16px 0}
+.fr-tabs{display:flex;gap:18px;border-bottom:1px solid var(--k-line);margin-bottom:12px}
+.fr-tabs button{padding:10px 0;border:0;border-bottom:2px solid transparent;background:none;color:var(--k-mute);font:600 12px var(--k-fd);letter-spacing:.08em;text-transform:uppercase}
+.fr-tabs button[aria-selected=true]{color:var(--k-ink);border-color:var(--k-ink)}
+.fr-cards{display:grid;gap:12px}
+.fr-card{border:1px solid var(--k-line);background:var(--k-surface);cursor:pointer;display:grid}
+.fr-card img{width:100%;aspect-ratio:3/2;object-fit:cover;display:block}
+.fr-card .b{padding:14px;display:grid;gap:6px}
+.fr-card b{font:600 18px var(--k-fd);letter-spacing:.01em}
+.fr-card p{margin:0;color:var(--k-mute);font-size:13.5px}
+.fr-card .f{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:6px}
+.fr-card .p{font:600 15px var(--k-fd)}
+.fr-end{margin-top:56px;padding:40px 16px;background:var(--k-ink);color:var(--k-bg);display:grid;gap:12px}
+.fr-end p{margin:0;opacity:.75}
+.fr-end .k-btn{background:var(--k-bg);color:var(--k-ink);border-color:var(--k-bg);justify-self:start}
+.fr-about{padding:48px 16px 130px;display:grid;gap:10px}
+.fr-about p{margin:0;line-height:1.6;max-width:60ch}
+.fr-about .fine{margin-top:18px;font:600 10.5px var(--k-fd);letter-spacing:.12em;text-transform:uppercase;color:var(--k-mute)}
+.fr-filter{scrollbar-width:none}.fr-filter::-webkit-scrollbar{display:none}
+@container site (min-width:900px){
+  .fr-top{top:0}
+  .fr-hdr{padding:14px 32px}
+  .fr-filter{padding:10px 32px}
+  .fr-hero{grid-template-columns:40fr 60fr;min-height:56vh}
+  .fr-hero .ph{aspect-ratio:auto;order:2}
+  .fr-hero .tx{padding:40px 32px}
+  .fr-hero h1{font-size:72px}
+  .fr-work{padding:56px 32px 0}
+  .fr-sheet{grid-template-columns:repeat(4,1fr);gap:6px}
+  .fr-svc{padding:80px 32px 0}
+  .fr-cards{grid-template-columns:repeat(3,1fr);gap:16px}
+  .fr-end{margin:80px 32px 0;padding:56px 40px;grid-template-columns:1fr auto;align-items:center}
+  .fr-end h2{font-size:40px}
+  .fr-about{padding:56px 32px 140px;grid-template-columns:320px 1fr;gap:40px}
+}
+</style>
+<script src="kit.js"></script>
+<script>
+const T={
+  id:'TH-FRAME', theme:'Frame', lang:'es', domain:'tomas-retratos.tulala.digital', galleryUrl:'',
+  brief:'DRAFT for PM review (TUL-328). Work first: split hero, a dense contact sheet, services as cards. Reference demo: Tomás Aguilar, TAL-93009, portrait photographer; instant session + request brand portrait.',
+  talent:{name:'Tomás Aguilar', first:'Tomás', role:'portrait photographer', avatar:'fr-hero', tagline:'Retratos con luz de estudio.', bio:'Fotógrafo de retrato en Guadalajara. Trabajo con luz de estudio y locación; te ayudo a posar y elegimos juntos las mejores tomas. Entrego en una semana.'},
+  mine:{name:'Tu Nombre', count:3},
+  palettes:{
+    def:{n:'Gallery White', bg:'#FFFFFF', surface:'#F4F4F4', ink:'#111111', mute:'#6E6E6E', line:'#E1E1E1', accent:'#111111', on:'#FFFFFF', tint:'#EBEBEB', at:'#111111'},
+    dark:{n:'Darkroom', bg:'#0E0E0E', surface:'#191919', ink:'#F2F2F2', mute:'#9C9C9C', line:'#2E2E2E', accent:'#E0B04A', on:'#0E0E0E', tint:'#202020', at:'#E0B04A'},
+    film:{n:'Film & Amber', bg:'#FFFFFF', surface:'#F7F2EA', ink:'#221D16', mute:'#7A7062', line:'#E8DFD0', accent:'#8C5A14', on:'#FFFFFF', tint:'#F0E8DB', at:'#8C5A14'}
+  },
+  customStart:'#E0B04A',
+  hero_service:'port',
+  surface:'sheet',
+  dock:[{label:'Reservar sesión', flow:'port'}],
+  starter:{services:3, faqs:3, texts:3},
+  reply:'¡Hola! ¿Para qué usarás las fotos y en qué fecha? Te paso disponibilidad hoy.',
+  suggestions:['¿Cuántas fotos entregas?','¿Haces sesiones en exterior?','¿Puedo llevar cambio de ropa?'],
+  services:[
+    {id:'port', cat:'Retrato', name:'Sesión de retrato', dur:'1 h', price:'$2,200', mode:'instant', cta:'Reservar', img:'fr-w2',
+      desc:'Una hora en estudio, 20 fotos editadas.',
+      includes:['Una hora en estudio','20 fotos editadas','Galería privada en 7 días'], slots:['10:00','12:00','16:00','18:00'],
+      slotNote:'Horarios en Guadalajara.', policy:'Cambios con 24 h de aviso.',
+      whoFields:[{k:'use',l:'¿Para qué son las fotos?',p:'Perfil, book, regalo…'}]},
+    {id:'brand', cat:'Marca personal', name:'Retrato para marca personal', dur:'3 h', price:'$4,200', mode:'request', cta:'Solicitar', img:'fr-w7',
+      desc:'Dos locaciones, 40 fotos editadas.',
+      includes:['Dos locaciones','40 fotos editadas','Cambio de vestuario'],
+      flowTitle:'Solicitar sesión', flowIntro:'Es una solicitud: Tomás confirma la fecha antes de apartarla.',
+      brief:[{k:'brand',l:'Tu marca o profesión',p:'Ej. consultora',demo:'Consultora'},{k:'date',l:'Fecha',p:'Ej. 18 de octubre',demo:'18 de octubre'},{k:'loc',l:'Locaciones',type:'chips',opts:['Estudio','Oficina','Exterior'],demo:['Estudio','Exterior']}]},
+    {id:'head', cat:'Retrato', name:'Headshot corporativo', dur:'30 min', price:'$1,300', mode:'instant', cta:'Reservar', img:'fr-w5',
+      desc:'Media hora, 5 fotos editadas para LinkedIn o tu web.',
+      includes:['30 minutos en estudio','5 fotos editadas','Entrega en 3 días'], slots:['09:00','09:30','13:00','13:30'],
+      slotNote:'Horarios en Guadalajara.', policy:'Cambios con 24 h de aviso.',
+      whoFields:[{k:'company',l:'Empresa',p:'Opcional'}]}
+  ],
+  renderSite(K,S){
+    const D=K.D, port=D.services.find(s=>s.id==='port')||D.services[0];
+    const work=[['fr-w1','Retrato · Estudio'],['fr-w2','Retrato · Luz suave'],['fr-w3','Book · Moda'],['fr-w4','Retrato · B/N'],['fr-w5','Headshot'],['fr-w6','Book · Exterior'],['fr-w7','Marca personal'],['fr-w8','Retrato · Noche']];
+    const cats=['Todo',...new Set(D.services.map(s=>s.cat))];
+    return `${K.status()}
+    <div class="fr-top"><header class="fr-hdr" data-w="header · filter-bar"><b>${K.esc(D.talent.name)}</b><span class="sp"></span>${K.demo()}${K.act(port,'k-btn')}</header>
+    <nav class="fr-filter" aria-label="Secciones"><a data-k-go="gallery">Trabajo</a><a data-k-go="services">Reservar</a><a data-k-go="contact">Contacto</a><a data-k-go="about">Sobre mí</a></nav></div>
+    <section class="fr-hero" data-w="hero · split-40-60"><div class="ph"><img src="${K.img('fr-hero')}" alt="${K.esc(D.talent.name)} en sesión"></div>
+      <div class="tx"><small>Fotógrafo de retrato · Guadalajara</small><h1>${K.esc(D.talent.tagline)}</h1><p>Estudio y locación. Te guío al posar y entrego en una semana.</p><div class="row">${K.act(port,'k-btn')}<button class="k-btn ghost" data-k-go="gallery">Ver trabajo</button></div></div></section>
+    ${K.mine?'<section class="fr-work" id="gallery"><div class="hd"><h2>Trabajo</h2></div><p>Tus fotos van aquí</p></section>':`<section class="fr-work" id="gallery" data-w="portfolio · contact-sheet"><div class="hd"><h2>Trabajo</h2><small>${work.length} fotos</small></div>
+      <div class="fr-sheet">${work.map(w=>`<figure><img src="${K.img(w[0])}" alt="" loading="lazy"><figcaption>${K.esc(w[1])}</figcaption></figure>`).join('')}</div></section>`}
+    <section class="fr-svc" id="services" data-w="services_catalog · cards-3"><div class="hd"><h2>Sesiones y precios</h2><small>Reservar</small></div>
+      <div class="fr-tabs" role="tablist">${cats.map((c,i)=>`<button role="tab" aria-selected="${i===0}">${K.esc(c)}</button>`).join('')}</div>
+      <div class="fr-cards">${D.services.map(s=>`<div class="fr-card" data-k-open="${s.id}"><img src="${K.img(s.img)}" alt="" loading="lazy"><div class="b"><b>${K.esc(s.name)}</b><p>${K.esc(s.desc)}</p><div class="f"><span class="p">${K.esc(s.priceLabel||s.price)}</span>${K.act(s,'k-btn')}</div></div></div>`).join('')}</div></section>
+    <section class="fr-end" id="contact" data-w="contact · band"><div><h2>Reserva una sesión</h2><p>Escríbeme por el chat; respondo el mismo día.</p></div>${K.act(port,'k-btn')}</section>
+    <section class="fr-about" id="about" data-w="about · start"><h2>Sobre mí</h2><div><p>${K.esc(D.talent.bio)}</p><div class="fine">${K.esc(T.domain)} · Hecho con Tulala</div></div></section>`;
+  },
+  notes:{
+    summary:'DRAFT (PM review, TUL-328). Frame puts the work first: a split hero (40 text / 60 image) in uppercase grotesk, then a dense 4-column contact sheet with captions, services as cards with category tabs, a contact band and About last. The filter bar under the header is the navigation.',
+    distinct:['Filter-bar navigation under the header instead of nav links.','A dense contact sheet (4 columns, captions) right after the hero.','Uppercase grotesk headings, square corners, no rounding anywhere.','Services as photo cards in tabs.'],
+    neighbours:[['Folio','Folio shows few images large, in curated chapters. Frame shows many images small, as a sheet.'],['Maison v2','Maison leads with a soft split hero and an image menu for beauty. Frame is harder-edged and built for photographers and creators.']],
+    type:['Space Grotesk 600 uppercase for headings (proposal; code uses the talent type system with uppercase + 0.02em tracking).','Inter for body.'],
+    colour:['Gallery White (default), Darkroom, Film & Amber (gallery-meta palettes).','Ink-black accent by default so the work carries the colour.'],
+    shape:['Square corners, 1 px rules, no shadows except the dock.','No motion beyond sheet transitions.'],
+    map:[['Header','Header shell · navChrome filter_bar','filter-bar','Name, links as filters','Existing widget',''],
+      ['Hero','heroSplit 40-60, eyebrow, uppercase, 56vh','split-40-60','Image, eyebrow, headline, CTAs','Existing widget',''],
+      ['Work','portfolioBlock · contact_sheet, 4 columns, captions','contact-sheet','Photos, captions','Existing widget','Gap: W-12 contact sheet tag filter and loupe (COLLECTION_DESIGN_GAPS)'],
+      ['Services','services_catalog · cards, 3 columns, tabs, square photos, solid CTA','cards-3','Order, categories, CTA per mode','Existing widget',''],
+      ['Contact','contactSection','band','Heading, CTA','Existing widget',''],
+      ['About','aboutBlock (align start)','start','Bio','Existing widget',''],
+      ['Booking surface','Booking sheet','bottom sheet / side panel','Brief per service','Existing widget','Instant portrait and headshot · request brand session'],
+      ['Chat','Guest chat dock','panel + service browser','Greeting','Existing widget',''],
+      ['Dock','Selection dock','chat + one action','Action label','Existing widget','']],
+    images:[['fr-hero','Photographer on a studio set (stock)','4:3 phone / 60% desktop','','Hero, chat avatar'],['fr-w1','Portrait','4:5','','Sheet'],['fr-w2','Portrait, soft light','4:5','','Sheet, portrait service'],['fr-w3','Fashion book','4:5','','Sheet'],['fr-w4','B/W portrait','4:5','','Sheet'],['fr-w5','Portrait','4:5','','Sheet, headshot'],['fr-w6','Outdoor book','4:5','','Sheet'],['fr-w7','Portrait','4:5','','Sheet, brand session'],['fr-w8','Night portrait','4:5','','Sheet']],
+    imgNote:'Draft photos are the repo stock portrait set (public/talent-templates/demo/impronta-2026), standing in for Tomás\'s work.',
+    needed:[['Tomás on set','3:2','1','Hero'],['Portfolio portraits','4:5','12','Consistent edit, two looks']],
+    suits:['DJ (Diego Navarro, TAL-93005): Darkroom palette, press shots in the sheet','Product photographer (planned): Gallery White','Tattoo artist (planned): Darkroom'],
+    sameContent:'Tomás in Folio would show three curated chapters with big plates; in Solace a single cover and a two-photo pair. Frame is the only one that shows the whole body of work at once.',
+    matrix:['Nav: filter bar','Hero: split 40/60, uppercase','Services: cards with tabs','Portfolio: contact sheet (4 columns)','Booking surface: bottom sheet','Type: Space Grotesk uppercase + Inter','Motion: none'],
+    deviation:'Draft authored by the developer from buildFramePayload + gallery-meta (PM decision on TUL-328, 2026-10-09). Portrait session and brand portrait from Tomás Aguilar\'s live services (TAL-93009); headshot is a draft third card so the tabs have content.',
+    questions:['Should the contact sheet open a loupe (full-screen viewer) on tap now, or wait for the W-12 gap?','Filter bar: anchors only, or real tag filters over the sheet?']
+  }
+};
+KIT(T);
+</script>
+</body></html>
