@@ -3033,10 +3033,7 @@ export function TalentProfileShellDrawer() {
               // Profile fields editor only mounts when there's a real talent
               // + tenant context (bridge below the editor enforces the same).
               if (s === "profile_fields" && !newEngineActive) return false;
-              // Agency Fields = the live DB-resolved field catalog; only
-              // meaningful with a real talent + tenant (same as the engine).
-              // TUL-671: staff-only (the action behind it is staff-gated); a talent
-              // editing their own profile never sees it.
+              // Agency Fields = live field catalog: real talent + tenant only; TUL-671 staff-only.
               if (s === "agency_fields" && (!newEngineActive || !adminVisible)) return false;
               return true;
             };
