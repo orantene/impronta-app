@@ -28,6 +28,7 @@ import { moneyFromLedger, rebookHint, rowFromAgendaItem, todayFromAgenda } from 
 import { placeLabelFor } from "./record-actions";
 import { serviceLabel } from "./calendar-view";
 import { hasBookingHoursWindows } from "@/lib/talent-agenda/first-day";
+import { HOURS_NUDGE_COPY, needsHoursSetupNudge } from "@/lib/scheduling/hours-setup-nudge";
 import {
   bookedLabel,
   durationMinutes,
@@ -132,6 +133,7 @@ export function AgendaTodayPage({
   onSendQuote,
   primaryAction = "booking",
   onOpenRecord,
+  onOpenAvailability,
   onOpenSite,
   onOpenProfile,
   onOpenMoney,
@@ -289,6 +291,20 @@ export function AgendaTodayPage({
   // which read setup_choices and named a palette the talent never picked.
   const resumeCard = profile ? <WebsiteTodayHero canBook={hasBookingHoursWindows(hours)} /> : null;
 
+  // TUL-634: independent of first-day/mode, so an established talent with no
+  // open hours still sees it.
+  const hoursNudge =
+    profile && onOpenAvailability && needsHoursSetupNudge(hours, loadError) ? (
+      <button
+        type="button"
+        onClick={onOpenAvailability}
+        data-testid="hours-setup-nudge"
+        className="min-h-[44px] w-full rounded-xl bg-[rgba(59,76,202,0.08)] px-3 text-left text-[13.5px] font-medium text-[var(--tc-accent)]"
+      >
+        {HOURS_NUDGE_COPY[copy.isSpanish ? "es" : "en"]}
+      </button>
+    ) : null;
+
   if (loadError) {
     return (
       <div style={TALENT_AGENDA_VARS} className="space-y-4">
@@ -336,6 +352,7 @@ export function AgendaTodayPage({
             </SecondaryButton>
           }
         />
+        {hoursNudge}
         <WebsiteSetupToday canBook={hasBookingHoursWindows(hours)} />
       </div>
     );
@@ -597,6 +614,7 @@ export function AgendaTodayPage({
         }
       />
 
+      {hoursNudge}
       {resumeCard}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_352px]">
