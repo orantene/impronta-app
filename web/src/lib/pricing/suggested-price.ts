@@ -57,13 +57,19 @@ async function readApprovedFromDb(countryCode: string, serviceKey: string): Prom
   const { createServiceRoleClient } = await import("@/lib/supabase/admin");
   const db = createServiceRoleClient();
   if (!db) return null;
-  const { data } = await db
+  const { data, error } = await db
     .from("service_price_suggestions")
     .select("amount_minor,currency,duration_minutes")
     .eq("country_code", countryCode)
     .eq("service_key", serviceKey)
     .eq("status", "approved")
     .maybeSingle();
+  if (error) {
+    // Logged, then treated as "no approved row" so signup falls back to the pack instead of failing.
+    const { logServerError } = await import("@/lib/server/safe-error");
+    logServerError("pricing.suggested-price.read", error);
+    return null;
+  }
   return (data as ApprovedRow | null) ?? null;
 }
 

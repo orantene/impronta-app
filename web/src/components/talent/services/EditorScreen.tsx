@@ -1,6 +1,6 @@
 "use client";
 
-import { toFixedMode, toQuoteMode } from "@/lib/talent/offering-price-mode";
+import { PriceModeField } from "./PriceModeField";
 import { BOOKING_MODE_CHOICES, BOOKING_MODE_LABELS } from "@/lib/talent/booking-mode-labels";
 import { useEffect, useState, type ChangeEvent, type ReactNode } from "react";
 import { useBeforeUnloadGuard } from "@/components/locale-field/use-before-unload-guard";
@@ -304,35 +304,7 @@ export function EditorScreen({
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="block">
-                <span className={LABEL}>{copy.t("How the price works")}</span>
-                <div role="radiogroup" aria-label={copy.t("How the price works")} className="mt-1 grid grid-cols-2 gap-1 rounded-lg border border-admin-border-soft bg-white p-1">
-                  {([false, true] as const).map((q) => (
-                    <button
-                      key={String(q)}
-                      type="button"
-                      role="radio"
-                      aria-checked={quote === q}
-                      data-testid={`service-price-mode-${q ? "quote" : "fixed"}`}
-                      onClick={() => patch(q ? toQuoteMode() : toFixedMode())}
-                      className={`rounded-md px-3 py-2 text-[14px] font-semibold ${quote === q ? "bg-emerald-900 text-white" : "text-admin-ink"}`}
-                    >
-                      {q ? copy.t("Get a quote") : copy.t("Fixed price")}
-                    </button>
-                  ))}
-                </div>
-                {!quote && (
-                  <label className="mt-2 flex items-center gap-2 text-[13px] text-admin-ink-dim">
-                    <input type="checkbox" checked={item.priceDisplay === "from"} onChange={(e) => patch({ priceDisplay: e.target.checked ? "from" : "exact" })} />
-                    {copy.t("Show as starting at")}
-                  </label>
-                )}
-                {quote && (
-                  <p className="mt-2 text-[13px] text-admin-ink-dim" data-testid="service-quote-reminder">
-                    {copy.t("Clients see Request a quote. Add a price to take bookings.")}
-                  </p>
-                )}
-              </div>
+              <PriceModeField item={item} patch={patch} labelClass={LABEL} />
               <label className="block">
                 <span className={LABEL}>{copy.t("Category")}</span>
                 <div className="relative">
