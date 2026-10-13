@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { pickTalentTenant } from "@/lib/saas/talent-self-tenant";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
@@ -203,6 +204,16 @@ export async function requireWorkspaceStaffAction(options?: {
     tenantSlug: scope.membership.slug,
   };
 }
+
+/**
+ * {@link requireWorkspaceStaffAction} with the default capability, memoised for
+ * the REQUEST (React `cache`, which also shares the in-flight promise). A
+ * surface that reads several things in one server action (TUL-701: the
+ * Appointments screen) pays the session, scope, membership and capability
+ * trips once instead of once per reader. Same identity, same request, same
+ * answer; each reader still compares `tenantId` itself.
+ */
+export const requireWorkspaceStaffActionOnce = cache(() => requireWorkspaceStaffAction());
 
 /**
  * Server-action guard for ANY active coordinator of a specific inquiry —

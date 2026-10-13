@@ -54,20 +54,17 @@ import {
   waitlistCount,
   type SessionsView,
 } from "./appointments-classes-model";
-import {
-  loadAppointments,
-  loadBookingHoursProposals,
-  loadSessionWaitlists,
-  type BookingHoursProposalRow,
-  type WaitlistView,
-} from "@/lib/scheduling/appointments-actions";
+import { type BookingHoursProposalRow, type WaitlistView } from "@/lib/scheduling/appointments-actions";
+import { loadAppointmentsSurface } from "@/lib/scheduling/appointments-surface-action";
 import type { AppointmentRow } from "@/lib/scheduling/appointments-board";
 import { formatDayFirst } from "@/lib/scheduling/day-first";
 import { utcToZonedYmd } from "@/lib/scheduling/tz";
-import { loadSchedule, type ScheduleNight, type ScheduleSeries, type ScheduleVenue } from "@/lib/sessions/schedule-actions";
+import type { ScheduleNight, type ScheduleSeries, type ScheduleVenue } from "@/lib/sessions/schedule-actions";
 import { loadWorkspaceMenuForEditor } from "@/lib/talent/menu-offerings-actions";
 
 const K = "dashboard.adminAppointments";
+/** How long the surface may load before the screen says so instead of spinning. */
+const LOAD_TIMEOUT_MS = 20_000;
 const B = "dashboard.adminAppointments.board";
 
 /** The four views, and the `view` query value that selects each. */
@@ -137,12 +134,19 @@ export function AppointmentsPage() {
     refreshTicket.current = ticket;
     setError(null);
     try {
-      const [board, schedule, queue, pending] = await Promise.all([
-        loadAppointments(tenantId),
-        loadSchedule(tenantId),
-        loadSessionWaitlists(tenantId, focusSessionId),
-        loadBookingHoursProposals(tenantId),
-      ]);
+      // ONE server action, and a clock on it: a hung load ends in a sentence
+      // the operator can act on, not a spinner (TUL-701).
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const timedOut = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(t(`${K}.loadTimeout`))), LOAD_TIMEOUT_MS);
+      });
+      let surface: Awaited<ReturnType<typeof loadAppointmentsSurface>>;
+      try {
+        surface = await Promise.race([loadAppointmentsSurface(tenantId, focusSessionId), timedOut]);
+      } finally {
+        clearTimeout(timer);
+      }
+      const { board, schedule, queue, pending } = surface;
       if (refreshTicket.current !== ticket) return;
 
       if (board.ok) {
@@ -191,15 +195,17 @@ export function AppointmentsPage() {
       setProposals([]);
       setError(err instanceof Error ? err.message : String(err));
     }
-  }, [focusSessionId, tenantId]);
+  }, [focusSessionId, t, tenantId]);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
   // The catalog items a series can sell as: read once, only for the editor's select.
+  // After the surface has painted, so it never queues in front of it.
+  const surfaceLoaded = rows !== null;
   useEffect(() => {
-    if (!tenantId) return;
+    if (!tenantId || !surfaceLoaded) return;
     let alive = true;
     loadWorkspaceMenuForEditor(tenantId).then(
       (r) => {
@@ -210,7 +216,7 @@ export function AppointmentsPage() {
     return () => {
       alive = false;
     };
-  }, [tenantId]);
+  }, [tenantId, surfaceLoaded]);
 
   const sessionRows = useMemo(
     () => buildSessionRows({ series: series ?? [], nights, waitlists: waitlists ?? [], fallbackTimeZone: timeZone }),
