@@ -37,11 +37,13 @@ import {
   type ShellCounts,
 } from "@/lib/shell/shell-counts";
 import { countTalentAwaitingInquiries } from "@/components/admin/shell/internal/shell-count-bubbles-logic";
+import { loadTalentAttentionSignals } from "@/lib/talent-site/attention-signals.server";
 import { loadUserPrefs, type UserPrefs } from "@/lib/server-actions/user-prefs";
 import { TalentShellClient } from "@/components/admin/shell/admin-shell-client";
 import { SupportLauncherShellMount } from "@/components/support/SupportLauncherShellMount";
 import type { TalentPage } from "@/components/admin/shell/internal/state";
 import { loadTenantIdentity, loadProfileDisplayName, type TenantIdentityPayload } from "../[tenantSlug]/_layout-identity";
+import { resolveHybridSessionDisplayName } from "@/lib/saas/session-display-name";
 import { getActiveTalentAgencyContext } from "@/lib/talent/active-agency-context";
 import { TalentSiteDashboardProvider } from "@/components/talent/site/TalentSiteDashboardProvider";
 import { loadTalentPersonalSiteDashboardState } from "@/lib/talent-site/server/dashboard-state";
@@ -268,6 +270,7 @@ export async function TalentLayoutInner({
     talentPlanGrants,
     operatingCurrency,
     requestLocale,
+    talentAttentionSignals,
   ] = await Promise.all([
     loadTalentInquiriesAllAgencies(baseProfile.id),
     loadTalentAgencies(talentSelfProfile.id),
@@ -339,6 +342,8 @@ export async function TalentLayoutInner({
     loadTalentPlanGrants(talentSelfProfile.id).catch(() => null),
     loadPlatformOperatingCurrency(),
     getRequestLocale(),
+    // TUL-392: theme update waiting + site needs publish (Attention signals).
+    loadTalentAttentionSignals(talentSelfProfile.id),
   ]);
 
   const userNotifications = scopeTalentNotificationsToInbox(userNotificationsAll, talentInboxSummary?.ids ?? null);
@@ -391,7 +396,11 @@ export async function TalentLayoutInner({
     userId: session.user.id,
     email: session.user.email ?? "",
     role: membership?.role ?? "viewer",
-    displayName: profileDisplayName,
+    // onb1-22: keep Admin/Talento greeting aligned on the talent profile name.
+    displayName: resolveHybridSessionDisplayName({
+      profileDisplayName,
+      talentDisplayName: talentSelfProfile.displayName,
+    }),
     isPlatformAdmin: isPlatformAdmin(session.profile),
     // TUL-164: set only for a validated impersonation cookie, never for an owner.
     actingAs,
@@ -466,6 +475,7 @@ export async function TalentLayoutInner({
         talentPageAnalytics,
         talentPayoutSnapshot,
         talentPayoutAttention,
+        talentAttentionSignals,
         talentInquiries,
         talentAgencies,
         talentRepresentation,

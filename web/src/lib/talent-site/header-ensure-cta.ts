@@ -31,7 +31,7 @@ function regionHasCta(regions: unknown): boolean {
   return false;
 }
 
-function ensureSiteHeaderCta(node: BuilderNode): BuilderNode {
+function ensureSiteHeaderCta(node: BuilderNode, label: string): BuilderNode {
   if (node.kind !== "section" || node.props.sectionTypeKey !== "site_header") return node;
   const cfg = (node.props.sectionProps ?? {}) as Rec;
   const primary = cfg.primaryCta;
@@ -59,7 +59,7 @@ function ensureSiteHeaderCta(node: BuilderNode): BuilderNode {
   }
   if (regionHasCta(cfg.regions)) return node;
 
-  const cta = { label: DEFAULT_CTA_LABEL, href: DEFAULT_CTA_HREF };
+  const cta = { label, href: DEFAULT_CTA_HREF };
   const regions = cfg.regions && typeof cfg.regions === "object" ? ({ ...(cfg.regions as Rec) } as Rec) : {};
   const right = Array.isArray(regions.right) ? [...(regions.right as unknown[])] : [];
   if (!right.some((it) => it && typeof it === "object" && (it as Rec).type === "cta")) {
@@ -85,7 +85,7 @@ function bookingHref(href: string): string {
   return h || DEFAULT_CTA_HREF;
 }
 
-function ensureUtilityBarCta(node: BuilderNode): BuilderNode {
+function ensureUtilityBarCta(node: BuilderNode, ctaLabel: string): BuilderNode {
   if (node.kind !== "utility_bar") return node;
   const props = (node.props ?? {}) as Rec;
   const label = typeof props.ctaLabel === "string" ? props.ctaLabel.trim() : "";
@@ -99,7 +99,7 @@ function ensureUtilityBarCta(node: BuilderNode): BuilderNode {
     ...node,
     props: {
       ...props,
-      ctaLabel: label || DEFAULT_CTA_LABEL,
+      ctaLabel: label || ctaLabel,
       ctaHref: href ? bookingHref(href) : DEFAULT_CTA_HREF,
     },
   } as BuilderNode;
@@ -115,19 +115,19 @@ function kitHeaderHasCta(children: readonly BuilderNode[]): boolean {
   return children.some((c) => c.kind === "button" || c.kind === "utility_bar");
 }
 
-function ensureKitShellCta(node: BuilderNode): BuilderNode {
+function ensureKitShellCta(node: BuilderNode, label: string): BuilderNode {
   const kids = (node as AnyNode).children;
   if (!Array.isArray(kids) || kids.length === 0) return node;
   const hasNav = kids.some((c) => c.kind === "nav");
   const hasBrand = kids.some(isBrandNode);
   if (!hasNav || !hasBrand || kitHeaderHasCta(kids)) {
-    return { ...node, children: kids.map(ensureHeaderCtaNode) } as BuilderNode;
+    return { ...node, children: kids.map((k) => ensureHeaderCtaNode(k, label)) } as BuilderNode;
   }
   const cta: BuilderNode = {
     id: `hdr-cta-${node.id}`,
     kind: "button",
     props: {
-      label: DEFAULT_CTA_LABEL,
+      label,
       href: DEFAULT_CTA_HREF,
       tone: "primary",
       layerLabel: "Header CTA",
@@ -135,7 +135,7 @@ function ensureKitShellCta(node: BuilderNode): BuilderNode {
   } as BuilderNode;
   return {
     ...node,
-    children: [...kids.map(ensureHeaderCtaNode), cta],
+    children: [...kids.map((k) => ensureHeaderCtaNode(k, label)), cta],
   } as BuilderNode;
 }
 
@@ -150,23 +150,27 @@ function ensureButtonBookHref(node: BuilderNode): BuilderNode {
   return { ...node, props: { ...props, href: next } } as BuilderNode;
 }
 
-function ensureHeaderCtaNode(node: BuilderNode): BuilderNode {
-  let next = ensureSiteHeaderCta(node);
-  next = ensureUtilityBarCta(next);
+function ensureHeaderCtaNode(node: BuilderNode, label: string): BuilderNode {
+  let next = ensureSiteHeaderCta(node, label);
+  next = ensureUtilityBarCta(next, label);
   next = ensureButtonBookHref(next);
   const kids = (next as AnyNode).children;
   if (Array.isArray(kids) && kids.length > 0) {
     // Kit shell header: container with brand + nav (and maybe no button yet).
     const layer = String(((next.props ?? {}) as Rec).layerLabel ?? "");
     if (next.kind === "container" && (layer === "Header" || kids.some((c) => c.kind === "nav"))) {
-      return ensureKitShellCta(next);
+      return ensureKitShellCta(next, label);
     }
-    return { ...next, children: kids.map(ensureHeaderCtaNode) } as BuilderNode;
+    return { ...next, children: kids.map((k) => ensureHeaderCtaNode(k, label)) } as BuilderNode;
   }
   return next;
 }
 
-/** Pure: return a shell tree where every header shape has a primary CTA. */
-export function ensureHeaderCta(tree: readonly BuilderNode[]): BuilderNode[] {
-  return tree.map(ensureHeaderCtaNode);
+/**
+ * Pure: return a shell tree where every header shape has a primary CTA.
+ * `label` is the site-language label (this runs after seeded-label localisation).
+ */
+export function ensureHeaderCta(tree: readonly BuilderNode[], label: string = DEFAULT_CTA_LABEL): BuilderNode[] {
+  const l = label.trim() || DEFAULT_CTA_LABEL;
+  return tree.map((n) => ensureHeaderCtaNode(n, l));
 }

@@ -81,6 +81,7 @@ test("colours are tokens only: no hex, rgb or hsl literals in the strip", () => 
     "--ts-ink",
     "--ts-line",
     "--ts-muted",
+    "--floating-chrome-bottom",
   ]);
   for (const v of vars) assert.ok(allowed.has(v as string), `unexpected var ${v}`);
   assert.match(out, /color-mix\(in srgb,var\(--ts-ink\) 82%,var\(--ts-bg\)\)/);
@@ -220,7 +221,14 @@ test("layout: stacked on phone, one row from 768px, room for the dock", () => {
   const out = html();
   assert.match(out, /@media \(min-width:768px\)/);
   assert.match(out, /grid-auto-flow:column/);
-  assert.match(out, /padding-bottom:132px/);
+  assert.match(out, /\[data-clear-dock="true"\]\{padding-bottom:calc\(22px \+ var\(--floating-chrome-bottom,0px\)\)\}/);
+});
+
+test("GRK-080 bottom band: the strip owns the dock reserve once, no fixed pad, no body pad under it", () => {
+  const out = html();
+  assert.doesNotMatch(out, /padding-bottom:(132|194)px/);
+  assert.match(out, /body:has\(\.tulala-socket\[data-clear-dock="true"\]\)\{padding-bottom:0\}/);
+  assert.match(out, /@media \(min-width:768px\)\{[^@]*\[data-clear-dock="true"\]\{padding-bottom:calc\(18px \+ var\(--floating-chrome-bottom,0px\)\)\}/);
 });
 
 test("Maison v2 credit is hidden at render time, not by a payload edit", () => {

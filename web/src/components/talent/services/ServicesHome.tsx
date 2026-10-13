@@ -25,7 +25,7 @@ import { foldAccent, publicationLabel, publicationWord } from "@/lib/talent/publ
 import { blankOffering, type OfferingKind, type TalentOffering } from "@/lib/talent/offerings-types";
 import { usdEquivalentLabel } from "@/lib/pricing/usd-equivalent";
 import { useOfferingsEditor } from "./use-offerings-editor";
-import { resolveOfferingEditorSaveStatus } from "./offering-editor-save";
+import { offeringRowErrorText, resolveOfferingEditorSaveStatus } from "./offering-editor-save";
 import { ServicesHomeItemChips } from "./ServicesHomeItemChips";
 import { useLocationSettings } from "./LocationSettingsCard";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
@@ -580,7 +580,7 @@ export function ServicesHome({
       <ul className="mt-4 divide-y divide-admin-border-soft overflow-hidden rounded-[12px] border border-admin-border-soft bg-white">
         {derived.map((item) => (
           <li key={item.id} className={`relative flex flex-wrap items-center gap-3 px-3 py-3 ${bannerId === item.id ? "bg-[rgba(15,79,62,0.06)]" : ""}`}>
-            <button type="button" className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => openEditor(item)}>
+            <button type="button" className="flex min-w-0 flex-[1_1_240px] items-center gap-3 text-left" onClick={() => openEditor(item)}>
               {item.imageUrls[0] ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={item.imageUrls[0]} alt="" className="h-12 w-12 rounded-md object-cover" />
@@ -659,13 +659,14 @@ export function ServicesHome({
                     next.delete(item.id);
                     return next;
                   });
-                  await setOfferingPublication(talentId, item.id, "archived");
+                  const res = await setOfferingPublication(talentId, item.id, "archived");
                   editor.reload();
-                  setToast(copy.t("Archived"));
+                  setToast(res.ok ? copy.t("Archived") : offeringRowErrorText(res.error, copy));
                 }}
                 onRestore={async () => {
-                  await setOfferingPublication(talentId, item.id, "draft");
+                  const res = await setOfferingPublication(talentId, item.id, "draft");
                   editor.reload();
+                  if (!res.ok) setToast(offeringRowErrorText(res.error, copy));
                 }}
                 onDelete={async () => {
                   const ok = window.confirm(

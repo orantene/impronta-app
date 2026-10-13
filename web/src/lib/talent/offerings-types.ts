@@ -471,8 +471,10 @@ export function validateOffering(o: TalentOffering, defaultPosture?: string | nu
   // attached first: the photo is the second question, the price the third.
   // Only on "request" booking; instant booking still needs its exact price,
   // which the database also enforces (talent_offerings_instant_needs_price).
+  // An archived item is off sale, so a priceless draft can be archived too.
   // A negative amount is refused in every status.
-  const priceLaterDraft = o.status === "draft" && o.bookingMode !== "instant" && o.amountCents == null;
+  const priceLaterDraft =
+    (o.status === "draft" || o.status === "archived") && o.bookingMode !== "instant" && o.amountCents == null;
   if (!quoteOnly && !priceLaterDraft && (o.amountCents == null || o.amountCents < 0)) {
     errors.push(`“${o.title || "This service"}” needs a price — or switch it to “Contact for price.”`);
   }

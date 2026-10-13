@@ -1,4 +1,4 @@
-import { needsUsdRates } from "@/lib/pricing/usd-equivalent";
+import { needsUsdRates, showsUsdEquivalent } from "@/lib/pricing/usd-equivalent";
 import { loadUsdRates } from "@/lib/pricing/usd-rates";
 import type { UsdRates } from "@/lib/pricing/usd-equivalent";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
@@ -19,6 +19,7 @@ export async function loadProfileStorefrontPayload(
     agencyTenantId,
     chain ? { chain } : undefined,
   );
-  const usdRates = needsUsdRates(storefrontOfferings) ? await loadUsdRates() : null;
+  const usdRates =
+    showsUsdEquivalent(locale) && needsUsdRates(storefrontOfferings) ? await loadUsdRates() : null;
   return { storefrontOfferings, usdRates };
 }

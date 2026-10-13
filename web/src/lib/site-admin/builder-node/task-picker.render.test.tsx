@@ -136,10 +136,23 @@ test("the card is server-rendered for the default only; task cards come from the
   assert.equal((html.match(/data-rec=/g) ?? []).length, 1);
 });
 
+test("GRK-080 uneven grid: no lone task tile on the last row (karla 5 = 3+2, grace 4 = 2x2)", () => {
+  const wide = TASK_PICKER_CSS.slice(TASK_PICKER_CSS.indexOf("@container sbtp (min-width:700px)"));
+  // 3-column tier as a 6-track grid: a two-tile tail splits the row, a one-tile tail fills it.
+  assert.match(wide, /\.sb-tp-task:nth-child\(3n\+1\):nth-last-child\(2\),\.sb-tp-task:nth-child\(3n\+2\):last-child\{grid-column:span 3\}/);
+  assert.match(wide, /\.sb-tp-task:nth-child\(3n\+1\):last-child\{grid-column:1\/-1\}/);
+  assert.match(wide, /\.sb-tp-tasks:has\(>\.sb-tp-task:nth-child\(4\):last-child\)>\.sb-tp-task\{grid-column:span 3\}/);
+  // 2-column tier only: an odd tail fills the row; the 1-column and 3-column tiers are untouched.
+  assert.match(
+    TASK_PICKER_CSS,
+    /@container sbtp \(min-width:371px\) and \(max-width:699px\)\{\.sb-tp-task:nth-child\(odd\):last-child\{grid-column:1\/-1\}\}/,
+  );
+});
+
 test("CSS is token-only, container tiers match the mockup, hover lift respects reduced motion", () => {
   assert.doesNotMatch(TASK_PICKER_CSS, /#[0-9a-fA-F]{3,8}\b/);
   assert.match(TASK_PICKER_CSS, /@container sbtp \(max-width:370px\)\{\.sb-tp-tasks\{grid-template-columns:1fr\}/);
-  assert.match(TASK_PICKER_CSS, /@container sbtp \(min-width:700px\)[^]*repeat\(3,1fr\)/);
+  assert.match(TASK_PICKER_CSS, /@container sbtp \(min-width:700px\)\{\s*\.sb-tp-tasks\{grid-template-columns:repeat\(6,minmax\(0,1fr\)\);gap:8px\}\s*\.sb-tp-task\{grid-column:span 2\}/);
   assert.match(TASK_PICKER_CSS, /grid-template-columns:1fr 1fr/);
   const motion = "@media (prefers-reduced-motion:no-preference){";
   const start = TASK_PICKER_CSS.indexOf(motion);

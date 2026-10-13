@@ -154,6 +154,11 @@ export const NOTIFICATION_PAGE_TARGETS: Readonly<Record<string, NotificationPage
   // (theme releases). My presence (/talent/site) hosts the update notice; the
   // query opens its What's new sheet straight away.
   "theme-update": { kind: "page", surface: "talent", path: "/talent/site?themeUpdate=open" },
+
+  // TUL-392 derived Attention signal "site needs publish" (lib/notifications/
+  // attention-signals.ts). My presence's live card shows the Publish button
+  // whenever the draft is ahead of live, so the page itself is the target.
+  "site-publish": { kind: "page", surface: "talent", path: "/talent/site" },
 };
 
 /**

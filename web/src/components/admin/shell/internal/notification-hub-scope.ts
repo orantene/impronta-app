@@ -64,6 +64,21 @@ export function countUnreadRealNotifications(
   }, 0);
 }
 
+/**
+ * Hub item ids that render as read: the hub's local set plus every real row
+ * the server already marked read (`notif-<id>`). Derived during render, not
+ * seeded in an effect, so the server HTML and the pre-hydration badge carry
+ * the true unread count instead of counting every row until hydration.
+ */
+export function hubReadItemIds(
+  localReadIds: ReadonlySet<string>,
+  rows: readonly UserNotification[] | null,
+): Set<string> {
+  const out = new Set(localReadIds);
+  for (const row of rows ?? []) if (row.read) out.add(`notif-${row.id}`);
+  return out;
+}
+
 export type HubClickTarget =
   | { kind: "href"; href: string }
   | { kind: "drawer"; drawerId: DrawerId; payload: Record<string, unknown> | undefined };

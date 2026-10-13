@@ -508,7 +508,9 @@
         "inquireAria": "Agregar a {name} a tu lineup",
         "inLineupAria": "{name} esta en tu lineup. Toca para quitar.",
         "booksByAppointment": "Se agenda",
-        "reserve": "Reservar"
+        "reserve": "Reservar",
+        "saveFavoriteAria": "Guardar a {name} en favoritos",
+        "removeFavoriteAria": "Quitar a {name} de favoritos"
       },
       "inquiry": {
         "saveThisTalent": "Guardar este talento",
@@ -2459,6 +2461,7 @@
     "switchWorkspace": "Cambiar espacio",
     "workspaceTalentQa": "Usuario QA talento",
     "workspaceClientQa": "Usuario QA cliente",
+    "workspaceQaUnavailable": "Esta cuenta QA aún no está configurada aquí. Revisa la configuración del usuario QA.",
     "workspaceSwitcherHint": "Vista previa QA, solo lectura",
     "impersonationActorNote": "Sesión de admin",
     "impersonationReadOnly": "Viendo como",

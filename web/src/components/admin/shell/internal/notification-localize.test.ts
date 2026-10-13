@@ -28,3 +28,16 @@ test("localizeNotificationText translates catalog titles in ES, leaves EN and un
   assert.equal(localizeNotificationText("Marta says hi", "es"), "Marta says hi");
   assert.equal(localizeNotificationText("New support ticket #42", "es"), "Nuevo ticket de soporte #42");
 });
+
+test("sdb-1011-01: theme-update bells stored in either language render in the viewer's", () => {
+  assert.equal(localizeNotificationText("Maison v2 tiene una actualización", "en"), "Maison v2 has an update");
+  assert.equal(localizeNotificationText("Maison v2 has an update", "es"), "Maison v2 tiene una actualización");
+  assert.equal(
+    localizeNotificationText(
+      "Mira qué hay de nuevo y pruébala en tu sitio antes de aplicarla. Tu contenido y tus cambios se conservan.",
+      "en",
+    ),
+    "See what is new and preview it on your site before you apply it. Your content and your edits are kept.",
+  );
+  assert.equal(localizeNotificationText("Maison v2 has an update", "en"), "Maison v2 has an update");
+});
