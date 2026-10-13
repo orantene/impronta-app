@@ -28,6 +28,7 @@ import type { EmailBrand } from "@/lib/brand/resolve-tenant-brand";
 import { logServerError } from "@/lib/server/safe-error";
 import { isReservedDomainAddress } from "@/lib/email/reserved-domains";
 import type { ChannelSkip } from "../dispatcher-outcome";
+import { guestSaveBookingsUrl } from "../client-visit-url";
 /**
  * What this channel reports back: the provider message id plus the envelope it
  * actually sent with, so the dispatcher can record `from` / `replyTo` on the
@@ -131,7 +132,14 @@ export async function sendEmailNotification(
   // including guests and invitees who have none. The channel already knows:
   // it branches on this exact field a few lines up to pick between an account
   // unsubscribe token and a guest one.
-  const brandForRecipient = { ...brand, recipientHasAccount: Boolean(recipient.userId) };
+  // TUL-G4: a guest reading a CLIENT email also gets a "save your bookings"
+  // link into the existing client sign-in (never on talent/staff/auth mail).
+  const brandForRecipient = {
+    ...brand,
+    recipientHasAccount: Boolean(recipient.userId),
+    saveBookingsUrl:
+      !recipient.userId && cfg.templateId.startsWith("client.") ? guestSaveBookingsUrl(brand) : null,
+  };
   // Support mail with a signed Reply-To: tell the template that replying to the
   // email works, so its footer stops saying replies are not read.
   const threading = supportOutboundThreading(entry.id, event.payload, event.eventId);
