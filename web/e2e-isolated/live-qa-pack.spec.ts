@@ -40,6 +40,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { assertIsolatedJourneysTarget } from "../scripts/isolated-target-guard.mjs";
+import { fixtureRoleProblems } from "./live-qa-pack-fixture-roles";
 
 // ───────────────────────── config + guard ─────────────────────────
 assertIsolatedJourneysTarget(process.env, { requireIsolatedFlag: true });
@@ -160,6 +161,18 @@ function guestChatLauncher(page: Page) {
 const created: { clientUserId?: string; clientEmail?: string; notes: string[] } = { notes: [] };
 
 test.beforeAll(async () => {
+  // TUL-595: refuse to run checks as an account whose role does not match its fixture name
+  // (a "superAdmin" that is really a client bounced every admin check to /start).
+  const ids = (Object.entries(FIX) as Array<[string, { userId?: string } | string[] | undefined]>)
+    .map(([, v]) => (v && !Array.isArray(v) ? v.userId : undefined))
+    .filter((id): id is string => typeof id === "string");
+  const { data: rows, error: rolesErr } = await svc.from("profiles").select("id, app_role").in("id", ids);
+  if (rolesErr) throw new Error(`[live-qa-pack] could not read fixture roles: ${rolesErr.message}`);
+  const byId = new Map((rows ?? []).map((r) => [String(r.id), { app_role: r.app_role as string | null }]));
+  const problems = fixtureRoleProblems(FIX, byId);
+  if (problems.length > 0) {
+    throw new Error(`[live-qa-pack] fixtures do not match their roles:\n - ${problems.join("\n - ")}`);
+  }
   const email = `qa-pack-client-${Date.now().toString(36)}@example.test`;
   const r = await svc.auth.admin.createUser({ email, email_confirm: true });
   if (r.error || !r.data.user) throw r.error ?? new Error("could not create the throwaway client");
