@@ -280,6 +280,8 @@ const BOOKING_CONFIRMED_CLIENT: CatalogEntry = {
           brand,
           bookingId,
           bookingId ? `/client/bookings/${bookingId}` : `/client/inquiries/${event.inquiryId}`,
+          undefined,
+          { inquiryId: event.inquiryId, tenantId: event.tenantId },
         ),
         sellerName: brand.accountName,
         brand,
