@@ -11,6 +11,7 @@ import { resolveSupportRequester, assertTicketAccess } from "./support-access";
 import { supportEngine } from "./support-engine";
 import type { SupportCallbackPref, SupportSurface } from "./support-types";
 import { rateLimited, type SupportActionFail } from "./rate-limit-result";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
@@ -175,6 +176,12 @@ export async function markSupportTicketReadAction(raw: {
     userId: session.userId,
   });
   if (!result.ok) return result;
+  // Keep the bell in step with the Tickets badge (see mark-ticket-bell-read).
+  const admin = createServiceRoleClient();
+  if (admin) {
+    const { markTicketBellRead } = await import("./mark-ticket-bell-read");
+    await markTicketBellRead(admin as unknown as import("./mark-ticket-bell-read").BellUpdateClient, session.userId, parsed.data.ticketId);
+  }
   return { ok: true };
 }
 

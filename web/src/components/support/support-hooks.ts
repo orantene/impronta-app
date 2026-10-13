@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { mapMessageRow, mapTicketRow, type SupportMessageRow, type SupportTicketRow, type SupportTicketSummary } from "@/lib/support/support-types";
 import { parseSupportDeepLink } from "./support-deep-link";
+import { unreadOpenCount } from "./support-panel-state";
 
 const VIEW_KEY = "tulala.support.view";
 
@@ -67,7 +68,47 @@ export function useSupportDeepLink(
 }
 
 export function useSupportUnread(tickets: SupportTicketSummary[]): number {
-  return tickets.filter((t) => t.unread && t.status === "open").length;
+  return unreadOpenCount(tickets);
+}
+
+/**
+ * Live replies for the user's OTHER tickets. useSupportRealtime only follows
+ * the thread on screen, so a reply to any other ticket never reached the
+ * badge until a reload. RLS limits the stream to rows the user may read; the
+ * consumer ignores tickets it does not list.
+ */
+export function useSupportInboxRealtime(opts: {
+  enabled: boolean;
+  onMessage: (row: SupportMessageRow) => void;
+}): void {
+  const { enabled, onMessage } = opts;
+  useEffect(() => {
+    if (!enabled) return;
+    const supabase = createClient();
+    if (!supabase) return;
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    void (async () => {
+      const { data } = await supabase.auth.getSession();
+      await supabase.realtime.setAuth(data.session?.access_token ?? null);
+      if (cancelled) return;
+      channel = supabase
+        .channel("support_inbox")
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "support_messages" },
+          (payload) => {
+            const row = mapMessageRow(payload.new);
+            if (row) onMessage(row);
+          },
+        )
+        .subscribe();
+    })();
+    return () => {
+      cancelled = true;
+      if (channel) void supabase.removeChannel(channel);
+    };
+  }, [enabled, onMessage]);
 }
 
 export function useSupportRealtime(opts: {

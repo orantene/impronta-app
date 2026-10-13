@@ -184,12 +184,13 @@ export function Composer({
     if (!text || busy) return;
     setBusy(true);
     setFailed(null);
+    // Clear at once so the box does not show the sent text through the round
+    // trip; a failure puts the text back (it must never be eaten).
+    setBody("");
     const ok = await onSend(text);
     setBusy(false);
-    if (ok === true) {
-      // Clear only AFTER a confirmed send — a failure must never eat the text.
-      setBody("");
-    } else {
+    if (ok !== true) {
+      setBody((current) => (current === "" ? text : current));
       setFailed(typeof ok === "object" ? ok.error : t("dashboard.adminSupport.sendFailed"));
     }
   };

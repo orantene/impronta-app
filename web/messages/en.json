@@ -13603,6 +13603,7 @@
       "composerPlaceholder": "Write a reply",
       "sendFailed": "That did not send. Your text is still here, try again.",
       "rateLimited": "You have sent a lot in a short time. Your text is still here. Try again in about {minutes} minutes.",
+      "threadLoading": "Loading conversation…",
       "rateLimitedOne": "You have sent a lot in a short time. Your text is still here. Try again in about a minute.",
       "cardTitle": "Update",
       "addNumber": "Add a number for a call back",

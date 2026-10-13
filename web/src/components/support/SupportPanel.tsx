@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { useT } from "@/i18n/use-t";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
@@ -12,6 +12,7 @@ import { SUPPORT_DRAWER_WIDTH, supportPanelContainerStyle } from "./support-pane
 import { useCompactViewport } from "./use-compact-viewport";
 import { useFocusTrap } from "./use-focus-trap";
 import {
+  useSupportInboxRealtime,
   useSupportRealtime,
   useSupportSessionRestore,
   useSupportUnread,
@@ -34,6 +35,13 @@ import { keepTicketOpenAction } from "@/lib/support/actions";
 import { useThreadPresence } from "@/lib/realtime/presence";
 import { relTime } from "./support-rel-time";
 import { supportSendErrorText } from "./support-send-error";
+import {
+  EMPTY_THREAD,
+  applyIncomingMessage,
+  selectThread,
+  threadReducer,
+  viewAfterOpenChange,
+} from "./support-panel-state";
 
 type View = "home" | "tickets" | "thread" | "new" | "idea" | "guide";
 
@@ -64,8 +72,9 @@ export function SupportPanel({
   const trapRef = useFocusTrap<HTMLDivElement>(open && compact);
   const { view, ticketId, setView, restoredRef } = useSupportSessionRestore();
   const parkedRestore = useRef(false);
-  const [messages, setMessages] = useState<SupportMessageRow[]>([]);
-  const [ticket, setTicket] = useState<SupportTicketRow | null>(null);
+  // Keyed by ticket id: rows loaded for another ticket are never shown, so a
+  // new conversation starts empty instead of flashing the previous thread.
+  const [threadState, dispatchThread] = useReducer(threadReducer, EMPTY_THREAD);
   const [ask, setAsk] = useState("");
   const [askError, setAskError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
@@ -76,6 +85,14 @@ export function SupportPanel({
   const [guideDeepLinkNodeId, setGuideDeepLinkNodeId] = useState<string | null>(null);
   const replay = useReplayBuffer();
   const unread = useSupportUnread(tickets);
+  const { ticket, messages, loading: threadLoading } = selectThread(threadState, ticketId);
+  const wasOpenRef = useRef(open);
+  useEffect(() => {
+    // Reopening lands on Home, not on whichever thread was open last.
+    const next = viewAfterOpenChange(wasOpenRef.current, open, view);
+    wasOpenRef.current = open;
+    if (next) setView(next);
+  }, [open, view, setView]);
 
   // Desktop: push the page instead of covering it (mockup). The attribute is
   // read by the style tag rendered below; compact keeps the full-screen
@@ -177,26 +194,43 @@ export function SupportPanel({
     }
   }, []);
 
+  const viewingRef = useRef<string | null>(null);
+  useEffect(() => {
+    viewingRef.current = open && view === "thread" ? ticketId : null;
+  }, [open, view, ticketId]);
   const onMessage = useCallback(
     (row: SupportMessageRow) => {
-      setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row]));
-      if (row.messageKind !== "note") {
-        patchSummary(row.ticketId, {
-          lastMessagePreview: row.body.slice(0, 140),
-          lastMessageAt: row.createdAt,
-        });
+      dispatchThread({ type: "message", row });
+      setTickets((prev) =>
+        applyIncomingMessage(prev, row, { userId: contract.userId, viewingTicketId: viewingRef.current }),
+      );
+      // A reply that lands while the user is reading it is read: record that,
+      // or the next page load shows the ticket unread again and the badge jumps.
+      if (viewingRef.current === row.ticketId && row.authorUserId !== contract.userId && row.messageKind !== "note") {
+        void contract.markRead({ ticketId: row.ticketId });
       }
     },
-    [patchSummary],
+    [contract, setTickets],
   );
   const onTicket = useCallback(
     (row: SupportTicketRow) => {
-      setTicket(row);
+      dispatchThread({ type: "ticket", row });
       patchSummary(row.id, { status: row.status, waitingOn: row.waitingOn });
     },
     [patchSummary],
   );
   useSupportRealtime({ ticketId, onMessage, onTicket });
+  // Replies on the other tickets (not the one on screen) keep the badge live.
+  const onInboxMessage = useCallback(
+    (row: SupportMessageRow) => {
+      if (row.ticketId === viewingRef.current) return;
+      setTickets((prev) =>
+        applyIncomingMessage(prev, row, { userId: contract.userId, viewingTicketId: viewingRef.current }),
+      );
+    },
+    [contract.userId, setTickets],
+  );
+  useSupportInboxRealtime({ enabled: tickets.length > 0, onMessage: onInboxMessage });
 
   // Gate on `open` too: the panel stays mounted while closed, and tracking
   // presence then shows HQ a false "viewing now".
@@ -213,21 +247,31 @@ export function SupportPanel({
     if (!open || !ticketId) return;
     const supabase = createClient();
     if (!supabase) return;
+    // A fast switch between threads must not let the slower fetch land on the
+    // thread now on screen.
+    let cancelled = false;
     void (async () => {
       const { data: tRow } = await supportFrom(supabase, "support_tickets")
         .select("*")
         .eq("id", ticketId)
         .maybeSingle();
-      const mapped = mapTicketRow(tRow);
-      if (mapped) setTicket(mapped);
       const { data: msgs } = await supportFrom(supabase, "support_messages")
         .select("*")
         .eq("ticket_id", ticketId)
         .order("created_at", { ascending: true });
-      setMessages((msgs ?? []).map(mapMessageRow).filter(Boolean) as SupportMessageRow[]);
+      if (cancelled) return;
+      dispatchThread({
+        type: "loaded",
+        ticketId,
+        ticket: mapTicketRow(tRow),
+        messages: (msgs ?? []).map(mapMessageRow).filter(Boolean) as SupportMessageRow[],
+      });
       void contract.markRead({ ticketId });
       patchSummary(ticketId, { unread: false });
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [open, ticketId, contract, patchSummary]);
 
   // Bottom-anchor the thread: without this a long thread opens scrolled to
@@ -252,6 +296,9 @@ export function SupportPanel({
     if (!body || sending) return;
     setSending(true);
     setAskError(null);
+    // Clear at once: the box kept the sent text for the whole round trip.
+    // A failure puts it back below.
+    setAsk("");
     const r = await contract.createTicket({
       tenantSlug: contract.tenantSlug,
       surface: contract.surface,
@@ -261,7 +308,6 @@ export function SupportPanel({
     });
     setSending(false);
     if (r.ok) {
-      setAsk("");
       // In-app support emitted no product events at all — only the marketing
       // surface did — so there was no support funnel to measure.
       trackProductEvent(PRODUCT_ANALYTICS_EVENTS.support_ticket_created, {
@@ -274,6 +320,7 @@ export function SupportPanel({
       void requestAi(r.ticketId);
     } else {
       // Keep the text — a failed send must never eat what the user typed.
+      setAsk((current) => (current === "" ? body : current));
       setAskError(supportSendErrorText(t, r));
     }
   };
@@ -427,13 +474,18 @@ export function SupportPanel({
             onOpen={(id) => setView("thread", id)}
           />
         )}
-        {view === "thread" && (
+        {view === "thread" && threadLoading && (
+          <div role="status" style={{ padding: 24, fontSize: 13, color: COLORS.inkMuted }}>
+            {t("dashboard.adminSupport.threadLoading")}
+          </div>
+        )}
+        {view === "thread" && !threadLoading && (
           <SupportThreadView
             ticket={ticket}
             messages={messages}
             liveShareAvailable={contract.liveShareAvailable !== false}
             onResolved={() => {
-              setTicket((prev) => (prev ? { ...prev, status: "resolved", waitingOn: null } : prev));
+              if (ticketId) dispatchThread({ type: "patchTicket", ticketId, patch: { status: "resolved", waitingOn: null } });
               if (ticketId) patchSummary(ticketId, { status: "resolved", waitingOn: null });
             }}
             onRate={(rating, comment) => {
@@ -509,6 +561,7 @@ export function SupportPanel({
             </div>
           ) : null}
           <Composer
+          key={ticketId ?? "none"}
           disabled={!ticketId || ticket?.status === "closed"}
           ticketId={ticketId}
           onSend={async (body) => {
