@@ -24,6 +24,6 @@ test("launcher listens for the open event and hides the button when showFab is f
 });
 
 test("hero CTA and header menu still dispatch the open event", () => {
-  assert.ok(read("SupportStartHere.tsx").includes("TULALA_SUPPORT_OPEN_EVENT"));
+  assert.ok(read("SupportStartHere.tsx").includes("openMarketingSupport()"));
   assert.ok(read("../marketing-support-menu.tsx").includes("openMarketingSupport()"));
 });

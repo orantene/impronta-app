@@ -1,6 +1,6 @@
 "use client";
 
-import { TULALA_SUPPORT_OPEN_EVENT } from "@/lib/marketing/support-copy";
+import { openMarketingSupport } from "@/lib/marketing/support-copy";
 
 /**
  * The way in, at the top, before the argument for it.
@@ -37,7 +37,7 @@ export function SupportStartHere({
           apart on theme tokens. */}
       <button
         type="button"
-        onClick={() => window.dispatchEvent(new Event(TULALA_SUPPORT_OPEN_EVENT))}
+        onClick={() => openMarketingSupport()}
         className="plt-body inline-flex min-h-[52px] items-center justify-center rounded-full bg-[var(--plt-ink)] px-6 text-center text-[1.0625rem] font-semibold text-[var(--plt-bg)]"
       >
         {askLabel}
