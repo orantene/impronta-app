@@ -28,6 +28,7 @@ import {
 } from "@/lib/saas/admin-scope";
 import { requireSession } from "@/lib/server/action-guards";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { logServerError } from "@/lib/server/safe-error";
 import {
   validateActorPermission,
   type EngineAction,
@@ -58,10 +59,19 @@ const defaultDeps: OfferGuardDeps = {
   workspaceOf: async (inquiryId) => {
     const admin = createServiceRoleClient();
     if (!admin) return null;
-    const { data: inq } = await admin.from("inquiries").select("tenant_id").eq("id", inquiryId).maybeSingle();
+    // A failed read fails closed (no workspace -> the guard refuses), but is logged so it is not mistaken for "no access".
+    const { data: inq, error: inqError } = await admin.from("inquiries").select("tenant_id").eq("id", inquiryId).maybeSingle();
+    if (inqError) {
+      logServerError("inquiry-offer-guard.workspaceOf.inquiry", inqError);
+      return null;
+    }
     const tenantId = (inq?.tenant_id as string | null) ?? null;
     if (!tenantId) return null;
-    const { data: agency } = await admin.from("agencies").select("slug").eq("id", tenantId).maybeSingle();
+    const { data: agency, error: agencyError } = await admin.from("agencies").select("slug").eq("id", tenantId).maybeSingle();
+    if (agencyError) {
+      logServerError("inquiry-offer-guard.workspaceOf.agency", agencyError);
+      return null;
+    }
     const tenantSlug = (agency?.slug as string | null) ?? null;
     return tenantSlug ? { tenantId, tenantSlug } : null;
   },
