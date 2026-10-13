@@ -17,9 +17,11 @@ test("ShellBoundary hands notFound/redirect back to Next before its crash screen
 });
 
 test("work detail has its own not-found screen with ES and EN copy", () => {
-  const nf = "src/app/(workspace)/[tenantSlug]/admin/work/[id]/not-found.tsx";
+  const dir = "src/app/(workspace)/[tenantSlug]/admin/work/[id]";
+  const nf = `${dir}/not-found.tsx`;
   assert.ok(existsSync(join(web, nf)));
-  const body = read(nf);
+  assert.match(read(nf), /WorkNotFoundCard/);
+  const body = read(`${dir}/work-not-found-card.tsx`);
   for (const key of ["notFoundTitle", "notFoundBody", "backToPipeline"]) {
     assert.match(body, new RegExp(`admin\\.work\\.detail\\.${key}`));
     for (const loc of ["en", "es"]) {
@@ -27,4 +29,16 @@ test("work detail has its own not-found screen with ES and EN copy", () => {
       assert.equal(typeof detail[key], "string", `${loc} missing ${key}`);
     }
   }
+});
+
+test("TUL-473: a work id outside this workspace renders the card inline, not through notFound()", () => {
+  const dir = "src/app/(workspace)/[tenantSlug]/admin/work/[id]";
+  const page = read(`${dir}/page.tsx`);
+  assert.match(page, /if \(!inquiry\) return <WorkNotFoundCard /);
+  assert.doesNotMatch(page, /if \(!inquiry\) notFound\(\)/);
+  // The card is a plain server component (no hooks, no client boundary) that links with next/link.
+  const card = read(`${dir}/work-not-found-card.tsx`);
+  assert.doesNotMatch(card, /"use client"/);
+  assert.match(card, /import Link from "next\/link"/);
+  assert.doesNotMatch(card, /<a\s/);
 });

@@ -13,6 +13,7 @@ import {
   AuthSubmitButton,
 } from "@/components/auth/auth-ui";
 import { createTranslator } from "@/i18n/messages";
+import { withLocaleHref } from "@/i18n/pathnames";
 import { AgeTermsCheckbox } from "@/components/auth/age-terms-checkbox";
 
 /**
@@ -45,7 +46,7 @@ export function RegisterLoginFooter({
     >
       {t("public.auth.register.haveAccount")}{" "}
       <Link
-        href={search ? `/login?${search}` : "/login"}
+        href={withLocaleHref(search ? `/login?${search}` : "/login", locale)}
         className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
         style={{ color: "var(--plt-ink-soft)" }}
       >
@@ -121,7 +122,7 @@ export function RegisterForm({
           autoComplete="email"
           required
           defaultValue={defaultEmail}
-          placeholder="you@studio.com"
+          placeholder={t("public.auth.form.emailPlaceholder")}
           className={AUTH_INPUT_CLASS}
           style={AUTH_INPUT_STYLE}
         />
