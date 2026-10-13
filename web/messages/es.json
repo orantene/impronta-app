@@ -133,6 +133,7 @@
       },
       "form": {
         "email": "Correo electrónico",
+        "emailPlaceholder": "tu@estudio.com",
         "password": "Contraseña"
       },
       "actions": {
@@ -13706,6 +13707,7 @@
       "cardIdeaSub": "Cuéntanos qué haría mejor a Tulala",
       "yourTickets": "Tus tickets",
       "newReplies": "{n} respuestas nuevas",
+      "newRepliesOne": "1 respuesta nueva",
       "seeAll": "Ver todo",
       "guideHint": "¿Buscas cómo funciona algo? Abre la pestaña {guide}.",
       "guideHelpful": "¿Te sirvió?",
