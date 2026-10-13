@@ -5,6 +5,7 @@ import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { resolveNotFoundSlug } from "@/lib/site-admin/server/page-roles";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { isLocale } from "@/lib/site-admin/locales";
+import { workspaceNotFoundCopy } from "@/lib/saas/workspace-not-found-copy";
 import CmsPublicPage from "@/app/(public)/p/[[...slug]]/page";
 
 // E.2 — Branded 404 page (server component).
@@ -34,11 +35,12 @@ async function loadAgencyBrand(): Promise<AgencyBrand | null> {
       .eq("tenant_id", ctx.tenantId)
       .maybeSingle();
 
-    const name = (data as { public_name?: string | null } | null)?.public_name?.trim();
-    return {
-      name: name && name.length > 0 ? name : "Studio",
-      homeHref: "/",
-    };
+    let name = (data as { public_name?: string | null } | null)?.public_name?.trim() ?? "";
+    if (!name) {
+      const { data: agency } = await supabase.from("agencies").select("display_name").eq("id", ctx.tenantId).maybeSingle();
+      name = (agency as { display_name?: string | null } | null)?.display_name?.trim() ?? "";
+    }
+    return { name, homeHref: "/" };
   } catch {
     return null;
   }
@@ -82,18 +84,15 @@ export default async function NotFound() {
 
   const brand = await loadAgencyBrand();
   const isAgency = brand !== null;
-  const eyebrow = isAgency && brand ? brand.name.toUpperCase() : "TULALA";
-  const heading = isAgency && brand
-    ? "This page is no longer here"
-    : "Page not found";
-  const body = isAgency && brand
-    ? `We couldn't find that page on ${brand.name}. The roster, news, or campaign you were looking for may have moved.`
-    : "We couldn't find the page you're looking for.";
+  const ws = workspaceNotFoundCopy(await getRequestLocale(), brand?.name);
+  const eyebrow = isAgency ? ws.eyebrow : "TULALA";
+  const heading = isAgency ? ws.heading : "Page not found";
+  const body = isAgency ? ws.body : "We couldn't find the page you're looking for.";
   const primaryCta = isAgency
-    ? { label: "Back to homepage", href: "/" }
+    ? { label: ws.home, href: "/" }
     : { label: "Go home", href: "/" };
   const secondaryCta = isAgency
-    ? { label: "Send an inquiry", href: "/client/inquiries/new" }
+    ? { label: ws.inquiry, href: "/client/inquiries/new" }
     : { label: "Sign in", href: "/login" };
 
   return (
@@ -211,7 +210,7 @@ export default async function NotFound() {
               marginBottom: 0,
             }}
           >
-            Powered by Tulala
+            {ws.poweredBy}
           </p>
         ) : null}
       </div>
