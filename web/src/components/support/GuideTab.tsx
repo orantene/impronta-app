@@ -89,6 +89,9 @@ export function GuideTab({
       if (ignore) return;
       setArticle(a);
       setLoadingArticle(false);
+      // No article for this id (e.g. a page's help id that has no node yet):
+      // land on the Guide home. Never print the raw id at the user.
+      if (!a) setOpenNodeId(null);
     });
     return () => {
       ignore = true;
@@ -373,9 +376,6 @@ function GuideArticleView({
     return (
       <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
         <BackRow onBack={onBack} />
-        <div style={{ fontSize: 13, color: COLORS.inkMuted }}>
-          {interpolate(t("dashboard.adminSupport.guideNotFound"), { id: nodeId })}
-        </div>
       </div>
     );
   }

@@ -13696,7 +13696,6 @@
       "helperModeAria": "Helper mode: highlight everything on this page with an article",
       "helperModeOn": "Helper mode is on",
       "helperModeHint": "Anything with a dotted outline has an article. Click one to read it here.",
-      "guideNotFound": "There is no article for \"{id}\" yet.",
       "helperReadAbout": "Read about: {what}",
       "cardLiveChat": "Start live chat",
       "cardLiveChatSub": "A real person from Tulala, usually within minutes",
