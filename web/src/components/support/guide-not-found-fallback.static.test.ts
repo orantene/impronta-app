@@ -3,7 +3,11 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
-const src = readFileSync(join(process.cwd(), "src/components/support/GuideTab.tsx"), "utf8");
+import { blankComments } from "@/lib/quality/supabase-unchecked-read";
+
+const src = blankComments(
+  readFileSync(join(process.cwd(), "src/components/support/GuideTab.tsx"), "utf8"),
+);
 
 test("a missing Guide article falls back to the home and never prints the id", () => {
   assert.match(src, /if \(!a\) setOpenNodeId\(null\)/);
