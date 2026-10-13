@@ -119,7 +119,13 @@ export async function sendEmailNotification(
   // it branches on this exact field a few lines up to pick between an account
   // unsubscribe token and a guest one.
   const brandForRecipient = { ...brand, recipientHasAccount: Boolean(recipient.userId) };
-  let element = cfg.render({ event, recipient, brand: brandForRecipient, unsubscribeUrl });
+  // Support mail with a signed Reply-To: tell the template that replying to the
+  // email works, so its footer stops saying replies are not read.
+  const threading = supportOutboundThreading(entry.id, event.payload, event.eventId);
+  const renderEvent = threading
+    ? { ...event, payload: { ...event.payload, repliesRead: true } }
+    : event;
+  let element = cfg.render({ event: renderEvent, recipient, brand: brandForRecipient, unsubscribeUrl });
 
   // P3b editable templates: an admin can override subject/body per (entry, locale)
   // without a deploy. Body text renders as React text children (auto-escaped, so
@@ -176,7 +182,6 @@ export async function sendEmailNotification(
   const tenantReplyTo = await resolveTenantReplyTo(platformSend ? null : event.tenantId);
   // Support mail: signed Reply-To plus-token + stable Message-ID so an emailed
   // reply threads back onto the ticket (support-inbound-append.server.ts).
-  const threading = supportOutboundThreading(entry.id, event.payload, event.eventId);
   const replyTo = threading?.replyTo ?? tenantReplyTo;
   if (threading) headers = { ...headers, ...threading.headers };
 
