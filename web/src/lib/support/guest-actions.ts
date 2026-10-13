@@ -14,7 +14,8 @@ import {
   checkGuestSupportEmailCapture,
   checkGuestSupportMessageAbuse,
 } from "./guest-support-abuse-guard";
-import { evaluateResumeClaim, signGuestResumeToken, verifyGuestResumeToken } from "./guest-resume-token";
+import { claimGuestResume } from "./guest-resume-claim";
+import { signGuestResumeToken, verifyGuestResumeToken } from "./guest-resume-token";
 import { supportFrom } from "./support-from";
 import {
   mapMessageRow,
@@ -294,44 +295,51 @@ export async function resumeGuestThreadAction(input: {
   const verified = verifyGuestResumeToken(input.token);
   if (!verified.ok) return { ok: false, error: "That resume link is not valid anymore." };
 
-  const { data, error: loadError } = await supportFrom(ident.admin, "support_tickets")
-    .select("*")
-    .eq("id", verified.ticketId)
-    .maybeSingle();
-  if (loadError) return { ok: false, error: "Could not load that thread. Try again." };
-  const ticket = mapTicketRow(data);
-  if (!ticket || ticket.surface !== "guest") {
-    return { ok: false, error: "Thread not found." };
-  }
-
-  // TUL-618: first session to use this link owns it; a forwarded copy opened
-  // from another session is refused.
-  const claim = evaluateResumeClaim(
-    ticket.metadata.resume_claims,
+  const outcome = await claimGuestResume(
+    {
+      async load() {
+        const { data, error } = await supportFrom(ident.admin, "support_tickets")
+          .select("*")
+          .eq("id", verified.ticketId)
+          .maybeSingle();
+        if (error) return { row: null, error: true };
+        const ticket = mapTicketRow(data);
+        if (!ticket || ticket.surface !== "guest") return { row: null, error: false };
+        const raw = (data as { updated_at?: unknown } | null)?.updated_at;
+        return {
+          row: {
+            updatedAt: typeof raw === "string" ? raw : null,
+            metadata: ticket.metadata,
+            guestSessionId: ticket.guestSessionId ?? null,
+          },
+          error: false,
+        };
+      },
+      async update(patch, expectedUpdatedAt) {
+        let q = supportFrom(ident.admin, "support_tickets")
+          .update({
+            guest_session_id: patch.guestSessionId,
+            metadata: patch.metadata,
+            updated_at: patch.updatedAt,
+          })
+          .eq("id", verified.ticketId);
+        if (expectedUpdatedAt) q = q.eq("updated_at", expectedUpdatedAt);
+        const { data, error } = await q.select("id");
+        return { rows: Array.isArray(data) ? data.length : 0, error: Boolean(error) };
+      },
+    },
     verified.issuedAtMs,
     ident.guestSessionId,
   );
-  if (!claim.allow) {
+  if (outcome === "not_found") return { ok: false, error: "Thread not found." };
+  if (outcome === "error") return { ok: false, error: "Could not resume that thread. Try again." };
+  if (outcome === "already_opened") {
     return {
       ok: false,
       error: "This link was already opened on another device. Start from the contact page to get a new link.",
     };
   }
-
-  const prior = Array.isArray(ticket.metadata.prior_guest_sessions)
-    ? (ticket.metadata.prior_guest_sessions as string[])
-    : [];
-  if (ticket.guestSessionId && ticket.guestSessionId !== ident.guestSessionId) {
-    prior.push(ticket.guestSessionId);
-  }
-  const { error: updateError } = await supportFrom(ident.admin, "support_tickets")
-    .update({
-      guest_session_id: ident.guestSessionId,
-      metadata: { ...ticket.metadata, prior_guest_sessions: prior, resume_claims: claim.claims },
-    })
-    .eq("id", ticket.id);
-  if (updateError) return { ok: false, error: "Could not resume that thread. Try again." };
-  return { ok: true, ticketId: ticket.id };
+  return { ok: true, ticketId: verified.ticketId };
 }
 
 export async function appendGuestContactCardAction(input: {

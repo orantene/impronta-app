@@ -41,8 +41,30 @@ const noop: GuestSupportLimiter = {
   async checkCreateByEmail() { return allow; },
   async checkMessageBySession() { return allow; },
   async checkMessageByIp() { return allow; },
-  async checkAiByIp() { return allow; },
+  async checkAiByIp() {
+    // Unconfigured store: production must not serve unmetered AI.
+    if (isProductionRuntime()) {
+      warnAiUnmeteredOnce();
+      return GUEST_AI_STORE_ERROR;
+    }
+    return allow;
+  },
 };
+
+/** Real Vercel production only; local dev, CI, tests and previews stay allowed. */
+export function isProductionRuntime(): boolean {
+  return process.env.VERCEL_ENV === "production";
+}
+
+let _warnedAiUnmetered = false;
+function warnAiUnmeteredOnce(): void {
+  if (_warnedAiUnmetered) return;
+  _warnedAiUnmetered = true;
+  // eslint-disable-next-line no-console
+  console.error(
+    "[rate-limit-kv-guest-support] UPSTASH_REDIS_REST_URL/TOKEN are UNSET in production: guest AI is refused (fail-closed) until they are provisioned.",
+  );
+}
 
 /** Returned by fail-closed limiters when the store errors (surfaces as a 429). */
 export const GUEST_AI_STORE_ERROR: KvRateLimitResult = {
@@ -146,4 +168,5 @@ export async function checkSupportGuestAiByIp(ip: string): Promise<KvRateLimitRe
 
 export function _resetGuestSupportLimiterForTests(): void {
   _limiter = null;
+  _warnedAiUnmetered = false;
 }
