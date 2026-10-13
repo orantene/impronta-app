@@ -10,6 +10,7 @@ import {
 import { resolveSupportRequester, assertTicketAccess } from "./support-access";
 import { supportEngine } from "./support-engine";
 import type { SupportCallbackPref, SupportSurface } from "./support-types";
+import { rateLimited, type SupportActionFail } from "./rate-limit-result";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
@@ -72,15 +73,7 @@ const createSchema = z.object({
 });
 
 export type SupportActionOk<T extends object = object> = { ok: true } & T;
-export type SupportActionFail = { ok: false; error: string };
-
-async function rateLimited(
-  check: Promise<{ ok: true } | { ok: false; code: string; retryAfterMs: number }>,
-): Promise<SupportActionFail | null> {
-  const r = await check;
-  if (r.ok) return null;
-  return { ok: false, error: "Too many requests. Try again shortly." };
-}
+export type { SupportActionFail } from "./rate-limit-result";
 
 export async function createSupportTicketAction(
   // diagnostics arrives untyped from the client; the zod schema (with .catch)

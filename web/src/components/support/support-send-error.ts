@@ -1,0 +1,25 @@
+import { interpolate } from "@/i18n/interpolate";
+
+type Translate = (key: string) => string;
+
+/** The slice of a failed support action the panel needs to word the error. */
+export type SupportSendFailure = {
+  code?: string;
+  retryAfterSec?: number;
+};
+
+/**
+ * One place that words a failed support send. A rate limit says so and when it
+ * lifts; every other failure keeps the generic "did not send" line. Previously
+ * both collapsed into the generic line, so a capped user retried forever.
+ */
+export function supportSendErrorText(t: Translate, failure: SupportSendFailure | null | undefined): string {
+  if (failure?.code === "rate_limited") {
+    const minutes = Math.max(1, Math.ceil((failure.retryAfterSec ?? 60) / 60));
+    return interpolate(
+      t(minutes === 1 ? "dashboard.adminSupport.rateLimitedOne" : "dashboard.adminSupport.rateLimited"),
+      { minutes: String(minutes) },
+    );
+  }
+  return t("dashboard.adminSupport.sendFailed");
+}

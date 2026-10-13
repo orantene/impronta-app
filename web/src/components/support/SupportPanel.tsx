@@ -33,6 +33,7 @@ import { uploadReplayForTicket } from "@/lib/support/replay/upload-replay";
 import { keepTicketOpenAction } from "@/lib/support/actions";
 import { useThreadPresence } from "@/lib/realtime/presence";
 import { relTime } from "./support-rel-time";
+import { supportSendErrorText } from "./support-send-error";
 
 type View = "home" | "tickets" | "thread" | "new" | "idea" | "guide";
 
@@ -273,7 +274,7 @@ export function SupportPanel({
       void requestAi(r.ticketId);
     } else {
       // Keep the text — a failed send must never eat what the user typed.
-      setAskError(t("dashboard.adminSupport.sendFailed"));
+      setAskError(supportSendErrorText(t, r));
     }
   };
 
@@ -412,7 +413,7 @@ export function SupportPanel({
                   void maybeAttachReplay(r.ticketId);
                   setView("thread", r.ticketId);
                 } else {
-                  setAskError(t("dashboard.adminSupport.sendFailed"));
+                  setAskError(supportSendErrorText(t, r));
                 }
               })();
             }}
@@ -536,7 +537,7 @@ export function SupportPanel({
               void requestAi(ticketId);
               return true;
             }
-            return false;
+            return { error: supportSendErrorText(t, r) };
           }}
         />
         </>
