@@ -2,6 +2,7 @@ import "server-only";
 
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { logServerError } from "@/lib/server/safe-error";
+import { afterResponse } from "@/lib/server/after-response";
 
 /**
  * Emit `booking.confirmed` when a booking is PAID (from `markPaid`). The two
@@ -30,7 +31,7 @@ export function notifyBookingConfirmed(params: {
   inquiryId: string;
   bookingId: string;
 }): void {
-  void dispatchEventNotifications({
+  afterResponse(() => dispatchEventNotifications({
     type: "booking.confirmed",
     tenantId: params.tenantId,
     inquiryId: params.inquiryId,
@@ -39,5 +40,5 @@ export function notifyBookingConfirmed(params: {
     payload: { bookingId: params.bookingId },
   }).catch((err) => {
     logServerError("notifyBookingConfirmed", err);
-  });
+  }));
 }

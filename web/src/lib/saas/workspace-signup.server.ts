@@ -46,6 +46,7 @@ import { trackSignupCompleted } from "@/lib/analytics/conversion-events";
 import { pickSignupPreset } from "@/lib/words/signup-preset";
 import { forgetUserTenantMemberships } from "@/lib/saas/tenant";
 import { workspaceLocaleSettingsForFlow } from "./workspace-signup-locale";
+import { afterResponse } from "@/lib/server/after-response";
 
 type MarketingLeadRow = {
   id: string;
@@ -363,12 +364,12 @@ async function finalizeProvisionResult(params: {
   if (isNetworkWorkspaceTierInterest(tierInterest)) {
     // Founder always wants visibility on any Network signup — whether it
     // routes to self-serve Stripe checkout or to sales contact.
-    void sendNetworkFounderAlert({
+    afterResponse(() => sendNetworkFounderAlert({
       slug: params.agency.slug,
       tenantId: params.agency.id,
       ownerEmail,
       ownerName,
-    });
+    }));
 
     const networkPriceId = await resolveWorkspacePriceId("network", "monthly");
     if (!networkPriceId) {

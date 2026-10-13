@@ -37,6 +37,7 @@ import { proposeTypeChip } from "./type-chip.server";
 import type { TypeChipProposal } from "./type-chip";
 import { buildUnderstanding, type Understanding } from "./understanding";
 import { aiProblemLogLine, classifyExtraction, classifyProviderState, type UnderstandAiProblem } from "./understand-outcome";
+import { afterResponse } from "@/lib/server/after-response";
 
 const AI_PROBLEM_MESSAGE = "We could not read your description right now. Please try again in a moment.";
 
@@ -146,7 +147,7 @@ export async function understandBrief(input: {
           },
         });
         const o = outcome as ExtractionOutcome | null;
-        void recordAiGenerationUsage({
+        afterResponse(() => recordAiGenerationUsage({
           provider: chat.adapter.id,
           model: o?.model ?? chat.model ?? "auto",
           usage: o?.usage,
@@ -156,7 +157,7 @@ export async function understandBrief(input: {
           latencyMs: Date.now() - t0,
           tenantId: null,
           context: { brief_id: input.brief.id, attempt, error: o?.ok ? null : (o?.code ?? "unknown"), facts: learned.length },
-        }).catch((err) => logServerError("onboarding.understand.usage", err));
+        }).catch((err) => logServerError("onboarding.understand.usage", err)));
         const problem = classifyExtraction(o);
         aiProblem = problem ? { kind: problem, provider: String(chat.adapter.id) } : null;
         if (o?.ok) break;
