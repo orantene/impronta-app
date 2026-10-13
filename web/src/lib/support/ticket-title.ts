@@ -47,3 +47,17 @@ export function displayTicketTitle(ticket: {
   }
   return (ticket.subject ?? "").replace(/^\[guest\]\s*/i, "").trim();
 }
+
+/**
+ * The subject the AI may write on its first turn. A title the requester typed
+ * is theirs and is never replaced (TUL-657); the AI only fills a ticket that
+ * has none or still carries a channel placeholder.
+ */
+export function aiSuggestedSubjectFor(
+  currentSubject: string | null | undefined,
+  suggested: string | null | undefined,
+): string | null {
+  if (!isGenericTicketTitle(currentSubject)) return null;
+  const next = (suggested ?? "").trim();
+  return next || null;
+}
