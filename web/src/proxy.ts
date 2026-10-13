@@ -36,7 +36,7 @@ import {
   resolveWorkspacePathTenantPublicPath,
   WORKSPACE_PATH_SEGMENT,
 } from "@/lib/saas/surface-allow-list";
-import { freeSubdomainPathRedirect, marketingWorkspacePathRedirect, workspacePathRedirect } from "@/lib/saas/workspace-path-redirects";
+import { freeSubdomainPathRedirect, marketingAccountPathRedirect, marketingWorkspacePathRedirect, workspacePathRedirect } from "@/lib/saas/workspace-path-redirects";
 import { resolveLegacyTalentPlatformPath } from "@/lib/talent/legacy-talent-redirect";
 import { talentProfileCodeAliasRedirectResponse } from "@/lib/talent/profile-code-alias-middleware";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
@@ -405,6 +405,13 @@ export async function proxy(request: NextRequest) {
     hostKind: effectiveHostContext.kind,
   });
   if (marketingWorkspaceRedirect) return marketingWorkspaceRedirect;
+
+  const marketingAccountRedirect = marketingAccountPathRedirect({
+    request,
+    canonicalPath,
+    hostKind: effectiveHostContext.kind,
+  });
+  if (marketingAccountRedirect) return marketingAccountRedirect;
 
   const freeSubdomainRedirect = await freeSubdomainPathRedirect({ request, pathname, canonicalPath, hostContext });
   if (freeSubdomainRedirect) return freeSubdomainRedirect;
