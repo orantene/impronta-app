@@ -78,6 +78,8 @@ import { LiveStatusExpiry } from "@/components/talent-site/LiveStatusExpiry";
 import type { TalentSiteLocaleContext } from "./talent-site-locale.server";
 import { loadUsdRatesForSitePrices } from "./vanity-usd-rates";
 import { loadTalentSocialLinks } from "./talent-social-links";
+import { HeaderAccountOverlay } from "@/components/client-account/HeaderAccountOverlay";
+import { resolveClientAccountMount } from "@/lib/client-account/gate";
 import { webOfficeFooter, webOfficeHeaderSocial, type WebOfficeCtx } from "./web-office-footer";
 
 /**
@@ -116,6 +118,8 @@ export async function renderMaxSiteDocument(args: {
   /** Request origin for magazine footer credit (hostname only). */
   canonicalOrigin?: string;
   /** Paid Web Office only: footer links + source WhatsApp text. */ webOffice?: WebOfficeCtx | null;
+  /** TUL-694: the site's client account switch, resolved in render-max-site (default on; the host flag still gates). */
+  accountEntry?: boolean;
 }): Promise<ReactNode> {
   const {
     siteTokens,
@@ -296,7 +300,9 @@ export async function renderMaxSiteDocument(args: {
   const dataAttrs = hasTokens ? designTokensToDataAttrs(effectiveTokens) : {};
 
   const hasShell = hasRenderableBuilderNodes(shellTree, { mode: "freeform" });
-  const [headerTree, rawFooterTree] = splitShell(shellTree, { webOfficeSocial: Boolean(args.webOffice) });
+  // TUL-694: container-style headers have no site_header regions; they get the one shared overlay slot.
+  const showHeaderAccountOverlay = args.accountEntry !== false && resolveClientAccountMount("talent").headerItem;
+  const [headerTree, rawFooterTree] = splitShell(shellTree, { webOfficeSocial: Boolean(args.webOffice), accountEntry: args.accountEntry });
   // The socket carries the ONE Tulala credit: hide any design-level credit at render time.
   const footerTree = stripDesignCredits(rawFooterTree);
   // Footer links to Location / Visit are decided against the sections this page really renders
@@ -359,7 +365,7 @@ export async function renderMaxSiteDocument(args: {
         localiseTalentHeaderDefaults(headerSectionProps(root, locale), locale),
         askVisible,
       );
-      const parsed = schema?.safeParse(withHeaderSiteChrome(localised, root.props.sectionTypeKey, args.isDemo === true, args.localeCtx.settings.supportedLocales, args.localeCtx.switcherHrefs, webOfficeHeaderSocial(args.webOffice, footerSocialLinks, locale)));
+      const parsed = schema?.safeParse(withHeaderSiteChrome(localised, root.props.sectionTypeKey, args.isDemo === true, args.localeCtx.settings.supportedLocales, args.localeCtx.switcherHrefs, webOfficeHeaderSocial(args.webOffice, footerSocialLinks, locale), args.accountEntry !== false));
       if (!entry || !parsed?.success) return null;
       const Comp = entry.Component;
       return (
@@ -502,7 +508,8 @@ export async function renderMaxSiteDocument(args: {
             ) : null}
           </div>
         ) : (
-          <header data-talent-max-site-header="" {...overHeroAttr}>
+          <header data-talent-max-site-header="" {...overHeroAttr} {...(showHeaderAccountOverlay ? { style: { position: "relative" } } : {})}>
+            {showHeaderAccountOverlay ? <HeaderAccountOverlay locale={locale} /> : null}
             {renderBuilderNodes(liveHeaderTree, {
               publicPathPrefix,
               mode: "freeform",

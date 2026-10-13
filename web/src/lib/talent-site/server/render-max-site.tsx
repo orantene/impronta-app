@@ -43,6 +43,7 @@ import { buildMaxSiteSeo, type MaxSiteSeo } from "./max-site-seo.server";
 import { loadMaxSiteSeoFacts } from "./max-site-seo-facts.server";
 import { loadTalentSiteLocaleContext } from "./talent-site-locale.server";
 import { webOfficeCtxFor } from "./web-office-footer";
+import { resolveTalentAccountEntry } from "./account-entry.server";
 import { siteHostFromOrigin } from "@/lib/talent-site/footer-socket";
 import { talentSiteLocalePath } from "@/lib/talent-site/talent-site-locale-routing";
 import { webOfficeSocialEnabled } from "../web-office-social";
@@ -184,6 +185,8 @@ async function renderTalentMaxSiteUnguarded(
     // SEO scoping below needs it on both paths.
     const planKey = await pPlan;
     const ctaMode = await pCta; // seeded CTA copy follows booking mode
+    // TUL-694: per-site client account switch (flag + entitlement + Settings + smart default). Flag off = no read.
+    const accountEntry = await resolveTalentAccountEntry(talentProfileId, planKey);
     const gateOpen = maxSitePublicGate({
       sitePublishedAt: site.sitePublishedAt,
       planKey,
@@ -306,6 +309,7 @@ async function renderTalentMaxSiteUnguarded(
         profileCode: identity?.profileCode ?? null,
         siteHost: siteHostFromOrigin(input.canonicalOrigin ?? process.env.NEXT_PUBLIC_SITE_URL),
         canonicalOrigin: input.canonicalOrigin,
+        accountEntry,
         webOffice: webOfficeCtxFor(webOfficeSocialEnabled(planKey), {
           canonicalOrigin: input.canonicalOrigin ?? process.env.NEXT_PUBLIC_SITE_URL,
           canonicalPath: input.canonicalPath,
