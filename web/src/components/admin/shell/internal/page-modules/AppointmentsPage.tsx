@@ -59,7 +59,7 @@ import { loadAppointmentsSurface } from "@/lib/scheduling/appointments-surface-a
 import type { AppointmentRow } from "@/lib/scheduling/appointments-board";
 import { formatDayFirst } from "@/lib/scheduling/day-first";
 import { utcToZonedYmd } from "@/lib/scheduling/tz";
-import type { ScheduleNight, type ScheduleSeries, type ScheduleVenue } from "@/lib/sessions/schedule-actions";
+import type { ScheduleNight, ScheduleSeries, ScheduleVenue } from "@/lib/sessions/schedule-actions";
 import { loadWorkspaceMenuForEditor } from "@/lib/talent/menu-offerings-actions";
 
 const K = "dashboard.adminAppointments";
