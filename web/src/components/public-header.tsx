@@ -46,6 +46,13 @@ import {
   PublishedShellHeader,
   shouldRenderSnapshotShell,
 } from "@/components/site-shell/PublishedShell";
+import { resolveWorkspaceType } from "@/lib/saas/assert-roster-workspace";
+import { rosterEnabled } from "@/lib/saas/workspace-type";
+import {
+  directoryOrBookHref,
+  filterNavItemsForRoster,
+  resolveRosterSafeHref,
+} from "@/lib/site-admin/sections/site_header/directory-nav-href";
 
 // C2 — Build role-specific dashboard nav links for the mobile menu.
 // Paths are absolute (no tenant slug) — the middleware/routing layer maps
@@ -183,11 +190,20 @@ export async function PublicHeader() {
     getSavedTalentIds(),
     getFavoriteTalentIds(),
   ]);
+  // TUL-505: business / studio / both workspaces 404 on `/directory`
+  // (assertRosterWorkspace). Marketing hosts keep the global directory.
+  // Agency/hub tenants resolve workspace_type once and rewrite search + nav.
+  const hasRoster = tenantIdForIdentity
+    ? rosterEnabled(await resolveWorkspaceType(tenantIdForIdentity))
+    : true;
+  const directorySearchHref = directoryOrBookHref(hasRoster);
   const cmsHeaderLinksRaw = await getPublicCmsNavigationLinks(locale, "header");
-  const cmsHeaderLinks = cmsHeaderLinksRaw.map((link) => ({
-    ...link,
-    href: headerHref(link.href),
-  }));
+  const cmsHeaderLinks = filterNavItemsForRoster(cmsHeaderLinksRaw, hasRoster).map(
+    (link) => ({
+      ...link,
+      href: headerHref(resolveRosterSafeHref(link.href, hasRoster, directorySearchHref)),
+    }),
+  );
 
   const [identity, branding] = tenantIdForIdentity
     ? await Promise.all([
@@ -326,7 +342,10 @@ export async function PublicHeader() {
     presetVerb && presetVerbLabel && tenantIdForIdentity
       ? await resolveHeaderVerbDestination(tenantIdForIdentity, presetVerb.preset.headerVerb)
       : null;
-  const ctaHref = explicitCtaHref || presetVerbHref;
+  const ctaHrefRaw = explicitCtaHref || presetVerbHref;
+  const ctaHref = ctaHrefRaw
+    ? resolveRosterSafeHref(ctaHrefRaw, hasRoster, directorySearchHref)
+    : null;
 
   // AN UNBRANDED TENANT MUST NEVER RENDER AN UNREADABLE CTA.
   //
@@ -533,7 +552,7 @@ export async function PublicHeader() {
           ) : null}
           <Button variant="ghost" size="icon" className="shrink-0" asChild>
             <Link
-              href={headerHref("/directory")}
+              href={headerHref(directorySearchHref)}
               aria-label={t("public.header.searchTalentAria")}
             >
               <Search className="size-5" />
