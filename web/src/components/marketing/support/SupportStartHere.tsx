@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { TULALA_SUPPORT_OPEN_EVENT } from "@/lib/marketing/support-copy";
 
 /**
@@ -47,12 +48,12 @@ export function SupportStartHere({
         {askLabel}
       </button>
       ) : null}
-      <a
+      <Link
         href={writeHref}
         className="plt-body inline-flex min-h-[52px] items-center justify-center rounded-full border border-[var(--plt-hairline-strong)] px-6 text-center text-[1.0625rem] text-[var(--plt-ink)]"
       >
         {writeLabel}
-      </a>
+      </Link>
       {canAsk ? (
         <p className="plt-body mt-1 text-center text-[0.9rem] text-[var(--plt-muted)] sm:hidden">
           {hint}
