@@ -11,6 +11,7 @@ import {
   type MaisonReviewState,
 } from "@/lib/talent-site/server/maison-review-actions";
 import { undoMaisonDesignAction } from "@/lib/talent-site/server/maison-apply-actions";
+import { discardMaisonLivePendingAction } from "@/lib/talent-site/server/maison-options-actions";
 import { publishMaxSiteAction } from "@/lib/talent-site/server/site-management-actions";
 import { isThemeApplyBusy, useThemeApplyBusy } from "@/lib/talent-site/history/apply-busy";
 import { maisonReadinessHeadline } from "@/lib/talent-site/server/maison-publish-readiness";
@@ -106,7 +107,11 @@ export function ReviewWebsiteScreen({
 
   function handleUndo() {
     startTransition(async () => {
-      const res = await undoMaisonDesignAction();
+      // TUL-658: a live site's unpublished change is dropped with Discard.
+      const res =
+        state?.undoKind === "live"
+          ? await discardMaisonLivePendingAction()
+          : await undoMaisonDesignAction();
       if (!res.ok) {
         setPublishError({ message: res.error, code: res.code });
         return;
@@ -308,6 +313,11 @@ export function ReviewWebsiteScreen({
           <p className="mt-0.5 text-[13px] text-admin-ink-muted" data-testid="maison-review-sub">
             {state?.summaryLine ?? "…"}
           </p>
+          {state?.canUndo && state.undoRevertsToName ? (
+            <p className="mt-0.5 text-[12px] text-admin-ink-dim" data-testid="maison-undo-target">
+              {maisonSetupT(locale, "Undo goes back to")} {state.undoRevertsToName}
+            </p>
+          ) : null}
         </div>
         {state?.canUndo ? (
           <button
@@ -317,7 +327,7 @@ export function ReviewWebsiteScreen({
             disabled={pending}
             className="min-h-10 shrink-0 rounded-xl border border-admin-border-soft px-3 text-[13px] font-semibold text-admin-ink"
           >
-            {maisonSetupT(locale, "Undo")}
+            {maisonSetupT(locale, "Undo design change")}
           </button>
         ) : null}
       </header>
