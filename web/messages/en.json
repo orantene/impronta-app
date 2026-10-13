@@ -2464,6 +2464,15 @@
     "workspaceTalentQa": "Talent QA user",
     "workspaceClientQa": "Client QA user",
     "workspaceQaUnavailable": "This QA account isn't set up here yet. Check the QA user setting.",
+    "workspaceQaReason": {
+      "not_configured": "QA switch is not configured: the QA user id or the impersonation secret is missing in this environment.",
+      "no_profile": "The configured QA user has no profile in this database.",
+      "inactive": "The QA user exists but its account is not active (still onboarding or suspended). Activate it, then try again.",
+      "wrong_role": "The configured QA user does not have the role this switch needs.",
+      "not_allowlisted": "The QA user id is not on the allow-list for this environment.",
+      "not_authorized": "Only a super admin can use the QA switch.",
+      "no_relationship": "The QA client has no active agency relationship, so there is no client workspace to open."
+    },
     "workspaceSwitcherHint": "QA preview, read-only",
     "impersonationActorNote": "Admin session",
     "impersonationReadOnly": "Viewing as",

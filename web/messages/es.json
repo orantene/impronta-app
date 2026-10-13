@@ -2464,6 +2464,15 @@
     "workspaceTalentQa": "Usuario QA talento",
     "workspaceClientQa": "Usuario QA cliente",
     "workspaceQaUnavailable": "Esta cuenta QA aún no está configurada aquí. Revisa la configuración del usuario QA.",
+    "workspaceQaReason": {
+      "not_configured": "El cambio QA no está configurado: falta el id del usuario QA o el secreto de suplantación en este entorno.",
+      "no_profile": "El usuario QA configurado no tiene perfil en esta base de datos.",
+      "inactive": "El usuario QA existe pero su cuenta no está activa (sigue en onboarding o suspendida). Actívala y vuelve a intentarlo.",
+      "wrong_role": "El usuario QA configurado no tiene el rol que necesita este cambio.",
+      "not_allowlisted": "El id del usuario QA no está en la lista permitida de este entorno.",
+      "not_authorized": "Solo un super admin puede usar el cambio QA.",
+      "no_relationship": "El cliente QA no tiene una relación activa con una agencia, así que no hay espacio de cliente que abrir."
+    },
     "workspaceSwitcherHint": "Vista previa QA, solo lectura",
     "impersonationActorNote": "Sesión de admin",
     "impersonationReadOnly": "Viendo como",
