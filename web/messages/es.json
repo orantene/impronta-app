@@ -17154,7 +17154,8 @@
           "collisionNote": "{when} no se puede generar: la sala ya tiene {other} a esa hora. Mueve una de las dos; no se vende nada hasta resolverlo."
         },
         "templatesOff": "Todavia no existen plantillas de series; una serie no se puede crear desde el espacio de trabajo."
-      }
+      },
+      "loadTimeout": "Las citas tardan demasiado en cargar. Revisa tu conexión y recarga la página."
     },
     "projects": {
       "pageTitle": "Proyectos",

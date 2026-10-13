@@ -42,7 +42,7 @@
  */
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction, requireWorkspaceStaffActionOnce } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 import {
   DEFAULT_HORIZON_DAYS,
@@ -167,7 +167,7 @@ function toWeekdays(value: unknown): IsoWeekday[] {
  */
 export async function loadSchedule(tenantId: string): Promise<ScheduleResult> {
   try {
-    const staff = await requireWorkspaceStaffAction();
+    const staff = await requireWorkspaceStaffActionOnce();
     if (!staff.ok) return { ok: false, error: staff.error };
     if (staff.tenantId !== tenantId) {
       return { ok: false, error: "Not authorized for this workspace." };
