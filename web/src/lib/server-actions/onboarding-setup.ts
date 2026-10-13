@@ -20,6 +20,8 @@ import {
   suggestedEssentials,
   type Essentials,
 } from "@/lib/onboarding/essentials";
+import { getSuggestedPrice, serviceKeyFor } from "@/lib/pricing/suggested-price";
+import { applySuggestedPrices } from "@/lib/onboarding/service-price-choice";
 import type { OnboardingChoice } from "@/lib/onboarding/choice";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
@@ -66,6 +68,8 @@ export async function loadOnboardingSetup(): Promise<SetupLoadResult> {
     const fromWords = servicesFromFacts(listFact(brief, "work.services"), ctx);
     // What the person said wins over a trade pack; the pack fills in when they said nothing.
     essentials = fromWords.length ? { ...base, services: fromWords, source: "ai" } : base;
+    // TUL-633: each pack service arrives with a suggested price the person must confirm.
+    essentials = { ...essentials, services: await applySuggestedPrices(essentials.services, country, { getSuggestedPrice, serviceKeyFor }) };
     if (saved) essentials = { ...essentials, hours: saved.hours ?? essentials.hours, place: saved.place, timezone: saved.timezone ?? essentials.timezone };
   }
   return { ok: true, setup: { choice, country, essentials, saved: !!saved?.confirmed } };
