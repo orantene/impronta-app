@@ -25,6 +25,7 @@ const FIXTURE_USERS = [
   { email: "qa-journeys-viewer@impronta.test", displayName: "QA Journeys Viewer", appRole: "agency_staff", tenantId: JOURNEYS_TENANT_ID, membership: "viewer" },
   { email: "qa-journeys-b-owner@impronta.test", displayName: "QA Journeys B Owner", appRole: "agency_staff", tenantId: SECOND_TENANT_ID, membership: "owner" },
   { email: "qa-journeys-customer@impronta.test", displayName: "QA Journeys Customer", appRole: "client", tenantId: null, membership: null },
+  { email: "qa-journeys-super-admin@impronta.test", displayName: "QA Journeys Super Admin", appRole: "super_admin", tenantId: null, membership: null },
   { email: "qa-journeys-talent@impronta.test", displayName: "QA Journeys Talent", appRole: "talent", tenantId: JOURNEYS_TENANT_ID, membership: null },
 ];
 
