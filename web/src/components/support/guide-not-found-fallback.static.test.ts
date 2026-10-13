@@ -12,3 +12,10 @@ test("a missing Guide article falls back to the home and never prints the id", (
     assert.ok(!readFileSync(join(process.cwd(), `messages/${l}.json`), "utf8").includes("guideNotFound"));
   }
 });
+
+test("More > Get help opens the Guide home, not a made-up node id", () => {
+  const more = readFileSync(join(process.cwd(), "src/components/talent/studio/MoreScreen.tsx"), "utf8");
+  assert.ok(more.includes("openGuideHome()"));
+  assert.ok(!more.includes('openGuideArticle("talent")'));
+  assert.ok(src.includes("GUIDE_HOME_NODE_ID"));
+});

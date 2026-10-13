@@ -11,6 +11,7 @@
  * 2026-09-17, plan §3b): every article shown here already passed a
  * second-model critic pass, or is the registry-derived short version.
  */
+import { GUIDE_HOME_NODE_ID } from "@/lib/guide/open-guide";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useT } from "@/i18n/use-t";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
@@ -65,7 +66,7 @@ export function GuideTab({
 
   useEffect(() => {
     if (initialNodeId) {
-      setOpenNodeId(initialNodeId);
+      setOpenNodeId(initialNodeId === GUIDE_HOME_NODE_ID ? null : initialNodeId);
       onConsumedDeepLink?.();
     }
     // onConsumedDeepLink may be a fresh function each render (SupportPanel
