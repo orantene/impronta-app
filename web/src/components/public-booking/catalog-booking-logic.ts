@@ -446,3 +446,49 @@ export function offeringPriceUnit(
   }
   return null;
 }
+
+/**
+ * TUL-681: copy for the live "when" step when no slot is offered. The old copy
+ * told the guest to "try another day" while the date strip was empty, a dead
+ * end. Every branch here points at the one control that exists: the consult
+ * button. `hasOtherDays` is true only when other days can really be picked.
+ */
+export function catalogEmptySlotsCopy(
+  reason: string | null | undefined,
+  es: boolean,
+  hasOtherDays: boolean,
+): { title: string; body: string; cta: string } {
+  const cta = es ? "Solicitar un horario" : "Request a time";
+  if (hasOtherDays) {
+    return {
+      title: es ? "Sin horarios ese día." : "No times that day.",
+      body: es ? "Elige otra fecha de la lista." : "Pick another date from the list.",
+      cta,
+    };
+  }
+  if (reason === "no_booking_hours" || reason === "hours_unreadable") {
+    return {
+      title: es ? "Aún no hay horarios publicados." : "No times are published yet.",
+      body: es
+        ? "Este talento todavía no abre su agenda en línea. Envía una solicitud con el día que te gustaría y te responderá."
+        : "This talent has not opened an online calendar yet. Send a request with the day you would like and they will reply.",
+      cta,
+    };
+  }
+  if (reason === "fully_booked") {
+    return {
+      title: es ? "Agenda llena por ahora." : "Fully booked for now.",
+      body: es
+        ? "No quedan huecos en las próximas dos semanas. Envía una solicitud y te avisan si se libera uno."
+        : "Nothing is left in the next two weeks. Send a request and they will tell you if a spot opens.",
+      cta,
+    };
+  }
+  return {
+    title: es ? "Sin horarios disponibles." : "No times available.",
+    body: es
+      ? "No hay huecos en las próximas dos semanas. Envía una solicitud con el día que prefieras."
+      : "Nothing is open in the next two weeks. Send a request with the day you prefer.",
+    cta,
+  };
+}
