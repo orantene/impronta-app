@@ -3,11 +3,13 @@ import { test } from "node:test";
 
 import {
   offeringPriceUnit,
+  catalogApplyDayPick,
   catalogBookingDurationMinutes,
   catalogCanContinueWhen,
   catalogCollectNowCents,
   catalogDetailIsPurchase,
   catalogIsPurchaseEligible,
+  catalogLiveDraftDayIndex,
   catalogNeedsOptions,
   catalogRowCtaLabel,
   catalogRowOpensSheetImmediately,
@@ -420,6 +422,18 @@ test("a selected start is dropped when the longer duration removes it", () => {
   assert.equal(catalogSelectedStartStillOpen("2026-09-25T15:00:00.000Z", open), true);
   assert.equal(catalogSelectedStartStillOpen("2026-09-25T15:00:00.000Z", open.slice(1)), false);
   assert.equal(catalogSelectedStartStillOpen(null, open), false);
+  // Same instant, different spelling still counts as open (GRK-067).
+  assert.equal(catalogSelectedStartStillOpen("2026-09-25T15:00:00+00:00", open), true);
+});
+
+test("GRK-067: same-day re-pick keeps the time; other day clears it", () => {
+  const kept = catalogApplyDayPick(2, 2, { time: "10:00", liveStarts: "2026-09-25T15:00:00.000Z" });
+  assert.deepEqual(kept, { dayIndex: 2, time: "10:00", liveStarts: "2026-09-25T15:00:00.000Z" });
+  const cleared = catalogApplyDayPick(2, 3, { time: "10:00", liveStarts: "2026-09-25T15:00:00.000Z" });
+  assert.deepEqual(cleared, { dayIndex: 3, time: null, liveStarts: null });
+  assert.equal(catalogLiveDraftDayIndex({ dayIndex: 4, liveStarts: "2026-09-25T15:00:00.000Z" }), 4);
+  assert.equal(catalogLiveDraftDayIndex({ dayIndex: 4, time: null, liveStarts: null }), 0);
+  assert.equal(catalogLiveDraftDayIndex(null), 0);
 });
 
 test("price unit reads a string or a per-locale map from attributes", () => {
