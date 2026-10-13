@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { filterQaFixtureInboxRows, isQaFixtureInboxRow } from "./qa-fixture-row";
+import { filterQaFixtureInboxRows, isQaFixtureInboxRow, talentKeepsFixtureThreads } from "./qa-fixture-row";
 
 function row(partial: {
   contactName?: string;
@@ -55,4 +55,13 @@ test("filterQaFixtureInboxRows drops fixtures and recounts unread", () => {
   assert.equal(out.rows.length, 1);
   assert.equal(out.rows[0]?.contactName, "Sofía");
   assert.equal(out.unreadCount, 1);
+});
+
+test("QA accounts and demo talents keep fixture threads; a real talent does not", () => {
+  assert.equal(talentKeepsFixtureThreads({ isDemo: false, displayName: "QA Fixture — Max Talent" }), true);
+  assert.equal(talentKeepsFixtureThreads({ isDemo: false, displayName: "QA Grok Salon" }), true);
+  assert.equal(talentKeepsFixtureThreads({ isDemo: true, displayName: "Valeria" }), true);
+  assert.equal(talentKeepsFixtureThreads({ isDemo: false, displayName: "Diego Pestañas" }), false);
+  assert.equal(talentKeepsFixtureThreads({ isDemo: false, displayName: null }), false);
+  assert.equal(talentKeepsFixtureThreads({ isDemo: false, displayName: "Qatar Dance" }), false);
 });

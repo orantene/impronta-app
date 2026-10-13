@@ -8,6 +8,7 @@ import {
 } from "./support-engine-db";
 import { auditHq, auditTenant, notify } from "./support-engine-emit";
 import { supportFrom } from "./support-from";
+import { deriveTicketSubject } from "./ticket-title";
 import { requestSupportLocale, supportHandoffBody } from "./support-handoff-copy";
 import { assignEscalationOwner } from "./escalation-owner";
 import {
@@ -69,9 +70,12 @@ export async function createTicket(input: {
     ? "human"
     : (input.handledBy ?? "human");
   const now = new Date().toISOString();
-  const subject = input.messageOranDirectly
-    ? "Direct message"
-    : (input.subject ?? "").trim() || (input.body.trim().slice(0, 80) || "Support request");
+  // "Direct message" survives only when nothing was typed (the panel's canned
+  // body); a contact-form subject or first message always wins.
+  const subject =
+    input.messageOranDirectly && !(input.subject ?? "").trim()
+      ? "Direct message"
+      : deriveTicketSubject({ subject: input.subject, body: input.body });
 
   const insertRow: Record<string, unknown> = {
     tenant_id: input.tenantId,

@@ -45,3 +45,14 @@ export function filterQaFixtureInboxRows<T extends Pick<InboxRow, "contactName" 
     unreadCount: kept.reduce((n, row) => n + (row.unread ? 1 : 0), 0),
   };
 }
+
+/**
+ * Who keeps fixture threads in Messages: demo talents, and QA accounts (their
+ * display name starts with "QA", e.g. "QA Fixture - Max Talent"). Without the
+ * second case a QA talent's own test client ("QA Grok Cliente") matched the
+ * fixture filter, so its guest chat and quote showed "no messages yet".
+ * A real talent never has a name starting with "QA".
+ */
+export function talentKeepsFixtureThreads(talent: { isDemo: boolean; displayName?: string | null }): boolean {
+  return talent.isDemo || /^QA\b/i.test((talent.displayName ?? "").trim());
+}

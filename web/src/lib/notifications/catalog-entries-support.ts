@@ -198,6 +198,7 @@ const AGENT_REPLY: CatalogEntry = {
         brand,
         unsubscribeUrl,
         categoryLabel: "messages",
+        repliesRead: event.payload.repliesRead === true,
       }),
   },
 };
@@ -222,6 +223,7 @@ const AGENT_REPLY_GUEST: CatalogEntry = {
         brand,
         unsubscribeUrl,
         categoryLabel: "messages",
+        repliesRead: event.payload.repliesRead === true,
       }),
   },
 };
@@ -305,6 +307,7 @@ const GUEST_CONTACT_CONFIRM: CatalogEntry = {
         brand,
         unsubscribeUrl,
         categoryLabel: "messages",
+        repliesRead: event.payload.repliesRead === true,
       }),
   },
 };

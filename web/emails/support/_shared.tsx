@@ -38,6 +38,12 @@ type Props = {
   brand?: EmailBrand;
   unsubscribeUrl?: string;
   categoryLabel?: string;
+  /**
+   * True only when this send carries the signed Reply-To (SUPPORT_INBOUND_DOMAIN
+   * set), so an emailed reply really lands in the ticket thread. Default false:
+   * claiming "reply to this email" before the inbound address exists would be a lie.
+   */
+  repliesRead?: boolean;
 };
 
 /**
@@ -58,6 +64,12 @@ const REPLY_NOTE: Record<string, string> = {
   es: "Las respuestas a este correo no se leen. Usa el botón de arriba y tu mensaje llega a una persona.",
 };
 
+/** Used instead of REPLY_NOTE once the inbound address is live and tokened. */
+const REPLY_NOTE_READ: Record<string, string> = {
+  en: "You can reply to this email and your message reaches a person. Or use the button above.",
+  es: "Puedes responder a este correo y tu mensaje llega a una persona. O usa el botón de arriba.",
+};
+
 export function SupportMail({
   heading,
   intro,
@@ -69,7 +81,9 @@ export function SupportMail({
   brand,
   unsubscribeUrl,
   categoryLabel,
+  repliesRead = false,
 }: Props) {
+  const noteMap = repliesRead ? REPLY_NOTE_READ : REPLY_NOTE;
   return (
     <Layout
       preview={preview}
@@ -124,7 +138,7 @@ export function SupportMail({
         </table>
       ) : null}
       <Button brand={brand} href={ctaUrl}>{ctaLabel}</Button>
-      <Text style={note}>{REPLY_NOTE[brand?.locale ?? "en"] ?? REPLY_NOTE.en}</Text>
+      <Text style={note}>{noteMap[brand?.locale ?? "en"] ?? noteMap.en}</Text>
       {footnote ? <Text style={note}>{footnote}</Text> : null}
     </Layout>
   );

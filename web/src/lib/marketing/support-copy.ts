@@ -39,6 +39,10 @@ const en = {
   emailConsent:
     "By leaving your email you agree we can send replies about this conversation. You can unsubscribe from any message. We delete unconverted chats after 90 days.",
   askHuman: `Talk to ${SUPPORT_AGENT.name}`,
+  resumeTitle: `Your conversation with ${SUPPORT_AGENT.name}`,
+  resumeOpen: "Open the conversation",
+  resumeExpired:
+    "This reply link has expired or is no longer valid. Write to us below and we will pick it up.",
   contactTitle: "Contact us",
   contactBody: "Write to the team. This goes to a person, not the chat bot.",
   topicLabel: "Topic",
@@ -90,6 +94,10 @@ const es: MarketingSupportCopy = {
   emailConsent:
     "Al dejar tu email aceptas que te enviemos respuestas sobre esta conversacion. Puedes cancelar el email cuando quieras. Borramos los chats no convertidos a los 90 dias.",
   askHuman: `Hablar con ${SUPPORT_AGENT.name}`,
+  resumeTitle: `Tu conversación con ${SUPPORT_AGENT.name}`,
+  resumeOpen: "Abrir la conversación",
+  resumeExpired:
+    "Este enlace de respuesta venció o ya no es válido. Escríbenos abajo y lo retomamos.",
   contactTitle: "Contacto",
   contactBody: "Escribe al equipo. Esto llega a una persona, no al chat.",
   topicLabel: "Tema",
