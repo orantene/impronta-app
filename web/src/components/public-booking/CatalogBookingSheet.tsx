@@ -73,6 +73,7 @@ import { ServiceAddressField } from "./ServiceAddressField";
 import { useServiceAddress } from "./use-service-address";
 import { useCatalogBookingConfirm } from "./use-catalog-booking-confirm";
 import { CatalogDonePanel, CatalogSheetHeader } from "./catalog-done-panel";
+import { CatalogEmptyAskButton } from "./catalog-empty-ask-button";
 
 type Step = "choose" | "when" | "who" | "done";
 export type CatalogBookingDetail = OfferingRequestDetail & {
@@ -439,11 +440,7 @@ export function CatalogBookingSheet({
     if (onAsk) onAsk(handoff);
     else openCatalogBookingChat(handoff);
   };
-  const emptyConsultButton = (
-    <button type="button" className="jb-ask" data-catalog-empty-ask="" onClick={() => askAvailability()}>
-      {es ? "Solicitar un horario" : "Request a time"}
-    </button>
-  );
+  const emptyConsultButton = <CatalogEmptyAskButton es={es} onAsk={askAvailability} />;
 
   return (
     <div
