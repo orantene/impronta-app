@@ -9,6 +9,7 @@ import {
 } from "@/components/auth/auth-ui";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
+import { withLocaleHref } from "@/i18n/pathnames";
 import { getSiteUrl, isTalentSignupNext, normalizeOptionalNextPath } from "@/lib/auth-flow";
 import { readInviteFromCookieStore } from "@/lib/invites/cookie";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
@@ -127,11 +128,14 @@ export default async function LoginPage({
         href={
           proStartUrl
             ? proStartUrl
-            : passwordlessFirst
-            ? buildRegisterHref("client", nextPath ? { next: nextPath } : {})
-            : nextPath
-              ? `/register?next=${encodeURIComponent(nextPath)}`
-              : "/register"
+            : withLocaleHref(
+                passwordlessFirst
+                  ? buildRegisterHref("client", nextPath ? { next: nextPath } : {})
+                  : nextPath
+                    ? `/register?next=${encodeURIComponent(nextPath)}`
+                    : "/register",
+                locale,
+              )
         }
         className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
         style={{ color: "var(--plt-ink-soft)" }}

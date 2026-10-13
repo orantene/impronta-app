@@ -56,6 +56,11 @@ export type DestinationRequires = {
   readonly billing?: boolean;
   /** The workspace must have the point of sale switched on. */
   readonly posEnabled?: boolean;
+  /**
+   * Restaurant / counter surfaces (POS, Pedidos, Mesas). False for service
+   * appointment businesses (salon, clinic, cleaning) — TUL-525.
+   */
+  readonly counterOps?: boolean;
 };
 
 /**
@@ -136,5 +141,10 @@ export type WorkspaceNavContext = {
   readonly takesReservations: boolean;
   readonly runsEvents: boolean;
   readonly posEnabled: boolean;
+  /**
+   * True unless the industry is appointments-shaped without reservations.
+   * Gates POS / Pedidos / Mesas so a beauty studio never opens on a POS rail.
+   */
+  readonly counterOps: boolean;
   readonly canManageBilling: boolean;
 };

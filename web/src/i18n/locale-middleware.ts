@@ -271,6 +271,7 @@ export function resolveLocaleForPathname(
       cookieIsAuto: localeCookieIsAutoWritten(request),
       acceptLanguage: request.headers.get("accept-language"),
       country: request.headers.get("x-vercel-ip-country"),
+      urlLang: request.nextUrl?.searchParams.get("lang"),
       fallback: ambientDefault,
       enabledLocales: [...settings.publicLocales, settings.defaultLocale],
     });
