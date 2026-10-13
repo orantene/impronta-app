@@ -2,7 +2,7 @@
 
 import { guestCookieSigningEnabled } from "@/lib/guest-cookie";
 import { guestSupportMayServe } from "@/lib/support/guest-support-serve";
-import { resolveClientIp, resolveGuestSessionId } from "@/lib/guest/guest-session";
+import { ensureGuestSessionId, resolveClientIp, resolveGuestSessionId } from "@/lib/guest/guest-session";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
@@ -17,6 +17,7 @@ import {
 import { claimGuestResume } from "./guest-resume-claim";
 import { signGuestResumeToken, verifyGuestResumeToken } from "./guest-resume-token";
 import { supportFrom } from "./support-from";
+import { deriveTicketSubject } from "./ticket-title";
 import {
   mapMessageRow,
   mapTicketRow,
@@ -30,7 +31,7 @@ import { parseTalentSiteHelpContactInput } from "@/lib/support/talent-site-help-
 export type GuestSupportFail = { ok: false; error: string };
 export type GuestSupportOk<T extends object = object> = { ok: true } & T;
 
-async function requireSignedGuest(): Promise<
+async function requireSignedGuest(opts?: { mint?: boolean }): Promise<
   | {
       ok: true;
       admin: NonNullable<ReturnType<typeof createServiceRoleClient>>;
@@ -45,7 +46,9 @@ async function requireSignedGuest(): Promise<
   }
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Support chat is temporarily unavailable." };
-  const guestSessionId = await resolveGuestSessionId();
+  // Mint only for a link that proves ownership (email resume token): a
+  // signed-out visitor opening "Reply in app" has no guest cookie yet.
+  const guestSessionId = opts?.mint ? await ensureGuestSessionId() : await resolveGuestSessionId();
   if (!guestSessionId) {
     return { ok: false, error: "We couldn't identify your session. Please refresh and try again." };
   }
@@ -290,7 +293,7 @@ export async function resumeGuestThreadAction(input: {
   token: string;
 }): Promise<GuestSupportOk<{ ticketId: string }> | GuestSupportFail> {
   await requireNotImpersonating();
-  const ident = await requireSignedGuest();
+  const ident = await requireSignedGuest({ mint: true });
   if (!ident.ok) return ident;
   const verified = verifyGuestResumeToken(input.token);
   if (!verified.ok) return { ok: false, error: "That resume link is not valid anymore." };
@@ -443,7 +446,7 @@ export async function submitMarketingContactAction(input: {
       userId: ident.userId,
     },
     talentProfileId,
-    subject: `[guest] ${input.topic.trim() || "Contact form"}`,
+    subject: deriveTicketSubject({ subject: input.topic, body: input.message }),
     body: input.message.trim(),
     originSlug: talentSite ? "talent-site" : "/contact",
     contactEmail: email,

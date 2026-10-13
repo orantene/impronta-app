@@ -9,7 +9,7 @@
 
 import { NextResponse } from "next/server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { resolveClientApiRead } from "@/lib/impersonation/client-api-read";
 import { loadClientInquiryDetails } from "@/app/(workspace)/[tenantSlug]/_data-bridge/client-inquiry-details";
 
 export const dynamic = "force-dynamic";
@@ -22,22 +22,27 @@ export async function GET(req: Request) {
   const inquiryId = url.searchParams.get("inquiry");
   if (!inquiryId) return NextResponse.json({ error: "missing inquiry" }, { status: 400 });
 
-  const supabase = await createSupabaseServerClient();
-  if (!supabase) return NextResponse.json({ details: null });
+  // TUL-255: effective client (impersonation subject, else the session user).
+  const read = await resolveClientApiRead();
+  if (!read) return NextResponse.json({ details: null });
 
   // Authz: confirm this inquiry's client_user_id matches the actor before
   // running the loader. RLS would block the loader too, but this gives a
   // clean 403 instead of a silently-empty payload.
-  const { data: inq } = await supabase
+  const { data: inq } = await read.client
     .from("inquiries")
     .select("id, tenant_id, client_user_id")
     .eq("id", inquiryId)
     .maybeSingle();
   if (!inq) return NextResponse.json({ error: "not_found" }, { status: 404 });
-  if (inq.client_user_id !== session.user.id) {
+  if (inq.client_user_id !== read.userId) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
-  const details = await loadClientInquiryDetails(inq.tenant_id as string, inquiryId);
+  const details = await loadClientInquiryDetails(
+    inq.tenant_id as string,
+    inquiryId,
+    read.impersonated ? read.client : undefined,
+  );
   return NextResponse.json({ details });
 }

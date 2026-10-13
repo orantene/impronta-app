@@ -66,6 +66,8 @@ const ES: Record<string, string> = {
   "Publish site": "Publicar sitio",
   "Publishing…": "Publicando…",
   Undo: "Deshacer",
+  "Undo design change": "Deshacer cambio de diseño",
+  "Undo goes back to": "Deshacer vuelve a",
   "Design applied to your draft": "Diseño aplicado a tu borrador",
   "Nothing is public until you publish. After publishing you can change the design at any time.":
     "Nada es público hasta que publiques. Después puedes cambiar el diseño cuando quieras.",
