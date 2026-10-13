@@ -187,6 +187,23 @@ export function SupportPanel({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ ticketId: id }),
       });
+      // TUL-656: the AI reply is written server-side and normally arrives over
+      // realtime, but a socket that subscribed late or lagged left it hidden
+      // until the panel was reopened. Pull the thread once the turn is done.
+      const supabase = createClient();
+      if (supabase) {
+        const { data: msgs, error } = await supportFrom(supabase, "support_messages")
+          .select("*")
+          .eq("ticket_id", id)
+          .order("created_at", { ascending: true });
+        if (!error) {
+          dispatchThread({
+            type: "merge",
+            ticketId: id,
+            messages: (msgs ?? []).map(mapMessageRow).filter(Boolean) as SupportMessageRow[],
+          });
+        }
+      }
     } catch {
       /* fail-open: the route persists a system nudge when the model is down */
     } finally {
