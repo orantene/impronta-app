@@ -79,7 +79,6 @@ type MarketingLeadRow = {
 // Dedup marker + send helper live in `workspace-signup-failure-notify.ts`
 // (split out to keep this file under the 800-line cap).
 
-
 export type ProvisionWorkspaceResult =
   | {
       ok: true;
