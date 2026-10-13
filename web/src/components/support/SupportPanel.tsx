@@ -86,6 +86,8 @@ export function SupportPanel({
   const replay = useReplayBuffer();
   const unread = useSupportUnread(tickets);
   const { ticket, messages, loading: threadLoading } = selectThread(threadState, ticketId);
+  const [loadFailedFor, setLoadFailedFor] = useState<string | null>(null);
+  const threadLoadFailed = loadFailedFor !== null && loadFailedFor === ticketId && threadLoading;
   const wasOpenRef = useRef(open);
   useEffect(() => {
     // Reopening lands on Home, not on whichever thread was open last.
@@ -268,15 +270,21 @@ export function SupportPanel({
     // thread now on screen.
     let cancelled = false;
     void (async () => {
-      const { data: tRow } = await supportFrom(supabase, "support_tickets")
+      const { data: tRow, error: tErr } = await supportFrom(supabase, "support_tickets")
         .select("*")
         .eq("id", ticketId)
         .maybeSingle();
-      const { data: msgs } = await supportFrom(supabase, "support_messages")
+      const { data: msgs, error: mErr } = await supportFrom(supabase, "support_messages")
         .select("*")
         .eq("ticket_id", ticketId)
         .order("created_at", { ascending: true });
       if (cancelled) return;
+      if (tErr || mErr) {
+        // A failed read is not an empty thread: say so instead of showing "no messages".
+        setLoadFailedFor(ticketId);
+        return;
+      }
+      setLoadFailedFor(null);
       dispatchThread({
         type: "loaded",
         ticketId,
@@ -491,7 +499,12 @@ export function SupportPanel({
             onOpen={(id) => setView("thread", id)}
           />
         )}
-        {view === "thread" && threadLoading && (
+        {view === "thread" && threadLoadFailed && (
+          <div role="alert" style={{ padding: 24, fontSize: 13, color: COLORS.inkMuted }}>
+            {t("dashboard.adminSupport.threadLoadFailed")}
+          </div>
+        )}
+        {view === "thread" && threadLoading && !threadLoadFailed && (
           <div role="status" style={{ padding: 24, fontSize: 13, color: COLORS.inkMuted }}>
             {t("dashboard.adminSupport.threadLoading")}
           </div>
