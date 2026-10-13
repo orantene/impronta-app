@@ -7657,6 +7657,23 @@
         "units": "Unités",
         "priceDriftHint": "Le prix du catalogue est maintenant {price}"
       },
+      "engineLines": {
+        "allApprovals": "Toutes les approbations sont terminées.",
+        "offerReopened": "Offre rouverte pour modification.",
+        "offerRejected": "Le client a refusé l offre.",
+        "converted": "La demande est devenue une réservation.",
+        "cancelled": "Cette demande a été annulée. Aucune autre action n est nécessaire.",
+        "expired": "Cette demande a expiré avant d être réservée.",
+        "paused": "Un coordinateur a mis cette demande en pause. Aucune action n est nécessaire pour le moment.",
+        "talentDeclined": "Un talent a refusé son invitation. Pensez à prévoir une alternative.",
+        "talentSwapped": "Un talent de la sélection a été remplacé par un autre.",
+        "coordAccepted": "Le coordinateur a accepté l affectation.",
+        "coordDeclined": "Le coordinateur a refusé l affectation.",
+        "counterStarted": "Le coordinateur a lancé une contre-offre.",
+        "coordinating": "{name} coordonne maintenant cette demande.",
+        "notCoordinating": "{name} ne coordonne plus cette demande.",
+        "approved": "{name} a approuvé l offre."
+      },
       "pay": {
         "paidBy": "Payé par {name}",
         "foot": {
