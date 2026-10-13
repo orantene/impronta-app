@@ -1,3 +1,5 @@
+import { displayTicketTitle } from "./ticket-title";
+
 export function surfaceIcon(surface: string): { glyph: string; color: string } {
   if (surface === "workspace") return { glyph: "◆", color: "purple" };
   if (surface === "talent") return { glyph: "★", color: "amber" };
@@ -11,12 +13,35 @@ export function hqQueueSearchHaystack(row: {
     category: string | null;
     contactEmail: string | null;
     contactName: string | null;
+    ticketNumber?: number | null;
+    lastMessagePreview?: string | null;
   };
   tenantName: string | null;
+  tenantSlug?: string | null;
   requesterName: string | null;
   requesterEmail: string | null;
+  /** Public talent code (TAL-12345) of the talent the ticket is from or about. */
+  talentCode?: string | null;
 }): string {
-  return `${row.ticket.subject} ${row.ticket.category ?? ""} ${row.tenantName ?? ""} ${row.requesterName ?? ""} ${row.ticket.contactEmail ?? ""} ${row.ticket.contactName ?? ""} ${row.requesterEmail ?? ""}`.toLowerCase();
+  const t = row.ticket;
+  const num = typeof t.ticketNumber === "number" ? `#${t.ticketNumber} ${t.ticketNumber}` : "";
+  return [
+    num,
+    t.subject,
+    displayTicketTitle(t),
+    t.lastMessagePreview,
+    t.category,
+    row.tenantName,
+    row.tenantSlug,
+    row.requesterName,
+    t.contactEmail,
+    t.contactName,
+    row.requesterEmail,
+    row.talentCode,
+  ]
+    .map((v) => v ?? "")
+    .join(" ")
+    .toLowerCase();
 }
 
 export function guestHasNoReplyChannel(ticket: {

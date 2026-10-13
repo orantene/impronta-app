@@ -16,6 +16,7 @@ import {
 } from "./guest-support-abuse-guard";
 import { signGuestResumeToken, verifyGuestResumeToken } from "./guest-resume-token";
 import { supportFrom } from "./support-from";
+import { deriveTicketSubject } from "./ticket-title";
 import {
   mapMessageRow,
   mapTicketRow,
@@ -419,7 +420,7 @@ export async function submitMarketingContactAction(input: {
       userId: ident.userId,
     },
     talentProfileId,
-    subject: `[guest] ${input.topic.trim() || "Contact form"}`,
+    subject: deriveTicketSubject({ subject: input.topic, body: input.message }),
     body: input.message.trim(),
     originSlug: talentSite ? "talent-site" : "/contact",
     contactEmail: email,
