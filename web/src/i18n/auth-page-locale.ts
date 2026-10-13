@@ -33,6 +33,8 @@ export type AuthPageLocaleInput = {
   fallback: string;
   /** Locales that may be served on this host. */
   enabledLocales: readonly string[];
+  /** TUL-146 seeded-cookie rule; the legacy sign-up door (TUL-492) opts out. Default true. */
+  honorSeededAutoCookie?: boolean;
   /** `?lang=` on the URL (TUL-146): an explicit request for this page, beats the cookie. */
   urlLang?: string | null;
 };
@@ -49,7 +51,7 @@ export function resolveAuthPageLocale(input: AuthPageLocaleInput): string {
   // TUL-146: an auto cookie that is NOT the ambient default cannot come from the
   // fresh-visitor stamp (that always writes the default). It is the talent
   // dashboard's seeded primary language, a real signal that must survive sign-out.
-  if (input.cookieLocale && input.cookieIsAuto && input.cookieLocale !== input.fallback && input.enabledLocales.includes(input.cookieLocale)) {
+  if (input.honorSeededAutoCookie !== false && input.cookieLocale && input.cookieIsAuto && input.cookieLocale !== input.fallback && input.enabledLocales.includes(input.cookieLocale)) {
     return input.cookieLocale;
   }
   const detected = defaultFlowLocale({
