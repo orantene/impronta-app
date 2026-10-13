@@ -13606,6 +13606,7 @@
       "sendFailed": "No se pudo enviar. Tu texto sigue aquí, inténtalo de nuevo.",
       "rateLimited": "Enviaste muchos mensajes en poco tiempo. Tu texto sigue aquí. Inténtalo de nuevo en unos {minutes} minutos.",
       "threadLoading": "Cargando la conversación…",
+      "threadLoadFailed": "No pudimos cargar esta conversación. Cierra y vuelve a abrir el panel para intentarlo de nuevo.",
       "rateLimitedOne": "Enviaste muchos mensajes en poco tiempo. Tu texto sigue aquí. Inténtalo de nuevo en un minuto.",
       "cardTitle": "Actualización",
       "addNumber": "Añade un número para que te llamemos",
