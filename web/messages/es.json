@@ -2069,6 +2069,7 @@
         "fallbackSub": "Tu espacio de trabajo está listo. El texto del sitio necesitó otra pasada, así que abre con los valores del estilo; todo lo que nos contaste está guardado.",
         "existingSub": "Ya tienes un espacio de trabajo gratuito. Ábrelo; no se creó nada nuevo.",
         "factServices": "{n} servicios",
+        "factUnpriced": "{n} más para publicar cuando les pongas precio",
         "factCity": "en {city}",
         "factLogo": "tu logo",
         "factHours": "tu horario",

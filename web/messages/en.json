@@ -2069,6 +2069,7 @@
         "fallbackSub": "Your workspace is ready. The site copy needed another pass, so it opens with the Look's defaults; everything you told us is saved.",
         "existingSub": "You already have a free workspace. Open it; nothing new was created.",
         "factServices": "{n} services",
+        "factUnpriced": "{n} more to publish once you add a price",
         "factCity": "in {city}",
         "factLogo": "your logo",
         "factHours": "your hours",
