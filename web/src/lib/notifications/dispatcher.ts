@@ -24,6 +24,8 @@ import type {
 import {
   dispatchLogPatchFromHandlerResult,
   dispatchLogPatchFromThrown,
+  isChannelSkip,
+  type ChannelSkip,
 } from "./dispatcher-outcome";
 
 /**
@@ -200,14 +202,17 @@ export async function dispatchEventNotifications(
           // both are properly narrowed for the rest of the block.
           let outcome: ChannelSendOutcome | null = null;
           let providerRef: string | null = null;
-          if (typeof handlerResult === "string") {
+          let skipReason: string | undefined;
+          if (isChannelSkip(handlerResult)) {
+            skipReason = handlerResult.reason;
+          } else if (typeof handlerResult === "string") {
             providerRef = handlerResult;
           } else if (handlerResult != null) {
             outcome = handlerResult;
             providerRef = handlerResult.providerRef;
           }
           if (providerRef == null) {
-            await markDispatchLogSkipped(ctx.admin, logId);
+            await markDispatchLogSkipped(ctx.admin, logId, skipReason);
             entryResult.skipped++;
             void improntaLog(`notif.send.${channel}`, {
               eventType: enriched.type,
@@ -323,7 +328,7 @@ type ChannelHandler = (
   entry: CatalogEntry,
   recipient: ResolvedRecipient,
   ctx: AudienceContext,
-) => Promise<string | null | ChannelSendOutcome>;
+) => Promise<string | null | ChannelSendOutcome | ChannelSkip>;
 
 /**
  * A channel that can report the envelope it used (email). `providerRef` is the
@@ -431,8 +436,12 @@ async function markDispatchLogFailed(
   if (error) logServerError("notifications.dispatchLog.markFailed", error);
 }
 
-async function markDispatchLogSkipped(admin: SupabaseClient, id: string): Promise<void> {
-  const patch = dispatchLogPatchFromHandlerResult(null);
+async function markDispatchLogSkipped(
+  admin: SupabaseClient,
+  id: string,
+  skipReason?: string,
+): Promise<void> {
+  const patch = dispatchLogPatchFromHandlerResult(null, skipReason);
   const { error } = await admin
     .from("notification_dispatch_log")
     .update({
