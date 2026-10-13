@@ -43,6 +43,7 @@
  *   BEFORE the engine sendMessage; return code 'rate_limited' on failure.
  */
 
+import { failOpen } from "@/lib/rate-limit-fail-open";
 import type { GuestChatErrorCode } from "@/lib/inquiry/guest-chat-contract";
 
 // ---------------------------------------------------------------------------
@@ -493,9 +494,8 @@ async function getLimiter(): Promise<KvLimiter> {
           if (r.success) return { ok: true };
           const retryAfterMs = Math.max(0, r.reset - Date.now());
           return { ok: false, code: "rate_limited", retryAfterMs };
-        } catch {
-          // Fail open on Redis error.
-          return { ok: true };
+        } catch (err) {
+          return failOpen("checkInquiryCreate", key, err);
         }
       },
 
@@ -505,8 +505,8 @@ async function getLimiter(): Promise<KvLimiter> {
           if (r.success) return { ok: true };
           const retryAfterMs = Math.max(0, r.reset - Date.now());
           return { ok: false, code: "rate_limited", retryAfterMs };
-        } catch {
-          return { ok: true };
+        } catch (err) {
+          return failOpen("checkInquiryCreateByIp", key, err);
         }
       },
 
@@ -516,8 +516,8 @@ async function getLimiter(): Promise<KvLimiter> {
           if (r.success) return { ok: true };
           const retryAfterMs = Math.max(0, r.reset - Date.now());
           return { ok: false, code: "rate_limited", retryAfterMs };
-        } catch {
-          return { ok: true };
+        } catch (err) {
+          return failOpen("checkInquiryCreateByEmail", key, err);
         }
       },
 
@@ -527,9 +527,8 @@ async function getLimiter(): Promise<KvLimiter> {
           if (r.success) return { ok: true };
           const retryAfterMs = Math.max(0, r.reset - Date.now());
           return { ok: false, code: "rate_limited", retryAfterMs };
-        } catch {
-          // Fail open on Redis error.
-          return { ok: true };
+        } catch (err) {
+          return failOpen("checkMessageSend", key, err);
         }
       },
 
@@ -538,10 +537,8 @@ async function getLimiter(): Promise<KvLimiter> {
           const r = await authOtpSendEmailLimiter.limit(key);
           if (r.success) return { ok: true };
           return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch {
-          // Fail open: an Upstash outage must not lock people out of signing in.
-          // The in-memory counter in otp-actions.ts remains as the floor.
-          return { ok: true };
+        } catch (err) {
+          return failOpen("checkAuthOtpSendByEmail", key, err);
         }
       },
 
@@ -550,8 +547,8 @@ async function getLimiter(): Promise<KvLimiter> {
           const r = await authOtpSendIpLimiter.limit(key);
           if (r.success) return { ok: true };
           return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch {
-          return { ok: true };
+        } catch (err) {
+          return failOpen("checkAuthOtpSendByIp", key, err);
         }
       },
 
@@ -560,8 +557,8 @@ async function getLimiter(): Promise<KvLimiter> {
           const r = await authOtpVerifyEmailLimiter.limit(key);
           if (r.success) return { ok: true };
           return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch {
-          return { ok: true };
+        } catch (err) {
+          return failOpen("checkAuthOtpVerifyByEmail", key, err);
         }
       },
 
@@ -570,8 +567,8 @@ async function getLimiter(): Promise<KvLimiter> {
           const r = await authPasswordEmailLimiter.limit(key);
           if (r.success) return { ok: true };
           return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch {
-          return { ok: true };
+        } catch (err) {
+          return failOpen("checkAuthPasswordByEmail", key, err);
         }
       },
 
@@ -580,8 +577,8 @@ async function getLimiter(): Promise<KvLimiter> {
           const r = await authPasswordIpLimiter.limit(key);
           if (r.success) return { ok: true };
           return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch {
-          return { ok: true };
+        } catch (err) {
+          return failOpen("checkAuthPasswordByIp", key, err);
         }
       },
 
@@ -590,8 +587,8 @@ async function getLimiter(): Promise<KvLimiter> {
           const r = await authGoogleFinalizeUserLimiter.limit(key);
           if (r.success) return { ok: true };
           return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch {
-          return { ok: true };
+        } catch (err) {
+          return failOpen("checkAuthGoogleFinalizeByUser", key, err);
         }
       },
 
@@ -600,8 +597,8 @@ async function getLimiter(): Promise<KvLimiter> {
           const r = await authAppleFinalizeUserLimiter.limit(key);
           if (r.success) return { ok: true };
           return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch {
-          return { ok: true };
+        } catch (err) {
+          return failOpen("checkAuthAppleFinalizeByUser", key, err);
         }
       },
 
@@ -610,8 +607,8 @@ async function getLimiter(): Promise<KvLimiter> {
           const r = await supportTicketCreateLimiter.limit(key);
           if (r.success) return { ok: true };
           return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch {
-          return { ok: true };
+        } catch (err) {
+          return failOpen("checkSupportTicketCreate", key, err);
         }
       },
 
@@ -620,8 +617,8 @@ async function getLimiter(): Promise<KvLimiter> {
           const r = await supportMessageSendLimiter.limit(key);
           if (r.success) return { ok: true };
           return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch {
-          return { ok: true };
+        } catch (err) {
+          return failOpen("checkSupportMessageSend", key, err);
         }
       },
 
@@ -630,8 +627,8 @@ async function getLimiter(): Promise<KvLimiter> {
           const r = await bookingSlotsLimiter.limit(key);
           if (r.success) return { ok: true };
           return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch {
-          return { ok: true };
+        } catch (err) {
+          return failOpen("checkBookingSlots", key, err);
         }
       },
     };
