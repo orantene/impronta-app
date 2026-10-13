@@ -32,6 +32,7 @@ import {
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { CreateBookingButton } from "./create-booking-button";
+import { WorkNotFoundCard } from "./work-not-found-card";
 import { loadInquiryAlternates, loadGroupShortfalls } from "@/lib/inquiry/load-alternates";
 import { loadClientTrustSummary } from "@/lib/client-integrations/client-trust-summary";
 import { ClientTrustBadge } from "@/components/admin/integrations/ClientTrustBadge";
@@ -184,7 +185,10 @@ export default async function WorkspaceWorkDetailPage({
     .eq("tenant_id", scope.tenantId)
     .eq("id", inquiryId)
     .maybeSingle();
-  if (!inquiry) notFound();
+  // TUL-473: an id that is not in this workspace (another tenant's, the marketplace's, or removed)
+  // renders the explanation inline. `notFound()` here rendered the same copy on the server and
+  // then crashed the client ("This page couldn't load") on production.
+  if (!inquiry) return <WorkNotFoundCard t={t} backHref={`/${tenantSlug}/admin/work`} />;
 
   const { data: booking } = await supabase
     .from("agency_bookings")
