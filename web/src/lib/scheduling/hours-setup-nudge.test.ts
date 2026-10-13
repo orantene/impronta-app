@@ -36,7 +36,12 @@ describe("Today wiring (TUL-634)", () => {
       "src/components/admin/shell/internal/talent/agenda/AgendaTodayPage.tsx",
       "utf8",
     );
-    assert.match(src, /needsHoursSetupNudge\(hours, loadError\)/);
+    assert.match(src, /<HoursSetupNudgeButton[^>]*hours=\{hours\}[^>]*loadError=\{loadError\}/);
     assert.equal((src.match(/\{hoursNudge\}/g) ?? []).length, 2);
+    const btn = readFileSync(
+      "src/components/admin/shell/internal/talent/agenda/HoursSetupNudgeButton.tsx",
+      "utf8",
+    );
+    assert.match(btn, /needsHoursSetupNudge\(hours, loadError\)/);
   });
 });

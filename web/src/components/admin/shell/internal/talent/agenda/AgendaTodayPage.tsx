@@ -28,7 +28,7 @@ import { moneyFromLedger, rebookHint, rowFromAgendaItem, todayFromAgenda } from 
 import { placeLabelFor } from "./record-actions";
 import { serviceLabel } from "./calendar-view";
 import { hasBookingHoursWindows } from "@/lib/talent-agenda/first-day";
-import { HOURS_NUDGE_COPY, needsHoursSetupNudge } from "@/lib/scheduling/hours-setup-nudge";
+import { HoursSetupNudgeButton } from "./HoursSetupNudgeButton";
 import {
   bookedLabel,
   durationMinutes,
@@ -291,19 +291,7 @@ export function AgendaTodayPage({
   // which read setup_choices and named a palette the talent never picked.
   const resumeCard = profile ? <WebsiteTodayHero canBook={hasBookingHoursWindows(hours)} /> : null;
 
-  // TUL-634: independent of first-day/mode, so an established talent with no
-  // open hours still sees it.
-  const hoursNudge =
-    profile && onOpenAvailability && needsHoursSetupNudge(hours, loadError) ? (
-      <button
-        type="button"
-        onClick={onOpenAvailability}
-        data-testid="hours-setup-nudge"
-        className="min-h-[44px] w-full rounded-xl bg-[rgba(59,76,202,0.08)] px-3 text-left text-[13.5px] font-medium text-[var(--tc-accent)]"
-      >
-        {HOURS_NUDGE_COPY[copy.isSpanish ? "es" : "en"]}
-      </button>
-    ) : null;
+  const hoursNudge = profile ? <HoursSetupNudgeButton es={copy.isSpanish} hours={hours} loadError={loadError} onOpen={onOpenAvailability} /> : null;
 
   if (loadError) {
     return (
