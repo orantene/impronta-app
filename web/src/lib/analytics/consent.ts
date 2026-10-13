@@ -81,9 +81,10 @@ export function resolveConsent(stored: unknown, gpc: boolean, region: ConsentReg
  * expression that is true when analytics may run. Keep in step with
  * `resolveConsent`.
  */
-export const ANALYTICS_ALLOWED_JS =
-  `(function(){try{var s=localStorage.getItem('${CONSENT_STORAGE_KEY}');if(s==='granted'||s==='denied')return s==='granted';}catch(e){}` +
-  `return document.documentElement.getAttribute('${CONSENT_REGION_ATTR}')==='notice'&&navigator.globalPrivacyControl!==true;})()`;
+// Keep this a single template literal: when a `template + template` constant is
+// inlined into another template, the production minifier drops the text after
+// its first `${…}`, leaving a SyntaxError in every consent snippet.
+export const ANALYTICS_ALLOWED_JS = `(function(){try{var s=localStorage.getItem('${CONSENT_STORAGE_KEY}');if(s==='granted'||s==='denied')return s==='granted';}catch(e){}return document.documentElement.getAttribute('${CONSENT_REGION_ATTR}')==='notice'&&navigator.globalPrivacyControl!==true;})()`;
 
 /** Pure: should the banner appear on its own (no reopen request)? */
 export function shouldShowBanner(stored: unknown, gpc: boolean): boolean {

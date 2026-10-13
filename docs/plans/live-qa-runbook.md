@@ -46,6 +46,8 @@ cd web
 export JOURNEYS_ISOLATED=1
 export QA_PACK_FIXTURES=/abs/path/fixtures.json   # shape: e2e-isolated/live-qa-pack.fixtures.example.json
 npm run qa:live-pack
+# The pack first checks every fixture user's profiles.app_role against its name (superAdmin must be
+# super_admin, clientPortal a client) and stops with the exact fix if one is wrong (TUL-595).
 # one card:
 npm run qa:live-pack -- -g "TUL-379"
 ```
