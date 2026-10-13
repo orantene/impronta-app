@@ -20,6 +20,8 @@ import "server-only";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { loadPortalVisitWhenMap } from "@/lib/client-account/portal-visit-when.server";
+import { getRequestLocale } from "@/i18n/request-locale";
 
 export type UpcomingTalentRow = {
   participant_id: string;
@@ -33,6 +35,8 @@ export type UpcomingBooking = {
   event_date: string; // YYYY-MM-DD
   start_time: string | null;
   duration: string | null;
+  /** TUL-503: the booking start in its own zone, zone named (null when no booking time). */
+  when: { date: string; time: string; tzLabel: string } | null;
   /** Title rendered on the card (job_name from interpreted_query or company). */
   title: string;
   venue_name: string | null;
@@ -166,6 +170,7 @@ export async function loadClientUpcoming(
       talentByInquiry.set(p.inquiry_id, list);
     }
 
+    const whenMap = await loadPortalVisitWhenMap(tenantId, inquiryIds, await getRequestLocale());
     const today = todayKey();
     const oneWeekOut = new Date(now.getTime() + 7 * ONE_DAY_MS).toISOString().slice(0, 10);
 
@@ -199,8 +204,9 @@ export async function loadClientUpcoming(
         return {
           inquiry_id: row.id,
           event_date: row.event_date,
-          start_time: iq.date?.start_time ?? null,
+          start_time: whenMap[row.id] ? `${whenMap[row.id].time} ${whenMap[row.id].tzLabel}` : (iq.date?.start_time ?? null),
           duration: iq.date?.duration ?? null,
+          when: whenMap[row.id] ?? null,
           title:
             iq.client?.job_name?.trim()
             || row.company
