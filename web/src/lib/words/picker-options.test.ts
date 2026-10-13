@@ -68,10 +68,10 @@ test("every option has a non-blank label and blurb, in both languages", () => {
   assert.deepEqual(offenders, []);
 });
 
-test("all twenty-one presets are offered, with no duplicates", () => {
+test("all twenty-two presets are offered, with no duplicates", () => {
   const { options } = presetPickerModel(null, "en");
-  assert.equal(options.length, 21);
-  assert.equal(new Set(options.map((o) => o.value)).size, 21);
+  assert.equal(options.length, 22);
+  assert.equal(new Set(options.map((o) => o.value)).size, 22);
 });
 
 test("the summary says what the choice turns on, before it is made", () => {

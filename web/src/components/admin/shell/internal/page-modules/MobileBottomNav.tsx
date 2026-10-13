@@ -36,7 +36,7 @@ import {
   type WorkRole,
   type WorkspaceNavContext,
 } from "@/lib/workspace/destinations";
-import { canManageBilling, derivePreset, deriveWorkRole } from "@/lib/workspace/nav-context";
+import { deriveWorkRole, workspaceNavContext } from "@/lib/workspace/nav-context";
 import { mobileMoreActions } from "@/lib/workspace/mobile-more-actions";
 import { MOBILE_TAB_LIMIT } from "./SurfaceRouter";
 
@@ -89,6 +89,9 @@ export function MobileBottomNav() {
     workspacePosEnabled,
     workspacePosModes,
     effectiveTenant,
+    bridgeTenantIdentity,
+    bridgeSessionIdentity,
+    effectiveTeamMembers,
   } = useAdminShell();
   const copy = useDashboardText();
   const studioV2 = useTalentStudioV2();
@@ -116,29 +119,21 @@ export function MobileBottomNav() {
 
   if (state.surface === "workspace") {
     const role: WorkRole = deriveWorkRole(state.role);
-    // `agencies.settings.industry_preset` is not threaded onto the client
-    // shell's state today (context.tsx carries no such field) — this mirrors
-    // nav-context.ts's own documented fail-open default for missing input.
-    // Cafe/solo preset label overrides ("Menu and catalog", "Team",
-    // "Services") will not appear on mobile until a later task wires that
-    // data onto the bridge, the same gap the sidebar rewrite will hit too.
-    const preset = derivePreset({ industryPreset: undefined });
-    const navContext: WorkspaceNavContext = {
+    // TUL-525: same bridge → nav-context chain as the desktop rail, so a
+    // salon phone never draws Pedidos / Mesas / Open POS.
+    const navContext: WorkspaceNavContext = workspaceNavContext({
+      tenantIdentity: bridgeTenantIdentity,
+      sessionIdentity: bridgeSessionIdentity,
       workspaceType: state.workspaceType,
       plan: state.plan,
-      preset,
-      role,
-      professional: state.alsoTalent,
-      takesReservations: state.visiblePages.includes("reservations"),
-      runsEvents: state.visiblePages.includes("events"),
-      // The platform POS kill switch (`platform_settings.workspace_pos_enabled`,
-      // read by `loadPlatformWorkspaceUi`) now rides the shell bridge as
-      // `workspaceUi.posEnabled`, the same channel fabEnabled/tourEnabled/
-      // supportEnabled already use. It was a hardcoded `false` here, which made
-      // the Open POS row below unreachable no matter what HQ had switched on.
-      posEnabled: workspacePosEnabled,
-      canManageBilling: canManageBilling(role),
-    };
+      visiblePages: state.visiblePages,
+      teamMemberCount: effectiveTeamMembers.length,
+      hasTalentProfile: state.alsoTalent,
+      fallbackRole: state.role,
+    });
+    // Platform kill switch still gates Open POS; industry counterOps folds in.
+    const preset = navContext.preset;
+    const counterOps = navContext.counterOps;
 
     // The registry carries no per-destination "needs attention" marker today
     // (`Destination` has no such field). These are the same two live signals
@@ -188,7 +183,8 @@ export function MobileBottomNav() {
     // `enabledPosModesFromSettings` on the server — never the `[]` this file
     // used to pass, which could only ever resolve to "no modes".
     const moreActions = mobileMoreActions({
-      posEnabled: workspacePosEnabled,
+      posEnabled: workspacePosEnabled && counterOps,
+      counterOps,
       role: state.role,
       workspaceEnabledModes: workspacePosModes,
     });

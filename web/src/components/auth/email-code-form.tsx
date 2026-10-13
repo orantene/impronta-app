@@ -286,7 +286,7 @@ export function EmailCodeForm({
             required
             defaultValue={email}
             onChange={(e) => setEmailDraft(e.target.value)}
-            placeholder="you@studio.com"
+            placeholder={t("public.auth.form.emailPlaceholder")}
             className={AUTH_INPUT_CLASS}
             style={AUTH_INPUT_STYLE}
           />

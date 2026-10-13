@@ -166,7 +166,7 @@ export async function POST(request: Request) {
         slug: g.slug,
         purpose: g.purpose,
         youCanHere: g.youCanHere,
-        faqs: g.faqs.slice(0, 4),
+        faqs: g.faqs.slice(0, 6),
         category: g.ticketCategory,
         label: g.category,
       })),
