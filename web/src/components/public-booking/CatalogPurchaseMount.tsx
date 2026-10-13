@@ -38,6 +38,8 @@ export function CatalogPurchaseMount({
   captcha = null,
   mode = "live",
   onlineCollectReady,
+  signedIn = false,
+  client = null,
 }: {
   tenantId: string | null;
   locale: string;
@@ -45,6 +47,9 @@ export function CatalogPurchaseMount({
   mode?: CatalogBookingMode;
   /** PAY-2 B — platform Checkout ready; omit → assume ready (legacy). */
   onlineCollectReady?: boolean;
+  /** TUL-62: skip empty guest fields; session supplies contact. */
+  signedIn?: boolean;
+  client?: { displayName?: string | null; email?: string | null } | null;
 }) {
   const [sheet, setSheet] = useState<OfferingRequestDetail | null>(null);
   const [busy, setBusy] = useState(false);
@@ -53,8 +58,8 @@ export function CatalogPurchaseMount({
   const [variantId, setVariantId] = useState<string | null>(null);
   const [addOnIds, setAddOnIds] = useState<string[]>([]);
   const [qty, setQty] = useState(1);
-  const [guestName, setGuestName] = useState("");
-  const [guestEmail, setGuestEmail] = useState("");
+  const [guestName, setGuestName] = useState(() => client?.displayName?.trim() ?? "");
+  const [guestEmail, setGuestEmail] = useState(() => client?.email?.trim() ?? "");
   const [captchaToken, setCaptchaToken] = useState("");
   const [honeypot, setHoneypot] = useState("");
   const [sourcePage, setSourcePage] = useState("/");
@@ -216,10 +221,11 @@ export function CatalogPurchaseMount({
         variantId: variant?.id ?? null,
         addOnIds,
         quantity: effQty,
-        contactName: guestName,
-        contactEmail: guestEmail,
-        captchaToken: captchaToken || null,
-        honeypot,
+        // Signed-in: let the server use the session (same as BookableComposer).
+        contactName: signedIn ? undefined : guestName,
+        contactEmail: signedIn ? undefined : guestEmail,
+        captchaToken: signedIn ? undefined : captchaToken || null,
+        honeypot: signedIn ? undefined : honeypot,
         locale,
       });
       if (!res.ok) {
@@ -417,30 +423,42 @@ export function CatalogPurchaseMount({
 
         {mode === "live" ? (
           <div style={{ margin: "8px 0 12px" }}>
-            <GuestInstantContact
-              name={guestName}
-              email={guestEmail}
-              captcha={captcha}
-              locale={locale}
-              onName={setGuestName}
-              onEmail={setGuestEmail}
-              onCaptchaToken={setCaptchaToken}
-            />
-            <input
-              type="text"
-              value={honeypot}
-              onChange={(e) => setHoneypot(e.target.value)}
-              tabIndex={-1}
-              autoComplete="off"
-              aria-hidden
-              style={{
-                position: "absolute",
-                left: -9999,
-                height: 1,
-                width: 1,
-                overflow: "hidden",
-              }}
-            />
+            {signedIn ? (
+              <p style={{ fontSize: 13, color: MUTED, margin: 0 }} data-catalog-signed-in="">
+                {pickLocale(locale, {
+                  en: "You are signed in.",
+                  es: "Tu sesión está iniciada.",
+                })}
+                {client?.email ? ` ${client.email}` : ""}
+              </p>
+            ) : (
+              <>
+                <GuestInstantContact
+                  name={guestName}
+                  email={guestEmail}
+                  captcha={captcha}
+                  locale={locale}
+                  onName={setGuestName}
+                  onEmail={setGuestEmail}
+                  onCaptchaToken={setCaptchaToken}
+                />
+                <input
+                  type="text"
+                  value={honeypot}
+                  onChange={(e) => setHoneypot(e.target.value)}
+                  tabIndex={-1}
+                  autoComplete="off"
+                  aria-hidden
+                  style={{
+                    position: "absolute",
+                    left: -9999,
+                    height: 1,
+                    width: 1,
+                    overflow: "hidden",
+                  }}
+                />
+              </>
+            )}
           </div>
         ) : null}
 
