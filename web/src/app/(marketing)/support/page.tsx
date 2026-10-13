@@ -170,10 +170,7 @@ export default async function SupportPage() {
               writeLabel={t.startWrite}
               writeHref={L("/contact")}
               hint={t.startHint}
-              canAsk={marketingAskMayServe(
-                process.env.NEXT_PUBLIC_MARKETING_SUPPORT_FAB === "1",
-                guestCookieSigningEnabled(),
-              )}
+              canAsk={marketingAskMayServe(guestCookieSigningEnabled())}
             />
             <div
               className="plt-body mx-auto mt-8 flex max-w-2xl flex-col gap-4 text-left"

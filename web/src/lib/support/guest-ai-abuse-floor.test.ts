@@ -31,8 +31,7 @@ test("launcher and actions refuse when signing is off", () => {
   assert.equal(guestSupportMayServe(true), true);
 });
 
-test("marketing ask CTA serves only with FAB flag AND signing", () => {
-  assert.equal(marketingAskMayServe(true, true), true);
-  assert.equal(marketingAskMayServe(false, true), false);
-  assert.equal(marketingAskMayServe(true, false), false);
+test("marketing ask CTA depends only on guest signing (FAB flag not required)", () => {
+  assert.equal(marketingAskMayServe(true), true);
+  assert.equal(marketingAskMayServe(false), false);
 });
