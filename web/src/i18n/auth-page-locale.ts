@@ -13,6 +13,7 @@
  *   2. Otherwise the browser decides: an explicit `en-*` / `es-*` language wins;
  *      a Mexico country code picks Spanish only when the browser names no
  *      language we serve (same rule as `/start`, via `defaultFlowLocale`).
+ *      An auto cookie holding a NON-default locale (a talent's seeded language) counts as deliberate.
  *   3. Otherwise the auto cookie, then the ambient default, as before.
  *
  * Pure: no `next/*` imports, so the proxy and unit tests share it.
@@ -45,6 +46,12 @@ export function resolveAuthPageLocale(input: AuthPageLocaleInput): string {
   const urlLang = input.urlLang?.toLowerCase();
   if ((urlLang === "es" || urlLang === "en") && input.enabledLocales.includes(urlLang)) return urlLang;
   if (input.cookieLocale && !input.cookieIsAuto) return input.cookieLocale;
+  // TUL-146: an auto cookie that is NOT the ambient default cannot come from the
+  // fresh-visitor stamp (that always writes the default). It is the talent
+  // dashboard's seeded primary language, a real signal that must survive sign-out.
+  if (input.cookieLocale && input.cookieIsAuto && input.cookieLocale !== input.fallback && input.enabledLocales.includes(input.cookieLocale)) {
+    return input.cookieLocale;
+  }
   const detected = defaultFlowLocale({
     saved: null,
     acceptLanguage: input.acceptLanguage,

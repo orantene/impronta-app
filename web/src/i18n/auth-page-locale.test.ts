@@ -71,3 +71,20 @@ test("TUL-146: ?lang=es|en on the URL beats cookie and browser; unknown or disab
   assert.equal(resolveAuthPageLocale({ ...base, urlLang: "fr", acceptLanguage: "es" }), "es");
   assert.equal(resolveAuthPageLocale({ ...base, urlLang: "es", enabledLocales: ["en"] }), "en");
 });
+
+// TUL-146: the talent dashboard seeds `locale=es` + `locale_auto=1` from the
+// talent's own primary language. After sign-out that is a real signal and must
+// not lose to an English browser.
+test("an auto-written NON-default cookie (seeded Spanish) beats an English browser", () => {
+  assert.equal(
+    resolveAuthPageLocale({ ...base, cookieLocale: "es", cookieIsAuto: true, acceptLanguage: "en-US" }),
+    "es",
+  );
+});
+
+test("an auto-written default cookie still yields to a Spanish browser", () => {
+  assert.equal(
+    resolveAuthPageLocale({ ...base, cookieLocale: "en", cookieIsAuto: true, acceptLanguage: "es-MX" }),
+    "es",
+  );
+});

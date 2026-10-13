@@ -358,6 +358,23 @@ export function syncLocaleCookieForPath(
   }
 }
 
+/**
+ * TUL-146: `/en/login` is 308'd to `/login`. The explicit `/en` prefix is a
+ * choice, exactly like `/es`, but `syncLocaleCookieForPath` only records the
+ * non-default case. Without this the redirected page re-derives its language
+ * from a Spanish cookie or browser. Writes a DELIBERATE `locale=<default>`.
+ */
+export function syncLocaleCookieForDefaultPrefixStrip(
+  res: import("next/server").NextResponse,
+  originalPathname: string,
+  settings: LanguageSettings = FALLBACK_LANGUAGE_SETTINGS,
+): void {
+  const seg = firstSegment(originalPathname);
+  if (!seg || seg !== settings.defaultLocale) return;
+  res.cookies.set(LOCALE_COOKIE, seg, localeCookieOptions);
+  clearLocaleCookieAutoMarker(res);
+}
+
 export function redirectToLocaleEquivalent(
   request: NextRequest,
   locale: string,
