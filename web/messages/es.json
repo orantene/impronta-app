@@ -383,7 +383,6 @@
       "eventDateOptional": "Fecha del evento (opcional)",
       "booking": "Reservando…",
       "confirmAndBook": "Confirmar y reservar · {price}",
-      "viewInquiry": "Ver tu solicitud",
       "addToCurrentTitle": "Añadir a esta solicitud",
       "addToCurrentSubOne": "1 talento hasta ahora",
       "addToCurrentSubOther": "{count} talentos hasta ahora",
@@ -891,7 +890,8 @@
         "whatsapp": "WhatsApp",
         "email": "Correo",
         "confirmByHand": "Ella confirma a mano.",
-        "bookInstant": "Puedes reservar un horario en esta página."
+        "bookInstant": "Puedes reservar un horario en esta página.",
+        "bookingsPaused": "No estoy tomando nuevas reservas por ahora. Puedes consultarme."
       }
     },
     "guestChat": {

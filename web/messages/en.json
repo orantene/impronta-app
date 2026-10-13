@@ -383,7 +383,6 @@
       "eventDateOptional": "Event date (optional)",
       "booking": "Booking…",
       "confirmAndBook": "Confirm & book · {price}",
-      "viewInquiry": "View your inquiry",
       "addToCurrentTitle": "Add to this inquiry",
       "addToCurrentSubOne": "1 talent so far",
       "addToCurrentSubOther": "{count} talent so far",
@@ -891,7 +890,8 @@
         "whatsapp": "WhatsApp",
         "email": "Email",
         "confirmByHand": "She confirms by hand.",
-        "bookInstant": "You can book a time on this page."
+        "bookInstant": "You can book a time on this page.",
+        "bookingsPaused": "Not taking new bookings right now. You can still send an inquiry."
       }
     },
     "guestChat": {
