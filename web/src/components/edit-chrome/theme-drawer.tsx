@@ -1455,8 +1455,8 @@ function btnPrimaryStyle(disabled: boolean) {
   } as const;
 }
 
-function trOpts<T extends { label: string }>(opts: ReadonlyArray<T>, t: (s: string) => string): T[] {
-  return opts.map((o) => ({ ...o, label: t(o.label) }));
+function trOpts<T extends { label: unknown }>(opts: ReadonlyArray<T>, t: (s: string) => string): T[] {
+  return opts.map((o) => (typeof o.label === "string" ? ({ ...o, label: t(o.label) } as T) : o));
 }
 
 function prettyPreset(slug: string): string {
