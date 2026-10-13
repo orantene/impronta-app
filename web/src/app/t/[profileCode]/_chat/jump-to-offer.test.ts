@@ -5,8 +5,8 @@ import { jumpToOfferAnchor } from "./jump-to-offer";
 
 type Fake = { scrolled: unknown; focused: boolean; button: { focused: boolean } | null };
 
-function anchor(button: boolean): Fake & { scrollIntoView: (o: unknown) => void; focus: () => void; querySelector: () => unknown } {
-  const a: Fake & { scrollIntoView: (o: unknown) => void; focus: () => void; querySelector: () => unknown } = {
+function anchor(button: boolean): Fake & { scrollIntoView: (o: unknown) => void; focus: () => void; querySelector: () => { focus: () => void } | null } {
+  const a: Fake & { scrollIntoView: (o: unknown) => void; focus: () => void; querySelector: () => { focus: () => void } | null } = {
     scrolled: null,
     focused: false,
     button: button ? { focused: false } : null,
