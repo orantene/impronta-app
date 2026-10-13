@@ -89,8 +89,11 @@ export function useSupportInboxRealtime(opts: {
     let cancelled = false;
     let channel: ReturnType<typeof supabase.channel> | null = null;
     void (async () => {
-      const { data } = await supabase.auth.getSession();
-      await supabase.realtime.setAuth(data.session?.access_token ?? null);
+      // No session -> an anon socket gets nothing through RLS, so skip the
+      // subscription instead of silently listening to nothing.
+      const { data, error } = await supabase.auth.getSession();
+      if (error || !data.session) return;
+      await supabase.realtime.setAuth(data.session.access_token);
       if (cancelled) return;
       channel = supabase
         .channel("support_inbox")
