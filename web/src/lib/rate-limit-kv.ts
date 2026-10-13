@@ -250,6 +250,7 @@ interface KvLimiter {
   checkAuthAppleFinalizeByUser(key: string): Promise<KvRateLimitResult>;
   /** Support tickets: 5 creates / 60 min / user. */
   checkSupportTicketCreate(key: string): Promise<KvRateLimitResult>;
+  checkFeatureRequestCreate(key: string): Promise<KvRateLimitResult>;
   /** Support messages: 30 / 60 min / user. */
   checkSupportMessageSend(key: string): Promise<KvRateLimitResult>;
   /** Public booking slots: 60 / 60 s / IP. */
@@ -292,6 +293,9 @@ const noopLimiter: KvLimiter = {
     return { ok: true };
   },
   async checkSupportTicketCreate() {
+    return { ok: true };
+  },
+  async checkFeatureRequestCreate() {
     return { ok: true };
   },
   async checkSupportMessageSend() {
@@ -473,6 +477,14 @@ async function getLimiter(): Promise<KvLimiter> {
       analytics: false,
     });
 
+    // TUL-626: feature ideas get their own budget so they never eat the ticket one.
+    const featureRequestCreateLimiter = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(10, "60 m"),
+      prefix: "rl:feature_request_create",
+      analytics: false,
+    });
+
     const supportMessageSendLimiter = new Ratelimit({
       redis,
       limiter: Ratelimit.slidingWindow(30, "60 m"),
@@ -612,6 +624,16 @@ async function getLimiter(): Promise<KvLimiter> {
         }
       },
 
+      async checkFeatureRequestCreate(key: string): Promise<KvRateLimitResult> {
+        try {
+          const r = await featureRequestCreateLimiter.limit(key);
+          if (r.success) return { ok: true };
+          return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
+        } catch (err) {
+          return failOpen("checkFeatureRequestCreate", key, err);
+        }
+      },
+
       async checkSupportMessageSend(key: string): Promise<KvRateLimitResult> {
         try {
           const r = await supportMessageSendLimiter.limit(key);
@@ -747,6 +769,12 @@ export async function checkAuthGoogleFinalizeByUser(key: string): Promise<KvRate
 export async function checkAuthAppleFinalizeByUser(key: string): Promise<KvRateLimitResult> {
   const limiter = await getLimiter();
   return limiter.checkAuthAppleFinalizeByUser(key);
+}
+
+/** Feature ideas: 10 per 60 minutes per user, separate from the ticket budget (TUL-626). */
+export async function checkFeatureRequestCreate(userId: string): Promise<KvRateLimitResult> {
+  const limiter = await getLimiter();
+  return limiter.checkFeatureRequestCreate(`feature_request:${userId}`);
 }
 
 /** Support tickets: 5 new tickets per 60 minutes per user. */
