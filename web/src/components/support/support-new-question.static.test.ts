@@ -10,7 +10,7 @@ test("a resolved thread offers a new question and Message-Oran carries a real su
   assert.match(panel, /ticket\?\.status === "resolved"[\s\S]*dashboard\.adminSupport\.newQuestion"/);
   assert.match(panel, /subject: t\("dashboard\.adminSupport\.messageOranSubject"\)/);
   const engine = read("src/lib/support/support-engine.ts");
-  assert.match(engine, /messageOranDirectly\s*\?\s*givenSubject \|\| "Direct message"/);
+  assert.match(engine, /messageOranDirectly && !\(input\.subject \?\? ""\)\.trim\(\)\s*\?\s*"Direct message"/);
   for (const l of ["en", "es", "fr"]) {
     const m = JSON.parse(read(`messages/${l}.json`));
     const g = (o: Record<string, unknown>, k: string) => o[k] as Record<string, string>;
