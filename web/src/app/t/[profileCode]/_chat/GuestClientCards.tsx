@@ -189,6 +189,8 @@ export function GuestClientCardRow({
     <div
       className="msgv5"
       data-guest-client-card={message.kind}
+      // TUL-280: the strip's "Ver oferta" jump lands on the live offer card.
+      data-guest-offer-anchor={model.offerCards.has(message.id) ? "true" : undefined}
       style={
         accent
           ? ({

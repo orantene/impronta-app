@@ -944,6 +944,7 @@
       "statusBooked": "Booked",
       "statusClosed": "Closed",
       "kindOffer": "Offer",
+      "offerSentBody": "You have a new offer. Review it below.",
       "kindPaymentRequested": "Payment requested",
       "kindPaymentReceived": "Payment received",
       "kindCoordinator": "Coordinator",
