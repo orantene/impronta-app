@@ -43,7 +43,7 @@
  *   BEFORE the engine sendMessage; return code 'rate_limited' on failure.
  */
 
-import { failOpen } from "@/lib/rate-limit-fail-open";
+import { runLimiter } from "@/lib/rate-limit-run";
 import type { GuestChatErrorCode } from "@/lib/inquiry/guest-chat-contract";
 
 // ---------------------------------------------------------------------------
@@ -501,157 +501,63 @@ async function getLimiter(): Promise<KvLimiter> {
 
     _limiter = {
       async checkInquiryCreate(key: string): Promise<KvRateLimitResult> {
-        try {
-          const r = await inquiryCreateLimiter.limit(key);
-          if (r.success) return { ok: true };
-          const retryAfterMs = Math.max(0, r.reset - Date.now());
-          return { ok: false, code: "rate_limited", retryAfterMs };
-        } catch (err) {
-          return failOpen("checkInquiryCreate", key, err);
-        }
+        return runLimiter("checkInquiryCreate", inquiryCreateLimiter, key);
       },
 
       async checkInquiryCreateByIp(key: string): Promise<KvRateLimitResult> {
-        try {
-          const r = await inquiryCreateIpLimiter.limit(key);
-          if (r.success) return { ok: true };
-          const retryAfterMs = Math.max(0, r.reset - Date.now());
-          return { ok: false, code: "rate_limited", retryAfterMs };
-        } catch (err) {
-          return failOpen("checkInquiryCreateByIp", key, err);
-        }
+        return runLimiter("checkInquiryCreateByIp", inquiryCreateIpLimiter, key);
       },
 
       async checkInquiryCreateByEmail(key: string): Promise<KvRateLimitResult> {
-        try {
-          const r = await inquiryCreateEmailLimiter.limit(key);
-          if (r.success) return { ok: true };
-          const retryAfterMs = Math.max(0, r.reset - Date.now());
-          return { ok: false, code: "rate_limited", retryAfterMs };
-        } catch (err) {
-          return failOpen("checkInquiryCreateByEmail", key, err);
-        }
+        return runLimiter("checkInquiryCreateByEmail", inquiryCreateEmailLimiter, key);
       },
 
       async checkMessageSend(key: string): Promise<KvRateLimitResult> {
-        try {
-          const r = await messageSendLimiter.limit(key);
-          if (r.success) return { ok: true };
-          const retryAfterMs = Math.max(0, r.reset - Date.now());
-          return { ok: false, code: "rate_limited", retryAfterMs };
-        } catch (err) {
-          return failOpen("checkMessageSend", key, err);
-        }
+        return runLimiter("checkMessageSend", messageSendLimiter, key);
       },
 
       async checkAuthOtpSendByEmail(key: string): Promise<KvRateLimitResult> {
-        try {
-          const r = await authOtpSendEmailLimiter.limit(key);
-          if (r.success) return { ok: true };
-          return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch (err) {
-          return failOpen("checkAuthOtpSendByEmail", key, err);
-        }
+        return runLimiter("checkAuthOtpSendByEmail", authOtpSendEmailLimiter, key);
       },
 
       async checkAuthOtpSendByIp(key: string): Promise<KvRateLimitResult> {
-        try {
-          const r = await authOtpSendIpLimiter.limit(key);
-          if (r.success) return { ok: true };
-          return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch (err) {
-          return failOpen("checkAuthOtpSendByIp", key, err);
-        }
+        return runLimiter("checkAuthOtpSendByIp", authOtpSendIpLimiter, key);
       },
 
       async checkAuthOtpVerifyByEmail(key: string): Promise<KvRateLimitResult> {
-        try {
-          const r = await authOtpVerifyEmailLimiter.limit(key);
-          if (r.success) return { ok: true };
-          return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch (err) {
-          return failOpen("checkAuthOtpVerifyByEmail", key, err);
-        }
+        return runLimiter("checkAuthOtpVerifyByEmail", authOtpVerifyEmailLimiter, key);
       },
 
       async checkAuthPasswordByEmail(key: string): Promise<KvRateLimitResult> {
-        try {
-          const r = await authPasswordEmailLimiter.limit(key);
-          if (r.success) return { ok: true };
-          return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch (err) {
-          return failOpen("checkAuthPasswordByEmail", key, err);
-        }
+        return runLimiter("checkAuthPasswordByEmail", authPasswordEmailLimiter, key);
       },
 
       async checkAuthPasswordByIp(key: string): Promise<KvRateLimitResult> {
-        try {
-          const r = await authPasswordIpLimiter.limit(key);
-          if (r.success) return { ok: true };
-          return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch (err) {
-          return failOpen("checkAuthPasswordByIp", key, err);
-        }
+        return runLimiter("checkAuthPasswordByIp", authPasswordIpLimiter, key);
       },
 
       async checkAuthGoogleFinalizeByUser(key: string): Promise<KvRateLimitResult> {
-        try {
-          const r = await authGoogleFinalizeUserLimiter.limit(key);
-          if (r.success) return { ok: true };
-          return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch (err) {
-          return failOpen("checkAuthGoogleFinalizeByUser", key, err);
-        }
+        return runLimiter("checkAuthGoogleFinalizeByUser", authGoogleFinalizeUserLimiter, key);
       },
 
       async checkAuthAppleFinalizeByUser(key: string): Promise<KvRateLimitResult> {
-        try {
-          const r = await authAppleFinalizeUserLimiter.limit(key);
-          if (r.success) return { ok: true };
-          return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch (err) {
-          return failOpen("checkAuthAppleFinalizeByUser", key, err);
-        }
+        return runLimiter("checkAuthAppleFinalizeByUser", authAppleFinalizeUserLimiter, key);
       },
 
       async checkSupportTicketCreate(key: string): Promise<KvRateLimitResult> {
-        try {
-          const r = await supportTicketCreateLimiter.limit(key);
-          if (r.success) return { ok: true };
-          return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch (err) {
-          return failOpen("checkSupportTicketCreate", key, err);
-        }
+        return runLimiter("checkSupportTicketCreate", supportTicketCreateLimiter, key);
       },
 
       async checkFeatureRequestCreate(key: string): Promise<KvRateLimitResult> {
-        try {
-          const r = await featureRequestCreateLimiter.limit(key);
-          if (r.success) return { ok: true };
-          return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch (err) {
-          return failOpen("checkFeatureRequestCreate", key, err);
-        }
+        return runLimiter("checkFeatureRequestCreate", featureRequestCreateLimiter, key);
       },
 
       async checkSupportMessageSend(key: string): Promise<KvRateLimitResult> {
-        try {
-          const r = await supportMessageSendLimiter.limit(key);
-          if (r.success) return { ok: true };
-          return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch (err) {
-          return failOpen("checkSupportMessageSend", key, err);
-        }
+        return runLimiter("checkSupportMessageSend", supportMessageSendLimiter, key);
       },
 
       async checkBookingSlots(key: string): Promise<KvRateLimitResult> {
-        try {
-          const r = await bookingSlotsLimiter.limit(key);
-          if (r.success) return { ok: true };
-          return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch (err) {
-          return failOpen("checkBookingSlots", key, err);
-        }
+        return runLimiter("checkBookingSlots", bookingSlotsLimiter, key);
       },
     };
   } catch {
