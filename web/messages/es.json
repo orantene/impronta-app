@@ -382,7 +382,6 @@
       "eventDateOptional": "Fecha del evento (opcional)",
       "booking": "Reservando…",
       "confirmAndBook": "Confirmar y reservar · {price}",
-      "viewInquiry": "Ver tu solicitud",
       "addToCurrentTitle": "Añadir a esta solicitud",
       "addToCurrentSubOne": "1 talento hasta ahora",
       "addToCurrentSubOther": "{count} talentos hasta ahora",

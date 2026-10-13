@@ -382,7 +382,6 @@
       "eventDateOptional": "Event date (optional)",
       "booking": "Booking…",
       "confirmAndBook": "Confirm & book · {price}",
-      "viewInquiry": "View your inquiry",
       "addToCurrentTitle": "Add to this inquiry",
       "addToCurrentSubOne": "1 talent so far",
       "addToCurrentSubOther": "{count} talent so far",
