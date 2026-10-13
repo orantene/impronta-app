@@ -67,6 +67,20 @@ test("Spanish descriptions derive too", () => {
   assert.equal(pickSignupPreset({ businessDescription: "Clínica dental" }), "clinic");
   assert.equal(pickSignupPreset({ businessDescription: "Taquería" }), "restaurant");
   assert.equal(pickSignupPreset({ businessDescription: "Renta de bicis" }), "rentals");
+  // TUL-525: an accented "Salón de belleza" fell through to custom and kept POS.
+  assert.equal(pickSignupPreset({ businessDescription: "Salón de belleza" }), "salon_barber");
+  assert.equal(pickSignupPreset({ businessDescription: "Uñas y pestañas en Cancún" }), "salon_barber");
+  assert.equal(pickSignupPreset({ businessDescription: "Salón de eventos" }), "custom");
+});
+
+test("TUL-568: home-service businesses derive home_services, not custom or a gym", () => {
+  for (const businessDescription of [
+    "Cleaning service", "House cleaning in Cancún", "Limpieza de casas", "Estudio de limpieza",
+    "Servicio a domicilio", "Handyman", "Plomería y electricista",
+  ]) {
+    assert.equal(pickSignupPreset({ businessDescription }), "home_services", businessDescription);
+  }
+  assert.equal(pickSignupPreset({ businessDescription: "Dry cleaning" }), "dropoff_service");
 });
 
 test("an agency says what it is by choosing the word", () => {

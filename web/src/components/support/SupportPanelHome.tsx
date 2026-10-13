@@ -167,7 +167,9 @@ export function HomeView({
             </span>
             {unreadCount > 0 ? (
               <span style={{ fontSize: 11, fontWeight: 700, color: COLORS.coralDeep, background: COLORS.coralSoft, padding: "1px 6px", borderRadius: 6 }}>
-                {interpolate(t("dashboard.adminSupport.newReplies"), { n: String(unreadCount) })}
+                {unreadCount === 1
+                  ? t("dashboard.adminSupport.newRepliesOne")
+                  : interpolate(t("dashboard.adminSupport.newReplies"), { n: String(unreadCount) })}
               </span>
             ) : null}
             <button
