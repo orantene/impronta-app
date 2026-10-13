@@ -31,6 +31,28 @@ test("free + in-person → studio pay copy (es/en)", () => {
   );
 });
 
+test("GRK-066: free + in-person at client place never says studio", () => {
+  const es = whoStepPaymentCopy({
+    reserveMode: "free",
+    allowPayInPerson: true,
+    depositPct: null,
+    payAtClientPlace: true,
+    locale: "es",
+  });
+  assert.match(es, /día del servicio/);
+  assert.doesNotMatch(es, /estudio/);
+
+  const en = whoStepPaymentCopy({
+    reserveMode: "free",
+    allowPayInPerson: true,
+    depositPct: null,
+    payAtClientPlace: true,
+    locale: "en",
+  });
+  assert.match(en, /day of the service/i);
+  assert.doesNotMatch(en, /studio/i);
+});
+
 test("deposit copy includes percent and never promises studio-only", () => {
   const es = whoStepPaymentCopy({
     reserveMode: "deposit",
@@ -200,6 +222,30 @@ test("done-step next action restates studio vs payment (never silent paid)", () 
       reserveMode: "free",
       allowPayInPerson: true,
       depositPct: null,
+      locale: "es",
+      wrote: true,
+      isRequest: false,
+    }),
+    /estudio/,
+  );
+  assert.match(
+    doneStepNextActionCopy({
+      reserveMode: "free",
+      allowPayInPerson: true,
+      depositPct: null,
+      payAtClientPlace: true,
+      locale: "es",
+      wrote: true,
+      isRequest: false,
+    }),
+    /día del servicio/,
+  );
+  assert.doesNotMatch(
+    doneStepNextActionCopy({
+      reserveMode: "free",
+      allowPayInPerson: true,
+      depositPct: null,
+      payAtClientPlace: true,
       locale: "es",
       wrote: true,
       isRequest: false,

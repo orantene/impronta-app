@@ -361,8 +361,7 @@ export function CatalogBookingSheet({
     reserveMode: detail.reserveMode,
     allowPayInPerson: detail.allowPayInPerson,
     depositPct: detail.depositPct,
-    onlineCollectReady,
-    locale,
+    onlineCollectReady, payAtClientPlace: addr.rule === "required", locale,
     offeringIntent: detail.intent,
     bookingSettings,
   });
@@ -639,6 +638,7 @@ export function CatalogBookingSheet({
                 time={time}
                 tz={mode === "live" ? liveTz : null}
                 total={isQuote ? (es ? "A cotizar" : "Quote") : money(total, detail.currency)}
+                addressNote={addr.rule === "required" ? "client" : "studio"}
               />
               <label className="jb-field">
                 <span>{es ? "Nombre" : "Name"}</span>
@@ -719,8 +719,7 @@ export function CatalogBookingSheet({
                 reserveMode: detail.reserveMode,
                 allowPayInPerson: detail.allowPayInPerson,
                 depositPct: detail.depositPct,
-                onlineCollectReady,
-                locale,
+                onlineCollectReady, payAtClientPlace: addr.rule === "required", locale,
                 wrote,
                 isRequest,
               })}
