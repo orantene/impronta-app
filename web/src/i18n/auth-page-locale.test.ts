@@ -64,3 +64,10 @@ test("TUL-492: an en-US browser from Mexico gets English on every auth page; Mex
   // English not enabled on this host: never forced
   assert.equal(resolveAuthPageLocale({ ...base, enabledLocales: ["es"], fallback: "es", acceptLanguage: "en-US", country: "MX" }), "es");
 });
+
+test("TUL-146: ?lang=es|en on the URL beats cookie and browser; unknown or disabled values are ignored", () => {
+  assert.equal(resolveAuthPageLocale({ ...base, urlLang: "es", cookieLocale: "en", acceptLanguage: "en-US" }), "es");
+  assert.equal(resolveAuthPageLocale({ ...base, urlLang: "en", cookieLocale: "es", acceptLanguage: "es-MX" }), "en");
+  assert.equal(resolveAuthPageLocale({ ...base, urlLang: "fr", acceptLanguage: "es" }), "es");
+  assert.equal(resolveAuthPageLocale({ ...base, urlLang: "es", enabledLocales: ["en"] }), "en");
+});

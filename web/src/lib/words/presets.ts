@@ -58,6 +58,7 @@ export const INDUSTRY_PRESET_IDS = [
   // Ratified by the CEO 2026-09-04. Ids are permanent: a rename after this is a
   // migration, because a tenant's stored `industry_preset` is keyed by it.
   "dropoff_service",
+  "home_services",
   "practice",
   "private_chef",
   "act",
@@ -415,6 +416,28 @@ const PRESETS: Readonly<Record<IndustryPresetId, IndustryPreset>> = {
     features: { menu: true, reservations: false, events: false, appointments: false },
     headerVerb: "order",
     chatVoice: { en: "What can we take in for you?", es: "¿Qué te recibimos?" },
+    designId: "services",
+    representsPeople: false,
+  },
+  home_services: {
+    id: "home_services",
+    label: { en: "Home services", es: "Servicios a domicilio" },
+    blurb: { en: "visits, quotes, schedule", es: "visitas, cotizaciones, agenda" },
+    // Cleaning, handyman, plumbing, gardening: the team goes to the customer.
+    // Ruled by the PM 2026-10-10 (TUL-568): site, booking, inbox and agenda only.
+    words: {
+      ...STAFF_WORDS,
+      "menu.item": { en: "Service", es: "Servicio" },
+      "menu.items": { en: "Services", es: "Servicios" },
+      "appointments.item": { en: "Visit", es: "Visita" },
+      "appointments.items": { en: "Visits", es: "Visitas" },
+      "appointments.cta": { en: "Book", es: "Agendar" },
+      "customers.person": { en: "Client", es: "Cliente" },
+      "customers.people": { en: "Clients", es: "Clientes" },
+    },
+    features: { menu: true, reservations: false, events: false, appointments: true },
+    headerVerb: "book",
+    chatVoice: { en: "What needs doing, and where?", es: "¿Qué necesitas y dónde?" },
     designId: "services",
     representsPeople: false,
   },

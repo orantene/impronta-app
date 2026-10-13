@@ -312,3 +312,17 @@ test("AUD-023: setup choices persist server-side + Today resume card", () => {
   assert.match(card, /maison-website-resume-card/);
   assert.match(card, /Continue your website/);
 });
+
+test("TUL-658: Review names the pending (draft) design and states what Undo reverts to", () => {
+  const review = read("ReviewWebsiteScreen.tsx");
+  assert.match(review, /Undo design change/);
+  assert.match(review, /maison-undo-target/);
+  assert.match(review, /discardMaisonLivePendingAction/);
+  const action = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/server/maison-review-actions.ts"),
+    "utf8",
+  );
+  assert.match(action, /effectiveReviewDesign/);
+  assert.match(action, /borrador sin publicar/);
+  assert.match(action, /unpublished draft/);
+});

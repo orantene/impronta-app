@@ -53,3 +53,16 @@ test("a Spanish reader is told in Spanish", () => {
 test("an unknown locale falls back to English rather than rendering nothing", () => {
   assert.match(renderShared("pt"), /Replies to this email are not read/);
 });
+
+test("footer says replies are read only when the send carries a signed Reply-To", () => {
+  const base = { preview: "p", heading: "h", intro: "i", ctaUrl: "https://example.com/t/1" };
+  const off = renderToStaticMarkup(createElement(SupportMail, base));
+  const on = renderToStaticMarkup(createElement(SupportMail, { ...base, repliesRead: true }));
+  assert.ok(off.includes("Replies to this email are not read"));
+  assert.ok(!on.includes("are not read"));
+  assert.ok(on.includes("You can reply to this email"));
+  const onEs = renderToStaticMarkup(
+    createElement(SupportMail, { ...base, repliesRead: true, brand: { locale: "es" } }),
+  );
+  assert.ok(onEs.includes("Puedes responder a este correo"));
+});

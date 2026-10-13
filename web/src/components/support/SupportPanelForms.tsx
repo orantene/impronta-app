@@ -6,6 +6,7 @@ import { interpolate } from "@/i18n/interpolate";
 import { SUPPORT_AGENT_VARS } from "@/lib/support/support-persona";
 import { Icon } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS, RADIUS } from "./support-tokens";
+import { supportSendErrorText } from "./support-send-error";
 import { ReplayConsent } from "./ReplayConsent";
 import { SupportAttachButton } from "./SupportAttachButton";
 import { getDiagnosticsSnapshot } from "@/lib/support/diagnostics/collector";
@@ -64,7 +65,7 @@ export function NewTicketForm({
               );
             } else {
               // The form keeps everything typed; only surface the failure.
-              setError(t("dashboard.adminSupport.sendFailed"));
+              setError(supportSendErrorText(t, r));
             }
           });
       }}
@@ -170,26 +171,27 @@ export function Composer({
   ticketId = null,
 }: {
   disabled: boolean;
-  /** Resolves true on success; false keeps the text in the box. */
-  onSend: (body: string) => Promise<boolean>;
+  /** Resolves true on success; false or `{ error }` keeps the text in the box. */
+  onSend: (body: string) => Promise<boolean | { error: string }>;
   ticketId?: string | null;
 }) {
   const t = useT();
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
   const send = async () => {
     const text = body.trim();
     if (!text || busy) return;
     setBusy(true);
-    setFailed(false);
+    setFailed(null);
+    // Clear at once so the box does not show the sent text through the round
+    // trip; a failure puts the text back (it must never be eaten).
+    setBody("");
     const ok = await onSend(text);
     setBusy(false);
-    if (ok) {
-      // Clear only AFTER a confirmed send — a failure must never eat the text.
-      setBody("");
-    } else {
-      setFailed(true);
+    if (ok !== true) {
+      setBody((current) => (current === "" ? text : current));
+      setFailed(typeof ok === "object" ? ok.error : t("dashboard.adminSupport.sendFailed"));
     }
   };
   return (
@@ -202,7 +204,7 @@ export function Composer({
     >
       {failed ? (
         <div role="alert" style={{ fontSize: 12, color: COLORS.critical, paddingBottom: 6 }}>
-          {t("dashboard.adminSupport.sendFailed")}
+          {failed}
         </div>
       ) : null}
       <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
