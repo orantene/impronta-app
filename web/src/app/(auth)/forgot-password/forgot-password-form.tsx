@@ -12,6 +12,7 @@ import {
   AuthSubmitButton,
 } from "@/components/auth/auth-ui";
 import { createTranslator } from "@/i18n/messages";
+import { withLocaleHref } from "@/i18n/pathnames";
 
 export function ForgotPasswordForm({
   defaultEmail,
@@ -43,7 +44,7 @@ export function ForgotPasswordForm({
           autoComplete="email"
           required
           defaultValue={defaultEmail}
-          placeholder="you@studio.com"
+          placeholder={t("public.auth.form.emailPlaceholder")}
           className={AUTH_INPUT_CLASS}
           style={AUTH_INPUT_STYLE}
         />
@@ -57,7 +58,7 @@ export function ForgotPasswordForm({
 
       <p className="pt-1 text-center text-[0.8125rem]">
         <Link
-          href="/login"
+          href={withLocaleHref("/login", locale)}
           className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
           style={{ color: "var(--plt-ink-soft)" }}
         >

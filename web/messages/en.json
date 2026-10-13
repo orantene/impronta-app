@@ -133,6 +133,7 @@
       },
       "form": {
         "email": "Email",
+        "emailPlaceholder": "you@studio.com",
         "password": "Password"
       },
       "actions": {
@@ -13706,6 +13707,7 @@
       "cardIdeaSub": "Tell us what would make Tulala better",
       "yourTickets": "Your tickets",
       "newReplies": "{n} new replies",
+      "newRepliesOne": "1 new reply",
       "seeAll": "See all",
       "guideHint": "Looking for how something works? Open the {guide} tab.",
       "guideHelpful": "Was this helpful?",
