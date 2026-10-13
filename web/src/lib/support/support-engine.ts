@@ -69,9 +69,10 @@ export async function createTicket(input: {
     ? "human"
     : (input.handledBy ?? "human");
   const now = new Date().toISOString();
+  const givenSubject = (input.subject ?? "").trim();
   const subject = input.messageOranDirectly
-    ? "Direct message"
-    : (input.subject ?? "").trim() || (input.body.trim().slice(0, 80) || "Support request");
+    ? givenSubject || "Direct message"
+    : givenSubject || (input.body.trim().slice(0, 80) || "Support request");
 
   const insertRow: Record<string, unknown> = {
     tenant_id: input.tenantId,
