@@ -4,6 +4,7 @@
  *
  * Guest AI FAIL-CLOSED: if Upstash env is missing, the AI route must refuse
  * rather than spend tokens. Create/message still fail-open (honeypot remains).
+ * Guest AI also fails CLOSED on a store error (429), and logs it.
  */
 import { normalizeEmailForKey, type KvRateLimitResult } from "./rate-limit-kv";
 import { failOpen } from "./rate-limit-fail-open";
@@ -43,19 +44,29 @@ const noop: GuestSupportLimiter = {
   async checkAiByIp() { return allow; },
 };
 
+/** Returned by fail-closed limiters when the store errors (surfaces as a 429). */
+export const GUEST_AI_STORE_ERROR: KvRateLimitResult = {
+  ok: false,
+  code: "rate_limited",
+  retryAfterMs: 30_000,
+};
+
 let _limiter: GuestSupportLimiter | null = null;
 
 async function wrap(
   limit: (key: string) => Promise<{ success: boolean; reset: number }>,
   key: string,
   label: string,
+  failClosed = false,
 ): Promise<KvRateLimitResult> {
   try {
     const r = await limit(key);
     if (r.success) return { ok: true };
     return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
   } catch (err) {
-    return failOpen(label, key, err);
+    const open = failOpen(label, key, err);
+    // Guest AI spends tokens: on a store error refuse instead of allowing.
+    return failClosed ? GUEST_AI_STORE_ERROR : open;
   }
 }
 
@@ -101,7 +112,7 @@ async function getGuestSupportLimiter(): Promise<GuestSupportLimiter> {
       checkCreateByEmail: (key) => wrap((k) => createEmail.limit(k), key, "createEmail"),
       checkMessageBySession: (key) => wrap((k) => msgSession.limit(k), key, "msgSession"),
       checkMessageByIp: (key) => wrap((k) => msgIp.limit(k), key, "msgIp"),
-      checkAiByIp: (key) => wrap((k) => aiIp.limit(k), key, "aiIp"),
+      checkAiByIp: (key) => wrap((k) => aiIp.limit(k), key, "aiIp", true),
     };
   } catch {
     _limiter = noop;

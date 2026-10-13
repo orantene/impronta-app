@@ -278,9 +278,10 @@ export async function markGuestThreadReadAction(input: {
     userId: ident.userId,
   });
   if (!ticket) return { ok: false, error: "Thread not found." };
-  await supportFrom(ident.admin, "support_tickets")
+  const { error: readError } = await supportFrom(ident.admin, "support_tickets")
     .update({ guest_last_read_at: new Date().toISOString() })
     .eq("id", ticket.id);
+  if (readError) return { ok: false, error: "Could not update the thread. Try again." };
   return { ok: true };
 }
 
@@ -346,10 +347,11 @@ export async function appendGuestContactCardAction(input: {
   if (!ticket) return { ok: false, error: "Thread not found." };
   if (ticket.contactEmail || ident.email) return { ok: true };
 
-  const { data } = await supportFrom(ident.admin, "support_messages")
+  const { data, error: cardsError } = await supportFrom(ident.admin, "support_messages")
     .select("card_payload")
     .eq("ticket_id", ticket.id)
     .eq("message_kind", "card");
+  if (cardsError) return { ok: false, error: "Could not load the thread. Try again." };
   const already = ((data ?? []) as Array<{ card_payload?: { kind?: string } | null }>).some((row) => {
     return row.card_payload?.kind === "guest-contact";
   });
