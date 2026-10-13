@@ -13,6 +13,8 @@ import { sendPushNotification } from "./channels/push";
 import { sendWhatsAppNotification } from "./channels/whatsapp";
 import { channelsForRecipient } from "./prefs";
 import { loadNotificationOverlay, isChannelEnabled } from "./overlay";
+import { sendNotificationCopies } from "./email-copies/dispatch-copies";
+import { copyKindForEntry } from "./email-copies/kinds";
 import type {
   AudienceContext,
   CatalogEntry,
@@ -294,6 +296,16 @@ export async function dispatchEventNotifications(
             },
           });
         }
+      }
+    }
+
+    // Notification email copies: one copy per active list address per event
+    // (not per original recipient). Best-effort, never counted in `result`.
+    if (copyKindForEntry(entry.id)) {
+      try {
+        await sendNotificationCopies(enriched, entry, ctx);
+      } catch (err) {
+        logServerError(`notifications.copy:${entry.id}`, err);
       }
     }
 
