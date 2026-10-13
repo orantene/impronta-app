@@ -5,10 +5,12 @@
 
 import { ES_FEEDBACK_TEXT } from "./editor-i18n-es-feedback";
 import { ES_TALENT_BRAND_TEXT } from "./editor-i18n-es-talent-brand";
+import { ES_THEME_DRAWER_TEXT } from "./editor-i18n-es-theme-drawer";
 import { ES_TALENT_CHROME_TEXT } from "./editor-i18n-es-talent-chrome";
 
 export const ES_SHORTCUT_TEXT: Record<string, string> = {
   // Talent page builder Brand section (own file; merged here for the 800-line cap).
+  ...ES_THEME_DRAWER_TEXT,
   ...ES_TALENT_BRAND_TEXT,
   ...ES_TALENT_CHROME_TEXT,
   ...ES_FEEDBACK_TEXT,
