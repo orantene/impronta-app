@@ -10,7 +10,7 @@ import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/
 import { loadPublicPageBySlug } from "@/lib/site-admin/server/pages-reads";
 import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
-import { authPageBrand } from "@/lib/client-account/agency-area-pure";
+import { authBrandHead, authPageBrand } from "@/lib/client-account/agency-area-pure";
 import { dashboardTabTitle } from "@/i18n/dashboard-metadata";
 import { getRequestLocale, ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
@@ -46,7 +46,9 @@ export async function generateMetadata(): Promise<Metadata> {
     whitelabel,
     publicName: identity?.public_name,
   });
-  return brand ? { ...AUTH_ROBOTS, title: { absolute: brand.title } } : localized;
+  return brand
+    ? { ...AUTH_ROBOTS, title: { absolute: brand.title }, ...authBrandHead(brand.title, await getRequestLocale()) }
+    : localized;
 }
 
 /** What the layout needs beyond the brand object itself. */
