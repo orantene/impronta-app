@@ -31,6 +31,9 @@ import { isSupportDeskHost } from "@/lib/support/desk-hosts";
 import { claimTulalaBriefOnAuth } from "@/lib/tulala/brief-claim-auth";
 import { isFreshOAuthSignup } from "@/lib/legal/acceptances.core";
 import { hasSignupAcceptance } from "@/lib/legal/acceptances";
+import { relinkFirstConfirmedClaim } from "@/lib/auth/guest-claim-relink";
+import { activateGuestBookerIfEligible } from "@/lib/client-account/guest-activate.server";
+import { logServerError } from "@/lib/server/safe-error";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -88,6 +91,19 @@ export async function GET(request: Request) {
       if (user) {
         await claimGuestSupportOnAuth(user.id);
         await claimTulalaBriefOnAuth(supabase, user.id);
+        // W5-11: OAuth / PKCE magic-link with a confirmed email + booking →
+        // active client (skip /onboarding/role). Relink first so the inquiry
+        // count sees this user.
+        if (user.email_confirmed_at || user.email) {
+          await relinkFirstConfirmedClaim(user.id);
+          const adminForActivate = createServiceRoleClient();
+          if (adminForActivate) {
+            await activateGuestBookerIfEligible(adminForActivate, {
+              userId: user.id,
+              emailProven: Boolean(user.email_confirmed_at),
+            }).catch((e) => logServerError("auth/callback/guestActivate", e));
+          }
+        }
       }
 
       // Talent-intent promotion for OAuth signups (e.g. Google via the talent
