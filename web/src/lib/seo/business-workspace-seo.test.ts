@@ -9,6 +9,7 @@ import {
   businessLocalBusinessJsonLd,
   clampMetaDescription,
   clampMetaTitle,
+  isEmptyBusinessWorkspace,
   META_DESCRIPTION_MAX,
   META_TITLE_MAX,
 } from "./business-workspace-seo";
@@ -76,4 +77,30 @@ test("LocalBusiness JSON-LD omits empty optional fields", () => {
   assert.equal("address" in doc, false);
   assert.equal("telephone" in doc, false);
   assert.equal("sameAs" in doc, false);
+});
+
+test("clampMetaTitle clamps a long CMS title at a word boundary", () => {
+  const out = clampMetaTitle("Wedding photography packages and pricing for destination couples in Cancun");
+  assert.ok(out.length <= META_TITLE_MAX);
+  assert.ok(out.endsWith("…"));
+  assert.ok(!out.includes("  "));
+});
+
+test("isEmptyBusinessWorkspace: only a business with no services and no pages", () => {
+  const base = { workspaceType: "business" as const, serviceCount: 0, publishedPageCount: 0 };
+  assert.equal(isEmptyBusinessWorkspace(base), true);
+  assert.equal(isEmptyBusinessWorkspace({ ...base, serviceCount: 1 }), false);
+  assert.equal(isEmptyBusinessWorkspace({ ...base, publishedPageCount: 1 }), false);
+  assert.equal(isEmptyBusinessWorkspace({ ...base, workspaceType: "talent" }), false);
+});
+
+test("isEmptyBusinessWorkspace fails open when counts are unknown", () => {
+  assert.equal(
+    isEmptyBusinessWorkspace({ workspaceType: "business", serviceCount: null, publishedPageCount: 0 }),
+    false,
+  );
+  assert.equal(
+    isEmptyBusinessWorkspace({ workspaceType: "business", serviceCount: 0, publishedPageCount: null }),
+    false,
+  );
 });

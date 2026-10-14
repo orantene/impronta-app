@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 
 import { createClient } from "@/lib/supabase/server";
 import { businessFixedSitemapPaths } from "@/lib/seo/business-workspace-seo";
+import { loadIsEmptyBusinessWorkspace } from "@/lib/seo/business-workspace-emptiness";
 import { resolveWorkspaceType } from "@/lib/saas/assert-roster-workspace";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { withLocalePath } from "@/i18n/pathnames";
@@ -408,6 +409,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // advertised a URL that only ever serves fallback content, and annotating it
   // as a Spanish alternate would have been a false statement to every crawler.
   const localeSettings = await loadTenantLocaleSettings(hostContext.tenantId);
+  // TUL-591: an empty business workspace is noindexed; list nothing for it.
+  if (await loadIsEmptyBusinessWorkspace(hostContext.tenantId)) return [];
 
   /**
    * One sitemap entry per locale a path exists in, each carrying the full

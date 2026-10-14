@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { clampMetaTitle } from "@/lib/seo/business-workspace-seo";
 import { notFound, permanentRedirect, redirect } from "next/navigation";
 
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
@@ -195,7 +196,7 @@ export async function generateMetadata({
     availableLocales:
       publishedLocales.length > 0 ? publishedLocales : [page.locale],
   });
-  const title = page.meta_title?.trim() || page.title;
+  const title = clampMetaTitle(page.meta_title?.trim() || page.title);
   const description = page.meta_description?.trim() || undefined;
   const openGraph = {
     title: page.og_title?.trim() || title,

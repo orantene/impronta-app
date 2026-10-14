@@ -92,3 +92,19 @@ export function businessLocalBusinessJsonLd(
   if (sameAs.length) doc.sameAs = sameAs;
   return doc;
 }
+
+/**
+ * A business workspace is "empty" only when it positively has nothing to
+ * index: zero published services AND zero published non-system pages (the
+ * default homepage does not count). Unknown counts (null, e.g. a failed read)
+ * are never treated as empty, so an infrastructure blip cannot de-index a
+ * live site.
+ */
+export function isEmptyBusinessWorkspace(input: {
+  workspaceType: WorkspaceType;
+  serviceCount: number | null;
+  publishedPageCount: number | null;
+}): boolean {
+  if (rosterEnabled(input.workspaceType)) return false;
+  return input.serviceCount === 0 && input.publishedPageCount === 0;
+}
