@@ -9943,6 +9943,8 @@
         "empty": "Nothing in this view.",
         "keyboardHint": "j/k move, Enter open, r reply, e resolve, a assign",
         "unknownRequester": "Unknown",
+        "searchLoadMore": "Show more results",
+        "searchLoading": "Searching all tickets...",
         "ageJustNow": "now",
         "contextWorkspace": "Workspace",
         "noWorkspace": "No workspace",
