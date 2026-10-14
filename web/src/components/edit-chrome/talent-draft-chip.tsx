@@ -23,6 +23,7 @@ import {
   firstPublishSummary,
   pick,
   unpublishedChangesLabel,
+  unpublishedChangesShort,
 } from "@/lib/talent-site/history/copy";
 import type { SectionChange } from "@/lib/talent-site/history/draft-diff";
 import { useThemeApplyBusy } from "@/lib/talent-site/history/apply-busy";
@@ -128,6 +129,9 @@ export function TalentDraftChip(): ReactElement | null {
     </PortaledOverlay>
   ) : null;
 
+  const fullLabel = summary.firstPublish
+    ? pick(FIRST_PUBLISH_COPY.chip, locale)
+    : pick(unpublishedChangesLabel(summary.unpublishedCount), locale);
   const chipStyle = {
     display: "inline-flex",
     alignItems: "center",
@@ -167,12 +171,21 @@ export function TalentDraftChip(): ReactElement | null {
         data-talent-draft-chip
         className="min-h-11 sm:min-h-[26px]"
         onClick={() => setOpen(true)}
+        aria-label={fullLabel}
         title={applyBusy ? copyOf("applying") : copyOf("whatWillGoLive")}
         style={{ ...chipStyle, cursor: "pointer", color: CHROME.text, background: CHROME.surface2, border: `1px solid ${CHROME.lineMid}` }}
       >
-        {summary.firstPublish
-          ? pick(FIRST_PUBLISH_COPY.chip, locale)
-          : pick(unpublishedChangesLabel(summary.unpublishedCount), locale)}
+        {summary.firstPublish ? (
+          pick(FIRST_PUBLISH_COPY.chip, locale)
+        ) : (
+          <>
+            <span className="max-[640px]:hidden">{fullLabel}</span>
+            <span aria-hidden className="hidden items-center gap-1.5 max-[640px]:inline-flex">
+              <span style={{ width: 6, height: 6, borderRadius: 999, background: CHROME.text }} />
+              {pick(unpublishedChangesShort(summary.unpublishedCount), locale)}
+            </span>
+          </>
+        )}
       </button>
       {open ? (
         <PortaledOverlay>

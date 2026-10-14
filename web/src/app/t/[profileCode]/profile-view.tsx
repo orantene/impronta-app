@@ -97,6 +97,7 @@ import {
 import { talentCountryIso } from "@/lib/phone/guest-phone";
 import { getPublicHostContext, getPublicPathPrefix } from "@/lib/saas/scope";
 import { resolvePublicProfileOverrideTenantId } from "@/lib/saas/talent-roster";
+import { talentProfileRobotsMeta } from "@/lib/talent-site/talent-profile-robots";
 import { assertTalentVisibleOnAgencySurface } from "./_guards/agency-roster-visibility";
 import {
   ALLOW_ALL_TAXONOMY_VISIBILITY,
@@ -139,7 +140,8 @@ import { loadInstantBookEligibility } from "@/lib/scheduling/instant-book-eligib
 import { servicesMenuForPublicHost } from "@/lib/talent/services-menu-for-host";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
 import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
-import { pickHeadlinePrice } from "@/lib/directory/headline-price";
+import { hubHeadlinePriceText } from "@/lib/promos/hub-price";
+import { loadPublicPromosForTalent, priceContext } from "@/lib/promos/public-promos.server";
 import { formatMoney } from "@/lib/talent/offerings-money";
 import { TalentIntakeSurfaces } from "./_chat/TalentIntakeSurfaces";
 import { askEntryPointsVisible } from "@/lib/talent/chat-entry";
@@ -203,7 +205,7 @@ type TalentProfile = {
   short_bio: string | null;
   /** Per-locale published bio map { "en": …, "es": … } (replaces bio_en/bio_es). */
   bio_i18n: LocalizedMap | null;
-  is_publicly_hidden: boolean | null;
+  is_publicly_hidden: boolean | null; is_publicly_listed?: boolean | null; visibility?: string | null;
   is_featured: boolean | null;
   height_cm: number | null;
   talent_plan_key?: string | null;
@@ -414,7 +416,7 @@ async function fetchTalentProfileRow(profileCode: string, preview: boolean) {
             last_name,
             short_bio,
             bio_i18n,
-            is_publicly_hidden,
+            is_publicly_hidden, is_publicly_listed, visibility,
             is_featured,
             height_cm,
             talent_plan_key,
@@ -476,7 +478,7 @@ async function fetchTalentProfileRow(profileCode: string, preview: boolean) {
       last_name,
       short_bio,
       bio_i18n,
-      is_publicly_hidden,
+      is_publicly_hidden, is_publicly_listed, visibility,
       is_featured,
       height_cm,
       talent_plan_key,
@@ -1496,6 +1498,7 @@ export async function buildTalentProfileMetadata({
       locale: localeMeta.openGraphLocale,
       alternateLocale: localeMeta.openGraphAlternateLocale,
     },
+    ...talentProfileRobotsMeta(profile),
   };
 }
 
@@ -1845,6 +1848,8 @@ export async function TalentProfileView({
     hostCtx.kind === "agency" ? hostCtx.tenantId : null,
     chain,
   );
+  // Promos v1 (TUL-937): live auto promos price the hub headline; never on an agency surface.
+  const publicPromos = hostCtx.kind === "agency" ? null : await loadPublicPromosForTalent(profile.id);
 
   // S6 — id → label for any discipline a service is scoped to (talent_type terms).
   const disciplineLabels: Record<string, string> = {};
@@ -2412,25 +2417,10 @@ export async function TalentProfileView({
         })()}
         serviceAreas={structuredServiceAreas}
         startingFrom={(() => {
-          // Prefer the modern catalogue headline (same picker as directory cards).
+          // Same picker as directory cards, priced through displayPrice (promos L6).
           // Legacy `talent_profiles.starting_from` is free text and often raw cents.
-          const headline = pickHeadlinePrice(
-            storefrontOfferings
-              .filter(
-                (o) =>
-                  o.priceDisplay !== "quote" &&
-                  o.priceType !== "custom" &&
-                  typeof o.amountCents === "number" &&
-                  o.amountCents > 0,
-              )
-              .map((o) => ({
-                amountCents: o.amountCents as number,
-                currency: o.currency,
-                priceType: o.priceType,
-                isFeatured: o.isFeatured === true,
-              })),
-          );
-          if (headline) return formatMoney(headline.amountCents, headline.currency, locale);
+          const headline = hubHeadlinePriceText(storefrontOfferings, publicPromos && priceContext(publicPromos, locale), locale);
+          if (headline) return headline;
           const legacy = profile.starting_from?.trim() ?? "";
           if (!legacy) return null;
           if (/^\d+$/.test(legacy)) {

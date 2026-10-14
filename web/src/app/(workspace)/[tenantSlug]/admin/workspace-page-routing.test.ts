@@ -76,3 +76,16 @@ test("case and whitespace are tolerated, as the old allow-list did", () => {
   assert.equal(resolveWorkspaceAdminPage("  Messages  "), "messages");
   assert.equal(resolveWorkspaceAdminPage("TALENT"), "people");
 });
+
+// TUL-536: "Edit site" for a business owner lands on /admin/website. That path
+// must resolve to the Website surface and survive the business clamp, never
+// fall back to Overview (Hoy).
+test("business owner: /admin/website resolves to and keeps the website page", async () => {
+  const { clampWorkspacePage } = await import("@/lib/saas/workspace-type");
+  for (const segment of ["website", "site"]) {
+    assert.equal(resolveWorkspaceAdminPage(segment), "website");
+  }
+  for (const type of ["business", "talent"] as const) {
+    assert.equal(clampWorkspacePage(resolveWorkspaceAdminPage("website"), type), "website");
+  }
+});

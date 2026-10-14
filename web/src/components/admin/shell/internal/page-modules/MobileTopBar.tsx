@@ -23,6 +23,7 @@ import { deriveWorkRole } from "@/lib/workspace/nav-context";
 import { WhatsAppTopBarButton } from "@/components/admin/channels/WhatsAppChrome";
 import { NotificationsBell } from "../notifications-hub";
 import { ShellCountBubbles } from "../shell-count-bubbles";
+import { PromosHeaderButton } from "@/components/promos/talent/PromosHeaderButton";
 import { Icon } from "../primitives";
 import { useAdminShell } from "../state";
 import { GLOBAL_SEARCH_OPEN_EVENT } from "./GlobalSearchOverlay";
@@ -73,6 +74,7 @@ export function MobileTopBar() {
             </div>
           ) : null}
         </div>
+        {inTalent ? <PromosHeaderButton size="sm" /> : null}
         <ShellCountBubbles size="sm" />
         <NotificationsBell size="sm" />
       </div>
@@ -133,6 +135,7 @@ export function MobileTopBar() {
         </button>
       )}
       {inTalent ? null : <WhatsAppTopBarButton size={34} iconOnly />}
+      {inTalent ? <PromosHeaderButton size="md" /> : null}
       <ShellCountBubbles size="md" />
       <NotificationsBell size="md" />
     </div>

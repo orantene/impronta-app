@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { todayTotals } from "@/lib/talent-agenda/derive";
 import { loadTalentClients } from "@/lib/talent/clients-actions";
 import type { TalentClientRow } from "@/lib/talent/clients-merge";
-import { agendaMoneyRows, talentOwedSummary } from "@/lib/talent/money-home";
+import { agendaMoneyRows, awaitingOfferSummary, talentOwedSummary } from "@/lib/talent/money-home";
 import type { TalentAgendaItem } from "@/lib/talent-agenda/types";
 import {
   pinMoneyLanding,
@@ -249,11 +249,9 @@ export function AgendaTodayPage({
       cancelled = true;
     };
   }, [profileId]);
-  const owed = talentOwedSummary({
-    clients: ledgerClients,
-    agendaOwed: agendaMoneyRows(items, clock).owed,
-    currency: monthCollected?.currency ?? null,
-  });
+  const agendaMoney = agendaMoneyRows(items, clock);
+  const owed = talentOwedSummary({ clients: ledgerClients, agendaOwed: agendaMoney.owed, currency: monthCollected?.currency ?? null });
+  const awaiting = awaitingOfferSummary(agendaMoney.waiting, owed.currency ?? monthCollected?.currency ?? null);
   const idea = ideaDismissed ? null : rebookHint(items, clock);
 
   // TUL-525: greet by person name — never the account handle.
@@ -471,7 +469,8 @@ export function AgendaTodayPage({
                 : formatMoney(0, currency ?? "MXN", locale)}
             </div>
             <div className={`text-[11.5px] ${MUTED}`}>
-              {owed.count > 0 ? `${owed.count} ${copy.t("balances")}` : copy.t("Nothing owed")}
+              {owed.count > 0 ? `${owed.count} ${copy.t("balances")}` : awaiting.count === 0 ? copy.t("Nothing owed") : ""}
+              {awaiting.count > 0 && awaiting.currency ? `${owed.count > 0 ? " · " : ""}${formatMoney(awaiting.cents, awaiting.currency, locale)} ${copy.t("pending payment")}` : ""}
             </div>
           </button>
         </div>

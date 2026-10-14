@@ -588,7 +588,7 @@ export function MoneyHomePage() {
       router.refresh();
     });
   };
-  const pickRows = [...agenda.owed, ...agenda.waiting];
+  const pickRows = [...agenda.owed, ...agenda.waiting.filter((r) => r.kind !== "offer")];
   const { byCurrency, defaultCurrency, loadError } = useResolvedTalentEarningsByCurrency();
   const talentId = bridgeTalentSelfProfile?.id ?? null;
   const [clients, setClients] = useState<TalentClientRow[] | null>(null);

@@ -8,6 +8,9 @@ export const READ = "pure loader: reads only, no write path, nothing for read-on
 export type AllowEntry = [suffix: string, names: string[], reason: string];
 
 export const EXTRA_ALLOW: AllowEntry[] = [
+  ["lib/promos/actions.ts", ["loadPromosPage", "getPromoAttention", "loadPromoBookings"], READ],
+  ["lib/promos/booking-quote.actions.ts", ["previewBookingQuoteAction"], "public client price preview: reads only, holds nothing, no talent session"],
+  ["lib/promos/callouts/dismissals.actions.ts", ["loadCalloutState"], READ],
   ["app/(workspace)/[tenantSlug]/admin/media/actions.ts", ["actionLoadTalentMediaBundleAll"], READ],
   ["app/(workspace)/[tenantSlug]/admin/media/profile-shell-media-actions.ts", ["actionLoadProfileShellMedia", "actionLoadProfileShellAlbumPage"], READ],
   ["app/(workspace)/platform/admin/integrations/captcha-override-actions.ts", ["loadWorkspaceCaptchaOverrides"], READ],
@@ -36,6 +39,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["lib/talent-site/history/history-actions.ts", ["loadTalentHistoryAction", "loadTalentGoLiveAction"], READ],
   ["lib/talent-site/server/actions.ts", ["fetchTalentPersonalSiteDashboardStateAction"], READ],
   ["lib/talent-site/server/site-management-actions.ts", ["loadMaxSiteManagerAction"], READ],
+  ["lib/talent-site/server/theme-actions.ts", ["previewSiteDesignSwitchAction"], READ],
   ["lib/talent/apply-actions.ts", ["listOwnApplications"], READ],
   ["lib/talent/clients-actions.ts", ["loadTalentClients"], READ],
   ["lib/talent/menu-offerings-actions.ts", ["loadWorkspaceMenuForEditor"], READ],
@@ -58,6 +62,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["app/(workspace)/[tenantSlug]/admin/_door-actions.ts", ["loadDoor", "loadNightReport", "loadDoorTiers", "loadHeldDoorOrders"], READ],
   ["app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts", ["loadInquiryPaymentState", "loadAgencySettingsNamespace", "loadEditableJobFields", "loadInquiryLineup", "loadInquiryAttachments", "loadOfferDraft", "loadInquiryPayoutReceiverCandidates", "loadWorkspaceCoordinatorCandidates", "loadCoordinatorAssignCandidates", "loadSecondaryCoordinators", "loadBookingCommissionSnapshotAction", "loadHoldsForInquiryAction"], READ],
   ["app/(workspace)/[tenantSlug]/admin/settings/integration-actions.ts", ["loadTenantIntegrations"], READ],
+  ["app/(workspace)/[tenantSlug]/admin/settings/captcha-notice-actions.ts", ["loadCaptchaNoticeDomain"], READ],
   ["app/(workspace)/[tenantSlug]/admin/settings/domain-actions.ts", ["checkCustomDomainProvisioningAction"], READ],
   ["app/(workspace)/[tenantSlug]/admin/messages/actions.ts", ["fetchMessages"], READ],
   ["app/(workspace)/[tenantSlug]/admin/roster/registration/actions.ts", ["loadRegistrationManageData"], READ],
@@ -270,6 +275,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
  * with a one-line reason. Everything else under src/app must call the guard first.
  */
 export const ROUTE_ALLOW: Array<[suffix: string, reason: string]> = [
+  ["api/promos/event/route.ts", "public visitor analytics beacon (promo link opens/shares); no user session, writes only promo_events"],
   ["auth/sign-out/route.ts", "SIGN-OUT: ends the session; must keep working while impersonating (PM exception)"],
   ["api/discover/subscriptions/webhook/route.ts", "webhook: Stripe-signature authenticated, no user session"],
   ["api/webhooks/stripe-v2/route.ts", "webhook: Stripe-signature authenticated, no user session"],

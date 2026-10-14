@@ -46,6 +46,8 @@ function resolveKey(
 ): string {
   const map: Record<string, string | null | undefined> = { [cl.defaultLocale]: base };
   for (const [code, bag] of Object.entries(overlay)) {
+    // Base wins for the default locale (same rule as resolveNodeProp).
+    if (code === cl.defaultLocale && base.trim() !== "") continue;
     const v = bag?.[key];
     if (typeof v === "string") map[code] = v;
   }

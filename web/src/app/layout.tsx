@@ -6,6 +6,7 @@ import { AnalyticsConsentBanner } from "@/components/analytics/analytics-consent
 import { consentRegionForCountry } from "@/lib/analytics/consent";
 import { SpaPageViewTracker } from "@/components/analytics/spa-page-view-tracker";
 import { CspViolationReporter } from "@/components/csp-violation-reporter";
+import { ImplicitHashSessionBridge } from "@/components/auth/implicit-hash-session-bridge";
 import { EditChromeMount } from "@/components/edit-chrome/edit-chrome-mount";
 import { AdminQuickBarMount } from "@/components/edit-chrome/admin-quick-bar-mount";
 import { WebVitalsReporter } from "@/components/web-vitals-reporter";
@@ -300,6 +301,7 @@ export default async function RootLayout({
         {publicScope && <TenantCustomCodeBody tenantId={publicScope.tenantId} />}
         {/* Custom code library — snippets placed at the end of the page. */}
         {publicScope && <TenantCodeSnippetsBody tenantId={publicScope.tenantId} />}
+        <ImplicitHashSessionBridge />
         <TenantRegisterMount />
         <EditChromeMount />
         {/* Wave 6.1 — the admin quick bar mounts independently of the editor so

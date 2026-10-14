@@ -8,6 +8,7 @@ import { resolveTalentOwnPageState } from "@/lib/talent/public-profile-href";
 import { dashboardPublishKind, dashboardStatusCopy } from "@/lib/talent/dashboard-status";
 import { useWebsiteFlow } from "@/components/talent/website-reward/useWebsiteFlow";
 import { useCurrentOrigin } from "@/lib/talent/use-public-profile-href";
+import { openUpgrade } from "@/components/talent/upgrade/open-upgrade";
 
 
 
@@ -165,7 +166,7 @@ export function PersonalPageBand() {
             onClick={() =>
               tierAllows(resolvedTier, "template-picker")
                 ? openDrawer("talent-page-template")
-                : openDrawer("talent-tier-compare")
+                : openUpgrade({ feature: "template-picker", from: "profile-page-tile" })
             }
           />
           <SecondaryCard
@@ -177,7 +178,7 @@ export function PersonalPageBand() {
             }
             meta={allowEmbeds ? <><StatDot tone="green" /> {sub.embeds.length} {copy.t("embeds")}</> : <LockedBadge requiredTier="pro" />}
             affordance={copy.t(allowEmbeds ? "Manage embeds" : "Unlock embeds")}
-            onClick={() => (allowEmbeds ? openDrawer("talent-media-embeds") : openDrawer("talent-tier-compare"))}
+            onClick={() => (allowEmbeds ? openDrawer("talent-media-embeds") : openUpgrade({ feature: "media-embeds", from: "profile-page-tile" }))}
           />
           <SecondaryCard
             title={copy.t("Press & clippings")}
@@ -188,7 +189,7 @@ export function PersonalPageBand() {
             }
             meta={allowPress ? <><StatDot tone="green" /> {sub.press.length} {copy.t("clips")}</> : <LockedBadge requiredTier="pro" />}
             affordance={copy.t(allowPress ? "Manage press" : "Unlock press band")}
-            onClick={() => (allowPress ? openDrawer("talent-press") : openDrawer("talent-tier-compare"))}
+            onClick={() => (allowPress ? openDrawer("talent-press") : openUpgrade({ feature: "press-band", from: "profile-page-tile" }))}
           />
           <SecondaryCard
             title={copy.t("Media kit (EPK)")}
@@ -201,7 +202,7 @@ export function PersonalPageBand() {
             }
             meta={allowKit ? <><StatDot tone="green" /> {copy.t("Ready")}</> : <LockedBadge requiredTier="pro" />}
             affordance={copy.t(allowKit ? "Manage media kit" : "Unlock media kit")}
-            onClick={() => (allowKit ? openDrawer("talent-media-kit") : openDrawer("talent-tier-compare"))}
+            onClick={() => (allowKit ? openDrawer("talent-media-kit") : openUpgrade({ feature: "media-kit", from: "profile-page-tile" }))}
           />
           <SecondaryCard
             title={copy.t("Custom domain")}
@@ -214,7 +215,7 @@ export function PersonalPageBand() {
             }
             meta={allowDomain ? <><StatDot tone={sub.customDomain ? "green" : "dim"} /> {copy.t(sub.customDomain ? "Live" : "Not set")}</> : <LockedBadge requiredTier="max" />}
             affordance={copy.t(allowDomain ? "Manage domain" : "Unlock custom domain")}
-            onClick={() => (allowDomain ? openDrawer("talent-custom-domain") : openDrawer("talent-tier-compare"))}
+            onClick={() => (allowDomain ? openDrawer("talent-custom-domain") : openUpgrade({ feature: "custom-domain", from: "profile-page-tile" }))}
           />
           <SecondaryCard
             title={copy.t("Extra sections")}
@@ -225,7 +226,7 @@ export function PersonalPageBand() {
             )}
             meta={allowExtraSections ? <><StatDot tone="green" /> 6 {copy.t("sections")}</> : <LockedBadge requiredTier="max" />}
             affordance={copy.t(allowExtraSections ? "Edit sections" : "Unlock sections")}
-            onClick={() => (allowExtraSections ? openDrawer("talent-personal-page") : openDrawer("talent-tier-compare"))}
+            onClick={() => (allowExtraSections ? openDrawer("talent-personal-page") : openUpgrade({ feature: "extra-sections", from: "profile-page-tile" }))}
           />
         </Grid>
       </div>
