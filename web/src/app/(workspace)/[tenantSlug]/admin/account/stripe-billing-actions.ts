@@ -33,12 +33,19 @@ import { logServerError } from "@/lib/server/safe-error";
 import { type WorkspacePlanKey } from "@/lib/stripe/price-ids";
 import { resolveWorkspacePriceId } from "@/lib/stripe/price-catalog";
 import { yearlyCheckoutPlans } from "@/lib/billing/checkout-interval";
+import { planChangeTarget, type PlanChangeTarget } from "@/lib/billing/duplicate-subscription";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
 
 export type BillingActionResult =
-  | { ok: true; redirectUrl: string }
+  | {
+      ok: true;
+      redirectUrl: string;
+      /** TUL-831: set when the workspace already pays. Callers that support the
+       *  in-app flow (PlanChangeConfirm) open it instead of the portal URL. */
+      planChange?: PlanChangeTarget;
+    }
   | { ok: false; error: string; noStripe?: boolean };
 
 /**
@@ -114,7 +121,7 @@ export async function startWorkspaceUpgrade(
       logServerError("stripe-billing-actions.startUpgrade.portal", portal.error);
       return { ok: false, error: "Couldn't open billing. Contact support and nothing will be charged twice." };
     }
-    return { ok: true, redirectUrl: portal.data.url };
+    return { ok: true, redirectUrl: portal.data.url, planChange: planChangeTarget(planKey, interval) };
   }
 
   const appBaseUrl = await deriveAppBaseUrl();

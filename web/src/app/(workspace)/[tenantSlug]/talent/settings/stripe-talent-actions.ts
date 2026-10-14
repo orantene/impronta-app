@@ -23,7 +23,7 @@ import { isTalentCancelReason } from "@/lib/billing/talent-cancel";
 import { deriveAppBaseUrl } from "@/lib/stripe/utils";
 import { resolveTalentPriceId } from "@/lib/stripe/price-catalog";
 import { yearlyCheckoutPlans } from "@/lib/billing/checkout-interval";
-import { isAlreadySubscribedError } from "@/lib/billing/duplicate-subscription";
+import { isAlreadySubscribedError, planChangeTarget, type PlanChangeTarget } from "@/lib/billing/duplicate-subscription";
 import { signCheckoutReturn } from "@/lib/billing/checkout-return";
 import { isSafeReturnPath } from "@/lib/billing/trial-door";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -34,7 +34,13 @@ import type { TalentPlanKey } from "@/lib/stripe/price-ids";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type TalentBillingActionResult =
-  | { ok: true; redirectUrl: string }
+  | {
+      ok: true;
+      redirectUrl: string;
+      /** TUL-831: set when the talent already pays. Callers that support the
+       *  in-app flow (PlanChangeConfirm) open it instead of the portal URL. */
+      planChange?: PlanChangeTarget;
+    }
   | { ok: false; error: string };
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
@@ -99,15 +105,18 @@ export async function startTalentUpgrade(
   });
 
   // TUL-830: an existing active/trialing/past_due plan is never sent through
-  // Checkout again (that would mint a second subscription); change it in the portal.
+  // Checkout again (that would mint a second subscription). TUL-831: the
+  // result names the in-app plan change target; the portal URL stays as the
+  // fallback for callers that do not open PlanChangeConfirm yet.
   if (!result.ok && isAlreadySubscribedError(result.error)) {
+    const planChange = planChangeTarget(planKey, interval);
     const portal = await createTalentBillingPortalSession({
       userId: session.user.id,
       tenantSlug,
       appBaseUrl,
       locale: await getRequestLocale(),
     });
-    if (portal.ok) return { ok: true, redirectUrl: portal.data.url };
+    if (portal.ok) return { ok: true, redirectUrl: portal.data.url, planChange };
     logServerError("stripe-talent-actions.startUpgrade.portal", portal.error);
     return { ok: false, error: result.error };
   }

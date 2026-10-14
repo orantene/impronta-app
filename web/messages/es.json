@@ -11093,6 +11093,15 @@
           "hub": "Descubrimiento entre agencias",
           "multiagency": "Opera varias marcas"
         }
+      },
+      "planChange": {
+        "loading": "Calculando el precio...",
+        "payToday": "Pagas {amount} hoy. {plan} empieza ahora.",
+        "changesOn": "Tu plan cambia a {plan} el {date}. Hoy no se cobra nada.",
+        "cancelPending": "Conserva tu plan actual y cancela el cambio programado.",
+        "noChange": "Ya tienes este plan.",
+        "confirm": "Confirmar cambio",
+        "cancel": "Ahora no"
       }
     },
     "adminIntegrationsCatalog": {

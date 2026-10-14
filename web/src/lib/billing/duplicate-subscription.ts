@@ -2,7 +2,8 @@
  * duplicate-subscription.ts (TUL-830): one paid subscription per talent and
  * per workspace. Checkout refuses when the subject already holds a subscription
  * that grants access (active, trialing, or past_due in the dunning window); the
- * calling action sends the person to the Billing Portal to change plan instead.
+ * calling action routes the person to the in-app plan change (TUL-831,
+ * `planChangeTarget`), with the Billing Portal URL kept as the fallback.
  * Pure, so talent and workspace checkout share one rule.
  */
 
@@ -31,4 +32,11 @@ export function checkoutGuardError(check: ExistingSubscriptionCheck): string | n
 
 export function isAlreadySubscribedError(error: string | null | undefined): boolean {
   return error === ALREADY_SUBSCRIBED_ERROR;
+}
+
+/** TUL-831: what the in-app plan change flow needs to preview the requested plan. */
+export type PlanChangeTarget = { planKey: string; interval: "month" | "year" };
+
+export function planChangeTarget(planKey: string, interval: unknown): PlanChangeTarget {
+  return { planKey, interval: interval === "year" ? "year" : "month" };
 }

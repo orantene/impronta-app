@@ -24,3 +24,24 @@ test("talent upgrade action turns the refusal into a Billing Portal redirect", (
 test("workspace upgrade keeps its live-subscription portal redirect", () => {
   assert.match(workspaceActions, /if \(await hasLiveWorkspaceSubscription\(scope\.tenantId\)\)/);
 });
+
+test("TUL-831: existing subscribers are routed to the in-app plan change (portal URL kept as fallback)", () => {
+  assert.match(talentActions, /redirectUrl: portal\.data\.url, planChange \}/);
+  assert.match(workspaceActions, /planChange: planChangeTarget\(planKey, interval\)/);
+});
+
+test("TUL-831: plan-change actions never write plan rows; the webhook re-fetches on resync", () => {
+  for (const p of [
+    "src/lib/billing/plan-change.ts",
+    "src/lib/billing/plan-change.server.ts",
+    "src/app/(workspace)/[tenantSlug]/talent/settings/plan-change-actions.ts",
+    "src/app/(workspace)/[tenantSlug]/admin/account/plan-change-actions.ts",
+  ]) {
+    assert.doesNotMatch(read(p), /\.from\([^)]*\)\s*\.(update|upsert|insert|delete)\(/, `${p} writes a DB row`);
+    assert.doesNotMatch(read(p), /\.from\("(talent_profiles|agencies)"\)/, `${p} touches plan columns`);
+  }
+  const handler = read("src/lib/stripe/webhook-handler.ts");
+  const at = handler.indexOf('case "subscription_plan_resync"');
+  assert.ok(at > 0);
+  assert.ok(handler.indexOf("stripe.subscriptions.retrieve(action.subscriptionId", at) > at);
+});

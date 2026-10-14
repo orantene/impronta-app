@@ -371,6 +371,21 @@ export async function processStripeEvent(
       return;
     }
 
+    case "subscription_plan_resync": {
+      // Re-fetch: the event payload may be older than what Stripe holds now
+      // (out-of-order delivery, replays), the live subscription never is.
+      let subscription: Stripe.Subscription;
+      try {
+        subscription = await stripe.subscriptions.retrieve(action.subscriptionId, {
+          expand: ["items.data.price", "customer", "discounts"],
+        });
+      } catch (err) {
+        throw new TransientWebhookError(`subscriptions.retrieve failed for ${action.subscriptionId} (${action.source})`, err);
+      }
+      await syncSubscriptionByType(subscription, event.id);
+      return;
+    }
+
     case "subscription_lifecycle_talent":
       // Preserves the talent-site provisioning side-effect (onTalentPlanChanged)
       // and the robust talent_profile resolution that the workspace sync lacks.
