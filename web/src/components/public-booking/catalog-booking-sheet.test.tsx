@@ -262,7 +262,7 @@ test("AUD-003 empty slots shows Consultar disponibilidad and opens ask chat", as
         tenantId="tenant-1"
         bookFn={book}
         onAsk={(h) => handoffs.push(h)}
-        slotsFn={async () => ({ slots: [], timezone: "UTC" })}
+        slotsFn={async () => ({ slots: [], timezone: "UTC", fromYmd: "2026-10-10" })}
       />,
     );
   });
@@ -271,6 +271,7 @@ test("AUD-003 empty slots shows Consultar disponibilidad and opens ask chat", as
     await new Promise((r) => setTimeout(r, 30));
   });
   assert.ok(host.querySelector(".jb-empty"));
+  assert.equal(host.querySelector("[data-catalog-try-another-date]"), null, "no next free day in window");
   const continueWhen = host.querySelector<HTMLButtonElement>('[data-catalog-continue="when"]');
   assert.ok(continueWhen);
   assert.equal(continueWhen.disabled, true);
