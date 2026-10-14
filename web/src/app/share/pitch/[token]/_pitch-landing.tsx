@@ -1,5 +1,7 @@
 "use client";
 
+import { GuestPhoneField } from "@/components/ui/guest-phone-field";
+import { normalizeGuestPhone } from "@/lib/phone/guest-phone";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
@@ -547,14 +549,14 @@ function ConvertForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !email.trim()) return;
+    if (!name.trim() || !email.trim() || !normalizeGuestPhone(phone)) return;
     onStateChange({ phase: "submitting" });
     const result = await convertPitchToInquiryAction({
       token,
       contactInfo: {
         name: name.trim(),
         email: email.trim(),
-        phone: phone.trim() || null,
+        phone,
         message: message.trim() || null,
       },
     });
@@ -606,15 +608,8 @@ function ConvertForm({
             />
           </Field>
         </div>
-        <Field label="Phone (optional)">
-          <input
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            disabled={submitting}
-            placeholder="+1 555 000 0000"
-            className="w-full rounded-xl bg-[#F2F2EE] px-3.5 py-2.5 text-[14px] text-[#0B0B0D] placeholder-[#0B0B0D]/35 outline-none ring-1 ring-transparent transition focus:bg-white focus:ring-[#0F4F3E]/40 disabled:opacity-50"
-          />
+        <Field label="Phone / WhatsApp">
+          <GuestPhoneField value={phone} onChange={setPhone} disabled={submitting} locale="en" />
         </Field>
         <Field label="Message (optional)">
           <textarea

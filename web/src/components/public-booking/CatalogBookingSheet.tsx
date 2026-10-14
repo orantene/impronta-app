@@ -53,6 +53,8 @@ import {
 } from "./catalog-booking-price";
 import { CatalogInquiryBrief } from "./catalog-inquiry-brief";
 import { CatalogTaskNote, catalogTaskBrief } from "./catalog-task-note";
+import { CatalogWhoNotes, CatalogWhoPhone } from "./catalog-who-contact";
+import { normalizeGuestPhone } from "@/lib/phone/guest-phone";
 import { CatalogIntakeFields } from "./catalog-intake-fields";
 import { preselectIntakeFromTask } from "@/lib/talent/offering-intake";
 import {
@@ -124,6 +126,7 @@ export function CatalogBookingSheet({
   const [slotsReady, setSlotsReady] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [guestNote, setGuestNote] = useState("");
   const [email, setEmail] = useState("");
   const [touched, setTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -305,7 +308,7 @@ export function CatalogBookingSheet({
   const day = mode === "live" ? (liveDays[dayIndex]?.date ?? days[0]!) : (days[dayIndex] ?? days[0]!);
   const nameValid = name.trim().length >= 2;
   const emailValid = /.+@.+\..+/.test(email.trim());
-  const phoneValid = phone.trim() === "" || phone.replace(/\D/g, "").length >= 8;
+  const phoneValid = normalizeGuestPhone(phone) !== null;
   const addr = useServiceAddress(detail?.where, locale);
   const { busy, confirm, resetConfirmGuards } = useCatalogBookingConfirm({
     locale,
@@ -319,7 +322,7 @@ export function CatalogBookingSheet({
     allowPayInPerson: detail?.allowPayInPerson !== false,
     variantId,
     addOnIds,
-    brief: catalogTaskBrief(detail),
+    brief: catalogTaskBrief(detail, guestNote),
     eventLocation: addr.eventLocation, serviceAddress: addr.payload, serviceAddressValid: addr.valid, showServiceAddressError: addr.showError,
     liveStarts,
     liveTz,
@@ -372,7 +375,7 @@ export function CatalogBookingSheet({
   const timeGroupLabel = whenStepTimeGroupLabel({ action: whoAction, locale });
   const selectedTime = catalogCanContinueWhen(time);
   const chatNameValid = name.trim().length >= 2;
-  const chatPhoneValid = phone.replace(/\D/g, "").length >= 8;
+  const chatPhoneValid = phoneValid;
 
   /** Explicit "Start over": drop the draft and every pick. */
   const startOver = () => {
@@ -654,23 +657,15 @@ export function CatalogBookingSheet({
                 />
                 {touched && !nameValid ? <em>{es ? "Escribe tu nombre para confirmar." : "Enter your name to confirm."}</em> : null}
               </label>
-              <label className="jb-field">
-                <span>
-                  WhatsApp <i>{es ? "opcional" : "optional"}</i>
-                </span>
-                <input
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  onBlur={() => setTouched(true)}
-                  inputMode="tel"
-                  autoComplete="tel"
-                  placeholder={es ? "Para avisarte de cualquier cambio" : "If we need to reach you"}
-                  aria-invalid={touched && !phoneValid}
-                  data-testid="cb-phone"
-                />
-                {touched && !phoneValid ? <em>{es ? "Revisa el número." : "Check the number."}</em> : null}
-                {askAttempted && !chatPhoneValid ? <em>{es ? "WhatsApp hace falta para chatear." : "WhatsApp is needed to chat."}</em> : null}
-              </label>
+              <CatalogWhoPhone
+                es={es}
+                locale={locale}
+                phone={phone}
+                onPhone={setPhone}
+                onBlur={() => setTouched(true)}
+                invalid={touched && !phoneValid}
+                chatError={askAttempted && !chatPhoneValid}
+              />
               <label className="jb-field">
                 <span>{es ? "Correo" : "Email"}</span>
                 <input
@@ -686,6 +681,7 @@ export function CatalogBookingSheet({
                 />
                 {touched && !emailValid ? <em>{es ? "Necesitamos un correo válido." : "We need a valid email."}</em> : null}
               </label>
+              <CatalogWhoNotes es={es} value={guestNote} onChange={setGuestNote} />
               {addr.rule === "required" ? <ServiceAddressField value={addr.fields.address} note={addr.fields.note} onChange={addr.setFields} error={addr.error} locale={locale} /> : null}
               <p className="jb-fixture" data-catalog-who-pay="">
                 {paymentFixture}

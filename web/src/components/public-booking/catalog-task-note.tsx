@@ -9,6 +9,7 @@
 import {
   TASK_NOTE_MAX,
   briefFromDetail,
+  withGuestNote,
   taskNoteHint,
   taskNoteLabel,
   type OfferingTaskBrief,
@@ -42,6 +43,6 @@ export function CatalogTaskNote({
 }
 
 /** What the sheet's confirm sends: the task (G9b) and intake answers (G13); null when neither. */
-export function catalogTaskBrief(detail: CatalogBookingDetail | null): OfferingTaskBrief | null {
-  return briefFromDetail(detail, true);
+export function catalogTaskBrief(detail: CatalogBookingDetail | null, guestNote?: string): OfferingTaskBrief | null {
+  return withGuestNote(briefFromDetail(detail, true), guestNote);
 }

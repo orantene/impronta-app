@@ -212,6 +212,7 @@ test("the note is editable and the EDITED text is what the confirm sends (live)"
   act(() => host.querySelector<HTMLButtonElement>('[data-catalog-continue="when"]')!.click());
   typeInto(host.querySelector<HTMLInputElement>('[data-testid="cb-name"]')!, "Vale Demo");
   typeInto(host.querySelector<HTMLInputElement>('[data-testid="cb-email"]')!, "vale@example.com");
+  typeInto(host.querySelector<HTMLInputElement>('[data-testid="cb-phone"]')!, "5551112233");
   assert.equal(calls.length, 0, "still nothing before submit");
   await act(async () => {
     host.querySelector<HTMLButtonElement>('[data-catalog-continue="who"]')!.click();
@@ -223,6 +224,47 @@ test("the note is editable and the EDITED text is what the confirm sends (live)"
     task_label: "Se bota el breaker",
     note: "Se bota el breaker de la cocina cuando uso el horno",
   });
+  unmount();
+});
+
+async function reachWho(host: HTMLElement) {
+  act(() => host.querySelector<HTMLButtonElement>('[data-catalog-continue="choose"]')!.click());
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 40));
+  });
+  act(() => host.querySelector<HTMLButtonElement>(".jb-times .jb-time")!.click());
+  act(() => host.querySelector<HTMLButtonElement>('[data-catalog-continue="when"]')!.click());
+  typeInto(host.querySelector<HTMLInputElement>('[data-testid="cb-name"]')!, "Vale Demo");
+  typeInto(host.querySelector<HTMLInputElement>('[data-testid="cb-email"]')!, "vale@example.com");
+}
+
+test("guest form: the phone is required, a booking without it is never sent", async () => {
+  const { host, calls, unmount } = mount("es", "live");
+  pick(host, "breaker");
+  await reachWho(host);
+  await act(async () => {
+    host.querySelector<HTMLButtonElement>('[data-catalog-continue="who"]')!.click();
+    await new Promise((r) => setTimeout(r, 60));
+  });
+  assert.equal(calls.length, 0, "no phone, no write");
+  assert.match(host.textContent ?? "", /Teléfono \/ WhatsApp/);
+  assert.match(host.textContent ?? "", /Revisa el número/);
+  unmount();
+});
+
+test("guest form: the phone goes out as E.164 and the optional notes ride the brief", async () => {
+  const { host, calls, unmount } = mount("en", "live");
+  pick(host, "breaker");
+  await reachWho(host);
+  typeInto(host.querySelector<HTMLInputElement>('[data-testid="cb-phone"]')!, "+52 55 1234 5678");
+  typeInto(host.querySelector<HTMLTextAreaElement>('[data-testid="cb-notes"]') as unknown as HTMLInputElement, "Gate code 1234");
+  await act(async () => {
+    host.querySelector<HTMLButtonElement>('[data-catalog-continue="who"]')!.click();
+    await new Promise((r) => setTimeout(r, 60));
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]!.contactPhone, "+525512345678", "a pasted international number sets the dial code");
+  assert.equal(calls[0]!.brief?.guest_note, "Gate code 1234");
   unmount();
 });
 
@@ -238,6 +280,7 @@ test("a cleared note still sends the task as context, without a note", async () 
   act(() => host.querySelector<HTMLButtonElement>('[data-catalog-continue="when"]')!.click());
   typeInto(host.querySelector<HTMLInputElement>('[data-testid="cb-name"]')!, "Vale Demo");
   typeInto(host.querySelector<HTMLInputElement>('[data-testid="cb-email"]')!, "vale@example.com");
+  typeInto(host.querySelector<HTMLInputElement>('[data-testid="cb-phone"]')!, "5551112233");
   await act(async () => {
     host.querySelector<HTMLButtonElement>('[data-catalog-continue="who"]')!.click();
     await new Promise((r) => setTimeout(r, 60));

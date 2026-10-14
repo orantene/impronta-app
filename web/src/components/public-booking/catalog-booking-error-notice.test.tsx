@@ -87,6 +87,7 @@ test("LIVE12: a refused confirm announces the error and scrolls it into view", a
   act(() => host.querySelector<HTMLButtonElement>('[data-catalog-continue="when"]')!.click());
   setInput(host.querySelector<HTMLInputElement>('[data-testid="cb-name"]')!, "QA Grok Demo");
   setInput(host.querySelector<HTMLInputElement>('[data-testid="cb-email"]')!, "qa-grok+demo@impronta.test");
+  setInput(host.querySelector<HTMLInputElement>('[data-testid="cb-phone"]')!, "5551112233");
   await act(async () => {
     host.querySelector<HTMLButtonElement>('[data-catalog-continue="who"]')!.click();
     await new Promise((r) => setTimeout(r, 80));

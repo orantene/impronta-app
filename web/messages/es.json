@@ -876,7 +876,7 @@
       "form": {
         "nameLabel": "Tu nombre",
         "emailLabel": "Correo",
-        "phoneLabel": "Teléfono (opcional)",
+        "phoneLabel": "Teléfono / WhatsApp",
         "messageLabel": "Tu mensaje",
         "messagePlaceholder": "Cuéntanos sobre tu proyecto: fechas, lugar, qué estás buscando…",
         "submit": "Enviar consulta",
@@ -1489,7 +1489,7 @@
       "requesterNamePlaceholder": "Tu nombre completo",
       "requesterEmail": "Email",
       "requesterEmailPlaceholder": "tu@marca.com",
-      "requesterPhone": "Teléfono o WhatsApp",
+      "requesterPhone": "Teléfono / WhatsApp",
       "requesterPhonePlaceholder": "+52 …",
       "trustLoggedInTitle": "Cliente con sesión iniciada",
       "trustVerifiedEmail": "Email verificado",

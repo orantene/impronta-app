@@ -42,6 +42,7 @@ import { logAnalyticsEventServer } from "@/lib/analytics/server-log";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 import { submitInquiry } from "@/lib/inquiry/inquiry-engine";
 import { getPublicTenantScope, getPublicHostContext } from "@/lib/saas/scope";
+import { guestPhoneError, normalizeGuestPhone } from "@/lib/phone/guest-phone";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const GUEST_HEADER = "x-impronta-guest";
@@ -97,6 +98,10 @@ export async function submitContactInquiry(
   if (!message) {
     return { status: "error", error: t("public.contact.form.errorMessageRequired") };
   }
+  const phoneE164 = normalizeGuestPhone(contact_phone);
+  if (!phoneE164) {
+    return { status: "error", error: guestPhoneError(contact_phone, await getRequestLocale()) ?? "" };
+  }
 
   // Tenant resolved from the middleware-injected active-tenant header. Hub /
   // marketing / app hosts return null (they don't expose this form).
@@ -136,7 +141,7 @@ export async function submitContactInquiry(
     email: contact_email,
     name: contact_name,
     company: "",
-    phone: contact_phone,
+    phone: phoneE164,
   });
 
   // Canonical guest inquiry submit — identical engine call to the directory
@@ -147,7 +152,7 @@ export async function submitContactInquiry(
     tenant_id: publicScope.tenantId,
     contact_name,
     contact_email: contact_email.toLowerCase(),
-    contact_phone: contact_phone || null,
+    contact_phone: phoneE164,
     company: null,
     event_date: null,
     event_location: null,

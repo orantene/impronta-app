@@ -218,6 +218,7 @@ export default async function RootLayout({
       suppressHydrationWarning
       data-public-font-preset={publicFontPreset}
       data-consent-region={consentRegion}
+      data-ip-country={reqHeaders.get("x-vercel-ip-country") ?? undefined}
       {...tokenDataAttrs}
       style={tokenCssVars as React.CSSProperties}
       className={`${bodySans.variable} ${geistSans.variable} ${geistMono.variable} ${cinzel.variable} ${interBody.variable} ${playfairDisplay.variable} ${fraunces.variable} h-full antialiased`}
