@@ -31,10 +31,14 @@ import { logServerError } from "@/lib/server/safe-error";
 import {
   normalizePayoutCountry,
   payoutCountryLabel,
-  requiresRecipientAgreement,
   isStablecoinPayoutCountry,
 } from "@/lib/payments/payout-countries";
 import { loadActivePayoutSystem } from "@/lib/payments/active-payout-system";
+import {
+  connectAccountTermsFor,
+  MX_PLATFORM_UNCONFIGURED,
+  payoutSetupErrorCode,
+} from "@/lib/payments/connect-account-setup";
 
 export type TalentConnectStatus =
   | "none"
@@ -208,9 +212,12 @@ export async function createOrGetTalentConnectedAccount(
   // 4. Create the Express account in the payee's country, on the platform the
   //    router picks (MX sellers on the Mexico platform; USDC stays US).
   const platform = resolveStripeAccountForSeller({ payoutCountry: country });
-  if (!platform) return { ok: false, error: "Mexico payments are not configured yet." };
+  if (!platform) return { ok: false, error: MX_PLATFORM_UNCONFIGURED };
   const stripe = getStripeFor(platform);
   if (!stripe) return { ok: false, error: "Stripe client unavailable." };
+  // TUL-739: recipient agreement only for cross-border (e.g. MX on the US
+  // platform); an MX account on the MX platform is domestic.
+  const terms = connectAccountTermsFor(country, platform);
   let account: Stripe.Account;
   try {
     account = await stripe.accounts.create({
@@ -223,7 +230,7 @@ export async function createOrGetTalentConnectedAccount(
       business_type: "individual",
       capabilities: {
         transfers: { requested: true },
-        card_payments: { requested: false },
+        card_payments: { requested: terms.cardPayments && platform === "mx" },
       },
       business_profile: businessUrl ? { url: businessUrl } : undefined,
       // Receive-only countries (MX, AR and the rest of LatAm/Asia/Africa) REQUIRE
@@ -232,7 +239,7 @@ export async function createOrGetTalentConnectedAccount(
       // specify the `recipient` service agreement". The account can then receive
       // transfers and pay out locally, it just can't charge customers (which
       // talent never does — the client always pays the platform).
-      ...(requiresRecipientAgreement(country)
+      ...(terms.recipientAgreement
         ? { tos_acceptance: { service_agreement: "recipient" as const } }
         : {}),
       metadata: {
@@ -250,10 +257,10 @@ export async function createOrGetTalentConnectedAccount(
     const activePayoutSystem = await loadActivePayoutSystem();
     return {
       ok: false,
-      error:
-        activePayoutSystem === "connect"
-          ? `Payouts aren't available in ${payoutCountryLabel(country)} yet. Please reach out to support so we can set you up.`
-          : `${payoutCountryLabel(country)} isn't supported for direct Stripe payouts. Use "Get paid to your local bank" below, it covers ${payoutCountryLabel(country)}.`,
+      error: payoutSetupErrorCode(
+        country,
+        activePayoutSystem === "connect" ? "connect" : "global_payouts",
+      ),
     };
   }
 
