@@ -90,11 +90,10 @@ test("hub has no agency tabs; neither do other audiences or bad slugs", () => {
   }
 });
 
-test("login brand: flag, host kind, whitelabel and a name are all required", () => {
-  const on = { flagOn: true, hostKind: "agency", whitelabel: true, publicName: " Impronta Models " };
+test("login brand: host kind, whitelabel and a name are all required", () => {
+  const on = { hostKind: "agency", whitelabel: true, publicName: " Impronta Models " };
   assert.deepEqual(authPageBrand(on), { title: "Impronta Models" });
   assert.deepEqual(authPageBrand({ ...on, hostKind: "hub" }), { title: "Impronta Models" });
-  assert.equal(authPageBrand({ ...on, flagOn: false }), null);
   assert.equal(authPageBrand({ ...on, whitelabel: false }), null);
   assert.equal(authPageBrand({ ...on, publicName: "  " }), null);
   assert.equal(authPageBrand({ ...on, publicName: null }), null);
