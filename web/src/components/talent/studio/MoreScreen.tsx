@@ -5,7 +5,7 @@ import { signOut } from "@/app/auth/actions";
 import { WebsiteRewardControl } from "@/components/talent/website-reward/WebsiteRewardControl";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { useAdminShell, type TalentPage } from "@/components/admin/shell/internal/state";
-import { openGuideHome } from "@/lib/guide/open-guide";
+import { openSupportPanel } from "@/lib/support/open-support-panel";
 import { useWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
 import { countItemsLabel } from "@/components/admin/shell/internal/count-items-label";
 
@@ -69,7 +69,7 @@ export function TalentMoreScreen({ onClose }: { onClose: () => void }) {
       title: "You",
       rows: [
         { label: "Settings", detail: "", page: "settings" },
-        { label: "Get help", detail: "", run: () => openGuideHome() },
+        { label: "Get help", detail: "", run: () => openSupportPanel() },
         {
           label: signingOut ? "Signing out…" : "Sign out",
           detail: "",
