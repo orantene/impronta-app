@@ -79,7 +79,7 @@ export function buildLegalStripModel(input: {
   const languages = input.languages ?? [];
   const talentLabels: Record<string, string> = {
     "booking-policy": pickLocale(locale, { en: "Booking policies", es: "Políticas de reserva" }),
-    "talent-privacy": pickLocale(locale, { en: "Privacy", es: "Privacidad" }),
+    "talent-privacy": pickLocale(locale, { en: "Privacy notice", es: "Aviso de privacidad" }),
   };
   const talentLinks: LegalStripLink[] = [];
   for (const key of ["booking-policy", "talent-privacy"] as const) {
