@@ -1979,6 +1979,9 @@
         "readFailed": "We couldn't read that. Try again or type it differently.",
         "aiUnavailable": "We could not read your description right now. Please try again in a moment.",
         "looksGood": "Looks good, continue",
+        "titleFailed": "We couldn't read that",
+        "subFailed": "Answer a few quick questions and we'll set it up anyway.",
+        "continueManual": "Answer a few questions",
         "editHint": "Tap any line to change it.",
         "laterValue": "Later, in your site",
         "missingValue": "We'll ask next"

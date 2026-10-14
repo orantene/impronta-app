@@ -22,3 +22,14 @@ test("TUL-991: the saving screen says 'you can close this' once and promises no 
     assert.match(b.canClose, /close this|cerrar esto/i);
   }
 });
+
+test("TUL-801: a failed read with nothing understood offers the manual path, not 'Looks good'", () => {
+  const src = readFileSync(join(process.cwd(), "src/components/onboarding/steps/understood-step.tsx"), "utf8");
+  assert.match(src, /readFailedEmpty/);
+  assert.match(src, /understood\.continueManual/);
+  assert.match(src, /understood\.titleFailed/);
+  for (const l of ["en", "es"]) {
+    const u = msg(l).public.onboarding.understood;
+    assert.ok(u.continueManual && u.titleFailed && u.subFailed, l);
+  }
+});

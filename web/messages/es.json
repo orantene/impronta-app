@@ -1979,6 +1979,9 @@
         "readFailed": "No pudimos leer eso. Inténtalo de nuevo o escríbelo distinto.",
         "aiUnavailable": "No pudimos leer tu descripción ahora. Inténtalo de nuevo en un momento.",
         "looksGood": "Se ve bien, continuar",
+        "titleFailed": "No pudimos leerlo",
+        "subFailed": "Responde unas preguntas rápidas y lo armamos igual.",
+        "continueManual": "Contestar unas preguntas",
         "editHint": "Toca cualquier línea para cambiarla.",
         "laterValue": "Después, en tu sitio",
         "missingValue": "Lo preguntamos ahora"
