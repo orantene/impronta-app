@@ -15,6 +15,9 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["lib/server-actions/talent-billing-summary.ts", ["loadTalentBillingSummary"], READ],
   ["lib/server-actions/validate-promo-code.ts", ["validatePromoCode"], "promo preview: validates a code against the catalog, redeems nothing and calls no Stripe API"],
   ["lib/talent-site/server/site-live-verified.ts", ["loadMySiteLiveVerifiedAction"], READ],
+  ["lib/promos/actions.ts", ["loadPromosPage", "getPromoAttention", "loadPromoBookings"], READ],
+  ["lib/promos/booking-quote.actions.ts", ["previewBookingQuoteAction"], "public client price preview: reads only, holds nothing, no talent session"],
+  ["lib/promos/callouts/dismissals.actions.ts", ["loadCalloutState"], READ],
   ["app/(workspace)/[tenantSlug]/admin/media/actions.ts", ["actionLoadTalentMediaBundleAll"], READ],
   ["app/(workspace)/[tenantSlug]/admin/media/profile-shell-media-actions.ts", ["actionLoadProfileShellMedia", "actionLoadProfileShellAlbumPage"], READ],
   ["app/(workspace)/platform/admin/integrations/captcha-override-actions.ts", ["loadWorkspaceCaptchaOverrides"], READ],
@@ -276,6 +279,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
  * with a one-line reason. Everything else under src/app must call the guard first.
  */
 export const ROUTE_ALLOW: Array<[suffix: string, reason: string]> = [
+  ["api/promos/event/route.ts", "public visitor analytics beacon (promo link opens/shares); no user session, writes only promo_events"],
   ["auth/sign-out/route.ts", "SIGN-OUT: ends the session; must keep working while impersonating (PM exception)"],
   ["api/discover/subscriptions/webhook/route.ts", "webhook: Stripe-signature authenticated, no user session"],
   ["api/webhooks/stripe-v2/route.ts", "webhook: Stripe-signature authenticated, no user session"],
