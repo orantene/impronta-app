@@ -11,7 +11,8 @@ const tree = [
     props: {},
     children: [
       { id: "h", kind: "heading", props: { text: "Recent work", level: 2 } },
-      { id: "j", kind: "heading", props: { text: "Recent jobs", level: 2 } },
+      // TUL-516 C1: Gridline surface is portfolio.title, not a heading.
+      { id: "j", kind: "portfolio", props: { layout: "work_order", title: "Recent jobs" } },
       { id: "e", kind: "heading", props: { text: "Mi trabajo", level: 2 } },
       { id: "b", kind: "button", props: { label: "Ask a question", href: "#talent-ask" } },
       { id: "s", kind: "services_catalog", props: { eyebrow: "The menu", title: "Services {i}and prices{/i}" } },
@@ -33,6 +34,15 @@ test("es: seeded labels localise, talent-edited text is untouched", () => {
   }
   assert.ok(!out.includes("Recent work"));
   assert.ok(!out.includes("Recent jobs"));
+});
+
+test("TUL-516 C1: Gridline portfolio Recent jobs -> Trabajos recientes on es", () => {
+  const one = [
+    { id: "p", kind: "portfolio", props: { layout: "work_order", title: "Recent jobs" } },
+  ] as unknown as BuilderNode[];
+  const out = localiseSeededDesignLabels(one, "es");
+  assert.equal((out[0]!.props as { title: string }).title, "Trabajos recientes");
+  assert.equal(localiseSeededDesignLabels(one, "en"), one);
 });
 
 test("en: tree returned unchanged", () => {
