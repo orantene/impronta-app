@@ -74,7 +74,7 @@ test("marketing apex never gets an /account link (it 404s): falls to the app hos
 
 test("guestSaveBookingsUrl is the existing client sign-in, on a host that serves it", () => {
   withEnv(BASE, () => {
-    assert.equal(guestSaveBookingsUrl(marketing), `${APP}/login?as=client&next=%2Faccount`);
-    assert.equal(guestSaveBookingsUrl(agency), "https://improntamodels.com/login?as=client&next=%2Faccount");
+    assert.equal(guestSaveBookingsUrl(marketing), `${APP}/login?as=client&next=%2Fclient`);
+    assert.equal(guestSaveBookingsUrl(agency), "https://improntamodels.com/login?as=client&next=%2Fclient");
   });
 });

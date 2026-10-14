@@ -18,7 +18,7 @@ const base: ReceiptPageModel = {
 test("a signed-out guest sees Guarda tus reservas with a link into client sign-in", () => {
   const html = renderToStaticMarkup(<ReceiptPageView {...base} signedIn={false} />);
   assert.match(html, /Guarda tus reservas/);
-  assert.match(html, /href="\/login\?as=client&amp;next=%2Faccount"/);
+  assert.match(html, /href="\/login\?as=client&amp;next=%2Fclient"/);
 });
 
 test("English receipt says Save your bookings", () => {

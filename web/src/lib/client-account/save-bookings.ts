@@ -30,7 +30,7 @@ export function saveBookingsLocale(raw: string | null | undefined): SaveBookings
 }
 
 /** Relative href into the existing client sign-in, returning to `/account`. */
-export const SAVE_BOOKINGS_HREF = "/login?as=client&next=%2Faccount";
+export const SAVE_BOOKINGS_HREF = "/login?as=client&next=%2Fclient";
 
 /**
  * Show only to a viewer KNOWN to be signed out. `null`/`undefined` (still

@@ -12,11 +12,11 @@ test("copy exists in both languages with the same keys and no em dashes", () => 
   assert.equal(SAVE_BOOKINGS_COPY.en.title, "Save your bookings");
 });
 
-test("the href enters the existing client sign-in and returns to /account, with no email in the URL", () => {
+test("the href enters the existing client sign-in and returns to /client, with no email in the URL", () => {
   const u = new URL(SAVE_BOOKINGS_HREF, "https://x.test");
   assert.equal(u.pathname, "/login");
   assert.equal(u.searchParams.get("as"), "client");
-  assert.equal(u.searchParams.get("next"), "/account");
+  assert.equal(u.searchParams.get("next"), "/client");
   assert.equal(u.searchParams.has("email"), false);
 });
 
