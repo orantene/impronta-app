@@ -24,3 +24,9 @@ test("GRK-072: selected day/slot fill stays on brand primary (not ink↔surface)
   assert.match(css, /\.jb-time\[data-on="true"\]\{[^}]*background:var\(--cb-selected\)/);
   assert.match(css, /\.jb-day\[data-on="true"\]\{[^}]*color:var\(--cb-on-selected\)/);
 });
+
+test("TUL-516 E6: back links stack in jb-back-nav (never inline)", () => {
+  assert.match(css, /\.jb-back-nav\{[^}]*flex-direction:column/);
+  assert.match(css, /\.jb-back-nav\{[^}]*gap:8px/);
+  assert.match(css, /\.jb-back-link\{[^}]*display:block/);
+});
