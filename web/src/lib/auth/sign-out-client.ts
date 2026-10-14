@@ -3,6 +3,7 @@
 import { stopBrowserAuthClient } from "@/lib/supabase/client";
 import { authCookieScopeVariants, isSupabaseAuthCookie } from "@/lib/supabase/cookie-domain";
 
+import { announceSignOut } from "./cross-tab-sign-out";
 import { SIGN_OUT_PATH } from "./sign-out-paths";
 
 /**
@@ -42,6 +43,8 @@ export function clearBrowserAuthState(doc: Document = document, win: Window = wi
     }
     for (const k of keys) store.removeItem(k);
   }
+  // TUL-788: tell the other open tabs (they reload on the storage event).
+  announceSignOut(safeStorage(win, "localStorage"), Date.now());
 }
 
 function safeStorage(win: Window, kind: "localStorage" | "sessionStorage"): Storage | null {

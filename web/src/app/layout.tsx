@@ -64,6 +64,7 @@ import { PlatformJsonLd } from "@/components/marketing/platform-json-ld";
 import { BreakpointStyleEngine } from "@/components/edit-chrome/breakpoint-style-engine";
 import { BUILTIN_EXTRA_TIERS } from "@/lib/site-admin/builder-node/custom-breakpoint-css";
 import { PwaServiceWorkerRegister } from "@/components/pwa/sw-register";
+import { CrossTabSignOut } from "@/components/auth/cross-tab-sign-out";
 import { FloatingChromeStackStyles } from "@/lib/talent-site/floating-chrome-stack-styles";
 
 import "./globals.css";
@@ -310,6 +311,7 @@ export default async function RootLayout({
         <ClientSpeedInsights />
         {/* PWA — registers /sw.js in production only. No-op in dev. */}
         <PwaServiceWorkerRegister />
+        <CrossTabSignOut />
       </body>
     </html>
   );
