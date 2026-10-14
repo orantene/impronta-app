@@ -2,6 +2,9 @@
 # Billing E2E (TUL-838) — Playwright against STAGING, Stripe TEST mode only.
 # Skeleton: the pricing-toggle scenario runs; the rest are test.fixme.
 # Not a required check until repo settings say so.
+# On PRs it only checks the suite compiles and lists (staging does not run the
+# PR's code yet, so a staging run on a PR always tests the OLD build). The real
+# run is workflow_dispatch against staging after a staging deploy.
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: Billing E2E
@@ -49,14 +52,20 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
+      - name: "PR - suite compiles and lists (no staging run)"
+        if: github.event_name == 'pull_request'
+        run: npx playwright test -c playwright.billing.config.ts --list
       - run: npx playwright install --with-deps chromium
+        if: github.event_name != 'pull_request'
       - name: Refuse non-test Stripe keys
+        if: github.event_name != 'pull_request'
         run: |
           case "${STRIPE_SECRET_KEY:-}" in
             ""|sk_test_*|rk_test_*) ;;
             *) echo "Non-test Stripe key configured; refusing."; exit 1 ;;
           esac
       - name: Run billing suite
+        if: github.event_name != 'pull_request'
         run: npx playwright test -c playwright.billing.config.ts
       - uses: actions/upload-artifact@v4
         if: failure()
