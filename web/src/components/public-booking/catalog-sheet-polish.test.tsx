@@ -92,3 +92,15 @@ test("TUL-928: the phone row can shrink to a 390 viewport", () => {
   assert.match(CATALOG_BOOKING_CSS, /\.jb-phone\{display:flex;gap:8px;min-width:0\}/);
   assert.match(CATALOG_BOOKING_CSS, /\.jb-phone input\{flex:1 1 auto;min-width:0;width:100%\}/);
 });
+
+test("TUL-898: 'Empezar de nuevo' waits until something is picked", async () => {
+  const m = mount();
+  openSheet({ offeringId: "off-898" }, "when");
+  await act(async () => { await new Promise((r) => setTimeout(r, 40)); });
+  assert.equal(m.host.querySelector("[data-catalog-start-over]"), null, "nothing chosen yet");
+  act(() => m.host.querySelector<HTMLButtonElement>(".jb-times .jb-time")!.click());
+  assert.ok(m.host.querySelector("[data-catalog-start-over]"), "a time is a selection");
+  act(() => m.host.querySelector<HTMLButtonElement>("[data-catalog-start-over]")!.click());
+  assert.equal(m.host.querySelector("[data-catalog-start-over]"), null);
+  m.done();
+});

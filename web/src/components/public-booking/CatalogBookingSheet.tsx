@@ -389,6 +389,7 @@ export function CatalogBookingSheet({
   const chatNameValid = name.trim().length >= 2;
   const chatPhoneValid = phone.replace(/\D/g, "").length >= 8;
 
+  const hasPicks = Boolean(variantId || addOnIds.length || time || name.trim() || phone.trim() || email.trim());
   /** Explicit "Start over": drop the draft and every pick. */
   const startOver = () => {
     clearBookingDraft(draftKey);
@@ -478,7 +479,7 @@ export function CatalogBookingSheet({
         />
 
         <div className="jb-body">
-          {step !== "choose" && step !== "done" ? (
+          {step !== "choose" && step !== "done" && hasPicks ? ( // TUL-898: nothing to start over from yet
             <button type="button" className="jb-back-link" data-catalog-start-over="" onClick={startOver}>
               {es ? "Empezar de nuevo" : "Start over"}
             </button>
