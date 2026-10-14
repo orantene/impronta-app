@@ -287,6 +287,7 @@ export function CheckoutView(props: CheckoutViewProps) {
         <EngineFeeLines
           lines={props.feeLines}
           currency={props.currency}
+          formatMoney={(cents) => formatDashboardMoneyCents(cents, props.currency || null, props.locale ?? "es")}
           label={(c) => t(`public.thread.fees.${c}`)}
           nonRefundable={t("public.thread.fees.nonRefundable")}
         />
