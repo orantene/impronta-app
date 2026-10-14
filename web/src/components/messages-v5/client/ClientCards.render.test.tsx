@@ -363,3 +363,13 @@ test("outcome cards match the front-door mockup sentences", () => {
   assert.match(es, /Oferta rechazada/);
   assert.match(es, /No se cobró nada\. Puedes pedir otro horario\./);
 });
+
+test("a paid card that was charged more than the price (service fee) says what the card was charged", () => {
+  const paidPayload = { paymentLinkCode: "abc", amountCents: 100000, amountKind: "full", state: "paid", totalCents: 100000, paidCents: 100000, dueCents: 0, currency: "MXN", method: "card" };
+  const withFee = renderToStaticMarkup(<ClientPaymentCard {...base} now={now} view={readPayment({ ...paidPayload, chargedCents: 101500 })} onPay={() => {}} />);
+  assert.match(withFee, /charged to your card, including a/);
+  assert.match(withFee, /1,015/);
+  assert.match(withFee, /15/);
+  const plain = renderToStaticMarkup(<ClientPaymentCard {...base} now={now} view={readPayment(paidPayload)} onPay={() => {}} />);
+  assert.doesNotMatch(plain, /charged to your card/);
+});

@@ -1783,7 +1783,8 @@
         "processing_fee": "Card processing",
         "client_service_fee": "Service fee",
         "total_charged": "Total",
-        "nonRefundable": "Fees are non-refundable."
+        "nonRefundable": "Fees are non-refundable.",
+        "includedNote": "Includes {fee} service fee."
       },
       "waitlist": "This session is full. Join the waitlist.",
       "dateMismatch": "That date is not available. Another date is offered below.",
@@ -19880,6 +19881,7 @@
             "balanceDue": "Balance due",
             "paidBalanceDue": "{paid} paid. Balance {due} still due.",
             "paidInFull": "{paid} paid. Nothing left.",
+            "paidWithFee": "{charged} charged to your card, including a {fee} service fee. Nothing left.",
             "methodCard": "Paid by card",
             "methodCardDeposit": "Deposit by card",
             "methodCash": "Paid in cash",

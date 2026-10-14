@@ -1783,7 +1783,8 @@
         "processing_fee": "Procesamiento de tarjeta",
         "client_service_fee": "Cargo por servicio",
         "total_charged": "Total",
-        "nonRefundable": "Los cargos no son reembolsables."
+        "nonRefundable": "Los cargos no son reembolsables.",
+        "includedNote": "Incluye {fee} de cargo por servicio."
       },
       "waitlist": "Esta sesión está llena. Únete a la lista de espera.",
       "dateMismatch": "Esa fecha no está. Abajo hay otra fecha.",
@@ -19880,6 +19881,7 @@
             "balanceDue": "Saldo",
             "paidBalanceDue": "{paid} pagada. Saldo {due} en el estudio.",
             "paidInFull": "{paid} pagada. Nada pendiente.",
+            "paidWithFee": "{charged} cobrados a tu tarjeta, con {fee} de cargo por servicio. Nada pendiente.",
             "methodCard": "Pagado con tarjeta",
             "methodCardDeposit": "Seña con tarjeta",
             "methodCash": "Pagado en efectivo",

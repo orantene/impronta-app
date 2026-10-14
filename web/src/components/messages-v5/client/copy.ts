@@ -136,6 +136,7 @@ export function buildClientCopy(t: Translator) {
       balanceDue: t("dashboard.messagesV5.client.link.pay.balanceDue"),
       paidBalanceDue: t("dashboard.messagesV5.client.link.pay.paidBalanceDue"),
       paidInFull: t("dashboard.messagesV5.client.link.pay.paidInFull"),
+      paidWithFee: t("dashboard.messagesV5.client.link.pay.paidWithFee"),
       methodCard: t("dashboard.messagesV5.client.link.pay.methodCard"),
       methodCardDeposit: t("dashboard.messagesV5.client.link.pay.methodCardDeposit"),
       methodCash: t("dashboard.messagesV5.client.link.pay.methodCash"),
