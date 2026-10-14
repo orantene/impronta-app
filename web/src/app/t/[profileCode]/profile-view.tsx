@@ -33,6 +33,7 @@ import { resolveTalentBooking } from "@/lib/scheduling/booking-surface";
 import { resolveProfileCtasFromOfferings } from "@/lib/scheduling/profile-cta-precedence";
 import { PublicHeader } from "@/components/public-header";
 import { MarketingHeader } from "@/components/marketing/header";
+import { buildHubClientEntry } from "@/lib/marketing/hub-client-entry";
 import { MarketingFooter } from "@/components/marketing/footer";
 import type { MarketingAccount } from "@/components/marketing/marketing-account-menu";
 import { resolveAccountHref, getAppUrl } from "@/lib/auth-flow";
@@ -2212,6 +2213,10 @@ export async function TalentProfileView({
   // keep their own white-label chrome (no chrome forced here).
   const platformChrome = isTalentProfilePlatformHost(hostCtx.kind);
   let marketingAccount: MarketingAccount | undefined;
+  // TUL-730: no modal host here, so signed-out clients get app-host links.
+  const clientEntry = platformChrome
+    ? buildHubClientEntry(getAppUrl(), canonicalShareUrl)
+    : undefined;
   let marketingPathnameWithoutLocale = "/";
   if (platformChrome) {
     const h = await headers();
@@ -2646,6 +2651,7 @@ export async function TalentProfileView({
                 pathnameWithoutLocale={marketingPathnameWithoutLocale}
                 account={marketingAccount}
                 signOutAction={signOut}
+                clientEntry={clientEntry}
               />
               {/* id="main-content" lives inside LightProfileLayout (<main>) */}
               <div className="flex-1 pt-[var(--plt-header-h,84px)] sm:pt-[72px]">
