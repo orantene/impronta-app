@@ -55,8 +55,9 @@ function mount(): { host: HTMLDivElement; root: Root; calls: unknown[] } {
   return { host, root, calls };
 }
 
-function setInput(el: HTMLInputElement, v: string) {
-  const setter = Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, "value")!.set!;
+function setInput(el: HTMLInputElement | HTMLTextAreaElement, v: string) {
+  const proto = el.tagName === "TEXTAREA" ? dom.window.HTMLTextAreaElement.prototype : dom.window.HTMLInputElement.prototype;
+  const setter = Object.getOwnPropertyDescriptor(proto, "value")!.set!;
   const key = Object.keys(el).find((k) => k.startsWith("__reactProps"))!;
   const props = (el as unknown as Record<string, { onChange: (e: { target: HTMLInputElement }) => void }>)[key];
   act(() => { setter.call(el, v); props.onChange({ target: el }); });
@@ -145,7 +146,7 @@ test("TUL-896: a home-visit confirmation shows the typed address", async () => {
   act(() => m.host.querySelector<HTMLButtonElement>('[data-catalog-continue="when"]')!.click());
   setInput(m.host.querySelector<HTMLInputElement>('[data-testid="cb-name"]')!, "QA Guest");
   setInput(m.host.querySelector<HTMLInputElement>('[data-testid="cb-email"]')!, "qa@example.com");
-  const address = m.host.querySelector<HTMLInputElement>('[data-testid="cb-service-address"]');
+  const address = m.host.querySelector<HTMLTextAreaElement>('[data-testid="cb-service-address"]');
   assert.ok(address, "address field on a home visit");
   setInput(address, "Calle 5 #12, Centro");
   await act(async () => {

@@ -17,3 +17,9 @@ test("TUL-861: a truly empty window names 30 days in both languages", () => {
   assert.match(catalogEmptyWhenCopy(false, false).body, /next 30 days/);
   assert.match(catalogEmptyWhenCopy(true, false).body, /próximos 30 días/);
 });
+
+test("TUL-930: phone width hides the strip scrollbar and week arrows; start over floats beside the back link", async () => {
+  const { CATALOG_BOOKING_CSS: css } = await import("./catalog-booking-styles");
+  assert.match(css, /@media \(max-width:719px\)\{\.jb-days\{scrollbar-width:none\}\.jb-days::-webkit-scrollbar\{display:none\}\.jb-week-nav\{display:none\}\}/);
+  assert.match(css, /\.jb-back-link\[data-catalog-start-over\]\{float:right/);
+});

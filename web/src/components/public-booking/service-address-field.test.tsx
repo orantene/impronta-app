@@ -16,7 +16,7 @@ test("renders visible labels bound to inputs, privacy line, street-address autoc
   assert.match(html, /autoComplete="street-address"|autocomplete="street-address"/);
   const labelFors = [...html.matchAll(/<label for="([^"]+)"/g)].map((m) => m[1]);
   assert.equal(labelFors.length, 2);
-  for (const id of labelFors) assert.match(html, new RegExp(`<input id="${id.replace(/[:]/g, "\\$&")}"`));
+  for (const id of labelFors) assert.match(html, new RegExp(`<(input|textarea) id="${id.replace(/[:]/g, "\\$&")}"`));
   assert.ok(!html.includes("role=\"alert\""), "no error without an error code");
   assert.ok(!html.includes("aria-invalid"));
 });
@@ -50,4 +50,13 @@ test("note error attaches to the note input, not the address", () => {
   assert.equal((html.match(/aria-invalid="true"/g) ?? []).length, 1);
   assert.match(html, /data-testid="cb-service-address-note-error"/);
   assert.ok(!html.includes('data-testid="cb-service-address-error"'));
+});
+
+test("TUL-933: the address is a wrapping auto-growing textarea, not a one-line input", () => {
+  const html = renderToStaticMarkup(
+    <ServiceAddressField value="Avenida Insurgentes Sur 1234, Interior 5, Colonia del Valle Centro, Benito Juarez" note="" onChange={noop} locale="es" />,
+  );
+  assert.match(html, /<textarea[^>]*data-testid="cb-service-address"/);
+  assert.match(html, /rows="2"/);
+  assert.match(html, /Colonia del Valle Centro, Benito Juarez<\/textarea>/);
 });
