@@ -1891,6 +1891,8 @@
         "empty": "Rien dans cette vue.",
         "keyboardHint": "j/k deplacer, Entree ouvrir, r repondre, e resoudre, a assigner",
         "unknownRequester": "Inconnu",
+        "searchLoadMore": "Voir plus de résultats",
+        "searchLoading": "Recherche dans tous les tickets...",
         "ageJustNow": "maintenant",
         "contextWorkspace": "Espace",
         "noWorkspace": "Aucun espace",
