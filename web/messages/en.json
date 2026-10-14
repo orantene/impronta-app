@@ -74,7 +74,9 @@
         "apple": "Continue with Apple",
         "errorAuth": "That sign-in link has expired or was already used. Request a new code to continue.",
         "errorOauth": "We could not finish signing you in with that provider. Please try again.",
-        "errorConfig": "Sign-in is unavailable right now. Please try again in a few minutes."
+        "errorConfig": "Sign-in is unavailable right now. Please try again in a few minutes.",
+        "clientSignUpPrompt": "Booking someone?",
+        "clientSignUp": "Create a client account"
       },
       "register": {
         "title": "Create your account",

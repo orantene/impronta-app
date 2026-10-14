@@ -7,6 +7,8 @@ export type AppLandingCopy = {
   lead: string;
   signIn: string;
   createAccount: string;
+  /** TUL-759: the booker door ("Create account" is the business /start). */
+  createClientAccount: string;
   publicSite: string;
   goTo: string;
   terms: string;
@@ -26,6 +28,7 @@ export function appLandingCopy(locale: string, brand: string): AppLandingCopy {
         lead: "Inicia sesión para entrar a tu panel. Todo lo que hay detrás es privado de tu cuenta.",
         signIn: "Iniciar sesión",
         createAccount: "Crear una cuenta",
+        createClientAccount: "¿Vas a reservar? Crea una cuenta de cliente",
         publicSite: "¿Buscas el sitio público?",
         goTo: `Ir a ${brand}`,
         terms: "Términos",
@@ -41,6 +44,7 @@ export function appLandingCopy(locale: string, brand: string): AppLandingCopy {
         lead: "Sign in to get to your dashboard. Everything behind it is private to your account.",
         signIn: "Sign in",
         createAccount: "Create an account",
+        createClientAccount: "Booking someone? Create a client account",
         publicSite: "Looking for the public site?",
         goTo: `Go to ${brand}`,
         terms: "Terms",

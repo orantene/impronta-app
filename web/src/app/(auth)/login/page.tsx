@@ -155,6 +155,20 @@ export default async function LoginPage({
       >
         {t("public.auth.login.signUp")}
       </Link>
+      {proStartUrl ? (
+        // TUL-759: "Sign up" above is the business /start; a booker needs
+        // their own door here, not seller onboarding.
+        <span className="mt-2 block" data-client-signup-link="">
+          {t("public.auth.login.clientSignUpPrompt")}{" "}
+          <Link
+            href={withLocaleHref(buildRegisterHref("client", nextPath ? { next: nextPath } : {}), locale)}
+            className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
+            style={{ color: "var(--plt-ink-soft)" }}
+          >
+            {t("public.auth.login.clientSignUp")}
+          </Link>
+        </span>
+      ) : null}
     </p>
   );
 

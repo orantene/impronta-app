@@ -111,6 +111,13 @@ export function AppLanding({ locale = "en" }: { locale?: string }) {
             >
               {copy.createAccount}
             </Link>
+            <Link
+              href="/register?as=client"
+              className="text-sm underline-offset-4 hover:underline"
+              style={{ color: "var(--plt-muted)" }}
+            >
+              {copy.createClientAccount}
+            </Link>
           </div>
 
           <p className="mt-8 text-sm" style={{ color: "var(--plt-muted)" }}>

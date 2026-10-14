@@ -74,7 +74,9 @@
         "apple": "Continuar con Apple",
         "errorAuth": "Ese enlace para entrar ya caducó o ya se usó. Pide un código nuevo para continuar.",
         "errorOauth": "No pudimos terminar de iniciar tu sesión con ese proveedor. Inténtalo de nuevo.",
-        "errorConfig": "El inicio de sesión no está disponible ahora. Inténtalo de nuevo en unos minutos."
+        "errorConfig": "El inicio de sesión no está disponible ahora. Inténtalo de nuevo en unos minutos.",
+        "clientSignUpPrompt": "¿Quieres reservar con alguien?",
+        "clientSignUp": "Crea una cuenta de cliente"
       },
       "register": {
         "title": "Crea tu cuenta",
