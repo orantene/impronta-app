@@ -338,6 +338,7 @@ export default async function AuthLayout({
 
           <AuthFooter
             brand={brand}
+            locale={locale}
             brandLine={brandLine}
             legal={{
               terms: t("public.auth.shell.terms"),

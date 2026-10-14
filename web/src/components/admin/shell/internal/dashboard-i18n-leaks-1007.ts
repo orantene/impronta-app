@@ -33,6 +33,12 @@ export const LEAKS_1007_ES_TEXT: Record<string, string> = {
   "a bio": "una biografía",
   "1 language": "1 idioma",
   // Profile performance, Pro-gated
+  "No prior week to compare": "Sin semana previa para comparar",
+  "Unique viewers · 7d": "Visitantes únicos · 7 d",
+  "in the last 30 days": "en los últimos 30 días",
+  "Views → inquiries · 30d": "Visitas → consultas · 30 d",
+  "Needs profile views to measure": "Necesita visitas al perfil para medirse",
+  "views": "visitas",
   "Page analytics are part of Pro": "El análisis de la página es parte de Pro",
   "Your profile views and inquiry conversion are being recorded right now. Upgrade to Pro or Portfolio to see them.":
     "Las visitas a tu perfil y la conversión de consultas se están registrando ahora mismo. Mejora a Pro o Portfolio para verlas.",
