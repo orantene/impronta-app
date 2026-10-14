@@ -24,6 +24,7 @@ import {
   hasIntroFromSources,
   homeCityFromSources,
 } from "@/lib/talent/website-eligibility-facts";
+import { pickTermLabel } from "@/lib/talent/website-eligibility";
 import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 
 /**
@@ -198,8 +199,8 @@ export async function loadTalentSelfProfile(
 
     const primaryTypeLabel =
       (p.talent_profile_taxonomy ?? [])
-        .find((t) => t.relationship_type === "primary_role")
-        ?.taxonomy_terms?.name_i18n?.en ?? null;
+        .map((t) => (t.relationship_type === "primary_role" ? pickTermLabel(t.taxonomy_terms?.name_i18n) : null))
+        .find((l) => l != null) ?? null;
 
     const homeCity = homeCityFromSources({
       serviceAreaHomeCity:
@@ -355,8 +356,8 @@ export async function loadTalentSelfProfileByUser(
 
     const primaryTypeLabel =
       (p.talent_profile_taxonomy ?? [])
-        .find((t) => t.relationship_type === "primary_role")
-        ?.taxonomy_terms?.name_i18n?.en ?? null;
+        .map((t) => (t.relationship_type === "primary_role" ? pickTermLabel(t.taxonomy_terms?.name_i18n) : null))
+        .find((l) => l != null) ?? null;
 
     const homeCity = homeCityFromSources({
       serviceAreaHomeCity:
