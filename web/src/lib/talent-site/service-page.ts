@@ -8,6 +8,7 @@
  * `<id8>` (first 8 hex of the offering id): a renamed service keeps resolving, and any other
  * title part is self-canonical to the current slug.
  */
+import { publicPriceLine } from "@/lib/talent/public-price-line";
 import { buildServiceOffers, type JsonLdOfferingSource } from "@/lib/seo/talent-json-ld";
 
 export const SERVICE_SLUG_PREFIX = "servicio-";
@@ -23,6 +24,9 @@ export type ServicePageOffering = JsonLdOfferingSource & {
   category?: string | null;
   categoryLabel?: string;
   cancellationHours?: number | null;
+  bookingMode?: "request" | "instant" | "inquiry" | null;
+  reserveMode?: "full" | "deposit" | "free";
+  depositPct?: number | null;
 };
 
 /** Other published services to link from a service page: same category first, then catalog order. */
@@ -79,8 +83,17 @@ export function serviceSitemapPaths(offerings: readonly ServicePageOffering[]): 
   return offerings.filter(isServicePageEligible).map((o) => `/${serviceSlug(o)}`);
 }
 
+/** "Desde $300.00" / "$450.00", or null when the price is hidden or quote-only. */
+/** Same price string as the home services block (TUL alex demo mismatch): one shared helper. `from` kept for callers. */
+export function servicePriceLine(o: ServicePageOffering, locale: string, _from?: string): string | null {
+  const line = publicPriceLine(o, locale);
+  return line ? line.charAt(0).toUpperCase() + line.slice(1) : null;
+}
+
 export type ServicePageCopy = {
   book: string;
+  /** Short label for the phone sticky bar. */
+  bookShort: string;
   back: string;
   minutes: (n: number) => string;
   priceFrom: string;
@@ -91,8 +104,8 @@ export type ServicePageCopy = {
 export function servicePageCopy(locale: string): ServicePageCopy {
   const en = locale.toLowerCase().startsWith("en");
   return en
-    ? { book: "Book this service", back: "All services", minutes: (n) => `${n} min`, priceFrom: "From", related: "Other services", freeCancel: (h) => `Free cancellation up to ${h} h before` }
-    : { book: "Reservar este servicio", back: "Todos los servicios", minutes: (n) => `${n} min`, priceFrom: "Desde", related: "Otros servicios", freeCancel: (h) => `Cancelación gratuita hasta ${h} h antes` };
+    ? { book: "Book this service", bookShort: "Book", back: "All services", minutes: (n) => `${n} min`, priceFrom: "From", related: "Other services", freeCancel: (h) => `Free cancellation up to ${h} h before` }
+    : { book: "Reservar este servicio", bookShort: "Reservar", back: "Todos los servicios", minutes: (n) => `${n} min`, priceFrom: "Desde", related: "Otros servicios", freeCancel: (h) => `Cancelación gratuita hasta ${h} h antes` };
 }
 
 /** "All services" link: the home page's services section, locale-aware (`/` or `/en` -> `/#services`, `/en/#services`). */

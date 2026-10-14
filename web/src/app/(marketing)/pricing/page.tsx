@@ -52,13 +52,13 @@ export default async function PricingPage({
   searchParams: Promise<{ currency?: string; interval?: string }>;
 }) {
   const resolved = await searchParams;
-  const { currency, source } = await resolveCurrency(resolved);
+  const locale = await getRequestLocale();
+  const { currency, source } = await resolveCurrency(resolved, locale);
   // The displayed fee reads from platform_commission_config. A typed 0.06
   // shipped on this page once; the standing rule is that no displayed price or
   // fee is a literal, because every hardcoded one in this codebase has
   // eventually drifted from what the card is actually charged.
   const ticketRate = (await loadPlatformTakeBps(null)) / 10_000;
-  const locale = await getRequestLocale();
   const c = pickLocale(locale, {
     en: {
       heroEyebrow: "Pricing",

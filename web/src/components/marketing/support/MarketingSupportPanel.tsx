@@ -263,6 +263,7 @@ export function MarketingSupportPanel({
         return;
       }
       trackProductEvent(PRODUCT_ANALYTICS_EVENTS.marketing_support_human_requested, { locale });
+      setError(null);
       await loadThread(ticketId);
     } finally {
       setBusy(false);
@@ -307,6 +308,17 @@ export function MarketingSupportPanel({
 
       <div className="flex-1 overflow-y-auto px-4 py-3">
         {error ? <p className="mb-3 text-[0.8rem] text-[var(--plt-ink)]">{error}</p> : null}
+        {error === copy.answerUnavailable && ticketId && ticket?.handledBy !== "human" ? (
+          <button
+            type="button"
+            data-testid="support-error-ask-human"
+            disabled={busy}
+            onClick={() => void askHuman()}
+            className="mb-3 rounded-full border border-[var(--plt-hairline-strong)] px-3 py-1.5 text-[0.8rem] hover:bg-[var(--plt-bg-raised)] disabled:opacity-50"
+          >
+            {copy.askHuman}
+          </button>
+        ) : null}
         {view === "home" && !ticketId ? (
           <div className="flex flex-col gap-5">
             {/* Who is on the other end. The panel promised "a person if you

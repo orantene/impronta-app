@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import {
   MARKETING_PRICE_CURRENCIES,
   coerceMarketingCurrency,
+  isMarketingPriceCurrency,
   pickMarketingCurrency,
 } from "./pick-marketing-currency";
 
@@ -72,6 +73,26 @@ describe("pickMarketingCurrency", () => {
       }),
       { currency: "USD", source: "url-param" },
     );
+  });
+});
+
+describe("Spanish locale default (TUL-864)", () => {
+  it("defaults to MXN on es only when the catalog can render MXN", () => {
+    const expected = isMarketingPriceCurrency("MXN") ? "MXN" : "USD";
+    assert.deepEqual(pickMarketingCurrency({ locale: "es" }), {
+      currency: expected,
+      source: "fallback",
+    });
+  });
+
+  it("explicit URL or cookie still beats the locale default", () => {
+    assert.equal(pickMarketingCurrency({ locale: "es", urlCurrency: "USD" }).currency, "USD");
+    // EUR has no catalog rows, so an EUR cookie is ignored (TUL-892).
+    assert.equal(pickMarketingCurrency({ locale: "es", cookieCurrency: "EUR" }).currency, coerceMarketingCurrency("EUR"));
+  });
+
+  it("English stays USD", () => {
+    assert.equal(pickMarketingCurrency({ locale: "en" }).currency, "USD");
   });
 });
 

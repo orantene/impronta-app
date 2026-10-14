@@ -52,6 +52,11 @@ import { loadTalentPolicyModel, policyMainNode, policySeo } from "./policy-main"
 import { policyDocForSlug } from "@/lib/talent-policies/public";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { parseServiceSlug, resolveServiceBySlug, serviceSlug } from "@/lib/talent-site/service-page";
+import { serviceFaqItems, type ServiceFaqItem } from "@/lib/talent-site/service-page-faq";
+import { loadPublishedFaqForProfile } from "@/lib/talent/faq-public";
+import { SERVICE_REVIEWS_MAX, shownServiceReviews, type ServiceReviews } from "@/lib/talent-site/service-page-reviews";
+import { loadReviewsSources } from "@/lib/site-admin/builder-node/reviews-sources";
+import { loadTalentRatingSummary } from "@/lib/reviews/load-reviews";
 import { serviceMainNode, serviceRelatedLinks, serviceSeo } from "./service-main";
 import { loadPublicPromosForTalent, priceContext } from "@/lib/promos/public-promos.server";
 import { renderMaxSiteDocument } from "./render-max-site-document";
@@ -300,14 +305,19 @@ async function renderTalentMaxSiteUnguarded(
     let serviceOffering: Awaited<ReturnType<typeof loadPublicOfferingsForProfile>>[number] | null = null;
     let servicePath: string | null = null;
     let serviceRelated: ReturnType<typeof serviceRelatedLinks> = [];
+    let serviceFaq: ServiceFaqItem[] = [];
+    let serviceReviews: ServiceReviews | null = null;
     let servicePromo: ReturnType<typeof priceContext> | null = null;
     if (isServiceSlug) {
       const primary = localeCtx.settings.defaultLocale;
-      const [inLocale, inPrimary, livePromos] = await Promise.all([
+      const [inLocale, inPrimary, talentFaq, reviewRows, rating, livePromos] = await Promise.all([
         loadPublicOfferingsForProfile(talentProfileId, locale, null, { bypassCache }).catch(() => []),
         primary === locale
           ? null
           : loadPublicOfferingsForProfile(talentProfileId, primary, null, { bypassCache }).catch(() => []),
+        loadPublishedFaqForProfile(talentProfileId, locale).catch(() => []),
+        loadReviewsSources(talentProfileId, SERVICE_REVIEWS_MAX + 2).catch(() => ({ talentReviews: [] })),
+        loadTalentRatingSummary(talentProfileId).catch(() => ({ average: 0, count: 0 })),
         // Promos v1 (TUL-937): live auto promos price the page through displayPrice. Never on a draft preview.
         isOwnerDraftPreview ? null : loadPublicPromosForTalent(talentProfileId),
       ]);
@@ -316,6 +326,8 @@ async function renderTalentMaxSiteUnguarded(
       if (!serviceOffering) return NOT_FOUND;
       const primaryRow = (inPrimary ?? inLocale).find((o) => o.id === serviceOffering!.id) ?? serviceOffering;
       servicePath = `/${serviceSlug(primaryRow)}`;
+      serviceFaq = serviceFaqItems(serviceOffering, talentFaq, locale);
+      serviceReviews = shownServiceReviews({ ...rating, reviews: reviewRows.talentReviews });
       serviceRelated = serviceRelatedLinks(inLocale, inPrimary, serviceOffering.id, locale, (p) =>
         talentSiteLocalePath(p, locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales),
         servicePromo,
@@ -323,12 +335,15 @@ async function renderTalentMaxSiteUnguarded(
     }
     const node = await timed("maxSite.document", () =>
       renderMaxSiteDocument({
+        servicePagePath: servicePath ? talentSiteLocalePath(servicePath, locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales) : null,
         mainOverride: policyModel
           ? policyMainNode(policyModel, { homeHref: policyHomeHref ?? "/" })
           : serviceOffering
             ? serviceMainNode(serviceOffering, {
                 locale,
                 related: serviceRelated,
+                faq: serviceFaq,
+                reviews: serviceReviews,
                 promo: servicePromo,
                 homePath: talentSiteLocalePath("/", locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales),
               })
@@ -387,7 +402,7 @@ async function renderTalentMaxSiteUnguarded(
     const finalSeo = policyModel
       ? policySeo(seo, policyModel)
       : serviceOffering
-        ? serviceSeo(seo, serviceOffering, { talentName: identity?.name ?? null, locale, city: seoFacts.addressLocality ?? null })
+        ? serviceSeo(seo, serviceOffering, { talentName: identity?.name ?? null, locale, city: seoFacts.addressLocality ?? null, faq: serviceFaq, reviews: serviceReviews, demo: isDemo })
         : seo;
     return { kind: "render", node, seo: finalSeo, locale };
   } catch {

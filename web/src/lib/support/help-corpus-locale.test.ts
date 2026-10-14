@@ -31,6 +31,22 @@ describe("Spanish help corpus", () => {
     assert.match(hit.faqs[0].q, /^¿Cómo cambio mi horario/);
   });
 
+  test("TUL-1014: a Spanish plan-change question grounds on the Spanish plan entry", () => {
+    for (const q of ["¿Cómo cambio mi plan?", "quiero cancelar mi plan", "cómo mejoro mi suscripción"]) {
+      const hit = retrieveHelpEntriesForLocale(q, "es-MX", { limit: 3 })[0];
+      assert.equal(hit?.slug, "talent-plan", q);
+      assert.match(hit.faqs[0].q, /^¿Cómo cambio mi plan\?/);
+    }
+  });
+
+  test("TUL-1014: an English plan-change question grounds on the English plan entry", () => {
+    for (const q of ["How do I change my plan?", "how to upgrade my plan", "cancel my subscription"]) {
+      const hit = retrieveHelpEntriesForLocale(q, "en", { limit: 3 })[0];
+      assert.equal(hit?.slug, "talent-plan", q);
+      assert.match(hit.faqs[0].q, /^How do I change my plan\?/);
+    }
+  });
+
   test("English locale keeps the English corpus", () => {
     const hit = retrieveHelpEntriesForLocale("how do I change my hours", "en", { limit: 3 })[0];
     assert.equal(hit?.slug, "talent-hours");

@@ -131,8 +131,13 @@ export function showClientsFilterChip(
   showRefill: boolean,
 ): boolean {
   if (id === "follow") return showRefill;
-  if (id === "fresh") return counts.fresh > 0;
-  return true;
+  if (id === "all") return true;
+  return counts[id] > 0;
+}
+
+/** An empty directory has nothing to search or filter: show only the empty state. */
+export function showClientsControls(total: number): boolean {
+  return total > 0;
 }
 
 export function filterClientsDirectory(opts: {

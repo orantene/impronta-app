@@ -247,7 +247,7 @@ test("renderers wire the socket and the old badge div is gone", () => {
   const render = readFileSync(join(root, "lib/talent-site/server/render-max-site-document.tsx"), "utf8");
   const canvas = readFileSync(join(root, "lib/talent-site/server/talent-builder-canvas.server.tsx"), "utf8");
   const stmt = readFileSync(join(root, "lib/site-admin/builder-node/statement-footer-block.tsx"), "utf8");
-  assert.match(render, /<TalentSiteSocket/);
+  assert.match(render, /<TulalaLegalStrip/);
   assert.equal(render.includes("data-talent-max-site-badge"), false);
   assert.match(canvas, /shellSocket/);
   assert.equal(stmt.includes("Hecho con Tulala"), false);

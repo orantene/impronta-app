@@ -112,7 +112,7 @@ export function CurrencyPicker({
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[0.8125rem] transition-colors"
+        className="relative inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[0.8125rem] transition-colors before:absolute before:inset-x-0 before:-inset-y-2.5 before:content-['']"
         style={{
           borderColor: "var(--plt-hairline)",
           background: "var(--plt-bg-raised)",

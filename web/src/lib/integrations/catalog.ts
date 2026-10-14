@@ -460,10 +460,10 @@ export const INTEGRATION_CATALOG: Record<string, IntegrationDef> = {
       "Protect your storefront contact forms from spam with hCaptcha or Cloudflare Turnstile. Bring your own keys; the widget renders on your forms and submissions are verified server-side.",
     descriptionKey: `${NS}.captcha.description`,
     instructions: [
-      "Pick a provider: hCaptcha (hcaptcha.com) or Cloudflare Turnstile (dash.cloudflare.com → Turnstile).",
-      "Create a site for your storefront domain and copy the Site key (public) and Secret key (private).",
-      "Paste the Site key and Secret key below and choose the matching provider.",
-      "Save. Your contact forms render the widget and reject submissions that fail verification.",
+      "Create a free Turnstile widget in Cloudflare (dash.cloudflare.com, Turnstile).",
+      "Add your domain as the widget's hostname.",
+      "Copy the Site key and the Secret key.",
+      "Paste them here and save.",
     ],
     instructionKeys: [
       `${NS}.captcha.steps.s1`,
