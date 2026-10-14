@@ -20,12 +20,15 @@ import {
   suggestedEssentials,
   type Essentials,
 } from "@/lib/onboarding/essentials";
+import { placeAreaFromCity } from "@/lib/onboarding/setup";
 import type { OnboardingChoice } from "@/lib/onboarding/choice";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type SetupPayload = {
   choice: OnboardingChoice;
   country: string | null;
+  /** City from the brief (`person.city`); seeds place.area when the person picks a mode. */
+  city: string | null;
   /** What the screen opens with: the saved record, else AI-read services over a trade pack. */
   essentials: Essentials;
   /** True when the person already confirmed once (resume). */
@@ -50,6 +53,7 @@ export async function loadOnboardingSetup(): Promise<SetupLoadResult> {
   const { brief, state } = got as Exclude<typeof got, { error: string }>;
   const choice = state.choice ?? (state.path === "business" ? "studio" : state.path === "both" ? "both" : "myself");
   const country = stringFact(brief, "person.country");
+  const city = placeAreaFromCity(stringFact(brief, "person.city"));
   const locale = state.locale ?? "en";
   const name = stringFact(brief, "business.name") ?? stringFact(brief, "person.professional_name") ?? stringFact(brief, "person.name");
   const ctx = {
@@ -68,7 +72,11 @@ export async function loadOnboardingSetup(): Promise<SetupLoadResult> {
     essentials = fromWords.length ? { ...base, services: fromWords, source: "ai" } : base;
     if (saved) essentials = { ...essentials, hours: saved.hours ?? essentials.hours, place: saved.place, timezone: saved.timezone ?? essentials.timezone };
   }
-  return { ok: true, setup: { choice, country, essentials, saved: !!saved?.confirmed } };
+  // onb1-08: resume with a place mode but empty area still gets the earlier city.
+  if (city && essentials.place && !essentials.place.area) {
+    essentials = { ...essentials, place: { ...essentials.place, area: city } };
+  }
+  return { ok: true, setup: { choice, country, city, essentials, saved: !!saved?.confirmed } };
 }
 
 export async function saveOnboardingSetup(input: { essentials: unknown; locale?: "en" | "es" }): Promise<SetupSaveResult> {

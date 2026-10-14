@@ -13,7 +13,7 @@ import type { Essentials, PlaceMode } from "@/lib/onboarding/essentials";
 import { currencyForCountry } from "@/lib/onboarding/essentials";
 import type { FlowLocale } from "@/lib/onboarding/flow";
 import { SETUP_COPY } from "@/lib/onboarding/setup-copy";
-import { TIMEZONE_OPTIONS, defaultWeekFallback, finalizeSetup, needsTimezoneQuestion, setupIssues, type SetupIssue } from "@/lib/onboarding/setup";
+import { TIMEZONE_OPTIONS, defaultWeekFallback, finalizeSetup, needsTimezoneQuestion, placeAreaFromCity, setupIssues, type SetupIssue } from "@/lib/onboarding/setup";
 import type { SetupPayload } from "@/lib/server-actions/onboarding-setup";
 
 import { Notice, PrimaryButton } from "../ui";
@@ -54,7 +54,8 @@ export function SetupStep({
   };
   const issues = setupIssues({ choice, essentials: e, country, providerEmailDraft: later ? "" : providerEmail });
   const show = (i: SetupIssue) => tried && issues.includes(i);
-  const setPlace = (mode: PlaceMode) => change({ place: { mode, area: e.place?.area ?? null } });
+  // onb1-08: first mode pick seeds area from the city collected earlier.
+  const setPlace = (mode: PlaceMode) => change({ place: { mode, area: e.place?.area ?? placeAreaFromCity(setup.city) } });
 
   const submit = () => {
     setTried(true);
