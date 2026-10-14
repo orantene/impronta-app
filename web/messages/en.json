@@ -3310,12 +3310,15 @@
         "privacyMeasurementsHint": "Off = only agencies and clients you accept can see them.",
         "contactPreferences": "Contact preferences",
         "contactPreferencesDesc": "Decide which client trust tiers can send you inquiries. Your agency still sees everything internally, this gates inbound contact, not visibility.",
+        "contactPreferencesDescSolo": "Decide which client trust tiers can send you inquiries. This gates inbound contact, not who can see your page.",
         "howThisWorks": "How this works",
         "howThisWorksBody": "Higher-trust clients have completed verification or funded their account on Tulala. You decide which tiers can reach you. Lower-trust tiers always have your agency's roster page available, they just can't drop straight into your inbox.",
+        "howThisWorksBodySolo": "Higher-trust clients have completed verification or funded their account on Tulala. You decide which tiers can reach you. Lower-trust tiers can still see your public page, they just can't drop straight into your inbox.",
         "presetOpen": "Open to everyone",
         "presetVerified": "Verified clients only",
         "allowInquiriesFrom": "Allow inquiries from {tier} clients",
-        "selectivityNote": "Blocked tiers can still see your roster page. They'll be invited to verify or fund their account before they can send you a direct inquiry. Your agency's coordinator inbox is unaffected."
+        "selectivityNote": "Blocked tiers can still see your roster page. They'll be invited to verify or fund their account before they can send you a direct inquiry. Your agency's coordinator inbox is unaffected.",
+        "selectivityNoteSolo": "Blocked tiers can still see your public page. They'll be invited to verify or fund their account before they can send you a direct inquiry."
       },
       "monetization": {
         "payouts": "Payouts",
@@ -13161,6 +13164,7 @@
       "oldest": "oldest {age}",
       "settingsTitle": "Notification settings",
       "settingsHint": "Email + push per event",
+      "seeAll": "See my notifications",
       "colEvent": "Event",
       "colEmail": "Email",
       "colPush": "Push",
