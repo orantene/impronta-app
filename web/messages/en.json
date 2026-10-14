@@ -13620,6 +13620,7 @@
       "aiMicrocopy": "AI replies instantly. {agent} sees every ticket.",
       "composerPlaceholder": "Write a reply",
       "sendFailed": "That did not send. Your text is still here, try again.",
+      "sendFailedNetwork": "Couldn't send. Check your connection and try again.",
       "rateLimited": "You have sent a lot in a short time. Your text is still here. Try again in about {minutes} minutes.",
       "threadLoading": "Loading conversation…",
       "threadLoadFailed": "Could not load this conversation. Close and reopen the panel to try again.",

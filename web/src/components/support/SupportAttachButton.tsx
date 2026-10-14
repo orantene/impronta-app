@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useT } from "@/i18n/use-t";
 import { COLORS } from "./support-tokens";
+import { supportSendErrorText, type SupportSendFailure } from "./support-send-error";
 import { uploadSupportAttachment } from "./upload-support-attachment";
 
 const ACCEPT = "image/png,image/jpeg,image/webp,image/gif";
@@ -20,7 +21,7 @@ export function SupportAttachButton({
   const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState<SupportSendFailure | null>(null);
   const ink = tone === "hq" ? "#F5F2EB" : COLORS.ink;
   const border = tone === "hq" ? "rgba(255,255,255,0.12)" : COLORS.border;
   const bg = tone === "hq" ? "rgba(255,255,255,0.04)" : COLORS.card;
@@ -29,14 +30,14 @@ export function SupportAttachButton({
     if (!file || !ticketId || busy || disabled) return;
     // Every rejection is told to the user — silent drops read as a broken button.
     if (file.size > MAX_BYTES || !ACCEPT.split(",").includes(file.type)) {
-      setFailed(true);
+      setFailed({});
       return;
     }
     setBusy(true);
-    setFailed(false);
-    const ok = await uploadSupportAttachment(ticketId, file);
+    setFailed(null);
+    const result = await uploadSupportAttachment(ticketId, file);
     setBusy(false);
-    if (!ok) setFailed(true);
+    if (!result.ok) setFailed({ code: result.code, retryAfterSec: result.retryAfterSec });
     if (inputRef.current) inputRef.current.value = "";
   };
 
@@ -59,7 +60,9 @@ export function SupportAttachButton({
             whiteSpace: "nowrap",
           }}
         >
-          {t("dashboard.adminSupport.attachFailed")}
+          {failed.code === "rate_limited"
+            ? supportSendErrorText(t, failed)
+            : t("dashboard.adminSupport.attachFailed")}
         </span>
       ) : null}
       <input
