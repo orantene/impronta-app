@@ -262,7 +262,7 @@ test("AUD-003 empty slots shows Consultar disponibilidad and opens ask chat", as
         tenantId="tenant-1"
         bookFn={book}
         onAsk={(h) => handoffs.push(h)}
-        slotsFn={async () => ({ slots: [], timezone: "UTC" })}
+        slotsFn={async () => ({ slots: [], timezone: "UTC", fromYmd: "2026-10-10" })}
       />,
     );
   });
@@ -271,6 +271,7 @@ test("AUD-003 empty slots shows Consultar disponibilidad and opens ask chat", as
     await new Promise((r) => setTimeout(r, 30));
   });
   assert.ok(host.querySelector(".jb-empty"));
+  assert.equal(host.querySelector("[data-catalog-try-another-date]"), null, "no next free day in window");
   const continueWhen = host.querySelector<HTMLButtonElement>('[data-catalog-continue="when"]');
   assert.ok(continueWhen);
   assert.equal(continueWhen.disabled, true);
@@ -282,6 +283,51 @@ test("AUD-003 empty slots shows Consultar disponibilidad and opens ask chat", as
   assert.equal(handoffs[0]?.detail.offeringId, "off-1");
   assert.equal(handoffs[0]?.visitor, undefined);
   assert.equal(host.querySelector("[data-catalog-booking]"), null, "sheet closes on consult");
+  act(() => root.unmount());
+  host.remove();
+});
+
+test("TUL-531 GRK-003: lands on first free day; Prueba otra fecha jumps the strip", async () => {
+  const book = mockBook();
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+  act(() => {
+    root.render(
+      <CatalogBookingSheet
+        locale="es"
+        mode="live"
+        tenantId="tenant-1"
+        bookFn={book}
+        slotsFn={async () => ({
+          // Empty on fromYmd; free on +2 days (UTC).
+          slots: ["2026-10-12T15:00:00.000Z", "2026-10-12T16:00:00.000Z"],
+          timezone: "UTC",
+          fromYmd: "2026-10-10",
+        })}
+      />,
+    );
+  });
+  open(detail({ addOns: [] }), "when");
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 30));
+  });
+  // Auto-land on the first free day — times visible within the 14-day window.
+  assert.ok(host.querySelector(".jb-time"), "shows slots on first free day");
+  assert.equal(host.querySelector(".jb-empty"), null);
+  const dayButtons = [...host.querySelectorAll<HTMLButtonElement>(".jb-day")];
+  assert.ok(dayButtons.length >= 14, "continuous 14-day strip");
+  assert.equal(dayButtons[2]?.getAttribute("data-on"), "true");
+  // Pick an empty day, then jump forward.
+  act(() => dayButtons[0]?.click());
+  assert.ok(host.querySelector(".jb-empty"));
+  const tryDate = host.querySelector<HTMLButtonElement>("[data-catalog-try-another-date]");
+  assert.ok(tryDate);
+  assert.match(tryDate.textContent ?? "", /Prueba otra fecha/);
+  act(() => tryDate.click());
+  assert.equal(host.querySelector(".jb-empty"), null);
+  assert.ok(host.querySelector(".jb-time"));
+  assert.equal(dayButtons[2]?.getAttribute("data-on"), "true");
   act(() => root.unmount());
   host.remove();
 });
