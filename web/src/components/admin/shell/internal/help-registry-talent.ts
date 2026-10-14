@@ -276,4 +276,43 @@ export const TALENT_HELP: Record<string, HelpEntry> = {
       },
     ],
   },
+  "talent-plan": {
+    audience: "Talent",
+    category: "Your plan (Ajustes, Settings)",
+    purpose:
+      "Your plan decides which tools your personal page has. The Free plan is the base, and Web Office (Oficina Web) is the paid plan that unlocks more. You see your current plan and change it from Ajustes (Settings).",
+    youCanHere: [
+      "See your current plan on the plan card in Ajustes (Settings), under Your personal page plan",
+      "Open the plan comparison (Compare talent plans) to see what Free and Web Office include",
+      "Upgrade to Web Office, paying Monthly or Yearly",
+      "Use Manage subscription to update your payment details or change or cancel a paid plan",
+    ],
+    ticketCategory: "Billing",
+    faqs: [
+      {
+        q: "How do I change my plan?",
+        a: "Open Ajustes (Settings) and look at the plan card, Your personal page plan, to see the plan you are on. To upgrade, press Upgrade to Web Office, or tap the plan label next to your name on your profile to open Compare talent plans and pick it from there. To downgrade or cancel a paid plan, press Manage subscription on the same card. The billing details are shown before you confirm anything.",
+      },
+      {
+        q: "How do I upgrade my plan?",
+        a: "When you try a tool that is part of Web Office, such as your own domain, premium apps or all the templates, a window opens with the Web Office price. Choose Monthly or Yearly and press Upgrade to Web Office. You can also press Compare all plans in that window to see everything first.",
+      },
+      {
+        q: "How do I switch between monthly and yearly billing?",
+        a: "In the upgrade window, pick Monthly or Yearly before you upgrade. To change the billing of a plan you already pay for, press Manage subscription in Ajustes (Settings) and review the options shown there before confirming.",
+      },
+      {
+        q: "How do I downgrade or cancel my plan?",
+        a: "Open Ajustes (Settings) and press Manage subscription on your plan card. The options and billing details appear before you confirm. Your page and your data stay safe on the Free plan, but tools that are part of Web Office stop being available.",
+      },
+      {
+        q: "Where can I see which plan I am on?",
+        a: "In Ajustes (Settings), the plan card Your personal page plan shows it. The plan also appears next to your name on your profile, and tapping it opens Compare talent plans.",
+      },
+      {
+        q: "What happens to my features and billing when I change plans?",
+        a: "Tools that are part of Web Office, such as your own domain, premium apps and all the templates, need Web Office. Compare talent plans lists what each plan includes. The billing details of any change are shown before you confirm it, so check them there.",
+      },
+    ],
+  },
 };
