@@ -161,6 +161,7 @@ import { QrCodeBlock } from "./qr-code-block";
 import { menuBoardCopy } from "./menu-board-copy";
 import { offeringIsQuote, type TalentOffering } from "@/lib/talent/offerings-types";
 import { CatalogIslandBoundary } from "@/components/public-booking/catalog-island-boundary";
+import { effectiveCatalogColumns } from "./services-catalog-columns";
 import { resolveServicesCatalogSheetAccent } from "./services-catalog-defaults";
 import { renderStatsSpecBlock } from "./stats-spec-block";
 import { ServicesCatalogFilter } from "./services-catalog-filter";
@@ -5958,9 +5959,10 @@ function renderBuilderNodeElement(
         useWebsiteTheme && p.style?.backgroundColor
           ? { backgroundColor: styleToken(p.style.backgroundColor) }
           : undefined;
-      const columns =
-        p.columns ??
-        (layout === "grid" ? 3 : layout === "cards" || layout === "editorial" ? 2 : 1);
+      const columns = effectiveCatalogColumns(
+        p.columns ?? (layout === "grid" ? 3 : layout === "cards" || layout === "editorial" ? 2 : 1),
+        visible.length,
+      );
 
       // Categories: saved `category_order` first, then first-seen leftovers.
       const seen: string[] = [];
