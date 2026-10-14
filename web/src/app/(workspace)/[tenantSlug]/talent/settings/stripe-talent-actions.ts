@@ -15,7 +15,11 @@ import { isStripeConfigured } from "@/lib/stripe/client";
 import {
   createTalentCheckoutSession,
   createTalentBillingPortalSession,
+  cancelTalentSubscriptionAtPeriodEnd,
+  resumeTalentSubscription,
 } from "@/lib/stripe/talent-billing";
+import { requireTalentSelf } from "@/lib/server/talent-self-guard";
+import { isTalentCancelReason } from "@/lib/billing/talent-cancel";
 import { deriveAppBaseUrl } from "@/lib/stripe/utils";
 import { resolveTalentPriceId } from "@/lib/stripe/price-catalog";
 import { yearlyCheckoutPlans } from "@/lib/billing/checkout-interval";
@@ -161,4 +165,52 @@ export async function openTalentSubscriptionPortal(
   }
 
   return { ok: true, redirectUrl: result.data.url };
+}
+
+// ─── Cancel / resume (TUL-832) ────────────────────────────────────────────────
+
+export type TalentCancelActionResult =
+  | { ok: true; effectiveAt: string | null }
+  | { ok: false; error: string };
+
+/**
+ * Schedules the signed-in talent's plan to end at period end. Self-scoped: the
+ * profile comes from the session, never from client input. Plan state is not
+ * written here; the webhook single writer owns it.
+ */
+export async function cancelTalentPlan(input: {
+  reason: string;
+  feedback?: string | null;
+}): Promise<TalentCancelActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
+  if (!isTalentCancelReason(input.reason)) {
+    return { ok: false, error: "Pick a reason for cancelling." };
+  }
+  const scope = await requireTalentSelf();
+  if (!scope.ok) return { ok: false, error: scope.error };
+
+  const r = await cancelTalentSubscriptionAtPeriodEnd({
+    talentProfileId: scope.talentProfile.id,
+    userId: scope.session.user.id,
+    reason: input.reason,
+    comment: input.feedback ?? null,
+  });
+  if (!r.ok) return { ok: false, error: r.error };
+  return { ok: true, effectiveAt: r.data.effectiveAt };
+}
+
+/** Undoes a pending cancellation (cancel_at_period_end back to false). */
+export async function resumeTalentPlan(): Promise<TalentCancelActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
+  const scope = await requireTalentSelf();
+  if (!scope.ok) return { ok: false, error: scope.error };
+
+  const r = await resumeTalentSubscription({
+    talentProfileId: scope.talentProfile.id,
+    userId: scope.session.user.id,
+  });
+  if (!r.ok) return { ok: false, error: r.error };
+  return { ok: true, effectiveAt: r.data.renewsAt };
 }

@@ -34,6 +34,13 @@ import {
 } from "@/lib/i18n/vendor-locale";
 import type Stripe from "stripe";
 import { decideTalentPlanState, type StoredTalentPlanRow } from "@/lib/billing/talent-plan-state";
+import {
+  cleanCancelComment,
+  isLiveTalentSubscriptionStatus,
+  stripeFeedbackFor,
+  talentCancelIdempotencyKey,
+  type TalentCancelReason,
+} from "@/lib/billing/talent-cancel";
 import { onTalentPlanChanged } from "@/lib/talent-site/server/plan-change";
 import type { BillingResult } from "@/lib/stripe/workspace-billing";
 
@@ -466,6 +473,133 @@ export async function syncTalentSubscriptionToDb(
   } catch (err) {
     logServerError("talent-billing.syncSubscription", err);
     return { ok: false, error: "Unexpected error syncing talent subscription." };
+  }
+}
+
+// ─── Cancel / resume (TUL-832) ────────────────────────────────────────────────
+
+type OwnedSubRow = {
+  user_id: string | null;
+  stripe_subscription_id: string | null;
+  status: string | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean | null;
+};
+
+/**
+ * Loads the talent's subscription row and proves the caller owns it. Reads
+ * only: plan state is written by the webhook single writer
+ * (syncTalentSubscriptionToDb), never from the cancel / resume actions.
+ */
+async function loadOwnedSubscription(
+  talentProfileId: string,
+  userId: string,
+): Promise<BillingResult<OwnedSubRow | null>> {
+  const sb = createServiceRoleClient();
+  if (!sb) return { ok: false, error: "Database not available." };
+  const { data, error } = await sb
+    .from("talent_subscriptions")
+    .select("user_id, stripe_subscription_id, status, current_period_end, cancel_at_period_end")
+    .eq("talent_profile_id", talentProfileId)
+    .maybeSingle();
+  if (error) {
+    logServerError("talent-billing.cancel.load", error);
+    return { ok: false, error: "Could not read the subscription." };
+  }
+  const row = (data as OwnedSubRow | null) ?? null;
+  if (row && row.user_id !== userId) return { ok: false, error: "Not allowed." };
+  return { ok: true, data: row };
+}
+
+/**
+ * Schedule the talent plan to end at the close of the paid period. Stripe is
+ * told (`cancel_at_period_end: true`); access and the plan key are untouched
+ * until `customer.subscription.deleted` reaches the webhook writer, which
+ * drops the talent to Free and keeps their content.
+ */
+export async function cancelTalentSubscriptionAtPeriodEnd(opts: {
+  talentProfileId: string;
+  userId: string;
+  reason: TalentCancelReason;
+  comment?: string | null;
+}): Promise<BillingResult<{ effectiveAt: string | null; hadSubscription: boolean }>> {
+  const loaded = await loadOwnedSubscription(opts.talentProfileId, opts.userId);
+  if (!loaded.ok) return loaded;
+  const row = loaded.data;
+  if (!row?.stripe_subscription_id) {
+    return { ok: true, data: { effectiveAt: null, hadSubscription: false } };
+  }
+  if (!isLiveTalentSubscriptionStatus(row.status)) {
+    return { ok: true, data: { effectiveAt: row.current_period_end, hadSubscription: true } };
+  }
+  const stripe = isStripeConfigured() ? getStripe() : null;
+  if (!stripe) {
+    return { ok: false, error: "Billing is not available right now. Nothing was changed." };
+  }
+  try {
+    const updated = await stripe.subscriptions.update(
+      row.stripe_subscription_id,
+      {
+        cancel_at_period_end: true,
+        cancellation_details: {
+          feedback: stripeFeedbackFor(opts.reason),
+          ...(cleanCancelComment(opts.comment) ? { comment: cleanCancelComment(opts.comment) } : {}),
+        },
+      },
+      { idempotencyKey: talentCancelIdempotencyKey("cancel", row.stripe_subscription_id, Date.now()) },
+    );
+    const end = updated.cancel_at ?? updated.items?.data?.[0]?.current_period_end ?? null;
+    return {
+      ok: true,
+      data: {
+        effectiveAt: end ? new Date(end * 1000).toISOString() : row.current_period_end,
+        hadSubscription: true,
+      },
+    };
+  } catch (err) {
+    logServerError("talent-billing.cancelAtPeriodEnd", err);
+    return { ok: false, error: "Stripe could not cancel the subscription. Nothing was changed." };
+  }
+}
+
+/**
+ * Undo a pending cancellation before the period ends. No new charge: nothing
+ * was refunded or ended. Refuses once the subscription is gone.
+ */
+export async function resumeTalentSubscription(opts: {
+  talentProfileId: string;
+  userId: string;
+}): Promise<BillingResult<{ renewsAt: string | null; hadSubscription: boolean }>> {
+  const loaded = await loadOwnedSubscription(opts.talentProfileId, opts.userId);
+  if (!loaded.ok) return loaded;
+  const row = loaded.data;
+  if (!row?.stripe_subscription_id) {
+    return { ok: true, data: { renewsAt: null, hadSubscription: false } };
+  }
+  if (!isLiveTalentSubscriptionStatus(row.status)) {
+    return { ok: false, error: "This plan has already ended. Start it again from the plans page." };
+  }
+  const stripe = isStripeConfigured() ? getStripe() : null;
+  if (!stripe) {
+    return { ok: false, error: "Billing is not available right now. Nothing was changed." };
+  }
+  try {
+    const updated = await stripe.subscriptions.update(
+      row.stripe_subscription_id,
+      { cancel_at_period_end: false },
+      { idempotencyKey: talentCancelIdempotencyKey("resume", row.stripe_subscription_id, Date.now()) },
+    );
+    const end = updated.items?.data?.[0]?.current_period_end ?? null;
+    return {
+      ok: true,
+      data: {
+        renewsAt: end ? new Date(end * 1000).toISOString() : row.current_period_end,
+        hadSubscription: true,
+      },
+    };
+  } catch (err) {
+    logServerError("talent-billing.resume", err);
+    return { ok: false, error: "Stripe could not restore the subscription. Nothing was changed." };
   }
 }
 
