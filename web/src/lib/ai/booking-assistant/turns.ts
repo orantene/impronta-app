@@ -1,6 +1,17 @@
 /** Hard ceiling on AI replies per booking inquiry (design D4 / PM: 8). */
 export const BOOKING_ASSISTANT_TURN_CEILING = 8;
 
+/**
+ * system_event_type values the turn ceiling and the handoff check read.
+ * The prior-events query filters to these so unrelated system events
+ * (payments, status changes) can never push an assistant row out of the
+ * 40-row window and silently reset the ceiling or the terminal handoff.
+ */
+export const BOOKING_ASSISTANT_EVENT_TYPES = [
+  "booking_assistant_reply",
+  "booking_assistant_handoff",
+] as const;
+
 export function countBookingAssistantTurns(
   messages: ReadonlyArray<{ systemEventType?: string | null; authorKind?: string | null }>,
 ): number {
