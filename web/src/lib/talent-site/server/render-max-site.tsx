@@ -6,7 +6,7 @@ import { loadThemeUpdatePreviewSnapshot } from "../theme-releases/talent-update/
 import { early } from "@/lib/server/early";
 import { perfMark, perfStart, timed } from "@/lib/server/perf-trace";
 import { failOnReadTimeout } from "@/lib/supabase/bounded-fetch-scope";
-import { loadMaxSiteIsDemo } from "./render-max-site-demo";
+import { loadMaxSiteAcceptingBookings, loadMaxSiteIsDemo } from "./render-max-site-demo";
 import { hasRenderableBuilderNodes } from "@/lib/site-admin/builder-node";
 import { prepareTalentSiteTrees } from "./talent-site-render-fixups.server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -154,6 +154,7 @@ async function renderTalentMaxSiteUnguarded(
     const pTenant = early(timed("maxSite.tenant", () => loadTalentManagingTenantId(talentProfileId, { bypassCache })));
     const pIdentity = early(timed("maxSite.identity", () => loadTalentSiteIdentity(talentProfileId, { bypassCache })));
     const pDemo = early(timed("maxSite.isDemo", () => loadMaxSiteIsDemo(talentProfileId)));
+    const pDemoBookings = early(pDemo.then((demo) => (demo ? loadMaxSiteAcceptingBookings(talentProfileId) : true)));
     // Public published tokens can start with the other profile reads; draft preview loads later.
     const pTokens = early(
       timed("maxSite.themeTokens", () =>
@@ -262,10 +263,11 @@ async function renderTalentMaxSiteUnguarded(
 
     // TUL-444 Step 2: settle tenant / identity / demo / published tokens together
     // (they were sequential awaits after the early() fan-out).
-    const [tenantId, identity, isDemo, publishedTokens] = await Promise.all([
+    const [tenantId, identity, isDemo, demoAcceptingBookings, publishedTokens] = await Promise.all([
       pTenant,
       pIdentity,
       pDemo,
+      pDemoBookings,
       pTokens,
     ]);
     const siteTokens =
@@ -302,6 +304,7 @@ async function renderTalentMaxSiteUnguarded(
         // PHASE 1 — a free site carries the "Made with Tulala" mark; a paid plan removes it (same predicate as /t/[code]).
         showPlatformBadge: talentSiteShowsPlatformBadge(planKey),
         isDemo,
+        demoAcceptingBookings,
         talentName: identity?.name ?? null,
         profileCode: identity?.profileCode ?? null,
         siteHost: siteHostFromOrigin(input.canonicalOrigin ?? process.env.NEXT_PUBLIC_SITE_URL),

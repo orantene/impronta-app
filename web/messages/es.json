@@ -383,7 +383,6 @@
       "eventDateOptional": "Fecha del evento (opcional)",
       "booking": "Reservando…",
       "confirmAndBook": "Confirmar y reservar · {price}",
-      "viewInquiry": "Ver tu solicitud",
       "addToCurrentTitle": "Añadir a esta solicitud",
       "addToCurrentSubOne": "1 talento hasta ahora",
       "addToCurrentSubOther": "{count} talentos hasta ahora",
@@ -891,7 +890,8 @@
         "whatsapp": "WhatsApp",
         "email": "Correo",
         "confirmByHand": "Ella confirma a mano.",
-        "bookInstant": "Puedes reservar un horario en esta página."
+        "bookInstant": "Puedes reservar un horario en esta página.",
+        "bookingsPaused": "No estoy tomando nuevas reservas por ahora. Puedes consultarme."
       }
     },
     "guestChat": {
@@ -13583,6 +13583,9 @@
       "startTicket": "Crear un ticket",
       "messageOran": "Escribirle a {agent}",
       "messageOranBody": "Quiero hablar con {agent}.",
+      "messageOranSubject": "Hablar con una persona",
+      "newQuestion": "Nueva pregunta",
+      "newQuestionHint": "¿Algo distinto? Empieza una pregunta nueva para que tenga su propia respuesta.",
       "statusWaitingYou": "Te espera a ti",
       "statusWithSupport": "Con soporte",
       "statusResolved": "Resuelto",
@@ -13702,7 +13705,6 @@
       "helperModeAria": "Modo ayuda: resalta todo lo que tiene un artículo en esta pantalla",
       "helperModeOn": "El modo ayuda está activado",
       "helperModeHint": "Todo lo que tiene un borde punteado tiene un artículo. Haz clic para leerlo aquí.",
-      "guideNotFound": "Todavía no hay un artículo para \"{id}\".",
       "helperReadAbout": "Leer sobre: {what}",
       "cardLiveChat": "Iniciar chat en vivo",
       "cardLiveChatSub": "Una persona real del equipo de Tulala, normalmente en minutos",

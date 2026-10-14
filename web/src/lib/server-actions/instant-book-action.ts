@@ -272,11 +272,21 @@ export async function createInstantBookingAction(
           // Emit it here so the guest gets the confirmation email and the
           // talent gets the new-booking notification. Paid bookings keep
           // firing from `markPaid` (same stable eventId, so no duplicate).
-          notifyBookingConfirmed({
+          // Awaited (never rejects): a detached dispatch can be frozen with the
+          // function once the action returns, which wrote zero dispatch rows.
+          await notifyBookingConfirmed({
             tenantId: engineInput.tenantId,
             inquiryId: booked.inquiryId,
             bookingId: booked.bookingId,
           });
+        } else if (booked.bookingId) {
+          // A booking exists but its conversation (best-effort in the purchase
+          // pipeline) did not open, so there is no inquiry to hydrate the
+          // audience from. Say so instead of silently telling nobody.
+          logServerError(
+            "instantBookAction.confirmNotify",
+            new Error(`booking ${booked.bookingId} has no inquiry; booking.confirmed not dispatched`),
+          );
         }
         return {
           ok: true,
