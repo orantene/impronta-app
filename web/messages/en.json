@@ -1911,7 +1911,9 @@
         "line1": "What you do",
         "line2": "Where you are",
         "line3": "What people can book",
-        "next": "Next: what we understood"
+        "next": "Next: what we understood",
+        "skipAi": "Continue without AI",
+        "skipAiHint": "This is taking a while. You can answer a few short questions instead."
       },
       "tooLittle": {
         "title": "Tell us a little more",

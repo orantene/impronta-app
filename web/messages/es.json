@@ -1911,7 +1911,9 @@
         "line1": "Qué haces",
         "line2": "Dónde estás",
         "line3": "Qué se puede reservar",
-        "next": "Siguiente: lo que entendimos"
+        "next": "Siguiente: lo que entendimos",
+        "skipAi": "Seguir sin IA",
+        "skipAiHint": "Está tardando. Puedes contestar unas preguntas cortas."
       },
       "tooLittle": {
         "title": "Cuéntanos un poco más",
