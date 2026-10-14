@@ -88,3 +88,47 @@ async function hasClientHistory(admin: SupabaseClient, userId: string): Promise<
   }
   return (count ?? 0) > 0;
 }
+
+/**
+ * TUL-771: someone who signed up through the CLIENT door (`/register?as=client`)
+ * and proved the email already said they are a client; asking again at
+ * `/onboarding/role` is a dead step. Same activation as a guest booker (the
+ * client_profiles row first, TUL-669), but the explicit sign-up choice stands
+ * in for a booking. Only a fresh `client` + `onboarding` profile changes: a
+ * talent, staff or already-active account is never touched.
+ */
+export async function activateClientSignup(
+  admin: SupabaseClient,
+  input: { userId: string; emailProven: boolean },
+): Promise<boolean> {
+  if (!input.emailProven) return false;
+  const { data: profile, error: profErr } = await admin
+    .from("profiles")
+    .select("app_role, account_status")
+    .eq("id", input.userId)
+    .maybeSingle<{ app_role: string | null; account_status: string | null }>();
+  if (profErr) {
+    logServerError("clientAccount/clientSignup/profile", profErr);
+    return false;
+  }
+  if (profile?.app_role !== "client" || profile.account_status !== "onboarding") return false;
+  const { error: cpErr } = await admin
+    .from("client_profiles")
+    .upsert({ user_id: input.userId }, { onConflict: "user_id", ignoreDuplicates: true });
+  if (cpErr) {
+    logServerError("clientAccount/clientSignup/clientProfile", cpErr);
+    return false;
+  }
+  const now = new Date().toISOString();
+  const { error: updErr } = await admin
+    .from("profiles")
+    .update({ account_status: "active", onboarding_completed_at: now, updated_at: now })
+    .eq("id", input.userId)
+    .eq("app_role", "client")
+    .eq("account_status", "onboarding");
+  if (updErr) {
+    logServerError("clientAccount/clientSignup/update", updErr);
+    return false;
+  }
+  return true;
+}

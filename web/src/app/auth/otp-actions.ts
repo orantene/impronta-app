@@ -79,6 +79,7 @@ import { isAgeAndTermsConfirmed } from "@/lib/legal/acceptances.core";
 import { recordSignupAcceptance } from "@/lib/legal/acceptances";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { claimAndActivateVerifiedClient } from "@/lib/client-account/after-verified-sign-in.server";
+import { activateClientSignup } from "@/lib/client-account/guest-activate.server";
 import { sendEmailCodeCore } from "@/lib/auth/send-email-code-core";
 import type { EmailCodeState } from "@/lib/auth/send-email-code-core";
 
@@ -304,6 +305,11 @@ export async function submitEmailCode(
     }
     // G3: the code proved the email. Claim + activate before routing.
     await claimAndActivateVerifiedClient({ userId: user.id, email: user.email ?? email, emailProven: true });
+    // TUL-771: a sign-up through the client door is a client; skip the role picker.
+    if (String(formData.get("create") ?? "") === "1" && String(formData.get("signup_as") ?? "") === "client") {
+      const admin = createServiceRoleClient();
+      if (admin) await activateClientSignup(admin, { userId: user.id, emailProven: true });
+    }
   }
 
   const profileData = user ? await loadAccessProfile(supabase, user.id) : null;

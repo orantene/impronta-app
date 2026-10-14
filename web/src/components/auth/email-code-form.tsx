@@ -126,7 +126,7 @@ export function EmailCodeForm({
    * (magic link or Google) always has a way back in.
    */
   startWithPassword?: boolean;
-  /** TUL-762: the client sign-up asks for the person's name (saved on verify). */
+  /** Client sign-up: asks for a name (TUL-762) and marks the account a client on verify (TUL-771). */
   collectName?: boolean;
 }) {
   const t = createTranslator(locale);
@@ -218,6 +218,7 @@ export function EmailCodeForm({
           {allowCreate ? <input type="hidden" name="age_terms" value="on" /> : null}
           {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
           {askName && nameDraft.trim() ? <input type="hidden" name="name" value={nameDraft.trim()} /> : null}
+          {askName ? <input type="hidden" name="signup_as" value="client" /> : null}
 
           <AuthField
             label={t("public.auth.passwordless.codeLabel")}
