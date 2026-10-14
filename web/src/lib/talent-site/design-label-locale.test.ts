@@ -100,3 +100,19 @@ test("ES About Languages line localises even when swaps only carry the current l
   ] as unknown as BuilderNode[];
   assert.equal(localiseSeededDesignLabels(custom, "es", null, swaps), custom);
 });
+
+test("TUL-516 C2: utility_bar statusOffLabel No emergencies today -> Sin urgencias hoy on es", () => {
+  const one = [
+    {
+      id: "u",
+      kind: "utility_bar",
+      props: {
+        name: "Saul",
+        showStatus: true,
+        statusOffLabel: "No emergencies today",
+      },
+    },
+  ] as unknown as BuilderNode[];
+  const out = localiseSeededDesignLabels(one, "es");
+  assert.equal((out[0]!.props as { statusOffLabel: string }).statusOffLabel, "Sin urgencias hoy");
+});

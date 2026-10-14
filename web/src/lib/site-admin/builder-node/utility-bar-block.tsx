@@ -17,6 +17,10 @@ import type { CSSProperties, ReactNode } from "react";
 import { languageToggleGroupLabel } from "@/i18n/language-toggle-label";
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import type { LiveStatusRenderContext } from "@/lib/talent/live-status-render";
+import {
+  EMERGENCIES_TODAY_LABEL,
+  NO_EMERGENCIES_TODAY_LABEL,
+} from "@/lib/talent-site/theme-catalog/seed-i18n";
 
 import { anchorIdAttrs } from "./anchor-id";
 import type { BuilderUtilityBarNode } from "./types";
@@ -113,8 +117,8 @@ export function renderUtilityBarBlock(args: {
   const call = p.showCall === false ? "" : safeCallHref(args.callHref || p.callHref);
   const ctaLabel = (p.ctaLabel ?? "").trim();
   const ctaHref = (p.ctaHref ?? "").trim();
-  const onLabel = (p.statusOnLabel ?? "").trim() || "Emergencies today";
-  const offLabel = (p.statusOffLabel ?? "").trim() || "No emergencies today";
+  const onLabel = (p.statusOnLabel ?? "").trim() || EMERGENCIES_TODAY_LABEL.en;
+  const offLabel = (p.statusOffLabel ?? "").trim() || NO_EMERGENCIES_TODAY_LABEL.en;
   const navLinks = (p.navLinks ?? []).filter(
     (l) => typeof l?.label === "string" && l.label.trim() && typeof l.href === "string" && l.href.trim(),
   );
