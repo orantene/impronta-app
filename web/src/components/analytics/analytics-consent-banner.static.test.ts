@@ -96,11 +96,24 @@ test("consent banner does not enable unfinished talent consent tooling", () => {
   assert.doesNotMatch(src, /TALENT_SITE_CONSENT_TOOLING_ENABLED/);
 });
 
-test("TUL-528: on the phone dashboard the support launcher stands down while the banner is up (it covered OK)", () => {
-  const mobile = readFileSync(join(here, "../admin/shell/internal/messages-mobile-css.ts"), "utf8");
-  const rule = mobile.match(/((?:html:has\([^)]*\)\)? \[data-tulala-support-launcher\],?\s*)+)\{\s*display: none !important;/g) ?? [];
-  assert.ok(
-    rule.some((r) => r.includes("html:has([data-consent-banner]) [data-tulala-support-launcher]")),
-    "the consent banner is one of the launcher's yield conditions at 390",
+test("TUL-528: consent opens in useLayoutEffect and re-syncs when guest chat panel leaves", () => {
+  assert.match(src, /useLayoutEffect/);
+  assert.match(src, /data-guest-chat-panel/);
+  assert.match(src, /MutationObserver/);
+  assert.match(src, /syncOpen/);
+});
+
+test("consent banner reserves marketing phone clearance so pricing clears the card (GRK-040)", () => {
+  assert.match(src, /CONSENT_BANNER_RESERVE_PX/);
+  assert.match(
+    src,
+    /body:has\(\[data-consent-banner\]\) \[data-platform-surface="marketing"\]/,
   );
+  assert.match(src, /padding-bottom: calc\(\$\{CONSENT_BANNER_RESERVE_PX\}px/);
+  assert.match(
+    src,
+    /html:has\(\[data-consent-banner\]\):has\(\[data-platform-surface="marketing"\]\)/,
+  );
+  assert.match(src, /scroll-padding-bottom: calc\(\$\{CONSENT_BANNER_RESERVE_PX\}px/);
+  assert.match(src, /@media \(max-width: 640px\)/);
 });
