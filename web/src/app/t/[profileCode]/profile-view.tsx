@@ -116,7 +116,7 @@ import {
   talentProfileMetaFallbackDescription,
   talentProfileMetaTitle,
 } from "@/lib/seo/talent-profile-meta-copy";
-import { buildTalentProfileJsonLd, jsonLdToString, offeringsToJsonLdServices } from "@/lib/seo/talent-json-ld";
+import { buildTalentProfileJsonLd, jsonLdToString, offeringsToJsonLdServices, toJsonLdReviews } from "@/lib/seo/talent-json-ld";
 import {
   resolveTalentVisibility,
   type TalentSurface,
@@ -2315,10 +2315,9 @@ export async function TalentProfileView({
     createdAt: (profile as { created_at?: string | null }).created_at ?? null,
     updatedAt: (profile as { updated_at?: string | null }).updated_at ?? null,
     affiliationName: hostCtx.kind === "agency" ? tenantBrand : null,
-    // Real catalog data only: published, publicly visible services
-    // (Offer -> Service, provider = this Person). Replaces the old standalone
-    // Offer ItemList, which carried no provider link.
+    // Real data only: published services + published reviews (none -> omitted).
     services: offeringsToJsonLdServices(storefrontOfferings),
+    reviews: toJsonLdReviews(ratingSummary, talentReviews),
   });
 
   // ── Profile template dispatch ─────────────────────────────────────────
