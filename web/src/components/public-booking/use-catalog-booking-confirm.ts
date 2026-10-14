@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
 import { catalogSelectedStartStillOpen } from "./catalog-booking-logic";
+import { firstInvalidWhoField, focusBookingField } from "./catalog-booking-validation";
 import {
   catalogConfirmNetworkError,
   catalogSlotLostMessage,
@@ -87,7 +88,17 @@ export function useCatalogBookingConfirm(input: {
   const confirm = async () => {
     input.setTouched(true);
     input.showServiceAddressError?.(true);
-    if (!input.nameValid || !input.emailValid || !input.phoneValid || input.serviceAddressValid === false) return;
+    const firstInvalid = firstInvalidWhoField({
+      nameValid: input.nameValid,
+      phoneValid: input.phoneValid,
+      emailValid: input.emailValid,
+      addressValid: input.serviceAddressValid !== false,
+    });
+    if (firstInvalid) {
+      // TUL-841: a field below the fold must not fail silently.
+      focusBookingField(firstInvalid);
+      return;
+    }
     if (input.captchaRequired && !input.captchaToken.trim()) {
       input.setError(
         input.locale.toLowerCase().startsWith("es")

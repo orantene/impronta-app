@@ -175,10 +175,13 @@ export function ServicesCatalogFilter({
       const d = (e as CustomEvent).detail as { open?: boolean } | undefined;
       setSheetOpen(d?.open === true);
     };
+    const onBooked = () => dispatchDock({ type: "clear" }); // TUL-845
     window.addEventListener("tulala:maison-selected", onSelected);
+    window.addEventListener("tulala:maison-booked", onBooked);
     window.addEventListener("tulala:maison-sheet", onSheet);
     return () => {
       window.removeEventListener("tulala:maison-selected", onSelected);
+      window.removeEventListener("tulala:maison-booked", onBooked);
       window.removeEventListener("tulala:maison-sheet", onSheet);
     };
   }, []);
