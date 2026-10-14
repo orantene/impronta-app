@@ -205,7 +205,7 @@ export type MoneyAgendaRow = {
   /** null when no price is agreed yet: the page says so instead of printing $0. */
   amountCents: number | null;
   currency: string;
-  kind: "deposit" | "balance" | "refund_pending";
+  kind: "deposit" | "balance" | "refund_pending" | "offer";
   overdue: boolean;
   /** Overdue, or the appointment is today or earlier. */
   dueByToday: boolean;
@@ -216,7 +216,7 @@ export type MoneyAgendaRow = {
 type AgendaMoneyInput = Pick<
   TalentAgendaItem,
   "id" | "kind" | "title" | "client" | "startsAt" | "booking" | "payment" | "money" | "orderId"
->;
+> & { offer?: { id: string } };
 
 /**
  * Money the agenda already knows about but the earnings ledger does not:
@@ -235,6 +235,24 @@ export function agendaMoneyRows(
   const waiting: MoneyAgendaRow[] = [];
   const refundPending: MoneyAgendaRow[] = [];
   for (const item of items) {
+    if (item.kind === "request" && item.offer && item.money.totalCents > 0) {
+      // TUL-957: sent offer, not paid. Waiting for the client, never earned.
+      const name = item.client?.name ?? item.title;
+      waiting.push({
+        id: item.id,
+        name,
+        service: item.title && item.title.trim().toLowerCase() !== name.trim().toLowerCase() ? item.title : "",
+        startsAt: item.startsAt,
+        currency: (item.money.currency || "MXN").toUpperCase(),
+        overdue: false,
+        dueByToday: false,
+        orderId: null,
+        bookingHref: `/talent/inbox/${item.id}`,
+        kind: "offer",
+        amountCents: item.money.totalCents,
+      });
+      continue;
+    }
     if (item.kind !== "booking" && item.kind !== "hold") continue;
     if (isDeadBookingStatus(item.booking) || item.booking === "requested") {
       // Cancelled still surfaces when money landed after cancel (refund pending).
@@ -323,4 +341,15 @@ export function talentOwedSummary(input: {
     currency: currency ?? ledger[0]?.currency?.toUpperCase() ?? agendaMain[0]?.currency ?? null,
     others: [...otherMap].map(([currency, cents]) => ({ currency, cents })),
   };
+}
+
+/** TUL-957: sent offers awaiting payment, in one currency (others are not summed). */
+export function awaitingOfferSummary(
+  waiting: readonly MoneyAgendaRow[],
+  currency: string | null,
+): { cents: number; count: number; currency: string | null } {
+  const offers = waiting.filter((r) => r.kind === "offer" && (r.amountCents ?? 0) > 0);
+  const cur = (currency ?? offers[0]?.currency ?? null)?.toUpperCase() ?? null;
+  const inCur = offers.filter((r) => cur == null || r.currency === cur);
+  return { cents: inCur.reduce((n, r) => n + (r.amountCents ?? 0), 0), count: inCur.length, currency: cur };
 }
