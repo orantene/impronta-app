@@ -79,12 +79,26 @@ type ArrivalInput = {
   /** Talent page URL and the Today deep link, when a profile exists. */
   talent: { publicUrl: string | null; todayUrl: string; /** Published own-site URL (TUL-32), when live. */ siteUrl?: string | null } | null;
   /** 1D: server-side check of the finish URL. Omitted = unchecked (legacy callers). */
-  liveCheck?: { ok: boolean } | null;
+  liveCheck?: { ok: boolean; reason?: string; status?: number } | null;
   urlDiffers?: boolean;
   firstService?: string | null;
   /** Studio only: the owner was provisioned as a bookable provider (essentials.ownerProvides), so the studio is not inquiry-only. */
   ownerProvides?: boolean;
 };
+
+/**
+ * TUL-16a: the page is published (the same fact the "Website live" pill reads) but our own
+ * server-side probe could not reach it (network error, or a 401/403 wall in front of the host).
+ * That says nothing about the site, so it must not read "your page does not open online yet".
+ * A 404, a 5xx or a 200 without the person's name still counts as not live.
+ */
+function publishedButUnreachable(input: ArrivalInput): boolean {
+  const c = input.liveCheck;
+  if (!c || c.ok) return false;
+  const published = !!input.site || !!input.talent?.siteUrl;
+  if (!published) return false;
+  return c.reason === "network" || (c.reason === "status" && (c.status === 401 || c.status === 403));
+}
 
 /**
  * "Ready" only when the real page was checked: a failed check turns the
@@ -95,7 +109,7 @@ export function arrivalFromStamp(input: ArrivalInput): ArrivalPayload {
   const editorHref = input.site?.editorUrl ?? input.talent?.todayUrl;
   const panelHref = input.path === "talent" ? input.talent?.todayUrl : (input.site?.adminPath ?? input.talent?.todayUrl);
   const common = { editorHref, panelHref, firstService: input.firstService ?? null, urlDiffers: input.urlDiffers === true ? true : undefined };
-  if (input.liveCheck && !input.liveCheck.ok) {
+  if (input.liveCheck && !input.liveCheck.ok && !publishedButUnreachable(input)) {
     return { ...base, ...common, variant: "draft_saved", siteLive: false, verified: false, fallbackReason: "failed" };
   }
   const studio = input.path === "business" && !input.reusedExisting && !!input.site && (base.variant === "business" || base.variant === "fallback");

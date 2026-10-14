@@ -368,12 +368,14 @@ export type OfferingRowDraft = {
   visibility: "public";
   sort_order: number;
   title_i18n?: { en: string; es: string };
+  /** TUL-16b: only set for "I go to the client", so the sheet shows the at-client place and pay-on-the-day copy. */
+  attributes?: { where: ["client"] };
 };
 
 /** Same default the manual "add a service" row starts with (setup.ts blankService). A row with no length offers no slots. */
 export const DEFAULT_SERVICE_MINUTES = 60;
 
-export function offeringRowFor(s: EssentialService, sortOrder: number): OfferingRowDraft {
+export function offeringRowFor(s: EssentialService, sortOrder: number, place?: EssentialPlace | null): OfferingRowDraft {
   const exact = !s.quote && s.priceCents !== null && s.priceCents > 0;
   return {
     ...(s.nameI18n ? { title_i18n: s.nameI18n } : {}),
@@ -396,6 +398,7 @@ export function offeringRowFor(s: EssentialService, sortOrder: number): Offering
     status: exact ? "published" : "draft",
     visibility: "public",
     sort_order: sortOrder,
+    ...(place?.mode === "client" ? { attributes: { where: ["client"] as ["client"] } } : {}),
   };
 }
 
@@ -416,7 +419,7 @@ const norm = (t: string) => t.trim().toLowerCase();
  * Dedupe by title: a retry plans nothing new; an existing draft is upgraded in place. A line renamed to its
  * pack name also finds the row under the words first said or the pack's other language.
  */
-export function planOfferingWrites(existing: ExistingOffering[], services: EssentialService[]): OfferingPlan {
+export function planOfferingWrites(existing: ExistingOffering[], services: EssentialService[], place?: EssentialPlace | null): OfferingPlan {
   const byTitle = new Map(existing.filter((o) => o.status !== "archived").map((o) => [norm(o.title), o]));
   const plan: OfferingPlan = { insert: [], update: [] };
   const seen = new Set<string>();
@@ -425,7 +428,7 @@ export function planOfferingWrites(existing: ExistingOffering[], services: Essen
     const key = norm(s.name);
     if (!key || seen.has(key)) return;
     seen.add(key);
-    const row = offeringRowFor(s, i);
+    const row = offeringRowFor(s, i, place);
     const hit = [s.name, s.saidAs, s.nameI18n?.en, s.nameI18n?.es]
       .map((t) => (t ? byTitle.get(norm(t)) : undefined))
       .find((o) => o && !claimed.has(o.id));
@@ -507,7 +510,7 @@ export async function runEssentialsWrites(store: EssentialsStore, input: Essenti
 
   const writeOfferings = (owner: OfferingOwnerRef, skipTitles?: ReadonlySet<string>) => step("offerings", async () => {
     const services = skipTitles ? e.services.filter((s) => !skipTitles.has(norm(s.name))) : e.services;
-    const plan = planOfferingWrites(await store.listOfferings(owner), services);
+    const plan = planOfferingWrites(await store.listOfferings(owner), services, e.place);
     if (plan.insert.length) await store.insertOfferings(owner, plan.insert);
     for (const u of plan.update) await store.updateOffering(u.id, u.patch);
     out.offeringsCreated += plan.insert.length;
@@ -536,7 +539,7 @@ export async function runEssentialsWrites(store: EssentialsStore, input: Essenti
     await step("offeringsRetry", async () => {
       const owner: OfferingOwnerRef = { kind: "talent", talentProfileId: talent.talentProfileId, tenantId };
       if (!e.services.length || (await store.listOfferings(owner)).length > 0) return;
-      const plan = planOfferingWrites([], e.services);
+      const plan = planOfferingWrites([], e.services, e.place);
       if (!plan.insert.length) return;
       await store.insertOfferings(owner, plan.insert);
       out.offeringsCreated += plan.insert.length;

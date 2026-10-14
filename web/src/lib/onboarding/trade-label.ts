@@ -52,6 +52,12 @@ export function stockTypeForTrade(key: TradeKey | null): string | null {
   return TRADE_RULES.find((r) => r.key === key)?.businessType ?? null;
 }
 
+/** A haircut is a service, not a trade: "Corte de pelo" names no barber. */
+function isGenericHaircut(text: string | null | undefined): boolean {
+  const t = ` ${fold(text ?? "").replace(/[^a-z0-9]+/g, " ").trim()} `;
+  return /\s(haircuts?|cortes?|hair cuts?)\s/.test(t) && !/\s(barber|barbero|barbera|barberia|peluquer\w*)\s/.test(t);
+}
+
 export const NEUTRAL_TRADE_LABEL = { en: "Independent professional", es: "Profesional independiente" } as const;
 
 export type TradeResolution =
@@ -72,9 +78,11 @@ export function resolveTradeType(input: { typeSlug: string | null; discipline: s
   if (discipline) {
     const proposal = proposeTalentType(discipline, input.terms);
     // The best proposal, then (only when a trade is named) the alternatives, in their fixed order.
-    const options = trade ? [proposal.proposed, ...proposal.alternatives] : [proposal.proposed];
+    const generic = isGenericHaircut(discipline);
+    const options = trade || generic ? [proposal.proposed, ...proposal.alternatives] : [proposal.proposed];
     for (const o of options) {
       if (!o) continue;
+      if (generic && /barber/i.test(`${o.slug} ${o.label.en} ${o.label.es}`)) continue;
       const termTrade = classifyTrade(`${o.label.en} ${o.slug}`);
       if (trade && termTrade !== trade) continue;
       return { confident: true, slug: o.slug, label: o.label, trade: termTrade ?? trade };
