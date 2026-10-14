@@ -30,11 +30,18 @@ function cookiePairs(request: Request) {
     });
 }
 
-function expiredRedirect(request: Request, names: string[]) {
+function expiredRedirect(
+  request: Request,
+  names: string[],
+  locale?: string,
+) {
   const host =
     request.headers.get("x-impronta-host-name") ?? request.headers.get("host");
   const res = NextResponse.redirect(
-    new URL(signOutRedirectPath(request.headers.get("referer"), request.url), request.url),
+    new URL(
+      signOutRedirectPath(request.headers.get("referer"), request.url, locale),
+      request.url,
+    ),
     303,
   );
   for (const h of authCookieExpiryHeaders(names, host)) {
@@ -58,7 +65,12 @@ export async function GET(request: Request) {
   if (site === "cross-site") {
     return NextResponse.redirect(new URL("/", request.url), 303);
   }
-  return expiredRedirect(request, cookiePairs(request).map((p) => p.name));
+  const pairs = cookiePairs(request);
+  return expiredRedirect(
+    request,
+    pairs.map((p) => p.name),
+    pairs.find((p) => p.name === "locale")?.value,
+  );
 }
 
 export async function POST(request: Request) {
@@ -89,5 +101,6 @@ export async function POST(request: Request) {
   return expiredRedirect(
     request,
     pairs.map((p) => p.name),
+    pairs.find((p) => p.name === "locale")?.value,
   );
 }
