@@ -649,7 +649,7 @@ const es: MarketingCopy = {
       },
       {
         title: "Los negocios conservan su marca",
-        body: "Cada workspace mantiene su sitio, su catálogo y sus reservas, y aun así lo encuentran en el descubrimiento compartido.",
+        body: "Cada espacio de trabajo mantiene su sitio, su catálogo y sus reservas, y aun así lo encuentran en el descubrimiento compartido.",
       },
       {
         title: "Tus datos son tuyos",
