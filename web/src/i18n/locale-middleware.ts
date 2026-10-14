@@ -314,6 +314,16 @@ export function syncLocaleCookieForPath(
     const inner = stripNonDefaultLocalePrefix(originalPathname, settings);
     if (!isDashboardInnerPathForLocalePrefix(inner)) {
       const loc = firstSegment(originalPathname);
+      // TUL-866: a visitor whose cookie already names this locale AND is a
+      // real choice (no auto marker) needs no write. Re-stamping two
+      // Set-Cookie headers on every /es/... view made Spanish pages
+      // uncacheable at the edge while English (early return below) was not.
+      if (
+        request?.cookies?.get(LOCALE_COOKIE)?.value === loc &&
+        !localeCookieIsAutoWritten(request)
+      ) {
+        return;
+      }
       res.cookies.set(LOCALE_COOKIE, loc, localeCookieOptions);
       // DELIBERATE. This branch is how the public language switcher persists a
       // choice: `PublicLanguageToggle` is plain `<a href="/es/...">`, it writes
