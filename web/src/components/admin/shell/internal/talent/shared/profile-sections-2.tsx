@@ -5,6 +5,8 @@ import { Icon, PrimaryCard, SecondaryCard, StatDot } from "../../primitives";
 import { COLORS, FONTS, MY_TALENT_PROFILE, TALENT_PAGE_TEMPLATES, TALENT_TIER_META, tierAllows, useAdminShell, type TalentBadge, type TalentCredit, type TalentLimit, type TalentReview, type TalentSkill, type TalentSubscriptionTier } from "../../state";
 import { Grid } from "./page-chrome-1";
 import { resolveTalentOwnPageState } from "@/lib/talent/public-profile-href";
+import { dashboardPublishKind, dashboardStatusCopy } from "@/lib/talent/dashboard-status";
+import { useWebsiteFlow } from "@/components/talent/website-reward/useWebsiteFlow";
 import { useCurrentOrigin } from "@/lib/talent/use-public-profile-href";
 
 
@@ -23,6 +25,7 @@ export function PersonalPageBand() {
   // Tier from shared shell state — reflects live plan switches.
   const tier = state.talentTier;
   const origin = useCurrentOrigin();
+  const websiteFlow = useWebsiteFlow();
 
   // Real talent: the Pro/Max band below is fed entirely by the demo profile
   // (Marta's page URL, domain, embed/press counts, "6 sections"), and there's
@@ -58,7 +61,14 @@ export function PersonalPageBand() {
           currentOrigin: origin,
         })
       : null;
-    const live = own ? own.live : true;
+    // TUL-579: live/draft from ONE source (site flow + profile), so this banner
+    // can never say "not published" under a "Website live" pill.
+    const profileLive = own ? own.live : true;
+    const status = dashboardStatusCopy({
+      plan: "free",
+      publish: dashboardPublishKind({ sitePublished: websiteFlow.state === "published", profilePublished: profileLive }),
+      es: copy.isSpanish,
+    });
     const shownUrl = own ? own.label : sub.personalPageUrl;
     return (
       <div
@@ -73,17 +83,17 @@ export function PersonalPageBand() {
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
           <Icon name="globe" size={13} stroke={1.7} color={COLORS.inkMuted} />
           <div style={{ fontSize: 13.5, fontWeight: 600 }} className="text-admin-ink">
-            {copy.t(live ? "Your public page is live" : "Your public page is not published yet")}
+            {status.publicPageTitle}
           </div>
         </div>
         <div style={{ fontSize: 12, lineHeight: 1.55, maxWidth: 560 }} className="text-admin-ink-muted">
-          {live ? (
+          {profileLive ? (
             <>
               {copy.t("It's published at")}{" "}
               <span style={{ fontFamily: FONTS.mono }}>{shownUrl}</span>.{" "}
             </>
           ) : (
-            <>{copy.t("Publish your profile to get a public address you can share.")} </>
+            <>{status.publicPageHint} </>
           )}
           {copy.t("Richer personal-page tiers with custom templates, embeds and your own domain are on the way, we'll let you know when they open.")}
         </div>
