@@ -100,3 +100,16 @@ test("TUL-389: bell read ids include server-read rows before any effect runs (no
   assert.ok(hubReadItemIds(new Set(["plan-cap", "notif-c"]), rows).has("notif-c"));
   assert.ok(hubReadItemIds(new Set(["plan-cap"]), null).has("plan-cap"));
 });
+
+test("TUL-391 r2: a stored offer row without target_drawer still opens its inquiry", () => {
+  // Prod rows written before the catalog carried a target (kind=offer, talent
+  // surface, origin_inquiry_id set, target_drawer null) rendered as dead rows.
+  const legacy = row({ kind: "offer", originInquiryId: "inq-9", targetDrawer: null });
+  const t = hubClickTarget(legacy, "/admin");
+  assert.ok(t, "offer row must have a click target");
+  assert.deepEqual(t, { kind: "drawer", drawerId: "inquiry-workspace", payload: { inquiryId: "inq-9" } });
+  // No inquiry to open: stay inert rather than guess.
+  assert.equal(hubClickTarget(row({ kind: "offer", originInquiryId: null }), "/admin"), null);
+  // Other kinds without a target stay inert.
+  assert.equal(hubClickTarget(row({ kind: "system" }), "/admin"), null);
+});
