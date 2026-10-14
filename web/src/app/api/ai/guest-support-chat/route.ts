@@ -80,11 +80,7 @@ async function failOpen(ticketId: string, stage: string, detail?: string): Promi
     messageKind: "system",
     skipNotify: true,
   });
-  await supportEngine.escalateTicket({
-    ticketId,
-    reason: "ai_unavailable",
-    actorUserId: null,
-  });
+  // TUL-660: an AI error never auto-escalates; the message above offers email.
 }
 
 export async function POST(request: Request) {

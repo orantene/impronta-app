@@ -13711,6 +13711,8 @@
       "handoffBody": "You will get a notification and an email when he replies. You can keep writing here in the meantime.",
       "handoffHq": "Escalated to you",
       "humanReplyEta": "{agent} will reply, typically within a few hours",
+      "ticketReceipt": "Ticket #{number} received. {agent} will reply, typically within a few hours.",
+      "humanHandling": "A person is handling this",
       "aiHandling": "AI is helping, a human is one tap away",
       "statusClosed": "Closed",
       "thinking1": "Reading your question",

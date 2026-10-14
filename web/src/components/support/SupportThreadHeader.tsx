@@ -83,7 +83,13 @@ export function SupportThreadStatusLine({
           OT
         </span>
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {interpolate(t("dashboard.adminSupport.humanReplyEta"), SUPPORT_AGENT_VARS)}
+          {`${t("dashboard.adminSupport.humanHandling")}. `}
+          {ticket.ticketNumber > 0
+            ? interpolate(t("dashboard.adminSupport.ticketReceipt"), {
+                ...SUPPORT_AGENT_VARS,
+                number: String(ticket.ticketNumber),
+              })
+            : interpolate(t("dashboard.adminSupport.humanReplyEta"), SUPPORT_AGENT_VARS)}
         </span>
       </div>
     );
