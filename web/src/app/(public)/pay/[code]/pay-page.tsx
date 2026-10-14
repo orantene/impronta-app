@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
 
@@ -19,6 +20,7 @@ import { resolvePaidLinkDisplayStatus } from "@/lib/payments/pay-refund-status";
 import { loadPayLinkFeeLines } from "@/lib/payments/pay-link-fee-lines";
 import { collectForOrderPrincipal } from "@/lib/orders/purchase-collect";
 import { resolveOrderPayeeName } from "@/lib/payments/payee-name";
+import { resolvePayThemeVars } from "@/lib/payments/pay-theme-scope";
 import { interpolate } from "@/i18n/interpolate";
 import { createTranslator } from "@/i18n/messages";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -75,15 +77,31 @@ async function threadHrefFor(
  * Shared payment checkout engine for `/pay/<code>` and `/link/<code>`.
  * The code is the credential; `pathPrefix` is presentation only.
  */
-export async function PayByCodePage({
-  params,
-  searchParams,
-  pathPrefix,
-}: {
+type PayByCodeProps = {
   params: Promise<{ code: string }>;
   searchParams: Promise<{ status?: string; confirm?: string }>;
   pathPrefix: PayLinkPathPrefix;
-}) {
+};
+
+export async function PayByCodePage(props: PayByCodeProps) {
+  const body = await renderPayByCode(props);
+  // The merchant's theme, not the host's: a hub link for one talent's order wears her tokens.
+  const { code } = await props.params;
+  const admin = createServiceRoleClient();
+  const loaded = admin && code && code.length >= 8 ? await loadPaymentLinkByCode(admin, code) : null;
+  const vars =
+    admin && loaded && "tenantId" in loaded && "orderId" in loaded
+      ? await resolvePayThemeVars(admin, loaded.tenantId, loaded.orderId)
+      : null;
+  if (!vars) return body;
+  return (
+    <div data-pay-merchant-theme="" style={vars as CSSProperties}>
+      {body}
+    </div>
+  );
+}
+
+async function renderPayByCode({ params, searchParams, pathPrefix }: PayByCodeProps) {
   const { code } = await params;
   const query = await searchParams;
   if (!code || code.length < 8) notFound();
