@@ -124,11 +124,9 @@ export function EditorScreen({
   const kindWord =
     kind === "package" ? copy.t("Package") : kind === "product" ? copy.t("Product") : copy.t("Service");
   const patch = (partial: Partial<TalentOffering>) => setItem({ ...item, ...partial });
-  // Unsaved edits survive a language-switch reload only with a prompt (PR 7).
   const [baseline, setBaseline] = useState(() => JSON.stringify(item));
   const dirty = JSON.stringify(item) !== baseline;
   useBeforeUnloadGuard(dirty);
-  const guardedBack = () => canLeaveEditor(dirty, es, (m) => window.confirm(m)) && onBack();
   const patchAttr = (key: string, value: unknown) =>
     setItem({ ...item, attributes: { ...(item.attributes ?? {}), [key]: value } });
 
@@ -228,7 +226,7 @@ export function EditorScreen({
     <div className="font-admin-body">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <button type="button" onClick={guardedBack} className="mb-1 text-[13px] text-admin-ink-muted">
+          <button type="button" onClick={() => canLeaveEditor(dirty, es, (m) => window.confirm(m)) && onBack()} className="mb-1 text-[13px] text-admin-ink-muted">
             ← {copy.t("Services")}
           </button>
           <h1 className="font-admin-body text-[24px] font-semibold leading-tight tracking-normal text-admin-ink">
