@@ -16,6 +16,7 @@
 import { useState } from "react";
 
 import type { ChipOption, TypeChipProposal } from "@/lib/onboarding/type-chip";
+import { whatLabelFor } from "@/lib/onboarding/what-label";
 import type { Understanding } from "@/lib/onboarding/understanding";
 import type { EssentialsAnswer } from "@/lib/server-actions/onboarding-module";
 import { searchOnboardingCities, searchOnboardingTypes, type OnboardingCity } from "@/lib/server-actions/onboarding-lookups";
@@ -77,7 +78,7 @@ export function EssentialsStep({
   const submit = () => {
     if (!ready || busy || !city) return;
     onSave({
-      type: type ? { kind, id: type.id, slug: type.slug, label: type.label[locale] } : other.trim().length >= 3 ? { kind, id: "", slug: "", label: other.trim() } : null,
+      type: type ? { kind, id: type.id, slug: type.slug, label: whatLabelFor({ picked: type, proposed: chip?.proposed ?? null, userWords: knownWhat, locale }) ?? type.label[locale] } : other.trim().length >= 3 ? { kind, id: "", slug: "", label: other.trim() } : null,
       // The prefilled city (no slug, no id) is what the words gave: leave it unless changed.
       city: !city.slug && city.id === null && city.name.en === knownCity ? null : { id: city.id, slug: city.slug, name: city.name[locale] || city.name.en, countryIso2: city.countryIso2 },
       name: name.trim() || null,
@@ -92,7 +93,8 @@ export function EssentialsStep({
   };
 
   // What the AI read shows as the selected value; "Change" opens the picker.
-  const typeSelected: ChipOption | null = type ?? (knownWhat && !typeCleared ? { id: "", slug: "", label: { en: knownWhat, es: knownWhat } } : null);
+  const ownWords = type ? whatLabelFor({ picked: type, proposed: chip?.proposed ?? null, userWords: knownWhat, locale }) : null;
+  const typeSelected: ChipOption | null = type ? (ownWords ? { ...type, label: { en: ownWords, es: ownWords } } : type) : (knownWhat && !typeCleared ? { id: "", slug: "", label: { en: knownWhat, es: knownWhat } } : null);
 
   return (
     <div data-testid="onb-essentials">
