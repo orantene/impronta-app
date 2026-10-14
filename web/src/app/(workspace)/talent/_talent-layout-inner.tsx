@@ -61,6 +61,8 @@ import {
 import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
 import { LOCALE_AUTO_COOKIE, LOCALE_OWNER_COOKIE } from "@/i18n/locale-cookies";
 import { getRequestLocale, ORIGINAL_SEARCH_HEADER } from "@/i18n/request-locale";
+import { StaffPhoneCountryProvider } from "@/components/ui/staff-phone-country-context";
+import { loadTalentPhoneCountry } from "@/lib/phone/staff-phone-country.server";
 import { DashboardLocaleProvider } from "@/i18n/use-dashboard-locale";
 import { loadTalentPageAnalytics } from "@/lib/analytics/talent-analytics";
 import { loadPlatformWorkspaceUi } from "@/lib/platform/workspace-ui";
@@ -401,6 +403,7 @@ export async function TalentLayoutInner({
     logServerError("talentLayout.ownedWorkspace", err);
   }
 
+  const staffPhoneCountry = await loadTalentPhoneCountry(talentSelfProfile.id);
   const isHybrid = membership != null;
   const workspaceUnread: number | undefined = isHybrid ? workspaceUnreadRaw : undefined;
   const userPrefs: UserPrefs | null = isHybrid ? userPrefsRaw : null;
@@ -423,6 +426,7 @@ export async function TalentLayoutInner({
 
   return (
     <DashboardLocaleProvider locale={requestLocale}>
+    <StaffPhoneCountryProvider country={staffPhoneCountry}>
     {actingAs && actingAsCopy ? (
       <ImpersonationBanner
         effectiveName={actingAsCopy.effectiveName}
@@ -538,6 +542,7 @@ export async function TalentLayoutInner({
       {children}
     </TalentShellClient>
     </TalentSiteDashboardProvider>
+    </StaffPhoneCountryProvider>
     </DashboardLocaleProvider>
   );
 }

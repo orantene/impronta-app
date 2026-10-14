@@ -11,6 +11,7 @@
  */
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
+import { useStaffPhoneCountry } from "@/components/ui/staff-phone-country-context";
 import { COUNTRY_DIAL_CODES, POPULAR_DIAL_ISOS, dialByIso, flagEmojiForIso } from "@/lib/data/country-dial-codes";
 import {
   DEFAULT_PHONE_COUNTRY,
@@ -63,7 +64,8 @@ export function GuestPhoneField(props: GuestPhoneFieldProps) {
   const es = (locale || "es").toLowerCase().startsWith("es");
   const autoId = useId();
   const id = props.id ?? autoId;
-  const initialIso = detectDefaultCountry({ ipCountry, talentCountry });
+  const workspaceCountry = useStaffPhoneCountry();
+  const initialIso = detectDefaultCountry({ workspaceCountry, ipCountry, talentCountry });
   const [iso, setIso] = useState(() => splitValue(value, initialIso).iso);
   const [national, setNational] = useState(() => splitValue(value, initialIso).national);
   const touched = useRef(false);
@@ -79,9 +81,10 @@ export function GuestPhoneField(props: GuestPhoneFieldProps) {
       languages: typeof navigator !== "undefined" ? navigator.languages : null,
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       talentCountry,
+      workspaceCountry,
     });
     setIso(next);
-  }, [ipCountry, talentCountry]);
+  }, [ipCountry, talentCountry, workspaceCountry]);
 
   const emit = (nextIso: string, nextNational: string) => {
     onChange(toE164(dialByIso(nextIso)?.dial ?? dial, nextNational));
