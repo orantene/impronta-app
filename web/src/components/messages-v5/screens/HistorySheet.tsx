@@ -16,6 +16,9 @@
 
 import type { ReactNode } from "react";
 
+import { formatClock } from "@/lib/messages-v5/clock";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+
 import { DaySeparator } from "../kit/MessageBubble";
 import { Btn, Icon, Pill } from "../kit/primitives";
 import { RefusalLine } from "../kit/RefusalLine";
@@ -40,14 +43,13 @@ function dayLabel(iso: string, today: string, now: Date): string {
   return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: d.getFullYear() === now.getFullYear() ? undefined : "numeric" }).format(d);
 }
 
-function timeLabel(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(d);
+function timeLabel(iso: string, locale: string): string {
+  return formatClock(iso, locale);
 }
 
 export function HistorySheet({ entries, open, onClose, copy, variant, error }: HistorySheetProps) {
   const c = copy.history;
+  const locale = useDashboardLocale();
   const now = new Date();
 
   let body: ReactNode;
@@ -84,7 +86,7 @@ export function HistorySheet({ entries, open, onClose, copy, variant, error }: H
               >
                 <Icon name="check" size={variant === "mobile" ? 14 : 13} />
                 <span className="tx">{entry.text}</span>
-                <span className="t">{timeLabel(entry.at)}</span>
+                <span className="t">{timeLabel(entry.at, locale)}</span>
               </div>
             ))}
           </div>

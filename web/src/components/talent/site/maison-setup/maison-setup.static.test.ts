@@ -326,3 +326,13 @@ test("TUL-658: Review names the pending (draft) design and states what Undo reve
   assert.match(action, /borrador sin publicar/);
   assert.match(action, /unpublished draft/);
 });
+
+test("TUL-746: the design picker subtitle never says 'free' (it shows on paid accounts too)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  for (const f of ["maison-setup/ChooseDesignScreen.tsx", "PresenceLiveFallback.tsx"]) {
+    const src = readFileSync(join(__dirname, "..", f), "utf8");
+    assert.ok(!src.includes('"Your free website"'), f);
+    assert.ok(src.includes('"Your website"'), f);
+  }
+});
