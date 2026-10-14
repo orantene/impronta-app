@@ -104,3 +104,52 @@ test("confirm and callback routes use the host-aware resolver", () => {
     assert.match(src, /isRegisteredReturnHost/, f);
   }
 });
+
+// ── TUL-691 E1c: session hand-off to custom domains ─────────────────────────
+const customDomains = new Set(["jorgelina.com"]);
+function runHandoff(rawNext: string | null, requestOrigin = APP) {
+  return resolvePostAuthRedirect({
+    rawNext,
+    requestOrigin,
+    appUrl: APP,
+    destination: "/account",
+    isRegisteredHost,
+    needsSessionHandoff: async (h) => customDomains.has(h),
+  });
+}
+
+test("custom-domain return signed in on the app host goes through /auth/sso/start", async () => {
+  const target = "https://jorgelina.com/servicios?x=1";
+  assert.equal(
+    await runHandoff(target),
+    `${APP}/auth/sso/start?return=${encodeURIComponent(target)}`,
+  );
+});
+
+test("platform hosts (shared cookies) skip the hand-off", async () => {
+  assert.equal(
+    await runHandoff("https://impronta.tulala.digital/models"),
+    "https://impronta.tulala.digital/models",
+  );
+});
+
+test("already on the custom domain: no hand-off, plain return", async () => {
+  assert.equal(
+    await runHandoff("https://jorgelina.com/servicios", "https://jorgelina.com"),
+    "https://jorgelina.com/servicios",
+  );
+  assert.equal(await runHandoff("/book/abc", "https://jorgelina.com"), "https://jorgelina.com/book/abc");
+});
+
+test("hand-off is never offered for http targets or unregistered hosts", async () => {
+  assert.equal(await runHandoff("http://jorgelina.com/x"), "http://jorgelina.com/x");
+  assert.equal(await runHandoff("https://evil.com/x"), `${APP}/account`);
+});
+
+test("callback and confirm wire the hand-off check", () => {
+  const root = path.resolve(__dirname, "../../app/auth");
+  for (const f of ["confirm/route.ts", "callback/route.ts"]) {
+    const src = readFileSync(path.join(root, f), "utf8");
+    assert.match(src, /needsSessionHandoff: needsSsoHandoffHost/, f);
+  }
+});

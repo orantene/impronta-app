@@ -112,6 +112,12 @@ export type ResolvePostAuthRedirectArgs = {
   destination: string;
   /** Registry check: agency_domains or a talent custom domain. */
   isRegisteredHost: (host: string) => Promise<boolean>;
+  /**
+   * TUL-691: true when `host` keeps host-only cookies (agency / talent custom
+   * domain), so a session set on the app host must be carried over through
+   * the one-time SSO hand-off (`/auth/sso/start`). Omit to disable.
+   */
+  needsSessionHandoff?: (host: string) => Promise<boolean>;
 };
 
 /**
@@ -131,7 +137,20 @@ export async function resolvePostAuthRedirect(
     if (absolute.host === appHost) return fallback;
     const allowed =
       absolute.host === requestHost || (await args.isRegisteredHost(absolute.host));
-    return allowed ? `${absolute.origin}${absolute.pathAndQuery}` : fallback;
+    if (!allowed) return fallback;
+    const target = `${absolute.origin}${absolute.pathAndQuery}`;
+    // Signed in on the app host, returning to a custom domain: the session
+    // cookie cannot reach it, so route through the SSO mint, which re-checks
+    // the host and issues a single-use, host-bound, 2-minute token.
+    if (
+      args.needsSessionHandoff &&
+      requestHost === appHost &&
+      absolute.origin.startsWith("https://") &&
+      (await args.needsSessionHandoff(absolute.host))
+    ) {
+      return `${appUrl}/auth/sso/start?return=${encodeURIComponent(target)}`;
+    }
+    return target;
   }
 
   // Relative `next` on a site host: stay on that site for public pages.

@@ -9,7 +9,10 @@ import {
 import { loadAccessProfile } from "@/lib/access-profile";
 import { relinkFirstConfirmedClaim } from "@/lib/auth/guest-claim-relink";
 import { resolvePostAuthRedirect } from "@/lib/auth/post-auth-return";
-import { isRegisteredReturnHost } from "@/lib/auth/registered-return-host.server";
+import {
+  isRegisteredReturnHost,
+  needsSsoHandoffHost,
+} from "@/lib/auth/registered-return-host.server";
 import { NextResponse } from "next/server";
 
 /**
@@ -80,6 +83,7 @@ export async function GET(request: Request) {
       appUrl: getAppUrl(),
       destination,
       isRegisteredHost: isRegisteredReturnHost,
+      needsSessionHandoff: needsSsoHandoffHost,
     });
     const successResponse = NextResponse.redirect(target);
     response.cookies.getAll().forEach((cookie) => {

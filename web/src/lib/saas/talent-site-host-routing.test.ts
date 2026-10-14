@@ -37,6 +37,7 @@ test("shared plumbing + static assets pass through untouched", () => {
     "/auth/apple",
     "/auth/google",
     "/auth/callback",
+    "/auth/sso", // TUL-691: SSO redeem only (one-time host-bound token)
     "/sitemap.xml",
     "/robots.txt",
     "/favicon.ico",
@@ -58,8 +59,7 @@ test("workspace / login / multi-segment / dotted paths are NOT allowed (→ 404)
     "/auth", // bare reserved — OAuth needs exact /auth/google|/auth/callback
     "/auth/sign-out",
     "/auth/confirm",
-    "/auth/sso",
-    "/auth/sso/start",
+    "/auth/sso/start", // mint stays on the app host only
     "/talent/register",
     "/directory",
     "/c", // bare reserved slug — not a thread

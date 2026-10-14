@@ -32,7 +32,10 @@ import { claimTulalaBriefOnAuth } from "@/lib/tulala/brief-claim-auth";
 import { isFreshOAuthSignup } from "@/lib/legal/acceptances.core";
 import { hasSignupAcceptance } from "@/lib/legal/acceptances";
 import { resolvePostAuthRedirect } from "@/lib/auth/post-auth-return";
-import { isRegisteredReturnHost } from "@/lib/auth/registered-return-host.server";
+import {
+  isRegisteredReturnHost,
+  needsSsoHandoffHost,
+} from "@/lib/auth/registered-return-host.server";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -184,6 +187,7 @@ export async function GET(request: Request) {
                   appUrl,
                   destination,
                   isRegisteredHost: isRegisteredReturnHost,
+                  needsSessionHandoff: needsSsoHandoffHost,
                 }),
           );
       response.cookies.getAll().forEach((cookie) => {
