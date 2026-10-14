@@ -15,6 +15,8 @@ const layout = readFileSync(join(__dirname, "..", "app", "(auth)", "layout.tsx")
 test("auth layout fallback title is the localized brand line", () => {
   assert.match(layout, /const localized: Metadata = \{ \.\.\.AUTH_ROBOTS, title: \{ absolute: dashboardTabTitle\(await getRequestLocale\(\)\) \} \}/);
   assert.doesNotMatch(layout, /return AUTH_ROBOTS;/);
-  assert.match(layout, /brand \? \{ \.\.\.AUTH_ROBOTS, title: \{ absolute: brand\.title \} \} : localized/);
+  // TUL-870: no brand → the localized line; a brand → its title (plus the other head fields).
+  assert.match(layout, /if \(!brand\) return localized;/);
+  assert.match(layout, /title: \{ absolute: brand\.title \}/);
   assert.equal(dashboardTabTitle("es"), "Tulala · Vende lo que haces, no lo que envías");
 });

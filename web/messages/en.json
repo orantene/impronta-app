@@ -244,7 +244,8 @@
       "appleOpening": "Opening Apple…",
       "appleFailed": "Apple sign-in failed.",
       "applePopupBlocked": "Pop-up blocked. Allow pop-ups for this site and try again.",
-      "appleUnableToStart": "Could not start Apple sign-in."
+      "appleUnableToStart": "Could not start Apple sign-in.",
+      "brandedDescription": "Sign in or create your account with {name}."
     },
     "profile": {
       "about": "About",

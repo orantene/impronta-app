@@ -45,7 +45,20 @@ export async function generateMetadata(): Promise<Metadata> {
     whitelabel,
     publicName: identity?.public_name,
   });
-  return brand ? { ...AUTH_ROBOTS, title: { absolute: brand.title } } : localized;
+  if (!brand) return localized;
+  // TUL-870: on a whitelabel agency host every brand field in <head> is the
+  // agency's, not just the tab title (meta description, og:site_name, og:title,
+  // twitter:title, apple-mobile-web-app-title all said Tulala).
+  const description = createTranslator(await getRequestLocale())("public.auth.brandedDescription").replace("{name}", brand.title);
+  return {
+    ...AUTH_ROBOTS,
+    title: { absolute: brand.title },
+    description,
+    applicationName: brand.title,
+    appleWebApp: { title: brand.title },
+    openGraph: { siteName: brand.title, title: brand.title, description },
+    twitter: { title: brand.title, description },
+  };
 }
 
 /** What the layout needs beyond the brand object itself. */

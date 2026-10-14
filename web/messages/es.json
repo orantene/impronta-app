@@ -244,7 +244,8 @@
       "appleOpening": "Abriendo Apple…",
       "appleFailed": "No se pudo iniciar sesión con Apple.",
       "applePopupBlocked": "El navegador bloqueó la ventana emergente. Permite ventanas emergentes e inténtalo de nuevo.",
-      "appleUnableToStart": "No se pudo iniciar el acceso con Apple."
+      "appleUnableToStart": "No se pudo iniciar el acceso con Apple.",
+      "brandedDescription": "Inicia sesión o crea tu cuenta con {name}."
     },
     "profile": {
       "about": "Acerca de",
