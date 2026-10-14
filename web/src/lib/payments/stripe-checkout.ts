@@ -188,8 +188,7 @@ export async function createCheckoutSessionForTransaction(
     // injected stripe / platform (tests) skips it unless a guard is injected.
     const guardFn = deps.currencyGuard ?? ((deps.stripe !== undefined || deps.platform) && !deps.sb ? null : checkTransactionChargeCurrency);
     if (guardFn) {
-      const check = await guardFn(deps.sb ?? createServiceRoleClient(), { transactionId: input.transactionId, currency: input.currency });
-      const check = await guardFn(createServiceRoleClient(), { transactionId: input.transactionId, currency: input.currency, locale: input.locale });
+      const check = await guardFn(deps.sb ?? createServiceRoleClient(), { transactionId: input.transactionId, currency: input.currency, locale: input.locale });
       if (!check.ok) return { ok: false, error: check.message, uncertain: false };
     }
     // The seller of record's platform decides which Stripe account takes the

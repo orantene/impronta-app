@@ -53,17 +53,9 @@ export function decideTalentProfileLocale(input: {
   requested: string | null | undefined;
   primary: string;
   supported: readonly string[];
-  /**
-   * TUL-736: set only for a talent who never chose languages. Every platform
-   * locale then renders (chrome follows the URL) instead of falling to primary.
-   */
-  openToPlatformLocales?: readonly string[];
 }): TalentProfileLocale {
   const { primary } = input;
-  const base = input.openToPlatformLocales
-    ? [...input.supported, ...input.openToPlatformLocales]
-    : input.supported;
-  const supported = [primary, ...Array.from(new Set(base)).filter((l) => l !== primary)];
+  const supported = [primary, ...input.supported.filter((l) => l !== primary)];
   const locale = boundTalentSiteLocale(input.requested, primary, supported);
   return { locale, primary, supported, chain: locale === primary ? [locale] : [locale, primary] };
 }

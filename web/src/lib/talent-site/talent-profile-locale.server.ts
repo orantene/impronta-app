@@ -23,15 +23,10 @@ export async function resolveTalentProfileLocale(
     loadTalentLocaleState(profileId),
     getLanguageSettingsPublicCached().catch(() => null),
   ]);
-  const settings = state.settings;
-  // No stored language choice and no secondaries: the talent is unconfigured.
-  const unconfigured = state.seedPrimary === null && settings.secondaryLocales.length === 0;
+  const { settings } = state;
   return decideTalentProfileLocale({
     requested: applyLangQuery(requested, langQuery),
     primary: settings.defaultLocale,
-    supported: settings.supportedLocales,
-    openToPlatformLocales: unconfigured ? (language?.publicLocales ?? undefined) : undefined,
-  const { settings } = state;
     supported: talentProfileSupportedSet({
       unset: state.seedPrimary === null && settings.secondaryLocales.length === 0,
       supported: settings.supportedLocales,

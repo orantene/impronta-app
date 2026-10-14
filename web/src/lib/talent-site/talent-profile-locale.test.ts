@@ -102,38 +102,18 @@ test("applyLangQuery: ?lang wins over the path locale, bounded by the talent set
 
 // TUL-736: a talent with no language choice speaks every platform language
 // (chrome), so /es/t/<code> renders Spanish instead of falling back to English.
-test("unconfigured talent: any platform locale renders, primary stays first", () => {
-  const d = decideTalentProfileLocale({
-    requested: "es",
-    primary: "en",
-    supported: ["en"],
-    openToPlatformLocales: ["en", "es"],
-  });
-  assert.equal(d.locale, "es");
-  assert.deepEqual(d.supported, ["en", "es"]);
-  assert.deepEqual(d.chain, ["es", "en"]);
-});
-
-test("unconfigured talent: a locale the platform does not serve still falls back", () => {
-  const d = decideTalentProfileLocale({
-    requested: "fr",
-    primary: "en",
-    supported: ["en"],
-    openToPlatformLocales: ["en", "es"],
-  });
-  assert.equal(d.locale, "en");
-});
-
-test("a talent who chose Spanish only is still bounded (no open locales)", () => {
-  assert.equal(decideTalentProfileLocale({ requested: "en", ...SOLO_ES }).locale, "es");
 test("TUL-736: a talent with no language preference follows the platform public locales", () => {
-  const set = talentProfileSupportedSet({
-    unset: true,
-    publicLocales: ["en", "es"],
+  const set = talentProfileSupportedSet({ unset: true, supported: ["en"], publicLocales: ["en", "es"] });
   assert.deepEqual(set, ["en", "es"]);
   const d = decideTalentProfileLocale({ requested: "es", primary: "en", supported: set });
+  assert.equal(d.locale, "es");
+  assert.deepEqual(d.chain, ["es", "en"]);
+  assert.equal(decideTalentProfileLocale({ requested: "fr", primary: "en", supported: set }).locale, "en");
+});
+
 test("TUL-736: an explicit single-language talent stays bounded", () => {
   const set = talentProfileSupportedSet({ unset: false, supported: ["en"], publicLocales: ["en", "es"] });
   assert.deepEqual(set, ["en"]);
   assert.equal(decideTalentProfileLocale({ requested: "es", primary: "en", supported: set }).locale, "en");
+  assert.equal(decideTalentProfileLocale({ requested: "en", ...SOLO_ES }).locale, "es");
 });

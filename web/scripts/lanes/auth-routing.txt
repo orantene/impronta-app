@@ -19,3 +19,8 @@ src/lib/supabase/bounded-fetch.test.ts
 src/lib/auth/sign-out-clears-all-scopes.test.ts
 src/lib/rate-limit-fail-open.test.ts
 src/lib/support/feature-request-limiter.static.test.ts
+src/lib/auth/sign-out-audit.test.ts
+src/lib/auth/post-auth-return.test.ts
+src/lib/auth/return-host-kind.test.ts
+src/lib/inquiry/claim-return-url.test.ts
+src/lib/auth/client-ip.test.ts

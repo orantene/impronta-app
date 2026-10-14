@@ -86,7 +86,6 @@ export type CatalogBookingDetail = OfferingRequestDetail & {
 };
 
 export type { CatalogBookFn, CatalogSlotsFn, CatalogSheetBookingSettings };
-
 export function CatalogBookingSheet({
   locale = "es",
   mode = "demo",
@@ -242,7 +241,9 @@ export function CatalogBookingSheet({
 
   // TUL-723: a signed-in client's own contact details, only into empty fields.
   const contactRef = useRef({ name, email, phone });
-  contactRef.current = { name, email, phone };
+  useEffect(() => {
+    contactRef.current = { name, email, phone };
+  }, [name, email, phone]);
   useBookingContactPrefill({
     active: step === "who" && mode === "live",
     read: () => contactRef.current,
@@ -260,8 +261,7 @@ export function CatalogBookingSheet({
     setSlotsReady(false);
     setSlotsLoading(true);
     const run = slotsFn ?? fetchLiveSlots;
-    // BUF-5: project slots for base + extras so near-close / near-busy starts
-    // that only fit the shorter base duration never appear.
+    // BUF-5: project slots for base + extras so near-close / near-busy starts that only fit the shorter base duration never appear.
     run(detail.offeringId, bookingDurationMinutes)
       .then((r) => {
         if (cancelled) return;

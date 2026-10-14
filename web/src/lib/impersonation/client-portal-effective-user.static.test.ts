@@ -22,8 +22,15 @@ const CTX_HELPERS = /\b(clientPageReadCtx|effectiveReadContext|resolveClientApiR
 const ACTOR_ID = /\b(?:session\??\.user\??\.id|user\.id)\b/;
 const TARGETS = /(?:^|\/)(?:page\.tsx|route\.ts)$/;
 
-/** Actor-own by design: the topbar account menu is about the signed-in person. */
-const ACTOR_OWN_ALLOW = new Set(["src/app/api/client/account/route.ts"]);
+/**
+ * Actor-own by design: the topbar account menu and the booking-form prefill
+ * (TUL-723, the signed-in person's own contact; staff sessions get nothing)
+ * are about the signed-in person.
+ */
+const ACTOR_OWN_ALLOW = new Set([
+  "src/app/api/client/account/route.ts",
+  "src/app/api/client/booking-prefill/route.ts",
+]);
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {

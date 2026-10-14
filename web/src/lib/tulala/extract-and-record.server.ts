@@ -54,13 +54,10 @@ export async function extractAndRecord(input: {
   timeoutMs?: number;
 }): Promise<LearnedFact[]> {
   try {
-    const completion = await withTimeout(
-      input.adapter.chatCompletion({
-        systemPrompt: buildExtractionPrompt({ pack: input.pack, locale: input.locale }),
     const completion = await withAbortTimeout(
       (signal) =>
         input.adapter.chatCompletion({
-        systemPrompt: buildExtractionPrompt({ pack: input.pack }),
+        systemPrompt: buildExtractionPrompt({ pack: input.pack, locale: input.locale }),
         userMessage: buildExtractionMessage({
           userMessage: input.userMessage,
           brief: input.brief,

@@ -90,6 +90,7 @@ test("the zone list offers Mexico when the country was not detected (TUL-568)", 
   const ids = TIMEZONE_OPTIONS.map((z) => z.id);
   assert.ok(ids.includes("America/Mexico_City"));
   assert.ok(ids.includes("America/Cancun"));
+});
 test("TUL-16 b: the services currency defaults to the talent's own and can be chosen", () => {
   assert.equal(setupCurrency({ chosen: null, country: "Mexico", locale: "es" }), "MXN");
   assert.equal(setupCurrency({ chosen: null, country: "MX", locale: "en" }), "MXN");

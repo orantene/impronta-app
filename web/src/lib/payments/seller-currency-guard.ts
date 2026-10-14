@@ -130,10 +130,9 @@ async function readFacts(sb: SupabaseClient, transactionId: string, talentMxLane
 /** Charge-mode guard for a booking transaction. Fails closed on any read failure. */
 export async function checkTransactionChargeCurrency(
   sb: SupabaseClient | null,
-  input: { transactionId: string; currency: string | null | undefined },
+  input: { transactionId: string; currency: string | null | undefined; locale?: string | null },
   /** `talentMxLane: false` for rails that only ever use the US key (Terminal): never infer mx from the talent. */
   opts: { talentMxLane?: boolean } = {},
-  input: { transactionId: string; currency: string | null | undefined; locale?: string | null },
 ): Promise<ChargeCurrencyCheck> {
   if (!sb) return UNREADABLE;
   let read: Read;

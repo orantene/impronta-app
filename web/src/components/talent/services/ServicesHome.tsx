@@ -57,7 +57,6 @@ import { useSearchParams } from "next/navigation";
 
 type Filter = "all" | "service" | "package" | "product" | "draft" | "hidden" | "archived" | "attention";
 type Screen = "list" | "editor" | "defaults" | "organize" | "addMany" | "camera" | "firstRun" | "patterns";
-
 export function ServicesHome({
   talentId,
   sellerName,

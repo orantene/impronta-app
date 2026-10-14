@@ -193,12 +193,7 @@ export async function proxy(request: NextRequest) {
   });
   if (spanishAlias) return NextResponse.redirect(new URL(spanishAlias, request.url), 308);
 
-  const demoSlugHop = marketingDemoSlugRedirect({
-    pathname: request.nextUrl.pathname,
-    search: request.nextUrl.search,
-    method: request.method,
-    hostKind: hostContext.kind,
-  });
+  const demoSlugHop = marketingDemoSlugRedirect({ pathname: request.nextUrl.pathname, search: request.nextUrl.search, method: request.method, hostKind: hostContext.kind });
   if (demoSlugHop) return NextResponse.redirect(demoSlugHop, 308);
 
   // Support Desk host: DEAD while SUPPORT_DESK_ENABLED is off — even when
@@ -415,11 +410,7 @@ export async function proxy(request: NextRequest) {
   });
   if (marketingWorkspaceRedirect) return marketingWorkspaceRedirect;
 
-  const marketingAccountRedirect = marketingAccountPathRedirect({
-    request,
-    canonicalPath,
-    hostKind: effectiveHostContext.kind,
-  });
+  const marketingAccountRedirect = marketingAccountPathRedirect({ request, canonicalPath, hostKind: effectiveHostContext.kind });
   if (marketingAccountRedirect) return marketingAccountRedirect;
 
   const freeSubdomainRedirect = await freeSubdomainPathRedirect({ request, pathname, canonicalPath, hostContext });
@@ -462,10 +453,7 @@ export async function proxy(request: NextRequest) {
     // short-circuit block above so this does not recurse. The locale header
     // rides along so /es/<typo> answers in Spanish (the page and <html lang>).
     const missHeaders = new Headers(sanitizedInboundHeaders);
-    missHeaders.set(
-      LOCALE_HEADER,
-      resolveLocaleForPathname(pathname, request, effectiveLangSettings),
-    );
+    missHeaders.set(LOCALE_HEADER, resolveLocaleForPathname(pathname, request, effectiveLangSettings));
     return NextResponse.rewrite(
       new URL("/_page-not-found", request.url),
       { status: 404, request: { headers: missHeaders } },

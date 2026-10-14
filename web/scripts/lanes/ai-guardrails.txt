@@ -63,3 +63,13 @@ src/lib/rate-limit-kv-guest-ai.test.ts
 src/components/support/support-composer-throw.static.test.ts
 src/components/support/guide-not-found-fallback.static.test.ts
 src/components/support/support-new-question.static.test.ts
+src/lib/support/ticket-plan.test.ts
+src/lib/support/open-count-parity.static.test.ts
+src/lib/support/desk/desk-search.test.ts
+src/lib/support/desk/desk-search.static.test.ts
+src/components/support/support-new-question-strip.test.ts
+src/lib/support/support-ai-language.test.ts
+src/components/support/support-send-throw.test.ts
+src/components/support/bell-refresh.test.ts
+src/lib/support/support-chat-fail-open-log.test.ts
+src/lib/support/attachment-rate-limit.static.test.ts
