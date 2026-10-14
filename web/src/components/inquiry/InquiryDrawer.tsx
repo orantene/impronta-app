@@ -521,7 +521,15 @@ export function InquiryDrawer({
             {submitted
               ? interpolate(t(sentKeys.footer), sentVars)
               : !canSubmit && step === "compose"
-                ? t("public.inquiryDrawer.footerNeedMore")
+                ? (validation.ok ? t("public.inquiryDrawer.footerNeedMore") : interpolate(t("public.inquiryDrawer.footerMissing"), {
+                    // TUL-952: say exactly what is missing instead of a vague hint.
+                    fields: validation.missingFields.map((f) => t(
+                      f === "requester.name" ? "public.inquiryDrawer.missingName"
+                        : f === "requester.email_or_phone" ? "public.inquiryDrawer.missingContact"
+                          : f === "brief.summary_or_talent" ? "public.inquiryDrawer.missingBrief"
+                            : f === "location.city_or_status" ? "public.inquiryDrawer.missingLocation"
+                              : "public.inquiryDrawer.missingDate")).join(", "),
+                  }))
                 : submitState.kind === "slot_taken"
                   ? <span style={{ color: C.amber }}>{t(submitState.nextFreeTimes.length > 0 ? "public.inquiryDrawer.slotTakenIntro" : "public.inquiryDrawer.slotTakenNone")}</span>
                 : submitState.kind === "error"
