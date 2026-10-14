@@ -36,8 +36,9 @@ test("only Mexico is inferred from the request; what the person said always wins
 });
 
 test("the zone select always shows the current zone, even off the short list", () => {
-  assert.equal(timezoneChoices(null), TIMEZONE_OPTIONS);
-  assert.equal(timezoneChoices("Europe/Madrid"), TIMEZONE_OPTIONS);
+  assert.deepEqual(timezoneChoices(null).map((z) => z.id), TIMEZONE_OPTIONS.map((z) => z.id));
+  assert.deepEqual(timezoneChoices("Europe/Madrid").map((z) => z.id), TIMEZONE_OPTIONS.map((z) => z.id));
+  assert.equal(timezoneChoices("America/Cancun", "es")[1]?.label, "Cancún (Quintana Roo)");
   const lima = timezoneChoices("America/Lima");
   assert.deepEqual(lima[0], { id: "America/Lima", label: "Lima" });
   assert.equal(lima.length, TIMEZONE_OPTIONS.length + 1);

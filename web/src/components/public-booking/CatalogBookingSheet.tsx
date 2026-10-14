@@ -26,7 +26,6 @@ import {
   type CatalogBookingSelection,
 } from "./catalog-booking-chat";
 import {
-  buildLiveDayStrip,
   catalogBookingDurationMinutes,
   catalogApplyDayPick,
   catalogCanContinueWhen,
@@ -42,8 +41,6 @@ import {
   demoSlotsFor,
   firstDayWithSlotsIndex,
   firstOpenDemoDayIndex,
-  formatClock,
-  LIVE_SLOT_STRIP_DAYS,
   type CatalogBookingMode,
 } from "./catalog-booking-logic";
 import {
@@ -59,6 +56,7 @@ import { CatalogIntakeFields } from "./catalog-intake-fields";
 import { preselectIntakeFromTask } from "@/lib/talent/offering-intake";
 import {
   fetchLiveSlots,
+  liveStripFromSlots,
   shouldSkipGuestCaptchaOnHost,
   type CatalogSlotsFn,
 } from "./catalog-booking-live-slots";
@@ -273,15 +271,8 @@ export function CatalogBookingSheet({
         if (cancelled) return;
         setLiveTz(r.timezone);
         setLiveReason(r.reason ?? null);
-        // TUL-531: continuous 14-day strip (empty days kept); fromYmd falls back to the first slot day.
-        const fromYmd =
-          r.fromYmd ?? r.slots.map((s) => s.slice(0, 10)).sort()[0] ?? new Date().toISOString().slice(0, 10);
-        const strip = buildLiveDayStrip({
-          slots: r.slots,
-          timezone: r.timezone,
-          fromYmd,
-          dayCount: LIVE_SLOT_STRIP_DAYS,
-        });
+        // TUL-531: continuous 14-day strip (empty days kept).
+        const strip = liveStripFromSlots(r);
         setLiveDays(strip);
         // TUL-232: opened at a slot: select it, or fall back to its day / the first day with the notice.
         const arrival = slotArrivalPlan(pendingSlotRef.current, strip, r.timezone, locale);
@@ -300,19 +291,8 @@ export function CatalogBookingSheet({
         setTime(null);
         setLiveStarts(null);
       })
-      .catch(() => {
-        if (!cancelled) {
-          setLiveDays([]);
-          setTime(null);
-          setLiveStarts(null);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setSlotsLoading(false);
-          setSlotsReady(true);
-        }
-      });
+      .catch(() => { if (!cancelled) { setLiveDays([]); setTime(null); setLiveStarts(null); } })
+      .finally(() => { if (!cancelled) { setSlotsLoading(false); setSlotsReady(true); } });
     return () => {
       cancelled = true;
     };

@@ -5,7 +5,7 @@
 
 import { isDevGuestCaptchaSkipHostname } from "@/lib/scheduling/guest-captcha-dev-skip";
 
-import { LIVE_SLOT_STRIP_DAYS } from "./catalog-booking-logic";
+import { buildLiveDayStrip, LIVE_SLOT_STRIP_DAYS } from "./catalog-booking-logic";
 
 export type CatalogSlotsResult = {
   slots: string[];
@@ -51,4 +51,10 @@ export async function fetchLiveSlots(
     fromYmd,
     reason: typeof body.reason === "string" ? body.reason : null,
   };
+}
+
+/** TUL-531: the continuous day strip for a slots result; `fromYmd` falls back to the first slot day. */
+export function liveStripFromSlots(r: CatalogSlotsResult) {
+  const fromYmd = r.fromYmd ?? r.slots.map((s) => s.slice(0, 10)).sort()[0] ?? new Date().toISOString().slice(0, 10);
+  return buildLiveDayStrip({ slots: r.slots, timezone: r.timezone, fromYmd, dayCount: LIVE_SLOT_STRIP_DAYS });
 }
