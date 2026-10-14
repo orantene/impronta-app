@@ -264,7 +264,7 @@ export function SettingsPage() {
       key: "privacy",
       label: tx("Privacy"),
       sub: tx("Search-engine indexing, sensitive measurements and document visibility."),
-      onOpen: () => openSection("admin"),
+      onOpen: () => openDrawer("talent-privacy"),
     },
     {
       key: "download-data",

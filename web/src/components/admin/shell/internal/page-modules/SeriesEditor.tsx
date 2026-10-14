@@ -484,6 +484,7 @@ export function GenerateSessionsForm({
   onClose: () => void;
 }) {
   const t = useT();
+  const locale = useDashboardLocale();
   const [seriesId, setSeriesId] = useState(seriesOptions[0]?.id ?? "");
   const [until, setUntil] = useState(() => addUtcDays(todayYmd, 28) ?? todayYmd);
   const [busy, setBusy] = useState(false);

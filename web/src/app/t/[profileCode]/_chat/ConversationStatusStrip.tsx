@@ -24,6 +24,7 @@
  * (no animation here at all), inline styles to match the _chat family.
  */
 
+import { jumpToOfferAnchor } from "./jump-to-offer";
 import type { RefObject } from "react";
 
 import type { Translator } from "@/i18n/interpolate";
@@ -102,14 +103,10 @@ export function ConversationStatusStrip({
 
   // Scroll the offer card into view for the offer_pending "Review it" jump.
   const jumpToOffer = () => {
-    const el = scrollRef.current?.querySelector<HTMLElement>(
-      "[data-guest-offer-anchor]",
-    );
-    if (!el) return;
     const reduced =
       typeof window !== "undefined" &&
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    el.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "nearest" });
+    jumpToOfferAnchor(scrollRef.current, Boolean(reduced));
   };
 
   // Cross-agency lineups never name a single agency/coordinator (TIERED BY

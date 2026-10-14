@@ -407,7 +407,7 @@ export function UpcomingVisitsEditor({
               onChange={(city, pid) => update(v.id, { city, placeId: pid })}
             />
           </div>
-          <div style={{ display: "flex", flexDirection: "column", flexShrink: 0 }}>
+          <div className="flex shrink-0 flex-col">
           <input
             type="date"
             value={v.date ?? ""}

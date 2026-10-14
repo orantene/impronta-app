@@ -523,12 +523,12 @@ export function RecurringPatternEditor({ value, vacation, onChange, onVacationCh
           </div>
         ) : (
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <div style={{ display: "flex", flexDirection: "column" }}>
+            <div className="flex flex-col">
             <input type="date" id="vacstart" style={{ padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`, fontSize: 12 }} />
             <DateFormatHint locale={dashLocale} />
             </div>
             <span className="text-admin-ink-dim text-admin-11">→</span>
-            <div style={{ display: "flex", flexDirection: "column" }}>
+            <div className="flex flex-col">
             <input type="date" id="vacend"   style={{ padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`, fontSize: 12 }} />
             <DateFormatHint locale={dashLocale} />
             </div>
