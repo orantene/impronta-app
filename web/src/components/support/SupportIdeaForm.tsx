@@ -2,6 +2,8 @@
 
 import { useState, type CSSProperties } from "react";
 import { useT } from "@/i18n/use-t";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { supportA11yCopy } from "./support-a11y-copy";
 import { interpolate } from "@/i18n/interpolate";
 import { SUPPORT_AGENT_VARS } from "@/lib/support/support-persona";
 import { Icon } from "@/components/admin/shell/internal/primitives";
@@ -32,6 +34,7 @@ export function SupportIdeaForm({
   onSubmitted: (requestNumber: number) => void;
 }) {
   const t = useT();
+  const locale = useDashboardLocale();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [area, setArea] = useState<(typeof AREAS)[number]>("general");
@@ -130,6 +133,7 @@ export function SupportIdeaForm({
       <button
         type="submit"
         disabled={busy || !title.trim()}
+        aria-describedby={!title.trim() ? "support-idea-title-hint" : undefined}
         aria-busy={busy}
         style={{
           border: "none",
@@ -146,6 +150,11 @@ export function SupportIdeaForm({
       >
         {busy ? t("dashboard.adminSupport.ideaSending") : t("dashboard.adminSupport.ideaSubmit")}
       </button>
+      {!title.trim() && !busy ? (
+        <div id="support-idea-title-hint" style={{ fontSize: 11.5, color: COLORS.inkMuted, textAlign: "center" }}>
+          {supportA11yCopy(locale).ideaTitleHint}
+        </div>
+      ) : null}
       <div style={{ fontSize: 11.5, color: COLORS.inkDim, textAlign: "center" }}>
         {t("dashboard.adminSupport.ideaFootnote")}
       </div>

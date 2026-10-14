@@ -129,6 +129,8 @@ export function HomeView({
             }
           }}
           placeholder={t("dashboard.adminSupport.askPlaceholder")}
+          aria-label={t("dashboard.adminSupport.askPlaceholder")}
+          maxLength={2000}
           style={{ flex: 1, border: "none", outline: "none", fontSize: 13, fontFamily: FONTS.body, background: "transparent", color: COLORS.ink }}
         />
         <button
