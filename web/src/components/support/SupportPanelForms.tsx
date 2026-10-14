@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { SUPPORT_AGENT_VARS } from "@/lib/support/support-persona";
@@ -11,6 +11,12 @@ import { ReplayConsent } from "./ReplayConsent";
 import { SupportAttachButton } from "./SupportAttachButton";
 import { getDiagnosticsSnapshot } from "@/lib/support/diagnostics/collector";
 import type { SupportContract } from "./support-contract";
+import { uploadSupportAttachment } from "./upload-support-attachment";
+import {
+  SUPPORT_ATTACH_ACCEPT,
+  stageSupportAttachments,
+  uploadStagedAttachments,
+} from "./support-attachment-limits";
 
 export function NewTicketForm({
   contract,
@@ -33,6 +39,9 @@ export function NewTicketForm({
   const [pref, setPref] = useState<"anytime" | "morning" | "afternoon" | "evening">("anytime");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [fileRejected, setFileRejected] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   return (
     <form
       style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}
@@ -54,7 +63,11 @@ export function NewTicketForm({
             callbackPref: phone.trim() ? pref : undefined,
             diagnostics: getDiagnosticsSnapshot(),
           })
-          .then((r) => {
+          .then(async (r) => {
+            if (r.ok && files.length > 0) {
+              // The ticket exists; a failed upload must not block opening it.
+              await uploadStagedAttachments(r.ticketId, files, uploadSupportAttachment);
+            }
             setBusy(false);
             if (r.ok) {
               onCreated(
@@ -123,6 +136,48 @@ export function NewTicketForm({
           ))}
         </div>
       ) : null}
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <input
+          ref={fileRef}
+          type="file"
+          multiple
+          accept={SUPPORT_ATTACH_ACCEPT}
+          hidden
+          onChange={(e) => {
+            const r = stageSupportAttachments(files, Array.from(e.target.files ?? []));
+            setFiles(r.files);
+            setFileRejected(r.rejected);
+            if (fileRef.current) fileRef.current.value = "";
+          }}
+        />
+        <button
+          type="button"
+          disabled={busy}
+          aria-label={t("dashboard.adminSupport.attachAria")}
+          onClick={() => fileRef.current?.click()}
+          style={{ ...fieldInput, cursor: "pointer", textAlign: "left" }}
+        >
+          {t("dashboard.adminSupport.attachAria")}
+        </button>
+        {files.map((f, i) => (
+          <div key={`${f.name}-${i}`} style={{ fontSize: 12, color: COLORS.inkMuted, display: "flex", gap: 8 }}>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+            <button
+              type="button"
+              aria-label={f.name}
+              onClick={() => setFiles(files.filter((_, j) => j !== i))}
+              style={{ border: "none", background: "none", cursor: "pointer", color: COLORS.inkMuted }}
+            >
+              ×
+            </button>
+          </div>
+        ))}
+        {fileRejected ? (
+          <div role="alert" style={{ fontSize: 12, color: COLORS.critical }}>
+            {t("dashboard.adminSupport.attachFailed")}
+          </div>
+        ) : null}
+      </div>
       {replayEnabled ? (
         <ReplayConsent checked={attachReplay} onChange={setAttachReplay} />
       ) : null}
