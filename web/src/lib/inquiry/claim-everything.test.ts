@@ -212,3 +212,40 @@ test("a customer row that would collide on (tenant, user) is skipped, the rest s
   assert.equal(res.customers, 0);
   assert.equal(byId(t, "agency_bookings", "bk-email").client_user_id, ME, "the email-matched booking still attaches");
 });
+
+type RpcCall = { fn: string; args: Record<string, unknown> };
+function withRpc<A extends object>(admin: A, result: { data: unknown; error: { message: string } | null }) {
+  const calls: RpcCall[] = [];
+  const rpc = async (fn: string, args: Record<string, unknown>) => {
+    calls.push({ fn, args });
+    return result;
+  };
+  return { admin: Object.assign(admin, { rpc }), calls };
+}
+
+test("TUL-691: a duplicate customer triggers merge_verified_client_customers with the user's id", async () => {
+  const t = seed();
+  t.customers.push({ id: "cu-mine-t2", tenant_id: "t2", user_id: ME, client_profile_id: "cp-me", email: "old@me.com", merged_into_id: null });
+  const { admin: base } = makeAdmin(t, { uniqueTenantUser: true });
+  const { admin, calls } = withRpc(base, { data: 1, error: null });
+  await claimEverythingForVerifiedEmail({ admin, userId: ME, verifiedEmail: EMAIL });
+  assert.deepEqual(calls, [{ fn: "merge_verified_client_customers", args: { p_user_id: ME } }]);
+});
+
+test("TUL-691: a merge RPC error is logged, the claim still resolves", async () => {
+  const t = seed();
+  t.customers.push({ id: "cu-mine-t2", tenant_id: "t2", user_id: ME, client_profile_id: "cp-me", email: "old@me.com", merged_into_id: null });
+  const { admin: base } = makeAdmin(t, { uniqueTenantUser: true });
+  const { admin, calls } = withRpc(base, { data: null, error: { message: "boom" } });
+  const res = await claimEverythingForVerifiedEmail({ admin, userId: ME, verifiedEmail: EMAIL });
+  assert.equal(calls.length, 1);
+  assert.equal(byId(t, "agency_bookings", "bk-email").client_user_id, ME);
+  assert.equal(res.customers, 0);
+});
+
+test("TUL-691: no duplicate, no merge RPC", async () => {
+  const { admin: base } = makeAdmin(seed(), { uniqueTenantUser: true });
+  const { admin, calls } = withRpc(base, { data: 0, error: null });
+  await claimEverythingForVerifiedEmail({ admin, userId: ME, verifiedEmail: EMAIL });
+  assert.equal(calls.length, 0);
+});

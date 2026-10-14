@@ -40,7 +40,10 @@ export type ClaimEverythingResult = {
 };
 
 type Row = Record<string, unknown>;
-type Admin = ClaimByEmailAdmin;
+/** The service-role client: `rpc` is used for the verified-email customer merge (TUL-691). */
+type Admin = ClaimByEmailAdmin & {
+  rpc?: (fn: string, args: Record<string, unknown>) => PromiseLike<{ data: unknown; error: unknown }>;
+};
 
 const EMPTY: ClaimEverythingResult = { inquiries: 0, customers: 0, bookings: 0, transactions: 0, messageThreads: 0 };
 
@@ -82,7 +85,8 @@ export async function claimEverythingForVerifiedEmail(input: {
   });
 
   const messageThreads = await reattributeGuestMessages(admin, userId, pattern, email);
-  const customers = await claimCustomers(admin, userId, pattern, email);
+  const { claimed: customers, duplicates } = await claimCustomers(admin, userId, pattern, email);
+  if (duplicates > 0) await mergeVerifiedCustomers(admin, userId);
   const bookings = await claimBookings(admin, userId, pattern, email);
   const transactions = await claimTransactions(admin, userId, pattern, email);
 
@@ -116,7 +120,28 @@ async function reattributeGuestMessages(admin: Admin, userId: string, pattern: s
   return threads;
 }
 
-async function claimCustomers(admin: Admin, userId: string, pattern: string, email: string): Promise<number> {
+/**
+ * TUL-691: a guest customer row that collided with the user's own row in the
+ * same tenant is merged by `merge_verified_client_customers` (service role
+ * only). Callers pass only a proven email, so the user is verified here. A
+ * failure is logged and never breaks the claim.
+ */
+async function mergeVerifiedCustomers(admin: Admin, userId: string): Promise<void> {
+  if (typeof admin.rpc !== "function") return;
+  try {
+    const { error } = await admin.rpc("merge_verified_client_customers", { p_user_id: userId });
+    if (error) logServerError("claimEverything.customers.merge", error);
+  } catch (e) {
+    logServerError("claimEverything.customers.merge", e);
+  }
+}
+
+async function claimCustomers(
+  admin: Admin,
+  userId: string,
+  pattern: string,
+  email: string,
+): Promise<{ claimed: number; duplicates: number }> {
   const { data: profile, error: profileError } = await admin
     .from("client_profiles")
     .select("id")
@@ -135,6 +160,7 @@ async function claimCustomers(admin: Admin, userId: string, pattern: string, ema
       .ilike("email", pattern),
   );
   let claimed = 0;
+  let duplicates = 0;
   for (const c of candidates ?? []) {
     if (!sameEmail(c.email, email)) continue;
     if (c.client_profile_id && c.client_profile_id !== profileId) continue; // tied to another client profile
@@ -143,14 +169,16 @@ async function claimCustomers(admin: Admin, userId: string, pattern: string, ema
     const { error } = await admin.from("customers").update(patch).eq("id", c.id).is("user_id", null);
     if (error) {
       // customers_tenant_user_key: the user already has a customer row in this
-      // tenant. Leave the duplicate for the merge tool; bookings still attach.
-      if ((error as { code?: string }).code === "23505") logServerExpected("claimEverything.customers.duplicate", error);
-      else logServerError("claimEverything.customers.update", error);
+      // tenant. Merged after the loop (TUL-691); bookings still attach.
+      if ((error as { code?: string }).code === "23505") {
+        duplicates += 1;
+        logServerExpected("claimEverything.customers.duplicate", error);
+      } else logServerError("claimEverything.customers.update", error);
       continue;
     }
     claimed += 1;
   }
-  return claimed;
+  return { claimed, duplicates };
 }
 
 async function claimBookings(admin: Admin, userId: string, pattern: string, email: string): Promise<number> {
