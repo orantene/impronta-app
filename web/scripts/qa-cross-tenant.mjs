@@ -67,6 +67,7 @@ async function main() {
         contact_email: "qa-cross-tenant@test.local",
         status: "submitted",
         source_channel: "directory_guest",
+        source_context: { qa_fixture: true },
         uses_new_engine: true,
         version: 1,
       })

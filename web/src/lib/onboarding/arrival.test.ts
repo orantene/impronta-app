@@ -118,3 +118,22 @@ test("1D: unchecked callers keep the old behaviour", () => {
   assert.equal(a.verified, undefined);
   assert.equal(a.variant, "talent");
 });
+
+test("TUL-648: the finish fact counts published services only; unpriced ones become a cue", () => {
+  const base = { path: "business" as const, stamp: null, person: { name: null, city: null }, businessName: "X", site, talent: null };
+  const none = arrivalFromStamp({ ...base, services: 0, unpricedServices: 2 });
+  assert.equal(none.fact.services, 0);
+  assert.equal(none.fact.unpriced, 2);
+  const mixed = arrivalFromStamp({ ...base, services: 1, unpricedServices: 1 });
+  assert.equal(mixed.fact.services, 1);
+  assert.equal(mixed.fact.unpriced, 1);
+  const clean = arrivalFromStamp({ ...base, services: 3 });
+  assert.equal("unpriced" in clean.fact, false);
+});
+
+test("TUL-648: publishedServiceCount matches the rows offeringRowFor publishes", async () => {
+  const { publishedServiceCount } = await import("./essentials");
+  const svc = (priceCents: number | null, quote = false) => ({ name: "S", durationMin: 60, priceCents, quote, currency: "MXN", packKey: null }) as never;
+  assert.equal(publishedServiceCount([svc(50000), svc(null, true), svc(0), svc(30000, true)]), 1);
+  assert.equal(publishedServiceCount(null), 0);
+});
