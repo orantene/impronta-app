@@ -3843,7 +3843,7 @@ export function InquiryTrustPanel({ clientName, talentNames }: { clientName: str
           <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 4 }} className="text-admin-ink-muted">{t("dashboard.adminDrawers.trustPanelClient")}</div>
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }} className="text-admin-ink">{clientName}</div>
           <TrustBadgeGroup trust={clientTrust} surface="coordinator_workspace" size="sm" max={3} />
-          <div className="mt-2"><RiskScorePill score={clientRisk} label={t("dashboard.adminDrawers.trustPanelScore")} /></div>
+          <div className="mt-2"><RiskScorePill score={clientRisk} label={t("dashboard.adminDrawers.trustPanelScore")} words={{ healthy: t("dashboard.adminDrawers.trustHealthToneHealthy"), watchful: t("dashboard.adminDrawers.trustHealthToneWatchful"), review: t("dashboard.adminDrawers.trustHealthToneReview") }} /></div>
         </div>
         <div style={{
           padding: 12, borderRadius: 10,
@@ -3854,7 +3854,7 @@ export function InquiryTrustPanel({ clientName, talentNames }: { clientName: str
           {talentTrust ? (
             <>
               <TrustBadgeGroup trust={talentTrust} surface="coordinator_workspace" size="sm" max={3} />
-              {talentRisk !== null && <div className="mt-2"><RiskScorePill score={talentRisk} label={t("dashboard.adminDrawers.trustPanelScore")} /></div>}
+              {talentRisk !== null && <div className="mt-2"><RiskScorePill score={talentRisk} label={t("dashboard.adminDrawers.trustPanelScore")} words={{ healthy: t("dashboard.adminDrawers.trustHealthToneHealthy"), watchful: t("dashboard.adminDrawers.trustHealthToneWatchful"), review: t("dashboard.adminDrawers.trustHealthToneReview") }} /></div>}
             </>
           ) : (
             <span className="text-admin-ink-muted text-admin-11">{t("dashboard.adminDrawers.trustPanelNotOnRoster")}</span>
@@ -4428,7 +4428,7 @@ export function TalentTrustHealthPanel({ talentId }: { talentId: string }) {
   return (
     <Section title={t("dashboard.adminDrawers.trustHealthTitle")} framed>
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: suggestions.length > 0 ? 14 : 0 }}>
-        <RiskScorePill score={score} label={t("dashboard.adminDrawers.trustHealthScoreLabel")} />
+        <RiskScorePill score={score} label={t("dashboard.adminDrawers.trustHealthScoreLabel")} words={{ healthy: t("dashboard.adminDrawers.trustHealthToneHealthy"), watchful: t("dashboard.adminDrawers.trustHealthToneWatchful"), review: t("dashboard.adminDrawers.trustHealthToneReview") }} />
         <div style={{ fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
           {activeBadgeCount === 0
             ? t("dashboard.adminDrawers.trustHealthNoBadges")

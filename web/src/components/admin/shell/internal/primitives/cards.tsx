@@ -832,16 +832,29 @@ function PhotoBadgeIcon({
 /** Risk/health score badge for admin surfaces only — never publicly
  *  visible. Numeric 0-100 score from getRiskScore, color-coded.
  *  Higher = more trustworthy. */
-export function RiskScorePill({ score, label = "Trust health" }: { score: number; label?: string }) {
+export function RiskScorePill({
+  score,
+  label = "Trust health",
+  words,
+}: {
+  score: number;
+  label?: string;
+  words?: { healthy: string; watchful: string; review: string };
+}) {
   const copy = useDashboardText();
+  const w = words ?? {
+    healthy: copy.isSpanish ? "en orden" : "healthy",
+    watchful: copy.isSpanish ? "a vigilar" : "watchful",
+    review: copy.isSpanish ? "a revisar" : "review",
+  };
   const tone =
-    score >= 70 ? { bg: "rgba(15,79,62,0.10)", fg: "#0F4F3E", word: copy.isSpanish ? "en orden" : "healthy" }
-    : score >= 40 ? { bg: "rgba(176,135,49,0.14)", fg: "#7A5A1F", word: copy.isSpanish ? "a vigilar" : "watchful" }
-    : { bg: "rgba(176,48,58,0.10)", fg: "#7A1F26", word: copy.isSpanish ? "a revisar" : "review" };
+    score >= 70 ? { bg: "rgba(15,79,62,0.10)", fg: "#0F4F3E", word: w.healthy }
+    : score >= 40 ? { bg: "rgba(176,135,49,0.14)", fg: "#7A5A1F", word: w.watchful }
+    : { bg: "rgba(176,48,58,0.10)", fg: "#7A1F26", word: w.review };
   return (
     <div title={copy.t("Internal heuristic: verifications, claim status, account age, recent rejections.")} style={{
       display: "inline-flex", alignItems: "center", gap: 8,
-      padding: "5px 11px", borderRadius: 999,
+      padding: "5px 11px", borderRadius: 999, whiteSpace: "nowrap", flexShrink: 0,
       background: tone.bg, color: tone.fg,
       fontFamily: "inherit", fontSize: 11.5, fontWeight: 600,
     }}>
