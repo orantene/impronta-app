@@ -32,7 +32,7 @@ import { setActiveTalentAgencyAction } from "@/lib/talent/set-active-agency-acti
 import { interpolate } from "@/i18n/interpolate";
 import { useT } from "@/i18n/use-t";
 import { useDashboardText } from "./dashboard-i18n";
-import { formatNotificationAge, localizeNotificationText } from "./notification-localize";
+import { formatNotificationAge, localizeAgeLabel, localizeNotificationText } from "./notification-localize";
 import { setNotificationPrefs, getNotificationPrefs } from "@/lib/server-actions/user-prefs";
 import {
   MOCK_TALENT_NOTIFS,
@@ -1919,7 +1919,7 @@ function NotifRow({
   const { locale, t: tr, isSpanish } = useDashboardText();
   const title = localizeNotificationText(notif.title, locale);
   const sub = localizeNotificationText(notif.sub, locale);
-  const when = notif.whenIso ? formatNotificationAge(notif.whenIso, locale) : notif.when;
+  const when = notif.whenIso ? formatNotificationAge(notif.whenIso, locale) : localizeAgeLabel(notif.when ?? "", locale);
   const tonePalette = {
     coral: { bg: COLORS.coralSoft, fg: COLORS.coral },
     indigo: { bg: COLORS.indigoSoft, fg: COLORS.indigo },

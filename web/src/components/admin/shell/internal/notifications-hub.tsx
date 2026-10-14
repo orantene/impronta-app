@@ -20,7 +20,7 @@ import { COLORS, FONTS, useAdminShell, RICH_INQUIRIES } from "./state";
 import { MOCK_CONVERSATIONS } from "./talent/shared/conversations-1";
 import { ageLabel } from "./messages/messages-shared";
 import { useDashboardText } from "./dashboard-i18n";
-import { formatNotificationAge, localizeNotificationText } from "./notification-localize";
+import { formatNotificationAge, localizeAgeLabel, localizeNotificationText } from "./notification-localize";
 import { talentNotifsFromSignals } from "./talent-notification-rows";
 import type { UserNotification } from "./data-bridge";
 import {
@@ -287,7 +287,7 @@ export function NotificationsBell({
           icon: iconForKind(n.kind),
           title: localizeNotificationText(n.title, copy.locale),
           body: localizeNotificationText(n.body ?? "", copy.locale),
-          whenLabel: formatNotificationAge(n.createdAt, copy.locale) || n.ts,
+          whenLabel: formatNotificationAge(n.createdAt, copy.locale) || localizeAgeLabel(n.ts, copy.locale),
           cta: hubCta(n),
         });
       }

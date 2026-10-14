@@ -29,7 +29,7 @@ import {
 import { formatRecentActivity, groupRecentActivityByDay } from "../state";
 import { notificationDrawerFields } from "../notification-drawer-targets";
 import { useDashboardText } from "../dashboard-i18n";
-import { formatNotificationAge, localizeNotificationText } from "../notification-localize";
+import { formatNotificationAge, localizeAgeLabel, localizeNotificationText } from "../notification-localize";
 import { matchesHubPayloadCategory } from "../notification-hub-popover";
 
 // Phase 1d (remediation §4): 6 leaf drawer bodies, byte-for-byte from
@@ -337,7 +337,7 @@ export function NotificationsDrawer() {
           inquiryId: n.originInquiryId ?? undefined,
           title: localizeNotificationText(n.title, copy.locale),
           body: localizeNotificationText(n.body ?? "", copy.locale),
-          ts: formatNotificationAge(n.createdAt, copy.locale) || n.ts,
+          ts: formatNotificationAge(n.createdAt, copy.locale) || localizeAgeLabel(n.ts, copy.locale),
           read: n.read,
           actorName: "",
           actorInitials: n.actorInitials ?? "·",

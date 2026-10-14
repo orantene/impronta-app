@@ -50,6 +50,19 @@ export function formatNotificationAge(
   return then.toLocaleDateString(locale, { month: "short", day: "numeric" });
 }
 
+/**
+ * Fallback for rows with no timestamp: the server-built "6h ago" / "just now"
+ * is turned into the viewer's language. Anything else passes through.
+ */
+export function localizeAgeLabel(text: string, locale: string): string {
+  if (!text || !locale.toLowerCase().startsWith("es")) return text;
+  if (text === "just now") return "ahora";
+  const m = text.match(/^(\d+)\s*([mhd]) ago$/u);
+  if (!m) return text;
+  const unit = m[2] === "m" ? "min" : m[2];
+  return `hace ${m[1]} ${unit}`;
+}
+
 /** Dictionary lookup plus the few parameterised catalog titles ("New booking request"). */
 export function localizeNotificationText(
   text: string | null | undefined,

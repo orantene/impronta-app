@@ -21,6 +21,7 @@
 
 import { CLIENTS_ES_TEXT } from "./dashboard-i18n-clients";
 import { FEES_ES_TEXT } from "./dashboard-i18n-fees";
+import { TUL721_ES_TEXT } from "./dashboard-i18n-tul721";
 import { INBOX_ES_TEXT } from "./dashboard-i18n-inbox";
 import { TRUST_ES_TEXT } from "./dashboard-i18n-trust";
 import { LANGUAGES_ES_TEXT } from "./dashboard-i18n-languages";
@@ -44,6 +45,7 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   ...MONEY_ES_TEXT,
   ...MONEY_HOME_ES_TEXT,
   ...FEES_ES_TEXT,
+  ...TUL721_ES_TEXT,
   ...CLIENTS_ES_TEXT,
   ...TALENT_GAPS_ES_TEXT,
   ...SWEEP_R1_ES_TEXT,
