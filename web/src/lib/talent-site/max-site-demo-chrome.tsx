@@ -1,4 +1,4 @@
-import { DEMO_SITE_FOOTER } from "@/lib/talent/demo-talent";
+import { DEMO_SITE_FOOTER, demoSiteFooterText } from "@/lib/talent/demo-talent";
 
 /**
  * TUL-560: the one demo marker on every template — a small fixed badge in the
@@ -31,8 +31,8 @@ export function MaxSiteDemoBadge({ locale }: { locale: string }) {
   );
 }
 
-/** The demo footer line, localized (es / en). */
-export function MaxSiteDemoFooter({ locale }: { locale: string }) {
+/** The demo footer line, localized (es / en); it follows the demo's booking switch. */
+export function MaxSiteDemoFooter({ locale, acceptingBookings = false }: { locale: string; acceptingBookings?: boolean }) {
   return (
     <p
       data-talent-max-site-demo-footer=""
@@ -44,7 +44,7 @@ export function MaxSiteDemoFooter({ locale }: { locale: string }) {
         color: "var(--token-color-ink-muted, rgba(11,11,13,0.55))",
       }}
     >
-      {locale.toLowerCase().startsWith("es") ? DEMO_SITE_FOOTER.es : DEMO_SITE_FOOTER.en}
+      {demoSiteFooterText(locale, acceptingBookings)}
     </p>
   );
 }

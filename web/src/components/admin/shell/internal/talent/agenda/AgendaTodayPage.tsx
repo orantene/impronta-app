@@ -28,6 +28,7 @@ import { moneyFromLedger, rebookHint, rowFromAgendaItem, todayFromAgenda } from 
 import { placeLabelFor } from "./record-actions";
 import { serviceLabel } from "./calendar-view";
 import { hasBookingHoursWindows } from "@/lib/talent-agenda/first-day";
+import { HoursSetupNudgeButton } from "./HoursSetupNudgeButton";
 import {
   bookedLabel,
   durationMinutes,
@@ -132,6 +133,7 @@ export function AgendaTodayPage({
   onSendQuote,
   primaryAction = "booking",
   onOpenRecord,
+  onOpenAvailability,
   onOpenSite,
   onOpenProfile,
   onOpenMoney,
@@ -289,6 +291,8 @@ export function AgendaTodayPage({
   // which read setup_choices and named a palette the talent never picked.
   const resumeCard = profile ? <WebsiteTodayHero canBook={hasBookingHoursWindows(hours)} /> : null;
 
+  const hoursNudge = profile ? <HoursSetupNudgeButton es={copy.isSpanish} hours={hours} loadError={loadError} onOpen={onOpenAvailability} /> : null;
+
   if (loadError) {
     return (
       <div style={TALENT_AGENDA_VARS} className="space-y-4">
@@ -336,6 +340,7 @@ export function AgendaTodayPage({
             </SecondaryButton>
           }
         />
+        {hoursNudge}
         <WebsiteSetupToday canBook={hasBookingHoursWindows(hours)} />
       </div>
     );
@@ -597,6 +602,7 @@ export function AgendaTodayPage({
         }
       />
 
+      {hoursNudge}
       {resumeCard}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_352px]">

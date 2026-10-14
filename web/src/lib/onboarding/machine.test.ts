@@ -102,3 +102,26 @@ test("1B: resume restores the choice from module state", () => {
   assert.equal(s.step, "entry");
   assert.equal(s.choice, "both");
 });
+
+// TUL-541 (live QA 2026-10-13): after "tell us more" (tooLittle), the second
+// send landed on "reading" still holding the FIRST card. The module's
+// understand effect only runs when `understanding` is empty, so no call was
+// made and the reading screen spun forever. A new accepted input must clear
+// the previous card so the understand step runs again.
+test("a new accepted input clears the previous card so the reading screen runs understand again", async () => {
+  const { buildUnderstanding } = await import("./understanding");
+  const { briefFromOnboardingFixture, fixtureById } = await import("./fixtures");
+  const u = { ...buildUnderstanding({ brief: briefFromOnboardingFixture(fixtureById("mariana")), intent: "unknown" }), tooLittle: true };
+  const s = run([
+    { type: "sendAccepted", briefId: "b1", input: { kind: "text", value: "Limpieza de casas y oficinas" } },
+    { type: "cardLoaded", understanding: u, chip: null, step: "tooLittle" },
+    { type: "back" },
+    { type: "sendStarted" },
+    { type: "sendAccepted", briefId: "b2", input: { kind: "text", value: "Limpieza de casas y oficinas en Playa del Carmen" } },
+  ]);
+  assert.equal(s.step, "reading");
+  assert.equal(s.briefId, "b2");
+  assert.equal(s.understanding, null, "reading must start with no card, or the understand call never fires");
+  assert.equal(s.chip, null);
+  assert.deepEqual(s.followUps, []);
+});

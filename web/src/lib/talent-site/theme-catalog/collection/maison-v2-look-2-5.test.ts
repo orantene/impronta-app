@@ -223,10 +223,16 @@ test("TUL-475: Maison hero inset stays inside a clipped media stack; logo tokens
   assert.equal(tokens["type.logo-size-desktop"], "40px");
 });
 
-test("TUL-498: selected day/slot uses surface ink-on (not hard white) for dark looks", () => {
-  assert.match(CATALOG_BOOKING_CSS, /\.jb-day\[data-on="true"\]\{[^}]*color:var\(--cb-surface\)/);
-  assert.match(CATALOG_BOOKING_CSS, /\.jb-time\[data-on="true"\]\{[^}]*color:var\(--cb-surface\)/);
-  assert.doesNotMatch(CATALOG_BOOKING_CSS, /\.jb-day\[data-on="true"\]\{[^}]*color:#fff/);
+test("GRK-072 / TUL-498: selected day/slot uses brand primary (survives ink≈surface)", () => {
+  assert.match(CATALOG_BOOKING_CSS, /--cb-selected:var\(--token-color-primary/);
+  assert.match(CATALOG_BOOKING_CSS, /--cb-on-selected:var\(--token-color-on-primary/);
+  assert.match(CATALOG_BOOKING_CSS, /\.jb-day\[data-on="true"\]\{[^}]*background:var\(--cb-selected\)/);
+  assert.match(CATALOG_BOOKING_CSS, /\.jb-time\[data-on="true"\]\{[^}]*color:var\(--cb-on-selected\)/);
+  assert.doesNotMatch(
+    CATALOG_BOOKING_CSS,
+    /\.jb-day\[data-on="true"\]\{[^}]*background:var\(--cb-ink\)/,
+    "ink fill regresses sofia white-on-near-white when ink≈surface",
+  );
 });
 
 // ── FAQ (FQ-1) ───────────────────────────────────────────────────────────────
