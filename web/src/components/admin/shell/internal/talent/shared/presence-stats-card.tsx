@@ -113,6 +113,11 @@ export function TalentPresenceStatsCard() {
           )}
         </>
       )}
+      <p className="mt-3 text-xs text-admin-ink-muted">
+        {es
+          ? "Agrega ?utm_source=instagram al enlace de tu bio para ver esas visitas."
+          : "Add ?utm_source=instagram to your bio link to see those visits."}
+      </p>
     </section>
   );
 }

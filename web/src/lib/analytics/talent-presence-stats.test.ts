@@ -91,3 +91,33 @@ describe("buildTalentPresenceStats", () => {
     assert.deepEqual(s.topSources, []);
   });
 });
+
+import { classifyUtmSource, classifyVisitSource, topPresenceSources } from "./talent-presence-stats";
+
+describe("utm_source preference", () => {
+  it("maps common aliases", () => {
+    assert.equal(classifyUtmSource("ig")?.key, "instagram");
+    assert.equal(classifyUtmSource("WhatsApp")?.key, "whatsapp");
+    assert.equal(classifyUtmSource("wa")?.key, "whatsapp");
+    assert.equal(classifyUtmSource("fb")?.key, "facebook");
+    assert.deepEqual(classifyUtmSource("newsletter"), { key: "other", host: "newsletter" });
+    assert.equal(classifyUtmSource(""), null);
+    assert.equal(classifyUtmSource(undefined), null);
+  });
+  it("prefers utm_source over referrer, falls back to referrer", () => {
+    assert.equal(classifyVisitSource({ utm_source: "ig", referrer: "https://google.com/" }).key, "instagram");
+    assert.equal(classifyVisitSource({ referrer: "https://google.com/" }).key, "google");
+    assert.equal(classifyVisitSource({}).key, "direct");
+    assert.equal(classifyVisitSource(null).key, "direct");
+  });
+  it("groups stripped-referrer visits under the utm source", () => {
+    const rows = [
+      { created_at: "2026-10-01T00:00:00Z", payload: { utm_source: "ig" } },
+      { created_at: "2026-10-02T00:00:00Z", payload: { utm_source: "instagram" } },
+      { created_at: "2026-10-03T00:00:00Z", payload: {} },
+    ];
+    const top = topPresenceSources(rows);
+    assert.equal(top[0].key, "instagram");
+    assert.equal(top[0].visits, 2);
+  });
+});
