@@ -235,7 +235,6 @@ html:has([data-profile-theme="lumen"]){ scroll-behavior:smooth; } [data-profile-
 export function LumenProfileLayout(props: LightProfileLayoutProps) {
   const {
     name,
-    firstName,
     profileImageUrl,
     bannerUrl,
     isFeatured,
@@ -747,7 +746,7 @@ export function LumenProfileLayout(props: LightProfileLayoutProps) {
         <div className="lm-wrap lm-cta__inner">
           <span className="lm-eyebrow">{ui.common.brand}</span>
           <h2 className="lm-display">
-            {t("public.profile.footerCtaTitle").replace("{firstName}", firstName)}
+            {t("public.profile.footerCtaTitle").replace("{firstName}", name)}
           </h2>
           <p>{t("public.profile.footerCtaBody")}</p>
           <div className="lm-cta__btns">
