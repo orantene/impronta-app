@@ -17,6 +17,7 @@ import "server-only";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { type WorkspacePlanKey } from "@/lib/stripe/price-ids";
 import { resolveWorkspacePriceId } from "@/lib/stripe/price-catalog";
+import { checkoutIdempotencyKey, checkoutPriceError, resolveCheckoutPrice } from "@/lib/billing/checkout-interval";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { seatCapForPlan } from "@/lib/saas/plan-seat-caps";
@@ -176,6 +177,7 @@ export async function createWorkspaceCheckoutSession(opts: {
   buyerUserId?: string | null;
   /** Signed return-to-spot token (`lib/billing/checkout-return.ts`); the account page forwards to it after success. */
   returnToken?: string | null;
+  interval?: string | null; // TUL-830 toggle; anything but "year" is monthly
 }): Promise<BillingResult<{ url: string }>> {
   if (!isStripeConfigured()) {
     return { ok: false, error: "Stripe is not configured." };
@@ -192,10 +194,9 @@ export async function createWorkspaceCheckoutSession(opts: {
     }
   }
 
-  const priceId = await resolveWorkspacePriceId(opts.planKey, "monthly");
-  if (!priceId) {
-    return { ok: false, error: `No Stripe price configured for plan "${opts.planKey}".` };
-  }
+  const price = await resolveCheckoutPrice((i) => resolveWorkspacePriceId(opts.planKey, i), opts.interval);
+  if (!price.ok) return { ok: false, error: checkoutPriceError(price.code, opts.planKey) };
+  const priceId = price.priceId;
 
   // Get or create the Stripe customer
   const customerResult = await getOrCreateStripeCustomer(
@@ -234,12 +235,14 @@ export async function createWorkspaceCheckoutSession(opts: {
       metadata: {
         tenant_id: opts.tenantId,
         plan_key: opts.planKey,
+        billing_interval: price.interval,
         checkout_type: "workspace_subscription",
       },
       subscription_data: {
         metadata: {
           tenant_id: opts.tenantId,
           plan_key: opts.planKey,
+          billing_interval: price.interval,
           checkout_type: "workspace_subscription",
           // Read back by the webhook so a redemption records WHO, not just
           // which workspace. Omitted rather than sent empty when unknown.
@@ -248,18 +251,13 @@ export async function createWorkspaceCheckoutSession(opts: {
         ...(trialDays != null ? { trial_period_days: trialDays } : {}),
       },
       ...discount.params,
-      // Adaptive Pricing: Stripe auto-converts the USD price to the customer's
-      // local currency at checkout (e.g. MXN for Mexico, EUR for Europe).
-      // Note: subscription-mode sessions require the explicit `currency` to match
-      // the Price's currency (USD), so we cannot use `currency` to force a different
-      // presentment currency here. Adaptive Pricing is the correct mechanism.
-      // Workspace owners can set a preferred_currency preference (stored in DB) which
-      // will be used when multi-currency Stripe prices are added per currency.
+      // Adaptive Pricing: Stripe converts the USD price to the customer's local
+      // currency (subscription mode cannot force `currency` off the Price's USD).
       adaptive_pricing: { enabled: true },
     },
     // Idempotency: a double submit must not mint a SECOND Checkout session.
     // One subscription per workspace per plan; a second session risks a second sub.
-    { idempotencyKey: `cs_ws_${opts.tenantId}_${opts.planKey}${idempotencySuffix(opts.returnToken)}` });
+    { idempotencyKey: checkoutIdempotencyKey({ prefix: "cs_ws", subjectId: opts.tenantId, planKey: opts.planKey, interval: price.interval, suffix: idempotencySuffix(opts.returnToken) }) });
 
     if (!session.url) {
       return { ok: false, error: "Stripe returned no checkout URL." };

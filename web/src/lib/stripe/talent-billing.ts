@@ -25,6 +25,7 @@ import {
   resolveSubscriptionDiscountMirror,
 } from "@/lib/billing/subscription-discounts";
 import { idempotencySuffix, returnQuery } from "@/lib/billing/checkout-return";
+import { checkoutIdempotencyKey, checkoutPriceError, resolveCheckoutPrice } from "@/lib/billing/checkout-interval";
 import { loadTrialOffer } from "@/lib/plan-trials/offers";
 import {
   stripeBillingPortalLocale,
@@ -163,16 +164,16 @@ export async function createTalentCheckoutSession(opts: {
   promoCode?: string | null;
   /** Signed return-to-spot token (`lib/billing/checkout-return.ts`). */
   returnToken?: string | null;
+  interval?: string | null; // TUL-830 toggle; anything but "year" is monthly
 }): Promise<BillingResult<{ url: string }>> {
   if (!isStripeConfigured()) {
     return { ok: false, error: "Stripe is not configured." };
   }
   const stripe = getStripe()!;
 
-  const priceId = await resolveTalentPriceId(opts.planKey, "monthly");
-  if (!priceId) {
-    return { ok: false, error: `No Stripe price configured for plan "${opts.planKey}".` };
-  }
+  const price = await resolveCheckoutPrice((i) => resolveTalentPriceId(opts.planKey, i), opts.interval);
+  if (!price.ok) return { ok: false, error: checkoutPriceError(price.code, opts.planKey) };
+  const priceId = price.priceId;
 
   const customerResult = await getOrCreateTalentStripeCustomer(
     opts.userId,
@@ -208,6 +209,7 @@ export async function createTalentCheckoutSession(opts: {
         talent_profile_id: opts.talentProfileId,
         user_id:           opts.userId,
         plan_key:          opts.planKey,
+        billing_interval:  price.interval,
         checkout_type:     "talent_subscription",
       },
       subscription_data: {
@@ -215,6 +217,7 @@ export async function createTalentCheckoutSession(opts: {
           talent_profile_id: opts.talentProfileId,
           user_id:           opts.userId,
           plan_key:          opts.planKey,
+          billing_interval:  price.interval,
           checkout_type:     "talent_subscription",
         },
         ...(trialDays != null ? { trial_period_days: trialDays } : {}),
@@ -225,7 +228,7 @@ export async function createTalentCheckoutSession(opts: {
     },
     // Idempotency: a double submit must not mint a SECOND Checkout session.
     // One subscription per talent profile per plan; a second session risks a second sub.
-    { idempotencyKey: `cs_talent_${opts.talentProfileId}_${opts.planKey}${idempotencySuffix(opts.returnToken)}` });
+    { idempotencyKey: checkoutIdempotencyKey({ prefix: "cs_talent", subjectId: opts.talentProfileId, planKey: opts.planKey, interval: price.interval, suffix: idempotencySuffix(opts.returnToken) }) });
 
     if (!session.url) {
       return { ok: false, error: "Stripe returned no checkout URL." };
