@@ -102,3 +102,18 @@ test("TUL-528: consent opens in useLayoutEffect and re-syncs when guest chat pan
   assert.match(src, /MutationObserver/);
   assert.match(src, /syncOpen/);
 });
+
+test("consent banner reserves marketing phone clearance so pricing clears the card (GRK-040)", () => {
+  assert.match(src, /CONSENT_BANNER_RESERVE_PX/);
+  assert.match(
+    src,
+    /body:has\(\[data-consent-banner\]\) \[data-platform-surface="marketing"\]/,
+  );
+  assert.match(src, /padding-bottom: calc\(\$\{CONSENT_BANNER_RESERVE_PX\}px/);
+  assert.match(
+    src,
+    /html:has\(\[data-consent-banner\]\):has\(\[data-platform-surface="marketing"\]\)/,
+  );
+  assert.match(src, /scroll-padding-bottom: calc\(\$\{CONSENT_BANNER_RESERVE_PX\}px/);
+  assert.match(src, /@media \(max-width: 640px\)/);
+});
