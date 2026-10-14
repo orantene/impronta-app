@@ -8072,7 +8072,7 @@
       "users": {
         "page": {
           "title": "Users",
-          "summary": "{total} total · {talent} talent · {client} client · {staff} staff · {operators}",
+          "summary": "{total} accounts · {talent} talent profiles · {client} client · {staff} staff · {operators}",
           "operatorsOne": "{count} workspace operator",
           "operatorsMany": "{count} workspace operators",
           "unconfirmedSuffix": "{count} email unconfirmed",
