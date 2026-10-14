@@ -15,11 +15,11 @@
 //   │  (children — page content, max-w 1280, padding 28px)                │
 //   └──────────────────────────────────────────────────────────────────────┘
 
+import { SignOutForm } from "@/components/auth/SignOutForm";
 import { Suspense } from "react";
 import { redirect, notFound } from "next/navigation";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
-import { signOut } from "@/app/auth/actions";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { PlatformTopbar } from "./platform-topbar";
@@ -278,7 +278,7 @@ export default async function PlatformAdminLayout({
             ) : null}
 
             {/* Sign-out */}
-            <form action={signOut}>
+            <SignOutForm>
               <button
                 type="submit"
                 title={t("dashboard.platform.shell.signOut")}
@@ -300,7 +300,7 @@ export default async function PlatformAdminLayout({
               >
                 ↩
               </button>
-            </form>
+            </SignOutForm>
           </div>
         </header>
 

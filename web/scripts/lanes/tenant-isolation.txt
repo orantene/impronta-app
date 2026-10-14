@@ -179,3 +179,4 @@ src/lib/quality/live-qa-pack-fixture-roles.test.ts
 src/lib/impersonation/client-api-read.test.ts
 src/lib/saas/preview-host.test.ts
 src/lib/saas/unsupported-locale-redirect.test.ts
+src/lib/supabase/auth-cookie-variants.security.test.ts
