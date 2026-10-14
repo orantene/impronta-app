@@ -17813,7 +17813,7 @@
         "missing": "Missing: {items}",
         "complete": "Everything is set up.",
         "finish": "Finish setup",
-        "seeAll": "See all",
+        "seeAllCount": "See all {count}",
         "setUp": "Set up",
         "item": {
           "timeZone": "Time zone",

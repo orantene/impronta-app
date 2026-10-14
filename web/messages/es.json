@@ -17813,7 +17813,7 @@
         "missing": "Falta: {items}",
         "complete": "Todo está configurado.",
         "finish": "Terminar configuración",
-        "seeAll": "Ver todo",
+        "seeAllCount": "Ver las {count}",
         "setUp": "Configurar",
         "item": {
           "timeZone": "Zona horaria",
