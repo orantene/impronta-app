@@ -66,6 +66,8 @@ import { handleBookingRefund, handleBookingDispute } from "@/lib/payments/refund
 import { handleFailedRefundWebhookAction } from "@/lib/payments/failed-refund-settlement";
 import { recordProviderPayout } from "@/lib/payments/provider-payouts";
 import { recordProviderDispute } from "@/lib/payments/provider-disputes";
+import { sendPaymentFailedNotice } from "@/lib/billing/dunning-notice";
+import { defaultDunningNoticeDeps } from "@/lib/billing/dunning-notice-deps";
 import { recordProviderInvoice } from "@/lib/payments/provider-invoices";
 import { notifyTrialWillEnd } from "@/lib/notifications/producers/trial-notify";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -407,6 +409,21 @@ export async function processStripeEvent(
         throw new TransientWebhookError(`subscriptions.retrieve failed for ${action.subscriptionId}`, err);
       }
       await syncSubscriptionByType(subscription, event.id);
+      // TUL-835: tell the customer once per invoice (replays and Smart Retry
+      // attempts hit the same ledger row). Sync above already moved the plan to
+      // past_due and stamped past_due_since, which starts the 7-day grace.
+      const notice = await sendPaymentFailedNotice(
+        {
+          invoice: event.data.object as Stripe.Invoice,
+          scope: isTalentSubscription(subscription.metadata) ? "talent" : "workspace",
+          subscriptionId: subscription.id,
+          fallbackActionUrl: process.env.NEXT_PUBLIC_APP_URL ?? "https://app.tulala.digital",
+        },
+        defaultDunningNoticeDeps(),
+      );
+      if (notice === "failed") {
+        throw new TransientWebhookError(`payment-failed email send failed for event ${event.id}`);
+      }
       return;
     }
 

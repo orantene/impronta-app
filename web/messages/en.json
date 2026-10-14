@@ -20843,6 +20843,11 @@
       "planPriceWebsite": "$12/mo",
       "billing": {
         "redirecting": "Redirecting…",
+        "pastDueTitle": "Payment failed.",
+        "pastDueGraceBody": "Your payment didn't go through. Paid features stay on for {days} more day(s). Update your card to keep them.",
+        "pastDueExpiredBody": "Your payment didn't go through and your plan is paused. Your content is safe. Restore your plan to get paid features back.",
+        "updateCard": "Update your card",
+        "restorePlan": "Restore plan",
         "openingPortal": "Opening portal…",
         "manageSubscription": "Manage subscription →",
         "statusActive": "Active",

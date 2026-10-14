@@ -23,6 +23,7 @@ import {
   ManageSubscriptionButton,
   SubscriptionStatusBadge,
 } from "./BillingActionButtons";
+import { PastDueBanner } from "@/components/billing/PastDueBanner";
 import { BriefCard } from "./BriefCard";
 import { CurrencyPicker } from "./CurrencyPicker";
 import {
@@ -476,6 +477,15 @@ export default async function WorkspaceAccountPage({
               <Divider />
               <RosterUsageBar count={summary.talentCount} limit={summary.talentLimit} t={t} />
 
+              {billingState && (
+                <PastDueBanner
+                  scope="workspace"
+                  tenantSlug={tenantSlug}
+                  status={billingState.status}
+                  pastDueSince={billingState.pastDueSince}
+                  locale={locale}
+                />
+              )}
               {/* Subscription state rows (only when there's a Stripe record) */}
               {billingState && (
                 <>

@@ -13,6 +13,7 @@
  *   supabase/server.ts → SSR client (RLS-bound reads from server actions)
  */
 
+import { nextPastDueSince } from "@/lib/billing/dunning-grace";
 import "server-only";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { type WorkspacePlanKey } from "@/lib/stripe/price-ids";
@@ -56,6 +57,7 @@ export type WorkspaceSubscriptionState = {
   cancelledAt: string | null;
   trialEnd: string | null;
   stripePriceId: string | null;
+  pastDueSince?: string | null;
 };
 
 // ─── Customer management ──────────────────────────────────────────────────────
@@ -380,11 +382,12 @@ export async function syncStripeSubscriptionToDb(
   // every retry — we must not re-alert each time).
   const [{ data: priorAgency }, { data: priorSub }] = await Promise.all([
     sb.from("agencies").select("plan_tier, display_name").eq("id", tenantId).maybeSingle(),
-    sb.from("workspace_subscriptions").select("status").eq("tenant_id", tenantId).maybeSingle(),
+    sb.from("workspace_subscriptions").select("status, past_due_since").eq("tenant_id", tenantId).maybeSingle(),
   ]);
   const priorPlanTier = (priorAgency as { plan_tier?: string | null } | null)?.plan_tier ?? null;
   const workspaceName = (priorAgency as { display_name?: string | null } | null)?.display_name ?? null;
   const priorStatus = (priorSub as { status?: string | null } | null)?.status ?? null;
+  const priorPastDueSince = (priorSub as { past_due_since?: string | null } | null)?.past_due_since ?? null;
 
   // What Stripe says this subscription is actually discounted by. Written
   // through unconditionally — including as NULLS — because that is how a
@@ -412,6 +415,7 @@ export async function syncStripeSubscriptionToDb(
           discount_percent_off:      discountMirror.percentOff,
           discount_amount_off_cents: discountMirror.amountOffCents,
           discount_ends_at:          discountMirror.endsAt,
+          past_due_since:         nextPastDueSince(status, priorPastDueSince, new Date()),
           updated_at:             new Date().toISOString(),
         },
         { onConflict: "tenant_id" },
@@ -772,6 +776,7 @@ export async function loadWorkspaceSubscriptionState(
       cancelled_at: string | null;
       trial_end: string | null;
       stripe_price_id: string | null;
+      past_due_since?: string | null;
     };
     const row = data as unknown as Row;
     return {
@@ -785,6 +790,7 @@ export async function loadWorkspaceSubscriptionState(
       cancelledAt: row.cancelled_at,
       trialEnd: row.trial_end,
       stripePriceId: row.stripe_price_id,
+      pastDueSince: row.past_due_since ?? null,
     };
   } catch (err) {
     logServerError("workspace-billing.loadState", err);

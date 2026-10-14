@@ -14,6 +14,7 @@
  */
 
 import * as React from "react";
+import { PastDueBanner } from "@/components/billing/PastDueBanner";
 import { startTalentUpgrade, openTalentSubscriptionPortal } from "./stripe-talent-actions";
 import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
 import type { TalentSubscriptionState } from "../../_data-bridge";
@@ -253,6 +254,14 @@ export function TalentSubscriptionShell({
 
   return (
     <section className="flex flex-col gap-3">
+      {subscription && (
+        <PastDueBanner
+          scope="talent"
+          tenantSlug={tenantSlug}
+          status={subscription.status}
+          pastDueSince={subscription.pastDueSince}
+        />
+      )}
       {/* Section header */}
       <div
         style={{

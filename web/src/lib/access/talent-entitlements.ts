@@ -19,6 +19,7 @@
  * are read at call time so tests can flip them.
  */
 
+import { isDunningExpired } from "../billing/dunning-grace";
 import { isTalentFreeWebsiteEnabled } from "./talent-free-website";
 import { isTalentSiteTierExpansionEnabled } from "./talent-site-tier-expansion";
 
@@ -165,4 +166,26 @@ export function entitlementsForPlan(
   const all = new Set<TalentEntitlement>();
   for (const set of Object.values(TALENT_ENTITLEMENTS)) for (const f of set) all.add(f);
   return [...all].filter((f) => hasEntitlement(plan, f, scope));
+}
+
+export type TalentBillingSnapshot = {
+  status: string | null | undefined;
+  pastDueSince: string | null | undefined;
+};
+
+/**
+ * TUL-835 grace policy. The plan whose entitlements apply right now: the stored
+ * plan, except a subscription past_due beyond the 7-day grace window reads as
+ * Free (content is kept, features lock). Feed the result to `hasEntitlement`.
+ * Pure: pass `now` in tests.
+ */
+export function effectiveEntitlementPlan(
+  plan: string | null | undefined,
+  billing: TalentBillingSnapshot | null | undefined,
+  now: Date = new Date(),
+): string {
+  if (billing && isDunningExpired({ status: billing.status, pastDueSince: billing.pastDueSince, now })) {
+    return "talent_basic";
+  }
+  return plan ?? "talent_basic";
 }

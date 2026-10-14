@@ -11,6 +11,7 @@
  * talent_profiles.talent_plan_key is synced by syncTalentSubscriptionToDb().
  */
 
+import { nextPastDueSince } from "@/lib/billing/dunning-grace";
 import "server-only";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { type TalentPlanKey } from "@/lib/stripe/price-ids";
@@ -59,6 +60,7 @@ export type TalentSubscriptionState = {
   cancelledAt: string | null;
   trialEnd: string | null;
   stripePriceId: string | null;
+  pastDueSince?: string | null;
 };
 
 // ─── Customer management ──────────────────────────────────────────────────────
@@ -358,7 +360,7 @@ export async function syncTalentSubscriptionToDb(
     const [{ data: existingRow }, { data: profileRow }] = await Promise.all([
       sb
         .from("talent_subscriptions")
-        .select("status, plan_key, stripe_subscription_id")
+        .select("status, plan_key, stripe_subscription_id, past_due_since")
         .eq("talent_profile_id", talentProfileId)
         .maybeSingle(),
       sb
@@ -408,6 +410,7 @@ export async function syncTalentSubscriptionToDb(
           discount_percent_off:      discountMirror.percentOff,
           discount_amount_off_cents: discountMirror.amountOffCents,
           discount_ends_at:          discountMirror.endsAt,
+          past_due_since:         nextPastDueSince(status, (existingRow as { past_due_since?: string | null } | null)?.past_due_since, new Date()),
           updated_at:             new Date().toISOString(),
         },
         { onConflict: "talent_profile_id" },
@@ -639,6 +642,7 @@ export async function loadTalentSubscriptionState(
       cancelled_at: string | null;
       trial_end: string | null;
       stripe_price_id: string | null;
+      past_due_since?: string | null;
     };
     const row = data as unknown as Row;
     return {
@@ -651,6 +655,7 @@ export async function loadTalentSubscriptionState(
       cancelledAt: row.cancelled_at,
       trialEnd: row.trial_end,
       stripePriceId: row.stripe_price_id,
+      pastDueSince: row.past_due_since ?? null,
     };
   } catch (err) {
     logServerError("talent-billing.loadState", err);
