@@ -36,6 +36,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["lib/talent-site/history/history-actions.ts", ["loadTalentHistoryAction", "loadTalentGoLiveAction"], READ],
   ["lib/talent-site/server/actions.ts", ["fetchTalentPersonalSiteDashboardStateAction"], READ],
   ["lib/talent-site/server/site-management-actions.ts", ["loadMaxSiteManagerAction"], READ],
+  ["lib/talent-site/server/theme-actions.ts", ["previewSiteDesignSwitchAction"], READ],
   ["lib/talent/apply-actions.ts", ["listOwnApplications"], READ],
   ["lib/talent/clients-actions.ts", ["loadTalentClients"], READ],
   ["lib/talent/menu-offerings-actions.ts", ["loadWorkspaceMenuForEditor"], READ],

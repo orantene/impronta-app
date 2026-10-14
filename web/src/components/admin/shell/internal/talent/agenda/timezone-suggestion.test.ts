@@ -32,3 +32,22 @@ test("the hours panel page renders the picker, the label and the device suggesti
   assert.match(src, /suggestDeviceTimeZone/);
   assert.match(src, /timezone: tz/);
 });
+
+import { resolveHoursTimeZone } from "./timezone-suggestion";
+
+test("hours zone: saved wins, UTC default is never used over the device zone", () => {
+  assert.deepEqual(resolveHoursTimeZone({ saved: "Europe/Madrid", serverDefault: "UTC", device: "America/Cancun", listed }), { zone: "Europe/Madrid", source: "saved" });
+  assert.deepEqual(resolveHoursTimeZone({ serverDefault: "America/Cancun", device: "Europe/Madrid", listed }), { zone: "America/Cancun", source: "workspace" });
+  assert.deepEqual(resolveHoursTimeZone({ serverDefault: "UTC", device: "America/Cancun", listed }), { zone: "America/Cancun", source: "device" });
+  assert.deepEqual(resolveHoursTimeZone({ serverDefault: "UTC", device: null, listed }), { zone: "", source: "none" });
+  assert.deepEqual(resolveHoursTimeZone({ device: "Mars/Olympus", listed }), { zone: "", source: "none" });
+});
+
+test("the hours page resolves the unsaved zone through the helper, never raw defaultTimezone", () => {
+  const src = readFileSync(
+    join(process.cwd(), "src/components/admin/shell/internal/talent/agenda/AgendaAvailabilityPage.tsx"),
+    "utf8",
+  );
+  assert.match(src, /resolveHoursTimeZone/);
+  assert.doesNotMatch(src, /setTz\(res\.defaultTimezone\)/);
+});

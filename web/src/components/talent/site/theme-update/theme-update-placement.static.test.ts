@@ -31,7 +31,7 @@ test("F94: builder surface renders a pill, collapsed by default, in EN and ES", 
   assert.equal(UPDATE_COPY.pill.es, "Actualización disponible");
 });
 
-test("TUL-325: post-apply banner has Unpublished pill + Publish site CTA (EN + ES, no em dash)", () => {
+test("TUL-325: post-apply banner has Unpublished pill + Publish changes CTA (EN + ES, no em dash)", () => {
   assert.match(SRC, /data-theme-update-post-apply/);
   assert.match(SRC, /data-theme-update-unpublished/);
   assert.match(SRC, /data-theme-update-publish/);
@@ -39,8 +39,8 @@ test("TUL-325: post-apply banner has Unpublished pill + Publish site CTA (EN + E
   assert.match(SRC, /panel", "publish"/);
   assert.equal(UPDATE_COPY.unpublishedPill.en, "Unpublished changes");
   assert.equal(UPDATE_COPY.unpublishedPill.es, "Cambios sin publicar");
-  assert.equal(UPDATE_COPY.publishCta.en, "Publish site");
-  assert.equal(UPDATE_COPY.publishCta.es, "Publicar sitio");
+  assert.equal(UPDATE_COPY.publishCta.en, "Publish changes");
+  assert.equal(UPDATE_COPY.publishCta.es, "Publicar cambios");
   for (const s of [
     UPDATE_COPY.unpublishedPill.en,
     UPDATE_COPY.unpublishedPill.es,

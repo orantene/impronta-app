@@ -31,3 +31,17 @@ test("live3-01: create/fallback My website hrefs skip the public-page redirect a
   assert.match(menu, /\/talent\/site/);
   assert.doesNotMatch(menu, /\/talent\/public-page/);
 });
+
+test("TUL-536: the talent shell reloads when a redirect carries it into /admin", () => {
+  const shell = read("src/components/admin/shell/admin-shell-client.tsx");
+  const guard = read("src/components/admin/shell/talent-leaves-for-admin-guard.tsx");
+  assert.match(guard, /pathIsWorkspaceAdmin\(pathname\)/);
+  assert.match(shell, /<TalentLeavesForAdminGuard \/>/);
+});
+
+test("TUL-536: /admin/website renders the Website surface (not Overview) for a business owner", () => {
+  const route = read("src/app/(workspace)/[tenantSlug]/admin/website/page.tsx");
+  assert.match(route, /<PageRouteSyncer page="website" \/>/);
+  const shell = read("src/components/admin/shell/internal/page-modules/WorkspaceShell.tsx");
+  assert.match(shell, /case "website":\s*body = <WebsitePage \/>/);
+});

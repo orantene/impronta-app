@@ -262,6 +262,8 @@ const ES: Record<string, string> = {
   "Buffer (minutes)": "Margen entre citas (minutos)",
   "Time zone": "Zona horaria",
   "Use this device's time zone": "Usar la zona horaria de este dispositivo",
+  "Time zone taken from this device. Change it above if it is wrong.":
+    "Zona horaria tomada de este dispositivo. Cámbiala arriba si no es correcta.",
   "Search time zones": "Buscar zonas horarias",
   "Search, like Cancun or Madrid": "Busca, por ejemplo Cancún o Madrid",
   "Pick a time zone": "Elige una zona horaria",
