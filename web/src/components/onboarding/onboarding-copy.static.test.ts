@@ -33,3 +33,10 @@ test("TUL-801: a failed read with nothing understood offers the manual path, not
     assert.ok(u.continueManual && u.titleFailed && u.subFailed, l);
   }
 });
+
+test("TUL-811: step 1 cards look like choices (radio mark, no chevron) and react to a tap at once", () => {
+  const src = readFileSync(join(process.cwd(), "src/components/onboarding/steps/choose-step.tsx"), "utf8");
+  assert.doesNotMatch(src, /M7 3\.5L12\.5 9 7 14\.5/);
+  assert.match(src, /data-testid=\{`onb-choice-mark-\$\{choice\}`\}/);
+  assert.match(src, /touch-manipulation/);
+});
