@@ -7,7 +7,7 @@ import { createHash } from "node:crypto";
 export const STAGING_PROJECT_REF = "fxlankepwnvelxjrahwk";
 export const PRODUCTION_PROJECT_REF = "pluhdapdnuiulvxmyspd";
 export const GUEST_EMAIL = "tulalaqa+paidguest690@mail.grokbot.com";
-export const DEFAULT_TENANT_ID = "33333333-3333-4333-8333-333333333333"; // qa-journeys fixture tenant
+export const DEFAULT_TENANT_ID = "00000000-0000-0000-0000-000000000002"; // hub tenant (has the QA Paid Owner payout account)
 export const TEST_PAYMENT_METHOD = "pm_card_visa";
 export const SEED_TAG = "t690-paid-guest-seed";
 

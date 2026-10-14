@@ -164,8 +164,8 @@ async function seed(sb, stripe, args, ids) {
       // On-platform transactions need a payout receiver before payment is
       // requested. Default: the QA Journeys talent fixture (staging only).
       payout_receiver_kind: process.env.T690_PAYOUT_RECEIVER_KIND ?? "talent",
-      payout_receiver_id: process.env.T690_PAYOUT_RECEIVER_ID ?? "5b42df02-40e2-43ae-85ca-9ccfde3f2a61",
-      payout_receiver_display_name: process.env.T690_PAYOUT_RECEIVER_NAME ?? "QA Journeys Talent (paid-run fixture)",
+      payout_receiver_id: process.env.T690_PAYOUT_RECEIVER_ID ?? "16c37580-f88b-4863-ba90-3d5995f24af4",
+      payout_receiver_display_name: process.env.T690_PAYOUT_RECEIVER_NAME ?? "QA Paid Owner (fixture)",
     }).eq("id", ids.transactionId).eq("status", "draft"),
   );
 
