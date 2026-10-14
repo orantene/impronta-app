@@ -54,3 +54,12 @@ test("TUL-660: both AI routes consult the offer-first rule before escalating", (
     assert.match(src, /shouldOfferHumanInsteadOfEscalating\(/, f);
   }
 });
+
+test("TUL-601 and TUL-661 copy exists in en/es without em dashes", () => {
+  for (const l of ["en", "es"]) {
+    const j = JSON.parse(readFileSync(`messages/${l}.json`, "utf8")).dashboard.adminSupport;
+    assert.match(j.ticketReceipt, /#\{number\}/);
+    assert.ok(!j.ticketReceipt.includes("\u2014") && !j.humanHandling.includes("\u2014"));
+    assert.ok(j.humanHandling);
+  }
+});
