@@ -71,7 +71,7 @@ export async function createTicket(input: {
   const now = new Date().toISOString();
   const subject = input.messageOranDirectly && !(input.subject ?? "").trim()
     ? "Direct message" // only the panel's canned body; a typed subject/message wins
-    : deriveTicketSubject({ subject: input.subject, body: input.body });
+    : deriveTicketSubject({ subject: input.subject, body: input.body, typed: true });
 
   const insertRow: Record<string, unknown> = {
     tenant_id: input.tenantId,

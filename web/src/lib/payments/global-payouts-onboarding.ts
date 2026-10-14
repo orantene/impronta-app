@@ -17,6 +17,7 @@ import "server-only";
 import { stripeV2, type StripeV2Result } from "./stripe-v2";
 import { assertLivePayoutSafe, assertLiveRecipientWriteSafe, getPrimaryFinancialAccountId } from "./global-payouts";
 import { logServerError } from "@/lib/server/safe-error";
+import { stripeEnv } from "@/lib/stripe/env-keys";
 
 export type V2Account = {
   id: string;
@@ -233,7 +234,7 @@ export async function createRecipientAccountLink(opts: {
         [type]: { configurations: ["recipient"], return_url: opts.returnUrl, refresh_url: opts.refreshUrl },
       },
     },
-    { secretKey: process.env.STRIPE_SECRET_KEY },
+    { secretKey: stripeEnv("STRIPE_SECRET_KEY") },
   );
 }
 
@@ -277,7 +278,7 @@ export async function fundFinancialAccountFromBalance(opts: {
   secretKey?: string;
   fetchImpl?: typeof fetch;
 }): Promise<{ ok: true; payoutId: string } | { ok: false; error: string }> {
-  const key = opts.secretKey ?? process.env.STRIPE_SECRET_KEY;
+  const key = opts.secretKey ?? stripeEnv("STRIPE_SECRET_KEY");
   if (!key) return { ok: false, error: "Stripe not configured" };
   const guard = assertLivePayoutSafe(key);
   if (!guard.ok) return { ok: false, error: guard.error };

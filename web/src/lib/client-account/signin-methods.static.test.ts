@@ -52,7 +52,7 @@ test("password and Google actions never redirect; share attach path", () => {
   assert.doesNotMatch(actions, /from "next\/navigation"/);
   assert.doesNotMatch(actions, /\bredirect\(/);
   assert.match(actions, /isClientAccountEligible/);
-  assert.match(actions, /claimInquiriesByConfirmedEmail/);
+  assert.match(actions, /claimAndActivateVerifiedClient/);
   assert.match(actions, /ensureTenantClientRelationship/);
   assert.match(actions, /shouldClaimInquiriesForSignIn/);
   assert.match(actions, /isAuthEmailConfirmedForClaim/);

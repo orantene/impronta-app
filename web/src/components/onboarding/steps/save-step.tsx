@@ -1,6 +1,7 @@
 "use client";
 
 import { getSiteUrl } from "@/lib/auth-flow";
+import { ageTermsLinks } from "@/lib/legal/age-terms-links";
 
 /**
  * Step 3 · Save it. Google, or an email that gets an 8-digit code. The
@@ -19,6 +20,7 @@ import { Notice, PrimaryButton, Sub, Title } from "../ui";
 export function SaveStep({
   t,
   path,
+  locale = "en",
   choice = null,
   busy,
   error,
@@ -27,6 +29,8 @@ export function SaveStep({
 }: {
   t: (key: string) => string;
   path: OnboardingPath;
+  /** Page language: the legal links open the matching Terms/Privacy pages (TUL-614). */
+  locale?: "en" | "es";
   /** The screen-1 choice rides the Google `next` URL so it survives the redirect (TUL-82). */
   choice?: OnboardingChoice | null;
   busy: boolean;
@@ -34,6 +38,7 @@ export function SaveStep({
   onEmail: (email: string, ageTerms: boolean) => void;
   onGoogleSuccess: () => void;
 }) {
+  const legal = ageTermsLinks(getSiteUrl(), locale);
   const [email, setEmail] = useState("");
   // Legal 2.2: 18+ and Terms/Privacy, required before a code is sent. The
   // server action re-checks it; `disabled` here is only a convenience.
@@ -108,9 +113,9 @@ export function SaveStep({
           />
           <span>
             {t("public.auth.register.ageTermsPrefix")}{" "}
-            <a href={`${getSiteUrl()}/legal/terms`} target="_blank" rel="noreferrer" className="underline">{t("public.auth.register.ageTermsTerms")}</a>{" "}
+            <a href={legal.terms} target="_blank" rel="noreferrer" className="underline">{t("public.auth.register.ageTermsTerms")}</a>{" "}
             {t("public.auth.register.ageTermsAnd")}{" "}
-            <a href={`${getSiteUrl()}/legal/privacy`} target="_blank" rel="noreferrer" className="underline">{t("public.auth.register.ageTermsPrivacy")}</a>
+            <a href={legal.privacy} target="_blank" rel="noreferrer" className="underline">{t("public.auth.register.ageTermsPrivacy")}</a>
           </span>
         </label>
         {error ? <Notice tone="error" testId="onb-error">{error}</Notice> : null}
@@ -124,9 +129,9 @@ export function SaveStep({
       <p className="mt-4 text-center text-[0.75rem]" style={{ color: "var(--tl-muted)" }}>
         {t("public.onboarding.save.terms").split(/(Terms|Términos|Privacy Policy|Política de privacidad)/).map((part, i) =>
           part === "Terms" || part === "Términos" ? (
-            <a key={i} href={`${getSiteUrl()}/legal/terms`} target="_blank" rel="noreferrer" className="underline">{part}</a>
+            <a key={i} href={legal.terms} target="_blank" rel="noreferrer" className="underline">{part}</a>
           ) : part === "Privacy Policy" || part === "Política de privacidad" ? (
-            <a key={i} href={`${getSiteUrl()}/legal/privacy`} target="_blank" rel="noreferrer" className="underline">{part}</a>
+            <a key={i} href={legal.privacy} target="_blank" rel="noreferrer" className="underline">{part}</a>
           ) : (
             <span key={i}>{part}</span>
           ),

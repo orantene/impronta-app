@@ -47,10 +47,13 @@ export async function MarketingContactPage({
             locale={locale === "es" ? "es" : "en"}
             signedIn={Boolean(actor?.user)}
           />
-        ) : null}
-        <h1 className="font-display text-3xl font-normal tracking-wide">{copy.contactTitle}</h1>
-        <p className="mt-4 text-[var(--plt-ink-soft)]">{copy.contactBody}</p>
-        <MarketingContactForm locale={locale} talentSite={talentSite} />
+        ) : (
+          <>
+            <h1 className="font-display text-3xl font-normal tracking-wide">{copy.contactTitle}</h1>
+            <p className="mt-4 text-[var(--plt-ink-soft)]">{copy.contactBody}</p>
+            <MarketingContactForm locale={locale} talentSite={talentSite} />
+          </>
+        )}
       </main>
     </MarketingShell>
   );
