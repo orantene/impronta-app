@@ -7,6 +7,7 @@ import { isTalentSiteHostPathAllowed } from "@/lib/saas/talent-site-host-routing
 import { talentProfileSitemapEntries } from "./talent-site-locale-routing";
 import { serviceBookHref, serviceSitemapPaths, serviceSlug } from "./service-page";
 import { serviceSeo } from "./server/service-main";
+import { maxSiteSeoToMetadata } from "./server/site-metadata";
 
 const A = {
   id: "3fa91c2b-1111-4222-8333-444455556666",
@@ -78,6 +79,27 @@ test("wiring: renderer resolves service slugs and the host sitemap lists them", 
   const render = readFileSync(join(process.cwd(), "src/lib/talent-site/server/render-max-site.tsx"), "utf8");
   assert.match(render, /resolveServiceBySlug\(/);
   assert.match(render, /serviceSeo\(/);
+  assert.match(render, /city: seoFacts\.addressLocality/);
+  // The route's generateMetadata consumes result.seo (description + alternates) via the shared mapper.
+  const route = readFileSync(join(process.cwd(), "src/app/%5Ftalent-site/[[...pageSlug]]/page.tsx"), "utf8");
+  assert.match(route, /maxSiteSeoToMetadata\(result\.seo/);
   const sitemap = readFileSync(join(process.cwd(), "src/app/sitemap.ts"), "utf8");
   assert.match(sitemap, /serviceSitemapPaths\(/);
+});
+
+test("metadata mapping: service description is specific and per-locale canonical + hreflang survive", () => {
+  const languages = {
+    es: "https://j.example/servicio-gel-3fa91c2b",
+    en: "https://j.example/en/servicio-gel-3fa91c2b",
+    "x-default": "https://j.example/servicio-gel-3fa91c2b",
+  };
+  const seo = serviceSeo(
+    { title: "Home", noindex: false, canonical: languages.en, alternates: { canonical: languages.en, languages } },
+    { ...A, description: null },
+    { talentName: "Ana", locale: "en", city: "Cancun" },
+  );
+  const md = maxSiteSeoToMetadata(seo, { ogLocale: "en" });
+  assert.equal(md.description, "Corte de cabello by Ana in Cancun");
+  assert.equal(md.alternates?.canonical, languages.en);
+  assert.deepEqual(md.alternates?.languages, languages);
 });

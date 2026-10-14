@@ -69,9 +69,9 @@ export function serviceMainNode(o: ServicePageOffering, opts: { locale: string; 
 export function serviceSeo(
   seo: MaxSiteSeo,
   o: ServicePageOffering,
-  ctx: { talentName: string | null; locale: string },
+  ctx: { talentName: string | null; locale: string; city?: string | null },
 ): MaxSiteSeo {
-  const meta = serviceMetaText(o, ctx.talentName);
+  const meta = serviceMetaText(o, ctx.talentName, { city: ctx.city, locale: ctx.locale });
   const canonical = seo.canonical ?? seo.alternates?.canonical;
   return {
     ...seo,

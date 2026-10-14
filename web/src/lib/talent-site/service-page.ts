@@ -82,15 +82,24 @@ export function serviceBookHref(offeringId: string, homePath: string): string {
   return `${base}?book=${encodeURIComponent(offeringId.toLowerCase())}#book`;
 }
 
-/** Title and description for the head: the service's own words, then the talent's name. */
-export function serviceMetaText(o: Pick<ServicePageOffering, "title" | "description">, talentName: string | null): {
+/** Title and description for the head: the service's own words, else "<service> by <talent> in <city>" (max 160). */
+export function serviceMetaText(
+  o: Pick<ServicePageOffering, "title" | "description">,
+  talentName: string | null,
+  opts: { city?: string | null; locale?: string } = {},
+): {
   title: string;
-  description: string | undefined;
+  description: string;
 } {
   const name = talentName?.trim();
   const title = name ? `${o.title.trim()} | ${name}` : o.title.trim();
+  const cap = (t: string) => (t.length > 160 ? `${t.slice(0, 157).trimEnd()}...` : t);
   const d = o.description?.replace(/\s+/g, " ").trim();
-  return { title, description: d ? (d.length > 300 ? `${d.slice(0, 297).trimEnd()}...` : d) : undefined };
+  if (d) return { title, description: cap(d) };
+  const en = (opts.locale ?? "").toLowerCase().startsWith("en");
+  const city = opts.city?.trim();
+  const parts = [o.title.trim(), name ? `${en ? "by" : "por"} ${name}` : "", city ? `${en ? "in" : "en"} ${city}` : ""];
+  return { title, description: cap(parts.filter(Boolean).join(" ")) };
 }
 
 /** Standalone Service JSON-LD for the page (provider = the site's Person). */

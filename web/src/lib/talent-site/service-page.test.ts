@@ -68,8 +68,16 @@ test("booking CTA is the existing deep link, per language home", () => {
 test("meta text: title with talent name, trimmed description, no em dash", () => {
   const m = serviceMetaText({ title: "Corte", description: "x ".repeat(400) }, "Jorge");
   assert.equal(m.title, "Corte | Jorge");
-  assert.ok(m.description!.length <= 300 && m.description!.endsWith("..."));
-  assert.equal(serviceMetaText({ title: "Corte", description: null }, null).description, undefined);
+  assert.ok(m.description.length <= 160 && m.description!.endsWith("..."));
+  assert.equal(serviceMetaText({ title: "Corte", description: null }, null).description, "Corte");
+  assert.equal(
+    serviceMetaText({ title: "Gel", description: null }, "Ana", { city: "Cancun", locale: "es" }).description,
+    "Gel por Ana en Cancun",
+  );
+  assert.equal(
+    serviceMetaText({ title: "Gel", description: "  " }, "Ana", { city: "Cancun", locale: "en" }).description,
+    "Gel by Ana in Cancun",
+  );
   for (const l of ["es", "en"]) {
     const c = servicePageCopy(l);
     assert.ok(!/—/.test(`${c.book}${c.back}${c.priceFrom}`));

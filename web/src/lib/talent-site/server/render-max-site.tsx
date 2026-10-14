@@ -371,7 +371,7 @@ async function renderTalentMaxSiteUnguarded(
     const finalSeo = policyModel
       ? policySeo(seo, policyModel)
       : serviceOffering
-        ? serviceSeo(seo, serviceOffering, { talentName: identity?.name ?? null, locale })
+        ? serviceSeo(seo, serviceOffering, { talentName: identity?.name ?? null, locale, city: seoFacts.addressLocality ?? null })
         : seo;
     return { kind: "render", node, seo: finalSeo, locale };
   } catch {
