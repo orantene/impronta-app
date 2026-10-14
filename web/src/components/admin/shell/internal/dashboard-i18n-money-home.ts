@@ -5,6 +5,8 @@
 
 export const MONEY_HOME_ES_TEXT: Record<string, string> = {
   "Card in person": "Tarjeta en persona",
+  "Offers awaiting payment": "Ofertas pendientes de pago",
+  "Sent, awaiting payment": "Enviada, pendiente de pago",
   "How was it paid?": "¿Cómo te pagaron?",
   "Still owed": "Aún te deben",
   "Paid in full.": "Pagado completo.",

@@ -19520,7 +19520,9 @@
           "balance": "Saldo pendiente",
           "requestPayment": "Solicitar pago",
           "refund": "Reembolsar",
-          "none": "Sin cargos aún"
+          "none": "Sin cargos aún",
+          "status": "Estado",
+          "pendingOffer": "Oferta enviada · pendiente de pago"
         },
         "files": {
           "title": "Archivos"

@@ -19520,7 +19520,9 @@
           "balance": "Balance due",
           "requestPayment": "Request payment",
           "refund": "Refund",
-          "none": "No charges yet"
+          "none": "No charges yet",
+          "status": "Status",
+          "pendingOffer": "Offer sent · awaiting payment"
         },
         "files": {
           "title": "Files"

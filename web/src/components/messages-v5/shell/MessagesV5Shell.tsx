@@ -252,7 +252,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
         );
         setContextMoney(
           ctxLines.money
-            ? { totalLabel: moneyLabel(ctxLines.money.totalCents), paidLabel: moneyLabel(ctxLines.money.paidCents), balanceLabel: moneyLabel(ctxLines.money.balanceCents), balanceDueCents: ctxLines.money.balanceCents }
+            ? { totalLabel: moneyLabel(ctxLines.money.totalCents), paidLabel: moneyLabel(ctxLines.money.paidCents), balanceLabel: moneyLabel(ctxLines.money.balanceCents), balanceDueCents: ctxLines.money.balanceCents, pending: ctxLines.money.pending === true }
             : null,
         );
       }

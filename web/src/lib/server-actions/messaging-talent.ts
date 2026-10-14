@@ -24,6 +24,12 @@ import { loadTalentInboxForActor } from "@/lib/messaging/talent-inbox-rows";
 import { loadMessagingThread } from "@/lib/messaging/thread";
 import type { InboxFilter } from "@/lib/messaging/types";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import {
+  loadTalentPendingOfferForInquiry,
+  loadTalentPendingOffers,
+  pendingOfferContextLines,
+  pendingOfferMoney,
+} from "@/lib/talent/sent-offers";
 
 const uuid = z.string().uuid();
 
@@ -39,6 +45,15 @@ export async function messagingTalentLoadInbox(input: { locationSlug: string; fi
   const actor = await loadTalentActor();
   if (!actor.ok) return actor;
   return loadTalentInboxForActor(actor, input.filter);
+}
+
+/** TUL-957: her sent, unpaid offers for the Money page ("awaiting payment"). */
+export async function messagingTalentLoadPendingOffers() {
+  const actor = await loadTalentActor();
+  if (!actor.ok) return actor;
+  const offers = await loadTalentPendingOffers(actor.admin, actor.talentProfileId);
+  if (!offers) return fail("unavailable");
+  return { ok: true as const, offers };
 }
 
 export async function messagingTalentLoadThread(input: { inquiryId: string }) {
@@ -79,7 +94,21 @@ export async function messagingTalentLoadContextLines(input: { inquiryId: string
     gate.row.tenantId,
   );
   if (!sale.ok) return sale;
-  if ("empty" in sale) return { ok: true as const, lines: null, money: null };
+  if ("empty" in sale) {
+    // TUL-957: no order until the client pays, but a sent offer is still money she is waiting on.
+    const pending = await loadTalentPendingOfferForInquiry(
+      gate.actor.admin,
+      gate.actor.talentProfileId,
+      parsed.data.inquiryId,
+      gate.row.tenantId,
+    );
+    if (!pending) return { ok: true as const, lines: null, money: null };
+    return {
+      ok: true as const,
+      lines: pendingOfferContextLines(pending.lines, pending.offer, gate.actor.talentProfileId, gate.row.isSeller),
+      money: pendingOfferMoney(pending.offer, gate.row.isSeller),
+    };
+  }
   const projected = projectTalentLines(sale.lines, gate.actor.talentProfileId, gate.row.isSeller, sale.herNetCents);
   const money = projectTalentMoney({
     isSeller: gate.row.isSeller,

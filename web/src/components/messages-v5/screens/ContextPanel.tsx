@@ -130,6 +130,12 @@ export function ContextPanel(props: ContextPanelProps) {
             <dd>{money.paidLabel}</dd>
             <dt>{copy.panel.money.balance}</dt>
             <dd>{money.balanceLabel}</dd>
+            {props.money?.pending ? (
+              <>
+                <dt>{copy.panel.money.status}</dt>
+                <dd data-money-pending>{copy.panel.money.pendingOffer}</dd>
+              </>
+            ) : null}
           </dl>
         ) : (
           <EmptyState small title={copy.panel.money.none} />

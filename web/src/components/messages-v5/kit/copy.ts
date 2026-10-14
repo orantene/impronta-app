@@ -498,6 +498,8 @@ export function buildKitCopy(t: Translator) {
         requestPayment: t("dashboard.messagesV5.panel.money.requestPayment"),
         refund: t("dashboard.messagesV5.panel.money.refund"),
         none: t("dashboard.messagesV5.panel.money.none"),
+        status: t("dashboard.messagesV5.panel.money.status"),
+        pendingOffer: t("dashboard.messagesV5.panel.money.pendingOffer"),
       },
       files: { title: t("dashboard.messagesV5.panel.files.title") },
       notes: { title: t("dashboard.messagesV5.panel.notes.title") },

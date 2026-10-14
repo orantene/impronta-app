@@ -63,7 +63,7 @@ export type ShellEngine = {
 };
 
 export type ContextLine = { id: string; label: string; units: number; unitCents: number; proposedBy: "client" | "staff" | null; confirmed: boolean };
-export type ContextMoneyCents = { totalCents: number; paidCents: number; balanceCents: number; currency: string };
+export type ContextMoneyCents = { totalCents: number; paidCents: number; balanceCents: number; currency: string; pending?: boolean };
 
 export const liveShellEngine: ShellEngine = {
   loadInbox: (input) => messagingLoadInbox(input),

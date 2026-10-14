@@ -104,6 +104,8 @@ export type ContextMoney = {
   readonly paidLabel: string;
   readonly balanceLabel: string;
   readonly balanceDueCents: number;
+  /** TUL-957: an offer is sent but not paid yet (no order exists). */
+  readonly pending?: boolean;
 };
 
 /**
