@@ -1,7 +1,7 @@
 -- TUL-649: talent_profiles.home_country_text held "MX", "México", "Mexico",
 -- "mexico" and NULL side by side. Writers now store the ISO-3166 alpha-2 code
 -- (web/src/lib/geo/country-code.ts); this backfill brings existing rows in line.
--- NOT APPLIED by the author: a production write that needs sign-off.
+-- Applied to prod 2026-10-13 (TAL-93938 excluded).
 -- Idempotent: rows already holding a valid ISO-2 code are left alone, and text
 -- that matches no country is left untouched (nothing is guessed or dropped).
 
