@@ -67,7 +67,6 @@ import { loadPlatformWorkspaceUi } from "@/lib/platform/workspace-ui";
 import { loadTalentPlanGrants } from "@/lib/plan-trials/talent-grants";
 import { talentStudioV2Enabled } from "@/lib/talent/studio-flag";
 import { logServerError } from "@/lib/server/safe-error";
-import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadOwnedBusinessWorkspace } from "@/lib/talent-site/server/workspace-site-context";
 import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
 import { effectiveReadContext } from "@/lib/impersonation/effective-read";
