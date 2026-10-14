@@ -26,7 +26,7 @@ export default async function SupportDeskTicketPage({
     view: null,
     loginNext: `${SUPPORT_DESK_HOST_PATH}/${n}`,
   });
-  if (!result.ok) return <SupportDeskForbidden email={result.email} />;
+  if (!result.ok) return <SupportDeskForbidden email={result.email} savedLocale={result.savedLocale} />;
 
   const data = result.data;
   if (!data.initialTicketId) notFound();
