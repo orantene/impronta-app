@@ -113,6 +113,9 @@ export function SupportIdeaForm({
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           maxLength={40}
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
           placeholder={t("dashboard.adminSupport.ideaPhonePlaceholder")}
           style={fieldInput}
         />
@@ -127,12 +130,14 @@ export function SupportIdeaForm({
       <button
         type="submit"
         disabled={busy || !title.trim()}
+        aria-busy={busy}
         style={{
           border: "none",
           background: COLORS.fill,
           color: "#fff",
           borderRadius: 10,
           padding: "13px 14px",
+          minHeight: 44,
           fontSize: 13,
           fontWeight: 600,
           cursor: busy || !title.trim() ? "default" : "pointer",
@@ -159,8 +164,9 @@ const fieldLabel: CSSProperties = {
 const fieldInput: CSSProperties = {
   border: `1px solid ${COLORS.border}`,
   borderRadius: RADIUS.md,
-  padding: "10px 10px",
-  fontSize: 13,
+  padding: "12px 10px",
+  // 16px stops iOS Safari zooming the panel when a field is focused (390px).
+  fontSize: 16,
   fontFamily: FONTS.body,
   color: COLORS.ink,
   background: COLORS.card,

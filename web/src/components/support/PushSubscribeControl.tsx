@@ -102,7 +102,11 @@ export function PushSubscribeControl({ tone = "light" }: { tone?: "light" | "hq"
       type="button"
       onClick={() => (status === "on" ? void disable() : void enable())}
       disabled={disabled}
+      aria-pressed={status === "on"}
+      aria-busy={status === "busy"}
+      aria-label={label}
       style={{
+        minHeight: 44,
         border: `1px solid ${border}`,
         background: status === "on" ? "transparent" : hq ? "#F5F2EB" : "#4D4855",
         color: status === "on" ? idleColor : hq ? "#0F0F11" : "#fff",

@@ -92,7 +92,7 @@ export function NewTicketForm({
       </label>
       <label style={fieldLabel}>
         {t("dashboard.adminSupport.fieldPhone")}
-        <input value={phone} onChange={(e) => setPhone(e.target.value)} style={fieldInput} />
+        <input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" inputMode="tel" autoComplete="tel" style={fieldInput} />
       </label>
       <div style={{ fontSize: 12, color: COLORS.inkMuted }}>{t("dashboard.adminSupport.whatsappHint")}</div>
       {phone.trim() ? (
@@ -267,8 +267,9 @@ const fieldLabel: CSSProperties = { display: "flex", flexDirection: "column", ga
 const fieldInput: CSSProperties = {
   border: `1px solid ${COLORS.border}`,
   borderRadius: RADIUS.md,
-  padding: "8px 10px",
-  fontSize: 13,
+  padding: "10px 10px",
+  // 16px stops iOS Safari zooming the panel on focus at 390px.
+  fontSize: 16,
   fontFamily: FONTS.body,
   color: COLORS.ink,
 };
