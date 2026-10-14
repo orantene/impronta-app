@@ -69,6 +69,10 @@ and only the first is yours:
    builds `production` with `target: "production"`. It refuses to rewind: it
    promotes only commits that are ancestors of `origin/main`. Only a P0 hotfix
    may go outside the batch (`release_note="P0 hotfix: <reason>"`).
+   **Who cuts it:** the PM. When QA Staging signs off a chunk on staging, the PM
+   runs the promote with a release note that lists the PRs in the release. A P0
+   hotfix is promoted by the PM right after it merges. Developers and agents do
+   not run it and never push the `production` branch.
 4. **`vercel-post-deploy-alias.yml` re-aliases** `tulala.digital` and
    `app.tulala.digital` onto the new deployment, because the production
    pointer does not reliably reassign custom domains on its own.
