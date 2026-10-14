@@ -33,3 +33,10 @@ test("F114/summary: release version label comes from the notes", () => {
   assert.equal(releaseVersionLabel({ en: "", es: "Maison v2 2.1: un nuevo bloque." }), "2.1");
   assert.equal(releaseVersionLabel({ en: "Tighter headings." }), null);
 });
+
+test("TUL-674: an item with no note shows a label, never the raw token key", async () => {
+  const { itemFallbackLabel } = await import("./copy");
+  assert.equal(itemFallbackLabel("type.stretch", "en"), "Heading width");
+  assert.equal(itemFallbackLabel("type.stretch", "es"), "Ancho de títulos");
+  assert.ok(!itemFallbackLabel("some.unknown-key", "es").includes("."));
+});

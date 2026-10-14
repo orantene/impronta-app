@@ -163,6 +163,26 @@ type ProfileRatingRow = {
 
 type HiddenCountRow = { talent_profile_id: string; status: "published" | "hidden" };
 
+type ServiceClient = NonNullable<ReturnType<typeof createServiceRoleClient>>;
+
+/**
+ * The staff gate, ONCE per request. Returns the tenant-scoped service client
+ * and the trimmed tenant id, or null for a caller that fails the gate.
+ * Membership on THIS tenant (not the global app_role) is the boundary.
+ */
+async function gateModeration(
+  tenantId: string,
+): Promise<{ svc: ServiceClient; tid: string } | null> {
+  const auth = await requireSession();
+  if (!auth.ok) return null;
+  const tid = (tenantId ?? "").trim();
+  if (!tid) return null;
+  if (!(await userHasCapability("agency.workspace.view", tid))) return null;
+  const svc = createServiceRoleClient();
+  if (!svc) return null;
+  return { svc, tid };
+}
+
 /** Resolve talent display names for a set of profile ids (service-role). */
 async function resolveTalentNames(
   svc: NonNullable<ReturnType<typeof createServiceRoleClient>>,
@@ -206,21 +226,9 @@ export async function loadReviewMediaForTenant(
   states?: readonly string[],
   limit = 100,
 ): Promise<ReviewMediaModerationItem[]> {
-  const auth = await requireSession();
-  if (!auth.ok) return [];
-
-  const tid = (tenantId ?? "").trim();
-  if (!tid) return [];
-  // These loaders read through the SERVICE-ROLE client (RLS bypassed) and scope
-  // only by the caller-supplied `tenantId`, so the app layer is the whole
-  // boundary. The former requireStaff() gate keyed on the GLOBAL
-  // profiles.app_role: it admitted staff of ANY tenant to ANY tenant's
-  // moderation queue, and rejected hybrid workspace owners on their own.
-  // Membership on THIS tenant is the correct gate on both counts.
-  if (!(await userHasCapability("agency.workspace.view", tid))) return [];
-
-  const svc = createServiceRoleClient();
-  if (!svc) return [];
+  const gate = await gateModeration(tenantId);
+  if (!gate) return [];
+  const { svc, tid } = gate;
 
   let query = svc
     .from("talent_review_media")
@@ -308,21 +316,16 @@ export async function loadReportedReviews(
   tenantId: string,
   limit = 100,
 ): Promise<ReportedReview[]> {
-  const auth = await requireSession();
-  if (!auth.ok) return [];
+  const gate = await gateModeration(tenantId);
+  if (!gate) return [];
+  return readReportedReviews(gate.svc, gate.tid, limit);
+}
 
-  const tid = (tenantId ?? "").trim();
-  if (!tid) return [];
-  // These loaders read through the SERVICE-ROLE client (RLS bypassed) and scope
-  // only by the caller-supplied `tenantId`, so the app layer is the whole
-  // boundary. The former requireStaff() gate keyed on the GLOBAL
-  // profiles.app_role: it admitted staff of ANY tenant to ANY tenant's
-  // moderation queue, and rejected hybrid workspace owners on their own.
-  // Membership on THIS tenant is the correct gate on both counts.
-  if (!(await userHasCapability("agency.workspace.view", tid))) return [];
-
-  const svc = createServiceRoleClient();
-  if (!svc) return [];
+async function readReportedReviews(
+  svc: ServiceClient,
+  tid: string,
+  limit: number,
+): Promise<ReportedReview[]> {
 
   const { data: reported, error } = await svc
     .from("talent_reviews")
@@ -405,21 +408,33 @@ export async function loadModerationIntegritySignals(
   tenantId: string,
   minGap = 0.1,
 ): Promise<ModerationIntegritySignal[]> {
-  const auth = await requireSession();
-  if (!auth.ok) return [];
+  const gate = await gateModeration(tenantId);
+  if (!gate) return [];
+  return readIntegritySignals(gate.svc, gate.tid, minGap);
+}
 
-  const tid = (tenantId ?? "").trim();
-  if (!tid) return [];
-  // These loaders read through the SERVICE-ROLE client (RLS bypassed) and scope
-  // only by the caller-supplied `tenantId`, so the app layer is the whole
-  // boundary. The former requireStaff() gate keyed on the GLOBAL
-  // profiles.app_role: it admitted staff of ANY tenant to ANY tenant's
-  // moderation queue, and rejected hybrid workspace owners on their own.
-  // Membership on THIS tenant is the correct gate on both counts.
-  if (!(await userHasCapability("agency.workspace.view", tid))) return [];
+/**
+ * The whole moderation queue in ONE gate and ONE parallel fan-out. The client
+ * used to fire two server actions (Next runs a client's actions one at a time,
+ * so each paid its own auth + capability round trips back to back).
+ */
+export async function loadModerationQueue(
+  tenantId: string,
+): Promise<{ reported: ReportedReview[]; signals: ModerationIntegritySignal[] }> {
+  const gate = await gateModeration(tenantId);
+  if (!gate) return { reported: [], signals: [] };
+  const [reported, signals] = await Promise.all([
+    readReportedReviews(gate.svc, gate.tid, 100),
+    readIntegritySignals(gate.svc, gate.tid, 0.1),
+  ]);
+  return { reported, signals };
+}
 
-  const svc = createServiceRoleClient();
-  if (!svc) return [];
+async function readIntegritySignals(
+  svc: ServiceClient,
+  tid: string,
+  minGap: number,
+): Promise<ModerationIntegritySignal[]> {
 
   // The reviews in this tenant tell us which talent profiles to score, and let
   // us count currently-hidden rows per talent (the laundering mechanism).

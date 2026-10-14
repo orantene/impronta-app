@@ -16,7 +16,7 @@ test("theme_template never renders the agency Brand tab", () => {
 
 test("theme_template hides Publish theme but keeps Save draft and Discard", () => {
   const i = drawer.indexOf('surfaceKind === "theme_template" ? null');
-  const pub = drawer.indexOf("Publish theme\n");
+  const pub = drawer.indexOf(`{t("Publish theme")}`);
   assert.ok(i > 0 && pub > i, "Publish theme must sit inside the theme_template gate");
   assert.match(drawer, /Save draft/);
   assert.match(drawer, /Discard changes/);

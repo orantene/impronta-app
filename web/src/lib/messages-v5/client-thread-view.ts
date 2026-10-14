@@ -17,6 +17,7 @@
  *     live offer summary loaded beside the thread, keyed by `offer_id`.
  */
 
+import { formatClock } from "./clock";
 import type { ThreadMessage } from "@/lib/messaging/types";
 import { formatRecordMoney } from "./record-money";
 import type { FeeLine } from "@/lib/billing/processing-fee-payer";
@@ -124,13 +125,7 @@ export function money(cents: unknown, currency: unknown): string {
 }
 
 export function formatClientTime(iso: string, locale = "en", timeZone?: string | null): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  try {
-    return new Intl.DateTimeFormat(locale, { hour: "numeric", minute: "2-digit", timeZone: timeZone || undefined }).format(d);
-  } catch {
-    return new Intl.DateTimeFormat(locale, { hour: "numeric", minute: "2-digit" }).format(d);
-  }
+  return formatClock(iso, locale, timeZone);
 }
 
 export function formatClientDate(iso: string, locale = "en", timeZone?: string | null): string {

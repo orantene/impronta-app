@@ -28,6 +28,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { paymentsMockAllowed } from "@/lib/payments/mock-guard";
 import { logServerError } from "@/lib/server/safe-error";
 import { sanitizeStatementDescriptorSuffix } from "@/lib/payments/statement-descriptor";
+import { stripeEnv } from "@/lib/stripe/env-keys";
 
 export type PaymentIntentInput = {
   transactionId: string;
@@ -106,7 +107,7 @@ export async function createPaymentIntentForTransaction(
     }
     const stripe = deps.stripe !== undefined ? deps.stripe : getStripeFor(platform);
     const publishableKey =
-      platform === "mx" ? getStripeMxPublishableKey() : (process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? null);
+      platform === "mx" ? getStripeMxPublishableKey() : (stripeEnv("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY") ?? null);
     // An MX charge never mocks: a mocked "paid" state for a real MX seller would
     // be a lie, so a missing MX key/publishable key is an error.
     if (platform === "mx" && (!stripe || !publishableKey)) {
