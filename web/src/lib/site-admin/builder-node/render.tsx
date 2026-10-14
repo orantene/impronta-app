@@ -83,6 +83,7 @@ import {
   collectPresentContainerQueryBreakpoints,
 } from "./renderer-css-scope";
 import { anchorIdAttrs } from "./anchor-id";
+import { humanImageAlt } from "./portfolio-i18n";
 import {
   groupMenuByCategory,
   shouldShowCategoryNav,
@@ -1860,6 +1861,12 @@ ${extraResponsiveLaneRules("tablet")}${hoverV2ViewportRules("tablet")}
 ${extraResponsiveLaneRules("mobile")}${hoverV2ViewportRules("mobile")}
   .site-builder-node--container{align-items:stretch}
   .site-builder-node--container[data-builder-mobile-layout="stack"],.site-builder-node--container:not([data-builder-mobile-layout]){display:flex;flex-direction:column}
+  /* TUL-532 PM-LIVE7: the kit-shell header bar stays one row on a phone (wordmark left,
+     menu + CTA right) instead of the default stack, which made valeria's header 166px tall
+     with the wordmark and CTA flush against the left edge. */
+  [data-talent-max-site-header]>.site-builder-node--container[data-builder-layout="row"]:not([data-builder-mobile-layout]){flex-direction:row;flex-wrap:nowrap;justify-content:space-between;align-items:center;gap:.75rem;padding-inline:1.5rem}
+  [data-talent-max-site-header]>.site-builder-node--container[data-builder-layout="row"]:not([data-builder-mobile-layout])>.site-builder-node--heading{flex:0 1 auto;min-width:0;align-self:center}
+  [data-talent-max-site-header]>.site-builder-node--container[data-builder-layout="row"]:not([data-builder-mobile-layout])>.site-builder-node--nav{flex:0 0 auto;width:auto;margin:0 0 0 auto}
   .site-builder-node--container[data-builder-mobile-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
   .site-builder-node--container[data-builder-mobile-layout="grid"]{display:grid;grid-template-columns:repeat(var(--bn-mobile-columns,1),minmax(0,1fr))}
   .site-builder-node--container[data-builder-mobile-display="grid"]{display:grid;grid-template-columns:repeat(var(--bn-mobile-columns,var(--bn-columns,1)),minmax(0,1fr));overflow-x:visible}
@@ -5550,9 +5557,11 @@ function renderBuilderNodeElement(
             )
           : null;
       const baseSrc = mediaAsset?.publicUrl ?? node.props.src ?? "";
-      const baseAlt = node.props.alt?.trim()
+      // GRK-101: skip asset-key alts (`f-hero`) so empty falls through cleanly.
+      const rawAlt = node.props.alt?.trim()
         ? node.props.alt
         : (mediaAsset?.alt ?? "");
+      const baseAlt = humanImageAlt(rawAlt) ?? "";
       const src = renderImageSrc(
         resolveNodeStringProp(node, "src", baseSrc, options.repeatItem),
       );

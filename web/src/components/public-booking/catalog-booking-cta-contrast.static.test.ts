@@ -30,3 +30,12 @@ test("TUL-516 E6: back links stack in jb-back-nav (never inline)", () => {
   assert.match(css, /\.jb-back-nav\{[^}]*gap:8px/);
   assert.match(css, /\.jb-back-link\{[^}]*display:block/);
 });
+
+test("GRK-070: disabled Continuar keeps muted ink (not white-on-edge)", () => {
+  assert.match(css, /\.jb-cta:disabled\{[^}]*color:var\(--cb-muted\)/);
+  assert.doesNotMatch(
+    css,
+    /\.jb-cta:disabled\{[^}]*color:#fff/,
+    "white disabled label regresses nearly-invisible Continuar",
+  );
+});
