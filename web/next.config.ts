@@ -480,6 +480,17 @@ const nextConfig: NextConfig = {
        *  rewrites Vary/Cache-Control on dynamic page responses, so the proxy
        *  value never reached the HTML (llms.txt/sitemap kept it). Static
        *  assets, images and APIs are excluded so they stay cache-friendly. */
+      /** TUL-857: non-production deploys (staging tenant hosts included) must
+       *  never be indexed. Header-level so it covers every page, including
+       *  the home, without touching the proxy. */
+      ...(isPreviewDeploy
+        ? [
+            {
+              source: "/:path*",
+              headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+            },
+          ]
+        : []),
       {
         source: "/:path((?!_next/|api/|favicon\\.ico|robots\\.txt).*)",
         headers: [{ key: "Vary", value: "Cookie" }],
