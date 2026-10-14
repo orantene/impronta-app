@@ -14,7 +14,14 @@ import { FINISHED_GALLERY_SLUGS } from "./gallery-meta";
 import { COLLECTION_DESIGNS } from "./collection/designs";
 import { buildMaisonDesignPayload } from "./maison/design-payload";
 import { localiseOne } from "../design-label-locale";
-import { isTokenOnlyText, MODE_DEPENDENT_LABELS, RECENT_JOBS_LABEL, SEED_TEXT_ES } from "./seed-i18n";
+import {
+  isTokenOnlyText,
+  MODE_DEPENDENT_LABELS,
+  RECENT_JOBS_LABEL,
+  SEED_TEXT_ES,
+  SEED_TEXT_EN_FROM_ES,
+  THEME_SEED_BASE_LOCALE,
+} from "./seed-i18n";
 
 const DESIGNS: ReadonlyArray<readonly [string, () => DesignPayload]> = [
   ["maison", buildMaisonDesignPayload],
@@ -232,4 +239,53 @@ test("the scanner flags a seeded FAQ item, stats cell and catalog string lacking
   assert.ok(problems.some((p) => p.includes("items.0.value")));
   assert.ok(problems.some((p) => p.includes("accordion_item") && p.includes(".title")));
   assert.ok(problems.some((p) => p.includes("services_catalog") && p.includes(".ctaLabel")));
+});
+
+test("every released design seeds an English base (TUL-369); only exempt Spanish bases listed", () => {
+  const spanishValues = new Set(Object.values(SEED_TEXT_ES));
+  const problems: string[] = [];
+  for (const [slug, build] of DESIGNS) {
+    const bag = build() as unknown as Record<string, unknown>;
+    for (const treeName of ["homeTree", "shellTree", "optionalBlocks"] as const) {
+      walk(bag[treeName], `${slug}.${treeName}`, (path, node) => {
+        const props = (node.props ?? {}) as Record<string, unknown>;
+        const kind = node.kind as Parameters<typeof localizablePropsForKind>[0];
+        for (const prop of localizablePropsForKind(kind)) {
+          const text = props[prop];
+          if (typeof text !== "string") continue;
+          const t = text.trim();
+          if (Object.prototype.hasOwnProperty.call(SEED_TEXT_EN_FROM_ES, t)) continue;
+          if (spanishValues.has(t) && !(t in SEED_TEXT_ES)) problems.push(`${path}.${prop} seeds Spanish base ${JSON.stringify(t)}`);
+        }
+      });
+    }
+  }
+  assert.deepEqual(problems, [], `\n${problems.join("\n")}`);
+  assert.equal(THEME_SEED_BASE_LOCALE, "en");
+});
+
+test("the Spanish-base exemption list is only the known Folio CTA", () => {
+  assert.deepEqual(Object.keys(SEED_TEXT_EN_FROM_ES), ["Consultar"]);
+});
+
+test("a Spanish-render of every design leaves no seeded English label (overlay es wins)", () => {
+  const problems: string[] = [];
+  for (const [slug, build] of DESIGNS) {
+    const bag = build() as unknown as Record<string, unknown>;
+    for (const treeName of ["homeTree", "shellTree", "optionalBlocks"] as const) {
+      walk(bag[treeName], `${slug}.${treeName}`, (path, node) => {
+        const props = (node.props ?? {}) as Record<string, unknown>;
+        const kind = node.kind as Parameters<typeof localizablePropsForKind>[0];
+        for (const prop of localizablePropsForKind(kind)) {
+          const text = props[prop];
+          if (typeof text !== "string" || isTokenOnlyText(text) || MODE_DEPENDENT_LABELS.includes(text.trim())) continue;
+          const es = overlayValue(props, "es", prop);
+          if (es !== undefined && es === text.trim() && text.trim() in SEED_TEXT_ES) {
+            problems.push(`${path}.${prop}: es overlay equals English seed ${JSON.stringify(text)}`);
+          }
+        }
+      });
+    }
+  }
+  assert.deepEqual(problems, [], `\n${problems.join("\n")}`);
 });
