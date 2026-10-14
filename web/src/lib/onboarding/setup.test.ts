@@ -56,3 +56,10 @@ test("issues: services, place, timezone abroad, bad provider email; empty email 
   assert.equal(finalizeSetup(ok, "Ana@Studio.com", false).firstProviderEmail, "ana@studio.com");
   assert.equal(cleanServices([{ name: "Cut", durationMin: 30, priceCents: null, quote: false, currency: "USD" }])[0].quote, true);
 });
+
+test("the zone list offers Mexico when the country was not detected (TUL-568)", async () => {
+  const { TIMEZONE_OPTIONS } = await import("./setup");
+  const ids = TIMEZONE_OPTIONS.map((z) => z.id);
+  assert.ok(ids.includes("America/Mexico_City"));
+  assert.ok(ids.includes("America/Cancun"));
+});

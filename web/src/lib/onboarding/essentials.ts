@@ -140,11 +140,20 @@ export const BEAUTY_PACKS: Record<string, TradePack> = {
   ] },
 };
 
+/** Home cleaning: the first pack outside beauty, so a cleaner never lands on an empty services screen (TUL-568). */
+BEAUTY_PACKS.cleaning = { key: "cleaning", services: [
+  { en: "Standard home cleaning", es: "Limpieza de casa estándar", durationMin: 120, mxnCents: 90000 },
+  { en: "Deep cleaning", es: "Limpieza profunda", durationMin: 240, mxnCents: 180000 },
+  { en: "Move-in or move-out cleaning", es: "Limpieza de mudanza", durationMin: 240, mxnCents: 200000 },
+  { en: "Office cleaning", es: "Limpieza de oficina", durationMin: 120, mxnCents: 100000 },
+] };
+
 const TRADE_PATTERNS: Array<[string, RegExp]> = [
   ["lashes", /lash|pesta/i],
   ["nails", /nail|u[ñn]a|manicur|pedicur/i],
   ["brows", /brow|ceja/i],
   ["makeup", /make-?up|maquill|\bmua\b/i],
+  ["cleaning", /clean|limpie|limpio|aseo|housekeep/i],
   ["hair", /hair|cabello|peluq|barber|stylist|estilista|colorist/i],
 ];
 
