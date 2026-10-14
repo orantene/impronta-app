@@ -1,3 +1,4 @@
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { GoogleAuthButton } from "@/components/auth/google-auth-button";
@@ -316,6 +317,7 @@ export default async function RegisterPage({
           <EmailCodeForm
             nextPath={nextPath}
             locale={locale}
+            marketingOrigin={resolveMarketingOrigin()}
             defaultEmail={defaultEmail}
             submitLabel={t("public.auth.passwordless.emailSubmit")}
             passwordFallback={
@@ -323,6 +325,7 @@ export default async function RegisterPage({
                 nextPath={nextPath}
                 submitLabel={t(keys.submit)}
                 locale={locale}
+                marketingOrigin={resolveMarketingOrigin()}
                 defaultEmail={defaultEmail}
                 hideFooter
               />
@@ -340,6 +343,7 @@ export default async function RegisterPage({
             nextPath={nextPath}
             submitLabel={t(keys.submit)}
             locale={locale}
+            marketingOrigin={resolveMarketingOrigin()}
             defaultEmail={defaultEmail}
           />
         )}

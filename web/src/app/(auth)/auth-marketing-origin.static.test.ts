@@ -22,3 +22,15 @@ test("auth shell footer builds legal links from resolveMarketingOrigin", () => {
   assert.match(src, /resolveMarketingOrigin\(\)\}\/legal\/terms/);
   assert.match(src, /resolveMarketingOrigin\(\)\}\/legal\/privacy/);
 });
+
+// TUL-750 follow-up: the signup checkbox is a client component, so the server
+// pages resolve the origin and pass it down as `marketingOrigin`.
+test("age-terms checkbox takes the origin as a prop and the pages pass it", () => {
+  const root = join(dir, "..", "..");
+  const cb = readFileSync(join(root, "components/auth/age-terms-checkbox.tsx"), "utf8");
+  assert.match(cb, /marketingOrigin/);
+  for (const p of ["(auth)/register/page.tsx", "(auth)/register/accept-terms/page.tsx", "(public)/me/page.tsx"]) {
+    const src = readFileSync(join(root, "app", p), "utf8");
+    assert.match(src, /marketingOrigin=\{resolveMarketingOrigin\(\)\}/, p);
+  }
+});
