@@ -113,12 +113,16 @@ export function intakeOf(s: FixtureService): ReturnType<typeof normalizeIntakeQu
 function desiredAttributes(s: FixtureService, f: MockupFixture, have: Row | null): Row | null {
   const matrix = matrixAttr(s, f);
   const intake = intakeOf(s);
-  if (!matrix && intake.length === 0) return null;
+  // GRK-065: Gridline demos are home visits — every service needs attributes.where
+  // = ["client"] so the booking sheet asks for the client's address (TUL-436).
+  const homeVisitWhere = isGridline(f);
+  if (!matrix && intake.length === 0 && !homeVisitWhere) return null;
   const next: Row = { ...((have?.attributes as Row | null) ?? {}) };
   if (matrix) next.matrix = matrix;
   else delete next.matrix;
   if (intake.length) next.intake = intake;
   else delete next.intake;
+  if (homeVisitWhere) next.where = ["client"];
   return next;
 }
 

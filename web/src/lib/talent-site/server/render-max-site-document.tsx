@@ -108,6 +108,8 @@ export async function renderMaxSiteDocument(args: {
   showPlatformBadge: boolean;
   /** Fictional demo talent: a Demo pill above the header + a footer line. */
   isDemo?: boolean;
+  /** `talent_sites.accepting_bookings`: the demo footer line must agree with the booking widget. */
+  demoAcceptingBookings?: boolean;
   /** The talent's display name: labels the first group of the Tulala strip. */
   talentName?: string | null;
   /** TUL-310 footer Help context. */
@@ -557,7 +559,7 @@ export async function renderMaxSiteDocument(args: {
         </footer>
       ) : null}
 
-      {args.isDemo ? <MaxSiteDemoFooter locale={locale} /> : null}
+      {args.isDemo ? <MaxSiteDemoFooter locale={locale} acceptingBookings={args.demoAcceptingBookings !== false} /> : null}
 
       {/* Global Tulala footer socket: one shared bottom strip under every
           design's own footer (replaces the scattered "Made with Tulala"). */}

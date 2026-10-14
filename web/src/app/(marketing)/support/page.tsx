@@ -6,6 +6,8 @@ import { FinalCtaSection } from "@/components/marketing/final-cta-section";
 import { SUPPORT_EMAIL, SUPPORT_EMAIL_CAN_RECEIVE } from "@/lib/platform/support-contact";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { withLocaleHref } from "@/i18n/pathnames";
+import { guestCookieSigningEnabled } from "@/lib/guest-cookie";
+import { marketingAskMayServe } from "@/lib/support/guest-support-serve";
 import { SupportStartHere } from "@/components/marketing/support/SupportStartHere";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
@@ -168,6 +170,7 @@ export default async function SupportPage() {
               writeLabel={t.startWrite}
               writeHref={L("/contact")}
               hint={t.startHint}
+              canAsk={marketingAskMayServe(guestCookieSigningEnabled())}
             />
             <div
               className="plt-body mx-auto mt-8 flex max-w-2xl flex-col gap-4 text-left"
