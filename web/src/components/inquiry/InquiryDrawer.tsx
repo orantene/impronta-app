@@ -699,7 +699,9 @@ export function RequesterSection({
   client: InquiryDrawerProps["client"];
 }) {
   const t = useT();
-  const isLoggedIn = !!client?.user_id;
+  // TUL-965: callers only pass `client` for a signed-in visitor, and the hub sheet
+  // omits user_id, so an email on the client is enough to not call them "New client".
+  const isLoggedIn = !!client?.user_id || !!client?.email;
   return (
     <Section title={t("public.inquiryDrawer.requesterTitle")} subtitle={t("public.inquiryDrawer.requesterSubtitle")}>
       {/* Trust card — always shown, content differs by state */}

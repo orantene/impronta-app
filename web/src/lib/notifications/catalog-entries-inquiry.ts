@@ -191,8 +191,15 @@ const OFFER_SENT_TALENT: CatalogEntry = {
   in_app: {
     kind: "offer",
     surface: "talent",
-    title: () => "You have an offer to review",
+    // TUL-958: the talent who sent the offer is waiting on the client, not asked to approve.
+    title: (event, recipient) =>
+      recipient.userId && recipient.userId === event.userId
+        ? "Your offer was sent"
+        : "You have an offer to review",
     body: (event, recipient) => {
+      if (recipient.userId && recipient.userId === event.userId) {
+        return "Your offer was sent to the client. Waiting on the client's approval.";
+      }
       const netMap = (event.payload.talentNetByUserId ?? {}) as Record<string, string>;
       const net = (recipient.userId && netMap[recipient.userId]) || "";
       const contact = str(event.payload.contactName);
