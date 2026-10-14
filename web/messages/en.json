@@ -3347,8 +3347,6 @@
         "taxDocuments": "Tax documents",
         "taxDocumentsDesc": "Year-end summary + downloadable forms. Tulala reports your platform earnings; off-platform you declare yourself.",
         "taxYearTotal": "{year} total",
-        "taxPlatform": "Platform",
-        "taxOffPlatform": "Off-platform",
         "availableDocuments": "Available documents",
         "docIncomeSummary": "{year} income summary",
         "docIncomeSummaryBody": "Platform-reported earnings only · PDF download",
