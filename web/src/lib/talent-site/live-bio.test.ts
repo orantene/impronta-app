@@ -234,3 +234,13 @@ test("the Folio seed binds its masthead blurb to the live bio", () => {
   });
   assert.deepEqual(bound, ["bio"]);
 });
+
+test("TUL-847: a drafted short_bio naming a hidden service is rebuilt from visible ones; her own bio is untouched", () => {
+  const services = { visible: ["Limpieza regular"], hidden: ["Limpieza profunda"] };
+  const drafted = "Ofrezco limpieza profunda y limpieza regular.";
+  const got = resolveLiveBio({ bioI18n: {}, shortBio: drafted, locale: "es", primary: "es", services });
+  assert.equal(got.text, "Ofrezco limpieza regular.");
+  assert.equal(resolveLiveBio({ bioI18n: {}, shortBio: drafted, locale: "es", primary: "es", services: { visible: [], hidden: ["Limpieza profunda"] } }).text, "");
+  assert.equal(resolveLiveBio({ bioI18n: { es: drafted }, shortBio: drafted, locale: "es", primary: "es", services }).text, drafted);
+  assert.equal(resolveLiveBio({ bioI18n: {}, shortBio: drafted, locale: "es", primary: "es" }).text, drafted);
+});
