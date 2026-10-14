@@ -124,11 +124,7 @@ export type InquiryDrawerProps = {
    * SlotPicker and hides event-only sections (budget / brief / wardrobe).
    */
   bookableOffering?: BookableOffering | null;
-  /**
-   * Sent from a public site: the signed-in follow-up link goes to `/c/<id>`,
-   * which picks the right place per host (a talent site keeps the client on it).
-   */
-  followUpOnSite?: boolean;
+  followUpOnSite?: boolean; // sent from a public site: follow-up link goes to `/c/<id>` (host picks the place)
   onClose: () => void;
 };
 
@@ -144,9 +140,7 @@ export function InquiryDrawer({
   enableDraftAutosave,
   bindToInquiryCart = false,
   talentToolsSlot,
-  representsPeople,
-  bookableOffering = null,
-  followUpOnSite = false,
+  representsPeople, bookableOffering = null, followUpOnSite = false,
   onClose,
 }: InquiryDrawerProps) {
   const t = useT();
