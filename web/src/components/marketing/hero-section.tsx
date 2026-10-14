@@ -193,7 +193,7 @@ export function HeroSection({ locale }: { locale: string }) {
             onClick={() => setActive(idx)}
             aria-label={marketingShowSlideLabel(locale, idx + 1)}
             aria-current={idx === active}
-            className="flex items-center justify-center px-1.5 py-3"
+            className="flex min-h-11 min-w-11 items-center justify-center"
           >
             <span
               className="block h-1.5 rounded-full transition-all duration-300"
