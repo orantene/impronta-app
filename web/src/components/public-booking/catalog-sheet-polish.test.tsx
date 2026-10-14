@@ -69,3 +69,19 @@ test("TUL-897: the phone field drops letters as they are typed", async () => {
   assert.equal(phone.type, "tel");
   m.done();
 });
+
+test("TUL-923: the phone country defaults from this browser's language, not +1", async () => {
+  const nav = dom.window.navigator;
+  const before = Object.getOwnPropertyDescriptor(nav, "languages");
+  Object.defineProperty(nav, "languages", { value: ["es-MX"], configurable: true });
+  const m = mount();
+  openSheet({ offeringId: "off-923", currency: "USD" }, "when");
+  await toWho(m.host);
+  const country = m.host.querySelector<HTMLSelectElement>('[data-testid="cb-phone-country"]')!;
+  assert.equal(country.value, "MX");
+  setInput(m.host.querySelector<HTMLInputElement>('[data-testid="cb-phone"]')!, "55 1234 5678");
+  assert.equal(m.host.querySelector<HTMLInputElement>('[data-testid="cb-phone"]')!.value, "55 1234 5678");
+  m.done();
+  if (before) Object.defineProperty(nav, "languages", before);
+  else delete (nav as unknown as Record<string, unknown>).languages;
+});

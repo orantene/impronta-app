@@ -659,7 +659,7 @@ export function CatalogBookingSheet({
                 addressNote={addr.rule === "required" ? "client" : "studio"}
               />
               <CatalogWhoContact
-                es={es} name={name} phone={phone} email={email} setName={setName} setPhone={setPhone} setEmail={setEmail}
+                es={es} locale={locale} fallbackCountry={detail.currency === "MXN" ? "MX" : null} name={name} phone={phone} email={email} setName={setName} setPhone={setPhone} setEmail={setEmail}
                 onBlur={() => setTouched(true)} touched={touched} nameValid={nameValid} phoneValid={phoneValid}
                 emailValid={emailValid} askAttempted={askAttempted} chatPhoneValid={chatPhoneValid}
               />

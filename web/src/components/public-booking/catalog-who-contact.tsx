@@ -1,13 +1,85 @@
 "use client";
 
-import { sanitizeGuestPhone } from "./guest-phone";
+import { useMemo, useState } from "react";
+
+import { flagEmojiForIso } from "@/lib/data/country-dial-codes";
+
+import {
+  guestCountryOptions,
+  guestDefaultPhoneIso,
+  joinGuestPhone,
+  sanitizeGuestPhone,
+  splitGuestPhone,
+} from "./guest-phone";
+
+/**
+ * TUL-923 / TUL-929: country select + national number. The default country
+ * is read from THIS browser when the field mounts (the sheet only renders on
+ * the client after an open event), so a cached server render never decides it.
+ */
+function CatalogWhoPhone({
+  es, locale, fallbackCountry, value, onChange, onBlur, invalid,
+}: {
+  es: boolean;
+  locale: string;
+  fallbackCountry: string | null;
+  value: string;
+  onChange: (v: string) => void;
+  onBlur: () => void;
+  invalid: boolean;
+}) {
+  const [iso, setIso] = useState<string>(() =>
+    guestDefaultPhoneIso({
+      languages: typeof navigator !== "undefined" ? navigator.languages : null,
+      fallbackCountry,
+      locale,
+    }),
+  );
+  const options = useMemo(() => guestCountryOptions(locale), [locale]);
+  const parts = splitGuestPhone(value, iso);
+  const shownIso = parts.iso ?? iso;
+  return (
+    <div className="jb-phone" data-catalog-phone="">
+      <select
+        value={shownIso}
+        onChange={(e) => {
+          setIso(e.target.value);
+          onChange(joinGuestPhone(e.target.value, parts.national));
+        }}
+        aria-label={es ? "País del número" : "Number country"}
+        data-testid="cb-phone-country"
+      >
+        {options.map((o) => (
+          <option key={o.iso} value={o.iso}>
+            {`${flagEmojiForIso(o.iso)} ${o.dial} ${o.label}`}
+          </option>
+        ))}
+      </select>
+      <input
+        value={parts.national}
+        onChange={(e) => onChange(joinGuestPhone(shownIso, sanitizeGuestPhone(e.target.value)))}
+        onBlur={onBlur}
+        type="tel"
+        inputMode="tel"
+        autoComplete="tel-national"
+        placeholder={es ? "Para avisarte de cualquier cambio" : "If we need to reach you"}
+        aria-invalid={invalid}
+        aria-label="WhatsApp"
+        data-testid="cb-phone"
+      />
+    </div>
+  );
+}
 
 /** The who-step contact fields of the catalog booking sheet (split out for max-lines). */
 export function CatalogWhoContact({
-  es, name, phone, email, setName, setPhone, setEmail, onBlur,
+  es, locale, fallbackCountry, name, phone, email, setName, setPhone, setEmail, onBlur,
   touched, nameValid, phoneValid, emailValid, askAttempted, chatPhoneValid,
 }: {
   es: boolean;
+  locale: string;
+  /** TUL-923: the talent's country, used only when the browser names no region. */
+  fallbackCountry: string | null;
   name: string;
   phone: string;
   email: string;
@@ -36,24 +108,17 @@ export function CatalogWhoContact({
         />
         {touched && !nameValid ? <em>{es ? "Escribe tu nombre para confirmar." : "Enter your name to confirm."}</em> : null}
       </label>
-      <label className="jb-field">
+      <div className="jb-field" role="group" aria-label="WhatsApp">
         <span>
           WhatsApp <i>{es ? "opcional" : "optional"}</i>
         </span>
-        <input
-          value={phone}
-          onChange={(e) => setPhone(sanitizeGuestPhone(e.target.value))}
-          onBlur={onBlur}
-          type="tel"
-          inputMode="tel"
-          autoComplete="tel"
-          placeholder={es ? "Para avisarte de cualquier cambio" : "If we need to reach you"}
-          aria-invalid={touched && !phoneValid}
-          data-testid="cb-phone"
+        <CatalogWhoPhone
+          es={es} locale={locale} fallbackCountry={fallbackCountry} value={phone} onChange={setPhone}
+          onBlur={onBlur} invalid={touched && !phoneValid}
         />
         {touched && !phoneValid ? <em>{es ? "Revisa el número." : "Check the number."}</em> : null}
         {askAttempted && !chatPhoneValid ? <em>{es ? "WhatsApp hace falta para chatear." : "WhatsApp is needed to chat."}</em> : null}
-      </label>
+      </div>
       <label className="jb-field">
         <span>{es ? "Correo" : "Email"}</span>
         <input
