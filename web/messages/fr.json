@@ -798,6 +798,8 @@
       "keepSlotAppointment": "L heure du rendez-vous est tenue tant que ce lien est valable. Rien n est debite avant le paiement.",
       "keepSlotNoTime": "Votre reservation est confirmee une fois payee. L heure est convenue avec le talent. Rien n est debite avant le paiement.",
       "keepSlotGeneric": "Votre créneau est tenu tant que ce lien est valable. Rien n est debite avant le paiement.",
+      "linkValidUntil": "Ce lien de paiement est valable jusqu'à {time} (heure de {zone}).",
+      "slotKeptUntil": "Votre créneau est tenu jusqu'à {time} (heure de {zone}).",
       "fees": {
         "service_subtotal": "Service",
         "base_reservation_fee": "Frais de réservation",

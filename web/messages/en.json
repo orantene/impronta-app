@@ -1770,6 +1770,8 @@
       "keepSlotAppointment": "The appointment time is kept while this payment link is valid. Nothing is charged until you pay.",
       "keepSlotNoTime": "Your booking is confirmed once paid. The time is agreed with the talent. Nothing is charged until you pay.",
       "keepSlotGeneric": "Your reserved time is kept while this payment link is valid. Nothing is charged until you pay.",
+      "linkValidUntil": "This payment link is valid until {time} ({zone} time).",
+      "slotKeptUntil": "Your time is kept until {time} ({zone} time).",
       "fees": {
         "service_subtotal": "Service",
         "base_reservation_fee": "Reservation fee",

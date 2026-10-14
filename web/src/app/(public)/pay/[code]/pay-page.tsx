@@ -10,6 +10,8 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { publicThreadPath, signThreadToken } from "@/lib/messaging/thread-token";
 import { resolveTenantTimezone } from "@/lib/spaces/venues";
 import { venueHhmm } from "@/lib/spaces/venue-clock";
+import { isValidIanaTimeZone } from "@/lib/scheduling/tz";
+import { payZoneName } from "./pay-zone-name";
 
 import { googleCalendarUrl, icsDataHref } from "@/lib/payments/calendar-links";
 import { moneyMayHaveMoved } from "@/lib/payments/pay-closed-money";
@@ -128,7 +130,7 @@ export async function PayByCodePage({
   // pickup hold is a pickup; anything else gets neutral wording.
   const { data: slotBooking } = await admin
     .from("agency_bookings")
-    .select("id, status, title, venue_name, venue_location_text")
+    .select("id, status, title, venue_name, venue_location_text, timezone")
     .eq("order_id", loaded.orderId)
     .limit(1)
     .maybeSingle();
@@ -141,6 +143,7 @@ export async function PayByCodePage({
     title?: string | null;
     venue_name?: string | null;
     venue_location_text?: string | null;
+    timezone?: string | null;
   } | null;
   const { data: slotTime } = slotBookingId
     ? await admin
@@ -166,10 +169,17 @@ export async function PayByCodePage({
 
   // The two clocks the customer reads ("expires 19:15", "pickup kept until
   // 19:40", MC15) in the VENUE's zone; the rows hold ISO instants and the
-  // page was printing them verbatim (live run 2026-09-11).
-  const { timezone } = loaded.tenantId ? await resolveTenantTimezone(loaded.tenantId) : { timezone: "UTC" };
+  // page was printing them verbatim (live run 2026-09-11). A booking stamped
+  // with its own zone (on-location work) wins over the workspace's default venue.
+  const bookingZone = agencySlot?.timezone?.trim() ?? "";
+  const { timezone } = isValidIanaTimeZone(bookingZone)
+    ? { timezone: bookingZone }
+    : loaded.tenantId
+      ? await resolveTenantTimezone(loaded.tenantId)
+      : { timezone: "UTC" };
   const expiresAtLabel = venueHhmm(loaded.expiresAt, timezone, "en");
   const holdUntilLabel = orderRow?.hold_expires_at ? venueHhmm(orderRow.hold_expires_at, timezone, "en") : null;
+  const zoneName = payZoneName(timezone);
 
   // The conversation behind the sale: the order's, or the link's own when
   // the request came from Messages (D-145: that flow left orders.inquiry_id
@@ -198,6 +208,7 @@ export async function PayByCodePage({
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? "USD"}
         expiresAt={expiresAtLabel}
+        zoneName={zoneName}
         status="processing"
         locale={uiLocale}
         lines={orderLines}
@@ -261,6 +272,7 @@ export async function PayByCodePage({
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? ""}
         expiresAt={expiresAtLabel}
+        zoneName={zoneName}
         status={paidDisplay}
         locale={uiLocale}
         sellerName={sellerName}
@@ -285,6 +297,7 @@ export async function PayByCodePage({
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? ""}
         expiresAt={expiresAtLabel}
+        zoneName={zoneName}
         status="cancelledReturn"
         locale={uiLocale}
         lines={[]}
@@ -317,6 +330,7 @@ export async function PayByCodePage({
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? ""}
         expiresAt={expiresAtLabel}
+        zoneName={zoneName}
         status={
           loaded.status === "cancelled" || orderCancelled
             ? "cancelled"
@@ -353,6 +367,7 @@ export async function PayByCodePage({
           amountCents={loaded.amountCents}
           currency={orderRow?.currency ?? ""}
           expiresAt={expiresAtLabel}
+          zoneName={zoneName}
           status="unknown"
           lines={[]}
           holdUntil={null}
@@ -388,6 +403,7 @@ export async function PayByCodePage({
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? ""}
         expiresAt={expiresAtLabel}
+        zoneName={zoneName}
         status={payStartViewStatus(opened.reason)}
         lines={[]}
         holdUntil={null}
@@ -415,6 +431,7 @@ export async function PayByCodePage({
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? ""}
         expiresAt={expiresAtLabel}
+        zoneName={zoneName}
         status="unknown"
         lines={[]}
         holdUntil={null}
@@ -446,6 +463,7 @@ export async function PayByCodePage({
       amountCents={loaded.amountCents}
       currency={orderRow?.currency ?? ""}
       expiresAt={expiresAtLabel}
+      zoneName={zoneName}
       status="open"
       locale={uiLocale}
       feeLines={feeLines}
