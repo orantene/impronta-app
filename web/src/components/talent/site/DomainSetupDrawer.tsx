@@ -23,10 +23,14 @@ import {
   searchTalentDomainAction,
   startTalentDomainPurchaseCheckoutAction,
 } from "@/lib/talent-site/server/talent-domain-purchase-actions";
+import {
+  loadTalentSiteDomainsForPanel,
+  type TalentSiteDomainView,
+} from "@/lib/talent-site/server/talent-site-domain-actions";
 import type { DomainSearchQuote } from "@/lib/saas/vercel-domains-registrar";
 import type { TalentDomainContactDraft } from "@/lib/stripe/talent-domain-billing";
 
-type Path = "search" | "connect" | "help" | "provisioning";
+type Path = "search" | "connect" | "help" | "provisioning" | "grace";
 
 type ContactForm = TalentDomainContactDraft;
 
@@ -67,6 +71,7 @@ export function DomainSetupDrawerBody({
   const [contact, setContact] = useState<ContactForm>(EMPTY_CONTACT);
   const [helpHost, setHelpHost] = useState("");
   const [helpNote, setHelpNote] = useState("");
+  const [graceDomains, setGraceDomains] = useState<TalentSiteDomainView[] | null>(null);
 
   // Parent may flip provisioning after mount (Checkout return). Keep path in sync.
   useEffect(() => {
@@ -87,6 +92,26 @@ export function DomainSetupDrawerBody({
       cancelled = true;
     };
   }, []);
+
+  // WAVE 1B D6 — if plan grace / disposition is open, land on restore UI.
+  useEffect(() => {
+    if (provisioning) return;
+    let cancelled = false;
+    void loadTalentSiteDomainsForPanel().then((result) => {
+      if (cancelled) return;
+      const rows = result.domains ?? [];
+      const inGrace = rows.some(
+        (d) => d.inPlanGrace || d.canChooseDisposition || d.vercelDetachedAt,
+      );
+      if (inGrace) {
+        setGraceDomains(rows);
+        setPath("grace");
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [provisioning]);
 
   const priceDisplay = useMemo(() => {
     if (!quote?.priceCents) return null;
@@ -206,6 +231,18 @@ export function DomainSetupDrawerBody({
         </div>
         <PrimaryButton onClick={() => go("connect")}>{copy.t("View domain status")}</PrimaryButton>
         <TextLink onClick={() => go("search")}>{copy.t("Back")}</TextLink>
+      </div>
+    );
+  }
+
+  if (path === "grace") {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <TalentSiteDomainPanel
+          canManage={false}
+          embedded
+          initialDomains={graceDomains ?? undefined}
+        />
       </div>
     );
   }

@@ -52,7 +52,7 @@ export function CustomDomainRow({
   const [hovered, setHovered] = useState(false);
 
   useEffect(() => {
-    if (!unlocked) return;
+    // Always load: D6 grace / disposition UI needs rows even without Web Office.
     if (initialDomains) return;
     let cancelled = false;
     void (async () => {
@@ -63,21 +63,34 @@ export function CustomDomainRow({
     return () => {
       cancelled = true;
     };
-  }, [unlocked, initialDomains]);
+  }, [initialDomains]);
 
-  const summary = !canManage
-    ? copy.t("Custom domain needs Web Office")
-    : trialOn
-      ? copy.t("Unlocks after the Web Office trial")
-      : statusSummary(domains, copy);
+  const inGrace = domains.some(
+    (d) => d.inPlanGrace || d.canChooseDisposition || d.vercelDetachedAt,
+  );
 
-  const affordance = !unlocked
-    ? copy.t("See plans")
-    : domains.some((d) => d.status === "active")
-      ? copy.t("Manage")
-      : copy.t("Set up");
+  const summary = inGrace
+    ? copy.t("Restore plan to keep your domain")
+    : !canManage
+      ? copy.t("Custom domain needs Web Office")
+      : trialOn
+        ? copy.t("Unlocks after the Web Office trial")
+        : statusSummary(domains, copy);
+
+  const affordance = inGrace
+    ? copy.t("Restore plan")
+    : !unlocked
+      ? copy.t("See plans")
+      : domains.some((d) => d.status === "active")
+        ? copy.t("Manage")
+        : copy.t("Set up");
 
   function onOpen() {
+    // D6: grace / disposition lives in the domain drawer even without Max.
+    if (inGrace) {
+      openDrawer("talent-custom-domain");
+      return;
+    }
     if (!unlocked) {
       openDrawer("talent-tier-compare");
       return;

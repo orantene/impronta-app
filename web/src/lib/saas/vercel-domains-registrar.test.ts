@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   buyDomain,
   checkRegistrarSearchRateLimit,
+  getDomainAuthCode,
   getDomainAvailability,
   getDomainPrice,
   getDomainRegistrarInfo,
@@ -238,4 +239,19 @@ test("getDomainRegistrarInfo skips without token and parses expiresAt", async ()
   assert.equal(result.autoRenew, true);
   assert.match(calls[0] ?? "", /\/v5\/domains\/bought\.test/);
   assert.match(calls[0] ?? "", /teamId=team_1/);
+});
+
+test("getDomainAuthCode skips without token and returns authCode", async () => {
+  const skipped = await getDomainAuthCode("bought.test", { env: {} });
+  assert.equal(skipped.attempted, false);
+
+  const got = await getDomainAuthCode("bought.test", {
+    env: { VERCEL_TOKEN: "tok" },
+    fetchFn: async (url) => {
+      assert.match(url, /\/v1\/registrar\/domains\/bought\.test\/auth-code/);
+      return new Response(JSON.stringify({ authCode: "AUTH-99" }), { status: 200 });
+    },
+  });
+  assert.equal(got.attempted, true);
+  assert.equal(got.authCode, "AUTH-99");
 });
