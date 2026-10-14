@@ -38,7 +38,7 @@ export function serviceMainNode(o: ServicePageOffering, opts: { locale: string; 
   const wrap: CSSProperties = {
     maxWidth: 760,
     margin: "0 auto",
-    padding: "48px 20px 132px",
+    padding: "48px 20px 56px",
     width: "100%",
     boxSizing: "border-box",
     color: INK,
