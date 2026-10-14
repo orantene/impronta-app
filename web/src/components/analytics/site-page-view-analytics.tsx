@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 import { trackProductEvent } from "@/lib/analytics/track-client";
+import { utmFromSearch } from "@/lib/analytics/utm";
 
 /**
  * SitePageViewAnalytics — the ONE shared first-party page-view component for
@@ -85,6 +86,7 @@ export function SitePageViewAnalytics({
         ...(pageSlug ? { source_page: pageSlug } : {}),
         ...(viewContext ? { view_context: viewContext } : {}),
         ...(tenantId ? { tenant_id: tenantId } : {}),
+        ...utmFromSearch(typeof window !== "undefined" ? window.location.search : ""),
       });
     }
     // Fire-once-per-mount semantics, keyed on the identifying inputs.

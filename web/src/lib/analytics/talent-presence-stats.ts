@@ -87,6 +87,32 @@ export function classifyReferrer(raw: unknown): { key: PresenceSourceKey; host: 
   return { key: "other", host };
 }
 
+const UTM_ALIASES: Record<string, PresenceSourceKey> = {
+  ig: "instagram", instagram: "instagram",
+  wa: "whatsapp", whatsapp: "whatsapp",
+  fb: "facebook", facebook: "facebook",
+  tt: "tiktok", tiktok: "tiktok",
+  li: "linkedin", linkedin: "linkedin",
+  yt: "youtube", youtube: "youtube",
+  x: "x", twitter: "x",
+  google: "google",
+  tulala: "tulala",
+};
+
+/** Map a utm_source value to a source; unknown values become "other". */
+export function classifyUtmSource(raw: unknown): { key: PresenceSourceKey; host: string | null } | null {
+  if (typeof raw !== "string") return null;
+  const v = raw.trim().toLowerCase();
+  if (!v) return null;
+  const key = UTM_ALIASES[v];
+  return key ? { key, host: null } : { key: "other", host: v };
+}
+
+/** utm_source wins over the referrer host (in-app browsers strip referrer). */
+export function classifyVisitSource(payload: Record<string, unknown> | null | undefined) {
+  return classifyUtmSource(payload?.utm_source) ?? classifyReferrer(payload?.referrer);
+}
+
 /** Whole-percent change; null when the baseline is 0. */
 export function deltaPct(current: number, prior: number): number | null {
   if (prior <= 0) return null;
@@ -101,7 +127,7 @@ function within(iso: string, fromIso: string, toIso?: string): boolean {
 export function topPresenceSources(rows: readonly PresenceViewRow[], limit = 3): PresenceSource[] {
   const acc = new Map<string, { key: PresenceSourceKey; host: string | null; visits: number }>();
   for (const row of rows) {
-    const c = classifyReferrer(row.payload?.referrer);
+    const c = classifyVisitSource(row.payload);
     const id = c.key === "other" ? `other:${c.host}` : c.key;
     const hit = acc.get(id);
     if (hit) hit.visits += 1;
