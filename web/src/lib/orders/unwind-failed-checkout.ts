@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
-import { cancelUnpaidBookings } from "@/lib/orders/cancel-unpaid-booking";
+import { cancelUnpaidBookings } from "@/lib/bookings/cancel-unpaid-booking";
 import { releaseCapacity } from "@/lib/capacity";
 import { releaseReservationHold } from "@/lib/scheduling/reservation-hold";
 

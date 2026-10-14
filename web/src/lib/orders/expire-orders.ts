@@ -20,7 +20,7 @@
 export const HELD_ORDER_GRACE_MINUTES = 0;
 export const IDLE_DRAFT_TTL_HOURS = 72;
 
-import { cancelUnpaidBookings } from "@/lib/orders/cancel-unpaid-booking";
+import { cancelUnpaidBookings } from "@/lib/bookings/cancel-unpaid-booking";
 
 export type ExpiringOrder = {
   id: string;
