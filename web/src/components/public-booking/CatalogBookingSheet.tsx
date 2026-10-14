@@ -227,7 +227,6 @@ export function CatalogBookingSheet({
   const footerTotal = detail ? catalogSheetFooterTotal(detail, variantId, addOnIds) : { cents: 0, from: false };
 
   useEffect(() => {
-    // TUL-845: once the booking is done the selection must not be re-announced.
     if (!detail || step === "done" || (needsVariant && !variant)) return;
     const bits = [variant?.label, ...extras.map((e) => e.label)].filter(Boolean);
     window.dispatchEvent(new window.CustomEvent("tulala:maison-selected", {
@@ -238,20 +237,15 @@ export function CatalogBookingSheet({
     }));
   }, [detail, variant, needsVariant, extras, total, step]);
 
-  // TUL-845: a finished booking releases the sticky bar / dock selection so the
-  // same service cannot be booked twice by tapping Continuar again.
+  // TUL-845: done releases the sticky bar / dock selection (no double booking via Continuar).
   useEffect(() => {
-    if (!detail || step !== "done") return;
-    window.dispatchEvent(new window.CustomEvent("tulala:maison-booked", { detail: { offeringId: detail.offeringId } }));
+    if (detail && step === "done") window.dispatchEvent(new window.CustomEvent("tulala:maison-booked", { detail: { offeringId: detail.offeringId } }));
   }, [detail, step]);
-
   useEffect(() => { liveStartsRef.current = liveStarts; }, [liveStarts]);
 
   // TUL-723: a signed-in client's own contact details, only into empty fields.
   const contactRef = useRef({ name, email, phone });
-  useEffect(() => {
-    contactRef.current = { name, email, phone };
-  }, [name, email, phone]);
+  useEffect(() => { contactRef.current = { name, email, phone }; }, [name, email, phone]);
   useBookingContactPrefill({
     active: step === "who" && mode === "live",
     read: () => contactRef.current,
