@@ -39,6 +39,7 @@ import type { PublicNavLink } from "@/lib/cms/public-navigation";
 import { getLocaleMetadata, type Locale } from "@/i18n/config";
 import { languageToggleGroupLabel } from "@/i18n/language-toggle-label";
 import { withLocalePath } from "@/i18n/pathnames";
+import { useLocationHash, withLocationHash } from "@/i18n/use-location-hash";
 import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 
 type MobileNavVariant = "drawer-right" | "sheet-bottom" | "full-screen-fade";
@@ -312,6 +313,7 @@ function LanguageRow({
   const localeOptions = Array.from(
     new Set([defaultLocale, ...availableLocales].filter(Boolean)),
   );
+  const hash = useLocationHash();
   if (!showLanguageSwitcher || localeOptions.length <= 1) return null;
 
   const pathSettings = {
@@ -345,7 +347,10 @@ function LanguageRow({
                 </span>
               ) : null}
               <Link
-                href={withLocalePath(pathnameWithoutLocale || "/", code, pathSettings)}
+                href={withLocationHash(
+                  withLocalePath(pathnameWithoutLocale || "/", code, pathSettings),
+                  hash,
+                )}
                 onClick={onPick}
                 aria-current={active ? "true" : undefined}
                 aria-label={meta.label}

@@ -1671,8 +1671,8 @@ export function PublishDrawer() {
                 }}
               >
                 {saving
-                  ? "Saving your last edit…"
-                  : "You have unsaved edits. Wait for them to save first."}
+                  ? t("Saving your last edit…")
+                  : t("You have unsaved edits. Wait for them to save first.")}
               </div>
             ) : null}
 

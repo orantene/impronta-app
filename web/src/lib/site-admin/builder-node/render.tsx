@@ -38,6 +38,10 @@ import {
   isSafeRichTextHref,
   renderInlineRich,
 } from "@/lib/site-admin/sections/shared/rich-text";
+import {
+  TALENT_BOOKING_POLICY_PATH,
+  talentPolicyPageHref,
+} from "@/lib/talent-site/footer-socket";
 
 import {
   BACKGROUND_MEDIA_CSS,
@@ -1437,8 +1441,12 @@ export const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--p2a-empty{margin:0;width:100%;padding:1.5rem;text-align:center;color:color-mix(in oklab,currentColor 58%,transparent);border:1px dashed color-mix(in oklab,currentColor 22%,transparent)}
 .site-builder-node--p2a-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .site-builder-node--p2a-ratio{aspect-ratio:var(--bn-p2a-ratio,16/9)}
-.site-builder-node--marquee{display:block;width:100%;overflow:hidden;padding:clamp(0.9rem,2vw,1.4rem) 0;box-sizing:border-box}
-.site-builder-node--marquee-track{display:flex;width:max-content;animation:bn-marquee var(--bn-marquee-duration,32s) linear infinite}
+/* OnbDev-folio-scroll / TUL-532: max-content track must never widen the
+   document. overflow-x:clip (not hidden) matches the band invariant — no
+   scroll container, sticky chrome stays free; max-width + min-width:0 stop
+   flex/grid ancestors from growing with the track (~20px phone H-scroll). */
+.site-builder-node--marquee{display:block;width:100%;max-width:100%;min-width:0;overflow-x:clip;overflow-y:hidden;padding:clamp(0.9rem,2vw,1.4rem) 0;box-sizing:border-box}
+.site-builder-node--marquee-track{display:flex;width:max-content;max-width:none;animation:bn-marquee var(--bn-marquee-duration,32s) linear infinite}
 .site-builder-node--marquee[data-bn-marquee-speed="slow"]{--bn-marquee-duration:52s}
 .site-builder-node--marquee[data-bn-marquee-speed="fast"]{--bn-marquee-duration:18s}
 .site-builder-node--marquee[data-bn-marquee-direction="right"] .site-builder-node--marquee-track{animation-direction:reverse}
@@ -6182,12 +6190,25 @@ function renderBuilderNodeElement(
       );
     }
     case "visit": {
+      // GRK-029: location "Payments, changes…" must keep /en on EN visits
+      // (footer socket already used talentPolicyPageHref; this path did not).
+      const visitLocale = options.visitorLocale ?? options.contentLocale?.locale ?? "es";
+      const visitPrimary = options.contentLocale?.defaultLocale ?? visitLocale;
+      const visitSupported = options.contentLocale
+        ? [options.contentLocale.defaultLocale, ...options.contentLocale.chain]
+        : [visitPrimary];
       return renderVisitBlock({
         node: localizeBlockNode(node, options.contentLocale),
         facts: options.dataSources?.talentVisitFacts ?? [],
         location: options.dataSources?.talentLocation,
-        locale: options.visitorLocale ?? options.contentLocale?.locale,
-        policyHref: `${(options.publicPathPrefix ?? "").replace(/\/+$/, "")}/politicas`,
+        locale: visitLocale,
+        policyHref: talentPolicyPageHref({
+          path: TALENT_BOOKING_POLICY_PATH,
+          locale: visitLocale,
+          primaryLocale: visitPrimary,
+          supportedLocales: visitSupported,
+          publicPathPrefix: options.publicPathPrefix,
+        }),
         styleAttr: sharedNodeStyle(node.props.style),
       });
     }
