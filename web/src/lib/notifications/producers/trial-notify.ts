@@ -2,6 +2,7 @@ import "server-only";
 
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { logServerError } from "@/lib/server/safe-error";
+import { keepAlive } from "@/lib/server/keep-alive";
 
 /**
  * Trial-lifecycle producers. Emitted from the Stripe subscription webhook
@@ -59,7 +60,7 @@ export function notifyTrialStarted(params: {
   trialEndIso: string | null;
 }): void {
   const type = params.scope === "talent" ? "talent.trial_started" : "workspace.trial_started";
-  void dispatchEventNotifications({
+  keepAlive(dispatchEventNotifications({
     type,
     tenantId: params.tenantId,
     eventId: `trial-started:${params.subscriptionId}`,
@@ -70,7 +71,7 @@ export function notifyTrialStarted(params: {
     },
   }).catch((err) => {
     logServerError("notifyTrialStarted", err);
-  });
+  }));
 }
 
 /**

@@ -2,6 +2,7 @@ import "server-only";
 
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { logServerError } from "@/lib/server/safe-error";
+import { keepAlive } from "@/lib/server/keep-alive";
 
 /**
  * Workspace plan-change producer (spec §6.6, Slice 15.4) — the REQUIRED
@@ -70,7 +71,7 @@ export function notifyWorkspacePlanChange(params: {
   const fromKey = norm(params.fromPlan) || "none";
   const toKey = norm(params.toPlan) || "none";
 
-  void dispatchEventNotifications({
+  keepAlive(dispatchEventNotifications({
     type,
     tenantId: params.tenantId,
     eventId: `plan-change:${params.tenantId}:${fromKey}->${toKey}:${day}`,
@@ -82,5 +83,5 @@ export function notifyWorkspacePlanChange(params: {
     },
   }).catch((err) => {
     logServerError("notifyWorkspacePlanChange", err);
-  });
+  }));
 }

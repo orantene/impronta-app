@@ -36,6 +36,7 @@ import {
   notifyRosterJoinRejected,
 } from "@/lib/notifications/producers/roster-join-notify";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { keepAlive } from "@/lib/server/keep-alive";
 
 export type RegistrationManageData =
   | {
@@ -279,7 +280,7 @@ export async function decideJoinRequest(
       logServerError("registration/decide.reject", error);
       return { ok: false, error: error.message };
     }
-    void notifyRosterJoinRejected({ admin, tenantId: scope.tenantId, talentProfileId });
+    keepAlive(notifyRosterJoinRejected({ admin, tenantId: scope.tenantId, talentProfileId }));
     revalidatePath(`/${tenantSlug}/admin/roster/registration`);
     return { ok: true };
   }
@@ -310,7 +311,7 @@ export async function decideJoinRequest(
     logServerError("registration/decide.approve", error);
     return { ok: false, error: error.message };
   }
-  void notifyRosterJoinApproved({ admin, tenantId: scope.tenantId, talentProfileId });
+  keepAlive(notifyRosterJoinApproved({ admin, tenantId: scope.tenantId, talentProfileId }));
   revalidatePath(`/${tenantSlug}/admin/roster/registration`);
   return { ok: true };
 }

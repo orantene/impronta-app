@@ -12,6 +12,7 @@ import "server-only";
 import { logServerError } from "@/lib/server/safe-error";
 import { syncConversationRecord } from "@/lib/messaging/record-sync";
 import { notifyTicketReady } from "@/lib/preparation/notify-ready";
+import { keepAlive } from "@/lib/server/keep-alive";
 
 type Admin = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -409,7 +410,7 @@ export async function markTicketReady(
     logServerError("prep.ready", error);
     return { ok: false, reason: "unavailable", error: "Could not mark ready." };
   }
-  void notifyTicketReady(admin, input);
+  keepAlive(notifyTicketReady(admin, input));
   await syncOrderChip(admin, input.tenantId, loaded.order_id);
   return { ok: true, ticketId: input.ticketId };
 }

@@ -34,6 +34,7 @@ import {
   type RegistrationSettings,
 } from "@/lib/saas/registration-settings";
 import { notifyRosterJoinRequested } from "@/lib/notifications/producers/roster-join-notify";
+import { keepAlive } from "@/lib/server/keep-alive";
 
 export type RegistrationOutcome =
   | {
@@ -109,7 +110,7 @@ export async function applyRegistrationPolicy(
     const existingStatus: "active" | "pending" =
       nextStatus === "active" ? "active" : "pending";
     if (existingStatus === "pending") {
-      void notifyRosterJoinRequested({ admin, tenantId, talentProfileId });
+      keepAlive(notifyRosterJoinRequested({ admin, tenantId, talentProfileId }));
     }
     return { ok: true, status: existingStatus, created: false, mode: settings.mode };
   }
@@ -138,7 +139,7 @@ export async function applyRegistrationPolicy(
   }
 
   if (targetStatus === "pending") {
-    void notifyRosterJoinRequested({ admin, tenantId, talentProfileId });
+    keepAlive(notifyRosterJoinRequested({ admin, tenantId, talentProfileId }));
   }
   return { ok: true, status: targetStatus, created: true, mode: settings.mode };
 }
