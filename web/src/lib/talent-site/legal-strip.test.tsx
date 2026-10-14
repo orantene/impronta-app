@@ -101,3 +101,28 @@ test("admin workspaces never mount the strip", () => {
     }
   }
 });
+
+test("talent policy links lead the strip when the talent has them, absent otherwise", () => {
+  const siteLinks = [
+    { key: "booking-policy", href: "/politicas" },
+    { key: "privacy", href: "/privacidad" },
+  ];
+  const es = renderToStaticMarkup(
+    <TulalaLegalStrip locale="es" marketingOrigin={ORIGIN} talentLinks={siteLinks} />,
+  );
+  assert.ok(es.includes("Políticas de reserva"));
+  assert.equal(hrefOf(es, "booking-policy"), "/politicas");
+  assert.equal(hrefOf(es, "talent-privacy"), "/privacidad");
+  const order = ["credit", "booking-policy", "talent-privacy", "privacy", "terms", "cookies", "report"].map((k) =>
+    es.indexOf(`data-legal-link="${k}"`),
+  );
+  assert.deepEqual([...order].sort((a, b) => a - b), order, "talent links before Tulala's");
+  assert.ok(order.every((i) => i >= 0));
+  const en = buildLegalStripModel({ locale: "en", talentLinks: siteLinks });
+  assert.equal(en.links[0]!.label, "Booking policies");
+  assert.deepEqual(en.links.slice(0, 2).map((l) => l.key), ["booking-policy", "talent-privacy"]);
+  const none = renderToStaticMarkup(<TulalaLegalStrip locale="es" marketingOrigin={ORIGIN} />);
+  assert.equal(none.includes("Políticas de reserva"), false);
+  assert.equal(none.includes('data-legal-link="booking-policy"'), false);
+  assert.equal(buildLegalStripModel({ locale: "es", talentLinks: [{ key: "booking-policy", href: " " }] }).links.length, 4);
+});

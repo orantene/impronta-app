@@ -77,6 +77,7 @@ export function TulalaLegalStrip({
   profileCode,
   siteHost,
   languages,
+  talentLinks,
   clearDock,
   hint,
   marketingOrigin,
@@ -85,6 +86,8 @@ export function TulalaLegalStrip({
   profileCode?: string | null;
   siteHost?: string | null;
   languages?: readonly SocketLanguage[];
+  /** The talent's own policy links (`SocketModel.siteLinks`), when the site has them. */
+  talentLinks?: readonly { key: string; href: string }[];
   clearDock?: boolean;
   hint?: string;
   /** Tests only; servers resolve `resolveMarketingOrigin()`. */
@@ -96,6 +99,7 @@ export function TulalaLegalStrip({
     profileCode,
     siteHost,
     languages,
+    talentLinks,
   });
   return <TulalaLegalStripView model={model} clearDock={clearDock} hint={hint} />;
 }

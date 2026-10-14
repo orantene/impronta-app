@@ -222,6 +222,7 @@ export async function buildTalentBuilderCanvasData(input: {
       <TulalaLegalStrip
         locale={siteLocale}
         languages={socketModel.languages}
+        talentLinks={socketModel.siteLinks}
         hint={socketLockedHint(siteLocale)}
         clearDock={false}
       />

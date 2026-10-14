@@ -575,6 +575,7 @@ export async function renderMaxSiteDocument(args: {
       <TulalaLegalStrip
         locale={locale}
         languages={socketModel.languages}
+        talentLinks={socketModel.siteLinks}
         profileCode={args.profileCode}
         siteHost={args.siteHost}
       />

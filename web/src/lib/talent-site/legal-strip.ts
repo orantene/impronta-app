@@ -11,6 +11,7 @@
  * never mount it.
  *
  * Links (all existing routes on the marketing host):
+ * - talent   -> the talent's own booking policy / privacy pages first, when they exist
  * - credit   -> marketing home
  * - legal    -> /legal/{privacy,terms,cookies} (`/es/legal/...` on Spanish sites)
  * - report   -> /contact?source=report (there is no dedicated report route; the
@@ -24,7 +25,7 @@ import type { SocketLanguage } from "@/lib/talent-site/footer-socket";
 const PRODUCTION_ORIGIN = "https://tulala.digital";
 
 export interface LegalStripLink {
-  key: "privacy" | "terms" | "cookies" | "report";
+  key: "booking-policy" | "talent-privacy" | "privacy" | "terms" | "cookies" | "report";
   label: string;
   href: string;
 }
@@ -56,6 +57,12 @@ export function buildLegalStripModel(input: {
   profileCode?: string | null;
   siteHost?: string | null;
   languages?: readonly SocketLanguage[];
+  /**
+   * The talent's own policy pages (booking policy, privacy), already localized
+   * hrefs on the talent host. Passed only when those pages exist; they lead the
+   * strip, before Tulala's own links. Anything else is ignored.
+   */
+  talentLinks?: readonly { key: string; href: string }[];
 }): LegalStripModel {
   const { locale } = input;
   const origin = cleanOrigin(input.marketingOrigin);
@@ -70,6 +77,15 @@ export function buildLegalStripModel(input: {
   if (code) params.set("code", code);
 
   const languages = input.languages ?? [];
+  const talentLabels: Record<string, string> = {
+    "booking-policy": pickLocale(locale, { en: "Booking policies", es: "Políticas de reserva" }),
+    "talent-privacy": pickLocale(locale, { en: "Privacy", es: "Privacidad" }),
+  };
+  const talentLinks: LegalStripLink[] = [];
+  for (const key of ["booking-policy", "talent-privacy"] as const) {
+    const found = (input.talentLinks ?? []).find((l) => (l.key === key || (key === "talent-privacy" && l.key === "privacy")) && l.href.trim());
+    if (found) talentLinks.push({ key, label: talentLabels[key]!, href: found.href });
+  }
   return {
     locale,
     ariaLabel: pickLocale(locale, { en: "Tulala legal", es: "Aviso legal de Tulala" }),
@@ -78,6 +94,7 @@ export function buildLegalStripModel(input: {
       href: origin,
     },
     links: [
+      ...talentLinks,
       { key: "privacy", label: pickLocale(locale, { en: "Privacy", es: "Privacidad" }), href: legal("privacy") },
       { key: "terms", label: pickLocale(locale, { en: "Terms", es: "Términos" }), href: legal("terms") },
       { key: "cookies", label: "Cookies", href: legal("cookies") },
