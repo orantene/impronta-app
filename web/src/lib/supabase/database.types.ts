@@ -11539,6 +11539,74 @@ export type Database = {
           },
         ]
       }
+      promo_events: {
+        Row: {
+          at: string
+          id: string
+          kind: string
+          promo_id: string
+          session_hash: string | null
+          tenant_id: string
+        }
+        Insert: {
+          at?: string
+          id?: string
+          kind: string
+          promo_id: string
+          session_hash?: string | null
+          tenant_id: string
+        }
+        Update: {
+          at?: string
+          id?: string
+          kind?: string
+          promo_id?: string
+          session_hash?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_events_promo_id_fkey"
+            columns: ["promo_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_promo_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promo_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promo_targets: {
+        Row: {
+          promo_id: string
+          target_id: string
+          target_kind: string
+        }
+        Insert: {
+          promo_id: string
+          target_id: string
+          target_kind: string
+        }
+        Update: {
+          promo_id?: string
+          target_id?: string
+          target_kind?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_targets_promo_id_fkey"
+            columns: ["promo_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_promo_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       provider_balance_transactions: {
         Row: {
           amount_cents: number
@@ -18198,60 +18266,188 @@ export type Database = {
       }
       tenant_promo_codes: {
         Row: {
-          code: string
+          addon_id: string | null
+          applies_on: string
+          archived_at: string | null
+          audience: string
+          budget_cap_cents: number | null
+          code: string | null
+          courtesy_reason: string | null
           created_at: string
+          created_by: string | null
           currency: string | null
+          customer_id: string | null
+          deposit_required: boolean
+          description_i18n: Json | null
           ends_at: string | null
           event_id: string | null
+          funded_by: string
           id: string
           is_active: boolean
+          is_draft: boolean
+          is_paused: boolean
+          is_single_use: boolean
+          is_trial: boolean
           kind: string
           label: string | null
+          lapsed_days: number | null
+          leak_guard: boolean
+          link_slug: string | null
+          link_token_hash: string | null
           max_redemptions: number | null
+          min_qty: number | null
+          min_subtotal_cents: number | null
+          name: string | null
+          offer_kind: string
+          parent_promo_id: string | null
+          payment_rule: string
           per_customer_limit: number
+          scope_kind: string
+          show_countdown: boolean
+          show_on_site: boolean
+          slot_id: string | null
           starts_at: string | null
+          template_key: string | null
           tenant_id: string
+          time_from: string | null
+          time_to: string | null
+          title_i18n: Json | null
+          tz: string | null
+          unlock: string
           updated_at: string
+          use_by_date: string | null
           value: number
           variant_id: string | null
+          visual_style: string | null
+          weekdays: number[] | null
         }
         Insert: {
-          code: string
+          addon_id?: string | null
+          applies_on?: string
+          archived_at?: string | null
+          audience?: string
+          budget_cap_cents?: number | null
+          code?: string | null
+          courtesy_reason?: string | null
           created_at?: string
+          created_by?: string | null
           currency?: string | null
+          customer_id?: string | null
+          deposit_required?: boolean
+          description_i18n?: Json | null
           ends_at?: string | null
           event_id?: string | null
+          funded_by?: string
           id?: string
           is_active?: boolean
+          is_draft?: boolean
+          is_paused?: boolean
+          is_single_use?: boolean
+          is_trial?: boolean
           kind: string
           label?: string | null
+          lapsed_days?: number | null
+          leak_guard?: boolean
+          link_slug?: string | null
+          link_token_hash?: string | null
           max_redemptions?: number | null
+          min_qty?: number | null
+          min_subtotal_cents?: number | null
+          name?: string | null
+          offer_kind?: string
+          parent_promo_id?: string | null
+          payment_rule?: string
           per_customer_limit?: number
+          scope_kind?: string
+          show_countdown?: boolean
+          show_on_site?: boolean
+          slot_id?: string | null
           starts_at?: string | null
+          template_key?: string | null
           tenant_id: string
+          time_from?: string | null
+          time_to?: string | null
+          title_i18n?: Json | null
+          tz?: string | null
+          unlock?: string
           updated_at?: string
+          use_by_date?: string | null
           value: number
           variant_id?: string | null
+          visual_style?: string | null
+          weekdays?: number[] | null
         }
         Update: {
-          code?: string
+          addon_id?: string | null
+          applies_on?: string
+          archived_at?: string | null
+          audience?: string
+          budget_cap_cents?: number | null
+          code?: string | null
+          courtesy_reason?: string | null
           created_at?: string
+          created_by?: string | null
           currency?: string | null
+          customer_id?: string | null
+          deposit_required?: boolean
+          description_i18n?: Json | null
           ends_at?: string | null
           event_id?: string | null
+          funded_by?: string
           id?: string
           is_active?: boolean
+          is_draft?: boolean
+          is_paused?: boolean
+          is_single_use?: boolean
+          is_trial?: boolean
           kind?: string
           label?: string | null
+          lapsed_days?: number | null
+          leak_guard?: boolean
+          link_slug?: string | null
+          link_token_hash?: string | null
           max_redemptions?: number | null
+          min_qty?: number | null
+          min_subtotal_cents?: number | null
+          name?: string | null
+          offer_kind?: string
+          parent_promo_id?: string | null
+          payment_rule?: string
           per_customer_limit?: number
+          scope_kind?: string
+          show_countdown?: boolean
+          show_on_site?: boolean
+          slot_id?: string | null
           starts_at?: string | null
+          template_key?: string | null
           tenant_id?: string
+          time_from?: string | null
+          time_to?: string | null
+          title_i18n?: Json | null
+          tz?: string | null
+          unlock?: string
           updated_at?: string
+          use_by_date?: string | null
           value?: number
           variant_id?: string | null
+          visual_style?: string | null
+          weekdays?: number[] | null
         }
         Relationships: [
+          {
+            foreignKeyName: "tenant_promo_codes_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_promo_codes_parent_promo_id_fkey"
+            columns: ["parent_promo_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_promo_codes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tenant_promo_codes_event_id_fkey"
             columns: ["event_id"]
@@ -18278,31 +18474,61 @@ export type Database = {
       tenant_promo_redemptions: {
         Row: {
           amount_cents: number
+          booking_id: string | null
+          client_status: string | null
           created_at: string
+          currency: string | null
           customer_id: string | null
+          discount_cents: number | null
+          hold_expires_at: string | null
           id: string
-          order_id: string
+          is_price_promo: boolean
+          line_id: string | null
+          list_cents: number | null
+          order_id: string | null
           promo_code_id: string
+          source: string | null
+          source_channel: string | null
           status: string
           voided_at: string | null
         }
         Insert: {
           amount_cents: number
+          booking_id?: string | null
+          client_status?: string | null
           created_at?: string
+          currency?: string | null
           customer_id?: string | null
+          discount_cents?: number | null
+          hold_expires_at?: string | null
           id?: string
-          order_id: string
+          is_price_promo?: boolean
+          line_id?: string | null
+          list_cents?: number | null
+          order_id?: string | null
           promo_code_id: string
+          source?: string | null
+          source_channel?: string | null
           status?: string
           voided_at?: string | null
         }
         Update: {
           amount_cents?: number
+          booking_id?: string | null
+          client_status?: string | null
           created_at?: string
+          currency?: string | null
           customer_id?: string | null
+          discount_cents?: number | null
+          hold_expires_at?: string | null
           id?: string
-          order_id?: string
+          is_price_promo?: boolean
+          line_id?: string | null
+          list_cents?: number | null
+          order_id?: string | null
           promo_code_id?: string
+          source?: string | null
+          source_channel?: string | null
           status?: string
           voided_at?: string | null
         }
