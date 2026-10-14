@@ -210,7 +210,6 @@ export function SettingsForm({ initial, copy }: {
 }
 
 export function LogOutButton({ label }: { label: string }) {
-  const router = useRouter();
   const [pending, start] = useTransition();
   return (
     <button
@@ -218,8 +217,11 @@ export function LogOutButton({ label }: { label: string }) {
       style={btnSecondary}
       disabled={pending}
       onClick={() => start(async () => {
+        // TUL-708: the action revokes the session but its name-keyed jar can
+        // expire only one cookie scope; /auth/sign-out expires every scope and
+        // chunk, then lands on the home page.
         await signOutClientAccount();
-        router.refresh();
+        window.location.assign("/auth/sign-out");
       })}
     >
       {label}

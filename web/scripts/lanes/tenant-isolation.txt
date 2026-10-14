@@ -184,3 +184,4 @@ src/lib/support/contact-name-optional.static.test.ts
 src/lib/seo/business-workspace-seo.test.ts
 src/lib/seo/talent-llms-txt.test.ts
 src/lib/analytics/talent-presence-stats.test.ts
+src/lib/supabase/auth-cookie-variants.security.test.ts
