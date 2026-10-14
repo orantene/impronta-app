@@ -28,7 +28,7 @@ test("no tenant or no verified user: no event (never guesses a workspace)", () =
 test("route schedules the audit (never awaits it) before revoking the session", () => {
   const src = readFileSync(join(process.cwd(), "src/app/auth/sign-out/route.ts"), "utf8");
   const sched = src.indexOf("scheduleWorkspaceAudit(");
-  const revoke = src.indexOf("auth.signOut()");
+  const revoke = src.indexOf("auth.signOut(");
   assert.ok(sched > 0, "route must call scheduleWorkspaceAudit");
   assert.ok(sched < revoke, "audit must be scheduled before signOut revokes the session");
   assert.ok(!/await\s+scheduleWorkspaceAudit/.test(src), "audit must not block sign-out");

@@ -20,9 +20,9 @@
 // file + the layout mount. No data migrations, no DB changes — purely
 // a render-time UI override that disappears when its purpose is served.
 
+import { SignOutForm } from "@/components/auth/SignOutForm";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { signOut } from "@/app/auth/actions";
 import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
 import type { TenantScope } from "@/lib/saas/scope";
 import type { User } from "@supabase/supabase-js";
@@ -177,7 +177,7 @@ export async function RealIdentityBanner({ scope, user, metrics }: Props) {
       >
         /{scope.membership.slug}
       </span>
-      <form action={signOut} style={{ display: "inline-flex", margin: 0 }}>
+      <SignOutForm style={{ display: "inline-flex", margin: 0 }}>
         <button
           type="submit"
           title={isEs ? "Cerrar sesión (termina la sesión y vuelve a /)" : "Sign out (kills session, returns to /)"}
@@ -196,7 +196,7 @@ export async function RealIdentityBanner({ scope, user, metrics }: Props) {
         >
           {isEs ? "Cerrar sesión" : "Sign out"}
         </button>
-      </form>
+      </SignOutForm>
     </div>
   );
 }
