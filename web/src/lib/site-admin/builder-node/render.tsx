@@ -4472,7 +4472,7 @@ const SERVICES_CATALOG_CSS = `
 /* No page-ground paint here — non-Maison catalogs must keep authored/parent bg.
    Maison soft blush: Design services container OR an authored style.backgroundColor
    on the catalog node (live binding; see useWebsiteTheme band exception). */
-.site-builder-node--services-catalog{color:var(--token-color-ink);font:inherit;--plt-ink:var(--token-color-ink);--plt-bg:var(--token-color-surface-raised, #fff);--plt-bg-raised:var(--token-color-surface-raised, #fff);--plt-muted:var(--token-color-muted);--plt-hairline-strong:var(--token-color-line)}
+.site-builder-node--services-catalog{align-self:stretch;color:var(--token-color-ink);font:inherit;--plt-ink:var(--token-color-ink);--plt-bg:var(--token-color-surface-raised, #fff);--plt-bg-raised:var(--token-color-surface-raised, #fff);--plt-muted:var(--token-color-muted);--plt-hairline-strong:var(--token-color-line)}
 /* AUD-026: a catalog dropped straight on the page (no padded container parent)
    gets the same side gutter a paddingX:"m" container has. Inline authored
    padding still wins; nested catalogs keep their parent's padding. */
