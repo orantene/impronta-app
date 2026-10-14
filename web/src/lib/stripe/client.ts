@@ -14,11 +14,12 @@ import "server-only";
 import Stripe from "stripe";
 import { logServerError } from "@/lib/server/safe-error";
 import { checkStripeKeyModes, shouldRefuseOnMismatch } from "./key-mode";
+import { resolvedStripeEnv, stripeEnv } from "./env-keys";
 
 let _modeLogged = false;
 /** TUL-143: logs once (names + modes only); warn-only on a test/live mix; false only when STRIPE_ENFORCE_MODE_MATCH=1. */
 function keyModesAllowClient(): boolean {
-  const check = checkStripeKeyModes();
+  const check = checkStripeKeyModes(resolvedStripeEnv());
   if (check.ok) return true;
   if (!_modeLogged) {
     _modeLogged = true;
@@ -31,7 +32,7 @@ function keyModesAllowClient(): boolean {
 }
 
 export function isStripeConfigured(): boolean {
-  return !!process.env.STRIPE_SECRET_KEY;
+  return !!stripeEnv("STRIPE_SECRET_KEY");
 }
 
 let _stripe: Stripe | null = null;
@@ -41,10 +42,11 @@ let _stripe: Stripe | null = null;
  * Instance is module-scoped (singleton per Vercel function invocation).
  */
 export function getStripe(): Stripe | null {
-  if (!process.env.STRIPE_SECRET_KEY) return null;
+  const secretKey = stripeEnv("STRIPE_SECRET_KEY");
+  if (!secretKey) return null;
   if (!keyModesAllowClient()) return null;
   if (!_stripe) {
-    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    _stripe = new Stripe(secretKey, {
       // Stripe 22.x API version — pin to the version shipped with this SDK.
       apiVersion: "2026-04-22.dahlia",
     });
@@ -58,17 +60,18 @@ export function getStripe(): Stripe | null {
 export type StripeAccountKey = "us" | "mx";
 
 export function isStripeMxConfigured(): boolean {
-  return !!process.env.STRIPE_MX_SECRET_KEY;
+  return !!stripeEnv("STRIPE_MX_SECRET_KEY");
 }
 
 let _stripeMx: Stripe | null = null;
 
 /** Mexico platform client, or null when STRIPE_MX_SECRET_KEY is unset. */
 export function getStripeMx(): Stripe | null {
-  if (!process.env.STRIPE_MX_SECRET_KEY) return null;
+  const secretKey = stripeEnv("STRIPE_MX_SECRET_KEY");
+  if (!secretKey) return null;
   if (!keyModesAllowClient()) return null;
   if (!_stripeMx) {
-    _stripeMx = new Stripe(process.env.STRIPE_MX_SECRET_KEY, {
+    _stripeMx = new Stripe(secretKey, {
       apiVersion: "2026-04-22.dahlia",
     });
   }
@@ -110,8 +113,8 @@ export async function withObjectPlatformFallback<T>(
  */
 export function getStripeMxPublishableKey(): string | null {
   return (
-    process.env.NEXT_PUBLIC_STRIPE_MX_PUBLISHABLE_KEY ||
-    process.env.STRIPE_MX_PUBLISHABLE_KEY ||
+    stripeEnv("NEXT_PUBLIC_STRIPE_MX_PUBLISHABLE_KEY") ||
+    stripeEnv("STRIPE_MX_PUBLISHABLE_KEY") ||
     null
   );
 }
@@ -123,5 +126,5 @@ export function getStripeMxPublishableKey(): string | null {
  * key fails.
  */
 export function getStripePublishableKeyFor(key: StripeAccountKey): string | null {
-  return key === "mx" ? getStripeMxPublishableKey() : (process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? null);
+  return key === "mx" ? getStripeMxPublishableKey() : (stripeEnv("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY") ?? null);
 }

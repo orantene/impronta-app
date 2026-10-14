@@ -4,6 +4,7 @@
  */
 import type { Bilingual } from "@/lib/talent-site/history/copy";
 import { sectionNameForKey } from "@/lib/talent-site/history/draft-diff";
+import { STYLE_TOKEN_BY_KEY } from "@/lib/site-admin/tokens/style-tokens";
 import { humanKey, type UpdateSummary, type WhatsNewGroup } from "./view";
 
 export type UpdateLocale = "en" | "es";
@@ -231,4 +232,15 @@ export function applyLabel(changes: number | null, locale: UpdateLocale): string
 /** F92: the quiet line for a dismissed update. */
 export function quietEntryTitle(designTitle: string, locale: UpdateLocale): string {
   return locale === "es" ? `${designTitle}: actualización disponible` : `${designTitle} update available`;
+}
+
+/**
+ * TUL-674: the line for an item that carries no authored note. Never the raw
+ * design key ("type.stretch"): a style token reads as its label, anything else
+ * as a section name or a humanized key.
+ */
+export function itemFallbackLabel(key: string, locale: UpdateLocale): string {
+  const token = STYLE_TOKEN_BY_KEY.get(key);
+  if (token) return token.label[locale];
+  return keptPartLabel(key, locale);
 }

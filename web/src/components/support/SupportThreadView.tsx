@@ -10,6 +10,7 @@ import { Icon } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS } from "./support-tokens";
 import type { SupportMessageRow, SupportTicketRow } from "@/lib/support/support-types";
 import { resolveSupportTicketAction } from "@/lib/support/actions";
+import { canOfferHuman } from "./support-panel-state";
 import { SupportCardRenderer, type SupportThreadTone } from "./SupportCardRenderer";
 
 export type { SupportThreadTone };
@@ -156,6 +157,8 @@ export function SupportThreadView({
           </div>
           {g.items.map((m) => {
             if (m.messageKind === "card" && m.cardPayload) {
+              // A person already has the ticket: drop the stale "talk to a person" offer.
+              if (m.cardPayload.kind === "offer-human" && !canOfferHuman(ticket)) return null;
               return (
                 <SupportCardRenderer
                   key={m.id}
@@ -289,14 +292,18 @@ export function SupportThreadView({
                           >
                             {t("dashboard.adminSupport.yesHelped")}
                           </button>
-                          <button type="button" onClick={onRequestHuman} style={ghostBtn}>
-                            {t("dashboard.adminSupport.noHelped")}
-                          </button>
+                          {canOfferHuman(ticket) ? (
+                            <button type="button" onClick={onRequestHuman} style={ghostBtn}>
+                              {t("dashboard.adminSupport.noHelped")}
+                            </button>
+                          ) : null}
                         </>
                       )}
-                      <button type="button" onClick={onRequestHuman} style={ghostBtn}>
-                        {t("dashboard.adminSupport.talkToHuman")}
-                      </button>
+                      {canOfferHuman(ticket) ? (
+                        <button type="button" onClick={onRequestHuman} style={ghostBtn}>
+                          {t("dashboard.adminSupport.talkToHuman")}
+                        </button>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>

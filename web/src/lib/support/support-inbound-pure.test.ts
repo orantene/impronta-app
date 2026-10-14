@@ -159,3 +159,32 @@ test("supportInboundSecret: dedicated secret wins, GUEST_COOKIE_SECRET is only t
   assert.equal(supportInboundSecret({ SUPPORT_INBOUND_SECRET: "  ", GUEST_COOKIE_SECRET: " " }), null);
   assert.equal(supportInboundSecret({}), null);
 });
+
+test("accept: plus-tag on the account email does not block the owner's own reply (TUL-307)", () => {
+  // Mail clients/providers often drop the +tag on the From of a reply.
+  assert.deepEqual(
+    shouldAcceptInboundReply({
+      senderEmail: "Jane <jane@example.com>",
+      ticketOwnerEmail: "jane+77@example.com",
+      headers: {},
+    }),
+    { accept: true },
+  );
+  assert.deepEqual(
+    shouldAcceptInboundReply({
+      senderEmail: "jane+other@example.com",
+      ticketOwnerEmail: "jane@example.com",
+      headers: {},
+    }),
+    { accept: true },
+  );
+  // A different local part or domain is still rejected.
+  assert.deepEqual(
+    shouldAcceptInboundReply({ senderEmail: "joe@example.com", ticketOwnerEmail: "jane+77@example.com", headers: {} }),
+    { accept: false, reason: "sender_not_owner" },
+  );
+  assert.deepEqual(
+    shouldAcceptInboundReply({ senderEmail: "jane@evil.com", ticketOwnerEmail: "jane+77@example.com", headers: {} }),
+    { accept: false, reason: "sender_not_owner" },
+  );
+});

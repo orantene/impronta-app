@@ -370,6 +370,11 @@ export function offeringRowFor(s: EssentialService, sortOrder: number): Offering
   };
 }
 
+/** How many of these services onboarding publishes (priced exactly); the rest stay drafts until the owner adds a price. */
+export function publishedServiceCount(services: EssentialService[] | null | undefined): number {
+  return (services ?? []).filter((s) => offeringRowFor(s, 0).status === "published").length;
+}
+
 export type OfferingPlan = {
   insert: OfferingRowDraft[];
   /** Same service already there (e.g. the AI draft): fill in the confirmed details, published only when priced. */
