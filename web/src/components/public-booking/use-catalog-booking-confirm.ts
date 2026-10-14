@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
 import { catalogSelectedStartStillOpen } from "./catalog-booking-logic";
+import { firstInvalidWhoField, focusBookingField } from "./catalog-booking-validation";
 import {
   catalogConfirmNetworkError,
   catalogSlotLostMessage,
@@ -64,6 +65,9 @@ export function useCatalogBookingConfirm(input: {
   setSlotsRefreshKey: Dispatch<SetStateAction<number>>;
   /** DS-4: the notice shown on the time step after a taken-slot error. */
   setTakenNotice: Dispatch<SetStateAction<CatalogTakenSlotNotice | null>>;
+  /** Promos v1: what the pay step's promo panel chose, and the "offer ran out" hook. */
+  promo?: { promoCode: string | null; promoShownDiscountCents: number | null } | null;
+  onPromoGone?: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const confirmInFlightRef = useRef(false);
@@ -90,7 +94,17 @@ export function useCatalogBookingConfirm(input: {
   const confirm = async () => {
     input.setTouched(true);
     input.showServiceAddressError?.(true);
-    if (!input.nameValid || !input.emailValid || !input.phoneValid || input.serviceAddressValid === false) return;
+    const firstInvalid = firstInvalidWhoField({
+      nameValid: input.nameValid,
+      phoneValid: input.phoneValid,
+      emailValid: input.emailValid,
+      addressValid: input.serviceAddressValid !== false,
+    });
+    if (firstInvalid) {
+      // TUL-841: a field below the fold must not fail silently.
+      focusBookingField(firstInvalid);
+      return;
+    }
     if (input.captchaRequired && !input.captchaToken.trim()) {
       input.setError(
         input.locale.toLowerCase().startsWith("es")
@@ -140,6 +154,8 @@ export function useCatalogBookingConfirm(input: {
         time: input.time,
         captchaToken: input.captchaRequired ? input.captchaToken || null : null,
         bookFn: input.bookFn,
+        promo: input.promo ?? null,
+        onPromoGone: input.onPromoGone,
       });
       if (written.phase === "preview") {
         await new Promise((r) => window.setTimeout(r, input.mode === "demo" ? 400 : 200));

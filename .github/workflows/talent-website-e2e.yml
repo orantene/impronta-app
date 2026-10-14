@@ -40,6 +40,13 @@ on:
       - "web/src/components/talent/**"
       - "web/src/components/admin/shell/**"
       - "web/e2e/talent-website/**"
+      # Promos v1 e2e (web/e2e/promos) runs in this lane, so its code and the
+      # promo UI/engine it drives trigger it too.
+      - "web/e2e/promos/**"
+      - "web/src/lib/promos/**"
+      - "web/src/components/promos/**"
+      - "web/src/lib/orders/purchase-promo.ts"
+      - "web/src/lib/server-actions/instant-book-action.ts"
       # S1 sign-out regression (j9) must run whenever auth / sign-out changes.
       - "web/src/app/auth/**"
       - "web/src/lib/auth/**"
@@ -434,6 +441,29 @@ jobs:
           set -o pipefail
           npx playwright test --project=talent-website
 
+      # Promos v1 (TUL-935..941). Same dev server settings, same seeded fixtures
+      # and storage states (the `promos` project depends on talent-website-setup).
+      # Informational like the journeys: not a required check.
+      - name: Run promos e2e
+        id: promos
+        continue-on-error: true
+        working-directory: web
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+          PORT: "3000"
+          TALENT_THEME_GALLERY_ENABLED: "true"
+          TALENT_FREE_WEBSITE_ENABLED: "true"
+          TALENT_SITE_SUBDOMAINS_ENABLED: "true"
+          TALENT_MAISON_THEME_ENABLED: "true"
+          TALENT_SITE_E2E_FIXTURE_READY: "1"
+          NEXT_PUBLIC_SUPABASE_URL: ${{ env.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ env.ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ env.SERVICE_ROLE_KEY }}
+          NODE_ENV: development
+        run: |
+          set -o pipefail
+          npx playwright test --project=promos
+
       - name: Journey result in the summary
         if: always() && steps.journeys.conclusion != 'skipped'
         run: |
@@ -441,6 +471,8 @@ jobs:
             echo "### Talent website E2E — journeys"
             echo ""
             echo "Outcome: **${{ steps.journeys.outcome }}**"
+            echo ""
+            echo "Promos e2e: **${{ steps.promos.outcome }}**"
             echo ""
             echo "Journeys do not gate a merge; this lane is not a required check."
           } >> "$GITHUB_STEP_SUMMARY"

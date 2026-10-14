@@ -65,7 +65,6 @@ import { GuestCaptchaField, type GuestCaptchaConfig } from "./GuestCaptchaField"
 import { CatalogLiveWhenPicker, CatalogDemoWhenPicker } from "./CatalogLiveWhenPicker";
 import { bookingDraftKey, clearBookingDraft, loadBookingDraft } from "./booking-draft-store";
 import { CatalogWhoSummary, useBookingDraftEffects } from "./catalog-who-summary";
-import { localizeOptionLabels } from "./catalog-option-locale";
 import { useBookingContactPrefill } from "./use-booking-contact-prefill";
 import {
   BOOKING_RESUME_EVENT,
@@ -171,8 +170,7 @@ export function CatalogBookingSheet({
       if (d.intent === "instant" && catalogDetailIsPurchase(d)) return;
       if (isCatalogDoneEcho(d.offeringId)) return; // TUL-1035: a post-confirm re-open keeps the confirmation
       // G13: a picked task pre-selects matching intake chips (still editable).
-      const localized = localizeOptionLabels(d, locale);
-      setDetail(localized.intake?.length ? { ...localized, answers: preselectIntakeFromTask(localized.intake, localized.task, localized.answers) } : localized);
+      setDetail(d.intake?.length ? { ...d, answers: preselectIntakeFromTask(d.intake, d.task, d.answers) } : d);
       // TUL-59: same service reopened in this session keeps every pick and field.
       const draft = loadBookingDraft(draftKey, d.offeringId);
       const draftDay = draft && mode === "demo" ? days.findIndex((x) => catalogDayKey(x) === draft.dayKey) : -1;
@@ -193,7 +191,7 @@ export function CatalogBookingSheet({
     const names = ["tulala:offering-instant", "tulala:offering-slot", "tulala:offering-request"];
     names.forEach((n) => window.addEventListener(n, open));
     return () => names.forEach((n) => window.removeEventListener(n, open));
-  }, [mode, days, draftKey, locale]);
+  }, [mode, days, draftKey]);
 
   // CH-3: "back to my booking" re-opens the sheet with every pick kept (G9b: the task note rides on detail).
   useEffect(() => {
@@ -234,7 +232,7 @@ export function CatalogBookingSheet({
   const footerTotal = detail ? catalogSheetFooterTotal(detail, variantId, addOnIds) : { cents: 0, from: false };
 
   useEffect(() => {
-    if (!detail || (needsVariant && !variant)) return;
+    if (!detail || step === "done" || (needsVariant && !variant)) return;
     const bits = [variant?.label, ...extras.map((e) => e.label)].filter(Boolean);
     window.dispatchEvent(new window.CustomEvent("tulala:maison-selected", {
       detail: {
@@ -242,15 +240,17 @@ export function CatalogBookingSheet({
         detail: bits.length ? bits.join(" · ") : null, totalCents: total, currency: detail.currency,
       },
     }));
-  }, [detail, variant, needsVariant, extras, total]);
+  }, [detail, variant, needsVariant, extras, total, step]);
 
+  // TUL-845: done releases the sticky bar / dock selection (no double booking via Continuar).
+  useEffect(() => {
+    if (detail && step === "done") window.dispatchEvent(new window.CustomEvent("tulala:maison-booked", { detail: { offeringId: detail.offeringId } }));
+  }, [detail, step]);
   useEffect(() => { liveStartsRef.current = liveStarts; }, [liveStarts]);
 
   // TUL-723: a signed-in client's own contact details, only into empty fields.
   const contactRef = useRef({ name, email, phone });
-  useEffect(() => {
-    contactRef.current = { name, email, phone };
-  }, [name, email, phone]);
+  useEffect(() => { contactRef.current = { name, email, phone }; }, [name, email, phone]);
   useBookingContactPrefill({
     active: step === "who" && mode === "live",
     read: () => contactRef.current,
@@ -663,7 +663,7 @@ export function CatalogBookingSheet({
               />
               <CatalogWhoContact
                 es={es} locale={locale} fallbackCountry={detail.currency === "MXN" ? "MX" : null} name={name} phone={phone} email={email} setName={setName} setPhone={setPhone} setEmail={setEmail}
-                onBlur={() => setTouched(true)} touched={touched} nameValid={nameValid} phoneValid={phoneValid}
+                touched={touched} nameValid={nameValid} phoneValid={phoneValid}
                 emailValid={emailValid} askAttempted={askAttempted} chatPhoneValid={chatPhoneValid}
               />
               {addr.rule === "required" ? <ServiceAddressField value={addr.fields.address} note={addr.fields.note} onChange={addr.setFields} error={addr.error} locale={locale} /> : null}

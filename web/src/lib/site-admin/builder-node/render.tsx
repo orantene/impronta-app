@@ -34,6 +34,7 @@ import { FeaturedTalentCard } from "@/lib/site-admin/sections/featured_talent/Fe
 import { localeUrlSettings } from "@/i18n/pathnames";
 import type { FeaturedTalentCardDTO } from "@/lib/site-admin/sections/featured_talent/fetch";
 import { formatMoney } from "@/lib/talent/offerings-money";
+import { publicPriceLine } from "@/lib/talent/public-price-line";
 import {
   isSafeRichTextHref,
   renderInlineRich,
@@ -161,10 +162,12 @@ import { QrCodeBlock } from "./qr-code-block";
 import { menuBoardCopy } from "./menu-board-copy";
 import { offeringIsQuote, type TalentOffering } from "@/lib/talent/offerings-types";
 import { CatalogIslandBoundary } from "@/components/public-booking/catalog-island-boundary";
+import { effectiveCatalogColumns } from "./services-catalog-columns";
 import { resolveServicesCatalogSheetAccent } from "./services-catalog-defaults";
 import { renderStatsSpecBlock } from "./stats-spec-block";
 import { ServicesCatalogFilter } from "./services-catalog-filter";
 import { servicePageHrefs } from "@/lib/talent-site/service-page";
+import type { CatalogPromoPrices } from "@/lib/promos/catalog-promo-prices";
 import { SERVICES_CATALOG_ROW_CARD_CSS } from "./services-catalog-row-card-css";
 import { filterOfferingsForCatalog } from "./services-catalog-selection";
 import { ServicesCatalogLoadingSkeleton } from "./services-catalog-loading";
@@ -384,6 +387,8 @@ export interface BuilderNodeRenderDataSources {
   };
   /** Present only when at least one visible offering needs a "≈ US$" line; a failed/skipped fetch omits the field rather than guessing. */
   talentOfferingsUsdRates?: UsdRates;
+  /** Promos v1: live-promo card prices by offering id (see catalogPromoPrices). Omitted = list prices. */
+  talentOfferingsPromoPrices?: CatalogPromoPrices;
   /** Saved `category_order` from the talent profile. Missing names append after. */
   talentOfferingsCategoryOrder?: string[];
   /** Optional inclusion line per category name. Omitted when the talent has none. */
@@ -5965,9 +5970,10 @@ function renderBuilderNodeElement(
         useWebsiteTheme && p.style?.backgroundColor
           ? { backgroundColor: styleToken(p.style.backgroundColor) }
           : undefined;
-      const columns =
-        p.columns ??
-        (layout === "grid" ? 3 : layout === "cards" || layout === "editorial" ? 2 : 1);
+      const columns = effectiveCatalogColumns(
+        p.columns ?? (layout === "grid" ? 3 : layout === "cards" || layout === "editorial" ? 2 : 1),
+        visible.length,
+      );
 
       // Categories: saved `category_order` first, then first-seen leftovers.
       const seen: string[] = [];
@@ -6160,6 +6166,7 @@ function renderBuilderNodeElement(
                 onlineCollectReady={options.dataSources.onlineCollectReady}
                 matrix={layout === "matrix"}
                 liveStatus={options.dataSources.liveStatus ?? null}
+                promoPrices={options.dataSources.talentOfferingsPromoPrices}
               />
             </CatalogIslandBoundary>
           )}
@@ -6330,10 +6337,10 @@ function renderBuilderNodeElement(
         }
         // TUL-383: one public money format (`$700 MXN`) via shared formatter.
         const locale = options.contentLocale?.locale ?? "en";
-        const es = locale.toLowerCase().startsWith("es");
-        const formatted = formatMoney(item.amountCents, item.currency, locale);
-        if (item.priceDisplay === "from") return es ? `desde ${formatted}` : `from ${formatted}`;
-        return formatted;
+        return (
+          publicPriceLine({ ...item, priceDisplay: item.priceDisplay === "from" ? "from" : "exact" }, locale) ??
+          formatMoney(item.amountCents, item.currency, locale)
+        );
       };
       const usdLine = (item: {
         amountCents: number | null;

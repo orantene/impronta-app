@@ -32,6 +32,8 @@ import { isResolvedAiChatConfigured } from "@/lib/ai/resolve-provider";
 import { resolveRoutedChat } from "@/lib/ai/call-routing.server";
 import { ensureNav } from "./nav-seed";
 import { buildCriticPrompt, checkHeadlineBank, CRITIC_JSON_SCHEMA, parseCriticReply, retryInstruction, type CriticVerdict } from "./copy-critic";
+import { dropOtherTradeStock } from "@/lib/onboarding/stock-hero";
+import { classifyTrade } from "@/lib/onboarding/trade-label";
 import { queryLifestyleStockForType } from "@/lib/media/platform-stock";
 import { logServerError } from "@/lib/server/safe-error";
 import { publishHomepage, saveHomepageDraftComposition } from "@/lib/site-admin/server/homepage";
@@ -498,7 +500,9 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
   };
   const stockFacts = stockFactsFromBrief(brief, family);
   const briefTags = Object.fromEntries(Object.entries(stockFacts).filter(([, v]) => typeof v === "string")) as Record<string, string>;
-  const [owner, stock] = await Promise.all([loadOwnerImages(admin, input.tenantId), queryLifestyleStockForType(admin, { businessType: typeId, family, forTenantId: input.tenantId })]);
+  const [owner, rawStock] = await Promise.all([loadOwnerImages(admin, input.tenantId), queryLifestyleStockForType(admin, { businessType: typeId, family, forTenantId: input.tenantId })]);
+  // TUL-846: a photo whose own words name another trade never lands on this site.
+  const stock = dropOtherTradeStock(rawStock, classifyTrade(`${typeId.replace(/-/g, " ")} ${typeRow?.label.en ?? ""} ${industry ?? ""}`), input.tenantId);
   const { resolve: images, picks } = buildImageResolver(
     [
       ...owner.map((o) => ({ ...o, level: "owner" as const })),

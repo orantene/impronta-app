@@ -7,6 +7,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { translatorFor, useT } from "@/i18n/use-t";
+import { publicSlotsUrl } from "@/lib/scheduling/public-slots-workspace";
 import { loadPublicSlots } from "./slot-picker-load";
 
 export type SlotPickerValue = {
@@ -90,8 +91,9 @@ export function SlotPicker({
     });
     setSlots([]);
     setEmptyReason(null);
-    // TUL-977: a deadline, so a slow endpoint resolves to an honest state.
-    void loadPublicSlots(`/api/public/booking/slots?${params.toString()}`).then((r) => {
+    // TUL-690: the URL carries the `/w/<slug>` workspace; TUL-977: a deadline,
+    // so a slow endpoint resolves to an honest state.
+    void loadPublicSlots(publicSlotsUrl(params)).then((r) => {
       if (cancelled) return;
       if (!r.ok) {
         setError(t("public.slotPicker.unavailable"));

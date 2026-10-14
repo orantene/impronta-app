@@ -5,7 +5,7 @@
  * Priority order (highest wins):
  *   1. ?currency=XXX URL param (transient explicit override)
  *   2. tulala-currency cookie  (sticky explicit override set by picker)
- *   3. USD fallback
+ *   3. MXN on the Spanish site, otherwise USD fallback
  *
  * IP-country is intentionally not a source. Guessing MXN from
  * `x-vercel-ip-country` labeled the footer "Showing prices in MXN" while
@@ -46,6 +46,7 @@ export type CurrencyResolution = {
  */
 export async function resolveCurrency(
   searchParams: Record<string, string | string[] | undefined> | null,
+  locale?: string | null,
 ): Promise<CurrencyResolution> {
   const urlRaw = searchParams?.["currency"];
   const urlString = Array.isArray(urlRaw) ? urlRaw[0] : urlRaw;
@@ -53,6 +54,7 @@ export async function resolveCurrency(
   const picked = pickMarketingCurrency({
     urlCurrency: urlString,
     cookieCurrency: cookieStore.get(CURRENCY_COOKIE)?.value,
+    locale,
   });
   return { ...picked, country: null };
 }

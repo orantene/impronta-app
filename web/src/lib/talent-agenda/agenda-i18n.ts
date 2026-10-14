@@ -262,6 +262,8 @@ const ES: Record<string, string> = {
   "Buffer (minutes)": "Margen entre citas (minutos)",
   "Time zone": "Zona horaria",
   "Use this device's time zone": "Usar la zona horaria de este dispositivo",
+  "Time zone taken from this device. Change it above if it is wrong.":
+    "Zona horaria tomada de este dispositivo. Cámbiala arriba si no es correcta.",
   "Search time zones": "Buscar zonas horarias",
   "Mexico": "México",
   "All time zones": "Todas las zonas horarias",
@@ -567,6 +569,7 @@ const ES: Record<string, string> = {
   payments: "pagos",
   balances: "saldos",
   "Nothing owed": "Nada pendiente",
+  "pending payment": "pendiente de pago",
   "Payouts not set up": "Depósitos sin configurar",
   "Nothing booked after today yet.": "Aún no hay nada reservado después de hoy.",
   "No appointments today.": "No hay citas hoy.",

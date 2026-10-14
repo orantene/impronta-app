@@ -13,6 +13,10 @@
  *   goes to `/start`; on the app host that page still exists and stays.
  * - everything else (hub, unregistered hosts) returns `null`.
  *
+ * - platform app host: `/help` and `/help/*` go to the marketing help centre
+ *   (TUL-905: the dashboard's "Read the docs" link opened `/help` on the app
+ *   host, where the marketing-only page is a 404).
+ *
  * The query string is kept so `?lang=` and `?choice=` survive the hop.
  */
 
@@ -32,10 +36,11 @@ const DOOR_PATHS = new Set(["/start", "/signup", "/onboarding/role"]);
 export function startDoorRedirect(input: StartDoorInput): string | null {
   if (input.method !== "GET" && input.method !== "HEAD") return null;
   const path = input.pathname.length > 1 ? input.pathname.replace(/\/+$/, "") : input.pathname;
-  if (!DOOR_PATHS.has(path)) return null;
-
   const origin = input.marketingOrigin.replace(/\/$/, "");
   const search = input.search && input.search !== "?" ? input.search : "";
+  const isHelp = path === "/help" || path.startsWith("/help/");
+  if (isHelp) return input.hostKind === "app" ? `${origin}${path}${search}` : null;
+  if (!DOOR_PATHS.has(path)) return null;
 
   // The legacy role page is a real page on the app host: only the marketing host (where it 404s) hands it off.
   if (path === "/onboarding/role") return input.hostKind === "marketing" ? `${origin}/start${search}` : null;

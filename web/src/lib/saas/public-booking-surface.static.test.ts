@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { isPathAllowedForHostKind } from "./surface-allow-list";
+import { PUBLIC_SLOTS_PATH } from "../scheduling/public-slots-workspace";
 
 /**
  * public-booking-surface.static.test.ts — the slot picker's URL and the
@@ -27,10 +28,16 @@ test("the slot picker's endpoint is reachable on every public surface", () => {
     join(SRC, "components/public-booking/SlotPicker.tsx"),
     "utf8",
   );
-  // TUL-977: the fetch goes through `loadPublicSlots` (a deadline), same literal URL.
-  const match = picker.match(/(?:fetch|loadPublicSlots)\(\s*`(\/api\/[^?`]+)/);
-  assert.ok(match, "SlotPicker no longer fetches a literal /api path — repoint this test");
-  const path = match[1];
+  // TUL-690: the picker builds its URL through publicSlotsUrl (it adds the
+  // `/w/<slug>` workspace), so the path is pinned in that helper. TUL-977: the
+  // fetch goes through `loadPublicSlots` (a deadline).
+  assert.match(
+    picker,
+    /loadPublicSlots\(\s*publicSlotsUrl\(/,
+    "SlotPicker no longer loads via loadPublicSlots(publicSlotsUrl(...)) -- repoint this test",
+  );
+  const path = PUBLIC_SLOTS_PATH;
+  assert.match(path, /^\/api\//);
 
   // An appointment can be booked from an agency storefront, a talent site, the
   // app host or the marketing apex, so the endpoint must clear every host kind

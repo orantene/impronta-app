@@ -73,7 +73,7 @@ test("/es directory chrome reads in Spanish", () => {
   assert.equal(t.next, "Siguiente");
   assert.equal(t.allTalent, "Todo el talento");
   assert.equal(t.profiles(1234), "1,234 perfiles");
-  assert.equal(availabilityLine(12, t).text, "Disponible 12 de los próximos 30 días");
+  assert.equal(availabilityLine(12, t).text, "Disp. 12 de 30 días");
   assert.equal(trustTierMeta("gold", t)?.label, "Oro");
 });
 
