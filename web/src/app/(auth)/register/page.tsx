@@ -17,7 +17,6 @@ import {
   isTalentSignupNext,
   normalizeOptionalNextPath,
 } from "@/lib/auth-flow";
-import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import {
   readRegisterIntent,
   registerCopyKeys,

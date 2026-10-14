@@ -166,7 +166,6 @@ import type {
   TalentReview,
   Testimonial,
 } from "@/lib/reviews/review-types";
-import { softTitleCaseName } from "@/lib/talent/soft-title-case-name";
 
 // ── Types ──
 

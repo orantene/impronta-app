@@ -38,7 +38,6 @@ import {
 } from "./credits";
 import { improntaLog } from "@/lib/server/structured-log";
 import { BOOKING_ASSISTANT_EVENT_TYPES } from "./turns";
-import { improntaLog } from "@/lib/server/structured-log";
 
 export { BOOKING_ASSISTANT_MODEL } from "./model";
 
