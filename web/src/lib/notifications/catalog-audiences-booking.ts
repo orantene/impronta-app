@@ -2,6 +2,7 @@ import "server-only";
 
 import { formatAppointmentWhen, normalizeBookingLocale } from "@/lib/scheduling/booking-locale";
 import { logServerError } from "@/lib/server/safe-error";
+import { formatBookingPrice, pickServiceName } from "./booking-confirmed-email";
 import { allRosterTalent, clientOrGuest, loadInquiryView, str } from "./catalog-audiences";
 import type { AudienceContext, AudienceMember, NotificationEvent } from "./types";
 
@@ -81,7 +82,7 @@ export async function loadBookingConfirmedView(
   if (!bookingId || !event.tenantId) return base;
   const { data, error } = await ctx.admin
     .from("agency_bookings")
-    .select("starts_at, ends_at, timezone")
+    .select("starts_at, ends_at, timezone, title, total_client_revenue, currency_code")
     .eq("id", bookingId)
     .eq("tenant_id", event.tenantId)
     .maybeSingle();
@@ -90,27 +91,41 @@ export async function loadBookingConfirmedView(
     return base;
   }
   const row = data as
-    | { starts_at: string | null; ends_at: string | null; timezone: string | null }
+    | {
+        starts_at: string | null;
+        ends_at: string | null;
+        timezone: string | null;
+        title: string | null;
+        total_client_revenue: number | string | null;
+        currency_code: string | null;
+      }
     | null;
-  if (!row?.starts_at) return base;
+  if (!row) return base;
+  // TUL-852: the confirmation names the service and the price in the booking's
+  // own currency. A null stays null so the template drops the row.
+  const serviceName = pickServiceName({
+    offeringTitle: str(base.offeringTitle),
+    bookingTitle: row.title,
+    contactName: str(base.contactName),
+  });
+  const priceLabel = formatBookingPrice(row.total_client_revenue, row.currency_code, str(base.locale));
+  // The total is the client's price: only a booking with a single talent shows
+  // it to that talent (their own sale), never one shared across a roster.
+  const { count } = await ctx.admin
+    .from("booking_talent")
+    .select("talent_profile_id", { count: "exact", head: true })
+    .eq("tenant_id", event.tenantId)
+    .eq("booking_id", bookingId);
+  const talentCount = typeof count === "number" ? count : 0;
+  const withDetails = { ...base, serviceName, priceLabel, talentCount };
+  if (!row.starts_at) return withDetails;
   const when = formatAppointmentWhen({
     startsAt: row.starts_at,
     endsAt: row.ends_at,
     timeZone: row.timezone,
     locale: str(base.locale),
   });
-  return when ? { ...base, eventDate: when } : base;
-}
-
-/**
- * TUL-16 f: members with no locale of their own take the language the booking
- * was made in. Without it the talent email fell back to the workspace default
- * (English) on a Spanish site. A member's own locale always wins.
- */
-export function withBookingLocale(members: AudienceMember[], locale: string | null): AudienceMember[] {
-  const l = normalizeBookingLocale(locale);
-  if (!l) return members;
-  return members.map((m) => (m.locale ? m : { ...m, locale: l }));
+  return when ? { ...withDetails, eventDate: when } : withDetails;
 }
 
 export const bookingConfirmedTalent = async (
