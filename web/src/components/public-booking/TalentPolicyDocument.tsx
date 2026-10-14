@@ -9,32 +9,42 @@ import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
 
 import type { PolicyPageModel } from "@/lib/talent-policies/public";
+import { localizedLegalUrl, TULALA_LEGAL_PRIVACY_URL, TULALA_LEGAL_TERMS_URL } from "@/lib/talent-site/footer-socket";
 
 // "Términos: https://…" links the word; a bare URL shows without its scheme.
 const URL_RE = /(?:(\p{L}+): )?(https?:\/\/[^\s]+)/gu;
 
 const LINK_STYLE: CSSProperties = { color: "inherit", textDecoration: "underline" };
 
-function linkify(text: string): ReactNode[] {
-  const out: ReactNode[] = [];
-  let last = 0;
-  let prevLabelled = false;
-  for (const m of text.matchAll(URL_RE)) {
-    const [whole, label, url] = m;
-    const at = m.index ?? 0;
-    const gap = text.slice(last, at);
-    if (prevLabelled && label && /^\s+$/.test(gap)) out.push(" · ");
-    else if (gap) out.push(gap);
-    prevLabelled = Boolean(label);
-    out.push(
-      <a key={at} href={url} target="_blank" rel="noopener noreferrer" style={LINK_STYLE}>
-        {label ?? url.replace(/^https?:\/\//, "").replace(/\/$/, "")}
-      </a>,
-    );
-    last = at + whole.length;
-  }
-  if (last < text.length) out.push(text.slice(last));
-  return out;
+/** The stored clause text keeps the bare URLs (it is hashed per version); the page names them. */
+const TULALA_DOC_NAMES: Readonly<Record<string, { es: string; en: string }>> = {
+  [TULALA_LEGAL_TERMS_URL]: { es: "Términos de Tulala", en: "Tulala Terms" },
+  [TULALA_LEGAL_PRIVACY_URL]: { es: "Privacidad de Tulala", en: "Tulala Privacy" },
+};
+const DOC_LEAD_RE = /(?:Términos|Terms|Privacidad|Privacy):\s*$/;
+
+function linkify(text: string, locale: string): ReactNode[] {
+  const es = locale.toLowerCase().startsWith("es");
+  const parts = text.split(URL_RE);
+  return parts.map((part, i) => {
+    const doc = TULALA_DOC_NAMES[part];
+    if (doc || /^https?:\/\//.test(part)) {
+      return (
+        <a
+          key={i}
+          href={doc ? localizedLegalUrl(part, locale) : part}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: "inherit", textDecoration: "underline" }}
+        >
+          {doc ? (es ? doc.es : doc.en) : part}
+        </a>
+      );
+    }
+    if (!TULALA_DOC_NAMES[parts[i + 1] ?? ""]) return part;
+    const lead = part.replace(DOC_LEAD_RE, "");
+    return TULALA_DOC_NAMES[parts[i - 1] ?? ""] && lead.trim() === "" ? " · " : lead;
+  });
 }
 
 /** The platform default is shown as a plain policy: no version line, never an "not published yet" admission. */
@@ -95,7 +105,7 @@ export function TalentPolicyDocument({
             <h2 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 4px" }}>
               {c.n}. {c.title}
             </h2>
-            <p style={{ margin: 0, color: SOFT, overflowWrap: "anywhere" }}>{linkify(c.body)}</p>
+            <p style={{ margin: 0, color: SOFT, overflowWrap: "anywhere" }}>{linkify(c.body, model.locale)}</p>
           </li>
         ))}
       </ol>
@@ -105,7 +115,7 @@ export function TalentPolicyDocument({
           <ol style={{ margin: 0, paddingLeft: 22, display: "grid", gap: 8 }}>
             {model.custom.items.map((line, i) => (
               <li key={i} style={{ overflowWrap: "anywhere" }}>
-                {linkify(line)}
+                {linkify(line, model.locale)}
               </li>
             ))}
           </ol>
