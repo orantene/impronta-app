@@ -14,7 +14,7 @@ import type { BuilderNode } from "./types";
 
 function button(label: string, i18n: Record<string, Record<string, string>>): BuilderNode {
   const base = createBuilderNode("button");
-  return { ...base, id: "b1", props: { ...base.props, label, i18n } } as BuilderNode;
+  return { ...base, id: "b1", props: { ...base.props, label, i18n } } as unknown as BuilderNode;
 }
 
 test("default-locale overlay does not replace the edited base label", () => {
