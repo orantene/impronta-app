@@ -343,18 +343,54 @@ const TALENT_DISPLAY_NAME_ES: Readonly<Record<string, string>> = {
  */
 export function planDisplayNameFor(key: PlanKey, locale: string | null | undefined): string {
   const en = planDisplayName(key);
-  if (!(locale ?? "").trim().toLowerCase().startsWith("es")) return en;
+  if (!isSpanish(locale)) return en;
   return PLAN_DISPLAY_NAME_ES[key] ?? TALENT_DISPLAY_NAME_ES[en] ?? en;
 }
 
 /**
- * Name for a raw plan key read from the database. Unknown keys (a plan the
- * catalog has never heard of) print as-is so nothing is hidden.
+ * Older keys some tables still carry: `product_tiers` slugs (`pro`, `max`,
+ * `hub`) and the bare `basic` alias. They name catalog plans.
+ */
+const PLAN_KEY_ALIASES: Readonly<Record<string, PlanKey>> = {
+  basic: "talent_basic",
+  pro: "talent_pro",
+  max: "talent_portfolio",
+  hub: "network",
+};
+
+/** A plan key, catalog slug or alias, resolved to its catalog key (null when unknown). */
+export function resolvePlanKey(key: string | null | undefined): PlanKey | null {
+  const k = (key ?? "").trim();
+  if (isKnownPlan(k)) return k;
+  return PLAN_KEY_ALIASES[k] ?? null;
+}
+
+function isSpanish(locale: string | null | undefined): boolean {
+  return (locale ?? "").trim().toLowerCase().startsWith("es");
+}
+
+/**
+ * Name for a raw plan key read from the database (server side; follows the
+ * talent tier rename switch). Unknown keys print as-is so nothing is hidden.
  */
 export function planLabel(key: string | null | undefined, locale?: string | null): string {
-  const k = (key ?? "").trim();
-  if (!k) return "";
-  return isKnownPlan(k) ? planDisplayNameFor(k, locale) : k;
+  const resolved = resolvePlanKey(key);
+  if (resolved) return planDisplayNameFor(resolved, locale);
+  return (key ?? "").trim();
+}
+
+/**
+ * CLIENT-SAFE plan name (TUL-817): the raw catalog value, which is the
+ * post-rename name, with no env read, so a "use client" platform-admin screen
+ * renders the same label on the server and on hydration. Every platform-admin
+ * plan label (Health, Catalog, Revenue, Tenants) comes from here.
+ */
+export function planCatalogLabel(key: string | null | undefined, locale?: string | null): string {
+  const resolved = resolvePlanKey(key);
+  if (!resolved) return (key ?? "").trim();
+  const en = PLAN_CATALOG[resolved].displayName;
+  if (!isSpanish(locale)) return en;
+  return PLAN_DISPLAY_NAME_ES[resolved] ?? TALENT_DISPLAY_NAME_ES[en] ?? en;
 }
 
 /** Plans visible on the public pricing page, in display order. Workspace audience. */
