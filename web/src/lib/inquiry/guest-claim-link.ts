@@ -45,6 +45,7 @@ async function guestRequestLocale(): Promise<string | null> {
     return null;
   }
 }
+import { claimNextParam } from "@/lib/inquiry/claim-return-url";
 
 export type SendGuestClaimEmailArgs = {
   /** Guest's email address — the address the client account was provisioned for. */
@@ -62,6 +63,12 @@ export type SendGuestClaimEmailArgs = {
   tenantId?: string | null;
   /** Guest's language ("es" | "en"); falls back to the tenant's brand locale, then English. */
   locale?: string | null;
+  /**
+   * TUL-691: full URL of the site the guest booked from (readSiteReturnUrl).
+   * Becomes the link's `next`; /auth/confirm re-validates it against the host
+   * registry. Omit/null keeps the client Messages destination.
+   */
+  returnUrl?: string | null;
 };
 
 export type SendGuestClaimEmailResult =
@@ -92,7 +99,7 @@ export async function sendGuestClaimEmail(
     if (!email) return { ok: false, reason: "no_email" };
 
     const appUrl = args.appUrl.replace(/\/$/, "");
-    const next = `/${args.tenantSlug}/client/messages`;
+    const next = claimNextParam(args.tenantSlug, args.returnUrl);
     const redirectTo = `${appUrl}/auth/confirm?next=${encodeURIComponent(next)}`;
 
     const { data, error } = await admin.auth.admin.generateLink({
