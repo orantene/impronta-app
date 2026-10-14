@@ -158,7 +158,15 @@ async function seed(sb, stripe, args, ids) {
   // The DB only accepts new rows as draft; move draft -> payment_requested.
   await must(
     "request transaction payment",
-    sb.from("booking_transactions").update({ status: "payment_requested", requested_at: now }).eq("id", ids.transactionId).eq("status", "draft"),
+    sb.from("booking_transactions").update({
+      status: "payment_requested",
+      requested_at: now,
+      // On-platform transactions need a payout receiver before payment is
+      // requested. Default: the QA Journeys talent fixture (staging only).
+      payout_receiver_kind: process.env.T690_PAYOUT_RECEIVER_KIND ?? "talent",
+      payout_receiver_id: process.env.T690_PAYOUT_RECEIVER_ID ?? "5b42df02-40e2-43ae-85ca-9ccfde3f2a61",
+      payout_receiver_display_name: process.env.T690_PAYOUT_RECEIVER_NAME ?? "QA Journeys Talent (paid-run fixture)",
+    }).eq("id", ids.transactionId).eq("status", "draft"),
   );
 
   // The real Stripe TEST charge. Idempotency key at the txn grain: a re-run
