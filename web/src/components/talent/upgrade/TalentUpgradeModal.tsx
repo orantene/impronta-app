@@ -36,7 +36,14 @@ import {
 
 const SERVER_SNAPSHOT = { request: null, leader: null } as const;
 
-export function TalentUpgradeModalHost({ planLabel }: { planLabel?: string | null }) {
+export function TalentUpgradeModalHost({
+  planLabel,
+  onCompareAll,
+}: {
+  planLabel?: string | null;
+  /** Opens the full plan comparison. Omitted where no comparison surface exists. */
+  onCompareAll?: () => void;
+}) {
   const [hostId, setHostId] = React.useState<number | null>(null);
   React.useEffect(() => {
     const { id, release } = claimUpgradeHost();
@@ -162,6 +169,19 @@ export function TalentUpgradeModalHost({ planLabel }: { planLabel?: string | nul
           >
             {offer.ctaLabel}
           </button>
+          {onCompareAll ? (
+            <button
+              type="button"
+              data-testid="talent-upgrade-compare"
+              onClick={() => {
+                dismiss();
+                onCompareAll();
+              }}
+              className="min-h-11 w-full rounded-lg px-4 text-sm font-medium underline"
+            >
+              {offer.compareAllLabel}
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={dismiss}

@@ -103,6 +103,7 @@ const UI_COPY = {
     perYear: "/ año",
     cta: "Mejorar a {plan}",
     notNow: "Ahora no",
+    compareAll: "Ver todos los planes",
     close: "Cerrar",
     intervalLabel: "Frecuencia de pago",
     benefitsLabel: "Lo que incluye",
@@ -116,6 +117,7 @@ const UI_COPY = {
     perYear: "/ yr",
     cta: "Upgrade to {plan}",
     notNow: "Not now",
+    compareAll: "Compare all plans",
     close: "Close",
     intervalLabel: "Billing interval",
     benefitsLabel: "What you get",
@@ -138,6 +140,7 @@ export type UpgradeOfferView = {
   benefitsLabel: string;
   ctaLabel: string;
   notNowLabel: string;
+  compareAllLabel: string;
   closeLabel: string;
   /** False when the catalog has no yearly price; the toggle hides. */
   hasYearly: boolean;
@@ -199,6 +202,7 @@ export function buildUpgradeOffer(input: {
     benefitsLabel: ui.benefitsLabel,
     ctaLabel: fill(ui.cta, { plan: planLabel }),
     notNowLabel: ui.notNow,
+    compareAllLabel: ui.compareAll,
     closeLabel: ui.close,
     hasYearly,
   };

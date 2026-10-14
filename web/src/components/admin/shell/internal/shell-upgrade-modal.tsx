@@ -34,14 +34,14 @@ import { TalentUpgradeModalHost } from "@/components/talent/upgrade/TalentUpgrad
 import { useAdminShell } from "./state";
 
 export function ShellUpgradeModal() {
-  const { state, tenantSlug } = useAdminShell();
+  const { state, tenantSlug, openDrawer } = useAdminShell();
 
   // TUL-829: the talent paywall modal rides the same mount. It renders
   // nothing until a talent paywall calls `openUpgrade`.
   return (
     <>
       <GlobalUpgradeModal tenantSlug={tenantSlug} activePlan={state.plan} />
-      <TalentUpgradeModalHost />
+      <TalentUpgradeModalHost onCompareAll={() => openDrawer("talent-tier-compare")} />
     </>
   );
 }

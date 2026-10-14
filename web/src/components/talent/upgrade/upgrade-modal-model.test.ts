@@ -112,7 +112,7 @@ describe("TUL-829 wiring", () => {
   });
 
   it("the host is mounted in the shell and the builder mount", () => {
-    assert.match(read("components/admin/shell/internal/shell-upgrade-modal.tsx"), /<TalentUpgradeModalHost\s*\/>/);
+    assert.match(read("components/admin/shell/internal/shell-upgrade-modal.tsx"), /<TalentUpgradeModalHost\b/);
     assert.match(read("components/talent/site/TalentMaxBuilderMount.tsx"), /<TalentUpgradeModalHost\s*\/>/);
   });
 
@@ -126,5 +126,28 @@ describe("TUL-829 wiring", () => {
     for (const f of ["media-embeds", "press-band", "media-kit", "custom-domain", "extra-sections"]) {
       assert.match(tiles, new RegExp(`openUpgrade\\(\\{ feature: "${f}"`), `profile tile ${f}`);
     }
+  });
+});
+
+describe("TUL-829 remaining paywalls", () => {
+  it("settings plan card, Instagram and locked site dashboard open the modal", () => {
+    const settings = read("components/admin/shell/internal/talent/pages/SettingsPage.tsx");
+    assert.match(settings, /onUpgrade=\{\(\) => openUpgrade\(\{ feature: "generic", from: "settings-plan-card"/);
+    assert.match(settings, /<TalentInstagramCard onUpgrade=\{\(\) => openUpgrade\(/);
+    assert.doesNotMatch(settings, /onUpgrade=\{\(\) => openDrawer\("talent-tier-compare"\)\}/);
+    const dash = read("components/talent/site/TalentSiteDashboardClient.tsx");
+    assert.match(dash, /openUpgrade\(\{ feature: "generic", from: "site-dashboard-locked"/);
+  });
+
+  it("the modal keeps a secondary compare-all-plans link wired to the drawer, ES + EN", () => {
+    const es = buildUpgradeOffer({ feature: "apps", interval: "m", locale: "es" });
+    const en = buildUpgradeOffer({ feature: "apps", interval: "m", locale: "en" });
+    assert.equal(es.compareAllLabel, "Ver todos los planes");
+    assert.equal(en.compareAllLabel, "Compare all plans");
+    assert.match(read("components/talent/upgrade/TalentUpgradeModal.tsx"), /offer\.compareAllLabel/);
+    assert.match(
+      read("components/admin/shell/internal/shell-upgrade-modal.tsx"),
+      /onCompareAll=\{\(\) => openDrawer\("talent-tier-compare"\)\}/,
+    );
   });
 });
