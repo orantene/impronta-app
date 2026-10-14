@@ -56,6 +56,7 @@ import { timed } from "@/lib/server/perf-trace";
 import { startDoorRedirect } from "@/lib/onboarding/start-door-redirect";
 import { marketingDemoSlugRedirect } from "@/lib/marketing/demo-slug-apex-redirect";
 import { marketingSpanishAliasRedirect } from "@/lib/marketing/spanish-path-alias";
+import { langQueryForStartAfterDefaultLocaleStrip } from "@/lib/onboarding/flow";
 import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 
 export async function proxy(request: NextRequest) {
@@ -254,11 +255,11 @@ export async function proxy(request: NextRequest) {
       target.hostname = canonicalHost;
       return NextResponse.redirect(target, 308);
     }
-    const off = await timed("proxy.offRoster", offRosterTalentResponse(request, pathname, hostContext.tenantId, PREVIEW_QUERY_PARAM));
+    const off = await timed("proxy.offRoster", offRosterTalentResponse(request, pathname, hostContext.tenantId, PREVIEW_QUERY_PARAM, sanitizedInboundHeaders));
     if (off) return off;
   }
   if (hostContext.kind === "app" || hostContext.kind === "marketing" || hostContext.kind === "hub") {
-    const unknownCode = await timed("proxy.unknownTalentCode", unknownTalentCodeResponse(request, pathname, PREVIEW_QUERY_PARAM));
+    const unknownCode = await timed("proxy.unknownTalentCode", unknownTalentCodeResponse(request, pathname, PREVIEW_QUERY_PARAM, sanitizedInboundHeaders));
     if (unknownCode) return unknownCode;
   }
 
@@ -344,15 +345,14 @@ export async function proxy(request: NextRequest) {
   ) {
     const url = request.nextUrl.clone();
     url.pathname = withoutLocalePrefix;
+    // GRK-102: `/en/start` -> `/start` carries `?lang=en` (the flow ignores the locale cookie).
+    const startLang = langQueryForStartAfterDefaultLocaleStrip({ pathnameAfterStrip: withoutLocalePrefix, defaultLocale: effectiveLangSettings.defaultLocale, existingLang: url.searchParams.get("lang") });
+    if (startLang) url.searchParams.set("lang", startLang);
     const res = NextResponse.redirect(url, 308);
-    // QA 2026-05-13 — without setting the locale cookie here, the redirected
-    // page renders in the DEFAULT locale even though the operator's URL was
-    // `/es/<tenant>`. The downstream `syncLocaleCookieForPath` calls only fire
-    // after this early-return, so they never see the original `/es/` prefix
-    // and never set the cookie. Result: clicking the ES locale switcher pushed
-    // `/es/impronta?edit=1` → server 308'd to `/impronta?edit=1` → page
-    // rendered in EN. The switcher appeared broken.  Set the cookie on the
-    // redirect response so the followed URL serves with the right locale.
+    // QA 2026-05-13: set the locale cookie on the redirect, or the followed URL
+    // renders in the DEFAULT locale (`/es/impronta?edit=1` -> `/impronta?edit=1`
+    // made the ES switcher look broken); the later syncLocaleCookieForPath calls
+    // never see the original `/es/` prefix.
     syncLocaleCookieForPath(res, pathname, effectiveLangSettings, request);
     return res;
   }
