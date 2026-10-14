@@ -42,6 +42,7 @@ import { PageSkeleton } from "../primitives/page-skeleton";
 import { RailModeSwitch } from "./RailModeSwitch";
 import { leaveRailHat } from "./rail-mode-switch-action";
 import { useUrlPageSync } from "../use-url-page-sync";
+import { pageIsServerRoute } from "../route-pending";
 
 
 /**
@@ -508,6 +509,9 @@ function PageRouter({ page }: { page: WorkspacePage }) {
   let body: React.ReactNode = null;
   if (canonicalChildren != null) {
     body = canonicalChildren;
+  } else if (pageIsServerRoute(page)) {
+    // TUL-672: a server-route page whose route has not committed yet.
+    body = <PageSkeleton />;
   } else if (!pageSlicesReady(page)) {
     body = <PageSkeleton />;
   } else
@@ -552,8 +556,7 @@ function PageRouter({ page }: { page: WorkspacePage }) {
     // WS-3.3 — "work" pipeline is a view-filter inside Messages; the legacy
     // /admin/work route syncs to messages. The old WorkPage stub was deleted
     // in WP1, so the alias renders Messages directly.
-    case "work":
-    case "projects":  // not built; the registry lands its URL on Messages
+    case "work":      // legacy alias; /admin/work redirects to Projects
       body = <WorkspaceMessagesPage />;
       break;
     // WS-3.1 — canonical "roster" route (was "talent")
