@@ -46,7 +46,7 @@ export type TalentSelfProfile = {
   /** Primary talent type label in English (stable key for trade matching). */
   primaryTypeLabel: string | null;
   /** Spanish primary trade label when taxonomy_terms.name_i18n.es is set. */
-  primaryTypeLabelEs: string | null;
+  primaryTypeLabelEs?: string | null;
   /** Home city display name */
   homeCity: string | null;
   /** workflow_status: draft | published | invited */
