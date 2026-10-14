@@ -355,6 +355,9 @@ export function ClientAccountButton({
   async function logOut() {
     setBusy(true);
     await signOutClientAccount();
+    // TUL-708: the action's name-keyed jar expires one cookie scope only; the
+    // talent-host route expires every scope + chunk (talent-host-session.ts).
+    window.location.assign("/auth/client-sign-out");
     setBusy(false);
     setMe({ signedIn: false });
     setStep("email");
