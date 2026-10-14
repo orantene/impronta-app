@@ -28,3 +28,18 @@ test("TUL-949: the ask box is a form so Enter on any mobile keyboard submits", (
   assert.match(home, /<form[\s\S]*onSubmit=/);
   assert.match(home, /enterKeyHint="send"/);
 });
+
+const launcher = readFileSync("src/components/support/SupportLauncher.tsx", "utf8");
+const geometry = readFileSync("src/components/support/support-panel-geometry.ts", "utf8");
+
+test("TUL-982: the compact launcher sits above the tab bar, not at 62% of the viewport", () => {
+  assert.doesNotMatch(launcher, /"62%"/);
+  assert.match(launcher, /SUPPORT_LAUNCHER_COMPACT_BOTTOM/);
+  assert.match(geometry, /84px \+ env\(safe-area-inset-bottom/);
+});
+
+test("TUL-947: the launcher lifts above the offline banner and hides with the keyboard", () => {
+  assert.match(geometry, /data-tulala-offline-banner/);
+  assert.match(geometry, /input:focus, textarea:focus/);
+  assert.match(launcher, /SUPPORT_LAUNCHER_COMPACT_CSS/);
+});
