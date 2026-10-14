@@ -48,6 +48,12 @@ describe("ticket titles", () => {
       "Pricing: Do you charge per booking?",
     );
   });
+  it("a short typed title is kept as typed, never joined with the first message", () => {
+    assert.equal(
+      deriveTicketSubject({ subject: "QA Grok TUL-657 titulo", body: "Hola, probando", typed: true }),
+      "QA Grok TUL-657 titulo",
+    );
+  });
   it("a typed subject wins", () => {
     assert.equal(
       deriveTicketSubject({ subject: "Cannot publish my site after payment", body: "hi" }),

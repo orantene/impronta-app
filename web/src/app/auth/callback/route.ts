@@ -31,6 +31,8 @@ import { isSupportDeskHost } from "@/lib/support/desk-hosts";
 import { claimTulalaBriefOnAuth } from "@/lib/tulala/brief-claim-auth";
 import { isFreshOAuthSignup } from "@/lib/legal/acceptances.core";
 import { hasSignupAcceptance } from "@/lib/legal/acceptances";
+import { claimAndActivateVerifiedClient } from "@/lib/client-account/after-verified-sign-in.server";
+import { isAuthEmailConfirmedForClaim } from "@/lib/client-account/pure";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -122,6 +124,16 @@ export async function GET(request: Request) {
             .eq("app_role", "client")
             .eq("account_status", "onboarding");
         }
+      }
+
+      // G9: Google/OAuth from /login and /register claims and activates too.
+      // After the role promotion above, so a talent/studio sign-up is skipped.
+      if (user) {
+        await claimAndActivateVerifiedClient({
+          userId: user.id,
+          email: user.email,
+          emailProven: isAuthEmailConfirmedForClaim(user),
+        });
       }
 
       const ensuredProfile = user
