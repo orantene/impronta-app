@@ -172,3 +172,28 @@ test("TUL-845: both sticky-bar owners listen for the booked event", async () => 
     assert.match(readFileSync(new URL(`../../${f}`, import.meta.url), "utf8"), /tulala:maison-booked/, f);
   }
 });
+
+test("TUL-849: days with no hours are closed, open days are not", async () => {
+  const { catalogDemoDayClosed, catalogLiveDayClosed, firstOpenDemoDayIndex, groupIsoSlotsByDay } = await import("./catalog-booking-logic");
+  const sunday = new Date(2026, 9, 18);
+  const monday = new Date(2026, 9, 19);
+  assert.equal(catalogDemoDayClosed(sunday), true);
+  assert.equal(catalogDemoDayClosed(monday), false);
+  assert.equal(firstOpenDemoDayIndex([sunday, monday]), 1);
+  assert.equal(catalogLiveDayClosed({ starts: [] }), true);
+  assert.equal(catalogLiveDayClosed({ starts: ["2026-10-19T15:00:00.000Z"] }), false);
+  // Weekday follows the talent timezone: 02:00Z Sunday is still Saturday in Cancun.
+  const [d] = groupIsoSlotsByDay(["2026-10-18T02:00:00.000Z"], "America/Cancun");
+  assert.equal(d!.date.getDay(), 6);
+});
+
+test("TUL-849: the live strip disables a day without starts and the demo strip disables Sunday", () => {
+  const { host, unmount } = mount();
+  open(detail({ where: ["studio"] }));
+  const days = [...host.querySelectorAll<HTMLButtonElement>(".jb-day")];
+  assert.ok(days.length > 0);
+  const sundays = days.filter((b) => b.querySelector("span")?.textContent?.toLowerCase().startsWith("dom"));
+  for (const b of sundays) assert.equal(b.disabled, true, "Sunday cannot be picked");
+  for (const b of days.filter((x) => !sundays.includes(x))) assert.equal(b.disabled, false);
+  unmount();
+});
