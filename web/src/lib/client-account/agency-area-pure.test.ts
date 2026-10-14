@@ -11,6 +11,7 @@ import {
   authPageBrand,
   isTenantAccountHost,
   legacyClientEntryRedirect,
+  pathWorkspaceClientSignInHref,
 } from "./agency-area-pure";
 
 test("flag kind per host follows x-impronta-host-context 1:1 (TUL-64)", () => {
@@ -153,4 +154,24 @@ test("popover account link goes through accountHrefFor, not a literal", () => {
   assert.match(dock, /accountHrefFor\(/);
   assert.match(dock, /getAppUrl\(\)/);
   assert.match(dock, /mountKindForHostContext\(/);
+});
+
+test("path-addressed /w/ sites on the marketing host link signed-out clients to app-host client sign-in", () => {
+  const appUrl = "https://app.tulala.digital/";
+  assert.equal(
+    pathWorkspaceClientSignInHref({ hostKind: "marketing", pathname: "/w/qa-grok-workspace", appUrl }),
+    "https://app.tulala.digital/login?as=client&next=%2Faccount",
+  );
+  assert.equal(
+    pathWorkspaceClientSignInHref({ hostKind: "marketing", pathname: "/w/qa-grok-workspace/book", appUrl }),
+    "https://app.tulala.digital/login?as=client&next=%2Faccount",
+  );
+  // Not a path-addressed workspace, or not the marketing host: unchanged.
+  assert.equal(pathWorkspaceClientSignInHref({ hostKind: "marketing", pathname: "/", appUrl }), null);
+  assert.equal(pathWorkspaceClientSignInHref({ hostKind: "agency", pathname: "/w/x", appUrl }), null);
+});
+
+test("HeaderAuthArea uses the client sign-in helper for the signed-out icon", () => {
+  const src = readFileSync(join(__dirname, "..", "..", "components", "site-shell", "HeaderAuthArea.tsx"), "utf8");
+  assert.match(src, /pathWorkspaceClientSignInHref\(/);
 });

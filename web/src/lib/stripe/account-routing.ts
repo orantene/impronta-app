@@ -11,6 +11,7 @@
  */
 
 import type { StripeAccountKey } from "./client";
+import { stripeEnv } from "./env-keys";
 
 export type { StripeAccountKey };
 
@@ -29,7 +30,7 @@ export function resolveStripeAccountForSeller(input: {
   const country = (input.payoutCountry ?? "").trim().toUpperCase();
   const rail = (input.payoutRail ?? "").trim().toLowerCase();
   if (country !== "MX" || USDC_RAILS.has(rail)) return "us";
-  const mxOk = input.mxConfigured ?? !!process.env.STRIPE_MX_SECRET_KEY;
+  const mxOk = input.mxConfigured ?? !!stripeEnv("STRIPE_MX_SECRET_KEY");
   if (!mxOk) {
     if (input.isProduction ?? process.env.NODE_ENV === "production") {
       // eslint-disable-next-line no-console -- pure module; intentional operator error

@@ -144,3 +144,22 @@ export function accountHrefFor(hostKind: string | null | undefined, appUrl: stri
 export function clientLoginNext(hostContext: string | null | undefined, slug: string): string {
   return hostContext === "agency" ? "/client" : `/${slug}/client`;
 }
+
+/**
+ * Signed-out client entry for a path-addressed workspace site
+ * (`tulala.digital/w/<slug>`). Those pages are served on the marketing host,
+ * which has no client account surface of its own, so the entry points at the
+ * app host's existing client sign-in. `next` is app-host relative (a sign-in
+ * cannot carry a cross-host return), so a signed-in client lands on /account.
+ * Null for every other host or path: those keep their normal login link.
+ */
+export function pathWorkspaceClientSignInHref(input: {
+  hostKind: string | null | undefined;
+  pathname: string;
+  appUrl: string;
+}): string | null {
+  if (input.hostKind !== "marketing") return null;
+  if (!/^\/w\/[^/]+/.test(input.pathname)) return null;
+  const base = input.appUrl.trim().replace(/\/$/, "");
+  return `${base}/login?as=client&next=${encodeURIComponent("/account")}`;
+}

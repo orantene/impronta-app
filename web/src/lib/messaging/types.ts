@@ -145,6 +145,8 @@ export type InboxRow = {
   recordChips: readonly RecordChip[];
   /** Talent inbox only: the thread belongs to an agency, not to her own site. */
   agency?: boolean;
+  /** TUL-622: the inquiry is marked `source_context.qa_fixture`. */
+  qaFixture?: boolean;
 };
 
 /**
