@@ -42,9 +42,9 @@ function decide(rows: readonly Row[], customerId: string) {
   });
 }
 
-test("limits count confirmed + held; voided, released and no_show free the slot", () => {
+test("limits count confirmed + held + no_show; voided and released free the slot", () => {
   const counted = PROMO_REDEMPTION_STATUSES.filter(countsTowardLimit);
-  assert.deepEqual([...counted].sort(), ["confirmed", "held"]);
+  assert.deepEqual([...counted].sort(), ["confirmed", "held", "no_show"]);
 });
 
 test("a reported use is confirmed only", () => {

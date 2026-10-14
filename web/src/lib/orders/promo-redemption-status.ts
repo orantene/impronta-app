@@ -2,7 +2,8 @@
  * What a `tenant_promo_redemptions` row means, by status (TUL-940).
  *
  * `confirmed` is a use. `held` reserves a slot against a limit but is not yet a
- * use. `released`, `voided` and `no_show` are neither. Limits count
+ * use. `no_show` keeps its slot consumed (design L1) but is not reported as a
+ * use. `released` and `voided` are neither. Limits count
  * `LIMIT_STATUSES`; reports ("how many people used it") count `USE_STATUSES`.
  * The redeem function (`redeem_tenant_promo`) counts the same set under its lock.
  */
@@ -16,7 +17,7 @@ export const PROMO_REDEMPTION_STATUSES = [
 export type PromoRedemptionStatus = (typeof PROMO_REDEMPTION_STATUSES)[number];
 
 /** Rows that occupy a slot when a limit is checked. */
-export const LIMIT_STATUSES: readonly PromoRedemptionStatus[] = ["confirmed", "held"];
+export const LIMIT_STATUSES: readonly PromoRedemptionStatus[] = ["confirmed", "held", "no_show"];
 /** Rows that are a real use, for counts shown to people. */
 export const USE_STATUSES: readonly PromoRedemptionStatus[] = ["confirmed"];
 
