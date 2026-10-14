@@ -73,7 +73,7 @@ const KEYWORD_PRESETS: ReadonlyArray<{
   { words: ["bar", "club", "nightclub", "cantina", "pub"], presetId: "bar_club" },
   { words: ["beach", "playa", "cabana", "cabaña"], presetId: "beach_club" },
   {
-    words: ["restaurant", "restaurante", "cafe", "café", "bistro", "kitchen", "cocina", "taqueria", "taquería", "dining"],
+    words: ["restaurant", "restaurante", "cafe", "café", "cafeteria", "cafetería", "coffee shop", "panaderia", "panadería", "bakery", "bistro", "kitchen", "cocina", "taqueria", "taquería", "dining"],
     presetId: "restaurant",
   },
   // Dry cleaning BEFORE home services: it contains "cleaning" but is drop-off.

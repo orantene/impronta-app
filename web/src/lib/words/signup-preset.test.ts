@@ -83,6 +83,18 @@ test("TUL-568: home-service businesses derive home_services, not custom or a gym
   assert.equal(pickSignupPreset({ businessDescription: "Dry cleaning" }), "dropoff_service");
 });
 
+test("TUL-612: cafeteria, coffee shop and bakery signups derive restaurant", () => {
+  for (const businessDescription of [
+    "Cafetería", "Cafeteria La Esquina", "Coffee shop", "Mi coffee shop en Tulum",
+    "Panadería", "Panaderia artesanal", "Bakery", "Café",
+  ]) {
+    assert.equal(pickSignupPreset({ businessDescription }), "restaurant", businessDescription);
+  }
+  // Ordering: a bar still wins over the diner row, a barber shop is still a salon.
+  assert.equal(pickSignupPreset({ businessDescription: "Cocktail bar" }), "bar_club");
+  assert.equal(pickSignupPreset({ businessDescription: "Barber shop" }), "salon_barber");
+});
+
 test("an agency says what it is by choosing the word", () => {
   assert.equal(pickSignupPreset({ audience: "agency", businessDescription: "" }), "agency");
   assert.equal(pickSignupPreset({ audience: "agency" }), "agency");
