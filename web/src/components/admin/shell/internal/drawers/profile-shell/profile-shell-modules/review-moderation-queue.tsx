@@ -45,10 +45,7 @@
 
 import React from "react";
 import { adminHideReviewAction } from "@/lib/reviews/review-actions";
-import {
-  loadModerationIntegritySignalsAction,
-  loadReportedReviewsAction,
-} from "@/lib/reviews/review-moderation-queue-actions";
+import { loadModerationQueueAction } from "@/lib/reviews/review-moderation-queue-actions";
 import type {
   ModerationIntegritySignal,
   ReportedReview,
@@ -416,11 +413,8 @@ export function ReviewModerationQueue({ tenantId }: { tenantId: string }) {
     }
     setLoading(true);
     setLoadError(null);
-    Promise.all([
-      loadReportedReviewsAction(tenantId),
-      loadModerationIntegritySignalsAction(tenantId),
-    ])
-      .then(([rep, sig]) => {
+    loadModerationQueueAction(tenantId)
+      .then(({ reported: rep, signals: sig }) => {
         if (cancelled) return;
         setReported(rep);
         setSignals(sig);
