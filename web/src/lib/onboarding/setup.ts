@@ -38,6 +38,14 @@ export const TIMEZONE_OPTIONS: ReadonlyArray<{ id: string; label: string }> = [
   { id: "Europe/London", label: "London" },
 ];
 
+/** The short list, plus the current zone when it is not on it (the browser's zone, a saved one). */
+export function timezoneChoices(current: string | null | undefined): ReadonlyArray<{ id: string; label: string }> {
+  const id = current?.trim();
+  if (!id || TIMEZONE_OPTIONS.some((z) => z.id === id)) return TIMEZONE_OPTIONS;
+  const label = (id.split("/").pop() ?? id).replace(/_/g, " ");
+  return [{ id, label }, ...TIMEZONE_OPTIONS];
+}
+
 /** Only outside Mexico: inside, the zone comes from the country and is never asked. */
 export function needsTimezoneQuestion(country: string | null | undefined): boolean {
   return !isMexico(country);
