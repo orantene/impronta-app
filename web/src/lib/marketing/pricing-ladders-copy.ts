@@ -100,7 +100,7 @@ const en = {
         "Coordinated bookings",
         "Team seats",
       ],
-      cta: "Start on Team",
+      cta: "Start on Studio",
     },
     agency: {
       line: "For a roster and a team with no ceiling on either.",
@@ -213,7 +213,7 @@ const es: PricingLaddersCopy = {
         "Reservas coordinadas",
         "Lugares para tu equipo",
       ],
-      cta: "Empieza con Equipo",
+      cta: "Empieza con Studio",
     },
     agency: {
       line: "Para un catálogo y un equipo sin tope en ninguno de los dos.",
@@ -266,13 +266,21 @@ const ES_TIER_NAMES: Readonly<Record<string, string>> = {
   Website: "Sitio web",
   Portfolio: "Portafolio",
   Agency: "Agencia",
-  Team: "Equipo",
-  Business: "Negocio",
-  Network: "Red",
 };
 
 function isSpanishLocale(locale: string): boolean {
   return locale.toLowerCase().startsWith("es");
+}
+
+/** Customer-facing plan names by catalog slug (internal rows say Team / Business / Network). */
+const CUSTOMER_TIER_NAMES: Readonly<Record<string, string>> = {
+  studio: "Studio",
+  agency: "Agency",
+  hub: "Network",
+};
+
+export function customerTierName(key: string, dbName: string): string {
+  return CUSTOMER_TIER_NAMES[key] ?? dbName;
 }
 
 export function localizeTierName(name: string, locale: string): string {

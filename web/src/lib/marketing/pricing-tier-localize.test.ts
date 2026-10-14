@@ -4,6 +4,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import {
+  customerTierName,
   getPricingLaddersCopy,
   localizeTierCadence,
   localizeTierName,
@@ -94,8 +95,12 @@ test("the Eventbrite checked-on date is localized", async () => {
   assert.equal(formatCheckedOn("en"), "4 September 2026");
 });
 
-test("the Team plan CTA names the plan the card shows", () => {
-  assert.equal(localizeTierName("Team", "es"), "Equipo");
-  assert.equal(getPricingLaddersCopy("es").workspace.studio.cta, "Empieza con Equipo");
-  assert.equal(getPricingLaddersCopy("en").workspace.studio.cta, "Start on Team");
+test("the card name equals the plan named in the CTA for slug studio", () => {
+  for (const locale of ["en", "es"]) {
+    const name = localizeTierName(customerTierName("studio", "Team"), locale);
+    assert.equal(name, "Studio");
+    assert.match(getPricingLaddersCopy(locale).workspace.studio.cta, /Studio$/);
+  }
+  assert.equal(customerTierName("agency", "Business"), "Agency");
+  assert.equal(customerTierName("max", "Portfolio"), "Portfolio");
 });
