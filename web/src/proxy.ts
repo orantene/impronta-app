@@ -43,6 +43,7 @@ import { talentProfileCodeAliasRedirectResponse } from "@/lib/talent/profile-cod
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { talentSiteHostResponse } from "@/lib/saas/talent-site-host-response";
 import { withTalentHostClientSession } from "@/lib/client-account/talent-host-session";
+import { unsupportedLocaleRedirectTarget } from "@/lib/saas/unsupported-locale-redirect";
 import { isTenantHostContext, resolveProxyLocaleContext } from "@/lib/saas/proxy-locale-context";
 import { clientIp, stripInboundHostContextHeaders } from "@/lib/saas/proxy-inbound-sanitize";
 import {
@@ -373,14 +374,17 @@ export async function proxy(request: NextRequest) {
       );
       if (!supportsRequested) {
         const url = request.nextUrl.clone();
-        // Drop the unsupported prefix; if the tenant's default is the platform
-        // default, the `stripDefaultLocalePrefixFromPath` pass above will
-        // normalize further on the next request.
-        const remainder = parts.slice(2).join("/");
-        url.pathname =
-          tenantLocales.defaultLocale === langSettings.defaultLocale
-            ? `/${remainder}`
-            : `/${tenantLocales.defaultLocale}/${remainder}`;
+        // Drop the unsupported prefix (hub /t/<code> keeps its language as ?lang=);
+        // see unsupported-locale-redirect.ts.
+        const target = unsupportedLocaleRedirectTarget({
+          requestedLocale: firstSegment,
+          remainderSegments: parts.slice(2),
+          tenantDefaultLocale: tenantLocales.defaultLocale,
+          platformDefaultLocale: langSettings.defaultLocale,
+          search: url.searchParams,
+        });
+        url.pathname = target.pathname;
+        url.search = target.search;
         return NextResponse.redirect(url, 302);
       }
     }
