@@ -7,6 +7,7 @@ import {
   catalogSelectedDateLabel,
   catalogTimezoneLabel,
   catalogWeekdayShort,
+  catalogEmptySlotsCopy,
   formatClock,
 } from "./catalog-booking-logic";
 import type { CatalogTakenSlotNotice } from "./catalog-taken-slot";
@@ -48,6 +49,8 @@ export function CatalogLiveWhenPicker({
   es,
   locale,
   liveDays,
+  emptyReason = null,
+  loading = false,
   dayIndex,
   liveStarts,
   liveTz,
@@ -60,6 +63,9 @@ export function CatalogLiveWhenPicker({
   es: boolean;
   locale: string;
   liveDays: Array<{ key: string; date: Date; starts: string[] }>;
+  /** Why the slots API returned nothing (e.g. `no_booking_hours`). */
+  emptyReason?: string | null;
+  loading?: boolean;
   dayIndex: number;
   liveStarts: string | null;
   liveTz: string;
@@ -72,6 +78,7 @@ export function CatalogLiveWhenPicker({
 }) {
   const liveTimes = liveDays[dayIndex]?.starts ?? [];
   const stripRef = useScrollSelectedDayIntoView(dayIndex, liveDays.length);
+  const empty = catalogEmptySlotsCopy(emptyReason, es, liveDays.length > 1);
   return (
     <>
       {takenNotice && !liveStarts ? (
@@ -83,6 +90,7 @@ export function CatalogLiveWhenPicker({
           onPick={(iso, i) => onPickStart(iso, formatClock(iso, liveTz, locale), i)}
         />
       ) : null}
+      {liveDays.length > 0 ? (
       <div ref={stripRef} className="jb-days" role="group" aria-label={es ? "Elige una fecha" : "Pick a date"}>
         {liveDays.map((d, i) => (
           <button key={d.key} type="button" className="jb-day" data-on={i === dayIndex} onClick={() => onPickDay(i)}>
@@ -92,17 +100,16 @@ export function CatalogLiveWhenPicker({
           </button>
         ))}
       </div>
+      ) : null}
       <CatalogSelectedDateLine date={liveDays[dayIndex]?.date} tz={liveTz} es={es} />
       {liveTimes.length === 0 ? (
-        <div className="jb-empty">
-          <strong>{es ? "Sin horarios disponibles." : "No times available."}</strong>
-          <p>
-            {es
-              ? "No hay huecos en las próximas dos semanas. Prueba otra fecha o consulta."
-              : "Nothing is open in the next two weeks. Try another day or send a question."}
-          </p>
-          {emptyConsultButton}
-        </div>
+        loading ? null : (
+          <div className="jb-empty" data-catalog-empty-reason={emptyReason ?? "none"}>
+            <strong>{empty.title}</strong>
+            <p>{empty.body}</p>
+            {emptyConsultButton}
+          </div>
+        )
       ) : (
         <div className="jb-times" role="group" aria-label={timeGroupLabel}>
           {liveTimes.map((iso) => {
