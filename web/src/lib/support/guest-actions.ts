@@ -406,8 +406,8 @@ export async function submitMarketingContactAction(input: {
     email,
   });
   if (!abuse.ok) return { ok: false, error: abuse.error };
-  if (!input.name.trim() || !email.includes("@") || !input.message.trim()) {
-    return { ok: false, error: "Name, email, and a message are required." };
+  if (!email.includes("@") || !input.message.trim()) {
+    return { ok: false, error: "Email and a message are required." };
   }
 
   const talentSite = parseTalentSiteHelpContactInput({
@@ -450,7 +450,7 @@ export async function submitMarketingContactAction(input: {
     body: input.message.trim(),
     originSlug: talentSite ? "talent-site" : "/contact",
     contactEmail: email,
-    contactName: input.name.trim(),
+    contactName: input.name.trim() || null,
     contactPhone: input.phone?.trim() || null,
     handledBy: "human",
     messageOranDirectly: true,

@@ -9,6 +9,8 @@
 export const STATIC_PATHS = [
   "/sitemap.xml",
   "/robots.txt",
+  // llms.txt (TUL-589): the route itself 404s every host but marketing.
+  "/llms.txt",
   // Root Next.js metadata file-routes (`app/opengraph-image.tsx`,
   // `app/twitter-image.tsx`). They are host-aware (agency card vs. Tulala
   // card) and are referenced by absolute URL in every page's og:image /
