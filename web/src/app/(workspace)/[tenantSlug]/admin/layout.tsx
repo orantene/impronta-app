@@ -55,6 +55,8 @@ import { RealIdentityBanner } from "./_real-identity-banner";
 import { loadTenantIdentity, loadProfileDisplayName } from "../_layout-identity";
 import { resolveHybridSessionDisplayName } from "@/lib/saas/session-display-name";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { loadTalentEarningsByCurrency } from "@/lib/talent/earnings-by-currency";
+import { loadPlatformOperatingCurrency, applyOperatingCurrencyToEarnings } from "@/lib/platform/operating-currency";
 import { DashboardLocaleProvider } from "@/i18n/use-dashboard-locale";
 
 export const dynamic = "force-dynamic";
@@ -260,7 +262,7 @@ export default async function WorkspaceAdminLayout({
   // `await Promise.all([unread, prefs])`, which added a needless round-trip
   // to every navigation. Pure-workspace users skip these entirely.
   const isHybrid = talentSelfProfile != null;
-  const [talentInquiries, talentUnread, userPrefs, talentPageAnalytics] = isHybrid
+  const [talentInquiries, talentUnread, userPrefs, talentPageAnalytics, talentEarningsRaw, operatingCurrency] = isHybrid
     ? await Promise.all([
         loadTalentInquiries(talentSelfProfile!.id, tenantId),
         loadTalentUnreadCount(talentSelfProfile!.id, tenantId),
@@ -269,13 +271,23 @@ export default async function WorkspaceAdminLayout({
         // profile. Scoped by the SESSION user id — the profile id is a
         // cross-check only — and tier-gated inside the loader (null for Free).
         loadTalentPageAnalytics(session.user.id, talentSelfProfile!.id),
+        // Same earnings + currency collapse as the talent layout, so Admin's
+        // "Pagado este mes" matches Hoy instead of reading empty (live2b-02).
+        loadTalentEarningsByCurrency(talentSelfProfile!.id),
+        loadPlatformOperatingCurrency(),
       ])
     : [
         null as Awaited<ReturnType<typeof loadTalentInquiries>> | null,
         undefined as number | undefined,
         null as UserPrefs | null,
         null as Awaited<ReturnType<typeof loadTalentPageAnalytics>>,
+        null,
+        null,
       ];
+  const talentEarnings =
+    talentEarningsRaw && operatingCurrency
+      ? applyOperatingCurrencyToEarnings(talentEarningsRaw, operatingCurrency)
+      : null;
   perfMark("layout.render-start", t0);
 
   // ── Direct-URL clamp, layer 1 (SPA) ───────────────────────────────────────
@@ -360,6 +372,7 @@ export default async function WorkspaceAdminLayout({
           talentSelfProfile,
           talentPageAnalytics,
           talentInquiries,
+          talentEarnings,
           isHybrid,
           // Phase 5 — cross-mode unread + user prefs
           talentUnread: talentUnread ?? 0,
