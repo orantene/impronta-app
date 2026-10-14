@@ -1,8 +1,8 @@
 "use client";
 
+import { signOutEverywhere } from "@/lib/auth/sign-out-client";
 import { useEffect, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import { signOut } from "@/app/auth/actions";
 
 const START_WORKSPACE_EVENT = "tulala:open-start-workspace-dialog";
 import { DASHBOARD_LOCALES } from "../talent/pages/DashboardLanguagePanel";
@@ -711,11 +711,11 @@ function AccountMenuTrigger({
               label={signingOut ? "Signing out…" : "Sign out"}
               sub=""
               tone="coral"
-              onClick={async () => {
+              onClick={() => {
                 if (signingOut) return;
                 setOpen(false);
                 setSigningOut(true);
-                await signOut();
+                signOutEverywhere();
               }}
             />
           </div>

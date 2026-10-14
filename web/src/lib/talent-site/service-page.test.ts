@@ -117,3 +117,28 @@ test("Service JSON-LD: real data only", () => {
   }) as unknown as Ld;
   assert.equal(quote.offers?.price, undefined);
 });
+
+test("TUL-797: all-services link lands on the services section in both languages", async () => {
+  const { serviceBackHref } = await import("./service-page");
+  assert.equal(serviceBackHref("/"), "/#services");
+  assert.equal(serviceBackHref("/en"), "/en/#services");
+  assert.equal(serviceBackHref(""), "/#services");
+});
+
+test("TUL-795: related services prefer the same category, skip self and ineligible rows", async () => {
+  const { pickRelatedServices } = await import("./service-page");
+  const mk = (id: string, category: string | null, extra: object = {}) => ({
+    id, kind: "service", title: id, description: null, priceDisplay: "quote", amountCents: null, currency: "MXN",
+    durationMinutes: null, visibility: "public", category, ...extra,
+  });
+  const list = [mk("a", "hair"), mk("b", "nails"), mk("c", "hair"), mk("d", "hair", { visibility: "agency_only" }), mk("e", null, { kind: "product" })];
+  assert.deepEqual(pickRelatedServices(list, "a").map((o) => o.id), ["c", "b"]);
+  assert.deepEqual(pickRelatedServices(list, "a", 1).map((o) => o.id), ["c"]);
+});
+
+test("TUL-795: copy carries the related heading and free-cancel line in both languages", async () => {
+  const { servicePageCopy } = await import("./service-page");
+  assert.equal(servicePageCopy("es").related, "Otros servicios");
+  assert.equal(servicePageCopy("en").freeCancel(24), "Free cancellation up to 24 h before");
+  assert.match(servicePageCopy("es").freeCancel(24), /24 h/);
+});

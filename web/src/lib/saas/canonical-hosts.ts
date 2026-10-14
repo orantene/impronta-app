@@ -10,6 +10,7 @@
  * hostnames are hardcoded — an operator can rotate the app host in the DB
  * and this helper picks it up within `CACHE_TTL_MS`.
  */
+import { DEFAULT_MARKETING_ORIGIN, resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { TULALA_APEX_HOST } from "@/lib/brand/tulala";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 
@@ -123,11 +124,20 @@ export async function getCanonicalAppHostOrigin(): Promise<string | null> {
  *
  * Any other origin (a white-label app host, local dev) passes through.
  */
-export function talentCanonicalOrigin(appOrigin: string): string {
+export function talentCanonicalOrigin(
+  appOrigin: string,
+  marketingOrigin: string = resolveMarketingOrigin(),
+): string {
   try {
     const url = new URL(appOrigin);
-    if (url.hostname === `app.${TULALA_APEX_HOST}`) {
-      return `https://${TULALA_APEX_HOST}`;
+    const host = url.hostname;
+    if (host === `app.${TULALA_APEX_HOST}`) return marketingOrigin;
+    // TUL-781: a staging app host (app.<env>.tulala.digital) shares the public
+    // page on the environment's own public host, not on the app host.
+    if (host.startsWith("app.") && host.endsWith(`.${TULALA_APEX_HOST}`)) {
+      return marketingOrigin !== DEFAULT_MARKETING_ORIGIN
+        ? marketingOrigin
+        : `${url.protocol}//${host.slice(4)}${url.port ? `:${url.port}` : ""}`;
     }
     return url.origin;
   } catch {
