@@ -229,7 +229,7 @@ export function ClientAccountArea(props: Props) {
   };
   const extraLabel = { quotes: a("tabQuotes"), shortlists: a("tabShortlists"), approvals: a("tabApprovals") };
   const nav = (
-    <nav aria-label={a("title")} style={{ display: "flex", gap: 6, overflowX: "auto", margin: "20px 0", paddingBottom: 4, WebkitOverflowScrolling: "touch" }}>
+    <nav aria-label={a("title")} style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "20px 0", paddingBottom: 4 }}>
       {ACCOUNT_TABS.map((k) => (
         <Link
           key={k}
