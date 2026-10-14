@@ -2215,6 +2215,7 @@
       "past": "Past",
       "noVisits": "No visits yet.",
       "bookAgain": "Book again",
+      "browseTalent": "Find someone to book",
       "viewDetails": "Details",
       "cancellationPolicy": "Cancellation policy",
       "policyFree": "Free cancellation until {when}.",
