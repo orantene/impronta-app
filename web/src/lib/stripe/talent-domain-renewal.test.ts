@@ -42,7 +42,8 @@ function fakeDb(tables: Tables): SupabaseClient {
   return { from } as unknown as SupabaseClient;
 }
 
-const NOW = Date.parse("2026-10-09T12:00:00Z");
+// Relative to the real clock: recordPaid compares the expiry with Date.now().
+const NOW = Math.floor(Date.now() / 3_600_000) * 3_600_000;
 const inDays = (d: number) => new Date(NOW + d * 86_400_000 + 3_600_000).toISOString();
 
 function domainRow(over: Row = {}): Row {

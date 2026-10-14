@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
-const MIGRATION = "20261231359100_talent_domain_renewal.sql";
+const MIGRATION = "20261231381100_talent_domain_renewal.sql";
 
 test("the renewal migration is additive and gives D4 and D5 ONE shared expiry column", () => {
   const sql = read(`../supabase/migrations/${MIGRATION}`);
