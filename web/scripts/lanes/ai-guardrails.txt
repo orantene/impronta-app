@@ -56,3 +56,10 @@ src/lib/support/ticket-title.test.ts
 src/lib/support/desk/desk-filters.test.ts
 src/lib/support/resume-locale.test.ts
 src/components/marketing/support/support-open-without-fab.static.test.ts
+src/components/marketing/support/contact-resume-only.static.test.ts
+src/lib/support/guest-resume-claim.test.ts
+src/lib/support/guest-resume-race.test.ts
+src/lib/rate-limit-kv-guest-ai.test.ts
+src/components/support/support-composer-throw.static.test.ts
+src/components/support/guide-not-found-fallback.static.test.ts
+src/components/support/support-new-question.static.test.ts

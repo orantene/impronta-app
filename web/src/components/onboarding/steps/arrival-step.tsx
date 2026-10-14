@@ -94,6 +94,7 @@ export function ArrivalStep({ t, arrival, onRetry, busy = false }: { t: (key: st
   if (plan.kind === "inquiry_only") return <InquiryOnlyArrival t={t} arrival={arrival} plan={plan} />;
   const facts: string[] = [];
   if (arrival.fact.services > 0) facts.push(t("public.onboarding.arrival.factServices").replace("{n}", String(arrival.fact.services)));
+  if (arrival.fact.unpriced) facts.push(t("public.onboarding.arrival.factUnpriced").replace("{n}", String(arrival.fact.unpriced)));
   if (arrival.fact.city) facts.push(t("public.onboarding.arrival.factCity").replace("{city}", arrival.fact.city));
   if (arrival.fact.logo) facts.push(t("public.onboarding.arrival.factLogo"));
   if (arrival.fact.hours) facts.push(t("public.onboarding.arrival.factHours"));
