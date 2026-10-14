@@ -348,6 +348,8 @@ export function OnboardingModule({
   const [ageConfirmed, setAgeConfirmed] = useState(false);
   // Mirrors the ref for render: SaveStep reopens ticked after "change email".
   const [ageTermsGiven, setAgeTermsGiven] = useState(false);
+  // onb1-11: the email draft lives here so a SaveStep remount cannot wipe it.
+  const [saveEmailDraft, setSaveEmailDraft] = useState("");
   const sendCode = useCallback(async (email: string, resend = false, ageTerms = ageTermsRef.current) => {
     dispatch({ type: "sendStarted" });
     ageTermsRef.current = ageTerms;
@@ -593,6 +595,8 @@ export function OnboardingModule({
         busy={state.busy}
         error={state.accountMessage}
         initialAgeTerms={ageTermsGiven}
+        email={saveEmailDraft}
+        onEmailChange={setSaveEmailDraft}
         onEmail={(email, ageTerms) => void sendCode(email, false, ageTerms)}
         onGoogleSuccess={onGoogleSuccess}
       />
@@ -607,7 +611,10 @@ export function OnboardingModule({
         notice={state.accountNotice}
         onVerify={(code) => void verifyCode(code)}
         onResend={() => void sendCode(state.codeEmail!, true)}
-        onChangeEmail={() => dispatch({ type: "toStep", step: "save" })}
+        onChangeEmail={() => {
+          if (state.codeEmail) setSaveEmailDraft(state.codeEmail);
+          dispatch({ type: "toStep", step: "save" });
+        }}
       />
     );
   } else if (state.step === "building") {
