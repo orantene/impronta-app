@@ -1691,6 +1691,8 @@
       "lead": "Pick a service and a time. We will confirm shortly.",
       "bookCta": "Book",
       "chooseService": "Service",
+      "noServices": "No services are open for online booking yet. Send us a message and we will find a time with you.",
+      "contactCta": "Send a message",
       "studioFallback": "the studio"
     },
     "siteShellSurface": {
