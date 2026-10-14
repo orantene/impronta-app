@@ -2,7 +2,7 @@ import "server-only";
 
 import { formatAppointmentWhen, normalizeBookingLocale } from "@/lib/scheduling/booking-locale";
 import { logServerError } from "@/lib/server/safe-error";
-import { formatBookingPrice, pickServiceName } from "./booking-confirmed-email";
+import { bookingSellerName, formatBookingPrice, pickServiceName } from "./booking-confirmed-email";
 import { allRosterTalent, clientOrGuest, loadInquiryView, str } from "./catalog-audiences";
 import type { AudienceContext, AudienceMember, NotificationEvent } from "./types";
 
@@ -69,6 +69,54 @@ export const bookingConfirmedClient = async (
 };
 
 /**
+ * TUL-853: the talent name that signs a hub or talent-workspace confirmation.
+ * Best effort: any failed read returns null and the workspace brand stays.
+ */
+async function loadBookingSellerName(
+  tenantId: string,
+  bookingId: string,
+  ctx: AudienceContext,
+): Promise<string | null> {
+  try {
+    // supabase-read-unchecked-ok: seller label only; a failed read keeps the workspace brand.
+    const { data: ag } = await ctx.admin
+      .from("agencies")
+      .select("kind, plan_tier, workspace_type")
+      .eq("id", tenantId)
+      .maybeSingle();
+    const a = ag as { kind: string | null; plan_tier: string | null; workspace_type: string | null } | null;
+    if (!a) return null;
+    const isHub = a.kind === "hub" && a.plan_tier === "network";
+    if (!isHub && a.workspace_type !== "talent") return null;
+    // supabase-read-unchecked-ok: seller label only; a failed read keeps the workspace brand.
+    const { data: bt } = await ctx.admin
+      .from("booking_talent")
+      .select("talent_profile_id")
+      .eq("tenant_id", tenantId)
+      .eq("booking_id", bookingId);
+    const ids = ((bt ?? []) as Array<{ talent_profile_id: string | null }>)
+      .map((r) => r.talent_profile_id)
+      .filter((x): x is string => !!x);
+    if (ids.length === 0) return null;
+    // supabase-read-unchecked-ok: seller label only; a failed read keeps the workspace brand.
+    const { data: tps } = await ctx.admin.from("talent_profiles").select("display_name").in("id", ids);
+    const talentNames = ((tps ?? []) as Array<{ display_name: string | null }>)
+      .map((r) => r.display_name ?? "")
+      .filter(Boolean);
+    return bookingSellerName({
+      workspaceType: a.workspace_type,
+      kind: a.kind,
+      planTier: a.plan_tier,
+      talentNames,
+      ownerTalentName: talentNames.length === 1 ? talentNames[0] : null,
+    });
+  } catch (err) {
+    logServerError("notifications.bookingConfirmed.seller", err);
+    return null;
+  }
+}
+
+/**
  * `loadInquiryView` + the appointment as it was booked: `eventDate` becomes
  * "mié 14 oct, 13:30 - 14:30" in the talent's zone so the confirmation shows
  * the time the guest picked.
@@ -117,7 +165,8 @@ export async function loadBookingConfirmedView(
     .eq("tenant_id", event.tenantId)
     .eq("booking_id", bookingId);
   const talentCount = typeof count === "number" ? count : 0;
-  const withDetails = { ...base, serviceName, priceLabel, talentCount };
+  const sellerName = await loadBookingSellerName(event.tenantId, bookingId, ctx);
+  const withDetails = { ...base, serviceName, priceLabel, talentCount, sellerName };
   if (!row.starts_at) return withDetails;
   const when = formatAppointmentWhen({
     startsAt: row.starts_at,

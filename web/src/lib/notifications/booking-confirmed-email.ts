@@ -52,3 +52,36 @@ export function formatBookingPrice(
   if (value == null || !Number.isFinite(value) || value <= 0) return null;
   return formatDashboardMoney(value, code, locale ?? "en");
 }
+
+/**
+ * TUL-853: whose name the confirmation carries. The platform hub is only the
+ * marketplace: a hub sale is the talent's own sale, so the email is signed by
+ * the talent when exactly one is booked. A talent's own workspace is signed by
+ * the talent too. Any other workspace keeps its own brand (null = no override).
+ */
+export function bookingSellerName(input: {
+  workspaceType: string | null;
+  kind: string | null;
+  planTier: string | null;
+  /** Display names of the talent on the booking (trimmed, non-empty). */
+  talentNames: string[];
+  /** The owner talent of a talent workspace, when resolved. */
+  ownerTalentName?: string | null;
+}): string | null {
+  if (input.workspaceType === "talent") return input.ownerTalentName?.trim() || null;
+  if (input.kind === "hub" && input.planTier === "network") {
+    const names = [...new Set(input.talentNames.map((n) => n.trim()).filter(Boolean))];
+    return names.length === 1 ? names[0] : null;
+  }
+  return null;
+}
+
+/** The email brand with the seller's name in place of the workspace's. */
+export function brandForSeller<B extends { wordmark?: string; accountName?: string; logoUrl?: string | null }>(
+  brand: B,
+  sellerName: string | null | undefined,
+): B {
+  const name = sellerName?.trim();
+  if (!name || name === brand.accountName) return brand;
+  return { ...brand, wordmark: name.toUpperCase(), accountName: name, logoUrl: null };
+}

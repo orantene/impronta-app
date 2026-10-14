@@ -10,7 +10,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import ClientBookingConfirmed from "../../../emails/client/BookingConfirmed";
 import TalentBookingConfirmed from "../../../emails/talent/BookingConfirmed";
-import { bookingGreeting, formatBookingPrice, pickServiceName } from "./booking-confirmed-email";
+import { bookingGreeting, bookingSellerName, brandForSeller, formatBookingPrice, pickServiceName } from "./booking-confirmed-email";
 import { getEmailCopy } from "./email-copy";
 
 const client = (locale: string, extra: Record<string, unknown> = {}) =>
@@ -99,4 +99,38 @@ test("helpers", () => {
   assert.equal(formatBookingPrice("800.00", "mxn", "es"), "$800 MXN");
   assert.equal(formatBookingPrice(0, "MXN", "es"), null);
   assert.equal(formatBookingPrice(800, null, "es"), null);
+});
+
+// ---- TUL-853: signed by the talent, not "Impronta Hub" ----
+
+const hubBrand = { wordmark: "IMPRONTA HUB", accountName: "Impronta Hub", logoUrl: "https://x.test/hub.png", locale: "es" };
+
+test("hub booking with one talent is signed by that talent", () => {
+  const seller = bookingSellerName({ workspaceType: null, kind: "hub", planTier: "network", talentNames: ["Jorgelina Beauty"] });
+  assert.equal(seller, "Jorgelina Beauty");
+  const b = brandForSeller(hubBrand, seller);
+  assert.equal(b.accountName, "Jorgelina Beauty");
+  assert.equal(b.wordmark, "JORGELINA BEAUTY");
+  assert.equal(b.logoUrl, null);
+});
+
+test("hub booking with several or no talent keeps the workspace brand", () => {
+  assert.equal(bookingSellerName({ workspaceType: null, kind: "hub", planTier: "network", talentNames: ["A", "B"] }), null);
+  assert.equal(bookingSellerName({ workspaceType: null, kind: "hub", planTier: "network", talentNames: [] }), null);
+  assert.equal(brandForSeller(hubBrand, null), hubBrand);
+});
+
+test("a talent workspace is signed by its owner; an agency keeps its own brand", () => {
+  assert.equal(bookingSellerName({ workspaceType: "talent", kind: null, planTier: "pro", talentNames: ["Jor"], ownerTalentName: "Jor" }), "Jor");
+  assert.equal(bookingSellerName({ workspaceType: "agency", kind: "agency", planTier: "agency", talentNames: ["Jor"] }), null);
+});
+
+test("ES and EN emails render the talent brand and never 'Impronta Hub'", () => {
+  for (const locale of ["es", "en"]) {
+    const brand = brandForSeller({ ...hubBrand, locale }, "Jorgelina Beauty");
+    for (const html of [client(locale, { brand, sellerName: brand.accountName }), talent(locale, { brand })]) {
+      assert.match(html, /JORGELINA BEAUTY/);
+      assert.doesNotMatch(html, /Impronta Hub|IMPRONTA HUB/i);
+    }
+  }
 });
