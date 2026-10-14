@@ -71,7 +71,10 @@
         "signUp": "Sign up",
         "sessionExpired": "Your session expired. Please sign in again.",
         "eyebrow": "Welcome back",
-        "apple": "Continue with Apple"
+        "apple": "Continue with Apple",
+        "errorAuth": "That sign-in link has expired or was already used. Request a new code to continue.",
+        "errorOauth": "We could not finish signing you in with that provider. Please try again.",
+        "errorConfig": "Sign-in is unavailable right now. Please try again in a few minutes."
       },
       "register": {
         "title": "Create your account",

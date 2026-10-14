@@ -71,7 +71,10 @@
         "signUp": "Regístrate",
         "sessionExpired": "Tu sesión expiró. Vuelve a iniciar sesión.",
         "eyebrow": "Bienvenido de nuevo",
-        "apple": "Continuar con Apple"
+        "apple": "Continuar con Apple",
+        "errorAuth": "Ese enlace para entrar ya caducó o ya se usó. Pide un código nuevo para continuar.",
+        "errorOauth": "No pudimos terminar de iniciar tu sesión con ese proveedor. Inténtalo de nuevo.",
+        "errorConfig": "El inicio de sesión no está disponible ahora. Inténtalo de nuevo en unos minutos."
       },
       "register": {
         "title": "Crea tu cuenta",

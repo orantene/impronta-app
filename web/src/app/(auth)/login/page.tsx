@@ -25,6 +25,7 @@ import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
 import { legacySignupRedirect } from "@/lib/onboarding/legacy-signup-redirect";
 import { legacyFlowLang } from "@/lib/onboarding/legacy-signup-redirect.server";
 import { LoginForm } from "./login-form";
+import { loginErrorMessage } from "@/lib/auth/login-error-copy";
 import { isAppleAuthProviderEnabled } from "@/lib/auth/apple-provider-flag";
 import { LoginAppleButton } from "./login-apple-button";
 import { LoginGoogleButton } from "./login-google-button";
@@ -177,7 +178,7 @@ export default async function LoginPage({
 
         {error ? (
           <AuthNotice tone="error" align="center" className="mb-4">
-            {decodeURIComponent(error)}
+            {loginErrorMessage(error, t)}
           </AuthNotice>
         ) : null}
 
