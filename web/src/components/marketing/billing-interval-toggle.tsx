@@ -35,10 +35,15 @@ export function BillingIntervalToggle({
     { value: "year", label: copy.yearly },
   ];
   return (
-    <div data-interval={interval} className="group/billing">
+    <div
+      data-interval={interval}
+      data-testid="billing-interval-root"
+      className="group/billing"
+    >
       <div className="flex justify-center">
         <div
           role="radiogroup"
+          data-testid="billing-interval-toggle"
           aria-label={copy.groupLabel}
           className="inline-flex items-center gap-1 rounded-full p-1"
           style={{
@@ -53,6 +58,7 @@ export function BillingIntervalToggle({
                 key={o.value}
                 type="button"
                 role="radio"
+                data-testid={`billing-interval-${o.value}`}
                 aria-checked={active}
                 onClick={() => setBilling(o.value)}
                 className="inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-[0.9375rem] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 sm:px-5"

@@ -316,6 +316,8 @@ function TierCard({ card, ic }: { card: Card; ic: IntervalCopy }) {
   const y = card.yearly;
   return (
     <article
+      data-testid="pricing-tier-card"
+      data-tier-key={card.key}
       className="group relative flex h-full flex-col overflow-hidden rounded-[24px] p-6 sm:p-7"
       style={{
         background: featured
@@ -351,7 +353,10 @@ function TierCard({ card, ic }: { card: Card; ic: IntervalCopy }) {
       </div>
 
       {/* Monthly variant (default, and the no-JS render). */}
-      <div className={y ? "group-data-[interval=year]/billing:hidden" : undefined}>
+      <div
+        data-testid="price-monthly"
+        className={y ? "group-data-[interval=year]/billing:hidden" : undefined}
+      >
         <PriceLine
           price={card.price}
           cadence={card.cadence}
@@ -368,6 +373,7 @@ function TierCard({ card, ic }: { card: Card; ic: IntervalCopy }) {
       </div>
       {y ? (
         <div
+          data-testid="price-yearly"
           className="hidden group-data-[interval=year]/billing:block"
           data-yearly-source={y.source}
         >

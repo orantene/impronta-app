@@ -1,0 +1,66 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Billing E2E (TUL-838) — Playwright against STAGING, Stripe TEST mode only.
+# Skeleton: the pricing-toggle scenario runs; the rest are test.fixme.
+# Not a required check until repo settings say so.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Billing E2E
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "web/src/lib/stripe/**"
+      - "web/src/lib/billing/**"
+      - "web/src/lib/access/**"
+      - "web/src/components/marketing/*pricing*"
+      - "web/e2e-billing/**"
+      - "web/playwright.billing.config.ts"
+      - ".github/workflows/billing-e2e.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: billing-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  billing:
+    name: Billing E2E (staging, Stripe test mode)
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web
+    env:
+      BILLING_BASE_URL: ${{ vars.BILLING_E2E_BASE_URL || secrets.BILLING_E2E_BASE_URL || 'https://pay.staging.tulala.digital' }}
+      # Test-mode keys only. Never configure live keys for this workflow.
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+      STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_TEST_WEBHOOK_SECRET }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Refuse non-test Stripe keys
+        run: |
+          case "${STRIPE_SECRET_KEY:-}" in
+            ""|sk_test_*|rk_test_*) ;;
+            *) echo "Non-test Stripe key configured; refusing."; exit 1 ;;
+          esac
+      - name: Run billing suite
+        run: npx playwright test -c playwright.billing.config.ts
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: billing-e2e-report
+          path: web/playwright-report-billing
+          retention-days: 7
