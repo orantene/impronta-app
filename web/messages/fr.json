@@ -185,6 +185,7 @@
       "statusBooked": "Réservée",
       "statusClosed": "Fermée",
       "kindOffer": "Offre",
+      "offerSentBody": "Vous avez une nouvelle offre. Consultez-la ci-dessous.",
       "kindPaymentRequested": "Paiement demandé",
       "kindPaymentReceived": "Paiement reçu",
       "kindCoordinator": "Coordinateur",

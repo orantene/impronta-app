@@ -944,6 +944,7 @@
       "statusBooked": "Reservada",
       "statusClosed": "Cerrada",
       "kindOffer": "Oferta",
+      "offerSentBody": "Tienes una oferta nueva. Revísala abajo.",
       "kindPaymentRequested": "Pago solicitado",
       "kindPaymentReceived": "Pago recibido",
       "kindCoordinator": "Coordinador",
