@@ -21,7 +21,7 @@ export const STATEMENT_FOOTER_CSS = `
 .sb-statement-footer-rule{width:min(4.5rem,30%);height:1px;background:var(--token-color-line);border:0;margin:0}
 .sb-statement-footer-statement{margin:0;font-family:var(--token-typography-heading-font-family,var(--site-heading-font,Georgia,serif));font-size:clamp(1.35rem,3.2vw,2rem);font-weight:400;letter-spacing:-0.02em;line-height:1.25;text-wrap:balance;color:var(--token-color-ink);max-width:28ch}
 .sb-statement-footer-meta{display:flex;flex-direction:column;gap:0.3rem;max-width:36rem}
-.sb-statement-footer-credit{margin:0;font-size:0.78rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--token-color-muted)}
+.sb-statement-footer-credit{margin:0;font-size:0.78rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--token-color-muted-text,var(--token-color-muted))}
 .sb-statement-footer-contact{margin:0;font-size:0.95rem;letter-spacing:0.01em;line-height:1.45;color:var(--token-color-ink);font-family:var(--token-typography-body-font-family,var(--site-body-font,system-ui,sans-serif));opacity:0.88}
 `;
 
