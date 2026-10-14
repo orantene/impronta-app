@@ -139,6 +139,13 @@ describe("offeringPriceLabel", () => {
     assert.match(offeringPriceLabel(base, "es"), /sesión/);
     assert.doesNotMatch(offeringPriceLabel(base, "es"), /session/);
   });
+
+  it("zero amount shows Consultar / Ask, never $0 MXN (TUL-533 GRK-064)", () => {
+    const base = rowToOffering(row({ amount_cents: 0 }));
+    assert.equal(offeringPriceLabel(base, "es"), "Consultar");
+    assert.equal(offeringPriceLabel(base, "en"), "Ask");
+    assert.equal(offeringPriceLabel(base, "es-MX"), "Consultar");
+  });
 });
 
 describe("offeringToOfferLineSeed", () => {
