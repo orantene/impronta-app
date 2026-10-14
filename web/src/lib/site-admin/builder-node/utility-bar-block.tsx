@@ -26,7 +26,9 @@ export const UTILITY_BAR_CSS = `
 /* TUL-532 / GRK-073: ≥16px phone side padding so the name never sits on the edge. */
 .sb-ub{container:sbub/inline-size;position:sticky;top:0;z-index:7;display:flex;align-items:center;gap:10px;padding:10px 16px;box-sizing:border-box;width:100%;background:var(--token-color-ink);color:var(--token-color-background);border-bottom:1px solid color-mix(in srgb,var(--token-color-background) 10%,transparent)}
 .sb-ub-brand{display:flex;align-items:center;gap:10px;flex:1;min-width:0;color:inherit;text-decoration:none}
-.sb-ub-logo{flex:0 0 auto;width:36px;height:36px;border-radius:6px;background:var(--token-color-accent,var(--token-color-primary));color:var(--token-color-on-accent,var(--token-color-ink));display:grid;place-items:center;overflow:hidden;font-weight:800;font-size:15px}
+/* GRK-074: paint with accent-on (resolved token), not the missing on-accent alias
+   that fell back to ink. Karla light has accent===ink on an ink bar. */
+.sb-ub-logo{flex:0 0 auto;width:36px;height:36px;border-radius:6px;background:var(--token-color-accent,var(--token-color-primary));color:var(--token-color-accent-on,var(--token-color-primary-on,var(--token-color-background)));display:grid;place-items:center;overflow:hidden;font-weight:800;font-size:15px;border:1px solid color-mix(in srgb,var(--token-color-background) 22%,transparent)}
 .sb-ub-logo img{width:100%;height:100%;object-fit:cover;display:block}
 /* TUL-532: an owner logo keeps its proportions (a wordmark was cropped to a 36px square) and sits
    on the site background it was made for, not the accent (accent = ink on some themes). */
@@ -52,6 +54,9 @@ export const UTILITY_BAR_CSS = `
 .sb-ub-tel{flex:0 0 auto;width:44px;height:44px;border-radius:99px;border:1.5px solid color-mix(in srgb,var(--token-color-background) 28%,transparent);color:var(--token-color-background);display:grid;place-items:center;text-decoration:none;box-sizing:border-box}
 .sb-ub-tel svg{width:18px;height:18px}
 /* TUL-474/496: never hide only the pill label (left a stray status dot). Drop the whole pill. */
+/* TUL-549: on a phone bar the pill + CTA left the name ~20px ("M…"); the status drops to its own slim line.
+   A media query, not @container: the bar is its own container and cannot query itself to wrap. */
+@media (max-width:559px){.sb-ub{flex-wrap:wrap;row-gap:4px}.sb-ub-pill{order:3;flex:1 0 100%;min-height:0;padding:0 0 0 46px;background:none;font-size:11.5px}}
 @container sbub (max-width:330px){.sb-ub-pill{display:none}.sb-ub-cta{padding:0 10px;font-size:12px}}
 /* GRK-030: language switch. Wide: "ES / EN", current marked. Phone: one 44px button to the other language; the name text (already cut to 2 letters) gives way, the logo tile still links home. */
 .sb-ub-lang{flex:0 0 auto;display:inline-flex;align-items:center;font:600 12px/1 var(--site-mono-font,ui-monospace,monospace);letter-spacing:.06em}
