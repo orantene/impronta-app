@@ -3,8 +3,9 @@
 /**
  * Platform-admin server actions for "Notification email copies"
  * (public.notification_email_copies). Same guard contract as ./actions.ts:
- * every action re-checks super_admin server-side and refuses while
- * impersonating; all writes use the service-role client (the table has RLS on
+ * every action refuses while impersonating (inline
+ * assertNotImpersonating, first awaited statement) and re-checks super_admin
+ * server-side; all writes use the service-role client (the table has RLS on
  * with no policies, so only service role can touch it).
  */
 
@@ -31,8 +32,6 @@ type GuardOk = { ok: true; actorId: string };
 type GuardFail = { ok: false; error: string };
 
 async function guard(): Promise<GuardOk | GuardFail> {
-  const readOnly = await assertNotImpersonating();
-  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const session = await getCachedActorSession();
   if (!session.user) return { ok: false, error: "Please sign in again." };
   if (getPlatformRole(session.profile) !== "super_admin") {
@@ -52,6 +51,8 @@ export async function addNotificationCopy(input: {
   label?: string | null;
   kinds: string[];
 }): Promise<CopyActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const g = await guard();
   if (!g.ok) return g;
   const email = (input.email ?? "").trim().toLowerCase();
@@ -82,6 +83,8 @@ export async function updateNotificationCopy(input: {
   paused?: boolean;
   label?: string | null;
 }): Promise<CopyActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const g = await guard();
   if (!g.ok) return g;
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -102,6 +105,8 @@ export async function updateNotificationCopy(input: {
 }
 
 export async function removeNotificationCopy(id: string): Promise<CopyActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const g = await guard();
   if (!g.ok) return g;
   const admin = createServiceRoleClient();
@@ -124,6 +129,8 @@ function escapeHtml(text: string): string {
 
 /** Send a simple test email to one list address, naming the kinds it receives. */
 export async function sendNotificationCopyTest(id: string): Promise<CopyActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const g = await guard();
   if (!g.ok) return g;
   const admin = createServiceRoleClient();
