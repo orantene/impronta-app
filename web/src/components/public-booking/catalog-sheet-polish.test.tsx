@@ -20,6 +20,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { CatalogBookingSheet } from "./CatalogBookingSheet";
 import { clearCatalogDone } from "./catalog-done-snapshot";
+import { CATALOG_BOOKING_CSS } from "./catalog-booking-styles";
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 /* eslint-enable import/first */
 
@@ -84,4 +85,10 @@ test("TUL-923: the phone country defaults from this browser's language, not +1",
   m.done();
   if (before) Object.defineProperty(nav, "languages", before);
   else delete (nav as unknown as Record<string, unknown>).languages;
+});
+
+test("TUL-928: the phone row can shrink to a 390 viewport", () => {
+  assert.match(CATALOG_BOOKING_CSS, /\.jb-field,\.jb-field input,\.jb-field select\{min-width:0;max-width:100%\}/);
+  assert.match(CATALOG_BOOKING_CSS, /\.jb-phone\{display:flex;gap:8px;min-width:0\}/);
+  assert.match(CATALOG_BOOKING_CSS, /\.jb-phone input\{flex:1 1 auto;min-width:0;width:100%\}/);
 });

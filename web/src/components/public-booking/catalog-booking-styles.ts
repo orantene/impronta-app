@@ -68,9 +68,11 @@ export const CATALOG_BOOKING_CSS = `
 .jb-field input{min-height:52px;border-radius:10px;border:1px solid var(--cb-edge);background:var(--cb-surface);padding:0 14px;font-family:inherit;font-size:1rem;color:var(--cb-ink)}
 .jb-field textarea{min-height:64px;border-radius:10px;border:1px solid var(--cb-edge);background:var(--cb-surface);padding:12px 14px;font-family:inherit;font-size:1rem;color:var(--cb-ink);resize:vertical}
 .jb-field select{min-height:52px;border-radius:10px;border:1px solid var(--cb-edge);background:var(--cb-surface);padding:0 12px;font-family:inherit;font-size:1rem;color:var(--cb-ink)}
-.jb-phone{display:flex;gap:8px}
-.jb-phone select{flex:0 0 104px;width:104px;text-overflow:ellipsis}
-.jb-phone input{flex:1 1 auto}
+/* TUL-928: grid/flex children default to min-width:auto, so an input's intrinsic width pushed the row past 390. */
+.jb-field,.jb-field input,.jb-field select{min-width:0;max-width:100%}
+.jb-phone{display:flex;gap:8px;min-width:0}
+.jb-phone select{flex:0 0 104px;width:104px;min-width:0;text-overflow:ellipsis}
+.jb-phone input{flex:1 1 auto;min-width:0;width:100%}
 .jb-chips{display:flex;flex-wrap:wrap;gap:8px}
 .jb-chip{min-height:40px;padding:0 14px;border-radius:99px;border:1px solid var(--cb-edge);background:var(--cb-surface);color:var(--cb-ink);font:inherit;font-size:.875rem;cursor:pointer}
 .jb-chip[aria-pressed="true"]{border-color:var(--cb-primary);background:var(--cb-blush)}
