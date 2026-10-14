@@ -76,6 +76,7 @@ const TALENT_SITE_STATIC_PATHS = ["/sitemap.xml", "/robots.txt", "/llms.txt", "/
  * uppercase letter, or reserved characters — so `/about` matches but
  * `/about/extra`, `/api/x`, and `/foo.bar` do not.
  */
+const PROMO_LINK_SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const TALENT_PAGE_SLUG = /^[a-z0-9][a-z0-9-]*$/;
 
 /**
@@ -179,6 +180,13 @@ export function isTalentSiteHostPathAllowed(
     !RESERVED_TALENT_SITE_SLUGS.has(segments[0])
   ) {
     return { kind: "render", pageSlug: segments[0] };
+  }
+
+  // Promo share link `/p/<slug>` (promos engine PR4). Two segments, so it can
+  // never collide with a page slug (`p` is reserved above). Rewritten to the
+  // static `_talent-site/p/[slug]` route, which wins over the optional catch-all.
+  if (segments.length === 2 && segments[0] === "p" && PROMO_LINK_SLUG.test(segments[1])) {
+    return { kind: "render", pageSlug: `p/${segments[1]}` };
   }
 
   return null;

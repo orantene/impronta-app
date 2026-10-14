@@ -96,6 +96,9 @@ export const SHARED_API_PREFIXES = [
   // bearer (scripts/demo-talents/rebuild.mjs); the handler is the gate.
   "/api/platform/demos",
   "/api/analytics/events",
+  // Promos v1: visitor link-open/share beacon and share images (story/post/card).
+  // Hit from talent sites, the hub and the talent dashboard; handlers gate.
+  "/api/promos",
   "/api/stripe",
   "/api/health",
   "/api/dev/reset-guest",

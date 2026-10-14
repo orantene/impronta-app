@@ -142,3 +142,13 @@ test("Posts v1: legacy /posts/<slug> → 301 /blog/<slug>; bare /posts still 404
 test("Posts v1: /llms.txt passes through on a talent host (the route decides 200/404)", () => {
   assert.deepEqual(isTalentSiteHostPathAllowed("/llms.txt"), { kind: "passthrough" });
 });
+test("promo share link /p/<slug> renders via the static promo route; bare /p and deeper paths stay 404", () => {
+  assert.deepEqual(isTalentSiteHostPathAllowed("/p/empty-week-20"), {
+    kind: "render",
+    pageSlug: "p/empty-week-20",
+  });
+  assert.equal(talentSiteHostRewritePath("p/empty-week-20"), "/_talent-site/p/empty-week-20");
+  for (const p of ["/p", "/p/", "/p/a/b", "/p/UPPER", "/p/a.b", "/p/-x"]) {
+    assert.equal(isTalentSiteHostPathAllowed(p), null, `expected 404 for ${p}`);
+  }
+});

@@ -74,6 +74,7 @@ export type TalentPage =
   | "profile"
   | "services"      // Services storefront — what the talent sells (offerings catalog)
   | "reviews"       // Received reviews + reputation standing (first-class page)
+  | "promos"        // Promos & discounts (TUL-936); reached from the header tag icon, not the rail
   | "inbox"         // Legacy list view — kept for URL compat, not in nav
   | "calendar"
   | "calendar-availability" // Agenda V2 hours / exceptions (T5.5)

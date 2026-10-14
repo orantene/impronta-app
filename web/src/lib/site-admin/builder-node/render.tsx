@@ -164,6 +164,7 @@ import { CatalogIslandBoundary } from "@/components/public-booking/catalog-islan
 import { resolveServicesCatalogSheetAccent } from "./services-catalog-defaults";
 import { renderStatsSpecBlock } from "./stats-spec-block";
 import { ServicesCatalogFilter } from "./services-catalog-filter";
+import type { CatalogPromoPrices } from "@/lib/promos/catalog-promo-prices";
 import { SERVICES_CATALOG_ROW_CARD_CSS } from "./services-catalog-row-card-css";
 import { filterOfferingsForCatalog } from "./services-catalog-selection";
 import { ServicesCatalogLoadingSkeleton } from "./services-catalog-loading";
@@ -378,6 +379,8 @@ export interface BuilderNodeRenderDataSources {
   };
   /** Present only when at least one visible offering needs a "≈ US$" line; a failed/skipped fetch omits the field rather than guessing. */
   talentOfferingsUsdRates?: UsdRates;
+  /** Promos v1: live-promo card prices by offering id (see catalogPromoPrices). Omitted = list prices. */
+  talentOfferingsPromoPrices?: CatalogPromoPrices;
   /** Saved `category_order` from the talent profile. Missing names append after. */
   talentOfferingsCategoryOrder?: string[];
   /** Optional inclusion line per category name. Omitted when the talent has none. */
@@ -6152,6 +6155,7 @@ function renderBuilderNodeElement(
                 onlineCollectReady={options.dataSources.onlineCollectReady}
                 matrix={layout === "matrix"}
                 liveStatus={options.dataSources.liveStatus ?? null}
+                promoPrices={options.dataSources.talentOfferingsPromoPrices}
               />
             </CatalogIslandBoundary>
           )}
