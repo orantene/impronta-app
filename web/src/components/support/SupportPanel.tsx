@@ -189,9 +189,7 @@ export function SupportPanel({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ ticketId: id }),
       });
-      // TUL-656: the AI reply is written server-side and normally arrives over
-      // realtime, but a socket that subscribed late or lagged left it hidden
-      // until the panel was reopened. Pull the thread once the turn is done.
+      // TUL-656: the AI reply is written server-side and normally arrives over realtime, but a socket that subscribed late or lagged left it hidden until the panel was reopened. Pull the thread once the turn is done.
       const supabase = createClient();
       if (supabase) {
         const { data: msgs, error } = await supportFrom(supabase, "support_messages")
@@ -223,8 +221,7 @@ export function SupportPanel({
       setTickets((prev) =>
         applyIncomingMessage(prev, row, { userId: contract.userId, viewingTicketId: viewingRef.current }),
       );
-      // A reply that lands while the user is reading it is read: record that,
-      // or the next page load shows the ticket unread again and the badge jumps.
+      // A reply that lands while the user is reading it is read: record that, or the next page load shows the ticket unread again and the badge jumps.
       if (viewingRef.current === row.ticketId && row.authorUserId !== contract.userId && row.messageKind !== "note") {
         void contract.markRead({ ticketId: row.ticketId });
       }
@@ -251,8 +248,7 @@ export function SupportPanel({
   );
   useSupportInboxRealtime({ enabled: tickets.length > 0, onMessage: onInboxMessage });
 
-  // Gate on `open` too: the panel stays mounted while closed, and tracking
-  // presence then shows HQ a false "viewing now".
+  // Gate on `open` too: the panel stays mounted while closed, and tracking presence then shows HQ a false "viewing now".
   const { typingUsers, peers } = useThreadPresence({
     channelKey: open && view === "thread" && ticketId ? `support.${ticketId}` : null,
     userId: contract.userId,
@@ -266,8 +262,7 @@ export function SupportPanel({
     if (!open || !ticketId) return;
     const supabase = createClient();
     if (!supabase) return;
-    // A fast switch between threads must not let the slower fetch land on the
-    // thread now on screen.
+    // A fast switch between threads must not let the slower fetch land on the thread now on screen.
     let cancelled = false;
     void (async () => {
       const { data: tRow, error: tErr } = await supportFrom(supabase, "support_tickets")
@@ -299,8 +294,7 @@ export function SupportPanel({
     };
   }, [open, ticketId, contract, patchSummary]);
 
-  // Bottom-anchor the thread: without this a long thread opens scrolled to
-  // the top and incoming replies append off-screen.
+  // Bottom-anchor the thread: without this a long thread opens scrolled to the top and incoming replies append off-screen.
   useEffect(() => {
     if (view !== "thread") return;
     const el = scrollRef.current;
@@ -321,8 +315,7 @@ export function SupportPanel({
     if (!body || sending) return;
     setSending(true);
     setAskError(null);
-    // Clear at once: the box kept the sent text for the whole round trip.
-    // A failure puts it back below.
+    // Clear at once: the box kept the sent text for the whole round trip. A failure puts it back below.
     setAsk("");
     const r = await contract.createTicket({
       tenantSlug: contract.tenantSlug,
@@ -333,8 +326,7 @@ export function SupportPanel({
     });
     setSending(false);
     if (r.ok) {
-      // In-app support emitted no product events at all — only the marketing
-      // surface did — so there was no support funnel to measure.
+      // In-app support emitted no product events at all — only the marketing surface did — so there was no support funnel to measure.
       trackProductEvent(PRODUCT_ANALYTICS_EVENTS.support_ticket_created, {
         surface: contract.surface,
         origin_slug: contract.originSlug ?? null,
@@ -636,8 +628,7 @@ export function SupportPanel({
             if (!ticketId) return false;
             const r = await contract.sendMessage({ ticketId, body });
             if (r.ok) {
-              // Optimistic append (deduped against the realtime INSERT by id)
-              // so the message shows even when realtime lags or is down.
+              // Optimistic append (deduped against the realtime INSERT by id) so the message shows even when realtime lags or is down.
               if (r.messageId) {
                 onMessage({
                   id: r.messageId,

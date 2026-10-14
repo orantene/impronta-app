@@ -158,7 +158,11 @@ const SUCCESS_KINDS: ReadonlySet<UserNotification["kind"]> = new Set(["booking",
 /** Theme-update bells written before they carried a target still deep-link. */
 export function targetOf(n: UserNotification): string | null {
   if (n.targetDrawer) return n.targetDrawer;
-  return n.targetPayload?.kind === "theme_update" ? "theme-update" : null;
+  if (n.targetPayload?.kind === "theme_update") return "theme-update";
+  // TUL-391 r2: offer bells written before the catalog carried a target. The
+  // inquiry is the only sensible door, so deep-link it; no inquiry stays inert.
+  if (n.kind === "offer" && n.originInquiryId) return "talent-inquiry";
+  return null;
 }
 
 /**
