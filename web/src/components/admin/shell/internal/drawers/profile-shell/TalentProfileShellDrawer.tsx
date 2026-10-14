@@ -1,4 +1,5 @@
 "use client";
+import { visibleRailGroups, shouldShowOnboardingHero } from "./profile-shell-rail-policy";
 import { invalidateWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
@@ -1725,7 +1726,7 @@ export function TalentProfileShellDrawer() {
   // break typing or rendering.
   const railGroups = useMemo<{ label: string; labelEs: string | null; ids: ProfileSectionId[] }[]>(
     () =>
-      profileEditorLayout.groups.map((g) => {
+      visibleRailGroups(profileEditorLayout.groups, isSelf).map((g) => {
         const useAlt = isServicesPrimary && g.labelEnAlt;
         return {
           label: useAlt ? g.labelEnAlt! : g.labelEn,
@@ -1735,7 +1736,7 @@ export function TalentProfileShellDrawer() {
             .filter((slug) => (PROFILE_SECTIONS as readonly string[]).includes(slug)) as ProfileSectionId[],
         };
       }),
-    [profileEditorLayout, isServicesPrimary],
+    [profileEditorLayout, isServicesPrimary, isSelf],
   );
 
   // Mobile-pill order: DB order first, then any static section not present in
@@ -3009,9 +3010,7 @@ export function TalentProfileShellDrawer() {
             // for non-admins, details with no fields) are filtered out and
             // empty groups collapse so the rail stays tight.
             // Rail groups now come from the DB-driven layout (`railGroups`,
-            // derived above from `profileEditorLayout`). The old inline
-            // RAIL_GROUPS literal + `mediaGroupLabel` flip are superseded by the
-            // layout's group order + labelEnAlt handling.
+            // derived above from `profileEditorLayout`).
             const RAIL_GROUPS = railGroups;
             // One source of truth: when the NEW DB-driven engine is
             // mounted (real talent + tenant), it supersedes the legacy
@@ -3318,7 +3317,7 @@ export function TalentProfileShellDrawer() {
             <div data-pshell-form-banners>
               <ProfileShellUnsavedBanner visible={dirty} />
             </div>
-            {completeness < 35 && !localStorage.getItem("tulala.welcome.dismissed." + (payload.talentId ?? "")) && (
+            {shouldShowOnboardingHero({ completeness, profileStatus: state.profileStatus, dismissed: !!localStorage.getItem("tulala.welcome.dismissed." + (payload.talentId ?? "")) }) && (
               <div data-pshell-form-banners>
                 <FirstTimeHero
                   completeness={completeness}

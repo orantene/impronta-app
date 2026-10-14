@@ -25,6 +25,7 @@ import {
   claimStripeEvent,
   releaseStripeEventClaim,
 } from "@/lib/stripe/event-idempotency";
+import { stripeEnv } from "@/lib/stripe/env-keys";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,7 +35,7 @@ export async function POST(req: Request): Promise<Response> {
     return NextResponse.json({ error: "Stripe not configured." }, { status: 503 });
   }
   const webhookSecret =
-    process.env.STRIPE_CLIENT_SUBSCRIPTION_WEBHOOK_SECRET ?? process.env.STRIPE_WEBHOOK_SECRET;
+    stripeEnv("STRIPE_CLIENT_SUBSCRIPTION_WEBHOOK_SECRET") ?? stripeEnv("STRIPE_WEBHOOK_SECRET");
   if (!webhookSecret) {
     logServerError("client-subscription-webhook", "no webhook signing secret set");
     return NextResponse.json({ error: "Webhook secret not configured." }, { status: 503 });

@@ -3,6 +3,8 @@
  * browser session. Keyed by talent site (host) so two sites never share a draft.
  * Cleared only after a successful booking or an explicit "Start over".
  * The captcha token is never stored.
+ * TUL-705: name/email/phone are NEVER stored (shared devices: the next guest must
+ * see an empty form). Only the service/day/time picks survive.
  */
 
 export type BookingDraft = {
@@ -36,7 +38,7 @@ export function bookingDraftKey(siteKey: string | null | undefined): string {
 
 export function saveBookingDraft(key: string, draft: BookingDraft): void {
   try {
-    storage()?.setItem(key, JSON.stringify(draft));
+    storage()?.setItem(key, JSON.stringify({ ...draft, name: "", email: "", phone: "" }));
   } catch {
     /* storage full or blocked: the draft is a convenience */
   }
@@ -53,9 +55,10 @@ export function loadBookingDraft(key: string, offeringId: string): BookingDraft 
     return {
       ...d,
       addOnIds: Array.isArray(d.addOnIds) ? d.addOnIds : [],
-      name: d.name ?? "",
-      email: d.email ?? "",
-      phone: d.phone ?? "",
+      // TUL-705: ignore contact fields in drafts stored by older builds.
+      name: "",
+      email: "",
+      phone: "",
     };
   } catch {
     return null;

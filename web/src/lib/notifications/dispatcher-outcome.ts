@@ -55,3 +55,15 @@ export function dispatchLogPatchFromThrown(err: unknown): {
     error_message: (err instanceof Error ? err.message : String(err)).slice(0, 1000),
   };
 }
+
+/**
+ * TUL-653: the locale written to the dispatch log. A recipient whose locale
+ * was never supplied is hydrated with an "en" placeholder; logging that as
+ * "en" misleads on Spanish sites, so only an explicit locale is recorded.
+ */
+export function dispatchLogLocale(recipient: {
+  locale: string;
+  localeIsExplicit?: boolean;
+}): string | null {
+  return recipient.localeIsExplicit ? recipient.locale : null;
+}
