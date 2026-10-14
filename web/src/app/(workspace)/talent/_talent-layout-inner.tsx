@@ -38,6 +38,8 @@ import {
 } from "@/lib/shell/shell-counts";
 import { countTalentAwaitingInquiries } from "@/components/admin/shell/internal/shell-count-bubbles-logic";
 import { loadTalentAttentionSignals } from "@/lib/talent-site/attention-signals.server";
+import { ensureSiteThemeUpdates } from "@/lib/talent-site/theme-releases/lazy-fan-out.server";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadUserPrefs, type UserPrefs } from "@/lib/server-actions/user-prefs";
 import { TalentShellClient } from "@/components/admin/shell/admin-shell-client";
 import { SupportLauncherShellMount } from "@/components/support/SupportLauncherShellMount";
@@ -95,6 +97,16 @@ const TALENT_SEGMENT_MAP: Record<string, TalentPage> = {
 };
 
 /** Snapshot the agenda window outside the layout body so purity lint stays quiet. */
+async function ensureThemeBellThenLoad(talentProfileId: string, readCtx: Parameters<typeof loadTalentSurfaceNotifications>[0]) {
+  try {
+    const admin = createServiceRoleClient();
+    if (admin) await ensureSiteThemeUpdates(admin, talentProfileId);
+  } catch {
+    // best-effort: the bell still loads what exists
+  }
+  return loadTalentSurfaceNotifications(readCtx);
+}
+
 async function loadTalentAgendaForLayout(talentProfileId: string) {
   const nowMs = Date.now();
   try {
@@ -322,7 +334,9 @@ export async function TalentLayoutInner({
     // shell's `bridgeUserNotifications` stayed null on the whole talent
     // surface and the notifications drawer had nothing but mock rows to
     // render. Returns [] on any failure, so it never breaks the layout.
-    loadTalentSurfaceNotifications(readCtx),
+    // TUL-675: the theme-update bell is created lazily; make sure it exists BEFORE the bell loads
+    // (idempotent, best-effort, never throws), so it shows without opening Mi sitio first.
+    ensureThemeBellThenLoad(talentSelfProfile.id, readCtx),
     // Pro/Portfolio page analytics — profile views + inquiry conversion for the
     // signed-in talent's OWN profile. Scoped by the SESSION user id (the
     // profile id is only a cross-check, never the scope), tier-gated inside the
