@@ -9,6 +9,7 @@
 
 import { useState } from "react";
 
+import { localizeServicesDisplay } from "@/lib/onboarding/service-display";
 import type { MachineErrorCode } from "@/lib/onboarding/machine";
 import type { OnboardingPath } from "@/lib/onboarding/module-state";
 import type { UnderstoodLine, Understanding } from "@/lib/onboarding/understanding";
@@ -33,6 +34,7 @@ function StatusChip({ t, status }: { t: (k: string) => string; status: Understoo
 export function UnderstoodStep({
   t,
   understanding,
+  locale = "en",
   fromLink,
   busy,
   error,
@@ -43,6 +45,7 @@ export function UnderstoodStep({
 }: {
   t: (key: string) => string;
   understanding: Understanding;
+  locale?: "en" | "es";
   fromLink: boolean;
   busy: boolean;
   error: MachineErrorCode | null;
@@ -113,7 +116,7 @@ export function UnderstoodStep({
                 <span className="min-w-0 flex-1">
                   <span className="block text-[0.6875rem] font-semibold uppercase tracking-[0.06em]" style={{ color: "var(--tl-muted)" }}>{t(line.labelKey)}</span>
                   <span className="block truncate text-[0.9375rem]" style={{ color: line.value ? "var(--tl-ink)" : "var(--tl-muted-soft)" }}>
-                    {line.value ?? (line.status === "later" ? t("public.onboarding.understood.laterValue") : t("public.onboarding.understood.missingValue"))}
+                    {line.value ? (line.factKey === "work.services" ? localizeServicesDisplay(line.value, locale) : line.value) : (line.status === "later" ? t("public.onboarding.understood.laterValue") : t("public.onboarding.understood.missingValue"))}
                   </span>
                 </span>
                 {line.status === "known" ? (
