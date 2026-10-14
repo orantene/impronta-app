@@ -13,6 +13,8 @@
 // Extracted from primitives.tsx — Phase 1f decomposition. Preserves the
 // byte-stable public surface via the primitives.tsx barrel re-exports.
 
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { DateFormatHint } from "./DateFormatHint";
 import { Children, useState, type CSSProperties, type ReactNode } from "react";
 import {
   COLORS,
@@ -31,6 +33,7 @@ import {
 import { Icon } from "./icons";
 import { Affordance, IconChip } from "./chips";
 import { Caption } from "./typography";
+import { useDashboardText } from "../dashboard-i18n";
 import { PrimaryButton, SecondaryButton } from "./buttons";
 
 // ─── Card primitives ─────────────────────────────────────────────────
@@ -830,18 +833,19 @@ function PhotoBadgeIcon({
  *  visible. Numeric 0-100 score from getRiskScore, color-coded.
  *  Higher = more trustworthy. */
 export function RiskScorePill({ score, label = "Trust health" }: { score: number; label?: string }) {
+  const copy = useDashboardText();
   const tone =
-    score >= 70 ? { bg: "rgba(15,79,62,0.10)", fg: "#0F4F3E", word: "healthy" }
-    : score >= 40 ? { bg: "rgba(176,135,49,0.14)", fg: "#7A5A1F", word: "watchful" }
-    : { bg: "rgba(176,48,58,0.10)", fg: "#7A1F26", word: "review" };
+    score >= 70 ? { bg: "rgba(15,79,62,0.10)", fg: "#0F4F3E", word: copy.isSpanish ? "en orden" : "healthy" }
+    : score >= 40 ? { bg: "rgba(176,135,49,0.14)", fg: "#7A5A1F", word: copy.isSpanish ? "a vigilar" : "watchful" }
+    : { bg: "rgba(176,48,58,0.10)", fg: "#7A1F26", word: copy.isSpanish ? "a revisar" : "review" };
   return (
-    <div title={`Internal heuristic — verifications, claim status, account age, recent rejections.`} style={{
+    <div title={copy.t("Internal heuristic: verifications, claim status, account age, recent rejections.")} style={{
       display: "inline-flex", alignItems: "center", gap: 8,
       padding: "5px 11px", borderRadius: 999,
       background: tone.bg, color: tone.fg,
       fontFamily: "inherit", fontSize: 11.5, fontWeight: 600,
     }}>
-      <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }}>{label}</span>
+      <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }}>{copy.t(label)}</span>
       <span className="text-admin-13 font-bold">{score}</span>
       <span style={{ fontSize: 10.5, opacity: 0.8 }}>· {tone.word}</span>
     </div>
@@ -1707,7 +1711,9 @@ export function DatePicker({
   min?: string;
   max?: string;
 }) {
+  const dashLocale = useDashboardLocale();
   return (
+    <>
     <div
       style={{
         position: "relative",
@@ -1759,6 +1765,8 @@ export function DatePicker({
         </span>
       )}
     </div>
+    <DateFormatHint locale={dashLocale} />
+    </>
   );
 }
 
@@ -1838,6 +1846,7 @@ export function MoreWithSection({
   // Count the children for the pill caption.
   const items = Children.toArray(children);
   const proto = useAdminShell();
+  const copy = useDashboardText();
   const count = items.length;
   if (count === 0) return null;
   const planLabel = PLAN_META[plan].label;
@@ -1872,7 +1881,7 @@ export function MoreWithSection({
         }}
       >
         <span aria-hidden className="text-admin-10">🔒</span>
-        {title ?? `${count} more with ${planLabel}`}
+        {title ?? (copy.isSpanish ? `${count} más con ${copy.t(planLabel)}` : `${count} more with ${planLabel}`)}
         <span aria-hidden style={{ marginLeft: 2, fontSize: 11 }}>→</span>
       </button>
     </div>

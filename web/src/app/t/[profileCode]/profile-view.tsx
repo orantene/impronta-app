@@ -1,6 +1,7 @@
 import { improntaLog } from "@/lib/server/structured-log";
 import { loadProfileStorefrontPayload } from "./profile-storefront-payload";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { SOLO_PROFILE_BRAND, profilePriceCurrency, withSoloProfileCopy } from "./solo-profile-copy";
 import { pickByChain } from "@/lib/talent-site/talent-profile-locale";
 import {
   resolveTalentProfileLocale,
@@ -15,6 +16,7 @@ import { SkipToContent } from "@/components/accessibility/skip-to-content";
 
 import { resolveProfileTemplate } from "./_shared/profile-template-dispatch";
 import { ProfileShareRow } from "./_light/ProfileShareRow";
+import { buildShareLabels } from "./_light/share-labels";
 import { ProfileHubsIndicator } from "./_light/ProfileHubsIndicator";
 import type { ResolvedSkill } from "@/lib/server-actions/admin-talent-skills.types";
 
@@ -33,6 +35,7 @@ import { resolveTalentBooking } from "@/lib/scheduling/booking-surface";
 import { resolveProfileCtasFromOfferings } from "@/lib/scheduling/profile-cta-precedence";
 import { PublicHeader } from "@/components/public-header";
 import { MarketingHeader } from "@/components/marketing/header";
+import { buildHubClientEntry } from "@/lib/marketing/hub-client-entry";
 import { MarketingFooter } from "@/components/marketing/footer";
 import type { MarketingAccount } from "@/components/marketing/marketing-account-menu";
 import { resolveAccountHref, getAppUrl } from "@/lib/auth-flow";
@@ -1627,7 +1630,8 @@ export async function TalentProfileView({
   const chain = profileLocale.chain;
   locale = profileLocale.locale as typeof locale;
   t = createTranslator(locale);
-  ui = buildDirectoryUiCopy(t, tenantBrand);
+  if (surface === "freelancer") t = withSoloProfileCopy(t, locale); // TUL-707: no agency wording
+  ui = buildDirectoryUiCopy(t, surface === "freelancer" ? SOLO_PROFILE_BRAND : tenantBrand);
 
   // Phase 5/6 M2 — explicit surface-aware visibility. On non-preview flows,
   // the freelancer/app surface requires is_publicly_hidden = false AND
@@ -2178,12 +2182,7 @@ export async function TalentProfileView({
   const canonicalShareUrl =
     (await canonicalTalentUrl(profile.profile_code)) ??
     `${siteBase}/t/${encodeURIComponent(profile.profile_code)}`;
-  const shareLabels = {
-    heading: t("public.profile.share.heading"),
-    copyLink: t("public.profile.share.copyLink"),
-    copyLinkDone: t("public.profile.share.copyLinkDone"),
-    whatsappTemplate: t("public.profile.share.whatsappTemplate"),
-  };
+  const shareLabels = buildShareLabels(t);
 
   const detailsLabels = {
     measurements: pickLocale(locale, { en: "Basic info", es: "Información básica" }),
@@ -2207,9 +2206,7 @@ export async function TalentProfileView({
   const firstName = name.split(" ")[0] ?? name;
 
   // ── Platform-host marketing chrome props ──────────────────────────────
-  // On the platform host (app / marketing) the profile is wrapped in the real
-  // tulala.digital chrome (MarketingHeader + MarketingFooter). Agency hosts
-  // keep their own white-label chrome (no chrome forced here).
+  // Platform hosts get the tulala.digital chrome; agency hosts keep their own.
   const platformChrome = isTalentProfilePlatformHost(hostCtx.kind);
   let marketingAccount: MarketingAccount | undefined;
   let marketingPathnameWithoutLocale = "/";
@@ -2646,12 +2643,13 @@ export async function TalentProfileView({
                 pathnameWithoutLocale={marketingPathnameWithoutLocale}
                 account={marketingAccount}
                 signOutAction={signOut}
+                clientEntry={platformChrome ? buildHubClientEntry(getAppUrl(), canonicalShareUrl) : undefined}
               />
               {/* id="main-content" lives inside LightProfileLayout (<main>) */}
               <div className="flex-1 pt-[var(--plt-header-h,84px)] sm:pt-[72px]">
                 {profileBody}
               </div>
-              <MarketingFooter />
+              <MarketingFooter priceCurrency={profilePriceCurrency(storefrontOfferings)} />
             </div>
           ) : (
             // AGENCY HOST — keep the white-label agency chrome: the platform

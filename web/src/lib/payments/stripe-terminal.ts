@@ -71,7 +71,7 @@ export async function createStripeTerminalPaymentRequest(
     const check = await guardFn(createServiceRoleClient(), {
       transactionId: input.transactionId,
       currency: input.currency,
-    });
+    }, { talentMxLane: false }); // Terminal uses the US key only (TUL-703)
     if (!check.ok) return { ok: false, reason: "engine_error", error: check.message };
   }
   const res = await fetchImpl("https://api.stripe.com/v1/payment_intents", {

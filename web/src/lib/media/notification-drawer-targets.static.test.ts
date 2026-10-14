@@ -352,3 +352,10 @@ test("no targetDrawer emission is left unresolved by an allow-list", () => {
     assert.equal(resolveNotificationDrawerTarget(id)?.kind, "page", `"${id}" no longer resolves`);
   }
 });
+
+test("client-inquiry bell with a real inquiry id lands on the client inquiry page", () => {
+  const f = notificationDrawerFields("client-inquiry", "inq-7", "/impronta/admin");
+  assert.equal(f.targetHref, "/client/inquiries/inq-7");
+  const t = notificationDrawerFields("talent-inquiry", "inq-7", "/impronta/admin");
+  assert.equal(t.targetHref, "/talent/inbox/inq-7");
+});

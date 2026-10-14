@@ -6,6 +6,7 @@
 import type { CSSProperties } from "react";
 import Link from "next/link";
 
+import { SaveBookingsBlock } from "@/components/client-account/SaveBookingsBlock";
 import { ReceiptCopyLink } from "./receipt-copy-link";
 
 export type ReceiptLocale = "en" | "es";
@@ -98,6 +99,8 @@ export type ReceiptPageModel = {
   discountLabel: string | null;
   lines: ReceiptLineView[];
   admissions: ReceiptAdmissionView[];
+  /** TUL-G4: false shows "Save your bookings"; null/true/absent hides it. */
+  signedIn?: boolean | null;
 };
 
 const card: CSSProperties = {
@@ -174,6 +177,8 @@ export function ReceiptPageView(m: ReceiptPageModel) {
           </div>
         </section>
       ) : null}
+
+      <SaveBookingsBlock locale={m.locale} signedIn={m.signedIn} className="mt-6" />
 
       <section className="mt-6 overflow-hidden" style={card}>
         <div className="px-5 pt-5 sm:px-6 sm:pt-6">

@@ -653,6 +653,7 @@ export function LumenProfileLayout(props: LightProfileLayoutProps) {
                 availableDaysInNext30={availableDaysInNext30}
                 availabilityDots14d={availabilityDots14d}
                 nextAvailableDate={nextAvailableDate}
+                locale={locale}
               />
             </div>
           ) : null}

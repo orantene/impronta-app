@@ -28,6 +28,17 @@ export async function activateGuestBookerIfEligible(
   const hasBooking = await hasClientHistory(admin, input.userId);
   if (hasBooking === null) return false;
   if (!shouldActivateGuestBooker({ emailProven: true, appRole: profile.app_role, accountStatus: profile.account_status, hasBooking })) return false;
+  // TUL-669: ensure_profile_for_current_user recomputes account_status on
+  // every request and keeps a client 'active' only while a client_profiles row
+  // exists. Create it first, or the next page load puts them back to
+  // 'onboarding'. ignoreDuplicates keeps any settings the client already saved.
+  const { error: cpErr } = await admin
+    .from("client_profiles")
+    .upsert({ user_id: input.userId }, { onConflict: "user_id", ignoreDuplicates: true });
+  if (cpErr) {
+    logServerError("clientAccount/guestActivate/clientProfile", cpErr);
+    return false;
+  }
   const now = new Date().toISOString();
   const { error: updErr } = await admin
     .from("profiles")

@@ -13,6 +13,7 @@ import {
   tradesFromTypeLabels,
 } from "./app-placement";
 import { sameStable } from "./stable";
+import { readOrigin, stampDesignOrigin } from "@/lib/talent-site/theme-releases/origin";
 
 const node = (id: string, layerLabel: string) => ({ id, kind: "container", props: { layerLabel }, children: [] }) as unknown as BuilderNode;
 const home = () => ["Hero", "Work", "Menu", "Reviews", "About"].map((l) => node(l.toLowerCase(), l));
@@ -106,4 +107,20 @@ test("placeMaisonTradeApps: real nail talents get the band; lashes-only do not",
 
 test("tradesFromTypeLabels maps secondary Nail Artist (Jor) to nails", () => {
   assert.ok(tradesFromTypeLabels(["Lash Artist", "Nail Artist", "Brow Artist"]).includes("nails"));
+});
+
+test("TUL-644: the placed nail band carries the design stamp of its neighbours", () => {
+  const stamped = stampDesignOrigin(home(), { design: "maison-v2", version: 7 });
+  const r = placeMaisonTradeApps(stamped, ["nails"], { designSlug: "maison-v2" });
+  assert.equal(r.placed, true);
+  const band = r.tree.find((n) => n.id === NAIL_BAND_ID)!;
+  const o = readOrigin(band);
+  assert.equal(o?.design, "maison-v2");
+  assert.equal(o?.version, 7);
+  assert.equal(o?.key, "nail-designer");
+  const kids = (band as { children: BuilderNode[] }).children;
+  assert.ok(kids.every((k) => readOrigin(k)?.design === "maison-v2"));
+  assert.equal(JSON.stringify(band).includes("designKey"), false);
+  // Re-run is stable.
+  assert.deepEqual(placeMaisonTradeApps(r.tree, ["nails"], { designSlug: "maison-v2" }).tree, r.tree);
 });
