@@ -82,8 +82,39 @@ async function assertSignedOutEverywhere(page: Page, context: BrowserContext) {
     );
     if (origin === HOSTS[0]) expect(stored, "browser Supabase session cleared").toEqual([]);
     // /account must not render a signed-in page after sign-out.
-    await page.goto(`${origin}/account`, { waitUntil: "domcontentloaded" });
+    await gotoSettled(page, `${origin}/account`);
     await expect(page.getByText(new RegExp(FX.email, "i"))).toHaveCount(0);
+  }
+}
+
+/**
+ * Navigate and wait for the page to settle. Signed-in pages such as `/`,
+ * `/talent` and `/account` render a loading shell and then redirect on the
+ * client, so a plain `page.goto` reports net::ERR_ABORTED (the RSC stream is
+ * cancelled; the `transformAlgorithm` TypeError in the server log is that
+ * cancellation). Commit the navigation, tolerate the abort, then wait until
+ * the URL stops changing so no pending client redirect can cancel the next
+ * step (that race swallowed the sign-out form POST).
+ */
+async function gotoSettled(page: Page, url: string) {
+  try {
+    await page.goto(url, { waitUntil: "commit" });
+  } catch (err) {
+    if (!/ERR_ABORTED|interrupted by another navigation/i.test(String(err))) throw err;
+  }
+  let last = "";
+  let stableSince = Date.now();
+  const deadline = Date.now() + 45_000;
+  while (Date.now() < deadline) {
+    await page.waitForLoadState("domcontentloaded").catch(() => {});
+    const now = page.url();
+    if (now !== last) {
+      last = now;
+      stableSince = Date.now();
+    } else if (Date.now() - stableSince >= 1500) {
+      return;
+    }
+    await page.waitForTimeout(250);
   }
 }
 
@@ -119,12 +150,13 @@ const ENTRY_POINTS: { name: string; run: (page: Page) => Promise<void> }[] = [
     // Whatever visible Log out control the page renders (first click only).
     name: "visible Log out control, first click",
     run: async (page) => {
-      await page.goto(`${HOSTS[0]}/account`, { waitUntil: "domcontentloaded" });
+      await gotoSettled(page, `${HOSTS[0]}/account`);
       const control = page
         .getByRole("button", { name: /^(log out|sign out|cerrar sesi[oó]n)$/i })
         .first();
+      await control.waitFor({ state: "attached", timeout: 10_000 }).catch(() => {});
       if ((await control.count()) === 0) {
-        await page.goto(`${HOSTS[0]}/`, { waitUntil: "domcontentloaded" });
+        await gotoSettled(page, `${HOSTS[0]}/`);
         const menu = page.getByRole("button", { name: /account|cuenta/i }).first();
         if (await menu.count()) await menu.click();
       }
@@ -140,14 +172,21 @@ test.describe("S1 sign-out ends the session on every subdomain", () => {
 
   for (const entry of ENTRY_POINTS) {
     test(`${entry.name}`, async ({ page, context }) => {
+      // Cold dev-server compiles of /auth/sign-out and the talent shell alone
+      // took ~25s in CI; the default 30s budget timed out before any assert.
+      test.setTimeout(150_000);
       await signIn(page, HOSTS[0]);
       await signIn(page, HOSTS[1]);
       await spreadSessionAcrossScopes(context);
-      await page.goto(`${HOSTS[0]}/`, { waitUntil: "domcontentloaded" });
+      // Settle on the signed-in landing page first: `/` redirects to /talent and
+      // then client-side to /talent/today, and a late client redirect cancelled
+      // the sign-out form navigation (POST never surfaced as a response).
+      await gotoSettled(page, `${HOSTS[0]}/`);
       await plantBrowserSession(page);
 
       const signOut = page.waitForResponse(
         (r) => /\/auth\/(client-)?sign-out$/.test(new URL(r.url()).pathname) && r.request().method() === "POST",
+        { timeout: 60_000 },
       );
       await entry.run(page);
       const res = await signOut;
