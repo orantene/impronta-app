@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
+import { cancelUnpaidBookings } from "@/lib/orders/cancel-unpaid-booking";
 import { releaseCapacity } from "@/lib/capacity";
 import { releaseReservationHold } from "@/lib/scheduling/reservation-hold";
 
@@ -67,27 +68,10 @@ export async function unwindFailedCheckout(
     }
   }
   if (input.bookingId) {
-    // TUL-714: the booking was confirmed at purchase; with no way to pay it
-    // must not stay Confirmado. Guarded on unpaid so a racing settle wins.
-    const { error: agencyErr } = await admin
-      .from("agency_bookings")
-      .update({ status: "cancelled" })
-      .eq("id", input.bookingId)
-      .eq("payment_status", "unpaid")
-      .in("status", ["confirmed"]);
-    if (agencyErr) {
-      ok = false;
-      logServerError("orders.unwindFailedCheckout/agencyBooking", agencyErr);
-    }
-    const { error: talentErr } = await admin
-      .from("talent_bookings")
-      .update({ status: "cancelled" })
-      .eq("id", input.bookingId)
-      .in("status", ["confirmed"]);
-    if (talentErr) {
-      ok = false;
-      logServerError("orders.unwindFailedCheckout/talentBooking", talentErr);
-    }
+    // TUL-714 / TUL-706: the booking was confirmed at purchase; with no way to
+    // pay it must not stay Confirmado or hold the slot. Guarded on unpaid.
+    const cancelled = await cancelUnpaidBookings(admin, [input.bookingId]);
+    if (!cancelled.ok) ok = false;
   }
   const { error } = await admin
     .from("orders")

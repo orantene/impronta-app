@@ -9,6 +9,13 @@ function fakeAdmin(writes: Write[]) {
   return {
     from(table: string) {
       return {
+        select() {
+          const chain = {
+            eq: () => chain,
+            in: () => Promise.resolve({ data: [{ id: "b3", source_inquiry_id: "i3" }], error: null }),
+          };
+          return chain;
+        },
         update(payload: Record<string, unknown>) {
           const w: Write = { table, payload, eq: [], inStatus: [] };
           writes.push(w);
@@ -94,5 +101,5 @@ test("TUL-714: a failed checkout also cancels the unpaid booking it placed (neve
   const agency = writes.find((w) => w.table === "agency_bookings");
   assert.equal(agency?.payload.status, "cancelled");
   assert.deepEqual(agency?.eq.find(([c]) => c === "payment_status"), ["payment_status", "unpaid"]);
-  assert.deepEqual(agency?.eq.find(([c]) => c === "id"), ["id", "b3"]);
+  assert.deepEqual(agency?.inStatus, ["b3"]);
 });

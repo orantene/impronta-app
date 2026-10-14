@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   decideOrderExpiry,
   idsToCancel,
+  sweepExpiredOrders,
   IDLE_DRAFT_TTL_HOURS,
   type ExpiringOrder,
 } from "@/lib/orders/expire-orders";
@@ -105,4 +106,48 @@ test("the sweeper cancels only the rows the decision says to cancel", () => {
     NOW,
   );
   assert.deepEqual(ids, ["hold"]);
+});
+
+test("sweep cancels the unpaid confirmed booking of a cancelled order, so the slot returns", async () => {
+  const writes: Array<{ table: string; payload: Record<string, unknown> }> = [];
+  const orderRows = [{ id: "o1", status: "pending_payment", hold_expires_at: ago(1_000), created_at: ago(9e5), updated_at: null }];
+  const admin = {
+    from(table: string) {
+      return {
+        select() {
+          const st = { in: false, limit: false, notNull: false };
+          const chain = {
+            eq: () => chain,
+            not: () => {
+              st.notNull = true;
+              return chain;
+            },
+            limit: () => Promise.resolve({ data: [{ id: "ab1", order_id: "o1" }], error: null }),
+            in: () => {
+              st.in = true;
+              const data =
+                table === "orders" && orderRows.length && !st.notNull
+                  ? [{ id: "o1", status: "pending_payment", hold_expires_at: ago(1_000), created_at: ago(9e5), updated_at: null }]
+                  : table === "agency_bookings"
+                    ? [{ id: "ab1", source_inquiry_id: "inq1" }]
+                    : [];
+              return Promise.resolve({ data, error: null });
+            },
+          };
+          return chain;
+        },
+        update(payload: Record<string, unknown>) {
+          writes.push({ table, payload });
+          const done = { error: null, then: (f: (v: { error: null }) => unknown) => Promise.resolve({ error: null }).then(f) };
+          const chain = { eq: () => chain, in: () => ({ ...done, in: () => Promise.resolve({ error: null }) }) };
+          return chain;
+        },
+      };
+    },
+  } as unknown as Parameters<typeof sweepExpiredOrders>[0];
+  const res = await sweepExpiredOrders(admin, NOW);
+  assert.equal(res.cancelled, 1);
+  assert.equal(res.bookingsReleased, 1);
+  assert.ok(writes.some((w) => w.table === "talent_bookings" && w.payload.status === "cancelled"));
+  assert.ok(writes.some((w) => w.table === "agency_bookings" && w.payload.status === "cancelled"));
 });
