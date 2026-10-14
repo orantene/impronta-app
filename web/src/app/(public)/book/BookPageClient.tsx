@@ -61,7 +61,12 @@ export function BookPageClient({
           <select
             value={selected.id}
             onChange={(e) => setOfferingId(e.target.value)}
-            className="rounded-lg border border-[rgba(24,24,27,0.12)] bg-white px-3 py-2 text-[var(--token-color-ink,#0B0B0D)]"
+            data-testid="book-page-service-select"
+            // live2b-04: many talent trees set --token-color-ink to a light
+            // value for dark pages. A white select with that ink reads as
+            // white-on-white. Pin light color-scheme + near-black text.
+            className="rounded-lg border border-[rgba(24,24,27,0.12)] bg-white px-3 py-2 text-[#0B0B0D]"
+            style={{ colorScheme: "light" }}
           >
             {offerings.map((o) => (
               <option key={o.id} value={o.id}>
