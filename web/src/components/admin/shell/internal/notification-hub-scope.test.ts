@@ -107,7 +107,8 @@ test("TUL-391 r2: a stored offer row without target_drawer still opens its inqui
   const legacy = row({ kind: "offer", originInquiryId: "inq-9", targetDrawer: null });
   const t = hubClickTarget(legacy, "/admin");
   assert.ok(t, "offer row must have a click target");
-  assert.deepEqual(t, { kind: "drawer", drawerId: "inquiry-workspace", payload: { inquiryId: "inq-9" } });
+  // TUL-391 r3: real inquiry -> real inbox, never the fixture drawer (it showed a demo inquiry).
+  assert.deepEqual(t, { kind: "href", href: "/talent/inbox?inquiry=inq-9" });
   // No inquiry to open: stay inert rather than guess.
   assert.equal(hubClickTarget(row({ kind: "offer", originInquiryId: null }), "/admin"), null);
   // Other kinds without a target stay inert.
