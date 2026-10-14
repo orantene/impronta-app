@@ -9,6 +9,9 @@ import type { AccountOption } from "@/components/admin/forms/add-contact-form";
 import { AdminClientSearchPicker } from "@/components/admin/admin-client-search-picker";
 import { InquiryTalentDraftField } from "@/components/admin/inquiry-talent-editor";
 import { CreateClientAccountSheet } from "@/components/admin/create-client-account-sheet";
+import { GuestPhoneField } from "@/components/ui/guest-phone-field";
+import { GUEST_PHONE_LABEL } from "@/lib/phone/guest-phone";
+import { noPhoneHint, staffPhoneRequired } from "@/lib/phone/staff-phone";
 import { Button } from "@/components/ui/button";
 import { DashboardEditPanel } from "@/components/dashboard/dashboard-edit-panel";
 import { Input } from "@/components/ui/input";
@@ -101,6 +104,7 @@ function AdminNewInquirySheetBody({
   tenantId?: string | null;
 }) {
   const t = useT();
+  const phoneLocale: "es" | "en" = t("dashboard.adminInquirySheet.fieldPhone").toLowerCase().includes("tel") ? "es" : "en";
   const queueRouterRefresh = useQueuedRouterRefresh();
   const formRef = useRef<HTMLFormElement>(null);
   const [state, action, pending] = useActionState(createManualInquiry, undefined);
@@ -119,6 +123,7 @@ function AdminNewInquirySheetBody({
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [channel, setChannel] = useState("phone");
   const [contactCompany, setContactCompany] = useState("");
   const [clientSnapshotLoading, setClientSnapshotLoading] = useState(false);
 
@@ -348,15 +353,18 @@ function AdminNewInquirySheetBody({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="ni_contact_phone">{t("dashboard.adminInquirySheet.fieldPhone")}</Label>
-            <Input
+            <Label htmlFor="ni_contact_phone">{GUEST_PHONE_LABEL[phoneLocale]}{staffPhoneRequired({ channel }) ? "" : phoneLocale === "es" ? " (opcional)" : " (optional)"}</Label>
+            <GuestPhoneField
               id="ni_contact_phone"
               name="contact_phone"
-              type="tel"
-              autoComplete="tel"
               value={contactPhone}
-              onChange={(event) => setContactPhone(event.target.value)}
+              onChange={setContactPhone}
+              optional={!staffPhoneRequired({ channel })}
+              locale={phoneLocale}
             />
+            {!contactPhone ? (
+              <p className="text-xs text-muted-foreground" data-testid="no-phone-hint">{noPhoneHint(phoneLocale)}</p>
+            ) : null}
           </div>
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="ni_company">{t("dashboard.adminInquirySheet.fieldCompany")}</Label>
@@ -447,7 +455,7 @@ function AdminNewInquirySheetBody({
           </div>
           <div className="space-y-2">
             <Label htmlFor="ni_source_channel">{t("dashboard.adminInquirySheet.sourceChannel")}</Label>
-            <select id="ni_source_channel" name="source_channel" defaultValue="phone" className={ADMIN_FORM_CONTROL}>
+            <select id="ni_source_channel" name="source_channel" value={channel} onChange={(e) => setChannel(e.target.value)} className={ADMIN_FORM_CONTROL}>
               {INQUIRY_SOURCE_CHANNEL_VALUES.map((ch) => (
                 <option key={ch} value={ch}>
                   {channelLabel(ch, t)}

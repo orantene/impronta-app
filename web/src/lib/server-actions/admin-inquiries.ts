@@ -35,6 +35,7 @@ import { emitFieldChange } from "@/lib/inquiry/audit-field-emit";
 // site. Out of scope for the initial sweep.
 export type { AdminActionState } from "@/lib/admin/admin-action-state";
 import type { AdminActionState } from "@/lib/admin/admin-action-state";
+import { checkStaffPhone } from "@/lib/phone/staff-phone";
 import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const updateInquirySchema = z.object({
@@ -1534,10 +1535,14 @@ export async function createManualInquiry(
   );
   if ("error" in channelParsed) return { error: channelParsed.error };
 
+  // Staff phone is optional; required only when the WhatsApp channel is chosen. Stored as E.164.
+  const phoneCheck = checkStaffPhone(trimmedString(formData, "contact_phone"), { channel: channelParsed.data });
+  if (!phoneCheck.ok) return { error: phoneCheck.error };
+
   const parsed = parseWithSchema(manualInquirySchema, {
     contact_name: trimmedString(formData, "contact_name"),
     contact_email: trimmedString(formData, "contact_email"),
-    contact_phone: trimmedString(formData, "contact_phone"),
+    contact_phone: phoneCheck.phone ?? "",
     company: trimmedString(formData, "company"),
     client_user_id: trimmedString(formData, "client_user_id"),
     client_account_id: trimmedString(formData, "client_account_id"),

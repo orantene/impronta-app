@@ -31,6 +31,7 @@ import { posCollectionKey, tenderAfterKey } from "./counter-model";
 import { posDoorCollectTicket, posDoorIssuedTickets, type DoorIssuedTicket, type DoorSaleView } from "./door-actions";
 import { dateAt, timeAt, type BoxStage, type DoorScreenCopy, type OpenDoor } from "./door-shared";
 import { FactCard, FactRow, Pill } from "./door-ui";
+import { GuestPhoneField } from "@/components/ui/guest-phone-field";
 
 export type Buyer = { name: string; email: string; phone: string };
 
@@ -394,7 +395,7 @@ export function DoorCheckout(props: DoorCheckoutProps) {
             </label>
             <label className="flex min-w-0 flex-col">
               <span className={POS_LABEL}>{att.buyerPhone}</span>
-              <input type="tel" value={buyer.phone} onChange={(e) => props.setBuyer({ ...buyer, phone: e.target.value })} disabled={props.busy} autoComplete="off" className={POS_INPUT} />
+              <GuestPhoneField value={buyer.phone} onChange={(phone) => props.setBuyer({ ...buyer, phone })} optional disabled={props.busy} testId="door-buyer-phone" />
             </label>
           </div>
           <p className="m-0 text-[12.5px] text-admin-ink-muted">{att.contactHint}</p>

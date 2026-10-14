@@ -15,6 +15,9 @@ import { clientPickerHint, dedupeClientsByPerson, type TalentClientRow } from "@
 import { TaskShell } from "./primitives/TaskShell";
 import { AgendaEventQuote, AgendaProjectQuote } from "./AgendaQuotes";
 import { dayWindows } from "./AgendaCalendarViews";
+import { GuestPhoneField } from "@/components/ui/guest-phone-field";
+import { GUEST_PHONE_LABEL } from "@/lib/phone/guest-phone";
+import { noPhoneHint } from "@/lib/phone/staff-phone";
 import { useAgendaCopy } from "./use-agenda-copy";
 
 type PayChoice = "received" | "due_later" | "request_link" | null;
@@ -315,6 +318,7 @@ function SlotComposer({
                     {[client.phone, client.email].filter(Boolean).join(" · ") ||
                       copy.t(client.existing ? "Existing client" : "New client")}
                   </div>
+                  {!client.phone ? <div className={`text-[12px] ${MUTED}`} data-testid="agenda-no-phone-hint">{noPhoneHint(copy.locale)}</div> : null}
                 </div>
                 <button
                   type="button"
@@ -638,12 +642,13 @@ function SlotComposer({
               <input className={FIELD} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
             </label>
             <label className={LABEL}>
-              {copy.t("Phone (optional)")}
-              <input
-                type="tel"
-                className={FIELD}
+              {GUEST_PHONE_LABEL[copy.locale === "es" ? "es" : "en"]} ({copy.locale === "es" ? "opcional" : "optional"})
+              <GuestPhoneField
                 value={draft.phone}
-                onChange={(e) => setDraft({ ...draft, phone: e.target.value })}
+                onChange={(phone) => setDraft({ ...draft, phone })}
+                optional
+                locale={copy.locale}
+                testId="agenda-new-client-phone"
               />
             </label>
             <label className={LABEL}>
