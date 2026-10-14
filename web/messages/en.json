@@ -2344,6 +2344,17 @@
       "appleOpening": "Opening Apple…",
       "appleFailed": "Apple didn't finish. Try again or use your email.",
       "applePopupBlocked": "Pop-up blocked. Allow pop-ups for this site and try again."
+    },
+    "pricingInterval": {
+      "groupLabel": "Billing period",
+      "monthly": "Monthly",
+      "yearly": "Yearly",
+      "saveUpTo": "Save up to {pct}%",
+      "savePct": "Save {pct}%",
+      "perMonth": "per month",
+      "billedYearly": "{amount} billed yearly",
+      "billedMonthly": "Billed monthly",
+      "popular": "Most popular"
     }
   },
   "dashboard": {
