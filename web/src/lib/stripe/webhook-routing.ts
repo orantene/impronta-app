@@ -358,6 +358,9 @@ export function classifyStripeEvent(event: Stripe.Event): StripeAction {
       };
     }
 
+    // TUL-836: created is routed too, so a subscription made outside our
+    // checkout (dashboard, portal) still lands in the plan-state row.
+    case "customer.subscription.created":
     case "customer.subscription.updated":
     case "customer.subscription.deleted": {
       const sub = event.data.object as Stripe.Subscription;
