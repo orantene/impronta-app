@@ -432,6 +432,14 @@ export default async function PlatformTalentDiscoverPage() {
         }}>
           {c.trustSignals}
         </Link>
+        <Link href={talentSubHref(tenantSlug, "get-found", platformRoutes)} style={{
+          display: "inline-flex", alignItems: "center", gap: 6,
+          padding: "9px 14px", background: "transparent",
+          color: C.ink, border: `1px solid ${C.border}`,
+          borderRadius: 8, fontSize: 12.5, fontWeight: 600, textDecoration: "none",
+        }}>
+          {c.googleGuide}
+        </Link>
       </div>
     </div>
   );
