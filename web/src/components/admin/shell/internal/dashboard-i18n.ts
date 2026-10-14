@@ -716,7 +716,7 @@ const ES_TEXT: Record<string, string> = {
   "inquiries": "consultas",
   "open": "abiertas",
   "pending approvals": "aprobaciones pendientes",
-  "items need attention": "elementos necesitan atención",
+  "items need attention": "artículos necesitan atención",
   "pending": "pendiente",
   // Workspace page descriptions
   "Today's snapshot: unread, pending actions, recent activity": "Resumen de hoy: no leídos, pendientes y actividad reciente",
@@ -1430,7 +1430,7 @@ const ES_TEXT: Record<string, string> = {
   "Unread": "Sin leer",
   "Needs action": "Requiere acción",
   "Nothing here": "Nada aquí",
-  "No items need your attention right now.": "Ningún elemento necesita tu atención ahora mismo.",
+  "No items need your attention right now.": "Ningún artículo necesita tu atención ahora mismo.",
   "Switch to a different filter to see other notifications.": "Cambia de filtro para ver otras notificaciones.",
   "Message": "Mensaje",
   "Offer": "Oferta",
