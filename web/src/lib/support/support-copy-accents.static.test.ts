@@ -36,6 +36,17 @@ describe("support copy carries its accents (TUL-620)", () => {
     const bad = strings.filter((s) => ES_BAD.test(s) || /^Quieres /.test(s));
     assert.deepEqual(bad, []);
   });
+  it("ES adminSupport catalog has no unaccented words (TUL-602)", () => {
+    const json = JSON.parse(readFileSync(join(WEB, "messages/es.json"), "utf8")) as {
+      dashboard: { adminSupport: Record<string, unknown> };
+    };
+    const strings = Object.values(json.dashboard.adminSupport).filter(
+      (v): v is string => typeof v === "string",
+    );
+    assert.ok(strings.length > 100);
+    assert.deepEqual(strings.filter((s) => ES_BAD.test(s)), []);
+    assert.doesNotMatch(esStrings().join("\n"), /\bTelefono\b/);
+  });
   it("FR adminSupport has no unaccented words", () => {
     const strings = frStrings();
     assert.ok(strings.length > 100);

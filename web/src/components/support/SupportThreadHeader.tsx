@@ -83,18 +83,37 @@ export function SupportThreadStatusLine({
           OT
         </span>
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {interpolate(t("dashboard.adminSupport.humanReplyEta"), SUPPORT_AGENT_VARS)}
+          {`${t("dashboard.adminSupport.humanHandling")}. `}
+          {ticket.ticketNumber > 0
+            ? interpolate(t("dashboard.adminSupport.ticketReceipt"), {
+                ...SUPPORT_AGENT_VARS,
+                number: String(ticket.ticketNumber),
+              })
+            : interpolate(t("dashboard.adminSupport.humanReplyEta"), SUPPORT_AGENT_VARS)}
         </span>
       </div>
     );
   }
   return (
-    <div style={row}>
-      <span style={{ width: 5, height: 5, borderRadius: "50%", background: COLORS.royal, flexShrink: 0 }} />
-      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-        {t("dashboard.adminSupport.aiHandling")}
-      </span>
-    </div>
+    <>
+      <div style={row}>
+        <span style={{ width: 5, height: 5, borderRadius: "50%", background: COLORS.royal, flexShrink: 0 }} />
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {t("dashboard.adminSupport.aiHandling")}
+        </span>
+      </div>
+      {/* TUL-601: ticket id + expected response, visible from the moment the ticket exists. */}
+      {ticket.ticketNumber > 0 ? (
+        <div style={row}>
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {interpolate(t("dashboard.adminSupport.ticketReceipt"), {
+              ...SUPPORT_AGENT_VARS,
+              number: String(ticket.ticketNumber),
+            })}
+          </span>
+        </div>
+      ) : null}
+    </>
   );
 }
 

@@ -230,6 +230,14 @@ export async function attachGuestContactAction(input: {
   });
   if (!updated.ok) return updated;
   await stampLeadId(ident.admin, updated.data, email);
+  // TUL-660: after an AI error the guest was promised a person; an email is that ask.
+  if (await ticketHadAiError(ident.admin, ticket.id)) {
+    await supportEngine.escalateTicket({
+      ticketId: ticket.id,
+      reason: "user_requested",
+      actorUserId: ident.userId,
+    });
+  }
 
   const eventId = crypto.randomUUID();
   notify({
@@ -486,4 +494,18 @@ export async function submitMarketingContactAction(input: {
   });
 
   return { ok: true, ticketId: result.data.ticket.id };
+}
+
+async function ticketHadAiError(
+  admin: Parameters<typeof supportFrom>[0],
+  ticketId: string,
+): Promise<boolean> {
+  const { data } = await supportFrom(admin, "support_messages")
+    .select("*")
+    .eq("ticket_id", ticketId)
+    .order("created_at", { ascending: false })
+    .limit(20);
+  return ((data ?? []) as unknown[])
+    .map(mapMessageRow)
+    .some((m) => Boolean(m?.aiMeta && (m.aiMeta as Record<string, unknown>).fail_open));
 }
