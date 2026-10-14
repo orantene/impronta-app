@@ -64,6 +64,8 @@ export function EssentialsStep({
   const knownCity = known("city");
   const [city, setCity] = useState<OnboardingCity | null>(knownCity ? { id: null, slug: "", name: { en: knownCity, es: knownCity }, countryIso2: "", subtitle: null } : null);
   const [name, setName] = useState(known(business ? "businessName" : "name") ?? "");
+  // TUL-810: a solo pro may trade under a business name; optional, names the page.
+  const [soloBusiness, setSoloBusiness] = useState(business ? "" : known("businessName") ?? "");
   // Only a phone-shaped value may prefill the phone field (a stray "true" from
   // "WhatsApp orders" is refused at record time too; belt and braces).
   const knownWhatsapp = known("whatsapp");
@@ -79,6 +81,7 @@ export function EssentialsStep({
       // The prefilled city (no slug, no id) is what the words gave: leave it unless changed.
       city: !city.slug && city.id === null && city.name.en === knownCity ? null : { id: city.id, slug: city.slug, name: city.name[locale] || city.name.en, countryIso2: city.countryIso2 },
       name: name.trim() || null,
+      businessName: !business && soloBusiness.trim() ? soloBusiness.trim() : null,
       // 1B: services and hours live on the step-3 setup screen now.
       services: null,
       hoursPreset: null,
@@ -125,6 +128,12 @@ export function EssentialsStep({
             <FieldLabel>{business ? t("public.onboarding.essentials.businessName") : t("public.onboarding.essentials.yourName")}</FieldLabel>
             <input value={name} onChange={(e) => setName(e.target.value)} name="onb-name" autoComplete="off" placeholder={business ? t("public.onboarding.essentials.businessNameHint") : t("public.onboarding.essentials.yourNameHint")} data-testid="onb-name-input" className="h-12 w-full rounded-[14px] px-3 text-[1rem] outline-none placeholder:text-[var(--tl-muted-soft)]" style={inputStyle} />
         </div>
+        {!business ? (
+          <div>
+            <FieldLabel>{t("public.onboarding.essentials.soloBusinessName")}</FieldLabel>
+            <input value={soloBusiness} onChange={(e) => setSoloBusiness(e.target.value)} name="onb-business-name" autoComplete="organization" placeholder={t("public.onboarding.essentials.soloBusinessNameHint")} data-testid="onb-business-name-input" className="h-12 w-full rounded-[14px] px-3 text-[1rem] outline-none placeholder:text-[var(--tl-muted-soft)]" style={inputStyle} />
+          </div>
+        ) : null}
 
         <Picker<OnboardingCity>
           id="onb-basics-city"

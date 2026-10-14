@@ -2134,6 +2134,8 @@
         "businessNameHint": "How people know your business",
         "yourName": "Your name",
         "yourNameHint": "The name people know you by",
+        "soloBusinessName": "Business name (optional)",
+        "soloBusinessNameHint": "If your page goes by another name",
         "location": "Your location",
         "whatsapp": "WhatsApp (optional)",
         "whatsappHint": "Mexican number without the country code; we add +52.",

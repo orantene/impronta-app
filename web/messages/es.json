@@ -2134,6 +2134,8 @@
         "businessNameHint": "Cómo la gente conoce tu negocio",
         "yourName": "Tu nombre",
         "yourNameHint": "El nombre por el que te conocen",
+        "soloBusinessName": "Nombre de tu negocio (opcional)",
+        "soloBusinessNameHint": "Si tu página lleva otro nombre",
         "location": "Tu ubicación",
         "whatsapp": "WhatsApp (opcional)",
         "whatsappHint": "Número mexicano sin lada; nosotros agregamos +52.",
