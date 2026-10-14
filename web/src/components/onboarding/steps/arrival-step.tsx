@@ -6,6 +6,7 @@
  * person's words and offers a retry.
  */
 
+import { upgradeHrefFromToday, type PlanIntent } from "@/lib/onboarding/plan-intent";
 import { draftReasonKey, type ArrivalPayload } from "@/lib/onboarding/arrival";
 import { ARRIVAL_THUMB_FRAME_NAME } from "@/components/edit-chrome/embedded-frame";
 
@@ -86,11 +87,12 @@ function InquiryOnlyArrival({ t, arrival, plan }: { t: (key: string) => string; 
   );
 }
 
-export function ArrivalStep({ t, arrival, onRetry, busy = false }: { t: (key: string) => string; arrival: ArrivalPayload; onRetry?: () => void; busy?: boolean }) {
+export function ArrivalStep({ t, arrival, onRetry, busy = false, planIntent = null }: { t: (key: string) => string; arrival: ArrivalPayload; onRetry?: () => void; busy?: boolean; planIntent?: PlanIntent | null }) {
   if (arrival.variant === "draft_saved") {
     return <DraftSaved t={t} arrival={arrival} onRetry={onRetry} busy={busy} />;
   }
   const plan = finishPlan(arrival);
+  const upgradeHref = arrival.variant === "talent" || arrival.variant === "both" ? upgradeHrefFromToday(arrival.panelHref ?? arrival.finishHref, planIntent) : null;
   if (plan.kind === "inquiry_only") return <InquiryOnlyArrival t={t} arrival={arrival} plan={plan} />;
   const facts: string[] = [];
   if (arrival.fact.services > 0) facts.push(t("public.onboarding.arrival.factServices").replace("{n}", String(arrival.fact.services)));
@@ -201,6 +203,11 @@ export function ArrivalStep({ t, arrival, onRetry, busy = false }: { t: (key: st
             ) : null}
           </>
         )}
+        {upgradeHref && planIntent ? (
+          <a href={upgradeHref} data-testid="onb-arrival-upgrade" className="inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-[0.9375rem] font-semibold" style={{ background: "transparent", color: "var(--tl-ink)", border: "1px solid var(--tl-hairline-strong)" }}>
+            {t("public.onboarding.arrival.finishUpgrade").replace("{plan}", planIntent.plan === "talent_portfolio" ? "Portfolio" : "Pro")}
+          </a>
+        ) : null}
         {arrival.panelHref ? (
           <a href={arrival.panelHref} data-testid="onb-arrival-panel" className="inline-flex h-11 w-full items-center justify-center rounded-full px-6 text-[0.875rem] font-semibold" style={{ background: "transparent", color: "var(--tl-ink-soft)" }}>
             {t("public.onboarding.arrival.goToPanel")}

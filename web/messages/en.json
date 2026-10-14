@@ -2125,6 +2125,7 @@
         "draftSubStudio": "Everything you told us is saved, but your site does not open online yet. Try again or open it in the editor.",
         "openEditor": "Open the editor",
         "goToPanel": "Go to my dashboard",
+        "finishUpgrade": "Finish upgrading to {plan}",
         "openMyPanel": "Open my panel",
         "bookPreview": "Book",
         "bookingsStartStudio": "Bookings start when you add a provider.",

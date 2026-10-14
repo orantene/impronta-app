@@ -2125,6 +2125,7 @@
         "draftSubStudio": "Todo lo que nos contaste está guardado, pero tu sitio todavía no abre en línea. Inténtalo de nuevo o ábrelo en el editor.",
         "openEditor": "Abrir el editor",
         "goToPanel": "Ir a mi panel",
+        "finishUpgrade": "Terminar de mejorar a {plan}",
         "openMyPanel": "Abrir mi panel",
         "bookPreview": "Reservar",
         "bookingsStartStudio": "Las reservas empiezan cuando agregues a un proveedor.",
