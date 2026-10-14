@@ -25,6 +25,7 @@ import Link from "next/link";
 
 import { TulalaLogo } from "@/components/brand/tulala-logo";
 import { getSiteUrl } from "@/lib/auth-flow";
+import { authLegalHref } from "./auth-legal-href";
 
 export type AuthShellBrand = {
   /** Display name: tenant `public_name` on a whitelabel host, else "Tulala". */
@@ -419,8 +420,11 @@ export function AuthFooter({
   legal,
   contactHref,
   languageToggle,
+  locale,
 }: {
   brand: AuthShellBrand;
+  /** Active page locale; legal links follow it (TUL-758). */
+  locale?: string;
   /** Localized copyright + positioning line, resolved by the layout. */
   brandLine: string;
   /** Localized legal-link labels, resolved by the layout. */
@@ -469,10 +473,10 @@ export function AuthFooter({
                 smaller problem than misrepresenting whose terms apply.
                 Contact is the one that IS host-aware — see the ruling comment
                 in `layout.tsx`. */}
-            <FooterLink href={`${getSiteUrl()}/legal/terms`}>
+            <FooterLink href={authLegalHref(getSiteUrl(), "terms", locale)}>
               {legal.terms}
             </FooterLink>
-            <FooterLink href={`${getSiteUrl()}/legal/privacy`}>
+            <FooterLink href={authLegalHref(getSiteUrl(), "privacy", locale)}>
               {legal.privacy}
             </FooterLink>
             <FooterLink href={contactHref}>{legal.contact}</FooterLink>

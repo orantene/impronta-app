@@ -92,23 +92,17 @@ test("agency surface: Spanish copy", () => {
   assert.match(out, /Privacidad Tulala/);
 });
 
-test("legacy profile templates: one socket, one credit, token-styled", () => {
-  const out = profileHtml(false);
-  assert.equal(count(out, /data-tulala-socket/g), 1);
-  assert.equal(count(out, /data-socket-credit/g), 1);
-  assert.equal(count(out, /Site made with/g), 1);
-  assert.ok(out.includes(TULALA_LEGAL_PRIVACY_URL));
-  assert.equal(out.includes("/politicas"), false);
-  assert.equal(/#[0-9a-fA-F]{3,8}\b/.test(out.replace(/href="[^"]*"/g, "")), false);
-  assert.match(out, /--token-color-surface-raised:var\(--pp-bg\)/);
-  assert.match(profileHtml(false, "es"), /Sitio creado con/);
-});
-
-test("legacy profile templates: whitelabel hides the credit", () => {
-  const out = profileHtml(true);
-  assert.equal(count(out, /data-tulala-socket/g), 1);
-  assert.equal(count(out, /data-socket-credit/g), 0);
-  assert.equal(out.includes("Powered by Tulala"), false);
+test("legacy profile templates: one legal strip (TUL-889), token-styled, credit always shown", () => {
+  for (const wl of [false, true]) {
+    const out = profileHtml(wl);
+    assert.equal(count(out, /data-tulala-legal-strip/g), 1);
+    assert.equal(count(out, /data-tulala-socket/g), 0);
+    assert.equal(count(out, /Made with Tulala/g), 1);
+    assert.equal(out.includes("/politicas"), false);
+    assert.equal(/#[0-9a-fA-F]{3,8}\b/.test(out.replace(/href="[^"]*"/g, "")), false);
+    assert.match(out, /--token-color-surface-raised:var\(--pp-bg\)/);
+  }
+  assert.match(profileHtml(false, "es"), /Hecho con Tulala/);
 });
 
 test("templates carry no credit of their own, each mounts the socket once", () => {

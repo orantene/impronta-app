@@ -8,9 +8,13 @@
  */
 import { normalizeEmailForKey, type KvRateLimitResult } from "./rate-limit-kv";
 import { failOpen } from "./rate-limit-fail-open";
+import { isMemoryLimiterAllowed, memorySlidingWindow } from "./rate-limit-kv-tulala";
 
 export function isKvLimiterConfigured(): boolean {
-  return Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+  return (
+    Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) ||
+    isMemoryLimiterAllowed()
+  );
 }
 
 export function supportGuestSessionKey(guestSessionId: string | null | undefined): string {
@@ -92,12 +96,34 @@ async function wrap(
   }
 }
 
+/** QA-branch stand-in for Upstash, same ceilings as the KV windows below. */
+function memoryLimiter(): GuestSupportLimiter {
+  const hour = 60 * 60 * 1000;
+  const minute = 60 * 1000;
+  const windows = {
+    createSession: memorySlidingWindow(3, hour),
+    createIp: memorySlidingWindow(10, hour),
+    createEmail: memorySlidingWindow(3, hour),
+    msgSession: memorySlidingWindow(20, minute),
+    msgIp: memorySlidingWindow(60, minute),
+    aiIp: memorySlidingWindow(20, hour),
+  };
+  return {
+    checkCreateBySession: (key) => wrap((k) => windows.createSession.limit(k), key, "createSession"),
+    checkCreateByIp: (key) => wrap((k) => windows.createIp.limit(k), key, "createIp"),
+    checkCreateByEmail: (key) => wrap((k) => windows.createEmail.limit(k), key, "createEmail"),
+    checkMessageBySession: (key) => wrap((k) => windows.msgSession.limit(k), key, "msgSession"),
+    checkMessageByIp: (key) => wrap((k) => windows.msgIp.limit(k), key, "msgIp"),
+    checkAiByIp: (key) => wrap((k) => windows.aiIp.limit(k), key, "aiIp"),
+  };
+}
+
 async function getGuestSupportLimiter(): Promise<GuestSupportLimiter> {
   if (_limiter) return _limiter;
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
   if (!url || !token) {
-    _limiter = noop;
+    _limiter = isMemoryLimiterAllowed() ? memoryLimiter() : noop;
     return _limiter;
   }
   try {

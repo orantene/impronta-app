@@ -127,3 +127,12 @@ test("the panel hands its own locale to the cards it renders", () => {
     "SupportCardRenderer is rendered without a locale, so it falls back to the dashboard cookie",
   );
 });
+
+// TUL-921: the "could not answer" error tells the visitor to talk to Tulala
+// Support, so the action must sit right under it on every viewport, not only
+// when the email card branch happens to render the link.
+test("answer-unavailable error carries its own Talk to Tulala Support action", () => {
+  const panel = readFileSync(join(here, "MarketingSupportPanel.tsx"), "utf8");
+  assert.match(panel, /error === copy\.answerUnavailable && ticketId[\s\S]{0,400}onClick=\{\(\) => void askHuman\(\)\}[\s\S]{0,200}\{copy\.askHuman\}/);
+  assert.match(panel, /data-testid="support-error-ask-human"/);
+});

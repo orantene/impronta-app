@@ -4083,7 +4083,6 @@
       "soon": "soon",
       "saving": "Saving...",
       "creating": "Creating...",
-      "loading": "Loading...",
       "logistics": {
         "callSheet": "Call sheet",
         "date": "Date",
@@ -4121,8 +4120,6 @@
         "total": "Total",
         "status": "Status",
         "netAmount": "Net amount",
-        "paidAt": "Paid at",
-        "failureReason": "Failure reason",
         "noTransactionYet": "No transaction yet",
         "noBookingYet": "No booking yet",
         "requestPayment": "Request payment",
@@ -4162,7 +4159,6 @@
         "markPaidCashDeposit": "Mark deposit paid in cash ({amount})",
         "markPaidCashBalance": "Mark balance paid in cash",
         "markPaidCashFull": "Mark full amount paid in cash",
-        "loadFailedShort": "Could not load",
         "retry": "Retry",
         "refundInOrders": "Refund in Orders"
       },
@@ -11148,10 +11144,14 @@
           "label": "Captcha",
           "description": "Protect your storefront contact forms from spam with hCaptcha or Cloudflare Turnstile. Bring your own keys; the widget renders on your forms and submissions are verified server-side.",
           "steps": {
-            "s1": "Pick a provider: hCaptcha (hcaptcha.com) or Cloudflare Turnstile (dash.cloudflare.com → Turnstile).",
-            "s2": "Create a site for your storefront domain and copy the Site key (public) and Secret key (private).",
-            "s3": "Paste the Site key and Secret key below and choose the matching provider.",
-            "s4": "Save. Your contact forms render the widget and reject submissions that fail verification."
+            "s1": "Create a free Turnstile widget in Cloudflare (dash.cloudflare.com, Turnstile).",
+            "s2": "Add your domain as the widget's hostname.",
+            "s3": "Copy the Site key and the Secret key.",
+            "s4": "Paste them here and save."
+          },
+          "notice": {
+            "title": "Protect your forms on {domain}: add your free captcha.",
+            "cta": "Add captcha"
           },
           "fields": {
             "provider": "Provider",

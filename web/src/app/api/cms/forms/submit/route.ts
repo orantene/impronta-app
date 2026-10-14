@@ -24,6 +24,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
+import { hostFromHeaders } from "@/lib/captcha/platform-hosts";
 import { contactFormSchemaV1 } from "@/lib/site-admin/sections/contact_form/schema";
 import { decideFormRouting } from "@/lib/site-admin/sections/contact_form/inquiry-routing";
 import { createInquiryFromIntent } from "@/lib/inquiry/inquiry-intent-engine";
@@ -312,7 +313,11 @@ export async function POST(req: Request) {
   // platform provider from env. When the tenant owns the captcha we ONLY honor
   // their chosen provider — the other provider's secret is nulled so an
   // attacker can't pass by solving the platform's other widget.
-  const tenantCaptcha = await resolveTenantCaptcha(section.tenant_id);
+  // Same per-host rule as the rendered widget: on a custom domain without the
+  // workspace's own keys the platform widget cannot render, so captcha is off.
+  const tenantCaptcha = await resolveTenantCaptcha(section.tenant_id, {
+    host: hostFromHeaders(req.headers),
+  });
 
   const captchaRejection = respondFormError(
     req,

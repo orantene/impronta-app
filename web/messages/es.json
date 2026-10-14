@@ -4083,7 +4083,6 @@
       "soon": "pronto",
       "saving": "Guardando...",
       "creating": "Creando...",
-      "loading": "Cargando...",
       "logistics": {
         "callSheet": "Hoja de llamado",
         "date": "Fecha",
@@ -4121,8 +4120,6 @@
         "total": "Total",
         "status": "Estado",
         "netAmount": "Monto neto",
-        "paidAt": "Pagado el",
-        "failureReason": "Motivo del fallo",
         "noTransactionYet": "Aun sin transacción",
         "noBookingYet": "Aun sin reserva",
         "requestPayment": "Solicitar pago",
@@ -4162,7 +4159,6 @@
         "markPaidCashDeposit": "Marcar depósito pagado en efectivo ({amount})",
         "markPaidCashBalance": "Marcar saldo pagado en efectivo",
         "markPaidCashFull": "Marcar monto completo pagado en efectivo",
-        "loadFailedShort": "No se pudo cargar",
         "retry": "Reintentar",
         "refundInOrders": "Reembolsar en Pedidos"
       },
@@ -11148,10 +11144,14 @@
           "label": "Captcha",
           "description": "Protege del spam los formularios de contacto de tu storefront con hCaptcha o Cloudflare Turnstile. Usa tus propias claves: el widget se muestra en tus formularios y los envíos se verifican en el servidor.",
           "steps": {
-            "s1": "Elige un proveedor: hCaptcha (hcaptcha.com) o Cloudflare Turnstile (dash.cloudflare.com → Turnstile).",
-            "s2": "Crea un sitio para el dominio de tu storefront y copia la clave del sitio (pública) y la clave secreta (privada).",
-            "s3": "Pega abajo la clave del sitio y la clave secreta, y elige el proveedor que corresponda.",
-            "s4": "Guarda. Tus formularios de contacto muestran el widget y rechazan los envíos que no pasan la verificación."
+            "s1": "Crea un widget gratis de Turnstile en Cloudflare (dash.cloudflare.com, Turnstile).",
+            "s2": "Agrega tu dominio como hostname del widget.",
+            "s3": "Copia la clave del sitio y la clave secreta.",
+            "s4": "Pégalas aquí y guarda."
+          },
+          "notice": {
+            "title": "Protege tus formularios en {domain}: agrega tu captcha gratis.",
+            "cta": "Agregar captcha"
           },
           "fields": {
             "provider": "Proveedor",
