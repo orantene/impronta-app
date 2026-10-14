@@ -42,4 +42,15 @@ export const FEES_ES_TEXT: Record<string, string> = {
   "Choose how you hear about new messages": "Elige cómo te enteras de mensajes nuevos",
   Open: "Abrir",
   Close: "Cerrar",
+  "What you get": "Lo que recibes",
+  "Your price": "Tu precio",
+  "Tulala commission": "Comisión de Tulala",
+  "Workspace commission and card fees": "Comisión del negocio y comisiones de tarjeta",
+  "Your payout": "Tu depósito",
+  "Payouts reach your bank about {n} business days after Tulala sends them.":
+    "Los depósitos llegan a tu banco unos {n} días hábiles después de que Tulala los envía.",
+  "If your payout account is a recipient account, funds become available 24 hours later.":
+    "Si tu cuenta de depósito es una cuenta de destinatario, los fondos quedan disponibles 24 horas después.",
+  "Your client pays Tulala's service fee on top of your price. It is never taken from you.":
+    "Tu cliente paga el cargo por servicio de Tulala encima de tu precio. Nunca se descuenta de lo tuyo.",
 };
