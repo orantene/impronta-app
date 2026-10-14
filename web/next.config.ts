@@ -470,6 +470,17 @@ const nextConfig: NextConfig = {
         source: "/:path*",
         headers: securityHeaders,
       },
+      /** Promo share pages are links shared by hand, never search results:
+       *  `/p/<slug>` on a talent-site host and `/t/<code>/p/<slug>` on the hub.
+       *  (On agency hosts `/p/*` only redirects to the clean path.) */
+      {
+        source: "/p/:slug",
+        headers: [{ key: "X-Robots-Tag", value: "noindex" }],
+      },
+      {
+        source: "/t/:code/p/:slug",
+        headers: [{ key: "X-Robots-Tag", value: "noindex" }],
+      },
       /** TUL-445: `Vary: Cookie` on page HTML. The proxy sets it too, but Next
        *  rewrites Vary/Cache-Control on dynamic page responses, so the proxy
        *  value never reached the HTML (llms.txt/sitemap kept it). Static

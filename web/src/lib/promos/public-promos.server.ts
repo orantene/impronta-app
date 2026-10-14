@@ -3,11 +3,13 @@ import "server-only";
 import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { appointmentsTierForTalentPlan } from "@/lib/scheduling/talent-booking-mode";
 import { pickTalentTenant } from "@/lib/saas/talent-self-tenant";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 import { isAdvertisable, type DisplayPriceContext } from "./display-price";
+import { effectiveStatus } from "./plan-downgrade";
 import { promoStatus } from "./quote";
 import { loadTenantPromos, loadUsage, type PromoRow } from "./repo";
 import type { Promo, UsageMap } from "./types";
@@ -38,13 +40,15 @@ export async function loadPublicPromosWith(
   admin: SupabaseClient,
   tenantId: string,
   now: Date,
+  /** When "free", paid-only promos are treated as ended (lazy downgrade, L7). Omitted = no plan check. */
+  plan: "free" | "paid" = "paid",
 ): Promise<PublicPromos> {
   const loaded = await loadTenantPromos(admin, tenantId);
   if (!loaded.ok) return { ...EMPTY_PUBLIC_PROMOS, now: now.toISOString() };
   const rowById = new Map<string, PromoRow>(loaded.rows.map((r) => [r.id, r]));
   const candidates = loaded.promos.filter((p) => isAdvertisable(p) && rowById.get(p.id)?.show_on_site === true);
   const usage = (await loadUsage(admin, candidates.map((p) => p.id), null, now)) ?? {};
-  const live = candidates.filter((p) => promoStatus(p, now, usage[p.id]) === "live");
+  const live = candidates.filter((p) => effectiveStatus(p, promoStatus(p, now, usage[p.id]), plan, now) === "live");
   return {
     promos: live,
     usage,
@@ -97,7 +101,13 @@ export const loadPublicPromosForTalent = cache(async (talentProfileId: string | 
   if (!admin) return empty;
   try {
     const tenantId = await talentPromoTenantId(admin, talentProfileId);
-    return tenantId ? await loadPublicPromosWith(admin, tenantId, now) : empty;
+    if (!tenantId) return empty;
+    const { data, error } = await admin.from("talent_profiles").select("talent_plan_key").eq("id", talentProfileId).maybeSingle();
+    if (error) logServerError("promos.public/plan", error);
+    const key = (data as { talent_plan_key?: string | null } | null)?.talent_plan_key ?? null;
+    // A failed read keeps today's behaviour (promos shown) rather than hiding a paying talent's offer.
+    const plan = error ? "paid" : appointmentsTierForTalentPlan(key) === "website" ? "paid" : "free";
+    return await loadPublicPromosWith(admin, tenantId, now, plan);
   } catch {
     return empty;
   }
