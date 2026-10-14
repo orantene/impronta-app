@@ -18,6 +18,7 @@ import { Briefcase, Calendar, MessageCircle } from "lucide-react";
 
 import type { Translator } from "@/i18n/interpolate";
 
+import { dockTabDisplayLabel } from "./guest-dock-nav-label";
 import type { GuestDockView } from "./guest-dock-view";
 import { FONT, readableOn, type Palette } from "./mini-chat-styles";
 
@@ -72,7 +73,6 @@ export function GuestDockNav({
     if (view === "projects" && projectsLabel) return projectsLabel;
     return t(labelKey);
   };
-
   return (
     <div
       role="tablist"
@@ -103,6 +103,7 @@ export function GuestDockNav({
             role="tab"
             aria-selected={isActive}
             aria-label={labelFor(view, labelKey)}
+            title={labelFor(view, labelKey)}
             onClick={() => {
               if (active === "home" && view === "chat") {
                 onChange("chat");
@@ -172,7 +173,7 @@ export function GuestDockNav({
                 whiteSpace: "nowrap",
               }}
             >
-              {labelFor(view, labelKey)}
+              {dockTabDisplayLabel(labelFor(view, labelKey))}
             </span>
           </button>
         );

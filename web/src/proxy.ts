@@ -46,18 +46,15 @@ import { withTalentHostClientSession } from "@/lib/client-account/talent-host-se
 import { unsupportedLocaleRedirectTarget } from "@/lib/saas/unsupported-locale-redirect";
 import { isTenantHostContext, resolveProxyLocaleContext } from "@/lib/saas/proxy-locale-context";
 import { clientIp, stripInboundHostContextHeaders } from "@/lib/saas/proxy-inbound-sanitize";
-import {
-  PREVIEW_COOKIE_OPTIONS,
-  PREVIEW_QUERY_PARAM,
-  previewCookieNameFor,
-} from "@/lib/site-admin/preview/cookie";
-import { readPreviewFromQueryParam } from "@/lib/site-admin/preview/middleware";
+import { PREVIEW_QUERY_PARAM } from "@/lib/site-admin/preview/cookie";
+import { previewHandoffResponse } from "@/lib/saas/proxy-preview-handoff";
 import { ensureExperimentVisitorCookie } from "@/lib/site-admin/builder-node/experiment-visitor-cookie";
 import { TULALA_APEX_HOST, TULALA_WWW_HOST } from "@/lib/brand/tulala";
 import { timed } from "@/lib/server/perf-trace";
 import { startDoorRedirect } from "@/lib/onboarding/start-door-redirect";
 import { marketingDemoSlugRedirect } from "@/lib/marketing/demo-slug-apex-redirect";
 import { marketingSpanishAliasRedirect } from "@/lib/marketing/spanish-path-alias";
+import { langQueryForStartAfterDefaultLocaleStrip } from "@/lib/onboarding/flow";
 import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 
 export async function proxy(request: NextRequest) {
@@ -263,37 +260,12 @@ export async function proxy(request: NextRequest) {
     if (unknownCode) return unknownCode;
   }
 
-  // ── Preview handoff ─────────────────────────────────────────────────────
-  // Admin iframes the storefront with `?preview=<jwt>`. On the first hit we
-  // verify the token, set a tenant-scoped HttpOnly cookie, and 302-redirect
-  // to the same URL with the param stripped. Subsequent loads within the
-  // iframe are cookie-driven so the JWT never touches browser history or
-  // server access logs past the entry.
+  // ── Preview handoff ── (`?preview=<jwt>` → cookie + clean redirect; see proxy-preview-handoff.ts)
   if (
     (hostContext.kind === "agency" || hostContext.kind === "hub") &&
     request.nextUrl.searchParams.has(PREVIEW_QUERY_PARAM)
   ) {
-    const previewResult = await readPreviewFromQueryParam(
-      request,
-      hostContext.tenantId,
-    );
-    if (previewResult.ok) {
-      const clean = request.nextUrl.clone();
-      clean.searchParams.delete(PREVIEW_QUERY_PARAM);
-      const res = NextResponse.redirect(clean, 302);
-      res.cookies.set(
-        previewCookieNameFor(hostContext.tenantId),
-        previewResult.token,
-        { ...PREVIEW_COOKIE_OPTIONS },
-      );
-      return res;
-    }
-    // Invalid / expired / wrong-tenant token: strip the param silently and
-    // proceed as a normal published request. No error UI here — the panel
-    // will mint a fresh token on the next cycle.
-    const clean = request.nextUrl.clone();
-    clean.searchParams.delete(PREVIEW_QUERY_PARAM);
-    return NextResponse.redirect(clean, 302);
+    return previewHandoffResponse(request, hostContext.tenantId);
   }
 
   const langSettings = await timed("proxy.langSettings", getLanguageSettingsForMiddleware());
@@ -345,6 +317,14 @@ export async function proxy(request: NextRequest) {
   ) {
     const url = request.nextUrl.clone();
     url.pathname = withoutLocalePrefix;
+    // GRK-102: `/en/start` → `/start` must carry `?lang=en`. The flow ignores
+    // the locale cookie and would otherwise open Spanish for MX / es-* browsers.
+    const startLang = langQueryForStartAfterDefaultLocaleStrip({
+      pathnameAfterStrip: withoutLocalePrefix,
+      defaultLocale: effectiveLangSettings.defaultLocale,
+      existingLang: url.searchParams.get("lang"),
+    });
+    if (startLang) url.searchParams.set("lang", startLang);
     const res = NextResponse.redirect(url, 308);
     // QA 2026-05-13 — without setting the locale cookie here, the redirected
     // page renders in the DEFAULT locale even though the operator's URL was

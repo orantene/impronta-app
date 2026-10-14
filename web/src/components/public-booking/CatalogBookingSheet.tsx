@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { useFocusTrap } from "@/components/support/use-focus-trap";
 import { deriveGuestBookingPresentation } from "@/lib/booking/guest-booking-presentation";
+
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 import { durationLabel } from "@/lib/talent/duration-label";
 import { formatMoney } from "@/lib/talent/offerings-money";
@@ -39,9 +39,9 @@ import {
   catalogSlotDateLabel,
   catalogTotalCents,
   demoSlotsFor,
+  firstDayWithSlotsIndex,
   firstOpenDemoDayIndex,
   formatClock,
-  groupIsoSlotsByDay,
   type CatalogBookingMode,
 } from "./catalog-booking-logic";
 import {
@@ -57,6 +57,7 @@ import { CatalogIntakeFields } from "./catalog-intake-fields";
 import { preselectIntakeFromTask } from "@/lib/talent/offering-intake";
 import {
   fetchLiveSlots,
+  liveDayStripFromResult,
   shouldSkipGuestCaptchaOnHost,
   type CatalogSlotsFn,
 } from "./catalog-booking-live-slots";
@@ -77,6 +78,7 @@ import { resolveSheetOpening, slotArrivalPlan } from "./booking-slot-selection";
 import { ServiceAddressField } from "./ServiceAddressField";
 import { useServiceAddress } from "./use-service-address";
 import { useCatalogBookingConfirm } from "./use-catalog-booking-confirm";
+import { useBookingSheetFocusTrap } from "./use-booking-sheet-focus";
 import { CatalogDonePanel, CatalogSheetHeader } from "./catalog-done-panel";
 import { CatalogBookingBackNav } from "./catalog-booking-back-nav";
 
@@ -144,7 +146,7 @@ export function CatalogBookingSheet({
     !skipCaptcha && captcha != null && captcha.provider !== "none" && Boolean(captcha.siteKey);
 
   const days = useMemo(() => catalogNextDays(), []);
-  const trapRef = useFocusTrap<HTMLDivElement>(detail !== null);
+  const { trapRef, captureOpener, clearStaleOpener } = useBookingSheetFocusTrap(detail !== null);
   const money = useCallback(
     (cents: number, currency: string) => formatMoney(cents, currency, locale),
     [locale],
@@ -166,6 +168,7 @@ export function CatalogBookingSheet({
       }
       // PKG-2: products / untimed packages use CatalogPurchaseMount; skip only when that rail handles it.
       if (d.intent === "instant" && catalogDetailIsPurchase(d)) return;
+      captureOpener();
       // G13: a picked task pre-selects matching intake chips (still editable).
       setDetail(d.intake?.length ? { ...d, answers: preselectIntakeFromTask(d.intake, d.task, d.answers) } : d);
       // TUL-59: same service reopened in this session keeps every pick and field.
@@ -188,7 +191,7 @@ export function CatalogBookingSheet({
     const names = ["tulala:offering-instant", "tulala:offering-slot", "tulala:offering-request"];
     names.forEach((n) => window.addEventListener(n, open));
     return () => names.forEach((n) => window.removeEventListener(n, open));
-  }, [mode, days, draftKey]);
+  }, [mode, days, draftKey, captureOpener]);
 
   // CH-3: "back to my booking" re-opens the sheet with every pick kept (G9b: the task note rides on detail).
   useEffect(() => {
@@ -207,7 +210,7 @@ export function CatalogBookingSheet({
     window.dispatchEvent(
       new window.CustomEvent("tulala:maison-sheet", { detail: { open: detail !== null } }),
     );
-    if (!detail) return;
+    if (!detail) { clearStaleOpener(); return; }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setDetail(null);
     };
@@ -267,32 +270,25 @@ export function CatalogBookingSheet({
     run(detail.offeringId, bookingDurationMinutes)
       .then((r) => {
         if (cancelled) return;
-        setLiveTz(r.timezone);
-        setLivePlaceCity(r.placeCity?.trim() || null);
-        const grouped = groupIsoSlotsByDay(r.slots, r.timezone);
-        setLiveDays(grouped);
+        setLiveTz(r.timezone); setLivePlaceCity(r.placeCity?.trim() || null);
+        const strip = liveDayStripFromResult(r);
+        setLiveDays(strip);
         // TUL-232: opened at a slot: select it, or fall back to its day / the first day with the notice.
-        const arrival = slotArrivalPlan(pendingSlotRef.current, grouped, r.timezone, locale);
+        const arrival = slotArrivalPlan(pendingSlotRef.current, strip, r.timezone, locale);
         pendingSlotRef.current = null;
         if (arrival) { setDayIndex(arrival.dayIndex); setTime(arrival.time); setLiveStarts(arrival.liveStarts); setTakenNotice(arrival.notice); return; }
-        // BUF-6: keep the pick only when that ISO is still offered; otherwise
-        // clear clock + ISO so confirm cannot send a start that no longer fits.
+        // BUF-6: keep the pick only while that ISO is still offered; otherwise clear it.
         const prev = liveStartsRef.current;
         if (catalogSelectedStartStillOpen(prev, r.slots)) {
-          const idx = grouped.findIndex((d) => d.starts.some((s) => catalogSameInstant(s, prev!)));
+          const idx = strip.findIndex((d) => d.starts.some((s) => catalogSameInstant(s, prev!)));
           if (idx >= 0) setDayIndex(idx);
           return;
         }
-        setDayIndex(0);
-        setTime(null);
-        setLiveStarts(null);
+        setDayIndex(firstDayWithSlotsIndex(strip)); // first free day (today may be closed)
+        setTime(null); setLiveStarts(null);
       })
       .catch(() => {
-        if (!cancelled) {
-          setLiveDays([]);
-          setTime(null);
-          setLiveStarts(null);
-        }
+        if (!cancelled) { setLiveDays([]); setTime(null); setLiveStarts(null); }
       })
       .finally(() => {
         if (!cancelled) {

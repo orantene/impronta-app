@@ -64,14 +64,21 @@ export function FilterChips({
   children,
   role,
   "aria-label": ariaLabel,
+  "aria-busy": ariaBusy,
 }: {
   className?: string;
   children: ReactNode;
   role?: AriaRole;
   "aria-label"?: string;
+  "aria-busy"?: boolean;
 }) {
   return (
-    <div className={cn("flex flex-wrap gap-2", className)} role={role ?? "list"} aria-label={ariaLabel}>
+    <div
+      className={cn("flex flex-wrap gap-2", className)}
+      role={role ?? "list"}
+      aria-label={ariaLabel}
+      aria-busy={ariaBusy}
+    >
       {children}
     </div>
   );

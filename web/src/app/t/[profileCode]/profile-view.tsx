@@ -1,3 +1,4 @@
+import { softTitleCaseName } from "@/lib/talent/soft-title-case-name";
 import { improntaLog } from "@/lib/server/structured-log";
 import { loadProfileStorefrontPayload } from "./profile-storefront-payload";
 import { pickLocale } from "@/lib/i18n/pick-locale";
@@ -299,9 +300,9 @@ function groupByKind(locale: string, terms: TaxonomyTerm[], chain?: readonly str
 }
 
 function displayName(p: TalentProfile): string {
-  if (p.display_name?.trim()) return p.display_name.trim();
+  if (p.display_name?.trim()) return softTitleCaseName(p.display_name);
   const parts = [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
-  return parts || p.profile_code;
+  return softTitleCaseName(parts || p.profile_code);
 }
 
 function residenceLabel(locale: string, p: TalentProfile, chain?: readonly string[]): string {
@@ -1453,9 +1454,8 @@ export async function buildTalentProfileMetadata({
     return new URL(site);
   })();
 
-  const name = profile.display_name?.trim() ||
-    [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim() ||
-    profileCode;
+  // GRK-052: same soft title-case as displayName() so the hero matches OG/etc.
+  const name = displayName(profile as TalentProfile) || profileCode;
 
   // A category the tenant disabled must not reach <title> / og:title (it reaches
   // search engines from there). With every category hidden the title degrades to
