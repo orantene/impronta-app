@@ -78,7 +78,7 @@ export function ServicesCatalogStaticFallback({
                 >
                   {cover ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={cover} alt="" className="site-builder-node--services-catalog-photo" />
+                    <img src={cover} alt="" loading="lazy" decoding="async" className="site-builder-node--services-catalog-photo" />
                   ) : null}
                   <span className="site-builder-node--services-catalog-copy">
                     <strong className="site-builder-node--services-catalog-name">{item.title}</strong>

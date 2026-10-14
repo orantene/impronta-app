@@ -566,6 +566,8 @@ test("rail categoryNav emits data-category-nav=rail and body wrapper", () => {
   assert.match(html, /class="cb-island"/);
   // Proposal row packing: photo + name + buy/CTA still present.
   assert.match(html, /site-builder-node--services-catalog-photo/);
+  // TUL-871: catalog photos never compete with the hero for bandwidth.
+  assert.match(html, /<img[^>]*loading="lazy"[^>]*services-catalog-photo/);
   assert.match(html, /site-builder-node--services-catalog-name/);
   assert.match(html, /site-builder-node--services-catalog-cta/);
 });
