@@ -103,3 +103,9 @@ test("metadata mapping: service description is specific and per-locale canonical
   assert.equal(md.alternates?.canonical, languages.en);
   assert.deepEqual(md.alternates?.languages, languages);
 });
+
+test("TUL-796: the article adds no bottom reserve of its own (body already reserves floating chrome)", () => {
+  const src = readFileSync(join(process.cwd(), "src/lib/talent-site/server/service-main.tsx"), "utf8");
+  assert.doesNotMatch(src, /padding: "48px 20px 1\d\d"/);
+  assert.match(src, /padding: "48px 20px 56px"/);
+});

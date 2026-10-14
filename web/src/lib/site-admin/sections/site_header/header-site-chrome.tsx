@@ -51,6 +51,8 @@ export function HeaderSiteLocales({
           <a
             className="site-header__lang-code"
             href={hrefs?.[code] ?? `?locale=${code}`}
+            // TUL-793: a `?locale=` link is a switch action that redirects to the clean URL, never a page to index.
+            {...((hrefs?.[code] ?? `?locale=${code}`).includes("?locale=") ? { rel: "nofollow" } : {})}
             hrefLang={code}
             lang={code}
             data-active={code === locale ? "" : undefined}

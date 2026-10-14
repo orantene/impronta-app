@@ -19,7 +19,19 @@ export type ServicePageOffering = JsonLdOfferingSource & {
   id: string;
   imageUrls?: string[];
   publicCtaHidden?: boolean;
+  /** Fields the catalog already holds; shown when present, never invented (TUL-795). */
+  category?: string | null;
+  categoryLabel?: string;
+  cancellationHours?: number | null;
 };
+
+/** Other published services to link from a service page: same category first, then catalog order. */
+export function pickRelatedServices<T extends ServicePageOffering>(offerings: readonly T[], currentId: string, max = 3): T[] {
+  const cur = offerings.find((o) => o.id === currentId);
+  const others = offerings.filter((o) => o.id !== currentId && isServicePageEligible(o));
+  const same = cur?.category ? others.filter((o) => o.category === cur.category) : [];
+  return [...same, ...others.filter((o) => !same.includes(o))].slice(0, max);
+}
 
 function slugifyTitle(title: string): string {
   return title
@@ -67,13 +79,26 @@ export function serviceSitemapPaths(offerings: readonly ServicePageOffering[]): 
   return offerings.filter(isServicePageEligible).map((o) => `/${serviceSlug(o)}`);
 }
 
-export type ServicePageCopy = { book: string; back: string; minutes: (n: number) => string; priceFrom: string };
+export type ServicePageCopy = {
+  book: string;
+  back: string;
+  minutes: (n: number) => string;
+  priceFrom: string;
+  related: string;
+  freeCancel: (hours: number) => string;
+};
 
 export function servicePageCopy(locale: string): ServicePageCopy {
   const en = locale.toLowerCase().startsWith("en");
   return en
-    ? { book: "Book this service", back: "All services", minutes: (n) => `${n} min`, priceFrom: "From" }
-    : { book: "Reservar este servicio", back: "Todos los servicios", minutes: (n) => `${n} min`, priceFrom: "Desde" };
+    ? { book: "Book this service", back: "All services", minutes: (n) => `${n} min`, priceFrom: "From", related: "Other services", freeCancel: (h) => `Free cancellation up to ${h} h before` }
+    : { book: "Reservar este servicio", back: "Todos los servicios", minutes: (n) => `${n} min`, priceFrom: "Desde", related: "Otros servicios", freeCancel: (h) => `Cancelación gratuita hasta ${h} h antes` };
+}
+
+/** "All services" link: the home page's services section, locale-aware (`/` or `/en` -> `/#services`, `/en/#services`). */
+export function serviceBackHref(homePath: string): string {
+  const base = homePath && homePath.startsWith("/") && homePath !== "/" ? `${homePath.replace(/\/+$/, "")}/` : "/";
+  return `${base}#services`;
 }
 
 /** Booking CTA: the existing deep link, which opens the booking sheet on this offering. */
