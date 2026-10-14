@@ -112,3 +112,15 @@ test("catalog: offer.pending_approval.workspace is approval Attention on offer.s
   );
   assert.deepEqual(payload, { inquiryId: "inq-1" });
 });
+
+test("TUL-391 r2: offer.sent.talent bell deep-links to the inquiry (row was a dead end)", () => {
+  const entry = findCatalogEntryById("offer.sent.talent");
+  assert.ok(entry);
+  assert.equal(entry!.in_app!.kind, "offer");
+  assert.equal(entry!.in_app!.surface, "talent");
+  assert.equal(entry!.in_app!.targetDrawer, "talent-inquiry");
+  const payload = entry!.in_app!.targetPayload!(
+    event("offer.sent", {}, { inquiryId: "inq-1" }),
+  );
+  assert.deepEqual(payload, { inquiryId: "inq-1" });
+});
