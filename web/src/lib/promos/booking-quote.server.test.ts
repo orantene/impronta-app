@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
   bookingCartLines,
+  dropLimitedForNoShows,
   orderDiscountCents,
   quoteBooking,
   redemptionPlan,
@@ -133,6 +134,7 @@ function deps(over: Partial<BookingQuoteDeps> & { promos?: Promo[] } = {}): Book
       return "new";
     }),
     resolveCustomer: over.resolveCustomer ?? (async () => ({ kind: "matched" as const, customerId: "c-from-email", by: "email" as const, conflict: false })),
+    countNoShows: over.countNoShows ?? (async () => 0),
   };
 }
 
@@ -180,4 +182,45 @@ test("quoteBooking: any failed read is promo_unavailable, never 'no promos'", as
     const r = await quoteBooking(DB, { tenantId: "t1", lines: CART, customerId: "c1", now: NOW }, d);
     assert.deepEqual(r, { ok: false, reason: "promo_unavailable" });
   }
+});
+
+// ── L1: 2 no-shows with this talent -> no limited promos, silently ─────────
+
+test("dropLimitedForNoShows: 2 no-shows or a failed count drops only capped promos", () => {
+  const open = promo({ id: "p-open" });
+  const capped = promo({ id: "p-cap", max_uses: 3 });
+  assert.deepEqual(dropLimitedForNoShows([open, capped], 1).map((p) => p.id), ["p-open", "p-cap"]);
+  assert.deepEqual(dropLimitedForNoShows([open, capped], 2).map((p) => p.id), ["p-open"]);
+  assert.deepEqual(dropLimitedForNoShows([open, capped], null).map((p) => p.id), ["p-open"]);
+});
+
+test("quoteBooking: a 2-no-show client sees regular price on a limited promo, open promo still applies", async () => {
+  const capped = promo({ id: "p-cap", max_uses: 3, value: 50 });
+  const open = promo({ id: "p-open", value: 10 });
+  let asked: string | null = null;
+  const d = deps({ promos: [capped, open], countNoShows: async (_db, _t, c) => { asked = c; return 2; } });
+  const r = await quoteBooking(DB, { tenantId: "t1", lines: CART, customerId: "c1", now: NOW }, d);
+  assert.ok(r.ok);
+  if (!r.ok) return;
+  assert.equal(asked, "c1");
+  assert.deepEqual(r.value.quote.applied.map((a) => a.promoId), ["p-open"]);
+  assert.equal(r.value.quote.totals.charged_cents, 45000);
+});
+
+test("quoteBooking: 1 no-show keeps the limited promo; no limited promo means no count read", async () => {
+  const capped = promo({ id: "p-cap", max_uses: 3, value: 50 });
+  const r = await quoteBooking(DB, { tenantId: "t1", lines: CART, customerId: "c1", now: NOW }, deps({ promos: [capped], countNoShows: async () => 1 }));
+  assert.ok(r.ok && r.value.quote.applied[0]?.promoId === "p-cap");
+  let reads = 0;
+  await quoteBooking(DB, { tenantId: "t1", lines: CART, customerId: "c1", now: NOW }, deps({ promos: [promo()], countNoShows: async () => { reads += 1; return 5; } }));
+  assert.equal(reads, 0);
+});
+
+test("quoteBooking: a typed limited code for a 2-no-show client is refused generically, never priced", async () => {
+  const code = promo({ id: "p-code", unlock: "code", code: "LUZ10", max_uses: 3 });
+  const r = await quoteBooking(DB, { tenantId: "t1", lines: CART, customerId: "c1", code: "luz10", now: NOW }, deps({ promos: [code], countNoShows: async () => 2 }));
+  assert.ok(r.ok);
+  if (!r.ok) return;
+  assert.equal(r.value.quote.applied.length, 0);
+  assert.equal(r.value.typed.kind, "refused");
 });

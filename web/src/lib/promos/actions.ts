@@ -623,3 +623,59 @@ export async function endPromo(id: string): Promise<PromoResult> {
   refresh();
   return { ok: true };
 }
+
+// ── Cortesía (Q6): a free booking for one client, recorded as gifted value ──
+
+export type CourtesyActionResult =
+  | { ok: true; already: boolean; giftedCents: number; currency: string }
+  | { ok: false; error: PromoActionError | "cancelled" | "needs_client" | "already_paid" };
+
+/**
+ * Mark one of the talent's own bookings as a Cortesía: charged 0, no fee, the
+ * reason recorded (influencer, gift, make_good, other). See
+ * `redemption/courtesy.ts` for the money rules.
+ */
+export async function giveCourtesyBooking(input: {
+  bookingId: string;
+  reason: string;
+  /** Only when the booking has no order to price it from. Integer minor units. */
+  listCents?: number | null;
+}): Promise<CourtesyActionResult> {
+  await requireNotImpersonating();
+  const scope = await resolvePromoScope(true);
+  if (!isScope(scope)) return { ok: false, error: scope.error };
+  const { requireOwnBooking } = await import("@/lib/talent-agenda/booking-actions");
+  const own = await requireOwnBooking(String(input.bookingId ?? ""));
+  if (!own.ok || own.talentId !== scope.talentId) return { ok: false, error: "not_allowed" };
+
+  const [{ giveCourtesy, defaultCourtesyCode }, money, { cancelPaymentLink }, service, { completeZeroTotalOrder }] = await Promise.all([
+    import("./redemption/courtesy"),
+    import("@/lib/talent-agenda/cancel-money"),
+    import("@/lib/payments/links"),
+    import("./redemption/service"),
+    import("@/lib/orders/complete-order"),
+  ]);
+  const res = await giveCourtesy(
+    scope.admin,
+    {
+      tenantId: scope.tenantId,
+      actorUserId: scope.userId,
+      bookingId: input.bookingId,
+      reason: input.reason,
+      listCents: input.listCents ?? null,
+    },
+    {
+      holdPromo: service.holdPromo,
+      confirmRedemption: service.confirmRedemption,
+      ledgerPaidCents: money.ledgerPaidCents,
+      paymentInFlight: (db, orderId) => money.paymentInFlightForOrder(db, orderId),
+      releaseRedemption: service.releaseRedemption,
+      cancelPaymentLink,
+      completeZeroTotalOrder: (db, o) => completeZeroTotalOrder(db, o),
+      code: defaultCourtesyCode,
+    },
+  );
+  if (!res.ok) return { ok: false, error: res.error };
+  refresh();
+  return { ok: true, already: res.already, giftedCents: res.giftedCents, currency: res.currency };
+}

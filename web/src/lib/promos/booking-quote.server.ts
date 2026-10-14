@@ -6,7 +6,8 @@ import { refusalForReject, type PromoRefusal } from "@/lib/orders/promo-resolve"
 import { logServerError } from "@/lib/server/safe-error";
 import { quote } from "./quote";
 import { loadClientStatus, loadLapsedDays, loadTenantPromos, loadUsage } from "./repo";
-import { resolveCustomer } from "./redemption/service";
+import { isBlockedFromLimitedPromos, isLimitedPromo } from "./redemption/policy";
+import { countNoShowsWithTalent, resolveCustomer } from "./redemption/service";
 import type { AppliedPromo, CartLine, ClientStatus, Promo, QuoteResult } from "./types";
 
 /**
@@ -174,6 +175,7 @@ export type BookingQuoteDeps = {
   loadClientStatus: typeof loadClientStatus;
   loadLapsedDays: typeof loadLapsedDays;
   resolveCustomer: typeof resolveCustomer;
+  countNoShows: typeof countNoShowsWithTalent;
 };
 
 const DEFAULT_DEPS: BookingQuoteDeps = {
@@ -182,7 +184,20 @@ const DEFAULT_DEPS: BookingQuoteDeps = {
   loadClientStatus,
   loadLapsedDays,
   resolveCustomer,
+  countNoShows: countNoShowsWithTalent,
 };
+
+const limited = (p: Promo) => isLimitedPromo({ max_redemptions: p.max_uses ?? null });
+
+/**
+ * L1: 2 no-shows with this talent -> no LIMITED promos, silently (regular
+ * price; open promos still apply). A failed count degrades the same way.
+ * Pure over the count so it is one unit test.
+ */
+export function dropLimitedForNoShows(promos: readonly Promo[], noShows: number | null): Promo[] {
+  if (noShows !== null && !isBlockedFromLimitedPromos(noShows)) return [...promos];
+  return promos.filter((p) => !limited(p));
+}
 
 /** Promos that could possibly apply; the rest are not worth a usage read. */
 function candidates(all: readonly Promo[]): Promo[] {
@@ -208,11 +223,18 @@ export async function quoteBooking(
     if (who.kind === "matched") customerId = who.customerId;
   }
 
-  const live = candidates(loaded.promos);
+  let live = candidates(loaded.promos);
+  // Only a known buyer can carry no-shows; only limited promos care.
+  if (customerId && live.some(limited)) {
+    live = dropLimitedForNoShows(live, await deps.countNoShows(db, input.tenantId, customerId));
+  }
   // A typed code that is paused / archived still has to be FOUND so the
   // client hears "not found" rather than silence.
+  // A limited code dropped for no-shows is found too but never priced: the
+  // client hears the generic "not valid", never why.
   const typedHits = loaded.promos.filter((p) => input.code && p.unlock === "code" && norm(p.code) === norm(input.code));
   const promos = [...live, ...typedHits.filter((p) => !live.includes(p))];
+  const priceable = promos.filter((p) => live.includes(p) || !candidates([p]).length);
   const ids = promos.map((p) => p.id);
 
   const [usage, lapsed] = await Promise.all([
@@ -237,7 +259,7 @@ export async function quoteBooking(
       cart: input.lines,
       client: { customerId, email: input.contact?.email ?? null, phone: input.contact?.phone ?? null, status },
       now,
-      promos,
+      promos: priceable,
       usage,
       unlocked: { codes: input.code ? [norm(input.code)] : [], linkPromoIds: input.linkPromoIds ?? [] },
     });
