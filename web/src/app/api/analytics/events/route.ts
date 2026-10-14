@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { redactSecretPath } from "@/lib/analytics/redact-secret-path";
 import { z } from "zod";
 import { logAnalyticsEventServer } from "@/lib/analytics/server-log";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
@@ -104,7 +105,7 @@ export async function POST(request: Request) {
     sessionId: session_id ?? null,
     talentId: resolvedTalentId,
     tenantId,
-    path: stripUrlQuery(path),
+    path: (() => { const p = stripUrlQuery(path); return p ? redactSecretPath(p) : p; })(),
     locale: locale ?? null,
   });
 
