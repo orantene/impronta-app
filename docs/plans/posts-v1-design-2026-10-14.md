@@ -41,7 +41,7 @@
    - slug change → automatic 301
 7. **Agency admin:** the existing admin posts pages switch to the same writer and settings, so both workspaces use one writer.
 8. **Takedown** (platform admin): hide any post on any tenant, with a reason. It forces `noindex`, drops the post from lists, the sitemap and `llms.txt`, and the URL shows the soft-unavailable page. The talent sees "Oculto por Tulala: {razón}" and can't republish it. Only the platform admin can undo it.
-9. **Gating: Web Office only** (plan key `talent_portfolio`, $15/mo). A free talent can open Posts, write and preview drafts (no limit). **Publicar** opens the Web Office upgrade sheet and keeps the draft, so it publishes right after upgrading (same pattern as Promos).
+9. **Gating: paid only.** Talents: **Web Office** (the one paid talent package). Workspace admins: their **first paid package and up**. A free talent can open Posts, write and preview drafts (no limit). **Publicar** opens the Web Office upgrade sheet and keeps the draft, so it publishes right after upgrading (same pattern as Promos).
 
 **Not in v1:** AI writer, saved looks, Detach, scheduling UI beyond a date picker (the cron already exists), share kit, insights, hub Posts tab (all v1.1). Roles/review, AI redesign, newsletter (v2).
 
@@ -73,12 +73,11 @@
 - Each FAQ block is one Q + A. All FAQ blocks in a post become one `FAQPage` JSON-LD. At least 1 Q/A is required for the schema to be emitted (an empty block outputs nothing).
 
 **Gating (Web Office)**
-- New capability key **`talentPosts`**, granted by `talent_portfolio` only, in `web/src/lib/access/plan-catalog.ts`. It is checked through the **site-scoped reader** (`talentPlanGrantsSiteCapability`), like the other personal-site gates. No `plan === '...'` string checks in components.
-- **Grandfathered `talent_pro`** (shows as "Web Office", $9) does **not** get Posts. It sees the existing "Unlock the rest of Web Office" nudge. *(Open: PM can flip this to included if Oran prefers not to nudge legacy payers.)*
+- New capability key **`talentPosts`**, granted by **every Web Office plan key** in `web/src/lib/access/plan-catalog.ts`: `talent_portfolio` and the grandfathered `talent_pro` (it is sold and shown as Web Office too; there is one paid talent package, so no split). It is checked through the **site-scoped reader** (`talentPlanGrantsSiteCapability`), like the other personal-site gates. No `plan === '...'` string checks in components.
 - The publish check is **server-side** (the publish action + scheduled-publish cron both check the capability). The UI lock is a convenience only.
 - **Downgrade / lapse:** published posts **stay live and indexed**, so we don't break the talent's SEO or links. They become read-only: no new publishes or edits to live posts until renewal. Drafts are kept. (Same spirit as the custom-domain rule: rows are never mutated, so restoring the plan restores everything.) Scheduled posts don't publish while lapsed, and the talent is told.
 - Web Office perk list (`TalentSubscriptionShell.tsx` / plan card): add "Blog y posts con SEO para Google e IA".
-- **Agency admin workspace:** keeps the posts access it has today. No regression; the agency gate follows the agency plan.
+- **Workspace admins:** Posts is granted from the **first paid workspace package** (`website`) and every package above it (`studio`, `agency`, `network`, `legacy`). The workspace `free` plan can draft + preview but not publish (same upgrade pattern). Existing published posts on any workspace stay live (no regression).
 
 **Tenancy**
 - Every write goes through the existing tenant-scoped posts write path. The static test that forbids raw `.from("cms_posts")` stays green.
@@ -126,7 +125,7 @@ CREATE TABLE public.cms_post_categories (
 
 **Rules:**
 - Takedown is enforced by the public read: `taken_down_at IS NULL`. The talent's write path refuses to clear `taken_down_*`, and only the platform-admin action can.
-- Publish requires the `talentPosts` capability (Web Office), checked on the server in the publish action and the scheduled-publish cron.
+- Publish requires the posts capability (talent: Web Office; workspace: `website` and up), checked on the server in the publish action and the scheduled-publish cron.
 
 **`body_blocks` shape:** an array of `{ id, type, ...props }`, validated by a zod schema per type.
 - Types: `paragraph | heading | list | image | gallery | quote | video | divider | service | book_button | faq`.
@@ -183,7 +182,7 @@ It shows plain ES/EN copy. There's no AI fix button in v1.
 | 1 | **Migration**: the `cms_posts` columns, `cms_post_categories` + RLS, the `ai_crawlers_allowed` flag | `db:push` applied, objects verified. Existing posts render unchanged (`body_blocks` NULL → legacy body) |
 | 2 | **Blocks model + renderer**: zod per block type, theme-token renderer, legacy-body fallback | Unit tests per block. FAQ → JSON-LD helper tested. Service block calls `displayPrice()` |
 | 3 | **Writer + settings sheet** (shared by talent + admin) | Create/edit/autosave a draft; every block works at 390px; settings save; slug change writes a redirect |
-| 4 | **Talent dashboard Posts list** + nav entry + **Web Office gate** (`talentPosts` capability, server-side publish check, lapse = read-only) + perk line on the plan card | A free talent can draft + preview; Publicar opens the Web Office upgrade and keeps the draft. A lapsed talent's posts stay live but read-only. `talent_pro` sees the upgrade nudge |
+| 4 | **Talent dashboard Posts list** + nav entry + **paid gate** (talent: any Web Office key incl. grandfathered `talent_pro`; workspace: `website` and up; server-side publish check; lapse = read-only) + perk line on the plan cards | A free talent / free workspace can draft + preview; Publicar opens the upgrade and keeps the draft. Every Web Office talent and every paid workspace can publish. A lapsed plan's posts stay live but read-only |
 | 5 | **Builder**: POSTS group in the page tree, the Diseño de posts system page (from the theme default), the Post content widget, `blog_index` → live "Últimos posts", the Autor widget | Editing Diseño de posts changes every post. The home "Últimos posts" shows real posts |
 | 6 | **Public routes**: `/blog/<slug>`, `/blog/c/<cat>`, the 301 from `/posts/*`, soft-unavailable and expired states | All states render in theme. Old URLs 301 |
 | 7 | **SEO/AI**: meta/canonical/OG auto image, `BlogPosting` + `FAQPage` + breadcrumbs JSON-LD, sitemap, hreflang, `llms.txt`, crawler toggle, SEO dot | Structured data validates (schema test). Hidden/expired/taken-down are excluded everywhere |
