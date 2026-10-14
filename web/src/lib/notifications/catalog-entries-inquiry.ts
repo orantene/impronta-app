@@ -200,6 +200,10 @@ const OFFER_SENT_TALENT: CatalogEntry = {
       if (net) return `${net}. Open the Offer tab to review and approve.`;
       return "An offer with your rate is ready. Open the Offer tab to review and approve.";
     },
+    // TUL-391 r2: without a target the bell row was a dead end. "talent-inquiry"
+    // resolves to the inquiry workspace (notification-drawer-targets.ts).
+    targetDrawer: "talent-inquiry",
+    targetPayload: (event) => (event.inquiryId ? { inquiryId: event.inquiryId } : {}),
   },
   email: {
     templateId: "talent.offer_ready",
