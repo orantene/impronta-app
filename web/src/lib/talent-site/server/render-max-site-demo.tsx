@@ -3,11 +3,18 @@ import "server-only";
 import { anyDemoTalent } from "@/lib/talent/demo-talent";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { resolveClientAccountMount } from "@/lib/client-account/gate";
+import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 
 /** Demo talent (fictional theme example): true when this profile is a demo. */
 export async function loadMaxSiteIsDemo(talentProfileId: string): Promise<boolean> {
   const demoDb = createServiceRoleClient();
   return demoDb ? await anyDemoTalent(demoDb, [talentProfileId]) : false;
+}
+
+/** The booking switch the slots API gates on; fails open like the switches loader. */
+export async function loadMaxSiteAcceptingBookings(talentProfileId: string): Promise<boolean> {
+  const admin = createServiceRoleClient();
+  return admin ? (await loadTalentSiteSwitches(admin, talentProfileId)).acceptingBookings : true;
 }
 
 /**

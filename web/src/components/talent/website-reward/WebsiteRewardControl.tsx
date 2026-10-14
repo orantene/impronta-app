@@ -168,12 +168,12 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
           type="button"
           onClick={onPress}
           className={`inline-flex items-center gap-2.5 rounded-xl border border-admin-border-soft bg-white px-3 py-1.5 text-left font-admin-body ${placement === "services" ? "w-full" : ""}`}
-          aria-label={onWebOffice ? copy.t("Manage website") : copy.isSpanish ? "Sitio en vivo" : "Website live"}
+          aria-label={copy.t("Website live")}
         >
           <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-[var(--tc-ok)]" />
           <span className="min-w-0">
             <span className="block text-[12.5px] font-semibold leading-tight text-admin-ink">
-              {onWebOffice ? copy.t("Manage website") : copy.isSpanish ? "Sitio en vivo" : "Website live"}
+              {copy.t("Website live")}
             </span>
             {siteHost && (
               <span className="block max-w-[180px] truncate text-[11px] leading-tight text-admin-ink-dim">{siteHost}</span>
