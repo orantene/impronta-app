@@ -6,8 +6,6 @@ import { auditFailure } from "@/lib/audit/emit";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { buildAudienceContext, hydrateAudience } from "./audience";
-import { findCatalogEntries } from "./catalog";
-import { sendEmailNotification } from "./channels/email";
 import { sendInAppNotification } from "./channels/in_app";
 import { sendPushNotification } from "./channels/push";
 import { sendWhatsAppNotification } from "./channels/whatsapp";
@@ -55,6 +53,11 @@ export async function dispatchEventNotifications(
 ): Promise<DispatchResult> {
   const result: DispatchResult = { dispatched: 0, suppressed: 0, failed: 0, queued: 0, skipped: 0 };
 
+  // TUL-573: catalog.ts statically pulls ~60 React Email templates and
+  // channels/email.ts pulls Resend + the renderer. Loaded here, on the first
+  // dispatch, instead of at module load, so every route that merely imports the
+  // dispatcher (admin, talent/today) no longer evaluates them on a cold start.
+  const { findCatalogEntries } = await import("./catalog");
   const entries = findCatalogEntries(event.type);
   if (entries.length === 0) return result;
 
@@ -73,6 +76,7 @@ export async function dispatchEventNotifications(
   // disabled (transactional/billing notices are never overlay-disabled).
   const overlay = await loadNotificationOverlay(ctx.admin);
 
+  const { sendEmailNotification } = await import("./channels/email");
   const handlers: Partial<Record<NotificationChannel, ChannelHandler>> = {
     email: sendEmailNotification,
     in_app: sendInAppNotification,
