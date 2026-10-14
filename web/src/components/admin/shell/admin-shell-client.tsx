@@ -234,6 +234,7 @@ export function AdminShellClient({
     <ShellBoundary supportSlot={supportSlot}>
       <AdminShellProvider
         initialBridgeData={initialBridgeData}
+        initialSurface="workspace" // URL intent beats sticky preferredSurface=talent
         initialPage={initialPage}
         tenantSlug={tenantSlug}
         brandedHost={brandedHost}
