@@ -134,7 +134,7 @@ async function seed(sb, stripe, args, ids) {
     ),
   );
   await must(
-    "upsert transaction",
+    "insert transaction (draft)",
     sb.from("booking_transactions").upsert(
       {
         id: ids.transactionId,
@@ -149,12 +149,16 @@ async function seed(sb, stripe, args, ids) {
         net_amount_cents: money.netCents,
         currency: args.currency.toUpperCase(),
         provider: "stripe",
-        status: "payment_requested",
+        status: "draft",
         checkout_type: "full",
-        requested_at: now,
       },
-      { onConflict: "id" },
+      { onConflict: "id", ignoreDuplicates: true },
     ),
+  );
+  // The DB only accepts new rows as draft; move draft -> payment_requested.
+  await must(
+    "request transaction payment",
+    sb.from("booking_transactions").update({ status: "payment_requested", requested_at: now }).eq("id", ids.transactionId).eq("status", "draft"),
   );
 
   // The real Stripe TEST charge. Idempotency key at the txn grain: a re-run
