@@ -8,6 +8,7 @@ import {
   useWebsiteEligibility,
   WEBSITE_ELIGIBILITY_CHANGED_EVENT,
 } from "@/components/talent/studio/useWebsiteEligibility";
+import { dashboardPlanKind } from "@/lib/talent/dashboard-status";
 import { loadTalentSiteActivationStateAction } from "@/lib/talent-site/server/site-activation-state";
 import type { TalentSiteActivationState } from "@/lib/talent-site/server/site-management-types";
 import { appliedThemeLabel, appliedThemeLine } from "@/lib/talent-site/theme-catalog/applied-theme-label";
@@ -149,7 +150,8 @@ export function activationStoreSnapshot(): { value: TalentSiteActivationState | 
 export function useWebsiteFlow() {
   const eligibility = useWebsiteEligibility();
   const copy = useDashboardText();
-  const { setTalentPage } = useAdminShell();
+  const { setTalentPage, state: shellState } = useAdminShell();
+  const plan = dashboardPlanKind(shellState.talentTier);
   const router = useRouter();
   const pathname = usePathname();
   const { value: activation, attempted } = useActivationStore(pathname);
@@ -165,7 +167,7 @@ export function useWebsiteFlow() {
     activation?.themeLookSlug,
     copy.isSpanish ? "es" : "en",
   );
-  const text = websiteFlowCopy(state, eligibility.percent ?? 0, copy.isSpanish, appliedThemeLine(theme));
+  const text = websiteFlowCopy(state, eligibility.percent ?? 0, copy.isSpanish, appliedThemeLine(theme), plan);
 
   /** Open the setup flow at the step the talent is on (never restarts). */
   const continueSetup = useCallback(() => {
@@ -174,5 +176,5 @@ export function useWebsiteFlow() {
     router.push("/talent/site");
   }, [router, setTalentPage, step]);
 
-  return { eligibility, activation, loaded: activation != null || attempted, state, step, theme, text, continueSetup };
+  return { eligibility, activation, plan, loaded: activation != null || attempted, state, step, theme, text, continueSetup };
 }

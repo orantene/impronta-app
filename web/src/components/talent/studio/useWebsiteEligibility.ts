@@ -8,6 +8,7 @@ import {
   getWebsiteEligibility,
   inferWebsiteWorkingMode,
   type WebsiteEligibilityInput,
+  hasNameAndTrade,
 } from "@/lib/talent/website-eligibility";
 import { combineAvailability, countBookableOfferings } from "@/lib/talent/website-eligibility-facts";
 import { shareInFlight } from "@/lib/talent/in-flight";
@@ -112,7 +113,7 @@ export function useWebsiteEligibility() {
   const workingMode = inferWebsiteWorkingMode(bridgeTalentSelfProfile?.primaryTypeLabel);
   const input: WebsiteEligibilityInput = {
     hasNameAndWork: bridgeTalentSelfProfile
-      ? Boolean(bridgeTalentSelfProfile.displayName?.trim() && bridgeTalentSelfProfile.primaryTypeLabel)
+      ? hasNameAndTrade(bridgeTalentSelfProfile.displayName, bridgeTalentSelfProfile.primaryTypeLabel)
       : null,
     photoCount: bridgeTalentSelfProfile ? bridgeTalentSelfProfile.portfolioCount : null,
     bookableCount,
