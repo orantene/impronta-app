@@ -42,6 +42,8 @@ export type TalentSiteDomainStatus =
   | "active"
   | "error";
 
+export type TalentSiteDomainAcquisition = "connected" | "purchased" | "assisted" | null;
+
 export type TalentSiteDomainRecord = {
   id: string;
   talentProfileId: string;
@@ -49,6 +51,7 @@ export type TalentSiteDomainRecord = {
   status: TalentSiteDomainStatus;
   verificationToken: string | null;
   isPrimary: boolean;
+  acquisition: TalentSiteDomainAcquisition;
   createdAt: string | null;
   updatedAt: string | null;
   verifiedAt: string | null;
@@ -58,7 +61,7 @@ export type TalentSiteDomainRecord = {
 };
 
 const DOMAIN_COLUMNS =
-  "id, talent_profile_id, domain, status, verification_token, is_primary, created_at, updated_at, verified_at, ssl_provisioned_at, last_health_check_at, failure_reason";
+  "id, talent_profile_id, domain, status, verification_token, is_primary, acquisition, created_at, updated_at, verified_at, ssl_provisioned_at, last_health_check_at, failure_reason";
 
 type DomainRowDb = {
   id: string;
@@ -67,6 +70,7 @@ type DomainRowDb = {
   status: string;
   verification_token: string | null;
   is_primary: boolean;
+  acquisition: string | null;
   created_at: string | null;
   updated_at: string | null;
   verified_at: string | null;
@@ -76,6 +80,12 @@ type DomainRowDb = {
 };
 
 function mapDomainRow(row: DomainRowDb): TalentSiteDomainRecord {
+  const acquisition =
+    row.acquisition === "connected" ||
+    row.acquisition === "purchased" ||
+    row.acquisition === "assisted"
+      ? row.acquisition
+      : null;
   return {
     id: row.id,
     talentProfileId: row.talent_profile_id,
@@ -83,6 +93,7 @@ function mapDomainRow(row: DomainRowDb): TalentSiteDomainRecord {
     status: row.status as TalentSiteDomainStatus,
     verificationToken: row.verification_token,
     isPrimary: Boolean(row.is_primary),
+    acquisition,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     verifiedAt: row.verified_at,

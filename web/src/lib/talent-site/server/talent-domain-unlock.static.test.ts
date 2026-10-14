@@ -107,6 +107,22 @@ test("webhook fulfill buys only after payment and is idempotent on session id", 
   assert.match(src, /mode: "payment"/);
   assert.match(src, /buyDomain\(/);
   assert.match(src, /ensureCustomDomainOnVercelProject/);
+  assert.match(src, /verifyCustomDomainOnVercelProject/);
+  assert.match(src, /buildPurchasedTalentDomainRow/);
   assert.match(src, /stripe_checkout_session_id/);
   assert.match(src, /acquisition: "purchased"/);
+  // D3: purchased path must not park on dns_verification_sent / mint a TXT token.
+  assert.doesNotMatch(src, /status:\s*failureReason\s*\?\s*"error"\s*:\s*"dns_verification_sent"/);
+  assert.doesNotMatch(src, /impronta-verify-/);
+});
+
+test("purchased activation helper goes straight to active with no TXT token", () => {
+  const src = readFileSync(
+    join(ROOT, "lib/stripe/talent-domain-purchase-activation.ts"),
+    "utf8",
+  );
+  assert.match(src, /status: "active"/);
+  assert.match(src, /verification_token: null/);
+  assert.match(src, /No TXT step/);
+  assert.doesNotMatch(src, /dns_verification_sent/);
 });
