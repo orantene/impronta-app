@@ -65,6 +65,7 @@ import { GuestCaptchaField, type GuestCaptchaConfig } from "./GuestCaptchaField"
 import { CatalogLiveWhenPicker, CatalogDemoWhenPicker } from "./CatalogLiveWhenPicker";
 import { bookingDraftKey, clearBookingDraft, loadBookingDraft } from "./booking-draft-store";
 import { CatalogWhoSummary, useBookingDraftEffects } from "./catalog-who-summary";
+import { localizeOptionLabels } from "./catalog-option-locale";
 import { useBookingContactPrefill } from "./use-booking-contact-prefill";
 import {
   BOOKING_RESUME_EVENT,
@@ -170,7 +171,8 @@ export function CatalogBookingSheet({
       if (d.intent === "instant" && catalogDetailIsPurchase(d)) return;
       if (isCatalogDoneEcho(d.offeringId)) return; // TUL-1035: a post-confirm re-open keeps the confirmation
       // G13: a picked task pre-selects matching intake chips (still editable).
-      setDetail(d.intake?.length ? { ...d, answers: preselectIntakeFromTask(d.intake, d.task, d.answers) } : d);
+      const localized = localizeOptionLabels(d, locale);
+      setDetail(localized.intake?.length ? { ...localized, answers: preselectIntakeFromTask(localized.intake, localized.task, localized.answers) } : localized);
       // TUL-59: same service reopened in this session keeps every pick and field.
       const draft = loadBookingDraft(draftKey, d.offeringId);
       const draftDay = draft && mode === "demo" ? days.findIndex((x) => catalogDayKey(x) === draft.dayKey) : -1;
@@ -191,7 +193,7 @@ export function CatalogBookingSheet({
     const names = ["tulala:offering-instant", "tulala:offering-slot", "tulala:offering-request"];
     names.forEach((n) => window.addEventListener(n, open));
     return () => names.forEach((n) => window.removeEventListener(n, open));
-  }, [mode, days, draftKey]);
+  }, [mode, days, draftKey, locale]);
 
   // CH-3: "back to my booking" re-opens the sheet with every pick kept (G9b: the task note rides on detail).
   useEffect(() => {

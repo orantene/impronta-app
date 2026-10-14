@@ -100,6 +100,19 @@ export function buildTalentLocaleSwaps(
     add(bioEn.slice(0, TAGLINE_MAX), clampWords(bio));
     add(clampWords(bioEn), clampWords(bio));
   }
+  // TUL-876: a tree baked in her main language (Spanish) must show the visitor's
+  // bio when she wrote one for that language. Only a real entry for the visitor's
+  // locale drives this, never a fallback, so no content is invented.
+  const ownBio = src.bioI18n?.[key]?.trim() ?? "";
+  if (ownBio) {
+    for (const [code, raw] of Object.entries(src.bioI18n ?? {})) {
+      const baked = raw?.trim() ?? "";
+      if (!baked || code === key || code === "en") continue;
+      add(baked, ownBio);
+      add(baked.slice(0, TAGLINE_MAX), clampWords(ownBio));
+      add(clampWords(baked), clampWords(ownBio));
+    }
+  }
   for (const names of src.typeNames) {
     const en = names?.en?.trim();
     if (en) add(en, pick(names, key, chain));
