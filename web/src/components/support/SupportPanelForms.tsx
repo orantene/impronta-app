@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { SUPPORT_AGENT_VARS } from "@/lib/support/support-persona";
@@ -33,6 +33,10 @@ export function NewTicketForm({
   const [pref, setPref] = useState<"anytime" | "morning" | "afternoon" | "evening">("anytime");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (error) errorRef.current?.focus();
+  }, [error]);
   return (
     <form
       style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}
@@ -84,15 +88,15 @@ export function NewTicketForm({
       </label>
       <label style={fieldLabel}>
         {t("dashboard.adminSupport.fieldSubject")}
-        <input value={subject} onChange={(e) => setSubject(e.target.value)} style={fieldInput} />
+        <input value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={200} style={fieldInput} />
       </label>
       <label style={fieldLabel}>
         {t("dashboard.adminSupport.fieldDescription")}
-        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5} required style={fieldInput} />
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5} maxLength={4000} required style={fieldInput} />
       </label>
       <label style={fieldLabel}>
         {t("dashboard.adminSupport.fieldPhone")}
-        <input value={phone} onChange={(e) => setPhone(e.target.value)} style={fieldInput} />
+        <input value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={40} type="tel" inputMode="tel" autoComplete="tel" style={fieldInput} />
       </label>
       <div style={{ fontSize: 12, color: COLORS.inkMuted }}>{t("dashboard.adminSupport.whatsappHint")}</div>
       {phone.trim() ? (
@@ -127,7 +131,7 @@ export function NewTicketForm({
         <ReplayConsent checked={attachReplay} onChange={setAttachReplay} />
       ) : null}
       {error ? (
-        <div role="alert" style={{ fontSize: 12, color: COLORS.critical }}>
+        <div ref={errorRef} role="alert" tabIndex={-1} style={{ fontSize: 12, color: COLORS.critical, outline: "none" }}>
           {error}
         </div>
       ) : null}
@@ -267,8 +271,9 @@ const fieldLabel: CSSProperties = { display: "flex", flexDirection: "column", ga
 const fieldInput: CSSProperties = {
   border: `1px solid ${COLORS.border}`,
   borderRadius: RADIUS.md,
-  padding: "8px 10px",
-  fontSize: 13,
+  padding: "10px 10px",
+  // 16px stops iOS Safari zooming the panel on focus at 390px.
+  fontSize: 16,
   fontFamily: FONTS.body,
   color: COLORS.ink,
 };
