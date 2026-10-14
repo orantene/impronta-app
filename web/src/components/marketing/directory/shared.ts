@@ -148,9 +148,9 @@ export function toCanonicalCardData(
     profileCode: talent.profileCode,
     profileHref: talent.profileCode ? `/t/${talent.profileCode}` : "",
     primaryType: talent.primaryTypeLabel,
-    location: locationLine(talent.homeCity, talent.homeCountry),
+    location: locationLine(talent.homeCity, talent.homeCountry, copy.locale),
     photoUrl: talent.headshotUrl,
-    agencyName: talent.agencyName,
+    agencyName: localizeIndependent(talent.agencyName, copy),
     isExclusive: talent.isExclusive,
     // The portrait/profile "Verified" badge reads this boolean; the trust
     // ladder ("basic" | "verified" | "silver" | "gold") already carries the
@@ -271,6 +271,11 @@ export function initialsOf(name: string): string {
     .join("");
 }
 
+/** A stored agency name that is just the word "Independent" reads in the page locale. */
+function localizeIndependent(name: string | null, copy: DirectoryCopy): string | null {
+  return name && name.trim().toLowerCase() === "independent" ? copy.independent : name;
+}
+
 /** Subtle agency attribution string. Product decision: "show agency, subtle".
  *  Independent talents read "Independent"; exclusive rosters get a quiet tag. */
 export function agencyLine(
@@ -278,8 +283,9 @@ export function agencyLine(
   isExclusive: boolean,
   copy: DirectoryCopy = DIRECTORY_COPY_EN,
 ): string {
-  if (!agencyName) return copy.independent;
-  return isExclusive ? `${agencyName} · ${copy.exclusiveSuffix}` : agencyName;
+  const name = localizeIndependent(agencyName, copy);
+  if (!name) return copy.independent;
+  return isExclusive ? `${name} · ${copy.exclusiveSuffix}` : name;
 }
 
 /** Restrained availability copy. Never buyer-framed; "on request" when the
@@ -311,9 +317,44 @@ export function smartTitleCase(input: string): string {
   );
 }
 
-export function locationLine(city: string | null, country: string | null): string | null {
+let enRegionIndex: Map<string, string> | null = null;
+
+/**
+ * Render a stored country in the page locale. Accepts an ISO 3166 code
+ * ("MX") or the English name ("Mexico"); anything unrecognised is returned
+ * untouched. English keeps the stored text exactly as before.
+ */
+export function localizeCountry(country: string, locale: "en" | "es"): string {
+  const raw = country.trim();
+  if (!raw || locale === "en") return raw;
+  try {
+    const es = new Intl.DisplayNames(["es"], { type: "region" });
+    if (/^[A-Za-z]{2}$/.test(raw)) return es.of(raw.toUpperCase()) ?? raw;
+    if (!enRegionIndex) {
+      const en = new Intl.DisplayNames(["en"], { type: "region" });
+      enRegionIndex = new Map();
+      for (let a = 65; a <= 90; a++) {
+        for (let b = 65; b <= 90; b++) {
+          const code = String.fromCharCode(a, b);
+          const name = en.of(code);
+          if (name && name !== code) enRegionIndex.set(name.toLowerCase(), code);
+        }
+      }
+    }
+    const code = enRegionIndex.get(raw.toLowerCase());
+    return code ? (es.of(code) ?? raw) : raw;
+  } catch {
+    return raw;
+  }
+}
+
+export function locationLine(
+  city: string | null,
+  country: string | null,
+  locale: "en" | "es" = "en",
+): string | null {
   const c = (city ?? "").trim();
-  const co = (country ?? "").trim();
+  const co = localizeCountry(country ?? "", locale);
   let line: string;
   if (!c) {
     if (co.length === 0) return null;
