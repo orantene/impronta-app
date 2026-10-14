@@ -20207,6 +20207,9 @@
       "walletBody3": "Vincula solo una dirección que sea tuya. Revísala bien antes de guardar.",
       "checking": "Verificando si puedes cobrar en USDC..."
     },
+    "platformPosts": {
+      "nav": "Posts"
+    },
     "talentPosts": {
       "listTitle": "Posts",
       "newPost": "Nuevo post",

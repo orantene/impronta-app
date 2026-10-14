@@ -66,7 +66,11 @@ function matches(filter: Filter, ui: PostUiStatus): boolean {
 }
 
 function statusText(post: PostListRow, ui: PostUiStatus, t: PostsT, locale: string): string {
-  if (post.takenDown) return t("dashboard.talentPosts.statusTakenDown");
+  if (post.takenDown) {
+    return post.takenDownReason
+      ? t("dashboard.talentPosts.takenDown", { reason: post.takenDownReason })
+      : t("dashboard.talentPosts.statusTakenDown");
+  }
   switch (ui) {
     case "draft":
       return t("dashboard.talentPosts.statusDraft");

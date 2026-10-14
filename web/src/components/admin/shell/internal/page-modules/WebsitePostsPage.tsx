@@ -14,10 +14,9 @@
  * SHAPE
  * ─────
  * A single-column list of rows (title, address, status chip, freshness),
- * read like the Pages list. Opening a post swaps the list for the
- * full-width editor (`WebsitePostEditor.tsx`) — one thing on screen at a
- * time, which is the novice-clarity call the Pages expandable rows already
- * made for their panel.
+ * read like the Pages list. Opening a post navigates to the shared Posts v1
+ * writer at `website/posts/[id]` (TUL-1011), the same writer the talent
+ * dashboard uses. The old in-place editor was retired.
  *
  * GATING — same as Pages: `canEdit && !isPlatformHub` shows the write
  * affordances; the platform hub's site is managed in code. Viewers see the
@@ -28,7 +27,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import type { Locale } from "@/i18n/config";
 import { useT } from "@/i18n/use-t";
@@ -36,7 +35,7 @@ import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { interpolate } from "@/i18n/interpolate";
 import { buildPostPublicPathname } from "@/lib/cms/paths";
 import { resolveWebsiteLiveOrigin } from "@/lib/admin/website-editor-links";
-import { createDraftPostAction } from "@/lib/server-actions/admin-site-posts";
+import { workspaceCreatePostDraftAction } from "@/lib/server-actions/posts-writer-actions";
 
 import { EmptyState, Icon } from "../primitives";
 import { meetsRole, useAdminShell } from "../state";
@@ -44,7 +43,6 @@ import type { WebsitePost } from "../state";
 import { PageStatusChip } from "./PageStatusChip";
 import { PageHeader } from "./pages-shared";
 import { formatPageUpdatedAt } from "./WebsitePage-2";
-import { WebsitePostEditor } from "./WebsitePostEditor";
 
 /** Strip the display slug ("/spring-drop") back to the raw slug. */
 function rawPostSlug(slug: string): string {
@@ -90,6 +88,16 @@ function PostsListRow({
           <span className="truncate text-admin-13 font-semibold text-admin-ink">{post.title}</span>
           <span className="truncate font-mono text-admin-11 text-admin-ink-muted">{post.slug}</span>
           <PageStatusChip status={post.status} />
+          {post.takenDown ? (
+            <span
+              className="shrink-0 rounded-admin-sm bg-admin-coral-soft px-[6px] py-px text-admin-10 font-semibold text-admin-red"
+              data-testid="post-takedown-chip"
+            >
+              {post.takenDownReason
+                ? interpolate(t("dashboard.talentPosts.takenDown"), { reason: post.takenDownReason })
+                : t("dashboard.talentPosts.statusTakenDown")}
+            </span>
+          ) : null}
           {showLocaleChip ? (
             <span className="shrink-0 rounded-admin-sm bg-admin-indigo-soft px-[6px] py-px text-admin-10 font-semibold uppercase tracking-[0.5px] text-admin-indigo-deep">
               {post.locale}
@@ -160,28 +168,35 @@ export function WebsitePostsPage() {
     [effectiveWebsiteState.domain.primaryDomain, windowOrigin],
   );
 
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const pathname = usePathname();
+  const dashboardLocale = useDashboardLocale();
   const [isCreating, startCreateTransition] = useTransition();
+
+  // Admin base on the current host: "/{slug}/admin" on the shared app host,
+  // "/admin" on a tenant's own domain. Taken from the live pathname so both work.
+  const writerHref = useCallback(
+    (id: string) => {
+      const at = pathname.indexOf("/admin");
+      const base = at >= 0 ? pathname.slice(0, at + "/admin".length) : "/admin";
+      return `${base}/website/posts/${id}`;
+    },
+    [pathname],
+  );
 
   const handleAddPost = useCallback(() => {
     startCreateTransition(() => {
       void (async () => {
-        const result = await createDraftPostAction();
+        const uiLocale: "es" | "en" = dashboardLocale === "es" ? "es" : "en";
+        const result = await workspaceCreatePostDraftAction({ locale: uiLocale }, uiLocale);
         if (!result.ok) {
-          toast(result.error);
+          toast(result.message);
           return;
         }
-        await router.refresh();
         toast(t("dashboard.adminWebsite.postsCreatedToast"));
-        setEditingId(result.id);
+        router.push(writerHref(result.data.id));
       })();
     });
-  }, [router, t, toast]);
-
-  const handleEditorClosed = useCallback(() => {
-    setEditingId(null);
-    router.refresh();
-  }, [router]);
+  }, [dashboardLocale, router, t, toast, writerHref]);
 
   // The public URL is built at the POST's locale — the public route 404s a
   // slug requested at a locale it was not written in.
@@ -201,16 +216,6 @@ export function WebsitePostsPage() {
     () => new Set(posts.map((p) => p.locale)).size > 1,
     [posts],
   );
-
-  if (editingId && canWrite) {
-    return (
-      <WebsitePostEditor
-        postId={editingId}
-        liveUrlFor={liveUrlFor}
-        onClose={handleEditorClosed}
-      />
-    );
-  }
 
   return (
     <>
@@ -247,7 +252,7 @@ export function WebsitePostsPage() {
               showLocaleChip={showLocaleChips}
               canWrite={canWrite}
               liveUrl={liveUrlFor(post)}
-              onEdit={() => setEditingId(post.id)}
+              onEdit={() => router.push(writerHref(post.id))}
             />
           ))}
         </div>

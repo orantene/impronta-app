@@ -130,6 +130,7 @@ export async function listPostsForOwner(
       status: post.status,
       isUnlisted: post.isUnlisted,
       takenDown: post.takenDown,
+      takenDownReason: post.takenDownReason,
       scheduledPublishAt: post.scheduledPublishAt,
       publishedAt: post.publishedAt,
       updatedAt: post.updatedAt,
@@ -178,6 +179,26 @@ export async function listTalentOfferings(
     .limit(100);
   if (error) {
     logServerError("cms/posts-writer-read/offerings", error);
+    return [];
+  }
+  return ((data ?? []) as { id: string; title: string | null; title_i18n: Record<string, string | null> | null }[])
+    .map((o) => ({ id: o.id, name: (o.title_i18n?.[locale] ?? o.title ?? "").trim() }))
+    .filter((o) => o.name.length > 0);
+}
+
+/** The workspace's own published services, for the Servicio block picker (workspace scope). */
+export async function listWorkspaceOfferings(
+  supabase: SupabaseClient,
+  tenantId: string,
+  locale: PostLocale,
+): Promise<WriterOffering[]> {
+  const { data, error } = await tenantScopedQuery(supabase, "talent_offerings", tenantId)
+    .select("id, title, title_i18n")
+    .eq("status", "published")
+    .order("sort_order", { ascending: true })
+    .limit(100);
+  if (error) {
+    logServerError("cms/posts-writer-read/workspace-offerings", error);
     return [];
   }
   return ((data ?? []) as { id: string; title: string | null; title_i18n: Record<string, string | null> | null }[])

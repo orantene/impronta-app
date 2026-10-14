@@ -20207,6 +20207,9 @@
       "walletBody3": "Only link a wallet address you own. Double-check it before saving.",
       "checking": "Checking if USDC payouts are available for you..."
     },
+    "platformPosts": {
+      "nav": "Posts"
+    },
     "talentPosts": {
       "listTitle": "Posts",
       "newPost": "New post",

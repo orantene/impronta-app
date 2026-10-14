@@ -52,6 +52,8 @@ export type PostListRow = {
   status: string;
   isUnlisted: boolean;
   takenDown: boolean;
+  /** The platform admin's reason, shown on the list chip. */
+  takenDownReason?: string | null;
   scheduledPublishAt: string | null;
   publishedAt: string | null;
   updatedAt: string | null;

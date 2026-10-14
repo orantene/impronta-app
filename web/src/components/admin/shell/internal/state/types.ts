@@ -2744,6 +2744,9 @@ export type WebsitePost = {
    * recorded) so surfaces render nothing instead of a raw UUID.
    */
   lastEditedBy: string;
+  /** Hidden by the platform admin (takedown); the reason is shown to the owner. */
+  takenDown?: boolean;
+  takenDownReason?: string;
 };
 
 export type WebsiteRedirect = {

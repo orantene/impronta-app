@@ -5027,6 +5027,8 @@ export function mergeWebsiteStateFromBridge(
       // Same resolution as pages' lastEditedBy: raw profile UUID → display
       // name, "" when unresolvable so no surface prints a UUID.
       lastEditedBy: (p.updatedBy && memberNameById.get(p.updatedBy)) || "",
+      takenDown: p.takenDown === true,
+      takenDownReason: p.takenDownReason ?? undefined,
     };
   });
 
