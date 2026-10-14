@@ -23,6 +23,7 @@ import { pickLocale } from "@/lib/i18n/pick-locale";
 
 import { ProfileCover } from "./ProfileCover";
 import { ProfileHeader } from "./ProfileHeader";
+import { lightProfileLabels } from "./profile-labels";
 import { ServicesBlock } from "./ServicesBlock";
 import { ServiceMenuBlock } from "./ServiceMenuBlock";
 import { TalentStorefront } from "../_shared/TalentStorefront";
@@ -441,6 +442,7 @@ export function LightProfileLayout({
         discoveryCta={discoveryCta}
         hubsIndicator={hubsIndicator}
         maxSiteUrl={maxSiteUrl}
+        locale={locale}
       />
 
       {/* ── 2b. HERO RATING CHIP — quiet reputation signal near the name ── */}
@@ -552,7 +554,7 @@ export function LightProfileLayout({
               startingFrom={startingFrom}
               bookingNote={bookingNote}
               locale={locale}
-              heading="Services"
+              heading={lightProfileLabels(locale).services}
               packagesLabel={t("public.profile.editorial.packages")}
               bookingDetailsLabel={t("public.profile.editorial.bookingDetails")}
             />
@@ -588,7 +590,7 @@ export function LightProfileLayout({
               showIndustries={fieldVisibility.showIndustries}
               showEventTypes={fieldVisibility.showEventTypes}
               showTags={fieldVisibility.showTags}
-              headingLabel="Skills & Specialties"
+              headingLabel={lightProfileLabels(locale).skills}
             />
 
             {/* Details — premium grouped cards (NOT a flat list) */}
