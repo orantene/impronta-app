@@ -281,14 +281,15 @@ describe("TUL-957: a sent offer shows as awaiting payment, never as earned", () 
 
   it("attaches only sent offers to open requests, amounts read as-is", () => {
     const items = attachSentOffers([request("r-sent"), request("r-paid"), request("r-cancel")], offers);
+    const offerOf = (i: object | undefined) => (i as { offer?: { id: string } } | undefined)?.offer;
     const sent = items.find((i) => i.id === "r-sent")!;
-    assert.deepEqual(sent.offer, { id: "o-sent" });
+    assert.deepEqual(offerOf(sent), { id: "o-sent" });
     assert.equal(sent.money.totalCents, 150000);
     assert.equal(sent.money.dueCents, 150000);
     assert.equal(sent.money.paidCents, 0);
     assert.equal(sent.payment, "awaiting");
-    assert.equal(items.find((i) => i.id === "r-paid")!.offer, undefined);
-    assert.equal(items.find((i) => i.id === "r-cancel")!.offer, undefined);
+    assert.equal(offerOf(items.find((i) => i.id === "r-paid")!), undefined);
+    assert.equal(offerOf(items.find((i) => i.id === "r-cancel")!), undefined);
   });
 
   it("lists the sent offer under waiting (kind offer), not owed and not collected", () => {
