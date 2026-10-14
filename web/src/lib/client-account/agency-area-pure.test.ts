@@ -150,7 +150,7 @@ test("account link: absolute app URL only on the marketing apex", () => {
 test("popover account link goes through accountHrefFor, not a literal", () => {
   const btn = readFileSync(join(__dirname, "..", "..", "components", "client-account", "ClientAccountButton.tsx"), "utf8");
   assert.doesNotMatch(btn, /href="\/account"/);
-  assert.match(btn, /href=\{accountHref\}/);
+  assert.match(btn, /accountQuickLinks\(t, accountHref\)/);
   const dock = readFileSync(join(__dirname, "..", "..", "components", "client-account", "ClientAccountDock.tsx"), "utf8");
   assert.match(dock, /accountHrefFor\(/);
   assert.match(dock, /getAppUrl\(\)/);
