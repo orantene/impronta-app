@@ -72,6 +72,7 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   "Relationships": "Relaciones",
   "All orders": "Todos los pedidos",
   "Items": "Artículos",
+  "item": "artículo",
   // The Catalog's other children (W01, W07, W09).
   "Menu structure": "Estructura del menú",
   "Passes & cards": "Pases y tarjetas",

@@ -52,6 +52,7 @@ import {
 } from "./ServicesHoursNeeded";
 import { HideOutcome, RowMenu, listPrice, listPriceState } from "./ServicesHomeRowChrome";
 import { ServicesWebsiteSetupBanner } from "./ServicesWebsiteSetupBanner";
+import { countItemsLabel } from "@/components/admin/shell/internal/count-items-label";
 import { useSearchParams } from "next/navigation";
 
 type Filter = "all" | "service" | "package" | "product" | "draft" | "hidden" | "archived" | "attention";
@@ -428,7 +429,7 @@ export function ServicesHome({
               ? `${copy.t("Hiding")} "${hideTarget.title}"`
               : editor.loading
               ? copy.t("Your services are loading.")
-              : `${copy.t("Manage your services, packages and products")} · ${counts.all} ${copy.t("items")}`}
+              : `${copy.t("Manage your services, packages and products")} · ${countItemsLabel(copy.t, counts.all)}`}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
