@@ -79,8 +79,9 @@ export async function sendEmailNotification(
   if (!/^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(recipient.email.trim())) {
     return skip("recipient address is malformed");
   }
-  recipient = { ...recipient, email: recipient.email.trim() };
-  if (isReservedDomainAddress(recipient.email)) {
+  const toAddress = recipient.email.trim();
+  recipient = { ...recipient, email: toAddress };
+  if (isReservedDomainAddress(toAddress)) {
     return skip("reserved domain (QA or demo address, mail is never sent)");
   }
 
@@ -200,7 +201,7 @@ export async function sendEmailNotification(
   if (threading) headers = { ...headers, ...threading.headers };
 
   const result = await sendEmailResult({
-    to: recipient.email,
+    to: toAddress,
     subject,
     html,
     headers,
