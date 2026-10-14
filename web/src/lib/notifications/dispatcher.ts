@@ -22,6 +22,7 @@ import type {
   ResolvedRecipient,
 } from "./types";
 import {
+  dispatchLogLocale,
   dispatchLogPatchFromHandlerResult,
   dispatchLogPatchFromThrown,
   isChannelSkip,
@@ -371,7 +372,7 @@ async function tryInsertDispatchLog(
       dedupe_key: dedupeKey,
       template_id: entry.email?.templateId ?? null,
       catalog_entry_id: entry.id,
-      locale: recipient.locale,
+      locale: dispatchLogLocale(recipient),
       payload: event.payload ?? {},
     })
     .select("id")

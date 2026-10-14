@@ -6,6 +6,7 @@
  * The event is never processed or claimed here. Secrets are never logged.
  */
 import type Stripe from "stripe";
+import { resolvedStripeEnv } from "./env-keys";
 
 export type WebhookLane = "us" | "mx";
 
@@ -13,7 +14,7 @@ export type VerifyFn = (body: string, signature: string, secret: string) => Prom
 
 export function otherLaneSecrets(
   lane: WebhookLane,
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = resolvedStripeEnv(),
 ): string[] {
   const keys =
     lane === "mx"
