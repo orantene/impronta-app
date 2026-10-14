@@ -8,6 +8,7 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { buildGbpGuide } from "@/lib/talent/google-business-profile-guide";
 import { buildGscGuide } from "@/lib/talent/search-console-guide";
+import { loadTalentGoogleSiteVerification } from "@/lib/talent-site/server/load-google-site-verification.server";
 import { talentPublicProfileHref } from "@/lib/talent/public-profile-href";
 
 export const dynamic = "force-dynamic";
@@ -33,11 +34,12 @@ export default async function PlatformTalentGetFoundPage() {
   );
 
   const gscGuide = buildGscGuide({ siteUrl }, lang);
+  const gscToken = await loadTalentGoogleSiteVerification(profile.id);
 
   return (
     <>
       <GoogleBusinessGuide guide={guide} lang={lang} />
-      <SearchConsoleGuide guide={gscGuide} lang={lang} />
+      <SearchConsoleGuide guide={gscGuide} lang={lang} initialToken={gscToken} />
       <div className="mx-auto max-w-2xl px-6 pb-6 text-sm">
         <Link href="/talent/site" className="text-neutral-500 underline">
           {lang === "es" ? "Volver a Mi presencia" : "Back to My presence"}

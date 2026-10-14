@@ -40,6 +40,7 @@ import {
   loadTalentSiteIdentity,
 } from "./load-max-site";
 import { buildMaxSiteSeo, type MaxSiteSeo } from "./max-site-seo.server";
+import { loadTalentGoogleSiteVerification } from "./load-google-site-verification.server";
 import { loadMaxSiteSeoFacts } from "./max-site-seo-facts.server";
 import { loadTalentSiteLocaleContext } from "./talent-site-locale.server";
 import { webOfficeCtxFor } from "./web-office-footer";
@@ -317,7 +318,10 @@ async function renderTalentMaxSiteUnguarded(
       }),
     );
 
-    const seoFacts = await pSeoFacts; // services, links, city; never throws
+    const [seoFacts, googleSiteVerification] = await Promise.all([
+      pSeoFacts, // services, links, city; never throws
+      loadTalentGoogleSiteVerification(talentProfileId), // fail-soft, null when unset
+    ]);
 
     const seo = buildMaxSiteSeo({
       ...seoFacts,
@@ -338,6 +342,7 @@ async function renderTalentMaxSiteUnguarded(
       locales: { primary: localeCtx.settings.defaultLocale, urlDefault: localeCtx.grammar.defaultLocale, supported: localeCtx.settings.supportedLocales },
     });
 
+    if (googleSiteVerification) seo.googleSiteVerification = googleSiteVerification;
     perfMark("maxSite.total", t0);
     return { kind: "render", node, seo: policyModel ? policySeo(seo, policyModel) : seo, locale };
   } catch {
