@@ -8,6 +8,8 @@ import {
 } from "@/lib/auth-flow";
 import { loadAccessProfile } from "@/lib/access-profile";
 import { relinkFirstConfirmedClaim } from "@/lib/auth/guest-claim-relink";
+import { resolvePostAuthRedirect } from "@/lib/auth/post-auth-return";
+import { isRegisteredReturnHost } from "@/lib/auth/registered-return-host.server";
 import { NextResponse } from "next/server";
 
 /**
@@ -71,8 +73,15 @@ export async function GET(request: Request) {
       ? await loadAccessProfile(supabase, user.id)
       : null;
     const destination = resolvePostAuthDestination(ensuredProfile, next);
-    const appUrl = getAppUrl();
-    const successResponse = NextResponse.redirect(`${appUrl}${destination}`);
+    // TUL-691 E1: return to the site the claim started on (allow-listed).
+    const target = await resolvePostAuthRedirect({
+      rawNext: searchParams.get("next"),
+      requestOrigin: origin,
+      appUrl: getAppUrl(),
+      destination,
+      isRegisteredHost: isRegisteredReturnHost,
+    });
+    const successResponse = NextResponse.redirect(target);
     response.cookies.getAll().forEach((cookie) => {
       successResponse.cookies.set(cookie);
     });

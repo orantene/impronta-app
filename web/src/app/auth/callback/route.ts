@@ -31,6 +31,8 @@ import { isSupportDeskHost } from "@/lib/support/desk-hosts";
 import { claimTulalaBriefOnAuth } from "@/lib/tulala/brief-claim-auth";
 import { isFreshOAuthSignup } from "@/lib/legal/acceptances.core";
 import { hasSignupAcceptance } from "@/lib/legal/acceptances";
+import { resolvePostAuthRedirect } from "@/lib/auth/post-auth-return";
+import { isRegisteredReturnHost } from "@/lib/auth/registered-return-host.server";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -144,6 +146,7 @@ export async function GET(request: Request) {
         });
       }
 
+      let termsGate = false;
       let destination = supportDeskPostAuthDestination(
         resolvePostAuthDestination(ensuredProfile, next),
         requestHost,
@@ -157,6 +160,7 @@ export async function GET(request: Request) {
         (await hasSignupAcceptance(user.id)) === false
       ) {
         destination = `/register/accept-terms?next=${encodeURIComponent(destination)}`;
+        termsGate = true;
       }
       // Leave the marketing apex for workspace paths, but stay on the Desk
       // host when OAuth completed there — forcing getAppUrl() dropped
@@ -170,7 +174,18 @@ export async function GET(request: Request) {
               ? destination
               : await hostSafeRedirectDestination(destination),
           })
-        : NextResponse.redirect(`${redirectBase}${destination}`);
+        : NextResponse.redirect(
+            onDeskHost || termsGate
+              ? `${redirectBase}${destination}`
+              : // TUL-691 E1: return to the site sign-in started on (allow-listed).
+                await resolvePostAuthRedirect({
+                  rawNext: searchParams.get("next"),
+                  requestOrigin: origin,
+                  appUrl,
+                  destination,
+                  isRegisteredHost: isRegisteredReturnHost,
+                }),
+          );
       response.cookies.getAll().forEach((cookie) => {
         successResponse.cookies.set(cookie);
       });
