@@ -34,6 +34,10 @@ export const STATIC_PATHS = [
   // same `public/` directory by the same deployment.
   "/tiktok8WGzEiKg9pe0okRf7eDPP6rPghXjVCJH.txt",
   "/tiktokOC3FhK8XbPutKlNiCH3nxdOjnMpxRLjN.txt",
+  // Posts v1 (TUL-1010): llms.txt for answer engines. Host-aware route
+  // (`app/llms.txt/route.ts`): agency + talent sites answer, everything else
+  // and a site with "IA puede leer mi sitio" OFF return 404.
+  "/llms.txt",
 ] as const;
 
 /**
@@ -282,6 +286,13 @@ export const AGENCY_STOREFRONT_PREFIXES = [
   "/share",
   "/me", // F5 customer home; storefront surface, tenant-scoped in lib/me/load-me.ts
 ] as const;
+
+/**
+ * Posts v1 (TUL-1009): `/blog/<slug>` and `/blog/c/<category>` on agency
+ * storefronts. Matched as a strict `/blog/` PREFIX (never the bare `/blog`), so
+ * a CMS page slugged "blog" keeps its clean-URL rewrite to `/p/blog`.
+ */
+export const AGENCY_BLOG_DETAIL_PREFIX = "/blog/" as const;
 
 export const AGENCY_API_PREFIXES = [
   "/api/directory",

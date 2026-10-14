@@ -68,7 +68,7 @@ const TALENT_SITE_PASSTHROUGH_EXACT = new Set([
 ]);
 
 // `/account` itself is an exact path (a `/account` prefix would also pass `/accounts`).
-const TALENT_SITE_STATIC_PATHS = ["/sitemap.xml", "/robots.txt", "/favicon.ico", "/account"] as const;
+const TALENT_SITE_STATIC_PATHS = ["/sitemap.xml", "/robots.txt", "/llms.txt", "/favicon.ico", "/account"] as const;
 
 /**
  * A single page-slug segment: lowercase alphanumerics + hyphens, the same shape
@@ -115,7 +115,34 @@ const RESERVED_TALENT_SITE_SLUGS = new Set([
 
 export type TalentSiteHostPath =
   | { kind: "passthrough" }
-  | { kind: "render"; pageSlug: string | null };
+  | { kind: "render"; pageSlug: string | null }
+  /** Posts v1: `/blog/<slug>`, `/blog/<slug>/og`, `/blog/c/<category>` → `/_talent-site/blog/...`. */
+  | { kind: "blog"; rewritePath: string }
+  /** Posts v1: legacy `/posts/<slug>` → 301 `/blog/<slug>`. */
+  | { kind: "redirect"; location: string; status: 301 };
+
+/**
+ * Posts v1 (TUL-1009) blog grammar on a talent host. Multi-segment, so it is
+ * matched explicitly here (the single-segment page-slug rule rejects it).
+ * A bare `/blog` stays a normal single-segment page slug.
+ */
+function talentBlogPath(segments: readonly string[]): TalentSiteHostPath | null {
+  if (segments[0] === "posts" && segments.length === 2 && TALENT_PAGE_SLUG.test(segments[1])) {
+    return { kind: "redirect", location: `/blog/${segments[1]}`, status: 301 };
+  }
+  if (segments[0] !== "blog") return null;
+  const isSlug = (s: string | undefined) => !!s && TALENT_PAGE_SLUG.test(s);
+  if (segments.length === 2 && isSlug(segments[1])) {
+    return { kind: "blog", rewritePath: `${TALENT_SITE_HOST_ROUTE_PREFIX}/blog/${segments[1]}` };
+  }
+  if (segments.length === 3 && segments[1] === "c" && isSlug(segments[2])) {
+    return { kind: "blog", rewritePath: `${TALENT_SITE_HOST_ROUTE_PREFIX}/blog/c/${segments[2]}` };
+  }
+  if (segments.length === 3 && isSlug(segments[1]) && segments[2] === "og") {
+    return { kind: "blog", rewritePath: `${TALENT_SITE_HOST_ROUTE_PREFIX}/blog/${segments[1]}/og` };
+  }
+  return null;
+}
 
 /**
  * Decide how a path resolves on a talent_site host. `pathname` must already be
@@ -142,6 +169,10 @@ export function isTalentSiteHostPathAllowed(
   // Single-segment page slug → an inner site page (unless it's a reserved
   // platform word, which 404s here rather than routing into the talent site).
   const segments = pathname.split("/").filter(Boolean);
+  if (segments.length > 1) {
+    const blog = talentBlogPath(segments);
+    if (blog) return blog;
+  }
   if (
     segments.length === 1 &&
     TALENT_PAGE_SLUG.test(segments[0]) &&

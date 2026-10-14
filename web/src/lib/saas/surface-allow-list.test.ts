@@ -793,3 +793,11 @@ test("the QR asset endpoint is reachable on the surfaces the workspace runs on",
 test("the QR asset endpoint is not exposed on the marketing apex", () => {
   assert.equal(isPathAllowedForHostKind("marketing", "/api/links/t7/qr.png"), false);
 });
+
+test("Posts v1: agency host allows /blog/<slug>, /blog/c/<cat> and /llms.txt; bare /blog stays a clean-URL CMS slug", () => {
+  for (const p of ["/blog/spring-2026", "/blog/c/tips", "/blog/spring-2026/og", "/llms.txt"]) {
+    assert.equal(isPathAllowedForHostKind("agency", p), true, p);
+  }
+  assert.equal(isPathAllowedForHostKind("agency", "/blog"), false);
+  assert.equal(isPathAllowedForHostKind("agency", "/blog/"), false);
+});

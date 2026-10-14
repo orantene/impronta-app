@@ -42,6 +42,9 @@ import { talentHostSitemapPaths } from "@/lib/talent-site/talent-site-sitemap";
 import { serviceSitemapPaths } from "@/lib/talent-site/service-page";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
+import { localeAlternateUrl } from "@/i18n/alternates";
+import { listPublishedPostRows } from "@/lib/cms/posts-public";
+import { postSitemapEntries, type LocalizedUrl } from "@/lib/cms/posts-public-model";
 
 const PLATFORM_TALENT_SITEMAP_BASE = `https://${TULALA_APEX_HOST}`;
 
@@ -244,7 +247,13 @@ async function loadTalentSiteHostSitemapEntries(base: URL): Promise<MetadataRout
   // TUL-586: one URL per published service (slug title in the primary language, as the page canonicalises).
   const offerings = await loadPublicOfferingsForProfile(talentProfileId, pair.primary, null).catch(() => []);
   const allPaths = [...paths, ...serviceSitemapPaths(offerings)];
-  return allPaths.flatMap((path) =>
+  // Posts v1 (TUL-1010): indexable talent posts (scoped by talent_profile_id).
+  const talentLocales = [pair.primary, ...pair.secondary];
+  const postUrl: LocalizedUrl = (path, locale) =>
+    localeAlternateUrl({ origin: base.origin, pathnameWithoutLocale: path, defaultLocale: pair.primary, supportedLocales: talentLocales }, locale);
+  const postRows = await listPublishedPostRows({ kind: "talent", talentProfileId }, talentLocales).catch(() => []);
+  const postEntries = postSitemapEntries(postRows, postUrl, new Date());
+  return [...allPaths.flatMap((path) =>
     talentProfileSitemapEntries({
       origin: base.origin,
       path,
@@ -252,7 +261,7 @@ async function loadTalentSiteHostSitemapEntries(base: URL): Promise<MetadataRout
       locales: [pair.primary, ...pair.secondary],
       lastModified,
     }),
-  );
+  ), ...postEntries];
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -596,14 +605,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // version; that URL 404s.
   const cmsEntries: MetadataRoute.Sitemap = cmsRowEntries(pages, "/p");
 
-  const { data: postsRaw } = await supabase
-    .rpc("cms_public_posts_for_tenant", { p_tenant_id: publicScope.tenantId })
-    .select("slug,locale,updated_at")
-    .eq("include_in_sitemap", true)
-    .eq("noindex", false);
-  const posts = (postsRaw ?? []) as unknown as CmsSitemapRow[];
-
-  const postEntries: MetadataRoute.Sitemap = cmsRowEntries(posts, "/posts");
+  // Posts v1 (TUL-1010): `/blog/<slug>`, indexable posts only (no unlisted,
+  // expired, taken-down or noindex rows; see posts-public-model.ts), with
+  // hreflang from translation_of.
+  const postUrl: LocalizedUrl = (path, locale) =>
+    localeAlternateUrl(
+      {
+        origin: base,
+        pathnameWithoutLocale: path,
+        defaultLocale: localeSettings.defaultLocale,
+        supportedLocales: localeSettings.supportedLocales,
+      },
+      locale,
+    );
+  const postRows = await listPublishedPostRows(
+    { kind: "tenant", tenantId: publicScope.tenantId },
+    localeSettings.supportedLocales,
+  ).catch(() => []);
+  const postEntries: MetadataRoute.Sitemap = postSitemapEntries(postRows, postUrl, new Date());
 
   // Phase G PR 1 — include the agency's published roster in the sitemap.
   // Without this, talent profile pages (`/t/<profileCode>`) are crawlable
