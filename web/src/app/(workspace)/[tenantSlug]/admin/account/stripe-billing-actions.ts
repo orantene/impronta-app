@@ -32,6 +32,7 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { logServerError } from "@/lib/server/safe-error";
 import { type WorkspacePlanKey } from "@/lib/stripe/price-ids";
 import { resolveWorkspacePriceId } from "@/lib/stripe/price-catalog";
+import { yearlyCheckoutPlans } from "@/lib/billing/checkout-interval";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
@@ -63,6 +64,8 @@ export async function startWorkspaceUpgrade(
    * here so only what this action issued can round-trip through Stripe.
    */
   door?: { id: string; returnPath?: string | null } | null,
+  /** TUL-830 toggle ("month" | "year"). Parsed server-side; yearly needs a catalog price. */
+  interval?: string | null,
 ): Promise<BillingActionResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return { ok: false, error: readOnly.error };
@@ -140,6 +143,7 @@ export async function startWorkspaceUpgrade(
       door && isSafeReturnPath(door.returnPath, tenantSlug)
         ? signCheckoutReturn({ subjectId: scope.tenantId, path: door.returnPath })
         : null,
+    interval: interval ?? null,
   });
 
   if (!result.ok) {
@@ -148,6 +152,19 @@ export async function startWorkspaceUpgrade(
   }
 
   return { ok: true, redirectUrl: result.data.url };
+}
+
+/**
+ * Self-serve workspace plans that have a yearly catalog price (TUL-830). The
+ * upgrade modal offers the yearly toggle only for these. Read-only.
+ */
+export async function loadWorkspaceYearlyCheckoutPlans(): Promise<WorkspacePlanKey[]> {
+  const session = await getCachedActorSession();
+  if (!session.user) return [];
+  return yearlyCheckoutPlans(
+    ["website", "studio", "agency"] as const,
+    (k) => resolveWorkspacePriceId(k, "annual"),
+  );
 }
 
 /**

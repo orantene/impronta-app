@@ -24,6 +24,8 @@ import type {
   TalentLifecycleErrorCode,
 } from "@/lib/billing/talent-subscription-lifecycle";
 import { deriveAppBaseUrl } from "@/lib/stripe/utils";
+import { resolveTalentPriceId } from "@/lib/stripe/price-catalog";
+import { yearlyCheckoutPlans } from "@/lib/billing/checkout-interval";
 import { signCheckoutReturn } from "@/lib/billing/checkout-return";
 import { isSafeReturnPath } from "@/lib/billing/trial-door";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -58,6 +60,8 @@ export async function startTalentUpgrade(
    * workspace and signed here so only what this action issued can round-trip.
    */
   returnPath?: string | null,
+  /** TUL-830 toggle ("month" | "year"). Parsed server-side; yearly needs a catalog price. */
+  interval?: string | null,
 ): Promise<TalentBillingActionResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
@@ -93,6 +97,7 @@ export async function startTalentUpgrade(
     returnToken: isSafeReturnPath(returnPath, tenantSlug)
       ? signCheckoutReturn({ subjectId: talentProfile.id, path: returnPath })
       : null,
+    interval: interval ?? null,
   });
 
   if (!result.ok) {
@@ -101,6 +106,19 @@ export async function startTalentUpgrade(
   }
 
   return { ok: true, redirectUrl: result.data.url };
+}
+
+/**
+ * Paid talent plans that have a yearly catalog price (TUL-830). The upgrade
+ * modal offers the yearly toggle only for these; read-only, no ids accepted.
+ */
+export async function loadTalentYearlyCheckoutPlans(): Promise<TalentPlanKey[]> {
+  const session = await getCachedActorSession();
+  if (!session.user) return [];
+  return yearlyCheckoutPlans(
+    ["talent_pro", "talent_portfolio"] as const,
+    (k) => resolveTalentPriceId(k, "annual"),
+  );
 }
 
 /**
