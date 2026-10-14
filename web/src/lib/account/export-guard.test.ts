@@ -28,10 +28,11 @@ test("export route refuses impersonation, stale sessions and bursts, in that ord
   assert.ok(i("isSessionFreshForExport") > 0, "freshness check");
   assert.ok(i("checkAccountExport") > 0, "rate limit");
   assert.ok(i("reauth_required") > 0, "reauth error code");
-  assert.ok(i("unauthenticated") < i("assertNotImpersonating"));
-  assert.ok(i("assertNotImpersonating") < i("isSessionFreshForExport"));
-  assert.ok(i("isSessionFreshForExport") < i("buildAccountExport("), "guards run before the bundle is built");
-  assert.ok(i("checkAccountExport") < i("buildAccountExport("));
+  // Compare call sites, not imports (comments are blanked, so imports come first).
+  assert.ok(i('"unauthenticated"') < i("await assertNotImpersonating("));
+  assert.ok(i("await assertNotImpersonating(") < i("isSessionFreshForExport(session"));
+  assert.ok(i("isSessionFreshForExport(session") < i("buildAccountExport("), "guards run before the bundle is built");
+  assert.ok(i("checkAccountExport(session") < i("buildAccountExport("));
 });
 
 test("UI has a confirm step and no one-click download links", () => {
