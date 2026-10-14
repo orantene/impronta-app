@@ -6,11 +6,12 @@
  * only flips `data-interval` on a named Tailwind group, so toggling never
  * refetches, never shifts layout, and works without JS (defaults monthly).
  */
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   DEFAULT_BILLING_INTERVAL,
   type BillingInterval,
 } from "@/lib/pricing/interval-pricing";
+import { parseBillingInterval } from "@/lib/pricing/pricing-cta-href";
 
 export type BillingToggleCopy = {
   groupLabel: string;
@@ -30,6 +31,27 @@ export function BillingIntervalToggle({
   const [interval, setBilling] = useState<BillingInterval>(
     DEFAULT_BILLING_INTERVAL,
   );
+  // The interval lives in the URL (?interval=year). Read after mount so the
+  // server render (monthly) and first client render match.
+  useEffect(() => {
+    try {
+      const v = new URLSearchParams(window.location.search).get("interval");
+      setBilling(parseBillingInterval(v));
+    } catch {
+      /* no URL access: stay on the default */
+    }
+  }, []);
+  function choose(next: BillingInterval) {
+    setBilling(next);
+    try {
+      const url = new URL(window.location.href);
+      if (next === DEFAULT_BILLING_INTERVAL) url.searchParams.delete("interval");
+      else url.searchParams.set("interval", next);
+      window.history.replaceState(window.history.state, "", url);
+    } catch {
+      /* URL sync is best effort */
+    }
+  }
   const options: { value: BillingInterval; label: string }[] = [
     { value: "month", label: copy.monthly },
     { value: "year", label: copy.yearly },
@@ -60,7 +82,7 @@ export function BillingIntervalToggle({
                 role="radio"
                 data-testid={`billing-interval-${o.value}`}
                 aria-checked={active}
-                onClick={() => setBilling(o.value)}
+                onClick={() => choose(o.value)}
                 className="inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-[0.9375rem] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 sm:px-5"
                 style={{
                   background: active ? "var(--plt-ink)" : "transparent",

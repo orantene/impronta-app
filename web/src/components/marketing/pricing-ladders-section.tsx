@@ -33,7 +33,6 @@
  * seeded tier can never blank a card.
  */
 import { getRequestLocale } from "@/i18n/request-locale";
-import { withLocaleHref } from "@/i18n/pathnames";
 import {
   getPricingLaddersCopy,
   localizeTierCadence,
@@ -60,34 +59,13 @@ import {
   yearlySavingsPercent,
 } from "@/lib/pricing/interval-pricing";
 import { BillingIntervalToggle } from "./billing-interval-toggle";
+import {
+  buildPricingCtaHref,
+  type PricingPackageSlug,
+} from "@/lib/pricing/pricing-cta-href";
 
 type LadderCopy = PricingLaddersCopy;
 type TierCopy = LadderCopy["talent"]["free"];
-
-/**
- * The funnel URL for each tier slug. Kept in code (not the catalog) because
- * the destination is surface-specific, not pricing data.
- *
- * Every href lands on `/get-started`. Talent checkout is not reachable yet and
- * the `website` plan key is not purchasable yet, so no card promises a checkout
- * that does not exist; `?tier=` is a hint the funnel reads, and an unknown
- * value falls back to the default get-started copy.
- */
-const TALENT_HREF: Partial<Record<string, string>> = {
-  free: "/get-started?tier=free",
-  pro: "/get-started",
-  max: "/get-started",
-};
-
-const WORKSPACE_HREF: Partial<Record<string, string>> = {
-  free: "/get-started?tier=free",
-  website: "/get-started?tier=website",
-  studio: "/get-started?tier=studio",
-  agency: "/get-started?tier=agency",
-  // The catalog slug is `hub`; the funnel param stays `network` for
-  // backward-compat with links already in the wild.
-  hub: "/get-started?tier=network",
-};
 
 /** Ladder = one column of the page: a label, a blurb, and its tier cards. */
 type Ladder = {
@@ -115,7 +93,12 @@ type Card = {
     source: "catalog" | "placeholder";
   } | null;
   monthlyLine: string;
-  cta: { label: string; href: string; intent: string };
+  cta: {
+    label: string;
+    /** One href per interval; the toggle shows the matching one. */
+    hrefs: { month: string; year: string };
+    intent: string;
+  };
 };
 
 type IntervalCopy = {
@@ -129,7 +112,7 @@ type IntervalCopy = {
 function buildCards(
   rows: MarketingTier[],
   copyByKey: Partial<Record<string, TierCopy>>,
-  hrefByKey: Partial<Record<string, string>>,
+  packageSlug: PricingPackageSlug,
   c: LadderCopy,
   locale: string,
   ic: IntervalCopy,
@@ -167,7 +150,10 @@ function buildCards(
       monthlyLine: yearly ? ic.billedMonthly : "",
       cta: {
         label: tierCopy?.cta ?? c.talent.free.cta,
-        href: withLocaleHref(hrefByKey[t.key] ?? "/get-started", locale),
+        hrefs: {
+          month: buildPricingCtaHref({ packageSlug, tierKey: t.key, interval: "month" }),
+          year: buildPricingCtaHref({ packageSlug, tierKey: t.key, interval: "year" }),
+        },
         intent: t.key,
       },
     };
@@ -199,13 +185,13 @@ export async function PricingLaddersSection({
       id: "person",
       label: c.person.label,
       blurb: c.person.blurb,
-      cards: buildCards(talentRows, c.talent, TALENT_HREF, c, locale, ic),
+      cards: buildCards(talentRows, c.talent, "talent", c, locale, ic),
     },
     {
       id: "business",
       label: c.business.label,
       blurb: c.business.blurb,
-      cards: buildCards(workspaceRows, c.workspace, WORKSPACE_HREF, c, locale, ic),
+      cards: buildCards(workspaceRows, c.workspace, "workspace", c, locale, ic),
     },
   ];
   // A package with no active tiers (or a catalog read that failed) drops its
@@ -430,16 +416,27 @@ function TierCard({ card, ic }: { card: Card; ic: IntervalCopy }) {
       </ul>
 
       <div className="mt-auto pt-7">
-        <MarketingCta
-          href={card.cta.href}
-          variant={featured ? "inverse" : "secondary"}
-          size="md"
-          eventSource="pricing-ladders"
-          eventIntent={card.cta.intent}
-          className="w-full"
-        >
-          {card.cta.label}
-        </MarketingCta>
+        {(["month", "year"] as const).map((iv) => (
+          <div
+            key={iv}
+            className={
+              iv === "month"
+                ? "group-data-[interval=year]/billing:hidden"
+                : "hidden group-data-[interval=year]/billing:block"
+            }
+          >
+            <MarketingCta
+              href={card.cta.hrefs[iv]}
+              variant={featured ? "inverse" : "secondary"}
+              size="md"
+              eventSource="pricing-ladders"
+              eventIntent={card.cta.intent}
+              className="w-full"
+            >
+              {card.cta.label}
+            </MarketingCta>
+          </div>
+        ))}
       </div>
     </article>
   );

@@ -53,8 +53,7 @@ test.describe("pricing toggle", () => {
     }
   });
 
-  // CTA hrefs do not carry plan+interval yet; enable once checkout deep links ship.
-  test.fixme("CTA hrefs carry plan and interval", async ({ page }) => {
+  test("CTA hrefs carry plan and interval", async ({ page }) => {
     await page.goto("/pricing");
     await page.getByTestId("billing-interval-year").click();
     const href = await page
@@ -65,6 +64,13 @@ test.describe("pricing toggle", () => {
       .getAttribute("href");
     expect(href).toMatch(/plan=/);
     expect(href).toMatch(/interval=year/);
+    // The interval survives a reload through the URL.
+    await expect(page).toHaveURL(/interval=year/);
+    await page.reload();
+    await expect(page.getByTestId("billing-interval-root")).toHaveAttribute(
+      "data-interval",
+      "year",
+    );
   });
 });
 
