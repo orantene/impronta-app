@@ -58,6 +58,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["app/(workspace)/[tenantSlug]/admin/_door-actions.ts", ["loadDoor", "loadNightReport", "loadDoorTiers", "loadHeldDoorOrders"], READ],
   ["app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts", ["loadInquiryPaymentState", "loadAgencySettingsNamespace", "loadEditableJobFields", "loadInquiryLineup", "loadInquiryAttachments", "loadOfferDraft", "loadInquiryPayoutReceiverCandidates", "loadWorkspaceCoordinatorCandidates", "loadCoordinatorAssignCandidates", "loadSecondaryCoordinators", "loadBookingCommissionSnapshotAction", "loadHoldsForInquiryAction"], READ],
   ["app/(workspace)/[tenantSlug]/admin/settings/integration-actions.ts", ["loadTenantIntegrations"], READ],
+  ["app/(workspace)/[tenantSlug]/admin/settings/captcha-notice-actions.ts", ["loadCaptchaNoticeDomain"], READ],
   ["app/(workspace)/[tenantSlug]/admin/settings/domain-actions.ts", ["checkCustomDomainProvisioningAction"], READ],
   ["app/(workspace)/[tenantSlug]/admin/messages/actions.ts", ["fetchMessages"], READ],
   ["app/(workspace)/[tenantSlug]/admin/roster/registration/actions.ts", ["loadRegistrationManageData"], READ],
