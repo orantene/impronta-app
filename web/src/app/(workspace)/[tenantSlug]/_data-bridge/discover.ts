@@ -10,6 +10,7 @@ import {
   resolveLocationFilterIds,
   type CanonicalLocation,
 } from "@/lib/directory/location-facets";
+import { countryLabel } from "@/lib/geo/country-code";
 
 /**
  * _data-bridge/discover.ts — cross-tenant Discover catalog reads.
@@ -359,7 +360,7 @@ export async function loadDiscoverTalents(
       primaryTypeLabel: row.category_label,
       primaryTypeSlug: row.category_slug,
       homeCity: row.home_city_text,
-      homeCountry: row.home_country_text,
+      homeCountry: countryLabel(row.home_country_text),
       homeLat: coords?.lat ?? null,
       homeLng: coords?.lng ?? null,
       agencyName: row.agency_name,
@@ -580,7 +581,7 @@ export async function loadDiscoverMapPoints(
       profileCode: row.profile_code,
       primaryTypeLabel: row.category_label,
       homeCity: row.home_city_text,
-      homeCountry: row.home_country_text,
+      homeCountry: countryLabel(row.home_country_text),
       agencyName: row.agency_name,
       isExclusive: row.is_exclusive,
       headshotUrl: photoByTalent.get(row.id) ?? null,
@@ -642,7 +643,7 @@ export async function loadDiscoverFacets(): Promise<DiscoverFacets> {
   const categoryCounts = new Map<string, { label: string; count: number }>();
 
   for (const row of rows) {
-    const country = row.home_country_text?.trim();
+    const country = countryLabel(row.home_country_text);
     if (country) {
       const key = country.toLowerCase();
       const cur = countryAgg.get(key);
@@ -800,7 +801,7 @@ export async function loadClientShortlistsForUser(
           profileCode: p.profile_code,
           primaryTypeLabel: primaryLabel,
           homeCity: p.home_city_text,
-          homeCountry: p.home_country_text,
+          homeCountry: countryLabel(p.home_country_text),
           agencyName: pickAgencyName(primary),
           agencyTenantId: primary?.tenant_id ?? null,
           isExclusive: !!primary?.is_primary,
@@ -1072,7 +1073,7 @@ export async function loadClientFavoritesForUser(
         profileCode: p.profile_code,
         primaryTypeLabel: primaryLabel,
         homeCity: p.home_city_text,
-        homeCountry: p.home_country_text,
+        homeCountry: countryLabel(p.home_country_text),
         agencyName: pickAgencyName(primary),
         agencyTenantId: primary?.tenant_id ?? null,
         isExclusive: !!primary?.is_primary,

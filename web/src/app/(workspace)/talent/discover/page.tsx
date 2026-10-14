@@ -27,6 +27,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { SmartImage } from "@/components/ui/smart-image";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { discoverCopy } from "./_discover-copy";
+import { countryLabel } from "@/lib/geo/country-code";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug?: string }>;
@@ -196,7 +197,7 @@ async function loadTalentDiscover(
     isDiscoverable: tp.is_discoverable === true,
     workflowStatus: (tp.workflow_status as string | null) ?? null,
     homeCity: (tp.home_city_text as string | null) ?? null,
-    homeCountry: (tp.home_country_text as string | null) ?? null,
+    homeCountry: countryLabel(tp.home_country_text as string | null),
     travelRadiusKm: (tp.travel_radius_km as number | null) ?? null,
     remoteOnly: tp.remote_only === true,
     categoryLabel,

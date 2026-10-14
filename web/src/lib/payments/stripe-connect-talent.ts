@@ -175,25 +175,16 @@ export async function createOrGetTalentConnectedAccount(
   if (!residenceIso2 && opts.country) {
     const { data: matchedCountry } = await admin
       .from("countries")
-      .select("id, name_en")
+      .select("id")
       .eq("iso2", country)
       .maybeSingle();
     if (matchedCountry?.id) {
-      // Persist the PLAIN country name, never the flag-prefixed display label:
-      // this column is read back by name (ilike countries.name_en), and a
-      // "🇦🇷 Argentina" value matches nothing — which silently resolved the
-      // talent's country to null and hid country-gated features like the USDC
-      // card. `residence_country_id` is the reliable key, but a DB trigger
-      // clears it when the profile has no residence_city_id, so the text
-      // column is the fallback that actually has to work.
-      const countryName =
-        ((matchedCountry as { name_en?: string | null }).name_en ?? "").trim() ||
-        payoutCountryLabel(country).replace(/[\u{1F1E6}-\u{1F1FF}]/gu, "").trim();
+      // TUL-649: store the ISO-2 code (readers resolve it back by code or name).
       await admin
         .from("talent_profiles")
         .update({
           residence_country_id: matchedCountry.id as string,
-          home_country_text: countryName,
+          home_country_text: country,
         })
         .eq("id", talentProfileId);
     }
