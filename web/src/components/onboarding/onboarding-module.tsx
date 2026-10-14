@@ -50,6 +50,7 @@ import type { Essentials } from "@/lib/onboarding/essentials";
 import { EssentialsStep } from "./steps/essentials-step";
 import { StyleStep } from "./steps/style-step";
 import { ReadingStep } from "./steps/reading-step";
+import { FALLBACK_CARD_CEILING_MS, runUnderstandStep, settleWithin } from "@/lib/onboarding/understand-budget";
 import { ReadyStep } from "./steps/ready-step";
 import { SaveStep } from "./steps/save-step";
 import { CodeStep } from "./steps/code-step";
@@ -60,8 +61,6 @@ import { ResumeCard } from "./steps/resume-card";
 import { TooLittleStep } from "./steps/too-little-step";
 import { UnderstoodStep } from "./steps/understood-step";
 
-/** Reading ceiling: the model call is capped at 20 s server-side, plus retry and failover; past this the short form takes over. */
-const UNDERSTAND_CEILING_MS = 45_000;
 
 function isOffline(): boolean {
   return typeof navigator !== "undefined" && navigator.onLine === false;
@@ -231,24 +230,31 @@ export function OnboardingModule({
     // must never leave the person on the reading ring (owner's phone run,
     // 2026-09-17: a provider error did exactly that). Past the ceiling, or
     // on any failure, the short-form card takes over and says why.
-    const ceiling = new Promise<{ ok: false; code: "failed" }>((resolve) => window.setTimeout(() => resolve({ ok: false, code: "failed" }), UNDERSTAND_CEILING_MS));
-    void Promise.race([understandOnboardingInput().catch(() => ({ ok: false as const, code: "failed" as const })), ceiling]).then((result) => {
-      if (result.ok) {
-        applyCard(result, { step: result.card.understanding.tooLittle ? "tooLittle" : "understood" });
+    // TUL-541: the fallback card load is bounded too, so every branch lands.
+    void runUnderstandStep({ understand: understandOnboardingInput, loadCard: loadOnboardingCard }).then((out) => {
+      if (understandingForRef.current !== key) return; // skipped or superseded
+      if (out.kind === "understood" && out.result.ok) {
+        applyCard(out.result, { step: out.result.card.understanding.tooLittle ? "tooLittle" : "understood" });
         return;
       }
       // Nothing read: show the card with everything missing so the person
       // can still answer the short questions, and say why.
-      const code: MachineErrorCode = result.code === "ai" ? (result.understandCode as MachineErrorCode) : (result.code as MachineErrorCode);
-      void loadOnboardingCard()
-        .catch(() => ({ ok: false as const }))
-        .then((fallback) => {
-          if (fallback.ok) dispatch({ type: "cardLoaded", understanding: fallback.card.understanding, chip: fallback.card.chip, step: "understood" });
-          else dispatch({ type: "toStep", step: "entry" });
-          dispatch({ type: "cardFailed", code });
-        });
+      const r = out.result;
+      const code: MachineErrorCode = !r || r.ok ? "failed" : r.code === "ai" ? (r.understandCode as MachineErrorCode) : (r.code as MachineErrorCode);
+      if (out.kind === "fallback" && out.card.ok) dispatch({ type: "cardLoaded", understanding: out.card.card.understanding, chip: out.card.card.chip, step: "understood" });
+      else dispatch({ type: "toStep", step: "entry" });
+      dispatch({ type: "cardFailed", code });
     });
   }, [state.step, state.understanding, state.briefId, state.input, applyCard]);
+
+  // "Seguir sin IA": drop the in-flight read and go to the short form now.
+  const skipAi = useCallback(() => {
+    understandingForRef.current = "skipped";
+    void settleWithin(loadOnboardingCard, FALLBACK_CARD_CEILING_MS, null).then((card) => {
+      if (card?.ok) dispatch({ type: "cardLoaded", understanding: card.card.understanding, chip: card.card.chip, step: "understood" });
+      else dispatch({ type: "toStep", step: "entry" });
+    });
+  }, []);
 
   // Resume at a Phase 3 step: the card is recomputed from the brief.
   const cardLoadRef = useRef(false);
@@ -257,9 +263,10 @@ export function OnboardingModule({
     if (!phase3 || state.understanding || cardLoadRef.current) return;
     cardLoadRef.current = true;
     dispatch({ type: "sendStarted" });
-    void loadOnboardingCard().then((result) => {
+    void settleWithin(loadOnboardingCard, FALLBACK_CARD_CEILING_MS, null).then((result) => {
       cardLoadRef.current = false;
-      applyCard(result, { step: state.step });
+      if (result) applyCard(result, { step: state.step });
+      else dispatch({ type: "cardFailed", code: "failed" });
     });
   }, [state.step, state.understanding, applyCard]);
 
@@ -609,7 +616,7 @@ export function OnboardingModule({
   } else if (state.step === "arrival") {
     body = <BuildingStep t={t} path={path} />;
   } else {
-    body = <ReadingStep t={t} input={state.input} />;
+    body = <ReadingStep t={t} input={state.input} onSkipAi={skipAi} />;
   }
 
   const backBtn = showBack ? (
