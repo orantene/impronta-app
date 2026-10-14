@@ -8,8 +8,9 @@ import { fakeAdmin, type Row } from "@/lib/storefront/__fixtures__/fake-admin";
 import { loadPublicPromosWith, talentPromoTenantId } from "./public-promos.server";
 
 const T = "00000000-0000-4000-8000-000000000001";
+const TP = "tp-a";
 const row = (id: string, over: Partial<Row> = {}): Row => ({
-  id, tenant_id: T, code: null, kind: "percent", offer_kind: "percent", value: 20, currency: "MXN", scope_kind: "all",
+  id, tenant_id: T, talent_profile_id: TP, code: null, kind: "percent", offer_kind: "percent", value: 20, currency: "MXN", scope_kind: "all",
   audience: "public", unlock: "auto", applies_on: "purchase", tz: "America/Mexico_City", per_customer_limit: 1,
   is_active: true, is_draft: false, is_paused: false, archived_at: null, show_on_site: true, show_countdown: true,
   title_i18n: { es: "Semana" }, created_at: "2026-10-01T00:00:00Z", max_redemptions: null, ...over,
@@ -28,7 +29,7 @@ test("only live, auto, show_on_site promos reach the public site", async () => {
     tenant_promo_redemptions: [{ promo_code_id: "soldout", customer_id: null, status: "confirmed", hold_expires_at: null }],
     promo_targets: [],
   });
-  const r = await loadPublicPromosWith(admin as unknown as SupabaseClient, T, new Date("2026-10-14T18:00:00Z"));
+  const r = await loadPublicPromosWith(admin as unknown as SupabaseClient, T, TP, new Date("2026-10-14T18:00:00Z"));
   assert.deepEqual(r.promos.map((p) => p.id), ["live"]);
   assert.equal(r.banners[0]?.showCountdown, true);
   assert.deepEqual(r.banners[0]?.title, { es: "Semana" });
@@ -36,9 +37,9 @@ test("only live, auto, show_on_site promos reach the public site", async () => {
 
 test("a failed read degrades to no promos", async () => {
   const broken = {
-    from: () => ({ select: () => ({ eq: () => ({ order: async () => ({ data: null, error: { message: "down" } }) }) }) }),
+    from: () => ({ select: () => ({ eq: () => ({ eq: () => ({ order: async () => ({ data: null, error: { message: "down" } }) }) }) }) }),
   } as unknown as SupabaseClient;
-  const r = await loadPublicPromosWith(broken, T, new Date());
+  const r = await loadPublicPromosWith(broken, T, TP, new Date());
   assert.equal(r.promos.length, 0);
 });
 
@@ -60,8 +61,21 @@ test("a free talent's live promo is not advertised, but the trial promo is", asy
     promo_targets: [],
   });
   const now = new Date("2026-10-14T18:00:00Z");
-  const free = await loadPublicPromosWith(admin as unknown as SupabaseClient, T, now, "free");
+  const free = await loadPublicPromosWith(admin as unknown as SupabaseClient, T, TP, now, "free");
   assert.deepEqual(free.promos.map((p) => p.id), ["trial"]);
-  const paid = await loadPublicPromosWith(admin as unknown as SupabaseClient, T, now, "paid");
+  const paid = await loadPublicPromosWith(admin as unknown as SupabaseClient, T, TP, now, "paid");
   assert.deepEqual(paid.promos.map((p) => p.id).sort(), ["paidpromo", "trial"]);
+});
+
+test("hub: talent A's promo never prices talent B on the same tenant", async () => {
+  const { admin } = fakeAdmin({
+    tenant_promo_codes: [row("a-promo", { talent_profile_id: "tp-a" }), row("agency-wide", { talent_profile_id: null })],
+    tenant_promo_redemptions: [],
+    promo_targets: [],
+  });
+  const now = new Date("2026-10-14T18:00:00Z");
+  const b = await loadPublicPromosWith(admin as unknown as SupabaseClient, T, "tp-b", now);
+  assert.deepEqual(b.promos.map((p) => p.id), []);
+  const a = await loadPublicPromosWith(admin as unknown as SupabaseClient, T, "tp-a", now);
+  assert.deepEqual(a.promos.map((p) => p.id), ["a-promo"]);
 });

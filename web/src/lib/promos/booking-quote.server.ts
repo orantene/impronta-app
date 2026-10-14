@@ -5,7 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { refusalForReject, type PromoRefusal } from "@/lib/orders/promo-resolve";
 import { logServerError } from "@/lib/server/safe-error";
 import { quote } from "./quote";
-import { loadClientStatus, loadLapsedDays, loadTenantPromos, loadUsage } from "./repo";
+import { loadClientStatus, loadLapsedDays, loadTenantPromos, loadUsage, type PromoOwner } from "./repo";
 import { isBlockedFromLimitedPromos, isLimitedPromo } from "./redemption/policy";
 import { countNoShowsWithTalent, resolveCustomer } from "./redemption/service";
 import type { AppliedPromo, CartLine, ClientStatus, Promo, QuoteResult } from "./types";
@@ -151,6 +151,12 @@ export function redemptionPlan(result: QuoteResult): RedemptionPlan[] {
 
 export type BookingQuoteInput = {
   tenantId: string;
+  /**
+   * The talent that owns the booked offering(s). Only that talent's promos
+   * (plus agency-wide ones) may price it: hub talents share one tenant.
+   * Null = agency-wide promos only.
+   */
+  talentProfileId: string | null;
   lines: readonly CartLine[];
   /** Known buyer (the pipeline has one). When absent, resolved from the contact. */
   customerId?: string | null;
@@ -204,14 +210,39 @@ function candidates(all: readonly Promo[]): Promo[] {
   return all.filter((p) => !p.archived_at && !p.is_draft && !p.is_paused);
 }
 
+/**
+ * Agency-wide promos plus the owning talent's own. Never the whole tenant.
+ * Null on a failed read.
+ */
+async function loadOwnedPromos(
+  db: SupabaseClient,
+  tenantId: string,
+  talentProfileId: string | null,
+  load: typeof loadTenantPromos,
+): Promise<{ promos: Promo[] } | null> {
+  const owners: PromoOwner[] = talentProfileId ? [{ agencyWide: true }, { talentProfileId }] : [{ agencyWide: true }];
+  const reads = await Promise.all(owners.map((o) => load(db, tenantId, o)));
+  const seen = new Set<string>();
+  const promos: Promo[] = [];
+  for (const r of reads) {
+    if (!r.ok) return null;
+    for (const p of r.promos) {
+      if (seen.has(p.id)) continue;
+      seen.add(p.id);
+      promos.push(p);
+    }
+  }
+  return { promos };
+}
+
 export async function quoteBooking(
   db: SupabaseClient,
   input: BookingQuoteInput,
   deps: BookingQuoteDeps = DEFAULT_DEPS,
 ): Promise<{ ok: true; value: BookingQuote } | { ok: false; reason: "promo_unavailable" }> {
   const now = input.now ?? new Date();
-  const loaded = await deps.loadTenantPromos(db, input.tenantId);
-  if (!loaded.ok) return { ok: false, reason: "promo_unavailable" };
+  const loaded = await loadOwnedPromos(db, input.tenantId, input.talentProfileId, deps.loadTenantPromos);
+  if (!loaded) return { ok: false, reason: "promo_unavailable" };
 
   let customerId = input.customerId ?? null;
   if (!customerId && input.contact && (input.contact.phone || input.contact.email)) {

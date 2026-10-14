@@ -22,7 +22,7 @@ import {
   mapCapacityRefusal,
 } from "@/lib/orders/purchase-catalog";
 import { resolvePromo } from "@/lib/orders/promo-resolve";
-import { holdBookingPromos, priceBookingPromo, redeemTypedCode } from "@/lib/orders/purchase-promo";
+import { holdBookingPromos, priceBookingPromo, redeemTypedCode, soleTalent } from "@/lib/orders/purchase-promo";
 import { confirmOrderPromos, releaseRedemptionIds } from "@/lib/promos/redemption/order-redemptions";
 import { doorHoldSeconds } from "@/lib/orders/door-hold";
 import { resolveOrderCurrency } from "@/lib/orders/display-currency";
@@ -264,7 +264,7 @@ export async function createPurchase(
           id: l.offeringId,
           totalCents: l.totalCents,
           variantId: l.variantId,
-          eventId: null,
+          eventId: null, talentProfileId: l.talentProfileId,
         })),
       });
       if (!resolved.ok) {
@@ -280,7 +280,7 @@ export async function createPurchase(
     // Promos v1: a booking's live promos, priced by the same engine the sheet previewed.
     const bookingPromo = input.bookingPromo && !input.promoCode
       ? await priceBookingPromo(admin, {
-          tenantId: input.tenantId, customerId, currency: orderCurrency, request: input.bookingPromo,
+          tenantId: input.tenantId, customerId, currency: orderCurrency, request: input.bookingPromo, talentProfileId: soleTalent(priced.lines.map((l) => l.talentProfileId)),
           lines: priced.lines.map((l) => ({
             offeringId: l.offeringId, kind: catalog.rawOfferings.get(l.offeringId)?.kind ?? "service", totalCents: l.totalCents,
             addons: l.addonIds.map((id) => ({ id, cents: catalog.addons.get(id)?.amountCents ?? 0 })),

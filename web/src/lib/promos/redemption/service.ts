@@ -228,6 +228,7 @@ type ParentPromoRow = {
   applies_on: string;
   name: string | null;
   label: string | null;
+  talent_profile_id: string | null;
 };
 
 /**
@@ -252,7 +253,7 @@ export async function reissuePersonalPromo(
 
   const { data: parentData, error: parentErr } = await db
     .from("tenant_promo_codes")
-    .select("id, tenant_id, kind, offer_kind, value, currency, scope_kind, event_id, variant_id, addon_id, applies_on, name, label")
+    .select("id, tenant_id, talent_profile_id, kind, offer_kind, value, currency, scope_kind, event_id, variant_id, addon_id, applies_on, name, label")
     .eq("id", r.promo_code_id)
     .maybeSingle();
   if (parentErr) {
@@ -286,6 +287,8 @@ export async function reissuePersonalPromo(
       .from("tenant_promo_codes")
       .insert({
         tenant_id: parent.tenant_id,
+        // Same owner as the parent: a hub make-good belongs to that talent.
+        talent_profile_id: parent.talent_profile_id,
         code,
         label: parent.label,
         name: parent.name,
@@ -339,8 +342,11 @@ const HOUR_MS = 3_600_000;
 const BASELINE_DAYS = 14;
 
 export type LeakGuardDeps = {
-  /** user ids that should hear about this tenant's promos (owner, staff). */
-  talentUserIds: (tenantId: string) => Promise<string[]>;
+  /**
+   * user ids that should hear about this promo: its owning talent's user when
+   * it has one (never the whole hub tenant), else the agency's owner / staff.
+   */
+  talentUserIds: (promo: { tenantId: string; talentProfileId: string | null }) => Promise<string[]>;
   notify?: (userIds: string[], input: Omit<EmitNotificationInput, "userId">) => Promise<void>;
 };
 
@@ -357,7 +363,7 @@ export async function runLeakGuard(
   const now = input.now ?? new Date();
   const { data: promoData, error: promoErr } = await db
     .from("tenant_promo_codes")
-    .select("id, tenant_id, code, unlock, leak_guard, is_paused")
+    .select("id, tenant_id, talent_profile_id, code, unlock, leak_guard, is_paused")
     .eq("id", input.promoId)
     .maybeSingle();
   if (promoErr) {
@@ -365,7 +371,7 @@ export async function runLeakGuard(
     return { tripped: false };
   }
   const promo = promoData as
-    | { id: string; tenant_id: string; code: string | null; unlock: string; leak_guard: boolean; is_paused: boolean }
+    | { id: string; tenant_id: string; talent_profile_id: string | null; code: string | null; unlock: string; leak_guard: boolean; is_paused: boolean }
     | null;
   if (!promo || !promo.leak_guard || promo.unlock !== "code" || promo.is_paused) return { tripped: false };
 
@@ -409,7 +415,7 @@ export async function runLeakGuard(
   }
   if (!flipped || (flipped as { id: string }[]).length === 0) return { tripped: true };
 
-  const userIds = await deps.talentUserIds(promo.tenant_id);
+  const userIds = await deps.talentUserIds({ tenantId: promo.tenant_id, talentProfileId: promo.talent_profile_id ?? null });
   if (userIds.length > 0) {
     const code = promo.code ?? "Tu código";
     await (deps.notify ?? emitNotificationToUsers)(userIds, {

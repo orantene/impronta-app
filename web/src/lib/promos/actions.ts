@@ -170,7 +170,8 @@ function isScope(s: Scope | { error: PromoActionError }): s is Scope {
 }
 
 async function trialUsedElsewhere(scope: Scope, exceptId: string | null): Promise<boolean> {
-  let q = scope.admin.from("tenant_promo_codes").select("id").eq("tenant_id", scope.tenantId).eq("is_trial", true).limit(1);
+  let q = scope.admin.from("tenant_promo_codes").select("id").eq("tenant_id", scope.tenantId)
+    .eq("talent_profile_id", scope.talentId).eq("is_trial", true).limit(1);
   if (exceptId) q = q.neq("id", exceptId);
   const { data, error } = await q;
   if (error) {
@@ -227,6 +228,7 @@ async function loadOwnedRow(scope: Scope, id: string): Promise<{ row: PromoRow; 
     .select(PROMO_COLUMNS)
     .eq("id", id)
     .eq("tenant_id", scope.tenantId)
+    .eq("talent_profile_id", scope.talentId)
     .maybeSingle();
   if (error || !data) {
     if (error) logServerError("promos.actions/row", error);
@@ -306,7 +308,7 @@ export async function loadPromosPage(): Promise<PromoResult<{ data: PromosPageDa
   const scope = await resolvePromoScope(false);
   if (!isScope(scope)) return { ok: false, error: scope.error };
   const [list, catalog, trialUsed] = await Promise.all([
-    loadTenantPromos(scope.admin, scope.tenantId),
+    loadTenantPromos(scope.admin, scope.tenantId, { talentProfileId: scope.talentId }),
     loadCatalog(scope),
     trialUsedElsewhere(scope, null),
   ]);
@@ -385,7 +387,7 @@ export async function loadPromosPage(): Promise<PromoResult<{ data: PromosPageDa
 export async function getPromoAttention(): Promise<{ attention: boolean }> {
   const scope = await resolvePromoScope(false);
   if (!isScope(scope)) return { attention: false };
-  const list = await loadTenantPromos(scope.admin, scope.tenantId);
+  const list = await loadTenantPromos(scope.admin, scope.tenantId, { talentProfileId: scope.talentId });
   if (!list.ok) return { attention: false };
   const now = new Date();
   const usage = await loadUsage(scope.admin, list.rows.map((r) => r.id), null, now);
@@ -435,6 +437,8 @@ async function insertPromo(
       ...draftToColumns(draft),
       link_slug: promoSlug(draft.name, crypto.randomUUID().slice(0, 6)),
       tenant_id: scope.tenantId,
+      // The owner: hub talents share one tenant, so the talent IS the scope.
+      talent_profile_id: scope.talentId,
       created_by: scope.userId,
       is_active: true,
       is_draft: flags.is_draft,
@@ -501,7 +505,8 @@ export async function goLivePromo(id: string): Promise<PromoResult<{ status: Pro
     .from("tenant_promo_codes")
     .update({ is_draft: false, is_paused: false, is_trial: gate.reason === "trial" })
     .eq("id", id)
-    .eq("tenant_id", scope.tenantId);
+    .eq("tenant_id", scope.tenantId)
+    .eq("talent_profile_id", scope.talentId);
   if (error) {
     logServerError("promos.actions/go-live", error);
     return { ok: false, error: "unavailable" };
@@ -531,7 +536,8 @@ export async function updatePromo(id: string, input: PromoDraft): Promise<PromoR
     .from("tenant_promo_codes")
     .update({ ...draftToColumns(draft), updated_at: new Date().toISOString() })
     .eq("id", id)
-    .eq("tenant_id", scope.tenantId);
+    .eq("tenant_id", scope.tenantId)
+    .eq("talent_profile_id", scope.talentId);
   if (error) {
     logServerError("promos.actions/update", error);
     return failFrom(error);
@@ -564,7 +570,8 @@ async function setPaused(id: string, paused: boolean): Promise<PromoResult> {
     .from("tenant_promo_codes")
     .update({ is_paused: paused })
     .eq("id", id)
-    .eq("tenant_id", scope.tenantId);
+    .eq("tenant_id", scope.tenantId)
+    .eq("talent_profile_id", scope.talentId);
   if (error) {
     logServerError("promos.actions/pause", error);
     return { ok: false, error: "unavailable" };
@@ -615,7 +622,8 @@ export async function endPromo(id: string): Promise<PromoResult> {
     .from("tenant_promo_codes")
     .update(patch.kind === "archive" ? { archived_at: patch.archived_at } : { ends_at: patch.ends_at })
     .eq("id", id)
-    .eq("tenant_id", scope.tenantId);
+    .eq("tenant_id", scope.tenantId)
+    .eq("talent_profile_id", scope.talentId);
   if (error) {
     logServerError("promos.actions/end", error);
     return { ok: false, error: "unavailable" };
@@ -659,6 +667,7 @@ export async function giveCourtesyBooking(input: {
     scope.admin,
     {
       tenantId: scope.tenantId,
+      talentProfileId: scope.talentId,
       actorUserId: scope.userId,
       bookingId: input.bookingId,
       reason: input.reason,

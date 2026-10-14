@@ -84,6 +84,8 @@ const intCents = (v: unknown): number | null => {
 /** Pure: the courtesy promo row. 100% off, one client, single use, never public. */
 export function courtesyPromoRow(input: {
   tenantId: string;
+  /** The talent giving the courtesy; owns the one-off promo row. */
+  talentProfileId: string | null;
   customerId: string;
   reason: CourtesyReason;
   code: string;
@@ -93,6 +95,7 @@ export function courtesyPromoRow(input: {
 }): Record<string, unknown> {
   return {
     tenant_id: input.tenantId,
+    talent_profile_id: input.talentProfileId,
     code: input.code,
     name: "Cortesía",
     label: "Cortesía",
@@ -143,6 +146,8 @@ export async function giveCourtesy(
   db: SupabaseClient,
   input: {
     tenantId: string;
+    /** The talent giving it (hub tenants require a promo owner). */
+    talentProfileId: string | null;
     actorUserId: string;
     bookingId: string;
     reason: unknown;
@@ -246,6 +251,7 @@ export async function giveCourtesy(
       .insert(
         courtesyPromoRow({
           tenantId: input.tenantId,
+          talentProfileId: input.talentProfileId,
           customerId: booking.customer_id,
           reason: input.reason,
           code: deps.code(),
