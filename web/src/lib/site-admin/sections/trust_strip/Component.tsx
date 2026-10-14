@@ -1,4 +1,6 @@
 import type { CSSProperties } from "react";
+import { TulalaWordmark } from "@/components/brand/tulala-logo";
+import { isTulalaBrandLabel } from "@/lib/brand/is-tulala-brand-label";
 import { buildNodePresentationResponsiveCss } from "../shared/node-presentation";
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
@@ -348,7 +350,14 @@ export function TrustStripComponent({
               {variant === "metrics-row" && item.stat ? (
                 <span className="site-trust-strip__stat">{item.stat}</span>
               ) : null}
-              <h3 className="site-trust-strip__label">{item.label}</h3>
+              {variant === "logo-row" && isTulalaBrandLabel(item.label) ? (
+                <h3 className="site-trust-strip__label" data-brand-wordmark="">
+                  <span className="sr-only">{item.label}</span>
+                  <TulalaWordmark height={26} />
+                </h3>
+              ) : (
+                <h3 className="site-trust-strip__label">{item.label}</h3>
+              )}
               {item.detail ? (
                 <p className="site-trust-strip__detail">{item.detail}</p>
               ) : null}
