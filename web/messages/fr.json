@@ -7279,6 +7279,7 @@
     "mobile": {
       "close": "Fermer",
       "back": "Retour",
+      "talentPillAria": "Ouvrir mon profil",
       "search": "Chercher dans l'espace",
       "ownerOnly": "propriétaire seulement",
       "myWorkNotBuilt": "Mon travail n'existe pas encore : aucune page ne montre à une personne ses propres créneaux et réservations.",

@@ -18998,6 +18998,7 @@
     "mobile": {
       "close": "Cerrar",
       "back": "Atrás",
+      "talentPillAria": "Abrir mi perfil",
       "search": "Buscar en el workspace",
       "ownerOnly": "solo propietario",
       "myWorkNotBuilt": "Mi trabajo todavía no existe: no hay una página que muestre a una persona sus propios turnos y reservas.",

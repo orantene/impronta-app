@@ -18998,6 +18998,7 @@
     "mobile": {
       "close": "Close",
       "back": "Back",
+      "talentPillAria": "Open my profile",
       "search": "Search the workspace",
       "ownerOnly": "owner only",
       "myWorkNotBuilt": "My work is not built yet: there is no page that shows one person their own shifts and bookings.",

@@ -49,7 +49,7 @@ test("TUL-916: the panel close button has its own accessible name, not 'Cerrar'"
   assert.match(panel, /aria-label=\{t\("dashboard\.adminSupport\.closeAria"\)\}/);
   assert.match(home, /aria-label=\{t\("dashboard\.adminSupport\.closeAria"\)\}/);
   const es = JSON.parse(readFileSync("messages/es.json", "utf8")).dashboard.adminSupport;
-  assert.ok(!/^Cerrar$/.test(es.closeAria), "must not be a substring of 'Cerrar tu cuenta'");
+  assert.equal(es.closeAria, "Cerrar soporte");
 });
 
 test("TUL-904/907: More sheet 'Get help' closes the sheet and opens the Guide home (support panel); sheet is mobile-only", () => {
@@ -66,5 +66,17 @@ test("TUL-600: the new-ticket form lets you pick screenshots and uploads them af
   for (const l of ["en", "es", "fr"]) {
     const m = JSON.parse(readFileSync(`messages/${l}.json`, "utf8")).dashboard.adminSupport;
     assert.ok(m.fieldAttachments, `${l} fieldAttachments`);
+  }
+});
+
+test("TUL-907/995: the talent name chip opens the profile and the More sheet carries the language switch", () => {
+  const bar = readFileSync("src/components/admin/shell/internal/page-modules/MobileTopBar.tsx", "utf8");
+  assert.match(bar, /inTalent\s*\?\s*\(\) => setTalentPage\("profile"\)/);
+  assert.doesNotMatch(bar, /disabled=\{inTalent\}/);
+  const more = readFileSync("src/components/talent/studio/MoreScreen.tsx", "utf8");
+  assert.match(more, /<DashboardLocaleToggle/);
+  for (const l of ["en", "es", "fr"]) {
+    const m = JSON.parse(readFileSync(`messages/${l}.json`, "utf8")).dashboard.mobile;
+    assert.ok(m.talentPillAria, `${l} talentPillAria`);
   }
 });
