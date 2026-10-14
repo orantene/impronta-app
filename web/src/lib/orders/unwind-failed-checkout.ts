@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
+import { cancelUnpaidBookings } from "@/lib/bookings/cancel-unpaid-booking";
 import { releaseCapacity } from "@/lib/capacity";
 import { releaseReservationHold } from "@/lib/scheduling/reservation-hold";
 
@@ -21,6 +22,8 @@ import { releaseReservationHold } from "@/lib/scheduling/reservation-hold";
 export type FailedCheckoutUnwindInput = {
   orderId: string;
   transactionId: string | null;
+  /** TUL-714: the booking the purchase placed; cancelled while unpaid. */
+  bookingId?: string | null;
   allocationIds: readonly string[];
   reservationHoldId: string | null;
   why: string;
@@ -63,6 +66,12 @@ export async function unwindFailedCheckout(
       ok = false;
       logServerError("orders.unwindFailedCheckout/txn", error);
     }
+  }
+  if (input.bookingId) {
+    // TUL-714 / TUL-706: the booking was confirmed at purchase; with no way to
+    // pay it must not stay Confirmado or hold the slot. Guarded on unpaid.
+    const cancelled = await cancelUnpaidBookings(admin, [input.bookingId]);
+    if (!cancelled.ok) ok = false;
   }
   const { error } = await admin
     .from("orders")
