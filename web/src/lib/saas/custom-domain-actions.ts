@@ -62,7 +62,7 @@ export type PendingDomainSweepReport = {
 type TxtResolver = (hostname: string) => Promise<string[][]>;
 type ResolveARecords = (hostname: string) => Promise<string[]>;
 type ResolveCnameRecords = (hostname: string) => Promise<string[]>;
-type DomainHttpsProbe = (
+export type DomainHttpsProbe = (
   hostname: string,
 ) => Promise<{ reachable: boolean; fromVercel: boolean }>;
 

@@ -40,6 +40,7 @@ import { SESSION_CATALOG_ENTRIES } from "./catalog-entries-sessions";
 import { ACCOUNT_CATALOG_ENTRIES } from "./catalog-entries-accounts";
 import { PREP_CATALOG_ENTRIES } from "./catalog-entries-prep";
 import { UNCLAIMED_CATALOG_ENTRIES } from "./catalog-entries-unclaimed";
+import { TALENT_DOMAIN_CATALOG_ENTRIES } from "./catalog-entries-talent-domains";
 
 /**
  * The notification catalog — a code-driven registry, one entry per
@@ -762,6 +763,7 @@ export const NOTIFICATION_CATALOG: CatalogEntry[] = [
   ...ACCOUNT_CATALOG_ENTRIES,
   ...PREP_CATALOG_ENTRIES,
   ...UNCLAIMED_CATALOG_ENTRIES,
+  ...TALENT_DOMAIN_CATALOG_ENTRIES,
   PLATFORM_NEW_WORKSPACE,
   PLATFORM_WORKSPACE_OVER_QUOTA,
   PLATFORM_SIGNUP_FAILED,

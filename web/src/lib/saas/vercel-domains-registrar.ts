@@ -78,6 +78,16 @@ export type DomainBuyResult = {
   errorMessage: string | null;
 };
 
+export type DomainRegistrarInfoResult = {
+  attempted: boolean;
+  /** ISO expiry from Vercel `domain.expiresAt` (ms), or null if unknown. */
+  expiresAtIso: string | null;
+  autoRenew: boolean | null;
+  skippedReason: string | null;
+  errorCode: string | null;
+  errorMessage: string | null;
+};
+
 /** Product policy: purchased domains auto-renew at the registrar. */
 export const REGISTRAR_AUTO_RENEW_POLICY = true as const;
 export const REGISTRAR_PURCHASE_YEARS = 1 as const;
@@ -146,6 +156,85 @@ async function parseVercelError(response: Response): Promise<{
 function toPriceCents(price: number | null): number | null {
   if (price == null || !Number.isFinite(price) || price <= 0) return null;
   return Math.round(price * 100);
+}
+
+/**
+ * Read registrar metadata for a domain already on the Vercel account
+ * (`GET /v5/domains/{domain}`). Used by the talent domain health cron to
+ * store expiry and drive 30/7-day renewal notices. Skips cleanly without env.
+ */
+export async function getDomainRegistrarInfo(
+  domain: string,
+  options: { env?: EnvLike; fetchFn?: FetchLike } = {},
+): Promise<DomainRegistrarInfoResult> {
+  const config = readVercelRegistrarConfig(options.env);
+  if (!config) {
+    return {
+      attempted: false,
+      expiresAtIso: null,
+      autoRenew: null,
+      skippedReason: "VERCEL_API_TOKEN/VERCEL_TOKEN is not configured.",
+      errorCode: null,
+      errorMessage: null,
+    };
+  }
+  const fetchFn = options.fetchFn ?? fetch;
+  const url = `https://api.vercel.com/v5/domains/${encodeURIComponent(domain)}${teamQuery(config)}`;
+  try {
+    const response = await fetchFn(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${config.token}`,
+        Accept: "application/json",
+      },
+    });
+    if (!response.ok) {
+      const err = await parseVercelError(response);
+      return {
+        attempted: true,
+        expiresAtIso: null,
+        autoRenew: null,
+        skippedReason: null,
+        errorCode: err.code,
+        errorMessage: err.message,
+      };
+    }
+    const payload = (await response.json()) as {
+      domain?: { expiresAt?: number | string | null; renew?: boolean | null };
+      expiresAt?: number | string | null;
+      renew?: boolean | null;
+    };
+    const expiresRaw = payload.domain?.expiresAt ?? payload.expiresAt ?? null;
+    const renewRaw = payload.domain?.renew ?? payload.renew ?? null;
+    let expiresAtIso: string | null = null;
+    if (expiresRaw != null) {
+      const ms =
+        typeof expiresRaw === "number"
+          ? expiresRaw
+          : typeof expiresRaw === "string" && expiresRaw.trim()
+            ? Number(expiresRaw)
+            : NaN;
+      if (Number.isFinite(ms) && ms > 0) expiresAtIso = new Date(ms).toISOString();
+    }
+    return {
+      attempted: true,
+      expiresAtIso,
+      autoRenew: typeof renewRaw === "boolean" ? renewRaw : null,
+      skippedReason: null,
+      errorCode: null,
+      errorMessage: null,
+    };
+  } catch (error) {
+    logServerError("vercelRegistrar.getDomainInfo", error);
+    return {
+      attempted: true,
+      expiresAtIso: null,
+      autoRenew: null,
+      skippedReason: null,
+      errorCode: "network_error",
+      errorMessage: "Domain info lookup failed.",
+    };
+  }
 }
 
 export async function getDomainAvailability(
