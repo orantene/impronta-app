@@ -187,7 +187,7 @@ export function treeLooksMaisonV2(nodes: ReadonlyArray<BuilderNode>): boolean {
 function stampLikeDesign(band: BuilderNode, menu: BuilderNode): BuilderNode {
   const o = readOrigin(menu);
   if (!o) return band;
-  const pinned = { ...band, props: { ...(band.props as object), designKey: "nail-designer" } } as BuilderNode;
+  const pinned = { ...band, props: { ...(band.props as object), designKey: "nail-designer" } } as unknown as BuilderNode;
   return stripDesignKeys(stampDesignOrigin([pinned], { design: o.design, version: o.version }))[0]!;
 }
 
