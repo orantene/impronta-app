@@ -35,7 +35,8 @@ import { provisionTalentMaxSite } from "./provision-max-site";
 import { gate, type GateOk } from "./site-action-gate";
 import type { ThemeActionResult } from "./theme-action-types";
 import { applyDesign, applyLook, previewDesignSwitch, publishSiteTheme } from "./theme-apply-core";
-import { summarizeSwitchWarnings, type DesignSwitchSummary } from "./design-switch-summary";
+import type { DesignSwitchSummary } from "./design-switch-summary";
+import { previewSwitchSummary } from "./design-switch-preview";
 import { loadPublishedCatalogRow } from "./theme-catalog-row";
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
@@ -111,17 +112,27 @@ export async function previewSiteDesignSwitchAction(input: {
   if (!r.ok) return r;
   const loaded = await loadRowFor(r, "design", input?.designSlug);
   if (!loaded.ok) return loaded;
-  const site = await ensureSiteId(r);
-  if (!site.ok) return site;
   const design = (await loadApplyDesignRow(r.admin, input.designSlug)) ?? loaded.row;
-  const res = await previewDesignSwitch(r.admin, {
-    talentProfileId: r.g.talentProfileId,
-    siteId: site.siteId,
-    design,
+  return previewSwitchSummary({
+    locale: (await getRequestLocale()) === "es" ? "es" : "en",
+    findSiteId: async () => {
+      const { data, error } = await r.admin
+        .from("talent_sites")
+        .select("id")
+        .eq("talent_profile_id", r.g.talentProfileId)
+        .maybeSingle();
+      if (error) logServerError("talentTheme.previewSwitch.findSite", error);
+      return (data as { id: string } | null)?.id ?? null;
+    },
+    preview: async (siteId) => {
+      const res = await previewDesignSwitch(r.admin, {
+        talentProfileId: r.g.talentProfileId,
+        siteId,
+        design,
+      });
+      return res.ok ? { ok: true, warned: res.data.warned } : res;
+    },
   });
-  if (!res.ok) return res;
-  const locale = (await getRequestLocale()) === "es" ? "es" : "en";
-  return { ok: true, data: summarizeSwitchWarnings(res.data.warned, locale) };
 }
 
 /** Apply a Look: merges its colour + font layer into the DRAFT site tokens. */
