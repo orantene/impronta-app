@@ -565,6 +565,7 @@ const ES: Record<string, string> = {
   payments: "pagos",
   balances: "saldos",
   "Nothing owed": "Nada pendiente",
+  "pending payment": "pendiente de pago",
   "Payouts not set up": "Depósitos sin configurar",
   "Nothing booked after today yet.": "Aún no hay nada reservado después de hoy.",
   "No appointments today.": "No hay citas hoy.",
