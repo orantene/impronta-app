@@ -32,6 +32,7 @@ import { setActiveTalentAgencyAction } from "@/lib/talent/set-active-agency-acti
 import { interpolate } from "@/i18n/interpolate";
 import { useT } from "@/i18n/use-t";
 import { useDashboardText } from "./dashboard-i18n";
+import { NOTIF_DEFAULTS, useNotificationsPrefMode, SeeAllNotificationsLink } from "./talent-notifications-pref-mode";
 import { formatNotificationAge, localizeNotificationText } from "./notification-localize";
 import { setNotificationPrefs, getNotificationPrefs } from "@/lib/server-actions/user-prefs";
 import {
@@ -2088,13 +2089,6 @@ function NotifRow({
   );
 }
 
-const NOTIF_DEFAULTS: Record<string, { email: boolean; push: boolean }> = {
-  "new-offer":        { email: true,  push: true  },
-  "hold-expiring":    { email: true,  push: false },
-  "booking-reminder": { email: true,  push: true  },
-  "payouts":          { email: false, push: false },
-  "weekly-summary":   { email: false, push: false },
-};
 const NOTIF_ROWS: { id: string; label: string; description: string }[] = [
   { id: "new-offer",        label: "dashboard.talentNotifications.prefNewOffer",        description: "dashboard.talentNotifications.prefNewOfferHint" },
   { id: "hold-expiring",    label: "dashboard.talentNotifications.prefHoldExpiring",    description: "dashboard.talentNotifications.prefHoldExpiringHint" },
@@ -2110,13 +2104,7 @@ export function TalentNotificationsDrawer() {
   // A9: deep-link from Settings → opens with settings pane expanded
   // Opened from Settings: show the alert preferences first, not the inbox list.
   const fromSettings = state.drawer.payload?.expanded === "settings";
-  const [prefsMode, setPrefsMode] = useState(fromSettings);
-  const [settingsOpen, setSettingsOpen] = useState(fromSettings);
-  useEffect(() => {
-    if (!open) return;
-    setPrefsMode(fromSettings);
-    setSettingsOpen(fromSettings);
-  }, [open, fromSettings]);
+  const { prefsMode, setPrefsMode, settingsOpen, setSettingsOpen } = useNotificationsPrefMode(open, fromSettings);
   // Real `user_notifications` rows when the shell provides the bridge (even an
   // EMPTY array — that means "no notifications yet", not "show the demo").
   // Only a null bridge (standalone/prototype harness) falls back to the mock.
@@ -2242,24 +2230,7 @@ export function TalentNotificationsDrawer() {
           : t("dashboard.talentNotifications.demoNotice")
       }
     >
-      {prefsMode && (
-        <button
-          type="button"
-          onClick={() => setPrefsMode(false)}
-          style={{
-            background: "transparent",
-            border: "none",
-            padding: "0 0 12px",
-            cursor: "pointer",
-            fontFamily: FONTS.body,
-            fontSize: 12.5,
-            fontWeight: 500,
-          }}
-          className="text-admin-ink-muted"
-        >
-          {t("dashboard.talentNotifications.seeAll")} →
-        </button>
-      )}
+      {prefsMode && <SeeAllNotificationsLink onClick={() => setPrefsMode(false)} />}
       {!prefsMode && (<>
       {/* Tab strip: Recent | Archive. Tabs sit above the list so the
           talent can flip between active items and previously-dismissed
