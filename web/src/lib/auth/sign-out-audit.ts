@@ -9,7 +9,7 @@ import type { WorkspaceAuditEvent } from "@/lib/audit/workspace-audit";
 
 export function signOutAuditEvent(
   tenantId: string | null | undefined,
-  user: { id: string; email: string | null | undefined } | null,
+  user: { id: string; email?: string | null } | null,
 ): WorkspaceAuditEvent | null {
   if (!tenantId || !user?.id) return null;
   return {
