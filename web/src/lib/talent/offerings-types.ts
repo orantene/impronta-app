@@ -559,7 +559,9 @@ export function offeringPriceLabel(
 ): string {
   const es = locale.toLowerCase().startsWith("es");
   if (o.visibility === "on_request") return es ? "Bajo consulta" : "On request";
-  if (offeringIsQuote(o)) {
+  // `amountCents == null` is already a quote per offeringIsQuote; the explicit
+  // check also narrows the type for `format` below.
+  if (o.amountCents == null || offeringIsQuote(o)) {
     return es ? "Cotización a pedido" : "Quote on request";
   }
   // TUL-533 / GRK-064: $0 → Consultar / Ask (display only; free can still book).

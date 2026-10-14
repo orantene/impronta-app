@@ -6368,7 +6368,9 @@ function renderBuilderNodeElement(
         priceType: string;
         priceDisplay: string;
       }): string => {
-        if (offeringIsQuote(item)) {
+        // `amountCents == null` is already a quote per offeringIsQuote; the
+        // explicit check also narrows the type for formatMoney below.
+        if (item.amountCents == null || offeringIsQuote(item)) {
           return "Quote on request";
         }
         // TUL-383: one public money format (`$700 MXN`) via shared formatter.
