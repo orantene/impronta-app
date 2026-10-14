@@ -36,6 +36,8 @@ export async function createTenantPromo(input: z.infer<typeof createSchema>) {
 
   const { error } = await admin.from("tenant_promo_codes").insert({
     tenant_id: guard.tenantId,
+    // Agency-wide (no owner). The database refuses this on the shared hub tenant.
+    talent_profile_id: null,
     code: parsed.data.code,
     kind: parsed.data.kind,
     value: parsed.data.value,
@@ -65,7 +67,8 @@ export async function setTenantPromoActive(id: string, isActive: boolean) {
     .from("tenant_promo_codes")
     .update({ is_active: isActive })
     .eq("id", id)
-    .eq("tenant_id", guard.tenantId);
+    .eq("tenant_id", guard.tenantId)
+    .is("talent_profile_id", null);
   if (error) {
     logServerError("discounts.toggle", error);
     return { ok: false as const, error: "unavailable" };
