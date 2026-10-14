@@ -25,9 +25,9 @@ const PINS = {
   highlight: "154aa0752c478aa5", // TUL-474: TITLE_HOOKS includes .sb-area-title
   booking: "d0b8ff4d6dc7b695",
   // Re-pinned: only added props.i18n (es + en seed copy), see seed-i18n.ts.
-  maison: "4154551e03a4b4ea", // TUL-532 hero face crop + phone paddingX on TUL-121 Maison v2 base (#3116)
+  maison: "7e12ac921cd9d7dc", // stg6 re-pin after merged seed/i18n changes. Was 4154551e03a4b4ea; TUL-532 hero face crop + phone paddingX on TUL-121 Maison v2 base (#3116)
   // Re-pinned after Gridline contentWidth/full + matrix viewport MQ (#2530), then es + en seed copy.
-  gridline: "076f5af69351f319", // was 647493210a4b4f58 (consolidated old PRs) // TUL-532 heroSpec face crop on TUL-530 utility_bar homeHref base
+  gridline: "94c70e65edcefd88", // stg6 re-pin. Was 076f5af69351f319; was 647493210a4b4f58 (consolidated old PRs) // TUL-532 heroSpec face crop on TUL-530 utility_bar homeHref base
 };
 
 function kinds(nodes: BuilderNode[]): string[] {

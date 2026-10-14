@@ -9,6 +9,8 @@
  */
 
 
+import { looksLikeSlugAlt } from "./portfolio-alt-suggest";
+
 export type PortfolioI18nMap = Readonly<Record<string, string | null | undefined>>;
 
 function key(locale: string | null | undefined): string {

@@ -19,12 +19,12 @@ describe("ageTermsLinks (TUL-614)", () => {
   });
   it("the checkbox uses the helper, not a hardcoded legal path", () => {
     const src = readFileSync("src/components/auth/age-terms-checkbox.tsx", "utf8");
-    assert.match(src, /ageTermsLinks\(getSiteUrl\(\), locale\)/);
+    assert.match(src, /ageTermsLinks\(marketingOrigin \?\? getSiteUrl\(\), locale\)/);
     assert.doesNotMatch(src, /\/legal\/terms`/);
   });
   it("TUL-678: the auth footer links follow the page language", () => {
     const chrome = readFileSync("src/app/(auth)/auth-shell-chrome.tsx", "utf8");
-    assert.match(chrome, /ageTermsLinks\(getSiteUrl\(\), locale\)/);
+    assert.match(chrome, /ageTermsLinks\(resolveMarketingOrigin\(\), locale\)/);
     assert.doesNotMatch(chrome, /getSiteUrl\(\)\}\/legal\//);
     const layout = readFileSync("src/app/(auth)/layout.tsx", "utf8");
     assert.match(layout, /<AuthFooter[\s\S]*?locale=\{locale\}/);

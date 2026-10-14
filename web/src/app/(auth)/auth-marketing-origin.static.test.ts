@@ -19,8 +19,9 @@ for (const f of files) {
 }
 test("auth shell footer builds legal links from resolveMarketingOrigin", () => {
   const src = readFileSync(join(dir, "auth-shell-chrome.tsx"), "utf8");
-  assert.match(src, /resolveMarketingOrigin\(\)\}\/legal\/terms/);
-  assert.match(src, /resolveMarketingOrigin\(\)\}\/legal\/privacy/);
+  // TUL-678 localizes the links through ageTermsLinks; the origin is still the marketing one.
+  assert.match(src, /ageTermsLinks\(resolveMarketingOrigin\(\), locale\)/);
+  assert.doesNotMatch(src, /getSiteUrl\(\)\}\/legal\//);
 });
 
 // TUL-750 follow-up: the signup checkbox is a client component, so the server
