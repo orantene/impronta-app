@@ -68,3 +68,14 @@ test("TUL-795 FAQ wiring: the renderer loads the talent's published FAQ for the 
   assert.match(src, /serviceFaqItems\(serviceOffering, talentFaq, locale\)/);
   assert.match(src, /faq: serviceFaq/);
 });
+
+test("TUL-795 photos: the service's own images render (deduped, capped), none -> no block", () => {
+  const urls = Array.from({ length: 8 }, (_, i) => `https://img.example/${i}.jpg`);
+  const out = html({ ...A, imageUrls: [urls[0], urls[0], ...urls.slice(1)] });
+  assert.match(out, /data-talent-service-photos=""/);
+  assert.equal((out.match(/<img /g) ?? []).length, 6);
+  assert.match(out, /alt="Corte"/);
+  assert.match(out, /alt="Corte \(2\)"/);
+  assert.doesNotMatch(html({ ...A, imageUrls: [] }), /data-talent-service-photos/);
+  assert.doesNotMatch(html(A), /<img /);
+});

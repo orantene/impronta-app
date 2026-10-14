@@ -25,6 +25,7 @@ import type { MaxSiteSeo } from "./render-max-site";
 const INK = "var(--token-color-ink, CanvasText)";
 const SOFT = "color-mix(in srgb, var(--token-color-ink, CanvasText) 66%, var(--token-color-background, Canvas))";
 
+export const SERVICE_PHOTO_MAX = 6;
 const H2: CSSProperties = { margin: "0 0 12px", fontSize: 18, fontFamily: "var(--site-heading-font, inherit)" };
 
 /** TUL-795: phone sticky bar (hidden at >=640px and height-reserved by FLOATING_CHROME_STACK_CSS). */
@@ -83,6 +84,8 @@ export function serviceMainNode(
 ): ReactNode {
   const copy = servicePageCopy(opts.locale);
   const price = priceLine(o, opts.locale, copy.priceFrom);
+  // The service's own photos (talent_offering_media, the same link the gallery uses); none -> no block.
+  const photos = [...new Set((o.imageUrls ?? []).filter((u) => typeof u === "string" && u.trim() !== ""))].slice(0, SERVICE_PHOTO_MAX);
   const facts = [
     o.categoryLabel ?? o.category ?? null,
     price,
@@ -109,6 +112,13 @@ export function serviceMainNode(
       <h1 style={{ margin: "0 0 8px", fontFamily: "var(--site-heading-font, inherit)", lineHeight: 1.15 }}>{o.title}</h1>
       {facts ? <p style={{ margin: "0 0 20px", color: SOFT }}>{facts}</p> : null}
       {o.description ? <p style={{ margin: "0 0 28px", whiteSpace: "pre-line" }}>{o.description}</p> : null}
+      {photos.length > 0 ? (
+        <div data-talent-service-photos="" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 8, margin: "0 0 28px" }}>
+          {photos.map((src, i) => (
+            <img key={src} src={src} alt={i === 0 ? o.title : `${o.title} (${i + 1})`} loading={i === 0 ? "eager" : "lazy"} decoding="async" style={{ width: "100%", aspectRatio: "4 / 5", objectFit: "cover", display: "block" }} />
+          ))}
+        </div>
+      ) : null}
       {o.publicCtaHidden ? null : (
         <Link
           href={serviceBookHref(o.id, opts.homePath)}
