@@ -4,8 +4,10 @@
  *
  * Guest AI FAIL-CLOSED: if Upstash env is missing, the AI route must refuse
  * rather than spend tokens. Create/message still fail-open (honeypot remains).
+ * Guest AI also fails CLOSED on a store error (429), and logs it.
  */
 import { normalizeEmailForKey, type KvRateLimitResult } from "./rate-limit-kv";
+import { failOpen } from "./rate-limit-fail-open";
 
 export function isKvLimiterConfigured(): boolean {
   return Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
@@ -39,7 +41,36 @@ const noop: GuestSupportLimiter = {
   async checkCreateByEmail() { return allow; },
   async checkMessageBySession() { return allow; },
   async checkMessageByIp() { return allow; },
-  async checkAiByIp() { return allow; },
+  async checkAiByIp() {
+    // Unconfigured store: production must not serve unmetered AI.
+    if (isProductionRuntime()) {
+      warnAiUnmeteredOnce();
+      return GUEST_AI_STORE_ERROR;
+    }
+    return allow;
+  },
+};
+
+/** Real Vercel production only; local dev, CI, tests and previews stay allowed. */
+export function isProductionRuntime(): boolean {
+  return process.env.VERCEL_ENV === "production";
+}
+
+let _warnedAiUnmetered = false;
+function warnAiUnmeteredOnce(): void {
+  if (_warnedAiUnmetered) return;
+  _warnedAiUnmetered = true;
+  // eslint-disable-next-line no-console
+  console.error(
+    "[rate-limit-kv-guest-support] UPSTASH_REDIS_REST_URL/TOKEN are UNSET in production: guest AI is refused (fail-closed) until they are provisioned.",
+  );
+}
+
+/** Returned by fail-closed limiters when the store errors (surfaces as a 429). */
+export const GUEST_AI_STORE_ERROR: KvRateLimitResult = {
+  ok: false,
+  code: "rate_limited",
+  retryAfterMs: 30_000,
 };
 
 let _limiter: GuestSupportLimiter | null = null;
@@ -47,13 +78,17 @@ let _limiter: GuestSupportLimiter | null = null;
 async function wrap(
   limit: (key: string) => Promise<{ success: boolean; reset: number }>,
   key: string,
+  label: string,
+  failClosed = false,
 ): Promise<KvRateLimitResult> {
   try {
     const r = await limit(key);
     if (r.success) return { ok: true };
     return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-  } catch {
-    return { ok: true };
+  } catch (err) {
+    const open = failOpen(label, key, err);
+    // Guest AI spends tokens: on a store error refuse instead of allowing.
+    return failClosed ? GUEST_AI_STORE_ERROR : open;
   }
 }
 
@@ -94,12 +129,12 @@ async function getGuestSupportLimiter(): Promise<GuestSupportLimiter> {
     const msgIp = mk(60, "1 m", "rl:support_guest_msg_ip");
     const aiIp = mk(20, "60 m", "rl:support_guest_ai_ip");
     _limiter = {
-      checkCreateBySession: (key) => wrap((k) => createSession.limit(k), key),
-      checkCreateByIp: (key) => wrap((k) => createIp.limit(k), key),
-      checkCreateByEmail: (key) => wrap((k) => createEmail.limit(k), key),
-      checkMessageBySession: (key) => wrap((k) => msgSession.limit(k), key),
-      checkMessageByIp: (key) => wrap((k) => msgIp.limit(k), key),
-      checkAiByIp: (key) => wrap((k) => aiIp.limit(k), key),
+      checkCreateBySession: (key) => wrap((k) => createSession.limit(k), key, "createSession"),
+      checkCreateByIp: (key) => wrap((k) => createIp.limit(k), key, "createIp"),
+      checkCreateByEmail: (key) => wrap((k) => createEmail.limit(k), key, "createEmail"),
+      checkMessageBySession: (key) => wrap((k) => msgSession.limit(k), key, "msgSession"),
+      checkMessageByIp: (key) => wrap((k) => msgIp.limit(k), key, "msgIp"),
+      checkAiByIp: (key) => wrap((k) => aiIp.limit(k), key, "aiIp", true),
     };
   } catch {
     _limiter = noop;
@@ -133,4 +168,5 @@ export async function checkSupportGuestAiByIp(ip: string): Promise<KvRateLimitRe
 
 export function _resetGuestSupportLimiterForTests(): void {
   _limiter = null;
+  _warnedAiUnmetered = false;
 }

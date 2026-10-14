@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { TULALA_SUPPORT_OPEN_EVENT } from "@/lib/marketing/support-copy";
 
 /**
@@ -24,17 +25,21 @@ export function SupportStartHere({
   writeLabel,
   writeHref,
   hint,
+  canAsk = true,
 }: {
   askLabel: string;
   writeLabel: string;
   writeHref: string;
   hint: string;
+  /** False when the support mount will not serve: the dead "ask" button is hidden and the contact link stays. */
+  canAsk?: boolean;
 }) {
   return (
     <div className="mt-7 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-center">
       {/* Colours come from classes, not inline styles: this tree has a guard
           against inline color/background so the panel and the page cannot drift
           apart on theme tokens. */}
+      {canAsk ? (
       <button
         type="button"
         onClick={() => window.dispatchEvent(new Event(TULALA_SUPPORT_OPEN_EVENT))}
@@ -42,15 +47,18 @@ export function SupportStartHere({
       >
         {askLabel}
       </button>
-      <a
+      ) : null}
+      <Link
         href={writeHref}
         className="plt-body inline-flex min-h-[52px] items-center justify-center rounded-full border border-[var(--plt-hairline-strong)] px-6 text-center text-[1.0625rem] text-[var(--plt-ink)]"
       >
         {writeLabel}
-      </a>
-      <p className="plt-body mt-1 text-center text-[0.9rem] text-[var(--plt-muted)] sm:hidden">
-        {hint}
-      </p>
+      </Link>
+      {canAsk ? (
+        <p className="plt-body mt-1 text-center text-[0.9rem] text-[var(--plt-muted)] sm:hidden">
+          {hint}
+        </p>
+      ) : null}
     </div>
   );
 }

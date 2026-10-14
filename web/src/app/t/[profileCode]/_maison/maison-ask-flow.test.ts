@@ -27,10 +27,24 @@ describe("ask entry visibility", () => {
     assert.equal(askEntryPointsVisible("form"), true);
   });
   it("ask labels (EN + ES) are swept when the entry is hidden", () => {
-    for (const label of ["Hacer una pregunta", "Escríbeme", "Ask a question", "Inquire"]) {
+    for (const label of [
+      "Hacer una pregunta",
+      "Escríbeme",
+      "Escríbenos",
+      "Get in touch",
+      "Ask a question",
+      "Inquire",
+    ]) {
       assert.equal(isAskControl("", label), true, label);
     }
     assert.equal(isAskControl("/servicios", "Servicios"), false);
+  });
+  it("TUL-77: Ask label on /agendar is still an ask control (must not soft-reload)", () => {
+    // Header seeded as Escríbenos → /agendar reloads the booking page unless
+    // TalentSiteContactBridge intercepts by label, not only by href.
+    assert.equal(isAskControl("/agendar", "Escríbenos"), true);
+    assert.equal(isAskControl("/agendar", "Agendar"), false);
+    assert.equal(isAskHref("/agendar"), false);
   });
 });
 

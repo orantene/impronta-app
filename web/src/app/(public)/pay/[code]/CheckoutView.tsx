@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { EngineFeeLines } from "@/components/payments/FeeLines";
 import { interpolate } from "@/i18n/interpolate";
-import { useT } from "@/i18n/use-t";
+import { translatorFor, useT } from "@/i18n/use-t";
 import type { FeeLine } from "@/lib/billing/processing-fee-payer";
 import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import type { PayLinkPathPrefix } from "@/lib/payments/pay-link-url";
@@ -45,7 +45,7 @@ export type CheckoutViewProps = {
   readonly serviceFeeCents?: number;
   /** Seller shown on the confirmation ("Pagado a ..."). */
   readonly sellerName?: string | null;
-  /** UI locale for money formatting ("es" | "en"). */
+  /** Page language ("es" | "en") for copy and money; without it the dashboard cookie decides (board preview). */
   readonly locale?: string;
   /** The link came from a conversation: the paid page sends the client back to it. */
   readonly autoReturn?: boolean;
@@ -56,7 +56,8 @@ export type CheckoutViewProps = {
 };
 
 export function CheckoutView(props: CheckoutViewProps) {
-  const t = useT();
+  const dashboardT = useT();
+  const t = props.locale ? translatorFor(props.locale) : dashboardT;
   const [phase, setPhase] = useState<CheckoutViewProps["status"]>(props.status);
   // The server re-renders with a new status once the webhook settles; follow it.
   useEffect(() => setPhase(props.status), [props.status]);

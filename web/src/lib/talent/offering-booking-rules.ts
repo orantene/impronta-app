@@ -28,7 +28,7 @@ type RuleInput = Pick<
  */
 export function inheritedInstantErrors(o: RuleInput, bookingMode: string | null, defaultPosture: string | null | undefined): string[] {
   if (bookingMode != null || defaultPosture !== "instant") return [];
-  if (o.status === "draft" || o.kind === "product") return [];
+  if (o.status === "draft" || o.status === "archived" || o.kind === "product") return [];
   const title = o.title || "This service";
   const quoteOnly = o.priceDisplay === "quote" || o.priceType === "custom";
   if (quoteOnly || o.amountCents == null || o.amountCents < 0 || o.priceDisplay !== "exact") {

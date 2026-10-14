@@ -7,7 +7,8 @@ import { createHmac, timingSafeEqual } from "node:crypto";
  * collide with the guest cookie or conversation-email tokens.
  */
 
-export const GUEST_RESUME_TOKEN_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+/** TUL-618: 48h (was 7d). Every outbound support email mints a fresh token. */
+export const GUEST_RESUME_TOKEN_MAX_AGE_MS = 48 * 60 * 60 * 1000;
 
 const VERSION = "v1";
 const SEPARATOR = ".";
@@ -102,4 +103,36 @@ export function verifyGuestResumeToken(
 export function guestResumePath(ticketId: string): string {
   const token = signGuestResumeToken(ticketId);
   return token ? `/contact?t=${encodeURIComponent(token)}` : "/contact";
+}
+
+/**
+ * TUL-618 first-use binding. A token is a bearer secret, so a forwarded email
+ * would hand the thread to whoever opens it. The first browser session to use
+ * a token claims it (keyed by the token's iat, stored on the ticket); any
+ * other session presenting the same token is refused and must request a fresh
+ * link. The claiming session may reuse its own link until it expires.
+ */
+export type ResumeClaims = Record<string, string>;
+const MAX_CLAIMS = 20;
+
+export function evaluateResumeClaim(
+  existing: unknown,
+  issuedAtMs: number,
+  sessionId: string,
+): { allow: boolean; claims: ResumeClaims } {
+  const claims: ResumeClaims =
+    existing && typeof existing === "object" && !Array.isArray(existing)
+      ? Object.fromEntries(
+          Object.entries(existing as Record<string, unknown>).filter(
+            (e): e is [string, string] => typeof e[1] === "string",
+          ),
+        )
+      : {};
+  const key = String(issuedAtMs);
+  const owner = claims[key];
+  if (owner) return { allow: owner === sessionId, claims };
+  const next = { ...claims, [key]: sessionId };
+  const keys = Object.keys(next).sort((a, b) => Number(a) - Number(b));
+  for (const k of keys.slice(0, Math.max(0, keys.length - MAX_CLAIMS))) delete next[k];
+  return { allow: true, claims: next };
 }

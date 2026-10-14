@@ -9,7 +9,6 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { readUserId, type EffectiveReadContext } from "@/lib/impersonation/effective-read";
 
 import { majorToMinorForDisplay } from "@/lib/inquiry/offer-minor-units";
-import { isTestAccountEmail } from "@/lib/messages-v5/qa-fixture-row";
 import { fail } from "./refusals";
 import { inquiryIsHers, talentIdsOnInquiry, talentIsSeller, type TalentOrderLine } from "./talent-pov";
 
@@ -23,8 +22,10 @@ export type TalentActor = {
   ok: true;
   userId: string;
   talentProfileId: string;
-  /** Demo/fixture talents and QA logins keep journey threads in Messages; live talents hide them. */
+  /** Demo/fixture talents keep journey threads in Messages; live talents hide them. */
   isDemo: boolean;
+  /** Profile display name; QA accounts ("QA ...") keep their fixture threads. */
+  displayName?: string | null;
   admin: SupabaseClient;
   supabase: SupabaseClient;
 };
@@ -59,18 +60,16 @@ export async function loadTalentActor(
   const admin = deps.adminClient();
   if (!admin) return fail("unavailable");
   const subjectId = readUserId(user.id, ctx);
-  const { data, error } = await admin.from("talent_profiles").select("id, is_demo").eq("user_id", subjectId).maybeSingle();
+  const { data, error } = await admin.from("talent_profiles").select("id, is_demo, display_name").eq("user_id", subjectId).maybeSingle();
   if (error) return fail("unavailable");
   if (!data) return fail("not_allowed");
-  const row = data as { id: string; is_demo?: boolean | null };
-  // A QA login (qa-talent-*@impronta.test) must see the QA guests it is tested
-  // with. Only her own session email is known, so impersonation keeps is_demo.
-  const isTestLogin = subjectId === user.id && isTestAccountEmail(user.email);
+  const row = data as { id: string; is_demo?: boolean | null; display_name?: string | null };
   return {
     ok: true,
     userId: subjectId,
     talentProfileId: row.id,
-    isDemo: row.is_demo === true || isTestLogin,
+    isDemo: row.is_demo === true,
+    displayName: row.display_name ?? null,
     admin,
     supabase,
   };
@@ -148,6 +147,13 @@ export async function loadOwnedTalentInquiry(
   };
 }
 
+/**
+ * Hard cap per source query. The badge, Hoy and the inbox all read through
+ * `loadTalentInboxForActor`, so they share this one bounded set and their
+ * counts cannot drift (TUL-625). Newest first, so the cap drops the oldest.
+ */
+export const TALENT_INBOX_SCAN_LIMIT = 500;
+
 /** Her conversations across tenants. A guest chat that names only her counts. */
 export async function listTalentInquiryIds(
   admin: SupabaseClient,
@@ -158,7 +164,9 @@ export async function listTalentInquiryIds(
     .select("inquiry_id")
     .eq("talent_profile_id", profileId)
     .eq("role", "talent")
-    .neq("status", "removed");
+    .neq("status", "removed")
+    .order("created_at", { ascending: false })
+    .limit(TALENT_INBOX_SCAN_LIMIT);
   if (error) return fail("unavailable");
   const participantIds = new Set(
     ((data ?? []) as { inquiry_id: string }[]).map((row) => row.inquiry_id).filter(Boolean),
@@ -167,11 +175,15 @@ export async function listTalentInquiryIds(
     admin
       .from("inquiries")
       .select("id, source_context, interpreted_query")
-      .contains("source_context", { talent_ids: [profileId] }),
+      .contains("source_context", { talent_ids: [profileId] })
+      .order("created_at", { ascending: false })
+      .limit(TALENT_INBOX_SCAN_LIMIT),
     admin
       .from("inquiries")
       .select("id, source_context, interpreted_query")
-      .contains("interpreted_query", { talent: { selected_ids: [profileId] } }),
+      .contains("interpreted_query", { talent: { selected_ids: [profileId] } })
+      .order("created_at", { ascending: false })
+      .limit(TALENT_INBOX_SCAN_LIMIT),
   ]);
   const namedRows = [
     ...((bySource.error ? [] : bySource.data ?? []) as { id: string; source_context: unknown; interpreted_query: unknown }[]),

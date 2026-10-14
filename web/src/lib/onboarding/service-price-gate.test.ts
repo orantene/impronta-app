@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { offeringNeedsPrice } from "../talent/offering-needs-price";
 import { missingTitleLocale } from "../talent/offering-missing-translation";
 import { blankOffering, validateOffering } from "../talent/offerings-types";
-import { offeringRowFor, parseEssentialService, planOfferingWrites, servicesFromFacts, suggestedServices } from "./essentials";
+import { DEFAULT_SERVICE_MINUTES, offeringRowFor, parseEssentialService, planOfferingWrites, servicesFromFacts, suggestedServices } from "./essentials";
 
 const root = join(__dirname, "..", "..", "..");
 const read = (rel: string) => readFileSync(join(root, rel), "utf8");
@@ -89,4 +89,13 @@ test("TUL-567: both service lists draw the cue, with EN and ES copy", () => {
   assert.equal(esMsg.needsPrice, "Falta precio");
   assert.ok(en.needsPrice && en.needsPriceHint && esMsg.needsPriceHint);
   assert.match(read("src/components/onboarding/steps/setup-services.tsx"), /copy\.hiddenUntilPriced/);
+});
+
+test("TUL-633: an AI-read service with no known length still gets a default duration, so it is never a dead row", () => {
+  const [custom] = servicesFromFacts(["Balayage"], { trade: "hair", country: "United States", locale: "en" });
+  assert.equal(custom.durationMin, null, "the essentials keep what was really said");
+  const row = offeringRowFor(custom, 0);
+  assert.equal(row.duration_minutes, DEFAULT_SERVICE_MINUTES);
+  assert.equal(row.status, "draft", "unpriced stays a draft: the default length never publishes anything");
+  assert.equal(offeringRowFor({ ...custom, durationMin: 45 }, 0).duration_minutes, 45, "a real length wins");
 });

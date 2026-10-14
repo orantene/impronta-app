@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { useT } from "@/i18n/use-t";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
@@ -12,6 +12,7 @@ import { SUPPORT_DRAWER_WIDTH, supportPanelContainerStyle } from "./support-pane
 import { useCompactViewport } from "./use-compact-viewport";
 import { useFocusTrap } from "./use-focus-trap";
 import {
+  useSupportInboxRealtime,
   useSupportRealtime,
   useSupportSessionRestore,
   useSupportUnread,
@@ -33,6 +34,15 @@ import { uploadReplayForTicket } from "@/lib/support/replay/upload-replay";
 import { keepTicketOpenAction } from "@/lib/support/actions";
 import { useThreadPresence } from "@/lib/realtime/presence";
 import { relTime } from "./support-rel-time";
+import { supportSendErrorText } from "./support-send-error";
+import {
+  EMPTY_THREAD,
+  applyIncomingMessage,
+  humanRequestedPatch,
+  selectThread,
+  threadReducer,
+  viewAfterOpenChange,
+} from "./support-panel-state";
 
 type View = "home" | "tickets" | "thread" | "new" | "idea" | "guide";
 
@@ -63,8 +73,8 @@ export function SupportPanel({
   const trapRef = useFocusTrap<HTMLDivElement>(open && compact);
   const { view, ticketId, setView, restoredRef } = useSupportSessionRestore();
   const parkedRestore = useRef(false);
-  const [messages, setMessages] = useState<SupportMessageRow[]>([]);
-  const [ticket, setTicket] = useState<SupportTicketRow | null>(null);
+  // Keyed by ticket id: rows for another ticket are never shown (no flash of the previous thread).
+  const [threadState, dispatchThread] = useReducer(threadReducer, EMPTY_THREAD);
   const [ask, setAsk] = useState("");
   const [askError, setAskError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
@@ -75,10 +85,18 @@ export function SupportPanel({
   const [guideDeepLinkNodeId, setGuideDeepLinkNodeId] = useState<string | null>(null);
   const replay = useReplayBuffer();
   const unread = useSupportUnread(tickets);
+  const { ticket, messages, loading: threadLoading } = selectThread(threadState, ticketId);
+  const [loadFailedFor, setLoadFailedFor] = useState<string | null>(null);
+  const threadLoadFailed = loadFailedFor !== null && loadFailedFor === ticketId && threadLoading;
+  const wasOpenRef = useRef(open);
+  useEffect(() => {
+    // Reopening lands on Home, not on whichever thread was open last.
+    const next = viewAfterOpenChange(wasOpenRef.current, open, view);
+    wasOpenRef.current = open;
+    if (next) setView(next);
+  }, [open, view, setView]);
 
-  // Desktop: push the page instead of covering it (mockup). The attribute is
-  // read by the style tag rendered below; compact keeps the full-screen
-  // sheet, so nothing is padded there.
+  // Desktop: push the page instead of covering it; compact keeps the full-screen sheet (no padding).
   useEffect(() => {
     if (typeof document === "undefined") return;
     const root = document.documentElement;
@@ -111,9 +129,7 @@ export function SupportPanel({
     if (deepLinkTicketId) return;
     if (!restoredRef.current || parkedRestore.current) return;
     if (view !== "thread" || !ticket) return;
-    // One-shot: whatever the first look at the restored ticket concludes,
-    // the restore state ends here. Leaving it set would bounce the user to
-    // Home the moment the ticket later resolves (killing the rating flow).
+    // One-shot: the restore state ends after the first look, or a later resolve bounces to Home (kills rating).
     restoredRef.current = false;
     if (ticket.status !== "open") {
       parkedRestore.current = true;
@@ -121,8 +137,7 @@ export function SupportPanel({
     }
   }, [deepLinkTicketId, restoredRef, setView, ticket, view]);
 
-  // Keep the summaries in sync with what the user just did — the server
-  // snapshot alone leaves badges stuck and new tickets invisible until reload.
+  // Keep summaries in sync with the user's action; the server snapshot alone leaves stale badges until reload.
   const patchSummary = useCallback(
     (id: string, patch: Partial<SupportTicketSummary>) => {
       setTickets((prev) => prev.map((x) => (x.id === id ? { ...x, ...patch } : x)));
@@ -169,6 +184,21 @@ export function SupportPanel({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ ticketId: id }),
       });
+      // TUL-656: pull the thread once the AI turn is done; a late or lagging socket left the reply hidden.
+      const supabase = createClient();
+      if (supabase) {
+        const { data: msgs, error } = await supportFrom(supabase, "support_messages")
+          .select("*")
+          .eq("ticket_id", id)
+          .order("created_at", { ascending: true });
+        if (!error) {
+          dispatchThread({
+            type: "merge",
+            ticketId: id,
+            messages: (msgs ?? []).map(mapMessageRow).filter(Boolean) as SupportMessageRow[],
+          });
+        }
+      }
     } catch {
       /* fail-open: the route persists a system nudge when the model is down */
     } finally {
@@ -176,29 +206,44 @@ export function SupportPanel({
     }
   }, []);
 
+  const viewingRef = useRef<string | null>(null);
+  useEffect(() => {
+    viewingRef.current = open && view === "thread" ? ticketId : null;
+  }, [open, view, ticketId]);
   const onMessage = useCallback(
     (row: SupportMessageRow) => {
-      setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row]));
-      if (row.messageKind !== "note") {
-        patchSummary(row.ticketId, {
-          lastMessagePreview: row.body.slice(0, 140),
-          lastMessageAt: row.createdAt,
-        });
+      dispatchThread({ type: "message", row });
+      setTickets((prev) =>
+        applyIncomingMessage(prev, row, { userId: contract.userId, viewingTicketId: viewingRef.current }),
+      );
+      // A reply that lands while read is read: record it, or the next load shows unread and the badge jumps.
+      if (viewingRef.current === row.ticketId && row.authorUserId !== contract.userId && row.messageKind !== "note") {
+        void contract.markRead({ ticketId: row.ticketId });
       }
     },
-    [patchSummary],
+    [contract, setTickets],
   );
   const onTicket = useCallback(
     (row: SupportTicketRow) => {
-      setTicket(row);
+      dispatchThread({ type: "ticket", row });
       patchSummary(row.id, { status: row.status, waitingOn: row.waitingOn });
     },
     [patchSummary],
   );
   useSupportRealtime({ ticketId, onMessage, onTicket });
+  // Replies on the other tickets (not the one on screen) keep the badge live.
+  const onInboxMessage = useCallback(
+    (row: SupportMessageRow) => {
+      if (row.ticketId === viewingRef.current) return;
+      setTickets((prev) =>
+        applyIncomingMessage(prev, row, { userId: contract.userId, viewingTicketId: viewingRef.current }),
+      );
+    },
+    [contract.userId, setTickets],
+  );
+  useSupportInboxRealtime({ enabled: tickets.length > 0, onMessage: onInboxMessage });
 
-  // Gate on `open` too: the panel stays mounted while closed, and tracking
-  // presence then shows HQ a false "viewing now".
+  // Gate on `open` too: the panel stays mounted while closed, and presence would show HQ a false "viewing now".
   const { typingUsers, peers } = useThreadPresence({
     channelKey: open && view === "thread" && ticketId ? `support.${ticketId}` : null,
     userId: contract.userId,
@@ -212,25 +257,39 @@ export function SupportPanel({
     if (!open || !ticketId) return;
     const supabase = createClient();
     if (!supabase) return;
+    // A fast thread switch must not let the slower fetch land on the thread now on screen.
+    let cancelled = false;
     void (async () => {
-      const { data: tRow } = await supportFrom(supabase, "support_tickets")
+      const { data: tRow, error: tErr } = await supportFrom(supabase, "support_tickets")
         .select("*")
         .eq("id", ticketId)
         .maybeSingle();
-      const mapped = mapTicketRow(tRow);
-      if (mapped) setTicket(mapped);
-      const { data: msgs } = await supportFrom(supabase, "support_messages")
+      const { data: msgs, error: mErr } = await supportFrom(supabase, "support_messages")
         .select("*")
         .eq("ticket_id", ticketId)
         .order("created_at", { ascending: true });
-      setMessages((msgs ?? []).map(mapMessageRow).filter(Boolean) as SupportMessageRow[]);
+      if (cancelled) return;
+      if (tErr || mErr) {
+        // A failed read is not an empty thread: say so instead of showing "no messages".
+        setLoadFailedFor(ticketId);
+        return;
+      }
+      setLoadFailedFor(null);
+      dispatchThread({
+        type: "loaded",
+        ticketId,
+        ticket: mapTicketRow(tRow),
+        messages: (msgs ?? []).map(mapMessageRow).filter(Boolean) as SupportMessageRow[],
+      });
       void contract.markRead({ ticketId });
       patchSummary(ticketId, { unread: false });
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [open, ticketId, contract, patchSummary]);
 
-  // Bottom-anchor the thread: without this a long thread opens scrolled to
-  // the top and incoming replies append off-screen.
+  // Bottom-anchor the thread so a long thread does not open at the top with replies off-screen.
   useEffect(() => {
     if (view !== "thread") return;
     const el = scrollRef.current;
@@ -251,6 +310,8 @@ export function SupportPanel({
     if (!body || sending) return;
     setSending(true);
     setAskError(null);
+    // Clear at once (the box kept the sent text for the round trip); a failure puts it back below.
+    setAsk("");
     const r = await contract.createTicket({
       tenantSlug: contract.tenantSlug,
       surface: contract.surface,
@@ -260,9 +321,7 @@ export function SupportPanel({
     });
     setSending(false);
     if (r.ok) {
-      setAsk("");
-      // In-app support emitted no product events at all — only the marketing
-      // surface did — so there was no support funnel to measure.
+      // In-app support emitted no product events (only marketing did), so there was no support funnel.
       trackProductEvent(PRODUCT_ANALYTICS_EVENTS.support_ticket_created, {
         surface: contract.surface,
         origin_slug: contract.originSlug ?? null,
@@ -273,7 +332,8 @@ export function SupportPanel({
       void requestAi(r.ticketId);
     } else {
       // Keep the text — a failed send must never eat what the user typed.
-      setAskError(t("dashboard.adminSupport.sendFailed"));
+      setAsk((current) => (current === "" ? body : current));
+      setAskError(supportSendErrorText(t, r));
     }
   };
 
@@ -397,6 +457,7 @@ export function SupportPanel({
                 const r = await contract.createTicket({
                   tenantSlug: contract.tenantSlug,
                   surface: contract.surface,
+                  subject: t("dashboard.adminSupport.messageOranSubject"),
                   body: interpolate(t("dashboard.adminSupport.messageOranBody"), SUPPORT_AGENT_VARS),
                   messageOranDirectly: true,
                   diagnostics: getDiagnosticsSnapshot(),
@@ -412,7 +473,7 @@ export function SupportPanel({
                   void maybeAttachReplay(r.ticketId);
                   setView("thread", r.ticketId);
                 } else {
-                  setAskError(t("dashboard.adminSupport.sendFailed"));
+                  setAskError(supportSendErrorText(t, r));
                 }
               })();
             }}
@@ -426,13 +487,23 @@ export function SupportPanel({
             onOpen={(id) => setView("thread", id)}
           />
         )}
-        {view === "thread" && (
+        {view === "thread" && threadLoadFailed && (
+          <div role="alert" style={{ padding: 24, fontSize: 13, color: COLORS.inkMuted }}>
+            {t("dashboard.adminSupport.threadLoadFailed")}
+          </div>
+        )}
+        {view === "thread" && threadLoading && !threadLoadFailed && (
+          <div role="status" style={{ padding: 24, fontSize: 13, color: COLORS.inkMuted }}>
+            {t("dashboard.adminSupport.threadLoading")}
+          </div>
+        )}
+        {view === "thread" && !threadLoading && (
           <SupportThreadView
             ticket={ticket}
             messages={messages}
             liveShareAvailable={contract.liveShareAvailable !== false}
             onResolved={() => {
-              setTicket((prev) => (prev ? { ...prev, status: "resolved", waitingOn: null } : prev));
+              if (ticketId) dispatchThread({ type: "patchTicket", ticketId, patch: { status: "resolved", waitingOn: null } });
               if (ticketId) patchSummary(ticketId, { status: "resolved", waitingOn: null });
             }}
             onRate={(rating, comment) => {
@@ -444,6 +515,7 @@ export function SupportPanel({
                   surface: contract.surface,
                 });
                 void contract.requestHuman({ ticketId });
+                dispatchThread({ type: "patchTicket", ticketId, patch: humanRequestedPatch(new Date().toISOString()) });
               }
             }}
             onCardAction={(action) => {
@@ -453,6 +525,7 @@ export function SupportPanel({
                   surface: contract.surface,
                 });
                 void contract.requestHuman({ ticketId });
+                dispatchThread({ type: "patchTicket", ticketId, patch: humanRequestedPatch(new Date().toISOString()) });
               }
               if (action === "keep-open" && ticketId) void keepTicketOpenAction({ ticketId });
             }}
@@ -507,15 +580,52 @@ export function SupportPanel({
               {interpolate(t("dashboard.adminSupport.oranTyping"), SUPPORT_AGENT_VARS)}
             </div>
           ) : null}
+          {ticket?.status === "resolved" ? (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+                padding: "8px 12px",
+                borderTop: `1px solid ${COLORS.borderSoft}`,
+                fontSize: 12,
+                color: COLORS.inkMuted,
+              }}
+            >
+              <span>{t("dashboard.adminSupport.newQuestionHint")}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setAsk("");
+                  setAskError(null);
+                  setView("home");
+                }}
+                style={{
+                  border: "none",
+                  background: COLORS.fill,
+                  color: "#fff",
+                  borderRadius: 999,
+                  padding: "8px 14px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  flexShrink: 0,
+                }}
+              >
+                {t("dashboard.adminSupport.newQuestion")}
+              </button>
+            </div>
+          ) : null}
           <Composer
+          key={ticketId ?? "none"}
           disabled={!ticketId || ticket?.status === "closed"}
           ticketId={ticketId}
           onSend={async (body) => {
             if (!ticketId) return false;
             const r = await contract.sendMessage({ ticketId, body });
             if (r.ok) {
-              // Optimistic append (deduped against the realtime INSERT by id)
-              // so the message shows even when realtime lags or is down.
+              // Optimistic append (deduped against the realtime INSERT by id) so the message shows even when realtime lags or is down.
               if (r.messageId) {
                 onMessage({
                   id: r.messageId,
@@ -536,7 +646,7 @@ export function SupportPanel({
               void requestAi(ticketId);
               return true;
             }
-            return false;
+            return { error: supportSendErrorText(t, r) };
           }}
         />
         </>

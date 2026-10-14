@@ -413,12 +413,9 @@ export function PublishDrawer() {
     if (typeof window !== "undefined") setHost(publishTargetHost(talentSiteUrl, window.location.host));
   }, [talentSiteUrl]);
 
-  // Watchdog — `preflightLoading` is optimistically set true when the drawer
-  // opens and is cleared by PublishPreflight's status callback. A run that is
-  // cancelled mid-flight (effect re-run) returns WITHOUT reporting back, which
-  // left "Publish now" stuck on "Running publish checks…" forever, making the
-  // page impossible to publish at all. This guarantees the gate always
-  // releases; the checks' own hard timeout is 30s, so allow a little slack.
+  // Watchdog — a preflight cancelled mid-flight never reports back, which left
+  // "Publish now" stuck on "Running publish checks…" forever. This always
+  // releases the gate; the checks' own hard timeout is 30s, so allow slack.
   useEffect(() => {
     if (!publishOpen || !preflightLoading) return;
     const timer = setTimeout(

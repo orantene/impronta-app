@@ -19,6 +19,8 @@ export type HqQueueRow = {
   planTier: string | null;
   requesterName: string | null;
   requesterEmail: string | null;
+  /** Public talent code (TAL-…) so the desk can search by it. */
+  talentCode?: string | null;
 };
 
 export type HqTicketContext = {
@@ -85,6 +87,40 @@ async function hydrateProfiles(
   return map;
 }
 
+/** ticket id -> TAL code, from the ticket's talent profile or the requester's own. */
+async function hydrateTalentCodes(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  tickets: SupportTicketRow[],
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const profileIds = [...new Set(tickets.map((t) => t.talentProfileId).filter(Boolean))] as string[];
+  const userIds = [...new Set(tickets.map((t) => t.requesterUserId).filter(Boolean))] as string[];
+  if (profileIds.length === 0 && userIds.length === 0) return out;
+  const byId = new Map<string, string>();
+  const byUser = new Map<string, string>();
+  const [a, b] = await Promise.all([
+    profileIds.length
+      ? admin.from("talent_profiles").select("id, profile_code").in("id", profileIds)
+      : Promise.resolve({ data: [] as Array<{ id: string; profile_code: string | null }> }),
+    userIds.length
+      ? admin.from("talent_profiles").select("user_id, profile_code").in("user_id", userIds)
+      : Promise.resolve({ data: [] as Array<{ user_id: string | null; profile_code: string | null }> }),
+  ]);
+  for (const r of (a.data ?? []) as Array<{ id: string; profile_code: string | null }>) {
+    if (r.profile_code) byId.set(r.id, r.profile_code);
+  }
+  for (const r of (b.data ?? []) as Array<{ user_id: string | null; profile_code: string | null }>) {
+    if (r.user_id && r.profile_code) byUser.set(r.user_id, r.profile_code);
+  }
+  for (const t of tickets) {
+    const code =
+      (t.talentProfileId ? byId.get(t.talentProfileId) : undefined) ??
+      (t.requesterUserId ? byUser.get(t.requesterUserId) : undefined);
+    if (code) out.set(t.id, code);
+  }
+  return out;
+}
+
 export async function loadHqSupportOpenCount(): Promise<number> {
   try {
     const admin = createServiceRoleClient();
@@ -120,6 +156,7 @@ export async function loadHqSupportQueue(): Promise<HqQueueRow[]> {
       hydrateTenants(admin, tenantIds),
       hydrateProfiles(admin, userIds),
     ]);
+    const talentCodes = await hydrateTalentCodes(admin, tickets);
     return tickets.map((ticket) => {
       const tenant = ticket.tenantId ? tenants.get(ticket.tenantId) : undefined;
       const profile = ticket.requesterUserId ? profiles.get(ticket.requesterUserId) : undefined;
@@ -130,6 +167,7 @@ export async function loadHqSupportQueue(): Promise<HqQueueRow[]> {
         planTier: tenant?.plan_tier ?? null,
         requesterName: profile?.display_name ?? ticket.contactName ?? null,
         requesterEmail: hqQueueRequesterEmail(ticket),
+        talentCode: talentCodes.get(ticket.id) ?? null,
       };
     });
   } catch (err) {

@@ -95,6 +95,29 @@ const STOP = new Set([
   "gracias",
   "puedo",
   "quiero",
+  "donde",
+  "cuando",
+  "cual",
+  "hago",
+  "hacer",
+  "necesito",
+  "tengo",
+  "esta",
+  "este",
+  "si",
+  "no",
+  "ya",
+  "mas",
+  "hay",
+  "pero",
+  "sus",
+  "su",
+  "nos",
+  "les",
+  "muy",
+  "puede",
+  "pueden",
+  "entre",
 ]);
 
 /**
@@ -140,6 +163,32 @@ const ES_TO_EN: Record<string, string> = {
   minutos: "minutes",
   duracion: "minutes",
   ingles: "english",
+  anticipo: "deposit",
+  anticipos: "deposit",
+  deposito: "deposit",
+  depositar: "deposit",
+  cobro: "charge",
+  cobros: "payout",
+  disponibilidad: "availability",
+  agregar: "add",
+  agrego: "add",
+  agrega: "add",
+  anadir: "add",
+  resena: "review",
+  resenas: "review",
+  cancelacion: "cancel",
+  reprogramar: "reschedule",
+  banco: "bank",
+  bancaria: "bank",
+  ganancias: "earnings",
+  publico: "public",
+  retener: "held",
+  retenido: "held",
+  margen: "gap",
+  diseno: "design",
+  tema: "theme",
+  cita: "booking",
+  citas: "booking",
 };
 
 export function flattenHelpCorpus(
@@ -179,11 +228,16 @@ export function tokenize(text: string): string[] {
     .flatMap((t) => (ES_TO_EN[t] ? [t, ES_TO_EN[t]] : [t]));
 }
 
+/** Same accent folding as tokenize(), so a Spanish label in an entry ("Anticipo", "Disponibilidad") matches the accent-free tokens. */
+function foldAccents(text: string): string {
+  return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
 function entryText(entry: HelpCorpusEntry): string {
   const faqBits = entry.faqs.flatMap((f) => [f.q, f.a]);
-  return [entry.slug, entry.purpose, ...entry.youCanHere, ...faqBits, entry.category, entry.ticketCategory ?? ""]
-    .join(" ")
-    .toLowerCase();
+  return foldAccents(
+    [entry.slug, entry.purpose, ...entry.youCanHere, ...faqBits, entry.category, entry.ticketCategory ?? ""].join(" "),
+  );
 }
 
 export function insightRowsToCorpus(
@@ -222,9 +276,14 @@ export function retrieveHelpEntries(
 
   const scored = corpus.map((entry) => {
     const hay = entryText(entry);
+    // A word that appears in one of the entry's own FAQ questions is worth
+    // more than the same word buried in a long answer: "add a service" must
+    // land on the entry that has that exact question.
+    const faqQs = foldAccents(entry.faqs.map((f) => f.q).join(" "));
     let score = 0;
     for (const tok of qSet) {
       if (hay.includes(tok)) score += 1;
+      if (faqQs.includes(tok)) score += 2;
     }
     if (opts.originSlug && entry.slug === opts.originSlug) score += 8;
     if (
