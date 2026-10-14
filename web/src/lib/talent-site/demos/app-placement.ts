@@ -11,7 +11,8 @@
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { appsForDemo, appsForTrade } from "@/lib/site-admin/add-gallery/apps-registry";
 import { professionsForTerm } from "@/lib/talent-site/theme-catalog/gallery-meta";
-import { readOrigin } from "@/lib/talent-site/theme-releases/origin";
+import { readOrigin, stampDesignOrigin } from "@/lib/talent-site/theme-releases/origin";
+import { stripDesignKeys } from "@/lib/talent-site/theme-releases/design-keys";
 
 export const NAIL_BAND_ID = "demo-app-nail-band";
 
@@ -178,6 +179,18 @@ export function treeLooksMaisonV2(nodes: ReadonlyArray<BuilderNode>): boolean {
   return false;
 }
 
+/**
+ * Stamp the band with the design origin of its Menu neighbour, so a design
+ * switch treats it as design content, not as a talent-added section. Unstamped
+ * trees (no origin on Menu) are left as is. Key is pinned: never a positional one.
+ */
+function stampLikeDesign(band: BuilderNode, menu: BuilderNode): BuilderNode {
+  const o = readOrigin(menu);
+  if (!o) return band;
+  const pinned = { ...band, props: { ...(band.props as object), designKey: "nail-designer" } } as BuilderNode;
+  return stripDesignKeys(stampDesignOrigin([pinned], { design: o.design, version: o.version }))[0]!;
+}
+
 /** Insert the Nail Designer band after Menu when the tree does not already have it. */
 function placeNailBand(homeTree: BuilderNode[]): { tree: BuilderNode[]; placed: boolean } {
   if (treeHasNailApp(homeTree)) {
@@ -187,7 +200,7 @@ function placeNailBand(homeTree: BuilderNode[]): { tree: BuilderNode[]; placed: 
   const rest = homeTree.filter((n) => n.id !== NAIL_BAND_ID);
   const at = rest.findIndex((n) => label(n) === "Menu");
   if (at < 0) return { tree: homeTree, placed: false };
-  return { tree: [...rest.slice(0, at + 1), nailBand(), ...rest.slice(at + 1)], placed: true };
+  return { tree: [...rest.slice(0, at + 1), stampLikeDesign(nailBand(), rest[at]!), ...rest.slice(at + 1)], placed: true };
 }
 
 /**
