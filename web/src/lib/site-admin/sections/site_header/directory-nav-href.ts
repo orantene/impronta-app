@@ -4,6 +4,23 @@
  * workspace has no roster. Pure helpers for SiteHeaderComponent.
  */
 
+import { withLocalePath, type LocaleUrlSettings } from "@/i18n/pathnames";
+import { prefixPublicHref } from "@/lib/saas/public-hrefs";
+
+/**
+ * Where `/directory` sends a visitor on a workspace with no roster. Keeps the
+ * `/w/<slug>` prefix of a path-addressed workspace; a bare `/book` landed on
+ * the platform root instead of the workspace (TUL-711).
+ */
+export function rosterlessDirectoryRedirectHref(args: {
+  pathPrefix: string;
+  locale: string;
+  settings?: LocaleUrlSettings;
+}): string {
+  const prefixed = prefixPublicHref(directoryOrBookHref(false), args.pathPrefix);
+  return withLocalePath(prefixed, args.locale, args.settings);
+}
+
 /** True when `href` is (or resolves to) the tenant directory browse path. */
 export function isDirectoryHref(href: string | null | undefined): boolean {
   if (!href) return false;

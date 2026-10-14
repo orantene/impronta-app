@@ -5227,6 +5227,7 @@ function renderBuilderNodeElement(
               autoplayMs={node.props.autoplayMs}
               loop={node.props.loop}
               pauseOnHover={node.props.pauseOnHover}
+              locale={options.contentLocale?.locale ?? options.visitorLocale}
               controls={{
                 dots: ctl.dots ?? true,
                 arrows: ctl.arrows ?? false,
