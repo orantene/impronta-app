@@ -24,12 +24,30 @@ const HOSTS = [`http://localhost:${PORT}`, `http://${ACME_AGENCY_LOCAL_DOMAIN}:$
 const AUTH_RE = /^sb-.*-auth-token(\.\d+)?$/;
 const FX = talentFixture("t_ready");
 
+/**
+ * Dev sign-in through the context's request client (shared cookie jar), not a
+ * navigation: the endpoint answers 307 and the browser aborts a `page.goto`
+ * mid-redirect (net::ERR_ABORTED), which failed every run. The Set-Cookie on
+ * the 307 lands in the browser context for that host; the caller then
+ * navigates to the host root and asserts the session cookie is present.
+ */
 async function signIn(page: Page, origin: string) {
-  const res = await page.goto(
-    `${origin}/api/dev/signin?email=${encodeURIComponent(FX.email)}&next=%2F`,
-    { waitUntil: "domcontentloaded" },
-  );
-  expect(res?.ok(), `dev-signin failed on ${origin}`).toBeTruthy();
+  const url = `${origin}/api/dev/signin?email=${encodeURIComponent(FX.email)}&next=%2F`;
+  let status = 0;
+  for (let attempt = 1; attempt <= 6; attempt += 1) {
+    try {
+      const res = await page.request.get(url, { maxRedirects: 0 });
+      status = res.status();
+      if (status === 307) break;
+    } catch {
+      status = 0; // server still warming up; retry
+    }
+    await page.waitForTimeout(250 * attempt);
+  }
+  expect(status, `dev-signin failed on ${origin}`).toBe(307);
+  await page.goto(`${origin}/`, { waitUntil: "domcontentloaded" });
+  const auth = (await page.context().cookies(origin)).filter((c) => AUTH_RE.test(c.name));
+  expect(auth.length, `signed in (auth cookie) on ${origin}`).toBeGreaterThan(0);
 }
 
 /** Hold the session at every scope a real browser accumulates. */
