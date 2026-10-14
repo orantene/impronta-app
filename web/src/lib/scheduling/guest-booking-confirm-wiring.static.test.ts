@@ -32,6 +32,15 @@ test("TUL-92: the captcha widget waits for the vendor API and cleans up on unmou
   assert.match(src, /api\?\.remove\?\.\(widgetId\)/);
 });
 
+test("SPRINT-DEMO-INSTANT-BOOK: a demo talent is refused before any guest record or booking", () => {
+  const src = read("lib/server-actions/instant-book-action.ts");
+  const guard = src.indexOf("await anyDemoTalent(");
+  assert.ok(guard > 0, "instant-book action must check anyDemoTalent");
+  assert.match(src, /anyDemoTalent\(.*\[payload\.talentProfileId\]\)\)\s*\{\s*return \{ ok: false, error: DEMO_SUBMIT_REFUSAL \}/);
+  assert.ok(guard < src.indexOf("resolveInstantBookActor({"), "guard must run before the actor is resolved");
+  assert.ok(guard < src.indexOf("placeInstantPurchase("), "guard must run before the purchase");
+});
+
 test("TUL-93: a booking with no online charge emits booking.confirmed", () => {
   const src = read("lib/server-actions/instant-book-action.ts");
   assert.match(src, /notifyBookingConfirmed\(\{/);
