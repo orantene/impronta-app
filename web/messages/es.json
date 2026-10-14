@@ -3377,8 +3377,6 @@
         "taxDocuments": "Documentos fiscales",
         "taxDocumentsDesc": "Resumen de fin de año + formularios descargables. Tulala reporta tus ingresos de la plataforma; los de fuera los declaras tú.",
         "taxYearTotal": "Total {year}",
-        "taxPlatform": "Plataforma",
-        "taxOffPlatform": "Fuera de la plataforma",
         "availableDocuments": "Documentos disponibles",
         "docIncomeSummary": "Resumen de ingresos {year}",
         "docIncomeSummaryBody": "Solo ingresos reportados por la plataforma · descarga en PDF",
