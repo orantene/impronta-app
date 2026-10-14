@@ -200,6 +200,7 @@ export type LocaleSuggestionSkipReason =
   | "non-public-path"
   | "single-locale-tenant"
   | "language-switcher-hidden"
+  | "talent-es-default"
   | "no-signal"
   | "already-rendering-preferred";
 
@@ -270,6 +271,12 @@ export type LocaleSuggestionInput = {
   userAgent?: string | null;
   /** `locale-suggest-dismissed` cookie present. */
   dismissed?: boolean;
+  /**
+   * TUL-16d: set only on a talent site, to that talent's primary locale. A Spanish-primary
+   * talent site rendering in Spanish never offers "Switch to English" (the talent's own
+   * switcher is the English door); it is her visitors' default, not a mismatch to correct.
+   */
+  talentSitePrimaryLocale?: string | null;
 };
 
 /* ─────────────────────────── Accept-Language ─────────────────────────── */
@@ -445,6 +452,15 @@ export function shouldSuggestLocale(input: LocaleSuggestionInput): LocaleSuggest
   //     screen. Pinned by test.
   if (showLanguageSwitcher === false) {
     return { suggest: false, reason: "language-switcher-hidden" };
+  }
+
+  // 6b — a Spanish-primary talent site, rendered in Spanish.
+  if (
+    input.talentSitePrimaryLocale &&
+    tagMatchesLocale(input.talentSitePrimaryLocale, "es") &&
+    tagMatchesLocale(currentLocale, "es")
+  ) {
+    return { suggest: false, reason: "talent-es-default" };
   }
 
   // 7 — Accept-Language, decisive whenever it says anything at all.

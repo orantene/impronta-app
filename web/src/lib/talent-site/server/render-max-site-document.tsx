@@ -6,6 +6,7 @@ import "server-only";
  * (same pattern as `render-max-site-shell` / `max-site-seo.server`).
  */
 
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import type { CSSProperties, ReactNode } from "react";
 import { timed } from "@/lib/server/perf-trace";
 import { withHeaderSiteChrome } from "./render-max-site-demo";
@@ -343,6 +344,7 @@ export async function renderMaxSiteDocument(args: {
     switcherHrefs: args.localeCtx.switcherHrefs,
     showCredit: showPlatformBadge,
     whitelabel,
+    marketingOrigin: resolveMarketingOrigin(),
     consentTooling: socketConsentToolingEnabled(),
     talentName: args.talentName,
     helpContext: args.profileCode ? { profileCode: args.profileCode, siteHost: args.siteHost ?? null } : null,

@@ -22,16 +22,29 @@ export const TULALA_LEGAL_COOKIES_URL = "https://tulala.digital/legal/cookies";
 export const TULALA_LEGAL_REFUNDS_URL = "https://tulala.digital/legal/refunds";
 export const TULALA_CONTACT_URL = "https://tulala.digital/contact";
 
+/**
+ * TUL-16e: re-root a production marketing URL on the configured marketing origin
+ * (`resolveMarketingOrigin()`, passed in by the server caller so this file stays pure).
+ * Omitted or the production default: unchanged.
+ */
+export function onMarketingOrigin(url: string, marketingOrigin?: string | null): string {
+  const origin = (marketingOrigin ?? "").trim().replace(/\/+$/, "");
+  if (!origin || !url.startsWith(TULALA_HOME_URL)) return url;
+  return `${origin}${url.slice(TULALA_HOME_URL.length)}`;
+}
+
 /** Legal pages keep one language per URL; a Spanish site links the /es/ copy. */
-export function localizedLegalUrl(url: string, locale: string | null | undefined): string {
-  return (locale ?? "").toLowerCase().startsWith("es") ? url.replace("tulala.digital/legal/", "tulala.digital/es/legal/") : url;
+export function localizedLegalUrl(url: string, locale: string | null | undefined, marketingOrigin?: string | null): string {
+  const localized = (locale ?? "").toLowerCase().startsWith("es") ? url.replace("tulala.digital/legal/", "tulala.digital/es/legal/") : url;
+  return onMarketingOrigin(localized, marketingOrigin);
 }
 
 /** Marketing contact: Spanish sites land on /es/contact. */
-export function localizedContactUrl(locale: string | null | undefined): string {
-  return (locale ?? "").toLowerCase().startsWith("es")
-    ? "https://tulala.digital/es/contact"
-    : TULALA_CONTACT_URL;
+export function localizedContactUrl(locale: string | null | undefined, marketingOrigin?: string | null): string {
+  return onMarketingOrigin(
+    (locale ?? "").toLowerCase().startsWith("es") ? "https://tulala.digital/es/contact" : TULALA_CONTACT_URL,
+    marketingOrigin,
+  );
 }
 
 /**
@@ -42,6 +55,7 @@ export function talentSiteHelpHref(input: {
   locale: string;
   profileCode?: string | null;
   siteHost?: string | null;
+  marketingOrigin?: string | null;
 }): string {
   const params = new URLSearchParams();
   params.set("source", "talent-site");
@@ -49,7 +63,7 @@ export function talentSiteHelpHref(input: {
   const code = (input.profileCode ?? "").trim();
   if (host) params.set("host", host);
   if (code) params.set("code", code);
-  return `${localizedContactUrl(input.locale)}?${params.toString()}`;
+  return `${localizedContactUrl(input.locale, input.marketingOrigin)}?${params.toString()}`;
 }
 
 /** Hostname from an absolute origin (canonicalOrigin), or null when unusable. */
@@ -184,8 +198,11 @@ export function buildSocketModel(input: {
    * host + talent code for the support ticket (TUL-310). Agency storefronts omit.
    */
   helpContext?: { profileCode: string; siteHost?: string | null } | null;
+  /** TUL-16e: `resolveMarketingOrigin()` from the server caller; omitted = production apex. */
+  marketingOrigin?: string | null;
 }): SocketModel {
   const { locale } = input;
+  const mo = input.marketingOrigin;
   const prefix = input.publicPathPrefix.replace(/\/+$/, "");
   const primary = (input.primaryLocale ?? locale).trim() || locale;
   const supported =
@@ -234,6 +251,7 @@ export function buildSocketModel(input: {
         locale,
         profileCode: help.profileCode,
         siteHost: help.siteHost,
+        marketingOrigin: mo,
       }),
       external: true,
     });
@@ -242,26 +260,26 @@ export function buildSocketModel(input: {
     {
       key: "tulala-terms",
       label: pickLocale(locale, { en: "Tulala terms", es: "Términos Tulala" }),
-      href: localizedLegalUrl(TULALA_LEGAL_TERMS_URL, locale),
+      href: localizedLegalUrl(TULALA_LEGAL_TERMS_URL, locale, mo),
       external: true,
     },
     {
       key: "tulala-privacy",
       label: pickLocale(locale, { en: "Tulala privacy", es: "Privacidad Tulala" }),
-      href: localizedLegalUrl(TULALA_LEGAL_PRIVACY_URL, locale),
+      href: localizedLegalUrl(TULALA_LEGAL_PRIVACY_URL, locale, mo),
       external: true,
     },
     {
       key: "tulala-cookies",
       // ES: drop the English loanword; EN keeps Cookies. Ownership is the Tulala group.
       label: pickLocale(locale, { en: "Cookies", es: "Política de cookies" }),
-      href: localizedLegalUrl(TULALA_LEGAL_COOKIES_URL, locale),
+      href: localizedLegalUrl(TULALA_LEGAL_COOKIES_URL, locale, mo),
       external: true,
     },
     {
       key: "tulala-refunds",
       label: pickLocale(locale, { en: "Refunds", es: "Reembolsos" }),
-      href: localizedLegalUrl(TULALA_LEGAL_REFUNDS_URL, locale),
+      href: localizedLegalUrl(TULALA_LEGAL_REFUNDS_URL, locale, mo),
       external: true,
     },
   );
@@ -292,7 +310,7 @@ export function buildSocketModel(input: {
         ? {
             prefix: pickLocale(locale, { en: "Site made with", es: "Sitio creado con" }),
             label: "Tulala.digital",
-            href: TULALA_HOME_URL,
+            href: onMarketingOrigin(TULALA_HOME_URL, mo),
           }
         : null,
   };

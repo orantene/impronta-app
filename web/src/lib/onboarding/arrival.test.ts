@@ -137,3 +137,14 @@ test("TUL-648: publishedServiceCount matches the rows offeringRowFor publishes",
   assert.equal(publishedServiceCount([svc(50000), svc(null, true), svc(0), svc(30000, true)]), 1);
   assert.equal(publishedServiceCount(null), 0);
 });
+
+test("TUL-16a: a published site our probe cannot reach (network, 401/403) is not the draft state", () => {
+  const live = { person: { name: "Siete Cincuenta", city: null }, businessName: null, services: 1, site: null, talent: { publicUrl: null, todayUrl: "/talent/today", siteUrl: "https://x.staging.tulala.digital" } };
+  for (const liveCheck of [{ ok: false, reason: "network" }, { ok: false, reason: "status", status: 401 }, { ok: false, reason: "status", status: 403 }]) {
+    const a = arrivalFromStamp({ path: "talent", stamp: null, ...live, liveCheck });
+    assert.notEqual(a.variant, "draft_saved", JSON.stringify(liveCheck));
+  }
+  for (const liveCheck of [{ ok: false, reason: "status", status: 404 }, { ok: false, reason: "status", status: 502 }, { ok: false, reason: "name_missing" }, { ok: false }]) {
+    assert.equal(arrivalFromStamp({ path: "talent", stamp: null, ...live, liveCheck }).variant, "draft_saved", JSON.stringify(liveCheck));
+  }
+});
