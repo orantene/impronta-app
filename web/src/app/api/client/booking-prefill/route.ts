@@ -17,7 +17,7 @@ const reply = (body: unknown, status = 200) => NextResponse.json(body, { status,
 
 export async function GET() {
   try {
-    if (!(await accountSurfaceEnabledForRequest())) return reply({ prefill: null }, 404);
+    if (!(await accountSurfaceEnabledForRequest())) return reply({ prefill: null });
     const session = await getCachedActorSession();
     const user = session.user;
     const admin = createServiceRoleClient();

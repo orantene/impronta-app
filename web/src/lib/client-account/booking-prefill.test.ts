@@ -47,3 +47,8 @@ test("route reads the session user only and takes no request input", () => {
 test("the booking sheet fills contact fields from the account hook on the who step", () => {
   assert.match(sheet, /useBookingContactPrefill\(\{\s*active: step === "who"/);
 });
+
+test("a guest or a host without the account surface gets a quiet 200, never a 404 console error (TUL-900)", () => {
+  assert.doesNotMatch(route, /prefill: null\s*\},\s*404/);
+  assert.doesNotMatch(route, /reply\([^)]*,\s*404\)/);
+});
