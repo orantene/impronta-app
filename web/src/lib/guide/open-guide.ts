@@ -14,3 +14,10 @@ export function openGuideArticle(nodeId: string): void {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent<GuideOpenDetail>(GUIDE_OPEN_EVENT, { detail: { nodeId } }));
 }
+
+/** Sentinel node id meaning "open the drawer on the Guide home, no article". */
+export const GUIDE_HOME_NODE_ID = "__guide-home__";
+
+export function openGuideHome(): void {
+  openGuideArticle(GUIDE_HOME_NODE_ID);
+}
