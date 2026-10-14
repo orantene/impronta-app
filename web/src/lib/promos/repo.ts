@@ -197,3 +197,29 @@ export async function loadUsage(
   }
   return usage;
 }
+
+/**
+ * Legacy event / tier scope of promos (`event_id`, `variant_id`). These codes
+ * predate `promo_targets`; the order-side adapter honours them by narrowing
+ * the lines before the engine sees them, so a tier code never discounts
+ * another tier.
+ */
+export async function loadLegacyScopes(
+  admin: SupabaseClient,
+  promoIds: readonly string[],
+): Promise<Map<string, { eventId: string | null; variantId: string | null }> | null> {
+  const out = new Map<string, { eventId: string | null; variantId: string | null }>();
+  if (promoIds.length === 0) return out;
+  const { data, error } = await admin
+    .from("tenant_promo_codes")
+    .select("id, event_id, variant_id")
+    .in("id", [...promoIds]);
+  if (error) {
+    logServerError("promos.repo/legacy-scopes", error);
+    return null;
+  }
+  for (const r of (data ?? []) as { id: string; event_id: string | null; variant_id: string | null }[]) {
+    out.set(r.id, { eventId: r.event_id ?? null, variantId: r.variant_id ?? null });
+  }
+  return out;
+}

@@ -84,9 +84,13 @@ test("full refund VOIDS the redemption; it never deletes it", () => {
 });
 
 test("checkout counts only limit statuses, both total and per customer", () => {
+  // TUL-935: checkout counts through the one engine read path (repo.loadUsage),
+  // which counts total AND per-customer from the same LIMIT_STATUSES rows.
   const src = read("src/lib/orders/promo-resolve.ts");
-  const hits = src.match(/\.in\("status", \[\.\.\.LIMIT_STATUSES\]\)/g) ?? [];
-  assert.equal(hits.length, 2);
+  assert.match(src, /loadUsage\(admin, \[promo\.id\], input\.customerId/);
+  const repo = read("src/lib/promos/repo.ts");
+  assert.match(repo, /\.in\("status", \[\.\.\.LIMIT_STATUSES\]\)/);
+  assert.match(repo, /usedByClient \+= 1/);
 });
 
 test("the admin discounts page shows confirmed uses only", () => {
