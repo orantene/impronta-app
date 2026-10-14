@@ -88,6 +88,7 @@ test2("the fee rides from the snapshot row to the Money row (and never on part-p
   assert2.match(page, /money\(p\.grossCents \+ p\.clientFeeCents, cur\)/);
   const es = _read(new URL("../../components/admin/shell/internal/dashboard-i18n-money-home.ts", import.meta.url), "utf8");
   assert2.ok(es.includes("El cliente pagó {paid}, con {fee} de cargo por servicio (no es tuyo)"));
+});
 
 test2("refund rows are CLIENT money: an MX$300 partial on a 1,015 charge deducts about 295.57 of her price, a full refund nets to exactly 0", () => {
   const snap = { gross_cents: 100_000, gross_charged_cents: 101_500 };

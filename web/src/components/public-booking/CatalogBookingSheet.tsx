@@ -40,7 +40,6 @@ import {
   catalogTotalCents,
   demoSlotsFor,
   firstOpenDemoDayIndex,
-  formatClock,
   groupIsoSlotsByDay,
   type CatalogBookingMode,
 } from "./catalog-booking-logic";

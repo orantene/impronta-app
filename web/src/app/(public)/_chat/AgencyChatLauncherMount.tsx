@@ -33,6 +33,7 @@ import { surfaceModeFromBackgroundMode } from "@/app/t/[profileCode]/_chat/mini-
 import { resolveLauncherLifecycleInputs } from "@/app/t/[profileCode]/_chat/launcher-lifecycle-inputs";
 import {
   checkGuestClaimEmail,
+  ensureGuestChatInquiry,
   getActiveGuestInquiry,
   getGuestThreadMessages,
   sendGuestClaimToEmail,
@@ -50,7 +51,6 @@ import {
   listGuestTenantRoster,
   resolveGuestCartPortraits,
 } from "@/app/t/[profileCode]/_actions/guest-roster-actions";
-import { ensureGuestChatInquiry } from "@/app/t/[profileCode]/_actions/guest-chat-actions";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";

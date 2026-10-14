@@ -346,14 +346,11 @@ export async function proxy(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = withoutLocalePrefix;
     const res = NextResponse.redirect(url, 308);
-    // QA 2026-05-13 — without setting the locale cookie here, the redirected
-    // page renders in the DEFAULT locale even though the operator's URL was
-    // `/es/<tenant>`. The downstream `syncLocaleCookieForPath` calls only fire
-    // after this early-return, so they never see the original `/es/` prefix
-    // and never set the cookie. Result: clicking the ES locale switcher pushed
-    // `/es/impronta?edit=1` → server 308'd to `/impronta?edit=1` → page
-    // rendered in EN. The switcher appeared broken.  Set the cookie on the
-    // redirect response so the followed URL serves with the right locale.
+    // QA 2026-05-13: without a locale cookie here, the redirected page renders
+    // in the DEFAULT locale even though the URL was `/es/<tenant>` (the
+    // downstream `syncLocaleCookieForPath` calls fire only after this early
+    // return and never see the `/es/` prefix), so the ES switcher looked broken.
+    // Set the cookie on the redirect response so the followed URL keeps the locale.
     syncLocaleCookieForPath(res, pathname, effectiveLangSettings, request);
     syncLocaleCookieForDefaultPrefixStrip(res, pathname, effectiveLangSettings);
     return res;

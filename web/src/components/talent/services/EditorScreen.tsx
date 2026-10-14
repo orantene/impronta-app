@@ -15,7 +15,7 @@ import {
   type OfferingDestination,
   type SellingDefaults,
 } from "@/lib/talent/services-settings-actions";
-import { publicationWord } from "@/lib/talent/publication-state";
+import { categoryNearMatch, publicationWord } from "@/lib/talent/publication-state";
 import { offeringPriceLabel, type TalentOffering } from "@/lib/talent/offerings-types";
 import { PLATFORM_DEFAULT_BOOKING_POSTURE } from "@/lib/talent/selling-booking-settings";
 import { CurrencyField } from "./CurrencyField";
@@ -27,7 +27,6 @@ import { uploadTalentMedia } from "@/lib/client/signed-upload";
 import { MatrixFields } from "./MatrixFields";
 import { IntakeFields } from "./IntakeFields";
 import { ProductEditorCard } from "./ProductEditorCard";
-import { categoryNearMatch } from "@/lib/talent/publication-state";
 import { SiteModeOverrideNotice } from "./SiteModeOverrideNotice";
 import { localizeOfferingSaveError } from "./offering-editor-save";
 import { canLeaveEditor } from "./offering-editor-leave";

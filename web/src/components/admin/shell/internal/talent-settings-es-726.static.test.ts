@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
+import { blankComments } from "@/lib/quality/supabase-unchecked-read";
 import { createTranslator } from "@/i18n/messages";
 import { translateDashboardText } from "./dashboard-i18n";
 import { CLIENT_TRUST_META } from "./state/fixtures";
@@ -46,7 +47,7 @@ test("Plan and Hide everywhere strings have Spanish", () => {
 
 test("Plan and visibility surfaces route their copy through the dictionary", () => {
   for (const [name, src] of [["plan", plan], ["card", visCard], ["drawer", visDrawer]] as const) {
-    assert.ok(src.includes("useDashboardText"), `${name} does not use useDashboardText`);
+    assert.ok(blankComments(src).includes("useDashboardText"), `${name} does not use useDashboardText`);
   }
   assert.ok(!/>\s*Compare plans\s*\n/.test(plan), "Compare plans is bare English");
   assert.ok(!/>\s*Manage →\s*</.test(visCard), "Manage is bare English");

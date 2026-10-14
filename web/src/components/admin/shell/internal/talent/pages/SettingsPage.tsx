@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { loadWebsiteSettingsEnabledAction } from "@/components/talent/website-settings/website-settings-gate-action";
-import { requestWebsiteSettingsView } from "@/components/talent/website-settings/website-settings-intent";
+import { requestPresenceTab, requestWebsiteSettingsView } from "@/components/talent/website-settings/website-settings-intent";
 import { languageName } from "@/lib/i18n/locale-field-model";
 import { CommercialBookingTermsCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/CommercialBookingTermsCard";
 import { DefaultCurrencyCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/DefaultCurrencyCard";
@@ -22,7 +22,6 @@ import { useDashboardText } from "../../dashboard-i18n";
 import { PasskeysCard } from "../../modern-features";
 import { Icon } from "../../primitives";
 import { MY_TALENT_PROFILE, TALENT_TIER_META, useAdminShell } from "../../state";
-import { requestPresenceTab } from "@/components/talent/website-settings/website-settings-intent";
 import { openWorkingHoursPanel } from "../agenda/WorkingHoursPanel";
 import { PageHeader } from "../shared/page-chrome-1";
 

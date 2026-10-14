@@ -57,6 +57,7 @@ import {
   sendGuestMessageAction,
   startGuestChatInquiry,
   checkGuestClaimEmail,
+  ensureGuestChatInquiry,
 } from "@/app/t/[profileCode]/_actions/guest-chat-actions";
 import { getGuestInquiryByOrder } from "@/app/t/[profileCode]/_actions/guest-order-resume-actions";
 import { parseGuestOrderQuery } from "@/lib/inquiry/guest-order-resume";
@@ -71,7 +72,6 @@ import {
   listGuestTenantRoster,
   resolveGuestCartPortraits,
 } from "@/app/t/[profileCode]/_actions/guest-roster-actions";
-import { ensureGuestChatInquiry } from "@/app/t/[profileCode]/_actions/guest-chat-actions";
 import { scanGuestConversationForDetails } from "@/app/t/[profileCode]/_actions/guest-conversation-scan-action";
 import { TalentOfferingIntentQuery } from "@/app/%5Ftalent-site/TalentOfferingIntentQuery";
 import type { IndustryPresetId } from "@/lib/words/presets";

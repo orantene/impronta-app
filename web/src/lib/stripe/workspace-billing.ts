@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- TUL-573 lazy Stripe loads add one line per call site; a split is a clean follow-up. */
 /**
  * lib/stripe/workspace-billing.ts
  *

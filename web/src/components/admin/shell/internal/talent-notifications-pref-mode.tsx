@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from "react";
 import { useT } from "@/i18n/use-t";
-import { FONTS } from "./state";
 
 export const NOTIF_DEFAULTS: Record<string, { email: boolean; push: boolean }> = {
   "new-offer":        { email: true,  push: true  },
@@ -34,16 +33,7 @@ export function SeeAllNotificationsLink({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      style={{
-        background: "transparent",
-        border: "none",
-        padding: "0 0 12px",
-        cursor: "pointer",
-        fontFamily: FONTS.body,
-        fontSize: 12.5,
-        fontWeight: 500,
-      }}
-      className="text-admin-ink-muted"
+      className="cursor-pointer border-0 bg-transparent px-0 pb-3 pt-0 text-[12.5px] font-medium text-admin-ink-muted"
     >
       {t("dashboard.talentNotifications.seeAll")} →
     </button>
