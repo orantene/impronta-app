@@ -27,6 +27,12 @@ import {
 
 import { OTP_CODE_LENGTH } from "@/lib/auth/otp-flow";
 
+/** TUL-826: where a tap on the row should land: the first empty box, else the last. */
+export function firstEmptyIndex(digits: readonly string[]): number {
+  const i = digits.findIndex((d) => !d);
+  return i === -1 ? Math.max(0, digits.length - 1) : i;
+}
+
 export function OtpCodeInput({
   name = "code",
   length = OTP_CODE_LENGTH,
@@ -142,7 +148,17 @@ export function OtpCodeInput({
 
   let index = 0;
   return (
-    <div className="flex w-full items-center justify-center gap-3">
+    <div
+      className="flex w-full cursor-text items-center justify-center gap-3 py-2"
+      data-otp-group=""
+      // TUL-826: the whole row is one tap target. A tap that lands between or
+      // around the boxes (easy at 390px) focuses the first empty box instead of
+      // doing nothing.
+      onClick={(e) => {
+        if (disabled || (e.target as HTMLElement).tagName === "INPUT") return;
+        focusBox(firstEmptyIndex(digits));
+      }}
+    >
       <input type="hidden" name={name} value={value} />
       {groups.map((count, g) => (
         <div key={g} className="flex gap-1.5 sm:gap-2">
