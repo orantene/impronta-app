@@ -24,7 +24,7 @@
 import Link from "next/link";
 
 import { TulalaLogo } from "@/components/brand/tulala-logo";
-import { getSiteUrl } from "@/lib/auth-flow";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 
 export type AuthShellBrand = {
   /** Display name: tenant `public_name` on a whitelabel host, else "Tulala". */
@@ -469,10 +469,10 @@ export function AuthFooter({
                 smaller problem than misrepresenting whose terms apply.
                 Contact is the one that IS host-aware — see the ruling comment
                 in `layout.tsx`. */}
-            <FooterLink href={`${getSiteUrl()}/legal/terms`}>
+            <FooterLink href={`${resolveMarketingOrigin()}/legal/terms`}>
               {legal.terms}
             </FooterLink>
-            <FooterLink href={`${getSiteUrl()}/legal/privacy`}>
+            <FooterLink href={`${resolveMarketingOrigin()}/legal/privacy`}>
               {legal.privacy}
             </FooterLink>
             <FooterLink href={contactHref}>{legal.contact}</FooterLink>

@@ -74,6 +74,7 @@ export function OnboardingModule({
   variant = "modal",
   startChoice = null,
   onLocaleChange,
+  marketingOrigin,
 }: {
   locale: "en" | "es";
   intent: OnboardingIntent;
@@ -82,6 +83,8 @@ export function OnboardingModule({
   /** A choice carried in the URL (`/start?choice=`); applied when nothing is saved yet. */
   startChoice?: OnboardingChoice | null;
   onLocaleChange?: (locale: FlowLocale) => void;
+  /** Server-resolved marketing origin for legal links (TUL-750). */
+  marketingOrigin: string;
   /** `saved` is true when there is progress worth a "saved on this phone" toast. */
   onClose: (result: { saved: boolean }) => void;
 }) {
@@ -560,6 +563,7 @@ export function OnboardingModule({
         t={t}
         path={path}
         locale={locale}
+        marketingOrigin={marketingOrigin}
         choice={state.choice}
         busy={state.busy}
         error={state.accountMessage}

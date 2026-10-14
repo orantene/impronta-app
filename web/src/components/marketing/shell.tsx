@@ -1,3 +1,4 @@
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { headers } from "next/headers";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { stripLocaleFromPathname } from "@/i18n/pathnames";
@@ -150,7 +151,7 @@ export async function MarketingShell({ children }: { children: React.ReactNode }
       <main className="flex-1 pt-[var(--plt-header-h,84px)] sm:pt-[72px]">{children}</main>
       <MarketingFooter />
       {legalFast ? null : <MarketingSupportLauncherMount />}
-      <MarketingModalHost locale={locale} onboardingModule={onboardingModule} />
+      <MarketingModalHost locale={locale} onboardingModule={onboardingModule} marketingOrigin={resolveMarketingOrigin()} />
     </div>
   );
 }
