@@ -1,5 +1,7 @@
 "use client";
 
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { DateFormatHint } from "./primitives/DateFormatHint";
 import {
   useCallback, useEffect, useMemo, useRef, useState, type CSSProperties,
 } from "react";
@@ -351,6 +353,7 @@ function FolderModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const dashLocale = useDashboardLocale();
   const t = useT();
   const queueRouterRefresh = useQueuedRouterRefresh();
   const [name, setName] = useState(folder?.name ?? "");
@@ -480,6 +483,7 @@ function FolderModal({
               onChange={(e) => setShootDate(e.target.value)}
               className="text-admin-ink box-border w-full rounded-lg border border-admin-border px-3 py-2 text-[13px]"
             />
+            <DateFormatHint locale={dashLocale} />
             <div className="text-admin-ink-muted mt-1 text-[11.5px] leading-snug">
               {t("dashboard.adminMedia.shootDateHint")}
             </div>

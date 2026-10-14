@@ -13,6 +13,8 @@
 // Extracted from primitives.tsx — Phase 1f decomposition. Preserves the
 // byte-stable public surface via the primitives.tsx barrel re-exports.
 
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { DateFormatHint } from "./DateFormatHint";
 import { Children, useState, type CSSProperties, type ReactNode } from "react";
 import {
   COLORS,
@@ -1709,7 +1711,9 @@ export function DatePicker({
   min?: string;
   max?: string;
 }) {
+  const dashLocale = useDashboardLocale();
   return (
+    <>
     <div
       style={{
         position: "relative",
@@ -1761,6 +1765,8 @@ export function DatePicker({
         </span>
       )}
     </div>
+    <DateFormatHint locale={dashLocale} />
+    </>
   );
 }
 

@@ -4,6 +4,8 @@
 // next-tier coach · per-field lock toggle.  These are all the secondary
 // editors that the active section body composes after the core block.
 "use client";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { DateFormatHint } from "../../../primitives/DateFormatHint";
 import React, { useState, useEffect, useRef } from "react";
 import { logServerError } from "@/lib/server/safe-error";
 import {
@@ -454,6 +456,7 @@ export function RecurringPatternEditor({ value, vacation, onChange, onVacationCh
   onChange: (r: RecurringPattern) => void;
   onVacationChange: (v: VacationWindow | null) => void;
 }) {
+  const dashLocale = useDashboardLocale();
   const copy = useDashboardText();
   const dows = copy.isSpanish
     ? ["D", "L", "M", "M", "J", "V", "S"]
@@ -520,9 +523,15 @@ export function RecurringPatternEditor({ value, vacation, onChange, onVacationCh
           </div>
         ) : (
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <div style={{ display: "flex", flexDirection: "column" }}>
             <input type="date" id="vacstart" style={{ padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`, fontSize: 12 }} />
+            <DateFormatHint locale={dashLocale} />
+            </div>
             <span className="text-admin-ink-dim text-admin-11">→</span>
+            <div style={{ display: "flex", flexDirection: "column" }}>
             <input type="date" id="vacend"   style={{ padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`, fontSize: 12 }} />
+            <DateFormatHint locale={dashLocale} />
+            </div>
             <button type="button" onClick={() => {
               const s = (document.getElementById("vacstart") as HTMLInputElement)?.value;
               const e = (document.getElementById("vacend") as HTMLInputElement)?.value;
