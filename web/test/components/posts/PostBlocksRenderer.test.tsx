@@ -29,4 +29,18 @@ describe("PostBody", () => {
     const { container } = render(<PostBody blocks={blocks} body="" services={{}} />);
     expect(container.querySelector(".site-post__block")).toBeNull();
   });
+
+  it("book button reuses the site's label and booking deep link", () => {
+    const blocks = parsePostBlocks([
+      { id: "1", type: "book_button", offering_id: UUID },
+      { id: "2", type: "book_button" },
+      { id: "3", type: "book_button", label: "Custom" },
+    ]);
+    const { container } = render(<PostBody blocks={blocks} body="" locale="es" homePath="/en" />);
+    const a = [...container.querySelectorAll("a")];
+    expect(a[0].getAttribute("href")).toBe(`/en?book=${UUID}#book`);
+    expect(a[0].textContent).toBe("Reservar");
+    expect(a[1].getAttribute("href")).toBe("/en#book");
+    expect(a[2].textContent).toBe("Custom");
+  });
 });

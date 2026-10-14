@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { postVideoEmbedUrl, type PostBlock } from "@/lib/cms/post-blocks";
 import { renderInlineRich } from "@/lib/site-admin/sections/shared/rich-text";
+import { offeringCtaLabel } from "@/lib/talent/offering-cta-derivation";
+import { serviceBookHref } from "@/lib/talent-site/service-page";
 
 /**
  * Server-safe renderer for `cms_posts.body_blocks`. Theme tokens only: no
@@ -17,15 +19,16 @@ export type PostServiceMap = Readonly<Record<string, PostServiceDisplay | undefi
 export type PostBlocksRendererProps = {
   blocks: readonly PostBlock[];
   services?: PostServiceMap;
-  /** Where Book buttons point (site-relative, e.g. "/inquire"). */
-  bookHref?: string;
-  /** Used for the default Book button label. */
+  /** The site's home path ("/" or "/en"): the booking sheet lives there (`#book`). */
+  homePath?: string;
+  /** Label of the Book button when the block has none. */
   locale?: string;
 };
 
-function bookLabel(label: string | undefined, locale: string | undefined): string {
-  if (label && label.trim()) return label;
-  return locale === "es" ? "Reservar" : "Book";
+function bookHref(offeringId: string | undefined, homePath: string | undefined): string {
+  if (offeringId) return serviceBookHref(offeringId, homePath ?? "/");
+  const base = homePath && homePath.startsWith("/") ? homePath : "/";
+  return `${base}#book`;
 }
 
 function renderBlock(block: PostBlock, p: PostBlocksRendererProps): ReactNode {
@@ -109,8 +112,8 @@ function renderBlock(block: PostBlock, p: PostBlocksRendererProps): ReactNode {
     case "book_button":
       return (
         <p className="site-post__book">
-          <Link className="site-btn site-btn--primary" href={p.bookHref ?? "/inquire"}>
-            {bookLabel(block.label, p.locale)}
+          <Link className="site-btn site-btn--primary" href={bookHref(block.offering_id, p.homePath)}>
+            {block.label?.trim() || offeringCtaLabel("book_now", p.locale ?? "en")}
           </Link>
         </p>
       );
