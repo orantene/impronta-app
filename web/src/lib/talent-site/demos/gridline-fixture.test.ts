@@ -168,7 +168,9 @@ test("rendered utility bar, urgency band and hero match", () => {
   const facts = all(SITE.match(/<div class="gl-spec gl-mono">([\s\S]*?)<\/div>\s*<div class="gl-acts">/)![1], /<small>([^<]*)<\/small><b>([^<]*)<\/b>/g).map((m) => ({ label: m[1], value: m[2] }));
   assert.deepEqual(facts, fx.hero.facts);
   const rev = fx.services.find((s) => s.id === "rev")!;
-  assert.equal(facts[3].value, rev.priceLabel);
+  // Hero shows the PM-approved "from" wording; the bookable price stays rev.priceLabel.
+  assert.equal(facts[3].value, "Desde $500");
+  assert.equal(rev.priceLabel, "$550");
   assert.deepEqual([rev.ctaLabel, SITE.match(/data-k-act="go:gl-pick">([^<]*)<\/button>/)![1]], fx.hero.ctas);
   const who = SITE.match(/<div class="gl-who">[\s\S]*?<b>([^<]*)<\/b><p>([^<]*)<\/p><div class="gl-badges gl-mono">([\s\S]*?)<\/div>/)!;
   assert.equal(who[1], fx.talent.displayName);

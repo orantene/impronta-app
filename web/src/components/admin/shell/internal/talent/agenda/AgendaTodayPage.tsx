@@ -1,6 +1,7 @@
 "use client";
 
 import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
+import { resolveGreetingName } from "@/lib/dashboard/greeting-name";
 import Link from "next/link";
 import { todayReplyState } from "@/lib/messages-v5/inbox-view";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -27,6 +28,7 @@ import { moneyFromLedger, rebookHint, rowFromAgendaItem, todayFromAgenda } from 
 import { placeLabelFor } from "./record-actions";
 import { serviceLabel } from "./calendar-view";
 import { hasBookingHoursWindows } from "@/lib/talent-agenda/first-day";
+import { HoursSetupNudgeButton } from "./HoursSetupNudgeButton";
 import {
   bookedLabel,
   durationMinutes,
@@ -131,6 +133,7 @@ export function AgendaTodayPage({
   onSendQuote,
   primaryAction = "booking",
   onOpenRecord,
+  onOpenAvailability,
   onOpenSite,
   onOpenProfile,
   onOpenMoney,
@@ -251,7 +254,8 @@ export function AgendaTodayPage({
   });
   const idea = ideaDismissed ? null : rebookHint(items, clock);
 
-  const firstName = profile?.displayName?.split(" ")[0] ?? "";
+  // TUL-525: greet by person name — never the account handle.
+  const firstName = resolveGreetingName({ personName: profile?.displayName }) ?? "";
   const city = profile?.homeCity ?? "";
   const greeting = copy.t(greetingFor(clock));
   const title = firstName ? `${greeting}, ${firstName}` : copy.t("Today");
@@ -287,6 +291,8 @@ export function AgendaTodayPage({
   // which read setup_choices and named a palette the talent never picked.
   const resumeCard = profile ? <WebsiteTodayHero canBook={hasBookingHoursWindows(hours)} /> : null;
 
+  const hoursNudge = profile ? <HoursSetupNudgeButton es={copy.isSpanish} hours={hours} loadError={loadError} onOpen={onOpenAvailability} /> : null;
+
   if (loadError) {
     return (
       <div style={TALENT_AGENDA_VARS} className="space-y-4">
@@ -308,13 +314,14 @@ export function AgendaTodayPage({
   }
 
   if (mode === "loading") {
-    // Facts still in flight: a neutral header, no greeting and no body, so a
-    // new account never flashes the established Today before "Welcome".
+    // Facts still in flight: shell + skeleton (TUL-525), never a blank blue plane.
     return (
-      <div style={TALENT_AGENDA_VARS} className="space-y-4" aria-busy="true">
+      <div style={TALENT_AGENDA_VARS} className="min-h-[70vh] space-y-4" aria-busy="true" data-testid="today-loading-skeleton">
         <PageHeader title={copy.t("Today")} subtitle={subtitle} />
-        <div className="h-28 animate-pulse rounded-2xl bg-black/[0.05]" />
-        <div className="h-44 animate-pulse rounded-2xl bg-black/[0.05]" />
+        <div className="h-28 animate-pulse rounded-2xl bg-black/[0.07]" />
+        <div className="h-44 animate-pulse rounded-2xl bg-black/[0.07]" />
+        <div className="h-36 animate-pulse rounded-2xl bg-black/[0.06]" />
+        <div className="h-24 animate-pulse rounded-2xl bg-black/[0.05]" />
       </div>
     );
   }
@@ -333,6 +340,7 @@ export function AgendaTodayPage({
             </SecondaryButton>
           }
         />
+        {hoursNudge}
         <WebsiteSetupToday canBook={hasBookingHoursWindows(hours)} />
       </div>
     );
@@ -456,7 +464,9 @@ export function AgendaTodayPage({
             <div
               className={`text-[22px] font-semibold tabular-nums ${owed.cents > 0 ? "text-amber-700" : "text-[var(--tc-primary)]"}`}
             >
-              {owed.currency ? formatMoney(owed.cents, owed.currency, locale) : formatMoney(0, currency ?? "USD", locale)}
+              {owed.currency
+                ? formatMoney(owed.cents, owed.currency, locale)
+                : formatMoney(0, currency ?? "MXN", locale)}
             </div>
             <div className={`text-[11.5px] ${MUTED}`}>
               {owed.count > 0 ? `${owed.count} ${copy.t("balances")}` : copy.t("Nothing owed")}
@@ -592,6 +602,7 @@ export function AgendaTodayPage({
         }
       />
 
+      {hoursNudge}
       {resumeCard}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_352px]">

@@ -133,6 +133,7 @@
       },
       "form": {
         "email": "Correo electrónico",
+        "emailPlaceholder": "tu@estudio.com",
         "password": "Contraseña"
       },
       "actions": {
@@ -382,7 +383,6 @@
       "eventDateOptional": "Fecha del evento (opcional)",
       "booking": "Reservando…",
       "confirmAndBook": "Confirmar y reservar · {price}",
-      "viewInquiry": "Ver tu solicitud",
       "addToCurrentTitle": "Añadir a esta solicitud",
       "addToCurrentSubOne": "1 talento hasta ahora",
       "addToCurrentSubOther": "{count} talentos hasta ahora",
@@ -890,7 +890,8 @@
         "whatsapp": "WhatsApp",
         "email": "Correo",
         "confirmByHand": "Ella confirma a mano.",
-        "bookInstant": "Puedes reservar un horario en esta página."
+        "bookInstant": "Puedes reservar un horario en esta página.",
+        "bookingsPaused": "No estoy tomando nuevas reservas por ahora. Puedes consultarme."
       }
     },
     "guestChat": {
@@ -943,6 +944,7 @@
       "statusBooked": "Reservada",
       "statusClosed": "Cerrada",
       "kindOffer": "Oferta",
+      "offerSentBody": "Tienes una oferta nueva. Revísala abajo.",
       "kindPaymentRequested": "Pago solicitado",
       "kindPaymentReceived": "Pago recibido",
       "kindCoordinator": "Coordinador",
@@ -2068,6 +2070,7 @@
         "fallbackSub": "Tu espacio de trabajo está listo. El texto del sitio necesitó otra pasada, así que abre con los valores del estilo; todo lo que nos contaste está guardado.",
         "existingSub": "Ya tienes un espacio de trabajo gratuito. Ábrelo; no se creó nada nuevo.",
         "factServices": "{n} servicios",
+        "factUnpriced": "{n} más para publicar cuando les pongas precio",
         "factCity": "en {city}",
         "factLogo": "tu logo",
         "factHours": "tu horario",
@@ -2104,11 +2107,12 @@
         "draftSubStudio": "Todo lo que nos contaste está guardado, pero tu sitio todavía no abre en línea. Inténtalo de nuevo o ábrelo en el editor.",
         "openEditor": "Abrir el editor",
         "goToPanel": "Ir a mi panel",
+        "openMyPanel": "Abrir mi panel",
         "bookPreview": "Reservar",
         "bookingsStartStudio": "Las reservas empiezan cuando agregues a un proveedor.",
         "inquiryTitle": "Tu página está lista para recibir solicitudes",
         "inquirySub": "Ya pueden enviarte solicitudes. Las reservas empiezan cuando agregues a un integrante del equipo.",
-        "addFirstMember": "Agrega a tu primer integrante para empezar a recibir reservas",
+        "addFirstMember": "Agrega a tu primer integrante",
         "alsoBookMyself": "También quiero recibir reservas yo",
         "urlDiffers": "Tu dirección quedó distinta a la que elegiste porque ya estaba en uso. Esta es la real."
       },
@@ -2462,6 +2466,15 @@
     "workspaceTalentQa": "Usuario QA talento",
     "workspaceClientQa": "Usuario QA cliente",
     "workspaceQaUnavailable": "Esta cuenta QA aún no está configurada aquí. Revisa la configuración del usuario QA.",
+    "workspaceQaReason": {
+      "not_configured": "El cambio QA no está configurado: falta el id del usuario QA o el secreto de suplantación en este entorno.",
+      "no_profile": "El usuario QA configurado no tiene perfil en esta base de datos.",
+      "inactive": "El usuario QA existe pero su cuenta no está activa (sigue en onboarding o suspendida). Actívala y vuelve a intentarlo.",
+      "wrong_role": "El usuario QA configurado no tiene el rol que necesita este cambio.",
+      "not_allowlisted": "El id del usuario QA no está en la lista permitida de este entorno.",
+      "not_authorized": "Solo un super admin puede usar el cambio QA.",
+      "no_relationship": "El cliente QA no tiene una relación activa con una agencia, así que no hay espacio de cliente que abrir."
+    },
     "workspaceSwitcherHint": "Vista previa QA, solo lectura",
     "impersonationActorNote": "Sesión de admin",
     "impersonationReadOnly": "Viendo como",
@@ -13581,6 +13594,9 @@
       "startTicket": "Crear un ticket",
       "messageOran": "Escribirle a {agent}",
       "messageOranBody": "Quiero hablar con {agent}.",
+      "messageOranSubject": "Hablar con una persona",
+      "newQuestion": "Nueva pregunta",
+      "newQuestionHint": "¿Algo distinto? Empieza una pregunta nueva para que tenga su propia respuesta.",
       "statusWaitingYou": "Te espera a ti",
       "statusWithSupport": "Con soporte",
       "statusResolved": "Resuelto",
@@ -13604,6 +13620,7 @@
       "sendFailed": "No se pudo enviar. Tu texto sigue aquí, inténtalo de nuevo.",
       "rateLimited": "Enviaste muchos mensajes en poco tiempo. Tu texto sigue aquí. Inténtalo de nuevo en unos {minutes} minutos.",
       "threadLoading": "Cargando la conversación…",
+      "threadLoadFailed": "No pudimos cargar esta conversación. Cierra y vuelve a abrir el panel para intentarlo de nuevo.",
       "rateLimitedOne": "Enviaste muchos mensajes en poco tiempo. Tu texto sigue aquí. Inténtalo de nuevo en un minuto.",
       "cardTitle": "Actualización",
       "addNumber": "Añade un número para que te llamemos",
@@ -13699,7 +13716,6 @@
       "helperModeAria": "Modo ayuda: resalta todo lo que tiene un artículo en esta pantalla",
       "helperModeOn": "El modo ayuda está activado",
       "helperModeHint": "Todo lo que tiene un borde punteado tiene un artículo. Haz clic para leerlo aquí.",
-      "guideNotFound": "Todavía no hay un artículo para \"{id}\".",
       "helperReadAbout": "Leer sobre: {what}",
       "cardLiveChat": "Iniciar chat en vivo",
       "cardLiveChatSub": "Una persona real del equipo de Tulala, normalmente en minutos",
@@ -13709,6 +13725,7 @@
       "cardIdeaSub": "Cuéntanos qué haría mejor a Tulala",
       "yourTickets": "Tus tickets",
       "newReplies": "{n} respuestas nuevas",
+      "newRepliesOne": "1 respuesta nueva",
       "seeAll": "Ver todo",
       "guideHint": "¿Buscas cómo funciona algo? Abre la pestaña {guide}.",
       "guideHelpful": "¿Te sirvió?",
@@ -17800,18 +17817,21 @@
       "setup": {
         "title": "Configuración lista",
         "progress": "Configuración · {done} de {total}",
+        "progressShort": "Terminar configuración · {count} pendientes",
         "missing": "Falta: {items}",
         "complete": "Todo está configurado.",
         "finish": "Terminar configuración",
+        "seeAll": "Ver todo",
+        "setUp": "Configurar",
         "item": {
-          "timeZone": "zona horaria",
-          "catalogItem": "un artículo del catálogo",
-          "bookableHours": "horas reservables",
-          "onlinePayments": "pagos en línea",
-          "payoutDestination": "destino de los pagos",
-          "websitePublished": "una página web publicada",
-          "whoPerforms": "alguien reservable",
-          "bookingPolicy": "una política de reserva"
+          "timeZone": "Zona horaria",
+          "catalogItem": "Un servicio o artículo para vender",
+          "bookableHours": "Horas reservables",
+          "onlinePayments": "Pagos en línea",
+          "payoutDestination": "Destino de los pagos",
+          "websitePublished": "Una página web publicada",
+          "whoPerforms": "Alguien reservable",
+          "bookingPolicy": "Una política de reserva"
         }
       }
     },
@@ -19254,6 +19274,23 @@
         "sentOk": "Oferta enviada",
         "units": "Unidades",
         "priceDriftHint": "El precio de catálogo ahora es {price}"
+      },
+      "engineLines": {
+        "allApprovals": "Todas las aprobaciones están completas.",
+        "offerReopened": "Oferta reabierta para modificarla.",
+        "offerRejected": "El cliente rechazó la oferta.",
+        "converted": "La consulta se convirtió en reserva.",
+        "cancelled": "Esta consulta fue cancelada. No hace falta hacer nada más.",
+        "expired": "Esta consulta venció antes de reservarse.",
+        "paused": "Un coordinador pausó esta consulta. No hace falta hacer nada por ahora.",
+        "talentDeclined": "Un talento rechazó su invitación. Quizá quieras preparar una alternativa.",
+        "talentSwapped": "Un talento de la alineación fue reemplazado por otro.",
+        "coordAccepted": "El coordinador aceptó la asignación.",
+        "coordDeclined": "El coordinador rechazó la asignación.",
+        "counterStarted": "El coordinador inició una contraoferta.",
+        "coordinating": "{name} ahora coordina esta consulta.",
+        "notCoordinating": "{name} ya no coordina esta consulta.",
+        "approved": "{name} aprobó la oferta."
       },
       "pay": {
         "paidBy": "Pagado por {name}",

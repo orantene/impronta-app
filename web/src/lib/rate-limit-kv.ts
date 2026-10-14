@@ -43,6 +43,7 @@
  *   BEFORE the engine sendMessage; return code 'rate_limited' on failure.
  */
 
+import { runLimiter } from "@/lib/rate-limit-run";
 import type { GuestChatErrorCode } from "@/lib/inquiry/guest-chat-contract";
 
 // ---------------------------------------------------------------------------
@@ -249,6 +250,7 @@ interface KvLimiter {
   checkAuthAppleFinalizeByUser(key: string): Promise<KvRateLimitResult>;
   /** Support tickets: 5 creates / 60 min / user. */
   checkSupportTicketCreate(key: string): Promise<KvRateLimitResult>;
+  checkFeatureRequestCreate(key: string): Promise<KvRateLimitResult>;
   /** Support messages: 30 / 60 min / user. */
   checkSupportMessageSend(key: string): Promise<KvRateLimitResult>;
   /** Public booking slots: 60 / 60 s / IP. */
@@ -291,6 +293,9 @@ const noopLimiter: KvLimiter = {
     return { ok: true };
   },
   async checkSupportTicketCreate() {
+    return { ok: true };
+  },
+  async checkFeatureRequestCreate() {
     return { ok: true };
   },
   async checkSupportMessageSend() {
@@ -472,6 +477,14 @@ async function getLimiter(): Promise<KvLimiter> {
       analytics: false,
     });
 
+    // TUL-626: feature ideas get their own budget so they never eat the ticket one.
+    const featureRequestCreateLimiter = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(10, "60 m"),
+      prefix: "rl:feature_request_create",
+      analytics: false,
+    });
+
     const supportMessageSendLimiter = new Ratelimit({
       redis,
       limiter: Ratelimit.slidingWindow(60, "60 m"),
@@ -488,151 +501,63 @@ async function getLimiter(): Promise<KvLimiter> {
 
     _limiter = {
       async checkInquiryCreate(key: string): Promise<KvRateLimitResult> {
-        try {
-          const r = await inquiryCreateLimiter.limit(key);
-          if (r.success) return { ok: true };
-          const retryAfterMs = Math.max(0, r.reset - Date.now());
-          return { ok: false, code: "rate_limited", retryAfterMs };
-        } catch {
-          // Fail open on Redis error.
-          return { ok: true };
-        }
+        return runLimiter("checkInquiryCreate", inquiryCreateLimiter, key);
       },
 
       async checkInquiryCreateByIp(key: string): Promise<KvRateLimitResult> {
-        try {
-          const r = await inquiryCreateIpLimiter.limit(key);
-          if (r.success) return { ok: true };
-          const retryAfterMs = Math.max(0, r.reset - Date.now());
-          return { ok: false, code: "rate_limited", retryAfterMs };
-        } catch {
-          return { ok: true };
-        }
+        return runLimiter("checkInquiryCreateByIp", inquiryCreateIpLimiter, key);
       },
 
       async checkInquiryCreateByEmail(key: string): Promise<KvRateLimitResult> {
-        try {
-          const r = await inquiryCreateEmailLimiter.limit(key);
-          if (r.success) return { ok: true };
-          const retryAfterMs = Math.max(0, r.reset - Date.now());
-          return { ok: false, code: "rate_limited", retryAfterMs };
-        } catch {
-          return { ok: true };
-        }
+        return runLimiter("checkInquiryCreateByEmail", inquiryCreateEmailLimiter, key);
       },
 
       async checkMessageSend(key: string): Promise<KvRateLimitResult> {
-        try {
-          const r = await messageSendLimiter.limit(key);
-          if (r.success) return { ok: true };
-          const retryAfterMs = Math.max(0, r.reset - Date.now());
-          return { ok: false, code: "rate_limited", retryAfterMs };
-        } catch {
-          // Fail open on Redis error.
-          return { ok: true };
-        }
+        return runLimiter("checkMessageSend", messageSendLimiter, key);
       },
 
       async checkAuthOtpSendByEmail(key: string): Promise<KvRateLimitResult> {
-        try {
-          const r = await authOtpSendEmailLimiter.limit(key);
-          if (r.success) return { ok: true };
-          return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch {
-          // Fail open: an Upstash outage must not lock people out of signing in.
-          // The in-memory counter in otp-actions.ts remains as the floor.
-          return { ok: true };
-        }
+        return runLimiter("checkAuthOtpSendByEmail", authOtpSendEmailLimiter, key);
       },
 
       async checkAuthOtpSendByIp(key: string): Promise<KvRateLimitResult> {
-        try {
-          const r = await authOtpSendIpLimiter.limit(key);
-          if (r.success) return { ok: true };
-          return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch {
-          return { ok: true };
-        }
+        return runLimiter("checkAuthOtpSendByIp", authOtpSendIpLimiter, key);
       },
 
       async checkAuthOtpVerifyByEmail(key: string): Promise<KvRateLimitResult> {
-        try {
-          const r = await authOtpVerifyEmailLimiter.limit(key);
-          if (r.success) return { ok: true };
-          return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch {
-          return { ok: true };
-        }
+        return runLimiter("checkAuthOtpVerifyByEmail", authOtpVerifyEmailLimiter, key);
       },
 
       async checkAuthPasswordByEmail(key: string): Promise<KvRateLimitResult> {
-        try {
-          const r = await authPasswordEmailLimiter.limit(key);
-          if (r.success) return { ok: true };
-          return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch {
-          return { ok: true };
-        }
+        return runLimiter("checkAuthPasswordByEmail", authPasswordEmailLimiter, key);
       },
 
       async checkAuthPasswordByIp(key: string): Promise<KvRateLimitResult> {
-        try {
-          const r = await authPasswordIpLimiter.limit(key);
-          if (r.success) return { ok: true };
-          return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch {
-          return { ok: true };
-        }
+        return runLimiter("checkAuthPasswordByIp", authPasswordIpLimiter, key);
       },
 
       async checkAuthGoogleFinalizeByUser(key: string): Promise<KvRateLimitResult> {
-        try {
-          const r = await authGoogleFinalizeUserLimiter.limit(key);
-          if (r.success) return { ok: true };
-          return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch {
-          return { ok: true };
-        }
+        return runLimiter("checkAuthGoogleFinalizeByUser", authGoogleFinalizeUserLimiter, key);
       },
 
       async checkAuthAppleFinalizeByUser(key: string): Promise<KvRateLimitResult> {
-        try {
-          const r = await authAppleFinalizeUserLimiter.limit(key);
-          if (r.success) return { ok: true };
-          return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch {
-          return { ok: true };
-        }
+        return runLimiter("checkAuthAppleFinalizeByUser", authAppleFinalizeUserLimiter, key);
       },
 
       async checkSupportTicketCreate(key: string): Promise<KvRateLimitResult> {
-        try {
-          const r = await supportTicketCreateLimiter.limit(key);
-          if (r.success) return { ok: true };
-          return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch {
-          return { ok: true };
-        }
+        return runLimiter("checkSupportTicketCreate", supportTicketCreateLimiter, key);
+      },
+
+      async checkFeatureRequestCreate(key: string): Promise<KvRateLimitResult> {
+        return runLimiter("checkFeatureRequestCreate", featureRequestCreateLimiter, key);
       },
 
       async checkSupportMessageSend(key: string): Promise<KvRateLimitResult> {
-        try {
-          const r = await supportMessageSendLimiter.limit(key);
-          if (r.success) return { ok: true };
-          return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch {
-          return { ok: true };
-        }
+        return runLimiter("checkSupportMessageSend", supportMessageSendLimiter, key);
       },
 
       async checkBookingSlots(key: string): Promise<KvRateLimitResult> {
-        try {
-          const r = await bookingSlotsLimiter.limit(key);
-          if (r.success) return { ok: true };
-          return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
-        } catch {
-          return { ok: true };
-        }
+        return runLimiter("checkBookingSlots", bookingSlotsLimiter, key);
       },
     };
   } catch {
@@ -750,6 +675,12 @@ export async function checkAuthGoogleFinalizeByUser(key: string): Promise<KvRate
 export async function checkAuthAppleFinalizeByUser(key: string): Promise<KvRateLimitResult> {
   const limiter = await getLimiter();
   return limiter.checkAuthAppleFinalizeByUser(key);
+}
+
+/** Feature ideas: 10 per 60 minutes per user, separate from the ticket budget (TUL-626). */
+export async function checkFeatureRequestCreate(userId: string): Promise<KvRateLimitResult> {
+  const limiter = await getLimiter();
+  return limiter.checkFeatureRequestCreate(`feature_request:${userId}`);
 }
 
 /** Support tickets: 5 new tickets per 60 minutes per user. */

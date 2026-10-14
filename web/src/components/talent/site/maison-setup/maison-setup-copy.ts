@@ -4,7 +4,7 @@ export type MaisonSetupLocale = "en" | "es";
 const ES: Record<string, string> = {
   "Choose a design": "Elige un diseño",
   Today: "Hoy",
-  "Your free website": "Tu sitio web gratis",
+  "Your website": "Tu sitio web",
   "Find your website style": "Encuentra el estilo de tu sitio",
   // TUL-331 / G12: honest finished-gallery count (no aspirational library size).
   "{n} designs ready today. Preview any with your photos and services.":

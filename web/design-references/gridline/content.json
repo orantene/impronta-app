@@ -63,7 +63,7 @@
       },
       {
         "label": "Revisión",
-        "value": "$550"
+        "value": "Desde $500"
       }
     ],
     "badges": [
@@ -86,7 +86,7 @@
         },
         {
           "label": "Inspection",
-          "value": "$550"
+          "value": "From $500"
         }
       ]
     }
@@ -561,7 +561,7 @@
       },
       {
         "q": "¿Cobras por ir a ver?",
-        "a": "La revisión cuesta $550 y la pagas en la visita. Si decides reparar, te doy el precio antes."
+        "a": "La revisión cuesta desde $500 y la pagas en la visita. Si decides reparar, te doy el precio antes."
       },
       {
         "q": "¿Tú compras el material?",
@@ -784,7 +784,7 @@
         },
         {
           "q": "Do you charge to come look?",
-          "a": "The inspection is $550 and you pay on the visit. If you hire the repair, I quote the price first."
+          "a": "The inspection is from $500 and you pay on the visit. If you hire the repair, I quote the price first."
         },
         {
           "q": "Do you buy materials?",
