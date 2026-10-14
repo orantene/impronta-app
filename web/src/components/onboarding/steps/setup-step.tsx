@@ -20,6 +20,7 @@ import {
   setupCurrency,
   setupIssues,
   timezoneChoices,
+  timezoneWithBrowserFallback,
   type SetupIssue,
 } from "@/lib/onboarding/setup";
 import type { SetupPayload } from "@/lib/server-actions/onboarding-setup";
@@ -60,7 +61,7 @@ export function SetupStep({
   const [e, setE] = useState<Essentials>(() => ({
     ...setup.essentials,
     hours: setup.essentials.hours ?? defaultWeekFallback(),
-    timezone: setup.essentials.timezone ?? (needsTimezoneQuestion(country) ? browserTimezone() : null),
+    timezone: timezoneWithBrowserFallback(setup.essentials.timezone, browserTimezone()),
   }));
   const [edited, setEdited] = useState(false);
   const [providerEmail, setProviderEmail] = useState(setup.essentials.firstProviderEmail ?? "");

@@ -13,6 +13,7 @@ import {
   setupIssues,
   timeToMin,
   timezoneChoices,
+  timezoneWithBrowserFallback,
   toggleDay,
   TIMEZONE_OPTIONS,
   applyServiceCurrency,
@@ -115,4 +116,11 @@ test("TUL-16 b: the services currency defaults to the talent's own and can be ch
     { name: "B", durationMin: 30, priceCents: null, quote: true, currency: "USD", packKey: null },
   ];
   assert.deepEqual(applyServiceCurrency(rows, "MXN").map((r) => r.currency), ["MXN", "MXN"]);
+});
+
+test("TUL-815: the browser zone fills a missing zone silently, a saved zone wins", () => {
+  assert.equal(timezoneWithBrowserFallback(null, "America/Cancun"), "America/Cancun");
+  assert.equal(timezoneWithBrowserFallback("America/Mexico_City", "America/Cancun"), "America/Mexico_City");
+  assert.equal(timezoneWithBrowserFallback(null, "Not/AZone"), null);
+  assert.equal(timezoneWithBrowserFallback(null, null), null);
 });

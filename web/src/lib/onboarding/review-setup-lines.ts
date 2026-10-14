@@ -4,15 +4,15 @@
 
 import type { DayKey, Essentials, HourRange } from "./essentials";
 import type { FlowLocale } from "./flow";
-import { DAY_LABELS, DAY_ORDER } from "./setup";
+import { DAY_LABELS, DAY_ORDER, timezoneLabel } from "./setup";
 import { SETUP_COPY } from "./setup-copy";
 import { timeSlotLabel } from "./time-slots";
 
-export type ReviewLine = { id: "services" | "hours" | "place"; label: string; value: string };
+export type ReviewLine = { id: "services" | "hours" | "place" | "timezone"; label: string; value: string };
 
-const LABELS: Record<FlowLocale, { services: string; hours: string; place: string; closed: string }> = {
-  en: { services: "Services", hours: "Hours", place: "Where", closed: "Closed" },
-  es: { services: "Servicios", hours: "Horario", place: "Dónde", closed: "Cerrado" },
+const LABELS: Record<FlowLocale, { services: string; hours: string; place: string; timezone: string; closed: string }> = {
+  en: { services: "Services", hours: "Hours", place: "Where", timezone: "Time zone", closed: "Closed" },
+  es: { services: "Servicios", hours: "Horario", place: "Dónde", timezone: "Zona horaria", closed: "Cerrado" },
 };
 
 const same = (a: HourRange[], b: HourRange[]) =>
@@ -52,5 +52,6 @@ export function reviewSetupLines(e: Essentials | null, locale: FlowLocale): Revi
     const mode = SETUP_COPY[locale].placeModes[e.place.mode];
     out.push({ id: "place", label: l.place, value: e.place.area?.trim() ? `${mode}, ${e.place.area.trim()}` : mode });
   }
+  if (e.timezone?.trim()) out.push({ id: "timezone", label: l.timezone, value: timezoneLabel(e.timezone.trim()) });
   return out;
 }
