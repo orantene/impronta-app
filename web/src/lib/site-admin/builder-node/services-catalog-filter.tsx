@@ -57,6 +57,7 @@ import { catalogGroupNavLabel, catalogGroupTabKey } from "./catalog-group-nav";
 export { detailFor } from "./services-catalog-detail";
 
 export function ServicesCatalogFilter({
+  serviceHrefs,
   groups,
   locale,
   nav,
@@ -91,6 +92,8 @@ export function ServicesCatalogFilter({
   matrix = false,
   liveStatus = null,
 }: {
+  /** TUL-792: offering id -> its own service page; absent where no such page exists. */
+  serviceHrefs?: Record<string, string>;
   groups: CatalogGroup[];
   locale: string;
   nav: CatalogNavMode;
@@ -424,6 +427,7 @@ export function ServicesCatalogFilter({
                     <CatalogRow
                       key={item.id}
                       item={item}
+                      serviceHref={serviceHrefs?.[item.id]}
                       locale={locale}
                       showPhoto={showPhoto}
                       showDescription={showDescription}
@@ -531,6 +535,7 @@ export function ServicesCatalogFilter({
 
 export function CatalogRow({
   item,
+  serviceHref,
   locale,
   showPhoto,
   showDescription = true,
@@ -553,6 +558,8 @@ export function CatalogRow({
   onSelect,
 }: {
   item: TalentOffering;
+  /** TUL-792: the service's own page; the name links there when set. */
+  serviceHref?: string;
   locale: string;
   showPhoto: boolean;
   showDescription?: boolean;
@@ -646,7 +653,20 @@ export function CatalogRow({
       {photo && rowCard ? <span className="site-builder-node--services-catalog-thumb">{photo}</span> : photo}
       <span className="site-builder-node--services-catalog-copy">
         <strong className="site-builder-node--services-catalog-name" title={item.title}>
-          <span className="site-builder-node--services-catalog-name-text">{item.title}</span>
+          <span className="site-builder-node--services-catalog-name-text">
+            {serviceHref ? (
+              <a
+                href={serviceHref}
+                className="site-builder-node--services-catalog-name-link"
+                data-service-page-link=""
+                style={{ color: "inherit", textDecoration: "none" }}
+              >
+                {item.title}
+              </a>
+            ) : (
+              item.title
+            )}
+          </span>
           {selected ? (
             <span className="site-builder-node--services-catalog-check" aria-hidden>
               ✓
