@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import * as React from "react";
 
 import { useT } from "@/i18n/use-t";
@@ -50,7 +51,7 @@ export function usePlanChange(
 }
 
 function money(amountMinor: number, currency: string): string {
-  return new Intl.NumberFormat(undefined, { style: "currency", currency: currency.toUpperCase() }).format(amountMinor / 100);
+  return formatDashboardMoneyCents(amountMinor, currency);
 }
 
 export function PlanChangeConfirm({

@@ -7,6 +7,7 @@
  * visible. Read-only: every change happens in the portal.
  */
 
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import { useEffect, useState, useTransition } from "react";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import {
@@ -60,13 +61,7 @@ export function TalentBillingCard({ tenantSlug }: { tenantSlug: string }) {
   const sub = data.subscription;
   const day = (iso: string) =>
     new Date(iso).toLocaleDateString(loc, { year: "numeric", month: "short", day: "numeric" });
-  const money = (cents: number, currency: string) => {
-    try {
-      return new Intl.NumberFormat(loc, { style: "currency", currency }).format(cents / 100);
-    } catch {
-      return `${(cents / 100).toFixed(2)} ${currency}`;
-    }
-  };
+  const money = (cents: number, currency: string) => formatDashboardMoneyCents(cents, currency, loc);
 
   return (
     <div className="flex flex-col gap-4 text-sm">

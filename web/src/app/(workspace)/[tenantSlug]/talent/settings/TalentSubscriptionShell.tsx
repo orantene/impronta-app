@@ -63,7 +63,7 @@ const PLAN_META = {
   // to talent_portfolio still offers.
   talent_pro: {
     label: "Web Office",
-    price: "$9 / month",
+    price: "$9 USD / month",
     tagline: "Richer presentation and media embeds",
     color: C.violet,
     bg: C.violetSoft,
@@ -78,7 +78,7 @@ const PLAN_META = {
   },
   talent_portfolio: {
     label: "Web Office",
-    price: "$15 / month",
+    price: "$15 USD / month",
     tagline: "Your fully unlocked website with a custom domain",
     color: C.orange,
     bg: C.orangeSoft,
@@ -399,7 +399,7 @@ export function TalentSubscriptionShell({
 
       {/* Grandfathered Pro → the multi-page Web Office perks their plan key doesn't grant yet */}
       {stripeEnabled && planKey === "talent_pro" && !hasActiveSub && (
-        <UpgradeButton plan="talent_portfolio" tenantSlug={tenantSlug} label="Unlock the rest of Web Office — $15/mo" />
+        <UpgradeButton plan="talent_portfolio" tenantSlug={tenantSlug} label="Unlock the rest of Web Office — $15 USD/mo" />
       )}
 
       {/* Manage subscription (paid active subscribers) */}
