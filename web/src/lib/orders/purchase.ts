@@ -11,7 +11,7 @@ import {
 import { timedInstantMissingSlot } from "@/lib/scheduling/instant-book-hours";
 import { appointmentWindowFor } from "@/lib/scheduling/appointment-window";
 import { openPurchaseBooking } from "@/lib/orders/purchase-booking";
-import { openPurchaseThread } from "@/lib/orders/purchase-thread";
+import { openPurchaseThreadWithRetry } from "@/lib/orders/purchase-thread-retry";
 import { attributePurchaseBooking } from "@/lib/orders/purchase-attribution";
 import { commitOrderTalentHolds } from "@/lib/scheduling/commit-order-holds";
 import {
@@ -725,7 +725,7 @@ export async function createPurchase(
     // mirror) rides the same window so `/c/…` and the talent agenda agree.
     let inquiryId: string | null = null;
     if (input.openThread) {
-      inquiryId = await openPurchaseThread(admin, {
+      inquiryId = await openPurchaseThreadWithRetry(admin, {
         tenantId: input.tenantId,
         orderId: createdOrderId,
         actorUserId: input.actorUserId,
