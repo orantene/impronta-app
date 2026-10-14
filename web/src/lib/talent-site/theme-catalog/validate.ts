@@ -36,6 +36,7 @@ import {
 import { getGoogleFontMeta } from "@/lib/site-admin/builder-node/fonts-catalog";
 import { TOKEN_REGISTRY } from "@/lib/site-admin/tokens/registry";
 import { contrastRatio } from "@/lib/site-admin/tokens/contrast-pair";
+import { accountSlotPath } from "./account-slot-guard";
 import { TALENT_KIT_ALT_SLOTS } from "./section-kit-alt-slots";
 import {
   TALENT_KIT_SECTIONS,
@@ -305,6 +306,10 @@ export function validateDesign(payload: unknown): ThemeValidationResult {
     if (!shellRoles.has(landmark.originRole)) {
       errors.push(`shellTree: a Design needs a ${landmark.slotKey} landmark.`);
     }
+  }
+
+  if (accountSlotPath(shellTree) === "none") {
+    errors.push("shellTree: the header has no regions, so the client account entry has nowhere to render.");
   }
 
   checkDesignTokenDefaults(record?.tokenDefaults, errors);

@@ -16,9 +16,9 @@ test("every module step maps into exactly one of the 4 steps; fork is gone", () 
 
 test("step mapping follows the ticket", () => {
   assert.equal(flowStepOf("choose"), 1);
-  for (const s of ["entry", "listening", "confirmWords", "tooLittle", "reading", "understood"] as const) assert.equal(flowStepOf(s), 2, s);
-  for (const s of ["essentials", "setup", "question", "style", "readyToBuild"] as const) assert.equal(flowStepOf(s), 3, s);
-  for (const s of ["save", "code", "building", "arrival"] as const) assert.equal(flowStepOf(s), 4, s);
+  for (const s of ["entry", "listening", "confirmWords", "tooLittle", "reading", "understood", "essentials"] as const) assert.equal(flowStepOf(s), 2, s);
+  for (const s of ["setup", "style"] as const) assert.equal(flowStepOf(s), 3, s);
+  for (const s of ["readyToBuild", "save", "code", "building", "arrival"] as const) assert.equal(flowStepOf(s), 4, s);
 });
 
 test("locale default: Spanish for es-* and Mexico, saved choice wins", () => {

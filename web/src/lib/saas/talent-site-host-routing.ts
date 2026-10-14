@@ -50,12 +50,21 @@ const TALENT_SITE_PASSTHROUGH_PREFIXES = [
 /**
  * Exact auth paths for client OAuth on talent hosts (TUL-173 Google; Apple via
  * TUL-65 if present). Allow-list ONLY these — never the whole `/auth/` prefix
- * (sign-out, confirm, SSO must stay 404 on vanity domains).
+ * (sign-out, confirm, SSO mint must stay 404 on vanity domains).
+ *
+ * `/auth/sso` (TUL-691) is the SSO REDEEM endpoint only: it consumes a
+ * single-use, 2-minute token minted on the app host for this exact host, then
+ * mints a fresh host-only session. `/auth/sso/start` (mint) stays 404 here.
  */
 const TALENT_SITE_PASSTHROUGH_EXACT = new Set([
   "/auth/apple",
   "/auth/google",
   "/auth/callback",
+  // TUL-350: Stripe success/cancel return pages. Booking checkouts send the
+  // payer back to the host they paid on, so these two must resolve there.
+  "/checkout/success",
+  "/checkout/cancel",
+  "/auth/sso",
 ]);
 
 // `/account` itself is an exact path (a `/account` prefix would also pass `/accounts`).
@@ -100,6 +109,8 @@ const RESERVED_TALENT_SITE_SLUGS = new Set([
   // bare `/pay` or `/link` must not render as a talent page slug.
   "pay",
   "link",
+  // `/checkout/success|cancel` pass through; bare `/checkout` is not a page.
+  "checkout",
 ]);
 
 export type TalentSiteHostPath =

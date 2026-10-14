@@ -37,6 +37,7 @@ import { withLocaleHref } from "@/i18n/pathnames";
 import {
   getPricingLaddersCopy,
   localizeTierCadence,
+  customerTierName,
   localizeTierName,
   localizeTierPrice,
   type PricingLaddersCopy,
@@ -116,7 +117,7 @@ function buildCards(
     const salesLed = t.cadence === "" && !/\d/.test(t.price);
     return {
       key: t.key,
-      name: localizeTierName(t.name, locale),
+      name: localizeTierName(customerTierName(t.key, t.name), locale),
       price: salesLed ? c.salesLed : localizeTierPrice(t.price, locale),
       cadence: salesLed ? "" : localizeTierCadence(t.cadence, locale),
       line: tierCopy?.line ?? t.tagline,

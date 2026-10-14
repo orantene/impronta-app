@@ -22,6 +22,7 @@ import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { HQ, F, FD, FAMILY_COLORS } from "../_tokens";
 import { Pill } from "../_primitives";
+import { PLAN_TIER_LABEL_KEY } from "../../tenants/hq-kit";
 
 export function PackagesView({
   catalog,
@@ -174,7 +175,7 @@ function TierCard({
             letterSpacing: -0.1,
           }}
         >
-          {tier.name}
+          {PLAN_TIER_LABEL_KEY[tier.slug] ? t(PLAN_TIER_LABEL_KEY[tier.slug]) : tier.name}
         </span>
         {tier.isFeatured && (
           <Pill color={accent}>

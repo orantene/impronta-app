@@ -13,6 +13,7 @@ import type {
   CatalogEntryState,
   TemplateOverrideState,
   SendingDomainState,
+  NotificationCopyRow,
 } from "./email-data";
 import {
   addSuppression,
@@ -44,12 +45,14 @@ import {
   RateStat,
 } from "./email-console-widgets";
 import { SendLogTable, TemplateEditor } from "./email-console-sections";
+import { NotificationCopiesPanel } from "./NotificationCopiesPanel";
 
-type ConsoleTab = "overview" | "log" | "events" | "templates" | "domains" | "suppressions";
+type ConsoleTab = "overview" | "log" | "events" | "copies" | "templates" | "domains" | "suppressions";
 const CONSOLE_TABS: { key: ConsoleTab; labelKey: string }[] = [
   { key: "overview", labelKey: "dashboard.platform.email.tabOverview" },
   { key: "log", labelKey: "dashboard.platform.email.tabLog" },
   { key: "events", labelKey: "dashboard.platform.email.tabEvents" },
+  { key: "copies", labelKey: "dashboard.platform.email.tabCopies" },
   { key: "templates", labelKey: "dashboard.platform.email.tabTemplates" },
   { key: "domains", labelKey: "dashboard.platform.email.tabDomains" },
   { key: "suppressions", labelKey: "dashboard.platform.email.tabSuppressions" },
@@ -72,8 +75,9 @@ export function EmailConsoleClient(props: {
    * templates. Falls back to `["en", "es"]` when not provided.
    */
   adminLocales?: readonly string[];
+  copies?: NotificationCopyRow[];
 }) {
-  const { sendLog, metrics, suppressions, domain, catalog, templates, sendingDomains, adminEmail, nowMs, adminLocales = ["en", "es"] } = props;
+  const { sendLog, metrics, suppressions, domain, catalog, templates, sendingDomains, adminEmail, nowMs, adminLocales = ["en", "es"], copies = [] } = props;
   const t = useT();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -88,6 +92,7 @@ export function EmailConsoleClient(props: {
     overview: null,
     log: metrics.byStatus.failed ? <CountBadge n={metrics.byStatus.failed} tone="red" /> : null,
     events: null,
+    copies: copies.length ? <CountBadge n={copies.length} tone="muted" /> : null,
     templates: customized ? <CountBadge n={customized} tone="blue" /> : null,
     domains: unverified ? <CountBadge n={unverified} tone="amber" /> : null,
     suppressions: suppressions.length ? <CountBadge n={suppressions.length} tone="muted" /> : null,
@@ -161,6 +166,7 @@ export function EmailConsoleClient(props: {
       )}
       {tab === "log" && <SendLogTable rows={sendLog} nowMs={nowMs} onChanged={refresh} />}
       {tab === "events" && <EventToggles entries={catalog} onChanged={refresh} />}
+      {tab === "copies" && <NotificationCopiesPanel rows={copies} onChanged={refresh} />}
       {tab === "templates" && <TemplateEditor entries={templates} onChanged={refresh} adminLocales={adminLocales} />}
       {tab === "domains" && <SendingDomains entries={sendingDomains} onChanged={refresh} />}
       {tab === "suppressions" && <SuppressionPanel rows={suppressions} onChanged={refresh} />}

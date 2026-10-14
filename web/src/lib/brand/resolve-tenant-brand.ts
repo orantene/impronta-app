@@ -42,6 +42,12 @@ export type EmailBrand = {
    */
   recipientHasAccount?: boolean;
   /**
+   * TUL-G4: absolute "save your bookings" sign-in URL for a guest reading a
+   * client email. Set per-recipient by the email channel (client templates,
+   * recipient without an account); absent renders no line.
+   */
+  saveBookingsUrl?: string | null;
+  /**
    * Absolute URL of the tenant's brand logo, rendered in the email header in
    * place of the text wordmark. Sourced from `agency_branding.theme_json
    * .logo_url` — the same public projection the storefront shell and the

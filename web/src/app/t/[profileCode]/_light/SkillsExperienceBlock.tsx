@@ -6,6 +6,7 @@
  * --plt tokens only.
  */
 
+import { lightSectionLabels, proficiencyLabel, yearsLabel } from "./section-labels";
 import type { ResolvedSkill } from "@/lib/server-actions/admin-talent-skills.types";
 import { LightSectionLabel } from "./section-label";
 import { pickLocale } from "@/lib/i18n/pick-locale";
@@ -26,14 +27,6 @@ type SkillsExperienceBlockProps = {
   headingLabel: string;
 };
 
-const PROF_LABELS: Record<string, string> = {
-  beginner: "Beginner",
-  intermediate: "Intermediate",
-  advanced: "Advanced",
-  expert: "Expert",
-  master: "Master",
-};
-
 export function SkillsExperienceBlock({
   resolvedSkills,
   fitLabels,
@@ -49,6 +42,7 @@ export function SkillsExperienceBlock({
   headingLabel,
   locale,
 }: SkillsExperienceBlockProps) {
+  const labels = lightSectionLabels(locale);
   const hasResolvedSkills = resolvedSkills.length > 0;
   const hasAnyTaxonomy =
     (showFitLabels && fitLabels.length > 0) ||
@@ -70,11 +64,11 @@ export function SkillsExperienceBlock({
             const label =
               pickLocale(locale, { en: s.skill_name_en, es: s.skill_name_es || undefined });
             const profLabel = s.proficiency_level
-              ? PROF_LABELS[s.proficiency_level] ?? s.proficiency_level
+              ? proficiencyLabel(s.proficiency_level, locale)
               : null;
             const yrs =
               s.years_experience !== null && s.years_experience > 0
-                ? `${s.years_experience} yr${s.years_experience === 1 ? "" : "s"}`
+                ? yearsLabel(s.years_experience, locale)
                 : null;
 
             return (
@@ -100,7 +94,7 @@ export function SkillsExperienceBlock({
                     <span
                       className="text-[0.625rem]"
                       style={{ color: "var(--plt-forest)" }}
-                      aria-label="Verified skill"
+                      aria-label={labels.verifiedSkill}
                     >
                       ✓
                     </span>
@@ -124,18 +118,18 @@ export function SkillsExperienceBlock({
       {hasAnyTaxonomy ? (
         <div className="mt-5 space-y-4">
           {showFitLabels && fitLabels.length > 0 ? (
-            <ChipGroup label="Best for" chips={fitLabels} variant="accent" />
+            <ChipGroup label={labels.bestFor} chips={fitLabels} variant="accent" />
           ) : null}
           {showSkills && skills.length > 0 ? (
-            <ChipGroup label="Skills" chips={skills} />
+            <ChipGroup label={labels.skills} chips={skills} />
           ) : null}
           {showIndustries && industries.length > 0 ? (
-            <ChipGroup label="Industries" chips={industries} />
+            <ChipGroup label={labels.industries} chips={industries} />
           ) : null}
           {showEventTypes && eventTypes.length > 0 ? (
-            <ChipGroup label="Events" chips={eventTypes} />
+            <ChipGroup label={labels.events} chips={eventTypes} />
           ) : null}
-          {showTags && tags.length > 0 ? <ChipGroup label="Tags" chips={tags} /> : null}
+          {showTags && tags.length > 0 ? <ChipGroup label={labels.tags} chips={tags} /> : null}
         </div>
       ) : null}
     </section>

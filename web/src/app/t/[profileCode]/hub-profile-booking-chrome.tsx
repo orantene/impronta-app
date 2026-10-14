@@ -48,6 +48,7 @@ export async function HubProfileBookingChrome({
           talentProfileId={talentProfileId}
           sourcePage={sourcePage}
           locale={locale}
+          catalogSheetMounted={bookable}
         />
       ) : null}
     </>

@@ -43,6 +43,7 @@ export type {
 import type { InstantBookActionResult, InstantBookFormPayload } from "./instant-book-types";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { localizedBookingRefusal } from "@/lib/scheduling/instant-book-refusal-copy";
+import { readSiteReturnUrl } from "@/lib/inquiry/claim-return-url.server";
 
 export async function createInstantBookingAction(
   payload: InstantBookFormPayload,
@@ -202,6 +203,7 @@ export async function createInstantBookingAction(
               await unwindFailedCheckout(admin, {
                 orderId: booked.orderId,
                 transactionId: booked.transactionId,
+                bookingId: booked.bookingId,
                 allocationIds: booked.allocationIds,
                 reservationHoldId: booked.reservationHoldId,
                 why: "checkout_origin_unavailable",
@@ -254,6 +256,7 @@ export async function createInstantBookingAction(
               await unwindFailedCheckout(admin, {
                 orderId: booked.orderId,
                 transactionId: booked.transactionId,
+                bookingId: booked.bookingId,
                 allocationIds: booked.allocationIds,
                 reservationHoldId: booked.reservationHoldId,
                 why: "checkout_session_refused",
@@ -300,6 +303,7 @@ export async function createInstantBookingAction(
           kind: resolved.kind,
           email: resolved.contactEmail,
           tenantId: payload.tenantId,
+          returnUrl: await readSiteReturnUrl(),
         });
       },
     });
