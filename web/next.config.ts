@@ -470,6 +470,14 @@ const nextConfig: NextConfig = {
         source: "/:path*",
         headers: securityHeaders,
       },
+      /** TUL-445: `Vary: Cookie` on page HTML. The proxy sets it too, but Next
+       *  rewrites Vary/Cache-Control on dynamic page responses, so the proxy
+       *  value never reached the HTML (llms.txt/sitemap kept it). Static
+       *  assets, images and APIs are excluded so they stay cache-friendly. */
+      {
+        source: "/:path((?!_next/|api/|favicon\\.ico|robots\\.txt).*)",
+        headers: [{ key: "Vary", value: "Cookie" }],
+      },
     ];
   },
   /** Common typo: inqueries → the talent inbox (the talent inquiry surface is
