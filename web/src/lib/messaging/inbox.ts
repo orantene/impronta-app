@@ -35,6 +35,9 @@ type InquiryRow = {
   version: number;
 };
 
+/** Upper bound on rows one inbox load reads (newest first). */
+export const INBOX_ROW_LIMIT = 1000;
+
 export async function loadMessagingInbox(
   admin: Admin,
   input: {
@@ -58,7 +61,7 @@ export async function loadMessagingInbox(
   query = input.onlyInquiryIds
     ? query.in("id", [...input.onlyInquiryIds])
     : query.eq("tenant_id", input.tenantId);
-  const { data, error } = await query;
+  const { data, error } = await query.limit(INBOX_ROW_LIMIT);
   if (error) return { ok: false, reason: "unavailable" };
 
   const inquiries = (data ?? []) as InquiryRow[];
