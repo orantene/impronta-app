@@ -123,3 +123,21 @@ test("TUL-1035: the snapshot expires and the echo guard is short", () => {
   clearCatalogDone();
 });
 
+test("TUL-1025: the time step says what is missing while Continuar is disabled", async () => {
+  clearCatalogDone();
+  const m = mount();
+  act(() => {
+    dom.window.dispatchEvent(new dom.window.CustomEvent("tulala:offering-instant", { detail: { ...DETAIL, offeringId: "off-hint", startAt: "when" } }));
+  });
+  await act(async () => { await new Promise((r) => setTimeout(r, 40)); });
+  const cta = m.host.querySelector<HTMLButtonElement>('[data-catalog-continue="when"]')!;
+  assert.equal(cta.disabled, true);
+  const hint = m.host.querySelector("[data-catalog-when-hint]");
+  assert.equal(hint?.textContent, "Elige una hora para continuar.");
+  assert.equal(cta.getAttribute("aria-describedby"), "jb-when-hint");
+  act(() => m.host.querySelector<HTMLButtonElement>(".jb-times .jb-time")!.click());
+  assert.equal(cta.disabled, false);
+  assert.equal(m.host.querySelector("[data-catalog-when-hint]"), null);
+  act(() => m.root.unmount());
+  m.host.remove();
+});

@@ -635,6 +635,9 @@ export function CatalogBookingSheet({
                   onPickTime={setTime}
                 />
               )}
+              {!selectedTime && (mode !== "live" || (slotsReady && liveDays.some((d) => d.starts.length > 0))) ? (
+                <p id="jb-when-hint" className="jb-fixture" data-catalog-when-hint="">{es ? "Elige una hora para continuar." : "Pick a time to continue."}</p>
+              ) : null}
             </>
           ) : null}
 
