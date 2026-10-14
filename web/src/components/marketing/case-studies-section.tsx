@@ -193,7 +193,7 @@ function CaseStudyCard({
           className="mt-4 flex items-center gap-1.5 pt-1 text-[0.8125rem] font-medium"
           style={{ color: "var(--plt-forest)" }}
         >
-          <span>{study.persona}</span>
+          <span className="whitespace-nowrap">{study.persona}</span>
           <span style={{ color: "var(--plt-hairline-strong)" }}>·</span>
           <span style={{ color: "var(--plt-muted)" }}>{study.role}</span>
         </div>
