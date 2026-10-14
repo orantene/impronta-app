@@ -71,7 +71,7 @@ async function plantBrowserSession(page: Page) {
   });
 }
 
-async function assertSignedOutEverywhere(page: Page, context: BrowserContext) {
+async function assertSignedOutEverywhere(page: Page, context: BrowserContext, checkStorage: boolean) {
   for (const origin of HOSTS) {
     await page.goto(`${origin}/login`, { waitUntil: "domcontentloaded" });
     await page.reload({ waitUntil: "domcontentloaded" });
@@ -80,7 +80,7 @@ async function assertSignedOutEverywhere(page: Page, context: BrowserContext) {
     const stored = await page.evaluate(() =>
       [...Object.keys(localStorage), ...Object.keys(sessionStorage)].filter((k) => k.startsWith("sb-")),
     );
-    if (origin === HOSTS[0]) expect(stored, "browser Supabase session cleared").toEqual([]);
+    if (checkStorage && origin === HOSTS[0]) expect(stored, "browser Supabase session cleared").toEqual([]);
     // /account must not render a signed-in page after sign-out.
     await gotoSettled(page, `${origin}/account`);
     await expect(page.getByText(new RegExp(FX.email, "i"))).toHaveCount(0);
@@ -119,10 +119,23 @@ async function gotoSettled(page: Page, url: string) {
 }
 
 /** Each Log out entry point, driven the way the product drives it. */
-const ENTRY_POINTS: { name: string; run: (page: Page) => Promise<void> }[] = [
+//
+// `clientJs`: whether the entry runs the product's browser-side cleanup
+// (`clearBrowserAuthState`, called by SignOutForm onSubmit and by
+// signOutEverywhere). The two synthetic-form entries below POST straight to
+// the route to pin the SERVER contract (303, no-store, every cookie scope
+// expired, nothing re-minted) and never run that JS. Browser storage is not
+// something a server response can clear here: the route sends only
+// Clear-Site-Data "cache", and Clear-Site-Data needs a secure context anyway
+// (http://*.lvh.me is not one). So the localStorage/sessionStorage
+// `sb-*` assertion applies only where the product's real control runs.
+// The helper's storage sweep is pinned by
+// src/lib/auth/sign-out-root-cause.security.test.ts.
+const ENTRY_POINTS: { name: string; clientJs: boolean; run: (page: Page) => Promise<void> }[] = [
   {
     // SignOutForm (headers, account menus, admin bars, marketing header).
     name: "declarative SignOutForm POST /auth/sign-out",
+    clientJs: false,
     run: async (page) => {
       await page.evaluate(() => {
         const f = document.createElement("form");
@@ -136,6 +149,7 @@ const ENTRY_POINTS: { name: string; run: (page: Page) => Promise<void> }[] = [
   {
     // signOutEverywhere(CLIENT_SIGN_OUT_PATH): talent-host popover.
     name: "client popover POST /auth/client-sign-out",
+    clientJs: false,
     run: async (page) => {
       await page.evaluate(() => {
         const f = document.createElement("form");
@@ -149,6 +163,7 @@ const ENTRY_POINTS: { name: string; run: (page: Page) => Promise<void> }[] = [
   {
     // Whatever visible Log out control the page renders (first click only).
     name: "visible Log out control, first click",
+    clientJs: true,
     run: async (page) => {
       await gotoSettled(page, `${HOSTS[0]}/account`);
       const control = page
@@ -191,7 +206,7 @@ test.describe("S1 sign-out ends the session on every subdomain", () => {
       await expect(page.getByRole("button", { name: /open account menu/i })).toBeVisible({
         timeout: 60_000,
       });
-      await plantBrowserSession(page);
+      if (entry.clientJs) await plantBrowserSession(page);
 
       const signOut = page.waitForResponse(
         (r) => /\/auth\/(client-)?sign-out$/.test(new URL(r.url()).pathname) && r.request().method() === "POST",
@@ -208,7 +223,7 @@ test.describe("S1 sign-out ends the session on every subdomain", () => {
       expect(minted.map((h) => h.value)).toEqual([]);
       await page.waitForLoadState("domcontentloaded");
 
-      await assertSignedOutEverywhere(page, context);
+      await assertSignedOutEverywhere(page, context, entry.clientJs);
     });
   }
 });
