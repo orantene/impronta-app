@@ -374,6 +374,15 @@ export const APP_API_PREFIXES = [
 ] as const;
 
 /**
+ * TUL-872: exact API paths a hub host reaches. The `/t/<code>` profile page on
+ * a hub host (hub.tulala.digital, pay.*) asks who is signed in; without this
+ * the gate 404'd it and the guest chat's "Reservar" never knew the client was
+ * signed in. Exactly this path; the rest of `/api/client` stays agency + app.
+ * The route itself is still flag-gated (CLIENT_ACCOUNT_HOSTS must list `hub`).
+ */
+export const HUB_API_EXACT_PATHS = ["/api/client/account"] as const;
+
+/**
  * TUL-87 — media APIs the page builder calls from a hub workspace site.
  *
  * A workspace without a custom domain is edited at
