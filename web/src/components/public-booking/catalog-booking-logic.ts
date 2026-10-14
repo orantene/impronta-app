@@ -419,10 +419,16 @@ export function catalogMonthShort(date: Date, es: boolean): string {
 }
 
 /** Full slot label: "Lunes 12 de ene, 10:00" / "Monday 12 Jan, 10:00". */
-export function catalogSlotDateLabel(date: Date, time: string, es: boolean): string {
-  const day = (es ? DAYS_ES : DAYS_EN)[date.getDay()] ?? "";
-  const month = (es ? MONTHS_ES : MONTHS_EN)[date.getMonth()] ?? "";
-  return `${day} ${date.getDate()} ${es ? "de" : ""} ${month}, ${time}`.replace(/\s+/g, " ").trim();
+/**
+ * TUL-1022: THE date/time line of a booking, shared by the details recap and
+ * the confirmation so both read "Miércoles 14 oct, 15:00 · Hora de Cancún" /
+ * "Wednesday Oct 14, 15:00 · Cancún time". `tz` is the live venue zone (null
+ * in the demo preview, which has no zone to name).
+ */
+export function catalogBookingWhenLabel(date: Date, time: string, tz: string | null, es: boolean): string {
+  const zone = tz ? catalogTimezoneLabel(tz, es) : "";
+  const when = `${catalogSelectedDateLabel(date, es)}, ${time}`;
+  return zone ? `${when} · ${zone}` : when;
 }
 
 /** TUL-59: persistent selected-date label above the slots, "Miércoles 7 oct" / "Wednesday Oct 7". */

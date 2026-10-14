@@ -27,7 +27,8 @@ test("the slot picker's endpoint is reachable on every public surface", () => {
     join(SRC, "components/public-booking/SlotPicker.tsx"),
     "utf8",
   );
-  const match = picker.match(/fetch\(\s*`(\/api\/[^?`]+)/);
+  // TUL-977: the fetch goes through `loadPublicSlots` (a deadline), same literal URL.
+  const match = picker.match(/(?:fetch|loadPublicSlots)\(\s*`(\/api\/[^?`]+)/);
   assert.ok(match, "SlotPicker no longer fetches a literal /api path — repoint this test");
   const path = match[1];
 

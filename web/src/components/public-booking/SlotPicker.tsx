@@ -7,6 +7,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { translatorFor, useT } from "@/i18n/use-t";
+import { loadPublicSlots } from "./slot-picker-load";
 
 export type SlotPickerValue = {
   startsAt: string;
@@ -87,33 +88,20 @@ export function SlotPicker({
       from,
       days: String(days),
     });
-    fetch(`/api/public/booking/slots?${params.toString()}`, { cache: "no-store" })
-      .then(async (res) => {
-        const body = (await res.json()) as {
-          slots?: string[];
-          timezone?: string;
-          error?: string;
-          reason?: string;
-        };
-        if (cancelled) return;
-        if (!res.ok) {
-          setSlots([]);
-          setEmptyReason(null);
-          setError(t("public.slotPicker.unavailable"));
-          return;
-        }
-        setSlots(Array.isArray(body.slots) ? body.slots : []);
-        setEmptyReason(typeof body.reason === "string" ? body.reason : null);
-        if (typeof body.timezone === "string" && body.timezone.trim()) {
-          setResolvedTz(body.timezone.trim());
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setError(t("public.slotPicker.unavailable"));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    setSlots([]);
+    setEmptyReason(null);
+    // TUL-977: a deadline, so a slow endpoint resolves to an honest state.
+    void loadPublicSlots(`/api/public/booking/slots?${params.toString()}`).then((r) => {
+      if (cancelled) return;
+      if (!r.ok) {
+        setError(t("public.slotPicker.unavailable"));
+      } else {
+        setSlots(r.slots);
+        setEmptyReason(r.reason);
+        if (r.timezone) setResolvedTz(r.timezone);
+      }
+      setLoading(false);
+    });
     return () => {
       cancelled = true;
     };
@@ -137,9 +125,12 @@ export function SlotPicker({
         {t("public.slotPicker.subtitle")}
       </p>
       {loading ? (
-        <p className="mt-3 text-xs" style={{ color: MUTED }}>
-          {t("public.slotPicker.loading")}
-        </p>
+        <div className="mt-3 flex flex-col gap-1.5" role="status" aria-busy="true" data-testid="slot-picker-skeleton">
+          <span className="sr-only">{t("public.slotPicker.loading")}</span>
+          {[0, 1, 2].map((i) => (
+            <span key={i} aria-hidden="true" className="block h-9 animate-pulse rounded-lg bg-[rgba(24,24,27,0.06)]" />
+          ))}
+        </div>
       ) : error ? (
         <p className="mt-3 text-xs text-[#dc2626]">{error}</p>
       ) : slots.length === 0 ? (
