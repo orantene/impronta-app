@@ -71,7 +71,6 @@ async function failOpen(
     body: supportAiErrorBody(appLocale),
     messageKind: "card",
     cardPayload: supportAiErrorCard(appLocale),
-import { decideAiTurn } from "@/lib/support/support-ai-turn";
     aiMeta: { fail_open: reason },
     skipNotify: true,
   });
