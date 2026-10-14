@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { assertTestKey, lookupKeyFor, plannedPrices } from "./seed-stripe-test-prices.mjs";
+import { PLAN_CATALOG } from "../src/lib/access/plan-catalog";
+import { assertTestKey, lookupKeyFor, PLAN_TIER_SLUGS, plannedPrices } from "./seed-stripe-test-prices.mjs";
 
 const tiers = [
   { id: "t1", slug: "pro", name: "Pro", is_active: true },
@@ -45,4 +46,21 @@ test("skips sale windows, non-USD, inactive tiers, unknown tiers and empty amoun
 
 test("lookup keys are stable per plan and interval", () => {
   assert.equal(lookupKeyFor("studio", "year"), "tulala_studio_year_usd");
+});
+
+// TUL-839: the TEST lookup_keys seeded earlier still price what the catalog says.
+test("seeded TEST lookup_keys match the plan catalog amounts", () => {
+  const seeded: [string, number, number][] = [
+    ["talent_pro", 900, 9000],
+    ["talent_portfolio", 1500, 15000],
+    ["studio", 2900, 29000],
+    ["agency", 7900, 79000],
+  ];
+  for (const [plan, month, year] of seeded) {
+    assert.ok(plan in PLAN_TIER_SLUGS, `${plan} is seeded`);
+    assert.equal(lookupKeyFor(plan, "month"), `tulala_${plan}_month_usd`);
+    const def = PLAN_CATALOG[plan as keyof typeof PLAN_CATALOG];
+    assert.equal(def.monthlyPriceCents, month, `${plan} month`);
+    assert.equal(def.annualPriceCents, year, `${plan} year`);
+  }
 });

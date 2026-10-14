@@ -61,7 +61,12 @@ export type TalentEntitlement =
   /** Booking-assistant AI credits at the paid band. */
   | "ai.paidCredits"
   /** The Max site link shown on the profile. */
-  | "personalSite.link";
+  | "personalSite.link"
+  /**
+   * TUL-839 (DEC-17): Instagram, TikTok and WhatsApp links on the site. Pro and
+   * Web Office per the approved tier table. Read by `webOfficeSocialEnabled`.
+   */
+  | "profile.socialLinks";
 
 export const TALENT_ENTITLEMENTS: Readonly<
   Record<TalentEntitlementPlanKey, ReadonlySet<TalentEntitlement>>
@@ -80,6 +85,7 @@ export const TALENT_ENTITLEMENTS: Readonly<
     "personalSiteTemplate",
     "personalSiteDesignPresets",
     "profile.noPlatformBadge",
+    "profile.socialLinks",
     "ai.paidCredits",
   ]),
   talent_portfolio: new Set<TalentEntitlement>([
@@ -101,6 +107,7 @@ export const TALENT_ENTITLEMENTS: Readonly<
     "booking.instant",
     "ai.paidCredits",
     "personalSite.link",
+    "profile.socialLinks",
   ]),
 };
 

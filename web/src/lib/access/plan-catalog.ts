@@ -318,6 +318,45 @@ export function planDisplayName(key: PlanKey): string {
   return getPlan(key).displayName;
 }
 
+/**
+ * TUL-839 Spanish plan names (approved tier table, 2026-10-14). A key missing
+ * here reads the English name, which is the right answer for brand-like names
+ * ("Pro", "Studio", "Network").
+ */
+const PLAN_DISPLAY_NAME_ES: Partial<Record<PlanKey, string>> = {
+  free: "Gratis",
+  website: "Sitio web",
+  agency: "Agencia",
+  legacy: "Heredado",
+  talent_basic: "Gratis",
+};
+
+/** Spanish names for the talent-tier labels, keyed by the English display name (covers the dark-build overlay). */
+const TALENT_DISPLAY_NAME_ES: Readonly<Record<string, string>> = {
+  "Web Office": "Oficina Web",
+  Portfolio: "Portafolio",
+};
+
+/**
+ * The plan name in the reader's language. Every screen that prints a plan name
+ * (pricing, platform admin) reads it here, never from a local map.
+ */
+export function planDisplayNameFor(key: PlanKey, locale: string | null | undefined): string {
+  const en = planDisplayName(key);
+  if (!(locale ?? "").trim().toLowerCase().startsWith("es")) return en;
+  return PLAN_DISPLAY_NAME_ES[key] ?? TALENT_DISPLAY_NAME_ES[en] ?? en;
+}
+
+/**
+ * Name for a raw plan key read from the database. Unknown keys (a plan the
+ * catalog has never heard of) print as-is so nothing is hidden.
+ */
+export function planLabel(key: string | null | undefined, locale?: string | null): string {
+  const k = (key ?? "").trim();
+  if (!k) return "";
+  return isKnownPlan(k) ? planDisplayNameFor(k, locale) : k;
+}
+
 /** Plans visible on the public pricing page, in display order. Workspace audience. */
 export function getVisibleWorkspacePlans(): PlanDef[] {
   return Object.values(PLAN_CATALOG)

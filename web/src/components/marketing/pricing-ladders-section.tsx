@@ -36,9 +36,9 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import {
   getPricingLaddersCopy,
   localizeTierCadence,
-  customerTierName,
-  localizeTierName,
   localizeTierPrice,
+  pricingTierFeatured,
+  pricingTierName,
   type PricingLaddersCopy,
 } from "@/lib/marketing/pricing-ladders-copy";
 import {
@@ -142,12 +142,13 @@ function buildCards(
         : null;
     return {
       key: t.key,
-      name: localizeTierName(customerTierName(t.key, t.name), locale),
+      // TUL-839: name, bullets and "most popular" come from the plan catalog.
+      name: pricingTierName(packageSlug, t.key, t.name, locale),
       price: salesLed ? c.salesLed : localizeTierPrice(t.price, locale),
       cadence: salesLed ? "" : localizeTierCadence(t.cadence, locale),
       line: tierCopy?.line ?? t.tagline,
       bullets: tierCopy ? [...tierCopy.bullets] : t.highlights,
-      featured: t.featured,
+      featured: pricingTierFeatured(packageSlug, t.key, t.featured),
       isOnSale: t.isOnSale && !salesLed,
       canonicalPrice: t.canonicalPrice,
       yearly,
