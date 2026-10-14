@@ -213,6 +213,7 @@ test("live confirm: answers ride brief.intake on the one submit (nothing before)
   act(() => host.querySelector<HTMLButtonElement>('[data-catalog-continue="when"]')!.click());
   typeInto(host.querySelector<HTMLInputElement>('[data-testid="cb-name"]')!, "Vale Demo");
   typeInto(host.querySelector<HTMLInputElement>('[data-testid="cb-email"]')!, "vale@example.com");
+  typeInto(host.querySelector<HTMLInputElement>('[data-testid="cb-phone"]')!, "5551112233");
   await act(async () => {
     host.querySelector<HTMLButtonElement>('[data-catalog-continue="who"]')!.click();
     await new Promise((r) => setTimeout(r, 60));

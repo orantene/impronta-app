@@ -33,6 +33,8 @@ export type OfferingTaskBrief = {
   task_id?: string;
   task_label?: string;
   note?: string;
+  /** The guest's optional "Notas" from the booking form (max 500). Read by the talent in the thread. */
+  guest_note?: string;
   /** Gridline G13: answers to the service's intake questions (offering-intake.ts). */
   intake?: IntakeAnswerRecord[];
 };
@@ -59,6 +61,7 @@ export function taskBriefFrom(
   task: Partial<OfferingTaskRef> | null | undefined,
   note: unknown,
   intake?: unknown,
+  guestNote?: unknown,
 ): OfferingTaskBrief | null {
   const out: OfferingTaskBrief = {};
   const answers = clampIntakeRecords(intake);
@@ -66,6 +69,8 @@ export function taskBriefFrom(
   const id = clean(task?.id, LABEL_MAX);
   const label = clean(task?.label, LABEL_MAX);
   const n = clean(note, TASK_NOTE_MAX);
+  const g = clean(guestNote, TASK_NOTE_MAX);
+  if (g) out.guest_note = g;
   if (id) out.task_id = id;
   if (label) out.task_label = label;
   if (n) out.note = n;
@@ -86,7 +91,7 @@ export function taskNoteHint(locale: string): string {
 /** Re-clamp a brief that arrived from the client (server side). */
 export function clampTaskBrief(b: OfferingTaskBrief | null | undefined): OfferingTaskBrief | null {
   if (!b || typeof b !== "object") return null;
-  return taskBriefFrom({ id: b.task_id, label: b.task_label }, b.note, b.intake);
+  return taskBriefFrom({ id: b.task_id, label: b.task_label }, b.note, b.intake, b.guest_note);
 }
 
 /**
@@ -110,4 +115,11 @@ export function briefFromDetail(
   if (!d) return null;
   const intake = intakeAnswerRecords(d.intake, d.answers);
   return taskBriefFrom(d.task ?? null, d.task && keepNote ? d.note : null, intake);
+}
+
+/** Adds the guest's free-form note (clamped) to a brief; creates the brief when it was null. */
+export function withGuestNote(brief: OfferingTaskBrief | null, guestNote: unknown): OfferingTaskBrief | null {
+  const g = clean(guestNote, TASK_NOTE_MAX);
+  if (!g) return brief;
+  return { ...(brief ?? {}), guest_note: g };
 }

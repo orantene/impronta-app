@@ -43,6 +43,7 @@ export type {
 import type { InstantBookActionResult, InstantBookFormPayload } from "./instant-book-types";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { localizedBookingRefusal } from "@/lib/scheduling/instant-book-refusal-copy";
+import { guestPhoneError, normalizeGuestPhone } from "@/lib/phone/guest-phone";
 import { readSiteReturnUrl } from "@/lib/inquiry/claim-return-url.server";
 
 export async function createInstantBookingAction(
@@ -70,6 +71,11 @@ export async function createInstantBookingAction(
         : await loadTalentPreferredLocale(payload.talentProfileId),
       platformDefault: requestLocale,
     });
+
+    // Phone (WhatsApp) is required on every guest booking; stored as E.164.
+    const phoneE164 = normalizeGuestPhone(payload.contactPhone);
+    if (!phoneE164) return { ok: false, error: guestPhoneError(payload.contactPhone, bookingLocale) ?? "" };
+    payload = { ...payload, contactPhone: phoneE164 };
 
     const requireAccount = await loadOfferingRequireAccount(payload.offeringId);
     // TUL-436: a service at the client's place needs an address; the offering decides, not the sheet.

@@ -876,7 +876,7 @@
       "form": {
         "nameLabel": "Your name",
         "emailLabel": "Email",
-        "phoneLabel": "Phone (optional)",
+        "phoneLabel": "Phone / WhatsApp",
         "messageLabel": "Your message",
         "messagePlaceholder": "Tell us about your project: dates, location, what you are looking for…",
         "submit": "Send inquiry",
@@ -1489,7 +1489,7 @@
       "requesterNamePlaceholder": "Your full name",
       "requesterEmail": "Email",
       "requesterEmailPlaceholder": "you@brand.com",
-      "requesterPhone": "Phone or WhatsApp",
+      "requesterPhone": "Phone / WhatsApp",
       "requesterPhonePlaceholder": "+52 …",
       "trustLoggedInTitle": "Logged-in client",
       "trustVerifiedEmail": "Verified email",

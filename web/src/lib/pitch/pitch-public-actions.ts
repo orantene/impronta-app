@@ -19,6 +19,7 @@
  * attribution. Anonymous viewers have viewerUserId = null.
  */
 
+import { guestPhoneError, normalizeGuestPhone } from "@/lib/phone/guest-phone";
 import {
   approvePitch as approvePitchEngine,
   convertPitchToInquiry as convertPitchEngine,
@@ -117,12 +118,17 @@ export async function convertPitchToInquiryAction(
   input: Omit<ConvertPitchInput, "recipientUserId">,
 ): Promise<PitchResult<ConvertedPitchOutput>> {
   await requireNotImpersonating();
+  const phone = normalizeGuestPhone(input.contactInfo?.phone);
+  if (!phone) {
+    return { ok: false, reason: "validation_failed", message: guestPhoneError(input.contactInfo?.phone, "en") ?? undefined } as PitchResult<ConvertedPitchOutput>;
+  }
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, reason: "internal_error" };
   try {
     const recipientUserId = await viewerUserId();
     return await convertPitchEngine(admin, {
       ...input,
+      contactInfo: { ...input.contactInfo, phone },
       recipientUserId,
     });
   } catch (e) {

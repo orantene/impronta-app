@@ -317,7 +317,7 @@ test("who-step ask CTA refuses without WhatsApp and shows the ask link", () => {
   // Nombre + WhatsApp required — no handoff, sheet stays open.
   assert.equal(handoffs.length, 0);
   assert.ok(host.querySelector("[data-catalog-ask]"));
-  assert.match(host.textContent ?? "", /WhatsApp hace falta para chatear/);
+  assert.match(host.textContent ?? "", /teléfono hace falta para chatear/);
   assert.equal(book.calls.length, 0);
   act(() => root.unmount());
   host.remove();
@@ -618,6 +618,7 @@ test("DS-4: a taken slot returns to the time step WITH the message and 3 alterna
   };
   set(host.querySelector<HTMLInputElement>('[data-testid="cb-name"]')!, "Vale Demo");
   set(host.querySelector<HTMLInputElement>('[data-testid="cb-email"]')!, "vale@example.com");
+  set(host.querySelector<HTMLInputElement>('[data-testid="cb-phone"]')!, "5551112233");
   const confirm = host.querySelector<HTMLButtonElement>('[data-catalog-continue="who"]');
   assert.ok(confirm);
   await act(async () => {
