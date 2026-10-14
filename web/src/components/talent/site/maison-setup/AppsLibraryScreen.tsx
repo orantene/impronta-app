@@ -75,11 +75,17 @@ export function AppsLibraryScreen({
   onOpenApp,
   onBack,
   onClose,
+  /**
+   * live1 app-back (TUL-536): presence Apps tile / live site → "My website".
+   * First-time setup (no live site yet) keeps "Today".
+   */
+  fromLiveSite = false,
 }: {
   locale: MaisonSetupLocale;
   onOpenApp: (appId: string) => void;
   onBack: () => void;
   onClose: () => void;
+  fromLiveSite?: boolean;
 }) {
   const bridge = useAdminShellOptional()?.bridgeTalentSelfProfile;
   const tradeLabel = bridge?.primaryTypeLabel ?? null;
@@ -88,6 +94,9 @@ export function AppsLibraryScreen({
   const all = allLibraryApps();
   const upgradeHintFor = (app: AppLibraryEntry) =>
     isPremiumApp(app) && !canAddPremium;
+  const backLabel = fromLiveSite
+    ? maisonSetupT(locale, "My website")
+    : maisonSetupT(locale, "Today");
 
   return (
     <section
@@ -101,9 +110,11 @@ export function AppsLibraryScreen({
             type="button"
             onClick={onBack}
             data-testid="apps-library-back"
+            data-back-context={fromLiveSite ? "my-website" : "today"}
+            aria-label={backLabel}
             className="min-h-11 shrink-0 text-[13.5px] font-semibold text-admin-ink"
           >
-            ‹ {maisonSetupT(locale, "Today")}
+            ‹ {backLabel}
           </button>
           <div className="min-w-0 flex-1 text-center">
             <h1 className="text-[15px] font-semibold text-admin-ink">
