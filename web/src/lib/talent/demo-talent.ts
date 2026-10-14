@@ -14,6 +14,21 @@ export const DEMO_SITE_FOOTER = {
   en: "Bookings are disabled.",
 } as const;
 
+/** While the demo's booking switch is on, its widget offers (simulated) slots. */
+export const DEMO_SITE_FOOTER_SIMULATED = {
+  es: "Las reservas son simuladas.",
+  en: "Bookings are simulated.",
+} as const;
+
+/**
+ * The demo footer line. It must agree with the booking widget, so it follows
+ * the same `talent_sites.accepting_bookings` switch the slots API reads.
+ */
+export function demoSiteFooterText(locale: string, acceptingBookings: boolean): string {
+  const copy = acceptingBookings ? DEMO_SITE_FOOTER_SIMULATED : DEMO_SITE_FOOTER;
+  return locale.toLowerCase().startsWith("es") ? copy.es : copy.en;
+}
+
 export const DEMO_SUBMIT_REFUSAL =
   "Este es un perfil de demostración: no recibe mensajes ni reservas reales. / This is a demo profile: it does not take real messages or bookings.";
 

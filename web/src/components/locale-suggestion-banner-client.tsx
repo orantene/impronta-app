@@ -9,6 +9,25 @@ import {
 } from "@/i18n/locale-cookies";
 import { cn } from "@/lib/utils";
 
+/** Session backup: a cookie reset or blocked cookies must not bring "No thanks" back on the next view (live2b-05, #3367). */
+const DISMISS_SESSION_KEY = "tulala_locale_suggest_dismissed";
+
+function readDismissedInSession(): boolean {
+  try {
+    return Boolean(window.sessionStorage.getItem(DISMISS_SESSION_KEY));
+  } catch {
+    return false;
+  }
+}
+
+function writeDismissedInSession(): void {
+  try {
+    window.sessionStorage.setItem(DISMISS_SESSION_KEY, "1");
+  } catch {
+    /* storage blocked: the cookie is the only memory */
+  }
+}
+
 /**
  * The visible half of the language suggestion banner.
  *
@@ -64,6 +83,10 @@ export function LocaleSuggestionBannerClient({
   const [settled, setSettled] = useState(false);
 
   useEffect(() => {
+    if (readDismissedInSession()) {
+      setHidden(true);
+      return;
+    }
     let timer: ReturnType<typeof setTimeout> | undefined;
     const arm = () => {
       timer = setTimeout(() => setSettled(true), LOCALE_SUGGESTION_SETTLE_MS);
@@ -138,6 +161,7 @@ export function LocaleSuggestionBannerClient({
             type="button"
             onClick={() => {
               writeCookie(LOCALE_SUGGESTION_DISMISSED_COOKIE, "1");
+              writeDismissedInSession();
               setHidden(true);
             }}
             className={cn(
