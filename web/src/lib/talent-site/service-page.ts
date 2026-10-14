@@ -76,6 +76,12 @@ export function servicePageCopy(locale: string): ServicePageCopy {
     : { book: "Reservar este servicio", back: "Todos los servicios", minutes: (n) => `${n} min`, priceFrom: "Desde" };
 }
 
+/** "All services" link: the home page's services section, locale-aware (`/` or `/en` -> `/#services`, `/en/#services`). */
+export function serviceBackHref(homePath: string): string {
+  const base = homePath && homePath.startsWith("/") && homePath !== "/" ? `${homePath.replace(/\/+$/, "")}/` : "/";
+  return `${base}#services`;
+}
+
 /** Booking CTA: the existing deep link, which opens the booking sheet on this offering. */
 export function serviceBookHref(offeringId: string, homePath: string): string {
   const base = homePath && homePath.startsWith("/") ? homePath : "/";

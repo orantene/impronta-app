@@ -117,3 +117,10 @@ test("Service JSON-LD: real data only", () => {
   }) as unknown as Ld;
   assert.equal(quote.offers?.price, undefined);
 });
+
+test("TUL-797: all-services link lands on the services section in both languages", async () => {
+  const { serviceBackHref } = await import("./service-page");
+  assert.equal(serviceBackHref("/"), "/#services");
+  assert.equal(serviceBackHref("/en"), "/en/#services");
+  assert.equal(serviceBackHref(""), "/#services");
+});

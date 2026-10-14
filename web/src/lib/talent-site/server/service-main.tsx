@@ -8,6 +8,7 @@ import Link from "next/link";
 
 import {
   buildServicePageJsonLd,
+  serviceBackHref,
   serviceBookHref,
   serviceMetaText,
   servicePageCopy,
@@ -47,7 +48,7 @@ export function serviceMainNode(o: ServicePageOffering, opts: { locale: string; 
   return (
     <article data-talent-service-page="" lang={opts.locale} style={wrap}>
       <p style={{ margin: "0 0 18px", fontSize: 14 }}>
-        <Link href={opts.homePath} style={{ color: INK, textUnderlineOffset: 3 }}>{copy.back}</Link>
+        <Link href={serviceBackHref(opts.homePath)} style={{ color: INK, textUnderlineOffset: 3 }}>{copy.back}</Link>
       </p>
       <h1 style={{ margin: "0 0 8px", fontFamily: "var(--site-heading-font, inherit)", lineHeight: 1.15 }}>{o.title}</h1>
       {facts ? <p style={{ margin: "0 0 20px", color: SOFT }}>{facts}</p> : null}
