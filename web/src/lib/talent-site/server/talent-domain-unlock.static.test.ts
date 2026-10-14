@@ -16,32 +16,56 @@ test("custom domain row opens tier-compare when locked and domain drawer when un
   assert.match(src, /personalSiteCustomDomain|canManage/);
 });
 
-test("DomainSetupDrawer exposes buy, connect, and help paths", () => {
+test("DomainSetupDrawer: one primary per state, talent currency, no developer price copy", () => {
   const src = readFileSync(
     join(ROOT, "components/talent/site/DomainSetupDrawer.tsx"),
     "utf8",
   );
-  assert.match(src, /Buy domain/);
-  assert.match(src, /Connect existing/);
-  assert.match(src, /Get help/);
+  assert.match(src, /Search/);
+  assert.match(src, /Buy/);
+  assert.match(src, /Connect mine/);
   assert.match(src, /searchTalentDomainAction/);
   assert.match(src, /startTalentDomainPurchaseCheckoutAction/);
   assert.match(src, /requestTalentDomainHelpAction/);
   assert.match(src, /TalentSiteDomainPanel/);
-  assert.match(src, /Vercel Registrar quote|Vercel price/);
-  // Missing registrar token → Coming soon on Buy; Connect/Help stay live.
+  assert.match(src, /buildDomainPriceDisplay/);
+  assert.match(src, /loadTalentDomainPriceDisplayAction/);
+  assert.match(src, /Charged in USD/);
+  assert.match(src, /InfoTip/);
+  // No developer-facing registrar branding in the drawer UI.
+  assert.doesNotMatch(src, /Vercel Registrar|Vercel price/);
+  assert.doesNotMatch(src, /E\.164|ISO code/);
+  // Missing registrar token → Coming soon on Buy; Connect stays live.
   assert.match(src, /isTalentDomainSearchConfiguredAction/);
-  assert.match(src, /Domain search and purchase are coming soon/);
   assert.match(src, /Coming soon/);
 });
 
-test("domain purchase actions expose registrar search availability probe", () => {
+test("TalentSiteDomainPanel: DNS copy-paste cards with live status", () => {
+  const src = readFileSync(
+    join(ROOT, "components/talent/site/TalentSiteDomainPanel.tsx"),
+    "utf8",
+  );
+  assert.match(src, /DnsCopyCard/);
+  assert.match(src, /navigator\.clipboard/);
+  assert.match(src, /DNS steps/);
+  assert.match(src, /I added the records · Verify/);
+  assert.match(src, /Check connection/);
+  assert.match(src, /Connect mine/);
+  assert.match(src, /InfoTip/);
+  assert.doesNotMatch(src, /Point the domain at Vercel/);
+  assert.doesNotMatch(src, /Check routing/);
+});
+
+test("domain purchase actions expose registrar search + price display context", () => {
   const src = readFileSync(
     join(ROOT, "lib/talent-site/server/talent-domain-purchase-actions.ts"),
     "utf8",
   );
   assert.match(src, /export async function isTalentDomainSearchConfiguredAction/);
+  assert.match(src, /export async function loadTalentDomainPriceDisplayAction/);
   assert.match(src, /readVercelRegistrarConfig/);
+  assert.match(src, /loadUsdRates/);
+  assert.match(src, /resolveDefaultCurrencyForUI/);
 });
 
 test("domain checkout charges exact registrar quote cents (no markup)", () => {

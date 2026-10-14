@@ -736,7 +736,7 @@ export function TalentCustomDomainDrawer() {
       open={open}
       onClose={closeDrawer}
       title={copy.t("Domain setup")}
-      description={copy.t("Buy a domain at the registrar price, connect one you own, or get help.")}
+      description={copy.t("Search for a domain, or connect one you already own.")}
       width={580}
       footer={
         <SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>
