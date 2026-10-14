@@ -3,10 +3,11 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { EXPORT_FRESH_MINUTES, isSessionFreshForExport } from "./export-guard";
+import { blankComments } from "@/lib/quality/supabase-unchecked-read";
 
 const NOW = Date.parse("2026-10-13T12:00:00Z");
 const ago = (min: number) => new Date(NOW - min * 60_000).toISOString();
-const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
+const read = (p: string) => blankComments(readFileSync(join(process.cwd(), p), "utf8"));
 
 test("a sign-in inside the window is fresh, an old one is not", () => {
   assert.equal(isSessionFreshForExport(ago(1), NOW), true);
