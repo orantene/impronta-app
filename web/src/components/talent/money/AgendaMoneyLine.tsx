@@ -51,7 +51,7 @@ export function AgendaMoneyLine({
       className={`flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center ${first ? "" : "border-t border-admin-border-soft"}`}
     >
       <div className="min-w-0 flex-1">
-        <div className="font-admin-body text-[15px] font-bold text-admin-ink">{row.name}</div>
+        <div className="font-admin-body text-[15px] font-bold text-admin-ink">{row.name || t("Client")}</div>
         <div className={`text-[13px] ${warn ? "font-semibold text-admin-critical" : "text-admin-ink-muted"}`}>
           {[kindLabel, row.service, day(row.startsAt, copy.locale)].filter(Boolean).join(" · ")}
         </div>
