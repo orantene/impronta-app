@@ -65,6 +65,16 @@ export function localizeNotificationText(
   if (request) return `Nueva solicitud de ${translateDashboardText(request[1], locale).toLowerCase()}`;
   const confirmed = text.match(/^(.+) confirmed$/u);
   if (confirmed) return `${translateDashboardText(confirmed[1], locale)} confirmada`;
+  // TUL-676: offer bodies carry a money amount / contact name, so match by shape.
+  const offerReview = text.match(/^(.+?)(?: for (.+?))?\. Open the Offer tab to review and approve\.$/u);
+  if (offerReview) {
+    const head = offerReview[2] ? `${offerReview[1]} para ${offerReview[2]}` : offerReview[1];
+    return `${head}. Abre la pestaña Oferta para revisarla y aprobarla.`;
+  }
+  const offerSent = text.match(/^(.+): offer sent\. Waiting on approvals\.$/u);
+  if (offerSent) return `${offerSent[1]}: oferta enviada. Esperando aprobaciones.`;
+  const offerWaiting = text.match(/^(.+): (.+)\. Waiting on approvals\.$/u);
+  if (offerWaiting) return `${offerWaiting[1]}: ${offerWaiting[2]}. Esperando aprobaciones.`;
   const ticket = text.match(/^New support ticket #(\d+)$/u);
   if (ticket) return `Nuevo ticket de soporte #${ticket[1]}`;
   return text;

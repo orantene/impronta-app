@@ -187,7 +187,13 @@ export function Composer({
     // Clear at once so the box does not show the sent text through the round
     // trip; a failure puts the text back (it must never be eaten).
     setBody("");
-    const ok = await onSend(text);
+    let ok: Awaited<ReturnType<typeof onSend>> = false;
+    try {
+      ok = await onSend(text);
+    } catch {
+      // A thrown send (network drop) is a failed send: keep the text, free the box.
+      ok = false;
+    }
     setBusy(false);
     if (ok !== true) {
       setBody((current) => (current === "" ? text : current));

@@ -18,6 +18,7 @@ import { sanitizeSupportAiOutput } from "@/lib/support/support-ai-guardrails";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { supportAiLanguageDirective } from "@/lib/support/support-ai-language";
 import { supportFrom } from "@/lib/support/support-from";
+import { aiSuggestedSubjectFor } from "@/lib/support/ticket-title";
 import {
   mapMessageRow,
   type SupportEscalationReason,
@@ -226,7 +227,7 @@ export async function POST(request: Request) {
       await supportEngine.setCategory({
         ticketId,
         category: model.category.trim() || access.ticket.category,
-        subject: model.suggested_subject.trim() || null,
+        subject: aiSuggestedSubjectFor(access.ticket.subject, model.suggested_subject),
         actorKind: "ai",
         actorUserId: null,
       });

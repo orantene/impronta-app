@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { guestAiAbuseFloor } from "./guest-ai-abuse-floor";
-import { guestSupportMayServe } from "./guest-support-serve";
+import { guestSupportMayServe, marketingAskMayServe } from "./guest-support-serve";
 
 test("unsigned cookie refuses before any adapter call", () => {
   const r = guestAiAbuseFloor({ signingEnabled: false, kvConfigured: true });
@@ -29,4 +29,9 @@ test("signed + KV configured is the only pass", () => {
 test("launcher and actions refuse when signing is off", () => {
   assert.equal(guestSupportMayServe(false), false);
   assert.equal(guestSupportMayServe(true), true);
+});
+
+test("marketing ask CTA depends only on guest signing (FAB flag not required)", () => {
+  assert.equal(marketingAskMayServe(true), true);
+  assert.equal(marketingAskMayServe(false), false);
 });

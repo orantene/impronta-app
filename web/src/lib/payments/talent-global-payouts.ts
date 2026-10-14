@@ -25,6 +25,7 @@ import {
   updateRecipientIdentity,
 } from "./global-payouts-onboarding";
 import { resolveTalentPayoutCountry } from "./stripe-connect-talent";
+import { stripeEnv } from "@/lib/stripe/env-keys";
 
 /** A talent's payout destination, flattened for the UI. */
 export type TalentGpMethod = {
@@ -62,7 +63,7 @@ function recipientMetadata(
   const meta: Record<string, string> = {
     talent_profile_id: talentProfileId,
     source: "tulala_payout_setup",
-    environment: (process.env.STRIPE_SECRET_KEY ?? "").startsWith("sk_live") ? "live" : "sandbox",
+    environment: (stripeEnv("STRIPE_SECRET_KEY") ?? "").startsWith("sk_live") ? "live" : "sandbox",
     talent_name: (opts.talentNameOverride ?? tp.display_name ?? "").trim(),
     talent_email: opts.email,
   };
