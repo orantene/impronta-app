@@ -110,6 +110,12 @@ interface LayerRow {
   locked: boolean;
   /** Job #33 — which breakpoints this block overrides (drives the responsive dot). */
   responsive: ResponsiveOverrideSummary;
+  /**
+   * TUL-80 — curated / legacy section type key when the row is a section or
+   * section_embed (or a native services catalog). Feeds Structure search aliases
+   * so "servicios" / "galeria" match even when the visible label is "Stack".
+   */
+  sectionTypeKey: string | null;
 }
 
 /** Registry-policy child kinds for a kind (raw allow-list; `[]` for leaves). */
@@ -130,6 +136,20 @@ function rowLabel(node: BuilderNode, locale: EditorLocale): string {
   if (locale !== "es") return name;
   const kitLabel = (node.props as { layerLabel?: string }).layerLabel;
   return (kitLabel ? sectionNameForLabel(kitLabel, "es") : null) ?? name;
+}
+
+/** Section type key for Structure search aliases (TUL-80). */
+function sectionTypeKeyOf(node: BuilderNode): string | null {
+  if (node.kind === "section_embed") {
+    const key = node.props.sectionTypeKey?.trim();
+    return key || null;
+  }
+  if (node.kind === "section") {
+    const key = node.props.sectionTypeKey?.trim();
+    return key || null;
+  }
+  if (node.kind === "services_catalog") return "services_catalog";
+  return null;
 }
 
 
@@ -224,6 +244,7 @@ export function flattenTree(tree: BuilderNodeTree, locale: EditorLocale = "en"):
         parentKind,
         parentLocked,
         rawChildKinds: rawChildKindsForKind(node.kind),
+        sectionTypeKey: sectionTypeKeyOf(node),
         locked: node.locked === true,
         responsive: resolveResponsiveOverrides(node),
       });

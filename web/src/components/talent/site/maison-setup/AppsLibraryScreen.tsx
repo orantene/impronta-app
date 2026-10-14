@@ -7,6 +7,10 @@
 import { useAdminShellOptional } from "@/components/admin/shell/internal/state";
 import type { AppLibraryEntry } from "@/lib/site-admin/add-gallery/apps-registry";
 import {
+  canAddLibraryApp,
+  isPremiumApp,
+} from "@/lib/site-admin/add-gallery/app-plan-gate";
+import {
   allLibraryApps,
   appTradeLabels,
   suggestedAppsForTrade,
@@ -18,10 +22,13 @@ function AppCard({
   app,
   locale,
   onOpen,
+  showUpgradeHint,
 }: {
   app: AppLibraryEntry;
   locale: MaisonSetupLocale;
   onOpen: () => void;
+  /** Free plan: surface Upgrade copy on the library card (TUL-39 pack). */
+  showUpgradeHint: boolean;
 }) {
   const trades = appTradeLabels(app, locale).slice(0, 3).join(" · ");
   return (
@@ -48,6 +55,14 @@ function AppCard({
       <span className="line-clamp-2 text-[13px] leading-snug text-admin-ink-muted">
         {appPitch(app, locale)}
       </span>
+      {showUpgradeHint ? (
+        <span
+          data-testid="apps-library-upgrade-hint"
+          className="text-[12.5px] font-semibold text-admin-ink"
+        >
+          {galleryAppsT(locale, "upgradeToUse")}
+        </span>
+      ) : null}
       {trades ? (
         <span className="mt-auto text-[11.5px] font-medium text-admin-ink-dim">{trades}</span>
       ) : null}
@@ -66,9 +81,13 @@ export function AppsLibraryScreen({
   onBack: () => void;
   onClose: () => void;
 }) {
-  const tradeLabel = useAdminShellOptional()?.bridgeTalentSelfProfile?.primaryTypeLabel ?? null;
+  const bridge = useAdminShellOptional()?.bridgeTalentSelfProfile;
+  const tradeLabel = bridge?.primaryTypeLabel ?? null;
+  const canAddPremium = canAddLibraryApp(bridge?.talentPlanKey ?? null);
   const suggested = suggestedAppsForTrade(tradeLabel);
   const all = allLibraryApps();
+  const upgradeHintFor = (app: AppLibraryEntry) =>
+    isPremiumApp(app) && !canAddPremium;
 
   return (
     <section
@@ -113,7 +132,13 @@ export function AppsLibraryScreen({
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {suggested.map((app) => (
-              <AppCard key={app.id} app={app} locale={locale} onOpen={() => onOpenApp(app.id)} />
+              <AppCard
+                key={app.id}
+                app={app}
+                locale={locale}
+                onOpen={() => onOpenApp(app.id)}
+                showUpgradeHint={upgradeHintFor(app)}
+              />
             ))}
           </div>
         )}
@@ -125,7 +150,13 @@ export function AppsLibraryScreen({
         </h2>
         <div className="grid gap-3 sm:grid-cols-2">
           {all.map((app) => (
-            <AppCard key={app.id} app={app} locale={locale} onOpen={() => onOpenApp(app.id)} />
+            <AppCard
+              key={app.id}
+              app={app}
+              locale={locale}
+              onOpen={() => onOpenApp(app.id)}
+              showUpgradeHint={upgradeHintFor(app)}
+            />
           ))}
         </div>
       </section>
