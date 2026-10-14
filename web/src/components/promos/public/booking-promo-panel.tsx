@@ -55,7 +55,10 @@ export function BookingPromoPanel({
 
   useEffect(() => {
     let live = true;
-    void previewBookingQuoteAction({ ...request, promoCode: code })
+    // Read the request back out of `key` so the effect depends on its value,
+    // not on a new object identity every render.
+    const [req] = JSON.parse(key) as [Omit<BookingPreviewInput, "promoCode">];
+    void previewBookingQuoteAction({ ...req, promoCode: code })
       .then((res) => {
         if (!live) return;
         const next = res.ok ? res.preview : null;
@@ -72,8 +75,6 @@ export function BookingPromoPanel({
     return () => {
       live = false;
     };
-    // `key` covers request + refreshKey; code is its own trigger.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, code]);
 
   const apply = async (typed: string): Promise<PromoCodeOutcome> => {
