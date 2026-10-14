@@ -19,6 +19,21 @@ import {
 
 export type LocalizedMapLike = Readonly<Record<string, string | null | undefined>> | null | undefined;
 
+/**
+ * Prior taxonomy ES labels that may still be baked into applied trees after a
+ * live `name_i18n.es` rename (TUL-516: latin-dancer → Baile latino). Keyed by
+ * the English term name still present on the row.
+ */
+const STALE_TYPE_ES: Readonly<Record<string, readonly string[]>> = {
+  "Latin Dancer": ["Bailarín Latino"],
+};
+
+/** Stale baked labels for a current English taxonomy name (header / live-text match). */
+export function staleTypeLabels(enName: string | null | undefined): readonly string[] {
+  const en = enName?.trim() ?? "";
+  return en ? (STALE_TYPE_ES[en] ?? []) : [];
+}
+
 export interface TalentLocaleSwapSource {
   bioI18n: LocalizedMapLike;
   /** Talent-type taxonomy name maps (primary first). */
@@ -101,8 +116,14 @@ export function buildTalentLocaleSwaps(
     add(clampWords(bioEn), clampWords(bio));
   }
   for (const names of src.typeNames) {
-    const en = names?.en?.trim();
-    if (en) add(en, pick(names, key, chain));
+    const target = pick(names, key, chain);
+    if (!target) continue;
+    const en = names?.en?.trim() ?? "";
+    for (const from of new Set(
+      [en, names?.es?.trim() ?? "", ...(STALE_TYPE_ES[en] ?? [])].filter(Boolean),
+    )) {
+      add(from, target);
+    }
   }
   const cityEn = src.homeCity?.en?.trim();
   const cityNames = [cityEn, ...(src.cityAliases ?? [])].map((c) => c?.trim() ?? "").filter(Boolean);
@@ -131,9 +152,15 @@ export function buildTalentLocaleSwaps(
   // The hero eyebrow is the trade and the city joined ("Nail Artist · Mérida"): a value of its own.
   const tradeEn = src.typeNames[0]?.en?.trim();
   if (tradeEn) {
+    const tradeNow = pick(src.typeNames[0], key, chain);
     const city = pick(src.homeCity, key, chain) || cityNames[0] || "";
+    const tradeFrom = new Set(
+      [tradeEn, src.typeNames[0]?.es?.trim() ?? "", ...(STALE_TYPE_ES[tradeEn] ?? [])].filter(Boolean),
+    );
     for (const name of new Set(cityNames)) {
-      add(formatHeroEyebrow(tradeEn, name), formatHeroEyebrow(pick(src.typeNames[0], key, chain), city));
+      for (const trade of tradeFrom) {
+        add(formatHeroEyebrow(trade, name), formatHeroEyebrow(tradeNow, city));
+      }
     }
   }
   // The hero headline seeded from her trade ("Hands that {i}speak{/i} for you.") has a Spanish form.
