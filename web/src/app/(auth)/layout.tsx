@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
-import { getSiteUrl } from "@/lib/auth-flow";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { getPublicHostContext } from "@/lib/saas";
 import { resolveShellBrandLogoUrl } from "@/lib/site-admin/server/shell-brand-logo";
 import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
@@ -132,7 +132,7 @@ async function resolveTenantAccent(tenantId: string): Promise<string | null> {
  *   2. `agency_business_identity.contact_email` as a `mailto:` — still the
  *      agency, not the platform. NOTE: no tenant has this column set today, so
  *      this rung is unexercised in production as shipped.
- *   3. The platform contact surface, `${getSiteUrl()}/about`.
+ *   3. The platform contact surface, `${resolveMarketingOrigin()}/about`.
  *
  * Gated to `kind === "agency"`: the CMS clean-URL rewrite in `proxy.ts` is
  * agency-hosts-only, so `/contact` on a HUB host would 404.
@@ -144,7 +144,7 @@ async function resolveContactHref(params: {
   locale: string;
   contactEmail: string | null;
 }): Promise<string> {
-  const platformContact = `${getSiteUrl()}/about`;
+  const platformContact = `${resolveMarketingOrigin()}/about`;
   if (!params.isTenant || params.hostKind !== "agency") return platformContact;
 
   const contactPage = await loadPublicPageBySlug(
@@ -222,7 +222,7 @@ async function resolveAuthBrand(
           tenantId: ctx.tenantId,
           locale,
           contactEmail: identity?.contact_email ?? null,
-        }).catch(() => `${getSiteUrl()}/about`),
+        }).catch(() => `${resolveMarketingOrigin()}/about`),
       ]);
       const tagline =
         identity?.tagline?.trim() || identity?.footer_tagline?.trim() || null;
@@ -278,7 +278,7 @@ async function resolveAuthBrand(
         PLATFORM_BRAND.name,
       ),
     },
-    contactHref: `${getSiteUrl()}/about`,
+    contactHref: `${resolveMarketingOrigin()}/about`,
   };
 }
 
