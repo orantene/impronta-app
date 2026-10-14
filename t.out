@@ -1,0 +1,4435 @@
+TAP version 13
+# TypeError: activeElement$1.attachEvent is not a function
+#     at handleEventsForInputEventPolyfill (/Users/oranpersonal/Desktop/impronta-app/web/node_modules/react-dom/cjs/react-dom-client.development.js:3573:27)
+#     at /Users/oranpersonal/Desktop/impronta-app/web/node_modules/react-dom/cjs/react-dom-client.development.js:19638:15
+#     at batchedUpdates$1 (/Users/oranpersonal/Desktop/impronta-app/web/node_modules/react-dom/cjs/react-dom-client.development.js:3255:40)
+#     at dispatchEventForPluginEventSystem (/Users/oranpersonal/Desktop/impronta-app/web/node_modules/react-dom/cjs/react-dom-client.development.js:19320:7)
+#     at dispatchEvent (/Users/oranpersonal/Desktop/impronta-app/web/node_modules/react-dom/cjs/react-dom-client.development.js:23585:11)
+#     at dispatchDiscreteEvent (/Users/oranpersonal/Desktop/impronta-app/web/node_modules/react-dom/cjs/react-dom-client.development.js:23553:11)
+#     at HTMLDivElement.callTheUserObjectsOperation (/Users/oranpersonal/Desktop/impronta-app/web/node_modules/jsdom/lib/generated/idl/EventListener.js:26:30)
+#     at innerInvokeEventListeners (/Users/oranpersonal/Desktop/impronta-app/web/node_modules/jsdom/lib/jsdom/living/events/EventTarget-impl.js:360:16)
+#     at invokeEventListeners (/Users/oranpersonal/Desktop/impronta-app/web/node_modules/jsdom/lib/jsdom/living/events/EventTarget-impl.js:296:3)
+#     at HTMLTextAreaElementImpl._dispatch (/Users/oranpersonal/Desktop/impronta-app/web/node_modules/jsdom/lib/jsdom/living/events/EventTarget-impl.js:243:9)
+# TypeError: activeElement$1.detachEvent is not a function
+#     at stopWatchingForValueChange (/Users/oranpersonal/Desktop/impronta-app/web/node_modules/react-dom/cjs/react-dom-client.development.js:3546:26)
+#     at handleEventsForInputEventPolyfill (/Users/oranpersonal/Desktop/impronta-app/web/node_modules/react-dom/cjs/react-dom-client.development.js:3574:42)
+#     at /Users/oranpersonal/Desktop/impronta-app/web/node_modules/react-dom/cjs/react-dom-client.development.js:19638:15
+#     at batchedUpdates$1 (/Users/oranpersonal/Desktop/impronta-app/web/node_modules/react-dom/cjs/react-dom-client.development.js:3255:40)
+#     at dispatchEventForPluginEventSystem (/Users/oranpersonal/Desktop/impronta-app/web/node_modules/react-dom/cjs/react-dom-client.development.js:19320:7)
+#     at dispatchEvent (/Users/oranpersonal/Desktop/impronta-app/web/node_modules/react-dom/cjs/react-dom-client.development.js:23585:11)
+#     at dispatchDiscreteEvent (/Users/oranpersonal/Desktop/impronta-app/web/node_modules/react-dom/cjs/react-dom-client.development.js:23553:11)
+#     at HTMLDivElement.callTheUserObjectsOperation (/Users/oranpersonal/Desktop/impronta-app/web/node_modules/jsdom/lib/generated/idl/EventListener.js:26:30)
+#     at innerInvokeEventListeners (/Users/oranpersonal/Desktop/impronta-app/web/node_modules/jsdom/lib/jsdom/living/events/EventTarget-impl.js:360:16)
+#     at invokeEventListeners (/Users/oranpersonal/Desktop/impronta-app/web/node_modules/jsdom/lib/jsdom/living/events/EventTarget-impl.js:296:3)
+# Subtest: header: photo, name and city on the left; round list, calendar, expand and close on the right
+ok 1 - header: photo, name and city on the left; round list, calendar, expand and close on the right
+  ---
+  duration_ms: 108.051459
+  ...
+# Subtest: header: badges carry the Servicios and Mis citas counts, and vanish at zero
+ok 2 - header: badges carry the Servicios and Mis citas counts, and vanish at zero
+  ---
+  duration_ms: 40.529875
+  ...
+# Subtest: header: the list icon opens Servicios, the calendar opens Mis citas, a second tap returns to Hablar
+ok 3 - header: the list icon opens Servicios, the calendar opens Mis citas, a second tap returns to Hablar
+  ---
+  duration_ms: 27.69425
+  ...
+# Subtest: header: no dock tabs (no inquiry engine) leaves only expand and close
+ok 4 - header: no dock tabs (no inquiry engine) leaves only expand and close
+  ---
+  duration_ms: 12.425334
+  ...
+# Subtest: header: her browse switch off hides the list button; a draft shows the honest status line
+ok 5 - header: her browse switch off hides the list button; a draft shows the honest status line
+  ---
+  duration_ms: 32.799584
+  ...
+# Subtest: no tab strip: the header icons are the navigation, and the avatar shows in every view
+ok 6 - no tab strip: the header icons are the navigation, and the avatar shows in every view
+  ---
+  duration_ms: 58.523625
+  ...
+# Subtest: Servicios and Mis citas get a slim back link to the chat; Hablar does not
+ok 7 - Servicios and Mis citas get a slim back link to the chat; Hablar does not
+  ---
+  duration_ms: 27.072583
+  ...
+# Subtest: the progress rail stays reachable: its label alone, then one compact line with a selection
+ok 8 - the progress rail stays reachable: its label alone, then one compact line with a selection
+  ---
+  duration_ms: 32.757
+  ...
+# Subtest: expand shows on desktop only (the phone sheet has no expand)
+ok 9 - expand shows on desktop only (the phone sheet has no expand)
+  ---
+  duration_ms: 22.395
+  ...
+# Subtest: the subtitle is the reply time when known, else the city
+ok 10 - the subtitle is the reply time when known, else the city
+  ---
+  duration_ms: 22.152417
+  ...
+# Subtest: Mis citas: empty shows only the empty state with a way to Servicios
+ok 11 - Mis citas: empty shows only the empty state with a way to Servicios
+  ---
+  duration_ms: 26.177041
+  ...
+# Subtest: Hablar: her greeting renders, the disclaimer is the composer placeholder, and chips FILL the composer without sending
+ok 12 - Hablar: her greeting renders, the disclaimer is the composer placeholder, and chips FILL the composer without sending
+  ---
+  duration_ms: 9.74125
+  ...
+# Subtest: Hablar: with a service in context the chips are phrased about it
+ok 13 - Hablar: with a service in context the chips are phrased about it
+  ---
+  duration_ms: 9.6285
+  ...
+# Subtest: Hablar: chips hide once the thread has messages; a staged service shows the context card instead
+ok 14 - Hablar: chips hide once the thread has messages; a staged service shows the context card instead
+  ---
+  duration_ms: 11.664416
+  ...
+# Subtest: Servicios: Agregar fires the add-service event and steps the chat aside
+ok 15 - Servicios: Agregar fires the add-service event and steps the chat aside
+  ---
+  duration_ms: 16.80025
+  ...
+# Subtest: Servicios: Preguntar stages the service and returns to Hablar
+ok 16 - Servicios: Preguntar stages the service and returns to Hablar
+  ---
+  duration_ms: 19.70175
+  ...
+# Subtest: Servicios: 'Enviar pedido · N' appears with a selection and calls the existing send action
+ok 17 - Servicios: 'Enviar pedido · N' appears with a selection and calls the existing send action
+  ---
+  duration_ms: 15.250417
+  ...
+# Subtest: frame: floating card on desktop, bottom sheet on phones, full screen when expanded
+ok 18 - frame: floating card on desktop, bottom sheet on phones, full screen when expanded
+  ---
+  duration_ms: 1.279584
+  ...
+# Subtest: frame: sets the token vars and the dialog marks, and hides when the booking sheet opens
+ok 19 - frame: sets the token vars and the dialog marks, and hides when the booking sheet opens
+  ---
+  duration_ms: 31.167041
+  ...
+# Subtest: skin: the card palette reads only --cc vars (dark designs invert it) and keeps every light key
+ok 20 - skin: the card palette reads only --cc vars (dark designs invert it) and keeps every light key
+  ---
+  duration_ms: 0.497417
+  ...
+# Subtest: wiring: one dock, no second chat; the card branch wraps MiniChatPanelColumn
+ok 21 - wiring: one dock, no second chat; the card branch wraps MiniChatPanelColumn
+  ---
+  duration_ms: 1.695625
+  ...
+# Subtest: copy and colours: new strings in en, es, fr; no hex and no dashes in the new files
+ok 22 - copy and colours: new strings in en, es, fr; no hex and no dashes in the new files
+  ---
+  duration_ms: 31.861208
+  ...
+# Subtest: Servicios: ONE list, 'Más pedido' first and selected (her first three), categories filter it, nothing twice
+ok 23 - Servicios: ONE list, 'Más pedido' first and selected (her first three), categories filter it, nothing twice
+  ---
+  duration_ms: 41.610917
+  ...
+# Subtest: Servicios: each row has a thumbnail or icon tile, the price, and one primary pill whose verb follows the menu
+ok 24 - Servicios: each row has a thumbnail or icon tile, the price, and one primary pill whose verb follows the menu
+  ---
+  duration_ms: 134.502834
+  ...
+# Subtest: Servicios: a Spanish visitor sees prices in MXN with one note and no US$ line; an English visitor sees US$
+ok 25 - Servicios: a Spanish visitor sees prices in MXN with one note and no US$ line; an English visitor sees US$
+  ---
+  duration_ms: 211.170208
+  ...
+# Subtest: one context card: with the card skin the dock strip draws none, the footer draws exactly one
+ok 26 - one context card: with the card skin the dock strip draws none, the footer draws exactly one
+  ---
+  duration_ms: 59.248875
+  ...
+# Subtest: the avatar shows in every view, and falls back to her initial without a photo
+ok 27 - the avatar shows in every view, and falls back to her initial without a photo
+  ---
+  duration_ms: 47.019375
+  ...
+# Subtest: the sheet is opaque: a solid base sits under the token surface
+ok 28 - the sheet is opaque: a solid base sits under the token surface
+  ---
+  duration_ms: 0.515584
+  ...
+# Subtest: the composer opens empty: the card skin ignores the booking-sheet draft prefix
+ok 29 - the composer opens empty: the card skin ignores the booking-sheet draft prefix
+  ---
+  duration_ms: 0.839791
+  ...
+# An update to CardDockFrame inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# TypeError: activeElement$1.detachEvent is not a function
+#     at stopWatchingForValueChange (/Users/oranpersonal/Desktop/impronta-app/web/node_modules/react-dom/cjs/react-dom-client.development.js:3546:26)
+#     at handleEventsForInputEventPolyfill (/Users/oranpersonal/Desktop/impronta-app/web/node_modules/react-dom/cjs/react-dom-client.development.js:3570:12)
+#     at /Users/oranpersonal/Desktop/impronta-app/web/node_modules/react-dom/cjs/react-dom-client.development.js:19638:15
+#     at batchedUpdates$1 (/Users/oranpersonal/Desktop/impronta-app/web/node_modules/react-dom/cjs/react-dom-client.development.js:3255:40)
+#     at dispatchEventForPluginEventSystem (/Users/oranpersonal/Desktop/impronta-app/web/node_modules/react-dom/cjs/react-dom-client.development.js:19320:7)
+#     at dispatchEvent (/Users/oranpersonal/Desktop/impronta-app/web/node_modules/react-dom/cjs/react-dom-client.development.js:23585:11)
+#     at dispatchDiscreteEvent (/Users/oranpersonal/Desktop/impronta-app/web/node_modules/react-dom/cjs/react-dom-client.development.js:23553:11)
+#     at HTMLDivElement.callTheUserObjectsOperation (/Users/oranpersonal/Desktop/impronta-app/web/node_modules/jsdom/lib/generated/idl/EventListener.js:26:30)
+#     at innerInvokeEventListeners (/Users/oranpersonal/Desktop/impronta-app/web/node_modules/jsdom/lib/jsdom/living/events/EventTarget-impl.js:360:16)
+#     at invokeEventListeners (/Users/oranpersonal/Desktop/impronta-app/web/node_modules/jsdom/lib/jsdom/living/events/EventTarget-impl.js:296:3)
+# Subtest: phone sheet: a drag handle while it is a sheet, full height only while typing
+ok 30 - phone sheet: a drag handle while it is a sheet, full height only while typing
+  ---
+  duration_ms: 503.548625
+  ...
+# Subtest: chips: the service-aware phrasing uses the short name, and the row fades at the edge
+ok 31 - chips: the service-aware phrasing uses the short name, and the row fades at the edge
+  ---
+  duration_ms: 8.963958
+  ...
+# Subtest: one chip row in the card skin: the service quick-picker strip is not given to the dock
+ok 32 - one chip row in the card skin: the service quick-picker strip is not given to the dock
+  ---
+  duration_ms: 0.211292
+  ...
+# Subtest: phones do not autofocus the composer
+ok 33 - phones do not autofocus the composer
+  ---
+  duration_ms: 0.237417
+  ...
+# Subtest: desktop card grows with its content between about 420 and 640, anchored bottom-right
+ok 34 - desktop card grows with its content between about 420 and 640, anchored bottom-right
+  ---
+  duration_ms: 0.06475
+  ...
+# Subtest: tooltips on the header buttons
+ok 35 - tooltips on the header buttons
+  ---
+  duration_ms: 13.266084
+  ...
+# Subtest: the bottom dock steps aside while the chat is open, and focus returns to the opener on close
+ok 36 - the bottom dock steps aside while the chat is open, and focus returns to the opener on close
+  ---
+  duration_ms: 12.493042
+  ...
+# Subtest: expanded two-pane: the header text takes the card ink, never the page colour (e2e P1: white on white)
+ok 37 - expanded two-pane: the header text takes the card ink, never the page colour (e2e P1: white on white)
+  ---
+  duration_ms: 0.208083
+  ...
+# Subtest: the offer editor formats money in the offer's own currency, never a hard-coded USD
+ok 38 - the offer editor formats money in the offer's own currency, never a hard-coded USD
+  ---
+  duration_ms: 1.310792
+  ...
+# Subtest: Send quote from an open thread posts in that thread
+ok 39 - Send quote from an open thread posts in that thread
+  ---
+  duration_ms: 2.389625
+  ...
+# Subtest: stored 'Requesting:' and 'Quote:' lines are written in the visitor's or talent's language
+ok 40 - stored 'Requesting:' and 'Quote:' lines are written in the visitor's or talent's language
+  ---
+  duration_ms: 2.912458
+  ...
+# Subtest: CH-2 the chips fill the composer with the translated question and never send
+ok 41 - CH-2 the chips fill the composer with the translated question and never send
+  ---
+  duration_ms: 64.875583
+  ...
+# Subtest: CH-2 the context card names the service, can be removed, and carries the chips
+ok 42 - CH-2 the context card names the service, can be removed, and carries the chips
+  ---
+  duration_ms: 217.044333
+  ...
+# Subtest: CH-3 the store keeps what she was building and tells subscribers
+ok 43 - CH-3 the store keeps what she was building and tells subscribers
+  ---
+  duration_ms: 0.16875
+  ...
+# Subtest: CH-3 asking to resume fires the event only when something was stashed
+ok 44 - CH-3 asking to resume fires the event only when something was stashed
+  ---
+  duration_ms: 0.342541
+  ...
+# Subtest: CH-3 the strip reads 'Volver a mi reserva · service, total' and goes back on tap
+ok 45 - CH-3 the strip reads 'Volver a mi reserva · service, total' and goes back on tap
+  ---
+  duration_ms: 55.479375
+  ...
+# Subtest: CH-4 the in-chat list shows each service with Add and Ask, and a way back
+ok 46 - CH-4 the in-chat list shows each service with Add and Ask, and a way back
+  ---
+  duration_ms: 24.137125
+  ...
+# Subtest: CH-4 the list uses the menu's own price line: per unit, from, quote
+ok 47 - CH-4 the list uses the menu's own price line: per unit, from, quote
+  ---
+  duration_ms: 247.5365
+  ...
+# Subtest: CH-4 an empty catalog says so instead of showing a blank panel
+ok 48 - CH-4 an empty catalog says so instead of showing a blank panel
+  ---
+  duration_ms: 8.451334
+  ...
+# Subtest: CH-4 asking the page to add a service is one event the catalog island owns
+ok 49 - CH-4 asking the page to add a service is one event the catalog island owns
+  ---
+  duration_ms: 1.516083
+  ...
+# Subtest: CH wiring: the card chat no longer closes itself to scroll to \#services
+ok 50 - CH wiring: the card chat no longer closes itself to scroll to \#services
+  ---
+  duration_ms: 2.008209
+  ...
+# Subtest: CH motion: the card rises in .25s and stands still under reduced motion
+ok 51 - CH motion: the card rises in .25s and stands still under reduced motion
+  ---
+  duration_ms: 0.426667
+  ...
+# Subtest: CH copy: every new string exists in en, es and fr, without dashes
+ok 52 - CH copy: every new string exists in en, es and fr, without dashes
+  ---
+  duration_ms: 25.712125
+  ...
+# Subtest: DK-3 switches: a site token turns it on, Maison v2 turns it on from v20 only, nothing else does
+ok 53 - DK-3 switches: a site token turns it on, Maison v2 turns it on from v20 only, nothing else does
+  ---
+  duration_ms: 0.209875
+  ...
+# Subtest: DK-3 wiring: token registry, projection, theme drawer, launcher, mount and dock pass it through
+ok 54 - DK-3 wiring: token registry, projection, theme drawer, launcher, mount and dock pass it through
+  ---
+  duration_ms: 12.019375
+  ...
+# Subtest: ONE dock: the round launcher is hidden by CSS whenever the dock carries a chat button
+ok 55 - ONE dock: the round launcher is hidden by CSS whenever the dock carries a chat button
+  ---
+  duration_ms: 2.458958
+  ...
+# Subtest: panel wires journey chrome (header + progress + nav)
+ok 56 - panel wires journey chrome (header + progress + nav)
+  ---
+  duration_ms: 3.2355
+  ...
+# Subtest: header paints OFERTA journey status and hides new-request chrome
+ok 57 - header paints OFERTA journey status and hides new-request chrome
+  ---
+  duration_ms: 0.993208
+  ...
+# Subtest: dock nav active tab is accent outline, not white fill
+ok 58 - dock nav active tab is accent outline, not white fill
+  ---
+  duration_ms: 0.838125
+  ...
+# Subtest: composer send is circular; front-door sites use composerPhrase
+ok 59 - composer send is circular; front-door sites use composerPhrase
+  ---
+  duration_ms: 2.935917
+  ...
+# Subtest: offer posture uses sticky service chip, not browse ask strip
+ok 60 - offer posture uses sticky service chip, not browse ask strip
+  ---
+  duration_ms: 1.314959
+  ...
+# Subtest: dev offer preview mounts GuestHablarOfferPreview for OFERTA visual proof
+ok 61 - dev offer preview mounts GuestHablarOfferPreview for OFERTA visual proof
+  ---
+  duration_ms: 0.378417
+  ...
+# Subtest: guest bubbles use lavender palette token, not accent fill
+ok 62 - guest bubbles use lavender palette token, not accent fill
+  ---
+  duration_ms: 1.148875
+  ...
+# Subtest: beauty intake has four brief segs including service + message
+ok 63 - beauty intake has four brief segs including service + message
+  ---
+  duration_ms: 0.576458
+  ...
+# Subtest: agency public surface Items label resolves to front-door Browse
+ok 64 - agency public surface Items label resolves to front-door Browse
+  ---
+  duration_ms: 0.919959
+  ...
+# Subtest: exposes the mockup Phone sheet tokens
+ok 65 - exposes the mockup Phone sheet tokens
+  ---
+  duration_ms: 1.281625
+  ...
+# Subtest: builds a fixed sheet from 8vh to the bottom when the keyboard is closed
+ok 66 - builds a fixed sheet from 8vh to the bottom when the keyboard is closed
+  ---
+  duration_ms: 0.384667
+  ...
+# Subtest: lifts bottom to the Visual Viewport inset when the keyboard is open
+ok 67 - lifts bottom to the Visual Viewport inset when the keyboard is open
+  ---
+  duration_ms: 0.17675
+  ...
+# Subtest: leaves desktop geometry untouched by the keyboard inset
+ok 68 - leaves desktop geometry untouched by the keyboard inset
+  ---
+  duration_ms: 0.298667
+  ...
+# Subtest: desktop panel z-index sits above the launcher stacking context (✕ stays clickable)
+ok 69 - desktop panel z-index sits above the launcher stacking context (✕ stays clickable)
+  ---
+  duration_ms: 0.183542
+  ...
+# Subtest: wires Visual Viewport into MiniChatPanel and keeps the hook source clean
+ok 70 - wires Visual Viewport into MiniChatPanel and keeps the hook source clean
+  ---
+  duration_ms: 1.959541
+  ...
+# Subtest: a client's own message equal to a dictionary key is shown verbatim
+ok 71 - a client's own message equal to a dictionary key is shown verbatim
+  ---
+  duration_ms: 0.8255
+  ...
+# Subtest: system previews and mock conversations are translated
+ok 72 - system previews and mock conversations are translated
+  ---
+  duration_ms: 0.383208
+  ...
+# Subtest: TUL-379 residual: synthetic awaiting line translates under agency sender
+ok 73 - TUL-379 residual: synthetic awaiting line translates under agency sender
+  ---
+  duration_ms: 0.255916
+  ...
+# Subtest: TUL-518: bridge-generated coordinator placeholders translate on Spanish
+ok 74 - TUL-518: bridge-generated coordinator placeholders translate on Spanish
+  ---
+  duration_ms: 0.242584
+  ...
+# Subtest: TalentJobShell no longer runs the raw last-message preview through copy.t
+ok 75 - TalentJobShell no longer runs the raw last-message preview through copy.t
+  ---
+  duration_ms: 0.404125
+  ...
+# Subtest: W5-3: add-line and choose-talent copy are accented Spanish, no em dashes
+ok 76 - W5-3: add-line and choose-talent copy are accented Spanish, no em dashes
+  ---
+  duration_ms: 51.373625
+  ...
+# Subtest: W5-3: CreateOfferButton does not keep Starting pending on router.refresh
+ok 77 - W5-3: CreateOfferButton does not keep Starting pending on router.refresh
+  ---
+  duration_ms: 1.241625
+  ...
+# Subtest: W5-3: talent thread title is client-only; brief is on the subline; actions wrap
+ok 78 - W5-3: talent thread title is client-only; brief is on the subline; actions wrap
+  ---
+  duration_ms: 1.94875
+  ...
+# Subtest: canShowRailModeSwitch: talent side needs hybrid or owned business slug
+ok 79 - canShowRailModeSwitch: talent side needs hybrid or owned business slug
+  ---
+  duration_ms: 0.716
+  ...
+# Subtest: canShowRailModeSwitch: admin side needs hybrid or a talent profile
+ok 80 - canShowRailModeSwitch: admin side needs hybrid or a talent profile
+  ---
+  duration_ms: 0.208917
+  ...
+# Subtest: leaveRailHat: hybrid always uses flipMode
+ok 81 - leaveRailHat: hybrid always uses flipMode
+  ---
+  duration_ms: 1.170625
+  ...
+# Subtest: leaveRailHat: hub dual owner on talent goes to owned admin
+ok 82 - leaveRailHat: hub dual owner on talent goes to owned admin
+  ---
+  duration_ms: 0.29125
+  ...
+# Subtest: leaveRailHat: non-hybrid admin goes to /talent/today
+ok 83 - leaveRailHat: non-hybrid admin goes to /talent/today
+  ---
+  duration_ms: 0.162584
+  ...
+# Subtest: the talent rail renders the shared Talent | Admin switch for dual owners only
+ok 84 - the talent rail renders the shared Talent | Admin switch for dual owners only
+  ---
+  duration_ms: 2.733584
+  ...
+# Subtest: live2-01: flipMode hard-navs so Talent|Admin does not soft-stick
+ok 85 - live2-01: flipMode hard-navs so Talent|Admin does not soft-stick
+  ---
+  duration_ms: 2.43325
+  ...
+# Subtest: the admin rail uses the same component, no private copy of the markup
+ok 86 - the admin rail uses the same component, no private copy of the markup
+  ---
+  duration_ms: 2.295125
+  ...
+# Subtest: both halves carry en labels from the catalog and a link on the other hat
+ok 87 - both halves carry en labels from the catalog and a link on the other hat
+  ---
+  duration_ms: 4.793542
+  ...
+# Subtest: the talent layout feeds ownedWorkspaceSlug to the bridge from the owned business workspace
+ok 88 - the talent layout feeds ownedWorkspaceSlug to the bridge from the owned business workspace
+  ---
+  duration_ms: 2.079083
+  ...
+# Subtest: phone Más sheets mount PhoneRailModeSwitch for dual owners
+ok 89 - phone Más sheets mount PhoneRailModeSwitch for dual owners
+  ---
+  duration_ms: 2.658583
+  ...
+# Subtest: talent top-bar pill uses leaveRailHat and the dual-owner gate (not alsoTalent alone)
+ok 90 - talent top-bar pill uses leaveRailHat and the dual-owner gate (not alsoTalent alone)
+  ---
+  duration_ms: 1.648875
+  ...
+# Subtest: formatShellBubbleCount
+    # Subtest: hides zero and negatives
+    ok 1 - hides zero and negatives
+      ---
+      duration_ms: 1.239417
+      ...
+    # Subtest: caps above 99
+    ok 2 - caps above 99
+      ---
+      duration_ms: 0.305375
+      ...
+    # Subtest: passes through small positives
+    ok 3 - passes through small positives
+      ---
+      duration_ms: 0.224
+      ...
+    1..3
+ok 91 - formatShellBubbleCount
+  ---
+  duration_ms: 3.170083
+  type: 'suite'
+  ...
+# Subtest: visibleShellCountBubbles
+    # Subtest: hides zeros and keeps stable order
+    ok 1 - hides zeros and keeps stable order
+      ---
+      duration_ms: 1.348417
+      ...
+    # Subtest: caps at three even if more kinds appear
+    ok 2 - caps at three even if more kinds appear
+      ---
+      duration_ms: 0.196
+      ...
+    # Subtest: returns empty when all zero
+    ok 3 - returns empty when all zero
+      ---
+      duration_ms: 0.221541
+      ...
+    1..3
+ok 92 - visibleShellCountBubbles
+  ---
+  duration_ms: 2.028167
+  type: 'suite'
+  ...
+# Subtest: shell bubble fills
+    # Subtest: uses coral / forest / slate tokens — no gold or rust
+    ok 1 - uses coral / forest / slate tokens — no gold or rust
+      ---
+      duration_ms: 0.246666
+      ...
+    1..1
+ok 93 - shell bubble fills
+  ---
+  duration_ms: 0.694333
+  type: 'suite'
+  ...
+# Subtest: countTalentAwaitingInquiries (TUL-519 card 385)
+    # Subtest: counts every status the inbox maps to awaiting-you, including new
+    ok 1 - counts every status the inbox maps to awaiting-you, including new
+      ---
+      duration_ms: 0.630708
+      ...
+    # Subtest: uses the stage predicate only — no second status allowlist
+    ok 2 - uses the stage predicate only — no second status allowlist
+      ---
+      duration_ms: 0.505958
+      ...
+    # Subtest: maps DB statuses the same way as the conversation adapter
+    ok 3 - maps DB statuses the same way as the conversation adapter
+      ---
+      duration_ms: 0.343125
+      ...
+    # Subtest: returns zero for an empty list
+    ok 4 - returns zero for an empty list
+      ---
+      duration_ms: 0.284125
+      ...
+    1..4
+ok 94 - countTalentAwaitingInquiries (TUL-519 card 385)
+  ---
+  duration_ms: 2.174084
+  type: 'suite'
+  ...
+# Subtest: shellAttentionTooltip (TUL-519)
+    # Subtest: builds en and es first-time meanings
+    ok 1 - builds en and es first-time meanings
+      ---
+      duration_ms: 0.235333
+      ...
+    1..1
+ok 95 - shellAttentionTooltip (TUL-519)
+  ---
+  duration_ms: 0.338875
+  type: 'suite'
+  ...
+# Subtest: ShellCountBubbles mount (static)
+    # Subtest: IdentityBar and MobileTopBar import ShellCountBubbles
+    ok 1 - IdentityBar and MobileTopBar import ShellCountBubbles
+      ---
+      duration_ms: 0.980792
+      ...
+    # Subtest: talent shell falls back to awaiting-inquiry attention counts
+    ok 2 - talent shell falls back to awaiting-inquiry attention counts
+      ---
+      duration_ms: 0.918208
+      ...
+    # Subtest: Hoy Requiere atención uses the same awaiting count as the bubble
+    ok 3 - Hoy Requiere atención uses the same awaiting count as the bubble
+      ---
+      duration_ms: 2.172042
+      ...
+    # Subtest: adapter + TalentJobShell share the awaiting predicate
+    ok 4 - adapter + TalentJobShell share the awaiting predicate
+      ---
+      duration_ms: 1.186375
+      ...
+    # Subtest: Attention label + tooltip have ES catalog rows
+    ok 5 - Attention label + tooltip have ES catalog rows
+      ---
+      duration_ms: 0.651167
+      ...
+    # Subtest: dead TopBarNotificationBell file is gone
+    ok 6 - dead TopBarNotificationBell file is gone
+      ---
+      duration_ms: 0.219458
+      ...
+    1..6
+ok 96 - ShellCountBubbles mount (static)
+  ---
+  duration_ms: 6.401791
+  type: 'suite'
+  ...
+# Subtest: talent inbox i18n
+    # Subtest: TalentJobShell wires the dashboard text hook and the date-group translator
+    ok 1 - TalentJobShell wires the dashboard text hook and the date-group translator
+      ---
+      duration_ms: 1.226375
+      ...
+    # Subtest: no raw English literal for the named strings outside copy.t(...)
+    ok 2 - no raw English literal for the named strings outside copy.t(...)
+      ---
+      duration_ms: 1.06175
+      ...
+    # Subtest: filter chips are translated
+    ok 3 - filter chips are translated
+      ---
+      duration_ms: 0.195625
+      ...
+    # Subtest: rail, mobile handle, hover actions and search pill are translated
+    ok 4 - rail, mobile handle, hover actions and search pill are translated
+      ---
+      duration_ms: 0.131542
+      ...
+    # Subtest: every key has a Spanish row that differs from the English
+    ok 5 - every key has a Spanish row that differs from the English
+      ---
+      duration_ms: 0.279959
+      ...
+    # Subtest: detail view and shared headers route their literals through copy.t with ES rows
+    ok 6 - detail view and shared headers route their literals through copy.t with ES rows
+      ---
+      duration_ms: 4.341041
+      ...
+    # Subtest: GUEST / Registered identity pill and the Offer-tab hero are not raw English
+    ok 7 - GUEST / Registered identity pill and the Offer-tab hero are not raw English
+      ---
+      duration_ms: 0.614291
+      ...
+    # Subtest: generated inbox previews have ES rows
+    ok 8 - generated inbox previews have ES rows
+      ---
+      duration_ms: 0.0705
+      ...
+    # Subtest: Today checklist chip labels have ES rows (TUL-519 card 146)
+    ok 9 - Today checklist chip labels have ES rows (TUL-519 card 146)
+      ---
+      duration_ms: 0.131541
+      ...
+    # Subtest: talent thread empty states have ES rows (TUL-519 cards 379+500)
+    ok 10 - talent thread empty states have ES rows (TUL-519 cards 379+500)
+      ---
+      duration_ms: 0.116375
+      ...
+    # Subtest: open thread panel offer/empty chrome has ES rows and no raw Loading (TUL-536 / TUL-500)
+    ok 11 - open thread panel offer/empty chrome has ES rows and no raw Loading (TUL-536 / TUL-500)
+      ---
+      duration_ms: 3.555375
+      ...
+    # Subtest: synthetic talent previews use system sender so inboxPreviewText can translate
+    ok 12 - synthetic talent previews use system sender so inboxPreviewText can translate
+      ---
+      duration_ms: 0.207542
+      ...
+    1..12
+ok 97 - talent inbox i18n
+  ---
+  duration_ms: 13.146667
+  type: 'suite'
+  ...
+# Subtest: multi-service booking is OFF until the combined-appointment engine ships
+ok 98 - multi-service booking is OFF until the combined-appointment engine ships
+  ---
+  duration_ms: 0.415167
+  ...
+# Subtest: single-select: a second pick REPLACES the first and can be undone
+ok 99 - single-select: a second pick REPLACES the first and can be undone
+  ---
+  duration_ms: 0.452416
+  ...
+# Subtest: single-select: never holds two services (toggle or sheet upsert)
+ok 100 - single-select: never holds two services (toggle or sheet upsert)
+  ---
+  duration_ms: 0.094875
+  ...
+# Subtest: toggle selects, a second toggle deselects
+ok 101 - toggle selects, a second toggle deselects
+  ---
+  duration_ms: 0.058375
+  ...
+# Subtest: (dormant multi) multi-select keeps pick order; front is the first picked
+ok 102 - (dormant multi) multi-select keeps pick order; front is the first picked
+  ---
+  duration_ms: 0.117916
+  ...
+# Subtest: upsert (sheet select) updates bits in place and never toggles off
+ok 103 - upsert (sheet select) updates bits in place and never toggles off
+  ---
+  duration_ms: 0.055
+  ...
+# Subtest: (dormant multi) remove_front drops only the front item and remembers it
+ok 104 - (dormant multi) remove_front drops only the front item and remembers it
+  ---
+  duration_ms: 0.05775
+  ...
+# Subtest: remove on a single pick empties the dock
+ok 105 - remove on a single pick empties the dock
+  ---
+  duration_ms: 0.053125
+  ...
+# Subtest: undo after ✕ restores the removed item
+ok 106 - undo after ✕ restores the removed item
+  ---
+  duration_ms: 0.121333
+  ...
+# Subtest: (dormant multi) undo restores the removed item to the front
+ok 107 - (dormant multi) undo restores the removed item to the front
+  ---
+  duration_ms: 0.117042
+  ...
+# Subtest: undo does not duplicate an item re-selected before Undo
+ok 108 - undo does not duplicate an item re-selected before Undo
+  ---
+  duration_ms: 0.0595
+  ...
+# Subtest: summary: catalog priceLabel (\#2388) replaces $0 for quote / from rows
+ok 109 - summary: catalog priceLabel (\#2388) replaces $0 for quote / from rows
+  ---
+  duration_ms: 0.104292
+  ...
+# Subtest: summary: single = name + options · price; multi = N services + A + B · total
+ok 110 - summary: single = name + options · price; multi = N services + A + B · total
+  ---
+  duration_ms: 0.087166
+  ...
+# Subtest: dock copy is localized (ES tú) and has no em dashes
+ok 111 - dock copy is localized (ES tú) and has no em dashes
+  ---
+  duration_ms: 0.202375
+  ...
+# Subtest: chat quick questions + FAB hover label exist in en/es with no em dashes
+ok 112 - chat quick questions + FAB hover label exist in en/es with no em dashes
+  ---
+  duration_ms: 32.580084
+  ...
+# Subtest: FAB is icon-only: no always-visible label; hover label is width-0 until hover
+ok 113 - FAB is icon-only: no always-visible label; hover label is width-0 until hover
+  ---
+  duration_ms: 0.941333
+  ...
+# Subtest: dock CSS: glass, spring, reduced motion, no hex literals
+ok 114 - dock CSS: glass, spring, reduced motion, no hex literals
+  ---
+  duration_ms: 0.805083
+  ...
+# Subtest: the old selection card copy is gone; the dock replaces it
+ok 115 - the old selection card copy is gone; the dock replaces it
+  ---
+  duration_ms: 1.248208
+  ...
+# Subtest: localeFromSearch
+    # Subtest: reads lang then locale
+    ok 1 - reads lang then locale
+      ---
+      duration_ms: 6.4075
+      ...
+    1..1
+ok 116 - localeFromSearch
+  ---
+  duration_ms: 11.70275
+  type: 'suite'
+  ...
+# Subtest: resolveRequestLocale (TUL-518 hub ?lang=)
+    # Subtest: honors ?lang=es on an unprefixed hub profile URL
+    ok 1 - honors ?lang=es on an unprefixed hub profile URL
+      ---
+      duration_ms: 0.300041
+      ...
+    # Subtest: path prefix beats a conflicting query
+    ok 2 - path prefix beats a conflicting query
+      ---
+      duration_ms: 1.243417
+      ...
+    # Subtest: falls back to the middleware header when there is no query
+    ok 3 - falls back to the middleware header when there is no query
+      ---
+      duration_ms: 0.0805
+      ...
+    # Subtest: rejects an unsupported query locale
+    ok 4 - rejects an unsupported query locale
+      ---
+      duration_ms: 0.423125
+      ...
+    1..4
+ok 117 - resolveRequestLocale (TUL-518 hub ?lang=)
+  ---
+  duration_ms: 2.350625
+  type: 'suite'
+  ...
+# Subtest: outside the charge window nothing happens; an unknown or past expiry is never acted on
+ok 118 - outside the charge window nothing happens; an unknown or past expiry is never acted on
+  ---
+  duration_ms: 4.650542
+  ...
+# Subtest: inside the window an unbilled cycle is charged at the registrar's renewal price
+ok 119 - inside the window an unbilled cycle is charged at the registrar's renewal price
+  ---
+  duration_ms: 0.180125
+  ...
+# Subtest: no known price inside the window needs attention: nothing is billed from a guess
+ok 120 - no known price inside the window needs attention: nothing is billed from a guess
+  ---
+  duration_ms: 0.0805
+  ...
+# Subtest: a paid cycle is done; the same state on a NEW expiry is a fresh cycle
+ok 121 - a paid cycle is done; the same state on a NEW expiry is a fresh cycle
+  ---
+  duration_ms: 0.097416
+  ...
+# Subtest: an unpaid link is reminded on a spaced, capped schedule
+ok 122 - an unpaid link is reminded on a spaced, capped schedule
+  ---
+  duration_ms: 0.182833
+  ...
+# Subtest: at the deadline an unpaid cycle turns auto-renew OFF, whatever its state, even with no price
+ok 123 - at the deadline an unpaid cycle turns auto-renew OFF, whatever its state, even with no price
+  ---
+  duration_ms: 0.210708
+  ...
+# Subtest: once auto-renew is off (by us or by someone else) there is nothing to bill or turn off
+ok 124 - once auto-renew is off (by us or by someone else) there is nothing to bill or turn off
+  ---
+  duration_ms: 0.141958
+  ...
+# Subtest: a paid cycle at the deadline stays paid (auto-renew is left on)
+ok 125 - a paid cycle at the deadline stays paid (auto-renew is left on)
+  ---
+  duration_ms: 0.131334
+  ...
+# Subtest: the renewal migration is additive and gives D4 and D5 ONE shared expiry column
+ok 126 - the renewal migration is additive and gives D4 and D5 ONE shared expiry column
+  ---
+  duration_ms: 6.547083
+  ...
+# Subtest: the sweep is a bearer-authenticated daily cron, wired in vercel.json, dark without the registrar token
+ok 127 - the sweep is a bearer-authenticated daily cron, wired in vercel.json, dark without the registrar token
+  ---
+  duration_ms: 1.469
+  ...
+# Subtest: renewal notices open a real page target, not the 'Coming up next' stub
+ok 128 - renewal notices open a real page target, not the 'Coming up next' stub
+  ---
+  duration_ms: 0.298833
+  ...
+# Subtest: the paid-renewal webhook is routed and handled, and a purchase starts the renewal clock
+ok 129 - the paid-renewal webhook is routed and handled, and a purchase starts the renewal clock
+  ---
+  duration_ms: 1.707292
+  ...
+# Subtest: the purchase checkout discloses the renewal and saves THAT card for off-session use; the sweep never picks a card itself
+ok 130 - the purchase checkout discloses the renewal and saves THAT card for off-session use; the sweep never picks a card itself
+  ---
+  duration_ms: 0.385791
+  ...
+# Subtest: renewal copy exists in en, es and fr with no em dash
+ok 131 - renewal copy exists in en, es and fr with no em dash
+  ---
+  duration_ms: 47.147083
+  ...
+# Subtest: every portal server action is guarded or explicitly allow-listed
+not ok 132 - every portal server action is guarded or explicitly allow-listed
+  ---
+  duration_ms: 1871.25375
+  location: '/Users/oranpersonal/Desktop/now-wt/oldB/web/src/lib/impersonation/readonly-actions.static.test.ts:2:12654'
+  failureType: 'testCodeFailure'
+  error: |-
+    unguarded portal server actions (call assertNotImpersonating()/requireNotImpersonating() first):
+    src/app/(workspace)/platform/admin/email/copies-actions.ts: addNotificationCopy
+    src/app/(workspace)/platform/admin/email/copies-actions.ts: updateNotificationCopy
+    src/app/(workspace)/platform/admin/email/copies-actions.ts: removeNotificationCopy
+    src/app/(workspace)/platform/admin/email/copies-actions.ts: sendNotificationCopyTest
+    + actual - expected
+    
+    + [
+    +   'src/app/(workspace)/platform/admin/email/copies-actions.ts: addNotificationCopy',
+    +   'src/app/(workspace)/platform/admin/email/copies-actions.ts: updateNotificationCopy',
+    +   'src/app/(workspace)/platform/admin/email/copies-actions.ts: removeNotificationCopy',
+    +   'src/app/(workspace)/platform/admin/email/copies-actions.ts: sendNotificationCopyTest'
+    + ]
+    - []
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0: 'src/app/(workspace)/platform/admin/email/copies-actions.ts: addNotificationCopy'
+    1: 'src/app/(workspace)/platform/admin/email/copies-actions.ts: updateNotificationCopy'
+    2: 'src/app/(workspace)/platform/admin/email/copies-actions.ts: removeNotificationCopy'
+    3: 'src/app/(workspace)/platform/admin/email/copies-actions.ts: sendNotificationCopyTest'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/Users/oranpersonal/Desktop/now-wt/oldB/web/src/lib/impersonation/readonly-actions.static.test.ts:277:10)
+    Test.runInAsyncScope (node:async_hooks:206:9)
+    Test.run (node:internal/test_runner/test:796:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:526:18)
+    node:internal/test_runner/harness:255:12
+    node:internal/process/task_queues:140:7
+    AsyncResource.runInAsyncScope (node:async_hooks:206:9)
+    AsyncResource.runMicrotask (node:internal/process/task_queues:137:8)
+  ...
+# Subtest: every allow-list entry carries a reason
+ok 133 - every allow-list entry carries a reason
+  ---
+  duration_ms: 0.3555
+  ...
+# Subtest: GUARD BITES: an unguarded action is caught
+ok 134 - GUARD BITES: an unguarded action is caught
+  ---
+  duration_ms: 0.287459
+  ...
+# Subtest: GUARD BITES: a guard that comes after another await does not count
+ok 135 - GUARD BITES: a guard that comes after another await does not count
+  ---
+  duration_ms: 0.232708
+  ...
+# Subtest: GUARD BITES: a guard buried past the window does not count
+ok 136 - GUARD BITES: a guard buried past the window does not count
+  ---
+  duration_ms: 0.126667
+  ...
+# Subtest: GUARD BITES: an exported async arrow const is reported as unguarded
+ok 137 - GUARD BITES: an exported async arrow const is reported as unguarded
+  ---
+  duration_ms: 0.080209
+  ...
+# Subtest: GUARD PASSES: guarded forms are recognised
+ok 138 - GUARD PASSES: guarded forms are recognised
+  ---
+  duration_ms: 0.072667
+  ...
+# Subtest: GUARD PASSES: a non-server file is not scanned, and allow-list lookup works
+ok 139 - GUARD PASSES: a non-server file is not scanned, and allow-list lookup works
+  ---
+  duration_ms: 0.129083
+  ...
+# Subtest: every mutating route handler is guarded or explicitly allow-listed
+ok 140 - every mutating route handler is guarded or explicitly allow-listed
+  ---
+  duration_ms: 47.200875
+  ...
+# Subtest: ROUTE GUARD BITES: unguarded, late-guarded and const-form handlers are caught
+ok 141 - ROUTE GUARD BITES: unguarded, late-guarded and const-form handlers are caught
+  ---
+  duration_ms: 0.529458
+  ...
+# Subtest: ROUTE GUARD PASSES: a guard-first handler is recognised and GET is ignored
+ok 142 - ROUTE GUARD PASSES: a guard-first handler is recognised and GET is ignored
+  ---
+  duration_ms: 0.103958
+  ...
+# Subtest: hub chat Spanish chrome (TUL-518)
+    # Subtest: Inquire about / Talk / Yours / Write a reply… differ in es
+    ok 1 - Inquire about / Talk / Yours / Write a reply… differ in es
+      ---
+      duration_ms: 0.519041
+      ...
+    # Subtest: Talent & services words label is Spanish when locale is es
+    ok 2 - Talent & services words label is Spanish when locale is es
+      ---
+      duration_ms: 0.314208
+      ...
+    1..2
+ok 143 - hub chat Spanish chrome (TUL-518)
+  ---
+  duration_ms: 1.270125
+  type: 'suite'
+  ...
+# Subtest: formats in the talent's zone and the email language
+ok 144 - formats in the talent's zone and the email language
+  ---
+  duration_ms: 26.486916
+  ...
+# Subtest: missing or bad input falls back (undefined)
+ok 145 - missing or bad input falls back (undefined)
+  ---
+  duration_ms: 0.161959
+  ...
+# Subtest: signals reach the bridge and the Atención bubble, not Hoy's needs-reply count
+ok 146 - signals reach the bridge and the Atención bubble, not Hoy's needs-reply count
+  ---
+  duration_ms: 1.82775
+  ...
+# Subtest: server loader is read-only and never throws
+ok 147 - server loader is read-only and never throws
+  ---
+  duration_ms: 0.686541
+  ...
+# Subtest: bell shows signals on the talent surface only, with no server mark-read
+ok 148 - bell shows signals on the talent surface only, with no server mark-read
+  ---
+  duration_ms: 0.795458
+  ...
+# Subtest: talent drawer renders signals and skips the server for signal ids
+ok 149 - talent drawer renders signals and skips the server for signal ids
+  ---
+  duration_ms: 1.563334
+  ...
+# Subtest: site-publish resolves to the talent site page
+ok 150 - site-publish resolves to the talent site page
+  ---
+  duration_ms: 0.774459
+  ...
+# Subtest: unpublished changes: one site-publish signal whose id carries the draft rev
+ok 151 - unpublished changes: one site-publish signal whose id carries the draft rev
+  ---
+  duration_ms: 1.246292
+  ...
+# Subtest: never-published site gets the first-publish copy; nothing pending = no signals
+ok 152 - never-published site gets the first-publish copy; nothing pending = no signals
+  ---
+  duration_ms: 0.349
+  ...
+# Subtest: talentDrawerNotifs: signal first as a sticky action row to /talent/site; stored rows all kept
+ok 153 - talentDrawerNotifs: signal first as a sticky action row to /talent/site; stored rows all kept
+  ---
+  duration_ms: 0.778167
+  ...
+# Subtest: null signals: drawer shows the stored rows unchanged
+ok 154 - null signals: drawer shows the stored rows unchanged
+  ---
+  duration_ms: 0.17875
+  ...
+# Subtest: bookingNoun: talent-site signal -> appointment, agency -> event, explicit kind wins
+ok 155 - bookingNoun: talent-site signal -> appointment, agency -> event, explicit kind wins
+  ---
+  duration_ms: 0.441583
+  ...
+# Subtest: TUL-259: trade slugs pick the noun on a talent-site booking
+ok 156 - TUL-259: trade slugs pick the noun on a talent-site booking
+  ---
+  duration_ms: 0.124375
+  ...
+# Subtest: TUL-259: DJ talent-site reminder reads event/evento, lash reads appointment/cita
+ok 157 - TUL-259: DJ talent-site reminder reads event/evento, lash reads appointment/cita
+  ---
+  duration_ms: 24.387417
+  ...
+# Subtest: booking.day_of_reminder.client: bell + English subject follow the noun
+ok 158 - booking.day_of_reminder.client: bell + English subject follow the noun
+  ---
+  duration_ms: 0.1815
+  ...
+# Subtest: booking.day_of_reminder.client: rendered body says appointment/cita for talent, event/evento for agency
+ok 159 - booking.day_of_reminder.client: rendered body says appointment/cita for talent, event/evento for agency
+  ---
+  duration_ms: 6.928666
+  ...
+# Subtest: booking.day_of_reminder.client: localized subject follows the noun in both languages
+ok 160 - booking.day_of_reminder.client: localized subject follows the noun in both languages
+  ---
+  duration_ms: 0.169292
+  ...
+# Subtest: booking.day_of_reminder.talent: bell + English subject follow the noun
+ok 161 - booking.day_of_reminder.talent: bell + English subject follow the noun
+  ---
+  duration_ms: 0.072
+  ...
+# Subtest: booking.day_of_reminder.talent: rendered body says appointment/cita for talent, event/evento for agency
+ok 162 - booking.day_of_reminder.talent: rendered body says appointment/cita for talent, event/evento for agency
+  ---
+  duration_ms: 6.64975
+  ...
+# Subtest: booking.day_of_reminder.talent: localized subject follows the noun in both languages
+ok 163 - booking.day_of_reminder.talent: localized subject follows the noun in both languages
+  ---
+  duration_ms: 0.063
+  ...
+# Subtest: reservation catalog
+    # Subtest: covers the six plan nouns
+    ok 1 - covers the six plan nouns
+      ---
+      duration_ms: 0.323542
+      ...
+    # Subtest: is terminology-aware in subjects
+    ok 2 - is terminology-aware in subjects
+      ---
+      duration_ms: 0.127375
+      ...
+    1..2
+ok 164 - reservation catalog
+  ---
+  duration_ms: 0.926875
+  type: 'suite'
+  ...
+# Subtest: talent domain breakage + renewal catalog entries exist
+ok 165 - talent domain breakage + renewal catalog entries exist
+  ---
+  duration_ms: 0.746375
+  ...
+# Subtest: talent.domain_* events resolve via findCatalogEntries
+ok 166 - talent.domain_* events resolve via findCatalogEntries
+  ---
+  duration_ms: 0.1095
+  ...
+# Subtest: talent domain email copy has en + es parity keys
+ok 167 - talent domain email copy has en + es parity keys
+  ---
+  duration_ms: 0.100708
+  ...
+# Subtest: every guest-reachable catalog entry resolves a non-empty audience for a null requester
+ok 168 - every guest-reachable catalog entry resolves a non-empty audience for a null requester
+  ---
+  duration_ms: 0.580042
+  ...
+# Subtest: decision (a) siblings exist; decision (b) has no guest sibling
+ok 169 - decision (a) siblings exist; decision (b) has no guest sibling
+  ---
+  duration_ms: 0.184
+  ...
+# Subtest: no email CTA is built on a host that 404s it
+ok 170 - no email CTA is built on a host that 404s it
+  ---
+  duration_ms: 0.823125
+  ...
+# Subtest: the allow-list agrees these paths do not belong on a marketing host
+ok 171 - the allow-list agrees these paths do not belong on a marketing host
+  ---
+  duration_ms: 0.434458
+  ...
+# Subtest: an agency with its own domain keeps it — those hosts do serve workspace paths
+ok 172 - an agency with its own domain keeps it — those hosts do serve workspace paths
+  ---
+  duration_ms: 0.097833
+  ...
+# Subtest: public paths stay on the brand's own host
+ok 173 - public paths stay on the brand's own host
+  ---
+  duration_ms: 0.074042
+  ...
+# Subtest: www and a trailing slash do not change the answer
+ok 174 - www and a trailing slash do not change the answer
+  ---
+  duration_ms: 0.089208
+  ...
+# Subtest: a prefix match is a path-segment match, not a string prefix
+ok 175 - a prefix match is a path-segment match, not a string prefix
+  ---
+  duration_ms: 0.04925
+  ...
+# Subtest: catalog: all 7 Slice 15.4 entries are registered with the right category/required/channels
+ok 176 - catalog: all 7 Slice 15.4 entries are registered with the right category/required/channels
+  ---
+  duration_ms: 0.767875
+  ...
+# Subtest: catalog: each Slice 15.4 trigger routes to exactly its expected entries
+ok 177 - catalog: each Slice 15.4 trigger routes to exactly its expected entries
+  ---
+  duration_ms: 0.168875
+  ...
+# Subtest: catalog: in-app surfaces route each payment bell to the right dashboard
+ok 178 - catalog: in-app surfaces route each payment bell to the right dashboard
+  ---
+  duration_ms: 0.067417
+  ...
+# Subtest: payment.received.client: receipt names amount + date and deep-links to the booking payment tab
+ok 179 - payment.received.client: receipt names amount + date and deep-links to the booking payment tab
+  ---
+  duration_ms: 13.853459
+  ...
+# Subtest: payment.received.workspace: alert deep-links to the inquiry + bells with amount and contact
+ok 180 - payment.received.workspace: alert deep-links to the inquiry + bells with amount and contact
+  ---
+  duration_ms: 0.267375
+  ...
+# Subtest: payment.failed.workspace: dunning alert names the amount due + points at the account page
+ok 181 - payment.failed.workspace: dunning alert names the amount due + points at the account page
+  ---
+  duration_ms: 0.179917
+  ...
+# Subtest: payment.payout_settled.talent: payout notice names the net amount + links to payout settings
+ok 182 - payment.payout_settled.talent: payout notice names the net amount + links to payout settings
+  ---
+  duration_ms: 0.165125
+  ...
+# Subtest: workspace.plan_upgraded: titles with the new plan and carries NO unsubscribe footer
+ok 183 - workspace.plan_upgraded: titles with the new plan and carries NO unsubscribe footer
+  ---
+  duration_ms: 0.143958
+  ...
+# Subtest: workspace.plan_downgraded: reuses SubscriptionCanceled as a paid→paid change (isFullCancel=false)
+ok 184 - workspace.plan_downgraded: reuses SubscriptionCanceled as a paid→paid change (isFullCancel=false)
+  ---
+  duration_ms: 0.276875
+  ...
+# Subtest: workspace.subscription_cancelled: email-only, defaults the target plan to Free
+ok 185 - workspace.subscription_cancelled: email-only, defaults the target plan to Free
+  ---
+  duration_ms: 0.103417
+  ...
+# Subtest: planChangeEventType: maps the plan delta to the right billing event (or null)
+ok 186 - planChangeEventType: maps the plan delta to the right billing event (or null)
+  ---
+  duration_ms: 0.138625
+  ...
+# Subtest: formatMoneyCents: minor units + ISO code → display amount, drops cleanly on missing input
+ok 187 - formatMoneyCents: minor units + ISO code → display amount, drops cleanly on missing input
+  ---
+  duration_ms: 0.123042
+  ...
+# Subtest: planLabel: title-cases known tiers, passes unknown through, empty for null
+ok 188 - planLabel: title-cases known tiers, passes unknown through, empty for null
+  ---
+  duration_ms: 0.054291
+  ...
+# Subtest: transactionPayer: resolves the authenticated payer, the guest payer, or nobody
+ok 189 - transactionPayer: resolves the authenticated payer, the guest payer, or nobody
+  ---
+  duration_ms: 0.165375
+  ...
+# Subtest: payoutReceiverTalent: returns [] without a payout account id (DB-free guard)
+ok 190 - payoutReceiverTalent: returns [] without a payout account id (DB-free guard)
+  ---
+  duration_ms: 0.071709
+  ...
+# Subtest: workspaceOwner: returns [] without a tenant scope (DB-free guard)
+ok 191 - workspaceOwner: returns [] without a tenant scope (DB-free guard)
+  ---
+  duration_ms: 0.066958
+  ...
+# Subtest: catalog: booking.day_of_reminder has two surface-scoped entries, email + in_app
+ok 192 - catalog: booking.day_of_reminder has two surface-scoped entries, email + in_app
+  ---
+  duration_ms: 0.682834
+  ...
+# Subtest: catalog: booking.day_of_reminder trigger routes to exactly the two entries
+ok 193 - catalog: booking.day_of_reminder trigger routes to exactly the two entries
+  ---
+  duration_ms: 0.099584
+  ...
+# Subtest: catalog: booking.day_of_reminder links point at each surface + carry no contactName
+ok 194 - catalog: booking.day_of_reminder links point at each surface + carry no contactName
+  ---
+  duration_ms: 11.653
+  ...
+# Subtest: catalog: booking.day_of_reminder renders fall back gracefully on an empty payload
+ok 195 - catalog: booking.day_of_reminder renders fall back gracefully on an empty payload
+  ---
+  duration_ms: 0.241
+  ...
+# Subtest: catalog: message.new is messages, email-only, digest-batched, and has NO in_app
+ok 196 - catalog: message.new is messages, email-only, digest-batched, and has NO in_app
+  ---
+  duration_ms: 0.082792
+  ...
+# Subtest: catalog: inquiry.message_sent routes to message.new
+ok 197 - catalog: inquiry.message_sent routes to message.new
+  ---
+  duration_ms: 0.057417
+  ...
+# Subtest: catalog: message.new CTA points at the recipient's own surface
+ok 198 - catalog: message.new CTA points at the recipient's own surface
+  ---
+  duration_ms: 0.265625
+  ...
+# Subtest: catalog: message.new render falls back when no preview is hydrated
+ok 199 - catalog: message.new render falls back when no preview is hydrated
+  ---
+  duration_ms: 0.151167
+  ...
+# Subtest: catalog: message.new audience returns [] without inquiry/tenant scope (guard)
+ok 200 - catalog: message.new audience returns [] without inquiry/tenant scope (guard)
+  ---
+  duration_ms: 0.178917
+  ...
+# Subtest: catalog: workspace.over_seat_limit is workspace_activity, email + in_app, workspace surface
+ok 201 - catalog: workspace.over_seat_limit is workspace_activity, email + in_app, workspace surface
+  ---
+  duration_ms: 0.915417
+  ...
+# Subtest: catalog: workspace.over_seat_limit trigger routes to exactly the one entry
+ok 202 - catalog: workspace.over_seat_limit trigger routes to exactly the one entry
+  ---
+  duration_ms: 0.227959
+  ...
+# Subtest: catalog: workspace.over_seat_limit email CTA points at the account page + carries the overage
+ok 203 - catalog: workspace.over_seat_limit email CTA points at the account page + carries the overage
+  ---
+  duration_ms: 0.527417
+  ...
+# Subtest: catalog: workspace.over_seat_limit renders + bells fall back gracefully on an empty payload
+ok 204 - catalog: workspace.over_seat_limit renders + bells fall back gracefully on an empty payload
+  ---
+  duration_ms: 0.243291
+  ...
+# Subtest: catalog: workspace.over_seat_limit audience returns [] without a tenant scope (guard)
+ok 205 - catalog: workspace.over_seat_limit audience returns [] without a tenant scope (guard)
+  ---
+  duration_ms: 0.100792
+  ...
+# Subtest: catalog: TUL-391 money entries are in_app-only payments on the workspace surface
+ok 206 - catalog: TUL-391 money entries are in_app-only payments on the workspace surface
+  ---
+  duration_ms: 0.782208
+  ...
+# Subtest: catalog: refund.failed / payment.needs_attention triggers route to one entry each
+ok 207 - catalog: refund.failed / payment.needs_attention triggers route to one entry each
+  ---
+  duration_ms: 0.124458
+  ...
+# Subtest: catalog: refund.failed.workspace copy names amount and reason
+ok 208 - catalog: refund.failed.workspace copy names amount and reason
+  ---
+  duration_ms: 0.296
+  ...
+# Subtest: catalog: refund.failed.workspace copy is zero-decimal aware
+ok 209 - catalog: refund.failed.workspace copy is zero-decimal aware
+  ---
+  duration_ms: 0.071125
+  ...
+# Subtest: catalog: payment.needs_attention title branches on reason
+ok 210 - catalog: payment.needs_attention title branches on reason
+  ---
+  duration_ms: 0.1775
+  ...
+# Subtest: catalog: offer.pending_approval.workspace is approval Attention on offer.sent
+ok 211 - catalog: offer.pending_approval.workspace is approval Attention on offer.sent
+  ---
+  duration_ms: 0.213958
+  ...
+# Subtest: TUL-391 r2: offer.sent.talent bell deep-links to the inquiry (row was a dead end)
+ok 212 - TUL-391 r2: offer.sent.talent bell deep-links to the inquiry (row was a dead end)
+  ---
+  duration_ms: 0.084459
+  ...
+# Subtest: catalog: the three Phase 10 platform entries are registered as platform_alerts
+ok 213 - catalog: the three Phase 10 platform entries are registered as platform_alerts
+  ---
+  duration_ms: 0.690875
+  ...
+# Subtest: catalog: platform entries declare the spec's channels
+ok 214 - catalog: platform entries declare the spec's channels
+  ---
+  duration_ms: 0.628667
+  ...
+# Subtest: catalog: platform-alert triggers route to their entries (incl. aliases)
+ok 215 - catalog: platform-alert triggers route to their entries (incl. aliases)
+  ---
+  duration_ms: 0.170375
+  ...
+# Subtest: catalog: all entry ids are globally unique
+ok 216 - catalog: all entry ids are globally unique
+  ---
+  duration_ms: 0.074958
+  ...
+# Subtest: catalog: platform email subject + render build without throwing
+ok 217 - catalog: platform email subject + render build without throwing
+  ---
+  duration_ms: 0.56775
+  ...
+# Subtest: catalog: platform renders fall back gracefully on an empty payload
+ok 218 - catalog: platform renders fall back gracefully on an empty payload
+  ---
+  duration_ms: 0.120167
+  ...
+# Subtest: catalog: Slice 15.1 entries are email-only, optional, and have an email config
+ok 219 - catalog: Slice 15.1 entries are email-only, optional, and have an email config
+  ---
+  duration_ms: 0.079709
+  ...
+# Subtest: catalog: Slice 15.1 triggers route to their entries
+ok 220 - catalog: Slice 15.1 triggers route to their entries
+  ---
+  duration_ms: 0.135208
+  ...
+# Subtest: catalog: Slice 15.1 subject + render build without throwing
+ok 221 - catalog: Slice 15.1 subject + render build without throwing
+  ---
+  duration_ms: 0.524667
+  ...
+# Subtest: catalog: Slice 15.1 renders fall back gracefully on an empty payload
+ok 222 - catalog: Slice 15.1 renders fall back gracefully on an empty payload
+  ---
+  duration_ms: 0.213166
+  ...
+# Subtest: catalog: inquiry.cancelled link points at the recipient's own surface
+ok 223 - catalog: inquiry.cancelled link points at the recipient's own surface
+  ---
+  duration_ms: 0.150291
+  ...
+# Subtest: catalog: Slice 15.3 invite entries are email-only, optional, no in_app
+ok 224 - catalog: Slice 15.3 invite entries are email-only, optional, no in_app
+  ---
+  duration_ms: 0.080625
+  ...
+# Subtest: catalog: Slice 15.3 triggers route to their entries
+ok 225 - catalog: Slice 15.3 triggers route to their entries
+  ---
+  duration_ms: 0.059125
+  ...
+# Subtest: catalog: Slice 15.3 audience resolves the payload email as a guest
+ok 226 - catalog: Slice 15.3 audience resolves the payload email as a guest
+  ---
+  duration_ms: 0.151583
+  ...
+# Subtest: catalog: claim-invite resolves an absolute redeem link + reminder subject
+ok 227 - catalog: claim-invite resolves an absolute redeem link + reminder subject
+  ---
+  duration_ms: 11.703042
+  ...
+# Subtest: catalog: team-invite renders the redeem path + role on the branded host
+ok 228 - catalog: team-invite renders the redeem path + role on the branded host
+  ---
+  duration_ms: 0.262583
+  ...
+# Subtest: catalog: Slice 15.3 renders fall back gracefully on an empty payload
+ok 229 - catalog: Slice 15.3 renders fall back gracefully on an empty payload
+  ---
+  duration_ms: 0.108708
+  ...
+# Subtest: catalog: Slice 15.3 welcomes are email-only, optional, workspace_activity, no in_app
+ok 230 - catalog: Slice 15.3 welcomes are email-only, optional, workspace_activity, no in_app
+  ---
+  duration_ms: 0.180458
+  ...
+# Subtest: catalog: Slice 15.3 welcome triggers route to their entries
+ok 231 - catalog: Slice 15.3 welcome triggers route to their entries
+  ---
+  duration_ms: 0.109166
+  ...
+# Subtest: catalog: welcome audience resolves event.userId as a user recipient
+ok 232 - catalog: welcome audience resolves event.userId as a user recipient
+  ---
+  duration_ms: 0.163166
+  ...
+# Subtest: catalog: workspace welcome passes absolute admin/public links through
+ok 233 - catalog: workspace welcome passes absolute admin/public links through
+  ---
+  duration_ms: 0.114416
+  ...
+# Subtest: catalog: talent welcome links to /talent on the platform host + greets by first name
+ok 234 - catalog: talent welcome links to /talent on the platform host + greets by first name
+  ---
+  duration_ms: 0.167167
+  ...
+# Subtest: catalog: Slice 15.3 welcome renders fall back gracefully on an empty payload
+ok 235 - catalog: Slice 15.3 welcome renders fall back gracefully on an empty payload
+  ---
+  duration_ms: 0.084125
+  ...
+# Subtest: catalog: booking.cancelled has three surface-scoped entries, email + in_app
+ok 236 - catalog: booking.cancelled has three surface-scoped entries, email + in_app
+  ---
+  duration_ms: 0.065792
+  ...
+# Subtest: catalog: booking.cancelled trigger routes to all three entries
+ok 237 - catalog: booking.cancelled trigger routes to all three entries
+  ---
+  duration_ms: 0.056459
+  ...
+# Subtest: catalog: booking.cancelled links point at each recipient's own surface
+ok 238 - catalog: booking.cancelled links point at each recipient's own surface
+  ---
+  duration_ms: 0.240625
+  ...
+# Subtest: catalog: booking.cancelled renders fall back gracefully on an empty payload
+ok 239 - catalog: booking.cancelled renders fall back gracefully on an empty payload
+  ---
+  duration_ms: 0.102375
+  ...
+# Subtest: catalog: talent.profile_approved is roster_activity, email + in_app on talent surface
+ok 240 - catalog: talent.profile_approved is roster_activity, email + in_app on talent surface
+  ---
+  duration_ms: 0.060542
+  ...
+# Subtest: catalog: talent.profile_approved resolves event.userId + passes the profile URL through
+ok 241 - catalog: talent.profile_approved resolves event.userId + passes the profile URL through
+  ---
+  duration_ms: 0.112041
+  ...
+# Subtest: catalog: offer.sent.talent is offers, email + in_app on the talent surface
+ok 242 - catalog: offer.sent.talent is offers, email + in_app on the talent surface
+  ---
+  duration_ms: 0.046333
+  ...
+# Subtest: catalog: offer.sent routes to client, talent, and workspace pending-approval entries
+ok 243 - catalog: offer.sent routes to client, talent, and workspace pending-approval entries
+  ---
+  duration_ms: 0.044917
+  ...
+# Subtest: catalog: offer.sent.talent shows the recipient's OWN net rate, never the client total
+ok 244 - catalog: offer.sent.talent shows the recipient's OWN net rate, never the client total
+  ---
+  duration_ms: 0.155125
+  ...
+# Subtest: catalog: offer.sent.talent renders gracefully with no net mapped for the recipient
+ok 245 - catalog: offer.sent.talent renders gracefully with no net mapped for the recipient
+  ---
+  duration_ms: 0.152666
+  ...
+# Subtest: kind→category map covers every DB kind exactly once across the four UI buckets
+ok 246 - kind→category map covers every DB kind exactly once across the four UI buckets
+  ---
+  duration_ms: 0.727708
+  ...
+# Subtest: kindsForUiCategory is the inverse of KIND_TO_UI_CATEGORY
+ok 247 - kindsForUiCategory is the inverse of KIND_TO_UI_CATEGORY
+  ---
+  duration_ms: 0.238375
+  ...
+# Subtest: aggregateUnreadByKind rolls unread kinds into bubble counts
+ok 248 - aggregateUnreadByKind rolls unread kinds into bubble counts
+  ---
+  duration_ms: 0.258542
+  ...
+# Subtest: guest client gets the inquiry language as an explicit locale
+ok 249 - guest client gets the inquiry language as an explicit locale
+  ---
+  duration_ms: 0.736667
+  ...
+# Subtest: client account member carries the locale; unknown locale leaves it unset (tenant default applies)
+ok 250 - client account member carries the locale; unknown locale leaves it unset (tenant default applies)
+  ---
+  duration_ms: 0.121458
+  ...
+# Subtest: loadInquiryView surfaces guest_locale from a guest-chat inquiry
+ok 251 - loadInquiryView surfaces guest_locale from a guest-chat inquiry
+  ---
+  duration_ms: 0.168417
+  ...
+# Subtest: flag off + a known conversation: the link is a signed thread link a guest can open
+ok 252 - flag off + a known conversation: the link is a signed thread link a guest can open
+  ---
+  duration_ms: 0.88125
+  ...
+# Subtest: flag off without a conversation: unchanged legacy path (no regression)
+ok 253 - flag off without a conversation: unchanged legacy path (no regression)
+  ---
+  duration_ms: 0.170792
+  ...
+# Subtest: flag on: the visit id is the INQUIRY id when known (the loader keys on inquiries.id)
+ok 254 - flag on: the visit id is the INQUIRY id when known (the loader keys on inquiries.id)
+  ---
+  duration_ms: 0.100292
+  ...
+# Subtest: marketing apex never gets an /account link (it 404s): falls to the app host
+ok 255 - marketing apex never gets an /account link (it 404s): falls to the app host
+  ---
+  duration_ms: 0.177083
+  ...
+# Subtest: guestSaveBookingsUrl is the existing client sign-in, on a host that serves it
+ok 256 - guestSaveBookingsUrl is the existing client sign-in, on a host that serves it
+  ---
+  duration_ms: 0.216458
+  ...
+# Subtest: every email-copy templateId is claimed by a catalog entry
+ok 257 - every email-copy templateId is claimed by a catalog entry
+  ---
+  duration_ms: 1.283791
+  ...
+# Subtest: client.welcome specifically is claimed (regression: it was orphaned)
+ok 258 - client.welcome specifically is claimed (regression: it was orphaned)
+  ---
+  duration_ms: 0.282375
+  ...
+# Subtest: customer-facing copy speaks no agency-world vocabulary
+ok 259 - customer-facing copy speaks no agency-world vocabulary
+  ---
+  duration_ms: 2.701583
+  ...
+# Subtest: customer-facing copy uses no em dashes
+ok 260 - customer-facing copy uses no em dashes
+  ---
+  duration_ms: 0.890166
+  ...
+# Subtest: the guard strips placeholders — {talent} is a token, not a word anyone reads
+ok 261 - the guard strips placeholders — {talent} is a token, not a word anyone reads
+  ---
+  duration_ms: 0.153166
+  ...
+# Subtest: customer copy written as literal source strings obeys the same rules
+ok 262 - customer copy written as literal source strings obeys the same rules
+  ---
+  duration_ms: 1.547375
+  ...
+# Subtest: digestWindowMinutes: messages 30, roster_activity 60, else daily
+ok 263 - digestWindowMinutes: messages 30, roster_activity 60, else daily
+  ---
+  duration_ms: 0.400833
+  ...
+# Subtest: categoryForRow: resolves via catalog_entry_id
+ok 264 - categoryForRow: resolves via catalog_entry_id
+  ---
+  duration_ms: 0.0965
+  ...
+# Subtest: categoryForRow: falls back to payload.category, validated
+ok 265 - categoryForRow: falls back to payload.category, validated
+  ---
+  duration_ms: 0.083375
+  ...
+# Subtest: digestSummaryLine: prefers explicit producer fields
+ok 266 - digestSummaryLine: prefers explicit producer fields
+  ---
+  duration_ms: 0.069416
+  ...
+# Subtest: digestSummaryLine: category fallback when no producer field
+ok 267 - digestSummaryLine: category fallback when no producer field
+  ---
+  duration_ms: 0.057458
+  ...
+# Subtest: digestSummaryLine: truncates long summaries
+ok 268 - digestSummaryLine: truncates long summaries
+  ---
+  duration_ms: 0.086
+  ...
+# Subtest: digestTimeLabel: HH:MM UTC, null on garbage
+ok 269 - digestTimeLabel: HH:MM UTC, null on garbage
+  ---
+  duration_ms: 0.070917
+  ...
+# Subtest: groupDigestRows: groups by (recipient, category) and preserves order
+ok 270 - groupDigestRows: groups by (recipient, category) and preserves order
+  ---
+  duration_ms: 0.39325
+  ...
+# Subtest: groupDigestRows: guests keyed by email, identity-less rows dropped
+ok 271 - groupDigestRows: guests keyed by email, identity-less rows dropped
+  ---
+  duration_ms: 0.124166
+  ...
+# Subtest: isBatchReady: flushes only once oldest row passes the window
+ok 272 - isBatchReady: flushes only once oldest row passes the window
+  ---
+  duration_ms: 0.149
+  ...
+# Subtest: digestHeading: singular/plural per category
+ok 273 - digestHeading: singular/plural per category
+  ---
+  duration_ms: 0.067167
+  ...
+# Subtest: digestCtaPath: message digest deep-links client to tenant messages
+ok 274 - digestCtaPath: message digest deep-links client to tenant messages
+  ---
+  duration_ms: 0.101083
+  ...
+# Subtest: digestCtaPath: message digest deep-links talent to inbox thread
+ok 275 - digestCtaPath: message digest deep-links talent to inbox thread
+  ---
+  duration_ms: 0.059583
+  ...
+# Subtest: digestCtaPath: message digest deep-links staff to tenant admin work
+ok 276 - digestCtaPath: message digest deep-links staff to tenant admin work
+  ---
+  duration_ms: 0.120166
+  ...
+# Subtest: handler null → row skipped
+ok 277 - handler null → row skipped
+  ---
+  duration_ms: 0.41975
+  ...
+# Subtest: handler throw → row failed
+ok 278 - handler throw → row failed
+  ---
+  duration_ms: 0.080042
+  ...
+# Subtest: handler ref → row sent
+ok 279 - handler ref → row sent
+  ---
+  duration_ms: 1.316875
+  ...
+# Subtest: TUL-640: a channel skip carries its reason onto the row
+ok 280 - TUL-640: a channel skip carries its reason onto the row
+  ---
+  duration_ms: 0.068208
+  ...
+# Subtest: TUL-640: a skip without a reason keeps the generic message
+ok 281 - TUL-640: a skip without a reason keeps the generic message
+  ---
+  duration_ms: 0.065125
+  ...
+# Subtest: TUL-640: isChannelSkip only accepts the skip shape
+ok 282 - TUL-640: isChannelSkip only accepts the skip shape
+  ---
+  duration_ms: 0.069666
+  ...
+# Subtest: TUL-653: an unknown guest locale is logged as null, not 'en'
+ok 283 - TUL-653: an unknown guest locale is logged as null, not 'en'
+  ---
+  duration_ms: 0.059
+  ...
+# Subtest: TUL-653: an explicit recipient locale is logged as given
+ok 284 - TUL-653: an explicit recipient locale is logged as given
+  ---
+  duration_ms: 0.047208
+  ...
+# Subtest: dispatch_log envelope recording
+    # Subtest: records the Reply-To for a tenant that has a contact email
+    ok 1 - records the Reply-To for a tenant that has a contact email
+      ---
+      duration_ms: 0.320333
+      ...
+    # Subtest: records NULL Reply-To for a tenant with no contact email — not an invented address
+    ok 2 - records NULL Reply-To for a tenant with no contact email — not an invented address
+      ---
+      duration_ms: 0.133375
+      ...
+    # Subtest: PRESERVES the payload the row already carries (the digest sweep and retry cron read it)
+    ok 3 - PRESERVES the payload the row already carries (the digest sweep and retry cron read it)
+      ---
+      duration_ms: 0.054625
+      ...
+    # Subtest: leaves the payload untouched for a channel that reports no envelope (in_app)
+    ok 4 - leaves the payload untouched for a channel that reports no envelope (in_app)
+      ---
+      duration_ms: 0.19775
+      ...
+    # Subtest: a null provider ref is still 'skipped', unchanged by envelope recording
+    ok 5 - a null provider ref is still 'skipped', unchanged by envelope recording
+      ---
+      duration_ms: 1.589125
+      ...
+    1..5
+ok 285 - dispatch_log envelope recording
+  ---
+  duration_ms: 2.98625
+  type: 'suite'
+  ...
+# Subtest: guest unsubscribe token signs and verifies an email when secret is set
+ok 286 - guest unsubscribe token signs and verifies an email when secret is set
+  ---
+  duration_ms: 1.348375
+  ...
+# Subtest: unsigned secret yields no token
+ok 287 - unsigned secret yields no token
+  ---
+  duration_ms: 0.472125
+  ...
+# Subtest: LEGACY_NOTIF_READ_KEY is the historical hub key
+ok 288 - LEGACY_NOTIF_READ_KEY is the historical hub key
+  ---
+  duration_ms: 0.405542
+  ...
+# Subtest: parseLegacyReadIdSet tolerates missing and malformed storage
+ok 289 - parseLegacyReadIdSet tolerates missing and malformed storage
+  ---
+  duration_ms: 0.344042
+  ...
+# Subtest: parseLegacyReadIdSet keeps only non-empty strings
+ok 290 - parseLegacyReadIdSet keeps only non-empty strings
+  ---
+  duration_ms: 0.113583
+  ...
+# Subtest: realNotificationIdsFromLegacyReadIds strips notif- and drops fixtures
+ok 291 - realNotificationIdsFromLegacyReadIds strips notif- and drops fixtures
+  ---
+  duration_ms: 0.077583
+  ...
+# Subtest: InquiryNotificationRecipients shape is exhaustive
+ok 292 - InquiryNotificationRecipients shape is exhaustive
+  ---
+  duration_ms: 0.419625
+  ...
+# Subtest: empty recipients have correct types
+ok 293 - empty recipients have correct types
+  ---
+  duration_ms: 0.296625
+  ...
+# Subtest: Set-based dedup pattern: same user across multiple participant rows
+ok 294 - Set-based dedup pattern: same user across multiple participant rows
+  ---
+  duration_ms: 0.108416
+  ...
+# Subtest: client.reply_ready — EN/ES parity
+    # Subtest: exposes every key the template reads, in both locales
+    ok 1 - exposes every key the template reads, in both locales
+      ---
+      duration_ms: 0.530583
+      ...
+    # Subtest: ES is actually translated — no key silently left in English
+    ok 2 - ES is actually translated — no key silently left in English
+      ---
+      duration_ms: 0.174792
+      ...
+    # Subtest: localizes the subject and interpolates the agency name in both locales
+    ok 3 - localizes the subject and interpolates the agency name in both locales
+      ---
+      duration_ms: 0.1965
+      ...
+    # Subtest: an unknown locale falls back to EN rather than throwing
+    ok 4 - an unknown locale falls back to EN rather than throwing
+      ---
+      duration_ms: 0.063833
+      ...
+    1..4
+ok 295 - client.reply_ready — EN/ES parity
+  ---
+  duration_ms: 2.68375
+  type: 'suite'
+  ...
+# [workspace-audit] service-role client unavailable; dropping event { action: 'messages.email.bounced', tenantId: 'tenant-1' }
+# Subtest: verifyResendSignature accepts the canonical Svix vector
+ok 296 - verifyResendSignature accepts the canonical Svix vector
+  ---
+  duration_ms: 1.222708
+  ...
+# Subtest: verifyResendSignature: fresh valid signature passes
+ok 297 - verifyResendSignature: fresh valid signature passes
+  ---
+  duration_ms: 0.224875
+  ...
+# Subtest: verifyResendSignature: tampered body fails
+ok 298 - verifyResendSignature: tampered body fails
+  ---
+  duration_ms: 0.121042
+  ...
+# Subtest: verifyResendSignature: wrong secret fails
+ok 299 - verifyResendSignature: wrong secret fails
+  ---
+  duration_ms: 0.133167
+  ...
+# Subtest: verifyResendSignature: stale timestamp fails (replay window)
+ok 300 - verifyResendSignature: stale timestamp fails (replay window)
+  ---
+  duration_ms: 0.073625
+  ...
+# Subtest: verifyResendSignature: missing headers fail
+ok 301 - verifyResendSignature: missing headers fail
+  ---
+  duration_ms: 0.067583
+  ...
+# Subtest: verifyResendSignature: matches one of several space-delimited sigs
+ok 302 - verifyResendSignature: matches one of several space-delimited sigs
+  ---
+  duration_ms: 0.1445
+  ...
+# Subtest: suppressionReasonFor: complaints always suppress
+ok 303 - suppressionReasonFor: complaints always suppress
+  ---
+  duration_ms: 0.063125
+  ...
+# Subtest: suppressionReasonFor: permanent bounces suppress
+ok 304 - suppressionReasonFor: permanent bounces suppress
+  ---
+  duration_ms: 0.510375
+  ...
+# Subtest: suppressionReasonFor: transient/undetermined/shape-less bounces do NOT suppress
+ok 305 - suppressionReasonFor: transient/undetermined/shape-less bounces do NOT suppress
+  ---
+  duration_ms: 0.209583
+  ...
+# Subtest: suppressionReasonFor: non-suppressing events return null
+ok 306 - suppressionReasonFor: non-suppressing events return null
+  ---
+  duration_ms: 0.289834
+  ...
+# Subtest: applyResendEvent suppresses a hard bounce for a GUEST with no account
+ok 307 - applyResendEvent suppresses a hard bounce for a GUEST with no account
+  ---
+  duration_ms: 2.273292
+  ...
+# Subtest: applyResendEvent still keys a known user's suppression on (user_id, email)
+ok 308 - applyResendEvent still keys a known user's suppression on (user_id, email)
+  ---
+  duration_ms: 2.172166
+  ...
+# Subtest: applyResendEvent does not suppress a transient bounce
+ok 309 - applyResendEvent does not suppress a transient bounce
+  ---
+  duration_ms: 0.178917
+  ...
+# Subtest: applyResendEvent cannot suppress without an address
+ok 310 - applyResendEvent cannot suppress without an address
+  ---
+  duration_ms: 0.076042
+  ...
+# Subtest: a bounce records the provider's own classification alongside the stamp
+ok 311 - a bounce records the provider's own classification alongside the stamp
+  ---
+  duration_ms: 0.107375
+  ...
+# Subtest: bounce columns are absent, not null, when the provider sends no detail
+ok 312 - bounce columns are absent, not null, when the provider sends no detail
+  ---
+  duration_ms: 0.398417
+  ...
+# Subtest: non-bounce events write no bounce columns
+ok 313 - non-bounce events write no bounce columns
+  ---
+  duration_ms: 0.247958
+  ...
+# Subtest: a long provider message is truncated rather than stored unbounded
+ok 314 - a long provider message is truncated rather than stored unbounded
+  ---
+  duration_ms: 0.07525
+  ...
+# Subtest: a bounce that did NOT suppress says so in its log detail
+ok 315 - a bounce that did NOT suppress says so in its log detail
+  ---
+  duration_ms: 0.19225
+  ...
+# Subtest: a bounce with no type at all is logged as absent, not as a missing field
+ok 316 - a bounce with no type at all is logged as absent, not as a missing field
+  ---
+  duration_ms: 0.186584
+  ...
+# Subtest: mark-read clears unread for selected ids; countUnread rollup drops them
+ok 317 - mark-read clears unread for selected ids; countUnread rollup drops them
+  ---
+  duration_ms: 1.636208
+  ...
+# Subtest: category filter used by countUnreadNotifications matches kindsForUiCategory
+ok 318 - category filter used by countUnreadNotifications matches kindsForUiCategory
+  ---
+  duration_ms: 0.126291
+  ...
+# Subtest: the suppression conflict target is a constant, not chosen at runtime
+ok 319 - the suppression conflict target is a constant, not chosen at runtime
+  ---
+  duration_ms: 0.510625
+  ...
+# Subtest: it targets the inferrable generated columns
+ok 320 - it targets the inferrable generated columns
+  ---
+  duration_ms: 0.113375
+  ...
+# Subtest: a migration defines those columns and the index that makes them inferrable
+ok 321 - a migration defines those columns and the index that makes them inferrable
+  ---
+  duration_ms: 205.261792
+  ...
+# Subtest: the replacement index is not partial and not an expression
+ok 322 - the replacement index is not partial and not an expression
+  ---
+  duration_ms: 4.931209
+  ...
+# Subtest: bell unread equals inbox unread for the same fixtures
+ok 323 - bell unread equals inbox unread for the same fixtures
+  ---
+  duration_ms: 0.429292
+  ...
+# Subtest: orphan conversation notifications are dropped, system rows kept
+ok 324 - orphan conversation notifications are dropped, system rows kept
+  ---
+  duration_ms: 0.331208
+  ...
+# Subtest: TUL-536: non-conversation rows count even when their inquiry is outside Messages
+ok 325 - TUL-536: non-conversation rows count even when their inquiry is outside Messages
+  ---
+  duration_ms: 0.07475
+  ...
+# Subtest: unknown visibility hides nothing
+ok 326 - unknown visibility hides nothing
+  ---
+  duration_ms: 0.109166
+  ...
+# Subtest: own talent site only
+ok 327 - own talent site only
+  ---
+  duration_ms: 0.674375
+  ...
+# [notifications.unclaimedBooking.roster] boom 
+# Subtest: unclaimedTalentNames flags only profiles with no account
+ok 328 - unclaimedTalentNames flags only profiles with no account
+  ---
+  duration_ms: 0.954083
+  ...
+# Subtest: workspace staff are the audience only when a talent is unclaimed
+ok 329 - workspace staff are the audience only when a talent is unclaimed
+  ---
+  duration_ms: 0.269959
+  ...
+# Subtest: the audience never includes the profile's invitation email
+ok 330 - the audience never includes the profile's invitation email
+  ---
+  duration_ms: 0.125625
+  ...
+# Subtest: hydrate degrades to the base view when the roster read errors
+ok 331 - hydrate degrades to the base view when the roster read errors
+  ---
+  duration_ms: 1.144875
+  ...
+# Subtest: hydrate counts unclaimed talents from the roster
+ok 332 - hydrate counts unclaimed talents from the roster
+  ---
+  duration_ms: 0.106667
+  ...
+# Subtest: entry is registered with in-app + email and EN/ES copy
+ok 333 - entry is registered with in-app + email and EN/ES copy
+  ---
+  duration_ms: 0.1865
+  ...
+# Subtest: localCentsFromUsd multiplies USD by units-per-USD
+ok 334 - localCentsFromUsd multiplies USD by units-per-USD
+  ---
+  duration_ms: 0.741417
+  ...
+# Subtest: localCentsFromUsd refuses when FX is missing for a foreign currency
+ok 335 - localCentsFromUsd refuses when FX is missing for a foreign currency
+  ---
+  duration_ms: 0.094458
+  ...
+# Subtest: buildDomainPriceDisplay shows talent currency with USD charge note
+ok 336 - buildDomainPriceDisplay shows talent currency with USD charge note
+  ---
+  duration_ms: 16.91675
+  ...
+# Subtest: buildDomainPriceDisplay falls back to USD when FX is unavailable
+ok 337 - buildDomainPriceDisplay falls back to USD when FX is unavailable
+  ---
+  duration_ms: 0.331208
+  ...
+# Subtest: the layout's financial KPI read is time-boxed, never awaited to the statement timeout
+ok 338 - the layout's financial KPI read is time-boxed, never awaited to the statement timeout
+  ---
+  duration_ms: 1.139625
+  ...
+# Subtest: pull_request types are exactly the four reviewed ones, with no edited
+ok 339 - pull_request types are exactly the four reviewed ones, with no edited
+  ---
+  duration_ms: 0.700584
+  ...
+# Subtest: draft skip and event_name check on the gate job still hold
+ok 340 - draft skip and event_name check on the gate job still hold
+  ---
+  duration_ms: 0.097458
+  ...
+# Subtest: PR concurrency still cancels superseded runs and never cancels main
+ok 341 - PR concurrency still cancels superseded runs and never cancels main
+  ---
+  duration_ms: 0.056
+  ...
+# Subtest: adding full-ci re-runs the gate from its own workflow, not a labeled trigger on ci.yml
+ok 342 - adding full-ci re-runs the gate from its own workflow, not a labeled trigger on ci.yml
+  ---
+  duration_ms: 0.693083
+  ...
+# Subtest: the decision is documented and the no-stacking rule is in CLAUDE.md
+ok 343 - the decision is documented and the no-stacking rule is in CLAUDE.md
+  ---
+  duration_ms: 0.370375
+  ...
+# Subtest: concurrency stays per-ref; no shared ordinary-PR pool
+ok 344 - concurrency stays per-ref; no shared ordinary-PR pool
+  ---
+  duration_ms: 0.48675
+  ...
+# Subtest: the gate's first step is the policy step, reading labels live
+ok 345 - the gate's first step is the policy step, reading labels live
+  ---
+  duration_ms: 0.239292
+  ...
+# Subtest: an unlabelled ordinary PR fails (not skips) the gate
+ok 346 - an unlabelled ordinary PR fails (not skips) the gate
+  ---
+  duration_ms: 0.303625
+  ...
+# Subtest: every heavy step is conditioned on the policy output
+ok 347 - every heavy step is conditioned on the policy output
+  ---
+  duration_ms: 1.101
+  ...
+# Subtest: no labeled trigger (a label event would cancel an in-flight gate)
+ok 348 - no labeled trigger (a label event would cancel an in-flight gate)
+  ---
+  duration_ms: 0.156834
+  ...
+# Subtest: promote cancels superseded queued runs in its own group
+ok 349 - promote cancels superseded queued runs in its own group
+  ---
+  duration_ms: 0.129709
+  ...
+# Subtest: ordinary PRs get a tsc-only typecheck job; integ batches and main skip it
+ok 350 - ordinary PRs get a tsc-only typecheck job; integ batches and main skip it
+  ---
+  duration_ms: 0.094083
+  ...
+# Subtest: every Commerce view with a URL drawer is seeded from the server
+ok 351 - every Commerce view with a URL drawer is seeded from the server
+  ---
+  duration_ms: 10.302
+  ...
+# Subtest: no file is claimed by two ratchet tables at once
+ok 352 - no file is claimed by two ratchet tables at once
+  ---
+  duration_ms: 0.669083
+  ...
+# Subtest: src/components/edit-chrome/edit-context.tsx stays within its 6311-line budget
+ok 353 - src/components/edit-chrome/edit-context.tsx stays within its 6311-line budget
+  ---
+  duration_ms: 1.959042
+  ...
+# Subtest: src/components/edit-chrome/edit-context.tsx budget is still tight
+ok 354 - src/components/edit-chrome/edit-context.tsx budget is still tight
+  ---
+  duration_ms: 1.186375
+  ...
+# Subtest: src/components/edit-chrome/inspectors/style-panel.tsx stays within its 5623-line budget
+ok 355 - src/components/edit-chrome/inspectors/style-panel.tsx stays within its 5623-line budget
+  ---
+  duration_ms: 1.527084
+  ...
+# Subtest: src/components/edit-chrome/inspectors/style-panel.tsx budget is still tight
+ok 356 - src/components/edit-chrome/inspectors/style-panel.tsx budget is still tight
+  ---
+  duration_ms: 0.816458
+  ...
+# Subtest: src/components/edit-chrome/navigator-panel.tsx stays within its 4474-line budget
+ok 357 - src/components/edit-chrome/navigator-panel.tsx stays within its 4474-line budget
+  ---
+  duration_ms: 2.261583
+  ...
+# Subtest: src/components/edit-chrome/navigator-panel.tsx budget is still tight
+ok 358 - src/components/edit-chrome/navigator-panel.tsx budget is still tight
+  ---
+  duration_ms: 1.924333
+  ...
+# Subtest: src/components/edit-chrome/topbar.tsx stays within its 3327-line budget
+ok 359 - src/components/edit-chrome/topbar.tsx stays within its 3327-line budget
+  ---
+  duration_ms: 3.566166
+  ...
+# Subtest: src/components/edit-chrome/topbar.tsx budget is still tight
+ok 360 - src/components/edit-chrome/topbar.tsx budget is still tight
+  ---
+  duration_ms: 0.874958
+  ...
+# Subtest: src/components/edit-chrome/edit-shell.tsx stays within its 2298-line budget
+ok 361 - src/components/edit-chrome/edit-shell.tsx stays within its 2298-line budget
+  ---
+  duration_ms: 0.841125
+  ...
+# Subtest: src/components/edit-chrome/edit-shell.tsx budget is still tight
+ok 362 - src/components/edit-chrome/edit-shell.tsx budget is still tight
+  ---
+  duration_ms: 0.832333
+  ...
+# Subtest: src/components/edit-chrome/inspectors/layout-panel.tsx stays within its 1915-line budget
+ok 363 - src/components/edit-chrome/inspectors/layout-panel.tsx stays within its 1915-line budget
+  ---
+  duration_ms: 1.458875
+  ...
+# Subtest: src/components/edit-chrome/inspectors/layout-panel.tsx budget is still tight
+ok 364 - src/components/edit-chrome/inspectors/layout-panel.tsx budget is still tight
+  ---
+  duration_ms: 0.345458
+  ...
+# Subtest: src/components/edit-chrome/publish-drawer.tsx stays within its 2179-line budget
+ok 365 - src/components/edit-chrome/publish-drawer.tsx stays within its 2179-line budget
+  ---
+  duration_ms: 1.186334
+  ...
+# Subtest: src/components/edit-chrome/publish-drawer.tsx budget is still tight
+ok 366 - src/components/edit-chrome/publish-drawer.tsx budget is still tight
+  ---
+  duration_ms: 0.350583
+  ...
+# Subtest: src/components/edit-chrome/inspector-dock.tsx stays within its 1885-line budget
+ok 367 - src/components/edit-chrome/inspector-dock.tsx stays within its 1885-line budget
+  ---
+  duration_ms: 1.33675
+  ...
+# Subtest: src/components/edit-chrome/inspector-dock.tsx budget is still tight
+ok 368 - src/components/edit-chrome/inspector-dock.tsx budget is still tight
+  ---
+  duration_ms: 0.770917
+  ...
+# Subtest: src/components/edit-chrome/page-settings-drawer.tsx stays within its 1463-line budget
+ok 369 - src/components/edit-chrome/page-settings-drawer.tsx stays within its 1463-line budget
+  ---
+  duration_ms: 0.838583
+  ...
+# Subtest: src/components/edit-chrome/page-settings-drawer.tsx budget is still tight
+ok 370 - src/components/edit-chrome/page-settings-drawer.tsx budget is still tight
+  ---
+  duration_ms: 0.323667
+  ...
+# Subtest: src/components/edit-chrome/theme-drawer.tsx stays within its 1469-line budget
+ok 371 - src/components/edit-chrome/theme-drawer.tsx stays within its 1469-line budget
+  ---
+  duration_ms: 1.543791
+  ...
+# Subtest: src/components/edit-chrome/theme-drawer.tsx budget is still tight
+ok 372 - src/components/edit-chrome/theme-drawer.tsx budget is still tight
+  ---
+  duration_ms: 0.410084
+  ...
+# Subtest: src/components/edit-chrome/command-palette.tsx stays within its 1287-line budget
+ok 373 - src/components/edit-chrome/command-palette.tsx stays within its 1287-line budget
+  ---
+  duration_ms: 1.098209
+  ...
+# Subtest: src/components/edit-chrome/command-palette.tsx budget is still tight
+ok 374 - src/components/edit-chrome/command-palette.tsx budget is still tight
+  ---
+  duration_ms: 0.374292
+  ...
+# Subtest: src/components/edit-chrome/comments-drawer.tsx stays within its 1144-line budget
+ok 375 - src/components/edit-chrome/comments-drawer.tsx stays within its 1144-line budget
+  ---
+  duration_ms: 1.278791
+  ...
+# Subtest: src/components/edit-chrome/comments-drawer.tsx budget is still tight
+ok 376 - src/components/edit-chrome/comments-drawer.tsx budget is still tight
+  ---
+  duration_ms: 0.663083
+  ...
+# Subtest: src/components/edit-chrome/inspectors/site-header/SiteHeaderInspector.tsx stays within its 988-line budget
+ok 377 - src/components/edit-chrome/inspectors/site-header/SiteHeaderInspector.tsx stays within its 988-line budget
+  ---
+  duration_ms: 0.719417
+  ...
+# Subtest: src/components/edit-chrome/inspectors/site-header/SiteHeaderInspector.tsx budget is still tight
+ok 378 - src/components/edit-chrome/inspectors/site-header/SiteHeaderInspector.tsx budget is still tight
+  ---
+  duration_ms: 0.322041
+  ...
+# Subtest: src/components/edit-chrome/inspectors/featured-talent-content.tsx stays within its 904-line budget
+ok 379 - src/components/edit-chrome/inspectors/featured-talent-content.tsx stays within its 904-line budget
+  ---
+  duration_ms: 0.437708
+  ...
+# Subtest: src/components/edit-chrome/inspectors/featured-talent-content.tsx budget is still tight
+ok 380 - src/components/edit-chrome/inspectors/featured-talent-content.tsx budget is still tight
+  ---
+  duration_ms: 0.355458
+  ...
+# Subtest: src/components/admin/shell/internal/drawers/drawer-shared.tsx stays within its 5615-line budget
+ok 381 - src/components/admin/shell/internal/drawers/drawer-shared.tsx stays within its 5615-line budget
+  ---
+  duration_ms: 3.359666
+  ...
+# Subtest: src/components/admin/shell/internal/drawers/drawer-shared.tsx budget is still tight
+ok 382 - src/components/admin/shell/internal/drawers/drawer-shared.tsx budget is still tight
+  ---
+  duration_ms: 0.868167
+  ...
+# Subtest: src/components/admin/shell/internal/state/fixtures.ts stays within its 5209-line budget
+ok 383 - src/components/admin/shell/internal/state/fixtures.ts stays within its 5209-line budget
+  ---
+  duration_ms: 1.896792
+  ...
+# Subtest: src/components/admin/shell/internal/state/fixtures.ts budget is still tight
+ok 384 - src/components/admin/shell/internal/state/fixtures.ts budget is still tight
+  ---
+  duration_ms: 0.731125
+  ...
+# Subtest: src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx stays within its 4699-line budget
+ok 385 - src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx stays within its 4699-line budget
+  ---
+  duration_ms: 2.014334
+  ...
+# Subtest: src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx budget is still tight
+ok 386 - src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx budget is still tight
+  ---
+  duration_ms: 1.125833
+  ...
+# Subtest: src/components/admin/shell/internal/wave2.tsx stays within its 4598-line budget
+ok 387 - src/components/admin/shell/internal/wave2.tsx stays within its 4598-line budget
+  ---
+  duration_ms: 3.866917
+  ...
+# Subtest: src/components/admin/shell/internal/wave2.tsx budget is still tight
+ok 388 - src/components/admin/shell/internal/wave2.tsx budget is still tight
+  ---
+  duration_ms: 1.17775
+  ...
+# Subtest: src/components/admin/shell/internal/workspace.tsx stays within its 3330-line budget
+ok 389 - src/components/admin/shell/internal/workspace.tsx stays within its 3330-line budget
+  ---
+  duration_ms: 1.122583
+  ...
+# Subtest: src/components/admin/shell/internal/workspace.tsx budget is still tight
+ok 390 - src/components/admin/shell/internal/workspace.tsx budget is still tight
+  ---
+  duration_ms: 0.427708
+  ...
+# Subtest: src/components/admin/shell/internal/dashboard-i18n.ts stays within its 3847-line budget
+ok 391 - src/components/admin/shell/internal/dashboard-i18n.ts stays within its 3847-line budget
+  ---
+  duration_ms: 2.276667
+  ...
+# Subtest: src/components/admin/shell/internal/dashboard-i18n.ts budget is still tight
+ok 392 - src/components/admin/shell/internal/dashboard-i18n.ts budget is still tight
+  ---
+  duration_ms: 1.111667
+  ...
+# Subtest: src/components/admin/shell/internal/help.tsx stays within its 744-line budget
+ok 393 - src/components/admin/shell/internal/help.tsx stays within its 744-line budget
+  ---
+  duration_ms: 0.9985
+  ...
+# Subtest: src/components/admin/shell/internal/help.tsx budget is still tight
+ok 394 - src/components/admin/shell/internal/help.tsx budget is still tight
+  ---
+  duration_ms: 0.207417
+  ...
+# Subtest: src/components/admin/shell/internal/help-registry.ts stays within its 1982-line budget
+ok 395 - src/components/admin/shell/internal/help-registry.ts stays within its 1982-line budget
+  ---
+  duration_ms: 0.969209
+  ...
+# Subtest: src/components/admin/shell/internal/help-registry.ts budget is still tight
+ok 396 - src/components/admin/shell/internal/help-registry.ts budget is still tight
+  ---
+  duration_ms: 0.640875
+  ...
+# Subtest: src/components/admin/shell/internal/media-page.tsx stays within its 2832-line budget
+ok 397 - src/components/admin/shell/internal/media-page.tsx stays within its 2832-line budget
+  ---
+  duration_ms: 0.867625
+  ...
+# Subtest: src/components/admin/shell/internal/media-page.tsx budget is still tight
+ok 398 - src/components/admin/shell/internal/media-page.tsx budget is still tight
+  ---
+  duration_ms: 0.431334
+  ...
+# Subtest: src/components/admin/shell/internal/state/types.ts stays within its 2895-line budget
+ok 399 - src/components/admin/shell/internal/state/types.ts stays within its 2895-line budget
+  ---
+  duration_ms: 1.359916
+  ...
+# Subtest: src/components/admin/shell/internal/state/types.ts budget is still tight
+ok 400 - src/components/admin/shell/internal/state/types.ts budget is still tight
+  ---
+  duration_ms: 0.577459
+  ...
+# Subtest: src/components/admin/shell/admin-shell-client.tsx stays within its 2195-line budget
+ok 401 - src/components/admin/shell/admin-shell-client.tsx stays within its 2195-line budget
+  ---
+  duration_ms: 1.701
+  ...
+# Subtest: src/components/admin/shell/admin-shell-client.tsx budget is still tight
+ok 402 - src/components/admin/shell/admin-shell-client.tsx budget is still tight
+  ---
+  duration_ms: 0.934792
+  ...
+# Subtest: src/components/admin/shell/internal/state/context.tsx stays within its 2501-line budget
+ok 403 - src/components/admin/shell/internal/state/context.tsx stays within its 2501-line budget
+  ---
+  duration_ms: 1.503625
+  ...
+# Subtest: src/components/admin/shell/internal/state/context.tsx budget is still tight
+ok 404 - src/components/admin/shell/internal/state/context.tsx budget is still tight
+  ---
+  duration_ms: 0.540958
+  ...
+# Subtest: src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx stays within its 3769-line budget
+ok 405 - src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx stays within its 3769-line budget
+  ---
+  duration_ms: 1.412042
+  ...
+# Subtest: src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx budget is still tight
+ok 406 - src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx budget is still tight
+  ---
+  duration_ms: 0.588209
+  ...
+# Subtest: src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts stays within its 3393-line budget
+ok 407 - src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts stays within its 3393-line budget
+  ---
+  duration_ms: 1.699916
+  ...
+# Subtest: src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts budget is still tight
+ok 408 - src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts budget is still tight
+  ---
+  duration_ms: 0.485791
+  ...
+# Subtest: src/app/(workspace)/[tenantSlug]/admin/media/actions.ts stays within its 2335-line budget
+ok 409 - src/app/(workspace)/[tenantSlug]/admin/media/actions.ts stays within its 2335-line budget
+  ---
+  duration_ms: 1.293375
+  ...
+# Subtest: src/app/(workspace)/[tenantSlug]/admin/media/actions.ts budget is still tight
+ok 410 - src/app/(workspace)/[tenantSlug]/admin/media/actions.ts budget is still tight
+  ---
+  duration_ms: 0.383709
+  ...
+# Subtest: src/app/t/[profileCode]/profile-view.tsx stays within its 2677-line budget
+not ok 411 - src/app/t/[profileCode]/profile-view.tsx stays within its 2677-line budget
+  ---
+  duration_ms: 1.233916
+  location: '/Users/oranpersonal/Desktop/now-wt/oldB/web/src/lib/quality/file-size-ratchet.ts:2:2824'
+  failureType: 'testCodeFailure'
+  error: "src/app/t/[profileCode]/profile-view.tsx is 2691 lines, over its recorded budget of 2677 (+14). This file is on the size ratchet because eslint's max-lines cap no longer constrains it: it is grandfathered in eslint-suppressions.json, and that suppression counts violations, not lines. Either extract the new code into a module of its own, or raise the budget in src/lib/quality/file-size-ratchet.static.test.ts in this same commit so the growth is visible in review."
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    TestContext.<anonymous> (/Users/oranpersonal/Desktop/now-wt/oldB/web/src/lib/quality/file-size-ratchet.ts:119:15)
+    Test.runInAsyncScope (node:async_hooks:206:9)
+    Test.run (node:internal/test_runner/test:796:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:526:18)
+    Test.postRun (node:internal/test_runner/test:889:19)
+    Test.run (node:internal/test_runner/test:835:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# Subtest: src/app/t/[profileCode]/profile-view.tsx budget is still tight
+ok 412 - src/app/t/[profileCode]/profile-view.tsx budget is still tight
+  ---
+  duration_ms: 0.583833
+  ...
+# Subtest: src/components/inquiry/InquiryDrawer.tsx stays within its 2243-line budget
+ok 413 - src/components/inquiry/InquiryDrawer.tsx stays within its 2243-line budget
+  ---
+  duration_ms: 1.263917
+  ...
+# Subtest: src/components/inquiry/InquiryDrawer.tsx budget is still tight
+ok 414 - src/components/inquiry/InquiryDrawer.tsx budget is still tight
+  ---
+  duration_ms: 0.447708
+  ...
+# Subtest: src/lib/site-admin/builder-node/builder-node.test.ts stays within its 3246-line budget
+ok 415 - src/lib/site-admin/builder-node/builder-node.test.ts stays within its 3246-line budget
+  ---
+  duration_ms: 1.041709
+  ...
+# Subtest: src/lib/site-admin/builder-node/builder-node.test.ts budget is still tight
+ok 416 - src/lib/site-admin/builder-node/builder-node.test.ts budget is still tight
+  ---
+  duration_ms: 0.386041
+  ...
+# Subtest: src/lib/site-admin/sections/node-presentation-render.test.ts stays within its 2638-line budget
+ok 417 - src/lib/site-admin/sections/node-presentation-render.test.ts stays within its 2638-line budget
+  ---
+  duration_ms: 0.942875
+  ...
+# Subtest: src/lib/site-admin/sections/node-presentation-render.test.ts budget is still tight
+ok 418 - src/lib/site-admin/sections/node-presentation-render.test.ts budget is still tight
+  ---
+  duration_ms: 0.311167
+  ...
+# Subtest: src/lib/site-admin/server/homepage.ts stays within its 2397-line budget
+ok 419 - src/lib/site-admin/server/homepage.ts stays within its 2397-line budget
+  ---
+  duration_ms: 2.766875
+  ...
+# Subtest: src/lib/site-admin/server/homepage.ts budget is still tight
+ok 420 - src/lib/site-admin/server/homepage.ts budget is still tight
+  ---
+  duration_ms: 0.92175
+  ...
+# Subtest: src/lib/site-admin/edit-mode/composition-actions.ts stays within its 2153-line budget
+ok 421 - src/lib/site-admin/edit-mode/composition-actions.ts stays within its 2153-line budget
+  ---
+  duration_ms: 1.310542
+  ...
+# Subtest: src/lib/site-admin/edit-mode/composition-actions.ts budget is still tight
+ok 422 - src/lib/site-admin/edit-mode/composition-actions.ts budget is still tight
+  ---
+  duration_ms: 0.410583
+  ...
+# Subtest: src/lib/quality/file-size-ratchet.static.test.ts is measuring real files
+ok 423 - src/lib/quality/file-size-ratchet.static.test.ts is measuring real files
+  ---
+  duration_ms: 19.532375
+  ...
+# Subtest: every route reaching the font loader has an outputFileTracingIncludes entry
+ok 424 - every route reaching the font loader has an outputFileTracingIncludes entry
+  ---
+  duration_ms: 1195.409666
+  ...
+# Subtest: the tracing entries point at font files that actually exist
+ok 425 - the tracing entries point at font files that actually exist
+  ---
+  duration_ms: 0.588417
+  ...
+# Subtest: fxlank grant hygiene SQL names all 44 TUL-514 functions
+ok 426 - fxlank grant hygiene SQL names all 44 TUL-514 functions
+  ---
+  duration_ms: 1.453166
+  ...
+# Subtest: fxlank grant hygiene SQL revokes PUBLIC/anon/authenticated and grants service_role
+ok 427 - fxlank grant hygiene SQL revokes PUBLIC/anon/authenticated and grants service_role
+  ---
+  duration_ms: 0.212709
+  ...
+# Subtest: fxlank grant hygiene SQL is fxlank-only (not a production migration)
+ok 428 - fxlank grant hygiene SQL is fxlank-only (not a production migration)
+  ---
+  duration_ms: 0.107417
+  ...
+# Subtest: god-file split barrels stay byte-stable
+    # Subtest: src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts still exports every pre-split name
+    ok 1 - src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts still exports every pre-split name
+      ---
+      duration_ms: 1.286542
+      ...
+    # Subtest: src/app/(workspace)/[tenantSlug]/admin/media/actions.ts still exports every pre-split name
+    ok 2 - src/app/(workspace)/[tenantSlug]/admin/media/actions.ts still exports every pre-split name
+      ---
+      duration_ms: 0.47025
+      ...
+    # Subtest: src/lib/site-admin/edit-mode/composition-actions.ts still exports every pre-split name
+    ok 3 - src/lib/site-admin/edit-mode/composition-actions.ts still exports every pre-split name
+      ---
+      duration_ms: 0.444916
+      ...
+    1..3
+ok 429 - god-file split barrels stay byte-stable
+  ---
+  duration_ms: 2.710417
+  type: 'suite'
+  ...
+# Subtest: no test file has gained a comment-satisfiable assertion
+ok 430 - no test file has gained a comment-satisfiable assertion
+  ---
+  duration_ms: 839.825917
+  ...
+# Subtest: the baseline names files that still have exposed assertions
+ok 431 - the baseline names files that still have exposed assertions
+  ---
+  duration_ms: 520.941416
+  ...
+# Subtest: BITES: a positive assertion on a bare identifier is caught
+ok 432 - BITES: a positive assertion on a bare identifier is caught
+  ---
+  duration_ms: 0.159958
+  ...
+# Subtest: BITES: an import path counts too — a comment can name a path
+ok 433 - BITES: an import path counts too — a comment can name a path
+  ---
+  duration_ms: 0.066584
+  ...
+# Subtest: EXEMPT: a file that blanks comments has already made the decision
+ok 434 - EXEMPT: a file that blanks comments has already made the decision
+  ---
+  duration_ms: 0.07775
+  ...
+# Subtest: SAFE bucket 2: a token carrying a code fragment is not counted
+ok 435 - SAFE bucket 2: a token carrying a code fragment is not counted
+  ---
+  duration_ms: 0.080917
+  ...
+# Subtest: SAFE bucket 3: a positional read makes it a windowed check
+ok 436 - SAFE bucket 3: a positional read makes it a windowed check
+  ---
+  duration_ms: 0.338958
+  ...
+# Subtest: a NEGATIVE assertion is not counted — it fails loud, not silent
+ok 437 - a NEGATIVE assertion is not counted — it fails loud, not silent
+  ---
+  duration_ms: 0.264167
+  ...
+# Subtest: a file that never reads source is ignored
+ok 438 - a file that never reads source is ignored
+  ---
+  duration_ms: 0.153542
+  ...
+# Subtest: a variable that is not file text is ignored
+ok 439 - a variable that is not file text is ignored
+  ---
+  duration_ms: 0.140834
+  ...
+# Subtest: THIS GUARD CANNOT BE TRIPPED BY ITS OWN PROSE
+ok 440 - THIS GUARD CANNOT BE TRIPPED BY ITS OWN PROSE
+  ---
+  duration_ms: 0.066084
+  ...
+# Subtest: RATCHET BITES: a new assertion in a baselined file is reported
+ok 441 - RATCHET BITES: a new assertion in a baselined file is reported
+  ---
+  duration_ms: 0.187042
+  ...
+# Subtest: RATCHET BITES: a new file with no baseline entry is reported
+ok 442 - RATCHET BITES: a new file with no baseline entry is reported
+  ---
+  duration_ms: 0.291042
+  ...
+# Subtest: a fix is reported too, so the count cannot drift down unrecorded
+ok 443 - a fix is reported too, so the count cannot drift down unrecorded
+  ---
+  duration_ms: 0.361583
+  ...
+# Subtest: src/lib/public-discovery.ts never mints a guest session
+ok 444 - src/lib/public-discovery.ts never mints a guest session
+  ---
+  duration_ms: 1.192208
+  ...
+# Subtest: src/lib/load-directory-inquiry-payload.ts never mints a guest session
+ok 445 - src/lib/load-directory-inquiry-payload.ts never mints a guest session
+  ---
+  duration_ms: 0.822125
+  ...
+# Subtest: no guest write is issued before the signed-in branch is resolved
+ok 446 - no guest write is issued before the signed-in branch is resolved
+  ---
+  duration_ms: 0.427708
+  ...
+# Subtest: the profile render path still READS the guest list
+ok 447 - the profile render path still READS the guest list
+  ---
+  duration_ms: 0.578666
+  ...
+# Subtest: the guest save action ensures the session BEFORE adding
+ok 448 - the guest save action ensures the session BEFORE adding
+  ---
+  duration_ms: 0.837709
+  ...
+# Subtest: no enrolled surface has gained a hex literal, and every reduction is recorded
+ok 449 - no enrolled surface has gained a hex literal, and every reduction is recorded
+  ---
+  duration_ms: 1187.281334
+  ...
+# Subtest: the baseline names only files that still carry a literal
+ok 450 - the baseline names only files that still carry a literal
+  ---
+  duration_ms: 965.628917
+  ...
+# Subtest: the baseline is measuring real surfaces
+ok 451 - the baseline is measuring real surfaces
+  ---
+  duration_ms: 0.7555
+  ...
+# Subtest: every exemption names a file that exists and gives a reason
+ok 452 - every exemption names a file that exists and gives a reason
+  ---
+  duration_ms: 0.330583
+  ...
+# Subtest: BITES: a six-digit hex in code is counted, with its line
+ok 453 - BITES: a six-digit hex in code is counted, with its line
+  ---
+  duration_ms: 0.353167
+  ...
+# Subtest: BITES: an eight-digit hex counts once, not as six plus noise
+ok 454 - BITES: an eight-digit hex counts once, not as six plus noise
+  ---
+  duration_ms: 0.065875
+  ...
+# Subtest: BITES: CSS files count too
+ok 455 - BITES: CSS files count too
+  ---
+  duration_ms: 0.179291
+  ...
+# Subtest: NOT COUNTED: a three-digit hex, by the audit's definition
+ok 456 - NOT COUNTED: a three-digit hex, by the audit's definition
+  ---
+  duration_ms: 0.148833
+  ...
+# Subtest: NOT COUNTED: a hash that merely starts with six hex digits
+ok 457 - NOT COUNTED: a hash that merely starts with six hex digits
+  ---
+  duration_ms: 0.137125
+  ...
+# Subtest: NOT COUNTED: a hex named in a comment, so history notes stay legal
+ok 458 - NOT COUNTED: a hex named in a comment, so history notes stay legal
+  ---
+  duration_ms: 0.1275
+  ...
+# Subtest: a comment cannot SATISFY a recorded count either
+ok 459 - a comment cannot SATISFY a recorded count either
+  ---
+  duration_ms: 0.061291
+  ...
+# Subtest: the pattern is global, so a line with two literals yields two
+ok 460 - the pattern is global, so a line with two literals yields two
+  ---
+  duration_ms: 0.052125
+  ...
+# Subtest: RATCHET BITES: a file gaining a literal is reported as drift, with the literal named
+ok 461 - RATCHET BITES: a file gaining a literal is reported as drift, with the literal named
+  ---
+  duration_ms: 0.288291
+  ...
+# Subtest: RATCHET BITES: a NEW file with a literal is drift against an implicit zero
+ok 462 - RATCHET BITES: a NEW file with a literal is drift against an implicit zero
+  ---
+  duration_ms: 0.234959
+  ...
+# Subtest: RATCHET LOCKS IN: a file losing a literal is drift too, asking for a re-record
+ok 463 - RATCHET LOCKS IN: a file losing a literal is drift too, asking for a re-record
+  ---
+  duration_ms: 0.279042
+  ...
+# Subtest: surfaceOf maps roots and rejects neighbours
+ok 464 - surfaceOf maps roots and rejects neighbours
+  ---
+  duration_ms: 0.102458
+  ...
+# Subtest: every --impronta-gold definition ships a paired --impronta-gold-ink
+ok 465 - every --impronta-gold definition ships a paired --impronta-gold-ink
+  ---
+  duration_ms: 2.35575
+  ...
+# Subtest: no solid --impronta-gold background hardcodes text-black or text-white
+ok 466 - no solid --impronta-gold background hardcodes text-black or text-white
+  ---
+  duration_ms: 1321.113
+  ...
+# Subtest: detector flags template+template and string+template (planted shapes)
+ok 467 - detector flags template+template and string+template (planted shapes)
+  ---
+  duration_ms: 6.854875
+  ...
+# Subtest: no template+template / string+template constants in inline-script files
+ok 468 - no template+template / string+template constants in inline-script files
+  ---
+  duration_ms: 792.3975
+  ...
+# Subtest: src/components/directory/directory-inquiry-url-sync.tsx reads the inquiry context OPTIONALLY
+ok 469 - src/components/directory/directory-inquiry-url-sync.tsx reads the inquiry context OPTIONALLY
+  ---
+  duration_ms: 0.978958
+  ...
+# Subtest: src/components/directory/directory-inquiry-sheet.tsx reads the inquiry context OPTIONALLY
+ok 470 - src/components/directory/directory-inquiry-sheet.tsx reads the inquiry context OPTIONALLY
+  ---
+  duration_ms: 0.369167
+  ...
+# Subtest: the root not-found mounts the provider around the (public) page it imports
+ok 471 - the root not-found mounts the provider around the (public) page it imports
+  ---
+  duration_ms: 0.389166
+  ...
+# Subtest: the provider is still mounted by both route-group layouts
+ok 472 - the provider is still mounted by both route-group layouts
+  ---
+  duration_ms: 0.291458
+  ...
+# Subtest: requestOpenChat waits for the launcher instead of opening the sheet on the same tick
+ok 473 - requestOpenChat waits for the launcher instead of opening the sheet on the same tick
+  ---
+  duration_ms: 0.307042
+  ...
+# Subtest: no test lane token contains a bracket, expands unquoted to one, or skips lane-test.cjs
+ok 474 - no test lane token contains a bracket, expands unquoted to one, or skips lane-test.cjs
+  ---
+  duration_ms: 35.347291
+  ...
+# Subtest: every test-file argument in a test lane resolves to at least one file
+ok 475 - every test-file argument in a test lane resolves to at least one file
+  ---
+  duration_ms: 41.237917
+  ...
+# Subtest: GUARD BITES: laneViolations flags a bracket token, an unquoted star-glob and a missing wrapper
+ok 476 - GUARD BITES: laneViolations flags a bracket token, an unquoted star-glob and a missing wrapper
+  ---
+  duration_ms: 1.56375
+  ...
+# Subtest: GUARD BITES: zeroMatchArgs flags an argument that names nothing
+ok 477 - GUARD BITES: zeroMatchArgs flags an argument that names nothing
+  ---
+  duration_ms: 1.856208
+  ...
+# Subtest: lane-paths: resolves stars and ? to real bracketed files, and reports empty arguments
+ok 478 - lane-paths: resolves stars and ? to real bracketed files, and reports empty arguments
+  ---
+  duration_ms: 1.8805
+  ...
+# Subtest: lane-paths: the Node-version form (22 gets ?, 20 keeps the literal path)
+ok 479 - lane-paths: the Node-version form (22 gets ?, 20 keeps the literal path)
+  ---
+  duration_ms: 0.128583
+  ...
+# Subtest: RUNTIME: on this Node, the lane form of a bracketed folder runs next to a plain file
+ok 480 - RUNTIME: on this Node, the lane form of a bracketed folder runs next to a plain file
+  ---
+  duration_ms: 144.767709
+  ...
+# Subtest: lane-quarantine.json equals the pinned list and every entry is complete and live
+ok 481 - lane-quarantine.json equals the pinned list and every entry is complete and live
+  ---
+  duration_ms: 0.126166
+  ...
+# Subtest: GUARD BITES: a quarantine list that differs from the pin is detected
+ok 482 - GUARD BITES: a quarantine list that differs from the pin is detected
+  ---
+  duration_ms: 0.148375
+  ...
+# [lane-enrolment] 2 lane(s) are no longer ungated. Re-record the baseline so the count stays honest:
+#   check:capability-keys
+#   test:access
+# Subtest: no lane is ungated that was not already
+ok 483 - no lane is ungated that was not already
+  ---
+  duration_ms: 4.552709
+  ...
+# Subtest: a lane that got wired is reported, and does NOT fail the build
+ok 484 - a lane that got wired is reported, and does NOT fail the build
+  ---
+  duration_ms: 2.726291
+  ...
+# Subtest: the baseline's count matches its own list
+ok 485 - the baseline's count matches its own list
+  ---
+  duration_ms: 0.070917
+  ...
+# Subtest: GUARD BITES: an invented ungated lane is reported
+ok 486 - GUARD BITES: an invented ungated lane is reported
+  ---
+  duration_ms: 2.758
+  ...
+# Subtest: GUARD BITES: a lane named in ci.yml is NOT reported
+ok 487 - GUARD BITES: a lane named in ci.yml is NOT reported
+  ---
+  duration_ms: 2.11275
+  ...
+# Subtest: a lane name is matched on a word boundary, not a prefix
+ok 488 - a lane name is matched on a word boundary, not a prefix
+  ---
+  duration_ms: 2.301917
+  ...
+# Subtest: nightly-orphans.txt: every listed file exists
+ok 489 - nightly-orphans.txt: every listed file exists
+  ---
+  duration_ms: 2.417625
+  ...
+# Subtest: nightly-orphans.txt: no listed file is also run by another lane
+not ok 490 - nightly-orphans.txt: no listed file is also run by another lane
+  ---
+  duration_ms: 232.756041
+  location: '/Users/oranpersonal/Desktop/now-wt/oldB/web/src/lib/quality/lane-enrolment.static.test.ts:11:52'
+  failureType: 'testCodeFailure'
+  error: |-
+    Now run by a real lane, delete from nightly-orphans.txt:
+    src/lib/saas/domain-canonical.test.ts
+    src/lib/saas/talent-demo-host-redirect.test.ts
+    src/lib/saas/talent-site-host-context.test.ts
+    + actual - expected
+    
+    + [
+    +   'src/lib/saas/domain-canonical.test.ts',
+    +   'src/lib/saas/talent-demo-host-redirect.test.ts',
+    +   'src/lib/saas/talent-site-host-context.test.ts'
+    + ]
+    - []
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0: 'src/lib/saas/domain-canonical.test.ts'
+    1: 'src/lib/saas/talent-demo-host-redirect.test.ts'
+    2: 'src/lib/saas/talent-site-host-context.test.ts'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/Users/oranpersonal/Desktop/now-wt/oldB/web/src/lib/quality/lane-enrolment.static.test.ts:99:10)
+    Test.runInAsyncScope (node:async_hooks:206:9)
+    Test.run (node:internal/test_runner/test:796:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:526:18)
+    Test.postRun (node:internal/test_runner/test:889:19)
+    Test.run (node:internal/test_runner/test:835:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# Subtest: no test lane names the same test file twice
+ok 491 - no test lane names the same test file twice
+  ---
+  duration_ms: 3.125166
+  ...
+# Subtest: GUARD BITES: duplicatesIn reports a repeated path and ignores unique ones
+ok 492 - GUARD BITES: duplicatesIn reports a repeated path and ignores unique ones
+  ---
+  duration_ms: 0.107959
+  ...
+# Subtest: lane-paths reads an @list file: one path per line, comments and blanks skipped
+ok 493 - lane-paths reads an @list file: one path per line, comments and blanks skipped
+  ---
+  duration_ms: 0.187334
+  ...
+# Subtest: every scripts/lanes/*.txt is duplicate-free and every entry resolves to a file
+ok 494 - every scripts/lanes/*.txt is duplicate-free and every entry resolves to a file
+  ---
+  duration_ms: 10.737666
+  ...
+# Subtest: the long lanes use one-path-per-line list files and run through lane-test.cjs
+not ok 495 - the long lanes use one-path-per-line list files and run through lane-test.cjs
+  ---
+  duration_ms: 2.219084
+  location: '/Users/oranpersonal/Desktop/now-wt/oldB/web/src/lib/quality/lane-file-lists.static.test.ts:2:4458'
+  failureType: 'testCodeFailure'
+  error: 'tenant-isolation stays short (404 chars): its files live in the list'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (/Users/oranpersonal/Desktop/now-wt/oldB/web/src/lib/quality/lane-file-lists.static.test.ts:90:12)
+    Test.runInAsyncScope (node:async_hooks:206:9)
+    Test.run (node:internal/test_runner/test:796:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:526:18)
+    Test.postRun (node:internal/test_runner/test:889:19)
+    Test.run (node:internal/test_runner/test:835:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# Subtest: the nightly orphan scan counts list-file entries as covered
+ok 496 - the nightly orphan scan counts list-file entries as covered
+  ---
+  duration_ms: 132.008167
+  ...
+# Subtest: the tables this guard reads are not empty
+ok 497 - the tables this guard reads are not empty
+  ---
+  duration_ms: 3.938541
+  ...
+# Subtest: every max-lines suppression is ratcheted or on the debt register
+ok 498 - every max-lines suppression is ratcheted or on the debt register
+  ---
+  duration_ms: 2.066209
+  ...
+# Subtest: the debt register only lists files that still need it
+ok 499 - the debt register only lists files that still need it
+  ---
+  duration_ms: 1.361416
+  ...
+# Subtest: feature flag helpers never default ON via NODE_ENV === development
+ok 500 - feature flag helpers never default ON via NODE_ENV === development
+  ---
+  duration_ms: 101.170542
+  ...
+# Subtest: no source file imports next/font/google
+ok 501 - no source file imports next/font/google
+  ---
+  duration_ms: 952.726208
+  ...
+# Subtest: detector flags literals and accepts env-sourced values
+ok 502 - detector flags literals and accepts env-sourced values
+  ---
+  duration_ms: 1.035417
+  ...
+# Subtest: no tracked script or e2e file hardcodes a password literal
+ok 503 - no tracked script or e2e file hardcodes a password literal
+  ---
+  duration_ms: 550.984375
+  ...
+# Subtest: no tracked node_modules path or symlink under web/
+ok 504 - no tracked node_modules path or symlink under web/
+  ---
+  duration_ms: 66.192458
+  ...
+# Subtest: test-in-worktree refuses typecheck/lint/build/install requests
+ok 505 - test-in-worktree refuses typecheck/lint/build/install requests
+  ---
+  duration_ms: 72.332625
+  ...
+# Subtest: test-in-worktree accepts test files and --lane
+ok 506 - test-in-worktree accepts test files and --lane
+  ---
+  duration_ms: 11.828333
+  ...
+# Subtest: no symlinks are tracked in git
+ok 507 - no symlinks are tracked in git
+  ---
+  duration_ms: 57.359917
+  ...
+# Subtest: package.json scripts: one entry per physical line
+ok 508 - package.json scripts: one entry per physical line
+  ---
+  duration_ms: 1.909417
+  ...
+# Subtest: the check bites: two entries on one line, or an entry split across lines
+ok 509 - the check bites: two entries on one line, or an entry split across lines
+  ---
+  duration_ms: 0.438125
+  ...
+# Subtest: package.json has no duplicate keys anywhere
+ok 510 - package.json has no duplicate keys anywhere
+  ---
+  duration_ms: 3.688583
+  ...
+# Subtest: every platform declaration aliases a marketing --tl-* token
+ok 511 - every platform declaration aliases a marketing --tl-* token
+  ---
+  duration_ms: 1.917791
+  ...
+# Subtest: the gold-named greens are gone from the platform block
+ok 512 - the gold-named greens are gone from the platform block
+  ---
+  duration_ms: 0.132625
+  ...
+# Subtest: nothing under the platform wrappers reads an --impronta-* token or utility
+ok 513 - nothing under the platform wrappers reads an --impronta-* token or utility
+  ---
+  duration_ms: 6.641833
+  ...
+# Subtest: every element carrying site-theme-platform also carries data-platform-surface="marketing"
+ok 514 - every element carrying site-theme-platform also carries data-platform-surface="marketing"
+  ---
+  duration_ms: 331.645792
+  ...
+# Subtest: platform pages that read Tulala tokens sit inside a data-platform-surface scope
+ok 515 - platform pages that read Tulala tokens sit inside a data-platform-surface scope
+  ---
+  duration_ms: 53.535917
+  ...
+# Subtest: the allow-list holds only real offenders
+ok 516 - the allow-list holds only real offenders
+  ---
+  duration_ms: 47.531958
+  ...
+# Subtest: the guard still sees the wrappers it relies on
+ok 517 - the guard still sees the wrappers it relies on
+  ---
+  duration_ms: 0.334792
+  ...
+# Subtest: no page design has gained a literal label colour on a primary button
+ok 518 - no page design has gained a literal label colour on a primary button
+  ---
+  duration_ms: 4.237875
+  ...
+# Subtest: every recorded literal is still there, so a removal is locked in
+ok 519 - every recorded literal is still there, so a removal is locked in
+  ---
+  duration_ms: 1.529
+  ...
+# Subtest: the table measures real designs, and services stays the model
+ok 520 - the table measures real designs, and services stays the model
+  ---
+  duration_ms: 1.974
+  ...
+# Subtest: BITES: a primary button carrying textColor is counted
+ok 521 - BITES: a primary button carrying textColor is counted
+  ---
+  duration_ms: 0.064041
+  ...
+# Subtest: NOT COUNTED: a primary button with no style, the model
+ok 522 - NOT COUNTED: a primary button with no style, the model
+  ---
+  duration_ms: 0.126166
+  ...
+# Subtest: NOT COUNTED: a SECONDARY button may carry its own label colour
+ok 523 - NOT COUNTED: a SECONDARY button may carry its own label colour
+  ---
+  duration_ms: 0.04175
+  ...
+# Subtest: NOT COUNTED: a colour on the NEXT node is not this button's
+ok 524 - NOT COUNTED: a colour on the NEXT node is not this button's
+  ---
+  duration_ms: 0.041416
+  ...
+# Subtest: BITES: two primary buttons in one file count twice
+ok 525 - BITES: two primary buttons in one file count twice
+  ---
+  duration_ms: 0.103917
+  ...
+# Subtest: promote: never force-pushes and never uses a + refspec
+ok 526 - promote: never force-pushes and never uses a + refspec
+  ---
+  duration_ms: 1.683417
+  ...
+# Subtest: promote: fast-forward only (target must descend from production)
+ok 527 - promote: fast-forward only (target must descend from production)
+  ---
+  duration_ms: 0.247917
+  ...
+# Subtest: promote: target requires a successful structural gate run
+ok 528 - promote: target requires a successful structural gate run
+  ---
+  duration_ms: 0.29125
+  ...
+# Subtest: promote: falls back to the newest green commit on any gate conclusion
+ok 529 - promote: falls back to the newest green commit on any gate conclusion
+  ---
+  duration_ms: 0.226083
+  ...
+# Subtest: promote: own concurrency group that cancels superseded queued runs (TUL-412)
+ok 530 - promote: own concurrency group that cancels superseded queued runs (TUL-412)
+  ---
+  duration_ms: 0.157291
+  ...
+# Subtest: promote: does not trigger on pull requests
+ok 531 - promote: does not trigger on pull requests
+  ---
+  duration_ms: 0.078208
+  ...
+# Subtest: test:scheduling loads the frozen clock
+ok 532 - test:scheduling loads the frozen clock
+  ---
+  duration_ms: 0.441666
+  ...
+# Subtest: the hook freezes Date.now and argument-less new Date, and nothing else
+ok 533 - the hook freezes Date.now and argument-less new Date, and nothing else
+  ---
+  duration_ms: 0.2255
+  ...
+# Subtest: the frozen instant matches the scheduling fixtures (2026-10-08T12:00Z)
+ok 534 - the frozen instant matches the scheduling fixtures (2026-10-08T12:00Z)
+  ---
+  duration_ms: 0.065125
+  ...
+# Subtest: settings path copy
+    # Subtest: no user-facing copy cites "Settings → Roster → Talent types"
+    ok 1 - no user-facing copy cites "Settings → Roster → Talent types"
+      ---
+      duration_ms: 225.734584
+      ...
+    # Subtest: no user-facing copy cites "Settings → Roster → Categories"
+    ok 2 - no user-facing copy cites "Settings → Roster → Categories"
+      ---
+      duration_ms: 208.493334
+      ...
+    # Subtest: no user-facing copy cites "Ajustes → Lista → Talent Types"
+    ok 3 - no user-facing copy cites "Ajustes → Lista → Talent Types"
+      ---
+      duration_ms: 254.107542
+      ...
+    # Subtest: self-check: the matcher would catch a reintroduction
+    ok 4 - self-check: the matcher would catch a reintroduction
+      ---
+      duration_ms: 172.073416
+      ...
+    1..4
+ok 535 - settings path copy
+  ---
+  duration_ms: 861.385208
+  type: 'suite'
+  ...
+# Subtest: Point of sale › Selling modes: every refusal id has a sentence in en, es and fr
+ok 536 - Point of sale › Selling modes: every refusal id has a sentence in en, es and fr
+  ---
+  duration_ms: 0.664417
+  ...
+# Subtest: Point of sale › Selling modes: the retry that clears a dead load is translated too
+ok 537 - Point of sale › Selling modes: the retry that clears a dead load is translated too
+  ---
+  duration_ms: 0.099208
+  ...
+# Subtest: Payments & providers: every refusal id has a sentence in en, es and fr
+ok 538 - Payments & providers: every refusal id has a sentence in en, es and fr
+  ---
+  duration_ms: 0.059291
+  ...
+# Subtest: Payments & providers: the retry that clears a dead load is translated too
+ok 539 - Payments & providers: the retry that clears a dead load is translated too
+  ---
+  duration_ms: 0.044791
+  ...
+# Subtest: neither settings action returns an English sentence to the screen
+ok 540 - neither settings action returns an English sentence to the screen
+  ---
+  duration_ms: 0.280208
+  ...
+# Subtest: the counted noun on the roles card has both plural forms, in all three
+ok 541 - the counted noun on the roles card has both plural forms, in all three
+  ---
+  duration_ms: 0.083208
+  ...
+# Subtest: GUARD BITES: an id with no copy is reported
+ok 542 - GUARD BITES: an id with no copy is reported
+  ---
+  duration_ms: 0.0555
+  ...
+# Subtest: no file has gained or lost an unchecked Supabase read without the baseline moving
+not ok 543 - no file has gained or lost an unchecked Supabase read without the baseline moving
+  ---
+  duration_ms: 4162.280958
+  location: '/Users/oranpersonal/Desktop/now-wt/oldB/web/src/lib/quality/supabase-unchecked-read.static.test.ts:2:1262'
+  failureType: 'testCodeFailure'
+  error: |-
+    
+    
+    Unchecked Supabase reads drifted from the baseline:
+    
+      src/lib/stripe/talent-billing.ts: 4 → 5 (NEW unchecked Supabase read at line 419)
+          Destructure `error` and act on it. PostgREST does not throw — a missing table,
+          a denied policy and a bad column all arrive as data:null, so dropping the error
+          turns every one of them into an empty result that reads as success.
+          If empty and failed genuinely mean the same thing here, annotate it:
+            // supabase-read-unchecked-ok: <why the caller cannot act on the error>
+    
+      src/lib/talent-site/server/talent-domain-plan-grace.ts: 0 → 1 (NEW unchecked Supabase read at line 403)
+          Destructure `error` and act on it. PostgREST does not throw — a missing table,
+          a denied policy and a bad column all arrive as data:null, so dropping the error
+          turns every one of them into an empty result that reads as success.
+          If empty and failed genuinely mean the same thing here, annotate it:
+            // supabase-read-unchecked-ok: <why the caller cannot act on the error>
+    
+    After fixing or annotating, re-record with:
+      node scripts/regen-supabase-read-baseline.mjs
+    
+    + actual - expected
+    
+    + [
+    +   {
+    +     actual: 5,
+    +     expected: 4,
+    +     file: 'src/lib/stripe/talent-billing.ts',
+    +     lines: [
+    +       73,
+    +       105,
+    +       260,
+    +       339,
+    +       419
+    +     ]
+    +   },
+    +   {
+    +     actual: 1,
+    +     expected: 0,
+    +     file: 'src/lib/talent-site/server/talent-domain-plan-grace.ts',
+    +     lines: [
+    +       403
+    +     ]
+    +   }
+    + ]
+    - []
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0:
+      file: 'src/lib/stripe/talent-billing.ts'
+      expected: 4
+      actual: 5
+      lines:
+        0: 73
+        1: 105
+        2: 260
+        3: 339
+        4: 419
+    1:
+      file: 'src/lib/talent-site/server/talent-domain-plan-grace.ts'
+      expected: 0
+      actual: 1
+      lines:
+        0: 403
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (/Users/oranpersonal/Desktop/now-wt/oldB/web/src/lib/quality/supabase-unchecked-read.static.test.ts:45:10)
+    Test.runInAsyncScope (node:async_hooks:206:9)
+    Test.run (node:internal/test_runner/test:796:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:526:18)
+    node:internal/test_runner/harness:255:12
+    node:internal/process/task_queues:140:7
+    AsyncResource.runInAsyncScope (node:async_hooks:206:9)
+    AsyncResource.runMicrotask (node:internal/process/task_queues:137:8)
+  ...
+# Subtest: the baseline describes files that still exist and still have reads
+ok 544 - the baseline describes files that still exist and still have reads
+  ---
+  duration_ms: 3529.115875
+  ...
+# Subtest: catches the plain form
+ok 545 - catches the plain form
+  ---
+  duration_ms: 0.135125
+  ...
+# Subtest: catches the RENAMED form, which is 5x more common than the plain one
+ok 546 - catches the RENAMED form, which is 5x more common than the plain one
+  ---
+  duration_ms: 0.077375
+  ...
+# Subtest: catches a destructure that takes data and something other than error
+ok 547 - catches a destructure that takes data and something other than error
+  ---
+  duration_ms: 0.072583
+  ...
+# Subtest: catches a multi-line destructure
+ok 548 - catches a multi-line destructure
+  ---
+  duration_ms: 0.045958
+  ...
+# Subtest: ignores a read that checks its error, however it is named
+ok 549 - ignores a read that checks its error, however it is named
+  ---
+  duration_ms: 0.056833
+  ...
+# Subtest: ignores awaits that are not Supabase reads
+ok 550 - ignores awaits that are not Supabase reads
+  ---
+  duration_ms: 0.118292
+  ...
+# Subtest: an annotated read with a reason stops counting
+ok 551 - an annotated read with a reason stops counting
+  ---
+  duration_ms: 0.125583
+  ...
+# Subtest: a BARE marker with no reason does NOT silence the guard
+ok 552 - a BARE marker with no reason does NOT silence the guard
+  ---
+  duration_ms: 0.107292
+  ...
+# Subtest: the marker must be adjacent, so it cannot cover a later read
+ok 553 - the marker must be adjacent, so it cannot cover a later read
+  ---
+  duration_ms: 0.055917
+  ...
+# Subtest: a documented example in a comment is not a read
+ok 554 - a documented example in a comment is not a read
+  ---
+  duration_ms: 0.04575
+  ...
+# Subtest: a // inside a string is not a comment
+ok 555 - a // inside a string is not a comment
+  ---
+  duration_ms: 0.061125
+  ...
+# Subtest: blanking preserves offsets so reported line numbers stay true
+ok 556 - blanking preserves offsets so reported line numbers stay true
+  ---
+  duration_ms: 0.16625
+  ...
+# Subtest: THE RATCHET BITES: a new read in a baselined file is reported
+ok 557 - THE RATCHET BITES: a new read in a baselined file is reported
+  ---
+  duration_ms: 0.112833
+  ...
+# Subtest: THE RATCHET BITES: a new read in a file with NO baseline entry is reported
+ok 558 - THE RATCHET BITES: a new read in a file with NO baseline entry is reported
+  ---
+  duration_ms: 0.057167
+  ...
+# Subtest: a fix is reported too, so the number cannot drift downward unrecorded
+ok 559 - a fix is reported too, so the number cannot drift downward unrecorded
+  ---
+  duration_ms: 0.0485
+  ...
+# Subtest: taxonomy upsert targets the two-column primary key, not a three-column triple
+ok 560 - taxonomy upsert targets the two-column primary key, not a three-column triple
+  ---
+  duration_ms: 4.881584
+  ...
+# Subtest: no order/booking/scheduling test hard-codes a date that is past or near
+ok 561 - no order/booking/scheduling test hard-codes a date that is past or near
+  ---
+  duration_ms: 54.494208
+  ...
+# Subtest: allowlist entries exist and carry a reason
+ok 562 - allowlist entries exist and carry a reason
+  ---
+  duration_ms: 3.023875
+  ...
+# Subtest: GUARD BITES: the detector flags a past date, a near date, and spares a far one
+ok 563 - GUARD BITES: the detector flags a past date, a near date, and spares a far one
+  ---
+  duration_ms: 0.166292
+  ...
+# Subtest: no NEW package.json script invokes tsc --noEmit outside the queue
+ok 564 - no NEW package.json script invokes tsc --noEmit outside the queue
+  ---
+  duration_ms: 1.700209
+  ...
+# Subtest: no committed shell script invokes tsc --noEmit except the queue itself
+ok 565 - no committed shell script invokes tsc --noEmit except the queue itself
+  ---
+  duration_ms: 9.37025
+  ...
+# Subtest: the queue this guard defends still exists and still runs tsc
+ok 566 - the queue this guard defends still exists and still runs tsc
+  ---
+  duration_ms: 0.621458
+  ...
+# Subtest: the repo does not INSTRUCT the bypass in its own onboarding script
+ok 567 - the repo does not INSTRUCT the bypass in its own onboarding script
+  ---
+  duration_ms: 0.45675
+  ...
+# Subtest: SCOPE: this guard reads the TREE, so it cannot see a bypass nobody committed
+ok 568 - SCOPE: this guard reads the TREE, so it cannot see a bypass nobody committed
+  ---
+  duration_ms: 0.51775
+  ...
+# Subtest: the fake upgrade modal is gone and cannot be re-exported
+ok 569 - the fake upgrade modal is gone and cannot be re-exported
+  ---
+  duration_ms: 1.07075
+  ...
+# Subtest: no component can move the tenant's plan from a click handler
+ok 570 - no component can move the tenant's plan from a click handler
+  ---
+  duration_ms: 327.838375
+  ...
+# Subtest: the shell context exposes no plan setter, only the no-op dev override
+ok 571 - the shell context exposes no plan setter, only the no-op dev override
+  ---
+  duration_ms: 1.095125
+  ...
+# Subtest: openUpgrade delegates to the real modal instead of local state
+ok 572 - openUpgrade delegates to the real modal instead of local state
+  ---
+  duration_ms: 1.835667
+  ...
+# Subtest: the live shell mounts the provider and the real modal
+ok 573 - the live shell mounts the provider and the real modal
+  ---
+  duration_ms: 0.530042
+  ...
+# Subtest: the modal's primary CTA reaches the Stripe server action
+ok 574 - the modal's primary CTA reaches the Stripe server action
+  ---
+  duration_ms: 0.342541
+  ...
+# Subtest: the upgrade context carries which feature needs which plan
+ok 575 - the upgrade context carries which feature needs which plan
+  ---
+  duration_ms: 0.196583
+  ...
+# Subtest: no upsert has gained an uninferable onConflict target
+ok 576 - no upsert has gained an uninferable onConflict target
+  ---
+  duration_ms: 3915.307792
+  ...
+# Subtest: the scan is looking at something — the repo has upserts and unique indexes
+ok 577 - the scan is looking at something — the repo has upserts and unique indexes
+  ---
+  duration_ms: 3297.552916
+  ...
+# Subtest: BITES: a PARTIAL index matching the columns is a finding
+ok 578 - BITES: a PARTIAL index matching the columns is a finding
+  ---
+  duration_ms: 0.227167
+  ...
+# Subtest: BITES: columns matching nothing unique is a finding
+ok 579 - BITES: columns matching nothing unique is a finding
+  ---
+  duration_ms: 0.160209
+  ...
+# Subtest: a TOTAL index matching the columns is ok, in any column order
+ok 580 - a TOTAL index matching the columns is ok, in any column order
+  ---
+  duration_ms: 0.078459
+  ...
+# Subtest: an upsert with NO onConflict is not a finding — it conflicts on the primary key
+ok 581 - an upsert with NO onConflict is not a finding — it conflicts on the primary key
+  ---
+  duration_ms: 0.044209
+  ...
+# Subtest: a table no migration creates is UNKNOWN, never `missing`
+ok 582 - a table no migration creates is UNKNOWN, never `missing`
+  ---
+  duration_ms: 0.065375
+  ...
+# Subtest: a drop AFTER a create in the SAME file wins, and a create after a drop wins
+ok 583 - a drop AFTER a create in the SAME file wins, and a create after a drop wins
+  ---
+  duration_ms: 78.094958
+  ...
+# Subtest: the extractor ignores its own prose
+ok 584 - the extractor ignores its own prose
+  ---
+  duration_ms: 0.204416
+  ...
+# Subtest: the extractor does not borrow a table from an unrelated earlier query
+ok 585 - the extractor does not borrow a table from an unrelated earlier query
+  ---
+  duration_ms: 0.155167
+  ...
+# Subtest: a table separated by a statement boundary is not borrowed at all
+ok 586 - a table separated by a statement boundary is not borrowed at all
+  ---
+  duration_ms: 0.066666
+  ...
+# Subtest: a baselined key whose finding is gone is a NOTE, not a failure
+ok 587 - a baselined key whose finding is gone is a NOTE, not a failure
+  ---
+  duration_ms: 1804.512167
+  ...
+# Subtest: BITES: a NEW finding is still a regression and still fails
+ok 588 - BITES: a NEW finding is still a regression and still fails
+  ---
+  duration_ms: 0.133958
+  ...
+# Subtest: a FIXED finding is classified resolved, never a regression
+ok 589 - a FIXED finding is classified resolved, never a regression
+  ---
+  duration_ms: 0.210209
+  ...
+# Subtest: BITES: an onConflict that is not a string literal is UNKNOWN, never skipped
+ok 590 - BITES: an onConflict that is not a string literal is UNKNOWN, never skipped
+  ---
+  duration_ms: 0.090375
+  ...
+# Subtest: an UNREADABLE site is ratcheted like a broken one
+ok 591 - an UNREADABLE site is ratcheted like a broken one
+  ---
+  duration_ms: 0.133792
+  ...
+# Subtest: BITES: NULLS NOT DISTINCT between the columns and WHERE does not hide a partial index
+ok 592 - BITES: NULLS NOT DISTINCT between the columns and WHERE does not hide a partial index
+  ---
+  duration_ms: 0.592
+  ...
+# Subtest: BITES: a table named through a wrapper helper resolves, it is not `unknown`
+ok 593 - BITES: a table named through a wrapper helper resolves, it is not `unknown`
+  ---
+  duration_ms: 0.176541
+  ...
+# Subtest: an UNRECOGNISED wrapper still falls back to unknown, never to silence
+ok 594 - an UNRECOGNISED wrapper still falls back to unknown, never to silence
+  ---
+  duration_ms: 0.068667
+  ...
+# Subtest: the shared alias group is joined ONLY by successful production events
+ok 595 - the shared alias group is joined ONLY by successful production events
+  ---
+  duration_ms: 1.292125
+  ...
+# Subtest: every other event gets a unique per-run group
+ok 596 - every other event gets a unique per-run group
+  ---
+  duration_ms: 0.097166
+  ...
+# Subtest: production alias runs are never cancelled in progress
+ok 597 - production alias runs are never cancelled in progress
+  ---
+  duration_ms: 0.069167
+  ...
+# Subtest: the group is not a bare constant shared by all events
+ok 598 - the group is not a bare constant shared by all events
+  ---
+  duration_ms: 0.181875
+  ...
+# Subtest: resolves a published talent subdomain to a talent_site context
+ok 599 - resolves a published talent subdomain to a talent_site context
+  ---
+  duration_ms: 0.886792
+  ...
+# Subtest: subdomain with active primary custom domain carries redirect fields
+ok 600 - subdomain with active primary custom domain carries redirect fields
+  ---
+  duration_ms: 0.149416
+  ...
+# Subtest: resolves a demo -demo host label and flags isDemo
+ok 601 - resolves a demo -demo host label and flags isDemo
+  ---
+  duration_ms: 0.1015
+  ...
+# Subtest: accepts the dev root and a port, and queries the bare label
+ok 602 - accepts the dev root and a port, and queries the bare label
+  ---
+  duration_ms: 0.137042
+  ...
+# Subtest: never queries for a host that is not one label under a known root
+ok 603 - never queries for a host that is not one label under a known root
+  ---
+  duration_ms: 0.10175
+  ...
+# Subtest: degrades to null on an RPC error, an empty result, or a malformed row
+ok 604 - degrades to null on an RPC error, an empty result, or a malformed row
+  ---
+  duration_ms: 0.189166
+  ...
+# Subtest: degrades to null when the client throws
+ok 605 - degrades to null when the client throws
+  ---
+  duration_ms: 0.06575
+  ...
+# Subtest: subdomain → active primary custom (path + query + /en kept)
+ok 606 - subdomain → active primary custom (path + query + /en kept)
+  ---
+  duration_ms: 0.733375
+  ...
+# Subtest: www non-primary → apex primary
+ok 607 - www non-primary → apex primary
+  ---
+  duration_ms: 0.116209
+  ...
+# Subtest: apex non-primary → www primary
+ok 608 - apex non-primary → www primary
+  ---
+  duration_ms: 0.055791
+  ...
+# Subtest: primary custom domain is served in place
+ok 609 - primary custom domain is served in place
+  ---
+  duration_ms: 0.053667
+  ...
+# Subtest: subdomain without active primary is served in place
+ok 610 - subdomain without active primary is served in place
+  ---
+  duration_ms: 0.055375
+  ...
+# Subtest: lookup fields: subdomain with primary_custom_domain → redirect shape
+ok 611 - lookup fields: subdomain with primary_custom_domain → redirect shape
+  ---
+  duration_ms: 0.358875
+  ...
+# Subtest: lookup fields: missing primary columns degrade to no redirect (dark-safe)
+ok 612 - lookup fields: missing primary columns degrade to no redirect (dark-safe)
+  ---
+  duration_ms: 0.070542
+  ...
+# Subtest: lookup fields: explicit non-primary custom with primary_domain
+ok 613 - lookup fields: explicit non-primary custom with primary_domain
+  ---
+  duration_ms: 0.051416
+  ...
+# Subtest: lookup fields: non-primary without primary_domain never redirects
+ok 614 - lookup fields: non-primary without primary_domain never redirects
+  ---
+  duration_ms: 0.1105
+  ...
+# Subtest: talentSiteHostResponse 308s subdomain to custom preserving path, query, /en
+ok 615 - talentSiteHostResponse 308s subdomain to custom preserving path, query, /en
+  ---
+  duration_ms: 2.190375
+  ...
+# Subtest: talentSiteHostResponse 308s www to apex primary
+ok 616 - talentSiteHostResponse 308s www to apex primary
+  ---
+  duration_ms: 0.290875
+  ...
+# Subtest: POST skips the canonical redirect (helper still names the host; response does not 308)
+ok 617 - POST skips the canonical redirect (helper still names the host; response does not 308)
+  ---
+  duration_ms: 0.181417
+  ...
+# Subtest: static: talent path uses the same primary-host helper as agencies
+ok 618 - static: talent path uses the same primary-host helper as agencies
+  ---
+  duration_ms: 0.223083
+  ...
+# Subtest: resolves an active talent custom domain to a talent_site context
+ok 619 - resolves an active talent custom domain to a talent_site context
+  ---
+  duration_ms: 0.766334
+  ...
+# Subtest: non-primary custom domain carries canonicalHost for apex↔www 308
+ok 620 - non-primary custom domain carries canonicalHost for apex↔www 308
+  ---
+  duration_ms: 0.096917
+  ...
+# Subtest: tolerates the RPC returning a single object instead of an array
+ok 621 - tolerates the RPC returning a single object instead of an array
+  ---
+  duration_ms: 0.0715
+  ...
+# Subtest: an empty RPC result yields null (host falls through to not_found)
+ok 622 - an empty RPC result yields null (host falls through to not_found)
+  ---
+  duration_ms: 0.126875
+  ...
+# Subtest: a malformed row (missing/empty talent_profile_id) yields null — never mis-serves
+ok 623 - a malformed row (missing/empty talent_profile_id) yields null — never mis-serves
+  ---
+  duration_ms: 0.073125
+  ...
+# Subtest: an RPC error yields null (degrade-safe)
+ok 624 - an RPC error yields null (degrade-safe)
+  ---
+  duration_ms: 0.052125
+  ...
+# Subtest: an RPC that throws yields null (never propagates)
+ok 625 - an RPC that throws yields null (never propagates)
+  ---
+  duration_ms: 0.066417
+  ...
+# Subtest: readVercelRegistrarConfig returns null when token missing
+ok 626 - readVercelRegistrarConfig returns null when token missing
+  ---
+  duration_ms: 0.416167
+  ...
+# Subtest: readVercelRegistrarConfig accepts VERCEL_API_TOKEN or VERCEL_TOKEN
+ok 627 - readVercelRegistrarConfig accepts VERCEL_API_TOKEN or VERCEL_TOKEN
+  ---
+  duration_ms: 0.331291
+  ...
+# Subtest: getDomainAvailability skips cleanly without token
+ok 628 - getDomainAvailability skips cleanly without token
+  ---
+  duration_ms: 0.1345
+  ...
+# Subtest: getDomainAvailability parses available=true
+ok 629 - getDomainAvailability parses available=true
+  ---
+  duration_ms: 16.099417
+  ...
+# Subtest: getDomainPrice skips without token and parses price when present
+ok 630 - getDomainPrice skips without token and parses price when present
+  ---
+  duration_ms: 0.36375
+  ...
+# Subtest: searchDomainQuote returns unavailable without calling price
+ok 631 - searchDomainQuote returns unavailable without calling price
+  ---
+  duration_ms: 0.221708
+  ...
+# Subtest: searchDomainQuote includes priceCents when available
+ok 632 - searchDomainQuote includes priceCents when available
+  ---
+  duration_ms: 0.3235
+  ...
+# Subtest: buyDomain skips without token and posts buy body when configured
+ok 633 - buyDomain skips without token and posts buy body when configured
+  ---
+  duration_ms: 0.29275
+  ...
+# Subtest: checkRegistrarSearchRateLimit caps per talent id
+ok 634 - checkRegistrarSearchRateLimit caps per talent id
+  ---
+  duration_ms: 0.172667
+  ...
+# Subtest: getRegistrarDomain: skips without a token; reads expiry, auto-renew and renewal price; states nothing it was not told
+ok 635 - getRegistrarDomain: skips without a token; reads expiry, auto-renew and renewal price; states nothing it was not told
+  ---
+  duration_ms: 35.993416
+  ...
+# Subtest: setDomainAutoRenew: PATCHes the flag, skips without a token, reports a registrar refusal
+ok 636 - setDomainAutoRenew: PATCHes the flag, skips without a token, reports a registrar refusal
+  ---
+  duration_ms: 2.015
+  ...
+# Subtest: getDomainRegistrarInfo skips without token and parses expiresAt
+ok 637 - getDomainRegistrarInfo skips without token and parses expiresAt
+  ---
+  duration_ms: 1.281875
+  ...
+# Subtest: getDomainAuthCode skips without token and returns authCode
+ok 638 - getDomainAuthCode skips without token and returns authCode
+  ---
+  duration_ms: 1.204541
+  ...
+# Subtest: purchased attach success → active, no TXT token, primary
+ok 639 - purchased attach success → active, no TXT token, primary
+  ---
+  duration_ms: 0.474291
+  ...
+# Subtest: purchased already on project → active even when verify still false
+ok 640 - purchased already on project → active even when verify still false
+  ---
+  duration_ms: 0.074542
+  ...
+# Subtest: purchased attach failure → error with failure_reason, never dns_verification_sent
+ok 641 - purchased attach failure → error with failure_reason, never dns_verification_sent
+  ---
+  duration_ms: 0.064333
+  ...
+# Subtest: purchased attach skipped (no Vercel env) → error, not pending TXT
+ok 642 - purchased attach skipped (no Vercel env) → error, not pending TXT
+  ---
+  duration_ms: 0.148208
+  ...
+# [domain-renewal.consent] sb.from(...).update(...).eq(...).eq is not a function TypeError: sb.from(...).update(...).eq(...).eq is not a function
+#     at recordRenewalConsent (/Users/oranpersonal/Desktop/now-wt/oldB/web/src/lib/stripe/talent-domain-renewal.ts:536:8)
+#     at async TestContext.<anonymous> (/Users/oranpersonal/Desktop/now-wt/oldB/web/src/lib/stripe/talent-domain-renewal.test.ts:165:3)
+#     at async Test.run (node:internal/test_runner/test:797:9)
+#     at async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+# [domain-renewal.offSession] authentication_required Error: authentication_required
+#     at Object.create (/Users/oranpersonal/Desktop/now-wt/oldB/web/src/lib/stripe/talent-domain-renewal.test.ts:87:38)
+#     at chargeOrSendLink (/Users/oranpersonal/Desktop/now-wt/oldB/web/src/lib/stripe/talent-domain-renewal.ts:297:50)
+#     at async runDomainRenewalSweep (/Users/oranpersonal/Desktop/now-wt/oldB/web/src/lib/stripe/talent-domain-renewal.ts:403:9)
+#     at async TestContext.<anonymous> (/Users/oranpersonal/Desktop/now-wt/oldB/web/src/lib/stripe/talent-domain-renewal.test.ts:177:20)
+#     at async Test.run (node:internal/test_runner/test:797:9)
+#     at async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+# [domain-renewal.turnOff] rosa.com:   
+# [domain-renewal.needsAttention] rosa.com: renewal_price_unknown 
+# [domain-renewal.fulfill.mismatch] rosa.com: charged 999 usd, expected 1499 usd 
+# Subtest: ships dark: with no registrar token the sweep touches nothing
+ok 643 - ships dark: with no registrar token the sweep touches nothing
+  ---
+  duration_ms: 1.523584
+  ...
+# Subtest: inside the window a saved card is charged off-session at the renewal price, once per cycle, and the talent is told in her language
+ok 644 - inside the window a saved card is charged off-session at the renewal price, once per cycle, and the talent is told in her language
+  ---
+  duration_ms: 16.235375
+  ...
+# Subtest: the off-session charge uses ONLY the method she consented to at purchase, never another saved card
+ok 645 - the off-session charge uses ONLY the method she consented to at purchase, never another saved card
+  ---
+  duration_ms: 0.379292
+  ...
+# Subtest: no stored consent means a pay link only, even when the customer has other cards
+ok 646 - no stored consent means a pay link only, even when the customer has other cards
+  ---
+  duration_ms: 0.976333
+  ...
+# Subtest: purchase consent: the card she paid with is stored as the renewal method only when the checkout disclosed the terms
+ok 647 - purchase consent: the card she paid with is stored as the renewal method only when the checkout disclosed the terms
+  ---
+  duration_ms: 23.159125
+  ...
+# Subtest: no saved card, or a bank that wants the cardholder: a Checkout link goes out and the cycle waits
+ok 648 - no saved card, or a bank that wants the cardholder: a Checkout link goes out and the cycle waits
+  ---
+  duration_ms: 3.04975
+  ...
+# Subtest: past the deadline and unpaid: auto-renew is turned OFF at the registrar and the talent is told
+ok 649 - past the deadline and unpaid: auto-renew is turned OFF at the registrar and the talent is told
+  ---
+  duration_ms: 0.498709
+  ...
+# Subtest: if the registrar refuses to turn auto-renew off it is reported and retried, never marked done
+ok 650 - if the registrar refuses to turn auto-renew off it is reported and retried, never marked done
+  ---
+  duration_ms: 0.27125
+  ...
+# Subtest: an unknown renewal price parks the domain for ops; nothing is billed from a guess
+ok 651 - an unknown renewal price parks the domain for ops; nothing is billed from a guess
+  ---
+  duration_ms: 0.202792
+  ...
+# Subtest: the sweep refreshes the shared expiry column from the registrar
+ok 652 - the sweep refreshes the shared expiry column from the registrar
+  ---
+  duration_ms: 0.108583
+  ...
+# Subtest: a paid Checkout settles the cycle; a late payment turns auto-renew back on; a wrong amount is parked, not trusted
+ok 653 - a paid Checkout settles the cycle; a late payment turns auto-renew back on; a wrong amount is parked, not trusted
+  ---
+  duration_ms: 0.409167
+  ...
+# Subtest: checkout payment: talent_domain_renewal → talent_domain_renewal (settled by the renewal path, not the purchase path)
+ok 654 - checkout payment: talent_domain_renewal → talent_domain_renewal (settled by the renewal path, not the purchase path)
+  ---
+  duration_ms: 1.171459
+  ...
+# Subtest: es: seeded labels localise, talent-edited text is untouched
+ok 655 - es: seeded labels localise, talent-edited text is untouched
+  ---
+  duration_ms: 0.781584
+  ...
+# Subtest: en: tree returned unchanged
+ok 656 - en: tree returned unchanged
+  ---
+  duration_ms: 0.215041
+  ...
+# Subtest: Maison v2 hero primary follows the booking mode (EN + ES)
+ok 657 - Maison v2 hero primary follows the booking mode (EN + ES)
+  ---
+  duration_ms: 0.16825
+  ...
+# Subtest: en: Spanish seeded labels read in English (inverse table)
+ok 658 - en: Spanish seeded labels read in English (inverse table)
+  ---
+  duration_ms: 23.604084
+  ...
+# Subtest: en: a Spanish-authored tree localises; an untouched tree is returned as is
+ok 659 - en: a Spanish-authored tree localises; an untouched tree is returned as is
+  ---
+  duration_ms: 0.214875
+  ...
+# Subtest: hydrated seeded labels with a token localise as patterns
+ok 660 - hydrated seeded labels with a token localise as patterns
+  ---
+  duration_ms: 1.049291
+  ...
+# Subtest: ES About Languages line localises even when swaps only carry the current list (TUL-121 Codex P2)
+ok 661 - ES About Languages line localises even when swaps only carry the current list (TUL-121 Codex P2)
+  ---
+  duration_ms: 16.815875
+  ...
+# Subtest: TUL-516 C2: utility_bar statusOffLabel No emergencies today -> Sin urgencias hoy on es
+ok 662 - TUL-516 C2: utility_bar statusOffLabel No emergencies today -> Sin urgencias hoy on es
+  ---
+  duration_ms: 0.175708
+  ...
+# Subtest: TUL-516 C: latin-dancer masculine ES and EN seed localise to Baile latino
+ok 663 - TUL-516 C: latin-dancer masculine ES and EN seed localise to Baile latino
+  ---
+  duration_ms: 2.887708
+  ...
+# Subtest: TUL-516 / TUL-528 floating chrome stack
+    # Subtest: F1/F2: consent hides locale + chat launcher; reserves bottom for legal CTAs
+    ok 1 - F1/F2: consent hides locale + chat launcher; reserves bottom for legal CTAs
+      ---
+      duration_ms: 0.707375
+      ...
+    # Subtest: F3/F5: body padding is max(bar, launcher, consent, safe-area), never a lone override
+    ok 2 - F3/F5: body padding is max(bar, launcher, consent, safe-area), never a lone override
+      ---
+      duration_ms: 2.549958
+      ...
+    # Subtest: catalog bar CSS sets --cb-bar-h and hide-at-top without fighting body padding
+    ok 3 - catalog bar CSS sets --cb-bar-h and hide-at-top without fighting body padding
+      ---
+      duration_ms: 0.086833
+      ...
+    # Subtest: GRK-034: desktop restores --cb-bar-h while the bar or dock is painted
+    ok 4 - GRK-034: desktop restores --cb-bar-h while the bar or dock is painted
+      ---
+      duration_ms: 0.157958
+      ...
+    # Subtest: GRK-034: root stack reserves --cb-bar-h from SSR .cb-island before catalog CSS hydrates
+    ok 5 - GRK-034: root stack reserves --cb-bar-h from SSR .cb-island before catalog CSS hydrates
+      ---
+      duration_ms: 0.466083
+      ...
+    # Subtest: GRK-033: consent-open heroes pad CTAs above the cookie card
+    ok 6 - GRK-033: consent-open heroes pad CTAs above the cookie card
+      ---
+      duration_ms: 0.175458
+      ...
+    # Subtest: GRK-039: consent yields to guest chat panel; shells mark data-guest-chat-panel
+    ok 7 - GRK-039: consent yields to guest chat panel; shells mark data-guest-chat-panel
+      ---
+      duration_ms: 0.330209
+      ...
+    # Subtest: GRK-036: phone FAB clears sticky booking bar before JS yield
+    ok 8 - GRK-036: phone FAB clears sticky booking bar before JS yield
+      ---
+      duration_ms: 2.099
+      ...
+    # Subtest: floatingBannerUp is true only for painted consent/locale nodes
+    ok 9 - floatingBannerUp is true only for painted consent/locale nodes
+      ---
+      duration_ms: 137.800667
+      ...
+    # Subtest: F4 / GRK-038: help teaser blocks when filter chips sit in the lower viewport band
+    ok 10 - F4 / GRK-038: help teaser blocks when filter chips sit in the lower viewport band
+      ---
+      duration_ms: 13.759125
+      ...
+    # Subtest: root layout mounts the stack styles; consent z-index is above the chat FAB
+    ok 11 - root layout mounts the stack styles; consent z-index is above the chat FAB
+      ---
+      duration_ms: 0.22675
+      ...
+    # Subtest: sticky bar measure only tightens --cb-bar-h; never wipes the CSS default
+    ok 12 - sticky bar measure only tightens --cb-bar-h; never wipes the CSS default
+      ---
+      duration_ms: 0.103458
+      ...
+    # Subtest: GRK-037: phone catalog + footer keep a right gutter clear of Hablar
+    ok 13 - GRK-037: phone catalog + footer keep a right gutter clear of Hablar
+      ---
+      duration_ms: 0.151167
+      ...
+    1..13
+ok 664 - TUL-516 / TUL-528 floating chrome stack
+  ---
+  duration_ms: 160.609625
+  type: 'suite'
+  ...
+# Subtest: hub visitor with active primary custom domain → custom home
+ok 665 - hub visitor with active primary custom domain → custom home
+  ---
+  duration_ms: 1.031541
+  ...
+# Subtest: staff preview=1 keeps the hub profile
+ok 666 - staff preview=1 keeps the hub profile
+  ---
+  duration_ms: 0.168667
+  ...
+# Subtest: modal never redirects
+ok 667 - modal never redirects
+  ---
+  duration_ms: 0.1055
+  ...
+# Subtest: agency / non-platform host never redirects
+ok 668 - agency / non-platform host never redirects
+  ---
+  duration_ms: 0.129459
+  ...
+# Subtest: no active primary custom domain → no redirect
+ok 669 - no active primary custom domain → no redirect
+  ---
+  duration_ms: 0.124042
+  ...
+# Subtest: profile-view wires hub custom-domain 308 before freeform render
+ok 670 - profile-view wires hub custom-domain 308 before freeform render
+  ---
+  duration_ms: 0.822417
+  ...
+# Subtest: computePlanGraceWindow is 30 UTC days
+ok 671 - computePlanGraceWindow is 30 UTC days
+  ---
+  duration_ms: 0.699916
+  ...
+# Subtest: planGrantsCustomDomain only for Web Office (portfolio)
+ok 672 - planGrantsCustomDomain only for Web Office (portfolio)
+  ---
+  duration_ms: 0.918125
+  ...
+# Subtest: shouldBeginDomainPlanGrace on losing Web Office
+ok 673 - shouldBeginDomainPlanGrace on losing Web Office
+  ---
+  duration_ms: 0.124917
+  ...
+# Subtest: shouldClearDomainPlanGrace on restoring Web Office
+ok 674 - shouldClearDomainPlanGrace on restoring Web Office
+  ---
+  duration_ms: 0.077333
+  ...
+# Subtest: isPurchasedAcquisition
+ok 675 - isPurchasedAcquisition
+  ---
+  duration_ms: 0.122625
+  ...
+# Subtest: graceDetachDue after ends_at and not yet detached
+ok 676 - graceDetachDue after ends_at and not yet detached
+  ---
+  duration_ms: 0.075167
+  ...
+# Subtest: isInPlanGrace during open window
+ok 677 - isInPlanGrace during open window
+  ---
+  duration_ms: 0.064958
+  ...
+# Subtest: custom domain row opens tier-compare when locked and domain drawer when unlocked
+ok 678 - custom domain row opens tier-compare when locked and domain drawer when unlocked
+  ---
+  duration_ms: 0.503208
+  ...
+# Subtest: DomainSetupDrawer: one primary per state, talent currency, no developer price copy
+ok 679 - DomainSetupDrawer: one primary per state, talent currency, no developer price copy
+  ---
+  duration_ms: 0.241625
+  ...
+# Subtest: TalentSiteDomainPanel: DNS copy-paste cards with live status
+ok 680 - TalentSiteDomainPanel: DNS copy-paste cards with live status
+  ---
+  duration_ms: 0.163584
+  ...
+# Subtest: domain purchase actions expose registrar search + price display context
+ok 681 - domain purchase actions expose registrar search + price display context
+  ---
+  duration_ms: 0.150792
+  ...
+# Subtest: domain checkout charges exact registrar quote cents (no markup)
+ok 682 - domain checkout charges exact registrar quote cents (no markup)
+  ---
+  duration_ms: 0.287208
+  ...
+# Subtest: TalentMaxSiteManager mounts CustomDomainRow on My website
+ok 683 - TalentMaxSiteManager mounts CustomDomainRow on My website
+  ---
+  duration_ms: 0.121625
+  ...
+# Subtest: purchase actions re-check Web Office + block trial
+ok 684 - purchase actions re-check Web Office + block trial
+  ---
+  duration_ms: 0.158333
+  ...
+# Subtest: connect action stamps acquisition connected
+ok 685 - connect action stamps acquisition connected
+  ---
+  duration_ms: 0.131458
+  ...
+# Subtest: webhook fulfill buys only after payment and is idempotent on session id
+ok 686 - webhook fulfill buys only after payment and is idempotent on session id
+  ---
+  duration_ms: 0.219375
+  ...
+# Subtest: purchased activation helper goes straight to active with no TXT token
+ok 687 - purchased activation helper goes straight to active with no TXT token
+  ---
+  duration_ms: 0.082125
+  ...
+# Subtest: D6 plan grace hooks subscription sync and disables registrar auto-renew
+ok 688 - D6 plan grace hooks subscription sync and disables registrar auto-renew
+  ---
+  duration_ms: 0.591416
+  ...
+# Subtest: D6 migration is parked for PM (not in drift-scanned migrations root)
+ok 689 - D6 migration is parked for PM (not in drift-scanned migrations root)
+  ---
+  duration_ms: 2.37175
+  ...
+# Subtest: verify persists 'verified' when the TXT token matches
+ok 690 - verify persists 'verified' when the TXT token matches
+  ---
+  duration_ms: 5.532208
+  ...
+# Subtest: verify maps the pure 'failed' status to the talent table's 'error'
+ok 691 - verify maps the pure 'failed' status to the talent table's 'error'
+  ---
+  duration_ms: 0.149542
+  ...
+# Subtest: sync persists 'active' when routing + HTTPS from Vercel are detected
+ok 692 - sync persists 'active' when routing + HTTPS from Vercel are detected
+  ---
+  duration_ms: 0.334
+  ...
+# Subtest: sync holds at 'verified' while routing records are not yet live
+ok 693 - sync holds at 'verified' while routing records are not yet live
+  ---
+  duration_ms: 0.167875
+  ...
+# Subtest: persistTalentSiteDomainVercelState writes status + failure_reason
+ok 694 - persistTalentSiteDomainVercelState writes status + failure_reason
+  ---
+  duration_ms: 0.146666
+  ...
+# Subtest: sweepActiveTalentSiteDomainHealth notifies once on breakage and sets failure_reason
+ok 695 - sweepActiveTalentSiteDomainHealth notifies once on breakage and sets failure_reason
+  ---
+  duration_ms: 1.092
+  ...
+# Subtest: sweepActiveTalentSiteDomainHealth does not re-notify when failure_reason already matches
+ok 696 - sweepActiveTalentSiteDomainHealth does not re-notify when failure_reason already matches
+  ---
+  duration_ms: 0.212583
+  ...
+# Subtest: sweepActiveTalentSiteDomainHealth clears failure on recovery
+ok 697 - sweepActiveTalentSiteDomainHealth clears failure on recovery
+  ---
+  duration_ms: 0.177542
+  ...
+# Subtest: sweepTalentSiteDomainRenewals reads live expiry and sends 30-day notice
+ok 698 - sweepTalentSiteDomainRenewals reads live expiry and sends 30-day notice
+  ---
+  duration_ms: 0.278834
+  ...
+# Subtest: sweepPendingTalentSiteDomainVerifications advances on TXT match
+ok 699 - sweepPendingTalentSiteDomainVerifications advances on TXT match
+  ---
+  duration_ms: 0.243167
+  ...
+# Subtest: talentDomainNeedsDailyHealthCheck is due when last check is null or stale
+ok 700 - talentDomainNeedsDailyHealthCheck is due when last check is null or stale
+  ---
+  duration_ms: 4.780334
+  ...
+# Subtest: resolveActiveDomainHealthTransition reports DNS and HTTPS failures
+ok 701 - resolveActiveDomainHealthTransition reports DNS and HTTPS failures
+  ---
+  duration_ms: 0.894084
+  ...
+# Subtest: resolveRenewalNoticeKind prefers 7-day when inside both windows
+ok 702 - resolveRenewalNoticeKind prefers 7-day when inside both windows
+  ---
+  duration_ms: 0.313666
+  ...
+# Subtest: shouldResetRenewalNoticeStamps only when expiry moves later
+ok 703 - shouldResetRenewalNoticeStamps only when expiry moves later
+  ---
+  duration_ms: 0.626458
+  ...
+# Subtest: registrarExpiresAtToIso accepts ms number and numeric string
+ok 704 - registrarExpiresAtToIso accepts ms number and numeric string
+  ---
+  duration_ms: 0.1475
+  ...
+# Subtest: clampWords never cuts mid-word and adds an ellipsis
+ok 705 - clampWords never cuts mid-word and adds an ellipsis
+  ---
+  duration_ms: 0.528959
+  ...
+# Subtest: es swaps bio, legacy tagline slice, trade and city
+ok 706 - es swaps bio, legacy tagline slice, trade and city
+  ---
+  duration_ms: 0.460417
+  ...
+# Subtest: the talent's chain picks the primary before English
+ok 707 - the talent's chain picks the primary before English
+  ---
+  duration_ms: 0.198167
+  ...
+# Subtest: missing translation falls back to English (no swap)
+ok 708 - missing translation falls back to English (no swap)
+  ---
+  duration_ms: 0.239042
+  ...
+# Subtest: the marquee's baked English service titles swap to the locale's title (platform)
+ok 709 - the marquee's baked English service titles swap to the locale's title (platform)
+  ---
+  duration_ms: 0.9715
+  ...
+# Subtest: a ticker baked from the plain title column swaps like the English map entry; platform-known English-only titles swap too (TUL-189)
+ok 710 - a ticker baked from the plain title column swaps like the English map entry; platform-known English-only titles swap too (TUL-189)
+  ---
+  duration_ms: 0.11875
+  ...
+# Subtest: an ASCII-folded baked city swaps to its accented form, alone and in the eyebrow (data)
+ok 711 - an ASCII-folded baked city swaps to its accented form, alone and in the eyebrow (data)
+  ---
+  duration_ms: 0.197167
+  ...
+# Subtest: ES swaps the baked About languages line (TUL-121 design polish)
+ok 712 - ES swaps the baked About languages line (TUL-121 design polish)
+  ---
+  duration_ms: 16.105125
+  ...
+# Subtest: localiseBakedLanguagesLine translates any Languages seed without current proof (Codex P2)
+ok 713 - localiseBakedLanguagesLine translates any Languages seed without current proof (Codex P2)
+  ---
+  duration_ms: 0.324042
+  ...
+# Subtest: TUL-516 C: stale Bailarín Latino swaps to live Baile latino (mig 358000)
+ok 714 - TUL-516 C: stale Bailarín Latino swaps to live Baile latino (mig 358000)
+  ---
+  duration_ms: 0.411416
+  ...
+# Subtest: type scale defaults are the mockup's, as editable style tokens
+ok 715 - type scale defaults are the mockup's, as editable style tokens
+  ---
+  duration_ms: 0.418791
+  ...
+# Subtest: the Folio payload validates, About is an optional block, the cover carries the italic line
+ok 716 - the Folio payload validates, About is an optional block, the cover carries the italic line
+  ---
+  duration_ms: 14.500708
+  ...
+# Subtest: other designs keep their pages (only Maison v2 and Folio ship optional blocks)
+ok 717 - other designs keep their pages (only Maison v2 and Folio ship optional blocks)
+  ---
+  duration_ms: 2.865167
+  ...
+# Subtest: magazine CSS: desktop sizes come from tokens with the TH02 desktop defaults, no hex
+ok 718 - magazine CSS: desktop sizes come from tokens with the TH02 desktop defaults, no hex
+  ---
+  duration_ms: 0.436
+  ...
+# Subtest: TUL-476 Folio magazine: cover keeps heads, caption has a scrim, phone intro clears sticky chrome, chapters collapse empty columns
+ok 719 - TUL-476 Folio magazine: cover keeps heads, caption has a scrim, phone intro clears sticky chrome, chapters collapse empty columns
+  ---
+  duration_ms: 0.186125
+  ...
+# Subtest: comp strip keeps the TH02 desktop grid and the keyed section is the dark box
+ok 720 - comp strip keeps the TH02 desktop grid and the keyed section is the dark box
+  ---
+  duration_ms: 0.074041
+  ...
+# Subtest: rate card is two columns on desktop with a token title; phone header is one row
+ok 721 - rate card is two columns on desktop with a token title; phone header is one row
+  ---
+  duration_ms: 0.165042
+  ...
+# Subtest: masthead: the cover line renders, and a long name is fitted to the frame
+ok 722 - masthead: the cover line renders, and a long name is fitted to the frame
+  ---
+  duration_ms: 8.019458
+  ...
+# Subtest: release: Folio parity has EN/ES notes, About removal is not offered, tokens are noted
+ok 723 - release: Folio parity has EN/ES notes, About removal is not offered, tokens are noted
+  ---
+  duration_ms: 5.110459
+  ...
+# Subtest: Folio gap fixes: dock stays on rate cards, one-row phone header, uncapped hero name, scoped to magazine
+ok 724 - Folio gap fixes: dock stays on rate cards, one-row phone header, uncapped hero name, scoped to magazine
+  ---
+  duration_ms: 0.162333
+  ...
+# Subtest: Maison v2 and Gridline output is pinned (Folio-only changes leave it byte-identical)
+ok 725 - Maison v2 and Gridline output is pinned (Folio-only changes leave it byte-identical)
+  ---
+  duration_ms: 38.8865
+  ...
+# Subtest: release 17: Folio neutral wording has EN/ES notes and every generated item a note
+ok 726 - release 17: Folio neutral wording has EN/ES notes and every generated item a note
+  ---
+  duration_ms: 2.145375
+  ...
+# Subtest: TUL-516 C2: Gridline seed ships status pill labels with es+en overlays
+ok 727 - TUL-516 C2: Gridline seed ships status pill labels with es+en overlays
+  ---
+  duration_ms: 2.1605
+  ...
+# Subtest: TUL-516 C2: legacy English statusOff (no overlay) localises on es pages
+ok 728 - TUL-516 C2: legacy English statusOff (no overlay) localises on es pages
+  ---
+  duration_ms: 0.375167
+  ...
+# Subtest: TUL-516 C2: missing statusOffLabel (saul-shaped) fills Spanish on es pages
+ok 729 - TUL-516 C2: missing statusOffLabel (saul-shaped) fills Spanish on es pages
+  ---
+  duration_ms: 0.084584
+  ...
+# Subtest: TUL-516 C2: seeded Gridline utility bar renders Sin urgencias hoy for es visitor
+ok 730 - TUL-516 C2: seeded Gridline utility bar renders Sin urgencias hoy for es visitor
+  ---
+  duration_ms: 8.05625
+  ...
+# Subtest: maison: every seeded text node ships es + en
+ok 731 - maison: every seeded text node ships es + en
+  ---
+  duration_ms: 10.910292
+  ...
+# Subtest: maison-v2: every seeded text node ships es + en
+ok 732 - maison-v2: every seeded text node ships es + en
+  ---
+  duration_ms: 12.538916
+  ...
+# Subtest: solace: every seeded text node ships es + en
+ok 733 - solace: every seeded text node ships es + en
+  ---
+  duration_ms: 0.526041
+  ...
+# Subtest: mono: every seeded text node ships es + en
+ok 734 - mono: every seeded text node ships es + en
+  ---
+  duration_ms: 0.276292
+  ...
+# Subtest: frame: every seeded text node ships es + en
+ok 735 - frame: every seeded text node ships es + en
+  ---
+  duration_ms: 0.355416
+  ...
+# Subtest: folio: every seeded text node ships es + en
+ok 736 - folio: every seeded text node ships es + en
+  ---
+  duration_ms: 1.596625
+  ...
+# Subtest: gridline: every seeded text node ships es + en
+ok 737 - gridline: every seeded text node ships es + en
+  ---
+  duration_ms: 0.878458
+  ...
+# Subtest: the released gallery designs are all covered by this test
+ok 738 - the released gallery designs are all covered by this test
+  ---
+  duration_ms: 0.101875
+  ...
+# Subtest: the seed Spanish table has no em dash and no voseo
+ok 739 - the seed Spanish table has no em dash and no voseo
+  ---
+  duration_ms: 1.049167
+  ...
+# Subtest: TUL-516 C2: emergencies pill seed pair matches the design-label map
+ok 740 - TUL-516 C2: emergencies pill seed pair matches the design-label map
+  ---
+  duration_ms: 0.571167
+  ...
+# Subtest: the scanner flags a missing overlay (guard against a vacuous pass)
+ok 741 - the scanner flags a missing overlay (guard against a vacuous pass)
+  ---
+  duration_ms: 0.224875
+  ...
+# Subtest: every MODE_DEPENDENT_LABELS exemption is really handled by the mode-aware map
+ok 742 - every MODE_DEPENDENT_LABELS exemption is really handled by the mode-aware map
+  ---
+  duration_ms: 0.247917
+  ...
+# Subtest: the new block kinds are registered and the scanner reaches them (\#209)
+ok 743 - the new block kinds are registered and the scanner reaches them (\#209)
+  ---
+  duration_ms: 8.559875
+  ...
+# Subtest: the scanner flags a seeded English-only node of a new kind, a list row and a header label (\#209)
+ok 744 - the scanner flags a seeded English-only node of a new kind, a list row and a header label (\#209)
+  ---
+  duration_ms: 0.232667
+  ...
+# Subtest: FAQ, stats and services catalog kinds are registered and the scanner reaches the seeded ones (TUL-207)
+ok 745 - FAQ, stats and services catalog kinds are registered and the scanner reaches the seeded ones (TUL-207)
+  ---
+  duration_ms: 4.063208
+  ...
+# Subtest: the scanner flags a seeded FAQ item, stats cell and catalog string lacking es or en (TUL-207)
+ok 746 - the scanner flags a seeded FAQ item, stats cell and catalog string lacking es or en (TUL-207)
+  ---
+  duration_ms: 0.134875
+  ...
+# Subtest: quoted item says Quoted even with an amount
+ok 747 - quoted item says Quoted even with an amount
+  ---
+  duration_ms: 0.42625
+  ...
+# Subtest: missing amount says No price yet
+ok 748 - missing amount says No price yet
+  ---
+  duration_ms: 0.068083
+  ...
+# Subtest: amount renders with currency
+ok 749 - amount renders with currency
+  ---
+  duration_ms: 13.497416
+  ...
+# Subtest: dashboardOfferingPriceLabel uses DS-17 format (TUL-336)
+ok 750 - dashboardOfferingPriceLabel uses DS-17 format (TUL-336)
+  ---
+  duration_ms: 0.845625
+  ...
+# Subtest: normalize: drops nameless/garbage, defaults active+public+currency
+ok 751 - normalize: drops nameless/garbage, defaults active+public+currency
+  ---
+  duration_ms: 0.576958
+  ...
+# Subtest: normalize: custom service carries no amount
+ok 752 - normalize: custom service carries no amount
+  ---
+  duration_ms: 0.30625
+  ...
+# Subtest: normalize: clamps negatives, dedups ids, re-indexes sortOrder
+ok 753 - normalize: clamps negatives, dedups ids, re-indexes sortOrder
+  ---
+  duration_ms: 0.570208
+  ...
+# Subtest: normalize: at most one instant-book service (first active wins)
+ok 754 - normalize: at most one instant-book service (first active wins)
+  ---
+  duration_ms: 0.125792
+  ...
+# Subtest: normalize: taxonomyTermIds null when empty, kept when present
+ok 755 - normalize: taxonomyTermIds null when empty, kept when present
+  ---
+  duration_ms: 0.174208
+  ...
+# Subtest: validate: non-custom needs a positive amount
+ok 756 - validate: non-custom needs a positive amount
+  ---
+  duration_ms: 0.113208
+  ...
+# Subtest: validate: instant-book service must be active + fixed-priced
+ok 757 - validate: instant-book service must be active + fixed-priced
+  ---
+  duration_ms: 0.064292
+  ...
+# Subtest: normalize: add-ons, tiers, and bundle childServiceIds (Phase C richness)
+ok 758 - normalize: add-ons, tiers, and bundle childServiceIds (Phase C richness)
+  ---
+  duration_ms: 0.196583
+  ...
+# Subtest: normalize: empty childServiceIds → null; invalid visibility → public
+ok 759 - normalize: empty childServiceIds → null; invalid visibility → public
+  ---
+  duration_ms: 0.119792
+  ...
+# Subtest: findInstantBookService: returns the single priced active instant-book service, else null (S16)
+ok 760 - findInstantBookService: returns the single priced active instant-book service, else null (S16)
+  ---
+  duration_ms: 0.235709
+  ...
+# Subtest: serviceMatchesDiscipline: All matches everything; general matches every filter; scoped matches only its id (S19)
+ok 761 - serviceMatchesDiscipline: All matches everything; general matches every filter; scoped matches only its id (S19)
+  ---
+  duration_ms: 0.086208
+  ...
+# Subtest: serviceMatchesDiscipline: knownIds makes a stale-only-scoped service behave like general (S19 edge)
+ok 762 - serviceMatchesDiscipline: knownIds makes a stale-only-scoped service behave like general (S19 edge)
+  ---
+  duration_ms: 0.061583
+  ...
+# Subtest: offer mapper: pricingType maps 1:1 to a valid offer unit; custom not priceable
+ok 763 - offer mapper: pricingType maps 1:1 to a valid offer unit; custom not priceable
+  ---
+  duration_ms: 0.07225
+  ...
+# Subtest: TUL-516: servicePricingSuffix is Spanish on es (no English / session)
+ok 764 - TUL-516: servicePricingSuffix is Spanish on es (no English / session)
+  ---
+  duration_ms: 14.460042
+  ...
+1..764
+# tests 816
+# suites 16
+# pass 811
+# fail 5
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 51858.354292

@@ -178,3 +178,7 @@ src/lib/analytics/consent-snippet-minify.test.ts
 src/lib/quality/live-qa-pack-fixture-roles.test.ts
 src/lib/impersonation/client-api-read.test.ts
 src/lib/saas/preview-host.test.ts
+src/lib/saas/talent-site-canonical-redirect.test.ts
+src/lib/saas/talent-site-host-context.test.ts
+src/lib/saas/talent-demo-host-redirect.test.ts
+src/lib/saas/domain-canonical.test.ts

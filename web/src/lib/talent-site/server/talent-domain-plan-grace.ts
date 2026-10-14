@@ -400,11 +400,16 @@ export async function sweepTalentDomainPlanGrace(
         ),
       ].slice(0, limit);
       for (const talentProfileId of profileIds) {
-        const { data: profile } = await admin
+        const { data: profile, error: profileError } = await admin
           .from("talent_profiles")
           .select("talent_plan_key")
           .eq("id", talentProfileId)
           .maybeSingle();
+        if (profileError) {
+          // A failed read must not look like "no plan": never start grace off a guess.
+          logServerError("talentDomainGrace.orphanPlanRead", profileError);
+          continue;
+        }
         const planKey =
           (profile as { talent_plan_key?: string | null } | null)?.talent_plan_key ??
           "talent_basic";
