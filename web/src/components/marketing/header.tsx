@@ -276,18 +276,6 @@ export function MarketingHeader({
         </div>
       </div>
 
-      {/* Phones only: the category line as its own row under the bar, one
-          line at full width, so the bar keeps six controls and the slogan
-          stays visible (#2088). The bar is h-16 + this row = 84px; the
-          shell's main padding matches. */}
-      <div
-        aria-hidden
-        className="mx-auto w-full max-w-7xl px-4 pb-1.5 -mt-1 text-[0.5625rem] font-medium uppercase leading-none tracking-[0.2em] sm:hidden"
-        style={{ color: "var(--plt-ink-strong)", opacity: 0.55 }}
-      >
-        {copy.brand.descriptor}
-      </div>
-
       {menuOpen ? (
         <div
           className="max-h-[calc(100dvh-4rem)] overflow-y-auto lg:hidden"
@@ -644,14 +632,11 @@ function TulalaHeaderLogo({ descriptor }: { descriptor: string }) {
           Letter-spacing is tuned so the line optically matches the wordmark's
           width. Still ~60% opacity, so it never becomes a second dark bold
           element in the bar. */}
-      {/* From sm up the line sits under the wordmark. On phones it moves to
-          its own row under the bar (see the header body): measured live at
-          375px, six controls leave the logo ~91px, so beside the wordmark the
-          slogan either overflowed the bar (menu at x=511, untappable) or
-          wrapped to four lines. */}
+      {/* Same stack at every width (TUL-593): tight gap under the wordmark,
+          tracking narrowed on phones so it fits beside the bar controls. */}
       <span
         aria-hidden
-        className="mt-1 hidden whitespace-nowrap text-[0.5625rem] font-medium uppercase tracking-[0.2em] sm:block"
+        className="mt-0.5 block whitespace-nowrap text-[0.5625rem] font-medium uppercase tracking-[0.12em] sm:tracking-[0.2em]"
         style={{ color: "var(--plt-ink-strong)", opacity: 0.55 }}
       >
         {descriptor}
