@@ -151,11 +151,15 @@ export function UpgradeModal({
   reason = null,
   doorPending = false,
   onDoorStart,
+  yearlyPlans = [],
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   activePlan: Plan;
-  onSelect?: (plan: Plan) => void;
+  /** `interval` is what Checkout charges (TUL-830): "year" only for a plan in `yearlyPlans`. */
+  onSelect?: (plan: Plan, interval: "month" | "year") => void;
+  /** Plans with a yearly catalog price. Empty hides the Annual toggle (TUL-830). */
+  yearlyPlans?: readonly Plan[];
   /** Checkout in flight for the door card's button. */
   doorPending?: boolean;
   /** The door card's "Start" — receives the resolved offer. */
@@ -258,8 +262,9 @@ export function UpgradeModal({
               ) : null}
             </div>
 
-            {/* Billing cycle toggle */}
+            {/* Billing cycle toggle: only when the catalog sells yearly (TUL-830) */}
             <div className="flex shrink-0 items-center gap-2">
+              {yearlyPlans.length > 0 ? (
               <div
                 className="inline-flex items-center rounded-full border border-[rgba(24,24,27,0.1)] bg-[#f2efe6] p-0.5 text-[12px] font-semibold"
                 role="tablist"
@@ -304,6 +309,7 @@ export function UpgradeModal({
                   </span>
                 </button>
               </div>
+              ) : null}
               <Dialog.Close
                 aria-label="Close"
                 className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-[rgba(24,24,27,0.1)] bg-white text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
@@ -325,19 +331,22 @@ export function UpgradeModal({
                 // prompt opened the modal — "Recommended" answers the question
                 // the user just asked; "Most popular" does not.
                 const isPopular = !isRequired && requiredPlan == null && plan.key === "studio";
+                // A plan without a yearly catalog price stays monthly even on the Annual tab.
+                const cardCycle: Cycle =
+                  cycle === "annual" && yearlyPlans.includes(plan.key) ? "annual" : "monthly";
                 const price =
                   plan.monthly === null
                     ? "Custom"
                     : formatPrice(
-                        cycle === "annual" ? (plan.annual ?? 0) : plan.monthly,
-                        cycle,
+                        cardCycle === "annual" ? (plan.annual ?? 0) : plan.monthly,
+                        cardCycle,
                       );
                 const period =
                   plan.monthly === null
                     ? "sales-led pricing"
                     : plan.monthly === 0
                       ? "forever"
-                      : cycle === "annual"
+                      : cardCycle === "annual"
                         ? "/ month, billed yearly"
                         : "/ month";
 
@@ -474,7 +483,7 @@ export function UpgradeModal({
                               window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Network plan enquiry")}`;
                               return;
                             }
-                            onSelect?.(plan.key);
+                            onSelect?.(plan.key, cardCycle === "annual" ? "year" : "month");
                             onOpenChange(false);
                           }}
                           disabled={isCurrent}

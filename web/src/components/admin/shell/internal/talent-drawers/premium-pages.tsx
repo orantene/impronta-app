@@ -42,8 +42,7 @@ import {
   TextInput,
   Toggle,
 } from "../primitives";
-import { startTalentUpgrade } from "@/app/(workspace)/[tenantSlug]/talent/settings/stripe-talent-actions";
-import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
+import { PlanUpgradeModal } from "@/components/billing/plan-upgrade-modal";
 import { PLAN_CATALOG } from "@/lib/access/plan-catalog";
 import type { TalentPlanKey } from "@/lib/stripe/price-ids";
 import { DomainSetupDrawerBody } from "@/components/talent/site/DomainSetupDrawer";
@@ -298,7 +297,7 @@ export function TalentTierCompareDrawer() {
 
 /**
  * The real checkout CTA. Every paid tier above the talent's current one gets a
- * button that opens Stripe Checkout via `startTalentUpgrade`.
+ * button that opens the shared upgrade modal (TUL-829), which goes to Checkout.
  *
  * Two honest degradations rather than a dead button:
  *  - no `tenantSlug` (prototype / standalone shell) → the buttons do not render
@@ -310,33 +309,13 @@ export function TalentTierCompareDrawer() {
 function TierUpgradeCta({ current }: { current: TalentSubscriptionTier }) {
   const { tenantSlug } = useAdminShell();
   const t = useT();
-  const [pending, setPending] = useState<TalentSubscriptionTier | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // TUL-829: the button opens the shared upgrade modal (price, interval, one
+  // CTA); the modal's server action picks Checkout or an in-place switch.
+  const [modalTier, setModalTier] = useState<TalentSubscriptionTier | null>(null);
 
   // Pro fold (2026-09-23): the only upgrade path left is to Web Office.
   const upgradeable = (["max"] as const).filter((tier) => tier !== current);
-
-  const onUpgrade = useCallback(
-    async (tier: TalentSubscriptionTier) => {
-      const planKey = TIER_PLAN_KEY[tier];
-      if (!planKey || !tenantSlug) return;
-      setPending(tier);
-      setError(null);
-      try {
-        const result = await startTalentUpgrade(planKey, tenantSlug, readPromoCodeFromUrl());
-        if (result.ok) {
-          window.location.assign(result.redirectUrl);
-          return;
-        }
-        setError(result.error);
-      } catch {
-        setError(t("dashboard.talentDrawers.premiumPages.upgradeFailed"));
-      } finally {
-        setPending(null);
-      }
-    },
-    [tenantSlug, t],
-  );
+  const modalPlanKey = modalTier ? TIER_PLAN_KEY[modalTier] : undefined;
 
   if (!tenantSlug || upgradeable.length === 0) return null;
 
@@ -347,17 +326,11 @@ function TierUpgradeCta({ current }: { current: TalentSubscriptionTier }) {
           const price = tierMonthlyPrice(tier);
           const label = TALENT_TIER_META[tier].label;
           return (
-            <PrimaryButton
-              key={tier}
-              onClick={() => void onUpgrade(tier)}
-              disabled={pending !== null}
-            >
-              {pending === tier
-                ? t("dashboard.talentDrawers.premiumPages.upgradeStarting")
-                : interpolate(t("dashboard.talentDrawers.premiumPages.upgradeTo"), {
-                    tier: label,
-                    price: price ?? "",
-                  })}
+            <PrimaryButton key={tier} onClick={() => setModalTier(tier)}>
+              {interpolate(t("dashboard.talentDrawers.premiumPages.upgradeTo"), {
+                tier: label,
+                price: price ?? "",
+              })}
             </PrimaryButton>
           );
         })}
@@ -365,11 +338,16 @@ function TierUpgradeCta({ current }: { current: TalentSubscriptionTier }) {
       <div className="mt-2 text-[12px] leading-[1.5] text-admin-ink-muted">
         {t("dashboard.talentDrawers.premiumPages.upgradeNote")}
       </div>
-      {error && (
-        <div className="mt-2 text-[12.5px] leading-[1.5] text-admin-orange">
-          {error}
-        </div>
-      )}
+      {modalPlanKey ? (
+        <PlanUpgradeModal
+          open={modalTier !== null}
+          onOpenChange={(next) => {
+            if (!next) setModalTier(null);
+          }}
+          tenantSlug={tenantSlug}
+          target={modalPlanKey}
+        />
+      ) : null}
     </div>
   );
 }

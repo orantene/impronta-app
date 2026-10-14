@@ -15,17 +15,16 @@
 
 import * as React from "react";
 import {
-  startTalentUpgrade,
   openTalentSubscriptionPortal,
   cancelTalentSubscription,
   resumeTalentSubscription,
 } from "./stripe-talent-actions";
 import { useT } from "@/i18n/use-t";
 import { TalentPlanChangeButton } from "./TalentPlanChangeButton";
+import { PlanUpgradeModal } from "@/components/billing/plan-upgrade-modal";
 import { TalentDunningBanner } from "./TalentDunningBanner";
 import { dunningBanner } from "@/lib/billing/dunning-banner";
 import { billingPortalEntry } from "@/lib/billing/billing-portal-entry";
-import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
 import type { TalentSubscriptionState } from "../../_data-bridge";
 import type { TalentPlanKey } from "@/lib/stripe/price-ids";
 
@@ -137,48 +136,35 @@ function UpgradeButton({
   tenantSlug: string;
   label: string;
 }) {
-  const [pending, startTransition] = React.useTransition();
-  const [error, setError] = React.useState<string | null>(null);
-
-  function handleClick() {
-    if (pending) return;
-    setError(null);
-    startTransition(async () => {
-      const result = await startTalentUpgrade(plan, tenantSlug, readPromoCodeFromUrl());
-      if (result.ok) {
-        window.location.href = result.redirectUrl;
-      } else {
-        setError(result.error);
-      }
-    });
-  }
+  // TUL-829: opens the shared upgrade modal (price, interval, one CTA).
+  const [open, setOpen] = React.useState(false);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 5, alignItems: "flex-start" }}>
       <button
         type="button"
-        onClick={handleClick}
-        disabled={pending}
+        onClick={() => setOpen(true)}
+        aria-haspopup="dialog"
         style={{
           display: "inline-flex",
           alignItems: "center",
           height: 34,
           padding: "0 16px",
           borderRadius: 8,
-          background: pending ? "rgba(15,79,62,0.5)" : C.accent,
+          background: C.accent,
           color: "#fff",
           fontFamily: FONT,
           fontSize: 12.5,
           fontWeight: 600,
           border: "none",
-          cursor: pending ? "not-allowed" : "pointer",
+          cursor: "pointer",
           letterSpacing: -0.1,
           transition: "background 0.1s",
         }}
       >
-        {pending ? "Redirecting…" : label}
+        {label}
       </button>
-      {error && <span style={{ fontSize: 11, color: "#c0392b", fontFamily: FONT }}>{error}</span>}
+      <PlanUpgradeModal open={open} onOpenChange={setOpen} tenantSlug={tenantSlug} target={plan} />
     </div>
   );
 }
@@ -480,7 +466,7 @@ export function TalentSubscriptionShell({
 
       {/* Grandfathered Pro → the multi-page Web Office perks their plan key doesn't grant yet */}
       {stripeEnabled && planKey === "talent_pro" && !hasActiveSub && (
-        <UpgradeButton plan="talent_portfolio" tenantSlug={tenantSlug} label="Unlock the rest of Web Office — $15/mo" />
+        <UpgradeButton plan="talent_portfolio" tenantSlug={tenantSlug} label="Unlock the rest of Web Office, $15/mo" />
       )}
 
       {/* Manage subscription (paid active subscribers) */}

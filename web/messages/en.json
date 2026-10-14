@@ -3445,8 +3445,6 @@
         "perMonth": "{price} / month",
         "freePrice": "Free",
         "upgradeTo": "Upgrade to {tier}, {price} a month",
-        "upgradeStarting": "Opening checkout...",
-        "upgradeFailed": "Could not start checkout. Please try again.",
         "upgradeNote": "Cancel anytime. You keep every roster you are on now.",
         "unlockedAt": "Unlocked at {tier}",
         "personalTitle": "Personal site sections",
@@ -20240,6 +20238,27 @@
       "dunningBody": "Your plan keeps working while we retry the card. Update your payment method to keep it.",
       "dunningBodyUntil": "Your plan keeps working while we retry the card, at least until {date}. Update your payment method to keep it.",
       "dunningCta": "Update payment method"
+    },
+    "upgradeModal": {
+      "title": "Upgrade to {plan}",
+      "unlocks": "{feature} is part of {plan}.",
+      "monthly": "Monthly",
+      "yearly": "Yearly",
+      "intervalLabel": "Billing period",
+      "save": "Save {percent}%",
+      "perMonth": "/ month",
+      "billedYearly": "{amount} billed once a year",
+      "billedMonthly": "Billed monthly. Cancel any time.",
+      "switchNote": "You keep your current billing period. Your next invoice adds only the difference.",
+      "fixPaymentNote": "Your last payment did not go through. Update your card first, then upgrade.",
+      "ctaCheckout": "Continue to payment",
+      "ctaSwitch": "Switch to {plan}",
+      "ctaFixPayment": "Update payment method",
+      "working": "One moment...",
+      "switched": "Plan change sent. It shows here within a minute.",
+      "samePlan": "You are already on this plan.",
+      "failed": "We could not start the upgrade. Nothing was charged. Try again in a moment.",
+      "secure": "Secure payment by Stripe"
     }
   },
   "admin": {

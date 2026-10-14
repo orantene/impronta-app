@@ -3445,8 +3445,6 @@
         "perMonth": "{price} / mes",
         "freePrice": "Gratis",
         "upgradeTo": "Cambiar a {tier}, {price} al mes",
-        "upgradeStarting": "Abriendo el pago...",
-        "upgradeFailed": "No se pudo abrir el pago. Inténtalo de nuevo.",
         "upgradeNote": "Cancela cuando quieras. Sigues en todos los rosters en los que estás ahora.",
         "unlockedAt": "Se desbloquea en {tier}",
         "personalTitle": "Secciones del sitio personal",
@@ -20240,6 +20238,27 @@
       "dunningBody": "Tu plan sigue activo mientras volvemos a intentar el cobro. Actualiza tu método de pago para conservarlo.",
       "dunningBodyUntil": "Tu plan sigue activo mientras volvemos a intentar el cobro, al menos hasta el {date}. Actualiza tu método de pago para conservarlo.",
       "dunningCta": "Actualizar método de pago"
+    },
+    "upgradeModal": {
+      "title": "Mejora a {plan}",
+      "unlocks": "{feature} es parte de {plan}.",
+      "monthly": "Mensual",
+      "yearly": "Anual",
+      "intervalLabel": "Periodo de facturación",
+      "save": "Ahorra {percent}%",
+      "perMonth": "/ mes",
+      "billedYearly": "{amount} cobrados una vez al año",
+      "billedMonthly": "Cobro mensual. Cancela cuando quieras.",
+      "switchNote": "Conservas tu periodo de facturación. Tu próxima factura suma solo la diferencia.",
+      "fixPaymentNote": "Tu último pago no se procesó. Actualiza tu tarjeta primero y luego mejora tu plan.",
+      "ctaCheckout": "Continuar al pago",
+      "ctaSwitch": "Cambiar a {plan}",
+      "ctaFixPayment": "Actualizar método de pago",
+      "working": "Un momento...",
+      "switched": "Cambio de plan enviado. Aparecerá aquí en menos de un minuto.",
+      "samePlan": "Ya tienes este plan.",
+      "failed": "No pudimos iniciar la mejora. No se hizo ningún cargo. Inténtalo de nuevo en un momento.",
+      "secure": "Pago seguro con Stripe"
     }
   },
   "admin": {

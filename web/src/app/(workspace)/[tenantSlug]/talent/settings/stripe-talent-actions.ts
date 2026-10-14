@@ -17,7 +17,9 @@ import {
   createTalentBillingPortalSession,
   setTalentSubscriptionCancellation,
   changeTalentSubscriptionPlan,
+  loadTalentSubscriptionState,
 } from "@/lib/stripe/talent-billing";
+import { decideUpgradeRoute } from "@/lib/billing/upgrade-offer";
 import type { TalentPlanChangeErrorCode } from "@/lib/billing/talent-plan-change";
 import type {
   TalentLifecycleAction,
@@ -234,4 +236,55 @@ export async function changeTalentPlan(
   });
   if (!result.ok) logServerError("stripe-talent-actions.changePlan", result.code);
   return result;
+}
+
+export type TalentUpgradeModalResult =
+  | { ok: true; kind: "redirect"; url: string }
+  | { ok: true; kind: "switched" }
+  | { ok: false; code: "same_plan" | "past_due_portal_failed" | "failed"; error?: string };
+
+/**
+ * The one button of the shared upgrade modal (TUL-829). The server, not the
+ * browser, decides the path from the talent's own subscription row: no live
+ * plan → Checkout on the chosen interval (TUL-830); active / trialing → switch
+ * in place with proration (TUL-831); past_due → billing portal to fix the card
+ * (TUL-835). The browser names only the target plan and the interval.
+ */
+export async function upgradeTalentPlanFromModal(
+  tenantSlug: string,
+  target: TalentPlanKey,
+  interval?: string | null,
+  promoCode?: string | null,
+): Promise<TalentUpgradeModalResult> {
+  if (target !== "talent_pro" && target !== "talent_portfolio") return { ok: false, code: "failed" };
+  const session = await getCachedActorSession();
+  if (!session.user) return { ok: false, code: "failed", error: "Not authenticated." };
+  const scope = await getTenantPortalScopeBySlug(tenantSlug);
+  if (!scope) return { ok: false, code: "failed" };
+  const talentProfile = await loadTalentSelfProfile(session.user.id, scope.tenantId);
+  if (!talentProfile) return { ok: false, code: "failed" };
+
+  const state = await loadTalentSubscriptionState(talentProfile.id, session.supabase);
+  const own = state && state.userId === session.user.id ? state : null;
+  const route = decideUpgradeRoute({
+    currentPlanKey: own?.planKey ?? null,
+    subscriptionStatus: own?.status ?? null,
+    target,
+  });
+
+  if (route === "current") return { ok: false, code: "same_plan" };
+  if (route === "fix_payment") {
+    const portal = await openTalentSubscriptionPortal(tenantSlug);
+    return portal.ok
+      ? { ok: true, kind: "redirect", url: portal.redirectUrl }
+      : { ok: false, code: "past_due_portal_failed" };
+  }
+  if (route === "plan_change") {
+    const changed = await changeTalentPlan(tenantSlug, target);
+    return changed.ok ? { ok: true, kind: "switched" } : { ok: false, code: "failed" };
+  }
+  const checkout = await startTalentUpgrade(target, tenantSlug, promoCode ?? null, null, interval ?? null);
+  return checkout.ok
+    ? { ok: true, kind: "redirect", url: checkout.redirectUrl }
+    : { ok: false, code: "failed", error: checkout.error };
 }

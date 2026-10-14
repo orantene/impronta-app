@@ -110,7 +110,7 @@
   "src/app/(workspace)/[tenantSlug]/talent/settings/ProfileVisibilityDrawer.tsx": 5,
   "src/app/(workspace)/[tenantSlug]/talent/settings/TalentPlanCard.tsx": 12,
   "src/app/(workspace)/[tenantSlug]/talent/settings/TalentServicesMenuCard.tsx": 4,
-  "src/app/(workspace)/[tenantSlug]/talent/settings/TalentSubscriptionShell.tsx": 8,
+  "src/app/(workspace)/[tenantSlug]/talent/settings/TalentSubscriptionShell.tsx": 7,
   "src/app/(workspace)/platform/admin/ai-providers/AiProvidersClient.tsx": 8,
   "src/app/(workspace)/platform/admin/audit-log/AuditLogClient.tsx": 5,
   "src/app/(workspace)/platform/admin/catalog/_tabs/editor-group-reorder-panel.tsx": 3,

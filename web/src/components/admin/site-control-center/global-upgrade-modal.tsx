@@ -10,6 +10,7 @@ import { useUpgradeModal } from "./upgrade-context";
 import { useAdminWorkspace } from "@/components/admin/workspace-context";
 import { changeWorkspacePlan } from "@/lib/server-actions/admin-billing";
 import { startWorkspaceUpgrade } from "@/app/(workspace)/[tenantSlug]/admin/account/stripe-billing-actions";
+import { loadWorkspaceYearlyCheckoutPlans } from "@/app/(workspace)/[tenantSlug]/admin/account/stripe-billing-actions";
 import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 import { SUPPORT_EMAIL } from "@/lib/platform/support-contact";
@@ -47,6 +48,22 @@ export function GlobalUpgradeModal({
   const { open, reason, setOpen } = useUpgradeModal();
   const workspace = useAdminWorkspace();
   const [pending, startTransition] = React.useTransition();
+  // TUL-830: the Annual tab shows only for plans the catalog sells yearly.
+  const [yearlyPlans, setYearlyPlans] = React.useState<readonly Plan[]>([]);
+  React.useEffect(() => {
+    if (!open) return;
+    let live = true;
+    loadWorkspaceYearlyCheckoutPlans()
+      .then((plans) => {
+        if (live) setYearlyPlans(plans);
+      })
+      .catch(() => {
+        if (live) setYearlyPlans([]);
+      });
+    return () => {
+      live = false;
+    };
+  }, [open]);
 
   const activePlan: Plan = activePlanOverride ?? workspace?.plan ?? "free";
   const slug = tenantSlug ?? workspace?.slug;
@@ -77,7 +94,7 @@ export function GlobalUpgradeModal({
     });
   }
 
-  function handleSelect(plan: Plan) {
+  function handleSelect(plan: Plan, interval: "month" | "year" = "month") {
     if (pending) return;
 
     if (
@@ -91,7 +108,7 @@ export function GlobalUpgradeModal({
         return;
       }
       startTransition(async () => {
-        const result = await startWorkspaceUpgrade(plan, slug, readPromoCodeFromUrl());
+        const result = await startWorkspaceUpgrade(plan, slug, readPromoCodeFromUrl(), null, interval);
         if (result.ok) {
           window.location.href = result.redirectUrl;
         } else if (result.noStripe) {
@@ -130,6 +147,7 @@ export function GlobalUpgradeModal({
       reason={reason}
       doorPending={pending}
       onDoorStart={handleDoorStart}
+      yearlyPlans={yearlyPlans}
     />
   );
 }
