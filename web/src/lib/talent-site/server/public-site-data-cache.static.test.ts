@@ -68,7 +68,7 @@ describe("public Max-site data cache (TUL-444 B1 Step 2)", () => {
     assert.match(RENDER_SRC, /pTokens/);
     assert.match(
       RENDER_SRC,
-      /await Promise\.all\(\[\s*pTenant,\s*pIdentity,\s*pDemo,\s*pTokens,\s*\]\)/,
+      /await Promise\.all\(\[\s*pTenant,\s*pIdentity,\s*pDemo,\s*pDemoBookings,\s*pTokens,\s*\]\)/,
     );
   });
 

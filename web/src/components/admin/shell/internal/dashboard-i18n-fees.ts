@@ -19,6 +19,8 @@ export const FEES_ES_TEXT: Record<string, string> = {
     "El cliente también paga una comisión de servicio de Tulala de {pct} ({fee}) sobre tu precio, que se muestra como línea aparte al pagar. \"Yo la pago\" solo decide quién cubre la comisión de la tarjeta, así que el total del cliente es mayor que tu precio.",
   "This is an estimate. Fees are non-refundable.":
     "Es un estimado. Las comisiones no son reembolsables.",
+  "Loading fee estimate…": "Cargando estimación de comisiones…",
+  "Fee estimate unavailable right now.": "La estimación de comisiones no está disponible por ahora.",
   "Could not save. Try again.": "No se pudo guardar. Inténtalo de nuevo.",
   "Want to keep 100% of your price? Let clients cover the card fee":
     "¿Quieres quedarte con el 100% de tu precio? Deja que tus clientes cubran la comisión de tarjeta",
