@@ -22,6 +22,8 @@ import {
 } from "./stripe-talent-actions";
 import { useT } from "@/i18n/use-t";
 import { TalentPlanChangeButton } from "./TalentPlanChangeButton";
+import { TalentDunningBanner } from "./TalentDunningBanner";
+import { dunningBanner } from "@/lib/billing/dunning-banner";
 import { billingPortalEntry } from "@/lib/billing/billing-portal-entry";
 import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
 import type { TalentSubscriptionState } from "../../_data-bridge";
@@ -336,6 +338,7 @@ export function TalentSubscriptionShell({
 
   const portalEntry = billingPortalEntry(subscription);
   const hasActiveSub = portalEntry === "manage";
+  const dunning = dunningBanner(subscription);
 
   const periodEndLabel = subscription?.currentPeriodEnd
     ? new Date(subscription.currentPeriodEnd).toLocaleDateString("en-US", {
@@ -345,6 +348,7 @@ export function TalentSubscriptionShell({
 
   return (
     <section className="flex flex-col gap-3">
+      {dunning && stripeEnabled && <TalentDunningBanner tenantSlug={tenantSlug} banner={dunning} />}
       {/* Section header */}
       <div
         style={{

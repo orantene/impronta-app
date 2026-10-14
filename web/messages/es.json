@@ -20235,7 +20235,11 @@
       "switchConfirm": "¿Cambiar de plan ahora? El nuevo plan empieza hoy. Tu próxima factura suma solo la diferencia por lo que queda de este periodo.",
       "switching": "Cambiando...",
       "switchDone": "Cambio de plan enviado. Se verá aquí en un minuto.",
-      "errorPastDue": "Tu último pago no se procesó. Actualiza tu tarjeta primero y luego cambia de plan."
+      "errorPastDue": "Tu último pago no se procesó. Actualiza tu tarjeta primero y luego cambia de plan.",
+      "dunningTitle": "Tu último pago no se procesó",
+      "dunningBody": "Tu plan sigue activo mientras volvemos a intentar el cobro. Actualiza tu método de pago para conservarlo.",
+      "dunningBodyUntil": "Tu plan sigue activo mientras volvemos a intentar el cobro, al menos hasta el {date}. Actualiza tu método de pago para conservarlo.",
+      "dunningCta": "Actualizar método de pago"
     }
   },
   "admin": {

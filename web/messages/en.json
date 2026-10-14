@@ -20235,7 +20235,11 @@
       "switchConfirm": "Switch plans now? The new plan starts today. Your next invoice adds only the difference for the rest of this period.",
       "switching": "Switching...",
       "switchDone": "Plan change sent. It shows here within a minute.",
-      "errorPastDue": "Your last payment did not go through. Update your card first, then change plans."
+      "errorPastDue": "Your last payment did not go through. Update your card first, then change plans.",
+      "dunningTitle": "Your last payment did not go through",
+      "dunningBody": "Your plan keeps working while we retry the card. Update your payment method to keep it.",
+      "dunningBodyUntil": "Your plan keeps working while we retry the card, at least until {date}. Update your payment method to keep it.",
+      "dunningCta": "Update payment method"
     }
   },
   "admin": {
