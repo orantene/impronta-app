@@ -52,10 +52,12 @@ export type NotificationDrawerTarget = {
  *     tenant-scoped routes: every `/<slug>/talent/*` page 308s to `/talent/*`
  *     (lib/talent/legacy-talent-redirect.ts), so prefixing a slug would only
  *     add a redirect hop.
+ *   • "client" — `path` is host-local and ABSOLUTE (`/client/inquiries/<id>`,
+ *     the same shape the inquiry emails link to; the host resolves the tenant).
  */
 export type NotificationPageTarget = {
   kind: "page";
-  surface: "workspace" | "talent";
+  surface: "workspace" | "talent" | "client";
   path: string;
 };
 
@@ -251,7 +253,9 @@ export function notificationDrawerFields(
     const page: NotificationPageTarget =
       rawTargetDrawer === "talent-inquiry"
         ? { kind: "page", surface: "talent", path: `/talent/inbox/${id}` }
-        : { kind: "page", surface: "workspace", path: `/messages?inquiry=${id}` };
+        : rawTargetDrawer === "client-inquiry"
+          ? { kind: "page", surface: "client", path: `/client/inquiries/${id}` }
+          : { kind: "page", surface: "workspace", path: `/messages?inquiry=${id}` };
     return {
       targetDrawer: "notifications" as DrawerId,
       targetPayload: undefined,
