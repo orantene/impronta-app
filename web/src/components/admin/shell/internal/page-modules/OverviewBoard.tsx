@@ -36,8 +36,8 @@ import type {
   TodayBadge,
   TodayRow,
 } from "@/lib/overview/model";
-import { greetingHour } from "@/lib/overview/greeting-hour";
 import { setupProgress } from "@/lib/overview/model";
+import { utcToZonedHour } from "@/lib/scheduling/tz";
 import { useDashboardText } from "../dashboard-i18n";
 import { Icon } from "../primitives";
 import { meetsRole, useAdminShell } from "../state";
@@ -151,7 +151,9 @@ export function OverviewBoard() {
   const dateLabel = dateParts.length
     ? `${datePart("weekday")} ${datePart("day")} ${datePart("month")}`.replace(/\.\s/g, " ").trim()
     : "…";
-  const hour = venueZone ? greetingHour(now, venueZone) : hydrated ? now.getHours() : 12;
+  const hour =
+    (venueZone ? utcToZonedHour(now, venueZone) : null) ??
+    (hydrated ? now.getHours() : 12);
   const greeting = interpolate(t(greetingKey(hour)), {
     name: greetingName,
   });

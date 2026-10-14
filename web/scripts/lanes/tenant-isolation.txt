@@ -178,3 +178,8 @@ src/lib/analytics/consent-snippet-minify.test.ts
 src/lib/quality/live-qa-pack-fixture-roles.test.ts
 src/lib/impersonation/client-api-read.test.ts
 src/lib/saas/preview-host.test.ts
+src/lib/seo/llms-txt.test.ts
+src/lib/support/contact-name-optional.static.test.ts
+src/lib/seo/business-workspace-seo.test.ts
+src/lib/seo/talent-llms-txt.test.ts
+src/lib/analytics/talent-presence-stats.test.ts
