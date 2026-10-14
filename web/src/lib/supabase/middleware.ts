@@ -1,12 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { authCoordinationOptions } from "@/lib/supabase/auth-coordination";
-import {
-  cookieDomainForHost,
-  duplicateAuthCookieNames,
-  isSupabaseAuthCookie,
-  nonCanonicalAuthCookieExpiryHeaders,
-} from "@/lib/supabase/cookie-domain";
+import { cookieDomainForHost, isSupabaseAuthCookie } from "@/lib/supabase/cookie-domain";
 import { loadAccessProfile } from "@/lib/access-profile";
 import {
   buildAuthDebugHeaders,
@@ -347,16 +342,6 @@ export async function updateSession(
   const shouldClearStaleAuth = !user && isAuthEntryRoute && hasStaleAuthCookie;
   const clearStaleAuthCookies = (res: NextResponse): NextResponse => {
     applyRefreshCacheHeaders(res, refreshCacheHeaders);
-    // TUL-621: the same auth cookie at two scopes (e.g. an older client
-    // session host-only or on .staging.tulala.digital beside a fresh talent
-    // sign-in on .tulala.digital) lets the server read the wrong account.
-    // Sign-in always writes the canonical scope, so expire every OTHER scope.
-    for (const h of nonCanonicalAuthCookieExpiryHeaders(
-      duplicateAuthCookieNames(request.headers.get("cookie")),
-      requestHost,
-    )) {
-      res.headers.append("set-cookie", h);
-    }
     if (!shouldClearStaleAuth) return res;
     const names = new Set<string>();
     for (const c of request.cookies.getAll()) {
