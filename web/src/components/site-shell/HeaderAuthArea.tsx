@@ -1,5 +1,7 @@
 import "server-only";
 
+import { pathWorkspaceClientSignInHref } from "@/lib/client-account/agency-area-pure";
+
 /**
  * Phase B.2 — auth widgets re-mounted inside the snapshot-shell header.
  *
@@ -47,6 +49,7 @@ import { getFavoriteTalentIds, getSavedTalentIds } from "@/lib/public-discovery"
 import {
   isStaffRole,
   resolveAccountHref,
+  getAppUrl,
   resolveAuthenticatedDestination,
 } from "@/lib/auth-flow";
 import type { AccessProfileWithDisplayName } from "@/lib/access-profile";
@@ -185,7 +188,13 @@ export async function HeaderAuthArea({
         ) : (
           <Button size="icon" variant="ghost" className="shrink-0" asChild>
             <Link
-              href={accountHref(accountLink.href)}
+              href={
+                pathWorkspaceClientSignInHref({
+                  hostKind,
+                  pathname: pathnameWithoutLocale,
+                  appUrl: getAppUrl(),
+                }) ?? accountHref(accountLink.href)
+              }
               aria-label={accountLink.label}
             >
               <UserRound className="size-5" />

@@ -135,3 +135,14 @@ export function applyIncomingMessage(
     };
   });
 }
+
+/** Local ticket patch applied the moment the user asks for a person (TUL-307). */
+export function humanRequestedPatch(nowIso: string): Partial<SupportTicketRow> {
+  return { handledBy: "human", escalatedAt: nowIso, waitingOn: "support" };
+}
+
+/** The "talk to a person" offer is only meaningful while the AI still owns an open ticket. */
+export function canOfferHuman(ticket: Pick<SupportTicketRow, "handledBy" | "status"> | null): boolean {
+  if (!ticket) return true;
+  return ticket.handledBy !== "human" && ticket.status !== "closed";
+}
