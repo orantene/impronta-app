@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { suggestedEssentials, essentialsReady, parseEssentials } from "./essentials";
 import {
   DAY_ORDER, cleanServices, copyDayToAll, finalizeSetup, minToTime, needsTimezoneQuestion,
-  parsePriceToCents, setupIssues, timeToMin, toggleDay,
+  parsePriceToCents, placeAreaFromCity, setupIssues, timeToMin, toggleDay,
 } from "./setup";
 
 test("timezone is asked only outside Mexico", () => {
@@ -11,6 +11,18 @@ test("timezone is asked only outside Mexico", () => {
   assert.equal(needsTimezoneQuestion("MX"), false);
   assert.equal(needsTimezoneQuestion("United States"), true);
   assert.equal(needsTimezoneQuestion(null), true);
+});
+
+test("onb1-08: place area seeds from person.city without inventing a mode", () => {
+  assert.equal(placeAreaFromCity("  Cancún  "), "Cancún");
+  assert.equal(placeAreaFromCity("Playa del Carmen"), "Playa del Carmen");
+  assert.equal(placeAreaFromCity("   "), null);
+  assert.equal(placeAreaFromCity(null), null);
+  // setPlace fallthrough: keep an existing area; otherwise use the city seed.
+  const city = placeAreaFromCity("Cancún");
+  const keep = (area: string | null) => area ?? city;
+  assert.equal(keep("Tulum Centro"), "Tulum Centro");
+  assert.equal(keep(null), "Cancún");
 });
 
 test("prices and times round-trip", () => {
