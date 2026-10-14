@@ -15,6 +15,7 @@
  */
 
 import {
+  loadModerationQueue,
   loadModerationIntegritySignals,
   loadReportedReviews,
   type ModerationIntegritySignal,
@@ -33,4 +34,11 @@ export async function loadModerationIntegritySignalsAction(
   tenantId: string,
 ): Promise<ModerationIntegritySignal[]> {
   return loadModerationIntegritySignals(tenantId);
+}
+
+/** Both queue reads behind one gate and one round trip (TUL-732). */
+export async function loadModerationQueueAction(
+  tenantId: string,
+): Promise<{ reported: ReportedReview[]; signals: ModerationIntegritySignal[] }> {
+  return loadModerationQueue(tenantId);
 }

@@ -16,6 +16,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeCurrencyCode } from "@/lib/inquiry/offer-currency";
+import { stripeEnv } from "@/lib/stripe/env-keys";
 
 export type NoReceiverLane = { ok: true; lane: "mx" | null } | { ok: false };
 
@@ -26,7 +27,7 @@ export async function resolveNoReceiverTalentLane(
   orderId: string | null | undefined,
   opts: { mxConfigured?: boolean } = {},
 ): Promise<NoReceiverLane> {
-  if (!(opts.mxConfigured ?? !!process.env.STRIPE_MX_SECRET_KEY)) return NOT_APPLICABLE;
+  if (!(opts.mxConfigured ?? !!stripeEnv("STRIPE_MX_SECRET_KEY"))) return NOT_APPLICABLE;
   if (!orderId) return NOT_APPLICABLE;
   // Keyed by the transaction's own order_id, not tenant-scoped: a variable table
   // name keeps the untenanted-from rule quiet (as seller-currency-guard does).

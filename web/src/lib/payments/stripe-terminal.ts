@@ -13,6 +13,7 @@ import type {
   CreatePaymentRequestResult,
   TerminalAvailability,
 } from "@/lib/payments/collection";
+import { stripeEnv } from "@/lib/stripe/env-keys";
 
 export type StripeTerminalEnv = {
   secretKey?: string | null;
@@ -25,8 +26,8 @@ export function stripeTerminalSupported(): boolean {
 
 export function reportStripeTerminalAvailability(
   env: StripeTerminalEnv = {
-    secretKey: process.env.STRIPE_SECRET_KEY ?? null,
-    readerId: process.env.STRIPE_TERMINAL_READER_ID ?? null,
+    secretKey: stripeEnv("STRIPE_SECRET_KEY") ?? null,
+    readerId: stripeEnv("STRIPE_TERMINAL_READER_ID") ?? null,
   },
 ): TerminalAvailability {
   if (!env.secretKey?.trim()) {
@@ -45,8 +46,8 @@ export function reportStripeTerminalAvailability(
 export async function createStripeTerminalPaymentRequest(
   input: CreatePaymentRequestInput,
   env: StripeTerminalEnv = {
-    secretKey: process.env.STRIPE_SECRET_KEY ?? null,
-    readerId: process.env.STRIPE_TERMINAL_READER_ID ?? null,
+    secretKey: stripeEnv("STRIPE_SECRET_KEY") ?? null,
+    readerId: stripeEnv("STRIPE_TERMINAL_READER_ID") ?? null,
   },
   fetchImpl: typeof fetch = fetch,
   currencyGuard?: ChargeCurrencyGuard,

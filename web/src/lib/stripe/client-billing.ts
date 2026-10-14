@@ -33,6 +33,7 @@ import {
   type ClientTrustLevel,
 } from "@/lib/client-trust/evaluator";
 import type { BillingResult } from "@/lib/stripe/workspace-billing";
+import { stripeEnv } from "./env-keys";
 
 // Re-export for callers that only touch this module.
 export type { BillingResult };
@@ -322,7 +323,7 @@ export async function createClientProCheckoutSession(opts: {
   if (!isStripeConfigured()) {
     return { ok: false, error: "Stripe is not configured." };
   }
-  const priceId = process.env.STRIPE_CLIENT_PRO_PRICE_ID?.trim();
+  const priceId = stripeEnv("STRIPE_CLIENT_PRO_PRICE_ID")?.trim();
   if (!priceId) {
     return { ok: false, error: "Client Pro subscription is not configured (missing STRIPE_CLIENT_PRO_PRICE_ID)." };
   }
