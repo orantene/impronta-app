@@ -10,6 +10,9 @@ interface Props {
   contactName: string | null;
   eventDate: string | null;
   eventLocation: string | null;
+  /** The guest's notes (already clamped to 500). */
+  guestNote?: string | null;
+  guestPhone?: string | null;
   inquiriesUrl: string;
   brand?: EmailBrand;
   unsubscribeUrl?: string;
@@ -21,6 +24,8 @@ export default function BookingConfirmed({
   contactName,
   eventDate,
   eventLocation,
+  guestNote,
+  guestPhone,
   inquiriesUrl,
   brand,
   unsubscribeUrl,
@@ -33,6 +38,8 @@ export default function BookingConfirmed({
   const fields = [
     eventDate ? { label: t.labelDate, value: eventDate } : null,
     eventLocation ? { label: t.labelLocation, value: eventLocation } : null,
+    guestPhone ? { label: t.labelPhone, value: guestPhone } : null,
+    guestNote ? { label: t.labelNotes, value: guestNote } : null,
   ].filter(Boolean) as { label: string; value: string }[];
 
   return (

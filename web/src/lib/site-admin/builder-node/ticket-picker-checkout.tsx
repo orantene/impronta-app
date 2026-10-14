@@ -23,7 +23,7 @@ import { orderTotalCents, type CheckoutStage, type TierView } from "./ticket-pic
 const FOCUSABLE = 'a[href],button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])';
 
 export function CheckoutSheet({
-  t, loc, title, currency, timeZone, night, tier, qty, stage, details, onDetails, emailError, ageGate, busy, refusal, canBuy, ctaLabel,
+  t, loc, title, currency, timeZone, night, tier, qty, stage, details, onDetails, emailError, ageGate, busy, refusal, canBuy, ctaLabel, phoneError,
   pickedSeats, holdUntil, onToggleSeat, onHoldSeats, onBuy, onClose, onEditOrder, titleId,
 }: {
   t: T;
@@ -38,6 +38,8 @@ export function CheckoutSheet({
   details: DetailsState;
   onDetails: (patch: Partial<DetailsState>) => void;
   emailError: string | null;
+  /** Inline sentence under the phone field, or null. */
+  phoneError?: string | null;
   ageGate: number | null;
   busy: boolean;
   refusal: string | null;
@@ -154,6 +156,8 @@ export function CheckoutSheet({
               busy={busy}
               emailError={emailError}
               showPhone
+              locale={loc}
+              phoneError={phoneError ?? null}
               doorOffered={night.door.offered}
               ageGate={ageGate}
               emailId={`${titleId}-email`}

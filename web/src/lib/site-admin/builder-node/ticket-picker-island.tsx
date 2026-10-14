@@ -45,6 +45,7 @@ import { CheckoutSheet } from "./ticket-picker-checkout";
 import { COPY, UUID, formatWhen, money, newOrderKey, pickLocale } from "./ticket-picker-copy";
 import { TP_CSS } from "./ticket-picker-css";
 import { FloatingCta } from "./ticket-picker-floating-cta";
+import { normalizeGuestPhone } from "@/lib/phone/guest-phone";
 import { DetailsFields, SeatsSection, Stepper, buyLabel, type DetailsState } from "./ticket-picker-form";
 import {
   autoNight, checkoutTierFor, isValidEmail, maxUnits, orderTotalCents, tierAvailability, tierFromQuery, tierMatchesRef, tierRefKind, visibleTiers,
@@ -98,6 +99,7 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload, 
   const [qty, setQty] = useState(cards ? 0 : 1);
   const [details, setDetails] = useState<DetailsState>({ email: "", name: "", phone: "", promo: "", payHow: "full", ageOk: false });
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const [orderKey, setOrderKey] = useState(() => newOrderKey());
   const [busy, setBusy] = useState<"idle" | "holding" | "redirecting">("idle");
   const [refusal, setRefusal] = useState<string | null>(null);
@@ -201,18 +203,19 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload, 
     setBusy("idle");
   }
 
-  async function buy() {
+  async function buy(requirePhone = false) {
     if (!chosenNight || !chosenTier || busy !== "idle" || qty < 1) return;
     const email = details.email.trim();
     if (!email) { setEmailError(t("emailRequired")); return; }
     if (!isValidEmail(email)) { setEmailError(t("emailInvalid")); return; }
-    setBusy("holding"); setRefusal(null); setEmailError(null);
+    if (requirePhone && !normalizeGuestPhone(details.phone)) { setPhoneError(t(details.phone.trim() ? "phoneInvalid" : "phoneRequired")); return; }
+    setBusy("holding"); setRefusal(null); setEmailError(null); setPhoneError(null);
     try {
       const { startTicketPurchase, startTicketCardPayment } = await import("@/app/(public)/_events/ticket-picker-actions");
       const choice = chosenNight.door.offered ? details.payHow : "full";
       const res = await startTicketPurchase({
         tenantId, eventId, sessionId: chosenNight.sessionId, variantId: chosenTier.variantId, units: qty,
-        email, displayName: details.name.trim() || undefined, phone: details.phone.trim() || undefined,
+        email, displayName: details.name.trim() || undefined, phone: normalizeGuestPhone(details.phone) ?? (details.phone.trim() || undefined),
         promoCode: details.promo.trim() || undefined, clientOrderKey: orderKey, paymentChoice: choice, locale: loc,
         // Sent only when a gate applies AND the box is ticked. The server
         // refuses a gated basket that arrives without it, so an unticked box is
@@ -444,6 +447,7 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload, 
           details={details}
           onDetails={patchDetails}
           emailError={emailError}
+          phoneError={phoneError}
           ageGate={ageGate}
           busy={isBusy}
           refusal={refusal}
@@ -453,7 +457,7 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload, 
           holdUntil={holdUntil}
           onToggleSeat={toggleSeat}
           onHoldSeats={() => void holdSeats()}
-          onBuy={() => void buy()}
+          onBuy={() => void buy(true)}
           onClose={closeCheckout}
           onEditOrder={closeCheckout}
           titleId={`${titleId}-sheet`}

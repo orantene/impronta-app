@@ -1,5 +1,6 @@
 "use server";
 
+import { guestPhoneError, normalizeGuestPhone } from "@/lib/phone/guest-phone";
 import { guestCookieSigningEnabled } from "@/lib/guest-cookie";
 import { guestSupportMayServe } from "@/lib/support/guest-support-serve";
 import { ensureGuestSessionId, resolveClientIp, resolveGuestSessionId } from "@/lib/guest/guest-session";
@@ -409,6 +410,10 @@ export async function submitMarketingContactAction(input: {
   if (!input.name.trim() || !email.includes("@") || !input.message.trim()) {
     return { ok: false, error: "Name, email, and a message are required." };
   }
+  // Guest-facing contact form: phone / WhatsApp is required (TUL-93 rollout).
+  const phoneProblem = guestPhoneError(input.phone, input.locale);
+  if (phoneProblem) return { ok: false, error: phoneProblem };
+  const phoneE164 = normalizeGuestPhone(input.phone);
 
   const talentSite = parseTalentSiteHelpContactInput({
     source: input.source,
@@ -451,7 +456,7 @@ export async function submitMarketingContactAction(input: {
     originSlug: talentSite ? "talent-site" : "/contact",
     contactEmail: email,
     contactName: input.name.trim(),
-    contactPhone: input.phone?.trim() || null,
+    contactPhone: phoneE164,
     handledBy: "human",
     messageOranDirectly: true,
     metadata,

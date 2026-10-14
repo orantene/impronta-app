@@ -24,6 +24,8 @@
 
 import { useState } from "react";
 
+import { GuestPhoneField } from "@/components/ui/guest-phone-field";
+import { GUEST_PHONE_LABEL, normalizeGuestPhone } from "@/lib/phone/guest-phone";
 import type { Translator } from "@/i18n/interpolate";
 import {
   EMAIL_RE,
@@ -53,6 +55,8 @@ export type ContactEditorProps = {
   t: Translator;
   /** Jon 360 Phase 7 — dark surface variant for noir tenants. Default "light". */
   surfaceMode?: SurfaceMode;
+  /** The Talent/Profesional's home country (ISO2), seeds the phone flag. */
+  talentCountry?: string | null;
   onSubmit: (value: ContactEditorValue) => void;
   onCancel: () => void;
 };
@@ -84,6 +88,7 @@ export function ContactEditor({
   accentInk,
   t,
   surfaceMode = "light",
+  talentCountry = null,
   onSubmit,
   onCancel,
 }: ContactEditorProps) {
@@ -97,7 +102,10 @@ export function ContactEditor({
   const emailInvalid = emailTrimmed.length > 0 && !EMAIL_RE.test(emailTrimmed);
   // Confirm requires at least a name and a valid email so the agency can reach
   // the client (mirrors the inquiry's NOT NULL contact contract).
-  const canConfirm = name.trim().length > 0 && EMAIL_RE.test(emailTrimmed);
+  // The guest phone / WhatsApp is required: the Talent/Profesional follows up there.
+  const phoneE164 = normalizeGuestPhone(phone);
+  const canConfirm = name.trim().length > 0 && EMAIL_RE.test(emailTrimmed) && phoneE164 !== null;
+  const es = (typeof document !== "undefined" ? document.documentElement.lang : "es").toLowerCase().startsWith("es");
 
   return (
     <div
@@ -156,14 +164,13 @@ export function ContactEditor({
       </div>
 
       <div>
-        <label style={fieldLabelStyle(C)}>{t("public.guestChat.contactPhoneLabel")}</label>
-        <input
-          type="tel"
+        <label style={fieldLabelStyle(C)}>{es ? GUEST_PHONE_LABEL.es : GUEST_PHONE_LABEL.en}</label>
+        <GuestPhoneField
           value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          placeholder={t("public.guestChat.contactPhonePlaceholder")}
-          aria-label={t("public.guestChat.contactPhoneAria")}
-          style={smallInputStyle(C)}
+          onChange={setPhone}
+          locale={es ? "es" : "en"}
+          talentCountry={talentCountry}
+          testId="contact-editor-phone"
         />
       </div>
 
@@ -194,7 +201,7 @@ export function ContactEditor({
           type="button"
           disabled={!canConfirm}
           onClick={() =>
-            onSubmit({ name: name.trim(), email: emailTrimmed, phone: phone.trim() })
+            onSubmit({ name: name.trim(), email: emailTrimmed, phone: phoneE164 ?? phone.trim() })
           }
           style={{
             ...primaryBtnStyle(accent, ink),

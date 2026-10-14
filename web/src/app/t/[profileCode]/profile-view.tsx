@@ -94,6 +94,7 @@ import {
   resolveResidenceLocationEmbed,
   type CanonicalLocationEmbed,
 } from "@/lib/canonical-location-display";
+import { talentCountryIso } from "@/lib/phone/guest-phone";
 import { getPublicHostContext, getPublicPathPrefix } from "@/lib/saas/scope";
 import { resolvePublicProfileOverrideTenantId } from "@/lib/saas/talent-roster";
 import { assertTalentVisibleOnAgencySurface } from "./_guards/agency-roster-visibility";
@@ -2561,7 +2562,7 @@ export async function TalentProfileView({
           CTA; renders only on the agency surface AND when the tenant has guest
           chat enabled + shown on talent profiles (tenant_guest_chat_settings).
           Self-positions fixed bottom-right, so DOM placement here is logical. */}
-      <HubProfileBookingChrome platformHost={platformHost} tenantId={slotTenantId} talentProfileId={profile.id} sourcePage={`/t/${profile.profile_code}`} locale={locale} bookEntry={hubBookEntry} />
+      <HubProfileBookingChrome platformHost={platformHost} tenantId={slotTenantId} talentProfileId={profile.id} sourcePage={`/t/${profile.profile_code}`} locale={locale} bookEntry={hubBookEntry} talentCountry={talentCountryIso(resolveResidenceLocationEmbed(profile as TalentProfile))} />
       {!isModal ? <TalentIntakeSurfaces askEntry={talentAskEntry} switches={talentSwitches} agencyChatOn={guestChatSettings.enabled && guestChatSettings.showOnTalent} agencyGreeting={guestChatSettings.greeting} launcher={{ talentProfileId: profile.id, talentProfileCode: profile.profile_code, talentDisplayName: name, tenantSlug: chatTenantSlug, tenantId: chatTenantId, agencyName: chatBrandName, accentColor: chatAccentColor, logoUrl: watermarkLogoUrl, sourcePage: profileSourcePage, locale, backgroundMode: chatBackgroundMode, omitPlatformBrand: Boolean(chatHub) }} /> : null}
     </>
   );

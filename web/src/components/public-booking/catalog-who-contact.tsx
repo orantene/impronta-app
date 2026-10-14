@@ -13,6 +13,7 @@ export function CatalogWhoPhone({
   onBlur,
   invalid,
   chatError,
+  talentCountry,
 }: {
   es: boolean;
   locale: string;
@@ -21,11 +22,13 @@ export function CatalogWhoPhone({
   onBlur: () => void;
   invalid: boolean;
   chatError: boolean;
+  /** The Talent/Profesional's home country (ISO2). */
+  talentCountry?: string | null;
 }) {
   return (
     <div className="jb-field">
       <span>{es ? GUEST_PHONE_LABEL.es : GUEST_PHONE_LABEL.en}</span>
-      <GuestPhoneField value={phone} onChange={onPhone} onBlur={onBlur} locale={locale} invalid={invalid} testId="cb-phone" />
+      <GuestPhoneField value={phone} onChange={onPhone} onBlur={onBlur} locale={locale} talentCountry={talentCountry} invalid={invalid} testId="cb-phone" />
       {invalid ? <em>{es ? "Revisa el número." : "Check the number."}</em> : null}
       {chatError ? <em>{es ? "El teléfono hace falta para chatear." : "A phone number is needed to chat."}</em> : null}
     </div>

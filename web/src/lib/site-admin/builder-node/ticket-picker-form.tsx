@@ -8,6 +8,7 @@
 
 import type { ReactNode } from "react";
 
+import { GuestPhoneField } from "@/components/ui/guest-phone-field";
 import type { PickerNight, PickerTier } from "@/app/(public)/_events/ticket-picker-actions";
 
 export type T = (key: string) => string;
@@ -70,7 +71,7 @@ export type DetailsState = {
 };
 
 export function DetailsFields({
-  t, state, onChange, busy, emailError, showPhone, doorOffered, ageGate, emailId,
+  t, state, onChange, busy, emailError, showPhone, doorOffered, ageGate, emailId, locale, talentCountry, phoneError,
 }: {
   t: T;
   state: DetailsState;
@@ -82,6 +83,11 @@ export function DetailsFields({
   doorOffered: boolean;
   ageGate: number | null;
   emailId?: string;
+  /** Guest locale for the phone field; defaults to the page language. */
+  locale?: string;
+  phoneError?: string | null;
+  /** The Talent/Profesional's home country (ISO2), seeds the phone flag. */
+  talentCountry?: string | null;
 }) {
   const errId = emailId ? `${emailId}-err` : undefined;
   return (
@@ -111,7 +117,8 @@ export function DetailsFields({
       {showPhone ? (
         <label>
           <span className="tp-field-label">{t("phone")}</span>
-          <input className="tp-field" type="tel" value={state.phone} onChange={(e) => onChange({ phone: e.target.value })} disabled={busy} autoComplete="tel" inputMode="tel" placeholder={t("phonePlaceholder")} />
+          <GuestPhoneField value={state.phone} onChange={(v) => onChange({ phone: v })} disabled={busy} locale={locale} talentCountry={talentCountry} testId="ticket-phone" invalid={Boolean(phoneError)} />
+          {phoneError ? <span className="tp-field-error" role="alert">{phoneError}</span> : null}
         </label>
       ) : null}
       <label>

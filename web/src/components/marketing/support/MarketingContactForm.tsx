@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { GuestPhoneField } from "@/components/ui/guest-phone-field";
+import { normalizeGuestPhone, guestPhoneError } from "@/lib/phone/guest-phone";
 import { getMarketingSupportCopy } from "@/lib/marketing/support-copy";
 import { submitMarketingContactAction } from "@/lib/support/guest-actions";
 import { trackProductEvent } from "@/lib/analytics/track-client";
@@ -24,6 +26,7 @@ export function MarketingContactForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
 
   if (done) {
     return (
@@ -40,6 +43,9 @@ export function MarketingContactForm({
       onSubmit={(e) => {
         e.preventDefault();
         void (async () => {
+          const phoneProblem = guestPhoneError(phone, locale);
+          setPhoneError(phoneProblem);
+          if (phoneProblem) return;
           setBusy(true);
           setError(null);
           const result = await submitMarketingContactAction({
@@ -47,7 +53,7 @@ export function MarketingContactForm({
             email,
             topic,
             message,
-            phone: phone || null,
+            phone: normalizeGuestPhone(phone),
             honeypot,
             locale: locale === "es" ? "es" : "en",
             source: talentSite?.source ?? null,
@@ -112,14 +118,18 @@ export function MarketingContactForm({
           className="rounded-xl border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg)] px-3 py-2"
         />
       </label>
-      <label className="flex flex-col gap-1 text-sm">
-        {copy.phoneLabel}
-        <input
+      <div className="flex flex-col gap-1 text-sm">
+        <label htmlFor="marketing_contact_phone">{copy.phoneLabel}</label>
+        <GuestPhoneField
+          id="marketing_contact_phone"
+          name="phone"
           value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          className="rounded-xl border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg)] px-3 py-2"
+          onChange={setPhone}
+          locale={locale}
+          invalid={Boolean(phoneError)}
         />
-      </label>
+      </div>
+      {phoneError ? <p className="text-sm" role="alert">{phoneError}</p> : null}
       {error ? <p className="text-sm">{error}</p> : null}
       <button
         type="submit"
