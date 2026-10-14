@@ -120,6 +120,12 @@ function mapCronRow(row: CronDomainRow): TalentSiteDomainRecord {
     sslProvisionedAt: row.ssl_provisioned_at,
     lastHealthCheckAt: row.last_health_check_at,
     failureReason: row.failure_reason,
+    acquisition: null,
+    planGraceStartedAt: null,
+    planGraceEndsAt: null,
+    vercelDetachedAt: null,
+    registrarAutoRenewDisabledAt: null,
+    domainDisposition: null,
   };
 }
 

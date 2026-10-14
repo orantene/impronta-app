@@ -472,7 +472,7 @@ export async function fulfillTalentDomainRenewal(
   if (
     row.renewal_price_cents == null ||
     opts.amountTotal !== row.renewal_price_cents ||
-    (opts.currency ?? "usd").toLowerCase() !== "usd"
+    opts.currency?.toLowerCase() !== "usd"
   ) {
     logServerError(
       "domain-renewal.fulfill.mismatch",

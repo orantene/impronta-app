@@ -24,6 +24,7 @@ export const ALLOW_LIST: Readonly<Record<string, string>> = {
   "src/lib/stripe/workspace-billing.ts": "workspace plan subscription: the platform bills the workspace in a fixed Stripe price, no seller",
   "src/lib/stripe/client-billing.ts": "Discover client subscription, verification fee and top-up: platform products priced in USD, no seller",
   "src/lib/stripe/talent-domain-billing.ts": "domain registration resale: platform product priced in USD, no seller",
+  "src/lib/stripe/talent-domain-renewal.ts": "domain renewal at the registrar price: platform product priced in USD, no seller",
 };
 
 const CREATOR_RE =
