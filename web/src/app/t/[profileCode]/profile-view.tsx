@@ -1711,6 +1711,9 @@ export async function TalentProfileView({
     const curated: Record<string, { en: string; es: string }> = {
       measurements: { en: "Measurements", es: "Medidas" },
       physical: { en: "Physical", es: "Físico" },
+      "physical-casting": { en: "Physical casting", es: "Casting físico" },
+      physical_casting: { en: "Physical casting", es: "Casting físico" },
+      casting: { en: "Casting", es: "Casting" },
       logistics: { en: "Logistics", es: "Logística" },
       availability: { en: "Availability", es: "Disponibilidad" },
       experience: { en: "Experience", es: "Experiencia" },
