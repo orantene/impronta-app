@@ -227,7 +227,8 @@ export function CatalogBookingSheet({
   const footerTotal = detail ? catalogSheetFooterTotal(detail, variantId, addOnIds) : { cents: 0, from: false };
 
   useEffect(() => {
-    if (!detail || (needsVariant && !variant)) return;
+    // TUL-845: once the booking is done the selection must not be re-announced.
+    if (!detail || step === "done" || (needsVariant && !variant)) return;
     const bits = [variant?.label, ...extras.map((e) => e.label)].filter(Boolean);
     window.dispatchEvent(new window.CustomEvent("tulala:maison-selected", {
       detail: {
@@ -235,7 +236,14 @@ export function CatalogBookingSheet({
         detail: bits.length ? bits.join(" · ") : null, totalCents: total, currency: detail.currency,
       },
     }));
-  }, [detail, variant, needsVariant, extras, total]);
+  }, [detail, variant, needsVariant, extras, total, step]);
+
+  // TUL-845: a finished booking releases the sticky bar / dock selection so the
+  // same service cannot be booked twice by tapping Continuar again.
+  useEffect(() => {
+    if (!detail || step !== "done") return;
+    window.dispatchEvent(new window.CustomEvent("tulala:maison-booked", { detail: { offeringId: detail.offeringId } }));
+  }, [detail, step]);
 
   useEffect(() => { liveStartsRef.current = liveStarts; }, [liveStarts]);
 

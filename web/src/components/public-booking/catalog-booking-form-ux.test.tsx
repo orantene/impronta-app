@@ -142,3 +142,33 @@ test("TUL-841: submit with an empty name focuses the name first", () => {
   assert.equal(dom.window.document.activeElement, q(host, "cb-name"));
   unmount();
 });
+
+test("TUL-845: a finished booking releases the selection once and does not re-announce it", async () => {
+  const { host, unmount } = mount();
+  const events: string[] = [];
+  const onSel = () => events.push("selected");
+  const onBooked = (e: Event) => events.push(`booked:${(e as CustomEvent).detail.offeringId}`);
+  dom.window.addEventListener("tulala:maison-selected", onSel);
+  dom.window.addEventListener("tulala:maison-booked", onBooked);
+  open(detail({ where: ["studio"] }));
+  toWho(host);
+  typeInto(q(host, "cb-name"), "Vale Demo");
+  typeInto(q(host, "cb-email"), "vale@example.com");
+  await act(async () => {
+    host.querySelector<HTMLButtonElement>('[data-catalog-continue="who"]')!.click();
+    await new Promise((r) => setTimeout(r, 700));
+  });
+  assert.ok(host.querySelector(".jb-done"), "done panel shown");
+  assert.equal(events.filter((e) => e.startsWith("booked:")).length, 1);
+  assert.equal(events[events.length - 1], "booked:off-1", "nothing re-selects the service after it is booked");
+  dom.window.removeEventListener("tulala:maison-selected", onSel);
+  dom.window.removeEventListener("tulala:maison-booked", onBooked);
+  unmount();
+});
+
+test("TUL-845: both sticky-bar owners listen for the booked event", async () => {
+  const { readFileSync } = await import("node:fs");
+  for (const f of ["lib/site-admin/builder-node/services-catalog-filter.tsx", "app/t/[profileCode]/_maison/MaisonMenu.tsx"]) {
+    assert.match(readFileSync(new URL(`../../${f}`, import.meta.url), "utf8"), /tulala:maison-booked/, f);
+  }
+});
