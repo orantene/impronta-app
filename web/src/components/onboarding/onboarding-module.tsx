@@ -16,7 +16,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import { translatorFor } from "@/i18n/use-t";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 import { BACK, initialMachineState, reduceMachine, type MachineErrorCode } from "@/lib/onboarding/machine";
-import { CHOOSE_COPY, FLOW_TOTAL, flowStepOf, type FlowLocale } from "@/lib/onboarding/flow";
+import { CHOOSE_COPY, FLOW_TOTAL, flowStepOf, flowSubLabel, type FlowLocale } from "@/lib/onboarding/flow";
 import type { VisualDirection } from "@/lib/onboarding/module-state";
 import type { ModuleStep, OnboardingIntent } from "@/lib/onboarding/module-state";
 import {
@@ -685,7 +685,7 @@ export function OnboardingModule({
               ))}
             </div>
             <p className="mt-2 text-[0.6875rem] font-semibold tracking-[0.08em]" style={{ color: "var(--tl-ink-soft)" }} data-testid="onb-step-label">
-              {CHOOSE_COPY[locale].progress(flowN)} <span className="sr-only">{stepLabel}</span>
+              {CHOOSE_COPY[locale].progress(flowN)}{flowSubLabel(state.step, locale) ? ` · ${flowSubLabel(state.step, locale)}` : ""} <span className="sr-only">{stepLabel}</span>
             </p>
           </div>
           <div className="flex-1 pt-6">{body}</div>
