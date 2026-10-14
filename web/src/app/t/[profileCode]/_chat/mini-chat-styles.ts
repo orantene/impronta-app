@@ -311,10 +311,18 @@ export function formatTime(iso: string): string {
   }
 }
 
+/** Word tokens of a name; a standalone dash (" \u2014 ", " - ") is a separator, not a word. */
+function nameWords(name: string): string[] {
+  return name
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w && !/^[\u2012-\u2015-]+$/u.test(w));
+}
+
 export function firstNameOf(name: string): string {
   const t = name.trim();
   if (!t) return name;
-  return t.split(/\s+/)[0] ?? t;
+  return nameWords(t)[0] ?? t;
 }
 
 /** Split a stored full name into gate first/last fields (prefill resume). */
@@ -324,7 +332,10 @@ export function splitGuestFullName(name: string | null | undefined): {
 } {
   const t = (name ?? "").trim();
   if (!t) return { firstName: "", lastName: "" };
-  const parts = t.split(/\s+/);
+  const sep = t.split(/\s+[\u2012-\u2015-]+\s+/u).map((x) => x.trim()).filter(Boolean);
+  if (sep.length >= 2) return { firstName: sep[0] ?? "", lastName: sep.slice(1).join(" ") };
+  const parts = nameWords(t);
+  if (parts.length === 0) return { firstName: "", lastName: "" };
   if (parts.length === 1) return { firstName: parts[0] ?? "", lastName: "" };
   return { firstName: parts[0] ?? "", lastName: parts.slice(1).join(" ") };
 }
