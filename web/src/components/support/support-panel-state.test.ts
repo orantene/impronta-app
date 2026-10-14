@@ -9,6 +9,8 @@ import type {
 import {
   EMPTY_THREAD,
   applyIncomingMessage,
+  canOfferHuman,
+  humanRequestedPatch,
   selectThread,
   threadReducer,
   unreadOpenCount,
@@ -167,4 +169,23 @@ test("a merge for another ticket never touches the thread on screen (TUL-656)", 
   const st = threadReducer(EMPTY_THREAD, { type: "loaded", ticketId: "B", ticket: ticketRow("B"), messages: [] });
   const next = threadReducer(st, { type: "merge", ticketId: "A", messages: [msg({ id: "x", ticketId: "A", authorKind: "ai" })] });
   assert.equal(next, st);
+});
+
+test("humanRequestedPatch flips the open thread to human so the header stops saying the AI is helping (TUL-307)", () => {
+  const ticket = { id: "t1", status: "open", handledBy: "ai", escalatedAt: null, waitingOn: null } as unknown as SupportTicketRow;
+  const state = threadReducer(EMPTY_THREAD, { type: "ticket", row: ticket });
+  const next = threadReducer(state, {
+    type: "patchTicket",
+    ticketId: "t1",
+    patch: humanRequestedPatch("2026-10-13T00:00:00.000Z"),
+  });
+  assert.equal(next.ticket?.handledBy, "human");
+  assert.equal(next.ticket?.escalatedAt, "2026-10-13T00:00:00.000Z");
+});
+
+test("canOfferHuman: no escalation offer once a human has the ticket", () => {
+  assert.equal(canOfferHuman({ handledBy: "ai", status: "open" }), true);
+  assert.equal(canOfferHuman({ handledBy: "human", status: "open" }), false);
+  assert.equal(canOfferHuman({ handledBy: "ai", status: "closed" }), false);
+  assert.equal(canOfferHuman(null), true);
 });

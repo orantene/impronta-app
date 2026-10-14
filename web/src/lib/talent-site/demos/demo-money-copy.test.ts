@@ -27,12 +27,12 @@ test("deep copy: every string coded, input untouched", () => {
   assert.equal(input.a, "$10");
 });
 
-test("alex (gridline reference) hero writes '$550 MXN' in ES and EN, like the services table", () => {
+test("alex (gridline reference) hero says Desde $500 MXN (ES) and From $500 MXN (EN); the service keeps $550 MXN", () => {
   const authored = loadAuthoredDemoContentFixture("gridline");
-  assert.equal(authored.hero.facts?.[3]?.value, "$550");
+  assert.equal(authored.hero.facts?.[3]?.value, "Desde $500");
   const f = loadDemoContentFixture("gridline");
-  assert.equal(f.hero.facts?.[3]?.value, "$550 MXN");
-  assert.equal(f.hero.factsI18n?.en?.[3]?.value, "$550 MXN");
+  assert.equal(f.hero.facts?.[3]?.value, "Desde $500 MXN");
+  assert.equal(f.hero.factsI18n?.en?.[3]?.value, "From $500 MXN");
   assert.equal(f.services.find((s) => s.id === "rev")?.priceLabel, "$550 MXN");
 });
 

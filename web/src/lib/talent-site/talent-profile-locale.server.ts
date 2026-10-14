@@ -5,6 +5,7 @@ import { getLanguageSettingsPublicCached } from "@/lib/language-settings/get-lan
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import { loadTalentLocaleSettings } from "@/lib/site-admin/server/talent-locale-settings";
 import {
+  applyLangQuery,
   decideTalentProfileLocale,
   ogLocale,
   talentProfileAlternates,
@@ -12,13 +13,16 @@ import {
 } from "./talent-profile-locale";
 
 /** The locale a public talent profile renders in, bounded to the talent's set. */
-export async function resolveTalentProfileLocale(profileId: string): Promise<TalentProfileLocale> {
+export async function resolveTalentProfileLocale(
+  profileId: string,
+  langQuery?: string | string[] | null,
+): Promise<TalentProfileLocale> {
   const [requested, settings] = await Promise.all([
     getRequestLocale(),
     loadTalentLocaleSettings(profileId),
   ]);
   return decideTalentProfileLocale({
-    requested,
+    requested: applyLangQuery(requested, langQuery),
     primary: settings.defaultLocale,
     supported: settings.supportedLocales,
   });
