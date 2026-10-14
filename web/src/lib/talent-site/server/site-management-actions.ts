@@ -43,7 +43,7 @@ import {
   isPlatformSubdomainLabelTaken,
   requestSubdomainNamespaceCopy,
 } from "@/lib/saas/platform-subdomain-namespace.server";
-import { PAGE_COLUMNS, resolveManagerPublicSiteUrl, siteUrl } from "./site-management-helpers";
+import { PAGE_COLUMNS, resolveManagerPublicSiteUrl, siteUrl, startOwnedWorkspaceLoad } from "./site-management-helpers";
 import {
   derivePageSlug,
   isReservedPageSlug,
@@ -150,6 +150,8 @@ export async function loadMaxSiteManagerAction(): Promise<
 
   // F74: parallel reads. No provisioning on load (TUL-179).
   const cols = "id, site_slug, logo_url, site_published_at, shell_published_head:shell_published->0, shell_head:shell_tree->0, theme_design_slug, theme_look_slug";
+  const ownedPromise = startOwnedWorkspaceLoad(scope.session.user?.id);
+  void ownedPromise?.catch(() => undefined);
   const readAll = () =>
     Promise.all([
       sb.from("talent_sites").select(cols).eq("talent_profile_id", scope.talentProfile.id).maybeSingle(),
@@ -206,8 +208,7 @@ export async function loadMaxSiteManagerAction(): Promise<
   // TUL-77 / TUL-347: business owners see the workspace live URL as "My website".
   const publicSiteUrl = await resolveManagerPublicSiteUrl({
     personalSiteUrl: siteUrl(site?.site_slug ?? null, isDemo),
-    userId: scope.session.user?.id,
-    siteExists,
+    userId: scope.session.user?.id, siteExists, ownedPromise,
   });
 
   return {
