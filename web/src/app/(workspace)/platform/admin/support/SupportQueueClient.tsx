@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
-import { HQ, HQ_F, PlanChip } from "../tenants/hq-kit";
+import { HQ, HQ_F, PlanChip, planTierLabel } from "../tenants/hq-kit";
 import type { HqQueueRow } from "@/lib/support/load-hq";
 import type { SupportMessageRow, SupportTicketRow } from "@/lib/support/support-types";
 import type { SupportCannedReply } from "@/lib/platform/support-canned";
@@ -302,7 +302,7 @@ export function SupportQueueClient({
                     <span style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis" }}>
                       {row.requesterName ?? row.requesterEmail ?? t("dashboard.platform.support.unknownRequester")}
                     </span>
-                    {row.planTier ? <PlanChip plan={row.planTier} /> : null}
+                    {row.planTier ? <PlanChip plan={row.planTier} label={planTierLabel(t, row.planTier)} /> : null}
                     {/*
                       A reopened ticket is a resolution that did not hold. The
                       count was stored on every row and shown nowhere, so the
