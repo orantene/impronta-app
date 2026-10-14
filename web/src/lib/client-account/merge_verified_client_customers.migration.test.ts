@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const SQL = readFileSync(
-  join(fileURLToPath(new URL(".", import.meta.url)), "../../../../supabase/migrations/20261014012638_merge_verified_client_customers.sql"),
+  join(fileURLToPath(new URL(".", import.meta.url)), "../../../../supabase/migrations/20261231372200_merge_verified_client_customers.sql"),
   "utf8",
 );
 
