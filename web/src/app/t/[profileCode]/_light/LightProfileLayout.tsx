@@ -541,6 +541,7 @@ export function LightProfileLayout({
                 availableDaysInNext30={availableDaysInNext30}
                 availabilityDots14d={availabilityDots14d}
                 nextAvailableDate={nextAvailableDate}
+                locale={locale}
               />
             </div>
 
@@ -650,6 +651,7 @@ export function LightProfileLayout({
               availableDaysInNext30={availableDaysInNext30}
               availabilityDots14d={availabilityDots14d}
               nextAvailableDate={nextAvailableDate}
+              locale={locale}
             />
           </aside>
         </div>
