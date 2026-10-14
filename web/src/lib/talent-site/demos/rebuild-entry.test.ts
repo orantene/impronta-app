@@ -33,6 +33,7 @@ test("rebuild body validation", () => {
   assert.equal(parseRebuildBody({}).ok, true);
   assert.equal(parseRebuildBody(undefined).ok, true);
   assert.equal(parseRebuildBody({ design: "folio", only: ["TAL-93020"], dryRun: false }).ok, true);
+  assert.equal(parseRebuildBody({ design: "frame", only: ["TAL-93005"] }).ok, true);
   assert.equal(parseRebuildBody({ design: "x" }).ok, false);
   assert.equal(parseRebuildBody({ only: ["bad"] }).ok, false);
   assert.equal(parseRebuildBody({ extra: 1 }).ok, false);

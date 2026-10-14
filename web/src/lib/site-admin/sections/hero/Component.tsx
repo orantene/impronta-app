@@ -719,16 +719,27 @@ function HeroBackground({
     const bgUrl = only.backgroundImageUrl;
     if (!bgUrl) return null;
     return (
-      <div
-        className="site-hero__bg site-hero__bg--static"
-        style={{ backgroundImage: `url(${JSON.stringify(bgUrl).slice(1, -1)})` }}
-        aria-hidden
-      />
+      <>
+        {/* CSS background images are invisible to the preload scanner; hoist a
+            high-priority preload so the hero (the LCP element) starts early. */}
+        <link rel="preload" as="image" href={bgUrl} fetchPriority="high" />
+        <div
+          className="site-hero__bg site-hero__bg--static"
+          style={{ backgroundImage: `url(${JSON.stringify(bgUrl).slice(1, -1)})` }}
+          aria-hidden
+        />
+      </>
     );
   }
 
   const totalMs = perSlideMs * slides.length;
+  // Slider: only slide 1 is visible on first paint, so preload only that one.
+  const firstSlideUrl = slides[0]?.backgroundImageUrl;
   return (
+    <>
+      {firstSlideUrl ? (
+        <link rel="preload" as="image" href={firstSlideUrl} fetchPriority="high" />
+      ) : null}
     <div
       className="site-hero__bg site-hero__bg--slider"
       style={
@@ -757,5 +768,6 @@ function HeroBackground({
         );
       })}
     </div>
+    </>
   );
 }

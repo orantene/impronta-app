@@ -85,14 +85,20 @@ export const EDITORIAL_TYPE_SYSTEM_CSS = [
   // Phone: bar is the inner row only (padding:0 on outer); desk is full-bleed (no 1120 column).
   `${S} .site-header{position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--token-color-background) 88%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:${RULE} solid color-mix(in srgb,var(--token-color-line) 60%,transparent);color:var(--token-color-ink)}`,
   `${S} .site-header.site-header{padding:0}`,
-  `${S} .site-header .site-header__inner.site-header__inner{width:auto;max-width:none;margin:0;min-height:0;padding:${v("layout.header-pad-y-phone")} ${v("layout.gutter-phone")};gap:12px}`,
+  // GRK-073: floor side padding at 16px so a 0 gutter token never flush-mounts the bar.
+  `${S} .site-header .site-header__inner.site-header__inner{width:auto;max-width:none;margin:0;min-height:0;padding:${v("layout.header-pad-y-phone")} max(16px,${v("layout.gutter-phone")});gap:12px}`,
   `${S} .site-header__brand{display:flex;align-items:baseline;gap:7px;line-height:1}`,
   `${S} .site-header__brand-label{font-family:var(--site-heading-font,Georgia,serif);font-style:${v("type.accent-style")};font-weight:500;font-size:${v("type.logo-size")};line-height:normal;letter-spacing:-0.02em;text-transform:none;color:var(--token-color-ink)}`,
+  // Brand + social: freeform ritems use color:inherit, and the transparent-over-hero
+  // rule (token-presets.css) can paint #fff onto a light Maison bar (OnbDev-maison-header /
+  // sofia). Pin ink like magazine's brand lock — over-hero white stays for non-editorial.
+  `${S} .site-header .site-header__brand,${S} .site-header .site-header__brand-label{color:var(--token-color-ink)!important}`,
+  `${S} .site-header .site-header__social{color:var(--token-color-muted,color-mix(in srgb,var(--token-color-ink) 60%,transparent))!important}`,
   `${S} .site-header__brand-tagline{font-family:var(--site-body-font,inherit);font-size:9.5px;line-height:normal;font-weight:${v("type.label-weight")};letter-spacing:0.2em;text-transform:uppercase;color:var(--token-color-muted)}`,
   `${S} .site-header__nav-list{gap:22px}`,
-  `${S} .site-header__nav-link{font-size:${v("type.nav-size")};font-weight:400;color:var(--token-color-muted);text-transform:none;letter-spacing:0;text-decoration:none}`,
+  `${S} .site-header__nav-link{font-size:${v("type.nav-size")};font-weight:400;color:var(--token-color-muted-text,var(--token-color-muted));text-transform:none;letter-spacing:0;text-decoration:none}`,
   `${S} .site-header__nav-link:hover{color:var(--token-color-ink)}`,
-  `${S} .site-header__lang{gap:0;font-size:11.5px;font-weight:${v("type.label-weight")};letter-spacing:0.06em;color:var(--token-color-muted)}`,
+  `${S} .site-header__lang{gap:0;font-size:11.5px;font-weight:${v("type.label-weight")};letter-spacing:0.06em;color:var(--token-color-muted-text,var(--token-color-muted))}`,
   `${S} .site-header__lang .site-header__lang-code{font-size:inherit;letter-spacing:inherit;opacity:1;color:inherit;font-weight:500}`,
   `${S} .site-header__lang .site-header__lang-code[data-active]{color:var(--token-color-ink);font-weight:700}`,
   `${S} .site-header__lang .site-header__lang-sep{opacity:1}`,
@@ -191,9 +197,9 @@ export const EDITORIAL_TYPE_SYSTEM_CSS = [
   // ── Footer: ink band, big accent-style line, page-colour pill.
   `${S} #site-footer{background:var(--token-color-ink);color:var(--token-color-background)}`,
   `${S} #site-footer h2{margin:0;font-style:${v("type.accent-style")};font-weight:${v("type.accent-weight")};font-size:${v("type.footer-title-size")};line-height:1;color:var(--token-color-background)}`,
-  `${S} #site-footer p.site-builder-node--paragraph{color:color-mix(in srgb,var(--token-color-background) 60%,transparent);font-size:11.5px}`,
+  `${S} #site-footer p.site-builder-node--paragraph{color:color-mix(in srgb,var(--token-color-background) 72%,transparent);font-size:11.5px}`,
   `${S} #site-footer .site-builder-node--button{background:var(--token-color-background);color:var(--token-color-ink);border:0}`,
-  `${S} #site-footer h2 + p.site-builder-node--paragraph{margin:10px 0 18px;font-size:${v("type.body-size")};color:color-mix(in srgb,var(--token-color-background) 70%,transparent)}`,
+  `${S} #site-footer h2 + p.site-builder-node--paragraph{margin:10px 0 18px;font-size:${v("type.body-size")};color:color-mix(in srgb,var(--token-color-background) 78%,transparent)}`,
   `${MQ_DESK}{${S} #site-footer h2{font-size:${v("type.footer-title-size-desktop")}}}`,
 
   // ── Dock: one frosted capsule.
@@ -250,7 +256,8 @@ export const MAGAZINE_TYPE_SYSTEM_CSS = [
   // Brand matches Folio artifact: Archivo Narrow uppercase (not serif title case).
   // High-specificity (no :where) so freeform header rules cannot keep icons/CTA wrong.
   `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header{position:sticky;top:0;z-index:40;background:var(--token-color-background);border-bottom:${RULE} solid var(--token-color-ink);box-shadow:none}`,
-  `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__inner{min-height:0!important;height:auto;width:100%!important;max-width:none!important;margin:0!important;box-sizing:border-box;padding:10px ${v("layout.gutter-phone")}!important;display:flex;flex-wrap:nowrap!important;align-items:center;gap:10px}`,
+  // GRK-073: magazine phone bar keeps ≥16px side pad even if gutter-phone is 0.
+  `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__inner{min-height:0!important;height:auto;width:100%!important;max-width:none!important;margin:0!important;box-sizing:border-box;padding:10px max(16px,${v("layout.gutter-phone")})!important;display:flex;flex-wrap:nowrap!important;align-items:center;gap:10px}`,
   `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__region[data-region="left"]{display:flex;align-items:center;gap:10px;flex:0 1 auto;min-width:0}`,
   `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__brand{min-width:0;max-width:100%}`,
   `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__brand-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}`,

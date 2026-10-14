@@ -141,7 +141,7 @@ function whoCard(makeId: MaxSiteTemplateIdFactory, opts: HeroSpecBlockOptions): 
             width: "100%",
             height: "340px",
             objectFit: "cover",
-            objectPosition: "50% 20%",
+            objectPosition: "center 18%",
             radius: "none",
             responsive: { mobile: { width: "92px", height: "92px", minWidth: "92px", radius: "sm" } },
           },
@@ -170,7 +170,8 @@ function whoCard(makeId: MaxSiteTemplateIdFactory, opts: HeroSpecBlockOptions): 
               text: opts.bio ?? "{{richBio}}",
               // TUL-230: the default bio is live per language; a design's own bio line stays as written.
               ...(opts.bio === undefined ? { liveText: "bio" as const } : {}),
-              style: { size: "sm", tone: "muted", lineClamp: 4 },
+              // GRK-075: full bio (was lineClamp:4 — cut karla/saul on phone+desktop).
+              style: { size: "sm", tone: "muted" },
             },
           },
           ...(badges.length

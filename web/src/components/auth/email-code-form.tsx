@@ -83,6 +83,7 @@ function QuietAction({
 export function EmailCodeForm({
   nextPath,
   locale = "en",
+  marketingOrigin,
   defaultEmail,
   submitLabel,
   /** false on the login path: an unknown address must not create an account. */
@@ -93,6 +94,7 @@ export function EmailCodeForm({
 }: {
   nextPath?: string;
   locale?: string;
+  marketingOrigin?: string;
   defaultEmail?: string;
   /** Overrides the step-1 button label (per-flow copy from the page). */
   submitLabel?: string;
@@ -299,7 +301,7 @@ export function EmailCodeForm({
           />
         </AuthField>
 
-        {allowCreate ? <AgeTermsCheckbox locale={locale} /> : null}
+        {allowCreate ? <AgeTermsCheckbox locale={locale} marketingOrigin={marketingOrigin} /> : null}
 
         <AuthSubmitButton
           pending={sending}

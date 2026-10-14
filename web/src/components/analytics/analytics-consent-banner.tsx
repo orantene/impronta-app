@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { translatorFor } from "@/i18n/use-t";
 import { getSiteUrl } from "@/lib/auth-flow";
@@ -15,6 +15,8 @@ import {
   type ConsentRegion,
   type StoredConsent,
 } from "@/lib/analytics/consent";
+import { CONSENT_BANNER_RESERVE_PX } from "@/lib/talent-site/floating-chrome-stack";
+import { trackConsentBannerTop } from "@/lib/talent-site/consent-banner-top";
 
 // Session-only dismiss flag — user wants to close the banner without
 // committing to accept/decline for now. Cleared by tab close.
@@ -59,8 +61,12 @@ function activatePixelsAfterConsent() {
  * On the authenticated dashboard the banner must never sit on a control:
  * below 720px the shell draws a fixed bottom tab bar (lift the banner above
  * it), and from 721px the shell draws a 240px left rail whose last rows are
- * Support and Settings (start the banner to the right of it). Keyed off the
- * shell's own hooks, so public pages and the marketing site are unchanged.
+ * Support and Settings (start the banner to the right of it).
+ *
+ * GRK-040: on the marketing shell at phone widths the same card sat on top of
+ * the last pricing tiers and the open mobile-menu footer. Talent sites already
+ * reserve `--floating-consent-clearance`; marketing gets an equivalent pad so
+ * scrollable content clears the card without moving the banner itself.
  */
 const CONSENT_BANNER_SHELL_OFFSET_CSS = `
 @media (max-width: 720px) {
@@ -71,6 +77,14 @@ const CONSENT_BANNER_SHELL_OFFSET_CSS = `
 @media (min-width: 721px) {
   body:has([data-tulala-app-sidebar]) [data-consent-banner] {
     left: calc(240px + 1rem);
+  }
+}
+@media (max-width: 640px) {
+  body:has([data-consent-banner]) [data-platform-surface="marketing"] {
+    padding-bottom: calc(${CONSENT_BANNER_RESERVE_PX}px + env(safe-area-inset-bottom, 0px));
+  }
+  html:has([data-consent-banner]):has([data-platform-surface="marketing"]) {
+    scroll-padding-bottom: calc(${CONSENT_BANNER_RESERVE_PX}px + env(safe-area-inset-bottom, 0px));
   }
 }
 `;
@@ -137,26 +151,50 @@ export function AnalyticsConsentBanner({
     setPageLocale(pageLocaleOverride(document));
   }, [pathname]);
 
-  useEffect(() => {
+  // TUL-528 cookie-after-chat: paint the banner in useLayoutEffect (before
+  // browser paint) so Hablar/chat cannot open in the gap after hydration and
+  // before the old useEffect ran. When the guest chat panel unmounts, re-sync
+  // so a CSS-yielded banner is not left closed (QA: vanished on chat close).
+  useLayoutEffect(() => {
     setMounted(true);
     setPageLocale(pageLocaleOverride(document));
     syncConsentCookie();
-    const stored = readStoredConsent();
-    let dismissed = false;
-    try {
-      dismissed = !!window.sessionStorage.getItem(DISMISS_SESSION_KEY);
-    } catch {
-      /* ignore */
-    }
-    if (shouldShowBanner(stored, isGpcEnabled()) && !dismissed) setOpen(true);
+    const syncOpen = () => {
+      const stored = readStoredConsent();
+      let dismissed = false;
+      try {
+        dismissed = !!window.sessionStorage.getItem(DISMISS_SESSION_KEY);
+      } catch {
+        /* ignore */
+      }
+      if (shouldShowBanner(stored, isGpcEnabled()) && !dismissed) setOpen(true);
+    };
+    syncOpen();
     const reopen = () => {
       setPageLocale(pageLocaleOverride(document));
       setVariant("card");
       setOpen(true);
     };
     window.addEventListener(PRIVACY_CHOICES_EVENT, reopen);
-    return () => window.removeEventListener(PRIVACY_CHOICES_EVENT, reopen);
+    const mo =
+      typeof MutationObserver !== "undefined"
+        ? new MutationObserver(() => {
+            if (!document.querySelector("[data-guest-chat-panel]")) syncOpen();
+          })
+        : null;
+    mo?.observe(document.documentElement, { childList: true, subtree: true });
+    return () => {
+      window.removeEventListener(PRIVACY_CHOICES_EVENT, reopen);
+      mo?.disconnect();
+    };
   }, []);
+
+  const bannerRef = useRef<HTMLDivElement>(null);
+  const shown = mounted && open && !isPreviewRoute;
+  useEffect(() => {
+    const el = bannerRef.current;
+    return shown && el ? trackConsentBannerTop(el) : undefined;
+  }, [shown, variant]);
 
   const dismiss = useCallback(() => {
     try {
@@ -175,7 +213,7 @@ export function AnalyticsConsentBanner({
     setOpen(false);
   }, []);
 
-  if (!mounted || !open || isPreviewRoute) return null;
+  if (!shown) return null;
 
   const privacyHref = `${getSiteUrl()}/legal/privacy`;
   const cookiesHref = `${getSiteUrl()}/legal/cookies`;
@@ -186,6 +224,7 @@ export function AnalyticsConsentBanner({
         <style>{CONSENT_BANNER_SHELL_OFFSET_CSS}</style>
         <style>{CONSENT_CARD_CSS}</style>
         <div
+          ref={bannerRef}
           role="region"
           aria-label={t("public.consent.ariaLabel")}
           data-consent-banner=""
@@ -224,6 +263,7 @@ export function AnalyticsConsentBanner({
       <style>{CONSENT_BANNER_SHELL_OFFSET_CSS}</style>
       <style>{CONSENT_CARD_CSS}</style>
       <div
+        ref={bannerRef}
         role="dialog"
         aria-label={t("public.consent.ariaLabel")}
         data-consent-banner=""

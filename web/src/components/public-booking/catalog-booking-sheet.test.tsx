@@ -189,6 +189,22 @@ test("Continue is disabled until a slot is chosen", () => {
   unmount();
 });
 
+test("GRK-069: when step stacks Cambiar servicio above Empezar de nuevo (never one run-on line)", () => {
+  const book = mockBook();
+  const { host, unmount } = mount("demo", book);
+  open(detail({ addOns: [] }), "when");
+  const backs = [...host.querySelectorAll<HTMLButtonElement>(".jb-back-nav .jb-back-link")];
+  assert.equal(backs.length, 2);
+  assert.match(backs[0]?.textContent ?? "", /Cambiar servicio/);
+  assert.match(backs[1]?.textContent ?? "", /Empezar de nuevo/);
+  const time = host.querySelector<HTMLButtonElement>(".jb-time");
+  if (time) act(() => time.click());
+  const when = host.querySelector<HTMLButtonElement>('[data-catalog-continue="when"]');
+  if (when && !when.disabled) act(() => when.click());
+  assert.ok(host.querySelector('[data-catalog-start-over]'), "who keeps Empezar de nuevo");
+  unmount();
+});
+
 test("demo mode never calls the book action", async () => {
   const book = mockBook();
   const { host, unmount } = mount("demo", book);

@@ -14,6 +14,8 @@ export type CatalogSlotsResult = {
   fromYmd?: string;
   /** Server-reported reason the day list is empty (null when slots exist). */
   reason?: string | null;
+  /** Talent home city for the zone chip when the IANA namesake differs. */
+  placeCity?: string | null;
 };
 
 export type CatalogSlotsFn = (
@@ -43,13 +45,14 @@ export async function fetchLiveSlots(
     duration: String(durationMinutes),
   });
   const res = await fetch(`/api/public/booking/slots?${params.toString()}`, { cache: "no-store" });
-  const body = (await res.json()) as { slots?: string[]; timezone?: string; reason?: string };
+  const body = (await res.json()) as { slots?: string[]; timezone?: string; reason?: string; placeCity?: string };
   if (!res.ok) return { slots: [], timezone: "UTC", fromYmd, reason: null };
   return {
     slots: Array.isArray(body.slots) ? body.slots : [],
     timezone: typeof body.timezone === "string" && body.timezone.trim() ? body.timezone.trim() : "UTC",
     fromYmd,
     reason: typeof body.reason === "string" ? body.reason : null,
+    placeCity: typeof body.placeCity === "string" && body.placeCity.trim() ? body.placeCity.trim() : null,
   };
 }
 

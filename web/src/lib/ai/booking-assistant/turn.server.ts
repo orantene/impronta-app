@@ -33,8 +33,11 @@ import { offeringPriceLabel } from "./price-label";
 import {
   bookingAssistantMonthlyCapCents,
   bookingAssistantMonthlyCapReached,
+  sumBookingAssistantSpendCents,
+  utcMonthStartIso,
 } from "./credits";
 import { improntaLog } from "@/lib/server/structured-log";
+import { BOOKING_ASSISTANT_EVENT_TYPES } from "./turns";
 
 export { BOOKING_ASSISTANT_MODEL } from "./model";
 
@@ -183,6 +186,7 @@ async function loadPriorAssistantMeta(
     .eq("inquiry_id", inquiryId)
     .eq("tenant_id", tenantId)
     .eq("message_kind", "system_event")
+    .in("metadata->>system_event_type", [...BOOKING_ASSISTANT_EVENT_TYPES])
     .order("created_at", { ascending: false })
     .limit(40);
   if (error) {
@@ -230,8 +234,7 @@ async function loadTalentBookingAssistantSpendCentsThisMonth(
 ): Promise<number> {
   const admin = createServiceRoleClient();
   if (!admin) return 0;
-  const now = new Date();
-  const since = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01T00:00:00.000Z`;
+  const since = utcMonthStartIso(new Date());
   const { data, error } = await admin
     .from("cms_ai_usage_log")
     .select("context_jsonb, ok")
@@ -246,13 +249,9 @@ async function loadTalentBookingAssistantSpendCentsThisMonth(
     logServerError("booking-assistant/talent-spend", error);
     return 0;
   }
-  let cents = 0;
-  for (const row of data ?? []) {
-    const ctx = (row as { context_jsonb?: { cost_usd?: unknown } | null }).context_jsonb;
-    const usd = typeof ctx?.cost_usd === "number" ? ctx.cost_usd : 0;
-    if (usd > 0) cents += Math.max(1, Math.round(usd * 100));
-  }
-  return cents;
+  return sumBookingAssistantSpendCents(
+    (data ?? []) as Array<{ context_jsonb?: { cost_usd?: unknown } | null }>,
+  );
 }
 
 async function loadGroundingOfferings(

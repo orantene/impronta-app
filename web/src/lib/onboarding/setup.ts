@@ -75,6 +75,15 @@ export function timezoneChoices(
   return [{ id, label }, ...list];
 }
 
+/**
+ * onb1-08: seed "Zona que ven tus clientes" from the city captured earlier
+ * (`person.city`). Never invents a place mode; only supplies the area text.
+ */
+export function placeAreaFromCity(city: string | null | undefined): string | null {
+  const t = (city ?? "").trim();
+  return t ? t.slice(0, 120) : null;
+}
+
 /** "12:30" <-> minutes. */
 export function minToTime(min: number): string {
   const h = Math.floor(min / 60).toString().padStart(2, "0");

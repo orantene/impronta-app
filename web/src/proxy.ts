@@ -43,6 +43,7 @@ import { talentProfileCodeAliasRedirectResponse } from "@/lib/talent/profile-cod
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { talentSiteHostResponse } from "@/lib/saas/talent-site-host-response";
 import { withTalentHostClientSession } from "@/lib/client-account/talent-host-session";
+import { unsupportedLocaleRedirectTarget } from "@/lib/saas/unsupported-locale-redirect";
 import { isTenantHostContext, resolveProxyLocaleContext } from "@/lib/saas/proxy-locale-context";
 import { clientIp, stripInboundHostContextHeaders } from "@/lib/saas/proxy-inbound-sanitize";
 import {
@@ -57,6 +58,7 @@ import { timed } from "@/lib/server/perf-trace";
 import { startDoorRedirect } from "@/lib/onboarding/start-door-redirect";
 import { marketingDemoSlugRedirect } from "@/lib/marketing/demo-slug-apex-redirect";
 import { marketingSpanishAliasRedirect } from "@/lib/marketing/spanish-path-alias";
+import { langQueryForStartAfterDefaultLocaleStrip } from "@/lib/onboarding/flow";
 import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 
 export async function proxy(request: NextRequest) {
@@ -255,11 +257,11 @@ export async function proxy(request: NextRequest) {
       target.hostname = canonicalHost;
       return NextResponse.redirect(target, 308);
     }
-    const off = await timed("proxy.offRoster", offRosterTalentResponse(request, pathname, hostContext.tenantId, PREVIEW_QUERY_PARAM));
+    const off = await timed("proxy.offRoster", offRosterTalentResponse(request, pathname, hostContext.tenantId, PREVIEW_QUERY_PARAM, sanitizedInboundHeaders));
     if (off) return off;
   }
   if (hostContext.kind === "app" || hostContext.kind === "marketing" || hostContext.kind === "hub") {
-    const unknownCode = await timed("proxy.unknownTalentCode", unknownTalentCodeResponse(request, pathname, PREVIEW_QUERY_PARAM));
+    const unknownCode = await timed("proxy.unknownTalentCode", unknownTalentCodeResponse(request, pathname, PREVIEW_QUERY_PARAM, sanitizedInboundHeaders));
     if (unknownCode) return unknownCode;
   }
 
@@ -345,12 +347,12 @@ export async function proxy(request: NextRequest) {
   ) {
     const url = request.nextUrl.clone();
     url.pathname = withoutLocalePrefix;
+    // GRK-102: `/en/start` -> `/start` carries `?lang=en` (the flow ignores the locale cookie).
+    const startLang = langQueryForStartAfterDefaultLocaleStrip({ pathnameAfterStrip: withoutLocalePrefix, defaultLocale: effectiveLangSettings.defaultLocale, existingLang: url.searchParams.get("lang") });
+    if (startLang) url.searchParams.set("lang", startLang);
     const res = NextResponse.redirect(url, 308);
-    // QA 2026-05-13: without a locale cookie here, the redirected page renders
-    // in the DEFAULT locale even though the URL was `/es/<tenant>` (the
-    // downstream `syncLocaleCookieForPath` calls fire only after this early
-    // return and never see the `/es/` prefix), so the ES switcher looked broken.
-    // Set the cookie on the redirect response so the followed URL keeps the locale.
+    // QA 2026-05-13: set the locale cookie on the redirect, or the followed
+    // URL renders in the DEFAULT locale (later sync calls never see `/es/`).
     syncLocaleCookieForPath(res, pathname, effectiveLangSettings, request);
     syncLocaleCookieForDefaultPrefixStrip(res, pathname, effectiveLangSettings);
     return res;
@@ -372,14 +374,11 @@ export async function proxy(request: NextRequest) {
       );
       if (!supportsRequested) {
         const url = request.nextUrl.clone();
-        // Drop the unsupported prefix; if the tenant's default is the platform
-        // default, the `stripDefaultLocalePrefixFromPath` pass above will
-        // normalize further on the next request.
-        const remainder = parts.slice(2).join("/");
-        url.pathname =
-          tenantLocales.defaultLocale === langSettings.defaultLocale
-            ? `/${remainder}`
-            : `/${tenantLocales.defaultLocale}/${remainder}`;
+        // Drop the unsupported prefix (hub /t/<code> keeps its language as ?lang=);
+        // see unsupported-locale-redirect.ts.
+        const target = unsupportedLocaleRedirectTarget({ requestedLocale: firstSegment, remainderSegments: parts.slice(2), tenantDefaultLocale: tenantLocales.defaultLocale, platformDefaultLocale: langSettings.defaultLocale, search: url.searchParams });
+        url.pathname = target.pathname;
+        url.search = target.search;
         return NextResponse.redirect(url, 302);
       }
     }

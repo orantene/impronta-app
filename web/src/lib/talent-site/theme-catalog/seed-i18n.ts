@@ -35,6 +35,9 @@ import {
 import { HEADER_OVERLAY_PREFIX, headerLabelEntries } from "../header-i18n";
 import type { DesignPayload } from "./types";
 
+/** Every theme seed authors English as the base prop (TUL-369). Spanish lives in `props.i18n`. */
+export const THEME_SEED_BASE_LOCALE = "en" as const;
+
 export type SeedI18nOverlay = {
   es: Record<string, string>;
   en: Record<string, string>;

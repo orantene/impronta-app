@@ -8,7 +8,15 @@ import { createTranslator } from "@/i18n/messages";
 
 import { acceptSignupTermsAction, type AcceptTermsState } from "./actions";
 
-export function AcceptTermsForm({ nextPath, locale }: { nextPath: string; locale: string }) {
+export function AcceptTermsForm({
+  nextPath,
+  locale,
+  marketingOrigin,
+}: {
+  nextPath: string;
+  locale: string;
+  marketingOrigin?: string;
+}) {
   const t = createTranslator(locale);
   const [state, formAction, pending] = useActionState<AcceptTermsState, FormData>(
     acceptSignupTermsAction,
@@ -19,7 +27,7 @@ export function AcceptTermsForm({ nextPath, locale }: { nextPath: string; locale
       <input type="hidden" name="next" value={nextPath} />
       <input type="hidden" name="locale" value={locale} />
       {state?.error ? <AuthNotice tone="error">{state.error}</AuthNotice> : null}
-      <AgeTermsCheckbox locale={locale} />
+      <AgeTermsCheckbox locale={locale} marketingOrigin={marketingOrigin} />
       <AuthSubmitButton
         pending={pending}
         idle={t("public.auth.acceptTerms.submit")}

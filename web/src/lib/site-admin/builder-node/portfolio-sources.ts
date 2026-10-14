@@ -11,6 +11,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { logServerError } from "@/lib/server/safe-error";
 
 import { resolvePortfolioAlt, resolvePortfolioCaption } from "./portfolio-i18n";
+import { buildSuggestedAlt } from "./portfolio-alt-suggest";
 import { captionMapField } from "./portfolio-caption-hint";
 import { resolveLinkedOfferingTitle } from "./portfolio-offering-title";
 import type { TalentPortfolioShot } from "./portfolio-types";
@@ -21,6 +22,8 @@ export async function loadPortfolioSources(
   talentProfileId: string,
   opts?: {
     displayName?: string | null;
+    /** Talent trade and city for the generated alt fallback (TUL-588). */
+    altContext?: { trade?: string | null; city?: string | null };
     limit?: number;
     /** Visitor locale: captions and alt text resolve to it (#187). */
     locale?: string | null;
@@ -131,6 +134,10 @@ export async function loadPortfolioSources(
         alt: r.alt,
         caption,
         displayName: opts?.displayName,
+        suggested: buildSuggestedAlt(
+          { name: opts?.displayName, ...opts?.altContext, service: linked?.title },
+          opts?.locale,
+        ),
         locale: opts?.locale,
         primaryLocale: opts?.primaryLocale,
       }),

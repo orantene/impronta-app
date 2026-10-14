@@ -19,6 +19,7 @@
 import Link from "next/link";
 
 import { DirectorySwitch } from "./_directory-switch";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
@@ -410,7 +411,7 @@ export default async function PlatformTalentDiscoverPage() {
         </Link>
         {d.profileCode && (
           <a
-            href={`https://tulala.digital/t/${d.profileCode}`}
+            href={`${resolveMarketingOrigin()}/t/${d.profileCode}`}
             target="_blank"
             rel="noopener noreferrer"
             style={{
@@ -430,6 +431,14 @@ export default async function PlatformTalentDiscoverPage() {
           borderRadius: 8, fontSize: 12.5, fontWeight: 600, textDecoration: "none",
         }}>
           {c.trustSignals}
+        </Link>
+        <Link href={talentSubHref(tenantSlug, "get-found", platformRoutes)} style={{
+          display: "inline-flex", alignItems: "center", gap: 6,
+          padding: "9px 14px", background: "transparent",
+          color: C.ink, border: `1px solid ${C.border}`,
+          borderRadius: 8, fontSize: 12.5, fontWeight: 600, textDecoration: "none",
+        }}>
+          {c.googleGuide}
         </Link>
       </div>
     </div>

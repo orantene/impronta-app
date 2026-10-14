@@ -80,6 +80,7 @@ import { useCatalogBookingConfirm } from "./use-catalog-booking-confirm";
 import { useBookingSheetFocusTrap } from "./use-booking-sheet-focus";
 import { CatalogDonePanel, CatalogSheetHeader } from "./catalog-done-panel";
 import { CatalogEmptyAskButton } from "./catalog-empty-ask-button";
+import { CatalogBookingBackNav } from "./catalog-booking-back-nav";
 
 type Step = "choose" | "when" | "who" | "done";
 export type CatalogBookingDetail = OfferingRequestDetail & {
@@ -120,8 +121,7 @@ export function CatalogBookingSheet({
   const [dayIndex, setDayIndex] = useState(() => (mode === "demo" ? firstOpenDemoDayIndex(catalogNextDays()) : 0));
   const [time, setTime] = useState<string | null>(null);
   const [liveStarts, setLiveStarts] = useState<string | null>(null);
-  const [liveTz, setLiveTz] = useState("UTC");
-  const [liveReason, setLiveReason] = useState<string | null>(null);
+  const [liveTz, setLiveTz] = useState("UTC"); const [liveReason, setLiveReason] = useState<string | null>(null); const [livePlaceCity, setLivePlaceCity] = useState<string | null>(null);
   const [liveDays, setLiveDays] = useState<Array<{ key: string; date: Date; starts: string[] }>>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsReady, setSlotsReady] = useState(false);
@@ -270,7 +270,7 @@ export function CatalogBookingSheet({
       .then((r) => {
         if (cancelled) return;
         setLiveTz(r.timezone);
-        setLiveReason(r.reason ?? null);
+        setLiveReason(r.reason ?? null); setLivePlaceCity(r.placeCity?.trim() || null);
         // TUL-531: continuous 14-day strip (empty days kept).
         const strip = liveStripFromSlots(r);
         setLiveDays(strip);
@@ -303,6 +303,7 @@ export function CatalogBookingSheet({
   const emailValid = /.+@.+\..+/.test(email.trim());
   const phoneValid = phone.trim() === "" || phone.replace(/\D/g, "").length >= 8;
   const addr = useServiceAddress(detail?.where, locale);
+  const remoteOnly = detail?.where?.length === 1 && detail.where[0] === "remote";
   const { busy, confirm, resetConfirmGuards } = useCatalogBookingConfirm({
     locale,
     mode,
@@ -360,7 +361,7 @@ export function CatalogBookingSheet({
     reserveMode: detail.reserveMode,
     allowPayInPerson: detail.allowPayInPerson,
     depositPct: detail.depositPct,
-    onlineCollectReady, payAtClientPlace: addr.rule === "required", locale,
+    onlineCollectReady, payAtClientPlace: addr.rule === "required", payRemoteOnly: remoteOnly, locale,
     offeringIntent: detail.intent,
     bookingSettings,
   });
@@ -457,11 +458,13 @@ export function CatalogBookingSheet({
         />
 
         <div className="jb-body">
-          {step !== "choose" && step !== "done" ? (
-            <button type="button" className="jb-back-link" data-catalog-start-over="" onClick={startOver}>
-              {es ? "Empezar de nuevo" : "Start over"}
-            </button>
-          ) : null}
+          <CatalogBookingBackNav
+            step={step}
+            es={es}
+            onChangeService={() => { setTakenNotice(null); setStep("choose"); }}
+            onChangeTime={() => setStep("when")}
+            onStartOver={startOver}
+          />
           {step === "choose" ? (
             <>
               <div className="jb-summary">
@@ -578,9 +581,6 @@ export function CatalogBookingSheet({
 
           {step === "when" ? (
             <>
-              <button type="button" className="jb-back-link" onClick={() => { setTakenNotice(null); setStep("choose"); }}>
-                {es ? "← Cambiar servicio u opciones" : "← Change service or options"}
-              </button>
               {mode === "live" && (slotsLoading || !slotsReady) ? (
                 <p className="jb-fixture">
                   <span className="cb-spinner" aria-hidden="true" />
@@ -595,7 +595,7 @@ export function CatalogBookingSheet({
                   loading={slotsLoading}
                   dayIndex={dayIndex}
                   liveStarts={liveStarts}
-                  liveTz={liveTz}
+                  liveTz={liveTz} placeCity={livePlaceCity}
                   timeGroupLabel={timeGroupLabel}
                   emptyConsultButton={emptyConsultButton}
                   takenNotice={takenNotice}
@@ -624,15 +624,13 @@ export function CatalogBookingSheet({
 
           {step === "who" ? (
             <>
-              <button type="button" className="jb-back-link" onClick={() => setStep("when")}>
-                {es ? "← Cambiar horario" : "← Change time"}
-              </button>
               <CatalogWhoSummary
                 es={es}
                 service={variant ? `${detail.title} · ${variant.label}` : detail.title}
                 day={day}
                 time={time}
                 tz={mode === "live" ? liveTz : null}
+                placeCity={mode === "live" ? livePlaceCity : null}
                 total={isQuote ? (es ? "A cotizar" : "Quote") : money(total, detail.currency)}
                 addressNote={addr.rule === "required" ? "client" : "studio"}
               />
@@ -715,7 +713,7 @@ export function CatalogBookingSheet({
                 reserveMode: detail.reserveMode,
                 allowPayInPerson: detail.allowPayInPerson,
                 depositPct: detail.depositPct,
-                onlineCollectReady, payAtClientPlace: addr.rule === "required", locale,
+                onlineCollectReady, payAtClientPlace: addr.rule === "required", payRemoteOnly: remoteOnly, locale,
                 wrote,
                 isRequest,
               })}

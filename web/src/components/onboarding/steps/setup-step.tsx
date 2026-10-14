@@ -17,6 +17,7 @@ import {
   defaultWeekFallback,
   finalizeSetup,
   needsTimezoneQuestion,
+  placeAreaFromCity,
   setupCurrency,
   setupIssues,
   timezoneChoices,
@@ -75,7 +76,8 @@ export function SetupStep({
   };
   const issues = setupIssues({ choice, essentials: e, country, providerEmailDraft: later ? "" : providerEmail });
   const show = (i: SetupIssue) => tried && issues.includes(i);
-  const setPlace = (mode: PlaceMode) => change({ place: { mode, area: e.place?.area ?? null } });
+  // onb1-08: first mode pick seeds area from the city collected earlier.
+  const setPlace = (mode: PlaceMode) => change({ place: { mode, area: e.place?.area ?? placeAreaFromCity(setup.city) } });
 
   const submit = () => {
     setTried(true);

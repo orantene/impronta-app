@@ -41,12 +41,14 @@ const SLOTS_VARY = "Host, x-impronta-host-name, x-impronta-host-context";
 function slotsJson(
   slots: string[],
   status = 200,
-  extra?: { timezone?: string; reason?: OpenTimesReason | null },
+  extra?: { timezone?: string; placeCity?: string | null; reason?: OpenTimesReason | null },
 ): NextResponse {
   return NextResponse.json(
     {
       slots,
       ...(extra?.timezone ? { timezone: extra.timezone } : {}),
+      // Talent's home city for the zone chip (Houston time, not Chicago time).
+      ...(extra?.placeCity ? { placeCity: extra.placeCity } : {}),
       // Only when empty: a caller with slots does not need a reason, and
       // sending one anyway invites a client to branch on it.
       ...(slots.length === 0 && extra?.reason ? { reason: extra.reason } : {}),
@@ -114,7 +116,11 @@ export async function GET(request: Request) {
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }
-    return slotsJson(result.slots, 200, { timezone: result.timezone, reason: result.reason });
+    return slotsJson(result.slots, 200, {
+      timezone: result.timezone,
+      placeCity: result.placeCity,
+      reason: result.reason,
+    });
   } catch (err) {
     logServerError("api.public.booking.slots", err);
     return NextResponse.json({ error: "query_failed" }, { status: 500 });

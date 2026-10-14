@@ -49,6 +49,17 @@ test("missing translation falls back to English (no swap)", () => {
   assert.equal(m[en.slice(0, 160).trim()], clampWords(en));
 });
 
+test("GRK-075: ES-only mid-word bio slice maps to clampWords (Valeria coreogra…)", () => {
+  const longEs =
+    "Bailarina y coreógrafa. Enseño en tu casa o en estudio, y preparo coreografías a medida para eventos, bodas y presentaciones con ensayo guiado paso a paso hasta el día.";
+  const mid = longEs.slice(0, 160);
+  assert.ok(mid.endsWith("coreogra") || mid.includes("coreogra"), "fixture still mid-cuts");
+  const m = buildTalentLocaleSwaps({ bioI18n: { es: longEs }, typeNames: [], homeCity: null }, "es");
+  assert.equal(m[mid.trim()], clampWords(longEs));
+  assert.ok(m[mid.trim()]!.includes("coreografías") || m[mid.trim()]!.endsWith("…"));
+  assert.ok(!m[mid.trim()]!.includes("coreogra…") || m[mid.trim()]!.includes("coreografías"));
+});
+
 test("the marquee's baked English service titles swap to the locale's title (platform)", () => {
   const offerings = [
     { title: "Russian manicure with gel", titleI18n: { en: "Russian manicure with gel", es: "Manicura rusa con gel" } },
@@ -128,4 +139,17 @@ test("localiseBakedLanguagesLine translates any Languages seed without current p
   assert.equal(localiseBakedLanguagesLine("Languages: English", "en"), null);
   assert.equal(localiseBakedLanguagesLine("I speak English", "es"), null);
   assert.equal(localiseBakedLanguagesLine("Idiomas: Inglés", "es"), null);
+});
+
+test("TUL-516: Mexico City becomes Ciudad de México on Spanish (based-in + uppercase)", () => {
+  const src = {
+    bioI18n: null,
+    typeNames: [{ en: "Fashion Model", es: "Modelo de moda" }],
+    homeCity: { en: "Mexico City" },
+  };
+  const es = buildTalentLocaleSwaps(src, "es");
+  assert.equal(es["Mexico City"], "Ciudad de México");
+  assert.equal(es["Based in Mexico City"], "Con base en Ciudad de México");
+  assert.equal(es["BASED IN MEXICO CITY"], "CON BASE EN CIUDAD DE MÉXICO");
+  assert.equal(es["Fashion Model · Mexico City"], "Modelo de moda · Ciudad de México");
 });

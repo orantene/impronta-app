@@ -21,6 +21,20 @@ test("AUD-029: unpadded top-level talent-site container gets the side gutter", (
   assert.equal(m[1], catalog?.[1], "container gutter must match the catalog gutter");
 });
 
+test("TUL-532: unpadded kit-shell header row gets the same side gutter", () => {
+  const src = readFileSync(path.join(__dirname, "render.tsx"), "utf8");
+  const m = src.match(
+    /\[data-talent-max-site-header\]>\.site-builder-node--container\[data-builder-layout="row"\]:not\(\[data-builder-full-bleed\]\):not\(\[data-bn-bg-media\]\)\{padding-inline:([^;}]+);color:var\(--token-color-ink\)\}/,
+  );
+  assert.ok(m, "talent-site header row gutter + ink rule missing");
+  assert.equal(m[1], NODE_SPACING.m);
+  assert.match(
+    src,
+    /\[data-talent-max-site-header\]>\.site-builder-node--container\[data-builder-layout="row"\]>\.site-builder-node--nav\{width:auto;margin:0\}/,
+    "header row nav must shrink to its links, not wrap the row at width:100%",
+  );
+});
+
 test("AUD-029: authored paddingX stays inline so it wins over the gutter", () => {
   const src = readFileSync(path.join(__dirname, "render.tsx"), "utf8");
   assert.match(src, /out\.paddingLeft = NODE_SPACING\[style\.paddingX\]/);

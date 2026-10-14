@@ -1,45 +1,30 @@
-/**
- * GET /llms.txt — TUL-21. Only on a talent's own domain (the talent-site
- * allow-list passes it; every other host kind 404s at the surface gate).
- */
-
-import { NextResponse } from "next/server";
-
-import { loadAgentServices, resolveAgentSite } from "@/lib/booking/agent/agent-site.server";
-import { buildTalentLlmsTxt } from "@/lib/booking/agent/llms-txt";
+import { headers } from "next/headers";
+import { HOST_CONTEXT_HEADER, HOST_TALENT_PROFILE_HEADER } from "@/lib/saas/host-context";
 import { getPublicHostContext } from "@/lib/saas/scope";
-import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { logServerError } from "@/lib/server/safe-error";
-import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
+import { publicRequestSiteBase } from "@/lib/seo/request-base";
+import { buildLlmsTxt } from "@/lib/seo/llms-txt";
+import { decideLlmsRoute } from "@/lib/seo/talent-llms-txt";
+import { loadTalentLlmsTxt } from "@/lib/seo/talent-llms-txt.server";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+const HEADERS = {
+  "content-type": "text/plain; charset=utf-8",
+  "cache-control": "public, max-age=3600",
+};
+const notFound = () => new Response("Not found", { status: 404 });
 
-const notFound = () => new NextResponse("Not found\n", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8" } });
-
-export async function GET(request: Request) {
-  const host = await getPublicHostContext();
-  if (host.kind !== "talent_site") return notFound();
-  const admin = createServiceRoleClient();
-  if (!admin) return new NextResponse("Unavailable\n", { status: 503 });
-  try {
-    const site = await resolveAgentSite(admin, request);
-    if (!site) return notFound();
-    const [services, switches] = await Promise.all([
-      loadAgentServices(site),
-      loadTalentSiteSwitches(admin, site.talentProfileId),
-    ]);
-    const body = buildTalentLlmsTxt({
-      origin: site.origin,
-      name: site.name,
-      services,
-      agentBookingEnabled: switches.chatConfig.agentBookingEnabled,
-    });
-    return new NextResponse(body, {
-      headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "public, max-age=300" },
-    });
-  } catch (err) {
-    logServerError("llms.txt", err);
-    return new NextResponse("Unavailable\n", { status: 503 });
+/** Marketing host (TUL-589) and published talent-site hosts; every other host 404s. */
+export async function GET(): Promise<Response> {
+  const hostContext = await getPublicHostContext();
+  const h = await headers();
+  const decision = decideLlmsRoute({
+    kind: hostContext.kind,
+    hostContextHeader: h.get(HOST_CONTEXT_HEADER),
+    talentProfileHeader: h.get(HOST_TALENT_PROFILE_HEADER),
+  });
+  if (decision.route === "marketing") {
+    return new Response(buildLlmsTxt(publicRequestSiteBase(hostContext)), { headers: HEADERS });
   }
+  if (decision.route === "not_found") return notFound();
+  const body = await loadTalentLlmsTxt(decision.talentProfileId, publicRequestSiteBase(hostContext));
+  return body ? new Response(body, { headers: HEADERS }) : notFound();
 }

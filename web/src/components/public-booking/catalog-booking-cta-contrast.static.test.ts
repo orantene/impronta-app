@@ -18,9 +18,24 @@ test("catalog booking CTA primary prefers token-color-primary over accent blush"
   );
 });
 
-test("GRK-072: selected day/slot fill stays on brand primary (not ink↔surface)", () => {
-  assert.match(css, /--cb-selected:var\(--token-color-primary/);
-  assert.match(css, /\.jb-day\[data-on="true"\]\{[^}]*background:var\(--cb-selected\)/);
-  assert.match(css, /\.jb-time\[data-on="true"\]\{[^}]*background:var\(--cb-selected\)/);
-  assert.match(css, /\.jb-day\[data-on="true"\]\{[^}]*color:var\(--cb-on-selected\)/);
+/** E2-karla-slot-width — slot/time grid must fill the sheet, not shrink-wrap ~270px. */
+test("catalog booking when-step times grid pins full sheet width", () => {
+  assert.match(css, /\.jb-times\{[^}]*width:100%/);
+  assert.match(css, /\.jb-body\{[^}]*width:100%/);
+  assert.match(css, /\.jb-times\{grid-template-columns:repeat\(auto-fill,minmax\(104px,1fr\)\)/);
+});
+
+test("TUL-516 E6: back links stack in jb-back-nav (never inline)", () => {
+  assert.match(css, /\.jb-back-nav\{[^}]*flex-direction:column/);
+  assert.match(css, /\.jb-back-nav\{[^}]*gap:8px/);
+  assert.match(css, /\.jb-back-link\{[^}]*display:block/);
+});
+
+test("GRK-070: disabled Continuar keeps muted ink (not white-on-edge)", () => {
+  assert.match(css, /\.jb-cta:disabled\{[^}]*color:var\(--cb-muted\)/);
+  assert.doesNotMatch(
+    css,
+    /\.jb-cta:disabled\{[^}]*color:#fff/,
+    "white disabled label regresses nearly-invisible Continuar",
+  );
 });

@@ -1,3 +1,4 @@
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { headers } from "next/headers";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { stripLocaleFromPathname } from "@/i18n/pathnames";
@@ -147,10 +148,10 @@ export async function MarketingShell({ children }: { children: React.ReactNode }
       {/* Records the campaign that earned this visit, once, before the
           visitor navigates deeper and the query string disappears. */}
       <AttributionCapture />
-      <main className="flex-1 pt-[var(--plt-header-h,84px)] sm:pt-[72px]">{children}</main>
+      <main className="flex-1 pt-[var(--plt-header-h,64px)] sm:pt-[72px]">{children}</main>
       <MarketingFooter />
       {legalFast ? null : <MarketingSupportLauncherMount />}
-      <MarketingModalHost locale={locale} onboardingModule={onboardingModule} />
+      <MarketingModalHost locale={locale} onboardingModule={onboardingModule} marketingOrigin={resolveMarketingOrigin()} />
     </div>
   );
 }

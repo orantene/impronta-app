@@ -95,3 +95,11 @@ test("otherwise routes to llm facts", () => {
   });
   assert.deepEqual(d, { action: "llm_facts" });
 });
+
+import { BOOKING_ASSISTANT_EVENT_TYPES, countBookingAssistantTurns } from "./turns";
+
+test("prior-events query types are exactly what the ceiling counts", () => {
+  const rows = BOOKING_ASSISTANT_EVENT_TYPES.map((t) => ({ systemEventType: t }));
+  assert.equal(countBookingAssistantTurns(rows), BOOKING_ASSISTANT_EVENT_TYPES.length);
+  assert.equal(countBookingAssistantTurns([{ systemEventType: "payment_received" }]), 0);
+});

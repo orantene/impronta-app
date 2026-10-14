@@ -63,7 +63,7 @@ type Props = {
 
 const UPSELL_HEADING = {
   en: "The Page Builder is a Web Office feature",
-  es: "El editor de páginas es una función de Web Office",
+  es: "El editor de páginas es una función de Oficina Web",
 } as const;
 
 const UPSELL_SEE_PLANS = {
@@ -150,7 +150,7 @@ export function TalentPageBuilderScreen({
               marginBottom: 16,
             }}
           >
-            WEB OFFICE
+            {isEs ? "OFICINA WEB" : "WEB OFFICE"}
           </div>
           <h1
             style={{

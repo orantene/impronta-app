@@ -88,3 +88,16 @@ test("an auto-written default cookie still yields to a Spanish browser", () => {
     "es",
   );
 });
+
+test("TUL-146: locale cookie es with an English browser renders /login in Spanish", () => {
+  for (const country of [null, "US", "MX"]) {
+    assert.equal(
+      resolveAuthPageLocale({ ...base, cookieLocale: "es", acceptLanguage: "en-US,en;q=0.9", country }),
+      "es",
+    );
+  }
+  assert.equal(
+    resolveAuthPageLocale({ ...base, cookieLocale: "es", cookieIsAuto: true, acceptLanguage: "en-US,en;q=0.9" }),
+    "es",
+  );
+});

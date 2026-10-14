@@ -1,5 +1,7 @@
 "use server";
 
+import { after } from "next/server";
+
 import { guestCookieSigningEnabled } from "@/lib/guest-cookie";
 import { guestSupportMayServe } from "@/lib/support/guest-support-serve";
 import { ensureGuestSessionId, resolveClientIp, resolveGuestSessionId } from "@/lib/guest/guest-session";
@@ -81,6 +83,25 @@ async function stampLeadId(
     .eq("id", ticket.id);
 }
 
+/**
+ * Lead stamping is a read plus a write the visitor never sees. It runs after
+ * the response flushes (TUL-602 slow1) instead of holding the submit; errors
+ * are logged, never thrown.
+ */
+function stampLeadIdAfterResponse(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  ticket: SupportTicketRow,
+  email: string,
+): void {
+  const run = () =>
+    stampLeadId(admin, ticket, email).catch((err) => logServerError("support.guest.stampLeadId", err));
+  try {
+    after(run);
+  } catch {
+    void run();
+  }
+}
+
 export async function startGuestSupportChatAction(input: {
   body: string;
   originSlug?: string | null;
@@ -122,7 +143,7 @@ export async function startGuestSupportChatAction(input: {
   });
   if (!result.ok) return result;
   if (ident.email) {
-    await stampLeadId(ident.admin, result.data.ticket, ident.email);
+    stampLeadIdAfterResponse(ident.admin, result.data.ticket, ident.email);
   }
   return {
     ok: true,
@@ -229,7 +250,15 @@ export async function attachGuestContactAction(input: {
     actorUserId: ident.userId,
   });
   if (!updated.ok) return updated;
-  await stampLeadId(ident.admin, updated.data, email);
+  stampLeadIdAfterResponse(ident.admin, updated.data, email);
+  // TUL-660: after an AI error the guest was promised a person; an email is that ask.
+  if (await ticketHadAiError(ident.admin, ticket.id)) {
+    await supportEngine.escalateTicket({
+      ticketId: ticket.id,
+      reason: "user_requested",
+      actorUserId: ident.userId,
+    });
+  }
 
   const eventId = crypto.randomUUID();
   notify({
@@ -406,8 +435,8 @@ export async function submitMarketingContactAction(input: {
     email,
   });
   if (!abuse.ok) return { ok: false, error: abuse.error };
-  if (!input.name.trim() || !email.includes("@") || !input.message.trim()) {
-    return { ok: false, error: "Name, email, and a message are required." };
+  if (!email.includes("@") || !input.message.trim()) {
+    return { ok: false, error: "Email and a message are required." };
   }
 
   const talentSite = parseTalentSiteHelpContactInput({
@@ -450,14 +479,14 @@ export async function submitMarketingContactAction(input: {
     body: input.message.trim(),
     originSlug: talentSite ? "talent-site" : "/contact",
     contactEmail: email,
-    contactName: input.name.trim(),
+    contactName: input.name.trim() || null,
     contactPhone: input.phone?.trim() || null,
     handledBy: "human",
     messageOranDirectly: true,
     metadata,
   });
   if (!result.ok) return result;
-  await stampLeadId(ident.admin, result.data.ticket, email);
+  stampLeadIdAfterResponse(ident.admin, result.data.ticket, email);
 
   // Tell the person we have it.
   //
@@ -486,4 +515,18 @@ export async function submitMarketingContactAction(input: {
   });
 
   return { ok: true, ticketId: result.data.ticket.id };
+}
+
+async function ticketHadAiError(
+  admin: Parameters<typeof supportFrom>[0],
+  ticketId: string,
+): Promise<boolean> {
+  const { data } = await supportFrom(admin, "support_messages")
+    .select("*")
+    .eq("ticket_id", ticketId)
+    .order("created_at", { ascending: false })
+    .limit(20);
+  return ((data ?? []) as unknown[])
+    .map(mapMessageRow)
+    .some((m) => Boolean(m?.aiMeta && (m.aiMeta as Record<string, unknown>).fail_open));
 }

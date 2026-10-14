@@ -243,11 +243,14 @@ export function PublicPageEditor({ locale = "en" }: Props) {
 }
 
 function LegacyPresence({ locale }: { locale: "en" | "es" }) {
+  const copy = useDashboardText();
   return (
     <>
       <SectionLabel
-        eyebrow="Your multi-page website"
-        hint="A full website with its own link, header, logo and footer, separate from your discovery profile. The starter gallery below sets up its home page and shell."
+        eyebrow={copy.t("Your multi-page website")}
+        hint={copy.t(
+          "A full website with its own link, header, logo and footer, separate from your discovery profile. The starter gallery below sets up its home page and shell.",
+        )}
       />
       <TalentMaxSiteManager locale={locale} />
       <div className="mt-4" />
@@ -255,8 +258,10 @@ function LegacyPresence({ locale }: { locale: "en" | "es" }) {
 
       <div className="mt-8" />
       <SectionLabel
-        eyebrow="Your discovery profile"
-        hint="The single page clients land on from Discover, at /t/<your code>. The template here restyles that profile — it does not change your multi-page website above."
+        eyebrow={copy.t("Your discovery profile")}
+        hint={copy.t(
+          "The single page clients land on from Discover, at /t/<your code>. The template here restyles that profile — it does not change your multi-page website above.",
+        )}
       />
       <TalentSiteDashboardPanel locale={locale} />
 

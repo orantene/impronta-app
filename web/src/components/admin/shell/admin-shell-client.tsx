@@ -209,6 +209,8 @@ export function AdminShellClient({
     <ShellBoundary supportSlot={supportSlot}>
       <AdminShellProvider
         initialBridgeData={initialBridgeData}
+        // live2b-03: the /admin URL is an explicit workspace intent.
+        initialSurface="workspace"
         initialPage={initialPage}
         tenantSlug={tenantSlug}
         brandedHost={brandedHost}

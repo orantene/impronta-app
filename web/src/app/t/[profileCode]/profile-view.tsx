@@ -116,7 +116,7 @@ import {
   talentProfileMetaFallbackDescription,
   talentProfileMetaTitle,
 } from "@/lib/seo/talent-profile-meta-copy";
-import { buildTalentProfileJsonLd, jsonLdToString, offeringsToJsonLdServices } from "@/lib/seo/talent-json-ld";
+import { buildTalentProfileJsonLd, jsonLdToString, offeringsToJsonLdServices, toJsonLdReviews } from "@/lib/seo/talent-json-ld";
 import {
   resolveTalentVisibility,
   type TalentSurface,
@@ -165,6 +165,7 @@ import type {
   TalentReview,
   Testimonial,
 } from "@/lib/reviews/review-types";
+import { softTitleCaseName } from "@/lib/talent/soft-title-case-name";
 
 // ── Types ──
 
@@ -299,9 +300,9 @@ function groupByKind(locale: string, terms: TaxonomyTerm[], chain?: readonly str
 }
 
 function displayName(p: TalentProfile): string {
-  if (p.display_name?.trim()) return p.display_name.trim();
+  if (p.display_name?.trim()) return softTitleCaseName(p.display_name);
   const parts = [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
-  return parts || p.profile_code;
+  return softTitleCaseName(parts || p.profile_code);
 }
 
 function residenceLabel(locale: string, p: TalentProfile, chain?: readonly string[]): string {
@@ -1453,9 +1454,8 @@ export async function buildTalentProfileMetadata({
     return new URL(site);
   })();
 
-  const name = profile.display_name?.trim() ||
-    [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim() ||
-    profileCode;
+  // GRK-052: same soft title-case as displayName() so the hero matches OG/etc.
+  const name = displayName(profile as TalentProfile) || profileCode;
 
   // A category the tenant disabled must not reach <title> / og:title (it reaches
   // search engines from there). With every category hidden the title degrades to
@@ -2315,10 +2315,9 @@ export async function TalentProfileView({
     createdAt: (profile as { created_at?: string | null }).created_at ?? null,
     updatedAt: (profile as { updated_at?: string | null }).updated_at ?? null,
     affiliationName: hostCtx.kind === "agency" ? tenantBrand : null,
-    // Real catalog data only: published, publicly visible services
-    // (Offer -> Service, provider = this Person). Replaces the old standalone
-    // Offer ItemList, which carried no provider link.
+    // Real data only: published services + published reviews (none -> omitted).
     services: offeringsToJsonLdServices(storefrontOfferings),
+    reviews: toJsonLdReviews(ratingSummary, talentReviews),
   });
 
   // ── Profile template dispatch ─────────────────────────────────────────

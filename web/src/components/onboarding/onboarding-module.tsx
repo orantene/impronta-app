@@ -16,7 +16,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import { translatorFor } from "@/i18n/use-t";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 import { BACK, initialMachineState, reduceMachine, type MachineErrorCode } from "@/lib/onboarding/machine";
-import { CHOOSE_COPY, FLOW_TOTAL, flowStepOf, type FlowLocale } from "@/lib/onboarding/flow";
+import { CHOOSE_COPY, FLOW_TOTAL, flowStepOf, urlChoiceBeatsGuestDraft, type FlowLocale } from "@/lib/onboarding/flow";
 import type { VisualDirection } from "@/lib/onboarding/module-state";
 import type { ModuleStep, OnboardingIntent } from "@/lib/onboarding/module-state";
 import {
@@ -74,6 +74,7 @@ export function OnboardingModule({
   variant = "modal",
   startChoice = null,
   onLocaleChange,
+  marketingOrigin,
 }: {
   locale: "en" | "es";
   intent: OnboardingIntent;
@@ -82,6 +83,8 @@ export function OnboardingModule({
   /** A choice carried in the URL (`/start?choice=`); applied when nothing is saved yet. */
   startChoice?: OnboardingChoice | null;
   onLocaleChange?: (locale: FlowLocale) => void;
+  /** Server-resolved marketing origin for legal links (TUL-750). */
+  marketingOrigin: string;
   /** `saved` is true when there is progress worth a "saved on this phone" toast. */
   onClose: (result: { saved: boolean }) => void;
 }) {
@@ -314,12 +317,21 @@ export function OnboardingModule({
   }, [isPage, state.resume, state.isAuthenticated]);
   const startChoiceAppliedRef = useRef(false);
   useEffect(() => {
-    if (!isPage || !startChoice || startChoiceAppliedRef.current || state.step !== "choose" || state.choice || state.resume) return;
-    // Wait for the resume lookup: a saved choice and step win over the URL.
+    if (!isPage || !startChoice || startChoiceAppliedRef.current || state.step !== "choose" || state.choice) return;
+    // Wait for the resume lookup before deciding.
     if (!resumeChecked) return;
+    // GRK-102: a marketing CTA's explicit `?choice=` wins over a guest draft
+    // ("Bienvenido de nuevo"). Signed-in owners still resume where they left off.
+    if (state.resume) {
+      if (!urlChoiceBeatsGuestDraft({ hasUrlChoice: true, hasResume: true, isAuthenticated: state.isAuthenticated })) {
+        return;
+      }
+      dispatch({ type: "resumeFresh" });
+      void resetOnboardingDraft();
+    }
     startChoiceAppliedRef.current = true;
     void chooseHow(startChoice);
-  }, [isPage, startChoice, resumeChecked, state.step, state.choice, state.resume, chooseHow]);
+  }, [isPage, startChoice, resumeChecked, state.step, state.choice, state.resume, state.isAuthenticated, chooseHow]);
 
   const saveEssentials = useCallback(async (a: EssentialsAnswer) => {
     dispatch({ type: "sendStarted" });
@@ -451,7 +463,20 @@ export function OnboardingModule({
     : state.step === "confirmWords" || state.step === "tooLittle" || state.step === "entry" || state.step === "essentials" || state.step === "setup" || state.step === "style" || state.step === "readyToBuild" || state.step === "save";
 
   let body: React.ReactNode;
-  if (state.resume) {
+  // GRK-109: wait for the resume cookie lookup before painting Choose / Entry.
+  // Otherwise a late "Bienvenido de nuevo" card replaces the first Continuar.
+  if (!resumeChecked) {
+    body = (
+      <div
+        aria-busy
+        className="py-16 text-center text-[0.875rem]"
+        style={{ color: "var(--tl-muted)" }}
+        data-testid="onb-resume-loading"
+      >
+        …
+      </div>
+    );
+  } else if (state.resume) {
     body = (
       <ResumeCard
         t={t}
@@ -574,6 +599,7 @@ export function OnboardingModule({
         t={t}
         path={path}
         locale={locale}
+        marketingOrigin={marketingOrigin}
         choice={state.choice}
         ageConfirmed={ageConfirmed}
         busy={state.busy}

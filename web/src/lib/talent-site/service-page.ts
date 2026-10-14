@@ -1,0 +1,135 @@
+/**
+ * TUL-586: one indexable page per published service on a talent site host.
+ * Pure (no DB, no server-only) so the route resolver, the sitemap and the tests share it.
+ *
+ * URL: a single host-root segment `servicio-<title>-<id8>`. Single segment on purpose: the
+ * host router already renders one-segment slugs, so no proxy or allow-list change is needed.
+ * The language prefix is the talent's usual grammar (`/en/servicio-...`). Stability comes from
+ * `<id8>` (first 8 hex of the offering id): a renamed service keeps resolving, and any other
+ * title part is self-canonical to the current slug.
+ */
+import { buildServiceOffers, type JsonLdOfferingSource } from "@/lib/seo/talent-json-ld";
+
+export const SERVICE_SLUG_PREFIX = "servicio-";
+
+const ID8 = /^[0-9a-f]{8}$/;
+const SLUG_SHAPE = /^servicio-(?:[a-z0-9-]*-)?([0-9a-f]{8})$/;
+
+export type ServicePageOffering = JsonLdOfferingSource & {
+  id: string;
+  imageUrls?: string[];
+  publicCtaHidden?: boolean;
+};
+
+function slugifyTitle(title: string): string {
+  return title
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48)
+    .replace(/-+$/, "");
+}
+
+/** A catalog entry that gets its own page: a public service or package. */
+export function isServicePageEligible(o: Pick<JsonLdOfferingSource, "kind" | "visibility" | "title">): boolean {
+  return (o.kind === "service" || o.kind === "package") && o.visibility !== "agency_only" && o.title.trim() !== "";
+}
+
+export function serviceSlug(o: { id: string; title: string }): string {
+  const id8 = o.id.replace(/-/g, "").slice(0, 8).toLowerCase();
+  const t = slugifyTitle(o.title);
+  return `${SERVICE_SLUG_PREFIX}${t ? `${t}-` : ""}${id8}`;
+}
+
+/** The id fragment a service slug carries, or null when the slug is not a service slug. */
+export function parseServiceSlug(slug: string | null | undefined): string | null {
+  if (!slug) return null;
+  const m = SLUG_SHAPE.exec(slug.toLowerCase());
+  return m && ID8.test(m[1]) ? m[1] : null;
+}
+
+/** Find the eligible offering a slug points at (id8 decides; the title part is cosmetic). */
+export function resolveServiceBySlug<T extends ServicePageOffering>(
+  offerings: readonly T[],
+  slug: string | null | undefined,
+): T | null {
+  const id8 = parseServiceSlug(slug);
+  if (!id8) return null;
+  return (
+    offerings.find((o) => isServicePageEligible(o) && o.id.replace(/-/g, "").toLowerCase().startsWith(id8)) ?? null
+  );
+}
+
+/** Host-root paths for the sitemap; `titleOffering` supplies the primary-language title for the slug. */
+export function serviceSitemapPaths(offerings: readonly ServicePageOffering[]): string[] {
+  return offerings.filter(isServicePageEligible).map((o) => `/${serviceSlug(o)}`);
+}
+
+export type ServicePageCopy = { book: string; back: string; minutes: (n: number) => string; priceFrom: string };
+
+export function servicePageCopy(locale: string): ServicePageCopy {
+  const en = locale.toLowerCase().startsWith("en");
+  return en
+    ? { book: "Book this service", back: "All services", minutes: (n) => `${n} min`, priceFrom: "From" }
+    : { book: "Reservar este servicio", back: "Todos los servicios", minutes: (n) => `${n} min`, priceFrom: "Desde" };
+}
+
+/** Booking CTA: the existing deep link, which opens the booking sheet on this offering. */
+export function serviceBookHref(offeringId: string, homePath: string): string {
+  const base = homePath && homePath.startsWith("/") ? homePath : "/";
+  return `${base}?book=${encodeURIComponent(offeringId.toLowerCase())}#book`;
+}
+
+/** Title and description for the head: the service's own words, then the talent's name. */
+export function serviceMetaText(o: Pick<ServicePageOffering, "title" | "description">, talentName: string | null): {
+  title: string;
+  description: string | undefined;
+} {
+  const name = talentName?.trim();
+  const title = name ? `${o.title.trim()} | ${name}` : o.title.trim();
+  const d = o.description?.replace(/\s+/g, " ").trim();
+  return { title, description: d ? (d.length > 300 ? `${d.slice(0, 297).trimEnd()}...` : d) : undefined };
+}
+
+/** Standalone Service JSON-LD for the page (provider = the site's Person). */
+export function buildServicePageJsonLd(input: {
+  offering: ServicePageOffering;
+  canonicalUrl: string;
+  personId?: string;
+  talentName: string | null;
+  inLanguage: string;
+}): Record<string, unknown> {
+  const { offering: o, canonicalUrl } = input;
+  const personId = input.personId ?? `${canonicalUrl}#person`;
+  const offer = buildServiceOffers(
+    [{
+      name: o.title,
+      description: o.description,
+      amountCents: o.amountCents,
+      currency: o.currency,
+      priceDisplay: o.priceDisplay,
+      durationMinutes: o.durationMinutes,
+    }],
+    personId,
+  )[0] as Record<string, unknown> | undefined;
+  const item = (offer?.itemOffered ?? {}) as Record<string, unknown>;
+  const { itemOffered: _drop, ...offerRest } = offer ?? {};
+  void _drop;
+  const hasOffer = Object.keys(offerRest).filter((k) => k !== "@type").length > 0;
+  return {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "@id": canonicalUrl,
+    url: canonicalUrl,
+    name: o.title.trim(),
+    ...(item.description ? { description: item.description } : {}),
+    inLanguage: input.inLanguage,
+    provider: input.talentName
+      ? { "@type": "Person", "@id": personId, name: input.talentName }
+      : { "@id": personId },
+    ...(o.imageUrls?.[0] ? { image: o.imageUrls[0] } : {}),
+    ...(hasOffer ? { offers: offerRest } : {}),
+  };
+}
