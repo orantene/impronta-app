@@ -50,7 +50,7 @@ import {
   applyPresentabilityOrdering,
   presentabilityTier,
 } from "@/lib/directory/presentability-order";
-import { isTalentPortfolioTier } from "@/lib/access/talent-membership";
+import { hasEntitlement } from "@/lib/access/talent-entitlements";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { auditTime, isDirectoryApiAudit } from "@/lib/directory/directory-api-audit";
@@ -910,7 +910,7 @@ async function fetchDirectoryWindow(
   // tie-break applied to the loaded page below (see portfolio-boost.ts).
   const portfolioProfileIds = new Set(
     profiles
-      .filter((row) => isTalentPortfolioTier(row.talent_plan_key))
+      .filter((row) => hasEntitlement(row.talent_plan_key, "discover.priority"))
       .map((row) => row.id),
   );
 
