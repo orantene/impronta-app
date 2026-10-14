@@ -125,8 +125,10 @@ test("account settings Log out uses the single sign-out, not a server action + r
   const src = read("components/client-account/AccountClientIslands.tsx");
   const body = src.slice(src.indexOf("export function LogOutButton"));
   const fn = body.slice(0, body.indexOf("\nexport "));
-  assert.match(fn, /signOutEverywhere\(\)/);
-  assert.doesNotMatch(fn, /signOutClientAccount|router\.refresh\(\)/);
+  // TUL-708: a native POST via SignOutForm (clears browser state on submit), no transition.
+  assert.match(fn, /<SignOutForm>/);
+  assert.match(fn, /type="submit"/);
+  assert.doesNotMatch(fn, /signOutClientAccount|router\.refresh\(\)|useTransition/);
 });
 
 test("guest chat / guest client paths never sign in or set an auth session", () => {

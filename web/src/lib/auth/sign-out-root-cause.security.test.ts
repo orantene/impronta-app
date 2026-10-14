@@ -208,6 +208,8 @@ test("every Log out entry point uses the single sign-out (no server action, no r
     "components/public-header-mobile-menu.tsx",
     "components/account-menu.tsx",
     "components/marketing/marketing-account-menu.tsx",
+    // TUL-708: /account Settings Log out is a native form POST (first click was lost).
+    "components/client-account/AccountClientIslands.tsx",
   ];
   for (const f of declarative) {
     const s = read(f);
@@ -218,7 +220,6 @@ test("every Log out entry point uses the single sign-out (no server action, no r
     "app/(workspace)/[tenantSlug]/client/_components/ClientAccountMenu.tsx",
     "components/admin/shell/internal/page-modules/IdentityBar-1.tsx",
     "components/talent/studio/MoreScreen.tsx",
-    "components/client-account/AccountClientIslands.tsx",
     "components/client-account/ClientAccountButton.tsx",
   ];
   for (const f of imperative) {

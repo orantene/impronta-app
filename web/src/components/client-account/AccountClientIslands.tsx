@@ -6,7 +6,7 @@
  * Colours come from the `<html>` token vars so it wears the site's look.
  */
 
-import { signOutEverywhere } from "@/lib/auth/sign-out-client";
+import { SignOutForm } from "@/components/auth/SignOutForm";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 
@@ -216,20 +216,19 @@ export function SettingsForm({ initial, copy }: {
   );
 }
 
+/**
+ * S1 / TUL-708: a real form POST (SignOutForm), not a button that builds a form
+ * inside a transition. QA saw the first click on /account do nothing visible
+ * and the session survive; a native submit shows the browser's own loading
+ * state, works without JS, and cannot be swallowed by a pending transition.
+ */
 export function LogOutButton({ label }: { label: string }) {
-  const [pending, start] = useTransition();
   return (
-    <button
-      type="button"
-      style={btnSecondary}
-      disabled={pending}
-      onClick={() => start(() => {
-        // S1 / TUL-708: one top-level POST revokes + expires every scope.
-        signOutEverywhere();
-      })}
-    >
-      {label}
-    </button>
+    <SignOutForm>
+      <button type="submit" style={btnSecondary}>
+        {label}
+      </button>
+    </SignOutForm>
   );
 }
 
