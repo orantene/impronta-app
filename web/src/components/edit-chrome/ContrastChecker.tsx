@@ -10,6 +10,7 @@
  * tab.
  */
 
+import { useEditorLocale } from "./use-editor-locale";
 import {
   classifyContrast,
   contrastRatio,
@@ -82,6 +83,7 @@ interface ContrastCheckerProps {
 }
 
 export function ContrastChecker({ draft }: ContrastCheckerProps) {
+  const { t } = useEditorLocale();
   const rows = PAIRS.map((p) => {
     const fg = draft[p.fgKey] || p.fgFallback || "#000000";
     const bg = draft[p.bgKey] || p.bgFallback || "#ffffff";
@@ -95,15 +97,15 @@ export function ContrastChecker({ draft }: ContrastCheckerProps) {
     <div className="flex flex-col gap-2 text-xs">
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-          WCAG contrast
+          {t("WCAG contrast")}
         </span>
         {failing > 0 ? (
           <span className="rounded-full bg-rose-500/15 px-2 py-0.5 text-[10px] font-medium text-rose-700 dark:text-rose-300">
-            {failing} failing
+            {t("{n} failing").replace("{n}", String(failing))}
           </span>
         ) : (
           <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-300">
-            All pass
+            {t("All pass")}
           </span>
         )}
       </div>
@@ -129,7 +131,7 @@ export function ContrastChecker({ draft }: ContrastCheckerProps) {
               >
                 Aa
               </span>
-              <span className="text-[12px]">{r.label}</span>
+              <span className="text-[12px]">{t(r.label)}</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="font-mono text-[11px] text-muted-foreground">
@@ -138,7 +140,7 @@ export function ContrastChecker({ draft }: ContrastCheckerProps) {
               <span
                 className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${VERDICT_TONE[r.verdict]}`}
               >
-                {VERDICT_LABEL[r.verdict]}
+                {t(VERDICT_LABEL[r.verdict])}
               </span>
             </div>
           </li>
