@@ -64,6 +64,7 @@ import { GuestCaptchaField, type GuestCaptchaConfig } from "./GuestCaptchaField"
 import { CatalogLiveWhenPicker, CatalogDemoWhenPicker } from "./CatalogLiveWhenPicker";
 import { bookingDraftKey, clearBookingDraft, loadBookingDraft } from "./booking-draft-store";
 import { CatalogWhoSummary, useBookingDraftEffects } from "./catalog-who-summary";
+import { useBookingContactPrefill } from "./use-booking-contact-prefill";
 import {
   BOOKING_RESUME_EVENT,
   clearBookingResume,
@@ -236,6 +237,15 @@ export function CatalogBookingSheet({
   }, [detail, variant, needsVariant, extras, total]);
 
   useEffect(() => { liveStartsRef.current = liveStarts; }, [liveStarts]);
+
+  // TUL-723: a signed-in client's own contact details, only into empty fields.
+  const contactRef = useRef({ name, email, phone });
+  contactRef.current = { name, email, phone };
+  useBookingContactPrefill({
+    active: step === "who" && mode === "live",
+    read: () => contactRef.current,
+    write: (n) => { setName(n.name); setEmail(n.email); setPhone(n.phone); },
+  });
 
   useBookingDraftEffects({
     detail, step, variantId, addOnIds, dayIndex, time, liveStarts, name, email, phone, mode, days, draftKey,
