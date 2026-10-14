@@ -107,3 +107,12 @@ test("ClientAuthMethod union and appleFailed keys stay aligned", () => {
   assert.equal(typeof en.public.auth.login.apple, "string");
   assert.equal(typeof es.public.auth.login.apple, "string");
 });
+
+test("register page offers Apple next to Google, behind the provider flag, with the same nextPath", () => {
+  const page = read("src/app/(auth)/register/page.tsx");
+  assert.match(page, /LoginAppleButton/);
+  assert.match(page, /\{isAppleAuthProviderEnabled\(\) \? \(/);
+  assert.match(page, /<LoginAppleButton\s+nextPath=\{nextPath\}/);
+  assert.match(page, /public\.auth\.appleUnableToStart/);
+  assert.ok(page.indexOf("<LoginAppleButton") > page.indexOf("</GoogleAuthButton>"));
+});

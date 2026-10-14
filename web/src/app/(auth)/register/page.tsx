@@ -40,6 +40,8 @@ import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { prefersPasswordlessFirst } from "@/lib/auth/otp-flow";
 import { EmailCodeForm } from "@/components/auth/email-code-form";
 import { RegisterForm, RegisterLoginFooter } from "./register-form";
+import { isAppleAuthProviderEnabled } from "@/lib/auth/apple-provider-flag";
+import { LoginAppleButton } from "../login/login-apple-button";
 
 /**
  * P2 — THE signup page. There is no other one.
@@ -318,6 +320,25 @@ export default async function RegisterPage({
         >
           {t(keys.google)}
         </GoogleAuthButton>
+
+        {/*
+         * TUL-65: Apple next to Google on sign-up too (it was only on /login and
+         * the client popover). Same popup flow and the same post-auth `nextPath`,
+         * so an Apple sign-up lands in the same onboarding as Google. Off until
+         * AUTH_APPLE_PROVIDER_ENABLED is set (after the Supabase Apple provider).
+         */}
+        {isAppleAuthProviderEnabled() ? (
+          <div className="mt-3">
+            <LoginAppleButton
+              nextPath={nextPath}
+              label={t("public.auth.login.apple")}
+              pendingLabel={t("public.auth.appleOpening")}
+              failedLabel={t("public.auth.appleFailed")}
+              popupBlockedMessage={t("public.auth.applePopupBlocked")}
+              unableToStartMessage={t("public.auth.appleUnableToStart")}
+            />
+          </div>
+        ) : null}
 
         <AuthDivider label={t("public.auth.or")} />
 
