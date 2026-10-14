@@ -17,7 +17,7 @@
 -- Non-destructive: losers keep their row with merged_into_id set (the existing
 -- merge column). Order roll-ups refresh via orders_rollups_aiud on re-point.
 --
--- NOT APPLIED. Sized on prod 2026-10-14 (read-only): 0 duplicate groups among
+-- Applied 2026-10-13. Sized on prod 2026-10-14 (read-only): 0 duplicate groups among
 -- 40 live customer rows, so the first run is a no-op today.
 
 CREATE OR REPLACE FUNCTION public.merge_verified_client_customers(p_user_id uuid)
