@@ -14,7 +14,7 @@ export function shouldActivateGuestBooker(input: {
   emailProven: boolean;
   appRole: string | null | undefined;
   accountStatus: string | null | undefined;
-  /** The user owns at least one inquiry/booking (after the claim relink ran). */
+  /** G2: the user owns an inquiry, booking, payment or order (after claimEverythingForVerifiedEmail). */
   hasBooking: boolean;
 }): boolean {
   return input.emailProven && input.appRole === "client" && input.accountStatus === "onboarding" && input.hasBooking;

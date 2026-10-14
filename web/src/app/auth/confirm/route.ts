@@ -8,6 +8,8 @@ import {
 } from "@/lib/auth-flow";
 import { loadAccessProfile } from "@/lib/access-profile";
 import { relinkFirstConfirmedClaim } from "@/lib/auth/guest-claim-relink";
+import { claimAndActivateVerifiedClient } from "@/lib/client-account/after-verified-sign-in.server";
+import { isAuthEmailConfirmedForClaim } from "@/lib/client-account/pure";
 import { NextResponse } from "next/server";
 
 /**
@@ -66,6 +68,13 @@ export async function GET(request: Request) {
     // the passwordless code path). Runs BEFORE the redirect.
     if (user) {
       await relinkFirstConfirmedClaim(user.id);
+      // G3: claim every guest record for this proven email and activate a
+      // guest booker, so the destination below reads the active profile.
+      await claimAndActivateVerifiedClient({
+        userId: user.id,
+        email: user.email,
+        emailProven: isAuthEmailConfirmedForClaim(user),
+      });
     }
     const ensuredProfile = user
       ? await loadAccessProfile(supabase, user.id)
