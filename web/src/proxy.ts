@@ -449,7 +449,7 @@ export async function proxy(request: NextRequest) {
       !isPathAllowedForHostKind(effectiveHostContext.kind, effectiveCanonicalPath)
     )
   ) {
-    // Branded "page not found" (Tulala chrome + a way home), never a bare dead end.
+    // Render the branded "page not found" page (Tulala chrome + a way home).
     // The rewrite target is whitelisted in the short-circuit block above (no recursion).
     // The locale header rides along so /es/<typo> answers in Spanish.
     const missHeaders = new Headers(sanitizedInboundHeaders);
