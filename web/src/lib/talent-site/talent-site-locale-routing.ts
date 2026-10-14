@@ -24,7 +24,11 @@ import { localeUrlSettings, withLocalePath, type LocaleUrlSettings } from "@/i18
 
 export interface TalentSiteLocaleInput {
   pathname: string;
-  /** Raw `?locale=` value, if any. */
+  /**
+   * Raw `?locale=` or `?lang=` value (caller resolves `locale` first, then
+   * `lang`; see `talentSiteQueryLocale`). Both mean the same explicit choice
+   * as a `/<code>/` prefix (TUL-516).
+   */
   queryLocale?: string | null;
   primary: string;
   supported: readonly string[];
@@ -52,6 +56,16 @@ export interface TalentSiteLocaleDecision {
    * redirect to the primary home.
    */
   unsupportedLocale?: string;
+}
+
+/**
+ * Resolve the talent-site language query: `?locale=` wins, then `?lang=`.
+ * `?lang=en` is the same choice as `/en` (TUL-516).
+ */
+export function talentSiteQueryLocale(searchParams: {
+  get(name: string): string | null;
+}): string | null {
+  return searchParams.get("locale") ?? searchParams.get("lang");
 }
 
 function norm(v: string | null | undefined): string {
@@ -112,6 +126,12 @@ export function decideTalentSiteLocale(input: TalentSiteLocaleInput): TalentSite
       redirectPath: talentSiteLocalePath(path, q, primary, supported),
       explicit: true,
     };
+  }
+
+  // TUL-516: `?lang=en` on a site that does not publish `en` is an honest
+  // notice, not a silent no-op.
+  if (q && !supported.includes(q) && (input.knownLocales ?? []).map(norm).includes(q)) {
+    return { locale: primary, innerPath: path, redirectPath: null, explicit: false, unsupportedLocale: q };
   }
 
   return { locale: primary, innerPath: path, redirectPath: null, explicit: false };

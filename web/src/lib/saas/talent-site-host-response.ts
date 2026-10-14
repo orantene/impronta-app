@@ -24,7 +24,7 @@ import { PUBLIC_PATH_PREFIX_HEADER, TENANT_HEADER_NAME } from "@/lib/saas/scope"
 import { talentGuestAliasTarget } from "@/lib/talent-site/guest-path-aliases";
 import { talentDemoBareHostRedirectHost } from "@/lib/talent-site/site-public-url";
 import { loadTalentLocaleSettingsForProxy } from "@/lib/talent-site/talent-site-locale-proxy";
-import { decideTalentSiteLocale } from "@/lib/talent-site/talent-site-locale-routing";
+import { decideTalentSiteLocale, talentSiteQueryLocale } from "@/lib/talent-site/talent-site-locale-routing";
 
 /**
  * Talent custom-domain host (`kind: "talent_site"`, resolved only AFTER
@@ -80,7 +80,7 @@ export async function talentSiteHostResponse(
   const talentGrammar = { ...talentLangSettings, defaultLocale: talentLocales.defaultLocale, publicLocales: [...talentLocales.supportedLocales] };
   const talentLocale = decideTalentSiteLocale({
     pathname,
-    queryLocale: request.nextUrl.searchParams.get("locale"),
+    queryLocale: talentSiteQueryLocale(request.nextUrl.searchParams),
     primary: talentLocales.defaultLocale,
     supported: talentLocales.supportedLocales,
     knownLocales: talentLangSettings.publicLocales,
@@ -163,6 +163,7 @@ export async function talentSiteHostResponse(
     const target = request.nextUrl.clone();
     target.pathname = talentLocale.redirectPath;
     target.searchParams.delete("locale");
+    target.searchParams.delete("lang");
     return rememberChoice(NextResponse.redirect(target, 302), true);
   }
 
