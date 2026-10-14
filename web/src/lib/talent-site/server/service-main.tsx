@@ -6,6 +6,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
 
+import { publicPriceLine } from "@/lib/talent/public-price-line";
 import {
   buildServicePageJsonLd,
   pickRelatedServices,
@@ -22,15 +23,8 @@ import type { MaxSiteSeo } from "./render-max-site";
 const INK = "var(--token-color-ink, CanvasText)";
 const SOFT = "color-mix(in srgb, var(--token-color-ink, CanvasText) 66%, var(--token-color-background, Canvas))";
 
-function priceLine(o: ServicePageOffering, locale: string, from: string): string | null {
-  if (!o.amountCents || o.amountCents <= 0 || !o.currency) return null;
-  if (o.priceDisplay !== "exact" && o.priceDisplay !== "from") return null;
-  try {
-    const n = new Intl.NumberFormat(locale, { style: "currency", currency: o.currency.toUpperCase() }).format(o.amountCents / 100);
-    return o.priceDisplay === "from" ? `${from} ${n}` : n;
-  } catch {
-    return null;
-  }
+function priceLine(o: ServicePageOffering, locale: string): string | null {
+  return publicPriceLine(o, locale);
 }
 
 export type ServiceRelatedLink = { title: string; href: string; facts: string };
@@ -49,7 +43,7 @@ export function serviceRelatedLinks(
     return {
       title: r.title,
       href: hrefFor(`/${serviceSlug(slugRow)}`),
-      facts: [priceLine(r, locale, copy.priceFrom), r.durationMinutes ? copy.minutes(r.durationMinutes) : null].filter(Boolean).join(" · "),
+      facts: [priceLine(r, locale), r.durationMinutes ? copy.minutes(r.durationMinutes) : null].filter(Boolean).join(" · "),
     };
   });
 }
@@ -59,7 +53,7 @@ export function serviceMainNode(
   opts: { locale: string; homePath: string; related?: readonly ServiceRelatedLink[] },
 ): ReactNode {
   const copy = servicePageCopy(opts.locale);
-  const price = priceLine(o, opts.locale, copy.priceFrom);
+  const price = priceLine(o, opts.locale);
   const facts = [
     o.categoryLabel ?? o.category ?? null,
     price,
