@@ -56,6 +56,10 @@ const TALENT_SITE_PASSTHROUGH_EXACT = new Set([
   "/auth/apple",
   "/auth/google",
   "/auth/callback",
+  // TUL-350: Stripe success/cancel return pages. Booking checkouts send the
+  // payer back to the host they paid on, so these two must resolve there.
+  "/checkout/success",
+  "/checkout/cancel",
 ]);
 
 // `/account` itself is an exact path (a `/account` prefix would also pass `/accounts`).
@@ -100,6 +104,8 @@ const RESERVED_TALENT_SITE_SLUGS = new Set([
   // bare `/pay` or `/link` must not render as a talent page slug.
   "pay",
   "link",
+  // `/checkout/success|cancel` pass through; bare `/checkout` is not a page.
+  "checkout",
 ]);
 
 export type TalentSiteHostPath =

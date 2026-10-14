@@ -99,3 +99,15 @@ test("client account area (TUL-62): nothing else under /account is reachable on 
   // `/accounts` is an ordinary page slug, not the account area.
   assert.deepEqual(isTalentSiteHostPathAllowed("/accounts"), { kind: "render", pageSlug: "accounts" });
 });
+
+test("TUL-350: Stripe return pages /checkout/success and /checkout/cancel pass through on a talent host", () => {
+  for (const p of ["/checkout/success", "/checkout/cancel"]) {
+    assert.deepEqual(isTalentSiteHostPathAllowed(p), { kind: "passthrough" }, p);
+  }
+});
+
+test("TUL-350: only the two return pages, never a bare /checkout slug or other children", () => {
+  for (const p of ["/checkout", "/checkout/other", "/checkout/success/x"]) {
+    assert.equal(isTalentSiteHostPathAllowed(p), null, p);
+  }
+});
