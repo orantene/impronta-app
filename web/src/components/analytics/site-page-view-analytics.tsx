@@ -1,5 +1,6 @@
 "use client";
 
+import { sanitizeReferrer } from "@/lib/analytics/sanitize-url";
 import { useEffect } from "react";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 import { trackProductEvent } from "@/lib/analytics/track-client";
@@ -64,7 +65,7 @@ export function SitePageViewAnalytics({
   useEffect(() => {
     const referrer =
       typeof document !== "undefined" && document.referrer
-        ? document.referrer
+        ? (sanitizeReferrer(document.referrer) ?? undefined)
         : undefined;
 
     trackProductEvent(

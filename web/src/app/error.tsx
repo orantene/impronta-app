@@ -84,7 +84,8 @@ export default function GlobalError({
         scope.setTag("host", typeof window !== "undefined" ? window.location.hostname : "unknown");
         scope.setTag("stale_client_shape", String(isStaleClientError(error)));
         scope.setExtra("digest", error?.digest ?? null);
-        scope.setExtra("href", typeof window !== "undefined" ? window.location.href : null);
+        // Origin + path only: the query string can hold auth codes or tokens.
+        scope.setExtra("href", typeof window !== "undefined" ? window.location.origin + window.location.pathname : null);
         Sentry.captureException(error);
       });
     } catch {
