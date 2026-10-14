@@ -8,6 +8,8 @@
  * the walk is visitor locale, then the page's primary locale, then the base.
  */
 
+import { looksLikeSlugAlt } from "./portfolio-alt-suggest";
+
 export type PortfolioI18nMap = Readonly<Record<string, string | null | undefined>>;
 
 function key(locale: string | null | undefined): string {
@@ -95,6 +97,8 @@ export function resolvePortfolioAlt(args: {
   displayName?: string | null;
   locale: string | null | undefined;
   primaryLocale?: string | null;
+  /** Zero-cost generated alt (TUL-588), used before the bare name. */
+  suggested?: string | null;
 }): string {
   const fromMaps = humanImageAlt(
     resolvePortfolioText(
@@ -105,8 +109,9 @@ export function resolvePortfolioAlt(args: {
     ),
   );
   return (
-    fromMaps ||
+    (fromMaps && !looksLikeSlugAlt(fromMaps) ? fromMaps : "") ||
     text(args.caption) ||
+    text(args.suggested) ||
     text(args.displayName) ||
     portfolioPhotoFallbackAlt(args.locale)
   );
