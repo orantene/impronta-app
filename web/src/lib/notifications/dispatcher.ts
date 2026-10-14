@@ -11,7 +11,6 @@ import { sendPushNotification } from "./channels/push";
 import { sendWhatsAppNotification } from "./channels/whatsapp";
 import { channelsForRecipient } from "./prefs";
 import { loadNotificationOverlay, isChannelEnabled } from "./overlay";
-import { sendNotificationCopies } from "./email-copies/dispatch-copies";
 import { copyKindForEntry } from "./email-copies/kinds";
 import type {
   AudienceContext,
@@ -307,6 +306,7 @@ export async function dispatchEventNotifications(
     // (not per original recipient). Best-effort, never counted in `result`.
     if (copyKindForEntry(entry.id)) {
       try {
+        const { sendNotificationCopies } = await import("./email-copies/dispatch-copies");
         await sendNotificationCopies(enriched, entry, ctx);
       } catch (err) {
         logServerError(`notifications.copy:${entry.id}`, err);
