@@ -61,6 +61,10 @@ export const CATALOG_BOOKING_CSS = `
    sheet-accent remaps --cb-primary to ink. */
 .jb-day[data-on="true"]{background:var(--cb-selected);border-color:var(--cb-selected);color:var(--cb-on-selected)}
 .jb-week-nav{display:flex;justify-content:space-between;gap:8px;margin:-2px 0 6px}
+/* TUL-930: at phone width the day strip is swiped (no scrollbar, no arrows); Empezar de nuevo shares the row with the back link. */
+@media (max-width:719px){.jb-days{scrollbar-width:none}.jb-days::-webkit-scrollbar{display:none}.jb-week-nav{display:none}}
+.jb-back-link[data-catalog-start-over]{float:right;margin-left:12px}
+.jb-back-link[data-catalog-start-over]+:not(.jb-back-link){clear:both}
 .jb-week-nav button{appearance:none;border:0;background:none;padding:6px 2px;min-height:36px;cursor:pointer;font:inherit;font-size:.8125rem;font-weight:600;color:var(--cb-primary)}
 .jb-day:disabled{opacity:.32;cursor:not-allowed}
 .jb-day span{font-size:.625rem;text-transform:uppercase;letter-spacing:.08em;opacity:.7}

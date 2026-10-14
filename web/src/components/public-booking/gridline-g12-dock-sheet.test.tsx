@@ -34,7 +34,7 @@ const html = (locale: string, liveStatus?: typeof ON | typeof OFF | null) =>
 
 // TUL-344: re-pinned on purpose (sticky bar hides at the top and reserves --cb-bar-h for every theme).
 test("existing designs: the base booking stylesheet is byte-pinned", () => {
-  assert.equal(createHash("sha256").update(CATALOG_BOOKING_CSS).digest("hex"), "3ab21b16ff43be1271db9c40588cd46f623b14c48ca110253305d229c5970fa2"); // re-pinned: TUL-896/899/928/931/932/807 booking sheet polish (was GRK-072)
+  assert.equal(createHash("sha256").update(CATALOG_BOOKING_CSS).digest("hex"), "089db7718a1618584da2780676163028d9aa2cab3facec4d516cfdde098bb396"); // re-pinned: TUL-930 phone date strip + start-over row; TUL-896/899/928/931/932/807 booking sheet polish (was GRK-072)
 });
 
 test("existing designs: dock markup is identical with no status, null or off", () => {
