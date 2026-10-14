@@ -1990,6 +1990,7 @@
       "questions": {
         "basicsWhatTalentHint": "Search: nail technician, photographer, DJ…",
         "basicsWhatBusinessHint": "Search: nail salon, restaurant, gym…",
+        "useTyped": "Use \"{text}\"",
         "basicsCityHint": "Search your city",
         "basicsOther": "Not in the list?",
         "basicsOtherHint": "Type it here",

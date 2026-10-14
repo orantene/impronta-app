@@ -149,6 +149,10 @@ export function EssentialsStep({
           itemSub={(c) => c.subtitle}
           itemKey={(c) => `${c.slug}:${c.countryIso2}`}
           onPick={(c) => setCity(c)}
+          typed={{
+            label: (text) => t("public.onboarding.questions.useTyped").replace("{text}", text),
+            make: (text) => ({ id: null, slug: "", name: { en: text, es: text }, countryIso2: "", subtitle: null }),
+          }}
           onClear={() => setCity(null)}
           changeLabel={t("public.onboarding.questions.change")}
           noResultsLabel={t("public.onboarding.questions.noCity")}
