@@ -79,6 +79,7 @@ export async function stagingGateDecision(request: NextRequest, env: GateEnv): P
   if (!password) {
     if (!warnedMissingPassword) {
       warnedMissingPassword = true;
+      // eslint-disable-next-line no-console -- one-time operator diagnostic: the gate fails closed and must say why
       console.error(`[staging-gate] ${STAGING_GATE_NOT_CONFIGURED}`);
     }
     return new NextResponse(STAGING_GATE_NOT_CONFIGURED, { status: 503, headers: { "content-type": "text/plain; charset=utf-8" } });
