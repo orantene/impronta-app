@@ -29,7 +29,7 @@ function homeTree(): Node[] {
       children: [
         { id: "rev", kind: "reviews", props: { eyebrow: "Reseñas", title: "Lo que dicen", items: [] } },
         { id: "vis", kind: "visit", props: { eyebrow: "Tu visita", title: "Dónde encontrarme", titleAccent: "", mapCaption: "Zona aproximada", extraFacts: [{ label: "Dónde", value: "García Ginerés, Mérida", note: "La dirección exacta llega al confirmar." }] } },
-        { id: "cc", kind: "comp_card", props: { eyebrow: "", title: "Medidas · Comp card" } },
+        { id: "cc", kind: "comp_card", props: { eyebrow: "", title: "Medidas · Ficha" } },
         { id: "sp", kind: "spec_table", props: { eyebrow: "Cómo trabajo", title: "Especificaciones", rows: [{ label: "Garantía", value: "6 meses por escrito en mano de obra" }, { label: "Voltaje", value: "127 V" }] } },
         { id: "st", kind: "stats", props: { variant: "spec", items: [{ label: "Respuesta", value: "En 1 o 2 días" }, { label: "Visita", value: "$400" }] } },
         { id: "h", kind: "heading", props: { level: 2, text: "Reseñas" } },

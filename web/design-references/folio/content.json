@@ -326,6 +326,21 @@
   "translations": {
     "en": {
       "services": {
+        "ed": {
+          "name": "Editorial shoot, half day",
+          "description": "Half day for a magazine or brand editorial. I arrive with hair and skin ready for camera and work with your stylist.",
+          "category": "Editorial"
+        },
+        "run": {
+          "name": "Runway show booking",
+          "description": "Runway for fashion weeks, brand presentations or showrooms. Includes a fitting the day before.",
+          "category": "Runway"
+        },
+        "look": {
+          "name": "Lookbook / e-commerce day",
+          "description": "Full catalog or lookbook day. Fast pace and look changes without losing consistency.",
+          "category": "E-commerce"
+        },
         "cast": {
           "name": "In-person casting",
           "description": "My open slots for castings and go-sees in Mexico City. You pick the time; I arrive with book, polaroids and up-to-date measurements.",
