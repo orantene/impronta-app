@@ -9,6 +9,7 @@ import {
   defaultTimezoneForCountry,
   defaultWeeklyHours,
   hoursHaveAnyOpenDay,
+  isMexico,
   servicesFromFacts,
   type Essentials,
 } from "./essentials";
@@ -25,13 +26,37 @@ export function resolveEssentialsTimezone(input: {
   timezone: string | null | undefined;
   city: string | null | undefined;
   country: string | null | undefined;
+  /** Spanish flow with no country at all defaults to Mexico City. */
+  locale?: "en" | "es";
 }): string | null {
   const own = input.timezone?.trim();
   if (own && isValidIanaTimeZone(own)) return own;
   const place = [input.city, input.country].map((x) => x?.trim()).filter(Boolean).join(", ");
   const fromPlace = place ? timezoneFromPlaceText(place) : null;
   if (fromPlace && isValidIanaTimeZone(fromPlace)) return fromPlace;
-  return defaultTimezoneForCountry(input.country) ?? timezoneFromCountry(input.country);
+  const fromCountry = defaultTimezoneForCountry(input.country) ?? timezoneFromCountry(input.country);
+  if (fromCountry) return fromCountry;
+  return !input.country?.trim() && input.locale === "es" ? "America/Mexico_City" : null;
+}
+
+/**
+ * Step 3's country: what the person said, else Mexico when the request comes
+ * from there (Vercel geo, ISO-2). Only Mexico is inferred: it is the one
+ * country whose zone and currency are set without asking, so a Tulum studio
+ * whose sentence named no country must not get USD and a zone list without Mexico.
+ */
+export function setupCountry(
+  stated: string | null | undefined,
+  requestCountry: string | null | undefined,
+): string | null {
+  const said = stated?.trim();
+  if (said) return said;
+  return isMexico(requestCountry) ? "MX" : null;
+}
+
+/** Step 3 never asks a Mexican business its zone, so take it from the city (Tulum -> America/Cancun). Null outside Mexico. */
+export function setupTimezone(city: string | null | undefined, country: string | null | undefined): string | null {
+  return isMexico(country) ? resolveEssentialsTimezone({ timezone: null, city, country }) : null;
 }
 
 export function resolveEssentialsForBuild(input: {
@@ -54,7 +79,7 @@ export function resolveEssentialsForBuild(input: {
     name: e?.name ?? null,
     services,
     hours: hoursHaveAnyOpenDay(e?.hours ?? null) ? e!.hours : defaultWeeklyHours(),
-    timezone: resolveEssentialsTimezone({ timezone: e?.timezone, city: input.city, country: input.country }),
+    timezone: resolveEssentialsTimezone({ timezone: e?.timezone, city: input.city, country: input.country, locale: input.locale }),
     place: e?.place ?? null,
     firstProviderEmail: e?.firstProviderEmail ?? null,
     firstProviderName: e?.firstProviderName ?? null,

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import {
   buildSiteShellEditorUrl,
+  hasBrandedWebsitePrimaryDomain,
   resolveWebsiteEditorBaseUrl,
   resolveWebsiteLiveOrigin,
 } from "@/lib/admin/website-editor-links";
@@ -11,13 +12,14 @@ import { isSiteShellSurfaceAvailableAction } from "@/lib/site-admin/site-shell-s
 import { useAdminShell } from "../state";
 
 /**
- * Deep link to the SITE SHELL surface — the global header + footer shared by
- * every page of the tenant's site.
+ * Deep link to the live storefront editor for site chrome (header / footer).
+ * Opens `/w/<slug>?edit=1` (or the branded host); the flag-gated
+ * `/p/__site_shell__` surface is reached from inside the editor.
  *
  * Returns `null` until BOTH are known-good:
  *   - a usable editor base URL resolves (workspace has a domain), and
- *   - the server confirms the shell surface is actually reachable for this
- *     caller (edit flag on + staff capability).
+ *   - the server confirms shell editing is available for this caller
+ *     (edit flag on + staff capability).
  *
  * The second check is a server round-trip on purpose: the flag is a server env
  * var that must not reach the client bundle, and the shell surface is OFF by
@@ -54,7 +56,7 @@ export function useSiteShellEditorUrl(): string | null {
         liveOrigin,
         tenantSlug,
         windowOrigin,
-        hasPrimaryDomain: Boolean(primaryDomain?.trim()),
+        hasPrimaryDomain: hasBrandedWebsitePrimaryDomain(primaryDomain),
       }),
     });
   }, [available, primaryDomain, tenantSlug]);

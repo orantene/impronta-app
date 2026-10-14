@@ -12,7 +12,8 @@
  */
 
 import "server-only";
-import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
+// TUL-573: lazy so dashboard cold starts do not evaluate the Stripe SDK.
+const loadStripeClient = () => import("@/lib/stripe/client");
 import { type TalentPlanKey } from "@/lib/stripe/price-ids";
 import { resolveTalentPriceId } from "@/lib/stripe/price-catalog";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -61,6 +62,7 @@ export async function getOrCreateTalentStripeCustomer(
   email: string,
   displayName: string,
 ): Promise<BillingResult<string>> {
+  const { getStripe, isStripeConfigured } = await loadStripeClient();
   if (!isStripeConfigured()) {
     return { ok: false, error: "Stripe is not configured." };
   }
@@ -162,6 +164,7 @@ export async function createTalentCheckoutSession(opts: {
   /** Signed return-to-spot token (`lib/billing/checkout-return.ts`). */
   returnToken?: string | null;
 }): Promise<BillingResult<{ url: string }>> {
+  const { getStripe, isStripeConfigured } = await loadStripeClient();
   if (!isStripeConfigured()) {
     return { ok: false, error: "Stripe is not configured." };
   }
@@ -248,6 +251,7 @@ export async function createTalentBillingPortalSession(opts: {
   /** Resolved app locale, threaded from the caller. See the checkout helper. */
   locale?: string | null;
 }): Promise<BillingResult<{ url: string }>> {
+  const { getStripe, isStripeConfigured } = await loadStripeClient();
   if (!isStripeConfigured()) {
     return { ok: false, error: "Stripe is not configured." };
   }

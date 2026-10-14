@@ -76,8 +76,14 @@ export function useGuestClientCards(input: {
   readonly contactEmail?: string | null;
   readonly accent?: string;
   readonly accentInk?: string;
+  /**
+   * TUL-516 L3: only fetch `/api/client/account` when CLIENT_ACCOUNT_HOSTS
+   * lists this host. Flag off → route 404; skip the call (treat as guest).
+   */
+  readonly clientAccountSurface?: boolean;
 }) {
   const { rows, v5, locale, businessName, refresh, onTick, onAsk, contactEmail, accent, accentInk } = input;
+  const accountSurface = input.clientAccountSurface === true;
   const t = useMemo(() => translatorFor(locale), [locale]);
   const kit = useMemo(() => buildKitCopy(t), [t]);
   const copy = useMemo(() => buildClientCopy(t), [t]);
@@ -87,10 +93,14 @@ export function useGuestClientCards(input: {
   const baseActions = useClientCardActions({ token: v5?.threadToken ?? null, messages, refresh, onTick });
 
   // null = still checking; false = guest; true = signed-in client.
-  const [clientSignedIn, setClientSignedIn] = useState<boolean | null>(null);
+  const [clientSignedIn, setClientSignedIn] = useState<boolean | null>(() => (accountSurface ? null : false));
   const [signInOffer, setSignInOffer] = useState<ClientOfferSummary | null>(null);
 
   useEffect(() => {
+    if (!accountSurface) {
+      setClientSignedIn(false);
+      return;
+    }
     let cancelled = false;
     const qs = new URLSearchParams({ locale: locale.startsWith("es") ? "es" : "en" });
     void fetch(`/api/client/account?${qs.toString()}`, { credentials: "same-origin" })
@@ -104,7 +114,7 @@ export function useGuestClientCards(input: {
     return () => {
       cancelled = true;
     };
-  }, [locale]);
+  }, [locale, accountSurface]);
 
   const requireSignInToAccept = clientSignedIn !== true;
   const signInToAcceptLabel = t("public.guestChat.signInToAccept");

@@ -25,6 +25,7 @@ import Link from "next/link";
 
 import { TulalaLogo } from "@/components/brand/tulala-logo";
 import { getSiteUrl } from "@/lib/auth-flow";
+import { ageTermsLinks } from "@/lib/legal/age-terms-links";
 
 export type AuthShellBrand = {
   /** Display name: tenant `public_name` on a whitelabel host, else "Tulala". */
@@ -419,8 +420,11 @@ export function AuthFooter({
   legal,
   contactHref,
   languageToggle,
+  locale,
 }: {
   brand: AuthShellBrand;
+  /** Page language; Terms and Privacy open in it (TUL-678). */
+  locale: string;
   /** Localized copyright + positioning line, resolved by the layout. */
   brandLine: string;
   /** Localized legal-link labels, resolved by the layout. */
@@ -432,6 +436,7 @@ export function AuthFooter({
   contactHref: string;
   languageToggle: React.ReactNode;
 }) {
+  const legalLinks = ageTermsLinks(getSiteUrl(), locale);
   return (
     <footer
       className="py-7"
@@ -469,10 +474,10 @@ export function AuthFooter({
                 smaller problem than misrepresenting whose terms apply.
                 Contact is the one that IS host-aware — see the ruling comment
                 in `layout.tsx`. */}
-            <FooterLink href={`${getSiteUrl()}/legal/terms`}>
+            <FooterLink href={legalLinks.terms}>
               {legal.terms}
             </FooterLink>
-            <FooterLink href={`${getSiteUrl()}/legal/privacy`}>
+            <FooterLink href={legalLinks.privacy}>
               {legal.privacy}
             </FooterLink>
             <FooterLink href={contactHref}>{legal.contact}</FooterLink>

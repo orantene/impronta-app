@@ -247,7 +247,7 @@ test("the live path loads real slots instead of fixture hours", async () => {
   host.remove();
 });
 
-test("AUD-003 empty slots shows Consultar disponibilidad and opens ask chat", async () => {
+test("AUD-003 empty slots shows Solicitar un horario and opens ask chat", async () => {
   const book = mockBook();
   const handoffs: Array<{ detail: { offeringId: string }; visitor?: unknown }> = [];
   const host = dom.window.document.createElement("div");
@@ -276,7 +276,7 @@ test("AUD-003 empty slots shows Consultar disponibilidad and opens ask chat", as
   assert.equal(continueWhen.disabled, true);
   const emptyAsk = host.querySelector<HTMLButtonElement>("[data-catalog-empty-ask]");
   assert.ok(emptyAsk);
-  assert.match(emptyAsk.textContent ?? "", /Consultar disponibilidad/);
+  assert.match(emptyAsk.textContent ?? "", /Solicitar un horario/);
   act(() => emptyAsk.click());
   assert.equal(handoffs.length, 1);
   assert.equal(handoffs[0]?.detail.offeringId, "off-1");

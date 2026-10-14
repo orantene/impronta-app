@@ -9,6 +9,7 @@ import type {
   ProfileEditorData,
   TalentDocumentEntry,
 } from "@/lib/server-actions/admin-talent-profile-sections";
+import { countryLabel } from "@/lib/geo/country-code";
 
 function talentTypeSlugsFromTaxonomyEmbed(rows: unknown): {
   primary: string | null;
@@ -128,7 +129,7 @@ export async function loadSelfProfileEditorData(input: {
       // row is returned as `false`; absent → empty default.
       age_display_mode: sv.age_display_mode ?? null,
       nationality: (p.nationality as string | null) ?? null,
-      home_country_text: (p.home_country_text as string | null) ?? null,
+      home_country_text: countryLabel(p.home_country_text as string | null),
       response_time: sv.response_time ?? null,
       is_discoverable: Boolean(p.is_discoverable),
       field_visibility: p.field_visibility ?? null,

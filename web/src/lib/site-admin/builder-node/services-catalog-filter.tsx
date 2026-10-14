@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useReducer, useRef, useState, type ReactNode } from "react";
-import { type TalentOffering } from "@/lib/talent/offerings-types";
+import { offeringIsQuote, type TalentOffering } from "@/lib/talent/offerings-types";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import { formatMoney } from "@/lib/talent/offerings-money";
 import { formatOfferingWhereLabel, offeringWhereFromAttributes } from "@/lib/talent/offering-request-detail";
@@ -41,6 +41,7 @@ import {
   type TalentBookingPosture,
 } from "@/lib/talent/selling-booking-settings";
 import { deriveFor, detailFor, dispatchOffering } from "./services-catalog-detail";
+import { opensAskFlowOnly } from "@/lib/talent/offering-cta-derivation";
 
 export type CatalogGroup = { name: string | null; label?: string | null; items: TalentOffering[]; note?: string | null };
 
@@ -241,6 +242,10 @@ export function ServicesCatalogFilter({
       },
     ];
   });
+  const frontOffering = findOffering(dock.picked[0]?.id ?? null).found;
+  const dockAskOnly = frontOffering
+    ? opensAskFlowOnly(deriveFor(frontOffering, confirmsByHand, bookingPosture).cta)
+    : false;
   const dockCurrency = dock.picked[0]?.currency ?? "MXN";
   // CH-3: a service picked here (sheet never opened) still gets "Volver a mi reserva" in the chat.
   const front = dockItems[0];
@@ -493,6 +498,7 @@ export function ServicesCatalogFilter({
         locale={locale}
         formatPrice={(c) => formatMoney(c, dockCurrency, locale)}
         onRemoveFront={removeFront}
+        askOnly={dockAskOnly}
         onAsk={askFromDock}
         onContinue={continueFromBar}
         toast={toast}
@@ -572,7 +578,7 @@ export function CatalogRow({
   const cover = showPhoto ? item.imageUrls[0] : undefined;
   const onRequest = item.visibility === "on_request";
   const quote =
-    item.priceDisplay === "quote" || item.priceType === "custom" || item.amountCents == null;
+    offeringIsQuote(item);
   const minCents = catalogRowMinCents(item);
   const ladder = catalogRowShowsFrom(item);
   const usd = usdEquivalentLabel(minCents, item.currency, usdRates, locale);

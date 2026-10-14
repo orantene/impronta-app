@@ -13,6 +13,7 @@ import {
   TalentBackLink,
   TalentBuilderIdentityProvider,
   TalentIdentityMenu,
+  publishTargetHost,
   resolveTalentBackHref,
   talentQuickLinks,
 } from "./talent-builder-identity";
@@ -71,6 +72,17 @@ test("back arrow targets the talent dashboard", () => {
   assert.equal(resolveTalentBackHref("https://app.example/talent/page-builder", "https://app.example"), "/talent/site");
   assert.equal(resolveTalentBackHref("https://evil.example/talent/money", "https://app.example"), "/talent/site");
   assert.equal(resolveTalentBackHref("", "https://app.example"), "/talent/site");
+});
+
+test("publish drawer names her site, not the editor host", () => {
+  const app = "app.tulala.digital";
+  assert.equal(publishTargetHost("https://qa-fixture-free-talent.tulala.digital", app), "qa-fixture-free-talent.tulala.digital");
+  assert.equal(publishTargetHost("https://rosa.example.com/", app), "rosa.example.com");
+  assert.equal(publishTargetHost("/t/site/rosa", app), "app.tulala.digital/t/site/rosa");
+  assert.equal(publishTargetHost(null, "impronta.tulala.digital"), "impronta.tulala.digital");
+  const drawer = readFileSync(path.join(process.cwd(), "src/components/edit-chrome/publish-drawer.tsx"), "utf8");
+  assert.match(drawer, /setHost\(publishTargetHost\(talentSiteUrl, window\.location\.host\)\)/);
+  assert.ok(!/setHost\(window\.location\.host\)/.test(drawer));
 });
 
 test("workspace builder keeps its page picker and exit form (no provider, pinned)", () => {

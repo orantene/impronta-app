@@ -12,7 +12,8 @@ import { HeaderScrollObserver } from "./HeaderScrollObserver";
 import { NavChromeScrollSpy } from "@/lib/site-admin/builder-node/NavChromeScrollSpy";
 import { navChromeNeedsScrollSpy, normalizeNavChrome } from "@/lib/site-admin/nav-chrome";
 import { ClusterIcon } from "./header-cluster-icon";
-import { HeaderAccountItem } from "./HeaderAccountItem";
+import { accountPreviewMode } from "@/lib/client-account/account-preview";
+import { renderAccountItem } from "./HeaderAccountPreview";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
 import { resolveShellBrandLogoUrl } from "@/lib/site-admin/server/shell-brand-logo";
@@ -35,6 +36,7 @@ import {
   resolveRosterSafeHref,
 } from "./directory-nav-href";
 import { renderRightZone } from "./EditorialSplitRightZone";
+import { navLandmarkAriaLabel } from "@/lib/site-admin/nav-landmark-label";
 
 function textAlignFor(align?: "left" | "center" | "right"): CSSProperties["textAlign"] {
   if (align === "left") return "left";
@@ -416,7 +418,7 @@ export async function SiteHeaderComponent({
           ) : null;
         case "nav":
           return navLinks.length > 0 ? (
-            <nav key={key} {...attrs} className="site-header__ritem site-header__nav" aria-label="Primary">
+            <nav key={key} {...attrs} className="site-header__ritem site-header__nav" aria-label={navLandmarkAriaLabel(locale)}>
               <ul className="site-header__nav-list">
                 {navLinks.map((l, i) => (
                   <li key={i} className="site-header__nav-item">
@@ -494,7 +496,7 @@ export async function SiteHeaderComponent({
             </div>
           ) : null;
         case "account":
-          return props.siteChrome?.account ? <HeaderAccountItem key={key} attrs={attrs} locale={locale} /> : null;
+          return renderAccountItem(accountPreviewMode(props.siteChrome, item.previewAs), key, attrs, locale);
         case "section_switcher": {
           // H-4: phone section switcher over the in-page links of the Navigation list.
           const own = switcherLinksFrom(navLinks);
@@ -667,7 +669,7 @@ export async function SiteHeaderComponent({
           ) : null}
         </a>
         {navLinks.length > 0 ? (
-          <nav className="site-header__nav" aria-label="Primary">
+          <nav className="site-header__nav" aria-label={navLandmarkAriaLabel(locale)}>
             <ul className="site-header__nav-list">
               {navLinks.map((item, i) => (
                 <li key={i} className="site-header__nav-item">

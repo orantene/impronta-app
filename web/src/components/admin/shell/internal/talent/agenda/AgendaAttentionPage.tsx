@@ -15,6 +15,7 @@ import {
 import { useAgendaCta } from "./use-agenda-cta";
 import { AgendaPayRequest } from "./AgendaPayRequest";
 import { useAgendaCopy } from "./use-agenda-copy";
+import { countItemsLabel } from "@/components/admin/shell/internal/count-items-label";
 
 export { AGENDA_ATTENTION_CONFIRM_KEY, setAgendaAttentionConfirm };
 
@@ -75,7 +76,7 @@ export function AgendaAttentionPage({
           loadError
             ? copy.t("Agenda could not load")
             : attention.length > 0
-              ? `${attention.length} ${copy.t("items")} · ${copy.t("most urgent first")}`
+              ? `${countItemsLabel(copy.t, attention.length)} · ${copy.t("most urgent first")}`
               : copy.t("Requests, holds, and payment follow-ups")
         }
         actions={(

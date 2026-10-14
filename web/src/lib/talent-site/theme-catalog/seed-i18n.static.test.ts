@@ -18,6 +18,7 @@ import { resolveLocalized } from "@/lib/i18n/resolve-localized";
 import {
   isTokenOnlyText,
   MODE_DEPENDENT_LABELS,
+  RECENT_JOBS_LABEL,
   SEED_TEXT_EN_FROM_ES,
   SEED_TEXT_ES,
   seedI18nTree,
@@ -145,6 +146,12 @@ test("Folio Comp card + Runway seed ES pairs stay Spanish-complete (W2-5 C3)", (
   assert.equal(SEED_TEXT_ES.Runway, "Pasarela");
   assert.equal(localiseOne("Measures · Comp card", "es", null), "Medidas · Ficha");
   assert.equal(localiseOne("Runway", "es", null), "Pasarela");
+});
+
+test("TUL-516 C1: Recent jobs seed and render-time map stay one pair", () => {
+  assert.equal(SEED_TEXT_ES[RECENT_JOBS_LABEL.en], RECENT_JOBS_LABEL.es);
+  assert.equal(localiseOne(RECENT_JOBS_LABEL.en, "es", null), RECENT_JOBS_LABEL.es);
+  assert.equal(localiseOne(RECENT_JOBS_LABEL.es, "en", null), RECENT_JOBS_LABEL.en);
 });
 
 test("the scanner flags a missing overlay (guard against a vacuous pass)", () => {

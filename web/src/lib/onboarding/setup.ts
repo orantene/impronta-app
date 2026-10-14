@@ -7,6 +7,7 @@ import {
   MAX_ESSENTIAL_SERVICES,
   defaultWeeklyHours,
   hoursHaveAnyOpenDay,
+  currencyForCountry,
   isMexico,
   type DayKey,
   type EssentialService,
@@ -62,6 +63,18 @@ export function needsTimezoneQuestion(country: string | null | undefined, city?:
   return !(inferred && isValidIanaTimeZone(inferred));
 }
 
+/** The short list, plus the current zone when it is not on it (the browser's zone, a saved one). */
+export function timezoneChoices(
+  current: string | null | undefined,
+  locale: "en" | "es" = "en",
+): ReadonlyArray<{ id: string; label: string }> {
+  const list = TIMEZONE_OPTIONS.map((z) => ({ id: z.id, label: z.label[locale] }));
+  const id = current?.trim();
+  if (!id || TIMEZONE_OPTIONS.some((z) => z.id === id)) return list;
+  const label = (id.split("/").pop() ?? id).replace(/_/g, " ");
+  return [{ id, label }, ...list];
+}
+
 /** "12:30" <-> minutes. */
 export function minToTime(min: number): string {
   const h = Math.floor(min / 60).toString().padStart(2, "0");
@@ -114,6 +127,22 @@ export function centsToInput(cents: number | null): string {
 
 export function blankService(currency: string): EssentialService {
   return { name: "", durationMin: 60, priceCents: null, quote: false, currency, packKey: null };
+}
+
+/**
+ * TUL-16 b: the currency the services step prices in. The person's own pick
+ * wins; otherwise the country decides (Mexico: pesos). With no country yet, a
+ * Spanish flow starts in pesos instead of a silent USD. MXN and USD only.
+ */
+export function setupCurrency(input: { chosen: string | null; country: string | null | undefined; locale: string }): string {
+  if (input.chosen === "MXN" || input.chosen === "USD") return input.chosen;
+  if (input.country && input.country.trim()) return currencyForCountry(input.country);
+  return input.locale === "es" ? "MXN" : "USD";
+}
+
+/** One currency for every service line (a menu does not mix them). */
+export function applyServiceCurrency(services: EssentialService[], currency: string): EssentialService[] {
+  return services.map((s) => (s.currency === currency ? s : { ...s, currency }));
 }
 
 /** Drop empty rows; a row without a number is a quote; cap the list. */

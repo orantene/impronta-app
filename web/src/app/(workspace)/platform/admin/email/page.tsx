@@ -12,6 +12,7 @@ import {
   loadNotificationCatalogState,
   loadEmailTemplateState,
   loadSendingDomains,
+  loadNotificationCopies,
   serverNowMs,
 } from "./email-data";
 import { EmailConsoleClient } from "./EmailConsoleClient";
@@ -20,7 +21,7 @@ import { fetchLanguageSettingsPublic } from "@/lib/language-settings/fetch-langu
 export const dynamic = "force-dynamic";
 
 export default async function EmailConsolePage() {
-  const [sendLog, metrics, suppressions, domain, catalog, templates, sendingDomains, session, langSettings] =
+  const [sendLog, metrics, suppressions, domain, catalog, templates, sendingDomains, session, langSettings, copies] =
     await Promise.all([
       loadEmailSendLog({ limit: 300 }),
       loadEmailMetrics(),
@@ -31,6 +32,7 @@ export default async function EmailConsolePage() {
       loadSendingDomains(),
       getCachedActorSession(),
       fetchLanguageSettingsPublic(),
+      loadNotificationCopies(),
     ]);
 
   return (
@@ -45,6 +47,7 @@ export default async function EmailConsolePage() {
       adminEmail={session.user?.email ?? ""}
       nowMs={serverNowMs()}
       adminLocales={langSettings.adminLocales}
+      copies={copies}
     />
   );
 }

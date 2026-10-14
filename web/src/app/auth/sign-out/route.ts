@@ -3,6 +3,9 @@ import { NextResponse } from "next/server";
 import { signOutRedirectPath } from "@/lib/auth/sign-out-redirect";
 import { guestCookieExpiryHeader } from "@/lib/guest-cookie";
 import { authCookieExpiryHeaders } from "@/lib/supabase/cookie-domain";
+import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
+import { signOutAuditEvent } from "@/lib/auth/sign-out-audit";
+import { TENANT_HEADER_NAME } from "@/lib/saas/scope";
 
 /**
  * POST /auth/sign-out — host-independent sign-out (TUL-120 C1-03).
@@ -31,7 +34,14 @@ function expiredRedirect(request: Request, names: string[]) {
   const host =
     request.headers.get("x-impronta-host-name") ?? request.headers.get("host");
   const res = NextResponse.redirect(
-    new URL(signOutRedirectPath(request.headers.get("referer"), request.url), request.url),
+    new URL(
+      signOutRedirectPath(
+        request.headers.get("referer"),
+        request.url,
+        pairs.find((p) => p.name === "locale")?.value,
+      ),
+      request.url,
+    ),
     303,
   );
   for (const h of authCookieExpiryHeaders(names, host)) {
@@ -68,6 +78,15 @@ export async function POST(request: Request) {
       const supabase = createServerClient(url, key, {
         cookies: { getAll: () => pairs, setAll: () => {} },
       });
+      // TUL-616: audit the sign-out on an agency host (proxy-set tenant
+      // header). The user is verified before the session is revoked; the
+      // insert is fire-and-forget so it can never block or fail sign-out.
+      const tenantId = request.headers.get(TENANT_HEADER_NAME);
+      if (tenantId) {
+        const { data, error } = await supabase.auth.getUser();
+        const event = error ? null : signOutAuditEvent(tenantId, data.user);
+        if (event) scheduleWorkspaceAudit(event);
+      }
       await supabase.auth.signOut();
     } catch {
       // Revocation is best effort; the cookies are expired below regardless.

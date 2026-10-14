@@ -29,6 +29,7 @@ import {
   type TalentTranslateLocale,
 } from "@/lib/translation/talent-field-translate";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { afterResponse } from "@/lib/server/after-response";
 
 export type TranslateTalentFieldInput = {
   field: TalentTranslateField;
@@ -82,7 +83,7 @@ export async function translateTalentField(input: TranslateTalentFieldInput): Pr
     result = { ok: false, code: "api_error", message: "Translation request failed." };
   }
   const usedModel = result.ok ? (result.model ?? model ?? "auto") : (model ?? "auto");
-  void recordAiGenerationUsage({
+  afterResponse(() => recordAiGenerationUsage({
     provider: adapter.id,
     model: usedModel,
     usage: result.ok ? result.usage : undefined,
@@ -92,7 +93,7 @@ export async function translateTalentField(input: TranslateTalentFieldInput): Pr
     latencyMs: Date.now() - t0,
     tenantId,
     context: { talent_profile_id: self.id, field: v.field, from: v.from, to: v.to },
-  }).catch((err) => logServerError("talentTranslate.usage", err));
+  }).catch((err) => logServerError("talentTranslate.usage", err)));
 
   if (!result.ok) {
     if (result.code === "no_key") return fail("no_key", result.message);

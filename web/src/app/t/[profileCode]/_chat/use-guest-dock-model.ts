@@ -63,6 +63,7 @@ export function useGuestDockModel(input: {
     contactEmail: input.contactEmail,
     accent: input.accent,
     accentInk: input.accentInk,
+    clientAccountSurface: input.brand.clientAccountSurface === true,
   });
   const recordId = bookAgainRecordId(input.v5?.items?.records);
   const token = input.v5?.threadToken ?? null;

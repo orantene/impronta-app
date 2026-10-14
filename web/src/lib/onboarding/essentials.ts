@@ -223,7 +223,8 @@ export function suggestedEssentials(ctx: PackContext & { name?: string | null })
     name: ctx.name?.trim() || null,
     services,
     hours: defaultWeeklyHours(),
-    timezone: suggestedTimezoneForPlace(ctx.country, ctx.city),
+    timezone:
+      suggestedTimezoneForPlace(ctx.country, ctx.city) ?? (!ctx.country?.trim() && ctx.locale === "es" ? "America/Mexico_City" : null),
     place: null,
     firstProviderEmail: null,
     firstProviderName: null,
@@ -530,6 +531,17 @@ export async function runEssentialsWrites(store: EssentialsStore, input: Essenti
   if (choice !== "studio" && talent) {
     const tenantId = choice === "both" && workspace ? workspace.tenantId : talent.tenantId;
     await writeOfferings({ kind: "talent", talentProfileId: talent.talentProfileId, tenantId });
+    // TUL-650: the writer skips its own drafts when essentials carry services, so a
+    // failed write above left a confirmed talent with NO services. Check and retry once.
+    await step("offeringsRetry", async () => {
+      const owner: OfferingOwnerRef = { kind: "talent", talentProfileId: talent.talentProfileId, tenantId };
+      if (!e.services.length || (await store.listOfferings(owner)).length > 0) return;
+      const plan = planOfferingWrites([], e.services);
+      if (!plan.insert.length) return;
+      await store.insertOfferings(owner, plan.insert);
+      out.offeringsCreated += plan.insert.length;
+      out.warnings.push("essentials:offerings_recovered");
+    });
     await step("hours", async () => {
       out.hoursWritten = await store.upsertTalentHours({ talentProfileId: talent.talentProfileId, tenantId, weekly, timezone: e.timezone });
       if (!out.hoursWritten) out.warnings.push("essentials:hours:no_timezone");

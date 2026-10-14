@@ -107,3 +107,23 @@ test("ClientAuthMethod union and appleFailed keys stay aligned", () => {
   assert.equal(typeof en.public.auth.login.apple, "string");
   assert.equal(typeof es.public.auth.login.apple, "string");
 });
+
+test("popover subtitle key follows appleSignInEnabled (no Apple promised when off)", () => {
+  const ui = read("src/components/client-account/ClientAccountButton.tsx");
+  assert.match(ui, /public\.clientAccount\.subtitleNoApple/);
+  assert.match(
+    ui,
+    /appleSignInEnabled\s*\?\s*"public\.clientAccount\.subtitle"\s*:\s*"public\.clientAccount\.subtitleNoApple"/,
+  );
+  const en = JSON.parse(read("messages/en.json")) as {
+    public: { clientAccount: Record<string, string> };
+  };
+  const es = JSON.parse(read("messages/es.json")) as {
+    public: { clientAccount: Record<string, string> };
+  };
+  assert.match(en.public.clientAccount.subtitle, /Apple/);
+  assert.doesNotMatch(en.public.clientAccount.subtitleNoApple, /Apple/);
+  assert.match(es.public.clientAccount.subtitle, /Apple/);
+  assert.doesNotMatch(es.public.clientAccount.subtitleNoApple, /Apple/);
+  assert.match(es.public.clientAccount.subtitleNoApple, /Google/);
+});

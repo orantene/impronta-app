@@ -36,7 +36,15 @@ import {
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
 import { jsonLdDocumentToScript } from "@/lib/site-admin/cms-seo";
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
-import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
+import {
+  loadPublicBranding,
+  loadPublicIdentity,
+  loadWorkspaceDisplayName,
+} from "@/lib/site-admin/server/reads";
+import {
+  resolveHomeFooterTagline,
+  resolvePublicBrandName,
+} from "@/lib/site-admin/server/public-brand";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import { isLocale } from "@/lib/site-admin/locales";
 import { homepageMeta } from "@/lib/site-admin/templates/homepage/meta";
@@ -114,6 +122,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
     actor,
     publicBranding,
     tenantWords,
+    workspaceName,
   ] = await Promise.all([
     cmsLocale
       ? loadHomepageForRender(tenantId, cmsLocale)
@@ -136,6 +145,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
     // all. A restaurant's footer read "Agency-managed discovery and
     // representation" because nothing on this path asked.
     loadTenantWords(tenantId, locale === "es" ? "es" : "en").catch(() => null),
+    loadWorkspaceDisplayName(tenantId).catch(() => null),
   ]);
   const favoriteIcon = publicBranding?.favorite_icon ?? "bookmark";
   const tenantBrand = identity?.public_name?.trim() ?? null;
@@ -144,7 +154,10 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
   // top bar already signals draft state and its "Publish" button replaces the
   // "go to the composer" instruction. Showing both is contradictory.
   const showPreviewBanner = previewActive && !editActive;
-  const brandLabel = identity?.public_name?.trim() || PLATFORM_BRAND.name;
+  // TUL-710: identity name, else the workspace's own name, never "Tulala" on a
+  // tenant's page unless the tenant has no name at all.
+  const brandLabel =
+    resolvePublicBrandName(identity?.public_name, workspaceName) ?? PLATFORM_BRAND.name;
   // Footer line: the operator's own, else the tenant's tagline, else, for a
   // business that does not represent people, the preset's descriptor (or
   // nothing). The agency sentence only falls through for presets that
@@ -152,11 +165,14 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
   const businessMeta = tenantWords
     ? businessHomeMeta(tenantWords.preset, identity, t)
     : null;
-  const footerTagline =
-    identity?.footer_tagline?.trim() ||
-    (businessMeta
-      ? identity?.tagline?.trim() || businessMeta.description || ""
-      : t("public.home.footer.tagline"));
+  const footerTagline = resolveHomeFooterTagline({
+    footerTagline: identity?.footer_tagline,
+    tagline: identity?.tagline,
+    identityPublicName: identity?.public_name,
+    preset: tenantWords?.preset ?? null,
+    businessDescription: businessMeta?.description,
+    agencyLine: t("public.home.footer.tagline"),
+  });
   // Default-storefront CTA — prefer the operator's own configured CTA, then a
   // contact email, then the canonical public browse surface (`/directory` is
   // allow-listed on agency hosts).

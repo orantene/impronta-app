@@ -52,7 +52,7 @@ test("createPurchase keeps cookie guest_session_id even when actorUserId is set"
 test("createPurchase attaches holds, links the booking, and mirrors talent_bookings", () => {
   const purchase = readFileSync(join(WEB_ROOT, "src/lib/orders/purchase.ts"), "utf8");
   const thread = readFileSync(join(WEB_ROOT, "src/lib/orders/purchase-thread.ts"), "utf8");
-  assert.match(purchase, /openPurchaseThread\(admin,/);
+  assert.match(purchase, /openPurchaseThreadWithRetry\(admin,/);
   // Call sites only — the import line also names these helpers.
   const attach = thread.indexOf("await attachReservationHoldToInquiry(");
   const bookingSrc = thread.indexOf("source_inquiry_id: inquiryId");

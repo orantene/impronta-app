@@ -135,13 +135,13 @@ export function switchChangeCount(
     acceptingBookings: boolean;
     acceptingInquiries: boolean;
     chatEnabled: boolean;
-    chatConfig?: { aiBookingAssistantEnabled?: boolean; agentBookingEnabled?: boolean };
+    chatConfig?: { aiBookingAssistantEnabled?: boolean; agentBookingEnabled?: boolean; clientAccountEntry?: string };
   },
   draft: {
     acceptingBookings: boolean;
     acceptingInquiries: boolean;
     chatEnabled: boolean;
-    chatConfig?: { aiBookingAssistantEnabled?: boolean; agentBookingEnabled?: boolean };
+    chatConfig?: { aiBookingAssistantEnabled?: boolean; agentBookingEnabled?: boolean; clientAccountEntry?: string };
   },
 ): number {
   const top = (["acceptingBookings", "acceptingInquiries", "chatEnabled"] as const).filter(
@@ -151,7 +151,8 @@ export function switchChangeCount(
   const aiDraft = draft.chatConfig?.aiBookingAssistantEnabled === true;
   const agentSaved = saved.chatConfig?.agentBookingEnabled === true;
   const agentDraft = draft.chatConfig?.agentBookingEnabled === true;
-  return top + (aiSaved !== aiDraft ? 1 : 0) + (agentSaved !== agentDraft ? 1 : 0);
+  const acctChanged = (saved.chatConfig?.clientAccountEntry ?? "auto") !== (draft.chatConfig?.clientAccountEntry ?? "auto");
+  return top + (aiSaved !== aiDraft ? 1 : 0) + (agentSaved !== agentDraft ? 1 : 0) + (acctChanged ? 1 : 0);
 }
 
 /**
@@ -166,13 +167,13 @@ export function pendingChangeLabels(input: {
     acceptingBookings: boolean;
     acceptingInquiries: boolean;
     chatEnabled: boolean;
-    chatConfig?: { aiBookingAssistantEnabled?: boolean; agentBookingEnabled?: boolean };
+    chatConfig?: { aiBookingAssistantEnabled?: boolean; agentBookingEnabled?: boolean; clientAccountEntry?: string };
   };
   draftSwitches: {
     acceptingBookings: boolean;
     acceptingInquiries: boolean;
     chatEnabled: boolean;
-    chatConfig?: { aiBookingAssistantEnabled?: boolean; agentBookingEnabled?: boolean };
+    chatConfig?: { aiBookingAssistantEnabled?: boolean; agentBookingEnabled?: boolean; clientAccountEntry?: string };
   };
   serviceTitle: (id: string) => string;
   labels: { defaults: string; bookings: string; chat: string };
@@ -183,7 +184,12 @@ export function pendingChangeLabels(input: {
   for (const id of d.services) out.push(input.serviceTitle(id));
   const s = input.savedSwitches;
   const n = input.draftSwitches;
-  if (s.acceptingBookings !== n.acceptingBookings) out.push(input.labels.bookings);
+  if (
+    s.acceptingBookings !== n.acceptingBookings ||
+    (s.chatConfig?.clientAccountEntry ?? "auto") !== (n.chatConfig?.clientAccountEntry ?? "auto")
+  ) {
+    out.push(input.labels.bookings);
+  }
   const aiSaved = s.chatConfig?.aiBookingAssistantEnabled === true;
   const aiDraft = n.chatConfig?.aiBookingAssistantEnabled === true;
   const agentSaved = s.chatConfig?.agentBookingEnabled === true;

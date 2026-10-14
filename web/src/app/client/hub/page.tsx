@@ -11,6 +11,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCachedActorSession } from "@/lib/server/request-cache";
+import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
+import { effectiveReadContext } from "@/lib/impersonation/effective-read";
 import { loadClientPrimaryTenantSlug } from "@/lib/saas/role-tenant-resolver";
 import { loadClientSubscription } from "@/lib/discover/client-subscription";
 import { loadClientHubData, type HubBooking, type HubInquiry } from "@/lib/client-hub/load-hub";
@@ -67,16 +69,24 @@ export default async function ClientHubPage({
     return v === key ? fallback : v;
   };
 
+  // TUL-611: read the EFFECTIVE client (the impersonation subject), never the
+  // staff actor. Context comes only from the verified helper.
+  const readCtx = effectiveReadContext(
+    session.user.id,
+    await resolveDashboardIdentity().catch(() => null),
+  );
+  const subjectUserId = readCtx.userId;
+
   const [subscription, primarySlug] = await Promise.all([
-    loadClientSubscription(session.user.id),
-    loadClientPrimaryTenantSlug(session.user.id).catch(() => null),
+    loadClientSubscription(subjectUserId),
+    loadClientPrimaryTenantSlug(subjectUserId).catch(() => null),
   ]);
 
   const hubOpen = hubIsOpen(clientAccountEnabledFor("app"), subscription.tier);
   const backHref = primarySlug ? `/${primarySlug}/client/today` : "/client";
   const upgradeHref = primarySlug ? `/${primarySlug}/client/subscription` : "/client";
 
-  const hub = hubOpen ? await loadClientHubData(session.user.id, { focus }) : null;
+  const hub = hubOpen ? await loadClientHubData(subjectUserId, { focus }) : null;
 
   return (
     <div style={{ minHeight: "100dvh", background: C.surface, fontFamily: FONT }}>

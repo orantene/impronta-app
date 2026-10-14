@@ -25,6 +25,7 @@ import { Suspense } from "react";
 import { ClientAccountDock } from "@/components/client-account/ClientAccountDock";
 import { dockViewerCtaIdentity } from "@/lib/client-account/dock-viewer-identity";
 import { resolveDockViewerIdentityTier } from "@/lib/client-account/dock-viewer-identity.server";
+import { resolveClientAccountMount } from "@/lib/client-account/gate";
 
 import { TalentProfileChatLauncher } from "@/app/t/[profileCode]/_chat/TalentProfileChatLauncher";
 import { DirectoryInquiryUrlSync } from "@/components/directory/directory-inquiry-url-sync";
@@ -32,6 +33,7 @@ import { surfaceModeFromBackgroundMode } from "@/app/t/[profileCode]/_chat/mini-
 import { resolveLauncherLifecycleInputs } from "@/app/t/[profileCode]/_chat/launcher-lifecycle-inputs";
 import {
   checkGuestClaimEmail,
+  ensureGuestChatInquiry,
   getActiveGuestInquiry,
   getGuestThreadMessages,
   sendGuestClaimToEmail,
@@ -49,7 +51,6 @@ import {
   listGuestTenantRoster,
   resolveGuestCartPortraits,
 } from "@/app/t/[profileCode]/_actions/guest-roster-actions";
-import { ensureGuestChatInquiry } from "@/app/t/[profileCode]/_actions/guest-chat-actions";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
@@ -263,6 +264,7 @@ export async function AgencyChatLauncherMount({
         logoUrl,
         greeting,
         locale,
+        clientAccountSurface: resolveClientAccountMount("app").dock,
         }}
         label={t("public.guestChat.bookNow")}
         existingInquiryId={active?.inquiryId ?? null}

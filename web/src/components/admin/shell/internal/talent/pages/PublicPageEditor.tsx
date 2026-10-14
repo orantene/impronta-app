@@ -16,6 +16,7 @@ import { NavRow } from "@/components/talent/website-settings/primitives";
 import { loadWebsiteSettingsEnabledAction } from "@/components/talent/website-settings/website-settings-gate-action";
 import { takeOr } from "@/components/talent/site/public-page-bootstrap";
 import {
+  takePresenceTabIntent,
   takeWebsiteSettingsIntent,
   type WebsiteSettingsIntentView,
 } from "@/components/talent/website-settings/website-settings-intent";
@@ -50,7 +51,7 @@ export function PublicPageEditor({ locale = "en" }: Props) {
   const studio = useTalentStudioV2();
   const copy = useDashboardText();
   const { bridgeTalentSelfProfile } = useAdminShell();
-  const [tab, setTab] = useState<PresenceTab>("site");
+  const [tab, setTab] = useState<PresenceTab>(() => takePresenceTabIntent() ?? "site");
   // PR 7: "Manage languages" / "Change in Website settings" deep-link here.
   // Card 36: Mi sitio Settings opens Chat & inquiries (Booking assistant AI).
   const [mountIntent] = useState<WebsiteSettingsIntentView | null>(() =>

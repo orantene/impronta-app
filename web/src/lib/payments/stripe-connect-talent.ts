@@ -31,10 +31,14 @@ import { logServerError } from "@/lib/server/safe-error";
 import {
   normalizePayoutCountry,
   payoutCountryLabel,
-  requiresRecipientAgreement,
   isStablecoinPayoutCountry,
 } from "@/lib/payments/payout-countries";
 import { loadActivePayoutSystem } from "@/lib/payments/active-payout-system";
+import {
+  connectAccountTermsFor,
+  MX_PLATFORM_UNCONFIGURED,
+  payoutSetupErrorCode,
+} from "@/lib/payments/connect-account-setup";
 
 export type TalentConnectStatus =
   | "none"
@@ -175,25 +179,16 @@ export async function createOrGetTalentConnectedAccount(
   if (!residenceIso2 && opts.country) {
     const { data: matchedCountry } = await admin
       .from("countries")
-      .select("id, name_en")
+      .select("id")
       .eq("iso2", country)
       .maybeSingle();
     if (matchedCountry?.id) {
-      // Persist the PLAIN country name, never the flag-prefixed display label:
-      // this column is read back by name (ilike countries.name_en), and a
-      // "🇦🇷 Argentina" value matches nothing — which silently resolved the
-      // talent's country to null and hid country-gated features like the USDC
-      // card. `residence_country_id` is the reliable key, but a DB trigger
-      // clears it when the profile has no residence_city_id, so the text
-      // column is the fallback that actually has to work.
-      const countryName =
-        ((matchedCountry as { name_en?: string | null }).name_en ?? "").trim() ||
-        payoutCountryLabel(country).replace(/[\u{1F1E6}-\u{1F1FF}]/gu, "").trim();
+      // TUL-649: store the ISO-2 code (readers resolve it back by code or name).
       await admin
         .from("talent_profiles")
         .update({
           residence_country_id: matchedCountry.id as string,
-          home_country_text: countryName,
+          home_country_text: country,
         })
         .eq("id", talentProfileId);
     }
@@ -208,9 +203,12 @@ export async function createOrGetTalentConnectedAccount(
   // 4. Create the Express account in the payee's country, on the platform the
   //    router picks (MX sellers on the Mexico platform; USDC stays US).
   const platform = resolveStripeAccountForSeller({ payoutCountry: country });
-  if (!platform) return { ok: false, error: "Mexico payments are not configured yet." };
+  if (!platform) return { ok: false, error: MX_PLATFORM_UNCONFIGURED };
   const stripe = getStripeFor(platform);
   if (!stripe) return { ok: false, error: "Stripe client unavailable." };
+  // TUL-739: recipient agreement only for cross-border (e.g. MX on the US
+  // platform); an MX account on the MX platform is domestic.
+  const terms = connectAccountTermsFor(country, platform);
   let account: Stripe.Account;
   try {
     account = await stripe.accounts.create({
@@ -223,7 +221,7 @@ export async function createOrGetTalentConnectedAccount(
       business_type: "individual",
       capabilities: {
         transfers: { requested: true },
-        card_payments: { requested: false },
+        card_payments: { requested: terms.cardPayments && platform === "mx" },
       },
       business_profile: businessUrl ? { url: businessUrl } : undefined,
       // Receive-only countries (MX, AR and the rest of LatAm/Asia/Africa) REQUIRE
@@ -232,7 +230,7 @@ export async function createOrGetTalentConnectedAccount(
       // specify the `recipient` service agreement". The account can then receive
       // transfers and pay out locally, it just can't charge customers (which
       // talent never does — the client always pays the platform).
-      ...(requiresRecipientAgreement(country)
+      ...(terms.recipientAgreement
         ? { tos_acceptance: { service_agreement: "recipient" as const } }
         : {}),
       metadata: {
@@ -250,10 +248,10 @@ export async function createOrGetTalentConnectedAccount(
     const activePayoutSystem = await loadActivePayoutSystem();
     return {
       ok: false,
-      error:
-        activePayoutSystem === "connect"
-          ? `Payouts aren't available in ${payoutCountryLabel(country)} yet. Please reach out to support so we can set you up.`
-          : `${payoutCountryLabel(country)} isn't supported for direct Stripe payouts. Use "Get paid to your local bank" below, it covers ${payoutCountryLabel(country)}.`,
+      error: payoutSetupErrorCode(
+        country,
+        activePayoutSystem === "connect" ? "connect" : "global_payouts",
+      ),
     };
   }
 

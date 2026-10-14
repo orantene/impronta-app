@@ -56,6 +56,7 @@ import { StaticStars } from "@/components/reviews/star-rating";
 // would otherwise carry every drawer body for four tokens and one hook.
 import { COLORS, FONTS, RADIUS } from "../../../state";
 import { useDashboardText } from "../../../dashboard-i18n";
+import { RowSkeleton } from "../../../primitives";
 
 /**
  * Fixed reason-code set for HIDING a flagged review. Kept in sync with the
@@ -432,11 +433,9 @@ export function ReviewModerationQueue({ tenantId }: { tenantId: string }) {
 
   if (loading) {
     return (
-      <div
-        style={{ padding: 14, fontSize: 12, fontFamily: FONTS.body }}
-        className="text-admin-ink-muted"
-      >
-        {copy.t("Loading moderation queue…")}
+      <div role="status" className="px-[14px] text-admin-ink-muted">
+        <span className="sr-only">{copy.t("Loading moderation queue…")}</span>
+        <RowSkeleton lines={4} height={44} rounded={10} />
       </div>
     );
   }

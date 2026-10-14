@@ -99,7 +99,13 @@ export function TalentMaxSiteManager({
   // Never hang on "Loading your website…": a thrown action lands in `error`.
   const reload = useCallback(async () => {
     try {
-      const res = await takeOr("manager", "manager", loadMaxSiteManagerAction);
+      // Time-boxed: a stalled server action ends in the error card with Try again.
+      const res = await Promise.race([
+        takeOr("manager", "manager", loadMaxSiteManagerAction),
+        new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error("manager load timed out")), 15_000);
+        }),
+      ]);
       if (!res.ok) {
         setError(res.error);
         setState(null);
