@@ -22,3 +22,12 @@ export function localiseEngineLine(text: string, kit: EngineLineCopy): string {
   if (kit.offer.talentAcceptedLine && TALENT_ACCEPTED_LINE.test(text.trim())) return kit.offer.talentAcceptedLine;
   return isOfferSentLine(text) ? `${kit.card.cat.offer} · ${kit.offer.sentPlain}` : text;
 }
+
+/**
+ * TUL-715: a stored message with no body falls back to its kind word. An
+ * order event (kind "order") then read the raw English "order". Draw the
+ * record word of the dashboard language instead; unknown kinds stay as stored.
+ */
+export function localiseSystemKind(kind: string, kit: { readonly record: Record<string, string> }): string {
+  return kit.record[kind] ?? kind;
+}

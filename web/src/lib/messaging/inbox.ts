@@ -4,6 +4,7 @@ import { displayableContact } from "@/lib/inquiry/guest-send-gate";
 
 import { VISITOR_FALLBACK_NAME } from "./inquiry-name-pure";
 
+import { settleChipsFromOrders } from "@/lib/talent-agenda/abandoned-order";
 import { toRecordChip, type ConversationRecordRow } from "./record-chip";
 import { readConversationState, readOpportunityState } from "./state";
 import type { InboxFilter, InboxNextAction, InboxRow, MessagingChannel, RecordChip } from "./types";
@@ -256,6 +257,11 @@ async function loadChips(admin: Admin, tenantId: string | null, inquiryIds: stri
     list.push(toRecordChip(row));
     map.set(row.inquiry_id, list);
   }
+  // TUL-715: an order chip follows the live order (cancelled/expired), same as Clientes and Hoy.
+  const all = [...map.values()].flat();
+  const settled = await settleChipsFromOrders(admin, all);
+  let i = 0;
+  for (const [id, list] of map) map.set(id, settled.slice(i, (i += list.length)));
   return map;
 }
 
