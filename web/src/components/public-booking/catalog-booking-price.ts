@@ -15,11 +15,6 @@ function catalogConsultLabel(locale: string): string {
   return locale.toLowerCase().startsWith("es") ? "Consultar" : "Ask";
 }
 
-/** TUL-533 / GRK-064: zero public rate → Consultar / Ask, never "$0 MXN". */
-function catalogConsultLabel(locale: string): string {
-  return locale.toLowerCase().startsWith("es") ? "Consultar" : "Ask";
-}
-
 export function catalogPriceLabel(
   detail: Pick<OfferingRequestDetail, "priceDisplay" | "priceType" | "amountCents" | "currency">,
   cents: number,
