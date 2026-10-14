@@ -52,6 +52,11 @@ import {
   clearWorkspaceYouTubeIdentity,
 } from "@/lib/integrations/workspace-social-sync";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import {
+  captchaNoticeDomain,
+  type NoticeDomainRow,
+} from "@/lib/integrations/captcha-domain-notice";
 
 // ── Shared types ────────────────────────────────────────────────────────────
 
@@ -119,7 +124,16 @@ export type IntegrationView = {
 };
 
 export type LoadIntegrationsResult =
-  | { ok: true; canManage: boolean; integrations: IntegrationView[] }
+  | {
+      ok: true;
+      canManage: boolean;
+      integrations: IntegrationView[];
+      /**
+       * Live custom domain where the platform captcha cannot render and the
+       * workspace has no own captcha keys yet; null = no notice.
+       */
+      captchaNoticeDomain?: string | null;
+    }
   | { ok: false; error: string };
 
 // ── Guard helper ─────────────────────────────────────────────────────────────
@@ -283,7 +297,40 @@ export async function loadTenantIntegrations(
     });
   }
 
-  return { ok: true, canManage, integrations };
+  return {
+    ok: true,
+    canManage,
+    integrations,
+    captchaNoticeDomain: await loadCaptchaNoticeDomain(
+      scope.tenantId,
+      (rowByKey.get(CAPTCHA_KEY_FOR_NOTICE)?.config_json ?? {}) as Record<string, unknown>,
+    ),
+  };
+}
+
+const CAPTCHA_KEY_FOR_NOTICE = "captcha";
+
+/** Best-effort: any read error means no notice (never blocks the hub). */
+async function loadCaptchaNoticeDomain(
+  tenantId: string,
+  captchaConfig: Record<string, unknown>,
+): Promise<string | null> {
+  try {
+    const admin = createServiceRoleClient();
+    if (!admin) return null;
+    const { data, error } = await admin
+      .from("agency_domains")
+      .select("hostname, kind, status, is_primary")
+      .eq("tenant_id", tenantId)
+      .eq("kind", "custom");
+    if (error) return null;
+    return captchaNoticeDomain({
+      domains: (data ?? []) as NoticeDomainRow[],
+      ownCaptcha: { provider: captchaConfig.provider, siteKey: captchaConfig.site_key },
+    });
+  } catch {
+    return null;
+  }
 }
 
 /**

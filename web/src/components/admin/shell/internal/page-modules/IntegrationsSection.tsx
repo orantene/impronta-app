@@ -78,6 +78,7 @@ export function IntegrationsSection() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [openKey, setOpenKey] = useState<string | null>(null);
+  const [noticeDomain, setNoticeDomain] = useState<string | null>(null);
 
   const reload = useCallback(() => {
     if (!tenantSlug) return;
@@ -87,6 +88,7 @@ export function IntegrationsSection() {
         if (res.ok) {
           setIntegrations(res.integrations);
           setCanManage(res.canManage);
+          setNoticeDomain(res.captchaNoticeDomain ?? null);
           setLoadError(null);
         } else {
           setLoadError(res.error);
@@ -119,6 +121,23 @@ export function IntegrationsSection() {
 
   return (
     <div className="flex flex-col gap-6">
+      {noticeDomain && integrations.some((i) => i.key === "captcha") && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-admin-line bg-admin-surface px-3 py-2.5">
+          <p className="m-0 text-[12.5px] leading-[1.45] text-admin-ink">
+            {t("dashboard.adminIntegrationsCatalog.items.captcha.notice.title").replace(
+              "{domain}",
+              noticeDomain,
+            )}
+          </p>
+          <button
+            type="button"
+            className="rounded-md bg-admin-ink px-3 py-1.5 text-[12px] font-semibold text-admin-surface"
+            onClick={() => setOpenKey("captcha")}
+          >
+            {t("dashboard.adminIntegrationsCatalog.items.captcha.notice.cta")}
+          </button>
+        </div>
+      )}
       {CATEGORY_GROUPS.map((group) => {
         const items = integrations.filter((i) => i.category === group.id);
         if (items.length === 0) return null;
