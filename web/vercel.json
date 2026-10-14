@@ -251,7 +251,7 @@
     },
     {
       "path": "/api/cron/domain-verification",
-      "schedule": "*/10 * * * *"
+      "schedule": "*/30 * * * *"
     },
     {
       "path": "/api/cron/inquiry-engine",
