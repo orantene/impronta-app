@@ -190,7 +190,9 @@ export async function loadVisitSources(
       travelsToClients: areas.some((a) => a.service_kind === "travel_to"),
       tradeText: `${primaryTrade.slug ?? ""} ${primaryTrade.labelEn ?? ""}`,
     });
-    const talentLocation = toPublicLocation({ ...locationSettings, studioKind }, baseName ?? "");
+    // The kind is set on the PUBLIC output; the settings object (with the address) never leaves the gate.
+    const gated = toPublicLocation(locationSettings, baseName ?? "");
+    const talentLocation = gated ? { ...gated, studioKind } : null;
     // The note follows the talent's address setting (it used to always promise
     // the address at confirmation, which is only one of the three modes).
     const whereNote =
