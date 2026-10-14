@@ -200,6 +200,29 @@ export function shouldRedirectMarketingWorkspacePath(args: {
   return args.hostKind === "marketing" && isWorkspaceSlugPath(args.canonicalPath);
 }
 
+/**
+ * TUL-G10: `tulala.digital/account` and `/account/visits/*` 404 because the
+ * marketing apex does not serve account paths (they live on the app host).
+ * Any link already in the wild lands on the app host instead of a dead end;
+ * the app host then applies its own sign-in redirect.
+ */
+export function shouldRedirectMarketingAccountPath(args: { hostKind: string; canonicalPath: string }): boolean {
+  return (
+    args.hostKind === "marketing" &&
+    (args.canonicalPath === "/account" || args.canonicalPath.startsWith("/account/"))
+  );
+}
+
+export function marketingAccountPathRedirect(params: {
+  request: NextRequest;
+  canonicalPath: string;
+  hostKind: string;
+}): NextResponse | null {
+  if (!shouldRedirectMarketingAccountPath(params)) return null;
+  const dest = new URL(`${params.canonicalPath}${params.request.nextUrl.search}`, `${getAppUrl()}/`);
+  return NextResponse.redirect(dest, 302);
+}
+
 export async function marketingWorkspacePathRedirect(params: {
   request: NextRequest;
   pathname: string;
