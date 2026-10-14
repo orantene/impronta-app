@@ -127,7 +127,12 @@ test("every render path is behind the gate", () => {
   );
   assert.match(src("src/lib/talent-site/server/render-max-site-demo.tsx"), /resolveClientAccountMount\("talent"\)\.headerItem/);
   const header = src("src/lib/site-admin/sections/site_header/Component.tsx");
-  assert.match(header, /case "account":[\s\S]{0,200}props\.siteChrome\?\.account \?/);
+  // The account item renders only through accountPreviewMode(siteChrome): on a
+  // live site (siteChrome present) a flag-off account is "off" and renders null.
+  assert.match(header, /case "account":[\s\S]{0,200}accountPreviewMode\(props\.siteChrome/);
+  const preview = src("src/lib/client-account/account-preview.ts");
+  assert.match(preview, /return siteChrome\.account \? "live" : "off"/);
+  assert.match(src("src/lib/site-admin/sections/site_header/HeaderAccountPreview.tsx"), /if \(mode === "off"\) return null/);
   assert.match(src("src/app/api/client/account/route.ts"), /accountSurfaceEnabledForRequest\(\)\)\) return reply\(\{ error: "not_found" \}, 404\)/);
   assert.match(src("src/lib/client-account/actions.ts"), /!\(await accountSurfaceEnabledForRequest\(\)\)\) return \{ ok: false/);
   // TUL-516 L3: guest dock must not hit the account API when the flag is off.
