@@ -1,4 +1,4 @@
-import type { TalentOffering } from "@/lib/talent/offerings-types";
+import { offeringIsQuote, type TalentOffering } from "@/lib/talent/offerings-types";
 import { formatMoney } from "@/lib/talent/offerings-money";
 import {
   catalogRowMinCents,
@@ -17,7 +17,7 @@ export function catalogBarPriceLabel(
 ): string {
   const es = locale.startsWith("es");
   const minCents = catalogRowMinCents(item);
-  if (item.priceDisplay === "quote" || item.priceType === "custom" || minCents == null) {
+  if (offeringIsQuote(item) || minCents == null) {
     return es ? "A cotizar" : "Quote";
   }
   const money = formatMoney(minCents, item.currency, locale);
@@ -38,7 +38,7 @@ export function catalogRowPriceText(
 ): string {
   const es = locale.startsWith("es");
   const onRequest = item.visibility === "on_request";
-  const quote = item.priceDisplay === "quote" || item.priceType === "custom" || item.amountCents == null;
+  const quote = offeringIsQuote(item);
   const minCents = catalogRowMinCents(item);
   if (onRequest) return es ? "Bajo consulta" : "On request";
   if (quote || minCents == null) return es ? "A cotizar" : "Quote";

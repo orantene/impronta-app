@@ -377,6 +377,7 @@ export function TenantsClient({ rows }: { rows: PlatformTenantListRow[] }) {
         <select value={plan} onChange={(e) => setPlan(e.target.value)} style={selectStyle}>
           <option value="all">{t("dashboard.platform.tenants.filterAllPlans")}</option>
           <option value="free">{t("dashboard.platform.tier.free")}</option>
+          <option value="website">{t("dashboard.platform.tier.website")}</option>
           <option value="studio">{t("dashboard.platform.tier.studio")}</option>
           <option value="agency">{t("dashboard.platform.tier.agency")}</option>
           <option value="network">{t("dashboard.platform.tier.network")}</option>

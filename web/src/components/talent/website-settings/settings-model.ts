@@ -135,13 +135,13 @@ export function switchChangeCount(
     acceptingBookings: boolean;
     acceptingInquiries: boolean;
     chatEnabled: boolean;
-    chatConfig?: { aiBookingAssistantEnabled?: boolean };
+    chatConfig?: { aiBookingAssistantEnabled?: boolean; clientAccountEntry?: string };
   },
   draft: {
     acceptingBookings: boolean;
     acceptingInquiries: boolean;
     chatEnabled: boolean;
-    chatConfig?: { aiBookingAssistantEnabled?: boolean };
+    chatConfig?: { aiBookingAssistantEnabled?: boolean; clientAccountEntry?: string };
   },
 ): number {
   const top = (["acceptingBookings", "acceptingInquiries", "chatEnabled"] as const).filter(
@@ -149,7 +149,8 @@ export function switchChangeCount(
   ).length;
   const aiSaved = saved.chatConfig?.aiBookingAssistantEnabled === true;
   const aiDraft = draft.chatConfig?.aiBookingAssistantEnabled === true;
-  return top + (aiSaved !== aiDraft ? 1 : 0);
+  const acctChanged = (saved.chatConfig?.clientAccountEntry ?? "auto") !== (draft.chatConfig?.clientAccountEntry ?? "auto");
+  return top + (aiSaved !== aiDraft ? 1 : 0) + (acctChanged ? 1 : 0);
 }
 
 /**
@@ -164,13 +165,13 @@ export function pendingChangeLabels(input: {
     acceptingBookings: boolean;
     acceptingInquiries: boolean;
     chatEnabled: boolean;
-    chatConfig?: { aiBookingAssistantEnabled?: boolean };
+    chatConfig?: { aiBookingAssistantEnabled?: boolean; clientAccountEntry?: string };
   };
   draftSwitches: {
     acceptingBookings: boolean;
     acceptingInquiries: boolean;
     chatEnabled: boolean;
-    chatConfig?: { aiBookingAssistantEnabled?: boolean };
+    chatConfig?: { aiBookingAssistantEnabled?: boolean; clientAccountEntry?: string };
   };
   serviceTitle: (id: string) => string;
   labels: { defaults: string; bookings: string; chat: string };
@@ -181,7 +182,12 @@ export function pendingChangeLabels(input: {
   for (const id of d.services) out.push(input.serviceTitle(id));
   const s = input.savedSwitches;
   const n = input.draftSwitches;
-  if (s.acceptingBookings !== n.acceptingBookings) out.push(input.labels.bookings);
+  if (
+    s.acceptingBookings !== n.acceptingBookings ||
+    (s.chatConfig?.clientAccountEntry ?? "auto") !== (n.chatConfig?.clientAccountEntry ?? "auto")
+  ) {
+    out.push(input.labels.bookings);
+  }
   const aiSaved = s.chatConfig?.aiBookingAssistantEnabled === true;
   const aiDraft = n.chatConfig?.aiBookingAssistantEnabled === true;
   if (

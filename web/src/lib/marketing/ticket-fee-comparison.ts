@@ -100,7 +100,17 @@ export function ticketFeeRows(tulalaRate: number = TULALA_RATE_FALLBACK): FeeRow
 /** Their published terms, rendered so a reader can check our arithmetic. */
 export const EVENTBRITE_TERMS = {
   checkedOn: "4 September 2026",
+  checkedOnIso: "2026-09-04",
   sourceUrl: "https://www.eventbrite.com/organizer/pricing/",
   en: "3.7% plus $1.79 per paid ticket, plus 2.9% payment processing per order. Their page states ticket fees are paid by buyers by default, and an organiser may choose to absorb them instead.",
   es: "3.7% más $1.79 por boleto pagado, más 2.9% de procesamiento por orden. Su página dice que las cuotas las paga el comprador por defecto, y que el organizador puede elegir absorberlas.",
 } as const;
+
+/** The "checked on" date in the page language, so Spanish never prints "4 September". */
+export function formatCheckedOn(locale: string): string {
+  const es = locale.toLowerCase().startsWith("es");
+  return new Date(`${EVENTBRITE_TERMS.checkedOnIso}T12:00:00Z`).toLocaleDateString(
+    es ? "es-MX" : "en-GB",
+    { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" },
+  );
+}

@@ -9,6 +9,8 @@ import {
   freeSubdomainPathRedirect,
   freeSubdomainRedirectablePath,
   freeSubdomainToPathRedirectUrl,
+  marketingAccountPathRedirect,
+  shouldRedirectMarketingAccountPath,
   shouldRedirectMarketingWorkspacePath,
 } from "./workspace-path-redirects";
 
@@ -152,4 +154,29 @@ test("unknown marketing paths and non-marketing hosts do not redirect", () => {
     }),
     false,
   );
+});
+
+test("TUL-G10: the marketing apex sends /account and /account/visits/* to the app host, never a 404", () => {
+  const prev = process.env.NEXT_PUBLIC_APP_URL;
+  process.env.NEXT_PUBLIC_APP_URL = "https://app.tulala.digital";
+  try {
+    for (const path of ["/account", "/account/visits/abc", "/account/receipts/xyz"]) {
+      const res = marketingAccountPathRedirect({
+        request: new NextRequest(`https://tulala.digital${path}?tab=visits`),
+        canonicalPath: path,
+        hostKind: "marketing",
+      });
+      assert.equal(res?.status, 302);
+      assert.equal(res?.headers.get("location"), `https://app.tulala.digital${path}?tab=visits`);
+    }
+  } finally {
+    if (prev === undefined) delete process.env.NEXT_PUBLIC_APP_URL;
+    else process.env.NEXT_PUBLIC_APP_URL = prev;
+  }
+});
+
+test("TUL-G10: other hosts and lookalike paths are untouched", () => {
+  assert.equal(shouldRedirectMarketingAccountPath({ hostKind: "app", canonicalPath: "/account" }), false);
+  assert.equal(shouldRedirectMarketingAccountPath({ hostKind: "agency", canonicalPath: "/account/visits/1" }), false);
+  assert.equal(shouldRedirectMarketingAccountPath({ hostKind: "marketing", canonicalPath: "/accounting" }), false);
 });

@@ -1,5 +1,6 @@
 "use client";
 
+import { DashboardDateFormatHint } from "./primitives/DateFormatHint";
 import {
   useCallback, useEffect, useMemo, useRef, useState, type CSSProperties,
 } from "react";
@@ -288,7 +289,6 @@ function MediaSidebar({
       />
       <NavRow label={t("dashboard.adminMedia.stock.nav")} active={isActive({ kind: "stock" })} onClick={() => setView({ kind: "stock" })} />
 
-
       {settings.showFolders && collections.length > 0 && (
         <>
           <SectionLabel text={t("dashboard.adminMedia.sectionCollections")} />
@@ -479,7 +479,7 @@ function FolderModal({
               value={shootDate}
               onChange={(e) => setShootDate(e.target.value)}
               className="text-admin-ink box-border w-full rounded-lg border border-admin-border px-3 py-2 text-[13px]"
-            />
+            /><DashboardDateFormatHint />
             <div className="text-admin-ink-muted mt-1 text-[11.5px] leading-snug">
               {t("dashboard.adminMedia.shootDateHint")}
             </div>

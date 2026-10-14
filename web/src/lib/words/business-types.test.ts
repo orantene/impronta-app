@@ -43,3 +43,7 @@ test("catalog reaches 120 excluding custom fallback", () => {
     "mantenimiento del hogar",
   );
 });
+
+test("pet grooming maps to its own preset", () => {
+  assert.equal(BUSINESS_TYPES.find((r) => r.id === "pet-grooming")?.preset, "pet_grooming");
+});

@@ -3,6 +3,8 @@
 // Read-mostly surfaces that the identity editor + location block both
 // compose.  Byte-for-byte.
 "use client";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { DateFormatHint } from "../../../primitives/DateFormatHint";
 import React, { type ReactNode } from "react";
 import {
   COLORS,
@@ -384,6 +386,7 @@ export function UpcomingVisitsEditor({
   visits: VisitEntry[];
   onChange: (visits: VisitEntry[]) => void;
 }) {
+  const dashLocale = useDashboardLocale();
   const copy = useDashboardText();
   const add = () => {
     onChange([...visits, { id: crypto.randomUUID(), city: "", date: "" }]);
@@ -404,6 +407,7 @@ export function UpcomingVisitsEditor({
               onChange={(city, pid) => update(v.id, { city, placeId: pid })}
             />
           </div>
+          <div className="flex shrink-0 flex-col">
           <input
             type="date"
             value={v.date ?? ""}
@@ -415,6 +419,8 @@ export function UpcomingVisitsEditor({
               width: 130, flexShrink: 0,
             }}
           />
+          <DateFormatHint locale={dashLocale} />
+          </div>
           <button
             onClick={() => remove(v.id)}
             title={copy.t("Remove")}

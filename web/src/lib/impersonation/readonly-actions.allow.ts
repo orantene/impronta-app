@@ -241,7 +241,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["lib/sessions/roster-actions.ts", ["loadSessionParticipants"], READ],
   ["lib/sessions/schedule-actions.ts", ["loadSchedule", "loadSchedulableEvents"], READ],
   ["lib/support/guest-actions.ts", ["getGuestSupportThreadAction", "listGuestSupportThreadsAction"], READ],
-  ["lib/support/hq-actions.ts", ["hqLoadTicketDetailAction"], READ],
+  ["lib/support/hq-actions.ts", ["hqLoadTicketDetailAction", "hqSearchTicketsAction"], READ],
   ["lib/support/insights/actions.ts", ["hqLoadTicketInsightAction"], READ],
   ["lib/support/attachment-actions.ts", ["getSupportAttachmentUrlAction"], READ],
   ["lib/support/replay/replay-actions.ts", ["loadSupportReplayBufferSetting", "hqListReplaySessionsAction"], READ],

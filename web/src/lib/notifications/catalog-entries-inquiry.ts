@@ -1,6 +1,6 @@
 import "server-only";
 
-import { bookingConfirmedClient, loadBookingConfirmedView } from "./catalog-audiences-booking";
+import { bookingConfirmedClient, bookingConfirmedTalent, loadBookingConfirmedView } from "./catalog-audiences-booking";
 import * as React from "react";
 import ClientInquiryReceived from "../../../emails/client/InquiryReceived";
 import ClientReplyReady from "../../../emails/client/ReplyReady";
@@ -284,6 +284,8 @@ const BOOKING_CONFIRMED_CLIENT: CatalogEntry = {
           brand,
           bookingId,
           bookingId ? `/client/bookings/${bookingId}` : `/client/inquiries/${event.inquiryId}`,
+          undefined,
+          { inquiryId: event.inquiryId, tenantId: event.tenantId },
         ),
         sellerName: brand.accountName,
         brand,
@@ -302,7 +304,7 @@ const BOOKING_CONFIRMED_TALENT: CatalogEntry = {
   required: false,
   triggers: ["booking.confirmed"],
   hydrate: loadBookingConfirmedView,
-  resolveAudience: allRosterTalent,
+  resolveAudience: bookingConfirmedTalent,
   // TUL-93: the talent is told in-app too ("Nueva cita"), not only by email.
   in_app: {
     kind: "booking",
