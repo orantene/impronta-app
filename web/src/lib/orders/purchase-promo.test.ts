@@ -32,7 +32,7 @@ function promoRow(over: Row = {}): Row {
     time_from: null, time_to: null, slot_id: null, max_redemptions: 10, per_customer_limit: 1,
     deposit_required: false, show_on_site: true, show_countdown: false, title_i18n: null, description_i18n: null,
     visual_style: null, template_key: null, is_active: true, is_draft: false, is_paused: false, archived_at: null,
-    is_trial: false, parent_promo_id: null, created_at: "2026-10-01T00:00:00Z", lapsed_days: null,
+    is_trial: false, parent_promo_id: null, created_at: new Date(Date.now() - 86_400_000).toISOString(), lapsed_days: null,
     ...over,
   };
 }

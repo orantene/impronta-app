@@ -1,5 +1,6 @@
 import "server-only";
 
+import { logServerError } from "@/lib/server/safe-error";
 import { randomInt } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -224,24 +225,32 @@ export async function reissuePersonalPromo(
   db: Db,
   input: { redemptionId: string; clientFirstName: string | null; now: Date },
 ): Promise<{ ok: boolean; code: string | null; promoId: string | null }> {
-  const { data: red } = await db
+  const { data: red, error: redErr } = await db
     .from("tenant_promo_redemptions")
     .select("promo_code_id, customer_id")
     .eq("id", input.redemptionId)
     .maybeSingle();
+  if (redErr) {
+    logServerError("promos.reissue/redemption", redErr);
+    return { ok: false, code: null, promoId: null };
+  }
   const r = red as { promo_code_id: string; customer_id: string | null } | null;
   if (!r?.customer_id) return { ok: false, code: null, promoId: null };
 
-  const { data: parentData } = await db
+  const { data: parentData, error: parentErr } = await db
     .from("tenant_promo_codes")
     .select("id, tenant_id, kind, offer_kind, value, currency, scope_kind, event_id, variant_id, addon_id, applies_on, name, label")
     .eq("id", r.promo_code_id)
     .maybeSingle();
+  if (parentErr) {
+    logServerError("promos.reissue/parent", parentErr);
+    return { ok: false, code: null, promoId: null };
+  }
   const parent = parentData as ParentPromoRow | null;
   if (!parent) return { ok: false, code: null, promoId: null };
 
   // Idempotent: a retried talent-cancel must not mint a second code.
-  const { data: existing } = await db
+  const { data: existing, error: existingErr } = await db
     .from("tenant_promo_codes")
     .select("id, code")
     .eq("parent_promo_id", parent.id)
@@ -249,6 +258,11 @@ export async function reissuePersonalPromo(
     .eq("courtesy_reason", "make_good")
     .gt("ends_at", input.now.toISOString())
     .limit(1);
+  // A failed read is not "none yet": minting anyway could issue a second code.
+  if (existingErr) {
+    logServerError("promos.reissue/existing", existingErr);
+    return { ok: false, code: null, promoId: null };
+  }
   const prior = (existing ?? []) as { id: string; code: string }[];
   if (prior[0]) return { ok: true, code: prior[0].code, promoId: prior[0].id };
 
@@ -289,12 +303,16 @@ export async function reissuePersonalPromo(
     if (!error && data) {
       const promoId = (data as { id: string }).id;
       // Same scope as the parent: copy its targets so "Tuesday nails" stays nails.
-      const { data: targets } = await db
+      const { data: targets, error: targetsErr } = await db
         .from("promo_targets")
         .select("target_kind, target_id")
         .eq("promo_id", parent.id);
+      if (targetsErr) logServerError("promos.reissue/targets", targetsErr);
       const rows = ((targets ?? []) as { target_kind: string; target_id: string }[]).map((t) => ({ ...t, promo_id: promoId }));
-      if (rows.length > 0) await db.from("promo_targets").insert(rows);
+      if (rows.length > 0) {
+        const { error: insErr } = await db.from("promo_targets").insert(rows);
+        if (insErr) logServerError("promos.reissue/targets-insert", insErr);
+      }
       return { ok: true, code, promoId };
     }
     if (error && error.code !== "23505") break;
@@ -324,11 +342,15 @@ export async function runLeakGuard(
   input: { promoId: string; now?: Date },
 ): Promise<{ tripped: boolean }> {
   const now = input.now ?? new Date();
-  const { data: promoData } = await db
+  const { data: promoData, error: promoErr } = await db
     .from("tenant_promo_codes")
     .select("id, tenant_id, code, unlock, leak_guard, is_paused")
     .eq("id", input.promoId)
     .maybeSingle();
+  if (promoErr) {
+    logServerError("promos.leakGuard/promo", promoErr);
+    return { tripped: false };
+  }
   const promo = promoData as
     | { id: string; tenant_id: string; code: string | null; unlock: string; leak_guard: boolean; is_paused: boolean }
     | null;
@@ -351,6 +373,10 @@ export async function runLeakGuard(
       .gte("created_at", baselineFrom)
       .lt("created_at", hourAgo),
   ]);
+  if (lastHour.error || baseline.error) {
+    logServerError("promos.leakGuard/counts", lastHour.error ?? baseline.error);
+    return { tripped: false };
+  }
   const trip = shouldTripLeakGuard({
     newClientAttemptsLastHour: lastHour.count ?? 0,
     normalDailyNewClientRate: (baseline.count ?? 0) / BASELINE_DAYS,
@@ -358,12 +384,16 @@ export async function runLeakGuard(
   if (!trip) return { tripped: false };
 
   // Conditional update: only the request that flips it notifies.
-  const { data: flipped } = await db
+  const { data: flipped, error: flipErr } = await db
     .from("tenant_promo_codes")
     .update({ is_paused: true })
     .eq("id", promo.id)
     .eq("is_paused", false)
     .select("id");
+  if (flipErr) {
+    logServerError("promos.leakGuard/pause", flipErr);
+    return { tripped: true };
+  }
   if (!flipped || (flipped as { id: string }[]).length === 0) return { tripped: true };
 
   const userIds = await deps.talentUserIds(promo.tenant_id);

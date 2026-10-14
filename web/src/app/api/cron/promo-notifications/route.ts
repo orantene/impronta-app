@@ -73,11 +73,15 @@ export async function GET(request: Request) {
     if (!usage || !bundle) return NextResponse.json({ error: "Sweep failed" }, { status: 500 });
 
     const since = new Date(now.getTime() - RELEASE_LOOKBACK_MS).toISOString();
-    const { data: rel } = await admin
+    const { data: rel, error: relErr } = await admin
       .from("tenant_promo_redemptions")
       .select("promo_code_id, voided_at, hold_expires_at, status")
       .in("promo_code_id", ids)
       .in("status", ["voided", "released"]);
+    if (relErr) {
+      logServerError("cron.promoNotifications/released", relErr);
+      return NextResponse.json({ error: "Sweep failed" }, { status: 500 });
+    }
     const released = new Map<string, string>();
     for (const r of (rel ?? []) as { promo_code_id: string; voided_at: string | null; hold_expires_at: string | null }[]) {
       const at = r.voided_at ?? r.hold_expires_at;
@@ -87,12 +91,16 @@ export async function GET(request: Request) {
     }
 
     const tenantIds = [...new Set(promos.map((p) => p.tenant_id))];
-    const { data: mem } = await admin
+    const { data: mem, error: memErr } = await admin
       .from("agency_memberships")
       .select("tenant_id, profile_id")
       .in("tenant_id", tenantIds)
       .eq("status", "active")
       .in("role", ["owner", "admin"]);
+    if (memErr) {
+      logServerError("cron.promoNotifications/members", memErr);
+      return NextResponse.json({ error: "Sweep failed" }, { status: 500 });
+    }
     const recipients = new Map<string, string[]>();
     for (const m of (mem ?? []) as { tenant_id: string; profile_id: string | null }[]) {
       if (m.profile_id) recipients.set(m.tenant_id, [...(recipients.get(m.tenant_id) ?? []), m.profile_id]);

@@ -47,19 +47,22 @@ export async function loadShareAssetData(input: {
   const promo = rowToPromo(row);
   if (isPersonalPromo(promo)) return null;
 
-  const { data: roster } = await admin
+  const { data: roster, error: rosterErr } = await admin
     .from("agency_talent_roster").select("talent_profile_id")
     .eq("tenant_id", row.tenant_id).eq("status", "active").order("created_at", { ascending: true }).limit(1);
+  if (rosterErr) { logServerError("promos.share/asset-roster", rosterErr); return null; }
   const profileId = (roster as { talent_profile_id: string }[] | null)?.[0]?.talent_profile_id;
   if (!profileId) return null;
-  const { data: prof } = await admin
+  const { data: prof, error: profErr } = await admin
     .from("talent_profiles").select("profile_code, display_name, talent_plan_key").eq("id", profileId).maybeSingle();
+  if (profErr) { logServerError("promos.share/asset-profile", profErr); return null; }
   if (!prof) return null;
   const p = prof as { profile_code: string; display_name: string | null; talent_plan_key: string | null };
 
   let siteOrigin: string | null = null;
   const host = input.host?.trim().toLowerCase();
   if (host && /^[a-z0-9.-]+$/.test(host)) {
+    // supabase-read-unchecked-ok: a failed host check falls back to the hub link, the same as an unknown host
     const { data: d } = await admin.from("agency_domains").select("hostname").eq("hostname", host).maybeSingle();
     if (d) siteOrigin = `https://${host}`;
   }

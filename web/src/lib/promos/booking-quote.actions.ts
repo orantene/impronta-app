@@ -78,7 +78,7 @@ export async function previewBookingQuoteAction(
       const a = catalog.addons.get(id);
       if (a) labels.set(id, a.label);
     }
-    return { ok: true, preview: bookingPreviewView({ cart, value: q.value, labels, linkPromoIds: req.linkPromoIds }) };
+    return { ok: true, preview: bookingPreviewView({ cart, value: q.value, labels, linkPromoIds: req.linkPromoIds ?? [] }) };
   } catch (err) {
     logServerError("promos.previewBookingQuote", err);
     return { ok: false };

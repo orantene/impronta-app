@@ -1,10 +1,10 @@
 "use server";
 /* eslint-disable ratchet/no-untenanted-from -- Every query here is scoped by the tenant resolved in resolvePromoScope (the signed-in talent's own profile, roster-checked) or by promo ids already read under that tenant. */
 
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { USE_STATUSES } from "@/lib/orders/promo-redemption-status";
 import { appointmentsTierForTalentPlan } from "@/lib/scheduling/talent-booking-mode";
 import { requireTalentSelfAction } from "@/lib/saas/admin-scope";
@@ -91,6 +91,7 @@ async function resolvePromoScope(write: boolean): Promise<Scope | { error: Promo
   if (!admin) return { error: "unavailable" };
   const supabase = await createSupabaseServerClient();
   if (!supabase) return { error: "unavailable" };
+  // supabase-read-unchecked-ok: an auth error and "no user" both mean not signed in here
   const { data: auth } = await supabase.auth.getUser();
   const user = auth?.user ?? null;
   if (!user) return { error: "not_allowed" };
@@ -110,7 +111,7 @@ async function resolvePromoScope(write: boolean): Promise<Scope | { error: Promo
 
   let tenantId: string | null = null;
   if (self.tenantId) {
-    const { data: roster } = await self.supabase
+    const { data: roster, error: rosterErr } = await self.supabase
       .from("agency_talent_roster")
       .select("tenant_id")
       .eq("tenant_id", self.tenantId)
@@ -118,6 +119,10 @@ async function resolvePromoScope(write: boolean): Promise<Scope | { error: Promo
       .eq("status", "active")
       .limit(1)
       .maybeSingle();
+    if (rosterErr) {
+      logServerError("promos.actions/roster", rosterErr);
+      return { error: "unavailable" };
+    }
     tenantId = roster?.tenant_id ? String(roster.tenant_id) : null;
   }
   if (!tenantId) tenantId = await ensureSoloTalentTenantId(admin, talentId);
@@ -201,7 +206,11 @@ async function loadOwnedRow(scope: Scope, id: string): Promise<{ row: PromoRow; 
     if (error) logServerError("promos.actions/row", error);
     return null;
   }
-  const { data: t } = await scope.admin.from("promo_targets").select("target_id").eq("promo_id", id);
+  const { data: t, error: tErr } = await scope.admin.from("promo_targets").select("target_id").eq("promo_id", id);
+  if (tErr) {
+    logServerError("promos.actions/targets", tErr);
+    return null;
+  }
   return { row: data as unknown as PromoRow, targets: ((t ?? []) as { target_id: string }[]).map((x) => x.target_id) };
 }
 
@@ -405,6 +414,7 @@ async function insertPromo(
  * modal and keeps the work.
  */
 export async function createPromo(input: { draft: PromoDraft; mode: "draft" | "live" }): Promise<PromoResult<{ id: string; status: PromoStatus }>> {
+  await requireNotImpersonating();
   const scope = await resolvePromoScope(true);
   if (!isScope(scope)) return { ok: false, error: scope.error };
   const catalog = await loadCatalog(scope);
@@ -433,6 +443,7 @@ export async function createPromo(input: { draft: PromoDraft; mode: "draft" | "l
 
 /** Draft -> live (or scheduled when it starts later). Same gate as createPromo. */
 export async function goLivePromo(id: string): Promise<PromoResult<{ status: PromoStatus }>> {
+  await requireNotImpersonating();
   const scope = await resolvePromoScope(true);
   if (!isScope(scope)) return { ok: false, error: scope.error };
   const owned = await loadOwnedRow(scope, id);
@@ -455,6 +466,7 @@ export async function goLivePromo(id: string): Promise<PromoResult<{ status: Pro
 
 /** Edit with the B4 rules: locked fields revert, restricting changes report that bookings keep their terms. */
 export async function updatePromo(id: string, input: PromoDraft): Promise<PromoResult<{ verdict: EditVerdict }>> {
+  await requireNotImpersonating();
   const scope = await resolvePromoScope(true);
   if (!isScope(scope)) return { ok: false, error: scope.error };
   const [owned, catalog] = await Promise.all([loadOwnedRow(scope, id), loadCatalog(scope)]);
@@ -484,11 +496,13 @@ export async function updatePromo(id: string, input: PromoDraft): Promise<PromoR
 }
 
 export async function pausePromo(id: string): Promise<PromoResult> {
+  await requireNotImpersonating();
   return setPaused(id, true);
 }
 
 /** Resume is going live again, so the free plan only allows it for the trial promo. */
 export async function resumePromo(id: string): Promise<PromoResult> {
+  await requireNotImpersonating();
   return setPaused(id, false);
 }
 
@@ -515,6 +529,7 @@ async function setPaused(id: string, paused: boolean): Promise<PromoResult> {
 
 /** Duplicate is a paid feature: copy as a draft, dates cleared, code suffixed. */
 export async function duplicatePromo(id: string): Promise<PromoResult<{ id: string }>> {
+  await requireNotImpersonating();
   const scope = await resolvePromoScope(true);
   if (!isScope(scope)) return { ok: false, error: scope.error };
   if (scope.plan !== "paid") return { ok: false, needsUpgrade: true, reason: "paid_feature", draftId: null };
@@ -529,6 +544,7 @@ export async function duplicatePromo(id: string): Promise<PromoResult<{ id: stri
 
 /** Repeat an ended promo (paid): a duplicate with dates shifted by `months`, saved as a draft. */
 export async function repeatPromo(id: string, months: 1 | 12): Promise<PromoResult<{ id: string }>> {
+  await requireNotImpersonating();
   const scope = await resolvePromoScope(true);
   if (!isScope(scope)) return { ok: false, error: scope.error };
   if (scope.plan !== "paid") return { ok: false, needsUpgrade: true, reason: "paid_feature", draftId: null };
@@ -543,6 +559,7 @@ export async function repeatPromo(id: string, months: 1 | 12): Promise<PromoResu
 
 /** End now. Bookings that used the promo keep their price (redemption rows snapshot it). */
 export async function endPromo(id: string): Promise<PromoResult> {
+  await requireNotImpersonating();
   const scope = await resolvePromoScope(true);
   if (!isScope(scope)) return { ok: false, error: scope.error };
   const owned = await loadOwnedRow(scope, id);

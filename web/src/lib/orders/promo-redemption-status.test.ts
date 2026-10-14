@@ -34,7 +34,7 @@ const ONE_USE: PromoCode = {
 
 function decide(rows: readonly Row[], customerId: string) {
   return applyPromo(ONE_USE, {
-    now: new Date("2026-10-14T12:00:00Z"),
+    now: new Date(),
     subtotalCents: 10_000,
     eventId: null,
     variantIds: [],
@@ -69,7 +69,7 @@ test("a live hold still guards the limit", () => {
 });
 
 test("the void patch stamps status and time, nothing else", () => {
-  const now = new Date("2026-10-14T18:00:00Z");
+  const now = new Date();
   assert.deepEqual(voidRedemptionPatch(now), { status: "voided", voided_at: now.toISOString() });
 });
 

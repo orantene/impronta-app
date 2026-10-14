@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { previewBookingQuoteAction, type BookingPreviewInput } from "@/lib/promos/booking-quote.actions";
+import type { BookingPreviewInput } from "@/lib/promos/booking-quote.actions";
+
+// Loaded on demand, like instant-book-action in catalog-booking-confirm: a
+// static import of a "use server" module drags server-only code into the
+// builder render path (fidelity + perf scripts import it outside Next).
+const previewBookingQuoteAction = async (input: Parameters<typeof import("@/lib/promos/booking-quote.actions").previewBookingQuoteAction>[0]) =>
+  (await import("@/lib/promos/booking-quote.actions")).previewBookingQuoteAction(input);
 import type { BookingPreview } from "@/lib/promos/booking-preview-view";
 import { publicPromoCopy } from "@/lib/promos/copy/public";
 import type { PromoCodeOutcome } from "@/lib/promos/public-view";

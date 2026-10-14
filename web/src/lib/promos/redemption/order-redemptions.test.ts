@@ -62,7 +62,7 @@ function world(rows: Array<HeldRow & { order_id: string; status: string }>, txns
   return { db, deps, confirms, releases, rows };
 }
 
-const held = (id: string, over: Partial<HeldRow> = {}) => ({
+const held = (id: string, over: Partial<HeldRow & { order_id: string; status: string }> = {}) => ({
   id, order_id: "o1", status: "held", list_cents: 50000, discount_cents: 10000, amount_cents: 10000,
   currency: "mxn", source_channel: "ig_story", client_status: "new", ...over,
 });
