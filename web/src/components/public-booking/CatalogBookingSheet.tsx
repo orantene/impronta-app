@@ -647,7 +647,6 @@ export function CatalogBookingSheet({
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  onBlur={() => setTouched(true)}
                   placeholder={es ? "Tu nombre" : "Your name"}
                   aria-invalid={touched && !nameValid}
                   data-testid="cb-name"
@@ -661,7 +660,6 @@ export function CatalogBookingSheet({
                 <input
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  onBlur={() => setTouched(true)}
                   inputMode="tel"
                   autoComplete="tel"
                   placeholder={es ? "Para avisarte de cualquier cambio" : "If we need to reach you"}
@@ -676,7 +674,6 @@ export function CatalogBookingSheet({
                 <input
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  onBlur={() => setTouched(true)}
                   type="email"
                   inputMode="email"
                   autoComplete="email"
