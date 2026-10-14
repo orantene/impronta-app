@@ -13,31 +13,7 @@ const TYPE = readFileSync(
   "utf8",
 );
 
-test("GRK-046: default brand-mark clamp floors at 32px", () => {
-  assert.match(
-    CSS,
-    /\.site-header__brand-mark\s*\{\s*width:\s*clamp\(32px/,
-    "brand-mark width must floor at 32px",
-  );
-  assert.match(
-    CSS,
-    /\.site-header__brand-mark\s*\{\s*width:\s*clamp\(32px[^}]*height:\s*clamp\(32px/,
-    "brand-mark height must floor at 32px",
-  );
-  assert.doesNotMatch(
-    CSS,
-    /\.site-header__brand-mark\s*\{\s*width:\s*clamp\(20px/,
-    "old 20px floor must be gone",
-  );
-});
-
-test("GRK-046: logo-scale sm also floors at 32px", () => {
-  assert.match(
-    CSS,
-    /data-logo-scale="sm"\]\s*\.site-header__brand-mark\s*\{\s*width:\s*clamp\(32px/,
-    "sm scale must not drop below 32px",
-  );
-});
+// GRK-046 32px-square floor tests dropped: superseded on main by TUL-532 (height-led mark, min 30px, 36-44px default).
 
 test("GRK-073: type-system header phone padding floors at 16px", () => {
   assert.match(
