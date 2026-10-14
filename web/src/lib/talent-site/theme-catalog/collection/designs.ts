@@ -52,7 +52,9 @@ export { buildGridlinePayload, buildMaisonV2Payload };
 // editorial single column, a two-column image pair, centered contact.
 export function buildSolacePayload(): DesignPayload {
   const id = seqIds("solace");
-  const hero = tuneHeading(heroCover(id, { accent: false }), {
+  // Seed a gender-neutral trade eyebrow (not taxonomy "Bailarín Latino") so
+  // Valeria and other Solace demos never show a masculine type label.
+  const hero = tuneHeading(heroCover(id, { accent: false, eyebrow: "Dance instructor" }), {
     fontWeight: 300,
     letterSpacing: "-0.01em",
   });
