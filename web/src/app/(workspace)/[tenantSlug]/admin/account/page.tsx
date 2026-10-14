@@ -23,6 +23,8 @@ import {
   ManageSubscriptionButton,
   SubscriptionStatusBadge,
 } from "./BillingActionButtons";
+import { WorkspaceCheckoutAutoStart } from "./WorkspaceCheckoutAutoStart";
+import { workspaceAutoStartDecision } from "@/lib/onboarding/plan-intent";
 import { PastDueBanner } from "@/components/billing/PastDueBanner";
 import { BriefCard } from "./BriefCard";
 import { CurrencyPicker } from "./CurrencyPicker";
@@ -49,6 +51,8 @@ type SearchParams = Promise<{
   perr?: string;
   billing?: string;
   return?: string;
+  plan?: string;
+  interval?: string;
 }>;
 
 // ─── Design tokens (resolve to src/styles/admin-color-bridge.css, never page-local hex) ───
@@ -310,8 +314,21 @@ export default async function WorkspaceAccountPage({
       })
     : null;
 
+  // TUL-828: /pricing -> /start?plan= -> here. Start the chosen checkout once;
+  // the component falls back to this page on any failure.
+  const autoStart = workspaceAutoStartDecision({
+    plan: resolvedSearch.plan,
+    interval: resolvedSearch.interval,
+    canManageBilling,
+    hasActiveSubscription,
+    stripeEnabled,
+  });
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 28, fontFamily: FONT }}>
+      {autoStart.action === "start" && autoStart.intent ? (
+        <WorkspaceCheckoutAutoStart plan={autoStart.intent.plan} interval={autoStart.intent.interval} tenantSlug={tenantSlug} />
+      ) : null}
       {billingNotice ? (
         <div style={{ border: `1px solid ${C.border}`, background: C.accentSoft, color: C.accent, borderRadius: 10, padding: "10px 12px", fontSize: 12.5 }}>
           {billingNotice}

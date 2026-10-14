@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { startTalentUpgrade } from "@/app/(workspace)/[tenantSlug]/talent/settings/stripe-talent-actions";
 import { useAdminShellOptional } from "@/components/admin/shell/internal/state";
 import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
-import { readPlanIntentFromUrl } from "@/lib/onboarding/plan-intent";
+import { isTalentIntent, readPlanIntentFromUrl } from "@/lib/onboarding/plan-intent";
 
 /**
  * Opens the tier-compare drawer once when /talent/plan mounts (TUL-666).
@@ -21,7 +21,7 @@ export function TalentPlanRouteOpener() {
     if (ran.current || !openDrawer) return;
     ran.current = true;
     const intent = readPlanIntentFromUrl();
-    if (!intent || !tenantSlug) {
+    if (!isTalentIntent(intent) || !tenantSlug) {
       openDrawer("talent-tier-compare");
       return;
     }
