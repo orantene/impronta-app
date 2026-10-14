@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 
-import { checkSupportTicketCreate } from "@/lib/rate-limit-kv";
+import { checkFeatureRequestCreate } from "@/lib/rate-limit-kv";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
@@ -46,7 +46,7 @@ export async function submitFeatureRequestAction(
   });
   if (!requester.ok) return requester;
 
-  const limited = await checkSupportTicketCreate(requester.userId);
+  const limited = await checkFeatureRequestCreate(requester.userId);
   if (!limited.ok) return { ok: false, error: "Too many requests. Try again shortly." };
 
   const admin = createServiceRoleClient();

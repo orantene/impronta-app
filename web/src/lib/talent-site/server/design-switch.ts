@@ -73,10 +73,14 @@ function mapList(
 
   const orphans: BuilderNode[] = [];
   const seenTo = new Set(toMap.keys());
+  // An unstamped node whose id the new Design already ships (a trade-app band
+  // placed on both sides) would render twice; the new Design's copy wins.
+  const toIds = new Set(to.map((n) => n.id));
   // A site that was never on a Design has only the starter tree: nothing of hers to keep.
   for (const node of keepOrphans ? from : []) {
     const k = keyOf(node);
     if (!k) {
+      if (toIds.has(node.id)) continue;
       orphans.push(node);
       warned.push({ tree, kind: node.kind, reason: "talent_added" });
       continue;

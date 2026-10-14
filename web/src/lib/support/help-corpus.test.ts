@@ -109,6 +109,8 @@ describe("help-corpus talent dashboard coverage (TUL-575)", () => {
     ["talent-deposits", "¿Qué pasa con el anticipo si el cliente cancela?", "What happens to the deposit if the client cancels?"],
     ["talent-payouts", "¿Cómo configuro mis pagos para recibir dinero en mi banco?", "How do I set up payouts to my bank?"],
     ["talent-payouts", "¿Por qué mi pago está retenido?", "Why is my payout held?"],
+    ["talent-design", "¿Cómo cambio el diseño de mi página?", "How do I change my theme?"],
+    ["talent-design", "Quiero cambiar el tema de mi sitio web", "How do I change the design of my website?"],
     ["talent-presence", "¿Cómo publico mi sitio?", "How do I publish my site?"],
     ["talent-reviews", "¿Cómo muestro una reseña en mi perfil?", "How do I show a review on my profile?"],
     ["talent-messages", "¿Por qué no tengo mensajes?", "Why do I have no messages?"],

@@ -349,7 +349,7 @@ export function TalentLeaveAgencyDrawer() {
 // ─── Privacy ────────────────────────────────────────────────────
 
 export function TalentPrivacyDrawer() {
-  const { state, closeDrawer, bridgeTalentSelfProfile } = useAdminShell();
+  const { state, closeDrawer, bridgeTalentSelfProfile, bridgeTalentAgencies } = useAdminShell();
   const t = useT();
   const open = state.drawer.drawerId === "talent-privacy";
   const talentProfileId = bridgeTalentSelfProfile?.id ?? null;
@@ -396,8 +396,9 @@ export function TalentPrivacyDrawer() {
       {saveError && <SaveErrorBanner error={saveError} onDismiss={() => setSaveError(null)} />}
       <div className="flex flex-col gap-2">
         <ToggleRow label={t("dashboard.talentDrawers.agency.privacyHub")} hint={t("dashboard.talentDrawers.agency.privacyHubHint")} defaultOn={hubVisible} onChange={setHubVisible} />
-        <ToggleRow label={interpolate(t("dashboard.talentDrawers.agency.privacyRoster"), { agency: "Acme Models" })} defaultOn={true} />
-        <ToggleRow label={interpolate(t("dashboard.talentDrawers.agency.privacyRoster"), { agency: "Praline London" })} defaultOn={true} />
+        {(bridgeTalentAgencies ?? []).map((a) => (
+          <ToggleRow key={a.id} label={interpolate(t("dashboard.talentDrawers.agency.privacyRoster"), { agency: a.agencyName })} defaultOn={true} />
+        ))}
         <ToggleRow
           label={t("dashboard.talentDrawers.agency.privacySearch")}
           hint={t("dashboard.talentDrawers.agency.privacySearchHint")}

@@ -9,6 +9,8 @@ import type {
 import {
   EMPTY_THREAD,
   applyIncomingMessage,
+  canOfferHuman,
+  humanRequestedPatch,
   selectThread,
   threadReducer,
   unreadOpenCount,
@@ -150,4 +152,40 @@ test("internal notes and unknown tickets change nothing", () => {
   assert.equal(note[0]!.unread, false);
   const stray = applyIncomingMessage(list, msg({ id: "m", ticketId: "zzz" }), { userId: ME, viewingTicketId: null });
   assert.deepEqual(stray, list);
+});
+
+test("an AI reply that realtime missed is merged in by the post-turn fetch (TUL-656)", () => {
+  const mine = msg({ id: "u1", ticketId: "A", authorKind: "requester", authorUserId: ME });
+  let st = threadReducer(EMPTY_THREAD, { type: "loaded", ticketId: "A", ticket: ticketRow("A"), messages: [mine] });
+  const ai = msg({ id: "ai1", ticketId: "A", authorKind: "ai", authorUserId: null, createdAt: "2026-10-13T10:00:05.000Z" });
+  st = threadReducer(st, { type: "merge", ticketId: "A", messages: [mine, ai] });
+  assert.deepEqual(st.messages.map((m) => m.id), ["u1", "ai1"]);
+  // A realtime echo of the same row afterwards does not duplicate it.
+  st = threadReducer(st, { type: "message", row: ai });
+  assert.equal(st.messages.length, 2);
+});
+
+test("a merge for another ticket never touches the thread on screen (TUL-656)", () => {
+  const st = threadReducer(EMPTY_THREAD, { type: "loaded", ticketId: "B", ticket: ticketRow("B"), messages: [] });
+  const next = threadReducer(st, { type: "merge", ticketId: "A", messages: [msg({ id: "x", ticketId: "A", authorKind: "ai" })] });
+  assert.equal(next, st);
+});
+
+test("humanRequestedPatch flips the open thread to human so the header stops saying the AI is helping (TUL-307)", () => {
+  const ticket = { id: "t1", status: "open", handledBy: "ai", escalatedAt: null, waitingOn: null } as unknown as SupportTicketRow;
+  const state = threadReducer(EMPTY_THREAD, { type: "ticket", row: ticket });
+  const next = threadReducer(state, {
+    type: "patchTicket",
+    ticketId: "t1",
+    patch: humanRequestedPatch("2026-10-13T00:00:00.000Z"),
+  });
+  assert.equal(next.ticket?.handledBy, "human");
+  assert.equal(next.ticket?.escalatedAt, "2026-10-13T00:00:00.000Z");
+});
+
+test("canOfferHuman: no escalation offer once a human has the ticket", () => {
+  assert.equal(canOfferHuman({ handledBy: "ai", status: "open" }), true);
+  assert.equal(canOfferHuman({ handledBy: "human", status: "open" }), false);
+  assert.equal(canOfferHuman({ handledBy: "ai", status: "closed" }), false);
+  assert.equal(canOfferHuman(null), true);
 });
