@@ -121,7 +121,7 @@ async function apply() {
   const state = prior ?? { savedAt: new Date().toISOString(), hours: [], offering: null };
 
   // a) hours rules, one per owning talent
-  const talentIds = [...new Set(offerings.map((o) => o.talent_profile_id))];
+  const talentIds = [...new Set(offerings.map((o) => o.talent_profile_id).filter(Boolean))]; // workspace-owned services have no talent owner
   for (const tid of talentIds) {
     const before = must("read hours", await admin.from("talent_booking_hours").select(HOURS_COLS).eq("talent_profile_id", tid).maybeSingle());
     if (!state.hours.some((h) => h.talentProfileId === tid)) state.hours.push({ talentProfileId: tid, before: before ?? null });
@@ -143,7 +143,8 @@ async function apply() {
   }
 
   // b) one prepaid service
-  const target = offerings[0];
+  // Prefer the dedicated QA paid service so QA sees a clearly named prepaid card.
+  const target = offerings.find((o) => /^QA paid/i.test(o.title ?? "")) ?? offerings[0];
   if (!state.offering) {
     const { talent_profile_id: _t, title: _ti, status: _s, sort_order: _so, created_at: _c, ...before } = target;
     state.offering = { before };
