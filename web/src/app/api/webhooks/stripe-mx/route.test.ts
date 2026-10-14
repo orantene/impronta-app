@@ -11,9 +11,10 @@ test("MX route delegates to the shared handler tagged mx", () => {
 });
 
 test("handler verifies MX deliveries with the MX secret only, 503 when unset", () => {
-  assert.match(handler, /STRIPE_MX_WEBHOOK_SECRET,/);
+  // TUL-703: reads go through stripeEnv() so STRIPE_FORCE_TEST_MODE can swap them.
+  assert.match(handler, /stripeEnv\("STRIPE_MX_WEBHOOK_SECRET"\),/);
   const mxBranch = handler.slice(handler.indexOf('account === "mx"\n    ? ['));
-  assert.ok(mxBranch.indexOf("STRIPE_MX_WEBHOOK_SECRET") < mxBranch.indexOf(": [process.env.STRIPE_WEBHOOK_SECRET"));
+  assert.ok(mxBranch.indexOf("STRIPE_MX_WEBHOOK_SECRET") < mxBranch.indexOf(': [stripeEnv("STRIPE_WEBHOOK_SECRET")'));
   assert.match(handler, /Webhook secret not configured\.[\s\S]{0,40}status: 503/);
 });
 

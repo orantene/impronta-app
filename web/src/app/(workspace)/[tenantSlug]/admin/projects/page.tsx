@@ -117,12 +117,18 @@ export default async function AdminProjectsPage({
   const { tenantSlug } = await params;
   const scope = await getTenantScopeBySlug(tenantSlug);
   if (!scope) notFound();
-  const allowed = await userHasCapability("view_dashboard", scope.tenantId);
+  // One round trip, not five queued ones. The gate, the locale, the filters and
+  // the project read do not depend on each other; the read's rows are only used
+  // once the gate passes, so a refused caller never sees them.
+  const [allowed, locale, sp, load] = await Promise.all([
+    userHasCapability("view_dashboard", scope.tenantId),
+    getRequestLocale(),
+    searchParams,
+    loadProjects(scope.tenantId),
+  ]);
   if (!allowed) notFound();
 
-  const locale = await getRequestLocale();
   const tr = await createTranslator(locale);
-  const sp = await searchParams;
   const filter = FILTERS.find((f) => f === sp.filter) ?? "open";
   const status = STATUSES.find((s) => s === sp.status) ?? "any";
   const deadline = sp.deadline === "this_month" || sp.deadline === "overdue" ? sp.deadline : "any";
@@ -131,7 +137,6 @@ export default async function AdminProjectsPage({
   // ONE clock for the whole page, read once. Every "overdue" below is
   // judged against this instant, never against `Date.now()` in a loop.
   const nowMs = requestNowMs();
-  const load = await loadProjects(scope.tenantId);
   const base = `/${tenantSlug}/admin`;
 
   const actions = (

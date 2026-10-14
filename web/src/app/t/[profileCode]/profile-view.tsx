@@ -1623,7 +1623,7 @@ export async function TalentProfileView({
   }
   const { pub, fieldValuesClient, profile, preview: resolvedPreview } = result;
   // Follow the talent's own languages (requested locale only if in their set).
-  const profileLocale = await resolveTalentProfileLocale(profile.id);
+  const profileLocale = await resolveTalentProfileLocale(profile.id, sp.lang);
   const chain = profileLocale.chain;
   locale = profileLocale.locale as typeof locale;
   t = createTranslator(locale);

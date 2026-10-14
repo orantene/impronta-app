@@ -215,7 +215,11 @@ export function reduceMachine(state: MachineState, event: MachineEvent): Machine
     case "sendStarted":
       return { ...state, busy: true, error: null };
     case "sendAccepted":
-      return { ...state, busy: false, briefId: event.briefId, input: event.input, step: "reading" };
+      // A newly accepted input is a new read. Drop the previous card: the
+      // module's understand effect only runs while `understanding` is empty,
+      // so a stale tooLittle card left the reading screen spinning forever
+      // with no call made (TUL-541 live QA, 2026-10-13).
+      return { ...state, busy: false, briefId: event.briefId, input: event.input, step: "reading", understanding: null, chip: null, followUps: [], questionIndex: 0 };
     case "sendFailed":
       return { ...state, busy: false, error: event.code, step: event.code === "too_short" ? "tooLittle" : state.step };
     case "choiceChosen":

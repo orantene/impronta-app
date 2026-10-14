@@ -314,7 +314,9 @@ export function ClientMessagesShell({
   // Viewer user ID — the EFFECTIVE client, resolved on the server (TUL-610).
   // Never the browser session user: under staff view-as that is the staff actor.
   const viewerUserIdRef = useRef<string | null>(viewerUserId);
-  viewerUserIdRef.current = viewerUserId;
+  useEffect(() => {
+    viewerUserIdRef.current = viewerUserId;
+  }, [viewerUserId]);
 
   // Realtime — push incoming messages into state as they arrive on the
   // active inquiry's private thread. Channel is torn down and recreated
