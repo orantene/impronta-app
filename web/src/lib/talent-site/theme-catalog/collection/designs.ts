@@ -135,7 +135,7 @@ export function buildFramePayload(): DesignPayload {
       navChrome: "filter_bar",
       navLinks: [
         { label: "Work", href: "#gallery" },
-        { label: "Book", href: "#services" },
+        { label: "Book", href: "#book" },
         { label: "Contact", href: "#contact" },
         { label: "About", href: "#about" },
       ],

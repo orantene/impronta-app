@@ -7,7 +7,7 @@ const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 
 test("a resolved thread offers a new question and Message-Oran carries a real subject", () => {
   const panel = read("src/components/support/SupportPanel.tsx");
-  assert.match(panel, /ticket\?\.status === "resolved"[\s\S]*dashboard\.adminSupport\.newQuestion"/);
+  assert.match(panel, /<NewQuestionStrip/);
   assert.match(panel, /subject: t\("dashboard\.adminSupport\.messageOranSubject"\)/);
   const engine = read("src/lib/support/support-engine.ts");
   assert.match(engine, /messageOranDirectly && !\(input\.subject \?\? ""\)\.trim\(\)\s*\?\s*"Direct message"/);

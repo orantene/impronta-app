@@ -90,11 +90,10 @@ test("hub has no agency tabs; neither do other audiences or bad slugs", () => {
   }
 });
 
-test("login brand: flag, host kind, whitelabel and a name are all required", () => {
-  const on = { flagOn: true, hostKind: "agency", whitelabel: true, publicName: " Impronta Models " };
+test("login brand: host kind, whitelabel and a name are all required", () => {
+  const on = { hostKind: "agency", whitelabel: true, publicName: " Impronta Models " };
   assert.deepEqual(authPageBrand(on), { title: "Impronta Models" });
   assert.deepEqual(authPageBrand({ ...on, hostKind: "hub" }), { title: "Impronta Models" });
-  assert.equal(authPageBrand({ ...on, flagOn: false }), null);
   assert.equal(authPageBrand({ ...on, whitelabel: false }), null);
   assert.equal(authPageBrand({ ...on, publicName: "  " }), null);
   assert.equal(authPageBrand({ ...on, publicName: null }), null);
@@ -150,7 +149,7 @@ test("account link: absolute app URL only on the marketing apex", () => {
 test("popover account link goes through accountHrefFor, not a literal", () => {
   const btn = readFileSync(join(__dirname, "..", "..", "components", "client-account", "ClientAccountButton.tsx"), "utf8");
   assert.doesNotMatch(btn, /href="\/account"/);
-  assert.match(btn, /href=\{accountHref\}/);
+  assert.match(btn, /accountQuickLinks\(t, accountHref\)/);
   const dock = readFileSync(join(__dirname, "..", "..", "components", "client-account", "ClientAccountDock.tsx"), "utf8");
   assert.match(dock, /accountHrefFor\(/);
   assert.match(dock, /getAppUrl\(\)/);

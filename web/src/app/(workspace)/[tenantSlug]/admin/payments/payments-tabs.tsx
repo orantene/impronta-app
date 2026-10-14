@@ -7,7 +7,7 @@
 
 import Link from "next/link";
 
-import { formatOrderMoney } from "@/lib/orders/money-format";
+import { formatDashboardMoneyCents as formatOrderMoney } from "@/lib/money/dashboard-money-format";
 import { paymentMethodLabelKey } from "@/lib/payments/activity-shape";
 import { StatePill } from "@/components/admin/shell/internal/page-modules/appointments-classes-ui";
 import type { PaymentsBoard } from "../../_data-bridge/payments-board";

@@ -35,7 +35,7 @@ import {
   offeringMatrixValue,
   type OfferingMatrixKey,
 } from "@/lib/talent/offering-matrix";
-import type { TalentOffering } from "@/lib/talent/offerings-types";
+import { offeringIsQuote, type TalentOffering } from "@/lib/talent/offerings-types";
 
 import { catalogRowPriceText } from "./services-catalog-bar-price";
 import { catalogDurationPhrase } from "./services-catalog-title";
@@ -131,7 +131,7 @@ export function CatalogMatrix({
   const cols = items.map((item) => {
     const derived = deriveOfferingCta({ offering: item, defaults: { bookingPosture }, confirmsByHand });
     const quote =
-      item.priceDisplay === "quote" || item.priceType === "custom" || item.amountCents == null;
+      offeringIsQuote(item);
     const selected = selectedIds.includes(item.id);
     const cta = catalogRowCtaLabel({
       selected,

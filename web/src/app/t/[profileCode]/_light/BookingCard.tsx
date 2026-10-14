@@ -30,6 +30,7 @@ type BookingCardProps = {
   availableDaysInNext30: number | null;
   availabilityDots14d: string | null;
   nextAvailableDate: string | null;
+  locale?: string;
 };
 
 export function BookingCard({
@@ -43,6 +44,7 @@ export function BookingCard({
   availableDaysInNext30,
   availabilityDots14d,
   nextAvailableDate,
+  locale,
 }: BookingCardProps) {
   return (
     <div
@@ -93,6 +95,7 @@ export function BookingCard({
             availableDaysInNext30={availableDaysInNext30}
             availabilityDots14d={availabilityDots14d}
             nextAvailableDate={nextAvailableDate}
+            locale={locale}
           />
         </div>
       ) : null}

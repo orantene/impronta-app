@@ -47,6 +47,7 @@ import {
 import {
   catalogIsQuote,
   catalogPriceLabel,
+  catalogSheetFooterTotal,
   catalogSheetSummaryCaption,
   catalogSheetSummaryCents,
 } from "./catalog-booking-price";
@@ -64,6 +65,7 @@ import { GuestCaptchaField, type GuestCaptchaConfig } from "./GuestCaptchaField"
 import { CatalogLiveWhenPicker, CatalogDemoWhenPicker } from "./CatalogLiveWhenPicker";
 import { bookingDraftKey, clearBookingDraft, loadBookingDraft } from "./booking-draft-store";
 import { CatalogWhoSummary, useBookingDraftEffects } from "./catalog-who-summary";
+import { useBookingContactPrefill } from "./use-booking-contact-prefill";
 import {
   BOOKING_RESUME_EVENT,
   clearBookingResume,
@@ -84,7 +86,6 @@ export type CatalogBookingDetail = OfferingRequestDetail & {
 };
 
 export type { CatalogBookFn, CatalogSlotsFn, CatalogSheetBookingSettings };
-
 export function CatalogBookingSheet({
   locale = "es",
   mode = "demo",
@@ -223,6 +224,7 @@ export function CatalogBookingSheet({
   const needsVariant = (detail?.variants ?? []).length > 0;
   const summaryCents = detail ? catalogSheetSummaryCents(detail, variantId) ?? 0 : 0;
   const total = detail ? catalogTotalCents(detail, variantId, addOnIds) : 0;
+  const footerTotal = detail ? catalogSheetFooterTotal(detail, variantId, addOnIds) : { cents: 0, from: false };
 
   useEffect(() => {
     if (!detail || (needsVariant && !variant)) return;
@@ -237,6 +239,17 @@ export function CatalogBookingSheet({
 
   useEffect(() => { liveStartsRef.current = liveStarts; }, [liveStarts]);
 
+  // TUL-723: a signed-in client's own contact details, only into empty fields.
+  const contactRef = useRef({ name, email, phone });
+  useEffect(() => {
+    contactRef.current = { name, email, phone };
+  }, [name, email, phone]);
+  useBookingContactPrefill({
+    active: step === "who" && mode === "live",
+    read: () => contactRef.current,
+    write: (n) => { setName(n.name); setEmail(n.email); setPhone(n.phone); },
+  });
+
   useBookingDraftEffects({
     detail, step, variantId, addOnIds, dayIndex, time, liveStarts, name, email, phone, mode, days, draftKey,
     captchaRequired, captchaProvider: captcha?.provider,
@@ -248,8 +261,7 @@ export function CatalogBookingSheet({
     setSlotsReady(false);
     setSlotsLoading(true);
     const run = slotsFn ?? fetchLiveSlots;
-    // BUF-5: project slots for base + extras so near-close / near-busy starts
-    // that only fit the shorter base duration never appear.
+    // BUF-5: project slots for base + extras so near-close / near-busy starts that only fit the shorter base duration never appear.
     run(detail.offeringId, bookingDurationMinutes)
       .then((r) => {
         if (cancelled) return;
@@ -488,6 +500,7 @@ export function CatalogBookingSheet({
               <CatalogTaskNote detail={detail} locale={locale} onChange={(note) => setDetail({ ...detail, note })} />
               <CatalogIntakeFields
                 questions={detail.intake}
+                hideNeighbourhood={addr.rule === "required"}
                 answers={detail.answers}
                 locale={locale}
                 onChange={(answers) => setDetail({ ...detail, answers })}
@@ -724,7 +737,8 @@ export function CatalogBookingSheet({
             <div className="jb-total">
               <span>Total</span>
               <b data-catalog-price={isQuote ? "quote" : "money"}>
-                {catalogPriceLabel(detail, total, locale, money)}
+                {footerTotal.from && !isQuote ? (es ? "Desde " : "From ") : ""}
+                {catalogPriceLabel(detail, footerTotal.cents, locale, money)}
               </b>
             </div>
           ) : (

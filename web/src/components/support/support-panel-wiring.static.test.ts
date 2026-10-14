@@ -24,7 +24,7 @@ test("closing the panel resets the view through viewAfterOpenChange", () => {
 
 test("both send boxes clear before awaiting the server", () => {
   const ask = panel.indexOf('setAsk("");');
-  const create = panel.indexOf("await contract.createTicket");
+  const create = panel.indexOf("guardSupportSend(() => contract.createTicket");
   assert.ok(ask > -1 && create > ask, "Home input is cleared before createTicket resolves");
   const clear = forms.indexOf('setBody("");');
   const send = forms.indexOf("await onSend(text)");
