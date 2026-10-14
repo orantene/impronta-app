@@ -15,6 +15,7 @@ import type { Locale } from "@/i18n/config";
 import { buildTenantLocaleAlternates } from "@/lib/seo/locale-alternates";
 import { getPublicTenantScope, getPublicPathPrefix } from "@/lib/saas/scope";
 import { loadPageForRender } from "@/lib/site-admin/server/page-reads";
+import { inPlaceSlugs, preferRequestedSlug } from "@/lib/site-admin/server/public-page-fallback";
 import { missingPageRedirect } from "@/lib/site-admin/server/public-page-fallback.server";
 import { loadPublicComponentStyleDefaults } from "@/lib/site-admin/server/reads";
 import {
@@ -97,6 +98,7 @@ type FreeformPageRow = {
   is_freeform: boolean;
   status: string;
   locale: string;
+  slug?: string | null;
 };
 
 /**
@@ -377,7 +379,7 @@ export default async function CmsPublicPage({
     // sets both the JWT and the cookie, so staff editing + preview links still see
     // drafts. On a query error, fall through to the slot/legacy branches.
     const previewActive = await isPreviewActiveForTenant(publicScope.tenantId);
-    const freeformCols = "id, title, blocks, is_freeform, status, locale";
+    const freeformCols = "id, title, blocks, is_freeform, status, locale, slug";
     // ONE DESIGN PER PAGE — the tenant's PRIMARY-language row supplies the tree
     // (order, layout, styling, picked talent); the visitor's language is a
     // per-element text overlay resolved by the renderer. Reading strictly
@@ -398,7 +400,9 @@ export default async function CmsPublicPage({
       .rpc("cms_public_pages_for_tenant", { p_tenant_id: publicScope.tenantId })
       .select(freeformCols)
       .in("locale", designPlan.lookupOrder as string[])
-      .eq("slug", slugPath)
+      // TUL-867: role links (/services) resolve in place to the counterpart
+      // slug (servicios) with no forced locale prefix.
+      .in("slug", inPlaceSlugs(slugPath))
       .eq("is_freeform", true)
       // Defense-in-depth: system-owned pages (homepage, __site_shell__,
       // __directory__) are NEVER freeform — exclude them explicitly so a row
@@ -409,8 +413,8 @@ export default async function CmsPublicPage({
       // both rows legitimately matches 2 and maybeSingle would ERROR — the
       // swallowed-error trap that once blanked every multi-locale page. Take
       // both and pick by design priority below.
-      .limit(2);
-    let freeformPage = pickDesignRow(publishedRead.data as unknown as FreeformPageRow[] | null, designPlan.lookupOrder);
+      .limit(4);
+    let freeformPage = pickDesignRow(preferRequestedSlug(publishedRead.data as unknown as FreeformPageRow[] | null, slugPath), designPlan.lookupOrder);
     let freeformErr = publishedRead.error;
     // Draft preview (staff): the published-only RPC won't surface a draft, so
     // read the row directly — RLS admits it for staff via is_staff_of_tenant
@@ -436,11 +440,11 @@ export default async function CmsPublicPage({
         .select(freeformCols)
         .eq("tenant_id", publicScope.tenantId)
         .in("locale", designPlan.lookupOrder as string[])
-        .eq("slug", slugPath)
+        .in("slug", inPlaceSlugs(slugPath))
         .eq("is_freeform", true)
         .eq("is_system_owned", false)
-        .limit(2);
-      freeformPage = pickDesignRow(draftRead.data as unknown as FreeformPageRow[] | null, designPlan.lookupOrder);
+        .limit(4);
+      freeformPage = pickDesignRow(preferRequestedSlug(draftRead.data as unknown as FreeformPageRow[] | null, slugPath), designPlan.lookupOrder);
       freeformErr = draftRead.error;
     }
     if (
