@@ -1,5 +1,6 @@
 import "server-only";
 
+import { readQaFixtureMarker } from "@/lib/messages-v5/qa-fixture-row";
 import { displayableContact } from "@/lib/inquiry/guest-send-gate";
 
 import { VISITOR_FALLBACK_NAME } from "./inquiry-name-pure";
@@ -34,7 +35,11 @@ type InquiryRow = {
   message: string | null;
   updated_at: string;
   version: number;
+  source_context: unknown;
 };
+
+/** Upper bound on rows one inbox load reads (newest first). */
+export const INBOX_ROW_LIMIT = 1000;
 
 export async function loadMessagingInbox(
   admin: Admin,
@@ -53,13 +58,13 @@ export async function loadMessagingInbox(
   let query = admin
     .from("inquiries")
     .select(
-      "id, tenant_id, location_slug, contact_name, contact_phone, contact_email, conversation_state, opportunity_state, channel, owner_user_id, last_customer_message_at, last_staff_message_at, resolved_at, lost_reason, status, current_offer_id, message, updated_at, version",
+      "id, tenant_id, location_slug, contact_name, contact_phone, contact_email, conversation_state, opportunity_state, channel, owner_user_id, last_customer_message_at, last_staff_message_at, resolved_at, lost_reason, status, current_offer_id, message, updated_at, version, source_context",
     )
     .order("updated_at", { ascending: false });
   query = input.onlyInquiryIds
     ? query.in("id", [...input.onlyInquiryIds])
     : query.eq("tenant_id", input.tenantId);
-  const { data, error } = await query;
+  const { data, error } = await query.limit(INBOX_ROW_LIMIT);
   if (error) return { ok: false, reason: "unavailable" };
 
   const inquiries = (data ?? []) as InquiryRow[];
@@ -147,6 +152,7 @@ export async function loadMessagingInbox(
       updatedAt: row.updated_at,
       version: row.version,
       recordChips: chips.get(row.id) ?? [],
+      ...(readQaFixtureMarker(row.source_context) ? { qaFixture: true } : {}),
     };
     if (matchesFilter(mapped, input.filter, input.actorUserId)) rows.push(mapped);
   }

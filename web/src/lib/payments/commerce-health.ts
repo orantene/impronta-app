@@ -12,6 +12,7 @@
 
 import { checkStripeKeyModes, stripeKeyMode } from "@/lib/stripe/key-mode";
 import { WEBHOOK_LANES, laneForEventId, type WebhookLane } from "@/lib/stripe/webhook-lanes";
+import { resolvedStripeEnv } from "@/lib/stripe/env-keys";
 
 export type HealthRowStatus = "ok" | "warn" | "error";
 export type KeyMode = "test" | "live" | "unset";
@@ -115,7 +116,7 @@ export const LANE_FILTER_OR = {
 
 /** Reduce env to modes/booleans. The only function here that touches secrets. */
 export function snapshotKeyEnv(
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = resolvedStripeEnv(),
 ): Pick<CommerceHealthInput, "keyModes" | "webhookSecretsSet"> {
   const keyModes = {} as Record<KeyModeVar, KeyMode>;
   for (const n of KEY_MODE_VARS) keyModes[n] = stripeKeyMode(env[n]) ?? "unset";

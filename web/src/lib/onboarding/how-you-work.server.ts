@@ -7,7 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { logServerError } from "@/lib/server/safe-error";
 
-import { resolveProviderDisplayName, type HowYouWorkFacts } from "./how-you-work";
+import { resolveOwnSiteBookable, resolveProviderDisplayName, type HowYouWorkFacts, type OwnSiteOffering } from "./how-you-work";
 
 type Admin = SupabaseClient;
 
@@ -26,6 +26,7 @@ export async function loadFacts(admin: Admin, userId: string): Promise<{ facts: 
   let tenantSlug: string | null = null;
   let workspaceName: string | null = null;
   let bookable = false;
+  let ownSiteBookable = false;
   if (tenantIds.length > 0) {
     const [ag, roster] = await Promise.all([
       admin.from("agencies").select("id, slug, display_name").in("id", tenantIds).order("created_at", { ascending: true }),
@@ -42,6 +43,24 @@ export async function loadFacts(admin: Admin, userId: string): Promise<{ facts: 
       tenantSlug = pick.slug;
       workspaceName = pick.display_name;
       bookable = Boolean(visible);
+      // TUL-719: never on the roster of an owned workspace + public profile = her own site takes bookings.
+      if (!bookable && rows.length === 0 && talentProfileId) {
+        const [own, offers] = await Promise.all([
+          admin
+            .from("talent_profiles")
+            .select("workflow_status, visibility, stripe_account_id, stripe_charges_enabled")
+            .eq("id", talentProfileId)
+            .maybeSingle(),
+          admin.from("talent_offerings").select("amount_cents, status, visibility").eq("talent_profile_id", talentProfileId),
+        ]);
+        if (own.error) logServerError("how-you-work.loadFacts.ownSite", own.error);
+        if (offers.error) logServerError("how-you-work.loadFacts.ownSiteOfferings", offers.error);
+        ownSiteBookable = resolveOwnSiteBookable(
+          { workflowStatus: own.data?.workflow_status ?? null, visibility: own.data?.visibility ?? null },
+          (offers.data ?? []) as OwnSiteOffering[],
+          { stripeAccountId: own.data?.stripe_account_id ?? null, chargesEnabled: Boolean(own.data?.stripe_charges_enabled) },
+        );
+      }
     }
   }
   return {
@@ -50,6 +69,7 @@ export async function loadFacts(admin: Admin, userId: string): Promise<{ facts: 
       hasTalentProfile: Boolean(talentProfileId),
       ownsWorkspace: Boolean(tenantId),
       bookable,
+      ownSiteBookable,
       tenantId,
       tenantSlug,
       talentProfileId,

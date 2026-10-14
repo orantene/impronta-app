@@ -148,6 +148,13 @@ export async function loadOwnedTalentInquiry(
   };
 }
 
+/**
+ * Hard cap per source query. The badge, Hoy and the inbox all read through
+ * `loadTalentInboxForActor`, so they share this one bounded set and their
+ * counts cannot drift (TUL-625). Newest first, so the cap drops the oldest.
+ */
+export const TALENT_INBOX_SCAN_LIMIT = 500;
+
 /** Her conversations across tenants. A guest chat that names only her counts. */
 export async function listTalentInquiryIds(
   admin: SupabaseClient,
@@ -158,7 +165,9 @@ export async function listTalentInquiryIds(
     .select("inquiry_id")
     .eq("talent_profile_id", profileId)
     .eq("role", "talent")
-    .neq("status", "removed");
+    .neq("status", "removed")
+    .order("created_at", { ascending: false })
+    .limit(TALENT_INBOX_SCAN_LIMIT);
   if (error) return fail("unavailable");
   const participantIds = new Set(
     ((data ?? []) as { inquiry_id: string }[]).map((row) => row.inquiry_id).filter(Boolean),
@@ -167,11 +176,15 @@ export async function listTalentInquiryIds(
     admin
       .from("inquiries")
       .select("id, source_context, interpreted_query")
-      .contains("source_context", { talent_ids: [profileId] }),
+      .contains("source_context", { talent_ids: [profileId] })
+      .order("created_at", { ascending: false })
+      .limit(TALENT_INBOX_SCAN_LIMIT),
     admin
       .from("inquiries")
       .select("id, source_context, interpreted_query")
-      .contains("interpreted_query", { talent: { selected_ids: [profileId] } }),
+      .contains("interpreted_query", { talent: { selected_ids: [profileId] } })
+      .order("created_at", { ascending: false })
+      .limit(TALENT_INBOX_SCAN_LIMIT),
   ]);
   const namedRows = [
     ...((bySource.error ? [] : bySource.data ?? []) as { id: string; source_context: unknown; interpreted_query: unknown }[]),

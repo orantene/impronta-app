@@ -153,7 +153,7 @@ test("MX publishable read order matches what stripe/client.ts really reads", () 
   const src = readFileSync(new URL("../stripe/client.ts", import.meta.url), "utf8");
   const fn = src.slice(src.indexOf("export function getStripeMxPublishableKey"));
   const body = fn.slice(0, fn.indexOf("\n}\n"));
-  const names = [...body.matchAll(/process\.env\.([A-Z0-9_]+)/g)].map((m) => m[1]);
+  const names = [...body.matchAll(/stripeEnv\("([A-Z0-9_]+)"\)/g)].map((m) => m[1]);
   assert.deepEqual(names, [...MX_PUBLISHABLE_KEY_READ_ORDER]);
 });
 
