@@ -178,3 +178,4 @@ src/lib/analytics/consent-snippet-minify.test.ts
 src/lib/quality/live-qa-pack-fixture-roles.test.ts
 src/lib/impersonation/client-api-read.test.ts
 src/lib/saas/preview-host.test.ts
+src/lib/saas/unsupported-locale-redirect.test.ts
