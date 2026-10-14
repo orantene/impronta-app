@@ -31,30 +31,6 @@ function regionHasCta(regions: unknown): boolean {
   return false;
 }
 
-/** Region `cta` items carry their own href; heal a stale `/contact` there too. */
-function healRegionCtaHrefs(node: BuilderNode): BuilderNode {
-  if (node.kind !== "section" || node.props.sectionTypeKey !== "site_header") return node;
-  const cfg = (node.props.sectionProps ?? {}) as Rec;
-  const regions = cfg.regions;
-  if (!regions || typeof regions !== "object") return node;
-  let changed = false;
-  const out: Rec = {};
-  for (const [k, items] of Object.entries(regions as Rec)) {
-    out[k] = Array.isArray(items)
-      ? items.map((it) => {
-          if (!it || typeof it !== "object" || (it as Rec).type !== "cta" || typeof (it as Rec).href !== "string") return it;
-          const href = String((it as Rec).href);
-          const next = bookingHref(href);
-          if (next === href) return it;
-          changed = true;
-          return { ...(it as Rec), href: next };
-        })
-      : items;
-  }
-  if (!changed) return node;
-  return { ...node, props: { ...node.props, sectionProps: { ...cfg, regions: out } } };
-}
-
 function ensureSiteHeaderCta(node: BuilderNode, label: string): BuilderNode {
   if (node.kind !== "section" || node.props.sectionTypeKey !== "site_header") return node;
   const cfg = (node.props.sectionProps ?? {}) as Rec;
@@ -106,8 +82,6 @@ function ensureSiteHeaderCta(node: BuilderNode, label: string): BuilderNode {
 function bookingHref(href: string): string {
   const h = href.trim();
   if (h === "#services" || h === "/#services" || /\/#services$/.test(h)) return DEFAULT_CTA_HREF;
-  // TUL-972: `/contact` is the marketing form; on a talent host it is a 404. Open booking instead.
-  if (/^\/(?:[a-z]{2}\/)?contact\/?(?:[?#].*)?$/i.test(h)) return DEFAULT_CTA_HREF;
   return h || DEFAULT_CTA_HREF;
 }
 
@@ -177,7 +151,7 @@ function ensureButtonBookHref(node: BuilderNode): BuilderNode {
 }
 
 function ensureHeaderCtaNode(node: BuilderNode, label: string): BuilderNode {
-  let next = healRegionCtaHrefs(ensureSiteHeaderCta(node, label));
+  let next = ensureSiteHeaderCta(node, label);
   next = ensureUtilityBarCta(next, label);
   next = ensureButtonBookHref(next);
   const kids = (next as AnyNode).children;

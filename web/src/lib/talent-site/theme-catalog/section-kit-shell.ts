@@ -11,7 +11,6 @@
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import type { NavChromeStyle } from "@/lib/site-admin/nav-chrome";
-import { TALENT_BOOK_HREF } from "@/lib/talent-site/contact-channels";
 import { buildDefaultShellTree } from "../default-max-site-trees";
 import type { MaxSiteTemplateIdFactory } from "../max-site-templates/types";
 
@@ -313,7 +312,7 @@ export function buildKitStandardShell(
       hasCta && primaryCta && typeof primaryCta === "object"
         ? { ...(primaryCta as Record<string, unknown>), label: ctaLabel }
         : hasCta
-          ? { label: ctaLabel, href: TALENT_BOOK_HREF }
+          ? { label: ctaLabel, href: "/contact" }
           : primaryCta;
     const regions = sectionProps.regions;
     let nextRegions = regions;

@@ -143,21 +143,3 @@ for (const d of COLLECTION_DESIGNS) {
     assert.equal(headerHasCta(hydrated), true, `${d.slug}: missing header CTA`);
   });
 }
-
-test("ensureHeaderCta heals a stale /contact header CTA to #book (TUL-972)", () => {
-  const header = {
-    id: "h",
-    kind: "section",
-    props: {
-      sectionTypeKey: "site_header",
-      sectionProps: {
-        primaryCta: { label: "Contactar directamente", href: "/contact" },
-        regions: { right: [{ type: "cta", label: "Contactar directamente", href: "/es/contact" }] },
-      },
-    },
-  } as unknown as BuilderNode;
-  const [out] = ensureHeaderCta([header], "Reservar");
-  const cfg = (out!.props as { sectionProps: { primaryCta: { href: string }; regions: { right: Array<{ href: string }> } } }).sectionProps;
-  assert.equal(cfg.primaryCta.href, "#book");
-  assert.equal(cfg.regions.right[0]!.href, "#book");
-});
