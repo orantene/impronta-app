@@ -55,23 +55,15 @@ import { CatalogInquiryBrief } from "./catalog-inquiry-brief";
 import { CatalogTaskNote, catalogTaskBrief } from "./catalog-task-note";
 import { CatalogIntakeFields } from "./catalog-intake-fields";
 import { preselectIntakeFromTask } from "@/lib/talent/offering-intake";
-import {
-  fetchLiveSlots,
-  shouldSkipGuestCaptchaOnHost,
-  type CatalogSlotsFn,
-} from "./catalog-booking-live-slots";
+import { fetchLiveSlots, shouldSkipGuestCaptchaOnHost, type CatalogSlotsFn } from "./catalog-booking-live-slots";
 import { CATALOG_BOOKING_CSS } from "./catalog-booking-styles";
 import { GuestCaptchaField, type GuestCaptchaConfig } from "./GuestCaptchaField";
 import { CatalogLiveWhenPicker, CatalogDemoWhenPicker } from "./CatalogLiveWhenPicker";
 import { bookingDraftKey, clearBookingDraft, loadBookingDraft } from "./booking-draft-store";
 import { CatalogWhoSummary, useBookingDraftEffects } from "./catalog-who-summary";
 import { useBookingContactPrefill } from "./use-booking-contact-prefill";
-import {
-  BOOKING_RESUME_EVENT,
-  clearBookingResume,
-  peekBookingResume,
-  setBookingResume,
-} from "./booking-resume-store";
+import { BOOKING_RESUME_EVENT, clearBookingResume, peekBookingResume, setBookingResume } from "./booking-resume-store";
+import { BookingPromoPanel, useBookingPromo } from "@/components/promos/public/booking-promo-panel";
 import type { CatalogTakenSlotNotice } from "./catalog-taken-slot";
 import { resolveSheetOpening, slotArrivalPlan } from "./booking-slot-selection";
 import { ServiceAddressField } from "./ServiceAddressField";
@@ -132,6 +124,7 @@ export function CatalogBookingSheet({
   const [askAttempted, setAskAttempted] = useState(false);
   const [slotsRefreshKey, setSlotsRefreshKey] = useState(0);
   const [takenNotice, setTakenNotice] = useState<CatalogTakenSlotNotice | null>(null);
+  const promo = useBookingPromo(); // Promos v1: pay-step promo choice + re-quote after "offer ran out"
   const liveStartsRef = useRef<string | null>(null);
   const pendingSlotRef = useRef<string | null>(null); // TUL-232: slotStart awaiting the first live fetch
   const errorRef = useRef<HTMLParagraphElement | null>(null); // the error sits below the sheet's fold on most screens
@@ -345,7 +338,7 @@ export function CatalogBookingSheet({
     setWrote,
     setDoneHref,
     setSlotsRefreshKey,
-    setTakenNotice,
+    setTakenNotice, promo: promo.choice, onPromoGone: promo.promoGone,
   });
 
   useEffect(() => {
@@ -689,6 +682,7 @@ export function CatalogBookingSheet({
               <p className="jb-fixture" data-catalog-who-pay="">
                 {paymentFixture}
               </p>
+              {mode === "live" && !isRequest && !isQuote ? <BookingPromoPanel locale={locale} refreshKey={promo.refreshKey} onChange={promo.setChoice} request={{ offeringId: detail.offeringId, variantId, addOnIds, startsAt: liveStarts, contactEmail: emailValid ? email.trim() : null }} /> : null}
               {captchaRequired ? <GuestCaptchaField captcha={captcha} locale={locale} onToken={(token) => setCaptchaToken(token)} /> : null}
               {showAsk ? (
                 <button
@@ -737,7 +731,7 @@ export function CatalogBookingSheet({
               <span>Total</span>
               <b data-catalog-price={isQuote ? "quote" : "money"}>
                 {footerTotal.from && !isQuote ? (es ? "Desde " : "From ") : ""}
-                {catalogPriceLabel(detail, footerTotal.cents, locale, money)}
+                {catalogPriceLabel(detail, step === "who" && !footerTotal.from ? Math.max(0, footerTotal.cents - (promo.choice.promoShownDiscountCents ?? 0)) : footerTotal.cents, locale, money)}
               </b>
             </div>
           ) : (

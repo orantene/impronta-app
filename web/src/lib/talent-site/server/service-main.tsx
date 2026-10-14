@@ -3,8 +3,11 @@
  * `policy-main.tsx`: the site shell and theme wrap it, only the body swaps, and it paints from
  * the site's theme tokens only.
  */
-import type { CSSProperties, ReactNode } from "react";
+import { Fragment, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
+
+import { PromoBadge, promoPriceText } from "@/components/promos/public/promo-badge";
+import { displayPrice, type DisplayPrice, type DisplayPriceContext } from "@/lib/promos/display-price";
 
 import {
   buildServicePageJsonLd,
@@ -58,6 +61,19 @@ const STICKY_BTN: CSSProperties = {
 };
 
 
+/**
+ * The promo-aware price (design L6: no surface renders a price itself). Null
+ * when the service shows no price, or when no live promo changes it, so the
+ * plain `priceLine` keeps the page looking exactly as before.
+ */
+export function servicePromoPrice(o: ServicePageOffering, promo: DisplayPriceContext | null | undefined): DisplayPrice | null {
+  if (!promo || promo.promos.length === 0) return null;
+  if (!o.amountCents || o.amountCents <= 0 || !o.currency) return null;
+  if (o.priceDisplay !== "exact" && o.priceDisplay !== "from") return null;
+  const dp = displayPrice({ id: o.id, list_cents: o.amountCents, currency: o.currency }, promo);
+  return dp.hasPromo ? dp : null;
+}
+
 export type ServiceRelatedLink = { title: string; href: string; facts: string };
 
 /** Related-service links: slug from the primary-language title (shared by both hreflang pair), text in the page language. */
@@ -67,34 +83,51 @@ export function serviceRelatedLinks(
   currentId: string,
   locale: string,
   hrefFor: (slugPath: string) => string,
+  promo?: DisplayPriceContext | null,
 ): ServiceRelatedLink[] {
   const copy = servicePageCopy(locale);
   return pickRelatedServices(offerings, currentId).map((r) => {
     const slugRow = (primaryOfferings ?? offerings).find((x) => x.id === r.id) ?? r;
+    const dp = servicePromoPrice(r, promo);
+    const price = dp ? promoPriceText(dp, locale, r.priceDisplay === "from" ? copy.priceFrom : null) : priceLine(r, locale, copy.priceFrom);
     return {
       title: r.title,
       href: hrefFor(`/${serviceSlug(slugRow)}`),
-      facts: [priceLine(r, locale, copy.priceFrom), r.durationMinutes ? copy.minutes(r.durationMinutes) : null].filter(Boolean).join(" · "),
+      facts: [price, r.durationMinutes ? copy.minutes(r.durationMinutes) : null].filter(Boolean).join(" · "),
     };
   });
 }
 
 export function serviceMainNode(
   o: ServicePageOffering,
-  opts: { locale: string; homePath: string; related?: readonly ServiceRelatedLink[]; faq?: readonly ServiceFaqItem[]; reviews?: ServiceReviews | null },
+  opts: {
+    locale: string;
+    homePath: string;
+    related?: readonly ServiceRelatedLink[];
+    faq?: readonly ServiceFaqItem[];
+    reviews?: ServiceReviews | null;
+    promo?: DisplayPriceContext | null;
+  },
 ): ReactNode {
   const copy = servicePageCopy(opts.locale);
-  const price = priceLine(o, opts.locale, copy.priceFrom);
+  const dp = servicePromoPrice(o, opts.promo);
+  const price: ReactNode = dp ? (
+    <PromoBadge key="price" price={dp} locale={opts.locale} prefix={o.priceDisplay === "from" ? copy.priceFrom : null} />
+  ) : (
+    priceLine(o, opts.locale, copy.priceFrom)
+  );
   // The service's own photos (talent_offering_media, the same link the gallery uses); none -> no block.
   const photos = [...new Set((o.imageUrls ?? []).filter((u) => typeof u === "string" && u.trim() !== ""))].slice(0, SERVICE_PHOTO_MAX);
-  const facts = [
+  const parts: ReactNode[] = [
     o.categoryLabel ?? o.category ?? null,
     price,
     o.durationMinutes ? copy.minutes(o.durationMinutes) : null,
     o.cancellationHours && o.cancellationHours > 0 ? copy.freeCancel(o.cancellationHours) : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  ].filter(Boolean);
+  // No live promo: the same plain string as before. A promo: the same order, one node swapped.
+  const facts: ReactNode = dp
+    ? parts.map((p, i) => <Fragment key={i}>{i > 0 ? " · " : null}{p}</Fragment>)
+    : parts.join(" · ");
   const wrap: CSSProperties = {
     maxWidth: 760,
     margin: "0 auto",

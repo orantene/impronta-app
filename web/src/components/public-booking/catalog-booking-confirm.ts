@@ -56,6 +56,9 @@ export async function runCatalogConfirmWrite(input: {
   time: string | null;
   captchaToken: string | null;
   bookFn?: CatalogBookFn;
+  /** Promos v1: the pay step's promo choice, and a callback when the offer ran out. */
+  promo?: { promoCode: string | null; promoShownDiscountCents: number | null } | null;
+  onPromoGone?: () => void;
 }): Promise<
   | { phase: "preview" }
   | { phase: "outcome"; outcome: ReturnType<typeof resolveCatalogConfirmOutcome> }
@@ -84,7 +87,8 @@ export async function runCatalogConfirmWrite(input: {
     const run =
       input.bookFn ??
       (await import("@/lib/server-actions/instant-book-action")).createInstantBookingAction;
-    return run({
+    const res = await run({
+      ...(input.promo ? { promoCode: input.promo.promoCode, promoShownDiscountCents: input.promo.promoShownDiscountCents } : {}),
       talentProfileId: input.talentProfileId,
       tenantId: input.tenantId,
       contactName: input.contactName,
@@ -102,6 +106,8 @@ export async function runCatalogConfirmWrite(input: {
       locale: input.locale,
       sourcePage: typeof window !== "undefined" ? window.location.pathname : null,
     });
+    if (!res.ok && res.promoGone) input.onPromoGone?.();
+    return res;
   });
   if (!submitted.wrote) return { phase: "preview" };
   return {
