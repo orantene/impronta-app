@@ -24,7 +24,8 @@
  */
 
 import "server-only";
-import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
+// TUL-573: lazy so dashboard cold starts do not evaluate the Stripe SDK.
+const loadStripeClient = () => import("@/lib/stripe/client");
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import type Stripe from "stripe";
@@ -233,6 +234,7 @@ function stubbed(reason: string): { ok: true; stub: true; reason: string } {
 export async function createAccountCoupon(
   input: AccountCouponInput,
 ): Promise<AccountCouponResult> {
+  const { getStripe, isStripeConfigured } = await loadStripeClient();
   if (!isStripeConfigured()) {
     return {
       ok: true,
@@ -285,6 +287,7 @@ export async function applyDiscountToSubscription(
   subscriptionId: string,
   couponId: string,
 ): Promise<StripeWriteResult> {
+  const { getStripe, isStripeConfigured } = await loadStripeClient();
   if (!isStripeConfigured()) {
     return stubbed("STRIPE_SECRET_KEY not set — discount not attached.");
   }
@@ -327,6 +330,7 @@ function isMissingDiscountError(err: unknown): boolean {
 export async function removeDiscountFromSubscription(
   subscriptionId: string,
 ): Promise<StripeWriteResult> {
+  const { getStripe, isStripeConfigured } = await loadStripeClient();
   if (!isStripeConfigured()) {
     return stubbed("STRIPE_SECRET_KEY not set — nothing detached.");
   }
@@ -355,6 +359,7 @@ export async function removeDiscountFromSubscription(
 export async function deleteAccountCoupon(
   couponId: string,
 ): Promise<StripeWriteResult> {
+  const { getStripe, isStripeConfigured } = await loadStripeClient();
   if (!isStripeConfigured()) {
     return stubbed("STRIPE_SECRET_KEY not set — coupon not deleted.");
   }
@@ -395,6 +400,7 @@ export async function resolveSubscriptionDiscountMirror(
   );
   if (extracted === null) return EMPTY_DISCOUNT_MIRROR;
 
+  const { getStripe } = await loadStripeClient();
   const stripe = getStripe();
 
   if (isUnexpandedDiscount(extracted)) {

@@ -55,8 +55,9 @@ test("dispatcher defers the catalog and email channel (no static React Email / R
   assert.deepEqual(leaked, []);
 });
 
-test("dashboard routes reach stripe / pdf-lib / email only through the known money chokepoints", () => {
-  const MONEY_CHOKEPOINTS = ["lib/bookings/transactions.ts", "lib/stripe/workspace-billing.ts"];
+test("dashboard routes reach stripe / pdf-lib / email only through the one known Connect chokepoint", () => {
+  // TUL-573b: only the Connect payouts surface still reaches the Stripe SDK statically (not in scope for this PR; own follow-up).
+  const MONEY_CHOKEPOINTS: string[] = ["lib/payments/stripe-connect.ts"];
   const entries = [
     "app/(workspace)/[tenantSlug]/admin/page.tsx",
     "app/(workspace)/talent/today/page.tsx",
