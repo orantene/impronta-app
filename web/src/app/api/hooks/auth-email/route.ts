@@ -62,7 +62,7 @@ type EmailData = {
 };
 
 type HookPayload = {
-  user?: { id?: string; email?: string; new_email?: string };
+  user?: { id?: string; email?: string; new_email?: string; user_metadata?: { lang?: unknown } };
   email_data?: EmailData;
 };
 
@@ -88,12 +88,15 @@ function copyKeyFor(action: string): EmailCopyKey {
  * app's auth actions append `?lang=es` to redirectTo (the language of the page
  * the user was on); we read it back here. Defaults to English.
  */
-function localeFromRedirect(redirectTo: string | undefined): "en" | "es" {
-  if (!redirectTo) return "en";
+function localeFromRedirect(redirectTo: string | undefined, metaLang?: unknown): "en" | "es" {
+  // user_metadata.lang (stamped at sign-up) backs up a redirect_to that lost `?lang=`.
+  const fallback = normalizeEmailLocale(typeof metaLang === "string" ? metaLang : null);
+  if (!redirectTo) return fallback;
   try {
-    return normalizeEmailLocale(new URL(redirectTo).searchParams.get("lang"));
+    const lang = new URL(redirectTo).searchParams.get("lang");
+    return lang ? normalizeEmailLocale(lang) : fallback;
   } catch {
-    return "en";
+    return fallback;
   }
 }
 
@@ -182,7 +185,7 @@ export async function POST(req: NextRequest) {
 
   const url = confirmUrl(action, tokenHash, data.redirect_to);
   const newEmail = data.new_email ?? payload.user?.new_email;
-  const locale = localeFromRedirect(data.redirect_to);
+  const locale = localeFromRedirect(data.redirect_to, payload.user?.user_metadata?.lang);
   const subject = getEmailCopy(locale)[copyKeyFor(action)].subject;
 
   let html: string;

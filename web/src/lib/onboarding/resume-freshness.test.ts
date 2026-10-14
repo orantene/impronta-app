@@ -40,3 +40,8 @@ test("loadOnboardingResume gates on isResumeFresh and archives stale guest draft
   assert.match(body, /isResumeFresh\(/);
   assert.match(body, /archiveBrief\(/);
 });
+
+test("signed in: an unfinished draft older than 14 days does not resume (TUL-750/16)", () => {
+  assert.equal(isResumeFresh({ step: "essentials", updatedAt: ago(15 * 24 * H) }, { now: NOW, isAuthenticated: true }), false);
+  assert.equal(isResumeFresh({ step: "essentials", updatedAt: ago(13 * 24 * H) }, { now: NOW, isAuthenticated: true }), true);
+});

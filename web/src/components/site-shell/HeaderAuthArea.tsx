@@ -182,6 +182,7 @@ export async function HeaderAuthArea({
                 }}
                 secondaryAction={secondaryAction}
                 signOutAction={signOut}
+                signOutLabel={t("public.header.signOutAria")}
               />
             )}
           </>
