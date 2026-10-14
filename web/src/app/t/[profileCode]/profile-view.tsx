@@ -1374,12 +1374,12 @@ export async function buildTalentProfileMetadata({
   searchParams,
 }: {
   params: Promise<{ profileCode: string }>;
-  searchParams: Promise<{ preview?: string }>;
+  searchParams: Promise<{ preview?: string; lang?: string | string[] }>;
 }): Promise<Metadata> {
   if (!isSupabaseConfigured()) return {};
 
   const profileCode = await liveTalentProfileCode((await params).profileCode, { quiet: true });
-  const { preview } = await searchParams;
+  const { preview, lang: langQuery } = await searchParams;
   const site =
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "http://localhost:3000";
   const hostCtx = await getPublicHostContext();
@@ -1435,6 +1435,7 @@ export async function buildTalentProfileMetadata({
     profileCode,
     canonicalAbsolute: await canonicalTalentUrl(profileCode),
     fallbackOrigin: site,
+    langQuery,
   });
   const { locale, chain } = localeMeta.profile;
 
