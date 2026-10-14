@@ -47,6 +47,7 @@ import {
 } from "@/lib/client/signed-upload";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 import { useT } from "@/i18n/use-t";
+import { GuestPhoneField, normalizeGuestPhone } from "@/components/ui/guest-phone-field";
 import { interpolate } from "@/i18n/interpolate";
 import { sentCopyKeys } from "@/lib/inquiry/reserve-slot-taken";
 import { SlotTakenChips } from "./SlotTakenChips";
@@ -332,8 +333,7 @@ export function InquiryDrawer({
     };
   }, [autosaveEnabled, submitted, triggerAutosave]);
 
-  const validation = validateIntentForSubmit(intent);
-  const canSubmit = validation.ok;
+  const canSubmit = validateIntentForSubmit(intent).ok && normalizeGuestPhone(intent.requester?.phone) !== null;
 
   const handleSubmit = () => {
     if (!canSubmit) return;
@@ -715,7 +715,7 @@ export function RequesterSection({
           <Input type="email" value={value.email ?? ""} onChange={(v) => onChange({ ...value, email: v })} placeholder={t("public.inquiryDrawer.requesterEmailPlaceholder")} />
         </Field>
         <Field label={t("public.inquiryDrawer.requesterPhone")}>
-          <Input type="tel" value={value.phone ?? ""} onChange={(v) => onChange({ ...value, phone: v })} placeholder={t("public.inquiryDrawer.requesterPhonePlaceholder")} />
+          <GuestPhoneField value={value.phone ?? ""} onChange={(v) => onChange({ ...value, phone: v })} />
         </Field>
       </FieldRow>
     </Section>

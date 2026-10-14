@@ -41,7 +41,8 @@ export default async function ContactPage({
     );
   }
 
-  const t = createTranslator(await getRequestLocale());
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
 
   const copy = {
     nameLabel: t("public.contact.form.nameLabel"),
@@ -66,7 +67,7 @@ export default async function ContactPage({
         </h1>
         <p className="mt-6 text-muted-foreground">{t("public.contact.body")}</p>
 
-        <ContactInquiryForm copy={copy} />
+        <ContactInquiryForm copy={copy} locale={locale} />
       </div>
     </main>
   );

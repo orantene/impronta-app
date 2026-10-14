@@ -70,6 +70,8 @@ export async function openPurchaseThread(
       contact_name: input.contact.displayName ?? input.contact.email ?? "Guest",
       contact_email: input.contact.email ?? "",
       contact_phone: input.contact.phone ?? null,
+      // The guest's optional "Notas" also seed the inquiry message so the talent's detail shows it.
+      ...(brief?.guest_note ? { message: brief.guest_note } : {}),
       client_user_id: input.actorUserId,
       // Always stamp the cookie session when present. `/c/[id]` ownership
       // gates on guest_session_id === cookie; clearing it when the buyer
@@ -131,6 +133,19 @@ export async function openPurchaseThread(
       metadata: { intake: true },
     });
     if (intakeErr) logServerError("orders.createPurchase/thread-intake", intakeErr);
+  }
+
+  if (brief?.guest_note) {
+    const { error: noteErr } = await admin.from("inquiry_messages").insert({
+      inquiry_id: inquiryId,
+      tenant_id: input.tenantId,
+      thread_type: "private",
+      sender_user_id: input.actorUserId,
+      guest_session_id: input.actorUserId ? null : input.guestSessionId,
+      body: brief.guest_note,
+      metadata: { guest_note: true },
+    });
+    if (noteErr) logServerError("orders.createPurchase/thread-guest-note", noteErr);
   }
 
   for (const holdId of input.holdIds) {

@@ -11,11 +11,12 @@
  * server action is pending.
  */
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { submitContactInquiry, type ContactInquiryState } from "./actions";
 import { Button } from "@/components/ui/button";
+import { GuestPhoneField } from "@/components/ui/guest-phone-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -44,7 +45,8 @@ function SubmitButton({ copy }: { copy: ContactFormCopy }) {
   );
 }
 
-export function ContactInquiryForm({ copy }: { copy: ContactFormCopy }) {
+export function ContactInquiryForm({ copy, locale }: { copy: ContactFormCopy; locale: string }) {
+  const [phone, setPhone] = useState("");
   const [state, formAction] = useActionState<ContactInquiryState, FormData>(
     submitContactInquiry,
     { status: "idle" },
@@ -101,12 +103,7 @@ export function ContactInquiryForm({ copy }: { copy: ContactFormCopy }) {
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="contact_phone">{copy.phoneLabel}</Label>
-        <Input
-          id="contact_phone"
-          name="contact_phone"
-          type="tel"
-          autoComplete="tel"
-        />
+        <GuestPhoneField id="contact_phone" name="contact_phone" value={phone} onChange={setPhone} locale={locale} />
       </div>
 
       <div className="flex flex-col gap-2">
