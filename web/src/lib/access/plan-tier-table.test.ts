@@ -101,9 +101,10 @@ describe("TUL-839 approved tier table", () => {
       for (const higher of ladder.slice(i + 1)) {
         for (const f of tierRow(higher)?.features ?? []) {
           if (f.gate.kind !== "talent") continue;
-          if (allTierFeatures(lower).some((g) => g.gate.kind === "talent" && g.gate.key === f.gate.key)) continue;
-          if (KNOWN_OVER_GRANT.has(`${lower} ${f.gate.key}`)) continue;
-          assert.equal(hasEntitlement(lower, f.gate.key, "site"), false, `${lower} must not have ${f.gate.key}`);
+          const key = f.gate.key;
+          if (allTierFeatures(lower).some((g) => g.gate.kind === "talent" && g.gate.key === key)) continue;
+          if (KNOWN_OVER_GRANT.has(`${lower} ${key}`)) continue;
+          assert.equal(hasEntitlement(lower, key, "site"), false, `${lower} must not have ${key}`);
         }
       }
     });
