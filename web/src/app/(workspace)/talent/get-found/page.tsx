@@ -2,10 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { loadTalentSelfProfileByUser } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent";
+import { SearchConsoleGuide } from "@/components/talent/get-found/SearchConsoleGuide";
 import { GoogleBusinessGuide } from "@/components/talent/get-found/GoogleBusinessGuide";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { buildGbpGuide } from "@/lib/talent/google-business-profile-guide";
+import { buildGscGuide } from "@/lib/talent/search-console-guide";
 import { talentPublicProfileHref } from "@/lib/talent/public-profile-href";
 
 export const dynamic = "force-dynamic";
@@ -30,9 +32,12 @@ export default async function PlatformTalentGetFoundPage() {
     lang,
   );
 
+  const gscGuide = buildGscGuide({ siteUrl }, lang);
+
   return (
     <>
       <GoogleBusinessGuide guide={guide} lang={lang} />
+      <SearchConsoleGuide guide={gscGuide} lang={lang} />
       <div className="mx-auto max-w-2xl px-6 pb-6 text-sm">
         <Link href="/talent/site" className="text-neutral-500 underline">
           {lang === "es" ? "Volver a Mi presencia" : "Back to My presence"}
