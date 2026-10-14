@@ -318,6 +318,9 @@ const BOOKING_CONFIRMED_TALENT: CatalogEntry = {
     surface: "talent",
     title: () => "New booking confirmed",
     body: () => "A client booked a time with you.",
+    // TUL-959: same target as the offer bell, so the row opens the inquiry workspace.
+    targetDrawer: "talent-inquiry",
+    targetPayload: (event) => (event.inquiryId ? { inquiryId: event.inquiryId } : {}),
   },
   email: {
     templateId: "talent.booking_confirmed",
