@@ -1,5 +1,6 @@
 "use client";
 
+import { DateFormatHint } from "../../primitives/DateFormatHint";
 import { useState, useTransition } from "react";
 import { TaskShell } from "./primitives/TaskShell";
 import { createOwnEventQuote, createOwnProjectQuote } from "@/lib/talent-agenda/create-quote";
@@ -74,6 +75,7 @@ export function AgendaEventQuote({
             value={date}
             onChange={(e) => setDate(e.target.value)}
           />
+          <DateFormatHint locale={copy.locale} />
         </label>
         <label className="flex min-h-[44px] items-center gap-2 text-[14px]">
           <input type="checkbox" checked={hold} onChange={(e) => setHold(e.target.checked)} />
@@ -176,6 +178,7 @@ export function AgendaProjectQuote({
             value={due}
             onChange={(e) => setDue(e.target.value)}
           />
+          <DateFormatHint locale={copy.locale} />
         </label>
         <p className="rounded-xl bg-[#f5f5f0] p-3 text-[13px] text-[#5F6368]">{draftNote}</p>
       </section>

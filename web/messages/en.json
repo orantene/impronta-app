@@ -276,7 +276,13 @@
         "copyLinkDone": "Link copied",
         "shareWhatsapp": "Share on WhatsApp",
         "shareSystem": "Share…",
-        "whatsappTemplate": "{name}, {url}"
+        "whatsappTemplate": "{name}, {url}",
+        "shareX": "Share on X",
+        "shareFacebook": "Share on Facebook",
+        "shareLinkedin": "Share on LinkedIn",
+        "copyForInstagram": "Copy link for Instagram",
+        "copiedForInstagram": "Link copied for Instagram",
+        "print": "Print profile"
       },
       "ctaSectionAria": "Call to action",
       "footerCtaTitle": "Ready to work with {firstName}?",
@@ -2727,6 +2733,8 @@
       "refundLabel": "Preferred refund policy",
       "refundNoPreference": "No preference",
       "refundFallback": "Fall back to your agency's policy.",
+      "refundFallbackSolo": "Each offer sets its own refund terms.",
+      "instantBookHintSolo": "Signals you're happy to be booked without a back-and-forth. Whether instant-book is offered still depends on the project.",
       "instantBookTitle": "Open to instant booking",
       "instantBookHint": "Signals you're happy to be booked without a back-and-forth. Whether instant-book is offered still depends on your agency and the project.",
       "saving": "Saving…",
@@ -4938,7 +4946,7 @@
       },
       "resources": {
         "viewWeek": "Week",
-        "viewWeekOff": "A week timeline is not built; Month shows the week's days.",
+        "viewWeekOff": "The weekly view isn't available yet; Month shows the days of the week.",
         "viewResources": "Resources",
         "add": "Add",
         "loading": "Reading the day...",
@@ -4967,7 +4975,7 @@
         "emptyDay": "Nothing on this day for these filters.",
         "holdExpires": "Hold on {title} at {time}",
         "holdExpiresAt": "Hold expires {time}",
-        "dragOff": "Drag to reschedule is not built; Move it on Appointments & Classes reschedules with the window you saw.",
+        "dragOff": "To reschedule, open the appointment in Appointments & Classes.",
         "prevDay": "Previous day",
         "nextDay": "Next day"
       }
@@ -5465,7 +5473,13 @@
         "pendingEmptyBody": "When someone registers from your site in approval mode, their request shows up here for review.",
         "requestedOn": "Requested {date}",
         "decline": "Decline",
-        "approve": "Approve"
+        "approve": "Approve",
+        "tier": {
+          "free": "Free",
+          "studio": "Studio",
+          "agency": "Agency",
+          "network": "Network"
+        }
       },
       "registrationModes": {
         "closedLabel": "Closed",

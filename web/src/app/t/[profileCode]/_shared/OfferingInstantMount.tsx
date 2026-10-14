@@ -342,7 +342,7 @@ export function OfferingInstantMount({
             href={`/login?next=${encodeURIComponent(sourcePage)}`}
             style={{ ...btn(true), textAlign: "center", textDecoration: "none", marginBottom: 8 }}
           >
-            {pickLocale(locale, { en: "Sign in to book", es: "Inicia sesion para reservar" })}
+            {pickLocale(locale, { en: "Sign in to book", es: "Inicia sesión para reservar" })}
           </a>
         ) : null}
         {!signedIn && !d.requireAccountToBook ? (
