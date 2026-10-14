@@ -45,7 +45,24 @@ test("draft survives close/reopen for the same service", () => {
   const key = bookingDraftKey(null);
   assert.equal(key, "tulala:booking-draft:book-jorgelina.tulala.digital");
   saveBookingDraft(key, draft);
-  assert.deepEqual(loadBookingDraft(key, "off-1"), draft);
+  // TUL-705: the picks survive, personal contact fields never do.
+  assert.deepEqual(loadBookingDraft(key, "off-1"), { ...draft, name: "", email: "", phone: "" });
+});
+
+test("TUL-705: contact PII is never written to storage", () => {
+  const key = bookingDraftKey("t1");
+  saveBookingDraft(key, draft);
+  const raw = mem.get(key) ?? "";
+  assert.ok(!raw.includes("Ana"), "name leaked into storage");
+  assert.ok(!raw.includes("ana@example.com"), "email leaked into storage");
+  assert.ok(!raw.includes("5551234567"), "phone leaked into storage");
+});
+
+test("TUL-705: a legacy stored draft with PII loads with empty contact fields", () => {
+  const key = bookingDraftKey("t1");
+  mem.set(key, JSON.stringify(draft));
+  const d = loadBookingDraft(key, "off-1");
+  assert.deepEqual([d?.name, d?.email, d?.phone], ["", "", ""]);
 });
 
 test("a different service starts fresh", () => {

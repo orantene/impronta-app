@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   dispatchLogPatchFromHandlerResult,
+  dispatchLogLocale,
   dispatchLogPatchFromThrown,
   isChannelSkip,
   SKIPPED_DISPATCH_ERROR,
@@ -45,4 +46,14 @@ test("TUL-640: isChannelSkip only accepts the skip shape", () => {
   assert.equal(isChannelSkip({ providerRef: "re_1", from: "a", replyTo: null }), false);
   assert.equal(isChannelSkip("re_abc"), false);
   assert.equal(isChannelSkip(null), false);
+});
+
+test("TUL-653: an unknown guest locale is logged as null, not 'en'", () => {
+  assert.equal(dispatchLogLocale({ locale: "en" }), null);
+  assert.equal(dispatchLogLocale({ locale: "en", localeIsExplicit: false }), null);
+});
+
+test("TUL-653: an explicit recipient locale is logged as given", () => {
+  assert.equal(dispatchLogLocale({ locale: "es", localeIsExplicit: true }), "es");
+  assert.equal(dispatchLogLocale({ locale: "en", localeIsExplicit: true }), "en");
 });

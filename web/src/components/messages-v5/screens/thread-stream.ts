@@ -11,6 +11,7 @@
  * counts as unread for the operator.
  */
 
+import { formatClock } from "@/lib/messages-v5/clock";
 import { CARD_KINDS, type CardKind, type ThreadMessage } from "@/lib/messaging/types";
 import { offerCardMessageIds } from "@/lib/messages-v5/client-thread-view";
 
@@ -151,9 +152,7 @@ export function deliveryStateFor(delivery: ThreadMessage["delivery"]): DeliveryS
 }
 
 export function formatTime(iso: string, locale = "en"): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return new Intl.DateTimeFormat(locale, { hour: "numeric", minute: "2-digit" }).format(d);
+  return formatClock(iso, locale);
 }
 
 export function dayLabel(date: Date, copy: { today: string; yesterday: string }, now: Date, locale = "en"): string {
