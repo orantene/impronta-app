@@ -710,7 +710,7 @@ export function CatalogBookingSheet({
           ) : null}
         </div>
 
-        {step === "who" ? <div style={{ textAlign: "center", padding: "6px 0" }}><PolicyLinkSheet talentProfileId={detail.talentProfileId} locale={locale} /></div> : null}
+        {step === "who" ? <div className="jb-policy"><PolicyLinkSheet talentProfileId={detail.talentProfileId} locale={locale} /></div> : null}
         <CatalogSheetFooter
           step={step}
           es={es}

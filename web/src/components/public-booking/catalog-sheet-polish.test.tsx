@@ -104,3 +104,15 @@ test("TUL-898: 'Empezar de nuevo' waits until something is picked", async () => 
   assert.equal(m.host.querySelector("[data-catalog-start-over]"), null);
   m.done();
 });
+
+test("TUL-931: only the sheet body scrolls; header, Políticas and footer keep their height", async () => {
+  assert.match(CATALOG_BOOKING_CSS, /\.jb-head,\.jb-policy,\.jb-foot\{flex:0 0 auto\}/);
+  assert.match(CATALOG_BOOKING_CSS, /\.jb-body\{flex:1 1 auto;min-height:0;/);
+  const m = mount();
+  openSheet({ offeringId: "off-931" }, "when");
+  await toWho(m.host);
+  const policy = m.host.querySelector(".jb-policy");
+  assert.ok(policy, "policy line is its own non-shrinking row");
+  assert.equal(policy.nextElementSibling?.tagName, "FOOTER", "it sits above the footer, outside the scrolling body");
+  m.done();
+});

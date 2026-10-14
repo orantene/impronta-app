@@ -21,7 +21,11 @@ export const CATALOG_BOOKING_CSS = `
 .jb-head h2{margin:5px 0 0;font-family:var(--token-font-display,var(--font-fraunces),Georgia,serif);font-weight:400;font-size:1.5rem;letter-spacing:-.02em;line-height:1.1}
 .jb-kicker{margin:0;font-size:.6875rem;letter-spacing:.14em;text-transform:uppercase;font-weight:600;color:var(--cb-primary)}
 .jb-x{appearance:none;border:0;background:color-mix(in srgb,var(--cb-ink) 6%,var(--cb-surface));width:40px;height:40px;border-radius:99px;font-size:1rem;cursor:pointer;color:var(--cb-ink);flex:0 0 auto}
-.jb-body{padding:18px 20px 22px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+/* TUL-931: header, policy line and footer never shrink; only the body scrolls. Flex items default to
+   flex-shrink:1, so a tall body squeezed them and their content spilled over (Políticas on Total/Confirmar). */
+.jb-head,.jb-policy,.jb-foot{flex:0 0 auto}
+.jb-policy{text-align:center;padding:6px 0;border-top:1px solid var(--cb-line);background:var(--cb-surface)}
+.jb-body{flex:1 1 auto;min-height:0;padding:18px 20px 22px;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .jb-summary{background:var(--cb-blush);border-radius:14px;padding:14px 16px;margin-bottom:20px}
 .jb-summary>div{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
 .jb-summary span{font-size:.8125rem;color:var(--cb-muted)}

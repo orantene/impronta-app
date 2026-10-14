@@ -29,6 +29,8 @@
  * - GRK-036: phone Hablar FAB clears float/default sticky bar before JS measure.
  * - GRK-038: help teaser yields earlier when catalog filter chips enter the
  *   lower phone band (jorg rail), including individual pills.
+ * - TUL-931: while the booking sheet (.jb-back) is open the chat FAB and help
+ *   teaser step aside; the sheet's own footer owns the phone bottom.
  * - GRK-039: guest chat panels use aria-modal=false; consent yields to
  *   [data-guest-chat-panel] so the message box stays reachable.
  */
@@ -100,6 +102,7 @@ body:has(${CONSENT_BANNER_SELECTOR}) #hero{padding-bottom:max(2rem,calc(var(--fl
 @media (max-width:719px){body:has(.cb-bar[data-show="true"]:not([data-top="true"])) [data-guest-chat-launcher],body:has(.mn-bar[data-show="true"]) [data-guest-chat-launcher]{bottom:max(calc(24px + env(safe-area-inset-bottom,0px)),calc(var(--cb-bar-h) + 24px))!important;right:max(72px,calc(16px + 56px + env(safe-area-inset-right,0px)))!important}}
 /* GRK-033 residual: Gridline/split heroes — compact phone + defer who-card. */
 @media (max-width:640px){body:has(${CONSENT_BANNER_SELECTOR}) #hero.site-builder-node--split{padding-top:1.25rem!important;padding-bottom:calc(var(--floating-consent-clearance) + 16px)!important;box-sizing:border-box}body:has(${CONSENT_BANNER_SELECTOR}) #hero.site-builder-node--split > .site-builder-node--container[data-builder-layout="stack"]{padding-top:0!important;padding-bottom:0!important;--bn-gap:0.5rem}body:has(${CONSENT_BANNER_SELECTOR}) #hero.site-builder-node--split > .site-builder-node--container[data-builder-layout="stack"] > .site-builder-node--container:has(> .site-builder-node--button){scroll-margin-bottom:calc(var(--floating-consent-clearance) + 16px)}body:has(${CONSENT_BANNER_SELECTOR}) #hero.site-builder-node--split > :last-child{display:none}}
+body:has(.jb-back) [data-guest-chat-launcher],body:has(.jb-back) [data-help-bubble]{display:none!important}
 `.replace(/\n/g, "");
 
 /**
