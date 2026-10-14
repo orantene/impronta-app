@@ -13789,7 +13789,7 @@
       "markResolved": "Mark resolved",
       "keepItOpen": "Keep it open",
       "handoffTitle": "Your ticket is with {agent}",
-      "handoffBody": "You will get a notification and an email when he replies. You can keep writing here in the meantime.",
+      "handoffBody": "You will get a notification and an email when they reply. You can keep writing here in the meantime.",
       "handoffHq": "Escalated to you",
       "humanReplyEta": "{agent} will reply, typically within a few hours",
       "ticketReceipt": "Ticket #{number} received. {agent} will reply, typically within a few hours.",
