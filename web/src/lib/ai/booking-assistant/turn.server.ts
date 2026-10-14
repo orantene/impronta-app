@@ -8,6 +8,7 @@ import "server-only";
  * (Next `after()`), never await it inline — the LLM path can take seconds.
  */
 
+import { resolveEffectiveTalentPlanKey } from "@/lib/billing/effective-talent-plan";
 import { after } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -193,7 +194,8 @@ async function loadTalentPlanKey(talentProfileId: string): Promise<string | null
     return null;
   }
   const key = (data as { talent_plan_key?: string | null } | null)?.talent_plan_key;
-  return typeof key === "string" && key ? key : null;
+  const stored = typeof key === "string" && key ? key : null;
+  return resolveEffectiveTalentPlanKey(admin, talentProfileId, stored);
 }
 
 /** Sum successful booking-assistant spend for this talent in the UTC month. */

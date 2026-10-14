@@ -1,5 +1,6 @@
 import "server-only";
 
+import { resolveEffectiveTalentPlanKey } from "@/lib/billing/effective-talent-plan";
 import { hasEntitlement } from "@/lib/access/talent-entitlements";
 import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomains";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -84,8 +85,11 @@ export async function loadTalentMaxSiteLink(
 
     if (profileErr || !profileRow) return null;
 
-    const planKey = (profileRow as { talent_plan_key: string | null })
-      .talent_plan_key;
+    const planKey = await resolveEffectiveTalentPlanKey(
+      admin,
+      talentProfileId,
+      (profileRow as { talent_plan_key: string | null }).talent_plan_key,
+    );
     if (!hasEntitlement(planKey, "personalSite.link")) return null;
     const isDemo = (profileRow as { is_demo?: boolean | null }).is_demo === true;
 

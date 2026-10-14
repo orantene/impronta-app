@@ -1,4 +1,6 @@
 import type { TrustBadgeRow } from "@/lib/trust/verified-mark";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { resolveEffectiveTalentPlans } from "@/lib/billing/effective-talent-plan";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   decodeDirectoryCursor,
@@ -908,9 +910,15 @@ async function fetchDirectoryWindow(
   const profileIds = profiles.map((row) => row.id);
   // Portfolio (Max) talents on THIS page — feeds the priority-placement
   // tie-break applied to the loaded page below (see portfolio-boost.ts).
+  const effectivePlans = await resolveEffectiveTalentPlans(
+    createServiceRoleClient() ?? supabase,
+    profiles,
+  );
   const portfolioProfileIds = new Set(
     profiles
-      .filter((row) => hasEntitlement(row.talent_plan_key, "discover.priority"))
+      .filter((row) =>
+        hasEntitlement(effectivePlans.get(row.id) ?? row.talent_plan_key, "discover.priority"),
+      )
       .map((row) => row.id),
   );
 
