@@ -9,7 +9,15 @@ import type { OnboardingChoice } from "@/lib/onboarding/module-state";
 
 import { OnboardingModule } from "./onboarding-module";
 
-export function StartFlow({ initialLocale, startChoice }: { initialLocale: FlowLocale; startChoice: OnboardingChoice | null }) {
+export function StartFlow({
+  initialLocale,
+  startChoice,
+  marketingOrigin,
+}: {
+  initialLocale: FlowLocale;
+  startChoice: OnboardingChoice | null;
+  marketingOrigin: string;
+}) {
   const [locale, setLocale] = useState<FlowLocale>(initialLocale);
   const onLocaleChange = useCallback((next: FlowLocale) => {
     setLocale(next);
@@ -27,6 +35,7 @@ export function StartFlow({ initialLocale, startChoice }: { initialLocale: FlowL
       locale={locale}
       intent="unknown"
       startChoice={startChoice}
+      marketingOrigin={marketingOrigin}
       onLocaleChange={onLocaleChange}
       onClose={() => {
         if (window.history.length > 1) window.history.back();

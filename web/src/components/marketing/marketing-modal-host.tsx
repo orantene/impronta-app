@@ -15,7 +15,10 @@ import { OnboardingModuleHost } from "@/components/onboarding/onboarding-module-
 export function MarketingModalHost({
   locale = "en",
   onboardingModule = false,
+  marketingOrigin,
 }: {
+  /** Server-resolved marketing origin for legal links (TUL-750). */
+  marketingOrigin: string;
   locale?: string;
   /**
    * `onboarding_module_enabled`: when true the shared onboarding module owns
@@ -42,9 +45,9 @@ export function MarketingModalHost({
 
   return (
     <>
-      {onboardingModule ? <OnboardingModuleHost locale={locale === "es" ? "es" : "en"} /> : null}
+      {onboardingModule ? <OnboardingModuleHost locale={locale === "es" ? "es" : "en"} marketingOrigin={marketingOrigin} /> : null}
       {talentOpen ? (
-        <TalentRegisterModal locale={locale} onClose={() => setTalentOpen(false)} />
+        <TalentRegisterModal locale={locale} marketingOrigin={marketingOrigin} onClose={() => setTalentOpen(false)} />
       ) : null}
       {loginOpen ? (
         <LoginModal locale={locale} onClose={() => setLoginOpen(false)} />

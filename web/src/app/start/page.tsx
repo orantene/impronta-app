@@ -1,3 +1,4 @@
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -33,5 +34,5 @@ export default async function StartPage({
     country: h.get("x-vercel-ip-country"),
   });
   const choice = isOnboardingChoice(sp.choice) ? sp.choice : null;
-  return <StartFlow initialLocale={locale} startChoice={choice} />;
+  return <StartFlow initialLocale={locale} startChoice={choice} marketingOrigin={resolveMarketingOrigin()} />;
 }

@@ -34,3 +34,20 @@ test("age-terms checkbox takes the origin as a prop and the pages pass it", () =
     assert.match(src, /marketingOrigin=\{resolveMarketingOrigin\(\)\}/, p);
   }
 });
+
+// TUL-750 follow-up 2: onboarding, modal hosts and the discover page.
+test("onboarding, modals and discover use the resolved marketing origin", () => {
+  const root = join(dir, "..", "..");
+  const read = (p: string) => readFileSync(join(root, p), "utf8");
+  for (const p of ["components/onboarding/steps/save-step.tsx", "components/marketing/talent-register-modal.tsx"]) {
+    const src = read(p);
+    assert.match(src, /marketingOrigin/, p);
+  }
+  assert.ok(!/getSiteUrl\(\)/.test(read("components/onboarding/steps/save-step.tsx")));
+  assert.match(read("app/start/page.tsx"), /marketingOrigin=\{resolveMarketingOrigin\(\)\}/);
+  assert.match(read("components/marketing/shell.tsx"), /marketingOrigin=\{resolveMarketingOrigin\(\)\}/);
+  assert.match(read("components/marketing/tenant-register-mount.tsx"), /marketingOrigin=\{resolveMarketingOrigin\(\)\}/);
+  const disc = read("app/(workspace)/talent/discover/page.tsx");
+  assert.ok(!/https:\/\/tulala\.digital/.test(disc));
+  assert.match(disc, /resolveMarketingOrigin\(\)/);
+});

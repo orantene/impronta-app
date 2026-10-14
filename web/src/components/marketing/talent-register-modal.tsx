@@ -145,12 +145,15 @@ interface TalentRegisterModalProps {
    *  account — this used to be hardcoded "en", so a Spanish visitor who
    *  signed up here was silently registered as an English user. */
   locale?: string;
+  /** Server-resolved marketing origin for the legal links (TUL-750). */
+  marketingOrigin?: string;
 }
 
 export function TalentRegisterModal({
   onClose,
   tenant,
   locale = "en",
+  marketingOrigin,
 }: TalentRegisterModalProps) {
   const t = getTalentModalCopy(locale);
   const [mounted, setMounted] = useState(false);
@@ -566,7 +569,7 @@ function ModalForm({
         />
       </AuthFieldShell>
 
-      <AgeTermsCheckbox locale={locale} />
+      <AgeTermsCheckbox locale={locale} marketingOrigin={marketingOrigin} />
 
       <AuthSubmitButton pending={pending} idle={t.createCta} busy={t.creating} />
     </form>

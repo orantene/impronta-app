@@ -17,6 +17,7 @@
 // Spec: project_discover_unified.md §9 (talent audit T2/T4/T5).
 
 import Link from "next/link";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
@@ -396,7 +397,7 @@ export default async function PlatformTalentDiscoverPage() {
         </Link>
         {d.profileCode && (
           <a
-            href={`https://tulala.digital/t/${d.profileCode}`}
+            href={`${resolveMarketingOrigin()}/t/${d.profileCode}`}
             target="_blank"
             rel="noopener noreferrer"
             style={{
