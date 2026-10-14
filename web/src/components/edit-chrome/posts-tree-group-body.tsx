@@ -8,7 +8,7 @@
  */
 import { ChevronDown, ChevronUp, Palette, Plus, X } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   addPostLayoutSection,
@@ -56,22 +56,27 @@ export function PostsTreeGroupBody(props: PostsTreeGroupBodyProps) {
   const [layout, setLayout] = useState<Layout | null>(null);
   const [creating, setCreating] = useState(false);
 
+  // Latest listPosts + copy, read inside the load effect so the effect only
+  // re-runs when the panel opens (the wrapper may pass a fresh object).
+  const loadRef = useRef({ listPosts: actions.listPosts, loadFailed: copy.loadFailed });
+  useEffect(() => {
+    loadRef.current = { listPosts: actions.listPosts, loadFailed: copy.loadFailed };
+  });
+
   useEffect(() => {
     if (!open) return;
     let alive = true;
-    void actions
-      .listPosts()
+    const { listPosts, loadFailed } = loadRef.current;
+    void listPosts()
       .then((r) => {
         if (!alive) return;
         if (r.ok) setPosts(r.posts);
-        else setError(copy.loadFailed);
+        else setError(loadFailed);
       })
-      .catch(() => alive && setError(copy.loadFailed));
+      .catch(() => alive && setError(loadFailed));
     return () => {
       alive = false;
     };
-    // actions are stable per wrapper; reload when the panel opens
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const toggleDesign = useCallback(async () => {

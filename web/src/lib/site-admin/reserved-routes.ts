@@ -98,6 +98,9 @@ export const PLATFORM_RESERVED_SLUGS = [
   "ticket",
   "sitemap.xml",
   "robots.txt",
+  // Posts v1 AI-crawler index. Like `robots.txt`, the page-slug regex can never
+  // produce a dotted slug, so no DB mirror is needed; listed for the tripwire.
+  "llms.txt",
   "_next",
   "favicon.ico",
   "error",

@@ -36,7 +36,6 @@ import {
   Settings2,
   Type,
   Video,
-  type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -102,30 +101,30 @@ export type PostWriterProps = {
 
 type Lock = { kind: "takenDown" | "lapsed"; text: string } | null;
 
-function toolbarIcon(type: PostBlockType): LucideIcon {
+function ToolbarIcon({ type }: { type: PostBlockType }) {
   switch (type) {
     case "image":
-      return ImageIcon;
+      return <ImageIcon size={20} />;
     case "paragraph":
-      return Type;
+      return <Type size={20} />;
     case "service":
-      return CalendarCheck;
+      return <CalendarCheck size={20} />;
     case "faq":
-      return CircleHelp;
+      return <CircleHelp size={20} />;
     case "heading":
-      return Heading2;
+      return <Heading2 size={20} />;
     case "list":
-      return List;
+      return <List size={20} />;
     case "gallery":
-      return Images;
+      return <Images size={20} />;
     case "quote":
-      return Quote;
+      return <Quote size={20} />;
     case "video":
-      return Video;
+      return <Video size={20} />;
     case "divider":
-      return Minus;
+      return <Minus size={20} />;
     case "book_button":
-      return CalendarCheck;
+      return <CalendarCheck size={20} />;
   }
 }
 
@@ -644,7 +643,6 @@ function ToolbarButton({
   t: ReturnType<typeof postsTranslator>;
   onAdd: (type: PostBlockType) => void;
 }) {
-  const Icon = toolbarIcon(type);
   const label = blockLabel(type, t);
   return (
     <button
@@ -654,7 +652,7 @@ function ToolbarButton({
       data-testid={`add-block-${type}`}
       className="flex min-h-12 cursor-pointer flex-col items-center justify-center gap-[2px] rounded-admin-md border-0 bg-transparent text-admin-ink hover:bg-admin-surface-alt"
     >
-      <Icon size={20} />
+      <ToolbarIcon type={type} />
       <span className="max-w-full truncate text-[11px] text-admin-ink-muted">{label}</span>
     </button>
   );

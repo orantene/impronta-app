@@ -122,10 +122,7 @@ export async function sweepScheduledPosts(admin: SupabaseClient, nowIso: string)
       return res.ok ? { ok: true } : { ok: false, error: `${res.code}: ${res.message}` };
     },
   });
-  for (const s of report.skipped) {
-    if (s.reason === "owner_lacks_posts_capability") {
-      console.info(`[cron/publish-scheduled/posts] skipped ${s.postId}: owner_lacks_posts_capability`);
-    }
-  }
+  // Skips (e.g. owner_lacks_posts_capability) travel back in report.skipped;
+  // the cron route surfaces them in its JSON response.
   return report;
 }

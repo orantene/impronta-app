@@ -244,3 +244,11 @@ CREATE INDEX IF NOT EXISTS idx_cms_posts_scheduled
 -- publish/history pipeline, so an extra key there would be pruned or rejected.)
 ALTER TABLE public.talent_sites
   ADD COLUMN IF NOT EXISTS post_layout jsonb;
+
+-- 9. Tags (Posts widget filters). Free-form, lower-case slugs, max 10 per post.
+ALTER TABLE public.cms_posts
+  ADD COLUMN IF NOT EXISTS tags text[] NOT NULL DEFAULT '{}';
+ALTER TABLE public.cms_posts DROP CONSTRAINT IF EXISTS cms_posts_tags_max;
+ALTER TABLE public.cms_posts
+  ADD CONSTRAINT cms_posts_tags_max CHECK (cardinality(tags) <= 10);
+CREATE INDEX IF NOT EXISTS idx_cms_posts_tags ON public.cms_posts USING gin (tags);

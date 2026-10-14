@@ -5,7 +5,32 @@
  * `test:builder-node-bindings` (no `server-only` mock) can import it.
  */
 import { isLiveBookingLabel, isLiveServicesLabel } from "./live-booking-markers";
+import {
+  normalizePostsFeedOptions,
+  postsFeedFetchLimit,
+  type PostsFeedSort,
+  type PostsFeedSource,
+} from "./posts-feed-model";
 import type { BuilderNode } from "./types";
+
+/**
+ * Posts v1 (PO1): one native `posts_feed` node's server-resolvable query. PER
+ * NODE for the same reason as the directory: two widgets on one page can
+ * filter differently (a "Tips" band above a "Featured" band).
+ */
+export type NativePostsFeedNeed = {
+  nodeId: string;
+  query: {
+    source: PostsFeedSource;
+    postIds: string[];
+    categoryId: string | null;
+    tags: string[];
+    excludeIds: string[];
+    sort: PostsFeedSort;
+  };
+  /** Cards to fetch: limit, times the pre-rendered pages for load-more / numbered. */
+  fetchLimit: number;
+};
 
 /**
  * BUILDER 2027 · P2B — one native `directory` node's server-resolvable scope.
@@ -92,6 +117,8 @@ export type NativeDataBlockNeeds = {
   directories: NativeDirectoryNeed[];
   /** The two session-dependent header widgets, when present in the tree. */
   headerWidgets: { account: boolean; inquiry: boolean };
+  /** Every native `posts_feed` node in the tree, in document order. */
+  postsFeeds: NativePostsFeedNeed[];
 };
 
 /**
@@ -169,6 +196,7 @@ export function collectNativeDataBlockNeeds(
   } | null = null;
   const directories: NativeDirectoryNeed[] = [];
   const headerWidgets = { account: false, inquiry: false };
+  const postsFeeds: NativePostsFeedNeed[] = [];
 
   const walk = (node: BuilderNode) => {
     if (
@@ -208,6 +236,21 @@ export function collectNativeDataBlockNeeds(
       (node.props as { bindSource?: string }).bindSource === "talent_faq_items"
     ) {
       talentFaq = true;
+    }
+    if (node.kind === "posts_feed") {
+      const o = normalizePostsFeedOptions(node.props);
+      postsFeeds.push({
+        nodeId: node.id,
+        query: {
+          source: o.source,
+          postIds: o.postIds,
+          categoryId: o.categoryId,
+          tags: o.tags,
+          excludeIds: o.excludeIds,
+          sort: o.sort,
+        },
+        fetchLimit: postsFeedFetchLimit(o),
+      });
     }
     if (node.kind === "header_account") headerWidgets.account = true;
     if (node.kind === "header_inquiry") headerWidgets.inquiry = true;
@@ -296,5 +339,6 @@ export function collectNativeDataBlockNeeds(
     disciplines,
     directories,
     headerWidgets,
+    postsFeeds,
   };
 }

@@ -97,7 +97,7 @@ export function PostsModeration({
                 <MoreHorizontal size={16} />
               </button>
               {menuId === r.id ? (
-                <div role="menu" className="absolute right-3 top-12 z-20 min-w-[200px] rounded-lg border border-white/15 bg-[#16161A] p-1 shadow-xl">
+                <div role="menu" className="absolute right-3 top-12 z-20 min-w-[200px] rounded-lg border border-white/15 bg-neutral-900 p-1 shadow-xl">
                   {r.takenDown ? (
                     <button type="button" role="menuitem" onClick={() => doRestore(r)} className="block w-full cursor-pointer rounded-md border-0 bg-transparent px-3 py-2 text-left text-sm text-white hover:bg-white/10">
                       Restore
@@ -124,7 +124,7 @@ export function PostsModeration({
       )}
       {confirm ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div role="dialog" aria-modal="true" aria-labelledby="takedown-title" className="w-full max-w-md rounded-xl border border-white/15 bg-[#16161A] p-5">
+          <div role="dialog" aria-modal="true" aria-labelledby="takedown-title" className="w-full max-w-md rounded-xl border border-white/15 bg-neutral-900 p-5">
             <h2 id="takedown-title" className="m-0 text-lg font-semibold text-white">
               Hide this post?
             </h2>

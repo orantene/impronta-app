@@ -411,6 +411,8 @@ function oneLine(value: string): string {
 /** Training / answer-engine crawlers blocked when "IA puede leer mi sitio" is OFF. */
 export const AI_CRAWLER_USER_AGENTS = ["GPTBot", "ClaudeBot", "Google-Extended", "PerplexityBot", "CCBot"] as const;
 
+type RobotsGroup = Extract<MetadataRoute.Robots["rules"], unknown[]>[number];
+
 /**
  * Apply the site's AI toggle to a built robots policy. ON → unchanged. OFF →
  * the AI crawlers are removed from any allow group and get their own
@@ -419,9 +421,10 @@ export const AI_CRAWLER_USER_AGENTS = ["GPTBot", "ClaudeBot", "Google-Extended",
 export function applyAiCrawlerToggle(robots: MetadataRoute.Robots, aiCrawlersAllowed: boolean): MetadataRoute.Robots {
   if (aiCrawlersAllowed) return robots;
   const blocked = new Set<string>(AI_CRAWLER_USER_AGENTS);
-  const rules = (Array.isArray(robots.rules) ? robots.rules : [robots.rules]).flatMap((rule) => {
+  const rules = (Array.isArray(robots.rules) ? robots.rules : [robots.rules]).flatMap((rule): RobotsGroup[] => {
     const agents = Array.isArray(rule.userAgent) ? rule.userAgent : rule.userAgent ? [rule.userAgent] : [];
-    if (agents.length === 0) return [rule];
+    // A group with no user agent applies to every crawler, which is "*".
+    if (agents.length === 0) return [{ ...rule, userAgent: "*" }];
     const kept = agents.filter((a) => !blocked.has(a));
     if (kept.length === agents.length) return [rule];
     return kept.length > 0 ? [{ ...rule, userAgent: kept }] : [];

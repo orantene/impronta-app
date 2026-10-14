@@ -46,6 +46,8 @@ import {
 import { collectNativeDataBlockNeeds } from "@/lib/site-admin/builder-node/native-data-block-needs";
 import { loadPortfolioSources } from "@/lib/site-admin/builder-node/portfolio-sources";
 import { loadReviewsSources } from "@/lib/site-admin/builder-node/reviews-sources";
+import { loadPostsFeedSources } from "@/lib/site-admin/builder-node/posts-feed-sources";
+import type { NativePostsFeedNeed } from "@/lib/site-admin/builder-node/native-data-block-needs";
 import { loadPublicPromosForTalent, priceContext } from "@/lib/promos/public-promos.server";
 import { catalogPromoPrices } from "@/lib/promos/catalog-promo-prices";
 import { loadVisitSources } from "@/lib/site-admin/builder-node/visit-sources";
@@ -162,6 +164,16 @@ export async function loadBuilderNodeDataSources(
   const socialFeedProviders = collectSocialFeedProviders(nodes);
   // WS7 Phase 0 — native data blocks.
   const nativeNeeds = collectNativeDataBlockNeeds(nodes);
+  // Posts v1 (PO1): `posts_feed` reads the RENDERING site's posts, talent scope
+  // on a talent site (even when rostered), else the workspace tenant. Started
+  // here so the no-other-needs early return below carries it too.
+  const postsFeedPromise = loadPostsFeedSources({
+    needs: nativeNeeds.postsFeeds,
+    talentProfileId:
+      talentProfileId ?? (previewSubject?.kind === "talent" ? previewSubject.id : null),
+    tenantId: dataTenantId,
+    locale,
+  });
   // BUILDER 2027 · P2B — a native `directory` node renders its category chips
   // from `directoryShortcuts`, but carries no `dataBinding`, so the binding
   // walk above never saw it and every native directory rendered chip-less.
@@ -213,7 +225,7 @@ export async function loadBuilderNodeDataSources(
     //
     // An identity that every block may read must not be conditional on
     // whether some OTHER block needed a query.
-    return { tenantId: dataTenantId, publicOrigin };
+    return { tenantId: dataTenantId, publicOrigin, ...(await postsFeedPromise) };
   }
   // The storefront read bypasses RLS (service role) for media + collections.
   const serviceSupabase =
@@ -427,6 +439,7 @@ export async function loadBuilderNodeDataSources(
     ...(nativeNeeds.talentFaq && catalogTalentId
       ? { talentFaqItems: await loadPublishedFaqForProfile(catalogTalentId, locale) }
       : {}),
+    ...(await postsFeedPromise),
   };
 }
 
@@ -547,6 +560,8 @@ export async function loadPersonalMaxNativeSources(args: {
   talentFaq?: boolean;
   /** Connected `social_feed` providers on the tree (TUL-562 talent Instagram cache). */
   socialFeedProviders?: ReadonlyArray<"instagram" | "tiktok">;
+  /** Posts v1 (PO1): every `posts_feed` node (talent scope). */
+  postsFeeds?: ReadonlyArray<NativePostsFeedNeed>;
 }): Promise<BuilderNodeRenderDataSources> {
   const needCatalog = args.servicesCatalog || args.portfolio || args.nextFreeChip;
   const feedProviders = args.socialFeedProviders ?? [];
@@ -557,13 +572,19 @@ export async function loadPersonalMaxNativeSources(args: {
     !args.visit &&
     !args.compCard &&
     !args.talentFaq &&
-    feedProviders.length === 0
+    feedProviders.length === 0 &&
+    (args.postsFeeds ?? []).length === 0
   ) {
     return {};
   }
   const feedAdmin = feedProviders.length > 0 ? createServiceRoleClient() : null;
   // TUL-449: reviews / gallery / chip-only catalog degrade on timeout; the page stays 200.
   const catalogOnlyForChip = args.nextFreeChip && !args.servicesCatalog && !args.portfolio;
+  const postsFeedPromise = loadPostsFeedSources({
+    needs: args.postsFeeds ?? [],
+    talentProfileId: args.talentProfileId,
+    locale: args.locale,
+  });
   const [catalog, portfolio, reviews, visit, compCard, faq, socialFeeds] = await Promise.all([
     needCatalog
       ? catalogOnlyForChip
@@ -605,5 +626,6 @@ export async function loadPersonalMaxNativeSources(args: {
     ...compCard,
     ...faq,
     ...(socialFeeds ? { socialFeeds } : {}),
+    ...(await postsFeedPromise),
   };
 }

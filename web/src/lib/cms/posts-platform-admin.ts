@@ -190,19 +190,21 @@ export type PlatformAdminGate = () => Promise<
   { ok: true; userId: string; admin: SupabaseClient } | { ok: false; error: string }
 >;
 
-const NOT_ALLOWED: TakedownResult = { ok: false, code: "write_failed", message: "Platform admin access required." };
+function notAllowed(message: string): TakedownResult {
+  return { ok: false, code: "write_failed", message: message || "Platform admin access required." };
+}
 
 export async function takedownPost(
   gate: PlatformAdminGate,
   input: { postId: string; reason: string },
 ): Promise<TakedownResult> {
   const g = await gate();
-  if (!g.ok) return { ...NOT_ALLOWED, message: g.error };
+  if (!g.ok) return notAllowed(g.error);
   return takedownPostRow(g.admin, { postId: input.postId, actorId: g.userId, reason: input.reason });
 }
 
 export async function restorePost(gate: PlatformAdminGate, input: { postId: string }): Promise<TakedownResult> {
   const g = await gate();
-  if (!g.ok) return { ...NOT_ALLOWED, message: g.error };
+  if (!g.ok) return notAllowed(g.error);
   return restorePostRow(g.admin, { postId: input.postId });
 }
