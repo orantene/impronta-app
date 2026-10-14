@@ -41,6 +41,7 @@ import {
   type TalentBookingPosture,
 } from "@/lib/talent/selling-booking-settings";
 import { deriveFor, detailFor, dispatchOffering } from "./services-catalog-detail";
+import { opensAskFlowOnly } from "@/lib/talent/offering-cta-derivation";
 
 export type CatalogGroup = { name: string | null; label?: string | null; items: TalentOffering[]; note?: string | null };
 
@@ -241,6 +242,10 @@ export function ServicesCatalogFilter({
       },
     ];
   });
+  const frontOffering = findOffering(dock.picked[0]?.id ?? null).found;
+  const dockAskOnly = frontOffering
+    ? opensAskFlowOnly(deriveFor(frontOffering, confirmsByHand, bookingPosture).cta)
+    : false;
   const dockCurrency = dock.picked[0]?.currency ?? "MXN";
   // CH-3: a service picked here (sheet never opened) still gets "Volver a mi reserva" in the chat.
   const front = dockItems[0];
@@ -493,6 +498,7 @@ export function ServicesCatalogFilter({
         locale={locale}
         formatPrice={(c) => formatMoney(c, dockCurrency, locale)}
         onRemoveFront={removeFront}
+        askOnly={dockAskOnly}
         onAsk={askFromDock}
         onContinue={continueFromBar}
         toast={toast}
