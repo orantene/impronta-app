@@ -138,8 +138,10 @@ export function ProfileEditorSections({ openSection }: { openSection: (section: 
                     type="button"
                     role="radio"
                     aria-checked
-                    className="min-h-11 rounded-xl border border-admin-ink px-3 text-[12.5px] font-semibold text-admin-ink"
+                    data-testid="profile-where-city-only"
+                    className="min-h-11 rounded-xl border border-admin-ink bg-admin-ink px-3 text-[12.5px] font-semibold text-white"
                   >
+                    <span aria-hidden>{"\u2713 "}</span>
                     {t("dashboard.talentMyProfile.editor.whereCityOnly")}
                   </button>
                   <button

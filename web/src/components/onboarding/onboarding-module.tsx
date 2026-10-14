@@ -50,6 +50,7 @@ import type { Essentials } from "@/lib/onboarding/essentials";
 import { EssentialsStep } from "./steps/essentials-step";
 import { StyleStep } from "./steps/style-step";
 import { ReadingStep } from "./steps/reading-step";
+import { TulalaWordmark } from "@/components/brand/tulala-logo";
 import { ReadyStep } from "./steps/ready-step";
 import { SaveStep } from "./steps/save-step";
 import { CodeStep } from "./steps/code-step";
@@ -336,6 +337,8 @@ export function OnboardingModule({
   // The 18+/Terms tick from the save step; carried to the verify step so the
   // acceptance is recorded once the account exists (Legal 2.2).
   const ageTermsRef = useRef(false);
+  // TUL-750: 18+ already confirmed on the ready step; the save step then asks only for Terms.
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
   const sendCode = useCallback(async (email: string, resend = false, ageTerms = ageTermsRef.current) => {
     dispatch({ type: "sendStarted" });
     ageTermsRef.current = ageTerms;
@@ -544,7 +547,7 @@ export function OnboardingModule({
         onCheckLink={checkLink}
         designChoice={state.designChoice}
         onPickDesign={(look) => { dispatch({ type: "designPicked", look }); void saveOnboardingDesign({ look }); }}
-        onConfirmAge18={saveOnboardingAge18}
+        onConfirmAge18={async () => { const r = await saveOnboardingAge18(); if (r.ok) setAgeConfirmed(true); return r; }}
         ageRequiredNotice={ageRequired}
         onBuild={() => {
           // Already signed in: nothing to save, straight to the build.
@@ -560,6 +563,7 @@ export function OnboardingModule({
         t={t}
         path={path}
         choice={state.choice}
+        ageConfirmed={ageConfirmed}
         busy={state.busy}
         error={state.accountMessage}
         onEmail={(email, ageTerms) => void sendCode(email, false, ageTerms)}
@@ -638,7 +642,7 @@ export function OnboardingModule({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {backBtn}
-              <span className="font-display text-[1.375rem] font-semibold tracking-[-0.02em]" aria-hidden>tulala.</span>
+              <TulalaWordmark height={26} className="shrink-0" />
             </div>
             <div className="flex overflow-hidden rounded-full" role="group" aria-label={CHOOSE_COPY[locale].toggleLabel} style={{ border: "1px solid var(--tl-hairline-strong)" }}>
               {(["es", "en"] as const).map((l) => (
@@ -695,7 +699,7 @@ export function OnboardingModule({
           <div className="flex items-center justify-between px-4 pt-[max(12px,env(safe-area-inset-top))] pb-2 sm:px-6 sm:pt-5">
             <div className="flex items-center gap-2">
               {backBtn}
-              <span className="font-display text-[1.25rem] font-semibold tracking-[-0.02em]" style={{ color: "var(--tl-ink)" }} aria-hidden>tulala.</span>
+              <TulalaWordmark height={24} className="shrink-0" />
               <span className="sr-only" data-testid="onb-step-label">{stepLabel}</span>
             </div>
             <div className="flex items-center gap-2">
