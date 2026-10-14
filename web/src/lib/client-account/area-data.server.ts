@@ -13,6 +13,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 import { groupVisits, shapeReceiptLines, type ReceiptLine } from "./area-pure";
 import { loadVisitZones } from "./visit-zones.server";
+import { resolveVisitInquiryId } from "./visit-id";
 
 /** Every query here is `client_user_id = session user` AND `tenant_id = this site's tenant`. */
 
@@ -45,9 +46,11 @@ export type VisitDetail = {
   payCode: string | null;
 };
 
-export async function loadVisitDetail(userId: string, tenantId: string, inquiryId: string): Promise<VisitDetail | null> {
+export async function loadVisitDetail(userId: string, tenantId: string, visitId: string): Promise<VisitDetail | null> {
   const admin = createServiceRoleClient();
   if (!admin) return null;
+  // Emails historically carried a booking id; accept either (TUL-G5).
+  const inquiryId = await resolveVisitInquiryId(admin, tenantId, visitId);
   const { data: inq, error } = await admin
     .from("inquiries")
     .select("id, company, status, event_date, event_location")

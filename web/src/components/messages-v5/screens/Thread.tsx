@@ -10,7 +10,7 @@
 
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 
-import { localiseEngineLine } from "@/lib/messages-v5/engine-lines";
+import { localiseEngineLine, localiseSystemKind } from "@/lib/messages-v5/engine-lines";
 
 import type { DerivedTask, Essentials, InboxRow, InquiryMessagingState, MessagingRefusal, RecordChip, ThreadMessage } from "@/lib/messaging/types";
 
@@ -182,7 +182,7 @@ export function Thread(props: ThreadProps) {
           );
         }
         if (it.kind === "system") {
-          const body = localiseEngineLine(it.message.body || it.message.kind, kit);
+          const body = it.message.body ? localiseEngineLine(it.message.body, kit) : localiseSystemKind(it.message.kind, kit);
           const aiLabel = it.message.fromAi
             ? (it.message.aiDisclosureLabel?.trim() || "Automated reply")
             : null;

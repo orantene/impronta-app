@@ -69,7 +69,8 @@ function inputToCents(raw: string): number | null {
   return Math.round(n * 100);
 }
 
-export function CommercialBookingTermsCard({ talentId }: { talentId: string }) {
+/** `solo`: the Profesional works on their own, so nothing falls back to an agency (TUL-721). */
+export function CommercialBookingTermsCard({ talentId, solo = false }: { talentId: string; solo?: boolean }) {
   const t = useT();
   const [terms, setTerms] = useState<TalentBookingTerms>(EMPTY);
   const [rateInput, setRateInput] = useState("");
@@ -256,7 +257,7 @@ export function CommercialBookingTermsCard({ talentId }: { talentId: string }) {
             </span>
           ) : (
             <span style={{ fontSize: 10.5, color: C.inkMuted }}>
-              {t("dashboard.talentBookingTerms.refundFallback")}
+              {t(solo ? "dashboard.talentBookingTerms.refundFallbackSolo" : "dashboard.talentBookingTerms.refundFallback")}
             </span>
           )}
         </label>
@@ -282,7 +283,7 @@ export function CommercialBookingTermsCard({ talentId }: { talentId: string }) {
         <span>
           <span style={{ fontSize: 12.5, fontWeight: 600, color: C.ink }}>{t("dashboard.talentBookingTerms.instantBookTitle")}</span>
           <span style={{ display: "block", fontSize: 10.5, color: C.inkMuted, marginTop: 1, lineHeight: 1.45 }}>
-            {t("dashboard.talentBookingTerms.instantBookHint")}
+            {t(solo ? "dashboard.talentBookingTerms.instantBookHintSolo" : "dashboard.talentBookingTerms.instantBookHint")}
           </span>
         </span>
       </label>

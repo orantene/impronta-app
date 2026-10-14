@@ -404,7 +404,7 @@ export function AgendaTodayPage({
             {initialsOf(item)}
           </span>
           <div className="min-w-0 flex-1">
-            <div className="text-[14px] font-semibold text-[var(--tc-primary)]">
+            <div className="truncate text-[14px] font-semibold text-[var(--tc-primary)]">
               {copy.t(item.client?.name ?? item.managedBy?.name ?? item.title)}
             </div>
             <div className="truncate text-[12.5px] text-black/70">{serviceLabel(item) ?? copy.t("No service set")}</div>
@@ -638,7 +638,7 @@ export function AgendaTodayPage({
                   href="/talent/inbox?filter=needs-reply"
                   className="min-w-[min(100%,14rem)] flex-1 basis-[14rem] text-left"
                 >
-                  <div className="text-[14px] font-semibold text-[var(--tc-primary)]">
+                  <div className="truncate text-[14px] font-semibold text-[var(--tc-primary)]">
                     {awaitingReply === 1
                       ? copy.t("1 client waiting for a reply")
                       : copy.t("{n} clients waiting for a reply").replace("{n}", String(awaitingReply))}
@@ -676,7 +676,7 @@ export function AgendaTodayPage({
                       {index + 1}
                     </span>
                     <button type="button" onClick={open(item.id)} className="min-w-[min(100%,14rem)] flex-1 basis-[14rem] text-left">
-                      <div className="text-[14px] font-semibold text-[var(--tc-primary)]">{attentionTitle(item)}</div>
+                      <div className="truncate text-[14px] font-semibold text-[var(--tc-primary)]">{attentionTitle(item)}</div>
                       <div className="mt-px text-[12.5px] text-black/70">{attentionSub(item)}</div>
                     </button>
                     <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 max-[1100px]:basis-full max-[1100px]:justify-start max-[1100px]:pl-[42px]">
@@ -710,7 +710,7 @@ export function AgendaTodayPage({
                       onClick={open(item.id)}
                       className="min-w-[min(100%,14rem)] flex-1 basis-[14rem] text-left"
                     >
-                      <div className="text-[14px] font-semibold text-[var(--tc-primary)]">{who}</div>
+                      <div className="truncate text-[14px] font-semibold text-[var(--tc-primary)]">{who}</div>
                       <div className="mt-px text-[12.5px] text-black/70">
                         {[item.title !== who ? item.title : "", copy.t("No time assigned")]
                           .filter(Boolean)

@@ -7,6 +7,7 @@ import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i1
 import { useAdminShell, type TalentPage } from "@/components/admin/shell/internal/state";
 import { openGuideHome } from "@/lib/guide/open-guide";
 import { useWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
+import { countItemsLabel } from "@/components/admin/shell/internal/count-items-label";
 
 type Row = { label: string; detail: string; page?: TalentPage; run?: () => void };
 
@@ -25,7 +26,7 @@ export function TalentMoreScreen({ onClose }: { onClose: () => void }) {
       ? copy.t("Not available")
       : eligibility.bookableCount === 0
         ? copy.t("None yet")
-        : `${eligibility.bookableCount} ${copy.t("items")}`;
+        : countItemsLabel(copy.t, eligibility.bookableCount);
   const hoursDetail =
     eligibility.hasAvailability == null
       ? copy.t("Not available")
