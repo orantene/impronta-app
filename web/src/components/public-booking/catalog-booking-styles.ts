@@ -45,12 +45,15 @@ export const CATALOG_BOOKING_CSS = `
 .jb-lines>div span:last-child{font-variant-numeric:tabular-nums;color:var(--cb-ink)}
 .jb-back-link{display:block;appearance:none;border:0;background:none;padding:0 0 16px;cursor:pointer;font-family:inherit;font-size:.875rem;color:var(--cb-primary);font-weight:600;min-height:40px;text-align:left}
 .jb-recap{margin:0 0 18px;font-size:.9375rem;color:var(--cb-muted)}
-.jb-days{position:relative;display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;scroll-behavior:smooth}
-.jb-day{flex:0 0 auto;width:64px;min-height:76px;border-radius:12px;cursor:pointer;background:var(--cb-surface);border:1px solid var(--cb-edge);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:inherit;color:var(--cb-ink)}
+/* TUL-899: seven days per view at any width (was a fixed 64px day, five at 390); the week nav pages. */
+.jb-days{position:relative;display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;scroll-behavior:smooth;scroll-snap-type:x mandatory}
+.jb-day{flex:0 0 calc((100% - 36px) / 7);min-width:0;max-width:72px;scroll-snap-align:start;min-height:76px;border-radius:12px;cursor:pointer;background:var(--cb-surface);border:1px solid var(--cb-edge);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:inherit;color:var(--cb-ink)}
 /* GRK-072 / TUL-498: ink↔surface swap fails when tokens collapse (sofia dark:
    selected day/slot white-on-near-white). Brand primary stays distinct even when
    sheet-accent remaps --cb-primary to ink. */
 .jb-day[data-on="true"]{background:var(--cb-selected);border-color:var(--cb-selected);color:var(--cb-on-selected)}
+.jb-week-nav{display:flex;justify-content:space-between;gap:8px;margin:-2px 0 6px}
+.jb-week-nav button{appearance:none;border:0;background:none;padding:6px 2px;min-height:36px;cursor:pointer;font:inherit;font-size:.8125rem;font-weight:600;color:var(--cb-primary)}
 .jb-day:disabled{opacity:.32;cursor:not-allowed}
 .jb-day span{font-size:.625rem;text-transform:uppercase;letter-spacing:.08em;opacity:.7}
 .jb-day b{font-size:1.125rem}
