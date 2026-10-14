@@ -1,6 +1,6 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Billing E2E (TUL-838) — Playwright against STAGING, Stripe TEST mode only.
-# Skeleton: the pricing-toggle scenario runs; the rest are test.fixme.
+# Pricing toggle plus signed-in lifecycle scenarios (skip without creds).
 # Not a required check until repo settings say so.
 # On PRs it only checks the suite compiles and lists (staging does not run the
 # PR's code yet, so a staging run on a PR always tests the OLD build). The real
@@ -44,6 +44,12 @@ jobs:
       STRIPE_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
       STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_TEST_WEBHOOK_SECRET }}
       VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      # QA identity: test talent TAL-93900 only.
+      STAGING_QA_EMAIL: ${{ secrets.STAGING_QA_EMAIL }}
+      STAGING_QA_PASSWORD: ${{ secrets.STAGING_QA_PASSWORD }}
+      BILLING_QA_TALENT_CODE: TAL-93900
+      BILLING_QA_TALENT_PROFILE_ID: ${{ vars.BILLING_QA_TALENT_PROFILE_ID }}
+      BILLING_TEST_PRICE_ID: ${{ vars.BILLING_TEST_PRICE_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
