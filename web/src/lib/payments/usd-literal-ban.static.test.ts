@@ -68,7 +68,7 @@ const ALLOWED: Record<string, number> = {
   "lib/payments/refund-execute.ts": 1, // eligibility readout of a persisted txn (currency NOT NULL)
   "lib/payments/transfers.ts": 2, // Stripe API lowercase of the settled txn currency
   "lib/pos/classes/day.ts": 3, // day-sheet display of persisted orders
-  "lib/pos/draft.ts": 3, // createDraftOrder default + comparisons (follow-up: workspace default)
+  "lib/pos/draft.ts": 2, // addLine currency comparisons of persisted rows (createDraftOrder resolves the workspace default)
   "lib/pos/sale-read.ts": 1, // sale display of a persisted order
   "lib/server-actions/admin-discount-stripe-import.ts": 1, // Stripe coupon code, uppercased
   "lib/server-actions/admin-product-discounts.ts": 1, // label text
