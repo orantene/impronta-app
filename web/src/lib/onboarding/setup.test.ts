@@ -2,15 +2,18 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { suggestedEssentials, essentialsReady, parseEssentials } from "./essentials";
 import {
-  DAY_ORDER, cleanServices, copyDayToAll, finalizeSetup, minToTime, needsTimezoneQuestion,
-  parsePriceToCents, setupIssues, timeToMin, toggleDay,
+  DAY_ORDER, TIMEZONE_OPTIONS, cleanServices, copyDayToAll, finalizeSetup, minToTime, needsTimezoneQuestion,
+  parsePriceToCents, setupIssues, timeToMin, timezoneOptionLabel, toggleDay,
 } from "./setup";
 
-test("timezone is asked only outside Mexico", () => {
-  assert.equal(needsTimezoneQuestion("Mexico"), false);
-  assert.equal(needsTimezoneQuestion("MX"), false);
+test("timezone picker: Mexico always (MX zones listed); abroad only when city unknown", () => {
+  // TUL-540 / onb1-04: Mexico must see Cancún etc. in the list.
+  assert.equal(needsTimezoneQuestion("Mexico"), true);
+  assert.equal(needsTimezoneQuestion("MX"), true);
+  assert.equal(needsTimezoneQuestion("United States", "Chicago"), false);
   assert.equal(needsTimezoneQuestion("United States"), true);
   assert.equal(needsTimezoneQuestion(null), true);
+  assert.equal(needsTimezoneQuestion(null, "Cancún"), false);
 });
 
 test("prices and times round-trip", () => {
@@ -55,4 +58,17 @@ test("issues: services, place, timezone abroad, bad provider email; empty email 
   assert.deepEqual(setupIssues({ choice: "studio", essentials: ok, country: "United States", providerEmailDraft: "" }), []);
   assert.equal(finalizeSetup(ok, "Ana@Studio.com", false).firstProviderEmail, "ana@studio.com");
   assert.equal(cleanServices([{ name: "Cut", durationMin: 30, priceCents: null, quote: false, currency: "USD" }])[0].quote, true);
+});
+
+test("MX timezone options include Cancún; bilingual labels", () => {
+  assert.ok(TIMEZONE_OPTIONS.some((z) => z.id === "America/Cancun"));
+  assert.equal(timezoneOptionLabel("America/Cancun", "es"), "Cancún (Quintana Roo)");
+  assert.equal(timezoneOptionLabel("America/Mexico_City", "es"), "Ciudad de México (CDMX)");
+});
+
+test("Mexico setup with pack timezone does not block Continue", () => {
+  const base = suggestedEssentials({ trade: "nails", country: "Mexico", locale: "es", city: "Cancún" });
+  assert.equal(base.timezone, "America/Cancun");
+  const e = { ...base, place: { mode: "studio" as const, area: "Cancún" } };
+  assert.deepEqual(setupIssues({ choice: "myself", essentials: e, country: "Mexico", providerEmailDraft: "" }), []);
 });
