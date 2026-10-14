@@ -605,7 +605,7 @@ const BUDGETS: Record<string, number> = {
   // pays back #2971's +20 residue; async wrappers (not value re-exports) keep
   // the "use server" surface SWC-safe. Re-measured on main after batch #3002
   // (#2971 + #2965 lines): 3393 actual, locked (was 3552).
-  "src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts": 3394,
+  "src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts": 3393,
   // 2026-08-10 branding-media: +12 for the wordmark/favicon in-use delete
   // guard (logic extracted to site-admin/server/brand-library.ts; this is
   // the import + call site + refusal message).
