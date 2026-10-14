@@ -67,3 +67,25 @@ export function buildLegacyProfileViewPayload(input: {
     ...utmFromSearch(input.search),
   };
 }
+
+/** Payload for the unified view_site_page event (referrer origin-only). */
+export function buildSitePageViewPayload(input: {
+  surface: string;
+  locale: string;
+  tenantId?: string | null;
+  pageId?: string | null;
+  pageSlug?: string | null;
+  viewContext?: string | null;
+  referrer?: string | null;
+}): Record<string, unknown> {
+  const referrer = sanitizeReferrer(input.referrer);
+  return {
+    surface: input.surface,
+    locale: input.locale,
+    ...(input.tenantId ? { tenant_id: input.tenantId } : {}),
+    ...(input.pageId ? { page_id: input.pageId } : {}),
+    ...(input.pageSlug ? { page_slug: input.pageSlug } : {}),
+    ...(input.viewContext ? { view_context: input.viewContext } : {}),
+    ...(referrer ? { referrer } : {}),
+  };
+}

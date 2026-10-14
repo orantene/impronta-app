@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 import { trackProductEvent } from "@/lib/analytics/track-client";
-import { buildLegacyProfileViewPayload } from "@/lib/analytics/utm";
+import { buildLegacyProfileViewPayload, buildSitePageViewPayload } from "@/lib/analytics/utm";
 
 /**
  * SitePageViewAnalytics — the ONE shared first-party page-view component for
@@ -67,15 +67,18 @@ export function SitePageViewAnalytics({
         ? document.referrer
         : undefined;
 
-    trackProductEvent(PRODUCT_ANALYTICS_EVENTS.view_site_page, {
-      surface,
-      locale,
-      ...(tenantId ? { tenant_id: tenantId } : {}),
-      ...(pageId ? { page_id: pageId } : {}),
-      ...(pageSlug ? { page_slug: pageSlug } : {}),
-      ...(viewContext ? { view_context: viewContext } : {}),
-      ...(referrer ? { referrer } : {}),
-    });
+    trackProductEvent(
+      PRODUCT_ANALYTICS_EVENTS.view_site_page,
+      buildSitePageViewPayload({
+        surface,
+        locale,
+        tenantId,
+        pageId,
+        pageSlug,
+        viewContext,
+        referrer,
+      }),
+    );
 
     // Legacy profile-view event — distinct name, so it feeds the inquiry funnel
     // loaders without double-counting against `view_site_page`.
