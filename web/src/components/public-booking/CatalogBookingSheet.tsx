@@ -258,13 +258,9 @@ export function CatalogBookingSheet({
       .then((r) => {
         if (cancelled) return;
         setLiveTz(r.timezone);
-        // TUL-531: continuous 14-day strip (empty days kept) so "Prueba otra fecha" can jump.
-        // Prefer the fetch's `from`; fall back to the earliest returned slot day so fixture
-        // mocks without fromYmd still land inside the strip.
+        // TUL-531: continuous 14-day strip (empty days kept); fromYmd falls back to the first slot day.
         const fromYmd =
-          r.fromYmd ??
-          r.slots.map((s) => s.slice(0, 10)).sort()[0] ??
-          new Date().toISOString().slice(0, 10);
+          r.fromYmd ?? r.slots.map((s) => s.slice(0, 10)).sort()[0] ?? new Date().toISOString().slice(0, 10);
         const strip = buildLiveDayStrip({
           slots: r.slots,
           timezone: r.timezone,
