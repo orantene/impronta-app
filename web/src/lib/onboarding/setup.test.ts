@@ -3,10 +3,20 @@ import assert from "node:assert/strict";
 import { suggestedEssentials, essentialsReady, parseEssentials } from "./essentials";
 import { setupCountry, setupTimezone } from "./essentials-resolve";
 import {
-  DAY_ORDER, cleanServices, copyDayToAll, finalizeSetup, minToTime, needsTimezoneQuestion,
-  parsePriceToCents, setupIssues, timeToMin, timezoneChoices, toggleDay, TIMEZONE_OPTIONS,
-  DAY_ORDER, applyServiceCurrency, cleanServices, copyDayToAll, finalizeSetup, minToTime, needsTimezoneQuestion,
-  parsePriceToCents, setupCurrency, setupIssues, timeToMin, toggleDay,
+  DAY_ORDER,
+  cleanServices,
+  copyDayToAll,
+  finalizeSetup,
+  minToTime,
+  needsTimezoneQuestion,
+  parsePriceToCents,
+  setupIssues,
+  timeToMin,
+  timezoneChoices,
+  toggleDay,
+  TIMEZONE_OPTIONS,
+  applyServiceCurrency,
+  setupCurrency,
 } from "./setup";
 
 test("a Tulum studio that named no country, browsing from Mexico, is not asked for a zone and gets Cancun", () => {

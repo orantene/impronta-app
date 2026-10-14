@@ -12,8 +12,16 @@ import { useState } from "react";
 import type { Essentials, PlaceMode } from "@/lib/onboarding/essentials";
 import type { FlowLocale } from "@/lib/onboarding/flow";
 import { SETUP_COPY } from "@/lib/onboarding/setup-copy";
-import { defaultWeekFallback, finalizeSetup, needsTimezoneQuestion, setupIssues, timezoneChoices, type SetupIssue } from "@/lib/onboarding/setup";
-import { TIMEZONE_OPTIONS, applyServiceCurrency, defaultWeekFallback, finalizeSetup, needsTimezoneQuestion, setupCurrency, setupIssues, type SetupIssue } from "@/lib/onboarding/setup";
+import {
+  applyServiceCurrency,
+  defaultWeekFallback,
+  finalizeSetup,
+  needsTimezoneQuestion,
+  setupCurrency,
+  setupIssues,
+  timezoneChoices,
+  type SetupIssue,
+} from "@/lib/onboarding/setup";
 import type { SetupPayload } from "@/lib/server-actions/onboarding-setup";
 
 import { Notice, PrimaryButton } from "../ui";
