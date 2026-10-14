@@ -18,6 +18,7 @@ import {
   servicePriceLine as priceLine,
   servicePageCopy,
   serviceSlug,
+  servicePageIsQuote,
   type ServicePageOffering,
 } from "@/lib/talent-site/service-page";
 
@@ -159,7 +160,7 @@ export function serviceMainNode(
           data-talent-service-book=""
           style={{ display: "inline-block", padding: "12px 22px", border: `1px solid ${INK}`, color: INK, textDecoration: "none", fontWeight: 600 }}
         >
-          {copy.book}
+          {servicePageIsQuote(o) ? copy.quote : copy.book}
         </Link>
       )}
       {opts.reviews ? reviewsNode(opts.reviews, opts.locale) : null}

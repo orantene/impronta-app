@@ -21,6 +21,9 @@
  *    than nulls).
  */
 
+import type { OfferingVariant } from "@/lib/talent/offerings-types";
+import { publicPriceForJsonLd } from "@/lib/talent/public-price";
+
 export interface TalentJsonLdInput {
   /** Canonical absolute URL for the profile (tulala.digital/t/...) */
   canonicalUrl: string;
@@ -80,6 +83,10 @@ export interface JsonLdOfferingSource {
   currency: string;
   durationMinutes: number | null;
   visibility?: string;
+  /** TUL-791: optional ladder fields so the stated price is the cheapest option. */
+  priceType?: string | null;
+  variants?: OfferingVariant[];
+  attributes?: Record<string, unknown>;
 }
 
 /** Catalog offerings -> JSON-LD services: services/packages only (a product is
@@ -89,14 +96,18 @@ export function offeringsToJsonLdServices(
 ): TalentJsonLdService[] {
   return offerings
     .filter((o) => (o.kind === "service" || o.kind === "package") && o.visibility !== "agency_only")
-    .map((o) => ({
-      name: o.title,
-      description: o.description,
-      amountCents: o.amountCents,
-      currency: o.currency,
-      priceDisplay: o.priceDisplay,
-      durationMinutes: o.durationMinutes,
-    }));
+    .map((o) => {
+      // TUL-791: the same resolver the home card and service page use.
+      const price = publicPriceForJsonLd(o);
+      return {
+        name: o.title,
+        description: o.description,
+        amountCents: price.amountCents,
+        currency: o.currency,
+        priceDisplay: price.priceDisplay,
+        durationMinutes: o.durationMinutes,
+      };
+    });
 }
 
 type JsonValue =
@@ -123,6 +134,7 @@ function compact<T extends Record<string, JsonValue | undefined>>(o: T): Record<
 export function buildServiceOffers(
   services: TalentJsonLdService[] | null | undefined,
   personId: string,
+  locale = "en",
 ): JsonValue[] {
   const out: JsonValue[] = [];
   for (const svc of services ?? []) {
@@ -137,6 +149,13 @@ export function buildServiceOffers(
     const exact = hasAmount && svc.priceDisplay === "exact";
     const from = hasAmount && svc.priceDisplay === "from";
     const mins = svc.durationMinutes;
+    // TUL-794: a quote-only service still gets a valid Offer (no price, no
+    // priceSpecification) that says so, instead of an Offer with nothing in it.
+    const quote =
+      svc.priceDisplay === "quote" ||
+      typeof cents !== "number" ||
+      !Number.isFinite(cents) ||
+      cents <= 0;
     out.push(
       compact({
         "@type": "Offer",
@@ -146,6 +165,11 @@ export function buildServiceOffers(
           description: svc.description?.trim() ?? null,
           provider: { "@id": personId },
         }),
+        description: quote
+          ? locale.toLowerCase().startsWith("es")
+            ? "Cotización a pedido"
+            : "Quote on request"
+          : null,
         price: exact ? price : null,
         priceCurrency: exact ? currency : null,
         priceSpecification: from
