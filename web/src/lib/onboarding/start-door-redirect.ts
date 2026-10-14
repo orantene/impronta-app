@@ -13,7 +13,8 @@
  *   goes to `/start`; on the app host that page still exists and stays.
  * - everything else (hub, unregistered hosts) returns `null`.
  *
- * The query string is kept so `?lang=` and `?choice=` survive the hop.
+ * The query string is kept so `?lang=` and `?choice=` survive the hop, and a
+ * Spanish prefix is kept on the target (`app…/es/start` → `tulala.digital/es/start`).
  */
 
 export type StartDoorInput = {
@@ -28,18 +29,21 @@ export type StartDoorInput = {
 
 const REDIRECT_KINDS = new Set(["app", "agency", "talent_site"]);
 const DOOR_PATHS = new Set(["/start", "/signup", "/onboarding/role"]);
+const LOCALE_PREFIX = /^\/es(?=\/)/;
 
 export function startDoorRedirect(input: StartDoorInput): string | null {
   if (input.method !== "GET" && input.method !== "HEAD") return null;
-  const path = input.pathname.length > 1 ? input.pathname.replace(/\/+$/, "") : input.pathname;
+  const trimmed = input.pathname.length > 1 ? input.pathname.replace(/\/+$/, "") : input.pathname;
+  const prefix = LOCALE_PREFIX.exec(trimmed)?.[0] ?? "";
+  const path = trimmed.slice(prefix.length);
   if (!DOOR_PATHS.has(path)) return null;
 
-  const origin = input.marketingOrigin.replace(/\/$/, "");
   const search = input.search && input.search !== "?" ? input.search : "";
+  const target = `${input.marketingOrigin.replace(/\/$/, "")}${prefix}/start${search}`;
 
   // The legacy role page is a real page on the app host: only the marketing host (where it 404s) hands it off.
-  if (path === "/onboarding/role") return input.hostKind === "marketing" ? `${origin}/start${search}` : null;
-  if (REDIRECT_KINDS.has(input.hostKind)) return `${origin}/start${search}`;
-  if (input.hostKind === "marketing" && path === "/signup") return `${origin}/start${search}`;
+  if (path === "/onboarding/role") return input.hostKind === "marketing" ? target : null;
+  if (REDIRECT_KINDS.has(input.hostKind)) return target;
+  if (input.hostKind === "marketing" && path === "/signup") return target;
   return null;
 }
