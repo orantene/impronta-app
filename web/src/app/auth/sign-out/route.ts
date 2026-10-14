@@ -55,7 +55,14 @@ function expiredRedirect(request: Request, pairs: { name: string; value: string 
   const host =
     request.headers.get("x-impronta-host-name") ?? request.headers.get("host");
   const res = NextResponse.redirect(
-    new URL(signOutRedirectPath(request.headers.get("referer"), request.url), request.url),
+    new URL(
+      signOutRedirectPath(
+        request.headers.get("referer"),
+        request.url,
+        pairs.find((p) => p.name === "locale")?.value,
+      ),
+      request.url,
+    ),
     303,
   );
   for (const h of authCookieExpiryHeaders(names, host)) {
