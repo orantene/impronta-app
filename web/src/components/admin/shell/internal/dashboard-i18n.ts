@@ -932,7 +932,6 @@ const ES_TEXT: Record<string, string> = {
   "Other": "Otro",
   // Services / skills
   "Category fields (live)": "Campos por categoría (en vivo)",
-  "DB-resolved field catalog for this talent's types": "Catálogo de campos resuelto desde la DB para los tipos de este talento",
   "One primary category · up to two secondary categories · max 9 skills total": "Una categoría principal · hasta dos categorías secundarias · máximo 9 habilidades en total",
   "Primary category": "Categoría principal",
   "Secondary category": "Categoría secundaria",
