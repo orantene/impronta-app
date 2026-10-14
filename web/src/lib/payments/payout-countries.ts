@@ -6,7 +6,7 @@
  * our routing, the payout currency and an evidence note.
  *
  * Which countries are LIVE (selectable and creatable) is one config list,
- * NEXT_PUBLIC_PAYOUT_COUNTRIES_LIVE (comma ISO-2, default US,MX,CA,UY). A
+ * NEXT_PUBLIC_PAYOUT_COUNTRIES_LIVE (comma ISO-2, default US,MX,CA; UY is coming soon until Stripe allows US->UY payouts). A
  * country not on the list shows "coming soon" and is refused server side.
  * Existing connected accounts keep resolving through the *Known* helpers.
  */
@@ -16,7 +16,7 @@ export type PayoutLocale = "en" | "es";
 export type PayoutCountry = { iso2: string; label: string; flag: string };
 export type PayoutRoute = "c1_us_platform" | "c1_mx_platform" | "c2_recipient_us" | "unavailable";
 
-export const DEFAULT_LIVE_PAYOUT_COUNTRIES = "US,MX,CA,UY";
+export const DEFAULT_LIVE_PAYOUT_COUNTRIES = "US,MX,CA";
 
 let liveOverride: readonly string[] | null = null;
 let usdcOverride: boolean | null = null;
@@ -61,7 +61,7 @@ export const PAYOUT_COUNTRY_OVERRIDES: Readonly<Record<string, Override>> = {
   // Manager reports MX can also be a FULL account on the US platform, but
   // US-platform transfers to MX/UY full accounts are refused in test mode.
   MX: { route: "c1_mx_platform", currency: "mxn", recipientOnUsPlatform: true, note: "paid on the separate MX platform; US-platform transfers to MX full accounts are refused in test mode" },
-  UY: { route: "c1_us_platform", currency: "uyu", note: "PM decision: live. Test mode 2026-10-14: the US platform can create UY full accounts but refuses transfers to them (\"Funds can't be sent to accounts located in UY when the account is under the full service agreement\")" },
+  UY: { route: "c1_us_platform", currency: "uyu", note: "Oran 2026-10-14 6:54 PM: coming soon / pending Stripe approval until US->UY payouts are allowed (add UY to NEXT_PUBLIC_PAYOUT_COUNTRIES_LIVE). Test mode 2026-10-14: the US platform can create UY full accounts but refuses transfers to them (\"Funds can't be sent to accounts located in UY when the account is under the full service agreement\")" },
   BR: { route: "unavailable", currency: "brl", note: "Stripe lists BR as standard dashboard only and refuses it for US platforms" },
   AR: { currency: "ars", note: "test mode: card_payments refused, recipient accounts refused; pending Stripe" },
   CL: { currency: "clp", note: "test mode: card_payments refused; pending Stripe" },

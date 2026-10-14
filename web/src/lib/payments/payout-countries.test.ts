@@ -58,18 +58,18 @@ describe("snapshot-driven set (no country added by hand)", () => {
 });
 
 describe("live list switch", () => {
-  it("defaults to US, MX, CA, UY", () => {
-    assert.deepEqual([...livePayoutCountries()].sort(), ["CA", "MX", "US", "UY"]);
+  it("defaults to US, MX, CA (UY is coming soon until Stripe allows US->UY payouts)", () => {
+    assert.deepEqual([...livePayoutCountries()].sort(), ["CA", "MX", "US"]);
   });
   it("each live country is selectable and creatable", () => {
-    for (const c of ["US", "MX", "CA", "UY"]) {
+    for (const c of ["US", "MX", "CA"]) {
       assert.equal(payoutCountryState(c), "selectable", c);
       assert.equal(normalizePayoutCountry(c.toLowerCase()), c);
       assert.equal(payoutCountryRefusalCode(c), null);
     }
   });
   it("every other country is coming soon and refused", () => {
-    for (const c of ["FR", "GB", "AR", "CL", "CO", "PE", "BO", "JM", "AU", "ES"]) {
+    for (const c of ["FR", "GB", "AR", "CL", "CO", "PE", "BO", "JM", "AU", "ES", "UY"]) {
       assert.equal(payoutCountryState(c), "coming_soon", c);
       assert.equal(normalizePayoutCountry(c), null, c);
       assert.equal(payoutCountryRefusalCode(c), `payout_setup:coming_soon:${c}`, c);
@@ -103,9 +103,9 @@ describe("picker rows", () => {
   it("lists the live countries first (MX, US) and every Americas recipient country as coming soon", () => {
     const { selectable, comingSoon } = payoutPickerRows("en");
     assert.deepEqual(selectable.map((c) => c.iso2).slice(0, 2), ["MX", "US"]);
-    assert.deepEqual(selectable.map((c) => c.iso2).sort(), ["CA", "MX", "US", "UY"]);
+    assert.deepEqual(selectable.map((c) => c.iso2).sort(), ["CA", "MX", "US"]);
     const soon = new Set(comingSoon.map((c) => c.iso2));
-    for (const c of "AR CL CO PE EC PY BO GY CR PA GT SV DO JM TT BS AG LC BR ES PT GB FR DE IT NL AU".split(" ")) {
+    for (const c of "UY AR CL CO PE EC PY BO GY CR PA GT SV DO JM TT BS AG LC BR ES PT GB FR DE IT NL AU".split(" ")) {
       assert.ok(soon.has(c), `${c} missing from coming soon`);
     }
   });
@@ -179,5 +179,21 @@ describe("USDC switch", () => {
     assert.equal(usdcPayoutsEnabled(), false);
     setUsdcPayoutsOverride(true);
     assert.equal(usdcPayoutsEnabled(), true);
+  });
+});
+
+describe("UY switch (Oran 2026-10-14)", () => {
+  it("UY is coming soon by default and goes live with no code change when added to the list", () => {
+    assert.equal(payoutCountryState("UY"), "coming_soon");
+    assert.notEqual(payoutCountryRefusalCode("UY"), null);
+    const prev = process.env.NEXT_PUBLIC_PAYOUT_COUNTRIES_LIVE;
+    try {
+      process.env.NEXT_PUBLIC_PAYOUT_COUNTRIES_LIVE = "US,MX,CA,UY";
+      assert.equal(payoutCountryState("UY"), "selectable");
+      assert.equal(payoutCountryRefusalCode("UY"), null);
+    } finally {
+      if (prev === undefined) delete process.env.NEXT_PUBLIC_PAYOUT_COUNTRIES_LIVE;
+      else process.env.NEXT_PUBLIC_PAYOUT_COUNTRIES_LIVE = prev;
+    }
   });
 });
