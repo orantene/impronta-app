@@ -2108,9 +2108,15 @@ export function TalentNotificationsDrawer() {
   const t = useT();
   const open = state.drawer.drawerId === "talent-notifications";
   // A9: deep-link from Settings → opens with settings pane expanded
-  const [settingsOpen, setSettingsOpen] = useState(
-    state.drawer.payload?.expanded === "settings",
-  );
+  // Opened from Settings: show the alert preferences first, not the inbox list.
+  const fromSettings = state.drawer.payload?.expanded === "settings";
+  const [prefsMode, setPrefsMode] = useState(fromSettings);
+  const [settingsOpen, setSettingsOpen] = useState(fromSettings);
+  useEffect(() => {
+    if (!open) return;
+    setPrefsMode(fromSettings);
+    setSettingsOpen(fromSettings);
+  }, [open, fromSettings]);
   // Real `user_notifications` rows when the shell provides the bridge (even an
   // EMPTY array — that means "no notifications yet", not "show the demo").
   // Only a null bridge (standalone/prototype harness) falls back to the mock.
@@ -2236,6 +2242,25 @@ export function TalentNotificationsDrawer() {
           : t("dashboard.talentNotifications.demoNotice")
       }
     >
+      {prefsMode && (
+        <button
+          type="button"
+          onClick={() => setPrefsMode(false)}
+          style={{
+            background: "transparent",
+            border: "none",
+            padding: "0 0 12px",
+            cursor: "pointer",
+            fontFamily: FONTS.body,
+            fontSize: 12.5,
+            fontWeight: 500,
+          }}
+          className="text-admin-ink-muted"
+        >
+          {t("dashboard.talentNotifications.seeAll")} →
+        </button>
+      )}
+      {!prefsMode && (<>
       {/* Tab strip: Recent | Archive. Tabs sit above the list so the
           talent can flip between active items and previously-dismissed
           ones without leaving the drawer. "Mark all read" lives here as
@@ -2404,6 +2429,8 @@ export function TalentNotificationsDrawer() {
           margin: "20px 0 14px",
         }}
       />
+
+      </>)}
 
       {/* Collapsible settings section */}
       <button
