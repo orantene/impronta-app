@@ -175,7 +175,7 @@ export default async function GetStartedPage({
   // L50 Phase 2: read live pricing from the catalog with currency
   // resolved from URL param > cookie > IP > USD fallback.
   const locale = await getRequestLocale();
-  const { currency } = await resolveCurrency(resolved);
+  const { currency } = await resolveCurrency(resolved, locale);
   const workspaceTiers = await loadMarketingTiers("workspace", currency);
   const HEADLINE_BY_TIER = buildHeadlineByTier(workspaceTiers, locale);
 

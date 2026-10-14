@@ -101,6 +101,9 @@ describe("help-corpus talent dashboard coverage (TUL-575)", () => {
   // languages, so the assistant has grounding instead of handing off.
   const CASES: Array<[slug: string, es: string, en: string]> = [
     ["talent-hours", "¿Cómo cambio mi horario?", "How do I change my hours?"],
+    ["talent-days-off", "¿Cómo bloqueo un día libre por vacaciones?", "How do I block a day off for a holiday?"],
+    ["talent-booking-changes", "¿Cómo cancelo una reserva?", "How do I cancel a booking?"],
+    ["talent-booking-changes", "¿Cómo reprogramo una cita?", "How do I reschedule a booking?"],
     ["talent-hours", "¿Cómo dejo un margen entre citas?", "How do I leave a gap between bookings?"],
     ["talent-services", "¿Cómo agrego un servicio?", "How do I add a service?"],
     ["talent-services", "¿Cómo cambio el precio de un servicio?", "How do I change the price of a service?"],
@@ -141,6 +144,18 @@ describe("help-corpus talent dashboard coverage (TUL-575)", () => {
     for (const e of flattenHelpCorpus().filter((x) => x.slug in TALENT_HELP)) {
       const text = [e.purpose, ...e.youCanHere, ...e.faqs.flatMap((f) => [f.q, f.a])].join(" ");
       assert.ok(!text.includes("—"), e.slug);
+    }
+  });
+});
+
+describe("hours answer points to the real place (TUL-111)", () => {
+  test("hours question grounds on an entry naming Ajustes and Horario y días libres, in ES and EN", () => {
+    for (const q of ["¿Cómo cambio mi horario?", "how do I change my hours"]) {
+      const top = retrieveHelpEntries(q)[0];
+      assert.equal(top?.slug, "talent-hours", q);
+      const text = JSON.stringify(top);
+      assert.match(text, /Ajustes/);
+      assert.match(text, /Horario y días libres/);
     }
   });
 });

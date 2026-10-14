@@ -58,8 +58,8 @@ export async function MarketingFooter({ priceCurrency = null }: { priceCurrency?
   // any page is the gateway to changing the displayed currency. The
   // footer doesn't know which page it's on, so it resolves from cookie
   // + IP only (no URL param).
-  const { currency, source } = await resolveCurrency(null);
   const locale = await getRequestLocale();
+  const { currency, source } = await resolveCurrency(null, locale);
   const copy = getMarketingCopy(locale).footer;
   const brand = getMarketingCopy(locale).brand;
   const h = await headers();

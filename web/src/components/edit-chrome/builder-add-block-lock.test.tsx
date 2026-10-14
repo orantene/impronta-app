@@ -78,12 +78,12 @@ test("locked hint is bilingual", () => {
   assert.notEqual(galleryLockedHint("es").cta, galleryLockedHint("en").cta);
 });
 
-test("lock stopgap navigates hard, never a soft router push", () => {
+test("lock opens the in-app upgrade modal (TUL-829), never a soft router push", () => {
   const src = readFileSync(
     path.join(process.cwd(), "src/components/talent/site/TalentMaxBuilderMount.tsx"),
     "utf8",
   );
-  assert.match(src, /window\.location\.assign\("\/talent\/settings"\)/);
+  assert.match(src, /openUpgrade\(\{\s*feature: "extra-sections"/);
   assert.doesNotMatch(src, /router\.push\("\/talent\/settings"\)/);
 });
 
