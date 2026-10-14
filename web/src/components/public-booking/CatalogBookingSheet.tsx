@@ -75,6 +75,7 @@ import {
 import type { CatalogTakenSlotNotice } from "./catalog-taken-slot";
 import { resolveSheetOpening, slotArrivalPlan } from "./booking-slot-selection";
 import { ServiceAddressField } from "./ServiceAddressField";
+import { CatalogWhoContact } from "./catalog-who-contact";
 import { useServiceAddress } from "./use-service-address";
 import { useCatalogBookingConfirm } from "./use-catalog-booking-confirm";
 import { CatalogDonePanel, CatalogSheetHeader } from "./catalog-done-panel";
@@ -657,50 +658,11 @@ export function CatalogBookingSheet({
                 total={isQuote ? (es ? "A cotizar" : "Quote") : money(total, detail.currency)}
                 addressNote={addr.rule === "required" ? "client" : "studio"}
               />
-              <label className="jb-field">
-                <span>{es ? "Nombre" : "Name"}</span>
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  onBlur={() => setTouched(true)}
-                  placeholder={es ? "Tu nombre" : "Your name"}
-                  aria-invalid={touched && !nameValid}
-                  data-testid="cb-name"
-                />
-                {touched && !nameValid ? <em>{es ? "Escribe tu nombre para confirmar." : "Enter your name to confirm."}</em> : null}
-              </label>
-              <label className="jb-field">
-                <span>
-                  WhatsApp <i>{es ? "opcional" : "optional"}</i>
-                </span>
-                <input
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  onBlur={() => setTouched(true)}
-                  inputMode="tel"
-                  autoComplete="tel"
-                  placeholder={es ? "Para avisarte de cualquier cambio" : "If we need to reach you"}
-                  aria-invalid={touched && !phoneValid}
-                  data-testid="cb-phone"
-                />
-                {touched && !phoneValid ? <em>{es ? "Revisa el número." : "Check the number."}</em> : null}
-                {askAttempted && !chatPhoneValid ? <em>{es ? "WhatsApp hace falta para chatear." : "WhatsApp is needed to chat."}</em> : null}
-              </label>
-              <label className="jb-field">
-                <span>{es ? "Correo" : "Email"}</span>
-                <input
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onBlur={() => setTouched(true)}
-                  type="email"
-                  inputMode="email"
-                  autoComplete="email"
-                  placeholder={es ? "Para enviarte la confirmación" : "For the confirmation"}
-                  aria-invalid={touched && !emailValid}
-                  data-testid="cb-email"
-                />
-                {touched && !emailValid ? <em>{es ? "Necesitamos un correo válido." : "We need a valid email."}</em> : null}
-              </label>
+              <CatalogWhoContact
+                es={es} name={name} phone={phone} email={email} setName={setName} setPhone={setPhone} setEmail={setEmail}
+                onBlur={() => setTouched(true)} touched={touched} nameValid={nameValid} phoneValid={phoneValid}
+                emailValid={emailValid} askAttempted={askAttempted} chatPhoneValid={chatPhoneValid}
+              />
               {addr.rule === "required" ? <ServiceAddressField value={addr.fields.address} note={addr.fields.note} onChange={addr.setFields} error={addr.error} locale={locale} /> : null}
               <p className="jb-fixture" data-catalog-who-pay="">
                 {paymentFixture}
