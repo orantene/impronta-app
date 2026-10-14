@@ -122,7 +122,7 @@ export function buildTalentLiveText(
     ].filter(Boolean),
   );
 
-  const bio = resolveLiveBio({ bioI18n: src.bioI18n, shortBio: src.shortBio, locale, chain, primary: src.primaryLocale });
+  const bio = resolveLiveBio({ bioI18n: src.bioI18n, shortBio: src.shortBio, locale, chain, primary: src.primaryLocale, services: src.services });
 
   const currency = src.menuCurrency?.trim().toUpperCase();
   return {
