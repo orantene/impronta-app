@@ -1,22 +1,12 @@
-/* eslint-disable max-lines -- TUL-573 lazy Stripe loads add one line per call site; a split is a clean follow-up. */
 /**
  * lib/stripe/workspace-billing.ts
- *
  * Server-only billing operations for workspace (agency) Stripe subscriptions.
- *
- * All functions return typed result objects — no throws on expected failures.
- * Callers (server actions, webhook handler) handle the error cases.
- *
- * Dependency chain:
- *   stripe/client.ts → Stripe SDK instance
- *   stripe/price-ids.ts → plan → Price ID mapping
- *   supabase/admin.ts → service-role client (bypasses RLS for webhook writes)
- *   supabase/server.ts → SSR client (RLS-bound reads from server actions)
+ * Functions return typed result objects, no throws on expected failures.
+ * Depends on stripe/client.ts, stripe/price-ids.ts, supabase/admin.ts (service role) and supabase/server.ts.
  */
 
 import "server-only";
-// TUL-573: lazy so dashboard cold starts do not evaluate the Stripe SDK; only the
-// functions that talk to Stripe pay for it, on first call (module cache after).
+// TUL-573: lazy, so dashboard cold starts do not evaluate the Stripe SDK.
 const loadStripeClient = () => import("@/lib/stripe/client");
 import { type WorkspacePlanKey } from "@/lib/stripe/price-ids";
 import { resolveWorkspacePriceId } from "@/lib/stripe/price-catalog";
