@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { applyPromo, type PromoCode, type PromoResult } from "@/lib/events/promo";
 import { eligibleSubtotalCents, type EligibleLine } from "@/lib/orders/promo-eligibility";
+import { LIMIT_STATUSES } from "@/lib/orders/promo-redemption-status";
 
 /**
  * Resolve a typed promo code into a discount, or a reason it does not apply.
@@ -92,11 +93,14 @@ export async function resolvePromo(
     event_id: string | null; variant_id: string | null;
   };
 
+  // Same set the redeem function counts under its lock: confirmed uses plus
+  // live holds. Voided (refunded), released and no-show rows free the slot.
   const [totalRes, custRes] = await Promise.all([
     admin.from("tenant_promo_redemptions").select("id", { count: "exact", head: true })
-      .eq("promo_code_id", r.id),
+      .eq("promo_code_id", r.id).in("status", [...LIMIT_STATUSES]),
     admin.from("tenant_promo_redemptions").select("id", { count: "exact", head: true })
-      .eq("promo_code_id", r.id).eq("customer_id", input.customerId),
+      .eq("promo_code_id", r.id).eq("customer_id", input.customerId)
+      .in("status", [...LIMIT_STATUSES]),
   ]);
 
   if (totalRes.error || custRes.error) {

@@ -18283,6 +18283,8 @@ export type Database = {
           id: string
           order_id: string
           promo_code_id: string
+          status: string
+          voided_at: string | null
         }
         Insert: {
           amount_cents: number
@@ -18291,6 +18293,8 @@ export type Database = {
           id?: string
           order_id: string
           promo_code_id: string
+          status?: string
+          voided_at?: string | null
         }
         Update: {
           amount_cents?: number
@@ -18299,6 +18303,8 @@ export type Database = {
           id?: string
           order_id?: string
           promo_code_id?: string
+          status?: string
+          voided_at?: string | null
         }
         Relationships: [
           {
