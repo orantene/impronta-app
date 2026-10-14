@@ -1163,6 +1163,7 @@
       "oranOnline": "{agent} est en ligne",
       "oranTyping": "{agent} est en train d'écrire",
       "attachAria": "Joindre une image",
+      "fieldAttachments": "Captures d'écran (facultatif, jusqu'à 3)",
       "attachmentUnavailable": "Pièce jointe indisponible",
       "askFeature": "Demander une fonction",
       "ideaHeading": "Dites-nous ce dont vous avez besoin",

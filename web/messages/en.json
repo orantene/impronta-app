@@ -13726,6 +13726,7 @@
       "oranOnline": "{agent} is online",
       "oranTyping": "{agent} is typing",
       "attachAria": "Attach an image",
+      "fieldAttachments": "Screenshots (optional, up to 3)",
       "attachmentUnavailable": "Attachment unavailable",
       "askFeature": "Ask for a feature",
       "ideaHeading": "Tell us what you need",
