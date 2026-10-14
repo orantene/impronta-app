@@ -103,6 +103,8 @@ const en = {
     openMenu: "Open menu",
     /** Accessible name when the mobile menu is open. */
     closeMenu: "Close menu",
+    /** Logo link to the marketing home; `{name}` is PLATFORM_BRAND.name. */
+    homeAria: "{name} home",
     /** Placeholder + accessible name for the mobile menu's directory search. */
     searchTalent: "Search talent…",
     /** Reassurance line under the mobile menu's Get started CTA. */
@@ -500,6 +502,8 @@ const es: MarketingCopy = {
     language: "Idioma",
     openMenu: "Abrir menú",
     closeMenu: "Cerrar menú",
+    /** Logo link to the marketing home; `{name}` is PLATFORM_BRAND.name. */
+    homeAria: "Inicio de {name}",
     searchTalent: "Busca talento…",
     stageNote: "Espacios de trabajo gratis · Sin tarjeta · dirigido por su fundador",
   },
