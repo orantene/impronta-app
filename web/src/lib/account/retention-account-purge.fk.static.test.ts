@@ -18,6 +18,9 @@ import { ACCOUNT_REFERENCE_GUARDS } from "./retention-account-purge";
 const MIGRATIONS = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "supabase", "migrations");
 
 /** Non-financial: talent content, roster/overlay rows, favourites, search and analytics breadcrumbs. */
+// tenant_promo_codes (talent_profile_id, ON DELETE CASCADE): a promo is marketing
+// content. The money record is the order, which keeps its own discount_cents and
+// is guarded through the order / customer references above.
 const NON_FINANCIAL = new Set([
   "agency_inquiry_coordinators", "agency_talent_media", "agency_talent_overlays", "agency_talent_roster",
   "agency_talent_skill_overrides", "analytics_events", "client_favorites", "client_reviews",
@@ -38,7 +41,7 @@ const NON_FINANCIAL = new Set([
   "talent_reviews", "talent_service_areas", "talent_site_domains", "talent_site_history",
   "talent_site_revisions", "talent_site_theme_updates", "talent_sites", "talent_skill_metrics", "talent_social_feed_items",
   "talent_submission_consents", "talent_submission_history", "talent_submission_snapshots",
-  "talent_workflow_events", "taxonomy_term_requests", "tenant_testimonials", "tulala_briefs",
+  "talent_workflow_events", "taxonomy_term_requests", "tenant_promo_codes", "tenant_testimonials", "tulala_briefs",
   "user_admin_notes",
 ]);
 
