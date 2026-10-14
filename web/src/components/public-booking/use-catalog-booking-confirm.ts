@@ -61,6 +61,9 @@ export function useCatalogBookingConfirm(input: {
   setSlotsRefreshKey: Dispatch<SetStateAction<number>>;
   /** DS-4: the notice shown on the time step after a taken-slot error. */
   setTakenNotice: Dispatch<SetStateAction<CatalogTakenSlotNotice | null>>;
+  /** Promos v1: what the pay step's promo panel chose, and the "offer ran out" hook. */
+  promo?: { promoCode: string | null; promoShownDiscountCents: number | null } | null;
+  onPromoGone?: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const confirmInFlightRef = useRef(false);
@@ -137,6 +140,8 @@ export function useCatalogBookingConfirm(input: {
         time: input.time,
         captchaToken: input.captchaRequired ? input.captchaToken || null : null,
         bookFn: input.bookFn,
+        promo: input.promo ?? null,
+        onPromoGone: input.onPromoGone,
       });
       if (written.phase === "preview") {
         await new Promise((r) => window.setTimeout(r, input.mode === "demo" ? 400 : 200));

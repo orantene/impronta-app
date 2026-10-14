@@ -4,6 +4,7 @@ import { improntaLog } from "@/lib/server/structured-log";
 import { cancelUnpaidBookings } from "@/lib/bookings/cancel-unpaid-booking";
 import { releaseCapacity } from "@/lib/capacity";
 import { releaseReservationHold } from "@/lib/scheduling/reservation-hold";
+import { releaseOrderPromoHolds } from "@/lib/promos/redemption/order-redemptions";
 
 /**
  * F5 (Phase 0): the purchase pipeline placed the order, its hold and its money
@@ -32,11 +33,14 @@ export type FailedCheckoutUnwindInput = {
 export type FailedCheckoutUnwindDeps = {
   releaseHold: typeof releaseReservationHold;
   releaseAllocations: typeof releaseCapacity;
+  /** Promos v1: the order's held promo uses go back to the pool. */
+  releasePromos?: (db: SupabaseClient, orderId: string) => Promise<{ ok: boolean }>;
 };
 
 const DEFAULT_DEPS: FailedCheckoutUnwindDeps = {
   releaseHold: releaseReservationHold,
   releaseAllocations: releaseCapacity,
+  releasePromos: releaseOrderPromoHolds,
 };
 
 export async function unwindFailedCheckout(
@@ -51,6 +55,10 @@ export async function unwindFailedCheckout(
       ok = false;
       logServerError("orders.unwindFailedCheckout/slot", `${input.why}: ${released.error}`);
     }
+  }
+  if (deps.releasePromos) {
+    const promos = await deps.releasePromos(admin, input.orderId);
+    if (!promos.ok) ok = false;
   }
   if (input.allocationIds.length > 0) {
     const released = await deps.releaseAllocations(input.allocationIds, admin);

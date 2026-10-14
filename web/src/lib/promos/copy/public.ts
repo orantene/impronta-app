@@ -25,6 +25,10 @@ export type PublicPromoCopy = {
   codeTryAgain: string;
   betterDeal: (deal: string, code: string) => string;
   soldOut: (regular: string) => string;
+  /** Booking confirm refused because the offer ran out; nothing was charged. */
+  promoGone: string;
+  /** Pill when the 7-day promo link cookie applied an offer. */
+  linkPill: string;
   bookAnyway: string;
   endsIn: (d: number, h: number, m: number) => string;
   subtotal: string;
@@ -54,6 +58,8 @@ const ES: PublicPromoCopy = {
   codeTryAgain: "No pudimos revisar el código. Intenta de nuevo.",
   betterDeal: (d, c) => `Ya tienes una mejor oferta (${d}). Tu código ${c} no fue necesario.`,
   soldOut: (r) => `Esta oferta se acaba de agotar. El precio normal es ${r}.`,
+  promoGone: "Esta oferta se acaba de agotar. No se cobró nada. Revisa el precio normal y confirma de nuevo.",
+  linkPill: "Oferta de tu enlace aplicada",
   bookAnyway: "Reservar de todos modos",
   endsIn: (d, h, m) => `termina en ${d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m}m` : `${m}m`}`,
   subtotal: "Subtotal",
@@ -83,6 +89,8 @@ const EN: PublicPromoCopy = {
   codeTryAgain: "We could not check the code. Please try again.",
   betterDeal: (d, c) => `You're already getting a better deal (${d}). Your code ${c} wasn't needed.`,
   soldOut: (r) => `This offer just sold out. Regular price is ${r}.`,
+  promoGone: "This offer just ran out. Nothing was charged. Check the regular price and confirm again.",
+  linkPill: "Offer from your link applied",
   bookAnyway: "Book anyway",
   endsIn: (d, h, m) => `ends in ${d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m}m` : `${m}m`}`,
   subtotal: "Subtotal",
