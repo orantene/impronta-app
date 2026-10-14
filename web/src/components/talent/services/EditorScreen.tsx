@@ -123,7 +123,6 @@ export function EditorScreen({
   const kindWord =
     kind === "package" ? copy.t("Package") : kind === "product" ? copy.t("Product") : copy.t("Service");
   const patch = (partial: Partial<TalentOffering>) => setItem({ ...item, ...partial });
-  // Unsaved edits survive a language-switch reload only with a prompt (PR 7).
   const [baseline, setBaseline] = useState(() => JSON.stringify(item));
   const dirty = JSON.stringify(item) !== baseline;
   useBeforeUnloadGuard(dirty);
