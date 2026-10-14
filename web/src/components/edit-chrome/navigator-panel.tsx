@@ -70,7 +70,7 @@ import type {
   CompositionSlotDef,
 } from "@/lib/site-admin/edit-mode/composition-actions";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
-import { sectionDisplayName } from "@/lib/site-admin/section-display-name";
+import { localizedSectionDisplayName } from "./section-display-name-i18n";
 import type { SectionVisibility as SectionVisibilityT } from "@/lib/site-admin/edit-mode/section-actions";
 
 import { useEditContext } from "./edit-context";
@@ -720,17 +720,13 @@ export function NavigatorPanel() {
     const counts = new Map<string, number>();
     const labels = new Map<string, string>();
     for (const row of flat) {
-      const base = sectionDisplayName({
-        typeKey: row.ref.sectionTypeKey,
-        rawName: row.ref.name,
-        headline: resolvedHeadlineFor(row.ref.sectionId),
-      });
+      const base = localizedSectionDisplayName({ typeKey: row.ref.sectionTypeKey, rawName: row.ref.name, headline: resolvedHeadlineFor(row.ref.sectionId) }, t, locale);
       const seen = counts.get(base) ?? 0;
       counts.set(base, seen + 1);
       labels.set(row.ref.sectionId, seen === 0 ? base : `${base} (${seen + 1})`);
     }
     return labels;
-  }, [flat, resolvedHeadlineFor]);
+  }, [flat, resolvedHeadlineFor, t, locale]);
   const newestNavigatorAddition = recentNavigatorAdditions[0] ?? null;
   useEffect(() => {
     if (!newestNavigatorAddition) return;
@@ -765,11 +761,8 @@ export function NavigatorPanel() {
   const labelFor = useCallback(
     (row: FlatRow) =>
       displayNameById.get(row.ref.sectionId) ??
-      sectionDisplayName({
-        typeKey: row.ref.sectionTypeKey,
-        rawName: row.ref.name,
-      }),
-    [displayNameById],
+      localizedSectionDisplayName({ typeKey: row.ref.sectionTypeKey, rawName: row.ref.name }, t, locale),
+    [displayNameById, t, locale],
   );
 
   const visible = useMemo(() => {
