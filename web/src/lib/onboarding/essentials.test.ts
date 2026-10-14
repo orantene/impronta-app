@@ -306,3 +306,15 @@ test("both: a retry writes no duplicates", async () => {
   await runEssentialsWrites(fakeStore(db), input);
   assert.equal(db.offerings.length, before);
 });
+
+test("a cleaning business gets suggested services, in the page language (TUL-568)", () => {
+  for (const said of ["Limpieza Profunda", "house cleaning", "limpieza de casas", "Cleaning service"]) {
+    assert.equal(packKeyForTrade(said), "cleaning", said);
+  }
+  const es = suggestedServices({ discipline: "Limpieza Profunda", country: "MX", locale: "es" });
+  assert.ok(es.length >= 3);
+  assert.ok(es.every((x) => !/cleaning/i.test(x.name)), "Spanish names only");
+  assert.equal(es[0].currency, "MXN");
+  const en = suggestedServices({ discipline: "house cleaning", country: "US", locale: "en" });
+  assert.ok(en.length >= 3 && en.every((x) => x.quote));
+});

@@ -8,6 +8,7 @@
  */
 
 import { WORKSPACE_PATH_SEGMENT } from "@/lib/saas/tenant-paths";
+import { GALLERY_PROFESSIONS, normalizeSearchText, professionsForTerm } from "@/lib/talent-site/theme-catalog/gallery-meta";
 
 export const WORKSPACE_ROOT_DOMAIN = "tulala.digital";
 
@@ -85,8 +86,31 @@ export function resolveWorkspaceFinishUrl(input: {
  * stored v1 keys (pink / pearl / sand) fail this guard on purpose, so a
  * resumed brief reads them as "no pick" and gets the default (rose).
  */
-export const DESIGN_LOOK_KEYS = ["rose", "blush", "orchid"] as const;
+export const DESIGN_LOOK_KEYS = ["rose", "blush", "orchid", "sage", "porcelain"] as const;
 export type DesignLookKey = (typeof DESIGN_LOOK_KEYS)[number];
+
+const BEAUTY_LOOKS: readonly DesignLookKey[] = ["rose", "blush", "orchid"];
+/** Non-beauty trades (cleaning, home services, ...): the neutral Maison v2 palettes. */
+const NEUTRAL_LOOKS: readonly DesignLookKey[] = ["sage", "porcelain"];
+
+/**
+ * The looks offered for a business category (free text, EN or ES). Beauty
+ * keeps the rose family; any other named trade gets the neutral palettes so a
+ * cleaning business is never shown Rosé/Rubor/Orquídea. No category yet keeps
+ * the old default set.
+ */
+export function designLooksForCategory(category: string | null | undefined): readonly DesignLookKey[] {
+  const label = normalizeSearchText(category ?? "");
+  if (!label) return BEAUTY_LOOKS;
+  const words = [label, ...label.split(/[\s,&/-]+/)];
+  const beautyWords = ["belleza", "beauty", "salon", "spa", "maquillaje", "makeup"];
+  if (beautyWords.some((w) => label.includes(w))) return BEAUTY_LOOKS;
+  for (const w of words) {
+    const profs = professionsForTerm(w);
+    if (profs.some((p) => GALLERY_PROFESSIONS[p].chip === "beauty")) return BEAUTY_LOOKS;
+  }
+  return NEUTRAL_LOOKS;
+}
 
 export function isDesignLookKey(v: unknown): v is DesignLookKey {
   return typeof v === "string" && (DESIGN_LOOK_KEYS as readonly string[]).includes(v);

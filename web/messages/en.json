@@ -2154,7 +2154,9 @@
         "keep": "Keep the default look",
         "rose": "Rosé",
         "blush": "Blush",
-        "orchid": "Orchid"
+        "orchid": "Orchid",
+        "sage": "Sage",
+        "porcelain": "Porcelain"
       },
       "role": {
         "eyebrow": "Step 1 of 2 · Role",
