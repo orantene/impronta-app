@@ -687,3 +687,21 @@ test("TUL-792: no link base (builder, hub, previews) means no service links", ()
   const html = render([catalogNode({})], { talentOfferings: [offering({})] });
   assert.doesNotMatch(html, /data-service-page-link/);
 });
+
+test("TUL-805: a quote service shows on the site as Price on request / Precio a cotizar with a request CTA", () => {
+  const quote = offering({ title: "Cotizar evento", amountCents: null, priceDisplay: "quote", priceType: "custom", bookingMode: "request" });
+  const en = render([catalogNode({})], { talentOfferings: [quote] });
+  assert.match(en, /Cotizar evento/);
+  assert.match(en, /Price on request/);
+  assert.match(en, /data-offering-cta/);
+  const es = renderToStaticMarkup(
+    renderBuilderNodes([catalogNode({})], {
+      mode: "freeform",
+      includeRendererStyles: false,
+      includeFontLinks: false,
+      visitorLocale: "es",
+      dataSources: { talentOfferings: [quote] },
+    }) as Parameters<typeof renderToStaticMarkup>[0],
+  );
+  assert.match(es, /Precio a cotizar/);
+});

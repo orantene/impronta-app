@@ -728,7 +728,7 @@ export function CatalogRow({
         {priceInMeta ? null : showPrice ? (
           <span className="site-builder-node--services-catalog-price">
             {onRequest || quote || minCents == null ? (
-              <strong>{es ? (onRequest ? "Bajo consulta" : "Cotización a pedido") : onRequest ? "On request" : "Quote on request"}</strong>
+              <strong>{es ? (onRequest ? "Bajo consulta" : "Precio a cotizar") : onRequest ? "On request" : "Price on request"}</strong>
             ) : (
               <>
                 {ladder ? <small>{es ? "Desde" : "From"}</small> : null}
