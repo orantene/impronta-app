@@ -27,7 +27,7 @@
 import React, { useMemo, useState, useEffect, useCallback, useTransition, type ReactNode } from "react";
 import { seatCapForPlan } from "@/lib/saas/plan-seat-caps";
 import { workspaceLiveHost } from "@/lib/saas/workspace-live-url";
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/navigation"; import { openSupportPanel } from "@/lib/support/open-support-panel";
 import { setActiveTalentAgencyAction } from "@/lib/talent/set-active-agency-action";
 import { interpolate } from "@/i18n/interpolate";
 import { useT } from "@/i18n/use-t";
@@ -4147,7 +4147,7 @@ export function WhatsNewDrawer() {
 // ════════════════════════════════════════════════════════════════════
 export function HelpDrawer() {
   const t = useT();
-  const { state, closeDrawer, openDrawer } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "help";
   return (
     <DrawerShell
@@ -4214,7 +4214,7 @@ export function HelpDrawer() {
               type="button"
               onClick={() => {
                 closeDrawer();
-                openDrawer("support-ticket");
+                openSupportPanel();
               }}
               style={helpRowStyle}
             >
