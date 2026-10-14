@@ -161,11 +161,11 @@ test("path-addressed /w/ sites on the marketing host link signed-out clients to 
   const appUrl = "https://app.tulala.digital/";
   assert.equal(
     pathWorkspaceClientSignInHref({ hostKind: "marketing", pathname: "/w/qa-grok-workspace", appUrl }),
-    "https://app.tulala.digital/login?as=client&next=%2Faccount",
+    "https://app.tulala.digital/login?as=client&next=%2Faccount%2Freturn%3Fto%3D%252Fw%252Fqa-grok-workspace",
   );
   assert.equal(
     pathWorkspaceClientSignInHref({ hostKind: "marketing", pathname: "/w/qa-grok-workspace/book", appUrl }),
-    "https://app.tulala.digital/login?as=client&next=%2Faccount",
+    "https://app.tulala.digital/login?as=client&next=%2Faccount%2Freturn%3Fto%3D%252Fw%252Fqa-grok-workspace%252Fbook",
   );
   // Not a path-addressed workspace, or not the marketing host: unchanged.
   assert.equal(pathWorkspaceClientSignInHref({ hostKind: "marketing", pathname: "/", appUrl }), null);

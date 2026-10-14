@@ -5,6 +5,7 @@
 
 import type { ClientAccountHostKind } from "./flag";
 import { isClientAccountEligible } from "./pure";
+import { accountReturnPath } from "./return-to";
 
 /**
  * Host contexts the proxy sets (`x-impronta-host-context`) that can show the
@@ -140,8 +141,9 @@ export function accountHrefFor(hostKind: string | null | undefined, appUrl: stri
  * Signed-out client entry for a path-addressed workspace site
  * (`tulala.digital/w/<slug>`). Those pages are served on the marketing host,
  * which has no client account surface of its own, so the entry points at the
- * app host's existing client sign-in. `next` is app-host relative (a sign-in
- * cannot carry a cross-host return), so a signed-in client lands on /account.
+ * app host's existing client sign-in. `next` stays app-host relative: it is
+ * `/account/return?to=<site path>`, which sends the signed-in client back to
+ * the site they came from through the allow-listed return-to (TUL-709).
  * Null for every other host or path: those keep their normal login link.
  */
 export function pathWorkspaceClientSignInHref(input: {
@@ -152,5 +154,5 @@ export function pathWorkspaceClientSignInHref(input: {
   if (input.hostKind !== "marketing") return null;
   if (!/^\/w\/[^/]+/.test(input.pathname)) return null;
   const base = input.appUrl.trim().replace(/\/$/, "");
-  return `${base}/login?as=client&next=${encodeURIComponent("/account")}`;
+  return `${base}/login?as=client&next=${encodeURIComponent(accountReturnPath(input.pathname))}`;
 }
