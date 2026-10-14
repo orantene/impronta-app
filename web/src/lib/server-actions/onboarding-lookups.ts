@@ -1,5 +1,7 @@
 "use server";
 
+import { citySubtitles } from "@/lib/onboarding/city-subtitle";
+
 /**
  * Lookups behind the onboarding "basics" question: what you do (from the
  * talent taxonomy or the business-type catalogue, never free text by
@@ -52,6 +54,8 @@ export type OnboardingCity = {
   name: { en: string; es: string };
   countryIso2: string;
   subtitle: string | null;
+  /** TUL-803: the same line in Spanish ("México", not "Mexico"). */
+  subtitleEs?: string | null;
 };
 
 function titleFromSlug(slug: string): string {
@@ -61,12 +65,14 @@ function titleFromSlug(slug: string): string {
 function toCity(c: CitySuggestion): OnboardingCity {
   // A curated row with no display name (seed drift) still has a slug; never show an empty line.
   const en = c.name_en?.trim() || titleFromSlug(c.slug);
+  const sub = citySubtitles(c);
   return {
     id: c.id,
     slug: c.slug,
     name: { en, es: c.name_es?.trim() || en },
     countryIso2: c.country_iso2,
-    subtitle: c.subtitle ?? c.country_name_en ?? null,
+    subtitle: sub.en,
+    subtitleEs: sub.es,
   };
 }
 

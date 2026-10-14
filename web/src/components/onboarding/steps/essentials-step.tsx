@@ -135,7 +135,7 @@ export function EssentialsStep({
           selectedLabel={(c) => c.name[locale] || c.name.en}
           search={(q) => searchOnboardingCities({ query: q })}
           itemLabel={(c) => c.name[locale] || c.name.en}
-          itemSub={(c) => c.subtitle}
+          itemSub={(c) => (locale === "es" ? c.subtitleEs ?? c.subtitle : c.subtitle)}
           itemKey={(c) => `${c.slug}:${c.countryIso2}`}
           onPick={(c) => setCity(c)}
           onClear={() => setCity(null)}
