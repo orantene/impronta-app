@@ -23,6 +23,8 @@ import { Composer, NewTicketForm } from "./SupportPanelForms";
 import { SupportIdeaForm } from "./SupportIdeaForm";
 import { HomeView, TicketRow } from "./SupportPanelHome";
 import { GuideTab } from "./GuideTab";
+import { NewQuestionStrip } from "./support-new-question-strip";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import type { SupportContract } from "./support-contract";
 import { createClient } from "@/lib/supabase/client";
 import { supportFrom } from "@/lib/support/support-from";
@@ -68,6 +70,7 @@ export function SupportPanel({
   onConsumedGuideNode?: () => void;
 }) {
   const t = useT();
+  const panelLocale = useDashboardLocale();
   const compact = useCompactViewport();
   const trapRef = useFocusTrap<HTMLDivElement>(open && compact);
   const { view, ticketId, setView, restoredRef } = useSupportSessionRestore();
@@ -187,7 +190,7 @@ export function SupportPanel({
       await fetch("/api/ai/support-chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ticketId: id }),
+        body: JSON.stringify({ ticketId: id, locale: panelLocale }),
       });
       // TUL-656: the AI reply is written server-side and normally arrives over realtime, but a socket that subscribed late or lagged left it hidden until the panel was reopened. Pull the thread once the turn is done.
       const supabase = createClient();
@@ -209,7 +212,7 @@ export function SupportPanel({
     } finally {
       setThinking(false);
     }
-  }, []);
+  }, [panelLocale]);
 
   const viewingRef = useRef<string | null>(null);
   useEffect(() => {
@@ -583,43 +586,14 @@ export function SupportPanel({
               {interpolate(t("dashboard.adminSupport.oranTyping"), SUPPORT_AGENT_VARS)}
             </div>
           ) : null}
-          {ticket?.status === "resolved" ? (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 10,
-                padding: "8px 12px",
-                borderTop: `1px solid ${COLORS.borderSoft}`,
-                fontSize: 12,
-                color: COLORS.inkMuted,
-              }}
-            >
-              <span>{t("dashboard.adminSupport.newQuestionHint")}</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setAsk("");
-                  setAskError(null);
-                  setView("home");
-                }}
-                style={{
-                  border: "none",
-                  background: COLORS.fill,
-                  color: "#fff",
-                  borderRadius: 999,
-                  padding: "8px 14px",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  flexShrink: 0,
-                }}
-              >
-                {t("dashboard.adminSupport.newQuestion")}
-              </button>
-            </div>
-          ) : null}
+          <NewQuestionStrip
+            status={ticket?.status}
+            onNewQuestion={() => {
+              setAsk("");
+              setAskError(null);
+              setView("home");
+            }}
+          />
           <Composer
           key={ticketId ?? "none"}
           disabled={!ticketId || ticket?.status === "closed"}
