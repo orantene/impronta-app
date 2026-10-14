@@ -92,7 +92,7 @@ describe("buildTalentPresenceStats", () => {
   });
 });
 
-import { classifyUtmSource, classifyVisitSource, topPresenceSources } from "./talent-presence-stats";
+import { classifyUtmSource, classifyVisitSource } from "./talent-presence-stats";
 
 describe("utm_source preference", () => {
   it("maps common aliases", () => {
