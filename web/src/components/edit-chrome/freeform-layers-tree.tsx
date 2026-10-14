@@ -61,6 +61,8 @@ import {
   NavigatorDisclosureChevron,
 } from "./use-navigator-disclosure";
 import { useEditorLocale } from "./use-editor-locale";
+import type { EditorLocale } from "./editor-i18n";
+import { sectionNameForLabel } from "@/lib/talent-site/history/draft-diff";
 import { useLayersTreeContainer } from "./use-roving-tree-focus";
 import {
   layerIcon,
@@ -120,9 +122,14 @@ function rawChildKindsForKind(kind: BuilderNodeKind): ReadonlyArray<BuilderNodeK
  * Human row name — delegated to the shared, unit-tested resolver so the tree,
  * canvas chip, and inspector agree. `section_embed` rows resolve their friendly
  * curated-section label ("Featured talent") via `sectionEmbedTypeLabel`.
+ * Design kits name their sections in English (`layerLabel`); in Spanish those
+ * known names read in Spanish. Talent-named layers and text-derived names stay.
  */
-function rowLabel(node: BuilderNode): string {
-  return resolveLayerDisplayName(node, sectionEmbedTypeLabel);
+function rowLabel(node: BuilderNode, locale: EditorLocale): string {
+  const name = resolveLayerDisplayName(node, sectionEmbedTypeLabel);
+  if (locale !== "es") return name;
+  const kitLabel = (node.props as { layerLabel?: string }).layerLabel;
+  return (kitLabel ? sectionNameForLabel(kitLabel, "es") : null) ?? name;
 }
 
 
@@ -185,7 +192,7 @@ function findFirstContainer(nodes: ReadonlyArray<BuilderNode>): BuilderNode | nu
  * still reads cleanly because `resolveLayerDisplayName` borrows the heading it
  * wraps for the row name (not a bare "Container").
  */
-export function flattenTree(tree: BuilderNodeTree): FlattenedTree {
+export function flattenTree(tree: BuilderNodeTree, locale: EditorLocale = "en"): FlattenedTree {
   const rows: LayerRow[] = [];
   const descendantsByNode = new Map<string, Set<string>>();
 
@@ -206,7 +213,7 @@ export function flattenTree(tree: BuilderNodeTree): FlattenedTree {
       rows.push({
         id: node.id,
         kind: node.kind,
-        label: rowLabel(node),
+        label: rowLabel(node, locale),
         Icon: layerIcon(node),
         depth,
         index,
@@ -371,9 +378,10 @@ export function FreeformLayersTree({
   const hoveredBuilderNodeId = useHoveredBuilderNodeId(); // W2-T3 — value from the bridge
   const selectedBuilderNodeId = useSelectedBuilderNodeId(); // W2 (selection-bridge) — value from the micro-store
 
+  const { t, locale } = useEditorLocale();
   const { rows, rootContainerId, rootContainerKinds, descendantsByNode } = useMemo(
-    () => flattenTree(builderTree),
-    [builderTree],
+    () => flattenTree(builderTree, locale),
+    [builderTree, locale],
   );
 
   const searchFilteredRows = useMemo(() => {
@@ -735,7 +743,7 @@ export function FreeformLayersTree({
     <div
       ref={treeRef}
       role="tree"
-      aria-label="Page layers"
+      aria-label={t("Page layers")}
       style={{ display: "flex", flexDirection: "column", gap: 1 }}
     >
       {/* Click-to-locate flash keyframes (job #5). Inert until a canvas block
@@ -752,7 +760,7 @@ export function FreeformLayersTree({
           role="status"
           aria-live="polite"
         >
-          No layers match &ldquo;{search.trim()}&rdquo;.
+          {t("No layers match “{query}”.").replace("{query}", search.trim())}
           {onClearSearch ? (
             <>
               {" "}
@@ -762,7 +770,7 @@ export function FreeformLayersTree({
                 className="cursor-pointer border-none bg-transparent p-0 text-[11.5px] font-semibold underline"
                 style={{ color: CHROME.accent }}
               >
-                Clear search
+                {t("Clear search")}
               </button>
             </>
           ) : null}
@@ -785,14 +793,14 @@ export function FreeformLayersTree({
             color: CHROME.ink,
           }}
         >
-          Page layers
+          {t("Page layers")}
         </span>
         {headerAddEnabled ? (
           <HeaderAddButton
             label={
               selectedContainerRow
-                ? `Add block inside ${headerLabel}`
-                : "Add block to page"
+                ? t("Add block inside {name}").replace("{name}", headerLabel)
+                : t("Add block to page")
             }
             active={insertTarget?.key === "header"}
             disabled={pending}
