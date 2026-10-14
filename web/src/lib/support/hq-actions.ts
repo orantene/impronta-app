@@ -405,3 +405,22 @@ export async function hqSummarizeDiagnosticsAction(raw: {
   void recordAiUsageEstimate(DEFAULT_AI_TENANT_ID);
   return { ok: true, summary };
 }
+
+/** Desk search over the whole ticket table, 50 per page (TUL-624). */
+export async function hqSearchTicketsAction(raw: { query: string; page?: number }): Promise<
+  | { ok: true; rows: import("./load-hq").HqQueueRow[]; hasMore: boolean }
+  | Fail
+> {
+  const parsed = z
+    .object({
+      query: z.string().max(200),
+      page: z.number().int().min(0).max(1000).optional(),
+    })
+    .safeParse(raw);
+  if (!parsed.success) return { ok: false, error: "Invalid input." };
+  const hq = await assertHqAccess();
+  if (!hq.ok) return hq;
+  const { searchHqSupportTickets } = await import("./load-hq-search");
+  const res = await searchHqSupportTickets(parsed.data.query, parsed.data.page ?? 0);
+  return { ok: true, rows: res.rows, hasMore: res.hasMore };
+}

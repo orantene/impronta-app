@@ -9934,6 +9934,8 @@
         "empty": "Nada en esta vista.",
         "keyboardHint": "j/k mover, Enter abrir, r responder, e resolver, a asignar",
         "unknownRequester": "Desconocido",
+        "searchLoadMore": "Ver más resultados",
+        "searchLoading": "Buscando en todos los tickets...",
         "ageJustNow": "ahora",
         "contextWorkspace": "Espacio",
         "noWorkspace": "Sin espacio",

@@ -137,6 +137,34 @@ export async function loadHqSupportOpenCount(): Promise<number> {
   }
 }
 
+/** Raw support_tickets rows -> queue rows (tenant, requester and TAL code hydrated). */
+export async function hydrateHqQueueRows(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  data: unknown[],
+): Promise<HqQueueRow[]> {
+  const tickets = (data ?? []).map(mapTicketRow).filter(Boolean) as SupportTicketRow[];
+  const tenantIds = [...new Set(tickets.map((t) => t.tenantId).filter(Boolean))] as string[];
+  const userIds = [...new Set(tickets.map((t) => t.requesterUserId).filter(Boolean))] as string[];
+  const [tenants, profiles] = await Promise.all([
+    hydrateTenants(admin, tenantIds),
+    hydrateProfiles(admin, userIds),
+  ]);
+  const talentCodes = await hydrateTalentCodes(admin, tickets);
+  return tickets.map((ticket) => {
+    const tenant = ticket.tenantId ? tenants.get(ticket.tenantId) : undefined;
+    const profile = ticket.requesterUserId ? profiles.get(ticket.requesterUserId) : undefined;
+    return {
+      ticket,
+      tenantName: tenant?.display_name ?? tenant?.slug ?? null,
+      tenantSlug: tenant?.slug ?? null,
+      planTier: tenant?.plan_tier ?? null,
+      requesterName: profile?.display_name ?? ticket.contactName ?? null,
+      requesterEmail: hqQueueRequesterEmail(ticket),
+      talentCode: talentCodes.get(ticket.id) ?? null,
+    };
+  });
+}
+
 export async function loadHqSupportQueue(): Promise<HqQueueRow[]> {
   try {
     const admin = createServiceRoleClient();
@@ -149,27 +177,7 @@ export async function loadHqSupportQueue(): Promise<HqQueueRow[]> {
       logServerError("support.hq.queue", error);
       return [];
     }
-    const tickets = (data ?? []).map(mapTicketRow).filter(Boolean) as SupportTicketRow[];
-    const tenantIds = [...new Set(tickets.map((t) => t.tenantId).filter(Boolean))] as string[];
-    const userIds = [...new Set(tickets.map((t) => t.requesterUserId).filter(Boolean))] as string[];
-    const [tenants, profiles] = await Promise.all([
-      hydrateTenants(admin, tenantIds),
-      hydrateProfiles(admin, userIds),
-    ]);
-    const talentCodes = await hydrateTalentCodes(admin, tickets);
-    return tickets.map((ticket) => {
-      const tenant = ticket.tenantId ? tenants.get(ticket.tenantId) : undefined;
-      const profile = ticket.requesterUserId ? profiles.get(ticket.requesterUserId) : undefined;
-      return {
-        ticket,
-        tenantName: tenant?.display_name ?? tenant?.slug ?? null,
-        tenantSlug: tenant?.slug ?? null,
-        planTier: tenant?.plan_tier ?? null,
-        requesterName: profile?.display_name ?? ticket.contactName ?? null,
-        requesterEmail: hqQueueRequesterEmail(ticket),
-        talentCode: talentCodes.get(ticket.id) ?? null,
-      };
-    });
+    return await hydrateHqQueueRows(admin, data ?? []);
   } catch (err) {
     logServerError("support.hq.queue", err);
     return [];
