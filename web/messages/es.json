@@ -139,7 +139,9 @@
       "form": {
         "email": "Correo electrónico",
         "emailPlaceholder": "tu@estudio.com",
-        "password": "Contraseña"
+        "password": "Contraseña",
+        "name": "Tu nombre",
+        "namePlaceholder": "Ana García"
       },
       "actions": {
         "invalidEmail": "Escribe un correo electrónico válido.",

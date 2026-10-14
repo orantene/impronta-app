@@ -90,6 +90,7 @@ export function EmailCodeForm({
   passwordFallback,
   footer,
   startWithPassword = false,
+  collectName = false,
 }: {
   nextPath?: string;
   locale?: string;
@@ -107,6 +108,8 @@ export function EmailCodeForm({
    * (magic link or Google) always has a way back in.
    */
   startWithPassword?: boolean;
+  /** TUL-762: the client sign-up asks for the person's name (saved on verify). */
+  collectName?: boolean;
 }) {
   const t = createTranslator(locale);
   const [sendState, sendAction, sending] = useActionState<EmailCodeState, FormData>(
@@ -123,6 +126,8 @@ export function EmailCodeForm({
   const [showPassword, setShowPassword] = useState(startWithPassword);
   // TUL-558: warn before send when the visitor types a +tag alias.
   const [emailDraft, setEmailDraft] = useState(defaultEmail ?? "");
+  const [nameDraft, setNameDraft] = useState("");
+  const askName = collectName && allowCreate;
   // Which action the visitor most recently triggered. Both `useActionState`
   // hooks keep their last result forever, so without this a stale "that code
   // isn't right" would sit on top of a fresh "new code sent" (and vice versa).
@@ -181,6 +186,7 @@ export function EmailCodeForm({
           {/* Step 1 required the 18+ and Terms box on the create path. */}
           {allowCreate ? <input type="hidden" name="age_terms" value="on" /> : null}
           {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
+          {askName && nameDraft.trim() ? <input type="hidden" name="name" value={nameDraft.trim()} /> : null}
 
           <AuthField
             label={t("public.auth.passwordless.codeLabel")}
@@ -298,6 +304,24 @@ export function EmailCodeForm({
             style={AUTH_INPUT_STYLE}
           />
         </AuthField>
+
+        {askName ? (
+          <AuthField label={t("public.auth.form.name")} htmlFor="name">
+            <input
+              id="name"
+              name="name"
+              type="text"
+              autoComplete="name"
+              required
+              maxLength={120}
+              value={nameDraft}
+              onChange={(e) => setNameDraft(e.target.value)}
+              placeholder={t("public.auth.form.namePlaceholder")}
+              className={AUTH_INPUT_CLASS}
+              style={AUTH_INPUT_STYLE}
+            />
+          </AuthField>
+        ) : null}
 
         {allowCreate ? <AgeTermsCheckbox locale={locale} /> : null}
 

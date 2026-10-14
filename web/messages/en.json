@@ -139,7 +139,9 @@
       "form": {
         "email": "Email",
         "emailPlaceholder": "you@studio.com",
-        "password": "Password"
+        "password": "Password",
+        "name": "Your name",
+        "namePlaceholder": "Ana García"
       },
       "actions": {
         "invalidEmail": "Enter a valid email address.",

@@ -28,6 +28,7 @@
  * is a talent signup path, promote client→talent before redirect.
  */
 
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -295,6 +296,12 @@ export async function submitEmailCode(
     if (isTalentSignupNext(nextPath)) {
       await promoteFreshProfileToTalent(user.id);
     }
+    // TUL-762: the client sign-up form collects a name; keep it if the
+    // profile has none yet (never overwrite a name the person already set).
+    if (String(formData.get("create") ?? "") === "1") {
+      const name = cleanSignupName(formData.get("name"));
+      if (name) await saveSignupDisplayName(user.id, name);
+    }
     // G3: the code proved the email. Claim + activate before routing.
     await claimAndActivateVerifiedClient({ userId: user.id, email: user.email ?? email, emailProven: true });
   }
@@ -405,4 +412,25 @@ export async function resendSignupCode(
     resent: true,
     notice: t("public.auth.signupCode.resentNotice"),
   };
+}
+
+/** TUL-762: trimmed, single-spaced, 1..120 chars; anything else is ignored. */
+function cleanSignupName(raw: FormDataEntryValue | null): string | null {
+  if (typeof raw !== "string") return null;
+  const v = raw.replace(/\s+/g, " ").trim();
+  return v && v.length <= 120 ? v : null;
+}
+
+async function saveSignupDisplayName(userId: string, name: string): Promise<void> {
+  try {
+    const admin = createServiceRoleClient();
+    if (!admin) return;
+    await admin
+      .from("profiles")
+      .update({ display_name: name })
+      .eq("id", userId)
+      .or("display_name.is.null,display_name.eq.");
+  } catch (error) {
+    logServerError("auth/submitEmailCode/displayName", error);
+  }
 }
