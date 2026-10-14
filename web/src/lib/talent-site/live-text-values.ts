@@ -8,6 +8,7 @@ import { formatHeroEyebrow, formatHeroProofLine, type HeroProofInput } from "./h
 import { resolveLiveBio } from "./live-bio";
 import { guessLineLanguage, resolveLocalizedLine } from "./live-line-language";
 import type { TalentLiveText } from "./live-text";
+import { tagLineFromVisibleServices, type ServiceVisibility } from "./live-text-services";
 import { pick, type LocalizedMapLike } from "./talent-locale-swaps";
 
 export interface LiveTextSource {
@@ -41,6 +42,8 @@ export interface LiveTextSource {
   whatsappHref?: string | null;
   /** Currency of her published services ("MXN"). */
   menuCurrency?: string | null;
+  /** TUL-847: visible and hidden service titles; a stored line naming a hidden one is rebuilt. */
+  services?: ServiceVisibility | null;
 }
 
 /** "@handle" from a profile Instagram URL; "" when it does not parse. */
@@ -92,7 +95,10 @@ export function buildTalentLiveText(
     ownHeadlineRaw && ownHeadlineLang && ownHeadlineLang !== key && !(src.headlineI18n?.[key]?.trim())
       ? ""
       : ownHeadlineRaw;
-  const ownTagline = resolveLocalizedLine({ map: src.taglineI18n, plain: src.tagline, alt: src.shortBio, locale: key, primary });
+  const rawTagline = resolveLocalizedLine({ map: src.taglineI18n, plain: src.tagline, alt: src.shortBio, locale: key, primary });
+  // Only the drafted `short_bio` fallback is rebuilt; a tagline she wrote herself is hers.
+  const taglineAuthored = Boolean(src.tagline?.trim() || Object.values(src.taglineI18n ?? {}).some((v) => typeof v === "string" && v.trim()));
+  const ownTagline = src.services && !taglineAuthored ? tagLineFromVisibleServices(rawTagline, src.services, key) : rawTagline;
   const headline = resolveHeadline({ headline: ownHeadline, tradeEn, displayName: src.displayName, seedKey: src.seedKey }, key);
   const eyebrow = formatHeroEyebrow(tradeNow, cityNow);
   const proof = formatHeroProofLine(src.proof, key);
