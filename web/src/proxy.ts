@@ -54,6 +54,7 @@ import { ensureExperimentVisitorCookie } from "@/lib/site-admin/builder-node/exp
 import { TULALA_APEX_HOST, TULALA_WWW_HOST } from "@/lib/brand/tulala";
 import { timed } from "@/lib/server/perf-trace";
 import { startDoorRedirect } from "@/lib/onboarding/start-door-redirect";
+import { marketingDemoSlugRedirect } from "@/lib/marketing/demo-slug-apex-redirect";
 import { marketingSpanishAliasRedirect } from "@/lib/marketing/spanish-path-alias";
 import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 
@@ -191,6 +192,14 @@ export async function proxy(request: NextRequest) {
     hostKind: hostContext.kind,
   });
   if (spanishAlias) return NextResponse.redirect(new URL(spanishAlias, request.url), 308);
+
+  const demoSlugHop = marketingDemoSlugRedirect({
+    pathname: request.nextUrl.pathname,
+    search: request.nextUrl.search,
+    method: request.method,
+    hostKind: hostContext.kind,
+  });
+  if (demoSlugHop) return NextResponse.redirect(demoSlugHop, 308);
 
   // Support Desk host: DEAD while SUPPORT_DESK_ENABLED is off — even when
   // support.tulala.digital is seeded in agency_domains (Phase 1a). When the
