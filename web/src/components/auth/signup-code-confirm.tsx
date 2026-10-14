@@ -32,6 +32,7 @@ import {
 import type { EmailCodeState } from "@/lib/auth/send-email-code-core";
 import { AuthNotice, AuthSubmitButton } from "@/components/auth/auth-ui";
 import { OtpCodeInput } from "@/components/auth/otp-code-input";
+import { VerifyProgress } from "@/components/auth/verify-progress";
 import { createTranslator } from "@/i18n/messages";
 
 /** Seconds before "resend" becomes tappable. Mirrors Supabase's interval. */
@@ -136,6 +137,17 @@ export function SignupCodeConfirm({
           <AuthNotice tone="success">{t("public.auth.signupCode.resentNotice")}</AuthNotice>
         ) : null}
 
+        <VerifyProgress
+          active={verifying}
+          labels={[
+            t("public.auth.signupCode.progressVerifying"),
+            t("public.auth.signupCode.progressCreating"),
+            t("public.auth.signupCode.progressSetup"),
+          ]}
+        />
+
+        {/* Always rendered: it shows the loading state while verifying and is
+            re-enabled on failure, so Confirm never vanishes (TUL-779). */}
         <AuthSubmitButton
           pending={verifying}
           idle={t("public.auth.signupCode.verifySubmit")}
