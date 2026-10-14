@@ -26,10 +26,15 @@ import {
 } from "@/lib/support/support-types";
 import {
   supportChatFailOpenBody,
+  supportChatOfferHumanBody,
   SUPPORT_CHAT_REASONS,
   SUPPORT_CHAT_SCHEMA,
   parseSupportChatModel,
 } from "@/lib/support/support-chat-shared";
+import {
+  logSupportChatFailOpen,
+  type SupportChatFailOpenReason,
+} from "@/lib/support/support-chat-fail-open-log";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const bodySchema = z.object({ ticketId: z.string().uuid() });
@@ -49,7 +54,12 @@ const SYSTEM_PROMPT = [
 
 const parseModel = parseSupportChatModel;
 
-async function failOpen(ticketId: string): Promise<void> {
+async function failOpen(
+  ticketId: string,
+  reason: SupportChatFailOpenReason,
+  code?: string | null,
+): Promise<void> {
+  logSupportChatFailOpen(ticketId, reason, code);
   await supportEngine.appendMessage({
     ticketId,
     authorKind: "system",
@@ -99,7 +109,7 @@ export async function POST(request: Request) {
 
     const admin = createServiceRoleClient();
     if (!admin) {
-      await failOpen(ticketId);
+      await failOpen(ticketId, "unavailable");
       return NextResponse.json({ skipped: "unavailable" }, { status: 200 });
     }
 
@@ -125,7 +135,7 @@ export async function POST(request: Request) {
 
     const gate = await assertAiInvocationAllowed(access.ticket.tenantId ?? DEFAULT_AI_TENANT_ID);
     if (!gate.ok) {
-      await failOpen(ticketId);
+      await failOpen(ticketId, "gated", gate.code);
       return NextResponse.json({ skipped: "gated" }, { status: 200 });
     }
 
@@ -191,13 +201,13 @@ export async function POST(request: Request) {
     ]);
 
     if (!completion.ok) {
-      await failOpen(ticketId);
+      await failOpen(ticketId, "model", completion.code);
       return NextResponse.json({ skipped: "model" }, { status: 200 });
     }
 
     const model = parseModel(completion.text);
     if (!model || !model.answer.trim()) {
-      await failOpen(ticketId);
+      await failOpen(ticketId, "parse");
       return NextResponse.json({ skipped: "parse" }, { status: 200 });
     }
 
@@ -218,7 +228,7 @@ export async function POST(request: Request) {
       skipNotify: true,
     });
     if (!persisted.ok) {
-      await failOpen(ticketId);
+      await failOpen(ticketId, "persist");
       return NextResponse.json({ skipped: "persist" }, { status: 200 });
     }
 
@@ -264,7 +274,7 @@ export async function POST(request: Request) {
         ticketId,
         authorKind: "ai",
         authorUserId: null,
-        body: `Want ${SUPPORT_AGENT.name} to take a look?`,
+        body: supportChatOfferHumanBody(appLocale),
         messageKind: "card",
         cardPayload: { kind: "offer-human" },
         aiMeta: { escalate_reason: "ai_suggested" },
