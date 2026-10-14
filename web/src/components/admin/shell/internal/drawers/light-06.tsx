@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useCallback, startTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { GuestPhoneField } from "@/components/ui/guest-phone-field";
+import { readStaffPhone } from "@/lib/phone/staff-phone";
 import {
   Avatar,
   CLIENT_TRUST_META,
@@ -374,6 +376,8 @@ export function ClientProfileDrawer() {
   // → Engagement method. Each section is hairline, premium, mobile-first.
   const [name, setName] = useState(client?.name ?? "");
   const [contact, setContact] = useState(client?.contact ?? "");
+  // Edit form: the phone is its own shared field (stored E.164); seeded when the contact is a bare number.
+  const [phone, setPhone] = useState(() => (/^[+\d\s().-]{6,}$/.test(client?.contact ?? "") ? readStaffPhone(client?.contact) : ""));
   const [industry, setIndustry] = useState<string | null>(null);
   const [homeBase, setHomeBase] = useState("");
   const [method, setMethod] = useState<"direct" | "referral" | "import">("direct");
@@ -439,7 +443,7 @@ export function ClientProfileDrawer() {
       // Map drawer fields onto client_profiles columns. industry → company
       // when no explicit company name was entered.
       fd.set("company_name", name.trim());
-      fd.set("phone", contact.includes("@") ? "" : contact.trim());
+      fd.set("phone", phone);
       fd.set("whatsapp_phone", "");
       fd.set("website_url", "");
       fd.set("notes", [homeBase.trim(), notes.trim()].filter(Boolean).join(" · "));
@@ -503,6 +507,11 @@ export function ClientProfileDrawer() {
             <FieldRow label={tt("Primary contact")} optional>
               <TextInput value={contact} onChange={(e) => setContact(e.target.value)} placeholder={tt("Name · email")} />
             </FieldRow>
+            {!isNew ? (
+              <FieldRow label={tt("Phone / WhatsApp")} optional>
+                <GuestPhoneField value={phone} onChange={setPhone} optional testId="client-edit-phone" />
+              </FieldRow>
+            ) : null}
           </Section>
 
           <Section title={tt("Industry")} framed>

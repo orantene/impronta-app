@@ -25,13 +25,17 @@ function validIso(iso: string | null | undefined): string | null {
   return dialByIso(up) ? up : null;
 }
 
-/** Order: request IP country, browser language region, browser timezone, talent country, MX. */
+/** Order: workspace country (staff forms), request IP country, browser language region, browser timezone, talent country, MX. */
 export function detectDefaultCountry(input: {
+  /** Staff forms: the workspace's or Talent/Profesional's country; wins over IP/browser. */
+  workspaceCountry?: string | null;
   ipCountry?: string | null;
   languages?: ReadonlyArray<string> | null;
   timeZone?: string | null;
   talentCountry?: string | null;
 }): string {
+  const ws = validIso(input.workspaceCountry);
+  if (ws) return ws;
   const ip = validIso(input.ipCountry);
   if (ip) return ip;
   for (const lang of input.languages ?? []) {

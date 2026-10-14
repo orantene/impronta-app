@@ -57,11 +57,15 @@ export async function updateAdminClientProfile(
   if (!auth.ok) return { error: auth.error };
 
   const { supabase } = auth;
+  const phoneCheck = checkStaffPhone(trimmedString(formData, "phone"), {});
+  if (!phoneCheck.ok) return { error: phoneCheck.error };
+  const waCheck = checkStaffPhone(trimmedString(formData, "whatsapp_phone"), {});
+  if (!waCheck.ok) return { error: waCheck.error };
   const parsed = parseWithSchema(adminClientProfileSchema, {
     user_id: trimmedString(formData, "user_id"),
     company_name: trimmedString(formData, "company_name"),
-    phone: trimmedString(formData, "phone"),
-    whatsapp_phone: trimmedString(formData, "whatsapp_phone"),
+    phone: phoneCheck.phone ?? "",
+    whatsapp_phone: waCheck.phone ?? "",
     website_url: trimmedString(formData, "website_url"),
     notes: trimmedString(formData, "notes"),
   });

@@ -52,6 +52,8 @@ import type { WorkspacePage } from "@/components/admin/shell/internal/state";
 import { clampWorkspacePage, normalizeWorkspaceType } from "@/lib/saas/workspace-type";
 import { resolveWorkspaceAdminPage } from "./workspace-page-routing";
 import { RealIdentityBanner } from "./_real-identity-banner";
+import { StaffPhoneCountryProvider } from "@/components/ui/staff-phone-country-context";
+import { loadWorkspacePhoneCountry } from "@/lib/phone/staff-phone-country.server";
 import { loadTenantIdentity, loadProfileDisplayName } from "../_layout-identity";
 import { resolveHybridSessionDisplayName } from "@/lib/saas/session-display-name";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -211,6 +213,7 @@ export default async function WorkspaceAdminLayout({
     workspaceUi,
     domainSummary,
     slices,
+    staffPhoneCountry,
   ] = await Promise.all([
     // KPI counts: the identity chip's subline and the rail's pending/issues
     // badges read these on first paint. One parallel wave of COUNT queries.
@@ -250,6 +253,8 @@ export default async function WorkspaceAdminLayout({
     timed("layout.loadBridgeSlices", () =>
       loadBridgeSlices({ tenantId, tenantSlug, canManageBilling }, pageSlices),
     ),
+    // Staff phone fields default their country to the workspace's.
+    timed("layout.loadWorkspacePhoneCountry", () => loadWorkspacePhoneCountry(tenantId)),
   ]);
   perfMark("layout.after-fanout", t0);
 
@@ -320,6 +325,7 @@ export default async function WorkspaceAdminLayout({
 
   return (
     <DashboardLocaleProvider locale={requestLocale}>
+      <StaffPhoneCountryProvider country={staffPhoneCountry}>
       {/* Real-data diagnostic banner. Dev/preview only — never ships to
           production. It sits above the prototype chrome until the prototype's
           top-bar identity is migrated to consume the bridge.
@@ -390,6 +396,7 @@ export default async function WorkspaceAdminLayout({
         {/* PageRouteSyncer lives here — inside AdminShellProvider context, returns null */}
         {children}
       </AdminShellClient>
+      </StaffPhoneCountryProvider>
     </DashboardLocaleProvider>
   );
 }
