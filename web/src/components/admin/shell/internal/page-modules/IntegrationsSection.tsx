@@ -24,6 +24,7 @@ import {
   loadTenantIntegrations,
   type IntegrationView,
 } from "@/app/(workspace)/[tenantSlug]/admin/settings/integration-actions";
+import { loadCaptchaNoticeDomain } from "@/app/(workspace)/[tenantSlug]/admin/settings/captcha-notice-actions";
 import { IntegrationCard } from "@/components/admin/integrations/IntegrationCard";
 import { IntegrationConfigDrawer } from "@/components/admin/integrations/IntegrationConfigDrawer";
 import { CustomCodeDrawer } from "@/components/admin/integrations/CustomCodeDrawer";
@@ -83,12 +84,14 @@ export function IntegrationsSection() {
   const reload = useCallback(() => {
     if (!tenantSlug) return;
     setLoading(true);
+    loadCaptchaNoticeDomain(tenantSlug)
+      .then(setNoticeDomain)
+      .catch(() => setNoticeDomain(null));
     loadTenantIntegrations(tenantSlug)
       .then((res) => {
         if (res.ok) {
           setIntegrations(res.integrations);
           setCanManage(res.canManage);
-          setNoticeDomain(res.captchaNoticeDomain ?? null);
           setLoadError(null);
         } else {
           setLoadError(res.error);
