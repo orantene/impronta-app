@@ -13648,6 +13648,7 @@
       "aiMicrocopy": "La IA responde al instante. {agent} ve cada ticket.",
       "composerPlaceholder": "Escribe una respuesta",
       "sendFailed": "No se pudo enviar. Tu texto sigue aquí, inténtalo de nuevo.",
+      "sendFailedNetwork": "No se pudo enviar. Revisa tu conexión e inténtalo de nuevo.",
       "rateLimited": "Enviaste muchos mensajes en poco tiempo. Tu texto sigue aquí. Inténtalo de nuevo en unos {minutes} minutos.",
       "threadLoading": "Cargando la conversación…",
       "threadLoadFailed": "No pudimos cargar esta conversación. Cierra y vuelve a abrir el panel para intentarlo de nuevo.",
