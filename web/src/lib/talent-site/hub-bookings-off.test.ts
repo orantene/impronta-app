@@ -29,6 +29,6 @@ test("bookings off: the hub inquires, never Reservar", () => {
   for (const inquiries of [true, false]) {
     const entry = hubProfileBookEntry(load(false, inquiries), "talent_pro");
     assert.equal(entry.kind, "inquire", `inquiries=${inquiries}`);
-    assert.equal(resolveHubProfileCta({ platformHost: true, hasBookableServices: entry.kind === "sheet" }).kind, "inquire");
+    assert.equal(resolveHubProfileCta({ platformHost: true, hasBookableServices: false }).kind, "inquire");
   }
 });
