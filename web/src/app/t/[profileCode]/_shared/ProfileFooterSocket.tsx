@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 
 import { TalentSiteSocket } from "@/components/talent-site/talent-site-socket";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { buildSocketModel } from "@/lib/talent-site/footer-socket";
 
 /**
@@ -38,6 +39,7 @@ export function ProfileFooterSocket({
     whitelabel: Boolean(whitelabel),
     consentTooling: false,
     siteLinks: [],
+    marketingOrigin: resolveMarketingOrigin(),
     helpContext: profileCode ? { profileCode, siteHost: siteHost ?? null } : null,
   });
   const style = {

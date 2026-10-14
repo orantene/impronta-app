@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 
 import type { Locale } from "@/i18n/config";
 import { TalentSiteSocket } from "@/components/talent-site/talent-site-socket";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import { getPublicCmsNavigationLinks } from "@/lib/cms/public-navigation";
 import { buildAgencySocketModel } from "@/lib/talent-site/footer-socket";
@@ -29,7 +30,9 @@ export async function AgencyFooterSocket({
     loadTenantWhitelabel(tenantId).catch(() => false),
     getPublicCmsNavigationLinks(locale, "footer").catch(() => []),
   ]);
-  const model = buildAgencySocketModel({ locale, whitelabel, footerLinks: links });
+  const model = buildAgencySocketModel({ locale, whitelabel, footerLinks: links,
+    marketingOrigin: resolveMarketingOrigin(),
+  });
   return (
     <div style={AGENCY_TOKEN_STYLE} data-agency-socket="">
       <TalentSiteSocket model={model} clearDock={false} />
