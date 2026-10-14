@@ -36,11 +36,39 @@ export const TALENT_DEMO_HOST_SUFFIX = "-demo" as const;
  */
 export const TALENT_SITE_SUBDOMAIN_ROOTS = ["tulala.digital", "lvh.me"] as const;
 
-export type TalentSiteSubdomainRoot = (typeof TALENT_SITE_SUBDOMAIN_ROOTS)[number];
+export type TalentSiteSubdomainRoot = string;
 
 /** The production root — the one public URLs are built with. */
 export const TALENT_SITE_PRIMARY_ROOT: TalentSiteSubdomainRoot =
   TALENT_SITE_SUBDOMAIN_ROOTS[0];
+
+/**
+ * TUL-750: the root a NON-production deployment (isolated staging) serves talent
+ * sites under, e.g. `staging.tulala.digital` so `<slug>.staging.tulala.digital`
+ * mirrors `<slug>.tulala.digital`. Read from `TALENT_SITE_ROOT_DOMAIN`.
+ *
+ * Rails: IGNORED when `VERCEL_ENV` is `production` (a stray variable can never
+ * move production talent URLs); must be a plain multi-label DNS name that ends
+ * in `.tulala.digital` (no scheme, port, path or wildcard); otherwise the
+ * production default is used.
+ */
+export function resolveTalentSiteRootDomain(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): string {
+  if (env.VERCEL_ENV === "production") return TALENT_SITE_PRIMARY_ROOT;
+  const raw = (env.TALENT_SITE_ROOT_DOMAIN ?? "").trim().toLowerCase();
+  if (!raw || !raw.endsWith(`.${TALENT_SITE_PRIMARY_ROOT}`)) return TALENT_SITE_PRIMARY_ROOT;
+  const labels = raw.split(".");
+  return labels.every(isTalentSiteLabel) ? raw : TALENT_SITE_PRIMARY_ROOT;
+}
+
+/** Every root a request host may carry (the configured staging root is added off production). */
+function talentSiteRoots(): readonly string[] {
+  const configured = resolveTalentSiteRootDomain();
+  return configured === TALENT_SITE_PRIMARY_ROOT
+    ? TALENT_SITE_SUBDOMAIN_ROOTS
+    : [configured, ...TALENT_SITE_SUBDOMAIN_ROOTS];
+}
 
 /** A parsed talent host: exactly one label under exactly one known root. */
 export interface TalentSiteHostParts {
@@ -90,7 +118,7 @@ export function stripTalentDemoHostSuffix(
  */
 export function talentSiteHost(
   slug: string | null | undefined,
-  root: TalentSiteSubdomainRoot = TALENT_SITE_PRIMARY_ROOT,
+  root: TalentSiteSubdomainRoot = resolveTalentSiteRootDomain(),
   opts: { isDemo?: boolean } = {},
 ): string | null {
   const label = talentSiteHostLabel(slug, opts);
@@ -118,7 +146,7 @@ export function talentSitePublicUrl(
     isDemo?: boolean;
   } = {},
 ): string | null {
-  const host = talentSiteHost(slug, opts.root ?? TALENT_SITE_PRIMARY_ROOT, {
+  const host = talentSiteHost(slug, opts.root ?? resolveTalentSiteRootDomain(), {
     isDemo: opts.isDemo,
   });
   if (!host) return null;
@@ -167,7 +195,7 @@ export function splitTalentSiteHost(
     : withoutPort;
   if (!hostname) return null;
 
-  for (const root of TALENT_SITE_SUBDOMAIN_ROOTS) {
+  for (const root of talentSiteRoots()) {
     const suffix = `.${root}`;
     if (!hostname.endsWith(suffix)) continue;
     const label = hostname.slice(0, -suffix.length);
