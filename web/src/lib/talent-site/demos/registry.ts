@@ -33,6 +33,9 @@ const REFERENCES: DemoRegistryEntry[] = [
 const EXTRAS: DemoRegistryEntry[] = [
   { design: "maison-v2", profileCode: "TAL-93006", palette: "current", reference: false, keepLook: true },
   { design: "folio", profileCode: "TAL-93007", palette: "current", reference: false, keepLook: true, contentFixture: "TAL-93007" },
+  // Frame demos (gallery palettes from gallery-meta). No content fixture: the rebuild applies the design only.
+  { design: "frame", profileCode: "TAL-93005", palette: "darkroom", reference: false },
+  { design: "frame", profileCode: "TAL-93009", palette: "gallery", reference: false },
 ];
 
 export const DEMO_REGISTRY: readonly DemoRegistryEntry[] = [

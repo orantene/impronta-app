@@ -13,7 +13,7 @@
  * fonts, shape), section variants and section order. Nothing is a fixed skin.
  */
 
-export type ThemeDemoDesign = "maison-v2" | "folio" | "gridline";
+export type ThemeDemoDesign = "maison-v2" | "folio" | "gridline" | "frame";
 
 export type ThemeDemoProfession =
   | "nails"
