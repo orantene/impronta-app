@@ -258,7 +258,7 @@ function buildFixture(d: FolioDemoJson): DemoContentFixture {
         ? "Detalles · Servicios"
         : "Details · Services"
       : lang === "es"
-        ? "Medidas · Comp card"
+        ? "Medidas · Ficha"
         : "Measures · Comp card";
 
   return {
