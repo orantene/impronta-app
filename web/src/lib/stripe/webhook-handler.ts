@@ -68,6 +68,8 @@ import { recordProviderPayout } from "@/lib/payments/provider-payouts";
 import { recordProviderDispute } from "@/lib/payments/provider-disputes";
 import { sendPaymentFailedNotice } from "@/lib/billing/dunning-notice";
 import { defaultDunningNoticeDeps } from "@/lib/billing/dunning-notice-deps";
+import { detectCancelTransition, sendCancelStateNotice } from "@/lib/billing/cancel-state-notice";
+import { defaultCancelNoticeDeps } from "@/lib/billing/cancel-state-notice-deps";
 import { recordProviderInvoice } from "@/lib/payments/provider-invoices";
 import { notifyTrialWillEnd } from "@/lib/notifications/producers/trial-notify";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -109,6 +111,46 @@ function ensureSyncOk(
 }
 
 // ─── Side-effect dispatch ─────────────────────────────────────────────────────
+
+/**
+ * TUL-832: confirmation email when cancel_at_period_end flips (portal or app).
+ * Runs after the subscription sync succeeded. Never blocks on a missing
+ * recipient; a failed send is transient so Stripe retries (claim is released).
+ */
+async function notifyCancelStateChange(
+  event: Stripe.Event,
+  stripe: Stripe,
+  scope: "talent" | "workspace",
+): Promise<void> {
+  const transition = detectCancelTransition(event);
+  if (!transition) return;
+  const sub = event.data.object as Stripe.Subscription;
+  let to: string | null = null;
+  let locale: "es" | "en" = "en";
+  try {
+    const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer?.id;
+    const customer = customerId ? await stripe.customers.retrieve(customerId) : null;
+    if (customer && !customer.deleted) {
+      to = customer.email ?? null;
+      locale = (customer.preferred_locales?.[0] ?? "").toLowerCase().startsWith("es") ? "es" : "en";
+    }
+  } catch (err) {
+    throw new TransientWebhookError(`customers.retrieve failed for cancel notice ${sub.id}`, err);
+  }
+  const result = await sendCancelStateNotice(
+    {
+      transition,
+      scope,
+      to,
+      locale,
+      actionUrl: process.env.NEXT_PUBLIC_APP_URL ?? "https://app.tulala.digital",
+    },
+    defaultCancelNoticeDeps(),
+  );
+  if (result === "failed") {
+    throw new TransientWebhookError(`cancel-state email send failed for event ${event.id}`);
+  }
+}
 
 /** Sync a workspace OR talent subscription object (used for checkout-init + invoice-failed). */
 
@@ -390,6 +432,7 @@ export async function processStripeEvent(
       // Preserves the talent-site provisioning side-effect (onTalentPlanChanged)
       // and the robust talent_profile resolution that the workspace sync lacks.
       ensureSyncOk("talent_subscription_sync", await handleTalentStripeSubscriptionEvent(event));
+      await notifyCancelStateChange(event, stripe, "talent");
       return;
 
     case "subscription_lifecycle_workspace":
@@ -397,6 +440,7 @@ export async function processStripeEvent(
         "workspace_subscription_sync",
         await syncStripeSubscriptionToDb(event.data.object as Stripe.Subscription, action.planKey),
       );
+      await notifyCancelStateChange(event, stripe, "workspace");
       return;
 
     case "subscription_unknown":
