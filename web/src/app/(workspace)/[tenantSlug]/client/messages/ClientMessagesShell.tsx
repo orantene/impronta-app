@@ -50,7 +50,7 @@ import type { WorkspaceMessage } from "../../_data-bridge/inquiries-messages";
 import type { ClientInquiryDetails } from "../../_data-bridge/client-inquiry-details";
 import { InquiryDrawer } from "@/components/inquiry/InquiryDrawer";
 import { ThreadShell } from "@/components/shared/ThreadShell";
-import { clientInquiryMatchesFilter, toClientThreadItems } from "./client-thread-adapter";
+import { clientInquiryMatchesFilter, isOwnClientMessage, toClientThreadItems } from "./client-thread-adapter";
 import { DetailsTab } from "./DetailsTab";
 import { OfferTab } from "./OfferTab";
 import { TabLoadingSkeleton } from "./TabLoadingSkeleton";
@@ -148,6 +148,8 @@ type Props = {
   prefilledTalentId?: string;
   /** Inquiry id from ?just_submitted=1 — pin its thread + show toast. */
   justSubmittedInquiryId?: string;
+  /** Effective client user id (impersonation subject under staff view-as). */
+  viewerUserId: string | null;
 };
 
 export function ClientMessagesShell({
@@ -164,6 +166,7 @@ export function ClientMessagesShell({
   autoOpenDrawer = false,
   prefilledTalentId,
   justSubmittedInquiryId,
+  viewerUserId,
 }: Props) {
   const router = useRouter();
   const t = useT();
@@ -308,18 +311,12 @@ export function ClientMessagesShell({
     return () => { cancelled = true; };
   }, [activeId, initialActiveId]);
 
-  // Viewer user ID — fetched once for is_mine determination in realtime events.
-  // Mirrored into state so child panes (typing presence) can read a stable id.
-  const viewerUserIdRef = useRef<string | null>(null);
-  const [viewerUserId, setViewerUserId] = useState<string | null>(null);
+  // Viewer user ID — the EFFECTIVE client, resolved on the server (TUL-610).
+  // Never the browser session user: under staff view-as that is the staff actor.
+  const viewerUserIdRef = useRef<string | null>(viewerUserId);
   useEffect(() => {
-    const supabase = createClient();
-    if (!supabase) return;
-    supabase.auth.getUser().then(({ data }) => {
-      viewerUserIdRef.current = data.user?.id ?? null;
-      setViewerUserId(data.user?.id ?? null);
-    });
-  }, []);
+    viewerUserIdRef.current = viewerUserId;
+  }, [viewerUserId]);
 
   // Realtime — push incoming messages into state as they arrive on the
   // active inquiry's private thread. Channel is torn down and recreated
@@ -344,7 +341,7 @@ export function ClientMessagesShell({
           let appended = false;
           setMessages((prev) => {
             if (prev.some((m) => m.id === row.id)) return prev;
-            const isMine = viewerUserIdRef.current != null && row.sender_user_id === viewerUserIdRef.current;
+            const isMine = isOwnClientMessage(row.sender_user_id, viewerUserIdRef.current);
             if (isMine) return prev;
             const knownName = prev.find((m) => m.sender_user_id === row.sender_user_id)?.sender_name;
             appended = true;
