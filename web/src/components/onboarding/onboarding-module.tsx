@@ -346,9 +346,12 @@ export function OnboardingModule({
   const ageTermsRef = useRef(false);
   // TUL-750: 18+ already confirmed on the ready step; the save step then asks only for Terms.
   const [ageConfirmed, setAgeConfirmed] = useState(false);
+  // Mirrors the ref for render: SaveStep reopens ticked after "change email".
+  const [ageTermsGiven, setAgeTermsGiven] = useState(false);
   const sendCode = useCallback(async (email: string, resend = false, ageTerms = ageTermsRef.current) => {
     dispatch({ type: "sendStarted" });
     ageTermsRef.current = ageTerms;
+    setAgeTermsGiven(ageTerms);
     const r = await requestOnboardingCode({ email, locale, resend, ageTerms });
     if (r.ok) {
       const plus = r.email.includes("+") && r.email.includes("@");
@@ -500,6 +503,7 @@ export function OnboardingModule({
       <UnderstoodStep
         t={t}
         understanding={state.understanding}
+        locale={locale}
         fromLink={state.input?.kind === "url"}
         busy={state.busy}
         error={state.error}
@@ -574,6 +578,7 @@ export function OnboardingModule({
         ageConfirmed={ageConfirmed}
         busy={state.busy}
         error={state.accountMessage}
+        initialAgeTerms={ageTermsGiven}
         onEmail={(email, ageTerms) => void sendCode(email, false, ageTerms)}
         onGoogleSuccess={onGoogleSuccess}
       />

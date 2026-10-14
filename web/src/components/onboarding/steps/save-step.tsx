@@ -25,6 +25,7 @@ export function SaveStep({
   ageConfirmed = false,
   busy,
   error,
+  initialAgeTerms = false,
   onEmail,
   onGoogleSuccess,
 }: {
@@ -38,6 +39,8 @@ export function SaveStep({
   ageConfirmed?: boolean;
   busy: boolean;
   error: string | null;
+  /** The tick already given (kept across "change email" and back). */
+  initialAgeTerms?: boolean;
   onEmail: (email: string, ageTerms: boolean) => void;
   onGoogleSuccess: () => void;
 }) {
@@ -45,7 +48,7 @@ export function SaveStep({
   const [email, setEmail] = useState("");
   // Legal 2.2: 18+ and Terms/Privacy, required before a code is sent. The
   // server action re-checks it; `disabled` here is only a convenience.
-  const [ageTerms, setAgeTerms] = useState(false);
+  const [ageTerms, setAgeTerms] = useState(initialAgeTerms);
   // Talent (and both): the callback promotes the fresh profile to talent when
   // `next` is a talent onboarding path. The module ignores the destination.
   const base = path === "business" ? "/" : "/talent/profile/fields";

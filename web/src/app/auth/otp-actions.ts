@@ -60,6 +60,7 @@ import {
   checkAuthOtpSendByIp,
   checkAuthOtpVerifyByEmail,
 } from "@/lib/rate-limit-kv";
+import { pickClientIp } from "@/lib/auth/client-ip";
 import {
   scheduleWorkspaceAudit,
   type WorkspaceAuditActorKind,
@@ -118,11 +119,9 @@ function auditActorKind(appRole: string | null | undefined): WorkspaceAuditActor
 
 async function requestIp(): Promise<string> {
   try {
-    const h = await headers();
-    const forwarded = h.get("x-forwarded-for") ?? "";
-    return forwarded.split(",")[0]?.trim() || "unknown";
+    return pickClientIp(await headers());
   } catch {
-    return "unknown";
+    return pickClientIp({ get: () => null });
   }
 }
 

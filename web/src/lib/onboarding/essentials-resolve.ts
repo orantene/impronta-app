@@ -26,13 +26,17 @@ export function resolveEssentialsTimezone(input: {
   timezone: string | null | undefined;
   city: string | null | undefined;
   country: string | null | undefined;
+  /** Spanish flow with no country at all defaults to Mexico City. */
+  locale?: "en" | "es";
 }): string | null {
   const own = input.timezone?.trim();
   if (own && isValidIanaTimeZone(own)) return own;
   const place = [input.city, input.country].map((x) => x?.trim()).filter(Boolean).join(", ");
   const fromPlace = place ? timezoneFromPlaceText(place) : null;
   if (fromPlace && isValidIanaTimeZone(fromPlace)) return fromPlace;
-  return defaultTimezoneForCountry(input.country) ?? timezoneFromCountry(input.country);
+  const fromCountry = defaultTimezoneForCountry(input.country) ?? timezoneFromCountry(input.country);
+  if (fromCountry) return fromCountry;
+  return !input.country?.trim() && input.locale === "es" ? "America/Mexico_City" : null;
 }
 
 /**
@@ -75,7 +79,7 @@ export function resolveEssentialsForBuild(input: {
     name: e?.name ?? null,
     services,
     hours: hoursHaveAnyOpenDay(e?.hours ?? null) ? e!.hours : defaultWeeklyHours(),
-    timezone: resolveEssentialsTimezone({ timezone: e?.timezone, city: input.city, country: input.country }),
+    timezone: resolveEssentialsTimezone({ timezone: e?.timezone, city: input.city, country: input.country, locale: input.locale }),
     place: e?.place ?? null,
     firstProviderEmail: e?.firstProviderEmail ?? null,
     firstProviderName: e?.firstProviderName ?? null,

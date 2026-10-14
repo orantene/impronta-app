@@ -204,7 +204,7 @@ export function suggestedEssentials(ctx: PackContext & { name?: string | null })
     name: ctx.name?.trim() || null,
     services,
     hours: defaultWeeklyHours(),
-    timezone: defaultTimezoneForCountry(ctx.country),
+    timezone: defaultTimezoneForCountry(ctx.country) ?? (!ctx.country?.trim() && ctx.locale === "es" ? "America/Mexico_City" : null),
     place: null,
     firstProviderEmail: null,
     firstProviderName: null,
