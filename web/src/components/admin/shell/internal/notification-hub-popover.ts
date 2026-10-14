@@ -54,7 +54,30 @@ export type HubPopoverItem = {
   category: HubUiCategory;
   /** admin = workspace staff queues / workspace-surfaced rows; talent = talent surface. */
   owner: HubOwnerSurface;
+  /** DB kind when the row has one; lets a row sit in more than one tab. */
+  kind?: string;
 };
+
+/**
+ * Display-only: an `offer` row carries an amount, so it also lists under Money
+ * (it stays under Attention too). Counts and the kind map are unchanged.
+ */
+export function hubKindInCategory(kind: string, category: HubUiCategory): boolean {
+  return hubUiCategoryForKind(kind) === category || (category === "money" && kind === "offer");
+}
+
+/**
+ * Number shown in a list header: unread rows among the filtered list, so it
+ * matches the bell badge ("7 unread"); all rows when none are unread. Never
+ * the 8-row preview cap.
+ */
+export function hubSectionCount(
+  filtered: readonly { id: string }[],
+  readIds: ReadonlySet<string>,
+): number {
+  const unread = filtered.filter((i) => !readIds.has(i.id)).length;
+  return unread > 0 ? unread : filtered.length;
+}
 
 /** True when the filtered list is long enough to warrant the full drawer. */
 export function shouldShowSeeAllNotifications(filteredCount: number): boolean {
@@ -66,12 +89,12 @@ export function popoverPreviewItems<T>(items: readonly T[]): T[] {
   return items.slice(0, POPOVER_LIST_LIMIT);
 }
 
-export function filterHubItemsByCategory<T extends { category: HubUiCategory }>(
+export function filterHubItemsByCategory<T extends { category: HubUiCategory; kind?: string }>(
   items: readonly T[],
   category: HubUiCategory | "all",
 ): T[] {
   if (category === "all") return [...items];
-  return items.filter((i) => i.category === category);
+  return items.filter((i) => i.category === category || (i.kind ? hubKindInCategory(i.kind, category) : false));
 }
 
 export function filterHubItemsByOwner<T extends { owner: HubOwnerSurface }>(
@@ -92,11 +115,12 @@ export function selectPopoverList<T extends HubPopoverItem>(
     category: HubUiCategory | "all";
     owner: HubOwnerSurface | "all";
   },
-): { visible: T[]; filteredCount: number; showSeeAll: boolean } {
+): { visible: T[]; filtered: T[]; filteredCount: number; showSeeAll: boolean } {
   const byOwner = filterHubItemsByOwner(items, opts.owner);
   const filtered = filterHubItemsByCategory(byOwner, opts.category);
   return {
     visible: popoverPreviewItems(filtered),
+    filtered,
     filteredCount: filtered.length,
     showSeeAll: shouldShowSeeAllNotifications(filtered.length),
   };
@@ -119,5 +143,5 @@ export function matchesHubPayloadCategory(
 ): boolean {
   if (!category) return true;
   if (!(HUB_UI_CATEGORIES as readonly string[]).includes(category)) return true;
-  return hubUiCategoryForKind(kind) === category;
+  return hubKindInCategory(kind, category as HubUiCategory);
 }

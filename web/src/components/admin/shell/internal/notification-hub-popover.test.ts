@@ -7,6 +7,7 @@ import {
   HUB_UI_CATEGORIES,
   POPOVER_LIST_LIMIT,
   hubUiCategoryForBucket,
+  hubSectionCount,
   hubUiCategoryForKind,
   matchesHubPayloadCategory,
   notificationCenterDrawerId,
@@ -100,4 +101,27 @@ test("TUL-390: ES chrome keys for See all + Attention", async () => {
   for (const en of Object.values(HUB_OWNER_LABEL)) {
     assert.ok(typeof en === "string" && en.length > 0);
   }
+});
+
+test("TUL-391 r2: offers carry money, so the Money tab lists them (was empty 'All caught up')", () => {
+  const rows: HubPopoverItem[] = [
+    { id: "o1", category: "attention", owner: "talent", kind: "offer" },
+    { id: "o2", category: "attention", owner: "talent", kind: "offer" },
+    { id: "a1", category: "attention", owner: "talent", kind: "approval" },
+  ];
+  const money = selectPopoverList(rows, { category: "money", owner: "all" });
+  assert.deepEqual(money.visible.map((r) => r.id), ["o1", "o2"]);
+  // Offers stay in Attention too (they need a decision).
+  assert.equal(selectPopoverList(rows, { category: "attention", owner: "all" }).filteredCount, 3);
+  assert.equal(matchesHubPayloadCategory("offer", "money"), true);
+  assert.equal(matchesHubPayloadCategory("approval", "money"), false);
+});
+
+test("TUL-391 r2: section header count equals the badge (unread), not the capped row count", () => {
+  const ids = Array.from({ length: 12 }, (_, i) => `n${i}`);
+  const rows = ids.map((id) => item(id, "messages"));
+  // 12 rows, 1 read: badge says 11; header must not say 8 (the preview cap) or 12.
+  assert.equal(hubSectionCount(rows, new Set(["n0"])), 11);
+  // Nothing unread: fall back to the row count.
+  assert.equal(hubSectionCount(rows.slice(0, 3), new Set(["n0", "n1", "n2"])), 3);
 });
