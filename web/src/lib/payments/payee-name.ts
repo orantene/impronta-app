@@ -31,6 +31,28 @@ export async function resolvePayeeName(admin: Admin, tenantId: string): Promise<
   }
 }
 
+type HubAdmin = { from: (t: string) => { select: (c: string) => { eq: (k: string, v: string) => Promise<{ data: unknown }> } } };
+
+/**
+ * The one talent a platform-hub (network) order sells for, or null: any other workspace, no
+ * talent on the lines, or several talents. Shared by the name and the theme so both follow the
+ * order's merchant, never the host the link was opened on. Best effort, never throws.
+ */
+export async function resolveOrderSoleTalentId(admin: Admin, tenantId: string, orderId: string): Promise<string | null> {
+  try {
+    // supabase-read-unchecked-ok: display name / theme only; a failed read keeps the workspace.
+    const { data: ag } = await admin.from("agencies").select("kind, plan_tier").eq("id", tenantId).maybeSingle();
+    const a = ag as { kind: string | null; plan_tier: string | null } | null;
+    if (a?.kind !== "hub" || a?.plan_tier !== "network") return null;
+    // supabase-read-unchecked-ok: display name / theme only.
+    const { data: lines } = await (admin as unknown as HubAdmin).from("order_lines").select("talent_profile_id").eq("order_id", orderId);
+    const ids = [...new Set(((lines ?? []) as Array<{ talent_profile_id: string | null }>).map((l) => l.talent_profile_id).filter((x): x is string => !!x))];
+    return ids.length === 1 ? ids[0] : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * The seller shown on a pay link / paid page. On the platform hub the sale belongs to the TALENT
  * the order's lines name (a hub sale is her own sale, TUL-437), so the page must not say "Impronta
@@ -39,20 +61,11 @@ export async function resolvePayeeName(admin: Admin, tenantId: string): Promise<
  */
 export async function resolveOrderPayeeName(admin: Admin, tenantId: string, orderId: string): Promise<string | null> {
   const base = await resolvePayeeName(admin, tenantId);
+  const talentId = await resolveOrderSoleTalentId(admin, tenantId, orderId);
+  if (!talentId) return base;
   try {
-    // supabase-read-unchecked-ok: display name only; a failed read keeps the workspace name.
-    const { data: ag } = await admin.from("agencies").select("kind, plan_tier").eq("id", tenantId).maybeSingle();
-    const a = ag as { kind: string | null; plan_tier: string | null } | null;
-    if (a?.kind !== "hub" || a?.plan_tier !== "network") return base;
     // supabase-read-unchecked-ok: display name only.
-    const { data: lines } = await (admin as unknown as { from: (t: string) => { select: (c: string) => { eq: (k: string, v: string) => Promise<{ data: unknown }> } } })
-      .from("order_lines")
-      .select("talent_profile_id")
-      .eq("order_id", orderId);
-    const ids = [...new Set(((lines ?? []) as Array<{ talent_profile_id: string | null }>).map((l) => l.talent_profile_id).filter((x): x is string => !!x))];
-    if (ids.length !== 1) return base;
-    // supabase-read-unchecked-ok: display name only.
-    const { data: tp } = await admin.from("talent_profiles").select("display_name").eq("id", ids[0]).maybeSingle();
+    const { data: tp } = await admin.from("talent_profiles").select("display_name").eq("id", talentId).maybeSingle();
     const name = (tp as { display_name: string | null } | null)?.display_name?.trim();
     return name ? name : base;
   } catch {
