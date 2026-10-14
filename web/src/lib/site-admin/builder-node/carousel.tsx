@@ -14,6 +14,7 @@ import {
   useCarouselEditing,
   useCarouselPinnedSlide,
 } from "./carousel-edit-bridge";
+import { heroScrollCueLabel } from "./hero-scroll-cue-label";
 
 interface BuilderNodeCarouselTrackProps {
   nodeId: string;
@@ -26,6 +27,8 @@ interface BuilderNodeCarouselTrackProps {
   autoplayMs?: number;
   loop?: boolean;
   pauseOnHover?: boolean;
+  /** Page locale for the scroll cue text (TUL-711). */
+  locale?: string;
   controls?: {
     dots?: boolean;
     arrows?: boolean;
@@ -56,6 +59,7 @@ function HeroCarousel({
   loop,
   pauseOnHover,
   controls,
+  locale,
   children,
 }: BuilderNodeCarouselTrackProps) {
   const count = slideCount || Children.count(children);
@@ -237,7 +241,7 @@ function HeroCarousel({
       ) : null}
       {ctl.scrollCue ? (
         <div className="site-bn-hero__cue" aria-hidden>
-          <span>Scroll</span>
+          <span>{heroScrollCueLabel(locale)}</span>
         </div>
       ) : null}
     </div>
