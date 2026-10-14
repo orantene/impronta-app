@@ -33,6 +33,7 @@ import { resolveTalentBooking } from "@/lib/scheduling/booking-surface";
 import { resolveProfileCtasFromOfferings } from "@/lib/scheduling/profile-cta-precedence";
 import { PublicHeader } from "@/components/public-header";
 import { MarketingHeader } from "@/components/marketing/header";
+import { buildHubClientEntry } from "@/lib/marketing/hub-client-entry";
 import { MarketingFooter } from "@/components/marketing/footer";
 import type { MarketingAccount } from "@/components/marketing/marketing-account-menu";
 import { resolveAccountHref, getAppUrl } from "@/lib/auth-flow";
@@ -2207,9 +2208,7 @@ export async function TalentProfileView({
   const firstName = name.split(" ")[0] ?? name;
 
   // ── Platform-host marketing chrome props ──────────────────────────────
-  // On the platform host (app / marketing) the profile is wrapped in the real
-  // tulala.digital chrome (MarketingHeader + MarketingFooter). Agency hosts
-  // keep their own white-label chrome (no chrome forced here).
+  // Platform hosts get the tulala.digital chrome; agency hosts keep their own.
   const platformChrome = isTalentProfilePlatformHost(hostCtx.kind);
   let marketingAccount: MarketingAccount | undefined;
   let marketingPathnameWithoutLocale = "/";
@@ -2646,6 +2645,7 @@ export async function TalentProfileView({
                 pathnameWithoutLocale={marketingPathnameWithoutLocale}
                 account={marketingAccount}
                 signOutAction={signOut}
+                clientEntry={platformChrome ? buildHubClientEntry(getAppUrl(), canonicalShareUrl) : undefined}
               />
               {/* id="main-content" lives inside LightProfileLayout (<main>) */}
               <div className="flex-1 pt-[var(--plt-header-h,84px)] sm:pt-[72px]">
