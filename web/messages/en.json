@@ -20227,7 +20227,10 @@
       "cancelDone": "Your plan will end on the date shown. Resume any time before then.",
       "resumeDone": "Your plan will renew as usual.",
       "errorAlreadyEnded": "This plan has already ended. Upgrade again to start a new one.",
-      "errorGeneric": "We could not change your plan. Nothing was charged. Try again in a moment."
+      "errorGeneric": "We could not change your plan. Nothing was charged. Try again in a moment.",
+      "manage": "Manage subscription",
+      "invoices": "Invoices and receipts",
+      "opening": "Opening..."
     }
   },
   "admin": {
@@ -20845,7 +20848,8 @@
         "statusCancelled": "Cancelled",
         "statusPaused": "Paused",
         "statusIncomplete": "Incomplete",
-        "statusExpired": "Expired"
+        "statusExpired": "Expired",
+        "invoices": "Invoices and receipts"
       },
       "currency": {
         "label": "Currency preference",

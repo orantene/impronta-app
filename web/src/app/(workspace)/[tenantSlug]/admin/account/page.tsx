@@ -8,6 +8,7 @@
 
 import { notFound, redirect } from "next/navigation";
 import { verifyCheckoutReturn } from "@/lib/billing/checkout-return";
+import { billingPortalEntry } from "@/lib/billing/billing-portal-entry";
 import Link from "next/link";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
@@ -294,11 +295,9 @@ export default async function WorkspaceAccountPage({
   const planTagline = summary ? planTaglines[summary.plan] : planTaglines.free;
   const planPrice = summary ? planPrices[summary.plan] : null;
 
-  // Subscription is "active" when there's a billing record with a non-cancelled status
-  const hasActiveSubscription =
-    !!billingState &&
-    billingState.status !== "cancelled" &&
-    billingState.status !== "incomplete_expired";
+  // "manage" for a live plan, "invoices" for a past one (TUL-834), null for none.
+  const portalEntry = billingPortalEntry(billingState);
+  const hasActiveSubscription = portalEntry === "manage";
 
   // Format billing period end for display
   const periodEndLabel = billingState?.currentPeriodEnd
@@ -561,10 +560,10 @@ export default async function WorkspaceAccountPage({
             {/* Billing CTAs */}
             {canManageBilling && (
               <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {hasActiveSubscription ? (
-                  // Existing subscriber → Billing Portal
-                  <ManageSubscriptionButton tenantSlug={tenantSlug} locale={locale} />
-                ) : stripeEnabled && summary.plan === "free" ? (
+                {portalEntry && (
+                  <ManageSubscriptionButton tenantSlug={tenantSlug} locale={locale} variant={portalEntry} />
+                )}
+                {hasActiveSubscription ? null : stripeEnabled && summary.plan === "free" ? (
                   // Free tier + Stripe configured → show upgrade options
                   <>
                     <UpgradePlanButton

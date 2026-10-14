@@ -99,7 +99,16 @@ export function UpgradePlanButton({
 
 // ─── Billing portal button (paid → manage) ────────────────────────────────────
 
-export function ManageSubscriptionButton({ tenantSlug, locale = "en" }: { tenantSlug: string; locale?: string }) {
+export function ManageSubscriptionButton({
+  tenantSlug,
+  locale = "en",
+  variant = "manage",
+}: {
+  tenantSlug: string;
+  locale?: string;
+  /** "invoices" = past subscriber: same portal, labelled for receipts (TUL-834). */
+  variant?: "manage" | "invoices";
+}) {
   const t = createTranslator(locale);
   const [pending, startTransition] = React.useTransition();
   const [error, setError] = React.useState<string | null>(null);
@@ -141,7 +150,11 @@ export function ManageSubscriptionButton({ tenantSlug, locale = "en" }: { tenant
           transition: "opacity 0.1s",
         }}
       >
-        {pending ? t("admin.account.billing.openingPortal") : t("admin.account.billing.manageSubscription")}
+        {pending
+          ? t("admin.account.billing.openingPortal")
+          : variant === "invoices"
+            ? t("admin.account.billing.invoices")
+            : t("admin.account.billing.manageSubscription")}
       </button>
       {error && (
         <span style={{ fontSize: 11.5, color: "#c0392b", fontFamily: FONT }}>

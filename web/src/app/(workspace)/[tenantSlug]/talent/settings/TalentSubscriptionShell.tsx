@@ -21,6 +21,7 @@ import {
   resumeTalentSubscription,
 } from "./stripe-talent-actions";
 import { useT } from "@/i18n/use-t";
+import { billingPortalEntry } from "@/lib/billing/billing-portal-entry";
 import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
 import type { TalentSubscriptionState } from "../../_data-bridge";
 import type { TalentPlanKey } from "@/lib/stripe/price-ids";
@@ -179,7 +180,15 @@ function UpgradeButton({
   );
 }
 
-function ManageButton({ tenantSlug }: { tenantSlug: string }) {
+function ManageButton({
+  tenantSlug,
+  variant = "manage",
+}: {
+  tenantSlug: string;
+  /** "invoices" = past subscriber: same portal, labelled for receipts (TUL-834). */
+  variant?: "manage" | "invoices";
+}) {
+  const t = useT();
   const [pending, startTransition] = React.useTransition();
   const [error, setError] = React.useState<string | null>(null);
 
@@ -219,7 +228,11 @@ function ManageButton({ tenantSlug }: { tenantSlug: string }) {
           transition: "opacity 0.1s",
         }}
       >
-        {pending ? "Opening…" : "Manage subscription →"}
+        {pending
+          ? t("dashboard.talentBilling.opening")
+          : variant === "invoices"
+            ? t("dashboard.talentBilling.invoices")
+            : t("dashboard.talentBilling.manage")}
       </button>
       {error && <span style={{ fontSize: 11, color: "#c0392b", fontFamily: FONT }}>{error}</span>}
     </div>
@@ -320,10 +333,8 @@ export function TalentSubscriptionShell({
 
   const meta = PLAN_META[planKey];
 
-  const hasActiveSub =
-    !!subscription &&
-    subscription.status !== "cancelled" &&
-    subscription.status !== "incomplete_expired";
+  const portalEntry = billingPortalEntry(subscription);
+  const hasActiveSub = portalEntry === "manage";
 
   const periodEndLabel = subscription?.currentPeriodEnd
     ? new Date(subscription.currentPeriodEnd).toLocaleDateString("en-US", {
@@ -478,6 +489,11 @@ export function TalentSubscriptionShell({
             />
           )}
         </div>
+      )}
+
+      {/* Past subscriber: the portal still holds their invoices (TUL-834) */}
+      {portalEntry === "invoices" && stripeEnabled && (
+        <ManageButton tenantSlug={tenantSlug} variant="invoices" />
       )}
 
       {/* Stripe not configured */}

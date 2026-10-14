@@ -20227,7 +20227,10 @@
       "cancelDone": "Tu plan terminará en la fecha indicada. Puedes reanudarlo antes de esa fecha.",
       "resumeDone": "Tu plan se renovará como siempre.",
       "errorAlreadyEnded": "Este plan ya terminó. Vuelve a mejorar tu plan para iniciar uno nuevo.",
-      "errorGeneric": "No pudimos cambiar tu plan. No se hizo ningún cargo. Inténtalo de nuevo en un momento."
+      "errorGeneric": "No pudimos cambiar tu plan. No se hizo ningún cargo. Inténtalo de nuevo en un momento.",
+      "manage": "Administrar suscripción",
+      "invoices": "Facturas y recibos",
+      "opening": "Abriendo..."
     }
   },
   "admin": {
@@ -20845,7 +20848,8 @@
         "statusCancelled": "Cancelado",
         "statusPaused": "Pausado",
         "statusIncomplete": "Incompleto",
-        "statusExpired": "Expirado"
+        "statusExpired": "Expirado",
+        "invoices": "Facturas y recibos"
       },
       "currency": {
         "label": "Preferencia de moneda",
