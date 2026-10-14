@@ -77,6 +77,8 @@ remotePatterns.push({
 });
 
 const isProd = process.env.NODE_ENV === "production";
+/** TUL-857/895: Vercel preview + staging builds (never production). */
+const isPreviewDeploy = process.env.VERCEL_ENV === "preview";
 
 /**
  * TUL-703 STRIPE_FORCE_TEST_MODE: client bundles read
@@ -254,11 +256,15 @@ function contentSecurityPolicy(): string {
   // packages are silently blocked by CSP and never report — the Vercel dashboard
   // shows "Not Enabled" even though the React components are mounted.
   const vercelInsights = "https://va.vercel-scripts.com https://vitals.vercel-insights.com";
+  // TUL-895: the Vercel toolbar (feedback.js) only exists on preview/staging
+  // builds. Allow its origin there so the console is not flooded with CSP
+  // errors; production CSP is unchanged.
+  const vercelLive = isPreviewDeploy ? "https://vercel.live" : "";
   const directives = [
     "default-src 'self'",
     isProd
-      ? `script-src 'self' 'unsafe-inline' ${googleMapsCsp.script} ${stripeCsp.script} ${googleTag} ${captchaScript} ${vercelInsights} ${socialPostCsp.script} ${tenantTrackingCsp.script}`
-      : `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${googleMapsCsp.script} ${stripeCsp.script} ${googleTag} ${captchaScript} ${vercelInsights} ${socialPostCsp.script} ${tenantTrackingCsp.script}`,
+      ? `script-src 'self' 'unsafe-inline' ${googleMapsCsp.script} ${stripeCsp.script} ${googleTag} ${captchaScript} ${vercelInsights} ${vercelLive} ${socialPostCsp.script} ${tenantTrackingCsp.script}`
+      : `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${googleMapsCsp.script} ${stripeCsp.script} ${googleTag} ${captchaScript} ${vercelInsights} ${vercelLive} ${socialPostCsp.script} ${tenantTrackingCsp.script}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
     `img-src 'self' data: blob: https: https://www.google-analytics.com`,
@@ -271,8 +277,8 @@ function contentSecurityPolicy(): string {
     // NOT govern a media element, which is why the hole survived. Mirrors
     // `connectSrcDirectives()` so a custom / local Supabase host works too.
     `media-src ${mediaSrcDirectives().join(" ")}`,
-    `connect-src ${connectSrcDirectives().join(" ")} ${googleMapsCsp.connect} ${stripeCsp.connect} ${googleTag} ${captchaConnect} https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com ${vercelInsights} https://*.sentry.io ${tenantTrackingCsp.connect}`,
-    `frame-src 'self' ${googleMapsCsp.frameSrc} ${stripeCsp.frame} ${builderEmbedCsp.frame} ${captchaFrame} ${talentMediaEmbedCsp.frame} ${socialPostCsp.frame}`,
+    `connect-src ${connectSrcDirectives().join(" ")} ${googleMapsCsp.connect} ${stripeCsp.connect} ${googleTag} ${captchaConnect} https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com ${vercelInsights} ${vercelLive} https://*.sentry.io ${tenantTrackingCsp.connect}`,
+    `frame-src 'self' ${googleMapsCsp.frameSrc} ${stripeCsp.frame} ${builderEmbedCsp.frame} ${vercelLive} ${captchaFrame} ${talentMediaEmbedCsp.frame} ${socialPostCsp.frame}`,
     /** Maps workers use blob: URLs; service worker needs 'self'. */
     "worker-src 'self' blob:",
     "frame-ancestors 'self'",
