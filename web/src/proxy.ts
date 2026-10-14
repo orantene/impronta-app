@@ -350,10 +350,7 @@ export async function proxy(request: NextRequest) {
     const startLang = langQueryForStartAfterDefaultLocaleStrip({ pathnameAfterStrip: withoutLocalePrefix, defaultLocale: effectiveLangSettings.defaultLocale, existingLang: url.searchParams.get("lang") });
     if (startLang) url.searchParams.set("lang", startLang);
     const res = NextResponse.redirect(url, 308);
-    // QA 2026-05-13: set the locale cookie on the redirect, or the followed URL
-    // renders in the DEFAULT locale (`/es/impronta?edit=1` -> `/impronta?edit=1`
-    // made the ES switcher look broken); the later syncLocaleCookieForPath calls
-    // never see the original `/es/` prefix.
+    // QA 2026-05-13: set the locale cookie here; later syncLocaleCookieForPath calls never see the `/es/` prefix.
     syncLocaleCookieForPath(res, pathname, effectiveLangSettings, request);
     return res;
   }
@@ -451,11 +448,8 @@ export async function proxy(request: NextRequest) {
       !isPathAllowedForHostKind(effectiveHostContext.kind, effectiveCanonicalPath)
     )
   ) {
-    // Render the branded "page not found" page (Tulala chrome + a way home)
-    // instead of bare plain-text — a mistyped or stale URL on a known host must
-    // never be a chrome-less dead end. The rewrite target is whitelisted in the
-    // short-circuit block above so this does not recurse. The locale header
-    // rides along so /es/<typo> answers in Spanish (the page and <html lang>).
+    // Render the branded "page not found" page, not bare text (target whitelisted above).
+    // The locale header rides along so /es/<typo> answers in Spanish.
     const missHeaders = new Headers(sanitizedInboundHeaders);
     missHeaders.set(LOCALE_HEADER, resolveLocaleForPathname(pathname, request, effectiveLangSettings));
     return NextResponse.rewrite(
