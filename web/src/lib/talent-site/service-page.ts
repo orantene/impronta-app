@@ -8,6 +8,7 @@
  * `<id8>` (first 8 hex of the offering id): a renamed service keeps resolving, and any other
  * title part is self-canonical to the current slug.
  */
+import { publicPriceLine } from "@/lib/talent/public-price-line";
 import { buildServiceOffers, type JsonLdOfferingSource } from "@/lib/seo/talent-json-ld";
 
 export const SERVICE_SLUG_PREFIX = "servicio-";
@@ -83,15 +84,10 @@ export function serviceSitemapPaths(offerings: readonly ServicePageOffering[]): 
 }
 
 /** "Desde $300.00" / "$450.00", or null when the price is hidden or quote-only. */
-export function servicePriceLine(o: ServicePageOffering, locale: string, from: string): string | null {
-  if (!o.amountCents || o.amountCents <= 0 || !o.currency) return null;
-  if (o.priceDisplay !== "exact" && o.priceDisplay !== "from") return null;
-  try {
-    const n = new Intl.NumberFormat(locale, { style: "currency", currency: o.currency.toUpperCase() }).format(o.amountCents / 100);
-    return o.priceDisplay === "from" ? `${from} ${n}` : n;
-  } catch {
-    return null;
-  }
+/** Same price string as the home services block (TUL alex demo mismatch): one shared helper. `from` kept for callers. */
+export function servicePriceLine(o: ServicePageOffering, locale: string, _from?: string): string | null {
+  const line = publicPriceLine(o, locale);
+  return line ? line.charAt(0).toUpperCase() + line.slice(1) : null;
 }
 
 export type ServicePageCopy = {

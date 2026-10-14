@@ -32,7 +32,7 @@ test("TUL-795 FAQ: without a talent FAQ, answers come only from real service fie
   const es = serviceFaqItems(A, [], "es");
   assert.deepEqual(es.map((i) => i.answer), [
     "45 min.",
-    `Desde ${new Intl.NumberFormat("es", { style: "currency", currency: "MXN" }).format(300)}.`,
+    "Desde $300 MXN.",
     "Sí, un anticipo del 30% al reservar; el resto después.",
     "Sin costo hasta 24 h antes de la cita.",
   ]);

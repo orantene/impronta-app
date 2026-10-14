@@ -34,6 +34,7 @@ import { FeaturedTalentCard } from "@/lib/site-admin/sections/featured_talent/Fe
 import { localeUrlSettings } from "@/i18n/pathnames";
 import type { FeaturedTalentCardDTO } from "@/lib/site-admin/sections/featured_talent/fetch";
 import { formatMoney } from "@/lib/talent/offerings-money";
+import { publicPriceLine } from "@/lib/talent/public-price-line";
 import {
   isSafeRichTextHref,
   renderInlineRich,
@@ -6324,10 +6325,10 @@ function renderBuilderNodeElement(
         }
         // TUL-383: one public money format (`$700 MXN`) via shared formatter.
         const locale = options.contentLocale?.locale ?? "en";
-        const es = locale.toLowerCase().startsWith("es");
-        const formatted = formatMoney(item.amountCents, item.currency, locale);
-        if (item.priceDisplay === "from") return es ? `desde ${formatted}` : `from ${formatted}`;
-        return formatted;
+        return (
+          publicPriceLine({ ...item, priceDisplay: item.priceDisplay === "from" ? "from" : "exact" }, locale) ??
+          formatMoney(item.amountCents, item.currency, locale)
+        );
       };
       const usdLine = (item: {
         amountCents: number | null;
