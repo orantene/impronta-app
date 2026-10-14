@@ -317,6 +317,7 @@ async function renderTalentMaxSiteUnguarded(
     }
     const node = await timed("maxSite.document", () =>
       renderMaxSiteDocument({
+        servicePagePath: servicePath ? talentSiteLocalePath(servicePath, locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales) : null,
         mainOverride: policyModel
           ? policyMainNode(policyModel, { homeHref: policyHomeHref ?? "/" })
           : serviceOffering
