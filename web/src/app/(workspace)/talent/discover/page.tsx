@@ -17,6 +17,8 @@
 // Spec: project_discover_unified.md §9 (talent audit T2/T4/T5).
 
 import Link from "next/link";
+
+import { DirectorySwitch } from "./_directory-switch";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
@@ -53,6 +55,7 @@ const C = {
 } as const;
 
 type TalentDiscoverData = {
+  id: string;
   displayName: string;
   profileCode: string | null;
   isDiscoverable: boolean;
@@ -191,6 +194,7 @@ async function loadTalentDiscover(
     || discoverCopy(locale).unnamed;
 
   return {
+    id: talentProfileId,
     displayName,
     profileCode: (tp.profile_code as string | null) ?? null,
     isDiscoverable: tp.is_discoverable === true,
@@ -253,6 +257,15 @@ export default async function PlatformTalentDiscoverPage() {
           {c.presenceLede}
         </div>
       </div>
+
+      <DirectorySwitch
+        talentProfileId={d.id}
+        initial={d.isDiscoverable}
+        label={c.directorySwitchLabel}
+        hint={c.directorySwitchHint}
+        savedText={c.directorySwitchSaved}
+        errorText={c.directorySwitchError}
+      />
 
       {/* Enrollment status banner */}
       <div style={{

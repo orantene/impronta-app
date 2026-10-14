@@ -3,7 +3,7 @@ import "server-only";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { getLanguageSettingsPublicCached } from "@/lib/language-settings/get-language-settings";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
-import { loadTalentLocaleSettings } from "@/lib/site-admin/server/talent-locale-settings";
+import { loadTalentLocaleState } from "@/lib/site-admin/server/talent-locale-settings";
 import {
   applyLangQuery,
   decideTalentProfileLocale,
@@ -17,14 +17,19 @@ export async function resolveTalentProfileLocale(
   profileId: string,
   langQuery?: string | string[] | null,
 ): Promise<TalentProfileLocale> {
-  const [requested, settings] = await Promise.all([
+  const [requested, state, language] = await Promise.all([
     getRequestLocale(),
-    loadTalentLocaleSettings(profileId),
+    loadTalentLocaleState(profileId),
+    getLanguageSettingsPublicCached().catch(() => null),
   ]);
+  const settings = state.settings;
+  // No stored language choice and no secondaries: the talent is unconfigured.
+  const unconfigured = state.seedPrimary === null && settings.secondaryLocales.length === 0;
   return decideTalentProfileLocale({
     requested: applyLangQuery(requested, langQuery),
     primary: settings.defaultLocale,
     supported: settings.supportedLocales,
+    openToPlatformLocales: unconfigured ? (language?.publicLocales ?? undefined) : undefined,
   });
 }
 
