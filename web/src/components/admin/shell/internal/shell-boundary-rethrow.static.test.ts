@@ -7,7 +7,7 @@ const web = join(__dirname, "../../../../..");
 const read = (p: string) => readFileSync(join(web, p), "utf8");
 
 test("ShellBoundary hands notFound/redirect back to Next from getDerivedStateFromError, never in render", () => {
-  const src = read("src/components/admin/shell/internal/shell-boundary.tsx");
+  const src = read("src/components/admin/shell/internal/shell-error-boundary.tsx");
   assert.match(src, /import\s*\{\s*unstable_rethrow\s*\}\s*from\s*"next\/navigation"/);
   const gdse = src.indexOf("static getDerivedStateFromError");
   const render = src.indexOf("override render()");

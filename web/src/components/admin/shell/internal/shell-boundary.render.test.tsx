@@ -24,7 +24,7 @@ g.IS_REACT_ACT_ENVIRONMENT = true;
 /* eslint-disable import/first -- jsdom globals must exist before these load */
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { ErrorBoundary } from "./shell-boundary";
+import { ErrorBoundary } from "./shell-error-boundary";
 /* eslint-enable import/first */
 
 function digestError(digest: string) {
