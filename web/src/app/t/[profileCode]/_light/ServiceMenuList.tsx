@@ -7,6 +7,7 @@
  * JSX. --plt tokens.
  */
 
+import { quoteOnlyLabel } from "@/lib/talent/public-price";
 import type { ServiceMenuItem } from "@/lib/talent/services-menu-types";
 import { SERVICE_PRICING_SUFFIX } from "@/lib/talent/services-menu-types";
 import { pickLocale } from "@/lib/i18n/pick-locale";
@@ -29,7 +30,7 @@ export function formatPrice(amountCents: number, currency: string, locale: strin
 function priceLabel(it: ServiceMenuItem, locale: string): string {
   if (it.visibility === "on_request") return pickLocale(locale, { en: "On request", es: "Bajo consulta" });
   if (it.pricingType === "custom" || it.amountCents == null) {
-    return pickLocale(locale, { en: "Quote on request", es: "Cotización a pedido" });
+    return quoteOnlyLabel(locale);
   }
   const suffix = SERVICE_PRICING_SUFFIX[it.pricingType];
   const price = formatPrice(it.amountCents, it.currency, locale);

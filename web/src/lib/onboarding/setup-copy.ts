@@ -39,6 +39,8 @@ export type SetupCopy = {
   ownerProvides: string;
   ownerProvidesHint: string;
   errors: { services: string; hours: string; place: string; timezone: string; providerEmail: string; save: string };
+  /** TUL-805: notice under a quote-priced service: it is live, labelled "A cotizar". */
+  quoteShowsAs: string;
   next: string;
 };
 
@@ -89,6 +91,7 @@ export const SETUP_COPY: Record<FlowLocale, SetupCopy> = {
       providerEmail: "That email does not look right. Fix it or choose Add later.",
       save: "We could not save this. Check your connection and try again.",
     },
+    quoteShowsAs: "On your site it shows as \"Quote\", with a Request a quote button.",
     next: "Continue",
   },
   es: {
@@ -137,6 +140,7 @@ export const SETUP_COPY: Record<FlowLocale, SetupCopy> = {
       providerEmail: "Ese correo no se ve bien. Corrígelo o elige Agregar después.",
       save: "No pudimos guardar. Revisa tu conexión e inténtalo de nuevo.",
     },
+    quoteShowsAs: "En tu sitio aparece como \"A cotizar\", con un botón para pedir cotización.",
     next: "Continuar",
   },
 };
