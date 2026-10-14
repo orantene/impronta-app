@@ -124,6 +124,9 @@ export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
   "Booking assistant (AI)": "Asistente de reservas (IA)",
   "Off keeps today's scripted chat. On lets the assistant answer from your public services and hand off to you when unsure. It does not book or send pay links yet. Starts off.":
     "Apagado deja el chat con guion de hoy. Encendido deja que el asistente responda con tus servicios públicos y te pase la conversación cuando no esté seguro. Todavía no reserva ni envía enlaces de pago. Empieza apagado.",
+  "Let AI assistants book me": "Dejar que asistentes de IA me reserven",
+  "Assistants like ChatGPT or Claude can send a client a link to request one of your services. The client confirms it in your chat. Starts off.":
+    "Asistentes como ChatGPT o Claude pueden enviarle a un cliente un enlace para pedir uno de tus servicios. El cliente lo confirma en tu chat. Empieza apagado.",
   "AI on": "IA activa",
   "AI off": "IA apagada",
   "This service will show as unavailable: {services}": "Este servicio se mostrará como no disponible: {services}",

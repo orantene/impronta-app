@@ -21,6 +21,7 @@ test("explicit false is kept; junk falls back to on", () => {
     greeting: "Hola",
     browseServices: false,
     aiBookingAssistantEnabled: false,
+    agentBookingEnabled: false,
   });
 });
 
@@ -43,6 +44,19 @@ test("ai booking assistant defaults off; only explicit true enables", () => {
   assert.equal(
     parseTalentSiteSwitches({ chat_config: { aiBookingAssistantEnabled: "yes" } }).chatConfig
       .aiBookingAssistantEnabled,
+    false,
+  );
+});
+
+test("AI-agent booking (TUL-21) defaults off; only explicit true enables", () => {
+  assert.equal(parseTalentSiteSwitches(null).chatConfig.agentBookingEnabled, false);
+  assert.equal(parseTalentSiteSwitches({ chat_config: {} }).chatConfig.agentBookingEnabled, false);
+  assert.equal(
+    parseTalentSiteSwitches({ chat_config: { agentBookingEnabled: true } }).chatConfig.agentBookingEnabled,
+    true,
+  );
+  assert.equal(
+    parseTalentSiteSwitches({ chat_config: { agentBookingEnabled: 1 } }).chatConfig.agentBookingEnabled,
     false,
   );
 });
