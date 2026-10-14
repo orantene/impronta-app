@@ -20,7 +20,7 @@ const maisonHome = (heroSrc: string) => [
 ];
 
 test("type query: a chip slug that names a catalogue type picks that type and its family", () => {
-  assert.deepEqual(stockQueryForTalentType({ slug: "makeup-artist" }), { businessType: "makeup-artist", family: "beauty" });
+  assert.deepEqual(stockQueryForTalentType({ slug: "makeup-artist" }), { businessType: "makeup-artist", family: "beauty", trade: "makeup" });
 });
 
 test("type query: no slug and no match falls to the universal pack", () => {
@@ -166,4 +166,26 @@ test("TUL-118 / DS-60: a matching type or neutral pack still wins; other-trade p
   assert.equal(pickStockHero(pool.filter((p) => p.id !== "lash"), { businessType: "lash-artist", family: "beauty" })?.stockId, "beauty-pack");
   assert.equal(pickStockHero([pool[0]!], { businessType: "lash-artist", family: "beauty" }), null);
   assert.equal(pickStockHero(pool, { businessType: null, family: "custom" })?.stockId, "neutral");
+});
+
+test("TUL-846: a cleaning talent gets the house-cleaner pack, never a fuzzy dry-cleaning hit", () => {
+  const q = stockQueryForTalentType({ slug: "cleaning-service", labelEn: "Cleaning service" });
+  assert.equal(q.businessType, "house-cleaner");
+  assert.equal(q.trade, "cleaning");
+});
+
+test("TUL-846: untyped photos that name another trade (chef, makeup) never serve a cleaning hero", () => {
+  const query = stockQueryForTalentType({ slug: "cleaner", labelEn: "Cleaner" });
+  const photos = [
+    photo("chef", { alt: { es: "Chef emplatando", en: "Chef plating dinner" }, family: "professional" }),
+    photo("mu", { alt: { es: "Maquillaje de novia", en: "Bridal makeup" }, tags: { subject: "makeup" } }),
+  ];
+  assert.equal(pickStockHero(photos, query), null);
+  const got = pickStockHero([...photos, photo("neutral", { alt: { es: "Luz de ventana", en: "Window light" } })], query);
+  assert.equal(got?.stockId, "neutral");
+});
+
+test("TUL-846: an unrecognised trade keeps neutral photos working", () => {
+  const got = pickStockHero([photo("chef", { alt: { es: "Chef", en: "Chef" } }), photo("n")], { businessType: null, family: "custom" });
+  assert.ok(got);
 });

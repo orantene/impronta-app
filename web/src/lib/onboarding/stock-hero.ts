@@ -18,23 +18,34 @@ import { buildImageResolver, type CandidateImage, type ImagePickLevel } from "@/
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { searchBusinessTypes, type BusinessFamilyId } from "@/lib/words/business-types";
 
-import { classifyTrade, stockTypeForTrade } from "./trade-label";
+import { classifyTrade, stockTypeForTrade, type TradeKey } from "./trade-label";
 
-export type StockHeroQuery = { businessType: string | null; family: BusinessFamilyId };
+/** `trade` is the trade the talent's words name, when one is recognised (TUL-846: it vetoes off-trade photos). */
+export type StockHeroQuery = { businessType: string | null; family: BusinessFamilyId; trade?: TradeKey };
 
-/** The stock pack for a talent type: the catalogue type its slug/label names, else the universal pack. */
+/**
+ * The stock pack for a talent type: the catalogue type its slug/label names,
+ * else the universal pack. TUL-846: the trade the words name decides first. A
+ * fuzzy catalogue hit ("cleaning-service" -> dry-cleaning-service) is used only
+ * when it does not contradict that trade, and a recognised trade with a pack
+ * always gets its own pack.
+ */
 export function stockQueryForTalentType(input: { slug: string | null; labelEn?: string | null }): StockHeroQuery {
+  const trade = classifyTrade(`${input.slug ?? ""} ${input.labelEn ?? ""}`) ?? undefined;
+  const withTrade = (q: StockHeroQuery): StockHeroQuery => (trade ? { ...q, trade } : q);
+  const packType = stockTypeForTrade(trade ?? null);
+  const byTrade = packType ? searchBusinessTypes(packType)[0] : undefined;
+  if (byTrade) return withTrade({ businessType: byTrade.id, family: byTrade.family });
   for (const raw of [input.slug?.replace(/[-_]+/g, " "), input.labelEn]) {
     const q = raw?.trim();
     if (!q) continue;
     const hit = searchBusinessTypes(q)[0];
-    if (hit) return { businessType: hit.id, family: hit.family };
+    if (!hit) continue;
+    const hitTrade = classifyTrade(`${hit.id.replace(/-/g, " ")} ${hit.label?.en ?? ""}`);
+    if (trade && hitTrade && hitTrade !== trade) continue;
+    return withTrade({ businessType: hit.id, family: hit.family });
   }
-  // TUL-349: a recognised trade without a catalogue hit still gets its own pack, never another trade's.
-  const packType = stockTypeForTrade(classifyTrade(`${input.slug ?? ""} ${input.labelEn ?? ""}`));
-  const byTrade = packType ? searchBusinessTypes(packType)[0] : undefined;
-  if (byTrade) return { businessType: byTrade.id, family: byTrade.family };
-  return { businessType: null, family: "custom" };
+  return withTrade({ businessType: null, family: "custom" });
 }
 
 export type TalentTypeRow = {
@@ -79,11 +90,23 @@ function isTradeSafe(p: Pick<StockLike, "businessType" | "family">, q: StockHero
   return p.family === q.family || p.family === "custom";
 }
 
+/**
+ * TUL-846: an untyped photo whose own words (alt, tags) name a different trade
+ * than the query's (a chef plating, a makeup brush) never serves, even from a
+ * "neutral" pack. Photos that name no trade stay neutral and may serve.
+ */
+function namesOtherTrade(p: Pick<StockLike, "alt" | "tags">, q: StockHeroQuery): boolean {
+  if (!q.trade) return false;
+  const words = `${p.alt.en} ${p.alt.es} ${Object.values(p.tags ?? {}).join(" ")}`;
+  const named = classifyTrade(words);
+  return named !== null && named !== q.trade;
+}
+
 /** Best platform-stock hero for the query, or null (empty pool, or nothing shaped like a hero). */
 export function pickStockHero(photos: ReadonlyArray<StockLike>, query: StockHeroQuery): StockHeroPick | null {
   const candidates = photos
     // A tenant's own generated images were made for that business, never for a stranger's page.
-    .filter((p) => p.originTenantId === null && HERO_ROLES.has(p.role) && p.url && isTradeSafe(p, query))
+    .filter((p) => p.originTenantId === null && HERO_ROLES.has(p.role) && p.url && isTradeSafe(p, query) && !namesOtherTrade(p, query))
     .map<CandidateImage>((p) => ({
       src: p.url, width: p.width, height: p.height, alt: p.alt, role: p.role, owner: false,
       level: levelFor(p, query), stockId: p.id, direction: p.direction, tags: p.tags, timesPlaced: p.timesPlaced,
