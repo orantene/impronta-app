@@ -443,10 +443,16 @@ export async function proxy(request: NextRequest) {
     // Render the branded "page not found" page (Tulala chrome + a way home)
     // instead of bare plain-text — a mistyped or stale URL on a known host must
     // never be a chrome-less dead end. The rewrite target is whitelisted in the
-    // short-circuit block above so this does not recurse.
+    // short-circuit block above so this does not recurse. The locale header
+    // rides along so /es/<typo> answers in Spanish (the page and <html lang>).
+    const missHeaders = new Headers(sanitizedInboundHeaders);
+    missHeaders.set(
+      LOCALE_HEADER,
+      resolveLocaleForPathname(pathname, request, effectiveLangSettings),
+    );
     return NextResponse.rewrite(
       new URL("/_page-not-found", request.url),
-      { status: 404 },
+      { status: 404, request: { headers: missHeaders } },
     );
   }
 

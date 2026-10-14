@@ -47,6 +47,7 @@ import {
 import {
   catalogIsQuote,
   catalogPriceLabel,
+  catalogSheetFooterTotal,
   catalogSheetSummaryCaption,
   catalogSheetSummaryCents,
 } from "./catalog-booking-price";
@@ -223,6 +224,7 @@ export function CatalogBookingSheet({
   const needsVariant = (detail?.variants ?? []).length > 0;
   const summaryCents = detail ? catalogSheetSummaryCents(detail, variantId) ?? 0 : 0;
   const total = detail ? catalogTotalCents(detail, variantId, addOnIds) : 0;
+  const footerTotal = detail ? catalogSheetFooterTotal(detail, variantId, addOnIds) : { cents: 0, from: false };
 
   useEffect(() => {
     if (!detail || (needsVariant && !variant)) return;
@@ -724,7 +726,8 @@ export function CatalogBookingSheet({
             <div className="jb-total">
               <span>Total</span>
               <b data-catalog-price={isQuote ? "quote" : "money"}>
-                {catalogPriceLabel(detail, total, locale, money)}
+                {footerTotal.from && !isQuote ? (es ? "Desde " : "From ") : ""}
+                {catalogPriceLabel(detail, footerTotal.cents, locale, money)}
               </b>
             </div>
           ) : (
