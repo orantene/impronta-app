@@ -18,6 +18,7 @@ import { computePublicSlots, type NoSlotsReason } from "@/lib/scheduling/public-
 import { addUtcDays, utcToZonedYmd } from "@/lib/scheduling/tz";
 import { NOT_ACCEPTING_BOOKINGS } from "@/lib/talent/accepting-readiness";
 import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
+import { demoPublicBookingHoursFallback } from "@/lib/talent-site/demos/demo-hours-fallback";
 
 /**
  * Why there are no times.
@@ -101,7 +102,9 @@ export async function loadPublicOpenTimes(
 
   const { data: talent, error: talentErr } = await admin
     .from("talent_profiles")
-    .select("id, profile_kind, booking_terms, created_by_agency_id, selling_defaults")
+    .select(
+      "id, profile_code, profile_kind, booking_terms, created_by_agency_id, selling_defaults, is_demo, home_city_text",
+    )
     .eq("id", offering.talent_profile_id)
     .maybeSingle();
   if (talentErr) {
@@ -155,7 +158,21 @@ export async function loadPublicOpenTimes(
     return failed;
   }
 
-  const hours = parseBookingHours(hoursRow);
+  let hours = parseBookingHours(hoursRow);
+  if (!hours) {
+    // TUL-539 / GRK-002: demos whose seed hours never landed still need a bookable
+    // when-step. Real talents stay fail-closed (no invented calendar).
+    const guess =
+      typeof offering.duration_minutes === "number" && offering.duration_minutes > 0
+        ? offering.duration_minutes
+        : 60;
+    hours = demoPublicBookingHoursFallback({
+      isDemo: talent.is_demo === true,
+      profileCode: typeof talent.profile_code === "string" ? talent.profile_code : null,
+      homeCity: typeof talent.home_city_text === "string" ? talent.home_city_text : null,
+      durationMinutes: guess,
+    });
+  }
   if (!hours) {
     // Two different failures. No row means nobody has configured hours. A row
     // that will not parse is a data defect, and it fails closed to zero slots

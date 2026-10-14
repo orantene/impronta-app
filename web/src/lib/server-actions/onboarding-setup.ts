@@ -50,12 +50,14 @@ export async function loadOnboardingSetup(): Promise<SetupLoadResult> {
   const { brief, state } = got as Exclude<typeof got, { error: string }>;
   const choice = state.choice ?? (state.path === "business" ? "studio" : state.path === "both" ? "both" : "myself");
   const country = stringFact(brief, "person.country");
+  const city = stringFact(brief, "person.city");
   const locale = state.locale ?? "en";
   const name = stringFact(brief, "business.name") ?? stringFact(brief, "person.professional_name") ?? stringFact(brief, "person.name");
   const ctx = {
     trade: state.typeChoice?.slug ?? null,
     discipline: stringFact(brief, "work.discipline") ?? stringFact(brief, "work.industry"),
     country,
+    city,
     locale,
   } as const;
   const saved = state.essentials ?? null;

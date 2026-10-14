@@ -13,6 +13,8 @@
  */
 
 import type { OnboardingChoice } from "./choice";
+import { timezoneFromPlaceText } from "@/lib/scheduling/timezone-from-place";
+import { isValidIanaTimeZone } from "@/lib/scheduling/tz";
 import { offeringOwnerFor } from "./offering-owner";
 import { isSoleOwnerProvider } from "./owner-hours";
 
@@ -166,7 +168,14 @@ export function packKeyForTrade(...candidates: Array<string | null | undefined>)
   return null;
 }
 
-export type PackContext = { trade?: string | null; discipline?: string | null; country?: string | null; locale: "en" | "es" };
+export type PackContext = {
+  trade?: string | null;
+  discipline?: string | null;
+  country?: string | null;
+  /** City from the brief; picks the zone (Cancún is not Mexico_City) when known (TUL-540). */
+  city?: string | null;
+  locale: "en" | "es";
+};
 
 /** Suggested services for a trade, with MX defaults (MXN) in Mexico; other countries get durations and "quote". */
 export function suggestedServices(ctx: PackContext): EssentialService[] {
@@ -197,6 +206,16 @@ export function packServiceFor(pack: TradePack | null, said: string): PackServic
   return pack.services.find((s) => [s.en, s.es, ...(s.aliases ?? [])].some((n) => forms.has(n.toLowerCase()))) ?? null;
 }
 
+/** Soft zone for the prefill: the city (+ country) wins when it implies one, else the country default (TUL-540). */
+export function suggestedTimezoneForPlace(country: string | null | undefined, city?: string | null): string | null {
+  // Only a real city counts: a bare country must not silently pick a zone.
+  if (city?.trim()) {
+    const fromPlace = timezoneFromPlaceText([city, country].map((x) => x?.trim()).filter(Boolean).join(", "));
+    if (fromPlace && isValidIanaTimeZone(fromPlace)) return fromPlace;
+  }
+  return defaultTimezoneForCountry(country);
+}
+
 /** What the essentials screen opens with: pack services, Mon-Sat 9-19, country currency/timezone. */
 export function suggestedEssentials(ctx: PackContext & { name?: string | null }): Essentials {
   const services = suggestedServices(ctx);
@@ -204,7 +223,7 @@ export function suggestedEssentials(ctx: PackContext & { name?: string | null })
     name: ctx.name?.trim() || null,
     services,
     hours: defaultWeeklyHours(),
-    timezone: defaultTimezoneForCountry(ctx.country),
+    timezone: suggestedTimezoneForPlace(ctx.country, ctx.city),
     place: null,
     firstProviderEmail: null,
     firstProviderName: null,

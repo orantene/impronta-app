@@ -63,3 +63,28 @@ test("the zone list offers Mexico when the country was not detected (TUL-568)", 
   assert.ok(ids.includes("America/Mexico_City"));
   assert.ok(ids.includes("America/Cancun"));
 });
+
+test("TUL-540: timezone options carry bilingual labels and the other Mexican zones", async () => {
+  const { TIMEZONE_OPTIONS, timezoneOptionLabel } = await import("./setup");
+  const ids = TIMEZONE_OPTIONS.map((z) => z.id);
+  for (const id of ["America/Merida", "America/Monterrey", "America/Tijuana", "America/Mazatlan"]) assert.ok(ids.includes(id), id);
+  assert.equal(timezoneOptionLabel("America/Cancun", "es"), "Cancún (Quintana Roo)");
+  assert.equal(timezoneOptionLabel("America/Mexico_City", "es"), "Ciudad de México (CDMX)");
+  assert.equal(timezoneOptionLabel("America/New_York", "es"), "Nueva York (ET)");
+  assert.equal(timezoneOptionLabel("America/New_York", "en"), "New York (ET)");
+  assert.equal(timezoneOptionLabel("Mars/Base", "en"), "Mars/Base");
+});
+
+test("TUL-540: abroad, a known city that resolves to a zone hides the picker; a bare country asks", () => {
+  assert.equal(needsTimezoneQuestion("United States", "Chicago"), false);
+  assert.equal(needsTimezoneQuestion("United States", null), true);
+  assert.equal(needsTimezoneQuestion("United States"), true);
+  assert.equal(needsTimezoneQuestion("Mexico", "Cancún"), false);
+});
+
+test("TUL-540: a Mexico setup in Cancún takes the pack zone and does not block Continue", () => {
+  const base = suggestedEssentials({ trade: "nails", country: "Mexico", locale: "es", city: "Cancún" });
+  assert.equal(base.timezone, "America/Cancun");
+  const e = { ...base, place: { mode: "studio" as const, area: "Cancún" } };
+  assert.deepEqual(setupIssues({ choice: "myself", essentials: e, country: "Mexico", providerEmailDraft: "" }), []);
+});

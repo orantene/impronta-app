@@ -13,7 +13,7 @@ import type { Essentials, PlaceMode } from "@/lib/onboarding/essentials";
 import { currencyForCountry } from "@/lib/onboarding/essentials";
 import type { FlowLocale } from "@/lib/onboarding/flow";
 import { SETUP_COPY } from "@/lib/onboarding/setup-copy";
-import { TIMEZONE_OPTIONS, defaultWeekFallback, finalizeSetup, needsTimezoneQuestion, setupIssues, type SetupIssue } from "@/lib/onboarding/setup";
+import { TIMEZONE_OPTIONS, defaultWeekFallback, finalizeSetup, needsTimezoneQuestion, timezoneOptionLabel, setupIssues, type SetupIssue } from "@/lib/onboarding/setup";
 import type { SetupPayload } from "@/lib/server-actions/onboarding-setup";
 
 import { Notice, PrimaryButton } from "../ui";
@@ -119,7 +119,7 @@ export function SetupStep({
         {show("place") ? <Notice tone="error">{c.errors.place}</Notice> : null}
       </section>
 
-      {needsTimezoneQuestion(country) ? (
+      {needsTimezoneQuestion(country, e.place?.area ?? null) ? (
         <section className="mt-6">
           <Label>{c.timezone}</Label>
           <select
@@ -131,7 +131,9 @@ export function SetupStep({
             style={field}
           >
             <option value="">{c.timezoneHint}</option>
-            {TIMEZONE_OPTIONS.map((z) => <option key={z.id} value={z.id}>{z.label}</option>)}
+            {TIMEZONE_OPTIONS.map((z) => (
+              <option key={z.id} value={z.id}>{timezoneOptionLabel(z.id, locale === "es" ? "es" : "en")}</option>
+            ))}
           </select>
           {show("timezone") ? <Notice tone="error">{c.errors.timezone}</Notice> : null}
         </section>
