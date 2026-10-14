@@ -30,6 +30,7 @@ import {
   signOutClientAccount,
   verifyClientAccountCode,
 } from "@/lib/client-account/actions";
+import { accountQuickLinks } from "@/lib/client-account/quick-links";
 import { resendSecondsLeft, type AccountSummary } from "@/lib/client-account/pure";
 
 type Me = { signedIn: false; signedInAs?: "business" } | { signedIn: true; email: string | null; initials: string; summary: AccountSummary };
@@ -478,9 +479,17 @@ export function ClientAccountButton({
                     </div>
                   ) : null}
                 </dl>
-                <a href={accountHref} style={{ ...primary, textAlign: "center", textDecoration: "none", boxSizing: "border-box" }}>
-                  {t("public.clientAccount.myAccount")}
-                </a>
+                <nav aria-label={t("public.clientAccount.account")} style={{ display: "grid", gap: 4 }}>
+                  {accountQuickLinks(t, accountHref).map((l) => (
+                    <a
+                      key={l.key}
+                      href={l.href}
+                      style={{ display: "flex", alignItems: "center", minHeight: 44, color: INK, textDecoration: "none", fontSize: 15, borderBottom: `1px solid ${LINE}` }}
+                    >
+                      {l.label}
+                    </a>
+                  ))}
+                </nav>
                 <button type="button" onClick={logOut} disabled={busy} style={linkBtn}>
                   {t("public.clientAccount.logOut")}
                 </button>
