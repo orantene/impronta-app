@@ -58,9 +58,22 @@ export function joinGuestPhone(iso: string | null, national: string): string {
 
 export type GuestCountryOption = { iso: string; dial: string; label: string };
 
-/** The picker rows, popular markets first. */
+/** TUL-929: country names in the SITE language (Intl.DisplayNames), popular markets first. */
 export function guestCountryOptions(locale: string): GuestCountryOption[] {
-  const rows = COUNTRY_DIAL_CODES.map((c) => ({ iso: c.iso, dial: c.dial, label: c.name }));
+  let names: Intl.DisplayNames | null = null;
+  try {
+    names = new Intl.DisplayNames([locale], { type: "region" });
+  } catch {
+    names = null;
+  }
+  const label = (iso: string, fallback: string) => {
+    try {
+      return names?.of(iso) ?? fallback;
+    } catch {
+      return fallback;
+    }
+  };
+  const rows = COUNTRY_DIAL_CODES.map((c) => ({ iso: c.iso, dial: c.dial, label: label(c.iso, c.name) }));
   const popular = POPULAR_DIAL_ISOS.map((iso) => rows.find((r) => r.iso === iso)).filter((r): r is GuestCountryOption => !!r);
   const rest = rows.filter((r) => !POPULAR_DIAL_ISOS.includes(r.iso)).sort((a, b) => a.label.localeCompare(b.label, locale));
   return [...popular, ...rest];

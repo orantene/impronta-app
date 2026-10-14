@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { guestDefaultPhoneIso, joinGuestPhone, sanitizeGuestPhone, splitGuestPhone } from "./guest-phone";
+import { guestCountryOptions, guestDefaultPhoneIso, joinGuestPhone, sanitizeGuestPhone, splitGuestPhone } from "./guest-phone";
 
 test("TUL-897: letters and symbols never reach the phone value", () => {
   assert.equal(sanitizeGuestPhone("55 abc 1234-5678"), "55 1234 5678");
@@ -27,4 +27,13 @@ test("TUL-923: the stored value is dial + national and splits back", () => {
   assert.deepEqual(splitGuestPhone("+52 55 1234 5678", "US"), { iso: "MX", national: "55 1234 5678" });
   assert.deepEqual(splitGuestPhone("+1 416 555 0100", "CA"), { iso: "CA", national: "416 555 0100" });
   assert.deepEqual(splitGuestPhone("5512345678", "MX"), { iso: "MX", national: "5512345678" });
+});
+
+test("TUL-929: country names follow the site language", () => {
+  const es = guestCountryOptions("es");
+  assert.equal(es.find((o) => o.iso === "MX")?.label, "México");
+  assert.equal(es.find((o) => o.iso === "US")?.label, "Estados Unidos");
+  assert.equal(es.find((o) => o.iso === "DE")?.label, "Alemania");
+  assert.equal(guestCountryOptions("en").find((o) => o.iso === "DE")?.label, "Germany");
+  assert.equal(es[0]?.iso, "MX", "popular markets lead");
 });
