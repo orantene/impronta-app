@@ -80,7 +80,7 @@
   "src/app/(workspace)/platform/platform-notifications.ts": 1,
   "src/app/(workspace)/platform/platform-users-data.ts": 2,
   "src/app/(workspace)/platform/tenant-catalog-data.ts": 4,
-  "src/app/(workspace)/platform/tenant-management-data.ts": 6,
+  "src/app/(workspace)/platform/tenant-management-data.ts": 3,
   "src/app/(workspace)/talent/page-builder/page.tsx": 1,
   "src/app/api/admin/ai/search-debug/route.ts": 1,
   "src/app/api/admin/clients/[id]/snapshot/route.ts": 1,
