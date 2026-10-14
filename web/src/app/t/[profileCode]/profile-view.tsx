@@ -2539,7 +2539,7 @@ export async function TalentProfileView({
             sourcePage={profileSourcePage}
             initialSaved={initialSavedIds.includes(profile.id)}
             portalInquiryHref={portalInquiryHref}
-            mode="footer"
+            mode="footer" hostKind={hostCtx.kind}
             profileCta={ui.profileCta}
             inquiry={ui.inquiry}
           />
