@@ -72,3 +72,33 @@ test("an example context keeps the honest empty line for the session picker", ()
   const kinds = kindsOf(buildComponentsForType("yoga-studio", ctx).get("transaction") ?? []);
   assert.ok(!kinds.has("session_picker"));
 });
+
+// TUL-697: the fallback home is the ONLY page a page-less tenant has. Its
+// header, footer and teaser buttons must not link to inner pages nothing
+// serves (/services, /about, /gallery, /contact answer 404 signed out).
+function innerPageLinks(tree: BuilderNode[]): string[] {
+  const inner = /^\/(services|about|gallery|contact)$/;
+  const found: string[] = [];
+  const walk = (n: unknown) => {
+    if (Array.isArray(n)) return n.forEach(walk);
+    if (!n || typeof n !== "object") return;
+    const o = n as Record<string, unknown>;
+    if (typeof o.href === "string" && inner.test(o.href)) found.push(o.href);
+    for (const v of Object.values(o)) walk(v);
+  };
+  walk(tree);
+  return found;
+}
+
+for (const [family, typeId] of [["agency", "agency"], ["fitness", "yoga-studio"], ["dining", "restaurant"]] as const) {
+  test(`TUL-697: a page-less ${typeId} home links to no unserved inner page`, () => {
+    const { tree, issues } = composeFor(family, typeId);
+    assert.ok(tree, `tree composed: ${issues.join(" | ")}`);
+    assert.deepEqual(innerPageLinks(tree!), []);
+  });
+}
+
+test("TUL-697: the page-less home keeps its /book link", () => {
+  const { tree } = composeFor("agency", "agency");
+  assert.ok(JSON.stringify(tree).includes('"/book"'), "/book survives");
+});
