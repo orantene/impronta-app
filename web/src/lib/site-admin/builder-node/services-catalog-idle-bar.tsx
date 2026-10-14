@@ -4,15 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 import { bookEntryFrom, listBookableOfferings } from "@/lib/talent-site/book-entry";
-import { openAtNextSlot, pickSlotOffering, registerSlotOfferings } from "@/lib/talent-site/next-free-slot";
 import { requestTalentOpen } from "@/lib/talent-site/open-intent-client";
 import { runStickyBarTap } from "@/lib/talent-site/sticky-bar-tap";
 import { CATALOG_BAR_RESERVE_CSS } from "@/lib/talent-site/floating-chrome-stack";
 import type { TalentBookingPosture } from "@/lib/talent/selling-booking-settings";
 import { deriveOfferingCta } from "@/lib/talent/offering-cta-derivation";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
-
-import { useNextFreeSlot } from "./use-next-free-slot";
 
 /**
  * TUL-59 C item 3: the idle bar's main button follows context. Away from the
@@ -67,26 +64,20 @@ type BarProps = {
   nodeId: string;
   es: boolean;
   takesBookings?: boolean;
-  /** TUL-232: with these, a tap opens booking at the next free slot when one is known. */
+  /** Catalog rows: one bookable → sheet; several → scroll to menu (TUL-516 W3-4). */
   groups?: ReadonlyArray<{ items: ReadonlyArray<TalentOffering> }>;
   settings?: { confirmsByHand?: boolean; bookingPosture?: TalentBookingPosture };
   buildDetail?: (o: TalentOffering) => OfferingRequestDetail;
 };
 
 /**
- * Shared by the pill button and the plain bar text. The tap OPENS booking (one bookable service:
- * its sheet; several: the picker; none: scroll to the menu), queued until the sheet has hydrated.
+ * Shared by the pill button and the plain bar text. One bookable service opens its sheet;
+ * several (or none) scroll to the menu. Never opens chat and never jumps to a next-free slot.
  */
 function useIdleBarTap({ nodeId, es, takesBookings: takesBookingsProp, groups, settings, buildDetail }: BarProps) {
   const inView = useMenuInView(nodeId);
   const items = useMemo(() => (groups ? groups.flatMap((g) => g.items) : []), [groups]);
   const takesBookings = takesBookingsProp ?? catalogTakesBookings(items, settings ?? {});
-  const picked = takesBookings && buildDetail ? pickSlotOffering(items, settings ?? {}) : null;
-  // Idempotent registry writes; the sheet needs the full detail to open at a slot.
-  useEffect(() => {
-    if (buildDetail) registerSlotOfferings(items, buildDetail);
-  });
-  const slot = useNextFreeSlot(picked?.id ?? null, picked?.durationMinutes ?? null);
   // Resolved at tap time only: nothing here runs during render.
   const onTap = () => {
     const bookable = groups
@@ -100,24 +91,21 @@ function useIdleBarTap({ nodeId, es, takesBookings: takesBookingsProp, groups, s
       menuInView: inView,
       bookableCount: bookable.length,
       entry: bookEntryFrom(bookable),
-      slot,
-      openAtSlot: (s) => openAtNextSlot(s),
       request: requestTalentOpen,
       scroll: () =>
         document.querySelector(`[data-builder-node-id="${nodeId}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" }),
     });
   };
-  return { inView, takesBookings, slot, onTap, es };
+  return { inView, takesBookings, onTap, es };
 }
 
 export function CatalogIdleBarGo(props: BarProps) {
-  const { inView, takesBookings, slot, onTap, es } = useIdleBarTap(props);
+  const { inView, takesBookings, onTap, es } = useIdleBarTap(props);
   return (
     <button
       type="button"
       className="cb-bar-go"
       data-in-services={inView ? "true" : undefined}
-      data-next-slot={slot?.slotStart}
       onClick={onTap}
     >
       {idleBarLabel(es, inView, takesBookings)}
