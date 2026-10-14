@@ -20,6 +20,11 @@ import {
   catalogRowShowsFrom,
 } from "@/components/public-booking/catalog-booking-logic";
 
+/** TUL-805: the one quote-only badge text ("A cotizar" / "Quote") every public surface paints. */
+export function quoteOnlyLabel(locale: string): string {
+  return locale.toLowerCase().startsWith("es") ? "A cotizar" : "Quote";
+}
+
 export type PublicPriceSource = Pick<
   TalentOffering,
   "visibility" | "priceDisplay" | "priceType" | "amountCents" | "currency" | "variants" | "attributes"

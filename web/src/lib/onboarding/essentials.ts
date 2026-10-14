@@ -36,6 +36,8 @@ export type EssentialService = {
   nameI18n?: { en: string; es: string } | null;
   /** The words the person used when the line was renamed to the pack name (finds the AI draft row). */
   saidAs?: string | null;
+  /** TUL-633: the person chose "Get a quote" on purpose: published as "Request a quote", not held as an unpriced draft. */
+  quoteChosen?: boolean;
 };
 
 export type PlaceMode = "studio" | "home" | "client";
@@ -290,6 +292,7 @@ export function parseEssentialService(raw: unknown, fallbackCurrency = "USD"): E
     // Kept only while the line still carries one of the pack names: an edited name is the person's own words.
     nameI18n: en && es && (name === en || name === es) ? { en, es } : null,
     saidAs: saidAs || null,
+    quoteChosen: r.quoteChosen === true && (r.quote === true || priceCents === null),
   };
 }
 
@@ -334,7 +337,7 @@ export type OfferingRowDraft = {
   description: null;
   kind: "service";
   price_type: "flat_package";
-  price_display: "exact";
+  price_display: "exact" | "quote";
   /** Null = no price yet: publishing is refused until one is set (or the owner picks "Contact for price"). */
   amount_cents: number | null;
   currency: string;
@@ -355,14 +358,17 @@ export const DEFAULT_SERVICE_MINUTES = 60;
 
 export function offeringRowFor(s: EssentialService, sortOrder: number): OfferingRowDraft {
   const exact = !s.quote && s.priceCents !== null && s.priceCents > 0;
+  // TUL-805: a deliberate "Precio a cotizar" (quoteChosen, never the default of an empty row) is live as "A cotizar" with a request CTA; only a service with no
+  // price mode chosen and no price stays a draft.
+  const quote = !exact && s.quote && s.quoteChosen === true;
   return {
     ...(s.nameI18n ? { title_i18n: s.nameI18n } : {}),
     title: s.name.trim(),
     description: null,
     kind: "service",
-    // Not "quote": a quote row passes publish validation, so one click would put an unpriced service live.
+    // An empty row stays "exact" with no amount (publish refused until priced); a chosen quote is "quote".
     price_type: "flat_package",
-    price_display: "exact",
+    price_display: quote ? "quote" : "exact",
     amount_cents: exact ? s.priceCents : null,
     currency: s.currency,
     // Instant needs a fixed price; a quote is a request. Fresh accounts have
@@ -373,13 +379,13 @@ export function offeringRowFor(s: EssentialService, sortOrder: number): Offering
     allow_pay_in_person: true,
     duration_minutes: s.durationMin && s.durationMin > 0 ? s.durationMin : DEFAULT_SERVICE_MINUTES,
     category: s.packKey ?? null,
-    status: exact ? "published" : "draft",
+    status: exact || quote ? "published" : "draft",
     visibility: "public",
     sort_order: sortOrder,
   };
 }
 
-/** How many of these services onboarding publishes (priced exactly); the rest stay drafts until the owner adds a price. */
+/** How many of these services onboarding publishes (priced exactly, or quote on purpose); empty ones stay drafts until the owner adds a price. */
 export function publishedServiceCount(services: EssentialService[] | null | undefined): number {
   return (services ?? []).filter((s) => offeringRowFor(s, 0).status === "published").length;
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { quoteOnlyLabel } from "@/lib/talent/public-price";
 import { useEffect, useReducer, useRef, useState, type ReactNode } from "react";
 import { offeringIsQuote, type TalentOffering } from "@/lib/talent/offerings-types";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
@@ -724,7 +725,7 @@ export function CatalogRow({
         {priceInMeta ? null : showPrice ? (
           <span className="site-builder-node--services-catalog-price">
             {onRequest || quote || minCents == null ? (
-              <strong>{es ? (onRequest ? "Bajo consulta" : "Cotización a pedido") : onRequest ? "On request" : "Quote on request"}</strong>
+              <strong>{es ? (onRequest ? "Bajo consulta" : quoteOnlyLabel("es")) : onRequest ? "On request" : quoteOnlyLabel("en")}</strong>
             ) : (
               <>
                 {ladder ? <small>{es ? "Desde" : "From"}</small> : null}

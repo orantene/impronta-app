@@ -135,5 +135,7 @@ test("TUL-648: publishedServiceCount matches the rows offeringRowFor publishes",
   const { publishedServiceCount } = await import("./essentials");
   const svc = (priceCents: number | null, quote = false) => ({ name: "S", durationMin: 60, priceCents, quote, currency: "MXN", packKey: null }) as never;
   assert.equal(publishedServiceCount([svc(50000), svc(null, true), svc(0), svc(30000, true)]), 1);
+  const chosen = { name: "S", durationMin: 60, priceCents: null, quote: true, quoteChosen: true, currency: "MXN", packKey: null } as never;
+  assert.equal(publishedServiceCount([svc(50000), chosen]), 2, "TUL-805: a quote chosen on purpose is live");
   assert.equal(publishedServiceCount(null), 0);
 });

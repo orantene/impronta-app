@@ -1,5 +1,6 @@
 "use client";
 
+import { quoteOnlyLabel } from "@/lib/talent/public-price";
 import type { ReactNode } from "react";
 
 import {
@@ -98,10 +99,10 @@ export function ServicesCatalogStaticFallback({
                           {es
                             ? onRequest
                               ? "Bajo consulta"
-                              : "Cotización a pedido"
+                              : quoteOnlyLabel("es")
                             : onRequest
                               ? "On request"
-                              : "Quote on request"}
+                              : quoteOnlyLabel("en")}
                         </strong>
                       ) : (
                         <>

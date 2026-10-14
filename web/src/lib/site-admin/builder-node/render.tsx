@@ -1,3 +1,4 @@
+import { quoteOnlyLabel } from "@/lib/talent/public-price";
 import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { pauseBannerCopy, type PublicContactMode } from "@/lib/talent/accepting-readiness";
 import { Fragment, cloneElement, isValidElement, memo } from "react";
@@ -6325,7 +6326,7 @@ function renderBuilderNodeElement(
         // `amountCents == null` is already a quote per offeringIsQuote; the
         // explicit check also narrows the type for formatMoney below.
         if (item.amountCents == null || offeringIsQuote(item)) {
-          return "Quote on request";
+          return quoteOnlyLabel(options.contentLocale?.locale ?? "en");
         }
         // TUL-383: one public money format (`$700 MXN`) via shared formatter.
         const locale = options.contentLocale?.locale ?? "en";
