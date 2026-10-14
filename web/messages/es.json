@@ -2152,7 +2152,9 @@
         "keep": "Dejar el estilo por defecto",
         "rose": "Rosé",
         "blush": "Rubor",
-        "orchid": "Orquídea"
+        "orchid": "Orquídea",
+        "sage": "Salvia",
+        "porcelain": "Porcelana"
       },
       "role": {
         "eyebrow": "Paso 1 de 2 · Rol",

@@ -7,7 +7,9 @@
  * tile. The pick is applied before publish.
  */
 
-import { DESIGN_LOOK_KEYS, type DesignLookKey } from "@/lib/onboarding/finish-url";
+import { useEffect } from "react";
+
+import { designLooksForCategory, type DesignLookKey } from "@/lib/onboarding/finish-url";
 import { getGalleryDesign } from "@/lib/talent-site/theme-catalog/gallery-meta";
 
 import { Sub, Title } from "../ui";
@@ -19,21 +21,30 @@ const LOOK_NAME: Record<DesignLookKey, string> = {
   rose: "public.onboarding.design.rose",
   blush: "public.onboarding.design.blush",
   orchid: "public.onboarding.design.orchid",
+  sage: "public.onboarding.design.sage",
+  porcelain: "public.onboarding.design.porcelain",
 };
 
 /** Swatches come from the released Maison v2 palettes (the design onboarding applies). */
 const V2_PALETTES = getGalleryDesign("maison-v2")?.palettes ?? [];
 
-export function DesignPick({ t, value, onPick }: { t: T; value: DesignLookKey | null; onPick: (look: DesignLookKey | null) => void }) {
+export function DesignPick({ t, value, onPick, category = null }: { t: T; value: DesignLookKey | null; onPick: (look: DesignLookKey | null) => void; category?: string | null }) {
+  const looks = designLooksForCategory(category);
+  // A non-beauty trade must not silently get the beauty default: record its first look.
+  const firstLook = looks[0];
+  useEffect(() => {
+    if (value === null && firstLook && firstLook !== "rose") onPick(firstLook);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firstLook]);
   return (
     <div className="mt-5" data-testid="onb-design">
       <Title size={20}>{t("public.onboarding.design.title")}</Title>
       <Sub>{t("public.onboarding.design.sub")}</Sub>
-      <div className="mt-3 grid grid-cols-3 gap-2" role="radiogroup" aria-label={t("public.onboarding.design.title")}>
-        {DESIGN_LOOK_KEYS.map((k, i) => {
+      <div className="mt-3 grid gap-2" style={{ gridTemplateColumns: `repeat(${looks.length}, minmax(0, 1fr))` }} role="radiogroup" aria-label={t("public.onboarding.design.title")}>
+        {looks.map((k, i) => {
           const p = V2_PALETTES.find((x) => x.key === k);
           if (!p) return null;
-          const on = (value ?? DESIGN_LOOK_KEYS[0]) === k && (value !== null || i === 0);
+          const on = (value ?? looks[0]) === k;
           return (
             <button
               key={k}

@@ -141,6 +141,7 @@ export async function understandBrief(input: {
           userMessage: text,
           question: null,
           pack: packForBrief(input.brief),
+          locale: input.locale,
           report: (o) => {
             outcome = o;
           },
