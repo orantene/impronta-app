@@ -34,7 +34,7 @@ import { uploadReplayForTicket } from "@/lib/support/replay/upload-replay";
 import { keepTicketOpenAction } from "@/lib/support/actions";
 import { useThreadPresence } from "@/lib/realtime/presence";
 import { relTime } from "./support-rel-time";
-import { supportSendErrorText } from "./support-send-error";
+import { guardSupportSend, supportSendErrorText } from "./support-send-error";
 import {
   EMPTY_THREAD,
   applyIncomingMessage,
@@ -317,13 +317,13 @@ export function SupportPanel({
     setAskError(null);
     // Clear at once: the box kept the sent text for the whole round trip. A failure puts it back below.
     setAsk("");
-    const r = await contract.createTicket({
+    const r = await guardSupportSend(() => contract.createTicket({
       tenantSlug: contract.tenantSlug,
       surface: contract.surface,
       body,
       originSlug: contract.originSlug ?? undefined,
       diagnostics: getDiagnosticsSnapshot(),
-    });
+    }));
     setSending(false);
     if (r.ok) {
       // In-app support emitted no product events at all — only the marketing surface did — so there was no support funnel to measure.
@@ -459,14 +459,14 @@ export function SupportPanel({
             onMessageOran={() => {
               void (async () => {
                 setAskError(null);
-                const r = await contract.createTicket({
+                const r = await guardSupportSend(() => contract.createTicket({
                   tenantSlug: contract.tenantSlug,
                   surface: contract.surface,
                   subject: t("dashboard.adminSupport.messageOranSubject"),
                   body: interpolate(t("dashboard.adminSupport.messageOranBody"), SUPPORT_AGENT_VARS),
                   messageOranDirectly: true,
                   diagnostics: getDiagnosticsSnapshot(),
-                });
+                }));
                 if (r.ok) {
                   trackProductEvent(PRODUCT_ANALYTICS_EVENTS.support_ticket_created, {
                     surface: contract.surface,
@@ -626,7 +626,7 @@ export function SupportPanel({
           ticketId={ticketId}
           onSend={async (body) => {
             if (!ticketId) return false;
-            const r = await contract.sendMessage({ ticketId, body });
+            const r = await guardSupportSend(() => contract.sendMessage({ ticketId, body }));
             if (r.ok) {
               // Optimistic append (deduped against the realtime INSERT by id) so the message shows even when realtime lags or is down.
               if (r.messageId) {
