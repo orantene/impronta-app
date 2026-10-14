@@ -2358,6 +2358,14 @@
     }
   },
   "dashboard": {
+    "promoCode": {
+      "toggle": "¿Tienes un código?",
+      "label": "Código promocional",
+      "placeholder": "Ingresa el código",
+      "apply": "Aplicar",
+      "checking": "Verificando...",
+      "remove": "Quitar"
+    },
     "enums": {
       "servicePricing": {
         "hour": "Por hora",

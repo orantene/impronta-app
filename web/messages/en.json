@@ -2358,6 +2358,14 @@
     }
   },
   "dashboard": {
+    "promoCode": {
+      "toggle": "Have a code?",
+      "label": "Promo code",
+      "placeholder": "Enter code",
+      "apply": "Apply",
+      "checking": "Checking...",
+      "remove": "Remove"
+    },
     "enums": {
       "servicePricing": {
         "hour": "Per hour",
