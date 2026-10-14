@@ -243,6 +243,21 @@ export function notificationDrawerFields(
     rawTargetDrawer ?? "notifications",
     inquiryId ? { inquiryId } : undefined,
   );
+  // TUL-391 r3: the inquiry-workspace drawer only knows FIXTURE ids and falls
+  // back to the demo inquiry (RI-201) for a real UUID. A real inquiry id must
+  // land on the routed page that loads the real thread.
+  if (inquiryId && resolved?.kind === "drawer" && resolved.drawerId === "inquiry-workspace") {
+    const id = encodeURIComponent(inquiryId);
+    const page: NotificationPageTarget =
+      rawTargetDrawer === "talent-inquiry"
+        ? { kind: "page", surface: "talent", path: `/talent/inbox/${id}` }
+        : { kind: "page", surface: "workspace", path: `/messages?inquiry=${id}` };
+    return {
+      targetDrawer: "notifications" as DrawerId,
+      targetPayload: undefined,
+      targetHref: notificationTargetHref(page, adminBasePath),
+    };
+  }
   if (resolved?.kind === "page") {
     return {
       targetDrawer: "notifications" as DrawerId,
