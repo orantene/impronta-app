@@ -625,8 +625,7 @@ export function SupportPanel({
             if (!ticketId) return false;
             const r = await contract.sendMessage({ ticketId, body });
             if (r.ok) {
-              // Optimistic append (deduped against the realtime INSERT by id)
-              // so the message shows even when realtime lags or is down.
+              // Optimistic append (deduped against the realtime INSERT by id) so the message shows even when realtime lags or is down.
               if (r.messageId) {
                 onMessage({
                   id: r.messageId,
