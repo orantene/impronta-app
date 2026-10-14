@@ -48,6 +48,7 @@ import { ChooseStep } from "./steps/choose-step";
 import { SetupStep } from "./steps/setup-step";
 import { loadOnboardingSetup, saveOnboardingSetup, type SetupPayload } from "@/lib/server-actions/onboarding-setup";
 import type { Essentials } from "@/lib/onboarding/essentials";
+import { reviewSetupLines } from "@/lib/onboarding/review-setup-lines";
 import { EssentialsStep } from "./steps/essentials-step";
 import { StyleStep } from "./steps/style-step";
 import { ReadingStep } from "./steps/reading-step";
@@ -108,6 +109,8 @@ export function OnboardingModule({
   const cardRef = useRef<HTMLDivElement>(null);
   const [resumeChecked, setResumeChecked] = useState(false);
   const [setupData, setSetupData] = useState<SetupPayload | null>(null);
+  // TUL-806: what step 3 saved, so the review step can show it.
+  const [savedSetup, setSavedSetup] = useState<Essentials | null>(null);
 
   // Resume: what this owner already had. Opening creates nothing.
   useEffect(() => {
@@ -287,7 +290,7 @@ export function OnboardingModule({
   const saveSetup = useCallback(async (essentials: Essentials) => {
     dispatch({ type: "sendStarted" });
     const r = await saveOnboardingSetup({ essentials, locale }).catch(() => null);
-    if (r && r.ok) dispatch({ type: "setupSaved", talentOnly: r.talentOnly });
+    if (r && r.ok) { setSavedSetup(essentials); dispatch({ type: "setupSaved", talentOnly: r.talentOnly }); }
     else dispatch({ type: "cardFailed", code: "save_failed" });
   }, [locale]);
 
@@ -561,6 +564,7 @@ export function OnboardingModule({
         onPickDesign={(look) => { dispatch({ type: "designPicked", look }); void saveOnboardingDesign({ look }); }}
         onConfirmAge18={async () => { const r = await saveOnboardingAge18(); if (r.ok) setAgeConfirmed(true); return r; }}
         ageRequiredNotice={ageRequired}
+        setupLines={reviewSetupLines(savedSetup ?? setupData?.essentials ?? null, locale)}
         onBuild={() => {
           // Already signed in: nothing to save, straight to the build.
           const next: ModuleStep = state.isAuthenticated ? "building" : "save";
