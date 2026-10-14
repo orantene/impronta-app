@@ -43,6 +43,8 @@ export const CATALOG_BOOKING_CSS = `
 .jb-lines{border-top:1px solid var(--cb-line);padding-top:14px;display:grid;gap:8px}
 .jb-lines>div{display:flex;justify-content:space-between;gap:16px;font-size:.9375rem;color:var(--cb-muted)}
 .jb-lines>div span:last-child{font-variant-numeric:tabular-nums;color:var(--cb-ink)}
+.jb-back-nav{display:flex;flex-direction:column;gap:8px;padding-bottom:8px}
+.jb-back-nav .jb-back-link{padding-bottom:0}
 .jb-back-link{display:block;appearance:none;border:0;background:none;padding:0 0 16px;cursor:pointer;font-family:inherit;font-size:.875rem;color:var(--cb-primary);font-weight:600;min-height:40px;text-align:left}
 .jb-recap{margin:0 0 18px;font-size:.9375rem;color:var(--cb-muted)}
 .jb-days{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;width:100%;min-width:0}

@@ -32,6 +32,8 @@ export type WhoStepPaymentCopyInput = {
    * "at the studio" / "en el estudio" for pay-in-person copy.
    */
   payAtClientPlace?: boolean;
+  /** Remote-only service: never say "at the studio"; payment is as agreed. */
+  payRemoteOnly?: boolean;
   locale: string;
 };
 
@@ -85,6 +87,11 @@ export function whoStepPaymentCopy(input: WhoStepPaymentCopyInput): string {
       ? "El pago se cobra en línea al confirmar."
       : "Payment is collected online when you confirm.";
   }
+  if (input.payRemoteOnly) {
+    return es
+      ? "No se cobra nada ahora. El pago se realiza según lo acordado."
+      : "Nothing is charged now. Payment is as agreed.";
+  }
   if (input.payAtClientPlace) {
     return es
       ? "No se cobra nada ahora. El pago se realiza el día del servicio."
@@ -105,6 +112,7 @@ export function whoStepPaymentCopyFor(input: {
   allowPayInPerson: boolean;
   onlineCollectReady?: boolean;
   payAtClientPlace?: boolean;
+  payRemoteOnly?: boolean;
   locale: string;
 }): string {
   const effective = resolveOfferingPolicy(input.offering, input.sellingDefaults);
@@ -114,6 +122,7 @@ export function whoStepPaymentCopyFor(input: {
     allowPayInPerson: input.allowPayInPerson,
     onlineCollectReady: input.onlineCollectReady,
     payAtClientPlace: input.payAtClientPlace,
+    payRemoteOnly: input.payRemoteOnly,
     locale: input.locale,
   });
 }
@@ -168,6 +177,11 @@ export function doneStepNextActionCopy(input: WhoStepPaymentCopyInput & {
       ? "Sigue al pago para terminar la reserva. El horario se libera si el pago no se completa."
       : "Continue to payment to finish the booking. The time is released if payment is not completed.";
   }
+  if (input.payRemoteOnly) {
+    return es
+      ? "Recibirás la confirmación por correo. El pago se realiza según lo acordado."
+      : "You will get the confirmation by email. Payment is as agreed.";
+  }
   if (input.payAtClientPlace) {
     return es
       ? "Recibirás la confirmación por correo. El pago se realiza el día del servicio."
@@ -186,6 +200,7 @@ export function resolveWhoStepPaymentUi(input: {
   onlineCollectReady?: boolean;
   /** GRK-066: client's place → pay-on-the-day copy, not studio. */
   payAtClientPlace?: boolean;
+  payRemoteOnly?: boolean;
   locale: string;
   offeringIntent: "instant" | "request";
   bookingSettings: CatalogSheetBookingSettings;
@@ -227,6 +242,7 @@ export function resolveWhoStepPaymentUi(input: {
           depositPct: input.depositPct,
           onlineCollectReady: input.onlineCollectReady,
           payAtClientPlace: input.payAtClientPlace,
+          payRemoteOnly: input.payRemoteOnly,
           locale: input.locale,
         });
   return {
