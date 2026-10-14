@@ -14,6 +14,8 @@ import {
   timeToMin,
   timezoneChoices,
   timezoneWithBrowserFallback,
+  placeModesForTrade,
+  defaultPlaceForTrade,
   toggleDay,
   TIMEZONE_OPTIONS,
   applyServiceCurrency,
@@ -123,4 +125,12 @@ test("TUL-815: the browser zone fills a missing zone silently, a saved zone wins
   assert.equal(timezoneWithBrowserFallback("America/Mexico_City", "America/Cancun"), "America/Mexico_City");
   assert.equal(timezoneWithBrowserFallback(null, "Not/AZone"), null);
   assert.equal(timezoneWithBrowserFallback(null, null), null);
+});
+
+test("TUL-808: a cleaning business is never offered 'at my studio'; beauty keeps all three", () => {
+  assert.deepEqual(placeModesForTrade("cleaning"), ["client"]);
+  assert.deepEqual(defaultPlaceForTrade("cleaning"), { mode: "client", area: null });
+  assert.deepEqual(placeModesForTrade("lashes"), ["studio", "home", "client"]);
+  assert.equal(defaultPlaceForTrade("lashes"), null);
+  assert.deepEqual(placeModesForTrade(null), ["studio", "home", "client"]);
 });

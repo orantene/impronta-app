@@ -14,7 +14,9 @@ import type { FlowLocale } from "@/lib/onboarding/flow";
 import { SETUP_COPY } from "@/lib/onboarding/setup-copy";
 import {
   applyServiceCurrency,
+  defaultPlaceForTrade,
   defaultWeekFallback,
+  placeModesForTrade,
   finalizeSetup,
   needsTimezoneQuestion,
   setupCurrency,
@@ -61,6 +63,7 @@ export function SetupStep({
   const [e, setE] = useState<Essentials>(() => ({
     ...setup.essentials,
     hours: setup.essentials.hours ?? defaultWeekFallback(),
+    place: setup.essentials.place ?? defaultPlaceForTrade(setup.tradeKey),
     timezone: timezoneWithBrowserFallback(setup.essentials.timezone, browserTimezone()),
   }));
   const [edited, setEdited] = useState(false);
@@ -105,7 +108,7 @@ export function SetupStep({
       <section className="mt-6">
         <Label>{c.place}</Label>
         <div className="flex flex-col gap-2" role="radiogroup" aria-label={c.place}>
-          {(["studio", "home", "client"] as const).map((m) => {
+          {placeModesForTrade(setup.tradeKey).map((m) => {
             const on = e.place?.mode === m;
             return (
               <button
@@ -125,7 +128,7 @@ export function SetupStep({
         </div>
         {e.place ? (
           <label className="mt-3 block">
-            <span className="mb-1 block text-[0.75rem] font-medium" style={{ color: "var(--tl-ink-soft)" }}>{c.area}</span>
+            <span className="mb-1 block text-[0.75rem] font-medium" style={{ color: "var(--tl-ink-soft)" }}>{e.place.mode === "client" ? c.areaClient : c.area}</span>
             <input
               value={e.place.area ?? ""}
               onChange={(ev) => change({ place: { mode: e.place!.mode, area: ev.target.value.trim() ? ev.target.value : null } })}

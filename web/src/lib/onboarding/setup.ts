@@ -61,6 +61,18 @@ export function timezoneLabel(id: string): string {
   return TIMEZONE_OPTIONS.find((z) => z.id === id)?.label ?? (id.split("/").pop() ?? id).replace(/_/g, " ");
 }
 
+/** TUL-808: trades that go to the client never offer "at my studio". Beauty keeps all three. */
+const MOBILE_TRADES: ReadonlySet<string> = new Set(["cleaning"]);
+
+export function placeModesForTrade(tradeKey: string | null | undefined): ReadonlyArray<"studio" | "home" | "client"> {
+  return tradeKey && MOBILE_TRADES.has(tradeKey) ? ["client"] : ["studio", "home", "client"];
+}
+
+/** A mobile trade opens with "I go to the client" already chosen; others open with no choice. */
+export function defaultPlaceForTrade(tradeKey: string | null | undefined): { mode: "client"; area: null } | null {
+  return tradeKey && MOBILE_TRADES.has(tradeKey) ? { mode: "client", area: null } : null;
+}
+
 /** Only outside Mexico: inside, the zone comes from the country and is never asked. */
 export function needsTimezoneQuestion(country: string | null | undefined): boolean {
   return !isMexico(country);
