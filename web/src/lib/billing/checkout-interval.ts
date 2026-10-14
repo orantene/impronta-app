@@ -18,7 +18,6 @@ import {
   parseBillingInterval,
   type BillingInterval,
 } from "@/lib/pricing/interval-pricing";
-import { catalogIntervalFor } from "@/lib/billing/talent-plan-change";
 import type { BillingInterval as CatalogInterval } from "@/lib/stripe/price-ids";
 
 export type CheckoutPriceResult =
@@ -27,8 +26,9 @@ export type CheckoutPriceResult =
 
 export type ResolveCatalogPrice = (interval: CatalogInterval) => Promise<string | null>;
 
+// Ported inline from TUL-831 (`catalogIntervalFor`) so batch A does not need the plan-change module.
 export function toCatalogInterval(interval: BillingInterval): CatalogInterval {
-  return catalogIntervalFor(interval);
+  return interval === "year" ? "annual" : "monthly";
 }
 
 export async function resolveCheckoutPrice(
