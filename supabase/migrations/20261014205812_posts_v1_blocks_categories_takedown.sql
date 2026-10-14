@@ -226,3 +226,12 @@ CREATE TRIGGER cms_posts_guard_talent_publish
   BEFORE INSERT OR UPDATE ON public.cms_posts
   FOR EACH ROW
   EXECUTE PROCEDURE public.cms_posts_guard_talent_publish();
+
+-- 7. Explicit schedule marker. Only rows with scheduled_publish_at set are
+-- picked up by the publish-scheduled cron; legacy drafts carrying an old
+-- published_at are never auto-published.
+ALTER TABLE public.cms_posts
+  ADD COLUMN IF NOT EXISTS scheduled_publish_at timestamptz;
+CREATE INDEX IF NOT EXISTS idx_cms_posts_scheduled
+  ON public.cms_posts (scheduled_publish_at)
+  WHERE scheduled_publish_at IS NOT NULL AND status = 'draft';
