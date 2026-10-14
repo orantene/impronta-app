@@ -9,6 +9,7 @@ import {
   catalogWeekdayShort,
   formatClock,
 } from "./catalog-booking-logic";
+import { catalogEmptyWhenCopy } from "./catalog-booking-live-slots";
 import type { CatalogTakenSlotNotice } from "./catalog-taken-slot";
 import { CatalogTakenSlotNoticeView } from "./CatalogTakenSlotNotice";
 import { selectedDayScrollLeft, weekScrollLeft } from "./catalog-selected-day-scroll";
@@ -89,6 +90,7 @@ export function CatalogLiveWhenPicker({
   onPickStart: (iso: string, label: string, dayIndex?: number) => void;
 }) {
   const liveTimes = liveDays[dayIndex]?.starts ?? [];
+  const emptyCopy = catalogEmptyWhenCopy(es, liveDays.some((d) => d.starts.length > 0));
   const stripRef = useScrollSelectedDayIntoView(dayIndex, liveDays.length);
   return (
     <>
@@ -114,12 +116,8 @@ export function CatalogLiveWhenPicker({
       <CatalogSelectedDateLine date={liveDays[dayIndex]?.date} tz={liveTz} es={es} />
       {liveTimes.length === 0 ? (
         <div className="jb-empty">
-          <strong>{es ? "Sin horarios disponibles." : "No times available."}</strong>
-          <p>
-            {es
-              ? "No hay huecos en las próximas dos semanas. Prueba otra fecha o consulta."
-              : "Nothing is open in the next two weeks. Try another day or send a question."}
-          </p>
+          <strong>{emptyCopy.title}</strong>
+          <p>{emptyCopy.body}</p>
           {emptyConsultButton}
         </div>
       ) : (
