@@ -38,7 +38,7 @@ export function HoursTimeField({
       <input
         type="time"
         aria-label={label}
-        className="w-full min-w-0 rounded-xl border border-black/10 bg-white px-1.5 py-2 text-[14px]"
+        className="w-full min-w-[7.5rem] rounded-xl border border-black/10 bg-white px-1.5 py-2 text-[14px]"
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />

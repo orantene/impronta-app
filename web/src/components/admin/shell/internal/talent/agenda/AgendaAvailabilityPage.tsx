@@ -271,9 +271,9 @@ export function AgendaAvailabilityPage({
         {rows.map((row, idx) => (
           <div
             key={row.day}
-            className="grid grid-cols-[minmax(56px,64px)_minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2"
+            className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:grid-cols-[minmax(56px,64px)_minmax(0,1fr)_auto_minmax(0,1fr)]"
           >
-            <label className="flex items-center gap-2 text-[14px]">
+            <label className={`flex items-center gap-2 text-[14px] ${row.open ? "col-span-3 sm:col-span-1" : ""}`}>
               <input
                 type="checkbox"
                 checked={row.open}
@@ -314,7 +314,7 @@ export function AgendaAvailabilityPage({
                 />
               </>
             ) : (
-              <span className="col-span-3 text-[13px] text-[#5F6368]">{copy.t("Closed")}</span>
+              <span className="col-span-2 text-[13px] text-[#5F6368] sm:col-span-3">{copy.t("Closed")}</span>
             )}
           </div>
         ))}
