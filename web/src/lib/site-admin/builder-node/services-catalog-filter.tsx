@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useReducer, useRef, useState, type ReactNode } from "react";
-import { type TalentOffering } from "@/lib/talent/offerings-types";
+import { offeringIsQuote, type TalentOffering } from "@/lib/talent/offerings-types";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import { formatMoney } from "@/lib/talent/offerings-money";
 import { formatOfferingWhereLabel, offeringWhereFromAttributes } from "@/lib/talent/offering-request-detail";
@@ -572,7 +572,7 @@ export function CatalogRow({
   const cover = showPhoto ? item.imageUrls[0] : undefined;
   const onRequest = item.visibility === "on_request";
   const quote =
-    item.priceDisplay === "quote" || item.priceType === "custom" || item.amountCents == null;
+    offeringIsQuote(item);
   const minCents = catalogRowMinCents(item);
   const ladder = catalogRowShowsFrom(item);
   const usd = usdEquivalentLabel(minCents, item.currency, usdRates, locale);

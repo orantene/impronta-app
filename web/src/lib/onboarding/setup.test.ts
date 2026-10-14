@@ -2,8 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { suggestedEssentials, essentialsReady, parseEssentials } from "./essentials";
 import {
-  DAY_ORDER, cleanServices, copyDayToAll, finalizeSetup, minToTime, needsTimezoneQuestion,
-  parsePriceToCents, setupIssues, timeToMin, toggleDay,
+  DAY_ORDER, applyServiceCurrency, cleanServices, copyDayToAll, finalizeSetup, minToTime, needsTimezoneQuestion,
+  parsePriceToCents, setupCurrency, setupIssues, timeToMin, toggleDay,
 } from "./setup";
 
 test("timezone is asked only outside Mexico", () => {
@@ -55,4 +55,20 @@ test("issues: services, place, timezone abroad, bad provider email; empty email 
   assert.deepEqual(setupIssues({ choice: "studio", essentials: ok, country: "United States", providerEmailDraft: "" }), []);
   assert.equal(finalizeSetup(ok, "Ana@Studio.com", false).firstProviderEmail, "ana@studio.com");
   assert.equal(cleanServices([{ name: "Cut", durationMin: 30, priceCents: null, quote: false, currency: "USD" }])[0].quote, true);
+});
+
+test("TUL-16 b: the services currency defaults to the talent's own and can be chosen", () => {
+  assert.equal(setupCurrency({ chosen: null, country: "Mexico", locale: "es" }), "MXN");
+  assert.equal(setupCurrency({ chosen: null, country: "MX", locale: "en" }), "MXN");
+  // Country not asked yet on a Spanish flow: pesos, not a silent USD.
+  assert.equal(setupCurrency({ chosen: null, country: null, locale: "es" }), "MXN");
+  assert.equal(setupCurrency({ chosen: null, country: null, locale: "en" }), "USD");
+  assert.equal(setupCurrency({ chosen: null, country: "United States", locale: "es" }), "USD");
+  assert.equal(setupCurrency({ chosen: "USD", country: "Mexico", locale: "es" }), "USD");
+  assert.equal(setupCurrency({ chosen: "MXN", country: "United States", locale: "en" }), "MXN");
+  const rows = [
+    { name: "A", durationMin: 30, priceCents: 100, quote: false, currency: "USD", packKey: null },
+    { name: "B", durationMin: 30, priceCents: null, quote: true, currency: "USD", packKey: null },
+  ];
+  assert.deepEqual(applyServiceCurrency(rows, "MXN").map((r) => r.currency), ["MXN", "MXN"]);
 });

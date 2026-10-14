@@ -10,10 +10,9 @@
 import { useState } from "react";
 
 import type { Essentials, PlaceMode } from "@/lib/onboarding/essentials";
-import { currencyForCountry } from "@/lib/onboarding/essentials";
 import type { FlowLocale } from "@/lib/onboarding/flow";
 import { SETUP_COPY } from "@/lib/onboarding/setup-copy";
-import { TIMEZONE_OPTIONS, defaultWeekFallback, finalizeSetup, needsTimezoneQuestion, setupIssues, type SetupIssue } from "@/lib/onboarding/setup";
+import { TIMEZONE_OPTIONS, applyServiceCurrency, defaultWeekFallback, finalizeSetup, needsTimezoneQuestion, setupCurrency, setupIssues, type SetupIssue } from "@/lib/onboarding/setup";
 import type { SetupPayload } from "@/lib/server-actions/onboarding-setup";
 
 import { Notice, PrimaryButton } from "../ui";
@@ -47,7 +46,8 @@ export function SetupStep({
   const [later, setLater] = useState(!setup.essentials.firstProviderEmail);
   const ownerProvides = e.ownerProvides !== false;
   const [tried, setTried] = useState(false);
-  const currency = e.services[0]?.currency ?? currencyForCountry(country);
+  const [chosenCurrency, setChosenCurrency] = useState<string | null>(null);
+  const currency = setupCurrency({ chosen: chosenCurrency, country, locale });
   const change = (p: Partial<Essentials>) => {
     setEdited(true);
     setE((cur) => ({ ...cur, ...p }));
@@ -59,7 +59,7 @@ export function SetupStep({
   const submit = () => {
     setTried(true);
     if (issues.length > 0 || busy) return;
-    onSave(finalizeSetup(e, later ? "" : providerEmail, edited));
+    onSave(finalizeSetup({ ...e, services: applyServiceCurrency(e.services, currency) }, later ? "" : providerEmail, edited));
   };
 
   return (
@@ -70,7 +70,7 @@ export function SetupStep({
       <section className="mt-6">
         <Label>{c.services[choice]}</Label>
         <p className="mb-2 text-[0.8125rem]" style={{ color: "var(--tl-ink-soft)" }}>{c.servicesHint}</p>
-        <SetupServices copy={c} currency={currency} services={e.services} onChange={(services) => change({ services })} />
+        <SetupServices copy={c} currency={currency} onCurrency={(cur) => { setEdited(true); setChosenCurrency(cur); }} services={e.services} onChange={(services) => change({ services })} />
         {show("services") ? <Notice tone="error">{c.errors.services}</Notice> : null}
       </section>
 

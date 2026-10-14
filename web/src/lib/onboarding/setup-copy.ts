@@ -11,6 +11,7 @@ export type SetupCopy = {
   serviceName: string;
   minutes: string;
   price: string;
+  currencyLabel: string;
   quote: string;
   quoteOn: string;
   hiddenUntilPriced: string;
@@ -54,6 +55,7 @@ export const SETUP_COPY: Record<FlowLocale, SetupCopy> = {
     serviceName: "Service name",
     minutes: "Minutes",
     price: "Price",
+    currencyLabel: "Currency",
     quote: "Price on quote",
     quoteOn: "On quote",
     hiddenUntilPriced: "No price yet: it stays off your site until you add one.",
@@ -101,6 +103,7 @@ export const SETUP_COPY: Record<FlowLocale, SetupCopy> = {
     serviceName: "Nombre del servicio",
     minutes: "Minutos",
     price: "Precio",
+    currencyLabel: "Moneda",
     quote: "Precio a cotizar",
     quoteOn: "A cotizar",
     hiddenUntilPriced: "Sin precio: no aparece en tu sitio hasta que lo agregues.",

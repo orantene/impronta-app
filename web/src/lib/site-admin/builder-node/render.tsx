@@ -159,7 +159,7 @@ import { TicketPickerIsland } from "./ticket-picker-island";
 import { EventProgramIsland } from "./event-program-island";
 import { QrCodeBlock } from "./qr-code-block";
 import { menuBoardCopy } from "./menu-board-copy";
-import { type TalentOffering } from "@/lib/talent/offerings-types";
+import { offeringIsQuote, type TalentOffering } from "@/lib/talent/offerings-types";
 import { CatalogIslandBoundary } from "@/components/public-booking/catalog-island-boundary";
 import { resolveServicesCatalogSheetAccent } from "./services-catalog-defaults";
 import { renderStatsSpecBlock } from "./stats-spec-block";
@@ -6315,11 +6315,7 @@ function renderBuilderNodeElement(
         priceType: string;
         priceDisplay: string;
       }): string => {
-        if (
-          item.amountCents == null ||
-          item.priceDisplay === "quote" ||
-          item.priceType === "custom"
-        ) {
+        if (offeringIsQuote(item)) {
           return "Quote on request";
         }
         // TUL-383: one public money format (`$700 MXN`) via shared formatter.
