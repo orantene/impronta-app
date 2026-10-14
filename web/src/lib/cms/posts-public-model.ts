@@ -426,7 +426,7 @@ export function applyAiCrawlerToggle(robots: MetadataRoute.Robots, aiCrawlersAll
     // A group with no user agent applies to every crawler, which is "*".
     if (agents.length === 0) return [{ ...rule, userAgent: "*" }];
     const kept = agents.filter((a) => !blocked.has(a));
-    if (kept.length === agents.length) return [rule];
+    if (kept.length === agents.length) return [{ ...rule, userAgent: agents }];
     return kept.length > 0 ? [{ ...rule, userAgent: kept }] : [];
   });
   rules.push({ userAgent: [...AI_CRAWLER_USER_AGENTS], disallow: "/" });

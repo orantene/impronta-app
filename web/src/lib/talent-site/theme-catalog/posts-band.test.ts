@@ -70,7 +70,7 @@ test("collection designs seed the band heading in es + en", () => {
 });
 
 test("withPostsBand is idempotent and appends when there is no contact band", () => {
-  const once = withPostsBand({ homeTree: [{ id: "h", kind: "container", props: { slotKey: "hero" }, children: [] } as BuilderNode] }, "x");
+  const once = withPostsBand({ homeTree: [{ id: "h", kind: "container", props: { slotKey: "hero" }, children: [] } as unknown as BuilderNode] }, "x");
   assert.equal(once.homeTree.length, 2);
   assert.equal(slotOf(once.homeTree[1]!), "posts");
   assert.equal(withPostsBand(once, "x").homeTree.length, 2);

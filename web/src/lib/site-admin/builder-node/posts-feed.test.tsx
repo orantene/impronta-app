@@ -340,7 +340,7 @@ test("kind is a registered structural leaf, creatable and valid in a tree", () =
 test("one gallery entry, listed by BOTH builders' policies (talent and agency)", () => {
   const entries = ADD_GALLERY_ITEMS.filter((i) => i.nativeKind === "posts_feed");
   assert.equal(entries.length, 1);
-  for (const siteKind of ["agency", "talent_personal", "hub"] as const) {
+  for (const siteKind of ["agency", "talent", "business"] as const) {
     const visible = filterGalleryItemsForSiteKind(ADD_GALLERY_ITEMS, siteKind);
     assert.ok(visible.some((i) => i.nativeKind === "posts_feed"), siteKind);
   }
