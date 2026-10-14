@@ -36,6 +36,7 @@ import type {
   TodayBadge,
   TodayRow,
 } from "@/lib/overview/model";
+import { greetingHour } from "@/lib/overview/greeting-hour";
 import { setupProgress } from "@/lib/overview/model";
 import { useDashboardText } from "../dashboard-i18n";
 import { Icon } from "../primitives";
@@ -136,7 +137,7 @@ export function OverviewBoard() {
   }).formatToParts(now);
   const datePart = (type: string) => dateParts.find((p) => p.type === type)?.value ?? "";
   const dateLabel = `${datePart("weekday")} ${datePart("day")} ${datePart("month")}`.replace(/\.\s/g, " ").trim();
-  const greeting = interpolate(t(greetingKey(now.getHours())), {
+  const greeting = interpolate(t(greetingKey(greetingHour(now, snapshot?.timeZone))), {
     name: greetingName,
   });
 
@@ -570,7 +571,7 @@ function SetupReadiness({
         </div>
         {missingAll.length > 3 ? (
           <button type="button" onClick={onFinish} className={`${BUTTON_BASE} h-[30px] px-[14px] text-[12px] ${TONE_SECONDARY}`}>
-            {t(`${K}.setup.seeAll`)}
+            {interpolate(t(`${K}.setup.seeAllCount`), { count: missingAll.length })}
           </button>
         ) : null}
       </div>

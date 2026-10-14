@@ -5013,7 +5013,10 @@
       "title": "Clients",
       "freeSubtitle": "Inquiries from your channels. Filter by what needs you.",
       "oneInquiryTitle": "One inquiry so far",
-      "oneInquiryDesc": "A test inquiry from a friend referral. No client relationship yet.",
+      "oneInquiryDesc": "Open it to see the conversation. It becomes a client once you work together.",
+      "noInquiryTitle": "No inquiries yet",
+      "noInquiryDesc": "When someone reaches out through your channels, it shows up here and in your Inbox.",
+      "manyInquiryTitle": "{count} inquiries so far",
       "seeInquiry": "See inquiry",
       "ownedListTitle": "Owned client list",
       "ownedListDesc": "With Studio, every inquiry on your domain becomes a client you own. We never share your client list with anyone, including Tulala discovery.",
@@ -13772,7 +13775,7 @@
     "adminReviews": {
       "eyebrow": "Reputation",
       "title": "Reviews",
-      "subtitle": "Reported reviews, rating integrity, and review photos across your talent.",
+      "subtitle": "Reported reviews, rating integrity, and review photos across your workspace.",
       "reviewPhotos": "Review photos",
       "noTenant": "Sign in to a workspace to moderate its reviews."
     },
@@ -17821,7 +17824,7 @@
         "missing": "Missing: {items}",
         "complete": "Everything is set up.",
         "finish": "Finish setup",
-        "seeAll": "See all",
+        "seeAllCount": "See all {count}",
         "setUp": "Set up",
         "item": {
           "timeZone": "Time zone",

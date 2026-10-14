@@ -5013,7 +5013,10 @@
       "title": "Clientes",
       "freeSubtitle": "Consultas de tus canales. Filtra por lo que requiere tu atención.",
       "oneInquiryTitle": "Una consulta hasta ahora",
-      "oneInquiryDesc": "Una consulta de prueba de una recomendación de un amigo. Aún sin relación de cliente.",
+      "oneInquiryDesc": "Ábrela para ver la conversación. Se vuelve cliente cuando trabajen juntos.",
+      "noInquiryTitle": "Aún no hay consultas",
+      "noInquiryDesc": "Cuando alguien te escriba por tus canales, aparecerá aquí y en tu Bandeja.",
+      "manyInquiryTitle": "{count} consultas hasta ahora",
       "seeInquiry": "Ver consulta",
       "ownedListTitle": "Lista de clientes propia",
       "ownedListDesc": "Con Studio, cada consulta en tu dominio se convierte en un cliente que es tuyo. Nunca compartimos tu lista de clientes con nadie, incluida la búsqueda de Tulala.",
@@ -13772,7 +13775,7 @@
     "adminReviews": {
       "eyebrow": "Reputación",
       "title": "Reseñas",
-      "subtitle": "Reseñas reportadas, integridad de calificaciones y fotos de reseñas de tu talento.",
+      "subtitle": "Reseñas reportadas, integridad de calificaciones y fotos de reseñas de tu espacio.",
       "reviewPhotos": "Fotos de reseñas",
       "noTenant": "Inicia sesión en un espacio para moderar sus reseñas."
     },
@@ -17821,7 +17824,7 @@
         "missing": "Falta: {items}",
         "complete": "Todo está configurado.",
         "finish": "Terminar configuración",
-        "seeAll": "Ver todo",
+        "seeAllCount": "Ver las {count}",
         "setUp": "Configurar",
         "item": {
           "timeZone": "Zona horaria",
