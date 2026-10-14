@@ -651,7 +651,7 @@ export function CatalogBookingSheet({
                   aria-invalid={touched && !nameValid}
                   data-testid="cb-name"
                 />
-                {touched && !nameValid ? <em>{es ? "Escribe tu nombre para confirmar." : "Enter your name to confirm."}</em> : null}
+                {touched && !nameValid ? <em role="alert">{es ? "Escribe tu nombre para confirmar." : "Enter your name to confirm."}</em> : null}
               </label>
               <label className="jb-field">
                 <span>
@@ -666,7 +666,7 @@ export function CatalogBookingSheet({
                   aria-invalid={touched && !phoneValid}
                   data-testid="cb-phone"
                 />
-                {touched && !phoneValid ? <em>{es ? "Revisa el número." : "Check the number."}</em> : null}
+                {touched && !phoneValid ? <em role="alert">{es ? "Revisa el número." : "Check the number."}</em> : null}
                 {askAttempted && !chatPhoneValid ? <em>{es ? "WhatsApp hace falta para chatear." : "WhatsApp is needed to chat."}</em> : null}
               </label>
               <label className="jb-field">
@@ -681,7 +681,7 @@ export function CatalogBookingSheet({
                   aria-invalid={touched && !emailValid}
                   data-testid="cb-email"
                 />
-                {touched && !emailValid ? <em>{es ? "Necesitamos un correo válido." : "We need a valid email."}</em> : null}
+                {touched && !emailValid ? <em role="alert">{es ? "Necesitamos un correo válido." : "We need a valid email."}</em> : null}
               </label>
               {addr.rule === "required" ? <ServiceAddressField value={addr.fields.address} note={addr.fields.note} onChange={addr.setFields} error={addr.error} locale={locale} /> : null}
               <p className="jb-fixture" data-catalog-who-pay="">
