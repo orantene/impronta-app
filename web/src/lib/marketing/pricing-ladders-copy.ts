@@ -100,7 +100,7 @@ const en = {
         "Coordinated bookings",
         "Team seats",
       ],
-      cta: "Start on Studio",
+      cta: "Start on Team",
     },
     agency: {
       line: "For a roster and a team with no ceiling on either.",
@@ -213,7 +213,7 @@ const es: PricingLaddersCopy = {
         "Reservas coordinadas",
         "Lugares para tu equipo",
       ],
-      cta: "Empieza con Studio",
+      cta: "Empieza con Equipo",
     },
     agency: {
       line: "Para un catálogo y un equipo sin tope en ninguno de los dos.",
@@ -266,6 +266,9 @@ const ES_TIER_NAMES: Readonly<Record<string, string>> = {
   Website: "Sitio web",
   Portfolio: "Portafolio",
   Agency: "Agencia",
+  Team: "Equipo",
+  Business: "Negocio",
+  Network: "Red",
 };
 
 function isSpanishLocale(locale: string): boolean {
