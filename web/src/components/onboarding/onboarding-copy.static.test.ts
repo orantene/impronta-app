@@ -11,3 +11,14 @@ test("TUL-804: the design step promises no fixed number of looks", () => {
     assert.doesNotMatch(sub, /\b(three|tres|two|dos|3|2)\b/i, l);
   }
 });
+
+test("TUL-991: the saving screen says 'you can close this' once and promises no ten seconds", () => {
+  for (const l of ["en", "es"]) {
+    const b = msg(l).public.onboarding.building;
+    for (const k of ["sub", "subTalent"]) {
+      assert.doesNotMatch(b[k], /close this|cerrar esto/i, `${l}.${k}`);
+      assert.doesNotMatch(b[k], /ten seconds|diez segundos/i, `${l}.${k}`);
+    }
+    assert.match(b.canClose, /close this|cerrar esto/i);
+  }
+});

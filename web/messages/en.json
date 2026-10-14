@@ -2046,7 +2046,7 @@
       "building": {
         "title": "Building it",
         "titleTalent": "Saving your page",
-        "sub": "Usually under half a minute, up to one. You can close this; it keeps building.",
+        "sub": "Usually under half a minute, up to one.",
         "steps": {
           "account": "Your account",
           "workspace": "Your workspace",
@@ -2055,7 +2055,7 @@
           "menu": "Your menu",
           "profile": "Your page"
         },
-        "subTalent": "About ten seconds. You can close this; it keeps going.",
+        "subTalent": "Usually under half a minute.",
         "progressLabel": "Building",
         "canClose": "You can close this; it keeps building and your page will be here when you come back.",
         "while": {

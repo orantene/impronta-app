@@ -2046,7 +2046,7 @@
       "building": {
         "title": "Construyéndolo",
         "titleTalent": "Guardando tu página",
-        "sub": "Normalmente menos de medio minuto, hasta uno. Puedes cerrar esto; sigue construyéndose.",
+        "sub": "Normalmente menos de medio minuto, hasta uno.",
         "steps": {
           "account": "Tu cuenta",
           "workspace": "Tu espacio de trabajo",
@@ -2055,7 +2055,7 @@
           "menu": "Tu menú",
           "profile": "Tu página"
         },
-        "subTalent": "Unos diez segundos. Puedes cerrar esto; sigue avanzando.",
+        "subTalent": "Normalmente menos de medio minuto.",
         "progressLabel": "Construyendo",
         "canClose": "Puedes cerrar esto; sigue construyéndose y tu página estará aquí cuando vuelvas.",
         "while": {
