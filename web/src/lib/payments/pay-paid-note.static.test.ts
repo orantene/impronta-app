@@ -27,7 +27,8 @@ describe("pay page language comes from the page, not the dashboard cookie (TUL-4
     const views = page.split("<CheckoutView").slice(1).map((v) => v.slice(0, v.indexOf("/>")));
     assert.ok(views.length >= 9);
     for (const v of views) assert.match(v, /locale=\{uiLocale\}/);
-    assert.ok(page.indexOf("const uiLocale") < page.indexOf("loadPaymentLinkByCode(admin"), "locale is known before the expired view");
+    const render = page.slice(page.indexOf("async function renderPayByCode"));
+    assert.ok(render.indexOf("const uiLocale") < render.indexOf("loadPaymentLinkByCode(admin"), "locale is known before the expired view");
   });
   it("CheckoutView translates with the passed locale", () => {
     assert.match(view, /const t = props\.locale \? translatorFor\(props\.locale\) : dashboardT;/);

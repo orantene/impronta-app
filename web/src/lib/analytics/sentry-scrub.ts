@@ -10,24 +10,25 @@ export function scrubUrl(raw: unknown): string | undefined {
 
 type Bag = Record<string, unknown>;
 
+// No index signatures on purpose: Sentry's own ErrorEvent/Breadcrumb are interfaces,
+// and an interface is not assignable to a type that demands `[k: string]: unknown`,
+// which would make these helpers unusable as beforeSend/beforeBreadcrumb.
 export type ScrubbableBreadcrumb = {
   category?: string;
+  message?: string;
   data?: Bag;
-  [k: string]: unknown;
 };
 
 export type ScrubbableEvent = {
-  user?: { ip_address?: unknown; [k: string]: unknown };
+  user?: { ip_address?: unknown };
   request?: {
     url?: string;
     query_string?: unknown;
     cookies?: unknown;
     headers?: Record<string, string>;
-    [k: string]: unknown;
   };
   tags?: Record<string, unknown>;
   breadcrumbs?: ScrubbableBreadcrumb[];
-  [k: string]: unknown;
 };
 
 const BREADCRUMB_URL_KEYS = ["from", "to", "url"];

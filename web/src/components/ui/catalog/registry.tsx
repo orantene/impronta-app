@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ImpactPreview } from "@/components/ui/impact-preview";
+import { GuestPhoneField } from "@/components/ui/guest-phone-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SearchOrCreatePicker } from "@/components/ui/search-or-create-picker";
@@ -61,6 +62,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { StaffPhoneCountryProvider } from "@/components/ui/staff-phone-country-context";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export interface CatalogVariant {
@@ -91,6 +93,13 @@ const SAMPLE_ROWS = [
   { night: "Sat 13 Sep", tier: "General", sold: 220, held: 0 },
   { night: "Sat 13 Sep", tier: "Terrace", sold: 40, held: 4 },
 ];
+
+/** GuestPhoneField is controlled; the catalog needs one that holds its own value. */
+function CatalogPhone(props: Omit<React.ComponentProps<typeof GuestPhoneField>, "value" | "onChange"> & { initial?: string }) {
+  const { initial = "", ...rest } = props;
+  const [value, setValue] = React.useState(initial);
+  return <GuestPhoneField {...rest} value={value} onChange={setValue} />;
+}
 
 export const UI_CATALOG: readonly CatalogEntry[] = [
   {
@@ -568,6 +577,51 @@ export const UI_CATALOG: readonly CatalogEntry[] = [
             <Skeleton className="h-4 w-2/3" />
             <Skeleton className="h-4 w-1/3" />
           </div>
+        ),
+      },
+    ],
+  },
+  {
+    id: "guest-phone-field",
+    title: "Guest phone field",
+    file: "guest-phone-field.tsx",
+    why: "The one phone input for booking and inquiry forms: country picker plus number, stored as E.164. Empty, filled, invalid and disabled are the states that matter.",
+    variants: [
+      {
+        id: "empty",
+        label: "Empty",
+        render: () => <CatalogPhone locale="en" ipCountry="MX" testId="catalog-phone-empty" />,
+      },
+      {
+        id: "filled",
+        label: "Filled",
+        render: () => <CatalogPhone locale="en" initial="+525512345678" testId="catalog-phone-filled" />,
+      },
+      {
+        id: "invalid",
+        label: "Invalid",
+        render: () => <CatalogPhone locale="en" initial="+52123" invalid testId="catalog-phone-invalid" />,
+      },
+      {
+        id: "disabled",
+        label: "Disabled",
+        render: () => <CatalogPhone locale="en" initial="+525512345678" disabled testId="catalog-phone-disabled" />,
+      },
+    ],
+  },
+  {
+    id: "staff-phone-country-context",
+    title: "Staff phone country",
+    file: "staff-phone-country-context.tsx",
+    why: "Provides the workspace country so staff phone fields default to it. It renders nothing itself; the variant shows the field it configures.",
+    variants: [
+      {
+        id: "workspace-country",
+        label: "Workspace country set",
+        render: () => (
+          <StaffPhoneCountryProvider country="US">
+            <CatalogPhone locale="en" optional testId="catalog-staff-phone" />
+          </StaffPhoneCountryProvider>
         ),
       },
     ],

@@ -7893,7 +7893,9 @@
           "balance": "Solde dû",
           "requestPayment": "Demander le paiement",
           "refund": "Rembourser",
-          "none": "Aucun frais pour l'instant"
+          "none": "Aucun frais pour l'instant",
+          "status": "Statut",
+          "pendingOffer": "Offre envoyée · paiement en attente"
         },
         "files": {
           "title": "Fichiers"

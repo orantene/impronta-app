@@ -81,7 +81,7 @@ function model(locale: string) {
   });
 }
 
-type Payload = { brief?: { task_id?: string; task_label?: string; note?: string } };
+type Payload = { contactPhone?: string; brief?: { task_id?: string; task_label?: string; note?: string; guest_note?: string } };
 
 function mount(locale: string, mode: "demo" | "live" = "demo") {
   const calls: Payload[] = [];
