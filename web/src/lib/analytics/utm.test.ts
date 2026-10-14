@@ -34,7 +34,7 @@ describe("utmFromSearch", () => {
   });
 });
 
-import { buildLegacyProfileViewPayload, sanitizeReferrer } from "./utm";
+import { buildLegacyProfileViewPayload, buildSitePageViewPayload, sanitizeReferrer } from "./utm";
 
 describe("view_talent_profile payload", () => {
   it("carries a referrer reduced to its origin", () => {
@@ -52,5 +52,21 @@ describe("view_talent_profile payload", () => {
     assert.equal("referrer" in buildLegacyProfileViewPayload({ talentId: "t", locale: "en", referrer: "" }), false);
     assert.equal(sanitizeReferrer("android-app://com.x"), null);
     assert.equal(sanitizeReferrer("garbage"), null);
+  });
+});
+
+describe("buildSitePageViewPayload", () => {
+  it("sends an origin-only referrer (no path, query, fragment)", () => {
+    const p = buildSitePageViewPayload({
+      surface: "storefront",
+      locale: "en",
+      referrer: "https://example.com/reset?token=abc#frag",
+    });
+    assert.equal(p.referrer, "https://example.com");
+  });
+  it("drops empty and non-http(s) referrers", () => {
+    for (const r of ["", null, undefined, "javascript:alert(1)", "android-app://com.x/path", "nonsense"]) {
+      assert.equal("referrer" in buildSitePageViewPayload({ surface: "storefront", locale: "en", referrer: r }), false);
+    }
   });
 });
