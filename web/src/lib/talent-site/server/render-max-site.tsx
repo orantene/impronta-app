@@ -52,7 +52,7 @@ import { loadTalentPolicyModel, policyMainNode, policySeo } from "./policy-main"
 import { policyDocForSlug } from "@/lib/talent-policies/public";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { parseServiceSlug, resolveServiceBySlug, serviceSlug } from "@/lib/talent-site/service-page";
-import { serviceMainNode, serviceSeo } from "./service-main";
+import { serviceMainNode, serviceRelatedLinks, serviceSeo } from "./service-main";
 import { renderMaxSiteDocument } from "./render-max-site-document";
 
 /** Re-export so existing `import type { MaxSiteSeo } from "./render-max-site"` stays valid. */
@@ -298,6 +298,7 @@ async function renderTalentMaxSiteUnguarded(
     // TUL-586: the service page. Slug title comes from the talent's primary language so hreflang pairs share one path.
     let serviceOffering: Awaited<ReturnType<typeof loadPublicOfferingsForProfile>>[number] | null = null;
     let servicePath: string | null = null;
+    let serviceRelated: ReturnType<typeof serviceRelatedLinks> = [];
     if (isServiceSlug) {
       const primary = localeCtx.settings.defaultLocale;
       const [inLocale, inPrimary] = await Promise.all([
@@ -310,6 +311,9 @@ async function renderTalentMaxSiteUnguarded(
       if (!serviceOffering) return NOT_FOUND;
       const primaryRow = (inPrimary ?? inLocale).find((o) => o.id === serviceOffering!.id) ?? serviceOffering;
       servicePath = `/${serviceSlug(primaryRow)}`;
+      serviceRelated = serviceRelatedLinks(inLocale, inPrimary, serviceOffering.id, locale, (p) =>
+        talentSiteLocalePath(p, locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales),
+      );
     }
     const node = await timed("maxSite.document", () =>
       renderMaxSiteDocument({
@@ -318,6 +322,7 @@ async function renderTalentMaxSiteUnguarded(
           : serviceOffering
             ? serviceMainNode(serviceOffering, {
                 locale,
+                related: serviceRelated,
                 homePath: talentSiteLocalePath("/", locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales),
               })
             : undefined,
