@@ -24,3 +24,9 @@ test("catalog booking when-step times grid pins full sheet width", () => {
   assert.match(css, /\.jb-body\{[^}]*width:100%/);
   assert.match(css, /\.jb-times\{grid-template-columns:repeat\(auto-fill,minmax\(104px,1fr\)\)/);
 });
+
+test("TUL-516 E6: back links stack in jb-back-nav (never inline)", () => {
+  assert.match(css, /\.jb-back-nav\{[^}]*flex-direction:column/);
+  assert.match(css, /\.jb-back-nav\{[^}]*gap:8px/);
+  assert.match(css, /\.jb-back-link\{[^}]*display:block/);
+});
