@@ -41,6 +41,8 @@ export interface EmailBrand {
    * than silently telling account holders they are strangers.
    */
   recipientHasAccount?: boolean;
+  /** TUL-G4: absolute "save your bookings" sign-in URL for a guest; absent renders no line. */
+  saveBookingsUrl?: string | null;
   /** Absolute https logo URL; replaces the text wordmark when present. */
   logoUrl?: string | null;
   /**

@@ -11,13 +11,15 @@ type Admin = {
 };
 
 export async function resolveVisitInquiryId(admin: Admin, tenantId: string, id: string): Promise<string> {
-  const { data: inq } = await admin.from("inquiries").select("id").eq("id", id).eq("tenant_id", tenantId).maybeSingle();
+  const { data: inq, error: inqErr } = await admin.from("inquiries").select("id").eq("id", id).eq("tenant_id", tenantId).maybeSingle();
+  if (inqErr) console.error("[visit-id] inquiry lookup failed", inqErr.message);
   if (inq) return id;
-  const { data: bk } = await admin
+  const { data: bk, error: bkErr } = await admin
     .from("agency_bookings")
     .select("source_inquiry_id")
     .eq("id", id)
     .eq("tenant_id", tenantId)
     .maybeSingle();
+  if (bkErr) console.error("[visit-id] booking lookup failed", bkErr.message);
   return (bk as Row)?.source_inquiry_id ?? id;
 }

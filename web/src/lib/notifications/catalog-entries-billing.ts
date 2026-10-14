@@ -194,8 +194,6 @@ const PAYMENT_INVOICE_ISSUED_CLIENT: CatalogEntry = {
         invoiceUrl: pageUrl(
           brand,
           bookingId ? `/client/bookings/${bookingId}?tab=payment` : "/client/bookings",
-          undefined,
-          { inquiryId: event.inquiryId, tenantId: event.tenantId },
         ),
         brand,
         unsubscribeUrl,
@@ -253,8 +251,6 @@ const PAYMENT_DEPOSIT_RECEIVED_CLIENT: CatalogEntry = {
         payBalanceUrl: pageUrl(
           brand,
           bookingId ? `/client/bookings/${bookingId}?tab=payment` : "/client/bookings",
-          undefined,
-          { inquiryId: event.inquiryId, tenantId: event.tenantId },
         ),
         brand,
         unsubscribeUrl,
