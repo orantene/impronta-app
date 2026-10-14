@@ -16,7 +16,9 @@ import {
   createTalentCheckoutSession,
   createTalentBillingPortalSession,
   setTalentSubscriptionCancellation,
+  changeTalentSubscriptionPlan,
 } from "@/lib/stripe/talent-billing";
+import type { TalentPlanChangeErrorCode } from "@/lib/billing/talent-plan-change";
 import type {
   TalentLifecycleAction,
   TalentLifecycleErrorCode,
@@ -179,4 +181,39 @@ export async function resumeTalentSubscription(
   tenantSlug: string,
 ): Promise<TalentCancellationActionResult> {
   return changeTalentCancellation(tenantSlug, "resume");
+}
+
+export type TalentPlanChangeActionResult =
+  | { ok: true; planKey: TalentPlanKey }
+  | { ok: false; code: TalentPlanChangeErrorCode | "unauthenticated" | "read_only" | "invalid_plan" };
+
+/**
+ * In-app upgrade / downgrade with proration (TUL-831). The browser names only
+ * the target plan; the profile comes from the session and the subscription row
+ * must belong to the signed-in user.
+ */
+export async function changeTalentPlan(
+  tenantSlug: string,
+  target: TalentPlanKey,
+): Promise<TalentPlanChangeActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "read_only" };
+  if (target !== "talent_pro" && target !== "talent_portfolio") return { ok: false, code: "invalid_plan" };
+
+  const session = await getCachedActorSession();
+  if (!session.user) return { ok: false, code: "unauthenticated" };
+
+  const scope = await getTenantPortalScopeBySlug(tenantSlug);
+  if (!scope) return { ok: false, code: "not_found" };
+
+  const talentProfile = await loadTalentSelfProfile(session.user.id, scope.tenantId);
+  if (!talentProfile) return { ok: false, code: "not_found" };
+
+  const result = await changeTalentSubscriptionPlan({
+    talentProfileId: talentProfile.id,
+    callerUserId: session.user.id,
+    target,
+  });
+  if (!result.ok) logServerError("stripe-talent-actions.changePlan", result.code);
+  return result;
 }

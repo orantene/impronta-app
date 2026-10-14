@@ -37,6 +37,12 @@ import {
   type TalentSubscriptionRow,
 } from "@/lib/billing/talent-subscription-lifecycle";
 import type Stripe from "stripe";
+import {
+  catalogIntervalFor,
+  runTalentPlanChange,
+  type TalentPlanChangeResult,
+  type TalentPlanChangeRow,
+} from "@/lib/billing/talent-plan-change";
 import { decideTalentPlanState, type StoredTalentPlanRow } from "@/lib/billing/talent-plan-state";
 import { onTalentPlanChanged } from "@/lib/talent-site/server/plan-change";
 import type { BillingResult } from "@/lib/stripe/workspace-billing";
@@ -336,6 +342,59 @@ export async function setTalentSubscriptionCancellation(input: {
           .update({ cancel_at_period_end: cancelAtPeriodEnd, updated_at: new Date().toISOString() })
           .eq("talent_profile_id", talentProfileId);
         if (error) logServerError("talent-billing.lifecycle.mirror", error);
+      },
+    },
+    input,
+  );
+}
+
+/**
+ * In-app plan change with proration (TUL-831). Ownership is re-checked inside
+ * `runTalentPlanChange`; the plan itself lands via the subscription.updated
+ * webhook (TUL-836), so nothing is mirrored locally here.
+ */
+export async function changeTalentSubscriptionPlan(input: {
+  talentProfileId: string;
+  callerUserId: string;
+  target: TalentPlanKey;
+}): Promise<TalentPlanChangeResult> {
+  const sb = createServiceRoleClient();
+  if (!sb) return { ok: false, code: "unavailable" };
+  const stripe = isStripeConfigured() ? getStripe() : null;
+  if (!stripe) return { ok: false, code: "unavailable" };
+
+  return runTalentPlanChange(
+    {
+      loadRow: async (talentProfileId) => {
+        const { data, error } = await sb
+          .from("talent_subscriptions")
+          .select("user_id, stripe_subscription_id, status, plan_key")
+          .eq("talent_profile_id", talentProfileId)
+          .maybeSingle();
+        if (error) {
+          logServerError("talent-billing.planChange.load", error);
+          return null;
+        }
+        return (data as TalentPlanChangeRow | null) ?? null;
+      },
+      changePrice: async (subscriptionId, target) => {
+        try {
+          const current = await stripe.subscriptions.retrieve(subscriptionId);
+          const item = current.items.data[0];
+          if (!item) return false;
+          const priceId = await resolveTalentPriceId(target, catalogIntervalFor(item.price?.recurring?.interval));
+          if (!priceId) return false;
+          await stripe.subscriptions.update(subscriptionId, {
+            items: [{ id: item.id, price: priceId }],
+            proration_behavior: "create_prorations",
+            // plan_key is what the webhook reads to name the plan (TUL-836).
+            metadata: { ...current.metadata, plan_key: target, talent_plan_key: target },
+          });
+          return true;
+        } catch (err) {
+          logServerError("talent-billing.planChange.stripe", err);
+          throw err;
+        }
       },
     },
     input,

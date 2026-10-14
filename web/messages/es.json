@@ -20230,7 +20230,12 @@
       "errorGeneric": "No pudimos cambiar tu plan. No se hizo ningún cargo. Inténtalo de nuevo en un momento.",
       "manage": "Administrar suscripción",
       "invoices": "Facturas y recibos",
-      "opening": "Abriendo..."
+      "opening": "Abriendo...",
+      "switchToPortfolio": "Cambiar a Web Office",
+      "switchConfirm": "¿Cambiar de plan ahora? El nuevo plan empieza hoy. Tu próxima factura suma solo la diferencia por lo que queda de este periodo.",
+      "switching": "Cambiando...",
+      "switchDone": "Cambio de plan enviado. Se verá aquí en un minuto.",
+      "errorPastDue": "Tu último pago no se procesó. Actualiza tu tarjeta primero y luego cambia de plan."
     }
   },
   "admin": {

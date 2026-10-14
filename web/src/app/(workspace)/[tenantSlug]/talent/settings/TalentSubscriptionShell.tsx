@@ -21,6 +21,7 @@ import {
   resumeTalentSubscription,
 } from "./stripe-talent-actions";
 import { useT } from "@/i18n/use-t";
+import { TalentPlanChangeButton } from "./TalentPlanChangeButton";
 import { billingPortalEntry } from "@/lib/billing/billing-portal-entry";
 import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
 import type { TalentSubscriptionState } from "../../_data-bridge";
@@ -481,6 +482,10 @@ export function TalentSubscriptionShell({
       {/* Manage subscription (paid active subscribers) */}
       {hasActiveSub && (
         <div className="flex flex-wrap items-start gap-2">
+          {/* Active grandfathered Pro: switch in place with proration (TUL-831) */}
+          {stripeEnabled && planKey === "talent_pro" && !subscription!.cancelAtPeriodEnd && (
+            <TalentPlanChangeButton tenantSlug={tenantSlug} target="talent_portfolio" />
+          )}
           <ManageButton tenantSlug={tenantSlug} />
           {stripeEnabled && (
             <CancelResumeButton

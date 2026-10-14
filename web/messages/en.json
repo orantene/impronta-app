@@ -20230,7 +20230,12 @@
       "errorGeneric": "We could not change your plan. Nothing was charged. Try again in a moment.",
       "manage": "Manage subscription",
       "invoices": "Invoices and receipts",
-      "opening": "Opening..."
+      "opening": "Opening...",
+      "switchToPortfolio": "Switch to Web Office",
+      "switchConfirm": "Switch plans now? The new plan starts today. Your next invoice adds only the difference for the rest of this period.",
+      "switching": "Switching...",
+      "switchDone": "Plan change sent. It shows here within a minute.",
+      "errorPastDue": "Your last payment did not go through. Update your card first, then change plans."
     }
   },
   "admin": {
