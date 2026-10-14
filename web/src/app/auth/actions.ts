@@ -34,6 +34,8 @@ import { isAgeAndTermsConfirmed } from "@/lib/legal/acceptances.core";
 import { recordSignupAcceptance } from "@/lib/legal/acceptances";
 import { resetLocaleOnSignIn } from "@/lib/auth/reset-locale-on-sign-in";
 import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { claimAndActivateVerifiedClient } from "@/lib/client-account/after-verified-sign-in.server";
+import { isAuthEmailConfirmedForClaim } from "@/lib/client-account/pure";
 
 /**
  * `pendingEmail` is set when signup succeeded but the session is not live yet
@@ -194,6 +196,14 @@ export async function signInWithEmail(
   // by Supabase), not a second getUser() round trip; the independent
   // post-auth reads then run together instead of one after another.
   const user = signInData?.user ?? null;
+  // G3: a confirmed client who signs in by password claims + activates first.
+  if (user) {
+    await claimAndActivateVerifiedClient({
+      userId: user.id,
+      email: user.email,
+      emailProven: isAuthEmailConfirmedForClaim(user),
+    });
+  }
   const [profileData] = await Promise.all([
     user ? loadAccessProfile(supabase, user.id) : Promise.resolve(null),
     user ? resetLocaleOnSignIn(user.id) : Promise.resolve(),
@@ -280,6 +290,11 @@ export async function signInWithEmailModal(
   }
 
   if (data.user) {
+    await claimAndActivateVerifiedClient({
+      userId: data.user.id,
+      email: data.user.email,
+      emailProven: isAuthEmailConfirmedForClaim(data.user),
+    });
     await resetLocaleOnSignIn(data.user.id);
     await claimGuestSupportOnAuth(data.user.id);
     await claimTulalaBriefOnAuth(supabase, data.user.id);
@@ -522,5 +537,7 @@ export async function signOut(): Promise<void> {
   }
   await clearGuestCookie();
   revalidatePath("/", "layout");
-  redirect("/");
+  // S1: a server action cannot expire both cookie scopes (name-keyed jar); the
+  // route does it with raw Set-Cookie headers, then lands on the home page.
+  redirect("/auth/sign-out");
 }

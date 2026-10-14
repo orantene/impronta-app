@@ -21,7 +21,12 @@ import { logServerError } from "@/lib/server/safe-error";
  * resolves the booked talent through it; callers must only invoke this when the
  * booking has a `source_inquiry_id`.
  *
- * Fire-and-forget: the dispatcher no-ops without RESEND_API_KEY and the stable
+ * Returns a promise that NEVER rejects. Server-action callers (the free /
+ * pay-in-person guest booking) must `await` it: on serverless the function can
+ * be frozen the moment the action returns, so a detached `void` dispatch could
+ * lose every dispatch_log row (TUL-93). The webhook caller (`markPaid`) keeps
+ * calling it detached, which is safe there because the handler outlives it.
+ * The dispatcher no-ops without RESEND_API_KEY and the stable
  * `eventId` (`booking-confirmed:<bookingId>`) collapses a re-paid / re-delivered
  * transaction (and a multi-payment booking) to a single confirmation per booking.
  */
@@ -29,15 +34,15 @@ export function notifyBookingConfirmed(params: {
   tenantId: string;
   inquiryId: string;
   bookingId: string;
-}): void {
-  void dispatchEventNotifications({
+}): Promise<void> {
+  return dispatchEventNotifications({
     type: "booking.confirmed",
     tenantId: params.tenantId,
     inquiryId: params.inquiryId,
     bookingId: params.bookingId,
     eventId: `booking-confirmed:${params.bookingId}`,
     payload: { bookingId: params.bookingId },
-  }).catch((err) => {
+  }).then(() => undefined, (err) => {
     logServerError("notifyBookingConfirmed", err);
   });
 }

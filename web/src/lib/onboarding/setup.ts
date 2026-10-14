@@ -26,6 +26,8 @@ export const DAY_LABELS: Record<"en" | "es", Record<DayKey, string>> = {
 
 /** Zones offered when the person is not in Mexico. The list is short on purpose; the rest is "Other". */
 export const TIMEZONE_OPTIONS: ReadonlyArray<{ id: string; label: string }> = [
+  { id: "America/Mexico_City", label: "Ciudad de México (CT)" },
+  { id: "America/Cancun", label: "Cancún (EST)" },
   { id: "America/New_York", label: "New York (ET)" },
   { id: "America/Chicago", label: "Chicago (CT)" },
   { id: "America/Denver", label: "Denver (MT)" },

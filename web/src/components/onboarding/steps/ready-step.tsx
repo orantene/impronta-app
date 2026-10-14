@@ -162,7 +162,7 @@ export function ReadyStep({
         </div>
       ) : null}
 
-      {onPickDesign && path !== "business" ? <DesignPick t={t} value={designChoice} onPick={onPickDesign} /> : null}
+      {onPickDesign && path !== "business" ? <DesignPick t={t} value={designChoice} onPick={onPickDesign} category={understanding.typeChip?.query ?? null} /> : null}
 
       {needsAge ? (
         <div className="mt-5" data-testid="onb-age18">

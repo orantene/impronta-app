@@ -33,4 +33,9 @@ describe("ageTermsLinks (TUL-614)", () => {
     const proxy = readFileSync("src/proxy.ts", "utf8");
     assert.match(proxy, /syncLocaleCookieForDefaultPrefixStrip\(res, pathname/);
   });
+  it("the /start save step links follow the page language too", () => {
+    const src = readFileSync("src/components/onboarding/steps/save-step.tsx", "utf8");
+    assert.match(src, /ageTermsLinks\(getSiteUrl\(\), locale\)/);
+    assert.doesNotMatch(src, /\/legal\/(terms|privacy)`/);
+  });
 });

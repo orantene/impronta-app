@@ -64,6 +64,6 @@ test("sign-in activates only inside the verified-claim gate, after the claim rel
   const src = readFileSync(join(process.cwd(), "src/lib/client-account/actions.ts"), "utf8");
   const gate = src.indexOf("if (mayClaim) {");
   const relink = src.indexOf("await relinkFirstConfirmedClaim(input.userId);", gate);
-  const activate = src.indexOf("activateGuestBookerIfEligible(adminForClaim", gate);
-  assert.ok(gate > 0 && relink > gate && activate > relink, "activation must follow the claim relink inside the mayClaim gate");
+  const activate = src.indexOf("claimAndActivateVerifiedClient(", gate);
+  assert.ok(gate > 0 && relink > gate && activate > relink, "claim + activation must follow the claim relink inside the mayClaim gate");
 });

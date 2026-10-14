@@ -147,6 +147,10 @@ export function isPostAuthNextAllowedForActiveUser(
   if (appRole === "client" && tenantScopedSurface === "client") {
     return true;
   }
+  // G11: the host client area (/account) is a client home too.
+  if (appRole === "client" && (path === "/account" || path.startsWith("/account/"))) {
+    return true;
+  }
 
   return path === dashboardBase || path.startsWith(`${dashboardBase}/`);
 }

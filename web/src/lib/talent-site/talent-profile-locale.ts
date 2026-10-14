@@ -22,6 +22,20 @@ export interface TalentProfileLocale {
   chain: readonly string[];
 }
 
+/**
+ * TUL-687: an explicit `?lang=xx` on `/t/<code>` wins over the path/cookie
+ * locale (middleware only reads it on auth routes). Anything that is not a
+ * plain two-letter code is ignored; the talent's set still bounds the result.
+ */
+export function applyLangQuery(
+  requested: string | null | undefined,
+  lang: string | string[] | null | undefined,
+): string | null | undefined {
+  const raw = Array.isArray(lang) ? lang[0] : lang;
+  const code = typeof raw === "string" ? raw.trim().toLowerCase() : "";
+  return /^[a-z]{2}$/.test(code) ? code : requested;
+}
+
 export function decideTalentProfileLocale(input: {
   requested: string | null | undefined;
   primary: string;

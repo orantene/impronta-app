@@ -10,6 +10,7 @@
 import { readGuestOfferCard, type GuestThreadMessage } from "@/lib/inquiry/guest-chat-contract";
 import { createTranslator } from "@/i18n/messages";
 
+import { offerBubbleBody } from "./offer-bubble-body";
 import {
   accentText,
   formatTime,
@@ -192,7 +193,7 @@ export function MiniChatMessageBubble({
               {labelForKind(m.kind, t)}
             </span>
             <br />
-            {payInPersonLine(m, t) ?? payLinkFailedLine(m, t) ?? (m.body || t("public.guestChat.openFullToView"))}
+            {payInPersonLine(m, t) ?? payLinkFailedLine(m, t) ?? offerBubbleBody(m, t) ?? (m.body || t("public.guestChat.openFullToView"))}
             {offerLines.length > 0 && (
               <span
                 style={{

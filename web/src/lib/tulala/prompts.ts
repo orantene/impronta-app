@@ -51,7 +51,7 @@ const VOICE = [
  * claim about their own business.
  */
 export function buildExtractionPrompt(
-  options: { pack?: IndustryPack | null } = {},
+  options: { pack?: IndustryPack | null; locale?: "en" | "es" } = {},
 ): string {
   // Physical attributes are offered ONLY inside the modelling pack. Withholding
   // the key is the enforcement: the model cannot record a description of
@@ -70,6 +70,13 @@ export function buildExtractionPrompt(
     "5. Booleans are exactly 'true' or 'false'. Numbers are digits. Lists are comma separated.",
     "6. For keys with an allowed list, use one of those values exactly.",
     "",
+    ...(options.locale === "es"
+      ? [
+          "LANGUAGE",
+          "Write descriptive values (work.industry, work.discipline, service and menu names, business kind) in Spanish, whatever language the person used. Keep `quote` exact and proper names unchanged.",
+          "",
+        ]
+      : []),
     "COMMON MISTAKES TO AVOID",
     "- 'I work at a spa' does NOT mean they own a spa. That is business.works_from = someone_elses_premises.",
     "- 'I do nails at home' does NOT mean they have a business. Do not set business.exists.",
