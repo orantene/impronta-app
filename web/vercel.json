@@ -1,5 +1,5 @@
 {
-  "ignoreCommand": "[ \"$VERCEL_ENV\" != \"production\" ] && [ \"$VERCEL_GIT_COMMIT_REF\" != \"program/journeys-2026-09\" ]",
+  "ignoreCommand": "[ \"$VERCEL_GIT_COMMIT_REF\" != \"production\" ] && [ \"$VERCEL_GIT_COMMIT_REF\" != \"program/journeys-2026-09\" ]",
   "regions": [
     "cle1"
   ],
