@@ -238,13 +238,13 @@ export default async function MarketingDirectoryPage({
   const c = pickLocale(locale, {
     en: {
       eyebrow: "The global directory",
-      titleA: "Hire from every roster,",
+      titleA: "Hire independents and rosters,",
       titleB: "in one directory.",
       body: `Browse and hire talent from across the entire ${PLATFORM_BRAND.name} network, independents and agency rosters alike. Search by craft, location, and availability; every profile is here because the talent chose to be seen.`,
     },
     es: {
       eyebrow: "El directorio global",
-      titleA: "Contrata de cada roster,",
+      titleA: "Contrata independientes y rosters,",
       titleB: "en un solo directorio.",
       body: `Explora y contrata talento de toda la red de ${PLATFORM_BRAND.name}, independientes y rosters de agencia por igual. Busca por oficio, ubicación y disponibilidad; cada perfil está aquí porque el talento eligió mostrarse.`,
     },
