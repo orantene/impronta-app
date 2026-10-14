@@ -11547,6 +11547,7 @@ export type Database = {
           promo_id: string
           session_hash: string | null
           tenant_id: string
+          via: string | null
         }
         Insert: {
           at?: string
@@ -11555,6 +11556,7 @@ export type Database = {
           promo_id: string
           session_hash?: string | null
           tenant_id: string
+          via?: string | null
         }
         Update: {
           at?: string
@@ -11563,6 +11565,7 @@ export type Database = {
           promo_id?: string
           session_hash?: string | null
           tenant_id?: string
+          via?: string | null
         }
         Relationships: [
           {
