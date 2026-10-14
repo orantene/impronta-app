@@ -7382,6 +7382,10 @@
         "free": "Free",
         "studio": "Studio",
         "agency": "Agency",
+        "website": "Website",
+        "legacy": "Legacy",
+        "pro": "Pro",
+        "max": "Web Office",
         "network": "Network"
       },
       "role": {

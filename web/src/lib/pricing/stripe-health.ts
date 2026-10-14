@@ -18,6 +18,7 @@ import { cache } from "react";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { loadStripeAccountInfo } from "./stripe-account-info";
+import { planNameEn } from "@/lib/platform/plan-labels";
 
 export type HealthStatus = "ok" | "warn" | "fail" | "unknown";
 
@@ -155,7 +156,7 @@ async function checkPrices(key: string): Promise<HealthCheck> {
 
   const items = await Promise.all(
     live.map(async (row) => {
-      const name = `${row.product_tiers.slug} ${row.interval}ly`;
+      const name = `${planNameEn(row.product_tiers.slug)} ${row.interval}ly`;
       if (!row.stripe_price_id) {
         return {
           name,
