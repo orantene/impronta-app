@@ -67,7 +67,6 @@ import {
 import {
   buildOtpEmailRedirect,
   isCompleteOtpCode,
-  authEmailHasPlusTag,
   isValidAuthEmail,
   normalizeAuthEmail,
   normalizeOtpCode,
@@ -77,13 +76,9 @@ import {
 import { isAgeAndTermsConfirmed } from "@/lib/legal/acceptances.core";
 import { recordSignupAcceptance } from "@/lib/legal/acceptances";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { sendEmailCodeCore } from "@/lib/auth/send-email-code-core";
+import type { EmailCodeState } from "@/lib/auth/send-email-code-core";
 
-/** `sent` drives the form's step; `email` is echoed back into the code screen. */
-export type EmailCodeState =
-  | { step: "sent"; email: string; resent: boolean; notice: string }
-  | { step: "email"; error: string; email?: string }
-  | { step: "code"; error: string; email: string }
-  | undefined;
 
 function otpT(formData: FormData) {
   const locale = String(formData.get("locale") ?? "en");
@@ -182,86 +177,45 @@ export async function requestEmailCode(
       : { step: "email", error: t("public.auth.actions.ageTermsRequired"), email };
   }
 
-  const ip = await requestIp();
-  const tooMany = () =>
-    resent
-      ? ({ step: "code", error: t("public.auth.passwordless.errors.tooMany"), email } as const)
-      : ({ step: "email", error: t("public.auth.passwordless.errors.tooMany"), email } as const);
-
-  // Layer 2 — free in-process floor first, so a hot loop never even reaches the
-  // network hop.
-  if (
-    !tryConsumeRateLimit(`auth-otp-send:${email}`, SEND_PER_EMAIL, SEND_WINDOW_MS) ||
-    !tryConsumeRateLimit(`auth-otp-send-ip:${ip}`, SEND_PER_IP, SEND_WINDOW_MS)
-  ) {
-    return tooMany();
-  }
-
-  // Layer 1 — durable cross-instance ceiling. Checked BEFORE signInWithOtp so a
-  // blocked caller costs no outbound email. Fails open on Upstash trouble.
-  const [sendByEmail, sendByIp] = await Promise.all([
-    checkAuthOtpSendByEmail(authOtpSendEmailKey(email)),
-    checkAuthOtpSendByIp(authOtpSendIpKey(ip)),
-  ]);
-  if (!sendByEmail.ok || !sendByIp.ok) {
-    return tooMany();
-  }
-
-  const supabase = await getCachedServerSupabase();
-  if (!supabase) {
-    return { step: "email", error: SUPABASE_ENV_HELP, email };
-  }
-
   const nextPath = normalizeNextPath(String(formData.get("next") ?? "").trim());
   // `create=0` is the LOGIN path: an unknown address must not silently become a
   // brand-new empty account just because someone typed it into the sign-in box.
+  // The core (lib/auth/send-email-code-core.ts) also answers an unknown address
+  // exactly like a known one on this path (no account enumeration).
   const shouldCreateUser = String(formData.get("create") ?? "1") !== "0";
+  const ip = await requestIp();
 
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: {
-      shouldCreateUser,
+  return sendEmailCodeCore(
+    { email, ip, resent, shouldCreateUser },
+    {
+      t,
+      // Layer 2: free in-process floor first, so a hot loop never even
+      // reaches the network hop.
+      consumeFloor: (key) =>
+        tryConsumeRateLimit(
+          key,
+          key.startsWith("auth-otp-send-ip:") ? SEND_PER_IP : SEND_PER_EMAIL,
+          SEND_WINDOW_MS,
+        ),
+      // Layer 1: durable cross-instance ceiling, checked BEFORE signInWithOtp
+      // so a blocked caller costs no outbound email. Fails open on Upstash.
+      checkDurable: async () => {
+        const [byEmail, byIp] = await Promise.all([
+          checkAuthOtpSendByEmail(authOtpSendEmailKey(email)),
+          checkAuthOtpSendByIp(authOtpSendIpKey(ip)),
+        ]);
+        return byEmail.ok && byIp.ok;
+      },
+      getClient: () => getCachedServerSupabase(),
+      envHelp: SUPABASE_ENV_HELP,
       emailRedirectTo: buildOtpEmailRedirect({
         origin: getAppUrl(),
         nextPath,
         lang: otpLang(formData),
       }),
+      logError: logServerError,
     },
-  });
-
-  if (error) {
-    logServerError("auth/requestEmailCode", error);
-    const key = otpSendErrorKey(error);
-    // Account enumeration: on the LOGIN path a "no such user" (otp_disabled)
-    // answer would confirm which addresses exist. Same treatment as
-    // requestPasswordReset — advance to the code screen either way and let the
-    // (absent) code fail there, with a create-account link in reach. Real
-    // problems the visitor can act on (bad address, rate limit) still surface.
-    const enumerationSafe =
-      !shouldCreateUser && key === "public.auth.actions.signupDisabled";
-    if (!enumerationSafe) {
-      return resent
-        ? { step: "code", error: t(key), email }
-        : { step: "email", error: t(key), email };
-    }
-  }
-
-  // TUL-558: plus-tag inboxes often never get the OTP (sender delivers; the
-  // inbox drops or remaps). Warn so the visitor can switch to a plain address.
-  const noticeKey = authEmailHasPlusTag(email)
-    ? resent
-      ? "public.auth.passwordless.plusResentNotice"
-      : "public.auth.passwordless.plusSentNotice"
-    : resent
-      ? "public.auth.passwordless.resentNotice"
-      : "public.auth.passwordless.sentNotice";
-
-  return {
-    step: "sent",
-    email,
-    resent,
-    notice: t(noticeKey),
-  };
+  );
 }
 
 export async function submitEmailCode(

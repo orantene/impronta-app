@@ -207,7 +207,7 @@
         "resending": "Sending",
         "changeEmail": "Use a different email",
         "usePassword": "Use a password instead",
-        "useCode": "Email me a code instead",
+        "useCode": "Email me a code",
         "errors": {
           "codeRequired": "Enter the code from your email.",
           "codeInvalid": "That code did not work. Check the digits, or send a new code.",
