@@ -98,10 +98,10 @@ export function ServicesCatalogStaticFallback({
                           {es
                             ? onRequest
                               ? "Bajo consulta"
-                              : "Cotización a pedido"
+                              : "Precio a cotizar"
                             : onRequest
                               ? "On request"
-                              : "Quote on request"}
+                              : "Price on request"}
                         </strong>
                       ) : (
                         <>

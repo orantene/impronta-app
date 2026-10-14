@@ -142,3 +142,14 @@ test("TUL-795: copy carries the related heading and free-cancel line in both lan
   assert.equal(servicePageCopy("en").freeCancel(24), "Free cancellation up to 24 h before");
   assert.match(servicePageCopy("es").freeCancel(24), /24 h/);
 });
+
+test("TUL-792: servicePageHrefs maps eligible offerings under the locale base", async () => {
+  const { servicePageHrefs } = await import("./service-page");
+  const rows = [
+    { id: "3fa91c2b-1111-4222-8333-444455556666", title: "Corte", kind: "service" as const, visibility: "public" as const },
+    { id: "aaaaaaaa-1111-4222-8333-444455556666", title: "Camisa", kind: "product" as const, visibility: "public" as const },
+  ];
+  assert.deepEqual(servicePageHrefs(rows, ""), { [rows[0].id]: "/servicio-corte-3fa91c2b" });
+  assert.deepEqual(servicePageHrefs(rows, "/en/"), { [rows[0].id]: "/en/servicio-corte-3fa91c2b" });
+  assert.deepEqual(servicePageHrefs(rows, null), {});
+});

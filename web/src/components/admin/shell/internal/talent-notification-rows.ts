@@ -202,7 +202,7 @@ export function talentNotifsFromBridge(
         // would hand back the workspace "notifications" drawer default, which
         // on the talent surface is a wrong door, so leave the row inert.
         target: targetOf(n)
-          ? notificationDrawerFields(targetOf(n), n.originInquiryId, adminBasePath)
+          ? notificationDrawerFields(targetOf(n), n.originInquiryId, adminBasePath, n.targetPayload)
           : undefined,
       };
     });

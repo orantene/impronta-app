@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useAgendaCopy } from "./use-agenda-copy";
+import { orderTimeZones } from "./timezone-order";
 
 /**
  * TimezonePicker (TUL-94): a searchable pick from the IANA list, never free
@@ -64,6 +65,8 @@ export function TimezonePicker({ value, onChange }: { value: string; onChange: (
     return value && !list.includes(value) && zones.includes(value) ? [value, ...list] : list;
   }, [query, zones, value]);
 
+  const { suggested, rest } = useMemo(() => orderTimeZones(shown), [shown]);
+
   return (
     <div className="mt-1 flex flex-col gap-2">
       <input
@@ -82,11 +85,30 @@ export function TimezonePicker({ value, onChange }: { value: string; onChange: (
         onChange={(e) => onChange(e.target.value)}
       >
         {!zones.includes(value) ? <option value="">{copy.t("Pick a time zone")}</option> : null}
-        {shown.map((z) => (
-          <option key={z} value={z}>
-            {labelFor(z)}
-          </option>
-        ))}
+        {suggested.length > 0 ? (
+          <optgroup label={copy.t("Mexico")}>
+            {suggested.map((z) => (
+              <option key={z} value={z}>
+                {labelFor(z)}
+              </option>
+            ))}
+          </optgroup>
+        ) : null}
+        {suggested.length > 0 && rest.length > 0 ? (
+          <optgroup label={copy.t("All time zones")}>
+            {rest.map((z) => (
+              <option key={z} value={z}>
+                {labelFor(z)}
+              </option>
+            ))}
+          </optgroup>
+        ) : (
+          rest.map((z) => (
+            <option key={z} value={z}>
+              {labelFor(z)}
+            </option>
+          ))
+        )}
       </select>
     </div>
   );

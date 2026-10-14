@@ -673,3 +673,35 @@ test("instant row with extras says Select and ignores the inspector ctaLabel", (
   assert.match(html, />Select</);
   assert.doesNotMatch(html, />Book it</);
 });
+
+// TUL-792: on a published talent site each home service card links to its own service page.
+test("TUL-792: card names link to the service page when the site gives a link base", () => {
+  const html = render([catalogNode({})], {
+    talentOfferings: [offering({ id: "3fa91c2b-1111-4222-8333-444455556666", title: "Corte de cabello" })],
+    talentServiceLinkBase: "/en",
+  });
+  assert.match(html, /href="\/en\/servicio-corte-de-cabello-3fa91c2b"/);
+});
+
+test("TUL-792: no link base (builder, hub, previews) means no service links", () => {
+  const html = render([catalogNode({})], { talentOfferings: [offering({})] });
+  assert.doesNotMatch(html, /data-service-page-link/);
+});
+
+test("TUL-805: a quote service shows on the site as Price on request / Precio a cotizar with a request CTA", () => {
+  const quote = offering({ title: "Cotizar evento", amountCents: null, priceDisplay: "quote", priceType: "custom", bookingMode: "request" });
+  const en = render([catalogNode({})], { talentOfferings: [quote] });
+  assert.match(en, /Cotizar evento/);
+  assert.match(en, /Price on request/);
+  assert.match(en, /data-offering-cta/);
+  const es = renderToStaticMarkup(
+    renderBuilderNodes([catalogNode({})], {
+      mode: "freeform",
+      includeRendererStyles: false,
+      includeFontLinks: false,
+      visitorLocale: "es",
+      dataSources: { talentOfferings: [quote] },
+    }) as Parameters<typeof renderToStaticMarkup>[0],
+  );
+  assert.match(es, /Precio a cotizar/);
+});

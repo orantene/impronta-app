@@ -116,3 +116,11 @@ test("TUL-391 r2: a stored offer row without target_drawer still opens its inqui
   // Other kinds without a target stay inert.
   assert.equal(hubClickTarget(row({ kind: "system" }), "/admin"), null);
 });
+
+test("TUL-959: a booking-confirmed bell opens that booking", () => {
+  const t = hubClickTarget(
+    row({ targetDrawer: "talent-booking", targetPayload: { bookingId: "b-1" } }),
+    "/admin",
+  );
+  assert.deepEqual(t, { kind: "href", href: "/talent/bookings/b-1" });
+});

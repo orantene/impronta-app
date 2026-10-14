@@ -311,6 +311,12 @@ const BOOKING_CONFIRMED_TALENT: CatalogEntry = {
     surface: "talent",
     title: () => "New booking confirmed",
     body: () => "A client booked a time with you.",
+    // TUL-959: the bell row opens the booking itself (/talent/bookings/<id>).
+    targetDrawer: "talent-booking",
+    targetPayload: (event) => {
+      const bookingId = str(event.payload.bookingId);
+      return bookingId ? { bookingId } : {};
+    },
   },
   email: {
     templateId: "talent.booking_confirmed",

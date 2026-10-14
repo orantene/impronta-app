@@ -263,6 +263,8 @@ const ES: Record<string, string> = {
   "Time zone": "Zona horaria",
   "Use this device's time zone": "Usar la zona horaria de este dispositivo",
   "Search time zones": "Buscar zonas horarias",
+  "Mexico": "México",
+  "All time zones": "Todas las zonas horarias",
   "Search, like Cancun or Madrid": "Busca, por ejemplo Cancún o Madrid",
   "Pick a time zone": "Elige una zona horaria",
   "Weekly hours, time off, buffer, and timezone. Travel stays on each booking.":

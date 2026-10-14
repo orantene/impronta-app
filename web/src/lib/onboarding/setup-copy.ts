@@ -15,6 +15,8 @@ export type SetupCopy = {
   quote: string;
   quoteOn: string;
   hiddenUntilPriced: string;
+  /** TUL-805: shown when "price on quote" is chosen. */
+  quoteShown: string;
   addService: string;
   remove: string;
   hours: string;
@@ -58,7 +60,8 @@ export const SETUP_COPY: Record<FlowLocale, SetupCopy> = {
     currencyLabel: "Currency",
     quote: "Price on quote",
     quoteOn: "On quote",
-    hiddenUntilPriced: "No price yet: it stays off your site until you add one.",
+    hiddenUntilPriced: "No price yet: add one, or choose price on quote.",
+    quoteShown: "Shown on your site as Price on request, with a button to ask you for a quote.",
     addService: "Add a service",
     remove: "Remove",
     hours: "Your hours",
@@ -106,7 +109,8 @@ export const SETUP_COPY: Record<FlowLocale, SetupCopy> = {
     currencyLabel: "Moneda",
     quote: "Precio a cotizar",
     quoteOn: "A cotizar",
-    hiddenUntilPriced: "Sin precio: no aparece en tu sitio hasta que lo agregues.",
+    hiddenUntilPriced: "Sin precio: agrégalo o elige precio a cotizar.",
+    quoteShown: "Se muestra en tu sitio como Precio a cotizar, con un botón para pedirte una cotización.",
     addService: "Agregar un servicio",
     remove: "Quitar",
     hours: "Tu horario",

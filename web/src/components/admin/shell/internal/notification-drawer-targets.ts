@@ -236,11 +236,21 @@ export function notificationDrawerFields(
   rawTargetDrawer: string | null | undefined,
   inquiryId?: string | null,
   adminBasePath = "/admin",
+  payload?: Record<string, unknown> | null,
 ): {
   targetDrawer: DrawerId;
   targetPayload: Record<string, unknown> | undefined;
   targetHref: string | undefined;
 } {
+  // TUL-959: "booking confirmed" bells carry the booking id; open that booking.
+  const bookingId = rawTargetDrawer === "talent-booking" ? payload?.bookingId : undefined;
+  if (typeof bookingId === "string" && bookingId) {
+    return {
+      targetDrawer: "notifications" as DrawerId,
+      targetPayload: undefined,
+      targetHref: `/talent/bookings/${encodeURIComponent(bookingId)}`,
+    };
+  }
   const resolved = resolveNotificationDrawerTarget(
     rawTargetDrawer ?? "notifications",
     inquiryId ? { inquiryId } : undefined,

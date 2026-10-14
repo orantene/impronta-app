@@ -258,6 +258,23 @@ export function AgendaAvailabilityPage({
         </p>
       ) : null}
 
+      <section data-testid="availability-timezone-section" className="rounded-2xl border border-black/8 bg-white p-4">
+        <label className="block text-[13px]">
+          {copy.t("Time zone")}
+          <TimezonePicker value={tz} onChange={(z) => { setTz(z); setUnsaved(true); }} />
+          {suggestedTz ? (
+            <button
+              type="button"
+              data-testid="working-hours-timezone-device"
+              className="mt-2 text-left text-[13px] text-[var(--tc-accent)]"
+              onClick={() => { setTz(suggestedTz); setUnsaved(true); }}
+            >
+              {copy.t("Use this device's time zone")}: {suggestedTz.replaceAll("_", " ")}
+            </button>
+          ) : null}
+        </label>
+      </section>
+
       <section className="space-y-3 rounded-2xl border border-black/8 bg-white p-4">
         {rows.map((row, idx) => (
           <div
@@ -406,20 +423,6 @@ export function AgendaAvailabilityPage({
             value={bufferMin}
             onChange={(e) => setBufferMin(Number(e.target.value) || 0)}
           />
-        </label>
-        <label className="block text-[13px]">
-          {copy.t("Time zone")}
-          <TimezonePicker value={tz} onChange={(z) => { setTz(z); setUnsaved(true); }} />
-          {suggestedTz ? (
-            <button
-              type="button"
-              data-testid="working-hours-timezone-device"
-              className="mt-2 text-left text-[13px] text-[var(--tc-accent)]"
-              onClick={() => { setTz(suggestedTz); setUnsaved(true); }}
-            >
-              {copy.t("Use this device's time zone")}: {suggestedTz.replaceAll("_", " ")}
-            </button>
-          ) : null}
         </label>
       </section>
 
