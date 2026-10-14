@@ -29,6 +29,7 @@
 
 import { dockViewerCtaIdentity } from "@/lib/client-account/dock-viewer-identity";
 import { resolveDockViewerIdentityTier } from "@/lib/client-account/dock-viewer-identity.server";
+import { resolveClientAccountMount } from "@/lib/client-account/gate";
 import { loadGuestDockFlags } from "@/lib/inquiry/guest-dock-flags";
 import { TalentProfileChatLauncher } from "./TalentProfileChatLauncher";
 import { categoryChipLabel } from "./category-chip-label";
@@ -184,6 +185,9 @@ export async function TalentProfileChatLauncherMount({
   const t = createTranslator(locale ?? "en");
   // L13: the tenant-wide dock switches + the per-business Items label.
   const dockFlags = await loadGuestDockFlags(tenantId, locale, wordsPresetOverride);
+  // Vanity talent hosts use flag `talent`; /t/<code> on hub/agency uses `app`
+  // (same split as ClientAccountDock's surface prop).
+  const clientAccountSurface = resolveClientAccountMount(omitPlatformBrand ? "talent" : "app").dock;
 
   // Cold-load `?order=` wins over cookie resume when the guest owns that order.
   const parsedOrder = parseGuestOrderQuery(orderId);
@@ -302,6 +306,7 @@ export async function TalentProfileChatLauncherMount({
         greeting,
         locale,
         omitPlatformBrand,
+        clientAccountSurface,
       }}
       label={t("public.guestChat.bookNow")}
       // Returning guest → reopen the thread + prefill the gate (B1). null → fresh.

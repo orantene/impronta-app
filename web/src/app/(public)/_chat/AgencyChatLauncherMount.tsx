@@ -25,6 +25,7 @@ import { Suspense } from "react";
 import { ClientAccountDock } from "@/components/client-account/ClientAccountDock";
 import { dockViewerCtaIdentity } from "@/lib/client-account/dock-viewer-identity";
 import { resolveDockViewerIdentityTier } from "@/lib/client-account/dock-viewer-identity.server";
+import { resolveClientAccountMount } from "@/lib/client-account/gate";
 
 import { TalentProfileChatLauncher } from "@/app/t/[profileCode]/_chat/TalentProfileChatLauncher";
 import { DirectoryInquiryUrlSync } from "@/components/directory/directory-inquiry-url-sync";
@@ -263,6 +264,7 @@ export async function AgencyChatLauncherMount({
         logoUrl,
         greeting,
         locale,
+        clientAccountSurface: resolveClientAccountMount("app").dock,
         }}
         label={t("public.guestChat.bookNow")}
         existingInquiryId={active?.inquiryId ?? null}
