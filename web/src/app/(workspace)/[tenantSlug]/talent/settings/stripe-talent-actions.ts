@@ -15,7 +15,12 @@ import { isStripeConfigured } from "@/lib/stripe/client";
 import {
   createTalentCheckoutSession,
   createTalentBillingPortalSession,
+  setTalentSubscriptionCancellation,
 } from "@/lib/stripe/talent-billing";
+import type {
+  TalentLifecycleAction,
+  TalentLifecycleErrorCode,
+} from "@/lib/billing/talent-subscription-lifecycle";
 import { deriveAppBaseUrl } from "@/lib/stripe/utils";
 import { signCheckoutReturn } from "@/lib/billing/checkout-return";
 import { isSafeReturnPath } from "@/lib/billing/trial-door";
@@ -128,4 +133,50 @@ export async function openTalentSubscriptionPortal(
   }
 
   return { ok: true, redirectUrl: result.data.url };
+}
+
+export type TalentCancellationActionResult =
+  | { ok: true; cancelAtPeriodEnd: boolean; periodEnd: string | null }
+  | { ok: false; code: TalentLifecycleErrorCode | "unauthenticated" | "read_only" };
+
+/**
+ * Self-serve cancel / resume of the talent's own personal-page plan (TUL-832).
+ * Takes ONLY the tenant slug: the talent profile is resolved from the session,
+ * and the subscription row must belong to the signed-in user.
+ */
+async function changeTalentCancellation(
+  tenantSlug: string,
+  action: TalentLifecycleAction,
+): Promise<TalentCancellationActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "read_only" };
+
+  const session = await getCachedActorSession();
+  if (!session.user) return { ok: false, code: "unauthenticated" };
+
+  const scope = await getTenantPortalScopeBySlug(tenantSlug);
+  if (!scope) return { ok: false, code: "not_found" };
+
+  const talentProfile = await loadTalentSelfProfile(session.user.id, scope.tenantId);
+  if (!talentProfile) return { ok: false, code: "not_found" };
+
+  const result = await setTalentSubscriptionCancellation({
+    talentProfileId: talentProfile.id,
+    callerUserId: session.user.id,
+    action,
+  });
+  if (!result.ok) logServerError(`stripe-talent-actions.${action}`, result.code);
+  return result;
+}
+
+export async function cancelTalentSubscription(
+  tenantSlug: string,
+): Promise<TalentCancellationActionResult> {
+  return changeTalentCancellation(tenantSlug, "cancel");
+}
+
+export async function resumeTalentSubscription(
+  tenantSlug: string,
+): Promise<TalentCancellationActionResult> {
+  return changeTalentCancellation(tenantSlug, "resume");
 }

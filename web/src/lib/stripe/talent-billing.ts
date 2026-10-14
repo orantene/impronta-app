@@ -30,6 +30,12 @@ import {
   stripeBillingPortalLocale,
   stripeCheckoutLocale,
 } from "@/lib/i18n/vendor-locale";
+import {
+  runTalentLifecycle,
+  type TalentLifecycleAction,
+  type TalentLifecycleResult,
+  type TalentSubscriptionRow,
+} from "@/lib/billing/talent-subscription-lifecycle";
 import type Stripe from "stripe";
 import type { BillingResult } from "@/lib/stripe/workspace-billing";
 
@@ -277,6 +283,61 @@ export async function createTalentBillingPortalSession(opts: {
     logServerError("talent-billing.createPortalSession", err);
     return { ok: false, error: "Could not open billing portal." };
   }
+}
+
+/**
+ * Self-serve cancel / resume (TUL-832). The talent profile id is resolved on
+ * the server from the session; ownership is re-checked against the row's
+ * `user_id` inside `runTalentLifecycle`.
+ */
+export async function setTalentSubscriptionCancellation(input: {
+  talentProfileId: string;
+  callerUserId: string;
+  action: TalentLifecycleAction;
+}): Promise<TalentLifecycleResult> {
+  const sb = createServiceRoleClient();
+  if (!sb) return { ok: false, code: "unavailable" };
+  const stripe = isStripeConfigured() ? getStripe() : null;
+  if (!stripe) return { ok: false, code: "unavailable" };
+
+  return runTalentLifecycle(
+    {
+      loadRow: async (talentProfileId) => {
+        const { data, error } = await sb
+          .from("talent_subscriptions")
+          .select("user_id, stripe_subscription_id, status, current_period_end, cancel_at_period_end")
+          .eq("talent_profile_id", talentProfileId)
+          .maybeSingle();
+        if (error) {
+          logServerError("talent-billing.lifecycle.load", error);
+          return null;
+        }
+        return (data as TalentSubscriptionRow | null) ?? null;
+      },
+      setStripeCancelFlag: async (subscriptionId, cancelAtPeriodEnd) => {
+        try {
+          const updated = await stripe.subscriptions.update(subscriptionId, {
+            cancel_at_period_end: cancelAtPeriodEnd,
+          });
+          const end = (cancelAtPeriodEnd ? updated.cancel_at : null)
+            ?? updated.items?.data?.[0]?.current_period_end
+            ?? null;
+          return end ? new Date(end * 1000).toISOString() : null;
+        } catch (err) {
+          logServerError("talent-billing.lifecycle.stripe", err);
+          throw err;
+        }
+      },
+      mirror: async (talentProfileId, cancelAtPeriodEnd) => {
+        const { error } = await sb
+          .from("talent_subscriptions")
+          .update({ cancel_at_period_end: cancelAtPeriodEnd, updated_at: new Date().toISOString() })
+          .eq("talent_profile_id", talentProfileId);
+        if (error) logServerError("talent-billing.lifecycle.mirror", error);
+      },
+    },
+    input,
+  );
 }
 
 // ─── Webhook sync ─────────────────────────────────────────────────────────────

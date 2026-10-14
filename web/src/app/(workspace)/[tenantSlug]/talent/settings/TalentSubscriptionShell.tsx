@@ -14,7 +14,13 @@
  */
 
 import * as React from "react";
-import { startTalentUpgrade, openTalentSubscriptionPortal } from "./stripe-talent-actions";
+import {
+  startTalentUpgrade,
+  openTalentSubscriptionPortal,
+  cancelTalentSubscription,
+  resumeTalentSubscription,
+} from "./stripe-talent-actions";
+import { useT } from "@/i18n/use-t";
 import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
 import type { TalentSubscriptionState } from "../../_data-bridge";
 import type { TalentPlanKey } from "@/lib/stripe/price-ids";
@@ -220,6 +226,80 @@ function ManageButton({ tenantSlug }: { tenantSlug: string }) {
   );
 }
 
+// ─── Cancel / resume (TUL-832) ────────────────────────────────────────────────
+
+function CancelResumeButton({
+  tenantSlug,
+  cancelAtPeriodEnd,
+}: {
+  tenantSlug: string;
+  cancelAtPeriodEnd: boolean;
+}) {
+  const t = useT();
+  const [pending, startTransition] = React.useTransition();
+  const [message, setMessage] = React.useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const resuming = cancelAtPeriodEnd;
+
+  function handleClick() {
+    if (pending) return;
+    if (!resuming && !window.confirm(t("dashboard.talentBilling.cancelConfirm"))) return;
+    setMessage(null);
+    startTransition(async () => {
+      const result = resuming
+        ? await resumeTalentSubscription(tenantSlug)
+        : await cancelTalentSubscription(tenantSlug);
+      if (result.ok) {
+        setMessage({
+          tone: "ok",
+          text: result.cancelAtPeriodEnd ? t("dashboard.talentBilling.cancelDone") : t("dashboard.talentBilling.resumeDone"),
+        });
+        // Server state changed; reload so the status row reads from the DB.
+        window.location.reload();
+      } else {
+        setMessage({
+          tone: "error",
+          text: result.code === "already_ended" ? t("dashboard.talentBilling.errorAlreadyEnded") : t("dashboard.talentBilling.errorGeneric"),
+        });
+      }
+    });
+  }
+
+  const label = pending
+    ? (resuming ? t("dashboard.talentBilling.resuming") : t("dashboard.talentBilling.cancelling"))
+    : (resuming ? t("dashboard.talentBilling.resume") : t("dashboard.talentBilling.cancel"));
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 5, alignItems: "flex-start" }}>
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={pending}
+        data-testid={resuming ? "talent-plan-resume" : "talent-plan-cancel"}
+        style={{
+          height: 34,
+          padding: "0 14px",
+          borderRadius: 8,
+          background: resuming ? C.accent : "transparent",
+          color: resuming ? C.cardBg : C.inkMuted,
+          fontFamily: FONT,
+          fontSize: 12.5,
+          fontWeight: 600,
+          border: resuming ? "none" : `1px solid ${C.border}`,
+          cursor: pending ? "not-allowed" : "pointer",
+          opacity: pending ? 0.6 : 1,
+        }}
+      >
+        {label}
+      </button>
+      {message && (
+        <span style={{ fontSize: 11, color: message.tone === "error" ? "var(--color-admin-red)" : C.green, fontFamily: FONT }}>
+          {message.text}
+        </span>
+      )}
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function TalentSubscriptionShell({
@@ -388,7 +468,17 @@ export function TalentSubscriptionShell({
       )}
 
       {/* Manage subscription (paid active subscribers) */}
-      {hasActiveSub && <ManageButton tenantSlug={tenantSlug} />}
+      {hasActiveSub && (
+        <div className="flex flex-wrap items-start gap-2">
+          <ManageButton tenantSlug={tenantSlug} />
+          {stripeEnabled && (
+            <CancelResumeButton
+              tenantSlug={tenantSlug}
+              cancelAtPeriodEnd={subscription!.cancelAtPeriodEnd}
+            />
+          )}
+        </div>
+      )}
 
       {/* Stripe not configured */}
       {!stripeEnabled && planKey === "talent_basic" && (

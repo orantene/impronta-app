@@ -20217,6 +20217,17 @@
       "walletBody2": "To spend it locally, you can convert your USDC to pesos or your local currency whenever you like, using any service that supports it in your country.",
       "walletBody3": "Only link a wallet address you own. Double-check it before saving.",
       "checking": "Checking if USDC payouts are available for you..."
+    },
+    "talentBilling": {
+      "cancel": "Cancel plan",
+      "cancelConfirm": "Cancel your plan? It stays active until the end of the period you already paid for. You can resume any time before then.",
+      "cancelling": "Cancelling...",
+      "resume": "Resume plan",
+      "resuming": "Resuming...",
+      "cancelDone": "Your plan will end on the date shown. Resume any time before then.",
+      "resumeDone": "Your plan will renew as usual.",
+      "errorAlreadyEnded": "This plan has already ended. Upgrade again to start a new one.",
+      "errorGeneric": "We could not change your plan. Nothing was charged. Try again in a moment."
     }
   },
   "admin": {
