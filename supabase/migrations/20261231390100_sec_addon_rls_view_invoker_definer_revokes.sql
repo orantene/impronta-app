@@ -13,6 +13,11 @@
 --    items (talent_cost) through it, bypassing base-table RLS. No app code reads
 --    the view (only database.types.ts), so flipping it to invoker blanks no UI.
 --    Supersedes the "stays DEFINER" note in 20261125000000.
+--    DELIBERATE REVERSAL (PM 2026-10-14): migrations 20260615194712 and
+--    20261125000000 kept this view DEFINER as the talent's own-cost read path.
+--    A future talent cost screen must get its own narrow read path (e.g. an
+--    owner-checked definer RPC returning talent_cost only), never a base-table
+--    talent SELECT policy (that would expose unit_price / total_price).
 --
 -- 3. REVOKE EXECUTE from PUBLIC, anon, authenticated on SECURITY DEFINER
 --    functions with no API-role caller: no .rpc() in web/src, no policy, view or
