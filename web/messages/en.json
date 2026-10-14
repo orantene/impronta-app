@@ -17222,7 +17222,8 @@
           "collisionNote": "{when} cannot be generated: the room already holds {other} then. Move one of them; nothing is sold until it is resolved."
         },
         "templatesOff": "Series templates do not exist yet; a series cannot be created from the workspace."
-      }
+      },
+      "loadTimeout": "The appointments are taking too long to load. Check your connection and reload the page."
     },
     "projects": {
       "pageTitle": "Projects",
