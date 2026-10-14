@@ -132,17 +132,8 @@ export function SaveStep({
         </div>
       </form>
 
-      <p className="mt-4 text-center text-[0.75rem]" style={{ color: "var(--tl-muted)" }}>
-        {t("public.onboarding.save.terms").split(/(Terms|Términos|Privacy Policy|Política de privacidad)/).map((part, i) =>
-          part === "Terms" || part === "Términos" ? (
-            <a key={i} href={legal.terms} target="_blank" rel="noreferrer" className="underline">{part}</a>
-          ) : part === "Privacy Policy" || part === "Política de privacidad" ? (
-            <a key={i} href={legal.privacy} target="_blank" rel="noreferrer" className="underline">{part}</a>
-          ) : (
-            <span key={i}>{part}</span>
-          ),
-        )}
-      </p>
+      {/* TUL-809: the required 18+ / Terms checkbox above is the one consent;
+          the second "By continuing you agree" line was removed. */}
     </div>
   );
 }
