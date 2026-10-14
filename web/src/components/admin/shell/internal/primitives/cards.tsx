@@ -28,6 +28,8 @@ import {
   type TrustSummary,
   type VerificationType,
 } from "../state";
+import { useDashboardText } from "../dashboard-i18n";
+import { riskScoreCopy } from "./risk-score-copy";
 import { Icon } from "./icons";
 import { Affordance, IconChip } from "./chips";
 import { Caption } from "./typography";
@@ -829,11 +831,14 @@ function PhotoBadgeIcon({
 /** Risk/health score badge for admin surfaces only — never publicly
  *  visible. Numeric 0-100 score from getRiskScore, color-coded.
  *  Higher = more trustworthy. */
-export function RiskScorePill({ score, label = "Trust health" }: { score: number; label?: string }) {
+export function RiskScorePill({ score, label }: { score: number; label?: string }) {
+  const { isSpanish } = useDashboardText();
+  const copy = riskScoreCopy(score, isSpanish);
+  const shownLabel = label ?? copy.label;
   const tone =
-    score >= 70 ? { bg: "rgba(15,79,62,0.10)", fg: "#0F4F3E", word: "healthy" }
-    : score >= 40 ? { bg: "rgba(176,135,49,0.14)", fg: "#7A5A1F", word: "watchful" }
-    : { bg: "rgba(176,48,58,0.10)", fg: "#7A1F26", word: "review" };
+    score >= 70 ? { bg: "rgba(15,79,62,0.10)", fg: "#0F4F3E", word: copy.word }
+    : score >= 40 ? { bg: "rgba(176,135,49,0.14)", fg: "#7A5A1F", word: copy.word }
+    : { bg: "rgba(176,48,58,0.10)", fg: "#7A1F26", word: copy.word };
   return (
     <div title={`Internal heuristic — verifications, claim status, account age, recent rejections.`} style={{
       display: "inline-flex", alignItems: "center", gap: 8,
@@ -841,7 +846,7 @@ export function RiskScorePill({ score, label = "Trust health" }: { score: number
       background: tone.bg, color: tone.fg,
       fontFamily: "inherit", fontSize: 11.5, fontWeight: 600,
     }}>
-      <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }}>{label}</span>
+      <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }}>{shownLabel}</span>
       <span className="text-admin-13 font-bold">{score}</span>
       <span style={{ fontSize: 10.5, opacity: 0.8 }}>· {tone.word}</span>
     </div>

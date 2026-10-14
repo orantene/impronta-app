@@ -23,6 +23,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { COLORS, FONTS, RADIUS } from "./state";
+import { useDashboardText } from "./dashboard-i18n";
 
 const PASSKEY_STORAGE_KEY = "tulala_prototype_passkey_credentialId";
 
@@ -70,6 +71,7 @@ function base64UrlToBuf(b64url: string): ArrayBuffer {
 }
 
 export function PasskeysCard({ userName, userId }: { userName: string; userId: string }) {
+  const { t: tr, locale } = useDashboardText();
   const [state, setState] = useState<PasskeyState>({ kind: "none" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -177,21 +179,21 @@ export function PasskeysCard({ userName, userId }: { userName: string; userId: s
           fontSize: 14, fontWeight: 700,
         }}>🔑</span>
         <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0, letterSpacing: -0.1 }} className="text-admin-ink">
-          Sign in with passkey
+          {tr("Sign in with passkey")}
         </h3>
         {state.kind !== "none" && (
           <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", padding: "2px 8px", borderRadius: 999 }} className="text-admin-success-deep bg-admin-success-soft">
-            {state.kind === "verified" ? "Active" : "Set up"}
+            {state.kind === "verified" ? tr("Active") : tr("Set up")}
           </span>
         )}
       </div>
       <p style={{ fontSize: 12.5, lineHeight: 1.5, margin: "4px 0 12px" }} className="text-admin-ink-muted">
-        Use Touch ID, Face ID, or your phone&apos;s biometrics instead of a password. Passkeys are phishing-resistant and never stored on Tulala&apos;s servers.
+        {tr("Use Touch ID, Face ID, or your phone's biometrics instead of a password. Passkeys are phishing-resistant and never stored on Tulala's servers.")}
       </p>
 
       {!supported ? (
         <div style={{ padding: "9px 11px", borderRadius: 8, fontSize: 11.5 }} className="bg-admin-surface-alt text-admin-ink-muted">
-          Your browser doesn&apos;t support passkeys. Try Safari 16+, Chrome 108+, or Firefox 120+.
+          {tr("Your browser doesn't support passkeys. Try Safari 16+, Chrome 108+, or Firefox 120+.")}
         </div>
       ) : state.kind === "none" ? (
         <button type="button" onClick={register} disabled={busy} style={{
@@ -200,7 +202,7 @@ export function PasskeysCard({ userName, userId }: { userName: string; userId: s
           fontSize: 12.5, fontWeight: 600, cursor: busy ? "default" : "pointer",
           fontFamily: FONTS.body,
         }}>
-          {busy ? "Waiting for biometrics…" : "Set up a passkey"}
+          {busy ? tr("Waiting for biometrics…") : tr("Set up a passkey")}
         </button>
       ) : (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
@@ -210,7 +212,7 @@ export function PasskeysCard({ userName, userId }: { userName: string; userId: s
             fontSize: 12.5, fontWeight: 600, cursor: busy ? "default" : "pointer",
             fontFamily: FONTS.body,
           }}>
-            {busy ? "Waiting…" : "Sign in to test"}
+            {busy ? tr("Waiting…") : tr("Sign in to test")}
           </button>
           <button type="button" onClick={remove} style={{
             padding: "9px 12px", borderRadius: RADIUS.md,
@@ -218,12 +220,12 @@ export function PasskeysCard({ userName, userId }: { userName: string; userId: s
             color: COLORS.inkMuted, fontSize: 11.5, fontWeight: 500, cursor: "pointer",
             fontFamily: FONTS.body,
           }}>
-            Remove passkey
+            {tr("Remove passkey")}
           </button>
           <span style={{ fontSize: 11, marginLeft: "auto" }} className="text-admin-ink-dim">
             {state.kind === "verified"
-              ? `Verified ${new Date(state.verifiedAt).toLocaleTimeString()}`
-              : `Set up ${new Date(state.createdAt).toLocaleString()}`}
+              ? `${tr("Verified")} ${new Date(state.verifiedAt).toLocaleTimeString(locale)}`
+              : `${tr("Set up")} ${new Date(state.createdAt).toLocaleString(locale)}`}
           </span>
         </div>
       )}
