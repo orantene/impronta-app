@@ -76,12 +76,9 @@ import {
 import { isAgeAndTermsConfirmed } from "@/lib/legal/acceptances.core";
 import { recordSignupAcceptance } from "@/lib/legal/acceptances";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
-import {
-  sendEmailCodeCore,
-  type EmailCodeState,
-} from "@/lib/auth/send-email-code-core";
+import { sendEmailCodeCore } from "@/lib/auth/send-email-code-core";
+import type { EmailCodeState } from "@/lib/auth/send-email-code-core";
 
-export type { EmailCodeState };
 
 function otpT(formData: FormData) {
   const locale = String(formData.get("locale") ?? "en");

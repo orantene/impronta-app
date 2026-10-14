@@ -33,8 +33,8 @@ import { useActionState, useState, type ReactNode } from "react";
 import {
   requestEmailCode,
   submitEmailCode,
-  type EmailCodeState,
 } from "@/app/auth/otp-actions";
+import type { EmailCodeState } from "@/lib/auth/send-email-code-core";
 import {
   AUTH_INPUT_CLASS,
   AUTH_INPUT_STYLE,
