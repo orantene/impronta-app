@@ -18,6 +18,8 @@ describe("T9.4 agenda i18n", () => {
     assert.equal(t("Hold expired"), "Hold vencido");
     assert.equal(t("Not requested"), "Sin solicitud");
     assert.equal(t("Checking payment"), "Verificando pago");
+    assert.equal(t("At studio"), "En el estudio");
+    assert.equal(t("At your studio"), "En tu estudio");
     assert.equal(t("__missing_key__"), "__missing_key__");
   });
 

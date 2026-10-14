@@ -11,7 +11,8 @@
  */
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { pinNextConversation } from "@/components/admin/shell/internal/messages/conversation-pending";
 
 export function PinThenRedirect({
@@ -24,6 +25,8 @@ export function PinThenRedirect({
   platformTalentRoutes?: boolean;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const locale = useDashboardLocale();
   useEffect(() => {
     pinNextConversation(conversationId);
     const target = platformTalentRoutes
@@ -31,6 +34,11 @@ export function PinThenRedirect({
       : `/${tenantSlug}/talent/inbox`;
     router.replace(target);
   }, [conversationId, tenantSlug, platformTalentRoutes, router]);
+  // TUL-1031: once the URL has left /inbox/<id> the thread is rendering, so the
+  // banner must not linger above it.
+  if (pathname && !pathname.includes(`/inbox/${encodeURIComponent(conversationId)}`)) {
+    return null;
+  }
   // Render a thin loading shell so the page isn't a flash of nothing
   // while the redirect resolves. The talent inbox shell takes over.
   return (
@@ -45,7 +53,7 @@ export function PinThenRedirect({
         color: "rgba(11,11,13,0.55)",
       }}
     >
-      Opening conversation…
+      {locale.toLowerCase().startsWith("es") ? "Abriendo la conversación…" : "Opening conversation…"}
     </div>
   );
 }

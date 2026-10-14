@@ -409,7 +409,7 @@ export function AgendaTodayPage({
             </div>
             <div className="truncate text-[12.5px] text-black/70">{serviceLabel(item) ?? copy.t("No service set")}</div>
             {placeLabelFor(item.where) ? (
-              <div className={`mt-0.5 text-[11.5px] ${MUTED}`}>{placeLabelFor(item.where)}</div>
+              <div className={`mt-0.5 text-[11.5px] ${MUTED}`}>{copy.t(placeLabelFor(item.where) ?? "")}</div>
             ) : null}
           </div>
         </button>
