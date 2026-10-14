@@ -2645,7 +2645,7 @@ export async function TalentProfileView({
                 pathnameWithoutLocale={marketingPathnameWithoutLocale}
                 account={marketingAccount}
                 signOutAction={signOut}
-                clientEntry={platformChrome ? buildHubClientEntry(getAppUrl(), canonicalShareUrl) : undefined}
+                clientEntry={platformChrome ? buildHubClientEntry(getAppUrl(), canonicalShareUrl, locale) : undefined}
               />
               {/* id="main-content" lives inside LightProfileLayout (<main>) */}
               <div className="flex-1 pt-[var(--plt-header-h,84px)] sm:pt-[72px]">
