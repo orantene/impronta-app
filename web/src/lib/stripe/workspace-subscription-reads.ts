@@ -31,11 +31,14 @@ export type WorkspaceSubscriptionState = {
 export async function hasLiveWorkspaceSubscription(tenantId: string): Promise<boolean> {
   const admin = createServiceRoleClient();
   if (!admin) return false;
-  const { data } = await admin
+  const { data, error } = await admin
     .from("workspace_subscriptions")
     .select("stripe_subscription_id, status")
     .eq("tenant_id", tenantId)
     .maybeSingle();
+  // Fail closed: an unreadable row must not look like "no subscription"
+  // (that would allow a second live subscription).
+  if (error) throw error;
   const row = data as { stripe_subscription_id?: string | null; status?: string | null } | null;
   if (!row?.stripe_subscription_id) return false;
   return !["canceled", "cancelled", "incomplete_expired"].includes(String(row.status ?? ""));
