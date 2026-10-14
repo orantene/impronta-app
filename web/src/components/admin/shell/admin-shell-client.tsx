@@ -148,6 +148,7 @@ function DevOnlyControlBar({ show }: { show: boolean }) {
 // the host-shape logic can be unit-tested without mounting this shell. Add new
 // canonical pages to the matcher list there.
 import { pathIsCanonical } from "./canonical-routes";
+import { TalentLeavesForAdminGuard } from "./talent-leaves-for-admin-guard";
 import { TALENT_VISUAL, TALENT_VISUAL_VARS } from "./internal/talent/visual/tokens";
 
 
@@ -301,6 +302,7 @@ export function TalentShellClient({
             existing /talent/* route is absent from
             CANONICAL_ROUTE_MATCHERS, so they all still render the SPA
             exactly as before (pathIsCanonical → false → AdminShellRoot). */}
+        <TalentLeavesForAdminGuard />
         <ConditionalAdminShellRoot />
         <SupportSlotGate />
       </AdminShellProvider>
