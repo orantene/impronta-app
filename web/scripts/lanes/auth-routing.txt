@@ -24,3 +24,4 @@ src/lib/auth/post-auth-return.test.ts
 src/lib/auth/return-host-kind.test.ts
 src/lib/inquiry/claim-return-url.test.ts
 src/lib/auth/client-ip.test.ts
+src/app/(auth)/auth-marketing-origin.static.test.ts

@@ -19,6 +19,7 @@
 import Link from "next/link";
 
 import { DirectorySwitch } from "./_directory-switch";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
@@ -410,7 +411,7 @@ export default async function PlatformTalentDiscoverPage() {
         </Link>
         {d.profileCode && (
           <a
-            href={`https://tulala.digital/t/${d.profileCode}`}
+            href={`${resolveMarketingOrigin()}/t/${d.profileCode}`}
             target="_blank"
             rel="noopener noreferrer"
             style={{

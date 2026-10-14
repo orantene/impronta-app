@@ -12,9 +12,16 @@ import { createTranslator } from "@/i18n/messages";
  * form. Posts `age_terms=on`; the server action re-checks it, so the
  * `required` attribute is only a convenience.
  */
-export function AgeTermsCheckbox({ locale = "en" }: { locale?: string }) {
+export function AgeTermsCheckbox({
+  locale = "en",
+  marketingOrigin,
+}: {
+  locale?: string;
+  /** Server-resolved marketing origin (TUL-750); falls back to the site URL. */
+  marketingOrigin?: string;
+}) {
   const t = createTranslator(locale);
-  const links = ageTermsLinks(getSiteUrl(), locale);
+  const links = ageTermsLinks(marketingOrigin ?? getSiteUrl(), locale);
   return (
     <label
       className="flex items-start gap-2 text-[0.8125rem] leading-snug"
