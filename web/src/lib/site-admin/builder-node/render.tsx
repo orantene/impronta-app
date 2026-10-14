@@ -5226,6 +5226,7 @@ function renderBuilderNodeElement(
             <BuilderNodeCarouselTrack
               nodeId={node.id}
               variant="hero"
+              locale={options.visitorLocale ?? options.contentLocale?.locale}
               slideCount={heroSlides.length}
               autoplayMs={node.props.autoplayMs}
               loop={node.props.loop}
@@ -5323,6 +5324,7 @@ function renderBuilderNodeElement(
           <BuilderNodeCarouselTrack
             nodeId={node.id}
             variant="rail"
+            locale={options.visitorLocale ?? options.contentLocale?.locale}
             showArrows={node.props.showArrows}
             showDots={node.props.showDots}
             autoplayMs={node.props.autoplayMs}
