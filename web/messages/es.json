@@ -2111,6 +2111,15 @@
         "nextTalentShare": "Comparte tu enlace",
         "viewMyWebsite": "Ver mi sitio",
         "customizeInBuilder": "Personalizar en el editor",
+        "draftTitlePublished": "Tu sitio ya está publicado",
+        "draftSubPublished": "Está guardado y publicado. Estamos confirmando que abra en línea; suele tardar unos segundos.",
+        "checkAgain": "Comprobar de nuevo",
+        "draftReason": {
+          "publishedNotReachable": "Motivo: tu dirección todavía no responde. Toca Comprobar de nuevo en unos segundos.",
+          "notReachable": "Motivo: tu página no respondió cuando la abrimos. Toca Intentar de nuevo.",
+          "oldContent": "Motivo: tu dirección todavía muestra contenido anterior. Toca Intentar de nuevo en unos segundos.",
+          "notCreated": "Motivo: no pudimos crear tu dirección. Abre el editor para terminarla."
+        },
         "draftTitle": "Tu borrador está guardado",
         "draftSub": "Todo lo que nos contaste está guardado, pero tu página todavía no abre en línea. Inténtalo de nuevo o ábrela en el editor.",
         "draftSubStudio": "Todo lo que nos contaste está guardado, pero tu sitio todavía no abre en línea. Inténtalo de nuevo o ábrelo en el editor.",

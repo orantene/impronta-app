@@ -6,7 +6,7 @@
  * person's words and offers a retry.
  */
 
-import type { ArrivalPayload } from "@/lib/onboarding/arrival";
+import { draftReasonKey, type ArrivalPayload } from "@/lib/onboarding/arrival";
 import { ARRIVAL_THUMB_FRAME_NAME } from "@/components/edit-chrome/embedded-frame";
 
 import { finishPlan, type FinishPlan } from "@/lib/onboarding/finish-plan";
@@ -230,10 +230,20 @@ export function ArrivalStep({ t, arrival, onRetry, busy = false }: { t: (key: st
 
 function DraftSaved({ t, arrival, onRetry, busy }: { t: (key: string) => string; arrival: ArrivalPayload; onRetry?: () => void; busy: boolean }) {
   const studio = arrival.variant === "draft_saved" && arrival.businessName !== null;
+  // TUL-818: the site row is published (the dashboard reads the same row), so
+  // never say "not online"; say it is published and we are confirming it opens.
+  const published = arrival.published === true;
+  const sub = published
+    ? t("public.onboarding.arrival.draftSubPublished")
+    : studio ? t("public.onboarding.arrival.draftSubStudio") : t("public.onboarding.arrival.draftSub");
   return (
     <DraftBody
       t={t}
-      sub={studio ? t("public.onboarding.arrival.draftSubStudio") : t("public.onboarding.arrival.draftSub")}
+      title={published ? t("public.onboarding.arrival.draftTitlePublished") : t("public.onboarding.arrival.draftTitle")}
+      sub={sub}
+      reason={arrival.draftReason ? t(draftReasonKey(arrival)) : undefined}
+      reasonCode={arrival.draftReason}
+      retryLabel={published ? t("public.onboarding.arrival.checkAgain") : undefined}
       onRetry={onRetry}
       busy={busy}
       editorHref={arrival.editorHref}
@@ -243,25 +253,35 @@ function DraftSaved({ t, arrival, onRetry, busy }: { t: (key: string) => string;
   );
 }
 
-/** The honest state: nothing is claimed live. Retry, open the editor, or leave. */
-function DraftBody({ t, sub, message, onRetry, busy, editorHref, panelHref, variant }: { t: (key: string) => string; sub: string; message?: string; onRetry?: () => void; busy: boolean; editorHref?: string; panelHref?: string; variant: string }) {
+/**
+ * The honest state: nothing is claimed live. TUL-819: one plain reason line,
+ * ONE primary (retry), then quiet text links (editor, dashboard).
+ */
+function DraftBody({ t, title, sub, reason, reasonCode, retryLabel, message, onRetry, busy, editorHref, panelHref, variant }: { t: (key: string) => string; title?: string; sub: string; reason?: string; reasonCode?: string; retryLabel?: string; message?: string; onRetry?: () => void; busy: boolean; editorHref?: string; panelHref?: string; variant: string }) {
   return (
-    <div data-testid="onb-arrival-failed" data-variant={variant}>
-      <Title>{t("public.onboarding.arrival.draftTitle")}</Title>
+    <div data-testid="onb-arrival-failed" data-variant={variant} data-reason={reasonCode}>
+      <Title>{title ?? t("public.onboarding.arrival.draftTitle")}</Title>
       <Sub>{sub}</Sub>
+      {reason ? (
+        <p className="mt-3 rounded-[12px] px-3 py-2.5 text-[0.875rem]" style={{ background: "var(--tl-surface-raised)", color: "var(--tl-ink)", border: "1px solid var(--tl-hairline)" }} data-testid="onb-arrival-reason" role="status">
+          {reason}
+        </p>
+      ) : null}
       {message ? <p className="mt-3 text-[0.8125rem]" style={{ color: "var(--tl-error)" }}>{message}</p> : null}
-      <div className="mt-6 flex flex-col gap-2">
-        {onRetry ? <PrimaryButton onClick={onRetry} disabled={busy} testId="onb-arrival-retry">{t("public.onboarding.arrival.retry")}</PrimaryButton> : null}
-        {editorHref ? (
-          <a href={editorHref} data-testid="onb-arrival-editor" className="inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-[0.9375rem] font-semibold" style={{ background: "transparent", color: "var(--tl-ink)", border: "1px solid var(--tl-hairline-strong)" }}>
-            {t("public.onboarding.arrival.openEditor")}
-          </a>
-        ) : null}
-        {panelHref ? (
-          <a href={panelHref} data-testid="onb-arrival-panel" className="inline-flex h-11 w-full items-center justify-center rounded-full px-6 text-[0.875rem] font-semibold" style={{ color: "var(--tl-ink-soft)" }}>
-            {t("public.onboarding.arrival.goToPanel")}
-          </a>
-        ) : null}
+      <div className="mt-6 flex flex-col gap-1">
+        {onRetry ? <PrimaryButton onClick={onRetry} disabled={busy} testId="onb-arrival-retry">{retryLabel ?? t("public.onboarding.arrival.retry")}</PrimaryButton> : null}
+        <div className="mt-2 flex flex-wrap items-center justify-center gap-x-5 gap-y-1">
+          {editorHref ? (
+            <a href={editorHref} data-testid="onb-arrival-editor" className="inline-flex min-h-11 items-center px-2 text-[0.875rem] font-semibold underline underline-offset-2" style={{ color: "var(--tl-ink)" }}>
+              {t("public.onboarding.arrival.openEditor")}
+            </a>
+          ) : null}
+          {panelHref ? (
+            <a href={panelHref} data-testid="onb-arrival-panel" className="inline-flex min-h-11 items-center px-2 text-[0.875rem] font-semibold" style={{ color: "var(--tl-ink-soft)" }}>
+              {t("public.onboarding.arrival.goToPanel")}
+            </a>
+          ) : null}
+        </div>
       </div>
     </div>
   );

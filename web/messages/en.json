@@ -2111,6 +2111,15 @@
         "nextTalentShare": "Share your link",
         "viewMyWebsite": "View my website",
         "customizeInBuilder": "Customize in builder",
+        "draftTitlePublished": "Your site is published",
+        "draftSubPublished": "It is saved and published. We are confirming it opens online; this usually takes a few seconds.",
+        "checkAgain": "Check again",
+        "draftReason": {
+          "publishedNotReachable": "Why: your address is not answering yet. Tap Check again in a few seconds.",
+          "notReachable": "Why: your page did not answer when we opened it. Tap Try again.",
+          "oldContent": "Why: your address still shows older content. Tap Try again in a few seconds.",
+          "notCreated": "Why: we could not create your address. Open the editor to finish it."
+        },
         "draftTitle": "Your draft is saved",
         "draftSub": "Everything you told us is saved, but your page does not open online yet. Try again or open it in the editor.",
         "draftSubStudio": "Everything you told us is saved, but your site does not open online yet. Try again or open it in the editor.",

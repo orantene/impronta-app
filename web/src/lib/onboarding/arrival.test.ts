@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { arrivalFromStamp, parseArrivalStamp } from "./arrival";
+import { applyRetryCheck, arrivalFromStamp, draftReasonKey, parseArrivalStamp } from "./arrival";
 
 const site = { publicUrl: "https://el-paisa.tulala.digital", editorUrl: "https://el-paisa.tulala.digital/?edit=1&panel=sections", adminPath: "/el-paisa/admin" };
 
@@ -136,4 +136,66 @@ test("TUL-648: publishedServiceCount matches the rows offeringRowFor publishes",
   const svc = (priceCents: number | null, quote = false) => ({ name: "S", durationMin: 60, priceCents, quote, currency: "MXN", packKey: null }) as never;
   assert.equal(publishedServiceCount([svc(50000), svc(null, true), svc(0), svc(30000, true)]), 1);
   assert.equal(publishedServiceCount(null), 0);
+});
+
+// TUL-818 / TUL-819 · a published site whose address check fails must say so honestly, and a retry must re-check.
+const talentDraftInput = {
+  path: "talent" as const, stamp: null, person: { name: "QA Limpieza 1014a", city: "Playa del Carmen" }, businessName: null, services: 1,
+  site: null,
+  talent: { publicUrl: null, todayUrl: "https://app.staging.tulala.digital/talent/today", siteUrl: "https://qa-limpieza-1014a.staging.tulala.digital" },
+};
+
+test("TUL-818: published talent site behind a protection wall is a draft that knows it is published", () => {
+  const a = arrivalFromStamp({ ...talentDraftInput, liveCheck: { ok: false, reason: "protected" }, published: true });
+  assert.equal(a.variant, "draft_saved");
+  assert.equal(a.published, true);
+  assert.equal(a.draftReason, "protected");
+  assert.equal(a.liveVariant, "talent");
+  assert.equal(a.liveSiteLive, true);
+  assert.equal(draftReasonKey(a), "public.onboarding.arrival.draftReason.publishedNotReachable");
+});
+
+test("TUL-818: a retry whose check passes promotes the draft to the live arrival", () => {
+  const draft = arrivalFromStamp({ ...talentDraftInput, liveCheck: { ok: false, reason: "network" }, published: true });
+  const live = applyRetryCheck(draft, { ok: true });
+  assert.equal(live.variant, "talent");
+  assert.equal(live.siteLive, true);
+  assert.equal(live.verified, true);
+  assert.equal(live.draftReason, undefined);
+  assert.equal(live.published, undefined);
+  assert.equal(live.fallbackReason, undefined);
+  assert.equal(live.link?.href, "https://qa-limpieza-1014a.staging.tulala.digital");
+});
+
+test("TUL-818: a retry whose check fails keeps the draft with the fresh reason", () => {
+  const draft = arrivalFromStamp({ ...talentDraftInput, liveCheck: { ok: false, reason: "network" }, published: true });
+  const still = applyRetryCheck(draft, { ok: false, reason: "name_missing" });
+  assert.equal(still.variant, "draft_saved");
+  assert.equal(still.draftReason, "name_missing");
+});
+
+test("TUL-818: a draft stored before the fix (no liveVariant) still promotes on a passing retry", () => {
+  const legacy = arrivalFromStamp({ ...talentDraftInput, liveCheck: { ok: false } });
+  delete legacy.liveVariant;
+  delete legacy.liveSiteLive;
+  const live = applyRetryCheck(legacy, { ok: true });
+  assert.equal(live.variant, "talent");
+  assert.equal(live.siteLive, true);
+});
+
+test("TUL-819: every draft reason maps to a plain-language key", () => {
+  assert.equal(draftReasonKey({ draftReason: "no_url" }), "public.onboarding.arrival.draftReason.notCreated");
+  assert.equal(draftReasonKey({ draftReason: "name_missing" }), "public.onboarding.arrival.draftReason.oldContent");
+  assert.equal(draftReasonKey({ draftReason: "status" }), "public.onboarding.arrival.draftReason.notReachable");
+  assert.equal(draftReasonKey({ draftReason: "status", published: true }), "public.onboarding.arrival.draftReason.publishedNotReachable");
+});
+
+test("TUL-819: the draft reason keys exist in en and es", async () => {
+  const { readFileSync } = await import("node:fs");
+  for (const loc of ["en", "es"]) {
+    const m = JSON.parse(readFileSync(new URL(`../../../messages/${loc}.json`, import.meta.url), "utf8"));
+    const arrival = m.public.onboarding.arrival;
+    for (const k of ["publishedNotReachable", "notReachable", "oldContent", "notCreated"]) assert.ok(arrival.draftReason[k], `${loc}:${k}`);
+    for (const k of ["draftTitlePublished", "draftSubPublished", "checkAgain"]) assert.ok(arrival[k], `${loc}:${k}`);
+  }
 });
