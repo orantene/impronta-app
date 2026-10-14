@@ -1,5 +1,6 @@
 import "server-only";
 
+import { hasEntitlement } from "@/lib/access/talent-entitlements";
 import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomains";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { resolveMaxSiteLinkUrl } from "@/lib/talent-site/max-site-link-url";
@@ -85,7 +86,7 @@ export async function loadTalentMaxSiteLink(
 
     const planKey = (profileRow as { talent_plan_key: string | null })
       .talent_plan_key;
-    if (planKey !== "talent_portfolio") return null;
+    if (!hasEntitlement(planKey, "personalSite.link")) return null;
     const isDemo = (profileRow as { is_demo?: boolean | null }).is_demo === true;
 
     const row = siteRow as {
