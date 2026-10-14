@@ -6,6 +6,7 @@
  * can be changed later in the builder. Business and both only.
  */
 
+import Image from "next/image";
 import { useState } from "react";
 
 import { VISUAL_DIRECTIONS, type VisualDirection } from "@/lib/onboarding/module-state";
@@ -33,6 +34,7 @@ const TILE_COPY: Record<VisualDirection, { title: string; sub: string }> = {
 export function StyleStep({ t, initial, busy, onChoose }: { t: T; initial: VisualDirection | null; busy: boolean; onChoose: (d: VisualDirection, notes: string | null) => void }) {
   const [picked, setPicked] = useState<VisualDirection | null>(initial ?? "natural");
   const [notes, setNotes] = useState("");
+  const [loaded, setLoaded] = useState<Partial<Record<VisualDirection, boolean>>>({});
   return (
     <div data-testid="onb-style">
       <Title>{t("public.onboarding.style.title")}</Title>
@@ -51,9 +53,24 @@ export function StyleStep({ t, initial, busy, onChoose }: { t: T; initial: Visua
               className="overflow-hidden rounded-[16px] text-left transition-transform active:scale-[0.98]"
               style={{ border: on ? "2px solid var(--tl-ink)" : "1px solid var(--tl-hairline)", background: "var(--tl-surface-raised)" }}
             >
-              <div className="relative aspect-[4/3] w-full">
-                {/* eslint-disable-next-line @next/next/no-img-element -- static marketing photo, sized by the tile */}
-                <img src={TILE_IMAGE[d]} alt="" className="h-full w-full object-cover" loading="lazy" />
+              <div className="relative aspect-[4/3] w-full overflow-hidden" style={{ background: "var(--tl-hairline)" }} data-testid={`onb-style-${d}-media`}>
+                {!loaded[d] ? (
+                  <span
+                    aria-hidden
+                    className="absolute inset-0 animate-pulse"
+                    style={{ background: "linear-gradient(110deg, var(--tl-surface-raised) 30%, var(--tl-hairline) 50%, var(--tl-surface-raised) 70%)" }}
+                    data-testid={`onb-style-${d}-skeleton`}
+                  />
+                ) : null}
+                <Image
+                  src={TILE_IMAGE[d]}
+                  alt=""
+                  fill
+                  sizes="(max-width: 640px) 45vw, 220px"
+                  priority
+                  className="object-cover"
+                  onLoad={() => setLoaded((prev) => (prev[d] ? prev : { ...prev, [d]: true }))}
+                />
                 {on ? (
                   <span aria-hidden className="absolute right-2 top-2 grid size-6 place-items-center rounded-full text-[0.75rem]" style={{ background: "var(--tl-ink)", color: "var(--tl-bone)" }}>✓</span>
                 ) : null}

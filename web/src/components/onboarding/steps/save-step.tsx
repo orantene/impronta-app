@@ -26,6 +26,8 @@ export function SaveStep({
   busy,
   error,
   initialAgeTerms = false,
+  email,
+  onEmailChange,
   onEmail,
   onGoogleSuccess,
 }: {
@@ -41,11 +43,13 @@ export function SaveStep({
   error: string | null;
   /** The tick already given (kept across "change email" and back). */
   initialAgeTerms?: boolean;
+  /** Draft owned by OnboardingModule so a step-body remount cannot wipe typing (onb1-11). */
+  email: string;
+  onEmailChange: (email: string) => void;
   onEmail: (email: string, ageTerms: boolean) => void;
   onGoogleSuccess: () => void;
 }) {
   const legal = ageTermsLinks(getSiteUrl(), locale);
-  const [email, setEmail] = useState("");
   // Legal 2.2: 18+ and Terms/Privacy, required before a code is sent. The
   // server action re-checks it; `disabled` here is only a convenience.
   const [ageTerms, setAgeTerms] = useState(initialAgeTerms);
@@ -94,11 +98,14 @@ export function SaveStep({
         </label>
         <input
           id="onb-email"
-          type="email"
+          type="text"
           inputMode="email"
           autoComplete="email"
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => onEmailChange(e.target.value)}
           placeholder={t("public.onboarding.save.emailPlaceholder")}
           data-testid="onb-email"
           className="mt-1 h-12 w-full rounded-[14px] px-3 text-[1rem] outline-none placeholder:text-[var(--tl-muted-soft)]"
