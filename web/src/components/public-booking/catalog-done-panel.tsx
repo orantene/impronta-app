@@ -6,7 +6,7 @@ import type { CatalogBookingDetail } from "./CatalogBookingSheet";
 /** The "done" step body of the catalog booking sheet (split out for max-lines). */
 export function CatalogDonePanel({
   detail, es, slotLabel, variantLabel, extraLabels, isQuote, totalLabel,
-  doneStatus, nextActionCopy, showDemoNote, chatHref = null,
+  doneStatus, nextActionCopy, showDemoNote, chatHref = null, bookingRef = null, place = null, placeIsClient = false,
 }: {
   detail: CatalogBookingDetail;
   es: boolean;
@@ -20,6 +20,11 @@ export function CatalogDonePanel({
   showDemoNote: boolean;
   /** TUL-92: the guest's own conversation, shown as a link once the booking is saved. */
   chatHref?: string | null;
+  /** TUL-896: the saved booking's reference (`TUL-XXXXXXXX`). */
+  bookingRef?: string | null;
+  /** TUL-896: where the service happens (typed address for a home visit, else the delivery label). */
+  place?: string | null;
+  placeIsClient?: boolean;
 }) {
   return (
     <div className="jb-done">
@@ -33,6 +38,22 @@ export function CatalogDonePanel({
         {extraLabels.length ? ` · ${extraLabels.join(", ")}` : ""}
         {isQuote ? ` · ${es ? "A cotizar" : "Quote"}` : ` · ${totalLabel}`}
       </p>
+      {bookingRef || place ? (
+        <dl className="jb-done-facts" data-catalog-done-facts="">
+          {bookingRef ? (
+            <div data-catalog-done-ref="">
+              <dt>{es ? "Referencia" : "Reference"}</dt>
+              <dd>{bookingRef}</dd>
+            </div>
+          ) : null}
+          {place ? (
+            <div data-catalog-done-place={placeIsClient ? "client" : "studio"}>
+              <dt>{placeIsClient ? (es ? "A domicilio" : "At your place") : es ? "Lugar" : "Where"}</dt>
+              <dd>{place}</dd>
+            </div>
+          ) : null}
+        </dl>
+      ) : null}
       {doneStatus.detail ? <p className="jb-fixture" data-catalog-done-state={doneStatus.bookingState}>{doneStatus.detail}</p> : null}
       <p className="jb-fixture" data-catalog-done-next="">
         {nextActionCopy}

@@ -82,6 +82,10 @@ export const CATALOG_BOOKING_CSS = `
 .jb-check{width:60px;height:60px;border-radius:99px;background:var(--cb-soft);color:var(--cb-primary);display:grid;place-items:center;font-size:1.5rem;margin:0 auto 16px}
 .jb-done h3{margin:0 0 8px;font-family:var(--token-font-display,var(--font-fraunces),Georgia,serif);font-weight:400;font-size:1.375rem;letter-spacing:-.02em}
 .jb-done>p{margin:0 0 8px;font-size:.9375rem;color:var(--cb-muted)}
+.jb-done-facts{margin:4px auto 12px;padding:12px 14px;max-width:420px;display:grid;gap:8px;text-align:left;border:1px solid var(--cb-line);border-radius:12px}
+.jb-done-facts>div{display:flex;justify-content:space-between;gap:12px;font-size:.875rem}
+.jb-done-facts dt{color:var(--cb-muted)}
+.jb-done-facts dd{margin:0;min-width:0;text-align:right;overflow-wrap:anywhere;font-weight:600;font-variant-numeric:tabular-nums}
 .jb-demo{margin:16px 0 0;font-size:.8125rem;line-height:1.5;color:var(--cb-muted);background:var(--cb-blush);border-radius:12px;padding:12px 14px}
 .jb-foot{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 20px calc(14px + env(safe-area-inset-bottom));border-top:1px solid var(--cb-line);background:var(--cb-surface)}
 .jb-total{display:grid}

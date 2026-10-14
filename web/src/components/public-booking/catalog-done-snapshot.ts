@@ -21,6 +21,9 @@ import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail
  * or closing the sheet forgets it.
  */
 
+/** TUL-896: what the done step tells the guest besides the slot: the reference and where. */
+export type CatalogDoneFacts = { ref: string | null; place: string | null };
+
 export type CatalogDoneSnapshot = {
   detail: OfferingRequestDetail;
   variantId: string | null;
@@ -28,6 +31,8 @@ export type CatalogDoneSnapshot = {
   slotLabel: string | null;
   wrote: boolean;
   doneHref: string | null;
+  /** TUL-896: reference + place shown on the done step. */
+  facts?: CatalogDoneFacts | null;
   at: number;
 };
 
@@ -102,6 +107,7 @@ export function useCatalogDoneSnapshot(a: {
   slotLabel: string | null;
   wrote: boolean;
   doneHref: string | null;
+  facts?: CatalogDoneFacts | null;
   restore: (snap: CatalogDoneSnapshot) => void;
 }): { doneSlot: string | null } {
   const [doneSlot, setDoneSlot] = useState<string | null>(null);
@@ -120,7 +126,7 @@ export function useCatalogDoneSnapshot(a: {
     setDoneSlot(snap.slotLabel);
     restoreRef.current(snap);
   }, []);
-  const { step, detail, variantId, addOnIds, slotLabel, wrote, doneHref } = a;
+  const { step, detail, variantId, addOnIds, slotLabel, wrote, doneHref, facts = null } = a;
   useEffect(() => {
     // Only a saved booking is worth restoring; a preview / demo done step is not.
     if (step === "done" && detail && wrote) {
@@ -128,7 +134,7 @@ export function useCatalogDoneSnapshot(a: {
       if (savedRef.current) return;
       savedRef.current = true;
       setDoneSlot(slotLabel);
-      saveCatalogDone({ detail, variantId, addOnIds, slotLabel, wrote, doneHref, at: Date.now() });
+      saveCatalogDone({ detail, variantId, addOnIds, slotLabel, wrote, doneHref, facts, at: Date.now() });
       return;
     }
     if (savedRef.current && !restoringRef.current) {
@@ -136,6 +142,6 @@ export function useCatalogDoneSnapshot(a: {
       setDoneSlot(null);
       clearCatalogDone();
     }
-  }, [step, detail, variantId, addOnIds, slotLabel, wrote, doneHref]);
+  }, [step, detail, variantId, addOnIds, slotLabel, wrote, doneHref, facts]);
   return { doneSlot };
 }

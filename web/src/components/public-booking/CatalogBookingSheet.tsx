@@ -79,7 +79,7 @@ import { useServiceAddress } from "./use-service-address";
 import { useCatalogBookingConfirm } from "./use-catalog-booking-confirm";
 import { CatalogDonePanel, CatalogSheetHeader } from "./catalog-done-panel";
 import { CatalogSheetFooter } from "./catalog-sheet-footer";
-import { isCatalogDoneEcho, useCatalogDoneSnapshot } from "./catalog-done-snapshot";
+import { isCatalogDoneEcho, useCatalogDoneSnapshot, type CatalogDoneFacts } from "./catalog-done-snapshot";
 
 type Step = "choose" | "when" | "who" | "done";
 export type CatalogBookingDetail = OfferingRequestDetail & {
@@ -130,6 +130,7 @@ export function CatalogBookingSheet({
   const [touched, setTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [wrote, setWrote] = useState(false); const [doneHref, setDoneHref] = useState<string | null>(null);
+  const [doneFacts, setDoneFacts] = useState<CatalogDoneFacts | null>(null); // TUL-896
   const [captchaToken, setCaptchaToken] = useState("");
   const [askAttempted, setAskAttempted] = useState(false);
   const [slotsRefreshKey, setSlotsRefreshKey] = useState(0);
@@ -181,7 +182,7 @@ export function CatalogBookingSheet({
       pendingSlotRef.current = opening.slot;
       setTime(opening.time); setLiveStarts(opening.liveStarts); liveStartsRef.current = opening.liveStarts;
       setName(draft?.name ?? ""); setPhone(draft?.phone ?? ""); setEmail(draft?.email ?? "");
-      setTouched(false); setError(null); setWrote(false); setAskAttempted(false); setTakenNotice(null);
+      setTouched(false); setError(null); setWrote(false); setAskAttempted(false); setTakenNotice(null); setDoneFacts(null);
       clearBookingResume();
       // Live drafts that left "who" resume on "when" so the strip can re-validate the start.
       setStep(opening.step);
@@ -345,6 +346,7 @@ export function CatalogBookingSheet({
     setStep,
     setWrote,
     setDoneHref,
+    setDoneFacts,
     setSlotsRefreshKey,
     setTakenNotice,
   });
@@ -356,9 +358,9 @@ export function CatalogBookingSheet({
   const slotLabel = time != null ? catalogBookingWhenLabel(day, time, mode === "live" ? liveTz : null, es) : null; // TUL-1022
   // TUL-1035: the confirmation outlives a remount / refresh / same-service re-open.
   const { doneSlot } = useCatalogDoneSnapshot({
-    step, detail, variantId, addOnIds, slotLabel, wrote, doneHref,
+    step, detail, variantId, addOnIds, slotLabel, wrote, doneHref, facts: doneFacts,
     restore: (snap) => {
-      setDetail(snap.detail); setVariantId(snap.variantId); setAddOnIds(snap.addOnIds);
+      setDetail(snap.detail); setVariantId(snap.variantId); setAddOnIds(snap.addOnIds); setDoneFacts(snap.facts ?? null);
       setWrote(snap.wrote); setDoneHref(snap.doneHref); setStep("done");
     },
   });
@@ -740,6 +742,7 @@ export function CatalogBookingSheet({
               })}
               showDemoNote={mode === "demo" || !wrote}
               chatHref={wrote ? doneHref : null}
+              bookingRef={wrote ? doneFacts?.ref : null} place={doneFacts?.place ?? null} placeIsClient={addr.rule === "required"}
             />
           ) : null}
         </div>

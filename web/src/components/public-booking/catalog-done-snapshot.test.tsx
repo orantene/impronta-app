@@ -86,6 +86,8 @@ test("TUL-1035: a saved booking still shows its confirmation after the sheet rem
   const shownSlot = first.host.querySelector(".jb-done h3")?.textContent ?? "";
   // TUL-1022: the confirmation keeps the recap's date format AND the venue zone.
   assert.match(shownSlot, /^Miércoles 14 oct, 18:00 · Hora de Cancún$/);
+  // TUL-896: the guest gets a reference to quote.
+  assert.match(first.host.querySelector("[data-catalog-done-ref]")?.textContent ?? "", /Referencia\s*TUL-B1/);
   // The route refresh after the guest cookie is minted tears the tree down.
   act(() => first.root.unmount());
   first.host.remove();
@@ -93,6 +95,7 @@ test("TUL-1035: a saved booking still shows its confirmation after the sheet rem
   await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
   assert.ok(second.host.querySelector(".jb-done"), "confirmation restored, not step one");
   assert.equal(second.host.querySelector(".jb-done h3")?.textContent, shownSlot, "same date/time line");
+  assert.match(second.host.querySelector("[data-catalog-done-ref]")?.textContent ?? "", /TUL-B1/, "reference survives the remount");
   assert.equal(second.host.querySelector('[data-catalog-continue="choose"]'), null);
   // An automatic re-open of the same service is the refresh echo: it keeps the confirmation.
   act(() => {
@@ -121,6 +124,35 @@ test("TUL-1035: the snapshot expires and the echo guard is short", () => {
   assert.equal(isCatalogDoneEcho("off-1", at + CATALOG_DONE_REOPEN_GUARD_MS + 1), false);
   assert.ok(loadCatalogDone(at + CATALOG_DONE_TTL_MS - 1));
   assert.equal(loadCatalogDone(at + CATALOG_DONE_TTL_MS + 1), null);
+  clearCatalogDone();
+});
+
+test("TUL-896: a home-visit confirmation shows the typed address", async () => {
+  clearCatalogDone();
+  const m = mount();
+  act(() => {
+    dom.window.dispatchEvent(new dom.window.CustomEvent("tulala:offering-instant", {
+      detail: { ...DETAIL, offeringId: "off-home", where: ["client"], startAt: "when" },
+    }));
+  });
+  await act(async () => { await new Promise((r) => setTimeout(r, 40)); });
+  act(() => m.host.querySelector<HTMLButtonElement>(".jb-times .jb-time")!.click());
+  act(() => m.host.querySelector<HTMLButtonElement>('[data-catalog-continue="when"]')!.click());
+  setInput(m.host.querySelector<HTMLInputElement>('[data-testid="cb-name"]')!, "QA Guest");
+  setInput(m.host.querySelector<HTMLInputElement>('[data-testid="cb-email"]')!, "qa@example.com");
+  const address = m.host.querySelector<HTMLInputElement>('[data-testid="cb-service-address"]');
+  assert.ok(address, "address field on a home visit");
+  setInput(address, "Calle 5 #12, Centro");
+  await act(async () => {
+    m.host.querySelector<HTMLButtonElement>('[data-catalog-continue="who"]')!.click();
+    await new Promise((r) => setTimeout(r, 60));
+  });
+  const place = m.host.querySelector('[data-catalog-done-place="client"]');
+  assert.ok(place, "done step names the place");
+  assert.match(place.textContent ?? "", /A domicilio/);
+  assert.match(place.textContent ?? "", /Calle 5 #12, Centro/);
+  act(() => m.root.unmount());
+  m.host.remove();
   clearCatalogDone();
 });
 
