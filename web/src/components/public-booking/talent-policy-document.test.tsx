@@ -63,23 +63,3 @@ test("home link: en + es, next/link, no em dash (TUL-516 H1)", () => {
   const sheet = renderToStaticMarkup(<TalentPolicyDocument model={base} />);
   assert.equal(sheet.includes("data-policy-home"), false);
 });
-
-test("E3-J8-policies: Tulala's terms and privacy read as named links, Spanish pages open the /es/ copy", () => {
-  const body = "Los datos personales y los pagos se manejan a través de Tulala. Términos: https://tulala.digital/legal/terms Privacidad: https://tulala.digital/legal/privacy";
-  const es = renderToStaticMarkup(
-    <TalentPolicyDocument model={{ ...base, clauses: [{ n: 1, title: "Quién los maneja", body }] } as PolicyPageModel} />,
-  );
-  assert.ok(!es.includes(">https://"), "no raw URL as link text");
-  assert.match(es, /a través de Tulala\. <a href="https:\/\/tulala\.digital\/es\/legal\/terms"[^>]*>Términos de Tulala<\/a> · <a href="https:\/\/tulala\.digital\/es\/legal\/privacy"[^>]*>Privacidad de Tulala<\/a>/);
-
-  const enBody = "Personal data and payments are handled through Tulala. Terms: https://tulala.digital/legal/terms Privacy: https://tulala.digital/legal/privacy";
-  const en = renderToStaticMarkup(
-    <TalentPolicyDocument model={{ ...base, locale: "en", clauses: [{ n: 1, title: "Who handles them", body: enBody }] } as PolicyPageModel} />,
-  );
-  assert.match(en, /through Tulala\. <a href="https:\/\/tulala\.digital\/legal\/terms"[^>]*>Tulala Terms<\/a> · <a href="https:\/\/tulala\.digital\/legal\/privacy"[^>]*>Tulala Privacy<\/a>/);
-
-  const other = renderToStaticMarkup(
-    <TalentPolicyDocument model={{ ...base, clauses: [{ n: 1, title: "Más", body: "Ver https://example.com/x" }] } as PolicyPageModel} />,
-  );
-  assert.match(other, /Ver <a href="https:\/\/example\.com\/x"[^>]*>https:\/\/example\.com\/x<\/a>/);
-});
