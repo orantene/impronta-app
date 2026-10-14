@@ -38,6 +38,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * work today": that is exactly the rot this guard exists to catch.
  */
 export const ALLOWLIST: Readonly<Record<string, string>> = {
+  "src/lib/orders/promo-resolve.adapter.test.ts": "pins NOW constant and passes it as now to resolvePromo; fixture dates are relative to it",
+  "src/lib/orders/promo-resolve.client-status.test.ts": "pins NOW constant and passes it to resolvePromo and classifyClientStatus",
   "src/lib/bookings/cancellation-window.test.ts": "pins NOW constant and feeds it as nowMs to the code under test",
   "src/lib/scheduling/load-busy.test.ts": "pins NOW constant and passes it as now to loadBusy",
   "src/lib/scheduling/inquiry-event-stamp.test.ts": "pure local-date and zone arithmetic over explicit stamps, never reads the clock",
