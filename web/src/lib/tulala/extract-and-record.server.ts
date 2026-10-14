@@ -42,6 +42,8 @@ export async function extractAndRecord(input: {
   userMessage: string;
   question: Question | null;
   pack: IndustryPack | null;
+  /** Flow language: descriptive values come back in it. */
+  locale?: "en" | "es";
   /**
    * Called once with the model call's outcome so a caller can record cost
    * and fail over to another provider. The return value (the facts written)
@@ -52,7 +54,7 @@ export async function extractAndRecord(input: {
   try {
     const completion = await withTimeout(
       input.adapter.chatCompletion({
-        systemPrompt: buildExtractionPrompt({ pack: input.pack }),
+        systemPrompt: buildExtractionPrompt({ pack: input.pack, locale: input.locale }),
         userMessage: buildExtractionMessage({
           userMessage: input.userMessage,
           brief: input.brief,

@@ -11,6 +11,8 @@ import {
 } from "@/lib/impersonation/cookie";
 import { loadProfileRowById } from "@/lib/impersonation/profile-lookup";
 import {
+  qaSwitchFailureReason,
+  type QaSwitchReason,
   qaClientUserIdEnv,
   qaTalentUserIdEnv,
   targetRoleMatchesWorkspace,
@@ -22,10 +24,19 @@ import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { logImpersonation } from "@/lib/platform/staff-access-log";
 import { logServerError } from "@/lib/server/safe-error";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { impersonationExitPath } from "@/lib/impersonation/exit-path";
 import { loadClientPrimaryTenantSlug } from "@/lib/saas/role-tenant-resolver";
 
-/** `unavailable`: the QA persona id is unset, missing, or has the wrong role. */
-export type QaImpersonationState = { error: "unavailable" | null };
+/**
+ * `unavailable`: the switch did not start. `reason` names why (inactive, not
+ * configured, wrong role, not allow-listed, no agency relationship) for the
+ * super admin only; it never carries ids or profile data.
+ */
+export type QaImpersonationState = { error: "unavailable" | null; reason?: QaSwitchReason };
+
+function fail(reason: QaSwitchReason): QaImpersonationState {
+  return { error: "unavailable", reason };
+}
 
 function impersonationSecret(): string | undefined {
   return process.env.IMPERSONATION_COOKIE_SECRET?.trim() || undefined;
@@ -47,11 +58,11 @@ export async function startImpersonationAsQaTalent(
   const target = qaTalentUserIdEnv();
   if (!secret || !target) {
     logServerError("admin-impersonation.startTalent", new Error("QA talent switch unavailable: secret or QA talent id not set"));
-    return { error: "unavailable" };
+    return fail("not_configured");
   }
 
   const supabase = await getCachedServerSupabase();
-  if (!supabase) return { error: "unavailable" };
+  if (!supabase) return fail("not_configured");
 
   const targetProfile = await loadProfileRowById(supabase, target);
   const check = validateImpersonationTargetProfile({
@@ -60,9 +71,10 @@ export async function startImpersonationAsQaTalent(
     targetUserId: target,
     targetProfile,
   });
-  if (!check.ok || !targetRoleMatchesWorkspace(targetProfile, "talent")) {
-    logServerError("admin-impersonation.startTalent", new Error("QA talent switch unavailable: configured id is not an active talent user"));
-    return { error: "unavailable" };
+  const talentReason = qaSwitchFailureReason(check, "talent", { appRole: targetProfile?.app_role });
+  if (talentReason || !targetRoleMatchesWorkspace(targetProfile, "talent")) {
+    logServerError("admin-impersonation.startTalent", new Error(`QA talent switch unavailable: ${talentReason ?? "wrong_role"}`));
+    return fail(talentReason ?? "wrong_role");
   }
 
   const token = await signImpersonationCookie(secret, target);
@@ -90,11 +102,11 @@ export async function startImpersonationAsQaClient(
   const target = qaClientUserIdEnv();
   if (!secret || !target) {
     logServerError("admin-impersonation.startClient", new Error("QA client switch unavailable: secret or QA client id not set"));
-    return { error: "unavailable" };
+    return fail("not_configured");
   }
 
   const supabase = await getCachedServerSupabase();
-  if (!supabase) return { error: "unavailable" };
+  if (!supabase) return fail("not_configured");
 
   const targetProfile = await loadProfileRowById(supabase, target);
   const check = validateImpersonationTargetProfile({
@@ -103,9 +115,20 @@ export async function startImpersonationAsQaClient(
     targetProfile,
     targetUserId: target,
   });
-  if (!check.ok || !targetRoleMatchesWorkspace(targetProfile, "client")) {
-    logServerError("admin-impersonation.startClient", new Error("QA client switch unavailable: configured id is not an active client user"));
-    return { error: "unavailable" };
+  const clientReason = qaSwitchFailureReason(check, "client", { appRole: targetProfile?.app_role });
+  if (clientReason || !targetRoleMatchesWorkspace(targetProfile, "client")) {
+    logServerError("admin-impersonation.startClient", new Error(`QA client switch unavailable: ${clientReason ?? "wrong_role"}`));
+    return fail(clientReason ?? "wrong_role");
+  }
+
+  // Resolve the subject's tenant shell BEFORE touching the cookie (TUL-255
+  // loop). The bare /client resolver reads the actor session and misroutes
+  // staff, so a client with no agency relationship is a named failure here,
+  // never a fallback redirect.
+  const slug = await loadClientPrimaryTenantSlug(target).catch(() => null);
+  if (!slug) {
+    logServerError("admin-impersonation.startClient", new Error("QA client switch unavailable: no_relationship"));
+    return fail("no_relationship");
   }
 
   const token = await signImpersonationCookie(secret, target);
@@ -114,11 +137,7 @@ export async function startImpersonationAsQaClient(
   await logImpersonation({ actorUserId: admin.user.id, targetUserId: target, phase: "start", targetRole: "client" });
 
   revalidatePath("/", "layout");
-  // Prefer the subject's tenant shell so we never depend on the bare /client
-  // resolver (TUL-255 loop). Fall back to /client when the subject has no
-  // primary agency relationship yet.
-  const slug = await loadClientPrimaryTenantSlug(target).catch(() => null);
-  redirect(slug ? `/${slug}/client/today` : "/client");
+  redirect(`/${slug}/client/today`);
 }
 
 export async function endImpersonationToAdmin(): Promise<void> {
@@ -130,5 +149,5 @@ export async function endImpersonationToAdmin(): Promise<void> {
   await logImpersonation({ actorUserId: admin.user.id, targetUserId: null, phase: "stop" });
 
   revalidatePath("/", "layout");
-  redirect("/admin");
+  redirect(impersonationExitPath(admin.profile?.app_role));
 }

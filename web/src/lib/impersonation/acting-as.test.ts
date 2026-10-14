@@ -92,7 +92,9 @@ test("wiring: client layout mounts ImpersonationBanner with Exit; platform hosts
 test("TUL-255: a broken QA persona id returns a friendly state instead of throwing", () => {
   const startAction = read("src/lib/server-actions/admin-impersonation.ts");
   assert.doesNotMatch(startAction, /throw new Error/);
-  assert.equal((startAction.match(/return \{ error: "unavailable" \}/g) ?? []).length, 6);
+  // TUL-669: every failure is now a named reason via fail(), never a bare unavailable.
+  assert.equal((startAction.match(/return \{ error: "unavailable" \}/g) ?? []).length, 0);
+  assert.ok((startAction.match(/return fail\(/g) ?? []).length >= 6);
   const switcher = read("src/components/dashboard/workspace-switcher.tsx");
   assert.match(switcher, /<QaImpersonationButton[\s\S]*action=\{startImpersonationAsQaClient\}/);
   assert.doesNotMatch(switcher, /<form action=\{startImpersonationAsQa/);

@@ -24,12 +24,17 @@ function firstLine(body: string, max: number): string {
 }
 
 /** Title stored at creation: the typed subject/topic, else the first message. */
-export function deriveTicketSubject(input: { subject?: string | null; body: string }): string {
+export function deriveTicketSubject(input: {
+  subject?: string | null;
+  body: string;
+  /** True when the subject is a typed title (kept as typed), not a topic pick. */
+  typed?: boolean;
+}): string {
   const cleaned = (input.subject ?? "").replace(/^\[guest\]\s*/i, "").trim();
   const first = firstLine(input.body, 80);
   if (isGenericTicketTitle(cleaned)) return first || "Support request";
   // A bare topic ("Pricing") is not a title on its own: add the first words.
-  if (cleaned.length < 24 && first && !first.toLowerCase().startsWith(cleaned.toLowerCase())) {
+  if (!input.typed && cleaned.length < 24 && first && !first.toLowerCase().startsWith(cleaned.toLowerCase())) {
     return `${cleaned}: ${first}`.slice(0, 100);
   }
   return cleaned.slice(0, 100);
