@@ -1684,6 +1684,8 @@
       "lead": "Elige un servicio y un horario. Confirmamos enseguida.",
       "bookCta": "Agendar",
       "chooseService": "Servicio",
+      "noServices": "Todavía no hay servicios abiertos para reservar en línea. Escríbenos y buscamos un horario contigo.",
+      "contactCta": "Enviar un mensaje",
       "studioFallback": "el estudio"
     },
     "siteShellSurface": {
