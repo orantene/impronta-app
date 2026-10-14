@@ -238,7 +238,6 @@ export async function loadHqSupportQueue(): Promise<HqQueueRow[]> {
         talentCode: talentCodes.get(ticket.id) ?? null,
       };
     });
-    return await hydrateHqQueueRows(admin, data ?? []);
   } catch (err) {
     logServerError("support.hq.queue", err);
     return [];
