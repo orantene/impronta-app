@@ -160,8 +160,7 @@ export async function loadHqSupportOpenCount(): Promise<number> {
     if (!admin) return 0;
     const { count, error } = await supportFrom(admin, "support_tickets")
       .select("id", { count: "exact", head: true })
-      .eq("status", "open")
-      .eq("waiting_on", "support");
+      .eq("status", "open");
     if (error) return 0;
     return count ?? 0;
   } catch (err) {
