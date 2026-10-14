@@ -19,6 +19,7 @@ import {
 import { deriveAppBaseUrl } from "@/lib/stripe/utils";
 import { resolveTalentPriceId } from "@/lib/stripe/price-catalog";
 import { yearlyCheckoutPlans } from "@/lib/billing/checkout-interval";
+import { isAlreadySubscribedError } from "@/lib/billing/duplicate-subscription";
 import { signCheckoutReturn } from "@/lib/billing/checkout-return";
 import { isSafeReturnPath } from "@/lib/billing/trial-door";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -92,6 +93,20 @@ export async function startTalentUpgrade(
       : null,
     interval: interval ?? null,
   });
+
+  // TUL-830: an existing active/trialing/past_due plan is never sent through
+  // Checkout again (that would mint a second subscription); change it in the portal.
+  if (!result.ok && isAlreadySubscribedError(result.error)) {
+    const portal = await createTalentBillingPortalSession({
+      userId: session.user.id,
+      tenantSlug,
+      appBaseUrl,
+      locale: await getRequestLocale(),
+    });
+    if (portal.ok) return { ok: true, redirectUrl: portal.data.url };
+    logServerError("stripe-talent-actions.startUpgrade.portal", portal.error);
+    return { ok: false, error: result.error };
+  }
 
   if (!result.ok) {
     logServerError("stripe-talent-actions.startUpgrade", result.error);

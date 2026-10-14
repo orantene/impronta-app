@@ -25,6 +25,7 @@ import {
   resolveSubscriptionDiscountMirror,
 } from "@/lib/billing/subscription-discounts";
 import { idempotencySuffix, returnQuery } from "@/lib/billing/checkout-return";
+import { duplicateSubscriptionGuard } from "@/lib/billing/subscription-guard.server";
 import { checkoutIdempotencyKey, checkoutPriceError, resolveCheckoutPrice } from "@/lib/billing/checkout-interval";
 import { loadTrialOffer } from "@/lib/plan-trials/offers";
 import {
@@ -171,6 +172,9 @@ export async function createTalentCheckoutSession(opts: {
   }
   const stripe = getStripe()!;
 
+  // TUL-830: one subscription per talent; an existing one changes plan in the portal.
+  const duplicate = await duplicateSubscriptionGuard("talent", opts.talentProfileId);
+  if (duplicate) return { ok: false, error: duplicate };
   const price = await resolveCheckoutPrice((i) => resolveTalentPriceId(opts.planKey, i), opts.interval);
   if (!price.ok) return { ok: false, error: checkoutPriceError(price.code, opts.planKey) };
   const priceId = price.priceId;
@@ -201,7 +205,8 @@ export async function createTalentCheckoutSession(opts: {
       customer: customerResult.data,
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${opts.appBaseUrl}/${opts.tenantSlug}/talent/settings?billing=success${returnQuery(opts.returnToken)}`,
+      // TUL-836: {CHECKOUT_SESSION_ID} lets the success page sync the plan if the webhook is late.
+      success_url: `${opts.appBaseUrl}/${opts.tenantSlug}/talent/settings?billing=success&session_id={CHECKOUT_SESSION_ID}${returnQuery(opts.returnToken)}`,
       cancel_url:  `${opts.appBaseUrl}/${opts.tenantSlug}/talent/settings?billing=cancelled`,
       // Show Checkout in the talent's app language, not their browser's.
       locale: stripeCheckoutLocale(opts.locale),
