@@ -16,7 +16,6 @@ import {
   reservationIdFromMetadata,
   settleCollectionReservation,
 } from "@/lib/pos/collection-reservations";
-import { mintAndDeliverForPaidOrder } from "@/lib/events/mint-and-deliver";
 import { improntaLog } from "@/lib/server/structured-log";
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import "server-only";
@@ -42,7 +41,6 @@ import {
   notifyTalentPayoutSettled,
 } from "@/lib/notifications/producers/payment-notify";
 import { notifyBookingConfirmed } from "@/lib/notifications/producers/booking-confirmed-notify";
-import { executeBookingTransfers } from "@/lib/payments/transfers";
 import { guardPaidAfterCancellation } from "@/lib/payments/paid-after-cancel";
 import { attributePurchaseBooking } from "@/lib/orders/purchase-attribution";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -955,6 +953,8 @@ export async function markPaid(
         logServerError("transactions.markPaid.attributePurchase", attrErr);
       }
       try {
+        // TUL-573: lazy (reaches stripe-connect and the Stripe SDK). Inside the same try.
+        const { executeBookingTransfers } = await import("@/lib/payments/transfers");
         await executeBookingTransfers(result.data.id);
       } catch (transferErr) {
         logServerError("transactions.markPaid.executeBookingTransfers", transferErr);
@@ -995,7 +995,11 @@ export async function markPaid(
         const settled = paidAfterCancel
           ? ({ ok: false, reason: "no_order" } as const)
           : await completeOrderForTransaction(sbOrders, result.data.id, {
-              onOrderPaid: (ctx) => mintAndDeliverForPaidOrder(sbOrders, ctx),
+              onOrderPaid: async (ctx) => {
+                // TUL-573: lazy (pdf-lib, fontkit, resend stay off dashboard cold starts).
+                const { mintAndDeliverForPaidOrder } = await import("@/lib/events/mint-and-deliver");
+                return mintAndDeliverForPaidOrder(sbOrders, ctx);
+              },
             });
         if (!settled.ok && settled.reason !== "no_order") {
           logServerError(

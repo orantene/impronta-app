@@ -10,6 +10,7 @@
 
 import { useEffect, useState } from "react";
 import { useT } from "@/i18n/use-t";
+import { useDashboardText } from "../dashboard-i18n";
 import { talentPublicProfileHref, talentPublicProfileLabel } from "@/lib/talent/public-profile-href";
 import { useCurrentOrigin } from "@/lib/talent/use-public-profile-href";
 import { interpolate } from "@/i18n/interpolate";
@@ -425,8 +426,10 @@ export function TalentPrivacyDrawer() {
 // never frames it as "pay to message". See project_client_trust_badges.md.
 
 export function TalentContactPreferencesDrawer() {
-  const { state, closeDrawer, bridgeTalentSelfProfile } = useAdminShell();
+  const { state, closeDrawer, bridgeTalentSelfProfile, bridgeTalentAgencies } = useAdminShell();
   const t = useT();
+  const dash = useDashboardText();
+  const solo = (bridgeTalentAgencies ?? []).length === 0;
   const open = state.drawer.drawerId === "talent-contact-preferences";
   const defaultPolicy = bridgeTalentSelfProfile?.contactPolicy ?? MY_TALENT_PROFILE.contactPolicy;
   const [policy, setPolicy] = useState<TalentContactPolicy>(defaultPolicy as TalentContactPolicy);
@@ -463,7 +466,7 @@ export function TalentContactPreferencesDrawer() {
       open={open}
       onClose={closeDrawer}
       title={t("dashboard.talentDrawers.agency.contactPreferences")}
-      description={t("dashboard.talentDrawers.agency.contactPreferencesDesc")}
+      description={t(solo ? "dashboard.talentDrawers.agency.contactPreferencesDescSolo" : "dashboard.talentDrawers.agency.contactPreferencesDesc")}
       width={560}
       footer={
         <>
@@ -492,7 +495,7 @@ export function TalentContactPreferencesDrawer() {
       >
         <CapsLabel>{t("dashboard.talentDrawers.agency.howThisWorks")}</CapsLabel>
         <div style={{ fontFamily: FONTS.body, fontSize: 13, marginTop: 6, lineHeight: 1.55 }} className="text-admin-ink">
-          {t("dashboard.talentDrawers.agency.howThisWorksBody")}
+          {t(solo ? "dashboard.talentDrawers.agency.howThisWorksBodySolo" : "dashboard.talentDrawers.agency.howThisWorksBody")}
         </div>
       </div>
 
@@ -530,10 +533,10 @@ export function TalentContactPreferencesDrawer() {
               <div className="flex-1 min-w-0">
                 <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: FONTS.body, fontSize: 13, fontWeight: 500 }} className="text-admin-ink">
                   <ClientTrustChip level={tier} compact withDot={false} />
-                  {interpolate(t("dashboard.talentDrawers.agency.allowInquiriesFrom"), { tier: meta.label })}
+                  {interpolate(t("dashboard.talentDrawers.agency.allowInquiriesFrom"), { tier: dash.t(meta.label) })}
                 </div>
                 <div style={{ fontFamily: FONTS.body, fontSize: 12, marginTop: 4, lineHeight: 1.5 }} className="text-admin-ink-muted">
-                  {meta.rationale}
+                  {dash.t(meta.rationale)}
                 </div>
               </div>
               <Toggle
@@ -548,7 +551,7 @@ export function TalentContactPreferencesDrawer() {
       {/* What changes — a soft note about the consequence of selectivity. */}
       {!allOn && (
         <div style={{ marginTop: 14, fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.55 }} className="text-admin-ink-muted">
-          {t("dashboard.talentDrawers.agency.selectivityNote")}
+          {t(solo ? "dashboard.talentDrawers.agency.selectivityNoteSolo" : "dashboard.talentDrawers.agency.selectivityNote")}
         </div>
       )}
     </DrawerShell>

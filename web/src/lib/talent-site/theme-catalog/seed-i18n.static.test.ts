@@ -17,6 +17,7 @@ import { localiseOne } from "../design-label-locale";
 import {
   isTokenOnlyText,
   MODE_DEPENDENT_LABELS,
+  RECENT_JOBS_LABEL,
   SEED_TEXT_ES,
   SEED_TEXT_EN_FROM_ES,
   THEME_SEED_BASE_LOCALE,
@@ -135,6 +136,12 @@ test("the seed Spanish table has no em dash and no voseo", () => {
     // A token must survive translation.
     assert.deepEqual(es.match(/\{\{\w+\}\}/g) ?? [], en.match(/\{\{\w+\}\}/g) ?? [], `${en}`);
   }
+});
+
+test("TUL-516 C1: Recent jobs seed and render-time map stay one pair", () => {
+  assert.equal(SEED_TEXT_ES[RECENT_JOBS_LABEL.en], RECENT_JOBS_LABEL.es);
+  assert.equal(localiseOne(RECENT_JOBS_LABEL.en, "es", null), RECENT_JOBS_LABEL.es);
+  assert.equal(localiseOne(RECENT_JOBS_LABEL.es, "en", null), RECENT_JOBS_LABEL.en);
 });
 
 test("the scanner flags a missing overlay (guard against a vacuous pass)", () => {

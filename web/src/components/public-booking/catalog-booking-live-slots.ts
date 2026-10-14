@@ -12,6 +12,8 @@ export type CatalogSlotsResult = {
   timezone: string;
   /** Talent home city for the zone chip when the IANA namesake differs. */
   placeCity?: string | null;
+  /** Why no slots came back (e.g. `no_booking_hours`). */
+  reason?: string | null;
   /** YYYY-MM-DD sent as `?from=` — the live strip starts on this day. */
   fromYmd?: string;
 };
@@ -50,12 +52,13 @@ export async function fetchLiveSlots(
     duration: String(durationMinutes),
   });
   const res = await fetch(`/api/public/booking/slots?${params.toString()}`, { cache: "no-store" });
-  const body = (await res.json()) as { slots?: string[]; timezone?: string; placeCity?: string };
-  if (!res.ok) return { slots: [], timezone: "UTC", fromYmd };
+  const body = (await res.json()) as { slots?: string[]; timezone?: string; placeCity?: string; reason?: string };
+  if (!res.ok) return { slots: [], timezone: "UTC", reason: null, fromYmd };
   return {
     slots: Array.isArray(body.slots) ? body.slots : [],
     timezone: typeof body.timezone === "string" && body.timezone.trim() ? body.timezone.trim() : "UTC",
     placeCity: typeof body.placeCity === "string" && body.placeCity.trim() ? body.placeCity.trim() : null,
+    reason: typeof body.reason === "string" ? body.reason : null,
     fromYmd,
   };
 }

@@ -15,11 +15,11 @@ import {
   type OfferingDestination,
   type SellingDefaults,
 } from "@/lib/talent/services-settings-actions";
-import { publicationWord } from "@/lib/talent/publication-state";
+import { categoryNearMatch, publicationWord } from "@/lib/talent/publication-state";
 import { offeringPriceLabel, type TalentOffering } from "@/lib/talent/offerings-types";
 import { PLATFORM_DEFAULT_BOOKING_POSTURE } from "@/lib/talent/selling-booking-settings";
 import { CurrencyField } from "./CurrencyField";
-import { formatDashboardMoney } from "@/lib/money/dashboard-money-format";
+import { formatDashboardMoney, formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import { usdEquivalentLabel } from "@/lib/pricing/usd-equivalent";
 import { useOfferingsEditor } from "./use-offerings-editor";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
@@ -27,10 +27,9 @@ import { uploadTalentMedia } from "@/lib/client/signed-upload";
 import { MatrixFields } from "./MatrixFields";
 import { IntakeFields } from "./IntakeFields";
 import { ProductEditorCard } from "./ProductEditorCard";
-import { categoryNearMatch } from "@/lib/talent/publication-state";
 import { SiteModeOverrideNotice } from "./SiteModeOverrideNotice";
 import { localizeOfferingSaveError } from "./offering-editor-save";
-import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
+import { canLeaveEditor } from "./offering-editor-leave";
 
 type Photo = { id: string; url: string };
 type Where = "studio" | "client" | "remote" | "agreed";
@@ -124,9 +123,10 @@ export function EditorScreen({
   const kindWord =
     kind === "package" ? copy.t("Package") : kind === "product" ? copy.t("Product") : copy.t("Service");
   const patch = (partial: Partial<TalentOffering>) => setItem({ ...item, ...partial });
-  // Unsaved edits survive a language-switch reload only with a prompt (PR 7).
   const [baseline, setBaseline] = useState(() => JSON.stringify(item));
-  useBeforeUnloadGuard(JSON.stringify(item) !== baseline);
+  const dirty = JSON.stringify(item) !== baseline;
+  useBeforeUnloadGuard(dirty);
+  const guardedBack = () => canLeaveEditor(dirty, es, (m) => window.confirm(m)) && onBack();
   const patchAttr = (key: string, value: unknown) =>
     setItem({ ...item, attributes: { ...(item.attributes ?? {}), [key]: value } });
 
@@ -226,7 +226,7 @@ export function EditorScreen({
     <div className="font-admin-body">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <button type="button" onClick={onBack} className="mb-1 text-[13px] text-admin-ink-muted">
+          <button type="button" onClick={guardedBack} className="mb-1 text-[13px] text-admin-ink-muted">
             ← {copy.t("Services")}
           </button>
           <h1 className="font-admin-body text-[24px] font-semibold leading-tight tracking-normal text-admin-ink">

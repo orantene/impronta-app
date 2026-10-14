@@ -1691,6 +1691,8 @@
       "lead": "Pick a service and a time. We will confirm shortly.",
       "bookCta": "Book",
       "chooseService": "Service",
+      "noServices": "No services are open for online booking yet. Send us a message and we will find a time with you.",
+      "contactCta": "Send a message",
       "studioFallback": "the studio"
     },
     "siteShellSurface": {
@@ -2293,6 +2295,7 @@
       "closeLabel": "Close",
       "title": "Sign in or create an account",
       "subtitle": "Continue with Google or Apple, or we email you a code.",
+      "subtitleNoApple": "Continue with Google, or we email you a code.",
       "emailLabel": "Email",
       "sendCode": "Send code",
       "codeLabel": "Code",
@@ -3338,12 +3341,15 @@
         "privacyMeasurementsHint": "Off = only agencies and clients you accept can see them.",
         "contactPreferences": "Contact preferences",
         "contactPreferencesDesc": "Decide which client trust tiers can send you inquiries. Your agency still sees everything internally, this gates inbound contact, not visibility.",
+        "contactPreferencesDescSolo": "Decide which client trust tiers can send you inquiries. This gates inbound contact, not who can see your page.",
         "howThisWorks": "How this works",
         "howThisWorksBody": "Higher-trust clients have completed verification or funded their account on Tulala. You decide which tiers can reach you. Lower-trust tiers always have your agency's roster page available, they just can't drop straight into your inbox.",
+        "howThisWorksBodySolo": "Higher-trust clients have completed verification or funded their account on Tulala. You decide which tiers can reach you. Lower-trust tiers can still see your public page, they just can't drop straight into your inbox.",
         "presetOpen": "Open to everyone",
         "presetVerified": "Verified clients only",
         "allowInquiriesFrom": "Allow inquiries from {tier} clients",
-        "selectivityNote": "Blocked tiers can still see your roster page. They'll be invited to verify or fund their account before they can send you a direct inquiry. Your agency's coordinator inbox is unaffected."
+        "selectivityNote": "Blocked tiers can still see your roster page. They'll be invited to verify or fund their account before they can send you a direct inquiry. Your agency's coordinator inbox is unaffected.",
+        "selectivityNoteSolo": "Blocked tiers can still see your public page. They'll be invited to verify or fund their account before they can send you a direct inquiry."
       },
       "monetization": {
         "payouts": "Payouts",
@@ -3375,8 +3381,6 @@
         "taxDocuments": "Tax documents",
         "taxDocumentsDesc": "Year-end summary + downloadable forms. Tulala reports your platform earnings; off-platform you declare yourself.",
         "taxYearTotal": "{year} total",
-        "taxPlatform": "Platform",
-        "taxOffPlatform": "Off-platform",
         "availableDocuments": "Available documents",
         "docIncomeSummary": "{year} income summary",
         "docIncomeSummaryBody": "Platform-reported earnings only · PDF download",
@@ -13225,6 +13229,7 @@
       "oldest": "oldest {age}",
       "settingsTitle": "Notification settings",
       "settingsHint": "Email + push per event",
+      "seeAll": "See my notifications",
       "colEvent": "Event",
       "colEmail": "Email",
       "colPush": "Push",
@@ -17223,7 +17228,8 @@
           "collisionNote": "{when} cannot be generated: the room already holds {other} then. Move one of them; nothing is sold until it is resolved."
         },
         "templatesOff": "Series templates do not exist yet; a series cannot be created from the workspace."
-      }
+      },
+      "loadTimeout": "The appointments are taking too long to load. Check your connection and reload the page."
     },
     "projects": {
       "pageTitle": "Projects",

@@ -829,6 +829,11 @@ export type MiniChatBrand = {
    * from dockIntake — intakeTradeForPreset maps custom/portfolio/act → "agency".
    */
   agencyPublicSurface?: boolean;
+  /**
+   * `CLIENT_ACCOUNT_HOSTS` lists this host kind. When false, guest cards must
+   * not call `/api/client/account` (the route answers 404 and the console logs it).
+   */
+  clientAccountSurface?: boolean;
 };
 
 export type MiniChatPanelProps = {

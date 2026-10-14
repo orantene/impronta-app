@@ -7,6 +7,7 @@ import {
   catalogSelectedDateLabel,
   catalogTimezoneLabel,
   catalogWeekdayShort,
+  catalogEmptySlotsCopy,
   formatClock,
   nextDayWithSlotsIndex,
   nextOpenDemoDayIndex,
@@ -60,6 +61,8 @@ export function CatalogLiveWhenPicker({
   es,
   locale,
   liveDays,
+  emptyReason = null,
+  loading = false,
   dayIndex,
   liveStarts,
   liveTz,
@@ -73,6 +76,9 @@ export function CatalogLiveWhenPicker({
   es: boolean;
   locale: string;
   liveDays: Array<{ key: string; date: Date; starts: string[] }>;
+  /** Why the slots API returned nothing (e.g. `no_booking_hours`). */
+  emptyReason?: string | null;
+  loading?: boolean;
   dayIndex: number;
   liveStarts: string | null;
   liveTz: string;
@@ -88,10 +94,7 @@ export function CatalogLiveWhenPicker({
   const stripRef = useScrollSelectedDayIntoView(dayIndex, liveDays.length);
   const windowHasSlots = liveDays.some((d) => d.starts.length > 0);
   const nextFree = nextDayWithSlotsIndex(liveDays, dayIndex);
-  const jumpToNextFree = () => {
-    if (nextFree == null) return;
-    onPickDay(nextFree);
-  };
+  const empty = catalogEmptySlotsCopy(emptyReason, es, windowHasSlots);
   return (
     <>
       {takenNotice && !liveStarts ? (
@@ -103,6 +106,7 @@ export function CatalogLiveWhenPicker({
           onPick={(iso, i) => onPickStart(iso, formatClock(iso, liveTz, locale), i)}
         />
       ) : null}
+      {liveDays.length > 0 ? (
       <div ref={stripRef} className="jb-days" role="group" aria-label={es ? "Elige una fecha" : "Pick a date"}>
         {liveDays.map((d, i) => (
           <button key={d.key} type="button" className="jb-day" data-on={i === dayIndex} onClick={() => onPickDay(i)}>
@@ -112,39 +116,21 @@ export function CatalogLiveWhenPicker({
           </button>
         ))}
       </div>
+      ) : null}
       <CatalogSelectedDateLine date={liveDays[dayIndex]?.date} tz={liveTz} es={es} placeCity={placeCity} />
       {liveTimes.length === 0 ? (
-        <div className="jb-empty">
-          <strong>
-            {windowHasSlots
-              ? es
-                ? "Sin horarios disponibles ese día."
-                : "No times that day."
-              : es
-                ? "Sin horarios disponibles."
-                : "No times available."}
-          </strong>
-          <p>
-            {windowHasSlots
-              ? es
-                ? "Prueba otra fecha o consulta."
-                : "Try another day or send a question."
-              : es
-                ? "No hay huecos en las próximas dos semanas. Prueba otra fecha o consulta."
-                : "Nothing is open in the next two weeks. Try another day or send a question."}
-          </p>
-          {nextFree != null ? (
-            <button
-              type="button"
-              className="jb-try-date"
-              data-catalog-try-another-date=""
-              onClick={jumpToNextFree}
-            >
-              {es ? "Prueba otra fecha" : "Try another date"}
-            </button>
-          ) : null}
-          {emptyConsultButton}
-        </div>
+        loading ? null : (
+          <div className="jb-empty" data-catalog-empty-reason={emptyReason ?? "none"}>
+            <strong>{empty.title}</strong>
+            <p>{empty.body}</p>
+            {nextFree != null ? (
+              <button type="button" className="jb-try-date" data-catalog-try-another-date="" onClick={() => onPickDay(nextFree)}>
+                {es ? "Prueba otra fecha" : "Try another date"}
+              </button>
+            ) : null}
+            {emptyConsultButton}
+          </div>
+        )
       ) : (
         <div className="jb-times" role="group" aria-label={timeGroupLabel}>
           {liveTimes.map((iso) => {

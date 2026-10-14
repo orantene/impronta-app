@@ -34,9 +34,10 @@ export function isOutstandingClient(row: TalentClientRow): boolean {
   return (row.amountOwedCents ?? 0) > 0;
 }
 
-export function isNewClient(row: TalentClientRow): boolean {
-  // Prototype MCF.fresh: done === 0 (may still have a request/hold booked).
-  return row.completedCount === 0;
+export function isNewClient(row: TalentClientRow, nowIso = new Date().toISOString()): boolean {
+  // TUL-717: same rule as the row badge (DS-49): first seen within 14 days and
+  // nothing completed. "No completed visit" alone matched the whole list.
+  return clientBadgeFor(row, Date.parse(nowIso)) === "new";
 }
 
 const DAY_MS = 86_400_000;
@@ -104,7 +105,7 @@ export function clientsFilterPredicate(
     case "follow":
       return (row) => isDueForRefill(row, nowIso);
     case "fresh":
-      return isNewClient;
+      return (row) => isNewClient(row, nowIso);
     case "all":
     default:
       return () => true;
@@ -120,7 +121,7 @@ export function countClientsByFilter(
     upcoming: items.filter((r) => isUpcomingClient(r, nowIso)).length,
     outstanding: items.filter(isOutstandingClient).length,
     follow: items.filter((r) => isDueForRefill(r, nowIso)).length,
-    fresh: items.filter(isNewClient).length,
+    fresh: items.filter((r) => isNewClient(r, nowIso)).length,
   };
 }
 

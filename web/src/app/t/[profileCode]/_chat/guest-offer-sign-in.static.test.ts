@@ -18,6 +18,9 @@ test("guest offer accept gates on signed-in client and mounts GuestOfferSignIn",
   assert.match(cards, /signInToAccept/);
   assert.match(cards, /requireSignInToAccept/);
   assert.match(cards, /\/api\/client\/account/);
+  // TUL-516 L3: skip the account fetch when CLIENT_ACCOUNT_HOSTS is off.
+  assert.match(cards, /clientAccountSurface/);
+  assert.match(cards, /if \(!accountSurface\)/);
   assert.match(cards, /verifyClientAccountCode|onSignInComplete/);
   // Unsigned accept must open the form, never call the token-only writer first.
   assert.match(cards, /if \(clientSignedIn !== true\)/);

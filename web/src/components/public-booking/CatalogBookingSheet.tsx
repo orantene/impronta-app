@@ -41,7 +41,6 @@ import {
   demoSlotsFor,
   firstDayWithSlotsIndex,
   firstOpenDemoDayIndex,
-  formatClock,
   type CatalogBookingMode,
 } from "./catalog-booking-logic";
 import {
@@ -81,6 +80,7 @@ import { useCatalogBookingConfirm } from "./use-catalog-booking-confirm";
 import { useBookingSheetFocusTrap } from "./use-booking-sheet-focus";
 import { CatalogDonePanel, CatalogSheetHeader } from "./catalog-done-panel";
 import { CatalogBookingBackNav } from "./catalog-booking-back-nav";
+import { CatalogEmptyAskButton } from "./catalog-empty-ask-button";
 
 type Step = "choose" | "when" | "who" | "done";
 export type CatalogBookingDetail = OfferingRequestDetail & {
@@ -123,6 +123,7 @@ export function CatalogBookingSheet({
   const [liveStarts, setLiveStarts] = useState<string | null>(null);
   const [liveTz, setLiveTz] = useState("UTC");
   const [livePlaceCity, setLivePlaceCity] = useState<string | null>(null);
+  const [liveReason, setLiveReason] = useState<string | null>(null);
   const [liveDays, setLiveDays] = useState<Array<{ key: string; date: Date; starts: string[] }>>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsReady, setSlotsReady] = useState(false);
@@ -270,7 +271,7 @@ export function CatalogBookingSheet({
     run(detail.offeringId, bookingDurationMinutes)
       .then((r) => {
         if (cancelled) return;
-        setLiveTz(r.timezone); setLivePlaceCity(r.placeCity?.trim() || null);
+        setLiveTz(r.timezone); setLivePlaceCity(r.placeCity?.trim() || null); setLiveReason(r.reason ?? null);
         const strip = liveDayStripFromResult(r);
         setLiveDays(strip);
         // TUL-232: opened at a slot: select it, or fall back to its day / the first day with the notice.
@@ -439,11 +440,7 @@ export function CatalogBookingSheet({
     if (onAsk) onAsk(handoff);
     else openCatalogBookingChat(handoff);
   };
-  const emptyConsultButton = (
-    <button type="button" className="jb-ask" data-catalog-empty-ask="" onClick={() => askAvailability()}>
-      {es ? "Consultar disponibilidad" : "Check availability"}
-    </button>
-  );
+  const emptyConsultButton = <CatalogEmptyAskButton es={es} onAsk={askAvailability} />;
 
   return (
     <div
@@ -598,6 +595,8 @@ export function CatalogBookingSheet({
                   es={es}
                   locale={locale}
                   liveDays={liveDays}
+                  emptyReason={liveReason}
+                  loading={slotsLoading}
                   dayIndex={dayIndex}
                   liveStarts={liveStarts}
                   liveTz={liveTz}

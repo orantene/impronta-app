@@ -33,6 +33,7 @@ import { TALENT_GAPS_ES_TEXT } from "./dashboard-i18n-talent-gaps";
 import { DOMAIN_ERRORS_ES_TEXT } from "./dashboard-i18n-domain-errors";
 import { SWEEP_R1_ES_TEXT } from "./dashboard-i18n-sweep-r1";
 import { LEAKS_1007_ES_TEXT } from "./dashboard-i18n-leaks-1007";
+import { SETTINGS_726_ES_TEXT } from "./dashboard-i18n-settings-726";
 import { WEBSITE_ES_TEXT } from "./dashboard-i18n-website";
 import { THREAD_ES_TEXT } from "./dashboard-i18n-thread";
 import { E5_SWEEP_ES_TEXT } from "./dashboard-i18n-e5-sweep";
@@ -49,6 +50,7 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   ...TALENT_GAPS_ES_TEXT,
   ...SWEEP_R1_ES_TEXT,
   ...LEAKS_1007_ES_TEXT,
+  ...SETTINGS_726_ES_TEXT,
   ...DOMAIN_ERRORS_ES_TEXT,
   ...LOCATION_ES_TEXT,
   ...LANGUAGES_ES_TEXT,

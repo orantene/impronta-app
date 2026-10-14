@@ -5,6 +5,12 @@ import { defaultLocale } from "@/i18n/config";
 import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
 import { stripLocaleFromPathname } from "@/i18n/pathnames";
 import { getLanguageSettingsPublicCached } from "@/lib/language-settings/get-language-settings";
+import {
+  WORKSPACE_HOST_KIND_HEADER,
+  explicitUrlLocale,
+  resolveWorkspacePageLocale,
+} from "@/i18n/workspace-page-locale";
+import { loadWorkspaceLocaleFacts } from "@/lib/site-admin/server/workspace-page-locale";
 
 const LOCALE_HEADER = "x-impronta-locale";
 
@@ -46,6 +52,24 @@ function isAllowedPublicLocale(code: string | null | undefined, publicLocales: s
 export async function getRequestLocale(): Promise<Locale> {
   const settings = await getLanguageSettingsPublicCached();
   const h = await headers();
+  // TUL-699: workspace public pages speak the workspace's language unless the
+  // URL asks for one explicitly. Never touches talent sites or marketing.
+  const tenantId = h.get("x-impronta-tenant-id");
+  if (tenantId && h.get(WORKSPACE_HOST_KIND_HEADER) === "agency") {
+    const forWorkspace = resolveWorkspacePageLocale({
+      hostKind: "agency",
+      explicit: explicitUrlLocale(
+        h.get(ORIGINAL_PATHNAME_HEADER),
+        h.get(ORIGINAL_SEARCH_HEADER),
+        settings.publicLocales,
+      ),
+      facts: await loadWorkspaceLocaleFacts(tenantId),
+      platformDefault: settings.defaultLocale ?? defaultLocale,
+    });
+    if (forWorkspace && isAllowedPublicLocale(forWorkspace, settings.publicLocales, settings.defaultLocale)) {
+      return forWorkspace;
+    }
+  }
   const fromHeader = h.get(LOCALE_HEADER);
   if (isAllowedPublicLocale(fromHeader, settings.publicLocales, settings.defaultLocale)) {
     return fromHeader;

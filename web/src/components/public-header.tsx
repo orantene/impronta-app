@@ -29,7 +29,8 @@ import { getFavoriteTalentIds, getSavedTalentIds } from "@/lib/public-discovery"
 import { getPublicCmsNavigationLinks } from "@/lib/cms/public-navigation";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getPublicHostContext } from "@/lib/saas";
-import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
+import { loadPublicBranding, loadPublicIdentity, loadWorkspaceDisplayName } from "@/lib/site-admin/server/reads";
+import { resolvePublicBrandName } from "@/lib/site-admin/server/public-brand";
 import { loadTenantWords } from "@/lib/words/server";
 import { resolveHeaderVerbDestination } from "@/lib/words/verb-destination.server";
 import {
@@ -205,13 +206,17 @@ export async function PublicHeader() {
     }),
   );
 
-  const [identity, branding] = tenantIdForIdentity
+  const [identity, branding, workspaceName] = tenantIdForIdentity
     ? await Promise.all([
         loadPublicIdentity(tenantIdForIdentity),
         loadPublicBranding(tenantIdForIdentity),
+        loadWorkspaceDisplayName(tenantIdForIdentity),
       ])
-    : [null, null];
-  const brandLabel = identity?.public_name?.trim() || PLATFORM_BRAND.name;
+    : [null, null, null];
+  // TUL-710: identity name, else the workspace's own name; the platform brand
+  // is only for hosts that have no tenant at all.
+  const brandLabel =
+    resolvePublicBrandName(identity?.public_name, workspaceName) ?? PLATFORM_BRAND.name;
 
   // Re-sanitize at render time — defense in depth. The admin path already
   // sanitized at save, but render-side sanitize is cheap and guarantees we

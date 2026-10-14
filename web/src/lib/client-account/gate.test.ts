@@ -135,6 +135,12 @@ test("every render path is behind the gate", () => {
   assert.match(src("src/lib/site-admin/sections/site_header/HeaderAccountPreview.tsx"), /if \(mode === "off"\) return null/);
   assert.match(src("src/app/api/client/account/route.ts"), /accountSurfaceEnabledForRequest\(\)\)\) return reply\(\{ error: "not_found" \}, 404\)/);
   assert.match(src("src/lib/client-account/actions.ts"), /!\(await accountSurfaceEnabledForRequest\(\)\)\) return \{ ok: false/);
+  // TUL-516 L3: guest dock must not hit the account API when the flag is off.
+  const cards = src("src/app/t/[profileCode]/_chat/GuestClientCards.tsx");
+  assert.match(cards, /clientAccountSurface/);
+  assert.match(cards, /if \(!accountSurface\)/);
+  assert.match(src("src/app/t/[profileCode]/_chat/TalentProfileChatLauncherMount.tsx"), /clientAccountSurface/);
+  assert.match(src("src/app/(public)/_chat/AgencyChatLauncherMount.tsx"), /clientAccountSurface/);
 });
 
 test("both mounts render the dock gate, and proxy.ts is untouched by this feature", () => {

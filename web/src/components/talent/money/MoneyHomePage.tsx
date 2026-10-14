@@ -220,7 +220,7 @@ function MoneyHomePane(props: {
           value={money(view.collectedCents, cur)}
           lines={
             view.collectedCount > 0
-              ? `${view.collectedCount} ${t("payments")}${split ? ` · ${split}` : ""}`
+              ? `${view.collectedCount} ${t("payments")}${split ? ` · ${split}` : ""}${view.refundedCents > 0 ? ` · ${t("Refunded")} −${money(view.refundedCents, cur)}` : ""}`
               : t("No payments recorded this month.")
           }
           onClick={() => setTab("payments")}

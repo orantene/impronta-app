@@ -1691,6 +1691,8 @@
       "lead": "Elige un servicio y un horario. Confirmamos enseguida.",
       "bookCta": "Agendar",
       "chooseService": "Servicio",
+      "noServices": "Todavía no hay servicios abiertos para reservar en línea. Escríbenos y buscamos un horario contigo.",
+      "contactCta": "Enviar un mensaje",
       "studioFallback": "el estudio"
     },
     "siteShellSurface": {
@@ -2293,6 +2295,7 @@
       "closeLabel": "Cerrar",
       "title": "Inicia sesión o crea tu cuenta",
       "subtitle": "Continúa con Google o Apple, o te enviamos un código por correo.",
+      "subtitleNoApple": "Continúa con Google, o te enviamos un código por correo.",
       "emailLabel": "Correo electrónico",
       "sendCode": "Enviar código",
       "codeLabel": "Código",
@@ -3338,12 +3341,15 @@
         "privacyMeasurementsHint": "Desactivado = solo las agencias y los clientes que aceptes pueden verlas.",
         "contactPreferences": "Preferencias de contacto",
         "contactPreferencesDesc": "Decide qué niveles de confianza de clientes pueden enviarte consultas. Tu agencia sigue viéndolo todo internamente, esto controla el contacto entrante, no la visibilidad.",
+        "contactPreferencesDescSolo": "Decide qué niveles de confianza de clientes pueden enviarte consultas. Esto controla el contacto entrante, no quién puede ver tu página.",
         "howThisWorks": "Cómo funciona",
         "howThisWorksBody": "Los clientes de mayor confianza han completado la verificación o financiado su cuenta en Tulala. Tú decides qué niveles pueden contactarte. Los niveles de menor confianza siempre tienen disponible la página del roster de tu agencia, solo que no pueden llegar directo a tu bandeja.",
+        "howThisWorksBodySolo": "Los clientes de mayor confianza han completado la verificación o financiado su cuenta en Tulala. Tú decides qué niveles pueden contactarte. Los niveles de menor confianza aún pueden ver tu página pública, solo que no pueden llegar directo a tu bandeja.",
         "presetOpen": "Abierto para todos",
         "presetVerified": "Solo clientes Verified",
         "allowInquiriesFrom": "Permitir consultas de clientes {tier}",
-        "selectivityNote": "Los niveles bloqueados aún pueden ver tu página de roster. Se les invitará a verificar o financiar su cuenta antes de poder enviarte una consulta directa. La bandeja del coordinador de tu agencia no se ve afectada."
+        "selectivityNote": "Los niveles bloqueados aún pueden ver tu página de roster. Se les invitará a verificar o financiar su cuenta antes de poder enviarte una consulta directa. La bandeja del coordinador de tu agencia no se ve afectada.",
+        "selectivityNoteSolo": "Los niveles bloqueados aún pueden ver tu página pública. Se les invitará a verificar o financiar su cuenta antes de poder enviarte una consulta directa."
       },
       "monetization": {
         "payouts": "Pagos",
@@ -3375,8 +3381,6 @@
         "taxDocuments": "Documentos fiscales",
         "taxDocumentsDesc": "Resumen de fin de año + formularios descargables. Tulala reporta tus ingresos de la plataforma; los de fuera los declaras tú.",
         "taxYearTotal": "Total {year}",
-        "taxPlatform": "Plataforma",
-        "taxOffPlatform": "Fuera de la plataforma",
         "availableDocuments": "Documentos disponibles",
         "docIncomeSummary": "Resumen de ingresos {year}",
         "docIncomeSummaryBody": "Solo ingresos reportados por la plataforma · descarga en PDF",
@@ -13225,6 +13229,7 @@
       "oldest": "la más antigua: {age}",
       "settingsTitle": "Ajustes de notificaciones",
       "settingsHint": "Email y push por evento",
+      "seeAll": "Ver mis notificaciones",
       "colEvent": "Evento",
       "colEmail": "Email",
       "colPush": "Push",
@@ -17223,7 +17228,8 @@
           "collisionNote": "{when} no se puede generar: la sala ya tiene {other} a esa hora. Mueve una de las dos; no se vende nada hasta resolverlo."
         },
         "templatesOff": "Todavía no existen plantillas de series; una serie no se puede crear desde el espacio de trabajo."
-      }
+      },
+      "loadTimeout": "Las citas tardan demasiado en cargar. Revisa tu conexión y recarga la página."
     },
     "projects": {
       "pageTitle": "Proyectos",

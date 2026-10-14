@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { loadWebsiteSettingsEnabledAction } from "@/components/talent/website-settings/website-settings-gate-action";
-import { requestWebsiteSettingsView } from "@/components/talent/website-settings/website-settings-intent";
+import { requestPresenceTab, requestWebsiteSettingsView } from "@/components/talent/website-settings/website-settings-intent";
 import { languageName } from "@/lib/i18n/locale-field-model";
 import { CommercialBookingTermsCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/CommercialBookingTermsCard";
 import { DefaultCurrencyCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/DefaultCurrencyCard";
@@ -294,7 +294,7 @@ export function SettingsPage() {
     {
       key: "help",
       label: tx("Help and support"),
-      sub: tx("Common questions, payouts, contact our team."),
+      sub: tx("Shortcuts, help centre, contact our team."),
       onOpen: () => openDrawer("help"),
     },
   );
@@ -316,7 +316,10 @@ export function SettingsPage() {
       label: tx("Hide a public page"),
       sub: tx("One page stops being public. Bookings, payments and messages are untouched. Reversible in a tap."),
       tag: { text: tx("In Where I appear"), tone: "ok" },
-      onOpen: () => setTalentPage("public-page"),
+      onOpen: () => {
+        requestPresenceTab("appear");
+        setTalentPage("public-page");
+      },
     },
   ];
   if (bridgeTalentSelfProfile && tenantSlug) {

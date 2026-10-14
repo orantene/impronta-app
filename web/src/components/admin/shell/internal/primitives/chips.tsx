@@ -451,6 +451,7 @@ export function ClientTrustChip({
   /** Tiny tier dot. Useful in tight rows; can be hidden in legends. */
   withDot?: boolean;
 }) {
+  const { t, isSpanish: es } = useDashboardText();
   const meta = CLIENT_TRUST_META[level];
   const palette: Record<typeof meta.tone, { bg: string; fg: string; dot: string; border: string }> = {
     // Basic — neutral / dim. Says "default", not "bad". Foreground bumped
@@ -488,7 +489,7 @@ export function ClientTrustChip({
   };
   const c = palette[meta.tone];
   return (
-    <Popover content={`${meta.label} client. ${meta.hint}`}>
+    <Popover content={`${t(meta.label)} ${es ? "cliente" : "client"}. ${t(meta.hint)}`}>
       <span
         style={{
           display: "inline-flex",
@@ -521,7 +522,7 @@ export function ClientTrustChip({
           }}
         />
       ) : null}
-      {meta.short}
+      {t(meta.short)}
       </span>
     </Popover>
   );
