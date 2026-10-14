@@ -33,3 +33,8 @@ test("paid confirmation wires .ics + Google when the page passes calendar links"
   assert.match(page, /googleCalendarUrl/);
   assert.match(page, /payCalendarEvent/);
 });
+
+test("pay page themes by the order's merchant, not the host tenant", () => {
+  assert.match(page, /resolvePayThemeVars/);
+  assert.match(page, /data-pay-merchant-theme/);
+});
