@@ -13,6 +13,8 @@ type Row = Record<string, unknown>;
 
 function makeStore() {
   return {
+    // createDraftOrder reads the workspace default currency when none is passed.
+    agencies: ["t1", "t2", "t-other"].map((id) => ({ id, default_currency: "USD" })) as Row[],
     orders: [] as Row[],
     order_lines: [] as Row[],
     talent_offerings: [] as Row[],

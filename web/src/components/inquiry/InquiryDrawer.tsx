@@ -124,6 +124,7 @@ export type InquiryDrawerProps = {
    * SlotPicker and hides event-only sections (budget / brief / wardrobe).
    */
   bookableOffering?: BookableOffering | null;
+  followUpOnSite?: boolean; // sent from a public site: follow-up link goes to `/c/<id>` (host picks the place)
   onClose: () => void;
 };
 
@@ -139,8 +140,7 @@ export function InquiryDrawer({
   enableDraftAutosave,
   bindToInquiryCart = false,
   talentToolsSlot,
-  representsPeople,
-  bookableOffering = null,
+  representsPeople, bookableOffering = null, followUpOnSite = false,
   onClose,
 }: InquiryDrawerProps) {
   const t = useT();
@@ -462,7 +462,7 @@ export function InquiryDrawer({
         <div style={{ flex: 1, overflowY: "auto", padding: "16px 22px 24px" }}>
           {submitState.kind === "submitted" ? (
             <>
-              <SubmittedView state={submitState} agencyName={agencyName} soloTalentName={soloTalentName} />
+              <SubmittedView state={submitState} agencyName={agencyName} soloTalentName={soloTalentName} followUpOnSite={followUpOnSite} />
               <AttachmentStatus phase={attachmentPhase} />
             </>
           ) : step === "compose" ? (

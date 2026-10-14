@@ -20,6 +20,7 @@ import { CheckoutView } from "./CheckoutView";
 import { payCalendarEvent } from "@/lib/payments/pay-calendar-event";
 import { resolvePaidLinkDisplayStatus } from "@/lib/payments/pay-refund-status";
 import { loadPayLinkFeeLines } from "@/lib/payments/pay-link-fee-lines";
+import { loadPaidChargeLines } from "@/lib/payments/pay-page-charge";
 import { collectForOrderPrincipal } from "@/lib/orders/purchase-collect";
 import { resolveOrderPayeeName } from "@/lib/payments/payee-name";
 import { resolvePayThemeVars } from "@/lib/payments/pay-theme-scope";
@@ -269,6 +270,8 @@ async function renderPayByCode({ params, searchParams, pathPrefix }: PayByCodePr
       bookingPaymentStatus,
     });
     const sellerName = await resolveOrderPayeeName(admin, loaded.tenantId, loaded.orderId);
+    // What the card was actually charged (price + service fee), not just the price.
+    const paidFeeLines = paidDisplay === "paid" ? await loadPaidChargeLines(admin, loaded.orderId) : [];
     const t = createTranslator(uiLocale);
     // Location for .ics/Google only; skip the inquiry read on open/processing.
     const { data: inquiryLoc } =
@@ -306,6 +309,7 @@ async function renderPayByCode({ params, searchParams, pathPrefix }: PayByCodePr
         zoneName={zoneName}
         status={paidDisplay}
         locale={uiLocale}
+        feeLines={paidFeeLines}
         sellerName={sellerName}
         autoReturn={cameFromConversation && query.status === "paid"}
         lines={orderLines}

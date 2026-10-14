@@ -439,7 +439,7 @@ export const COVER_SCRIM =
  */
 export function heroCover(
   makeId: KitIdFactory,
-  opts: { accent?: boolean } = {},
+  opts: { accent?: boolean; /** Seed English eyebrow; default {{primaryTypeLabel}}. */ eyebrow?: string } = {},
 ): BuilderNode {
   return {
     id: makeId(),
@@ -467,12 +467,13 @@ export function heroCover(
         id: makeId(),
         kind: "paragraph",
         props: {
-          text: "{{primaryTypeLabel}}",
+          text: opts.eyebrow ?? "{{primaryTypeLabel}}",
           style: {
             textTransform: "uppercase",
             letterSpacing: "0.22em",
             size: "sm",
             textColor: opts.accent === false ? KIT_COLOR.background : KIT_COLOR.accent,
+            textWrap: "balance",
           },
         },
       },
@@ -482,7 +483,11 @@ export function heroCover(
         props: {
           text: "{{displayName}}",
           level: 1,
-          style: { size: "xl", textColor: KIT_COLOR.background, textWrap: "balance" },
+          style: {
+            size: "xl",
+            textColor: KIT_COLOR.background,
+            textWrap: "balance",
+          },
         },
       },
       {
@@ -495,6 +500,7 @@ export function heroCover(
             textColor: KIT_COLOR.background,
             opacity: 0.85,
             maxWidth: "reading",
+            textWrap: "pretty",
           },
         },
       },

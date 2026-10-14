@@ -74,6 +74,35 @@ export function paidMoneyFields(input: PaidMoney): {
   };
 }
 
+/**
+ * What the card was actually charged, when that is more than the service price (the client's
+ * pass_through service fee rides on top). Stamped on the paid card so the thread says what was
+ * charged, not just the price; {} when there is no fee to show.
+ */
+export function chargedFields(paidCents: number | null | undefined, chargedCents: number | null | undefined): { chargedCents?: number } {
+  if (typeof paidCents !== "number" || typeof chargedCents !== "number") return {};
+  return chargedCents > paidCents ? { chargedCents: Math.round(chargedCents) } : {};
+}
+
+/** Sum of the order's money-in rows (the card charge, fee included); null when unreadable. */
+async function loadChargedCents(admin: Admin, orderId: string): Promise<number | null> {
+  if (typeof admin.from !== "function") return null;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (admin.from("booking_transactions") as any)
+      .select("gross_amount_cents, status, refund_of_transaction_id")
+      .eq("order_id", orderId);
+    if (error || !data) return null;
+    const rows = (data as Array<{ gross_amount_cents: number | string | null; status: string; refund_of_transaction_id: string | null }>).filter(
+      (r) => !r.refund_of_transaction_id && ["paid", "payout_pending", "payout_sent"].includes(r.status),
+    );
+    const sum = rows.reduce((n, r) => n + (Number(r.gross_amount_cents) || 0), 0);
+    return sum > 0 ? sum : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function syncPaymentCardsForRecord(
   admin: Admin,
   input: { tenantId: string; recordId: string; paymentState: PaymentState | null; method?: string | null },
@@ -119,6 +148,7 @@ export async function syncPaymentCardsForRecord(
 
   const needsPaidMoney = target === "paid" || target === "partially_refunded" || target === "refunded";
   const orderTotal = needsPaidMoney ? await loadSaleTotal(from, input.recordId) : null;
+  const orderCharged = target === "paid" ? await loadChargedCents(admin, input.recordId) : null;
 
   const cardRows = (cards ?? []) as Array<{ id: string; card_payload: Record<string, unknown> | null }>;
   const matching = cardsMatchingRequest(cardRows, relevantCodes);
@@ -168,6 +198,7 @@ export async function syncPaymentCardsForRecord(
       currency: (money as { currency?: string }).currency ?? currency,
     };
     if (needsPaidMoney) next.settledAt = new Date().toISOString();
+    Object.assign(next, chargedFields(typeof paidCents === "number" ? paidCents : null, orderCharged));
 
     const { error: updateErr } = await from("inquiry_messages")
       .update({ card_payload: next })

@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { BookableComposer } from "@/components/public-booking/BookableComposer";
+import {
+  BookableComposer,
+  type BookableComposerClient,
+} from "@/components/public-booking/BookableComposer";
 import { pickBookableOffering } from "@/components/public-booking/pick-bookable-offering";
 import { translatorFor, useT } from "@/i18n/use-t";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
@@ -13,6 +16,7 @@ export function BookPageClient({
   agencyName,
   offerings,
   signedIn = false,
+  client = null,
   captcha = null,
   locale: localeProp,
   contactHref = null,
@@ -22,6 +26,7 @@ export function BookPageClient({
   agencyName: string;
   offerings: Array<TalentOffering & { bookingMode?: "inquire" | "request" | "instant"; seatsLabel?: string | null }>;
   signedIn?: boolean;
+  client?: BookableComposerClient | null;
   captcha?: GuestCaptchaConfig | null;
   /** Page/request locale — required on CMS Live booking so labels match the site. */
   locale?: string | null;
@@ -104,6 +109,7 @@ export function BookPageClient({
         offering={bookable}
         bookingMode={selected.bookingMode === "instant" ? "instant" : "request"}
         signedIn={signedIn}
+        client={client}
         captcha={captcha}
         locale={pageLocale}
       />
