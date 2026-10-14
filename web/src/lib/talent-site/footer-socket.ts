@@ -368,6 +368,7 @@ export function buildAgencySocketModel(input: {
   locale: string;
   whitelabel: boolean;
   footerLinks: readonly { href: string; label: string }[];
+  marketingOrigin?: string | null;
 }): SocketModel {
   return buildSocketModel({
     locale: input.locale,
@@ -377,6 +378,7 @@ export function buildAgencySocketModel(input: {
     whitelabel: input.whitelabel,
     consentTooling: false,
     siteLinks: pickPolicyLinks(input.footerLinks),
+    marketingOrigin: input.marketingOrigin,
   });
 }
 
