@@ -1,7 +1,7 @@
 "use client";
 
+import { signOutEverywhere } from "@/lib/auth/sign-out-client";
 import { useState } from "react";
-import { signOut } from "@/app/auth/actions";
 import { WebsiteRewardControl } from "@/components/talent/website-reward/WebsiteRewardControl";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { PhoneRailModeSwitch } from "@/components/admin/shell/internal/page-modules/PhoneRailModeSwitch";
@@ -74,10 +74,10 @@ export function TalentMoreScreen({ onClose }: { onClose: () => void }) {
         {
           label: signingOut ? "Signing out…" : "Sign out",
           detail: "",
-          run: async () => {
+          run: () => {
             if (signingOut) return;
             setSigningOut(true);
-            await signOut();
+            signOutEverywhere();
           },
         },
       ],

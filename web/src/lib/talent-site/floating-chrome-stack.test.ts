@@ -146,3 +146,7 @@ describe("TUL-516 / TUL-528 floating chrome stack", () => {
     assert.match(FLOATING_CHROME_STACK_CSS, /padding-inline-end:max\(12px,var\(--floating-launcher-gutter\)\)/);
   });
 });
+
+test("TUL-799: the demo badge yields while the help bubble is up, so the two never overlap", () => {
+  assert.match(FLOATING_CHROME_STACK_CSS, /body:has\(\[data-help-bubble\]\) \[data-demo-badge\]\{display:none\}/);
+});

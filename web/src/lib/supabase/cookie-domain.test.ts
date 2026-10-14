@@ -59,12 +59,15 @@ test("expireParentDomainAuthCookies clears shared parents for auth names only", 
 
 test("authCookieExpiryHeaders expires host-only and parent scope on shared hosts", () => {
   const h = authCookieExpiryHeaders(["sb-x-auth-token", "sb-x-auth-token.0", "other"], "tulala.digital");
-  assert.equal(h.length, 4);
+  // TUL-708: every chunk (.0-.4) of the base name, at both scopes.
+  assert.equal(h.length, 12);
   assert.ok(h.includes("sb-x-auth-token=; Path=/; Max-Age=0"));
   assert.ok(h.includes("sb-x-auth-token.0=; Path=/; Max-Age=0; Domain=.tulala.digital"));
   assert.ok(!h.some((x) => x.startsWith("other=")));
 });
 
 test("authCookieExpiryHeaders is host-only on localhost", () => {
-  assert.deepEqual(authCookieExpiryHeaders(["sb-x-auth-token"], "localhost:3000"), ["sb-x-auth-token=; Path=/; Max-Age=0"]);
+  const h = authCookieExpiryHeaders(["sb-x-auth-token"], "localhost:3000");
+  assert.ok(h.includes("sb-x-auth-token=; Path=/; Max-Age=0"));
+  assert.ok(h.every((x) => !x.includes("Domain=")));
 });

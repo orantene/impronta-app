@@ -184,3 +184,4 @@ src/lib/saas/talent-demo-host-redirect.test.ts
 src/lib/saas/domain-canonical.test.ts
 src/lib/saas/talent-subdomain-lookup-nicknames.static.test.ts
 src/lib/saas/unsupported-locale-redirect.test.ts
+src/lib/supabase/auth-cookie-variants.security.test.ts

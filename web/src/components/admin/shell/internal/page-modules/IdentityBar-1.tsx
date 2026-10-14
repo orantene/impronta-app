@@ -1,8 +1,8 @@
 "use client";
 
+import { signOutEverywhere } from "@/lib/auth/sign-out-client";
 import { useEffect, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import { signOut } from "@/app/auth/actions";
 
 const START_WORKSPACE_EVENT = "tulala:open-start-workspace-dialog";
 import { DASHBOARD_LOCALES } from "../talent/pages/DashboardLanguagePanel";
@@ -14,6 +14,7 @@ import type { Locale } from "@/i18n/config";
 import { useDashboardText } from "../dashboard-i18n";
 import { NotificationsBell } from "../notifications-hub";
 import { ShellCountBubbles } from "../shell-count-bubbles";
+import { PromosHeaderButton } from "@/components/promos/talent/PromosHeaderButton";
 import { Avatar, Icon, ShortcutsModal } from "../primitives";
 import { COLORS, MY_TALENT_PROFILE, PAGE_META, PLAN_META, meetsRole, useAdminShell } from "../state";
 import { TulalaBrandLockup } from "@/components/brand/tulala-logo";
@@ -439,6 +440,7 @@ export function TulalaIdentityBar() {
                 <LanguageMenu />
               </span>
             ) : null}
+            {inTalent ? <PromosHeaderButton /> : null}
             <ShellCountBubbles />
             <NotificationsBell />
 
@@ -745,11 +747,11 @@ function AccountMenuTrigger({
               label={signingOut ? "Signing out…" : "Sign out"}
               sub=""
               tone="coral"
-              onClick={async () => {
+              onClick={() => {
                 if (signingOut) return;
                 setOpen(false);
                 setSigningOut(true);
-                await signOut();
+                signOutEverywhere();
               }}
             />
           </div>

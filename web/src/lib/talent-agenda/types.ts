@@ -88,6 +88,8 @@ export interface TalentAgendaItem {
    * grid; Today shows these in the "No time" / "Sin hora" strip.
    */
   unscheduled?: boolean;
+  /** TUL-957: an open request whose current offer is sent and not paid yet. */
+  offer?: { id: string };
   tradeSection?: { kind: TradeSectionKind; payload: Record<string, unknown> };
   history: { at: string; text: string }[];
 }

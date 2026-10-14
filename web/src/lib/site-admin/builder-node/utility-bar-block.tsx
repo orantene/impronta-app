@@ -15,6 +15,7 @@
 import type { CSSProperties, ReactNode } from "react";
 
 import { languageToggleGroupLabel } from "@/i18n/language-toggle-label";
+import { localeSwitchRel } from "@/i18n/locale-switch-rel";
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import type { LiveStatusRenderContext } from "@/lib/talent/live-status-render";
 import {
@@ -176,6 +177,7 @@ export function renderUtilityBarBlock(args: {
               {i > 0 ? <i aria-hidden="true">/</i> : null}
               <a
                 href={args.siteLocales?.hrefs?.[code] ?? `?locale=${code}`}
+                {...localeSwitchRel(args.siteLocales?.hrefs?.[code] ?? `?locale=${code}`)}
                 hrefLang={code}
                 lang={code}
                 aria-current={code === current ? "true" : undefined}

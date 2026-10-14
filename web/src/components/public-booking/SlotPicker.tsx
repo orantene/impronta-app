@@ -7,6 +7,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { translatorFor, useT } from "@/i18n/use-t";
+import { publicSlotsUrl } from "@/lib/scheduling/public-slots-workspace";
 
 export type SlotPickerValue = {
   startsAt: string;
@@ -87,7 +88,7 @@ export function SlotPicker({
       from,
       days: String(days),
     });
-    fetch(`/api/public/booking/slots?${params.toString()}`, { cache: "no-store" })
+    fetch(publicSlotsUrl(params), { cache: "no-store" })
       .then(async (res) => {
         const body = (await res.json()) as {
           slots?: string[];

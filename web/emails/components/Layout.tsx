@@ -11,6 +11,8 @@ import {
 } from "@react-email/components";
 import * as React from "react";
 
+import { resolveEmailHomeHost, resolveEmailHomeOrigin } from "@/lib/brand/marketing-origin";
+
 import {
   TULALA_EMAIL_ACCENT,
   TULALA_EMAIL_ACCENT_ON,
@@ -57,18 +59,19 @@ export interface EmailBrand {
   accentOn?: string;
 }
 
-const DEFAULTS = {
+/** Built per render: the footer/home origin follows the environment (TUL-764). */
+const defaults = () => ({
   wordmark: "TULALA",
   accountName: "Tulala",
-  footerDomain: "tulala.digital",
-  homeHref: "https://tulala.digital",
+  footerDomain: resolveEmailHomeHost(),
+  homeHref: resolveEmailHomeOrigin(),
   locale: "en",
   recipientHasAccount: true,
   logoUrl: null,
   markUrl: null,
   accent: TULALA_EMAIL_ACCENT,
   accentOn: TULALA_EMAIL_ACCENT_ON,
-};
+});
 
 /**
  * Why this email reached you, in the reader's own language.
@@ -114,7 +117,7 @@ function sellerLine(locale: string, seller: string): string {
 }
 
 export function Layout({ preview, brand, unsubscribeUrl, categoryLabel, sellerName, children }: LayoutProps) {
-  const b = { ...DEFAULTS, ...brand };
+  const b = { ...defaults(), ...brand };
 
   return (
     <Html lang={b.locale ?? "en"}>
