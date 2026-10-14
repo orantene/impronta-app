@@ -323,7 +323,7 @@ test("who-step ask CTA refuses without WhatsApp and shows the ask link", () => {
   host.remove();
 });
 
-test("request-intent who primary is Chat now", () => {
+test("request-intent who primary is Send inquiry (GRK-057)", () => {
   const book = mockBook();
   const { host, unmount } = mount("demo", book);
   open(detail({ addOns: [], intent: "request" }), "when");
@@ -333,7 +333,7 @@ test("request-intent who primary is Chat now", () => {
   if (when && !when.disabled) act(() => when.click());
   const cta = host.querySelector<HTMLButtonElement>('[data-catalog-chat="primary"]');
   assert.ok(cta);
-  assert.match(cta.textContent ?? "", /Chatea ahora/);
+  assert.match(cta.textContent ?? "", /Enviar consulta/);
   unmount();
 });
 

@@ -133,3 +133,30 @@ test("resolveSiteCtaMode: posture with the plan ceiling", () => {
   assert.equal(resolveSiteCtaMode({ sellingDefaults: { bookingPosture: "request" }, confirmsByHand: true }), "request");
   assert.equal(resolveSiteCtaMode({ sellingDefaults: null, confirmsByHand: false }), "instant");
 });
+
+test("resolveSiteCtaMode: accepting_bookings off forces inquiry (GRK-068)", () => {
+  assert.equal(
+    resolveSiteCtaMode({
+      sellingDefaults: { bookingPosture: "instant" },
+      confirmsByHand: false,
+      acceptingBookings: false,
+    }),
+    "inquiry",
+  );
+  assert.equal(
+    resolveSiteCtaMode({
+      sellingDefaults: { bookingPosture: "request" },
+      confirmsByHand: true,
+      acceptingBookings: false,
+    }),
+    "inquiry",
+  );
+  assert.equal(
+    resolveSiteCtaMode({
+      sellingDefaults: { bookingPosture: "instant" },
+      confirmsByHand: false,
+      acceptingBookings: true,
+    }),
+    "instant",
+  );
+});

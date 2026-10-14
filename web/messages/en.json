@@ -383,7 +383,6 @@
       "eventDateOptional": "Event date (optional)",
       "booking": "Booking…",
       "confirmAndBook": "Confirm & book · {price}",
-      "viewInquiry": "View your inquiry",
       "addToCurrentTitle": "Add to this inquiry",
       "addToCurrentSubOne": "1 talent so far",
       "addToCurrentSubOther": "{count} talent so far",
@@ -891,7 +890,8 @@
         "whatsapp": "WhatsApp",
         "email": "Email",
         "confirmByHand": "She confirms by hand.",
-        "bookInstant": "You can book a time on this page."
+        "bookInstant": "You can book a time on this page.",
+        "bookingsPaused": "Not taking new bookings right now. You can still send an inquiry."
       }
     },
     "guestChat": {
@@ -13583,6 +13583,9 @@
       "startTicket": "Start a ticket",
       "messageOran": "Message {agent} directly",
       "messageOranBody": "I would like to talk to {agent}.",
+      "messageOranSubject": "Talk to a person",
+      "newQuestion": "New question",
+      "newQuestionHint": "Something else? Start a new question so it gets its own answer.",
       "statusWaitingYou": "Waiting on you",
       "statusWithSupport": "With support",
       "statusResolved": "Resolved",
@@ -13702,7 +13705,6 @@
       "helperModeAria": "Helper mode: highlight everything on this page with an article",
       "helperModeOn": "Helper mode is on",
       "helperModeHint": "Anything with a dotted outline has an article. Click one to read it here.",
-      "guideNotFound": "There is no article for \"{id}\" yet.",
       "helperReadAbout": "Read about: {what}",
       "cardLiveChat": "Start live chat",
       "cardLiveChatSub": "A real person from Tulala, usually within minutes",

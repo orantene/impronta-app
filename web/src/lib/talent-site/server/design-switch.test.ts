@@ -193,6 +193,23 @@ test("TUL-527: A→B→C does not pile foreign theme blocks onto the live home",
   assert.equal(bc.home.some((n) => String(n.id).startsWith("gridline")), false);
 });
 
+test("TUL-527: an unstamped node the new Design also ships (same id) is not duplicated", () => {
+  const a = stampAs(built(1, { withGallery: true }), "gridline", 1);
+  const b = stampAs(built(2, { withGallery: false }), "maison-v2", 1);
+  const band = { ...plain("section", {}), id: "nail-band" } as BuilderNode;
+  const plan = planDesignSwitch({
+    fromShell: a.shell,
+    fromHome: [...a.home, band],
+    toShell: b.shell,
+    toHome: [...b.home, { ...band }],
+    fromSlug: "gridline",
+    toSlug: "maison-v2",
+    fromVersion: 1,
+    toVersion: 1,
+  });
+  assert.equal(plan.home.filter((n) => n.id === "nail-band").length, 1);
+});
+
 test("draft-first: apply site patch keys never include published columns", () => {
   for (const key of DESIGN_APPLY_DRAFT_SITE_KEYS) {
     assert.equal(/published/i.test(key), false, key);
