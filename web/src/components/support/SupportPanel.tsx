@@ -86,6 +86,8 @@ export function SupportPanel({
   const replay = useReplayBuffer();
   const unread = useSupportUnread(tickets);
   const { ticket, messages, loading: threadLoading } = selectThread(threadState, ticketId);
+  const [loadFailedFor, setLoadFailedFor] = useState<string | null>(null);
+  const threadLoadFailed = loadFailedFor !== null && loadFailedFor === ticketId && threadLoading;
   const wasOpenRef = useRef(open);
   useEffect(() => {
     // Reopening lands on Home, not on whichever thread was open last.
@@ -187,6 +189,23 @@ export function SupportPanel({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ ticketId: id }),
       });
+      // TUL-656: the AI reply is written server-side and normally arrives over
+      // realtime, but a socket that subscribed late or lagged left it hidden
+      // until the panel was reopened. Pull the thread once the turn is done.
+      const supabase = createClient();
+      if (supabase) {
+        const { data: msgs, error } = await supportFrom(supabase, "support_messages")
+          .select("*")
+          .eq("ticket_id", id)
+          .order("created_at", { ascending: true });
+        if (!error) {
+          dispatchThread({
+            type: "merge",
+            ticketId: id,
+            messages: (msgs ?? []).map(mapMessageRow).filter(Boolean) as SupportMessageRow[],
+          });
+        }
+      }
     } catch {
       /* fail-open: the route persists a system nudge when the model is down */
     } finally {
@@ -251,15 +270,21 @@ export function SupportPanel({
     // thread now on screen.
     let cancelled = false;
     void (async () => {
-      const { data: tRow } = await supportFrom(supabase, "support_tickets")
+      const { data: tRow, error: tErr } = await supportFrom(supabase, "support_tickets")
         .select("*")
         .eq("id", ticketId)
         .maybeSingle();
-      const { data: msgs } = await supportFrom(supabase, "support_messages")
+      const { data: msgs, error: mErr } = await supportFrom(supabase, "support_messages")
         .select("*")
         .eq("ticket_id", ticketId)
         .order("created_at", { ascending: true });
       if (cancelled) return;
+      if (tErr || mErr) {
+        // A failed read is not an empty thread: say so instead of showing "no messages".
+        setLoadFailedFor(ticketId);
+        return;
+      }
+      setLoadFailedFor(null);
       dispatchThread({
         type: "loaded",
         ticketId,
@@ -445,6 +470,7 @@ export function SupportPanel({
                 const r = await contract.createTicket({
                   tenantSlug: contract.tenantSlug,
                   surface: contract.surface,
+                  subject: t("dashboard.adminSupport.messageOranSubject"),
                   body: interpolate(t("dashboard.adminSupport.messageOranBody"), SUPPORT_AGENT_VARS),
                   messageOranDirectly: true,
                   diagnostics: getDiagnosticsSnapshot(),
@@ -474,7 +500,12 @@ export function SupportPanel({
             onOpen={(id) => setView("thread", id)}
           />
         )}
-        {view === "thread" && threadLoading && (
+        {view === "thread" && threadLoadFailed && (
+          <div role="alert" style={{ padding: 24, fontSize: 13, color: COLORS.inkMuted }}>
+            {t("dashboard.adminSupport.threadLoadFailed")}
+          </div>
+        )}
+        {view === "thread" && threadLoading && !threadLoadFailed && (
           <div role="status" style={{ padding: 24, fontSize: 13, color: COLORS.inkMuted }}>
             {t("dashboard.adminSupport.threadLoading")}
           </div>
@@ -558,6 +589,43 @@ export function SupportPanel({
               }}
             >
               {interpolate(t("dashboard.adminSupport.oranTyping"), SUPPORT_AGENT_VARS)}
+            </div>
+          ) : null}
+          {ticket?.status === "resolved" ? (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+                padding: "8px 12px",
+                borderTop: `1px solid ${COLORS.borderSoft}`,
+                fontSize: 12,
+                color: COLORS.inkMuted,
+              }}
+            >
+              <span>{t("dashboard.adminSupport.newQuestionHint")}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setAsk("");
+                  setAskError(null);
+                  setView("home");
+                }}
+                style={{
+                  border: "none",
+                  background: COLORS.fill,
+                  color: "#fff",
+                  borderRadius: 999,
+                  padding: "8px 14px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  flexShrink: 0,
+                }}
+              >
+                {t("dashboard.adminSupport.newQuestion")}
+              </button>
             </div>
           ) : null}
           <Composer

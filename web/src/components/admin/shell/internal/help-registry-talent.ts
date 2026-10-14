@@ -192,8 +192,25 @@ export const TALENT_HELP: Record<string, HelpEntry> = {
         a: "Fill in the essentials in Perfil (Profile). Until then it says Not published yet, and when the essentials are in, Perfil shows the address where your page lives. Change the look in Mi presencia (Your presence). Use Vista previa del sitio (Site preview) to check it.",
       },
       {
-        q: "How do I change how my page looks?",
-        a: "Open Mi presencia (Your presence) in the sidebar. Your services and prices come from Servicios (Services), and your details and photos from Perfil (Profile).",
+        q: "How do I change what my page shows?",
+        a: "Open Mi presencia (Your presence) in the sidebar. To pick a different design or theme, press Cambiar diseño (Change design) there. Your services and prices come from Servicios (Services), and your details and photos from Perfil (Profile).",
+      },
+    ],
+  },
+  "talent-design": {
+    audience: "Talent",
+    category: "Design and theme (Cambiar diseño)",
+    purpose:
+      "Cambiar diseño (Change design) is how you pick a different design or theme for your website. It lives in Mi presencia (My presence), on the Mi sitio web (My website) tab.",
+    youCanHere: [
+      "Open Mi presencia (My presence), then Mi sitio web (My website), and press Cambiar diseño (Change design) to choose a new design or theme",
+      "Inside the site builder, open the Diseño (Design) panel to adjust colors, fonts and style",
+    ],
+    ticketCategory: "Public site & domains",
+    faqs: [
+      {
+        q: "How do I change my design or theme?",
+        a: "Open Mi presencia (My presence), go to Mi sitio web (My website) and press Cambiar diseño (Change design). In the builder you can also use the Diseño (Design) panel. Vista previa del sitio (Site preview) only shows the page, it does not change the design.",
       },
     ],
   },

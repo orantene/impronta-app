@@ -26,7 +26,16 @@ import { interpolate } from "@/i18n/interpolate";
 import { formatMoneyCents } from "@/lib/talent/earnings-view";
 import { modesForPerson } from "@/lib/pos/modes";
 import { DESTINATIONS } from "@/lib/workspace/destinations";
-import type { NeedsYouRow, OverviewCopy, OverviewSnapshot, TodayBadge, TodayRow } from "@/lib/overview/model";
+import { industryCounterOps } from "@/lib/workspace/industry-ops";
+import { resolveGreetingName } from "@/lib/dashboard/greeting-name";
+import type {
+  NeedsYouRow,
+  OverviewCopy,
+  OverviewSnapshot,
+  SetupItemKey,
+  TodayBadge,
+  TodayRow,
+} from "@/lib/overview/model";
 import { setupProgress } from "@/lib/overview/model";
 import { useDashboardText } from "../dashboard-i18n";
 import { Icon } from "../primitives";
@@ -34,6 +43,18 @@ import { meetsRole, useAdminShell } from "../state";
 import { useOverviewSnapshot } from "./overview-snapshot-store";
 
 const K = "dashboard.overviewBoard";
+
+/** Same doors as /admin/setup — one-tap from the Overview checklist (TUL-525). */
+const SETUP_DOORS: Record<SetupItemKey, (base: string) => string> = {
+  timeZone: (b) => `${b}/settings?focus=venue`,
+  catalogItem: (b) => `${b}/menu`,
+  whoPerforms: (b) => `${b}/people?view=bookable`,
+  bookableHours: (b) => `${b}/settings?focus=appointments`,
+  onlinePayments: (b) => `${b}/settings?focus=payments`,
+  bookingPolicy: (b) => `${b}/settings?focus=commercial-terms`,
+  payoutDestination: (b) => `${b}/payouts`,
+  websitePublished: (b) => `${b}/website`,
+};
 
 function greetingKey(hour: number): string {
   if (hour < 12) return "dashboard.adminOverview.greetingMorning";
@@ -91,18 +112,18 @@ export function OverviewBoard() {
     setPage,
     openDrawer,
     bridgeSessionIdentity,
+    bridgeTenantIdentity,
     workspacePosEnabled,
     workspacePosModes,
     adminBasePath,
   } = useAdminShell();
 
-  const firstName = (() => {
-    const dn = bridgeSessionIdentity?.displayName?.trim();
-    if (dn) return dn.split(/\s+/u)[0];
-    const email = bridgeSessionIdentity?.email;
-    if (email) return email.split("@")[0]?.split(/[.\-_]/u)[0] ?? null;
-    return null;
-  })();
+  // TUL-525: person first name, else business name — never the account handle.
+  const greetingName =
+    resolveGreetingName({
+      personName: bridgeSessionIdentity?.displayName,
+      businessName: bridgeTenantIdentity?.displayName,
+    }) ?? t("dashboard.adminOverview.greetingFallbackName");
   const now = snapshot ? new Date(snapshot.nowIso) : new Date();
   const locale = t("dashboard.adminOverview.dateLocale");
   // The kit's day-first date, "Thu 17 Sep" (MW02 / the Overview board), in
@@ -116,12 +137,15 @@ export function OverviewBoard() {
   const datePart = (type: string) => dateParts.find((p) => p.type === type)?.value ?? "";
   const dateLabel = `${datePart("weekday")} ${datePart("day")} ${datePart("month")}`.replace(/\.\s/g, " ").trim();
   const greeting = interpolate(t(greetingKey(now.getHours())), {
-    name: firstName ?? t("dashboard.adminOverview.greetingFallbackName"),
+    name: greetingName,
   });
 
-  const posModes = workspacePosEnabled
-    ? modesForPerson({ role: state.role, workspaceEnabledModes: workspacePosModes })
-    : [];
+  // TUL-525: Open POS only for counter-shaped industries (not salon / clinic).
+  const counterOps = industryCounterOps(bridgeTenantIdentity?.industryPreset);
+  const posModes =
+    workspacePosEnabled && counterOps
+      ? modesForPerson({ role: state.role, workspaceEnabledModes: workspacePosModes })
+      : [];
   const canBook = meetsRole(state.role, "manager");
   const needCount = snapshot?.needsYou.length ?? 0;
   const money = snapshot?.money;
@@ -159,17 +183,7 @@ export function OverviewBoard() {
               <Icon name="credit" size={15} stroke={1.75} color="currentColor" />
               {t(`${K}.actions.openPos`)}
             </a>
-          ) : (
-            <button
-              type="button"
-              disabled
-              title={t(`${K}.actions.openPosOff`)}
-              className={`${BUTTON_PRIMARY} cursor-not-allowed opacity-50`}
-            >
-              <Icon name="credit" size={15} stroke={1.75} color="currentColor" />
-              {t(`${K}.actions.openPos`)}
-            </button>
-          )}
+          ) : null}
           <button
             type="button"
             disabled={!canBook}
@@ -335,9 +349,11 @@ export function OverviewBoard() {
 
         <div className="flex min-h-0 flex-col gap-[16px] overflow-y-auto max-[720px]:gap-[12px]">
           <TodayPanel snapshot={snapshot} />
-          <div className="contents max-[720px]:hidden">
-            <SetupReadiness snapshot={snapshot} onFinish={() => router.push(`${adminBasePath}/setup`)} />
-          </div>
+          <SetupReadiness
+            snapshot={snapshot}
+            adminBase={adminBasePath}
+            onFinish={() => router.push(`${adminBasePath}/setup`)}
+          />
         </div>
       </div>
     </div>
@@ -506,40 +522,84 @@ function TodayPanel({ snapshot }: { snapshot: OverviewSnapshot | null }) {
   );
 }
 
-function SetupReadiness({ snapshot, onFinish }: { snapshot: OverviewSnapshot | null; onFinish: () => void }) {
+function SetupReadiness({
+  snapshot,
+  onFinish,
+  adminBase,
+}: {
+  snapshot: OverviewSnapshot | null;
+  onFinish: () => void;
+  adminBase: string;
+}) {
   const t = useT();
+  const router = useRouter();
   if (!snapshot) {
     return (
-      <section className={`${CARD} px-[18px] py-[14px]`}>
+      <section className={`${CARD} px-[18px] py-[14px]`} data-testid="overview-setup-skeleton">
         <div aria-hidden className="h-[12px] w-[40%] animate-pulse rounded-[4px] bg-admin-surface-alt" />
         <div aria-hidden className="mt-[8px] h-[6px] rounded-full bg-admin-surface-alt" />
+        <div aria-hidden className="mt-[10px] h-[36px] animate-pulse rounded-[8px] bg-admin-surface-alt" />
+        <div aria-hidden className="mt-[8px] h-[36px] animate-pulse rounded-[8px] bg-admin-surface-alt" />
+        <div aria-hidden className="mt-[8px] h-[36px] animate-pulse rounded-[8px] bg-admin-surface-alt" />
       </section>
     );
   }
   const { done, total } = setupProgress(snapshot.setup);
-  const missing = snapshot.setup.filter((i) => !i.done).map((i) => t(`${K}.setup.item.${i.key}`));
+  const missingAll = snapshot.setup.filter((i) => !i.done);
+  const missing = missingAll.slice(0, 3);
   const pct = total === 0 ? 0 : Math.round((done / total) * 100);
   return (
-    <section className={`${CARD} flex items-center gap-[12px] px-[18px] py-[14px]`} aria-label={t(`${K}.setup.title`)}>
-      <div className="min-w-0 flex-1">
-        <div className="text-admin-13 font-semibold text-admin-ink">
-          {interpolate(t(`${K}.setup.progress`), { done, total })}
+    <section
+      className={`${CARD} px-[18px] py-[14px]`}
+      aria-label={t(`${K}.setup.title`)}
+      data-testid="overview-setup-checklist"
+    >
+      <div className="flex items-center gap-[12px]">
+        <div className="min-w-0 flex-1">
+          <div className="text-admin-13 font-semibold text-admin-ink">
+            {missingAll.length === 0
+              ? t(`${K}.setup.complete`)
+              : interpolate(t(`${K}.setup.progressShort`), { count: missingAll.length })}
+          </div>
+          <div className="mt-[8px] h-[6px] overflow-hidden rounded-full bg-admin-surface-alt">
+            <div
+              style={{ "--tulala-setup-w": `${pct}%` } as CSSProperties}
+              className="h-full w-[var(--tulala-setup-w)] bg-admin-brand [transition:width_.25s_ease]"
+            />
+          </div>
         </div>
-        <div className="mt-[8px] h-[6px] overflow-hidden rounded-full bg-admin-surface-alt">
-          <div
-            style={{ "--tulala-setup-w": `${pct}%` } as CSSProperties}
-            className="h-full w-[var(--tulala-setup-w)] bg-admin-brand [transition:width_.25s_ease]"
-          />
-        </div>
-        <div className="mt-[6px] text-[12px] text-admin-ink-muted">
-          {missing.length === 0
-            ? t(`${K}.setup.complete`)
-            : interpolate(t(`${K}.setup.missing`), { items: missing.join(" · ") })}
-        </div>
+        {missingAll.length > 3 ? (
+          <button type="button" onClick={onFinish} className={`${BUTTON_BASE} h-[30px] px-[14px] text-[12px] ${TONE_SECONDARY}`}>
+            {t(`${K}.setup.seeAll`)}
+          </button>
+        ) : null}
       </div>
-      <button type="button" onClick={onFinish} className={`${BUTTON_BASE} h-[30px] px-[14px] text-[12px] ${TONE_SECONDARY}`}>
-        {t(`${K}.setup.finish`)}
-      </button>
+      {missing.length > 0 ? (
+        <ol className="m-0 mt-[12px] list-none p-0">
+          {missing.map((item) => (
+            <li
+              key={item.key}
+              data-setup-step={item.key}
+              className="flex items-center gap-[10px] border-t border-admin-border-soft py-[10px]"
+            >
+              <span
+                aria-hidden
+                className="inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border border-admin-border-strong bg-admin-card"
+              />
+              <span className="min-w-0 flex-1 text-[13px] font-semibold text-admin-ink">
+                {t(`${K}.setup.item.${item.key}`)}
+              </span>
+              <button
+                type="button"
+                onClick={() => router.push(SETUP_DOORS[item.key](adminBase))}
+                className={`${BUTTON_BASE} h-[30px] px-[12px] text-[12px] ${TONE_PRIMARY}`}
+              >
+                {t(`${K}.setup.setUp`)}
+              </button>
+            </li>
+          ))}
+        </ol>
+      ) : null}
     </section>
   );
 }

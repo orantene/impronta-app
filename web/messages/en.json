@@ -133,6 +133,7 @@
       },
       "form": {
         "email": "Email",
+        "emailPlaceholder": "you@studio.com",
         "password": "Password"
       },
       "actions": {
@@ -382,7 +383,6 @@
       "eventDateOptional": "Event date (optional)",
       "booking": "Booking…",
       "confirmAndBook": "Confirm & book · {price}",
-      "viewInquiry": "View your inquiry",
       "addToCurrentTitle": "Add to this inquiry",
       "addToCurrentSubOne": "1 talent so far",
       "addToCurrentSubOther": "{count} talent so far",
@@ -890,7 +890,8 @@
         "whatsapp": "WhatsApp",
         "email": "Email",
         "confirmByHand": "She confirms by hand.",
-        "bookInstant": "You can book a time on this page."
+        "bookInstant": "You can book a time on this page.",
+        "bookingsPaused": "Not taking new bookings right now. You can still send an inquiry."
       }
     },
     "guestChat": {
@@ -2104,11 +2105,12 @@
         "draftSubStudio": "Everything you told us is saved, but your site does not open online yet. Try again or open it in the editor.",
         "openEditor": "Open the editor",
         "goToPanel": "Go to my dashboard",
+        "openMyPanel": "Open my panel",
         "bookPreview": "Book",
         "bookingsStartStudio": "Bookings start when you add a provider.",
         "inquiryTitle": "Your page is ready for requests",
         "inquirySub": "People can send you requests now. Bookings start when you add a team member.",
-        "addFirstMember": "Add your first team member to start taking bookings",
+        "addFirstMember": "Add your first team member",
         "alsoBookMyself": "Also take bookings yourself",
         "urlDiffers": "Your address came out different from the one you chose because it was already taken. This is the real one."
       },
@@ -13581,6 +13583,9 @@
       "startTicket": "Start a ticket",
       "messageOran": "Message {agent} directly",
       "messageOranBody": "I would like to talk to {agent}.",
+      "messageOranSubject": "Talk to a person",
+      "newQuestion": "New question",
+      "newQuestionHint": "Something else? Start a new question so it gets its own answer.",
       "statusWaitingYou": "Waiting on you",
       "statusWithSupport": "With support",
       "statusResolved": "Resolved",
@@ -13604,6 +13609,7 @@
       "sendFailed": "That did not send. Your text is still here, try again.",
       "rateLimited": "You have sent a lot in a short time. Your text is still here. Try again in about {minutes} minutes.",
       "threadLoading": "Loading conversation…",
+      "threadLoadFailed": "Could not load this conversation. Close and reopen the panel to try again.",
       "rateLimitedOne": "You have sent a lot in a short time. Your text is still here. Try again in about a minute.",
       "cardTitle": "Update",
       "addNumber": "Add a number for a call back",
@@ -13699,7 +13705,6 @@
       "helperModeAria": "Helper mode: highlight everything on this page with an article",
       "helperModeOn": "Helper mode is on",
       "helperModeHint": "Anything with a dotted outline has an article. Click one to read it here.",
-      "guideNotFound": "There is no article for \"{id}\" yet.",
       "helperReadAbout": "Read about: {what}",
       "cardLiveChat": "Start live chat",
       "cardLiveChatSub": "A real person from Tulala, usually within minutes",
@@ -13709,6 +13714,7 @@
       "cardIdeaSub": "Tell us what would make Tulala better",
       "yourTickets": "Your tickets",
       "newReplies": "{n} new replies",
+      "newRepliesOne": "1 new reply",
       "seeAll": "See all",
       "guideHint": "Looking for how something works? Open the {guide} tab.",
       "guideHelpful": "Was this helpful?",
@@ -17800,18 +17806,21 @@
       "setup": {
         "title": "Setup readiness",
         "progress": "Setup readiness · {done} of {total}",
+        "progressShort": "Finish setup · {count} left",
         "missing": "Missing: {items}",
         "complete": "Everything is set up.",
         "finish": "Finish setup",
+        "seeAll": "See all",
+        "setUp": "Set up",
         "item": {
-          "timeZone": "time zone",
-          "catalogItem": "a catalog item",
-          "bookableHours": "bookable hours",
-          "onlinePayments": "online payments",
-          "payoutDestination": "payout destination",
-          "websitePublished": "a published website page",
-          "whoPerforms": "somebody bookable",
-          "bookingPolicy": "a booking policy"
+          "timeZone": "Time zone",
+          "catalogItem": "A service or item to sell",
+          "bookableHours": "Bookable hours",
+          "onlinePayments": "Online payments",
+          "payoutDestination": "Where payouts go",
+          "websitePublished": "A published website page",
+          "whoPerforms": "Someone bookable",
+          "bookingPolicy": "A booking policy"
         }
       }
     },

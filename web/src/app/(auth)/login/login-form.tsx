@@ -12,6 +12,7 @@ import {
   AuthSubmitButton,
 } from "@/components/auth/auth-ui";
 import { createTranslator } from "@/i18n/messages";
+import { withLocaleHref } from "@/i18n/pathnames";
 
 const REMEMBER_STORAGE_KEY = "tulala.login.remember";
 
@@ -98,7 +99,7 @@ export function LoginForm({
           autoComplete="email"
           required
           defaultValue={defaultEmail}
-          placeholder="you@studio.com"
+          placeholder={t("public.auth.form.emailPlaceholder")}
           className={AUTH_INPUT_CLASS}
           style={AUTH_INPUT_STYLE}
         />
@@ -109,7 +110,7 @@ export function LoginForm({
         htmlFor="password"
         rightSlot={
           <Link
-            href="/forgot-password"
+            href={withLocaleHref("/forgot-password", locale)}
             className="plt-mono text-[0.6875rem] font-semibold uppercase tracking-[0.14em] transition-colors hover:text-[var(--plt-forest)]"
             style={{ color: "var(--plt-muted)" }}
           >
