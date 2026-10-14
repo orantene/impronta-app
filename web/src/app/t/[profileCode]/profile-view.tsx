@@ -96,6 +96,7 @@ import {
 } from "@/lib/canonical-location-display";
 import { getPublicHostContext, getPublicPathPrefix } from "@/lib/saas/scope";
 import { resolvePublicProfileOverrideTenantId } from "@/lib/saas/talent-roster";
+import { talentProfileRobotsMeta } from "@/lib/talent-site/talent-profile-robots";
 import { assertTalentVisibleOnAgencySurface } from "./_guards/agency-roster-visibility";
 import {
   ALLOW_ALL_TAXONOMY_VISIBILITY,
@@ -202,7 +203,7 @@ type TalentProfile = {
   short_bio: string | null;
   /** Per-locale published bio map { "en": …, "es": … } (replaces bio_en/bio_es). */
   bio_i18n: LocalizedMap | null;
-  is_publicly_hidden: boolean | null;
+  is_publicly_hidden: boolean | null; is_publicly_listed?: boolean | null; visibility?: string | null;
   is_featured: boolean | null;
   height_cm: number | null;
   talent_plan_key?: string | null;
@@ -413,7 +414,7 @@ async function fetchTalentProfileRow(profileCode: string, preview: boolean) {
             last_name,
             short_bio,
             bio_i18n,
-            is_publicly_hidden,
+            is_publicly_hidden, is_publicly_listed, visibility,
             is_featured,
             height_cm,
             talent_plan_key,
@@ -475,7 +476,7 @@ async function fetchTalentProfileRow(profileCode: string, preview: boolean) {
       last_name,
       short_bio,
       bio_i18n,
-      is_publicly_hidden,
+      is_publicly_hidden, is_publicly_listed, visibility,
       is_featured,
       height_cm,
       talent_plan_key,
@@ -1495,6 +1496,7 @@ export async function buildTalentProfileMetadata({
       locale: localeMeta.openGraphLocale,
       alternateLocale: localeMeta.openGraphAlternateLocale,
     },
+    ...talentProfileRobotsMeta(profile),
   };
 }
 
