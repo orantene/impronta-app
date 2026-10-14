@@ -75,6 +75,7 @@ body:has([role="dialog"][aria-modal="true"]) ${CONSENT_BANNER_SELECTOR},body:has
 body:has(${GUEST_CHAT_PANEL_SELECTOR}) ${CONSENT_BANNER_SELECTOR},body:has(${GUEST_CHAT_PANEL_SELECTOR}) ${LOCALE_SUGGESTION_SELECTOR},body:has(${GUEST_CHAT_PANEL_SELECTOR}) ${DEMO_BADGE_SELECTOR}{display:none}
 body:has(${CONSENT_BANNER_SELECTOR}) [data-guest-chat-launcher]{opacity:0;visibility:hidden;pointer-events:none}
 body:has(${CONSENT_BANNER_SELECTOR}) [data-help-bubble]{display:none!important}
+body:has([data-help-bubble]) ${DEMO_BADGE_SELECTOR}{display:none}
 :root{--cb-bar-h:0px;--floating-launcher-clearance:0px;--floating-consent-clearance:0px;--floating-chrome-bottom:max(var(--cb-bar-h),var(--floating-launcher-clearance),var(--floating-consent-clearance),env(safe-area-inset-bottom,0px))}
 :root:has(.cb-island){--cb-bar-h:${BAR_RESERVE}}
 @media (min-width:720px){:root:has(.cb-island){--cb-bar-h:0px}:root:has(.cb-bar[data-show="true"]:not([data-top="true"]),.cb-dock[data-show="true"]){--cb-bar-h:${BAR_RESERVE}}}
