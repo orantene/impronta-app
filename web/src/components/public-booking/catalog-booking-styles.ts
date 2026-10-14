@@ -94,6 +94,9 @@ export const CATALOG_BOOKING_CSS = `
 .jb-done-facts>div{display:flex;justify-content:space-between;gap:12px;font-size:.875rem}
 .jb-done-facts dt{color:var(--cb-muted)}
 .jb-done-facts dd{margin:0;min-width:0;text-align:right;overflow-wrap:anywhere;font-weight:600;font-variant-numeric:tabular-nums}
+.jb-done-link{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;margin-top:6px;padding:0 18px;border-radius:10px;border:1.5px solid var(--cb-primary);color:var(--cb-primary);background:var(--cb-surface);font-size:.9375rem;font-weight:600;text-decoration:none}
+.jb-done-link:hover{background:var(--cb-blush)}
+.jb-done-link:focus-visible{outline:2px solid var(--cb-primary);outline-offset:2px}
 .jb-demo{margin:16px 0 0;font-size:.8125rem;line-height:1.5;color:var(--cb-muted);background:var(--cb-blush);border-radius:12px;padding:12px 14px}
 .jb-foot{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 20px calc(14px + env(safe-area-inset-bottom));border-top:1px solid var(--cb-line);background:var(--cb-surface)}
 .jb-total{display:grid}

@@ -59,8 +59,9 @@ export function CatalogDonePanel({
         {nextActionCopy}
       </p>
       {chatHref ? (
-        <p className="jb-fixture" data-catalog-done-chat="">
-          <a href={chatHref}>{es ? "Ver mi cita y escribir" : "View my booking and chat"}</a>
+        <p data-catalog-done-chat="">
+          {/* TUL-932: a real button-styled link, not muted body text. */}
+          <a className="jb-done-link" href={chatHref}>{es ? "Ver mi cita y escribir" : "View my booking and chat"}</a>
         </p>
       ) : null}
       {showDemoNote ? (

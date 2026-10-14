@@ -86,6 +86,11 @@ test("TUL-1035: a saved booking still shows its confirmation after the sheet rem
   const shownSlot = first.host.querySelector(".jb-done h3")?.textContent ?? "";
   // TUL-1022: the confirmation keeps the recap's date format AND the venue zone.
   assert.match(shownSlot, /^Miércoles 14 oct, 18:00 · Hora de Cancún$/);
+  // TUL-932: the way into the conversation reads as a button, not body text.
+  const chat = first.host.querySelector<HTMLAnchorElement>("[data-catalog-done-chat] a");
+  assert.equal(chat?.className, "jb-done-link");
+  assert.equal(chat?.textContent, "Ver mi cita y escribir");
+  assert.equal(first.host.querySelector("[data-catalog-done-chat]")?.classList.contains("jb-fixture"), false);
   // TUL-896: the guest gets a reference to quote.
   assert.match(first.host.querySelector("[data-catalog-done-ref]")?.textContent ?? "", /Referencia\s*TUL-B1/);
   // The route refresh after the guest cookie is minted tears the tree down.
