@@ -99,6 +99,7 @@ export function CatalogBookingSheet({
   captcha = null,
   bookingSettings = DEFAULT_SHEET_BOOKING_SETTINGS,
   onlineCollectReady = true,
+  talentCountry = null,
 }: {
   locale?: string;
   mode?: CatalogBookingMode;
@@ -111,6 +112,8 @@ export function CatalogBookingSheet({
   bookingSettings?: CatalogSheetBookingSettings;
   /** When false with online collect required, force inquiry + unavailable copy. */
   onlineCollectReady?: boolean;
+  /** The Talent/Profesional's home country (ISO2), seeds the phone flag. */
+  talentCountry?: string | null;
 }) {
   const es = locale.startsWith("es");
   const [detail, setDetail] = useState<CatalogBookingDetail | null>(null);
@@ -665,6 +668,7 @@ export function CatalogBookingSheet({
                 onBlur={() => setTouched(true)}
                 invalid={touched && !phoneValid}
                 chatError={askAttempted && !chatPhoneValid}
+                talentCountry={talentCountry}
               />
               <label className="jb-field">
                 <span>{es ? "Correo" : "Email"}</span>

@@ -85,3 +85,11 @@ test("server actions validate the phone before writing", () => {
   const pitch = readFileSync(join(root, "lib/pitch/pitch-public-actions.ts"), "utf8");
   assert.ok(pitch.includes("normalizeGuestPhone(input.contactInfo?.phone)"));
 });
+
+test("talentCountryIso reads a location embed's country, array or object", async () => {
+  const { talentCountryIso } = await import("./guest-phone");
+  assert.equal(talentCountryIso({ country_code: "mx" }), "MX");
+  assert.equal(talentCountryIso([{ country_code: "CO" }]), "CO");
+  assert.equal(talentCountryIso({ country_code: "ZZ" }), null);
+  assert.equal(talentCountryIso(null), null);
+});

@@ -25,6 +25,14 @@ function validIso(iso: string | null | undefined): string | null {
   return dialByIso(up) ? up : null;
 }
 
+/** A location row's country code as a valid dial-table ISO2, or null. Seeds `talentCountry`. */
+export function talentCountryIso(
+  loc: { country_code?: string | null } | ReadonlyArray<{ country_code?: string | null }> | null | undefined,
+): string | null {
+  const row = Array.isArray(loc) ? loc[0] : loc;
+  return validIso((row as { country_code?: string | null } | null | undefined)?.country_code);
+}
+
 /** Order: request IP country, browser language region, browser timezone, talent country, MX. */
 export function detectDefaultCountry(input: {
   ipCountry?: string | null;

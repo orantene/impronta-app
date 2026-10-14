@@ -321,6 +321,8 @@ const BOOKING_CONFIRMED_TALENT: CatalogEntry = {
         contactName: str(event.payload.contactName),
         eventDate: str(event.payload.eventDate),
         eventLocation: str(event.payload.eventLocation),
+        guestNote: str(event.payload.guestNote),
+        guestPhone: str(event.payload.guestPhone),
         inquiriesUrl: pageUrl(brand, `/talent/inbox`),
         brand,
         unsubscribeUrl,

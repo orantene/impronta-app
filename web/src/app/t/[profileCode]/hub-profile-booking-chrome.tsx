@@ -17,6 +17,7 @@ export async function HubProfileBookingChrome({
   sourcePage,
   locale,
   bookEntry,
+  talentCountry,
 }: {
   platformHost: boolean;
   tenantId: string | null;
@@ -24,6 +25,8 @@ export async function HubProfileBookingChrome({
   sourcePage: string;
   locale: string;
   bookEntry: BookEntry;
+  /** The Talent/Profesional's home country (ISO2). */
+  talentCountry?: string | null;
 }) {
   if (!platformHost) return null;
   const bookable = bookEntry.kind === "sheet";
@@ -38,6 +41,7 @@ export async function HubProfileBookingChrome({
             mode="live"
             tenantId={tenantId}
             captcha={chrome?.captcha ?? null}
+            talentCountry={talentCountry ?? null}
           />
           <BookingSheetReadyBeacon />
         </>

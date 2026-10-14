@@ -1,6 +1,7 @@
 import "server-only";
 
 import { formatAppointmentWhen, normalizeBookingLocale } from "@/lib/scheduling/booking-locale";
+import { bookingEmailGuestDetails } from "./booking-email-details";
 import { logServerError } from "@/lib/server/safe-error";
 import { allRosterTalent, clientOrGuest, loadInquiryView, str } from "./catalog-audiences";
 import type { AudienceContext, AudienceMember, NotificationEvent } from "./types";
@@ -76,7 +77,19 @@ export async function loadBookingConfirmedView(
   event: NotificationEvent,
   ctx: AudienceContext,
 ): Promise<Record<string, unknown>> {
-  const base = await loadInquiryView(event, ctx);
+  const loaded = await loadInquiryView(event, ctx);
+  let base: Record<string, unknown> = loaded;
+  if (event.inquiryId) {
+    // The guest's notes + phone ride along for the Talent/Profesional's email.
+    const { data: guest, error: guestErr } = await ctx.admin
+      .from("inquiries")
+      .select("message, contact_phone")
+      .eq("id", event.inquiryId)
+      .maybeSingle();
+    if (guestErr) logServerError("notifications.bookingConfirmed.guestDetails", guestErr);
+    const g = guest as { message: string | null; contact_phone: string | null } | null;
+    base = { ...loaded, ...bookingEmailGuestDetails({ message: g?.message, phone: g?.contact_phone }) };
+  }
   const bookingId = str(event.payload.bookingId);
   if (!bookingId || !event.tenantId) return base;
   const { data, error } = await ctx.admin

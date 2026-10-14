@@ -36,6 +36,7 @@ import {
   type CreateInquiryFromIntentResult,
 } from "@/lib/inquiry/inquiry-intent-engine";
 import { logServerError } from "@/lib/server/safe-error";
+import { checkDrawerPhone } from "@/lib/inquiry/drawer-phone-required";
 import { buildSlotTakenState, type SlotTakenState } from "@/lib/inquiry/reserve-slot-taken";
 import { nextFreeTimesForTalent } from "@/lib/scheduling/next-free-times";
 import { guestDrawerFallbackAllowed, isPublicTenantStatus } from "@/lib/inquiry/guest-drawer-tenant";
@@ -251,6 +252,14 @@ export async function submitInquiryNowAction(
   } catch {
     return { kind: "error", message: "Malformed intent payload." };
   }
+
+  // The public drawer requires a guest phone / WhatsApp. Checked here, not in
+  // validateIntentForSubmit, which other surfaces share.
+  const phoneCheck = checkDrawerPhone(intent.requester, String(formData.get("locale") ?? ""));
+  if (!phoneCheck.ok) {
+    return { kind: "error", message: phoneCheck.message, missingFields: ["requester.phone"] };
+  }
+  intent.requester.phone = phoneCheck.phone;
 
   const ctx = await resolveSubmitContext(tenantSlug, {
     guestSelectedTalentIds: intent.talent?.selected_ids ?? [],
