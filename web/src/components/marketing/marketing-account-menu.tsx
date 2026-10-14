@@ -1,5 +1,6 @@
 "use client";
 
+import { SignOutForm } from "@/components/auth/SignOutForm";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { MarketingCopy } from "@/lib/marketing/copy";
@@ -253,7 +254,7 @@ export function DesktopAccount({
             </Link>
 
             {signOutAction ? (
-              <form action="/auth/sign-out" method="post">
+              <SignOutForm>
                 <button
                   type="submit"
                   role="menuitem"
@@ -263,7 +264,7 @@ export function DesktopAccount({
                   <SignOutGlyph />
                   {copy.signOut}
                 </button>
-              </form>
+              </SignOutForm>
             ) : null}
           </>
         </HeaderPopover>

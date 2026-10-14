@@ -43,6 +43,7 @@ import { talentProfileCodeAliasRedirectResponse } from "@/lib/talent/profile-cod
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { talentSiteHostResponse } from "@/lib/saas/talent-site-host-response";
 import { withTalentHostClientSession } from "@/lib/client-account/talent-host-session";
+import { withAuthScopeSweep } from "@/lib/supabase/auth-scope-sweep";
 import { unsupportedLocaleRedirectTarget } from "@/lib/saas/unsupported-locale-redirect";
 import { isTenantHostContext, resolveProxyLocaleContext } from "@/lib/saas/proxy-locale-context";
 import { clientIp, stripInboundHostContextHeaders } from "@/lib/saas/proxy-inbound-sanitize";
@@ -59,8 +60,7 @@ import { startDoorRedirect } from "@/lib/onboarding/start-door-redirect";
 import { marketingDemoSlugRedirect } from "@/lib/marketing/demo-slug-apex-redirect";
 import { marketingSpanishAliasRedirect } from "@/lib/marketing/spanish-path-alias";
 import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
-
-export async function proxy(request: NextRequest) {
+async function proxyInner(request: NextRequest) {
   const ip = clientIp(request);
   const { pathname } = request.nextUrl;
 
@@ -780,7 +780,7 @@ export async function proxy(request: NextRequest) {
   ensureExperimentVisitorCookie(request, sessionRes);
   return sessionRes;
 }
-
+export const proxy = withAuthScopeSweep(proxyInner); // TUL-621: auth-scope-sweep.ts
 export const config = {
   matcher: [
     // `sw.js` + `manifest.webmanifest` are static PWA files in `public/` that

@@ -13,6 +13,8 @@
  * behind a link. No redirects off the talent host.
  */
 
+import { signOutEverywhere } from "@/lib/auth/sign-out-client";
+import { CLIENT_SIGN_OUT_PATH } from "@/lib/auth/sign-out-paths";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { requestEmailCode } from "@/app/auth/otp-actions";
@@ -27,7 +29,6 @@ import {
   finalizeClientAccountGoogleSession,
   saveClientMarketingConsent,
   signInClientAccountPassword,
-  signOutClientAccount,
   verifyClientAccountCode,
 } from "@/lib/client-account/actions";
 import { accountQuickLinks } from "@/lib/client-account/quick-links";
@@ -352,9 +353,11 @@ export function ClientAccountButton({
     close();
   }
 
-  async function logOut() {
+  function logOut() {
     setBusy(true);
-    await signOutClientAccount();
+    // S1 / TUL-708: one top-level POST (also served on talent hosts) revokes
+    // the session and expires every scope + chunk; see sign-out-client.ts.
+    signOutEverywhere(CLIENT_SIGN_OUT_PATH);
     setBusy(false);
     setMe({ signedIn: false });
     setStep("email");

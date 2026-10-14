@@ -1,3 +1,4 @@
+import { SignOutForm } from "@/components/auth/SignOutForm";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { LogOut, Search, UserRound } from "lucide-react";
@@ -714,7 +715,7 @@ export async function PublicHeader() {
                   signOutAction={signOut}
                 />
               )}
-              <form action={signOut} className="ml-0.5">
+              <SignOutForm className="ml-0.5">
                 <Button
                   type="submit"
                   variant="ghost"
@@ -724,7 +725,7 @@ export async function PublicHeader() {
                 >
                   <LogOut className="size-5" />
                 </Button>
-              </form>
+              </SignOutForm>
             </>
           ) : (
             <Button size="icon" variant="ghost" className="shrink-0" asChild>
