@@ -28,3 +28,11 @@ test("OverviewBoard greets from venue zone, not Date#getHours", () => {
   assert.match(src, /utcToZonedHour/);
   assert.doesNotMatch(src, /greetingKey\(now\.getHours\(\)\)/);
 });
+
+test("OverviewBoard imports utcToZonedHour from the scheduling tz module (TUL-913)", () => {
+  const src = readFileSync(BOARD, "utf8");
+  assert.match(
+    src,
+    /import\s*\{[^}]*\butcToZonedHour\b[^}]*\}\s*from\s*"@\/lib\/scheduling\/tz"/,
+  );
+});

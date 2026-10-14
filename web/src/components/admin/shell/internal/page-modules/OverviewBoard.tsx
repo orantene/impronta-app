@@ -37,6 +37,7 @@ import type {
   TodayRow,
 } from "@/lib/overview/model";
 import { setupProgress } from "@/lib/overview/model";
+import { utcToZonedHour } from "@/lib/scheduling/tz";
 import { useDashboardText } from "../dashboard-i18n";
 import { Icon } from "../primitives";
 import { meetsRole, useAdminShell } from "../state";
