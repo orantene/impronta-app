@@ -11,6 +11,7 @@ import { formatOrderMoney } from "@/lib/orders/money-format";
 import type { AccountSummary } from "@/lib/client-account/pure";
 import { payMyBookingForm } from "@/lib/client-account/booking-actions";
 
+import { TulalaLogo } from "@/components/brand/tulala-logo";
 import { ClientAccountButton } from "./ClientAccountButton";
 import { LogOutButton, SettingsForm, ThreadReply, VisitActions, type VisitActionsCopy } from "./AccountClientIslands";
 import { btnPrimary } from "./account-button-styles";
@@ -59,6 +60,13 @@ export function ClientAccountArea(props: Props) {
 
   const shell = (children: ReactNode) => (
     <main style={wrap} data-client-account-area="">
+      <header data-account-header="" style={{ borderBottom: `1px solid ${LINE}` }}>
+        <div style={{ maxWidth: 720, margin: "0 auto", padding: "14px 16px" }}>
+          <Link href="/" aria-label="Tulala" style={{ color: INK, display: "inline-flex" }}>
+            <TulalaLogo />
+          </Link>
+        </div>
+      </header>
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "24px 16px 64px" }}>
         <p style={{ margin: 0, fontSize: 14, color: MUTED }}>{props.talentName}</p>
         <h1 style={{ ...heading, fontSize: 28, marginTop: 4 }}>{a("title")}</h1>

@@ -16,6 +16,7 @@ export function AccountMenu({
   dashboardAction,
   secondaryAction,
   signOutAction,
+  signOutLabel = "Sign out",
 }: {
   triggerLabel: string;
   displayName: string;
@@ -23,6 +24,8 @@ export function AccountMenu({
   dashboardAction: MenuAction;
   secondaryAction?: MenuAction | null;
   signOutAction: (formData: FormData) => void | Promise<void>;
+  /** Localized sign-out label (i18n `public.header.signOutAria`). */
+  signOutLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -96,7 +99,7 @@ export function AccountMenu({
                 className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-m text-foreground transition-colors hover:bg-accent"
               >
                 <LogOut className="size-4" />
-                <span>Sign out</span>
+                <span>{signOutLabel}</span>
               </button>
             </form>
           </div>

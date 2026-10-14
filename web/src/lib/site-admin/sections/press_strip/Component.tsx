@@ -1,4 +1,6 @@
 import type { CSSProperties } from "react";
+import { TulalaWordmark } from "@/components/brand/tulala-logo";
+import { isTulalaBrandLabel } from "@/lib/brand/is-tulala-brand-label";
 import { buildNodePresentationResponsiveCss } from "../shared/node-presentation";
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { Container } from "../shared/section-primitives";
@@ -52,7 +54,12 @@ export function PressStripComponent({
             </span>
           ) : null}
           {items.map((item, i) =>
-            item.logoUrl && (variant === "logo-row" || variant === "mixed") ? (
+            !item.logoUrl && isTulalaBrandLabel(item.name) ? (
+              <span key={`${item.name}-${i}`} className="site-press-strip__name" data-brand-wordmark="">
+                <span className="sr-only">{item.name}</span>
+                <TulalaWordmark height={24} />
+              </span>
+            ) : item.logoUrl && (variant === "logo-row" || variant === "mixed") ? (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 key={`${item.name}-${i}`}

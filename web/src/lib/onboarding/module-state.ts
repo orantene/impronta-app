@@ -187,12 +187,15 @@ export const RESUME_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 const FINISHED_STEPS: ReadonlySet<ModuleStep> = new Set<ModuleStep>(["building", "arrival"]);
 
+/** A signed-in owner's unfinished draft stops resuming after 14 days (TUL-750/16). */
+export const OWNER_RESUME_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+
 /**
  * TUL-16 (e): may this saved draft be offered again? A guest draft lives on a
  * device cookie (maybe a shared device, maybe someone who already finished),
  * so it resumes only within 24h of its last save and never once finished.
- * A signed-in owner's draft is their own and keeps resuming, except a
- * finished one older than 24h (they are starting something new).
+ * A signed-in owner's draft is their own and resumes for 14 days; a
+ * finished one older than 24h never does (they are starting something new).
  */
 export function isResumeFresh(
   state: PersistedModuleState,
@@ -201,7 +204,10 @@ export function isResumeFresh(
   const saved = state.updatedAt ? Date.parse(state.updatedAt) : NaN;
   const recent = Number.isFinite(saved) && opts.now - saved <= RESUME_MAX_AGE_MS;
   const finished = !!state.step && FINISHED_STEPS.has(state.step);
-  if (opts.isAuthenticated) return !(finished && !recent);
+  if (opts.isAuthenticated) {
+    const ownerRecent = !Number.isFinite(saved) || opts.now - saved <= OWNER_RESUME_MAX_AGE_MS;
+    return finished ? recent : ownerRecent;
+  }
   return recent && !finished;
 }
 

@@ -351,7 +351,7 @@ export async function signUpWithEmail(
     password,
     options: {
       emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(nextPath)}&lang=${lang}`,
-      data: signupIntent ? { signup_intent: signupIntent } : undefined,
+      data: { lang, ...(signupIntent ? { signup_intent: signupIntent } : {}) },
     },
   });
   if (error) {
@@ -452,6 +452,7 @@ export async function signUpTalentInPlace(
     return { error: SUPABASE_ENV_HELP };
   }
   const origin = getAppUrl();
+  const lang = String(formData.get("locale") ?? "en") === "es" ? "es" : "en";
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -463,8 +464,8 @@ export async function signUpTalentInPlace(
       // redirect rather than being deleted.
       emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(
         "/talent/profile/fields",
-      )}`,
-      data: { signup_intent: "talent" },
+      )}&lang=${lang}`,
+      data: { signup_intent: "talent", lang },
     },
   });
   if (error) {

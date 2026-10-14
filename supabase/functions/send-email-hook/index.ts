@@ -63,13 +63,17 @@ function copyKey(action: string): string {
   return "signup"; // signup, invite, default
 }
 
-function localeFromRedirect(redirectTo?: string): Locale {
-  if (!redirectTo) return "en";
+// `lang` rides on emailRedirectTo; user_metadata.lang (stamped at sign-up) is the
+// fallback for a link whose redirect_to lost it, so an ES sign-up never gets EN mail.
+function localeFromRedirect(redirectTo?: string, metaLang?: unknown): Locale {
+  const fromMeta = typeof metaLang === "string" && metaLang.toLowerCase().startsWith("es") ? "es" : "en";
+  if (!redirectTo) return fromMeta;
   try {
-    const lang = new URL(redirectTo).searchParams.get("lang") ?? "";
+    const lang = new URL(redirectTo).searchParams.get("lang");
+    if (!lang) return fromMeta;
     return lang.toLowerCase().startsWith("es") ? "es" : "en";
   } catch {
-    return "en";
+    return fromMeta;
   }
 }
 
@@ -102,7 +106,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: { http_code: 400, message: "missing email/token_hash" } }), { status: 400 });
   }
 
-  const locale = localeFromRedirect(ed.redirect_to);
+  const locale = localeFromRedirect(ed.redirect_to, user.user_metadata?.lang);
   const c = COPY[copyKey(action)][locale];
   const type = action === "email_change_new" ? "email_change" : action === "invite" ? "invite" : action;
   const params = new URLSearchParams({ token_hash: tokenHash, type });

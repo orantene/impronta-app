@@ -712,6 +712,7 @@ export async function PublicHeader() {
                   }}
                   secondaryAction={secondaryAction}
                   signOutAction={signOut}
+                  signOutLabel={t("public.header.signOutAria")}
                 />
               )}
               <form action={signOut} className="ml-0.5">
