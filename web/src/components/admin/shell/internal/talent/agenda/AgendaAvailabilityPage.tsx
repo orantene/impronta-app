@@ -14,7 +14,7 @@ import { useAgendaCopy } from "./use-agenda-copy";
 import { formatHoursDate, formatHoursRange } from "@/lib/talent-agenda/hours-display-format";
 import { HoursDateField, HoursTimeField } from "./HoursFields";
 import { TimezonePicker, isListedTimeZone, listIanaTimeZones } from "./TimezonePicker";
-import { readDeviceTimeZone, suggestDeviceTimeZone } from "./timezone-suggestion";
+import { readDeviceTimeZone, resolveHoursTimeZone, suggestDeviceTimeZone } from "./timezone-suggestion";
 
 const LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
@@ -59,6 +59,8 @@ export function AgendaAvailabilityPage({
   );
   // F48: never a hardcoded zone; the server derives hers from her saved city.
   const [tz, setTz] = useState(seeded?.timezone ?? "");
+  // Where an unsaved zone came from, so the form can say it out loud (TUL-536).
+  const [tzSource, setTzSource] = useState<"saved" | "workspace" | "device" | "none">(seeded?.timezone ? "saved" : "none");
   // F47: until she saves, the rows are a SUGGESTION, and the page says so.
   const [unsaved, setUnsaved] = useState(false);
   // Read after mount so server and client markup match.
@@ -135,7 +137,14 @@ export function AgendaAvailabilityPage({
         setExceptionsLoaded(true);
         if (!seeded) {
           setUnsaved(true);
-          setTz(res.defaultTimezone);
+          // TUL-536: a "UTC" server default means "unknown": use the device zone instead.
+          const resolved = resolveHoursTimeZone({
+            serverDefault: res.defaultTimezone,
+            device: readDeviceTimeZone(),
+            listed: listIanaTimeZones(),
+          });
+          setTz(resolved.zone || res.defaultTimezone);
+          setTzSource(resolved.source);
           const suggested = res.suggestedWeekly;
           if (suggested) {
             setRows(
@@ -409,13 +418,18 @@ export function AgendaAvailabilityPage({
         </label>
         <label className="block text-[13px]">
           {copy.t("Time zone")}
-          <TimezonePicker value={tz} onChange={(z) => { setTz(z); setUnsaved(true); }} />
+          <TimezonePicker value={tz} onChange={(z) => { setTz(z); setTzSource("saved"); setUnsaved(true); }} />
+          {tz && tzSource === "device" ? (
+            <p className="mt-2 text-[12px] text-black/60" data-testid="working-hours-timezone-source">
+              {copy.t("Time zone taken from this device. Change it above if it is wrong.")}
+            </p>
+          ) : null}
           {suggestedTz ? (
             <button
               type="button"
               data-testid="working-hours-timezone-device"
               className="mt-2 text-left text-[13px] text-[var(--tc-accent)]"
-              onClick={() => { setTz(suggestedTz); setUnsaved(true); }}
+              onClick={() => { setTz(suggestedTz); setTzSource("device"); setUnsaved(true); }}
             >
               {copy.t("Use this device's time zone")}: {suggestedTz.replaceAll("_", " ")}
             </button>
