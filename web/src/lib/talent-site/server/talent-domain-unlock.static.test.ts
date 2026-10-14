@@ -107,7 +107,7 @@ test("webhook fulfill buys only after payment and is idempotent on session id", 
   assert.match(src, /mode: "payment"/);
   assert.match(src, /buyDomain\(/);
   assert.match(src, /ensureCustomDomainOnVercelProject/);
-  assert.match(src, /verifyCustomDomainOnVercelProject/);
+  assert.match(src, /verifyProjectDomainOnVercel/);
   assert.match(src, /buildPurchasedTalentDomainRow/);
   assert.match(src, /stripe_checkout_session_id/);
   assert.match(src, /acquisition: "purchased"/);
