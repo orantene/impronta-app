@@ -363,7 +363,6 @@ function LoginModalEmailForm({
           name="password"
           autoComplete="current-password"
           required
-          placeholder="••••••••"
           className="h-12 w-full rounded-xl border bg-[var(--plt-bg)] px-4 text-[0.9375rem] outline-none transition-colors focus:border-[var(--plt-forest)] placeholder:text-[var(--plt-muted-soft)]"
           style={{ borderColor: "var(--plt-hairline-strong)", color: "var(--plt-ink)" }}
         />

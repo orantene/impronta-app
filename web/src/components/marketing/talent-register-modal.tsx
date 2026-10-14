@@ -560,7 +560,6 @@ function ModalForm({
           autoComplete="new-password"
           required
           minLength={8}
-          placeholder="••••••••"
           className="w-full bg-transparent text-[0.9375rem] leading-none outline-none placeholder:text-[var(--plt-muted-soft)]"
           style={{ color: "var(--plt-ink)" }}
         />

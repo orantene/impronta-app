@@ -140,7 +140,6 @@ export function RegisterForm({
           autoComplete="new-password"
           required
           minLength={8}
-          placeholder="••••••••"
           className={AUTH_INPUT_CLASS}
           style={AUTH_INPUT_STYLE}
         />
