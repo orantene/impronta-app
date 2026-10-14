@@ -112,6 +112,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["lib/storefront/cart-checkout.server.ts", ["readCartCheckout"], READ],
   ["lib/storefront/portal-entry.server.ts", ["readPortalEntry"], READ],
   ["lib/scheduling/appointments-actions.ts", ["loadAppointments", "loadSessionWaitlists", "loadBookingHoursProposals"], READ],
+  ["lib/scheduling/appointments-surface-action.ts", ["loadAppointmentsSurface"], READ],
   ["lib/talent-integrations/actions.ts", ["fetchTalentConnectionSettingsAction", "fetchTalentFeaturedMediaAction"], READ],
   ["lib/server-actions/admin-talent-skills.ts", ["getResolvedSkills", "getEnabledParentCategoriesForPicker", "getAgencySkillOverrides", "getAspirations", "getTalentTypesUnderParent", "getUnpublishableSkillsForTenant"], READ],
   ["lib/server-actions/admin-user-workspaces.ts", ["actionLoadUserWorkspaces"], READ],
