@@ -512,7 +512,7 @@ const CASE_STUDIES_ES: Record<string, LocalizedStudy> = {
     tags: ["Reserva por estilista", "Depósitos", "Workspace"],
   },
   models: {
-    plan: "Negocio · Agency",
+    plan: "Negocio · Agencia",
     role: "Agencia de talento y modelos",
     location: "Riviera Maya",
     cardTitle: "Un roster de agencia que se reserva solo",

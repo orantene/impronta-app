@@ -515,6 +515,9 @@ export const MARKETING_PAGE_PREFIXES = [
   // Onboarding 1B front door: /get-started redirects here when the module is on.
   "/start",
   "/discover-agencies",
+  // Legacy bookmark for the global directory (pre-/directory rename).
+  // Served by `(marketing)/discover/page.tsx` as a locale-preserving redirect.
+  "/discover",
   "/operators",
   "/agencies",
   "/organizations",

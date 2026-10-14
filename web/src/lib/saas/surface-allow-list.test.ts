@@ -373,6 +373,7 @@ test("marketing host: public marketing pages + root + static + bearer-gated shar
     "/t/jane-doe",
     "/get-started",
     "/discover-agencies",
+    "/discover",
     "/operators",
     "/agencies",
     "/organizations",
@@ -453,6 +454,7 @@ test("marketing host: non-marketing hosts must 404 marketing pages", () => {
   const marketingPages = [
     "/get-started",
     "/discover-agencies",
+    "/discover",
     "/operators",
     "/agencies",
     "/organizations",
