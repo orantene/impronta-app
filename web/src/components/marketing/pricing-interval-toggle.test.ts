@@ -31,13 +31,14 @@ test("TUL-828: interval copy exists in EN and ES, translated, no em dashes", () 
 
 test("TUL-828: the ladders render inside the toggle, which defaults to monthly", () => {
   const section = read("src/components/marketing/pricing-ladders-section.tsx");
-  assert.match(section, /<BillingIntervalToggle copy=\{toggleCopy\}>/);
+  assert.match(section, /<BillingIntervalToggle copy=\{toggleCopy\}/);
   assert.match(section, /group-data-\[interval=year\]\/billing:block/);
   assert.match(section, /data-yearly-source=\{y\.source\}/);
   // One primary CTA per card.
   assert.equal(section.match(/<MarketingCta\b/g)?.length, 1);
   const toggle = read("src/components/marketing/billing-interval-toggle.tsx");
-  assert.match(toggle, /useState<BillingInterval>\(\s*DEFAULT_BILLING_INTERVAL/);
+  assert.match(toggle, /useState<BillingInterval>\(initialInterval\)/);
+  assert.match(toggle, /initialInterval = DEFAULT_BILLING_INTERVAL/);
   assert.match(toggle, /role="radiogroup"/);
 });
 
@@ -46,4 +47,16 @@ test("TUL-828: the pricing page keeps the currency picker untouched", () => {
     read("src/app/(marketing)/pricing/page.tsx"),
     /<CurrencyPicker current=\{currency\} source=\{source\} locale=\{locale\} \/>/,
   );
+});
+
+test("TUL-892: the interval toggle renders at every width and keeps URL sync", () => {
+  const toggle = read("src/components/marketing/billing-interval-toggle.tsx");
+  const root = toggle.slice(toggle.indexOf('data-testid="billing-interval-root"'));
+  assert.doesNotMatch(root, /\bhidden\b|max-sm:|sm:hidden|md:hidden/);
+  assert.match(toggle, /searchParams\.set\("interval"/);
+  const section = read("src/components/marketing/pricing-ladders-section.tsx");
+  assert.match(section, /<BillingIntervalToggle copy=\{toggleCopy\} initialInterval=\{interval\}>/);
+  const wrapper = section.slice(section.indexOf("<BillingIntervalToggle"), section.indexOf("<BillingIntervalToggle") + 10);
+  assert.ok(wrapper);
+  assert.doesNotMatch(section.slice(section.indexOf('<div className="mt-10">'), section.indexOf("<BillingIntervalToggle")), /hidden/);
 });

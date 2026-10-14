@@ -4,7 +4,11 @@ import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { pickMarketingCurrency } from "./pick-marketing-currency";
+import {
+  MARKETING_PRICE_CURRENCIES,
+  coerceMarketingCurrency,
+  pickMarketingCurrency,
+} from "./pick-marketing-currency";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -26,18 +30,38 @@ describe("pickMarketingCurrency", () => {
     );
   });
 
-  it("honors an explicit URL override", () => {
+  it("honors a supported URL override and ignores unsupported ones", () => {
     assert.deepEqual(
-      pickMarketingCurrency({ urlCurrency: "mxn" }),
-      { currency: "MXN", source: "url-param" },
+      pickMarketingCurrency({ urlCurrency: "usd" }),
+      { currency: "USD", source: "url-param" },
     );
+    assert.deepEqual(pickMarketingCurrency({ urlCurrency: "mxn" }), {
+      currency: "USD",
+      source: "fallback",
+    });
   });
 
-  it("honors the sticky cookie when the URL is empty", () => {
-    assert.deepEqual(
-      pickMarketingCurrency({ cookieCurrency: "EUR" }),
-      { currency: "EUR", source: "cookie" },
+  it("TUL-892: a BRL cookie or locale default falls back to USD", () => {
+    assert.deepEqual(pickMarketingCurrency({ cookieCurrency: "BRL" }), {
+      currency: "USD",
+      source: "fallback",
+    });
+    assert.equal(coerceMarketingCurrency("BRL"), "USD");
+    assert.equal(coerceMarketingCurrency("usd"), "USD");
+  });
+
+  it("TUL-892: picker options are exactly the renderable currencies", () => {
+    for (const c of MARKETING_PRICE_CURRENCIES) {
+      assert.equal(pickMarketingCurrency({ cookieCurrency: c }).currency, c);
+      assert.equal(coerceMarketingCurrency(c), c);
+    }
+    const picker = readFileSync(
+      join(HERE, "../../components/marketing/currency-picker.tsx"),
+      "utf8",
     );
+    assert.match(picker, /MARKETING_PRICE_CURRENCIES\.map/);
+    assert.doesNotMatch(picker, /DEFAULT_CURRENCY_OPTIONS/);
+    assert.match(picker, /coerceMarketingCurrency\(current\)/);
   });
 
   it("URL wins over the cookie", () => {

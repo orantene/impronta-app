@@ -63,12 +63,12 @@ export function BillingIntervalToggle({
       data-testid="billing-interval-root"
       className="group/billing"
     >
-      <div className="flex justify-center">
+      <div className="flex w-full justify-center" data-testid="billing-interval-row">
         <div
           role="radiogroup"
           data-testid="billing-interval-toggle"
           aria-label={copy.groupLabel}
-          className="inline-flex items-center gap-1 rounded-full p-1"
+          className="inline-flex max-w-full flex-wrap items-center justify-center gap-1 rounded-full p-1"
           style={{
             background: "var(--plt-bg-raised)",
             border: "1px solid var(--plt-hairline)",
