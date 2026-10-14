@@ -54,6 +54,12 @@ const COPY = {
     draftDialogClose: "Close",
     draftDialogPublishNow: "Change and publish now",
     publishNowError: "The design was changed in your draft, but publishing failed. Try Publish site.",
+    warnHiddenHeading: "Hidden in the new design",
+    warnHiddenNote: "These sections have no match there, so they leave your page.",
+    warnKeptHeading: "Kept from your page",
+    warnKeptNote: "You added these yourself, so they stay at the end of your page.",
+    warnUndoNote: "Changed your mind? Undo it from History.",
+    previewCta: "View preview",
   },
   es: {
     stepDesign: "Diseño",
@@ -100,6 +106,12 @@ const COPY = {
     draftDialogClose: "Cerrar",
     draftDialogPublishNow: "Cambiar y publicar ahora",
     publishNowError: "El diseño se cambió en tu borrador, pero no se pudo publicar. Prueba Publicar sitio.",
+    warnHiddenHeading: "Se ocultan en el nuevo diseño",
+    warnHiddenNote: "Estas secciones no existen allí, así que salen de tu página.",
+    warnKeptHeading: "Se conservan de tu página",
+    warnKeptNote: "Las agregaste tú, así que quedan al final de tu página.",
+    warnUndoNote: "¿Te arrepientes? Deshazlo desde el Historial.",
+    previewCta: "Ver vista previa",
   },
 } as const;
 
