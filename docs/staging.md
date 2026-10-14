@@ -68,6 +68,6 @@ non-empty; an empty value never matches. Store it only as a CI secret.
 ## Build sources (`web/vercel.json` `ignoreCommand`)
 
 Vercel builds only when `VERCEL_ENV=production` (the `production` pointer branch),
-or the ref is `main` (staging), or `program/journeys-2026-09`. Every other branch
-push is skipped. **Drop the `program/journeys-2026-09` clause once the staging
+or the ref is `main` (staging), or `(retired 2026-10-14)`. Every other branch
+push is skipped. **Drop the `(retired 2026-10-14)` clause once the staging
 domain switch to `main` is done.**
