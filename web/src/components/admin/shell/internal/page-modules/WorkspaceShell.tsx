@@ -40,6 +40,7 @@ import {
 } from "./workspace-pages-lazy";
 import { PageSkeleton } from "../primitives/page-skeleton";
 import { RailModeSwitch } from "./RailModeSwitch";
+import { leaveRailHat } from "./rail-mode-switch-action";
 import { useUrlPageSync } from "../use-url-page-sync";
 
 
@@ -387,13 +388,13 @@ function WorkspaceSidebarShell() {
             <RailModeSwitch
               active="admin"
               talentUnread={bridgeTalentUnread ?? 0}
-              onSwitch={() => {
-                if (state.alsoTalent) { flipMode(); return; }
-                // Canonical, agency-agnostic talent surface. Deliberately
-                // NOT /{slug}/talent (that legacy redirector bounces a
-                // hybrid admin back to the roster).
-                window.location.assign("/talent/today");
-              }}
+              onSwitch={() =>
+                leaveRailHat({
+                  active: "admin",
+                  alsoTalent: state.alsoTalent,
+                  flipMode,
+                })
+              }
             />
           )}
 

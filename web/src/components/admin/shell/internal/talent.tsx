@@ -7,6 +7,7 @@ import { useDashboardText } from "./dashboard-i18n";
 import { EmptyState, Icon, useRovingTabindex } from "./primitives";
 import { TALENT_SIDEBAR_ICON } from "./talent-nav-icons";
 import { RailModeSwitch } from "./page-modules/RailModeSwitch";
+import { leaveRailHat } from "./page-modules/rail-mode-switch-action";
 import { COLORS, FONTS, MY_TALENT_PROFILE, TALENT_PAGE_META, TALENT_TIER_META, useAdminShell, type TalentPage } from "./state";
 import { PageHeader } from "./talent/shared/page-chrome-1";
 import { ProfilePageSkeleton } from "./talent/pages/ProfilePageSkeleton";
@@ -236,17 +237,14 @@ function TalentSidebar() {
         <RailModeSwitch
           active="talent"
           adminUnread={bridgeWorkspaceUnread ?? 0}
-          onSwitch={() => {
-            if (state.alsoTalent) {
-              flipMode();
-              return;
-            }
-            // isHybrid is per-tenant: on the hub a dual owner has no membership here, so go to the
-            // workspace they own directly (the admin rail's switch does the mirror with /talent/today).
-            // admin-href-allow: cross-tenant switch — target is another workspace
-            // (bridgeOwnedWorkspaceSlug), so the slug is required. adminBasePath here is the hub.
-            window.location.assign(`/${bridgeOwnedWorkspaceSlug}/admin`);
-          }}
+          onSwitch={() =>
+            leaveRailHat({
+              active: "talent",
+              alsoTalent: state.alsoTalent,
+              ownedWorkspaceSlug: bridgeOwnedWorkspaceSlug,
+              flipMode,
+            })
+          }
         />
       )}
       <nav ref={railNavRef} aria-label={copy.t("Talent sections")} className="flex flex-col gap-[2px]">
