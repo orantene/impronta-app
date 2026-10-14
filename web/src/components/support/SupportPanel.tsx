@@ -38,6 +38,7 @@ import { supportSendErrorText } from "./support-send-error";
 import {
   EMPTY_THREAD,
   applyIncomingMessage,
+  humanRequestedPatch,
   selectThread,
   threadReducer,
   viewAfterOpenChange,
@@ -527,6 +528,7 @@ export function SupportPanel({
                   surface: contract.surface,
                 });
                 void contract.requestHuman({ ticketId });
+                dispatchThread({ type: "patchTicket", ticketId, patch: humanRequestedPatch(new Date().toISOString()) });
               }
             }}
             onCardAction={(action) => {
@@ -536,6 +538,7 @@ export function SupportPanel({
                   surface: contract.surface,
                 });
                 void contract.requestHuman({ ticketId });
+                dispatchThread({ type: "patchTicket", ticketId, patch: humanRequestedPatch(new Date().toISOString()) });
               }
               if (action === "keep-open" && ticketId) void keepTicketOpenAction({ ticketId });
             }}
