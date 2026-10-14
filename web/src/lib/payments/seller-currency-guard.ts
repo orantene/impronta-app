@@ -24,6 +24,7 @@ import { normalizeCurrencyCode } from "@/lib/inquiry/offer-currency";
 import { SELLER_CURRENCY_UNREADABLE } from "@/lib/inquiry/offer-currency-seller";
 import { logServerError } from "@/lib/server/safe-error";
 import { resolveNoReceiverTalentLane } from "@/lib/stripe/no-receiver-lane";
+import { chargeRefusalMessage } from "@/lib/payments/seller-currency-messages";
 
 export const CHARGE_CURRENCY_NOT_PRICED = "charge_currency_not_priced_currency" as const;
 export const CHARGE_CURRENCY_UNSUPPORTED_FOR_LANE = "charge_currency_unsupported_for_lane" as const;
@@ -132,6 +133,7 @@ export async function checkTransactionChargeCurrency(
   input: { transactionId: string; currency: string | null | undefined },
   /** `talentMxLane: false` for rails that only ever use the US key (Terminal): never infer mx from the talent. */
   opts: { talentMxLane?: boolean } = {},
+  input: { transactionId: string; currency: string | null | undefined; locale?: string | null },
 ): Promise<ChargeCurrencyCheck> {
   if (!sb) return UNREADABLE;
   let read: Read;
@@ -145,7 +147,7 @@ export async function checkTransactionChargeCurrency(
   const { pricedCurrency, lane } = read.facts;
   const charge = normalizeCurrencyCode(input.currency);
   if (!charge) {
-    return { ok: false, code: CHARGE_CURRENCY_UNSUPPORTED_FOR_LANE, message: "This payment has no valid currency, so it cannot be taken." };
+    return { ok: false, code: CHARGE_CURRENCY_UNSUPPORTED_FOR_LANE, message: chargeRefusalMessage("no_currency", input.locale) };
   }
   if (pricedCurrency && pricedCurrency !== charge) {
     logServerError(
@@ -155,7 +157,7 @@ export async function checkTransactionChargeCurrency(
     return {
       ok: false,
       code: CHARGE_CURRENCY_NOT_PRICED,
-      message: `This payment is in ${charge} but the item was priced in ${pricedCurrency}. It cannot be taken until the currency matches.`,
+      message: chargeRefusalMessage("not_priced", input.locale, { charge, priced: pricedCurrency }),
     };
   }
   if (lane && !LANE_CURRENCIES[lane].includes(charge)) {
@@ -166,7 +168,7 @@ export async function checkTransactionChargeCurrency(
     return {
       ok: false,
       code: CHARGE_CURRENCY_UNSUPPORTED_FOR_LANE,
-      message: `This seller's payment account cannot take ${charge}. It cannot be taken in this currency.`,
+      message: chargeRefusalMessage("lane", input.locale, { charge }),
     };
   }
   return { ok: true };

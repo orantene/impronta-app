@@ -7,6 +7,7 @@ import { loadTalentLocaleState } from "@/lib/site-admin/server/talent-locale-set
 import {
   applyLangQuery,
   decideTalentProfileLocale,
+  talentProfileSupportedSet,
   ogLocale,
   talentProfileAlternates,
   type TalentProfileLocale,
@@ -30,6 +31,12 @@ export async function resolveTalentProfileLocale(
     primary: settings.defaultLocale,
     supported: settings.supportedLocales,
     openToPlatformLocales: unconfigured ? (language?.publicLocales ?? undefined) : undefined,
+  const { settings } = state;
+    supported: talentProfileSupportedSet({
+      unset: state.seedPrimary === null && settings.secondaryLocales.length === 0,
+      supported: settings.supportedLocales,
+      publicLocales: language?.publicLocales ?? [],
+    }),
   });
 }
 

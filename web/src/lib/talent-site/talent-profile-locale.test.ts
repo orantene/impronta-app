@@ -6,6 +6,7 @@ import {
   decideTalentProfileLocale,
   ogLocale,
   pickByChain,
+  talentProfileSupportedSet,
   talentProfileAlternates,
 } from "./talent-profile-locale";
 
@@ -125,4 +126,14 @@ test("unconfigured talent: a locale the platform does not serve still falls back
 
 test("a talent who chose Spanish only is still bounded (no open locales)", () => {
   assert.equal(decideTalentProfileLocale({ requested: "en", ...SOLO_ES }).locale, "es");
+test("TUL-736: a talent with no language preference follows the platform public locales", () => {
+  const set = talentProfileSupportedSet({
+    unset: true,
+    publicLocales: ["en", "es"],
+  assert.deepEqual(set, ["en", "es"]);
+  const d = decideTalentProfileLocale({ requested: "es", primary: "en", supported: set });
+test("TUL-736: an explicit single-language talent stays bounded", () => {
+  const set = talentProfileSupportedSet({ unset: false, supported: ["en"], publicLocales: ["en", "es"] });
+  assert.deepEqual(set, ["en"]);
+  assert.equal(decideTalentProfileLocale({ requested: "es", primary: "en", supported: set }).locale, "en");
 });
