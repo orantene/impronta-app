@@ -41,7 +41,7 @@ import {
   stripLocaleFromPathname,
   withLocalePath,
 } from "@/i18n/pathnames";
-import { getPublicHostContext } from "@/lib/saas/scope";
+import { getPublicHostContext, PUBLIC_PATH_PREFIX_HEADER } from "@/lib/saas/scope";
 import { hostSafeDestination } from "@/lib/saas/host-safe-destination";
 import type { Locale } from "@/i18n/config";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -193,6 +193,7 @@ export async function HeaderAuthArea({
                   hostKind,
                   pathname: pathnameWithoutLocale,
                   appUrl: getAppUrl(),
+                  publicPathPrefix: h.get(PUBLIC_PATH_PREFIX_HEADER),
                 }) ?? accountHref(accountLink.href)
               }
               aria-label={accountLink.label}

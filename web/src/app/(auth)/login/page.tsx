@@ -1,5 +1,6 @@
 import type { Metadata, ResolvingMetadata } from "next";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
   AuthCard,
@@ -10,7 +11,7 @@ import {
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { withLocaleHref } from "@/i18n/pathnames";
-import { getSiteUrl, isTalentSignupNext, normalizeOptionalNextPath } from "@/lib/auth-flow";
+import { getAppUrl, getSiteUrl, isTalentSignupNext, normalizeOptionalNextPath } from "@/lib/auth-flow";
 import { readInviteFromCookieStore } from "@/lib/invites/cookie";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { prefersPasswordlessFirst } from "@/lib/auth/otp-flow";
@@ -18,7 +19,8 @@ import { buildRegisterHref, readRegisterIntent } from "@/lib/auth/register-inten
 import { EmailCodeForm } from "@/components/auth/email-code-form";
 import { resolveShowCardLocaleToggle } from "@/lib/auth/card-locale-toggle.server";
 import { AuthCardLocaleToggle } from "@/components/auth/auth-card-locale-toggle";
-import { getPublicHostContext } from "@/lib/saas/scope";
+import { getPublicHostContext, PUBLIC_PATH_PREFIX_HEADER } from "@/lib/saas/scope";
+import { pathWorkspaceClientAuthHref } from "@/lib/client-account/path-workspace-signup";
 import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
 import { legacySignupRedirect } from "@/lib/onboarding/legacy-signup-redirect";
 import { legacyFlowLang } from "@/lib/onboarding/legacy-signup-redirect.server";
@@ -77,6 +79,16 @@ export default async function LoginPage({
   const params = await searchParams;
   const { error, next, email, reason } = params;
   const locale = await getRequestLocale();
+  // TUL-709: `tulala.digital/w/<slug>/login` is a client door on that site; the
+  // client account lives on the app host, so hand off there and come back here.
+  const pathSiteHref = pathWorkspaceClientAuthHref({
+    publicPathPrefix: (await headers()).get(PUBLIC_PATH_PREFIX_HEADER),
+    appUrl: getAppUrl(),
+    mode: "login",
+    params,
+    locale,
+  });
+  if (pathSiteHref) redirect(pathSiteHref);
   const t = createTranslator(locale);
   const showCardToggle = await resolveShowCardLocaleToggle();
   const nextPath = normalizeOptionalNextPath(next);

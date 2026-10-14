@@ -153,15 +153,24 @@ export function clientLoginNext(hostContext: string | null | undefined, slug: st
  * app host's existing client sign-in. `next` stays app-host relative: it is
  * `/account/return?to=<site path>`, which sends the signed-in client back to
  * the site they came from through the allow-listed return-to (TUL-709).
+ *
+ * The proxy hands the page the PATH tenant's context, so on a `/w/<slug>` page
+ * `hostKind` reads `agency`, not `marketing`; the proxy's public path prefix
+ * (`/w/<slug>`) is what names a path-addressed site. Checking only for
+ * `marketing` is why the header icon fell back to a bare `/login` in prod QA.
  * Null for every other host or path: those keep their normal login link.
  */
 export function pathWorkspaceClientSignInHref(input: {
   hostKind: string | null | undefined;
   pathname: string;
   appUrl: string;
+  /** The proxy's `x-impronta-public-path-prefix` (`/w/<slug>` on a path site). */
+  publicPathPrefix?: string | null;
 }): string | null {
-  if (input.hostKind !== "marketing") return null;
-  if (!/^\/w\/[^/]+/.test(input.pathname)) return null;
+  const m = /^\/w\/[^/]+/.exec(input.pathname);
+  if (!m) return null;
+  const pathSite = input.hostKind === "marketing" || (input.hostKind === "agency" && input.publicPathPrefix === m[0]);
+  if (!pathSite) return null;
   const base = input.appUrl.trim().replace(/\/$/, "");
   return `${base}/login?as=client&next=${encodeURIComponent(accountReturnPath(input.pathname))}`;
 }

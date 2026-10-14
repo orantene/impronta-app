@@ -14,6 +14,10 @@
  * - everything else (hub, unregistered hosts) returns `null`.
  *
  * The query string is kept so `?lang=` and `?choice=` survive the hop.
+ *
+ * TUL-709: `/signup?role=client` (or `?as=client`) is a CLIENT sign-up, never
+ * the business `/start` onboarding: it goes to the marketing `/register?as=client`
+ * (the email-code client flow) with the rest of the query kept.
  */
 
 export type StartDoorInput = {
@@ -36,6 +40,16 @@ export function startDoorRedirect(input: StartDoorInput): string | null {
 
   const origin = input.marketingOrigin.replace(/\/$/, "");
   const search = input.search && input.search !== "?" ? input.search : "";
+
+  if (path === "/signup" && (REDIRECT_KINDS.has(input.hostKind) || input.hostKind === "marketing")) {
+    const q = new URLSearchParams(search);
+    const intent = (q.get("as") ?? q.get("role") ?? "").trim().toLowerCase();
+    if (intent === "client") {
+      q.delete("role");
+      q.set("as", "client");
+      return `${origin}/register?${q.toString()}`;
+    }
+  }
 
   // The legacy role page is a real page on the app host: only the marketing host (where it 404s) hands it off.
   if (path === "/onboarding/role") return input.hostKind === "marketing" ? `${origin}/start${search}` : null;

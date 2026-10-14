@@ -31,12 +31,16 @@ import "server-only";
 
 import type { AccessProfileWithDisplayName } from "@/lib/access-profile";
 import {
+  getAppUrl,
   isOnboardingStatus,
   resolveAccountHref,
 } from "@/lib/auth-flow";
 import { getSavedTalentIds } from "@/lib/public-discovery";
 import { hostSafeDestination } from "@/lib/saas/host-safe-destination";
-import { getPublicHostContext } from "@/lib/saas/scope";
+import { headers } from "next/headers";
+import { ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
+import { pathWorkspaceClientSignInHref } from "@/lib/client-account/agency-area-pure";
+import { getPublicHostContext, PUBLIC_PATH_PREFIX_HEADER } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -103,15 +107,28 @@ export async function resolveNativeHeaderWidgets(need: {
 
   if (need.account) {
     try {
-      const [actor, hostContext] = await Promise.all([
+      const [actor, hostContext, h] = await Promise.all([
         getCachedActorSession(),
         getPublicHostContext(),
+        headers(),
       ]);
       out.account = deriveNativeAccountWidget({
         signedIn: Boolean(actor.user),
         profile: actor.profile,
         makeHostSafe: (href) => hostSafeDestination(href, hostContext.kind),
       });
+      // TUL-709: signed out on a `/w/<slug>` site, the chip opens the app-host
+      // client sign-in and returns to this page (absolute, so the renderer's
+      // prefixer leaves it alone).
+      if (!actor.user) {
+        const pathSiteHref = pathWorkspaceClientSignInHref({
+          hostKind: hostContext.kind,
+          pathname: (h.get(ORIGINAL_PATHNAME_HEADER) ?? "/").replace(/^\/(es|en)(?=\/w\/)/, ""),
+          appUrl: getAppUrl(),
+          publicPathPrefix: h.get(PUBLIC_PATH_PREFIX_HEADER),
+        });
+        if (pathSiteHref) out.account = { ...out.account, href: pathSiteHref };
+      }
     } catch (error) {
       logServerError("native-header-widgets/account", error);
     }
