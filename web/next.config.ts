@@ -519,6 +519,15 @@ const nextConfig: NextConfig = {
         destination: "/platform/admin/commerce?tab=discounts",
         permanent: false,
       },
+      /** TUL-925: tab sub-paths of Commerce have no page of their own and 404ed
+       *  (signed out too). Send them to the tab, which sits behind the admin
+       *  layout's login redirect. */
+      {
+        source:
+          "/platform/admin/commerce/:tab(health|catalog|discounts|revenue|commission|entitlements)",
+        destination: "/platform/admin/commerce?tab=:tab",
+        permanent: false,
+      },
       {
         source: "/talent/inqueries",
         destination: "/talent/inbox",
