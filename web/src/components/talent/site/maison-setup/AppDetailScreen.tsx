@@ -81,7 +81,7 @@ export function AppDetailScreen({
       data-can-add-apps={canAdd ? "1" : "0"}
       className="mx-auto flex w-full max-w-[1100px] flex-col gap-5 px-4 pb-10 pt-2 font-admin-body"
     >
-      <header className="flex min-h-12 items-center gap-2 border-b border-admin-border-soft pb-3">
+      <header className="flex min-h-12 flex-wrap items-center gap-2 border-b border-admin-border-soft pb-3">
         <button
           type="button"
           onClick={onBackToLibrary}
@@ -90,9 +90,9 @@ export function AppDetailScreen({
         >
           ‹ {galleryAppsT(locale, "backToApps")}
         </button>
-        <div className="min-w-0 flex-1">
+        <div data-testid="app-detail-title-block" className="order-last min-w-0 basis-full sm:order-none sm:basis-0 sm:flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="truncate text-[16px] font-semibold text-admin-ink">{appName(app, locale)}</h1>
+            <h1 className="break-words text-[16px] font-semibold text-admin-ink">{appName(app, locale)}</h1>
             {app.premium ? (
               <span
                 data-testid="gallery-app-pro"
@@ -102,7 +102,7 @@ export function AppDetailScreen({
               </span>
             ) : null}
           </div>
-          <p className="truncate text-[12px] text-admin-ink-muted">{appPitch(app, locale)}</p>
+          <p className="line-clamp-2 text-[12px] text-admin-ink-muted">{appPitch(app, locale)}</p>
         </div>
         <div className="flex rounded-lg border border-admin-border-soft p-0.5">
           {(["desktop", "phone"] as const).map((d) => (
