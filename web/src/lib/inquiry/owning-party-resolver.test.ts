@@ -21,7 +21,7 @@ type RosterRow = {
   talent_profile_id: string;
   is_primary: boolean;
   status: string;
-  agencies: { id: string; plan_tier: string | null } | null;
+  agencies: { id: string; plan_tier: string | null; kind?: string | null } | null;
 };
 
 /**
@@ -253,4 +253,65 @@ test("isHubSourcedChannel — agency-brokered channels are NOT hub-sourced", () 
   for (const c of ["agency_site", "admin_created", "admin_manual", "pitch", "form", "phone", null, undefined, ""]) {
     assert.equal(isHubSourcedChannel(c), false, `${c} should not be hub-sourced`);
   }
+});
+
+// TUL-964: TAL-93940 is non-exclusive on the platform hub only (platform_assigned,
+// is_primary=false, network plan). A signed-in client's drawer on her /t/ page
+// submits source "agency_site" with the hub as tenant, so the source-aware branch
+// saw "rostered on the inquiry tenant" and handed the inquiry to the hub
+// coordinator. Hub listing is not representation: she owns it.
+test("TUL-964 — non-exclusive talent on the platform HUB, agency_site channel with hub tenant → ('talent', id)", async () => {
+  const fixture: RosterRow[] = [
+    {
+      tenant_id: "hub-tenant",
+      talent_profile_id: "talent-1",
+      is_primary: false,
+      status: "active",
+      agencies: { id: "hub-tenant", plan_tier: "network", kind: "hub" },
+    },
+  ];
+  const result = await resolveOwningPartiesForTalents(makeMockSupabase(fixture), ["talent-1"], "hub-tenant", false);
+  assert.deepEqual(result.get("talent-1"), { type: "talent", id: "talent-1" });
+});
+
+test("TUL-964 — hub-only non-exclusive talent with no source context (legacy) → ('talent', id)", async () => {
+  const fixture: RosterRow[] = [
+    {
+      tenant_id: "hub-tenant",
+      talent_profile_id: "talent-1",
+      is_primary: false,
+      status: "active",
+      agencies: { id: "hub-tenant", plan_tier: "network", kind: "hub" },
+    },
+  ];
+  const result = await resolveOwningPartiesForTalents(makeMockSupabase(fixture), ["talent-1"]);
+  assert.deepEqual(result.get("talent-1"), { type: "talent", id: "talent-1" });
+});
+
+test("TUL-964 — talent REPRESENTED by the hub (exclusive primary) still routes to the hub", async () => {
+  const fixture: RosterRow[] = [
+    {
+      tenant_id: "hub-tenant",
+      talent_profile_id: "talent-1",
+      is_primary: true,
+      status: "active",
+      agencies: { id: "hub-tenant", plan_tier: "network", kind: "hub" },
+    },
+  ];
+  const result = await resolveOwningPartiesForTalents(makeMockSupabase(fixture), ["talent-1"], "hub-tenant", false);
+  assert.deepEqual(result.get("talent-1"), { type: "agency", id: "hub-tenant" });
+});
+
+test("TUL-964 — non-exclusive talent on a regular agency storefront keeps the workspace", async () => {
+  const fixture: RosterRow[] = [
+    {
+      tenant_id: "agency-1",
+      talent_profile_id: "talent-1",
+      is_primary: false,
+      status: "active",
+      agencies: { id: "agency-1", plan_tier: "network", kind: "agency" },
+    },
+  ];
+  const result = await resolveOwningPartiesForTalents(makeMockSupabase(fixture), ["talent-1"], "agency-1", false);
+  assert.deepEqual(result.get("talent-1"), { type: "workspace", id: "agency-1" });
 });

@@ -108,9 +108,22 @@ export function isHubSourcedChannel(sourceChannel: string | null | undefined): b
 }
 
 type AgencyEmbed =
-  | { id?: string; plan_tier: string | null }
-  | { id?: string; plan_tier: string | null }[]
+  | { id?: string; plan_tier: string | null; kind?: string | null }
+  | { id?: string; plan_tier: string | null; kind?: string | null }[]
   | null;
+
+/**
+ * TUL-964: a NON-exclusive row on the platform hub (agencies.kind = 'hub') is a
+ * listing, not representation. It never makes the hub the operational owner, so
+ * an inquiry to a hub-listed independent talent is hers (self-coordinate), even
+ * when the hub is the inquiry tenant and the channel is not hub-sourced (the
+ * signed-in client drawer on /t/<code> submits source 'agency_site'). Hub
+ * REPRESENTATION (exclusive primary row) is decided earlier and is unaffected.
+ */
+function rowIsHubListing(agencies: AgencyEmbed): boolean {
+  const agency = Array.isArray(agencies) ? agencies[0] : agencies;
+  return agency?.kind === "hub";
+}
 
 /**
  * A roster row confers exclusivity when the talent is the agency's PRIMARY
@@ -158,7 +171,7 @@ export async function resolveOwningPartyForTalent(
   // 1 + 2: any active roster row for this talent.
   const { data: rosterRows, error } = await supabase
     .from("agency_talent_roster")
-    .select("tenant_id, is_primary, status, exclusivity_status, agencies:tenant_id ( id, plan_tier )")
+    .select("tenant_id, is_primary, status, exclusivity_status, agencies:tenant_id ( id, plan_tier, kind )")
     .eq("talent_profile_id", talentProfileId)
     .in("status", ["active", "pending"]);
 
@@ -195,11 +208,16 @@ export async function resolveOwningPartyForTalent(
     return { type: "talent", id: talentProfileId };
   }
 
+  const operational = rows.filter((r) => !rowIsHubListing(r.agencies));
+  if (operational.length === 0) {
+    return { type: "talent", id: talentProfileId };
+  }
+
   // 3. Non-exclusive. When the inquiry source (its tenant) is known, route by
   // it: an agency's own storefront (a tenant the talent is rostered on) owns
   // the relationship; the open hub (any other tenant) hands it to the talent.
   if (inquiryTenantId) {
-    if (rows.some((r) => r.tenant_id === inquiryTenantId)) {
+    if (operational.some((r) => r.tenant_id === inquiryTenantId)) {
       return { type: "workspace", id: inquiryTenantId };
     }
     return { type: "talent", id: talentProfileId };
@@ -208,7 +226,7 @@ export async function resolveOwningPartyForTalent(
   // Legacy (no source context). Pick the first active row as the workspace
   // owner — the single-tenant "friend link" case where a Free workspace
   // operationally owns the relationship without exclusivity.
-  const firstActive = rows.find((r) => r.status === "active") ?? rows[0];
+  const firstActive = operational.find((r) => r.status === "active") ?? operational[0];
   return { type: "workspace", id: firstActive.tenant_id };
 }
 
@@ -241,7 +259,7 @@ export async function resolveOwningPartiesForTalents(
 
   const { data, error } = await supabase
     .from("agency_talent_roster")
-    .select("tenant_id, talent_profile_id, is_primary, status, exclusivity_status, agencies:tenant_id ( id, plan_tier )")
+    .select("tenant_id, talent_profile_id, is_primary, status, exclusivity_status, agencies:tenant_id ( id, plan_tier, kind )")
     .in("talent_profile_id", talentProfileIds)
     .in("status", ["active", "pending"]);
 
@@ -294,19 +312,24 @@ export async function resolveOwningPartiesForTalents(
       out.set(talentId, { type: "talent", id: talentId });
       continue;
     }
+    const operational = myRows.filter((row) => !rowIsHubListing(row.agencies));
+    if (operational.length === 0) {
+      out.set(talentId, { type: "talent", id: talentId });
+      continue;
+    }
     // 3. Non-exclusive — source-aware when the inquiry's tenant is known:
     // rostered on it (agency storefront) → workspace; else (open hub) → talent.
     if (inquiryTenantId) {
       out.set(
         talentId,
-        myRows.some((r) => r.tenant_id === inquiryTenantId)
+        operational.some((r) => r.tenant_id === inquiryTenantId)
           ? { type: "workspace", id: inquiryTenantId }
           : { type: "talent", id: talentId },
       );
       continue;
     }
     // Legacy (no source context) — first active row.
-    const firstActive = myRows.find((r) => r.status === "active") ?? myRows[0];
+    const firstActive = operational.find((r) => r.status === "active") ?? operational[0];
     out.set(talentId, { type: "workspace", id: firstActive.tenant_id });
   }
 
