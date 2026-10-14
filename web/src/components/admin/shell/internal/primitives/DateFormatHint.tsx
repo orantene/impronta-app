@@ -1,3 +1,6 @@
+"use client";
+
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { hoursDatePlaceholder } from "@/lib/talent-agenda/hours-display-format";
 
 /**
@@ -12,4 +15,10 @@ export function DateFormatHint({ locale }: { locale: string }) {
       {hoursDatePlaceholder(locale)}
     </span>
   );
+}
+
+/** Same hint, reading the dashboard language itself (for large files that
+ *  would otherwise need a locale hook plumbed in). */
+export function DashboardDateFormatHint() {
+  return <DateFormatHint locale={useDashboardLocale()} />;
 }

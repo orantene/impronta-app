@@ -34,9 +34,9 @@ test("every type=date input under admin/shell/internal has a DateFormatHint sibl
     const src = readFileSync(file, "utf8");
     const inputs = [...src.matchAll(INPUT_RE)];
     if (inputs.length === 0 || ALLOW[rel]) continue;
-    const hints = (src.match(/<DateFormatHint\b/g) ?? []).length;
+    const hints = (src.match(/<(?:Dashboard)?DateFormatHint\b/g) ?? []).length;
     if (hints < inputs.length) bad.push(`${rel}: ${inputs.length} date input(s), ${hints} hint(s)`);
-    const imp = src.match(/import \{ DateFormatHint \} from "([^"]+)"/);
+    const imp = src.match(/import \{ (?:Dashboard)?DateFormatHint \} from "([^"]+)"/);
     if (!imp) bad.push(`${rel}: missing DateFormatHint import`);
     else {
       const target = resolve(dirname(file), imp[1]) + ".tsx";
