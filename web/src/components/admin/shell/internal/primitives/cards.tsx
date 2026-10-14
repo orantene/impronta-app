@@ -829,15 +829,23 @@ function PhotoBadgeIcon({
 /** Risk/health score badge for admin surfaces only — never publicly
  *  visible. Numeric 0-100 score from getRiskScore, color-coded.
  *  Higher = more trustworthy. */
-export function RiskScorePill({ score, label = "Trust health" }: { score: number; label?: string }) {
+export function RiskScorePill({
+  score,
+  label = "Trust health",
+  words = { healthy: "healthy", watchful: "watchful", review: "review" },
+}: {
+  score: number;
+  label?: string;
+  words?: { healthy: string; watchful: string; review: string };
+}) {
   const tone =
-    score >= 70 ? { bg: "rgba(15,79,62,0.10)", fg: "#0F4F3E", word: "healthy" }
-    : score >= 40 ? { bg: "rgba(176,135,49,0.14)", fg: "#7A5A1F", word: "watchful" }
-    : { bg: "rgba(176,48,58,0.10)", fg: "#7A1F26", word: "review" };
+    score >= 70 ? { bg: "rgba(15,79,62,0.10)", fg: "#0F4F3E", word: words.healthy }
+    : score >= 40 ? { bg: "rgba(176,135,49,0.14)", fg: "#7A5A1F", word: words.watchful }
+    : { bg: "rgba(176,48,58,0.10)", fg: "#7A1F26", word: words.review };
   return (
     <div title={`Internal heuristic — verifications, claim status, account age, recent rejections.`} style={{
       display: "inline-flex", alignItems: "center", gap: 8,
-      padding: "5px 11px", borderRadius: 999,
+      padding: "5px 11px", borderRadius: 999, whiteSpace: "nowrap", flexShrink: 0,
       background: tone.bg, color: tone.fg,
       fontFamily: "inherit", fontSize: 11.5, fontWeight: 600,
     }}>

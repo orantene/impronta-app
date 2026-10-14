@@ -42,7 +42,7 @@ const LOCKED_HINT = {
     title: "Disponible en Oficina Web",
     body: "Con el plan gratuito puedes editar textos e imágenes, y ocultar o mostrar bloques. Añadir, mover, duplicar y pegar es de Oficina Web.",
     cta: "Ver planes",
-    badge: "Web Office",
+    badge: "Oficina Web",
   },
 } as const;
 
