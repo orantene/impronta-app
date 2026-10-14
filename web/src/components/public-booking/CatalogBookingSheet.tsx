@@ -118,9 +118,7 @@ export function CatalogBookingSheet({
   const [dayIndex, setDayIndex] = useState(() => (mode === "demo" ? firstOpenDemoDayIndex(catalogNextDays()) : 0));
   const [time, setTime] = useState<string | null>(null);
   const [liveStarts, setLiveStarts] = useState<string | null>(null);
-  const [liveTz, setLiveTz] = useState("UTC");
-  const [liveReason, setLiveReason] = useState<string | null>(null);
-  const [livePlaceCity, setLivePlaceCity] = useState<string | null>(null);
+  const [liveTz, setLiveTz] = useState("UTC"); const [liveReason, setLiveReason] = useState<string | null>(null); const [livePlaceCity, setLivePlaceCity] = useState<string | null>(null);
   const [liveDays, setLiveDays] = useState<Array<{ key: string; date: Date; starts: string[] }>>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsReady, setSlotsReady] = useState(false);
@@ -268,8 +266,7 @@ export function CatalogBookingSheet({
       .then((r) => {
         if (cancelled) return;
         setLiveTz(r.timezone);
-        setLiveReason(r.reason ?? null);
-        setLivePlaceCity(r.placeCity?.trim() || null);
+        setLiveReason(r.reason ?? null); setLivePlaceCity(r.placeCity?.trim() || null);
         const grouped = groupIsoSlotsByDay(r.slots, r.timezone);
         setLiveDays(grouped);
         // TUL-232: opened at a slot: select it, or fall back to its day / the first day with the notice.
@@ -603,8 +600,7 @@ export function CatalogBookingSheet({
                   loading={slotsLoading}
                   dayIndex={dayIndex}
                   liveStarts={liveStarts}
-                  liveTz={liveTz}
-                  placeCity={livePlaceCity}
+                  liveTz={liveTz} placeCity={livePlaceCity}
                   timeGroupLabel={timeGroupLabel}
                   emptyConsultButton={emptyConsultButton}
                   takenNotice={takenNotice}

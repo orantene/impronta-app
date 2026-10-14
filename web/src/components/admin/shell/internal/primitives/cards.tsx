@@ -16,7 +16,6 @@
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { DateFormatHint } from "./DateFormatHint";
 import { Children, useState, type CSSProperties, type ReactNode } from "react";
-import { useT } from "@/i18n/use-t";
 import {
   COLORS,
   FONTS,

@@ -4428,15 +4428,7 @@ export function TalentTrustHealthPanel({ talentId }: { talentId: string }) {
   return (
     <Section title={t("dashboard.adminDrawers.trustHealthTitle")} framed>
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: suggestions.length > 0 ? 14 : 0 }}>
-        <RiskScorePill
-          score={score}
-          label={t("dashboard.adminDrawers.trustHealthScoreLabel")}
-          words={{
-            healthy: t("dashboard.adminDrawers.trustHealthToneHealthy"),
-            watchful: t("dashboard.adminDrawers.trustHealthToneWatchful"),
-            review: t("dashboard.adminDrawers.trustHealthToneReview"),
-          }}
-        />
+        <RiskScorePill score={score} label={t("dashboard.adminDrawers.trustHealthScoreLabel")} words={{ healthy: t("dashboard.adminDrawers.trustHealthToneHealthy"), watchful: t("dashboard.adminDrawers.trustHealthToneWatchful"), review: t("dashboard.adminDrawers.trustHealthToneReview") }} />
         <div style={{ fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
           {activeBadgeCount === 0
             ? t("dashboard.adminDrawers.trustHealthNoBadges")
