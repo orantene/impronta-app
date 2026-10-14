@@ -120,7 +120,11 @@ async function syncSubscriptionByType(
   if (isTalentSubscription(subscription.metadata)) {
     ensureSyncOk(
       "talent_subscription_sync",
-      await syncTalentSubscriptionToDb(subscription, planKey ?? "talent_pro"),
+      await syncTalentSubscriptionToDb(
+        subscription,
+        planKey ?? subscription.metadata?.talent_plan_key ?? "talent_pro",
+        { eventType: "sync" },
+      ),
     );
     return;
   }
@@ -368,7 +372,7 @@ export async function processStripeEvent(
     case "subscription_lifecycle_talent":
       // Preserves the talent-site provisioning side-effect (onTalentPlanChanged)
       // and the robust talent_profile resolution that the workspace sync lacks.
-      await handleTalentStripeSubscriptionEvent(event);
+      ensureSyncOk("talent_subscription_sync", await handleTalentStripeSubscriptionEvent(event));
       return;
 
     case "subscription_lifecycle_workspace":

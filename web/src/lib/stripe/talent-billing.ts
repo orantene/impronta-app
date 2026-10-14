@@ -37,6 +37,8 @@ import {
   type TalentSubscriptionRow,
 } from "@/lib/billing/talent-subscription-lifecycle";
 import type Stripe from "stripe";
+import { decideTalentPlanState, type StoredTalentPlanRow } from "@/lib/billing/talent-plan-state";
+import { onTalentPlanChanged } from "@/lib/talent-site/server/plan-change";
 import type { BillingResult } from "@/lib/stripe/workspace-billing";
 
 // Re-export BillingResult so callers can import from one place.
@@ -352,12 +354,19 @@ export async function setTalentSubscriptionCancellation(input: {
 export async function syncTalentSubscriptionToDb(
   subscription: Stripe.Subscription,
   planKey: string,
+  opts: {
+    /** Stripe event type; "sync" for checkout and invoice re-syncs. */
+    eventType?: string;
+    /** Resolved server-side when legacy subscriptions lack metadata. */
+    talentProfileId?: string;
+    userId?: string;
+  } = {},
 ): Promise<BillingResult<void>> {
   const sb = createServiceRoleClient();
   if (!sb) return { ok: false, error: "Database not available." };
 
-  const talentProfileId = subscription.metadata?.talent_profile_id;
-  const userId = subscription.metadata?.user_id;
+  const talentProfileId = opts.talentProfileId ?? subscription.metadata?.talent_profile_id;
+  const userId = opts.userId ?? subscription.metadata?.user_id;
 
   if (!talentProfileId || !userId) {
     return {
@@ -383,40 +392,43 @@ export async function syncTalentSubscriptionToDb(
     ? new Date(subscription.canceled_at * 1000).toISOString()
     : null;
 
-  const status = mapStripeStatus(subscription.status);
-  // Written through unconditionally — nulls included — so a discount removed in
+  // Written through unconditionally, nulls included, so a discount removed in
   // the Stripe dashboard propagates back instead of lingering in our table.
   const discountMirror = await resolveSubscriptionDiscountMirror(subscription);
-  const isTerminallyCancelled = status === "cancelled" || status === "incomplete_expired";
-  const newPlanKey = isTerminallyCancelled ? "talent_basic" : planKey;
 
   try {
-    // Audit H2 — guard against out-of-order webhook deliveries: if the
-    // existing row is already in a terminal state, a stale 'updated'
-    // event for the same subscription must NOT re-promote the talent.
-    // We also short-circuit when the existing row's status is more recent
-    // than what this event is asking us to write.
-    const { data: existingRow } = await sb
-      .from("talent_subscriptions")
-      .select("status, plan_key, updated_at")
-      .eq("talent_profile_id", talentProfileId)
-      .maybeSingle();
+    // TUL-836: one rule set for every event (see talent-plan-state.ts),
+    // including the out-of-order guard (Audit H2) and resubscribe handling.
+    const [{ data: existingRow }, { data: profileRow }] = await Promise.all([
+      sb
+        .from("talent_subscriptions")
+        .select("status, plan_key, stripe_subscription_id")
+        .eq("talent_profile_id", talentProfileId)
+        .maybeSingle(),
+      sb
+        .from("talent_profiles")
+        .select("talent_plan_key, profile_code")
+        .eq("id", talentProfileId)
+        .maybeSingle(),
+    ]);
+    const existing = (existingRow as StoredTalentPlanRow | null) ?? null;
+    const profile = profileRow as { talent_plan_key?: string | null; profile_code?: string | null } | null;
+    const existingStatus = existing?.status ?? undefined;
 
-    const existingStatus = (existingRow as { status?: string } | null)?.status;
-    if (
-      existingStatus === "cancelled" || existingStatus === "incomplete_expired"
-    ) {
-      if (!isTerminallyCancelled) {
-        // The DB says the subscription is already terminal, but this event
-        // wants to bring it back to active. That's almost certainly a stale
-        // delivery. Log and skip the upsert; profile plan stays talent_basic.
-        logServerError(
-          "talent-billing.syncSubscription.staleEvent",
-          `subscription ${subscription.id} already terminal=${existingStatus}, refusing to re-promote to status=${status}`,
-        );
-        return { ok: true, data: undefined };
-      }
+    const decision = decideTalentPlanState({
+      eventType: opts.eventType ?? "sync",
+      subscriptionId: subscription.id,
+      status: mapStripeStatus(subscription.status),
+      planKey,
+      existing,
+      previousProfilePlan: profile?.talent_plan_key ?? null,
+    });
+    if (decision.kind === "skip_stale") {
+      logServerError("talent-billing.syncSubscription.staleEvent", decision.reason);
+      return { ok: true, data: undefined };
     }
+    const status = decision.status;
+    const newPlanKey = decision.profilePlan;
 
     const { error: subError } = await sb
       .from("talent_subscriptions")
@@ -429,9 +441,7 @@ export async function syncTalentSubscriptionToDb(
           // Audit H2: when terminally cancelled, write the LAST plan tier
           // we knew about so the row's plan_key reflects what they had.
           // talent_profiles.talent_plan_key is set to talent_basic separately.
-          plan_key:               isTerminallyCancelled
-                                    ? ((existingRow as { plan_key?: string } | null)?.plan_key ?? "talent_pro")
-                                    : (planKey === "talent_basic" ? "talent_pro" : planKey),
+          plan_key:               decision.rowPlan,
           status,
           current_period_end:     periodEnd,
           cancel_at_period_end:   subscription.cancel_at_period_end ?? false,
@@ -485,6 +495,16 @@ export async function syncTalentSubscriptionToDb(
 
     if (profileError) {
       logServerError("talent-billing.syncSubscription.planKey", profileError);
+      return { ok: false, error: "Failed to update talent plan." };
+    }
+
+    if (decision.planChanged) {
+      await onTalentPlanChanged(
+        talentProfileId,
+        profile?.talent_plan_key ?? "talent_basic",
+        newPlanKey,
+        profile?.profile_code ?? null,
+      );
     }
 
     // Ensure talent_stripe_customers row exists
