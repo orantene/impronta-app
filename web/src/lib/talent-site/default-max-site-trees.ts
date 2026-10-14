@@ -12,6 +12,7 @@
  * unit-testable and importable by the provisioning helper + a seed script.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import { TALENT_BOOK_HREF } from "@/lib/talent-site/contact-channels";
 
 /** Injectable id factory — defaults to crypto.randomUUID (matches `starter.ts`). */
 export type NodeIdFactory = () => string;
@@ -53,7 +54,7 @@ export function buildDefaultShellTree(
     navItems: [{ label: "Home", href: homeHref }],
     // Seed English "Inquire"; SiteHeader localises the platform default for
     // the visitor locale at render (AUD-027) so Spanish sites never show INQUIRE.
-    primaryCta: { label: "Inquire", href: "/contact" },
+    primaryCta: { label: "Inquire", href: TALENT_BOOK_HREF },
     sticky: true,
     tone: "transparent",
     scrollTone: "solid",
@@ -79,7 +80,7 @@ export function buildDefaultShellTree(
         { type: "phone", responsive: { desktop: "label", mobile: "menu" } },
         { type: "saved", responsive: { mobile: "menu" } },
         { type: "inquiry", showCount: true },
-        { type: "cta", label: "Inquire", href: "/contact", responsive: { mobile: "menu" } },
+        { type: "cta", label: "Inquire", href: TALENT_BOOK_HREF, responsive: { mobile: "menu" } },
       ],
     },
   };
