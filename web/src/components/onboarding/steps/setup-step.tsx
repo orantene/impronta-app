@@ -61,7 +61,7 @@ export function SetupStep({
   const [e, setE] = useState<Essentials>(() => ({
     ...setup.essentials,
     hours: setup.essentials.hours ?? defaultWeekFallback(),
-    timezone: setup.essentials.timezone ?? (needsTimezoneQuestion(country) ? browserTimezone() : null),
+    timezone: setup.essentials.timezone ?? (needsTimezoneQuestion(country, setup.essentials.place?.area ?? null) ? browserTimezone() : null),
   }));
   const [edited, setEdited] = useState(false);
   const [providerEmail, setProviderEmail] = useState(setup.essentials.firstProviderEmail ?? "");
@@ -142,7 +142,7 @@ export function SetupStep({
         {show("place") ? <Notice tone="error">{c.errors.place}</Notice> : null}
       </section>
 
-      {needsTimezoneQuestion(country) ? (
+      {needsTimezoneQuestion(country, e.place?.area ?? null) ? (
         <section className="mt-6">
           <Label>{c.timezone}</Label>
           <select
@@ -154,7 +154,7 @@ export function SetupStep({
             style={field}
           >
             <option value="">{c.timezoneHint}</option>
-            {timezoneChoices(e.timezone).map((z) => <option key={z.id} value={z.id}>{z.label}</option>)}
+            {timezoneChoices(e.timezone, locale === "es" ? "es" : "en").map((z) => <option key={z.id} value={z.id}>{z.label}</option>)}
           </select>
           {show("timezone") ? <Notice tone="error">{c.errors.timezone}</Notice> : null}
         </section>

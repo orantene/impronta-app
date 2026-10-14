@@ -43,14 +43,19 @@ test("the slot picker's endpoint is reachable on every public surface", () => {
   }
 });
 
-test("TUL-539: public slots fall back to demo roster hours when the row is missing", () => {
-  const route = readFileSync(join(SRC, "app/api/public/booking/slots/route.ts"), "utf8");
-  assert.match(route, /demoPublicBookingHoursFallback/);
-  assert.match(route, /is_demo/);
-  assert.match(route, /profile_code/);
-  const fallback = readFileSync(
-    join(SRC, "lib/talent-site/demos/demo-hours-fallback.ts"),
-    "utf8",
-  );
+test("TUL-21 agent endpoints are reachable wherever the slot endpoint is", () => {
+  for (const path of ["/api/public/booking/catalog", "/api/public/booking/mcp"]) {
+    for (const kind of ["app", "agency", "hub", "marketing"] as const) {
+      assert.equal(isPathAllowedForHostKind(kind, path), true, `${path} is 404'd on host kind "${kind}"`);
+    }
+  }
+});
+
+test("TUL-539: public open times fall back to demo roster hours when the row is missing", () => {
+  const loader = readFileSync(join(SRC, "lib/scheduling/public-open-times.ts"), "utf8");
+  assert.match(loader, /demoPublicBookingHoursFallback/);
+  assert.match(loader, /is_demo/);
+  assert.match(loader, /profile_code/);
+  const fallback = readFileSync(join(SRC, "lib/talent-site/demos/demo-hours-fallback.ts"), "utf8");
   assert.match(fallback, /TAL-93005/);
 });

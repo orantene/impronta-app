@@ -50,7 +50,15 @@ function kicker(makeId: MaxSiteTemplateIdFactory, text: string): BuilderNode {
   return {
     id: makeId(),
     kind: "container",
-    props: { layout: "row", gap: "s", align: "center", layerLabel: "Kicker", style: { flexWrap: "wrap" } },
+    props: {
+      layout: "row",
+      gap: "s",
+      align: "center",
+      layerLabel: "Kicker",
+      // Phones stack unmarked rows; the dot must stay beside its label.
+      responsive: { mobile: { layout: "row" } },
+      style: { flexWrap: "wrap" },
+    },
     children: [
       {
         id: makeId(),
@@ -62,6 +70,7 @@ function kicker(makeId: MaxSiteTemplateIdFactory, text: string): BuilderNode {
             width: "8px",
             height: "8px",
             minWidth: "8px",
+            alignSelf: "center",
             radius: "pill",
             backgroundColor: styleTokenRef("color.accent"),
                       },

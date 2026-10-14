@@ -42,6 +42,28 @@ test("registry: Andres and Sofia are rebuilt in their current look, never recolo
   assert.equal(DEMO_REGISTRY.filter((d) => d.keepLook).length, 2);
 });
 
+test("registry: frame covers Diego (TAL-93005) and Tomas (TAL-93009) with gallery palettes", () => {
+  const frame = demosFor("frame");
+  assert.deepEqual(frame.map((d) => d.profileCode).sort(), ["TAL-93005", "TAL-93009"]);
+  assert.equal(findDemo("TAL-93005")?.palette, "darkroom");
+  assert.equal(findDemo("TAL-93009")?.palette, "gallery");
+  for (const d of frame) assert.equal(d.reference, false);
+});
+
+test("rebuild: a dry run of design frame plans exactly the two frame demos", async () => {
+  const seen: string[] = [];
+  const ports = {
+    assertTarget: async (_admin: unknown, code: string) => {
+      seen.push(code);
+      return { ok: false as const, reason: "stop here" };
+    },
+  } as unknown as RebuildPorts;
+  const r = await rebuildDemos({} as never, { design: "frame", dryRun: true }, undefined, ports);
+  assert.deepEqual(seen.sort(), ["TAL-93005", "TAL-93009"]);
+  assert.equal(r.rows.length, 2);
+  for (const row of r.rows) assert.equal(row.design, "frame");
+});
+
 test("registry: every THEME_DEMOS entry is present", () => {
   for (const d of THEME_DEMOS) assert.ok(findDemo(d.profileCode), d.profileCode);
 });

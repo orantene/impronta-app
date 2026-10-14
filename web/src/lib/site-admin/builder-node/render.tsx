@@ -1384,6 +1384,11 @@ export const BUILDER_NODE_RENDERER_CSS = `
 [data-talent-max-site-header]>.site-builder-node--container[data-builder-layout="row"]:not([data-builder-full-bleed]):not([data-bn-bg-media]){padding-inline:1.5rem;color:var(--token-color-ink)}
 [data-talent-max-site-header]>.site-builder-node--container[data-builder-layout="row"]>.site-builder-node--nav{width:auto;margin:0}
 .site-builder-node--container[data-builder-layout="row"]{flex-direction:row;flex-wrap:wrap}
+/* GRK-080: the base container rule centres with margin:0 auto, so a fixed-size
+   container in a row (the Gridline hero status dot) split the free space into
+   two auto margins and floated away from its label. Same specificity as the
+   base rule, so authored inline margins and theme rules still win. */
+:where(.site-builder-node--container[data-builder-layout="row"])>.site-builder-node--container{margin-inline:0}
 /* TUL-532: a kit-shell header logo is a plain image node (inline width:100% + cover), so a
    wordmark was cropped or blown up. Same platform limits as .site-header__brand-mark. */
 [data-talent-max-site-header] .site-builder-node--container[data-builder-layout="row"]>.site-builder-node--image,[data-talent-max-site-header] .site-builder-node--container[data-builder-layout="row"]>.site-builder-node--image-link>.site-builder-node--image{${headerLogoDeclarations(true)};flex:0 0 auto}

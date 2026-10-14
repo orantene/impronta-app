@@ -63,6 +63,7 @@ export async function loadOnboardingSetup(): Promise<SetupLoadResult> {
     trade: state.typeChoice?.slug ?? null,
     discipline: stringFact(brief, "work.discipline") ?? stringFact(brief, "work.industry"),
     country,
+    city,
     locale,
   } as const;
   const saved = state.essentials ?? null;

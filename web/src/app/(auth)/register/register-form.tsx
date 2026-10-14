@@ -60,6 +60,7 @@ export function RegisterForm({
   nextPath,
   submitLabel,
   locale = "en",
+  marketingOrigin,
   defaultEmail,
   /**
    * P4 — hides the "already have an account? Log in" footer, because the
@@ -70,6 +71,7 @@ export function RegisterForm({
   nextPath?: string;
   submitLabel?: string;
   locale?: string;
+  marketingOrigin?: string;
   /** Pre-fills the email field (e.g. from the get-started lead) — editable. */
   defaultEmail?: string;
   hideFooter?: boolean;
@@ -146,7 +148,7 @@ export function RegisterForm({
         />
       </AuthField>
 
-      <AgeTermsCheckbox locale={locale} />
+      <AgeTermsCheckbox locale={locale} marketingOrigin={marketingOrigin} />
 
       <AuthSubmitButton
         pending={pending}

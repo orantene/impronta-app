@@ -1,6 +1,5 @@
 "use client";
 
-import { getSiteUrl } from "@/lib/auth-flow";
 import { ageTermsLinks } from "@/lib/legal/age-terms-links";
 
 /**
@@ -21,6 +20,7 @@ export function SaveStep({
   t,
   path,
   locale = "en",
+  marketingOrigin,
   choice = null,
   ageConfirmed = false,
   busy,
@@ -35,6 +35,8 @@ export function SaveStep({
   path: OnboardingPath;
   /** Page language: the legal links open the matching Terms/Privacy pages (TUL-614). */
   locale?: "en" | "es";
+  /** Server-resolved marketing origin for the legal links (TUL-750). */
+  marketingOrigin: string;
   /** The screen-1 choice rides the Google `next` URL so it survives the redirect (TUL-82). */
   choice?: OnboardingChoice | null;
   /** 18+ was already confirmed on the ready step: ask only for the Terms here. */
@@ -49,7 +51,7 @@ export function SaveStep({
   onEmail: (email: string, ageTerms: boolean) => void;
   onGoogleSuccess: () => void;
 }) {
-  const legal = ageTermsLinks(getSiteUrl(), locale);
+  const legal = ageTermsLinks(marketingOrigin, locale);
   // Legal 2.2: 18+ and Terms/Privacy, required before a code is sent. The
   // server action re-checks it; `disabled` here is only a convenience.
   const [ageTerms, setAgeTerms] = useState(initialAgeTerms);

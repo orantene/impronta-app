@@ -5,6 +5,10 @@
  * re-checked by `assertDemoTarget` (registry + is_demo + demo account), so a
  * real talent, Jor or a QA user is refused before any read of its site rows.
  *
+ * Frame demos (TAL-93005, TAL-93009) build from the newest released frame
+ * design. If the catalog row is stale, run the catalog sync for frame first
+ * (scripts/demo-talents/sync-catalog.mts) so the rebuild reads the current payload.
+ *
  * Run (from web/):
  *   NODE_PATH=scripts/demo-talents/stubs DEMO_SEED_TARGET_REF=<ref> \
  *     npx tsx --tsconfig scripts/demo-talents/tsconfig.json --env-file=.env.local \
@@ -24,7 +28,7 @@ const opt = (name: string) => {
   return i >= 0 ? args[i + 1] : undefined;
 };
 const write = args.includes("--write");
-const design = opt("--design") as "maison-v2" | "folio" | "gridline" | undefined;
+const design = opt("--design") as "maison-v2" | "folio" | "gridline" | "frame" | undefined;
 const only = opt("--only")?.split(",").filter(Boolean);
 
 const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, {

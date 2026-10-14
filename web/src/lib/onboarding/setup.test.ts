@@ -37,8 +37,9 @@ test("only Mexico is inferred from the request; what the person said always wins
 });
 
 test("the zone select always shows the current zone, even off the short list", () => {
-  assert.equal(timezoneChoices(null), TIMEZONE_OPTIONS);
-  assert.equal(timezoneChoices("Europe/Madrid"), TIMEZONE_OPTIONS);
+  assert.deepEqual(timezoneChoices(null).map((z) => z.id), TIMEZONE_OPTIONS.map((z) => z.id));
+  assert.deepEqual(timezoneChoices("Europe/Madrid").map((z) => z.id), TIMEZONE_OPTIONS.map((z) => z.id));
+  assert.equal(timezoneChoices("America/Cancun", "es")[1]?.label, "Cancún (Quintana Roo)");
   const lima = timezoneChoices("America/Lima");
   assert.deepEqual(lima[0], { id: "America/Lima", label: "Lima" });
   assert.equal(lima.length, TIMEZONE_OPTIONS.length + 1);
@@ -108,28 +109,38 @@ test("issues: services, place, timezone abroad, bad provider email; empty email 
   assert.equal(cleanServices([{ name: "Cut", durationMin: 30, priceCents: null, quote: false, currency: "USD" }])[0].quote, true);
 });
 
-test("TUL-16 b: the services currency defaults to the talent's own and can be chosen", () => {
-  assert.equal(setupCurrency({ chosen: null, country: "Mexico", locale: "es" }), "MXN");
-  assert.equal(setupCurrency({ chosen: null, country: "MX", locale: "en" }), "MXN");
-  // Country not asked yet on a Spanish flow: pesos, not a silent USD.
-  assert.equal(setupCurrency({ chosen: null, country: null, locale: "es" }), "MXN");
-  assert.equal(setupCurrency({ chosen: null, country: null, locale: "en" }), "USD");
-  assert.equal(setupCurrency({ chosen: null, country: "United States", locale: "es" }), "USD");
-  assert.equal(setupCurrency({ chosen: "USD", country: "Mexico", locale: "es" }), "USD");
-  assert.equal(setupCurrency({ chosen: "MXN", country: "United States", locale: "en" }), "MXN");
-  const rows = [
-    { name: "A", durationMin: 30, priceCents: 100, quote: false, currency: "USD", packKey: null },
-    { name: "B", durationMin: 30, priceCents: null, quote: true, currency: "USD", packKey: null },
-  ];
-  assert.deepEqual(applyServiceCurrency(rows, "MXN").map((r) => r.currency), ["MXN", "MXN"]);
-});
-
 test("the zone list offers Mexico when the country was not detected (TUL-568)", async () => {
   const { TIMEZONE_OPTIONS } = await import("./setup");
   const ids = TIMEZONE_OPTIONS.map((z) => z.id);
   assert.ok(ids.includes("America/Mexico_City"));
   assert.ok(ids.includes("America/Cancun"));
 });
+
+test("TUL-540: timezone options carry bilingual labels and the other Mexican zones", async () => {
+  const { TIMEZONE_OPTIONS, timezoneOptionLabel } = await import("./setup");
+  const ids = TIMEZONE_OPTIONS.map((z) => z.id);
+  for (const id of ["America/Merida", "America/Monterrey", "America/Tijuana", "America/Mazatlan"]) assert.ok(ids.includes(id), id);
+  assert.equal(timezoneOptionLabel("America/Cancun", "es"), "Cancún (Quintana Roo)");
+  assert.equal(timezoneOptionLabel("America/Mexico_City", "es"), "Ciudad de México (CDMX)");
+  assert.equal(timezoneOptionLabel("America/New_York", "es"), "Nueva York (ET)");
+  assert.equal(timezoneOptionLabel("America/New_York", "en"), "New York (ET)");
+  assert.equal(timezoneOptionLabel("Mars/Base", "en"), "Mars/Base");
+});
+
+test("TUL-540: abroad, a known city that resolves to a zone hides the picker; a bare country asks", () => {
+  assert.equal(needsTimezoneQuestion("United States", "Chicago"), false);
+  assert.equal(needsTimezoneQuestion("United States", null), true);
+  assert.equal(needsTimezoneQuestion("United States"), true);
+  assert.equal(needsTimezoneQuestion("Mexico", "Cancún"), false);
+});
+
+test("TUL-540: a Mexico setup in Cancún takes the pack zone and does not block Continue", () => {
+  const base = suggestedEssentials({ trade: "nails", country: "Mexico", locale: "es", city: "Cancún" });
+  assert.equal(base.timezone, "America/Cancun");
+  const e = { ...base, place: { mode: "studio" as const, area: "Cancún" } };
+  assert.deepEqual(setupIssues({ choice: "myself", essentials: e, country: "Mexico", providerEmailDraft: "" }), []);
+});
+
 test("TUL-16 b: the services currency defaults to the talent's own and can be chosen", () => {
   assert.equal(setupCurrency({ chosen: null, country: "Mexico", locale: "es" }), "MXN");
   assert.equal(setupCurrency({ chosen: null, country: "MX", locale: "en" }), "MXN");

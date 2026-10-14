@@ -36,6 +36,7 @@ import {
   sumBookingAssistantSpendCents,
   utcMonthStartIso,
 } from "./credits";
+import { improntaLog } from "@/lib/server/structured-log";
 import { BOOKING_ASSISTANT_EVENT_TYPES } from "./turns";
 import { improntaLog } from "@/lib/server/structured-log";
 

@@ -36,7 +36,6 @@ import type {
   TodayBadge,
   TodayRow,
 } from "@/lib/overview/model";
-import { greetingHour } from "@/lib/overview/greeting-hour";
 import { setupProgress } from "@/lib/overview/model";
 import { useDashboardText } from "../dashboard-i18n";
 import { Icon } from "../primitives";

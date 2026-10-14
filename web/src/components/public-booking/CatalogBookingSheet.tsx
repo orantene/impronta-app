@@ -599,8 +599,7 @@ export function CatalogBookingSheet({
                   loading={slotsLoading}
                   dayIndex={dayIndex}
                   liveStarts={liveStarts}
-                  liveTz={liveTz}
-                  placeCity={livePlaceCity}
+                  liveTz={liveTz} placeCity={livePlaceCity}
                   timeGroupLabel={timeGroupLabel}
                   emptyConsultButton={emptyConsultButton}
                   takenNotice={takenNotice}

@@ -345,13 +345,7 @@ export async function proxy(request: NextRequest) {
         const url = request.nextUrl.clone();
         // Drop the unsupported prefix (hub /t/<code> keeps its language as ?lang=);
         // see unsupported-locale-redirect.ts.
-        const target = unsupportedLocaleRedirectTarget({
-          requestedLocale: firstSegment,
-          remainderSegments: parts.slice(2),
-          tenantDefaultLocale: tenantLocales.defaultLocale,
-          platformDefaultLocale: langSettings.defaultLocale,
-          search: url.searchParams,
-        });
+        const target = unsupportedLocaleRedirectTarget({ requestedLocale: firstSegment, remainderSegments: parts.slice(2), tenantDefaultLocale: tenantLocales.defaultLocale, platformDefaultLocale: langSettings.defaultLocale, search: url.searchParams });
         url.pathname = target.pathname;
         url.search = target.search;
         return NextResponse.redirect(url, 302);

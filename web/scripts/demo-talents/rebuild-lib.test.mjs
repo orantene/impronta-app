@@ -51,3 +51,9 @@ test("table and failure exit", () => {
   assert.equal(anyFailed(rows), true);
   assert.equal(anyFailed([rows[0]]), false);
 });
+
+test("parseArgs accepts the frame design", () => {
+  const r = parseArgs(["--design", "frame", "--only", "TAL-93005,TAL-93009"]);
+  assert.equal(r.ok, true);
+  assert.deepEqual(buildRebuildBody(r.opts), { dryRun: true, publish: true, design: "frame", only: ["TAL-93005", "TAL-93009"] });
+});

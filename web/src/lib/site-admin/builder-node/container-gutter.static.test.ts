@@ -39,3 +39,16 @@ test("AUD-029: authored paddingX stays inline so it wins over the gutter", () =>
   const src = readFileSync(path.join(__dirname, "render.tsx"), "utf8");
   assert.match(src, /out\.paddingLeft = NODE_SPACING\[style\.paddingX\]/);
 });
+
+// GRK-080: the Gridline hero status dot (an 8px container in a row) inherited
+// the base `margin:0 auto` and drifted ~130px away from its label. Children of
+// a row lose the auto side margins, at the base rule's specificity so authored
+// inline margins and theme rules still win.
+test("GRK-080: a container inside a row does not centre itself with auto margins", () => {
+  const src = readFileSync(path.join(__dirname, "render.tsx"), "utf8");
+  const rule = ':where(.site-builder-node--container[data-builder-layout="row"])>.site-builder-node--container{margin-inline:0}';
+  const at = src.indexOf(rule);
+  assert.ok(at > 0, "row-child margin reset missing");
+  const base = src.indexOf(".site-builder-node--container{width:100%;max-width:1120px;margin:0 auto;");
+  assert.ok(base >= 0 && base < at, "the reset must come after the base container rule it overrides");
+});

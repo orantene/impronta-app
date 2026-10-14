@@ -91,6 +91,21 @@ export const SEED_TEXT_ES: Readonly<Record<string, string>> = {
   // Before and after image alts and captions
   Before: "Antes",
   After: "Después",
+  "Before and after": "Antes y después",
+  "The difference": "La diferencia",
+  // Aftercare optional kit (Maison v2): table owns the pair so seedI18n fills
+  // even when a hand overlay is incomplete.
+  Aftercare: "Cuidados",
+  "Aftercare tips": "Cuidados posteriores",
+  "Follow the care steps": "Sigue los pasos de cuidado",
+  "After your visit I will share simple steps to keep your results looking their best.":
+    "Después de tu visita te comparto pasos sencillos para que tus resultados se vean siempre bien.",
+  "Ask me anything": "Pregúntame lo que quieras",
+  "If something feels off, message me and I will help you sort it out.":
+    "Si algo no te convence, escríbeme y te ayudo a resolverlo.",
+  "Plan your next visit": "Planea tu próxima visita",
+  "Regular visits keep everything fresh. Book the next one before you leave or message me later.":
+    "Las visitas regulares mantienen todo en su mejor momento. Reserva la próxima antes de irte o escríbeme después.",
   "Write from this site": "Escribir por este sitio",
   // Ticket #209: block kinds and header labels that can now hold a translation.
   Home: "Inicio",
@@ -110,7 +125,9 @@ export const SEED_TEXT_ES: Readonly<Record<string, string>> = {
   [RECENT_JOBS_LABEL.en]: RECENT_JOBS_LABEL.es,
   "No photos in your portfolio yet.": "Aún no hay fotos en el portafolio.",
   "Where I work": "Dónde trabajo",
-  "Measures · Comp card": "Medidas · Comp card",
+  // Folio comp card: keep "Comp card" out of Spanish (W2-5 / TUL-516 C3).
+  "Measures · Comp card": "Medidas · Ficha",
+  Runway: "Pasarela",
   "Next issue.": "Siguiente número.",
   "In this issue": "En este número",
   "See the book": "Ver el libro",
@@ -257,12 +274,17 @@ function seedNode(node: BuilderNode): BuilderNode {
   }
   const kids = (node as { children?: unknown }).children;
   const children = Array.isArray(kids) ? (kids as BuilderNode[]).map(seedNode) : null;
+  // Carousel slides carry the same localizable props as children; the static
+  // scanner already walks them, so the writer must too.
+  const slideBag = (node as { slides?: unknown }).slides;
+  const slides = Array.isArray(slideBag) ? (slideBag as BuilderNode[]).map(seedNode) : null;
   const touched = Object.keys(add.es).length + Object.keys(add.en).length > 0;
-  if (!touched && !children) return node;
+  if (!touched && !children && !slides) return node;
   return {
     ...node,
     ...(touched ? { props: { ...props, i18n: mergeOverlay(props.i18n, add) } } : {}),
     ...(children ? { children } : {}),
+    ...(slides ? { slides } : {}),
   } as BuilderNode;
 }
 

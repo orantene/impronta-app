@@ -8,7 +8,6 @@
  * the walk is visitor locale, then the page's primary locale, then the base.
  */
 
-import { looksLikeSlugAlt } from "./portfolio-alt-suggest";
 
 export type PortfolioI18nMap = Readonly<Record<string, string | null | undefined>>;
 
