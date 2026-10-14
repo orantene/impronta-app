@@ -74,6 +74,28 @@ export function workspaceAutoStartDecision(input: {
   return { action: "start", intent };
 }
 
+export type PlanIntentAction = "checkout" | "plan_change" | "none";
+
+/**
+ * TUL-831 · what a plan intent does for someone who may already subscribe.
+ * No live subscription -> hosted checkout; a live subscription -> the in-app
+ * plan change confirm (never a second checkout); the plan and interval the
+ * subscriber is already on -> nothing. `currentInterval` null means unknown,
+ * so a same-plan intent still opens the confirm and the server preview
+ * answers "already on this plan".
+ */
+export function planIntentAction(input: {
+  hasSubscription: boolean;
+  currentPlan: string | null;
+  currentInterval: "month" | "year" | null;
+  intent: PlanIntent | null;
+}): PlanIntentAction {
+  if (!input.intent) return "none";
+  if (!input.hasSubscription) return "checkout";
+  if (input.currentPlan === input.intent.plan && input.currentInterval === input.intent.interval) return "none";
+  return "plan_change";
+}
+
 /** Query string (no leading `?`) for the intent, empty when none. */
 export function planIntentQuery(intent: PlanIntent | null): string {
   if (!intent) return "";

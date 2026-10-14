@@ -24,7 +24,8 @@ import {
   SubscriptionStatusBadge,
 } from "./BillingActionButtons";
 import { WorkspaceCheckoutAutoStart } from "./WorkspaceCheckoutAutoStart";
-import { workspaceAutoStartDecision } from "@/lib/onboarding/plan-intent";
+import { WorkspacePlanChangeOpener } from "./WorkspacePlanChangeOpener";
+import { workspaceAutoStartDecision, parsePlanIntent, isWorkspaceIntent, planIntentAction, planIntentLabel } from "@/lib/onboarding/plan-intent";
 import { PastDueBanner } from "@/components/billing/PastDueBanner";
 import { BriefCard } from "./BriefCard";
 import { CurrencyPicker } from "./CurrencyPicker";
@@ -324,8 +325,30 @@ export default async function WorkspaceAccountPage({
     stripeEnabled,
   });
 
+  // TUL-831: an existing subscriber with a plan intent gets the in-app plan
+  // change confirm instead of a second checkout.
+  const rawIntent = parsePlanIntent(resolvedSearch.plan, resolvedSearch.interval);
+  const planChangeIntent =
+    canManageBilling && stripeEnabled && isWorkspaceIntent(rawIntent) &&
+    planIntentAction({
+      hasSubscription: hasActiveSubscription,
+      currentPlan: summary?.plan ?? null,
+      currentInterval: null,
+      intent: rawIntent,
+    }) === "plan_change"
+      ? rawIntent
+      : null;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 28, fontFamily: FONT }}>
+      {planChangeIntent ? (
+        <WorkspacePlanChangeOpener
+          planKey={planChangeIntent.plan}
+          interval={planChangeIntent.interval}
+          planName={planIntentLabel(planChangeIntent)}
+          tenantSlug={tenantSlug}
+        />
+      ) : null}
       {autoStart.action === "start" && autoStart.intent ? (
         <WorkspaceCheckoutAutoStart plan={autoStart.intent.plan} interval={autoStart.intent.interval} tenantSlug={tenantSlug} />
       ) : null}
