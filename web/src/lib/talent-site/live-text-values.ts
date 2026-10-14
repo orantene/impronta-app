@@ -4,7 +4,7 @@
  * so the renderer hides or falls back; nothing here invents a fact.
  */
 import { resolveHeadline } from "./hero-headline";
-import { formatHeroEyebrow, formatHeroProofLine, type HeroProofInput } from "./hero-proof-line";
+import { formatHeroEyebrow, formatHeroProofLine, languageEndonym, type HeroProofInput } from "./hero-proof-line";
 import { resolveLiveBio } from "./live-bio";
 import { guessLineLanguage, resolveLocalizedLine } from "./live-line-language";
 import type { TalentLiveText } from "./live-text";
@@ -155,6 +155,8 @@ export function buildTalentLiveText(
         cityEs ? `Based in ${cityEs}` : "",
         formatHeroProofLine(src.proof, "en"),
         formatHeroProofLine(src.proof, "es"),
+        // TUL-850: baked trees from before the lone-language rule still hold "Español" alone; it must blank out.
+        ...(src.proof.languages ?? []).flatMap((l) => [languageEndonym(l, "en"), languageEndonym(l, "es")]),
       ].filter(Boolean),
       bio: [
         ...Object.values(src.bioI18n ?? {}).map((v) => (typeof v === "string" ? v.trim() : "")),
