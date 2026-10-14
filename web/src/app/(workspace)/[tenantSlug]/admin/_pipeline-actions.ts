@@ -18,6 +18,7 @@
 import { resolveOfferAuthorName } from "./offer-author";
 import { revalidatePath } from "next/cache";
 import { requireWorkspaceStaffAction, requireInquiryManagerAction } from "@/lib/saas/admin-scope";
+import { requireInquiryOfferAction } from "@/lib/saas/inquiry-offer-guard";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import {
@@ -644,7 +645,7 @@ export async function sendOfferAction(
 ): Promise<PipelineActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireInquiryManagerAction(inquiryId);
+    const auth = await requireInquiryOfferAction(inquiryId, "send_offer");
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -1800,7 +1801,7 @@ export async function saveOfferDraft(
     const resolvedInquiryId = (offerOwner?.inquiry_id as string | null) ?? null;
     if (!resolvedInquiryId) return { ok: false, error: "Offer not found." };
 
-    const auth = await requireInquiryManagerAction(resolvedInquiryId);
+    const auth = await requireInquiryOfferAction(resolvedInquiryId, "update_offer");
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -2148,7 +2149,7 @@ export async function createOfferAction(
   );
   const work = (async (): Promise<PipelineActionResult<{ offerId: string }>> => {
     try {
-      const auth = await requireInquiryManagerAction(inquiryId);
+      const auth = await requireInquiryOfferAction(inquiryId, "create_offer");
       if (!auth.ok) return { ok: false, error: auth.error };
       const { supabase, user, tenantId } = auth;
 
@@ -3152,7 +3153,6 @@ export async function cancelBookingAction(
         p_kind: "booking_cancelled",
         p_payload: { booking_id: bookingId, by_user_id: user.id, cancellation_policy: cancellationPolicy },
       }).then((r) => { if (r.error) logServerError("audit.emit.booking_cancelled", r.error); });
-
 
       // booking.cancelled notifications (spec §6.4) — client + talent +
       // coordinator, email + in-app. Needs the inquiry for contact/schedule +

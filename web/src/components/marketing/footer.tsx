@@ -8,6 +8,7 @@ import { stripLocaleFromPathname, withLocaleHref } from "@/i18n/pathnames";
 import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 import { PrivacyChoicesLink } from "@/components/analytics/privacy-choices-link";
 import { CurrencyPicker } from "./currency-picker";
+import { currencyPickerCopy } from "./currency-picker-copy";
 import { MarketingLanguageToggle } from "./marketing-language-toggle";
 import { resolveCurrency } from "@/lib/pricing/currency-resolver";
 import { FEATURE_NAV_ITEMS } from "@/lib/marketing/features/feature-nav-items";
@@ -52,7 +53,7 @@ const FOOTER_FEATURE_KEYS = [
   "premium-support",
 ] as const;
 
-export async function MarketingFooter() {
+export async function MarketingFooter({ priceCurrency = null }: { priceCurrency?: string | null } = {}) {
   // L50 Phase 2: every marketing footer ends with a currency picker so
   // any page is the gateway to changing the displayed currency. The
   // footer doesn't know which page it's on, so it resolves from cookie
@@ -166,7 +167,14 @@ export async function MarketingFooter() {
               activeLocale={locale}
               pathnameWithoutLocale={pathnameWithoutLocale}
             />
-            <CurrencyPicker current={currency} source={source} locale={locale} />
+            {priceCurrency ? (
+              // TUL-707: a talent profile prices in its own currency; no picker.
+              <span>
+                {currencyPickerCopy(locale).showing} <strong>{priceCurrency}</strong>
+              </span>
+            ) : (
+              <CurrencyPicker current={currency} source={source} locale={locale} />
+            )}
             <span className="inline-flex items-center gap-2">
               <span
                 className="inline-block h-1.5 w-1.5 rounded-full"

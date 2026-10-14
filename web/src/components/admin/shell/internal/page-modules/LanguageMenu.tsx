@@ -29,6 +29,7 @@ import { useDashboardText } from "../dashboard-i18n";
 import { Icon } from "../primitives";
 import { meetsRole, useAdminShell } from "../state";
 import { requestWebsiteSettingsView } from "@/components/talent/website-settings/website-settings-intent";
+import { workspaceMenuLocales } from "./language-menu-locales";
 import { LocaleSwitchPill } from "./LocaleSwitchPill";
 import { useTalentContentLocaleSeed } from "./use-talent-content-locale-seed";
 
@@ -41,9 +42,7 @@ export function LanguageMenu() {
 
   const locales: readonly Locale[] = talentLocales
     ? [talentLocales.primary, ...talentLocales.secondary]
-    : supportedLocales.length > 0
-      ? supportedLocales
-      : [tenantDefaultLocale];
+    : workspaceMenuLocales(supportedLocales, tenantDefaultLocale);
   const defaultLocale: Locale = talentLocales?.primary ?? tenantDefaultLocale;
   const localesKey = locales.join(",");
   const renderedLocale = useDashboardLocale();

@@ -2,7 +2,7 @@ import "server-only";
 
 import { formatAppointmentWhen, normalizeBookingLocale } from "@/lib/scheduling/booking-locale";
 import { logServerError } from "@/lib/server/safe-error";
-import { clientOrGuest, loadInquiryView, str } from "./catalog-audiences";
+import { allRosterTalent, clientOrGuest, loadInquiryView, str } from "./catalog-audiences";
 import type { AudienceContext, AudienceMember, NotificationEvent } from "./types";
 
 /**
@@ -101,3 +101,20 @@ export async function loadBookingConfirmedView(
   });
   return when ? { ...base, eventDate: when } : base;
 }
+
+/**
+ * TUL-16 f: members with no locale of their own take the language the booking
+ * was made in. Without it the talent email fell back to the workspace default
+ * (English) on a Spanish site. A member's own locale always wins.
+ */
+export function withBookingLocale(members: AudienceMember[], locale: string | null): AudienceMember[] {
+  const l = normalizeBookingLocale(locale);
+  if (!l) return members;
+  return members.map((m) => (m.locale ? m : { ...m, locale: l }));
+}
+
+export const bookingConfirmedTalent = async (
+  event: NotificationEvent,
+  ctx: AudienceContext,
+): Promise<AudienceMember[]> =>
+  withBookingLocale(await allRosterTalent(event, ctx), str(event.payload.locale));

@@ -44,6 +44,15 @@ const KEYWORD_PRESETS: ReadonlyArray<{
   readonly words: readonly string[];
   readonly presetId: IndustryPresetId;
 }> = [
+  // Pet grooming BEFORE the salon row: "peluquería canina" contains "peluquería".
+  {
+    words: [
+      "pet grooming", "dog grooming", "groomer", "grooming", "peluqueria canina",
+      "peluquería canina", "estetica canina", "estética canina", "peluqueria de mascotas",
+      "peluquería de mascotas",
+    ],
+    presetId: "pet_grooming",
+  },
   // Salon and spa BEFORE shop, for "barber shop".
   {
     words: [

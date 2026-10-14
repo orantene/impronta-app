@@ -37,6 +37,14 @@ type ProfileShareRowProps = {
     copyLink: string;
     copyLinkDone: string;
     whatsappTemplate: string;
+    shareWhatsapp: string;
+    shareX: string;
+    shareFacebook: string;
+    shareLinkedin: string;
+    copyForInstagram: string;
+    copiedForInstagram: string;
+    print: string;
+    shareSystem: string;
   };
   /** "row" = full labelled share rail (header). "compact" = icon-only (card). */
   variant?: "row" | "compact";
@@ -156,7 +164,7 @@ export function ProfileShareRow({
       <div className="flex flex-wrap items-center gap-2">
         <IconButton
           size={btnSize}
-          label="Share on WhatsApp"
+          label={labels.shareWhatsapp}
           href={intents.whatsapp}
           onClick={() => track("whatsapp")}
         >
@@ -164,7 +172,7 @@ export function ProfileShareRow({
         </IconButton>
         <IconButton
           size={btnSize}
-          label="Share on X"
+          label={labels.shareX}
           href={intents.x}
           onClick={() => track("x")}
         >
@@ -172,7 +180,7 @@ export function ProfileShareRow({
         </IconButton>
         <IconButton
           size={btnSize}
-          label="Share on Facebook"
+          label={labels.shareFacebook}
           href={intents.facebook}
           onClick={() => track("facebook")}
         >
@@ -180,7 +188,7 @@ export function ProfileShareRow({
         </IconButton>
         <IconButton
           size={btnSize}
-          label="Share on LinkedIn"
+          label={labels.shareLinkedin}
           href={intents.linkedin}
           onClick={() => track("linkedin")}
         >
@@ -188,7 +196,7 @@ export function ProfileShareRow({
         </IconButton>
         <IconButton
           size={btnSize}
-          label={igCopied ? "Link copied for Instagram" : "Copy link for Instagram"}
+          label={igCopied ? labels.copiedForInstagram : labels.copyForInstagram}
           onClick={onInstagram}
           highlighted={igCopied}
         >
@@ -209,13 +217,13 @@ export function ProfileShareRow({
         >
           {copied ? <CheckIcon /> : <LinkIcon />}
         </IconButton>
-        <IconButton size={btnSize} label="Print profile" onClick={onPrint}>
+        <IconButton size={btnSize} label={labels.print} onClick={onPrint}>
           <PrintIcon />
         </IconButton>
         {compact && canNativeShare ? (
           <IconButton
             size={btnSize}
-            label="Share…"
+            label={labels.shareSystem}
             onClick={async () => {
               try {
                 await navigator.share({ title: displayName, text: displayName, url: canonicalUrl });

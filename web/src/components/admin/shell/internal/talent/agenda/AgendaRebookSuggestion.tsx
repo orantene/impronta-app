@@ -1,5 +1,6 @@
 "use client";
 
+import { DateFormatHint } from "../../primitives/DateFormatHint";
 import { useState, useTransition } from "react";
 import { createOwnSlotBooking } from "@/lib/talent-agenda/create-slot";
 import { TaskShell } from "./primitives/TaskShell";
@@ -71,6 +72,7 @@ export function AgendaRebookSuggestion({
             value={date}
             onChange={(e) => setDate(e.target.value)}
           />
+          <DateFormatHint locale={copy.locale} />
         </label>
         <div className="grid grid-cols-2 gap-2">
           <label className="block text-[13px]">

@@ -109,17 +109,16 @@ export function agencyAccountTabs(input: {
 }
 
 /**
- * Title and brand for the sign-in page. With the flag on and a whitelabel
- * agency or hub host, the page wears the tenant's own name; otherwise it stays
- * the platform brand exactly as before (`null` means "leave metadata as is").
+ * Title and brand for the sign-in page. On a whitelabel agency or hub host the
+ * page wears the tenant's own name, whatever CLIENT_ACCOUNT_HOSTS says (the flag
+ * gates the account area, not a brand leak); otherwise it stays the platform
+ * brand (`null` means "leave metadata as is").
  */
 export function authPageBrand(input: {
-  flagOn: boolean;
   hostKind: string | null | undefined;
   whitelabel: boolean;
   publicName: string | null | undefined;
 }): { title: string } | null {
-  if (!input.flagOn) return null;
   if (input.hostKind !== "agency" && input.hostKind !== "hub") return null;
   if (!input.whitelabel) return null;
   const name = (input.publicName ?? "").trim();
@@ -135,6 +134,16 @@ export function authPageBrand(input: {
 export function accountHrefFor(hostKind: string | null | undefined, appUrl: string): string {
   if (hostKind === "marketing") return `${appUrl.trim().replace(/\/$/, "")}/account`;
   return "/account";
+}
+
+/**
+ * `?next=` for the signed-out bounce from the workspace client shell. On the
+ * agency's own host the host already names the workspace, so the branded
+ * `/client` is the URL (the proxy serves it); `/<slug>/client` would put the
+ * slug in the address bar. Every other host keeps the slug path.
+ */
+export function clientLoginNext(hostContext: string | null | undefined, slug: string): string {
+  return hostContext === "agency" ? "/client" : `/${slug}/client`;
 }
 
 /**

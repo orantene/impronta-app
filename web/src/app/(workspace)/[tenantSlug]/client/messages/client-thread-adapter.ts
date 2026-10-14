@@ -65,3 +65,11 @@ export function clientInquiryMatchesFilter(
 export function toClientThreadItems(rows: ClientInquiryRow[]): ThreadShellListItem[] {
   return rows.map((r) => ({ id: r.id, title: r.company ?? r.id }));
 }
+
+/**
+ * TUL-610: a message is "mine" only when its sender is the EFFECTIVE client
+ * (the impersonated subject under staff view-as), never the staff actor.
+ */
+export function isOwnClientMessage(senderUserId: string | null, effectiveViewerId: string | null): boolean {
+  return effectiveViewerId != null && senderUserId != null && senderUserId === effectiveViewerId;
+}

@@ -9,6 +9,7 @@ import { translatorFor, useT } from "@/i18n/use-t";
 import type { FeeLine } from "@/lib/billing/processing-fee-payer";
 import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import type { PayLinkPathPrefix } from "@/lib/payments/pay-link-url";
+import { SaveBookingsBlock } from "@/components/client-account/SaveBookingsBlock";
 
 /**
  * TOKENS ONLY (TUL-437). This page sits on the seller's own site: `--token-color-*`,
@@ -53,6 +54,8 @@ export type CheckoutViewProps = {
   readonly calendar?: CheckoutCalendarLinks | null;
   /** The link's currency differs from its order's: say so plainly instead of "status unknown". */
   readonly currencyMismatch?: { readonly linkCurrency: string; readonly orderCurrency: string };
+  /** Paid confirmation only: false shows "Save your bookings" (account CTA); null/true hides it. */
+  readonly signedIn?: boolean | null;
 };
 
 export function CheckoutView(props: CheckoutViewProps) {
@@ -91,6 +94,7 @@ export function CheckoutView(props: CheckoutViewProps) {
           addToCalendarLabel={t("public.thread.addToCalendar")}
           googleCalendarLabel={t("public.thread.googleCalendar")}
         />
+        <SaveBookingsBlock locale={props.locale} signedIn={props.signedIn} className="mt-2" />
       </Shell>
     );
   }

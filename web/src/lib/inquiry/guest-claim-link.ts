@@ -34,6 +34,18 @@ import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { sendEmailResult } from "@/lib/email";
 import { resolveTenantBrand } from "@/lib/brand/resolve-tenant-brand";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { buildGuestClaimEmail } from "./guest-claim-email";
+
+/** The guest's page language when called inside a request; null outside one. */
+async function guestRequestLocale(): Promise<string | null> {
+  try {
+    return await getRequestLocale();
+  } catch {
+    return null;
+  }
+}
+import { claimNextParam } from "@/lib/inquiry/claim-return-url";
 
 export type SendGuestClaimEmailArgs = {
   /** Guest's email address — the address the client account was provisioned for. */
@@ -49,6 +61,14 @@ export type SendGuestClaimEmailArgs = {
    * wordmark / footer domain (resolveTenantBrand). Omit for the platform brand.
    */
   tenantId?: string | null;
+  /** Guest's language ("es" | "en"); falls back to the tenant's brand locale, then English. */
+  locale?: string | null;
+  /**
+   * TUL-691: full URL of the site the guest booked from (readSiteReturnUrl).
+   * Becomes the link's `next`; /auth/confirm re-validates it against the host
+   * registry. Omit/null keeps the client Messages destination.
+   */
+  returnUrl?: string | null;
 };
 
 export type SendGuestClaimEmailResult =
@@ -79,7 +99,7 @@ export async function sendGuestClaimEmail(
     if (!email) return { ok: false, reason: "no_email" };
 
     const appUrl = args.appUrl.replace(/\/$/, "");
-    const next = `/${args.tenantSlug}/client/messages`;
+    const next = claimNextParam(args.tenantSlug, args.returnUrl);
     const redirectTo = `${appUrl}/auth/confirm?next=${encodeURIComponent(next)}`;
 
     const { data, error } = await admin.auth.admin.generateLink({
@@ -107,7 +127,7 @@ export async function sendGuestClaimEmail(
     )}&type=magiclink&next=${encodeURIComponent(next)}`;
 
     const brand = await resolveTenantBrand(args.tenantId ?? "");
-    const { subject, html } = _buildClaimEmail(claimLink, args.talentName, brand);
+    const { subject, html } = buildGuestClaimEmail(claimLink, args.talentName, brand, args.locale ?? (await guestRequestLocale()) ?? brand.locale);
 
     const sendResult = await sendEmailResult({
       to: email,
@@ -143,67 +163,4 @@ export async function sendGuestClaimEmail(
       detail: err instanceof Error ? err.message : String(err),
     };
   }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Email template — plain, minimal HTML matching lib/email/templates.ts layout.
-// ─────────────────────────────────────────────────────────────────────────────
-
-function _escape(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function _buildClaimEmail(
-  actionLink: string,
-  talentName: string,
-  brand: { wordmark: string; accountName: string; footerDomain: string; homeHref: string },
-): { subject: string; html: string } {
-  const safeName = _escape(talentName.trim() || brand.accountName);
-  const subject = `Continue your conversation with ${talentName.trim() || brand.accountName}`;
-
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-</head>
-<body style="margin:0;padding:0;background:#f9f9f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a1a;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;padding:40px 16px;">
-    <tr>
-      <td align="center">
-        <table role="presentation" width="100%" style="max-width:560px;" cellpadding="0" cellspacing="0">
-          <tr>
-            <td style="padding-bottom:24px;text-align:center;">
-              <a href="${brand.homeHref}" style="font-family:Georgia,serif;font-size:18px;letter-spacing:0.2em;color:#1a1a1a;text-decoration:none;font-weight:600;">${_escape(brand.wordmark)}</a>
-            </td>
-          </tr>
-          <tr>
-            <td style="background:#ffffff;border-radius:12px;border:1px solid #e5e5e5;padding:32px 32px 28px;">
-              <h2 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#1a1a1a;">Pick up where you left off</h2>
-              <p style="margin:0 0 16px;font-size:15px;color:#444444;line-height:1.6;">
-                Your conversation with <strong>${safeName}</strong> is saved. Use the button below to sign in and continue it from your dashboard — no password needed.
-              </p>
-              <a href="${actionLink}" style="display:inline-block;margin-top:4px;padding:12px 24px;background:#0b0b0d;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Pick up the conversation →</a>
-              <p style="margin:16px 0 0;font-size:12px;color:#888888;">This link signs you in automatically — keep it private. It works on any device.</p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding-top:20px;text-align:center;font-size:12px;color:#888888;">
-              You received this because you started a conversation on ${_escape(brand.accountName)}.
-              <br/>
-              <a href="${brand.homeHref}" style="color:#888888;">${_escape(brand.footerDomain)}</a>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
-
-  return { subject, html };
 }
