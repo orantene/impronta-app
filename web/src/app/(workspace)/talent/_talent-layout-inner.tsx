@@ -168,6 +168,18 @@ const PLATFORM_TENANT_IDENTITY: TenantIdentityPayload = {
   posModes: [],
 };
 
+async function loadOwnedWorkspaceSlug(subjectUserId: string): Promise<string | null> {
+  try {
+    const adminDb = createServiceRoleClient();
+    if (!adminDb) return null;
+    const owned = await loadOwnedBusinessWorkspace(adminDb, subjectUserId);
+    return owned.ownsBusinessWorkspace ? owned.workspaceSlug : null;
+  } catch (err) {
+    logServerError("talentLayout.ownedWorkspace", err);
+    return null;
+  }
+}
+
 export async function TalentLayoutInner({
   children,
 }: {
@@ -212,6 +224,10 @@ export async function TalentLayoutInner({
   if (isTalentRoot) {
     return <>{children}</>;
   }
+
+  // TUL-536: independent of the agency lookup and the batch below, so it runs
+  // beside them instead of as a serial query after them. Never rejects.
+  const ownedWorkspaceSlugPromise = loadOwnedWorkspaceSlug(subjectUserId);
 
   const activeAgency = await getActiveTalentAgencyContext(baseProfile.id);
   const tenantId = activeAgency?.tenantId ?? null;
@@ -390,16 +406,8 @@ export async function TalentLayoutInner({
 
   // Dual owner on the hub: isHybrid is per-tenant, so also look up a business workspace this
   // person owns (any tenant) for the rail's Talent | Admin switch. A failed read means no switch.
-  let ownedWorkspaceSlug: string | null = null;
-  try {
-    const adminDb = createServiceRoleClient();
-    if (adminDb) {
-      const owned = await loadOwnedBusinessWorkspace(adminDb, subjectUserId);
-      if (owned.ownsBusinessWorkspace) ownedWorkspaceSlug = owned.workspaceSlug;
-    }
-  } catch (err) {
-    logServerError("talentLayout.ownedWorkspace", err);
-  }
+  // The read was started above, next to the profile read (TUL-536), so it no longer adds its own wave.
+  const ownedWorkspaceSlug = await ownedWorkspaceSlugPromise;
 
   const isHybrid = membership != null;
   const workspaceUnread: number | undefined = isHybrid ? workspaceUnreadRaw : undefined;
