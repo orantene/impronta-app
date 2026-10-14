@@ -19274,6 +19274,23 @@
         "units": "Units",
         "priceDriftHint": "Catalog price now {price}"
       },
+      "engineLines": {
+        "allApprovals": "All approvals are complete.",
+        "offerReopened": "Offer reopened for amendment.",
+        "offerRejected": "Client rejected the offer.",
+        "converted": "Inquiry converted to booking.",
+        "cancelled": "This inquiry was cancelled. No further action is needed.",
+        "expired": "This inquiry expired before it was booked.",
+        "paused": "A coordinator paused this inquiry. No action is needed right now.",
+        "talentDeclined": "A talent declined their invitation. You may want to line up an alternative.",
+        "talentSwapped": "A talent on the lineup was swapped for another.",
+        "coordAccepted": "Coordinator accepted assignment.",
+        "coordDeclined": "Coordinator declined assignment.",
+        "counterStarted": "Coordinator started a counter offer.",
+        "coordinating": "{name} is now coordinating this inquiry.",
+        "notCoordinating": "{name} is no longer coordinating this inquiry.",
+        "approved": "{name} approved the offer."
+      },
       "pay": {
         "paidBy": "Paid by {name}",
         "foot": {
