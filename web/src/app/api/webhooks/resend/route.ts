@@ -77,6 +77,7 @@ export async function POST(req: NextRequest) {
   });
   if (ignoreReason) {
     if (process.env.NODE_ENV !== "production" || process.env.VERCEL_ENV !== "production") {
+      // eslint-disable-next-line no-console -- non-production diagnostic only
       console.warn(`[webhooks.resend] ignored ${event.type}: ${ignoreReason}`);
     }
     return NextResponse.json({ received: true, status: "ignored_non_staging" });
