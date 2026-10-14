@@ -263,6 +263,15 @@ export default async function PlatformAdminLayout({
                 talentLabel={t("dashboard.workspaceTalentQa")}
                 clientLabel={t("dashboard.workspaceClientQa")}
                 unavailableLabel={t("dashboard.workspaceQaUnavailable")}
+                reasonLabels={{
+                  not_configured: t("dashboard.workspaceQaReason.not_configured"),
+                  no_profile: t("dashboard.workspaceQaReason.no_profile"),
+                  inactive: t("dashboard.workspaceQaReason.inactive"),
+                  wrong_role: t("dashboard.workspaceQaReason.wrong_role"),
+                  not_allowlisted: t("dashboard.workspaceQaReason.not_allowlisted"),
+                  not_authorized: t("dashboard.workspaceQaReason.not_authorized"),
+                  no_relationship: t("dashboard.workspaceQaReason.no_relationship"),
+                }}
                 hasTalent={Boolean(qaTalentUserIdEnv())}
                 hasClient={Boolean(qaClientUserIdEnv())}
               />
