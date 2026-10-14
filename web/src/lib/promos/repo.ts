@@ -3,7 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { LIMIT_STATUSES } from "@/lib/orders/promo-redemption-status";
-import type { Audience, AppliesOn, OfferKind, Promo, ScopeKind, Unlock, UsageMap } from "@/lib/promos/types";
+import type { Audience, AppliesOn, ClientStatus, OfferKind, Promo, ScopeKind, Unlock, UsageMap } from "@/lib/promos/types";
 
 /**
  * The one read path from `tenant_promo_codes` into the engine's `Promo`.
@@ -221,5 +221,72 @@ export async function loadLegacyScopes(
   for (const r of (data ?? []) as { id: string; event_id: string | null; variant_id: string | null }[]) {
     out.set(r.id, { eventId: r.event_id ?? null, variantId: r.variant_id ?? null });
   }
+  return out;
+}
+
+/** Default "lapsed" gap when a promo does not set `lapsed_days`. */
+export const DEFAULT_LAPSED_DAYS = 90;
+
+/** Order states that count as a real, paid visit for new / returning / lapsed. */
+export const PAID_ORDER_STATUSES = ["paid", "fulfilled", "partially_refunded"] as const;
+
+/**
+ * Pure: new when there is no prior paid visit, lapsed when the last one is
+ * older than `lapsedDays`, else returning.
+ */
+export function classifyClientStatus(
+  lastPaidAt: string | null,
+  now: Date,
+  lapsedDays: number = DEFAULT_LAPSED_DAYS,
+): ClientStatus {
+  if (!lastPaidAt) return "new";
+  const last = Date.parse(lastPaidAt);
+  if (!Number.isFinite(last)) return "returning";
+  const days = lapsedDays > 0 ? lapsedDays : DEFAULT_LAPSED_DAYS;
+  return now.getTime() - last > days * 86_400_000 ? "lapsed" : "returning";
+}
+
+/**
+ * The client's standing with this tenant, from their latest paid order
+ * (bookings and purchases both settle through `orders`). A failed read is
+ * null so the caller can refuse with "try again" instead of guessing.
+ */
+export async function loadClientStatus(
+  admin: SupabaseClient,
+  input: { tenantId: string; customerId: string | null; now?: Date; lapsedDays?: number | null; excludeOrderId?: string | null },
+): Promise<ClientStatus | null> {
+  if (!input.customerId) return "new";
+  const { data, error } = await admin
+    .from("orders")
+    .select("id, created_at")
+    .eq("tenant_id", input.tenantId)
+    .eq("customer_id", input.customerId)
+    .in("status", [...PAID_ORDER_STATUSES])
+    .order("created_at", { ascending: false })
+    .limit(5);
+  if (error) {
+    logServerError("promos.repo/client-status", error);
+    return null;
+  }
+  const last = ((data ?? []) as { id: string; created_at: string }[]).find((r) => r.id !== input.excludeOrderId);
+  return classifyClientStatus(last?.created_at ?? null, input.now ?? new Date(), input.lapsedDays ?? DEFAULT_LAPSED_DAYS);
+}
+
+/** `lapsed_days` per promo (not part of the engine's `Promo` shape). */
+export async function loadLapsedDays(
+  admin: SupabaseClient,
+  promoIds: readonly string[],
+): Promise<Map<string, number | null> | null> {
+  const out = new Map<string, number | null>();
+  if (promoIds.length === 0) return out;
+  const { data, error } = await admin
+    .from("tenant_promo_codes")
+    .select("id, lapsed_days")
+    .in("id", [...promoIds]);
+  if (error) {
+    logServerError("promos.repo/lapsed-days", error);
+    return null;
+  }
+  for (const r of (data ?? []) as { id: string; lapsed_days: number | null }[]) out.set(r.id, r.lapsed_days ?? null);
   return out;
 }

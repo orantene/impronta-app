@@ -14,6 +14,8 @@ export type ShareAssetData = {
   slug: string;
   talentName: string;
   profileCode: string;
+  /** `talent_profiles.talent_plan_key` of the tenant's talent (paid-only assets gate on it). */
+  talentPlanKey: string | null;
   /** Spots left, when the promo has a cap. */
   spotsLeft: number | null;
   /** The shareable link with the given source tag. */
@@ -51,9 +53,9 @@ export async function loadShareAssetData(input: {
   const profileId = (roster as { talent_profile_id: string }[] | null)?.[0]?.talent_profile_id;
   if (!profileId) return null;
   const { data: prof } = await admin
-    .from("talent_profiles").select("profile_code, display_name").eq("id", profileId).maybeSingle();
+    .from("talent_profiles").select("profile_code, display_name, talent_plan_key").eq("id", profileId).maybeSingle();
   if (!prof) return null;
-  const p = prof as { profile_code: string; display_name: string | null };
+  const p = prof as { profile_code: string; display_name: string | null; talent_plan_key: string | null };
 
   let siteOrigin: string | null = null;
   const host = input.host?.trim().toLowerCase();
@@ -69,6 +71,7 @@ export async function loadShareAssetData(input: {
     promo, row, slug, spotsLeft,
     talentName: (p.display_name ?? "").trim() || p.profile_code,
     profileCode: p.profile_code,
+    talentPlanKey: p.talent_plan_key ?? null,
     linkFor: (via) =>
       buildPromoLink({
         origin: siteOrigin ?? input.origin, slug, via,

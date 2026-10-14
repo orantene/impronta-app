@@ -7,6 +7,7 @@ import { conditionLine, offerHeadline, type ShareLang } from "./captions";
 import { LANDING_ROBOTS } from "./landing-copy";
 import { parseVia } from "./links";
 import { resolvePromoLink, type PromoScope } from "./resolve";
+import { promoServiceHref } from "./service-link";
 
 /**
  * Shared server half of both promo routes (talent host `/p/<slug>` and hub
@@ -42,7 +43,7 @@ export async function renderPromoPage(input: PromoPageInput) {
   const showPromo = r.promo && r.landing.state !== "gone" && r.landing.state !== "personal_locked";
   const ctaHref =
     r.target.kind === "service" && r.landing.state === "live"
-      ? `${home}${home.includes("?") ? "&" : "?"}service=${encodeURIComponent(r.target.serviceId)}`
+      ? promoServiceHref(home, { profileId: r.talent?.profileId, serviceId: r.target.serviceId })
       : home;
   const via = parseVia(input.searchParams.via) ?? "link";
   return (

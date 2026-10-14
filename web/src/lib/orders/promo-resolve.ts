@@ -2,7 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { eligibleLines, type EligibleLine } from "@/lib/orders/promo-eligibility";
-import { loadLegacyScopes, loadTenantPromos, loadUsage } from "@/lib/promos/repo";
+import { loadClientStatus, loadLapsedDays, loadLegacyScopes, loadTenantPromos, loadUsage } from "@/lib/promos/repo";
 import { quote } from "@/lib/promos/quote";
 import type { CartLine, Promo, RejectReason } from "@/lib/promos/types";
 
@@ -22,7 +22,11 @@ import type { CartLine, Promo, RejectReason } from "@/lib/promos/types";
  */
 
 export type PromoResolution =
-  | { ok: true; codeId: string; discountCents: number }
+  /**
+   * `betterDeal`: a live automatic promo beat the typed code. `codeId` is then
+   * the automatic promo's id and the typed code is NOT consumed.
+   */
+  | { ok: true; codeId: string; discountCents: number; betterDeal?: true }
   | { ok: false; reason: PromoRefusal }
   /** The read itself failed. NOT the same as "the code does not apply". */
   | { ok: false; reason: "promo_unavailable" };
@@ -78,11 +82,26 @@ export async function resolvePromo(
   const promo = pickByCode(loaded.promos, code);
   if (!promo) return { ok: false, reason: "promo_unknown" };
 
-  const [usage, scopes] = await Promise.all([
-    loadUsage(admin, [promo.id], input.customerId, now),
+  // Live automatic promos compete with the typed code (one price promo per
+  // line, best saving wins). Only promos that could apply are worth a read.
+  const autos = loaded.promos.filter(
+    (p) => p.id !== promo.id && p.unlock === "auto" && !p.archived_at && !p.is_draft && !p.is_paused,
+  );
+  const ids = [promo.id, ...autos.map((p) => p.id)];
+
+  const [usage, scopes, lapsed] = await Promise.all([
+    loadUsage(admin, ids, input.customerId, now),
     loadLegacyScopes(admin, [promo.id]),
+    loadLapsedDays(admin, [promo.id]),
   ]);
-  if (!usage || !scopes) return { ok: false, reason: "promo_unavailable" };
+  if (!usage || !scopes || !lapsed) return { ok: false, reason: "promo_unavailable" };
+  const status = await loadClientStatus(admin, {
+    tenantId: input.tenantId,
+    customerId: input.customerId,
+    now,
+    lapsedDays: lapsed.get(promo.id) ?? null,
+  });
+  if (!status) return { ok: false, reason: "promo_unavailable" };
 
   // Legacy event / tier scope narrows the lines first (they compose; see
   // promo-eligibility). A tier code must never discount another tier.
@@ -103,9 +122,9 @@ export async function resolvePromo(
 
   const result = quote({
     cart,
-    client: { customerId: input.customerId, status: "new" },
+    client: { customerId: input.customerId, status },
     now,
-    promos: [promo],
+    promos: [promo, ...autos],
     usage,
     unlocked: { codes: [code], linkPromoIds: [promo.id] },
   });
@@ -113,6 +132,12 @@ export async function resolvePromo(
   const applied = result.applied.find((a) => a.promoId === promo.id);
   if (!applied) {
     const rejected = result.rejected.find((r) => r.promoId === promo.id);
+    if (rejected?.reason === "outranked") {
+      const best = result.applied
+        .filter((a) => a.kind === "price" && a.source === "auto")
+        .sort((a, b) => b.discount_cents - a.discount_cents)[0];
+      if (best) return { ok: true, codeId: best.promoId, discountCents: best.discount_cents, betterDeal: true };
+    }
     return { ok: false, reason: refusalForReject(rejected?.reason ?? "not_applicable") };
   }
   return { ok: true, codeId: promo.id, discountCents: applied.discount_cents };

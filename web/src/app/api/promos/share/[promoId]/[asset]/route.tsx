@@ -4,6 +4,7 @@ import { loadShareAssetData } from "@/lib/promos/share/asset-data";
 import { buildPromoCardPdf } from "@/lib/promos/share/card-pdf";
 import { conditionLine, offerHeadline } from "@/lib/promos/share/captions";
 import { parseVia } from "@/lib/promos/share/links";
+import { printableCardAllowed } from "@/lib/promos/share/card-gate";
 import { parseFormat, parseLang, parseStyle, sanitizeColors } from "@/lib/promos/share/visual-model";
 import { renderShareVisual } from "@/lib/promos/share/visuals";
 
@@ -41,6 +42,8 @@ export async function GET(
   const cache = { "Cache-Control": "public, max-age=300, s-maxage=300" };
 
   if (asset === "card") {
+    // The printable card is a paid feature; the UI hides it, the server enforces it.
+    if (!printableCardAllowed(data.talentPlanKey)) return new NextResponse(null, { status: 403 });
     const bytes = await buildPromoCardPdf({
       lang, talentName: data.talentName, headline, condition,
       link: data.linkFor("qr_print"), accent: colors.accent,

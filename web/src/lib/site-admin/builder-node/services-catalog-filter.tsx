@@ -18,6 +18,9 @@ import {
 } from "@/components/public-booking/catalog-booking-logic";
 import { CatalogPurchaseMount } from "@/components/public-booking/CatalogPurchaseMount";
 import { catalogBarPriceLabel, catalogRowPriceText } from "./services-catalog-bar-price";
+import { PromoBadge, promoPriceText } from "@/components/promos/public/promo-badge";
+import type { CatalogPromoPrices } from "@/lib/promos/catalog-promo-prices";
+import type { DisplayPrice } from "@/lib/promos/display-price";
 import { ServicesCatalogDemoToast, useDemoToast } from "./services-catalog-demo-toast";
 import { catalogDurationShort, railCount } from "./services-catalog-format";
 import { CatalogIdleBarGo, CatalogIdleBarText, CatalogOverlayStyles } from "./services-catalog-idle-bar";
@@ -90,6 +93,7 @@ export function ServicesCatalogFilter({
   onlineCollectReady,
   matrix = false,
   liveStatus = null,
+  promoPrices,
 }: {
   groups: CatalogGroup[];
   locale: string;
@@ -128,6 +132,8 @@ export function ServicesCatalogFilter({
   bookingSettings?: CatalogSheetBookingSettings;
   /** PAY-2 B — platform Checkout ready; omit → sheet default true. */
   onlineCollectReady?: boolean;
+  /** Promos v1: live-promo prices by offering id (empty / omitted = list prices, unchanged markup). */
+  promoPrices?: CatalogPromoPrices;
   /** layout "matrix": one comparison table (wide) / stacked cards (narrow). */
   matrix?: boolean;
   liveStatus?: LiveStatusRenderContext | null;
@@ -444,6 +450,7 @@ export function ServicesCatalogFilter({
                       durationFormat={durationFormat}
                       selected={dock.picked.some((p) => p.id === item.id)}
                       onSelect={() => onRowAction(item, g.note)}
+                      promoPrice={promoPrices?.[item.id]}
                     />
                   ))}
                 </ul>
@@ -551,6 +558,7 @@ export function CatalogRow({
   durationFormat = "auto",
   selected = false,
   onSelect,
+  promoPrice,
 }: {
   item: TalentOffering;
   locale: string;
@@ -573,6 +581,8 @@ export function CatalogRow({
   durationFormat?: "auto" | "minutes" | "hours_minutes";
   selected?: boolean;
   onSelect?: () => void;
+  /** Promos v1: the displayPrice for this row when a live promo changes it. */
+  promoPrice?: DisplayPrice | null;
 }) {
   const es = locale.startsWith("es");
   const cover = showPhoto ? item.imageUrls[0] : undefined;
@@ -609,7 +619,10 @@ export function CatalogRow({
             : "By quote"
         : null;
   // One-line price for the meta row: "Desde $120 por uña" / "Desde $650" / "$900" / "A cotizar".
-  const priceText = catalogRowPriceText(item, locale);
+  const promo = promoPrice?.hasPromo ? promoPrice : null;
+  const priceText = promo
+    ? promoPriceText(promo, locale, catalogRowShowsFrom(item) ? (es ? "Desde" : "From") : null)
+    : catalogRowPriceText(item, locale);
   // Priced per unit: the unit replaces the duration in the meta row.
   const perUnit = !!offeringPriceUnit(item.attributes, locale) && !onRequest && !quote && minCents != null;
   const badges: string[] = [];
@@ -712,7 +725,7 @@ export function CatalogRow({
             ) : (
               <>
                 {ladder ? <small>{es ? "Desde" : "From"}</small> : null}
-                <strong>{formatMoney(minCents, item.currency, locale)}</strong>
+                <strong>{promo ? <PromoBadge price={promo} locale={locale} /> : formatMoney(minCents, item.currency, locale)}</strong>
               </>
             )}
             {showUsdEquivalent && usd ? <span className="site-builder-node--services-catalog-usd">{usd}</span> : null}
