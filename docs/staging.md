@@ -67,7 +67,9 @@ non-empty; an empty value never matches. Store it only as a CI secret.
 
 ## Build sources (`web/vercel.json` `ignoreCommand`)
 
-Vercel builds only when `VERCEL_ENV=production` (the `production` pointer branch),
-or the ref is `main` (staging), or `(retired 2026-10-14)`. Every other branch
-push is skipped. **Drop the `(retired 2026-10-14)` clause once the staging
-domain switch to `main` is done.**
+Vercel builds only when `VERCEL_ENV=production` (the `production` pointer branch)
+or the ref is `main` (staging). Every other branch push is skipped (shows as
+Canceled, no build cost). Staging's source is `main` since 2026-10-14: the staging
+domains (`staging.`, `*.staging.`, `staging-qa-*`) track git branch `main`, and the
+staging-only Preview env vars are scoped to branch `main`. Each merge to `main`
+therefore produces one staging build. `program/journeys-2026-09` is retired.
