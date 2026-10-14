@@ -13633,6 +13633,7 @@
       "panelAria": "Support conversation",
       "title": "Support",
       "close": "Close",
+      "closeAria": "Close support",
       "tabHome": "Home",
       "tabTickets": "Tickets",
       "greeting": "Hi {name}",

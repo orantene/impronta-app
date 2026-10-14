@@ -69,7 +69,12 @@ export function TalentMoreScreen({ onClose }: { onClose: () => void }) {
       title: "You",
       rows: [
         { label: "Settings", detail: "", page: "settings" },
-        { label: "Get help", detail: "", run: () => openGuideHome() },
+        { label: "Get help", detail: "", run: () => {
+            // The sheet is full-screen above the panel: close it first or the tap looks dead (TUL-904).
+            onClose();
+            openGuideHome();
+          },
+        },
         {
           label: signingOut ? "Signing out…" : "Sign out",
           detail: "",
@@ -84,11 +89,11 @@ export function TalentMoreScreen({ onClose }: { onClose: () => void }) {
   ];
 
   return (
-    <div className="fixed inset-0 z-[80] overflow-y-auto bg-white font-admin-body" role="dialog" aria-label={copy.t("More")}>
+    <div className="fixed inset-0 z-[80] overflow-y-auto bg-white font-admin-body min-[721px]:hidden" role="dialog" aria-label={copy.t("More")}>
       <div className="mx-auto max-w-[480px] px-4 pb-28 pt-4">
         <div className="flex items-center justify-between">
           <h1 className="text-[22px] font-semibold text-admin-ink">{copy.t("More")}</h1>
-          <button type="button" className="text-[13px] font-semibold text-admin-ink-muted" onClick={onClose}>
+          <button type="button" className="-mr-3 min-h-[44px] px-3 text-[14px] font-semibold text-admin-ink-muted" onClick={onClose}>
             {copy.t("Close")}
           </button>
         </div>

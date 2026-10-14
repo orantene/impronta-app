@@ -1037,6 +1037,7 @@
       "panelAria": "Conversation de support",
       "title": "Support",
       "close": "Fermér",
+      "closeAria": "Fermer le support",
       "tabHome": "Accueil",
       "tabTickets": "Tickets",
       "greeting": "Bonjour {name}",

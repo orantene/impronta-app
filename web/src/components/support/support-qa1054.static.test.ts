@@ -43,3 +43,18 @@ test("TUL-947: the launcher lifts above the offline banner and hides with the ke
   assert.match(geometry, /input:focus, textarea:focus/);
   assert.match(launcher, /SUPPORT_LAUNCHER_COMPACT_CSS/);
 });
+
+test("TUL-916: the panel close button has its own accessible name, not 'Cerrar'", () => {
+  const panel = readFileSync("src/components/support/SupportPanel.tsx", "utf8");
+  assert.match(panel, /aria-label=\{t\("dashboard\.adminSupport\.closeAria"\)\}/);
+  assert.match(home, /aria-label=\{t\("dashboard\.adminSupport\.closeAria"\)\}/);
+  const es = JSON.parse(readFileSync("messages/es.json", "utf8")).dashboard.adminSupport;
+  assert.ok(!/^Cerrar$/.test(es.closeAria), "must not be a substring of 'Cerrar tu cuenta'");
+});
+
+test("TUL-904/907: More sheet 'Get help' closes the sheet and opens the Guide home (support panel); sheet is mobile-only", () => {
+  const more = readFileSync("src/components/talent/studio/MoreScreen.tsx", "utf8");
+  assert.match(more, /onClose\(\);\s*openGuideHome\(\)/);
+  assert.match(more, /min-\[721px\]:hidden/);
+  assert.match(more, /min-h-\[44px\]/);
+});

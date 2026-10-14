@@ -85,7 +85,7 @@ export function HomeView({
           <button
             type="button"
             onClick={onDismissIdeaSent}
-            aria-label={t("dashboard.adminSupport.close")}
+            aria-label={t("dashboard.adminSupport.closeAria")}
             style={{ border: "none", background: "transparent", cursor: "pointer", color: COLORS.royalDeep, padding: 6, margin: -6, display: "flex" }}
           >
             <Icon name="x" size={13} color={COLORS.royalDeep} />
