@@ -350,11 +350,8 @@ export async function proxy(request: NextRequest) {
     const startLang = langQueryForStartAfterDefaultLocaleStrip({ pathnameAfterStrip: withoutLocalePrefix, defaultLocale: effectiveLangSettings.defaultLocale, existingLang: url.searchParams.get("lang") });
     if (startLang) url.searchParams.set("lang", startLang);
     const res = NextResponse.redirect(url, 308);
-    // QA 2026-05-13: without a locale cookie here, the redirected page renders
-    // in the DEFAULT locale even though the URL was `/es/<tenant>` (the
-    // downstream `syncLocaleCookieForPath` calls fire only after this early
-    // return and never see the `/es/` prefix), so the ES switcher looked broken.
-    // Set the cookie on the redirect response so the followed URL keeps the locale.
+    // QA 2026-05-13: set the locale cookie on the redirect, or the followed
+    // URL renders in the DEFAULT locale (later sync calls never see `/es/`).
     syncLocaleCookieForPath(res, pathname, effectiveLangSettings, request);
     syncLocaleCookieForDefaultPrefixStrip(res, pathname, effectiveLangSettings);
     return res;
