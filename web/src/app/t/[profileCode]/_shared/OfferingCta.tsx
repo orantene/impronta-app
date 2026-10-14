@@ -73,7 +73,7 @@ export function OfferingCta({
       onClick={onClick}
       data-offering-cta={cta}
       data-offering-id={offering.id}
-      className={`inline-flex shrink-0 items-center justify-center rounded-[10px] font-medium transition-opacity hover:opacity-85 ${
+      className={`inline-flex max-w-full items-center justify-center whitespace-normal text-center rounded-[10px] font-medium transition-opacity hover:opacity-85 ${
         compact ? "px-3 py-1.5 text-xs" : "px-4 py-2 text-[0.8125rem]"
       }`}
       style={
