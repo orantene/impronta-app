@@ -13761,7 +13761,7 @@
     "adminReviews": {
       "eyebrow": "Reputation",
       "title": "Reviews",
-      "subtitle": "Reported reviews, rating integrity, and review photos across your talent.",
+      "subtitle": "Reported reviews, rating integrity, and review photos across your workspace.",
       "reviewPhotos": "Review photos",
       "noTenant": "Sign in to a workspace to moderate its reviews."
     },
