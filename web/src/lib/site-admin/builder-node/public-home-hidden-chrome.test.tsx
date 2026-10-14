@@ -33,7 +33,7 @@ function html(nodes: BuilderNode[], extra: Record<string, unknown> = {}): string
 }
 
 function honeypotBlock(markup: string): string {
-  const m = markup.match(/<div aria-hidden="true"[^>]*>(?:(?!<\/div>).)*name="website"[^>]*\/?>(?:(?!<\/div>).)*<\/div>/s);
+  const m = markup.match(/<div aria-hidden="true"[^>]*>(?:(?!<\/div>)[\s\S])*name="website"[^>]*\/?>(?:(?!<\/div>)[\s\S])*<\/div>/);
   assert.ok(m, "honeypot block missing");
   return m[0];
 }
