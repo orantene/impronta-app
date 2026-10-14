@@ -34,7 +34,7 @@ describe("buildDirectoryQueryOrFilter", () => {
       buildDirectoryQueryOrFilter("QA"),
       "display_name.ilike.%QA%,profile_code.ilike.%QA%",
     );
-    assert.match(buildDirectoryQueryOrFilter("TAL-93940"), /profile_code\.ilike\.%TAL-93940%/);
+    assert.match(buildDirectoryQueryOrFilter("TAL-93940") ?? "", /profile_code\.ilike\.%TAL-93940%/);
   });
 
   it("strips characters that would break the or() grammar", () => {
