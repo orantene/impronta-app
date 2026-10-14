@@ -3,6 +3,7 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { resolveEmailHomeHost, resolveEmailHomeOrigin } from "@/lib/brand/marketing-origin";
 import { planTierHasWhitelabel } from "@/lib/saas/workspace-public-url";
 import {
   TULALA_EMAIL_ACCENT,
@@ -71,16 +72,14 @@ export type EmailBrand = {
 };
 
 function siteUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_SITE_URL ?? `https://${PLATFORM_BRAND.domain}`
-  ).replace(/\/$/, "");
+  return resolveEmailHomeOrigin();
 }
 
 export function platformBrand(): EmailBrand {
   return {
     wordmark: PLATFORM_BRAND.name.toUpperCase(),
     accountName: PLATFORM_BRAND.name,
-    footerDomain: PLATFORM_BRAND.domain,
+    footerDomain: resolveEmailHomeHost(),
     homeHref: siteUrl(),
     locale: "en",
     logoUrl: null,
@@ -165,7 +164,7 @@ export async function resolveTenantBrand(tenantId: string | null): Promise<Email
       brand = {
         wordmark: agency.display_name.toUpperCase(),
         accountName: agency.display_name,
-        footerDomain: primaryHost ?? PLATFORM_BRAND.domain,
+        footerDomain: primaryHost ?? resolveEmailHomeHost(),
         homeHref: primaryHost ? `https://${primaryHost}` : siteUrl(),
         locale,
         logoUrl: tenantLogo,
