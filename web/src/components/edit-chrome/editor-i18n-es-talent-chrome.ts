@@ -78,7 +78,6 @@ export const ES_TALENT_CHROME_TEXT: Record<string, string> = {
   "Hide rulers (⌘R)": "Ocultar reglas (⌘R)",
   "Show rulers (⌘R)": "Mostrar reglas (⌘R)",
   "Revisions": "Revisiones",
-  "More actions": "Más acciones",
   "No revisions yet": "Aún no hay revisiones",
   "{n} entry": "{n} entrada",
   "{n} entries": "{n} entradas",
