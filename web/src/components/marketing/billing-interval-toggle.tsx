@@ -23,22 +23,23 @@ export type BillingToggleCopy = {
 
 export function BillingIntervalToggle({
   copy,
+  initialInterval = DEFAULT_BILLING_INTERVAL,
   children,
 }: {
   copy: BillingToggleCopy;
+  /** Parsed server-side from ?interval=, so first paint is already right. */
+  initialInterval?: BillingInterval;
   children: ReactNode;
 }) {
-  const [interval, setBilling] = useState<BillingInterval>(
-    DEFAULT_BILLING_INTERVAL,
-  );
-  // The interval lives in the URL (?interval=year). Read after mount so the
-  // server render (monthly) and first client render match.
+  const [interval, setBilling] = useState<BillingInterval>(initialInterval);
+  // The server already seeded the interval from searchParams; this only
+  // re-syncs if the client URL disagrees (e.g. a soft navigation).
   useEffect(() => {
     try {
       const v = new URLSearchParams(window.location.search).get("interval");
       setBilling(parseBillingInterval(v));
     } catch {
-      /* no URL access: stay on the default */
+      /* no URL access: keep the server value */
     }
   }, []);
   function choose(next: BillingInterval) {

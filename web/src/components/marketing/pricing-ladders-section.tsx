@@ -55,13 +55,16 @@ import type { DefaultCurrencyCode } from "@/lib/billing/currencies";
 import { createTranslator } from "@/i18n/messages";
 import { formatUnitAmount } from "@/lib/pricing/pricing-types";
 import {
+  type BillingInterval,
   maxYearlySavingsPercent,
   yearlySavingsPercent,
 } from "@/lib/pricing/interval-pricing";
+import { resolvePricingViewer } from "@/lib/pricing/pricing-viewer";
 import { BillingIntervalToggle } from "./billing-interval-toggle";
 import {
   buildPricingCtaHref,
   type PricingPackageSlug,
+  type PricingViewer,
 } from "@/lib/pricing/pricing-cta-href";
 
 type LadderCopy = PricingLaddersCopy;
@@ -110,6 +113,7 @@ type IntervalCopy = {
 };
 
 function buildCards(
+  viewer: PricingViewer,
   rows: MarketingTier[],
   copyByKey: Partial<Record<string, TierCopy>>,
   packageSlug: PricingPackageSlug,
@@ -151,8 +155,8 @@ function buildCards(
       cta: {
         label: tierCopy?.cta ?? c.talent.free.cta,
         hrefs: {
-          month: buildPricingCtaHref({ packageSlug, tierKey: t.key, interval: "month" }),
-          year: buildPricingCtaHref({ packageSlug, tierKey: t.key, interval: "year" }),
+          month: buildPricingCtaHref({ packageSlug, tierKey: t.key, interval: "month", viewer }),
+          year: buildPricingCtaHref({ packageSlug, tierKey: t.key, interval: "year", viewer }),
         },
         intent: t.key,
       },
@@ -162,9 +166,13 @@ function buildCards(
 
 export async function PricingLaddersSection({
   currency,
+  interval = "month",
 }: {
   currency: DefaultCurrencyCode;
+  /** From the page's ?interval= searchParam (server-parsed, no flash). */
+  interval?: BillingInterval;
 }) {
+  const viewer = await resolvePricingViewer();
   const locale = await getRequestLocale();
   const c = getPricingLaddersCopy(locale);
   const t = createTranslator(locale);
@@ -185,13 +193,13 @@ export async function PricingLaddersSection({
       id: "person",
       label: c.person.label,
       blurb: c.person.blurb,
-      cards: buildCards(talentRows, c.talent, "talent", c, locale, ic),
+      cards: buildCards(viewer, talentRows, c.talent, "talent", c, locale, ic),
     },
     {
       id: "business",
       label: c.business.label,
       blurb: c.business.blurb,
-      cards: buildCards(workspaceRows, c.workspace, "workspace", c, locale, ic),
+      cards: buildCards(viewer, workspaceRows, c.workspace, "workspace", c, locale, ic),
     },
   ];
   // A package with no active tiers (or a catalog read that failed) drops its
@@ -234,7 +242,7 @@ export async function PricingLaddersSection({
         </div>
 
         <div className="mt-10">
-          <BillingIntervalToggle copy={toggleCopy}>
+          <BillingIntervalToggle copy={toggleCopy} initialInterval={interval}>
             <div className="mt-12 space-y-16">
               {ladders.map((ladder) => (
                 <LadderBlock key={ladder.id} ladder={ladder} ic={ic} />

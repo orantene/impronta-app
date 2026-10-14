@@ -10,6 +10,7 @@ import { CurrencyPicker } from "@/components/marketing/currency-picker";
 import { PricingLaddersSection } from "@/components/marketing/pricing-ladders-section";
 import { SimplePageHero } from "@/components/marketing/simple-page-hero";
 import { PlanFeatureCompareTable } from "@/components/marketing/plan-feature-compare-table";
+import { parseBillingInterval } from "@/lib/pricing/pricing-cta-href";
 import { resolveCurrency } from "@/lib/pricing/currency-resolver";
 import { loadPlatformTakeBps } from "@/lib/billing/platform-take-rate";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -48,7 +49,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function PricingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ currency?: string }>;
+  searchParams: Promise<{ currency?: string; interval?: string }>;
 }) {
   const resolved = await searchParams;
   const { currency, source } = await resolveCurrency(resolved);
@@ -135,7 +136,10 @@ export default async function PricingPage({
         catalog row is inactive (today: `website`) is simply absent and the
         ladder closes up around it.
       */}
-      <PricingLaddersSection currency={currency} />
+      <PricingLaddersSection
+        currency={currency}
+        interval={parseBillingInterval(resolved.interval)}
+      />
 
       <MarketingSection
         className="relative"
