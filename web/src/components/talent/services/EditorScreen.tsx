@@ -308,7 +308,7 @@ export function EditorScreen({
                 <span className={LABEL}>{copy.t("How the price works")}</span>
                 <select className={INPUT} value={item.priceDisplay} onChange={(e) => {
                   const v = e.target.value as TalentOffering["priceDisplay"];
-                  patch(v === "quote" ? { priceDisplay: v, bookingMode: "request" } : { priceDisplay: v });
+                  patch(v === "quote" ? { priceDisplay: v, amountCents: null, bookingMode: "request" } : { priceDisplay: v, priceType: item.priceType === "custom" ? "flat_package" : item.priceType });
                 }}>
                   <option value="exact">{copy.t("Fixed price")}</option>
                   <option value="from">{copy.t("Starting at")}</option>
@@ -382,7 +382,7 @@ export function EditorScreen({
                 return (
                   <button key={m.id} type="button" aria-pressed={on} onClick={() => {
                     if (m.id === "quote") patch({ priceDisplay: "quote", bookingMode: "request" });
-                    else patch({ bookingMode: m.id, priceDisplay: quote ? "exact" : item.priceDisplay });
+                    else patch({ bookingMode: m.id, priceDisplay: quote ? "exact" : item.priceDisplay, ...(quote && item.priceType === "custom" ? { priceType: "flat_package" as const } : {}) });
                   }} className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-left ${on ? "border-emerald-900/60 bg-emerald-900/[0.06]" : "border-admin-border-soft bg-white"}`}>
                     <span aria-hidden className={`mt-0.5 grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full border ${on ? "border-emerald-900" : "border-admin-ink-dim/50"}`}>
                       {on && <span className="h-2.5 w-2.5 rounded-full bg-emerald-900" />}

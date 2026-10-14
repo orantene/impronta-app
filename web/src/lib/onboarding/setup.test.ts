@@ -5,6 +5,8 @@ import { setupCountry, setupTimezone } from "./essentials-resolve";
 import {
   DAY_ORDER, cleanServices, copyDayToAll, finalizeSetup, minToTime, needsTimezoneQuestion,
   parsePriceToCents, setupIssues, timeToMin, timezoneChoices, toggleDay, TIMEZONE_OPTIONS,
+  DAY_ORDER, applyServiceCurrency, cleanServices, copyDayToAll, finalizeSetup, minToTime, needsTimezoneQuestion,
+  parsePriceToCents, setupCurrency, setupIssues, timeToMin, toggleDay,
 } from "./setup";
 
 test("a Tulum studio that named no country, browsing from Mexico, is not asked for a zone and gets Cancun", () => {
@@ -88,4 +90,18 @@ test("the zone list offers Mexico when the country was not detected (TUL-568)", 
   const ids = TIMEZONE_OPTIONS.map((z) => z.id);
   assert.ok(ids.includes("America/Mexico_City"));
   assert.ok(ids.includes("America/Cancun"));
+test("TUL-16 b: the services currency defaults to the talent's own and can be chosen", () => {
+  assert.equal(setupCurrency({ chosen: null, country: "Mexico", locale: "es" }), "MXN");
+  assert.equal(setupCurrency({ chosen: null, country: "MX", locale: "en" }), "MXN");
+  // Country not asked yet on a Spanish flow: pesos, not a silent USD.
+  assert.equal(setupCurrency({ chosen: null, country: null, locale: "es" }), "MXN");
+  assert.equal(setupCurrency({ chosen: null, country: null, locale: "en" }), "USD");
+  assert.equal(setupCurrency({ chosen: null, country: "United States", locale: "es" }), "USD");
+  assert.equal(setupCurrency({ chosen: "USD", country: "Mexico", locale: "es" }), "USD");
+  assert.equal(setupCurrency({ chosen: "MXN", country: "United States", locale: "en" }), "MXN");
+  const rows = [
+    { name: "A", durationMin: 30, priceCents: 100, quote: false, currency: "USD", packKey: null },
+    { name: "B", durationMin: 30, priceCents: null, quote: true, currency: "USD", packKey: null },
+  ];
+  assert.deepEqual(applyServiceCurrency(rows, "MXN").map((r) => r.currency), ["MXN", "MXN"]);
 });
