@@ -129,3 +129,16 @@ test("localiseBakedLanguagesLine translates any Languages seed without current p
   assert.equal(localiseBakedLanguagesLine("I speak English", "es"), null);
   assert.equal(localiseBakedLanguagesLine("Idiomas: Inglés", "es"), null);
 });
+
+test("TUL-516: Mexico City becomes Ciudad de México on Spanish (based-in + uppercase)", () => {
+  const src = {
+    bioI18n: null,
+    typeNames: [{ en: "Fashion Model", es: "Modelo de moda" }],
+    homeCity: { en: "Mexico City" },
+  };
+  const es = buildTalentLocaleSwaps(src, "es");
+  assert.equal(es["Mexico City"], "Ciudad de México");
+  assert.equal(es["Based in Mexico City"], "Con base en Ciudad de México");
+  assert.equal(es["BASED IN MEXICO CITY"], "CON BASE EN CIUDAD DE MÉXICO");
+  assert.equal(es["Fashion Model · Mexico City"], "Modelo de moda · Ciudad de México");
+});

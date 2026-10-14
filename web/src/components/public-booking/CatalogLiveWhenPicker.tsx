@@ -29,9 +29,19 @@ export function useScrollSelectedDayIntoView(dayIndex: number, count: number) {
 }
 
 /** Selected date + timezone line shown above the slots, so the pick is visible even when scrolled off the strip. */
-export function CatalogSelectedDateLine({ date, tz, es }: { date: Date | undefined; tz: string | null; es: boolean }) {
+export function CatalogSelectedDateLine({
+  date,
+  tz,
+  es,
+  placeCity,
+}: {
+  date: Date | undefined;
+  tz: string | null;
+  es: boolean;
+  placeCity?: string | null;
+}) {
   if (!date) return null;
-  const zone = catalogTimezoneLabel(tz, es);
+  const zone = catalogTimezoneLabel(tz, es, placeCity);
   return (
     <p className="jb-selected-date" data-catalog-selected-date="" aria-live="polite" style={{ margin: "2px 0 10px", fontSize: "0.9375rem" }}>
       <strong>{catalogSelectedDateLabel(date, es)}</strong>
@@ -54,6 +64,7 @@ export function CatalogLiveWhenPicker({
   dayIndex,
   liveStarts,
   liveTz,
+  placeCity,
   timeGroupLabel,
   emptyConsultButton,
   takenNotice,
@@ -69,6 +80,7 @@ export function CatalogLiveWhenPicker({
   dayIndex: number;
   liveStarts: string | null;
   liveTz: string;
+  placeCity?: string | null;
   timeGroupLabel: string;
   emptyConsultButton: ReactNode;
   takenNotice: CatalogTakenSlotNotice | null;
@@ -101,7 +113,7 @@ export function CatalogLiveWhenPicker({
         ))}
       </div>
       ) : null}
-      <CatalogSelectedDateLine date={liveDays[dayIndex]?.date} tz={liveTz} es={es} />
+      <CatalogSelectedDateLine date={liveDays[dayIndex]?.date} tz={liveTz} es={es} placeCity={placeCity} />
       {liveTimes.length === 0 ? (
         loading ? null : (
           <div className="jb-empty" data-catalog-empty-reason={emptyReason ?? "none"}>

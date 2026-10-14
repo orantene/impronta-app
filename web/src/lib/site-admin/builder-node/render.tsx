@@ -39,6 +39,10 @@ import {
   isSafeRichTextHref,
   renderInlineRich,
 } from "@/lib/site-admin/sections/shared/rich-text";
+import {
+  TALENT_BOOKING_POLICY_PATH,
+  talentPolicyPageHref,
+} from "@/lib/talent-site/footer-socket";
 
 import {
   BACKGROUND_MEDIA_CSS,
@@ -6184,12 +6188,25 @@ function renderBuilderNodeElement(
       );
     }
     case "visit": {
+      // GRK-029: location "Payments, changes…" must keep /en on EN visits
+      // (footer socket already used talentPolicyPageHref; this path did not).
+      const visitLocale = options.visitorLocale ?? options.contentLocale?.locale ?? "es";
+      const visitPrimary = options.contentLocale?.defaultLocale ?? visitLocale;
+      const visitSupported = options.contentLocale
+        ? [options.contentLocale.defaultLocale, ...options.contentLocale.chain]
+        : [visitPrimary];
       return renderVisitBlock({
         node: localizeBlockNode(node, options.contentLocale),
         facts: options.dataSources?.talentVisitFacts ?? [],
         location: options.dataSources?.talentLocation,
-        locale: options.visitorLocale ?? options.contentLocale?.locale,
-        policyHref: `${(options.publicPathPrefix ?? "").replace(/\/+$/, "")}/politicas`,
+        locale: visitLocale,
+        policyHref: talentPolicyPageHref({
+          path: TALENT_BOOKING_POLICY_PATH,
+          locale: visitLocale,
+          primaryLocale: visitPrimary,
+          supportedLocales: visitSupported,
+          publicPathPrefix: options.publicPathPrefix,
+        }),
         styleAttr: sharedNodeStyle(node.props.style),
       });
     }
@@ -6323,6 +6340,8 @@ function renderBuilderNodeElement(
         // TUL-383: one public money format (`$700 MXN`) via shared formatter.
         const locale = options.contentLocale?.locale ?? "en";
         const es = locale.toLowerCase().startsWith("es");
+        // TUL-533 / GRK-064: never paint "$0 MXN" on public Max-site menus.
+        if (item.amountCents <= 0) return es ? "Consultar" : "Ask";
         const formatted = formatMoney(item.amountCents, item.currency, locale);
         if (item.priceDisplay === "from") return es ? `desde ${formatted}` : `from ${formatted}`;
         return formatted;

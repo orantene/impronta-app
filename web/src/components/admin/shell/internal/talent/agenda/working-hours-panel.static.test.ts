@@ -88,3 +88,10 @@ test("Calendar header reads Bookings with List and Working hours buttons (calend
   assert.match(cal, /copy\.t\("List"\)/);
   assert.match(cal, /copy\.t\("Working hours"\)/);
 });
+
+test("sdb-1011-03: at 390 the EN time inputs keep room for AM/PM", () => {
+  const page = read("talent/agenda/AgendaAvailabilityPage.tsx");
+  assert.match(page, /grid-cols-\[minmax\(56px,64px\)_minmax\(0,1fr\)_auto_minmax\(0,1fr\)\]/);
+  const fields = read("talent/agenda/HoursFields.tsx");
+  assert.match(fields, /type="time"[\s\S]*?className=\{`\$\{FIELD_BASE\} w-full min-w-0 px-1\.5`\}/);
+});
