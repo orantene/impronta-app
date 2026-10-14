@@ -28,12 +28,12 @@ export type ClaimByEmailResult = {
   linkedRelationships: number;
 };
 
-function normalizeEmail(value: string): string {
+export function normalizeEmail(value: string): string {
   return value.trim().toLowerCase();
 }
 
 /** Exact ILIKE (no wildcard match). `%` / `_` in an address stay literal. */
-function ilikeExact(value: string): string {
+export function ilikeExact(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/[%_]/g, "\\$&");
 }
 

@@ -58,11 +58,14 @@ export const INDUSTRY_PRESET_IDS = [
   // Ratified by the CEO 2026-09-04. Ids are permanent: a rename after this is a
   // migration, because a tenant's stored `industry_preset` is keyed by it.
   "dropoff_service",
+  "home_services",
   "practice",
   "private_chef",
   "act",
   "portfolio",
   "agency",
+  // Added 2026-10-14 (TUL-613). Additive: no stored value changes.
+  "pet_grooming",
   "custom",
 ] as const;
 
@@ -418,6 +421,28 @@ const PRESETS: Readonly<Record<IndustryPresetId, IndustryPreset>> = {
     designId: "services",
     representsPeople: false,
   },
+  home_services: {
+    id: "home_services",
+    label: { en: "Home services", es: "Servicios a domicilio" },
+    blurb: { en: "visits, quotes, schedule", es: "visitas, cotizaciones, agenda" },
+    // Cleaning, handyman, plumbing, gardening: the team goes to the customer.
+    // Ruled by the PM 2026-10-10 (TUL-568): site, booking, inbox and agenda only.
+    words: {
+      ...STAFF_WORDS,
+      "menu.item": { en: "Service", es: "Servicio" },
+      "menu.items": { en: "Services", es: "Servicios" },
+      "appointments.item": { en: "Visit", es: "Visita" },
+      "appointments.items": { en: "Visits", es: "Visitas" },
+      "appointments.cta": { en: "Book", es: "Agendar" },
+      "customers.person": { en: "Client", es: "Cliente" },
+      "customers.people": { en: "Clients", es: "Clientes" },
+    },
+    features: { menu: true, reservations: false, events: false, appointments: true },
+    headerVerb: "book",
+    chatVoice: { en: "What needs doing, and where?", es: "¿Qué necesitas y dónde?" },
+    designId: "services",
+    representsPeople: false,
+  },
   practice: {
     id: "practice",
     label: { en: "Professional practice", es: "Despacho profesional" },
@@ -467,6 +492,35 @@ const PRESETS: Readonly<Record<IndustryPresetId, IndustryPreset>> = {
     chatVoiceSolo: {
       en: "Tell me about the dinner: the date, how many guests, and any allergies.",
       es: "Cuéntame de la cena: la fecha, cuántas personas y si hay alergias.",
+    },
+    designId: "services",
+    representsPeople: false,
+  },
+  pet_grooming: {
+    id: "pet_grooming",
+    label: { en: "Pet grooming", es: "Peluquería canina" },
+    blurb: { en: "grooms, pets, breeds", es: "baños, mascotas, razas" },
+    words: {
+      ...STAFF_WORDS,
+      "menu.item": { en: "Service", es: "Servicio" },
+      "menu.items": { en: "Services", es: "Servicios" },
+      "customers.chat_items": { en: "Services", es: "Servicios" },
+      "appointments.item": { en: "Groom", es: "Baño y corte" },
+      "appointments.items": { en: "Grooms", es: "Baños y cortes" },
+      "appointments.provider": { en: "Groomer", es: "Estilista canino" },
+      "appointments.cta": { en: "Book", es: "Agendar" },
+      "customers.person": { en: "Pet parent", es: "Dueño" },
+      "customers.people": { en: "Pet parents", es: "Dueños" },
+    },
+    features: { menu: true, reservations: false, events: false, appointments: true },
+    headerVerb: "book",
+    chatVoice: {
+      en: "Tell us about your pet: breed, size and the groom you want",
+      es: "Cuéntanos de tu mascota: raza, tamaño y el servicio que quieres",
+    },
+    chatVoiceSolo: {
+      en: "Tell me about your pet: breed, size and the groom you want",
+      es: "Cuéntame de tu mascota: raza, tamaño y el servicio que quieres",
     },
     designId: "services",
     representsPeople: false,

@@ -6,7 +6,7 @@ import { loadThemeUpdatePreviewSnapshot } from "../theme-releases/talent-update/
 import { early } from "@/lib/server/early";
 import { perfMark, perfStart, timed } from "@/lib/server/perf-trace";
 import { failOnReadTimeout } from "@/lib/supabase/bounded-fetch-scope";
-import { loadMaxSiteIsDemo } from "./render-max-site-demo";
+import { loadMaxSiteAcceptingBookings, loadMaxSiteIsDemo } from "./render-max-site-demo";
 import { hasRenderableBuilderNodes } from "@/lib/site-admin/builder-node";
 import { prepareTalentSiteTrees } from "./talent-site-render-fixups.server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -43,11 +43,16 @@ import { buildMaxSiteSeo, type MaxSiteSeo } from "./max-site-seo.server";
 import { loadMaxSiteSeoFacts } from "./max-site-seo-facts.server";
 import { loadTalentSiteLocaleContext } from "./talent-site-locale.server";
 import { webOfficeCtxFor } from "./web-office-footer";
+import { resolveTalentAccountEntry } from "./account-entry.server";
 import { siteHostFromOrigin } from "@/lib/talent-site/footer-socket";
 import { talentSiteLocalePath } from "@/lib/talent-site/talent-site-locale-routing";
 import { webOfficeSocialEnabled } from "../web-office-social";
+import { localiseSeededDesignLabel } from "../design-label-locale";
 import { loadTalentPolicyModel, policyMainNode, policySeo } from "./policy-main";
 import { policyDocForSlug } from "@/lib/talent-policies/public";
+import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
+import { parseServiceSlug, resolveServiceBySlug, serviceSlug } from "@/lib/talent-site/service-page";
+import { serviceMainNode, serviceRelatedLinks, serviceSeo } from "./service-main";
 import { renderMaxSiteDocument } from "./render-max-site-document";
 
 /** Re-export so existing `import type { MaxSiteSeo } from "./render-max-site"` stays valid. */
@@ -153,6 +158,7 @@ async function renderTalentMaxSiteUnguarded(
     const pTenant = early(timed("maxSite.tenant", () => loadTalentManagingTenantId(talentProfileId, { bypassCache })));
     const pIdentity = early(timed("maxSite.identity", () => loadTalentSiteIdentity(talentProfileId, { bypassCache })));
     const pDemo = early(timed("maxSite.isDemo", () => loadMaxSiteIsDemo(talentProfileId)));
+    const pDemoBookings = early(pDemo.then((demo) => (demo ? loadMaxSiteAcceptingBookings(talentProfileId) : true)));
     // Public published tokens can start with the other profile reads; draft preview loads later.
     const pTokens = early(
       timed("maxSite.themeTokens", () =>
@@ -183,6 +189,8 @@ async function renderTalentMaxSiteUnguarded(
     // SEO scoping below needs it on both paths.
     const planKey = await pPlan;
     const ctaMode = await pCta; // seeded CTA copy follows booking mode
+    // TUL-694: per-site client account switch (flag + entitlement + Settings + smart default). Flag off = no read.
+    const accountEntry = await resolveTalentAccountEntry(talentProfileId, planKey);
     const gateOpen = maxSitePublicGate({
       sitePublishedAt: site.sitePublishedAt,
       planKey,
@@ -215,8 +223,11 @@ async function renderTalentMaxSiteUnguarded(
     const requirePublished = !isOwnerDraftPreview;
     // `/politicas` and `/privacidad` are platform pages: the site's shell and theme (from home), only the body swaps.
     const policyDoc = policyDocForSlug(input.pageSlug);
+    // TUL-586: `servicio-<title>-<id8>` is a platform page too (a talent's own page of that slug wins).
+    const isServiceSlug =
+      !policyDoc && parseServiceSlug(input.pageSlug) !== null && !pages.some((p) => p.slug === input.pageSlug);
     const page = selectMaxSitePage(pages, {
-      pageSlug: policyDoc ? null : input.pageSlug,
+      pageSlug: policyDoc || isServiceSlug ? null : input.pageSlug,
       requirePublished,
     });
     if (!page) return NOT_FOUND;
@@ -239,7 +250,7 @@ async function renderTalentMaxSiteUnguarded(
       }),
     );
     const blocks = pruneUnconfirmedGuestStubs(fixed.body);
-    if (!policyDoc && !hasRenderableBuilderNodes(blocks, { mode: "freeform" })) {
+    if (!policyDoc && !isServiceSlug && !hasRenderableBuilderNodes(blocks, { mode: "freeform" })) {
       // A published-but-empty page → 404 rather than a blank document.
       return NOT_FOUND;
     }
@@ -256,14 +267,16 @@ async function renderTalentMaxSiteUnguarded(
       site.siteSlug,
       publicPathPrefix,
       input.hrefMode ?? "path",
+      localiseSeededDesignLabel("Book", locale, ctaMode),
     );
 
     // TUL-444 Step 2: settle tenant / identity / demo / published tokens together
     // (they were sequential awaits after the early() fan-out).
-    const [tenantId, identity, isDemo, publishedTokens] = await Promise.all([
+    const [tenantId, identity, isDemo, demoAcceptingBookings, publishedTokens] = await Promise.all([
       pTenant,
       pIdentity,
       pDemo,
+      pDemoBookings,
       pTokens,
     ]);
     const siteTokens =
@@ -282,9 +295,37 @@ async function renderTalentMaxSiteUnguarded(
     const policyHomeHref = policyModel
       ? talentSiteLocalePath("/", locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales)
       : null;
+    // TUL-586: the service page. Slug title comes from the talent's primary language so hreflang pairs share one path.
+    let serviceOffering: Awaited<ReturnType<typeof loadPublicOfferingsForProfile>>[number] | null = null;
+    let servicePath: string | null = null;
+    let serviceRelated: ReturnType<typeof serviceRelatedLinks> = [];
+    if (isServiceSlug) {
+      const primary = localeCtx.settings.defaultLocale;
+      const [inLocale, inPrimary] = await Promise.all([
+        loadPublicOfferingsForProfile(talentProfileId, locale, null, { bypassCache }).catch(() => []),
+        primary === locale
+          ? null
+          : loadPublicOfferingsForProfile(talentProfileId, primary, null, { bypassCache }).catch(() => []),
+      ]);
+      serviceOffering = resolveServiceBySlug(inLocale, input.pageSlug);
+      if (!serviceOffering) return NOT_FOUND;
+      const primaryRow = (inPrimary ?? inLocale).find((o) => o.id === serviceOffering!.id) ?? serviceOffering;
+      servicePath = `/${serviceSlug(primaryRow)}`;
+      serviceRelated = serviceRelatedLinks(inLocale, inPrimary, serviceOffering.id, locale, (p) =>
+        talentSiteLocalePath(p, locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales),
+      );
+    }
     const node = await timed("maxSite.document", () =>
       renderMaxSiteDocument({
-        mainOverride: policyModel ? policyMainNode(policyModel, { homeHref: policyHomeHref ?? "/" }) : undefined,
+        mainOverride: policyModel
+          ? policyMainNode(policyModel, { homeHref: policyHomeHref ?? "/" })
+          : serviceOffering
+            ? serviceMainNode(serviceOffering, {
+                locale,
+                related: serviceRelated,
+                homePath: talentSiteLocalePath("/", locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales),
+              })
+            : undefined,
         siteTokens,
         designSlug,
         shellTree: hydratedShell,
@@ -300,10 +341,12 @@ async function renderTalentMaxSiteUnguarded(
         // PHASE 1 — a free site carries the "Made with Tulala" mark; a paid plan removes it (same predicate as /t/[code]).
         showPlatformBadge: talentSiteShowsPlatformBadge(planKey),
         isDemo,
+        demoAcceptingBookings,
         talentName: identity?.name ?? null,
         profileCode: identity?.profileCode ?? null,
         siteHost: siteHostFromOrigin(input.canonicalOrigin ?? process.env.NEXT_PUBLIC_SITE_URL),
         canonicalOrigin: input.canonicalOrigin,
+        accountEntry,
         webOffice: webOfficeCtxFor(webOfficeSocialEnabled(planKey), {
           canonicalOrigin: input.canonicalOrigin ?? process.env.NEXT_PUBLIC_SITE_URL,
           canonicalPath: input.canonicalPath,
@@ -328,13 +371,18 @@ async function renderTalentMaxSiteUnguarded(
       locale,
       noindex: isOwnerDraftPreview,
       canonicalOrigin: input.canonicalOrigin,
-      canonicalPath: input.canonicalPath,
-      ignoreExplicitCanonical: Boolean(policyDoc),
+      canonicalPath: servicePath ?? input.canonicalPath,
+      ignoreExplicitCanonical: Boolean(policyDoc) || isServiceSlug,
       locales: { primary: localeCtx.settings.defaultLocale, urlDefault: localeCtx.grammar.defaultLocale, supported: localeCtx.settings.supportedLocales },
     });
 
     perfMark("maxSite.total", t0);
-    return { kind: "render", node, seo: policyModel ? policySeo(seo, policyModel) : seo, locale };
+    const finalSeo = policyModel
+      ? policySeo(seo, policyModel)
+      : serviceOffering
+        ? serviceSeo(seo, serviceOffering, { talentName: identity?.name ?? null, locale, city: seoFacts.addressLocality ?? null })
+        : seo;
+    return { kind: "render", node, seo: finalSeo, locale };
   } catch {
     // Degrade safe — any unexpected failure becomes a 404, never a throw.
     return NOT_FOUND;

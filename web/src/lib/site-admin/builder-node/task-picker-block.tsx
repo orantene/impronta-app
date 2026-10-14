@@ -3,7 +3,8 @@
  *
  * Grid: 2 columns by default, 3 when the block's own container is >= 700px,
  * 1 at 370px and under (the mockup's three tiers, as container queries so the
- * builder canvas and the live page agree). The recommendation card is a
+ * builder canvas and the live page agree). The last row never holds a lone
+ * tile: a short row stretches to the full width, and four tasks sit 2 x 2. The recommendation card is a
  * bordered panel with a filled header strip. Token colours only. Hover lift is
  * motion, so it only applies when the visitor has not asked for reduced motion.
  * Hidden when no task has a usable target service: nothing is invented.
@@ -42,8 +43,13 @@ export const TASK_PICKER_CSS = `
 .sb-tp-btn{flex:1;min-height:44px;padding:0 14px;border-radius:var(--site-radius-md,8px);border:1.5px solid var(--token-color-ink);background:var(--token-color-ink);color:var(--token-color-background);font-family:inherit;font-weight:700;font-size:14px;cursor:pointer}
 .sb-tp-btn.sb-tp-ghost{flex:0 0 auto;background:transparent;color:var(--token-color-ink)}
 @container sbtp (max-width:370px){.sb-tp-tasks{grid-template-columns:1fr}}
+@container sbtp (min-width:371px) and (max-width:699px){.sb-tp-task:nth-child(odd):last-child{grid-column:1/-1}}
 @container sbtp (min-width:700px){
-  .sb-tp-tasks{grid-template-columns:repeat(3,1fr);gap:8px}
+  .sb-tp-tasks{grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+  .sb-tp-task{grid-column:span 2}
+  .sb-tp-task:nth-child(3n+1):nth-last-child(2),.sb-tp-task:nth-child(3n+2):last-child{grid-column:span 3}
+  .sb-tp-task:nth-child(3n+1):last-child{grid-column:1/-1}
+  .sb-tp-tasks:has(>.sb-tp-task:nth-child(4):last-child)>.sb-tp-task{grid-column:span 3}
   .sb-tp-task{min-height:84px;align-items:start}
   .sb-tp-rec{margin-top:10px}
 }

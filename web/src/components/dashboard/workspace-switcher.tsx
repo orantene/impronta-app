@@ -2,7 +2,8 @@ import {
   startImpersonationAsQaClient,
   startImpersonationAsQaTalent,
 } from "@/lib/server-actions/admin-impersonation";
-import { Button } from "@/components/ui/button";
+import { QaImpersonationButton } from "@/components/dashboard/qa-impersonation-button";
+import type { QaSwitchReason } from "@/lib/impersonation/validate";
 import { cn } from "@/lib/utils";
 import { Briefcase, FlaskConical, UserRound } from "lucide-react";
 
@@ -11,6 +12,8 @@ export function WorkspaceSwitcher({
   hint,
   talentLabel,
   clientLabel,
+  unavailableLabel,
+  reasonLabels,
   hasTalent,
   hasClient,
   variant = "header",
@@ -19,6 +22,9 @@ export function WorkspaceSwitcher({
   hint: string;
   talentLabel: string;
   clientLabel: string;
+  /** Shown under a button when its QA account is not set up on this deployment. */
+  unavailableLabel: string;
+  reasonLabels?: Partial<Record<QaSwitchReason, string>>;
   hasTalent: boolean;
   hasClient: boolean;
   /** `header` = compact top bar; `drawer` = full-width mobile sheet */
@@ -104,20 +110,26 @@ export function WorkspaceSwitcher({
         )}
       >
         {hasTalent ? (
-          <form action={startImpersonationAsQaTalent} className={cn(isDrawer ? "w-full" : "min-w-0")}>
-            <Button type="submit" variant="outline" size="sm" className={buttonClass}>
-              <UserRound className={iconClass} aria-hidden />
-              {talentLabel}
-            </Button>
-          </form>
+          <QaImpersonationButton
+            action={startImpersonationAsQaTalent}
+            label={talentLabel}
+            unavailableLabel={unavailableLabel}
+            reasonLabels={reasonLabels}
+            icon={<UserRound className={iconClass} aria-hidden />}
+            formClassName={cn(isDrawer ? "w-full" : "min-w-0")}
+            buttonClassName={buttonClass}
+          />
         ) : null}
         {hasClient ? (
-          <form action={startImpersonationAsQaClient} className={cn(isDrawer ? "w-full" : "min-w-0")}>
-            <Button type="submit" variant="outline" size="sm" className={buttonClass}>
-              <Briefcase className={iconClass} aria-hidden />
-              {clientLabel}
-            </Button>
-          </form>
+          <QaImpersonationButton
+            action={startImpersonationAsQaClient}
+            label={clientLabel}
+            unavailableLabel={unavailableLabel}
+            reasonLabels={reasonLabels}
+            icon={<Briefcase className={iconClass} aria-hidden />}
+            formClassName={cn(isDrawer ? "w-full" : "min-w-0")}
+            buttonClassName={buttonClass}
+          />
         ) : null}
       </div>
     </div>

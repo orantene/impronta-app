@@ -274,7 +274,7 @@ const BUDGETS: Record<string, number> = {
   // +10 (info-tip program): six standing <Helper> paragraphs moved behind ⓘ
   // via `info=` on their FieldLabel; multi-line labels cost more lines than the
   // single-line helpers they replaced, while the panel renders shorter.
-  "src/components/edit-chrome/theme-drawer.tsx": 1461,
+  "src/components/edit-chrome/theme-drawer.tsx": 1469,
   "src/components/edit-chrome/command-palette.tsx": 1287,
   // `assets-drawer.tsx` (1,244) is GONE — the pre-unification media library it
   // implemented was fully subsumed by <MediaLibrary>. The left rail's Assets
@@ -594,7 +594,9 @@ const BUDGETS: Record<string, number> = {
   // 2026-09-25 Agenda V2: +5 — stamp bridgeTalentAgendaV2 (server flag) so
   // the client shell does not re-read non-NEXT_PUBLIC env.
   // 2026-09-25: +3 — preserve agendaNow QA clock across shell URL rewrites.
-  "src/components/admin/shell/internal/state/context.tsx": 2496,
+  // 2026-10-10 TUL-392: +5 — thread bridgeTalentAttentionSignals (type, read,
+  // value, deps); the signal logic lives in lib/notifications.
+  "src/components/admin/shell/internal/state/context.tsx": 2501,
 
   // Workspace routes and server actions.
   "src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx": 3769,

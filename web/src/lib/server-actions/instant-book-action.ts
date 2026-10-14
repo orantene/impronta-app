@@ -34,6 +34,7 @@ import { unwindFailedCheckout } from "@/lib/orders/unwind-failed-checkout";
 import { serviceAddressCopy } from "@/components/public-booking/service-address-copy";
 import { loadOfferingWhere, resolveBookingLocation } from "@/lib/scheduling/service-address-server";
 import { notifyBookingConfirmed } from "@/lib/notifications/producers/booking-confirmed-notify";
+import { anyDemoTalent, DEMO_SUBMIT_REFUSAL } from "@/lib/talent/demo-talent";
 
 export type {
   InstantBookActionResult,
@@ -42,6 +43,7 @@ export type {
 import type { InstantBookActionResult, InstantBookFormPayload } from "./instant-book-types";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { localizedBookingRefusal } from "@/lib/scheduling/instant-book-refusal-copy";
+import { readSiteReturnUrl } from "@/lib/inquiry/claim-return-url.server";
 
 export async function createInstantBookingAction(
   payload: InstantBookFormPayload,
@@ -50,6 +52,9 @@ export async function createInstantBookingAction(
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return { ok: false, error: "Service unavailable. Please try again." };
+    if (await anyDemoTalent(createServiceRoleClient() ?? supabase, [payload.talentProfileId])) {
+      return { ok: false, error: DEMO_SUBMIT_REFUSAL };
+    }
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -198,6 +203,7 @@ export async function createInstantBookingAction(
               await unwindFailedCheckout(admin, {
                 orderId: booked.orderId,
                 transactionId: booked.transactionId,
+                bookingId: booked.bookingId,
                 allocationIds: booked.allocationIds,
                 reservationHoldId: booked.reservationHoldId,
                 why: "checkout_origin_unavailable",
@@ -250,6 +256,7 @@ export async function createInstantBookingAction(
               await unwindFailedCheckout(admin, {
                 orderId: booked.orderId,
                 transactionId: booked.transactionId,
+                bookingId: booked.bookingId,
                 allocationIds: booked.allocationIds,
                 reservationHoldId: booked.reservationHoldId,
                 why: "checkout_session_refused",
@@ -268,11 +275,21 @@ export async function createInstantBookingAction(
           // Emit it here so the guest gets the confirmation email and the
           // talent gets the new-booking notification. Paid bookings keep
           // firing from `markPaid` (same stable eventId, so no duplicate).
-          notifyBookingConfirmed({
+          // Awaited (never rejects): a detached dispatch can be frozen with the
+          // function once the action returns, which wrote zero dispatch rows.
+          await notifyBookingConfirmed({
             tenantId: engineInput.tenantId,
             inquiryId: booked.inquiryId,
             bookingId: booked.bookingId,
           });
+        } else if (booked.bookingId) {
+          // A booking exists but its conversation (best-effort in the purchase
+          // pipeline) did not open, so there is no inquiry to hydrate the
+          // audience from. Say so instead of silently telling nobody.
+          logServerError(
+            "instantBookAction.confirmNotify",
+            new Error(`booking ${booked.bookingId} has no inquiry; booking.confirmed not dispatched`),
+          );
         }
         return {
           ok: true,
@@ -286,6 +303,7 @@ export async function createInstantBookingAction(
           kind: resolved.kind,
           email: resolved.contactEmail,
           tenantId: payload.tenantId,
+          returnUrl: await readSiteReturnUrl(),
         });
       },
     });

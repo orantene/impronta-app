@@ -1,6 +1,6 @@
 import "server-only";
 
-import { bookingConfirmedClient, loadBookingConfirmedView } from "./catalog-audiences-booking";
+import { bookingConfirmedClient, bookingConfirmedTalent, loadBookingConfirmedView } from "./catalog-audiences-booking";
 import * as React from "react";
 import ClientInquiryReceived from "../../../emails/client/InquiryReceived";
 import ClientReplyReady from "../../../emails/client/ReplyReady";
@@ -200,6 +200,10 @@ const OFFER_SENT_TALENT: CatalogEntry = {
       if (net) return `${net}. Open the Offer tab to review and approve.`;
       return "An offer with your rate is ready. Open the Offer tab to review and approve.";
     },
+    // TUL-391 r2: without a target the bell row was a dead end. "talent-inquiry"
+    // resolves to the inquiry workspace (notification-drawer-targets.ts).
+    targetDrawer: "talent-inquiry",
+    targetPayload: (event) => (event.inquiryId ? { inquiryId: event.inquiryId } : {}),
   },
   email: {
     templateId: "talent.offer_ready",
@@ -280,6 +284,8 @@ const BOOKING_CONFIRMED_CLIENT: CatalogEntry = {
           brand,
           bookingId,
           bookingId ? `/client/bookings/${bookingId}` : `/client/inquiries/${event.inquiryId}`,
+          undefined,
+          { inquiryId: event.inquiryId, tenantId: event.tenantId },
         ),
         sellerName: brand.accountName,
         brand,
@@ -298,7 +304,7 @@ const BOOKING_CONFIRMED_TALENT: CatalogEntry = {
   required: false,
   triggers: ["booking.confirmed"],
   hydrate: loadBookingConfirmedView,
-  resolveAudience: allRosterTalent,
+  resolveAudience: bookingConfirmedTalent,
   // TUL-93: the talent is told in-app too ("Nueva cita"), not only by email.
   in_app: {
     kind: "booking",

@@ -262,7 +262,7 @@ export function AgendaAvailabilityPage({
         {rows.map((row, idx) => (
           <div
             key={row.day}
-            className="grid grid-cols-[minmax(72px,88px)_minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2"
+            className="grid grid-cols-[minmax(56px,64px)_minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2"
           >
             <label className="flex items-center gap-2 text-[14px]">
               <input
@@ -425,9 +425,9 @@ export function AgendaAvailabilityPage({
 
       <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-black/8 bg-white p-4">
         <div>
-          <p className="text-[14px] font-semibold text-[var(--tc-primary)]">{copy.t("Direct booking")}</p>
+          <p className="text-[14px] font-semibold text-[var(--tc-primary)]">{copy.t("Direct booking from listings")}</p>
           <p className="mt-1 text-[13px] text-[#5F6368]">
-            {copy.t("Let clients book open times on your page without a message first.")}
+            {copy.t("Lets clients book open times from agency and Tulala hub listings. It does not change booking on your own site: set that in Services, Defaults, under On your site, clients book.")}
           </p>
         </div>
         <button

@@ -24,16 +24,22 @@ import { LOCALE_HEADER } from "@/i18n/request-locale";
 import { TalentSiteNotFoundCard } from "@/components/talent-site/talent-site-not-found-card";
 import { loadTalentNotFoundCopy } from "@/lib/talent-site/server/talent-not-found.server";
 
+async function requestLang(): Promise<"en" | "es"> {
+  const h = await headers();
+  return (h.get(LOCALE_HEADER) ?? "en").toLowerCase().startsWith("es") ? "es" : "en";
+}
+
 export async function generateMetadata(): Promise<Metadata> {
   const talent = await loadTalentNotFoundCopy();
   return {
-    title: { absolute: talent ? talent.documentTitle : "Page not found · Tulala" },
+    title: { absolute: talent ? talent.documentTitle : COPY[await requestLang()].title },
     robots: { index: false, follow: false },
   };
 }
 
 const COPY = {
   en: {
+    title: "Page not found · Tulala",
     eyebrow: "Tulala",
     heading: "Page not found",
     body: "The page you're looking for doesn't exist or may have moved. Head back to the homepage, or sign in to your workspace.",
@@ -41,6 +47,7 @@ const COPY = {
     signIn: "Sign in",
   },
   es: {
+    title: "Página no encontrada · Tulala",
     eyebrow: "Tulala",
     heading: "Página no encontrada",
     body: "La página que buscas no existe o se movió. Vuelve al inicio, o inicia sesión en tu espacio de trabajo.",
@@ -53,10 +60,7 @@ export default async function PageNotFound() {
   const talent = await loadTalentNotFoundCopy();
   if (talent) return <TalentSiteNotFoundCard copy={talent} />;
 
-  const h = await headers();
-  const localeRaw = (h.get(LOCALE_HEADER) ?? "en").toLowerCase();
-  const lang = localeRaw.startsWith("es") ? "es" : "en";
-  const t = COPY[lang];
+  const t = COPY[await requestLang()];
 
   const site = getSiteUrl();
   const app = getAppUrl();

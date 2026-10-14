@@ -1,5 +1,5 @@
 /**
- * TUL-516 F1–F5 + TUL-528 (GRK-033/034/039) — shared floating-UI stacking +
+ * TUL-516 F1–F5 + TUL-528 (GRK-033/034/036/037/038/039) — shared floating-UI stacking +
  * safe-area clearance (theme/chrome core).
  *
  * Layers that share the phone bottom corner (cookie banner, language strip,
@@ -19,8 +19,16 @@
  *
  * TUL-528:
  * - GRK-033: hero first-viewport CTAs clear the consent card (pad hero chrome).
- * - GRK-034: catalog/footer bottom reserve follows --cb-bar-h on phone + desktop
- *   while the bar/dock is painted (not a hardcoded 72px undershoot).
+ *   Residual (Still on Gridline trades): split/spec `#hero` is in-flow, so
+ *   carousel `padding-bottom` alone does not lift CTAs — phone compact + defer
+ *   the who-card while consent is open.
+ * - GRK-034: root stack reserves --cb-bar-h from SSR `.cb-island` (phone) and
+ *   painted bar/dock (desktop) so body/footer clear before catalog CSS hydrates.
+ * - GRK-037: phone footer + catalog groups keep a right gutter so Hablar does
+ *   not sit on prices / Reservar / footer links (FAB fill clamp lives in chat).
+ * - GRK-036: phone Hablar FAB clears float/default sticky bar before JS measure.
+ * - GRK-038: help teaser yields earlier when catalog filter chips enter the
+ *   lower phone band (jorg rail), including individual pills.
  * - GRK-039: guest chat panels use aria-modal=false; consent yields to
  *   [data-guest-chat-panel] so the message box stays reachable.
  */
@@ -33,15 +41,22 @@ export const FLOATING_CHROME_CONSENT_Z = 98;
 /** Approximate consent card height used for body clearance on legal pages (F1). */
 export const CONSENT_BANNER_RESERVE_PX = 220;
 
-/** Lower band of the viewport where a help teaser must not cover filter chips (F4). */
-export const HELP_BUBBLE_FILTER_BAND_RATIO = 0.55;
+/**
+ * Lower band of the viewport where a help teaser must not cover filter chips
+ * (F4 / GRK-038). 0.55 left jorg rail chips mid-lower viewport under the teaser.
+ */
+export const HELP_BUBBLE_FILTER_BAND_RATIO = 0.38;
+
+/** Absolute bottom clearance (FAB + teaser) — chips here always block the bubble. */
+export const HELP_BUBBLE_CHIP_CLEARANCE_PX = 160;
 
 export const CONSENT_BANNER_SELECTOR = "[data-consent-banner]";
 export const LOCALE_SUGGESTION_SELECTOR = "[data-locale-suggestion]";
 export const DEMO_BADGE_SELECTOR = "[data-demo-badge]";
 /** Desktop windows shorter than this show the language toast as a one-row pill (hero CTAs sit lower). */
 export const LOCALE_SUGGESTION_SHORT_WINDOW_MAX_H = 859;
-export const CATALOG_FILTER_NAV_SELECTOR = ".site-builder-node--services-catalog-nav";
+export const CATALOG_FILTER_NAV_SELECTOR =
+  ".site-builder-node--services-catalog-nav, .site-builder-node--services-catalog-pill";
 /** Open guest chat shell (MiniChat / CardDock / Expanded). aria-modal is false by design. */
 export const GUEST_CHAT_PANEL_SELECTOR = "[data-guest-chat-panel]";
 
@@ -60,7 +75,10 @@ body:has([role="dialog"][aria-modal="true"]) ${CONSENT_BANNER_SELECTOR},body:has
 body:has(${GUEST_CHAT_PANEL_SELECTOR}) ${CONSENT_BANNER_SELECTOR},body:has(${GUEST_CHAT_PANEL_SELECTOR}) ${LOCALE_SUGGESTION_SELECTOR},body:has(${GUEST_CHAT_PANEL_SELECTOR}) ${DEMO_BADGE_SELECTOR}{display:none}
 body:has(${CONSENT_BANNER_SELECTOR}) [data-guest-chat-launcher]{opacity:0;visibility:hidden;pointer-events:none}
 body:has(${CONSENT_BANNER_SELECTOR}) [data-help-bubble]{display:none!important}
+body:has([data-help-bubble]) ${DEMO_BADGE_SELECTOR}{display:none}
 :root{--cb-bar-h:0px;--floating-launcher-clearance:0px;--floating-consent-clearance:0px;--floating-chrome-bottom:max(var(--cb-bar-h),var(--floating-launcher-clearance),var(--floating-consent-clearance),env(safe-area-inset-bottom,0px))}
+:root:has(.cb-island){--cb-bar-h:${BAR_RESERVE}}
+@media (min-width:720px){:root:has(.cb-island){--cb-bar-h:0px}:root:has(.cb-bar[data-show="true"]:not([data-top="true"]),.cb-dock[data-show="true"]){--cb-bar-h:${BAR_RESERVE}}}
 body:has(${CONSENT_BANNER_SELECTOR}){--floating-consent-clearance:calc(${CONSENT_BANNER_RESERVE_PX}px + env(safe-area-inset-bottom,0px))}
 @media (max-width:480px){body:has([data-guest-chat-launcher]){--floating-launcher-clearance:calc(${GUEST_CHAT_LAUNCHER_CLEARANCE_PX}px + env(safe-area-inset-bottom,0px))}}
 body{padding-bottom:var(--floating-chrome-bottom)}
@@ -76,6 +94,12 @@ body:has(${CONSENT_BANNER_SELECTOR}) .site-bn-hero__inner{padding-bottom:max(cla
 body:has(${CONSENT_BANNER_SELECTOR}) .site-bn-hero__meta{bottom:max(clamp(74px,11vh,134px),calc(var(--floating-consent-clearance) + 12px))}
 body:has(${CONSENT_BANNER_SELECTOR}) .site-bn-hero__cue{bottom:max(30px,calc(var(--floating-consent-clearance) + 8px))}
 body:has(${CONSENT_BANNER_SELECTOR}) #hero{padding-bottom:max(2rem,calc(var(--floating-consent-clearance) + 12px));box-sizing:border-box}
+@media (max-width:480px){body:has([data-guest-chat-launcher]){--floating-launcher-gutter:calc(72px + env(safe-area-inset-right,0px))}body:has([data-guest-chat-launcher]) .site-builder-node--services-catalog-groups,body:has([data-guest-chat-launcher]) .sb-statement-footer-meta,body:has([data-guest-chat-launcher]) .sb-statement-footer-contact,body:has([data-guest-chat-launcher]) .sb-statement-footer-inner{padding-inline-end:max(12px,var(--floating-launcher-gutter))}}
+/* GRK-036: Hablar clears float/default sticky booking chrome before JS measure.
+   Pill bars already tuck the FAB via .cb-bar-chat (GUEST_CHAT_FAB_CSS). */
+@media (max-width:719px){body:has(.cb-bar[data-show="true"]:not([data-top="true"])) [data-guest-chat-launcher],body:has(.mn-bar[data-show="true"]) [data-guest-chat-launcher]{bottom:max(calc(24px + env(safe-area-inset-bottom,0px)),calc(var(--cb-bar-h) + 24px))!important;right:max(72px,calc(16px + 56px + env(safe-area-inset-right,0px)))!important}}
+/* GRK-033 residual: Gridline/split heroes — compact phone + defer who-card. */
+@media (max-width:640px){body:has(${CONSENT_BANNER_SELECTOR}) #hero.site-builder-node--split{padding-top:1.25rem!important;padding-bottom:calc(var(--floating-consent-clearance) + 16px)!important;box-sizing:border-box}body:has(${CONSENT_BANNER_SELECTOR}) #hero.site-builder-node--split > .site-builder-node--container[data-builder-layout="stack"]{padding-top:0!important;padding-bottom:0!important;--bn-gap:0.5rem}body:has(${CONSENT_BANNER_SELECTOR}) #hero.site-builder-node--split > .site-builder-node--container[data-builder-layout="stack"] > .site-builder-node--container:has(> .site-builder-node--button){scroll-margin-bottom:calc(var(--floating-consent-clearance) + 16px)}body:has(${CONSENT_BANNER_SELECTOR}) #hero.site-builder-node--split > :last-child{display:none}}
 `.replace(/\n/g, "");
 
 /**
@@ -106,17 +130,27 @@ export function floatingBannerUp(doc: Document): boolean {
 }
 
 /**
- * F4: the "Can I help you choose?" teaser must not sit over category filter chips
- * while those chips occupy the lower band of the phone viewport (jorg rail/chips).
+ * F4 / GRK-038: the "Can I help you choose?" teaser must not sit over category
+ * filter chips while those chips occupy the lower phone band (jorg rail).
+ * Protects both the nav row and individual pills; band is the larger of the
+ * ratio cut and the FAB+teaser clearance.
  */
 export function helpBubbleFilterNavBlocking(doc: Document, viewportH: number): boolean {
   if (!(viewportH > 0)) return false;
-  const bandTop = viewportH * HELP_BUBBLE_FILTER_BAND_RATIO;
+  const bandTop = Math.min(
+    viewportH * HELP_BUBBLE_FILTER_BAND_RATIO,
+    viewportH - HELP_BUBBLE_CHIP_CLEARANCE_PX,
+  );
   return Array.from(doc.querySelectorAll<HTMLElement>(CATALOG_FILTER_NAV_SELECTOR)).some((el) => {
     const r = el.getBoundingClientRect();
     if (!(r.width > 0 && r.height > 0)) return false;
     return r.bottom > bandTop && r.top < viewportH;
   });
+}
+
+/** GRK-038: F4 band covers chips before they reach the Hablar teaser. */
+export function helpBubbleFilterBandProtectsChips(ratio: number, clearancePx: number): boolean {
+  return ratio <= 0.4 && clearancePx >= 140;
 }
 
 /** Bottom padding CSS `max()` must mention every clearance variable (static pin). */
@@ -134,11 +168,33 @@ export function floatingChromeClearsHeroCtas(css: string): boolean {
   return (
     css.includes(`body:has(${CONSENT_BANNER_SELECTOR}) .site-bn-hero__inner`) &&
     css.includes(`body:has(${CONSENT_BANNER_SELECTOR}) #hero`) &&
-    css.includes("--floating-consent-clearance")
+    css.includes("--floating-consent-clearance") &&
+    // Residual Still on Gridline trades (split/spec #hero).
+    css.includes(`#hero.site-builder-node--split`) &&
+    css.includes(`#hero.site-builder-node--split > :last-child`)
+  );
+}
+
+/** GRK-034: root stack reserves bar height from SSR island / painted bar+dock. */
+export function floatingChromeReservesBarForIsland(css: string): boolean {
+  return (
+    css.includes(":root:has(.cb-island){--cb-bar-h:") &&
+    css.includes(
+      ':root:has(.cb-bar[data-show="true"]:not([data-top="true"]),.cb-dock[data-show="true"]){--cb-bar-h:',
+    )
   );
 }
 
 /** GRK-039: consent yields to the open guest chat panel (not only aria-modal dialogs). */
 export function floatingChromeYieldsToGuestChat(css: string): boolean {
   return css.includes(`body:has(${GUEST_CHAT_PANEL_SELECTOR}) ${CONSENT_BANNER_SELECTOR}`);
+}
+
+/** GRK-036: phone FAB clears painted sticky booking chrome before JS yield runs. */
+export function floatingChromeClearsStickyBarFab(css: string): boolean {
+  return (
+    css.includes('body:has(.cb-bar[data-show="true"]:not([data-top="true"])) [data-guest-chat-launcher]') &&
+    css.includes("var(--cb-bar-h)") &&
+    css.includes("!important")
+  );
 }

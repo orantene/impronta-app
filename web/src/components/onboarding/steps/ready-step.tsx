@@ -108,8 +108,8 @@ export function ReadyStep({
 
       <ul className="mt-4 flex flex-col gap-1.5 text-[0.9375rem]" data-testid="onb-ready-facts">
         {facts.map((l) => (
-          <li key={l.id} className="flex gap-2">
-            <span className="w-24 shrink-0 text-[0.75rem] font-semibold uppercase tracking-[0.06em] leading-[1.6]" style={{ color: "var(--tl-muted)" }}>{t(l.labelKey)}</span>
+          <li key={l.id} className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
+            <span className="shrink-0 text-[0.75rem] sm:w-32 font-semibold uppercase tracking-[0.06em] leading-[1.6]" style={{ color: "var(--tl-muted)" }}>{t(l.labelKey)}</span>
             <span className="min-w-0 truncate" style={{ color: "var(--tl-ink)" }}>{l.value}</span>
           </li>
         ))}
@@ -162,7 +162,7 @@ export function ReadyStep({
         </div>
       ) : null}
 
-      {onPickDesign && path !== "business" ? <DesignPick t={t} value={designChoice} onPick={onPickDesign} /> : null}
+      {onPickDesign && path !== "business" ? <DesignPick t={t} value={designChoice} onPick={onPickDesign} category={understanding.typeChip?.query ?? null} /> : null}
 
       {needsAge ? (
         <div className="mt-5" data-testid="onb-age18">

@@ -318,6 +318,18 @@ function ItemSettings({
           ]}
         />
       ) : null}
+      {item.type === "account" ? (
+        <SelectField
+          label="Preview as"
+          hint="Only changes this editor preview. Visitors always see their real state."
+          value={item.previewAs ?? "signed-out"}
+          onChange={(v) => onUpdate({ ...item, previewAs: v as "signed-in" | "signed-out" })}
+          options={[
+            { value: "signed-out", label: "Signed out" },
+            { value: "signed-in", label: "Signed in" },
+          ]}
+        />
+      ) : null}
       {item.type === "saved" ? (
         <TextRow
           label="Link"

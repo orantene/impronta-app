@@ -1,5 +1,11 @@
 import "server-only";
 
+import {
+  buildDirectoryQueryOrFilter,
+  resolveDirectoryAgencyAttribution,
+} from "@/lib/directory/directory-attribution";
+import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
+
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { resolveTalentCardThumbsForHub } from "@/lib/media/talent-media-for-hub";
@@ -10,6 +16,7 @@ import {
   resolveLocationFilterIds,
   type CanonicalLocation,
 } from "@/lib/directory/location-facets";
+import { countryLabel } from "@/lib/geo/country-code";
 
 /**
  * _data-bridge/discover.ts — cross-tenant Discover catalog reads.
@@ -273,7 +280,8 @@ export async function loadDiscoverTalents(
   }
   if (opts.trustTier) query = query.eq("trust_tier", opts.trustTier);
   if (opts.availableOnly) query = query.gt("available_days_in_next_30", 0);
-  if (opts.q)         query = query.ilike("display_name", `%${opts.q}%`);
+  const qFilter = opts.q ? buildDirectoryQueryOrFilter(opts.q) : null;
+  if (qFilter)        query = query.or(qFilter);
 
   if (opts.sort === "availability") {
     query = query
@@ -346,7 +354,16 @@ export async function loadDiscoverTalents(
     }
   }
 
+  const hubTenantId = (await getPlatformHubTenant())?.tenantId ?? null;
   const items: DiscoverTalentListItem[] = rows.map((row) => {
+    const attribution = resolveDirectoryAgencyAttribution(
+      {
+        agencyName: row.agency_name,
+        agencyTenantId: row.agency_tenant_id,
+        isExclusive: row.is_exclusive,
+      },
+      hubTenantId,
+    );
     const displayName =
       (row.display_name ?? "").trim()
       || `${row.first_name ?? ""} ${row.last_name ?? ""}`.trim()
@@ -359,12 +376,12 @@ export async function loadDiscoverTalents(
       primaryTypeLabel: row.category_label,
       primaryTypeSlug: row.category_slug,
       homeCity: row.home_city_text,
-      homeCountry: row.home_country_text,
+      homeCountry: countryLabel(row.home_country_text),
       homeLat: coords?.lat ?? null,
       homeLng: coords?.lng ?? null,
-      agencyName: row.agency_name,
-      agencyTenantId: row.agency_tenant_id,
-      isExclusive: row.is_exclusive,
+      agencyName: attribution.agencyName,
+      agencyTenantId: attribution.agencyTenantId,
+      isExclusive: attribution.isExclusive,
       headshotUrl: photoByTalent.get(row.id) ?? null,
       nextAvailableDate: row.next_available_date,
       availableDaysInNext30: row.available_days_in_next_30,
@@ -491,7 +508,7 @@ export async function loadDiscoverMapPoints(
     .select(
       `id, display_name, first_name, last_name, profile_code,
        home_country_text, home_city_text, residence_city_id,
-       agency_name, is_exclusive, category_label,
+       agency_tenant_id, agency_name, is_exclusive, category_label,
        trust_tier, available_days_in_next_30`,
     )
     .order("display_name", { ascending: true, nullsFirst: false })
@@ -515,7 +532,8 @@ export async function loadDiscoverMapPoints(
   }
   if (opts.trustTier) query = query.eq("trust_tier", opts.trustTier);
   if (opts.availableOnly) query = query.gt("available_days_in_next_30", 0);
-  if (opts.q)         query = query.ilike("display_name", `%${opts.q}%`);
+  const qFilter = opts.q ? buildDirectoryQueryOrFilter(opts.q) : null;
+  if (qFilter)        query = query.or(qFilter);
 
   const { data, error } = await query;
   if (error) {
@@ -532,6 +550,7 @@ export async function loadDiscoverMapPoints(
     home_country_text: string | null;
     home_city_text: string | null;
     residence_city_id: string | null;
+    agency_tenant_id: string | null;
     agency_name: string | null;
     is_exclusive: boolean;
     category_label: string | null;
@@ -562,6 +581,7 @@ export async function loadDiscoverMapPoints(
     }
   }
 
+  const hubTenantId = (await getPlatformHubTenant())?.tenantId ?? null;
   const points: DiscoverMapPoint[] = [];
   let unmappedCount = 0;
   for (const row of rows) {
@@ -574,15 +594,23 @@ export async function loadDiscoverMapPoints(
       (row.display_name ?? "").trim()
       || `${row.first_name ?? ""} ${row.last_name ?? ""}`.trim()
       || "Unnamed";
+    const attribution = resolveDirectoryAgencyAttribution(
+      {
+        agencyName: row.agency_name,
+        agencyTenantId: row.agency_tenant_id,
+        isExclusive: row.is_exclusive,
+      },
+      hubTenantId,
+    );
     points.push({
       id: row.id,
       displayName,
       profileCode: row.profile_code,
       primaryTypeLabel: row.category_label,
       homeCity: row.home_city_text,
-      homeCountry: row.home_country_text,
-      agencyName: row.agency_name,
-      isExclusive: row.is_exclusive,
+      homeCountry: countryLabel(row.home_country_text),
+      agencyName: attribution.agencyName,
+      isExclusive: attribution.isExclusive,
       headshotUrl: photoByTalent.get(row.id) ?? null,
       trustTier: row.trust_tier,
       availableDaysInNext30: row.available_days_in_next_30,
@@ -642,7 +670,7 @@ export async function loadDiscoverFacets(): Promise<DiscoverFacets> {
   const categoryCounts = new Map<string, { label: string; count: number }>();
 
   for (const row of rows) {
-    const country = row.home_country_text?.trim();
+    const country = countryLabel(row.home_country_text);
     if (country) {
       const key = country.toLowerCase();
       const cur = countryAgg.get(key);
@@ -800,7 +828,7 @@ export async function loadClientShortlistsForUser(
           profileCode: p.profile_code,
           primaryTypeLabel: primaryLabel,
           homeCity: p.home_city_text,
-          homeCountry: p.home_country_text,
+          homeCountry: countryLabel(p.home_country_text),
           agencyName: pickAgencyName(primary),
           agencyTenantId: primary?.tenant_id ?? null,
           isExclusive: !!primary?.is_primary,
@@ -1072,7 +1100,7 @@ export async function loadClientFavoritesForUser(
         profileCode: p.profile_code,
         primaryTypeLabel: primaryLabel,
         homeCity: p.home_city_text,
-        homeCountry: p.home_country_text,
+        homeCountry: countryLabel(p.home_country_text),
         agencyName: pickAgencyName(primary),
         agencyTenantId: primary?.tenant_id ?? null,
         isExclusive: !!primary?.is_primary,

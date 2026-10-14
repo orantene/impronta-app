@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { cookies, headers } from "next/headers";
 import { z } from "zod";
 import { getCachedActorSession } from "@/lib/server/request-cache";
+import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -280,17 +281,47 @@ async function callerHasRelationshipToTenant(
     // headers() can throw outside a request scope (build, tests).
   }
 
-  // (b–d) Signed-in actor — try cheapest membership check first, then the
-  // role-specific relationship tables. Each check is a single indexed lookup.
-  let userId: string | null = null;
+  // (b–d) Signed-in actor, plus the EFFECTIVE user under a verified staff
+  // impersonation (TUL-255). The actor is a staff member who usually has no
+  // relationship to the target's tenant, so checking only the actor 404'd every
+  // client-portal page for an impersonating super admin. The effective id comes
+  // only from the signed cookie via resolveDashboardIdentity (never the client).
+  let actorId: string | null = null;
+  let effectiveId: string | null = null;
   try {
     const session = await getCachedActorSession();
-    userId = session.user?.id ?? null;
+    actorId = session.user?.id ?? null;
   } catch {
-    userId = null;
+    actorId = null;
   }
-  if (!userId) return false;
+  if (!actorId) return false;
+  try {
+    const identity = await resolveDashboardIdentity();
+    effectiveId = identity?.isImpersonating ? identity.effectiveUserId : null;
+  } catch {
+    effectiveId = null;
+  }
 
+  for (const userId of relationshipUserIds(actorId, effectiveId)) {
+    if (await userHasTenantRelationship(admin, tenantId, userId)) return true;
+  }
+  return false;
+}
+
+/** Actor first, then the verified impersonated subject (deduped). */
+export function relationshipUserIds(
+  actorId: string,
+  effectiveId: string | null,
+): string[] {
+  return effectiveId && effectiveId !== actorId ? [actorId, effectiveId] : [actorId];
+}
+
+/** Single-user relationship oracle: staff membership, client relationship, or talent roster. */
+export async function userHasTenantRelationship(
+  admin: SupabaseClient,
+  tenantId: string,
+  userId: string,
+): Promise<boolean> {
   const { data: membership } = await admin
     .from("agency_memberships")
     .select("id")

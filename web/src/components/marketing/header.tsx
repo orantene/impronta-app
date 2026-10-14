@@ -28,6 +28,7 @@ import {
   type MarketingAccount,
 } from "./marketing-account-menu";
 import { useStickyDesktopMenu } from "./marketing-header-sticky-menu";
+import type { HubClientEntry } from "@/lib/marketing/hub-client-entry";
 
 export function MarketingHeader({
   locale,
@@ -35,6 +36,7 @@ export function MarketingHeader({
   account,
   signOutAction,
   discoveryTools,
+  clientEntry,
 }: {
   locale: string;
   pathnameWithoutLocale: string;
@@ -46,6 +48,9 @@ export function MarketingHeader({
    *  first in the action cluster at every width, so a talent hearted on the
    *  global directory has a way back on phones too. */
   discoveryTools?: ReactNode;
+  /** TUL-730: set where no modal host is mounted (hub /t/ profile). Entrar and
+   *  Crear cuenta become links to the app-host client sign-in / sign-up. */
+  clientEntry?: HubClientEntry;
 }) {
   const copy = getMarketingCopy(locale);
   /** Every internal href in this header goes through here — see `buildNav`. */
@@ -198,6 +203,23 @@ export function MarketingHeader({
             />
           ) : (
             <>
+              {clientEntry ? (
+                <>
+                  <a
+                    href={clientEntry.signInHref}
+                    className="hidden h-9 items-center gap-1.5 rounded-[10px] border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] px-3.5 text-[0.875rem] font-medium leading-none tracking-[-0.005em] text-[var(--plt-ink-soft)] transition-[background-color,border-color,color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] hover:text-[var(--plt-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)] lg:inline-flex"
+                  >
+                    <SignInGlyph />
+                    {copy.nav.signIn}
+                  </a>
+                  <a
+                    href={clientEntry.createHref}
+                    className="hidden h-9 items-center gap-1.5 rounded-[10px] border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] px-3.5 text-[0.875rem] font-medium leading-none tracking-[-0.005em] text-[var(--plt-ink-soft)] transition-[background-color,border-color,color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] hover:text-[var(--plt-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)] lg:inline-flex"
+                  >
+                    {copy.nav.createAccount}
+                  </a>
+                </>
+              ) : (
               <button
                 type="button"
                 onClick={() =>
@@ -211,6 +233,7 @@ export function MarketingHeader({
                 <SignInGlyph />
                 {copy.nav.signIn}
               </button>
+              )}
               <span className="relative hidden lg:inline-flex">
                 <MarketingCta
                   href={L("/get-started")}
@@ -353,6 +376,26 @@ export function MarketingHeader({
                 </a>
               ) : (
                 <>
+                  {clientEntry ? (
+                    <>
+                      <a
+                        href={clientEntry.signInHref}
+                        className="flex w-full items-center justify-between rounded-2xl px-4 py-4 text-left text-[1rem] font-medium"
+                        style={{ color: "var(--plt-ink-soft)" }}
+                      >
+                        {copy.nav.signIn}
+                        <ChevronGlyph />
+                      </a>
+                      <a
+                        href={clientEntry.createHref}
+                        className="flex w-full items-center justify-between rounded-2xl px-4 py-4 text-left text-[1rem] font-medium"
+                        style={{ color: "var(--plt-ink-soft)" }}
+                      >
+                        {copy.nav.createAccount}
+                        <ChevronGlyph />
+                      </a>
+                    </>
+                  ) : (
                   <button
                     type="button"
                     onClick={() => {
@@ -365,6 +408,7 @@ export function MarketingHeader({
                     {copy.nav.signIn}
                     <ChevronGlyph />
                   </button>
+                  )}
                   <span className="relative block w-full">
                     <MarketingCta
                       href={L("/get-started")}
@@ -453,7 +497,8 @@ function DesktopMenu({
         aria-haspopup="true"
         aria-expanded={open}
         onClick={sticky.onClick}
-        onFocus={onOpen}
+        /* GRK-098: same as DesktopMegaMenu — open on hover/click only, never
+           on focus, so keyboard Tab skips closed dropdown panels. */
         className={cn(
           "inline-flex items-center gap-1 rounded-md px-3 py-2 text-[0.875rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:bg-[var(--plt-bg-raised)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)]",
           open ? "bg-[var(--plt-bg-raised)] text-[var(--plt-ink)]" : "text-[var(--plt-muted)] hover:text-[var(--plt-ink)]",

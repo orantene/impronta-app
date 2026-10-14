@@ -40,6 +40,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { assertIsolatedJourneysTarget } from "../scripts/isolated-target-guard.mjs";
+import { fixtureRoleProblems } from "./live-qa-pack-fixture-roles";
 
 // ───────────────────────── config + guard ─────────────────────────
 assertIsolatedJourneysTarget(process.env, { requireIsolatedFlag: true });
@@ -130,17 +131,48 @@ const siteUrl = (host: string, path = "/") => `http://${host}:${SITE_PORT}${path
 const bodyText = async (page: Page) => (await page.locator("body").innerText().catch(() => "")).replace(/\s+/g, " ");
 const shot = (page: Page, name: string) => page.screenshot({ path: join(evidence, `${name}.png`) }).catch(() => undefined);
 
+/** Consent card hides `[data-guest-chat-launcher]` (opacity/visibility) until dismissed. */
+async function dismissConsent(page: Page) {
+  const decline = page
+    .getByRole("button", { name: /^(Rechazar|Decline)$/i })
+    .or(page.locator("[data-consent-banner] button").filter({ hasText: /^(Rechazar|Decline)$/i }));
+  if (await decline.first().isVisible().catch(() => false)) {
+    await decline.first().click().catch(() => undefined);
+    await page.waitForTimeout(400);
+  }
+}
+
 async function go(page: Page, url: string, settleMs = 12_000) {
   await page.goto(url, { waitUntil: "domcontentloaded" }).catch(() => undefined);
   await page.waitForTimeout(settleMs);
-  const reject = page.getByRole("button", { name: /^Rechazar$/ });
-  if (await reject.first().isVisible().catch(() => false)) await reject.first().click().catch(() => undefined);
+  await dismissConsent(page);
+}
+
+/** Floating guest-chat pill (ES "Enviar mensaje a …" / EN "Message …"). */
+function guestChatLauncher(page: Page) {
+  return page
+    .locator("[data-guest-chat-launcher]")
+    .or(page.locator('[aria-label^="Enviar mensaje a"]'))
+    .or(page.locator('[aria-label^="Message "]'))
+    .first();
 }
 
 // ───────────────────────── throwaway client (created + removed by the pack) ─────────────────────────
 const created: { clientUserId?: string; clientEmail?: string; notes: string[] } = { notes: [] };
 
 test.beforeAll(async () => {
+  // TUL-595: refuse to run checks as an account whose role does not match its fixture name
+  // (a "superAdmin" that is really a client bounced every admin check to /start).
+  const ids = (Object.entries(FIX) as Array<[string, { userId?: string } | string[] | undefined]>)
+    .map(([, v]) => (v && !Array.isArray(v) ? v.userId : undefined))
+    .filter((id): id is string => typeof id === "string");
+  const { data: rows, error: rolesErr } = await svc.from("profiles").select("id, app_role").in("id", ids);
+  if (rolesErr) throw new Error(`[live-qa-pack] could not read fixture roles: ${rolesErr.message}`);
+  const byId = new Map((rows ?? []).map((r) => [String(r.id), { app_role: r.app_role as string | null }]));
+  const problems = fixtureRoleProblems(FIX, byId);
+  if (problems.length > 0) {
+    throw new Error(`[live-qa-pack] fixtures do not match their roles:\n - ${problems.join("\n - ")}`);
+  }
   const email = `qa-pack-client-${Date.now().toString(36)}@example.test`;
   const r = await svc.auth.admin.createUser({ email, email_confirm: true });
   if (r.error || !r.data.user) throw r.error ?? new Error("could not create the throwaway client");
@@ -789,10 +821,20 @@ test("TUL-449 · talent site secondary-read degrade: public home stays 200 (not 
 });
 
 test("TUL-458 · hub guest chat: second message after Solicitud recibida is sent (composer clears)", async ({ browser }) => {
-  const fx = need(FIX.myself, "myself");
+  // Hub / platform guest chat lives on hub+agency hosts (PublicChatSurface) and on
+  // marketing `/global-directory` (AgencyChatLauncherMount → platform hub tenant).
+  // Pack 2026-10-10 hit myself.siteHost on :3008 and got `/_host-unregistered`
+  // ("This domain isn't connected yet") — no launcher. Product second-send fix
+  // already on main via #3013 / integ #3060; this test must open a hub surface.
   const { ctx, page } = await guestPage(browser);
-  await go(page, siteUrl(fx.siteHost), 10_000);
-  await page.locator('[aria-label^="Enviar mensaje a"]').first().evaluate((el) => (el as HTMLElement).click());
+  await go(page, `${MARKETING}/global-directory`, 10_000);
+  const body = await bodyText(page);
+  expect(body, "hub surface must not be the unregistered-domain page").not.toMatch(
+    /domain isn't connected|Host not registered/i,
+  );
+  const launcher = guestChatLauncher(page);
+  await expect(launcher, "guest chat dock on hub/marketing directory").toBeVisible({ timeout: 30_000 });
+  await launcher.evaluate((el) => (el as HTMLElement).click());
   await page.waitForTimeout(3000);
   const name = page.getByLabel(/Nombre/i).or(page.locator('input[name*=name i]')).first();
   if (await name.isVisible().catch(() => false)) {

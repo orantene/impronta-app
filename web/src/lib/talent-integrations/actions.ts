@@ -6,10 +6,13 @@ import { z } from "zod";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
+import { deleteTalentFeedItems } from "@/lib/social-embed/talent-feed-cache";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import {
   defaultTalentIntegrationControls,
   getTalentIntegrationCatalogList,
   getTalentIntegrationDef,
+  INSTAGRAM_TALENT_INTEGRATION_KEY,
   isTalentIntegrationProviderKey,
   type TalentIntegrationControls,
 } from "./catalog";
@@ -303,6 +306,11 @@ export async function disconnectTalentIntegrationAction(
 
   try {
     await deleteTalentIntegrationSecrets(guard.talentProfile.id, parsed.data.providerKey);
+    if (parsed.data.providerKey === INSTAGRAM_TALENT_INTEGRATION_KEY) {
+      // The site must stop showing the posts the moment the account is unlinked.
+      const admin = createServiceRoleClient();
+      if (admin) await deleteTalentFeedItems(admin, guard.talentProfile.id);
+    }
     const row = await upsertTalentIntegration({
       talentProfileId: guard.talentProfile.id,
       providerKey: parsed.data.providerKey,

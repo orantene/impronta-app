@@ -104,7 +104,7 @@ export function EssentialsStep({
             locale={locale}
             selected={typeSelected}
             selectedLabel={(o) => o.label[locale] || o.label.en}
-            search={(q) => searchOnboardingTypes({ query: q, kind })}
+            search={(q) => searchOnboardingTypes({ query: q, kind, locale })}
             itemLabel={(o) => o.label[locale]}
             itemKey={(o) => o.id}
             onPick={(o) => { setType(o); setOther(""); setTypeCleared(false); }}

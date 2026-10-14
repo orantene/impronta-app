@@ -14,6 +14,7 @@ import { useWebsiteFlow } from "@/components/talent/website-reward/useWebsiteFlo
 import { websiteFlowPending, websitePillProgress } from "@/lib/talent/website-flow";
 import { isWebsitePublished } from "@/lib/talent/website-published-truth";
 import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
+import { resolveTalentDashboardLivePill } from "@/lib/talent-site/dashboard-my-website";
 import { loadMyBio, saveMyBio } from "@/lib/server-actions/ai-writing-helper";
 import { resolveTalentDashboardMyWebsite } from "@/lib/talent-site/dashboard-my-website";
 
@@ -100,9 +101,12 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
     openSliceTarget(key);
   };
 
-  const siteUrl = siteLoad?.ok ? siteLoad.state.publicSiteUrl : null;
+  const livePill = siteLoad?.ok
+    ? resolveTalentDashboardLivePill(siteLoad.state, reward === "published")
+    : null;
+  const siteUrl = livePill?.siteUrl ?? null;
   const siteHost = siteUrl ? siteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "") : null;
-  const isLive = reward === "published";
+  const isLive = livePill ? livePill.isLive : reward === "published";
   const onWebOffice = state.talentTier === "max";
   const onPress = () => {
     if (isLive && onWebOffice) {
@@ -164,12 +168,12 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
           type="button"
           onClick={onPress}
           className={`inline-flex items-center gap-2.5 rounded-xl border border-admin-border-soft bg-white px-3 py-1.5 text-left font-admin-body ${placement === "services" ? "w-full" : ""}`}
-          aria-label={onWebOffice ? copy.t("Manage website") : copy.isSpanish ? "Sitio en vivo" : "Website live"}
+          aria-label={copy.t("Website live")}
         >
           <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-[var(--tc-ok)]" />
           <span className="min-w-0">
             <span className="block text-[12.5px] font-semibold leading-tight text-admin-ink">
-              {onWebOffice ? copy.t("Manage website") : copy.isSpanish ? "Sitio en vivo" : "Website live"}
+              {copy.t("Website live")}
             </span>
             {siteHost && (
               <span className="block max-w-[180px] truncate text-[11px] leading-tight text-admin-ink-dim">{siteHost}</span>

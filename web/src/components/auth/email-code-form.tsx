@@ -33,8 +33,8 @@ import { useActionState, useState, type ReactNode } from "react";
 import {
   requestEmailCode,
   submitEmailCode,
-  type EmailCodeState,
 } from "@/app/auth/otp-actions";
+import type { EmailCodeState } from "@/lib/auth/send-email-code-core";
 import {
   AUTH_INPUT_CLASS,
   AUTH_INPUT_STYLE,
@@ -89,6 +89,7 @@ export function EmailCodeForm({
   allowCreate = true,
   passwordFallback,
   footer,
+  startWithPassword = false,
 }: {
   nextPath?: string;
   locale?: string;
@@ -100,6 +101,12 @@ export function EmailCodeForm({
   passwordFallback?: ReactNode;
   /** Rendered under both lanes (e.g. the "already have an account" line). */
   footer?: ReactNode;
+  /**
+   * TUL-16 (a): the default /login keeps the password form first, with
+   * "Email me a code" one tap away, so a passwordless account
+   * (magic link or Google) always has a way back in.
+   */
+  startWithPassword?: boolean;
 }) {
   const t = createTranslator(locale);
   const [sendState, sendAction, sending] = useActionState<EmailCodeState, FormData>(
@@ -113,7 +120,7 @@ export function EmailCodeForm({
 
   // "Use a different email" pins the form back to step 1 until the next send.
   const [backToEmail, setBackToEmail] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(startWithPassword);
   // TUL-558: warn before send when the visitor types a +tag alias.
   const [emailDraft, setEmailDraft] = useState(defaultEmail ?? "");
   // Which action the visitor most recently triggered. Both `useActionState`
@@ -286,7 +293,7 @@ export function EmailCodeForm({
             required
             defaultValue={email}
             onChange={(e) => setEmailDraft(e.target.value)}
-            placeholder="you@studio.com"
+            placeholder={t("public.auth.form.emailPlaceholder")}
             className={AUTH_INPUT_CLASS}
             style={AUTH_INPUT_STYLE}
           />

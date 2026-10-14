@@ -133,6 +133,7 @@
       },
       "form": {
         "email": "Email",
+        "emailPlaceholder": "you@studio.com",
         "password": "Password"
       },
       "actions": {
@@ -206,7 +207,7 @@
         "resending": "Sending",
         "changeEmail": "Use a different email",
         "usePassword": "Use a password instead",
-        "useCode": "Email me a code instead",
+        "useCode": "Email me a code",
         "errors": {
           "codeRequired": "Enter the code from your email.",
           "codeInvalid": "That code did not work. Check the digits, or send a new code.",
@@ -275,7 +276,13 @@
         "copyLinkDone": "Link copied",
         "shareWhatsapp": "Share on WhatsApp",
         "shareSystem": "Share…",
-        "whatsappTemplate": "{name}, {url}"
+        "whatsappTemplate": "{name}, {url}",
+        "shareX": "Share on X",
+        "shareFacebook": "Share on Facebook",
+        "shareLinkedin": "Share on LinkedIn",
+        "copyForInstagram": "Copy link for Instagram",
+        "copiedForInstagram": "Link copied for Instagram",
+        "print": "Print profile"
       },
       "ctaSectionAria": "Call to action",
       "footerCtaTitle": "Ready to work with {firstName}?",
@@ -382,7 +389,6 @@
       "eventDateOptional": "Event date (optional)",
       "booking": "Booking…",
       "confirmAndBook": "Confirm & book · {price}",
-      "viewInquiry": "View your inquiry",
       "addToCurrentTitle": "Add to this inquiry",
       "addToCurrentSubOne": "1 talent so far",
       "addToCurrentSubOther": "{count} talent so far",
@@ -508,7 +514,9 @@
         "inquireAria": "Add {name} to your lineup",
         "inLineupAria": "{name} is in your lineup. Tap to remove.",
         "booksByAppointment": "Books by appointment",
-        "reserve": "Reserve"
+        "reserve": "Reserve",
+        "saveFavoriteAria": "Save {name} to favorites",
+        "removeFavoriteAria": "Remove {name} from favorites"
       },
       "inquiry": {
         "saveThisTalent": "Save This Talent",
@@ -888,7 +896,8 @@
         "whatsapp": "WhatsApp",
         "email": "Email",
         "confirmByHand": "She confirms by hand.",
-        "bookInstant": "You can book a time on this page."
+        "bookInstant": "You can book a time on this page.",
+        "bookingsPaused": "Not taking new bookings right now. You can still send an inquiry."
       }
     },
     "guestChat": {
@@ -941,6 +950,7 @@
       "statusBooked": "Booked",
       "statusClosed": "Closed",
       "kindOffer": "Offer",
+      "offerSentBody": "You have a new offer. Review it below.",
       "kindPaymentRequested": "Payment requested",
       "kindPaymentReceived": "Payment received",
       "kindCoordinator": "Coordinator",
@@ -1908,7 +1918,9 @@
         "line1": "What you do",
         "line2": "Where you are",
         "line3": "What people can book",
-        "next": "Next: what we understood"
+        "next": "Next: what we understood",
+        "skipAi": "Continue without AI",
+        "skipAiHint": "This is taking a while. You can answer a few short questions instead."
       },
       "tooLittle": {
         "title": "Tell us a little more",
@@ -2009,6 +2021,7 @@
         "google": "Continue with Google",
         "googleOpening": "Opening Google…",
         "googleFailed": "Google didn't finish. Try again or use your email.",
+        "termsPrefix": "I agree to the",
         "popupBlocked": "Your browser blocked the popup. Allow popups or use your email.",
         "popupClosed": "The Google window closed before finishing. Try again or use your email.",
         "or": "or",
@@ -2066,6 +2079,7 @@
         "fallbackSub": "Your workspace is ready. The site copy needed another pass, so it opens with the Look's defaults; everything you told us is saved.",
         "existingSub": "You already have a free workspace. Open it; nothing new was created.",
         "factServices": "{n} services",
+        "factUnpriced": "{n} more to publish once you add a price",
         "factCity": "in {city}",
         "factLogo": "your logo",
         "factHours": "your hours",
@@ -2102,11 +2116,12 @@
         "draftSubStudio": "Everything you told us is saved, but your site does not open online yet. Try again or open it in the editor.",
         "openEditor": "Open the editor",
         "goToPanel": "Go to my dashboard",
+        "openMyPanel": "Open my panel",
         "bookPreview": "Book",
         "bookingsStartStudio": "Bookings start when you add a provider.",
         "inquiryTitle": "Your page is ready for requests",
         "inquirySub": "People can send you requests now. Bookings start when you add a team member.",
-        "addFirstMember": "Add your first team member to start taking bookings",
+        "addFirstMember": "Add your first team member",
         "alsoBookMyself": "Also take bookings yourself",
         "urlDiffers": "Your address came out different from the one you chose because it was already taken. This is the real one."
       },
@@ -2136,7 +2151,7 @@
         "minimalSub": "Quiet, lots of space",
         "vibrant": "Vibrant",
         "vibrantSub": "Bold colour, energy",
-        "notesLabel": "Anything about your style? (optional)",
+        "notesLabel": "Style notes (optional)",
         "notesHint": "Colours you love, a brand you admire, what to avoid…",
         "changeLater": "Your Look, colours and photos can all be changed in the builder.",
         "continue": "Continue"
@@ -2148,7 +2163,9 @@
         "keep": "Keep the default look",
         "rose": "Rosé",
         "blush": "Blush",
-        "orchid": "Orchid"
+        "orchid": "Orchid",
+        "sage": "Sage",
+        "porcelain": "Porcelain"
       },
       "role": {
         "eyebrow": "Step 1 of 2 · Role",
@@ -2295,6 +2312,9 @@
       "noVisit": "No upcoming visits",
       "unread": "Unread messages",
       "balanceDue": "Balance due",
+      "quickBookings": "My bookings",
+      "quickMessages": "Messages",
+      "quickReceipts": "Receipts",
       "myAccount": "My account",
       "logOut": "Log out",
       "signedInAs": "Signed in as {email}",
@@ -2459,6 +2479,16 @@
     "switchWorkspace": "Switch workspace",
     "workspaceTalentQa": "Talent QA user",
     "workspaceClientQa": "Client QA user",
+    "workspaceQaUnavailable": "This QA account isn't set up here yet. Check the QA user setting.",
+    "workspaceQaReason": {
+      "not_configured": "QA switch is not configured: the QA user id or the impersonation secret is missing in this environment.",
+      "no_profile": "The configured QA user has no profile in this database.",
+      "inactive": "The QA user exists but its account is not active (still onboarding or suspended). Activate it, then try again.",
+      "wrong_role": "The configured QA user does not have the role this switch needs.",
+      "not_allowlisted": "The QA user id is not on the allow-list for this environment.",
+      "not_authorized": "Only a super admin can use the QA switch.",
+      "no_relationship": "The QA client has no active agency relationship, so there is no client workspace to open."
+    },
     "workspaceSwitcherHint": "QA preview, read-only",
     "impersonationActorNote": "Admin session",
     "impersonationReadOnly": "Viewing as",
@@ -2711,6 +2741,8 @@
       "refundLabel": "Preferred refund policy",
       "refundNoPreference": "No preference",
       "refundFallback": "Fall back to your agency's policy.",
+      "refundFallbackSolo": "Each offer sets its own refund terms.",
+      "instantBookHintSolo": "Signals you're happy to be booked without a back-and-forth. Whether instant-book is offered still depends on the project.",
       "instantBookTitle": "Open to instant booking",
       "instantBookHint": "Signals you're happy to be booked without a back-and-forth. Whether instant-book is offered still depends on your agency and the project.",
       "saving": "Saving…",
@@ -4922,7 +4954,7 @@
       },
       "resources": {
         "viewWeek": "Week",
-        "viewWeekOff": "A week timeline is not built; Month shows the week's days.",
+        "viewWeekOff": "The weekly view isn't available yet; Month shows the days of the week.",
         "viewResources": "Resources",
         "add": "Add",
         "loading": "Reading the day...",
@@ -4951,7 +4983,7 @@
         "emptyDay": "Nothing on this day for these filters.",
         "holdExpires": "Hold on {title} at {time}",
         "holdExpiresAt": "Hold expires {time}",
-        "dragOff": "Drag to reschedule is not built; Move it on Appointments & Classes reschedules with the window you saw.",
+        "dragOff": "To reschedule, open the appointment in Appointments & Classes.",
         "prevDay": "Previous day",
         "nextDay": "Next day"
       }
@@ -4997,7 +5029,10 @@
       "title": "Clients",
       "freeSubtitle": "Inquiries from your channels. Filter by what needs you.",
       "oneInquiryTitle": "One inquiry so far",
-      "oneInquiryDesc": "A test inquiry from a friend referral. No client relationship yet.",
+      "oneInquiryDesc": "Open it to see the conversation. It becomes a client once you work together.",
+      "noInquiryTitle": "No inquiries yet",
+      "noInquiryDesc": "When someone reaches out through your channels, it shows up here and in your Inbox.",
+      "manyInquiryTitle": "{count} inquiries so far",
       "seeInquiry": "See inquiry",
       "ownedListTitle": "Owned client list",
       "ownedListDesc": "With Studio, every inquiry on your domain becomes a client you own. We never share your client list with anyone, including Tulala discovery.",
@@ -5449,7 +5484,13 @@
         "pendingEmptyBody": "When someone registers from your site in approval mode, their request shows up here for review.",
         "requestedOn": "Requested {date}",
         "decline": "Decline",
-        "approve": "Approve"
+        "approve": "Approve",
+        "tier": {
+          "free": "Free",
+          "studio": "Studio",
+          "agency": "Agency",
+          "network": "Network"
+        }
       },
       "registrationModes": {
         "closedLabel": "Closed",
@@ -7377,6 +7418,10 @@
         "free": "Free",
         "studio": "Studio",
         "agency": "Agency",
+        "website": "Website",
+        "legacy": "Legacy",
+        "pro": "Pro",
+        "max": "Web Office",
         "network": "Network"
       },
       "role": {
@@ -7974,7 +8019,7 @@
         "working": "Working…",
         "entity": {
           "hub": "·•· Hub",
-          "agency": "▣ Agency"
+          "agency": "▣ Workspace"
         },
         "status": {
           "active": "Active",
@@ -8067,7 +8112,7 @@
       "users": {
         "page": {
           "title": "Users",
-          "summary": "{total} total · {talent} talent · {client} client · {staff} staff · {operators}",
+          "summary": "{total} accounts · {talent} talent profiles · {client} client · {staff} staff · {operators}",
           "operatorsOne": "{count} workspace operator",
           "operatorsMany": "{count} workspace operators",
           "unconfirmedSuffix": "{count} email unconfirmed",
@@ -9872,7 +9917,25 @@
         "overrideActive": "Override active",
         "save": "Save",
         "resetToDefault": "Reset {locale} to code default",
-        "templatesCustomized": "{customized} of {total} templates customized · {locales}."
+        "templatesCustomized": "{customized} of {total} templates customized · {locales}.",
+        "tabCopies": "Copies",
+        "copiesTitle": "Notification email copies",
+        "copiesIntro": "These addresses get a copy of the notifications you tick. Pause an address to stop its copies for a while.",
+        "copiesEmail": "Email address",
+        "copiesLabel": "Label",
+        "copiesLabelPlaceholder": "e.g. Ops inbox",
+        "copiesAdd": "Add address",
+        "copiesEmpty": "No addresses yet.",
+        "copiesPaused": "Paused",
+        "copiesPause": "Pause",
+        "copiesResume": "Resume",
+        "copiesSendTest": "Send test",
+        "copiesTestSent": "Test email sent.",
+        "copiesKindSupportNew": "New support tickets",
+        "copiesKindSupportUrgent": "Urgent / escalated tickets",
+        "copiesKindSupportInbound": "Support email replies",
+        "copiesKindLeads": "New leads",
+        "copiesKindPaymentIssues": "Payment issues"
       },
       "support": {
         "pageTitle": "Support",
@@ -9918,6 +9981,8 @@
         "empty": "Nothing in this view.",
         "keyboardHint": "j/k move, Enter open, r reply, e resolve, a assign",
         "unknownRequester": "Unknown",
+        "searchLoadMore": "Show more results",
+        "searchLoading": "Searching all tickets...",
         "ageJustNow": "now",
         "contextWorkspace": "Workspace",
         "noWorkspace": "No workspace",
@@ -13578,6 +13643,9 @@
       "startTicket": "Start a ticket",
       "messageOran": "Message {agent} directly",
       "messageOranBody": "I would like to talk to {agent}.",
+      "messageOranSubject": "Talk to a person",
+      "newQuestion": "New question",
+      "newQuestionHint": "Something else? Start a new question so it gets its own answer.",
       "statusWaitingYou": "Waiting on you",
       "statusWithSupport": "With support",
       "statusResolved": "Resolved",
@@ -13599,6 +13667,11 @@
       "aiMicrocopy": "AI replies instantly. {agent} sees every ticket.",
       "composerPlaceholder": "Write a reply",
       "sendFailed": "That did not send. Your text is still here, try again.",
+      "sendFailedNetwork": "Couldn't send. Check your connection and try again.",
+      "rateLimited": "You have sent a lot in a short time. Your text is still here. Try again in about {minutes} minutes.",
+      "threadLoading": "Loading conversation…",
+      "threadLoadFailed": "Could not load this conversation. Close and reopen the panel to try again.",
+      "rateLimitedOne": "You have sent a lot in a short time. Your text is still here. Try again in about a minute.",
       "cardTitle": "Update",
       "addNumber": "Add a number for a call back",
       "keepOpen": "Keep this ticket open",
@@ -13693,7 +13766,6 @@
       "helperModeAria": "Helper mode: highlight everything on this page with an article",
       "helperModeOn": "Helper mode is on",
       "helperModeHint": "Anything with a dotted outline has an article. Click one to read it here.",
-      "guideNotFound": "There is no article for \"{id}\" yet.",
       "helperReadAbout": "Read about: {what}",
       "cardLiveChat": "Start live chat",
       "cardLiveChatSub": "A real person from Tulala, usually within minutes",
@@ -13703,6 +13775,7 @@
       "cardIdeaSub": "Tell us what would make Tulala better",
       "yourTickets": "Your tickets",
       "newReplies": "{n} new replies",
+      "newRepliesOne": "1 new reply",
       "seeAll": "See all",
       "guideHint": "Looking for how something works? Open the {guide} tab.",
       "guideHelpful": "Was this helpful?",
@@ -13749,7 +13822,7 @@
     "adminReviews": {
       "eyebrow": "Reputation",
       "title": "Reviews",
-      "subtitle": "Reported reviews, rating integrity, and review photos across your talent.",
+      "subtitle": "Reported reviews, rating integrity, and review photos across your workspace.",
       "reviewPhotos": "Review photos",
       "noTenant": "Sign in to a workspace to moderate its reviews."
     },
@@ -17794,18 +17867,21 @@
       "setup": {
         "title": "Setup readiness",
         "progress": "Setup readiness · {done} of {total}",
+        "progressShort": "Finish setup · {count} left",
         "missing": "Missing: {items}",
         "complete": "Everything is set up.",
         "finish": "Finish setup",
+        "seeAllCount": "See all {count}",
+        "setUp": "Set up",
         "item": {
-          "timeZone": "time zone",
-          "catalogItem": "a catalog item",
-          "bookableHours": "bookable hours",
-          "onlinePayments": "online payments",
-          "payoutDestination": "payout destination",
-          "websitePublished": "a published website page",
-          "whoPerforms": "somebody bookable",
-          "bookingPolicy": "a booking policy"
+          "timeZone": "Time zone",
+          "catalogItem": "A service or item to sell",
+          "bookableHours": "Bookable hours",
+          "onlinePayments": "Online payments",
+          "payoutDestination": "Where payouts go",
+          "websitePublished": "A published website page",
+          "whoPerforms": "Someone bookable",
+          "bookingPolicy": "A booking policy"
         }
       }
     },
@@ -19248,6 +19324,23 @@
         "sentOk": "Offer sent",
         "units": "Units",
         "priceDriftHint": "Catalog price now {price}"
+      },
+      "engineLines": {
+        "allApprovals": "All approvals are complete.",
+        "offerReopened": "Offer reopened for amendment.",
+        "offerRejected": "Client rejected the offer.",
+        "converted": "Inquiry converted to booking.",
+        "cancelled": "This inquiry was cancelled. No further action is needed.",
+        "expired": "This inquiry expired before it was booked.",
+        "paused": "A coordinator paused this inquiry. No action is needed right now.",
+        "talentDeclined": "A talent declined their invitation. You may want to line up an alternative.",
+        "talentSwapped": "A talent on the lineup was swapped for another.",
+        "coordAccepted": "Coordinator accepted assignment.",
+        "coordDeclined": "Coordinator declined assignment.",
+        "counterStarted": "Coordinator started a counter offer.",
+        "coordinating": "{name} is now coordinating this inquiry.",
+        "notCoordinating": "{name} is no longer coordinating this inquiry.",
+        "approved": "{name} approved the offer."
       },
       "pay": {
         "paidBy": "Paid by {name}",

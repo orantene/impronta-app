@@ -24,6 +24,10 @@
 import type { UserNotification } from "./data-bridge";
 import type { DrawerId } from "./state/drawer-ids";
 import { notificationDrawerFields } from "./notification-drawer-targets";
+import {
+  pickSignalText,
+  type TalentAttentionSignal,
+} from "@/lib/notifications/attention-signals";
 
 /**
  * Three categories, each with its own behavior contract:
@@ -154,7 +158,11 @@ const SUCCESS_KINDS: ReadonlySet<UserNotification["kind"]> = new Set(["booking",
 /** Theme-update bells written before they carried a target still deep-link. */
 export function targetOf(n: UserNotification): string | null {
   if (n.targetDrawer) return n.targetDrawer;
-  return n.targetPayload?.kind === "theme_update" ? "theme-update" : null;
+  if (n.targetPayload?.kind === "theme_update") return "theme-update";
+  // TUL-391 r2: offer bells written before the catalog carried a target. The
+  // inquiry is the only sensible door, so deep-link it; no inquiry stays inert.
+  if (n.kind === "offer" && n.originInquiryId) return "talent-inquiry";
+  return null;
 }
 
 /**
@@ -198,4 +206,40 @@ export function talentNotifsFromBridge(
           : undefined,
       };
     });
+}
+
+/**
+ * TUL-392: derived Attention signals as drawer rows. Sticky action rows (they
+ * clear when the state does: site published), and the id carries the state, so
+ * a row marked read returns when the state moves.
+ */
+export function talentNotifsFromSignals(
+  signals: readonly TalentAttentionSignal[],
+  locale: string,
+  adminBasePath: string,
+): TalentNotif[] {
+  return signals.map((s) => ({
+    id: `signal-${s.id}`,
+    category: "action" as const,
+    icon: "bolt" as const,
+    tone: "coral" as const,
+    title: pickSignalText(s.title, locale),
+    sub: pickSignalText(s.body, locale),
+    unread: true,
+    sticky: true,
+    target: notificationDrawerFields(s.targetDrawer, null, adminBasePath),
+  }));
+}
+
+/** The drawer's live source: signals first (sticky action rows), then real rows. */
+export function talentDrawerNotifs(
+  rows: readonly UserNotification[],
+  signals: readonly TalentAttentionSignal[] | null,
+  locale: string,
+  adminBasePath: string,
+): TalentNotif[] {
+  return [
+    ...talentNotifsFromSignals(signals ?? [], locale, adminBasePath),
+    ...talentNotifsFromBridge(rows, adminBasePath),
+  ];
 }

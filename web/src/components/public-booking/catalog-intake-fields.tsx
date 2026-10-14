@@ -21,20 +21,26 @@ import {
   type IntakeAnswers,
   type IntakeQuestion,
 } from "@/lib/talent/offering-intake";
+import { homeVisitNeighbourhoodKeys } from "@/lib/talent/offering-request-detail";
 import { validateImageUpload } from "@/lib/site-admin/media/validation";
 
 export function CatalogIntakeFields({
-  questions,
+  questions: allQuestions,
   answers,
   locale,
   onChange,
+  hideNeighbourhood = false,
 }: {
   questions: IntakeQuestion[] | undefined;
+  /** GRK-065: the sheet already asks the full address, so the optional Colonia question goes. */
+  hideNeighbourhood?: boolean;
   answers: IntakeAnswers | undefined;
   locale: string;
   onChange: (next: IntakeAnswers) => void;
 }) {
   const [uploadError, setUploadError] = useState<Record<string, string>>({});
+  const dropKeys = hideNeighbourhood ? homeVisitNeighbourhoodKeys(allQuestions) : [];
+  const questions = dropKeys.length ? allQuestions?.filter((q) => !dropKeys.includes(q.key)) : allQuestions;
   if (!questions?.length) return null;
   const copy = intakeCopy(locale);
   const a = answers ?? {};

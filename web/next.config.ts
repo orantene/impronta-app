@@ -79,6 +79,27 @@ remotePatterns.push({
 const isProd = process.env.NODE_ENV === "production";
 
 /**
+ * TUL-703 STRIPE_FORCE_TEST_MODE: client bundles read
+ * `process.env.NEXT_PUBLIC_STRIPE_*` as a literal that Next inlines AT BUILD,
+ * so the runtime resolver (src/lib/stripe/env-keys.ts) cannot reach them.
+ * When the flag is set at build time, inline the `_TEST` sibling instead.
+ * Fail closed: a missing or non-pk_test_ sibling inlines "" (Stripe.js then
+ * refuses to load), never the live key. Flipping the flag needs a redeploy,
+ * which any Vercel env change requires anyway.
+ */
+function forcedTestPublishableKeys(): Record<string, string> {
+  if (process.env.STRIPE_FORCE_TEST_MODE !== "1") return {};
+  const pick = (name: string): string => {
+    const v = (process.env[`${name}_TEST`] ?? "").trim();
+    return v.startsWith("pk_test_") ? v : "";
+  };
+  return {
+    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pick("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY"),
+    NEXT_PUBLIC_STRIPE_MX_PUBLISHABLE_KEY: pick("NEXT_PUBLIC_STRIPE_MX_PUBLISHABLE_KEY"),
+  };
+}
+
+/**
  * CSP connect-src: Supabase REST, Auth, and Realtime from the browser.
  * - Always allow hosted project hosts (`*.supabase.co`).
  * - Also inject `NEXT_PUBLIC_SUPABASE_URL` origin (and matching ws/wss) so local
@@ -289,6 +310,7 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   env: {
+    ...forcedTestPublishableKeys(),
     NEXT_PUBLIC_COMMIT_SHA: process.env.VERCEL_GIT_COMMIT_SHA ?? "",
     // Edge-safe stand-in for NODE_ENV. Set here at config eval (next dev /
     // Vercel preview), then inlined into proxy.ts. Do not derive this from Host.
@@ -447,6 +469,14 @@ const nextConfig: NextConfig = {
       {
         source: "/:path*",
         headers: securityHeaders,
+      },
+      /** TUL-445: `Vary: Cookie` on page HTML. The proxy sets it too, but Next
+       *  rewrites Vary/Cache-Control on dynamic page responses, so the proxy
+       *  value never reached the HTML (llms.txt/sitemap kept it). Static
+       *  assets, images and APIs are excluded so they stay cache-friendly. */
+      {
+        source: "/:path((?!_next/|api/|favicon\\.ico|robots\\.txt).*)",
+        headers: [{ key: "Vary", value: "Cookie" }],
       },
     ];
   },

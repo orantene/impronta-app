@@ -12,6 +12,7 @@ import { withHeaderSiteChrome } from "./render-max-site-demo";
 import { MaxSiteDemoBadge, MaxSiteDemoFooter } from "@/lib/talent-site/max-site-demo-chrome";
 import { splitShell } from "./render-max-site-shell";
 import { builderTreeHasFaqBind, builderTreeHasKind } from "./builder-tree-has-kind";
+import { collectSocialFeedProviders } from "@/lib/site-admin/builder-node/social-feed-source";
 import { pruneEmptyBoundSections } from "@/lib/talent-site/my-content-prune";
 import { pruneDeadSectionLinks } from "@/lib/talent-site/dead-section-links";
 import { headerOverlayAllowed } from "@/lib/talent-site/header-overlay";
@@ -77,6 +78,8 @@ import { LiveStatusExpiry } from "@/components/talent-site/LiveStatusExpiry";
 import type { TalentSiteLocaleContext } from "./talent-site-locale.server";
 import { loadUsdRatesForSitePrices } from "./vanity-usd-rates";
 import { loadTalentSocialLinks } from "./talent-social-links";
+import { HeaderAccountOverlay } from "@/components/client-account/HeaderAccountOverlay";
+import { resolveClientAccountMount } from "@/lib/client-account/gate";
 import { webOfficeFooter, webOfficeHeaderSocial, type WebOfficeCtx } from "./web-office-footer";
 
 /**
@@ -107,6 +110,8 @@ export async function renderMaxSiteDocument(args: {
   showPlatformBadge: boolean;
   /** Fictional demo talent: a Demo pill above the header + a footer line. */
   isDemo?: boolean;
+  /** `talent_sites.accepting_bookings`: the demo footer line must agree with the booking widget. */
+  demoAcceptingBookings?: boolean;
   /** The talent's display name: labels the first group of the Tulala strip. */
   talentName?: string | null;
   /** TUL-310 footer Help context. */
@@ -115,6 +120,8 @@ export async function renderMaxSiteDocument(args: {
   /** Request origin for magazine footer credit (hostname only). */
   canonicalOrigin?: string;
   /** Paid Web Office only: footer links + source WhatsApp text. */ webOffice?: WebOfficeCtx | null;
+  /** TUL-694: the site's client account switch, resolved in render-max-site (default on; the host flag still gates). */
+  accountEntry?: boolean;
 }): Promise<ReactNode> {
   const {
     siteTokens,
@@ -163,6 +170,7 @@ export async function renderMaxSiteDocument(args: {
   const pageNeedsNextFreeChip = builderTreeHasKind(blocks, "next_free_chip");
   const pageNeedsTalentOfferings =
     pageNeedsServicesCatalog || pageNeedsPortfolio || pageNeedsNextFreeChip;
+  const pageSocialFeedProviders = collectSocialFeedProviders(blocks);
 
   // Codex P2: catalogBookingLive=false mounts demo booking on published free vanity; own-work Path A uses the platform hub (like Agenda).
   let bookingTenantId: string | null = tenantId;
@@ -179,7 +187,12 @@ export async function renderMaxSiteDocument(args: {
       timed("maxSite.dataSources", () =>
         tenantId
           ? loadBuilderNodeDataSources(blocks, tenantId, locale, null, talentProfileId, args.localeCtx.settings.defaultLocale)
-          : pageNeedsTalentOfferings || pageNeedsReviews || pageNeedsVisit || pageNeedsCompCard || pageNeedsFaq
+          : pageNeedsTalentOfferings ||
+              pageNeedsReviews ||
+              pageNeedsVisit ||
+              pageNeedsCompCard ||
+              pageNeedsFaq ||
+              pageSocialFeedProviders.length > 0
             ? loadPersonalMaxNativeSources({
                 talentProfileId,
                 locale,
@@ -191,6 +204,7 @@ export async function renderMaxSiteDocument(args: {
                 visit: pageNeedsVisit,
                 compCard: pageNeedsCompCard,
                 talentFaq: pageNeedsFaq,
+                socialFeedProviders: pageSocialFeedProviders,
               })
             : Promise.resolve({} as BuilderNodeRenderDataSources),
       ),
@@ -232,7 +246,7 @@ export async function renderMaxSiteDocument(args: {
     loadUsdRatesForSitePrices([
       ...talentOfferings,
       ...(dataSources.menuOfferings ?? []),
-    ]),
+    ], locale),
   );
   // D-MSG-421 loads offerings for the talent vanity even when there is no
   // agency `tenantId` (so `loadBuilderNodeDataSources` is skipped). Merge them
@@ -288,7 +302,9 @@ export async function renderMaxSiteDocument(args: {
   const dataAttrs = hasTokens ? designTokensToDataAttrs(effectiveTokens) : {};
 
   const hasShell = hasRenderableBuilderNodes(shellTree, { mode: "freeform" });
-  const [headerTree, rawFooterTree] = splitShell(shellTree, { webOfficeSocial: Boolean(args.webOffice) });
+  // TUL-694: container-style headers have no site_header regions; they get the one shared overlay slot.
+  const showHeaderAccountOverlay = args.accountEntry !== false && resolveClientAccountMount("talent").headerItem;
+  const [headerTree, rawFooterTree] = splitShell(shellTree, { webOfficeSocial: Boolean(args.webOffice), accountEntry: args.accountEntry });
   // The socket carries the ONE Tulala credit: hide any design-level credit at render time.
   const footerTree = stripDesignCredits(rawFooterTree);
   // Footer links to Location / Visit are decided against the sections this page really renders
@@ -351,7 +367,7 @@ export async function renderMaxSiteDocument(args: {
         localiseTalentHeaderDefaults(headerSectionProps(root, locale), locale),
         askVisible,
       );
-      const parsed = schema?.safeParse(withHeaderSiteChrome(localised, root.props.sectionTypeKey, args.isDemo === true, args.localeCtx.settings.supportedLocales, args.localeCtx.switcherHrefs, webOfficeHeaderSocial(args.webOffice, footerSocialLinks, locale)));
+      const parsed = schema?.safeParse(withHeaderSiteChrome(localised, root.props.sectionTypeKey, args.isDemo === true, args.localeCtx.settings.supportedLocales, args.localeCtx.switcherHrefs, webOfficeHeaderSocial(args.webOffice, footerSocialLinks, locale), args.accountEntry !== false));
       if (!entry || !parsed?.success) return null;
       const Comp = entry.Component;
       return (
@@ -494,7 +510,8 @@ export async function renderMaxSiteDocument(args: {
             ) : null}
           </div>
         ) : (
-          <header data-talent-max-site-header="" {...overHeroAttr}>
+          <header data-talent-max-site-header="" {...overHeroAttr} {...(showHeaderAccountOverlay ? { style: { position: "relative" } } : {})}>
+            {showHeaderAccountOverlay ? <HeaderAccountOverlay locale={locale} /> : null}
             {renderBuilderNodes(liveHeaderTree, {
               publicPathPrefix,
               mode: "freeform",
@@ -549,7 +566,7 @@ export async function renderMaxSiteDocument(args: {
         </footer>
       ) : null}
 
-      {args.isDemo ? <MaxSiteDemoFooter locale={locale} /> : null}
+      {args.isDemo ? <MaxSiteDemoFooter locale={locale} acceptingBookings={args.demoAcceptingBookings !== false} /> : null}
 
       {/* Global Tulala footer socket: one shared bottom strip under every
           design's own footer (replaces the scattered "Made with Tulala"). */}

@@ -14,6 +14,7 @@ import { NextResponse } from "next/server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { countryLabel } from "@/lib/geo/country-code";
 
 export const dynamic = "force-dynamic";
 
@@ -144,7 +145,7 @@ export async function GET() {
         profileCode: p.profile_code,
         primaryTypeLabel: null, // taxonomy not joined here; favorites pane keeps it lean
         homeCity: p.home_city_text,
-        homeCountry: p.home_country_text,
+        homeCountry: countryLabel(p.home_country_text),
         agencyName: agencyRow?.display_name ?? null,
         isExclusive: !!primaryRoster?.is_primary,
         headshotUrl: photoByTalent.get(p.id) ?? null,

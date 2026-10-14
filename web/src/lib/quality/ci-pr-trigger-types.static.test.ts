@@ -9,6 +9,9 @@
  * skipped job counts as passing. Stacked PRs are handled by the no-stacking
  * rule and a re-push. See web/docs/development-workflow.md section 12.
  *
+ * The same holds for `labeled`: ci-full-ci-rerun.yml re-runs the gate when
+ * full-ci is added, so ci.yml never sees label events.
+ *
  * HOW TO REACT WHEN THIS FAILS: if you add `edited`, you must also give
  * `edited` runs their own concurrency group so they cannot cancel a gate, and
  * update the doc section and this test together.
@@ -52,6 +55,14 @@ test("PR concurrency still cancels superseded runs and never cancels main", () =
     ci,
     /cancel-in-progress: \$\{\{ github\.ref != 'refs\/heads\/main' \}\}/,
   );
+});
+
+test("adding full-ci re-runs the gate from its own workflow, not a labeled trigger on ci.yml", () => {
+  const rerun = read(".github/workflows/ci-full-ci-rerun.yml");
+  assert.match(rerun, /^ {4}types: \[labeled\]$/m);
+  assert.match(rerun, /if: github\.event\.label\.name == 'full-ci'/);
+  assert.match(rerun, /gh run rerun "\$run_id" --job "\$job_id"/);
+  assert.doesNotMatch(rerun, /name: Structural quality gate/);
 });
 
 test("the decision is documented and the no-stacking rule is in CLAUDE.md", () => {

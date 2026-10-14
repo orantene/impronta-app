@@ -10,10 +10,13 @@ export function MarketingSupportLauncher({
   locale,
   originSlug,
   signedIn,
+  showFab = true,
 }: {
   locale: "en" | "es";
   originSlug: string;
   signedIn: boolean;
+  /** false = no floating button; the panel mounts only when an open event arrives. */
+  showFab?: boolean;
 }) {
   const copy = getMarketingSupportCopy(locale);
   const [open, setOpen] = useState(false);
@@ -33,6 +36,7 @@ export function MarketingSupportLauncher({
 
   return (
     <>
+      {showFab ? (
       <button
         type="button"
         aria-label={copy.launcherAria}
@@ -52,6 +56,7 @@ export function MarketingSupportLauncher({
           <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-[var(--plt-ink)]" />
         ) : null}
       </button>
+      ) : null}
       {open ? (
         <MarketingSupportPanel
           locale={locale}

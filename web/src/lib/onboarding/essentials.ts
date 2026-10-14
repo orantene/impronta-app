@@ -140,11 +140,20 @@ export const BEAUTY_PACKS: Record<string, TradePack> = {
   ] },
 };
 
+/** Home cleaning: the first pack outside beauty, so a cleaner never lands on an empty services screen (TUL-568). */
+BEAUTY_PACKS.cleaning = { key: "cleaning", services: [
+  { en: "Standard home cleaning", es: "Limpieza de casa estándar", durationMin: 120, mxnCents: 90000 },
+  { en: "Deep cleaning", es: "Limpieza profunda", durationMin: 240, mxnCents: 180000 },
+  { en: "Move-in or move-out cleaning", es: "Limpieza de mudanza", durationMin: 240, mxnCents: 200000 },
+  { en: "Office cleaning", es: "Limpieza de oficina", durationMin: 120, mxnCents: 100000 },
+] };
+
 const TRADE_PATTERNS: Array<[string, RegExp]> = [
   ["lashes", /lash|pesta/i],
   ["nails", /nail|u[ñn]a|manicur|pedicur/i],
   ["brows", /brow|ceja/i],
   ["makeup", /make-?up|maquill|\bmua\b/i],
+  ["cleaning", /clean|limpie|limpio|aseo|housekeep/i],
   ["hair", /hair|cabello|peluq|barber|stylist|estilista|colorist/i],
 ];
 
@@ -195,7 +204,7 @@ export function suggestedEssentials(ctx: PackContext & { name?: string | null })
     name: ctx.name?.trim() || null,
     services,
     hours: defaultWeeklyHours(),
-    timezone: defaultTimezoneForCountry(ctx.country),
+    timezone: defaultTimezoneForCountry(ctx.country) ?? (!ctx.country?.trim() && ctx.locale === "es" ? "America/Mexico_City" : null),
     place: null,
     firstProviderEmail: null,
     firstProviderName: null,
@@ -341,6 +350,9 @@ export type OfferingRowDraft = {
   title_i18n?: { en: string; es: string };
 };
 
+/** Same default the manual "add a service" row starts with (setup.ts blankService). A row with no length offers no slots. */
+export const DEFAULT_SERVICE_MINUTES = 60;
+
 export function offeringRowFor(s: EssentialService, sortOrder: number): OfferingRowDraft {
   const exact = !s.quote && s.priceCents !== null && s.priceCents > 0;
   return {
@@ -359,12 +371,17 @@ export function offeringRowFor(s: EssentialService, sortOrder: number): Offering
     booking_mode: exact ? "instant" : "request",
     reserve_mode: "free",
     allow_pay_in_person: true,
-    duration_minutes: s.durationMin,
+    duration_minutes: s.durationMin && s.durationMin > 0 ? s.durationMin : DEFAULT_SERVICE_MINUTES,
     category: s.packKey ?? null,
     status: exact ? "published" : "draft",
     visibility: "public",
     sort_order: sortOrder,
   };
+}
+
+/** How many of these services onboarding publishes (priced exactly); the rest stay drafts until the owner adds a price. */
+export function publishedServiceCount(services: EssentialService[] | null | undefined): number {
+  return (services ?? []).filter((s) => offeringRowFor(s, 0).status === "published").length;
 }
 
 export type OfferingPlan = {
@@ -494,6 +511,17 @@ export async function runEssentialsWrites(store: EssentialsStore, input: Essenti
   if (choice !== "studio" && talent) {
     const tenantId = choice === "both" && workspace ? workspace.tenantId : talent.tenantId;
     await writeOfferings({ kind: "talent", talentProfileId: talent.talentProfileId, tenantId });
+    // TUL-650: the writer skips its own drafts when essentials carry services, so a
+    // failed write above left a confirmed talent with NO services. Check and retry once.
+    await step("offeringsRetry", async () => {
+      const owner: OfferingOwnerRef = { kind: "talent", talentProfileId: talent.talentProfileId, tenantId };
+      if (!e.services.length || (await store.listOfferings(owner)).length > 0) return;
+      const plan = planOfferingWrites([], e.services);
+      if (!plan.insert.length) return;
+      await store.insertOfferings(owner, plan.insert);
+      out.offeringsCreated += plan.insert.length;
+      out.warnings.push("essentials:offerings_recovered");
+    });
     await step("hours", async () => {
       out.hoursWritten = await store.upsertTalentHours({ talentProfileId: talent.talentProfileId, tenantId, weekly, timezone: e.timezone });
       if (!out.hoursWritten) out.warnings.push("essentials:hours:no_timezone");
