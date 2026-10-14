@@ -21,6 +21,8 @@ import { releaseReservationHold } from "@/lib/scheduling/reservation-hold";
 export type FailedCheckoutUnwindInput = {
   orderId: string;
   transactionId: string | null;
+  /** TUL-714: the booking the purchase placed; cancelled while unpaid. */
+  bookingId?: string | null;
   allocationIds: readonly string[];
   reservationHoldId: string | null;
   why: string;
@@ -62,6 +64,29 @@ export async function unwindFailedCheckout(
     if (error) {
       ok = false;
       logServerError("orders.unwindFailedCheckout/txn", error);
+    }
+  }
+  if (input.bookingId) {
+    // TUL-714: the booking was confirmed at purchase; with no way to pay it
+    // must not stay Confirmado. Guarded on unpaid so a racing settle wins.
+    const { error: agencyErr } = await admin
+      .from("agency_bookings")
+      .update({ status: "cancelled" })
+      .eq("id", input.bookingId)
+      .eq("payment_status", "unpaid")
+      .in("status", ["confirmed"]);
+    if (agencyErr) {
+      ok = false;
+      logServerError("orders.unwindFailedCheckout/agencyBooking", agencyErr);
+    }
+    const { error: talentErr } = await admin
+      .from("talent_bookings")
+      .update({ status: "cancelled" })
+      .eq("id", input.bookingId)
+      .in("status", ["confirmed"]);
+    if (talentErr) {
+      ok = false;
+      logServerError("orders.unwindFailedCheckout/talentBooking", talentErr);
     }
   }
   const { error } = await admin

@@ -202,6 +202,7 @@ export async function createInstantBookingAction(
               await unwindFailedCheckout(admin, {
                 orderId: booked.orderId,
                 transactionId: booked.transactionId,
+                bookingId: booked.bookingId,
                 allocationIds: booked.allocationIds,
                 reservationHoldId: booked.reservationHoldId,
                 why: "checkout_origin_unavailable",
@@ -254,6 +255,7 @@ export async function createInstantBookingAction(
               await unwindFailedCheckout(admin, {
                 orderId: booked.orderId,
                 transactionId: booked.transactionId,
+                bookingId: booked.bookingId,
                 allocationIds: booked.allocationIds,
                 reservationHoldId: booked.reservationHoldId,
                 why: "checkout_session_refused",
