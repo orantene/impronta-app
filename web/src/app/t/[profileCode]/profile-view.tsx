@@ -2208,15 +2208,9 @@ export async function TalentProfileView({
   const firstName = name.split(" ")[0] ?? name;
 
   // ── Platform-host marketing chrome props ──────────────────────────────
-  // On the platform host (app / marketing) the profile is wrapped in the real
-  // tulala.digital chrome (MarketingHeader + MarketingFooter). Agency hosts
-  // keep their own white-label chrome (no chrome forced here).
+  // Platform hosts get the tulala.digital chrome; agency hosts keep their own.
   const platformChrome = isTalentProfilePlatformHost(hostCtx.kind);
   let marketingAccount: MarketingAccount | undefined;
-  // TUL-730: no modal host here, so signed-out clients get app-host links.
-  const clientEntry = platformChrome
-    ? buildHubClientEntry(getAppUrl(), canonicalShareUrl)
-    : undefined;
   let marketingPathnameWithoutLocale = "/";
   if (platformChrome) {
     const h = await headers();
@@ -2651,7 +2645,7 @@ export async function TalentProfileView({
                 pathnameWithoutLocale={marketingPathnameWithoutLocale}
                 account={marketingAccount}
                 signOutAction={signOut}
-                clientEntry={clientEntry}
+                clientEntry={platformChrome ? buildHubClientEntry(getAppUrl(), canonicalShareUrl) : undefined}
               />
               {/* id="main-content" lives inside LightProfileLayout (<main>) */}
               <div className="flex-1 pt-[var(--plt-header-h,84px)] sm:pt-[72px]">
