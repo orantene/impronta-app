@@ -34,3 +34,36 @@ export function utmFromSearch(search: string | null | undefined): UtmPayload {
   }
   return out;
 }
+
+/** Referrer reduced to its origin (no path, query or fragment). */
+export function sanitizeReferrer(raw: unknown): string | null {
+  if (typeof raw !== "string" || !raw) return null;
+  try {
+    const u = new URL(raw);
+    return u.protocol === "http:" || u.protocol === "https:" ? u.origin : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Payload for the legacy view_talent_profile event. */
+export function buildLegacyProfileViewPayload(input: {
+  talentId: string;
+  locale: string;
+  pageSlug?: string | null;
+  viewContext?: string | null;
+  tenantId?: string | null;
+  referrer?: string | null;
+  search?: string | null;
+}): Record<string, unknown> {
+  const referrer = sanitizeReferrer(input.referrer);
+  return {
+    talent_id: input.talentId,
+    locale: input.locale,
+    ...(input.pageSlug ? { source_page: input.pageSlug } : {}),
+    ...(input.viewContext ? { view_context: input.viewContext } : {}),
+    ...(input.tenantId ? { tenant_id: input.tenantId } : {}),
+    ...(referrer ? { referrer } : {}),
+    ...utmFromSearch(input.search),
+  };
+}

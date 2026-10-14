@@ -33,3 +33,24 @@ describe("utmFromSearch", () => {
     assert.deepEqual(utmFromSearch("?utm_source=%20"), {});
   });
 });
+
+import { buildLegacyProfileViewPayload, sanitizeReferrer } from "./utm";
+
+describe("view_talent_profile payload", () => {
+  it("carries a referrer reduced to its origin", () => {
+    const p = buildLegacyProfileViewPayload({
+      talentId: "t1",
+      locale: "en",
+      referrer: "https://l.instagram.com/path?u=secret&token=1#x",
+      search: "?utm_source=IG",
+    });
+    assert.equal(p.referrer, "https://l.instagram.com");
+    assert.equal(p.utm_source, "ig");
+    assert.equal(p.talent_id, "t1");
+  });
+  it("omits referrer when empty or not http(s)", () => {
+    assert.equal("referrer" in buildLegacyProfileViewPayload({ talentId: "t", locale: "en", referrer: "" }), false);
+    assert.equal(sanitizeReferrer("android-app://com.x"), null);
+    assert.equal(sanitizeReferrer("garbage"), null);
+  });
+});

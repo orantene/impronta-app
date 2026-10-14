@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 import { trackProductEvent } from "@/lib/analytics/track-client";
-import { utmFromSearch } from "@/lib/analytics/utm";
+import { buildLegacyProfileViewPayload } from "@/lib/analytics/utm";
 
 /**
  * SitePageViewAnalytics — the ONE shared first-party page-view component for
@@ -80,14 +80,18 @@ export function SitePageViewAnalytics({
     // Legacy profile-view event — distinct name, so it feeds the inquiry funnel
     // loaders without double-counting against `view_site_page`.
     if (legacy && talentId) {
-      trackProductEvent(PRODUCT_ANALYTICS_EVENTS.view_talent_profile, {
-        talent_id: talentId,
-        locale,
-        ...(pageSlug ? { source_page: pageSlug } : {}),
-        ...(viewContext ? { view_context: viewContext } : {}),
-        ...(tenantId ? { tenant_id: tenantId } : {}),
-        ...utmFromSearch(typeof window !== "undefined" ? window.location.search : ""),
-      });
+      trackProductEvent(
+        PRODUCT_ANALYTICS_EVENTS.view_talent_profile,
+        buildLegacyProfileViewPayload({
+          talentId,
+          locale,
+          pageSlug,
+          viewContext,
+          tenantId,
+          referrer,
+          search: typeof window !== "undefined" ? window.location.search : "",
+        }),
+      );
     }
     // Fire-once-per-mount semantics, keyed on the identifying inputs.
   }, [surface, tenantId, pageId, pageSlug, locale, talentId, legacy, viewContext]);
