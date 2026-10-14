@@ -60,7 +60,7 @@ import { designTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/
 import { typeSystemComponentStyleDefaults } from "@/lib/talent-site/theme-catalog/collection/design-type-system";
 
 import { type MaxSitePageRow } from "@/lib/talent-site/resolve-max-site-core";
-import { TalentSiteSocket } from "@/components/talent-site/talent-site-socket";
+import { TulalaLegalStrip } from "@/components/talent-site/tulala-legal-strip";
 import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import {
   buildSocketModel,
@@ -568,9 +568,14 @@ export async function renderMaxSiteDocument(args: {
 
       {args.isDemo ? <MaxSiteDemoFooter locale={locale} acceptingBookings={args.demoAcceptingBookings !== false} /> : null}
 
-      {/* Global Tulala footer socket: one shared bottom strip under every
-          design's own footer (replaces the scattered "Made with Tulala"). */}
-      <TalentSiteSocket model={socketModel} />
+      {/* TUL-889: the slim Tulala legal strip under every design's own footer
+          (replaces the old socket band that read as a second footer, TUL-796). */}
+      <TulalaLegalStrip
+        locale={locale}
+        languages={socketModel.languages}
+        profileCode={args.profileCode}
+        siteHost={args.siteHost}
+      />
     </div>
   );
 }
