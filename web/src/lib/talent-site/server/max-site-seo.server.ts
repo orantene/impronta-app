@@ -49,6 +49,8 @@ export interface MaxSiteSeo {
   alternates?: { canonical: string; languages: Record<string, string> };
   /** DS-18: the business's own tab icon (logo, avatar or generated initials). */
   faviconUrl?: string;
+  /** Per-talent Google Search Console HTML-tag token (already sanitized). */
+  googleSiteVerification?: string;
 }
 
 /**
