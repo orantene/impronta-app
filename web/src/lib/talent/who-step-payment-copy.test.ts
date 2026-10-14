@@ -275,3 +275,14 @@ test("done-step next action restates studio vs payment (never silent paid)", () 
     /estudio/,
   );
 });
+
+test("remote-only free + in-person never says studio (es/en, who + done)", () => {
+  const base = { reserveMode: "free" as const, allowPayInPerson: true, depositPct: null, payRemoteOnly: true };
+  for (const locale of ["es", "en"]) {
+    const who = whoStepPaymentCopy({ ...base, locale });
+    const done = doneStepNextActionCopy({ ...base, locale, wrote: true, isRequest: false });
+    assert.doesNotMatch(who, /estudio|studio/i);
+    assert.doesNotMatch(done, /estudio|studio/i);
+  }
+  assert.match(whoStepPaymentCopy({ ...base, locale: "es" }), /acordado/);
+});

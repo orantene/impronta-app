@@ -76,6 +76,7 @@ import { ServiceAddressField } from "./ServiceAddressField";
 import { useServiceAddress } from "./use-service-address";
 import { useCatalogBookingConfirm } from "./use-catalog-booking-confirm";
 import { CatalogDonePanel, CatalogSheetHeader } from "./catalog-done-panel";
+import { CatalogBookingBackNav } from "./catalog-booking-back-nav";
 
 type Step = "choose" | "when" | "who" | "done";
 export type CatalogBookingDetail = OfferingRequestDetail & {
@@ -295,6 +296,7 @@ export function CatalogBookingSheet({
   const emailValid = /.+@.+\..+/.test(email.trim());
   const phoneValid = phone.trim() === "" || phone.replace(/\D/g, "").length >= 8;
   const addr = useServiceAddress(detail?.where, locale);
+  const remoteOnly = detail?.where?.length === 1 && detail.where[0] === "remote";
   const { busy, confirm, resetConfirmGuards } = useCatalogBookingConfirm({
     locale,
     mode,
@@ -352,7 +354,7 @@ export function CatalogBookingSheet({
     reserveMode: detail.reserveMode,
     allowPayInPerson: detail.allowPayInPerson,
     depositPct: detail.depositPct,
-    onlineCollectReady, payAtClientPlace: addr.rule === "required", locale,
+    onlineCollectReady, payAtClientPlace: addr.rule === "required", payRemoteOnly: remoteOnly, locale,
     offeringIntent: detail.intent,
     bookingSettings,
   });
@@ -453,11 +455,13 @@ export function CatalogBookingSheet({
         />
 
         <div className="jb-body">
-          {step !== "choose" && step !== "done" ? (
-            <button type="button" className="jb-back-link" data-catalog-start-over="" onClick={startOver}>
-              {es ? "Empezar de nuevo" : "Start over"}
-            </button>
-          ) : null}
+          <CatalogBookingBackNav
+            step={step}
+            es={es}
+            onChangeService={() => { setTakenNotice(null); setStep("choose"); }}
+            onChangeTime={() => setStep("when")}
+            onStartOver={startOver}
+          />
           {step === "choose" ? (
             <>
               <div className="jb-summary">
@@ -573,9 +577,6 @@ export function CatalogBookingSheet({
 
           {step === "when" ? (
             <>
-              <button type="button" className="jb-back-link" onClick={() => { setTakenNotice(null); setStep("choose"); }}>
-                {es ? "← Cambiar servicio u opciones" : "← Change service or options"}
-              </button>
               {mode === "live" && (slotsLoading || !slotsReady) ? (
                 <p className="jb-fixture">
                   <span className="cb-spinner" aria-hidden="true" />
@@ -617,9 +618,6 @@ export function CatalogBookingSheet({
 
           {step === "who" ? (
             <>
-              <button type="button" className="jb-back-link" onClick={() => setStep("when")}>
-                {es ? "← Cambiar horario" : "← Change time"}
-              </button>
               <CatalogWhoSummary
                 es={es}
                 service={variant ? `${detail.title} · ${variant.label}` : detail.title}
@@ -708,7 +706,7 @@ export function CatalogBookingSheet({
                 reserveMode: detail.reserveMode,
                 allowPayInPerson: detail.allowPayInPerson,
                 depositPct: detail.depositPct,
-                onlineCollectReady, payAtClientPlace: addr.rule === "required", locale,
+                onlineCollectReady, payAtClientPlace: addr.rule === "required", payRemoteOnly: remoteOnly, locale,
                 wrote,
                 isRequest,
               })}
