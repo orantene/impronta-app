@@ -5,19 +5,20 @@
  */
 import { summarizeSwitchWarnings, type DesignSwitchSummary } from "./design-switch-summary";
 import type { DesignSwitchWarn } from "./design-switch";
+import type { ThemeActionErrorCode } from "./theme-action-types";
 
 export type PreviewSwitchDeps = {
   /** Read-only lookup of the talent's existing site id (null = none yet). */
   findSiteId: () => Promise<string | null>;
   /** Computes the warnings for an existing site. */
-  preview: (siteId: string) => Promise<{ ok: true; warned: DesignSwitchWarn[] } | { ok: false; code: string; error: string }>;
+  preview: (siteId: string) => Promise<{ ok: true; warned: DesignSwitchWarn[] } | { ok: false; code: ThemeActionErrorCode; error: string }>;
   locale: "en" | "es";
 };
 
 export async function previewSwitchSummary(
   deps: PreviewSwitchDeps,
 ): Promise<
-  { ok: true; data: DesignSwitchSummary } | { ok: false; code: string; error: string }
+  { ok: true; data: DesignSwitchSummary } | { ok: false; code: ThemeActionErrorCode; error: string }
 > {
   const siteId = await deps.findSiteId();
   if (!siteId) return { ok: true, data: summarizeSwitchWarnings([], deps.locale) };

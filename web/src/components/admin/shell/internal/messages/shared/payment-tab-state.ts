@@ -81,18 +81,18 @@ export function paymentTabView(input: PaymentTabInput, localeIn: string): Paymen
   const amount = { label: c.amount, value: depositMoney(txn.grossAmountCents, txn.currency) };
   const method = { label: c.method, value: methodLabel(txn.provider, c) };
   if (txn.status === "refunded") {
-    const rows = [amount];
+    const rows: { label: string; value: string }[] = [amount];
     if (txn.refundedAt) rows.push({ label: c.date, value: dateLabel(txn.refundedAt, locale) });
     rows.push(method);
     return { kind: "refunded", label: c.refunded, rows };
   }
   if (txn.status === "failed") {
-    const rows = [amount];
+    const rows: { label: string; value: string }[] = [amount];
     if (txn.failureReason) rows.push({ label: c.reason, value: txn.failureReason });
     return { kind: "failed", label: c.failed, rows };
   }
   if (PAID.has(txn.status)) {
-    const rows = [amount];
+    const rows: { label: string; value: string }[] = [amount];
     if (txn.paidAt) rows.push({ label: c.date, value: dateLabel(txn.paidAt, locale) });
     rows.push(method);
     return { kind: "paid", label: c.paid, rows };
