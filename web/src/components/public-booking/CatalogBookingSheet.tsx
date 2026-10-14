@@ -500,6 +500,7 @@ export function CatalogBookingSheet({
               <CatalogTaskNote detail={detail} locale={locale} onChange={(note) => setDetail({ ...detail, note })} />
               <CatalogIntakeFields
                 questions={detail.intake}
+                hideNeighbourhood={addr.rule === "required"}
                 answers={detail.answers}
                 locale={locale}
                 onChange={(answers) => setDetail({ ...detail, answers })}
