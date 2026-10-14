@@ -29,7 +29,7 @@ const FX = talentFixture("t_ready");
  * navigation: the endpoint answers 307 and the browser aborts a `page.goto`
  * mid-redirect (net::ERR_ABORTED), which failed every run. The Set-Cookie on
  * the 307 lands in the browser context for that host; the caller then
- * navigates to the host root and asserts the session cookie is present.
+ * asserts the session cookie is present (no navigation).
  */
 async function signIn(page: Page, origin: string) {
   const url = `${origin}/api/dev/signin?email=${encodeURIComponent(FX.email)}&next=%2F`;
@@ -45,7 +45,9 @@ async function signIn(page: Page, origin: string) {
     await page.waitForTimeout(250 * attempt);
   }
   expect(status, `dev-signin failed on ${origin}`).toBe(307);
-  await page.goto(`${origin}/`, { waitUntil: "domcontentloaded" });
+  // No navigation here: the acme.lvh.me root redirects cross-host, which the
+  // browser reports as net::ERR_ABORTED. The Set-Cookie on the 307 already
+  // landed in the shared jar, so assert the session cookie directly.
   const auth = (await page.context().cookies(origin)).filter((c) => AUTH_RE.test(c.name));
   expect(auth.length, `signed in (auth cookie) on ${origin}`).toBeGreaterThan(0);
 }
