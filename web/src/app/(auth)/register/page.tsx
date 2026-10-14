@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { GoogleAuthButton } from "@/components/auth/google-auth-button";
 import {
@@ -28,7 +28,8 @@ import {
 } from "@/lib/saas/workspace-signup";
 import { loadWorkspaceLeadEmail } from "@/lib/saas/workspace-signup-lead.server";
 import { readInviteFromCookieStore } from "@/lib/invites/cookie";
-import { getPublicHostContext } from "@/lib/saas/scope";
+import { getPublicHostContext, PUBLIC_PATH_PREFIX_HEADER } from "@/lib/saas/scope";
+import { pathWorkspaceClientSignUpHref } from "@/lib/client-account/path-workspace-signup";
 import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
 import { legacySignupRedirect } from "@/lib/onboarding/legacy-signup-redirect";
 import { legacyFlowLang } from "@/lib/onboarding/legacy-signup-redirect.server";
@@ -167,6 +168,16 @@ export default async function RegisterPage({
   const params = await searchParams;
   const { error, intent, lead, next, invitation, email } = params;
   const locale = await getRequestLocale();
+  // TUL-713: `tulala.digital/w/<slug>/register` is the client sign-up door on
+  // that site (never the business /start); hand off to the app-host client
+  // register and come back to the site afterwards.
+  const pathSiteHref = pathWorkspaceClientSignUpHref({
+    publicPathPrefix: (await headers()).get(PUBLIC_PATH_PREFIX_HEADER),
+    appUrl: getAppUrl(),
+    params,
+    locale,
+  });
+  if (pathSiteHref) redirect(pathSiteHref);
   const t = createTranslator(locale);
   const showCardToggle = await resolveShowCardLocaleToggle();
   const workspaceLeadId = typeof lead === "string" && lead ? lead : null;

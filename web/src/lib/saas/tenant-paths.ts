@@ -27,6 +27,8 @@ const PATH_BASED_REGISTER_PATHS = [
   // TUL-709: client sign-in from a `/w/<slug>` site. The page hands off to the
   // app-host client sign-in with a return-to this site (path-workspace-signup.ts).
   "/login",
+  // TUL-713: client sign-up from a `/w/<slug>` site, same hand-off.
+  "/register",
 ] as const;
 
 export type PathBasedTenantPublicPath = {

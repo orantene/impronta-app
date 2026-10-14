@@ -38,6 +38,7 @@ export default async function ClientRegisterRedirect({
     publicPathPrefix: h.get(PUBLIC_PATH_PREFIX_HEADER),
     appUrl: getAppUrl(),
     params,
+    locale,
   });
   if (pathSiteHref) permanentRedirect(pathSiteHref);
   permanentRedirect(buildRegisterHref("client", params, locale));
