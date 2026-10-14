@@ -43,15 +43,25 @@ const STATUS_LABEL: Record<string, string> = {
   completed: "Completed",
 };
 
+function isHandedOff(status: string): boolean {
+  return ["shipped", "delivered", "picked_up", "downloaded", "completed"].includes(status);
+}
+
+/**
+ * Per attempt: one retry re-issues a discarded action, and the whole sequence
+ * (2 x budget + delay = 14 s) stays under the 15 s the page may spin.
+ */
+const LOAD_BUDGET_MS = 6_500;
+const LOAD_RETRY_DELAY_MS = 1_000;
+
 function settleOrders(talentId: string): Promise<TalentOrderRow[]> {
   return settleServerAction(() => loadTalentOrders(talentId), {
     label: "loadTalentOrders",
     area: "talent-services",
+    budgetMs: LOAD_BUDGET_MS,
+    retries: 1,
+    retryDelayMs: LOAD_RETRY_DELAY_MS,
   });
-}
-
-function isHandedOff(status: string): boolean {
-  return ["shipped", "delivered", "picked_up", "downloaded", "completed"].includes(status);
 }
 
 export function TalentOrdersQueue({ talentId }: { talentId: string }) {

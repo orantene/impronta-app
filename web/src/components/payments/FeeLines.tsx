@@ -72,13 +72,17 @@ export function EngineFeeLines({
   locale = "en",
   label,
   nonRefundable,
+  formatMoney,
 }: {
   lines: readonly EngineFeeLine[];
   currency: string;
   locale?: string;
   label: (code: EngineFeeLine["code"]) => string;
   nonRefundable: string;
+  /** Lets a page print these lines in the same format as its other amounts. */
+  formatMoney?: (cents: number) => string;
 }) {
+  const fmt = formatMoney ?? ((cents: number) => formatFeeMoney(cents, currency, locale));
   if (!lines.length) return null;
   return (
     <div data-testid="engine-fee-lines" className="text-[14px]">
@@ -90,7 +94,7 @@ export function EngineFeeLines({
             className={`flex justify-between gap-3 py-1 ${l.code === "total_charged" ? "border-t border-admin-border-soft pt-2 font-semibold" : ""}`}
           >
             <dt>{label(l.code)}</dt>
-            <dd className="m-0 whitespace-nowrap tabular-nums">{formatFeeMoney(l.cents, currency, locale)}</dd>
+            <dd className="m-0 whitespace-nowrap tabular-nums">{fmt(l.cents)}</dd>
           </div>
         ))}
       </dl>
