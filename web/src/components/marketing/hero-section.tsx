@@ -152,7 +152,10 @@ export function HeroSection({ locale }: { locale: string }) {
               className="inline-flex min-h-12 items-center justify-center rounded-full px-6 text-[0.9375rem] font-semibold leading-none shadow-[0_14px_34px_-14px_rgba(0,0,0,0.65)] transition-transform duration-200 hover:-translate-y-[1px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               style={{ background: "rgb(255 255 255)", color: "var(--plt-forest-deep)" }}
             >
-              {copy.ctaTalent}
+              <span>{copy.ctaTalent}</span>
+              <svg aria-hidden width="14" height="10" viewBox="0 0 14 10" fill="none" className="ml-2">
+                <path d="M1 5h11M8 1l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </OpenTalentModalButton>
             <MarketingCta
               href={withLocaleHref("/get-started", locale)}
