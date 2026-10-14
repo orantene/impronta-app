@@ -234,7 +234,7 @@ export function PoliciesView({
                   {tt("From your settings")}
                 </span>
                 {row.target === "services" ? (
-                  <Link href="/talent/services" className="inline-flex min-h-[44px] items-center text-[13px] font-semibold text-emerald-900 underline">
+                  <Link href="/talent/services" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[44px] items-center text-[13px] font-semibold text-emerald-900 underline">
                     {row.action}
                   </Link>
                 ) : (
