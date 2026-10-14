@@ -182,6 +182,15 @@ test.describe("S1 sign-out ends the session on every subdomain", () => {
       // then client-side to /talent/today, and a late client redirect cancelled
       // the sign-out form navigation (POST never surfaced as a response).
       await gotoSettled(page, `${HOSTS[0]}/`);
+      // CI trace (run 38640120408): gotoSettled returned on the /talent loading
+      // shell (URL stable 1.5s while /talent/today compiled); its client
+      // redirect fired 66ms after the form submit and cancelled the POST.
+      // Wait for the final landing page itself, rendered, before signing out.
+      await page.waitForURL(/\/talent\/today(?:[?#]|$)/, { timeout: 60_000 });
+      await page.waitForLoadState("load");
+      await expect(page.getByRole("button", { name: /open account menu/i })).toBeVisible({
+        timeout: 60_000,
+      });
       await plantBrowserSession(page);
 
       const signOut = page.waitForResponse(
