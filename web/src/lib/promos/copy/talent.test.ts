@@ -33,7 +33,7 @@ test("every dynamic key family has members", () => {
   ];
   for (const f of families) assert.ok(keys.some((k) => k.startsWith(f)), f);
   for (const d of [0, 1, 2, 3, 4, 5, 6]) assert.ok(`weekday.${d}` in PROMO_COPY_ES);
-  for (const t of ["fill_week", "slow_day", "last_minute", "free_extra", "secret_code", "launch", "holiday", "come_back", "custom"]) {
+  for (const t of ["fill_week", "slow_day", "last_minute", "free_extra", "secret_code", "launch", "holiday", "come_back", "first_booking", "signup_unlock", "returning_reward", "referral", "limited_deal", "slow_week", "custom"]) {
     assert.ok(`tpl.${t}` in PROMO_COPY_ES && `tpl.${t}.sub` in PROMO_COPY_ES, t);
   }
   for (const s of ["draft", "archived", "paused", "scheduled", "live", "sold_out", "expired"]) assert.ok(`status.${s}` in PROMO_COPY_ES, s);
