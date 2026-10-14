@@ -9,11 +9,13 @@ export async function ProfileInstantBookingMount({
   talentProfileId,
   sourcePage,
   locale,
+  catalogSheetMounted = false,
 }: {
   tenantId: string;
   talentProfileId: string;
   sourcePage: string;
   locale: string;
+  catalogSheetMounted?: boolean;
 }) {
   const chrome = await loadGuestInstantChrome(tenantId);
   const admin = createServiceRoleClient();
@@ -36,6 +38,7 @@ export async function ProfileInstantBookingMount({
       captcha={chrome.captcha}
       hasBookableHours={hasBookableHours}
       requestOnly={requestOnly}
+      catalogSheetMounted={catalogSheetMounted}
     />
   );
 }

@@ -16,7 +16,7 @@ import { loadConfirmedInsightCorpus } from "@/lib/support/insights/load";
 import { wantsHumanSupport } from "@/lib/support/support-human-prefilter";
 import { sanitizeSupportAiOutput } from "@/lib/support/support-ai-guardrails";
 import { getRequestLocale } from "@/i18n/request-locale";
-import { supportAiLanguageDirective } from "@/lib/support/support-ai-language";
+import { resolveSupportAiLocale, supportAiLanguageDirective } from "@/lib/support/support-ai-language";
 import { supportFrom } from "@/lib/support/support-from";
 import { aiSuggestedSubjectFor } from "@/lib/support/ticket-title";
 import {
@@ -26,13 +26,18 @@ import {
 } from "@/lib/support/support-types";
 import {
   supportChatFailOpenBody,
+  supportChatOfferHumanBody,
   SUPPORT_CHAT_REASONS,
   SUPPORT_CHAT_SCHEMA,
   parseSupportChatModel,
 } from "@/lib/support/support-chat-shared";
+import {
+  logSupportChatFailOpen,
+  type SupportChatFailOpenReason,
+} from "@/lib/support/support-chat-fail-open-log";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
-const bodySchema = z.object({ ticketId: z.string().uuid() });
+const bodySchema = z.object({ ticketId: z.string().uuid(), locale: z.string().max(12).optional() });
 
 const REASONS = SUPPORT_CHAT_REASONS;
 
@@ -49,12 +54,18 @@ const SYSTEM_PROMPT = [
 
 const parseModel = parseSupportChatModel;
 
-async function failOpen(ticketId: string): Promise<void> {
+async function failOpen(
+  ticketId: string,
+  reason: SupportChatFailOpenReason,
+  code?: string | null,
+  locale?: string,
+): Promise<void> {
+  logSupportChatFailOpen(ticketId, reason, code);
   await supportEngine.appendMessage({
     ticketId,
     authorKind: "system",
     authorUserId: null,
-    body: supportChatFailOpenBody(await getRequestLocale().catch(() => "en")),
+    body: supportChatFailOpenBody(locale ?? (await getRequestLocale().catch(() => "en"))),
     messageKind: "system",
     skipNotify: true,
   });
@@ -83,6 +94,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid body" }, { status: 400 });
     }
     const { ticketId } = parsed.data;
+    const reqLocale = resolveSupportAiLocale(parsed.data.locale, await getRequestLocale().catch(() => "en"));
 
     const session = await requireSession();
     if (!session.ok) {
@@ -99,7 +111,7 @@ export async function POST(request: Request) {
 
     const admin = createServiceRoleClient();
     if (!admin) {
-      await failOpen(ticketId);
+      await failOpen(ticketId, "unavailable", null, reqLocale);
       return NextResponse.json({ skipped: "unavailable" }, { status: 200 });
     }
 
@@ -125,7 +137,7 @@ export async function POST(request: Request) {
 
     const gate = await assertAiInvocationAllowed(access.ticket.tenantId ?? DEFAULT_AI_TENANT_ID);
     if (!gate.ok) {
-      await failOpen(ticketId);
+      await failOpen(ticketId, "gated", gate.code, reqLocale);
       return NextResponse.json({ skipped: "gated" }, { status: 200 });
     }
 
@@ -149,7 +161,7 @@ export async function POST(request: Request) {
     });
 
     const adapter = await resolveAiChatAdapter();
-    const appLocale = await getRequestLocale().catch(() => "en");
+    const appLocale = reqLocale;
     const userMessage = JSON.stringify({
       appLocale,
       ticket: {
@@ -191,13 +203,13 @@ export async function POST(request: Request) {
     ]);
 
     if (!completion.ok) {
-      await failOpen(ticketId);
+      await failOpen(ticketId, "model", completion.code, appLocale);
       return NextResponse.json({ skipped: "model" }, { status: 200 });
     }
 
     const model = parseModel(completion.text);
     if (!model || !model.answer.trim()) {
-      await failOpen(ticketId);
+      await failOpen(ticketId, "parse", null, appLocale);
       return NextResponse.json({ skipped: "parse" }, { status: 200 });
     }
 
@@ -218,7 +230,7 @@ export async function POST(request: Request) {
       skipNotify: true,
     });
     if (!persisted.ok) {
-      await failOpen(ticketId);
+      await failOpen(ticketId, "persist", null, appLocale);
       return NextResponse.json({ skipped: "persist" }, { status: 200 });
     }
 
@@ -264,7 +276,7 @@ export async function POST(request: Request) {
         ticketId,
         authorKind: "ai",
         authorUserId: null,
-        body: `Want ${SUPPORT_AGENT.name} to take a look?`,
+        body: supportChatOfferHumanBody(appLocale),
         messageKind: "card",
         cardPayload: { kind: "offer-human" },
         aiMeta: { escalate_reason: "ai_suggested" },

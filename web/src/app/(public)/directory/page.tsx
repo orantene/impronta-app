@@ -10,10 +10,10 @@ import { PublicFooter } from "@/components/public-footer";
 import { getPublicSettings } from "@/lib/public-settings";
 import { getSavedTalentIds } from "@/lib/public-discovery";
 import { redirect } from "next/navigation";
-import { getPublicTenantScope } from "@/lib/saas/scope";
+import { getPublicPathPrefix, getPublicTenantScope } from "@/lib/saas/scope";
 import { resolveWorkspaceType } from "@/lib/saas/assert-roster-workspace";
 import { rosterEnabled } from "@/lib/saas/workspace-type";
-import { directoryOrBookHref } from "@/lib/site-admin/sections/site_header/directory-nav-href";
+import { rosterlessDirectoryRedirectHref } from "@/lib/site-admin/sections/site_header/directory-nav-href";
 import { loadPageForRender } from "@/lib/site-admin/server/page-reads";
 import { resolveDirectorySlug } from "@/lib/site-admin/server/page-roles";
 import { isLocale } from "@/lib/site-admin/locales";
@@ -26,7 +26,6 @@ import { buildPublicPageMetadata } from "@/lib/seo/public-metadata";
 import { AgencyChatLauncherMount } from "@/app/(public)/_chat/AgencyChatLauncherMount";
 import { DirectoryComponent } from "@/lib/site-admin/sections/directory/Component";
 import { fashionDirectoryPreset } from "@/lib/site-admin/sections/directory/presets";
-import { publicLocaleHref } from "@/i18n/client-directory-href";
 import { localeUrlSettings } from "@/i18n/pathnames";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 
@@ -71,7 +70,11 @@ export default async function DirectoryPage() {
     );
   }
 
-  const publicSettings = await getPublicSettings();
+  const [publicSettings, initialSavedIds, publicScope] = await Promise.all([
+    getPublicSettings(),
+    getSavedTalentIds(),
+    getPublicTenantScope(),
+  ]);
   if (!publicSettings.directoryPublic) {
     return (
       <>
@@ -87,12 +90,10 @@ export default async function DirectoryPage() {
     );
   }
 
-  const initialSavedIds = await getSavedTalentIds();
 
   // Phase 3 Step 2 — try the seeded `__directory__` builder page; fall
   // back to the direct component when absent (zero-regression until the
   // seed lands).
-  const publicScope = await getPublicTenantScope();
   const tenantId = publicScope?.tenantId ?? "";
   // TUL-505: business / studio / both have no roster — `/directory` used to
   // hard-404. Seeded/legacy CTAs still point here, so soft-redirect to `/book`
@@ -107,7 +108,11 @@ export default async function DirectoryPage() {
         localeSettings.supportedLocales,
       );
       redirect(
-        publicLocaleHref("/directory", directoryOrBookHref(false), locale, pathSettings),
+        rosterlessDirectoryRedirectHref({
+          pathPrefix: await getPublicPathPrefix(),
+          locale,
+          settings: pathSettings,
+        }),
       );
     }
   }

@@ -1,5 +1,6 @@
 import {
   EVENTBRITE_TERMS,
+  formatCheckedOn,
   ticketFeeRows,
   TULALA_RATE_FALLBACK,
 } from "@/lib/marketing/ticket-fee-comparison";
@@ -70,7 +71,7 @@ export function TicketFeeTable({
         us: "Carga aquí",
         share: "del precio",
         ours: `Nuestro ${pctText} incluye el procesamiento de tarjeta y es igual en todos los planes, incluido el gratis. En un boleto de $10 eso es $${tenTotal} en total: $${tenHalf} que se le suman al comprador y $${tenHalf} que salen del vendedor.`,
-        theirs: `Eventbrite, boletos pagados en Estados Unidos, revisado el ${EVENTBRITE_TERMS.checkedOn}: ${EVENTBRITE_TERMS.es}`,
+        theirs: `Eventbrite, boletos pagados en Estados Unidos, revisado el ${formatCheckedOn(locale)}: ${EVENTBRITE_TERMS.es}`,
         verify: "Revisa su página de precios",
         note: "Los precios cambian. Si algo aquí ya no es correcto, dinos y lo corregimos.",
       }
@@ -86,7 +87,7 @@ export function TicketFeeTable({
         us: "Carried here",
         share: "of face",
         ours: `Our ${pctText} includes card processing and is the same on every plan, including free. On a $10 ticket that is $${tenTotal} in total: $${tenHalf} added to the buyer and $${tenHalf} from the seller.`,
-        theirs: `Eventbrite, US paid tickets, checked ${EVENTBRITE_TERMS.checkedOn}: ${EVENTBRITE_TERMS.en}`,
+        theirs: `Eventbrite, US paid tickets, checked ${formatCheckedOn(locale)}: ${EVENTBRITE_TERMS.en}`,
         verify: "Check their pricing page",
         note: "Prices change. If anything here is out of date, tell us and we will fix it.",
       };

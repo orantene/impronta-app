@@ -1,20 +1,13 @@
 /**
  * lib/stripe/workspace-billing.ts
- *
  * Server-only billing operations for workspace (agency) Stripe subscriptions.
- *
- * All functions return typed result objects — no throws on expected failures.
- * Callers (server actions, webhook handler) handle the error cases.
- *
- * Dependency chain:
- *   stripe/client.ts → Stripe SDK instance
- *   stripe/price-ids.ts → plan → Price ID mapping
- *   supabase/admin.ts → service-role client (bypasses RLS for webhook writes)
- *   supabase/server.ts → SSR client (RLS-bound reads from server actions)
+ * Functions return typed result objects, no throws on expected failures.
+ * Depends on stripe/client.ts, stripe/price-ids.ts, supabase/admin.ts (service role) and supabase/server.ts.
  */
 
 import "server-only";
-import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
+// TUL-573: lazy, so dashboard cold starts do not evaluate the Stripe SDK.
+const loadStripeClient = () => import("@/lib/stripe/client");
 import { type WorkspacePlanKey } from "@/lib/stripe/price-ids";
 import { resolveWorkspacePriceId } from "@/lib/stripe/price-catalog";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -68,6 +61,7 @@ export async function getOrCreateStripeCustomer(
   ownerEmail: string,
   displayName: string,
 ): Promise<BillingResult<string>> {
+  const { getStripe, isStripeConfigured } = await loadStripeClient();
   if (!isStripeConfigured()) {
     return { ok: false, error: "Stripe is not configured." };
   }
@@ -177,6 +171,7 @@ export async function createWorkspaceCheckoutSession(opts: {
   /** Signed return-to-spot token (`lib/billing/checkout-return.ts`); the account page forwards to it after success. */
   returnToken?: string | null;
 }): Promise<BillingResult<{ url: string }>> {
+  const { getStripe, isStripeConfigured } = await loadStripeClient();
   if (!isStripeConfigured()) {
     return { ok: false, error: "Stripe is not configured." };
   }
@@ -285,6 +280,7 @@ export async function createBillingPortalSession(opts: {
   /** Resolved app locale, threaded from the caller. See the checkout helper. */
   locale?: string | null;
 }): Promise<BillingResult<{ url: string }>> {
+  const { getStripe, isStripeConfigured } = await loadStripeClient();
   if (!isStripeConfigured()) {
     return { ok: false, error: "Stripe is not configured." };
   }
@@ -585,6 +581,7 @@ export async function reactivateWorkspaceSubscription(
     return { ok: true, data: { hadSubscription: true, renewsAt: row.current_period_end ?? null } };
   }
 
+  const { getStripe, isStripeConfigured } = await loadStripeClient();
   if (!isStripeConfigured()) {
     return { ok: false, error: "Billing is not available right now. Contact support and nothing will be charged." };
   }
@@ -645,6 +642,7 @@ export async function cancelWorkspaceSubscriptionAtPeriodEnd(
     return { ok: true, data: { effectiveAt: row.current_period_end ?? null, hadSubscription: true } };
   }
 
+  const { getStripe, isStripeConfigured } = await loadStripeClient();
   if (!isStripeConfigured()) {
     return { ok: false, error: "Billing is not available right now. Contact support and nothing will be charged." };
   }
@@ -700,6 +698,7 @@ export async function pauseWorkspaceSubscriptionCollection(
   // Nothing is being billed, so there is nothing to pause. Not an error.
   if (!row?.stripe_subscription_id) return { ok: true, data: { paused: false } };
 
+  const { getStripe, isStripeConfigured } = await loadStripeClient();
   const stripe = isStripeConfigured() ? getStripe() : null;
   if (!stripe) {
     return { ok: false, error: "Billing is not available right now, so the pause was not applied." };

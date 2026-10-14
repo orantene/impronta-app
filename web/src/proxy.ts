@@ -8,6 +8,7 @@ import {
   shouldRewriteLocalePublicPath,
   stripNonDefaultLocalePrefix,
   syncLocaleCookieForPath,
+  syncLocaleCookieForDefaultPrefixStrip,
 } from "@/i18n/locale-middleware";
 import { langFromLocalePrefixedPath } from "@/lib/onboarding/legacy-signup-redirect";
 import { LOCALE_HEADER, ORIGINAL_PATHNAME_HEADER, ORIGINAL_SEARCH_HEADER } from "@/i18n/request-locale";
@@ -36,7 +37,7 @@ import {
   resolveWorkspacePathTenantPublicPath,
   WORKSPACE_PATH_SEGMENT,
 } from "@/lib/saas/surface-allow-list";
-import { freeSubdomainPathRedirect, marketingWorkspacePathRedirect, workspacePathRedirect } from "@/lib/saas/workspace-path-redirects";
+import { freeSubdomainPathRedirect, marketingAccountPathRedirect, marketingWorkspacePathRedirect, workspacePathRedirect } from "@/lib/saas/workspace-path-redirects";
 import { resolveLegacyTalentPlatformPath } from "@/lib/talent/legacy-talent-redirect";
 import { talentProfileCodeAliasRedirectResponse } from "@/lib/talent/profile-code-alias-middleware";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
@@ -54,6 +55,7 @@ import { ensureExperimentVisitorCookie } from "@/lib/site-admin/builder-node/exp
 import { TULALA_APEX_HOST, TULALA_WWW_HOST } from "@/lib/brand/tulala";
 import { timed } from "@/lib/server/perf-trace";
 import { startDoorRedirect } from "@/lib/onboarding/start-door-redirect";
+import { marketingDemoSlugRedirect } from "@/lib/marketing/demo-slug-apex-redirect";
 import { marketingSpanishAliasRedirect } from "@/lib/marketing/spanish-path-alias";
 import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 
@@ -191,6 +193,9 @@ export async function proxy(request: NextRequest) {
     hostKind: hostContext.kind,
   });
   if (spanishAlias) return NextResponse.redirect(new URL(spanishAlias, request.url), 308);
+
+  const demoSlugHop = marketingDemoSlugRedirect({ pathname: request.nextUrl.pathname, search: request.nextUrl.search, method: request.method, hostKind: hostContext.kind });
+  if (demoSlugHop) return NextResponse.redirect(demoSlugHop, 308);
 
   // Support Desk host: DEAD while SUPPORT_DESK_ENABLED is off — even when
   // support.tulala.digital is seeded in agency_domains (Phase 1a). When the
@@ -341,15 +346,13 @@ export async function proxy(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = withoutLocalePrefix;
     const res = NextResponse.redirect(url, 308);
-    // QA 2026-05-13 — without setting the locale cookie here, the redirected
-    // page renders in the DEFAULT locale even though the operator's URL was
-    // `/es/<tenant>`. The downstream `syncLocaleCookieForPath` calls only fire
-    // after this early-return, so they never see the original `/es/` prefix
-    // and never set the cookie. Result: clicking the ES locale switcher pushed
-    // `/es/impronta?edit=1` → server 308'd to `/impronta?edit=1` → page
-    // rendered in EN. The switcher appeared broken.  Set the cookie on the
-    // redirect response so the followed URL serves with the right locale.
+    // QA 2026-05-13: without a locale cookie here, the redirected page renders
+    // in the DEFAULT locale even though the URL was `/es/<tenant>` (the
+    // downstream `syncLocaleCookieForPath` calls fire only after this early
+    // return and never see the `/es/` prefix), so the ES switcher looked broken.
+    // Set the cookie on the redirect response so the followed URL keeps the locale.
     syncLocaleCookieForPath(res, pathname, effectiveLangSettings, request);
+    syncLocaleCookieForDefaultPrefixStrip(res, pathname, effectiveLangSettings);
     return res;
   }
 
@@ -406,6 +409,9 @@ export async function proxy(request: NextRequest) {
   });
   if (marketingWorkspaceRedirect) return marketingWorkspaceRedirect;
 
+  const marketingAccountRedirect = marketingAccountPathRedirect({ request, canonicalPath, hostKind: effectiveHostContext.kind });
+  if (marketingAccountRedirect) return marketingAccountRedirect;
+
   const freeSubdomainRedirect = await freeSubdomainPathRedirect({ request, pathname, canonicalPath, hostContext });
   if (freeSubdomainRedirect) return freeSubdomainRedirect;
 
@@ -443,10 +449,13 @@ export async function proxy(request: NextRequest) {
     // Render the branded "page not found" page (Tulala chrome + a way home)
     // instead of bare plain-text — a mistyped or stale URL on a known host must
     // never be a chrome-less dead end. The rewrite target is whitelisted in the
-    // short-circuit block above so this does not recurse.
+    // short-circuit block above so this does not recurse. The locale header
+    // rides along so /es/<typo> answers in Spanish (the page and <html lang>).
+    const missHeaders = new Headers(sanitizedInboundHeaders);
+    missHeaders.set(LOCALE_HEADER, resolveLocaleForPathname(pathname, request, effectiveLangSettings));
     return NextResponse.rewrite(
       new URL("/_page-not-found", request.url),
-      { status: 404 },
+      { status: 404, request: { headers: missHeaders } },
     );
   }
 

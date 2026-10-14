@@ -12,6 +12,10 @@ export type DiscoverCopy = {
   pendingApproval: string;
   notOnDiscover: string;
   enableHint: string;
+  directorySwitchLabel: string;
+  directorySwitchHint: string;
+  directorySwitchSaved: string;
+  directorySwitchError: string;
   cardPreview: string;
   exclusive: string;
   cardPreviewHint: string;
@@ -49,7 +53,11 @@ const EN: DiscoverCopy = {
   liveOnDiscover: "You're live on Discover",
   pendingApproval: "Discover enabled, pending profile approval",
   notOnDiscover: "Not on Discover yet",
-  enableHint: "enable it from your profile's Identity section",
+  enableHint: "turn it on with the switch below",
+  directorySwitchLabel: "Show me in the directory",
+  directorySwitchHint: "Clients can find your card in the public directory. Turn it off any time and your card disappears from search; your own site and booking links keep working.",
+  directorySwitchSaved: "Saved",
+  directorySwitchError: "Could not save. Try again.",
   cardPreview: "Card preview",
   exclusive: "exclusive",
   cardPreviewHint:
@@ -90,7 +98,11 @@ const ES: DiscoverCopy = {
   liveOnDiscover: "Estás visible en Discover",
   pendingApproval: "Discover activado, pendiente de aprobación del perfil",
   notOnDiscover: "Aún no estás en Discover",
-  enableHint: "actívalo en la sección Identidad de tu perfil",
+  enableHint: "actívalo con el interruptor de abajo",
+  directorySwitchLabel: "Aparecer en el directorio",
+  directorySwitchHint: "Los clientes pueden encontrar tu tarjeta en el directorio público. Desactívalo cuando quieras y tu tarjeta deja de aparecer en las búsquedas; tu sitio y tus enlaces de reserva siguen funcionando.",
+  directorySwitchSaved: "Guardado",
+  directorySwitchError: "No se pudo guardar. Inténtalo de nuevo.",
   cardPreview: "Vista previa de la tarjeta",
   exclusive: "exclusivo",
   cardPreviewHint:

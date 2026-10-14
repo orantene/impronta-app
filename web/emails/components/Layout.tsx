@@ -41,6 +41,8 @@ export interface EmailBrand {
    * than silently telling account holders they are strangers.
    */
   recipientHasAccount?: boolean;
+  /** TUL-G4: absolute "save your bookings" sign-in URL for a guest; absent renders no line. */
+  saveBookingsUrl?: string | null;
   /** Absolute https logo URL; replaces the text wordmark when present. */
   logoUrl?: string | null;
   /**
@@ -86,6 +88,11 @@ function footerReason(locale: string, hasAccount: boolean, accountName: string):
     ? `You received this because you have an account with ${accountName}.`
     : `You received this because this address was used to contact ${accountName}.`;
 }
+
+const SAVE_BOOKINGS_FOOTER = {
+  es: { lead: "Guarda tus reservas:", cta: "crea o activa tu cuenta con este correo." },
+  en: { lead: "Save your bookings:", cta: "create or activate your account with this email." },
+} as const;
 
 interface LayoutProps {
   preview: string;
@@ -146,6 +153,14 @@ export function Layout({ preview, brand, unsubscribeUrl, categoryLabel, sellerNa
                 {b.footerDomain}
               </Link>
             </Text>
+            {b.saveBookingsUrl && b.recipientHasAccount === false ? (
+              <Text style={footerText} data-save-bookings="">
+                {SAVE_BOOKINGS_FOOTER[b.locale === "es" ? "es" : "en"].lead}{" "}
+                <Link href={b.saveBookingsUrl} style={footerLink}>
+                  {SAVE_BOOKINGS_FOOTER[b.locale === "es" ? "es" : "en"].cta}
+                </Link>
+              </Text>
+            ) : null}
             <UnsubscribeFooter
               unsubscribeUrl={unsubscribeUrl}
               categoryLabel={categoryLabel}

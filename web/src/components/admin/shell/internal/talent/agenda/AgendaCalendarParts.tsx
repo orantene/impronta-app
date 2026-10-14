@@ -1,5 +1,6 @@
 "use client";
 
+import { DateFormatHint } from "../../primitives/DateFormatHint";
 import type { ReactNode } from "react";
 import type { TalentAgendaItem } from "@/lib/talent-agenda/types";
 import { peekActionLabels } from "@/lib/talent-agenda/attention-cta";
@@ -170,6 +171,7 @@ export function BlockTimeForm({
       <label className={LABEL}>
         {copy.t("Date")}
         <input className={INPUT} type="date" value={date} onChange={(e) => onDate(e.target.value)} />
+        <DateFormatHint locale={copy.locale} />
       </label>
       <div className="grid grid-cols-2 gap-2">
         <label className={LABEL}>

@@ -17,6 +17,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { notifyTalentProfileApproved } from "@/lib/notifications/producers/talent-profile-approved-notify";
 import { assertTalentReadyForPublicListing } from "@/lib/field-engine/profile-publish-server-gate";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { afterResponse } from "@/lib/server/after-response";
 
 export type BulkWorkflowResult =
   | { ok: true; updatedCount: number; skippedCount?: number; skippedNames?: string[] }
@@ -174,11 +175,11 @@ export async function bulkSetWorkflowStatus(
     const alreadyVisible = new Set(["site_visible", "featured"]);
     for (const row of confirmedRows) {
       if (alreadyVisible.has(row.agency_visibility ?? "")) continue;
-      void notifyTalentProfileApproved({
+      afterResponse(() => notifyTalentProfileApproved({
         admin,
         tenantId: scope.tenantId,
         talentProfileId: row.talent_profile_id,
-      });
+      }));
     }
   }
 

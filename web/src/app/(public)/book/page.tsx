@@ -15,6 +15,7 @@ import { createTranslator } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { loadPublicBookableOfferings } from "@/lib/site-admin/server/load-book-page-offerings";
+import { resolveStorefrontLocale } from "@/lib/site-admin/server/storefront-locale";
 import { BookPageClient } from "./BookPageClient";
 import { loadGuestInstantChrome } from "@/lib/scheduling/guest-instant-chrome";
 
@@ -35,7 +36,9 @@ function slugFromPathPrefix(prefix: string): string {
 }
 
 export default async function BookPage() {
-  const locale = await getRequestLocale();
+  // Tenant-aware (TUL-698): a request with no language marker must render in
+  // the workspace's own language, bounded to the languages it supports.
+  const locale = (await resolveStorefrontLocale()).locale;
   const t = createTranslator(locale);
 
   if (!isSupabaseConfigured()) {
@@ -83,6 +86,7 @@ export default async function BookPage() {
     const identity = await loadPublicIdentity(tenantId);
     if (identity?.public_name?.trim()) agencyName = identity.public_name.trim();
   }
+  const pathPrefix = host.kind === "agency" ? "" : await getPublicPathPrefix();
   const guestChrome = await loadGuestInstantChrome(tenantId || null);
 
   return (
@@ -101,6 +105,7 @@ export default async function BookPage() {
           signedIn={guestChrome.signedIn}
           captcha={guestChrome.captcha}
           locale={locale}
+          contactHref={`${pathPrefix}/contact`}
         />
       </main>
       <PublicFooter className="mt-auto border-t border-border px-4 py-8 sm:px-6 lg:px-8" />

@@ -8,7 +8,7 @@ import { isDevGuestCaptchaSkipHostname } from "@/lib/scheduling/guest-captcha-de
 export type CatalogSlotsFn = (
   offeringId: string,
   durationMinutes: number,
-) => Promise<{ slots: string[]; timezone: string }>;
+) => Promise<{ slots: string[]; timezone: string; reason?: string | null }>;
 
 export function shouldSkipGuestCaptchaOnHost(): boolean {
   if (typeof window === "undefined") return false;
@@ -23,7 +23,7 @@ export function shouldSkipGuestCaptchaOnHost(): boolean {
 export async function fetchLiveSlots(
   offeringId: string,
   durationMinutes: number,
-): Promise<{ slots: string[]; timezone: string }> {
+): Promise<{ slots: string[]; timezone: string; reason?: string | null }> {
   const from = new Date().toISOString().slice(0, 10);
   const params = new URLSearchParams({
     offering: offeringId,
@@ -32,10 +32,11 @@ export async function fetchLiveSlots(
     duration: String(durationMinutes),
   });
   const res = await fetch(`/api/public/booking/slots?${params.toString()}`, { cache: "no-store" });
-  const body = (await res.json()) as { slots?: string[]; timezone?: string };
-  if (!res.ok) return { slots: [], timezone: "UTC" };
+  const body = (await res.json()) as { slots?: string[]; timezone?: string; reason?: string };
+  if (!res.ok) return { slots: [], timezone: "UTC", reason: null };
   return {
     slots: Array.isArray(body.slots) ? body.slots : [],
     timezone: typeof body.timezone === "string" && body.timezone.trim() ? body.timezone.trim() : "UTC",
+    reason: typeof body.reason === "string" ? body.reason : null,
   };
 }

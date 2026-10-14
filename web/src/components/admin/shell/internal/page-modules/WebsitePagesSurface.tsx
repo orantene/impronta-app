@@ -38,6 +38,7 @@ import { getAppUrl } from "@/lib/auth-flow";
 import { resolveStorefrontEditorOpenUrl } from "@/lib/auth/edit-handoff";
 import { buildPublicPathname, isValidSlugPath, normalizeSlugPath } from "@/lib/cms/paths";
 import {
+  hasBrandedWebsitePrimaryDomain,
   resolveWebsiteEditorBaseUrl,
   resolveWebsiteLiveOrigin,
 } from "@/lib/admin/website-editor-links";
@@ -103,7 +104,13 @@ function useWebsitePagesSurface() {
     [w.domain.primaryDomain, windowOrigin],
   );
   const editorBaseUrl = useMemo(
-    () => resolveWebsiteEditorBaseUrl({ liveOrigin, tenantSlug, windowOrigin, hasPrimaryDomain: Boolean(w.domain.primaryDomain?.trim()) }),
+    () =>
+      resolveWebsiteEditorBaseUrl({
+        liveOrigin,
+        tenantSlug,
+        windowOrigin,
+        hasPrimaryDomain: hasBrandedWebsitePrimaryDomain(w.domain.primaryDomain),
+      }),
     [liveOrigin, tenantSlug, windowOrigin, w.domain.primaryDomain],
   );
 

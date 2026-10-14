@@ -20,6 +20,7 @@ import { improntaLog } from "@/lib/server/structured-log";
 import { unstable_cache } from "next/cache";
 
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 // Leaf import: the `@/lib/site-admin` barrel re-exports the sections
 // registry (every Editor and Component), and this module sits under the
 // ROOT layout, so the barrel would put the whole builder into every route.
@@ -184,6 +185,29 @@ export function loadPublicIdentity(
       // as homepage-reads.ts (canonical reference).
       revalidate: 300,
     },
+  )();
+}
+
+/**
+ * TUL-710: the workspace's own name (`agencies.display_name`), the fallback for
+ * a public brand when the identity form has no `public_name`. Cached on the
+ * identity tag so a rename busts it with the rest of the identity.
+ */
+export function loadWorkspaceDisplayName(tenantId: string): Promise<string | null> {
+  if (!tenantId) return Promise.resolve(null);
+  return unstable_cache(
+    async (): Promise<string | null> => {
+      const admin = createServiceRoleClient();
+      if (!admin) return null;
+      const { data } = await admin
+        .from("agencies")
+        .select("display_name")
+        .eq("id", tenantId)
+        .maybeSingle<{ display_name: string | null }>();
+      return data?.display_name?.trim() || null;
+    },
+    ["site-admin:workspace-display-name", tenantId],
+    { tags: [tagFor(tenantId, "identity")], revalidate: 300 },
   )();
 }
 

@@ -24,5 +24,22 @@ test("English pages, look-alikes, other origins and no Referer land on /", () =>
 
 test("the sign-out route redirects through the helper", () => {
   const src = readFileSync(join(process.cwd(), "src/app/auth/sign-out/route.ts"), "utf8");
-  assert.match(src, /signOutRedirectPath\(request\.headers\.get\("referer"\), request\.url\)/);
+  assert.match(src, /signOutRedirectPath\(\s*request\.headers\.get\("referer"\),\s*request\.url,/);
+});
+
+// TUL-146: dashboards live at unprefixed URLs (/talent/today), so the Referer
+// says nothing about language there. The locale cookie is the signal.
+test("signing out of an unprefixed dashboard keeps a Spanish locale cookie", () => {
+  const dash = "https://app.tulala.digital/talent/today";
+  const r = "https://app.tulala.digital/auth/sign-out";
+  assert.equal(signOutRedirectPath(dash, r, "es"), "/es");
+  assert.equal(signOutRedirectPath(null, r, "es"), "/es");
+  assert.equal(signOutRedirectPath(dash, r, "en"), "/");
+  assert.equal(signOutRedirectPath(dash, r, null), "/");
+  assert.equal(signOutRedirectPath(dash, r, "fr"), "/");
+});
+
+test("the sign-out route passes the locale cookie to the helper", () => {
+  const src = readFileSync(join(process.cwd(), "src/app/auth/sign-out/route.ts"), "utf8");
+  assert.match(src, /p\.name === "locale"/);
 });

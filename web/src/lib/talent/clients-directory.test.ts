@@ -65,7 +65,7 @@ describe("clients-directory", () => {
         completedCount: 1,
         visitCount: 1,
       }),
-      row({ id: "c", name: "Cora", source: "inquiry", completedCount: 0, visitCount: 0 }),
+      row({ id: "c", name: "Cora", source: "inquiry", completedCount: 0, visitCount: 0, firstSeenAt: "2026-09-25T12:00:00.000Z" }),
       row({
         id: "d",
         name: "Dani",
@@ -74,6 +74,7 @@ describe("clients-directory", () => {
         nextBookingHref: "/talent/bookings/2",
         completedCount: 0,
         visitCount: 0,
+        firstSeenAt: "2026-06-01T12:00:00.000Z",
       }),
     ];
     const counts = countClientsByFilter(items, now);
@@ -81,7 +82,7 @@ describe("clients-directory", () => {
     assert.equal(counts.upcoming, 1); // Ana only — requested excluded
     assert.equal(counts.outstanding, 1);
     assert.equal(counts.follow, 0);
-    assert.equal(counts.fresh, 2); // Cora + Dani (done === 0; request still counts as New)
+    assert.equal(counts.fresh, 1); // Cora only: Dani is old and never booked, not new (TUL-717)
   });
 
   it("TUL-359 / DS-49: hides New filter chip at zero (and refill unless enabled)", () => {
@@ -203,7 +204,7 @@ describe("clients-directory", () => {
 
   it("classifies new vs upcoming", () => {
     const now = "2026-09-28T12:00:00.000Z";
-    assert.equal(isNewClient(row({ id: "1", name: "N" })), true);
+    assert.equal(isNewClient(row({ id: "1", name: "N", firstSeenAt: "2026-09-27T12:00:00.000Z" }), now), true);
     assert.equal(
       isUpcomingClient(
         row({

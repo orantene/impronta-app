@@ -23,6 +23,7 @@
  * one-sentence reason.
  */
 
+import { DateFormatHint } from "../primitives/DateFormatHint";
 import { useState, type ReactNode } from "react";
 
 import { useT } from "@/i18n/use-t";
@@ -264,6 +265,7 @@ export function SeriesEditor({
               {busy === "save" ? t(`${K}.saving`) : t(`${K}.save`)}
             </ActionButton>
             <input type="date" aria-label={t(`${K}.generateUntil`)} className={`${INPUT} w-[140px]`} value={until} min={todayYmd} onChange={(e) => setUntil(e.target.value)} data-testid="series-generate-until" />
+            <DateFormatHint locale={locale} />
             <ActionButton
               tone="primary"
               reason={draft.seriesId ? null : t(`${K}.generateSaveFirst`)}
@@ -294,9 +296,11 @@ export function SeriesEditor({
           </Field>
           <Field label={t(`${K}.startsOn`)}>
             <input type="date" className={FIELD} value={draft.startsOn} onChange={(e) => set("startsOn", e.target.value)} />
+            <DateFormatHint locale={locale} />
           </Field>
           <Field label={t(`${K}.endsOn`)} hint={t(`${K}.endsOnHint`)}>
             <input type="date" className={FIELD} value={draft.endsOn} min={draft.startsOn} onChange={(e) => set("endsOn", e.target.value)} />
+            <DateFormatHint locale={locale} />
           </Field>
           <Field label={t(`${K}.active`)}>
             <button
@@ -480,6 +484,7 @@ export function GenerateSessionsForm({
   onClose: () => void;
 }) {
   const t = useT();
+  const locale = useDashboardLocale();
   const [seriesId, setSeriesId] = useState(seriesOptions[0]?.id ?? "");
   const [until, setUntil] = useState(() => addUtcDays(todayYmd, 28) ?? todayYmd);
   const [busy, setBusy] = useState(false);
@@ -529,6 +534,7 @@ export function GenerateSessionsForm({
         <label className="flex flex-col gap-[4px] font-admin-body text-[12px] text-admin-ink-muted">
           <span>{t(`${B}.generateForm.until`)}</span>
           <input type="date" className={INPUT} value={until} min={todayYmd} onChange={(e) => setUntil(e.target.value)} data-testid="generate-sessions-until" />
+            <DateFormatHint locale={locale} />
         </label>
       </div>
       <div className="flex gap-[8px]">

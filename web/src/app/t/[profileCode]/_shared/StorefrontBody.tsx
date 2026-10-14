@@ -12,7 +12,7 @@
 
 import Image from "next/image";
 import type { TalentOffering, OfferingKind } from "@/lib/talent/offerings-types";
-import { offeringPriceLabel } from "@/lib/talent/offerings-types";
+import { offeringIsQuote, offeringPriceLabel } from "@/lib/talent/offerings-types";
 import { OfferingCta } from "./OfferingCta";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
@@ -31,7 +31,7 @@ const GROUP_LABELS: Record<OfferingKind, { en: string; es: string }> = {
  * have nothing to convert. Renders nothing when rates are unavailable.
  */
 function UsdLine({ it, locale, fx }: { it: TalentOffering; locale: string; fx: UsdRates | null }) {
-  if (it.visibility === "on_request" || it.priceDisplay === "quote" || it.priceType === "custom") return null;
+  if (it.visibility === "on_request" || offeringIsQuote(it)) return null;
   const line = usdEquivalentLabel(it.amountCents, it.currency, fx, locale);
   if (!line) return null;
   return (

@@ -228,7 +228,7 @@ export const PRESENCE_ES_TEXT: Record<string, string> = {
   "Privacy": "Privacidad",
   "Plan": "Plan",
   "Help and support": "Ayuda y soporte",
-  "Common questions, payouts, contact our team.": "Preguntas frecuentes, pagos, contacta a nuestro equipo.",
+  "Shortcuts, help centre, contact our team.": "Atajos, centro de ayuda, contacta a nuestro equipo.",
   "Hide everywhere": "Ocultar en todas partes",
   "One switch that overrides every page and listing.": "Un solo interruptor que manda sobre cada página y ficha.",
   "Active": "Activa",
