@@ -23,3 +23,21 @@ export function takeWebsiteSettingsIntent(): WebsiteSettingsIntentView | null {
   pending = null;
   return v;
 }
+
+/**
+ * Settings > "Hide a public page" opens My presence on "Where I appear", where
+ * the per-page hide switches live (not the slower My website tab). One-shot.
+ */
+export type PresenceTabIntent = "appear";
+
+let pendingTab: PresenceTabIntent | null = null;
+
+export function requestPresenceTab(tab: PresenceTabIntent): void {
+  pendingTab = tab;
+}
+
+export function takePresenceTabIntent(): PresenceTabIntent | null {
+  const v = pendingTab;
+  pendingTab = null;
+  return v;
+}

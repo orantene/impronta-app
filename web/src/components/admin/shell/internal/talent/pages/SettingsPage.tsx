@@ -21,6 +21,7 @@ import { useDashboardText } from "../../dashboard-i18n";
 import { PasskeysCard } from "../../modern-features";
 import { Icon } from "../../primitives";
 import { MY_TALENT_PROFILE, TALENT_TIER_META, useAdminShell } from "../../state";
+import { requestPresenceTab } from "@/components/talent/website-settings/website-settings-intent";
 import { openWorkingHoursPanel } from "../agenda/WorkingHoursPanel";
 import { PageHeader } from "../shared/page-chrome-1";
 
@@ -317,7 +318,10 @@ export function SettingsPage() {
       label: tx("Hide a public page"),
       sub: tx("One page stops being public. Bookings, payments and messages are untouched. Reversible in a tap."),
       tag: { text: tx("In Where I appear"), tone: "ok" },
-      onOpen: () => setTalentPage("public-page"),
+      onOpen: () => {
+        requestPresenceTab("appear");
+        setTalentPage("public-page");
+      },
     },
   ];
   if (bridgeTalentSelfProfile && tenantSlug) {
