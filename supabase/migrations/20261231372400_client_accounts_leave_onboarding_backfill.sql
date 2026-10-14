@@ -1,4 +1,4 @@
--- TUL-669: client accounts stuck in 'onboarding' (backfill, NOT yet applied).
+-- TUL-669: client accounts stuck in 'onboarding' (backfill, applied 2026-10-13).
 --
 -- ensure_profile_for_current_user() recomputes profiles.account_status on
 -- every request: a client stays 'active' only while a client_profiles row
