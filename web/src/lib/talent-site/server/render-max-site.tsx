@@ -52,6 +52,8 @@ import { loadTalentPolicyModel, policyMainNode, policySeo } from "./policy-main"
 import { policyDocForSlug } from "@/lib/talent-policies/public";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { parseServiceSlug, resolveServiceBySlug, serviceSlug } from "@/lib/talent-site/service-page";
+import { serviceFaqItems, type ServiceFaqItem } from "@/lib/talent-site/service-page-faq";
+import { loadPublishedFaqForProfile } from "@/lib/talent/faq-public";
 import { serviceMainNode, serviceRelatedLinks, serviceSeo } from "./service-main";
 import { renderMaxSiteDocument } from "./render-max-site-document";
 
@@ -299,18 +301,21 @@ async function renderTalentMaxSiteUnguarded(
     let serviceOffering: Awaited<ReturnType<typeof loadPublicOfferingsForProfile>>[number] | null = null;
     let servicePath: string | null = null;
     let serviceRelated: ReturnType<typeof serviceRelatedLinks> = [];
+    let serviceFaq: ServiceFaqItem[] = [];
     if (isServiceSlug) {
       const primary = localeCtx.settings.defaultLocale;
-      const [inLocale, inPrimary] = await Promise.all([
+      const [inLocale, inPrimary, talentFaq] = await Promise.all([
         loadPublicOfferingsForProfile(talentProfileId, locale, null, { bypassCache }).catch(() => []),
         primary === locale
           ? null
           : loadPublicOfferingsForProfile(talentProfileId, primary, null, { bypassCache }).catch(() => []),
+        loadPublishedFaqForProfile(talentProfileId, locale).catch(() => []),
       ]);
       serviceOffering = resolveServiceBySlug(inLocale, input.pageSlug);
       if (!serviceOffering) return NOT_FOUND;
       const primaryRow = (inPrimary ?? inLocale).find((o) => o.id === serviceOffering!.id) ?? serviceOffering;
       servicePath = `/${serviceSlug(primaryRow)}`;
+      serviceFaq = serviceFaqItems(serviceOffering, talentFaq, locale);
       serviceRelated = serviceRelatedLinks(inLocale, inPrimary, serviceOffering.id, locale, (p) =>
         talentSiteLocalePath(p, locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales),
       );
@@ -324,6 +329,7 @@ async function renderTalentMaxSiteUnguarded(
             ? serviceMainNode(serviceOffering, {
                 locale,
                 related: serviceRelated,
+                faq: serviceFaq,
                 homePath: talentSiteLocalePath("/", locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales),
               })
             : undefined,
@@ -381,7 +387,7 @@ async function renderTalentMaxSiteUnguarded(
     const finalSeo = policyModel
       ? policySeo(seo, policyModel)
       : serviceOffering
-        ? serviceSeo(seo, serviceOffering, { talentName: identity?.name ?? null, locale, city: seoFacts.addressLocality ?? null })
+        ? serviceSeo(seo, serviceOffering, { talentName: identity?.name ?? null, locale, city: seoFacts.addressLocality ?? null, faq: serviceFaq })
         : seo;
     return { kind: "render", node, seo: finalSeo, locale };
   } catch {

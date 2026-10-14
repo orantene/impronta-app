@@ -12,15 +12,20 @@ import {
   serviceBackHref,
   serviceBookHref,
   serviceMetaText,
+  servicePriceLine as priceLine,
   servicePageCopy,
   serviceSlug,
   type ServicePageOffering,
 } from "@/lib/talent-site/service-page";
 
+import { buildServiceFaqJsonLd, serviceFaqCopy, type ServiceFaqItem } from "@/lib/talent-site/service-page-faq";
+
 import type { MaxSiteSeo } from "./render-max-site";
 
 const INK = "var(--token-color-ink, CanvasText)";
 const SOFT = "color-mix(in srgb, var(--token-color-ink, CanvasText) 66%, var(--token-color-background, Canvas))";
+
+const H2: CSSProperties = { margin: "0 0 12px", fontSize: 18, fontFamily: "var(--site-heading-font, inherit)" };
 
 /** TUL-795: phone sticky bar (hidden at >=640px and height-reserved by FLOATING_CHROME_STACK_CSS). */
 const STICKY: CSSProperties = {
@@ -50,16 +55,6 @@ const STICKY_BTN: CSSProperties = {
   whiteSpace: "nowrap",
 };
 
-function priceLine(o: ServicePageOffering, locale: string, from: string): string | null {
-  if (!o.amountCents || o.amountCents <= 0 || !o.currency) return null;
-  if (o.priceDisplay !== "exact" && o.priceDisplay !== "from") return null;
-  try {
-    const n = new Intl.NumberFormat(locale, { style: "currency", currency: o.currency.toUpperCase() }).format(o.amountCents / 100);
-    return o.priceDisplay === "from" ? `${from} ${n}` : n;
-  } catch {
-    return null;
-  }
-}
 
 export type ServiceRelatedLink = { title: string; href: string; facts: string };
 
@@ -84,7 +79,7 @@ export function serviceRelatedLinks(
 
 export function serviceMainNode(
   o: ServicePageOffering,
-  opts: { locale: string; homePath: string; related?: readonly ServiceRelatedLink[] },
+  opts: { locale: string; homePath: string; related?: readonly ServiceRelatedLink[]; faq?: readonly ServiceFaqItem[] },
 ): ReactNode {
   const copy = servicePageCopy(opts.locale);
   const price = priceLine(o, opts.locale, copy.priceFrom);
@@ -123,6 +118,17 @@ export function serviceMainNode(
           {copy.book}
         </Link>
       )}
+      {opts.faq && opts.faq.length > 0 ? (
+        <section data-talent-service-faq="" style={{ marginTop: 40 }}>
+          <h2 style={H2}>{serviceFaqCopy(opts.locale).heading}</h2>
+          {opts.faq.map((f) => (
+            <details key={f.question} style={{ borderTop: `1px solid color-mix(in srgb, ${INK} 14%, transparent)`, padding: "12px 0" }}>
+              <summary style={{ cursor: "pointer", fontWeight: 600 }}>{f.question}</summary>
+              <p style={{ margin: "8px 0 0", whiteSpace: "pre-line", color: SOFT }}>{f.answer}</p>
+            </details>
+          ))}
+        </section>
+      ) : null}
       {o.publicCtaHidden ? null : (
         <div data-talent-service-sticky="" style={STICKY}>
           {price ? <span style={{ fontWeight: 600, minWidth: 0 }}>{price}</span> : <span />}
@@ -131,7 +137,7 @@ export function serviceMainNode(
       )}
       {opts.related && opts.related.length > 0 ? (
         <nav aria-label={copy.related} data-talent-service-related="" style={{ marginTop: 40 }}>
-          <h2 style={{ margin: "0 0 12px", fontSize: 18, fontFamily: "var(--site-heading-font, inherit)" }}>{copy.related}</h2>
+          <h2 style={H2}>{copy.related}</h2>
           <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: 10 }}>
             {opts.related.map((r) => (
               <li key={r.href}>
@@ -150,7 +156,7 @@ export function serviceMainNode(
 export function serviceSeo(
   seo: MaxSiteSeo,
   o: ServicePageOffering,
-  ctx: { talentName: string | null; locale: string; city?: string | null },
+  ctx: { talentName: string | null; locale: string; city?: string | null; faq?: readonly ServiceFaqItem[] },
 ): MaxSiteSeo {
   const meta = serviceMetaText(o, ctx.talentName, { city: ctx.city, locale: ctx.locale });
   const canonical = seo.canonical ?? seo.alternates?.canonical;
@@ -161,8 +167,19 @@ export function serviceSeo(
     ogTitle: meta.title,
     ogDescription: meta.description,
     ogImageUrl: o.imageUrls?.[0] ?? seo.ogImageUrl,
-    jsonLd: canonical
-      ? buildServicePageJsonLd({ offering: o, canonicalUrl: canonical, talentName: ctx.talentName, inLanguage: ctx.locale })
-      : undefined,
+    jsonLd: canonical ? serviceJsonLd(o, canonical, ctx) : undefined,
   };
+}
+
+/** Service JSON-LD alone, or an @graph with the FAQPage when the page shows an FAQ. */
+function serviceJsonLd(
+  o: ServicePageOffering,
+  canonical: string,
+  ctx: { talentName: string | null; locale: string; faq?: readonly ServiceFaqItem[] },
+): Record<string, unknown> {
+  const service = buildServicePageJsonLd({ offering: o, canonicalUrl: canonical, talentName: ctx.talentName, inLanguage: ctx.locale });
+  const faq = buildServiceFaqJsonLd(ctx.faq ?? [], canonical);
+  if (!faq) return service;
+  const { "@context": ctxUrl, ...serviceNode } = service;
+  return { "@context": ctxUrl, "@graph": [serviceNode, faq] };
 }

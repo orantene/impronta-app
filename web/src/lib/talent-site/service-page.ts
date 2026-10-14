@@ -23,6 +23,9 @@ export type ServicePageOffering = JsonLdOfferingSource & {
   category?: string | null;
   categoryLabel?: string;
   cancellationHours?: number | null;
+  bookingMode?: "request" | "instant" | "inquiry" | null;
+  reserveMode?: "full" | "deposit" | "free";
+  depositPct?: number | null;
 };
 
 /** Other published services to link from a service page: same category first, then catalog order. */
@@ -77,6 +80,18 @@ export function resolveServiceBySlug<T extends ServicePageOffering>(
 /** Host-root paths for the sitemap; `titleOffering` supplies the primary-language title for the slug. */
 export function serviceSitemapPaths(offerings: readonly ServicePageOffering[]): string[] {
   return offerings.filter(isServicePageEligible).map((o) => `/${serviceSlug(o)}`);
+}
+
+/** "Desde $300.00" / "$450.00", or null when the price is hidden or quote-only. */
+export function servicePriceLine(o: ServicePageOffering, locale: string, from: string): string | null {
+  if (!o.amountCents || o.amountCents <= 0 || !o.currency) return null;
+  if (o.priceDisplay !== "exact" && o.priceDisplay !== "from") return null;
+  try {
+    const n = new Intl.NumberFormat(locale, { style: "currency", currency: o.currency.toUpperCase() }).format(o.amountCents / 100);
+    return o.priceDisplay === "from" ? `${from} ${n}` : n;
+  } catch {
+    return null;
+  }
 }
 
 export type ServicePageCopy = {
