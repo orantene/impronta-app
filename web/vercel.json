@@ -263,7 +263,7 @@
     },
     {
       "path": "/api/cron/warm-front-door",
-      "schedule": "*/2 * * * *"
+      "schedule": "*/30 * * * *"
     },
     {
       "path": "/api/cron/ticket-refund-intents",
