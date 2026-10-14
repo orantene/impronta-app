@@ -57,6 +57,7 @@ import { ShellUpgradeModal } from "./internal/shell-upgrade-modal";
 import { CommandPalette } from "./internal/palette";
 import { DRAWER_HELP } from "./internal/help";
 import { useDashboardText } from "./internal/dashboard-i18n";
+import { TabTitleBridge } from "./internal/dashboard-tab-title-bridge";
 import { MESSAGES_MOBILE_CSS } from "./internal/messages-mobile-css";
 import { interpolate } from "@/i18n/interpolate";
 // Type-only import — `_data-bridge.ts` is a server-only module guarded by
@@ -72,32 +73,6 @@ import type { BridgeData } from "./internal/data-bridge";
 function ToastBridge() {
   const { state, dismissToast } = useAdminShell();
   return <ToastHost toasts={state.toasts} onDismiss={dismissToast} />;
-}
-
-/**
- * Browser tab title reflects total unread count. e.g. "(3) Tulala" so
- * the talent sees at a glance from another tab that something needs
- * them. Uses bridge unread counts when live data is wired.
- */
-function TabTitleBridge() {
-  const { state, bridgeTalentUnread, totalUnread } = useAdminShell();
-
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    const unread =
-      state.surface === "talent"
-        ? (bridgeTalentUnread ?? 0)
-        : state.surface === "workspace"
-          ? totalUnread
-          : 0;
-    const base = "Tulala";
-    document.title = unread > 0 ? `(${unread}) ${base}` : base;
-    return () => {
-      document.title = base;
-    };
-  }, [state.surface, bridgeTalentUnread, totalUnread]);
-
-  return null;
 }
 
 /**
