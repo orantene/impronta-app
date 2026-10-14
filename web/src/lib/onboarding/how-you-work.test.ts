@@ -135,3 +135,14 @@ test("studio -> both: add_provider runs with a non-empty name for a studio owner
   const name = resolveProviderDisplayName(null, "Rosa Perez", "Estudio Rosa");
   assert.equal(name, "Rosa Perez");
 });
+
+// TUL-719: a workspace owner whose own talent site is public and who was never put on the
+// workspace roster still takes bookings (QA Max). That is "both", never "I do not take bookings".
+test("TUL-719: owner with a live own site and no roster row reads as taking bookings", () => {
+  const ownSite: HowYouWorkFacts = { ...studio, hasTalentProfile: true, talentProfileId: "tp1", ownSiteBookable: true };
+  assert.equal(deriveHowYouWork(ownSite), "both");
+  // nothing to stop on the roster, so no dead "stop" button
+  assert.deepEqual(movesFor(ownSite), []);
+  // a roster row hidden on purpose still reads as studio
+  assert.equal(deriveHowYouWork({ ...ownSite, ownSiteBookable: false }), "studio");
+});

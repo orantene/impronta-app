@@ -26,6 +26,7 @@ export async function loadFacts(admin: Admin, userId: string): Promise<{ facts: 
   let tenantSlug: string | null = null;
   let workspaceName: string | null = null;
   let bookable = false;
+  let ownSiteBookable = false;
   if (tenantIds.length > 0) {
     const [ag, roster] = await Promise.all([
       admin.from("agencies").select("id, slug, display_name").in("id", tenantIds).order("created_at", { ascending: true }),
@@ -42,6 +43,16 @@ export async function loadFacts(admin: Admin, userId: string): Promise<{ facts: 
       tenantSlug = pick.slug;
       workspaceName = pick.display_name;
       bookable = Boolean(visible);
+      // TUL-719: never on the roster of an owned workspace + public profile = her own site takes bookings.
+      if (!bookable && rows.length === 0 && talentProfileId) {
+        const { data: own, error: ownErr } = await admin
+          .from("talent_profiles")
+          .select("workflow_status, visibility")
+          .eq("id", talentProfileId)
+          .maybeSingle();
+        if (ownErr) logServerError("how-you-work.loadFacts.ownSite", ownErr);
+        ownSiteBookable = own?.workflow_status === "approved" && own?.visibility === "public";
+      }
     }
   }
   return {
@@ -50,6 +61,7 @@ export async function loadFacts(admin: Admin, userId: string): Promise<{ facts: 
       hasTalentProfile: Boolean(talentProfileId),
       ownsWorkspace: Boolean(tenantId),
       bookable,
+      ownSiteBookable,
       tenantId,
       tenantSlug,
       talentProfileId,

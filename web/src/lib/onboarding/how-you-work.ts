@@ -15,6 +15,11 @@ export type HowYouWorkFacts = {
   ownsWorkspace: boolean;
   /** Own roster row in an owned workspace is active and site_visible/featured. */
   bookable: boolean;
+  /**
+   * TUL-719: the owner's own talent profile is approved + public and has NO roster row in an
+   * owned workspace, so her own site takes bookings without the roster. Optional (false when absent).
+   */
+  ownSiteBookable?: boolean;
   tenantId: string | null;
   tenantSlug: string | null;
   talentProfileId: string | null;
@@ -37,15 +42,16 @@ export function resolveProviderDisplayName(...candidates: Array<string | null | 
 export type HowYouWorkMove = "open_studio" | "add_provider" | "resume_bookings" | "stop_bookings";
 
 /** myself = talent only; studio = workspace without me bookable; both = workspace + me bookable. */
-export function deriveHowYouWork(f: Pick<HowYouWorkFacts, "hasTalentProfile" | "ownsWorkspace" | "bookable">): OnboardingChoice {
+export function deriveHowYouWork(f: Pick<HowYouWorkFacts, "hasTalentProfile" | "ownsWorkspace" | "bookable" | "ownSiteBookable">): OnboardingChoice {
   if (!f.ownsWorkspace) return "myself";
-  return f.hasTalentProfile && f.bookable ? "both" : "studio";
+  return f.hasTalentProfile && (f.bookable || f.ownSiteBookable) ? "both" : "studio";
 }
 
 export function movesFor(f: HowYouWorkFacts): HowYouWorkMove[] {
   const choice = deriveHowYouWork(f);
   if (choice === "myself") return f.hasTalentProfile ? ["open_studio"] : [];
-  if (choice === "both") return ["stop_bookings"];
+  // Own-site-only bookings have no roster row to hide, so there is nothing for "stop" to do.
+  if (choice === "both") return f.bookable ? ["stop_bookings"] : [];
   return [f.hasTalentProfile ? "resume_bookings" : "add_provider"];
 }
 
