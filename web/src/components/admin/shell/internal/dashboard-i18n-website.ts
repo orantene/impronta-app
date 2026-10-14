@@ -39,6 +39,7 @@ export const WEBSITE_ES_TEXT: Record<string, string> = {
   "Activate your website": "Activa tu sitio",
   "Finish website setup": "Termina la configuración del sitio",
   "Website live": "Sitio en vivo",
+  "Checking your website": "Comprobando tu sitio",
   "Finish with AI": "Terminar con IA",
   "Write it myself": "Lo escribo yo",
   "Your free website is unlocked": "Tu sitio gratis está desbloqueado",
