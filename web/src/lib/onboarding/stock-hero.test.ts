@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
-import { findHeroImageNode, pickStockHero, planStockHero, primaryTypeOf, stockQueryForTalentType, withStockHero } from "./stock-hero";
+import { dropOtherTradeStock, findHeroImageNode, pickStockHero, planStockHero, primaryTypeOf, stockQueryForTalentType, withStockHero } from "./stock-hero";
 
 type Photo = Parameters<typeof pickStockHero>[0][number];
 const photo = (id: string, over: Partial<Photo> = {}): Photo => ({
@@ -188,4 +188,14 @@ test("TUL-846: untyped photos that name another trade (chef, makeup) never serve
 test("TUL-846: an unrecognised trade keeps neutral photos working", () => {
   const got = pickStockHero([photo("chef", { alt: { es: "Chef", en: "Chef" } }), photo("n")], { businessType: null, family: "custom" });
   assert.ok(got);
+});
+
+test("TUL-846: composer pool drops photos naming another trade, keeps neutral and the tenant's own", () => {
+  const pool = [
+    photo("chef", { alt: { es: "Chef emplatando", en: "Chef plating dinner" } }),
+    photo("n"),
+    photo("own", { alt: { es: "Chef", en: "Chef" }, originTenantId: "t1" }),
+  ];
+  assert.deepEqual(dropOtherTradeStock(pool, "cleaning", "t1").map((p) => p.id), ["n", "own"]);
+  assert.equal(dropOtherTradeStock(pool, null, "t1").length, 3);
 });

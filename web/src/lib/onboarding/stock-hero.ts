@@ -102,6 +102,16 @@ function namesOtherTrade(p: Pick<StockLike, "alt" | "tags">, q: StockHeroQuery):
   return named !== null && named !== q.trade;
 }
 
+/**
+ * TUL-846: the composer's stock pool without photos that name another trade
+ * than the site's. A tenant's own images and photos naming no trade stay.
+ */
+export function dropOtherTradeStock<T extends Pick<StockLike, "alt" | "tags" | "originTenantId">>(photos: ReadonlyArray<T>, trade: TradeKey | null | undefined, tenantId: string): T[] {
+  if (!trade) return [...photos];
+  const q: StockHeroQuery = { businessType: null, family: "custom", trade };
+  return photos.filter((p) => p.originTenantId === tenantId || !namesOtherTrade(p, q));
+}
+
 /** Best platform-stock hero for the query, or null (empty pool, or nothing shaped like a hero). */
 export function pickStockHero(photos: ReadonlyArray<StockLike>, query: StockHeroQuery): StockHeroPick | null {
   const candidates = photos
