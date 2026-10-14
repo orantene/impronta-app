@@ -36,7 +36,7 @@ import {
   catalogNeedsOptions,
   catalogNextDays,
   catalogSelectedStartStillOpen,
-  catalogSlotDateLabel,
+  catalogBookingWhenLabel,
   catalogTotalCents,
   demoSlotsFor,
   firstOpenDemoDayIndex,
@@ -353,7 +353,7 @@ export function CatalogBookingSheet({
     if (detail) return;
     resetConfirmGuards();
   }, [detail, resetConfirmGuards]);
-  const slotLabel = time != null ? catalogSlotDateLabel(day, time, es) : null;
+  const slotLabel = time != null ? catalogBookingWhenLabel(day, time, mode === "live" ? liveTz : null, es) : null; // TUL-1022
   // TUL-1035: the confirmation outlives a remount / refresh / same-service re-open.
   const { doneSlot } = useCatalogDoneSnapshot({
     step, detail, variantId, addOnIds, slotLabel, wrote, doneHref,

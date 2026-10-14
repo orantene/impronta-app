@@ -84,7 +84,8 @@ test("TUL-1035: a saved booking still shows its confirmation after the sheet rem
   assert.equal(first.calls.length, 1);
   assert.ok(first.host.querySelector(".jb-done"), "done step after confirm");
   const shownSlot = first.host.querySelector(".jb-done h3")?.textContent ?? "";
-  assert.ok(shownSlot.length > 0);
+  // TUL-1022: the confirmation keeps the recap's date format AND the venue zone.
+  assert.match(shownSlot, /^Miércoles 14 oct, 18:00 · Hora de Cancún$/);
   // The route refresh after the guest cookie is minted tears the tree down.
   act(() => first.root.unmount());
   first.host.remove();
