@@ -28,6 +28,7 @@ import { MatrixFields } from "./MatrixFields";
 import { IntakeFields } from "./IntakeFields";
 import { ProductEditorCard } from "./ProductEditorCard";
 import { categoryNearMatch } from "@/lib/talent/publication-state";
+import { SiteModeOverrideNotice } from "./SiteModeOverrideNotice";
 import { localizeOfferingSaveError } from "./offering-editor-save";
 import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 
@@ -409,7 +410,7 @@ export function EditorScreen({
                 ) : null}
               </p>
             ) : null}
-
+            {!quote && <SiteModeOverrideNotice own={item.bookingMode} site={defaultMode} locale={locale} />}
             {activeMode === "instant" && needsWorkingHours && onOpenWorkingHours ? (
               <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-950">
                 {copy.t(

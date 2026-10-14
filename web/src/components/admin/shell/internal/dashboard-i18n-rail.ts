@@ -128,6 +128,11 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   "Sheet button and path": "Botón y camino de la hoja",
   "Booking mode": "Modo de reserva",
   "Default booking mode": "Modo de reserva predeterminado",
+  "On your site, clients book": "En tu sitio, los clientes reservan",
+  "This is your site setting. Each service follows it unless it has its own mode, which is flagged in your Services list.":
+    "Este es el ajuste de tu sitio. Cada servicio lo sigue, salvo que tenga su propio modo, que se marca en tu lista de Servicios.",
+  "Right now: {mode}": "Ahora: {mode}",
+  "Right now: {mode} (Tulala default, you have not chosen yet)": "Ahora: {mode} (predeterminado de Tulala, aún no eliges)",
   "Services that use your default follow this. A service with its own mode keeps it.":
     "Los servicios que usan tu predeterminado siguen esto. Un servicio con su propio modo lo mantiene.",
   "Inquiry only": "Solo consulta",
