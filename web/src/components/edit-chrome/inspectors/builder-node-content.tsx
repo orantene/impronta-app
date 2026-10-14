@@ -93,6 +93,7 @@ import { ContentsContentInspector } from "./contents-inspector";
 import { MastheadContentInspector } from "./masthead-inspector";
 import { StatementFooterContentInspector } from "./statement-footer-inspector";
 import { NextFreeChipContentInspector } from "./next-free-chip-inspector";
+import { PromoContentInspector } from "./promo-inspector";
 import { LiveTextToggle } from "./live-text-toggle";
 import { CompCardContentInspector } from "./comp-card-inspector";
 import { SpecTableContentInspector } from "./spec-table-inspector";
@@ -1662,6 +1663,9 @@ function BuilderNodeContentInspectorBody({
   }
   if (node.kind === "next_free_chip") {
     return <NextFreeChipContentInspector node={node} commitPatch={commitPatch} />;
+  }
+  if (node.kind === "promo") {
+    return <PromoContentInspector node={node} commitPatch={commitPatch} />;
   }
 
   // ── menu_board (workspace-owned orderable menu) ───────────────────────────
@@ -5437,6 +5441,8 @@ function childSecondaryLabel(node: BuilderNode): string {
       return "Comp card · measure strip";
     case "next_free_chip":
       return "Next free · live slot chip";
+    case "promo":
+      return "Promo · banner, cards, pop-up and more";
     case "reserve_table":
       return "Reserve · books a real table";
     case "session_picker":

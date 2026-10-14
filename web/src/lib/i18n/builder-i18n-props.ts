@@ -147,6 +147,8 @@ export const LOCALIZABLE_PROPS_BY_KIND: Partial<
   portfolio: ["eyebrow", "title", "emptyMessage", "creditLine"],
   reviews: ["eyebrow", "title"],
   alert_band: ["title", "body", "safetyLabel", "safetyNote", "ctaLabel"],
+  // Promo widget: the talent's own words. Default copy ships en/es in the widget.
+  promo: ["headline", "body", "ctaLabel"],
   task_picker: ["eyebrow", "title"],
   spec_table: ["eyebrow", "title"],
   visit: ["eyebrow", "title", "titleAccent", "mapCaption", "arrivalNote"],
