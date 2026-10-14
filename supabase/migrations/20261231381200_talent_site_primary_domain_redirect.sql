@@ -116,12 +116,16 @@ as $function$
       and tp.deleted_at is null
     limit 1
   ),
+  -- Finished-gallery design vanity + QA nickname hosts (same set as 20261231359400).
   design_alias_base as (
     select
       case
         when label.v in ('maison-v2', 'maison-v2-demo') then 'alba-nail-artist'
         when label.v in ('folio', 'folio-demo') then 'mateo-ferrer'
         when label.v in ('gridline', 'gridline-demo') then 'alex-trevino'
+        when label.v in ('alba', 'alba-demo') then 'alba-nail-artist'
+        when label.v in ('linh', 'linh-demo') then 'linh-tran'
+        when label.v in ('sofia-nails', 'sofia-nails-demo') then 'camila-nails'
         else null
       end as featured_slug
     from label
@@ -169,7 +173,7 @@ as $function$
 $function$;
 
 comment on function public.talent_site_subdomain_lookup(text) is
-  'Resolve <label>.tulala.digital to a published talent site. Demo sites also resolve at <site_slug>-demo.<apex>. Finished-gallery design vanity hosts (maison-v2[-demo], folio[-demo], gridline[-demo]) resolve to each design''s featured demo. Returns primary_custom_domain (active Web Office primary only) so the proxy can 308 the subdomain to the talent''s custom domain. INTENTIONAL PUBLIC SURFACE: anon EXECUTE is required by the middleware host resolver and must be preserved by grant-lock sweeps, same as talent_site_domain_lookup(text).';
+  'Resolve <label>.tulala.digital to a published talent site. Demo sites also resolve at <site_slug>-demo.<apex>. Finished-gallery design vanity hosts (maison-v2[-demo], folio[-demo], gridline[-demo]) and QA nicknames (alba[-demo], linh[-demo], sofia-nails[-demo]) resolve to each featured demo. Returns primary_custom_domain (active Web Office primary only) so the proxy can 308 the subdomain to the talent''s custom domain. INTENTIONAL PUBLIC SURFACE: anon EXECUTE is required by the middleware host resolver and must be preserved by grant-lock sweeps, same as talent_site_domain_lookup(text).';
 
 grant execute on function public.talent_site_subdomain_lookup(text) to anon, authenticated;
 
