@@ -50,6 +50,7 @@ import {
   syncClientBalanceRefundToDb,
 } from "@/lib/stripe/client-billing";
 import { fulfillTalentDomainPurchase } from "@/lib/stripe/talent-domain-billing";
+import { fulfillTalentDomainRenewal } from "@/lib/stripe/talent-domain-renewal";
 import {
   persistAccountSnapshot,
   findAgencyByStripeAccountId,
@@ -317,6 +318,22 @@ export async function processStripeEvent(
           currency: action.currency,
           paymentIntentId: action.paymentIntentId,
           metadata: meta,
+        }),
+      );
+      return;
+    }
+
+    case "talent_domain_renewal": {
+      const sbRenewal = createServiceRoleClient();
+      if (!sbRenewal) throw new TransientWebhookError("talent_domain_renewal: database not available");
+      ensureSyncOk(
+        "talent_domain_renewal",
+        await fulfillTalentDomainRenewal(sbRenewal, {
+          sessionId: action.sessionId,
+          domainRowId: action.domainRowId,
+          amountTotal: action.amountTotal,
+          currency: action.currency,
+          paymentIntentId: action.paymentIntentId,
         }),
       );
       return;

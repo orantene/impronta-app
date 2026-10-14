@@ -27,6 +27,7 @@ import type Stripe from "stripe";
  *
  *   client_verification / client_balance_topup — client-trust economics (one-time)
  *   talent_domain_purchase                      — talent custom-domain one-time buy
+ *   talent_domain_renewal                       — talent pays a purchased domain's renewal at cost (D5)
  *   booking_payment                             — booking invoice via Checkout
  *   checkout_session_closed                     — a Checkout session that can never be paid (expired / async failed)
  *   booking_deposit                             — booking deposit via PaymentIntent
@@ -63,6 +64,14 @@ export type StripeAction =
       expectedPriceCents: number;
       userId: string | null;
       /** Stripe Checkout `amount_total` (cents charged). Guard vs Registrar quote. */
+      amountTotal: number | null;
+      currency: string | null;
+      paymentIntentId: string | null;
+    }
+  | {
+      kind: "talent_domain_renewal";
+      sessionId: string;
+      domainRowId: string;
       amountTotal: number | null;
       currency: string | null;
       paymentIntentId: string | null;
@@ -251,6 +260,20 @@ export function classifyStripeEvent(event: Stripe.Event): StripeAction {
             userId,
             tenantId,
             amountCents,
+            paymentIntentId: refId(session.payment_intent),
+          };
+        }
+
+        if (checkoutType === "talent_domain_renewal") {
+          const domainRowId = session.metadata?.domain_row_id?.trim() || null;
+          if (!domainRowId) return { kind: "invalid", reason: "talent_domain_renewal missing domain_row_id" };
+          if (session.payment_status === "unpaid") return { kind: "ignore" };
+          return {
+            kind: "talent_domain_renewal",
+            sessionId: session.id,
+            domainRowId,
+            amountTotal: typeof session.amount_total === "number" ? session.amount_total : null,
+            currency: typeof session.currency === "string" ? session.currency : null,
             paymentIntentId: refId(session.payment_intent),
           };
         }
