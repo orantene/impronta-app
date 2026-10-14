@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  applyLangQuery,
   decideTalentProfileLocale,
   ogLocale,
   pickByChain,
@@ -82,4 +83,18 @@ test("pickByChain walks the chain, then en, skipping blanks", () => {
 test("ogLocale maps known codes and passes unknown through", () => {
   assert.equal(ogLocale("es"), "es_ES");
   assert.equal(ogLocale("xx"), "xx");
+});
+
+// TUL-687: `?lang=es` on /t/<code> must reach the page (and the booking sheet).
+test("applyLangQuery: ?lang wins over the path locale, bounded by the talent set", () => {
+  assert.equal(applyLangQuery("en", "es"), "es");
+  assert.equal(applyLangQuery("en", ["es", "en"]), "es");
+  assert.equal(applyLangQuery("en", "ES "), "es");
+  assert.equal(applyLangQuery("en", undefined), "en");
+  assert.equal(applyLangQuery("es", "../x"), "es");
+  assert.equal(applyLangQuery("en", ""), "en");
+  const d = decideTalentProfileLocale({ requested: applyLangQuery("en", "es"), primary: "en", supported: ["en", "es"] });
+  assert.equal(d.locale, "es");
+  const only = decideTalentProfileLocale({ requested: applyLangQuery("en", "es"), primary: "en", supported: ["en"] });
+  assert.equal(only.locale, "en");
 });

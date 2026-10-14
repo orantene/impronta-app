@@ -18,6 +18,7 @@
  */
 import { useCallback, useEffect, useMemo, useState, type ReactElement } from "react";
 
+import { useEditorLocale } from "./use-editor-locale";
 import { Card, CardBody, CardHead, CHROME, ColorRow, Field, FieldLabel, SelectDropdown } from "./kit";
 import {
   publishComponentDefaultsPreview,
@@ -88,14 +89,14 @@ const KIND_SPECS: ReadonlyArray<{
 const INHERIT_OPTION = "__inherit__";
 const CUSTOM_OPTION = "__custom__";
 
-function tokenOptionsFor(type: FieldType): ReadonlyArray<{ value: string; label: string }> {
+function tokenOptionsFor(type: FieldType, tr: (s: string) => string): ReadonlyArray<{ value: string; label: string }> {
   const catalog =
     type === "color"
       ? STYLE_BINDABLE_COLOR_TOKENS
       : type === "font"
         ? STYLE_BINDABLE_FONT_FAMILY_TOKENS
         : STYLE_BINDABLE_RADIUS_TOKENS;
-  return catalog.map((t) => ({ value: `token:${t.key}`, label: t.label }));
+  return catalog.map((c) => ({ value: `token:${c.key}`, label: tr(c.label.replace(" \u2014 ", ": ")) }));
 }
 
 // ── component ────────────────────────────────────────────────────────────────
@@ -122,6 +123,7 @@ export function ComponentDefaultsTab({
 }): ReactElement {
   const [defaults, setDefaults] = useState<ComponentStyleDefaults>(initialDefaults);
   const [savedSnapshot, setSavedSnapshot] = useState<ComponentStyleDefaults>(initialDefaults);
+  const { t } = useEditorLocale();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -174,11 +176,11 @@ export function ComponentDefaultsTab({
       setDefaults(res.componentStylesDraft);
       onSaved(res.version, res.componentStylesDraft);
     } catch {
-      setError("Network error. Try again.");
+      setError(t("Network error. Try again."));
     } finally {
       setBusy(false);
     }
-  }, [defaults, version, onSaved, saveComponentStyles]);
+  }, [defaults, version, onSaved, saveComponentStyles, t]);
 
   return (
     <>
@@ -196,15 +198,12 @@ export function ComponentDefaultsTab({
         className="mb-3 rounded-md px-3 py-2 text-[11px]"
         style={{ background: CHROME.surface, border: `1px solid ${CHROME.line}`, color: CHROME.muted }}
       >
-        Set a default look per element type. Every element of that type starts
-        here; any one element can still override it. Bind to a theme token so the
-        default follows your palette. Changes preview on the canvas live,{" "}
-        <b>Save draft</b>, then <b>Publish theme</b> to go live.
+        {t("Set a default look per element type. Every element of that type starts here; any one element can still override it. Bind to a theme token so the default follows your palette. Changes preview on the canvas live, Save draft, then Publish theme to go live.")}
       </div>
 
       {KIND_SPECS.map((spec) => (
         <Card key={spec.kind}>
-          <CardHead title={spec.label} />
+          <CardHead title={t(spec.label)} />
           <CardBody>
             {spec.props.map((p, i) => {
               const current = (defaults[spec.kind] as Record<string, unknown> | undefined)?.[
@@ -216,11 +215,11 @@ export function ComponentDefaultsTab({
                     htmlFor={`cd-${spec.kind}-${p.prop}`}
                     info={
                       p.type === "color"
-                        ? "Bind to a token so it follows your palette, or pick a custom color."
+                        ? t("Bind to a token so it follows your palette, or pick a custom color.")
                         : undefined
                     }
                   >
-                    {p.label}
+                    {t(p.label)}
                   </FieldLabel>
                   <DefaultControl
                     id={`cd-${spec.kind}-${p.prop}`}
@@ -252,7 +251,7 @@ export function ComponentDefaultsTab({
             cursor: !dirty || busy ? "not-allowed" : "pointer",
           }}
         >
-          {busy ? "Saving…" : "Save draft"}
+          {busy ? t("Saving…") : t("Save draft")}
         </button>
       </div>
     </>
@@ -272,7 +271,8 @@ function DefaultControl({
   value: string;
   onChange: (value: string) => void;
 }): ReactElement {
-  const tokenOpts = useMemo(() => tokenOptionsFor(type), [type]);
+  const { t } = useEditorLocale();
+  const tokenOpts = useMemo(() => tokenOptionsFor(type, t), [type, t]);
   const isToken = value.startsWith("token:");
   const isCustomColor = type === "color" && value !== "" && !isToken;
 
@@ -281,7 +281,7 @@ function DefaultControl({
   // Build the options list for SelectDropdown
   const dropdownOptions = [
     ...tokenOpts,
-    ...(type === "color" ? [{ value: CUSTOM_OPTION, label: "Custom color…" }] : []),
+    ...(type === "color" ? [{ value: CUSTOM_OPTION, label: t("Custom color…") }] : []),
   ];
 
   return (
@@ -294,7 +294,7 @@ function DefaultControl({
           else if (v === CUSTOM_OPTION) onChange("#000000");
           else onChange(v);
         }}
-        leadingOptions={[{ value: INHERIT_OPTION, label: "Inherit (theme default)" }]}
+        leadingOptions={[{ value: INHERIT_OPTION, label: t("Inherit (theme default)") }]}
         options={dropdownOptions}
         data-theme-control={`cd-${id}`}
       />

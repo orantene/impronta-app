@@ -15,6 +15,12 @@ export type HowYouWorkFacts = {
   ownsWorkspace: boolean;
   /** Own roster row in an owned workspace is active and site_visible/featured. */
   bookable: boolean;
+  /**
+   * TUL-719: the owner's own talent profile is approved + public and has NO roster row in an
+   * owned workspace, so her own site takes bookings without the roster
+   * (paid services also need Stripe, see resolveOwnSiteBookable). Optional (false when absent).
+   */
+  ownSiteBookable?: boolean;
   tenantId: string | null;
   tenantSlug: string | null;
   talentProfileId: string | null;
@@ -34,18 +40,37 @@ export function resolveProviderDisplayName(...candidates: Array<string | null | 
   return null;
 }
 
+export type OwnSiteOffering = { amount_cents: number | null; status: string; visibility: string };
+
+/**
+ * TUL-719: her own site takes bookings when the profile is approved + public and, IF any live
+ * service is paid, her Stripe Connect account can take charges. Free-only needs no Stripe.
+ */
+export function resolveOwnSiteBookable(
+  profile: { workflowStatus: string | null; visibility: string | null },
+  offerings: OwnSiteOffering[],
+  stripe: { stripeAccountId: string | null; chargesEnabled: boolean },
+): boolean {
+  if (profile.workflowStatus !== "approved" || profile.visibility !== "public") return false;
+  const hasPaid = offerings.some(
+    (o) => o.status === "published" && (o.visibility === "public" || o.visibility === "on_request") && (o.amount_cents ?? 0) > 0,
+  );
+  return !hasPaid || (Boolean(stripe.stripeAccountId) && stripe.chargesEnabled);
+}
+
 export type HowYouWorkMove = "open_studio" | "add_provider" | "resume_bookings" | "stop_bookings";
 
 /** myself = talent only; studio = workspace without me bookable; both = workspace + me bookable. */
-export function deriveHowYouWork(f: Pick<HowYouWorkFacts, "hasTalentProfile" | "ownsWorkspace" | "bookable">): OnboardingChoice {
+export function deriveHowYouWork(f: Pick<HowYouWorkFacts, "hasTalentProfile" | "ownsWorkspace" | "bookable" | "ownSiteBookable">): OnboardingChoice {
   if (!f.ownsWorkspace) return "myself";
-  return f.hasTalentProfile && f.bookable ? "both" : "studio";
+  return f.hasTalentProfile && (f.bookable || f.ownSiteBookable) ? "both" : "studio";
 }
 
 export function movesFor(f: HowYouWorkFacts): HowYouWorkMove[] {
   const choice = deriveHowYouWork(f);
   if (choice === "myself") return f.hasTalentProfile ? ["open_studio"] : [];
-  if (choice === "both") return ["stop_bookings"];
+  // Own-site-only bookings have no roster row to hide, so there is nothing for "stop" to do.
+  if (choice === "both") return f.bookable ? ["stop_bookings"] : [];
   return [f.hasTalentProfile ? "resume_bookings" : "add_provider"];
 }
 

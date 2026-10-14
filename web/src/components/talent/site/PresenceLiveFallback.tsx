@@ -89,7 +89,7 @@ export function PresenceLiveFallback({
                     {maisonSetupT(maisonLocale, "Choose a design")}
                   </h1>
                   <p className="text-[11.5px] text-admin-ink-dim">
-                    {maisonSetupT(maisonLocale, "Your free website")}
+                    {maisonSetupT(maisonLocale, "Your website")}
                   </p>
                 </div>
                 <button
