@@ -99,7 +99,8 @@ export const TALENT_HELP: Record<string, HelpEntry> = {
     purpose:
       "Your working hours decide the times clients can book with you. You set them in Calendario (Calendar).",
     youCanHere: [
-      "Open Calendario in the sidebar and tap Disponibilidad (Availability) to open your Horario (Working hours)",
+      "Open Ajustes (Settings) in the sidebar and tap Horario y días libres (Working hours and days off), the first row under when you work",
+      "Or open Calendario in the sidebar and tap Disponibilidad (Availability) to reach the same hours",
       "Set your weekly hours and save them",
       "Find the Horario de reservas (Booking hours) card lower on the Calendario page, with the same weekly hours",
       "Set a shortest notice and the gap after each booking in Servicios, under Valores predeterminados (Defaults)",
@@ -108,7 +109,7 @@ export const TALENT_HELP: Record<string, HelpEntry> = {
     faqs: [
       {
         q: "How do I change my hours or schedule?",
-        a: "Open Calendario (Calendar) and tap Disponibilidad (Availability). Edit your weekly Horario (Working hours) and save. Clients only see times inside these hours.",
+        a: "Open Ajustes (Settings) in the sidebar and tap Horario y días libres (Working hours and days off). Edit your weekly hours and save. You can also reach them from Calendario (Calendar), then Disponibilidad (Availability). Clients only see times inside these hours.",
       },
       {
         q: "How do I stop clients booking at certain times?",
@@ -117,6 +118,50 @@ export const TALENT_HELP: Record<string, HelpEntry> = {
       {
         q: "How do I leave a gap between bookings or require notice?",
         a: "Open Servicios (Services), then Valores predeterminados (Defaults). Under Preparación y márgenes (Preparation and gaps) set the buffer after each booking, and set Aviso mínimo que aceptas (Shortest notice you accept).",
+      },
+    ],
+  },
+  "talent-days-off": {
+    audience: "Talent",
+    category: "Days off (Días libres)",
+    purpose:
+      "Block a day or a stretch of time so nobody can book you, without changing your weekly hours.",
+    youCanHere: [
+      "Open Calendario (Calendar), then Disponibilidad (Availability), and find Time off and one-day hours (Días libres y horario de un día)",
+      "Block a date for a holiday, travel or personal time",
+      "Change the hours for a single day without touching your weekly Horario y días libres (Working hours and days off) in Ajustes (Settings)",
+    ],
+    ticketCategory: "Bookings & inquiries",
+    faqs: [
+      {
+        q: "How do I block a day off or take a holiday?",
+        a: "Open Calendario (Calendar), tap Disponibilidad (Availability), and use Time off and one-day hours (Días libres y horario de un día) to block the date. Clients cannot book you on blocked days. Your weekly hours in Ajustes (Settings) are unchanged.",
+      },
+      {
+        q: "How do I work different hours on one day only?",
+        a: "In Disponibilidad (Availability), use Time off and one-day hours (Días libres y horario de un día) and set the hours for that date. Other days keep your weekly Horario y días libres (Working hours and days off).",
+      },
+    ],
+  },
+  "talent-booking-changes": {
+    audience: "Talent",
+    category: "Rescheduling and cancelling a booking (Reservas)",
+    purpose:
+      "Open a booking from Calendario (Calendar) or Hoy (Today) to reschedule it, cancel it or message the client.",
+    youCanHere: [
+      "Open the booking and tap Reschedule (Reprogramar) to propose a new time. The client confirms it",
+      "Open the booking and choose Cancel booking (Cancelar reserva). It shows what happens to the payment before anything is cancelled",
+      "Use Message (Mensaje) on the booking to talk to the client first",
+    ],
+    ticketCategory: "Bookings & inquiries",
+    faqs: [
+      {
+        q: "How do I cancel a booking?",
+        a: "Open the booking from Calendario (Calendar) or Hoy (Today) and choose Cancel booking (Cancelar reserva). It first shows what happens to the payment, then you confirm.",
+      },
+      {
+        q: "How do I reschedule a booking or move an appointment?",
+        a: "Open the booking from Calendario (Calendar) and tap Reschedule (Reprogramar). Pick a new time. The old time is released when the client accepts. A booking can only be rescheduled once it is confirmed.",
       },
     ],
   },
