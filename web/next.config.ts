@@ -495,6 +495,11 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       {
+        source: "/settings",
+        destination: "/account?tab=settings",
+        permanent: false,
+      },
+      {
         source: "/platform/admin/pricing",
         destination: "/platform/admin/commerce?tab=catalog",
         permanent: false,

@@ -70,6 +70,7 @@
         "noAccount": "No account?",
         "signUp": "Sign up",
         "sessionExpired": "Your session expired. Please sign in again.",
+        "linkExpired": "That sign-in link has expired or was already used. Request a new one below.",
         "eyebrow": "Welcome back",
         "apple": "Continue with Apple"
       },

@@ -70,6 +70,7 @@
         "noAccount": "¿No tienes cuenta?",
         "signUp": "Regístrate",
         "sessionExpired": "Tu sesión expiró. Vuelve a iniciar sesión.",
+        "linkExpired": "Ese enlace de acceso venció o ya se usó. Pide uno nuevo abajo.",
         "eyebrow": "Bienvenido de nuevo",
         "apple": "Continuar con Apple"
       },
