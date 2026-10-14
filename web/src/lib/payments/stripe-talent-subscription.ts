@@ -54,7 +54,7 @@ export async function handleTalentStripeSubscriptionEvent(
     .maybeSingle();
   const stored = talentSub as { talent_profile_id?: string; plan_key?: string } | null;
 
-  let talentProfileId = stored?.talent_profile_id ?? sub.metadata?.talent_profile_id;
+  let talentProfileId: string | undefined = stored?.talent_profile_id ?? sub.metadata?.talent_profile_id;
 
   if (!talentProfileId) {
     const { data: byCustomer } = await admin

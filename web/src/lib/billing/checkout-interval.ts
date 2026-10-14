@@ -66,8 +66,8 @@ export async function yearlyCheckoutPlans<K extends string>(
   planKeys: readonly K[],
   resolveYearly: (planKey: K) => Promise<string | null>,
 ): Promise<K[]> {
-  const found = await Promise.all(
-    planKeys.map(async (k) => ((await resolveYearly(k))?.trim() ? k : null)),
+  const hasYearly = await Promise.all(
+    planKeys.map(async (k) => Boolean((await resolveYearly(k))?.trim())),
   );
-  return found.filter((k): k is K => k !== null);
+  return planKeys.filter((_, i) => hasYearly[i]);
 }

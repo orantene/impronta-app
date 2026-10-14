@@ -18,11 +18,14 @@ test("dry run is the default; --apply is required to write; --dry-run wins", () 
   assert.equal(shouldApply(["--apply", "--dry-run"]), false);
 });
 
+type CouponSpec = { id: string; code: string; percent_off: number; duration_in_months: number };
+
 test("plans the two agreed coupons and codes", () => {
-  const byCode = Object.fromEntries(PLANNED_COUPONS.map((c: { code: string }) => [c.code, c]));
+  const specs: CouponSpec[] = PLANNED_COUPONS;
+  const byCode: Record<string, CouponSpec> = Object.fromEntries(specs.map((c) => [c.code, c]));
   assert.equal(byCode.TESTPRO20.percent_off, 20);
   assert.equal(byCode.TESTPRO20.duration_in_months, 3);
   assert.equal(byCode.TESTFREE1M.percent_off, 100);
   assert.equal(byCode.TESTFREE1M.duration_in_months, 1);
-  assert.equal(new Set(PLANNED_COUPONS.map((c: { id: string }) => c.id)).size, PLANNED_COUPONS.length);
+  assert.equal(new Set(specs.map((c) => c.id)).size, specs.length);
 });

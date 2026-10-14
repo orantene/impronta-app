@@ -7,7 +7,7 @@ import { nextPastDueSince } from "./dunning-grace";
 import { renderPaymentFailedEmail } from "../email/payment-failed";
 
 // Minimal invoice fixtures (only the fields the dunning path reads).
-function invoice(over: Partial<Stripe.Invoice>): Stripe.Invoice {
+function invoice(over: Partial<Stripe.Invoice> & { customer_preferred_locales?: string[] }): Stripe.Invoice {
   return {
     id: "in_test_1",
     object: "invoice",

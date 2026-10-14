@@ -12,6 +12,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { loadTalentSubscriptionState } from "@/lib/stripe/talent-billing";
 import { getPlan, isKnownPlan } from "@/lib/access/plan-catalog";
+import { loadTalentProviderInvoices, loadTalentStripeCustomerId } from "@/lib/billing/talent-billing-reads";
 
 export type TalentBillingInvoice = {
   id: string;
@@ -48,13 +49,8 @@ export async function loadTalentBillingSummary(): Promise<TalentBillingSummaryRe
   const sb = createServiceRoleClient();
   if (sb) {
     try {
-      const { data } = await sb
-        .from("provider_invoices")
-        .select("stripe_invoice_id,invoice_number,stripe_created_at,total_cents,currency,status,invoice_pdf_url,hosted_invoice_url")
-        .eq("talent_profile_id", talentProfile.id)
-        .order("stripe_created_at", { ascending: false })
-        .limit(24);
-      invoices = (data ?? [])
+      const data = await loadTalentProviderInvoices(sb, talentProfile.id);
+      invoices = data
         .filter((r) => r.status !== "draft")
         .map((r) => ({
           id: r.stripe_invoice_id,
@@ -72,14 +68,10 @@ export async function loadTalentBillingSummary(): Promise<TalentBillingSummaryRe
 
     if (live && isStripeConfigured()) {
       try {
-        const { data: cust } = await sb
-          .from("talent_stripe_customers")
-          .select("stripe_customer_id")
-          .eq("user_id", session.user.id)
-          .maybeSingle();
+        const customerId = await loadTalentStripeCustomerId(sb, session.user.id);
         const stripe = getStripe();
-        if (stripe && cust?.stripe_customer_id) {
-          const c = await stripe.customers.retrieve(cust.stripe_customer_id, {
+        if (stripe && customerId) {
+          const c = await stripe.customers.retrieve(customerId, {
             expand: ["invoice_settings.default_payment_method"],
           });
           if (!c.deleted) {

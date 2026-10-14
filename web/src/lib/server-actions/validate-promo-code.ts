@@ -15,6 +15,7 @@ import { TALENT_TIER_SLUG, INTERVAL_COLUMN } from "@/lib/stripe/price-catalog";
 import type { TalentPlanKey } from "@/lib/stripe/price-ids";
 import { logServerError } from "@/lib/server/safe-error";
 import { discountAppliesToSubject } from "@/lib/billing/checkout-discounts";
+import { loadActiveTierId, loadCanonicalUsdPriceCents } from "@/lib/billing/promo-catalog-reads";
 import {
   computePromoPreview,
   discountAppliesToTier,
@@ -50,27 +51,14 @@ export async function validatePromoCode(
   const admin = createServiceRoleClient();
   if (!admin) return fail("invalid");
   try {
-    const { data: tier } = await admin
-      .from("product_tiers")
-      .select("id")
-      .eq("slug", tierSlug)
-      .eq("is_active", true)
-      .maybeSingle();
-    if (!tier || !discountAppliesToTier(d.appliesTo, tier.id)) return fail("not_applicable");
+    const tierId = await loadActiveTierId(admin, tierSlug);
+    if (!tierId || !discountAppliesToTier(d.appliesTo, tierId)) return fail("not_applicable");
 
-    const { data: prices, error } = await admin
-      .from("product_prices")
-      .select("unit_amount, valid_from, valid_until")
-      .eq("tier_id", tier.id)
-      .eq("currency", "USD")
-      .eq("interval", INTERVAL_COLUMN[interval === "year" ? "annual" : "monthly"])
-      .eq("is_active", true)
-      .is("archived_at", null);
-    if (error) throw error;
-    const canonical = (prices ?? []).find(
-      (p) => p.valid_from === null && p.valid_until === null,
+    const cents = await loadCanonicalUsdPriceCents(
+      admin,
+      tierId,
+      INTERVAL_COLUMN[interval === "year" ? "annual" : "monthly"],
     );
-    const cents = canonical?.unit_amount;
     if (typeof cents !== "number" || !Number.isInteger(cents) || cents <= 0) {
       return fail("not_applicable");
     }

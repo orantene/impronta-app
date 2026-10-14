@@ -13,8 +13,6 @@ import { previewPlanChangeFor, confirmPlanChangeFor } from "@/lib/billing/plan-c
 import type { PlanChangeConfirm, PlanChangePreview } from "@/lib/billing/plan-change-policy";
 
 async function ownTenantId(tenantSlug: string): Promise<string | { error: string }> {
-  const readOnly = await assertNotImpersonating();
-  if (!readOnly.ok) return { error: readOnly.error };
   const session = await getCachedActorSession();
   if (!session.user) return { error: "Not authenticated." };
   const scope = await getTenantScopeBySlug(tenantSlug);
@@ -41,6 +39,8 @@ export async function confirmWorkspacePlanChange(
   interval: string | null,
   prorationDate: number,
 ): Promise<PlanChangeConfirm> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error, code: "not_allowed" };
   const id = await ownTenantId(tenantSlug);
   if (typeof id !== "string") return { ok: false, error: id.error, code: "not_allowed" };
   return confirmPlanChangeFor("workspace", id, planKey, interval, prorationDate);

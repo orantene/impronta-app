@@ -14,8 +14,6 @@ import type { PlanChangeConfirm, PlanChangePreview } from "@/lib/billing/plan-ch
 import { loadTalentSelfProfile } from "../../_data-bridge";
 
 async function ownTalentProfileId(tenantSlug: string): Promise<string | { error: string }> {
-  const readOnly = await assertNotImpersonating();
-  if (!readOnly.ok) return { error: readOnly.error };
   const session = await getCachedActorSession();
   if (!session.user) return { error: "Not authenticated." };
   const scope = await getTenantPortalScopeBySlug(tenantSlug);
@@ -41,6 +39,8 @@ export async function confirmTalentPlanChange(
   interval: string | null,
   prorationDate: number,
 ): Promise<PlanChangeConfirm> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error, code: "not_allowed" };
   const id = await ownTalentProfileId(tenantSlug);
   if (typeof id !== "string") return { ok: false, error: id.error, code: "not_allowed" };
   return confirmPlanChangeFor("talent", id, planKey, interval, prorationDate);

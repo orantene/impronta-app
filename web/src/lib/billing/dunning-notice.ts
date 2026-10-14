@@ -20,7 +20,18 @@ export type DunningNoticeDeps = {
 export type DunningNoticeResult = "sent" | "duplicate" | "no_recipient" | "skipped" | "failed";
 
 function localeOf(invoice: Stripe.Invoice): "es" | "en" {
-  const first = invoice.customer_preferred_locales?.[0] ?? "";
+  // stripe@22 types dropped Invoice.customer_preferred_locales, but webhook
+  // payloads on older API versions still carry it; fall back to an expanded
+  // customer's preferred_locales.
+  const legacy = (invoice as Stripe.Invoice & { customer_preferred_locales?: string[] | null })
+    .customer_preferred_locales;
+  const customer = invoice.customer;
+  const expanded =
+    customer && typeof customer === "object" && !("deleted" in customer && customer.deleted)
+      ? (customer as Stripe.Customer).preferred_locales
+      : null;
+  const locales = legacy?.length ? legacy : expanded;
+  const first = locales?.[0] ?? "";
   return first.toLowerCase().startsWith("es") ? "es" : "en";
 }
 
