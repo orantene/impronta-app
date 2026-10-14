@@ -1,5 +1,7 @@
 import type { NextRequest, NextResponse } from "next/server";
 
+import { isSessionSensitivePage } from "@/lib/auth/sign-out-paths";
+
 import { duplicateAuthCookieNames, nonCanonicalAuthCookieExpiryHeaders } from "./cookie-domain";
 
 /**
@@ -26,7 +28,10 @@ export function appendAuthScopeSweep(request: NextRequest, response: NextRespons
     request.headers.get("host"),
   );
   for (const h of headers) response.headers.append("set-cookie", h);
-  if (headers.length > 0) response.headers.set("cache-control", "private, no-store");
+  if (headers.length > 0 || isSessionSensitivePage(request.nextUrl.pathname)) {
+    // S1: /login, /account and sign-out render per session; never cache them.
+    response.headers.set("cache-control", "private, no-store");
+  }
   return response;
 }
 

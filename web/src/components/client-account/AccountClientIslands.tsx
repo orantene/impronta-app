@@ -6,13 +6,13 @@
  * Colours come from the `<html>` token vars so it wears the site's look.
  */
 
+import { signOutEverywhere } from "@/lib/auth/sign-out-client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 
 import { cancelMyBooking, rescheduleMyBooking, type MyBookingRefusal } from "@/lib/client-account/booking-actions";
 import { replyToMyThread, type ReplyRefusal } from "@/lib/client-account/message-actions";
 import { saveAccountSettings } from "@/lib/client-account/profile-actions";
-import { signOutClientAccount } from "@/lib/client-account/actions";
 
 const INK = "var(--token-color-ink, #111)";
 const ACCENT = "var(--token-color-primary, #111)";
@@ -223,12 +223,9 @@ export function LogOutButton({ label }: { label: string }) {
       type="button"
       style={btnSecondary}
       disabled={pending}
-      onClick={() => start(async () => {
-        // TUL-708: the action revokes the session but its name-keyed jar can
-        // expire only one cookie scope; /auth/sign-out expires every scope and
-        // chunk, then lands on the home page.
-        await signOutClientAccount();
-        window.location.assign("/auth/sign-out");
+      onClick={() => start(() => {
+        // S1 / TUL-708: one top-level POST revokes + expires every scope.
+        signOutEverywhere();
       })}
     >
       {label}

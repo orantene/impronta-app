@@ -114,20 +114,19 @@ test("talent-host sign-out expires every scope on a platform subdomain, host-onl
   assert.equal(talentHostSignOutResponse(other, { hostname: "sofia.tulala.digital", hostKind: "subdomain" }), null);
 });
 
-test("client popover Log out ends at /auth/client-sign-out, which exists on non-talent hosts too", () => {
+test("client popover Log out posts to /auth/client-sign-out, which exists on non-talent hosts too", () => {
   const btn = read("components/client-account/ClientAccountButton.tsx");
-  const fn = btn.slice(btn.indexOf("async function logOut"), btn.indexOf("async function logOut") + 600);
-  assert.match(fn, /signOutClientAccount\(\)[\s\S]*\/auth\/client-sign-out/);
-  assert.match(read("app/auth/client-sign-out/route.ts"), /export \{ GET \} from "\.\.\/sign-out\/route"/);
+  const fn = btn.slice(btn.indexOf("function logOut"), btn.indexOf("function logOut") + 600);
+  assert.match(fn, /signOutEverywhere\(CLIENT_SIGN_OUT_PATH\)/);
+  assert.match(read("app/auth/client-sign-out/route.ts"), /export \{ GET, POST \} from "\.\.\/sign-out\/route"/);
 });
 
-test("account settings Log out ends at /auth/sign-out (all scopes), not a 200 on /account", () => {
+test("account settings Log out uses the single sign-out, not a server action + router.refresh", () => {
   const src = read("components/client-account/AccountClientIslands.tsx");
   const body = src.slice(src.indexOf("export function LogOutButton"));
   const fn = body.slice(0, body.indexOf("\nexport "));
-  assert.match(fn, /signOutClientAccount\(\)/);
-  assert.match(fn, /\/auth\/sign-out/);
-  assert.doesNotMatch(fn, /router\.refresh\(\)/);
+  assert.match(fn, /signOutEverywhere\(\)/);
+  assert.doesNotMatch(fn, /signOutClientAccount|router\.refresh\(\)/);
 });
 
 test("guest chat / guest client paths never sign in or set an auth session", () => {

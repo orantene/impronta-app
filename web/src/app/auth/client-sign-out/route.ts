@@ -6,4 +6,4 @@
  * GET /auth/sign-out: expire every auth cookie scope + chunk, cookie-only,
  * cross-site refused.
  */
-export { GET } from "../sign-out/route";
+export { GET, POST } from "../sign-out/route";

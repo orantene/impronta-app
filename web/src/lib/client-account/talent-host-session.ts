@@ -180,9 +180,18 @@ export function talentHostSignOutResponse(
 ): NextResponse | null {
   if (request.nextUrl.pathname !== TALENT_HOST_SIGN_OUT_PATH) return null;
   const home = new URL("/", request.url);
-  if (request.method !== "GET" || request.headers.get("sec-fetch-site") === "cross-site") {
+  if (request.headers.get("sec-fetch-site") === "cross-site") {
     return NextResponse.redirect(home, 303);
   }
+  if (request.method === "POST") {
+    // S1: the POST revokes server-side, so it goes to the route handler
+    // (app/auth/client-sign-out) instead of the talent page routing that 404s
+    // `/auth/*`. Spoofable proxy headers are stripped first.
+    const headers = new Headers(request.headers);
+    for (const h of [...headers.keys()]) if (h.startsWith("x-impronta-")) headers.delete(h);
+    return NextResponse.next({ request: { headers } });
+  }
+  if (request.method !== "GET") return NextResponse.redirect(home, 303);
   const res = NextResponse.redirect(home, 303);
   const scopeHost = host.hostKind === "subdomain" ? host.hostname : null;
   const names = request.cookies.getAll().map((c) => c.name);
