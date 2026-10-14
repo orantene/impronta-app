@@ -34,8 +34,7 @@ export function DesignPick({ t, value, onPick, category = null }: { t: T; value:
   const firstLook = looks[0];
   useEffect(() => {
     if (value === null && firstLook && firstLook !== "rose") onPick(firstLook);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [firstLook]);
+  }, [firstLook, value, onPick]);
   return (
     <div className="mt-5" data-testid="onb-design">
       <Title size={20}>{t("public.onboarding.design.title")}</Title>
