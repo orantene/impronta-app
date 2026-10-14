@@ -252,11 +252,11 @@ export async function proxy(request: NextRequest) {
       target.hostname = canonicalHost;
       return NextResponse.redirect(target, 308);
     }
-    const off = await timed("proxy.offRoster", offRosterTalentResponse(request, pathname, hostContext.tenantId, PREVIEW_QUERY_PARAM));
+    const off = await timed("proxy.offRoster", offRosterTalentResponse(request, pathname, hostContext.tenantId, PREVIEW_QUERY_PARAM, sanitizedInboundHeaders));
     if (off) return off;
   }
   if (hostContext.kind === "app" || hostContext.kind === "marketing" || hostContext.kind === "hub") {
-    const unknownCode = await timed("proxy.unknownTalentCode", unknownTalentCodeResponse(request, pathname, PREVIEW_QUERY_PARAM));
+    const unknownCode = await timed("proxy.unknownTalentCode", unknownTalentCodeResponse(request, pathname, PREVIEW_QUERY_PARAM, sanitizedInboundHeaders));
     if (unknownCode) return unknownCode;
   }
 
@@ -317,20 +317,11 @@ export async function proxy(request: NextRequest) {
   ) {
     const url = request.nextUrl.clone();
     url.pathname = withoutLocalePrefix;
-    // GRK-102: `/en/start` → `/start` must carry `?lang=en`. The flow ignores
-    // the locale cookie and would otherwise open Spanish for MX / es-* browsers.
-    const startLang = langQueryForStartAfterDefaultLocaleStrip({
-      pathnameAfterStrip: withoutLocalePrefix,
-      defaultLocale: effectiveLangSettings.defaultLocale,
-      existingLang: url.searchParams.get("lang"),
-    });
+    // GRK-102: `/en/start` -> `/start` carries `?lang=en` (the flow ignores the locale cookie).
+    const startLang = langQueryForStartAfterDefaultLocaleStrip({ pathnameAfterStrip: withoutLocalePrefix, defaultLocale: effectiveLangSettings.defaultLocale, existingLang: url.searchParams.get("lang") });
     if (startLang) url.searchParams.set("lang", startLang);
     const res = NextResponse.redirect(url, 308);
-    // QA 2026-05-13: without a locale cookie here, the redirected page renders
-    // in the DEFAULT locale even though the URL was `/es/<tenant>` (the
-    // downstream `syncLocaleCookieForPath` calls fire only after this early
-    // return and never see the `/es/` prefix), so the ES switcher looked broken.
-    // Set the cookie on the redirect response so the followed URL keeps the locale.
+    // QA 2026-05-13: set the locale cookie here; later syncLocaleCookieForPath calls never see the `/es/` prefix.
     syncLocaleCookieForPath(res, pathname, effectiveLangSettings, request);
     syncLocaleCookieForDefaultPrefixStrip(res, pathname, effectiveLangSettings);
     return res;
@@ -428,8 +419,7 @@ export async function proxy(request: NextRequest) {
       !isPathAllowedForHostKind(effectiveHostContext.kind, effectiveCanonicalPath)
     )
   ) {
-    // Render the branded "page not found" page (Tulala chrome + a way home).
-    // The rewrite target is whitelisted in the short-circuit block above (no recursion).
+    // Render the branded "page not found" page, not bare text (target whitelisted above).
     // The locale header rides along so /es/<typo> answers in Spanish.
     const missHeaders = new Headers(sanitizedInboundHeaders);
     missHeaders.set(LOCALE_HEADER, resolveLocaleForPathname(pathname, request, effectiveLangSettings));

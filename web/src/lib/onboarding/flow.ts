@@ -71,10 +71,10 @@ export function flowLocaleFromPath(originalPath: string | null | undefined): Flo
 }
 
 /**
- * GRK-102: stripping the default-locale prefix (`/en/start` → `/start` when
+ * GRK-102: stripping the default-locale prefix (`/en/start` -> `/start` when
  * default is `en`) must keep the flow language as `?lang=`. `/start` does not
- * read the locale cookie — only `?lang`, the path, Accept-Language, and IP —
- * so an English CTA that lands on `/en/start` otherwise opens Spanish for a
+ * read the locale cookie, only `?lang`, the path, Accept-Language, and IP, so
+ * an English CTA that lands on `/en/start` otherwise opens Spanish for a
  * Mexico / es-* browser.
  */
 export function langQueryForStartAfterDefaultLocaleStrip(input: {
