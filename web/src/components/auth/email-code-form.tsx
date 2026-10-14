@@ -28,7 +28,7 @@
  * the i18n catalog (EN + ES).
  */
 
-import { useActionState, useState, type ReactNode } from "react";
+import { useActionState, useEffect, useState, type ReactNode } from "react";
 
 import {
   requestEmailCode,
@@ -45,6 +45,24 @@ import {
 import { authEmailHasPlusTag, OTP_CODE_MAX_LENGTH } from "@/lib/auth/otp-flow";
 import { createTranslator } from "@/i18n/messages";
 import { AgeTermsCheckbox } from "@/components/auth/age-terms-checkbox";
+import {
+  clearPendingCodeStep,
+  readPendingCodeStep,
+  savePendingCodeStep,
+  type PendingCodeStep,
+} from "@/lib/auth/pending-code-step";
+
+function sessionStore(): Storage | null {
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+function currentPath(): string {
+  return `${window.location.pathname}${window.location.search}`;
+}
 
 /** The error line for a state, if it carries one (the `sent` state never does). */
 function stateError(state: EmailCodeState): string | undefined {
@@ -133,6 +151,15 @@ export function EmailCodeForm({
   // isn't right" would sit on top of a fresh "new code sent" (and vice versa).
   const [lane, setLane] = useState<"send" | "verify">("send");
 
+  // TUL-766: the code step survives a reload of this page (same tab).
+  const [restored, setRestored] = useState<PendingCodeStep | null>(null);
+  useEffect(() => {
+    const pending = readPendingCodeStep(sessionStore(), { path: currentPath(), now: Date.now() });
+    if (!pending) return;
+    setRestored(pending);
+    if (pending.name) setNameDraft(pending.name);
+  }, []);
+
   const sent = sendState?.step === "sent" ? sendState : null;
   // The code step survives a FAILED resend (`step: "code"`) too: losing the
   // screen and the address because the resend was rate limited would be worse
@@ -142,7 +169,11 @@ export function EmailCodeForm({
       ? sendState.email
       : verifyState?.step === "code"
         ? verifyState.email
-        : undefined;
+        : restored?.email;
+  const sentEmail = sent?.email;
+  useEffect(() => {
+    if (sentEmail) savePendingCodeStep(sessionStore(), { email: sentEmail, name: nameDraft.trim(), path: currentPath(), now: Date.now() });
+  }, [sentEmail, nameDraft]);
   const email = codeStepEmail ?? stateEmail(sendState) ?? defaultEmail;
   const onCodeStep = Boolean(codeStepEmail) && !backToEmail;
 
@@ -247,7 +278,13 @@ export function EmailCodeForm({
           className="text-center text-[0.8125rem]"
           style={{ color: "var(--plt-muted)" }}
         >
-          <QuietAction onClick={() => setBackToEmail(true)}>
+          <QuietAction
+            onClick={() => {
+              setBackToEmail(true);
+              setRestored(null);
+              clearPendingCodeStep(sessionStore());
+            }}
+          >
             {t("public.auth.passwordless.changeEmail")}
           </QuietAction>
           {passwordFallback ? (
