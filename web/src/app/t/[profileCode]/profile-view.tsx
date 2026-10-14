@@ -1,6 +1,7 @@
 import { improntaLog } from "@/lib/server/structured-log";
 import { loadProfileStorefrontPayload } from "./profile-storefront-payload";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { SOLO_PROFILE_BRAND, profilePriceCurrency, withSoloProfileCopy } from "./solo-profile-copy";
 import { pickByChain } from "@/lib/talent-site/talent-profile-locale";
 import {
   resolveTalentProfileLocale,
@@ -1628,7 +1629,8 @@ export async function TalentProfileView({
   const chain = profileLocale.chain;
   locale = profileLocale.locale as typeof locale;
   t = createTranslator(locale);
-  ui = buildDirectoryUiCopy(t, tenantBrand);
+  if (surface === "freelancer") t = withSoloProfileCopy(t, locale); // TUL-707: no agency wording
+  ui = buildDirectoryUiCopy(t, surface === "freelancer" ? SOLO_PROFILE_BRAND : tenantBrand);
 
   // Phase 5/6 M2 — explicit surface-aware visibility. On non-preview flows,
   // the freelancer/app surface requires is_publicly_hidden = false AND
@@ -2647,7 +2649,7 @@ export async function TalentProfileView({
               <div className="flex-1 pt-[var(--plt-header-h,84px)] sm:pt-[72px]">
                 {profileBody}
               </div>
-              <MarketingFooter />
+              <MarketingFooter priceCurrency={profilePriceCurrency(storefrontOfferings)} />
             </div>
           ) : (
             // AGENCY HOST — keep the white-label agency chrome: the platform

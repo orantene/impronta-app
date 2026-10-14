@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { spanishPlaceName } from "./place-names-es";
+import { countryFacetLabel, spanishPlaceName } from "./place-names-es";
 
 // TUL-738: /es/directory showed "Mexico", "Mexico City" and "Cancun".
 test("known places get their Spanish spelling on a Spanish page", () => {
@@ -14,4 +14,11 @@ test("English pages and unknown places pass through untouched", () => {
   assert.equal(spanishPlaceName("Mexico City", "en"), "Mexico City");
   assert.equal(spanishPlaceName("Tulum", "es"), "Tulum");
   assert.equal(spanishPlaceName("", "es"), "");
+});
+
+test("TUL-738: the country facet names the country in Spanish, code in English", () => {
+  assert.equal(countryFacetLabel("MX", "es"), "México");
+  assert.equal(countryFacetLabel("us", "es-MX"), "Estados Unidos");
+  assert.equal(countryFacetLabel("MX", "en"), "MX");
+  assert.equal(countryFacetLabel("", "es"), "");
 });

@@ -46,3 +46,18 @@ export function spanishPlaceName(name: string, locale: string): string {
   if (!name || (locale ?? "").slice(0, 2).toLowerCase() !== "es") return name;
   return ES_BY_KEY[keyOf(name)] ?? name;
 }
+
+/**
+ * Country facet label: a Spanish page names the country ("México"); an English
+ * page and any unknown code keep the ISO code as before.
+ */
+export function countryFacetLabel(code: string, locale: string): string {
+  const cc = (code ?? "").trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(cc) || (locale ?? "").slice(0, 2).toLowerCase() !== "es") return cc;
+  try {
+    const name = new Intl.DisplayNames(["es"], { type: "region" }).of(cc);
+    return name && name !== cc ? name : cc;
+  } catch {
+    return cc;
+  }
+}

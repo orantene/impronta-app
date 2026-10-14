@@ -1,6 +1,7 @@
 /* eslint-disable max-lines */
 "use client";
 
+import { DateFormatHint } from "../primitives/DateFormatHint";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useDashboardText } from "../../dashboard-i18n";
@@ -529,6 +530,7 @@ export function CalendarPage() {
                       fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink,
                     }}
                   />
+                  <DateFormatHint locale={copy.locale} />
                 </label>
                 <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5 }} className="text-admin-ink-muted">
                   {copy.t("To")}
@@ -542,6 +544,7 @@ export function CalendarPage() {
                       fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink,
                     }}
                   />
+                  <DateFormatHint locale={copy.locale} />
                 </label>
               </div>
               <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, marginBottom: 10 }} className="text-admin-ink-muted">
