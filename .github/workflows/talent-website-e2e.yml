@@ -49,6 +49,11 @@ on:
       - "web/src/components/client-account/**"
       - "supabase/migrations/**"
       - "supabase/ci/**"
+      # TUL-838 billing flow regression (billing-e2e job below).
+      - "web/src/lib/billing/**"
+      - "web/src/lib/stripe/**"
+      - "web/src/lib/access/talent-entitlements.ts"
+      - "web/src/app/**/talent/settings/**"
       - ".github/workflows/talent-website-e2e.yml"
   workflow_dispatch:
 
@@ -472,3 +477,37 @@ jobs:
             docker logs "$c" 2>&1 | tail -30 || true
             echo "::endgroup::"
           done
+
+  # ─────────────────────────────────────────────────────────────────
+  # TUL-838: billing flow regression. Node lane, NO network to Stripe:
+  # fixture webhook events + a recording fake drive checkout -> webhook ->
+  # plan state -> past_due banner -> cancel/resume through the production
+  # seams. Not a required check (branch protection unchanged); same
+  # trigger rule as the journeys above.
+  # ─────────────────────────────────────────────────────────────────
+  billing-e2e:
+    name: Billing flow regression (Stripe fixtures)
+    if: github.event_name != 'pull_request' || (github.event.pull_request.draft == false && (startsWith(github.head_ref, 'integ/') || contains(github.event.pull_request.labels.*.name, 'full-ci')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Guarantees no live or test Stripe client can be constructed.
+      STRIPE_SECRET_KEY: ""
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies (npm ci)
+        working-directory: web
+        run: npm ci
+
+      - name: Run billing flow regression
+        working-directory: web
+        run: npm run manual:billing-e2e
