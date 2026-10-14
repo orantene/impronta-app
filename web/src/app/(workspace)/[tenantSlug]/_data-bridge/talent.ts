@@ -24,6 +24,7 @@ import {
   hasIntroFromSources,
   homeCityFromSources,
 } from "@/lib/talent/website-eligibility-facts";
+import { pickTermLabel } from "@/lib/talent/website-eligibility";
 import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 import { primaryRoleLabelsFromTaxonomy } from "@/lib/talent/self-profile-trade-label";
 
@@ -200,7 +201,13 @@ export async function loadTalentSelfProfile(
       "Unnamed";
 
     const primaryTrade = primaryRoleLabelsFromTaxonomy(p.talent_profile_taxonomy);
-    const primaryTypeLabel = primaryTrade.en;
+    // Any-locale fallback (TUL-579): a trade set only in a non-EN locale still counts.
+    const primaryTypeLabel =
+      primaryTrade.en ??
+      (p.talent_profile_taxonomy ?? [])
+        .map((t) => (t.relationship_type === "primary_role" ? pickTermLabel(t.taxonomy_terms?.name_i18n) : null))
+        .find((l) => l != null) ??
+      null;
     const primaryTypeLabelEs = primaryTrade.es;
 
     const homeCity = homeCityFromSources({
@@ -357,7 +364,13 @@ export async function loadTalentSelfProfileByUser(
       "Unnamed";
 
     const primaryTrade = primaryRoleLabelsFromTaxonomy(p.talent_profile_taxonomy);
-    const primaryTypeLabel = primaryTrade.en;
+    // Any-locale fallback (TUL-579): a trade set only in a non-EN locale still counts.
+    const primaryTypeLabel =
+      primaryTrade.en ??
+      (p.talent_profile_taxonomy ?? [])
+        .map((t) => (t.relationship_type === "primary_role" ? pickTermLabel(t.taxonomy_terms?.name_i18n) : null))
+        .find((l) => l != null) ??
+      null;
     const primaryTypeLabelEs = primaryTrade.es;
 
     const homeCity = homeCityFromSources({
