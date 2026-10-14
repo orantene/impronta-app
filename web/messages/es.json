@@ -2214,6 +2214,7 @@
       "past": "Anteriores",
       "noVisits": "Aún no hay visitas.",
       "bookAgain": "Reservar de nuevo",
+      "bookFirst": "Reserva tu primera visita",
       "viewDetails": "Detalles",
       "cancellationPolicy": "Política de cancelación",
       "policyFree": "Cancelación gratis hasta {when}.",

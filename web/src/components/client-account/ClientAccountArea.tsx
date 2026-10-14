@@ -288,7 +288,7 @@ export function ClientAccountArea(props: Props) {
     const g = props.data.visits;
     const empty = !g || g.upcoming.length + g.waiting.length + g.past.length === 0;
     body = empty ? (
-      <p>{a("noVisits")} <Link href="/" style={{ color: INK }}>{a("bookAgain")}</Link></p>
+      <p>{a("noVisits")} <Link href="/" style={{ color: INK }}>{a("bookFirst")}</Link></p>
     ) : (
       <>
         {group(a("waiting"), g.waiting)}
