@@ -17,7 +17,8 @@ export type HowYouWorkFacts = {
   bookable: boolean;
   /**
    * TUL-719: the owner's own talent profile is approved + public and has NO roster row in an
-   * owned workspace, so her own site takes bookings without the roster. Optional (false when absent).
+   * owned workspace, so her own site takes bookings without the roster
+   * (paid services also need Stripe, see resolveOwnSiteBookable). Optional (false when absent).
    */
   ownSiteBookable?: boolean;
   tenantId: string | null;
@@ -37,6 +38,24 @@ export function resolveProviderDisplayName(...candidates: Array<string | null | 
     if (v) return v;
   }
   return null;
+}
+
+export type OwnSiteOffering = { amount_cents: number | null; status: string; visibility: string };
+
+/**
+ * TUL-719: her own site takes bookings when the profile is approved + public and, IF any live
+ * service is paid, her Stripe Connect account can take charges. Free-only needs no Stripe.
+ */
+export function resolveOwnSiteBookable(
+  profile: { workflowStatus: string | null; visibility: string | null },
+  offerings: OwnSiteOffering[],
+  stripe: { stripeAccountId: string | null; chargesEnabled: boolean },
+): boolean {
+  if (profile.workflowStatus !== "approved" || profile.visibility !== "public") return false;
+  const hasPaid = offerings.some(
+    (o) => o.status === "published" && (o.visibility === "public" || o.visibility === "on_request") && (o.amount_cents ?? 0) > 0,
+  );
+  return !hasPaid || (Boolean(stripe.stripeAccountId) && stripe.chargesEnabled);
 }
 
 export type HowYouWorkMove = "open_studio" | "add_provider" | "resume_bookings" | "stop_bookings";
