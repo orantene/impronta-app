@@ -1,6 +1,8 @@
 import type { MetadataRoute } from "next";
 
 import { createClient } from "@/lib/supabase/server";
+import { businessFixedSitemapPaths } from "@/lib/seo/business-workspace-seo";
+import { resolveWorkspaceType } from "@/lib/saas/assert-roster-workspace";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { withLocalePath } from "@/i18n/pathnames";
 import { SPANISH_NAMED_MARKETING_PATHS } from "@/lib/seo/spanish-named-routes";
@@ -438,7 +440,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // is conditional — included only when the operator has not flagged the
   // homepage row noindex=true. The other paths are framework-owned and
   // always indexable.
-  const fixedStaticPaths = ["/contact", "/directory", "/models"];
+  // TUL-591: a business workspace has no roster, so /directory and /models
+  // only redirect to /book; list /book instead of advertising redirects.
+  const fixedStaticPaths = businessFixedSitemapPaths(
+    await resolveWorkspaceType(hostContext.tenantId),
+  );
 
   // These routes are framework-rendered from live tenant data (roster, contact
   // details), and no single row owns them, so there is no truthful timestamp to
