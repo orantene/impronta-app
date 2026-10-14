@@ -22,6 +22,34 @@ import type { MaxSiteSeo } from "./render-max-site";
 const INK = "var(--token-color-ink, CanvasText)";
 const SOFT = "color-mix(in srgb, var(--token-color-ink, CanvasText) 66%, var(--token-color-background, Canvas))";
 
+/** TUL-795: phone sticky bar (hidden at >=640px and height-reserved by FLOATING_CHROME_STACK_CSS). */
+const STICKY: CSSProperties = {
+  position: "fixed",
+  left: 0,
+  right: 0,
+  bottom: 0,
+  zIndex: 80,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 12,
+  boxSizing: "border-box",
+  minHeight: 64,
+  padding: "10px 16px calc(10px + env(safe-area-inset-bottom, 0px))",
+  background: "var(--token-color-background, Canvas)",
+  borderTop: `1px solid color-mix(in srgb, ${INK} 18%, transparent)`,
+  color: INK,
+};
+const STICKY_BTN: CSSProperties = {
+  padding: "11px 22px",
+  background: INK,
+  color: "var(--token-color-background, Canvas)",
+  textDecoration: "none",
+  fontWeight: 600,
+  borderRadius: "var(--token-button-radius, 999px)",
+  whiteSpace: "nowrap",
+};
+
 function priceLine(o: ServicePageOffering, locale: string, from: string): string | null {
   if (!o.amountCents || o.amountCents <= 0 || !o.currency) return null;
   if (o.priceDisplay !== "exact" && o.priceDisplay !== "from") return null;
@@ -94,6 +122,12 @@ export function serviceMainNode(
         >
           {copy.book}
         </Link>
+      )}
+      {o.publicCtaHidden ? null : (
+        <div data-talent-service-sticky="" style={STICKY}>
+          {price ? <span style={{ fontWeight: 600, minWidth: 0 }}>{price}</span> : <span />}
+          <Link href={serviceBookHref(o.id, opts.homePath)} style={STICKY_BTN}>{copy.bookShort}</Link>
+        </div>
       )}
       {opts.related && opts.related.length > 0 ? (
         <nav aria-label={copy.related} data-talent-service-related="" style={{ marginTop: 40 }}>

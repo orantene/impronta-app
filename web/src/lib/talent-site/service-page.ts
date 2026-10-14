@@ -81,6 +81,8 @@ export function serviceSitemapPaths(offerings: readonly ServicePageOffering[]): 
 
 export type ServicePageCopy = {
   book: string;
+  /** Short label for the phone sticky bar. */
+  bookShort: string;
   back: string;
   minutes: (n: number) => string;
   priceFrom: string;
@@ -91,8 +93,8 @@ export type ServicePageCopy = {
 export function servicePageCopy(locale: string): ServicePageCopy {
   const en = locale.toLowerCase().startsWith("en");
   return en
-    ? { book: "Book this service", back: "All services", minutes: (n) => `${n} min`, priceFrom: "From", related: "Other services", freeCancel: (h) => `Free cancellation up to ${h} h before` }
-    : { book: "Reservar este servicio", back: "Todos los servicios", minutes: (n) => `${n} min`, priceFrom: "Desde", related: "Otros servicios", freeCancel: (h) => `Cancelación gratuita hasta ${h} h antes` };
+    ? { book: "Book this service", bookShort: "Book", back: "All services", minutes: (n) => `${n} min`, priceFrom: "From", related: "Other services", freeCancel: (h) => `Free cancellation up to ${h} h before` }
+    : { book: "Reservar este servicio", bookShort: "Reservar", back: "Todos los servicios", minutes: (n) => `${n} min`, priceFrom: "Desde", related: "Otros servicios", freeCancel: (h) => `Cancelación gratuita hasta ${h} h antes` };
 }
 
 /** "All services" link: the home page's services section, locale-aware (`/` or `/en` -> `/#services`, `/en/#services`). */
