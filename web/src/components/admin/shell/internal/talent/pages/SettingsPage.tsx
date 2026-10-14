@@ -10,6 +10,7 @@ import { DashboardLanguagePanel } from "./DashboardLanguagePanel";
 import { getLocaleMetadata } from "@/i18n/config";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { ProfileVisibilityCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/ProfileVisibilityCard";
+import { TalentBillingCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/TalentBillingCard";
 import { TalentPlanCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/TalentPlanCard";
 import { HowYouWorkCard } from "@/components/settings/how-you-work-card";
 import { HYW_DESC, HYW_TITLE } from "@/components/settings/how-you-work-copy";
@@ -291,6 +292,16 @@ export function SettingsPage() {
           value: copy.t(TALENT_TIER_META[state.talentTier].label),
           onOpen: () => openDrawer("talent-tier-compare"),
         },
+    ...(bridgeTalentSelfProfile && tenantSlug
+      ? [
+          {
+            key: "billing",
+            label: tx("Billing"),
+            sub: tx("Plan, next charge, card and invoices."),
+            panel: <TalentBillingCard tenantSlug={tenantSlug} />,
+          } satisfies Row,
+        ]
+      : []),
     {
       key: "help",
       label: tx("Help and support"),

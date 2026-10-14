@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { BILLING_ES_TEXT } from "./dashboard-i18n-billing";
 import { LEFTOVERS_ES_TEXT } from "./dashboard-i18n-leftovers";
 import { NOTIFICATIONS_ES_TEXT } from "./dashboard-i18n-notifications";
 import { QA_FORMATS_ES_TEXT } from "./dashboard-i18n-qa-formats";
@@ -15,7 +16,7 @@ function isSpanish(locale: string): boolean {
 }
 
 const ES_TEXT: Record<string, string> = {
-  ...RAIL_ES_TEXT, ...LEFTOVERS_ES_TEXT, ...QUOTE_ES_TEXT, ...QA_FORMATS_ES_TEXT,
+  ...RAIL_ES_TEXT, ...BILLING_ES_TEXT, ...LEFTOVERS_ES_TEXT, ...QUOTE_ES_TEXT, ...QA_FORMATS_ES_TEXT,
   // Global chrome / nav
   "Prototype control bar": "Barra de control del prototipo",
   "Workspace sections": "Secciones del espacio de trabajo",

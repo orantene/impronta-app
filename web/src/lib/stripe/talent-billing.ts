@@ -28,8 +28,8 @@ import { idempotencySuffix, returnQuery } from "@/lib/billing/checkout-return";
 import { duplicateSubscriptionGuard } from "@/lib/billing/subscription-guard.server";
 import { checkoutIdempotencyKey, checkoutPriceError, resolveCheckoutPrice } from "@/lib/billing/checkout-interval";
 import { loadTrialOffer } from "@/lib/plan-trials/offers";
+import { buildPortalSessionParams } from "@/lib/stripe/portal-params";
 import {
-  stripeBillingPortalLocale,
   stripeCheckoutLocale,
 } from "@/lib/i18n/vendor-locale";
 import type Stripe from "stripe";
@@ -283,11 +283,13 @@ export async function createTalentBillingPortalSession(opts: {
       return { ok: false, error: "No billing account found." };
     }
 
-    const session = await stripe.billingPortal.sessions.create({
-      customer: customer.stripe_customer_id,
-      return_url: `${opts.appBaseUrl}/${opts.tenantSlug}/talent/settings`,
-      locale: stripeBillingPortalLocale(opts.locale),
-    });
+    const session = await stripe.billingPortal.sessions.create(
+      buildPortalSessionParams({
+        customerId: customer.stripe_customer_id,
+        returnUrl: `${opts.appBaseUrl}/${opts.tenantSlug}/talent/settings`,
+        locale: opts.locale,
+      }),
+    );
 
     return { ok: true, data: { url: session.url } };
   } catch (err) {
