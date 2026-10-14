@@ -24,6 +24,6 @@ test("TUL-824: secondary mount loads wait for the list (server actions run one a
 });
 
 test("TUL-824: loading shows a skeleton, not bare text", () => {
-  const home = read("./ServicesHome.tsx");
-  assert.match(home, /data-testid="services-list-skeleton"/);
+  assert.match(read("./ServicesHome.tsx"), /<ServicesListSkeleton \/>/);
+  assert.match(read("./ServicesListSkeleton.tsx"), /data-testid="services-list-skeleton"/);
 });

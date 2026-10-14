@@ -52,6 +52,7 @@ import {
 } from "./ServicesHoursNeeded";
 import { HideOutcome, RowMenu, listPrice, listPriceState } from "./ServicesHomeRowChrome";
 import { ServicesWebsiteSetupBanner } from "./ServicesWebsiteSetupBanner";
+import { ServicesListSkeleton } from "./ServicesListSkeleton";
 import { countItemsLabel } from "@/components/admin/shell/internal/count-items-label";
 import { useSearchParams } from "next/navigation";
 
@@ -517,11 +518,7 @@ export function ServicesHome({
 
       {editor.loading && (
         <div className="mt-6 text-[13px] text-admin-ink-muted" role="status">
-          <div data-testid="services-list-skeleton" aria-hidden="true" className="space-y-2">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="h-[68px] animate-pulse rounded-[12px] border border-admin-border-soft bg-black/[0.04]" />
-            ))}
-          </div>
+          <ServicesListSkeleton />
           <p className="mt-3">{slowLoad ? copy.t("Still trying") : copy.t("Loading")}</p>
           {slowLoad && (
             <>
