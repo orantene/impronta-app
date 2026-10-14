@@ -235,3 +235,12 @@ ALTER TABLE public.cms_posts
 CREATE INDEX IF NOT EXISTS idx_cms_posts_scheduled
   ON public.cms_posts (scheduled_publish_at)
   WHERE scheduled_publish_at IS NOT NULL AND status = 'draft';
+
+-- 8. Talent post layout ("Diseño de posts", TUL-1008). Talent sites have no
+-- cms_pages, so the layout is one optional jsonb envelope on the site row
+-- { kind:'post_layout', v:1, sections:[...] }. NULL = render the article
+-- directly. Additive, nullable; no functions. (A column, not the shell/page
+-- snapshot JSON: those are BuilderNode trees consumed by the renderer and the
+-- publish/history pipeline, so an extra key there would be pruned or rejected.)
+ALTER TABLE public.talent_sites
+  ADD COLUMN IF NOT EXISTS post_layout jsonb;

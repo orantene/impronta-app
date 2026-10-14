@@ -50,6 +50,10 @@ import {
   resolvePostSlugRedirect,
 } from "@/lib/cms/posts-public";
 import { postSiteHref, postSiteUrlFor, type PostSiteContext } from "@/lib/cms/posts-public-site";
+import { PostLayoutSections } from "@/components/posts/PostLayoutSections";
+import { defaultPostAuthorSource, type PostAuthorSource } from "@/lib/cms/post-author";
+import { resolvePostLayoutData } from "@/lib/cms/post-layout-data";
+import { defaultPostLayoutStore, loadPostLayout, type PostLayoutStore } from "@/lib/cms/post-layout-store";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 export type LoadedPostPage =
@@ -115,8 +119,12 @@ function formatDate(iso: string | null, locale: string): string | null {
   return new Intl.DateTimeFormat(locale === "es" ? "es-MX" : "en-US", { dateStyle: "long" }).format(d);
 }
 
-/** The themed article (+ JSON-LD). Classes are the theme's `.site-post*` set. */
-export async function PostArticleView(props: {
+/**
+ * The Post content widget: the themed article (+ JSON-LD). Classes are the
+ * theme's `.site-post*` set. Rendered directly when the site has no
+ * "Diseño de posts" layout, and inside the layout otherwise.
+ */
+export async function PostContentView(props: {
   site: PostSiteContext;
   post: PublicPost;
   expired: boolean;
@@ -179,6 +187,44 @@ export async function PostArticleView(props: {
       <PostBody blocks={post.blocks} body={post.body} services={services} homePath={homePath} locale={locale} />
     </article>
   );
+}
+
+export type PostArticleDeps = {
+  /** Null = no store available: render the article directly. */
+  layoutStore?: PostLayoutStore | null;
+  authorSource?: PostAuthorSource | null;
+};
+
+/**
+ * `/blog/<slug>` body for BOTH site families. When the site has a "Diseño de
+ * posts" layout the page is composed from it, so editing that layout changes
+ * every post; with no layout (or any failure reading it) the article renders
+ * directly, exactly as before the layout existed.
+ */
+export async function PostArticleView(props: {
+  site: PostSiteContext;
+  post: PublicPost;
+  expired: boolean;
+  locale: string;
+  deps?: PostArticleDeps;
+}): Promise<ReactNode> {
+  const { site, post, locale } = props;
+  const store = props.deps && "layoutStore" in props.deps ? props.deps.layoutStore ?? null : defaultPostLayoutStore();
+  const sections = store ? await loadPostLayout(store, site.scope, locale).catch(() => null) : null;
+  const content = await PostContentView(props);
+  if (!sections) return content;
+  const authorSource =
+    props.deps && "authorSource" in props.deps ? props.deps.authorSource ?? null : defaultPostAuthorSource();
+  const resolved = await resolvePostLayoutData({
+    sections,
+    scope: site.scope,
+    locale,
+    postId: post.id,
+    hrefFor: (slug) => postSiteHref(site, blogPostPath(slug), locale),
+    authorSource,
+  }).catch(() => null);
+  if (!resolved) return content;
+  return <PostLayoutSections sections={resolved} content={content} />;
 }
 
 /** `/blog/c/<category>`: the category's listable posts. Null → 404. */

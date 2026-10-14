@@ -125,6 +125,8 @@ export async function talentCreatePostDraftAction(
   input: { locale: PostLocale } & PostDraftValues,
   uiLocale?: UiLocale,
 ): Promise<PostWriterActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "write_failed", message: readOnly.error };
   return run("talent-create", talentCtx(uiLocale), (ctx) => createPostDraft(ctx, input));
 }
 
@@ -132,6 +134,8 @@ export async function talentSavePostDraftAction(
   input: { id: string } & PostDraftValues,
   uiLocale?: UiLocale,
 ): Promise<PostWriterActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "write_failed", message: readOnly.error };
   return run("talent-save", talentCtx(uiLocale), (ctx) => savePostDraft(ctx, input));
 }
 
@@ -139,6 +143,8 @@ export async function talentUpdatePostSettingsAction(
   input: { id: string; patch: PostSettingsPatch },
   uiLocale?: UiLocale,
 ): Promise<PostWriterActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "write_failed", message: readOnly.error };
   return run("talent-settings", talentCtx(uiLocale), (ctx) => updatePostSettings(ctx, input));
 }
 
@@ -146,6 +152,8 @@ export async function talentPublishPostAction(
   input: { id: string; draft?: PostDraftValues },
   uiLocale?: UiLocale,
 ): Promise<PostWriterActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "write_failed", message: readOnly.error };
   return run("talent-publish", talentCtx(uiLocale), (ctx) => publishPostNow(ctx, { id: input.id, draft: input.draft }));
 }
 
@@ -153,6 +161,8 @@ export async function talentUnpublishPostAction(
   input: { id: string },
   uiLocale?: UiLocale,
 ): Promise<PostWriterActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "write_failed", message: readOnly.error };
   return run("talent-unpublish", talentCtx(uiLocale), (ctx) => unpublishPostNow(ctx, input));
 }
 
@@ -162,6 +172,8 @@ export async function workspaceCreatePostDraftAction(
   input: { locale: PostLocale } & PostDraftValues,
   uiLocale?: UiLocale,
 ): Promise<PostWriterActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "write_failed", message: readOnly.error };
   return run("ws-create", workspaceCtx("agency.site_admin.pages.edit", uiLocale), (ctx) => createPostDraft(ctx, input));
 }
 
@@ -169,6 +181,8 @@ export async function workspaceSavePostDraftAction(
   input: { id: string } & PostDraftValues,
   uiLocale?: UiLocale,
 ): Promise<PostWriterActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "write_failed", message: readOnly.error };
   return run("ws-save", workspaceCtx("agency.site_admin.pages.edit", uiLocale), (ctx) => savePostDraft(ctx, input));
 }
 
@@ -176,6 +190,8 @@ export async function workspaceUpdatePostSettingsAction(
   input: { id: string; patch: PostSettingsPatch },
   uiLocale?: UiLocale,
 ): Promise<PostWriterActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "write_failed", message: readOnly.error };
   const cap = input.patch.status !== undefined ||
     input.patch.published_at !== undefined ||
     input.patch.scheduled_publish_at !== undefined
@@ -188,6 +204,8 @@ export async function workspacePublishPostAction(
   input: { id: string; draft?: PostDraftValues },
   uiLocale?: UiLocale,
 ): Promise<PostWriterActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "write_failed", message: readOnly.error };
   return run("ws-publish", workspaceCtx("agency.site_admin.pages.publish", uiLocale), (ctx) =>
     publishPostNow(ctx, { id: input.id, draft: input.draft }),
   );
@@ -197,6 +215,8 @@ export async function workspaceUnpublishPostAction(
   input: { id: string },
   uiLocale?: UiLocale,
 ): Promise<PostWriterActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "write_failed", message: readOnly.error };
   return run("ws-unpublish", workspaceCtx("agency.site_admin.pages.publish", uiLocale), (ctx) =>
     unpublishPostNow(ctx, input),
   );
