@@ -126,7 +126,7 @@ Critical path: **G → B → D → E**. Lane C delivers visible UX in Wave 1 wit
 
 ## 6. Risks & prerequisites
 
-1. **Directory section files mid-merge.** `Editor.tsx` / `directory-results-toolbar.tsx` showed live conflict markers during the audit. Lanes G/B/D must not start until that merge lands clean (`git grep '<<<<<<<'` empty).
+1. **Directory section files mid-merge.** `Editor.tsx` / `directory-results-toolbar.tsx` showed live conflict markers during the audit. Lanes G/B/D must not start until that merge lands clean (`git grep -I '<<<<<<<'` empty).
 2. **Two "canonical" composers.** Both `InquiryDrawer` and `InquiryCartForm` self-label "canonical" — B4 must fully retire one or drift returns.
 3. **Don't strip features.** `DirectoryInquirySheet`'s AI strip / quick-add / shortlist list must survive the B2 swap.
 4. **Dev env.** Use `impronta.local` (allow-listed); add `impronta.lvh.me` to `allowedDevOrigins` if lvh.me QA is needed; Supabase is Free-tier (egress limits).
