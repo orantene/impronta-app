@@ -169,7 +169,7 @@ export function SettingsPage() {
         key: "terms",
         label: tx("Deposit and cancellations"),
         sub: tx("Your defaults for new bookings. Each booking can still set its own."),
-        panel: <CommercialBookingTermsCard talentId={bridgeTalentSelfProfile.id} />,
+        panel: <CommercialBookingTermsCard talentId={bridgeTalentSelfProfile.id} solo={(bridgeTalentAgencies ?? []).length === 0} />,
       },
       {
         key: "currency",

@@ -2,6 +2,7 @@ import { unstable_cache } from "next/cache";
 import { createTranslator } from "@/i18n/messages";
 import { CACHE_TAG_DIRECTORY, CACHE_TAG_TAXONOMY } from "@/lib/cache-tags";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { spanishPlaceName } from "@/lib/i18n/place-names-es";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { fetchAllTaxonomyTerms } from "@/lib/supabase/paged";
@@ -294,7 +295,7 @@ async function loadDirectoryFilterSectionsUncached(
   }
 
   const locationOptions: DirectoryFilterOption[] = ((locationsRes.data ?? []) as LocationRow[]).map((l) => {
-    const city = pickLabel(locale, l.display_name_i18n?.en ?? "", l.display_name_i18n?.es ?? null);
+    const city = spanishPlaceName(pickLabel(locale, l.display_name_i18n?.en ?? "", l.display_name_i18n?.es ?? null), locale);
     const cc = String(l.country_code ?? "").trim();
     return { id: String(l.city_slug), label: cc ? `${city}, ${cc}` : city };
   });

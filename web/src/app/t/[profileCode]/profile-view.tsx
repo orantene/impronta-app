@@ -15,6 +15,7 @@ import { SkipToContent } from "@/components/accessibility/skip-to-content";
 
 import { resolveProfileTemplate } from "./_shared/profile-template-dispatch";
 import { ProfileShareRow } from "./_light/ProfileShareRow";
+import { buildShareLabels } from "./_light/share-labels";
 import { ProfileHubsIndicator } from "./_light/ProfileHubsIndicator";
 import type { ResolvedSkill } from "@/lib/server-actions/admin-talent-skills.types";
 
@@ -2178,12 +2179,7 @@ export async function TalentProfileView({
   const canonicalShareUrl =
     (await canonicalTalentUrl(profile.profile_code)) ??
     `${siteBase}/t/${encodeURIComponent(profile.profile_code)}`;
-  const shareLabels = {
-    heading: t("public.profile.share.heading"),
-    copyLink: t("public.profile.share.copyLink"),
-    copyLinkDone: t("public.profile.share.copyLinkDone"),
-    whatsappTemplate: t("public.profile.share.whatsappTemplate"),
-  };
+  const shareLabels = buildShareLabels(t);
 
   const detailsLabels = {
     measurements: pickLocale(locale, { en: "Basic info", es: "Información básica" }),

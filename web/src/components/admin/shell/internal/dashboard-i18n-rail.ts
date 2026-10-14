@@ -35,6 +35,7 @@ import { SWEEP_R1_ES_TEXT } from "./dashboard-i18n-sweep-r1";
 import { LEAKS_1007_ES_TEXT } from "./dashboard-i18n-leaks-1007";
 import { WEBSITE_ES_TEXT } from "./dashboard-i18n-website";
 import { THREAD_ES_TEXT } from "./dashboard-i18n-thread";
+import { E5_SWEEP_ES_TEXT } from "./dashboard-i18n-e5-sweep";
 
 export const RAIL_ES_TEXT: Record<string, string> = {
   // First, so a generic key already translated elsewhere keeps its wording.
@@ -53,6 +54,7 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   ...LANGUAGES_ES_TEXT,
   ...INBOX_ES_TEXT,
   ...TRUST_ES_TEXT,
+  ...E5_SWEEP_ES_TEXT,
   // The four Appointments sub-views (W39). They are tabs of one route, but the
   // rail draws them as rows, so each needs its own literal. "Appointments" is
   // both the destination label and its landing child, and already has a row in

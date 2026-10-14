@@ -29,6 +29,7 @@ import { TalentStorefront } from "../_shared/TalentStorefront";
 import type { UsdRates } from "@/lib/pricing/usd-equivalent";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { SkillsExperienceBlock } from "./SkillsExperienceBlock";
+import { lightSectionLabels } from "./section-labels";
 import { BookingCard } from "./BookingCard";
 import { AvailabilityWidget } from "./AvailabilityWidget";
 import { LightSectionLabel } from "./section-label";
@@ -610,10 +611,10 @@ export function LightProfileLayout({
               <section
                 id="reviews"
                 className="scroll-mt-24"
-                aria-label="Client reviews"
+                aria-label={lightSectionLabels(locale).clientReviews}
                 data-profile-section="reviews"
               >
-                <LightSectionLabel>Reviews</LightSectionLabel>
+                <LightSectionLabel>{lightSectionLabels(locale).reviews}</LightSectionLabel>
                 <div className="mt-5">
                   <TalentReviewsSection
                     summary={ratingSummary}
@@ -688,7 +689,7 @@ export function LightProfileLayout({
       {/* ── 6. Similar-talent strip ──────────────────────────────────────── */}
       {similarTalent.length > 0 ? (
         <section
-          aria-label="More talent from this roster"
+          aria-label={lightSectionLabels(locale).moreTalent}
           className="border-t px-4 py-12 sm:px-6 lg:px-8"
           style={{ borderColor: "var(--plt-hairline)", background: "var(--plt-bg)" }}
         >
