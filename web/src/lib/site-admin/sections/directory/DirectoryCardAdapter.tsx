@@ -475,6 +475,7 @@ function mapDtoToCardData(
     ratingCount: card.ratingCount ?? null,
     wouldBookAgainPct: card.wouldBookAgainPct ?? null,
     bookable: card.bookable === true,
+    promoBadge: card.promoBadge ?? null,
     verified: card.verified === true,
     verifiedLines: card.verifiedLines,
   };

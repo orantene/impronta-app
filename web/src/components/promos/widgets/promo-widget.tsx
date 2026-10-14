@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
+import { sessionHintStorage, writePromoCodeHint } from "@/lib/promos/code-hint";
 import {
   audienceVisible, countdownBreakdown, pageAllowed, scheduleOpen, scrollPercent,
 } from "@/lib/promos/widgets/model";
@@ -79,7 +80,10 @@ function BookAction({
   const run = async (): Promise<void> => {
     if (preview) return;
     if (view.unlock === "code" && view.code) {
-      // A code is typed at checkout; the cookie only unlocks link offers.
+      // The cookie only unlocks link offers, so a code rides a 30-minute tab hint
+      // that the booking sheet applies once (the server still re-checks it);
+      // it is also copied as the fallback for a sheet that is not on this page.
+      writePromoCodeHint(sessionHintStorage(), view.code, Date.now());
       copyText(view.code);
       onNote(copy.codeCopiedBook(view.code));
       return;

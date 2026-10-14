@@ -137,6 +137,10 @@ test("book: a code offer copies the code and says where to paste it, without a c
   assert.deepEqual(written, ["LUZ10"]);
   assert.match(q("[data-pw-note]")?.textContent ?? "", /LUZ10 copied/);
   assert.equal(sent.some((s) => s.kind === "link_open"), false);
+  // The booking sheet applies it once: a 30-minute tab hint, never a cookie.
+  const hint = JSON.parse(dom.window.sessionStorage.getItem("tl_promo_code") ?? "null") as { code: string; exp: number } | null;
+  assert.equal(hint?.code, "LUZ10");
+  assert.ok((hint?.exp ?? 0) - Date.now() > 29 * 60_000 && (hint?.exp ?? 0) - Date.now() <= 30 * 60_000);
   await act(async () => m.root.unmount());
 });
 

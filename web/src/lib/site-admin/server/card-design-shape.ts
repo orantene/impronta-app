@@ -100,6 +100,12 @@ export type CardDesign = {
   showBadges?: "on" | "off";
   showRating?: "on" | "off";
   showPriceFrom?: "on" | "off";
+  /**
+   * Agency opt-in for the talent promo badge on its directory cards
+   * (TUL-1051). Absent = OFF: unlike the lines above, an unset value must not
+   * fall through to "on", so readers treat only an explicit "on" as opt-in.
+   */
+  showTalentPromoBadges?: "on" | "off";
 };
 
 /** Registry token key → `CardDesign` color field. */
@@ -132,6 +138,7 @@ const LINE_VISIBILITY_KEYS = {
   showBadges: "directory.card.show-badges",
   showRating: "directory.card.show-rating",
   showPriceFrom: "directory.card.show-starting-from-price",
+  showTalentPromoBadges: "directory.card.show-talent-promo-badges",
 } as const;
 
 /** Registry token key → `CardDesign` layout field, with its allowed values. */
