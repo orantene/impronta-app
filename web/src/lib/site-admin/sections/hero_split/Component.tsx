@@ -409,6 +409,7 @@ export function HeroSplitComponent({
             alt={imageAlt ?? ""}
             aria-hidden={imageAlt ? undefined : true}
             loading="eager"
+            fetchPriority="high"
           />
         </div>
       </div>
