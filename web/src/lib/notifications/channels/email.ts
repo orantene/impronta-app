@@ -79,6 +79,7 @@ export async function sendEmailNotification(
   if (!/^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(recipient.email.trim())) {
     return skip("recipient address is malformed");
   }
+  recipient = { ...recipient, email: recipient.email.trim() };
   if (isReservedDomainAddress(recipient.email)) {
     return skip("reserved domain (QA or demo address, mail is never sent)");
   }
@@ -223,7 +224,9 @@ export async function sendEmailNotification(
         ? "email provider key not configured"
         : result.reason === "reserved_domain"
           ? "reserved domain (QA or demo address, mail is never sent)"
-          : "provider skipped the send",
+          : result.reason === "invalid_address"
+            ? "recipient address is malformed"
+            : "provider skipped the send",
     );
   }
   // Report the envelope we actually sent with. The dispatcher records it on
