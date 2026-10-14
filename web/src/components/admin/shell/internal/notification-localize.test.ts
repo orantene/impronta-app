@@ -41,3 +41,37 @@ test("sdb-1011-01: theme-update bells stored in either language render in the vi
   );
   assert.equal(localizeNotificationText("Maison v2 has an update", "en"), "Maison v2 has an update");
 });
+
+test("TUL-676: offer bells (title + body, stored in English) render in ES", () => {
+  const t = (s: string) => localizeNotificationText(s, "es");
+  assert.equal(t("Offer pending approval"), "Oferta pendiente de aprobación");
+  assert.equal(
+    t("MXN 300.00 for QA Guest Grok. Open the Offer tab to review and approve."),
+    "MXN 300.00 para QA Guest Grok. Abre la pestaña Oferta para revisarla y aprobarla.",
+  );
+  assert.equal(
+    t("MXN 300.00. Open the Offer tab to review and approve."),
+    "MXN 300.00. Abre la pestaña Oferta para revisarla y aprobarla.",
+  );
+  assert.equal(
+    t("An offer with your rate is ready. Open the Offer tab to review and approve."),
+    "Una oferta con tu tarifa está lista. Abre la pestaña Oferta para revisarla y aprobarla.",
+  );
+  assert.equal(
+    t("QA Guest Grok: MXN 300.00. Waiting on approvals."),
+    "QA Guest Grok: MXN 300.00. Esperando aprobaciones.",
+  );
+  assert.equal(
+    t("QA Guest Grok: offer sent. Waiting on approvals."),
+    "QA Guest Grok: oferta enviada. Esperando aprobaciones.",
+  );
+  assert.equal(
+    t("An offer was sent and is waiting on approvals."),
+    "Se envió una oferta y está esperando aprobaciones.",
+  );
+  assert.equal(t("Offer pending approval"), "Oferta pendiente de aprobación");
+  assert.equal(
+    localizeNotificationText("MXN 300.00 for QA Guest Grok. Open the Offer tab to review and approve.", "en"),
+    "MXN 300.00 for QA Guest Grok. Open the Offer tab to review and approve.",
+  );
+});
