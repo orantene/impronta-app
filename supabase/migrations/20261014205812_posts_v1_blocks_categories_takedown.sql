@@ -127,3 +127,102 @@ ALTER TABLE public.agency_branding
   ADD COLUMN IF NOT EXISTS ai_crawlers_allowed boolean NOT NULL DEFAULT true;
 ALTER TABLE public.talent_sites
   ADD COLUMN IF NOT EXISTS ai_crawlers_allowed boolean NOT NULL DEFAULT true;
+
+-- 6. Talent personal sites (no business-workspace tenant) ---------------------
+-- Talent sites live in talent_sites snapshots, not tenant cms_pages. Their
+-- posts are scoped by talent_profile_id; tenant_id stays NULL on those rows.
+-- PM decision 2026-10-14 (TUL-1003 comment).
+
+ALTER TABLE public.cms_posts
+  ADD COLUMN IF NOT EXISTS talent_profile_id uuid REFERENCES public.talent_profiles (id) ON DELETE CASCADE;
+ALTER TABLE public.cms_posts DROP CONSTRAINT IF EXISTS cms_posts_scope_present;
+ALTER TABLE public.cms_posts
+  ADD CONSTRAINT cms_posts_scope_present
+  CHECK (tenant_id IS NOT NULL OR talent_profile_id IS NOT NULL) NOT VALID;
+CREATE UNIQUE INDEX IF NOT EXISTS cms_posts_talent_locale_slug_key
+  ON public.cms_posts (talent_profile_id, locale, slug)
+  WHERE talent_profile_id IS NOT NULL;
+
+ALTER TABLE public.cms_post_categories ALTER COLUMN tenant_id DROP NOT NULL;
+ALTER TABLE public.cms_post_categories
+  ADD COLUMN IF NOT EXISTS talent_profile_id uuid REFERENCES public.talent_profiles (id) ON DELETE CASCADE;
+ALTER TABLE public.cms_post_categories DROP CONSTRAINT IF EXISTS cms_post_categories_scope_present;
+ALTER TABLE public.cms_post_categories
+  ADD CONSTRAINT cms_post_categories_scope_present
+  CHECK (tenant_id IS NOT NULL OR talent_profile_id IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS cms_post_categories_talent_locale_slug_key
+  ON public.cms_post_categories (talent_profile_id, locale, slug)
+  WHERE talent_profile_id IS NOT NULL;
+
+ALTER TABLE public.cms_redirects
+  ADD COLUMN IF NOT EXISTS talent_profile_id uuid REFERENCES public.talent_profiles (id) ON DELETE CASCADE;
+
+-- Web Office = any paid talent plan key (talent_portfolio + grandfathered talent_pro).
+-- SECURITY DEFINER to read talent_profiles; never executable by anon.
+CREATE OR REPLACE FUNCTION public.talent_profile_has_web_office(profile_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.talent_profiles tp
+    WHERE tp.id = profile_id
+      AND tp.talent_plan_key IN ('talent_portfolio', 'talent_pro')
+  );
+$$;
+REVOKE ALL ON FUNCTION public.talent_profile_has_web_office(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.talent_profile_has_web_office(uuid) TO authenticated, service_role;
+
+-- Owner: full draft access (free talents can draft + preview).
+DROP POLICY IF EXISTS cms_posts_talent_owner_all ON public.cms_posts;
+CREATE POLICY cms_posts_talent_owner_all ON public.cms_posts
+  FOR ALL TO authenticated
+  USING (talent_profile_id IS NOT NULL AND public.is_talent_profile_owner(talent_profile_id))
+  WITH CHECK (talent_profile_id IS NOT NULL AND public.is_talent_profile_owner(talent_profile_id));
+
+DROP POLICY IF EXISTS cms_post_categories_talent_owner_all ON public.cms_post_categories;
+CREATE POLICY cms_post_categories_talent_owner_all ON public.cms_post_categories
+  FOR ALL TO authenticated
+  USING (talent_profile_id IS NOT NULL AND public.is_talent_profile_owner(talent_profile_id))
+  WITH CHECK (talent_profile_id IS NOT NULL AND public.is_talent_profile_owner(talent_profile_id));
+
+DROP POLICY IF EXISTS cms_redirects_talent_owner_all ON public.cms_redirects;
+CREATE POLICY cms_redirects_talent_owner_all ON public.cms_redirects
+  FOR ALL TO authenticated
+  USING (talent_profile_id IS NOT NULL AND public.is_talent_profile_owner(talent_profile_id))
+  WITH CHECK (talent_profile_id IS NOT NULL AND public.is_talent_profile_owner(talent_profile_id));
+
+-- Public talent-post reads go through the server (service role) keyed by the
+-- resolved talent site, like talent_sites snapshots; no anon policy is added.
+
+-- Paid gate at the DB too: a talent post can only move INTO 'published'
+-- (or have its live content edited) while the owner has Web Office.
+-- Lapse = live posts stay live (no row is mutated) but become read-only.
+CREATE OR REPLACE FUNCTION public.cms_posts_guard_talent_publish()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.talent_profile_id IS NULL
+     OR coalesce(auth.role(), '') = 'service_role'
+     OR public.is_platform_admin() THEN
+    RETURN NEW;
+  END IF;
+  IF NEW.status = 'published'
+     AND NOT public.talent_profile_has_web_office(NEW.talent_profile_id) THEN
+    RAISE EXCEPTION 'cms_posts: publishing needs Web Office'
+      USING ERRCODE = '42501';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.cms_posts_guard_talent_publish() FROM PUBLIC, anon;
+
+DROP TRIGGER IF EXISTS cms_posts_guard_talent_publish ON public.cms_posts;
+CREATE TRIGGER cms_posts_guard_talent_publish
+  BEFORE INSERT OR UPDATE ON public.cms_posts
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.cms_posts_guard_talent_publish();
