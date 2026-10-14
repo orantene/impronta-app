@@ -65,7 +65,15 @@ export function createEssentialsStore(admin: SupabaseClient): EssentialsStore {
     },
 
     async updateOffering(id, patch) {
-      must("updateOffering", await admin.from("talent_offerings").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", id));
+      // TUL-16b: `attributes` merges into the row's existing JSON (an AI draft carries intake), never replaces it.
+      let next: Record<string, unknown> = { ...patch };
+      if (patch.attributes) {
+        const cur = must("updateOfferingRead", await admin.from("talent_offerings").select("attributes").eq("id", id).maybeSingle());
+        const prev = (cur.data as { attributes?: unknown } | null)?.attributes;
+        const base = prev && typeof prev === "object" && !Array.isArray(prev) ? (prev as Record<string, unknown>) : {};
+        next = { ...patch, attributes: { ...base, ...patch.attributes } };
+      }
+      must("updateOffering", await admin.from("talent_offerings").update({ ...next, updated_at: new Date().toISOString() }).eq("id", id));
     },
 
     async upsertTalentHours({ talentProfileId, tenantId, weekly, timezone }) {

@@ -111,3 +111,15 @@ test("no pack and no match: the stock pick sets NO image, never a random one", (
   assert.equal(pickStockHero(typedOnly, { businessType: null, family: "custom" }), null);
   assert.equal(pickStockHero([], { businessType: null, family: "custom" }), null);
 });
+
+test("TUL-16c: a generic haircut service never forces barber", () => {
+  const terms = [...TERMS, term("6", "barber", "Barber", "Barbero", ["haircut", "corte de pelo"]), term("7", "hairdresser", "Hairdresser", "Estilista", ["hair stylist"])];
+  for (const said of ["Corte de pelo", "haircut", "Corte de cabello"]) {
+    const r = resolveTradeType({ typeSlug: null, discipline: said, terms });
+    assert.notEqual(r.slug, "barber", said);
+  }
+  const barber = resolveTradeType({ typeSlug: null, discipline: "barber", terms });
+  assert.equal(barber.slug, "barber", "an explicit barber stays barber");
+  const chosen = resolveTradeType({ typeSlug: "barber", discipline: "Corte de pelo", terms });
+  assert.equal(chosen.slug, "barber", "the chosen chip still wins");
+});

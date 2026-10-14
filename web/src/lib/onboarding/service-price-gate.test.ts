@@ -99,3 +99,12 @@ test("TUL-633: an AI-read service with no known length still gets a default dura
   assert.equal(row.status, "draft", "unpriced stays a draft: the default length never publishes anything");
   assert.equal(offeringRowFor({ ...custom, durationMin: 45 }, 0).duration_minutes, 45, "a real length wins");
 });
+
+test("TUL-16b: a mobile (at-client) service is written with where=client; studio and home are not", () => {
+  const s = { name: "Corte", durationMin: 45, priceCents: 25000, quote: false, currency: "MXN" } as const;
+  assert.deepEqual(offeringRowFor(s, 0, { mode: "client", area: null }).attributes, { where: ["client"] });
+  assert.equal(offeringRowFor(s, 0, { mode: "studio", area: null }).attributes, undefined);
+  assert.equal(offeringRowFor(s, 0, { mode: "home", area: null }).attributes, undefined);
+  assert.equal(offeringRowFor(s, 0).attributes, undefined);
+  assert.deepEqual(planOfferingWrites([], [s], { mode: "client", area: null }).insert[0].attributes, { where: ["client"] });
+});

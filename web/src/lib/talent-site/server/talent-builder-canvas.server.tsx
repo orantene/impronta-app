@@ -1,5 +1,6 @@
 import "server-only";
 
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import type { ReactNode } from "react";
 
 import { GoogleFontsLink } from "@/app/google-fonts-link";
@@ -173,6 +174,7 @@ export async function buildTalentBuilderCanvasData(input: {
     switcherHrefs: localeCtx.switcherHrefs,
     showCredit: talentSiteShowsPlatformBadge(planKey),
     whitelabel: input.tenantId ? await loadTenantWhitelabel(input.tenantId) : false,
+    marketingOrigin: resolveMarketingOrigin(),
     consentTooling: socketConsentToolingEnabled(),
     talentName: (await loadTalentSiteIdentity(talentProfileId, { bypassCache }))?.name ?? null,
     headerHasLanguageSwitch: headerShowsLanguageSwitch(headerTree),

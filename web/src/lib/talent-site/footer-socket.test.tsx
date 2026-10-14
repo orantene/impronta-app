@@ -358,3 +358,12 @@ test("legal links: Spanish sites link /es/legal, English sites keep /legal", () 
   assert.equal(localizedLegalUrl("https://tulala.digital/legal/terms", "es"), "https://tulala.digital/es/legal/terms");
   assert.equal(localizedLegalUrl("https://tulala.digital/legal/terms", "en"), "https://tulala.digital/legal/terms");
 });
+
+test("TUL-16e: Tulala footer links follow the configured marketing origin, production when absent", () => {
+  const model = buildSocketModel({ locale: "es", publicPathPrefix: "", supportedLocales: ["es"], showCredit: true, whitelabel: false, consentTooling: false, marketingOrigin: "https://staging.tulala.digital", helpContext: { profileCode: "TAL-1" } });
+  for (const l of model.tulalaLinks) assert.ok(l.href.startsWith("https://staging.tulala.digital/"), l.href);
+  assert.ok(model.tulalaLinks.some((l) => l.href === "https://staging.tulala.digital/es/legal/terms"));
+  assert.equal(model.credit?.href, "https://staging.tulala.digital");
+  const prod = buildSocketModel({ locale: "en", publicPathPrefix: "", supportedLocales: ["en"], showCredit: true, whitelabel: false, consentTooling: false });
+  assert.ok(prod.tulalaLinks.every((l) => l.href.startsWith("https://tulala.digital/")));
+});
