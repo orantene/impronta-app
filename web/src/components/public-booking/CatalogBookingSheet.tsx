@@ -78,6 +78,8 @@ import { ServiceAddressField } from "./ServiceAddressField";
 import { useServiceAddress } from "./use-service-address";
 import { useCatalogBookingConfirm } from "./use-catalog-booking-confirm";
 import { CatalogDonePanel, CatalogSheetHeader } from "./catalog-done-panel";
+import { CatalogSheetFooter } from "./catalog-sheet-footer";
+import { isCatalogDoneEcho, useCatalogDoneSnapshot } from "./catalog-done-snapshot";
 
 type Step = "choose" | "when" | "who" | "done";
 export type CatalogBookingDetail = OfferingRequestDetail & {
@@ -164,6 +166,7 @@ export function CatalogBookingSheet({
       }
       // PKG-2: products / untimed packages use CatalogPurchaseMount; skip only when that rail handles it.
       if (d.intent === "instant" && catalogDetailIsPurchase(d)) return;
+      if (isCatalogDoneEcho(d.offeringId)) return; // TUL-1035: a post-confirm re-open keeps the confirmation
       // G13: a picked task pre-selects matching intake chips (still editable).
       setDetail(d.intake?.length ? { ...d, answers: preselectIntakeFromTask(d.intake, d.task, d.answers) } : d);
       // TUL-59: same service reopened in this session keeps every pick and field.
@@ -350,6 +353,15 @@ export function CatalogBookingSheet({
     if (detail) return;
     resetConfirmGuards();
   }, [detail, resetConfirmGuards]);
+  const slotLabel = time != null ? catalogSlotDateLabel(day, time, es) : null;
+  // TUL-1035: the confirmation outlives a remount / refresh / same-service re-open.
+  const { doneSlot } = useCatalogDoneSnapshot({
+    step, detail, variantId, addOnIds, slotLabel, wrote, doneHref,
+    restore: (snap) => {
+      setDetail(snap.detail); setVariantId(snap.variantId); setAddOnIds(snap.addOnIds);
+      setWrote(snap.wrote); setDoneHref(snap.doneHref); setStep("done");
+    },
+  });
   if (!detail) return <style>{CATALOG_BOOKING_CSS}</style>;
 
   const demoTimes = demoSlotsFor(day, bookingDurationMinutes);
@@ -383,8 +395,6 @@ export function CatalogBookingSheet({
     setTouched(false); setError(null); setAskAttempted(false); setCaptchaToken(""); setTakenNotice(null);
     setStep("choose");
   };
-
-  const slotLabel = time != null ? catalogSlotDateLabel(day, time, es) : null;
 
   const buildSelection = (): CatalogBookingSelection => ({
     variantId,
@@ -711,7 +721,7 @@ export function CatalogBookingSheet({
             <CatalogDonePanel
               detail={detail}
               es={es}
-              slotLabel={slotLabel}
+              slotLabel={doneSlot ?? slotLabel}
               variantLabel={variant ? variant.label : null}
               extraLabels={extras.map((e) => e.label)}
               isQuote={isQuote}
@@ -732,46 +742,22 @@ export function CatalogBookingSheet({
         </div>
 
         {step === "who" ? <div style={{ textAlign: "center", padding: "6px 0" }}><PolicyLinkSheet talentProfileId={detail.talentProfileId} locale={locale} /></div> : null}
-        <footer className="jb-foot">
-          {step !== "done" ? (
-            <div className="jb-total">
-              <span>Total</span>
-              <b data-catalog-price={isQuote ? "quote" : "money"}>
-                {footerTotal.from && !isQuote ? (es ? "Desde " : "From ") : ""}
-                {catalogPriceLabel(detail, footerTotal.cents, locale, money)}
-              </b>
-            </div>
-          ) : (
-            <span />
-          )}
-
-          {step === "choose" ? (
-            <button
-              type="button"
-              className="jb-cta"
-              data-catalog-continue="choose"
-              disabled={needsVariant && !variant}
-              onClick={() => setStep("when")}
-            >
-              {chooseStepContinueLabel({
-                action: whoAction,
-                locale,
-                needsOption: needsVariant && !variant,
-              })}
-            </button>
-          ) : null}
-          {step === "when" ? (
-            <button
-              type="button"
-              className="jb-cta"
-              data-catalog-continue="when"
-              disabled={!selectedTime}
-              onClick={() => { if (catalogCanContinueWhen(time)) setStep("who"); }}
-            >
-              {es ? "Continuar" : "Continue"}
-            </button>
-          ) : null}
-          {step === "who" ? (
+        <CatalogSheetFooter
+          step={step}
+          es={es}
+          totalLabel={
+            <b data-catalog-price={isQuote ? "quote" : "money"}>
+              {footerTotal.from && !isQuote ? (es ? "Desde " : "From ") : ""}
+              {catalogPriceLabel(detail, footerTotal.cents, locale, money)}
+            </b>
+          }
+          chooseDisabled={needsVariant && !variant}
+          chooseLabel={chooseStepContinueLabel({ action: whoAction, locale, needsOption: needsVariant && !variant })}
+          onContinueChoose={() => setStep("when")}
+          whenReady={selectedTime}
+          onContinueWhen={() => { if (catalogCanContinueWhen(time)) setStep("who"); }}
+          onDone={() => setDetail(null)}
+          whoCta={
             <button
               type="button"
               className="jb-cta"
@@ -781,19 +767,10 @@ export function CatalogBookingSheet({
               disabled={busy}
               onClick={() => (whoAction === "chat" ? startChat() : void confirm())}
             >
-              {busy && whoAction === "confirm"
-                ? es
-                  ? "Enviando…"
-                  : "Sending…"
-                : whoCtaText}
+              {busy && whoAction === "confirm" ? (es ? "Enviando…" : "Sending…") : whoCtaText}
             </button>
-          ) : null}
-          {step === "done" ? (
-            <button type="button" className="jb-cta" onClick={() => setDetail(null)}>
-              {es ? "Listo" : "Done"}
-            </button>
-          ) : null}
-        </footer>
+          }
+        />
       </div>
     </div>
   );
