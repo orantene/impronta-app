@@ -384,6 +384,7 @@ export type PromoColumns = {
   slot_id: string | null;
   max_redemptions: number | null;
   per_customer_limit: number;
+  show_on_site: boolean;
 };
 
 /** The writable columns of tenant_promo_codes for a draft. free_addon is kind='fixed', value=0. */
@@ -414,6 +415,9 @@ export function draftToColumns(d: PromoDraft): PromoColumns {
     slot_id: d.slot_id,
     max_redemptions: d.max_uses,
     per_customer_limit: d.per_client_max,
+    // A public promo that applies by itself is the one clients should see on
+    // the site and hub; a code, link or personal promo stays off the page.
+    show_on_site: d.unlock === "auto" && d.audience === "public",
   };
 }
 

@@ -58,6 +58,19 @@ export function PromosPage() {
     void reload();
   }, [reload]);
 
+  // On a cold load the shell's first router refresh can abort this action's
+  // request, and an aborted server action never settles. Retry until data lands.
+  useEffect(() => {
+    if (data || failed) return;
+    let tries = 0;
+    const t = setInterval(() => {
+      tries += 1;
+      if (tries > 4) clearInterval(t);
+      else void reload();
+    }, 2500);
+    return () => clearInterval(t);
+  }, [data, failed, reload]);
+
   const start = useCallback(
     (key: TemplateKey) => {
       if (!data) return;

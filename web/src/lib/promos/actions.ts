@@ -78,6 +78,8 @@ type Scope = {
   profileCode: string;
   tenantId: string;
   plan: "free" | "paid";
+  /** The talent's own zone (booking hours). Promo windows are local to it. */
+  tz: string;
 };
 
 /**
@@ -129,6 +131,13 @@ async function resolvePromoScope(write: boolean): Promise<Scope | { error: Promo
   if (!tenantId) return { error: "not_allowed" };
 
   const planKey = (tp as { talent_plan_key?: string | null }).talent_plan_key ?? null;
+  const { data: hours, error: hoursErr } = await admin
+    .from("talent_booking_hours")
+    .select("timezone")
+    .eq("talent_profile_id", talentId)
+    .maybeSingle();
+  if (hoursErr) logServerError("promos.actions/tz", hoursErr);
+  const tzRaw = (hours as { timezone?: string | null } | null)?.timezone?.trim() ?? "";
   return {
     admin,
     userId: user.id,
@@ -136,7 +145,17 @@ async function resolvePromoScope(write: boolean): Promise<Scope | { error: Promo
     profileCode: String((tp as { profile_code?: string | null }).profile_code ?? ""),
     tenantId,
     plan: appointmentsTierForTalentPlan(planKey) === "website" ? "paid" : "free",
+    tz: tzRaw && isValidTz(tzRaw) ? tzRaw : DEFAULT_PROMO_TZ,
   };
+}
+
+function isValidTz(tz: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function isScope(s: Scope | { error: PromoActionError }): s is Scope {
@@ -220,14 +239,14 @@ async function usedCount(scope: Scope, id: string): Promise<number> {
 }
 
 /** Strip anything the client should not decide: tz, ids, and values outside the catalog. */
-function sanitizeDraft(d: PromoDraft, catalog: { services: ServiceOption[]; addons: AddonOption[] }): PromoDraft {
+function sanitizeDraft(d: PromoDraft, catalog: { services: ServiceOption[]; addons: AddonOption[] }, tz: string): PromoDraft {
   const serviceIds = new Set(catalog.services.map((s) => s.id));
   const addon = d.addon_id ? catalog.addons.find((a) => a.id === d.addon_id) ?? null : null;
   return {
     ...d,
     name: d.name.trim().slice(0, 80),
     currency: (d.currency || "MXN").toUpperCase().slice(0, 3),
-    tz: DEFAULT_PROMO_TZ,
+    tz,
     target_ids: d.target_ids.filter((id) => serviceIds.has(id)),
     addon_id: addon?.id ?? null,
     addon_list_cents: addon?.list_cents ?? 0,
@@ -324,7 +343,7 @@ export async function loadPromosPage(): Promise<PromoResult<{ data: PromosPageDa
       plan: scope.plan,
       trialUsed,
       currency: catalog.services[0]?.currency ?? "MXN",
-      tz: DEFAULT_PROMO_TZ,
+      tz: scope.tz,
       nowIso: now.toISOString(),
       promos,
       services: catalog.services,
@@ -419,7 +438,7 @@ export async function createPromo(input: { draft: PromoDraft; mode: "draft" | "l
   if (!isScope(scope)) return { ok: false, error: scope.error };
   const catalog = await loadCatalog(scope);
   if (!catalog) return { ok: false, error: "unavailable" };
-  const draft = sanitizeDraft(input.draft, catalog);
+  const draft = sanitizeDraft(input.draft, catalog, scope.tz);
   const fields = validateDraft(draft);
   if (fields.length > 0) return { ok: false, error: "invalid", fields };
 
@@ -474,7 +493,7 @@ export async function updatePromo(id: string, input: PromoDraft): Promise<PromoR
   if (!catalog) return { ok: false, error: "unavailable" };
   const used = await usedCount(scope, id);
   const current = rowToDraft(owned.row, owned.targets);
-  const { draft, verdict } = applyEdit(current, sanitizeDraft(input, catalog), used);
+  const { draft, verdict } = applyEdit(current, sanitizeDraft(input, catalog, scope.tz), used);
   const fields = validateDraft(draft);
   if (fields.length > 0) return { ok: false, error: "invalid", fields };
   if (scope.plan === "free" && !owned.row.is_draft) {

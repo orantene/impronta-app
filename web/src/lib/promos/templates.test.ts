@@ -211,3 +211,8 @@ test("date chips: inclusive local ranges", () => {
   assert.deepEqual(dateChipRange("weekend", "2026-10-18"), { start: "2026-10-18", end: "2026-10-18" });
   assert.deepEqual(dateChipRange("next", "2026-10-18"), { start: "2026-10-19", end: "2026-10-25" });
 });
+
+test("a public auto promo shows on the site; a code promo does not", () => {
+  assert.equal(draftToColumns(buildDraft("fill_week", ctx())).show_on_site, true);
+  assert.equal(draftToColumns(buildDraft("secret_code", ctx())).show_on_site, false);
+});
