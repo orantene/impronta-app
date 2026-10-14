@@ -19,6 +19,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { loadStripeAccountInfo } from "./stripe-account-info";
 import { planNameEn } from "@/lib/platform/plan-labels";
+import { stripeEnv } from "@/lib/stripe/env-keys";
 
 export type HealthStatus = "ok" | "warn" | "fail" | "unknown";
 
@@ -502,7 +503,7 @@ async function checkProducts(key: string): Promise<HealthCheck> {
 /** Runs every check in parallel. Never throws. */
 export const loadStripeHealth = cache(async (): Promise<StripeHealth> => {
   const fetchedAt = new Date().toISOString();
-  const key = process.env.STRIPE_SECRET_KEY;
+  const key = stripeEnv("STRIPE_SECRET_KEY");
   const account = await checkAccount();
 
   if (!key) {
