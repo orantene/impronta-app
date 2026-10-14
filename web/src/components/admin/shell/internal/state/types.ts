@@ -86,6 +86,7 @@ export type TalentPage =
   | "clients"       // People who booked or messaged this talent
   | "payouts"       // Embedded Stripe Connect payout onboarding. In-shell section (not in nav; reached from Settings).
   | "public-page"   // WS-8.2: split from reach (personal page editor)
+  | "posts"         // Posts v1 (TUL-1007): Website -> Posts list; the writer is a bare /talent/posts/<id> route
   | "settings";
 
 // Client surface — its own plan ladder. Free is browse-only, Pro adds active

@@ -55,6 +55,7 @@ export const TALENT_PAGES: TalentPage[] = [
   "money",
   "profile",
   "public-page",
+  "posts",
   "services",
   "reviews",
   "settings",
@@ -73,6 +74,7 @@ export const TALENT_MOBILE_MORE: TalentPage[] = [
   "clients",
   "profile",
   "public-page",
+  "posts",
   "services",
   "reviews",
   "settings",
@@ -317,6 +319,7 @@ export const TALENT_PAGE_META: Record<TalentPage, { label: string }> = {
   clients:     { label: "Clients" },
   payouts:     { label: "Payouts" },       // in-shell section, reached from Settings
   "public-page": { label: "My presence" }, // canonical URL segment: /talent/site
+  posts:       { label: "Posts" },        // Posts v1: /talent/posts
   settings:    { label: "Settings" },
 };
 

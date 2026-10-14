@@ -42,6 +42,12 @@ export default async function PlatformTalentLayout({
     return <>{children}</>;
   }
 
+  // Posts v1 writer (/talent/posts/<id>) is full-screen and owns its viewport,
+  // like the page builder. The list at /talent/posts stays inside the shell.
+  if (pathname.startsWith("/talent/posts/")) {
+    return <>{children}</>;
+  }
+
   // The guided onboarding wizard is a focused, full-screen flow that owns its
   // own chrome. The route itself enforces auth + loads its own data.
   if (pathname.startsWith("/talent/onboarding")) {
