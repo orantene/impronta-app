@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/nextjs";
+import { scrubBreadcrumb, scrubSentryEvent } from "@/lib/analytics/sentry-scrub";
 
 const rate = Number.parseFloat(process.env.SENTRY_TRACES_SAMPLE_RATE ?? "");
 
@@ -7,18 +8,6 @@ Sentry.init({
   tracesSampleRate: Number.isFinite(rate) && rate >= 0 && rate <= 1 ? rate : 0.1,
   sendDefaultPii: false,
   debug: false,
-  beforeSend(event) {
-    if (event.user) delete event.user.ip_address;
-    if (event.request) {
-      delete event.request.cookies;
-      if (event.request.headers) {
-        for (const k of Object.keys(event.request.headers)) {
-          if (k.toLowerCase() === "authorization" || k.toLowerCase() === "cookie") {
-            delete event.request.headers[k];
-          }
-        }
-      }
-    }
-    return event;
-  },
+  beforeSend: scrubSentryEvent,
+  beforeBreadcrumb: scrubBreadcrumb,
 });
