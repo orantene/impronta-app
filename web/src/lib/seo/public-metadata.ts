@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import { createTranslator } from "@/i18n/messages";
 import { buildTenantLocaleAlternates } from "@/lib/seo/locale-alternates";
 import { getPublicHostContext } from "@/lib/saas/scope";
-import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
+import { loadPublicIdentity, loadPublicShareImageUrl } from "@/lib/site-admin/server/reads";
+import { clampMetaDescription } from "@/lib/seo/business-workspace-seo";
 
 type PageKey = "directory" | "models" | "contact";
 
@@ -49,14 +50,26 @@ export async function buildPublicPageMetadata(
     };
   }
 
-  const identity = await loadPublicIdentity(ctx.tenantId);
+  const [identity, shareImageRaw] = await Promise.all([
+    loadPublicIdentity(ctx.tenantId),
+    loadPublicShareImageUrl(ctx.tenantId),
+  ]);
   const brandName = identity?.public_name?.trim() || null;
 
   const title = brandName ? `${baseTitle} · ${brandName}` : baseTitle;
 
-  const description =
+  const description = clampMetaDescription(
     identity?.seo_default_description?.trim() ||
-    (brandName ? `${baseDescription} ${brandName}.` : baseDescription);
+      (brandName ? `${baseDescription} ${brandName}.` : baseDescription),
+  );
+  // Crawlers need an absolute image URL; relative paths resolve on the tenant host.
+  const shareImage = shareImageRaw?.trim()
+    ? /^https?:\/\//i.test(shareImageRaw.trim())
+      ? shareImageRaw.trim()
+      : ctx.hostname
+        ? `https://${ctx.hostname}${shareImageRaw.trim().startsWith("/") ? "" : "/"}${shareImageRaw.trim()}`
+        : undefined
+    : undefined;
 
   return {
     // `title` already carries the tenant brand suffix (`… · {brand}` above), so
@@ -68,6 +81,13 @@ export async function buildPublicPageMetadata(
       title,
       description,
       ...(brandName ? { siteName: brandName } : {}),
+      ...(shareImage ? { images: [{ url: shareImage }] } : {}),
+    },
+    twitter: {
+      card: shareImage ? "summary_large_image" : "summary",
+      title,
+      description,
+      ...(shareImage ? { images: [shareImage] } : {}),
     },
     ...alternates,
   };
