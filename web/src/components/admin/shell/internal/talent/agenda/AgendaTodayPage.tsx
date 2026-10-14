@@ -404,7 +404,7 @@ export function AgendaTodayPage({
             {initialsOf(item)}
           </span>
           <div className="min-w-0 flex-1">
-            <div className="text-[14px] font-semibold text-[var(--tc-primary)]">
+            <div className="truncate text-[14px] font-semibold text-[var(--tc-primary)]">
               {copy.t(item.client?.name ?? item.managedBy?.name ?? item.title)}
             </div>
             <div className="truncate text-[12.5px] text-black/70">{serviceLabel(item) ?? copy.t("No service set")}</div>
