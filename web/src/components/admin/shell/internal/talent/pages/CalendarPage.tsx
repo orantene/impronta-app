@@ -1,7 +1,7 @@
 /* eslint-disable max-lines */
 "use client";
 
-import { DateFormatHint } from "../primitives/DateFormatHint";
+import { DateFormatHint } from "../../primitives/DateFormatHint";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useDashboardText } from "../../dashboard-i18n";
