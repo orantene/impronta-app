@@ -50,6 +50,9 @@ test("G4-LIB: suggested + all apps copy and library screen with Web Office badge
   assert.match(html, /gallery-app-pro/);
   assert.match(html, />Oficina Web</);
   assert.doesNotMatch(html, />Pro</);
+  // Null bridge plan → free: library cards surface Upgrade (TUL-39 pack).
+  assert.match(html, /apps-library-upgrade-hint/);
+  assert.match(html, /Mejora tu plan para usarla/);
   // First-time setup (no live site): back stays ‹ Hoy.
   assert.match(html, /data-back-context="today"/);
   assert.match(html, /‹ Hoy/);
@@ -126,6 +129,7 @@ test("G4-APP: free plan sees Upgrade to use (preview stays); paid sees Add", () 
   assert.doesNotMatch(paidHtml, /app-detail-upgrade-to-use/);
   const detail = read("AppDetailScreen.tsx");
   assert.match(detail, /requestBuilderAppIntent/);
+  assert.match(detail, /openDrawer\("talent-tier-compare"\)/);
   assert.match(detail, /canAddLibraryApp/);
   assert.match(detail, /isPremiumApp/);
   // Draft-save chokepoints must refuse premium inserts server-side.
