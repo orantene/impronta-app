@@ -5,6 +5,7 @@ import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { resolveNotFoundSlug } from "@/lib/site-admin/server/page-roles";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { isLocale } from "@/lib/site-admin/locales";
+import { rootNotFoundCopy, rootNotFoundLang } from "@/lib/marketing/root-not-found-copy";
 import CmsPublicPage from "@/app/(public)/p/[[...slug]]/page";
 
 // E.2 — Branded 404 page (server component).
@@ -83,18 +84,8 @@ export default async function NotFound() {
   const brand = await loadAgencyBrand();
   const isAgency = brand !== null;
   const eyebrow = isAgency && brand ? brand.name.toUpperCase() : "TULALA";
-  const heading = isAgency && brand
-    ? "This page is no longer here"
-    : "Page not found";
-  const body = isAgency && brand
-    ? `We couldn't find that page on ${brand.name}. The roster, news, or campaign you were looking for may have moved.`
-    : "We couldn't find the page you're looking for.";
-  const primaryCta = isAgency
-    ? { label: "Back to homepage", href: "/" }
-    : { label: "Go home", href: "/" };
-  const secondaryCta = isAgency
-    ? { label: "Send an inquiry", href: "/client/inquiries/new" }
-    : { label: "Sign in", href: "/login" };
+  const copy = rootNotFoundCopy(rootNotFoundLang(await getRequestLocale()), brand?.name ?? null);
+  const { heading, body, primary: primaryCta, secondary: secondaryCta } = copy;
 
   return (
     <div
@@ -211,7 +202,7 @@ export default async function NotFound() {
               marginBottom: 0,
             }}
           >
-            Powered by Tulala
+            {copy.poweredBy}
           </p>
         ) : null}
       </div>
