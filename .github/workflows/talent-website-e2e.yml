@@ -365,6 +365,31 @@ jobs:
         working-directory: web
         run: npx playwright install --with-deps chromium
 
+      # S1 sign-out regression (TUL-708/712/621). Unlike the journeys this
+      # step has NO continue-on-error: a session that survives Log out on any
+      # subdomain fails the job. Local Supabase only, never production.
+      - name: S1 sign-out regression (every subdomain signed out)
+        working-directory: web
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+          PORT: "3000"
+          TALENT_THEME_GALLERY_ENABLED: "true"
+          TALENT_FREE_WEBSITE_ENABLED: "true"
+          TALENT_SITE_SUBDOMAINS_ENABLED: "true"
+          TALENT_MAISON_THEME_ENABLED: "true"
+          TALENT_SITE_E2E_FIXTURE_READY: "1"
+          NEXT_PUBLIC_SUPABASE_URL: ${{ env.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ env.ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ env.SERVICE_ROLE_KEY }}
+          NODE_ENV: development
+        run: |
+          set -o pipefail
+          # Fresh dev server + no Turbopack cache: this step runs BEFORE the
+          # 27-minute journeys, whose dev server can crash (ECONNRESET) and
+          # leave a cache that 404s /api/dev/signin for the next server.
+          rm -rf .next
+          npx playwright test --project=talent-website e2e/talent-website/j9-sign-out-everywhere.spec.ts
+
       # Playwright auto-starts `npm run dev` because the base URL is loopback,
       # waits for it, runs `talent-website-setup` (one dev-signin per fixture),
       # then the journeys. `localhost` resolves as a host because
@@ -408,24 +433,6 @@ jobs:
         run: |
           set -o pipefail
           npx playwright test --project=talent-website
-
-      # S1 sign-out regression (TUL-708/712/621). Unlike the journeys this
-      # step has NO continue-on-error: a session that survives Log out on any
-      # subdomain fails the job. Local Supabase only, never production.
-      - name: S1 sign-out regression (every subdomain signed out)
-        working-directory: web
-        env:
-          PLAYWRIGHT_BASE_URL: http://localhost:3000
-          PORT: "3000"
-          TALENT_SITE_SUBDOMAINS_ENABLED: "true"
-          TALENT_SITE_E2E_FIXTURE_READY: "1"
-          NEXT_PUBLIC_SUPABASE_URL: ${{ env.SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ env.ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ env.SERVICE_ROLE_KEY }}
-          NODE_ENV: development
-        run: |
-          set -o pipefail
-          npx playwright test --project=talent-website e2e/talent-website/j9-sign-out-everywhere.spec.ts
 
       - name: Journey result in the summary
         if: always() && steps.journeys.conclusion != 'skipped'

@@ -232,3 +232,20 @@ test("every Log out entry point uses the single sign-out (no server action, no r
   assert.match(helper, /form\.submit\(\)/);
   assert.match(read("lib/supabase/middleware.ts"), /if \(isSignOutPath\(pathnameForAuth\)\)/);
 });
+
+test("CI dev-signin flow: the proxy auth-scope sweep never drops or expires a fresh sign-in cookie on localhost", async () => {
+  const { appendAuthScopeSweep } = await import("@/lib/supabase/auth-scope-sweep");
+  const { NextResponse } = await import("next/server");
+  for (const host of ["localhost:3000", "acme.lvh.me:3000"]) {
+    const req = new NextRequest(`http://${host}/api/dev/signin?email=qa%40impronta.test&next=%2F`, {
+      headers: { host, cookie: "impronta_guest=g" },
+    });
+    const res = NextResponse.redirect(new URL("/", req.url), 307);
+    res.cookies.set(AUTH, session(FUTURE), { path: "/", sameSite: "lax" });
+    const out = appendAuthScopeSweep(req, res);
+    const set = out.headers.getSetCookie();
+    assert.equal(out.status, 307, host);
+    assert.ok(set.some((h) => h.startsWith(`${AUTH}=base64-`)), `${host}: sign-in cookie kept`);
+    assert.ok(!set.some((h) => /Max-Age=0/i.test(h)), `${host}: nothing expired on a single-copy sign-in`);
+  }
+});
