@@ -13,6 +13,8 @@ import { assertTicketAccess } from "@/lib/support/support-access";
 import { supportEngine } from "@/lib/support/support-engine";
 import { insightRowsToCorpus, retrieveHelpEntries } from "@/lib/support/help-corpus";
 import { loadConfirmedInsightCorpus } from "@/lib/support/insights/load";
+import { supportAiErrorBody, SUPPORT_AI_ERROR_CARD } from "@/lib/support/support-ai-failure";
+import { decideAiTurn } from "@/lib/support/support-ai-turn";
 import { wantsHumanSupport } from "@/lib/support/support-human-prefilter";
 import { sanitizeSupportAiOutput } from "@/lib/support/support-ai-guardrails";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -25,7 +27,6 @@ import {
   type SupportMessageRow,
 } from "@/lib/support/support-types";
 import {
-  supportChatFailOpenBody,
   supportChatOfferHumanBody,
   SUPPORT_CHAT_REASONS,
   SUPPORT_CHAT_SCHEMA,
@@ -61,18 +62,17 @@ async function failOpen(
   locale?: string,
 ): Promise<void> {
   logSupportChatFailOpen(ticketId, reason, code);
+  // TUL-660: never auto-escalate on an AI error; offer retry or a human.
+  const appLocale = locale ?? (await getRequestLocale().catch(() => "en"));
   await supportEngine.appendMessage({
     ticketId,
-    authorKind: "system",
+    authorKind: "ai",
     authorUserId: null,
-    body: supportChatFailOpenBody(locale ?? (await getRequestLocale().catch(() => "en"))),
-    messageKind: "system",
+    body: supportAiErrorBody(appLocale),
+    messageKind: "card",
+    cardPayload: { ...SUPPORT_AI_ERROR_CARD },
+    aiMeta: { fail_open: reason },
     skipNotify: true,
-  });
-  await supportEngine.escalateTicket({
-    ticketId,
-    reason: "ai_unavailable",
-    actorUserId: null,
   });
 }
 
@@ -105,10 +105,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: access.error }, { status: 403 });
     }
 
-    if (access.ticket.handledBy === "human") {
-      return NextResponse.json({ skipped: "escalated" }, { status: 200 });
-    }
-
     const admin = createServiceRoleClient();
     if (!admin) {
       await failOpen(ticketId, "unavailable", null, reqLocale);
@@ -125,8 +121,20 @@ export async function POST(request: Request) {
       .filter((m): m is SupportMessageRow => Boolean(m))
       .reverse();
 
+    const lastHuman = [...messages].reverse().find((m) => m.authorKind === "agent");
+    if (
+      decideAiTurn({
+        handledBy: access.ticket.handledBy,
+        lastHumanReplyAt: lastHuman?.createdAt ?? null,
+        escalatedAt: access.ticket.escalatedAt,
+        now: new Date(),
+      }) === "human_active"
+    ) {
+      return NextResponse.json({ skipped: "human_active" }, { status: 200 });
+    }
+
     const latestRequester = [...messages].reverse().find((m) => m.authorKind === "requester");
-    if (latestRequester && wantsHumanSupport(latestRequester.body)) {
+    if (access.ticket.handledBy !== "human" && latestRequester && wantsHumanSupport(latestRequester.body)) {
       await supportEngine.escalateTicket({
         ticketId,
         reason: "user_requested",

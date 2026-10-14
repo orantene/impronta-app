@@ -13711,6 +13711,8 @@
       "handoffBody": "Recibirás una notificación y un correo cuando responda. Puedes seguir escribiendo aquí mientras tanto.",
       "handoffHq": "Escalado a ti",
       "humanReplyEta": "{agent} responderá, normalmente en unas horas",
+      "ticketReceipt": "Ticket #{number} recibido. {agent} responderá, normalmente en unas horas.",
+      "humanHandling": "Una persona está atendiendo esto",
       "aiHandling": "La IA está ayudando, una persona está a un toque",
       "statusClosed": "Cerrado",
       "thinking1": "Leyendo tu pregunta",
