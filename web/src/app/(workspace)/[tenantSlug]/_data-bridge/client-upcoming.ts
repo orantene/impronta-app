@@ -20,8 +20,7 @@ import "server-only";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { loadPortalVisitWhenMap } from "@/lib/client-account/portal-visit-when.server";
-import { getRequestLocale } from "@/i18n/request-locale";
+import { loadPortalVisitWhenMapForRequest } from "@/lib/client-account/portal-visit-when.server";
 
 export type UpcomingTalentRow = {
   participant_id: string;
@@ -170,12 +169,12 @@ export async function loadClientUpcoming(
       talentByInquiry.set(p.inquiry_id, list);
     }
 
-    const whenMap = await loadPortalVisitWhenMap(tenantId, inquiryIds, await getRequestLocale());
+    const whenMap = await loadPortalVisitWhenMapForRequest(tenantId, inquiryIds);
     const today = todayKey();
     const oneWeekOut = new Date(now.getTime() + 7 * ONE_DAY_MS).toISOString().slice(0, 10);
 
     return rows
-      .map((r) => {
+      .map((r): UpcomingBooking => {
         const row = r as {
           id: string;
           event_date: string;
@@ -192,6 +191,7 @@ export async function loadClientUpcoming(
           date?: { start_time?: string; duration?: string };
           brief?: { special_requirements?: string };
         };
+        const visitWhen = whenMap[row.id] ?? null;
         const coord = row.coordinator_id ? coordMap.get(row.coordinator_id) : null;
         const eventDateKey = dateKey(row.event_date);
         const bucket: UpcomingBooking["bucket"] =
@@ -204,9 +204,9 @@ export async function loadClientUpcoming(
         return {
           inquiry_id: row.id,
           event_date: row.event_date,
-          start_time: whenMap[row.id] ? `${whenMap[row.id].time} ${whenMap[row.id].tzLabel}` : (iq.date?.start_time ?? null),
+          start_time: visitWhen ? `${visitWhen.time} ${visitWhen.tzLabel}` : (iq.date?.start_time ?? null),
           duration: iq.date?.duration ?? null,
-          when: whenMap[row.id] ?? null,
+          when: visitWhen ? { date: visitWhen.date, time: visitWhen.time, tzLabel: visitWhen.tzLabel } : null,
           title:
             iq.client?.job_name?.trim()
             || row.company
@@ -222,8 +222,7 @@ export async function loadClientUpcoming(
           talent: talentByInquiry.get(row.id) ?? [],
           bucket,
         };
-      })
-      .filter((b): b is UpcomingBooking => true);
+      });
   } catch (err) {
     logServerError("client.loadUpcoming", err);
     return [];

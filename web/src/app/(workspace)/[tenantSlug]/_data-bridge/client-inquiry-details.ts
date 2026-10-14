@@ -26,8 +26,7 @@ import "server-only";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { loadPortalVisitWhenMap } from "@/lib/client-account/portal-visit-when.server";
-import { getRequestLocale } from "@/i18n/request-locale";
+import { loadPortalVisitWhenMapForRequest } from "@/lib/client-account/portal-visit-when.server";
 import {
   loadCrossTenantContext,
   describeCrossTenantContext,
@@ -808,7 +807,7 @@ export async function loadClientInquiryDetails(
         start_time: iq.date?.start_time ?? null,
         duration: iq.date?.duration ?? null,
         date_status: iq.date?.status ?? null,
-        when: (await loadPortalVisitWhenMap(tenantId, [inquiryId], await getRequestLocale()))[inquiryId] ?? null,
+        when: (await loadPortalVisitWhenMapForRequest(tenantId, [inquiryId]))[inquiryId] ?? null,
       },
 
       location: {

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { getRequestLocale } from "@/i18n/request-locale";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
@@ -34,15 +35,27 @@ async function loadFacts(tenantId: string, inquiryIds: readonly string[]): Promi
   }
   const orderIds = [...new Set(rows.flatMap((r) => (r.order_id ? [r.order_id] : [])))];
   if (orderIds.length === 0) return out;
-  const { data: ln } = await admin.from("order_lines").select("order_id, offering_id").in("order_id", orderIds).not("offering_id", "is", null);
+  const { data: ln, error: lnErr } = await admin.from("order_lines").select("order_id, offering_id").in("order_id", orderIds).not("offering_id", "is", null);
+  if (lnErr) {
+    logServerError("clientPortal.visitWhen.lines", lnErr);
+    return out;
+  }
   const lines = ((ln ?? []) as Array<{ order_id: string; offering_id: string | null }>).map((l) => ({ orderId: l.order_id, offeringId: l.offering_id }));
   const offeringIds = [...new Set(lines.flatMap((l) => (l.offeringId ? [l.offeringId] : [])))];
   if (offeringIds.length === 0) return out;
-  const { data: of } = await admin.from("talent_offerings").select("id, talent_profile_id").in("id", offeringIds);
+  const { data: of, error: ofErr } = await admin.from("talent_offerings").select("id, talent_profile_id").in("id", offeringIds);
+  if (ofErr) {
+    logServerError("clientPortal.visitWhen.offerings", ofErr);
+    return out;
+  }
   const offerings = ((of ?? []) as Array<{ id: string; talent_profile_id: string | null }>).map((o) => ({ id: o.id, talentId: o.talent_profile_id }));
   const talentIds = [...new Set(offerings.flatMap((o) => (o.talentId ? [o.talentId] : [])))];
   if (talentIds.length === 0) return out;
-  const { data: hr } = await admin.from("talent_booking_hours").select("talent_profile_id, timezone").in("talent_profile_id", talentIds);
+  const { data: hr, error: hrErr } = await admin.from("talent_booking_hours").select("talent_profile_id, timezone").in("talent_profile_id", talentIds);
+  if (hrErr) {
+    logServerError("clientPortal.visitWhen.hours", hrErr);
+    return out;
+  }
   const hours = ((hr ?? []) as Array<{ talent_profile_id: string; timezone: string | null }>).map((h) => ({ talentId: h.talent_profile_id, timezone: h.timezone }));
   const zones = buildVisitZoneMap({
     bookings: rows.flatMap((r) => (r.source_inquiry_id ? [{ inquiryId: r.source_inquiry_id, orderId: r.order_id }] : [])),
@@ -66,4 +79,17 @@ export async function loadPortalVisitWhenMap(tenantId: string, inquiryIds: reado
     if (w) out[id] = w;
   }
   return out;
+}
+
+/**
+ * Same map, locale taken from the request. Never throws: outside a request (or on any failure)
+ * the visit simply has no `when` and the page keeps its date only.
+ */
+export async function loadPortalVisitWhenMapForRequest(tenantId: string, inquiryIds: readonly string[]): Promise<Record<string, PortalVisitWhen>> {
+  try {
+    return await loadPortalVisitWhenMap(tenantId, inquiryIds, await getRequestLocale());
+  } catch (err) {
+    logServerError("clientPortal.visitWhen.request", err);
+    return {};
+  }
 }
