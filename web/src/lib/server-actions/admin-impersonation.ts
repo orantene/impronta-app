@@ -22,6 +22,7 @@ import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { logImpersonation } from "@/lib/platform/staff-access-log";
 import { logServerError } from "@/lib/server/safe-error";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { impersonationExitPath } from "@/lib/impersonation/exit-path";
 import { loadClientPrimaryTenantSlug } from "@/lib/saas/role-tenant-resolver";
 
 /** `unavailable`: the QA persona id is unset, missing, or has the wrong role. */
@@ -130,5 +131,5 @@ export async function endImpersonationToAdmin(): Promise<void> {
   await logImpersonation({ actorUserId: admin.user.id, targetUserId: null, phase: "stop" });
 
   revalidatePath("/", "layout");
-  redirect("/admin");
+  redirect(impersonationExitPath(admin.profile?.app_role));
 }
