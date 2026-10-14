@@ -559,6 +559,7 @@ export function OnboardingModule({
       <SaveStep
         t={t}
         path={path}
+        locale={locale}
         choice={state.choice}
         busy={state.busy}
         error={state.accountMessage}

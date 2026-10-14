@@ -77,6 +77,7 @@ import {
 import { isAgeAndTermsConfirmed } from "@/lib/legal/acceptances.core";
 import { recordSignupAcceptance } from "@/lib/legal/acceptances";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { claimAndActivateVerifiedClient } from "@/lib/client-account/after-verified-sign-in.server";
 
 /** `sent` drives the form's step; `email` is echoed back into the code screen. */
 export type EmailCodeState =
@@ -341,6 +342,8 @@ export async function submitEmailCode(
     if (isTalentSignupNext(nextPath)) {
       await promoteFreshProfileToTalent(user.id);
     }
+    // G3: the code proved the email. Claim + activate before routing.
+    await claimAndActivateVerifiedClient({ userId: user.id, email: user.email ?? email, emailProven: true });
   }
 
   const profileData = user ? await loadAccessProfile(supabase, user.id) : null;
