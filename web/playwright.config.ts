@@ -32,6 +32,8 @@ import { resolve } from "node:path";
 
 import { defineConfig, devices } from "@playwright/test";
 
+import { e2eWebServerCommand } from "./scripts/e2e-web-server-command";
+
 /** Load dotenv files into `process.env` without overwriting a value already set. */
 function loadEnvFile(relativePath: string): void {
   const p = resolve(process.cwd(), relativePath);
@@ -86,7 +88,7 @@ export default defineConfig({
   ...(autoStartNextDev
     ? {
         webServer: {
-          command: "npm run dev",
+          command: e2eWebServerCommand(process.env),
           url: baseURL,
           reuseExistingServer: !process.env.CI,
           timeout: 180_000,
