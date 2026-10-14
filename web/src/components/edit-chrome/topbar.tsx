@@ -148,11 +148,25 @@ function PagePicker({
   // tier's default, served on the marketing host) a same-origin
   // `/{slug}/admin/website` 404s, so the base has to be resolved from the live
   // location and may be absolute. See `workspace-admin-base.ts`.
-  const workspaceWebsiteHref = useMemo(() => {
-    if (websiteSlug === "") return "/admin/site";
-    if (typeof window === "undefined") return `/${websiteSlug}/admin/website`;
-    return `${resolveWorkspaceAdminBaseForLocation(websiteSlug, window.location)}/website`;
+  // Server value first so hydration matches; the live-location base is
+  // resolved in an effect (TUL-607).
+  const serverWebsiteHref =
+    websiteSlug === "" ? "/admin/site" : `/${websiteSlug}/admin/website`;
+  const [resolvedWebsiteHref, setResolvedWebsiteHref] = useState<{
+    slug: string;
+    href: string;
+  } | null>(null);
+  useEffect(() => {
+    if (websiteSlug === "") return;
+    setResolvedWebsiteHref({
+      slug: websiteSlug,
+      href: `${resolveWorkspaceAdminBaseForLocation(websiteSlug, window.location)}/website`,
+    });
   }, [websiteSlug]);
+  const workspaceWebsiteHref =
+    resolvedWebsiteHref && resolvedWebsiteHref.slug === websiteSlug
+      ? resolvedWebsiteHref.href
+      : serverWebsiteHref;
 
   const [open, setOpen] = useState(false);
   const [pages, setPages] = useState<PagePickerItem[] | null>(null);

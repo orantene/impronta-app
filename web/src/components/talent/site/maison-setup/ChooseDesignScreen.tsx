@@ -64,7 +64,7 @@ export function ChooseDesignScreen({
               {maisonSetupT(locale, "Choose a design")}
             </h1>
             <p className="text-[11.5px] text-admin-ink-dim">
-              {maisonSetupT(locale, "Your free website")}
+              {maisonSetupT(locale, "Your website")}
             </p>
           </div>
           {onClose ? (

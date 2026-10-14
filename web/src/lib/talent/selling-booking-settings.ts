@@ -115,8 +115,9 @@ export const DEFAULT_SHEET_BOOKING_SETTINGS: CatalogSheetBookingSettings = {
 
 /**
  * Label for the who-step primary. When action is chat but the talent still
- * has Confirm now selected (e.g. request-only offering), keep the prior
- * chat CTA rather than promising a confirmation.
+ * has Confirm now selected (e.g. request-only offering), use inquiry-submit
+ * vocabulary — not "Chat now", which over-promises a live chat and under-sells
+ * the request the sheet just collected (GRK-057).
  */
 export function whoStepPrimaryLabel(input: {
   action: "confirm" | "chat";
@@ -130,7 +131,7 @@ export function whoStepPrimaryLabel(input: {
     return whoPrimaryCtaLabel(input.whoPrimaryCta, input.locale);
   }
   const es = input.locale.toLowerCase().startsWith("es");
-  return es ? "Chatea ahora" : "Chat now";
+  return es ? "Enviar consulta" : "Send inquiry";
 }
 
 /**
