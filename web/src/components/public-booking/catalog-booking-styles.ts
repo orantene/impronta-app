@@ -11,6 +11,10 @@ export const CATALOG_BOOKING_CSS = `
 .jb-back{position:fixed;inset:0;z-index:120;background:rgba(36,33,38,.42);backdrop-filter:blur(3px);display:flex;align-items:flex-end;justify-content:center;animation:jb-fade 200ms cubic-bezier(.22,1,.36,1)}
 @keyframes jb-fade{from{opacity:0}to{opacity:1}}
 .jb-sheet{width:100%;max-width:560px;max-height:92vh;display:flex;flex-direction:column;background:var(--cb-surface);color:var(--cb-ink);border-radius:22px 22px 0 0;font-family:var(--token-font-body,var(--font-inter-body),Inter,system-ui,sans-serif);box-shadow:0 -24px 60px -28px rgba(36,33,38,.45);animation:jb-rise 300ms cubic-bezier(.22,1,.36,1)}
+/* TUL-807: vh counts the area under the phone's URL bar / keyboard, so the footer sat over the last fields.
+   dvh tracks the visible viewport; focused fields scroll clear of the footer edge. */
+.jb-sheet{max-height:92dvh}
+.jb-body{scroll-padding-bottom:24px;padding-bottom:calc(22px + env(safe-area-inset-bottom,0px))}
 @keyframes jb-rise{from{transform:translateY(28px);opacity:.5}to{transform:none;opacity:1}}
 @media (prefers-reduced-motion:reduce){.jb-sheet,.jb-back{animation:none}}
 /* Busy ring (A-14): hidden everywhere except a soft-chrome site (motion-css.ts turns it on). */
@@ -112,7 +116,7 @@ export const CATALOG_BOOKING_CSS = `
 .jb-ask{appearance:none;border:0;background:none;padding:14px 0 0;cursor:pointer;font-family:inherit;font-size:.875rem;font-weight:700;color:var(--cb-ink);text-align:left;min-height:44px}
 /* AUD-005 — long CTA labels overflow a single footer row at 360. */
 @media (max-width:400px){.jb-foot{flex-direction:column;align-items:stretch;gap:10px}.jb-total{width:100%}.jb-cta{width:100%}}
-@media (min-width:720px){.jb-back{align-items:center}.jb-sheet{border-radius:20px;max-height:86vh}.jb-foot{border-radius:0 0 20px 20px}}
+@media (min-width:720px){.jb-back{align-items:center}.jb-sheet{border-radius:20px;max-height:86vh;max-height:86dvh}.jb-foot{border-radius:0 0 20px 20px}}
 .cb-bar{position:fixed;left:0;right:0;bottom:0;z-index:80;display:none;align-items:center;justify-content:space-between;gap:16px;padding:14px 18px calc(14px + env(safe-area-inset-bottom));background:var(--cb-surface);color:var(--cb-ink);border-top:1px solid var(--cb-line);box-shadow:0 -8px 20px -18px rgba(36,33,38,.18)}
 .cb-bar[data-show="true"]{display:flex}
 .cb-bar-text{min-width:0;display:grid;gap:2px}

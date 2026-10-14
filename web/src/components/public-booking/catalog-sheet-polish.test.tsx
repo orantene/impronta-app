@@ -116,3 +116,10 @@ test("TUL-931: only the sheet body scrolls; header, Políticas and footer keep t
   assert.equal(policy.nextElementSibling?.tagName, "FOOTER", "it sits above the footer, outside the scrolling body");
   m.done();
 });
+
+test("TUL-807: the sheet fits the visible phone viewport and fields scroll clear of the footer", () => {
+  const css = CATALOG_BOOKING_CSS;
+  assert.match(css, /\.jb-sheet\{max-height:92dvh\}/);
+  assert.ok(css.indexOf(".jb-sheet{max-height:92dvh}") > css.indexOf("max-height:92vh"), "dvh overrides the vh fallback");
+  assert.match(css, /\.jb-body\{scroll-padding-bottom:24px;/);
+});
