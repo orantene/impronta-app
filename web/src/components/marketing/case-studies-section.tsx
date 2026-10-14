@@ -193,7 +193,7 @@ function CaseStudyCard({
           className="mt-4 flex items-center gap-1.5 pt-1 text-[0.8125rem] font-medium"
           style={{ color: "var(--plt-forest)" }}
         >
-          <span>{study.persona}</span>
+          <span className="whitespace-nowrap">{study.persona}</span>
           <span style={{ color: "var(--plt-hairline-strong)" }}>·</span>
           <span style={{ color: "var(--plt-muted)" }}>{study.role}</span>
         </div>
@@ -313,7 +313,7 @@ function CaseStudyModal({
                 className="plt-display mt-3 text-[1.5rem] font-semibold leading-[1.1] tracking-[-0.02em] sm:text-[1.875rem]"
                 style={{ color: "var(--plt-on-inverse)" }}
               >
-                {study.persona}
+                <span className="whitespace-nowrap">{study.persona}</span>
               </p>
               <p className="mt-1 text-[0.875rem]" style={{ color: "rgba(241,237,227,0.82)" }}>
                 {study.role} · {study.location}
@@ -389,7 +389,7 @@ function CaseStudyModal({
                   &ldquo;{study.quote}&rdquo;
                 </p>
                 <footer className="mt-2 text-[0.8125rem]" style={{ color: "var(--plt-muted)" }}>
-                  — {study.persona}, {study.role}
+                  — <span className="whitespace-nowrap">{study.persona}</span>, {study.role}
                 </footer>
               </blockquote>
 

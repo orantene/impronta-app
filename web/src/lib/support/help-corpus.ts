@@ -178,6 +178,8 @@ const ES_TO_EN: Record<string, string> = {
   resenas: "review",
   cancelacion: "cancel",
   reprogramar: "reschedule",
+  reprogramo: "reschedule",
+  cancelo: "cancel",
   banco: "bank",
   bancaria: "bank",
   ganancias: "earnings",

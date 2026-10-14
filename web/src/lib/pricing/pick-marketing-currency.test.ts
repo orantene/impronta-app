@@ -51,6 +51,24 @@ describe("pickMarketingCurrency", () => {
   });
 });
 
+describe("Spanish locale default (TUL-864)", () => {
+  it("defaults to MXN on es with no visitor choice", () => {
+    assert.deepEqual(pickMarketingCurrency({ locale: "es" }), {
+      currency: "MXN",
+      source: "fallback",
+    });
+  });
+
+  it("explicit URL or cookie still beats the locale default", () => {
+    assert.equal(pickMarketingCurrency({ locale: "es", urlCurrency: "USD" }).currency, "USD");
+    assert.equal(pickMarketingCurrency({ locale: "es", cookieCurrency: "EUR" }).currency, "EUR");
+  });
+
+  it("English stays USD", () => {
+    assert.equal(pickMarketingCurrency({ locale: "en" }).currency, "USD");
+  });
+});
+
 describe("resolveCurrency wiring", () => {
   it("does not guess currency from the IP-country header", () => {
     const src = readFileSync(join(HERE, "currency-resolver.ts"), "utf8");

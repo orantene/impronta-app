@@ -39,8 +39,10 @@ export function AgendaMoneyLine({
   const kindLabel =
     row.kind === "refund_pending"
       ? t("Refund pending")
-      : row.kind === "deposit"
-        ? t("Deposit requested")
+      : row.kind === "offer"
+        ? t("Pending payment")
+        : row.kind === "deposit"
+          ? t("Deposit requested")
         : row.overdue
           ? t("Overdue")
           : t("Balance due");
@@ -63,7 +65,7 @@ export function AgendaMoneyLine({
       </span>
       <div className="flex gap-2">
         <button type="button" className={`${btnSec} flex-1`} onClick={() => router.push(row.bookingHref)}>
-          {t("Open booking")}
+          {row.kind === "offer" ? t("Open conversation") : t("Open booking")}
         </button>
         {row.kind === "refund_pending" ? (
           <button
@@ -74,7 +76,7 @@ export function AgendaMoneyLine({
           >
             {refundBusy ? t("Refunding…") : t("Refund")}
           </button>
-        ) : (
+        ) : row.kind === "offer" ? null : (
           <button type="button" className={`${btnSec} flex-1`} onClick={() => onRequest(row)}>
             {t("Send a payment link")}
           </button>

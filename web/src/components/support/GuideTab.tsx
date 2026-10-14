@@ -14,6 +14,7 @@
 import { GUIDE_HOME_NODE_ID } from "@/lib/guide/open-guide";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useT } from "@/i18n/use-t";
+import { supportA11yCopy } from "./support-a11y-copy";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { interpolate } from "@/i18n/interpolate";
 import { Icon } from "@/components/admin/shell/internal/primitives";
@@ -366,10 +367,17 @@ function GuideArticleView({
   const t = useT();
   const [voted, setVoted] = useState<"yes" | "no" | null>(null);
   useEffect(() => setVoted(null), [nodeId]);
+  const copy = supportA11yCopy(useDashboardLocale());
   if (loading) {
     return (
-      <div style={{ padding: 16 }}>
+      <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }} role="status" aria-busy="true">
         <BackRow onBack={onBack} />
+        <span style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}>
+          {copy.guideLoading}
+        </span>
+        {[70, 100, 92, 60].map((w, i) => (
+          <div key={i} aria-hidden="true" style={{ height: i === 0 ? 20 : 12, width: `${w}%`, borderRadius: 6, background: COLORS.surfaceAlt }} />
+        ))}
       </div>
     );
   }
@@ -377,6 +385,9 @@ function GuideArticleView({
     return (
       <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
         <BackRow onBack={onBack} />
+        <p role="status" style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: COLORS.inkMuted }}>
+          {copy.guideUnavailable}
+        </p>
       </div>
     );
   }

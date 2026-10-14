@@ -208,7 +208,7 @@ function DirectoryShellBody({
   const showEmpty = view !== "map" && !isPending && items.length === 0;
 
   return (
-    <MarketingContainer size="wide" className="pb-24">
+    <MarketingContainer size="wide" className="pb-[calc(8rem+env(safe-area-inset-bottom))]">
       <div className="flex flex-col gap-5">
         <DirectorySearch value={activeFilters.q} onCommit={(v) => updateParams({ q: v })} />
         <DirectoryTypeBar
