@@ -21,8 +21,10 @@ export function useBookingContactPrefill({
   const asked = useRef(false);
   const readRef = useRef(read);
   const writeRef = useRef(write);
-  readRef.current = read;
-  writeRef.current = write;
+  useEffect(() => {
+    readRef.current = read;
+    writeRef.current = write;
+  });
   useEffect(() => {
     if (!active) { asked.current = false; return; }
     if (asked.current) return;

@@ -522,5 +522,7 @@ export async function signOut(): Promise<void> {
   }
   await clearGuestCookie();
   revalidatePath("/", "layout");
-  redirect("/");
+  // S1: a server action cannot expire both cookie scopes (name-keyed jar); the
+  // route does it with raw Set-Cookie headers, then lands on the home page.
+  redirect("/auth/sign-out");
 }

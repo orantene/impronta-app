@@ -38,6 +38,7 @@ import { supportSendErrorText } from "./support-send-error";
 import {
   EMPTY_THREAD,
   applyIncomingMessage,
+  humanRequestedPatch,
   selectThread,
   threadReducer,
   viewAfterOpenChange,
@@ -72,8 +73,7 @@ export function SupportPanel({
   const trapRef = useFocusTrap<HTMLDivElement>(open && compact);
   const { view, ticketId, setView, restoredRef } = useSupportSessionRestore();
   const parkedRestore = useRef(false);
-  // Keyed by ticket id: rows loaded for another ticket are never shown, so a
-  // new conversation starts empty instead of flashing the previous thread.
+  // Keyed by ticket id: rows for another ticket are never shown (no flash of the previous thread).
   const [threadState, dispatchThread] = useReducer(threadReducer, EMPTY_THREAD);
   const [ask, setAsk] = useState("");
   const [askError, setAskError] = useState<string | null>(null);
@@ -96,9 +96,7 @@ export function SupportPanel({
     if (next) setView(next);
   }, [open, view, setView]);
 
-  // Desktop: push the page instead of covering it (mockup). The attribute is
-  // read by the style tag rendered below; compact keeps the full-screen
-  // sheet, so nothing is padded there.
+  // Desktop: push the page instead of covering it; compact keeps the full-screen sheet (no padding).
   useEffect(() => {
     if (typeof document === "undefined") return;
     const root = document.documentElement;
@@ -131,9 +129,7 @@ export function SupportPanel({
     if (deepLinkTicketId) return;
     if (!restoredRef.current || parkedRestore.current) return;
     if (view !== "thread" || !ticket) return;
-    // One-shot: whatever the first look at the restored ticket concludes,
-    // the restore state ends here. Leaving it set would bounce the user to
-    // Home the moment the ticket later resolves (killing the rating flow).
+    // One-shot: the restore state ends after the first look, or a later resolve bounces to Home (kills rating).
     restoredRef.current = false;
     if (ticket.status !== "open") {
       parkedRestore.current = true;
@@ -141,8 +137,7 @@ export function SupportPanel({
     }
   }, [deepLinkTicketId, restoredRef, setView, ticket, view]);
 
-  // Keep the summaries in sync with what the user just did — the server
-  // snapshot alone leaves badges stuck and new tickets invisible until reload.
+  // Keep summaries in sync with the user's action; the server snapshot alone leaves stale badges until reload.
   const patchSummary = useCallback(
     (id: string, patch: Partial<SupportTicketSummary>) => {
       setTickets((prev) => prev.map((x) => (x.id === id ? { ...x, ...patch } : x)));
@@ -189,9 +184,7 @@ export function SupportPanel({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ ticketId: id }),
       });
-      // TUL-656: the AI reply is written server-side and normally arrives over
-      // realtime, but a socket that subscribed late or lagged left it hidden
-      // until the panel was reopened. Pull the thread once the turn is done.
+      // TUL-656: pull the thread once the AI turn is done; a late or lagging socket left the reply hidden.
       const supabase = createClient();
       if (supabase) {
         const { data: msgs, error } = await supportFrom(supabase, "support_messages")
@@ -223,8 +216,7 @@ export function SupportPanel({
       setTickets((prev) =>
         applyIncomingMessage(prev, row, { userId: contract.userId, viewingTicketId: viewingRef.current }),
       );
-      // A reply that lands while the user is reading it is read: record that,
-      // or the next page load shows the ticket unread again and the badge jumps.
+      // A reply that lands while read is read: record it, or the next load shows unread and the badge jumps.
       if (viewingRef.current === row.ticketId && row.authorUserId !== contract.userId && row.messageKind !== "note") {
         void contract.markRead({ ticketId: row.ticketId });
       }
@@ -251,8 +243,7 @@ export function SupportPanel({
   );
   useSupportInboxRealtime({ enabled: tickets.length > 0, onMessage: onInboxMessage });
 
-  // Gate on `open` too: the panel stays mounted while closed, and tracking
-  // presence then shows HQ a false "viewing now".
+  // Gate on `open` too: the panel stays mounted while closed, and presence would show HQ a false "viewing now".
   const { typingUsers, peers } = useThreadPresence({
     channelKey: open && view === "thread" && ticketId ? `support.${ticketId}` : null,
     userId: contract.userId,
@@ -266,8 +257,7 @@ export function SupportPanel({
     if (!open || !ticketId) return;
     const supabase = createClient();
     if (!supabase) return;
-    // A fast switch between threads must not let the slower fetch land on the
-    // thread now on screen.
+    // A fast thread switch must not let the slower fetch land on the thread now on screen.
     let cancelled = false;
     void (async () => {
       const { data: tRow, error: tErr } = await supportFrom(supabase, "support_tickets")
@@ -299,8 +289,7 @@ export function SupportPanel({
     };
   }, [open, ticketId, contract, patchSummary]);
 
-  // Bottom-anchor the thread: without this a long thread opens scrolled to
-  // the top and incoming replies append off-screen.
+  // Bottom-anchor the thread so a long thread does not open at the top with replies off-screen.
   useEffect(() => {
     if (view !== "thread") return;
     const el = scrollRef.current;
@@ -321,8 +310,7 @@ export function SupportPanel({
     if (!body || sending) return;
     setSending(true);
     setAskError(null);
-    // Clear at once: the box kept the sent text for the whole round trip.
-    // A failure puts it back below.
+    // Clear at once (the box kept the sent text for the round trip); a failure puts it back below.
     setAsk("");
     const r = await contract.createTicket({
       tenantSlug: contract.tenantSlug,
@@ -333,8 +321,7 @@ export function SupportPanel({
     });
     setSending(false);
     if (r.ok) {
-      // In-app support emitted no product events at all — only the marketing
-      // surface did — so there was no support funnel to measure.
+      // In-app support emitted no product events (only marketing did), so there was no support funnel.
       trackProductEvent(PRODUCT_ANALYTICS_EVENTS.support_ticket_created, {
         surface: contract.surface,
         origin_slug: contract.originSlug ?? null,
@@ -528,6 +515,7 @@ export function SupportPanel({
                   surface: contract.surface,
                 });
                 void contract.requestHuman({ ticketId });
+                dispatchThread({ type: "patchTicket", ticketId, patch: humanRequestedPatch(new Date().toISOString()) });
               }
             }}
             onCardAction={(action) => {
@@ -537,6 +525,7 @@ export function SupportPanel({
                   surface: contract.surface,
                 });
                 void contract.requestHuman({ ticketId });
+                dispatchThread({ type: "patchTicket", ticketId, patch: humanRequestedPatch(new Date().toISOString()) });
               }
               if (action === "keep-open" && ticketId) void keepTicketOpenAction({ ticketId });
             }}
@@ -636,8 +625,7 @@ export function SupportPanel({
             if (!ticketId) return false;
             const r = await contract.sendMessage({ ticketId, body });
             if (r.ok) {
-              // Optimistic append (deduped against the realtime INSERT by id)
-              // so the message shows even when realtime lags or is down.
+              // Optimistic append (deduped against the realtime INSERT by id) so the message shows even when realtime lags or is down.
               if (r.messageId) {
                 onMessage({
                   id: r.messageId,

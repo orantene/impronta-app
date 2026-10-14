@@ -20,6 +20,7 @@
 
 import { useState, useTransition, type ReactElement } from "react";
 
+import { useEditorLocale } from "./use-editor-locale";
 import { extractBrandKitFromUrl } from "@/lib/site-admin/edit-mode/brand-kit-url-action";
 
 interface Props {
@@ -86,6 +87,7 @@ function parseBundle(raw: string): { ok: true; tokens: Record<string, string>; i
 }
 
 export function BrandKitImport({ onApply }: Props): ReactElement {
+  const { t } = useEditorLocale();
   const [open, setOpen] = useState(false);
   const [raw, setRaw] = useState("");
   const [url, setUrl] = useState("");
@@ -97,12 +99,12 @@ export function BrandKitImport({ onApply }: Props): ReactElement {
     setError(null);
     const result = parseBundle(raw);
     if (!result.ok) {
-      setError(result.error);
+      setError(t(result.error));
       return;
     }
     const count = Object.keys(result.tokens).length;
     if (count === 0) {
-      setError("We couldn't read anything useful from that JSON.");
+      setError(t("We couldn't read anything useful from that JSON."));
       return;
     }
     onApply(result.tokens);
@@ -124,7 +126,7 @@ export function BrandKitImport({ onApply }: Props): ReactElement {
         setRaw(JSON.stringify(result.tokens, null, 2));
       } catch (err: unknown) {
         setError(
-          err instanceof Error ? err.message : "Failed to extract brand kit.",
+          err instanceof Error ? err.message : t("Failed to extract brand kit."),
         );
       }
     });
@@ -137,13 +139,13 @@ export function BrandKitImport({ onApply }: Props): ReactElement {
         onClick={() => setOpen((v) => !v)}
         className="self-start rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2 py-1 text-[11px] font-medium text-stone-700 hover:bg-white hover:border-stone-300 transition-colors"
       >
-        {open ? "Hide brand-kit import" : "Import brand kit (JSON)"}
+        {open ? t("Hide brand-kit import") : t("Import brand kit (JSON)")}
       </button>
       {open ? (
         <div className="flex flex-col gap-2 rounded-lg border border-[#e5e0d5] bg-[#faf9f6]/40 p-3">
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">
-              Or extract from a website URL
+              {t("Or extract from a website URL")}
             </label>
             <div className="flex items-center gap-1">
               <input
@@ -160,12 +162,11 @@ export function BrandKitImport({ onApply }: Props): ReactElement {
                 disabled={extractPending || !url.trim()}
                 className="rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2 py-1 text-[10px] font-medium text-stone-600 hover:bg-white hover:border-stone-300 disabled:opacity-50 transition-colors"
               >
-                {extractPending ? "…" : "Extract"}
+                {extractPending ? "…" : t("Extract")}
               </button>
             </div>
             <span className="text-[10px] text-muted-foreground/70">
-              Best-effort scan for brand colors + Google Fonts on the page.
-              Result fills the box below, review then click Apply.
+              {t("Best-effort scan for brand colors + Google Fonts on the page. Result fills the box below, review then click Apply.")}
             </span>
           </div>
           <textarea
@@ -182,9 +183,7 @@ export function BrandKitImport({ onApply }: Props): ReactElement {
           />
           <div className="flex items-center justify-between">
             <span className="text-[10px] text-muted-foreground">
-              Hex colors normalize to <code>#rrggbb</code>. Unknown keys are
-              dropped on save. Apply does not save, review then click
-              Save&nbsp;draft.
+              {t("Hex colors normalize to #rrggbb. Unknown keys are dropped on save. Apply does not save, review then click Save draft.")}
             </span>
             <button
               type="button"
@@ -192,7 +191,7 @@ export function BrandKitImport({ onApply }: Props): ReactElement {
               disabled={!raw.trim()}
               className="rounded-md border border-violet-600 bg-violet-600 px-2 py-1 text-[10px] font-semibold text-white hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Apply to draft
+              {t("Apply to draft")}
             </button>
           </div>
           {error ? (
@@ -202,9 +201,7 @@ export function BrandKitImport({ onApply }: Props): ReactElement {
           ) : null}
           {appliedCount !== null ? (
             <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 p-2 text-[11px] text-emerald-700 dark:text-emerald-300">
-              Applied {appliedCount} token{appliedCount === 1 ? "" : "s"} to
-              the draft. Click <strong>Save draft</strong> in the footer to
-              persist.
+              {t(appliedCount === 1 ? "Applied {n} token to the draft. Click Save draft in the footer to persist." : "Applied {n} tokens to the draft. Click Save draft in the footer to persist.").replace("{n}", String(appliedCount))}
             </div>
           ) : null}
         </div>
