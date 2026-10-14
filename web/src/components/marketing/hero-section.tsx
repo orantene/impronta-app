@@ -149,8 +149,8 @@ export function HeroSection({ locale }: { locale: string }) {
           <div className="mkt-rise mkt-rise-delay-3 mt-8 flex flex-wrap items-center gap-3">
             <OpenTalentModalButton
               eventSource="home-hero"
-              className="inline-flex min-h-12 items-center justify-center rounded-full px-6 text-[0.9375rem] font-medium leading-none transition-transform duration-200 hover:-translate-y-[1px]"
-              style={{ background: "var(--plt-on-inverse)", color: "var(--plt-forest)" }}
+              className="inline-flex min-h-12 items-center justify-center rounded-full px-6 text-[0.9375rem] font-semibold leading-none shadow-[0_14px_34px_-14px_rgba(0,0,0,0.65)] transition-transform duration-200 hover:-translate-y-[1px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              style={{ background: "rgb(255 255 255)", color: "var(--plt-forest-deep)" }}
             >
               {copy.ctaTalent}
             </OpenTalentModalButton>
@@ -160,7 +160,7 @@ export function HeroSection({ locale }: { locale: string }) {
               size="lg"
               eventSource="home-hero"
               eventIntent="start-business"
-              className="!border-[rgba(241,237,227,0.34)] !bg-transparent !text-[var(--plt-on-inverse)] hover:!border-[var(--plt-on-inverse)] hover:!bg-[rgba(241,237,227,0.08)]"
+              className="!border-[rgba(241,237,227,0.6)] !bg-transparent !text-[var(--plt-on-inverse)] hover:!border-[var(--plt-on-inverse)] hover:!bg-[rgba(241,237,227,0.08)]"
             >
               {copy.ctaBusiness}
             </MarketingCta>
@@ -171,7 +171,7 @@ export function HeroSection({ locale }: { locale: string }) {
               <li
                 key={t}
                 className="inline-flex items-center gap-1.5 text-[0.8125rem]"
-                style={{ color: "rgba(241,237,227,0.72)" }}
+                style={{ color: "rgba(250,247,240,0.96)", textShadow: "0 1px 10px rgba(8,18,14,0.75)" }}
               >
                 <TrustTick />
                 {t}
@@ -297,10 +297,10 @@ function BookingAccent({ index, locale }: { index: number; locale: string }) {
 function TrustTick() {
   return (
     <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden>
-      <circle cx="7" cy="7" r="6.25" stroke="rgba(241,237,227,0.6)" strokeWidth="1.2" />
+      <circle cx="7" cy="7" r="6.25" stroke="rgba(250,247,240,0.85)" strokeWidth="1.2" />
       <path
         d="M4.5 7.25L6.2 9L9.5 5.5"
-        stroke="rgba(241,237,227,0.9)"
+        stroke="rgba(250,247,240,1)"
         strokeWidth="1.4"
         strokeLinecap="round"
         strokeLinejoin="round"
