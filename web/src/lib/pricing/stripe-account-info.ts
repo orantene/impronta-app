@@ -13,6 +13,7 @@
 import "server-only";
 import { cache } from "react";
 import { logServerError } from "@/lib/server/safe-error";
+import { scrubSecretsInText } from "@/lib/security/redact-display";
 import type { StripeAccountInfo } from "./pricing-types";
 import { stripeEnv } from "@/lib/stripe/env-keys";
 
@@ -79,7 +80,7 @@ export const loadStripeAccountInfo = cache(
       const isAuthError = /invalid api key|expired|authentication/i.test(message);
       return {
         ok: false,
-        error: message,
+        error: scrubSecretsInText(message),
         reason: isAuthError ? "bad-key" : "api-error",
         fetchedAt: now,
       };
