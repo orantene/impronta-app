@@ -88,7 +88,7 @@ export function SetupStep({
   };
 
   return (
-    <div data-testid="onb-setup">
+    <div data-testid="onb-setup" className="[&_button]:scroll-mb-28 [&_input]:scroll-mb-28 [&_select]:scroll-mb-28">
       <h1 className="tl-display font-semibold leading-[1.08] tracking-[-0.03em]" style={{ color: "var(--tl-ink)", fontSize: 30 }}>{c.title[choice]}</h1>
       <p className="mt-2 text-[0.9375rem] leading-[1.5]" style={{ color: "var(--tl-ink-soft)" }}>{c.sub[choice]}</p>
 
