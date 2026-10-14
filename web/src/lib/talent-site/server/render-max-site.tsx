@@ -54,6 +54,9 @@ import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { parseServiceSlug, resolveServiceBySlug, serviceSlug } from "@/lib/talent-site/service-page";
 import { serviceFaqItems, type ServiceFaqItem } from "@/lib/talent-site/service-page-faq";
 import { loadPublishedFaqForProfile } from "@/lib/talent/faq-public";
+import { SERVICE_REVIEWS_MAX, shownServiceReviews, type ServiceReviews } from "@/lib/talent-site/service-page-reviews";
+import { loadReviewsSources } from "@/lib/site-admin/builder-node/reviews-sources";
+import { loadTalentRatingSummary } from "@/lib/reviews/load-reviews";
 import { serviceMainNode, serviceRelatedLinks, serviceSeo } from "./service-main";
 import { renderMaxSiteDocument } from "./render-max-site-document";
 
@@ -302,20 +305,24 @@ async function renderTalentMaxSiteUnguarded(
     let servicePath: string | null = null;
     let serviceRelated: ReturnType<typeof serviceRelatedLinks> = [];
     let serviceFaq: ServiceFaqItem[] = [];
+    let serviceReviews: ServiceReviews | null = null;
     if (isServiceSlug) {
       const primary = localeCtx.settings.defaultLocale;
-      const [inLocale, inPrimary, talentFaq] = await Promise.all([
+      const [inLocale, inPrimary, talentFaq, reviewRows, rating] = await Promise.all([
         loadPublicOfferingsForProfile(talentProfileId, locale, null, { bypassCache }).catch(() => []),
         primary === locale
           ? null
           : loadPublicOfferingsForProfile(talentProfileId, primary, null, { bypassCache }).catch(() => []),
         loadPublishedFaqForProfile(talentProfileId, locale).catch(() => []),
+        loadReviewsSources(talentProfileId, SERVICE_REVIEWS_MAX + 2).catch(() => ({ talentReviews: [] })),
+        loadTalentRatingSummary(talentProfileId).catch(() => ({ average: 0, count: 0 })),
       ]);
       serviceOffering = resolveServiceBySlug(inLocale, input.pageSlug);
       if (!serviceOffering) return NOT_FOUND;
       const primaryRow = (inPrimary ?? inLocale).find((o) => o.id === serviceOffering!.id) ?? serviceOffering;
       servicePath = `/${serviceSlug(primaryRow)}`;
       serviceFaq = serviceFaqItems(serviceOffering, talentFaq, locale);
+      serviceReviews = shownServiceReviews({ ...rating, reviews: reviewRows.talentReviews });
       serviceRelated = serviceRelatedLinks(inLocale, inPrimary, serviceOffering.id, locale, (p) =>
         talentSiteLocalePath(p, locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales),
       );
@@ -330,6 +337,7 @@ async function renderTalentMaxSiteUnguarded(
                 locale,
                 related: serviceRelated,
                 faq: serviceFaq,
+                reviews: serviceReviews,
                 homePath: talentSiteLocalePath("/", locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales),
               })
             : undefined,
@@ -387,7 +395,7 @@ async function renderTalentMaxSiteUnguarded(
     const finalSeo = policyModel
       ? policySeo(seo, policyModel)
       : serviceOffering
-        ? serviceSeo(seo, serviceOffering, { talentName: identity?.name ?? null, locale, city: seoFacts.addressLocality ?? null, faq: serviceFaq })
+        ? serviceSeo(seo, serviceOffering, { talentName: identity?.name ?? null, locale, city: seoFacts.addressLocality ?? null, faq: serviceFaq, reviews: serviceReviews, demo: isDemo })
         : seo;
     return { kind: "render", node, seo: finalSeo, locale };
   } catch {

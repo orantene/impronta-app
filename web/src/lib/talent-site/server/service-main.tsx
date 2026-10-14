@@ -18,6 +18,7 @@ import {
   type ServicePageOffering,
 } from "@/lib/talent-site/service-page";
 
+import { serviceReviewsCopy, serviceReviewsJsonLd, type ServiceReviews } from "@/lib/talent-site/service-page-reviews";
 import { buildServiceFaqJsonLd, serviceFaqCopy, type ServiceFaqItem } from "@/lib/talent-site/service-page-faq";
 
 import type { MaxSiteSeo } from "./render-max-site";
@@ -80,7 +81,7 @@ export function serviceRelatedLinks(
 
 export function serviceMainNode(
   o: ServicePageOffering,
-  opts: { locale: string; homePath: string; related?: readonly ServiceRelatedLink[]; faq?: readonly ServiceFaqItem[] },
+  opts: { locale: string; homePath: string; related?: readonly ServiceRelatedLink[]; faq?: readonly ServiceFaqItem[]; reviews?: ServiceReviews | null },
 ): ReactNode {
   const copy = servicePageCopy(opts.locale);
   const price = priceLine(o, opts.locale, copy.priceFrom);
@@ -128,6 +129,7 @@ export function serviceMainNode(
           {copy.book}
         </Link>
       )}
+      {opts.reviews ? reviewsNode(opts.reviews, opts.locale) : null}
       {opts.faq && opts.faq.length > 0 ? (
         <section data-talent-service-faq="" style={{ marginTop: 40 }}>
           <h2 style={H2}>{serviceFaqCopy(opts.locale).heading}</h2>
@@ -162,11 +164,31 @@ export function serviceMainNode(
   );
 }
 
+function reviewsNode(r: ServiceReviews, locale: string): ReactNode {
+  const c = serviceReviewsCopy(locale);
+  const avg = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(r.average);
+  return (
+    <section data-talent-service-reviews="" style={{ marginTop: 40 }}>
+      <h2 style={H2}>{c.heading}</h2>
+      {r.count > 0 ? <p data-talent-service-rating="" style={{ margin: "0 0 12px", fontWeight: 600 }}>{`★ ${avg} · ${c.count(r.count)}`}</p> : null}
+      <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: 16 }}>
+        {r.reviews.map((x) => (
+          <li key={x.id}>
+            <p style={{ margin: 0 }} aria-label={`${x.rating}/5`}>{"★".repeat(Math.max(0, Math.min(5, Math.round(x.rating))))}</p>
+            <blockquote style={{ margin: "4px 0", whiteSpace: "pre-line" }}>{x.body}</blockquote>
+            <p style={{ margin: 0, color: SOFT, fontSize: 14 }}>{[x.clientName ?? c.anonymous, x.demo ? c.demo : null].filter(Boolean).join(" · ")}</p>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 /** Title, description, Service JSON-LD; canonical and hreflang stay as built for the service path. */
 export function serviceSeo(
   seo: MaxSiteSeo,
   o: ServicePageOffering,
-  ctx: { talentName: string | null; locale: string; city?: string | null; faq?: readonly ServiceFaqItem[] },
+  ctx: { talentName: string | null; locale: string; city?: string | null; faq?: readonly ServiceFaqItem[]; reviews?: ServiceReviews | null; demo?: boolean },
 ): MaxSiteSeo {
   const meta = serviceMetaText(o, ctx.talentName, { city: ctx.city, locale: ctx.locale });
   const canonical = seo.canonical ?? seo.alternates?.canonical;
@@ -185,9 +207,12 @@ export function serviceSeo(
 function serviceJsonLd(
   o: ServicePageOffering,
   canonical: string,
-  ctx: { talentName: string | null; locale: string; faq?: readonly ServiceFaqItem[] },
+  ctx: { talentName: string | null; locale: string; faq?: readonly ServiceFaqItem[]; reviews?: ServiceReviews | null; demo?: boolean },
 ): Record<string, unknown> {
-  const service = buildServicePageJsonLd({ offering: o, canonicalUrl: canonical, talentName: ctx.talentName, inLanguage: ctx.locale });
+  const service = {
+    ...buildServicePageJsonLd({ offering: o, canonicalUrl: canonical, talentName: ctx.talentName, inLanguage: ctx.locale }),
+    ...serviceReviewsJsonLd(ctx.reviews ?? null, ctx.demo === true),
+  };
   const faq = buildServiceFaqJsonLd(ctx.faq ?? [], canonical);
   if (!faq) return service;
   const { "@context": ctxUrl, ...serviceNode } = service;

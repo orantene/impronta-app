@@ -79,3 +79,31 @@ test("TUL-795 photos: the service's own images render (deduped, capped), none ->
   assert.doesNotMatch(html({ ...A, imageUrls: [] }), /data-talent-service-photos/);
   assert.doesNotMatch(html(A), /<img /);
 });
+
+const REVIEWS = { average: 4.8, count: 12, reviews: [{ id: "r1", body: "Excelente", clientName: "Ana", rating: 5, createdAt: "2026-09-01T00:00:00Z" }] };
+
+test("TUL-795 reviews: rating line + review cards render when data exists, nothing otherwise", () => {
+  const out = html(A, "es", { reviews: REVIEWS });
+  assert.match(out, /data-talent-service-reviews=""/);
+  assert.match(out, /★ 4,8 · 12 reseñas/);
+  assert.match(out, /Excelente/);
+  assert.match(html(A, "en", { reviews: { ...REVIEWS, reviews: [{ ...REVIEWS.reviews[0], demo: true }] } }), /Ana · Demo review/);
+  assert.doesNotMatch(html(A, "es", { reviews: null }), /data-talent-service-reviews/);
+});
+
+test("TUL-795 reviews: Service JSON-LD gains AggregateRating/Review only when shown and not demo", () => {
+  const ld = serviceSeo(SEO, A, { talentName: "Ana", locale: "es", reviews: REVIEWS }).jsonLd as { aggregateRating?: { reviewCount: number }; review?: unknown[] };
+  assert.equal(ld.aggregateRating?.reviewCount, 12);
+  assert.equal(ld.review?.length, 1);
+  const demo = serviceSeo(SEO, A, { talentName: "Ana", locale: "es", reviews: REVIEWS, demo: true }).jsonLd as Record<string, unknown>;
+  assert.equal("aggregateRating" in demo, false);
+  const none = serviceSeo(SEO, A, { talentName: "Ana", locale: "es" }).jsonLd as Record<string, unknown>;
+  assert.equal("aggregateRating" in none, false);
+});
+
+test("TUL-795 reviews wiring: renderer loads published reviews + rating summary and passes demo", () => {
+  const src = readFileSync(join(process.cwd(), "src/lib/talent-site/server/render-max-site.tsx"), "utf8");
+  assert.match(src, /loadReviewsSources\(talentProfileId/);
+  assert.match(src, /loadTalentRatingSummary\(talentProfileId\)/);
+  assert.match(src, /reviews: serviceReviews, demo: isDemo/);
+});
