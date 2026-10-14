@@ -53,6 +53,77 @@ export interface TalentJsonLdInput {
    * Offer -> Service per entry, provider = this Person. Real data only.
    */
   services?: TalentJsonLdService[] | null;
+  /**
+   * Real, published reviews of this talent (from completed bookings). Emits
+   * `Person.aggregateRating` + `Person.review`. Pass ONLY rows the public page
+   * already shows; omitted entirely when the count is zero.
+   */
+  reviews?: TalentJsonLdReviews | null;
+}
+
+export interface TalentJsonLdReviews {
+  /** Published average (1-5) and count, as shown on the page. */
+  average: number;
+  count: number;
+  items: {
+    rating: number;
+    body?: string | null;
+    authorName?: string | null;
+    createdAt?: string | null;
+  }[];
+}
+
+const MAX_JSON_LD_REVIEWS = 10;
+
+/** Adapt the page's already-loaded published summary + reviews. */
+export function toJsonLdReviews(
+  summary: { average: number; count: number },
+  rows: readonly { rating: number; body: string | null; clientName: string | null; createdAt: string }[],
+): TalentJsonLdReviews {
+  return {
+    average: summary.average,
+    count: summary.count,
+    items: rows.map((r) => ({
+      rating: r.rating,
+      body: r.body,
+      authorName: r.clientName,
+      createdAt: r.createdAt,
+    })),
+  };
+}
+
+/** AggregateRating + Review nodes, or null when there is nothing real to state. */
+export function buildReviewJsonLd(
+  reviews: TalentJsonLdReviews | null | undefined,
+): { aggregateRating: JsonValue; review: JsonValue[] } | null {
+  if (!reviews) return null;
+  const { average, count } = reviews;
+  if (!Number.isFinite(average) || !Number.isFinite(count)) return null;
+  if (count < 1 || average < 1 || average > 5) return null;
+  const items: JsonValue[] = [];
+  for (const r of reviews.items) {
+    if (items.length >= MAX_JSON_LD_REVIEWS) break;
+    if (!Number.isFinite(r.rating) || r.rating < 1 || r.rating > 5) continue;
+    items.push(
+      compact({
+        "@type": "Review",
+        reviewRating: { "@type": "Rating", ratingValue: r.rating, bestRating: 5, worstRating: 1 },
+        author: { "@type": "Person", name: r.authorName?.trim() || "Verified client" },
+        reviewBody: r.body?.trim() ?? null,
+        datePublished: r.createdAt ?? null,
+      }),
+    );
+  }
+  return {
+    aggregateRating: {
+      "@type": "AggregateRating",
+      ratingValue: Math.round(average * 10) / 10,
+      reviewCount: Math.floor(count),
+      bestRating: 5,
+      worstRating: 1,
+    },
+    review: items,
+  };
 }
 
 /** The catalog fields JSON-LD may state. Nothing here is derived or invented. */
@@ -177,6 +248,7 @@ export function buildTalentProfileJsonLd(input: TalentJsonLdInput): Record<strin
 
   const personId = `${input.canonicalUrl}#person`;
   const offers = buildServiceOffers(input.services, personId);
+  const reviewLd = buildReviewJsonLd(input.reviews);
 
   const person: Record<string, JsonValue> = compact({
     "@type": "Person",
@@ -189,6 +261,8 @@ export function buildTalentProfileJsonLd(input: TalentJsonLdInput): Record<strin
     address: hasAddress ? addressObj : null,
     sameAs: input.sameAs && input.sameAs.length > 0 ? input.sameAs : null,
     makesOffer: offers.length > 0 ? offers : null,
+    aggregateRating: reviewLd?.aggregateRating ?? null,
+    review: reviewLd && reviewLd.review.length > 0 ? reviewLd.review : null,
     affiliation: input.affiliationName
       ? compact({
           "@type": "Organization",
