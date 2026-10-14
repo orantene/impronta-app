@@ -2021,6 +2021,7 @@
         "google": "Continue with Google",
         "googleOpening": "Opening Google…",
         "googleFailed": "Google didn't finish. Try again or use your email.",
+        "termsPrefix": "I agree to the",
         "popupBlocked": "Your browser blocked the popup. Allow popups or use your email.",
         "popupClosed": "The Google window closed before finishing. Try again or use your email.",
         "or": "or",

@@ -22,6 +22,7 @@ export function SaveStep({
   path,
   locale = "en",
   choice = null,
+  ageConfirmed = false,
   busy,
   error,
   onEmail,
@@ -33,6 +34,8 @@ export function SaveStep({
   locale?: "en" | "es";
   /** The screen-1 choice rides the Google `next` URL so it survives the redirect (TUL-82). */
   choice?: OnboardingChoice | null;
+  /** 18+ was already confirmed on the ready step: ask only for the Terms here. */
+  ageConfirmed?: boolean;
   busy: boolean;
   error: string | null;
   onEmail: (email: string, ageTerms: boolean) => void;
@@ -114,6 +117,8 @@ export function SaveStep({
           <span>
             {t("public.auth.register.ageTermsPrefix")}{" "}
             <a href={legal.terms} target="_blank" rel="noreferrer" className="underline">{t("public.auth.register.ageTermsTerms")}</a>{" "}
+            {ageConfirmed ? t("public.onboarding.save.termsPrefix") : t("public.auth.register.ageTermsPrefix")}{" "}
+            <a href={`${getSiteUrl()}/legal/terms`} target="_blank" rel="noreferrer" className="underline">{t("public.auth.register.ageTermsTerms")}</a>{" "}
             {t("public.auth.register.ageTermsAnd")}{" "}
             <a href={legal.privacy} target="_blank" rel="noreferrer" className="underline">{t("public.auth.register.ageTermsPrivacy")}</a>
           </span>
