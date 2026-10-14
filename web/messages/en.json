@@ -7395,6 +7395,10 @@
         "free": "Free",
         "studio": "Studio",
         "agency": "Agency",
+        "website": "Website",
+        "legacy": "Legacy",
+        "pro": "Pro",
+        "max": "Web Office",
         "network": "Network"
       },
       "role": {
@@ -7992,7 +7996,7 @@
         "working": "Working…",
         "entity": {
           "hub": "·•· Hub",
-          "agency": "▣ Agency"
+          "agency": "▣ Workspace"
         },
         "status": {
           "active": "Active",
@@ -8085,7 +8089,7 @@
       "users": {
         "page": {
           "title": "Users",
-          "summary": "{total} total · {talent} talent · {client} client · {staff} staff · {operators}",
+          "summary": "{total} accounts · {talent} talent profiles · {client} client · {staff} staff · {operators}",
           "operatorsOne": "{count} workspace operator",
           "operatorsMany": "{count} workspace operators",
           "unconfirmedSuffix": "{count} email unconfirmed",
