@@ -42,6 +42,8 @@ import {
   POS_SECONDARY_ACTION,
 } from "./pos-classes";
 import type { PosAttachedCustomer } from "./pos-types";
+import { GuestPhoneField } from "@/components/ui/guest-phone-field";
+import { noPhoneHint } from "@/lib/phone/staff-phone";
 
 export type CustomerSheetCopy = {
   readonly title: string;
@@ -213,14 +215,14 @@ export function CustomerSheet(props: CustomerSheetProps) {
               <label className={POS_LABEL} htmlFor="pos-buyer-phone">
                 {copy.phone}
               </label>
-              <input
+              <GuestPhoneField
                 id="pos-buyer-phone"
-                type="tel"
-                className={POS_INPUT}
                 value={props.draft.phone}
-                onChange={(e) => props.onDraftChange({ ...props.draft, phone: e.target.value })}
-                autoComplete="off"
+                onChange={(phone) => props.onDraftChange({ ...props.draft, phone })}
+                optional
+                testId="pos-buyer-phone"
               />
+              {!props.draft.phone ? <p className="m-0 mt-1.5 text-[13px] text-admin-ink-dim" data-testid="pos-no-phone-hint">{noPhoneHint(typeof document !== "undefined" ? document.documentElement.lang : "es")}</p> : null}
               <p className="m-0 mt-1.5 text-[13px] text-admin-ink-dim">{copy.contactHint}</p>
             </div>
             <div>

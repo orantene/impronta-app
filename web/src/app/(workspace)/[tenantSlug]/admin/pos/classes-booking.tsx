@@ -35,6 +35,8 @@ import { Confirmed, ReviewStep, BookingLine } from "./classes-booking-review";
 import { fill, formatClock, formatWhen } from "./classes-format";
 import { ClassesNotice, type WalkInOutcome, type WalkInService, type WalkInSlots } from "./classes-panels";
 import { POS_CARD, POS_EYEBROW, POS_FIELD, POS_HINT, POS_LABEL, PosAction, PosFact, PosIcon, PosSegmented } from "./classes-ui";
+import { GuestPhoneField } from "@/components/ui/guest-phone-field";
+import { noPhoneHint } from "@/lib/phone/staff-phone";
 
 type Step = "service" | "people" | "time" | "details" | "review";
 const STEPS: readonly Step[] = ["service", "people", "time", "details", "review"];
@@ -386,7 +388,7 @@ export function BookingFlow({
                     <span className={POS_HINT}>{copy.board.sheet.customerHint}</span>
                   </div>
                   <input className={POS_FIELD} type="email" placeholder={copy.walkin.email} aria-label={copy.walkin.email} value={email} onChange={(e) => onEmail(e.target.value)} autoComplete="off" data-pos-classes-email />
-                  <input className={POS_FIELD} type="tel" placeholder={copy.walkin.phone} aria-label={copy.walkin.phone} value={phone} onChange={(e) => onPhone(e.target.value)} autoComplete="off" />
+                  <div className="flex flex-col gap-[4px]"><GuestPhoneField value={phone} onChange={onPhone} optional locale={locale} testId="pos-classes-phone" />{!phone ? <span className={POS_HINT}>{noPhoneHint(locale)}</span> : null}</div>
                 </div>
                 <span className={POS_EYEBROW}>{k.intake}</span>
                 <div className={cn(POS_CARD, "px-[16px] py-[12px] font-admin-body text-[15px] text-admin-ink-dim")}>{k.intakeOff}</div>

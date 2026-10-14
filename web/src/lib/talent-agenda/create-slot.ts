@@ -19,6 +19,7 @@ import { loadTalentActor } from "@/lib/messaging/talent-actor";
 import { computeBookingTalentRowTotals } from "@/lib/booking-pricing";
 import { resolveTalentOwnWorkTenant } from "@/lib/talent-agenda/own-work-tenant";
 import { openBookingOrderForAgenda } from "@/lib/talent-agenda/open-booking-order";
+import { checkStaffPhone } from "@/lib/phone/staff-phone";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type CreateOwnSlotResult =
@@ -176,7 +177,9 @@ export async function createOwnSlotBooking(input: {
   // Talent-owned pool so agency staff of this tenant cannot see private clients.
   let customerId: string | null = null;
   const contactEmail = (input.contactEmail ?? "").trim();
-  const contactPhone = (input.contactPhone ?? "").trim();
+  const phoneCheck = checkStaffPhone(input.contactPhone, {});
+  if (!phoneCheck.ok) return { ok: false, reason: "invalid", message: phoneCheck.error };
+  const contactPhone = phoneCheck.phone ?? "";
   if (contactEmail || contactPhone) {
     const ensured = await ensureCustomer(
       {

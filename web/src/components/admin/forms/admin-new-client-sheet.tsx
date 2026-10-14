@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
+import { GuestPhoneField } from "@/components/ui/guest-phone-field";
+import { noPhoneHint } from "@/lib/phone/staff-phone";
 import { createAdminClient } from "@/lib/server-actions/admin-clients";
 import { DashboardEditPanel } from "@/components/dashboard/dashboard-edit-panel";
 import { Button } from "@/components/ui/button";
@@ -37,6 +39,8 @@ export function AdminNewClientSheet({
 }) {
   const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState(createAdminClient, undefined);
+  const [phone, setPhone] = useState("");
+  const [waPhone, setWaPhone] = useState("");
 
   useEffect(() => {
     if (state?.success) {
@@ -132,12 +136,13 @@ export function AdminNewClientSheet({
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="new_client_phone">Phone (optional)</Label>
-                <Input id="new_client_phone" name="phone" type="tel" />
+                <Label htmlFor="new_client_phone">Phone / WhatsApp (optional)</Label>
+                <GuestPhoneField id="new_client_phone" name="phone" value={phone} onChange={setPhone} optional locale="en" />
+                {!phone && !waPhone ? <p className="text-xs text-muted-foreground" data-testid="no-phone-hint">{noPhoneHint("en")}</p> : null}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="new_client_whatsapp_phone">WhatsApp (optional)</Label>
-                <Input id="new_client_whatsapp_phone" name="whatsapp_phone" type="tel" />
+                <Label htmlFor="new_client_whatsapp_phone">WhatsApp, if different (optional)</Label>
+                <GuestPhoneField id="new_client_whatsapp_phone" name="whatsapp_phone" value={waPhone} onChange={setWaPhone} optional locale="en" />
               </div>
             </div>
             <div className="space-y-2">

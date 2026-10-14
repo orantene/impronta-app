@@ -6,6 +6,7 @@ import { parseWithSchema, trimmedString } from "@/lib/admin/validation";
 import { requireStaff } from "@/lib/server/action-guards";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { checkStaffPhone } from "@/lib/phone/staff-phone";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // A.4 INTENTIONAL DIVERGENCE: convert to `ServerActionResult<T>`. This is a `useFormState`
@@ -105,13 +106,18 @@ export async function createAdminClient(
   const auth = await requireStaff();
   if (!auth.ok) return { error: auth.error };
 
+  const phoneCheck = checkStaffPhone(trimmedString(formData, "phone"), {});
+  if (!phoneCheck.ok) return { error: phoneCheck.error };
+  const waCheck = checkStaffPhone(trimmedString(formData, "whatsapp_phone"), {});
+  if (!waCheck.ok) return { error: waCheck.error };
+
   const parsed = parseWithSchema(adminCreateClientSchema, {
     display_name: trimmedString(formData, "display_name"),
     email: trimmedString(formData, "email").toLowerCase(),
     password: String(formData.get("password") ?? ""),
     company_name: trimmedString(formData, "company_name"),
-    phone: trimmedString(formData, "phone"),
-    whatsapp_phone: trimmedString(formData, "whatsapp_phone"),
+    phone: phoneCheck.phone ?? "",
+    whatsapp_phone: waCheck.phone ?? "",
     website_url: trimmedString(formData, "website_url"),
     notes: trimmedString(formData, "notes"),
   });

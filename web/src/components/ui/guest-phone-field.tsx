@@ -36,6 +36,8 @@ export type GuestPhoneFieldProps = {
   /** The Talent/Profesional's country (ISO). */
   talentCountry?: string | null;
   invalid?: boolean;
+  /** Staff forms: the phone is optional unless the action needs it. */
+  optional?: boolean;
   disabled?: boolean;
   onBlur?: () => void;
   testId?: string;
@@ -56,7 +58,7 @@ function splitValue(value: string, fallbackIso: string) {
 }
 
 export function GuestPhoneField(props: GuestPhoneFieldProps) {
-  const { value, onChange, locale: localeProp, name, ipCountry, talentCountry, invalid, disabled, onBlur, testId, className } = props;
+  const { value, onChange, locale: localeProp, name, ipCountry, talentCountry, invalid, optional, disabled, onBlur, testId, className } = props;
   const locale = localeProp ?? (typeof document !== "undefined" ? document.documentElement.lang : "es");
   const es = (locale || "es").toLowerCase().startsWith("es");
   const autoId = useId();
@@ -146,7 +148,7 @@ export function GuestPhoneField(props: GuestPhoneFieldProps) {
         type="tel"
         inputMode="tel"
         autoComplete="tel"
-        required
+        required={!optional}
         disabled={disabled}
         value={national}
         onChange={(e) => onNumber(e.target.value)}
