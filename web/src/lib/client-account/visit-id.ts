@@ -4,6 +4,8 @@
  * resolves to its `source_inquiry_id`. The caller still filters by the signed-in
  * client and tenant, so resolving here never widens access.
  */
+import { logServerError } from "@/lib/server/safe-error";
+
 type Row = { source_inquiry_id: string | null } | null;
 type Admin = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -12,7 +14,7 @@ type Admin = {
 
 export async function resolveVisitInquiryId(admin: Admin, tenantId: string, id: string): Promise<string> {
   const { data: inq, error: inqErr } = await admin.from("inquiries").select("id").eq("id", id).eq("tenant_id", tenantId).maybeSingle();
-  if (inqErr) console.error("[visit-id] inquiry lookup failed", inqErr.message);
+  if (inqErr) logServerError("clientAccount.visitId.inquiry", inqErr);
   if (inq) return id;
   const { data: bk, error: bkErr } = await admin
     .from("agency_bookings")
@@ -20,6 +22,6 @@ export async function resolveVisitInquiryId(admin: Admin, tenantId: string, id: 
     .eq("id", id)
     .eq("tenant_id", tenantId)
     .maybeSingle();
-  if (bkErr) console.error("[visit-id] booking lookup failed", bkErr.message);
+  if (bkErr) logServerError("clientAccount.visitId.booking", bkErr);
   return (bk as Row)?.source_inquiry_id ?? id;
 }
