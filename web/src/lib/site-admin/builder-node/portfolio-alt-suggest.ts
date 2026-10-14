@@ -26,6 +26,7 @@ function clean(v: string | null | undefined): string {
   return (v ?? "").replace(/[–—]/g, "-").replace(/\s+/g, " ").trim();
 }
 
+// TODO(TUL-588): converge with the slug-alt guard re-applied in PR #3680 (from #3298) once it lands on main.
 /**
  * True for slug or file-id style text: no spaces and separators or digits
  * (`f-hero`, `f-d-knit`, `IMG_1234.jpg`), or a bare filename.
