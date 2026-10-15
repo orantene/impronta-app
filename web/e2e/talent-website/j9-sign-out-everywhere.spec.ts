@@ -198,6 +198,10 @@ test.describe("S1 sign-out ends the session on every subdomain", () => {
         (r) => /\/auth\/(client-)?sign-out$/.test(new URL(r.url()).pathname) && r.request().method() === "POST",
         { timeout: 60_000 },
       );
+      // An entry may test.skip() (no visible Log out control on this fixture).
+      // Without a handler the pending wait then rejects with "Test ended" and
+      // turns that skip into a failure plus a teardown timeout (CI trace, 1138).
+      signOut.catch(() => {});
       await entry.run(page);
       const res = await signOut;
       expect(res.status()).toBe(303);
