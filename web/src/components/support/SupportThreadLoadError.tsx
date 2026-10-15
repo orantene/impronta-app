@@ -3,11 +3,11 @@
 import { useT } from "@/i18n/use-t";
 import { COLORS } from "./support-tokens";
 
-/** The thread read failed: say so and offer a retry that does not need a close and reopen. */
-export function SupportThreadLoadError({ onRetry }: { onRetry: () => void }) {
+/** The thread read failed: say so and offer a retry that does not need a close and reopen. `code` (PostgREST/RLS code or "no_row") is exposed as data-load-error-code so QA can read the cause without a console. */
+export function SupportThreadLoadError({ onRetry, code }: { onRetry: () => void; code?: string }) {
   const t = useT();
   return (
-    <div role="alert" style={{ padding: 24, fontSize: 13, color: COLORS.inkMuted }}>
+    <div role="alert" data-load-error-code={code} style={{ padding: 24, fontSize: 13, color: COLORS.inkMuted }}>
       <div>{t("dashboard.adminSupport.threadLoadFailed")}</div>
       <button
         type="button"

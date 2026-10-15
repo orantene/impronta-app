@@ -93,9 +93,9 @@ export function SupportPanel({
   const replay = useReplayBuffer();
   const unread = useSupportUnread(tickets);
   const { ticket, messages, loading: threadLoading } = selectThread(threadState, ticketId);
-  const [loadFailedFor, setLoadFailedFor] = useState<string | null>(null);
+  const [loadFailedFor, setLoadFailedFor] = useState<{ id: string; code: string } | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
-  const threadLoadFailed = loadFailedFor !== null && loadFailedFor === ticketId && threadLoading;
+  const threadLoadFailed = loadFailedFor !== null && loadFailedFor.id === ticketId && threadLoading;
   const wasOpenRef = useRef(open);
   useEffect(() => {
     // Reopening lands on Home, not on whichever thread was open last.
@@ -279,9 +279,8 @@ export function SupportPanel({
         .order("created_at", { ascending: true });
       if (cancelled) return;
       if (tErr || mErr || !tRow) {
-        // A failed read (or a row RLS hides) is not an empty thread: say so.
-        console.error("support thread load failed", { ticketId, ticketError: tErr, messagesError: mErr, noRow: !tRow });
-        setLoadFailedFor(ticketId);
+        // A failed read (or a row RLS hides) is not an empty thread: say so, and keep the code for QA.
+        setLoadFailedFor({ id: ticketId, code: tErr?.code ?? mErr?.code ?? (tRow ? "error" : "no_row") });
         return;
       }
       setLoadFailedFor(null);
@@ -499,7 +498,7 @@ export function SupportPanel({
           />
         )}
         {view === "thread" && threadLoadFailed && (
-          <SupportThreadLoadError onRetry={() => setLoadAttempt((n) => n + 1)} />
+          <SupportThreadLoadError code={loadFailedFor?.code} onRetry={() => setLoadAttempt((n) => n + 1)} />
         )}
         {view === "thread" && threadLoading && !threadLoadFailed && (
           <div role="status" style={{ padding: 24, fontSize: 13, color: COLORS.inkMuted }}>

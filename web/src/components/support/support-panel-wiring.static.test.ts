@@ -48,8 +48,9 @@ test("reading a ticket also reads its bell rows", () => {
 
 test("TUL-677: a failed or hidden thread read is logged, shown as failed, and retryable", () => {
   assert.match(panel, /if \(tErr \|\| mErr \|\| !tRow\)/);
-  assert.match(panel, /console\.error\("support thread load failed"/);
-  assert.match(panel, /<SupportThreadLoadError onRetry=\{\(\) => setLoadAttempt/);
+  assert.doesNotMatch(panel, /console\./);
+  assert.match(panel, /setLoadFailedFor\(\{ id: ticketId, code: tErr\?\.code \?\? mErr\?\.code \?\? \(tRow \? "error" : "no_row"\) \}\)/);
+  assert.match(panel, /<SupportThreadLoadError code=\{loadFailedFor\?\.code\} onRetry=\{\(\) => setLoadAttempt/);
   assert.match(panel, /\[open, ticketId, contract, patchSummary, loadAttempt\]/);
   const err = readFileSync("src/components/support/SupportThreadLoadError.tsx", "utf8");
   assert.match(err, /threadLoadRetry/);
