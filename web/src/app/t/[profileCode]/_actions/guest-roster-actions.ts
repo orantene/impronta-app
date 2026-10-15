@@ -26,6 +26,7 @@ import {
 } from "@/lib/home/default-storefront-roster";
 import { loadDiscoverTalents } from "@/app/(workspace)/[tenantSlug]/_data-bridge/discover";
 import { discoverTalentsToRosterItems } from "@/lib/inquiry/hub-roster-adapter";
+import { scopeRosterToTalent } from "@/lib/inquiry/roster-scope";
 import type {
   GuestChatErrorCode,
   GuestChatFailure,
@@ -120,6 +121,8 @@ async function resolvePublicTenant(
 
 export async function listGuestTenantRoster(input: {
   tenantSlug: string;
+  /** P0: the talent whose page this is. When set, the picker lists only that talent. */
+  talentProfileId?: string | null;
 }): Promise<ListGuestTenantRosterResult> {
   try {
     const tenant = await resolvePublicTenant(
@@ -133,19 +136,22 @@ export async function listGuestTenantRoster(input: {
     // directory lists) instead of the empty agency-scoped roster.
     if (tenant.isHub) {
       const { items } = await loadDiscoverTalents({ limit: HUB_ROSTER_LIMIT });
-      return { ok: true, roster: discoverTalentsToRosterItems(items) };
+      return { ok: true, roster: scopeRosterToTalent(discoverTalentsToRosterItems(items), input.talentProfileId) };
     }
 
     const rows = await loadDefaultStorefrontRoster(tenant.tenantId);
     return {
       ok: true,
-      roster: rows.map((r) => ({
-        id: r.id,
-        name: r.name,
-        primaryTypeLabel: r.primaryTypeLabel ?? undefined,
-        city: r.city ?? undefined,
-        photoUrl: r.thumb,
-      })),
+      roster: scopeRosterToTalent(
+        rows.map((r) => ({
+          id: r.id,
+          name: r.name,
+          primaryTypeLabel: r.primaryTypeLabel ?? undefined,
+          city: r.city ?? undefined,
+          photoUrl: r.thumb,
+        })),
+        input.talentProfileId,
+      ),
     };
   } catch (err) {
     logServerError("guest-roster-actions.listGuestTenantRoster", err);
