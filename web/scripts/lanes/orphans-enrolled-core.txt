@@ -48,3 +48,4 @@ src/components/admin/shell/internal/shell-count-bubbles.test.ts
 src/app/(workspace)/talent/talent-hoy-skeleton.static.test.ts
 src/components/admin/shell/internal/talent-counts-from-inbox.static.test.ts
 src/components/admin/shell/internal/talent/agenda/timezone-picker-qa1054.test.ts
+src/lib/words/business-types-everyday-words.test.ts
