@@ -1165,7 +1165,7 @@ export const reviewsPropsSchema = z.object({
 /** Posts v1 (PO1) — the Posts widget. Defaults + clamps in posts-feed-model.ts. */
 export const postsFeedPropsSchema = z.object({
   layout: z.enum(["grid", "slider", "magazine", "masonry", "list", "minimal", "bento", "hero"]).optional(),
-  source: z.enum(["latest", "featured", "hand_picked"]).optional(),
+  source: z.enum(["latest", "featured", "hand_picked", "category"]).optional(),
   postIds: z.array(z.string().max(64)).max(48).optional(),
   categoryId: z.string().max(64).optional(),
   tags: z.array(z.string().max(40)).max(10).optional(),

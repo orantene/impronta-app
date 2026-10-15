@@ -98,6 +98,7 @@ export function selectPostsWidgetRows(
     const tags = (query.tags ?? []).map(normalizePostTag).filter(Boolean);
     matched = listable.filter((r) => {
       if (query.source === "featured" && r.is_featured !== true) return false;
+      if (query.source === "category" && !query.categoryId) return false;
       if (query.categoryId && r.category_id !== query.categoryId) return false;
       if (tags.length > 0) {
         const own = rowTags(r);

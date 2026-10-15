@@ -61,13 +61,6 @@ export const POSTS_FEED_CSS = `
 .sb-pf--magazine .sb-pf-rest .site-blog__excerpt{display:none}
 .sb-pf--magazine .sb-pf-lead .site-blog__title{font-size:clamp(1.4rem,4vw,2rem)}
 @media (min-width:1024px){.sb-pf--magazine .site-blog__grid{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)}.sb-pf--magazine .sb-pf-lead{grid-row:span 4}}
-/* masonry / collage */
-.sb-pf--masonry .site-blog__grid{display:block;columns:1;column-gap:1.25rem}
-.sb-pf--masonry .site-blog__item{break-inside:avoid;margin-bottom:1.25rem}
-.sb-pf--masonry .site-blog__item:nth-child(3n+1) .site-blog__media{aspect-ratio:3/4}
-.sb-pf--masonry .site-blog__item:nth-child(3n+2) .site-blog__media{aspect-ratio:1/1}
-@media (min-width:640px){.sb-pf--masonry .site-blog__grid{columns:2}}
-@media (min-width:1024px){.sb-pf--masonry .site-blog__grid{columns:var(--pf-cols,3)}}
 /* list */
 .sb-pf--list .site-blog__grid{gap:0}
 .sb-pf--list .site-blog__item{padding:1rem 0;border-top:1px solid var(--token-color-line)}
@@ -191,7 +184,6 @@ export function PostsFeedBlockView(args: PostsFeedViewArgs): ReactNode {
   const extras: BlogCardExtras[] = cards.map((c) => ({
     ...(c.readingMinutes ? { readingLabel: copy.minutes(c.readingMinutes) } : {}),
     ...(c.author ? { author: c.author } : {}),
-    ...(c.tags ? { tags: c.tags } : {}),
     ...(c.featured ? { featured: true } : {}),
   }));
   const style: CSSProperties = { ...args.styleAttr, ["--pf-cols" as string]: String(o.columns) };
@@ -220,7 +212,7 @@ export function PostsFeedBlockView(args: PostsFeedViewArgs): ReactNode {
       />
       {paged ? (
         <PostsFeedPager
-          mode={o.pagination === "numbered" ? "numbered" : "load_more"}
+          mode="load_more"
           pageCount={pages.length}
           perPage={o.limit}
           labels={{

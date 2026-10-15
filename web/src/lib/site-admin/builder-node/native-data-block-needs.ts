@@ -244,8 +244,8 @@ export function collectNativeDataBlockNeeds(
         query: {
           source: o.source,
           postIds: o.postIds,
-          categoryId: o.categoryId,
-          tags: o.tags,
+          categoryId: o.source === "category" ? o.categoryId : null,
+          tags: [],
           excludeIds: o.excludeIds,
           sort: o.sort,
         },

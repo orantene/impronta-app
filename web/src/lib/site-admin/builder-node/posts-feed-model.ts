@@ -1,6 +1,6 @@
 /**
  * posts-feed-model.ts: the `posts_feed` builder widget (Posts v1, PO1). PURE and
- * client-safe: option schema + defaults + validation, the 8 styles, pagination
+ * client-safe: option schema + defaults + validation, the 7 styles, pagination
  * math, the widget's own es/en copy, and the demo example posts shown when a
  * site has no posts yet (builder canvas, theme previews, demo accounts only).
  *
@@ -18,7 +18,6 @@ export const POSTS_FEED_STYLES = [
   "grid",
   "slider",
   "magazine",
-  "masonry",
   "list",
   "minimal",
   "bento",
@@ -26,13 +25,13 @@ export const POSTS_FEED_STYLES = [
 ] as const;
 export type PostsFeedStyle = (typeof POSTS_FEED_STYLES)[number];
 
-export const POSTS_FEED_SOURCES = ["latest", "featured", "hand_picked"] as const;
+export const POSTS_FEED_SOURCES = ["latest", "featured", "hand_picked", "category"] as const;
 export type PostsFeedSource = (typeof POSTS_FEED_SOURCES)[number];
 
 export const POSTS_FEED_SORTS = ["newest", "oldest", "featured_first"] as const;
 export type PostsFeedSort = (typeof POSTS_FEED_SORTS)[number];
 
-export const POSTS_FEED_PAGINATION = ["none", "load_more", "numbered"] as const;
+export const POSTS_FEED_PAGINATION = ["none", "load_more"] as const;
 export type PostsFeedPagination = (typeof POSTS_FEED_PAGINATION)[number];
 
 export const POSTS_FEED_FIELDS = [
@@ -52,7 +51,7 @@ export const POSTS_FEED_DEMO_TRADES = ["general", "beauty", "wellness", "fitness
 export type PostsFeedDemoTrade = (typeof POSTS_FEED_DEMO_TRADES)[number];
 
 /** Styles whose desktop column count is authorable. */
-export const POSTS_FEED_COLUMN_STYLES: ReadonlySet<PostsFeedStyle> = new Set(["grid", "bento", "masonry"]);
+export const POSTS_FEED_COLUMN_STYLES: ReadonlySet<PostsFeedStyle> = new Set(["grid", "bento"]);
 
 export const POSTS_FEED_LIMIT_MIN = 1;
 export const POSTS_FEED_LIMIT_MAX = 24;
@@ -65,12 +64,12 @@ export const POSTS_FEED_MAX_TAGS = 10;
 
 /** The stored props (all optional: `normalizePostsFeedOptions` fills defaults). */
 export type PostsFeedProps = {
-  /** Visual style (one of the 8). `style` is the shared node-style object. */
-  layout?: PostsFeedStyle;
+  /** Visual style (one of the 7). `style` is the shared node-style object. */
+  layout?: PostsFeedStyle | "masonry";
   source?: PostsFeedSource;
   /** hand_picked: post ids in display order. */
   postIds?: string[];
-  /** Filter: one category (`cms_post_categories.id`). */
+  /** source=category: the one category (`cms_post_categories.id`). */
   categoryId?: string;
   /** Filter: any-of tags. */
   tags?: string[];
@@ -79,8 +78,8 @@ export type PostsFeedProps = {
   limit?: number;
   sort?: PostsFeedSort;
   fields?: Partial<PostsFeedFields>;
-  pagination?: PostsFeedPagination;
-  /** grid / bento / masonry desktop columns. */
+  pagination?: PostsFeedPagination | "numbered";
+  /** grid / bento desktop columns. */
   columns?: 2 | 3 | 4;
   eyebrow?: string;
   title?: string;
@@ -199,7 +198,10 @@ export function normalizePostsFeedOptions(props: PostsFeedProps | null | undefin
   for (const f of POSTS_FEED_FIELDS) {
     if (typeof rawFields[f] === "boolean") fields[f] = rawFields[f] as boolean;
   }
-  const layout = oneOf(POSTS_FEED_STYLES, p.layout, POSTS_FEED_DEFAULTS.layout);
+  // Legacy: the retired "masonry" style maps explicitly to grid.
+  const layout = p.layout === "masonry" ? "grid" : oneOf(POSTS_FEED_STYLES, p.layout, POSTS_FEED_DEFAULTS.layout);
+  // Tags are v1.1: never shown, whatever an old node stored.
+  fields.tags = false;
   // Minimal is text-only by definition.
   if (layout === "minimal") fields.cover = false;
   const columns: 2 | 3 | 4 =
@@ -215,7 +217,9 @@ export function normalizePostsFeedOptions(props: PostsFeedProps | null | undefin
     limit: clampPostsFeedLimit(p.limit),
     sort: oneOf(POSTS_FEED_SORTS, p.sort, POSTS_FEED_DEFAULTS.sort),
     fields,
-    pagination: oneOf(POSTS_FEED_PAGINATION, p.pagination, POSTS_FEED_DEFAULTS.pagination),
+    // Numbered pages belong on /blog only; a stored "numbered" becomes load_more.
+    pagination:
+      p.pagination === "numbered" ? "load_more" : oneOf(POSTS_FEED_PAGINATION, p.pagination, POSTS_FEED_DEFAULTS.pagination),
     columns,
     eyebrow: text(p.eyebrow, 80),
     title: text(p.title, 160),
@@ -318,12 +322,11 @@ export function postsFeedCopy(locale: string | null | undefined): PostsFeedCopy 
   return (locale ?? "").toLowerCase().startsWith("es") ? POSTS_FEED_COPY.es : POSTS_FEED_COPY.en;
 }
 
-/** Inspector labels (es + en) for the 8 styles. */
+/** Inspector labels (es + en) for the 7 styles. */
 export const POSTS_FEED_STYLE_LABELS: Record<PostsFeedStyle, { es: string; en: string }> = {
   grid: { es: "Cuadrícula", en: "Grid" },
   slider: { es: "Carrusel", en: "Slider" },
   magazine: { es: "Revista", en: "Magazine" },
-  masonry: { es: "Mosaico", en: "Masonry" },
   list: { es: "Lista", en: "List" },
   minimal: { es: "Mínimo", en: "Minimal" },
   bento: { es: "Bento", en: "Bento" },
@@ -440,7 +443,6 @@ export function demoPostsFeedCards(trade: PostsFeedDemoTrade, locale: string, co
       imageAlt: title,
       readingMinutes: seed.min,
       author: DEMO_AUTHOR[lang],
-      tags: [category.toLowerCase()],
       featured: i === 0,
       demo: true,
     };

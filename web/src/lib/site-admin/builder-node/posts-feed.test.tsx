@@ -135,7 +135,8 @@ test("registry schema accepts every style and rejects an unknown one", () => {
   assert.equal(schema.safeParse({ layout: "carousel" }).success, false);
   assert.equal(schema.safeParse({ limit: 25 }).success, false);
   assert.equal(schema.safeParse({ limit: 0 }).success, false);
-  assert.ok(schema.safeParse({ source: "hand_picked", postIds: ["a", "b"], tags: ["x"], pagination: "numbered", columns: 4 }).success);
+  assert.ok(schema.safeParse({ source: "hand_picked", postIds: ["a", "b"], tags: ["x"], pagination: "numbered", columns: 4 }).success, "legacy stored data stays valid");
+  assert.ok(schema.safeParse({ source: "category", categoryId: "c1" }).success);
 });
 
 test("pagination math: page count, offsets, chunks, fetch limit", () => {
@@ -166,7 +167,6 @@ const STYLE_EXPECTATIONS: Record<PostsFeedStyle, (html: string) => void> = {
     assert.equal(count(h, "sb-pf-lead"), 1);
     assert.equal(count(h, "sb-pf-rest"), 3);
   },
-  masonry: (h) => assert.match(h, /sb-pf--masonry/),
   list: (h) => assert.match(h, /sb-pf--list/),
   minimal: (h) => {
     assert.doesNotMatch(h, /site-blog__media/, "minimal is text-only");
@@ -222,7 +222,7 @@ test("fields: toggles hide/show cover, date, excerpt, reading time, author, tags
   );
   assert.match(on, /3 min read/);
   assert.match(on, /By Ana/);
-  assert.match(on, /site-blog__tag">care</);
+  assert.doesNotMatch(on, /site-blog__tag/, "tag chips are v1.1");
   assert.match(on, /Read more/);
   const off = render(
     [node({ fields: { cover: false, date: false, excerpt: false, category: false, readMore: false } })],
@@ -248,11 +248,30 @@ test("load-more pre-renders the next pages hidden and mounts the pager", () => {
   assert.match(html, /Show more posts/);
 });
 
-test("numbered pagination renders ?page links on the hosting page", () => {
-  const html = render([node({ limit: 2, pagination: "numbered" })], ds("pf-1", { cards: liveCards(5), total: 5 }), false);
-  assert.match(html, /href="\?page=2"/);
-  assert.match(html, /href="\?page=3"/);
-  assert.match(html, /aria-current="page"/);
+test("stored numbered pagination normalizes to load_more and renders the button", () => {
+  assert.equal(normalizePostsFeedOptions({ pagination: "numbered" } as never).pagination, "load_more");
+  const html = render([node({ limit: 2, pagination: "numbered" } as never)], ds("pf-1", { cards: liveCards(5), total: 5 }), false);
+  assert.doesNotMatch(html, /href="\?page=2"/);
+  assert.match(html, /Show more posts/);
+});
+
+test("exactly 7 styles; stored masonry normalizes to grid", () => {
+  assert.deepEqual([...POSTS_FEED_STYLES], ["grid", "slider", "magazine", "list", "minimal", "bento", "hero"]);
+  assert.equal(normalizePostsFeedOptions({ layout: "masonry" } as never).layout, "grid");
+  const html = render([node({ layout: "masonry" } as never)], ds("pf-1", { cards: liveCards(2), total: 2 }));
+  assert.match(html, /sb-pf--grid/);
+  assert.doesNotMatch(html, /masonry/);
+});
+
+test("category source: needs carry categoryId only for source=category; tags never queried", () => {
+  const needs = collectNativeDataBlockNeeds([
+    node({ source: "category", categoryId: "c1", tags: ["x"] }, "a"),
+    node({ source: "latest", categoryId: "c1" }, "b"),
+  ]).postsFeeds;
+  assert.equal(needs[0]!.query.categoryId, "c1");
+  assert.deepEqual(needs[0]!.query.tags, []);
+  assert.equal(needs[1]!.query.categoryId, null);
+  assert.equal(normalizePostsFeedOptions({ source: "category", categoryId: " c1 " }).categoryId, "c1");
 });
 
 test("hrefs follow the site grammar: path prefix + non-default locale segment", () => {
@@ -348,7 +367,7 @@ test("one gallery entry, listed by BOTH builders' policies (talent and agency)",
 
 test("data needs: one per node, with its own query and fetch size", () => {
   const needs = collectNativeDataBlockNeeds([
-    node({ source: "featured", tags: ["Care"], limit: 3, pagination: "load_more" }, "a"),
+    node({ source: "featured", limit: 3, pagination: "load_more" }, "a"),
     {
       id: "wrap",
       kind: "container",
@@ -359,7 +378,7 @@ test("data needs: one per node, with its own query and fetch size", () => {
   assert.equal(needs.length, 2);
   assert.deepEqual(needs[0], {
     nodeId: "a",
-    query: { source: "featured", postIds: [], categoryId: null, tags: ["care"], excludeIds: [], sort: "newest" },
+    query: { source: "featured", postIds: [], categoryId: null, tags: [], excludeIds: [], sort: "newest" },
     fetchLimit: 12,
   });
   assert.deepEqual(needs[1]!.query.postIds, ["p2", "p1"]);
