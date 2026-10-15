@@ -36,7 +36,7 @@ import type {
   TodayBadge,
   TodayRow,
 } from "@/lib/overview/model";
-import { greetingHour } from "@/lib/overview/greeting-hour";
+import { greetingHour, venueZoneOrNull } from "@/lib/overview/greeting-hour";
 import { setupProgress } from "@/lib/overview/model";
 import { useDashboardText } from "../dashboard-i18n";
 import { Icon } from "../primitives";
@@ -126,6 +126,7 @@ export function OverviewBoard() {
       businessName: bridgeTenantIdentity?.displayName,
     }) ?? t("dashboard.adminOverview.greetingFallbackName");
   const now = snapshot ? new Date(snapshot.nowIso) : new Date();
+  const venueZone = venueZoneOrNull(snapshot?.timeZone);
   const locale = t("dashboard.adminOverview.dateLocale");
   // The kit's day-first date, "Thu 17 Sep" (MW02 / the Overview board), in
   // every locale: the parts are reordered rather than trusting the locale's.
@@ -133,11 +134,11 @@ export function OverviewBoard() {
     weekday: "short",
     day: "numeric",
     month: "short",
-    ...(snapshot ? { timeZone: snapshot.timeZone } : {}),
+    ...(venueZone ? { timeZone: venueZone } : {}),
   }).formatToParts(now);
   const datePart = (type: string) => dateParts.find((p) => p.type === type)?.value ?? "";
   const dateLabel = `${datePart("weekday")} ${datePart("day")} ${datePart("month")}`.replace(/\.\s/g, " ").trim();
-  const greeting = interpolate(t(greetingKey(greetingHour(now, snapshot?.timeZone))), {
+  const greeting = interpolate(t(greetingKey(greetingHour(now, venueZone))), {
     name: greetingName,
   });
 
