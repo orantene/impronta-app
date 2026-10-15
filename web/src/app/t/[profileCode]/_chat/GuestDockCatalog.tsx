@@ -47,6 +47,8 @@ import { discardEmptyDraft, readGuestThreadToken, type EnsureInquiryForItems } f
 
 type Palette = ReturnType<typeof paletteFor>;
 
+// TUL-1065: one name per category everywhere. "package" is always Packages;
+// the real Menu label is only reachable for the "menu" category (restaurant presets).
 const CATEGORY_KEY: Record<ItemCategory, string> = {
   talent: "public.guestChat.catalogTalent",
   package: "public.guestChat.catalogPackages",

@@ -14,6 +14,7 @@ import { z } from "zod";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadItemsCatalog } from "@/lib/messages-v5/items-catalog";
 import { categoryOrderForPreset, groupCatalog, type CatalogGroup, type ItemCategory } from "@/lib/messages-v5/items-picker";
+import { dedupeCatalogRows } from "@/lib/messages-v5/guest-catalog-dedupe";
 import { logServerError } from "@/lib/server/safe-error";
 
 export type GuestCatalogRow = {
@@ -82,11 +83,13 @@ export async function getGuestItemsCatalog(raw: { tenantSlug: string; inquiryId?
     // The shared reader lists the whole roster for staff. A visitor sees only
     // what the public directory shows (D-MSG-222): a person the directory
     // hides is not offered in the dock either.
-    const rows = catalog.rows.filter((r) => !r.talentProfileId || codes.has(r.talentProfileId));
+    // Identical package/service rows (same owner, title, price) show once (TUL-1065).
+    const rows = dedupeCatalogRows(catalog.rows.filter((r) => !r.talentProfileId || codes.has(r.talentProfileId)));
     const groups: CatalogGroup[] = groupCatalog(rows, categoryOrderForPreset(catalog.preset));
     return {
       ok: true,
-      groups: groups.map((g) => ({
+      // groupCatalog already drops empty groups; the filter keeps that true after any row-level pruning.
+      groups: groups.filter((g) => g.rows.length > 0).map((g) => ({
         category: g.category,
         rows: g.rows.map((r) => ({
           id: r.id,
