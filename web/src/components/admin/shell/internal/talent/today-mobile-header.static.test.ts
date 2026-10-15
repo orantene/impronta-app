@@ -29,3 +29,12 @@ test("TUL-995: phone page header keeps its subtitle and the talent top bar has t
   const bar = readFileSync(join(root, "page-modules/MobileTopBar.tsx"), "utf8");
   assert.match(bar, /inTalent \? <LanguageMenu \/> : null/);
 });
+
+test("TUL-907: the talent name chip is a real link to Perfil, above its neighbours", () => {
+  const bar = readFileSync(join(root, "page-modules/MobileTopBar.tsx"), "utf8");
+  assert.match(bar, /import Link from "next\/link"/);
+  assert.match(bar, /<Link\s+href="\/talent\/profile"\s+data-tulala-mobile-workspace-pill/);
+  assert.match(bar, /setTalentPage\("profile", \{ navigate: false \}\)/);
+  assert.match(bar, /relative z-10 flex min-w-0/);
+  assert.doesNotMatch(bar, /pointer-events-none/);
+});
