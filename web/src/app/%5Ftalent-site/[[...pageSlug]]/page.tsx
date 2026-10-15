@@ -208,9 +208,13 @@ export default async function TalentSiteHostPage({
   // status at 200). This check is exact: renderTalentMaxSite resolves a page by slug
   // equality, policy slugs and service slugs only, so we 404 only when the slug is in
   // none of those and in no page row at all (draft or published).
-  if (seg && preview !== "draft" && seg !== LEGACY_PRIVACY_SLUG && !policyDocForSlug(seg) && parseServiceSlug(seg) === null) {
+  if (seg && preview !== "draft" && (seg === LEGACY_PRIVACY_SLUG || (!policyDocForSlug(seg) && parseServiceSlug(seg) === null))) {
     const pages = await loadMaxSitePages(talentProfileId);
-    if (!pages.some((p) => p.slug === seg)) notFound();
+    if (!pages.some((p) => p.slug === seg)) {
+      // `/privacy` is the English word talents and footers guess: a real 308 to the policy page (not a streamed redirect).
+      if (seg === LEGACY_PRIVACY_SLUG) permanentRedirect(`/${POLICY_SLUG.privacy}`);
+      notFound();
+    }
   }
   return (
     <Suspense fallback={<TalentSitePaintSkeleton locale={locale} />}>
