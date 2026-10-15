@@ -15,7 +15,7 @@ import type { Audience, AppliesOn, ClientStatus, OfferKind, Promo, ScopeKind, Un
 export const DEFAULT_PROMO_TZ = "America/Mexico_City";
 
 export const PROMO_COLUMNS =
-  "id, tenant_id, code, name, label, kind, offer_kind, value, currency, addon_id, scope_kind, " +
+  "id, tenant_id, talent_profile_id, code, name, label, kind, offer_kind, value, currency, addon_id, scope_kind, " +
   "min_subtotal_cents, audience, customer_id, is_single_use, unlock, link_slug, applies_on, " +
   "starts_at, ends_at, use_by_date, tz, weekdays, time_from, time_to, slot_id, max_redemptions, " +
   "per_customer_limit, deposit_required, show_on_site, show_countdown, title_i18n, description_i18n, " +
@@ -24,6 +24,8 @@ export const PROMO_COLUMNS =
 export type PromoRow = {
   id: string;
   tenant_id: string;
+  /** Owning talent; null = agency-wide promo (agency tenants only). */
+  talent_profile_id: string | null;
   code: string | null;
   name: string | null;
   label: string | null;
@@ -120,16 +122,29 @@ export function rowToPromo(
   };
 }
 
-/** All promos of a tenant (any status), with targets attached. */
+/**
+ * Whose promos to load. A tenant alone is never enough: every hub talent
+ * shares one tenant, so a tenant-wide read would hand one talent's promo to
+ * all of them.
+ *   - `{ talentProfileId }`: that talent's own promos.
+ *   - `{ agencyWide: true }`: promos with no owner (agency admin discounts).
+ */
+export type PromoOwner = { talentProfileId: string } | { agencyWide: true };
+
+/** All promos of one owner on a tenant (any status), with targets attached. */
 export async function loadTenantPromos(
   admin: SupabaseClient,
   tenantId: string,
+  owner: PromoOwner,
 ): Promise<{ ok: true; rows: PromoRow[]; promos: Promo[] } | { ok: false }> {
-  const { data, error } = await admin
+  const base = admin
     .from("tenant_promo_codes")
     .select(PROMO_COLUMNS)
-    .eq("tenant_id", tenantId)
-    .order("created_at", { ascending: false });
+    .eq("tenant_id", tenantId);
+  const owned = "talentProfileId" in owner
+    ? base.eq("talent_profile_id", owner.talentProfileId)
+    : base.is("talent_profile_id", null);
+  const { data, error } = await owned.order("created_at", { ascending: false });
   if (error) {
     logServerError("promos.repo/list", error);
     return { ok: false };

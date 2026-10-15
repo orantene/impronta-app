@@ -4,7 +4,7 @@ import { applyAiCrawlerToggle } from "@/lib/cms/posts-public-model";
 import { loadAiCrawlersAllowed, resolveAnyPostSite } from "@/lib/cms/posts-public-site";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { publicRequestSiteBase } from "@/lib/seo/request-base";
-import { buildRobots } from "@/lib/seo/robots-rules";
+import { buildRobots, isNonProductionDeploy } from "@/lib/seo/robots-rules";
 
 /**
  * Host-aware robots.txt. Marketing, agency storefronts and talent site hosts
@@ -20,7 +20,9 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
   const hostContext = await getPublicHostContext();
   // Sitemap: and Host: point at the host serving this request (tenant
   // storefront or talent site host); off-tenant surfaces use the platform base.
-  const base = buildRobots(hostContext.kind, publicRequestSiteBase(hostContext));
+  const base = buildRobots(hostContext.kind, publicRequestSiteBase(hostContext), {
+    nonProduction: isNonProductionDeploy(process.env.VERCEL_ENV),
+  });
   if (hostContext.kind !== "agency" && hostContext.kind !== "talent_site") return base;
   const site = await resolveAnyPostSite().catch(() => null);
   if (!site) return base;

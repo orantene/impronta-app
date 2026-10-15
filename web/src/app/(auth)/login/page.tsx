@@ -165,7 +165,9 @@ export default async function LoginPage({
 
         {error ? (
           <AuthNotice tone="error" align="center" className="mb-4">
-            {decodeURIComponent(error)}
+            {error === "auth"
+              ? t("public.auth.login.linkExpired")
+              : decodeURIComponent(error)}
           </AuthNotice>
         ) : null}
 

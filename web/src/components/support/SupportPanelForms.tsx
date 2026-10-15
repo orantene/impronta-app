@@ -9,6 +9,11 @@ import { COLORS, FONTS, RADIUS } from "./support-tokens";
 import { supportSendErrorText } from "./support-send-error";
 import { ReplayConsent } from "./ReplayConsent";
 import { SupportAttachButton } from "./SupportAttachButton";
+import { uploadSupportAttachment } from "./upload-support-attachment";
+
+const NEW_TICKET_MAX_FILES = 3;
+const NEW_TICKET_MAX_BYTES = 5 * 1024 * 1024;
+const NEW_TICKET_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 import { getDiagnosticsSnapshot } from "@/lib/support/diagnostics/collector";
 import type { SupportContract } from "./support-contract";
 
@@ -32,6 +37,7 @@ export function NewTicketForm({
   const [category, setCategory] = useState("General");
   const [pref, setPref] = useState<"anytime" | "morning" | "afternoon" | "evening">("anytime");
   const [busy, setBusy] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const errorRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -58,7 +64,12 @@ export function NewTicketForm({
             callbackPref: phone.trim() ? pref : undefined,
             diagnostics: getDiagnosticsSnapshot(),
           })
-          .then((r) => {
+          .then(async (r) => {
+            // TUL-600: screenshots picked on the form ride in as the first
+            // messages of the new thread; a failed upload never blocks the ticket.
+            if (r.ok && files.length > 0) {
+              for (const f of files) await uploadSupportAttachment(r.ticketId, f);
+            }
             setBusy(false);
             if (r.ok) {
               onCreated(
@@ -94,6 +105,24 @@ export function NewTicketForm({
         {t("dashboard.adminSupport.fieldDescription")}
         <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5} maxLength={4000} required style={fieldInput} />
       </label>
+      <div style={fieldLabel}>
+        <span>{t("dashboard.adminSupport.fieldAttachments")}</span>
+        <input
+          type="file"
+          accept={NEW_TICKET_TYPES.join(",")}
+          multiple
+          aria-label={t("dashboard.adminSupport.fieldAttachments")}
+          style={fieldInput}
+          onChange={(e) => {
+            const picked = Array.from(e.target.files ?? []).filter(
+              (f) => f.size <= NEW_TICKET_MAX_BYTES && NEW_TICKET_TYPES.includes(f.type),
+            );
+            const rejected = (e.target.files?.length ?? 0) > picked.length;
+            setFiles(picked.slice(0, NEW_TICKET_MAX_FILES));
+            setError(rejected ? t("dashboard.adminSupport.attachFailed") : null);
+          }}
+        />
+      </div>
       <label style={fieldLabel}>
         {t("dashboard.adminSupport.fieldPhone")}
         <input value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={40} type="tel" inputMode="tel" autoComplete="tel" style={fieldInput} />
