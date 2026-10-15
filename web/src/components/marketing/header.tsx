@@ -422,7 +422,7 @@ export function MarketingHeader({
                     </MarketingCta>
                     <span
                       aria-hidden
-                      className="pointer-events-none absolute -right-1.5 -top-1.5 inline-flex items-center rounded-full px-1.5 py-[3px] text-[0.5625rem] font-bold uppercase leading-none tracking-[0.04em]"
+                      className="pointer-events-none absolute right-3 -top-1.5 inline-flex items-center rounded-full px-1.5 py-[3px] text-[0.5625rem] font-bold uppercase leading-none tracking-[0.04em]"
                       style={{
                         background: "var(--plt-accent)",
                         /* TUL-518 / J3: white on accent was 2.46:1; ink clears AA. */

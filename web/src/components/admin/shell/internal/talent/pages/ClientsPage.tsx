@@ -13,6 +13,7 @@ import {
   countClientsByFilter,
   filterClientsDirectory,
   hasRepeatServices,
+  showClientsControls,
   showClientsCountLine,
   showClientsFilterChip,
   type ClientsFilter,
@@ -145,7 +146,7 @@ function FilterChips(props: {
       className="flex flex-wrap gap-2 pb-1"
       data-clients-filters
     >
-      {FILTERS.filter((f) => showClientsFilterChip(f.id, props.counts, props.showRefill)).map((f) => {
+      {FILTERS.filter((f) => (f.id === props.filter || showClientsFilterChip(f.id, props.counts, props.showRefill))).map((f) => {
         const selected = props.filter === f.id;
         return (
           <button
@@ -563,6 +564,7 @@ export function TalentClientsPage() {
 
       {items && (
         <div className="flex flex-col gap-3">
+          {showClientsControls(total) ? <>
           <label className="relative block">
             <span className="sr-only">{t("Search name, phone or email")}</span>
             <input
@@ -576,7 +578,7 @@ export function TalentClientsPage() {
           </label>
 
           <FilterChips filter={filter} counts={counts} onChange={setFilter} t={t} showRefill={showRefill} />
-
+          </> : null}
           {showClientsCountLine({ visible: visible.length, total, filter, query }) ? (
             <p className="px-0.5 font-admin-body text-[13.5px] text-admin-ink-muted">
               {visible.length} {t("of")} {total} {t("clients")}

@@ -70,6 +70,7 @@
         "noAccount": "¿No tienes cuenta?",
         "signUp": "Regístrate",
         "sessionExpired": "Tu sesión expiró. Vuelve a iniciar sesión.",
+        "linkExpired": "Ese enlace de acceso venció o ya se usó. Pide uno nuevo abajo.",
         "eyebrow": "Bienvenido de nuevo",
         "apple": "Continuar con Apple"
       },
@@ -1477,6 +1478,12 @@
       "draftWillSave": "El borrador se guardará automáticamente",
       "footerSent": "Gracias, {agency} se pondrá en contacto.",
       "footerNeedMore": "Añade al menos tu nombre, email o teléfono, y un resumen para enviar.",
+      "footerMissing": "Falta: {fields}.",
+      "missingName": "tu nombre",
+      "missingContact": "un email o teléfono",
+      "missingBrief": "un resumen o un talento",
+      "missingLocation": "una ciudad",
+      "missingDate": "una fecha o \"no estoy seguro\"",
       "footerReady": "Al enviar, iniciarás una conversación con un coordinador de {agency}.",
       "btnDone": "Listo",
       "btnReview": "Revisar",
@@ -2223,6 +2230,7 @@
       "noVisits": "Aún no hay visitas.",
       "bookAgain": "Reservar de nuevo",
       "bookFirst": "Reserva tu primera visita",
+      "browseTalent": "Encuentra a quién reservar",
       "viewDetails": "Detalles",
       "cancellationPolicy": "Política de cancelación",
       "policyFree": "Cancelación gratis hasta {when}.",
@@ -4092,7 +4100,6 @@
       "soon": "pronto",
       "saving": "Guardando...",
       "creating": "Creando...",
-      "loading": "Cargando...",
       "logistics": {
         "callSheet": "Hoja de llamado",
         "date": "Fecha",
@@ -4130,8 +4137,6 @@
         "total": "Total",
         "status": "Estado",
         "netAmount": "Monto neto",
-        "paidAt": "Pagado el",
-        "failureReason": "Motivo del fallo",
         "noTransactionYet": "Aun sin transacción",
         "noBookingYet": "Aun sin reserva",
         "requestPayment": "Solicitar pago",
@@ -4171,7 +4176,6 @@
         "markPaidCashDeposit": "Marcar depósito pagado en efectivo ({amount})",
         "markPaidCashBalance": "Marcar saldo pagado en efectivo",
         "markPaidCashFull": "Marcar monto completo pagado en efectivo",
-        "loadFailedShort": "No se pudo cargar",
         "retry": "Reintentar",
         "refundInOrders": "Reembolsar en Pedidos"
       },
@@ -11197,10 +11201,14 @@
           "label": "Captcha",
           "description": "Protege del spam los formularios de contacto de tu storefront con hCaptcha o Cloudflare Turnstile. Usa tus propias claves: el widget se muestra en tus formularios y los envíos se verifican en el servidor.",
           "steps": {
-            "s1": "Elige un proveedor: hCaptcha (hcaptcha.com) o Cloudflare Turnstile (dash.cloudflare.com → Turnstile).",
-            "s2": "Crea un sitio para el dominio de tu storefront y copia la clave del sitio (pública) y la clave secreta (privada).",
-            "s3": "Pega abajo la clave del sitio y la clave secreta, y elige el proveedor que corresponda.",
-            "s4": "Guarda. Tus formularios de contacto muestran el widget y rechazan los envíos que no pasan la verificación."
+            "s1": "Crea un widget gratis de Turnstile en Cloudflare (dash.cloudflare.com, Turnstile).",
+            "s2": "Agrega tu dominio como hostname del widget.",
+            "s3": "Copia la clave del sitio y la clave secreta.",
+            "s4": "Pégalas aquí y guarda."
+          },
+          "notice": {
+            "title": "Protege tus formularios en {domain}: agrega tu captcha gratis.",
+            "cta": "Agregar captcha"
           },
           "fields": {
             "provider": "Proveedor",
@@ -13642,6 +13650,7 @@
       "panelAria": "Conversación de soporte",
       "title": "Soporte",
       "close": "Cerrar",
+      "closeAria": "Cerrar soporte",
       "tabHome": "Inicio",
       "tabTickets": "Tickets",
       "greeting": "Hola {name}",
@@ -13734,6 +13743,7 @@
       "oranOnline": "{agent} está en línea",
       "oranTyping": "{agent} está escribiendo",
       "attachAria": "Adjuntar una imagen",
+      "fieldAttachments": "Capturas de pantalla (opcional, hasta 3)",
       "attachmentUnavailable": "Adjunto no disponible",
       "askFeature": "Pedir una función",
       "ideaHeading": "Cuéntanos qué necesitas",
@@ -19005,6 +19015,7 @@
     "mobile": {
       "close": "Cerrar",
       "back": "Atrás",
+      "talentPillAria": "Abrir mi perfil",
       "search": "Buscar en el workspace",
       "ownerOnly": "solo propietario",
       "myWorkNotBuilt": "Mi trabajo todavía no existe: no hay una página que muestre a una persona sus propios turnos y reservas.",

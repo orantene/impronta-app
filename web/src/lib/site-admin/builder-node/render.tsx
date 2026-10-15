@@ -34,6 +34,7 @@ import { FeaturedTalentCard } from "@/lib/site-admin/sections/featured_talent/Fe
 import { localeUrlSettings } from "@/i18n/pathnames";
 import type { FeaturedTalentCardDTO } from "@/lib/site-admin/sections/featured_talent/fetch";
 import { formatMoney } from "@/lib/talent/offerings-money";
+import { publicPriceLine } from "@/lib/talent/public-price-line";
 import {
   isSafeRichTextHref,
   renderInlineRich,
@@ -161,6 +162,7 @@ import { QrCodeBlock } from "./qr-code-block";
 import { menuBoardCopy } from "./menu-board-copy";
 import { offeringIsQuote, type TalentOffering } from "@/lib/talent/offerings-types";
 import { CatalogIslandBoundary } from "@/components/public-booking/catalog-island-boundary";
+import { effectiveCatalogColumns } from "./services-catalog-columns";
 import { resolveServicesCatalogSheetAccent } from "./services-catalog-defaults";
 import { renderStatsSpecBlock } from "./stats-spec-block";
 import { ServicesCatalogFilter } from "./services-catalog-filter";
@@ -5963,9 +5965,10 @@ function renderBuilderNodeElement(
         useWebsiteTheme && p.style?.backgroundColor
           ? { backgroundColor: styleToken(p.style.backgroundColor) }
           : undefined;
-      const columns =
-        p.columns ??
-        (layout === "grid" ? 3 : layout === "cards" || layout === "editorial" ? 2 : 1);
+      const columns = effectiveCatalogColumns(
+        p.columns ?? (layout === "grid" ? 3 : layout === "cards" || layout === "editorial" ? 2 : 1),
+        visible.length,
+      );
 
       // Categories: saved `category_order` first, then first-seen leftovers.
       const seen: string[] = [];
@@ -6328,10 +6331,10 @@ function renderBuilderNodeElement(
         }
         // TUL-383: one public money format (`$700 MXN`) via shared formatter.
         const locale = options.contentLocale?.locale ?? "en";
-        const es = locale.toLowerCase().startsWith("es");
-        const formatted = formatMoney(item.amountCents, item.currency, locale);
-        if (item.priceDisplay === "from") return es ? `desde ${formatted}` : `from ${formatted}`;
-        return formatted;
+        return (
+          publicPriceLine({ ...item, priceDisplay: item.priceDisplay === "from" ? "from" : "exact" }, locale) ??
+          formatMoney(item.amountCents, item.currency, locale)
+        );
       };
       const usdLine = (item: {
         amountCents: number | null;

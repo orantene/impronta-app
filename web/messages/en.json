@@ -70,6 +70,7 @@
         "noAccount": "No account?",
         "signUp": "Sign up",
         "sessionExpired": "Your session expired. Please sign in again.",
+        "linkExpired": "That sign-in link has expired or was already used. Request a new one below.",
         "eyebrow": "Welcome back",
         "apple": "Continue with Apple"
       },
@@ -1477,6 +1478,12 @@
       "draftWillSave": "Draft will save automatically",
       "footerSent": "Thanks, {agency} will be in touch.",
       "footerNeedMore": "Add at least your name, email or phone, and a brief to send.",
+      "footerMissing": "Still needed: {fields}.",
+      "missingName": "your name",
+      "missingContact": "an email or phone",
+      "missingBrief": "a brief or a talent",
+      "missingLocation": "a city",
+      "missingDate": "a date or \"not sure\"",
       "footerReady": "By sending, you'll start a coordinator-led conversation with {agency}.",
       "btnDone": "Done",
       "btnReview": "Review",
@@ -2223,6 +2230,7 @@
       "noVisits": "No visits yet.",
       "bookAgain": "Book again",
       "bookFirst": "Book your first visit",
+      "browseTalent": "Find someone to book",
       "viewDetails": "Details",
       "cancellationPolicy": "Cancellation policy",
       "policyFree": "Free cancellation until {when}.",
@@ -4092,7 +4100,6 @@
       "soon": "soon",
       "saving": "Saving...",
       "creating": "Creating...",
-      "loading": "Loading...",
       "logistics": {
         "callSheet": "Call sheet",
         "date": "Date",
@@ -4130,8 +4137,6 @@
         "total": "Total",
         "status": "Status",
         "netAmount": "Net amount",
-        "paidAt": "Paid at",
-        "failureReason": "Failure reason",
         "noTransactionYet": "No transaction yet",
         "noBookingYet": "No booking yet",
         "requestPayment": "Request payment",
@@ -4171,7 +4176,6 @@
         "markPaidCashDeposit": "Mark deposit paid in cash ({amount})",
         "markPaidCashBalance": "Mark balance paid in cash",
         "markPaidCashFull": "Mark full amount paid in cash",
-        "loadFailedShort": "Could not load",
         "retry": "Retry",
         "refundInOrders": "Refund in Orders"
       },
@@ -11197,10 +11201,14 @@
           "label": "Captcha",
           "description": "Protect your storefront contact forms from spam with hCaptcha or Cloudflare Turnstile. Bring your own keys; the widget renders on your forms and submissions are verified server-side.",
           "steps": {
-            "s1": "Pick a provider: hCaptcha (hcaptcha.com) or Cloudflare Turnstile (dash.cloudflare.com → Turnstile).",
-            "s2": "Create a site for your storefront domain and copy the Site key (public) and Secret key (private).",
-            "s3": "Paste the Site key and Secret key below and choose the matching provider.",
-            "s4": "Save. Your contact forms render the widget and reject submissions that fail verification."
+            "s1": "Create a free Turnstile widget in Cloudflare (dash.cloudflare.com, Turnstile).",
+            "s2": "Add your domain as the widget's hostname.",
+            "s3": "Copy the Site key and the Secret key.",
+            "s4": "Paste them here and save."
+          },
+          "notice": {
+            "title": "Protect your forms on {domain}: add your free captcha.",
+            "cta": "Add captcha"
           },
           "fields": {
             "provider": "Provider",
@@ -13642,6 +13650,7 @@
       "panelAria": "Support conversation",
       "title": "Support",
       "close": "Close",
+      "closeAria": "Close support",
       "tabHome": "Home",
       "tabTickets": "Tickets",
       "greeting": "Hi {name}",
@@ -13734,6 +13743,7 @@
       "oranOnline": "{agent} is online",
       "oranTyping": "{agent} is typing",
       "attachAria": "Attach an image",
+      "fieldAttachments": "Screenshots (optional, up to 3)",
       "attachmentUnavailable": "Attachment unavailable",
       "askFeature": "Ask for a feature",
       "ideaHeading": "Tell us what you need",
@@ -19005,6 +19015,7 @@
     "mobile": {
       "close": "Close",
       "back": "Back",
+      "talentPillAria": "Open my profile",
       "search": "Search the workspace",
       "ownerOnly": "owner only",
       "myWorkNotBuilt": "My work is not built yet: there is no page that shows one person their own shifts and bookings.",

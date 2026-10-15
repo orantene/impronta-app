@@ -4,7 +4,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { emitNotification } from "@/lib/notifications/emit";
 import { loadUsage } from "@/lib/promos/repo";
 import { loadPromoResults } from "@/lib/promos/results/load.server";
-import { planPromoNotifications, type PromoNotifyInput } from "@/lib/promos/notify/plan";
+import { planPromoNotifications, promoRecipientUserIds, type PromoNotifyInput } from "@/lib/promos/notify/plan";
 
 /**
  * Scheduled job: talent promo notifications (design L10): 2 left, sold out,
@@ -23,6 +23,7 @@ export const dynamic = "force-dynamic";
 type LivePromoRow = {
   id: string;
   tenant_id: string;
+  talent_profile_id: string | null;
   name: string | null;
   label: string | null;
   code: string | null;
@@ -52,7 +53,7 @@ export async function GET(request: Request) {
     // Capped promos that are live. Sold-out promos stay live (is_active) until archived.
     const { data, error } = await admin
       .from("tenant_promo_codes")
-      .select("id, tenant_id, name, label, code, max_redemptions, ends_at, starts_at, created_at, currency")
+      .select("id, tenant_id, talent_profile_id, name, label, code, max_redemptions, ends_at, starts_at, created_at, currency")
       .eq("is_active", true)
       .eq("is_draft", false)
       .eq("is_paused", false)
@@ -90,20 +91,36 @@ export async function GET(request: Request) {
       if (!prev || at > prev) released.set(r.promo_code_id, at);
     }
 
-    const tenantIds = [...new Set(promos.map((p) => p.tenant_id))];
-    const { data: mem, error: memErr } = await admin
-      .from("agency_memberships")
-      .select("tenant_id, profile_id")
-      .in("tenant_id", tenantIds)
-      .eq("status", "active")
-      .in("role", ["owner", "admin"]);
-    if (memErr) {
-      logServerError("cron.promoNotifications/members", memErr);
-      return NextResponse.json({ error: "Sweep failed" }, { status: 500 });
-    }
+    // Agency-wide promos (no owner) notify the tenant's owners/admins; a
+    // talent promo notifies its own talent only.
+    const tenantIds = [...new Set(promos.filter((p) => !p.talent_profile_id).map((p) => p.tenant_id))];
     const recipients = new Map<string, string[]>();
-    for (const m of (mem ?? []) as { tenant_id: string; profile_id: string | null }[]) {
-      if (m.profile_id) recipients.set(m.tenant_id, [...(recipients.get(m.tenant_id) ?? []), m.profile_id]);
+    if (tenantIds.length > 0) {
+      const { data: mem, error: memErr } = await admin
+        .from("agency_memberships")
+        .select("tenant_id, profile_id")
+        .in("tenant_id", tenantIds)
+        .eq("status", "active")
+        .in("role", ["owner", "admin"]);
+      if (memErr) {
+        logServerError("cron.promoNotifications/members", memErr);
+        return NextResponse.json({ error: "Sweep failed" }, { status: 500 });
+      }
+      for (const m of (mem ?? []) as { tenant_id: string; profile_id: string | null }[]) {
+        if (m.profile_id) recipients.set(m.tenant_id, [...(recipients.get(m.tenant_id) ?? []), m.profile_id]);
+      }
+    }
+    const talentIds = [...new Set(promos.map((p) => p.talent_profile_id).filter((t): t is string => !!t))];
+    const talentUsers = new Map<string, string>();
+    if (talentIds.length > 0) {
+      const { data: tps, error: tpErr } = await admin.from("talent_profiles").select("id, user_id").in("id", talentIds);
+      if (tpErr) {
+        logServerError("cron.promoNotifications/talents", tpErr);
+        return NextResponse.json({ error: "Sweep failed" }, { status: 500 });
+      }
+      for (const t of (tps ?? []) as { id: string; user_id: string | null }[]) {
+        if (t.user_id) talentUsers.set(t.id, t.user_id);
+      }
     }
 
     const inputs: PromoNotifyInput[] = promos.map((p) => {
@@ -117,7 +134,7 @@ export async function GET(request: Request) {
         endsAtIso: p.ends_at,
         lastSpotReleasedAtIso: released.get(p.id) ?? null,
         result: r ? { bookings: r.bookings, earnedCents: r.earnedCents, currency: (p.currency ?? "MXN").toUpperCase() } : null,
-        recipientUserIds: recipients.get(p.tenant_id) ?? [],
+        recipientUserIds: promoRecipientUserIds(p, recipients, talentUsers),
         isLive: !p.ends_at || new Date(p.ends_at).getTime() > now.getTime(),
       };
     });

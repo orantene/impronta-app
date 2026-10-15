@@ -141,3 +141,21 @@ export function planPromoNotifications(inputs: readonly PromoNotifyInput[], now:
   }
   return out;
 }
+
+/**
+ * Who hears about a promo. A talent promo (has an owner) goes to that
+ * talent's user ONLY: on the shared hub tenant the tenant's owners/admins are
+ * platform staff, and the other ~300 talents must never hear about it. An
+ * agency-wide promo (no owner) goes to the tenant's owners/admins.
+ */
+export function promoRecipientUserIds(
+  promo: { tenant_id: string; talent_profile_id: string | null },
+  tenantAdmins: ReadonlyMap<string, readonly string[]>,
+  talentUsers: ReadonlyMap<string, string>,
+): string[] {
+  if (promo.talent_profile_id) {
+    const u = talentUsers.get(promo.talent_profile_id);
+    return u ? [u] : [];
+  }
+  return [...(tenantAdmins.get(promo.tenant_id) ?? [])];
+}

@@ -7,7 +7,7 @@ import { computeMonthRollup, computePromoResult, monthBounds, type MonthRollup, 
 
 /**
  * Reads the rows `compute.ts` needs. Confirmed redemptions only (USE_STATUSES),
- * plus promo_events. Callers pass the promo ids of ONE tenant (from
+ * plus promo_events. Callers pass the promo ids of ONE owner (from
  * `loadTenantPromos`), so no cross-tenant read is possible from here.
  */
 export type PromoResultsBundle = {
