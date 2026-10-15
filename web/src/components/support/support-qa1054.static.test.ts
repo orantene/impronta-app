@@ -8,7 +8,8 @@ const home = readFileSync("src/components/support/SupportPanelHome.tsx", "utf8")
 
 test("TUL-942: the in-bubble talk-to-human button is skipped when an offer card exists", () => {
   assert.match(thread, /hasOfferCard/);
-  assert.match(thread, /canOfferHuman\(ticket\) && !hasOfferCard/);
+  assert.match(thread, /humanPlacement === "bubble" && m\.id === lastAiId/);
+  assert.match(thread, /humanPlacement === "footer"/);
 });
 
 test("TUL-943: the No button stays after escalation and just dismisses the row", () => {
