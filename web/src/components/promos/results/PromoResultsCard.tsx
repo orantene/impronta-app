@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import type { PromoResult, Tip } from "@/lib/promos/results/compute";
 import { money, resultsCopy, soldOutText, tipText, type Lang } from "@/lib/promos/results/copy";
 
@@ -14,14 +15,19 @@ export function PromoResultsCard(props: {
   currency: string;
   lang: Lang;
   runAgainHref?: string;
+  /** Drop the heading when the surrounding sheet already shows the promo name. */
+  hideTitle?: boolean;
+  /** Optional progress block (bar + used line) rendered first, so one card carries everything. */
+  progress?: ReactNode;
 }) {
   const { result: r, lang, currency } = props;
   const c = resultsCopy(lang);
   const sold = soldOutText(r, lang);
   return (
     <section className="rounded-2xl border border-[var(--tc-border,#e5e5ea)] bg-white p-4" aria-label={props.name}>
-      <h3 className="text-sm font-medium text-[var(--tc-ink,#1c1c1e)]">{props.name}</h3>
-      <dl className="mt-3 grid grid-cols-3 gap-3">
+      {props.hideTitle ? null : <h3 className="text-sm font-medium text-[var(--tc-ink,#1c1c1e)]">{props.name}</h3>}
+      {props.progress ? <div className="flex flex-col gap-2">{props.progress}</div> : null}
+      <dl className={`${props.hideTitle && !props.progress ? "" : "mt-3 "}grid grid-cols-3 gap-3`}>
         <Stat value={String(r.bookings)} label={c.bookings(r.bookings)} />
         <Stat value={money(r.earnedCents, currency, lang)} label={c.earned} />
         <Stat value={money(r.givenCents, currency, lang)} label={c.given} />

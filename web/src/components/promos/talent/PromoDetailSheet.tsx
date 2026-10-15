@@ -74,6 +74,21 @@ export function PromoDetailSheet({ item, data, copy, onClose, onEdit, onShare, o
     }
   };
 
+  const progressBody = (
+    <>
+      {prog.max !== null ? <ProgressBar pct={prog.pct} label={copy.t("card.used", { used: prog.used, max: prog.max })} /> : null}
+      <span className={`text-[13px] ${UI.muted}`}>
+        {prog.max !== null ? copy.t("card.used", { used: prog.used, max: prog.max }) : copy.t("card.used_open", { used: prog.used })}
+      </span>
+    </>
+  );
+  const progressCard = (
+    <section className={`${UI.card} flex flex-col gap-2 p-4`} aria-label={copy.t("detail.progress")}>
+      <span className={`text-[13px] font-semibold ${UI.ink}`}>{copy.t("detail.progress")}</span>
+      {progressBody}
+    </section>
+  );
+
   return (
     <Sheet open onOpenChange={(o) => (o ? undefined : onClose())}>
       <SheetContent side="bottom" aria-describedby={undefined} className="flex max-h-[94vh] flex-col gap-0 rounded-t-3xl bg-[var(--tc-canvas,#fafafa)] p-0">
@@ -108,17 +123,13 @@ export function PromoDetailSheet({ item, data, copy, onClose, onEdit, onShare, o
             </button>
           ) : null}
 
-          <section className={`${UI.card} flex flex-col gap-2 p-4`} aria-label={copy.t("detail.progress")}>
-            <span className={`text-[13px] font-semibold ${UI.ink}`}>{copy.t("detail.progress")}</span>
-            {prog.max !== null ? <ProgressBar pct={prog.pct} label={copy.t("card.used", { used: prog.used, max: prog.max })} /> : null}
-            <span className={`text-[13px] ${UI.muted}`}>
-              {prog.max !== null ? copy.t("card.used", { used: prog.used, max: prog.max }) : copy.t("card.used_open", { used: prog.used })}
-            </span>
-          </section>
+          {result ? null : progressCard}
 
           {result ? (
             <PromoResultsCard
               name={item.is_trial ? copy.t("detail.trial_card") : item.name}
+              hideTitle
+              progress={progressBody}
               result={result}
               tips={promoTips({ result, maxUses: promo.max_uses, audience: promo.audience, ended })}
               currency={data.currency}
@@ -162,24 +173,26 @@ export function PromoDetailSheet({ item, data, copy, onClose, onEdit, onShare, o
           ) : null}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 border-t border-[var(--tc-border,#e5e5ea)] bg-white px-4 py-3 pb-[max(12px,env(safe-area-inset-bottom))]">
-          {!ended ? <button type="button" className={`${UI.primary} flex-1`} onClick={() => onShare(item)}>{copy.t("page.share")}</button> : null}
-          {!ended ? <button type="button" className={UI.secondary} onClick={() => onEdit(item)}>{copy.t("detail.edit")}</button> : null}
-          <button type="button" className={UI.secondary} disabled={busy} onClick={() => void run(() => duplicatePromo(item.id), "toast.duplicated", true)}>
-            {copy.t("detail.duplicate")}
-          </button>
-          {ended ? (
-            <>
-              <button type="button" className={UI.secondary} disabled={busy} onClick={() => void run(() => repeatPromo(item.id, 1), "toast.duplicated", true)}>
-                {copy.t("detail.repeat_month")}
-              </button>
-              <button type="button" className={UI.secondary} disabled={busy} onClick={() => void run(() => repeatPromo(item.id, 12), "toast.duplicated", true)}>
-                {copy.t("detail.repeat_year")}
-              </button>
-            </>
-          ) : null}
+        <div className="flex flex-col gap-2 border-t border-[var(--tc-border,#e5e5ea)] bg-white px-4 py-3 pb-[max(12px,env(safe-area-inset-bottom))]" data-promo-footer>
+          {!ended ? <button type="button" className={`${UI.primary} w-full`} onClick={() => onShare(item)}>{copy.t("page.share")}</button> : null}
+          <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2" data-promo-footer-grid>
+            {!ended ? <button type="button" className={`${UI.secondary} w-full`} onClick={() => onEdit(item)}>{copy.t("detail.edit")}</button> : null}
+            <button type="button" className={`${UI.secondary} w-full`} disabled={busy} onClick={() => void run(() => duplicatePromo(item.id), "toast.duplicated", true)}>
+              {copy.t("detail.duplicate")}
+            </button>
+            {ended ? (
+              <>
+                <button type="button" className={`${UI.secondary} w-full`} disabled={busy} onClick={() => void run(() => repeatPromo(item.id, 1), "toast.duplicated", true)}>
+                  {copy.t("detail.repeat_month")}
+                </button>
+                <button type="button" className={`${UI.secondary} w-full`} disabled={busy} onClick={() => void run(() => repeatPromo(item.id, 12), "toast.duplicated", true)}>
+                  {copy.t("detail.repeat_year")}
+                </button>
+              </>
+            ) : null}
+          </div>
           {running || status === "scheduled" ? (
-            <button type="button" className={UI.quiet} onClick={() => setConfirmEnd(true)}>{copy.t("detail.end")}</button>
+            <button type="button" className={`${UI.quiet} w-full`} onClick={() => setConfirmEnd(true)}>{copy.t("detail.end")}</button>
           ) : null}
         </div>
       </SheetContent>
