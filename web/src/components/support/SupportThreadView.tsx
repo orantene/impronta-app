@@ -10,7 +10,7 @@ import { Icon } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS } from "./support-tokens";
 import type { SupportMessageRow, SupportTicketRow } from "@/lib/support/support-types";
 import { resolveSupportTicketAction } from "@/lib/support/actions";
-import { canOfferHuman, humanOfferPlacement, lastAiAnswerId, shouldShowThinking } from "./support-panel-state";
+import { canOfferHuman, humanOfferPlacement, lastAiAnswerId, shouldShowThinking, showHelpfulRow } from "./support-panel-state";
 import { SupportCardRenderer, type SupportThreadTone } from "./SupportCardRenderer";
 
 export type { SupportThreadTone };
@@ -246,7 +246,7 @@ export function SupportThreadView({
                         alignItems: "center",
                       }}
                     >
-                      {acked[m.id] ? null : confirmHelpful === m.id ? (
+                      {!showHelpfulRow(ticket, Boolean(acked[m.id])) ? null : confirmHelpful === m.id ? (
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
                           <span style={{ fontSize: 11, color: COLORS.royal }}>
                             {t("dashboard.adminSupport.helpedConfirm")}

@@ -13,6 +13,7 @@ import {
   shouldShowThinking,
   humanOfferPlacement,
   lastAiAnswerId,
+  showHelpfulRow,
   humanRequestedPatch,
   selectThread,
   threadReducer,
@@ -213,4 +214,13 @@ test("TUL-942: exactly one escalate control per thread", () => {
     { id: "d", authorKind: "ai", messageKind: "card", deletedAt: null },
   ] as unknown as Parameters<typeof lastAiAnswerId>[0];
   assert.equal(lastAiAnswerId(msgs), "c");
+});
+
+test("TUL-943: the Yes/No helpful row disappears whole once a person has the ticket", () => {
+  const ai = { handledBy: "ai", status: "open" } as const;
+  const human = { handledBy: "human", status: "open" } as const;
+  assert.equal(showHelpfulRow(ai, false), true);
+  assert.equal(showHelpfulRow(ai, true), false);
+  assert.equal(showHelpfulRow(human, false), false);
+  assert.equal(showHelpfulRow(null, false), true);
 });

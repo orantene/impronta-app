@@ -178,6 +178,17 @@ export function humanOfferPlacement(input: {
 }
 
 /**
+ * TUL-943: the "Did this help?" Yes/No row only exists while the AI owns the
+ * ticket. After a person takes over, half of it used to linger.
+ */
+export function showHelpfulRow(
+  ticket: Pick<SupportTicketRow, "handledBy" | "status"> | null,
+  acked: boolean,
+): boolean {
+  return !acked && canOfferHuman(ticket);
+}
+
+/**
  * TUL-948: the AI turn flag outlives the reply (the request resolves after
  * realtime already delivered it), which drew a second "thinking" bubble
  * under the answer. Show it only while the last message is not an AI reply.
