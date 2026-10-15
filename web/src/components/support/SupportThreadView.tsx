@@ -10,7 +10,7 @@ import { Icon } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS } from "./support-tokens";
 import type { SupportMessageRow, SupportTicketRow } from "@/lib/support/support-types";
 import { resolveSupportTicketAction } from "@/lib/support/actions";
-import { canOfferHuman, shouldShowThinking } from "./support-panel-state";
+import { canOfferHuman, humanOfferPlacement, lastAiAnswerId, shouldShowThinking } from "./support-panel-state";
 import { SupportCardRenderer, type SupportThreadTone } from "./SupportCardRenderer";
 
 export type { SupportThreadTone };
@@ -128,6 +128,12 @@ export function SupportThreadView({
     () => messages.some((m) => m.messageKind === "card" && m.cardPayload?.kind === "offer-human"),
     [messages],
   );
+  const lastAiId = useMemo(() => lastAiAnswerId(messages), [messages]);
+  const humanPlacement = humanOfferPlacement({
+    canOffer: canOfferHuman(ticket),
+    hasOfferCard,
+    hasAiAnswer: tone !== "hq" && lastAiId != null,
+  });
   const grouped = useMemo(() => {
     const out: Array<{ day: string; items: SupportMessageRow[] }> = [];
     for (const m of messages) {
@@ -305,7 +311,7 @@ export function SupportThreadView({
                           </button>
                         </>
                       )}
-                      {canOfferHuman(ticket) && !hasOfferCard ? (
+                      {humanPlacement === "bubble" && m.id === lastAiId ? (
                         <button type="button" onClick={onRequestHuman} style={ghostBtn}>
                           {t("dashboard.adminSupport.talkToHuman")}
                         </button>
@@ -556,7 +562,7 @@ export function SupportThreadView({
           ) : null}
         </div>
       ) : null}
-      {ticket?.handledBy === "ai" && onRequestHuman ? (
+      {humanPlacement === "footer" && ticket?.handledBy === "ai" && onRequestHuman ? (
         <button type="button" onClick={onRequestHuman} style={{ ...ghostBtn, alignSelf: "center" }}>
           <Icon name="user" size={12} color={COLORS.royal} />
           {t("dashboard.adminSupport.talkToHuman")}

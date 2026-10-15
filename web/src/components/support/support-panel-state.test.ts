@@ -11,6 +11,8 @@ import {
   applyIncomingMessage,
   canOfferHuman,
   shouldShowThinking,
+  humanOfferPlacement,
+  lastAiAnswerId,
   humanRequestedPatch,
   selectThread,
   threadReducer,
@@ -197,4 +199,18 @@ test("shouldShowThinking: hides the bubble once an AI reply is the last message 
   assert.equal(shouldShowThinking(true, [mk("requester"), mk("ai")]), false);
   assert.equal(shouldShowThinking(false, [mk("requester")]), false);
   assert.equal(shouldShowThinking(true, []), true);
+});
+
+test("TUL-942: exactly one escalate control per thread", () => {
+  assert.equal(humanOfferPlacement({ canOffer: true, hasOfferCard: true, hasAiAnswer: true }), "card");
+  assert.equal(humanOfferPlacement({ canOffer: true, hasOfferCard: false, hasAiAnswer: true }), "bubble");
+  assert.equal(humanOfferPlacement({ canOffer: true, hasOfferCard: false, hasAiAnswer: false }), "footer");
+  assert.equal(humanOfferPlacement({ canOffer: false, hasOfferCard: false, hasAiAnswer: true }), "none");
+  const msgs = [
+    { id: "a", authorKind: "ai", messageKind: "text", deletedAt: null },
+    { id: "b", authorKind: "requester", messageKind: "text", deletedAt: null },
+    { id: "c", authorKind: "ai", messageKind: "text", deletedAt: null },
+    { id: "d", authorKind: "ai", messageKind: "card", deletedAt: null },
+  ] as unknown as Parameters<typeof lastAiAnswerId>[0];
+  assert.equal(lastAiAnswerId(msgs), "c");
 });
