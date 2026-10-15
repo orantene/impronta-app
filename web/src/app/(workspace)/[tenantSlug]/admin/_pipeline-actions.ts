@@ -84,6 +84,10 @@ import { clientAcceptOffer, staffAcceptOfferForTalent } from "@/lib/inquiry/inqu
 import { loadTalentChipInfo } from "@/lib/talent/talent-chip-info";
 import { listAdminRosterTalentIds } from "@/lib/saas/talent-roster";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { userHasCapability } from "@/lib/access";
+import { getCachedActorSession } from "@/lib/server/request-cache";
+import { executeBookingRefund, isRefundReason } from "@/lib/payments/refund-execute";
+import { assertTransactionOnThread } from "@/lib/payments/refund-thread-scope";
 
 import {
   loadInquiryAttachments as loadInquiryAttachmentsImpl,
@@ -421,6 +425,47 @@ export async function markInquiryPaymentFailed(
     if (!result.ok) throw new Error(result.error);
   });
   return wrapped.ok ? { ok: true } : { ok: false, error: wrapped.error };
+}
+
+/**
+ * Issue a refund from inside an inbox thread (TUL-790).
+ *
+ * The thread is the scope: the caller must manage THIS inquiry in their
+ * workspace and hold a refund capability, and the transaction must belong to
+ * the booking of THIS thread. Only then does it delegate to the single
+ * Stripe refund path (`executeBookingRefund`); the webhook writes the books.
+ */
+export async function refundInquiryTransaction(
+  _tenantSlug: string,
+  inquiryId: string,
+  input: { transactionId: string; reason: string; amountCents?: number | null; note?: string | null },
+): Promise<PipelineActionResult> {
+  await requireNotImpersonating();
+  const auth = await requireInquiryManagerAction(inquiryId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, tenantId } = auth;
+  if (
+    !(await userHasCapability("booking.payment.refund", tenantId)) &&
+    !(await userHasCapability("manage_billing", tenantId))
+  ) {
+    return { ok: false, error: "You do not have permission to refund a payment." };
+  }
+  if (!isRefundReason(input.reason)) return { ok: false, error: "Choose a reason for the refund." };
+
+  const scope = await assertTransactionOnThread(supabase, { tenantId, inquiryId, transactionId: input.transactionId });
+  if (!scope.ok) return { ok: false, error: scope.error };
+
+  const actor = await getCachedActorSession();
+  const result = await executeBookingRefund({
+    transactionId: input.transactionId,
+    amountCents: input.amountCents ?? null,
+    reason: input.reason,
+    actorUserId: actor?.user?.id ?? null,
+    note: input.note?.trim() || null,
+  });
+  if (!result.ok) return { ok: false, error: result.error };
+  revalidatePath(`/${auth.tenantSlug}`, "layout");
+  return { ok: true };
 }
 
 export async function cancelInquiryTransaction(
