@@ -97,6 +97,7 @@
         "inviteSubmit": "Crear cuenta y reclamar perfil",
         "pending": "Creando cuenta…",
         "passwordHint": "Al menos 8 caracteres.",
+        "passwordConfirmNote": "Después de registrarte, tu primer inicio de sesión necesita un código de un solo uso que te enviamos por correo.",
         "haveAccount": "¿Ya tienes una cuenta?",
         "logIn": "Inicia sesión",
         "eyebrow": "Empezar",
@@ -217,6 +218,7 @@
         "changeEmail": "Usar otro correo",
         "usePassword": "Usar una contraseña",
         "useCode": "Envíame un código",
+        "backToCode": "Volver al código",
         "errors": {
           "codeRequired": "Escribe el código de tu correo.",
           "codeInvalid": "Ese código no funcionó. Revisa los dígitos o pide un código nuevo.",

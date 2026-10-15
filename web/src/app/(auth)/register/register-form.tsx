@@ -177,6 +177,10 @@ export function RegisterForm({
         />
       </AuthField>
 
+      <p className="text-[0.8125rem]" style={{ color: "var(--plt-muted)" }}>
+        {t("public.auth.register.passwordConfirmNote")}
+      </p>
+
       <AgeTermsCheckbox locale={locale} />
 
       <AuthSubmitButton

@@ -217,7 +217,9 @@ export function EmailCodeForm({
               setShowPassword(false);
             }}
           >
-            {t("public.auth.passwordless.useCode")}
+            {onCodeStep && email
+              ? t("public.auth.passwordless.backToCode")
+              : t("public.auth.passwordless.useCode")}
           </QuietAction>
         </p>
         {footer}

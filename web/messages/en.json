@@ -97,6 +97,7 @@
         "inviteSubmit": "Create account & claim profile",
         "pending": "Creating account…",
         "passwordHint": "At least 8 characters.",
+        "passwordConfirmNote": "After you sign up, your first sign-in needs a one-time code we email you.",
         "haveAccount": "Already have an account?",
         "logIn": "Log in",
         "eyebrow": "Get started",
@@ -217,6 +218,7 @@
         "changeEmail": "Use a different email",
         "usePassword": "Use a password instead",
         "useCode": "Email me a code",
+        "backToCode": "Back to the code",
         "errors": {
           "codeRequired": "Enter the code from your email.",
           "codeInvalid": "That code did not work. Check the digits, or send a new code.",
