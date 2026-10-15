@@ -2008,6 +2008,7 @@
         "basicsWhatTalentHint": "Busca: manicurista, fotógrafo, DJ…",
         "basicsWhatBusinessHint": "Busca: salón de uñas, restaurante, gimnasio…",
         "useTyped": "Usar \"{text}\"",
+        "useTypedCategory": "Usar \"{text}\" como mi categoría",
         "basicsCityHint": "Busca tu ciudad",
         "basicsOther": "¿No está en la lista?",
         "basicsOtherHint": "Escríbelo aquí",
