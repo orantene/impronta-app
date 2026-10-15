@@ -1188,7 +1188,8 @@
       "ideaArea_reporting": "Rapports",
       "delayTitle": "{agent} y travaille toujours",
       "delayBody": "Cela prend plus de temps que prévu. Vous n'avez pas été oublié et vous n'avez rien à faire de votre côté.",
-      "delayNextUpdate": "Prochaine nouvelle : {when}"
+      "delayNextUpdate": "Prochaine nouvelle : {when}",
+      "attachmentFallbackName": "Image"
     },
     "adminWorkspace": {
       "replayBufferTitle": "Buffer de replay du support",
