@@ -302,7 +302,7 @@ export async function messagingClientRemoveItem(input: { token: string; lineId: 
  * Deletes the thread's inquiry ONLY when it is still the untouched seed draft:
  * seed contact, no messages, no order of any kind, nothing committed.
  */
-export async function messagingClientDiscardEmptyDraft(input: { token: string }): Promise<ActionResult> {
+export async function messagingClientDiscardEmptyDraft(input: { token: string }): Promise<ActionResult<{ discarded: true }>> {
   await requireNotImpersonating();
   const parsed = z.object({ token: z.string().min(1) }).safeParse(input);
   if (!parsed.success) return fail("invalid");
@@ -321,7 +321,7 @@ export async function messagingClientDiscardEmptyDraft(input: { token: string })
   if ((msgs.count ?? 0) > 0 || (orders.count ?? 0) > 0) return fail("not_allowed");
   const { error } = await scoped(l.admin, "inquiries", l.tenantId).delete().eq("id", l.inquiryId).eq("status", "draft");
   if (error) return fail("unavailable");
-  return { ok: true };
+  return { ok: true, discarded: true };
 }
 
 /* ---------- 4. accept / decline an exact offer version (D-MSG-162) ---------- */
