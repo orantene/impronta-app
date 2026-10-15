@@ -22,6 +22,8 @@ const PAIRS: [string, string, string][] = [
   ["muted on soft", "#6b6b73", "#e6f4f1"],
   ["muted on canvas", "#6b6b73", "#fafafa"],
   ["white on action teal", "#ffffff", "#0f766e"],
+  ["white knob on grey switch", "#ffffff", "#6b6b73"],
+  ["muted helper on canvas", "#6b6b73", "#fafafa"],
 ];
 for (const [name, fg, bg] of PAIRS) {
   test(`contrast >= 4.5: ${name}`, () => {

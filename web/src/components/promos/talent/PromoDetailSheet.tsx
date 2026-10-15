@@ -14,7 +14,7 @@ import type { PromoCopy } from "@/lib/promos/copy/talent";
 import { promoTips } from "@/lib/promos/results/compute";
 import { formatMoney, formatShortDate, progressOf } from "@/lib/promos/talent-view";
 import { offerLabel, scheduleLine } from "./describe";
-import { InfoTip, ProgressBar, StatusBadge, UI } from "./ui";
+import { InfoTip, ProgressBar, PromoSwitch, StatusBadge, UI } from "./ui";
 
 type Props = {
   item: PromoListItem | null;
@@ -103,18 +103,15 @@ export function PromoDetailSheet({ item, data, copy, onClose, onEdit, onShare, o
 
         <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4">
           {running ? (
-            <label className={`${UI.card} flex min-h-14 items-center justify-between gap-3 px-4`}>
+            <div className={`${UI.card} flex min-h-14 items-center justify-between gap-3 px-4`}>
               <span className={`text-[14px] font-semibold ${UI.ink}`}>{status === "paused" ? copy.t("detail.paused") : copy.t("detail.live")}</span>
-              <input
-                type="checkbox"
-                role="switch"
-                aria-label={copy.t("detail.toggle")}
-                className="h-6 w-11 cursor-pointer"
+              <PromoSwitch
+                label={copy.t("detail.toggle")}
                 checked={status !== "paused"}
                 disabled={busy}
-                onChange={(e) => void run(() => (e.target.checked ? resumePromo(item.id) : pausePromo(item.id)), e.target.checked ? "toast.resumed" : "toast.paused")}
+                onChange={(next) => void run(() => (next ? resumePromo(item.id) : pausePromo(item.id)), next ? "toast.resumed" : "toast.paused")}
               />
-            </label>
+            </div>
           ) : null}
 
           {status === "draft" ? (
