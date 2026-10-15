@@ -40,7 +40,7 @@ import {
   loadTalentPlanKey,
   loadTalentSiteCtaMode,
 } from "./load-max-site";
-import { TalentSiteSocket } from "@/components/talent-site/talent-site-socket";
+import { TulalaLegalStrip } from "@/components/talent-site/tulala-legal-strip";
 import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import {
   buildSocketModel,
@@ -218,7 +218,15 @@ export async function buildTalentBuilderCanvasData(input: {
     shellHeader: renderShell(headerTree),
     shellHeaderOverHero: headerOverlayAllowed(input.tree),
     shellFooter: renderShell(footerTree),
-    shellSocket: <TalentSiteSocket model={socketModel} hint={socketLockedHint(siteLocale)} clearDock={false} />,
+    shellSocket: (
+      <TulalaLegalStrip
+        locale={siteLocale}
+        languages={socketModel.languages}
+        talentLinks={socketModel.siteLinks}
+        hint={socketLockedHint(siteLocale)}
+        clearDock={false}
+      />
+    ),
     labelLocale: { locale: siteLocale, ctaMode, swaps, ...(live ? { live } : {}) },
   };
 }

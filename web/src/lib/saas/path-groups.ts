@@ -92,6 +92,9 @@ export const SHARED_API_PREFIXES = [
   // bearer (scripts/demo-talents/rebuild.mjs); the handler is the gate.
   "/api/platform/demos",
   "/api/analytics/events",
+  // Promos v1: visitor link-open/share beacon and share images (story/post/card).
+  // Hit from talent sites, the hub and the talent dashboard; handlers gate.
+  "/api/promos",
   "/api/stripe",
   "/api/health",
   "/api/dev/reset-guest",
@@ -372,6 +375,15 @@ export const APP_API_PREFIXES = [
   // host and on the app host, where the host carries no tenant at all.
   "/api/links",
 ] as const;
+
+/**
+ * TUL-872: exact API paths a hub host reaches. The `/t/<code>` profile page on
+ * a hub host (hub.tulala.digital, pay.*) asks who is signed in; without this
+ * the gate 404'd it and the guest chat's "Reservar" never knew the client was
+ * signed in. Exactly this path; the rest of `/api/client` stays agency + app.
+ * The route itself is still flag-gated (CLIENT_ACCOUNT_HOSTS must list `hub`).
+ */
+export const HUB_API_EXACT_PATHS = ["/api/client/account"] as const;
 
 /**
  * TUL-87 — media APIs the page builder calls from a hub workspace site.

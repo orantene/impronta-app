@@ -15,6 +15,7 @@ import {
 
 import { buildTalentLocalBusinessJsonLd, withLocalBusiness } from "@/lib/talent-site/talent-local-business-json-ld";
 
+import { deriveSiteDescription } from "@/lib/talent-site/site-meta-description";
 import { siteFaviconFor } from "@/lib/talent-site/site-favicon";
 import type { TalentSiteIdentity } from "./load-max-site";
 
@@ -116,17 +117,23 @@ export function buildMaxSiteSeo(args: {
       name: identity?.name,
       city: args.addressLocality,
     }) ?? storedTitle;
-  // TUL-411: never leave description unset — empty/scrubbed SEO would inherit
-  // English PLATFORM_BRAND.description from the root layout on an ES-primary site.
+  // TUL-798: no description written for this language -> derive one from name, city and services (home only).
+  // TUL-411: otherwise fall back to her locale bio / structured copy so root PLATFORM_BRAND English is never inherited.
+  const written = resolveMaxSiteDescription(page, locale);
   const description =
+    written ||
+    ((args.canonicalPath?.trim() || "/") === "/"
+      ? deriveSiteDescription({ name: identity?.name, city: args.addressLocality, serviceNames: args.services?.map((x) => x.name), locale })
+      : undefined) ||
     seoDescriptionFallback({
       locale,
-      stored: resolveMaxSiteDescription(page, locale),
+      stored: written,
       bio: args.bio,
       name: identity?.name,
       talentType: args.talentType,
       city: args.addressLocality,
-    }) ?? undefined;
+    }) ||
+    undefined;
 
   // Canonical — explicit column wins; else origin + path. Never the profile.
   const origin = (args.canonicalOrigin?.trim() || publicSiteMetadataBase().origin)

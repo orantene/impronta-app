@@ -23,6 +23,32 @@ function req(cookieHeader?: string, method = "GET"): NextRequest {
 }
 
 describe("applyTalentSiteAnonCacheHeaders", () => {
+  // TUL-445 live QA fail: the CDN key ignored cookies, so a signed-in or
+  // guest-cookied visitor was served the cached anonymous page. Every
+  // talent-site response must carry Vary: Cookie so a cookie-bearing request
+  // can never match an entry stored for a cookieless one.
+  it("varies the public CDN entry on Cookie", () => {
+    const res = applyTalentSiteAnonCacheHeaders(NextResponse.next(), req());
+    assert.match(res.headers.get("Vary") ?? "", /(^|,\s*)Cookie(\s*,|$)/i);
+  });
+
+  it("varies the private response on Cookie too and keeps existing Vary values", () => {
+    const base = NextResponse.next();
+    base.headers.set("Vary", "RSC, Accept-Encoding");
+    const res = applyTalentSiteAnonCacheHeaders(base, req("sb-abc-auth-token=x"));
+    const vary = res.headers.get("Vary") ?? "";
+    assert.match(vary, /RSC/);
+    assert.match(vary, /Accept-Encoding/);
+    assert.match(vary, /(^|,\s*)Cookie(\s*,|$)/i);
+  });
+
+  it("does not duplicate Cookie in Vary", () => {
+    const base = NextResponse.next();
+    base.headers.set("Vary", "cookie");
+    const res = applyTalentSiteAnonCacheHeaders(base, req());
+    assert.equal((res.headers.get("Vary") ?? "").toLowerCase().split(",").filter((v) => v.trim() === "cookie").length, 1);
+  });
+
   it("sets public CDN cache for a cookieless GET with no Set-Cookie on the response", () => {
     const res = applyTalentSiteAnonCacheHeaders(NextResponse.next(), req());
     assert.equal(res.headers.get("Cache-Control"), TALENT_SITE_ANON_CDN_CACHE);

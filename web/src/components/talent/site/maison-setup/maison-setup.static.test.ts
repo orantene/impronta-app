@@ -58,9 +58,10 @@ test("TUL-331 G12: honest finished-theme count in gallery copy (en+es)", () => {
   assert.equal(i18n.includes("in this category yet"), false, "emptyFilter must not imply more later");
 });
 
-test("cr_gallery chrome: Today back + close above the gallery hero", () => {
+test("cr_gallery chrome: My website back + close above the gallery hero", () => {
   const src = read("ChooseDesignScreen.tsx");
-  assert.match(src, /maisonSetupT\(locale, "Today"\)/);
+  assert.match(src, /maisonSetupT\(locale, "My website"\)/);
+  assert.doesNotMatch(src, /maisonSetupT\(locale, "Today"\)/);
   assert.match(src, /maison-gallery-close/);
   const chooseIdx = src.indexOf('maisonSetupT(locale, "Choose a design")');
   const galleryIdx = src.indexOf("<GalleryBrowseScreen");

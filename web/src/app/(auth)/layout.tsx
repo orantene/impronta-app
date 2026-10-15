@@ -345,6 +345,7 @@ export default async function AuthLayout({
               contact: t("public.auth.shell.contact"),
             }}
             contactHref={contactHref}
+            locale={locale}
             languageToggle={
               <AuthLanguageToggle
                 activeLocale={locale}

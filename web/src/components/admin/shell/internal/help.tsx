@@ -36,6 +36,7 @@ import { Fragment, useEffect, useState } from "react";
 
 import { interpolate } from "@/i18n/interpolate";
 import { useT } from "@/i18n/use-t";
+import { openSupportPanel } from "@/lib/support/open-support-panel";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 
@@ -645,10 +646,8 @@ function FooterActions({
       <button
         type="button"
         onClick={() => {
-          proto.openDrawer("support-ticket", {
-            originDrawerId: drawerId,
-            category: entry.ticketCategory ?? null,
-          });
+          proto.closeDrawer();
+          openSupportPanel();
         }}
         style={linkBtnStyle}
         onMouseEnter={(e) => (e.currentTarget.style.color = COLORS.ink)}

@@ -26,6 +26,7 @@ import {
   type CatalogBookingMode,
 } from "@/components/public-booking/catalog-booking-logic";
 import { offeringRequiresOnlineCollect } from "@/lib/talent/who-step-payment-copy";
+import { BookingPromoPanel, type BookingPromoChoice } from "@/components/promos/public/booking-promo-panel";
 
 const INK = "#101211";
 const MUTED = "rgba(16,18,17,0.62)";
@@ -63,6 +64,8 @@ export function CatalogPurchaseMount({
   const [captchaToken, setCaptchaToken] = useState("");
   const [honeypot, setHoneypot] = useState("");
   const [sourcePage, setSourcePage] = useState("/");
+  const [promo, setPromo] = useState<BookingPromoChoice>({ promoCode: null, promoShownDiscountCents: null });
+  const [promoRefresh, setPromoRefresh] = useState(0);
 
   const armed = mode === "demo" || Boolean(tenantId);
 
@@ -80,6 +83,7 @@ export function CatalogPurchaseMount({
       setVariantId(d.variants?.[0]?.id ?? null);
       setAddOnIds([]);
       setQty(1);
+      setPromo({ promoCode: null, promoShownDiscountCents: null });
       setSheet(d);
     };
     window.addEventListener("tulala:offering-instant", onInstant);
@@ -113,7 +117,12 @@ export function CatalogPurchaseMount({
   const addOnCents = addOns
     .filter((a) => addOnIds.includes(a.id))
     .reduce((s, a) => s + a.amountCents, 0);
-  const totalCents = baseCents != null ? baseCents * effQty + addOnCents : null;
+  const listCents = baseCents != null ? baseCents * effQty + addOnCents : null;
+  // Promos v1: the live promo price the panel quoted (the server re-prices and holds on confirm).
+  const totalCents =
+    listCents != null && promo.promoShownDiscountCents != null
+      ? Math.max(0, listCents - promo.promoShownDiscountCents)
+      : listCents;
   const collectCents = catalogCollectNowCents(totalCents, d.reserveMode, d.depositPct);
   const price =
     totalCents != null ? formatOfferingPrice(totalCents, d.currency, locale) : "";
@@ -227,8 +236,14 @@ export function CatalogPurchaseMount({
         captchaToken: signedIn ? undefined : captchaToken || null,
         honeypot: signedIn ? undefined : honeypot,
         locale,
+        promoCode: promo.promoCode,
+        promoShownDiscountCents: promo.promoShownDiscountCents,
       });
       if (!res.ok) {
+        if (res.promoGone) {
+          // Nothing was charged. Re-quote so the regular price shows before they confirm again.
+          setPromoRefresh((n) => n + 1);
+        }
         if (res.needsAuth) {
           window.location.href = `/login?next=${encodeURIComponent(sourcePage)}`;
           return;
@@ -415,6 +430,21 @@ export function CatalogPurchaseMount({
               +
             </button>
           </div>
+        ) : null}
+
+        {mode === "live" && !paymentSetupBlocksBuy ? (
+          <BookingPromoPanel
+            locale={locale}
+            refreshKey={promoRefresh}
+            onChange={setPromo}
+            request={{
+              offeringId: d.offeringId,
+              variantId: variant?.id ?? null,
+              addOnIds,
+              quantity: effQty,
+              contactEmail: guestEmail || null,
+            }}
+          />
         ) : null}
 
         <p style={{ fontSize: 13, color: MUTED, lineHeight: 1.5, margin: "12px 0" }}>

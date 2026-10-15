@@ -8,6 +8,7 @@ import {
 import { pickBookableOffering } from "@/components/public-booking/pick-bookable-offering";
 import { translatorFor, useT } from "@/i18n/use-t";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
+import { publicPriceLine } from "@/lib/talent/public-price-line";
 import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptchaField";
 
 export function BookPageClient({
@@ -45,6 +46,17 @@ export function BookPageClient({
     ? pickBookableOffering([selected], { locationLabel: null })
     : null;
 
+  const priceLine = selected
+    ? publicPriceLine(
+        {
+          amountCents: selected.amountCents,
+          currency: selected.currency,
+          priceDisplay: selected.priceDisplay,
+        },
+        pageLocale,
+      )
+    : null;
+
   if (offerings.length === 0 || !bookable) {
     return (
       <p className="mt-6 text-sm text-[var(--token-color-muted,rgba(11,11,13,0.62))]">
@@ -59,7 +71,14 @@ export function BookPageClient({
       data-book-page-client=""
       style={{ color: "var(--token-color-ink, #0B0B0D)" }}
     >
-      <p className="text-base font-medium">{selected.title}</p>
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-base font-medium">{selected.title}</p>
+        {priceLine ? (
+          <p className="text-sm font-medium tabular-nums" data-book-page-price="">
+            {priceLine}
+          </p>
+        ) : null}
+      </div>
       {offerings.length > 1 ? (
         <label className="flex flex-col gap-1.5 text-sm">
           <span className="font-medium">{t("public.bookPage.chooseService")}</span>

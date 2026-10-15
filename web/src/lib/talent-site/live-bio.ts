@@ -16,6 +16,7 @@
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 
 import { bioLanguageHint } from "./bio-language-hint";
+import { tagLineFromVisibleServices, type ServiceVisibility } from "./live-text-services";
 import type { LocalizedMapLike } from "./talent-locale-swaps";
 
 export interface LiveBioInput {
@@ -29,6 +30,8 @@ export interface LiveBioInput {
   chain?: readonly string[];
   /** Her main language. */
   primary?: string | null;
+  /** TUL-847: when set, a drafted `short_bio` naming a hidden service is rebuilt from the visible ones. */
+  services?: ServiceVisibility | null;
 }
 
 export interface LiveBio {
@@ -49,7 +52,9 @@ export function resolveLiveBio(i: LiveBioInput): LiveBio {
   }
   // Last resort: the base short bio of her main language. Treat it as primary so
   // an English visitor still gets "Disponible en español" instead of silent Spanish.
-  const short = i.shortBio?.trim() ?? "";
+  const rawShort = i.shortBio?.trim() ?? "";
+  // Only this drafted fallback is rebuilt; a bio she wrote herself (bioI18n) is hers.
+  const short = i.services ? tagLineFromVisibleServices(rawShort, i.services, visitor === "es" ? "es" : "en") : rawShort;
   if (!short) return { text: "", hint: "" };
   const primary = key(i.primary) || key(chain.find((c) => key(c) && key(c) !== visitor)) || "";
   const asMap = { ...(i.bioI18n ?? {}), ...(primary ? { [primary]: short } : {}) };
