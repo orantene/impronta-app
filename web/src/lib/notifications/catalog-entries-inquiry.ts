@@ -1,7 +1,8 @@
 import "server-only";
 
-import { bookingConfirmedClient, loadBookingConfirmedView } from "./catalog-audiences-booking";
+import { bookingConfirmedClient, bookingConfirmedTalent, loadBookingConfirmedView } from "./catalog-audiences-booking";
 import * as React from "react";
+import { brandForSeller } from "./booking-confirmed-email";
 import ClientInquiryReceived from "../../../emails/client/InquiryReceived";
 import ClientReplyReady from "../../../emails/client/ReplyReady";
 import ClientOfferReady from "../../../emails/client/OfferReady";
@@ -191,8 +192,15 @@ const OFFER_SENT_TALENT: CatalogEntry = {
   in_app: {
     kind: "offer",
     surface: "talent",
-    title: () => "You have an offer to review",
+    // TUL-958: the talent who sent the offer is waiting on the client, not asked to approve.
+    title: (event, recipient) =>
+      recipient.userId && recipient.userId === event.userId
+        ? "Your offer was sent"
+        : "You have an offer to review",
     body: (event, recipient) => {
+      if (recipient.userId && recipient.userId === event.userId) {
+        return "Your offer was sent to the client. Waiting on the client's approval.";
+      }
       const netMap = (event.payload.talentNetByUserId ?? {}) as Record<string, string>;
       const net = (recipient.userId && netMap[recipient.userId]) || "";
       const contact = str(event.payload.contactName);
@@ -275,18 +283,23 @@ const BOOKING_CONFIRMED_CLIENT: CatalogEntry = {
     subject: () => "Booking confirmed",
     render: ({ event, recipient, brand, unsubscribeUrl }) => {
       const bookingId = str(event.payload.bookingId);
+      const sellerBrand = brandForSeller(brand, str(event.payload.sellerName));
       return React.createElement(ClientBookingConfirmed, {
         clientName: recipient.displayName ?? str(event.payload.contactName),
         contactName: str(event.payload.contactName),
         eventDate: str(event.payload.eventDate),
         eventLocation: str(event.payload.eventLocation),
+        serviceName: str(event.payload.serviceName),
+        priceLabel: str(event.payload.priceLabel),
         bookingUrl: clientManageUrl(
           brand,
           bookingId,
           bookingId ? `/client/bookings/${bookingId}` : `/client/inquiries/${event.inquiryId}`,
+          undefined,
+          { inquiryId: event.inquiryId, tenantId: event.tenantId },
         ),
-        sellerName: brand.accountName,
-        brand,
+        sellerName: sellerBrand.accountName,
+        brand: sellerBrand,
         unsubscribeUrl,
         categoryLabel: "booking",
       });
@@ -302,13 +315,16 @@ const BOOKING_CONFIRMED_TALENT: CatalogEntry = {
   required: false,
   triggers: ["booking.confirmed"],
   hydrate: loadBookingConfirmedView,
-  resolveAudience: allRosterTalent,
+  resolveAudience: bookingConfirmedTalent,
   // TUL-93: the talent is told in-app too ("Nueva cita"), not only by email.
   in_app: {
     kind: "booking",
     surface: "talent",
     title: () => "New booking confirmed",
     body: () => "A client booked a time with you.",
+    // TUL-959: same target as the offer bell, so the row opens the inquiry workspace.
+    targetDrawer: "talent-inquiry",
+    targetPayload: (event) => (event.inquiryId ? { inquiryId: event.inquiryId } : {}),
   },
   email: {
     templateId: "talent.booking_confirmed",
@@ -319,8 +335,11 @@ const BOOKING_CONFIRMED_TALENT: CatalogEntry = {
         contactName: str(event.payload.contactName),
         eventDate: str(event.payload.eventDate),
         eventLocation: str(event.payload.eventLocation),
+        serviceName: str(event.payload.serviceName),
+        // Only a single-talent booking shows the price: it is that talent's own sale.
+        priceLabel: Number(event.payload.talentCount) === 1 ? str(event.payload.priceLabel) : null,
         inquiriesUrl: pageUrl(brand, `/talent/inbox`),
-        brand,
+        brand: brandForSeller(brand, str(event.payload.sellerName)),
         unsubscribeUrl,
         categoryLabel: "booking",
       }),

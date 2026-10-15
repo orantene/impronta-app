@@ -162,3 +162,10 @@ test("portfolio actually carries the editorial design", () => {
   assert.equal(words.preset.representsPeople, true);
   assert.equal(words.headerVerbLabel(), "Get in touch");
 });
+
+test("pet grooming wins over the salon row it shares words with", () => {
+  for (const businessDescription of ["Pet grooming in Cancun", "Peluquería canina", "Dog groomer", "Estética canina"]) {
+    assert.equal(pickSignupPreset({ audience: "business", businessDescription }), "pet_grooming", businessDescription);
+  }
+  assert.equal(pickSignupPreset({ audience: "business", businessDescription: "Hair salon" }), "salon_barber");
+});

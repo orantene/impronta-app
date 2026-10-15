@@ -7,6 +7,8 @@
  * property maps.
  */
 
+import { SUPPORT_DESK_PRIMARY_HOST } from "@/lib/support/desk-hosts";
+
 export const NOTION_SUBJECT_MAX = 80;
 
 /** Status values allowed into the Notion select (matches support_tickets check). */
@@ -75,7 +77,8 @@ export function mirrorTitle(ticketNumber: number, subject: string): string {
 }
 
 export function deskLinkForTicket(ticketId: string): string {
-  return `https://support.tulala.digital/desk?ticket=${encodeURIComponent(ticketId)}`;
+  // Notion mirror is a prod-only integration: always the prod desk host.
+  return `https://${SUPPORT_DESK_PRIMARY_HOST}/desk?ticket=${encodeURIComponent(ticketId)}`;
 }
 
 /**

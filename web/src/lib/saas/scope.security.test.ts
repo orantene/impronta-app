@@ -380,7 +380,7 @@ test("INVARIANT callerHasRelationshipToTenant: signed-in path checks all three r
     SCOPE_SRC.length,
   );
   assert.match(helper, /getCachedActorSession\(\)/, "resolves the actor via the cached session");
-  assert.match(helper, /if \(!userId\) return false;/, "anonymous + no host match → deny");
+  assert.match(helper, /if \(!actorId\) return false;/, "anonymous + no host match → deny");
   // Each relationship table: queried with BOTH tenant_id AND user-key filters.
   // (Pinning the AND keeps a future refactor from accidentally widening the
   // existence check across tenants.)

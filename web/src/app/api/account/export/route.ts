@@ -1,6 +1,8 @@
 // GET /api/account/export
 //   → 200 application/json   everything tied to the signed-in account
 //   → 401 unauthenticated
+//   → 403 impersonating | reauth_required (last sign-in older than 10 min)
+//   → 429 rate_limited (5 per hour)
 //   → 503 the export could not be built at all
 //
 // The route `20260513181600_f11_user_privacy_prefs.sql` promised and nobody
@@ -28,6 +30,9 @@ import { NextResponse } from "next/server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { isSessionFreshForExport } from "@/lib/account/export-guard";
+import { checkAccountExport } from "@/lib/account/export-rate-limit";
 import {
   accountExportZip,
   buildAccountExport,
@@ -42,6 +47,26 @@ export async function GET(request: Request) {
   const session = await getCachedActorSession();
   if (!session.user) {
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+  }
+
+  // TUL-725: staff "view as" is read-only and must never pull someone's data.
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) {
+    return NextResponse.json({ error: "impersonating" }, { status: 403 });
+  }
+
+  // TUL-725: step-up. A session that has been open for hours (or was left on a
+  // shared device) is not enough; the person signs in again first.
+  if (!isSessionFreshForExport(session.user.last_sign_in_at)) {
+    return NextResponse.json({ error: "reauth_required" }, { status: 403 });
+  }
+
+  const limited = await checkAccountExport(session.user.id);
+  if (!limited.ok) {
+    return NextResponse.json(
+      { error: "rate_limited" },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(limited.retryAfterMs / 1000)) } },
+    );
   }
 
   const admin = createServiceRoleClient();

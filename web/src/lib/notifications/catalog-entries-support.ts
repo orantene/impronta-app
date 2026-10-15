@@ -16,6 +16,19 @@ import type { AudienceContext, AudienceMember, CatalogEntry, NotificationEvent }
 import { eventGuestContact, eventUser, platformAdmins, str } from "./catalog-audiences";
 import { supportRequesterReplyPath } from "@/lib/support/support-reply-path";
 import { appPageUrl, pageUrl } from "./catalog-render";
+import type { EmailBrand } from "@/lib/brand/resolve-tenant-brand";
+
+/**
+ * Support "Reply in app" CTAs open signed-in surfaces (/talent, /client, /admin,
+ * /<tenant>/...), which only the APP host serves; the site host 404s them.
+ * Guest and marketing paths (/contact, /) keep the brand host.
+ */
+export function replyUrlFor(brand: EmailBrand, path: string): string {
+  const p = path.startsWith("/") ? path : `/${path}`;
+  return p === "/" || p === "/contact" || p.startsWith("/contact?") || p.startsWith("/contact/")
+    ? pageUrl(brand, p)
+    : appPageUrl(p);
+}
 import { SUPPORT_AGENT } from "@/lib/support/support-persona";
 
 const SUPPORT_TICKET_DRAWER = "support-ticket";
@@ -194,7 +207,7 @@ const AGENT_REPLY: CatalogEntry = {
       React.createElement(AgentReply, {
         ticketNumber: num(event, "ticketNumber"),
         subject: str(event.payload.subject) ?? "",
-        replyUrl: pageUrl(brand, str(event.payload.replyPath) ?? "/admin"),
+        replyUrl: replyUrlFor(brand, str(event.payload.replyPath) ?? "/admin"),
         brand,
         unsubscribeUrl,
         categoryLabel: "messages",
@@ -219,7 +232,7 @@ const AGENT_REPLY_GUEST: CatalogEntry = {
       React.createElement(AgentReply, {
         ticketNumber: num(event, "ticketNumber"),
         subject: str(event.payload.subject) ?? "",
-        replyUrl: pageUrl(brand, str(event.payload.replyPath) ?? "/contact"),
+        replyUrl: replyUrlFor(brand, str(event.payload.replyPath) ?? "/contact"),
         brand,
         unsubscribeUrl,
         categoryLabel: "messages",
@@ -252,7 +265,7 @@ const TICKET_RESOLVED: CatalogEntry = {
       React.createElement(TicketResolved, {
         ticketNumber: num(event, "ticketNumber"),
         subject: str(event.payload.subject) ?? "",
-        replyUrl: pageUrl(brand, str(event.payload.replyPath) ?? "/admin"),
+        replyUrl: replyUrlFor(brand, str(event.payload.replyPath) ?? "/admin"),
         brand,
         unsubscribeUrl,
         categoryLabel: "messages",
@@ -276,7 +289,7 @@ const TICKET_RESOLVED_GUEST: CatalogEntry = {
       React.createElement(TicketResolved, {
         ticketNumber: num(event, "ticketNumber"),
         subject: str(event.payload.subject) ?? "",
-        replyUrl: pageUrl(brand, str(event.payload.replyPath) ?? "/contact"),
+        replyUrl: replyUrlFor(brand, str(event.payload.replyPath) ?? "/contact"),
         brand,
         unsubscribeUrl,
         categoryLabel: "messages",
@@ -303,7 +316,7 @@ const GUEST_CONTACT_CONFIRM: CatalogEntry = {
       React.createElement(MessageReceived, {
         ticketNumber: num(event, "ticketNumber"),
         subject: str(event.payload.subject) ?? "",
-        replyUrl: pageUrl(brand, str(event.payload.replyPath) ?? "/contact"),
+        replyUrl: replyUrlFor(brand, str(event.payload.replyPath) ?? "/contact"),
         brand,
         unsubscribeUrl,
         categoryLabel: "messages",
@@ -370,7 +383,7 @@ const AUTOCLOSE: CatalogEntry = {
       React.createElement(AutoCloseWarning, {
         ticketNumber: num(event, "ticketNumber"),
         subject: str(event.payload.subject) ?? "",
-        replyUrl: pageUrl(brand, str(event.payload.replyPath) ?? "/admin"),
+        replyUrl: replyUrlFor(brand, str(event.payload.replyPath) ?? "/admin"),
         brand,
         unsubscribeUrl,
         categoryLabel: "messages",
@@ -421,7 +434,7 @@ const TICKET_FIXED: CatalogEntry = {
         ticketNumber: num(event, "ticketNumber"),
         subject: str(event.payload.subject) ?? "",
         note: str(event.payload.note) ?? undefined,
-        replyUrl: pageUrl(brand, str(event.payload.replyPath) ?? "/admin"),
+        replyUrl: replyUrlFor(brand, str(event.payload.replyPath) ?? "/admin"),
         brand,
         unsubscribeUrl,
         categoryLabel: "messages",
@@ -471,7 +484,7 @@ const AUTOCLOSE_GUEST: CatalogEntry = {
       React.createElement(AutoCloseWarning, {
         ticketNumber: num(event, "ticketNumber"),
         subject: str(event.payload.subject) ?? "",
-        replyUrl: pageUrl(brand, str(event.payload.replyPath) ?? "/contact"),
+        replyUrl: replyUrlFor(brand, str(event.payload.replyPath) ?? "/contact"),
         brand,
         unsubscribeUrl,
         categoryLabel: "messages",
@@ -496,7 +509,7 @@ const TICKET_FIXED_GUEST: CatalogEntry = {
         ticketNumber: num(event, "ticketNumber"),
         subject: str(event.payload.subject) ?? "",
         note: str(event.payload.note) ?? undefined,
-        replyUrl: pageUrl(brand, str(event.payload.replyPath) ?? "/contact"),
+        replyUrl: replyUrlFor(brand, str(event.payload.replyPath) ?? "/contact"),
         brand,
         unsubscribeUrl,
         categoryLabel: "messages",
@@ -566,7 +579,7 @@ const FEATURE_REQUEST_UPDATED: CatalogEntry = {
         title: str(event.payload.title) ?? "",
         statusLabel: (str(event.payload.status) ?? "updated").replace(/_/g, " "),
         ownerNote: str(event.payload.ownerNote),
-        replyUrl: pageUrl(brand, str(event.payload.replyPath) ?? "/"),
+        replyUrl: replyUrlFor(brand, str(event.payload.replyPath) ?? "/"),
         brand,
         unsubscribeUrl,
         categoryLabel: "messages",

@@ -31,11 +31,13 @@ export function withHeaderSiteChrome(
   hrefs?: Readonly<Record<string, string>>,
   /** Paid Web Office only (TUL-240): the icons the header's `social` item shows. */
   social: readonly { platform: string; href: string; label: string }[] = [],
+  /** TUL-694: the site's own client account switch (default on; the host flag still gates). */
+  accountEntry = true,
 ): unknown {
   if (sectionTypeKey !== "site_header" || !sectionProps || typeof sectionProps !== "object") return sectionProps;
   const list = locales.length > 1 ? locales.slice(0, 4) : [];
   return {
     ...(sectionProps as Record<string, unknown>),
-    siteChrome: { demo: isDemo, ...(resolveClientAccountMount("talent").headerItem ? { account: true } : {}), locales: list, ...(list.length > 1 && hrefs ? { hrefs } : {}), ...(social.length ? { social: [...social] } : {}) },
+    siteChrome: { demo: isDemo, ...(accountEntry && resolveClientAccountMount("talent").headerItem ? { account: true } : {}), locales: list, ...(list.length > 1 && hrefs ? { hrefs } : {}), ...(social.length ? { social: [...social] } : {}) },
   };
 }

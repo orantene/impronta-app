@@ -66,10 +66,10 @@ export async function PricingTeaserSection({
    *  ?currency=X param takes effect on the same render. */
   currency?: DefaultCurrencyCode;
 } = {}) {
-  const resolvedCurrency =
-    currency ?? (await resolveCurrency(null)).currency;
-  const rows = await loadMarketingTiers("workspace", resolvedCurrency);
   const locale = await getRequestLocale();
+  const resolvedCurrency =
+    currency ?? (await resolveCurrency(null, locale)).currency;
+  const rows = await loadMarketingTiers("workspace", resolvedCurrency);
   const copy = getMarketingCopy(locale).pricing;
   const ladders = getPricingLaddersCopy(locale);
   // Code-copy tagline/bullets only for Spanish — English keeps product_* rows.

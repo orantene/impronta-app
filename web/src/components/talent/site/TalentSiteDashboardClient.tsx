@@ -1,5 +1,6 @@
 "use client";
 
+import { openUpgrade } from "@/components/talent/upgrade/open-upgrade";
 import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
 
@@ -42,7 +43,7 @@ function tierCardCopy(state: TalentSiteDashboardState, locale: TalentSiteLocale)
 }
 
 export function TalentSiteDashboardClient({ initialState, onReload, locale = "en" }: Props) {
-  const { openDrawer, state: shellState } = useAdminShell();
+  const { state: shellState } = useAdminShell();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [baseState, setBaseState] = useState(initialState);
@@ -303,7 +304,7 @@ export function TalentSiteDashboardClient({ initialState, onReload, locale = "en
               <p style={{ fontSize: 12.5, color: COLORS.inkMuted }}>
                 <button
                   type="button"
-                  onClick={() => openDrawer("talent-tier-compare")}
+                  onClick={() => openUpgrade({ feature: "generic", from: "site-dashboard-locked" })}
                   style={{
                     border: "none",
                     background: "none",

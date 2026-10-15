@@ -10,6 +10,10 @@ import {
   EMPTY_THREAD,
   applyIncomingMessage,
   canOfferHuman,
+  shouldShowThinking,
+  humanOfferPlacement,
+  lastAiAnswerId,
+  showHelpfulRow,
   humanRequestedPatch,
   selectThread,
   threadReducer,
@@ -188,4 +192,35 @@ test("canOfferHuman: no escalation offer once a human has the ticket", () => {
   assert.equal(canOfferHuman({ handledBy: "human", status: "open" }), false);
   assert.equal(canOfferHuman({ handledBy: "ai", status: "closed" }), false);
   assert.equal(canOfferHuman(null), true);
+});
+
+test("shouldShowThinking: hides the bubble once an AI reply is the last message (TUL-948)", () => {
+  const mk = (authorKind: string) => ({ authorKind, deletedAt: null }) as never;
+  assert.equal(shouldShowThinking(true, [mk("requester")]), true);
+  assert.equal(shouldShowThinking(true, [mk("requester"), mk("ai")]), false);
+  assert.equal(shouldShowThinking(false, [mk("requester")]), false);
+  assert.equal(shouldShowThinking(true, []), true);
+});
+
+test("TUL-942: exactly one escalate control per thread", () => {
+  assert.equal(humanOfferPlacement({ canOffer: true, hasOfferCard: true, hasAiAnswer: true }), "card");
+  assert.equal(humanOfferPlacement({ canOffer: true, hasOfferCard: false, hasAiAnswer: true }), "bubble");
+  assert.equal(humanOfferPlacement({ canOffer: true, hasOfferCard: false, hasAiAnswer: false }), "footer");
+  assert.equal(humanOfferPlacement({ canOffer: false, hasOfferCard: false, hasAiAnswer: true }), "none");
+  const msgs = [
+    { id: "a", authorKind: "ai", messageKind: "text", deletedAt: null },
+    { id: "b", authorKind: "requester", messageKind: "text", deletedAt: null },
+    { id: "c", authorKind: "ai", messageKind: "text", deletedAt: null },
+    { id: "d", authorKind: "ai", messageKind: "card", deletedAt: null },
+  ] as unknown as Parameters<typeof lastAiAnswerId>[0];
+  assert.equal(lastAiAnswerId(msgs), "c");
+});
+
+test("TUL-943: the Yes/No helpful row disappears whole once a person has the ticket", () => {
+  const ai = { handledBy: "ai", status: "open" } as const;
+  const human = { handledBy: "human", status: "open" } as const;
+  assert.equal(showHelpfulRow(ai, false), true);
+  assert.equal(showHelpfulRow(ai, true), false);
+  assert.equal(showHelpfulRow(human, false), false);
+  assert.equal(showHelpfulRow(null, false), true);
 });
