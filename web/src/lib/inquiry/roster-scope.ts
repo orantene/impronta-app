@@ -4,6 +4,17 @@ export function scopeRosterToTalent<T extends { id: string }>(roster: readonly T
 }
 
 /**
+ * Which talent (if any) a guest surface is narrowed to. Only a HUB tenant owns no
+ * roster of its own (it lists the cross-tenant Discover index), so only there does a
+ * talent's page narrow to that one talent. An agency page keeps the agency's own
+ * roster (that tenant's talent + services); a single talent's own site is already
+ * one talent. Never other tenants either way.
+ */
+export function narrowTalentForTenant(tenantKind: string | null | undefined, talentProfileId: string | null | undefined): string | null {
+  return tenantKind === "hub" && talentProfileId ? talentProfileId : null;
+}
+
+/**
  * The tenant a talent's offerings are read under for the Concierge dock/chips
  * (P0 TUL-1070). Always the CURRENT tenant, so another tenant's catalog for the
  * same talent never shows. The one exception is a HUB page, which owns no

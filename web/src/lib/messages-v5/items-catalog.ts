@@ -147,7 +147,7 @@ export async function loadCatalogRowsForScope(
   return [...talent, ...offerings, ...sessions, ...tables];
 }
 
-async function loadTalentRows(admin: Admin, tenantId: string, window: { from: Date; to: Date } | null, now: Date): Promise<CatalogRow[]> {
+export async function loadTalentRows(admin: Admin, tenantId: string, window: { from: Date; to: Date } | null, now: Date): Promise<CatalogRow[]> {
   const { data, error } = await admin
     .from("agency_talent_roster")
     .select("talent_profile_id, talent_profiles!talent_profile_id ( id, profile_code, display_name )")
