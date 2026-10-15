@@ -12,7 +12,8 @@
  * navigating. The URL stays `/talent/inbox/<id>`.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { pinNextConversation } from "@/components/admin/shell/internal/messages/conversation-pending";
 import { TalentPageRouteSyncer } from "../../_talent-page-route-syncer";
 
@@ -23,5 +24,21 @@ export function PinAndOpenThread({ conversationId }: { conversationId: string })
     pinNextConversation(conversationId);
     return null;
   });
-  return <TalentPageRouteSyncer page="messages" />;
+  // The old full-page banner is gone, so say it to screen readers instead:
+  // a polite live status that announces once and then clears. Focus moves to
+  // the Messages region itself (MessagesPage), not to this node.
+  const es = useDashboardLocale().toLowerCase().startsWith("es");
+  const [status, setStatus] = useState(es ? "Abriendo la conversación…" : "Opening conversation…");
+  useEffect(() => {
+    const t = window.setTimeout(() => setStatus(""), 4000);
+    return () => window.clearTimeout(t);
+  }, []);
+  return (
+    <>
+      <span role="status" aria-live="polite" className="sr-only" data-testid="thread-opening-status">
+        {status}
+      </span>
+      <TalentPageRouteSyncer page="messages" />
+    </>
+  );
 }

@@ -49,6 +49,14 @@ function TalentMessagesV5() {
   }, []);
   const initialInquiryId = fromQuery ?? fromPin;
   const [activeId, setActiveId] = useState<string | null>(initialInquiryId);
+  // A deep link (bell, ?inquiry=) opens a thread without a click inside this
+  // page, so keyboard and screen-reader focus must follow it: land on the
+  // Messages region once, on mount.
+  const regionRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (initialInquiryId) regionRef.current?.focus({ preventScroll: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on mount
+  }, []);
   // TUL-956: the address follows the open thread, so a refresh or a shared
   // link reopens it. Only on the platform /talent/inbox routes.
   useEffect(() => {
@@ -90,8 +98,12 @@ function TalentMessagesV5() {
 
   return (
     <div
+      ref={regionRef}
+      tabIndex={-1}
+      role="region"
+      aria-label={copy.t("Messages")}
       data-talent-messages-v5
-      className="-mx-[14px] -mt-[14px] -mb-[60px] flex h-[calc(100dvh-66px)] min-h-0 flex-col max-md:h-[calc(100dvh-115px-env(safe-area-inset-bottom,0px))]"
+      className="outline-none -mx-[14px] -mt-[14px] -mb-[60px] flex h-[calc(100dvh-66px)] min-h-0 flex-col max-md:h-[calc(100dvh-115px-env(safe-area-inset-bottom,0px))]"
     >
       <div className="flex shrink-0 justify-end px-2">
         <MessagesSettingsDrawer />

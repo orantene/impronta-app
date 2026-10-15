@@ -12,8 +12,19 @@ describe("TUL-391 / TUL-959 / TUL-956 thread deep link opens in place", () => {
     assert.match(SRC, /<TalentPageRouteSyncer page="messages" \/>/);
     assert.doesNotMatch(SRC, /router\.replace|useRouter/);
   });
-  it("no longer paints the stuck 'Abriendo la conversación…' banner (TUL-1031)", () => {
-    assert.doesNotMatch(SRC, /Abriendo la conversaci|Opening conversation/);
+  it("announces the opening to screen readers only: no visible full-page banner (TUL-1031)", () => {
+    assert.match(SRC, /role="status" aria-live="polite" className="sr-only"/);
+    assert.match(SRC, /Abriendo la conversaci/);
+    assert.match(SRC, /Opening conversation/);
+    assert.doesNotMatch(SRC, /padding: 40|textAlign: "center"/, "the visible banner must stay gone");
+  });
+  it("clears the status after it has been announced", () => {
+    assert.match(SRC, /setTimeout\(\(\) => setStatus\(""\)/);
+  });
+  it("moves focus to the Messages region on a deep link (a11y)", () => {
+    const page = readFileSync(PAGE, "utf8");
+    assert.match(page, /regionRef\.current\?\.focus\(\{ preventScroll: true \}\)/);
+    assert.match(page, /ref=\{regionRef\}\s+tabIndex=\{-1\}\s+role="region"/);
   });
   it("Messages keeps the address on the open thread", () => {
     const page = readFileSync(PAGE, "utf8");
