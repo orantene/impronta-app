@@ -17670,6 +17670,11 @@
       "filesNone": "Todavía no hay ningún archivo adjunto a un hito.",
       "kpiCollectedNoteOne": "1 registro pagado"
     },
+    "adminNotFound": {
+      "title": "Página no encontrada",
+      "body": "Esta página no existe o pudo haberse movido. Revisa la dirección o vuelve a tu resumen.",
+      "back": "Volver al resumen"
+    },
     "clientRecord": {
       "title": "Cliente",
       "unavailable": "No pudimos cargar este cliente. No se cambio nada. Intenta de nuevo en un momento.",

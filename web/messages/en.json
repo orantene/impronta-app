@@ -17670,6 +17670,11 @@
       "filesNone": "No file is attached to a milestone yet.",
       "kpiCollectedNoteOne": "1 record paid"
     },
+    "adminNotFound": {
+      "title": "Page not found",
+      "body": "This page does not exist or may have moved. Check the address or head back to your overview.",
+      "back": "Back to Overview"
+    },
     "clientRecord": {
       "title": "Client",
       "unavailable": "We could not load this client. Nothing was changed. Try again in a moment.",

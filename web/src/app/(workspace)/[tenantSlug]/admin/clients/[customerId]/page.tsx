@@ -117,6 +117,7 @@ export default async function ClientRecordPage({ params, searchParams }: { param
   const load = await loadClientRecord(scope.tenantId, customerId);
 
   if (!load.ok) {
+    if (load.reason === "invalid" || load.reason === "not_found") notFound();
     const message =
       load.reason === "invalid"
         ? tr("dashboard.clientRecord.invalidId")
