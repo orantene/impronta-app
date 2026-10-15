@@ -52,6 +52,8 @@ const DOCK_LABEL_PX = 11;
  * has zero effect above the breakpoint.
  */
 export const MOBILE_RAIL_EXPAND_EVENT = "ec-mobile-rail-expand";
+/** Phone: the command rail asks the inspector dock to slide in after a tab is picked, so the panel it opens is visible. */
+export const MOBILE_INSPECTOR_OPEN_EVENT = "ec-mobile-inspector-open";
 
 interface DockItem {
   id: string;

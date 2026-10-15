@@ -80,3 +80,13 @@ test("TUL-914: at 390 the right command rail folds behind an edge handle instead
   assert.match(es, /"Open section editor tabs":/);
   assert.match(es, /"Collapse section editor tabs":/);
 });
+
+test("TUL-914: picking a rail tab on a phone also slides the inspector dock in, so the panel is visible", () => {
+  const dock = read("./command-dock.tsx");
+  assert.match(dock, /export const MOBILE_INSPECTOR_OPEN_EVENT = "ec-mobile-inspector-open"/);
+  const rail = read("./inspector-command-rail.tsx");
+  assert.match(rail, /toggleInspectorTab\(key\);[\s\S]{0,120}dispatchEvent\(new CustomEvent\(MOBILE_INSPECTOR_OPEN_EVENT\)\)/);
+  const inspector = read("./inspector-dock.tsx");
+  assert.match(inspector, /useMobileInspectorOpen\(expandMobileInspector\);/);
+  assert.match(read("./use-mobile-inspector-open.ts"), /addEventListener\(MOBILE_INSPECTOR_OPEN_EVENT, onOpen\)/);
+});

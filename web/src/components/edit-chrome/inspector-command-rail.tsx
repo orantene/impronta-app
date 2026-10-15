@@ -10,7 +10,7 @@
 import { useEffect, useState, type ComponentType, type CSSProperties } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
-import { MOBILE_RAIL_EXPAND_EVENT } from "./command-dock";
+import { MOBILE_INSPECTOR_OPEN_EVENT, MOBILE_RAIL_EXPAND_EVENT } from "./command-dock";
 import { useEditContext } from "./edit-context";
 import { useFloatingDrag } from "./floating-panel";
 import { inspectorRailDockStyle } from "./inspector-rail-dock";
@@ -208,6 +208,7 @@ export function InspectorCommandRail() {
             onSelect={(key) => {
               toggleInspectorTab(key);
               setMobileExpanded(false);
+              window.dispatchEvent(new CustomEvent(MOBILE_INSPECTOR_OPEN_EVENT));
             }}
           />
         ))}
