@@ -47,15 +47,15 @@ function salesEntries(locale: GuestCorpusLocale): HelpCorpusEntry[] {
       {
         slug: "sales-booking-cut",
         purpose:
-          "Tulala cobra 6% sobre una reserva pagada, igual en todos los planes. Tres por ciento es un recargo al cliente y tres por ciento sale del vendedor. Ejemplo: una reserva de $1,000, el cliente paga $1,030, Tulala se queda con $60. No se cobra nada hasta que una reserva se paga.",
+          "El cliente paga el precio más una tarifa de servicio de Tulala de 1.5%, igual en todos los planes. Tulala no le quita nada al precio de quien vende. Ejemplo: una reserva de $1,000, el cliente paga $1,015 y Tulala se queda con $15. El procesamiento de tarjeta lo cobra el procesador a costo: por defecto lo absorbe quien vende, o puede hacer que lo cubra el cliente desde la configuración. No se cobra nada hasta que una reserva se paga.",
         youCanHere: [
-          "Ver el 6% en /pricing",
-          "El mismo 6% desde el hub o desde el sitio de la agencia",
+          "Ver la tarifa de 1.5% en /pricing",
+          "La misma tarifa de 1.5% desde el hub o desde el sitio de la agencia",
         ],
         faqs: [
           {
             q: "¿Cuánto se queda Tulala de cada reserva?",
-            a: "6% sobre una reserva pagada. En el ejemplo de $1,000, Tulala se queda con $60.",
+            a: "1.5% sobre una reserva pagada, y lo paga el cliente. En el ejemplo de $1,000, Tulala se queda con $15.",
           },
         ],
         category: "pricing",
@@ -183,15 +183,15 @@ function salesEntries(locale: GuestCorpusLocale): HelpCorpusEntry[] {
     {
       slug: "sales-booking-cut",
       purpose:
-        "Tulala takes 6% on a paid booking, the same on every plan. Three percent is a client surcharge and three percent comes off the seller. Example: a $1,000 booking, the client pays $1,030, Tulala keeps $60. Nothing is charged until a booking is paid.",
+        "The client pays the price plus a 1.5% Tulala service fee, the same on every plan. Tulala takes nothing from the seller's price. Example: a $1,000 booking, the client pays $1,015 and Tulala keeps $15. Card processing is charged at cost by the payment processor: by default the seller absorbs it, or can have the client cover it in settings. Nothing is charged until a booking is paid.",
       youCanHere: [
-        "See the 6% on /pricing",
-        "Same 6% from the hub or the agency's own site",
+        "See the 1.5% fee on /pricing",
+        "Same 1.5% fee from the hub or the agency's own site",
       ],
       faqs: [
         {
           q: "What is Tulala's cut on a booking?",
-          a: "6% on a paid booking. On a $1,000 booking example, Tulala keeps $60.",
+          a: "1.5% on a paid booking, paid by the client. On a $1,000 booking example, Tulala keeps $15.",
         },
       ],
       category: "pricing",

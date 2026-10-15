@@ -8764,7 +8764,7 @@
           "clientSurcharge": "Recargo al cliente (% del subtotal)",
           "clientSurchargePlaceholder": "división equitativa",
           "clientSurchargeEven": "equitativa",
-          "clientSurchargeHint": "La mitad del lado del cliente, añadida sobre el subtotal. Vacío = división equitativa. Con una comisión del 6%, 3% aquí = 3% cliente + 3% vendedor. Al Talent nunca se le cobra.",
+          "clientSurchargeHint": "Solo se usa cuando el modo de procesamiento es 'included'. La parte del cobro que corresponde al cliente, añadida sobre el subtotal; vacío = división equitativa. El modo vigente hoy es pass-through: el cliente paga una tarifa de servicio de 1.5% y quien vende absorbe el procesamiento de tarjeta a costo, a menos que lo pase al cliente.",
           "baseCapsTitle": "Tarifa base de reserva. Límites de plataforma",
           "baseCapsBody": "Un espacio de trabajo puede añadir una tarifa base de reserva automática (fija o % del subtotal) en cada reserva. Estos son los límites superiores que puede fijar. Vacío = sin límite. La tarifa es ingreso del espacio de trabajo y nunca se toma del Talent.",
           "maxFlatFee": "Tarifa base fija máx. ($ USD)",

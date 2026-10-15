@@ -178,7 +178,7 @@ export const AGENCY_ARTICLES: ResourceArticle[] = [
         },
         {
           q: "Does Tulala take a commission?",
-          a: "Six percent on a paid booking, the same on every plan including the free one — three percent added to what the client pays, three percent from the seller. Nothing is charged on an unpaid enquiry. What changes between plans is roster seats and tooling, not the rate.",
+          a: "A 1.5% service fee on a paid booking, paid by the client on top of the price and the same on every plan including the free one. Tulala takes nothing from the seller's price, and card processing is charged at cost (the seller absorbs it by default, or the client can cover it). Nothing is charged on an unpaid enquiry. What changes between plans is roster seats and tooling, not the rate.",
         },
       ],
     },
@@ -234,7 +234,7 @@ export const AGENCY_ARTICLES: ResourceArticle[] = [
         },
         {
           q: "¿Tulala cobra comisión?",
-          a: "Seis por ciento sobre una reserva pagada, igual en todos los planes incluido el gratuito: tres por ciento se suma a lo que paga el cliente y tres por ciento sale del vendedor. No se cobra nada por una consulta sin pagar. Entre planes cambian los cupos de la lista y las herramientas, no la tarifa.",
+          a: "Una tarifa de servicio de 1.5% sobre una reserva pagada, que paga el cliente encima del precio, igual en todos los planes incluido el gratuito. Tulala no le quita nada al precio de quien vende, y el procesamiento de tarjeta se cobra a costo (quien vende lo absorbe por defecto, o lo puede cubrir el cliente). No se cobra nada por una consulta sin pagar. Entre planes cambian los cupos de la lista y las herramientas, no la tarifa.",
         },
       ],
     },

@@ -8764,7 +8764,7 @@
           "clientSurcharge": "Client surcharge (% of subtotal)",
           "clientSurchargePlaceholder": "even split",
           "clientSurchargeEven": "even",
-          "clientSurchargeHint": "The client-side half, added on top of the subtotal. Blank = even split. With a 6% take, 3% here = 3% client + 3% seller. The talent is never charged.",
+          "clientSurchargeHint": "Only used when processing mode is 'included'. The client-side part of the take, added on top of the subtotal; blank = even split. Live mode today is pass-through: the client pays a 1.5% service fee and the seller absorbs card processing at cost unless they pass it to the client.",
           "baseCapsTitle": "Base reservation fee. Platform caps",
           "baseCapsBody": "A workspace may add an automatic base reservation fee (flat and/or % of subtotal) on every booking. These are the upper bounds it can set. Blank = uncapped. The fee is workspace revenue and is never taken from the talent.",
           "maxFlatFee": "Max flat base fee ($ USD)",
