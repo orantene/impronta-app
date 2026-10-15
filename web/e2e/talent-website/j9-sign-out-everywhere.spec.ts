@@ -71,8 +71,26 @@ async function plantBrowserSession(page: Page) {
   });
 }
 
+/**
+ * Whether a sign-out answered on `signOutOrigin` can expire cookies held for
+ * `origin`. A browser only accepts a Set-Cookie for the response host or a
+ * parent Domain of it, so `localhost` can never expire `acme.lvh.me` or
+ * `.lvh.me` cookies (fixture-vs-product: production's equivalent is
+ * app.tulala.digital expiring `.tulala.digital`, which the sweep does and
+ * cookie-domain.test.ts pins). Two origins share a sweep scope only when they
+ * are the same host or both sit under the shared `.lvh.me` parent.
+ */
+function sweepReaches(signOutOrigin: string, origin: string): boolean {
+  const a = new URL(signOutOrigin).hostname;
+  const b = new URL(origin).hostname;
+  if (a === b) return true;
+  const shared = (h: string) => (h === "lvh.me" || h.endsWith(".lvh.me") ? ".lvh.me" : undefined);
+  return shared(a) !== undefined && shared(a) === shared(b);
+}
+
 async function assertSignedOutEverywhere(page: Page, context: BrowserContext, checkStorage: boolean) {
-  for (const origin of HOSTS) {
+  // Every entry point signs out on HOSTS[0] (localhost).
+  for (const origin of HOSTS.filter((o) => sweepReaches(HOSTS[0], o))) {
     await page.goto(`${origin}/login`, { waitUntil: "domcontentloaded" });
     await page.reload({ waitUntil: "domcontentloaded" });
     const left = (await context.cookies(origin)).filter((c) => AUTH_RE.test(c.name));

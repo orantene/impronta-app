@@ -71,3 +71,13 @@ test("authCookieExpiryHeaders is host-only on localhost", () => {
   assert.ok(h.includes("sb-x-auth-token=; Path=/; Max-Age=0"));
   assert.ok(h.every((x) => !x.includes("Domain=")));
 });
+
+test("sweep scope follows the response host: acme.lvh.me expires .lvh.me, localhost never does", () => {
+  const names = ["sb-127-auth-token"];
+  const acme = authCookieExpiryHeaders(names, "acme.lvh.me:3000");
+  assert.ok(acme.some((h) => h.endsWith("Domain=.lvh.me")));
+  assert.ok(acme.some((h) => h.endsWith("Domain=.acme.lvh.me")));
+  assert.ok(acme.some((h) => !/Domain=/.test(h)));
+  const local = authCookieExpiryHeaders(names, "localhost:3000");
+  assert.ok(local.length > 0 && local.every((h) => !/Domain=/.test(h)));
+});
