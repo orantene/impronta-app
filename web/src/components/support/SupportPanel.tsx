@@ -23,7 +23,7 @@ import { Composer, NewTicketForm } from "./SupportPanelForms";
 import { SupportIdeaForm } from "./SupportIdeaForm";
 import { HomeView, TicketRow } from "./SupportPanelHome";
 import { GuideTab } from "./GuideTab";
-import { NewQuestionStrip } from "./support-new-question-strip";
+import { NewQuestionStrip, showNewQuestionStripForThread } from "./support-new-question-strip";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import type { SupportContract } from "./support-contract";
 import { createClient } from "@/lib/supabase/client";
@@ -584,7 +584,7 @@ export function SupportPanel({
             </div>
           ) : null}
           <NewQuestionStrip
-            status={ticket?.status}
+            show={showNewQuestionStripForThread(ticket, messages[messages.length - 1]?.authorKind)}
             onNewQuestion={() => {
               setAsk("");
               setAskError(null);

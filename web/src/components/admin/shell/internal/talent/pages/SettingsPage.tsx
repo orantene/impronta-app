@@ -295,7 +295,7 @@ export function SettingsPage() {
     {
       key: "help",
       label: tx("Help and support"),
-      sub: tx("Common questions, payouts, contact our team."),
+      sub: tx("Shortcuts, help centre, contact our team."),
       onOpen: () => openDrawer("help"),
     },
   );
