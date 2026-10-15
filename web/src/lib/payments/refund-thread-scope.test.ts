@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { assertTransactionOnThread } from "./refund-thread-scope";
+import { assertTransactionOnThread, refundOnThread } from "./refund-thread-scope";
 
 type Row = Record<string, unknown>;
 
@@ -76,6 +76,44 @@ test("the inbox action runs the scope check before executeBookingRefund", () => 
   const start = src.indexOf("export async function refundInquiryTransaction");
   assert.ok(start > 0, "action exists");
   const body = src.slice(start, start + 2500);
-  assert.ok(body.indexOf("assertTransactionOnThread") > 0);
-  assert.ok(body.indexOf("assertTransactionOnThread") < body.indexOf("executeBookingRefund"));
+  assert.ok(body.includes("refundOnThread"));
+});
+
+test("refundOnThread: no billing permission is refused before anything runs", async () => {
+  let executed = false;
+  const r = await refundOnThread(fakeSb(tables), { tenantId: "t1", inquiryId: "q1", transactionId: "x1" }, {
+    canRefund: async () => false,
+    execute: async () => {
+      executed = true;
+      return { ok: true };
+    },
+  });
+  assert.equal(r.ok, false);
+  assert.equal(executed, false);
+});
+
+test("refundOnThread: inquiry/transaction mismatch never reaches the refund", async () => {
+  let executed = false;
+  const r = await refundOnThread(fakeSb(tables), { tenantId: "t1", inquiryId: "q1", transactionId: "x2" }, {
+    canRefund: async () => true,
+    execute: async () => {
+      executed = true;
+      return { ok: true };
+    },
+  });
+  assert.equal(r.ok, false);
+  assert.equal(executed, false);
+});
+
+test("refundOnThread: permitted + on-thread delegates once", async () => {
+  const seen: string[] = [];
+  const r = await refundOnThread(fakeSb(tables), { tenantId: "t1", inquiryId: "q1", transactionId: "x1" }, {
+    canRefund: async () => true,
+    execute: async (id) => {
+      seen.push(id);
+      return { ok: true };
+    },
+  });
+  assert.equal(r.ok, true);
+  assert.deepEqual(seen, ["x1"]);
 });

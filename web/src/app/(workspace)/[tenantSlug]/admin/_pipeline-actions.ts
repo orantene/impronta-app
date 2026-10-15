@@ -87,7 +87,7 @@ import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { userHasCapability } from "@/lib/access";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { executeBookingRefund, isRefundReason } from "@/lib/payments/refund-execute";
-import { assertTransactionOnThread } from "@/lib/payments/refund-thread-scope";
+import { refundOnThread } from "@/lib/payments/refund-thread-scope";
 
 import {
   loadInquiryAttachments as loadInquiryAttachmentsImpl,
@@ -444,25 +444,27 @@ export async function refundInquiryTransaction(
   const auth = await requireInquiryManagerAction(inquiryId);
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
-  if (
-    !(await userHasCapability("booking.payment.refund", tenantId)) &&
-    !(await userHasCapability("manage_billing", tenantId))
-  ) {
-    return { ok: false, error: "You do not have permission to refund a payment." };
-  }
   if (!isRefundReason(input.reason)) return { ok: false, error: "Choose a reason for the refund." };
-
-  const scope = await assertTransactionOnThread(supabase, { tenantId, inquiryId, transactionId: input.transactionId });
-  if (!scope.ok) return { ok: false, error: scope.error };
+  const reason = input.reason;
 
   const actor = await getCachedActorSession();
-  const result = await executeBookingRefund({
-    transactionId: input.transactionId,
-    amountCents: input.amountCents ?? null,
-    reason: input.reason,
-    actorUserId: actor?.user?.id ?? null,
-    note: input.note?.trim() || null,
-  });
+  const result = await refundOnThread(
+    supabase,
+    { tenantId, inquiryId, transactionId: input.transactionId },
+    {
+      canRefund: async () =>
+        (await userHasCapability("booking.payment.refund", tenantId)) ||
+        (await userHasCapability("manage_billing", tenantId)),
+      execute: (transactionId) =>
+        executeBookingRefund({
+          transactionId,
+          amountCents: input.amountCents ?? null,
+          reason,
+          actorUserId: actor?.user?.id ?? null,
+          note: input.note?.trim() || null,
+        }),
+    },
+  );
   if (!result.ok) return { ok: false, error: result.error };
   revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true };
