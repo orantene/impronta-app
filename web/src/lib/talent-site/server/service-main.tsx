@@ -18,6 +18,7 @@ import {
   servicePriceLine as priceLine,
   servicePageCopy,
   serviceSlug,
+  serviceTypedFacts,
   type ServicePageOffering,
 } from "@/lib/talent-site/service-page";
 
@@ -131,6 +132,7 @@ export function serviceMainNode(
   const facts: ReactNode = dp
     ? parts.map((p, i) => <Fragment key={i}>{i > 0 ? " · " : null}{p}</Fragment>)
     : parts.join(" · ");
+  const typedFacts = serviceTypedFacts(o, opts.locale, copy);
   const wrap: CSSProperties = {
     maxWidth: 760,
     margin: "0 auto",
@@ -151,6 +153,16 @@ export function serviceMainNode(
       <p data-talent-service-description="" style={{ margin: "0 0 28px", whiteSpace: "pre-line" }}>
         {o.description?.trim() ? o.description : serviceMetaText(o, opts.talentName ?? null, { city: opts.city, locale: opts.locale }).description}
       </p>
+      {typedFacts.length > 0 ? (
+        <dl data-talent-service-facts="" style={{ margin: "0 0 28px", display: "grid", gridTemplateColumns: "max-content 1fr", gap: "6px 16px", fontSize: 15 }}>
+          {typedFacts.map((f) => (
+            <Fragment key={f.key}>
+              <dt style={{ color: SOFT }}>{f.label}</dt>
+              <dd style={{ margin: 0 }}>{f.value}</dd>
+            </Fragment>
+          ))}
+        </dl>
+      ) : null}
       {photos.length > 0 ? (
         <div data-talent-service-photos="" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 8, margin: "0 0 28px" }}>
           {photos.map((src, i) => (

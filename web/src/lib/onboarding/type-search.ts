@@ -24,6 +24,11 @@ const OVERLAY: Record<string, { label?: { en: string; es: string }; synonyms: re
   "deep-cleaning-specialist": { synonyms: ["limpieza", "aseo", "casa"] },
 };
 
+/** Intent words the signup picker and the directory search both honour for a taxonomy slug. */
+export function overlaySynonyms(slug: string): readonly string[] {
+  return OVERLAY[slug]?.synonyms ?? [];
+}
+
 function withOverlay(term: TalentTypeTerm): TalentTypeTerm {
   const o = OVERLAY[term.slug];
   if (!o) return term;

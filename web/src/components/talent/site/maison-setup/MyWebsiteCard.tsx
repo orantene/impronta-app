@@ -446,7 +446,7 @@ export function MyWebsiteCard({
             <span
               data-testid="maison-live-address"
               title={address}
-              className="inline-flex min-w-0 shrink items-center gap-1.5 truncate rounded-full border border-admin-border-soft bg-admin-surface-alt px-3 py-1.5 text-[13px] font-semibold text-admin-ink"
+              className="block min-w-0 shrink overflow-hidden text-ellipsis whitespace-nowrap rounded-full border border-admin-border-soft bg-admin-surface-alt px-3 py-1.5 text-[13px] font-semibold text-admin-ink"
             >
               {address}
             </span>

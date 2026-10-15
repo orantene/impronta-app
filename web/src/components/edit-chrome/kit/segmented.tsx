@@ -73,7 +73,7 @@ export function Segmented<T extends string>({
         // labels mid-word ("NoirChampagneNoise"). `auto-fit` + a 64px
         // minimum keeps ratio chips denser on narrow inspector panels.
         gridTemplateColumns: fullWidth
-          ? `repeat(auto-fit, minmax(64px, 1fr))`
+          ? `repeat(auto-fit, minmax(80px, 1fr))`
           : undefined,
         gap: fullWidth ? 2 : undefined,
         ...style,
@@ -150,7 +150,7 @@ export function Segmented<T extends string>({
                 overflow: "hidden",
                 textOverflow: fullWidth ? "clip" : "ellipsis",
                 whiteSpace: fullWidth ? "normal" : "nowrap",
-                overflowWrap: fullWidth ? "anywhere" : undefined,
+                overflowWrap: fullWidth ? "break-word" : undefined,
                 textAlign: fullWidth ? "center" : undefined,
                 lineHeight: fullWidth ? 1.2 : undefined,
                 minWidth: 0,

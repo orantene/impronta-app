@@ -36,7 +36,16 @@ const geometry = readFileSync("src/components/support/support-panel-geometry.ts"
 test("TUL-982: the compact launcher sits above the tab bar, not at 62% of the viewport", () => {
   assert.doesNotMatch(launcher, /"62%"/);
   assert.match(launcher, /SUPPORT_LAUNCHER_COMPACT_BOTTOM/);
-  assert.match(geometry, /84px \+ env\(safe-area-inset-bottom/);
+  assert.match(geometry, /65px \+ 12px \+ env\(safe-area-inset-bottom/);
+});
+
+test("TUL-982: the shell's phone rule clears the nav plus the safe-area inset without --tulala-mobile-nav-h", () => {
+  const css = readFileSync("src/components/admin/shell/internal/messages-mobile-css.ts", "utf8");
+  const rule = css.match(/\[data-tulala-support-launcher\] \{[^}]*\}/)?.[0] ?? "";
+  assert.match(rule, /bottom: calc\(65px \+ 12px \+ env\(safe-area-inset-bottom, 0px\)\) !important/);
+  // The variable lives on .tulala-shell; the launcher is a sibling, so it never resolves there.
+  assert.doesNotMatch(rule, /--tulala-mobile-nav-h/);
+  assert.match(geometry, /calc\(65px \+ 12px \+ env\(safe-area-inset-bottom, 0px\)\)/);
 });
 
 test("TUL-947: the launcher lifts above the offline banner and hides with the keyboard", () => {

@@ -32,15 +32,15 @@ test("skeleton paints structure with English and Spanish labels (no em dash)", (
   assert.match(en, /aria-busy="true"/);
 });
 
-test("talent host and /t/site loading.tsx mount the paint skeleton", () => {
-  const hostLoading = readFileSync(
-    path.join(webRoot, "src/app/%5Ftalent-site/loading.tsx"),
+test("talent host page (Suspense fallback) and /t/site loading.tsx mount the paint skeleton", () => {
+  const hostPage = readFileSync(
+    path.join(webRoot, "src/app/%5Ftalent-site/[[...pageSlug]]/page.tsx"),
     "utf8",
   );
   const siteLoading = readFileSync(
     path.join(webRoot, "src/app/t/site/[siteSlug]/loading.tsx"),
     "utf8",
   );
-  assert.match(hostLoading, /TalentSitePaintSkeleton/);
+  assert.match(hostPage, /<Suspense fallback=\{<TalentSitePaintSkeleton/);
   assert.match(siteLoading, /TalentSitePaintSkeleton/);
 });
