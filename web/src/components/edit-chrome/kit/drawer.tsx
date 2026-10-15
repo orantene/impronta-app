@@ -632,7 +632,7 @@ export function DrawerTabs({ className, children }: DrawerTabsProps) {
   return (
     <div
       role="tablist"
-      className={`flex min-w-0 max-w-full shrink-0 items-stretch gap-5 overflow-x-auto overscroll-x-contain px-[18px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className ?? ""}`}
+      className={`flex min-w-0 max-w-full shrink-0 items-stretch gap-5 overflow-x-auto overscroll-x-contain px-[18px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden max-sm:flex-wrap max-sm:gap-x-3 max-sm:gap-y-0 max-sm:overflow-x-visible max-sm:px-3 ${className ?? ""}`}
     >
       {children}
     </div>
