@@ -15,7 +15,7 @@ import type { Locale } from "@/i18n/config";
 import { buildTenantLocaleAlternates } from "@/lib/seo/locale-alternates";
 import { getPublicTenantScope, getPublicPathPrefix } from "@/lib/saas/scope";
 import { loadPageForRender } from "@/lib/site-admin/server/page-reads";
-import { inPlaceSlugs, preferRequestedSlug } from "@/lib/site-admin/server/public-page-fallback";
+import { fallbackLookupOrder, inPlaceSlugs, preferRequestedSlug } from "@/lib/site-admin/server/public-page-fallback";
 import { missingPageRedirect } from "@/lib/site-admin/server/public-page-fallback.server";
 import { loadPublicComponentStyleDefaults } from "@/lib/site-admin/server/reads";
 import {
@@ -389,6 +389,13 @@ export default async function CmsPublicPage({
     // language keeps rendering (as its own design).
     const localeSettings = await loadTenantLocaleSettings(publicScope.tenantId);
     const designPlan = resolveDesignLocale(localeSettings, locale);
+    // TUL-867: on a /w/<slug> host a page that only exists in another
+    // supported locale renders in place instead of redirecting/404ing.
+    const lookupLocales = fallbackLookupOrder(
+      designPlan.lookupOrder,
+      localeSettings.supportedLocales,
+      await getPublicPathPrefix(),
+    );
     // The PUBLISHED read goes through cms_public_pages_for_tenant — the same
     // SECURITY-INVOKER RPC the metadata read uses. It runs
     // `set_config('app.current_tenant_id', …)` so the cms_pages RLS policy
@@ -399,7 +406,7 @@ export default async function CmsPublicPage({
     const publishedRead = await supabase
       .rpc("cms_public_pages_for_tenant", { p_tenant_id: publicScope.tenantId })
       .select(freeformCols)
-      .in("locale", designPlan.lookupOrder as string[])
+      .in("locale", lookupLocales)
       // TUL-867: role links (/services) resolve in place to the counterpart
       // slug (servicios) with no forced locale prefix.
       .in("slug", inPlaceSlugs(slugPath))
@@ -414,7 +421,7 @@ export default async function CmsPublicPage({
       // swallowed-error trap that once blanked every multi-locale page. Take
       // both and pick by design priority below.
       .limit(4);
-    let freeformPage = pickDesignRow(preferRequestedSlug(publishedRead.data as unknown as FreeformPageRow[] | null, slugPath), designPlan.lookupOrder);
+    let freeformPage = pickDesignRow(preferRequestedSlug(publishedRead.data as unknown as FreeformPageRow[] | null, slugPath), lookupLocales);
     let freeformErr = publishedRead.error;
     // Draft preview (staff): the published-only RPC won't surface a draft, so
     // read the row directly — RLS admits it for staff via is_staff_of_tenant
@@ -439,12 +446,12 @@ export default async function CmsPublicPage({
         .from("cms_pages")
         .select(freeformCols)
         .eq("tenant_id", publicScope.tenantId)
-        .in("locale", designPlan.lookupOrder as string[])
+        .in("locale", lookupLocales)
         .in("slug", inPlaceSlugs(slugPath))
         .eq("is_freeform", true)
         .eq("is_system_owned", false)
         .limit(4);
-      freeformPage = pickDesignRow(preferRequestedSlug(draftRead.data as unknown as FreeformPageRow[] | null, slugPath), designPlan.lookupOrder);
+      freeformPage = pickDesignRow(preferRequestedSlug(draftRead.data as unknown as FreeformPageRow[] | null, slugPath), lookupLocales);
       freeformErr = draftRead.error;
     }
     if (
