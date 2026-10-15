@@ -82,9 +82,9 @@ test("New booking opens as the same drawer / bottom sheet from Today and Calenda
   assert.match(read("talent/agenda/AgendaNewBooking.tsx"), /embedded \? "grid gap-4"/);
 });
 
-test("Calendar header reads Bookings with List and Working hours buttons (calendar_d)", () => {
+test("Calendar header reads Calendar with List and Working hours buttons (calendar_d)", () => {
   const cal = read("talent/agenda/AgendaCalendarPage.tsx");
-  assert.match(cal, /title=\{copy\.t\("Bookings"\)\}/);
+  assert.match(cal, /title=\{copy\.t\("Calendar"\)\}/);
   assert.match(cal, /copy\.t\("List"\)/);
   assert.match(cal, /copy\.t\("Working hours"\)/);
 });

@@ -17,6 +17,8 @@ export function servedCanonical(
   }
 }
 
+import { clampMetaTitle } from "@/lib/seo/business-workspace-seo";
+
 type MetaPage = {
   title: string;
   meta_title: string | null;
@@ -38,7 +40,8 @@ export function assemblePageMetadata<A extends { alternates?: object | null }>(
   alt: A,
   servedPath: string | null,
 ) {
-  const title = page.meta_title?.trim() || page.title;
+  // TUL-591: operator-authored titles are cut at ~60 chars (word boundary) like descriptions.
+  const title = clampMetaTitle(page.meta_title?.trim() || page.title);
   const description = page.meta_description?.trim() || undefined;
   const canonical = page.canonical_url?.trim();
   return {

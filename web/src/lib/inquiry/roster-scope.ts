@@ -13,3 +13,15 @@ export function scopeRosterToTalent<T extends { id: string }>(roster: readonly T
 export function narrowTalentForTenant(tenantKind: string | null | undefined, talentProfileId: string | null | undefined): string | null {
   return tenantKind === "hub" && talentProfileId ? talentProfileId : null;
 }
+
+/**
+ * The tenant a talent's offerings are read under for the Concierge dock/chips
+ * (P0 TUL-1070). Always the CURRENT tenant, so another tenant's catalog for the
+ * same talent never shows. The one exception is a HUB page, which owns no
+ * catalog of its own and shows the talent's own services (same rule as the
+ * storefront payload: `agency => tenantId, hub => null`).
+ */
+export function offeringsTenantScope(tenantKind: string | null | undefined, tenantId: string | null | undefined): string | null {
+  if (!tenantId) return null;
+  return tenantKind === "hub" ? null : tenantId;
+}

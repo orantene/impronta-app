@@ -15,7 +15,7 @@ type Row = { label: string; detail: string; page?: TalentPage; run?: () => void 
 
 export function TalentMoreScreen({ onClose }: { onClose: () => void }) {
   const copy = useDashboardText();
-  const { setTalentPage, bridgeTalentSelfProfile, bridgeTalentCompletion, talentLocales, supportedLocales, tenantDefaultLocale } =
+  const { setTalentPage, openDrawer, bridgeTalentSelfProfile, bridgeTalentCompletion, talentLocales, supportedLocales, tenantDefaultLocale } =
     useAdminShell();
   const eligibility = useWebsiteEligibility();
   const [signingOut, setSigningOut] = useState(false);
@@ -53,9 +53,8 @@ export function TalentMoreScreen({ onClose }: { onClose: () => void }) {
     {
       title: "Presence",
       rows: [
-        { label: "My public page", detail: publicPageDetail, page: "public-page" },
-        { label: "Where I appear", detail: publicPageDetail, page: "public-page" },
-        { label: "Edit my profile", detail: profileLeft, page: "profile" },
+        { label: "My presence", detail: publicPageDetail, page: "public-page" },
+        { label: "Profile", detail: profileLeft, page: "profile" },
         { label: "Photos of my work", detail: photosDetail, page: "profile" },
         { label: "Reviews", detail: copy.t("Open"), page: "reviews" },
       ],
@@ -71,6 +70,15 @@ export function TalentMoreScreen({ onClose }: { onClose: () => void }) {
     {
       title: "You",
       rows: [
+        // TUL-986: desktop rail footer has Plan (opens the tier-compare drawer); same label here.
+        {
+          label: "Plan",
+          detail: "",
+          run: () => {
+            openDrawer("talent-tier-compare");
+            onClose();
+          },
+        },
         { label: "Settings", detail: "", page: "settings" },
         { label: "Get help", detail: "", run: () => {
             // The sheet is full-screen above the panel: close it first or the tap looks dead (TUL-904).

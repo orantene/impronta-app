@@ -59,6 +59,8 @@ const BUY_HREF: Partial<Record<ItemCategory, string>> = { service: "/book", clas
 
 export type GuestDockCatalogProps = {
   tenantSlug: string;
+  /** The talent this dock belongs to (server-provided). Falls back to the /t/<code> path. */
+  profileCode?: string | null;
   businessName: string;
   locale: string;
   t: Translator;
@@ -149,7 +151,8 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
   }, [serviceMenu]);
   const [serviceChip, setServiceChip] = useState<string | null>(null);
   const pathname = usePathname();
-  const pageProfileCode = /^\/(?:[a-z]{2}\/)?t\/([^/?#]+)/.exec(pathname ?? "")?.[1] ?? null; // P0: per-talent page => that talent only
+  // P0: per-talent dock => that talent only. The server-provided code wins; the path is only a fallback.
+  const pageProfileCode = p.profileCode ?? /^\/(?:[a-z]{2}\/)?t\/([^/?#]+)/.exec(pathname ?? "")?.[1] ?? null;
   const cart = useInquiryCart();
   const [groups, setGroups] = useState<GuestCatalogGroup[] | null>(null);
   const [failed, setFailed] = useState(false);
@@ -294,9 +297,9 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
         ? serviceMenu.filter((item) => item.category === activeService).map((item) => {
             const openSheet = dockServiceOpensBookingSheet(item.cta, item.offeringId);
             return (
-            <div key={item.title} data-guest-catalog-row="service" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", fontFamily: FONT }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</div>
+            <div key={item.title} data-guest-catalog-row="service" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, padding: "8px 14px", fontFamily: FONT }}>
+              <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflowWrap: "anywhere", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{item.title}</div>
                 {item.priceLabel ? (
                   <div
                     data-guest-service-price
@@ -335,9 +338,9 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
         const buyHref = buyPath && !onHubProfile ? clientLocaleHref(pathname ?? "/", buyPath) : null;
         const price = row.amountCents != null && row.amountCents > 0 ? formatOrderMoney(row.amountCents, "USD") : null;
         return (
-          <div key={row.id} data-guest-catalog-row={row.category} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", fontFamily: FONT }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.title}</div>
+          <div key={row.id} data-guest-catalog-row={row.category} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, padding: "8px 14px", fontFamily: FONT }}>
+            <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+              <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflowWrap: "anywhere", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{row.title}</div>
               <div style={{ fontSize: 11.5, color: C.inkDim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {[price, row.sub, !row.available ? t("public.guestChat.catalogUnavailable") : null].filter(Boolean).join(" · ")}
               </div>

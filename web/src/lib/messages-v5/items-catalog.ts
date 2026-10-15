@@ -106,16 +106,45 @@ export async function loadItemsCatalog(admin: Admin, input: { tenantId: string; 
   });
   const talentProfileId = pickScopedTalentId({ forcedTalentId: input.talentProfileId, talentOwned, contextTalentIds: context.talentIds });
 
+  const rows = await loadCatalogRowsForScope(admin, {
+    tenantId: input.tenantId,
+    talentProfileId,
+    forcedTalent: Boolean(input.talentProfileId),
+    window,
+    now,
+    date,
+    reservations: Boolean(preset.features.reservations),
+  });
+
+  return { rows, date, timezone, preset: presetRaw };
+}
+
+/**
+ * P0 TUL-1070: every row source of the dock catalog, scoped in one place.
+ *
+ * - No talent: the tenant's own roster + offerings + sessions (+ tables).
+ * - Talent from a talent-owned conversation: that talent's offerings under the tenant, plus tenant sessions.
+ * - FORCED talent (the dock belongs to one talent's page/site): ONLY that talent's own public
+ *   offerings (no tenant filter, because a hub-hosted talent's rows live on their own tenant), no
+ *   roster, and no tenant-wide sessions or tables, which on a hub are other people's events.
+ */
+export async function loadCatalogRowsForScope(
+  admin: Admin,
+  input: { tenantId: string; talentProfileId: string | null; forcedTalent: boolean; window: { from: Date; to: Date } | null; now: Date; date: string | null; reservations: boolean },
+): Promise<CatalogRow[]> {
+  const { tenantId, talentProfileId, forcedTalent, window, now, date, reservations } = input;
+  if (forcedTalent && talentProfileId) {
+    return loadTalentProfileOfferingRows(admin, null, talentProfileId);
+  }
   const [talent, offerings, sessions, tables] = await Promise.all([
     // A solo talent sells only their own services: the hub roster lists other
     // talents, so the Talent tab is not offered at all.
-    talentProfileId ? Promise.resolve([] as CatalogRow[]) : loadTalentRows(admin, input.tenantId, window, now),
-    talentProfileId ? loadTalentProfileOfferingRows(admin, input.tenantId, talentProfileId) : loadOfferingRows(admin, input.tenantId),
-    loadSessionRows(admin, input.tenantId, now),
-    date && preset.features.reservations ? loadTableRows(input.tenantId, date) : Promise.resolve([] as CatalogRow[]),
+    talentProfileId ? Promise.resolve([] as CatalogRow[]) : loadTalentRows(admin, tenantId, window, now),
+    talentProfileId ? loadTalentProfileOfferingRows(admin, tenantId, talentProfileId) : loadOfferingRows(admin, tenantId),
+    loadSessionRows(admin, tenantId, now),
+    date && reservations ? loadTableRows(tenantId, date) : Promise.resolve([] as CatalogRow[]),
   ]);
-
-  return { rows: [...talent, ...offerings, ...sessions, ...tables], date, timezone, preset: presetRaw };
+  return [...talent, ...offerings, ...sessions, ...tables];
 }
 
 export async function loadTalentRows(admin: Admin, tenantId: string, window: { from: Date; to: Date } | null, now: Date): Promise<CatalogRow[]> {
@@ -194,11 +223,13 @@ export async function loadOfferingRows(admin: Admin, tenantId: string): Promise<
 }
 
 /** Her published services, with the option as a variant and extras as add-ons. */
-export async function loadTalentProfileOfferingRows(admin: Admin, tenantId: string, talentProfileId: string): Promise<CatalogRow[]> {
-  const { data, error } = await admin
+export async function loadTalentProfileOfferingRows(admin: Admin, tenantId: string | null, talentProfileId: string): Promise<CatalogRow[]> {
+  let query = admin
     .from("talent_offerings")
-    .select("id, title, amount_cents, currency, kind, inventory_qty, capacity_pool_id, duration_minutes")
-    .eq("tenant_id", tenantId)
+    .select("id, title, amount_cents, currency, kind, inventory_qty, capacity_pool_id, duration_minutes");
+  // null tenant = the talent's own site/hub page: only THIS talent's rows, whichever tenant row they sit on.
+  if (tenantId) query = query.eq("tenant_id", tenantId);
+  const { data, error } = await query
     .eq("talent_profile_id", talentProfileId)
     .eq("status", "published")
     .eq("moderation_state", "approved")

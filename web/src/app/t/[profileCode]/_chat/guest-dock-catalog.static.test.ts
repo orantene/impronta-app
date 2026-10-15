@@ -99,3 +99,9 @@ test("TUL-1068 #2: a refused add (not for sale / different currency) gets its ow
   const action = read("lib/server-actions/messaging-client.ts");
   assert.match(action, /added\.reason === "invalid" \? "invalid" : "unavailable"/);
 });
+
+test("TUL-1070: dock row names wrap to two lines instead of truncating to one (390px)", () => {
+  const src = read("app/t/[profileCode]/_chat/GuestDockCatalog.tsx");
+  assert.match(src, /WebkitLineClamp: 2/);
+  assert.doesNotMatch(src, /fontWeight: 600, color: C\.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"/);
+});
