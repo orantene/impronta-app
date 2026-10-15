@@ -21,3 +21,11 @@ test("Today appointment names wrap (line-clamp-2) instead of truncating", () => 
   const src = readFileSync(join(root, "talent/agenda/AgendaTodayPage.tsx"), "utf8");
   assert.match(src, /line-clamp-2 break-words text-\[14px\] font-semibold[^"]*">\s*\{copy\.t\(item\.client\?\.name/);
 });
+
+test("TUL-995: phone page header keeps its subtitle and the talent top bar has the language switch", () => {
+  const chrome = readFileSync(join(root, "talent/shared/page-chrome-1.tsx"), "utf8");
+  assert.doesNotMatch(chrome, /\[data-tulala-page-header\] p \{ display: none/);
+  assert.match(chrome, /text-overflow: ellipsis/);
+  const bar = readFileSync(join(root, "page-modules/MobileTopBar.tsx"), "utf8");
+  assert.match(bar, /inTalent \? <LanguageMenu \/> : null/);
+});

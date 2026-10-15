@@ -40,7 +40,11 @@ export function PageHeader({
           border-bottom: 1px solid rgba(11,11,13,0.08);
         }
         [data-tulala-page-header] [data-tulala-page-eyebrow] { display: none !important; }
-        [data-tulala-page-header] p { display: none !important; }
+        /* TUL-995: the date/city subtitle stays on a phone, one ellipsised line. */
+        [data-tulala-page-header] p {
+          margin: 2px 0 0 !important; font-size: 12px !important; line-height: 1.35 !important;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
         [data-tulala-page-header-actions] { flex-shrink: 0 !important; }
       }
     `}</style>
