@@ -12,6 +12,7 @@ import {
   AuthNotice,
   AuthSubmitButton,
 } from "@/components/auth/auth-ui";
+import { readAuthEmailDraft, writeAuthEmailDraft } from "@/lib/auth/email-draft";
 import { createTranslator } from "@/i18n/messages";
 import { withLocaleHref } from "@/i18n/pathnames";
 import { AgeTermsCheckbox } from "@/components/auth/age-terms-checkbox";
@@ -121,7 +122,8 @@ export function RegisterForm({
           type="email"
           autoComplete="email"
           required
-          defaultValue={defaultEmail}
+          defaultValue={defaultEmail ?? readAuthEmailDraft()}
+          onChange={(e) => writeAuthEmailDraft(e.target.value)}
           placeholder={t("public.auth.form.emailPlaceholder")}
           className={AUTH_INPUT_CLASS}
           style={AUTH_INPUT_STYLE}
