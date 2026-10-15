@@ -43,6 +43,17 @@ export function flowStepOf(step: ModuleStep): FlowStepNumber {
 export type FlowLocale = "en" | "es";
 
 /**
+ * TUL-813: review, email and code all live in step 4. Email and code are
+ * sub-steps, so the progress line names them instead of repeating "4/4"
+ * three times with no change. The total never grows.
+ */
+export function flowSubLabel(step: ModuleStep, locale: FlowLocale): string | null {
+  if (step === "save") return locale === "es" ? "TU CUENTA" : "YOUR ACCOUNT";
+  if (step === "code") return locale === "es" ? "CÓDIGO DEL CORREO" : "EMAIL CODE";
+  return null;
+}
+
+/**
  * Spanish by default for Mexico: an `es-*` (or `es`) browser language, or a
  * Mexico country code when the browser names no language we serve. An explicit
  * saved choice (cookie / module state) wins, then an explicit en/es browser.

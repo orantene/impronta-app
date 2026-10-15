@@ -9,7 +9,7 @@
  * Length is validated, not truncated by maxLength, so a long paste gets an
  * explanation instead of silently losing its tail.
  */
-import { useId } from "react";
+import { useId, type CSSProperties } from "react";
 
 import type { ServiceAddressErrorCode } from "@/lib/scheduling/service-address";
 
@@ -40,9 +40,11 @@ export function ServiceAddressField({
   return (
     <div className="jb-field" data-service-address-field>
       <label htmlFor={addressId}>{copy.addressLabel}</label>
-      <input
+      {/* TUL-933: a textarea wraps, so a long address can be read in full at 390px before confirming. */}
+      <textarea
         id={addressId}
-        type="text"
+        rows={2}
+        style={{ fieldSizing: "content", minHeight: 52 } as CSSProperties}
         name="service-address"
         autoComplete="street-address"
         required
