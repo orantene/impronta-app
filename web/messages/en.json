@@ -44,6 +44,9 @@
       "googlePopupBlocked": "Popup blocked. Allow popups for this site and try again.",
       "googleUnableToStart": "Unable to start Google sign-in.",
       "shell": {
+        "clientHeading": "Book and manage everything in one place.",
+        "clientLead": "Create a free client account to follow your bookings, messages and payments.",
+        "clientPoints": {"book": "Follow every booking and payment", "thread": "Message the talent or team in one thread", "secure": "Sign in with a code or a password"},
         "back": "Back to {site}",
         "tenantHeading": "Your work and your bookings, in one place.",
         "tenantLead": "Manage your profile, your bookings, and your messages with {brand}.",

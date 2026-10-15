@@ -44,6 +44,9 @@
       "googlePopupBlocked": "El navegador bloqueó la ventana emergente. Permite ventanas emergentes para este sitio e inténtalo de nuevo.",
       "googleUnableToStart": "No se pudo iniciar el acceso con Google.",
       "shell": {
+        "clientHeading": "Reserva y gestiona todo en un solo lugar.",
+        "clientLead": "Crea una cuenta de cliente gratis para seguir tus reservas, mensajes y pagos.",
+        "clientPoints": {"book": "Sigue cada reserva y cada pago", "thread": "Escribe al talento o al equipo en un solo hilo", "secure": "Entra con un código o una contraseña"},
         "back": "Volver a {site}",
         "tenantHeading": "Tu trabajo y tus reservas, en un solo lugar.",
         "tenantLead": "Gestiona tu perfil, tus reservas y tus mensajes con {brand}.",
