@@ -198,3 +198,14 @@ test("TUL-1025: EN time step shows the English hint and keeps Continue disabled"
   act(() => m.root.unmount());
   m.host.remove();
 });
+
+test("TUL-1022: EN confirmation keeps the picker date format and the venue zone label", async () => {
+  clearCatalogDone();
+  const m = mount("en");
+  await bookThrough(m.host);
+  assert.ok(m.host.querySelector(".jb-done"), "done step after confirm");
+  assert.match(m.host.querySelector(".jb-done h3")?.textContent ?? "", /^Wednesday Oct 14, 18:00 · Cancún time$/);
+  act(() => m.root.unmount());
+  m.host.remove();
+  clearCatalogDone();
+});
