@@ -1,7 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { counterpartSlug, inPlaceSlugs, preferRequestedSlug, resolveMissingPage, ROLE_SLUG_PAIRS } from "./public-page-fallback";
+import {
+  counterpartSlug,
+  fallbackLookupOrder,
+  inPlaceSlugs,
+  isWorkspacePathPrefix,
+  missingPageRedirectPath,
+  pickMetaRow,
+  preferRequestedSlug,
+  resolveMissingPage,
+  ROLE_SLUG_PAIRS,
+} from "./public-page-fallback";
 
 // The live case (isolated fxlank, studio/both site): pages exist as Spanish
 // slugs in locale "en"; the header links /services, /about, /gallery, /contact.
@@ -57,4 +67,53 @@ test("preferRequestedSlug: exact slug wins, counterpart serves otherwise, empty 
   assert.deepEqual(preferRequestedSlug(only, "services"), only);
   assert.deepEqual(preferRequestedSlug([], "unknown"), []);
   assert.equal(preferRequestedSlug(null, "x"), null);
+});
+
+// TUL-867 / TUL-697: path-based workspace prefixes (`/w/<slug>`).
+
+const esDefault = { defaultLocale: "es", publicLocales: ["es", "en"] };
+
+test("isWorkspacePathPrefix: only /w/<slug>", () => {
+  assert.equal(isWorkspacePathPrefix("/w/qa-paid-owner"), true);
+  assert.equal(isWorkspacePathPrefix(""), false);
+  assert.equal(isWorkspacePathPrefix("/w/x/en"), false);
+  assert.equal(isWorkspacePathPrefix("/impronta"), false);
+  assert.equal(isWorkspacePathPrefix(undefined), false);
+});
+
+test("missingPageRedirectPath is locale-first on a path-based prefix", () => {
+  assert.equal(
+    missingPageRedirectPath({ hit: { locale: "en", slug: "servicios" }, settings: esDefault, pathPrefix: "/w/qa-paid-owner" }),
+    "/en/w/qa-paid-owner/servicios",
+  );
+  assert.equal(
+    missingPageRedirectPath({ hit: { locale: "es", slug: "servicios" }, settings: esDefault, pathPrefix: "/w/qa-paid-owner" }),
+    "/w/qa-paid-owner/servicios",
+  );
+  assert.equal(
+    missingPageRedirectPath({ hit: { locale: "en", slug: "services" }, settings: esDefault }),
+    "/en/services",
+  );
+});
+
+test("fallbackLookupOrder widens to every supported locale only on /w/<slug>", () => {
+  assert.deepEqual(fallbackLookupOrder(["es"], ["es", "en"], "/w/qa-paid-owner"), ["es", "en"]);
+  assert.deepEqual(fallbackLookupOrder(["es", "en"], ["es", "en", "fr"], "/w/q-a"), ["es", "en", "fr"]);
+  assert.deepEqual(fallbackLookupOrder(["es"], ["es", "en"], ""), ["es"]);
+});
+
+test("pickMetaRow: requested locale wins; alias and other-locale rows resolve in place; unknown is null", () => {
+  const rows = [
+    { locale: "en", slug: "servicios", title: "Services" },
+    { locale: "en", slug: "nosotros", title: "About" },
+  ];
+  const order = ["es", "en"];
+  assert.equal(pickMetaRow(rows, "en", "services", order)?.row.title, "Services");
+  assert.equal(pickMetaRow(rows, "en", "about", order)?.row.title, "About");
+  assert.equal(pickMetaRow(rows, "es", "about", ["es", "en"])?.row.title, "About");
+  assert.equal(pickMetaRow(rows, "es", "about", ["es", "en"])?.inPlace, true);
+  assert.equal(pickMetaRow(rows, "es", "about", ["es"]), null);
+  assert.equal(pickMetaRow(rows, "es", "nope", order), null);
+  const exact = [{ locale: "en", slug: "services", title: "S" }];
+  assert.equal(pickMetaRow(exact, "en", "services", order)?.inPlace, false);
 });

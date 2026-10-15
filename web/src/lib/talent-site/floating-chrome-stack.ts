@@ -56,6 +56,8 @@ export const HELP_BUBBLE_CHIP_CLEARANCE_PX = 160;
 
 export const CONSENT_BANNER_SELECTOR = "[data-consent-banner]";
 export const LOCALE_SUGGESTION_SELECTOR = "[data-locale-suggestion]";
+/** TUL-697: mounted only while the public header's mobile drawer is open (Radix unmounts it when closed). */
+export const PUBLIC_HEADER_MENU_SELECTOR = "[data-public-header-menu]";
 export const DEMO_BADGE_SELECTOR = "[data-demo-badge]";
 /** TUL-795: phone-only "Reservar" bar on a service page; reserves its height through --cb-bar-h. */
 export const SERVICE_STICKY_CTA_SELECTOR = "[data-talent-service-sticky]";
@@ -114,6 +116,8 @@ body:has(${CONSENT_BANNER_SELECTOR}) #hero{padding-bottom:max(2rem,calc(var(--fl
 @media (max-width:639px){:root:has(${SERVICE_STICKY_CTA_SELECTOR}){--cb-bar-h:calc(64px + env(safe-area-inset-bottom,0px))}body:has(${SERVICE_STICKY_CTA_SELECTOR}) [data-guest-chat-launcher]{bottom:calc(var(--cb-bar-h) + 12px)!important}}
 @media (min-width:640px){${SERVICE_STICKY_CTA_SELECTOR}{display:none!important}}
 body:has(.jb-back) [data-guest-chat-launcher],body:has(.jb-back) [data-help-bubble]{display:none!important}
+/* TUL-697: the open mobile nav drawer owns the screen; floating chat/help/demo/locale chrome (z 90+) must not paint over it. */
+body:has(${PUBLIC_HEADER_MENU_SELECTOR}) [data-guest-chat-launcher],body:has(${PUBLIC_HEADER_MENU_SELECTOR}) [data-help-bubble],body:has(${PUBLIC_HEADER_MENU_SELECTOR}) ${DEMO_BADGE_SELECTOR},body:has(${PUBLIC_HEADER_MENU_SELECTOR}) ${LOCALE_SUGGESTION_SELECTOR}{display:none!important}
 `.replace(/\n/g, "");
 
 /**

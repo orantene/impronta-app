@@ -22,6 +22,7 @@
  * ensure path), then the add runs once the thread token arrives.
  */
 
+import { onlyAvailableRows, searchCatalogRows, sortCatalogRows, type CatalogSort } from "@/lib/messages-v5/catalog-search";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 
@@ -181,7 +182,7 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
       const res = await messagingClientAddItem({ token, offeringId: row.offeringId, label: row.title, units: 1, sessionId: row.sessionId });
       setBusyId(null);
       if (!res.ok) {
-        setNotice(t("public.guestChat.catalogAddFailed"));
+        setNotice(t(res.reason === "invalid" ? "public.guestChat.catalogAddInvalid" : "public.guestChat.catalogAddFailed"));
         return;
       }
       setAddedIds((s) => new Set(s).add(row.id));
@@ -219,7 +220,13 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
     [add, onEnsureInquiry, t, threadToken],
   );
 
-  const visible = useMemo(() => groups?.find((g) => g.category === category)?.rows ?? [], [groups, category]);
+  const [searchText, setSearchText] = useState("");
+  const [sort, setSort] = useState<CatalogSort>("default");
+  const [availableOnly, setAvailableOnly] = useState(false);
+  const visible = useMemo(
+    () => sortCatalogRows(onlyAvailableRows(searchCatalogRows(groups?.find((g) => g.category === category)?.rows ?? [], searchText), availableOnly), sort),
+    [groups, category, searchText, availableOnly, sort],
+  );
 
   const usingServices = serviceChips.length > 0;
   const activeService = serviceChip ?? serviceChips[0] ?? null;
@@ -240,6 +247,31 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
               <Chip key={g.category} on={g.category === category} label={t(CATEGORY_KEY[g.category])} onClick={() => { setCategory(g.category); setNotice(null); }} C={C} accent={accent} />
             ))}
       </div>
+      {!usingServices ? (
+        <div style={{ padding: "0 14px" }}>
+          <input
+            type="search"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            placeholder={t("public.guestChat.catalogSearchPlaceholder")}
+            aria-label={t("public.guestChat.catalogSearchPlaceholder")}
+            style={{ width: "100%", boxSizing: "border-box", border: `1px solid ${C.borderSoft}`, borderRadius: 999, padding: "7px 12px", fontSize: 13, fontFamily: FONT, color: C.ink, background: "#fff" }}
+          />
+          <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as CatalogSort)}
+              aria-label={t("public.guestChat.catalogSortLabel")}
+              style={{ border: `1px solid ${C.borderSoft}`, borderRadius: 999, padding: "5px 10px", fontSize: 12, fontFamily: FONT, color: C.ink, background: "#fff" }}
+            >
+              <option value="default">{t("public.guestChat.catalogSortDefault")}</option>
+              <option value="price_asc">{t("public.guestChat.catalogSortPriceAsc")}</option>
+              <option value="price_desc">{t("public.guestChat.catalogSortPriceDesc")}</option>
+            </select>
+            <Chip on={availableOnly} label={t("public.guestChat.catalogAvailableOnly")} onClick={() => setAvailableOnly((v) => !v)} C={C} accent={accent} />
+          </div>
+        </div>
+      ) : null}
       {notice && (
         <div role="status" style={{ margin: "0 14px", padding: "7px 10px", borderRadius: 10, background: `${accent}14`, color: accent, fontSize: 12.5, fontWeight: 600, fontFamily: FONT }}>
           {notice}
