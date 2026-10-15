@@ -12,3 +12,24 @@ export function readAuthEmailDraft(): string {
 export function writeAuthEmailDraft(value: string): void {
   draft = value;
 }
+
+/**
+ * The address a lane should show: what the visitor typed (the draft) wins over the
+ * page's `?email=` default, which only seeds an empty form. TUL-768 round 2: the
+ * code lane preferred `defaultEmail`, so password -> code showed the default or an
+ * empty box instead of the typed address.
+ */
+export function pickAuthEmail(draft: string | null | undefined, defaultEmail: string | null | undefined): string {
+  return draft || defaultEmail || "";
+}
+
+let nameDraft = "";
+
+/** TUL-762: the sign-up name survives the code/password lane switch like the email does. */
+export function readAuthNameDraft(): string {
+  return nameDraft;
+}
+
+export function writeAuthNameDraft(value: string): void {
+  nameDraft = value;
+}

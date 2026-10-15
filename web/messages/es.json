@@ -44,6 +44,9 @@
       "googlePopupBlocked": "El navegador bloqueó la ventana emergente. Permite ventanas emergentes para este sitio e inténtalo de nuevo.",
       "googleUnableToStart": "No se pudo iniciar el acceso con Google.",
       "shell": {
+        "clientHeading": "Reserva y gestiona todo en un solo lugar.",
+        "clientLead": "Crea una cuenta de cliente gratis para seguir tus reservas, mensajes y pagos.",
+        "clientPoints": {"book": "Sigue cada reserva y cada pago", "thread": "Escribe al talento o al equipo en un solo hilo", "secure": "Entra con un código o una contraseña"},
         "back": "Volver a {site}",
         "tenantHeading": "Tu trabajo y tus reservas, en un solo lugar.",
         "tenantLead": "Gestiona tu perfil, tus reservas y tus mensajes con {brand}.",
@@ -63,12 +66,14 @@
         "descriptionNoApple": "Continúa con Google o correo electrónico. Con Google, la contraseña es opcional; puedes agregar una después en Cuenta.",
         "inviteDescription": "{agency} te invitó a su roster. Inicia sesión para reclamar tu perfil y empezar a recibir reservas.",
         "google": "Continuar con Google",
-        "emailSubmit": "Iniciar sesión con correo",
+        "emailSubmit": "Iniciar sesión",
         "pending": "Iniciando sesión…",
         "forgot": "¿Olvidaste tu contraseña?",
         "remember": "Mantener mi sesión activa por 30 días",
         "noAccount": "¿No tienes cuenta?",
         "signUp": "Regístrate",
+        "clientPrompt": "¿Vas a reservar?",
+        "clientSignUp": "Crea una cuenta de cliente",
         "sessionExpired": "Tu sesión expiró. Vuelve a iniciar sesión.",
         "linkExpired": "Ese enlace de acceso venció o ya se usó. Pide uno nuevo abajo.",
         "eyebrow": "Bienvenido de nuevo",
@@ -135,6 +140,8 @@
       "form": {
         "email": "Correo electrónico",
         "emailPlaceholder": "tu@ejemplo.com",
+        "name": "Nombre completo",
+        "namePlaceholder": "Tu nombre",
         "password": "Contraseña"
       },
       "actions": {
@@ -158,7 +165,7 @@
       },
       "errors": {
         "invalidCredentials": "Correo o contraseña incorrectos. Revisa el correo o usa Olvidé mi contraseña.",
-        "emailNotConfirmed": "Tu correo aún no está confirmado. Revisa tu bandeja de entrada para encontrar el enlace de confirmación.",
+        "emailNotConfirmed": "Tu correo aún no está verificado. Elige Envíame un código abajo para verificarlo e iniciar sesión.",
         "tooManyAttempts": "Demasiados intentos; espera un minuto e inténtalo de nuevo.",
         "network": "Problema de conexión; revisa tu red e inténtalo de nuevo."
       },
@@ -192,7 +199,7 @@
         "unknownBody": "No pudimos terminar de reclamar tu perfil. Pide a {agency} que envíe una invitación nueva."
       },
       "passwordless": {
-        "emailSubmit": "Envíame un código de acceso",
+        "emailSubmit": "Envíame un código",
         "emailPending": "Enviando tu código",
         "emailHint": "Sin contraseña. Te enviamos por correo un código de acceso y también un enlace de acceso.",
         "plusEmailHint": "Los correos con un + (nombre+tag@) a menudo nunca reciben el código. Usa una dirección sin + si puedes.",
@@ -208,7 +215,7 @@
         "resending": "Enviando",
         "changeEmail": "Usar otro correo",
         "usePassword": "Usar una contraseña",
-        "useCode": "Recibir un código por correo",
+        "useCode": "Envíame un código",
         "errors": {
           "codeRequired": "Escribe el código de tu correo.",
           "codeInvalid": "Ese código no funcionó. Revisa los dígitos o pide un código nuevo.",
