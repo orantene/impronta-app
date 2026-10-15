@@ -13,6 +13,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Translator } from "@/i18n/interpolate";
 import type { GuestThreadMessage, GuestThreadV5Extras, MiniChatBrand } from "@/lib/inquiry/guest-chat-contract";
 import type { GuestDockCatalogProps } from "./GuestDockCatalog";
+import type { EnsureInquiryForItems } from "./guest-catalog-add-flow";
 import { bookAgainRecordId } from "@/lib/messages-v5/guest-book-again";
 import { messagingClientBookAgain } from "@/lib/server-actions/messaging-client";
 
@@ -122,7 +123,7 @@ export function useGuestDockModel(input: {
       tenantSlug: string;
       inquiryId: string | null;
       sourcePage: string;
-      onEnsureInquiry: (() => Promise<string | null>) | null;
+      onEnsureInquiry: EnsureInquiryForItems | null;
       onAsk: (text: string) => void;
     }): GuestDockCatalogProps => ({
       serviceMenu: input.brand.dockServiceMenu,

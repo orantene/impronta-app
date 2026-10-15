@@ -1327,6 +1327,8 @@
       "timesAskPrefill": "La reserva temporal terminó. ¿Podemos elegir otro horario?",
       "catalogAdded": "{item} añadido a tu solicitud. Nada queda reservado hasta que confirmen.",
       "catalogAddFailed": "No se pudo añadir ahora. Intenta de nuevo o pregunta en el chat.",
+      "catalogRemoveLocked": "Ese artículo ya forma parte de una oferta o pedido y no se puede quitar aquí. Pregunta en el chat.",
+      "catalogRemoveFailed": "No se pudo quitar ahora. Intenta de nuevo.",
       "dockTrayLabel": "Solicitud · {n}",
       "dockTrayRemove": "Quitar",
       "dockTrayOpenLineup": "Abrir Artículos",

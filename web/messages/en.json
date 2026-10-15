@@ -1327,6 +1327,8 @@
       "timesAskPrefill": "The hold ended. Can we look at another time?",
       "catalogAdded": "{item} added to your inquiry. Nothing is booked until they confirm.",
       "catalogAddFailed": "Could not add that right now. Try again, or just ask in the chat.",
+      "catalogRemoveLocked": "That item is already part of an offer or order, so it can no longer be removed here. Ask in the chat.",
+      "catalogRemoveFailed": "Could not remove that right now. Try again.",
       "dockTrayLabel": "Inquiry · {n}",
       "dockTrayRemove": "Remove",
       "dockTrayOpenLineup": "Open the Items tab",
