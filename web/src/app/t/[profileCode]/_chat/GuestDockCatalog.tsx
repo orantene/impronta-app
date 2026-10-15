@@ -182,7 +182,7 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
       const res = await messagingClientAddItem({ token, offeringId: row.offeringId, label: row.title, units: 1, sessionId: row.sessionId });
       setBusyId(null);
       if (!res.ok) {
-        setNotice(t("public.guestChat.catalogAddFailed"));
+        setNotice(t(res.reason === "invalid" ? "public.guestChat.catalogAddInvalid" : "public.guestChat.catalogAddFailed"));
         return;
       }
       setAddedIds((s) => new Set(s).add(row.id));
