@@ -219,7 +219,7 @@ export function servicePageIsQuote(o: ServicePageOffering): boolean {
 
 /** Materials, warranty and response time the talent typed for this service, in the page language. Empty rows are dropped, never invented (TUL-795). */
 export function serviceTypedFacts(
-  o: Pick<ServicePageOffering, "attributes">,
+  o: { attributes?: Record<string, unknown> | null },
   locale: string,
   copy: Pick<ServicePageCopy, "materials" | "warranty" | "response">,
 ): Array<{ key: "materials" | "warranty" | "response"; label: string; value: string }> {
