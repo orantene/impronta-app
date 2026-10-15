@@ -1035,6 +1035,7 @@
       "cancel": "Cancel",
       "confirm": "Confirm",
       "editorDateLabel": "Event date",
+      "dateIncompleteError": "Please enter the full date (day, month and year).",
       "dateExact": "Exact date",
       "dateFlexible": "Flexible",
       "dateNotSure": "Not sure yet",
