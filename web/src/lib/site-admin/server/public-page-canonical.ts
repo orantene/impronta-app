@@ -33,7 +33,7 @@ type MetaPage = {
  * canonical_url always wins; an in-place render drops hreflang and canonicalizes
  * to the served URL; otherwise the request-anchored alternates stand.
  */
-export function assemblePageMetadata<A extends { alternates?: object }>(
+export function assemblePageMetadata<A extends { alternates?: object | null }>(
   page: MetaPage,
   alt: A,
   servedPath: string | null,

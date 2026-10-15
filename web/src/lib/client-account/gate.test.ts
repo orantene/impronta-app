@@ -133,7 +133,8 @@ test("every render path is behind the gate", () => {
   const preview = src("src/lib/client-account/account-preview.ts");
   assert.match(preview, /return siteChrome\.account \? "live" : "off"/);
   assert.match(src("src/lib/site-admin/sections/site_header/HeaderAccountPreview.tsx"), /if \(mode === "off"\) return null/);
-  assert.match(src("src/app/api/client/account/route.ts"), /accountSurfaceEnabledForRequest\(\)\)\) return reply\(\{ error: "not_found" \}, 404\)/);
+  // Flag off: a guest-shaped 200 (no session read), not a 404 that spams the booking sheet console.
+  assert.match(src("src/app/api/client/account/route.ts"), /accountSurfaceEnabledForRequest\(\)\)\) return reply\(\{ signedIn: false \}\)/);
   assert.match(src("src/lib/client-account/actions.ts"), /!\(await accountSurfaceEnabledForRequest\(\)\)\) return \{ ok: false/);
 });
 
