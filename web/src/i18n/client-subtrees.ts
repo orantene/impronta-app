@@ -55,5 +55,4 @@ export function pickClientSubtrees(catalog: Catalog): Catalog {
   return out;
 }
 
-/** Global the root layout's inline script assigns before hydration. */
-export const CLIENT_MESSAGES_GLOBAL = "__TULALA_MSGS__";
+export { CLIENT_MESSAGES_GLOBAL } from "./client-messages-global";

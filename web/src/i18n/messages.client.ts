@@ -5,7 +5,7 @@
  * subtrees the root layout inlines, plus the full catalogs once `useT` code has
  * registered them (`full-catalogs.client.ts`). See `client-subtrees.ts`.
  */
-import { CLIENT_MESSAGES_GLOBAL } from "./client-subtrees";
+import { CLIENT_MESSAGES_GLOBAL } from "./client-messages-global";
 import { defaultLocale } from "./config";
 
 type Catalog = Record<string, unknown>;

@@ -61,7 +61,7 @@ import {
 } from "./fonts";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { LocaleSuggestionBanner } from "@/components/locale-suggestion-banner";
-import { CLIENT_MESSAGES_GLOBAL } from "@/i18n/client-subtrees";
+import { CLIENT_MESSAGES_GLOBAL } from "@/i18n/client-messages-global";
 import { getClientMessagesPayload } from "@/i18n/messages";
 import { TenantRegisterMount } from "@/components/marketing/tenant-register-mount";
 import { PlatformJsonLd } from "@/components/marketing/platform-json-ld";
