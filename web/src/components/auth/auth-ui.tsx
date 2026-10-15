@@ -22,7 +22,7 @@
  * from here (a client form that imports it just bundles it client-side).
  */
 
-import type { CSSProperties, ReactNode } from "react";
+import { cloneElement, isValidElement, type CSSProperties, type ReactElement, type ReactNode } from "react";
 
 import { AuthGoogleGlyph } from "@/components/auth/auth-google-glyph";
 
@@ -192,6 +192,14 @@ export function AuthField({
   hint?: string;
   children: ReactNode;
 }) {
+  // TUL-1098: the hint is announced with the control (aria-describedby) instead of floating free.
+  const hintId = hint && htmlFor ? `${htmlFor}-hint` : undefined;
+  const control =
+    hintId && isValidElement(children)
+      ? cloneElement(children as ReactElement<{ "aria-describedby"?: string }>, {
+          "aria-describedby": (children.props as { "aria-describedby"?: string })["aria-describedby"] ?? hintId,
+        })
+      : children;
   return (
     <div>
       <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -204,9 +212,10 @@ export function AuthField({
         </label>
         {rightSlot}
       </div>
-      {children}
+      {control}
       {hint ? (
         <p
+          id={hintId}
           className="mt-1.5 text-[0.75rem] leading-[1.45]"
           style={{ color: "var(--plt-muted)" }}
         >

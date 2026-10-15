@@ -13,6 +13,7 @@ import {
   AuthSubmitButton,
 } from "@/components/auth/auth-ui";
 import { pickAuthEmail, readAuthEmailDraft, readAuthNameDraft, writeAuthEmailDraft, writeAuthNameDraft } from "@/lib/auth/email-draft";
+import { useFocusFirstInvalidOnError } from "@/lib/auth/use-focus-first-invalid";
 import { createTranslator } from "@/i18n/messages";
 import { withLocaleHref } from "@/i18n/pathnames";
 import { AgeTermsCheckbox } from "@/components/auth/age-terms-checkbox";
@@ -88,6 +89,7 @@ export function RegisterForm({
   >(signUpWithEmail, undefined);
   // "Use a different email" pins the form back until the next signup attempt.
   const [backToForm, setBackToForm] = useState(false);
+  useFocusFirstInvalidOnError(state?.error);
 
   // Confirmation required: the code box replaces the form for that address.
   // The confirmation email carries the link too, so both ways still work.
@@ -147,6 +149,7 @@ export function RegisterForm({
           type="email"
           autoComplete="email"
           required
+          aria-invalid={state?.error ? true : undefined}
           defaultValue={pickAuthEmail(readAuthEmailDraft(), defaultEmail)}
           onChange={(e) => writeAuthEmailDraft(e.target.value)}
           placeholder={t("public.auth.form.emailPlaceholder")}

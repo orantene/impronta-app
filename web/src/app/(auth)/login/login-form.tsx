@@ -12,6 +12,7 @@ import {
   AuthSubmitButton,
 } from "@/components/auth/auth-ui";
 import { pickAuthEmail, readAuthEmailDraft, writeAuthEmailDraft } from "@/lib/auth/email-draft";
+import { useFocusFirstInvalidOnError } from "@/lib/auth/use-focus-first-invalid";
 import { createTranslator } from "@/i18n/messages";
 import { withLocaleHref } from "@/i18n/pathnames";
 
@@ -79,6 +80,7 @@ export function LoginForm({
   };
 
   const friendlyError = friendlyAuthError(state?.error, t);
+  useFocusFirstInvalidOnError(friendlyError);
 
   return (
     <form action={formAction} className="space-y-3.5">
@@ -101,6 +103,7 @@ export function LoginForm({
           type="email"
           autoComplete="email"
           required
+          aria-invalid={friendlyError ? true : undefined}
           value={email}
           onChange={(e) => {
             setEmail(e.target.value);

@@ -51,6 +51,7 @@ import {
 } from "@/lib/auth/code-step-url";
 import { pickAuthEmail, readAuthEmailDraft, readAuthNameDraft, writeAuthEmailDraft, writeAuthNameDraft } from "@/lib/auth/email-draft";
 import { authEmailHasPlusTag, OTP_CODE_MAX_LENGTH } from "@/lib/auth/otp-flow";
+import { useFocusFirstInvalidOnError } from "@/lib/auth/use-focus-first-invalid";
 import { createTranslator } from "@/i18n/messages";
 import { AgeTermsCheckbox } from "@/components/auth/age-terms-checkbox";
 
@@ -189,6 +190,7 @@ export function EmailCodeForm({
   const stepError =
     lane === "verify" ? stateError(verifyState) : stateError(sendState);
   const notice = lane === "send" ? sent?.notice : undefined;
+  useFocusFirstInvalidOnError(stepError);
 
   if (showPassword && passwordFallback) {
     return (
@@ -245,6 +247,7 @@ export function EmailCodeForm({
               type="text"
               inputMode="numeric"
               autoComplete="one-time-code"
+              aria-invalid={stepError ? true : undefined}
               // The code box is the only control on this step; focusing it is
               // the whole point of the screen (and saves a tap on mobile).
               autoFocus
@@ -362,6 +365,7 @@ export function EmailCodeForm({
             type="email"
             autoComplete="email"
             required
+            aria-invalid={stepError ? true : undefined}
             defaultValue={pickAuthEmail(readAuthEmailDraft(), email)}
             onChange={(e) => {
               setEmailDraft(e.target.value);
