@@ -281,7 +281,6 @@ export const PRESENCE_ES_TEXT: Record<string, string> = {
   "No expiry": "Sin vencimiento",
   "Loading your plan…": "Cargando tu plan…",
   "Compare plans": "Comparar planes",
-  "Hidden everywhere": "Oculto en todas partes",
   "Visible across Tulala": "Visible en todo Tulala",
   "Profile visibility": "Visibilidad del perfil",
   "Manage →": "Gestionar →",
