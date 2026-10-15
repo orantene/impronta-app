@@ -111,6 +111,7 @@ function Chip({ on, label, onClick, C, accent }: { on: boolean; label: string; o
         fontWeight: 600,
         fontFamily: FONT,
         whiteSpace: "nowrap",
+        flexShrink: 0,
         cursor: "pointer",
       }}
     >
@@ -385,7 +386,7 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
             ) : null}
             {buyHref && row.available ? (
               <SmallButton
-                label={dockStorefrontCtaLabel(row.category, locale, t("public.guestChat.catalogBuyNow"))}
+                label={row.category === "service" || row.category === "class" ? t("public.guestChat.catalogAdd") : dockStorefrontCtaLabel(row.category, locale, t("public.guestChat.catalogBuyNow"))}
                 href={buyHref}
                 onSelect={row.offeringId && (row.category === "service" || row.category === "class") ? () => requestChatAddService(row.offeringId as string) : undefined}
                 C={C}
