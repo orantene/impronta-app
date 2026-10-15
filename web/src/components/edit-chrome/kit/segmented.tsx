@@ -145,9 +145,14 @@ export function Segmented<T extends string>({
             ) : null}
             <span
               style={{
+                // TUL-1027: full-width groups wrap long names ("Malla rosada")
+                // instead of cutting them with an ellipsis.
                 overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
+                textOverflow: fullWidth ? "clip" : "ellipsis",
+                whiteSpace: fullWidth ? "normal" : "nowrap",
+                overflowWrap: fullWidth ? "anywhere" : undefined,
+                textAlign: fullWidth ? "center" : undefined,
+                lineHeight: fullWidth ? 1.2 : undefined,
                 minWidth: 0,
               }}
             >
