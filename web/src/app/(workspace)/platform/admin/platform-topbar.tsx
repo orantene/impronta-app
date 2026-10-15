@@ -89,13 +89,16 @@ const BASE = "/platform/admin";
 export function PlatformTopbar({
   supportOpenCount = 0,
   deskEnabled = false,
+  requestHostHint = null,
 }: {
   supportOpenCount?: number;
   /** Server-evaluated `isSupportDeskEnabled()` — Support tab becomes a portal redirect. */
   deskEnabled?: boolean;
+  /** Server-seen request host: the first paint (and no-JS) picks the staging vs prod desk. */
+  requestHostHint?: string | null;
 }) {
   const pathname = usePathname();
-  const requestHost = useRequestHost();
+  const requestHost = useRequestHost() ?? requestHostHint;
   const t = useT();
   const locale = useDashboardLocale();
 
