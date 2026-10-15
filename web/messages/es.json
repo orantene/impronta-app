@@ -70,6 +70,7 @@
         "noAccount": "¿No tienes cuenta?",
         "signUp": "Regístrate",
         "sessionExpired": "Tu sesión expiró. Vuelve a iniciar sesión.",
+        "linkExpired": "Ese enlace de acceso venció o ya se usó. Pide uno nuevo abajo.",
         "eyebrow": "Bienvenido de nuevo",
         "apple": "Continuar con Apple"
       },
@@ -2214,6 +2215,7 @@
       "past": "Anteriores",
       "noVisits": "Aún no hay visitas.",
       "bookAgain": "Reservar de nuevo",
+      "browseTalent": "Encuentra a quién reservar",
       "viewDetails": "Detalles",
       "cancellationPolicy": "Política de cancelación",
       "policyFree": "Cancelación gratis hasta {when}.",

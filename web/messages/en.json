@@ -70,6 +70,7 @@
         "noAccount": "No account?",
         "signUp": "Sign up",
         "sessionExpired": "Your session expired. Please sign in again.",
+        "linkExpired": "That sign-in link has expired or was already used. Request a new one below.",
         "eyebrow": "Welcome back",
         "apple": "Continue with Apple"
       },
@@ -2214,6 +2215,7 @@
       "past": "Past",
       "noVisits": "No visits yet.",
       "bookAgain": "Book again",
+      "browseTalent": "Find someone to book",
       "viewDetails": "Details",
       "cancellationPolicy": "Cancellation policy",
       "policyFree": "Free cancellation until {when}.",

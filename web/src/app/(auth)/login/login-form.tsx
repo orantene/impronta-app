@@ -124,7 +124,6 @@ export function LoginForm({
           type="password"
           autoComplete="current-password"
           required
-          placeholder="••••••••"
           className={AUTH_INPUT_CLASS}
           style={AUTH_INPUT_STYLE}
         />
