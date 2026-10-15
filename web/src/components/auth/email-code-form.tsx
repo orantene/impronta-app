@@ -42,7 +42,7 @@ import {
   AuthNotice,
   AuthSubmitButton,
 } from "@/components/auth/auth-ui";
-import { readAuthEmailDraft, writeAuthEmailDraft } from "@/lib/auth/email-draft";
+import { pickAuthEmail, readAuthEmailDraft, writeAuthEmailDraft } from "@/lib/auth/email-draft";
 import { authEmailHasPlusTag, OTP_CODE_MAX_LENGTH } from "@/lib/auth/otp-flow";
 import { createTranslator } from "@/i18n/messages";
 import { AgeTermsCheckbox } from "@/components/auth/age-terms-checkbox";
@@ -123,7 +123,11 @@ export function EmailCodeForm({
   const [backToEmail, setBackToEmail] = useState(false);
   const [showPassword, setShowPassword] = useState(startWithPassword);
   // TUL-558: warn before send when the visitor types a +tag alias.
-  const [emailDraft, setEmailDraft] = useState(defaultEmail ?? readAuthEmailDraft());
+  const [emailDraft, setEmailDraft] = useState(() => {
+    const seed = pickAuthEmail(readAuthEmailDraft(), defaultEmail);
+    if (seed) writeAuthEmailDraft(seed);
+    return seed;
+  });
   // Which action the visitor most recently triggered. Both `useActionState`
   // hooks keep their last result forever, so without this a stale "that code
   // isn't right" would sit on top of a fresh "new code sent" (and vice versa).
@@ -154,7 +158,13 @@ export function EmailCodeForm({
           className="text-center text-[0.8125rem]"
           style={{ color: "var(--plt-muted)" }}
         >
-          <QuietAction onClick={() => setShowPassword(false)}>
+          <QuietAction
+            onClick={() => {
+              // Back from the password lane: take the address typed there.
+              setEmailDraft(readAuthEmailDraft());
+              setShowPassword(false);
+            }}
+          >
             {t("public.auth.passwordless.useCode")}
           </QuietAction>
         </p>
@@ -292,7 +302,7 @@ export function EmailCodeForm({
             type="email"
             autoComplete="email"
             required
-            defaultValue={email ?? emailDraft}
+            defaultValue={pickAuthEmail(readAuthEmailDraft(), email)}
             onChange={(e) => {
               setEmailDraft(e.target.value);
               writeAuthEmailDraft(e.target.value);
