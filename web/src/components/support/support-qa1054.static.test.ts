@@ -82,3 +82,9 @@ test("TUL-907/995: the talent name chip opens the profile and the More sheet car
     assert.ok(m.talentPillAria, `${l} talentPillAria`);
   }
 });
+
+test("TUL-949: the thread composer sends on Enter, Shift+Enter is a newline, IME composition never sends", () => {
+  const forms = readFileSync("src/components/support/SupportPanelForms.tsx", "utf8");
+  assert.match(forms, /e\.key === "Enter" && !e\.shiftKey && !e\.nativeEvent\.isComposing/);
+  assert.match(forms, /enterKeyHint="send"/);
+});

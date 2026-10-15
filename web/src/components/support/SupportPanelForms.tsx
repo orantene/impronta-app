@@ -275,13 +275,16 @@ export function Composer({
           disabled={disabled || busy}
           onChange={(e) => setBody(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
+            // IME composition (CJK, accents on some keyboards) uses Enter to
+            // commit the candidate; that must not send the message.
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
               void send();
             }
           }}
           placeholder={t("dashboard.adminSupport.composerPlaceholder")}
           rows={1}
+          enterKeyHint="send"
           style={{
             flex: 1,
             resize: "none",
