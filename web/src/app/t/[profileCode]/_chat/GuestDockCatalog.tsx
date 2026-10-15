@@ -19,10 +19,11 @@
  *                                       card skin); quote and Ask stay in chat.
  *
  * A visitor with no inquiry yet gets one on the first add (the panel's
- * ensure path), then the add runs once the thread token arrives.
+ * ensure path); the thread token is read from that new thread and the add runs
+ * at once. A first add that fails discards the empty draft it created.
  */
 
-import { onlyAvailableRows, searchCatalogRows, sortCatalogRows, type CatalogSort } from "@/lib/messages-v5/catalog-search";
+import { maxDurationRows, onlyAvailableRows, searchCatalogRows, sortCatalogRows, type CatalogSort } from "@/lib/messages-v5/catalog-search";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 
@@ -41,6 +42,8 @@ import { dockServiceCtaLabel, dockServiceOpensBookingSheet, dockStorefrontCtaLab
 
 import { getGuestItemsCatalog, type GuestCatalogGroup, type GuestCatalogRow } from "../_actions/guest-catalog-actions";
 import { FONT, type paletteFor } from "./mini-chat-styles";
+import { addAddedCatalogItem } from "./guest-added-items-store";
+import { discardEmptyDraft, readGuestThreadToken, type EnsureInquiryForItems } from "./guest-catalog-add-flow";
 
 type Palette = ReturnType<typeof paletteFor>;
 
@@ -57,8 +60,11 @@ const CATEGORY_KEY: Record<ItemCategory, string> = {
 /** Kinds with a self-serve storefront page. */
 const BUY_HREF: Partial<Record<ItemCategory, string>> = { service: "/book", class: "/book", ticket: "/events" };
 
+
 export type GuestDockCatalogProps = {
   tenantSlug: string;
+  /** The talent this dock belongs to (server-provided). Falls back to the /t/<code> path. */
+  profileCode?: string | null;
   businessName: string;
   locale: string;
   t: Translator;
@@ -69,7 +75,7 @@ export type GuestDockCatalogProps = {
   threadToken: string | null;
   sourcePage: string;
   /** Creates the early inquiry row when none exists; resolves to its id. */
-  onEnsureInquiry: (() => Promise<string | null>) | null;
+  onEnsureInquiry: EnsureInquiryForItems | null;
   /** Re-read the thread (lines + token) after a write. */
   onRefresh: () => void;
   /** Prefill the composer and jump to Chat. */
@@ -111,7 +117,7 @@ function Chip({ on, label, onClick, C, accent }: { on: boolean; label: string; o
   );
 }
 
-function SmallButton({ label, onClick, primary, disabled, C, accent, accentInk, href }: { label: string; onClick?: () => void; primary?: boolean; disabled?: boolean; C: Palette; accent: string; accentInk: string; href?: string }) {
+function SmallButton({ label, onClick, primary, disabled, C, accent, accentInk, href, onSelect }: { label: string; onClick?: () => void; primary?: boolean; disabled?: boolean; C: Palette; accent: string; accentInk: string; href?: string; onSelect?: () => boolean }) {
   const style: React.CSSProperties = {
     border: primary ? "none" : `1px solid ${C.borderSoft}`,
     background: primary ? accent : "#fff",
@@ -127,7 +133,8 @@ function SmallButton({ label, onClick, primary, disabled, C, accent, accentInk, 
     textDecoration: "none",
     display: "inline-block",
   };
-  if (href) return <a href={href} style={style}>{label}</a>;
+  // TUL-1068: `onSelect` returns true when the page opened the in-page sheet; the link is only the fallback.
+  if (href) return <a href={href} style={style} onClick={onSelect ? (e) => { if (onSelect()) e.preventDefault(); } : undefined}>{label}</a>;
   return (
     <button type="button" onClick={onClick} disabled={disabled} style={style}>
       {label}
@@ -149,18 +156,19 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
   }, [serviceMenu]);
   const [serviceChip, setServiceChip] = useState<string | null>(null);
   const pathname = usePathname();
+  // P0: per-talent dock => that talent only. The server-provided code wins; the path is only a fallback.
+  const pageProfileCode = p.profileCode ?? /^\/(?:[a-z]{2}\/)?t\/([^/?#]+)/.exec(pathname ?? "")?.[1] ?? null;
   const cart = useInquiryCart();
   const [groups, setGroups] = useState<GuestCatalogGroup[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [category, setCategory] = useState<ItemCategory | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [addedIds, setAddedIds] = useState<ReadonlySet<string>>(() => new Set());
-  const [pending, setPending] = useState<GuestCatalogRow | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    void getGuestItemsCatalog({ tenantSlug, inquiryId }).then((res) => {
+    void getGuestItemsCatalog({ tenantSlug, inquiryId, profileCode: pageProfileCode }).then((res) => {
       if (cancelled) return;
       if (!res.ok) {
         setFailed(true);
@@ -173,59 +181,72 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
       cancelled = true;
     };
     // The catalog is per tenant; the inquiry only adds a date for availability.
-  }, [tenantSlug, inquiryId]);
+  }, [tenantSlug, inquiryId, pageProfileCode]);
 
+  /** Runs the add with a thread token. Resolves true when the line landed. */
   const add = useCallback(
-    async (row: GuestCatalogRow, token: string) => {
-      if (!row.offeringId) return;
-      setBusyId(row.id);
+    async (row: GuestCatalogRow, token: string): Promise<boolean> => {
+      if (!row.offeringId) return false;
       const res = await messagingClientAddItem({ token, offeringId: row.offeringId, label: row.title, units: 1, sessionId: row.sessionId });
-      setBusyId(null);
       if (!res.ok) {
         setNotice(t(res.reason === "invalid" ? "public.guestChat.catalogAddInvalid" : "public.guestChat.catalogAddFailed"));
-        return;
+        return false;
       }
       setAddedIds((s) => new Set(s).add(row.id));
+      addAddedCatalogItem({
+        id: row.id,
+        title: row.title,
+        priceLabel: row.amountCents != null && row.amountCents > 0 ? formatOrderMoney(row.amountCents, "USD") : null,
+        lineId: res.lineId,
+        token,
+      });
       setNotice(interpolate(t("public.guestChat.catalogAdded"), { item: row.title }));
       onRefresh();
+      return true;
     },
     [onRefresh, t],
   );
 
-  // An add requested before the inquiry (and its token) existed runs once the token lands.
-  useEffect(() => {
-    if (pending && threadToken) {
-      const row = pending;
-      setPending(null);
-      void add(row, threadToken);
-    }
-  }, [pending, threadToken, add]);
-
+  // TUL-1066: the first add of a visitor with no inquiry. The token is read straight
+  // from the new thread instead of waiting for the panel's own reload to hand it down
+  // (that wait never finished for a signed-out guest, so the add silently never ran).
+  // If the add then fails, the empty draft we just created is discarded.
   const onAdd = useCallback(
     async (row: GuestCatalogRow) => {
-      if (threadToken) return add(row, threadToken);
-      if (!onEnsureInquiry) {
-        setNotice(t("public.guestChat.catalogAddFailed"));
-        return;
-      }
+      if (busyId) return;
       setBusyId(row.id);
-      const id = await onEnsureInquiry();
-      setBusyId(null);
-      if (!id) {
-        setNotice(t("public.guestChat.catalogAddFailed"));
-        return;
+      try {
+        if (threadToken) {
+          await add(row, threadToken);
+          return;
+        }
+        if (!onEnsureInquiry) {
+          setNotice(t("public.guestChat.catalogAddFailed"));
+          return;
+        }
+        const createdHere = !inquiryId;
+        const id = await onEnsureInquiry();
+        const token = id ? await readGuestThreadToken(id) : null;
+        if (!id || !token) {
+          setNotice(t("public.guestChat.catalogAddFailed"));
+          return;
+        }
+        const added = await add(row, token);
+        if (!added && createdHere) await discardEmptyDraft(token, id, onEnsureInquiry);
+      } finally {
+        setBusyId(null);
       }
-      setPending(row);
     },
-    [add, onEnsureInquiry, t, threadToken],
+    [add, busyId, inquiryId, onEnsureInquiry, t, threadToken],
   );
 
   const [searchText, setSearchText] = useState("");
   const [sort, setSort] = useState<CatalogSort>("default");
   const [availableOnly, setAvailableOnly] = useState(false);
+  const [maxMinutes, setMaxMinutes] = useState<number | null>(null);
   const visible = useMemo(
-    () => sortCatalogRows(onlyAvailableRows(searchCatalogRows(groups?.find((g) => g.category === category)?.rows ?? [], searchText), availableOnly), sort),
-    [groups, category, searchText, availableOnly, sort],
+    () => sortCatalogRows(maxDurationRows(onlyAvailableRows(searchCatalogRows(groups?.find((g) => g.category === category)?.rows ?? [], searchText), availableOnly), maxMinutes), sort),
+    [groups, category, searchText, availableOnly, sort, maxMinutes],
   );
 
   const usingServices = serviceChips.length > 0;
@@ -268,6 +289,17 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
               <option value="price_asc">{t("public.guestChat.catalogSortPriceAsc")}</option>
               <option value="price_desc">{t("public.guestChat.catalogSortPriceDesc")}</option>
             </select>
+            <select
+              value={maxMinutes ?? ""}
+              onChange={(e) => setMaxMinutes(e.target.value ? Number(e.target.value) : null)}
+              aria-label={t("public.guestChat.catalogDurationLabel")}
+              style={{ border: `1px solid ${C.borderSoft}`, borderRadius: 999, padding: "5px 10px", fontSize: 12, fontFamily: FONT, color: C.ink, background: "#fff" }}
+            >
+              <option value="">{t("public.guestChat.catalogDurationAny")}</option>
+              <option value="30">{t("public.guestChat.catalogDurationUpTo").replace("{n}", "30")}</option>
+              <option value="60">{t("public.guestChat.catalogDurationUpTo").replace("{n}", "60")}</option>
+              <option value="90">{t("public.guestChat.catalogDurationUpTo").replace("{n}", "90")}</option>
+            </select>
             <Chip on={availableOnly} label={t("public.guestChat.catalogAvailableOnly")} onClick={() => setAvailableOnly((v) => !v)} C={C} accent={accent} />
           </div>
         </div>
@@ -281,9 +313,9 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
         ? serviceMenu.filter((item) => item.category === activeService).map((item) => {
             const openSheet = dockServiceOpensBookingSheet(item.cta, item.offeringId);
             return (
-            <div key={item.title} data-guest-catalog-row="service" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", fontFamily: FONT }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</div>
+            <div key={item.title} data-guest-catalog-row="service" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, padding: "8px 14px", fontFamily: FONT }}>
+              <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflowWrap: "anywhere", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{item.title}</div>
                 {item.priceLabel ? (
                   <div
                     data-guest-service-price
@@ -322,9 +354,9 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
         const buyHref = buyPath && !onHubProfile ? clientLocaleHref(pathname ?? "/", buyPath) : null;
         const price = row.amountCents != null && row.amountCents > 0 ? formatOrderMoney(row.amountCents, "USD") : null;
         return (
-          <div key={row.id} data-guest-catalog-row={row.category} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", fontFamily: FONT }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.title}</div>
+          <div key={row.id} data-guest-catalog-row={row.category} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, padding: "8px 14px", fontFamily: FONT }}>
+            <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+              <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflowWrap: "anywhere", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{row.title}</div>
               <div style={{ fontSize: 11.5, color: C.inkDim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {[price, row.sub, !row.available ? t("public.guestChat.catalogUnavailable") : null].filter(Boolean).join(" · ")}
               </div>
@@ -349,7 +381,16 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
                 accentInk={accentInk}
               />
             ) : null}
-            {buyHref && row.available ? <SmallButton label={dockStorefrontCtaLabel(row.category, locale, t("public.guestChat.catalogBuyNow"))} href={buyHref} C={C} accent={accent} accentInk={accentInk} /> : null}
+            {buyHref && row.available ? (
+              <SmallButton
+                label={dockStorefrontCtaLabel(row.category, locale, t("public.guestChat.catalogBuyNow"))}
+                href={buyHref}
+                onSelect={row.offeringId && (row.category === "service" || row.category === "class") ? () => requestChatAddService(row.offeringId as string) : undefined}
+                C={C}
+                accent={accent}
+                accentInk={accentInk}
+              />
+            ) : null}
             <SmallButton label={t("public.guestChat.catalogAsk")} onClick={() => onAsk(interpolate(t("public.guestChat.catalogAskPrefill"), { item: row.title, business: businessName }))} C={C} accent={accent} accentInk={accentInk} />
           </div>
         );

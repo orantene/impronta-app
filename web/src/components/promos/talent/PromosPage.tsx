@@ -1,5 +1,6 @@
 "use client";
 
+import { consumeNewPromoPickerRequest, NEW_PROMO_PICKER_EVENT } from "./new-promo-intent";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -18,7 +19,7 @@ import { PromoCard } from "./PromoCard";
 import { PromoDetailSheet } from "./PromoDetailSheet";
 import { QuickCreateDrawer } from "./QuickCreateDrawer";
 import { TemplateGrid } from "./TemplateGrid";
-import { Chip, InfoTip, UI } from "./ui";
+import { Chip, InfoTip, PANEL_MD, UI } from "./ui";
 
 const CALLOUT_TEMPLATE = {
   cancellation: "last_minute",
@@ -100,6 +101,25 @@ export function PromosPage() {
     }
   }, [data, wanted, start, router]);
 
+  // The header drawer's "Nueva promo" lands here: /talent/promos?picker=1 opens the template picker.
+  const wantsPicker = params.get("picker") === "1";
+  // Robust handoff (see new-promo-intent.ts): a flag for a page that mounts after the
+  // request and an event for one that is already mounted.
+  useEffect(() => {
+    if (!data) return;
+    if (consumeNewPromoPickerRequest()) setPicker(true);
+  }, [data]);
+  useEffect(() => {
+    const open = () => setPicker(true);
+    window.addEventListener(NEW_PROMO_PICKER_EVENT, open);
+    return () => window.removeEventListener(NEW_PROMO_PICKER_EVENT, open);
+  }, []);
+  useEffect(() => {
+    if (!data || !wantsPicker) return;
+    setPicker(true);
+    router.replace("/talent/promos");
+  }, [data, wantsPicker, router]);
+
   if (failed && !data) {
     return (
       <div className="flex flex-col gap-3">
@@ -130,7 +150,7 @@ export function PromosPage() {
   };
 
   return (
-    <div className="flex flex-col gap-3.5">
+    <div data-promos-page className="mx-auto flex w-full max-w-5xl flex-col gap-3.5">
       <PageHeader
         title={copy.t("page.title")}
         actions={
@@ -156,15 +176,18 @@ export function PromosPage() {
 
       {empty ? (
         <section className="flex flex-col gap-3">
-          <div>
+          <div className="flex flex-col items-center gap-1 pt-2 text-center md:items-start md:text-left">
+            <span aria-hidden className="mb-1 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--tc-soft,#e6f4f1)] text-[var(--tc-ink,#1c1c1e)]">
+              <Icon name="plus" size={18} stroke={1.8} color="currentColor" />
+            </span>
             <h2 className={`text-[17px] font-semibold ${UI.ink}`}>{copy.t("empty.title")}</h2>
             <p className={`text-[13px] ${UI.muted}`}>{copy.t("empty.sub")}</p>
           </div>
-          <TemplateGrid copy={copy} onPick={start} />
+          <TemplateGrid copy={copy} onPick={start} wide />
         </section>
       ) : (
         <>
-          <div role="tablist" className="flex gap-2 overflow-x-auto">
+          <div role="tablist" aria-label={copy.t("page.title")} className="flex gap-2 overflow-x-auto">
             {(["live", "scheduled", "past"] as const).map((k) => (
               <Chip key={k} active={tab === k} onClick={() => setTab(k)}>
                 {copy.t(`tab.${k}` as const)} {groups[k].length > 0 ? groups[k].length : ""}
@@ -172,11 +195,19 @@ export function PromosPage() {
             ))}
           </div>
           {list.length === 0 ? (
-            <p className={`${UI.card} p-4 text-[13px] ${UI.muted}`}>{copy.t(`tab.empty.${tab}` as const)}</p>
+            <div className={`${UI.card} flex flex-wrap items-center justify-between gap-3 p-4`}>
+              <p className={`min-w-0 text-[13px] ${UI.muted}`}>{copy.t(`tab.empty.${tab}` as const)}</p>
+              {tab === "live" ? (
+                <button type="button" className={UI.secondary} onClick={() => setPicker(true)}>
+                  <Icon name="plus" size={15} stroke={2} color="currentColor" />
+                  {copy.t("page.new")}
+                </button>
+              ) : null}
+            </div>
           ) : (
-            <ul className="flex flex-col gap-2.5">
+            <ul className="grid grid-cols-[minmax(0,1fr)] gap-2.5 md:grid-cols-[repeat(2,minmax(0,1fr))] xl:grid-cols-[repeat(3,minmax(0,1fr))]">
               {list.map((it) => (
-                <li key={it.id}>
+                <li key={it.id} className="flex min-w-0 [&>button]:h-full">
                   <PromoCard item={it} copy={copy} onOpen={() => setDetailId(it.id)} />
                 </li>
               ))}
@@ -186,8 +217,8 @@ export function PromosPage() {
       )}
 
       <Sheet open={picker} onOpenChange={setPicker}>
-        <SheetContent side="bottom" aria-describedby={undefined} className="max-h-[92vh] overflow-y-auto rounded-t-3xl bg-[var(--tc-canvas,#fafafa)] p-4">
-          <SheetTitle className={`text-[17px] font-semibold ${UI.ink}`}>{copy.t("picker.title")}</SheetTitle>
+        <SheetContent side="bottom" aria-describedby={undefined} className={`max-h-[92vh] max-w-full overflow-x-hidden overflow-y-auto rounded-t-3xl ${PANEL_MD} bg-[var(--tc-canvas,#fafafa)] text-[var(--tc-ink,#1c1c1e)] p-4`}>
+          <SheetTitle className={UI.title}>{copy.t("picker.title")}</SheetTitle>
           <SheetDescription className={`mb-3 text-[13px] ${UI.muted}`}>{copy.t("picker.sub")}</SheetDescription>
           <TemplateGrid copy={copy} onPick={start} />
         </SheetContent>
@@ -207,8 +238,9 @@ export function PromosPage() {
         />
       ) : null}
 
+      {/* The detail sheet is a modal dialog: while sharing it is closed (detailId is kept, so it comes back on close). */}
       <PromoDetailSheet
-        item={detail}
+        item={shareItem ? null : detail}
         data={data}
         copy={copy}
         onClose={() => setDetailId(null)}

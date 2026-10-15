@@ -14,6 +14,7 @@ const COPY = {
     cta: "Pick up the conversation",
     private: "This link signs you in automatically. Keep it private. It works on any device.",
     reason: (brand: string) => `You received this because you started a conversation on ${brand}.`,
+    fallbackWho: "the team",
   },
   es: {
     subject: (who: string) => `Continúa tu conversación con ${who}`,
@@ -23,6 +24,7 @@ const COPY = {
     cta: "Retomar la conversación",
     private: "Este enlace inicia tu sesión automáticamente. Mantenlo privado. Funciona en cualquier dispositivo.",
     reason: (brand: string) => `Recibes esto porque iniciaste una conversación en ${brand}.`,
+    fallbackWho: "el equipo",
   },
 } as const;
 
@@ -38,7 +40,12 @@ export function buildGuestClaimEmail(
 ): { subject: string; html: string } {
   const lang = (locale ?? "").toLowerCase().startsWith("es") ? "es" : "en";
   const c = COPY[lang];
-  const name = talentName.trim() || brand.accountName;
+  // TUL-854: callers used to pass English placeholders ("the studio"); those
+  // are treated as "no name" so a Spanish email never says "con the studio".
+  // The talent's name wins, then the workspace name, then a localized noun.
+  const given = talentName.trim();
+  const generic = /^(the (studio|team)|el (estudio|equipo))$/i.test(given);
+  const name = (given && !generic ? given : "") || brand.accountName.trim() || c.fallbackWho;
   const safeName = escapeHtml(name);
   const subject = c.subject(name);
 

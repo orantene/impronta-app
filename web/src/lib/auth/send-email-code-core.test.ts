@@ -7,7 +7,7 @@ import {
   type SendEmailCodeDeps,
 } from "./send-email-code-core";
 
-type Call = { email: string; options: { shouldCreateUser: boolean; emailRedirectTo: string } };
+type Call = { email: string; options: { shouldCreateUser: boolean; emailRedirectTo: string; data?: { full_name: string } } };
 
 function fakeClient(error: unknown): { client: OtpSendClient; calls: Call[] } {
   const calls: Call[] = [];
@@ -129,4 +129,18 @@ test("durable limiter blocks before any email is sent; resend stays on the code 
     email: "x@example.com",
   });
   assert.equal(calls.length, 0);
+});
+
+test("TUL-762: sign-up sends the typed name as full_name; login never does", async () => {
+  const signup = fakeClient(null);
+  await sendEmailCodeCore({ ip: "1.2.3.4", resent: false, shouldCreateUser: true, email: "new@example.com", fullName: "  Ana  López " }, deps(signup.client));
+  assert.deepEqual(signup.calls[0]?.options.data, { full_name: "Ana López" });
+
+  const noName = fakeClient(null);
+  await sendEmailCodeCore({ ip: "1.2.3.4", resent: false, shouldCreateUser: true, email: "new@example.com", fullName: "   " }, deps(noName.client));
+  assert.equal(noName.calls[0]?.options.data, undefined);
+
+  const login = fakeClient(null);
+  await sendEmailCodeCore({ ...LOGIN, email: "known@example.com", fullName: "Ana" }, deps(login.client));
+  assert.equal(login.calls[0]?.options.data, undefined, "a login send must not carry a name");
 });

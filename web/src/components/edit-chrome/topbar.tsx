@@ -105,7 +105,7 @@ function TbDivider() {
   return (
     <span
       aria-hidden
-      className="shrink-0"
+      className="shrink-0 max-[640px]:hidden"
       style={{
         width: 1,
         height: 30,
@@ -364,7 +364,7 @@ function PagePicker({
   }
 
   return (
-    <div className="relative shrink-0" data-page-picker>
+    <div className="relative shrink-0 max-[640px]:min-w-0 max-[640px]:max-w-[104px] max-[640px]:shrink" data-page-picker>
       {/* ── Trigger (single-click = switch page · double-click = rename) ── */}
       {renaming ? (
         <input
@@ -421,7 +421,7 @@ function PagePicker({
             renameDoneRef.current = false;
             setRenaming(true);
           }}
-          className="inline-flex shrink-0 cursor-pointer items-center gap-[8px] rounded-[10px] border border-transparent transition-colors"
+          className="inline-flex max-w-full shrink-0 cursor-pointer items-center gap-[8px] rounded-[10px] border border-transparent transition-colors max-[640px]:min-w-0 max-[640px]:shrink max-[640px]:gap-[4px] max-[640px]:!px-[6px]"
           style={{
             padding: "8px 12px",
             fontSize: TB_FONT_PX,
@@ -443,7 +443,7 @@ function PagePicker({
             }
           }}
         >
-          <span className="font-medium tracking-[-0.005em]" style={{ color: CHROME.ink, fontSize: TB_FONT_PX }}>
+          <span className="font-medium tracking-[-0.005em] max-[640px]:min-w-0 max-[640px]:truncate" style={{ color: CHROME.ink, fontSize: TB_FONT_PX }}>
             {title || "Homepage"}
           </span>
           <span style={{ color: CHROME.muted2 }} aria-hidden>
@@ -1824,10 +1824,11 @@ function PublishSplitButton({
           type="button"
           onClick={onPublish}
           title={t("Review publish checks in the drawer, then publish your draft to the live site")}
-          className="inline-flex cursor-pointer items-center gap-[8px] border-none text-[14px] font-semibold tracking-[-0.005em] text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
-          style={{ padding: "0 18px 0 20px", background: "transparent" }}
+          className="inline-flex cursor-pointer items-center gap-[8px] border-none pl-[20px] pr-[18px] text-[14px] font-semibold tracking-[-0.005em] text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50 max-[640px]:px-[10px]"
+          style={{ background: "transparent" }}
         >
           <svg
+            className="max-[640px]:hidden"
             width="17"
             height="17"
             viewBox="0 0 24 24"
@@ -3039,7 +3040,7 @@ export function TopBar({
   return (
     <div
       data-edit-topbar
-      className="fixed inset-x-0 top-0 z-[90] overflow-x-auto overflow-y-hidden"
+      className="fixed inset-x-0 top-0 z-[90] overflow-x-auto overflow-y-hidden max-[640px]:overflow-x-hidden"
       style={{
         height: TOPBAR_H,
         background: "rgba(249, 249, 251, 0.96)",
@@ -3053,7 +3054,7 @@ export function TopBar({
           horizontal scroll parent, Publish/Exit sit outside the viewport and
           Playwright (and operators) cannot reach them. Inner row keeps natural
           width; outer bar scrolls. */}
-      <div className="flex h-full min-w-max items-center gap-[12px] px-[20px] max-[1100px]:gap-[6px] max-[1100px]:px-[12px]">
+      <div className="flex h-full min-w-max items-center gap-[12px] px-[20px] max-[1100px]:gap-[6px] max-[1100px]:px-[12px] max-[640px]:w-full max-[640px]:min-w-0 max-[640px]:gap-[4px] max-[640px]:px-[8px]">
       {/* ── Left cluster — page-level navigation ── */}
       {headerVariant === "lab" ? (
         <LabExitButton onExit={onExit} exitLabel={exitLabel} />

@@ -53,18 +53,20 @@ export function useSupportSessionRestore(): {
 
 export function useSupportDeepLink(
   openToTicket: (ticketId: string) => void,
+  openToList?: () => void,
 ): void {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const parsed = parseSupportDeepLink(window.location.search);
-    if (!parsed.ticketId) return;
-    openToTicket(parsed.ticketId);
+    if (!parsed.ticketId && !parsed.invalid) return;
+    if (parsed.ticketId) openToTicket(parsed.ticketId);
+    else openToList?.();
     window.history.replaceState(
       {},
       "",
       `${window.location.pathname}${parsed.nextQuery}${window.location.hash}`,
     );
-  }, [openToTicket]);
+  }, [openToTicket, openToList]);
 }
 
 export function useSupportUnread(tickets: SupportTicketSummary[]): number {

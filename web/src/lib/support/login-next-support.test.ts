@@ -25,3 +25,15 @@ test("rejects a support value that is not a plain id", () => {
     "/login?next=/admin",
   );
 });
+
+import { nextPathKeepingSupport } from "./login-next-support";
+
+test("middleware next= keeps ?support= on dashboard paths only", () => {
+  assert.equal(nextPathKeepingSupport("/talent", "?support=abc-123"), "/talent?support=abc-123");
+  assert.equal(nextPathKeepingSupport("/talent/today", "?support=abc_1&x=1"), "/talent/today?support=abc_1");
+  assert.equal(nextPathKeepingSupport("/acme/client", "?support=9"), "/acme/client?support=9");
+  assert.equal(nextPathKeepingSupport("/talent", ""), "/talent");
+  assert.equal(nextPathKeepingSupport("/talent", "?support=%2F%2Fevil.com"), "/talent");
+  assert.equal(nextPathKeepingSupport("/pricing", "?support=abc"), "/pricing");
+  assert.equal(nextPathKeepingSupport("/talent?x=1", "?support=abc"), "/talent?x=1");
+});

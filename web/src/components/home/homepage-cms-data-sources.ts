@@ -44,6 +44,7 @@ import {
   fetchNativeFeaturedTalentByNodeId,
 } from "@/lib/site-admin/server/native-directory-source";
 import { collectNativeDataBlockNeeds } from "@/lib/site-admin/builder-node/native-data-block-needs";
+import { loadPortfolioAltContext } from "@/lib/site-admin/builder-node/portfolio-alt-context";
 import { loadPortfolioSources } from "@/lib/site-admin/builder-node/portfolio-sources";
 import { loadReviewsSources } from "@/lib/site-admin/builder-node/reviews-sources";
 import { loadPostsFeedSources } from "@/lib/site-admin/builder-node/posts-feed-sources";
@@ -419,7 +420,7 @@ export async function loadBuilderNodeDataSources(
       ? // TUL-187: primaryLocale lets caption_i18n fall back and the language hint name the source language.
         await withSecondaryReadDegrade(
           "gallery",
-          () => loadPortfolioSources(catalogTalentId, { locale, primaryLocale: portfolioPrimaryLocale ?? null }),
+          async () => loadPortfolioSources(catalogTalentId, { locale, primaryLocale: portfolioPrimaryLocale ?? null, ...(await loadPortfolioAltContext(catalogTalentId)) }),
           { talentPortfolioShots: [] },
         )
       : {}),
@@ -598,7 +599,7 @@ export async function loadPersonalMaxNativeSources(args: {
     args.portfolio
       ? withSecondaryReadDegrade(
           "gallery",
-          () => loadPortfolioSources(args.talentProfileId, { locale: args.locale, primaryLocale: args.primaryLocale ?? null }),
+          async () => loadPortfolioSources(args.talentProfileId, { locale: args.locale, primaryLocale: args.primaryLocale ?? null, ...(await loadPortfolioAltContext(args.talentProfileId)) }),
           { talentPortfolioShots: [] },
         )
       : {},

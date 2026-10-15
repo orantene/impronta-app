@@ -1,9 +1,9 @@
 import "server-only";
 
 import {
-  buildDirectoryQueryOrFilter,
   resolveDirectoryAgencyAttribution,
 } from "@/lib/directory/directory-attribution";
+import { directoryQueryOrFilter } from "@/lib/directory/directory-category-search.server";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -280,7 +280,7 @@ export async function loadDiscoverTalents(
   }
   if (opts.trustTier) query = query.eq("trust_tier", opts.trustTier);
   if (opts.availableOnly) query = query.gt("available_days_in_next_30", 0);
-  const qFilter = opts.q ? buildDirectoryQueryOrFilter(opts.q) : null;
+  const qFilter = opts.q ? await directoryQueryOrFilter(opts.q) : null;
   if (qFilter)        query = query.or(qFilter);
 
   if (opts.sort === "availability") {
@@ -532,7 +532,7 @@ export async function loadDiscoverMapPoints(
   }
   if (opts.trustTier) query = query.eq("trust_tier", opts.trustTier);
   if (opts.availableOnly) query = query.gt("available_days_in_next_30", 0);
-  const qFilter = opts.q ? buildDirectoryQueryOrFilter(opts.q) : null;
+  const qFilter = opts.q ? await directoryQueryOrFilter(opts.q) : null;
   if (qFilter)        query = query.or(qFilter);
 
   const { data, error } = await query;

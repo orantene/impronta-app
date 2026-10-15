@@ -3,13 +3,17 @@ import * as React from "react";
 import { Button } from "../components/Button";
 import { FieldTable } from "../components/FieldTable";
 import { Layout, type EmailBrand } from "../components/Layout";
-import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
+import { getEmailCopy } from "@/lib/notifications/email-copy";
+import { bookingGreeting } from "@/lib/notifications/booking-confirmed-email";
 
 interface Props {
   talentName: string | null;
   contactName: string | null;
   eventDate: string | null;
   eventLocation: string | null;
+  /** TUL-852: the service booked and its price (single-talent bookings only). */
+  serviceName?: string | null;
+  priceLabel?: string | null;
   inquiriesUrl: string;
   brand?: EmailBrand;
   unsubscribeUrl?: string;
@@ -21,17 +25,21 @@ export default function BookingConfirmed({
   contactName,
   eventDate,
   eventLocation,
+  serviceName,
+  priceLabel,
   inquiriesUrl,
   brand,
   unsubscribeUrl,
   categoryLabel,
 }: Props) {
   const t = getEmailCopy(brand?.locale)["talent.booking_confirmed"];
-  const event = contactName ?? t.fallbackEvent;
-  const name = talentName ?? t.fallbackName;
+  const greeting = bookingGreeting(t, talentName);
 
   const fields = [
+    contactName ? { label: t.labelClient, value: contactName } : null,
+    serviceName ? { label: t.labelService, value: serviceName } : null,
     eventDate ? { label: t.labelDate, value: eventDate } : null,
+    priceLabel ? { label: t.labelPrice, value: priceLabel } : null,
     eventLocation ? { label: t.labelLocation, value: eventLocation } : null,
   ].filter(Boolean) as { label: string; value: string }[];
 
@@ -43,7 +51,7 @@ export default function BookingConfirmed({
       categoryLabel={categoryLabel}
     >
       <Heading style={h2}>{t.heading}</Heading>
-      <Text style={body}>{interpolate(t.intro, { name, event })}</Text>
+      <Text style={body}>{`${greeting} ${t.intro}`}</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
       <Text style={note}>{t.note}</Text>
       <Button brand={brand} href={inquiriesUrl}>{t.button}</Button>

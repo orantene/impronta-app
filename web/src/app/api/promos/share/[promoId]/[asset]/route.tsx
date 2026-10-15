@@ -4,19 +4,13 @@ import { loadShareAssetData } from "@/lib/promos/share/asset-data";
 import { buildPromoCardPdf } from "@/lib/promos/share/card-pdf";
 import { conditionLine, offerHeadline } from "@/lib/promos/share/captions";
 import { parseVia } from "@/lib/promos/share/links";
+import { allowedStoragePhoto } from "@/lib/promos/share/theme-defaults";
 import { printableCardAllowed } from "@/lib/promos/share/card-gate";
 import { parseFormat, parseLang, parseStyle, sanitizeColors } from "@/lib/promos/share/visual-model";
 import { renderShareVisual } from "@/lib/promos/share/visuals";
 
 function allowedPhoto(raw: string | null): string | null {
-  if (!raw) return null;
-  try {
-    const u = new URL(raw);
-    const storage = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://invalid.invalid");
-    return u.protocol === "https:" && u.hostname === storage.hostname ? u.toString() : null;
-  } catch {
-    return null;
-  }
+  return allowedStoragePhoto(raw, process.env.NEXT_PUBLIC_SUPABASE_URL);
 }
 
 /**
@@ -36,7 +30,11 @@ export async function GET(
   if (!data) return new NextResponse(null, { status: 404 });
 
   const lang = parseLang(q.get("lang"));
-  const colors = sanitizeColors({ bg: q.get("bg"), ink: q.get("ink"), accent: q.get("accent") });
+  const colors = sanitizeColors({
+    bg: q.get("bg") ?? data.theme.colors.bg,
+    ink: q.get("ink") ?? data.theme.colors.ink,
+    accent: q.get("accent") ?? data.theme.colors.accent,
+  });
   const headline = offerHeadline(data.promo, lang);
   const condition = conditionLine(data.promo, lang, data.spotsLeft);
   const cache = { "Cache-Control": "public, max-age=300, s-maxage=300" };
@@ -56,7 +54,7 @@ export async function GET(
   const format = parseFormat(asset);
   if (!format) return new NextResponse(null, { status: 404 });
   // Satori fetches the photo server side: only our own storage host is accepted.
-  const photo = allowedPhoto(q.get("photo"));
+  const photo = allowedPhoto(q.get("photo")) ?? data.theme.photoUrl;
   const via = parseVia(q.get("via")) ?? (format === "story" ? "ig_story" : "ig_post");
   const res = renderShareVisual({
     format, style: parseStyle(q.get("style")), lang, headline, condition,
