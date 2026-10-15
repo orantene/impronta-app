@@ -244,6 +244,7 @@ export function MaisonSetupHost({
           onOpenApp={(appId) => patch(openAppDetailPatch(appId))}
           onBack={closeToSite}
           onClose={closeToSite}
+          fromLiveSite={sitePublished || Boolean(siteLive)}
         />
       ) : choices.screen === "app" ? (
         <AppDetailScreen
