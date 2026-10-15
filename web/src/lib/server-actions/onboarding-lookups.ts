@@ -10,39 +10,22 @@
 import { fold, type ChipOption } from "@/lib/onboarding/type-chip";
 import { loadTalentTypeTerms } from "@/lib/onboarding/type-chip.server";
 import { searchCanonicalCities, searchCuratedCitiesGlobal, type CitySuggestion } from "@/lib/location-autocomplete";
+import { rankTalentTypeOptions } from "@/lib/onboarding/type-search";
+import { dedupeTypeOptionsByLabel } from "@/lib/onboarding/dedupe-type-options";
 import { searchBusinessTypes } from "@/lib/words/business-types";
 
 const MAX = 8;
 
-export async function searchOnboardingTypes(input: { query: string; kind: "talent" | "business" }): Promise<ChipOption[]> {
+export async function searchOnboardingTypes(input: { query: string; kind: "talent" | "business"; locale?: "en" | "es" }): Promise<ChipOption[]> {
   const q = fold(input.query.trim());
   if (input.kind === "business") {
-    return searchBusinessTypes(q)
+    return dedupeTypeOptionsByLabel(searchBusinessTypes(q), input.locale ?? "es")
       .slice(0, MAX)
       .map((b) => ({ id: b.id, slug: b.id, label: b.label, preset: b.preset, family: b.family }));
   }
   const terms = await loadTalentTypeTerms();
-  // Word-level: "nail technician" must find "Nail Artist"; the whole phrase
-  // rarely matches a catalogue label, its strongest word usually does.
-  const words = q.split(/\s+/).filter((w) => w.length >= 3);
-  const scored = terms
-    .map((t) => {
-      const hay = [t.name.en, t.name.es, ...t.aliases, ...t.synonyms].map(fold);
-      if (!q) return { t, score: 1 };
-      let score = 0;
-      if (hay.some((h) => h === q)) score += 10;
-      else if (hay.some((h) => h.startsWith(q))) score += 6;
-      else if (hay.some((h) => h.includes(q))) score += 4;
-      for (const w of words) if (hay.some((h) => h.split(/[^a-z0-9]+/).includes(w))) score += 2;
-      for (const w of words) if (score === 0 && hay.some((h) => h.includes(w))) score += 1;
-      // The first word carries the trade ("nail technician" → Nail, not Technician).
-      if (words[0] && hay.some((h) => h.split(/[^a-z0-9]+/).includes(words[0]))) score += 1;
-      return { t, score };
-    })
-    .filter((x) => x.score > 0)
-    .sort((a, b) => b.score - a.score || a.t.name.en.localeCompare(b.t.name.en))
-    .slice(0, MAX);
-  return scored.map(({ t }) => ({ id: t.id, slug: t.slug, label: t.name }));
+  const scored = rankTalentTypeOptions(terms, q, input.locale ?? "es");
+  return dedupeTypeOptionsByLabel(scored, input.locale ?? "es").slice(0, MAX);
 }
 
 export type OnboardingCity = {

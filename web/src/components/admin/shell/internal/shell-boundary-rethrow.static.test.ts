@@ -6,20 +6,23 @@ import { join } from "node:path";
 const web = join(__dirname, "../../../../..");
 const read = (p: string) => readFileSync(join(web, p), "utf8");
 
-test("ShellBoundary hands notFound/redirect back to Next before its crash screen", () => {
-  const src = read("src/components/admin/shell/internal/shell-boundary.tsx");
+test("ShellBoundary hands notFound/redirect back to Next from getDerivedStateFromError, never in render", () => {
+  const src = read("src/components/admin/shell/internal/shell-error-boundary.tsx");
   assert.match(src, /import\s*\{\s*unstable_rethrow\s*\}\s*from\s*"next\/navigation"/);
-  const caught = src.indexOf("if (this.state.caught)");
-  assert.ok(caught > 0, "ErrorBoundary render branch moved");
-  const rethrow = src.indexOf("unstable_rethrow(this.state.caught)", caught);
-  const fallback = src.indexOf("Something broke", caught);
-  assert.ok(rethrow > caught && rethrow < fallback, "rethrow must run before the fallback renders");
+  const gdse = src.indexOf("static getDerivedStateFromError");
+  const render = src.indexOf("override render()");
+  assert.ok(gdse > 0 && render > gdse, "ErrorBoundary shape moved");
+  const rethrow = src.indexOf("unstable_rethrow(err)", gdse);
+  assert.ok(rethrow > gdse && rethrow < render, "rethrow must run in getDerivedStateFromError");
+  assert.doesNotMatch(src.slice(render), /unstable_rethrow\(/);
 });
 
 test("work detail has its own not-found screen with ES and EN copy", () => {
-  const nf = "src/app/(workspace)/[tenantSlug]/admin/work/[id]/not-found.tsx";
+  const dir = "src/app/(workspace)/[tenantSlug]/admin/work/[id]";
+  const nf = `${dir}/not-found.tsx`;
   assert.ok(existsSync(join(web, nf)));
-  const body = read(nf);
+  assert.match(read(nf), /WorkNotFoundCard/);
+  const body = read(`${dir}/work-not-found-card.tsx`);
   for (const key of ["notFoundTitle", "notFoundBody", "backToPipeline"]) {
     assert.match(body, new RegExp(`admin\\.work\\.detail\\.${key}`));
     for (const loc of ["en", "es"]) {
@@ -27,4 +30,17 @@ test("work detail has its own not-found screen with ES and EN copy", () => {
       assert.equal(typeof detail[key], "string", `${loc} missing ${key}`);
     }
   }
+});
+
+test("TUL-473: a work id outside this workspace renders the card inline, not through notFound()", () => {
+  const dir = "src/app/(workspace)/[tenantSlug]/admin/work/[id]";
+  const page = read(`${dir}/page.tsx`);
+  // TUL-571: the own-seat redirect runs first, the inline card is still the fallback.
+  assert.match(page, /if \(!inquiry\) \{[\s\S]*?ownTalentInquiryHref[\s\S]*?redirect\(own\);[\s\S]*?return <WorkNotFoundCard /);
+  assert.doesNotMatch(page, /if \(!inquiry\) notFound\(\)/);
+  // The card is a plain server component (no hooks, no client boundary) that links with next/link.
+  const card = read(`${dir}/work-not-found-card.tsx`);
+  assert.doesNotMatch(card, /"use client"/);
+  assert.match(card, /import Link from "next\/link"/);
+  assert.doesNotMatch(card, /<a\s/);
 });

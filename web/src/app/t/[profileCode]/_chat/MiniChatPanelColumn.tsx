@@ -2,6 +2,7 @@
 
 /** MiniChatPanelColumn — vertical thread column for MiniChatPanel (Lane C / F4). */
 
+import { GuestDockInquiryTray } from "./GuestDockInquiryTray";
 import { useState, type RefObject } from "react";
 
 import type {
@@ -88,7 +89,7 @@ export type MiniChatPanelColumnProps = {
   /** L13: v5 extras + full-load bump + early-row ensure for catalog adds. */
   v5?: GuestThreadV5Extras | null;
   onRefreshThread?: () => void;
-  onEnsureInquiryForItems?: (() => Promise<string | null>) | null;
+  onEnsureInquiryForItems?: import("./guest-catalog-add-flow").EnsureInquiryForItems | null;
   emailedTo: string | null;
   seenAtByInquiry: Record<string, string>;
   pulseActive: boolean;
@@ -478,6 +479,8 @@ export function MiniChatPanelColumn({
         onClose={onClose}
         card={card}
       />
+
+      <GuestDockInquiryTray onRemoveCartTalent={onRemoveCartTalent} activeView={activeDockView} enabled={dockEnabled} t={t} C={C} accent={accent} accentInk={accentInk} onOpen={() => onDockViewChange?.("lineup")} />
 
       <GuestThreadSwitcherDrawer
         open={switcherOpen}

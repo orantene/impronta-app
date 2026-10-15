@@ -75,3 +75,20 @@ test("a required category renders no unsubscribe link at all", () => {
   assert.doesNotMatch(html, /Cancelar la suscripci/);
   assert.doesNotMatch(html, /Unsubscribe/);
 });
+
+// TUL-G4: a guest on a client email gets a way to create/activate an account.
+const SAVE = "https://app.tulala.digital/login?as=client&next=%2Fclient";
+
+test("a guest with a save-bookings URL sees the link, in Spanish for a Spanish email", () => {
+  const es = render({ locale: "es", recipientHasAccount: false, saveBookingsUrl: SAVE });
+  assert.match(es, /Guarda tus reservas:/);
+  assert.match(es, /href="https:\/\/app\.tulala\.digital\/login\?as=client&amp;next=%2Fclient"/);
+  assert.doesNotMatch(es, /Save your bookings/);
+  const en = render({ locale: "en", recipientHasAccount: false, saveBookingsUrl: SAVE });
+  assert.match(en, /Save your bookings:/);
+});
+
+test("an account holder never sees the save-bookings line, even if a URL is passed", () => {
+  assert.doesNotMatch(render({ recipientHasAccount: true, saveBookingsUrl: SAVE }), /Save your bookings/);
+  assert.doesNotMatch(render({ recipientHasAccount: false }), /Save your bookings/);
+});

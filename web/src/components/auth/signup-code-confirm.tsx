@@ -28,8 +28,8 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import {
   resendSignupCode,
   submitEmailCode,
-  type EmailCodeState,
 } from "@/app/auth/otp-actions";
+import type { EmailCodeState } from "@/lib/auth/send-email-code-core";
 import { AuthNotice, AuthSubmitButton } from "@/components/auth/auth-ui";
 import { OtpCodeInput } from "@/components/auth/otp-code-input";
 import { createTranslator } from "@/i18n/messages";
@@ -58,10 +58,13 @@ export function SignupCodeConfirm({
   nextPath,
   locale = "en",
   onChangeEmail,
+  clientSignup = false,
 }: {
   email: string;
   nextPath?: string;
   locale?: string;
+  /** TUL-771: explicit client sign-up; the verified account skips the role screen. */
+  clientSignup?: boolean;
   /** When given, offers a way back to the email/password form. */
   onChangeEmail?: () => void;
 }) {
@@ -122,6 +125,7 @@ export function SignupCodeConfirm({
         <input type="hidden" name="email" value={email} />
         <input type="hidden" name="locale" value={locale} />
         {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
+        {clientSignup ? <input type="hidden" name="signup_intent" value="client" /> : null}
 
         <OtpCodeInput
           disabled={verifying}

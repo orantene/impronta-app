@@ -14,6 +14,8 @@
 
 import { useMemo, useState, type ReactElement } from "react";
 
+import { useEditorLocale } from "./use-editor-locale";
+
 interface Stop {
   x: number; // 0-100
   y: number; // 0-100
@@ -39,6 +41,7 @@ function buildCss(stops: ReadonlyArray<Stop>, baseColor: string): string {
 }
 
 export function MeshGradientGenerator(): ReactElement {
+  const { t } = useEditorLocale();
   const [stops, setStops] = useState<ReadonlyArray<Stop>>(DEFAULT_STOPS);
   const [baseColor, setBaseColor] = useState<string>("#faf3ee");
 
@@ -61,10 +64,10 @@ export function MeshGradientGenerator(): ReactElement {
             .map((s) => `radial-gradient(at ${s.x}% ${s.y}%, ${s.color} 0, transparent ${s.size}%)`)
             .join(", "),
         }}
-        aria-label="Mesh gradient preview"
+        aria-label={t("Mesh gradient preview")}
       />
       <div className="flex items-center gap-2">
-        <label className="text-[10px] uppercase tracking-wide text-stone-500">Base</label>
+        <label className="text-[10px] uppercase tracking-wide text-stone-500">{t("Base")}</label>
         <input
           type="color"
           value={baseColor}
@@ -79,7 +82,7 @@ export function MeshGradientGenerator(): ReactElement {
             disabled={stops.length >= 5}
             className="rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2 py-0.5 text-[10px] text-stone-600 hover:bg-white hover:border-stone-300 disabled:opacity-50 transition-colors"
           >
-            + Stop
+            {t("+ Stop")}
           </button>
           <button
             type="button"
@@ -87,7 +90,7 @@ export function MeshGradientGenerator(): ReactElement {
             disabled={stops.length <= 2}
             className="rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2 py-0.5 text-[10px] text-stone-600 hover:bg-white hover:border-stone-300 disabled:opacity-50 transition-colors"
           >
-            − Stop
+            {t("− Stop")}
           </button>
         </div>
       </div>
@@ -113,7 +116,7 @@ export function MeshGradientGenerator(): ReactElement {
       </div>
       <details>
         <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-wide text-stone-500">
-          CSS output
+          {t("CSS output")}
         </summary>
         <pre className="mt-1 overflow-x-auto rounded-lg bg-[#faf9f6]/60 border border-[#e5e0d5] p-2 text-[10px]">
           {css}

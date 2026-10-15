@@ -2,12 +2,15 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  catalogBookingWhenLabel,
   offeringPriceUnit,
+  catalogApplyDayPick,
   catalogBookingDurationMinutes,
   catalogCanContinueWhen,
   catalogCollectNowCents,
   catalogDetailIsPurchase,
   catalogIsPurchaseEligible,
+  catalogLiveDraftDayIndex,
   catalogNeedsOptions,
   catalogRowCtaLabel,
   catalogRowOpensSheetImmediately,
@@ -420,6 +423,18 @@ test("a selected start is dropped when the longer duration removes it", () => {
   assert.equal(catalogSelectedStartStillOpen("2026-09-25T15:00:00.000Z", open), true);
   assert.equal(catalogSelectedStartStillOpen("2026-09-25T15:00:00.000Z", open.slice(1)), false);
   assert.equal(catalogSelectedStartStillOpen(null, open), false);
+  // Same instant, different spelling still counts as open (GRK-067).
+  assert.equal(catalogSelectedStartStillOpen("2026-09-25T15:00:00+00:00", open), true);
+});
+
+test("GRK-067: same-day re-pick keeps the time; other day clears it", () => {
+  const kept = catalogApplyDayPick(2, 2, { time: "10:00", liveStarts: "2026-09-25T15:00:00.000Z" });
+  assert.deepEqual(kept, { dayIndex: 2, time: "10:00", liveStarts: "2026-09-25T15:00:00.000Z" });
+  const cleared = catalogApplyDayPick(2, 3, { time: "10:00", liveStarts: "2026-09-25T15:00:00.000Z" });
+  assert.deepEqual(cleared, { dayIndex: 3, time: null, liveStarts: null });
+  assert.equal(catalogLiveDraftDayIndex({ dayIndex: 4, liveStarts: "2026-09-25T15:00:00.000Z" }), 4);
+  assert.equal(catalogLiveDraftDayIndex({ dayIndex: 4, time: null, liveStarts: null }), 0);
+  assert.equal(catalogLiveDraftDayIndex(null), 0);
 });
 
 test("price unit reads a string or a per-locale map from attributes", () => {
@@ -448,4 +463,11 @@ test("DS-4: nearest alternatives skip the lost start and stay chronological", as
   assert.match(catalogTakenSlotMessage({ locale: "es", lostClock: "10:00", serverMessage: "x" }), /^Las 10:00 se acaban de ocupar/);
   assert.match(catalogTakenSlotMessage({ locale: "en", lostClock: "10:00", serverMessage: "x" }), /^10:00 was just taken/);
   assert.equal(catalogTakenSlotMessage({ locale: "en", lostClock: null, serverMessage: "x" }), "x");
+});
+
+test("TUL-1022: one date/time line for the recap and the confirmation, with the zone", () => {
+  const wed = new Date(2026, 9, 14);
+  assert.equal(catalogBookingWhenLabel(wed, "15:00", "America/Cancun", true), "Miércoles 14 oct, 15:00 · Hora de Cancún");
+  assert.equal(catalogBookingWhenLabel(wed, "15:00", "America/Cancun", false), "Wednesday Oct 14, 15:00 · Cancún time");
+  assert.equal(catalogBookingWhenLabel(wed, "15:00", null, false), "Wednesday Oct 14, 15:00");
 });

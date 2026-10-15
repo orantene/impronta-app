@@ -12,25 +12,26 @@
  * - The "Hecho con Tulala" credit is hidden when whitelabel; the Tulala
  *   document links stay.
  */
+import { platformOrigin } from "@/lib/legal/platform-origin";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { talentSiteLocalePath } from "@/lib/talent-site/talent-site-locale-routing";
 
-export const TULALA_LEGAL_TERMS_URL = "https://tulala.digital/legal/terms";
-export const TULALA_LEGAL_PRIVACY_URL = "https://tulala.digital/legal/privacy";
-export const TULALA_HOME_URL = "https://tulala.digital";
-export const TULALA_LEGAL_COOKIES_URL = "https://tulala.digital/legal/cookies";
-export const TULALA_LEGAL_REFUNDS_URL = "https://tulala.digital/legal/refunds";
-export const TULALA_CONTACT_URL = "https://tulala.digital/contact";
+export const TULALA_LEGAL_TERMS_URL = `${platformOrigin()}/legal/terms`;
+export const TULALA_LEGAL_PRIVACY_URL = `${platformOrigin()}/legal/privacy`;
+export const TULALA_HOME_URL = platformOrigin();
+export const TULALA_LEGAL_COOKIES_URL = `${platformOrigin()}/legal/cookies`;
+export const TULALA_LEGAL_REFUNDS_URL = `${platformOrigin()}/legal/refunds`;
+export const TULALA_CONTACT_URL = `${platformOrigin()}/contact`;
 
 /** Legal pages keep one language per URL; a Spanish site links the /es/ copy. */
 export function localizedLegalUrl(url: string, locale: string | null | undefined): string {
-  return (locale ?? "").toLowerCase().startsWith("es") ? url.replace("tulala.digital/legal/", "tulala.digital/es/legal/") : url;
+  return (locale ?? "").toLowerCase().startsWith("es") ? url.replace("/legal/", "/es/legal/") : url;
 }
 
 /** Marketing contact: Spanish sites land on /es/contact. */
 export function localizedContactUrl(locale: string | null | undefined): string {
   return (locale ?? "").toLowerCase().startsWith("es")
-    ? "https://tulala.digital/es/contact"
+    ? `${platformOrigin()}/es/contact`
     : TULALA_CONTACT_URL;
 }
 

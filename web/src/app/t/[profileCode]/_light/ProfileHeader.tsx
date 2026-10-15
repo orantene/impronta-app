@@ -10,6 +10,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { MapPin } from "lucide-react";
 import { DisciplineChips } from "./DisciplineChips";
+import { lightProfileLabels } from "./profile-labels";
 import type { ResolvedSkill } from "@/lib/server-actions/admin-talent-skills.types";
 
 type ProfileHeaderProps = {
@@ -39,6 +40,8 @@ type ProfileHeaderProps = {
    * "Visit my site" CTA.
    */
   maxSiteUrl?: string | null;
+  /** Request locale for the badge and CTA (defaults to English). */
+  locale?: string;
 };
 
 function experienceLine(skill: ResolvedSkill): string | null {
@@ -76,7 +79,9 @@ export function ProfileHeader({
   hubsIndicator,
   isFeatured,
   maxSiteUrl,
+  locale = "en",
 }: ProfileHeaderProps) {
+  const labels = lightProfileLabels(locale);
   const expLine = primarySkill ? experienceLine(primarySkill) : null;
   const compactLangLine =
     languages.length > 0
@@ -187,7 +192,7 @@ export function ProfileHeader({
                     color: "#3D2800",
                   }}
                 >
-                  ♔ PORTFOLIO
+                  ♔ {labels.portfolioBadge}
                 </span>
                 {/* "Visit my site" — dark premium button, gold border and text */}
                 <Link
@@ -205,7 +210,7 @@ export function ProfileHeader({
                       : undefined
                   }
                 >
-                  Visit my site →
+                  {labels.visitSite} →
                 </Link>
               </div>
             ) : null}

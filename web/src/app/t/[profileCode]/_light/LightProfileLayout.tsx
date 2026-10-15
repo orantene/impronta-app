@@ -23,12 +23,14 @@ import { pickLocale } from "@/lib/i18n/pick-locale";
 
 import { ProfileCover } from "./ProfileCover";
 import { ProfileHeader } from "./ProfileHeader";
+import { lightProfileLabels } from "./profile-labels";
 import { ServicesBlock } from "./ServicesBlock";
 import { ServiceMenuBlock } from "./ServiceMenuBlock";
 import { TalentStorefront } from "../_shared/TalentStorefront";
 import type { UsdRates } from "@/lib/pricing/usd-equivalent";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { SkillsExperienceBlock } from "./SkillsExperienceBlock";
+import { lightSectionLabels } from "./section-labels";
 import { BookingCard } from "./BookingCard";
 import { AvailabilityWidget } from "./AvailabilityWidget";
 import { LightSectionLabel } from "./section-label";
@@ -310,7 +312,6 @@ function DetailCard({ rows, group }: { group: string; rows: DetailRow[] }) {
 
 export function LightProfileLayout({
   name,
-  firstName,
   profileCode,
   profileImageUrl,
   bannerUrl,
@@ -441,6 +442,7 @@ export function LightProfileLayout({
         discoveryCta={discoveryCta}
         hubsIndicator={hubsIndicator}
         maxSiteUrl={maxSiteUrl}
+        locale={locale}
       />
 
       {/* ── 2b. HERO RATING CHIP — quiet reputation signal near the name ── */}
@@ -539,6 +541,7 @@ export function LightProfileLayout({
                 availableDaysInNext30={availableDaysInNext30}
                 availabilityDots14d={availabilityDots14d}
                 nextAvailableDate={nextAvailableDate}
+                locale={locale}
               />
             </div>
 
@@ -552,7 +555,7 @@ export function LightProfileLayout({
               startingFrom={startingFrom}
               bookingNote={bookingNote}
               locale={locale}
-              heading="Services"
+              heading={lightProfileLabels(locale).services}
               packagesLabel={t("public.profile.editorial.packages")}
               bookingDetailsLabel={t("public.profile.editorial.bookingDetails")}
             />
@@ -588,7 +591,7 @@ export function LightProfileLayout({
               showIndustries={fieldVisibility.showIndustries}
               showEventTypes={fieldVisibility.showEventTypes}
               showTags={fieldVisibility.showTags}
-              headingLabel="Skills & Specialties"
+              headingLabel={lightProfileLabels(locale).skills}
             />
 
             {/* Details — premium grouped cards (NOT a flat list) */}
@@ -610,10 +613,10 @@ export function LightProfileLayout({
               <section
                 id="reviews"
                 className="scroll-mt-24"
-                aria-label="Client reviews"
+                aria-label={lightSectionLabels(locale).clientReviews}
                 data-profile-section="reviews"
               >
-                <LightSectionLabel>Reviews</LightSectionLabel>
+                <LightSectionLabel>{lightSectionLabels(locale).reviews}</LightSectionLabel>
                 <div className="mt-5">
                   <TalentReviewsSection
                     summary={ratingSummary}
@@ -648,6 +651,7 @@ export function LightProfileLayout({
               availableDaysInNext30={availableDaysInNext30}
               availabilityDots14d={availabilityDots14d}
               nextAvailableDate={nextAvailableDate}
+              locale={locale}
             />
           </aside>
         </div>
@@ -670,7 +674,7 @@ export function LightProfileLayout({
             className="plt-display max-w-xl text-2xl font-semibold tracking-[-0.03em] sm:text-3xl"
             style={{ color: "var(--plt-ink-strong)" }}
           >
-            {t("public.profile.footerCtaTitle").replace("{firstName}", firstName)}
+            {t("public.profile.footerCtaTitle").replace("{firstName}", name)}
           </h2>
           <p
             className="max-w-md text-base leading-relaxed"
@@ -688,7 +692,7 @@ export function LightProfileLayout({
       {/* ── 6. Similar-talent strip ──────────────────────────────────────── */}
       {similarTalent.length > 0 ? (
         <section
-          aria-label="More talent from this roster"
+          aria-label={lightSectionLabels(locale).moreTalent}
           className="border-t px-4 py-12 sm:px-6 lg:px-8"
           style={{ borderColor: "var(--plt-hairline)", background: "var(--plt-bg)" }}
         >

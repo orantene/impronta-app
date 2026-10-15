@@ -92,9 +92,10 @@ test("an existing AI draft with the same title is published in place, not duplic
   assert.equal(db.offerings.find((o) => o.id === "d1")!.status, "published");
 });
 
-test("quote service is a request-to-book draft with no number", () => {
+test("TUL-805: a quote service is published as a request-to-book quote with no number", () => {
   const plan = planOfferingWrites([], [{ name: "Custom set", durationMin: 90, priceCents: null, quote: true, currency: "MXN" }]);
-  assert.equal(plan.insert[0].status, "draft");
+  assert.equal(plan.insert[0].status, "published");
+  assert.equal(plan.insert[0].price_display, "quote");
   assert.equal(plan.insert[0].booking_mode, "request");
   assert.equal(plan.insert[0].amount_cents, null);
 });
@@ -305,4 +306,16 @@ test("both: a retry writes no duplicates", async () => {
   const before = db.offerings.length;
   await runEssentialsWrites(fakeStore(db), input);
   assert.equal(db.offerings.length, before);
+});
+
+test("a cleaning business gets suggested services, in the page language (TUL-568)", () => {
+  for (const said of ["Limpieza Profunda", "house cleaning", "limpieza de casas", "Cleaning service"]) {
+    assert.equal(packKeyForTrade(said), "cleaning", said);
+  }
+  const es = suggestedServices({ discipline: "Limpieza Profunda", country: "MX", locale: "es" });
+  assert.ok(es.length >= 3);
+  assert.ok(es.every((x) => !/cleaning/i.test(x.name)), "Spanish names only");
+  assert.equal(es[0].currency, "MXN");
+  const en = suggestedServices({ discipline: "house cleaning", country: "US", locale: "en" });
+  assert.ok(en.length >= 3 && en.every((x) => x.quote));
 });

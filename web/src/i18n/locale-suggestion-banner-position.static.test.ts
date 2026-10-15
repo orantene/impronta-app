@@ -120,3 +120,20 @@ test("TUL-516: floating chrome stack styles mount before the language banner", (
   assert.ok(stack > 0 && banner > 0);
   assert.ok(stack < banner, "stack CSS precedes locale suggestion in <body>");
 });
+
+test("live2b-05: client banner never imports locale-suggestion / locale-middleware", () => {
+  assert.doesNotMatch(client, /from ["']@\/i18n\/locale-suggestion["']/);
+  assert.doesNotMatch(client, /from ["']@\/i18n\/locale-middleware["']/);
+  assert.doesNotMatch(client, /from ["']next\/server["']/);
+  assert.match(client, /LOCALE_SUGGESTION_DISMISSED_COOKIE/);
+  assert.match(client, /from ["']@\/i18n\/locale-cookies["']/);
+  assert.match(client, /tulala_locale_suggest_dismissed/);
+});
+
+test("TUL-884: the page reserves room under the toast so footer links are never covered", () => {
+  assert.match(
+    FLOATING_CHROME_STACK_CSS,
+    /body:has\(\[data-locale-suggestion\]\)\{padding-bottom:calc\(var\(--floating-chrome-bottom\) \+ 88px\)\}/,
+  );
+  assert.match(client, /"No thanks"|dismissLabel/, "the toast stays dismissible");
+});

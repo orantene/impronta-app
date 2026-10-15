@@ -9,6 +9,7 @@
 // card 3f32c5ee974381b6ae7ec3f6b8347f49).
 
 import { Suspense } from "react";
+import { loginUrlKeepingSupport } from "@/lib/support/login-next-support";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 
@@ -28,7 +29,7 @@ export default async function PlatformTalentLayout({
 }) {
   const session = await getCachedActorSession();
   if (!session.supabase) redirect("/login?error=config");
-  if (!session.user) redirect("/login?next=/talent/today");
+  if (!session.user) redirect(loginUrlKeepingSupport("/talent/today", await headers()));
 
   const hdrs = await headers();
   const pathname = hdrs.get("x-impronta-original-pathname") ?? "/talent/today";

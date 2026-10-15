@@ -44,6 +44,8 @@ export function DateEditor({
     (initial?.dateStatus as DateStatus) ?? "exact",
   );
   const [eventDate, setEventDate] = useState<string>(initial?.eventDate ?? "");
+  // A half-typed native date (02/08/yyyy) reads back as "", so track it apart.
+  const [dateIncomplete, setDateIncomplete] = useState(false);
   const inputId = useId();
 
   // "Exact date" needs an actual date before it can commit, otherwise it would
@@ -89,10 +91,20 @@ export function DateEditor({
             id={inputId}
             type="date"
             value={eventDate}
-            onChange={(e) => setEventDate(e.target.value)}
+            onChange={(e) => {
+              setDateIncomplete(e.target.validity.badInput);
+              setEventDate(e.target.value);
+            }}
+            onBlur={(e) => setDateIncomplete(e.target.validity.badInput)}
+            aria-invalid={dateIncomplete}
             className={a11y.focusRing}
             style={smallInputStyle(C, accent)}
           />
+          {dateIncomplete && (
+            <p role="alert" style={{ margin: "4px 0 0", fontSize: 12, color: "#b3261e" }}>
+              {t("public.guestChat.dateIncompleteError")}
+            </p>
+          )}
         </div>
       )}
       <div style={footerStyle}>

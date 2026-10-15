@@ -50,7 +50,7 @@ export async function renderClientAccountPage(view: AccountView) {
   const data: AreaData = {};
   if (audience === "client" && userId) {
     const tenantId = tenant.tenantId;
-    if (view.kind === "visit") data.visit = await loadVisitDetail(userId, tenantId, view.id);
+    if (view.kind === "visit") data.visit = await loadVisitDetail(userId, tenantId, view.id, locale);
     else if (view.kind === "thread") data.thread = await loadThread(userId, tenantId, view.id);
     else if (view.kind === "receipt") data.receipt = await loadReceiptDetail(userId, tenantId, view.code);
     else if (view.tab === "visits") data.visits = await loadVisitGroups(userId, tenantId);

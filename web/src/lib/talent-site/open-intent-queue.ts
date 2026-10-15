@@ -10,10 +10,10 @@
  * intent that targets it. Exactly once.
  *
  * Bounded fallback: if the target has not announced within `fallbackMs`, the
- * intent is dispatched anyway (a sheet intent degrades to the guest chat, which
- * is what a visitor on a page without a booking sheet should get) and is then
- * considered delivered, so a very late mount never re-opens a surface the
- * visitor has long since dismissed.
+ * intent is dispatched as-is (TUL-516 W3-4: a sheet intent must never degrade
+ * to the guest chat — sticky / `#book` taps that race hydration were opening
+ * chat on Folio and Diego). A late mount never re-opens a surface the visitor
+ * has long since dismissed.
  */
 
 export type OpenChannel = "chat" | "sheet";
@@ -62,7 +62,7 @@ export function createOpenIntentQueue(opts: {
       timer = setT(() => {
         const late = take();
         if (!late) return;
-        opts.dispatch(late.channel === "sheet" ? { channel: "chat" } : late);
+        opts.dispatch(late);
       }, fallbackMs);
     },
     /** A target attached its listener. Returns the cleanup that marks it gone. */

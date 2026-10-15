@@ -17,6 +17,8 @@
  * is none yet, so this reports the honest, different state instead of
  * inventing a configuration path that does not exist (money.md §3).
  */
+import { stripeEnv } from "@/lib/stripe/env-keys";
+
 
 export const PROVIDER_IDS = ["cash", "stripe_checkout", "stripe_terminal", "mercado_pago_point"] as const;
 export type ProviderId = (typeof PROVIDER_IDS)[number];
@@ -63,7 +65,7 @@ export function computeProviderStatuses(env: ProviderStatusEnv): ProviderStatus[
 /** The real env, read once at the call site so `computeProviderStatuses` stays pure. */
 export function readProviderStatusEnv(): ProviderStatusEnv {
   return {
-    stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? null,
-    stripeTerminalReaderId: process.env.STRIPE_TERMINAL_READER_ID ?? null,
+    stripeSecretKey: stripeEnv("STRIPE_SECRET_KEY") ?? null,
+    stripeTerminalReaderId: stripeEnv("STRIPE_TERMINAL_READER_ID") ?? null,
   };
 }

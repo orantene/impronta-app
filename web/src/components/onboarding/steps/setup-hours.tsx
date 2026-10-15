@@ -5,7 +5,8 @@
 import { useState } from "react";
 
 import type { DayKey, WeeklyEssentialHours } from "@/lib/onboarding/essentials";
-import { DAY_LABELS, DAY_ORDER, copyDayToAll, minToTime, setDayRange, timeToMin, toggleDay } from "@/lib/onboarding/setup";
+import { DAY_LABELS, DAY_ORDER, copyDayToAll, setDayRange, toggleDay } from "@/lib/onboarding/setup";
+import { timeSlotOptions } from "@/lib/onboarding/time-slots";
 import type { SetupCopy } from "@/lib/onboarding/setup-copy";
 import type { FlowLocale } from "@/lib/onboarding/flow";
 
@@ -59,18 +60,17 @@ export function SetupHours({
             {(["startMin", "endMin"] as const).map((k) => (
               <label key={k} className="block">
                 <span className="mb-1 block text-[0.6875rem] font-semibold uppercase tracking-[0.08em]" style={{ color: "var(--tl-muted)" }}>{k === "startMin" ? copy.from : copy.to}</span>
-                <input
-                  type="time"
-                  step={900}
-                  value={minToTime(range[k])}
-                  onChange={(e) => {
-                    const m = timeToMin(e.target.value);
-                    if (m !== null) onChange(setDayRange(week, active, { ...range, [k]: m }));
-                  }}
+                <select
+                  value={range[k]}
+                  onChange={(e) => onChange(setDayRange(week, active, { ...range, [k]: Number(e.target.value) }))}
                   data-testid={`onb-hours-${k}`}
                   className="h-12 w-full rounded-[12px] px-3 text-[1rem] outline-none"
                   style={field}
-                />
+                >
+                  {timeSlotOptions(locale, range[k]).map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
               </label>
             ))}
           </div>

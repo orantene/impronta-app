@@ -5,6 +5,11 @@ import { isValidAuthEmail } from "@/lib/auth/otp-flow";
 import { sendEmailResult } from "@/lib/email";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { resolveInboundTargets } from "@/lib/notifications/email-copies/kinds";
+import {
+  copyListIsEmpty,
+  loadActiveCopyRecipients,
+} from "@/lib/notifications/email-copies/recipients";
 
 /** Cap stored HTML/text so a single inbound cannot blow up a row. */
 export const INBOUND_BODY_STORE_BYTES = 200_000;
@@ -30,7 +35,8 @@ export type InboundProcessResult = {
 };
 
 /**
- * Forward target comes ONLY from RESEND_INBOUND_FORWARD_TO. Returns null when
+ * Legacy env fallback target (used only while the notification copy list is
+ * empty), read from RESEND_INBOUND_FORWARD_TO. Returns null when
  * the variable is unset or is not exactly one plausible email address (lists,
  * inner whitespace and display names are all rejected).
  */
@@ -43,6 +49,26 @@ export function resolveInboundForwardTo(): string | null {
 
 export const INBOUND_FORWARD_SKIPPED_REASON =
   "forward skipped: RESEND_INBOUND_FORWARD_TO unset or invalid";
+
+export const INBOUND_FORWARD_LIST_SKIPPED_REASON =
+  "forward skipped: no active notification copy address receives support email replies";
+
+export type InboundForwardTargets = { targets: string[]; source: "list" | "env" };
+
+/**
+ * Forward targets: active `support_inbound` addresses from the platform-admin
+ * notification copy list. Only when that list has zero rows at all does the
+ * RESEND_INBOUND_FORWARD_TO env var apply (legacy fallback).
+ */
+export async function resolveInboundForwardTargets(): Promise<InboundForwardTargets> {
+  const listIsEmpty = await copyListIsEmpty();
+  const listRecipients = listIsEmpty ? [] : await loadActiveCopyRecipients("support_inbound");
+  return resolveInboundTargets({
+    listIsEmpty,
+    listRecipients,
+    envTarget: resolveInboundForwardTo(),
+  });
+}
 
 let warnedForwardUnset = false;
 
@@ -187,7 +213,7 @@ function createDbStore(): InboundStore | null {
 
 /**
  * Fetch a received message from Resend, persist it, then best-effort forward
- * to the env-configured target (skipped when unset). Persistence is the retention guarantee; forward is
+ * to the notification copy list (or the env fallback; skipped when none). Persistence is the retention guarantee; forward is
  * convenience until Support Desk Phase 3.
  */
 export async function processResendInboundEmail(
@@ -206,6 +232,7 @@ export async function processResendInboundEmail(
       error: unknown;
     }>;
     sendForward?: typeof sendEmailResult;
+    resolveForwardTargets?: () => Promise<InboundForwardTargets>;
   },
 ): Promise<InboundProcessResult> {
   if (event.type !== "email.received") {
@@ -243,7 +270,8 @@ export async function processResendInboundEmail(
     typeof data.html === "string" ? data.html : null,
   );
   const bodyTruncated = textPart.truncated || htmlPart.truncated;
-  const forwardTo = resolveInboundForwardTo();
+  const forward = await (deps?.resolveForwardTargets ?? resolveInboundForwardTargets)();
+  const forwardTo = forward.targets.length > 0 ? forward.targets.join(", ") : null;
 
   const store = deps?.store === undefined ? createDbStore() : deps.store;
   if (!store) {
@@ -288,8 +316,14 @@ export async function processResendInboundEmail(
   }
 
   if (!forwardTo) {
-    warnForwardSkippedOnce();
-    await store.markForward(stored.id, "skipped", INBOUND_FORWARD_SKIPPED_REASON);
+    if (forward.source === "env") warnForwardSkippedOnce();
+    await store.markForward(
+      stored.id,
+      "skipped",
+      forward.source === "env"
+        ? INBOUND_FORWARD_SKIPPED_REASON
+        : INBOUND_FORWARD_LIST_SKIPPED_REASON,
+    );
     return {
       ok: true,
       detail: `stored ${emailId}; forward skipped: no forward target configured`,
@@ -309,30 +343,44 @@ export async function processResendInboundEmail(
   });
 
   const send = deps?.sendForward ?? sendEmailResult;
-  const result = await send({
-    to: forwardTo,
-    subject: `[Tulala inbound] ${subject}`,
-    html,
-    replyTo: from.includes("@") ? from : undefined,
-  });
+  // One send per target so each address gets its own copy (and one bad
+  // address cannot fail the others).
+  let sentCount = 0;
+  let lastFailure: { status: "failed" | "skipped"; detail: string } | null = null;
+  for (const target of forward.targets) {
+    try {
+      const result = await send({
+        to: target,
+        subject: `[Tulala inbound] ${subject}`,
+        html,
+        replyTo: from.includes("@") ? from : undefined,
+      });
+      if (result.status === "sent") sentCount += 1;
+      else if (result.status === "failed") lastFailure = { status: "failed", detail: result.error };
+      else if (!lastFailure || lastFailure.status !== "failed") {
+        lastFailure = { status: "skipped", detail: `forward skipped (${result.reason ?? "unknown"})` };
+      }
+    } catch (err) {
+      logServerError("resend.inbound.forward", err);
+      lastFailure = { status: "failed", detail: err instanceof Error ? err.message : String(err) };
+    }
+  }
 
-  if (result.status === "sent") {
-    await store.markForward(stored.id, "sent", null);
+  if (sentCount > 0) {
+    // Partial failures still count as forwarded (the mail reached someone);
+    // record the failure detail so it is visible on the row.
+    await store.markForward(stored.id, "sent", lastFailure ? lastFailure.detail : null);
     return {
       ok: true,
-      detail: `stored+forwarded ${emailId} to ${forwardTo}`,
+      detail: `stored+forwarded ${emailId} to ${sentCount} of ${forward.targets.length} target(s)`,
       stored: true,
       rowId: stored.id,
       forwardStatus: "sent",
     };
   }
 
-  const failStatus: InboundForwardStatus =
-    result.status === "skipped" ? "skipped" : "failed";
-  const failDetail =
-    result.status === "failed"
-      ? result.error
-      : `forward skipped (${result.reason ?? "unknown"})`;
+  const failStatus: InboundForwardStatus = lastFailure?.status ?? "failed";
+  const failDetail = lastFailure?.detail ?? "forward failed";
   await store.markForward(stored.id, failStatus, failDetail);
 
   // Stored = success for retention. Forward failure must NOT drop the mail.

@@ -83,3 +83,28 @@ test("siteScaffoldComplete: missing or partial scaffold means no site", () => {
     false,
   );
 });
+
+test("PERF-SITE: siteScaffoldComplete accepts the cheap shell_head probe and rejects an empty one", () => {
+  const pages = { data: [{ is_home: true }], error: null };
+  assert.equal(
+    siteScaffoldComplete({ data: { site_slug: "a", shell_head: { type: "x" } }, error: null }, pages),
+    true,
+  );
+  assert.equal(
+    siteScaffoldComplete({ data: { site_slug: "a", shell_head: null }, error: null }, pages),
+    false,
+  );
+});
+
+test("PERF-SITE: manager + builder probes select the first shell node, not the whole tree; go-live history runs in parallel", () => {
+  const mgr = read("lib/talent-site/server/site-management-actions.ts");
+  assert.match(mgr, /shell_head:shell_tree->0/);
+  assert.match(mgr, /shell_published_head:shell_published->0/);
+  assert.doesNotMatch(mgr, /site_published_at, shell_published, shell_tree/);
+  assert.match(read("app/(workspace)/talent/page-builder/page.tsx"), /shell_head:shell_tree->0/);
+  const hist = read("lib/talent-site/history/history.server.ts");
+  const fn = hist.slice(hist.indexOf("export async function loadGoLiveSummary"));
+  assert.match(fn, /await Promise\.all\(\[\s*loadSiteDraftState/);
+  assert.match(fn, /\.eq\("talent_profile_id", talentProfileId\)\s*\.eq\("kind", "publish"\)/);
+  assert.match(fn, /historyRes\.error/);
+});

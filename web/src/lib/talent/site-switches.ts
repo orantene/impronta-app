@@ -5,6 +5,8 @@
  * A talent with no `talent_sites` row, or a row read before the columns
  * existed, is all-on: absence never pauses a talent.
  */
+import { parseClientAccountEntrySetting, type ClientAccountEntrySetting } from "@/lib/client-account/entry-visibility";
+
 export type TalentChatConfig = {
   greeting: string | null;
   browseServices: boolean;
@@ -13,6 +15,8 @@ export type TalentChatConfig = {
    * control). Distinct from `chatEnabled` (dock visible vs hidden).
    */
   aiBookingAssistantEnabled: boolean;
+  /** TUL-694: client account icon in the site header. `auto` = smart default (on while taking bookings). */
+  clientAccountEntry: ClientAccountEntrySetting;
 };
 
 export type TalentSiteSwitches = {
@@ -26,7 +30,7 @@ export const DEFAULT_TALENT_SITE_SWITCHES: TalentSiteSwitches = {
   acceptingBookings: true,
   acceptingInquiries: true,
   chatEnabled: true,
-  chatConfig: { greeting: null, browseServices: true, aiBookingAssistantEnabled: false },
+  chatConfig: { greeting: null, browseServices: true, aiBookingAssistantEnabled: false, clientAccountEntry: "auto" },
 };
 
 const GREETING_MAX = 280;
@@ -46,6 +50,7 @@ export function parseTalentChatConfig(raw: unknown): TalentChatConfig {
     browseServices: bool(obj.browseServices, true),
     // Explicit true only; missing / junk stays off (PM: default OFF).
     aiBookingAssistantEnabled: obj.aiBookingAssistantEnabled === true,
+    clientAccountEntry: parseClientAccountEntrySetting(obj.clientAccountEntry),
   };
 }
 

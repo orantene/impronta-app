@@ -44,8 +44,11 @@ import {
   fetchNativeFeaturedTalentByNodeId,
 } from "@/lib/site-admin/server/native-directory-source";
 import { collectNativeDataBlockNeeds } from "@/lib/site-admin/builder-node/native-data-block-needs";
+import { loadPortfolioAltContext } from "@/lib/site-admin/builder-node/portfolio-alt-context";
 import { loadPortfolioSources } from "@/lib/site-admin/builder-node/portfolio-sources";
 import { loadReviewsSources } from "@/lib/site-admin/builder-node/reviews-sources";
+import { loadPublicPromosForTalent, priceContext } from "@/lib/promos/public-promos.server";
+import { catalogPromoPrices } from "@/lib/promos/catalog-promo-prices";
 import { loadVisitSources } from "@/lib/site-admin/builder-node/visit-sources";
 import { loadCompCardSources } from "@/lib/site-admin/builder-node/comp-card-sources";
 import {
@@ -405,7 +408,7 @@ export async function loadBuilderNodeDataSources(
       ? // TUL-187: primaryLocale lets caption_i18n fall back and the language hint name the source language.
         await withSecondaryReadDegrade(
           "gallery",
-          () => loadPortfolioSources(catalogTalentId, { locale, primaryLocale: portfolioPrimaryLocale ?? null }),
+          async () => loadPortfolioSources(catalogTalentId, { locale, primaryLocale: portfolioPrimaryLocale ?? null, ...(await loadPortfolioAltContext(catalogTalentId)) }),
           { talentPortfolioShots: [] },
         )
       : {}),
@@ -454,6 +457,7 @@ export async function loadServicesCatalogSources(
     | "talentOfferingsConfirmsByHand"
     | "talentOfferingsBookingSettings"
     | "talentOfferingsUsdRates"
+    | "talentOfferingsPromoPrices"
     | "talentOfferingsCategoryOrder"
     | "talentOfferingsCategoryNotes"
     | "onlineCollectReady"
@@ -505,10 +509,18 @@ export async function loadServicesCatalogSources(
   const onlineCollectReady = resolveOnlineCollectReady({
     platformCheckoutReady: isPlatformCheckoutReady(),
   });
+  // Promos v1 (TUL-937): live auto promos price the home cards through
+  // displayPrice, like the service page. Direct channel only; any failure
+  // degrades to list prices (EMPTY promos), never to a thrown error.
+  const promoPrices =
+    channel === "direct"
+      ? catalogPromoPrices(offerings, priceContext(await loadPublicPromosForTalent(talentProfileId), locale))
+      : {};
   return {
     talentOfferings: offerings,
     talentOfferingsConfirmsByHand: confirmsByHand,
     onlineCollectReady,
+    ...(Object.keys(promoPrices).length ? { talentOfferingsPromoPrices: promoPrices } : {}),
     ...(bookingSettings ? { talentOfferingsBookingSettings: bookingSettings } : {}),
     ...(usdRates ? { talentOfferingsUsdRates: usdRates } : {}),
     ...(categoryOrder.length ? { talentOfferingsCategoryOrder: categoryOrder } : {}),
@@ -566,7 +578,7 @@ export async function loadPersonalMaxNativeSources(args: {
     args.portfolio
       ? withSecondaryReadDegrade(
           "gallery",
-          () => loadPortfolioSources(args.talentProfileId, { locale: args.locale, primaryLocale: args.primaryLocale ?? null }),
+          async () => loadPortfolioSources(args.talentProfileId, { locale: args.locale, primaryLocale: args.primaryLocale ?? null, ...(await loadPortfolioAltContext(args.talentProfileId)) }),
           { talentPortfolioShots: [] },
         )
       : {},

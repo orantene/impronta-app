@@ -74,6 +74,7 @@ import { scheduleBookingAssistantTurn } from "@/lib/ai/booking-assistant/turn.se
 import { nextFreeTimesForTalent } from "@/lib/scheduling/next-free-times";
 import { scanGuestConversationForDetails } from "@/app/t/[profileCode]/_actions/guest-conversation-scan-action";
 import { sendGuestClaimEmail } from "@/lib/inquiry/guest-claim-link";
+import { readSiteReturnUrl } from "@/lib/inquiry/claim-return-url.server";
 import { getTypicalReplyLabel } from "@/lib/inquiry/guest-reply-latency";
 import {
   buildInquiryReceipt,
@@ -1140,7 +1141,7 @@ export async function startGuestChatInquiry(
       talentName = (talentRow?.display_name as string | null)?.trim() || "";
     }
     if (!talentName) {
-      talentName = (await loadAgencyName(admin, tenantId)) ?? "the team";
+      talentName = (await loadAgencyName(admin, tenantId)) ?? "";
     }
 
     const claimResult = await sendGuestClaimEmail({
@@ -1149,6 +1150,7 @@ export async function startGuestChatInquiry(
       talentName,
       appUrl: getAppUrl(),
       tenantId,
+      returnUrl: await readSiteReturnUrl(),
     });
     claimEmailSent = claimResult.ok;
     if (!claimResult.ok) {
@@ -1823,7 +1825,7 @@ export async function sendGuestClaimToEmail(
     talentName = (t?.display_name as string | null)?.trim() || "";
   }
   if (!talentName) {
-    talentName = (await loadAgencyName(admin, owned.inquiry.tenantId)) ?? "the team";
+    talentName = (await loadAgencyName(admin, owned.inquiry.tenantId)) ?? "";
   }
 
   // Resolve the tenant slug for the post-auth destination + branded email.
@@ -1842,6 +1844,7 @@ export async function sendGuestClaimToEmail(
     talentName,
     appUrl: getAppUrl(),
     tenantId: owned.inquiry.tenantId,
+    returnUrl: await readSiteReturnUrl(),
   });
   if (!claimResult.ok) {
     logServerError(

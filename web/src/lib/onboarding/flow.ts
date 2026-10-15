@@ -13,8 +13,9 @@ export const FLOW_TOTAL = 4;
 export type FlowStepNumber = 1 | 2 | 3 | 4;
 
 /**
- * 1 How do you work? · 2 Tell us what you do · 3 Set up the essentials ·
- * 4 Your page is ready (account, build and arrival live here).
+ * 1 How do you work? · 2 Tell us what you do (and the essentials it implies) ·
+ * 3 Set up services, hours and look · 4 Your page is ready (confirm, account,
+ * build and arrival live here), so no three screens share one number.
  */
 export const FLOW_STEP_OF: Record<ModuleStep, FlowStepNumber> = {
   choose: 1,
@@ -25,10 +26,10 @@ export const FLOW_STEP_OF: Record<ModuleStep, FlowStepNumber> = {
   reading: 2,
   understood: 2,
   question: 3,
-  essentials: 3,
+  essentials: 2,
   setup: 3,
   style: 3,
-  readyToBuild: 3,
+  readyToBuild: 4,
   save: 4,
   code: 4,
   building: 4,
@@ -40,6 +41,17 @@ export function flowStepOf(step: ModuleStep): FlowStepNumber {
 }
 
 export type FlowLocale = "en" | "es";
+
+/**
+ * TUL-813: review, email and code all live in step 4. Email and code are
+ * sub-steps, so the progress line names them instead of repeating "4/4"
+ * three times with no change. The total never grows.
+ */
+export function flowSubLabel(step: ModuleStep, locale: FlowLocale): string | null {
+  if (step === "save") return locale === "es" ? "TU CUENTA" : "YOUR ACCOUNT";
+  if (step === "code") return locale === "es" ? "CÓDIGO DEL CORREO" : "EMAIL CODE";
+  return null;
+}
 
 /**
  * Spanish by default for Mexico: an `es-*` (or `es`) browser language, or a

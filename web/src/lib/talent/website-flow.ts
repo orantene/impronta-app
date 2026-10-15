@@ -11,6 +11,8 @@
  *   published site_published_at set
  */
 
+import { dashboardStatusCopy, type DashboardPlanKind } from "@/lib/talent/dashboard-status";
+
 export type WebsiteFlowState = "notReady" | "ready" | "preview" | "published";
 
 /** Where the next action lands in the setup flow. */
@@ -56,19 +58,22 @@ export function websiteFlowCopy(
   es: boolean,
   /** Applied design line from appliedThemeLine(); preview state only. */
   designLine = "",
+  /** Current plan (TUL-579): a paid plan never gets "free website" copy. */
+  plan: DashboardPlanKind = "free",
 ): WebsiteFlowCopy {
   const T = (en: string, sp: string) => (es ? sp : en);
+  const status = dashboardStatusCopy({ plan, publish: state === "published" ? "live" : "draft", es });
   const complete = T("✓ Profile complete", "✓ Perfil completo");
   switch (state) {
     case "notReady":
       return {
         pillLead: `${percent}%`,
-        pillAction: T("Unlock your free website", "Desbloquea tu sitio gratis"),
+        pillAction: status.unlockTitle,
         tone: "idle",
-        todayTitle: T("Unlock your free website", "Desbloquea tu sitio gratis"),
+        todayTitle: status.unlockTitle,
         todaySub: T(`Your profile is ${percent}% complete`, `Tu perfil está ${percent}% completo`),
         todayCta: null,
-        cardTitle: T("Unlock your free website", "Desbloquea tu sitio gratis"),
+        cardTitle: status.unlockTitle,
         cardSub: T(`Your profile is ${percent}% complete`, `Tu perfil está ${percent}% completo`),
         cta: null,
       };
@@ -77,15 +82,15 @@ export function websiteFlowCopy(
         pillLead: complete,
         pillAction: T("Activate your website", "Activa tu sitio"),
         tone: "brand",
-        todayTitle: T("Your free website is ready", "Tu sitio gratis está listo"),
+        todayTitle: status.readyTitle,
         todaySub: T(
           "Pick a design, check it with your real services and photos, then choose your address.",
           "Elige un diseño, revísalo con tus servicios y fotos reales, y elige tu dirección.",
         ),
         todayCta: T("Create my website", "Crear mi sitio"),
-        cardTitle: T("Free website unlocked", "Sitio gratis desbloqueado"),
+        cardTitle: status.unlockedCardTitle,
         cardSub: T("Activate it and we build it from your profile", "Actívalo y lo armamos con tu perfil"),
-        cta: T("Activate your free website", "Activa tu sitio gratis"),
+        cta: status.activateCta,
       };
     case "preview": {
       const sub = T("Have a look, then publish it", "Échale un ojo y publícalo");

@@ -9,6 +9,7 @@ import {
 } from "@/components/auth/auth-ui";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
+import { withLocaleHref } from "@/i18n/pathnames";
 import { getSiteUrl, isTalentSignupNext, normalizeOptionalNextPath } from "@/lib/auth-flow";
 import { readInviteFromCookieStore } from "@/lib/invites/cookie";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
@@ -127,17 +128,35 @@ export default async function LoginPage({
         href={
           proStartUrl
             ? proStartUrl
-            : passwordlessFirst
-            ? buildRegisterHref("client", nextPath ? { next: nextPath } : {})
-            : nextPath
-              ? `/register?next=${encodeURIComponent(nextPath)}`
-              : "/register"
+            : withLocaleHref(
+                passwordlessFirst
+                  ? buildRegisterHref("client", nextPath ? { next: nextPath } : {})
+                  : nextPath
+                    ? `/register?next=${encodeURIComponent(nextPath)}`
+                    : "/register",
+                locale,
+              )
         }
         className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
         style={{ color: "var(--plt-ink-soft)" }}
       >
         {t("public.auth.login.signUp")}
       </Link>
+      {/* TUL-759: the generic login only offered the seller sign-up; clients get their own entry. */}
+      {!passwordlessFirst && !proStartUrl ? (
+        <>
+          <br />
+          {t("public.auth.login.clientPrompt")}{" "}
+          <Link
+            href={withLocaleHref(buildRegisterHref("client", nextPath ? { next: nextPath } : {}), locale)}
+            className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
+            style={{ color: "var(--plt-ink-soft)" }}
+            data-client-signup-link=""
+          >
+            {t("public.auth.login.clientSignUp")}
+          </Link>
+        </>
+      ) : null}
     </p>
   );
 
@@ -161,7 +180,9 @@ export default async function LoginPage({
 
         {error ? (
           <AuthNotice tone="error" align="center" className="mb-4">
-            {decodeURIComponent(error)}
+            {error === "auth"
+              ? t("public.auth.login.linkExpired")
+              : decodeURIComponent(error)}
           </AuthNotice>
         ) : null}
 
@@ -211,14 +232,23 @@ export default async function LoginPage({
             footer={signUpFooter}
           />
         ) : (
-          <>
-            <LoginForm
-              nextPath={nextPath}
-              defaultEmail={email ? decodeURIComponent(email) : undefined}
-              locale={locale}
-            />
-            {signUpFooter}
-          </>
+          // TUL-16 (a): password first, but a passwordless account (magic
+          // link or Google) can always ask for an emailed code from here.
+          <EmailCodeForm
+            nextPath={nextPath}
+            locale={locale}
+            defaultEmail={email ? decodeURIComponent(email) : undefined}
+            allowCreate={false}
+            startWithPassword
+            passwordFallback={
+              <LoginForm
+                nextPath={nextPath}
+                defaultEmail={email ? decodeURIComponent(email) : undefined}
+                locale={locale}
+              />
+            }
+            footer={signUpFooter}
+          />
         )}
       </AuthCard>
     </div>

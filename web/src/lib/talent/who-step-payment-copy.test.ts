@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  bookPagePaymentLine,
   doneStepNextActionCopy,
   offeringRequiresOnlineCollect,
   resolveWhoStepPaymentUi,
@@ -29,6 +30,28 @@ test("free + in-person → studio pay copy (es/en)", () => {
     }),
     /studio/i,
   );
+});
+
+test("GRK-066: free + in-person at client place never says studio", () => {
+  const es = whoStepPaymentCopy({
+    reserveMode: "free",
+    allowPayInPerson: true,
+    depositPct: null,
+    payAtClientPlace: true,
+    locale: "es",
+  });
+  assert.match(es, /día del servicio/);
+  assert.doesNotMatch(es, /estudio/);
+
+  const en = whoStepPaymentCopy({
+    reserveMode: "free",
+    allowPayInPerson: true,
+    depositPct: null,
+    payAtClientPlace: true,
+    locale: "en",
+  });
+  assert.match(en, /day of the service/i);
+  assert.doesNotMatch(en, /studio/i);
 });
 
 test("deposit copy includes percent and never promises studio-only", () => {
@@ -161,7 +184,7 @@ test("PAY-2: readiness request intent (no hours) hides deposit honesty on chat p
     bookingSettings: DEFAULT_SHEET_BOOKING_SETTINGS,
   });
   assert.equal(ui.whoAction, "chat");
-  assert.match(ui.whoCtaText, /Chatea ahora/);
+  assert.match(ui.whoCtaText, /Enviar consulta/);
   assert.match(ui.paymentFixture, /Te respondemos para confirmar el horario/);
   assert.doesNotMatch(ui.paymentFixture, /seña/);
 });
@@ -208,6 +231,30 @@ test("done-step next action restates studio vs payment (never silent paid)", () 
   );
   assert.match(
     doneStepNextActionCopy({
+      reserveMode: "free",
+      allowPayInPerson: true,
+      depositPct: null,
+      payAtClientPlace: true,
+      locale: "es",
+      wrote: true,
+      isRequest: false,
+    }),
+    /día del servicio/,
+  );
+  assert.doesNotMatch(
+    doneStepNextActionCopy({
+      reserveMode: "free",
+      allowPayInPerson: true,
+      depositPct: null,
+      payAtClientPlace: true,
+      locale: "es",
+      wrote: true,
+      isRequest: false,
+    }),
+    /estudio/,
+  );
+  assert.match(
+    doneStepNextActionCopy({
       reserveMode: "deposit",
       allowPayInPerson: false,
       depositPct: 40,
@@ -228,4 +275,17 @@ test("done-step next action restates studio vs payment (never silent paid)", () 
     }),
     /estudio/,
   );
+});
+
+test("TUL-976: the /book line says prepaid vs pay at the appointment, and when a request is paid", () => {
+  const free = { reserveMode: "free" as const, allowPayInPerson: true, depositPct: null };
+  const deposit = { reserveMode: "deposit" as const, allowPayInPerson: false, depositPct: 30 };
+  assert.match(bookPagePaymentLine(free, "instant", "es"), /No se cobra nada ahora/);
+  assert.match(bookPagePaymentLine(deposit, "instant", "en"), /30% deposit is charged now/);
+  assert.match(bookPagePaymentLine(free, "request", "es"), /pago se realiza en la cita/);
+  assert.match(bookPagePaymentLine(deposit, "request", "es"), /enlace de pago/);
+  assert.match(bookPagePaymentLine(deposit, "request", "en"), /final once paid/);
+  for (const line of [bookPagePaymentLine(free, "request", "en"), bookPagePaymentLine(deposit, "request", "es")]) {
+    assert.doesNotMatch(line, /—/);
+  }
 });

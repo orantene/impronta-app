@@ -14,8 +14,9 @@ import { finishPlan, type FinishPlan } from "@/lib/onboarding/finish-plan";
 import { PrimaryButton, Sub, Title } from "../ui";
 
 /**
- * TUL-16 · Studio with no provider yet: honest "ready for requests", then ONE
- * primary action (add the first team member) and one small secondary link.
+ * TUL-16 / TUL-525 · Studio with no provider yet: honest "ready for requests",
+ * then the same clear CTA stack as Para mí — Abrir mi panel first, site /
+ * customize, then add-member and also-book as real options (not footnotes).
  * Never says "bookable".
  */
 function InquiryOnlyArrival({ t, arrival, plan }: { t: (key: string) => string; arrival: ArrivalPayload; plan: Extract<FinishPlan, { kind: "inquiry_only" }> }) {
@@ -26,17 +27,59 @@ function InquiryOnlyArrival({ t, arrival, plan }: { t: (key: string) => string; 
       </div>
       <Title size={30}>{t(plan.titleKey)}</Title>
       <Sub>{t(plan.subKey)}</Sub>
-      <div className="mt-5 flex flex-col items-center gap-3">
-        <a href={plan.primary.href} data-testid="onb-arrival-add-member" className="inline-flex min-h-12 w-full items-center justify-center rounded-full px-6 py-2 text-center text-[0.9375rem] font-semibold" style={{ background: "var(--tl-forest)", color: "var(--tl-forest-on)" }}>
+      <div className="mt-5 flex flex-col gap-2">
+        <a
+          href={plan.primary.href}
+          data-testid="onb-arrival-panel"
+          className="inline-flex min-h-12 w-full items-center justify-center rounded-full px-6 py-2 text-center text-[0.9375rem] font-semibold"
+          style={{ background: "var(--tl-forest)", color: "var(--tl-forest-on)" }}
+        >
           {t(plan.primary.labelKey)}
         </a>
-        <a href={plan.secondary.href} data-testid="onb-arrival-also-book" className="text-[0.8125rem] font-semibold underline underline-offset-2" style={{ color: "var(--tl-ink-soft)" }}>
+        {arrival.link ? (
+          <a
+            href={arrival.link.href}
+            target="_blank"
+            rel="noreferrer"
+            data-testid="onb-arrival-view"
+            className="inline-flex min-h-12 w-full items-center justify-center rounded-full px-6 text-[0.9375rem] font-semibold"
+            style={{ background: "transparent", color: "var(--tl-ink)", border: "1px solid var(--tl-hairline-strong)" }}
+          >
+            {t("public.onboarding.arrival.viewMyWebsite")}
+          </a>
+        ) : null}
+        {arrival.editorHref ? (
+          <a
+            href={arrival.editorHref}
+            data-testid="onb-arrival-cta"
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-full px-6 text-[0.875rem] font-semibold"
+            style={{ background: "transparent", color: "var(--tl-ink-soft)" }}
+          >
+            {t("public.onboarding.arrival.customizeInBuilder")}
+          </a>
+        ) : null}
+        <a
+          href={plan.addMember.href}
+          data-testid="onb-arrival-add-member"
+          className="inline-flex min-h-11 w-full items-center justify-center rounded-full px-6 text-[0.875rem] font-semibold"
+          style={{ background: "transparent", color: "var(--tl-ink)", border: "1px solid var(--tl-hairline)" }}
+        >
+          {t(plan.addMember.labelKey)}
+        </a>
+        <a
+          href={plan.secondary.href}
+          data-testid="onb-arrival-also-book"
+          className="inline-flex min-h-11 w-full items-center justify-center rounded-full px-6 text-[0.875rem] font-semibold"
+          style={{ background: "transparent", color: "var(--tl-ink)", border: "1px solid var(--tl-hairline)" }}
+        >
           {t(plan.secondary.labelKey)}
         </a>
       </div>
       {arrival.link ? (
         <p className="mt-6 text-center text-[0.8125rem]" style={{ color: "var(--tl-muted)" }} data-testid="onb-arrival-link">
-          <a href={arrival.link.href} target="_blank" rel="noreferrer" className="underline underline-offset-2" data-testid="onb-arrival-visit">{arrival.link.display}</a>
+          <a href={arrival.link.href} target="_blank" rel="noreferrer" className="underline underline-offset-2" data-testid="onb-arrival-visit">
+            {arrival.link.display}
+          </a>
         </p>
       ) : null}
     </div>
@@ -51,6 +94,7 @@ export function ArrivalStep({ t, arrival, onRetry, busy = false }: { t: (key: st
   if (plan.kind === "inquiry_only") return <InquiryOnlyArrival t={t} arrival={arrival} plan={plan} />;
   const facts: string[] = [];
   if (arrival.fact.services > 0) facts.push(t("public.onboarding.arrival.factServices").replace("{n}", String(arrival.fact.services)));
+  if (arrival.fact.unpriced) facts.push(t("public.onboarding.arrival.factUnpriced").replace("{n}", String(arrival.fact.unpriced)));
   if (arrival.fact.city) facts.push(t("public.onboarding.arrival.factCity").replace("{city}", arrival.fact.city));
   if (arrival.fact.logo) facts.push(t("public.onboarding.arrival.factLogo"));
   if (arrival.fact.hours) facts.push(t("public.onboarding.arrival.factHours"));
@@ -141,7 +185,7 @@ export function ArrivalStep({ t, arrival, onRetry, busy = false }: { t: (key: st
             <a href={arrival.link.href} data-testid="onb-arrival-view" className="inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-[0.9375rem] font-semibold" style={{ background: "var(--tl-forest)", color: "var(--tl-forest-on)" }}>
               {t("public.onboarding.arrival.viewMyWebsite")}
             </a>
-            <a href={arrival.primary.href} data-testid="onb-arrival-cta" className="inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-[0.9375rem] font-semibold" style={{ background: "transparent", color: "var(--tl-ink)", border: "1px solid var(--tl-hairline-strong)" }}>
+            <a href={arrival.primary.href} data-testid="onb-arrival-cta" className="inline-flex h-11 w-full items-center justify-center rounded-full px-6 text-[0.875rem] font-semibold" style={{ background: "transparent", color: "var(--tl-ink)", border: "1px solid var(--tl-hairline)" }}>
               {t("public.onboarding.arrival.customizeInBuilder")}
             </a>
           </>
@@ -151,7 +195,7 @@ export function ArrivalStep({ t, arrival, onRetry, busy = false }: { t: (key: st
               {cta}
             </a>
             {arrival.siteLive ? (
-              <a href={arrival.editorHref ?? arrival.finishHref ?? "/talent/today"} data-testid="onb-arrival-finish" className="inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-[0.9375rem] font-semibold" style={{ background: "transparent", color: "var(--tl-ink)", border: "1px solid var(--tl-hairline-strong)" }}>
+              <a href={arrival.editorHref ?? arrival.finishHref ?? "/talent/today"} data-testid="onb-arrival-finish" className="inline-flex h-11 w-full items-center justify-center rounded-full px-6 text-[0.875rem] font-semibold" style={{ background: "transparent", color: "var(--tl-ink)", border: "1px solid var(--tl-hairline)" }}>
                 {t("public.onboarding.arrival.customizeInBuilder")}
               </a>
             ) : null}
@@ -205,11 +249,15 @@ function DraftBody({ t, sub, message, onRetry, busy, editorHref, panelHref, vari
     <div data-testid="onb-arrival-failed" data-variant={variant}>
       <Title>{t("public.onboarding.arrival.draftTitle")}</Title>
       <Sub>{sub}</Sub>
-      {message ? <p className="mt-3 text-[0.8125rem]" style={{ color: "var(--tl-error)" }}>{message}</p> : null}
+      <p className="mt-3 text-[0.9375rem] leading-[1.5]" style={{ color: "var(--tl-ink)" }} data-testid="onb-arrival-reason">{t("public.onboarding.arrival.draftReason")}</p>
+      <details className="mt-2 text-[0.8125rem]" style={{ color: "var(--tl-ink-soft)" }} data-testid="onb-arrival-details">
+        <summary className="cursor-pointer font-semibold">{t("public.onboarding.arrival.draftDetails")}</summary>
+        <p className="mt-1 break-words">{message ? `${message} (${variant})` : variant}</p>
+      </details>
       <div className="mt-6 flex flex-col gap-2">
         {onRetry ? <PrimaryButton onClick={onRetry} disabled={busy} testId="onb-arrival-retry">{t("public.onboarding.arrival.retry")}</PrimaryButton> : null}
         {editorHref ? (
-          <a href={editorHref} data-testid="onb-arrival-editor" className="inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-[0.9375rem] font-semibold" style={{ background: "transparent", color: "var(--tl-ink)", border: "1px solid var(--tl-hairline-strong)" }}>
+          <a href={editorHref} data-testid="onb-arrival-editor" className="inline-flex h-11 w-full items-center justify-center rounded-full px-6 text-[0.875rem] font-semibold" style={{ background: "transparent", color: "var(--tl-ink)", border: "1px solid var(--tl-hairline)" }}>
             {t("public.onboarding.arrival.openEditor")}
           </a>
         ) : null}

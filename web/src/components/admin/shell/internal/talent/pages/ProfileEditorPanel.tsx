@@ -22,6 +22,7 @@ import {
   type ProfileEditorSection,
   type ProfileEditorSectionKey,
 } from "@/lib/talent/profile-editor-sections";
+import { selfProfileTradeLabel } from "@/lib/talent/self-profile-trade-label";
 import { useAdminShell } from "../../state";
 
 const SECTION_COPY: Record<ProfileEditorSectionKey, { title: string; body: string }> = {
@@ -94,10 +95,12 @@ export function ProfileReadyCard({ openSection }: { openSection: (section: strin
 
 export function ProfileEditorSections({ openSection }: { openSection: (section: string) => void }) {
   const t = useT();
+  const dash = useDashboardText();
   const { bridgeTalentSelfProfile } = useAdminShell();
   const eligibility = useWebsiteEligibility();
   const sections = buildProfileEditorSections(eligibility.slices);
   const photoCount = eligibility.photoCount;
+  const tradeLabel = selfProfileTradeLabel(bridgeTalentSelfProfile, dash.locale);
 
   return (
     <section className="mb-4 flex flex-col gap-3 font-admin-body" data-testid="profile-editor-sections">
@@ -124,7 +127,7 @@ export function ProfileEditorSections({ openSection }: { openSection: (section: 
             {s.key === "nameTrade" && bridgeTalentSelfProfile && (
               <p className="text-[13px] text-admin-ink">
                 {bridgeTalentSelfProfile.displayName}
-                {bridgeTalentSelfProfile.primaryTypeLabel ? ` · ${bridgeTalentSelfProfile.primaryTypeLabel}` : ""}
+                {tradeLabel ? ` · ${tradeLabel}` : ""}
               </p>
             )}
             {s.key === "where" && (
@@ -138,8 +141,10 @@ export function ProfileEditorSections({ openSection }: { openSection: (section: 
                     type="button"
                     role="radio"
                     aria-checked
-                    className="min-h-11 rounded-xl border border-admin-ink px-3 text-[12.5px] font-semibold text-admin-ink"
+                    data-testid="profile-where-city-only"
+                    className="min-h-11 rounded-xl border border-admin-ink bg-admin-ink px-3 text-[12.5px] font-semibold text-white"
                   >
+                    <span aria-hidden>{"\u2713 "}</span>
                     {t("dashboard.talentMyProfile.editor.whereCityOnly")}
                   </button>
                   <button

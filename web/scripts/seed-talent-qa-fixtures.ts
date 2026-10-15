@@ -1,5 +1,6 @@
 /**
- * seed-talent-qa-fixtures.ts — two @impronta.test talents so the talent
+ * seed-talent-qa-fixtures.ts — two QA talents (tulalaqa+qamax / tulalaqa+free
+ * @mail.grokbot.com since 2026-10-14; code sign-in, no password) so the talent
  * builder is reachable through PASSWORDLESS DEV SIGN-IN, without touching a
  * real (gmail) account.
  *
@@ -50,8 +51,6 @@ const admin: SupabaseClient = createClient(SUPABASE_URL, requireEnv("SUPABASE_SE
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-const PASSWORD = process.env.TALENT_QA_FIXTURE_PASSWORD?.trim() || (() => { throw new Error("TALENT_QA_FIXTURE_PASSWORD is required (QA credential is no longer hardcoded in the repo)"); })();
-
 interface FixtureSpec {
   profileCode: string;
   email: string;
@@ -64,13 +63,13 @@ interface FixtureSpec {
 const FIXTURES: FixtureSpec[] = [
   {
     profileCode: "TAL-93940",
-    email: "qa-talent-max@impronta.test",
+    email: "tulalaqa+qamax@mail.grokbot.com",
     displayName: "QA Fixture — Max Talent",
     planKey: "talent_portfolio",
   },
   {
     profileCode: "TAL-93939",
-    email: "qa-talent-free@impronta.test",
+    email: "tulalaqa+free@mail.grokbot.com",
     displayName: "QA Fixture — Free Talent",
     planKey: "talent_basic",
     siteSlug: "qa-fixture-free-talent",
@@ -93,7 +92,6 @@ async function ensureAuthUser(email: string, displayName: string) {
   if (existing) return existing;
   const { data, error } = await admin.auth.admin.createUser({
     email,
-    password: PASSWORD,
     email_confirm: true,
     user_metadata: { full_name: displayName },
   });
@@ -128,7 +126,7 @@ async function ensureTalentProfile(fx: FixtureSpec, userId: string): Promise<str
     display_name: fx.displayName,
     first_name: fx.displayName,
     profile_kind: "person",
-    short_bio: "Seeded fixture — talent builder QA, not a real talent.",
+    short_bio: "Perfil de prueba para QA del constructor. No es un talento real.",
     preferred_locale: "es",
     default_currency: "MXN",
     talent_plan_key: fx.planKey,
@@ -288,7 +286,7 @@ async function main(): Promise<void> {
       await ensureFreeFixtureBookingHours(profileId);
     }
   }
-  console.log("\nDone. Sign in via passwordless dev login as either @impronta.test address above.\n");
+  console.log("\nDone. Sign in with an emailed code at either tulalaqa+ address above (no passwords).\n");
 }
 
 main().catch((err) => {

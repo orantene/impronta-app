@@ -35,6 +35,7 @@
  * higher-traffic directory surface to read a result inside a sane window.
  */
 
+import { redactSecretPath } from "./redact-secret-path";
 import { trackProductEvent } from "./track-client";
 import {
   PRODUCT_ANALYTICS_EVENTS,
@@ -147,7 +148,8 @@ function trackInternalOnly(
   payload: ProductAnalyticsPayload,
 ): void {
   if (typeof window === "undefined") return;
-  const path = window.location?.pathname ?? null;
+  const rawPath = window.location?.pathname ?? null;
+  const path = rawPath ? redactSecretPath(rawPath) : null;
   const tenantId =
     typeof payload.tenant_id === "string" && payload.tenant_id
       ? payload.tenant_id

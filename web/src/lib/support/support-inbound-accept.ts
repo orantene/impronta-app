@@ -6,6 +6,14 @@ export function normalizeEmailAddress(value: string | null | undefined): string 
   return (m ? m[1] : value).trim().toLowerCase();
 }
 
+/** Same mailbox: ignores a `+tag` in the local part (clients often drop it on reply). */
+function mailboxKey(addr: string): string {
+  const at = addr.lastIndexOf("@");
+  if (at < 1) return addr;
+  const local = addr.slice(0, at).split("+")[0];
+  return `${local}@${addr.slice(at + 1)}`;
+}
+
 export type AcceptDecision = { accept: true } | { accept: false; reason: string };
 
 const ROBOT_LOCALS = /^(mailer-daemon|postmaster|no-?reply|do-?not-?reply|donotreply)$/;
@@ -33,6 +41,6 @@ export function shouldAcceptInboundReply(input: {
   if (ROBOT_LOCALS.test(sender.split("@")[0])) return { accept: false, reason: "robot_sender" };
   const owner = normalizeEmailAddress(input.ticketOwnerEmail);
   if (!owner) return { accept: false, reason: "owner_email_unknown" };
-  if (sender !== owner) return { accept: false, reason: "sender_not_owner" };
+  if (mailboxKey(sender) !== mailboxKey(owner)) return { accept: false, reason: "sender_not_owner" };
   return { accept: true };
 }

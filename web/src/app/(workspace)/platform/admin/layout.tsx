@@ -15,11 +15,12 @@
 //   │  (children — page content, max-w 1280, padding 28px)                │
 //   └──────────────────────────────────────────────────────────────────────┘
 
+import { SignOutForm } from "@/components/auth/SignOutForm";
 import { Suspense } from "react";
 import { redirect, notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
-import { signOut } from "@/app/auth/actions";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { PlatformTopbar } from "./platform-topbar";
@@ -92,6 +93,8 @@ export default async function PlatformAdminLayout({
   const t = createTranslator(locale);
   const supportOpenCount = await loadHqSupportOpenCount();
   const deskEnabled = isSupportDeskEnabled();
+  const hdrs = await headers();
+  const requestHost = hdrs.get("x-forwarded-host") ?? hdrs.get("host");
 
   const userName = userDisplayName(
     session.user.email,
@@ -263,13 +266,22 @@ export default async function PlatformAdminLayout({
                 talentLabel={t("dashboard.workspaceTalentQa")}
                 clientLabel={t("dashboard.workspaceClientQa")}
                 unavailableLabel={t("dashboard.workspaceQaUnavailable")}
+                reasonLabels={{
+                  not_configured: t("dashboard.workspaceQaReason.not_configured"),
+                  no_profile: t("dashboard.workspaceQaReason.no_profile"),
+                  inactive: t("dashboard.workspaceQaReason.inactive"),
+                  wrong_role: t("dashboard.workspaceQaReason.wrong_role"),
+                  not_allowlisted: t("dashboard.workspaceQaReason.not_allowlisted"),
+                  not_authorized: t("dashboard.workspaceQaReason.not_authorized"),
+                  no_relationship: t("dashboard.workspaceQaReason.no_relationship"),
+                }}
                 hasTalent={Boolean(qaTalentUserIdEnv())}
                 hasClient={Boolean(qaClientUserIdEnv())}
               />
             ) : null}
 
             {/* Sign-out */}
-            <form action={signOut}>
+            <SignOutForm>
               <button
                 type="submit"
                 title={t("dashboard.platform.shell.signOut")}
@@ -291,7 +303,7 @@ export default async function PlatformAdminLayout({
               >
                 ↩
               </button>
-            </form>
+            </SignOutForm>
           </div>
         </header>
 
@@ -307,7 +319,11 @@ export default async function PlatformAdminLayout({
             />
           }
         >
-          <PlatformTopbar supportOpenCount={supportOpenCount} deskEnabled={deskEnabled} />
+          <PlatformTopbar
+            supportOpenCount={supportOpenCount}
+            deskEnabled={deskEnabled}
+            requestHostHint={requestHost}
+          />
         </Suspense>
 
         {/* ── Content area ── */}

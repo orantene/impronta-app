@@ -2,7 +2,7 @@
 
 import { guestCookieSigningEnabled } from "@/lib/guest-cookie";
 import { guestSupportMayServe } from "@/lib/support/guest-support-serve";
-import { resolveClientIp, resolveGuestSessionId } from "@/lib/guest/guest-session";
+import { ensureGuestSessionId, resolveClientIp, resolveGuestSessionId } from "@/lib/guest/guest-session";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
@@ -14,8 +14,10 @@ import {
   checkGuestSupportEmailCapture,
   checkGuestSupportMessageAbuse,
 } from "./guest-support-abuse-guard";
+import { claimGuestResume } from "./guest-resume-claim";
 import { signGuestResumeToken, verifyGuestResumeToken } from "./guest-resume-token";
 import { supportFrom } from "./support-from";
+import { deriveTicketSubject } from "./ticket-title";
 import {
   mapMessageRow,
   mapTicketRow,
@@ -29,7 +31,7 @@ import { parseTalentSiteHelpContactInput } from "@/lib/support/talent-site-help-
 export type GuestSupportFail = { ok: false; error: string };
 export type GuestSupportOk<T extends object = object> = { ok: true } & T;
 
-async function requireSignedGuest(): Promise<
+async function requireSignedGuest(opts?: { mint?: boolean }): Promise<
   | {
       ok: true;
       admin: NonNullable<ReturnType<typeof createServiceRoleClient>>;
@@ -44,7 +46,9 @@ async function requireSignedGuest(): Promise<
   }
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Support chat is temporarily unavailable." };
-  const guestSessionId = await resolveGuestSessionId();
+  // Mint only for a link that proves ownership (email resume token): a
+  // signed-out visitor opening "Reply in app" has no guest cookie yet.
+  const guestSessionId = opts?.mint ? await ensureGuestSessionId() : await resolveGuestSessionId();
   if (!guestSessionId) {
     return { ok: false, error: "We couldn't identify your session. Please refresh and try again." };
   }
@@ -226,6 +230,14 @@ export async function attachGuestContactAction(input: {
   });
   if (!updated.ok) return updated;
   await stampLeadId(ident.admin, updated.data, email);
+  // TUL-660: after an AI error the guest was promised a person; an email is that ask.
+  if (await ticketHadAiError(ident.admin, ticket.id)) {
+    await supportEngine.escalateTicket({
+      ticketId: ticket.id,
+      reason: "user_requested",
+      actorUserId: ident.userId,
+    });
+  }
 
   const eventId = crypto.randomUUID();
   notify({
@@ -278,9 +290,10 @@ export async function markGuestThreadReadAction(input: {
     userId: ident.userId,
   });
   if (!ticket) return { ok: false, error: "Thread not found." };
-  await supportFrom(ident.admin, "support_tickets")
+  const { error: readError } = await supportFrom(ident.admin, "support_tickets")
     .update({ guest_last_read_at: new Date().toISOString() })
     .eq("id", ticket.id);
+  if (readError) return { ok: false, error: "Could not update the thread. Try again." };
   return { ok: true };
 }
 
@@ -288,33 +301,56 @@ export async function resumeGuestThreadAction(input: {
   token: string;
 }): Promise<GuestSupportOk<{ ticketId: string }> | GuestSupportFail> {
   await requireNotImpersonating();
-  const ident = await requireSignedGuest();
+  const ident = await requireSignedGuest({ mint: true });
   if (!ident.ok) return ident;
   const verified = verifyGuestResumeToken(input.token);
   if (!verified.ok) return { ok: false, error: "That resume link is not valid anymore." };
 
-  const { data } = await supportFrom(ident.admin, "support_tickets")
-    .select("*")
-    .eq("id", verified.ticketId)
-    .maybeSingle();
-  const ticket = mapTicketRow(data);
-  if (!ticket || ticket.surface !== "guest") {
-    return { ok: false, error: "Thread not found." };
+  const outcome = await claimGuestResume(
+    {
+      async load() {
+        const { data, error } = await supportFrom(ident.admin, "support_tickets")
+          .select("*")
+          .eq("id", verified.ticketId)
+          .maybeSingle();
+        if (error) return { row: null, error: true };
+        const ticket = mapTicketRow(data);
+        if (!ticket || ticket.surface !== "guest") return { row: null, error: false };
+        const raw = (data as { updated_at?: unknown } | null)?.updated_at;
+        return {
+          row: {
+            updatedAt: typeof raw === "string" ? raw : null,
+            metadata: ticket.metadata,
+            guestSessionId: ticket.guestSessionId ?? null,
+          },
+          error: false,
+        };
+      },
+      async update(patch, expectedUpdatedAt) {
+        let q = supportFrom(ident.admin, "support_tickets")
+          .update({
+            guest_session_id: patch.guestSessionId,
+            metadata: patch.metadata,
+            updated_at: patch.updatedAt,
+          })
+          .eq("id", verified.ticketId);
+        if (expectedUpdatedAt) q = q.eq("updated_at", expectedUpdatedAt);
+        const { data, error } = await q.select("id");
+        return { rows: Array.isArray(data) ? data.length : 0, error: Boolean(error) };
+      },
+    },
+    verified.issuedAtMs,
+    ident.guestSessionId,
+  );
+  if (outcome === "not_found") return { ok: false, error: "Thread not found." };
+  if (outcome === "error") return { ok: false, error: "Could not resume that thread. Try again." };
+  if (outcome === "already_opened") {
+    return {
+      ok: false,
+      error: "This link was already opened on another device. Start from the contact page to get a new link.",
+    };
   }
-
-  const prior = Array.isArray(ticket.metadata.prior_guest_sessions)
-    ? (ticket.metadata.prior_guest_sessions as string[])
-    : [];
-  if (ticket.guestSessionId && ticket.guestSessionId !== ident.guestSessionId) {
-    prior.push(ticket.guestSessionId);
-  }
-  await supportFrom(ident.admin, "support_tickets")
-    .update({
-      guest_session_id: ident.guestSessionId,
-      metadata: { ...ticket.metadata, prior_guest_sessions: prior },
-    })
-    .eq("id", ticket.id);
-  return { ok: true, ticketId: ticket.id };
+  return { ok: true, ticketId: verified.ticketId };
 }
 
 export async function appendGuestContactCardAction(input: {
@@ -330,10 +366,11 @@ export async function appendGuestContactCardAction(input: {
   if (!ticket) return { ok: false, error: "Thread not found." };
   if (ticket.contactEmail || ident.email) return { ok: true };
 
-  const { data } = await supportFrom(ident.admin, "support_messages")
+  const { data, error: cardsError } = await supportFrom(ident.admin, "support_messages")
     .select("card_payload")
     .eq("ticket_id", ticket.id)
     .eq("message_kind", "card");
+  if (cardsError) return { ok: false, error: "Could not load the thread. Try again." };
   const already = ((data ?? []) as Array<{ card_payload?: { kind?: string } | null }>).some((row) => {
     return row.card_payload?.kind === "guest-contact";
   });
@@ -377,8 +414,8 @@ export async function submitMarketingContactAction(input: {
     email,
   });
   if (!abuse.ok) return { ok: false, error: abuse.error };
-  if (!input.name.trim() || !email.includes("@") || !input.message.trim()) {
-    return { ok: false, error: "Name, email, and a message are required." };
+  if (!email.includes("@") || !input.message.trim()) {
+    return { ok: false, error: "Email and a message are required." };
   }
 
   const talentSite = parseTalentSiteHelpContactInput({
@@ -417,11 +454,11 @@ export async function submitMarketingContactAction(input: {
       userId: ident.userId,
     },
     talentProfileId,
-    subject: `[guest] ${input.topic.trim() || "Contact form"}`,
+    subject: deriveTicketSubject({ subject: input.topic, body: input.message }),
     body: input.message.trim(),
     originSlug: talentSite ? "talent-site" : "/contact",
     contactEmail: email,
-    contactName: input.name.trim(),
+    contactName: input.name.trim() || null,
     contactPhone: input.phone?.trim() || null,
     handledBy: "human",
     messageOranDirectly: true,
@@ -457,4 +494,18 @@ export async function submitMarketingContactAction(input: {
   });
 
   return { ok: true, ticketId: result.data.ticket.id };
+}
+
+async function ticketHadAiError(
+  admin: Parameters<typeof supportFrom>[0],
+  ticketId: string,
+): Promise<boolean> {
+  const { data } = await supportFrom(admin, "support_messages")
+    .select("*")
+    .eq("ticket_id", ticketId)
+    .order("created_at", { ascending: false })
+    .limit(20);
+  return ((data ?? []) as unknown[])
+    .map(mapMessageRow)
+    .some((m) => Boolean(m?.aiMeta && (m.aiMeta as Record<string, unknown>).fail_open));
 }

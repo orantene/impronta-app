@@ -27,6 +27,11 @@ export type WhoStepPaymentCopyInput = {
    * Omit / true when readiness is unknown (keep mode-accurate copy).
    */
   onlineCollectReady?: boolean;
+  /**
+   * GRK-066: when the service happens at the client's place, never say
+   * "at the studio" / "en el estudio" for pay-in-person copy.
+   */
+  payAtClientPlace?: boolean;
   locale: string;
 };
 
@@ -80,6 +85,11 @@ export function whoStepPaymentCopy(input: WhoStepPaymentCopyInput): string {
       ? "El pago se cobra en línea al confirmar."
       : "Payment is collected online when you confirm.";
   }
+  if (input.payAtClientPlace) {
+    return es
+      ? "No se cobra nada ahora. El pago se realiza el día del servicio."
+      : "Nothing is charged now. Pay on the day of the service.";
+  }
   return es
     ? "No se cobra nada ahora. El pago se realiza en el estudio."
     : "Nothing is charged now. Pay at the studio.";
@@ -94,6 +104,7 @@ export function whoStepPaymentCopyFor(input: {
   sellingDefaults: unknown;
   allowPayInPerson: boolean;
   onlineCollectReady?: boolean;
+  payAtClientPlace?: boolean;
   locale: string;
 }): string {
   const effective = resolveOfferingPolicy(input.offering, input.sellingDefaults);
@@ -102,8 +113,34 @@ export function whoStepPaymentCopyFor(input: {
     depositPct: effective.depositPct,
     allowPayInPerson: input.allowPayInPerson,
     onlineCollectReady: input.onlineCollectReady,
+    payAtClientPlace: input.payAtClientPlace,
     locale: input.locale,
   });
+}
+
+/**
+ * TUL-976: the /book page line under a service: prepaid vs pay at the
+ * appointment, and for a request WHEN the payment is due (after it is
+ * confirmed), so "we will confirm" never leaves the guest guessing.
+ */
+export function bookPagePaymentLine(
+  offering: { reserveMode: OfferingReserveMode; allowPayInPerson: boolean; depositPct: number | null },
+  mode: "instant" | "request",
+  locale: string,
+): string {
+  const es = locale.toLowerCase().startsWith("es");
+  const needsOnline = offeringRequiresOnlineCollect(offering);
+  if (mode === "request") {
+    if (!needsOnline) {
+      return es
+        ? "Te confirmamos el horario por correo. El pago se realiza en la cita."
+        : "We confirm the time by email. Pay at the appointment.";
+    }
+    return es
+      ? "Te confirmamos el horario por correo y te enviamos el enlace de pago. La reserva queda firme al pagar."
+      : "We confirm the time by email and send a payment link. The booking is final once paid.";
+  }
+  return whoStepPaymentCopy({ ...offering, locale });
 }
 
 /**
@@ -156,6 +193,11 @@ export function doneStepNextActionCopy(input: WhoStepPaymentCopyInput & {
       ? "Sigue al pago para terminar la reserva. El horario se libera si el pago no se completa."
       : "Continue to payment to finish the booking. The time is released if payment is not completed.";
   }
+  if (input.payAtClientPlace) {
+    return es
+      ? "Recibirás la confirmación por correo. El pago se realiza el día del servicio."
+      : "You will get the confirmation by email. Pay on the day of the service.";
+  }
   return es
     ? "Recibirás la confirmación por correo. El pago se realiza en el estudio."
     : "You will get the confirmation by email. Pay at the studio.";
@@ -167,6 +209,8 @@ export function resolveWhoStepPaymentUi(input: {
   allowPayInPerson: boolean;
   depositPct: number | null;
   onlineCollectReady?: boolean;
+  /** GRK-066: client's place → pay-on-the-day copy, not studio. */
+  payAtClientPlace?: boolean;
   locale: string;
   offeringIntent: "instant" | "request";
   bookingSettings: CatalogSheetBookingSettings;
@@ -207,6 +251,7 @@ export function resolveWhoStepPaymentUi(input: {
           allowPayInPerson: input.allowPayInPerson,
           depositPct: input.depositPct,
           onlineCollectReady: input.onlineCollectReady,
+          payAtClientPlace: input.payAtClientPlace,
           locale: input.locale,
         });
   return {

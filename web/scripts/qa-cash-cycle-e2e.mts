@@ -113,7 +113,7 @@ async function runOfferToBooking(
     actorUserId: ctx.clientUserId,
     talent_profile_ids: [MORENA_TALENT],
     initiator_role: "client",
-    source_context: { qa_cash_cycle: true },
+    source_context: { qa_cash_cycle: true, qa_fixture: true },
   });
   if (!ok(`${tag} submitInquiry`, submit.success, submit.success ? "" : JSON.stringify(submit))) return null;
   const inquiryId = (submit as { data: { inquiryId: string } }).data.inquiryId;

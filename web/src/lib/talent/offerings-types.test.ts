@@ -10,8 +10,11 @@ import {
   blankOffering,
   offeringToRowPatch,
   offeringText,
+  offeringIsQuote,
   type TalentOfferingRow,
 } from "./offerings-types";
+import { catalogRowPriceText, catalogBarPriceLabel } from "../site-admin/builder-node/services-catalog-bar-price";
+import { catalogIsQuote } from "../../components/public-booking/catalog-booking-price";
 import { offeringToOfferLineSeed, offeringIsOfferPriceable } from "./offerings-offer";
 
 function row(over: Partial<TalentOfferingRow> = {}): TalentOfferingRow {
@@ -225,5 +228,22 @@ describe("offering translations round-trip (PR 2)", () => {
       offeringText(row({ title: "Semi-permanent gel", title_i18n: { en: "Semi-permanent gel", es: "Mi gel" } }), "title", "es"),
       "Mi gel",
     );
+  });
+});
+
+describe("TUL-16 d: a service with a price shows the price, not a quote", () => {
+  it("an AI-draft leftover (price type custom) with an amount is priced", () => {
+    const o = rowToOffering(row({ price_type: "custom", price_display: "exact", amount_cents: 30000 }));
+    assert.equal(offeringIsQuote(o), false);
+    assert.equal(resolveOfferingCta({ ...o, bookingMode: "instant" }), "book_now");
+    assert.equal(catalogRowPriceText(o, "es"), "$300 USD");
+    assert.equal(catalogBarPriceLabel(o, "es"), "$300 USD");
+    assert.equal(catalogIsQuote(o), false);
+  });
+  it("a real quote stays a quote", () => {
+    const q = rowToOffering(row({ price_type: "custom", price_display: "quote", amount_cents: null }));
+    assert.equal(offeringIsQuote(q), true);
+    assert.equal(catalogRowPriceText(q, "es"), "A cotizar");
+    assert.equal(resolveOfferingCta(q), "ask_quote");
   });
 });

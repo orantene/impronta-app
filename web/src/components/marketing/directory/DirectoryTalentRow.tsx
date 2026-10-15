@@ -14,7 +14,7 @@ import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
 export function DirectoryTalentRow({ talent }: { talent: DirectoryCardRow }) {
   const t = useDirectoryCopy();
   const agency = agencyLine(talent.agencyName, talent.isExclusive, t);
-  const loc = locationLine(talent.homeCity, talent.homeCountry);
+  const loc = locationLine(talent.homeCity, talent.homeCountry, t.locale);
   const href = talent.profileCode ? `/t/${talent.profileCode}` : null;
   // STANDING chip — verified review aggregate off the discover matview, shown
   // only past the credibility floor (>= 3 verified reviews) so a thin record is

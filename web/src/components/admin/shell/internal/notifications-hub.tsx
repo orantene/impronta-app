@@ -33,6 +33,7 @@ import {
   HUB_CATEGORY_LABEL,
   HUB_OWNER_LABEL,
   HUB_UI_CATEGORIES,
+  hubSectionCount,
   hubUiCategoryForKind,
   notificationCenterDrawerId,
   selectPopoverList,
@@ -78,6 +79,8 @@ export type HubItem = {
   category: HubUiCategory;
   /** Dual-owner tab: Admin (workspace) vs Talent. */
   owner: HubOwnerSurface;
+  /** DB kind of a real row (lets offers also list under Money). */
+  kind?: string;
   icon: string;        // emoji or short symbol
   title: string;
   body: string;
@@ -283,6 +286,7 @@ export function NotificationsBell({
           id: `notif-${n.id}`,
           bucket: bucketForKind(n.kind),
           category: hubUiCategoryForKind(n.kind),
+          kind: n.kind,
           owner: n.surface === "talent" ? "talent" : "admin",
           icon: iconForKind(n.kind),
           title: localizeNotificationText(n.title, copy.locale),
@@ -557,6 +561,7 @@ export function NotificationsBell({
             <SectionGroup
               label={categoryTab === "all" ? copy.t("Notifications") : copy.t(HUB_CATEGORY_LABEL[categoryTab])}
               items={list.visible}
+              count={list.filteredCount === 0 ? 0 : hubSectionCount(list.filtered, readIds)}
               readSet={readIds}
               onClick={(it) => { closePopover(); markRead(it.id); it.cta?.run(); }}
               onDismiss={(id) => { dismiss(id); }}
@@ -590,9 +595,11 @@ export function NotificationsBell({
   );
 }
 
-function SectionGroup({ label, items, readSet, onClick, onDismiss, accent }: {
+function SectionGroup({ label, items, count, readSet, onClick, onDismiss, accent }: {
   label: string;
   items: HubItem[];
+  /** Header count: matches the bell badge (unread), see hubSectionCount. */
+  count: number;
   readSet: Set<string>;
   onClick: (it: HubItem) => void;
   onDismiss: (id: string) => void;
@@ -604,7 +611,7 @@ function SectionGroup({ label, items, readSet, onClick, onDismiss, accent }: {
       <div style={{ padding: "6px 10px", fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", display: "flex", alignItems: "center", gap: 5 }} className="text-admin-ink-muted">
         <span style={{ width: 6, height: 6, borderRadius: "50%", background: accent }} />
         {label}
-        <span style={{ color: COLORS.inkDim, fontWeight: 500, letterSpacing: 0 }}>· {items.length}</span>
+        <span style={{ color: COLORS.inkDim, fontWeight: 500, letterSpacing: 0 }}>· {count}</span>
       </div>
       {items.map(it => {
         const isRead = readSet.has(it.id);
