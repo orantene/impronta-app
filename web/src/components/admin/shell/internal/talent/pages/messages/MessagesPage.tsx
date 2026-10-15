@@ -49,19 +49,6 @@ function TalentMessagesV5() {
   }, []);
   const initialInquiryId = fromQuery ?? fromPin;
   const [activeId, setActiveId] = useState<string | null>(initialInquiryId);
-  // TUL-956: mirror the open conversation into ?inquiry=<id> (the same deep-link contract read
-  // above), so a thread can be shared, bookmarked and survives a reload.
-  useEffect(() => {
-    if (!activeId) return;
-    try {
-      const url = new URL(window.location.href);
-      if (url.searchParams.get("inquiry") === activeId) return;
-      url.searchParams.set("inquiry", activeId);
-      window.history.replaceState(window.history.state, "", url);
-    } catch {
-      /* URL sync is a nicety; never block the inbox */
-    }
-  }, [activeId]);
   const dispatchRef = useRef<(id: ShellActionId) => void>(() => undefined);
   const copy = useDashboardText();
   // F54: the first run needs her total across every segment. The shell's own
