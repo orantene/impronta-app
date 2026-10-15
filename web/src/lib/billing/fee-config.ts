@@ -13,6 +13,8 @@
  *   - Tulala client service fee +1.5%
  *   - Connect payout and per-account fees are paid by Tulala: NOT a client or
  *     talent fee, so they are intentionally absent here.
+ * Fee items that are published, conflicting or unpublished are listed as TBD for
+ * Oran in web/docs/billing/fee-tbd-for-oran.md and stay out of this file.
  * Deliberately NOT here (unverified, never show to users): an international
  * card surcharge, a currency-conversion surcharge, combined "all-in" card
  * figures for foreign cards, and any stablecoin payout fee.
