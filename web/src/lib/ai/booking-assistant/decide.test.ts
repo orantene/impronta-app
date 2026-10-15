@@ -115,3 +115,13 @@ test("TUL-1155: booking verb after a handoff skips instead of re-sending handoff
   });
   assert.deepEqual(d, { action: "skip", reason: "already_handed_off" });
 });
+
+test("TUL-1155: once a team member replied after the handoff, the assistant stays quiet", () => {
+  const d = decideBookingAssistantTurn({
+    enabled: true,
+    guestMessage: "How long does the color session take?",
+    priorMessages: [{ systemEventType: "booking_assistant_handoff" }, { humanTookOver: true }],
+    instantAnswered: false,
+  });
+  assert.deepEqual(d, { action: "skip", reason: "human_took_over" });
+});

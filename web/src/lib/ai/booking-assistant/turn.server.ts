@@ -144,14 +144,14 @@ async function insertSystemEvent(input: {
 async function loadPriorAssistantMeta(
   inquiryId: string,
   tenantId: string,
-): Promise<Array<{ systemEventType?: string | null }>> {
+): Promise<Array<{ systemEventType?: string | null; humanTookOver?: boolean }>> {
   const admin = createServiceRoleClient();
   if (!admin) return [];
   // Newest first so the 40-row window includes recent handoffs / replies;
   // reverse to chronological for turn counting.
   const { data, error } = await admin
     .from("inquiry_messages")
-    .select("metadata")
+    .select("metadata, created_at")
     .eq("inquiry_id", inquiryId)
     .eq("tenant_id", tenantId)
     .eq("message_kind", "system_event")
@@ -161,15 +161,63 @@ async function loadPriorAssistantMeta(
     logServerError("booking-assistant/prior", error);
     return [];
   }
-  const newestFirst = ((data ?? []) as Array<{ metadata: unknown }>).map((row) => {
+  const rows = (data ?? []) as Array<{ metadata: unknown; created_at: string }>;
+  const newestFirst = rows.map((row) => {
     const meta =
       row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
         ? (row.metadata as Record<string, unknown>)
         : {};
     const t = typeof meta.system_event_type === "string" ? meta.system_event_type : null;
-    return { systemEventType: t };
+    return { systemEventType: t, createdAt: row.created_at };
   });
-  return newestFirst.reverse();
+  const lastHandoffAt =
+    newestFirst.find((m) => m.systemEventType === "booking_assistant_handoff")?.createdAt ?? null;
+  const prior: Array<{ systemEventType?: string | null; humanTookOver?: boolean }> = newestFirst
+    .reverse()
+    .map((m) => ({ systemEventType: m.systemEventType }));
+  if (lastHandoffAt && (await teamRepliedSince(admin, inquiryId, tenantId, lastHandoffAt))) {
+    prior.push({ humanTookOver: true });
+  }
+  return prior;
+}
+
+/**
+ * TUL-1155: a person on the team (any non-client participant) wrote in the
+ * thread after the handoff, so they own the conversation now.
+ */
+async function teamRepliedSince(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  inquiryId: string,
+  tenantId: string,
+  sinceIso: string,
+): Promise<boolean> {
+  const { data: team, error: teamErr } = await admin
+    .from("inquiry_participants")
+    .select("user_id")
+    .eq("inquiry_id", inquiryId)
+    .neq("role", "client")
+    .not("user_id", "is", null);
+  if (teamErr) {
+    logServerError("booking-assistant/team", teamErr);
+    return false;
+  }
+  const ids = ((team ?? []) as Array<{ user_id: string | null }>)
+    .map((r) => r.user_id)
+    .filter((id): id is string => !!id);
+  if (ids.length === 0) return false;
+  const { data, error } = await admin
+    .from("inquiry_messages")
+    .select("id")
+    .eq("inquiry_id", inquiryId)
+    .eq("tenant_id", tenantId)
+    .in("sender_user_id", ids)
+    .gt("created_at", sinceIso)
+    .limit(1);
+  if (error) {
+    logServerError("booking-assistant/teamReply", error);
+    return false;
+  }
+  return (data ?? []).length > 0;
 }
 
 async function resolveCatalogTenantId(
@@ -387,7 +435,10 @@ export async function maybeRunBookingAssistantTurn(
       },
     });
 
+    // TUL-1155: after a handoff the canned copy is never posted twice.
+    const handedOffBefore = prior.some((m) => m.systemEventType === "booking_assistant_handoff");
     if (!completion.ok) {
+      if (handedOffBefore) return null;
       return insertSystemEvent({
         inquiryId: args.inquiryId,
         tenantId: args.tenantId,
@@ -400,6 +451,7 @@ export async function maybeRunBookingAssistantTurn(
 
     const sanitized = sanitizeBookingAssistantOutput(completion.text, grounding);
     if (sanitized.escalate || !sanitized.text.trim()) {
+      if (handedOffBefore) return null;
       const reason: BookingHandoffReason = "unsure";
       return insertSystemEvent({
         inquiryId: args.inquiryId,
