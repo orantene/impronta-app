@@ -47,10 +47,10 @@ export const FEES_ES_TEXT: Record<string, string> = {
   "Tulala commission": "Comisión de Tulala",
   "Workspace commission and card fees": "Comisión del negocio y comisiones de tarjeta",
   "Your payout": "Tu depósito",
-  "Payouts reach your bank about {n} business days after Tulala sends them.":
-    "Los depósitos llegan a tu banco unos {n} días hábiles después de que Tulala los envía.",
-  "If your payout account is a recipient account, funds become available 24 hours later.":
-    "Si tu cuenta de depósito es una cuenta de destinatario, los fondos quedan disponibles 24 horas después.",
+  "Funds reach your bank {n} business days after the client pays; your very first payout can take up to {min} to {max} days while Stripe verifies your account.":
+    "Los fondos llegan a tu banco {n} días hábiles después de que el cliente paga; tu primer depósito puede tardar de {min} a {max} días mientras Stripe verifica tu cuenta.",
+  "Funds reach your bank on Stripe's standard schedule for your country; your very first payout can take up to {min} to {max} days while Stripe verifies your account.":
+    "Los fondos llegan a tu banco según el calendario estándar de Stripe para tu país; tu primer depósito puede tardar de {min} a {max} días mientras Stripe verifica tu cuenta.",
   "Your client pays Tulala's service fee on top of your price. It is never taken from you.":
     "Tu cliente paga el cargo por servicio de Tulala encima de tu precio. Nunca se descuenta de lo tuyo.",
 };

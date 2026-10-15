@@ -289,11 +289,12 @@ export async function resolveTalentPayoutCountry(
 ): Promise<string | null> {
   const admin = createServiceRoleClient();
   if (!admin) return null;
-  const { data } = await admin
+  const { data, error } = await admin
     .from("talent_profiles")
     .select("residence_country_id, home_country_text")
     .eq("id", talentProfileId)
     .maybeSingle();
+  if (error) return null;
   const iso2 =
     (await iso2FromCountryId(admin, (data?.residence_country_id as string | null) ?? null)) ??
     (await iso2FromCountryText(admin, (data?.home_country_text as string | null) ?? null));

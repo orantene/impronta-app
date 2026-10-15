@@ -14,15 +14,18 @@ export function PayoutBreakdownCard({
   grossCents,
   netCents,
   currency,
+  payoutCountry = null,
 }: {
   grossCents: number;
   netCents: number;
   currency: string;
+  /** ISO-2 of the talent's payout country when known (drives the arrival text). */
+  payoutCountry?: string | null;
 }) {
   const { t, locale } = useDashboardText();
   const b = talentPayoutBreakdown({ grossCents, netCents });
   if (!b || b.grossCents === 0) return null;
-  const arrival = payoutArrival({ currency });
+  const arrival = payoutArrival({ currency, payoutCountry });
   const money = (c: number) => formatDashboardMoneyCents(c, currency, locale);
   const rows: { key: string; label: string; value: string; strong?: boolean }[] = [
     { key: "gross", label: t("Your price"), value: money(b.grossCents) },
@@ -52,8 +55,18 @@ export function PayoutBreakdownCard({
         ))}
       </dl>
       <p data-testid="payout-arrival" className="mt-2 font-admin-body text-[12.5px] text-admin-ink-muted">
-        {t("Payouts reach your bank about {n} business days after Tulala sends them.").replace("{n}", String(arrival.businessDays))}{" "}
-        {t("If your payout account is a recipient account, funds become available 24 hours later.")}
+        {arrival.businessDays !== null
+          ? t(
+              "Funds reach your bank {n} business days after the client pays; your very first payout can take up to {min} to {max} days while Stripe verifies your account.",
+            )
+              .replace("{n}", String(arrival.businessDays))
+              .replace("{min}", String(arrival.firstPayoutMinDays))
+              .replace("{max}", String(arrival.firstPayoutMaxDays))
+          : t(
+              "Funds reach your bank on Stripe's standard schedule for your country; your very first payout can take up to {min} to {max} days while Stripe verifies your account.",
+            )
+              .replace("{min}", String(arrival.firstPayoutMinDays))
+              .replace("{max}", String(arrival.firstPayoutMaxDays))}
       </p>
       <p className="mt-1 font-admin-body text-[12px] text-admin-ink-muted">
         {t("Your client pays Tulala's service fee on top of your price. It is never taken from you.")}

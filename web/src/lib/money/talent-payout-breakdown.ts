@@ -8,12 +8,12 @@
  * derived so the three lines always add up to the net, to the cent. Tulala's
  * +1.5% service fee is paid by the CLIENT on top and is never a deduction here.
  *
- * Arrival uses only documented figures (fee-config PAYOUT_ARRIVAL): MX
- * platform payouts 3 business days, US 2, recipient accounts +24 hours before
- * funds are available.
+ * Arrival uses only documented figures (fee-config PAYOUT_ARRIVAL), keyed by
+ * the talent's payout country (US 2, MX 3, CA 3 business days). Unknown
+ * country: no number is stated.
  */
 
-import { PAYOUT_ARRIVAL, payoutPlatformForCurrency, type PayoutPlatform } from "@/lib/billing/fee-config";
+import { PAYOUT_ARRIVAL, payoutBusinessDaysForCountry, payoutPlatformForCurrency, type PayoutPlatform } from "@/lib/billing/fee-config";
 
 export type TalentPayoutBreakdown = {
   grossCents: number;
@@ -39,16 +39,22 @@ export function talentPayoutBreakdown(input: {
 
 export type PayoutArrival = {
   platform: PayoutPlatform;
-  businessDays: number;
-  /** Extra hours before funds are available, recipient accounts only. */
-  recipientExtraHours: number | null;
+  /** Documented business days for the talent's payout country; null = unknown country. */
+  businessDays: number | null;
+  /** True when the number comes from the talent's own payout country. */
+  countryKnown: boolean;
+  firstPayoutMinDays: number;
+  firstPayoutMaxDays: number;
 };
 
-export function payoutArrival(input: { currency: string; recipientAccount?: boolean }): PayoutArrival {
+export function payoutArrival(input: { currency: string; payoutCountry?: string | null }): PayoutArrival {
   const platform = payoutPlatformForCurrency(input.currency);
+  const businessDays = payoutBusinessDaysForCountry(input.payoutCountry);
   return {
     platform,
-    businessDays: PAYOUT_ARRIVAL.businessDays[platform],
-    recipientExtraHours: input.recipientAccount ? PAYOUT_ARRIVAL.recipientExtraHours : null,
+    businessDays,
+    countryKnown: businessDays !== null,
+    firstPayoutMinDays: PAYOUT_ARRIVAL.firstPayoutDays.min,
+    firstPayoutMaxDays: PAYOUT_ARRIVAL.firstPayoutDays.max,
   };
 }

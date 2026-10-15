@@ -67,16 +67,28 @@ export function checkoutCardFeeLineEnabled(env: Record<string, string | undefine
 }
 
 /**
- * Documented payout timing, the only figures the talent view may state.
- *   - recipient connected accounts: transfers take an extra 24 hours before
- *     funds are available (Stripe, Service agreement types)
- *   - MX platform payouts: 3 business days (accelerated payouts)
- *   - US platform payouts: 2 business days
+ * Documented payout timing, the only figures the talent view may state
+ * (docs.stripe.com/payouts country table).
+ *   - businessDays, by payout country: funds available after N business days
+ *     (US 2, MX 3, CA 3)
+ *   - firstPayoutDays: Stripe's documented "typically 7-14 days" for a new
+ *     account's first payout (MX and CA also state 7 calendar days)
+ *   - recipient: not offered yet (no live recipient countries). Kept so it can
+ *     come back when recipient countries go live; the live view never shows it.
  */
 export const PAYOUT_ARRIVAL = {
-  recipientExtraHours: 24,
-  businessDays: { mx: 3, us: 2 },
+  businessDays: { us: 2, mx: 3, ca: 3 },
+  firstPayoutDays: { min: 7, max: 14 },
+  recipient: { extraHours: 24 },
 } as const;
+
+export type PayoutArrivalCountry = keyof typeof PAYOUT_ARRIVAL.businessDays;
+
+/** Business days for a payout country (ISO-2), or null when not documented. */
+export function payoutBusinessDaysForCountry(iso2: string | null | undefined): number | null {
+  const k = (iso2 ?? "").trim().toLowerCase();
+  return k in PAYOUT_ARRIVAL.businessDays ? PAYOUT_ARRIVAL.businessDays[k as PayoutArrivalCountry] : null;
+}
 
 export type PayoutPlatform = "mx" | "us";
 

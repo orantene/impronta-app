@@ -22,9 +22,21 @@ describe("talentPayoutBreakdown", () => {
 });
 
 describe("payoutArrival", () => {
-  it("MX platform 3 business days, US 2, recipient adds 24h", () => {
-    assert.deepEqual(payoutArrival({ currency: "MXN" }), { platform: "mx", businessDays: 3, recipientExtraHours: null });
-    assert.deepEqual(payoutArrival({ currency: "usd" }), { platform: "us", businessDays: 2, recipientExtraHours: null });
-    assert.equal(payoutArrival({ currency: "MXN", recipientAccount: true }).recipientExtraHours, 24);
+  it("documented business days by payout country: US 2, MX 3, CA 3", () => {
+    assert.equal(payoutArrival({ currency: "USD", payoutCountry: "US" }).businessDays, 2);
+    assert.equal(payoutArrival({ currency: "MXN", payoutCountry: "mx" }).businessDays, 3);
+    assert.equal(payoutArrival({ currency: "USD", payoutCountry: "CA" }).businessDays, 3);
+    assert.equal(payoutArrival({ currency: "USD", payoutCountry: "CA" }).countryKnown, true);
+  });
+  it("unknown or undocumented country states no number", () => {
+    for (const c of [null, undefined, "", "BR"]) {
+      const a = payoutArrival({ currency: "MXN", payoutCountry: c });
+      assert.equal(a.businessDays, null);
+      assert.equal(a.countryKnown, false);
+    }
+  });
+  it("first payout window is Stripe's documented 7 to 14 days", () => {
+    const a = payoutArrival({ currency: "USD", payoutCountry: "US" });
+    assert.deepEqual([a.firstPayoutMinDays, a.firstPayoutMaxDays], [7, 14]);
   });
 });

@@ -380,6 +380,8 @@ type Ctx = {
     | { ok: true; data: import("@/lib/payments/stripe-connect-talent").TalentConnectedAccountSnapshot }
     | { ok: false; error: string }
     | null;
+  /** The talent's payout country (ISO-2), null when unknown. */
+  bridgeTalentPayoutCountry: string | null;
   /** The talent's payout legs that did not land (reversed / failed / held). */
   bridgeTalentPayoutAttention:
     | import("@/lib/payments/talent-payout-attention-types").TalentPayoutAttention
@@ -2134,6 +2136,7 @@ export function AdminShellProvider({
   const bridgeTalentCompletion = initialBridgeData?.talentCompletion ?? null;
   const bridgeTalentPageAnalytics = initialBridgeData?.talentPageAnalytics ?? null;
   const bridgeTalentPayoutSnapshot = initialBridgeData?.talentPayoutSnapshot ?? null;
+  const bridgeTalentPayoutCountry = initialBridgeData?.talentPayoutCountry ?? null;
   const bridgeTalentPayoutAttention = initialBridgeData?.talentPayoutAttention ?? null;
   const bridgeTalentAttentionSignals = initialBridgeData?.talentAttentionSignals ?? null;
   // Talent's agency relationships. `null` means the layout didn't load
@@ -2305,6 +2308,7 @@ export function AdminShellProvider({
       bridgeTalentCompletion,
       bridgeTalentPageAnalytics,
       bridgeTalentPayoutSnapshot,
+      bridgeTalentPayoutCountry,
       bridgeTalentPayoutAttention,
       bridgeTalentAttentionSignals,
       bridgeTalentAgencies,
@@ -2438,6 +2442,7 @@ export function AdminShellProvider({
       bridgeTalentCompletion,
       bridgeTalentPageAnalytics,
       bridgeTalentPayoutSnapshot,
+      bridgeTalentPayoutCountry,
       bridgeTalentPayoutAttention,
       bridgeTalentAttentionSignals,
       bridgeTalentAgencies,

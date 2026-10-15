@@ -24,7 +24,7 @@ import { isAgendaV2 } from "@/lib/talent-agenda/flag";
 import { loadTalentDashboardData } from "@/lib/talent-dashboard-data";
 import { loadTalentEarningsByCurrency } from "@/lib/talent/earnings-by-currency";
 import { loadPlatformOperatingCurrency, applyOperatingCurrencyToEarnings } from "@/lib/platform/operating-currency";
-import { getTalentConnectedAccountSnapshot } from "@/lib/payments/stripe-connect-talent";
+import { getTalentConnectedAccountSnapshot, resolveTalentPayoutCountry } from "@/lib/payments/stripe-connect-talent";
 import { loadTalentPayoutAttention } from "@/lib/payments/talent-payout-attention";
 import { findTenantMembership } from "@/lib/saas/tenant";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -375,6 +375,8 @@ export async function TalentLayoutInner({
     // TUL-392: theme update waiting + site needs publish (Attention signals).
     loadTalentAttentionSignals(talentSelfProfile.id),
   ]);
+  // Payout country (ISO-2) so the Money arrival text states the documented timing for it.
+  const talentPayoutCountry = await resolveTalentPayoutCountry(talentSelfProfile.id);
 
   const userNotifications = scopeTalentNotificationsToInbox(userNotificationsAll, talentInboxSummary?.ids ?? null);
 
@@ -496,6 +498,7 @@ export async function TalentLayoutInner({
             : null,
         talentPageAnalytics,
         talentPayoutSnapshot,
+        talentPayoutCountry,
         talentPayoutAttention,
         talentAttentionSignals,
         talentInquiries,
