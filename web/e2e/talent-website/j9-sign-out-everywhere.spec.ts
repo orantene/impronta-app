@@ -24,12 +24,13 @@ const HOSTS = [`http://localhost:${PORT}`, `http://${ACME_AGENCY_LOCAL_DOMAIN}:$
 const AUTH_RE = /^sb-.*-auth-token(\.\d+)?$/;
 const FX = talentFixture("t_ready");
 
+// dev-signin redirects to `/`, a signed-in loading shell that redirects again on
+// the client, so the navigation aborts (ERR_ABORTED). Settle it, then prove the
+// sign-in by the auth cookie rather than by the aborted response.
 async function signIn(page: Page, origin: string) {
-  const res = await page.goto(
-    `${origin}/api/dev/signin?email=${encodeURIComponent(FX.email)}&next=%2F`,
-    { waitUntil: "domcontentloaded" },
-  );
-  expect(res?.ok(), `dev-signin failed on ${origin}`).toBeTruthy();
+  await gotoSettled(page, `${origin}/api/dev/signin?email=${encodeURIComponent(FX.email)}&next=%2F`);
+  const auth = (await page.context().cookies(origin)).filter((c) => AUTH_RE.test(c.name));
+  expect(auth.length, `dev-signin set no auth cookie on ${origin}`).toBeGreaterThan(0);
 }
 
 /** Hold the session at every scope a real browser accumulates. */
