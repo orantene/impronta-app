@@ -17,6 +17,7 @@
  * owner-gated server actions; RLS independently backs them.
  */
 
+import { openUpgrade } from "@/components/talent/upgrade/open-upgrade";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState, useTransition } from "react";
@@ -410,7 +411,7 @@ function ManagerBody({
   const handleOpenDomain = useCallback(() => {
     const trialOn = bridgeTalentPlanTrial?.active === true;
     if (!state.capabilities.personalSiteCustomDomain || trialOn) {
-      openDrawer("talent-tier-compare");
+      openUpgrade({ feature: "custom-domain", from: "talent-site-domain" });
       return;
     }
     if (onOpenDomain) {
