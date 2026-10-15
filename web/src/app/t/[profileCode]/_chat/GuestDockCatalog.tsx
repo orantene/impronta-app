@@ -234,10 +234,10 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
       <div style={{ display: "flex", gap: 6, overflowX: "auto", padding: "4px 14px 2px", scrollbarWidth: "none" }}>
         {usingServices
           ? serviceChips.map((label) => (
-              <Chip key={label} on={label === activeService} label={label} onClick={() => setServiceChip(label)} C={C} accent={accent} />
+              <Chip key={label} on={label === activeService} label={label} onClick={() => { setServiceChip(label); setNotice(null); }} C={C} accent={accent} />
             ))
           : (groups ?? []).map((g) => (
-              <Chip key={g.category} on={g.category === category} label={t(CATEGORY_KEY[g.category])} onClick={() => setCategory(g.category)} C={C} accent={accent} />
+              <Chip key={g.category} on={g.category === category} label={t(CATEGORY_KEY[g.category])} onClick={() => { setCategory(g.category); setNotice(null); }} C={C} accent={accent} />
             ))}
       </div>
       {notice && (
@@ -285,7 +285,9 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
         const added = addedIds.has(row.id);
         // A ticket buys on its own event page when the event has one (D-MSG-224); the list is the fallback.
         const buyPath = row.category === "ticket" && row.eventSlug ? `/events/${row.eventSlug}` : BUY_HREF[row.category];
-        const buyHref = buyPath ? clientLocaleHref(pathname ?? "/", buyPath) : null;
+        // TUL-1068: hub talent pages (/t/<code>) have no /book or /events, so Select would 404 and drop the widget.
+        const onHubProfile = /^\/(?:[a-z]{2}\/)?t\//.test(pathname ?? "");
+        const buyHref = buyPath && !onHubProfile ? clientLocaleHref(pathname ?? "/", buyPath) : null;
         const price = row.amountCents != null && row.amountCents > 0 ? formatOrderMoney(row.amountCents, "USD") : null;
         return (
           <div key={row.id} data-guest-catalog-row={row.category} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", fontFamily: FONT }}>
