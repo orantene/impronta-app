@@ -176,33 +176,49 @@ export async function loadSchedule(tenantId: string): Promise<ScheduleResult> {
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Service unavailable." };
 
-    const { data: seriesRows, error: seriesError } = await admin
-      .from("session_series")
-      .select(
-        "id, tenant_id, venue_id, title, local_time, timezone, duration_minutes, weekdays, seats, starts_on, ends_on, is_active, instructor_user_id, offering_id",
-      )
-      .eq("tenant_id", tenantId)
-      .order("created_at", { ascending: true });
+    const now = new Date();
+    const horizonIso = new Date(now.getTime() + DEFAULT_HORIZON_DAYS * 86_400_000).toISOString();
+
+    // ONE WAVE (TUL-700). Series, sessions and venues do not depend on each
+    // other, and read one after another they were three sequential trips on
+    // every Calendar open, even for a workspace with no sessions at all.
+    const [
+      { data: seriesRows, error: seriesError },
+      { data: sessionRows, error: sessionError },
+      { data: venueRows, error: venueError },
+    ] = await Promise.all([
+      admin
+        .from("session_series")
+        .select(
+          "id, tenant_id, venue_id, title, local_time, timezone, duration_minutes, weekdays, seats, starts_on, ends_on, is_active, instructor_user_id, offering_id",
+        )
+        .eq("tenant_id", tenantId)
+        .order("created_at", { ascending: true }),
+      admin
+        .from("sessions")
+        .select("id, series_id, venue_id, title, starts_at, ends_at, status, instructor_user_id")
+        .eq("tenant_id", tenantId)
+        .gte("starts_at", now.toISOString())
+        .lte("starts_at", horizonIso)
+        .order("starts_at", { ascending: true }),
+      // EVERY venue of the workspace, not only the ones in use: the series
+      // editor's Room select offers a room a series does not sit in yet.
+      admin
+        .from("venues")
+        .select("id, name, timezone, status")
+        .eq("tenant_id", tenantId)
+        .order("is_default", { ascending: false })
+        .order("name", { ascending: true }),
+    ]);
     if (seriesError) {
       logServerError("sessions.loadSchedule.series", seriesError);
       return { ok: false, error: "Could not load the schedule." };
     }
     // NO EARLY RETURN ON "no series". It used to be here, and it is the whole
     // reason a night scheduled through the form on this page was invisible on
-    // it: the sessions read below never ran for a workspace whose classes are
-    // all one-offs.
+    // it: the sessions read never ran for a workspace whose classes are all
+    // one-offs.
     const rows = seriesRows ?? [];
-
-    const now = new Date();
-    const horizonIso = new Date(now.getTime() + DEFAULT_HORIZON_DAYS * 86_400_000).toISOString();
-
-    const { data: sessionRows, error: sessionError } = await admin
-      .from("sessions")
-      .select("id, series_id, venue_id, title, starts_at, ends_at, status, instructor_user_id")
-      .eq("tenant_id", tenantId)
-      .gte("starts_at", now.toISOString())
-      .lte("starts_at", horizonIso)
-      .order("starts_at", { ascending: true });
     if (sessionError) {
       logServerError("sessions.loadSchedule.sessions", sessionError);
       return { ok: false, error: "Could not load the schedule." };
@@ -287,18 +303,10 @@ export async function loadSchedule(tenantId: string): Promise<ScheduleResult> {
       });
     }
 
-    // EVERY venue of the workspace, not only the ones in use: the series
-    // editor's Room select offers a room a series does not sit in yet, and a
-    // name for a room a session names is the same read.
+    // A name for a room a session names is the same read as the Room select's.
     const venueNames = new Map<string, string>();
     const venues: ScheduleVenue[] = [];
     {
-      const { data: venueRows, error: venueError } = await admin
-        .from("venues")
-        .select("id, name, timezone, status")
-        .eq("tenant_id", tenantId)
-        .order("is_default", { ascending: false })
-        .order("name", { ascending: true });
       if (venueError) logServerError("sessions.loadSchedule.venues", venueError);
       for (const v of venueRows ?? []) {
         venueNames.set(String(v.id), String(v.name));

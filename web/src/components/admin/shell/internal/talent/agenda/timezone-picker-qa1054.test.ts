@@ -16,8 +16,12 @@ test("TUL-821: Mexico zones are suggested first", () => {
 });
 
 const page = readFileSync("src/components/admin/shell/internal/talent/agenda/AgendaAvailabilityPage.tsx", "utf8");
-test("TUL-821: the time zone block comes before Time off in the Horario page", () => {
-  assert.ok(page.indexOf("<TimezonePicker") < page.indexOf('copy.t("Time off and one-day hours")'));
+test("TUL-821: the time zone block leads the Horario page, above the day rows, buffer and Time off", () => {
+  const tz = page.indexOf("<TimezonePicker");
+  assert.ok(tz > 0);
+  assert.ok(tz < page.indexOf("rows.map("), "zone above the day rows");
+  assert.ok(tz < page.indexOf('copy.t("Buffer (minutes)")'), "zone above the buffer");
+  assert.ok(tz < page.indexOf('copy.t("Time off and one-day hours")'));
 });
 
 const hours = readFileSync("src/components/admin/shell/internal/talent/agenda/HoursFields.tsx", "utf8");

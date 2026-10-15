@@ -7,6 +7,7 @@ import { DASHBOARD_LOCALES } from "@/components/admin/shell/internal/talent/page
 import { WebsiteRewardControl } from "@/components/talent/website-reward/WebsiteRewardControl";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { useAdminShell, type TalentPage } from "@/components/admin/shell/internal/state";
+import { openWorkingHoursPanel } from "@/components/admin/shell/internal/talent/agenda/WorkingHoursPanel";
 import { openGuideHome } from "@/lib/guide/open-guide";
 import { useWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
 import { countItemsLabel } from "@/components/admin/shell/internal/count-items-label";
@@ -64,7 +65,15 @@ export function TalentMoreScreen({ onClose }: { onClose: () => void }) {
       rows: [
         { label: "Services", detail: bookable, page: "services" },
         { label: "Clients", detail: copy.t("Open"), page: "clients" },
-        { label: "Working hours", detail: hoursDetail, page: "calendar" },
+        // TUL-821: open the Horario modal itself, not just the calendar behind it.
+        {
+          label: "Working hours",
+          detail: hoursDetail,
+          run: () => {
+            onClose();
+            openWorkingHoursPanel();
+          },
+        },
       ],
     },
     {
