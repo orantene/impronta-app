@@ -17,9 +17,13 @@ import { GUIDE_OPEN_EVENT, type GuideOpenDetail } from "@/lib/guide/open-guide";
 export function SupportLauncher({
   contract,
   drawerOpen = false,
+  hideFloatingOnCompact = false,
 }: {
   contract: SupportContract;
   drawerOpen?: boolean;
+  /** TUL-982: on a phone the talent surface reaches support from the More
+   *  sheet ("Get help"), so no floating circle sits over cards and menus. */
+  hideFloatingOnCompact?: boolean;
 }) {
   const t = useT();
   const compact = useCompactViewport();
@@ -161,7 +165,7 @@ export function SupportLauncher({
       {/* One solid dark circle with a white chat bubble. The previous
           white edge-tab read as a floating blob, and the ring icon plus a
           stray violet dot looked like a rendering artifact. */}
-      {!inHeader && !inRail && (
+      {!inHeader && !inRail && !(compact && hideFloatingOnCompact) && (
       <button
         type="button"
         data-tulala-support-launcher=""

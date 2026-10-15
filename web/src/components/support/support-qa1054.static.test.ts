@@ -88,3 +88,9 @@ test("TUL-949: the thread composer sends on Enter, Shift+Enter is a newline, IME
   assert.match(forms, /e\.key === "Enter" && !e\.shiftKey && !e\.nativeEvent\.isComposing/);
   assert.match(forms, /enterKeyHint="send"/);
 });
+
+test("TUL-982: on the talent surface the phone has no floating support circle (More > Get help instead)", () => {
+  const shell = readFileSync("src/components/support/SupportLauncherShell.tsx", "utf8");
+  assert.match(shell, /hideFloatingOnCompact=\{state\.surface === "talent"\}/);
+  assert.match(launcher, /!\(compact && hideFloatingOnCompact\)/);
+});
