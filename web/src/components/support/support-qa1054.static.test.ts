@@ -94,3 +94,9 @@ test("TUL-982: on the talent surface the phone has no floating support circle (M
   assert.match(shell, /hideFloatingOnCompact=\{state\.surface === "talent"\}/);
   assert.match(launcher, /!\(compact && hideFloatingOnCompact\)/);
 });
+
+test("TUL-600: the Tickets tab has a new-ticket button that opens the new-ticket form", () => {
+  const panel = readFileSync("src/components/support/SupportPanel.tsx", "utf8");
+  assert.match(panel, /onNew=\{\(\) => setView\("new"\)\}/);
+  assert.match(panel, /onClick=\{onNew\}/);
+});

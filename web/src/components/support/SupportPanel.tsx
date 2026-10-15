@@ -488,6 +488,7 @@ export function SupportPanel({
             canSeeWorkspace={contract.canSeeWorkspaceTickets}
             userId={contract.userId}
             onOpen={(id) => setView("thread", id)}
+            onNew={() => setView("new")}
           />
         )}
         {view === "thread" && threadLoadFailed && (
@@ -697,11 +698,13 @@ function TicketListView({
   canSeeWorkspace,
   userId,
   onOpen,
+  onNew,
 }: {
   tickets: SupportTicketSummary[];
   canSeeWorkspace: boolean;
   userId: string;
   onOpen: (id: string) => void;
+  onNew: () => void;
 }) {
   const t = useT();
   const [seg, setSeg] = useState<"mine" | "workspace">("mine");
@@ -713,6 +716,24 @@ function TicketListView({
   const resolved = scoped.filter((x) => x.status !== "open");
   return (
     <div style={{ padding: 16 }}>
+      <button
+        type="button"
+        onClick={onNew}
+        style={{
+          width: "100%",
+          minHeight: 44,
+          marginBottom: 14,
+          border: `1px solid ${COLORS.border}`,
+          background: COLORS.card,
+          color: COLORS.ink,
+          borderRadius: 10,
+          fontSize: 13,
+          fontWeight: 600,
+          cursor: "pointer",
+        }}
+      >
+        {t("dashboard.adminSupport.cardTicket")}
+      </button>
       {canSeeWorkspace ? (
         <div
           style={{

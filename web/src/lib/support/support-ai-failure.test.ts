@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { supportAiErrorBody, supportAiErrorCard, SUPPORT_AI_ERROR_CARD } from "./support-ai-failure";
+import {
+  shouldOfferHumanInsteadOfEscalating,
+  supportAiErrorBody,
+  supportAiErrorCard,
+  SUPPORT_AI_ERROR_CARD,
+} from "./support-ai-failure";
 
 test("error copy offers retry or a human, in both languages, no em dash", () => {
   for (const l of ["en", "es"]) {
@@ -32,4 +37,20 @@ test("guest: talk-to-a-person and leaving an email both escalate (the guest aske
     actions.indexOf("export async function requestGuestHumanAction"),
   );
   assert.match(attach, /ticketHadAiError[\s\S]*escalateTicket/);
+});
+
+test("TUL-660: AI-raised reasons only offer a person; deadline-bound reasons still escalate", () => {
+  for (const r of ["ai_low_confidence", "ai_sentiment", "ai_suggested", "billing", "refund"]) {
+    assert.equal(shouldOfferHumanInsteadOfEscalating(r), true, r);
+  }
+  for (const r of ["dispute", "safety", "legal", "", "unknown_reason"]) {
+    assert.equal(shouldOfferHumanInsteadOfEscalating(r), false, r);
+  }
+});
+
+test("TUL-660: both AI routes consult the offer-first rule before escalating", () => {
+  for (const f of ["support-chat", "guest-support-chat"]) {
+    const src = readFileSync(`src/app/api/ai/${f}/route.ts`, "utf8");
+    assert.match(src, /shouldOfferHumanInsteadOfEscalating\(/, f);
+  }
 });

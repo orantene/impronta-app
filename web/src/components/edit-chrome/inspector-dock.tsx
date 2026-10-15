@@ -1320,7 +1320,7 @@ export function InspectorDock() {
               inspector aside on/off screen without touching Drawer's own
               positioning logic. */}
           <div
-            className="contents max-sm:block max-sm:fixed max-sm:inset-0 max-sm:pointer-events-none max-sm:transition-transform max-sm:duration-300 max-sm:ease-out max-sm:!translate-x-[var(--ec-mobile-inspector-x)]"
+            className="contents max-sm:block max-sm:fixed max-sm:inset-0 max-sm:pointer-events-none max-sm:overflow-hidden max-sm:transition-transform max-sm:duration-300 max-sm:ease-out max-sm:!translate-x-[var(--ec-mobile-inspector-x)]"
             style={
               {
                 "--ec-mobile-inspector-x": mobileExpanded ? "0px" : "110%",

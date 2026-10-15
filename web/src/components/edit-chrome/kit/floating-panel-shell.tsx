@@ -166,7 +166,7 @@ export function FloatingPanelShell({
       onDragOver={onDragOver}
       className={`fixed flex flex-col font-sans ${
         compactBottomSheetBelowLg
-          ? "max-md:!bottom-0 max-md:!left-0 max-md:!right-0 max-md:!top-auto max-md:!h-[min(55vh,520px)] max-md:!w-full max-md:!max-h-none max-md:rounded-b-none max-md:rounded-t-[16px] max-md:pb-[env(safe-area-inset-bottom)]"
+          ? "max-md:!bottom-0 max-md:!left-0 max-md:!right-0 max-md:!top-auto max-md:!h-[min(55vh,520px)] max-md:!w-full max-md:!max-w-full max-md:!max-h-none max-md:rounded-b-none max-md:rounded-t-[16px] max-md:pb-[env(safe-area-inset-bottom)]"
           : ""
       } ${className ?? ""}`}
       style={{
@@ -214,7 +214,7 @@ export function FloatingPanelShell({
       {afterHandle}
       {header}
       {tabs}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{children}</div>
       {footer}
     </aside>
   );
