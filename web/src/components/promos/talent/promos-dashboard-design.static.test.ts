@@ -35,3 +35,10 @@ test("all promo sheets use the dashboard heading style, not the display face", (
     assert.match(read(`src/components/promos/talent/${f}.tsx`), /<SheetTitle className=\{[^}]*UI\.title/, f);
   }
 });
+
+test("results components use the dashboard tokens, not the app theme tokens that render black in a sheet", () => {
+  for (const f of ["PromoResultsCard", "PromoCallout", "MonthRollup", "PromoHomeLine"]) {
+    const s = read(`src/components/promos/results/${f}.tsx`);
+    assert.doesNotMatch(s, /\b(?:bg-card|text-foreground|text-muted-foreground|border-border)\b/, f);
+  }
+});
