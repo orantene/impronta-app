@@ -34,3 +34,19 @@ test("TUL-956: /talent/inbox?thread=<id> opens that thread (known ids only, a pi
   const page = readFileSync(join(process.cwd(), "src/app/(workspace)/talent/inbox/page.tsx"), "utf8");
   assert.doesNotMatch(page, /redirect\(/);
 });
+
+test("TUL-955: the Original request block comes before the conversation, only when the thread has a brief, and its label exists in EN and ES", () => {
+  const src = readFileSync(join(dir, "talent-2.tsx"), "utf8");
+  const group = src.slice(src.indexOf("TUL-955: the guest's original request leads"));
+  const block = group.indexOf("data-original-inquiry");
+  const convo = group.indexOf("<ConversationTab");
+  assert.ok(block > -1 && convo > -1, "both present in the Group tab");
+  assert.ok(block < convo, "original request renders before the message list");
+  assert.match(group.slice(0, block), /conv\.brief \? \(\s*<div\s*$/, "guarded by the brief");
+  assert.match(group.slice(block, convo), /conv\.brief\}/, "shows the brief text");
+  const label = { en: "Original request", es: "Solicitud original" } as const;
+  for (const f of ["en", "es"] as const) {
+    const m = JSON.parse(readFileSync(join(process.cwd(), `messages/${f}.json`), "utf8"));
+    assert.equal(m.dashboard.talentThread.originalRequest, label[f]);
+  }
+});
