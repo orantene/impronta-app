@@ -8,7 +8,7 @@
 
 import { signOutEverywhere } from "@/lib/auth/sign-out-client";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, useId } from "react";
 
 import { cancelMyBooking, rescheduleMyBooking, type MyBookingRefusal } from "@/lib/client-account/booking-actions";
 import { replyToMyThread, type ReplyRefusal } from "@/lib/client-account/message-actions";
@@ -225,6 +225,9 @@ export function NamePrompt({ profile, copy }: {
   const [name, setName] = useState("");
   const [err, setErr] = useState(false);
   const [pending, start] = useTransition();
+  const uid = useId();
+  const bodyId = `${uid}-body`;
+  const errId = `${uid}-err`;
   useEffect(() => {
     try {
       if (window.sessionStorage.getItem("tulala-name-prompt") === "1") setHidden(true);
@@ -259,7 +262,7 @@ export function NamePrompt({ profile, copy }: {
           ×
         </button>
       </div>
-      <p style={{ margin: 0, fontSize: 14 }}>{copy.body}</p>
+      <p id={bodyId} style={{ margin: 0, fontSize: 14 }}>{copy.body}</p>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <input
           style={{ ...field, flex: "1 1 200px" }}
@@ -267,11 +270,13 @@ export function NamePrompt({ profile, copy }: {
           maxLength={120}
           autoComplete="name"
           aria-label={copy.label}
+          aria-invalid={err || undefined}
+          aria-describedby={err ? `${bodyId} ${errId}` : bodyId}
           onChange={(e) => setName(e.target.value)}
         />
         <button type="submit" style={btnPrimary} disabled={pending || !name.trim()}>{copy.save}</button>
       </div>
-      {err ? <p role="alert" style={{ margin: 0, color: "#b42318" }}>{copy.error}</p> : null}
+      {err ? <p id={errId} role="alert" style={{ margin: 0, color: "#b42318" }}>{copy.error}</p> : null}
     </form>
   );
 }
