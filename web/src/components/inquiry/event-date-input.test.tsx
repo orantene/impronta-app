@@ -16,7 +16,7 @@ g.Event = dom.window.Event;
 g.IS_REACT_ACT_ENVIRONMENT = true;
 
 /* eslint-disable import/first -- jsdom globals must exist before react-dom loads */
-import { act, createElement } from "react";
+import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { DashboardLocaleProvider } from "@/i18n/use-dashboard-locale";
 import { EventDateInput } from "./EventDateInput";
@@ -27,7 +27,7 @@ function blurWith(locale: "es" | "en", badInput: boolean): string | null {
   dom.window.document.body.appendChild(host);
   const root = createRoot(host);
   act(() => {
-    root.render(createElement(DashboardLocaleProvider, { locale, children: createElement(EventDateInput, { value: "", onChange: () => {}, style: {} }) }));
+    root.render(<DashboardLocaleProvider locale={locale}><EventDateInput value="" onChange={() => {}} style={{}} /></DashboardLocaleProvider>);
   });
   const input = host.querySelector("input")!;
   Object.defineProperty(input, "validity", { value: { badInput }, configurable: true });
