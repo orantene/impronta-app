@@ -22,7 +22,7 @@
  * ensure path), then the add runs once the thread token arrives.
  */
 
-import { onlyAvailableRows, searchCatalogRows, sortCatalogRows, type CatalogSort } from "@/lib/messages-v5/catalog-search";
+import { maxDurationRows, onlyAvailableRows, searchCatalogRows, sortCatalogRows, type CatalogSort } from "@/lib/messages-v5/catalog-search";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 
@@ -224,9 +224,10 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
   const [searchText, setSearchText] = useState("");
   const [sort, setSort] = useState<CatalogSort>("default");
   const [availableOnly, setAvailableOnly] = useState(false);
+  const [maxMinutes, setMaxMinutes] = useState<number | null>(null);
   const visible = useMemo(
-    () => sortCatalogRows(onlyAvailableRows(searchCatalogRows(groups?.find((g) => g.category === category)?.rows ?? [], searchText), availableOnly), sort),
-    [groups, category, searchText, availableOnly, sort],
+    () => sortCatalogRows(maxDurationRows(onlyAvailableRows(searchCatalogRows(groups?.find((g) => g.category === category)?.rows ?? [], searchText), availableOnly), maxMinutes), sort),
+    [groups, category, searchText, availableOnly, sort, maxMinutes],
   );
 
   const usingServices = serviceChips.length > 0;
@@ -269,6 +270,17 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
               <option value="price_asc">{t("public.guestChat.catalogSortPriceAsc")}</option>
               <option value="price_desc">{t("public.guestChat.catalogSortPriceDesc")}</option>
             </select>
+            <select
+              value={maxMinutes ?? ""}
+              onChange={(e) => setMaxMinutes(e.target.value ? Number(e.target.value) : null)}
+              aria-label={t("public.guestChat.catalogDurationLabel")}
+              style={{ border: `1px solid ${C.borderSoft}`, borderRadius: 999, padding: "5px 10px", fontSize: 12, fontFamily: FONT, color: C.ink, background: "#fff" }}
+            >
+              <option value="">{t("public.guestChat.catalogDurationAny")}</option>
+              <option value="30">{t("public.guestChat.catalogDurationUpTo").replace("{n}", "30")}</option>
+              <option value="60">{t("public.guestChat.catalogDurationUpTo").replace("{n}", "60")}</option>
+              <option value="90">{t("public.guestChat.catalogDurationUpTo").replace("{n}", "90")}</option>
+            </select>
             <Chip on={availableOnly} label={t("public.guestChat.catalogAvailableOnly")} onClick={() => setAvailableOnly((v) => !v)} C={C} accent={accent} />
           </div>
         </div>
@@ -284,7 +296,7 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
             return (
             <div key={item.title} data-guest-catalog-row="service" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", fontFamily: FONT }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</div>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflowWrap: "anywhere", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{item.title}</div>
                 {item.priceLabel ? (
                   <div
                     data-guest-service-price
@@ -325,7 +337,7 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
         return (
           <div key={row.id} data-guest-catalog-row={row.category} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", fontFamily: FONT }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.title}</div>
+              <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflowWrap: "anywhere", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{row.title}</div>
               <div style={{ fontSize: 11.5, color: C.inkDim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {[price, row.sub, !row.available ? t("public.guestChat.catalogUnavailable") : null].filter(Boolean).join(" · ")}
               </div>

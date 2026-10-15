@@ -136,3 +136,10 @@ test("answer-unavailable error carries its own Talk to Tulala Support action", (
   assert.match(panel, /error === copy\.answerUnavailable && ticketId[\s\S]{0,400}onClick=\{\(\) => void askHuman\(\)\}[\s\S]{0,200}\{copy\.askHuman\}/);
   assert.match(panel, /data-testid="support-error-ask-human"/);
 });
+
+test("TUL-926: the guest panel is a full-width, full-height sheet at 520px and below", () => {
+  const src = readFileSync(join(here, "MarketingSupportPanel.tsx"), "utf8");
+  assert.match(src, /data-marketing-support-panel/);
+  assert.match(src, /max-width: 520px[\s\S]*inset: 0 !important[\s\S]*width: 100% !important[\s\S]*100dvh/);
+  assert.match(src, /env\(safe-area-inset-bottom/);
+});
