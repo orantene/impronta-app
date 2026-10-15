@@ -54,5 +54,29 @@ Source: Production-Migrate ran the same SELECTs as `site-design-drift.mjs` plus 
 | **TUL-15** chain proof | maison-v2 latest 23, all folio/maison-v2 demos current. | The staged Maison v2 release Oran approved is already reflected (latest 23). The remaining proof is the talent side: on ONE QA talent (TAL-93939 or TAL-93940) the update notice appears and Apply works, then the drift script shows 0 behind. Apply is a write as that talent: Production-Migrate. Demo rebuild preview still to run. |
 | **TUL-38** | n/a | Still on hold (Oran, TUL-408). |
 
+## Decisions (PM, Oct 15, 6:55 PM CUN) and the exact steps for Production-Migrate
+Both writes below go through the Production-Migrate chat with Oran's live yes in that chat. **Never touch TAL-93938.** Run every `--dry-run` first and paste it on the card.
+
+Decisions: (1) TAL-93900 (jorg-beauty-qa, QA site): republish its shell to v23; do not accept the stale stamp. (2) Apply v23 on TAL-93939 (qa-fixture-free-talent, v20) to unblock TUL-15 and TUL-165, then re-run the drift check. (3) Folio release rows v17-v22: leave them; a Later cleanup card owns them (`delete-empty-drafts.mts` stays unused for now). (4) The dry-run scripts that need keys are parked until Oran picks a time.
+
+### A. Apply v23 on TAL-93939
+From `web/` (the `.env.local` of the target database; same command shape as the script header):
+```
+TSX_TSCONFIG_PATH=scripts/demo-talents/tsconfig.json \
+  node --require ./scripts/register-server-only-test.cjs --import tsx \
+  --env-file=.env.local scripts/upgrade-site-designs.mjs --design maison-v2 --site TAL-93939
+```
+1. That is the default **dry run** (reads only): expect `v20 -> v23`, the sections/tokens changed, "edits kept", and either "publishable" or "needs publish (live differs from draft)". Paste it.
+2. With Oran's yes, the same command plus `--apply` (**not** `--all --confirm-all`): the draft is written through the app's own draft writer (history entry, `draft_rev` check), and the site is published only when the live site already equals the draft. If it prints `draft written: needs publish`, the QA owner publishes from the builder (app-native), or it is left as a draft.
+3. Verify: `npm run site:design-drift`. TAL-93939 must no longer be listed as behind. TAL-93938 must read v23 / shell 23 and the exit code must not be 1 for it.
+Limit to know: this script path **does not exercise the update notice or the Apply button**. For TUL-165 (drift reaches 0) it is enough. For TUL-15's "notice appears, Apply works" proof the QA talent must apply from their own workspace (`applyThemeUpdate`); if nobody can sign in as TAL-93939, record the UI half of TUL-15 as not proven rather than counting the script run as proof.
+
+### B. Republish TAL-93900's shell to v23
+`upgrade-site-designs.mjs` only *flags* a site that is current but stale-published (`current ... STALE-PUBLISH (live shell stamped v21, needs publish)`); it never republishes it, so there is no script step.
+1. Precondition (dry run above with `--site TAL-93900`): the row shows `v23 current  STALE-PUBLISH(v21)` and `pagesUnpublished`. Note unpublished page edits go live with a publish; it is a QA site, but write the count down.
+2. Preferred: the QA owner clicks **Publish** in the builder (the app's own path, which rewrites the published shell from the draft). Needs a signed-in session as that owner.
+3. Not recommended: a hand-written SQL update of `shell_published`. If it is ever the only option, diff `shell_tree` against `shell_published` first and confirm the design stamp inside reads v23, because a copy of a shell whose own stamp is older recreates the problem.
+4. Verify: `npm run site:design-drift` shows no stale shell for TAL-93900 and exits 0.
+
 ## Not verified here
 I read the code and script headers only. Not confirmed: the exact `actionRunDryRun` UI path, whether the `sync-status` output format matches the QA expectations on the cards, and any row counts. First dry-run output replaces these assumptions.
