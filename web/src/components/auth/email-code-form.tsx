@@ -4,7 +4,7 @@
  * P4 — the passwordless email-code form (CLIENT / booker intent).
  *
  * Two steps, one card:
- *   1. email  →  "Email me a sign-in code"   (requestEmailCode)
+ *   1. email  →  "Email me a code"   (requestEmailCode)
  *   2. code   →  the emailed digits + "Continue" (submitEmailCode)
  *
  * B2 (2026-08-07) — the code really is in the email: the Supabase Send Email

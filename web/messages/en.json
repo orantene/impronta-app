@@ -66,7 +66,7 @@
         "descriptionNoApple": "Continue with Google or email. With Google, a password is optional; you can add one later under Account.",
         "inviteDescription": "{agency} invited you to their roster. Sign in to claim your profile and start receiving bookings.",
         "google": "Continue with Google",
-        "emailSubmit": "Log in with email",
+        "emailSubmit": "Log in",
         "pending": "Signing in…",
         "forgot": "Forgot password?",
         "remember": "Keep me signed in for 30 days",
@@ -197,7 +197,7 @@
         "unknownBody": "We couldn't finish claiming your profile. Ask {agency} to send a fresh invite."
       },
       "passwordless": {
-        "emailSubmit": "Email me a sign-in code",
+        "emailSubmit": "Email me a code",
         "emailPending": "Sending your code",
         "emailHint": "No password needed. We email you a sign-in code plus a sign-in link.",
         "plusEmailHint": "Addresses with a + tag (name+tag@) often never receive the code. Use a plain address if you can.",

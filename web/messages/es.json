@@ -66,7 +66,7 @@
         "descriptionNoApple": "Continúa con Google o correo electrónico. Con Google, la contraseña es opcional; puedes agregar una después en Cuenta.",
         "inviteDescription": "{agency} te invitó a su roster. Inicia sesión para reclamar tu perfil y empezar a recibir reservas.",
         "google": "Continuar con Google",
-        "emailSubmit": "Iniciar sesión con correo",
+        "emailSubmit": "Iniciar sesión",
         "pending": "Iniciando sesión…",
         "forgot": "¿Olvidaste tu contraseña?",
         "remember": "Mantener mi sesión activa por 30 días",
@@ -197,7 +197,7 @@
         "unknownBody": "No pudimos terminar de reclamar tu perfil. Pide a {agency} que envíe una invitación nueva."
       },
       "passwordless": {
-        "emailSubmit": "Envíame un código de acceso",
+        "emailSubmit": "Envíame un código",
         "emailPending": "Enviando tu código",
         "emailHint": "Sin contraseña. Te enviamos por correo un código de acceso y también un enlace de acceso.",
         "plusEmailHint": "Los correos con un + (nombre+tag@) a menudo nunca reciben el código. Usa una dirección sin + si puedes.",
@@ -213,7 +213,7 @@
         "resending": "Enviando",
         "changeEmail": "Usar otro correo",
         "usePassword": "Usar una contraseña",
-        "useCode": "Recibir un código por correo",
+        "useCode": "Envíame un código",
         "errors": {
           "codeRequired": "Escribe el código de tu correo.",
           "codeInvalid": "Ese código no funcionó. Revisa los dígitos o pide un código nuevo.",
