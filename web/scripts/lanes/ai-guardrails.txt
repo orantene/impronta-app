@@ -74,3 +74,4 @@ src/components/support/bell-refresh.test.ts
 src/lib/support/support-chat-fail-open-log.test.ts
 src/lib/support/attachment-rate-limit.static.test.ts
 src/lib/ai/booking-assistant/resolve-talent-id.test.ts
+src/lib/support/login-next-support.test.ts

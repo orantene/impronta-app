@@ -9,6 +9,7 @@
 // /admin/messages start on the correct surface without a flash.
 
 import { dashboardMetadata } from "@/i18n/dashboard-metadata";
+import { loginUrlKeepingSupport } from "@/lib/support/login-next-support";
 import { notFound, redirect } from "next/navigation";
 import { cookies, headers } from "next/headers";
 import { getTenantScopeBySlug, getTenantPortalScopeBySlug } from "@/lib/saas/scope";
@@ -113,7 +114,7 @@ export default async function WorkspaceAdminLayout({
     timed("layout.scope", () => getTenantScopeBySlug(tenantSlug)),
   ]);
   if (!session.supabase) redirect("/login?error=config");
-  if (!session.user) redirect(`/login?next=${adminPrefix}`);
+  if (!session.user) redirect(loginUrlKeepingSupport(adminPrefix, hdrs));
 
   // ── Tenant ─────────────────────────────────────────────────────────────────
   if (!scope) {
