@@ -73,6 +73,7 @@ import {
   isValidAuthEmail,
   normalizeAuthEmail,
   normalizeOtpCode,
+  OTP_CODE_LENGTH,
   otpSendErrorKey,
   otpVerifyErrorKey,
 } from "@/lib/auth/otp-flow";
@@ -236,6 +237,16 @@ export async function submitEmailCode(
     return {
       step: "code",
       error: t("public.auth.passwordless.errors.codeRequired"),
+      email,
+    };
+  }
+
+  // TUL-909: a code shorter than the project's emailed length can never be right; say how many
+  // digits to expect instead of the generic "that code did not work" (and skip the verify call).
+  if (code.length < OTP_CODE_LENGTH) {
+    return {
+      step: "code",
+      error: t("public.auth.passwordless.errors.codeTooShort").replace("{n}", String(OTP_CODE_LENGTH)),
       email,
     };
   }
