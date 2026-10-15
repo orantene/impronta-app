@@ -156,8 +156,10 @@ test.describe("S1 sign-out ends the session on every subdomain", () => {
       // Cold dev-server compiles of /auth/sign-out and the talent shell alone
       // took ~25s in CI; the default 30s budget timed out before any assert.
       test.setTimeout(150_000);
+      // One real sign-in; spreadSessionAcrossScopes then holds that session on
+      // every host/domain scope. Signing in through the agency host was refused
+      // by its host gate in CI (no auth cookie), which is not what this tests.
       await signIn(page, HOSTS[0]);
-      await signIn(page, HOSTS[1]);
       await spreadSessionAcrossScopes(context);
       // Settle on the signed-in landing page first: `/` redirects to /talent and
       // then client-side to /talent/today, and a late client redirect cancelled
