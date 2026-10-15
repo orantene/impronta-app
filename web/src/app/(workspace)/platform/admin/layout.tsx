@@ -18,6 +18,7 @@
 import { SignOutForm } from "@/components/auth/SignOutForm";
 import { Suspense } from "react";
 import { redirect, notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -92,6 +93,8 @@ export default async function PlatformAdminLayout({
   const t = createTranslator(locale);
   const supportOpenCount = await loadHqSupportOpenCount();
   const deskEnabled = isSupportDeskEnabled();
+  const hdrs = await headers();
+  const requestHost = hdrs.get("x-forwarded-host") ?? hdrs.get("host");
 
   const userName = userDisplayName(
     session.user.email,
@@ -316,7 +319,11 @@ export default async function PlatformAdminLayout({
             />
           }
         >
-          <PlatformTopbar supportOpenCount={supportOpenCount} deskEnabled={deskEnabled} />
+          <PlatformTopbar
+            supportOpenCount={supportOpenCount}
+            deskEnabled={deskEnabled}
+            requestHostHint={requestHost}
+          />
         </Suspense>
 
         {/* ── Content area ── */}

@@ -1463,7 +1463,7 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
                aren't squeezed by 28px of side gutters. */
             .tulala-shell [data-tulala-workspace-grid] > main,
             .tulala-shell [data-tulala-workspace-grid] [data-tulala-surface-main] {
-              padding: 14px 14px 60px !important;
+              padding: 14px 14px var(--tulala-fab-clear) !important;
             }
             /* Show the mobile bottom tab bar */
             .tulala-shell [data-tulala-mobile-bottom-nav] {
@@ -1478,7 +1478,7 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
                Also clamp side padding from desktop's 28px → 14px so cards
                can use the full mobile viewport width. */
             .tulala-shell [data-tulala-surface-main] {
-              padding: 14px 14px calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+              padding: 14px 14px var(--tulala-fab-clear) !important;
               max-width: 100% !important;
               min-width: 0 !important;
               box-sizing: border-box !important;
@@ -2097,6 +2097,11 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
             // used to subtract 52px and its composer sat 13px under the nav.
             ["--tulala-mobile-nav-h" as never]:
               "calc(65px + env(safe-area-inset-bottom, 0px))",
+            // Space the content reserves at the bottom on phones: the FAB's
+            // bottom offset (80px) + its 52px size + 16px air. Keep in sync
+            // with BottomActionFab (static test pins it).
+            ["--tulala-fab-clear" as never]:
+              "calc(148px + env(safe-area-inset-bottom, 0px))",
             // Whitelabel accent (whitelabel-tier tenants only) — re-tints the
             // shell's accent tokens from the agency's brand color.
             ...accentVars,

@@ -2,14 +2,15 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
-import { getSiteUrl } from "@/lib/auth-flow";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
+import { authMarketingHref } from "./auth-legal-href";
 import { getPublicHostContext } from "@/lib/saas";
 import { resolveShellBrandLogoUrl } from "@/lib/site-admin/server/shell-brand-logo";
 import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { loadPublicPageBySlug } from "@/lib/site-admin/server/pages-reads";
 import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
-import { authPageBrand } from "@/lib/client-account/agency-area-pure";
+import { authBrandHead, authPageBrand } from "@/lib/client-account/agency-area-pure";
 import { dashboardTabTitle } from "@/i18n/dashboard-metadata";
 import { getRequestLocale, ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
@@ -45,7 +46,9 @@ export async function generateMetadata(): Promise<Metadata> {
     whitelabel,
     publicName: identity?.public_name,
   });
-  return brand ? { ...AUTH_ROBOTS, title: { absolute: brand.title } } : localized;
+  return brand
+    ? { ...AUTH_ROBOTS, title: { absolute: brand.title }, ...authBrandHead(brand.title, await getRequestLocale()) }
+    : localized;
 }
 
 /** What the layout needs beyond the brand object itself. */
@@ -128,7 +131,7 @@ async function resolveTenantAccent(tenantId: string): Promise<string | null> {
  *   2. `agency_business_identity.contact_email` as a `mailto:` — still the
  *      agency, not the platform. NOTE: no tenant has this column set today, so
  *      this rung is unexercised in production as shipped.
- *   3. The platform contact surface, `${getSiteUrl()}/about`.
+ *   3. The platform contact surface (locale-prefixed /about on the marketing origin).
  *
  * Gated to `kind === "agency"`: the CMS clean-URL rewrite in `proxy.ts` is
  * agency-hosts-only, so `/contact` on a HUB host would 404.
@@ -140,7 +143,7 @@ async function resolveContactHref(params: {
   locale: string;
   contactEmail: string | null;
 }): Promise<string> {
-  const platformContact = `${getSiteUrl()}/about`;
+  const platformContact = authMarketingHref(resolveMarketingOrigin(), "/about", params.locale);
   if (!params.isTenant || params.hostKind !== "agency") return platformContact;
 
   const contactPage = await loadPublicPageBySlug(
@@ -218,7 +221,7 @@ async function resolveAuthBrand(
           tenantId: ctx.tenantId,
           locale,
           contactEmail: identity?.contact_email ?? null,
-        }).catch(() => `${getSiteUrl()}/about`),
+        }).catch(() => authMarketingHref(resolveMarketingOrigin(), "/about", locale)),
       ]);
       const tagline =
         identity?.tagline?.trim() || identity?.footer_tagline?.trim() || null;
@@ -273,8 +276,9 @@ async function resolveAuthBrand(
         "{site}",
         PLATFORM_BRAND.name,
       ),
+      backHref: authMarketingHref(resolveMarketingOrigin(), "", locale),
     },
-    contactHref: `${getSiteUrl()}/about`,
+    contactHref: authMarketingHref(resolveMarketingOrigin(), "/about", locale),
   };
 }
 

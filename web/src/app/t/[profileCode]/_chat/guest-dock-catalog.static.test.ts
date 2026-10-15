@@ -86,3 +86,22 @@ test("talent service Select/Request opens CatalogBookingSheet, not Ask-only", ()
   const mount = read("app/t/[profileCode]/_chat/TalentProfileChatLauncherMount.tsx");
   assert.match(mount, /offeringId: o\.id/);
 });
+
+test("TUL-1068: hub talent pages never link to the missing /book or /events storefront", () => {
+  const src = read("app/t/[profileCode]/_chat/GuestDockCatalog.tsx");
+  assert.match(src, /onHubProfile = \/\^\\\/\(\?:\[a-z\]\{2\}\\\/\)\?t\\\/\/\.test\(pathname \?\? ""\)/);
+  assert.match(src, /buyPath && !onHubProfile/);
+});
+
+test("TUL-1068 #2: a refused add (not for sale / different currency) gets its own message, not the outage one", () => {
+  const dock = read("app/t/[profileCode]/_chat/GuestDockCatalog.tsx");
+  assert.match(dock, /res\.reason === "invalid" \? "public\.guestChat\.catalogAddInvalid"/);
+  const action = read("lib/server-actions/messaging-client.ts");
+  assert.match(action, /added\.reason === "invalid" \? "invalid" : "unavailable"/);
+});
+
+test("TUL-1070: dock row names wrap to two lines instead of truncating to one (390px)", () => {
+  const src = read("app/t/[profileCode]/_chat/GuestDockCatalog.tsx");
+  assert.match(src, /WebkitLineClamp: 2/);
+  assert.doesNotMatch(src, /fontWeight: 600, color: C\.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"/);
+});

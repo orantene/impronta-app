@@ -9,6 +9,8 @@
 export const STATIC_PATHS = [
   "/sitemap.xml",
   "/robots.txt",
+  // llms.txt (TUL-589): the route itself 404s every host except marketing and published talent sites.
+  "/llms.txt",
   // Root Next.js metadata file-routes (`app/opengraph-image.tsx`,
   // `app/twitter-image.tsx`). They are host-aware (agency card vs. Tulala
   // card) and are referenced by absolute URL in every page's og:image /
@@ -97,6 +99,9 @@ export const SHARED_API_PREFIXES = [
   "/api/promos",
   "/api/stripe",
   "/api/health",
+  // llms.txt (TUL-589): `/llms.txt` is rewritten here (next.config.ts). The handler decides by host:
+  // marketing and published talent sites get a file, every other host a 404.
+  "/api/llms",
   "/api/dev/reset-guest",
   "/api/media/asset",
   // Same-origin Google Fonts proxy (css + file). Every talent site, agency site

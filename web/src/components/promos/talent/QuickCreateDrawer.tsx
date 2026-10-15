@@ -1,5 +1,6 @@
 "use client";
 
+import { promoErrorMessage } from "./error-message";
 import { useMemo, useState, type ReactNode } from "react";
 
 import { useAdminShell } from "@/components/admin/shell/internal/state";
@@ -15,7 +16,7 @@ import {
 } from "@/lib/promos/templates";
 import type { Audience, OfferKind, Unlock } from "@/lib/promos/types";
 import { PromoPreview } from "./PromoPreview";
-import { Chip, InfoTip, UI } from "./ui";
+import { Chip, InfoTip, PANEL_MD, UI } from "./ui";
 
 const PCT_CHIPS = [10, 15, 20, 30] as const;
 const SPOT_CHIPS = [3, 5, 10] as const;
@@ -50,7 +51,7 @@ export function QuickCreateDrawer({ open, onClose, copy, data, initial, editingI
   const [pickServices, setPickServices] = useState(false);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<DraftError[]>([]);
-  const [serverError, setServerError] = useState<PromoCopyKey | null>(null);
+  const [serverError, setServerError] = useState<string | null>(null);
 
   const set = (patch: Partial<PromoDraft>) => setDraft((d) => ({ ...d, ...patch }));
   const today = todayLocal(data.nowIso, draft.tz);
@@ -117,13 +118,13 @@ export function QuickCreateDrawer({ open, onClose, copy, data, initial, editingI
         return;
       }
       if (res.fields && res.fields.length > 0) setErrors(res.fields);
-      const errKeyFor: PromoCopyKey = res.error === "code_taken" ? "err.code_taken" : res.error === "not_allowed" ? "err.not_allowed" : res.error === "not_found" ? "err.not_found" : res.error === "invalid" ? "err.invalid" : "err.unavailable";
+      const message = promoErrorMessage(copy, res);
       // The inline alert sits below the fold on a phone; say it where the eye is too.
-      toast(copy.t(errKeyFor));
-      setServerError(res.error === "code_taken" ? "err.code_taken" : res.error === "not_allowed" ? "err.not_allowed" : res.error === "not_found" ? "err.not_found" : res.error === "invalid" ? "err.invalid" : "err.unavailable");
+      toast(message);
+      setServerError(message);
     } catch {
       toast(copy.t("toast.error"));
-      setServerError("toast.error");
+      setServerError(copy.t("toast.error"));
     } finally {
       setBusy(false);
     }
@@ -136,15 +137,15 @@ export function QuickCreateDrawer({ open, onClose, copy, data, initial, editingI
     <Sheet open={open} onOpenChange={(o) => (o ? undefined : onClose())}>
       <SheetContent
         side="bottom"
-        className="flex max-h-[94vh] flex-col gap-0 rounded-t-3xl bg-[var(--tc-canvas,#fafafa)] p-0"
+        className={`flex max-h-[94vh] max-w-full flex-col gap-0 overflow-x-hidden rounded-t-3xl ${PANEL_MD} bg-[var(--tc-canvas,#fafafa)] p-0 text-[var(--tc-ink,#1c1c1e)]`}
         aria-describedby={undefined}
       >
         <div className="px-4 pb-2 pt-4">
-          <SheetTitle className={`text-[17px] font-semibold ${UI.ink}`}>{title}</SheetTitle>
+          <SheetTitle className={UI.title}>{title}</SheetTitle>
           <SheetDescription className="sr-only">{copy.t("picker.sub")}</SheetDescription>
         </div>
 
-        <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4">
+        <div className="flex min-w-0 flex-1 flex-col gap-3 overflow-y-auto overflow-x-hidden px-4 pb-4">
           {data.plan === "free" && !data.trialUsed ? (
             <p className={`flex items-center justify-between rounded-xl bg-[var(--tc-soft,#e6f4f1)] pl-3 text-[13px] font-medium ${UI.ink}`}>
               {copy.t("free.banner")}
@@ -245,14 +246,14 @@ export function QuickCreateDrawer({ open, onClose, copy, data, initial, editingI
                 ) : null}
               </div>
               {pickDates ? (
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  <label className="flex flex-col gap-1 text-[12px]">
+                <div className="mt-2 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
+                  <label className="flex min-w-0 flex-col gap-1 text-[12px]">
                     <span className={UI.muted}>{copy.t("dates.from")}</span>
-                    <input type="date" className="min-h-11 rounded-xl border border-[var(--tc-border,#e5e5ea)] bg-white px-3 text-[14px] text-[#1c1c1e]" value={draft.starts_at ?? ""} onChange={(e) => set({ starts_at: e.target.value || null })} />
+                    <input type="date" className="min-h-11 w-full min-w-0 rounded-xl border border-[var(--tc-border,#d1d1d6)] bg-white px-3 text-[16px] text-[#1c1c1e]" value={draft.starts_at ?? ""} onChange={(e) => set({ starts_at: e.target.value || null })} />
                   </label>
-                  <label className="flex flex-col gap-1 text-[12px]">
+                  <label className="flex min-w-0 flex-col gap-1 text-[12px]">
                     <span className={UI.muted}>{copy.t("dates.to")}</span>
-                    <input type="date" className="min-h-11 rounded-xl border border-[var(--tc-border,#e5e5ea)] bg-white px-3 text-[14px] text-[#1c1c1e]" value={draft.ends_at ?? ""} onChange={(e) => set({ ends_at: e.target.value || null })} />
+                    <input type="date" className="min-h-11 w-full min-w-0 rounded-xl border border-[var(--tc-border,#d1d1d6)] bg-white px-3 text-[16px] text-[#1c1c1e]" value={draft.ends_at ?? ""} onChange={(e) => set({ ends_at: e.target.value || null })} />
                   </label>
                 </div>
               ) : null}
@@ -276,7 +277,7 @@ export function QuickCreateDrawer({ open, onClose, copy, data, initial, editingI
           <PromoPreview draft={draft} service={service} result={result} addonLabel={addon?.label ?? null} copy={copy} />
 
           {data.services.length > 1 ? (
-            <div className="flex gap-2 overflow-x-auto" aria-label={copy.t("preview.no_service")}>
+            <div className="flex flex-wrap gap-2" aria-label={copy.t("preview.no_service")}>
               {data.services.slice(0, 8).map((s) => (
                 <Chip key={s.id} active={service?.id === s.id} onClick={() => setServiceId(s.id)}>{s.title}</Chip>
               ))}
@@ -314,7 +315,7 @@ export function QuickCreateDrawer({ open, onClose, copy, data, initial, editingI
             <div className={`${UI.card} flex flex-col gap-4 p-4`}>
               <Field label={copy.t("create.name")}>
                 <input
-                  className="min-h-11 w-full rounded-xl border border-[var(--tc-border,#e5e5ea)] bg-white px-3 text-[14px] text-[#1c1c1e]"
+                  className={UI.field}
                   value={draft.name}
                   maxLength={80}
                   // The template fills a default name; typing should replace it, not append to it.
@@ -355,7 +356,7 @@ export function QuickCreateDrawer({ open, onClose, copy, data, initial, editingI
                 {draft.unlock === "code" ? (
                   <input
                     aria-label={copy.t("more.code")}
-                    className="mt-2 min-h-11 w-full rounded-xl border border-[var(--tc-border,#e5e5ea)] bg-white px-3 text-[14px] uppercase text-[#1c1c1e]"
+                    className={`mt-2 uppercase ${UI.field}`}
                     value={draft.code ?? ""}
                     disabled={locked}
                     maxLength={40}
@@ -369,9 +370,9 @@ export function QuickCreateDrawer({ open, onClose, copy, data, initial, editingI
                 </Field>
               ) : null}
               <Field label={copy.t("more.time")}>
-                <div className="grid grid-cols-2 gap-2">
-                  <input type="time" aria-label={copy.t("dates.from")} className="min-h-11 rounded-xl border border-[var(--tc-border,#e5e5ea)] bg-white px-3 text-[14px] text-[#1c1c1e]" value={draft.time_from ?? ""} onChange={(e) => set({ time_from: e.target.value || null })} />
-                  <input type="time" aria-label={copy.t("dates.to")} className="min-h-11 rounded-xl border border-[var(--tc-border,#e5e5ea)] bg-white px-3 text-[14px] text-[#1c1c1e]" value={draft.time_to ?? ""} onChange={(e) => set({ time_to: e.target.value || null })} />
+                <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
+                  <input type="time" aria-label={copy.t("dates.from")} className="min-h-11 w-full min-w-0 rounded-xl border border-[var(--tc-border,#d1d1d6)] bg-white px-3 text-[16px] text-[#1c1c1e]" value={draft.time_from ?? ""} onChange={(e) => set({ time_from: e.target.value || null })} />
+                  <input type="time" aria-label={copy.t("dates.to")} className="min-h-11 w-full min-w-0 rounded-xl border border-[var(--tc-border,#d1d1d6)] bg-white px-3 text-[16px] text-[#1c1c1e]" value={draft.time_to ?? ""} onChange={(e) => set({ time_to: e.target.value || null })} />
                 </div>
               </Field>
               <Field label={copy.t("more.per_client")}>
@@ -404,7 +405,7 @@ export function QuickCreateDrawer({ open, onClose, copy, data, initial, editingI
               {errors.map((e) => <li key={e}>{copy.t(errKey(e))}</li>)}
             </ul>
           ) : null}
-          {serverError ? <p role="alert" className="rounded-xl bg-red-50 p-3 text-[13px] text-red-800">{copy.t(serverError)}</p> : null}
+          {serverError ? <p role="alert" className="rounded-xl bg-red-50 p-3 text-[13px] text-red-800">{serverError}</p> : null}
         </div>
 
         {/* Thumb zone: sticky footer with one primary action. */}
@@ -458,13 +459,13 @@ function NumberBox({
 }) {
   const clamp = (n: number) => Math.min(max ?? Number.MAX_SAFE_INTEGER, Math.max(min, Math.round(n)));
   return (
-    <span className="inline-flex items-center gap-1">
+    <span className="inline-flex max-w-full flex-wrap items-center gap-1">
       <button type="button" aria-label={`${label} -`} className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--tc-border,#e5e5ea)] text-[18px]" onClick={() => onChange(clamp(value - 1))}>{"−"}</button>
       <input
         type="number"
         inputMode="numeric"
         aria-label={label}
-        className="min-h-11 w-16 rounded-xl border border-[var(--tc-border,#e5e5ea)] bg-white px-2 text-center text-[14px] text-[#1c1c1e]"
+        className="min-h-11 w-16 rounded-xl border border-[var(--tc-border,#e5e5ea)] bg-white px-2 text-center text-[16px] text-[#1c1c1e]"
         value={Number.isFinite(value) ? value : ""}
         onChange={(e) => onChange(clamp(Number(e.target.value)))}
       />

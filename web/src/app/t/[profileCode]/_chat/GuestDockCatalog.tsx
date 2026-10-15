@@ -22,6 +22,7 @@
  * ensure path), then the add runs once the thread token arrives.
  */
 
+import { maxDurationRows, onlyAvailableRows, searchCatalogRows, sortCatalogRows, type CatalogSort } from "@/lib/messages-v5/catalog-search";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 
@@ -148,6 +149,7 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
   }, [serviceMenu]);
   const [serviceChip, setServiceChip] = useState<string | null>(null);
   const pathname = usePathname();
+  const pageProfileCode = /^\/(?:[a-z]{2}\/)?t\/([^/?#]+)/.exec(pathname ?? "")?.[1] ?? null; // P0: per-talent page => that talent only
   const cart = useInquiryCart();
   const [groups, setGroups] = useState<GuestCatalogGroup[] | null>(null);
   const [failed, setFailed] = useState(false);
@@ -159,7 +161,7 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
 
   useEffect(() => {
     let cancelled = false;
-    void getGuestItemsCatalog({ tenantSlug, inquiryId }).then((res) => {
+    void getGuestItemsCatalog({ tenantSlug, inquiryId, profileCode: pageProfileCode }).then((res) => {
       if (cancelled) return;
       if (!res.ok) {
         setFailed(true);
@@ -172,7 +174,7 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
       cancelled = true;
     };
     // The catalog is per tenant; the inquiry only adds a date for availability.
-  }, [tenantSlug, inquiryId]);
+  }, [tenantSlug, inquiryId, pageProfileCode]);
 
   const add = useCallback(
     async (row: GuestCatalogRow, token: string) => {
@@ -181,7 +183,7 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
       const res = await messagingClientAddItem({ token, offeringId: row.offeringId, label: row.title, units: 1, sessionId: row.sessionId });
       setBusyId(null);
       if (!res.ok) {
-        setNotice(t("public.guestChat.catalogAddFailed"));
+        setNotice(t(res.reason === "invalid" ? "public.guestChat.catalogAddInvalid" : "public.guestChat.catalogAddFailed"));
         return;
       }
       setAddedIds((s) => new Set(s).add(row.id));
@@ -219,7 +221,14 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
     [add, onEnsureInquiry, t, threadToken],
   );
 
-  const visible = useMemo(() => groups?.find((g) => g.category === category)?.rows ?? [], [groups, category]);
+  const [searchText, setSearchText] = useState("");
+  const [sort, setSort] = useState<CatalogSort>("default");
+  const [availableOnly, setAvailableOnly] = useState(false);
+  const [maxMinutes, setMaxMinutes] = useState<number | null>(null);
+  const visible = useMemo(
+    () => sortCatalogRows(maxDurationRows(onlyAvailableRows(searchCatalogRows(groups?.find((g) => g.category === category)?.rows ?? [], searchText), availableOnly), maxMinutes), sort),
+    [groups, category, searchText, availableOnly, sort, maxMinutes],
+  );
 
   const usingServices = serviceChips.length > 0;
   const activeService = serviceChip ?? serviceChips[0] ?? null;
@@ -234,12 +243,48 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
       <div style={{ display: "flex", gap: 6, overflowX: "auto", padding: "4px 14px 2px", scrollbarWidth: "none" }}>
         {usingServices
           ? serviceChips.map((label) => (
-              <Chip key={label} on={label === activeService} label={label} onClick={() => setServiceChip(label)} C={C} accent={accent} />
+              <Chip key={label} on={label === activeService} label={label} onClick={() => { setServiceChip(label); setNotice(null); }} C={C} accent={accent} />
             ))
           : (groups ?? []).map((g) => (
-              <Chip key={g.category} on={g.category === category} label={t(CATEGORY_KEY[g.category])} onClick={() => setCategory(g.category)} C={C} accent={accent} />
+              <Chip key={g.category} on={g.category === category} label={t(CATEGORY_KEY[g.category])} onClick={() => { setCategory(g.category); setNotice(null); }} C={C} accent={accent} />
             ))}
       </div>
+      {!usingServices ? (
+        <div style={{ padding: "0 14px" }}>
+          <input
+            type="search"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            placeholder={t("public.guestChat.catalogSearchPlaceholder")}
+            aria-label={t("public.guestChat.catalogSearchPlaceholder")}
+            style={{ width: "100%", boxSizing: "border-box", border: `1px solid ${C.borderSoft}`, borderRadius: 999, padding: "7px 12px", fontSize: 13, fontFamily: FONT, color: C.ink, background: "#fff" }}
+          />
+          <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as CatalogSort)}
+              aria-label={t("public.guestChat.catalogSortLabel")}
+              style={{ border: `1px solid ${C.borderSoft}`, borderRadius: 999, padding: "5px 10px", fontSize: 12, fontFamily: FONT, color: C.ink, background: "#fff" }}
+            >
+              <option value="default">{t("public.guestChat.catalogSortDefault")}</option>
+              <option value="price_asc">{t("public.guestChat.catalogSortPriceAsc")}</option>
+              <option value="price_desc">{t("public.guestChat.catalogSortPriceDesc")}</option>
+            </select>
+            <select
+              value={maxMinutes ?? ""}
+              onChange={(e) => setMaxMinutes(e.target.value ? Number(e.target.value) : null)}
+              aria-label={t("public.guestChat.catalogDurationLabel")}
+              style={{ border: `1px solid ${C.borderSoft}`, borderRadius: 999, padding: "5px 10px", fontSize: 12, fontFamily: FONT, color: C.ink, background: "#fff" }}
+            >
+              <option value="">{t("public.guestChat.catalogDurationAny")}</option>
+              <option value="30">{t("public.guestChat.catalogDurationUpTo").replace("{n}", "30")}</option>
+              <option value="60">{t("public.guestChat.catalogDurationUpTo").replace("{n}", "60")}</option>
+              <option value="90">{t("public.guestChat.catalogDurationUpTo").replace("{n}", "90")}</option>
+            </select>
+            <Chip on={availableOnly} label={t("public.guestChat.catalogAvailableOnly")} onClick={() => setAvailableOnly((v) => !v)} C={C} accent={accent} />
+          </div>
+        </div>
+      ) : null}
       {notice && (
         <div role="status" style={{ margin: "0 14px", padding: "7px 10px", borderRadius: 10, background: `${accent}14`, color: accent, fontSize: 12.5, fontWeight: 600, fontFamily: FONT }}>
           {notice}
@@ -251,7 +296,7 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
             return (
             <div key={item.title} data-guest-catalog-row="service" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", fontFamily: FONT }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</div>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflowWrap: "anywhere", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{item.title}</div>
                 {item.priceLabel ? (
                   <div
                     data-guest-service-price
@@ -285,12 +330,14 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
         const added = addedIds.has(row.id);
         // A ticket buys on its own event page when the event has one (D-MSG-224); the list is the fallback.
         const buyPath = row.category === "ticket" && row.eventSlug ? `/events/${row.eventSlug}` : BUY_HREF[row.category];
-        const buyHref = buyPath ? clientLocaleHref(pathname ?? "/", buyPath) : null;
+        // TUL-1068: hub talent pages (/t/<code>) have no /book or /events, so Select would 404 and drop the widget.
+        const onHubProfile = /^\/(?:[a-z]{2}\/)?t\//.test(pathname ?? "");
+        const buyHref = buyPath && !onHubProfile ? clientLocaleHref(pathname ?? "/", buyPath) : null;
         const price = row.amountCents != null && row.amountCents > 0 ? formatOrderMoney(row.amountCents, "USD") : null;
         return (
           <div key={row.id} data-guest-catalog-row={row.category} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", fontFamily: FONT }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.title}</div>
+              <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflowWrap: "anywhere", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{row.title}</div>
               <div style={{ fontSize: 11.5, color: C.inkDim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {[price, row.sub, !row.available ? t("public.guestChat.catalogUnavailable") : null].filter(Boolean).join(" · ")}
               </div>

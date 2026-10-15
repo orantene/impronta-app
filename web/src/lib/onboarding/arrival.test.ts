@@ -134,7 +134,8 @@ test("TUL-648: the finish fact counts published services only; unpriced ones bec
 test("TUL-648: publishedServiceCount matches the rows offeringRowFor publishes", async () => {
   const { publishedServiceCount } = await import("./essentials");
   const svc = (priceCents: number | null, quote = false) => ({ name: "S", durationMin: 60, priceCents, quote, currency: "MXN", packKey: null }) as never;
-  assert.equal(publishedServiceCount([svc(50000), svc(null, true), svc(0), svc(30000, true)]), 1);
+  // TUL-805: a quote choice is live too; only a row with neither a price nor that choice is a draft.
+  assert.equal(publishedServiceCount([svc(50000), svc(null, true), svc(0), svc(30000, true)]), 3);
   assert.equal(publishedServiceCount(null), 0);
 });
 

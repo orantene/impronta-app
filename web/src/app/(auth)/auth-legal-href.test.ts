@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { authLegalHref } from "./auth-legal-href";
+import { authLegalHref, authMarketingHref } from "./auth-legal-href";
 
 test("default locale stays unprefixed on the platform host", () => {
   assert.equal(authLegalHref("https://tulala.digital", "terms", "en"), "https://tulala.digital/legal/terms");
@@ -14,4 +14,11 @@ test("Spanish login links the Spanish legal pages", () => {
 
 test("junk locale falls back to unprefixed", () => {
   assert.equal(authLegalHref("https://tulala.digital", "terms", "../x"), "https://tulala.digital/legal/terms");
+});
+
+test("TUL-816: marketing links are locale-prefixed on the env marketing origin", () => {
+  assert.equal(authMarketingHref("https://staging.tulala.digital/", "/about", "es"), "https://staging.tulala.digital/es/about");
+  assert.equal(authMarketingHref("https://staging.tulala.digital", "", "es"), "https://staging.tulala.digital/es");
+  assert.equal(authMarketingHref("https://tulala.digital", "/about", "en"), "https://tulala.digital/about");
+  assert.equal(authMarketingHref("https://tulala.digital", "", null), "https://tulala.digital");
 });

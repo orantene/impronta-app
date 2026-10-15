@@ -146,3 +146,14 @@ describe("TUL-516 / TUL-528 floating chrome stack", () => {
 test("TUL-799: the demo badge yields while the help bubble is up, so the two never overlap", () => {
   assert.match(FLOATING_CHROME_STACK_CSS, /body:has\(\[data-help-bubble\]\) \[data-demo-badge\]\{display:none\}/);
 });
+
+test("TUL-931: the open booking sheet hides the chat FAB and help teaser", () => {
+  assert.ok(FLOATING_CHROME_STACK_CSS.includes("body:has(.jb-back) [data-guest-chat-launcher],body:has(.jb-back) [data-help-bubble]{display:none!important}"));
+});
+
+test("TUL-697: an open public-header mobile drawer hides chat FAB, help teaser, demo badge and locale toast", () => {
+  const m = "body:has([data-public-header-menu])";
+  for (const target of ["[data-guest-chat-launcher]", "[data-help-bubble]", "[data-demo-badge]", "[data-locale-suggestion]"]) {
+    assert.ok(FLOATING_CHROME_STACK_CSS.includes(`${m} ${target}`), target);
+  }
+});

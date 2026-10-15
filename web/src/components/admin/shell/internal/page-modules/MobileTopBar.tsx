@@ -23,6 +23,7 @@ import { deriveWorkRole } from "@/lib/workspace/nav-context";
 import { WhatsAppTopBarButton } from "@/components/admin/channels/WhatsAppChrome";
 import { NotificationsBell } from "../notifications-hub";
 import { ShellCountBubbles } from "../shell-count-bubbles";
+import { LanguageMenu } from "./LanguageMenu";
 import { PromosHeaderButton } from "@/components/promos/talent/PromosHeaderButton";
 import { Icon } from "../primitives";
 import { useAdminShell } from "../state";
@@ -134,6 +135,9 @@ export function MobileTopBar() {
         </button>
       )}
       {inTalent ? null : <WhatsAppTopBarButton size={34} iconOnly />}
+      {/* TUL-995: the ES/EN switch stays reachable on a phone (renders nothing
+          when the talent has no second language). */}
+      {inTalent ? <LanguageMenu /> : null}
       {inTalent ? <PromosHeaderButton size="md" /> : null}
       <ShellCountBubbles size="md" />
       <NotificationsBell size="md" />

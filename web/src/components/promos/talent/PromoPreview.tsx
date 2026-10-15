@@ -55,7 +55,7 @@ export function PromoPreview({
                   <s aria-hidden className={`text-[13px] ${UI.muted}`}>{money(result.list_cents)}</s>
                   <span className="sr-only">{copy.t("preview.was_now", { was: money(result.list_cents), now: money(result.final_cents) })}</span>
                   <span className={`text-[18px] font-bold ${UI.ink}`}>{money(result.final_cents)}</span>
-                  <span className="rounded-full bg-[var(--tc-soft,#e6f4f1)] px-2 py-0.5 text-[12px] font-semibold">{copy.t("preview.save", { n: result.pct })}</span>
+                  <span aria-label={copy.t("preview.save", { n: result.pct })} className="rounded-full bg-[var(--tc-soft,#e6f4f1)] px-2.5 py-1 text-[12px] font-semibold text-[#1c1c1e]">{copy.t("preview.save", { n: result.pct })}</span>
                 </p>
               ) : (
                 <p className={`text-[18px] font-bold ${UI.ink}`}>{money(result.final_cents)}</p>

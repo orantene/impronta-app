@@ -165,3 +165,23 @@ export function pathWorkspaceClientSignInHref(input: {
   const base = input.appUrl.trim().replace(/\/$/, "");
   return `${base}/login?as=client&next=${encodeURIComponent(accountReturnPath(input.pathname))}`;
 }
+
+/**
+ * TUL-870: the head fields that still said "Tulala" on a whitelabel agency's
+ * login (description, og:site_name, og:title, apple-mobile-web-app title).
+ * Pure: the caller spreads it into Next metadata.
+ */
+export function authBrandHead(name: string, locale: string): {
+  description: string;
+  openGraph: { siteName: string; title: string; description: string };
+  twitter: { title: string; description: string };
+  appleWebApp: { capable: true; title: string; statusBarStyle: "default" };
+} {
+  const description = locale === "es" ? `Inicia sesión en ${name}.` : `Sign in to ${name}.`;
+  return {
+    description,
+    openGraph: { siteName: name, title: name, description },
+    twitter: { title: name, description },
+    appleWebApp: { capable: true, title: name, statusBarStyle: "default" },
+  };
+}
