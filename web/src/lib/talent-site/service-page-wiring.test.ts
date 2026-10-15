@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { isTalentSiteHostPathAllowed } from "@/lib/saas/talent-site-host-routing";
 import { talentProfileSitemapEntries } from "./talent-site-locale-routing";
 import { serviceBookHref, serviceSitemapPaths, serviceSlug } from "./service-page";
+import type { LocaleAlternates } from "@/i18n/alternates";
 import { serviceSeo } from "./server/service-main";
 import { maxSiteSeoToMetadata } from "./server/site-metadata";
 
@@ -108,4 +109,19 @@ test("TUL-796: the article adds no bottom reserve of its own (body already reser
   const src = readFileSync(join(process.cwd(), "src/lib/talent-site/server/service-main.tsx"), "utf8");
   assert.doesNotMatch(src, /padding: "48px 20px 1\d\d"/);
   assert.match(src, /padding: "48px 20px 56px"/);
+});
+
+test("TUL-586 hreflang: service metadata carries languages for 2+ locales, none for a single-language talent", async () => {
+  const { buildLocaleAlternates } = await import("@/i18n/alternates");
+  // The SEO envelope only carries alternates when the page exists in 2+ languages (rule 2).
+  const toSeoAlternates = (a: LocaleAlternates) => (a.languages ? { canonical: a.canonical, languages: a.languages } : undefined);
+  const path = `/${serviceSlug(A)}`;
+  const base = { origin: "https://j.example", pathnameWithoutLocale: path, defaultLocale: "es" };
+  const two = buildLocaleAlternates({ ...base, supportedLocales: ["es", "en"], currentLocale: "en" });
+  const seo2 = serviceSeo({ title: "Home", noindex: false, canonical: two.canonical, alternates: toSeoAlternates(two) }, A, { talentName: "Ana", locale: "en" });
+  const md2 = maxSiteSeoToMetadata(seo2, { ogLocale: "en" });
+  assert.deepEqual(Object.keys(md2.alternates?.languages ?? {}).sort(), ["en", "es", "x-default"]);
+  const one = buildLocaleAlternates({ ...base, supportedLocales: ["es"], currentLocale: "es" });
+  const md1 = maxSiteSeoToMetadata(serviceSeo({ title: "Home", noindex: false, canonical: one.canonical, alternates: toSeoAlternates(one) }, A, { talentName: "Ana", locale: "es" }), { ogLocale: "es" });
+  assert.equal(md1.alternates?.languages, undefined);
 });
