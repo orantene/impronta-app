@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { zoneCity } from "@/lib/events/public-event-time";
 import { useAgendaCopy } from "./use-agenda-copy";
 
 /**
@@ -9,9 +8,6 @@ import { useAgendaCopy } from "./use-agenda-copy";
  * text. The browser's own list (`Intl.supportedValuesOf("timeZone")`) is the
  * source, so a typo or a concatenated value like "America/Europe/Madrid" cannot
  * be chosen. The server validates the saved value again.
- *
- * Labels follow the UI locale (TUL-358 follow-up): Spanish sees
- * "América/Ciudad de México", not the English IANA path with spaces.
  */
 
 const FALLBACK_ZONES = [
@@ -25,21 +21,6 @@ const FALLBACK_ZONES = [
   "Europe/London",
   "UTC",
 ];
-
-/** Continent / ocean segment of an IANA id — localized for ES UI. */
-const REGION_LABEL: Record<string, { en: string; es: string }> = {
-  Africa: { en: "Africa", es: "África" },
-  America: { en: "America", es: "América" },
-  Antarctica: { en: "Antarctica", es: "Antártida" },
-  Arctic: { en: "Arctic", es: "Ártico" },
-  Asia: { en: "Asia", es: "Asia" },
-  Atlantic: { en: "Atlantic", es: "Atlántico" },
-  Australia: { en: "Australia", es: "Australia" },
-  Europe: { en: "Europe", es: "Europa" },
-  Indian: { en: "Indian", es: "Índico" },
-  Pacific: { en: "Pacific", es: "Pacífico" },
-  Etc: { en: "Etc", es: "Etc" },
-};
 
 export function listIanaTimeZones(): string[] {
   try {
@@ -67,24 +48,39 @@ function offsetLabel(zone: string): string {
   }
 }
 
+/** Zones offered first (TUL-821): Mexico, where most talents work. */
+export const SUGGESTED_ZONES = [
+  "America/Cancun",
+  "America/Mexico_City",
+  "America/Monterrey",
+  "America/Merida",
+  "America/Chihuahua",
+  "America/Tijuana",
+];
+
+function genericName(zone: string, locale: string): string {
+  try {
+    return (
+      new Intl.DateTimeFormat(locale, { timeZone: zone, timeZoneName: "longGeneric" })
+        .formatToParts(new Date())
+        .find((p) => p.type === "timeZoneName")?.value ?? ""
+    );
+  } catch {
+    return "";
+  }
+}
+
 /**
- * Human label for an IANA zone in the working-hours picker.
- * City segment uses the shared zoneCity map (Cancún, Ciudad de México, …);
- * region segment is translated on ES. Offset stays UTC±N.
+ * TUL-822: the raw IANA id ("Africa/Addis Ababa") is English-only. Lead with
+ * the locale's own zone name ("hora de África oriental") and keep the city
+ * tail so the zone is still findable, plus the UTC offset.
  */
-export function ianaTimeZoneLabel(zone: string, locale: "en" | "es" = "en"): string {
-  const parts = zone.split("/");
-  const labeled =
-    parts.length === 1
-      ? zone === "UTC"
-        ? "UTC"
-        : zoneCity(zone, locale)
-      : [
-          ...parts.slice(0, -1).map((seg) => REGION_LABEL[seg]?.[locale] ?? seg.replaceAll("_", " ")),
-          zoneCity(zone, locale),
-        ].join("/");
+export function zoneLabel(zone: string, locale: string): string {
+  const city = (zone.split("/").pop() ?? zone).replaceAll("_", " ");
+  const generic = genericName(zone, locale);
   const off = offsetLabel(zone);
-  return off ? `${labeled} (${off})` : labeled;
+  const head = generic && generic.toLowerCase() !== city.toLowerCase() ? `${generic} · ${city}` : city;
+  return off ? `${head} (${off})` : head;
 }
 
 export function TimezonePicker({ value, onChange }: { value: string; onChange: (zone: string) => void }) {
@@ -93,16 +89,12 @@ export function TimezonePicker({ value, onChange }: { value: string; onChange: (
   const zones = useMemo(() => listIanaTimeZones(), []);
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase().replaceAll(" ", "_");
-    const list = q
-      ? zones.filter((z) => {
-          if (z.toLowerCase().includes(q)) return true;
-          // Match localized city labels too ("ciudad de mexico", "cancún").
-          return ianaTimeZoneLabel(z, copy.locale).toLowerCase().includes(query.trim().toLowerCase());
-        })
-      : zones;
+    const list = q ? zones.filter((z) => z.toLowerCase().includes(q)) : zones;
     // The current value stays selectable even when the filter hides it.
     return value && !list.includes(value) && zones.includes(value) ? [value, ...list] : list;
-  }, [query, zones, value, copy.locale]);
+  }, [query, zones, value]);
+
+  const suggested = useMemo(() => (query.trim() ? [] : SUGGESTED_ZONES.filter((z) => zones.includes(z))), [query, zones]);
 
   return (
     <div className="mt-1 flex flex-col gap-2">
@@ -122,11 +114,22 @@ export function TimezonePicker({ value, onChange }: { value: string; onChange: (
         onChange={(e) => onChange(e.target.value)}
       >
         {!zones.includes(value) ? <option value="">{copy.t("Pick a time zone")}</option> : null}
-        {shown.map((z) => (
-          <option key={z} value={z}>
-            {ianaTimeZoneLabel(z, copy.locale)}
-          </option>
-        ))}
+        {suggested.length > 0 ? (
+          <optgroup label={copy.t("Suggested")}>
+            {suggested.map((z) => (
+              <option key={`s-${z}`} value={z}>
+                {zoneLabel(z, copy.locale)}
+              </option>
+            ))}
+          </optgroup>
+        ) : null}
+        <optgroup label={copy.t("All time zones")}>
+          {shown.map((z) => (
+            <option key={z} value={z}>
+              {zoneLabel(z, copy.locale)}
+            </option>
+          ))}
+        </optgroup>
       </select>
     </div>
   );

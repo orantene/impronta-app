@@ -17,6 +17,7 @@ import { resolveBriefOwner } from "@/lib/tulala/owner.server";
 import { choiceToPath, localePatch, parsePersistedModuleState } from "@/lib/onboarding/module-state";
 import { choiceToIntent } from "@/lib/onboarding/module-state";
 import {
+  packKeyForTrade,
   parseEssentials,
   servicesFromFacts,
   suggestedEssentials,
@@ -29,6 +30,8 @@ import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 export type SetupPayload = {
   choice: OnboardingChoice;
   country: string | null;
+  /** Trade pack key (e.g. "cleaning"), used to adapt where-you-work options. */
+  tradeKey?: string | null;
   /** What the screen opens with: the saved record, else AI-read services over a trade pack. */
   essentials: Essentials;
   /** True when the person already confirmed once (resume). */
@@ -73,7 +76,7 @@ export async function loadOnboardingSetup(): Promise<SetupLoadResult> {
     essentials = fromWords.length ? { ...base, services: fromWords, source: "ai" } : base;
     if (saved) essentials = { ...essentials, hours: saved.hours ?? essentials.hours, place: saved.place, timezone: saved.timezone ?? essentials.timezone };
   }
-  return { ok: true, setup: { choice, country, essentials, saved: !!saved?.confirmed } };
+  return { ok: true, setup: { choice, country, tradeKey: packKeyForTrade(ctx.trade, ctx.discipline), essentials, saved: !!saved?.confirmed } };
 }
 
 export async function saveOnboardingSetup(input: { essentials: unknown; locale?: "en" | "es" }): Promise<SetupSaveResult> {

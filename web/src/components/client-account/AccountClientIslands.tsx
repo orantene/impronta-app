@@ -216,6 +216,21 @@ export function SettingsForm({ initial, copy }: {
   );
 }
 
+const SESSION_CHANNEL = "tulala-session";
+
+/** TUL-788: reload this tab when another tab of the same browser signs out. */
+export function SessionSyncListener() {
+  useEffect(() => {
+    if (typeof BroadcastChannel === "undefined") return;
+    const ch = new BroadcastChannel(SESSION_CHANNEL);
+    ch.onmessage = (e) => {
+      if (e.data === "signed-out") window.location.reload();
+    };
+    return () => ch.close();
+  }, []);
+  return null;
+}
+
 export function LogOutButton({ label }: { label: string }) {
   const [pending, start] = useTransition();
   return (
@@ -225,6 +240,13 @@ export function LogOutButton({ label }: { label: string }) {
       disabled={pending}
       onClick={() => start(() => {
         // S1 / TUL-708: one top-level POST revokes + expires every scope.
+        try {
+          const ch = new BroadcastChannel(SESSION_CHANNEL);
+          ch.postMessage("signed-out");
+          ch.close();
+        } catch {
+          /* no BroadcastChannel: other tabs refresh on next navigation */
+        }
         signOutEverywhere();
       })}
     >

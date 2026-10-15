@@ -13,7 +13,7 @@ import { TALENT_AGENDA_VARS } from "./primitives";
 import { useAgendaCopy } from "./use-agenda-copy";
 import { formatHoursDate, formatHoursRange } from "@/lib/talent-agenda/hours-display-format";
 import { HoursDateField, HoursTimeField } from "./HoursFields";
-import { TimezonePicker, ianaTimeZoneLabel, isListedTimeZone, listIanaTimeZones } from "./TimezonePicker";
+import { TimezonePicker, isListedTimeZone, listIanaTimeZones } from "./TimezonePicker";
 import { readDeviceTimeZone, resolveHoursTimeZone, suggestDeviceTimeZone } from "./timezone-suggestion";
 
 const LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
@@ -271,7 +271,7 @@ export function AgendaAvailabilityPage({
         {rows.map((row, idx) => (
           <div
             key={row.day}
-            className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:grid-cols-[minmax(56px,64px)_minmax(0,1fr)_auto_minmax(0,1fr)]"
+            className="grid grid-cols-[minmax(6.75rem,1fr)_auto_minmax(6.75rem,1fr)] items-center gap-2 sm:grid-cols-[minmax(56px,64px)_minmax(0,1fr)_auto_minmax(0,1fr)]"
           >
             <label className={`flex items-center gap-2 text-[14px] ${row.open ? "col-span-3 sm:col-span-1" : ""}`}>
               <input
@@ -318,6 +318,38 @@ export function AgendaAvailabilityPage({
             )}
           </div>
         ))}
+      </section>
+
+      <section className="grid gap-3 rounded-2xl border border-black/8 bg-white p-4 sm:grid-cols-2">
+        <label className="block text-[13px]">
+          {copy.t("Buffer (minutes)")}
+          <input
+            type="number"
+            min={0}
+            className="mt-1 w-full rounded-xl border border-black/10 px-3 py-2"
+            value={bufferMin}
+            onChange={(e) => setBufferMin(Number(e.target.value) || 0)}
+          />
+        </label>
+        <label className="block text-[13px]">
+          {copy.t("Time zone")}
+          <TimezonePicker value={tz} onChange={(z) => { setTz(z); setTzSource("saved"); setUnsaved(true); }} />
+          {tz && tzSource === "device" ? (
+            <p className="mt-2 text-[12px] text-black/60" data-testid="working-hours-timezone-source">
+              {copy.t("Time zone taken from this device. Change it above if it is wrong.")}
+            </p>
+          ) : null}
+          {suggestedTz ? (
+            <button
+              type="button"
+              data-testid="working-hours-timezone-device"
+              className="mt-2 text-left text-[13px] text-[var(--tc-accent)]"
+              onClick={() => { setTz(suggestedTz); setTzSource("device"); setUnsaved(true); }}
+            >
+              {copy.t("Use this device's time zone")}: {suggestedTz.replaceAll("_", " ")}
+            </button>
+          ) : null}
+        </label>
       </section>
 
       <section className="space-y-3 rounded-2xl border border-black/8 bg-white p-4">
@@ -403,39 +435,6 @@ export function AgendaAvailabilityPage({
             {copy.t("Add")}
           </button>
         </div>
-      </section>
-
-      <section className="grid gap-3 rounded-2xl border border-black/8 bg-white p-4 sm:grid-cols-2">
-        <label className="block text-[13px]">
-          {copy.t("Buffer (minutes)")}
-          <input
-            type="number"
-            min={0}
-            className="mt-1 w-full rounded-xl border border-black/10 px-3 py-2"
-            value={bufferMin}
-            onChange={(e) => setBufferMin(Number(e.target.value) || 0)}
-          />
-        </label>
-        <label className="block text-[13px]">
-          {copy.t("Time zone")}
-          <TimezonePicker value={tz} onChange={(z) => { setTz(z); setTzSource("saved"); setUnsaved(true); }} />
-          {tz && tzSource === "device" ? (
-            <p className="mt-2 text-[12px] text-black/60" data-testid="working-hours-timezone-source">
-              {copy.t("Time zone taken from this device. Change it above if it is wrong.")}
-            </p>
-          ) : null}
-          {suggestedTz ? (
-            <button
-              type="button"
-              data-testid="working-hours-timezone-device"
-              className="mt-2 text-left text-[13px] text-[var(--tc-accent)]"
-              onClick={() => { setTz(suggestedTz); setTzSource("device"); setUnsaved(true); }}
-            >
-              {copy.t("Use this device's time zone")}:{" "}
-              {ianaTimeZoneLabel(suggestedTz, copy.locale).replace(/\s*\(UTC[^)]*\)\s*$/, "")}
-            </button>
-          ) : null}
-        </label>
       </section>
 
       <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-black/8 bg-white p-4">

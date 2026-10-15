@@ -146,3 +146,20 @@ export function canOfferHuman(ticket: Pick<SupportTicketRow, "handledBy" | "stat
   if (!ticket) return true;
   return ticket.handledBy !== "human" && ticket.status !== "closed";
 }
+
+/**
+ * TUL-948: the AI turn flag outlives the reply (the request resolves after
+ * realtime already delivered it), which drew a second "thinking" bubble
+ * under the answer. Show it only while the last message is not an AI reply.
+ */
+export function shouldShowThinking(
+  thinking: boolean,
+  messages: ReadonlyArray<Pick<SupportMessageRow, "authorKind" | "deletedAt">>,
+): boolean {
+  if (!thinking) return false;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].deletedAt) continue;
+    return messages[i].authorKind !== "ai";
+  }
+  return true;
+}

@@ -13,6 +13,7 @@ import {
   offeringPriceUnit,
   catalogRowMinCents,
   catalogRowOpensSheetImmediately,
+  catalogRowShowsFrom,
   type CatalogBookingMode,
 } from "@/components/public-booking/catalog-booking-logic";
 import { CatalogPurchaseMount } from "@/components/public-booking/CatalogPurchaseMount";
@@ -592,6 +593,7 @@ export function CatalogRow({
   const quote =
     offeringIsQuote(item);
   const minCents = catalogRowMinCents(item);
+  const ladder = catalogRowShowsFrom(item);
   const usd = usdEquivalentLabel(minCents, item.currency, usdRates, locale);
   const derived = deriveFor(item, confirmsByHand, bookingPosture);
   const cta = derived.cta;

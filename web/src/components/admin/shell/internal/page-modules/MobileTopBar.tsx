@@ -12,7 +12,7 @@
  * Token classes only; the identity bar hides its desktop row under the same
  * breakpoint. The workspace pill reads "Workspace · Location" on the board;
  * there is no locations table (D-POS-18), so it reads the workspace's name.
- * On the talent surface the pill is inert (no workspace switch sheet).
+ * On the talent surface the pill opens the profile (TUL-907; it used to do nothing).
  */
 
 import { useRouter } from "next/navigation";
@@ -40,7 +40,7 @@ const ICON_BUTTON =
   "relative inline-flex h-[34px] w-[34px] shrink-0 cursor-pointer items-center justify-center rounded-[10px] border border-admin-border bg-admin-card text-admin-ink-muted";
 
 export function MobileTopBar() {
-  const { state, effectiveTenant, bridgeTalentSelfProfile } = useAdminShell();
+  const { state, effectiveTenant, bridgeTalentSelfProfile, setTalentPage } = useAdminShell();
   const t = useT();
   const router = useRouter();
   const detail = useMobileDetailHeader();
@@ -91,16 +91,15 @@ export function MobileTopBar() {
         data-tulala-mobile-workspace-pill
         onClick={
           inTalent
-            ? undefined
+            ? () => setTalentPage("profile")
             : () => window.dispatchEvent(new Event(WORKSPACE_SWITCH_OPEN_EVENT))
         }
         aria-label={
           inTalent
-            ? pillName
+            ? `${pillName} · ${t("dashboard.mobile.talentPillAria")}`
             : `${pillName} · ${t("dashboard.mobile.switch.title")}`
         }
         className="flex min-w-0 cursor-pointer items-center gap-[7px] rounded-full border border-admin-border bg-admin-card py-[5px] pl-[5px] pr-[9px] text-left"
-        disabled={inTalent}
       >
         <span
           aria-hidden
