@@ -67,10 +67,10 @@ test("GRK-083: cards/grid/editorial stay 1 column through 899px with wrapping CT
   const phone = renderCss.slice(renderCss.indexOf("@media (max-width:899px){"));
   assert.match(
     phone,
-    /services-catalog\[data-layout="cards"\][\s\S]*?grid-template-columns:1fr/,
+    /services-catalog:is\(\[data-layout="cards"\][\s\S]*?grid-template-columns:1fr/,
   );
   assert.match(
     renderCss,
-    /data-layout="cards"\] \.site-builder-node--services-catalog-cta[\s\S]*?white-space:normal/,
+    /data-layout="cards"\][^{]*\.site-builder-node--services-catalog-cta[\s\S]*?white-space:normal/,
   );
 });

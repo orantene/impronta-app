@@ -1385,7 +1385,7 @@ export const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--container[data-builder-layout="row"]{flex-direction:row;flex-wrap:wrap}
 /* TUL-532: a kit-shell header logo is a plain image node (inline width:100% + cover), so a
    wordmark was cropped or blown up. Same platform limits as .site-header__brand-mark. */
-[data-talent-max-site-header] .site-builder-node--container[data-builder-layout="row"]>.site-builder-node--image,[data-talent-max-site-header] .site-builder-node--container[data-builder-layout="row"]>.site-builder-node--image-link>.site-builder-node--image{${headerLogoDeclarations(true)};flex:0 0 auto}
+[data-talent-max-site-header] .site-builder-node--container[data-builder-layout="row"]>:is(.site-builder-node--image,.site-builder-node--image-link>.site-builder-node--image){${headerLogoDeclarations(true)};flex:0 0 auto}
 .site-builder-node--container[data-builder-layout="grid"],.site-builder-node--container[data-builder-display="grid"]{display:grid;grid-template-columns:repeat(var(--bn-columns,2),minmax(0,1fr))}
 @media (min-width:641px){.site-builder-node--container[data-bn-odd-tail]{grid-template-columns:repeat(4,minmax(0,1fr))}.site-builder-node--container[data-bn-odd-tail]>*{grid-column:span 2}.site-builder-node--container[data-bn-odd-tail]>:last-child{grid-column:2/span 2}}
 .site-builder-node--container[data-builder-display="slider"]{display:flex;flex-direction:row;flex-wrap:nowrap;gap:var(--bn-slider-gap,var(--bn-gap,16px));overflow-x:auto;scroll-snap-type:x mandatory}
@@ -1459,7 +1459,7 @@ export const BUILDER_NODE_RENDERER_CSS = `
    scroll container, sticky chrome stays free; max-width + min-width:0 stop
    flex/grid ancestors from growing with the track (~20px phone H-scroll). */
 .site-builder-node--marquee{display:block;width:100%;max-width:100%;min-width:0;overflow-x:clip;overflow-y:hidden;padding:clamp(0.9rem,2vw,1.4rem) 0;box-sizing:border-box}
-.site-builder-node--marquee-track{display:flex;width:max-content;max-width:none;animation:bn-marquee var(--bn-marquee-duration,32s) linear infinite}
+.site-builder-node--marquee-track{display:flex;width:max-content;animation:bn-marquee var(--bn-marquee-duration,32s) linear infinite}
 .site-builder-node--marquee[data-bn-marquee-speed="slow"]{--bn-marquee-duration:52s}
 .site-builder-node--marquee[data-bn-marquee-speed="fast"]{--bn-marquee-duration:18s}
 .site-builder-node--marquee[data-bn-marquee-direction="right"] .site-builder-node--marquee-track{animation-direction:reverse}
@@ -4568,9 +4568,7 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-buy{margin:0 1rem 1rem;flex:0 0 auto;min-width:0;width:100%;max-width:100%;box-sizing:border-box;justify-content:flex-start;align-items:stretch;gap:.75rem;flex-wrap:wrap}
 .site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-buy{margin:.25rem 0 0;flex:0 0 auto;min-width:0;width:100%;justify-content:flex-start;gap:.5rem;flex-wrap:wrap}
 /* TUL-532 / GRK-083: never clip "Solicitar cita" to "Soli" on phone cards. */
-.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-cta,
-.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-cta,
-.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-cta{flex:1 1 auto;min-width:0;max-width:100%;white-space:normal;text-wrap:balance;overflow-wrap:anywhere}
+.site-builder-node--services-catalog:is([data-layout="cards"],[data-layout="grid"],[data-layout="editorial"]) .site-builder-node--services-catalog-cta{flex:1 1 auto;min-width:0;max-width:100%;white-space:normal;text-wrap:balance;overflow-wrap:anywhere}
 .site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-price,
 .site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-price,
 .site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-price{align-items:flex-start;text-align:left}
@@ -4636,11 +4634,7 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:not(:first-child) .site-builder-node--services-catalog-buy{grid-area:buy;flex:none;width:100%}
 }
 /* TUL-532 / GRK-083: phone + tablet stay one column so CTA labels never clip. */
-@media (max-width:899px){
-.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-list,
-.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-list,
-.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-list{grid-template-columns:1fr}
-}
+@media (max-width:899px){.site-builder-node--services-catalog:is([data-layout="cards"],[data-layout="grid"],[data-layout="editorial"]) .site-builder-node--services-catalog-list{grid-template-columns:1fr}}
 @media (min-width:561px){
 .site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row,
 .site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row{display:flex;flex-wrap:nowrap;align-items:center;gap:1.25rem 1.75rem;padding:1.15rem 0}
