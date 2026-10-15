@@ -13,11 +13,10 @@
  */
 
 import { useEffect, useState } from "react";
-import { loadReviewAskBookingsAction } from "@/lib/reviews/review-ask-load-action";
+import { loadReviewAskBookingsAction, loadReviewAskPicksAction } from "@/lib/reviews/review-ask-load-action";
 import { createReviewRequestAction } from "@/lib/reviews/review-request-actions";
 import type { ReviewableCounterparty } from "@/lib/reviews/review-types";
-import { reviewInviteCandidates, type ReviewInviteCandidate } from "@/lib/reviews/review-invite-candidates";
-import { loadTalentClients } from "@/lib/talent/clients-actions";
+import type { ReviewInviteCandidate } from "@/lib/reviews/review-invite-candidates";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 
@@ -89,22 +88,13 @@ export function AskForReviewCard({
     // from one client run in sequence, so three calls stacked to ~3 s). The
     // client list only feeds the email picker; it loads after the card is ready.
     withLoadTimeout(loadReviewAskBookingsAction(tenantSlug, talentProfileId))
-      .then(({ reviewables, requests }) => {
+      .then(({ reviewables, askedBookingIds: asked }) => {
         if (cancelled) return;
         setBookings(reviewables);
-        const askedEmails = new Set(
-          requests.map((r) => r.invitedEmail?.trim().toLowerCase()).filter((e): e is string => !!e),
-        );
-        setAskedBookingIds(
-          new Set(
-            requests
-              .map((r) => r.bookingId)
-              .filter((id): id is string => !!id),
-          ),
-        );
-        loadTalentClients(talentProfileId)
-          .then((clients) => {
-            if (!cancelled && clients.ok) setClientPicks(reviewInviteCandidates(clients.items, askedEmails));
+        setAskedBookingIds(new Set(asked));
+        loadReviewAskPicksAction(tenantSlug, talentProfileId)
+          .then((picks) => {
+            if (!cancelled) setClientPicks(picks);
           })
           .catch(() => {});
       })
