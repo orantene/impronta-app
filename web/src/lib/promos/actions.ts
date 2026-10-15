@@ -15,7 +15,6 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { loadCalloutState } from "@/lib/promos/callouts/dismissals.actions";
 import { pickCallout, type Callout } from "@/lib/promos/callouts/engine";
 import { loadPromoResults, type PromoResultsBundle } from "@/lib/promos/results/load.server";
-import { failFrom, newErrorRef, type PromoActionError } from "./fail-from";
 import { canGoLive, type PlanGateReason } from "./plan-gating";
 import { promoStatus } from "./quote";
 import { DEFAULT_PROMO_TZ, PROMO_COLUMNS, loadTenantPromos, loadUsage, rowToPromo, type PromoRow } from "./repo";
@@ -29,10 +28,10 @@ import type { Promo, PromoStatus } from "./types";
 
 // ── result shapes ──────────────────────────────────────────────────────
 
-export type { PromoActionError } from "./fail-from";
+export type PromoActionError = "not_allowed" | "not_found" | "invalid" | "code_taken" | "unavailable";
 
 export type PromoFail =
-  | { ok: false; error: PromoActionError; fields?: DraftError[]; /** Short support id, only on "unavailable"; logged with the same id. */ ref?: string }
+  | { ok: false; error: PromoActionError; fields?: DraftError[] }
   /** The draft is kept; the UI opens the upgrade modal. */
   | { ok: false; needsUpgrade: true; reason: PlanGateReason | "paid_feature"; draftId: string | null };
 
@@ -277,11 +276,8 @@ async function writeTargets(scope: Scope, promoId: string, ids: readonly string[
   return true;
 }
 
-/** Log a failed write with a fresh short ref and return the typed failure carrying it. */
-function dbFail(context: string, error: { code?: string; message?: string } | null): PromoFail {
-  const ref = newErrorRef();
-  if (error) logServerError(`${context} ref=${ref}`, error);
-  return failFrom(error, ref);
+function failFrom(error: { code?: string } | null): PromoFail {
+  return { ok: false, error: error?.code === "23505" ? "code_taken" : "unavailable" };
 }
 
 const refresh = () => revalidatePath("/talent/promos");
@@ -425,7 +421,10 @@ async function insertPromo(
     })
     .select("id")
     .single();
-  if (error || !data) return dbFail("promos.actions/insert", error);
+  if (error || !data) {
+    if (error) logServerError("promos.actions/insert", error);
+    return failFrom(error);
+  }
   const id = String((data as { id: string }).id);
   if (!(await writeTargets(scope, id, draft.target_ids))) return { ok: false, error: "unavailable" };
   return { ok: true, id };
@@ -481,7 +480,10 @@ export async function goLivePromo(id: string): Promise<PromoResult<{ status: Pro
     .eq("id", id)
     .eq("tenant_id", scope.tenantId)
     .eq("talent_profile_id", scope.talentId);
-  if (error) return dbFail("promos.actions/go-live", error);
+  if (error) {
+    logServerError("promos.actions/go-live", error);
+    return { ok: false, error: "unavailable" };
+  }
   refresh();
   return { ok: true, status: promoStatus(draftToPromo(draft, id), new Date(), { used: 0 }) };
 }
@@ -509,7 +511,10 @@ export async function updatePromo(id: string, input: PromoDraft): Promise<PromoR
     .eq("id", id)
     .eq("tenant_id", scope.tenantId)
     .eq("talent_profile_id", scope.talentId);
-  if (error) return dbFail("promos.actions/update", error);
+  if (error) {
+    logServerError("promos.actions/update", error);
+    return failFrom(error);
+  }
   if (!(await writeTargets(scope, id, draft.target_ids))) return { ok: false, error: "unavailable" };
   refresh();
   return { ok: true, verdict };
@@ -540,7 +545,10 @@ async function setPaused(id: string, paused: boolean): Promise<PromoResult> {
     .eq("id", id)
     .eq("tenant_id", scope.tenantId)
     .eq("talent_profile_id", scope.talentId);
-  if (error) return dbFail("promos.actions/pause", error);
+  if (error) {
+    logServerError("promos.actions/pause", error);
+    return { ok: false, error: "unavailable" };
+  }
   refresh();
   return { ok: true };
 }
@@ -589,7 +597,10 @@ export async function endPromo(id: string): Promise<PromoResult> {
     .eq("id", id)
     .eq("tenant_id", scope.tenantId)
     .eq("talent_profile_id", scope.talentId);
-  if (error) return dbFail("promos.actions/end", error);
+  if (error) {
+    logServerError("promos.actions/end", error);
+    return { ok: false, error: "unavailable" };
+  }
   refresh();
   return { ok: true };
 }
