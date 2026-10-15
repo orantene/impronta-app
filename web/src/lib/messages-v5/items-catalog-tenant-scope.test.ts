@@ -81,3 +81,42 @@ test("the talent picker on a talent's page lists only that talent", () => {
   assert.equal(scopeRosterToTalent(roster, null).length, 3);
   assert.equal(scopeRosterToTalent(roster, "not-on-this-roster").length, 0);
 });
+
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { offeringsTenantScope } from "@/lib/inquiry/roster-scope";
+
+// TUL-1070: andres-cocina-demo showed 'Sesión de retrato QA' / 'Limpieza profunda' from other tenants.
+const ANDRES = {
+  talent_offerings: [
+    offering("c1", "tenant-andres", "talent-andres", "Menú del día"),
+    offering("c2", "tenant-andres", "talent-andres", "Cata de vinos"),
+    offering("x1", "tenant-qa", "talent-andres", "Sesión de retrato QA"),
+    offering("x2", "tenant-cleaning", "talent-andres", "Limpieza profunda"),
+    offering("x3", "tenant-qa", "talent-other", "Other talent"),
+  ],
+};
+
+test("TUL-1070: the same talent on three tenants lists only the current tenant's services", async () => {
+  const rows = await loadTalentProfileOfferingRows(fakeAdmin(ANDRES), "tenant-andres", "talent-andres");
+  assert.deepEqual(rows.map((r) => r.title).sort(), ["Cata de vinos", "Menú del día"]);
+  for (const other of ["tenant-qa", "tenant-cleaning"]) {
+    const o = await loadOfferingRows(fakeAdmin(ANDRES), other);
+    assert.ok(o.every((r) => r.title !== "Menú del día" && r.title !== "Cata de vinos"));
+  }
+  const all = await loadOfferingRows(fakeAdmin(ANDRES), "tenant-andres");
+  assert.ok(all.every((r) => !/QA|Limpieza/.test(r.title)), "no other tenant's service may appear");
+});
+
+test("TUL-1070: the dock reads a talent's offerings under the current tenant; only a hub reads unscoped", () => {
+  assert.equal(offeringsTenantScope("agency", "tenant-andres"), "tenant-andres");
+  assert.equal(offeringsTenantScope(null, "tenant-andres"), "tenant-andres");
+  assert.equal(offeringsTenantScope("hub", "hub-1"), null);
+  assert.equal(offeringsTenantScope("agency", null), null);
+});
+
+test("TUL-1070: the launcher mount never loads offerings without the tenant scope", () => {
+  const src = readFileSync(join(process.cwd(), "src/app/t/[profileCode]/_chat/TalentProfileChatLauncherMount.tsx"), "utf8");
+  assert.match(src, /loadPublicOfferingsForProfile\(talentProfileId, locale \?\? "en", offeringsTenantId\)/);
+  assert.doesNotMatch(src, /loadPublicOfferingsForProfile\(talentProfileId, locale \?\? "en"\)/);
+});
