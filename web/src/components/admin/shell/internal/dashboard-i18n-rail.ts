@@ -35,6 +35,7 @@ import { SWEEP_R1_ES_TEXT } from "./dashboard-i18n-sweep-r1";
 import { LEAKS_1007_ES_TEXT } from "./dashboard-i18n-leaks-1007";
 import { WEBSITE_ES_TEXT } from "./dashboard-i18n-website";
 import { THREAD_ES_TEXT } from "./dashboard-i18n-thread";
+import { E5_SWEEP_ES_TEXT } from "./dashboard-i18n-e5-sweep";
 
 export const RAIL_ES_TEXT: Record<string, string> = {
   // First, so a generic key already translated elsewhere keeps its wording.
@@ -53,6 +54,7 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   ...LANGUAGES_ES_TEXT,
   ...INBOX_ES_TEXT,
   ...TRUST_ES_TEXT,
+  ...E5_SWEEP_ES_TEXT,
   // The four Appointments sub-views (W39). They are tabs of one route, but the
   // rail draws them as rows, so each needs its own literal. "Appointments" is
   // both the destination label and its landing child, and already has a row in
@@ -72,6 +74,7 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   "Relationships": "Relaciones",
   "All orders": "Todos los pedidos",
   "Items": "Artículos",
+  "item": "artículo",
   // The Catalog's other children (W01, W07, W09).
   "Menu structure": "Estructura del menú",
   "Passes & cards": "Pases y tarjetas",
@@ -127,6 +130,11 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   "Sheet button and path": "Botón y camino de la hoja",
   "Booking mode": "Modo de reserva",
   "Default booking mode": "Modo de reserva predeterminado",
+  "On your site, clients book": "En tu sitio, los clientes reservan",
+  "This is your site setting. Each service follows it unless it has its own mode, which is flagged in your Services list.":
+    "Este es el ajuste de tu sitio. Cada servicio lo sigue, salvo que tenga su propio modo, que se marca en tu lista de Servicios.",
+  "Right now: {mode}": "Ahora: {mode}",
+  "Right now: {mode} (Tulala default, you have not chosen yet)": "Ahora: {mode} (predeterminado de Tulala, aún no eliges)",
   "Services that use your default follow this. A service with its own mode keeps it.":
     "Los servicios que usan tu predeterminado siguen esto. Un servicio con su propio modo lo mantiene.",
   "Inquiry only": "Solo consulta",

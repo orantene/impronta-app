@@ -1,12 +1,13 @@
 "use client";
 
+import { signOutEverywhere } from "@/lib/auth/sign-out-client";
 import { useState } from "react";
-import { signOut } from "@/app/auth/actions";
 import { WebsiteRewardControl } from "@/components/talent/website-reward/WebsiteRewardControl";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { useAdminShell, type TalentPage } from "@/components/admin/shell/internal/state";
 import { openGuideHome } from "@/lib/guide/open-guide";
 import { useWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
+import { countItemsLabel } from "@/components/admin/shell/internal/count-items-label";
 
 type Row = { label: string; detail: string; page?: TalentPage; run?: () => void };
 
@@ -25,7 +26,7 @@ export function TalentMoreScreen({ onClose }: { onClose: () => void }) {
       ? copy.t("Not available")
       : eligibility.bookableCount === 0
         ? copy.t("None yet")
-        : `${eligibility.bookableCount} ${copy.t("items")}`;
+        : countItemsLabel(copy.t, eligibility.bookableCount);
   const hoursDetail =
     eligibility.hasAvailability == null
       ? copy.t("Not available")
@@ -72,10 +73,10 @@ export function TalentMoreScreen({ onClose }: { onClose: () => void }) {
         {
           label: signingOut ? "Signing out…" : "Sign out",
           detail: "",
-          run: async () => {
+          run: () => {
             if (signingOut) return;
             setSigningOut(true);
-            await signOut();
+            signOutEverywhere();
           },
         },
       ],

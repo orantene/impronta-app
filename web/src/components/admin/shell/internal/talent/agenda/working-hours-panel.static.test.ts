@@ -89,9 +89,11 @@ test("Calendar header reads Bookings with List and Working hours buttons (calend
   assert.match(cal, /copy\.t\("Working hours"\)/);
 });
 
-test("sdb-1011-03: at 390 the EN time inputs keep room for AM/PM", () => {
-  const page = read("talent/agenda/AgendaAvailabilityPage.tsx");
-  assert.match(page, /grid-cols-\[minmax\(56px,64px\)_minmax\(0,1fr\)_auto_minmax\(0,1fr\)\]/);
-  const fields = read("talent/agenda/HoursFields.tsx");
-  assert.match(fields, /type="time"[\s\S]*?className=\{`\$\{FIELD_BASE\} w-full min-w-0 px-1\.5`\}/);
+test("TUL-536: weekly rows stack the day label above the times on a phone so AM/PM is never clipped", () => {
+  const dir = join(process.cwd(), "src/components/admin/shell/internal/talent/agenda");
+  const page = readFileSync(join(dir, "AgendaAvailabilityPage.tsx"), "utf8");
+  const fields = readFileSync(join(dir, "HoursFields.tsx"), "utf8");
+  assert.match(page, /grid-cols-\[minmax\(0,1fr\)_auto_minmax\(0,1fr\)\] items-center gap-2 sm:grid-cols-/);
+  assert.match(page, /col-span-3 sm:col-span-1/);
+  assert.match(fields, /type="time"[\s\S]{0,80}min-w-\[7\.5rem\]/);
 });

@@ -34,6 +34,7 @@ import { FeaturedTalentCard } from "@/lib/site-admin/sections/featured_talent/Fe
 import { localeUrlSettings } from "@/i18n/pathnames";
 import type { FeaturedTalentCardDTO } from "@/lib/site-admin/sections/featured_talent/fetch";
 import { formatMoney } from "@/lib/talent/offerings-money";
+import { publicPriceLine } from "@/lib/talent/public-price-line";
 import {
   isSafeRichTextHref,
   renderInlineRich,
@@ -163,11 +164,13 @@ import { TicketPickerIsland } from "./ticket-picker-island";
 import { EventProgramIsland } from "./event-program-island";
 import { QrCodeBlock } from "./qr-code-block";
 import { menuBoardCopy } from "./menu-board-copy";
-import { type TalentOffering } from "@/lib/talent/offerings-types";
+import { offeringIsQuote, type TalentOffering } from "@/lib/talent/offerings-types";
 import { CatalogIslandBoundary } from "@/components/public-booking/catalog-island-boundary";
+import { effectiveCatalogColumns } from "./services-catalog-columns";
 import { resolveServicesCatalogSheetAccent } from "./services-catalog-defaults";
 import { renderStatsSpecBlock } from "./stats-spec-block";
 import { ServicesCatalogFilter } from "./services-catalog-filter";
+import type { CatalogPromoPrices } from "@/lib/promos/catalog-promo-prices";
 import { SERVICES_CATALOG_ROW_CARD_CSS } from "./services-catalog-row-card-css";
 import { filterOfferingsForCatalog } from "./services-catalog-selection";
 import { ServicesCatalogLoadingSkeleton } from "./services-catalog-loading";
@@ -382,6 +385,8 @@ export interface BuilderNodeRenderDataSources {
   };
   /** Present only when at least one visible offering needs a "≈ US$" line; a failed/skipped fetch omits the field rather than guessing. */
   talentOfferingsUsdRates?: UsdRates;
+  /** Promos v1: live-promo card prices by offering id (see catalogPromoPrices). Omitted = list prices. */
+  talentOfferingsPromoPrices?: CatalogPromoPrices;
   /** Saved `category_order` from the talent profile. Missing names append after. */
   talentOfferingsCategoryOrder?: string[];
   /** Optional inclusion line per category name. Omitted when the talent has none. */
@@ -5962,9 +5967,10 @@ function renderBuilderNodeElement(
         useWebsiteTheme && p.style?.backgroundColor
           ? { backgroundColor: styleToken(p.style.backgroundColor) }
           : undefined;
-      const columns =
-        p.columns ??
-        (layout === "grid" ? 3 : layout === "cards" || layout === "editorial" ? 2 : 1);
+      const columns = effectiveCatalogColumns(
+        p.columns ?? (layout === "grid" ? 3 : layout === "cards" || layout === "editorial" ? 2 : 1),
+        visible.length,
+      );
 
       // Categories: saved `category_order` first, then first-seen leftovers.
       const seen: string[] = [];
@@ -6156,6 +6162,7 @@ function renderBuilderNodeElement(
                 onlineCollectReady={options.dataSources.onlineCollectReady}
                 matrix={layout === "matrix"}
                 liveStatus={options.dataSources.liveStatus ?? null}
+                promoPrices={options.dataSources.talentOfferingsPromoPrices}
               />
             </CatalogIslandBoundary>
           )}
@@ -6332,21 +6339,19 @@ function renderBuilderNodeElement(
         priceType: string;
         priceDisplay: string;
       }): string => {
-        if (
-          item.amountCents == null ||
-          item.priceDisplay === "quote" ||
-          item.priceType === "custom"
-        ) {
+        // `amountCents == null` is already a quote per offeringIsQuote; the
+        // explicit check also narrows the type for formatMoney below.
+        if (item.amountCents == null || offeringIsQuote(item)) {
           return "Quote on request";
         }
         // TUL-383: one public money format (`$700 MXN`) via shared formatter.
         const locale = options.contentLocale?.locale ?? "en";
-        const es = locale.toLowerCase().startsWith("es");
         // TUL-533 / GRK-064: never paint "$0 MXN" on public Max-site menus.
-        if (item.amountCents <= 0) return es ? "Consultar" : "Ask";
-        const formatted = formatMoney(item.amountCents, item.currency, locale);
-        if (item.priceDisplay === "from") return es ? `desde ${formatted}` : `from ${formatted}`;
-        return formatted;
+        if (item.amountCents <= 0) return locale.toLowerCase().startsWith("es") ? "Consultar" : "Ask";
+        return (
+          publicPriceLine({ ...item, priceDisplay: item.priceDisplay === "from" ? "from" : "exact" }, locale) ??
+          formatMoney(item.amountCents, item.currency, locale)
+        );
       };
       const usdLine = (item: {
         amountCents: number | null;

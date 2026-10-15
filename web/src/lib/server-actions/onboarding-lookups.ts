@@ -10,14 +10,15 @@
 import { fold, type ChipOption } from "@/lib/onboarding/type-chip";
 import { loadTalentTypeTerms } from "@/lib/onboarding/type-chip.server";
 import { searchCanonicalCities, searchCuratedCitiesGlobal, type CitySuggestion } from "@/lib/location-autocomplete";
+import { dedupeTypeOptionsByLabel } from "@/lib/onboarding/dedupe-type-options";
 import { searchBusinessTypes } from "@/lib/words/business-types";
 
 const MAX = 8;
 
-export async function searchOnboardingTypes(input: { query: string; kind: "talent" | "business" }): Promise<ChipOption[]> {
+export async function searchOnboardingTypes(input: { query: string; kind: "talent" | "business"; locale?: "en" | "es" }): Promise<ChipOption[]> {
   const q = fold(input.query.trim());
   if (input.kind === "business") {
-    return searchBusinessTypes(q)
+    return dedupeTypeOptionsByLabel(searchBusinessTypes(q), input.locale ?? "es")
       .slice(0, MAX)
       .map((b) => ({ id: b.id, slug: b.id, label: b.label, preset: b.preset, family: b.family }));
   }
@@ -41,8 +42,8 @@ export async function searchOnboardingTypes(input: { query: string; kind: "talen
     })
     .filter((x) => x.score > 0)
     .sort((a, b) => b.score - a.score || a.t.name.en.localeCompare(b.t.name.en))
-    .slice(0, MAX);
-  return scored.map(({ t }) => ({ id: t.id, slug: t.slug, label: t.name }));
+    .map(({ t }) => ({ id: t.id, slug: t.slug, label: t.name }));
+  return dedupeTypeOptionsByLabel(scored, input.locale ?? "es").slice(0, MAX);
 }
 
 export type OnboardingCity = {

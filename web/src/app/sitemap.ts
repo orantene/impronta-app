@@ -39,6 +39,8 @@ import {
   scopeMaxSitePagesToPlan,
 } from "@/lib/talent-site/resolve-max-site-core";
 import { talentHostSitemapPaths } from "@/lib/talent-site/talent-site-sitemap";
+import { serviceSitemapPaths } from "@/lib/talent-site/service-page";
+import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
 
 const PLATFORM_TALENT_SITEMAP_BASE = `https://${TULALA_APEX_HOST}`;
@@ -239,7 +241,10 @@ async function loadTalentSiteHostSitemapEntries(base: URL): Promise<MetadataRout
     platform.publicLocales,
     platform.defaultLocale,
   );
-  return paths.flatMap((path) =>
+  // TUL-586: one URL per published service (slug title in the primary language, as the page canonicalises).
+  const offerings = await loadPublicOfferingsForProfile(talentProfileId, pair.primary, null).catch(() => []);
+  const allPaths = [...paths, ...serviceSitemapPaths(offerings)];
+  return allPaths.flatMap((path) =>
     talentProfileSitemapEntries({
       origin: base.origin,
       path,

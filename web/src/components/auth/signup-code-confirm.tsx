@@ -28,8 +28,8 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import {
   resendSignupCode,
   submitEmailCode,
-  type EmailCodeState,
 } from "@/app/auth/otp-actions";
+import type { EmailCodeState } from "@/lib/auth/send-email-code-core";
 import { AuthNotice, AuthSubmitButton } from "@/components/auth/auth-ui";
 import { OtpCodeInput } from "@/components/auth/otp-code-input";
 import { createTranslator } from "@/i18n/messages";

@@ -4,6 +4,7 @@
  */
 
 import { isDevGuestCaptchaSkipHostname } from "@/lib/scheduling/guest-captcha-dev-skip";
+import { publicSlotsUrl } from "@/lib/scheduling/public-slots-workspace";
 
 export type CatalogSlotsResult = {
   slots: string[];
@@ -38,7 +39,7 @@ export async function fetchLiveSlots(
     days: "14",
     duration: String(durationMinutes),
   });
-  const res = await fetch(`/api/public/booking/slots?${params.toString()}`, { cache: "no-store" });
+  const res = await fetch(publicSlotsUrl(params), { cache: "no-store" });
   const body = (await res.json()) as { slots?: string[]; timezone?: string; placeCity?: string };
   if (!res.ok) return { slots: [], timezone: "UTC" };
   return {

@@ -9,7 +9,7 @@ import {
 } from "@/components/public-booking/catalog-booking-logic";
 import { usdEquivalentLabel } from "@/lib/pricing/usd-equivalent";
 import { formatMoney } from "@/lib/talent/offerings-money";
-import type { TalentOffering } from "@/lib/talent/offerings-types";
+import { offeringIsQuote, type TalentOffering } from "@/lib/talent/offerings-types";
 
 import { catalogDurationPhrase } from "@/lib/site-admin/builder-node/services-catalog-title";
 
@@ -58,7 +58,7 @@ export function ServicesCatalogStaticFallback({
               const cover = showPhoto ? item.imageUrls[0] : undefined;
               const onRequest = item.visibility === "on_request";
               const quote =
-                item.priceDisplay === "quote" || item.priceType === "custom" || item.amountCents == null;
+                offeringIsQuote(item);
               const minCents = catalogRowMinCents(item);
               const ladder = catalogRowShowsFrom(item);
               const usd = showUsdEquivalent

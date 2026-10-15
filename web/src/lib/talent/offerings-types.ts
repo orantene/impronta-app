@@ -495,13 +495,27 @@ export function validateOffering(o: TalentOffering, defaultPosture?: string | nu
   return errors;
 }
 
+/**
+ * TUL-16 d: one rule for "this is a quote, not a price". A service with a
+ * number on it shows the number: a draft started as "custom" (the AI draft)
+ * keeps that type after the owner prices it, and must not read "a cotizar".
+ * An explicit "quote" display, or no amount, is still a quote.
+ */
+export function offeringIsQuote(
+  o: { priceDisplay?: string | null; priceType?: string | null; amountCents?: number | null },
+): boolean {
+  if (o.amountCents == null) return true;
+  if (o.priceDisplay === "quote") return true;
+  return o.priceType === "custom" && !(o.amountCents > 0);
+}
+
 /** What the public CTA should be, resolved from BEHAVIOR (not kind). */
 export type OfferingCtaKind = "book_now" | "buy_now" | "request_to_book" | "request" | "ask_quote";
 export function resolveOfferingCta(
   o: Pick<TalentOffering, "kind" | "bookingMode" | "priceType" | "priceDisplay" | "amountCents" | "visibility">,
 ): OfferingCtaKind {
   if (o.visibility === "on_request") return "request";
-  if (o.priceDisplay === "quote" || o.priceType === "custom" || o.amountCents == null) return "ask_quote";
+  if (offeringIsQuote(o)) return "ask_quote";
   if (o.bookingMode === "inquiry") return "request";
   if (o.bookingMode === "instant") return o.kind === "product" ? "buy_now" : "book_now";
   return "request_to_book";
@@ -545,7 +559,9 @@ export function offeringPriceLabel(
 ): string {
   const es = locale.toLowerCase().startsWith("es");
   if (o.visibility === "on_request") return es ? "Bajo consulta" : "On request";
-  if (o.priceDisplay === "quote" || o.priceType === "custom" || o.amountCents == null) {
+  // `amountCents == null` is already a quote per offeringIsQuote; the explicit
+  // check also narrows the type for `format` below.
+  if (o.amountCents == null || offeringIsQuote(o)) {
     return es ? "Cotización a pedido" : "Quote on request";
   }
   // TUL-533 / GRK-064: $0 → Consultar / Ask (display only; free can still book).

@@ -208,7 +208,7 @@ function DirectoryShellBody({
   const showEmpty = view !== "map" && !isPending && items.length === 0;
 
   return (
-    <MarketingContainer size="wide" className="pb-24">
+    <MarketingContainer size="wide" className="pb-[calc(8rem+env(safe-area-inset-bottom))]">
       <div className="flex flex-col gap-5">
         <DirectorySearch value={activeFilters.q} onCommit={(v) => updateParams({ q: v })} />
         <DirectoryTypeBar
@@ -239,7 +239,14 @@ function DirectoryShellBody({
             onOpenFilters={() => setSheetOpen(true)}
           />
 
-          <div className="mt-6" aria-busy={isPending}>
+          <div
+            className={
+              isPending && items.length > 0
+                ? "mt-6 opacity-60 transition-opacity"
+                : "mt-6 transition-opacity"
+            }
+            aria-busy={isPending}
+          >
             {view === "map" ? (
               <MarketingDirectoryMap
                 points={mapPoints}
@@ -247,7 +254,7 @@ function DirectoryShellBody({
                 unmappedCount={mapUnmappedCount}
                 onBackToGrid={() => updateParams({ view: null })}
               />
-            ) : isPending ? (
+            ) : isPending && items.length === 0 ? (
               <DirectorySkeleton view={view} />
             ) : showEmpty ? (
               <DirectoryEmpty

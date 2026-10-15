@@ -72,6 +72,7 @@ const en = {
     stories: "Stories",
     joinAsTalent: "Join as talent",
     signIn: "Sign in",
+    createAccount: "Create account",
     startFree: "Get started",
     freeBadge: "free",
     dashboard: "Dashboard",
@@ -472,6 +473,7 @@ const es: MarketingCopy = {
     stories: "Historias",
     joinAsTalent: "Únete como talento",
     signIn: "Entrar",
+    createAccount: "Crear cuenta",
     startFree: "Comenzar",
     freeBadge: "gratis",
     dashboard: "Tu panel",
@@ -647,7 +649,7 @@ const es: MarketingCopy = {
       },
       {
         title: "Los negocios conservan su marca",
-        body: "Cada workspace mantiene su sitio, su catálogo y sus reservas, y aun así lo encuentran en el descubrimiento compartido.",
+        body: "Cada espacio de trabajo mantiene su sitio, su catálogo y sus reservas, y aun así lo encuentran en el descubrimiento compartido.",
       },
       {
         title: "Tus datos son tuyos",

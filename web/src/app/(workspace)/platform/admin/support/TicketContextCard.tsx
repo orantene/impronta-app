@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useT } from "@/i18n/use-t";
-import { HQ, HQ_F, PlanChip } from "../tenants/hq-kit";
+import { HQ, HQ_F, PlanChip, planTierLabel } from "../tenants/hq-kit";
 import type { HqTicketContext } from "@/lib/support/load-hq";
 import type { SupportTicketRow } from "@/lib/support/support-types";
 import { guestHasNoReplyChannel } from "@/lib/support/support-hq-presentation";
@@ -36,7 +36,7 @@ export function TicketContextCard({
           <span style={{ fontSize: 13, fontWeight: 600, color: HQ.ink }}>
             {context.tenantName ?? t("dashboard.platform.support.noWorkspace")}
           </span>
-          {context.planTier ? <PlanChip plan={context.planTier} /> : null}
+          {context.planTier ? <PlanChip plan={context.planTier} label={planTierLabel(t, context.planTier)} /> : null}
         </div>
         {context.tenantSlug ? (
           <Link

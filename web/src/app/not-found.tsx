@@ -4,6 +4,8 @@ import { getPublicHostContext } from "@/lib/saas/scope";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { resolveNotFoundSlug } from "@/lib/site-admin/server/page-roles";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { withLocaleHref } from "@/i18n/pathnames";
+import { notFoundCopy } from "@/lib/i18n/not-found-copy";
 import { isLocale } from "@/lib/site-admin/locales";
 import CmsPublicPage from "@/app/(public)/p/[[...slug]]/page";
 
@@ -82,19 +84,15 @@ export default async function NotFound() {
 
   const brand = await loadAgencyBrand();
   const isAgency = brand !== null;
+  const locale = await getRequestLocale();
+  const copy = notFoundCopy(locale, brand ? brand.name : null);
   const eyebrow = isAgency && brand ? brand.name.toUpperCase() : "TULALA";
-  const heading = isAgency && brand
-    ? "This page is no longer here"
-    : "Page not found";
-  const body = isAgency && brand
-    ? `We couldn't find that page on ${brand.name}. The roster, news, or campaign you were looking for may have moved.`
-    : "We couldn't find the page you're looking for.";
-  const primaryCta = isAgency
-    ? { label: "Back to homepage", href: "/" }
-    : { label: "Go home", href: "/" };
-  const secondaryCta = isAgency
-    ? { label: "Send an inquiry", href: "/client/inquiries/new" }
-    : { label: "Sign in", href: "/login" };
+  const { heading, body } = copy;
+  const primaryCta = { label: copy.primary.label, href: withLocaleHref(copy.primary.href, locale) };
+  const secondaryCta = {
+    label: copy.secondary.label,
+    href: withLocaleHref(copy.secondary.href, locale),
+  };
 
   return (
     <div
@@ -211,7 +209,7 @@ export default async function NotFound() {
               marginBottom: 0,
             }}
           >
-            Powered by Tulala
+            {copy.poweredBy}
           </p>
         ) : null}
       </div>

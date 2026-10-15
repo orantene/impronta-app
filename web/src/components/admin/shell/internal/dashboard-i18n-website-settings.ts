@@ -138,6 +138,9 @@ export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
   "Taking inquiries": "Recibiendo consultas",
   "Inquiries paused": "Consultas en pausa",
   "Taking new bookings": "Recibiendo nuevas reservas",
+  "Client account on your site": "Cuenta de cliente en tu sitio",
+  "A small account icon in your site header. Clients sign in to see their bookings, messages and receipts. Starts on while you take bookings.":
+    "Un pequeño icono de cuenta en el encabezado de tu sitio. Tus clientes inician sesión para ver sus reservas, mensajes y recibos. Empieza activo mientras recibes reservas.",
   "New bookings paused": "Nuevas reservas en pausa",
   "Instant booking is not available on this plan": "La reserva inmediata no está disponible en este plan",
   "Add working hours to turn on instant booking": "Agrega tu horario de trabajo para activar la reserva inmediata",

@@ -30,6 +30,7 @@
  * styling into a cross-app primitive.
  */
 
+import { SignOutForm } from "@/components/auth/SignOutForm";
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Menu, X, LayoutDashboard, LogOut } from "lucide-react";
@@ -263,7 +264,7 @@ export function PublicHeaderMobileMenu({
             ) : null}
             {/* C4 — Sign-out inside the menu for signed-in users. */}
             {signOutAction ? (
-              <form action={signOutAction} className="-mt-1">
+              <SignOutForm className="-mt-1">
                 <button
                   type="submit"
                   className="flex w-full items-center gap-2 rounded-md py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -271,7 +272,7 @@ export function PublicHeaderMobileMenu({
                   <LogOut className="size-4" aria-hidden />
                   Sign out
                 </button>
-              </form>
+              </SignOutForm>
             ) : null}
           </div>
         </Dialog.Content>

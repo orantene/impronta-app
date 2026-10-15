@@ -14,6 +14,7 @@ import {
 
 import { buildTalentLocalBusinessJsonLd, withLocalBusiness } from "@/lib/talent-site/talent-local-business-json-ld";
 
+import { deriveSiteDescription } from "@/lib/talent-site/site-meta-description";
 import { siteFaviconFor } from "@/lib/talent-site/site-favicon";
 import type { TalentSiteIdentity } from "./load-max-site";
 
@@ -111,7 +112,14 @@ export function buildMaxSiteSeo(args: {
       name: identity?.name,
       city: args.addressLocality,
     }) ?? storedTitle;
-  const description = resolveMaxSiteDescription(page, locale);
+  // TUL-798: no description written for this language -> derive one from name, city and services (home only;
+  // other pages keep their own text or none), so the SERP never shows the generic platform blurb.
+  const written = resolveMaxSiteDescription(page, locale);
+  const description =
+    written ||
+    ((args.canonicalPath?.trim() || "/") === "/"
+      ? deriveSiteDescription({ name: identity?.name, city: args.addressLocality, serviceNames: args.services?.map((x) => x.name), locale })
+      : undefined);
 
   // Canonical — explicit column wins; else origin + path. Never the profile.
   const origin = (args.canonicalOrigin?.trim() || publicSiteMetadataBase().origin)

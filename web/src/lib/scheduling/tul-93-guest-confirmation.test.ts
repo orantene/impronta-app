@@ -19,6 +19,7 @@ import type { BookingHours } from "./hours-types";
 import { hydrateRecipient } from "../notifications/audience";
 import {
   bookingConfirmedClient,
+  withBookingLocale,
   pickBookingClientMember,
 } from "../notifications/catalog-audiences-booking";
 
@@ -309,5 +310,21 @@ describe("3. time: stored start/end are the real appointment, the buffer still b
     // And nothing may END inside the before-buffer (12:45 start ends 13:45: overlaps).
     assert.ok(!slots.includes("12:30"), "a 60 min slot at 12:30 would end inside the booking");
     assert.ok(slots.includes("12:15"), "12:15 to 13:15 ends before the 13:15 before-buffer");
+  });
+});
+
+describe("4. TUL-16 f: the talent confirmation follows the booking language too", () => {
+  it("stamps the booking locale on talent members so the email is not the workspace default", async () => {
+    const members = withBookingLocale([{ kind: "user", userId: "u1", role: "talent" }], "es");
+    assert.equal(members[0]?.locale, "es");
+    const r = await hydrateRecipient(members[0]!, { admin: { auth: { admin: { getUserById: async () => ({ data: { user: { email: "t@example.com" } }, error: null }) } } } } as never);
+    assert.equal(r?.locale, "es");
+    assert.equal(r?.localeIsExplicit, true);
+  });
+  it("no booking locale leaves members untouched", () => {
+    assert.deepEqual(withBookingLocale([{ kind: "user", userId: "u1", role: "talent" }], null), [{ kind: "user", userId: "u1", role: "talent" }]);
+  });
+  it("a member that already has its own locale keeps it", () => {
+    assert.equal(withBookingLocale([{ kind: "user", userId: "u1", role: "talent", locale: "en" }], "es")[0]?.locale, "en");
   });
 });

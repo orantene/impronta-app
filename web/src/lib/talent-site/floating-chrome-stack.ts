@@ -53,6 +53,8 @@ export const HELP_BUBBLE_CHIP_CLEARANCE_PX = 160;
 export const CONSENT_BANNER_SELECTOR = "[data-consent-banner]";
 export const LOCALE_SUGGESTION_SELECTOR = "[data-locale-suggestion]";
 export const DEMO_BADGE_SELECTOR = "[data-demo-badge]";
+/** TUL-795: phone-only "Reservar" bar on a service page; reserves its height through --cb-bar-h. */
+export const SERVICE_STICKY_CTA_SELECTOR = "[data-talent-service-sticky]";
 /** Desktop windows shorter than this show the language toast as a one-row pill (hero CTAs sit lower). */
 export const LOCALE_SUGGESTION_SHORT_WINDOW_MAX_H = 859;
 export const CATALOG_FILTER_NAV_SELECTOR =
@@ -75,6 +77,7 @@ body:has([role="dialog"][aria-modal="true"]) ${CONSENT_BANNER_SELECTOR},body:has
 body:has(${GUEST_CHAT_PANEL_SELECTOR}) ${CONSENT_BANNER_SELECTOR},body:has(${GUEST_CHAT_PANEL_SELECTOR}) ${LOCALE_SUGGESTION_SELECTOR},body:has(${GUEST_CHAT_PANEL_SELECTOR}) ${DEMO_BADGE_SELECTOR}{display:none}
 body:has(${CONSENT_BANNER_SELECTOR}) [data-guest-chat-launcher]{opacity:0;visibility:hidden;pointer-events:none}
 body:has(${CONSENT_BANNER_SELECTOR}) [data-help-bubble]{display:none!important}
+body:has([data-help-bubble]) ${DEMO_BADGE_SELECTOR}{display:none}
 :root{--cb-bar-h:0px;--floating-launcher-clearance:0px;--floating-consent-clearance:0px;--floating-chrome-bottom:max(var(--cb-bar-h),var(--floating-launcher-clearance),var(--floating-consent-clearance),env(safe-area-inset-bottom,0px))}
 :root:has(.cb-island){--cb-bar-h:${BAR_RESERVE}}
 @media (min-width:720px){:root:has(.cb-island){--cb-bar-h:0px}:root:has(.cb-bar[data-show="true"]:not([data-top="true"]),.cb-dock[data-show="true"]){--cb-bar-h:${BAR_RESERVE}}}
@@ -99,6 +102,9 @@ body:has(${CONSENT_BANNER_SELECTOR}) #hero{padding-bottom:max(2rem,calc(var(--fl
 @media (max-width:719px){body:has(.cb-bar[data-show="true"]:not([data-top="true"])) [data-guest-chat-launcher],body:has(.mn-bar[data-show="true"]) [data-guest-chat-launcher]{bottom:max(calc(24px + env(safe-area-inset-bottom,0px)),calc(var(--cb-bar-h) + 24px))!important;right:max(72px,calc(16px + 56px + env(safe-area-inset-right,0px)))!important}}
 /* GRK-033 residual: Gridline/split heroes — compact phone + defer who-card. */
 @media (max-width:640px){body:has(${CONSENT_BANNER_SELECTOR}) #hero.site-builder-node--split{padding-top:1.25rem!important;padding-bottom:calc(var(--floating-consent-clearance) + 16px)!important;box-sizing:border-box}body:has(${CONSENT_BANNER_SELECTOR}) #hero.site-builder-node--split > .site-builder-node--container[data-builder-layout="stack"]{padding-top:0!important;padding-bottom:0!important;--bn-gap:0.5rem}body:has(${CONSENT_BANNER_SELECTOR}) #hero.site-builder-node--split > .site-builder-node--container[data-builder-layout="stack"] > .site-builder-node--container:has(> .site-builder-node--button){scroll-margin-bottom:calc(var(--floating-consent-clearance) + 16px)}body:has(${CONSENT_BANNER_SELECTOR}) #hero.site-builder-node--split > :last-child{display:none}}
+/* TUL-795: service page sticky Reservar bar (phone only); body + chat bubble clear it. */
+@media (max-width:639px){:root:has(${SERVICE_STICKY_CTA_SELECTOR}){--cb-bar-h:calc(64px + env(safe-area-inset-bottom,0px))}body:has(${SERVICE_STICKY_CTA_SELECTOR}) [data-guest-chat-launcher]{bottom:calc(var(--cb-bar-h) + 12px)!important}}
+@media (min-width:640px){${SERVICE_STICKY_CTA_SELECTOR}{display:none!important}}
 `.replace(/\n/g, "");
 
 /**

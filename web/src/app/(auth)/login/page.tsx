@@ -215,14 +215,23 @@ export default async function LoginPage({
             footer={signUpFooter}
           />
         ) : (
-          <>
-            <LoginForm
-              nextPath={nextPath}
-              defaultEmail={email ? decodeURIComponent(email) : undefined}
-              locale={locale}
-            />
-            {signUpFooter}
-          </>
+          // TUL-16 (a): password first, but a passwordless account (magic
+          // link or Google) can always ask for an emailed code from here.
+          <EmailCodeForm
+            nextPath={nextPath}
+            locale={locale}
+            defaultEmail={email ? decodeURIComponent(email) : undefined}
+            allowCreate={false}
+            startWithPassword
+            passwordFallback={
+              <LoginForm
+                nextPath={nextPath}
+                defaultEmail={email ? decodeURIComponent(email) : undefined}
+                locale={locale}
+              />
+            }
+            footer={signUpFooter}
+          />
         )}
       </AuthCard>
     </div>

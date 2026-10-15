@@ -29,13 +29,14 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+type L = { en: string; es: string };
 type Pillar = {
   id: string;
   index: string;
-  eyebrow: string;
-  title: string;
-  body: string;
-  bullets: string[];
+  eyebrow: L;
+  title: L;
+  body: L;
+  bullets: L[];
   art: "site" | "roster" | "pipeline";
 };
 
@@ -43,62 +44,77 @@ const PILLARS: Pillar[] = [
   {
     id: "site",
     index: "01",
-    eyebrow: "Branded site",
-    title: "Your identity is yours, not a template\u2019s.",
-    body: "A real editorial website on your own domain, managed in a modern CMS. Navigation, pages, posts, design tokens: you own the whole surface.",
+    eyebrow: { en: "Branded site", es: "Sitio con tu marca" },
+    title: { en: "Your identity is yours, not a template\u2019s.", es: "Tu identidad es tuya, no de una plantilla." },
+    body: {
+      en: "A real editorial website on your own domain, managed in a modern CMS. Navigation, pages, posts, design tokens: you own the whole surface.",
+      es: "Un sitio editorial de verdad en tu propio dominio, administrado desde un CMS moderno. Navegación, páginas, publicaciones y estilos: toda la superficie es tuya.",
+    },
     bullets: [
-      "Custom domain, SSL, DNS handled",
-      "CMS-driven pages, posts, navigation",
-      "Design system with typography + token presets",
-      "Multi-locale (en / es, more on request)",
+      { en: "Custom domain, SSL, DNS handled", es: "Dominio propio, SSL y DNS resueltos" },
+      { en: "CMS-driven pages, posts, navigation", es: "Páginas, publicaciones y navegación desde el CMS" },
+      { en: "Design system with typography + token presets", es: "Sistema de diseño con tipografías y estilos predefinidos" },
+      { en: "Multi-locale (en / es, more on request)", es: "Multilingüe (inglés y español, más idiomas a pedido)" },
     ],
     art: "site",
   },
   {
     id: "roster",
     index: "02",
-    eyebrow: "People profiles",
-    title: "The profile your roster deserves.",
-    body: "Structured taxonomy, media pipeline, specs, availability, and portfolio, presented editorially. One URL per person, rendering everywhere.",
+    eyebrow: { en: "People profiles", es: "Perfiles de personas" },
+    title: { en: "The profile your roster deserves.", es: "El perfil que tu equipo merece." },
+    body: {
+      en: "Structured taxonomy, media pipeline, specs, availability, and portfolio, presented editorially. One URL per person, rendering everywhere.",
+      es: "Categorías estructuradas, medios, medidas, disponibilidad y portafolio, presentados con estilo editorial. Una URL por persona, que se ve bien en todas partes.",
+    },
     bullets: [
-      "Rich people profiles with locale support",
-      "Editorial portfolio rendering (no builder vibes)",
-      "Availability + rates + specs in structured fields",
-      "Share each profile as its own link",
+      { en: "Rich people profiles with locale support", es: "Perfiles completos con soporte de idiomas" },
+      { en: "Editorial portfolio rendering (no builder vibes)", es: "Portafolio con presentación editorial, sin aspecto de plantilla" },
+      { en: "Availability + rates + specs in structured fields", es: "Disponibilidad, tarifas y medidas en campos estructurados" },
+      { en: "Share each profile as its own link", es: "Comparte cada perfil con su propio enlace" },
     ],
     art: "roster",
   },
   {
     id: "pipeline",
     index: "03",
-    eyebrow: "Inquiry pipeline",
-    title: "From inquiry to booking, not another thread.",
-    body: "Structured intake, versioned offers, multi-party approvals, bookings that become real calendar events. Every step traceable.",
+    eyebrow: { en: "Inquiry pipeline", es: "Pipeline de solicitudes" },
+    title: { en: "From inquiry to booking, not another thread.", es: "De la solicitud a la reserva, sin otro hilo de mensajes." },
+    body: {
+      en: "Structured intake, versioned offers, multi-party approvals, bookings that become real calendar events. Every step traceable.",
+      es: "Solicitudes estructuradas, ofertas con versiones, aprobaciones entre varias partes y reservas que se vuelven eventos de calendario. Cada paso queda registrado.",
+    },
     bullets: [
-      "Structured inquiry inbox (not chat)",
-      "Versioned offers with approval flow",
-      "Multi-party sign-off: client, talent, ops",
-      "Bookings \u2192 calendar \u2192 invoicing-ready data",
+      { en: "Structured inquiry inbox (not chat)", es: "Bandeja de solicitudes estructurada (no un chat)" },
+      { en: "Versioned offers with approval flow", es: "Ofertas con versiones y flujo de aprobación" },
+      { en: "Multi-party sign-off: client, talent, ops", es: "Visto bueno de todas las partes: cliente, talento y operaciones" },
+      { en: "Bookings \u2192 calendar \u2192 invoicing-ready data", es: "Reservas \u2192 calendario \u2192 datos listos para facturar" },
     ],
     art: "pipeline",
   },
 ];
 
-export default function AgenciesPage() {
+export default async function AgenciesPage() {
+  const locale = await getRequestLocale();
   return (
     <>
       <SimplePageHero
-        eyebrow="For agencies & representation"
+        eyebrow={pickLocale(locale, { en: "For agencies & representation", es: "Para agencias y representación" })}
         title={
           <>
-            Your agency,
+            {pickLocale(locale, { en: "Your agency,", es: "Tu agencia," })}
             <br />
-            <span style={{ color: "var(--plt-forest)" }}>rebuilt for 2026.</span>
+            <span style={{ color: "var(--plt-forest)" }}>
+              {pickLocale(locale, { en: "rebuilt for 2026.", es: "renovada para 2026." })}
+            </span>
           </>
         }
-        subtitle={`Representation businesses run on people, not software, until the software gets in the way. ${PLATFORM_BRAND.name} gives you the real infrastructure: a branded site, structured profiles, a real inquiry pipeline, and permissions to scale past a single phone.`}
-        primary={{ label: "Start 14-day trial", href: "/get-started?tier=agency", intent: "trial" }}
-        secondary={{ label: "See pricing", href: "/pricing", intent: "pricing" }}
+        subtitle={pickLocale(locale, {
+          en: `Representation businesses run on people, not software, until the software gets in the way. ${PLATFORM_BRAND.name} gives you the real infrastructure: a branded site, structured profiles, a real inquiry pipeline, and permissions to scale past a single phone.`,
+          es: `Las agencias de representación funcionan con personas, no con software, hasta que la falta de software estorba. ${PLATFORM_BRAND.name} te da la infraestructura real: un sitio con tu marca, perfiles estructurados, un pipeline de solicitudes y permisos para crecer más allá de un solo teléfono.`,
+        })}
+        primary={{ label: pickLocale(locale, { en: "Start 14-day trial", es: "Empieza tu prueba de 14 días" }), href: "/get-started?tier=agency", intent: "trial" }}
+        secondary={{ label: pickLocale(locale, { en: "See pricing", es: "Ver precios" }), href: "/pricing", intent: "pricing" }}
         sourcePage="agencies-hero"
       />
 
@@ -128,24 +144,24 @@ export default function AgenciesPage() {
                   >
                     {pillar.index}
                   </span>
-                  <MarketingEyebrow>{pillar.eyebrow}</MarketingEyebrow>
+                  <MarketingEyebrow>{pickLocale(locale, pillar.eyebrow)}</MarketingEyebrow>
                 </div>
                 <h2
                   className="plt-display mt-5 text-[2rem] font-medium leading-[1.05] tracking-[-0.02em] sm:text-[2.5rem]"
                   style={{ color: "var(--plt-ink)" }}
                 >
-                  {pillar.title}
+                  {pickLocale(locale, pillar.title)}
                 </h2>
                 <p
                   className="mt-5 max-w-lg text-[1.0625rem] leading-[1.6]"
                   style={{ color: "var(--plt-muted)" }}
                 >
-                  {pillar.body}
+                  {pickLocale(locale, pillar.body)}
                 </p>
                 <ul className="mt-8 space-y-3">
                   {pillar.bullets.map((b) => (
                     <li
-                      key={b}
+                      key={b.en}
                       className="flex items-start gap-3 text-[0.9375rem] leading-[1.55]"
                       style={{ color: "var(--plt-ink-soft)" }}
                     >
@@ -154,13 +170,13 @@ export default function AgenciesPage() {
                         style={{ background: "var(--plt-forest)" }}
                         aria-hidden
                       />
-                      {b}
+                      {pickLocale(locale, b)}
                     </li>
                   ))}
                 </ul>
               </div>
               <div className={i % 2 === 0 ? "order-2" : "md:order-1"}>
-                <PillarArt variant={pillar.art} />
+                <PillarArt variant={pillar.art} locale={locale} />
               </div>
             </div>
           </MarketingContainer>
@@ -174,15 +190,15 @@ export default function AgenciesPage() {
   );
 }
 
-function PillarArt({ variant }: { variant: "site" | "roster" | "pipeline" }) {
+function PillarArt({ variant, locale }: { variant: "site" | "roster" | "pipeline"; locale: string }) {
   if (variant === "site") {
     return (
       <PhotoPillarArt
         photo={MARKETING_PHOTOS.agencyBuilder}
-        eyebrow="Workspace live"
-        title="Website, inquiries, roster."
-        statA={{ label: "Domain", value: "Custom" }}
-        statB={{ label: "Setup", value: "Fast" }}
+        eyebrow={pickLocale(locale, { en: "Workspace live", es: "Tu espacio, en vivo" })}
+        title={pickLocale(locale, { en: "Website, inquiries, roster.", es: "Sitio, solicitudes y equipo." })}
+        statA={{ label: pickLocale(locale, { en: "Domain", es: "Dominio" }), value: pickLocale(locale, { en: "Custom", es: "Propio" }) }}
+        statB={{ label: pickLocale(locale, { en: "Setup", es: "Configuración" }), value: pickLocale(locale, { en: "Fast", es: "Rápida" }) }}
       />
     );
   }
@@ -190,10 +206,10 @@ function PillarArt({ variant }: { variant: "site" | "roster" | "pipeline" }) {
     return (
       <PhotoPillarArt
         photo={MARKETING_PHOTOS.heroServices}
-        eyebrow="People as product"
-        title="Profiles clients want to click."
-        statA={{ label: "Profiles", value: "Rich" }}
-        statB={{ label: "Media", value: "Premium" }}
+        eyebrow={pickLocale(locale, { en: "People as product", es: "Las personas, tu producto" })}
+        title={pickLocale(locale, { en: "Profiles clients want to click.", es: "Perfiles en los que tus clientes quieren hacer clic." })}
+        statA={{ label: pickLocale(locale, { en: "Profiles", es: "Perfiles" }), value: pickLocale(locale, { en: "Rich", es: "Completos" }) }}
+        statB={{ label: pickLocale(locale, { en: "Media", es: "Medios" }), value: "Premium" }}
       />
     );
   }
@@ -201,9 +217,9 @@ function PillarArt({ variant }: { variant: "site" | "roster" | "pipeline" }) {
     <PhotoPillarArt
       photo={MARKETING_PHOTOS.hubDiscovery}
       eyebrow="Pipeline"
-      title="Every request gets a home."
-      statA={{ label: "Inbox", value: "Structured" }}
-      statB={{ label: "Source", value: "Tracked" }}
+      title={pickLocale(locale, { en: "Every request gets a home.", es: "Cada solicitud tiene su lugar." })}
+      statA={{ label: pickLocale(locale, { en: "Inbox", es: "Bandeja" }), value: pickLocale(locale, { en: "Structured", es: "Estructurada" }) }}
+      statB={{ label: pickLocale(locale, { en: "Source", es: "Origen" }), value: pickLocale(locale, { en: "Tracked", es: "Rastreado" }) }}
     />
   );
 }

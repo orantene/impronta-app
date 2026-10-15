@@ -15,7 +15,11 @@ import { NOT_ACCEPTING_BOOKINGS } from "@/lib/talent/accepting-readiness";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { checkBookingSlots } from "@/lib/rate-limit-kv";
-import { getPublicHostContext } from "@/lib/saas/scope";
+import { getPublicHostContext, getTenantPortalScopeBySlug } from "@/lib/saas/scope";
+import {
+  resolveSlotsWorkspaceScope,
+  workspaceSlugFromPathname,
+} from "@/lib/scheduling/public-slots-workspace";
 import { HOST_TALENT_PROFILE_HEADER } from "@/lib/saas/host-context";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -202,19 +206,39 @@ export async function GET(request: Request) {
       return slotsJson([], 200, { reason: "not_bookable_here" });
     }
 
-    const mode = await resolveTalentBookingMode(admin, {
-      talentProfileId: talent.id,
-      offeringId: offering.id,
+    // TUL-690: a `/w/<slug>` storefront on the hub host names its workspace.
+    // The slug is resolved here, and the offering must belong to it.
+    const workspaceSlug = workspaceSlugFromPathname(
+      `/w/${(url.searchParams.get("workspace") ?? "").trim()}`,
+    );
+    const workspaceRequested = url.searchParams.has("workspace");
+    const scope = resolveSlotsWorkspaceScope({
       host: {
         kind: host.kind,
         tenantId: host.kind === "agency" || host.kind === "hub" ? host.tenantId : null,
       },
+      workspaceRequested,
+      workspaceTenantId:
+        workspaceRequested && workspaceSlug
+          ? ((await getTenantPortalScopeBySlug(workspaceSlug))?.tenantId ?? null)
+          : null,
+      offeringTenantId,
+    });
+    if (!scope.ok) {
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
+    }
+    const bookingHost = scope.host;
+
+    const mode = await resolveTalentBookingMode(admin, {
+      talentProfileId: talent.id,
+      offeringId: offering.id,
+      host: bookingHost,
     });
     if (mode === "inquire") return slotsJson([], 200, { reason: "inquiry_only" });
 
     // WSF-C §7: the talent's pause applies on their own site and the Tulala
     // profile (hub). An agency host owns its routing and is never paused here.
-    if (host.kind !== "agency") {
+    if (bookingHost.kind !== "agency") {
       const switches = await loadTalentSiteSwitches(admin, talent.id);
       if (!switches.acceptingBookings) {
         return slotsJson([], 200, { reason: NOT_ACCEPTING_BOOKINGS });

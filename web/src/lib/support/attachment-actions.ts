@@ -9,6 +9,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { assertTicketAccess } from "./support-access";
 import { supportEngine } from "./support-engine";
 import { supportFrom } from "./support-from";
+import { rateLimited, type SupportActionFail } from "./rate-limit-result";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const BUCKET = "support-attachments";
@@ -86,7 +87,7 @@ export async function finalizeSupportAttachmentMessageAction(raw: {
   ticketId: string;
   attachmentId: string;
   caption?: string;
-}): Promise<{ ok: true } | Fail> {
+}): Promise<{ ok: true } | Fail | SupportActionFail> {
   await requireNotImpersonating();
   const parsed = z
     .object({
@@ -100,8 +101,8 @@ export async function finalizeSupportAttachmentMessageAction(raw: {
   if (!session.ok) return session;
   // Same budget as text messages — finalize appends a message, so it must not
   // be a way around the send rate limit.
-  const limited = await checkSupportMessageSend(session.user.id);
-  if (!limited.ok) return { ok: false, error: "Too many requests. Try again shortly." };
+  const limited = await rateLimited(checkSupportMessageSend(session.user.id));
+  if (limited) return limited;
   const access = await assertTicketAccess(parsed.data.ticketId, session.user.id);
   if (!access.ok) return access;
 

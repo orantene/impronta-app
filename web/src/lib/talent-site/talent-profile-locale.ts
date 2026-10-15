@@ -36,6 +36,19 @@ export function applyLangQuery(
   return /^[a-z]{2}$/.test(code) ? code : requested;
 }
 
+/**
+ * TUL-736: a talent who never chose languages (no preferred_locale, no
+ * secondaries) has no bound, so /es/t/<code> renders Spanish chrome. An
+ * explicit choice (even a single language) still bounds the set.
+ */
+export function talentProfileSupportedSet(input: {
+  unset: boolean;
+  supported: readonly string[];
+  publicLocales: readonly string[];
+}): readonly string[] {
+  return input.unset && input.publicLocales.length > 0 ? input.publicLocales : input.supported;
+}
+
 export function decideTalentProfileLocale(input: {
   requested: string | null | undefined;
   primary: string;

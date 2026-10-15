@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { previewHostContext } from "./preview-host";
 import type { NextRequest } from "next/server";
 
 import { createBoundedFetch, SUPABASE_EDGE_LOOKUP_TIMEOUT_MS } from "@/lib/supabase/bounded-fetch";
@@ -193,6 +194,11 @@ export async function resolveTenantContext(
   if (!hostname) {
     return { kind: "not_found", tenantId: null, hostname: "" };
   }
+
+  // Vercel preview deploys of this project act as the app host, in preview
+  // only (see preview-host.ts for the security reasoning).
+  const preview = previewHostContext(hostname, process.env.VERCEL_ENV);
+  if (preview) return preview;
 
   const cached = cacheGet(hostname);
   if (cached) return cached;

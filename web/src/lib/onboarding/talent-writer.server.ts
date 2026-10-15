@@ -39,6 +39,7 @@ import { resolveTradeType } from "./trade-label";
 import { fillTalentPreferredLocale } from "./talent-preferred-locale";
 import { enableSecondaryLocalesFromBios } from "./talent-secondary-locales-from-bio";
 import { loadTalentTypeTerms } from "./type-chip.server";
+import { countryForStorage } from "@/lib/geo/country-code";
 
 export type TalentWriteOutcome = "written" | "skipped" | "failed";
 
@@ -128,7 +129,7 @@ export async function writeTalentProfileFromBrief(input: {
 
   const patch: Record<string, unknown> = {};
   if (city) patch.home_city_text = city;
-  if (country) patch.home_country_text = country;
+  if (country) patch.home_country_text = countryForStorage(country);
   if (bioPlan.base) patch.short_bio = bioPlan.base.text;
   if (input.email) patch.invitation_email = input.email;
   if (Object.keys(patch).length) {

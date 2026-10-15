@@ -104,12 +104,16 @@ export default async function WorkspaceAdminLayout({
   const adminPrefix = brandedHost ? "/admin" : `${slugPrefix}/admin`;
 
   // ── Auth ───────────────────────────────────────────────────────────────────
-  const session = await timed("layout.session", () => getCachedActorSession());
+  // TUL-536: the tenant lookup does not depend on the session, so both run in
+  // one wave (a serial pair was a full extra round trip before first byte).
+  const [session, scope] = await Promise.all([
+    timed("layout.session", () => getCachedActorSession()),
+    timed("layout.scope", () => getTenantScopeBySlug(tenantSlug)),
+  ]);
   if (!session.supabase) redirect("/login?error=config");
   if (!session.user) redirect(`/login?next=${adminPrefix}`);
 
   // ── Tenant ─────────────────────────────────────────────────────────────────
-  const scope = await timed("layout.scope", () => getTenantScopeBySlug(tenantSlug));
   if (!scope) {
     // Phase 3 — Pure Talent state: if the user has no workspace membership
     // but IS rostered as a talent in this tenant, show the "Workspace not

@@ -23,6 +23,7 @@ import { collectForOrderPrincipal } from "@/lib/orders/purchase-collect";
 import { resolveOrderPayeeName } from "@/lib/payments/payee-name";
 import { interpolate } from "@/i18n/interpolate";
 import { createTranslator } from "@/i18n/messages";
+import { getCachedActorSession } from "@/lib/server/request-cache";
 
 /**
  * Absolute origin for Stripe success/cancel URLs. Prefer NEXT_PUBLIC_BASE_URL
@@ -38,6 +39,18 @@ async function checkoutOrigin(): Promise<string> {
   if (!host) return "";
   const proto = h.get("x-forwarded-proto") ?? "https";
   return `${proto}://${host}`;
+}
+
+/**
+ * Signed-in check for the "save your bookings" block (TUL-G4). `null` on any
+ * failure hides the block rather than showing it to a signed-in client.
+ */
+async function viewerSignedIn(): Promise<boolean | null> {
+  try {
+    return Boolean((await getCachedActorSession()).user);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -283,6 +296,7 @@ export async function PayByCodePage({
         threadHref={threadHref}
         receiptHref={paidDisplay === "paid" ? receiptHref : null}
         calendar={calendar}
+        signedIn={paidDisplay === "paid" ? await viewerSignedIn() : null}
       />
     );
   }

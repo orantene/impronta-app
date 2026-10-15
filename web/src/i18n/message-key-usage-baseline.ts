@@ -336,8 +336,6 @@ export const DEAD_MESSAGE_KEY_BASELINE: readonly string[] = [
   "public.profile.portfolioEmptyTitle",
   "public.profile.profileImageAlt",
   "public.profile.refCodePrefix",
-  "public.profile.share.shareSystem",
-  "public.profile.share.shareWhatsapp",
   "public.profile.sidebarAgencyBody",
   "public.profile.sidebarAgencyTitle",
   "public.reviews.tier.established",

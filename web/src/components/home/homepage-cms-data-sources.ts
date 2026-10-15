@@ -46,6 +46,8 @@ import {
 import { collectNativeDataBlockNeeds } from "@/lib/site-admin/builder-node/native-data-block-needs";
 import { loadPortfolioSources } from "@/lib/site-admin/builder-node/portfolio-sources";
 import { loadReviewsSources } from "@/lib/site-admin/builder-node/reviews-sources";
+import { loadPublicPromosForTalent, priceContext } from "@/lib/promos/public-promos.server";
+import { catalogPromoPrices } from "@/lib/promos/catalog-promo-prices";
 import { loadVisitSources } from "@/lib/site-admin/builder-node/visit-sources";
 import { loadCompCardSources } from "@/lib/site-admin/builder-node/comp-card-sources";
 import {
@@ -454,6 +456,7 @@ export async function loadServicesCatalogSources(
     | "talentOfferingsConfirmsByHand"
     | "talentOfferingsBookingSettings"
     | "talentOfferingsUsdRates"
+    | "talentOfferingsPromoPrices"
     | "talentOfferingsCategoryOrder"
     | "talentOfferingsCategoryNotes"
     | "onlineCollectReady"
@@ -505,10 +508,18 @@ export async function loadServicesCatalogSources(
   const onlineCollectReady = resolveOnlineCollectReady({
     platformCheckoutReady: isPlatformCheckoutReady(),
   });
+  // Promos v1 (TUL-937): live auto promos price the home cards through
+  // displayPrice, like the service page. Direct channel only; any failure
+  // degrades to list prices (EMPTY promos), never to a thrown error.
+  const promoPrices =
+    channel === "direct"
+      ? catalogPromoPrices(offerings, priceContext(await loadPublicPromosForTalent(talentProfileId), locale))
+      : {};
   return {
     talentOfferings: offerings,
     talentOfferingsConfirmsByHand: confirmsByHand,
     onlineCollectReady,
+    ...(Object.keys(promoPrices).length ? { talentOfferingsPromoPrices: promoPrices } : {}),
     ...(bookingSettings ? { talentOfferingsBookingSettings: bookingSettings } : {}),
     ...(usdRates ? { talentOfferingsUsdRates: usdRates } : {}),
     ...(categoryOrder.length ? { talentOfferingsCategoryOrder: categoryOrder } : {}),

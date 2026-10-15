@@ -10,6 +10,7 @@ import { useCompactViewport } from "./use-compact-viewport";
 import { SupportPanel } from "./SupportPanel";
 import type { SupportContract } from "./support-contract";
 import { useSupportDeepLink, useSupportUnread } from "./support-hooks";
+import { SUPPORT_PANEL_OPEN_EVENT } from "@/lib/support/open-support-panel";
 import { GUIDE_OPEN_EVENT, type GuideOpenDetail } from "@/lib/guide/open-guide";
 
 export function SupportLauncher({
@@ -36,6 +37,12 @@ export function SupportLauncher({
     };
     window.addEventListener(GUIDE_OPEN_EVENT, onOpen);
     return () => window.removeEventListener(GUIDE_OPEN_EVENT, onOpen);
+  }, []);
+  // "Chat with support" / "Ask a question" entry points with no ticket.
+  useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener(SUPPORT_PANEL_OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(SUPPORT_PANEL_OPEN_EVENT, onOpen);
   }, []);
   const setTickets = useCallback(
     (updater: (prev: typeof tickets) => typeof tickets) => setTicketsState(updater),
