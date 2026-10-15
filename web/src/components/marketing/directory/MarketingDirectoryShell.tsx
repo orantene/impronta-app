@@ -81,7 +81,7 @@ function DirectoryShellBody({
     () =>
       computeCaptionNorms(
         items.map((t) => ({
-          locationLabel: locationLine(t.homeCity, t.homeCountry),
+          locationLabel: locationLine(t.homeCity, t.homeCountry, copy.locale),
           availabilityLabel:
             typeof t.availableDaysInNext30 === "number" && t.availableDaysInNext30 > 0
               ? availabilityLine(t.availableDaysInNext30, copy).text

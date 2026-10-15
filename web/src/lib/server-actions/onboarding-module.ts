@@ -320,6 +320,8 @@ export type EssentialsAnswer = {
   type?: { kind: "talent" | "business"; id: string; slug: string; label: string } | null;
   city?: { id: string | null; slug: string; name: string; countryIso2: string } | null;
   name?: string | null;
+  /** TUL-810: a solo pro's optional business name (talent path only). */
+  businessName?: string | null;
   services?: string[] | null;
   hoursPreset?: HoursPresetId | null;
   hoursCustom?: string[] | null;
@@ -357,6 +359,9 @@ export async function saveOnboardingEssentials(input: EssentialsAnswer): Promise
   if (typeof input.name === "string" && input.name.trim()) {
     facts.push({ factKey: business ? "business.name" : "person.professional_name", value: input.name.trim(), source: "user_stated", status: "confirmed", confidence: 1 });
     if (path === "both") facts.push({ factKey: "person.professional_name", value: input.name.trim(), source: "user_stated", status: "confirmed", confidence: 1 });
+  }
+  if (!business && typeof input.businessName === "string" && input.businessName.trim()) {
+    facts.push({ factKey: "business.name", value: input.businessName.trim().slice(0, 120), source: "user_stated", status: "confirmed", confidence: 1 });
   }
   if (input.services) {
     const list = input.services.map((x) => x.trim()).filter(Boolean).slice(0, 12);

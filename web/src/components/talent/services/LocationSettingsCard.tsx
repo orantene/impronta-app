@@ -28,9 +28,10 @@ const bareInput = "w-full min-w-0 bg-transparent outline-none";
 const noteBox = "rounded-lg bg-black/[0.03] px-3.5 py-3 text-[12.5px] leading-relaxed text-admin-ink-muted";
 
 /** Load once, edit locally, save with the Defaults screen's Save button. */
-export function useLocationSettings(talentId: string) {
+export function useLocationSettings(talentId: string, enabled = true) {
   const [location, setLocation] = useState<LocationSettings | null>(null);
   useEffect(() => {
+    if (!enabled) return;
     let live = true;
     void loadLocationSettings(talentId).then((r) => {
       if (live) setLocation(r.ok ? r.settings : { ...DEFAULT_LOCATION_SETTINGS });
@@ -38,7 +39,7 @@ export function useLocationSettings(talentId: string) {
     return () => {
       live = false;
     };
-  }, [talentId]);
+  }, [talentId, enabled]);
   const save = useCallback(
     async (): Promise<{ ok: boolean; error?: string }> =>
       location ? saveLocationSettings(talentId, location) : { ok: true },

@@ -1986,6 +1986,9 @@
         "readFailed": "No pudimos leer eso. Inténtalo de nuevo o escríbelo distinto.",
         "aiUnavailable": "No pudimos leer tu descripción ahora. Inténtalo de nuevo en un momento.",
         "looksGood": "Se ve bien, continuar",
+        "titleFailed": "No pudimos leerlo",
+        "subFailed": "Responde unas preguntas rápidas y lo armamos igual.",
+        "continueManual": "Contestar unas preguntas",
         "editHint": "Toca cualquier línea para cambiarla.",
         "laterValue": "Después, en tu sitio",
         "missingValue": "Lo preguntamos ahora"
@@ -1994,6 +1997,7 @@
       "questions": {
         "basicsWhatTalentHint": "Busca: manicurista, fotógrafo, DJ…",
         "basicsWhatBusinessHint": "Busca: salón de uñas, restaurante, gimnasio…",
+        "useTyped": "Usar \"{text}\"",
         "basicsCityHint": "Busca tu ciudad",
         "basicsOther": "¿No está en la lista?",
         "basicsOtherHint": "Escríbelo aquí",
@@ -2053,7 +2057,7 @@
       "building": {
         "title": "Construyéndolo",
         "titleTalent": "Guardando tu página",
-        "sub": "Normalmente menos de medio minuto, hasta uno. Puedes cerrar esto; sigue construyéndose.",
+        "sub": "Normalmente menos de medio minuto, hasta uno.",
         "steps": {
           "account": "Tu cuenta",
           "workspace": "Tu espacio de trabajo",
@@ -2062,7 +2066,7 @@
           "menu": "Tu menú",
           "profile": "Tu página"
         },
-        "subTalent": "Unos diez segundos. Puedes cerrar esto; sigue avanzando.",
+        "subTalent": "Normalmente menos de medio minuto.",
         "progressLabel": "Construyendo",
         "canClose": "Puedes cerrar esto; sigue construyéndose y tu página estará aquí cuando vuelvas.",
         "while": {
@@ -2119,6 +2123,8 @@
         "viewMyWebsite": "Ver mi sitio",
         "customizeInBuilder": "Personalizar en el editor",
         "draftTitle": "Tu borrador está guardado",
+        "draftReason": "Tu página no pudo abrir en línea esta vez. Casi siempre es temporal y no pierdes nada de lo que escribiste. Primero inténtalo de nuevo.",
+        "draftDetails": "Detalles para soporte",
         "draftSub": "Todo lo que nos contaste está guardado, pero tu página todavía no abre en línea. Inténtalo de nuevo o ábrela en el editor.",
         "draftSubStudio": "Todo lo que nos contaste está guardado, pero tu sitio todavía no abre en línea. Inténtalo de nuevo o ábrelo en el editor.",
         "openEditor": "Abrir el editor",
@@ -2141,6 +2147,8 @@
         "businessNameHint": "Cómo la gente conoce tu negocio",
         "yourName": "Tu nombre",
         "yourNameHint": "El nombre por el que te conocen",
+        "soloBusinessName": "Nombre de tu negocio (opcional)",
+        "soloBusinessNameHint": "Si tu página lleva otro nombre",
         "location": "Tu ubicación",
         "whatsapp": "WhatsApp (opcional)",
         "whatsappHint": "Número mexicano sin lada; nosotros agregamos +52.",
@@ -2165,7 +2173,7 @@
       },
       "design": {
         "title": "Elige cómo se ve tu página",
-        "sub": "Tres estilos listos. Puedes cambiarlo después en el editor.",
+        "sub": "Estilos listos para ti. Puedes cambiarlo después en el editor.",
         "recommended": "Recomendado",
         "keep": "Dejar el estilo por defecto",
         "rose": "Rosé",
@@ -2221,6 +2229,7 @@
       "past": "Anteriores",
       "noVisits": "Aún no hay visitas.",
       "bookAgain": "Reservar de nuevo",
+      "bookFirst": "Reserva tu primera visita",
       "browseTalent": "Encuentra a quién reservar",
       "viewDetails": "Detalles",
       "cancellationPolicy": "Política de cancelación",
@@ -17977,7 +17986,7 @@
         "langMissing": "Falta {lang}",
         "langMissingHint": "Aún no tiene título en {language}",
         "needsPrice": "Falta precio",
-        "needsPriceHint": "No aparece en tu sitio hasta que tenga precio. Agrégalo y publícalo.",
+        "needsPriceHint": "Agrega un precio y publícalo. O cámbialo a precio a cotizar para mostrarlo ya.",
         "title": "Catálogo",
         "intro": "Todo lo que el POS, el sitio web y el perfil pueden vender · un registro por artículo",
         "import": "Importar",

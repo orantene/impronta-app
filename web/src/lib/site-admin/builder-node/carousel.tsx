@@ -14,6 +14,7 @@ import {
   useCarouselEditing,
   useCarouselPinnedSlide,
 } from "./carousel-edit-bridge";
+import { carouselLabels } from "./carousel-labels";
 
 interface BuilderNodeCarouselTrackProps {
   nodeId: string;
@@ -33,6 +34,8 @@ interface BuilderNodeCarouselTrackProps {
     counter?: boolean;
     scrollCue?: boolean;
   };
+  /** Page language for the control labels (TUL-869). */
+  locale?: string;
   children: ReactNode;
 }
 
@@ -56,8 +59,10 @@ function HeroCarousel({
   loop,
   pauseOnHover,
   controls,
+  locale,
   children,
 }: BuilderNodeCarouselTrackProps) {
+  const labels = carouselLabels(locale);
   const count = slideCount || Children.count(children);
   const slidesRef = useRef<HTMLDivElement | null>(null);
   const [index, setIndex] = useState(0);
@@ -177,7 +182,7 @@ function HeroCarousel({
         ref={slidesRef}
         role="group"
         aria-roledescription="carousel"
-        aria-label="Highlights"
+        aria-label={labels.region}
         onMouseEnter={pauseOnHover ? () => setPaused(true) : undefined}
         onMouseLeave={pauseOnHover ? () => setPaused(false) : undefined}
       >
@@ -188,7 +193,7 @@ function HeroCarousel({
           <button
             type="button"
             className="site-bn-hero__arrow site-bn-hero__arrow--prev"
-            aria-label="Previous slide"
+            aria-label={labels.prev}
             onClick={() => go(activeIndex - 1)}
           >
             {"‹"}
@@ -196,7 +201,7 @@ function HeroCarousel({
           <button
             type="button"
             className="site-bn-hero__arrow site-bn-hero__arrow--next"
-            aria-label="Next slide"
+            aria-label={labels.next}
             onClick={() => go(activeIndex + 1)}
           >
             {"›"}
@@ -226,7 +231,7 @@ function HeroCarousel({
                   type="button"
                   className="site-bn-hero__dot"
                   data-on={i === activeIndex ? "" : undefined}
-                  aria-label={`Go to slide ${i + 1}`}
+                  aria-label={labels.goTo(i + 1)}
                   aria-current={i === activeIndex ? "true" : undefined}
                   onClick={() => go(i)}
                 />
@@ -251,8 +256,10 @@ function RailCarousel({
   autoplayMs,
   loop,
   pauseOnHover,
+  locale,
   children,
 }: BuilderNodeCarouselTrackProps) {
+  const labels = carouselLabels(locale);
   const trackRef = useRef<HTMLDivElement | null>(null);
   const items = Children.toArray(children);
   const count = items.length;
@@ -347,7 +354,7 @@ function RailCarousel({
           <a
             href={`#${nodeId}-slide-1`}
             className="site-builder-node--carousel-arrow"
-            aria-label="Previous slide"
+            aria-label={labels.prev}
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -359,7 +366,7 @@ function RailCarousel({
           <a
             href={`#${nodeId}-slide-${Math.min(items.length, 2)}`}
             className="site-builder-node--carousel-arrow"
-            aria-label="Next slide"
+            aria-label={labels.next}
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -375,7 +382,7 @@ function RailCarousel({
         className="site-builder-node--carousel-track"
         role="group"
         aria-roledescription="carousel"
-        aria-label="Reviews"
+        aria-label={labels.reviews}
         onMouseEnter={pauseOnHover ? () => setPaused(true) : undefined}
         onMouseLeave={pauseOnHover ? () => setPaused(false) : undefined}
       >
@@ -388,7 +395,7 @@ function RailCarousel({
               key={`${nodeId}:dot:${slideIndex}`}
               href={`#${nodeId}-slide-${slideIndex + 1}`}
               className="site-builder-node--carousel-dot"
-              aria-label={`Go to slide ${slideIndex + 1}`}
+              aria-label={labels.goTo(slideIndex + 1)}
               aria-current={slideIndex === index ? "true" : undefined}
               onClick={(event) => {
                 event.preventDefault();

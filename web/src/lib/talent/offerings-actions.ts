@@ -104,6 +104,9 @@ type LoadResult =
     }
   | { ok: false; error: string };
 
+/** TUL-824: a cold rate feed (4 s timeout) must not hold the services list; no rate, no "≈ US$" line. */
+const USD_RATES_BUDGET_MS = 800;
+
 /** Editor load: ALL statuses (drafts included), hero-first images resolved. */
 export async function loadTalentOfferingsForEditor(talentProfileId: string): Promise<LoadResult> {
   try {
@@ -121,7 +124,10 @@ export async function loadTalentOfferingsForEditor(talentProfileId: string): Pro
     if (!auth.ok) return { ok: false, error: auth.error };
     // Started now, awaited last: the rate feed is cached for hours and never
     // blocks the list, and a failure only removes the "≈ US$" preview.
-    const usdRatesPending = loadUsdRates().catch(() => null);
+    const usdRatesPending = Promise.race([
+      loadUsdRates().catch(() => null),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), USD_RATES_BUDGET_MS)),
+    ]);
 
     const { data, error } = listRes;
     if (error) {

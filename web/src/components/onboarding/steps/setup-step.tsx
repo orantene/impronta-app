@@ -14,12 +14,15 @@ import type { FlowLocale } from "@/lib/onboarding/flow";
 import { SETUP_COPY } from "@/lib/onboarding/setup-copy";
 import {
   applyServiceCurrency,
+  defaultPlaceForTrade,
   defaultWeekFallback,
+  placeModesForTrade,
   finalizeSetup,
   needsTimezoneQuestion,
   setupCurrency,
   setupIssues,
   timezoneChoices,
+  timezoneWithBrowserFallback,
   type SetupIssue,
 } from "@/lib/onboarding/setup";
 import type { SetupPayload } from "@/lib/server-actions/onboarding-setup";
@@ -60,7 +63,8 @@ export function SetupStep({
   const [e, setE] = useState<Essentials>(() => ({
     ...setup.essentials,
     hours: setup.essentials.hours ?? defaultWeekFallback(),
-    timezone: setup.essentials.timezone ?? (needsTimezoneQuestion(country) ? browserTimezone() : null),
+    place: setup.essentials.place ?? defaultPlaceForTrade(setup.tradeKey),
+    timezone: timezoneWithBrowserFallback(setup.essentials.timezone, browserTimezone()),
   }));
   const [edited, setEdited] = useState(false);
   const [providerEmail, setProviderEmail] = useState(setup.essentials.firstProviderEmail ?? "");
@@ -84,7 +88,7 @@ export function SetupStep({
   };
 
   return (
-    <div data-testid="onb-setup">
+    <div data-testid="onb-setup" className="[&_button]:scroll-mb-28 [&_input]:scroll-mb-28 [&_select]:scroll-mb-28">
       <h1 className="tl-display font-semibold leading-[1.08] tracking-[-0.03em]" style={{ color: "var(--tl-ink)", fontSize: 30 }}>{c.title[choice]}</h1>
       <p className="mt-2 text-[0.9375rem] leading-[1.5]" style={{ color: "var(--tl-ink-soft)" }}>{c.sub[choice]}</p>
 
@@ -104,7 +108,7 @@ export function SetupStep({
       <section className="mt-6">
         <Label>{c.place}</Label>
         <div className="flex flex-col gap-2" role="radiogroup" aria-label={c.place}>
-          {(["studio", "home", "client"] as const).map((m) => {
+          {placeModesForTrade(setup.tradeKey).map((m) => {
             const on = e.place?.mode === m;
             return (
               <button
@@ -124,7 +128,7 @@ export function SetupStep({
         </div>
         {e.place ? (
           <label className="mt-3 block">
-            <span className="mb-1 block text-[0.75rem] font-medium" style={{ color: "var(--tl-ink-soft)" }}>{c.area}</span>
+            <span className="mb-1 block text-[0.75rem] font-medium" style={{ color: "var(--tl-ink-soft)" }}>{e.place.mode === "client" ? c.areaClient : c.area}</span>
             <input
               value={e.place.area ?? ""}
               onChange={(ev) => change({ place: { mode: e.place!.mode, area: ev.target.value.trim() ? ev.target.value : null } })}
