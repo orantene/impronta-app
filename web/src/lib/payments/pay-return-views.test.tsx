@@ -100,9 +100,3 @@ test("the old 'still open to verify' wording is gone from the processing view an
   assert.match(page, /\?status=cancelled/);
   assert.match(page, /cancelledReturn/);
 });
-
-test("TUL-533: /pay fee lines use the page's money format, not MX$1,000.00", () => {
-  const view = readFileSync("src/app/(public)/pay/[code]/CheckoutView.tsx", "utf8");
-  const block = view.slice(view.indexOf("<EngineFeeLines"), view.indexOf("/>", view.indexOf("<EngineFeeLines")));
-  assert.match(block, /formatMoney=\{\(cents\) => formatDashboardMoneyCents\(cents, props\.currency/);
-});

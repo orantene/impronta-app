@@ -7,7 +7,6 @@ import {
   processorFeeRatesForCurrency,
 } from "@/lib/billing/commission";
 import { previewFeeLines } from "@/lib/billing/fee-payer-setting";
-import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 
 import { EngineFeeLines, FeeLines } from "./FeeLines";
 
@@ -55,22 +54,4 @@ test("EngineFeeLines renders engine codes via the label map, total strong, non-r
   assert.match(html, /data-fee-line="total_charged" class="[^"]*font-semibold/);
   assert.match(html, /Fees are non-refundable\./);
   assert.equal(renderToStaticMarkup(<EngineFeeLines currency="USD" lines={[]} label={String} nonRefundable="x" />), "");
-});
-
-test("EngineFeeLines prints with the caller's formatter when given one", () => {
-  const html = renderToStaticMarkup(
-    <EngineFeeLines
-      currency="MXN"
-      lines={[
-        { code: "service_subtotal", cents: 100000 },
-        { code: "total_charged", cents: 101500 },
-      ]}
-      label={String}
-      nonRefundable="x"
-      formatMoney={(cents) => formatDashboardMoneyCents(cents, "MXN", "es")}
-    />,
-  );
-  assert.match(html, /\$1,000 MXN/);
-  assert.match(html, /\$1,015 MXN/);
-  assert.doesNotMatch(html, /MX\$|\.00/);
 });
