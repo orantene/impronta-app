@@ -42,3 +42,12 @@ test("results components use the dashboard tokens, not the app theme tokens that
     assert.doesNotMatch(s, /\b(?:bg-card|text-foreground|text-muted-foreground|border-border)\b/, f);
   }
 });
+
+test("detail sheet: one merged results card (no repeated title) and a grid footer", () => {
+  const d = read("src/components/promos/talent/PromoDetailSheet.tsx");
+  assert.match(d, /hideTitle/);
+  assert.match(d, /progress=\{progressBody\}/);
+  assert.match(d, /data-promo-footer-grid/);
+  assert.match(d, /grid-cols-1[^"]*grid-cols-2/);
+  assert.match(read("src/components/promos/results/PromoResultsCard.tsx"), /props\.hideTitle \? null/);
+});
