@@ -6,6 +6,7 @@ import { DashboardLocaleToggle } from "@/components/dashboard-locale-toggle";
 import { DASHBOARD_LOCALES } from "@/components/admin/shell/internal/talent/pages/DashboardLanguagePanel";
 import { WebsiteRewardControl } from "@/components/talent/website-reward/WebsiteRewardControl";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
+import { PhoneRailModeSwitch } from "@/components/admin/shell/internal/page-modules/PhoneRailModeSwitch";
 import { useAdminShell, type TalentPage } from "@/components/admin/shell/internal/state";
 import { openGuideHome } from "@/lib/guide/open-guide";
 import { useWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
@@ -104,6 +105,7 @@ export function TalentMoreScreen({ onClose }: { onClose: () => void }) {
           {name}
           {city ? ` · ${city}` : ""}
         </p>
+        <PhoneRailModeSwitch active="talent" onAfterSwitch={onClose} className="mt-3" />
         {/* TUL-995: the phone header has no room for the ES/EN switch, so it lives here. */}
         <div className="mt-3 flex items-center justify-between gap-3">
           <span className="text-[13px] font-medium text-admin-ink">{copy.t("Language")}</span>
