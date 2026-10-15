@@ -1,5 +1,5 @@
 {
-  "note": "Ceilings for scripts/app-bundle-budget.mjs. Uncompressed bytes, unioned client chunks per route prefix, measured from a real `next build`. Raising a ceiling is allowed and is meant to be an argument: put what it bought in `why`, in the SAME commit that spends it. Re-measure with `npm run build && node scripts/app-bundle-budget.mjs --record`.",
+  "note": "Ceilings (admin, pos) and growth baselines (talent-site, talent-shell: baselineBytes + maxGrowthPct) for scripts/app-bundle-budget.mjs. Uncompressed bytes, unioned client chunks per route prefix, measured from a real `next build`. Raising a ceiling is allowed and is meant to be an argument: put what it bought in `why`, in the SAME commit that spends it. Re-measure with `npm run build && node scripts/app-bundle-budget.mjs --record`.",
   "recordedAt": "2026-09-09",
   "budgets": {
     "admin": {
@@ -11,6 +11,18 @@
       "maxBytes": 9613528,
       "measuredBytes": 9351384,
       "why": "8.92 MB uncompressed for the register route's client graph. Headroom is 256 KB, half of admin's, on purpose: this is the tablet-on-venue-wifi surface, and the five POS modes the blueprints specify are supposed to SPLIT this bundle rather than add to it. A mode landing here should show up as a ceiling argument, not as slack already waiting."
+    },
+    "talent-site": {
+      "baselineBytes": 7572855,
+      "maxGrowthPct": 10,
+      "measuredBytes": 7572855,
+      "why": "TUL-1142, 2026-10-15. Growth budget, not an absolute ceiling: the build fails when the union of client chunks across the public talent site (app/_talent-site host renderer, 2 routes, plus /t/site/[siteSlug], 2 routes) is more than 10% over this baseline (7.22 MB uncompressed, 4 routes, measured from a real next build on main 3eff88c0). Loading-shell and hydration regressions (TUL-914, 920) grew these bundles with nothing to trip. Re-record with `npm run build && node scripts/app-bundle-budget.mjs --record` when growth is deliberate, and say here what it bought."
+    },
+    "talent-shell": {
+      "baselineBytes": 9970152,
+      "maxGrowthPct": 10,
+      "measuredBytes": 9970152,
+      "why": "TUL-1142, 2026-10-15. Growth budget: the build fails when the union of client chunks across the /talent workspace shell (every route under /(workspace)/talent, 34 routes) is more than 10% over this baseline (9.51 MB uncompressed, measured from a real next build on main 3eff88c0). This is a prefix total, an upper bound on any single route, not a first-load number. Re-record with `npm run build && node scripts/app-bundle-budget.mjs --record` when growth is deliberate, and say here what it bought."
     }
   }
 }
