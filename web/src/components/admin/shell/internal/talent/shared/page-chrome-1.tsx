@@ -32,8 +32,10 @@ export function PageHeader({
         }
         [data-tulala-page-header] { margin-bottom: 10px !important; gap: 8px !important; align-items: baseline !important; }
         [data-talent-studio-v2="1"] [data-tulala-page-header] {
-          margin: -28px -28px 20px !important;
-          padding: 18px 28px 16px;
+          /* Mobile main padding is 14px (admin-shell-client), so pull back
+             14px, not 28px: -28px slid the header under the top bar (TUL-950). */
+          margin: -14px -14px 16px !important;
+          padding: 16px 14px 14px;
           background: #fff;
           border-bottom: 1px solid rgba(11,11,13,0.08);
         }
