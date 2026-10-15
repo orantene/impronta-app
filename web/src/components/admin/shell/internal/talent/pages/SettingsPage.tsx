@@ -14,6 +14,8 @@ import { TalentPlanCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/T
 import { HowYouWorkCard } from "@/components/settings/how-you-work-card";
 import { HYW_DESC, HYW_TITLE } from "@/components/settings/how-you-work-copy";
 import { AccountExportLinks } from "@/components/account/AccountExportLinks";
+import { JoinStudioCard } from "@/components/settings/join-studio-card";
+import { JS_DESC, JS_TITLE } from "@/components/settings/join-studio-copy";
 import { AccountDeletionCard } from "@/components/account/AccountDeletionCard";
 import { openUpgrade } from "@/components/talent/upgrade/open-upgrade";
 import { TalentInstagramCard } from "@/components/talent/connections/TalentInstagramCard";
@@ -236,6 +238,7 @@ export function SettingsPage() {
   if (bridgeTalentSelfProfile) {
     const l = copy.isSpanish ? "es" : "en";
     account.push({ key: "how-you-work", label: HYW_TITLE[l], sub: HYW_DESC[l], panel: <HowYouWorkCard /> });
+    account.push({ key: "join-studio", label: JS_TITLE[l], sub: JS_DESC[l], panel: <JoinStudioCard /> });
   }
   account.push(
     {
