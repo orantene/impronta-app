@@ -61,6 +61,8 @@ import {
 } from "./fonts";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { LocaleSuggestionBanner } from "@/components/locale-suggestion-banner";
+import { CLIENT_MESSAGES_GLOBAL } from "@/i18n/client-subtrees";
+import { getClientMessagesPayload } from "@/i18n/messages";
 import { TenantRegisterMount } from "@/components/marketing/tenant-register-mount";
 import { PlatformJsonLd } from "@/components/marketing/platform-json-ld";
 import { BreakpointStyleEngine } from "@/components/edit-chrome/breakpoint-style-engine";
@@ -228,6 +230,15 @@ export default async function RootLayout({
         suppressHydrationWarning
         className={`site-theme-${resolvedSiteTheme}${publicScope ? " site-theme-tenant-override" : ""} flex min-h-full flex-col text-foreground`}
       >
+        {/* Browser translator store (see @/i18n/client-subtrees): the client
+            subtrees of every catalog, assigned before Next's async hydration
+            scripts run, so client components never import the full catalogs. */}
+        <script
+          id="tulala-client-messages"
+          dangerouslySetInnerHTML={{
+            __html: `self.${CLIENT_MESSAGES_GLOBAL}=${JSON.stringify(getClientMessagesPayload()).replace(/</g, "\\u003c")};`,
+          }}
+        />
         {/* TUL-516: floating chrome stack (consent/locale/chat/bar clearance)
             before any fixed island so /politicas and every theme share one rule. */}
         <FloatingChromeStackStyles />

@@ -455,9 +455,12 @@ const nextConfig: NextConfig = {
   turbopack: {
     resolveAlias: {
       "@radix-ui/react-id": radixReactIdTurbopackAlias,
+      // Browser bundles get the catalog-free translator (see
+      // src/i18n/client-subtrees.ts); the server keeps the full catalogs.
+      "@/i18n/messages": { browser: "./src/i18n/messages.client.ts" },
     },
   },
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
     const prev = config.resolve?.alias;
     const base =
       prev && typeof prev === "object" && !Array.isArray(prev)
@@ -467,6 +470,9 @@ const nextConfig: NextConfig = {
     config.resolve.alias = {
       ...base,
       "@radix-ui/react-id": radixReactIdRoot,
+      ...(isServer
+        ? {}
+        : { "@/i18n/messages$": path.resolve(process.cwd(), "src/i18n/messages.client.ts") }),
     };
     return config;
   },

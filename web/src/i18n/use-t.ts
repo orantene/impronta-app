@@ -1,7 +1,11 @@
 "use client";
 import { useMemo } from "react";
 
-import { createTranslator } from "./messages";
+import { createTranslator } from "@/i18n/messages";
+// Dashboard copy is read through `useT`; this registers the full catalogs in
+// the browser build, where `@/i18n/messages` otherwise holds only the
+// client subtrees (see `client-subtrees.ts`).
+import "./full-catalogs.client";
 import { withPluralization } from "./interpolate";
 import { useDashboardLocale } from "./use-dashboard-locale";
 
