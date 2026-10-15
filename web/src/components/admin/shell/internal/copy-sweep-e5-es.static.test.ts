@@ -61,8 +61,14 @@ test("the Industria y palabras card follows the dashboard language", () => {
 test("the upsell chip and the trust pill have a Spanish branch", () => {
   const cards = read("primitives/cards.tsx");
   assert.match(cards, /más con/);
-  assert.match(cards, /en orden/);
-  assert.match(cards, /a vigilar/);
+  // The trust pill words moved from inline ES literals to message keys.
+  for (const k of ["Healthy", "Watchful", "Review"]) {
+    const key = `dashboard.adminDrawers.trustHealthWord${k}`;
+    assert.match(cards, new RegExp(key.replaceAll(".", "\\.")));
+    const esWord = at(es, key);
+    assert.equal(typeof esWord, "string");
+    assert.notEqual(esWord, at(en, key));
+  }
 });
 
 test("the registration plan line names the tier in the page language", () => {

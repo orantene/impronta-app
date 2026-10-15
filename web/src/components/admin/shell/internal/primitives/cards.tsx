@@ -16,6 +16,7 @@
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { DateFormatHint } from "./DateFormatHint";
 import { Children, useState, type CSSProperties, type ReactNode } from "react";
+import { useT } from "@/i18n/use-t";
 import {
   COLORS,
   FONTS,
@@ -833,11 +834,12 @@ function PhotoBadgeIcon({
  *  visible. Numeric 0-100 score from getRiskScore, color-coded.
  *  Higher = more trustworthy. */
 export function RiskScorePill({ score, label = "Trust health" }: { score: number; label?: string }) {
+  const t = useT();
   const copy = useDashboardText();
   const tone =
-    score >= 70 ? { bg: "rgba(15,79,62,0.10)", fg: "#0F4F3E", word: copy.isSpanish ? "en orden" : "healthy" }
-    : score >= 40 ? { bg: "rgba(176,135,49,0.14)", fg: "#7A5A1F", word: copy.isSpanish ? "a vigilar" : "watchful" }
-    : { bg: "rgba(176,48,58,0.10)", fg: "#7A1F26", word: copy.isSpanish ? "a revisar" : "review" };
+    score >= 70 ? { bg: "rgba(15,79,62,0.10)", fg: "#0F4F3E", word: t("dashboard.adminDrawers.trustHealthWordHealthy") }
+    : score >= 40 ? { bg: "rgba(176,135,49,0.14)", fg: "#7A5A1F", word: t("dashboard.adminDrawers.trustHealthWordWatchful") }
+    : { bg: "rgba(176,48,58,0.10)", fg: "#7A1F26", word: t("dashboard.adminDrawers.trustHealthWordReview") };
   return (
     <div title={copy.t("Internal heuristic: verifications, claim status, account age, recent rejections.")} style={{
       display: "inline-flex", alignItems: "center", gap: 8,
