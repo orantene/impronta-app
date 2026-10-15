@@ -69,7 +69,8 @@ test("cross-scope sweep never expires the canonical shared-domain cookie", () =>
 
 test("the sweep wraps the FINAL proxy response (rewrites + talent hosts included)", () => {
   const src = read("proxy.ts");
-  assert.match(src, /export const proxy = withAuthScopeSweep\(proxyInner\)/);
+  // TUL-827: the staging gate may sit outside the sweep; its own responses carry no auth cookies.
+  assert.match(src, /export const proxy = (?:withStagingGate\()?withAuthScopeSweep\(proxyInner\)/);
   assert.ok(src.split("\n").length <= 801, "proxy.ts stays at or under 800 lines");
 });
 

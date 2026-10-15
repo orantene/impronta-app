@@ -57,7 +57,12 @@ export function UnderstoodStep({
   const [editing, setEditing] = useState<UnderstoodLine | null>(null);
   const [draft, setDraft] = useState("");
   // One essentials screen follows whatever is missing, so the button says the same thing every time.
-  const cta = t("public.onboarding.understood.looksGood");
+  // TUL-801: when the read failed and nothing was understood, don't show an
+  // all-"Missing" card under "Here is what I understood" + "Looks good".
+  const readFailedEmpty =
+    (error === "ai_off" || error === "ai_not_configured" || error === "ai_failed" || error === "failed" || error === "rate_limit" || error === "import_failed") &&
+    understanding.lines.every((l) => !l.value);
+  const cta = readFailedEmpty ? t("public.onboarding.understood.continueManual") : t("public.onboarding.understood.looksGood");
   const pathKey = `public.onboarding.understood.path.${understanding.path}` as const;
 
   const errorText =
@@ -85,8 +90,8 @@ export function UnderstoodStep({
 
   return (
     <div data-testid="onb-understood">
-      <Title>{fromLink ? t("public.onboarding.understood.titleLink") : t("public.onboarding.understood.title")}</Title>
-      <Sub>{t("public.onboarding.understood.sub")}</Sub>
+      <Title>{readFailedEmpty ? t("public.onboarding.understood.titleFailed") : fromLink ? t("public.onboarding.understood.titleLink") : t("public.onboarding.understood.title")}</Title>
+      <Sub>{readFailedEmpty ? t("public.onboarding.understood.subFailed") : t("public.onboarding.understood.sub")}</Sub>
 
       <p className="mt-4 flex items-center gap-2 text-[0.8125rem]" style={{ color: "var(--tl-muted)" }} data-testid="onb-path">
         <span>{t("public.onboarding.understood.pathLabel")}:</span>
@@ -94,7 +99,7 @@ export function UnderstoodStep({
         <GhostLink onClick={onChangePath} testId="onb-change-path">{t("public.onboarding.understood.changePath")}</GhostLink>
       </p>
 
-      <ul className="mt-4 flex flex-col gap-2" data-testid="onb-lines">
+      {readFailedEmpty ? null : <ul className="mt-4 flex flex-col gap-2" data-testid="onb-lines">
         {understanding.lines.map((line) => {
           const editable = line.status !== "later" && line.edit.kind !== "none";
           const onTap = () => {
@@ -128,13 +133,13 @@ export function UnderstoodStep({
             </li>
           );
         })}
-      </ul>
+      </ul>}
 
       {errorText ? <Notice tone={error === "ai_off" ? "warn" : "error"} testId="onb-error">{errorText}</Notice> : null}
 
       <div className="mt-5 flex flex-col gap-2">
         <PrimaryButton onClick={onAccept} disabled={busy} testId="onb-accept">{cta}</PrimaryButton>
-        <p className="text-center text-[0.8125rem]" style={{ color: "var(--tl-muted)" }}>{t("public.onboarding.understood.editHint")}</p>
+        {readFailedEmpty ? null : <p className="text-center text-[0.8125rem]" style={{ color: "var(--tl-muted)" }}>{t("public.onboarding.understood.editHint")}</p>}
       </div>
 
       {editing ? (

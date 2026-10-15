@@ -7,6 +7,7 @@ import {
   defaultFlowLocale,
   flowLocaleFromPath,
   flowStepOf,
+  flowSubLabel,
   flowUrl,
   langQueryForStartAfterDefaultLocaleStrip,
   urlChoiceBeatsGuestDraft,
@@ -93,4 +94,11 @@ test("GRK-102: URL ?choice= beats a guest draft, not a signed-in resume", () => 
   assert.equal(urlChoiceBeatsGuestDraft({ hasUrlChoice: true, hasResume: true, isAuthenticated: true }), false);
   assert.equal(urlChoiceBeatsGuestDraft({ hasUrlChoice: true, hasResume: false, isAuthenticated: false }), false);
   assert.equal(urlChoiceBeatsGuestDraft({ hasUrlChoice: false, hasResume: true, isAuthenticated: false }), false);
+});
+
+test("TUL-813: email and code are named sub-steps of 4, the total never changes", () => {
+  assert.equal(flowSubLabel("readyToBuild", "en"), null);
+  assert.equal(flowSubLabel("save", "en"), "YOUR ACCOUNT");
+  assert.equal(flowSubLabel("code", "es"), "CÓDIGO DEL CORREO");
+  assert.equal(FLOW_TOTAL, 4);
 });

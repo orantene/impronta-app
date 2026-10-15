@@ -94,6 +94,7 @@ import {
   resolveResidenceLocationEmbed,
   type CanonicalLocationEmbed,
 } from "@/lib/canonical-location-display";
+import { isSurfaceHostKind } from "@/lib/saas/host-kinds";
 import { getPublicHostContext, getPublicPathPrefix } from "@/lib/saas/scope";
 import { resolvePublicProfileOverrideTenantId } from "@/lib/saas/talent-roster";
 import { talentProfileRobotsMeta } from "@/lib/talent-site/talent-profile-robots";
@@ -2539,7 +2540,8 @@ export async function TalentProfileView({
             sourcePage={profileSourcePage}
             initialSaved={initialSavedIds.includes(profile.id)}
             portalInquiryHref={portalInquiryHref}
-            mode="footer" hostKind={hostCtx.kind}
+            mode="footer"
+            hostKind={isSurfaceHostKind(hostCtx.kind) ? hostCtx.kind : null}
             profileCta={ui.profileCta}
             inquiry={ui.inquiry}
           />
