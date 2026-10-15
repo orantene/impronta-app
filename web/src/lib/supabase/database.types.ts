@@ -18343,6 +18343,7 @@ export type Database = {
           show_on_site: boolean
           slot_id: string | null
           starts_at: string | null
+          talent_profile_id: string | null
           template_key: string | null
           tenant_id: string
           time_from: string | null
@@ -18399,6 +18400,7 @@ export type Database = {
           show_on_site?: boolean
           slot_id?: string | null
           starts_at?: string | null
+          talent_profile_id?: string | null
           template_key?: string | null
           tenant_id: string
           time_from?: string | null
@@ -18455,6 +18457,7 @@ export type Database = {
           show_on_site?: boolean
           slot_id?: string | null
           starts_at?: string | null
+          talent_profile_id?: string | null
           template_key?: string | null
           tenant_id?: string
           time_from?: string | null
@@ -18489,6 +18492,13 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_promo_codes_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_profiles"
             referencedColumns: ["id"]
           },
           {

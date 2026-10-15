@@ -62,8 +62,6 @@ import {
  * render the outcome inline. They never throw to the client.
  */
 
-export type { TalentSiteDomainActionResult, TalentSiteDomainView };
-
 async function challengesForDomain(
   domain: string,
   known?: VercelDomainChallenge[],

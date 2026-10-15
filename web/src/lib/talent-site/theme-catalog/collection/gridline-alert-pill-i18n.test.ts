@@ -86,7 +86,7 @@ test("TUL-516 C2: seeded Gridline utility bar renders Sin urgencias hoy for es v
   const bar = findUtilityBar(buildGridlinePayload().shellTree as Node[]) as BuilderNode;
   const localized = localizeBlockNode(bar, {
     locale: "es",
-    defaultLocale: "es",
+    defaultLocale: "en",
     chain: ["en"],
   });
   assert.equal((localized.props as { statusOffLabel: string }).statusOffLabel, NO_EMERGENCIES_TODAY_LABEL.es);
@@ -96,7 +96,7 @@ test("TUL-516 C2: seeded Gridline utility bar renders Sin urgencias hoy for es v
       includeRendererStyles: false,
       includeFontLinks: false,
       dataSources: {},
-      contentLocale: { locale: "es", defaultLocale: "es", chain: ["en"] },
+      contentLocale: { locale: "es", defaultLocale: "en", chain: ["en"] },
       visitorLocale: "es",
     }) as Parameters<typeof renderToStaticMarkup>[0],
   );

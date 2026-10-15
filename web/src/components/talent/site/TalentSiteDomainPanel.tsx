@@ -16,9 +16,11 @@ import {
   setPrimaryTalentSiteDomainAction,
   transferOutTalentSiteDomainAction,
   verifyTalentSiteDomainAction,
-  type TalentSiteDomainActionResult,
-  type TalentSiteDomainView,
 } from "@/lib/talent-site/server/talent-site-domain-actions";
+import type {
+  TalentSiteDomainActionResult,
+  TalentSiteDomainView,
+} from "@/lib/talent-site/server/talent-site-domain-view";
 
 /**
  * TalentSiteDomainPanel — SELF-CONTAINED custom-domain manager for the talent

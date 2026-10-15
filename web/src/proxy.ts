@@ -43,6 +43,7 @@ import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolve
 import { talentSiteHostResponse } from "@/lib/saas/talent-site-host-response";
 import { withTalentHostClientSession } from "@/lib/client-account/talent-host-session";
 import { withAuthScopeSweep } from "@/lib/supabase/auth-scope-sweep";
+import { withStagingGate } from "@/lib/saas/staging-gate";
 import { unsupportedLocaleRedirectTarget } from "@/lib/saas/unsupported-locale-redirect";
 import { isTenantHostContext, resolveProxyLocaleContext } from "@/lib/saas/proxy-locale-context";
 import { clientIp, stripInboundHostContextHeaders } from "@/lib/saas/proxy-inbound-sanitize";
@@ -63,10 +64,9 @@ async function proxyInner(request: NextRequest) {
   const ip = clientIp(request);
   const { pathname } = request.nextUrl;
 
-  // Strip client-supplied host-context spoofs (x-impronta-host-context,
-  // x-impronta-talent-profile) up front. The proxy is the only writer of
-  // these; resetting them here means even the short-circuit's
-  // `NextResponse.next()` forwards a request the client could not have forged.
+  // Strip client-supplied host-context spoofs (x-impronta-host-context, x-impronta-talent-profile)
+  // up front. The proxy is the only writer of these; resetting them here means even the
+  // short-circuit's `NextResponse.next()` forwards a request the client could not have forged.
   const sanitizedInboundHeaders = stripInboundHostContextHeaders(request);
   // Compile-time flag (next.config) covers `next dev` where Edge inlines
   // NODE_ENV=production. Runtime NODE_ENV / VERCEL_ENV cover admin-boot's
@@ -781,7 +781,7 @@ async function proxyInner(request: NextRequest) {
   ensureExperimentVisitorCookie(request, sessionRes);
   return sessionRes;
 }
-export const proxy = withAuthScopeSweep(proxyInner); // TUL-621: auth-scope-sweep.ts
+export const proxy = withStagingGate(withAuthScopeSweep(proxyInner)); // TUL-621 sweep; TUL-827 staging gate (outermost)
 export const config = {
   matcher: [
     // `sw.js` + `manifest.webmanifest` are static PWA files in `public/` that
