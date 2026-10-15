@@ -13,7 +13,7 @@ import { assertTicketAccess } from "@/lib/support/support-access";
 import { supportEngine } from "@/lib/support/support-engine";
 import { insightRowsToCorpus, retrieveHelpEntries } from "@/lib/support/help-corpus";
 import { loadConfirmedInsightCorpus } from "@/lib/support/insights/load";
-import { supportAiErrorBody, supportAiErrorCard } from "@/lib/support/support-ai-failure";
+import { shouldOfferHumanInsteadOfEscalating, supportAiErrorBody, supportAiErrorCard } from "@/lib/support/support-ai-failure";
 import { wantsHumanSupport } from "@/lib/support/support-human-prefilter";
 import { sanitizeSupportAiOutput } from "@/lib/support/support-ai-guardrails";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -264,13 +264,14 @@ export async function POST(request: Request) {
       escalateReason = escalateReason ?? "ai_sentiment";
     }
 
-    if (escalateReason) {
+    // TUL-660: the AI asks before handing over; only dispute/safety/legal escalate on their own.
+    if (escalateReason && !shouldOfferHumanInsteadOfEscalating(escalateReason)) {
       await supportEngine.escalateTicket({
         ticketId,
         reason: escalateReason,
         actorUserId: null,
       });
-    } else if (aiTurns >= 3) {
+    } else if (escalateReason || aiTurns >= 3) {
       await supportEngine.appendMessage({
         ticketId,
         authorKind: "ai",
