@@ -7,10 +7,13 @@
  * JWTs locally, so any surviving cookie copy kept the user signed in.
  *
  * This journey runs against the LOCAL Supabase of the talent-website lane
- * (never production): it signs in, holds the session at several cookie scopes
- * across two subdomains (`localhost` + `acme.lvh.me`, which shares `.lvh.me`),
- * plants a browser-side Supabase session in localStorage, logs out through
- * each entry point, reloads, and asserts every host is signed out.
+ * (never production): it signs in, holds the session at both cookie scopes of
+ * one parent domain (`acme.lvh.me` host + shared `.lvh.me`, the local stand-in
+ * for `<x>.tulala.digital` + `.tulala.digital`), plants a browser-side Supabase
+ * session, logs out on that host through each entry point, reloads, and
+ * asserts both scopes are gone. `localhost` is only used to sign in: it is a
+ * different site, and no response can expire another site's cookies
+ * (PM option A, Oct 15).
  *
  * Not run by agent sessions (no servers); CI runs it in the talent-website lane.
  */
@@ -20,7 +23,9 @@ import { ACME_AGENCY_LOCAL_DOMAIN, talentFixture } from "./fixtures";
 import { TALENT_SITE_FIXTURE_READY } from "./helpers";
 
 const PORT = Number(new URL(process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000").port || 3000);
-const HOSTS = [`http://localhost:${PORT}`, `http://${ACME_AGENCY_LOCAL_DOMAIN}:${PORT}`];
+const SIGN_IN_ORIGIN = `http://localhost:${PORT}`;
+/** Where the session is held and signed out: one parent domain, two scopes. */
+const SITE = `http://${ACME_AGENCY_LOCAL_DOMAIN}:${PORT}`;
 const AUTH_RE = /^sb-.*-auth-token(\.\d+)?$/;
 const FX = talentFixture("t_ready");
 
@@ -33,16 +38,18 @@ async function signIn(page: Page, origin: string) {
   expect(auth.length, `dev-signin set no auth cookie on ${origin}`).toBeGreaterThan(0);
 }
 
-/** Hold the session at every scope a real browser accumulates. */
-async function spreadSessionAcrossScopes(context: BrowserContext) {
+/** Move the session to both scopes of one parent domain (host + `.lvh.me`), and
+ *  drop the cross-site localhost copy the sign-in left behind. */
+async function holdSessionOnSite(context: BrowserContext) {
   const auth = (await context.cookies()).filter((c) => AUTH_RE.test(c.name));
   expect(auth.length, "signed in with an auth cookie").toBeGreaterThan(0);
-  const copies = auth.flatMap((c) => [
-    { name: c.name, value: c.value, domain: ".lvh.me", path: "/" },
-    { name: c.name, value: c.value, domain: ACME_AGENCY_LOCAL_DOMAIN, path: "/" },
-    { name: c.name, value: c.value, domain: "localhost", path: "/" },
-  ]);
-  await context.addCookies(copies);
+  await context.clearCookies();
+  await context.addCookies(
+    auth.flatMap((c) => [
+      { name: c.name, value: c.value, domain: ".lvh.me", path: "/" },
+      { name: c.name, value: c.value, domain: ACME_AGENCY_LOCAL_DOMAIN, path: "/" },
+    ]),
+  );
 }
 
 async function plantBrowserSession(page: Page) {
@@ -53,7 +60,7 @@ async function plantBrowserSession(page: Page) {
 }
 
 async function assertSignedOutEverywhere(page: Page, context: BrowserContext, clearsBrowserStorage: boolean) {
-  for (const origin of HOSTS) {
+  for (const origin of [SITE]) {
     await page.goto(`${origin}/login`, { waitUntil: "domcontentloaded" });
     await page.reload({ waitUntil: "domcontentloaded" });
     const left = (await context.cookies(origin)).filter((c) => AUTH_RE.test(c.name));
@@ -61,7 +68,7 @@ async function assertSignedOutEverywhere(page: Page, context: BrowserContext, cl
     const stored = await evaluateSettled(page, () =>
       [...Object.keys(localStorage), ...Object.keys(sessionStorage)].filter((k) => k.startsWith("sb-")),
     );
-    if (origin === HOSTS[0] && clearsBrowserStorage) expect(stored, "browser Supabase session cleared").toEqual([]);
+    if (clearsBrowserStorage) expect(stored, "browser Supabase session cleared").toEqual([]);
     // /account must not render a signed-in page after sign-out.
     await gotoSettled(page, `${origin}/account`);
     await expect(page.getByText(new RegExp(FX.email, "i"))).toHaveCount(0);
@@ -158,13 +165,13 @@ const ENTRY_POINTS: { name: string; clearsBrowserStorage: boolean; run: (page: P
     name: "visible Log out control, first click",
     clearsBrowserStorage: true,
     run: async (page) => {
-      await gotoSettled(page, `${HOSTS[0]}/account`);
+      await gotoSettled(page, `${SITE}/account`);
       const control = page
         .getByRole("button", { name: /^(log out|sign out|cerrar sesi[oó]n)$/i })
         .first();
       await control.waitFor({ state: "attached", timeout: 10_000 }).catch(() => {});
       if ((await control.count()) === 0) {
-        await gotoSettled(page, `${HOSTS[0]}/`);
+        await gotoSettled(page, `${SITE}/`);
         const menu = page.getByRole("button", { name: /account|cuenta/i }).first();
         if (await menu.count()) await menu.click();
       }
@@ -183,15 +190,14 @@ test.describe("S1 sign-out ends the session on every subdomain", () => {
       // Cold dev-server compiles of /auth/sign-out and the talent shell alone
       // took ~25s in CI; the default 30s budget timed out before any assert.
       test.setTimeout(150_000);
-      // One real sign-in; spreadSessionAcrossScopes then holds that session on
-      // every host/domain scope. Signing in through the agency host was refused
-      // by its host gate in CI (no auth cookie), which is not what this tests.
-      await signIn(page, HOSTS[0]);
-      await spreadSessionAcrossScopes(context);
+      // dev-signin works only on localhost (the agency host gate refuses it),
+      // so sign in there and move the session onto the site's two scopes.
+      await signIn(page, SIGN_IN_ORIGIN);
+      await holdSessionOnSite(context);
       // Settle on the signed-in landing page first: `/` redirects to /talent and
       // then client-side to /talent/today, and a late client redirect cancelled
       // the sign-out form navigation (POST never surfaced as a response).
-      await gotoSettled(page, `${HOSTS[0]}/`);
+      await gotoSettled(page, `${SITE}/`);
       await plantBrowserSession(page);
 
       const signOut = page.waitForResponse(
