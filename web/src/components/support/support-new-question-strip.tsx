@@ -8,15 +8,33 @@ export function showNewQuestionStrip(status: string | null | undefined): boolean
   return status === "resolved" || status === "closed";
 }
 
+/**
+ * TUL-621 rework: an OPEN ticket the AI just answered (no person involved yet) also offers a new
+ * question, so an unrelated second question is not typed into the first ticket.
+ */
+export function showNewQuestionStripForThread(
+  ticket: { status?: string | null; handledBy?: string | null; escalatedAt?: string | null } | null | undefined,
+  lastAuthorKind: string | null | undefined,
+): boolean {
+  if (!ticket) return false;
+  if (showNewQuestionStrip(ticket.status)) return true;
+  return (
+    ticket.status === "open" &&
+    lastAuthorKind === "ai" &&
+    ticket.handledBy !== "human" &&
+    !ticket.escalatedAt
+  );
+}
+
 export function NewQuestionStrip({
-  status,
+  show,
   onNewQuestion,
 }: {
-  status: string | null | undefined;
+  show: boolean;
   onNewQuestion: () => void;
 }) {
   const t = useT();
-  if (!showNewQuestionStrip(status)) return null;
+  if (!show) return null;
   return (
     <div
       style={{

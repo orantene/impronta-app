@@ -5,7 +5,7 @@ import type { PromoCopy } from "@/lib/promos/copy/talent";
 import type { PromoListItem } from "@/lib/promos/actions";
 import { progressOf } from "@/lib/promos/talent-view";
 import { offerLabel, scheduleLine } from "./describe";
-import { ProgressBar, StatusBadge, UI } from "./ui";
+import { FOCUS, ProgressBar, StatusBadge, UI } from "./ui";
 
 export function PromoCard({ item, copy, onOpen }: { item: PromoListItem; copy: PromoCopy; onOpen: () => void }) {
   const p = item.promo;
@@ -18,7 +18,7 @@ export function PromoCard({ item, copy, onOpen }: { item: PromoListItem; copy: P
       type="button"
       onClick={onOpen}
       aria-label={`${copy.t("card.open")}: ${item.name}`}
-      className={`${UI.card} flex w-full flex-col gap-2 p-4 text-left`}
+      className={`${UI.card} flex w-full flex-col gap-2 p-4 text-left transition-colors hover:border-[var(--tc-action,#0f766e)] ${FOCUS}`}
     >
       <span className="flex items-start justify-between gap-3">
         <span className={`min-w-0 flex-1 truncate text-[15px] font-semibold ${UI.ink}`}>{item.name}</span>

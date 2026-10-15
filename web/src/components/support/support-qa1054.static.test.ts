@@ -8,7 +8,8 @@ const home = readFileSync("src/components/support/SupportPanelHome.tsx", "utf8")
 
 test("TUL-942: the in-bubble talk-to-human button is skipped when an offer card exists", () => {
   assert.match(thread, /hasOfferCard/);
-  assert.match(thread, /canOfferHuman\(ticket\) && !hasOfferCard/);
+  assert.match(thread, /humanPlacement === "bubble" && m\.id === lastAiId/);
+  assert.match(thread, /humanPlacement === "footer"/);
 });
 
 test("TUL-943: the No button stays after escalation and just dismisses the row", () => {
@@ -62,7 +63,8 @@ test("TUL-904/907: More sheet 'Get help' closes the sheet and opens the Guide ho
 test("TUL-600: the new-ticket form lets you pick screenshots and uploads them after create", () => {
   const forms = readFileSync("src/components/support/SupportPanelForms.tsx", "utf8");
   assert.match(forms, /type="file"/);
-  assert.match(forms, /uploadSupportAttachment\(r\.ticketId, f\)/);
+  assert.match(forms, /uploadStagedAttachments\(r\.ticketId, files/);
+  assert.match(forms, /dashboard\.adminSupport\.attachAria/);
   for (const l of ["en", "es", "fr"]) {
     const m = JSON.parse(readFileSync(`messages/${l}.json`, "utf8")).dashboard.adminSupport;
     assert.ok(m.fieldAttachments, `${l} fieldAttachments`);
@@ -79,4 +81,16 @@ test("TUL-907/995: the talent name chip opens the profile and the More sheet car
     const m = JSON.parse(readFileSync(`messages/${l}.json`, "utf8")).dashboard.mobile;
     assert.ok(m.talentPillAria, `${l} talentPillAria`);
   }
+});
+
+test("TUL-949: the thread composer sends on Enter, Shift+Enter is a newline, IME composition never sends", () => {
+  const forms = readFileSync("src/components/support/SupportPanelForms.tsx", "utf8");
+  assert.match(forms, /e\.key === "Enter" && !e\.shiftKey && !e\.nativeEvent\.isComposing/);
+  assert.match(forms, /enterKeyHint="send"/);
+});
+
+test("TUL-982: on the talent surface the phone has no floating support circle (More > Get help instead)", () => {
+  const shell = readFileSync("src/components/support/SupportLauncherShell.tsx", "utf8");
+  assert.match(shell, /hideFloatingOnCompact=\{state\.surface === "talent"\}/);
+  assert.match(launcher, /!\(compact && hideFloatingOnCompact\)/);
 });

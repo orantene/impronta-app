@@ -296,7 +296,7 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
             return (
             <div key={item.title} data-guest-catalog-row="service" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", fontFamily: FONT }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</div>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflowWrap: "anywhere", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{item.title}</div>
                 {item.priceLabel ? (
                   <div
                     data-guest-service-price
@@ -337,7 +337,7 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
         return (
           <div key={row.id} data-guest-catalog-row={row.category} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", fontFamily: FONT }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.title}</div>
+              <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflowWrap: "anywhere", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{row.title}</div>
               <div style={{ fontSize: 11.5, color: C.inkDim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {[price, row.sub, !row.available ? t("public.guestChat.catalogUnavailable") : null].filter(Boolean).join(" · ")}
               </div>
