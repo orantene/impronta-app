@@ -124,12 +124,7 @@ export function GuestDockChrome({
         <CardDockBack label={t("public.guestChat.cardBrowseBack")} onBack={() => onDockViewChange("chat")} />
       ) : null}
 
-      {card &&
-      dockEnabled &&
-      activeDockView === "chat" &&
-      journeySegs.length > 0 &&
-      railLabel &&
-      lineupCount > 0 ? (
+      {card && dockEnabled && activeDockView === "chat" && journeySegs.length > 0 && railLabel ? (
         <CardDockRail count={lineupCount} label={railLabel} t={t} onOpenDetails={onOpenDetails} />
       ) : null}
 
