@@ -649,7 +649,7 @@ export function CatalogRow({
   // Only paint a photo slot when the offering has a real public image.
   const photo = cover ? (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={cover} alt="" className="site-builder-node--services-catalog-photo" />
+    <img src={cover} alt="" loading="lazy" decoding="async" className="site-builder-node--services-catalog-photo" />
   ) : null;
   return (
     <li

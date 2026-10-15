@@ -45,9 +45,11 @@ export async function talentProfileLocaleMetadata(input: {
   /** Absolute app-host URL of `/t/<code>`, or null when unresolvable. */
   canonicalAbsolute: string | null;
   fallbackOrigin: string;
+  /** `?lang=` of the request: head and body must resolve the same locale (TUL-855). */
+  langQuery?: string | string[] | null;
 }) {
   const [profile, language] = await Promise.all([
-    resolveTalentProfileLocale(input.profileId),
+    resolveTalentProfileLocale(input.profileId, input.langQuery),
     getLanguageSettingsPublicCached().catch(() => null),
   ]);
   const origin = new URL(input.canonicalAbsolute ?? input.fallbackOrigin).origin;
