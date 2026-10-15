@@ -24,7 +24,7 @@ import { decideBookingAssistantTurn } from "./decide";
 import {
   bookingAssistantDisclosureLabel,
   bookingAssistantHandoffCopy,
-  normalizeBookingAssistantLocale,
+  resolveBookingAssistantReplyLocale,
   type BookingHandoffReason,
 } from "./handoff";
 import { sanitizeBookingAssistantOutput } from "./guardrails";
@@ -44,7 +44,7 @@ const SYSTEM_PROMPT = `You are a booking assistant on a talent's public site cha
 Answer ONLY from the SERVICE_CATALOG JSON. Never invent a price, duration, or availability.
 If the catalog does not contain the answer, say you are unsure and that a person will follow up.
 Do not book, reserve, or mint payment links. Keep answers under 600 characters.
-Match the guest locale (en or es). Mexican Spanish tú form only (never voseo), never em dashes.
+Reply in the language of the guest's message (en or es); the locale line is only a fallback. Mexican Spanish tú form only (never voseo), never em dashes.
 Reply with plain text only (no markdown links).`;
 
 export type BookingAssistantOfferingGround = {
@@ -285,7 +285,7 @@ export async function maybeRunBookingAssistantTurn(
 
     if (decision.action === "skip") return null;
 
-    const locale = normalizeBookingAssistantLocale(args.locale);
+    const locale = resolveBookingAssistantReplyLocale(args.guestMessage, args.locale);
 
     if (decision.action === "handoff") {
       return insertSystemEvent({
