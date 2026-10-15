@@ -62,8 +62,8 @@
       "login": {
         "title": "Iniciar sesión",
         "inviteTitle": "Inicia sesión para unirte a {agency}",
-        "description": "Continúa con Google, Apple o correo electrónico. Con Google o Apple, la contraseña es opcional; puedes agregar una después en Cuenta.",
-        "descriptionNoApple": "Continúa con Google o correo electrónico. Con Google, la contraseña es opcional; puedes agregar una después en Cuenta.",
+        "description": "Continúa con Google, Apple o correo.",
+        "descriptionNoApple": "Continúa con Google o correo.",
         "inviteDescription": "{agency} te invitó a su roster. Inicia sesión para reclamar tu perfil y empezar a recibir reservas.",
         "google": "Continuar con Google",
         "emailSubmit": "Iniciar sesión",
