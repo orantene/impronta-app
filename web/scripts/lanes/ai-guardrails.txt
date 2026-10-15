@@ -84,3 +84,6 @@ src/lib/analytics/scrub-leaks.test.ts
 src/i18n/locale-default-prefix-strip.test.ts
 src/lib/talent-site/talent-site-true-404.static.test.ts
 src/lib/ai/resolve-api-keys-env-fallback.test.ts
+src/lib/support/guest-resume-path.test.ts
+src/components/admin/shell/internal/shell-boundary.render.test.tsx
+src/lib/notifications/dispatcher-cold-start-graph.static.test.ts

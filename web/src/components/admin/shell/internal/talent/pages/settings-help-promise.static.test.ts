@@ -30,3 +30,11 @@ test("help row has an ES translation that agrees", () => {
   assert.ok(es, "ES entry exists");
   assert.doesNotMatch(es, /frecuentes|pagos/i);
 });
+
+test("TUL-729: the Help drawer header does not promise videos, FAQ or payments help", () => {
+  for (const file of ["en", "es"]) {
+    const msgs = JSON.parse(readFileSync(new URL(`../../../../../../../messages/${file}.json`, import.meta.url), "utf8"));
+    const desc: string = msgs.dashboard.adminWave.helpDesc;
+    assert.doesNotMatch(desc, /video|faq|payout|payment|pago|frecuentes/i, file);
+  }
+});
