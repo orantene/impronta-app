@@ -111,6 +111,7 @@ export function RegisterForm({
   return (
     <form
       action={formAction}
+      noValidate // TUL-893: the server answers in the page language; no English browser tooltip
       className="space-y-3.5"
       onSubmit={() => setBackToForm(false)}
     >

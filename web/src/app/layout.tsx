@@ -1,3 +1,4 @@
+import { CrossTabSignOutListener } from "@/components/auth/CrossTabSignOutListener";
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { ClientSpeedInsights } from "@/components/analytics/client-speed-insights";
@@ -293,6 +294,7 @@ export default async function RootLayout({
         <WebVitalsReporter />
         <CspViolationReporter />
         {children}
+        <CrossTabSignOutListener />
         {/* Intercepted-route overlays (profile quick-open). Sibling of the
             page so closing = router.back() restores the page untouched. */}
         {modal}
