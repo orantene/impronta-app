@@ -16,7 +16,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadOwnedGuestTicket } from "@/lib/support/guest-access";
 import { buildGuestCorpus, flattenGroundingText, type GuestCorpusLocale } from "@/lib/support/guest-corpus";
 import { retrieveHelpEntries } from "@/lib/support/help-corpus";
-import { supportAiErrorCard } from "@/lib/support/support-ai-failure";
+import { shouldOfferHumanInsteadOfEscalating, supportAiErrorCard } from "@/lib/support/support-ai-failure";
 import { supportEngine } from "@/lib/support/support-engine";
 import { wantsHumanSupport } from "@/lib/support/support-human-prefilter";
 import { sanitizeGuestAiOutput } from "@/lib/support/support-ai-guardrails";
@@ -325,13 +325,14 @@ export async function POST(request: Request) {
     }
     if (confidence < 0.4) escalateReason = escalateReason ?? "ai_low_confidence";
 
-    if (escalateReason) {
+    // TUL-660: the AI asks before handing over; only dispute/safety/legal escalate on their own.
+    if (escalateReason && !shouldOfferHumanInsteadOfEscalating(escalateReason)) {
       await supportEngine.escalateTicket({
         ticketId,
         reason: escalateReason,
         actorUserId: null,
       });
-    } else if (aiTurns >= 3) {
+    } else if (escalateReason || aiTurns >= 3) {
       await supportEngine.appendMessage({
         ticketId,
         authorKind: "ai",

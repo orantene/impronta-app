@@ -107,3 +107,14 @@ test("TUL-795 reviews wiring: renderer loads published reviews + rating summary 
   assert.match(src, /loadTalentRatingSummary\(talentProfileId\)/);
   assert.match(src, /reviews: serviceReviews, demo: isDemo/);
 });
+
+test("TUL-586: no description renders the generated sentence (ES + EN) and no empty photo block", () => {
+  const es = html(A, "es", { talentName: "Ana", city: "Cancun" });
+  assert.match(es, /data-talent-service-description=""[^>]*>Corte por Ana en Cancun</);
+  assert.doesNotMatch(es, /data-talent-service-photos/);
+  const en = html(A, "en", { talentName: "Ana", city: "Cancun" });
+  assert.match(en, />Corte by Ana in Cancun</);
+  assert.doesNotMatch(en, /data-talent-service-photos/);
+  const real = html({ ...A, description: "Incluye lavado" }, "es", { talentName: "Ana" });
+  assert.match(real, />Incluye lavado</);
+});

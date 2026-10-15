@@ -450,7 +450,7 @@ export function DrawerHead({
         onClick={onClose}
         title="Close"
         aria-label="Close panel"
-        className="inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors"
+        className="inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors max-sm:size-11"
         style={{ color: CHROME.muted }}
         onMouseEnter={(e) => {
           e.currentTarget.style.color = CHROME.ink;
@@ -632,7 +632,7 @@ export function DrawerTabs({ className, children }: DrawerTabsProps) {
   return (
     <div
       role="tablist"
-      className={`flex min-w-0 items-stretch gap-5 overflow-x-auto px-[18px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className ?? ""}`}
+      className={`flex min-w-0 max-w-full shrink-0 items-stretch gap-5 overflow-x-auto overscroll-x-contain px-[18px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className ?? ""}`}
     >
       {children}
     </div>

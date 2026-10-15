@@ -107,6 +107,9 @@ export function serviceMainNode(
     faq?: readonly ServiceFaqItem[];
     reviews?: ServiceReviews | null;
     promo?: DisplayPriceContext | null;
+    /** Only used for the generated summary sentence when the service has no description. */
+    talentName?: string | null;
+    city?: string | null;
   },
 ): ReactNode {
   const copy = servicePageCopy(opts.locale);
@@ -145,7 +148,9 @@ export function serviceMainNode(
       </p>
       <h1 style={{ margin: "0 0 8px", fontFamily: "var(--site-heading-font, inherit)", lineHeight: 1.15 }}>{o.title}</h1>
       {facts ? <p style={{ margin: "0 0 20px", color: SOFT }}>{facts}</p> : null}
-      {o.description ? <p style={{ margin: "0 0 28px", whiteSpace: "pre-line" }}>{o.description}</p> : null}
+      <p data-talent-service-description="" style={{ margin: "0 0 28px", whiteSpace: "pre-line" }}>
+        {o.description?.trim() ? o.description : serviceMetaText(o, opts.talentName ?? null, { city: opts.city, locale: opts.locale }).description}
+      </p>
       {photos.length > 0 ? (
         <div data-talent-service-photos="" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 8, margin: "0 0 28px" }}>
           {photos.map((src, i) => (

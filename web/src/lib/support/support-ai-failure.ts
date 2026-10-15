@@ -18,3 +18,20 @@ export const SUPPORT_AI_ERROR_CARD = { kind: "offer-human", reason: "ai_error", 
 export function supportAiErrorCard(locale: string | null | undefined) {
   return { ...SUPPORT_AI_ERROR_CARD, description: supportAiErrorBody(locale) };
 }
+
+/**
+ * TUL-660: reasons the AI may raise on its own. These only OFFER a person (card,
+ * the requester taps); they never hand the ticket over silently. Deadline-bound
+ * subject reasons (dispute, safety, legal) still escalate immediately.
+ */
+const OFFER_FIRST_REASONS: ReadonlySet<string> = new Set([
+  "ai_low_confidence",
+  "ai_sentiment",
+  "ai_suggested",
+  "billing",
+  "refund",
+]);
+
+export function shouldOfferHumanInsteadOfEscalating(reason: string): boolean {
+  return OFFER_FIRST_REASONS.has(reason);
+}
