@@ -28,6 +28,7 @@ import {
   type MarketingAccount,
 } from "./marketing-account-menu";
 import { useStickyDesktopMenu } from "./marketing-header-sticky-menu";
+import { ClientAccountButton, CLIENT_ACCOUNT_OPEN_EVENT } from "@/components/client-account/ClientAccountButton";
 import type { HubClientEntry } from "@/lib/marketing/hub-client-entry";
 
 export function MarketingHeader({
@@ -205,8 +206,13 @@ export function MarketingHeader({
             <>
               {clientEntry ? (
                 <>
+                  <ClientAccountButton variant="header" locale={locale} hideTrigger />
                   <a
                     href={clientEntry.signInHref}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.dispatchEvent(new CustomEvent(CLIENT_ACCOUNT_OPEN_EVENT));
+                    }}
                     className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] px-2.5 text-[0.8125rem] font-medium leading-none tracking-[-0.005em] text-[var(--plt-ink-soft)] transition-[background-color,border-color,color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] hover:text-[var(--plt-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)] lg:px-3.5 lg:text-[0.875rem]"
                   >
                     <SignInGlyph />
@@ -368,6 +374,11 @@ export function MarketingHeader({
                     <>
                       <a
                         href={clientEntry.signInHref}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setMenuOpen(false);
+                          window.dispatchEvent(new CustomEvent(CLIENT_ACCOUNT_OPEN_EVENT));
+                        }}
                         className="flex w-full items-center justify-between rounded-2xl px-4 py-4 text-left text-[1rem] font-medium"
                         style={{ color: "var(--plt-ink-soft)" }}
                       >
