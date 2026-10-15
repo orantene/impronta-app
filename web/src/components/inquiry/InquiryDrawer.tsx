@@ -34,7 +34,7 @@ import {
   type InquiryBudget,
   type InquiryBrief,
   type InquiryAttachment,
-  validateIntentForSubmit,
+  validateIntentForSubmit, missingFieldLabels,
 } from "@/lib/inquiry/inquiry-intent";
 import {
   saveDraftAction,
@@ -521,15 +521,7 @@ export function InquiryDrawer({
             {submitted
               ? interpolate(t(sentKeys.footer), sentVars)
               : !canSubmit && step === "compose"
-                ? (validation.ok ? t("public.inquiryDrawer.footerNeedMore") : interpolate(t("public.inquiryDrawer.footerMissing"), {
-                    // TUL-952: say exactly what is missing instead of a vague hint.
-                    fields: validation.missingFields.map((f) => t(
-                      f === "requester.name" ? "public.inquiryDrawer.missingName"
-                        : f === "requester.email_or_phone" ? "public.inquiryDrawer.missingContact"
-                          : f === "brief.summary_or_talent" ? "public.inquiryDrawer.missingBrief"
-                            : f === "location.city_or_status" ? "public.inquiryDrawer.missingLocation"
-                              : "public.inquiryDrawer.missingDate")).join(", "),
-                  }))
+                ? (validation.ok ? t("public.inquiryDrawer.footerNeedMore") : interpolate(t("public.inquiryDrawer.footerMissing"), { fields: missingFieldLabels(validation.missingFields, t) }))
                 : submitState.kind === "slot_taken"
                   ? <span style={{ color: C.amber }}>{t(submitState.nextFreeTimes.length > 0 ? "public.inquiryDrawer.slotTakenIntro" : "public.inquiryDrawer.slotTakenNone")}</span>
                 : submitState.kind === "error"
@@ -707,9 +699,7 @@ export function RequesterSection({
   client: InquiryDrawerProps["client"];
 }) {
   const t = useT();
-  // TUL-965: callers only pass `client` for a signed-in visitor, and the hub sheet
-  // omits user_id, so an email on the client is enough to not call them "New client".
-  const isLoggedIn = !!client?.user_id || !!client?.email;
+  const isLoggedIn = !!client?.user_id || !!client?.email; // TUL-965: hub sheet passes no user_id
   return (
     <Section title={t("public.inquiryDrawer.requesterTitle")} subtitle={t("public.inquiryDrawer.requesterSubtitle")}>
       {/* Trust card — always shown, content differs by state */}
