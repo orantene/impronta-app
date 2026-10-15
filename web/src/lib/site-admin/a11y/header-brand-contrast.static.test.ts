@@ -33,3 +33,15 @@ test("TUL-524: brand label rule forces full opacity ink on surface/solid", () =>
   );
   assert.match(CSS, /site-header__brand-label[^}]*opacity:\s*1/);
 });
+
+test("TUL-883: scrolled transparent header makes every control white, with a scrim and anchor offset", () => {
+  assert.match(
+    CSS,
+    /\.site-header\[data-tone="transparent"\]\[data-scrolled="true"\] a,[\s\S]{0,400}?\{\s*color:\s*#ffffff;/,
+  );
+  assert.match(
+    CSS,
+    /\.site-header\[data-tone="transparent"\]:not\(\[data-scrolled="true"\]\)\s*\{\s*background-image:\s*linear-gradient/,
+  );
+  assert.match(CSS, /html:has\(\.site-header\[data-tone="transparent"\]\)\s*\{\s*scroll-padding-top:\s*84px/);
+});
