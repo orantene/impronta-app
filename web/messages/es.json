@@ -209,6 +209,7 @@
         "plusResentNotice": "Enviamos un código nuevo a {email}. Si sigue sin llegar, prueba con tu dirección principal (sin el +).",
         "codeLabel": "Código de tu correo",
         "codeHint": "De un solo uso. También puedes abrir el enlace de acceso del mismo correo. Revisa tu carpeta de spam si no llega.",
+        "codeLengthHint": "El código tiene {n} dígitos.",
         "verifySubmit": "Continuar",
         "verifyPending": "Verificando tu código",
         "resend": "Enviar un código nuevo",
@@ -219,6 +220,7 @@
         "errors": {
           "codeRequired": "Escribe el código de tu correo.",
           "codeInvalid": "Ese código no funcionó. Revisa los dígitos o pide un código nuevo.",
+          "codeTooShort": "El código tiene {n} dígitos. Revisa que los hayas copiado todos o pide uno nuevo.",
           "codeExpired": "Ese código caducó o ya se usó. Pide uno nuevo.",
           "tooMany": "Demasiados intentos. Espera un minuto e inténtalo de nuevo.",
           "sendFailed": "No pudimos enviar tu código. Revisa el correo e inténtalo de nuevo.",

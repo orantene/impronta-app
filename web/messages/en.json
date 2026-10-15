@@ -209,6 +209,7 @@
         "plusResentNotice": "New code sent to {email}. If it still doesn't arrive, try your main address (without the + tag).",
         "codeLabel": "Code from your email",
         "codeHint": "Single use. You can also open the sign-in link in the same email instead. Check your spam folder if nothing arrives.",
+        "codeLengthHint": "The code has {n} digits.",
         "verifySubmit": "Continue",
         "verifyPending": "Checking your code",
         "resend": "Send a new code",
@@ -219,6 +220,7 @@
         "errors": {
           "codeRequired": "Enter the code from your email.",
           "codeInvalid": "That code did not work. Check the digits, or send a new code.",
+          "codeTooShort": "The code has {n} digits. Check you copied all of them, or send a new code.",
           "codeExpired": "That code has expired or was already used. Send a new one.",
           "tooMany": "Too many attempts. Wait a minute and try again.",
           "sendFailed": "We could not send your code. Check the address and try again.",
