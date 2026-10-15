@@ -7,9 +7,10 @@
  * the same tab again to close. Draggable like other floating chrome.
  */
 
-import { type ComponentType } from "react";
+import { useEffect, useState, type ComponentType, type CSSProperties } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
+import { MOBILE_RAIL_EXPAND_EVENT } from "./command-dock";
 import { useEditContext } from "./edit-context";
 import { useFloatingDrag } from "./floating-panel";
 import { inspectorRailDockStyle } from "./inspector-rail-dock";
@@ -110,14 +111,61 @@ export function InspectorCommandRail() {
   );
   const railBorder = `1px solid ${CHROME.line}`;
 
+  // Phone (max-sm, 640px): collapsed behind a right-edge handle, like the
+  // left command dock, so no fixed rail covers the canvas by default. All
+  // extra classes are max-sm: scoped, so desktop renders exactly as before.
+  const [mobileExpanded, setMobileExpanded] = useState(false);
+  useEffect(() => {
+    function onOtherRailExpand(event: Event) {
+      const detail = (event as CustomEvent<{ side?: string }>).detail;
+      if (detail?.side !== "inspector-rail") setMobileExpanded(false);
+    }
+    window.addEventListener(MOBILE_RAIL_EXPAND_EVENT, onOtherRailExpand);
+    return () => window.removeEventListener(MOBILE_RAIL_EXPAND_EVENT, onOtherRailExpand);
+  }, []);
+  const expandMobileRail = () => {
+    setMobileExpanded(true);
+    window.dispatchEvent(
+      new CustomEvent(MOBILE_RAIL_EXPAND_EVENT, { detail: { side: "inspector-rail" } }),
+    );
+  };
+
   return (
+    <>
+    {!mobileExpanded ? (
+      <button
+        type="button"
+        onClick={expandMobileRail}
+        aria-expanded={false}
+        aria-label={t("Open section editor tabs")}
+        data-mobile-inspector-rail-tab
+        className="hidden max-sm:flex fixed items-center justify-center border border-r-0"
+        style={{
+          right: 0,
+          top: INSPECTOR_CHROME_TOP_PX,
+          width: 24,
+          height: 64,
+          borderRadius: "12px 0 0 12px",
+          zIndex: Z_INDEX.panels,
+          background: CHROME.surface,
+          borderColor: CHROME.line,
+          boxShadow: RAIL_SHADOW,
+        }}
+      >
+        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+          <path d="M15 6l-6 6 6 6" />
+        </svg>
+      </button>
+    ) : null}
     <nav
       ref={setPanelNode}
       data-inspector-command-rail=""
       data-inspector-rail-docked={dockedToRail ? "true" : "false"}
+      data-mobile-expanded={mobileExpanded ? "true" : "false"}
       aria-label={t("Section editor tabs")}
-      className="fixed flex flex-col"
+      className="fixed flex flex-col max-sm:!right-0 max-sm:transition-transform max-sm:duration-300 max-sm:ease-out max-sm:!translate-x-[var(--ec-mobile-rail-x)]"
       style={{
+        "--ec-mobile-rail-x": mobileExpanded ? "0px" : "120%",
         right: INSPECTOR_RAIL_RIGHT_PX,
         top: INSPECTOR_CHROME_TOP_PX,
         width: INSPECTOR_RAIL_WIDTH_PX,
@@ -130,8 +178,19 @@ export function InspectorCommandRail() {
         padding: "12px 7px 10px",
         transform,
         ...dockStyle,
-      }}
+      } as CSSProperties}
     >
+      {/* Phone only: a clear way to fold the rail back behind its handle. */}
+      <button
+        type="button"
+        onClick={() => setMobileExpanded(false)}
+        aria-label={t("Collapse section editor tabs")}
+        className="hidden max-sm:inline-flex items-center justify-center self-end rounded-md p-1"
+      >
+        <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+          <path d="M9 6l6 6-6 6" />
+        </svg>
+      </button>
       <div
         role="tablist"
         aria-orientation="vertical"
@@ -146,10 +205,14 @@ export function InspectorCommandRail() {
             hint={t(item.hint)}
             icon={item.icon}
             active={inspectorDockOpen && inspectorActiveTab === item.key}
-            onSelect={(key) => toggleInspectorTab(key)}
+            onSelect={(key) => {
+              toggleInspectorTab(key);
+              setMobileExpanded(false);
+            }}
           />
         ))}
       </div>
     </nav>
+    </>
   );
 }

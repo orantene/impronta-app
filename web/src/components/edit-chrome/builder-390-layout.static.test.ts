@@ -54,3 +54,29 @@ test("TUL-1028: the update notice is one compact row on phones and the domain pi
   const pill = read("../talent/site/maison-setup/MyWebsiteCard.tsx");
   assert.match(pill, /data-testid="maison-live-address"[\s\S]{0,200}overflow-hidden text-ellipsis whitespace-nowrap/);
 });
+
+test("TUL-914: at 390 the top bar row fits the viewport (site chip shrinks, Publish is compact, divider hidden)", () => {
+  const bar = read("./topbar.tsx");
+  assert.match(bar, /max-\[640px\]:w-full max-\[640px\]:min-w-0/);
+  assert.match(bar, /data-page-picker>/);
+  assert.match(bar, /relative shrink-0 max-\[640px\]:min-w-0 max-\[640px\]:max-w-\[104px\] max-\[640px\]:shrink" data-page-picker/);
+  assert.match(bar, /max-\[640px\]:min-w-0 max-\[640px\]:truncate/);
+  assert.match(bar, /shrink-0 max-\[640px\]:hidden"\s*style=\{\{\s*width: 1,/);
+  // Publish: padding moved out of the inline style so the phone class can shrink it; 44px tap height is TB_CONTROL_H.
+  assert.match(bar, /pl-\[20px\] pr-\[18px\][^"]*max-\[640px\]:px-\[10px\]/);
+  assert.doesNotMatch(bar, /padding: "0 18px 0 20px"/);
+  assert.match(read("./talent-builder-identity.tsx"), /max-\[640px\]:max-w-\[72px\] max-\[640px\]:truncate/);
+});
+
+test("TUL-914: at 390 the right command rail folds behind an edge handle instead of covering the canvas", () => {
+  const rail = read("./inspector-command-rail.tsx");
+  assert.match(rail, /data-mobile-inspector-rail-tab/);
+  assert.match(rail, /hidden max-sm:flex fixed/);
+  assert.match(rail, /max-sm:!right-0[^"]*max-sm:!translate-x-\[var\(--ec-mobile-rail-x\)\]/);
+  assert.match(rail, /"--ec-mobile-rail-x": mobileExpanded \? "0px" : "120%"/);
+  assert.match(rail, /MOBILE_RAIL_EXPAND_EVENT/);
+  assert.match(rail, /Collapse section editor tabs/);
+  const es = read("./editor-i18n-es-canvas.ts");
+  assert.match(es, /"Open section editor tabs":/);
+  assert.match(es, /"Collapse section editor tabs":/);
+});
