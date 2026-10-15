@@ -143,7 +143,7 @@ async function resolveContactHref(params: {
   locale: string;
   contactEmail: string | null;
 }): Promise<string> {
-  const platformContact = authMarketingHref(resolveMarketingOrigin(), "/about", locale);
+  const platformContact = authMarketingHref(resolveMarketingOrigin(), "/about", params.locale);
   if (!params.isTenant || params.hostKind !== "agency") return platformContact;
 
   const contactPage = await loadPublicPageBySlug(
