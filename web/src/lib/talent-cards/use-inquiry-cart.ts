@@ -16,12 +16,15 @@
  * See `./contracts` for the published `UseInquiryCartResult` signature.
  */
 
-import { useCallback, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useCallback, useMemo, useState } from "react";
 
 import { setTalentSaved } from "@/app/(public)/directory/actions";
 import { useOptionalDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
 import { usePublicDiscoveryStateOptional } from "@/components/directory/public-discovery-state";
 
+import { addToScope, idsInScope, inScope, removeFromScope, scopeKeyForPath } from "./cart-scope";
+import { getCartScopes, setCartScopes, useCartScopes } from "./cart-scope-store";
 import type {
   OpenInquiryOptions,
   TalentCardRef,
@@ -33,6 +36,9 @@ const EMPTY: readonly string[] = Object.freeze([]);
 export function useInquiryCart(): UseInquiryCartResult {
   const discovery = usePublicDiscoveryStateOptional();
   const inquiryModal = useOptionalDirectoryInquiryModal();
+  // TUL-1068 #11: the cart only shows and sends entries added in THIS context.
+  const scope = scopeKeyForPath(usePathname());
+  const scopes = useCartScopes();
   const [pendingIds, setPendingIds] = useState<ReadonlySet<string>>(
     () => new Set<string>(),
   );
@@ -64,8 +70,8 @@ export function useInquiryCart(): UseInquiryCartResult {
   );
 
   const isInCart = useCallback(
-    (id: string) => discovery?.isSaved(id) ?? false,
-    [discovery],
+    (id: string) => (discovery?.isSaved(id) ?? false) && inScope(scopes, id, scope),
+    [discovery, scopes, scope],
   );
 
   const isPending = useCallback(
@@ -77,8 +83,21 @@ export function useInquiryCart(): UseInquiryCartResult {
     (talent: TalentCardRef, inCart: boolean, sourcePage?: string) => {
       if (!discovery) return;
       const id = talent.talentProfileId;
-      if (discovery.isSaved(id) === inCart) return; // idempotent
+      if (isInCart(id) === inCart) return; // idempotent
       if (inCart) noteSourcePage(sourcePage);
+      const restoreScopes = getCartScopes();
+      if (inCart) {
+        setCartScopes(addToScope(restoreScopes, id, scope));
+        // Already saved from another context: it joins this one, no server write.
+        if (discovery.isSaved(id)) {
+          if (inquiryModal) inquiryModal.bumpSaveCue();
+          return;
+        }
+      } else {
+        const { map, lastScope } = removeFromScope(restoreScopes, id, scope);
+        setCartScopes(map);
+        if (!lastScope) return; // still held by another context
+      }
 
       // Optimistic commit (also writes the guest localStorage mirror).
       discovery.setSavedState(id, inCart);
@@ -88,6 +107,7 @@ export function useInquiryCart(): UseInquiryCartResult {
         .then((res) => {
           if (!res.ok) {
             discovery.setSavedState(id, !inCart); // revert
+            setCartScopes(restoreScopes);
             discovery.setFlash({
               tone: "error",
               title: "Could not update your inquiry list",
@@ -100,6 +120,7 @@ export function useInquiryCart(): UseInquiryCartResult {
         })
         .catch(() => {
           discovery.setSavedState(id, !inCart); // revert
+          setCartScopes(restoreScopes);
           discovery.setFlash({
             tone: "error",
             title: "Could not update your inquiry list",
@@ -109,15 +130,20 @@ export function useInquiryCart(): UseInquiryCartResult {
           markPending(id, false);
         });
     },
-    [discovery, inquiryModal, markPending, noteSourcePage],
+    [discovery, inquiryModal, isInCart, markPending, noteSourcePage, scope],
   );
 
   const toggleInCart = useCallback(
     (talent: TalentCardRef, sourcePage?: string) => {
       if (!discovery) return;
-      setInCart(talent, !discovery.isSaved(talent.talentProfileId), sourcePage);
+      setInCart(talent, !isInCart(talent.talentProfileId), sourcePage);
     },
-    [discovery, setInCart],
+    [discovery, isInCart, setInCart],
+  );
+
+  const cartIds = useMemo(
+    () => (discovery ? idsInScope(discovery.savedIds, scopes, scope) : EMPTY),
+    [discovery, scopes, scope],
   );
 
   const openInquiry = useCallback(
@@ -132,8 +158,8 @@ export function useInquiryCart(): UseInquiryCartResult {
   );
 
   return {
-    cartIds: discovery?.savedIds ?? EMPTY,
-    cartCount: discovery?.savedCount ?? 0,
+    cartIds,
+    cartCount: cartIds.length,
     isInCart,
     isPending,
     toggleInCart,
