@@ -18,6 +18,6 @@ test("TUL-1153: lineup empty state has no directory wording", () => {
 
 test("TUL-1153: a one-talent workspace site is flagged soloTalent in the agency mount", () => {
   const mount = readFileSync(join(__dirname, "../../../(public)/_chat/AgencyChatLauncherMount.tsx"), "utf8");
-  assert.match(mount, /activeRosterSize\(tenantId\)\) === 1/);
+  assert.match(mount, /rosterSize !== null && rosterSize <= 1/);
   assert.match(mount, /\n\s+soloTalent,\n/);
 });

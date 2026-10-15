@@ -64,7 +64,7 @@ import { interpolate } from "@/i18n/interpolate";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 
 /**
- * TUL-1153: a workspace with exactly one talent on its roster is a single-talent
+ * TUL-1153: a workspace with at most one talent on its roster is a single-talent
  * site, so the dock speaks for that one person ("Which service would you like?")
  * instead of the agency "find the right talent" voice. Null on a read failure,
  * which keeps the agency voice.
@@ -216,7 +216,9 @@ export async function AgencyChatLauncherMount({
   const presetVoice =
     words.preset.id === "custom" ? undefined : words.preset.chatVoice[words.locale];
   // Hub opener: prefer a tenant-configured greeting, else the concierge default.
-  const soloTalent = !isHub && tenantId ? (await activeRosterSize(tenantId)) === 1 : false;
+  // Same rule as the workspace nav (`derivePreset`: at most one person is solo).
+  const rosterSize = !isHub && tenantId ? await activeRosterSize(tenantId) : null;
+  const soloTalent = rosterSize !== null && rosterSize <= 1;
   const greeting = isHub
     ? settings.greeting?.trim() || t("public.guestChat.hubConciergeGreeting")
     : settings.greeting?.trim() || presetVoice;
