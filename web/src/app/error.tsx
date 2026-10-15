@@ -1,4 +1,5 @@
 "use client";
+import { redactSecretPath } from "@/lib/analytics/redact-secret-path";
 import * as Sentry from "@sentry/nextjs";
 
 import { logServerError } from "@/lib/server/safe-error";
@@ -80,11 +81,12 @@ export default function GlobalError({
     try {
       Sentry.withScope((scope) => {
         scope.setTag("context", "app/error-boundary");
-        scope.setTag("route", typeof window !== "undefined" ? window.location.pathname : "unknown");
+        scope.setTag("route", typeof window !== "undefined" ? redactSecretPath(window.location.pathname) : "unknown");
         scope.setTag("host", typeof window !== "undefined" ? window.location.hostname : "unknown");
         scope.setTag("stale_client_shape", String(isStaleClientError(error)));
         scope.setExtra("digest", error?.digest ?? null);
-        scope.setExtra("href", typeof window !== "undefined" ? window.location.href : null);
+        // Origin + path only: the query string can hold auth codes or tokens.
+        scope.setExtra("href", typeof window !== "undefined" ? window.location.origin + window.location.pathname : null);
         Sentry.captureException(error);
       });
     } catch {
