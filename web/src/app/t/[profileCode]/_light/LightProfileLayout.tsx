@@ -279,7 +279,6 @@ function groupDetailRows(rows: DetailRow[]): Array<{ group: string; rows: Detail
 
 export function LightProfileLayout({
   name,
-  firstName,
   profileCode,
   profileImageUrl,
   bannerUrl,
@@ -650,7 +649,7 @@ export function LightProfileLayout({
             className="plt-display max-w-xl text-2xl font-semibold tracking-[-0.03em] sm:text-3xl"
             style={{ color: "var(--plt-ink-strong)" }}
           >
-            {t("public.profile.footerCtaTitle").replace("{firstName}", firstName)}
+            {t("public.profile.footerCtaTitle").replace("{firstName}", name)}
           </h2>
           <p
             className="max-w-md text-base leading-relaxed"

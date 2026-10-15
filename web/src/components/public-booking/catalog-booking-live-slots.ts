@@ -21,6 +21,24 @@ export function shouldSkipGuestCaptchaOnHost(): boolean {
   );
 }
 
+/**
+ * TUL-861: the booking window matches the profile's "available N of next 30
+ * days" line, so the two surfaces never describe different horizons.
+ */
+export const CATALOG_LIVE_SLOT_DAYS = 30;
+
+/** Empty-state copy: a quiet day is not "nothing in the whole window". */
+export function catalogEmptyWhenCopy(es: boolean, otherDayHasTimes: boolean): { title: string; body: string } {
+  if (otherDayHasTimes) {
+    return es
+      ? { title: "Sin horarios este día.", body: "Elige otro día con horarios disponibles." }
+      : { title: "No times this day.", body: "Pick another day that has times." };
+  }
+  return es
+    ? { title: "Sin horarios disponibles.", body: `No hay huecos en los próximos ${CATALOG_LIVE_SLOT_DAYS} días. Prueba otra fecha o consulta.` }
+    : { title: "No times available.", body: `Nothing is open in the next ${CATALOG_LIVE_SLOT_DAYS} days. Try another day or send a question.` };
+}
+
 export async function fetchLiveSlots(
   offeringId: string,
   durationMinutes: number,
@@ -29,7 +47,7 @@ export async function fetchLiveSlots(
   const params = new URLSearchParams({
     offering: offeringId,
     from,
-    days: "14",
+    days: String(CATALOG_LIVE_SLOT_DAYS),
     duration: String(durationMinutes),
   });
   const res = await fetch(publicSlotsUrl(params), { cache: "no-store" });

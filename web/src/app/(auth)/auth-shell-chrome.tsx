@@ -69,6 +69,8 @@ export type AuthShellBrand = {
   proofChips: readonly string[];
   /** Localized "Back to {site}" label, already interpolated. */
   backLabel: string;
+  /** Platform branch: the locale-prefixed marketing home. Tenant hosts stay host-local (`/`). */
+  backHref?: string;
 };
 
 /* ───────────────────────────── brand lockup ───────────────────────────── */
@@ -370,7 +372,7 @@ export function AuthTopBar({ brand }: { brand: AuthShellBrand }) {
         </div>
 
         <Link
-          href="/"
+          href={brand.backHref ?? "/"}
           className="group inline-flex shrink-0 items-center gap-2 rounded-full px-3.5 py-2 text-[0.8125rem] font-medium transition-colors"
           style={{
             border: "1px solid var(--plt-hairline-strong)",

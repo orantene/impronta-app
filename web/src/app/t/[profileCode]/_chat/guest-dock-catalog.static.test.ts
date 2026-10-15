@@ -86,3 +86,9 @@ test("talent service Select/Request opens CatalogBookingSheet, not Ask-only", ()
   const mount = read("app/t/[profileCode]/_chat/TalentProfileChatLauncherMount.tsx");
   assert.match(mount, /offeringId: o\.id/);
 });
+
+test("TUL-1068: hub talent pages never link to the missing /book or /events storefront", () => {
+  const src = read("app/t/[profileCode]/_chat/GuestDockCatalog.tsx");
+  assert.match(src, /onHubProfile = \/\^\\\/\(\?:\[a-z\]\{2\}\\\/\)\?t\\\/\/\.test\(pathname \?\? ""\)/);
+  assert.match(src, /buyPath && !onHubProfile/);
+});

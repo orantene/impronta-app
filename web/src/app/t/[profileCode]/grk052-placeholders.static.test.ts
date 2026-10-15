@@ -15,8 +15,8 @@ const profileSrc = readFileSync(join(here, "profile-view.tsx"), "utf8");
 
 test("GRK-052: travel fee chip is not a bare · FEE placeholder", () => {
   assert.doesNotMatch(servicesSrc, /· fee["']/);
-  assert.match(servicesSrc, /travel fee applies/);
-  assert.match(servicesSrc, /aplica tarifa de viaje/);
+  // Main's S2 wording (#3757) replaced "travel fee applies" with a short localized chip.
+  assert.match(servicesSrc, /es: "con costo"/);
 });
 
 test("GRK-052: DetailCard can hide a group title that repeats the section", () => {

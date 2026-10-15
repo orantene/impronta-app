@@ -595,7 +595,7 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
         {plan.rest[2] ?? plan.look[0] ? <div className="nf-close__bg" aria-hidden="true"><Image src={(plan.rest[2] ?? plan.look[0]).url} alt="" fill quality={85} sizes="100vw" /></div> : null}
         <div className="nf-wrap nf-close__in">
           <span className="nf-meta nf-meta--gold">{labels.closeEyebrow}</span>
-          <h2>{t("public.profile.footerCtaTitle").replace("{firstName}", firstName)}</h2>
+          <h2>{t("public.profile.footerCtaTitle").replace("{firstName}", name)}</h2>
           <p>{labels.closeBody}</p>
           {primary(inquireButtonFooter)}
           {slotPicker ? <div className="nf-close__picker">{slotPicker}</div> : null}
