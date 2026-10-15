@@ -181,7 +181,7 @@ export function TalentDraftChip(): ReactElement | null {
       <button
         type="button"
         data-talent-draft-chip
-        className="min-h-11 max-w-[min(200px,28vw)] truncate sm:min-h-[26px]"
+        className="min-h-11 sm:min-h-[26px] max-w-[min(200px,28vw)] truncate"
         onClick={() => setOpen(true)}
         aria-label={fullLabel}
         title={draftTitle}
