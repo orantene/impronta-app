@@ -46,7 +46,7 @@ test("turn ceiling hands off once (no prior handoff)", () => {
   assert.deepEqual(d, { action: "handoff", reason: "turn_ceiling" });
 });
 
-test("prior handoff is terminal skip (no resume, no spam)", () => {
+test("prior handoff: repeat handoff ask is skipped (no canned spam)", () => {
   const d = decideBookingAssistantTurn({
     enabled: true,
     guestMessage: "Can I talk to a real person again?",
@@ -94,4 +94,24 @@ test("otherwise routes to llm facts", () => {
     instantAnswered: false,
   });
   assert.deepEqual(d, { action: "llm_facts" });
+});
+
+test("TUL-1155: factual follow-up after a handoff is still answered", () => {
+  const d = decideBookingAssistantTurn({
+    enabled: true,
+    guestMessage: "How long does the color session take?",
+    priorMessages: [{ systemEventType: "booking_assistant_handoff" }],
+    instantAnswered: false,
+  });
+  assert.deepEqual(d, { action: "llm_facts" });
+});
+
+test("TUL-1155: booking verb after a handoff skips instead of re-sending handoff copy", () => {
+  const d = decideBookingAssistantTurn({
+    enabled: true,
+    guestMessage: "I want to book Friday",
+    priorMessages: [{ systemEventType: "booking_assistant_handoff" }],
+    instantAnswered: false,
+  });
+  assert.deepEqual(d, { action: "skip", reason: "already_handed_off" });
 });
