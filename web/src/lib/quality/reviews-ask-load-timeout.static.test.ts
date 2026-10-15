@@ -10,8 +10,18 @@ const SRC = readFileSync(
 
 describe("TUL-981 ask-for-review loader never hangs", () => {
   it("wraps the bookings loader in a timeout that falls into the catch (email path)", () => {
-    assert.match(SRC, /withLoadTimeout\(\s*Promise\.all/);
+    assert.match(SRC, /withLoadTimeout\(loadReviewAskBookingsAction\(/);
     assert.match(SRC, /review-ask-load-timeout/);
     assert.match(SRC, /setBookings\(\[\]\);\s*setEmailMode\(true\)/);
+  });
+
+  it("makes ONE server action call before the picker shows; the client list loads after (actions run in sequence)", () => {
+    const ACTION = readFileSync(join(process.cwd(), "src/lib/reviews/review-ask-load-action.ts"), "utf8");
+    assert.match(ACTION, /^"use server";/);
+    assert.match(ACTION, /Promise\.all\(\[\s*loadClientReviewablesAction\(tenantSlug\),\s*loadReviewRequestsForOwnerAction\(/);
+    assert.doesNotMatch(SRC, /loadClientReviewablesAction|loadReviewRequestsForOwnerAction/);
+    const ready = SRC.indexOf("setBookings(reviewables)");
+    const clients = SRC.indexOf("loadTalentClients(talentProfileId)");
+    assert.ok(ready > 0 && clients > ready, "client list is requested only after the bookings are set");
   });
 });
