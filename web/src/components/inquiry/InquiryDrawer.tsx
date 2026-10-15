@@ -123,7 +123,7 @@ export type InquiryDrawerProps = {
    * When the offering resolves bookable, Compose swaps the date picker for
    * SlotPicker and hides event-only sections (budget / brief / wardrobe).
    */
-  bookableOffering?: BookableOffering | null; followUpOnSite?: boolean;
+  bookableOffering?: BookableOffering | null;
   onClose: () => void;
 };
 
@@ -140,7 +140,7 @@ export function InquiryDrawer({
   bindToInquiryCart = false,
   talentToolsSlot,
   representsPeople,
-  bookableOffering = null, followUpOnSite = false,
+  bookableOffering = null,
   onClose,
 }: InquiryDrawerProps) {
   const t = useT();
@@ -462,7 +462,7 @@ export function InquiryDrawer({
         <div style={{ flex: 1, overflowY: "auto", padding: "16px 22px 24px" }}>
           {submitState.kind === "submitted" ? (
             <>
-              <SubmittedView state={submitState} agencyName={agencyName} soloTalentName={soloTalentName} followUpOnSite={followUpOnSite} />
+              <SubmittedView state={submitState} agencyName={agencyName} soloTalentName={soloTalentName} />
               <AttachmentStatus phase={attachmentPhase} />
             </>
           ) : step === "compose" ? (

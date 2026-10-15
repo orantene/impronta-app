@@ -31,7 +31,6 @@ export async function ProfileSlotPickerChrome({
       locationLabel={locationLabel}
       bookingMode={bookingMode}
       signedIn={chrome.signedIn}
-      client={chrome.client}
       captcha={chrome.captcha}
     />
   );

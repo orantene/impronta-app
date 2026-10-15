@@ -85,6 +85,7 @@ import { resolveCheckoutCollectCents } from "@/lib/orders/purchase-collect";
 
 const FALLBACK_HOLD_TTL_SECONDS = 15 * 60;
 
+
 export async function createPurchase(
   admin: SupabaseClient,
   input: PurchaseInput,
@@ -605,7 +606,6 @@ export async function createPurchase(
       subtotalCents: priced.subtotalCents,
       currency: orderCurrency,
       contact: input.contact,
-      clientUserId: input.actorUserId ?? null, // TUL-62: Cancel/Reschedule need booking ownership
       policyVersionId: input.policyVersionId ?? null,
     });
     if (!anchor.ok) {

@@ -11,18 +11,16 @@ type SubmittedState = Extract<InquiryIntentActionState, { kind: "submitted" }>;
 
 /** Shown in the drawer once the inquiry is sent. */
 export function SubmittedView({
-  state, agencyName, soloTalentName = null, followUpOnSite = false,
+  state, agencyName, soloTalentName = null,
 }: {
   state: SubmittedState;
   agencyName: string;
   soloTalentName?: string | null;
-  followUpOnSite?: boolean;
 }) {
   const t = useT();
-  const messagesHref = followUpOnSite
-    ? `/c/${encodeURIComponent(state.inquiryId)}`
-    : `/${state.tenantSlug}/client/messages`
-      + `?inquiry=${encodeURIComponent(state.inquiryId)}&just_submitted=1`;
+  const messagesHref =
+    `/${state.tenantSlug}/client/messages`
+    + `?inquiry=${encodeURIComponent(state.inquiryId)}&just_submitted=1`;
 
   // Guest follow-up CTA. The route is activation-dependent so the visitor
   // never lands on a dead end:

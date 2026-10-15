@@ -28,12 +28,6 @@ export type LiveServiceCard = {
   bookable: boolean;
 };
 
-export type LiveBookingClient = {
-  displayName: string | null;
-  email: string | null;
-  phone: string | null;
-};
-
 export type LiveBookingSurface = {
   tenantSlug: string;
   agencyName: string;
@@ -45,8 +39,6 @@ export type LiveBookingSurface = {
     }
   >;
   signedIn: boolean;
-  /** TUL-62: signed-in contact for booking form prefill. */
-  client: LiveBookingClient | null;
   captcha: GuestCaptchaConfig | null;
 };
 

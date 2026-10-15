@@ -99,7 +99,6 @@ export default async function BookPage() {
           agencyName={agencyName}
           offerings={offerings}
           signedIn={guestChrome.signedIn}
-          client={guestChrome.client}
           captcha={guestChrome.captcha}
           locale={locale}
         />

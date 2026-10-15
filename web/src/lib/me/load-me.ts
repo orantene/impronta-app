@@ -23,13 +23,10 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 
-import { EMPTY_ME, meVisitListFields, shapeMeData, type MeData, type MeRow } from "./shape-me";
+import { EMPTY_ME, shapeMeData, type MeData, type MeRow } from "./shape-me";
 
 type BookingJoin = {
   id?: string | null;
-  title?: string | null;
-  status?: string | null;
-  starts_at?: string | null;
   total_client_revenue?: number | string | null;
   currency_code?: string | null;
   payment_status?: string | null;
@@ -71,7 +68,7 @@ export async function loadMeData(
       .from("inquiries")
       .select(
         `id, tenant_id, status, company, event_date, event_location, created_at, next_action_by,
-         agency_bookings!agency_bookings_source_inquiry_id_fkey ( id, title, status, starts_at, total_client_revenue, currency_code, payment_status )`,
+         agency_bookings!agency_bookings_source_inquiry_id_fkey ( id, total_client_revenue, currency_code, payment_status )`,
       )
       .eq("client_user_id", userId)
       .eq("tenant_id", tenantId)
@@ -88,21 +85,12 @@ export async function loadMeData(
       const booking = Array.isArray(r.agency_bookings)
         ? r.agency_bookings[0]
         : r.agency_bookings;
-      // TUL-62: same title / status / when preference as visit detail.
-      const visit = meVisitListFields({
-        company: r.company,
-        inquiryStatus: r.status,
-        eventDate: r.event_date,
-        booking: booking
-          ? { title: booking.title, status: booking.status, starts_at: booking.starts_at }
-          : null,
-      });
       return {
         id: r.id,
         tenantId: r.tenant_id,
-        status: visit.status,
-        title: visit.title,
-        eventDate: visit.eventDate,
+        status: r.status,
+        title: r.company,
+        eventDate: r.event_date,
         eventLocation: r.event_location,
         createdAt: r.created_at,
         nextActionBy: r.next_action_by,

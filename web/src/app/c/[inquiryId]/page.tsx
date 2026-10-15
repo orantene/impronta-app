@@ -25,7 +25,6 @@ import { publicThreadPath } from "@/lib/messaging/thread-token";
 import { hostSafeRedirectDestination } from "@/lib/saas/host-safe-destination";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { getAppUrl } from "@/lib/auth-flow";
-import { clientAccountEnabledFor } from "@/lib/client-account/flag";
 
 import {
   getGuestThreadMessages,
@@ -67,8 +66,7 @@ export default async function GuestFullConversationPage({
   // routes, and `hostSafeDestination` cannot speak for that host kind, so the
   // old relative redirect landed every guest on the platform 404 right after
   // "Confirmar cita". On a talent host the guest thread below is the page.
-  const hostCtx = await getPublicHostContext();
-  const hostKind = hostCtx.kind;
+  const { kind: hostKind } = await getPublicHostContext();
   const onTalentSite = hostKind === "talent_site";
   let ownerRedirect: string | null = null;
   if (session.user) {
@@ -82,25 +80,11 @@ export default async function GuestFullConversationPage({
       const workspacePath = `/${clientRedirect.tenantSlug}/client/messages?inquiry=${encodeURIComponent(
         inquiryId,
       )}&tab=chat`;
-      // TUL-62: on the inquiry's own agency host with the client account on,
-      // the visit in the site's account area, not the app dashboard.
-      if (
-        hostCtx.kind === "agency" &&
-        hostCtx.tenantSlug === clientRedirect.tenantSlug &&
-        clientAccountEnabledFor("agency")
-      ) {
-        redirect(`/account/visits/${encodeURIComponent(inquiryId)}`);
-      }
       if (!onTalentSite) {
         // Host-safe: `/c/<id>` resolves on every surface (the link is emailed
         // and opened from anywhere), but `/<slug>/client/messages` only exists
         // on the app + agency surfaces.
         redirect(await hostSafeRedirectDestination(workspacePath));
-      }
-      // TUL-62: a signed-in client who just booked on a talent site stays on
-      // that site, on the visit in their account area, not the app dashboard.
-      if (clientAccountEnabledFor("talent")) {
-        redirect(`/account/visits/${encodeURIComponent(inquiryId)}`);
       }
       // Talent host: render the guest thread when this browser owns it, and
       // only fall back to the app host (absolute, session cookie is parent

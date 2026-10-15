@@ -140,7 +140,6 @@ export async function LiveBookingBand({
         agencyName={surface.agencyName}
         offerings={surface.offerings}
         signedIn={surface.signedIn}
-        client={surface.client}
         captcha={surface.captcha}
         locale={locale}
       />
