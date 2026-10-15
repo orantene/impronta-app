@@ -1710,7 +1710,9 @@
       "lead": "Pick a service and a time. We will confirm shortly.",
       "bookCta": "Book",
       "chooseService": "Service",
-      "studioFallback": "the studio"
+      "studioFallback": "the studio",
+      "noServices": "Nothing is open for online booking yet. Send the studio a message and they will reply.",
+      "contactCta": "Send a message"
     },
     "siteShellSurface": {
       "title": "Site header & footer",

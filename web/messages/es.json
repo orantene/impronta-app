@@ -1710,7 +1710,9 @@
       "lead": "Elige un servicio y un horario. Confirmamos enseguida.",
       "bookCta": "Agendar",
       "chooseService": "Servicio",
-      "studioFallback": "el estudio"
+      "studioFallback": "el estudio",
+      "noServices": "Aún no hay nada abierto para reservar en línea. Envía un mensaje al estudio y te responderán.",
+      "contactCta": "Enviar un mensaje"
     },
     "siteShellSurface": {
       "title": "Encabezado y pie de página del sitio",
