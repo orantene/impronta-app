@@ -41,6 +41,7 @@ export type DiscoverCopy = {
   editProfile: string;
   viewPublicPage: string;
   trustSignals: string;
+  googleGuide: string;
 };
 
 const EN: DiscoverCopy = {
@@ -86,6 +87,7 @@ const EN: DiscoverCopy = {
   editProfile: "✎ Edit profile",
   viewPublicPage: "↗ View public page",
   trustSignals: "🛡 Trust signals",
+  googleGuide: "Get found on Google",
 };
 
 const ES: DiscoverCopy = {
@@ -131,6 +133,7 @@ const ES: DiscoverCopy = {
   editProfile: "✎ Editar perfil",
   viewPublicPage: "↗ Ver página pública",
   trustSignals: "🛡 Señales de confianza",
+  googleGuide: "Que te encuentren en Google",
 };
 
 export function discoverCopy(locale: string | null | undefined): DiscoverCopy {

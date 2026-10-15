@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { attentionSummary } from "./attention-summary";
+import { attentionSummary, photoOnlyTip } from "./attention-summary";
 
 test("singular and plural agree, zeros omitted", () => {
   assert.equal(
@@ -24,4 +24,11 @@ test("spanish", () => {
 });
 test("overlap note only when parts exceed the total", () => {
   assert.match(attentionSummary({ total: 2, noPhoto: 2, noPrice: 1, soldOut: 0 }, "en"), /more than one/);
+});
+
+test("TUL-825: photo-only gaps read as a friendly optional tip, other gaps stay attention", () => {
+  assert.match(photoOnlyTip({ total: 2, noPhoto: 2, noPrice: 0, soldOut: 0 }, "es") ?? "", /Tip opcional/);
+  assert.match(photoOnlyTip({ total: 2, noPhoto: 2, noPrice: 0, soldOut: 0 }, "en") ?? "", /Optional tip/);
+  assert.equal(photoOnlyTip({ total: 2, noPhoto: 1, noPrice: 1, soldOut: 0 }, "en"), null);
+  assert.equal(photoOnlyTip({ total: 1, noPhoto: 0, noPrice: 1, soldOut: 0 }, "en"), null);
 });

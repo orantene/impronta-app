@@ -240,7 +240,7 @@ export function applyRetryCheck(arrival: ArrivalPayload, check: { ok: boolean; r
 
 /** TUL-819: the one-line, plain-language reason key for the draft screen. */
 export function draftReasonKey(arrival: Pick<ArrivalPayload, "draftReason" | "published">): string {
-  const base = "public.onboarding.arrival.draftReason";
+  const base = "public.onboarding.arrival.draftWhy";
   if (arrival.draftReason === "no_url" || arrival.draftReason === "no_name") return `${base}.notCreated`;
   if (arrival.published) return `${base}.publishedNotReachable`;
   if (arrival.draftReason === "name_missing") return `${base}.oldContent`;

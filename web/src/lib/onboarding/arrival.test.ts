@@ -152,7 +152,7 @@ test("TUL-818: published talent site behind a protection wall is a draft that kn
   assert.equal(a.draftReason, "protected");
   assert.equal(a.liveVariant, "talent");
   assert.equal(a.liveSiteLive, true);
-  assert.equal(draftReasonKey(a), "public.onboarding.arrival.draftReason.publishedNotReachable");
+  assert.equal(draftReasonKey(a), "public.onboarding.arrival.draftWhy.publishedNotReachable");
 });
 
 test("TUL-818: a retry whose check passes promotes the draft to the live arrival", () => {
@@ -184,10 +184,10 @@ test("TUL-818: a draft stored before the fix (no liveVariant) still promotes on 
 });
 
 test("TUL-819: every draft reason maps to a plain-language key", () => {
-  assert.equal(draftReasonKey({ draftReason: "no_url" }), "public.onboarding.arrival.draftReason.notCreated");
-  assert.equal(draftReasonKey({ draftReason: "name_missing" }), "public.onboarding.arrival.draftReason.oldContent");
-  assert.equal(draftReasonKey({ draftReason: "status" }), "public.onboarding.arrival.draftReason.notReachable");
-  assert.equal(draftReasonKey({ draftReason: "status", published: true }), "public.onboarding.arrival.draftReason.publishedNotReachable");
+  assert.equal(draftReasonKey({ draftReason: "no_url" }), "public.onboarding.arrival.draftWhy.notCreated");
+  assert.equal(draftReasonKey({ draftReason: "name_missing" }), "public.onboarding.arrival.draftWhy.oldContent");
+  assert.equal(draftReasonKey({ draftReason: "status" }), "public.onboarding.arrival.draftWhy.notReachable");
+  assert.equal(draftReasonKey({ draftReason: "status", published: true }), "public.onboarding.arrival.draftWhy.publishedNotReachable");
 });
 
 test("TUL-819: the draft reason keys exist in en and es", async () => {
@@ -195,7 +195,7 @@ test("TUL-819: the draft reason keys exist in en and es", async () => {
   for (const loc of ["en", "es"]) {
     const m = JSON.parse(readFileSync(new URL(`../../../messages/${loc}.json`, import.meta.url), "utf8"));
     const arrival = m.public.onboarding.arrival;
-    for (const k of ["publishedNotReachable", "notReachable", "oldContent", "notCreated"]) assert.ok(arrival.draftReason[k], `${loc}:${k}`);
+    for (const k of ["publishedNotReachable", "notReachable", "oldContent", "notCreated"]) assert.ok(arrival.draftWhy[k], `${loc}:${k}`);
     for (const k of ["draftTitlePublished", "draftSubPublished", "checkAgain"]) assert.ok(arrival[k], `${loc}:${k}`);
   }
 });

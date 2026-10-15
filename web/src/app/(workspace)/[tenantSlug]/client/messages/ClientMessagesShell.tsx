@@ -50,7 +50,7 @@ import type { WorkspaceMessage } from "../../_data-bridge/inquiries-messages";
 import type { ClientInquiryDetails } from "../../_data-bridge/client-inquiry-details";
 import { InquiryDrawer } from "@/components/inquiry/InquiryDrawer";
 import { ThreadShell } from "@/components/shared/ThreadShell";
-import { clientInquiryMatchesFilter, isOwnClientMessage, toClientThreadItems } from "./client-thread-adapter";
+import { clientInquiryMatchesFilter, clientInquiryTitle, isOwnClientMessage, toClientThreadItems } from "./client-thread-adapter";
 import { DetailsTab } from "./DetailsTab";
 import { OfferTab } from "./OfferTab";
 import { TabLoadingSkeleton } from "./TabLoadingSkeleton";
@@ -661,7 +661,7 @@ type RowChip = {
 function InquiryRow({ inq, active, onClick }: { inq: ClientInquiryRow; active: boolean; onClick: () => void }) {
   const t = useT();
   const stage = stageStyle(inq.status, t);
-  const company = inq.company || t("dashboard.clientMessages.unnamedInquiry");
+  const company = clientInquiryTitle(inq, t("dashboard.clientMessages.unnamedInquiry"));
   const dateLabel = inq.event_date ? formatDate(inq.event_date) : null;
   const location = inq.event_location;
   const needsMe = inq.next_action_by === "client";
@@ -947,7 +947,7 @@ function ThreadPaneWithTabs({
           <style dangerouslySetInnerHTML={{ __html: "@media (max-width:720px){.thread-back-btn{display:inline-flex!important;}}" }} />
           <div className="flex-1 min-w-0">
             <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {inq.company || details?.job.title || t("dashboard.clientMessages.inquiryFallback")}
+              {inq.company || details?.job.title || clientInquiryTitle(inq, t("dashboard.clientMessages.inquiryFallback"))}
             </div>
             <div style={{ fontSize: 11, color: C.inkMuted, display: "flex", gap: 6, alignItems: "center", marginTop: 2 }}>
               <button

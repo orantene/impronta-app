@@ -70,6 +70,7 @@
         "noAccount": "No account?",
         "signUp": "Sign up",
         "sessionExpired": "Your session expired. Please sign in again.",
+        "linkExpired": "That sign-in link has expired or was already used. Request a new one below.",
         "eyebrow": "Welcome back",
         "apple": "Continue with Apple"
       },
@@ -1477,6 +1478,12 @@
       "draftWillSave": "Draft will save automatically",
       "footerSent": "Thanks, {agency} will be in touch.",
       "footerNeedMore": "Add at least your name, email or phone, and a brief to send.",
+      "footerMissing": "Still needed: {fields}.",
+      "missingName": "your name",
+      "missingContact": "an email or phone",
+      "missingBrief": "a brief or a talent",
+      "missingLocation": "a city",
+      "missingDate": "a date or \"not sure\"",
       "footerReady": "By sending, you'll start a coordinator-led conversation with {agency}.",
       "btnDone": "Done",
       "btnReview": "Review",
@@ -1979,6 +1986,9 @@
         "readFailed": "We couldn't read that. Try again or type it differently.",
         "aiUnavailable": "We could not read your description right now. Please try again in a moment.",
         "looksGood": "Looks good, continue",
+        "titleFailed": "We couldn't read that",
+        "subFailed": "Answer a few quick questions and we'll set it up anyway.",
+        "continueManual": "Answer a few questions",
         "editHint": "Tap any line to change it.",
         "laterValue": "Later, in your site",
         "missingValue": "We'll ask next"
@@ -1987,6 +1997,7 @@
       "questions": {
         "basicsWhatTalentHint": "Search: nail technician, photographer, DJ…",
         "basicsWhatBusinessHint": "Search: nail salon, restaurant, gym…",
+        "useTyped": "Use \"{text}\"",
         "basicsCityHint": "Search your city",
         "basicsOther": "Not in the list?",
         "basicsOtherHint": "Type it here",
@@ -2046,7 +2057,7 @@
       "building": {
         "title": "Building it",
         "titleTalent": "Saving your page",
-        "sub": "Usually under half a minute, up to one. You can close this; it keeps building.",
+        "sub": "Usually under half a minute, up to one.",
         "steps": {
           "account": "Your account",
           "workspace": "Your workspace",
@@ -2055,7 +2066,7 @@
           "menu": "Your menu",
           "profile": "Your page"
         },
-        "subTalent": "About ten seconds. You can close this; it keeps going.",
+        "subTalent": "Usually under half a minute.",
         "progressLabel": "Building",
         "canClose": "You can close this; it keeps building and your page will be here when you come back.",
         "while": {
@@ -2114,13 +2125,15 @@
         "draftTitlePublished": "Your site is published",
         "draftSubPublished": "It is saved and published. We are confirming it opens online; this usually takes a few seconds.",
         "checkAgain": "Check again",
-        "draftReason": {
+        "draftWhy": {
           "publishedNotReachable": "Why: your address is not answering yet. Tap Check again in a few seconds.",
           "notReachable": "Why: your page did not answer when we opened it. Tap Try again.",
           "oldContent": "Why: your address still shows older content. Tap Try again in a few seconds.",
           "notCreated": "Why: we could not create your address. Open the editor to finish it."
         },
         "draftTitle": "Your draft is saved",
+        "draftReason": "Your page did not go online on this try. This is usually temporary and nothing you entered is lost. Try again first.",
+        "draftDetails": "Details for support",
         "draftSub": "Everything you told us is saved, but your page does not open online yet. Try again or open it in the editor.",
         "draftSubStudio": "Everything you told us is saved, but your site does not open online yet. Try again or open it in the editor.",
         "openEditor": "Open the editor",
@@ -2144,6 +2157,8 @@
         "businessNameHint": "How people know your business",
         "yourName": "Your name",
         "yourNameHint": "The name people know you by",
+        "soloBusinessName": "Business name (optional)",
+        "soloBusinessNameHint": "If your page goes by another name",
         "location": "Your location",
         "whatsapp": "WhatsApp (optional)",
         "whatsappHint": "Mexican number without the country code; we add +52.",
@@ -2168,7 +2183,7 @@
       },
       "design": {
         "title": "Pick how your page looks",
-        "sub": "Three ready looks. You can change it later in the editor.",
+        "sub": "Ready-made looks for you. You can change it later in the editor.",
         "recommended": "Recommended",
         "keep": "Keep the default look",
         "rose": "Rosé",
@@ -2224,6 +2239,8 @@
       "past": "Past",
       "noVisits": "No visits yet.",
       "bookAgain": "Book again",
+      "bookFirst": "Book your first visit",
+      "browseTalent": "Find someone to book",
       "viewDetails": "Details",
       "cancellationPolicy": "Cancellation policy",
       "policyFree": "Free cancellation until {when}.",
@@ -13671,6 +13688,7 @@
       "panelAria": "Support conversation",
       "title": "Support",
       "close": "Close",
+      "closeAria": "Close support",
       "tabHome": "Home",
       "tabTickets": "Tickets",
       "greeting": "Hi {name}",
@@ -13763,6 +13781,7 @@
       "oranOnline": "{agent} is online",
       "oranTyping": "{agent} is typing",
       "attachAria": "Attach an image",
+      "fieldAttachments": "Screenshots (optional, up to 3)",
       "attachmentUnavailable": "Attachment unavailable",
       "askFeature": "Ask for a feature",
       "ideaHeading": "Tell us what you need",
@@ -19034,6 +19053,7 @@
     "mobile": {
       "close": "Close",
       "back": "Back",
+      "talentPillAria": "Open my profile",
       "search": "Search the workspace",
       "ownerOnly": "owner only",
       "myWorkNotBuilt": "My work is not built yet: there is no page that shows one person their own shifts and bookings.",

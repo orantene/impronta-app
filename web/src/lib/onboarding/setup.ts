@@ -16,6 +16,7 @@ import {
   type WeeklyEssentialHours,
 } from "./essentials";
 import type { OnboardingChoice } from "./choice";
+import { isValidIanaTimeZone } from "@/lib/scheduling/tz";
 
 /** Monday first for people, Sunday = "0" for the data. */
 export const DAY_ORDER: readonly DayKey[] = ["1", "2", "3", "4", "5", "6", "0"];
@@ -45,6 +46,31 @@ export function timezoneChoices(current: string | null | undefined): ReadonlyArr
   if (!id || TIMEZONE_OPTIONS.some((z) => z.id === id)) return TIMEZONE_OPTIONS;
   const label = (id.split("/").pop() ?? id).replace(/_/g, " ");
   return [{ id, label }, ...TIMEZONE_OPTIONS];
+}
+
+/** TUL-815: the zone the browser reports fills a missing one silently, in every country. A saved or city-derived zone wins. */
+export function timezoneWithBrowserFallback(saved: string | null | undefined, browser: string | null | undefined): string | null {
+  const own = saved?.trim();
+  if (own) return own;
+  const b = browser?.trim();
+  return b && isValidIanaTimeZone(b) ? b : null;
+}
+
+/** Short readable name for a zone id (the list label when known). */
+export function timezoneLabel(id: string): string {
+  return TIMEZONE_OPTIONS.find((z) => z.id === id)?.label ?? (id.split("/").pop() ?? id).replace(/_/g, " ");
+}
+
+/** TUL-808: trades that go to the client never offer "at my studio". Beauty keeps all three. */
+const MOBILE_TRADES: ReadonlySet<string> = new Set(["cleaning"]);
+
+export function placeModesForTrade(tradeKey: string | null | undefined): ReadonlyArray<"studio" | "home" | "client"> {
+  return tradeKey && MOBILE_TRADES.has(tradeKey) ? ["client"] : ["studio", "home", "client"];
+}
+
+/** A mobile trade opens with "I go to the client" already chosen; others open with no choice. */
+export function defaultPlaceForTrade(tradeKey: string | null | undefined): { mode: "client"; area: null } | null {
+  return tradeKey && MOBILE_TRADES.has(tradeKey) ? { mode: "client", area: null } : null;
 }
 
 /** Only outside Mexico: inside, the zone comes from the country and is never asked. */

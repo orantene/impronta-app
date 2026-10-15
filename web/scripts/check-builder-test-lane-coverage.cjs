@@ -42,6 +42,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const { collectTestFiles, listTestFiles, readQuarantine, WEB_ROOT } = require("./list-test-files.cjs");
+const { expandListArgs } = require("./lane-paths.cjs");
 
 /**
  * The trees this guard polices. Every `*.test.ts(x)` under these must be in a
@@ -102,6 +103,12 @@ function expandSrcToken(token, exists = (p) => fs.existsSync(path.join(WEB_ROOT,
   return entries.filter((name) => re.test(name)).map((name) => `${dir}/${name}`);
 }
 
+/** Entries of every `@<list file>` argument in a lane body (lane-paths.cjs is the one reader). */
+function laneListEntries(body) {
+  const refs = body.split(/\s+/).filter((t) => /^@scripts\/lanes\/[\w.-]+\.txt$/.test(t));
+  return refs.length > 0 ? expandListArgs(refs) : [];
+}
+
 /** Every test file the reachable lanes actually run. */
 function coveredFiles(scripts, entryScriptName) {
   const covered = new Set();
@@ -120,7 +127,9 @@ function coveredFiles(scripts, entryScriptName) {
       }
       if (dirs.length > 0) for (const f of listTestFiles(dirs, { depth })) covered.add(f);
     }
-    // 2. bare src/… arguments (literal or one-level glob).
+    // 2. bare src/… arguments (literal or one-level glob), plus the entries of any
+    //    `@scripts/lanes/<lane>.txt` list file (one path per line; TUL-609).
+    stripped += " " + laneListEntries(body).map((e) => ` ${e}`).join("");
     for (const m of stripped.matchAll(SRC_TOKEN_RE)) {
       for (const f of expandSrcToken(m[1])) covered.add(f);
     }
@@ -151,6 +160,9 @@ function selftest() {
     ),
     ["npm run a && npm run b", "npm run c", "tsx --test src/b.test.ts", "tsx --test src/c.test.ts"],
   );
+  // TUL-609: a lane whose paths live in an `@scripts/lanes/<lane>.txt` file is covered by that file.
+  assert.ok(laneListEntries("node scripts/lane-test.cjs @scripts/lanes/money.txt").length > 100);
+  assert.deepEqual(laneListEntries("node scripts/lane-test.cjs src/a.test.ts"), []);
   // A missing script name is skipped, not thrown on.
   assert.deepEqual(reachableScriptBodies({ ci: "npm run nope" }, "ci"), ["npm run nope"]);
 
