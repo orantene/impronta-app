@@ -65,6 +65,7 @@ export function DesignPanel({ open, onClose }: DesignPanelProps) {
       open={open}
       onClose={onClose}
       width={340}
+      compactBottomSheet
       testId="design-panel"
       tabs={
         showThemeTab ? (

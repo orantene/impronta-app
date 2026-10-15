@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { BookableComposer } from "@/components/public-booking/BookableComposer";
 import { pickBookableOffering } from "@/components/public-booking/pick-bookable-offering";
@@ -17,6 +18,7 @@ export function BookPageClient({
   signedIn = false,
   captcha = null,
   locale: localeProp,
+  contactHref = null,
 }: {
   tenantSlug: string;
   tenantId?: string | null;
@@ -26,6 +28,8 @@ export function BookPageClient({
   captcha?: GuestCaptchaConfig | null;
   /** Page/request locale — required on CMS Live booking so labels match the site. */
   locale?: string | null;
+  /** Where a visitor with nothing to book can write to the studio (TUL-698). */
+  contactHref?: string | null;
 }) {
   const cookieT = useT();
   const pageLocale = (localeProp?.trim() || "en").startsWith("es") ? "es" : "en";
@@ -55,9 +59,20 @@ export function BookPageClient({
 
   if (offerings.length === 0 || !bookable) {
     return (
-      <p className="mt-6 text-sm text-[var(--token-color-muted,rgba(11,11,13,0.62))]">
-        {t("public.slotPicker.empty")}
-      </p>
+      <div
+        className="mt-6 flex flex-col items-start gap-3 text-sm text-[var(--token-color-muted,rgba(11,11,13,0.62))]"
+        data-book-empty="no_services"
+      >
+        <p>{t("public.bookPage.noServices")}</p>
+        {contactHref ? (
+          <Link
+            href={contactHref}
+            className="rounded-lg border border-[rgba(24,24,27,0.12)] px-3 py-2 font-medium text-[var(--token-color-ink,#0B0B0D)]"
+          >
+            {t("public.bookPage.contactCta")}
+          </Link>
+        ) : null}
+      </div>
     );
   }
 
@@ -110,6 +125,7 @@ export function BookPageClient({
         signedIn={signedIn}
         captcha={captcha}
         locale={pageLocale}
+        contactHref={contactHref}
       />
     </div>
   );

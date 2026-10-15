@@ -11,13 +11,28 @@ test("TUL-822: Spanish labels lead with the localized zone name, not the raw IAN
   assert.match(zoneLabel("America/Mexico_City", "es"), /M[eé]xico/i);
 });
 
+test("TUL-822: Spanish labels localize the city; English is unchanged", () => {
+  assert.match(zoneLabel("America/Mexico_City", "es"), /Ciudad de México/);
+  assert.match(zoneLabel("America/Cancun", "es"), /Cancún/);
+  assert.match(zoneLabel("America/Sao_Paulo", "es"), /São Paulo/);
+  assert.match(zoneLabel("America/Bogota", "es-MX"), /Bogotá/);
+  assert.doesNotMatch(zoneLabel("America/Mexico_City", "es"), /Mexico City/);
+  assert.match(zoneLabel("America/Mexico_City", "en"), /Mexico City/);
+  assert.match(zoneLabel("America/Cancun", "en"), /Cancun/);
+  assert.match(zoneLabel("Asia/Kathmandu", "es"), /Kathmandu/);
+});
+
 test("TUL-821: Mexico zones are suggested first", () => {
   assert.ok(SUGGESTED_ZONES.includes("America/Cancun") && SUGGESTED_ZONES.includes("America/Mexico_City"));
 });
 
 const page = readFileSync("src/components/admin/shell/internal/talent/agenda/AgendaAvailabilityPage.tsx", "utf8");
-test("TUL-821: the time zone block comes before Time off in the Horario page", () => {
-  assert.ok(page.indexOf("<TimezonePicker") < page.indexOf('copy.t("Time off and one-day hours")'));
+test("TUL-821: the time zone block leads the Horario page, above the day rows, buffer and Time off", () => {
+  const tz = page.indexOf("<TimezonePicker");
+  assert.ok(tz > 0);
+  assert.ok(tz < page.indexOf("rows.map("), "zone above the day rows");
+  assert.ok(tz < page.indexOf('copy.t("Buffer (minutes)")'), "zone above the buffer");
+  assert.ok(tz < page.indexOf('copy.t("Time off and one-day hours")'));
 });
 
 const hours = readFileSync("src/components/admin/shell/internal/talent/agenda/HoursFields.tsx", "utf8");

@@ -99,3 +99,19 @@ test("TUL-1068 #2: a refused add (not for sale / different currency) gets its ow
   const action = read("lib/server-actions/messaging-client.ts");
   assert.match(action, /added\.reason === "invalid" \? "invalid" : "unavailable"/);
 });
+
+test("TUL-1070: dock row names wrap to two lines instead of truncating to one (390px)", () => {
+  const src = read("app/t/[profileCode]/_chat/GuestDockCatalog.tsx");
+  assert.match(src, /WebkitLineClamp: 2/);
+  assert.doesNotMatch(src, /fontWeight: 600, color: C\.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"/);
+});
+
+test("TUL-1068: a catalog add is listed under 'In your inquiry' and clears the empty note", () => {
+  const lineup = readFileSync(join(HERE, "GuestDockLineupView.tsx"), "utf8");
+  const catalog = readFileSync(join(HERE, "GuestDockCatalog.tsx"), "utf8");
+  assert.match(catalog, /addAddedCatalogItem\(\{/);
+  assert.match(lineup, /useAddedCatalogItems\(\)/);
+  assert.match(lineup, /count=\{inquiryCount\}/);
+  assert.match(lineup, /\{inquiryCount === 0 \? \(/);
+  assert.match(lineup, /data-inquiry-catalog-item/);
+});

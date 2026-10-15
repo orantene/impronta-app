@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { sweepStaleShowOnSite, type SweepDb } from "@/lib/promos/hygiene/sweep";
 import { sweepExpiredHolds } from "@/lib/promos/redemption/service";
 
 /**
@@ -39,5 +40,15 @@ export async function GET(request: Request) {
     logServerError("cron/promo-hold-sweep", result.reason ?? "sweep failed");
     return NextResponse.json({ error: "Sweep failed" }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, released: result.released ?? 0 });
+  // Step 2 (best effort): clear the stale show_on_site flag on promos that
+  // ended by date or were archived. Never affects the hold sweep result.
+  const hygiene = await sweepStaleShowOnSite(supabase as unknown as SweepDb, new Date(), undefined, (m) =>
+    logServerError("cron/promo-hold-sweep/show-on-site", m),
+  );
+  return NextResponse.json({
+    ok: true,
+    released: result.released ?? 0,
+    showOnSiteCleared: hygiene.cleared,
+    showOnSiteFailed: hygiene.failed,
+  });
 }

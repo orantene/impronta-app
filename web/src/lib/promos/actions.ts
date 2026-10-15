@@ -21,6 +21,7 @@ import { promoStatus } from "./quote";
 import { DEFAULT_PROMO_TZ, PROMO_COLUMNS, loadTenantPromos, loadUsage, rowToPromo, type PromoRow } from "./repo";
 import { applyEdit, endNowPatch, type EditVerdict } from "./safe-edit";
 import { promoAttention } from "./talent-view";
+import { endPromoUpdate, goLivePatch, pausePatch, showOnSiteFor } from "./hygiene/show-on-site";
 import {
   draftToColumns, draftToPromo, duplicateDraft, promoSlug, repeatDraft, rowToDraft, validateDraft,
   type DraftError, type PromoDraft,
@@ -412,6 +413,7 @@ async function insertPromo(
     .from("tenant_promo_codes")
     .insert({
       ...draftToColumns(draft),
+      show_on_site: showOnSiteFor({ ...draftToColumns(draft), is_draft: flags.is_draft }),
       link_slug: promoSlug(draft.name, crypto.randomUUID().slice(0, 6)),
       tenant_id: scope.tenantId,
       // The owner: hub talents share one tenant, so the talent IS the scope.
@@ -477,7 +479,7 @@ export async function goLivePromo(id: string): Promise<PromoResult<{ status: Pro
   if (!gate.allowed) return { ok: false, needsUpgrade: true, reason: gate.reason, draftId: id };
   const { error } = await scope.admin
     .from("tenant_promo_codes")
-    .update({ is_draft: false, is_paused: false, is_trial: gate.reason === "trial" })
+    .update(goLivePatch(owned.row, gate.reason === "trial"))
     .eq("id", id)
     .eq("tenant_id", scope.tenantId)
     .eq("talent_profile_id", scope.talentId);
@@ -505,7 +507,11 @@ export async function updatePromo(id: string, input: PromoDraft): Promise<PromoR
   }
   const { error } = await scope.admin
     .from("tenant_promo_codes")
-    .update({ ...draftToColumns(draft), updated_at: new Date().toISOString() })
+    .update({
+      ...draftToColumns(draft),
+      show_on_site: showOnSiteFor({ ...draftToColumns(draft), is_draft: owned.row.is_draft, is_paused: owned.row.is_paused, archived_at: owned.row.archived_at }),
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", id)
     .eq("tenant_id", scope.tenantId)
     .eq("talent_profile_id", scope.talentId);
@@ -536,7 +542,7 @@ async function setPaused(id: string, paused: boolean): Promise<PromoResult> {
   }
   const { error } = await scope.admin
     .from("tenant_promo_codes")
-    .update({ is_paused: paused })
+    .update(pausePatch(paused, owned.row))
     .eq("id", id)
     .eq("tenant_id", scope.tenantId)
     .eq("talent_profile_id", scope.talentId);
@@ -585,7 +591,7 @@ export async function endPromo(id: string): Promise<PromoResult> {
   const patch = endNowPatch(rowToPromo(owned.row, { targetIds: owned.targets }), new Date());
   const { error } = await scope.admin
     .from("tenant_promo_codes")
-    .update(patch.kind === "archive" ? { archived_at: patch.archived_at } : { ends_at: patch.ends_at })
+    .update(endPromoUpdate(patch))
     .eq("id", id)
     .eq("tenant_id", scope.tenantId)
     .eq("talent_profile_id", scope.talentId);

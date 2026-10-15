@@ -216,7 +216,7 @@ export function TalentIdentityMenu(): ReactElement | null {
         }}
       >
         <TalentAvatar name={name} url={identity.headshotUrl} />
-        <span>{name}</span>
+        <span className="max-[640px]:max-w-[72px] max-[640px]:truncate">{name}</span>
         <Icon name="chevron-down" size={12} stroke={2} />
       </button>
       <PortaledOverlay open={open}>

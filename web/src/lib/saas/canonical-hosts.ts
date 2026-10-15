@@ -40,7 +40,7 @@ function envOrigin(): string | null {
  * (verified 2026-05-27 on improntamodels.com — Google rich-results
  * structured-data broken).
  */
-function isDevOnlyHostname(host: string): boolean {
+export function isDevOnlyHostname(host: string): boolean {
   const lower = host.trim().toLowerCase();
   if (lower === "localhost" || lower.startsWith("localhost:")) return true;
   if (lower === "127.0.0.1" || lower.startsWith("127.0.0.1:")) return true;
