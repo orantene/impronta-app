@@ -28,6 +28,7 @@ import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 import { useOptionalDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
 import { registerCartTalent } from "@/app/t/[profileCode]/_chat/cart-talent-registry";
+import { getExistingGuestThread } from "@/app/t/[profileCode]/_chat/existing-thread-store";
 import { useFocusTrap } from "@/app/t/[profileCode]/_chat/use-focus-trap";
 import { FONT } from "@/app/t/[profileCode]/_chat/mini-chat-styles";
 
@@ -117,6 +118,12 @@ export function TalentProfileInquireButton({
     // preloaded + the rail avatar appears) and ask the launcher to open. NO
     // parallel composer, NO instant submit, the lineup is preserved. When no
     // launcher is mounted, requestOpenChat falls back to the synced sheet.
+    // TUL-954: the guest already has an open thread with her: reopen THAT
+    // thread, never seed the cart for a blank new inquiry.
+    if (getExistingGuestThread()) {
+      inquiryModal?.requestOpenChat();
+      return;
+    }
     registerCartTalent(talentId, { displayName, portraitUrl });
     if (!cart.isInCart(talentId)) {
       cart.setInCart(
@@ -147,7 +154,7 @@ export function TalentProfileInquireButton({
     // Fire the conversion event on the ACTUAL chosen path (below), not here:
     // an empty/her-only lineup goes straight through addToCurrent("direct"); a
     // lineup with others opens the chooser and the event fires on the choice.
-    if (othersInLineup > 0 && inquiryModal) {
+    if (othersInLineup > 0 && inquiryModal && !getExistingGuestThread()) {
       setChooserOpen((v) => !v);
       return;
     }
