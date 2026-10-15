@@ -54,7 +54,7 @@ export async function getGuestItemsCatalog(raw: { tenantSlug: string; inquiryId?
   if (!admin) return { ok: false, error: "unavailable" };
   const { data: tenant, error: tenantError } = await admin
     .from("agencies")
-    .select("id, status")
+    .select("id, status, kind")
     .eq("slug", parsed.data.tenantSlug.trim().toLowerCase())
     .limit(1)
     .maybeSingle();
@@ -62,6 +62,7 @@ export async function getGuestItemsCatalog(raw: { tenantSlug: string; inquiryId?
     logServerError("guest-catalog-actions.tenant", tenantError);
     return { ok: false, error: "unavailable" };
   }
+  const tenantKind = (tenant as { kind?: string } | null)?.kind ?? null;
   const tenantId = (tenant as { id?: string; status?: string } | null)?.id ?? null;
   if (!tenantId) return { ok: false, error: "not_found" };
   try {
@@ -69,7 +70,8 @@ export async function getGuestItemsCatalog(raw: { tenantSlug: string; inquiryId?
     // P0: on a per-talent page the catalog is that talent's own. A code that does not
     // resolve to a public profile fails closed (empty), never falls back to the whole tenant.
     let pageTalentId: string | null = null;
-    if (parsed.data.profileCode) {
+    // Only a hub (no roster of its own) narrows to the page's talent; an agency page keeps its own tenant catalog.
+    if (parsed.data.profileCode && tenantKind === "hub") {
       pageTalentId = await publicProfileIdByCode(admin, parsed.data.profileCode);
       if (!pageTalentId) return { ok: true, groups: [] };
     }

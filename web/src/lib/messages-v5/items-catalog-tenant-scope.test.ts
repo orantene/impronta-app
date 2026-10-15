@@ -7,8 +7,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { loadOfferingRows, loadTalentProfileOfferingRows, pickScopedTalentId } from "./items-catalog";
-import { scopeRosterToTalent } from "@/lib/inquiry/roster-scope";
+import { loadOfferingRows, loadTalentProfileOfferingRows, loadTalentRows, pickScopedTalentId } from "./items-catalog";
+import { narrowTalentForTenant, scopeRosterToTalent } from "@/lib/inquiry/roster-scope";
 
 type Row = Record<string, unknown>;
 
@@ -80,4 +80,33 @@ test("the talent picker on a talent's page lists only that talent", () => {
   assert.deepEqual(scopeRosterToTalent(roster, "t2"), [{ id: "t2" }]);
   assert.equal(scopeRosterToTalent(roster, null).length, 3);
   assert.equal(scopeRosterToTalent(roster, "not-on-this-roster").length, 0);
+});
+
+const ROSTER = {
+  agency_talent_roster: [
+    { tenant_id: "agency-a", status: "active", talent_profile_id: "ta1", talent_profiles: { id: "ta1", profile_code: "TAL-A1", display_name: "A One" } },
+    { tenant_id: "agency-a", status: "active", talent_profile_id: "ta2", talent_profiles: { id: "ta2", profile_code: "TAL-A2", display_name: "A Two" } },
+    { tenant_id: "agency-b", status: "active", talent_profile_id: "tb1", talent_profiles: { id: "tb1", profile_code: "TAL-B1", display_name: "B One" } },
+  ],
+  ...TABLES,
+};
+
+test("an agency page lists its own roster and zero talent from any other tenant", async () => {
+  const rows = await loadTalentRows(fakeAdmin(ROSTER), "agency-a", null, new Date());
+  assert.deepEqual(rows.map((r) => r.title).sort(), ["A One", "A Two"]);
+  assert.ok(rows.every((r) => r.talentProfileId?.startsWith("ta")));
+});
+
+test("an agency page lists its own services and none from another tenant", async () => {
+  const rows = await loadOfferingRows(fakeAdmin(ROSTER), "tenant-a");
+  assert.ok(rows.length > 0 && rows.every((r) => r.title.startsWith("A:")));
+});
+
+test("only a hub narrows a talent page to one talent; an agency keeps its roster", () => {
+  assert.equal(narrowTalentForTenant("hub", "t1"), "t1");
+  assert.equal(narrowTalentForTenant("agency", "t1"), null);
+  assert.equal(narrowTalentForTenant(null, "t1"), null);
+  assert.equal(narrowTalentForTenant("hub", null), null);
+  // agency roster stays whole when nothing narrows it
+  assert.equal(scopeRosterToTalent([{ id: "ta1" }, { id: "ta2" }], narrowTalentForTenant("agency", "ta1")).length, 2);
 });

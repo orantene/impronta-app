@@ -118,7 +118,7 @@ export async function loadItemsCatalog(admin: Admin, input: { tenantId: string; 
   return { rows: [...talent, ...offerings, ...sessions, ...tables], date, timezone, preset: presetRaw };
 }
 
-async function loadTalentRows(admin: Admin, tenantId: string, window: { from: Date; to: Date } | null, now: Date): Promise<CatalogRow[]> {
+export async function loadTalentRows(admin: Admin, tenantId: string, window: { from: Date; to: Date } | null, now: Date): Promise<CatalogRow[]> {
   const { data, error } = await admin
     .from("agency_talent_roster")
     .select("talent_profile_id, talent_profiles!talent_profile_id ( id, profile_code, display_name )")
