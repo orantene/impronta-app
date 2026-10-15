@@ -34,8 +34,6 @@ export type CheckoutViewProps = {
   readonly amountCents: number;
   readonly currency: string;
   readonly expiresAt: string;
-  /** The venue zone in words ("Mexico City"); the two clocks above are in it. */
-  readonly zoneName?: string;
   readonly status: "open" | "paid" | "expired" | "cancelled" | "replaced" | "unknown" | "startFailed" | "declined" | "processing" | "refunded" | "cancelledReturn";
   readonly lines: readonly { label: string; units: number; unitCents: number }[];
   readonly holdUntil: string | null;
@@ -302,14 +300,12 @@ export function CheckoutView(props: CheckoutViewProps) {
       )}
       {props.holdUntil ? (
         <p className="mt-2 text-[13px]" style={{ color: MUTED }}>
-          {interpolate(t("public.thread.slotKeptUntil"), { time: props.holdUntil, zone: props.zoneName ?? "UTC" })}
+          {props.holdUntil}
         </p>
       ) : null}
-      {props.expiresAt ? (
-        <p data-pay-expiry="" className="mt-1 text-[13px]" style={{ color: MUTED }}>
-          {interpolate(t("public.thread.linkValidUntil"), { time: props.expiresAt, zone: props.zoneName ?? "UTC" })}
-        </p>
-      ) : null}
+      <p className="mt-1 text-[13px]" style={{ color: MUTED }}>
+        {props.expiresAt}
+      </p>
       <p className="text-[13px]" style={{ color: MUTED }}>
         {t(keepSlotKey)}
       </p>
