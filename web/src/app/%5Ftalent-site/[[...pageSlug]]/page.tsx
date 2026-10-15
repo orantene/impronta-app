@@ -32,7 +32,7 @@ import { headers } from "next/headers";
 
 import { DocumentLang } from "@/components/i18n/DocumentLang";
 import { TalentSiteHostFullNav } from "@/components/talent-site/talent-site-host-full-nav";
-import { getRequestLocale } from "@/i18n/request-locale";
+import { getRequestLocale, ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
 import {
   HOST_CONTEXT_HEADER,
   HOST_NAME_HEADER,
@@ -40,7 +40,7 @@ import {
 } from "@/lib/saas/host-context";
 import { LEGACY_PRIVACY_SLUG, POLICY_SLUG } from "@/lib/talent-policies/public";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { talentGuestAliasTarget } from "@/lib/talent-site/guest-path-aliases";
+import { talentGuestAliasTarget, talentGuestServiceAlias } from "@/lib/talent-site/guest-path-aliases";
 import { talentNotFoundCopy } from "@/lib/talent-site/talent-not-found-copy";
 import { loadTalentNotFoundCopy } from "@/lib/talent-site/server/talent-not-found.server";
 import { renderTalentMaxSite } from "@/lib/talent-site/server/render-max-site";
@@ -97,6 +97,17 @@ async function resolveCanonicalOrigin(): Promise<string | undefined> {
   const host = await resolveServedHost();
   if (!host) return undefined;
   return `https://${host}`;
+}
+
+/** `/en` when the visitor's original path carries the active (secondary) locale prefix. */
+async function originalLocalePrefix(locale: string): Promise<string | null> {
+  try {
+    const h = await headers();
+    const first = (h.get(ORIGINAL_PATHNAME_HEADER) ?? "").split("/").filter(Boolean)[0]?.toLowerCase();
+    return first && first === locale.toLowerCase() ? first : null;
+  } catch {
+    return null;
+  }
 }
 
 function firstSegment(pageSlug: string[] | undefined): string | null {
@@ -175,6 +186,14 @@ export default async function TalentSiteHostPage({
     resolveCanonicalOrigin(),
     resolveServedHost(),
   ]);
+  // TUL-586 defense-in-depth: /servicios|services/<slug> -> canonical service URL
+  // (308, locale prefix kept; also handled in the proxy).
+  if (pageSlug && pageSlug.length > 1) {
+    const serviceAlias = talentGuestServiceAlias(`/${pageSlug.join("/")}`, {
+      localePrefix: await originalLocalePrefix(locale),
+    });
+    if (serviceAlias?.kind === "redirect") permanentRedirect(serviceAlias.path);
+  }
   const seg = firstSegment(pageSlug);
   // GRK-028 defense-in-depth: guest path aliases (also handled in the proxy).
   const guestAlias = talentGuestAliasTarget(seg);

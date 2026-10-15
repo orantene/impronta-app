@@ -345,6 +345,8 @@ async function renderTalentMaxSiteUnguarded(
                 faq: serviceFaq,
                 reviews: serviceReviews,
                 promo: servicePromo,
+                talentName: identity?.name ?? null,
+                city: (await pSeoFacts).addressLocality ?? null,
                 homePath: talentSiteLocalePath("/", locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales),
               })
             : undefined,

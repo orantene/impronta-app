@@ -109,3 +109,16 @@ test("TUL-796: the article adds no bottom reserve of its own (body already reser
   assert.doesNotMatch(src, /padding: "48px 20px 1\d\d"/);
   assert.match(src, /padding: "48px 20px 56px"/);
 });
+
+test("TUL-586 hreflang: service metadata carries languages for 2+ locales, none for a single-language talent", async () => {
+  const { buildLocaleAlternates } = await import("@/i18n/alternates");
+  const path = `/${serviceSlug(A)}`;
+  const base = { origin: "https://j.example", pathnameWithoutLocale: path, defaultLocale: "es" };
+  const two = buildLocaleAlternates({ ...base, supportedLocales: ["es", "en"], currentLocale: "en" });
+  const seo2 = serviceSeo({ title: "Home", noindex: false, canonical: two.canonical, alternates: two }, A, { talentName: "Ana", locale: "en" });
+  const md2 = maxSiteSeoToMetadata(seo2, { ogLocale: "en" });
+  assert.deepEqual(Object.keys(md2.alternates?.languages ?? {}).sort(), ["en", "es", "x-default"]);
+  const one = buildLocaleAlternates({ ...base, supportedLocales: ["es"], currentLocale: "es" });
+  const md1 = maxSiteSeoToMetadata(serviceSeo({ title: "Home", noindex: false, canonical: one.canonical, alternates: one }, A, { talentName: "Ana", locale: "es" }), { ogLocale: "es" });
+  assert.equal(md1.alternates?.languages, undefined);
+});
