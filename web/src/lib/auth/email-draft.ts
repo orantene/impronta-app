@@ -22,3 +22,14 @@ export function writeAuthEmailDraft(value: string): void {
 export function pickAuthEmail(draft: string | null | undefined, defaultEmail: string | null | undefined): string {
   return draft || defaultEmail || "";
 }
+
+let nameDraft = "";
+
+/** TUL-762: the sign-up name survives the code/password lane switch like the email does. */
+export function readAuthNameDraft(): string {
+  return nameDraft;
+}
+
+export function writeAuthNameDraft(value: string): void {
+  nameDraft = value;
+}

@@ -186,7 +186,7 @@ export async function requestEmailCode(
   const ip = await requestIp();
 
   return sendEmailCodeCore(
-    { email, ip, resent, shouldCreateUser },
+    { email, ip, resent, shouldCreateUser, fullName: String(formData.get("full_name") ?? "") },
     {
       t,
       // Layer 2: free in-process floor first, so a hot loop never even

@@ -138,6 +138,8 @@
       "form": {
         "email": "Correo electrónico",
         "emailPlaceholder": "tu@ejemplo.com",
+        "name": "Nombre completo",
+        "namePlaceholder": "Tu nombre",
         "password": "Contraseña"
       },
       "actions": {

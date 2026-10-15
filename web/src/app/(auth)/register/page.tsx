@@ -317,6 +317,7 @@ export default async function RegisterPage({
             nextPath={nextPath}
             locale={locale}
             defaultEmail={defaultEmail}
+            collectName
             submitLabel={t("public.auth.passwordless.emailSubmit")}
             passwordFallback={
               <RegisterForm
@@ -324,6 +325,7 @@ export default async function RegisterPage({
                 submitLabel={t(keys.submit)}
                 locale={locale}
                 defaultEmail={defaultEmail}
+                collectName
                 hideFooter
               />
             }

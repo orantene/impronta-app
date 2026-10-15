@@ -42,7 +42,7 @@ import {
   AuthNotice,
   AuthSubmitButton,
 } from "@/components/auth/auth-ui";
-import { pickAuthEmail, readAuthEmailDraft, writeAuthEmailDraft } from "@/lib/auth/email-draft";
+import { pickAuthEmail, readAuthEmailDraft, readAuthNameDraft, writeAuthEmailDraft, writeAuthNameDraft } from "@/lib/auth/email-draft";
 import { authEmailHasPlusTag, OTP_CODE_MAX_LENGTH } from "@/lib/auth/otp-flow";
 import { createTranslator } from "@/i18n/messages";
 import { AgeTermsCheckbox } from "@/components/auth/age-terms-checkbox";
@@ -91,6 +91,7 @@ export function EmailCodeForm({
   passwordFallback,
   footer,
   startWithPassword = false,
+  collectName = false,
 }: {
   nextPath?: string;
   locale?: string;
@@ -108,6 +109,8 @@ export function EmailCodeForm({
    * (magic link or Google) always has a way back in.
    */
   startWithPassword?: boolean;
+  /** TUL-762: ask for a name on the create path; it rides as `full_name` into the new profile. */
+  collectName?: boolean;
 }) {
   const t = createTranslator(locale);
   const [sendState, sendAction, sending] = useActionState<EmailCodeState, FormData>(
@@ -232,6 +235,7 @@ export function EmailCodeForm({
           <input type="hidden" name="email" value={email} />
           <input type="hidden" name="locale" value={locale} />
           <input type="hidden" name="resend" value="1" />
+          {allowCreate && collectName ? <input type="hidden" name="full_name" value={readAuthNameDraft()} /> : null}
           <input type="hidden" name="create" value={allowCreate ? "1" : "0"} />
           {allowCreate ? <input type="hidden" name="age_terms" value="on" /> : null}
           {allowCreate ? <input type="hidden" name="terms_form" value="1" /> : null}
@@ -286,6 +290,24 @@ export function EmailCodeForm({
         {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
 
         {stepError ? <AuthNotice tone="error">{stepError}</AuthNotice> : null}
+
+        {allowCreate && collectName ? (
+          <AuthField label={t("public.auth.form.name")} htmlFor="full_name">
+            <input
+              id="full_name"
+              name="full_name"
+              type="text"
+              autoComplete="name"
+              required
+              maxLength={120}
+              defaultValue={readAuthNameDraft()}
+              onChange={(e) => writeAuthNameDraft(e.target.value)}
+              placeholder={t("public.auth.form.namePlaceholder")}
+              className={AUTH_INPUT_CLASS}
+              style={AUTH_INPUT_STYLE}
+            />
+          </AuthField>
+        ) : null}
 
         <AuthField
           label={t("public.auth.form.email")}

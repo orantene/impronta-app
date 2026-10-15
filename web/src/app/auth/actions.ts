@@ -1,5 +1,6 @@
 "use server";
 
+import { signupNameMetadata } from "@/lib/auth/signup-name";
 import {
   getAppUrl,
   isTalentSignupNext,
@@ -346,12 +347,13 @@ export async function signUpWithEmail(
   // Carry the page locale so the auth-email hook sends the confirm email in EN/ES.
   const lang = String(formData.get("locale") ?? "en") === "es" ? "es" : "en";
 
+  const nameMeta = signupNameMetadata(formData.get("full_name"));
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(nextPath)}&lang=${lang}`,
-      data: signupIntent ? { signup_intent: signupIntent } : undefined,
+      data: signupIntent || nameMeta ? { ...(signupIntent ? { signup_intent: signupIntent } : {}), ...nameMeta } : undefined,
     },
   });
   if (error) {
