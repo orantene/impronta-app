@@ -81,7 +81,7 @@ export function SetupServices({
           </label>
           {s.quote || !s.priceCents ? (
             <p className="mt-1 text-[0.8125rem]" style={{ color: "var(--tl-muted)" }} data-testid={`onb-service-hidden-${i}`}>
-              {copy.hiddenUntilPriced}
+              {s.quote ? copy.quoteShown : copy.hiddenUntilPriced}
             </p>
           ) : null}
         </div>

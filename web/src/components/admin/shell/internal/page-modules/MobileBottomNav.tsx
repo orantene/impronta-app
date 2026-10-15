@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useT } from "@/i18n/use-t";
 import { useDashboardText } from "../dashboard-i18n";
@@ -105,6 +105,22 @@ export function MobileBottomNav() {
   // WS-12.6 — left/right arrows move between bottom nav tabs
   const bottomNavRef = useRef<HTMLElement | null>(null);
   useRovingTabindex(bottomNavRef, "button", { orientation: "horizontal" });
+
+  // TUL-907: the More sheet is a phone-only full-screen layer. When the window
+  // grows past the mobile breakpoint (720px, the shell's own media query) the
+  // bar disappears, so close the sheets instead of leaving them stuck open.
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(min-width: 721px)");
+    const onChange = (e: MediaQueryListEvent) => {
+      if (e.matches) {
+        setMoreOpen(false);
+        setMyWorkOpen(false);
+      }
+    };
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
 
   // The point of sale owns the whole screen (destinations.ts: `chrome: "pos"`)
   // and this bar must never show over it. `usePathname` is null during the

@@ -45,9 +45,22 @@ function label(key: string): Bilingual {
 }
 
 /** Text node props with the other locale riding on the i18n overlay. */
-function bi(prop: "text" | "label" | "title" | "emptyMessage" | "headline" | "ctaVerb" | "venueName", pair: Bilingual, ctx: ComponentContext, vars: Record<string, string> = {}) {
+function bi(prop: "text" | "label" | "title" | "emptyMessage" | "emptyStateText" | "headline" | "ctaVerb" | "venueName", pair: Bilingual, ctx: ComponentContext, vars: Record<string, string> = {}) {
   const fill = (s: string) => resolveIdentityTemplate(s.replace(/\{\{count\}\}/g, vars.count ?? ""), ctx.identity);
   return { [prop]: fill(pair[ctx.locale]), i18n: { [other(ctx.locale)]: { [prop]: fill(pair[other(ctx.locale)]) } } };
+}
+
+/** Merge several `bi()` results: each carries an `i18n` overlay and a plain spread would keep only the last. */
+function biAll(...parts: Array<Record<string, unknown>>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const i18n: Record<string, Record<string, unknown>> = {};
+  for (const part of parts) {
+    for (const [k, v] of Object.entries(part)) {
+      if (k !== "i18n") out[k] = v;
+      else for (const [loc, o] of Object.entries(v as Record<string, Record<string, unknown>>)) i18n[loc] = { ...i18n[loc], ...o };
+    }
+  }
+  return { ...out, i18n };
 }
 
 function line(pair: Bilingual, ctx: ComponentContext): BuilderNode {
@@ -107,9 +120,8 @@ const menuBoard: BusinessComponent = {
             id: tplId("menu_board"),
             kind: "menu_board",
             props: {
-              ...bi("title", label("menu"), ctx),
-              // The block owns its empty state; keep it in the tenant's language.
-              emptyMessage: COMPONENT_EMPTY_STATES.menu_board[ctx.locale],
+              // The block owns its empty state; both languages ride the overlay.
+              ...biAll(bi("title", label("menu"), ctx), bi("emptyMessage", COMPONENT_EMPTY_STATES.menu_board, ctx)),
               categoryNav: true,
               style: {},
             },
@@ -319,7 +331,7 @@ const locationHours: BusinessComponent = {
       id: tplId("location_map"),
       kind: "location_map",
       props: {
-        ...bi("headline", label("whereWeAre"), ctx),
+        ...biAll(bi("headline", label("whereWeAre"), ctx), bi("emptyStateText", COMPONENT_EMPTY_STATES.location_hours, ctx)),
         source: "manual",
         items,
         showMap: items.length > 0,
@@ -330,7 +342,6 @@ const locationHours: BusinessComponent = {
         overlaySide: "card-right",
         ratio: "16/9",
         layout: "list",
-        emptyStateText: COMPONENT_EMPTY_STATES.location_hours[ctx.locale],
         style: {},
       },
     };

@@ -15,6 +15,7 @@ const layout = readFileSync(join(__dirname, "..", "app", "(auth)", "layout.tsx")
 test("auth layout fallback title is the localized brand line", () => {
   assert.match(layout, /const localized: Metadata = \{ \.\.\.AUTH_ROBOTS, title: \{ absolute: dashboardTabTitle\(await getRequestLocale\(\)\) \} \}/);
   assert.doesNotMatch(layout, /return AUTH_ROBOTS;/);
-  assert.match(layout, /brand \? \{ \.\.\.AUTH_ROBOTS, title: \{ absolute: brand\.title \} \} : localized/);
+  // TUL-870: the brand branch also carries the tenant brand head (description, og, twitter, apple title).
+  assert.match(layout, /\? \{ \.\.\.AUTH_ROBOTS, title: \{ absolute: brand\.title \}, \.\.\.authBrandHead\(brand\.title, await getRequestLocale\(\)\) \}\s*:\s*localized/);
   assert.equal(dashboardTabTitle("es"), "Tulala · Vende lo que haces, no lo que envías");
 });

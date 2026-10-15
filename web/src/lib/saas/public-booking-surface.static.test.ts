@@ -29,8 +29,13 @@ test("the slot picker's endpoint is reachable on every public surface", () => {
     "utf8",
   );
   // TUL-690: the picker builds its URL through publicSlotsUrl (it adds the
-  // `/w/<slug>` workspace), so the path is pinned in that helper.
-  assert.match(picker, /fetch\(\s*publicSlotsUrl\(/, "SlotPicker no longer fetches via publicSlotsUrl -- repoint this test");
+  // `/w/<slug>` workspace), so the path is pinned in that helper. TUL-977: the
+  // fetch goes through `loadPublicSlots` (a deadline).
+  assert.match(
+    picker,
+    /loadPublicSlots\(\s*publicSlotsUrl\(/,
+    "SlotPicker no longer loads via loadPublicSlots(publicSlotsUrl(...)) -- repoint this test",
+  );
   const path = PUBLIC_SLOTS_PATH;
   assert.match(path, /^\/api\//);
 
