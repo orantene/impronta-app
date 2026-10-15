@@ -333,7 +333,7 @@ export function InquiryDrawer({
     };
   }, [autosaveEnabled, submitted, triggerAutosave]);
 
-  const canSubmit = validateIntentForSubmit(intent).ok && normalizeGuestPhone(intent.requester?.phone) !== null;
+  const validation = validateIntentForSubmit(intent); const canSubmit = validation.ok && normalizeGuestPhone(intent.requester?.phone) !== null;
 
   const handleSubmit = () => {
     if (!canSubmit) return;
