@@ -47,3 +47,21 @@ test("catalog reaches 120 excluding custom fallback", () => {
 test("pet grooming maps to its own preset", () => {
   assert.equal(BUSINESS_TYPES.find((r) => r.id === "pet-grooming")?.preset, "pet_grooming");
 });
+
+test("TUL-1163: everyday words find the trade they mean", () => {
+  const first = (q: string) => searchBusinessTypes(q)[0]?.id;
+  assert.equal(first("corte de pelo"), "hair-salon");
+  assert.equal(first("corte de cabello"), "hair-salon");
+  assert.equal(first("haircut"), "hair-salon");
+  assert.equal(first("barbero"), "barber-shop");
+  assert.equal(first("lashes"), "eyelash-studio");
+  // A massage therapist is the first answer for "masaje"; the mobile service stays one tap away.
+  assert.equal(first("masaje"), "massage-therapist");
+  assert.ok(searchBusinessTypes("masaje").some((r) => r.id === "mobile-massage-service"));
+});
+
+test("TUL-1163: the new aliases do not steal each other's trades", () => {
+  assert.ok(!searchBusinessTypes("barbero").some((r) => r.id === "hair-salon"));
+  assert.ok(searchBusinessTypes("barber").some((r) => r.id === "barber-shop"));
+  assert.ok(searchBusinessTypes("uñas").some((r) => r.id === "nail-salon"));
+});
