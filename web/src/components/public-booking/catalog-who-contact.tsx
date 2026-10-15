@@ -25,7 +25,7 @@ function CatalogWhoPhone({
   fallbackCountry: string | null;
   value: string;
   onChange: (v: string) => void;
-  onBlur: () => void;
+  onBlur?: () => void;
   invalid: boolean;
 }) {
   const [iso, setIso] = useState<string>(() =>
@@ -86,7 +86,7 @@ export function CatalogWhoContact({
   setName: (v: string) => void;
   setPhone: (v: string) => void;
   setEmail: (v: string) => void;
-  onBlur: () => void;
+  onBlur?: () => void;
   touched: boolean;
   nameValid: boolean;
   phoneValid: boolean;
@@ -106,7 +106,7 @@ export function CatalogWhoContact({
           aria-invalid={touched && !nameValid}
           data-testid="cb-name"
         />
-        {touched && !nameValid ? <em>{es ? "Escribe tu nombre para confirmar." : "Enter your name to confirm."}</em> : null}
+        {touched && !nameValid ? <em role="alert">{es ? "Escribe tu nombre para confirmar." : "Enter your name to confirm."}</em> : null}
       </label>
       <div className="jb-field" role="group" aria-label="WhatsApp">
         <span>
@@ -116,8 +116,8 @@ export function CatalogWhoContact({
           es={es} locale={locale} fallbackCountry={fallbackCountry} value={phone} onChange={setPhone}
           onBlur={onBlur} invalid={touched && !phoneValid}
         />
-        {touched && !phoneValid ? <em>{es ? "Revisa el número." : "Check the number."}</em> : null}
-        {askAttempted && !chatPhoneValid ? <em>{es ? "WhatsApp hace falta para chatear." : "WhatsApp is needed to chat."}</em> : null}
+        {touched && !phoneValid ? <em role="alert">{es ? "Revisa el número." : "Check the number."}</em> : null}
+        {askAttempted && !chatPhoneValid ? <em role="alert">{es ? "WhatsApp hace falta para chatear." : "WhatsApp is needed to chat."}</em> : null}
       </div>
       <label className="jb-field">
         <span>{es ? "Correo" : "Email"}</span>
@@ -132,7 +132,7 @@ export function CatalogWhoContact({
           aria-invalid={touched && !emailValid}
           data-testid="cb-email"
         />
-        {touched && !emailValid ? <em>{es ? "Necesitamos un correo válido." : "We need a valid email."}</em> : null}
+        {touched && !emailValid ? <em role="alert">{es ? "Necesitamos un correo válido." : "We need a valid email."}</em> : null}
       </label>
     </>
   );

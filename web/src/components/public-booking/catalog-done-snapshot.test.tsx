@@ -59,7 +59,7 @@ function setInput(el: HTMLInputElement | HTMLTextAreaElement, v: string) {
   const proto = el.tagName === "TEXTAREA" ? dom.window.HTMLTextAreaElement.prototype : dom.window.HTMLInputElement.prototype;
   const setter = Object.getOwnPropertyDescriptor(proto, "value")!.set!;
   const key = Object.keys(el).find((k) => k.startsWith("__reactProps"))!;
-  const props = (el as unknown as Record<string, { onChange: (e: { target: HTMLInputElement }) => void }>)[key];
+  const props = (el as unknown as Record<string, { onChange: (e: { target: HTMLInputElement | HTMLTextAreaElement }) => void }>)[key];
   act(() => { setter.call(el, v); props.onChange({ target: el }); });
 }
 

@@ -161,6 +161,12 @@ export const NOTIFICATION_PAGE_TARGETS: Readonly<Record<string, NotificationPage
   // attention-signals.ts). My presence's live card shows the Publish button
   // whenever the draft is ahead of live, so the page itself is the target.
   "site-publish": { kind: "page", surface: "talent", path: "/talent/site" },
+
+  // TUL-959: booking.confirmed bells. With a bookingId the dispatch helper
+  // (notificationDrawerFields) opens /talent/bookings/<id> directly; this is
+  // the fallback for a stored row without one. There is no bookings list
+  // route, so land on the calendar, where the new booking sits.
+  "talent-booking": { kind: "page", surface: "talent", path: "/talent/calendar" },
 };
 
 /**

@@ -387,7 +387,6 @@ const ES: Record<string, string> = {
     "Esta reserva está confirmada. Márcala completa cuando termine el trabajo.",
   "This booking is confirmed. The agency marks it complete.":
     "Esta reserva está confirmada. La agencia la marca como completa.",
-  "At your studio": "En tu estudio",
   Online: "En línea",
   "This booking was cancelled.": "Esta reserva fue cancelada.",
   Request: "Solicitud",
