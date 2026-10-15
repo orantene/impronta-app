@@ -3914,6 +3914,7 @@
       "lockedRequestSent": "Solicitud enviada, el coordinador la revisará"
     },
     "talentThread": {
+      "originalRequest": "Solicitud original",
       "backAria": "Volver a mis trabajos",
       "via": "vía {agency}",
       "youreCoord": "Eres coord",
