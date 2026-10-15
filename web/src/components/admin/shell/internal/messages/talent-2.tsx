@@ -451,7 +451,7 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
               <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-admin-ink-muted">
                 {t("dashboard.talentThread.originalRequest")}
               </div>
-              <div style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{conv.brief}</div>
+              <div className="whitespace-pre-wrap [overflow-wrap:anywhere]">{conv.brief}</div>
             </div>
           ) : null}
           <ConversationTab
