@@ -19,24 +19,24 @@ export function PromoResultsCard(props: {
   const c = resultsCopy(lang);
   const sold = soldOutText(r, lang);
   return (
-    <section className="rounded-2xl border border-border bg-card p-4" aria-label={props.name}>
-      <h3 className="text-sm font-medium text-foreground">{props.name}</h3>
+    <section className="rounded-2xl border border-[var(--tc-border,#e5e5ea)] bg-white p-4" aria-label={props.name}>
+      <h3 className="text-sm font-medium text-[var(--tc-ink,#1c1c1e)]">{props.name}</h3>
       <dl className="mt-3 grid grid-cols-3 gap-3">
         <Stat value={String(r.bookings)} label={c.bookings(r.bookings)} />
         <Stat value={money(r.earnedCents, currency, lang)} label={c.earned} />
         <Stat value={money(r.givenCents, currency, lang)} label={c.given} />
       </dl>
-      <p className="mt-3 text-xs text-muted-foreground">
+      <p className="mt-3 text-xs text-[var(--tc-muted,#6b6b73)]">
         {r.newClients} {c.newClients(r.newClients)} · {r.returningClients + r.lapsedClients} {c.returning(r.returningClients + r.lapsedClients)}
         {r.linkOpens > 0 ? ` · ${r.linkOpens} ${c.opens}` : ""}
         {r.giftedCents > 0 ? ` · ${money(r.giftedCents, currency, lang)} ${c.gifted}` : ""}
       </p>
-      {sold ? <p className="mt-2 text-sm text-foreground">{sold}</p> : null}
+      {sold ? <p className="mt-2 text-sm text-[var(--tc-ink,#1c1c1e)]">{sold}</p> : null}
       {(props.tips ?? []).slice(0, 1).map((t) => (
-        <p key={t.id} className="mt-2 text-xs text-muted-foreground">{tipText(t.id, lang)}</p>
+        <p key={t.id} className="mt-2 text-xs text-[var(--tc-muted,#6b6b73)]">{tipText(t.id, lang)}</p>
       ))}
       {props.runAgainHref ? (
-        <Link href={props.runAgainHref} className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-foreground underline underline-offset-4">
+        <Link href={props.runAgainHref} className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-[var(--tc-ink,#1c1c1e)] underline underline-offset-4">
           {c.runAgain}
         </Link>
       ) : null}
@@ -47,8 +47,8 @@ export function PromoResultsCard(props: {
 function Stat({ value, label }: { value: string; label: string }) {
   return (
     <div>
-      <dd className="text-lg font-semibold tabular-nums text-foreground">{value}</dd>
-      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="text-lg font-semibold tabular-nums text-[var(--tc-ink,#1c1c1e)]">{value}</dd>
+      <dt className="text-xs text-[var(--tc-muted,#6b6b73)]">{label}</dt>
     </div>
   );
 }

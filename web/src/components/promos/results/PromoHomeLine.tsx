@@ -7,7 +7,7 @@ export function PromoHomeLine(props: { rollup: MonthRollup; currency: string; la
   const text = homeLineText(props.rollup, props.currency, props.lang);
   if (!text) return null;
   return (
-    <Link href={props.href} className="block min-h-11 py-3 text-sm text-muted-foreground hover:text-foreground">
+    <Link href={props.href} className="block min-h-11 py-3 text-sm text-[var(--tc-muted,#6b6b73)] hover:text-[var(--tc-ink,#1c1c1e)]">
       {text}
     </Link>
   );
