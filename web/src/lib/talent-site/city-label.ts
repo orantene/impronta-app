@@ -20,6 +20,20 @@ export function hasAccent(label: string): boolean {
   return /[^\u0000-\u007f]/.test(label);
 }
 
+/**
+ * TUL-516: known place names whose English form must not paint on Spanish
+ * pages (and the inverse). Used by "Con base en …" swaps and booking-sheet
+ * timezone chips so "Mexico City" becomes "Ciudad de México" on ES.
+ */
+export function localizePlaceCity(city: string, locale: string): string {
+  const text = city.trim();
+  if (!text) return text;
+  const lang = locale.trim().toLowerCase().slice(0, 2) || "en";
+  if (lang === "es" && /^mexico\s*city$/i.test(text)) return "Ciudad de México";
+  if (lang === "en" && /^ciudad de m[eé]xico$/i.test(text)) return "Mexico City";
+  return text;
+}
+
 type NameMap = Readonly<Record<string, string | null | undefined>> | null | undefined;
 
 /**

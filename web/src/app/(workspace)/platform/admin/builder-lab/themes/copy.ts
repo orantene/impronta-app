@@ -18,6 +18,10 @@ export const COPY = {
     noSites: "No sites yet",
     openReleases: "Open releases",
     noReleases: "No open release",
+    firstRelease: "Create first release",
+    firstReleaseConfirm:
+      "Create a draft release for this design's current version? Nothing reaches a site yet: run the dry run on the release page, then Publish to demos.",
+    firstReleaseWorking: "Creating…",
     open: "Open",
     unpinned: "unpinned",
     channel: { draft: "Draft", demos: "Demos", optin: "Opt-in", default: "Default" },
@@ -110,6 +114,10 @@ export const COPY = {
     noSites: "Aún no hay sitios",
     openReleases: "Lanzamientos abiertos",
     noReleases: "Sin lanzamientos abiertos",
+    firstRelease: "Crear primer lanzamiento",
+    firstReleaseConfirm:
+      "¿Crear un lanzamiento en borrador para la versión actual de este diseño? Todavía no llega a ningún sitio: haz la prueba en la página del lanzamiento y luego Publicar en demos.",
+    firstReleaseWorking: "Creando…",
     open: "Abrir",
     unpinned: "sin fijar",
     channel: { draft: "Borrador", demos: "Demos", optin: "Opcional", default: "Predeterminado" },
