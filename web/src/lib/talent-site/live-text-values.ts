@@ -9,7 +9,7 @@ import { resolveLiveBio } from "./live-bio";
 import { guessLineLanguage, resolveLocalizedLine } from "./live-line-language";
 import type { TalentLiveText } from "./live-text";
 import { tagLineFromVisibleServices, type ServiceVisibility } from "./live-text-services";
-import { pick, type LocalizedMapLike } from "./talent-locale-swaps";
+import { pick, staleTypeLabels, type LocalizedMapLike } from "./talent-locale-swaps";
 
 export interface LiveTextSource {
   displayName: string;
@@ -112,12 +112,15 @@ export function buildTalentLiveText(
 
   const cityEs = src.city?.es?.trim() ?? "";
   const tradeEs = src.trade?.es?.trim() ?? "";
+  const staleTrades = staleTypeLabels(tradeEn);
   const eyebrows = new Set(
     [
       tradeEn,
       tradeEs,
+      ...staleTrades,
       formatHeroEyebrow(tradeEn, cityEn),
       formatHeroEyebrow(tradeEs, cityEs),
+      ...staleTrades.map((t) => formatHeroEyebrow(t, cityEs || cityEn)),
       formatHeroEyebrow(tradeNow, cityNow),
     ].filter(Boolean),
   );
@@ -126,7 +129,8 @@ export function buildTalentLiveText(
 
   const currency = src.menuCurrency?.trim().toUpperCase();
   return {
-    trades: [tradeEn, tradeEs].filter(Boolean),
+    // Include stale baked labels so the header lockup still matches after a taxonomy rename.
+    trades: [tradeEn, tradeEs, ...staleTrades].filter(Boolean),
     // The trade as the visitor's language names it ("Manicurista"): the header lockup under her name.
     tradeLabel: tradeNow,
     bioHint: bio.hint,

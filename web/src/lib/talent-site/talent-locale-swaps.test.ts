@@ -142,3 +142,19 @@ test("TUL-516: Mexico City becomes Ciudad de México on Spanish (based-in + uppe
   assert.equal(es["BASED IN MEXICO CITY"], "CON BASE EN CIUDAD DE MÉXICO");
   assert.equal(es["Fashion Model · Mexico City"], "Modelo de moda · Ciudad de México");
 });
+
+test("TUL-516 C: stale Bailarín Latino swaps to live Baile latino (mig 358000)", () => {
+  const m = buildTalentLocaleSwaps(
+    {
+      bioI18n: null,
+      typeNames: [{ en: "Latin Dancer", es: "Baile latino" }],
+      homeCity: { en: "Mexico City", es: "Ciudad de México" },
+      cityAliases: ["Mexico City"],
+    },
+    "es",
+  );
+  assert.equal(m["Bailarín Latino"], "Baile latino");
+  assert.equal(m["Latin Dancer"], "Baile latino");
+  assert.equal(m["Bailarín Latino · Mexico City"], "Baile latino · Ciudad de México");
+  assert.equal(m["Latin Dancer · Mexico City"], "Baile latino · Ciudad de México");
+});

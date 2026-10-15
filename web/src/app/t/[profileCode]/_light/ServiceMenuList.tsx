@@ -8,7 +8,7 @@
  */
 
 import type { ServiceMenuItem } from "@/lib/talent/services-menu-types";
-import { SERVICE_PRICING_SUFFIX, SERVICE_PRICING_SUFFIX_ES } from "@/lib/talent/services-menu-types";
+import { servicePricingSuffix } from "@/lib/talent/services-menu-types";
 import { formatMoney } from "@/lib/talent/offerings-money";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 
@@ -26,8 +26,7 @@ function priceLabel(it: ServiceMenuItem, locale: string): string {
   }
   // TUL-533 / GRK-064: never paint "$0 MXN".
   if (it.amountCents <= 0) return es ? "Consultar" : "Ask";
-  // TUL-533 / GRK-026: Spanish pages use "/ sesión", not English "/ session".
-  const suffix = (es ? SERVICE_PRICING_SUFFIX_ES : SERVICE_PRICING_SUFFIX)[it.pricingType];
+  const suffix = servicePricingSuffix(it.pricingType, locale);
   const price = formatPrice(it.amountCents, it.currency, locale);
   return suffix ? `${price} ${suffix}` : price;
 }
@@ -137,7 +136,9 @@ export function ServiceMenuList({ items, locale, disciplineLabels, nameById }: S
                 >
                   {addOnsLabel}:
                 </span>
-                {it.addOns.map((ao) => (
+                {it.addOns.map((ao) => {
+                  const aoSuffix = servicePricingSuffix(ao.pricingType, locale);
+                  return (
                   <span
                     key={ao.id}
                     className="inline-flex items-center rounded-full border px-2 py-0.5 text-[0.75rem]"
@@ -150,13 +151,12 @@ export function ServiceMenuList({ items, locale, disciplineLabels, nameById }: S
                     {ao.amountCents != null ? (
                       <span className="ml-1 tabular-nums" style={{ color: "var(--plt-muted)" }}>
                         +{formatPrice(ao.amountCents, it.currency, locale)}
-                        {SERVICE_PRICING_SUFFIX[ao.pricingType]
-                          ? ` ${SERVICE_PRICING_SUFFIX[ao.pricingType]}`
-                          : ""}
+                        {aoSuffix ? ` ${aoSuffix}` : ""}
                       </span>
                     ) : null}
                   </span>
-                ))}
+                  );
+                })}
               </div>
             ) : null}
           </div>
