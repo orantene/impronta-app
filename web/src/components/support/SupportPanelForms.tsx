@@ -10,10 +10,11 @@ import { supportSendErrorText } from "./support-send-error";
 import { ReplayConsent } from "./ReplayConsent";
 import { SupportAttachButton } from "./SupportAttachButton";
 import { uploadSupportAttachment } from "./upload-support-attachment";
-
-const NEW_TICKET_MAX_FILES = 3;
-const NEW_TICKET_MAX_BYTES = 5 * 1024 * 1024;
-const NEW_TICKET_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+import {
+  SUPPORT_ATTACH_ACCEPT,
+  stageSupportAttachments,
+  uploadStagedAttachments,
+} from "./support-attachment-limits";
 import { getDiagnosticsSnapshot } from "@/lib/support/diagnostics/collector";
 import type { SupportContract } from "./support-contract";
 
@@ -38,6 +39,7 @@ export function NewTicketForm({
   const [pref, setPref] = useState<"anytime" | "morning" | "afternoon" | "evening">("anytime");
   const [busy, setBusy] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const errorRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -68,7 +70,7 @@ export function NewTicketForm({
             // TUL-600: screenshots picked on the form ride in as the first
             // messages of the new thread; a failed upload never blocks the ticket.
             if (r.ok && files.length > 0) {
-              for (const f of files) await uploadSupportAttachment(r.ticketId, f);
+              await uploadStagedAttachments(r.ticketId, files, async (id, f) => (await uploadSupportAttachment(id, f)).ok);
             }
             setBusy(false);
             if (r.ok) {
@@ -108,20 +110,40 @@ export function NewTicketForm({
       <div style={fieldLabel}>
         <span>{t("dashboard.adminSupport.fieldAttachments")}</span>
         <input
+          ref={fileRef}
           type="file"
-          accept={NEW_TICKET_TYPES.join(",")}
           multiple
-          aria-label={t("dashboard.adminSupport.fieldAttachments")}
-          style={fieldInput}
+          hidden
+          accept={SUPPORT_ATTACH_ACCEPT}
           onChange={(e) => {
-            const picked = Array.from(e.target.files ?? []).filter(
-              (f) => f.size <= NEW_TICKET_MAX_BYTES && NEW_TICKET_TYPES.includes(f.type),
-            );
-            const rejected = (e.target.files?.length ?? 0) > picked.length;
-            setFiles(picked.slice(0, NEW_TICKET_MAX_FILES));
-            setError(rejected ? t("dashboard.adminSupport.attachFailed") : null);
+            const r = stageSupportAttachments(files, Array.from(e.target.files ?? []));
+            setFiles(r.files);
+            setError(r.rejected ? t("dashboard.adminSupport.attachFailed") : null);
+            if (fileRef.current) fileRef.current.value = "";
           }}
         />
+        <button
+          type="button"
+          disabled={busy}
+          aria-label={t("dashboard.adminSupport.attachAria")}
+          onClick={() => fileRef.current?.click()}
+          style={{ ...fieldInput, minHeight: 44, cursor: "pointer", textAlign: "left", background: COLORS.card }}
+        >
+          {t("dashboard.adminSupport.attachAria")}
+        </button>
+        {files.map((f, i) => (
+          <div key={`${f.name}-${i}`} style={{ fontSize: 13, color: COLORS.inkMuted, display: "flex", gap: 8, alignItems: "center" }}>
+            <span style={{ minWidth: 0, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+            <button
+              type="button"
+              aria-label={f.name}
+              onClick={() => setFiles(files.filter((_, j) => j !== i))}
+              style={{ minWidth: 44, minHeight: 44, border: "none", background: "none", cursor: "pointer", color: COLORS.inkMuted }}
+            >
+              ×
+            </button>
+          </div>
+        ))}
       </div>
       <label style={fieldLabel}>
         {t("dashboard.adminSupport.fieldPhone")}
@@ -253,13 +275,16 @@ export function Composer({
           disabled={disabled || busy}
           onChange={(e) => setBody(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
+            // IME composition (CJK, accents on some keyboards) uses Enter to
+            // commit the candidate; that must not send the message.
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
               void send();
             }
           }}
           placeholder={t("dashboard.adminSupport.composerPlaceholder")}
           rows={1}
+          enterKeyHint="send"
           style={{
             flex: 1,
             resize: "none",

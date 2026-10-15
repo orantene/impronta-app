@@ -69,6 +69,12 @@ const PREVIEW_VIEWPORT = {
 } as const;
 const PREVIEW_MAX_W = { desktop: 560, phone: 280 } as const;
 
+/** Scale that fits the frame into the real box width (never above the device max). */
+export function previewScale(maxW: number, boxW: number | null, frameW: number): number {
+  const w = boxW && boxW > 0 ? Math.min(maxW, boxW) : maxW;
+  return w / frameW;
+}
+
 function formatSince(iso: string | null, locale: MaisonSetupLocale): string | null {
   if (!iso) return null;
   const d = new Date(iso);
@@ -214,6 +220,20 @@ export function MyWebsiteCard({
     ? `/template-preview/current?kind=live-site&talent=${encodeURIComponent(talentId)}&locale=${locale}`
     : null;
   const thumbRef = useRef<HTMLIFrameElement>(null);
+  const thumbBoxRef = useRef<HTMLDivElement>(null);
+  // TUL-987: the frame is scaled to the width the box really gets, so a 390px
+  // screen never clips a 560px-wide scaled frame into an empty-looking box.
+  const [thumbWidth, setThumbWidth] = useState<number | null>(null);
+  useEffect(() => {
+    const el = thumbBoxRef.current;
+    if (!el) return;
+    const read = () => setThumbWidth(el.clientWidth || null);
+    read();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(read);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // A frame that finished loading before hydration never fires React's onLoad.
   useEffect(() => {
@@ -327,7 +347,7 @@ export function MyWebsiteCard({
 
   const viewport = PREVIEW_VIEWPORT[device];
   const previewMaxW = PREVIEW_MAX_W[device];
-  const scale = previewMaxW / viewport.w;
+  const scale = previewScale(previewMaxW, thumbWidth, viewport.w);
 
   return (
     <section
@@ -381,6 +401,7 @@ export function MyWebsiteCard({
           </div>
 
           <div
+            ref={thumbBoxRef}
             data-testid="maison-live-thumb"
             data-preview-device={device}
             className="relative mx-auto overflow-hidden rounded-xl border border-admin-border-soft bg-admin-canvas"
