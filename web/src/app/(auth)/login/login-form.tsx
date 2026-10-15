@@ -56,6 +56,8 @@ export function LoginForm({
     FormData
   >(signInWithEmail, undefined);
   const [remember, setRemember] = useState(true);
+  // TUL-768: React resets uncontrolled fields after a form action, so a failed login wiped the typed email.
+  const [email, setEmail] = useState(defaultEmail ?? "");
 
   useEffect(() => {
     try {
@@ -98,7 +100,8 @@ export function LoginForm({
           type="email"
           autoComplete="email"
           required
-          defaultValue={defaultEmail}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
           placeholder={t("public.auth.form.emailPlaceholder")}
           className={AUTH_INPUT_CLASS}
           style={AUTH_INPUT_STYLE}
