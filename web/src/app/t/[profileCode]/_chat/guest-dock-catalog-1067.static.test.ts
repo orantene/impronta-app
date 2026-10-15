@@ -47,3 +47,11 @@ test("the banner clears on every sub-tab switch", () => {
   assert.match(comp, /setServiceChip\(label\); setNotice\(null\)/);
   assert.match(comp, /setCategory\(g\.category\); setNotice\(null\)/);
 });
+
+test("a11y (09 finding): dock buttons carry the row name, 36px targets, keyboard focus ring", () => {
+  const src = readFileSync(join(__dirname, "GuestDockCatalog.tsx"), "utf8");
+  assert.match(src, /const ariaLabel = itemName \? `\$\{label\}: \$\{itemName\}` : undefined/);
+  assert.equal((src.match(/<SmallButton itemName=\{/g) ?? []).length, (src.match(/<SmallButton\b/g) ?? []).length);
+  assert.ok((src.match(/className=\{a11y\.focusRing\}/g) ?? []).length >= 3);
+  assert.ok((src.match(/minHeight: 36/g) ?? []).length >= 2);
+});

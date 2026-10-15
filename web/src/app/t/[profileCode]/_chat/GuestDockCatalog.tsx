@@ -44,6 +44,7 @@ import { getGuestItemsCatalog, type GuestCatalogGroup, type GuestCatalogRow } fr
 import { FONT, type paletteFor } from "./mini-chat-styles";
 import { addAddedCatalogItem } from "./guest-added-items-store";
 import { discardEmptyDraft, readGuestThreadToken, type EnsureInquiryForItems } from "./guest-catalog-add-flow";
+import a11y from "./mini-chat-a11y.module.css";
 
 type Palette = ReturnType<typeof paletteFor>;
 
@@ -101,7 +102,10 @@ function Chip({ on, label, onClick, C, accent }: { on: boolean; label: string; o
       type="button"
       onClick={onClick}
       aria-pressed={on}
+      className={a11y.focusRing}
       style={{
+        ["--chat-focus-accent" as string]: accent,
+        minHeight: 36,
         border: on ? `1.5px solid ${accent}` : `1px solid ${C.borderSoft}`,
         background: on ? `${accent}14` : "#fff",
         color: on ? accent : C.ink,
@@ -120,8 +124,12 @@ function Chip({ on, label, onClick, C, accent }: { on: boolean; label: string; o
   );
 }
 
-function SmallButton({ label, onClick, primary, disabled, C, accent, accentInk, href, onSelect }: { label: string; onClick?: () => void; primary?: boolean; disabled?: boolean; C: Palette; accent: string; accentInk: string; href?: string; onSelect?: () => boolean }) {
+function SmallButton({ label, onClick, primary, disabled, C, accent, accentInk, href, onSelect, itemName }: { label: string; onClick?: () => void; primary?: boolean; disabled?: boolean; C: Palette; accent: string; accentInk: string; href?: string; onSelect?: () => boolean; itemName?: string }) {
+  // A11y: every row has the same short "Add"/"Ask", so the accessible name carries the row.
+  const ariaLabel = itemName ? `${label}: ${itemName}` : undefined;
   const style: React.CSSProperties = {
+    ["--chat-focus-accent" as string]: accent,
+    minHeight: 36,
     border: primary ? "none" : `1px solid ${C.borderSoft}`,
     background: primary ? accent : "#fff",
     color: primary ? accentInk : C.ink,
@@ -134,12 +142,13 @@ function SmallButton({ label, onClick, primary, disabled, C, accent, accentInk, 
     cursor: disabled ? "default" : "pointer",
     opacity: disabled ? 0.55 : 1,
     textDecoration: "none",
-    display: "inline-block",
+    display: "inline-flex",
+    alignItems: "center",
   };
   // TUL-1068: `onSelect` returns true when the page opened the in-page sheet; the link is only the fallback.
-  if (href) return <a href={href} style={style} onClick={onSelect ? (e) => { if (onSelect()) e.preventDefault(); } : undefined}>{label}</a>;
+  if (href) return <a href={href} aria-label={ariaLabel} className={a11y.focusRing} style={style} onClick={onSelect ? (e) => { if (onSelect()) e.preventDefault(); } : undefined}>{label}</a>;
   return (
-    <button type="button" onClick={onClick} disabled={disabled} style={style}>
+    <button type="button" onClick={onClick} disabled={disabled} aria-label={ariaLabel} className={a11y.focusRing} style={style}>
       {label}
     </button>
   );
@@ -328,7 +337,7 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
                   </div>
                 ) : null}
               </div>
-              <SmallButton
+              <SmallButton itemName={item.title}
                 label={dockServiceCtaLabel(item.cta, locale)}
                 primary={item.cta === "book_now" || item.cta === "request_to_book" || item.cta === "buy_now"}
                 onClick={() => {
@@ -365,7 +374,7 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
               </div>
             </div>
             {isTalent ? (
-              <SmallButton
+              <SmallButton itemName={row.title}
                 label={inLineup ? t("public.guestChat.catalogInLineup") : t("public.guestChat.catalogAddLineup")}
                 primary={!inLineup}
                 onClick={() => cart.setInCart({ talentProfileId: row.talentProfileId as string, profileCode: row.profileCode ?? "", displayName: row.title }, !inLineup, sourcePage)}
@@ -374,7 +383,7 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
                 accentInk={accentInk}
               />
             ) : row.offeringId && row.available ? (
-              <SmallButton
+              <SmallButton itemName={row.title}
                 label={added ? t("public.guestChat.catalogInInquiry") : busyId === row.id ? t("public.guestChat.catalogAdding") : t("public.guestChat.catalogAddInquiry")}
                 primary={!added}
                 disabled={added || busyId === row.id}
@@ -385,7 +394,7 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
               />
             ) : null}
             {buyHref && row.available ? (
-              <SmallButton
+              <SmallButton itemName={row.title}
                 label={row.category === "service" || row.category === "class" ? t("public.guestChat.catalogAdd") : dockStorefrontCtaLabel(row.category, locale, t("public.guestChat.catalogBuyNow"))}
                 href={buyHref}
                 onSelect={row.offeringId && (row.category === "service" || row.category === "class") ? () => requestChatAddService(row.offeringId as string) : undefined}
@@ -394,7 +403,7 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
                 accentInk={accentInk}
               />
             ) : null}
-            <SmallButton label={t("public.guestChat.catalogAsk")} onClick={() => onAsk(interpolate(t("public.guestChat.catalogAskPrefill"), { item: row.title, business: businessName }))} C={C} accent={accent} accentInk={accentInk} />
+            <SmallButton itemName={row.title} label={t("public.guestChat.catalogAsk")} onClick={() => onAsk(interpolate(t("public.guestChat.catalogAskPrefill"), { item: row.title, business: businessName }))} C={C} accent={accent} accentInk={accentInk} />
           </div>
         );
       })}
