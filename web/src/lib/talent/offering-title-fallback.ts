@@ -20,6 +20,10 @@ export const PLATFORM_SERVICE_TITLE_DICTIONARY: ReadonlyArray<Pair> = [
   { en: "Acrylic, polygel or soft gel removal", es: "Remoción de acrílico, polygel o Soft Gel" },
   { en: "Russian manicure with gel", es: "Manicura rusa con gel" },
   { en: "Semi-permanent gel, hands", es: "Esmaltado semipermanente, manos" },
+  // TUL-975: common generic titles seen on the ES booking page.
+  { en: "Gel manicure", es: "Manicura en gel" },
+  { en: "Massage", es: "Masaje" },
+  { en: "Couples massage", es: "Masaje en pareja" },
 ];
 
 function norm(s: string): string {
