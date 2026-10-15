@@ -29,6 +29,7 @@ export function Picker<Item>({
   testId,
   extra,
   typed,
+  typedMinLength = 2,
 }: {
   id: string;
   label: string;
@@ -49,6 +50,8 @@ export function Picker<Item>({
   extra?: React.ReactNode;
   /** TUL-894: accept what was typed when no suggestion is picked (a city the list does not know). */
   typed?: { label: (text: string) => string; make: (text: string) => Item };
+  /** Shortest text that offers the typed option (cities 2; categories 1). */
+  typedMinLength?: number;
 }) {
   const [query, setQuery] = useState("");
   const [items, setItems] = useState<Item[]>([]);
@@ -129,7 +132,7 @@ export function Picker<Item>({
               </button>
             ))
           )}
-          {typed && query.trim().length >= 2 ? (
+          {typed && query.trim().length >= typedMinLength ? (
             <button
               type="button"
               onMouseDown={(e) => e.preventDefault()}
