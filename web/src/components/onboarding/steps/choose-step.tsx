@@ -43,9 +43,11 @@ export function ChooseStep({
   const tabStop: OnboardingChoice = selected ?? ORDER[0];
   const onCardKey = (e: KeyboardEvent<HTMLButtonElement>, choice: OnboardingChoice) => {
     const step = e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : e.key === "ArrowUp" || e.key === "ArrowLeft" ? -1 : 0;
-    if (!step) return;
+    // Home / End jump to the first / last card (radio group pattern).
+    const edge = e.key === "Home" ? 0 : e.key === "End" ? ORDER.length - 1 : null;
+    if (!step && edge === null) return;
     e.preventDefault();
-    const next = ORDER[(ORDER.indexOf(choice) + step + ORDER.length) % ORDER.length];
+    const next = edge !== null ? ORDER[edge] : ORDER[(ORDER.indexOf(choice) + step + ORDER.length) % ORDER.length];
     setSelected(next);
     cardRefs.current[next]?.focus();
   };

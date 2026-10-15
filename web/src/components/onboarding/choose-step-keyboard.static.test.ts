@@ -33,3 +33,9 @@ test("TUL-1125: cards show a visible focus ring", () => {
   assert.match(src, /focus-visible:outline-\[var\(--tl-forest\)\]/);
   assert.doesNotMatch(src, /outline-none/);
 });
+
+test("A11y: Home and End jump to the first and last card", () => {
+  assert.match(src, /e\.key === "Home" \? 0/);
+  assert.match(src, /e\.key === "End" \? ORDER\.length - 1/);
+  assert.match(src, /edge !== null \? ORDER\[edge\]/, "the edge wins over the arrow step");
+});
