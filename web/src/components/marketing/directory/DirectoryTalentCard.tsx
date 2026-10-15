@@ -163,6 +163,7 @@ export function DirectoryTalentCard({
         // Platform-host surface: reviews-entitled, and the <html> standing
         // token gate never exists here — opt in the same way Discover does.
         showStanding="always"
+        locale={locale}
       />
       {/* Favorite heart + quick-view eye, always visible. Both hooks are
           guest-capable and render null until the discovery-state provider

@@ -154,6 +154,8 @@ export type TalentCardProps = {
    * check inside the chip.
    */
   showStanding?: "auto" | "always";
+  /** Page locale for the Exclusive / Independent labels. Defaults to English. */
+  locale?: string;
 };
 
 /**

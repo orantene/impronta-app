@@ -19,6 +19,7 @@ import {
   AgencyLine,
   AvailabilityLine,
   OwnershipBadge,
+  ownershipLabel,
   StandingChip,
   VerifiedBadge,
 } from "./talent-card-parts";
@@ -175,6 +176,7 @@ export function TalentCard({
   ctaSlot,
   showAgencyLine = false,
   showStanding = "auto",
+  locale = "en",
 }: TalentCardProps) {
   const displayName = resolveName(data.name, show.showName, nameFallback);
   const href = data.profileHref || "#";
@@ -259,7 +261,7 @@ export function TalentCard({
                 data-card-badge-exclusive
                 className="inline-flex shrink-0 items-center rounded-full bg-[var(--token-card-cta,#1f4d3a)] px-2 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-white"
               >
-                Exclusive
+                {ownershipLabel("exclusive", locale)}
               </span>
             ) : null}
           </div>
@@ -326,7 +328,7 @@ export function TalentCard({
               ) : null}
               {showAgencyLine ? <AgencyLine data={data} onScrim={false} /> : null}
               {show.showBadges && !data.isExclusive ? (
-                <OwnershipBadge data={data} />
+                <OwnershipBadge data={data} locale={locale} />
               ) : null}
             </div>
             {ctaSlot ? <div className="shrink-0">{ctaSlot}</div> : null}
@@ -426,7 +428,7 @@ export function TalentCard({
           {traitSlot}
           <StandingChip data={data} onScrim={false} showStanding={showStanding} />
           <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
-            {show.showBadges ? <OwnershipBadge data={data} /> : <span />}
+            {show.showBadges ? <OwnershipBadge data={data} locale={locale} /> : <span />}
             {/* availabilitySlot overrides the built-in line so a richer surface
                 (the Discover 14-day strip) can render in its place. */}
             {availabilitySlot ??
@@ -522,7 +524,7 @@ export function TalentCard({
               data-card-badge-exclusive
               className="truncate text-[9px] font-semibold uppercase tracking-[0.16em] text-[var(--token-card-price-color,var(--dir-accent,#c8a04a))] @[280px]:text-[11px] @[280px]:tracking-[0.2em]"
             >
-              Exclusive
+              {ownershipLabel("exclusive", locale)}
               {data.agencyName ? ` · ${data.agencyName}` : ""}
             </span>
           ) : null}
@@ -619,7 +621,7 @@ export function TalentCard({
       {show.showBadges ? (
         <div className="absolute left-2.5 top-2.5 z-[1] flex flex-wrap gap-1.5">
           {data.verified ? <VerifiedBadge /> : null}
-          <OwnershipBadge data={data} />
+          <OwnershipBadge data={data} locale={locale} />
         </div>
       ) : null}
 
