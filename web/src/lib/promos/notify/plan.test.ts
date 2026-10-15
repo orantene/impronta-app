@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { planPromoNotifications, promoEvents, type PromoNotifyInput } from "./plan";
+import { planPromoNotifications, promoEvents, promoRecipientUserIds, type PromoNotifyInput } from "./plan";
 import { canMessageClient } from "./client-optin";
 
 const NOW = new Date("2026-10-14T15:00:00Z");
@@ -70,4 +70,12 @@ test("client messaging is opt-in with a monthly cap of 2", () => {
   assert.deepEqual(canMessageClient({ optedIn: true, unsubscribed: true, sentThisMonth: 0 }), { ok: false, reason: "unsubscribed" });
   assert.deepEqual(canMessageClient({ optedIn: true, sentThisMonth: 2 }), { ok: false, reason: "monthly_cap" });
   assert.deepEqual(canMessageClient({ optedIn: true, sentThisMonth: 1 }), { ok: true, remaining: 1 });
+});
+
+test("hub: a talent promo notifies its own talent only, never the tenant's admins or other talents", () => {
+  const admins = new Map([["hub", ["platform-admin"]]]);
+  const talents = new Map([["tp-a", "user-a"], ["tp-b", "user-b"]]);
+  assert.deepEqual(promoRecipientUserIds({ tenant_id: "hub", talent_profile_id: "tp-a" }, admins, talents), ["user-a"]);
+  assert.deepEqual(promoRecipientUserIds({ tenant_id: "hub", talent_profile_id: "tp-x" }, admins, talents), []);
+  assert.deepEqual(promoRecipientUserIds({ tenant_id: "hub", talent_profile_id: null }, admins, talents), ["platform-admin"]);
 });

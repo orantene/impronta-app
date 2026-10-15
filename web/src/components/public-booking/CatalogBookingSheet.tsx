@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { deriveGuestBookingPresentation } from "@/lib/booking/guest-booking-presentation";
-
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 import { durationLabel } from "@/lib/talent/duration-label";
 import { formatMoney } from "@/lib/talent/offerings-money";
@@ -266,14 +265,8 @@ export function CatalogBookingSheet({
         if (cancelled) return;
         setLiveTz(r.timezone);
         // TUL-531: continuous 14-day strip (empty days kept); fromYmd falls back to the first slot day.
-        const fromYmd =
-          r.fromYmd ?? r.slots.map((s) => s.slice(0, 10)).sort()[0] ?? new Date().toISOString().slice(0, 10);
-        const strip = buildLiveDayStrip({
-          slots: r.slots,
-          timezone: r.timezone,
-          fromYmd,
-          dayCount: LIVE_SLOT_STRIP_DAYS,
-        });
+        const fromYmd = r.fromYmd ?? r.slots.map((s) => s.slice(0, 10)).sort()[0] ?? new Date().toISOString().slice(0, 10);
+        const strip = buildLiveDayStrip({ slots: r.slots, timezone: r.timezone, fromYmd, dayCount: LIVE_SLOT_STRIP_DAYS });
         setLiveDays(strip);
         // TUL-232: opened at a slot: select it, or fall back to its day / the first day with the notice.
         const arrival = slotArrivalPlan(pendingSlotRef.current, strip, r.timezone, locale);

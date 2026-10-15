@@ -47,3 +47,9 @@ test("route reads the session user only and takes no request input", () => {
 test("the booking sheet fills contact fields from the account hook on the who step", () => {
   assert.match(sheet, /useBookingContactPrefill\(\{\s*active: step === "who"/);
 });
+
+test("TUL-900: the prefill route never answers 404 or 500, so guests see no console error", () => {
+  const src = readFileSync(join(process.cwd(), "src/app/api/client/booking-prefill/route.ts"), "utf8");
+  assert.doesNotMatch(src, /,\s*40\d\)/);
+  assert.doesNotMatch(src, /,\s*500\)/);
+});

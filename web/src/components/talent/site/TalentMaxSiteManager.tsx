@@ -80,6 +80,8 @@ type ManagerProps = Props & {
   hideDomainRow?: boolean;
 };
 
+const MANAGER_LOAD_TIMEOUT_MS = 20_000;
+
 export function TalentMaxSiteManager({
   locale = "en",
   onOpenDomain,
@@ -99,7 +101,14 @@ export function TalentMaxSiteManager({
   // Never hang on "Loading your website…": a thrown action lands in `error`.
   const reload = useCallback(async () => {
     try {
-      const res = await takeOr("manager", "manager", loadMaxSiteManagerAction);
+      // TUL-728: server actions queue one at a time; a stuck one left this card
+      // on "Loading your website…" forever. Time out into the retry state.
+      const res = await Promise.race([
+        takeOr("manager", "manager", loadMaxSiteManagerAction),
+        new Promise<never>((_, reject) => {
+          window.setTimeout(() => reject(new Error("manager-load-timeout")), MANAGER_LOAD_TIMEOUT_MS);
+        }),
+      ]);
       if (!res.ok) {
         setError(res.error);
         setState(null);

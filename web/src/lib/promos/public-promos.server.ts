@@ -37,9 +37,11 @@ export const EMPTY_PUBLIC_PROMOS: PublicPromos = { promos: [], usage: {}, banner
 export async function loadPublicPromosWith(
   admin: SupabaseClient,
   tenantId: string,
+  /** The talent whose site / hub page renders: only their own promos price it. */
+  talentProfileId: string,
   now: Date,
 ): Promise<PublicPromos> {
-  const loaded = await loadTenantPromos(admin, tenantId);
+  const loaded = await loadTenantPromos(admin, tenantId, { talentProfileId });
   if (!loaded.ok) return { ...EMPTY_PUBLIC_PROMOS, now: now.toISOString() };
   const rowById = new Map<string, PromoRow>(loaded.rows.map((r) => [r.id, r]));
   const candidates = loaded.promos.filter((p) => isAdvertisable(p) && rowById.get(p.id)?.show_on_site === true);
@@ -56,19 +58,6 @@ export async function loadPublicPromosWith(
     now: now.toISOString(),
   };
 }
-
-/** Per-request cached: the service page, related links and hub share one read. */
-export const loadPublicPromos = cache(async (tenantId: string | null): Promise<PublicPromos> => {
-  const now = new Date();
-  if (!tenantId) return { ...EMPTY_PUBLIC_PROMOS, now: now.toISOString() };
-  const admin = createServiceRoleClient();
-  if (!admin) return { ...EMPTY_PUBLIC_PROMOS, now: now.toISOString() };
-  try {
-    return await loadPublicPromosWith(admin, tenantId, now);
-  } catch {
-    return { ...EMPTY_PUBLIC_PROMOS, now: now.toISOString() };
-  }
-});
 
 /** The talent's promo tenant, resolved the way the share kit does (oldest active roster row). */
 export async function talentPromoTenantId(admin: SupabaseClient, talentProfileId: string): Promise<string | null> {
@@ -97,7 +86,7 @@ export const loadPublicPromosForTalent = cache(async (talentProfileId: string | 
   if (!admin) return empty;
   try {
     const tenantId = await talentPromoTenantId(admin, talentProfileId);
-    return tenantId ? await loadPublicPromosWith(admin, tenantId, now) : empty;
+    return tenantId ? await loadPublicPromosWith(admin, tenantId, talentProfileId, now) : empty;
   } catch {
     return empty;
   }

@@ -10,7 +10,7 @@ import { Icon } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS } from "./support-tokens";
 import type { SupportMessageRow, SupportTicketRow } from "@/lib/support/support-types";
 import { resolveSupportTicketAction } from "@/lib/support/actions";
-import { canOfferHuman } from "./support-panel-state";
+import { canOfferHuman, shouldShowThinking } from "./support-panel-state";
 import { SupportCardRenderer, type SupportThreadTone } from "./SupportCardRenderer";
 
 export type { SupportThreadTone };
@@ -124,6 +124,10 @@ export function SupportThreadView({
   const [pickedRating, setPickedRating] = useState<number | null>(null);
   const [ratingComment, setRatingComment] = useState("");
   const [ratingThanks, setRatingThanks] = useState(false);
+  const hasOfferCard = useMemo(
+    () => messages.some((m) => m.messageKind === "card" && m.cardPayload?.kind === "offer-human"),
+    [messages],
+  );
   const grouped = useMemo(() => {
     const out: Array<{ day: string; items: SupportMessageRow[] }> = [];
     for (const m of messages) {
@@ -292,14 +296,16 @@ export function SupportThreadView({
                           >
                             {t("dashboard.adminSupport.yesHelped")}
                           </button>
-                          {canOfferHuman(ticket) ? (
-                            <button type="button" onClick={onRequestHuman} style={ghostBtn}>
-                              {t("dashboard.adminSupport.noHelped")}
-                            </button>
-                          ) : null}
+                          <button
+                            type="button"
+                            onClick={canOfferHuman(ticket) ? onRequestHuman : () => setAcked((prev) => ({ ...prev, [m.id]: true }))}
+                            style={ghostBtn}
+                          >
+                            {t("dashboard.adminSupport.noHelped")}
+                          </button>
                         </>
                       )}
-                      {canOfferHuman(ticket) ? (
+                      {canOfferHuman(ticket) && !hasOfferCard ? (
                         <button type="button" onClick={onRequestHuman} style={ghostBtn}>
                           {t("dashboard.adminSupport.talkToHuman")}
                         </button>
@@ -449,7 +455,7 @@ export function SupportThreadView({
           })}
         </div>
       ))}
-      {thinking ? (
+      {shouldShowThinking(thinking, messages) ? (
         <div style={{ background: COLORS.royalSoft, borderRadius: 16, padding: "12px 14px", maxWidth: "70%" }}>
           <div
             style={{

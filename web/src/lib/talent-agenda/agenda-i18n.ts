@@ -263,6 +263,8 @@ const ES: Record<string, string> = {
   Date: "Fecha",
   "Buffer (minutes)": "Margen entre citas (minutos)",
   "Time zone": "Zona horaria",
+  "Suggested": "Sugeridas",
+  "All time zones": "Todas las zonas horarias",
   "Use this device's time zone": "Usar la zona horaria de este dispositivo",
   "Time zone taken from this device. Change it above if it is wrong.":
     "Zona horaria tomada de este dispositivo. Cámbiala arriba si no es correcta.",
