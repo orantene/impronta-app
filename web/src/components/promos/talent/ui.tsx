@@ -7,16 +7,24 @@ import type { PromoStatus } from "@/lib/promos/types";
 import type { PromoCopy } from "@/lib/promos/copy/talent";
 
 /** Theme tokens with fallbacks, because sheets render in a portal outside the talent shell wrapper. */
+export const FOCUS =
+  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tc-action,#0f766e)]";
+
 export const UI = {
+  /** Sheet/dialog heading: the dashboard heading style, not the decorative display face. */
+  title: "font-sans text-[17px] font-semibold normal-case tracking-normal text-[var(--tc-ink,#1c1c1e)]",
+  /** Text input: ink on white, visible placeholder, 16px so iOS does not zoom. */
+  field:
+    "min-h-11 w-full rounded-xl border border-[var(--tc-border,#d1d1d6)] bg-white px-3 text-[16px] text-[#1c1c1e] placeholder:text-[#6b6b73] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tc-action,#0f766e)]",
   card: "rounded-2xl border border-[var(--tc-border,#e5e5ea)] bg-white",
   ink: "text-[var(--tc-ink,#1c1c1e)]",
   muted: "text-[var(--tc-muted,#6b6b73)]",
   primary:
-    "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--tc-action,#0f766e)] px-5 text-[14px] font-semibold text-white disabled:opacity-50",
+    "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--tc-action,#0f766e)] px-5 text-[14px] font-semibold text-white disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tc-action,#0f766e)]",
   secondary:
-    "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--tc-border,#e5e5ea)] bg-white px-4 text-[14px] font-medium text-[var(--tc-ink,#1c1c1e)] disabled:opacity-50",
+    "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--tc-border,#e5e5ea)] bg-white px-4 text-[14px] font-medium text-[var(--tc-ink,#1c1c1e)] disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tc-action,#0f766e)]",
   quiet:
-    "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-[14px] font-medium text-[var(--tc-muted,#6b6b73)]",
+    "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-[14px] font-medium text-[var(--tc-muted,#6b6b73)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tc-action,#0f766e)]",
 } as const;
 
 export function TagIcon({ size = 18 }: { size?: number }) {
@@ -39,7 +47,7 @@ export function InfoTip({ text, label }: { text: string; label: string }) {
         aria-expanded={open}
         title={text}
         onClick={() => setOpen((v) => !v)}
-        className={`inline-flex h-11 w-11 items-center justify-center rounded-full ${UI.muted}`}
+        className={`inline-flex h-11 w-11 items-center justify-center rounded-full ${UI.muted} ${FOCUS}`}
       >
         <Icon name="info" size={15} stroke={1.7} />
       </button>
@@ -69,7 +77,7 @@ export function Chip({
       onClick={onClick}
       aria-pressed={active}
       aria-label={label}
-      className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border px-4 text-[14px] font-medium ${
+      className={`inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full border px-4 text-[14px] font-medium ${FOCUS} ${
         active
           ? "border-[var(--tc-action,#0f766e)] bg-[var(--tc-soft,#e6f4f1)] text-[var(--tc-ink,#1c1c1e)]"
           : "border-[var(--tc-border,#e5e5ea)] bg-white text-[var(--tc-muted,#6b6b73)]"

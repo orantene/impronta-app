@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { copyText } from "./copy-text";
+import { PROMO_SHARE_LAYER, PROMO_SHARE_QR_LAYER } from "./layers";
 import { encodeQr } from "@/lib/links/qr";
 import { toSvg } from "@/lib/links/qr/render";
 import type { ShareLang } from "@/lib/promos/share/captions";
@@ -50,6 +52,7 @@ const T = {
     qr: "Código QR", print: "Tarjeta para imprimir", close: "Cerrar", copied: "Copiado",
     saved: "Imagen guardada y texto copiado. Abre Instagram o TikTok y publícala.",
     failed: "No se pudo guardar. Intenta de nuevo.",
+    copyFailed: "No se pudo copiar, copia el enlace manualmente", linkLabel: "Enlace",
   },
   en: {
     title: "Share", lang: "Language", story: "Story", post: "Post",
@@ -58,6 +61,7 @@ const T = {
     qr: "QR code", print: "Printable card", close: "Close", copied: "Copied",
     saved: "Image saved and text copied. Open Instagram or TikTok and post it.",
     failed: "Could not save. Please try again.",
+    copyFailed: "Could not copy, copy the link manually", linkLabel: "Link",
   },
 } as const;
 
@@ -116,20 +120,16 @@ export function PromoShareSheet(props: PromoShareSheetProps) {
   if (!open) return null;
 
   const copy = async (text: string, via: ViaTag) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setNote(t.copied);
-      logShare(promoId, via);
-    } catch {
-      setNote(t.failed);
-    }
+    const ok = await copyText(text);
+    setNote(ok ? t.copied : t.copyFailed);
+    if (ok) logShare(promoId, via);
   };
 
   /** Instagram and TikTok have no posting API: share the file when the OS allows it, else download. */
   const saveAndCopy = async (asset: "story" | "post", via: ViaTag) => {
     const text = caption(via);
     try {
-      await navigator.clipboard.writeText(text).catch(() => undefined);
+      await copyText(text);
       const blob = await (await fetch(img(asset, true))).blob();
       const file = new File([blob], `promo-${asset}.png`, { type: "image/png" });
       if (navigator.canShare?.({ files: [file] })) {
@@ -148,34 +148,36 @@ export function PromoShareSheet(props: PromoShareSheetProps) {
     }
   };
 
-  const btn = "inline-flex min-h-11 items-center justify-center rounded-full border px-4 py-2 text-sm font-medium";
+  const btn = "inline-flex min-h-11 items-center justify-center rounded-xl border border-[var(--tc-border,#e5e5ea)] bg-white px-4 py-2 text-[14px] font-medium text-[var(--tc-ink,#1c1c1e)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tc-action,#0f766e)]";
+  const on = "border-2 border-[var(--tc-action,#0f766e)] bg-[var(--tc-soft,#e6f4f1)] font-semibold";
+  const shownLink = link("link");
   const channels = channelOrder(props.defaultLang);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" role="presentation" onClick={onClose}>
+    <div className={`fixed inset-0 ${PROMO_SHARE_LAYER} flex items-end justify-center bg-black/40`} role="presentation" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
         aria-label={`${t.title} ${props.promoName}`}
-        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-4 text-black"
+        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-[var(--tc-canvas,#fafafa)] p-4 text-[var(--tc-ink,#1c1c1e)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold">{t.title} &quot;{props.promoName}&quot;</h2>
+          <h2 className="font-sans text-[17px] font-semibold normal-case tracking-normal">{t.title} &quot;{props.promoName}&quot;</h2>
           <button type="button" className={btn} onClick={onClose}>{t.close}</button>
         </div>
 
         <div className="mt-3 flex gap-2" role="group" aria-label={t.lang}>
           {(["es", "en"] as const).map((l) => (
             <button key={l} type="button" aria-pressed={lang === l} onClick={() => setLang(l)}
-              className={`${btn} ${lang === l ? "border-2 font-semibold" : ""}`}>
+              className={`${btn} ${lang === l ? on : ""}`}>
               {l.toUpperCase()}
             </button>
           ))}
           <span className="mx-1" />
           {STYLES.filter((s) => s.key !== "photo" || props.photoUrl).map((s) => (
             <button key={s.key} type="button" aria-pressed={style === s.key} onClick={() => setStyle(s.key)}
-              className={`${btn} ${style === s.key ? "border-2 font-semibold" : ""}`}>
+              className={`${btn} ${style === s.key ? on : ""}`}>
               {s.label[lang]}
             </button>
           ))}
@@ -219,11 +221,13 @@ export function PromoShareSheet(props: PromoShareSheetProps) {
               </a>
             ) : null}
           </div>
+          <input readOnly aria-label={t.linkLabel} value={shownLink} onFocus={(e) => e.currentTarget.select()}
+            className="min-h-11 w-full rounded-xl border border-[var(--tc-border,#e5e5ea)] bg-white px-3 text-[16px] text-[var(--tc-ink,#1c1c1e)]" />
           <p role="status" aria-live="polite" className="min-h-5 text-sm opacity-80">{note}</p>
         </div>
 
         {qrOpen ? (
-          <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-4 bg-white p-6"
+          <div className={`fixed inset-0 ${PROMO_SHARE_QR_LAYER} flex flex-col items-center justify-center gap-4 bg-white p-6`}
             role="dialog" aria-modal="true" aria-label={t.qr}>
             {qrSvg ? (
               <div className="w-[min(80vw,80vh)]" dangerouslySetInnerHTML={{ __html: qrSvg }} />
