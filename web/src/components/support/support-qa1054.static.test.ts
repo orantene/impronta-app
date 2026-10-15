@@ -109,3 +109,8 @@ test("TUL-600: the Tickets tab has a new-ticket button that opens the new-ticket
   assert.match(panel, /onNew=\{\(\) => setView\("new"\)\}/);
   assert.match(panel, /onClick=\{onNew\}/);
 });
+
+test("TUL-982: where the phone hides the floating circle, CSS hides it before hydration too", () => {
+  assert.match(geometry, /SUPPORT_LAUNCHER_HIDE_COMPACT_CSS[\s\S]*display: none !important/);
+  assert.match(launcher, /hideFloatingOnCompact \? SUPPORT_LAUNCHER_HIDE_COMPACT_CSS : ""/);
+});
