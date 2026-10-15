@@ -218,7 +218,6 @@ export async function submitTalentRate(
       const retryAfterMs = (result as { retryAfterMs?: number }).retryAfterMs;
       const friendly =
         reason === "invalid_rate" ? "Rate must be a positive number."
-        // C5 — surface actual retry-after window.
         : reason === "rate_limited" ? formatRateLimitedCopy(retryAfterMs)
         : reason === "forbidden" ? "You can only submit a rate on your own line item."
         : reason === "offer_not_editable" ? "This offer is locked — counter the offer to revise rates."
@@ -1839,7 +1838,6 @@ export async function saveOfferDraft(
         : reason === "post_booking_immutable" ? "Inquiry is past its mutable phase."
         : reason === "inquiry_frozen" ? "Inquiry is frozen."
         : reason === "offer_fee_unresolved" ? "Could not check the workspace fee. Nothing was saved; try again."
-        // C5 — surface actual retry-after window.
         : reason === "rate_limited" ? formatRateLimitedCopy(retryAfterMs)
         : reason;
       return { ok: false, error: friendly };
