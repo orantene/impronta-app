@@ -57,14 +57,17 @@ export function talentIdsOnInquiry(sourceContext: unknown, interpretedQuery: unk
 
 /**
  * Hers when she is a participant, or when the inquiry names her and nobody
- * else. A group lineup she was not invited to stays hidden.
+ * else. A group lineup she was not invited to stays hidden, and so does a
+ * guest's unsent draft: it has no participants, so no quote can be started on it.
  */
 export function inquiryIsHers(input: {
   profileId: string;
   participant: boolean;
   talentIds: readonly string[];
+  status?: string | null;
 }): boolean {
   if (input.participant) return true;
+  if (input.status === "draft") return false;
   return input.talentIds.length === 1 && input.talentIds[0] === input.profileId;
 }
 

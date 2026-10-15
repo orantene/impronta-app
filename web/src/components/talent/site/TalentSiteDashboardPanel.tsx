@@ -44,20 +44,18 @@ export function TalentSiteDashboardPanel({ locale = "en" }: PanelProps) {
   useEffect(() => {
     if (initialLoad == null) {
       void reload();
+      return;
     }
-  }, [initialLoad, reload, shellState.talentTier]);
-
-  useEffect(() => {
-    if (initialLoad == null) return;
-    if (initialLoad.ok) {
-      setState(initialLoad.state);
-      setError(null);
-    } else {
-      setState(null);
-      setError(initialLoad.error);
+    // live3-01: layout seed can fail once on first Presence entry (dual-owner
+    // race). Soft-retry via the same action instead of painting a dead error.
+    if (!initialLoad.ok) {
+      void reload();
+      return;
     }
+    setState(initialLoad.state);
+    setError(null);
     setLoading(false);
-  }, [initialLoad]);
+  }, [initialLoad, reload, shellState.talentTier]);
 
   if (loading) {
     return (
