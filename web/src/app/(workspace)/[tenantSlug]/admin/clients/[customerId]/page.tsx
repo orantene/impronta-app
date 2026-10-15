@@ -118,12 +118,8 @@ export default async function ClientRecordPage({ params, searchParams }: { param
 
   if (!load.ok) {
     if (load.reason === "invalid" || load.reason === "not_found") notFound();
-    const message =
-      load.reason === "invalid"
-        ? tr("dashboard.clientRecord.invalidId")
-        : load.reason === "not_found"
-          ? tr("dashboard.clientRecord.notFound")
-          : tr("dashboard.clientRecord.unavailable");
+    // Only "unavailable" (the load itself failed) reaches here; the rest are 404s.
+    const message = tr("dashboard.clientRecord.unavailable");
     return (
       <PageShell>
         <Link href={`${base}/clients`} className="text-[13px] text-admin-ink-muted underline underline-offset-4">
