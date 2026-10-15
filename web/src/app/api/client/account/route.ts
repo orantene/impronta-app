@@ -1,6 +1,7 @@
 // Client account popover state for talent sites: who is signed in (initials)
 // and the tenant-scoped summary card. Flag-gated: with CLIENT_ACCOUNT_HOSTS
-// not listing `talent` this answers 404 and reveals nothing.
+// not listing the request's host kind this answers `{signedIn:false}` (200) and
+// reads no session, so it reveals nothing.
 //
 // Reachability: `/api/client` is in APP_API_PREFIXES (path-groups.ts) and every
 // `/api/` path passes through on talent_site hosts.
@@ -22,7 +23,9 @@ const reply = (body: unknown, status = 200) => NextResponse.json(body, { status,
 // string is read for ONE cosmetic value (locale, whitelisted to en/es) only.
 export async function GET(req: Request) {
   try {
-    if (!(await accountSurfaceEnabledForRequest())) return reply({ error: "not_found" }, 404);
+    // Flag-off host (or public workspace path with no host tenant): answer as a guest
+    // without reading the session, so the booking dock opens and no 404 hits the console.
+    if (!(await accountSurfaceEnabledForRequest())) return reply({ signedIn: false });
     const locale = new URL(req.url).searchParams.get("locale") === "es" ? "es" : "en";
     return await respond(locale);
   } catch {

@@ -92,3 +92,10 @@ test("TUL-1068: hub talent pages never link to the missing /book or /events stor
   assert.match(src, /onHubProfile = \/\^\\\/\(\?:\[a-z\]\{2\}\\\/\)\?t\\\/\/\.test\(pathname \?\? ""\)/);
   assert.match(src, /buyPath && !onHubProfile/);
 });
+
+test("TUL-1068 #2: a refused add (not for sale / different currency) gets its own message, not the outage one", () => {
+  const dock = read("app/t/[profileCode]/_chat/GuestDockCatalog.tsx");
+  assert.match(dock, /res\.reason === "invalid" \? "public\.guestChat\.catalogAddInvalid"/);
+  const action = read("lib/server-actions/messaging-client.ts");
+  assert.match(action, /added\.reason === "invalid" \? "invalid" : "unavailable"/);
+});

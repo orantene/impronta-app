@@ -1,3 +1,5 @@
+import { withLocalePath, type LocaleUrlSettings } from "@/i18n/pathnames";
+
 /**
  * TUL-77 follow-up: a link to a page that EXISTS must never 404. A fresh
  * studio/both site links to the English role slugs (`/services`, `/about`,
@@ -60,4 +62,57 @@ export function preferRequestedSlug<T extends { slug?: string | null }>(
   if (!rows) return null;
   const exact = rows.filter((r) => r.slug === slug);
   return exact.length > 0 ? exact : [...rows];
+}
+
+/** `/w/<tenant-slug>`: the path-based workspace prefix (locale goes BEFORE it). */
+export function isWorkspacePathPrefix(prefix: string | null | undefined): boolean {
+  return /^\/w\/[a-z0-9][a-z0-9-]{1,62}$/.test(prefix ?? "");
+}
+
+/** Locale-first URL of a resolved page: `/en/w/<slug>/servicios`, never `/w/<slug>/en/servicios`. */
+export function missingPageRedirectPath(input: {
+  hit: PageKey;
+  settings: LocaleUrlSettings;
+  pathPrefix?: string;
+}): string {
+  const prefix = (input.pathPrefix ?? "").replace(/\/$/, "");
+  return withLocalePath(`${prefix}/${input.hit.slug}`, input.hit.locale, input.settings);
+}
+
+/**
+ * Locales to look a page up under. On a `/w/<slug>` host a page that exists in
+ * any supported locale renders in place (no redirect); elsewhere the design
+ * order is unchanged and the redirect fallback applies.
+ */
+export function fallbackLookupOrder(
+  lookupOrder: readonly string[],
+  supportedLocales: readonly string[],
+  pathPrefix: string | null | undefined,
+): string[] {
+  if (!isWorkspacePathPrefix(pathPrefix)) return [...lookupOrder];
+  return [...new Set([...lookupOrder, ...supportedLocales])];
+}
+
+/**
+ * The row page metadata should describe, mirroring the body: the requested
+ * locale's exact slug first, else the same alias/locale resolution the body
+ * uses. `inPlace` is true when the served page is not the exact (locale, slug).
+ */
+export function pickMetaRow<T extends { locale: string; slug?: string | null }>(
+  rows: ReadonlyArray<T>,
+  locale: string,
+  slug: string,
+  lookupOrder: readonly string[],
+): { row: T; inPlace: boolean } | null {
+  const exact = rows.find((r) => r.locale === locale && r.slug === slug);
+  if (exact) return { row: exact, inPlace: false };
+  const candidates = preferRequestedSlug(
+    rows.filter((r) => lookupOrder.includes(r.locale) && inPlaceSlugs(slug).includes(r.slug ?? "")),
+    slug,
+  );
+  for (const code of lookupOrder) {
+    const row = candidates?.find((r) => r.locale === code);
+    if (row) return { row, inPlace: true };
+  }
+  return null;
 }
