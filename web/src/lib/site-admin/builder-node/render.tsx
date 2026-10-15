@@ -6239,6 +6239,7 @@ function renderBuilderNodeElement(
         siteLocales: options.dataSources?.siteLocales,
         locale: options.visitorLocale ?? options.contentLocale?.locale,
         publicPathPrefix: options.publicPathPrefix,
+        siteLocales: options.dataSources?.siteLocales,
         styleAttr: sharedNodeStyle(node.props.style),
       });
     }
@@ -6339,6 +6340,9 @@ function renderBuilderNodeElement(
         }
         // TUL-383: one public money format (`$700 MXN`) via shared formatter.
         const locale = options.contentLocale?.locale ?? "en";
+        const es = locale.toLowerCase().startsWith("es");
+        // TUL-533 / GRK-064: never paint "$0 MXN" on public Max-site menus.
+        if (item.amountCents <= 0) return es ? "Consultar" : "Ask";
         return (
           publicPriceLine({ ...item, priceDisplay: item.priceDisplay === "from" ? "from" : "exact" }, locale) ??
           formatMoney(item.amountCents, item.currency, locale)

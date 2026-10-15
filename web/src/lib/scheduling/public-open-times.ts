@@ -15,6 +15,7 @@ import { resolveTalentBookingMode, type TalentBookingMode } from "@/lib/scheduli
 import { parseBookingHours } from "@/lib/scheduling/hours-types";
 import { loadBusyIntervals } from "@/lib/scheduling/load-busy";
 import { computePublicSlots, type NoSlotsReason } from "@/lib/scheduling/public-slots";
+import { cityLabelFromPlaceText } from "@/lib/scheduling/timezone-from-place";
 import { addUtcDays, utcToZonedYmd } from "@/lib/scheduling/tz";
 import { NOT_ACCEPTING_BOOKINGS } from "@/lib/talent/accepting-readiness";
 import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
@@ -47,6 +48,8 @@ export type PublicOpenTimesResult =
       ok: true;
       slots: string[];
       timezone?: string;
+      /** Talent home city for the zone chip (Houston time, not Chicago time). */
+      placeCity?: string | null;
       reason?: OpenTimesReason | null;
       /** Effective mode on this host, once it was resolved. */
       mode?: TalentBookingMode;
@@ -220,5 +223,8 @@ export async function loadPublicOpenTimes(
     offeringBufferBeforeMin:
       typeof offeringBuffers?.bufferBeforeMin === "number" ? offeringBuffers.bufferBeforeMin : null,
   });
-  return { ok: true, slots: starts, timezone: hours.timezone, reason, mode, talentProfileId };
+  const placeCity = cityLabelFromPlaceText(
+    typeof talent.home_city_text === "string" ? talent.home_city_text : null,
+  );
+  return { ok: true, slots: starts, timezone: hours.timezone, placeCity, reason, mode, talentProfileId };
 }

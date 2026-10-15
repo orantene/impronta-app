@@ -125,6 +125,7 @@ export function CatalogBookingSheet({
   const [time, setTime] = useState<string | null>(null);
   const [liveStarts, setLiveStarts] = useState<string | null>(null);
   const [liveTz, setLiveTz] = useState("UTC");
+  const [livePlaceCity, setLivePlaceCity] = useState<string | null>(null);
   const [liveDays, setLiveDays] = useState<Array<{ key: string; date: Date; starts: string[] }>>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsReady, setSlotsReady] = useState(false);
@@ -277,6 +278,7 @@ export function CatalogBookingSheet({
       .then((r) => {
         if (cancelled) return;
         setLiveTz(r.timezone);
+        setLivePlaceCity(r.placeCity?.trim() || null);
         // TUL-531: continuous 30-day strip (empty days kept); fromYmd falls back to the first slot day.
         const fromYmd =
           r.fromYmd ?? r.slots.map((s) => s.slice(0, 10)).sort()[0] ?? new Date().toISOString().slice(0, 10);
@@ -631,6 +633,7 @@ export function CatalogBookingSheet({
                   dayIndex={dayIndex}
                   liveStarts={liveStarts}
                   liveTz={liveTz}
+                  placeCity={livePlaceCity}
                   timeGroupLabel={timeGroupLabel}
                   emptyConsultButton={emptyConsultButton}
                   takenNotice={takenNotice}
@@ -671,6 +674,7 @@ export function CatalogBookingSheet({
                 day={day}
                 time={time}
                 tz={mode === "live" ? liveTz : null}
+                placeCity={mode === "live" ? livePlaceCity : null}
                 total={isQuote ? (es ? "A cotizar" : "Quote") : money(total, detail.currency)}
                 addressNote={addr.rule === "required" ? "client" : "studio"}
               />

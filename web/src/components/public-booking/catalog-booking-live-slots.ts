@@ -13,6 +13,8 @@ export type CatalogSlotsResult = {
   timezone: string;
   /** YYYY-MM-DD sent as `?from=` — the live strip starts on this day. */
   fromYmd?: string;
+  /** Talent home city for the zone chip when the IANA namesake differs. */
+  placeCity?: string | null;
 };
 
 export type CatalogSlotsFn = (
@@ -60,11 +62,12 @@ export async function fetchLiveSlots(
     duration: String(durationMinutes),
   });
   const res = await fetch(publicSlotsUrl(params), { cache: "no-store" });
-  const body = (await res.json()) as { slots?: string[]; timezone?: string };
+  const body = (await res.json()) as { slots?: string[]; timezone?: string; placeCity?: string };
   if (!res.ok) return { slots: [], timezone: "UTC", fromYmd };
   return {
     slots: Array.isArray(body.slots) ? body.slots : [],
     timezone: typeof body.timezone === "string" && body.timezone.trim() ? body.timezone.trim() : "UTC",
+    placeCity: typeof body.placeCity === "string" && body.placeCity.trim() ? body.placeCity.trim() : null,
     fromYmd,
   };
 }
