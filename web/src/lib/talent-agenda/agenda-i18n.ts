@@ -50,6 +50,8 @@ const ES: Record<string, string> = {
   "Quote sent": "Cotización enviada",
   "Quote not sent": "Cotización no enviada",
   "The client has your quote": "La clienta ya tiene tu cotización",
+  "The quote did not go out": "La cotización no salió",
+  "Nothing reached the client. Try again in a moment.": "Aún no llegó nada a la clienta. Inténtalo de nuevo en un momento.",
   "The conversation was created but the quote did not go out": "La conversación se creó pero la cotización no salió",
   "They can accept it from the link. You will see the answer in the conversation.":
     "Puede aceptarla desde el enlace. Verás la respuesta en la conversación.",

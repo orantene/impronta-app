@@ -16,6 +16,32 @@ const BOOKING: Record<DemoProfileMeta["bookingMode"], { en: string; es: string }
   mixed: { en: "Mixed modes", es: "Varios modos" },
 };
 
+const SECTION_ES: Record<string, string> = {
+  Hero: "Portada",
+  Work: "Trabajos",
+  Menu: "Menú",
+  Reviews: "Reseñas",
+  About: "Sobre mí",
+  Visit: "Tu visita",
+  FAQ: "Preguntas frecuentes",
+  Cover: "Portada",
+  Chapters: "Capítulos",
+  Rates: "Tarifas",
+  Measures: "Medidas",
+  Tasks: "Tareas",
+  Services: "Servicios",
+  Specs: "Especificaciones",
+  Jobs: "Trabajos realizados",
+};
+
+/** The demo's section list in the reader's language (TUL-529). */
+export function demoSectionsLine(sections: readonly string[], locale: MaisonSetupLocale): string {
+  return sections
+    .slice(0, 6)
+    .map((name) => (locale === "es" ? SECTION_ES[name] ?? name : name))
+    .join(" · ");
+}
+
 function Row({ icon, label, value }: { icon: string; label: string; value: string }) {
   return (
     <li className="flex items-start gap-2 text-[12.5px] leading-snug text-admin-ink">
@@ -47,7 +73,7 @@ export function DemoProfilePanel({
   const city = meta.city ? (meta.country === "US" ? `${meta.city}, US` : meta.city) : detailT(locale, "City not set");
   const booking = BOOKING[meta.bookingMode][locale === "es" ? "es" : "en"];
   const apps = meta.apps.length ? meta.apps.join(" · ") : detailT(locale, "No apps");
-  const sections = meta.sections.slice(0, 6).join(" · ");
+  const sections = demoSectionsLine(meta.sections, locale);
 
   return (
     <div data-testid="demo-profile-panel" className="space-y-2">

@@ -18,9 +18,8 @@ import type { LocalizedMap } from "@/lib/i18n/resolve-localized";
 import { IDENTITY_REASONS, isIdentityReason, type IdentityReason } from "@/lib/orders/identity-requirement";
 import { formatMoney } from "@/lib/talent/offerings-money";
 import {
-  SERVICE_PRICING_SUFFIX,
-  SERVICE_PRICING_SUFFIX_ES,
   SERVICE_PRICING_TYPES,
+  servicePricingSuffix,
   type ServicePricingType,
 } from "@/lib/talent/services-menu-types";
 import { resolveCategoryLabel } from "./category-label-fallback";
@@ -557,15 +556,17 @@ export function offeringPriceLabel(
   /** The dashboard passes `formatDashboardMoneyCents`; public surfaces keep the default. */
   format: (amountCents: number, currency: string, locale: string) => string = formatOfferingPrice,
 ): string {
-  const es = locale === "es";
+  const es = (locale ?? "").trim().toLowerCase().startsWith("es");
   if (o.visibility === "on_request") return es ? "Bajo consulta" : "On request";
   // `amountCents == null` is already a quote per offeringIsQuote; the explicit
   // check also narrows the type for `format` below.
   if (o.amountCents == null || offeringIsQuote(o)) {
     return es ? "Cotización a pedido" : "Quote on request";
   }
+  // TUL-533 / GRK-064: $0 → Consultar / Ask (display only; free can still book).
+  if (o.amountCents <= 0) return es ? "Consultar" : "Ask";
   const price = format(o.amountCents, o.currency, locale);
-  const suffix = (es ? SERVICE_PRICING_SUFFIX_ES : SERVICE_PRICING_SUFFIX)[o.priceType];
+  const suffix = servicePricingSuffix(o.priceType, locale);
   const core = suffix ? `${price} ${suffix}` : price;
   return o.priceDisplay === "from" ? (es ? `desde ${core}` : `from ${core}`) : core;
 }

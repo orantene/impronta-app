@@ -29,3 +29,4 @@ src/app/template-preview/?key?/theme-preview-source.test.ts
 src/app/t/?profileCode?/_chat/guest-first-send.test.ts
 src/app/t/?profileCode?/_chat/guest-name-split.test.ts
 src/app/t/?profileCode?/_chat/composer-key-action.test.ts
+src/app/t/?profileCode?/grk052-placeholders.static.test.ts

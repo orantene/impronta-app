@@ -183,6 +183,8 @@ export function unpublishedChangesShort(n: number): Bilingual {
 export function unpublishedChangesLabel(n: number): Bilingual {
   return {
     en: `Draft · ${n} unpublished change${n === 1 ? "" : "s"}`,
-    es: `Borrador · ${n} cambio${n === 1 ? "" : "s"} sin publicar`,
+    // TUL-81 builder: shorter ES so sticky Publicar does not cover the chip;
+    // full sense stays ("draft · N unpublished").
+    es: `Borrador · ${n} sin publicar`,
   };
 }

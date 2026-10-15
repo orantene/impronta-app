@@ -212,6 +212,14 @@ test("offer accepted: Accepted pill, next step names the deposit, Pay button whe
   const noLink = renderToStaticMarkup(<ClientOfferCard {...base} offer={{ ...offer, status: "accepted" }} now={now} payCode={null} onAccept={() => {}} />);
   assert.match(noLink, /Impronta will send you a payment link to confirm\./);
   assert.doesNotMatch(noLink, /data-client-action/);
+  const paid = renderToStaticMarkup(<ClientOfferCard {...base} offer={{ ...offer, status: "accepted" }} now={now} payCode={null} payment="paid" onAccept={() => {}} />);
+  assert.match(paid, /Accepted\. Payment received\./);
+  assert.doesNotMatch(paid, /payment link/);
+  const paidWithOpenLink = renderToStaticMarkup(<ClientOfferCard {...base} offer={{ ...offer, status: "accepted" }} now={now} payCode="abc" payment="paid" onPay={() => {}} onAccept={() => {}} />);
+  assert.match(paidWithOpenLink, /Accepted\. Next: pay the deposit to confirm\./);
+  const refunded = renderToStaticMarkup(<ClientOfferCard {...base} offer={{ ...offer, status: "accepted" }} now={now} payCode={null} payment="refunded" onAccept={() => {}} />);
+  assert.match(refunded, /Accepted\. Your payment was refunded\./);
+  assert.doesNotMatch(refunded, /Payment received|payment link/);
   const declined = renderToStaticMarkup(<ClientOfferCard {...base} offer={{ ...offer, status: "rejected" }} now={now} onAccept={() => {}} />);
   assert.match(declined, />Declined</);
   assert.doesNotMatch(declined, /data-client-action/);
