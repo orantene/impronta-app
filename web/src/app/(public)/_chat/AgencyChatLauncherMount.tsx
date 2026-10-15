@@ -64,6 +64,24 @@ import { interpolate } from "@/i18n/interpolate";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 
 /**
+ * TUL-1153: a workspace with exactly one talent on its roster is a single-talent
+ * site, so the dock speaks for that one person ("Which service would you like?")
+ * instead of the agency "find the right talent" voice. Null on a read failure,
+ * which keeps the agency voice.
+ */
+async function activeRosterSize(tenantId: string): Promise<number | null> {
+  const admin = createServiceRoleClient();
+  if (!admin) return null;
+  const { count, error } = await admin
+    .from("agency_talent_roster")
+    .select("talent_profile_id", { count: "exact", head: true })
+    .eq("tenant_id", tenantId)
+    .neq("status", "removed");
+  if (error) return null;
+  return count ?? null;
+}
+
+/**
  * Resolve agencies.slug from a tenant id (service-role read). The hub arm of
  * PublicHostContext carries no slug, but the guest chat actions are all
  * slug-based, so we look it up here. Returns null when unavailable (the caller
@@ -198,6 +216,7 @@ export async function AgencyChatLauncherMount({
   const presetVoice =
     words.preset.id === "custom" ? undefined : words.preset.chatVoice[words.locale];
   // Hub opener: prefer a tenant-configured greeting, else the concierge default.
+  const soloTalent = !isHub && tenantId ? (await activeRosterSize(tenantId)) === 1 : false;
   const greeting = isHub
     ? settings.greeting?.trim() || t("public.guestChat.hubConciergeGreeting")
     : settings.greeting?.trim() || presetVoice;
@@ -259,6 +278,7 @@ export async function AgencyChatLauncherMount({
         agencyPublicSurface,
         // Drives the opener voice ("Hi — I'm {agency}'s booking assistant").
         talentDisplayName: agencyName,
+        soloTalent,
         accentColor,
         logoUrl,
         greeting,
