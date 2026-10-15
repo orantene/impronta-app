@@ -88,3 +88,4 @@ src/components/admin/shell/internal/shell-boundary.render.test.tsx
 src/lib/notifications/dispatcher-cold-start-graph.static.test.ts
 src/lib/seo/robots-per-environment.test.ts
 src/lib/talent-site/route-verdict.test.ts
+src/lib/captcha/custom-domain-never-blocks.test.ts
