@@ -134,7 +134,7 @@
       },
       "form": {
         "email": "Correo electrónico",
-        "emailPlaceholder": "tu@estudio.com",
+        "emailPlaceholder": "tu@ejemplo.com",
         "password": "Contraseña"
       },
       "actions": {

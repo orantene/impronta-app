@@ -134,7 +134,7 @@
       },
       "form": {
         "email": "Email",
-        "emailPlaceholder": "you@studio.com",
+        "emailPlaceholder": "you@example.com",
         "password": "Password"
       },
       "actions": {
