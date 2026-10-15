@@ -2,8 +2,6 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { postVideoEmbedUrl, type PostBlock } from "@/lib/cms/post-blocks";
 import { renderInlineRich } from "@/lib/site-admin/sections/shared/rich-text";
-import { offeringCtaLabel } from "@/lib/talent/offering-cta-derivation";
-import { serviceBookHref } from "@/lib/talent-site/service-page";
 
 /**
  * Server-safe renderer for `cms_posts.body_blocks`. Theme tokens only: no
@@ -25,10 +23,13 @@ export type PostBlocksRendererProps = {
   locale?: string;
 };
 
+// Inlined (same output as serviceBookHref / offeringCtaLabel("book_now")) so the
+// client writer preview does not pull the offerings, JSON-LD and booking-gate graph.
 function bookHref(offeringId: string | undefined, homePath: string | undefined): string {
-  if (offeringId) return serviceBookHref(offeringId, homePath ?? "/");
   const base = homePath && homePath.startsWith("/") ? homePath : "/";
-  return `${base}#book`;
+  return offeringId
+    ? `${base}?book=${encodeURIComponent(offeringId.toLowerCase())}#book`
+    : `${base}#book`;
 }
 
 function renderBlock(block: PostBlock, p: PostBlocksRendererProps): ReactNode {
@@ -113,7 +114,7 @@ function renderBlock(block: PostBlock, p: PostBlocksRendererProps): ReactNode {
       return (
         <p className="site-post__book">
           <Link className="site-btn site-btn--primary" href={bookHref(block.offering_id, p.homePath)}>
-            {block.label?.trim() || offeringCtaLabel("book_now", p.locale ?? "en")}
+            {block.label?.trim() || ((p.locale ?? "en").toLowerCase().startsWith("es") ? "Reservar" : "Book")}
           </Link>
         </p>
       );
