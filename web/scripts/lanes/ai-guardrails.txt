@@ -91,3 +91,4 @@ src/app/(workspace)/talent/loading-inside-shell.static.test.ts
 src/lib/security/redact-display.test.ts
 src/lib/pricing/stripe-health-redact.test.ts
 src/lib/seo/staging-noindex.static.test.ts
+web/src/lib/notifications/auth-email-hook.static.test.ts
