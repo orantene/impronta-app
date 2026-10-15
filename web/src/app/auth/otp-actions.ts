@@ -28,6 +28,8 @@
  * is a talent signup path, promote client→talent before redirect.
  */
 
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { activateSelfSignedClient } from "@/lib/client-account/guest-activate.server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -294,6 +296,11 @@ export async function submitEmailCode(
     // path — otherwise a missing signup_intent leaves app_role=client.
     if (isTalentSignupNext(nextPath)) {
       await promoteFreshProfileToTalent(user.id);
+    }
+    // TUL-771: an explicit client sign-up is a client; skip the role screen.
+    if (String(formData.get("signup_intent") ?? "") === "client") {
+      const admin = createServiceRoleClient();
+      if (admin) await activateSelfSignedClient(admin, { userId: user.id, signupIntent: "client" });
     }
     // G3: the code proved the email. Claim + activate before routing.
     await claimAndActivateVerifiedClient({ userId: user.id, email: user.email ?? email, emailProven: true });

@@ -99,6 +99,7 @@ export function EmailCodeForm({
   footer,
   startWithPassword = false,
   collectName = false,
+  clientSignup = false,
 }: {
   nextPath?: string;
   locale?: string;
@@ -118,6 +119,8 @@ export function EmailCodeForm({
   startWithPassword?: boolean;
   /** TUL-762: ask for a name on the create path; it rides as `full_name` into the new profile. */
   collectName?: boolean;
+  /** TUL-771: this is an explicit client sign-up; the verified account skips the role screen. */
+  clientSignup?: boolean;
 }) {
   const t = createTranslator(locale);
   const [sendState, sendAction, sending] = useActionState<EmailCodeState, FormData>(
@@ -226,6 +229,7 @@ export function EmailCodeForm({
           <input type="hidden" name="email" value={email} />
           <input type="hidden" name="locale" value={locale} />
           {allowCreate ? <input type="hidden" name="create" value="1" /> : null}
+          {allowCreate && clientSignup ? <input type="hidden" name="signup_intent" value="client" /> : null}
           {/* Step 1 required the 18+ and Terms box on the create path. */}
           {allowCreate ? <input type="hidden" name="age_terms" value="on" /> : null}
           {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}

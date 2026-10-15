@@ -68,6 +68,7 @@ export function RegisterForm({
    */
   hideFooter = false,
   collectName = false,
+  clientSignup = false,
 }: {
   nextPath?: string;
   submitLabel?: string;
@@ -77,6 +78,8 @@ export function RegisterForm({
   hideFooter?: boolean;
   /** TUL-762: ask for a name; it rides as `full_name` into the new profile. */
   collectName?: boolean;
+  /** TUL-771: explicit client sign-up (`?as=client`); the verified account skips the role screen. */
+  clientSignup?: boolean;
 }) {
   const t = createTranslator(locale);
   const [state, formAction, pending] = useActionState<
@@ -96,6 +99,7 @@ export function RegisterForm({
           nextPath={nextPath}
           locale={locale}
           onChangeEmail={() => setBackToForm(true)}
+          clientSignup={clientSignup}
         />
         {hideFooter ? null : (
           <RegisterLoginFooter nextPath={nextPath} locale={locale} />
