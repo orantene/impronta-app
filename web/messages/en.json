@@ -2059,8 +2059,7 @@
         "emailPlaceholder": "you@example.com",
         "emailCta": "Email me a code",
         "emailPending": "Sending…",
-        "plusEmailHint": "Addresses with a + tag (name+tag@) often never receive the code. Use a plain address if you can.",
-        "terms": "By continuing you agree to the Terms and the Privacy Policy."
+        "plusEmailHint": "Addresses with a + tag (name+tag@) often never receive the code. Use a plain address if you can."
       },
       "code": {
         "title": "Enter the code",

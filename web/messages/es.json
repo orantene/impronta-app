@@ -2059,8 +2059,7 @@
         "emailPlaceholder": "tu@ejemplo.com",
         "emailCta": "Envíame un código",
         "emailPending": "Enviando…",
-        "plusEmailHint": "Los correos con un + (nombre+tag@) a menudo nunca reciben el código. Usa una dirección sin + si puedes.",
-        "terms": "Al continuar aceptas los Términos y la Política de privacidad."
+        "plusEmailHint": "Los correos con un + (nombre+tag@) a menudo nunca reciben el código. Usa una dirección sin + si puedes."
       },
       "code": {
         "title": "Escribe el código",
