@@ -27,7 +27,7 @@ export function PromoResultsCard(props: {
     <section className="rounded-2xl border border-[var(--tc-border,#e5e5ea)] bg-white p-4" aria-label={props.name}>
       {props.hideTitle ? null : <h3 className="text-sm font-medium text-[var(--tc-ink,#1c1c1e)]">{props.name}</h3>}
       {props.progress ? <div className="flex flex-col gap-2">{props.progress}</div> : null}
-      <dl className={`${props.hideTitle && !props.progress ? "" : "mt-3 "}grid grid-cols-3 gap-3`}>
+      <dl className={`${props.hideTitle && !props.progress ? "" : "mt-3 "}grid grid-cols-[repeat(3,minmax(0,1fr))] gap-3`}>
         <Stat value={String(r.bookings)} label={c.bookings(r.bookings)} />
         <Stat value={money(r.earnedCents, currency, lang)} label={c.earned} />
         <Stat value={money(r.givenCents, currency, lang)} label={c.given} />
@@ -52,8 +52,8 @@ export function PromoResultsCard(props: {
 
 function Stat({ value, label }: { value: string; label: string }) {
   return (
-    <div>
-      <dd className="text-lg font-semibold tabular-nums text-[var(--tc-ink,#1c1c1e)]">{value}</dd>
+    <div className="min-w-0">
+      <dd className="break-words text-lg font-semibold tabular-nums text-[var(--tc-ink,#1c1c1e)]">{value}</dd>
       <dt className="text-xs text-[var(--tc-muted,#6b6b73)]">{label}</dt>
     </div>
   );

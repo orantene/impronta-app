@@ -8,7 +8,7 @@ import { Icon } from "@/components/admin/shell/internal/primitives";
 import { COLORS } from "./support-tokens";
 import { useCompactViewport } from "./use-compact-viewport";
 import { SupportPanel } from "./SupportPanel";
-import { SUPPORT_LAUNCHER_COMPACT_BOTTOM, SUPPORT_LAUNCHER_COMPACT_CSS } from "./support-panel-geometry";
+import { SUPPORT_LAUNCHER_COMPACT_BOTTOM, SUPPORT_LAUNCHER_COMPACT_CSS, SUPPORT_LAUNCHER_HIDE_COMPACT_CSS } from "./support-panel-geometry";
 import type { SupportContract } from "./support-contract";
 import { useSupportDeepLink, useSupportUnread } from "./support-hooks";
 import { SUPPORT_PANEL_OPEN_EVENT } from "@/lib/support/open-support-panel";
@@ -17,15 +17,20 @@ import { GUIDE_OPEN_EVENT, type GuideOpenDetail } from "@/lib/guide/open-guide";
 export function SupportLauncher({
   contract,
   drawerOpen = false,
+  hideFloatingOnCompact = false,
 }: {
   contract: SupportContract;
   drawerOpen?: boolean;
+  /** TUL-982: on a phone the talent surface reaches support from the More
+   *  sheet ("Get help"), so no floating circle sits over cards and menus. */
+  hideFloatingOnCompact?: boolean;
 }) {
   const t = useT();
   const compact = useCompactViewport();
   const [open, setOpen] = useState(false);
   const [tickets, setTicketsState] = useState(contract.initialTickets);
   const [deepLinkTicketId, setDeepLinkTicketId] = useState<string | null>(null);
+  const [deepLinkList, setDeepLinkList] = useState(false);
   const [guideNodeId, setGuideNodeId] = useState<string | null>(null);
   // The (i) next to a page title (PageHeader guideNodeId) and, later, Helper
   // mode on real pages: open the drawer straight onto that article.
@@ -57,6 +62,10 @@ export function SupportLauncher({
   useSupportDeepLink(
     useCallback((id: string) => {
       setDeepLinkTicketId(id);
+      setOpen(true);
+    }, []),
+    useCallback(() => {
+      setDeepLinkList(true);
       setOpen(true);
     }, []),
   );
@@ -161,7 +170,7 @@ export function SupportLauncher({
       {/* One solid dark circle with a white chat bubble. The previous
           white edge-tab read as a floating blob, and the ring icon plus a
           stray violet dot looked like a rendering artifact. */}
-      {!inHeader && !inRail && (
+      {!inHeader && !inRail && !(compact && hideFloatingOnCompact) && (
       <button
         type="button"
         data-tulala-support-launcher=""
@@ -220,10 +229,11 @@ export function SupportLauncher({
         tickets={tickets}
         setTickets={setTickets}
         deepLinkTicketId={deepLinkTicketId}
+        deepLinkList={deepLinkList}
         guideNodeId={guideNodeId}
         onConsumedGuideNode={() => setGuideNodeId(null)}
       />
-      <style>{`${SUPPORT_LAUNCHER_COMPACT_CSS}
+      <style>{`${SUPPORT_LAUNCHER_COMPACT_CSS}${hideFloatingOnCompact ? SUPPORT_LAUNCHER_HIDE_COMPACT_CSS : ""}
         button[data-tulala-support-launcher=""]:hover{transform:translateY(-50%) scale(1.06)}
         button[data-tulala-support-launcher=""]:active{transform:translateY(-50%) scale(.97)}
         @keyframes tulala-support-badge{0%{box-shadow:0 0 0 2.5px ${COLORS.surface},0 0 0 2.5px rgba(194,106,69,.45)}100%{box-shadow:0 0 0 2.5px ${COLORS.surface},0 0 0 12px rgba(194,106,69,0)}}

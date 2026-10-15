@@ -29,6 +29,8 @@
  * - GRK-036: phone Hablar FAB clears float/default sticky bar before JS measure.
  * - GRK-038: help teaser yields earlier when catalog filter chips enter the
  *   lower phone band (jorg rail), including individual pills.
+ * - TUL-931: while the booking sheet (.jb-back) is open the chat FAB and help
+ *   teaser step aside; the sheet's own footer owns the phone bottom.
  * - GRK-039: guest chat panels use aria-modal=false; consent yields to
  *   [data-guest-chat-panel] so the message box stays reachable.
  */
@@ -52,6 +54,10 @@ export const HELP_BUBBLE_CHIP_CLEARANCE_PX = 160;
 
 export const CONSENT_BANNER_SELECTOR = "[data-consent-banner]";
 export const LOCALE_SUGGESTION_SELECTOR = "[data-locale-suggestion]";
+/** Body clearance for the fixed language toast (card height + gap), so footer links stay tappable. */
+export const LOCALE_SUGGESTION_RESERVE_PX = 88;
+/** TUL-697: mounted only while the public header's mobile drawer is open (Radix unmounts it when closed). */
+export const PUBLIC_HEADER_MENU_SELECTOR = "[data-public-header-menu]";
 export const DEMO_BADGE_SELECTOR = "[data-demo-badge]";
 /** TUL-795: phone-only "Reservar" bar on a service page; reserves its height through --cb-bar-h. */
 export const SERVICE_STICKY_CTA_SELECTOR = "[data-talent-service-sticky]";
@@ -84,6 +90,8 @@ body:has([data-help-bubble]) ${DEMO_BADGE_SELECTOR}{display:none}
 body:has(${CONSENT_BANNER_SELECTOR}){--floating-consent-clearance:calc(${CONSENT_BANNER_RESERVE_PX}px + env(safe-area-inset-bottom,0px))}
 @media (max-width:480px){body:has([data-guest-chat-launcher]){--floating-launcher-clearance:calc(${GUEST_CHAT_LAUNCHER_CLEARANCE_PX}px + env(safe-area-inset-bottom,0px))}}
 body{padding-bottom:var(--floating-chrome-bottom)}
+/* TUL-884: the language toast is fixed over the page bottom; reserve its height so the last footer links scroll clear of it. */
+body:has(${LOCALE_SUGGESTION_SELECTOR}){padding-bottom:calc(var(--floating-chrome-bottom) + ${LOCALE_SUGGESTION_RESERVE_PX}px)}
 ${LOCALE_SUGGESTION_SELECTOR}{bottom:calc(var(--floating-chrome-bottom) + 12px)}
 ${LOCALE_SUGGESTION_SELECTOR}>div{animation:floating-toast-in .3s ease-out both}
 @keyframes floating-toast-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
@@ -105,6 +113,9 @@ body:has(${CONSENT_BANNER_SELECTOR}) #hero{padding-bottom:max(2rem,calc(var(--fl
 /* TUL-795: service page sticky Reservar bar (phone only); body + chat bubble clear it. */
 @media (max-width:639px){:root:has(${SERVICE_STICKY_CTA_SELECTOR}){--cb-bar-h:calc(64px + env(safe-area-inset-bottom,0px))}body:has(${SERVICE_STICKY_CTA_SELECTOR}) [data-guest-chat-launcher]{bottom:calc(var(--cb-bar-h) + 12px)!important}}
 @media (min-width:640px){${SERVICE_STICKY_CTA_SELECTOR}{display:none!important}}
+body:has(.jb-back) [data-guest-chat-launcher],body:has(.jb-back) [data-help-bubble]{display:none!important}
+/* TUL-697: the open mobile nav drawer owns the screen; floating chat/help/demo/locale chrome (z 90+) must not paint over it. */
+body:has(${PUBLIC_HEADER_MENU_SELECTOR}) [data-guest-chat-launcher],body:has(${PUBLIC_HEADER_MENU_SELECTOR}) [data-help-bubble],body:has(${PUBLIC_HEADER_MENU_SELECTOR}) ${DEMO_BADGE_SELECTOR},body:has(${PUBLIC_HEADER_MENU_SELECTOR}) ${LOCALE_SUGGESTION_SELECTOR}{display:none!important}
 `.replace(/\n/g, "");
 
 /**

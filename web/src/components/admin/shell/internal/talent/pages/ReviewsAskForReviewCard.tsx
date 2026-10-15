@@ -35,6 +35,25 @@ function formatDate(iso: string | null): string {
   });
 }
 
+/** How long the bookings loader may take before the card falls back to email. */
+export const REVIEW_ASK_LOAD_TIMEOUT_MS = 8000;
+
+export function withLoadTimeout<T>(p: Promise<T>, ms = REVIEW_ASK_LOAD_TIMEOUT_MS): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("review-ask-load-timeout")), ms);
+    p.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(timer);
+        reject(e);
+      },
+    );
+  });
+}
+
 export function AskForReviewCard({
   tenantSlug,
   talentProfileId,
@@ -66,11 +85,16 @@ export function AskForReviewCard({
     // Completed bookings with an on-platform client, plus the invites already
     // filed, load together. Any failure degrades to the email-only path so the
     // card is never dead.
-    Promise.all([
-      loadClientReviewablesAction(tenantSlug),
-      loadReviewRequestsForOwnerAction(tenantSlug, talentProfileId),
-      loadTalentClients(talentProfileId).catch(() => ({ ok: false as const })),
-    ])
+    // TUL-981: a server action that never settles must not leave the card on
+    // "Loading your completed bookings" forever; after the cap it degrades to
+    // the email path like any other failure.
+    withLoadTimeout(
+      Promise.all([
+        loadClientReviewablesAction(tenantSlug),
+        loadReviewRequestsForOwnerAction(tenantSlug, talentProfileId),
+        loadTalentClients(talentProfileId).catch(() => ({ ok: false as const })),
+      ]),
+    )
       .then(([reviewables, requests, clients]) => {
         if (cancelled) return;
         setBookings(reviewables);

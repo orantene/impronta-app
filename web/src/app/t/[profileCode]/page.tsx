@@ -26,7 +26,7 @@ export const revalidate = 0;
 
 export async function generateMetadata(props: {
   params: Promise<{ profileCode: string }>;
-  searchParams: Promise<{ preview?: string }>;
+  searchParams: Promise<{ preview?: string; lang?: string | string[] }>;
 }): Promise<Metadata> {
   return buildTalentProfileMetadata(props);
 }

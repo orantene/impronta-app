@@ -2,16 +2,18 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
-import { getSiteUrl } from "@/lib/auth-flow";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
+import { authMarketingHref } from "./auth-legal-href";
 import { getPublicHostContext } from "@/lib/saas";
 import { resolveShellBrandLogoUrl } from "@/lib/site-admin/server/shell-brand-logo";
 import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { loadPublicPageBySlug } from "@/lib/site-admin/server/pages-reads";
 import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
-import { authPageBrand } from "@/lib/client-account/agency-area-pure";
+import { authBrandHead, authPageBrand } from "@/lib/client-account/agency-area-pure";
 import { dashboardTabTitle } from "@/i18n/dashboard-metadata";
-import { getRequestLocale, ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
+import { getRequestLocale, ORIGINAL_PATHNAME_HEADER, ORIGINAL_SEARCH_HEADER } from "@/i18n/request-locale";
+import { isClientIntentSearch } from "@/lib/auth/register-intent";
 import { createTranslator } from "@/i18n/messages";
 import { getMarketingCopy } from "@/lib/marketing/copy";
 import { localeUrlSettings, stripLocaleFromPathname } from "@/i18n/pathnames";
@@ -45,7 +47,9 @@ export async function generateMetadata(): Promise<Metadata> {
     whitelabel,
     publicName: identity?.public_name,
   });
-  return brand ? { ...AUTH_ROBOTS, title: { absolute: brand.title } } : localized;
+  return brand
+    ? { ...AUTH_ROBOTS, title: { absolute: brand.title }, ...authBrandHead(brand.title, await getRequestLocale()) }
+    : localized;
 }
 
 /** What the layout needs beyond the brand object itself. */
@@ -128,7 +132,7 @@ async function resolveTenantAccent(tenantId: string): Promise<string | null> {
  *   2. `agency_business_identity.contact_email` as a `mailto:` — still the
  *      agency, not the platform. NOTE: no tenant has this column set today, so
  *      this rung is unexercised in production as shipped.
- *   3. The platform contact surface, `${getSiteUrl()}/about`.
+ *   3. The platform contact surface (locale-prefixed /about on the marketing origin).
  *
  * Gated to `kind === "agency"`: the CMS clean-URL rewrite in `proxy.ts` is
  * agency-hosts-only, so `/contact` on a HUB host would 404.
@@ -140,7 +144,7 @@ async function resolveContactHref(params: {
   locale: string;
   contactEmail: string | null;
 }): Promise<string> {
-  const platformContact = `${getSiteUrl()}/about`;
+  const platformContact = authMarketingHref(resolveMarketingOrigin(), "/about", params.locale);
   if (!params.isTenant || params.hostKind !== "agency") return platformContact;
 
   const contactPage = await loadPublicPageBySlug(
@@ -190,9 +194,14 @@ async function resolveContactHref(params: {
  * Every read here is `.catch(() => …)`-guarded: the brand panel is decoration,
  * and a branding read failure must never take the sign-in form down with it.
  */
+function clientPanelPoints(t: ReturnType<typeof createTranslator>): readonly string[] {
+  return [t("public.auth.shell.clientPoints.book"), t("public.auth.shell.clientPoints.thread"), t("public.auth.shell.clientPoints.secure")];
+}
+
 async function resolveAuthBrand(
   locale: string,
   t: ReturnType<typeof createTranslator>,
+  clientIntent = false,
 ): Promise<AuthShellResolution> {
   const copy = getMarketingCopy(locale);
   const ctx = await getPublicHostContext();
@@ -218,7 +227,7 @@ async function resolveAuthBrand(
           tenantId: ctx.tenantId,
           locale,
           contactEmail: identity?.contact_email ?? null,
-        }).catch(() => `${getSiteUrl()}/about`),
+        }).catch(() => authMarketingHref(resolveMarketingOrigin(), "/about", locale)),
       ]);
       const tagline =
         identity?.tagline?.trim() || identity?.footer_tagline?.trim() || null;
@@ -263,18 +272,20 @@ async function resolveAuthBrand(
       // Platform gradient is the marketing hero's; it takes no tenant accent.
       accent: null,
       tagline: copy.brand.descriptor,
-      panelHeading: copy.hero.titleLine1,
-      panelLead: copy.footer.description,
+      // TUL-761: a client sign-up must not hear the seller pitch.
+      panelHeading: clientIntent ? t("public.auth.shell.clientHeading") : copy.hero.titleLine1,
+      panelLead: clientIntent ? t("public.auth.shell.clientLead") : copy.footer.description,
       // The exact three chips the marketing hero shows, from the same copy keys,
       // in BOTH slots: panel bullets and mobile top bar (unchanged behaviour).
-      panelPoints: copy.hero.trust,
-      proofChips: copy.hero.trust,
+      panelPoints: clientIntent ? clientPanelPoints(t) : copy.hero.trust,
+      proofChips: clientIntent ? clientPanelPoints(t) : copy.hero.trust,
       backLabel: t("public.auth.shell.back").replace(
         "{site}",
         PLATFORM_BRAND.name,
       ),
+      backHref: authMarketingHref(resolveMarketingOrigin(), "", locale),
     },
-    contactHref: `${getSiteUrl()}/about`,
+    contactHref: authMarketingHref(resolveMarketingOrigin(), "/about", locale),
   };
 }
 
@@ -289,7 +300,7 @@ export default async function AuthLayout({
     headers(),
   ]);
   const t = createTranslator(locale);
-  const { brand, contactHref } = await resolveAuthBrand(locale, t);
+  const { brand, contactHref } = await resolveAuthBrand(locale, t, isClientIntentSearch(h.get(ORIGINAL_SEARCH_HEADER)));
 
   // For agency/hub hosts: use the tenant's locale settings.
   // For platform/marketing hosts: `loadTenantLocaleSettings("")` returns the

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { UI } from "@/components/promos/talent/ui";
 import { copyText } from "./copy-text";
+import { SharePreview } from "./share-preview";
 import { PROMO_SHARE_LAYER, PROMO_SHARE_QR_LAYER } from "./layers";
 import { encodeQr } from "@/lib/links/qr";
 import { toSvg } from "@/lib/links/qr/render";
@@ -160,7 +161,7 @@ export function PromoShareSheet(props: PromoShareSheetProps) {
         role="dialog"
         aria-modal="true"
         aria-label={`${t.title} ${props.promoName}`}
-        className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-[var(--tc-canvas,#fafafa)] p-4 pb-[calc(6rem+env(safe-area-inset-bottom))] text-[var(--tc-ink,#1c1c1e)]"
+        className="max-h-[90dvh] w-full max-w-md overflow-x-hidden overflow-y-auto rounded-t-3xl bg-[var(--tc-canvas,#fafafa)] p-4 pb-[calc(6rem+env(safe-area-inset-bottom))] text-[var(--tc-ink,#1c1c1e)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-2">
@@ -196,12 +197,11 @@ export function PromoShareSheet(props: PromoShareSheetProps) {
           </div>
         </div>
 
-        <div className="mt-3 grid grid-cols-2 items-start gap-3">
+        <div className="mt-3 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-start gap-3">
           {(["story", "post"] as const).map((a) => (
             <figure key={a} className={`${UI.card} m-0 flex flex-col gap-2 p-2`}>
               <figcaption className={`text-[12px] font-medium ${UI.muted}`}>{a === "story" ? t.story : t.post}</figcaption>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={img(a)} alt={a === "story" ? t.story : t.post} className="w-full rounded-lg" loading="lazy" />
+              <SharePreview src={img(a)} alt={a === "story" ? t.story : t.post} format={a} lang={lang} />
             </figure>
           ))}
         </div>
@@ -214,7 +214,7 @@ export function PromoShareSheet(props: PromoShareSheetProps) {
             </a>
           ) : null}
           <div className="flex flex-col gap-1">
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-[repeat(3,minmax(0,1fr))] gap-2">
               {channels.filter((c) => c !== "whatsapp").map((c) => (
                 <button key={c} type="button" className={btn} aria-label={`${c === "instagram" ? t.instagram : t.tiktok} · ${t.saveCopy}`}
                   onClick={() => saveAndCopy(c === "instagram" ? "story" : "post", c === "instagram" ? "ig_story" : "tiktok")}>
@@ -225,7 +225,7 @@ export function PromoShareSheet(props: PromoShareSheetProps) {
             </div>
             <p className={`text-[12px] ${UI.muted}`}>{t.helper}</p>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
             <button type="button" className={`${btn} px-2`} onClick={() => copy(link("link"), "link")}>{t.copyLink}</button>
             {props.code ? (
               <button type="button" className={`${btn} px-2`} onClick={() => copy(props.code ?? "", "code")}>{t.copyCode}</button>

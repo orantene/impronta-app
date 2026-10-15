@@ -142,3 +142,25 @@ test("TUL-795: copy carries the related heading and free-cancel line in both lan
   assert.equal(servicePageCopy("en").freeCancel(24), "Free cancellation up to 24 h before");
   assert.match(servicePageCopy("es").freeCancel(24), /24 h/);
 });
+
+test("TUL-792: servicePageHrefs maps eligible offerings under the locale base", async () => {
+  const { servicePageHrefs } = await import("./service-page");
+  const rows = [
+    { id: "3fa91c2b-1111-4222-8333-444455556666", title: "Corte", kind: "service" as const, visibility: "public" as const },
+    { id: "aaaaaaaa-1111-4222-8333-444455556666", title: "Camisa", kind: "product" as const, visibility: "public" as const },
+  ];
+  assert.deepEqual(servicePageHrefs(rows, ""), { [rows[0].id]: "/servicio-corte-3fa91c2b" });
+  assert.deepEqual(servicePageHrefs(rows, "/en/"), { [rows[0].id]: "/en/servicio-corte-3fa91c2b" });
+  assert.deepEqual(servicePageHrefs(rows, null), {});
+});
+
+test("TUL-795: typed materials, warranty and response time show in the page language, empty ones are dropped", async () => {
+  const { serviceTypedFacts, servicePageCopy: copyFor } = await import("./service-page");
+  const attributes = { matrix: { materials: { en: "Client buys parts", es: "El cliente compra" }, warranty: { en: "6 months" } } };
+  assert.deepEqual(
+    serviceTypedFacts({ attributes }, "es", copyFor("es")).map((f) => [f.label, f.value]),
+    [["Materiales", "El cliente compra"], ["Garantía", "6 months"]],
+  );
+  assert.deepEqual(serviceTypedFacts({ attributes }, "en", copyFor("en")).map((f) => f.label), ["Materials", "Warranty"]);
+  assert.deepEqual(serviceTypedFacts({ attributes: null }, "en", copyFor("en")), []);
+});

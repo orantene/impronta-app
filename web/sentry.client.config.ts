@@ -1,4 +1,10 @@
 import * as Sentry from "@sentry/nextjs";
+import {
+  scrubBreadcrumb,
+  scrubSentryEvent,
+  type ScrubbableBreadcrumb,
+  type ScrubbableEvent,
+} from "@/lib/analytics/sentry-scrub";
 
 const rate = Number.parseFloat(process.env.SENTRY_TRACES_SAMPLE_RATE ?? "");
 
@@ -7,18 +13,11 @@ Sentry.init({
   tracesSampleRate: Number.isFinite(rate) && rate >= 0 && rate <= 1 ? rate : 0.1,
   sendDefaultPii: false,
   debug: false,
-  beforeSend(event) {
-    if (event.user) delete event.user.ip_address;
-    if (event.request) {
-      delete event.request.cookies;
-      if (event.request.headers) {
-        for (const k of Object.keys(event.request.headers)) {
-          if (k.toLowerCase() === "authorization" || k.toLowerCase() === "cookie") {
-            delete event.request.headers[k];
-          }
-        }
-      }
-    }
+  // Scrubs in place; the cast only bridges the SDK event type to the scrubber's structural type.
+  beforeSend: (event) => {
+    scrubSentryEvent(event as unknown as ScrubbableEvent);
     return event;
   },
+  beforeBreadcrumb: (crumb) =>
+    scrubBreadcrumb(crumb as unknown as ScrubbableBreadcrumb) as unknown as typeof crumb,
 });

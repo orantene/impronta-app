@@ -12,6 +12,7 @@ import {
   AuthNotice,
   AuthSubmitButton,
 } from "@/components/auth/auth-ui";
+import { pickAuthEmail, readAuthEmailDraft, readAuthNameDraft, writeAuthEmailDraft, writeAuthNameDraft } from "@/lib/auth/email-draft";
 import { createTranslator } from "@/i18n/messages";
 import { withLocaleHref } from "@/i18n/pathnames";
 import { AgeTermsCheckbox } from "@/components/auth/age-terms-checkbox";
@@ -66,6 +67,8 @@ export function RegisterForm({
    * passwordless wrapper renders it once for BOTH lanes (code + password).
    */
   hideFooter = false,
+  collectName = false,
+  clientSignup = false,
 }: {
   nextPath?: string;
   submitLabel?: string;
@@ -73,6 +76,10 @@ export function RegisterForm({
   /** Pre-fills the email field (e.g. from the get-started lead) — editable. */
   defaultEmail?: string;
   hideFooter?: boolean;
+  /** TUL-762: ask for a name; it rides as `full_name` into the new profile. */
+  collectName?: boolean;
+  /** TUL-771: explicit client sign-up (`?as=client`); the verified account skips the role screen. */
+  clientSignup?: boolean;
 }) {
   const t = createTranslator(locale);
   const [state, formAction, pending] = useActionState<
@@ -92,6 +99,7 @@ export function RegisterForm({
           nextPath={nextPath}
           locale={locale}
           onChangeEmail={() => setBackToForm(true)}
+          clientSignup={clientSignup}
         />
         {hideFooter ? null : (
           <RegisterLoginFooter nextPath={nextPath} locale={locale} />
@@ -103,6 +111,7 @@ export function RegisterForm({
   return (
     <form
       action={formAction}
+      noValidate // TUL-893: the server answers in the page language; no English browser tooltip
       className="space-y-3.5"
       onSubmit={() => setBackToForm(false)}
     >
@@ -114,6 +123,24 @@ export function RegisterForm({
         <AuthNotice tone="success">{state.message}</AuthNotice>
       ) : null}
 
+      {collectName ? (
+        <AuthField label={t("public.auth.form.name")} htmlFor="full_name">
+          <input
+            id="full_name"
+            name="full_name"
+            type="text"
+            autoComplete="name"
+            required
+            maxLength={120}
+            defaultValue={readAuthNameDraft()}
+            onChange={(e) => writeAuthNameDraft(e.target.value)}
+            placeholder={t("public.auth.form.namePlaceholder")}
+            className={AUTH_INPUT_CLASS}
+            style={AUTH_INPUT_STYLE}
+          />
+        </AuthField>
+      ) : null}
+
       <AuthField label={t("public.auth.form.email")} htmlFor="email">
         <input
           id="email"
@@ -121,7 +148,8 @@ export function RegisterForm({
           type="email"
           autoComplete="email"
           required
-          defaultValue={defaultEmail}
+          defaultValue={pickAuthEmail(readAuthEmailDraft(), defaultEmail)}
+          onChange={(e) => writeAuthEmailDraft(e.target.value)}
           placeholder={t("public.auth.form.emailPlaceholder")}
           className={AUTH_INPUT_CLASS}
           style={AUTH_INPUT_STYLE}

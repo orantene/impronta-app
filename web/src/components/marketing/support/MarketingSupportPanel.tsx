@@ -273,6 +273,7 @@ export function MarketingSupportPanel({
   return (
     <div
       role="dialog"
+      data-marketing-support-panel
       aria-label={copy.panelTitle}
       className="fixed z-[390] flex flex-col overflow-hidden border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg)] text-[var(--plt-ink)] shadow-lg"
       style={{
@@ -283,6 +284,16 @@ export function MarketingSupportPanel({
         borderRadius: 20,
       }}
     >
+      {/* TUL-926: on a phone the panel is a full-width, full-height sheet (no
+          20px gap on the right) and clears the home indicator, so the whole
+          "Leave an email" form scrolls into view. */}
+      <style>{`@media (max-width: 520px) {
+        [data-marketing-support-panel] {
+          inset: 0 !important; width: 100% !important; height: 100dvh !important;
+          border-radius: 0 !important; border-width: 0 !important;
+          padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+      }`}</style>
       <header className="flex items-start justify-between gap-3 border-b border-[var(--plt-hairline)] px-4 py-3">
         <div>
           <div className="text-[0.95rem] font-semibold">{copy.panelTitle}</div>
@@ -490,6 +501,14 @@ export function MarketingSupportPanel({
         <textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
+          enterKeyHint="send"
+          onKeyDown={(e) => {
+            // TUL-949: Enter sends, Shift+Enter is a newline, IME commit never sends.
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              if (!busy && draft.trim()) void sendQuestion();
+            }
+          }}
           placeholder={signedIn ? copy.composerPlaceholderSignedIn : copy.composerPlaceholder}
           rows={3}
           className="mb-2 w-full resize-none rounded-xl border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg)] px-3 py-2 text-[0.875rem]"

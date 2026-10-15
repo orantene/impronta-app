@@ -8,6 +8,7 @@
  * `<id8>` (first 8 hex of the offering id): a renamed service keeps resolving, and any other
  * title part is self-canonical to the current slug.
  */
+import { offeringMatrixValue } from "@/lib/talent/offering-matrix";
 import { publicPriceLine } from "@/lib/talent/public-price-line";
 import { buildServiceOffers, type JsonLdOfferingSource } from "@/lib/seo/talent-json-ld";
 
@@ -27,6 +28,8 @@ export type ServicePageOffering = JsonLdOfferingSource & {
   bookingMode?: "request" | "instant" | "inquiry" | null;
   reserveMode?: "full" | "deposit" | "free";
   depositPct?: number | null;
+  /** `attributes.matrix` carries the talent-typed materials, warranty and response time. */
+  attributes?: Record<string, unknown> | null;
 };
 
 /** Other published services to link from a service page: same category first, then catalog order. */
@@ -57,6 +60,23 @@ export function serviceSlug(o: { id: string; title: string }): string {
   const id8 = o.id.replace(/-/g, "").slice(0, 8).toLowerCase();
   const t = slugifyTitle(o.title);
   return `${SERVICE_SLUG_PREFIX}${t ? `${t}-` : ""}${id8}`;
+}
+
+/**
+ * TUL-792: id -> service page path for the home service cards. `base` is the locale prefix of a
+ * published talent site ("" or "/en"); null/undefined (builder, hub, previews) means no links.
+ */
+export function servicePageHrefs(
+  offerings: ReadonlyArray<{ id: string; title: string; kind: JsonLdOfferingSource["kind"]; visibility?: JsonLdOfferingSource["visibility"] }>,
+  base: string | null | undefined,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (base == null) return out;
+  const prefix = base.replace(/\/+$/, "");
+  for (const o of offerings) {
+    if (isServicePageEligible(o)) out[o.id] = `${prefix}/${serviceSlug(o)}`;
+  }
+  return out;
 }
 
 /** The id fragment a service slug carries, or null when the slug is not a service slug. */
@@ -99,13 +119,16 @@ export type ServicePageCopy = {
   priceFrom: string;
   related: string;
   freeCancel: (hours: number) => string;
+  materials: string;
+  warranty: string;
+  response: string;
 };
 
 export function servicePageCopy(locale: string): ServicePageCopy {
   const en = locale.toLowerCase().startsWith("en");
   return en
-    ? { book: "Book this service", bookShort: "Book", back: "All services", minutes: (n) => `${n} min`, priceFrom: "From", related: "Other services", freeCancel: (h) => `Free cancellation up to ${h} h before` }
-    : { book: "Reservar este servicio", bookShort: "Reservar", back: "Todos los servicios", minutes: (n) => `${n} min`, priceFrom: "Desde", related: "Otros servicios", freeCancel: (h) => `Cancelación gratuita hasta ${h} h antes` };
+    ? { book: "Book this service", bookShort: "Book", back: "All services", minutes: (n) => `${n} min`, priceFrom: "From", related: "Other services", freeCancel: (h) => `Free cancellation up to ${h} h before`, materials: "Materials", warranty: "Warranty", response: "Response time" }
+    : { book: "Reservar este servicio", bookShort: "Reservar", back: "Todos los servicios", minutes: (n) => `${n} min`, priceFrom: "Desde", related: "Otros servicios", freeCancel: (h) => `Cancelación gratuita hasta ${h} h antes`, materials: "Materiales", warranty: "Garantía", response: "Tiempo de respuesta" };
 }
 
 /** "All services" link: the home page's services section, locale-aware (`/` or `/en` -> `/#services`, `/en/#services`). */
@@ -179,4 +202,17 @@ export function buildServicePageJsonLd(input: {
     ...(o.imageUrls?.[0] ? { image: o.imageUrls[0] } : {}),
     ...(hasOffer ? { offers: offerRest } : {}),
   };
+}
+
+/** Materials, warranty and response time the talent typed for this service, in the page language. Empty rows are dropped, never invented (TUL-795). */
+export function serviceTypedFacts(
+  o: Pick<ServicePageOffering, "attributes">,
+  locale: string,
+  copy: Pick<ServicePageCopy, "materials" | "warranty" | "response">,
+): Array<{ key: "materials" | "warranty" | "response"; label: string; value: string }> {
+  const keys = ["materials", "warranty", "response"] as const;
+  return keys.flatMap((key) => {
+    const value = offeringMatrixValue(o.attributes, key, locale);
+    return value ? [{ key, label: copy[key], value }] : [];
+  });
 }

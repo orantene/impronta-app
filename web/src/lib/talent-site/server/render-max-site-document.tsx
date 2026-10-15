@@ -274,6 +274,10 @@ export async function renderMaxSiteDocument(args: {
     // when the Max site itself has no managing agency.
     tenantId: dataSources.tenantId ?? bookingTenantId ?? undefined,
     catalogBookingLive,
+    // TUL-792: published sites link each home service card to its service page.
+    talentServiceLinkBase: draftPreview
+      ? null
+      : talentSiteLocalePath("/", locale, args.localeCtx.settings.defaultLocale, args.localeCtx.settings.supportedLocales).replace(/\/+$/, ""),
     onlineCollectReady: isPlatformCheckoutReady(),
     liveStatus,
     ...(promoWidgets ? { promoWidgets } : {}),

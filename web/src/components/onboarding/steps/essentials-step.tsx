@@ -16,6 +16,7 @@
 import { useState } from "react";
 
 import type { ChipOption, TypeChipProposal } from "@/lib/onboarding/type-chip";
+import { typedCategoryOption } from "@/lib/onboarding/type-search";
 import { whatLabelFor } from "@/lib/onboarding/what-label";
 import type { Understanding } from "@/lib/onboarding/understanding";
 import type { EssentialsAnswer } from "@/lib/server-actions/onboarding-module";
@@ -111,7 +112,12 @@ export function EssentialsStep({
             selectedLabel={(o) => o.label[locale] || o.label.en}
             search={(q) => searchOnboardingTypes({ query: q, kind, locale })}
             itemLabel={(o) => o.label[locale]}
-            itemKey={(o) => o.id}
+            itemKey={(o) => o.id || o.label.en}
+            typedMinLength={1}
+            typed={{
+              label: (text) => t("public.onboarding.questions.useTypedCategory").replace("{text}", text),
+              make: (text) => typedCategoryOption(text) ?? { id: "", slug: "", label: { en: text, es: text } },
+            }}
             onPick={(o) => { setType(o); setOther(""); setTypeCleared(false); }}
             onClear={() => { setType(null); setTypeCleared(true); }}
             changeLabel={t("public.onboarding.questions.change")}

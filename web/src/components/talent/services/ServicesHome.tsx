@@ -52,6 +52,7 @@ import {
 } from "./ServicesHoursNeeded";
 import { HideOutcome, RowMenu, listPrice, listPriceState } from "./ServicesHomeRowChrome";
 import { ServicesWebsiteSetupBanner } from "./ServicesWebsiteSetupBanner";
+import { ServicesListSkeleton } from "./ServicesListSkeleton";
 import { countItemsLabel } from "@/components/admin/shell/internal/count-items-label";
 import { useSearchParams } from "next/navigation";
 
@@ -84,7 +85,7 @@ export function ServicesHome({
   const [destinations, setDestinations] = useState<OfferingDestination[]>([]);
   const websitePublished = useServicesWebsitePublished();
   const [defaults, setDefaults] = useState<SellingDefaults | null>(null);
-  const loc = useLocationSettings(talentId);
+  const loc = useLocationSettings(talentId, !editor.loading);
   const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
   const [addons, setAddons] = useState<AddonGroup[]>([]);
   const [toast, setToast] = useState<string | null>(null);
@@ -95,7 +96,7 @@ export function ServicesHome({
   const [dupPair, setDupPair] = useState<{ original: TalentOffering; copy: TalentOffering } | null>(null);
   const [hideFailedIds, setHideFailedIds] = useState<Set<string>>(new Set());
   const [shownIds, setShownIds] = useState<Set<string>>(new Set());
-  const hasBookableHours = useHasBookableHours(talentId);
+  const hasBookableHours = useHasBookableHours(talentId, !editor.loading);
 
   const failHide = (id: string) => {
     setHideFailedIds((prev) => new Set(prev).add(id));
@@ -517,16 +518,15 @@ export function ServicesHome({
 
       {editor.loading && (
         <div className="mt-6 text-[13px] text-admin-ink-muted" role="status">
-          <p>{slowLoad ? copy.t("Still trying") : copy.t("Loading")}</p>
-          <p className="mt-1">
-            {slowLoad
-              ? copy.t("This is taking longer than usual. Still trying. Nothing is lost.")
-              : copy.t("Your services are loading. No number is shown until they arrive.")}
-          </p>
+          <ServicesListSkeleton />
+          <p className="mt-3">{slowLoad ? copy.t("Still trying") : copy.t("Loading")}</p>
           {slowLoad && (
-            <button type="button" className="mt-2 font-semibold text-admin-brand" onClick={() => editor.reload()}>
-              {copy.t("Try now")}
-            </button>
+            <>
+              <p className="mt-1">{copy.t("This is taking longer than usual. Still trying. Nothing is lost.")}</p>
+              <button type="button" className="mt-2 font-semibold text-admin-brand" onClick={() => editor.reload()}>
+                {copy.t("Try now")}
+              </button>
+            </>
           )}
         </div>
       )}

@@ -7,7 +7,7 @@ import {
   reviewTabCounts,
   summarizeEligibility,
 } from "./profile-editor-sections";
-import { getWebsiteEligibility } from "./website-eligibility";
+import { getWebsiteEligibility, hasNameAndTrade, pickTermLabel } from "./website-eligibility";
 
 const partial = getWebsiteEligibility({
   hasNameAndWork: true,
@@ -59,5 +59,19 @@ describe("review tabs", () => {
   it("labels the source", () => {
     assert.equal(reviewSourceKind(rows[0]), "verified");
     assert.equal(reviewSourceKind(rows[1]), "noBooking");
+  });
+});
+
+describe("name and trade fact", () => {
+  it("is done when display name and trade are set", () => {
+    assert.equal(hasNameAndTrade("Ana", "Maquillista"), true);
+    assert.equal(hasNameAndTrade("Ana", null), false);
+    assert.equal(hasNameAndTrade("Unnamed", "Maquillista"), false);
+    assert.equal(hasNameAndTrade("  ", "Maquillista"), false);
+  });
+  it("reads a trade label saved without an English name", () => {
+    assert.equal(pickTermLabel({ en: null, es: "Maquillista" }), "Maquillista");
+    assert.equal(pickTermLabel({ en: "Makeup" , es: "Maquillista" }), "Makeup");
+    assert.equal(pickTermLabel(null), null);
   });
 });
