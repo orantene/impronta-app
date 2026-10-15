@@ -1557,6 +1557,7 @@
       "dateStatusNotSure": "Aún no estoy seguro",
       "dateStatusMultiDay": "Varios días",
       "dateStatusRecurring": "Recurrente",
+      "dateIncompleteError": "Escribe la fecha completa (día, mes y año).",
       "dateEventDateLabel": "Fecha del evento",
       "dateStartTimeLabel": "Hora de inicio (opcional)",
       "dateDurationLabel": "Duración (opcional)",
