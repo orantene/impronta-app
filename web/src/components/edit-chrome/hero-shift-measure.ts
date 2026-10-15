@@ -115,6 +115,9 @@ export function buildEditChromeGutterStyleCss(
   const left = Math.max(0, leftPx);
   const right = Math.max(0, rightPx);
   return [
+    /* Phones (<=640px): both rails are slide-in drawers that take no layout
+       space, so the canvas gets the full width (TUL-914). */
+    `@media (min-width: 641px) {`,
     `body {`,
     `  padding-left: ${left}px !important;`,
     `  padding-right: ${right}px !important;`,
@@ -128,6 +131,15 @@ export function buildEditChromeGutterStyleCss(
     `  left: ${left}px !important;`,
     `  right: ${right}px !important;`,
     `  width: auto !important;`,
+    `}`,
+    `}`,
+    `@media (max-width: 640px) {`,
+    `body {`,
+    `  padding-left: 0 !important;`,
+    `  padding-right: 0 !important;`,
+    `  --edit-chrome-gutter-left: 0px;`,
+    `  --edit-chrome-gutter-right: 0px;`,
+    `}`,
     `}`,
     /* 100vw breakouts would slide under the rails despite body padding. */
     `.site-prim-fullbleed {`,

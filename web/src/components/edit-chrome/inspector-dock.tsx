@@ -33,6 +33,7 @@ import {
   useTransition,
 } from "react";
 import { MOBILE_RAIL_EXPAND_EVENT } from "./command-dock";
+import { useMobileInspectorOpen } from "./use-mobile-inspector-open";
 
 import {
   loadSectionForEditAction,
@@ -1185,12 +1186,10 @@ export function InspectorDock() {
 
   // ── Mobile (≤640px) collapse/expand/hide layer ───────────────────────────
   // Same pattern as CommandDock's mobile layer (see command-dock.tsx): local
-  // state only, every extra element/class is scoped behind Tailwind's
-  // `max-sm:` (max-width: 640px) variant, so desktop (and the existing
-  // ≤1024px bottom-sheet mode) render exactly as before above 640px. Below
-  // it, the rail defaults to a small edge tab pinned to the right instead of
-  // the full-size inspector, and only one of the two rails (command dock /
-  // inspector) stays expanded at a time via the shared custom event.
+  // state only, every extra element/class is scoped behind Tailwind's `max-sm:`
+  // variant, so desktop (and the ≤1024px bottom-sheet mode) render exactly as
+  // before above 640px. Below it, the rail defaults to a small right edge tab;
+  // only one of the two rails stays expanded at a time via the shared event.
   const [mobileExpanded, setMobileExpanded] = useState(false);
   const [mobileTabHidden, setMobileTabHidden] = useState(false);
 
@@ -1223,6 +1222,7 @@ export function InspectorDock() {
     setMobileExpanded(false);
     setMobileTabHidden(true);
   };
+  useMobileInspectorOpen(expandMobileInspector);
   const restoreMobileInspectorTab = () => setMobileTabHidden(false);
 
   return (

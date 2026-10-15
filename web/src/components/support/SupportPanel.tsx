@@ -21,6 +21,7 @@ import { SupportThreadView } from "./SupportThreadView";
 import { SupportThreadHeader } from "./SupportThreadHeader";
 import { Composer, NewTicketForm } from "./SupportPanelForms";
 import { SupportIdeaForm } from "./SupportIdeaForm";
+import { SupportThreadLoadError } from "./SupportThreadLoadError";
 import { HomeView, TicketRow } from "./SupportPanelHome";
 import { GuideTab } from "./GuideTab";
 import { NewQuestionStrip, showNewQuestionStripForThread } from "./support-new-question-strip";
@@ -55,6 +56,7 @@ export function SupportPanel({
   tickets,
   setTickets,
   deepLinkTicketId = null,
+  deepLinkList = false,
   guideNodeId = null,
   onConsumedGuideNode,
 }: {
@@ -66,6 +68,8 @@ export function SupportPanel({
   setTickets: (updater: (prev: SupportTicketSummary[]) => SupportTicketSummary[]) => void;
   /** Ticket to open on mount (email "Reply in app" deep link). */
   deepLinkTicketId?: string | null;
+  /** A `?support=` value that is not a ticket id: open the Tickets list. */
+  deepLinkList?: boolean;
   /** Guide article to open (the (i) next to a page title). */
   guideNodeId?: string | null;
   onConsumedGuideNode?: () => void;
@@ -89,8 +93,9 @@ export function SupportPanel({
   const replay = useReplayBuffer();
   const unread = useSupportUnread(tickets);
   const { ticket, messages, loading: threadLoading } = selectThread(threadState, ticketId);
-  const [loadFailedFor, setLoadFailedFor] = useState<string | null>(null);
-  const threadLoadFailed = loadFailedFor !== null && loadFailedFor === ticketId && threadLoading;
+  const [loadFailedFor, setLoadFailedFor] = useState<{ id: string; code: string } | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const threadLoadFailed = loadFailedFor !== null && loadFailedFor.id === ticketId && threadLoading;
   const wasOpenRef = useRef(open);
   useEffect(() => {
     // Reopening lands on Home, not on whichever thread was open last.
@@ -120,7 +125,8 @@ export function SupportPanel({
 
   useEffect(() => {
     if (deepLinkTicketId) setView("thread", deepLinkTicketId);
-  }, [deepLinkTicketId, setView]);
+    else if (deepLinkList) setView("tickets");
+  }, [deepLinkTicketId, deepLinkList, setView]);
 
   useEffect(() => {
     if (!guideNodeId) return;
@@ -272,9 +278,9 @@ export function SupportPanel({
         .eq("ticket_id", ticketId)
         .order("created_at", { ascending: true });
       if (cancelled) return;
-      if (tErr || mErr) {
-        // A failed read is not an empty thread: say so instead of showing "no messages".
-        setLoadFailedFor(ticketId);
+      if (tErr || mErr || !tRow) {
+        // A failed read (or a row RLS hides) is not an empty thread: say so, and keep the code for QA.
+        setLoadFailedFor({ id: ticketId, code: tErr?.code ?? mErr?.code ?? (tRow ? "error" : "no_row") });
         return;
       }
       setLoadFailedFor(null);
@@ -290,7 +296,7 @@ export function SupportPanel({
     return () => {
       cancelled = true;
     };
-  }, [open, ticketId, contract, patchSummary]);
+  }, [open, ticketId, contract, patchSummary, loadAttempt]);
 
   // Bottom-anchor the thread so a long thread does not open at the top with replies off-screen.
   useEffect(() => {
@@ -492,9 +498,7 @@ export function SupportPanel({
           />
         )}
         {view === "thread" && threadLoadFailed && (
-          <div role="alert" style={{ padding: 24, fontSize: 13, color: COLORS.inkMuted }}>
-            {t("dashboard.adminSupport.threadLoadFailed")}
-          </div>
+          <SupportThreadLoadError code={loadFailedFor?.code} onRetry={() => setLoadAttempt((n) => n + 1)} />
         )}
         {view === "thread" && threadLoading && !threadLoadFailed && (
           <div role="status" style={{ padding: 24, fontSize: 13, color: COLORS.inkMuted }}>

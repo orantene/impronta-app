@@ -30,6 +30,7 @@ export function SupportLauncher({
   const [open, setOpen] = useState(false);
   const [tickets, setTicketsState] = useState(contract.initialTickets);
   const [deepLinkTicketId, setDeepLinkTicketId] = useState<string | null>(null);
+  const [deepLinkList, setDeepLinkList] = useState(false);
   const [guideNodeId, setGuideNodeId] = useState<string | null>(null);
   // The (i) next to a page title (PageHeader guideNodeId) and, later, Helper
   // mode on real pages: open the drawer straight onto that article.
@@ -61,6 +62,10 @@ export function SupportLauncher({
   useSupportDeepLink(
     useCallback((id: string) => {
       setDeepLinkTicketId(id);
+      setOpen(true);
+    }, []),
+    useCallback(() => {
+      setDeepLinkList(true);
       setOpen(true);
     }, []),
   );
@@ -224,6 +229,7 @@ export function SupportLauncher({
         tickets={tickets}
         setTickets={setTickets}
         deepLinkTicketId={deepLinkTicketId}
+        deepLinkList={deepLinkList}
         guideNodeId={guideNodeId}
         onConsumedGuideNode={() => setGuideNodeId(null)}
       />

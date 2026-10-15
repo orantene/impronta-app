@@ -45,10 +45,10 @@ export const SUPPORT_DRAWER_WIDTH = 400;
  * TUL-982 / TUL-947: on a phone the floating launcher sat at 62% of the
  * viewport, on top of cards on nearly every screen, and the connection-lost
  * banner covered it. Compact: a smaller circle in the bottom-right corner
- * ABOVE the 64px tab bar, lifted again while the banner shows, and hidden
+ * ABOVE the 65px tab bar (62px row + 1px border + inset, 12px gap, same base as messages-mobile-css.ts), lifted again while the banner shows, and hidden
  * while a text field has focus (the on-screen keyboard).
  */
-export const SUPPORT_LAUNCHER_COMPACT_BOTTOM = "calc(84px + env(safe-area-inset-bottom, 0px))";
+export const SUPPORT_LAUNCHER_COMPACT_BOTTOM = "calc(65px + 12px + env(safe-area-inset-bottom, 0px))";
 export const SUPPORT_LAUNCHER_COMPACT_CSS = `
   @media (max-width: 520px), (pointer: coarse) {
     html:has([data-tulala-offline-banner]) button[data-tulala-support-launcher=""] {
