@@ -27,7 +27,7 @@ export const MAGAZINE_ROOT_VARS = [
   '--sb-mag-label:var(--token-typography-label-font-family,var(--token-shell-header-nav-font,"Archivo Narrow","Arial Narrow",system-ui,sans-serif))',
   "--sb-mag-ink:var(--token-color-ink)",
   "--sb-mag-bg:var(--token-color-background)",
-  "--sb-mag-mute:var(--token-color-muted)",
+  "--sb-mag-mute:var(--token-color-muted-text,var(--token-color-muted))",
   "--sb-mag-line:var(--token-color-line)",
   "--sb-mag-tint:var(--token-color-surface-raised,transparent)",
   "--sb-mag-rule:var(--token-border-rule-width,1px)",

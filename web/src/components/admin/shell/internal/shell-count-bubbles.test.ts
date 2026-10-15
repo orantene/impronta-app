@@ -202,7 +202,7 @@ describe("ShellCountBubbles mount (static)", () => {
     assert.match(adapter, /isTalentAwaitingYouStage\(stage\)/);
     assert.match(jobShell, /isTalentAwaitingYouStage/);
     // Closed / booked rows must not look like "awaiting you" in the inbox list.
-    assert.match(adapter, /Conversation closed/);
+    assert.match(adapter, /: INBOX_PREVIEW_CLOSED/);
   });
 
   it("Attention label + tooltip have ES catalog rows", () => {

@@ -72,6 +72,8 @@ test("locked hint is Disponible en Oficina Web / Available on Web Office + Ver p
   assert.equal(es.title, "Disponible en Oficina Web");
   assert.equal(es.cta, "Ver planes");
   assert.equal(en.cta, "See plans");
+  assert.equal(en.badge, "Web Office");
+  assert.equal(es.badge, "Oficina Web");
   for (const copy of [en.title, en.body, en.cta, es.title, es.body, es.cta]) {
     assert.doesNotMatch(copy, /—/);
     assert.doesNotMatch(copy, /reorder/i);

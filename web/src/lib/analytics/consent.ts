@@ -80,10 +80,11 @@ export function resolveConsent(stored: unknown, gpc: boolean, region: ConsentReg
  * The same decision for the inline tag snippets that run before React: a JS
  * expression that is true when analytics may run. Keep in step with
  * `resolveConsent`.
+ *
+ * One template literal on purpose: SWC's server minifier folds
+ * `` `a${x}b` + `c${y}d` `` into "a" + x + "c" + y + "d", dropping the first
+ * tail, which shipped a SyntaxError on every page (TUL-534).
  */
-// Keep this a single template literal: when a `template + template` constant is
-// inlined into another template, the production minifier drops the text after
-// its first `${…}`, leaving a SyntaxError in every consent snippet.
 export const ANALYTICS_ALLOWED_JS = `(function(){try{var s=localStorage.getItem('${CONSENT_STORAGE_KEY}');if(s==='granted'||s==='denied')return s==='granted';}catch(e){}return document.documentElement.getAttribute('${CONSENT_REGION_ATTR}')==='notice'&&navigator.globalPrivacyControl!==true;})()`;
 
 /** Pure: should the banner appear on its own (no reopen request)? */

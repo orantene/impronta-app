@@ -299,6 +299,7 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   "Delete section...": "Eliminar sección...",
   "Close menu": "Cerrar menú",
   "Add block": "Agregar bloque",
+  "Page layers": "Capas de la página",
   "Show nested blocks ({count})": "Mostrar bloques anidados ({count})",
   "Select the parent ({label})": "Seleccionar el bloque padre ({label})",
   "Parent is selected": "El bloque padre está seleccionado",

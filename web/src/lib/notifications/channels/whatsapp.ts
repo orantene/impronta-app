@@ -1,6 +1,8 @@
 import "server-only";
 
 import { logServerError } from "@/lib/server/safe-error";
+import type { WhatsAppProvider } from "../whatsapp/provider";
+import { createTwilioWhatsAppProvider, twilioWhatsAppConfigFromEnv } from "../whatsapp/twilio";
 import type {
   AudienceContext,
   CatalogEntry,
@@ -10,13 +12,11 @@ import type {
 
 const sentThisInvocation = new Set<string>();
 
-function whatsappConfigured(): boolean {
-  return Boolean(
-    process.env.TWILIO_ACCOUNT_SID?.trim() &&
-      process.env.TWILIO_AUTH_TOKEN?.trim() &&
-      process.env.TWILIO_WHATSAPP_FROM?.trim() &&
-      process.env.SUPPORT_OWNER_WHATSAPP_TO?.trim(),
-  );
+function ownerProvider(): { provider: WhatsAppProvider; to: string } | null {
+  const config = twilioWhatsAppConfigFromEnv();
+  const to = process.env.SUPPORT_OWNER_WHATSAPP_TO?.trim();
+  if (!config || !to) return null;
+  return { provider: createTwilioWhatsAppProvider(config), to };
 }
 
 /**
@@ -29,8 +29,10 @@ export async function sendWhatsAppNotification(
   entry: CatalogEntry,
   recipient: ResolvedRecipient,
   _ctx: AudienceContext,
+  deps: { owner?: { provider: WhatsAppProvider; to: string } | null } = {},
 ): Promise<string | null> {
-  if (!whatsappConfigured()) return null;
+  const owner = deps.owner !== undefined ? deps.owner : ownerProvider();
+  if (!owner) return null;
   if (!entry.whatsapp) return null;
   if (sentThisInvocation.has(event.eventId)) return null;
 
@@ -38,21 +40,13 @@ export async function sendWhatsAppNotification(
   if (!body) return null;
 
   try {
-    const twilio = (await import("twilio")).default;
-    const client = twilio(
-      process.env.TWILIO_ACCOUNT_SID!.trim(),
-      process.env.TWILIO_AUTH_TOKEN!.trim(),
-    );
-    const msg = await client.messages.create({
-      from: process.env.TWILIO_WHATSAPP_FROM!.trim(),
-      to: process.env.SUPPORT_OWNER_WHATSAPP_TO!.trim(),
-      body,
-    });
+    const sent = await owner.provider.sendText({ to: owner.to, body });
+    if (!sent.ok) return null;
     // Mark deduped only AFTER a successful send — adding before the call
     // would turn the dispatcher's failed-send retry into a silent no-op.
     if (sentThisInvocation.size > 500) sentThisInvocation.clear();
     sentThisInvocation.add(event.eventId);
-    return msg.sid ?? "sent";
+    return sent.providerReference;
   } catch (err) {
     logServerError("notifications.whatsapp.send", err);
     throw err;
