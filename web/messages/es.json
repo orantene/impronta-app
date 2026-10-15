@@ -2331,7 +2331,11 @@
       "logOut": "Cerrar sesión",
       "langEn": "Inglés",
       "langEs": "Español",
-      "fieldEmail": "Correo"
+      "fieldEmail": "Correo",
+      "namePromptTitle": "Agrega tu nombre",
+      "namePromptBody": "Tu nombre aparece como parte de tu correo. Agrega tu nombre real para que las reservas y los mensajes sean más personales.",
+      "namePromptSave": "Guardar nombre",
+      "namePromptDismiss": "Cerrar"
     },
     "clientAccount": {
       "signIn": "Iniciar sesión",

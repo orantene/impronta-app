@@ -2331,7 +2331,11 @@
       "logOut": "Log out",
       "langEn": "English",
       "langEs": "Spanish",
-      "fieldEmail": "Email"
+      "fieldEmail": "Email",
+      "namePromptTitle": "Add your name",
+      "namePromptBody": "Your name is showing as part of your email. Add your real name so bookings and messages feel personal.",
+      "namePromptSave": "Save name",
+      "namePromptDismiss": "Dismiss"
     },
     "clientAccount": {
       "signIn": "Sign in",
