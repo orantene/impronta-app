@@ -2,6 +2,7 @@
 import { useMemo } from "react";
 
 import { translatorFor } from "./translator-for";
+import { usePublicT } from "./use-public-t";
 // Dashboard copy is read through `useT`; this registers the full catalogs in
 // the browser build, where `@/i18n/messages` otherwise holds only the
 // client subtrees (see `client-subtrees.ts`).
@@ -11,10 +12,8 @@ import { useDashboardLocale } from "./use-dashboard-locale";
 
 export { translatorFor };
 
-export function useT() {
-  const locale = useDashboardLocale();
-  return useMemo(() => translatorFor(locale), [locale]);
-}
+/** Same hook as `usePublicT`; the difference is only this module's catalog import. */
+export const useT = usePublicT;
 
 /**
  * Translator for a counted noun: reads `<key>.one` / `<key>.other` and picks

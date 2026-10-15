@@ -25,15 +25,6 @@ function store(): Record<string, Catalog> {
   return injected && typeof injected === "object" ? (injected as Record<string, Catalog>) : {};
 }
 
-export function availableMessageLocales(): string[] {
-  const codes = Object.keys(store());
-  return codes.length > 0 ? codes : [ROOT_FALLBACK_LOCALE];
-}
-
-export function hasMessageCatalog(locale: string): boolean {
-  return Object.prototype.hasOwnProperty.call(store(), locale);
-}
-
 function catalogChain(locale: string): Catalog[] {
   const catalogs = store();
   const order: string[] = [];
@@ -41,10 +32,6 @@ function catalogChain(locale: string): Catalog[] {
     if (code && !order.includes(code) && code in catalogs) order.push(code);
   }
   return order.map((code) => catalogs[code]);
-}
-
-export function getMessages(locale: string): Catalog {
-  return catalogChain(locale)[0] ?? {};
 }
 
 function lookupPath(catalog: Catalog, parts: string[]): unknown {
@@ -84,7 +71,3 @@ export function getMessageStringArray(locale: string, key: string): string[] {
   return [];
 }
 
-/** Server-only in practice; kept so the two builds export the same names. */
-export function getClientMessagesPayload(_locale: string): Record<string, Catalog> {
-  return store();
-}
