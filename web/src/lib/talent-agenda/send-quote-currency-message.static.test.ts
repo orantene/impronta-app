@@ -31,3 +31,19 @@ describe("a quote that cannot be priced says why and where to fix it (never a gu
     assert.match(q, /currencyCode: offering\.currency/);
   });
 });
+
+describe("TUL-484 live: a quote that fails inside a conversation never claims a conversation was created", () => {
+  it("thread mode says the quote did not go out; only the new-client path mentions a created conversation", () => {
+    assert.match(panel, /threadId\s*\?\s*copy\.t\("The quote did not go out"\)/);
+    assert.match(panel, /threadId\s*\?\s*copy\.t\("Nothing reached the client\. Try again in a moment\."\)/);
+  });
+
+  it("both strings have Spanish in the dashboard and agenda dictionaries", () => {
+    for (const file of ["../../components/admin/shell/internal/dashboard-i18n-quote.ts", "./agenda-i18n.ts"]) {
+      const es = rd(file);
+      for (const key of ["The quote did not go out", "Nothing reached the client. Try again in a moment."]) {
+        assert.ok(es.includes(`"${key}"`), `${file}: ES for "${key}"`);
+      }
+    }
+  });
+});
