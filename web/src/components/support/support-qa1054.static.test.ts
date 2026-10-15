@@ -131,3 +131,20 @@ test("TUL-942: the footer escalate button is gated by placement 'footer' and the
   assert.match(thread, /humanPlacement === "footer" && ticket\?\.handledBy === "ai"/);
   assert.match(thread, /hasAiAnswer: tone !== "hq" && lastAiId != null/);
 });
+
+test("TUL-949: Enter in the thread composer calls send() and blocks the newline; Shift+Enter falls through", () => {
+  const forms = readFileSync("src/components/support/SupportPanelForms.tsx", "utf8");
+  assert.match(
+    forms,
+    /if \(e\.key === "Enter" && !e\.shiftKey && !e\.nativeEvent\.isComposing\) \{\s*e\.preventDefault\(\);\s*void send\(\);/,
+  );
+  assert.match(forms, /<textarea[\s\S]*?rows=\{1\}/);
+});
+
+test("TUL-949: the home question box is a single input inside a form with a type=submit button (Enter submits natively)", () => {
+  const formAt = home.indexOf("<form");
+  const submitAt = home.indexOf('type="submit"');
+  assert.ok(formAt > 0 && submitAt > formAt);
+  assert.match(home, /onSubmit=\{\(e\) => \{\s*e\.preventDefault\(\);\s*onSubmit\(\);/);
+  assert.doesNotMatch(home.slice(formAt, home.indexOf("</form>")), /<textarea/);
+});
