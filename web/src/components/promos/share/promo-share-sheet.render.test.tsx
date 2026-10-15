@@ -104,3 +104,16 @@ test("clipboard absent: execCommand fallback copies", async () => {
   assert.equal(called, 1);
   assert.equal(status(host), "Copiado");
 });
+
+test("header: short title, one-line subtitle, icon-only close; WhatsApp is the primary link", async () => {
+  const host = await mountSheet();
+  assert.equal(host.querySelector("h2")?.textContent, "Compartir");
+  const close = host.querySelector('button[aria-label="Cerrar"]');
+  assert.ok(close, "icon close button");
+  assert.equal(close.textContent, "");
+  const wa = [...host.querySelectorAll("a")].find((a) => a.textContent === "WhatsApp");
+  assert.ok(wa?.className.includes("bg-[var(--tc-action"), "whatsapp primary");
+  assert.ok(host.textContent?.includes("Guarda la imagen y copia el texto"));
+  assert.ok(host.querySelector('button[aria-label="Instagram · Guardar imagen + copiar texto"]'));
+  assert.ok(host.querySelector('[role="dialog"]')?.className.includes("max-h-[90dvh]"));
+});
