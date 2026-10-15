@@ -16,9 +16,12 @@
 
 import { Briefcase, Calendar, MessageCircle } from "lucide-react";
 
+import type { KeyboardEvent } from "react";
+
 import type { Translator } from "@/i18n/interpolate";
 
 import type { GuestDockView } from "./guest-dock-view";
+import { nextDockTabIndex } from "./guest-dock-nav-keys";
 import { FONT, readableOn, type Palette } from "./mini-chat-styles";
 
 export type GuestDockNavProps = {
@@ -73,10 +76,23 @@ export function GuestDockNav({
     return t(labelKey);
   };
 
+  // TUL-1082: arrows/Home/End move focus and selection between tabs.
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const current = tabs.findIndex((tab) => tab.view === active || (active === "home" && tab.view === "chat"));
+    const next = nextDockTabIndex(e.key, current, tabs.length);
+    if (next === null) return;
+    e.preventDefault();
+    const buttons = e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+    buttons[next]?.focus();
+    const view = tabs[next]?.view;
+    if (view && view !== active) onChange(view);
+  };
+
   return (
     <div
       role="tablist"
       aria-label={t("public.guestChat.dockNavAria")}
+      onKeyDown={onKeyDown}
       style={{
         display: "flex",
         alignItems: "center",
@@ -102,6 +118,7 @@ export function GuestDockNav({
             type="button"
             role="tab"
             aria-selected={isActive}
+            tabIndex={isActive ? 0 : -1}
             aria-label={labelFor(view, labelKey)}
             onClick={() => {
               if (active === "home" && view === "chat") {
