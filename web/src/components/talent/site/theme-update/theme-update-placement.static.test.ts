@@ -50,3 +50,19 @@ test("TUL-325: post-apply banner has Unpublished pill + Publish changes CTA (EN 
     assert.ok(!s.includes("—"), s);
   }
 });
+
+test("TUL-1029: the builder pill docks right, compact, and never centres over the site nav", () => {
+  const pill = classConst("BUILDER_PILL_CLASS");
+  assert.match(pill, /\bright-3\b/);
+  assert.doesNotMatch(pill, /left-1\/2|-translate-x-1\/2/);
+});
+
+test("TUL-1028: the presence banner is a compact row on desktop and the address row never wraps", () => {
+  assert.match(SRC, /sm:flex-row sm:items-center sm:justify-between/);
+  const card = readFileSync(
+    join(process.cwd(), "src/components/talent/site/maison-setup/MyWebsiteCard.tsx"),
+    "utf8",
+  );
+  assert.match(card, /flex flex-nowrap items-center gap-2">\s*<span\s+data-testid="maison-live-address"/);
+  assert.match(card, /data-testid="maison-view-website"[\s\S]*?shrink-0/);
+});
