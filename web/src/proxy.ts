@@ -8,7 +8,6 @@ import {
   shouldRewriteLocalePublicPath,
   stripNonDefaultLocalePrefix,
   syncLocaleCookieForPath,
-  syncLocaleCookieForDefaultPrefixStrip,
 } from "@/i18n/locale-middleware";
 import { langFromLocalePrefixedPath } from "@/lib/onboarding/legacy-signup-redirect";
 import { LOCALE_HEADER, ORIGINAL_PATHNAME_HEADER, ORIGINAL_SEARCH_HEADER } from "@/i18n/request-locale";
@@ -355,7 +354,6 @@ async function proxyInner(request: NextRequest) {
     // rendered in EN. The switcher appeared broken.  Set the cookie on the
     // redirect response so the followed URL serves with the right locale.
     syncLocaleCookieForPath(res, pathname, effectiveLangSettings, request);
-    syncLocaleCookieForDefaultPrefixStrip(res, pathname, effectiveLangSettings);
     return res;
   }
 
