@@ -64,6 +64,7 @@ const INQUIRY_DRAFT_AUTOSAVE_MS = 10_000;
 import { C, FONT, FONT_DISPLAY, primaryBtn, primaryLinkStyle, type RosterLiteItem } from "./inquiry-drawer-tokens";
 export type { RosterLiteItem } from "./inquiry-drawer-tokens";
 import { SubmittedView } from "./InquirySubmittedView";
+import { EventDateInput } from "./EventDateInput";
 
 // ─── Drawer props ────────────────────────────────────────────────────────────
 export type InquiryDrawerProps = {
@@ -1024,7 +1025,6 @@ export function DateSection({
   value, onChange,
 }: { value: InquiryDate; onChange: (v: InquiryDate) => void }) {
   const t = useT();
-  const [dateIncomplete, setDateIncomplete] = useState(false);
   return (
     <Section title={t("public.inquiryDrawer.dateTitle")} subtitle={t("public.inquiryDrawer.dateSubtitle")}>
       <FieldRow>
@@ -1042,17 +1042,7 @@ export function DateSection({
           />
         </Field>
         <Field label={t("public.inquiryDrawer.dateEventDateLabel")}>
-          <Input
-            type="date"
-            value={value.event_date ?? ""}
-            onChange={(v) => onChange({ ...value, event_date: v })}
-            onValidity={(bad) => setDateIncomplete(bad)}
-          />
-          {dateIncomplete ? (
-            <p role="alert" style={{ margin: "4px 0 0", fontSize: 12, color: "#b3261e" }}>
-              {t("public.inquiryDrawer.dateIncompleteError")}
-            </p>
-          ) : null}
+          <EventDateInput value={value.event_date ?? ""} onChange={(v) => onChange({ ...value, event_date: v })} style={inputStyle} />
         </Field>
       </FieldRow>
       <FieldRow>
@@ -1874,21 +1864,15 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
 }
 
 export function Input({
-  value, onChange, placeholder, type = "text", onValidity,
+  value, onChange, placeholder, type = "text",
 }: {
   value: string; onChange: (v: string) => void; placeholder?: string; type?: string;
-  /** Reports a half-typed native value (e.g. date 02/08/yyyy) so the caller can show an inline error. */
-  onValidity?: (badInput: boolean) => void;
 }) {
   return (
     <input
       type={type}
       value={value}
-      onChange={(e) => {
-        onValidity?.(e.target.validity.badInput);
-        onChange(e.target.value);
-      }}
-      onBlur={onValidity ? (e) => onValidity(e.target.validity.badInput) : undefined}
+      onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       style={inputStyle}
     />
