@@ -384,7 +384,7 @@ export function AgendaCalendarPage({
   return (
     <div style={TALENT_AGENDA_VARS} className="space-y-4">
       <PageHeader
-        title={copy.t("Bookings")}
+        title={copy.t("Calendar")}
         subtitle={phone ? undefined : subtitle}
         actions={
           phone ? (
