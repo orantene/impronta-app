@@ -214,7 +214,7 @@ export function PromoShareSheet(props: PromoShareSheetProps) {
             </a>
           ) : null}
           <div className="flex flex-col gap-1">
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {channels.filter((c) => c !== "whatsapp").map((c) => (
                 <button key={c} type="button" className={btn} aria-label={`${c === "instagram" ? t.instagram : t.tiktok} · ${t.saveCopy}`}
                   onClick={() => saveAndCopy(c === "instagram" ? "story" : "post", c === "instagram" ? "ig_story" : "tiktok")}>
@@ -225,14 +225,14 @@ export function PromoShareSheet(props: PromoShareSheetProps) {
             </div>
             <p className={`text-[12px] ${UI.muted}`}>{t.helper}</p>
           </div>
-          <div className="flex gap-2">
-            <button type="button" className={`${btn} flex-1 px-2`} onClick={() => copy(link("link"), "link")}>{t.copyLink}</button>
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" className={`${btn} px-2`} onClick={() => copy(link("link"), "link")}>{t.copyLink}</button>
             {props.code ? (
-              <button type="button" className={`${btn} flex-1 px-2`} onClick={() => copy(props.code ?? "", "code")}>{t.copyCode}</button>
+              <button type="button" className={`${btn} px-2`} onClick={() => copy(props.code ?? "", "code")}>{t.copyCode}</button>
             ) : null}
-            <button type="button" className={`${btn} flex-1 px-2`} onClick={() => setQrOpen(true)}>{t.qr}</button>
+            <button type="button" className={`${btn} px-2`} onClick={() => setQrOpen(true)}>{t.qr}</button>
             {props.printEnabled ? (
-              <a className={`${btn} flex-1 px-2`} href={shareAssetUrl(promoId, "card", { lang, host: props.host, colors: props.colors })}
+              <a className={`${btn} px-2`} href={shareAssetUrl(promoId, "card", { lang, host: props.host, colors: props.colors })}
                 target="_blank" rel="noopener noreferrer">
                 {t.print}
               </a>

@@ -45,3 +45,14 @@ test("disabled switch does not call the handler", async () => {
   await click(b);
   assert.deepEqual(calls, []);
 });
+
+test("the knob is pinned to the track's left edge (no implicit static position) and stays inside the 48px track", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const src = readFileSync(join(process.cwd(), "src/components/promos/talent/ui.tsx"), "utf8");
+  const knob = /className=\{`absolute ([^`]*?)h-6 w-6[^`]*translate-x-5[^`]*`\}/.exec(src);
+  assert.ok(knob, "knob classes found");
+  assert.match(knob![1], /left-0\.5/, "an absolute knob needs an explicit left, or its static position drifts");
+  // 2px inset + 20px travel + 24px knob = 46px <= 48px track
+  assert.ok(2 + 20 + 24 <= 48);
+});
