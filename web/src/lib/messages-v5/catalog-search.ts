@@ -39,3 +39,9 @@ export function sortCatalogRows<T extends Sortable>(rows: readonly T[], sort: Ca
 export function onlyAvailableRows<T extends Sortable>(rows: readonly T[], only: boolean): T[] {
   return only ? rows.filter((r) => r.available) : [...rows];
 }
+
+/** TUL-1064 slice 3: keep rows that take at most `maxMinutes`. Rows with no length are kept (unknown is not "too long"). */
+export function maxDurationRows<T extends { durationMinutes: number | null }>(rows: readonly T[], maxMinutes: number | null): T[] {
+  if (maxMinutes == null) return [...rows];
+  return rows.filter((r) => r.durationMinutes == null || r.durationMinutes <= maxMinutes);
+}
