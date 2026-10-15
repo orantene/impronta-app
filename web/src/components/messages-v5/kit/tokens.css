@@ -502,8 +502,7 @@
 .msgv5 .mx-th .who b { font-family: var(--msgv5-display); font-size: 18px; font-weight: 700; letter-spacing: -0.3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .msgv5 .mx-th .who .subj { font-size: 14px; color: var(--msgv5-ink-2); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .msgv5 .mx-th .who .meta { font-size: 12.5px; color: var(--msgv5-ink-3); }
-.msgv5 .mx-th .st { display: flex; gap: 8px; padding-left: 46px; padding-right: 12px; overflow-x: auto; scrollbar-width: none; }
-.msgv5 .mx-th .st::-webkit-scrollbar { display: none; }
+.msgv5 .mx-th .st { display: flex; flex-wrap: wrap; gap: 6px 8px; padding-left: 46px; padding-right: 12px; }
 .msgv5 .mx-th .st .pill { font-size: 12px; padding: 4px 10px; flex: 0 0 auto; }
 .msgv5 .mx-ess { display: flex; gap: 6px; overflow: auto; padding: 8px 12px 10px; background: var(--msgv5-ground); border-bottom: 1px solid var(--msgv5-line); }
 .msgv5 .mx-ess .pill { flex: 0 0 auto; padding: 4px 10px; font-size: 11.5px; }
