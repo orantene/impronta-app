@@ -11,6 +11,7 @@ import { effectiveBioI18n } from "@/lib/translation/bios-to-bio-i18n";
 import { cityLabelFromPlaceText } from "@/lib/scheduling/timezone-from-place";
 import type { TalentLiveText } from "../live-text";
 import { buildTalentLiveText, type LiveTextSource } from "../live-text-values";
+import { PROTECTED_PROFILE_CODES } from "../theme-releases/repair-stale-theme-state";
 import { pick, type LocalizedMapLike } from "../talent-locale-swaps";
 import { canonicalCityLabel } from "./city-label.server";
 import { loadMenuCurrency } from "./load-starter-data";
@@ -111,7 +112,9 @@ export async function loadTalentLiveText(
       instagramHref: social.find((s) => s.platform === "instagram")?.href ?? null,
       whatsappHref: social.find((s) => s.platform === "whatsapp")?.href ?? null,
     };
-    return buildTalentLiveText(src, locale, chain);
+    const live = buildTalentLiveText(src, locale, chain);
+    // TUL-578: protected real sites keep their hero exactly as she left it.
+    return row.profile_code && PROTECTED_PROFILE_CODES.includes(row.profile_code) ? { ...live, keepHeroHeading: true } : live;
   } catch (err) {
     logServerError("talentSite.liveText", err);
     return EMPTY;
