@@ -50,7 +50,7 @@ import {
   urlWithCodeStep,
 } from "@/lib/auth/code-step-url";
 import { pickAuthEmail, readAuthEmailDraft, readAuthNameDraft, writeAuthEmailDraft, writeAuthNameDraft } from "@/lib/auth/email-draft";
-import { authEmailHasPlusTag, OTP_CODE_MAX_LENGTH } from "@/lib/auth/otp-flow";
+import { authEmailHasPlusTag, OTP_CODE_LENGTH, OTP_CODE_MAX_LENGTH } from "@/lib/auth/otp-flow";
 import { useFocusFirstInvalidOnError } from "@/lib/auth/use-focus-first-invalid";
 import { createTranslator } from "@/i18n/messages";
 import { AgeTermsCheckbox } from "@/components/auth/age-terms-checkbox";
@@ -148,6 +148,16 @@ export function EmailCodeForm({
   const [lane, setLane] = useState<"send" | "verify">("send");
 
   const sent = sendState?.step === "sent" ? sendState : null;
+  // TUL-909: a short wait before the next code, like the sign-up code screen.
+  const [secondsLeft, setSecondsLeft] = useState(0);
+  useEffect(() => {
+    if (sent) setSecondsLeft(30);
+  }, [sent]);
+  useEffect(() => {
+    if (secondsLeft <= 0) return;
+    const id = window.setTimeout(() => setSecondsLeft((n) => n - 1), 1000);
+    return () => window.clearTimeout(id);
+  }, [secondsLeft]);
   // The code step survives a FAILED resend (`step: "code"`) too: losing the
   // screen and the address because the resend was rate limited would be worse
   // than the rate limit itself.
@@ -239,7 +249,7 @@ export function EmailCodeForm({
           <AuthField
             label={t("public.auth.passwordless.codeLabel")}
             htmlFor="otp-code"
-            hint={t("public.auth.passwordless.codeHint")}
+            hint={`${t("public.auth.passwordless.codeLengthHint").replace("{n}", String(OTP_CODE_LENGTH))} ${t("public.auth.passwordless.codeHint")}`}
           >
             <input
               id="otp-code"
@@ -283,13 +293,15 @@ export function EmailCodeForm({
           {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
           <button
             type="submit"
-            disabled={sending}
+            disabled={sending || secondsLeft > 0}
             className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)] disabled:opacity-60"
             style={{ color: "var(--plt-ink-soft)" }}
           >
             {sending
               ? t("public.auth.passwordless.resending")
-              : t("public.auth.passwordless.resend")}
+              : secondsLeft > 0
+                ? t("public.auth.signupCode.resendIn").replace("{seconds}", String(secondsLeft))
+                : t("public.auth.passwordless.resend")}
           </button>
         </form>
 
@@ -319,6 +331,7 @@ export function EmailCodeForm({
     <div className="space-y-3.5">
       <form
         action={sendAction}
+        noValidate // TUL-893: the server answers in the page language; no English browser tooltip
         className="space-y-3.5"
         onSubmit={() => {
           setBackToEmail(false);

@@ -83,7 +83,7 @@ export function LoginForm({
   useFocusFirstInvalidOnError(friendlyError);
 
   return (
-    <form action={formAction} className="space-y-3.5">
+    <form action={formAction} noValidate className="space-y-3.5">
       {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="remember" value={remember ? "1" : "0"} />
