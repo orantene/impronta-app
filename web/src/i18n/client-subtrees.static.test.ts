@@ -26,7 +26,10 @@ function directClientTranslatorFiles(): string[] {
     .filter((f) => f && !/\.test\.tsx?$/.test(f));
   return listed.filter((f) => {
     const src = readFileSync(join(WEB, f), "utf8");
-    return /^\s*["']use client["']/.test(src) && /\b(createTranslator|getMessageStringArray|translatorFor|usePublicT)\b/.test(src);
+    // Importers of the light modules are browser code even when they are plain hook
+    // modules without a "use client" directive.
+    const lightImporter = /i18n\/(translator-for|use-public-t)"/.test(src);
+    return (lightImporter || /^\s*["']use client["']/.test(src)) && /\b(createTranslator|getMessageStringArray|translatorFor|usePublicT)\b/.test(src);
   });
 }
 
