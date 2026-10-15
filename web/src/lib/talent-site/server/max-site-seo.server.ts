@@ -117,12 +117,12 @@ export function buildMaxSiteSeo(args: {
       name: identity?.name,
       city: args.addressLocality,
     }) ?? storedTitle;
-  // TUL-798: no description written for this language -> derive one from name, city and services (home only).
+  // TUL-798: no description written for this language -> derive one from name, city and services (home only, when she has published services).
   // TUL-411: otherwise fall back to her locale bio / structured copy so root PLATFORM_BRAND English is never inherited.
   const written = resolveMaxSiteDescription(page, locale);
   const description =
     written ||
-    ((args.canonicalPath?.trim() || "/") === "/"
+    ((args.canonicalPath?.trim() || "/") === "/" && (args.services?.length ?? 0) > 0
       ? deriveSiteDescription({ name: identity?.name, city: args.addressLocality, serviceNames: args.services?.map((x) => x.name), locale })
       : undefined) ||
     seoDescriptionFallback({
