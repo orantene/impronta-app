@@ -56,7 +56,7 @@ export function ChooseStep({
               disabled={busy}
               onClick={() => setSelected(choice)}
               data-testid={`onb-choice-${choice}`}
-              className="flex min-h-[76px] w-full items-center gap-4 rounded-[22px] px-4 py-3 text-left transition-colors motion-reduce:transition-none disabled:opacity-60"
+              className="flex min-h-[76px] w-full touch-manipulation items-center gap-4 rounded-[22px] px-4 py-3 text-left transition-colors duration-100 motion-reduce:transition-none disabled:opacity-60"
               style={{
                 background: on ? "var(--tl-lime)" : "var(--tl-surface-raised)",
                 border: `1.5px solid ${on ? "var(--tl-lime-edge)" : "var(--tl-hairline-strong)"}`,
@@ -70,7 +70,10 @@ export function ChooseStep({
                 <span className="block text-[1.0625rem] font-semibold leading-tight">{c.cards[choice].title}</span>
                 <span className="mt-0.5 block text-[0.8125rem] leading-snug" style={{ color: "var(--tl-ink-soft)" }}>{c.cards[choice].sub}</span>
               </span>
-              <svg aria-hidden width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M7 3.5L12.5 9 7 14.5" /></svg>
+              {/* TUL-811: a radio mark, not a chevron; the card selects, Continue moves on. */}
+              <span aria-hidden data-testid={`onb-choice-mark-${choice}`} className="grid size-6 shrink-0 place-items-center rounded-full" style={{ border: `1.5px solid ${on ? "var(--tl-forest)" : "var(--tl-hairline-strong)"}`, background: on ? "var(--tl-forest)" : "transparent" }}>
+                {on ? <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="var(--tl-forest-on)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.5 6.2l2.3 2.3 4.7-4.9" /></svg> : null}
+              </span>
             </button>
           );
         })}

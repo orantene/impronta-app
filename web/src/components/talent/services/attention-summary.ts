@@ -33,3 +33,14 @@ export function attentionSummary(c: AttentionCounts, locale: string): string {
     : "";
   return `${head}${detail}${note}`;
 }
+
+/**
+ * TUL-825: when the only gap is missing photos (the normal state of a brand-new
+ * account) say it as a friendly optional tip, not as "needs attention".
+ */
+export function photoOnlyTip(c: AttentionCounts, locale: string): string | null {
+  if (c.noPhoto <= 0 || c.noPrice > 0 || c.soldOut > 0) return null;
+  return locale.toLowerCase().startsWith("es")
+    ? "Tip opcional: agrega fotos para que tus servicios se vean mejor."
+    : "Optional tip: add photos so your services look their best.";
+}
