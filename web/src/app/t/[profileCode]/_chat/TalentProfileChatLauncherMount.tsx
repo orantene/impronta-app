@@ -77,7 +77,6 @@ import { scanGuestConversationForDetails } from "@/app/t/[profileCode]/_actions/
 import { TalentOfferingIntentQuery } from "@/app/%5Ftalent-site/TalentOfferingIntentQuery";
 import type { IndustryPresetId } from "@/lib/words/presets";
 import { catalogRowPriceText } from "@/lib/site-admin/builder-node/services-catalog-bar-price";
-import { GuestOfferBanner } from "./GuestOfferBanner";
 import { offeringPriceUnit } from "@/components/public-booking/catalog-booking-logic";
 
 type TalentProfileChatLauncherMountProps = {
@@ -278,12 +277,6 @@ export async function TalentProfileChatLauncherMount({
   return (
     <>
     <TalentOfferingIntentQuery />
-    <GuestOfferBanner
-      inquiryId={active?.inquiryId ?? null}
-      hasPendingOffer={lifecycle.activePhase === "offer_pending"}
-      locale={locale ?? "en"}
-      talentName={talentDisplayName}
-    />
     <TalentProfileChatLauncher
       tenantSlug={tenantSlug}
       tenantId={exposeTenantToClient ? tenantId : null}
