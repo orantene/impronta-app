@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { assertTransactionOnThread, refundOnThread } from "./refund-thread-scope";
+import { assertTransactionOnThread } from "./refund-thread-scope";
 
 type Row = Record<string, unknown>;
 
@@ -71,49 +71,9 @@ test("DB read error fails closed", async () => {
   }
 });
 
-test("the inbox action runs the scope check before executeBookingRefund", () => {
-  const src = readFileSync(join(process.cwd(), "src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts"), "utf8");
-  const start = src.indexOf("export async function refundInquiryTransaction");
-  assert.ok(start > 0, "action exists");
-  const body = src.slice(start, start + 2500);
-  assert.ok(body.includes("refundOnThread"));
-});
-
-test("refundOnThread: no billing permission is refused before anything runs", async () => {
-  let executed = false;
-  const r = await refundOnThread(fakeSb(tables), { tenantId: "t1", inquiryId: "q1", transactionId: "x1" }, {
-    canRefund: async () => false,
-    execute: async () => {
-      executed = true;
-      return { ok: true };
-    },
-  });
-  assert.equal(r.ok, false);
-  assert.equal(executed, false);
-});
-
-test("refundOnThread: inquiry/transaction mismatch never reaches the refund", async () => {
-  let executed = false;
-  const r = await refundOnThread(fakeSb(tables), { tenantId: "t1", inquiryId: "q1", transactionId: "x2" }, {
-    canRefund: async () => true,
-    execute: async () => {
-      executed = true;
-      return { ok: true };
-    },
-  });
-  assert.equal(r.ok, false);
-  assert.equal(executed, false);
-});
-
-test("refundOnThread: permitted + on-thread delegates once", async () => {
-  const seen: string[] = [];
-  const r = await refundOnThread(fakeSb(tables), { tenantId: "t1", inquiryId: "q1", transactionId: "x1" }, {
-    canRefund: async () => true,
-    execute: async (id) => {
-      seen.push(id);
-      return { ok: true };
-    },
-  });
-  assert.equal(r.ok, true);
-  assert.deepEqual(seen, ["x1"]);
+test("the workspace refund action runs the scope check before executeBookingRefund", () => {
+  const src = readFileSync(join(process.cwd(), "src/app/(workspace)/[tenantSlug]/admin/work/[id]/actions.ts"), "utf8");
+  const scope = src.indexOf("assertTransactionOnThread(");
+  assert.ok(scope > 0, "scope check is called");
+  assert.ok(src.indexOf("executeBookingRefund(", scope) > scope, "refund runs after the scope check");
 });
