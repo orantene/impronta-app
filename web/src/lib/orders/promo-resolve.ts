@@ -2,7 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { eligibleLines, type EligibleLine } from "@/lib/orders/promo-eligibility";
-import { loadClientStatus, loadLapsedDays, loadLegacyScopes, loadTenantPromos, loadUsage } from "@/lib/promos/repo";
+import { loadClientStatus, loadLapsedDays, loadLegacyScopes, loadTenantPromos, loadUsage, type PromoOwner } from "@/lib/promos/repo";
 import { quote } from "@/lib/promos/quote";
 import type { CartLine, Promo, RejectReason } from "@/lib/promos/types";
 
@@ -63,6 +63,29 @@ function pickByCode(promos: readonly Promo[], code: string): Promo | null {
   return hits.find((p) => !p.archived_at && !p.is_draft) ?? hits[0] ?? null;
 }
 
+/**
+ * The promos a cart may use: agency-wide promos (no owner) plus the promos of
+ * each talent that owns a line. Never the whole tenant: every hub talent
+ * shares one tenant. Null on a failed read.
+ */
+export async function loadOwnedPromos(
+  admin: SupabaseClient,
+  tenantId: string,
+  lines: readonly EligibleLine[],
+): Promise<{ promos: Promo[]; ownerOf: Map<string, string | null> } | null> {
+  const talents = [...new Set(lines.map((l) => l.talentProfileId).filter((t): t is string => !!t))];
+  const owners: PromoOwner[] = [{ agencyWide: true }, ...talents.map((talentProfileId) => ({ talentProfileId }))];
+  const reads = await Promise.all(owners.map((o) => loadTenantPromos(admin, tenantId, o)));
+  const promos: Promo[] = [];
+  const ownerOf = new Map<string, string | null>();
+  for (const r of reads) {
+    if (!r.ok) return null;
+    for (const row of r.rows) ownerOf.set(row.id, row.talent_profile_id ?? null);
+    promos.push(...r.promos);
+  }
+  return { promos, ownerOf };
+}
+
 export async function resolvePromo(
   admin: SupabaseClient,
   input: {
@@ -77,16 +100,20 @@ export async function resolvePromo(
   if (!code) return { ok: false, reason: "promo_unknown" };
   const now = input.now ?? new Date();
 
-  const loaded = await loadTenantPromos(admin, input.tenantId);
-  if (!loaded.ok) return { ok: false, reason: "promo_unavailable" };
+  const loaded = await loadOwnedPromos(admin, input.tenantId, input.lines);
+  if (!loaded) return { ok: false, reason: "promo_unavailable" };
   const promo = pickByCode(loaded.promos, code);
   if (!promo) return { ok: false, reason: "promo_unknown" };
+  const promoOwner = loaded.ownerOf.get(promo.id) ?? null;
 
   // Live automatic promos compete with the typed code (one price promo per
-  // line, best saving wins). Only promos that could apply are worth a read.
-  const autos = loaded.promos.filter(
-    (p) => p.id !== promo.id && p.unlock === "auto" && !p.archived_at && !p.is_draft && !p.is_paused,
-  );
+  // line, best saving wins). Only promos that could apply are worth a read:
+  // the code's own owner's autos, plus agency-wide ones.
+  const autos = loaded.promos.filter((p) => {
+    const owner = loaded.ownerOf.get(p.id) ?? null;
+    return p.id !== promo.id && (owner === null || owner === promoOwner)
+      && p.unlock === "auto" && !p.archived_at && !p.is_draft && !p.is_paused;
+  });
   const ids = [promo.id, ...autos.map((p) => p.id)];
 
   const [usage, scopes, lapsed] = await Promise.all([
@@ -106,7 +133,9 @@ export async function resolvePromo(
   // Legacy event / tier scope narrows the lines first (they compose; see
   // promo-eligibility). A tier code must never discount another tier.
   const scope = scopes.get(promo.id) ?? { eventId: null, variantId: null };
-  const covered = eligibleLines(input.lines, scope).filter((l) => l.totalCents > 0);
+  // A talent's promo covers only that talent's lines; an agency-wide one covers all.
+  const owned = promoOwner === null ? input.lines : input.lines.filter((l) => l.talentProfileId === promoOwner);
+  const covered = eligibleLines(owned, scope).filter((l) => l.totalCents > 0);
   if (covered.length === 0) return { ok: false, reason: "promo_not_applicable" };
 
   // Order lines arrive as line totals in the order's currency, which is the

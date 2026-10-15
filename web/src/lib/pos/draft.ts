@@ -630,7 +630,7 @@ export async function repriceAndValidate(
       tenantId: string;
       code: string;
       customerId: string;
-      lines: Array<{ id: string; totalCents: number; variantId: string | null; eventId: null }>;
+      lines: Array<{ id: string; totalCents: number; variantId: string | null; eventId: null; talentProfileId: string | null }>;
     }) => Promise<
       | { ok: true; discountCents: number; codeId: string }
       /** `over_limit`: the discount is real but the actor's role may not apply it (D-139). */
@@ -739,6 +739,7 @@ export async function repriceAndValidate(
         totalCents: num(l.total_cents),
         variantId: l.variant_id,
         eventId: null,
+        talentProfileId: l.talent_profile_id ?? null,
       })),
     });
     if (!resolved.ok) return { ok: false, reason: resolved.reason ?? "promo_refused", error: resolved.error };

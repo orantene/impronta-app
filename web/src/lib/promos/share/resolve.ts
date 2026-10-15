@@ -77,7 +77,8 @@ export async function resolvePromoLink(
   });
   if (!tenantId) return UNAVAILABLE;
 
-  const loaded = await loadTenantPromos(admin, tenantId);
+  // Only this talent's own promos: hub talents share one tenant.
+  const loaded = await loadTenantPromos(admin, tenantId, { talentProfileId: profileId });
   if (!loaded.ok) return UNAVAILABLE;
   const talent = {
     profileId,

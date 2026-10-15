@@ -440,7 +440,14 @@ test("FIRST-RUN · a new studio's dashboard greets a person, has no restaurant P
   await go(page, `${APP}/${fx.slug}/admin`, 14_000);
   const t = await bodyText(page);
   await shot(page, "FIRST-RUN-dashboard");
-  expect(t, "greeting is not the account handle").not.toContain(email.split("@")[0]!);
+  const handle = email.split("@")[0]!;
+  const { data: prof } = await svc.from("profiles").select("display_name").eq("id", fx.userId).maybeSingle();
+  const nameIsHandle = ((prof?.display_name as string | null) ?? "").trim().toLowerCase() === handle.toLowerCase();
+  // TUL-636: the handle check only proves the product when the fixture's display name differs from
+  // its email local part. Otherwise the greeting legitimately shows the name, so assert on the raw email only.
+  expect(t, "greeting is not the raw account email").not.toContain(email);
+  if (nameIsHandle) test.info().annotations.push({ type: "fixture-bound", description: "display_name equals email local part; handle assertion skipped" });
+  else expect(t, "greeting is not the account handle").not.toContain(handle);
   expect(t, "no restaurant-only surfaces for a service studio").not.toMatch(/Abrir POS|Mesas|Pedidos/);
   await go(page, `http://localhost:${SITE_PORT}/w/${fx.slug}?edit=1`, 25_000);
   await page.getByRole("button", { name: /^Publicar$/ }).first().click();

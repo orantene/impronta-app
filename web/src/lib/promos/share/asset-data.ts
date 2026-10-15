@@ -47,11 +47,10 @@ export async function loadShareAssetData(input: {
   const promo = rowToPromo(row);
   if (isPersonalPromo(promo)) return null;
 
-  const { data: roster, error: rosterErr } = await admin
-    .from("agency_talent_roster").select("talent_profile_id")
-    .eq("tenant_id", row.tenant_id).eq("status", "active").order("created_at", { ascending: true }).limit(1);
-  if (rosterErr) { logServerError("promos.share/asset-roster", rosterErr); return null; }
-  const profileId = (roster as { talent_profile_id: string }[] | null)?.[0]?.talent_profile_id;
+  // The promo's own talent. Never a roster guess: hub talents share one
+  // tenant, so "the tenant's first talent" is someone else. An agency-wide
+  // promo (no owner) has no talent share kit.
+  const profileId = row.talent_profile_id;
   if (!profileId) return null;
   const { data: prof, error: profErr } = await admin
     .from("talent_profiles").select("profile_code, display_name, talent_plan_key").eq("id", profileId).maybeSingle();

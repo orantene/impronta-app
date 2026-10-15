@@ -96,8 +96,9 @@ test("promo_targets scope: a code for another offering does not apply", async ()
 });
 
 test("a failed read is promo_unavailable, never a refusal", async () => {
+  const failed = { order: async () => ({ data: null, error: { message: "down" } }) };
   const broken = {
-    from: () => ({ select: () => ({ eq: () => ({ order: async () => ({ data: null, error: { message: "down" } }) }) }) }),
+    from: () => ({ select: () => ({ eq: () => ({ eq: () => failed, is: () => failed }) }) }),
   } as unknown as SupabaseClient;
   assert.deepEqual(await resolvePromo(broken, { ...base, code: "LUZ10" }), { ok: false, reason: "promo_unavailable" });
 });
@@ -108,4 +109,24 @@ test("reject reasons map onto the existing refusal vocabulary", () => {
   assert.equal(refusalForReject("locked"), "promo_unknown");
   assert.equal(refusalForReject("wrong_day"), "promo_not_applicable");
   assert.equal(refusalForReject("below_minimum"), "promo_not_applicable");
+});
+
+test("hub: talent A's code never prices talent B's line on the same tenant", async () => {
+  const A = uuid(50);
+  const B = uuid(51);
+  const db = client([promoRow({ talent_profile_id: A, value: 20 })]);
+  const bLine = [{ id: uuid(10), totalCents: 10_000, variantId: null, eventId: null, talentProfileId: B }];
+  assert.deepEqual(await resolvePromo(db, { ...base, lines: bLine, code: "LUZ10" }), { ok: false, reason: "promo_unknown" });
+  const aLine = [{ id: uuid(11), totalCents: 10_000, variantId: null, eventId: null, talentProfileId: A }];
+  assert.deepEqual(await resolvePromo(db, { ...base, lines: aLine, code: "LUZ10" }), { ok: true, codeId: PROMO, discountCents: 2_000 });
+  // Mixed cart: A's code covers only A's line.
+  const mixed = await resolvePromo(db, { ...base, lines: [...aLine, ...bLine], code: "LUZ10" });
+  assert.deepEqual(mixed, { ok: true, codeId: PROMO, discountCents: 2_000 });
+});
+
+test("agency-wide promo (no owner) still applies on an agency tenant", async () => {
+  const r = await resolvePromo(client([promoRow({ talent_profile_id: null, value: 10 })]), {
+    ...base, lines: [{ id: uuid(10), totalCents: 10_000, variantId: null, eventId: null, talentProfileId: uuid(50) }], code: "LUZ10",
+  });
+  assert.deepEqual(r, { ok: true, codeId: PROMO, discountCents: 1_000 });
 });

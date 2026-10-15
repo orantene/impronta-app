@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { Check, Copy, ExternalLink, Info, Link2, Map } from "lucide-react";
 
-import { saveGoogleSiteVerificationAction } from "@/lib/talent/google-site-verification-actions";
 import type { GscGuide, GscLang } from "@/lib/talent/search-console-guide";
 
 const UI = {
@@ -17,12 +16,6 @@ const UI = {
     sitemap: "Your sitemap URL",
     missing: "Publish your site first",
     steps: "Steps",
-    tagLabel: "Verification tag or code",
-    tagHint: "Paste the meta tag or just the content code Google gives you.",
-    save: "Save",
-    saved: "Saved",
-    invalid: "That does not look like a Google verification code.",
-    failed: "Could not save. Try again.",
   },
   es: {
     title: "Google Search Console",
@@ -34,28 +27,11 @@ const UI = {
     sitemap: "La URL de tu sitemap",
     missing: "Publica tu sitio primero",
     steps: "Pasos",
-    tagLabel: "Etiqueta o código de verificación",
-    tagHint: "Pega la etiqueta meta o solo el código content que te da Google.",
-    save: "Guardar",
-    saved: "Guardado",
-    invalid: "Eso no parece un código de verificación de Google.",
-    failed: "No se pudo guardar. Intenta de nuevo.",
   },
 } as const;
 
-export function SearchConsoleGuide({ guide, lang, initialToken = null }: { guide: GscGuide; lang: GscLang; initialToken?: string | null }) {
+export function SearchConsoleGuide({ guide, lang }: { guide: GscGuide; lang: GscLang }) {
   const t = UI[lang];
-  const [tag, setTag] = useState(initialToken ?? "");
-  const [msg, setMsg] = useState<"saved" | "invalid" | "failed" | null>(null);
-  const [pending, startSave] = useTransition();
-  const save = () =>
-    startSave(async () => {
-      const r = await saveGoogleSiteVerificationAction(tag);
-      if (r.ok) {
-        setTag(r.token ?? "");
-        setMsg("saved");
-      } else setMsg(r.error === "invalid_token" ? "invalid" : "failed");
-    });
   const [done, setDone] = useState<string | null>(null);
   const copy = async (key: string, value: string) => {
     try {
@@ -121,38 +97,6 @@ export function SearchConsoleGuide({ guide, lang, initialToken = null }: { guide
           </li>
         ))}
       </ol>
-      <div className="space-y-1.5">
-        <label htmlFor="gsc-tag" className="flex items-center gap-1 text-xs text-neutral-500">
-          {t.tagLabel}
-          <span title={t.tagHint} aria-label={t.tagHint} role="img" tabIndex={0} className="text-neutral-400">
-            <Info size={12} aria-hidden />
-          </span>
-        </label>
-        <div className="flex items-center gap-2">
-          <input
-            id="gsc-tag"
-            value={tag}
-            onChange={(e) => {
-              setTag(e.target.value);
-              setMsg(null);
-            }}
-            spellCheck={false}
-            autoComplete="off"
-            className="min-w-0 flex-1 rounded-md border border-neutral-200 px-3 py-2 text-sm"
-          />
-          <button
-            type="button"
-            onClick={save}
-            disabled={pending}
-            className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-          >
-            {msg === "saved" ? t.saved : t.save}
-          </button>
-        </div>
-        {msg === "invalid" || msg === "failed" ? (
-          <p role="alert" className="text-xs text-amber-700">{msg === "invalid" ? t.invalid : t.failed}</p>
-        ) : null}
-      </div>
     </section>
   );
 }

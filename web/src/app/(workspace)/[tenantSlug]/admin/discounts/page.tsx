@@ -74,6 +74,8 @@ export default async function DiscountsPage({ params }: { params: PageParams }) 
       .from("tenant_promo_codes")
       .select("id, code, label, kind, value, currency, is_active, max_redemptions, per_customer_limit, ends_at, event_id")
       .eq("tenant_id", scope.tenantId)
+      // Agency-wide promos only: a talent's own promos live on their dashboard.
+      .is("talent_profile_id", null)
       .order("created_at", { ascending: false });
     if (error) {
       logServerError("discounts.list", error);

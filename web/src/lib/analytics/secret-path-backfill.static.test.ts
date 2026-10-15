@@ -4,7 +4,7 @@ import path from "node:path";
 import test from "node:test";
 
 const sql = readFileSync(
-  path.resolve(process.cwd(), "../supabase/migrations/20261231400200_analytics_secret_path_backfill.sql"),
+  path.resolve(process.cwd(), "../supabase/migrations/20261231400300_analytics_secret_path_backfill.sql"),
   "utf8",
 );
 const code = sql.replace(/^--.*$/gm, "");

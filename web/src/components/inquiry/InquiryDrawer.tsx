@@ -34,7 +34,7 @@ import {
   type InquiryBudget,
   type InquiryBrief,
   type InquiryAttachment,
-  validateIntentForSubmit,
+  validateIntentForSubmit, missingFieldLabels,
 } from "@/lib/inquiry/inquiry-intent";
 import {
   saveDraftAction,
@@ -521,7 +521,7 @@ export function InquiryDrawer({
             {submitted
               ? interpolate(t(sentKeys.footer), sentVars)
               : !canSubmit && step === "compose"
-                ? t("public.inquiryDrawer.footerNeedMore")
+                ? (validation.ok ? t("public.inquiryDrawer.footerNeedMore") : interpolate(t("public.inquiryDrawer.footerMissing"), { fields: missingFieldLabels(validation.missingFields, t) }))
                 : submitState.kind === "slot_taken"
                   ? <span style={{ color: C.amber }}>{t(submitState.nextFreeTimes.length > 0 ? "public.inquiryDrawer.slotTakenIntro" : "public.inquiryDrawer.slotTakenNone")}</span>
                 : submitState.kind === "error"
@@ -699,7 +699,7 @@ export function RequesterSection({
   client: InquiryDrawerProps["client"];
 }) {
   const t = useT();
-  const isLoggedIn = !!client?.user_id;
+  const isLoggedIn = !!client?.user_id || !!client?.email; // TUL-965: hub sheet passes no user_id
   return (
     <Section title={t("public.inquiryDrawer.requesterTitle")} subtitle={t("public.inquiryDrawer.requesterSubtitle")}>
       {/* Trust card — always shown, content differs by state */}
