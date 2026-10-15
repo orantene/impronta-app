@@ -61,6 +61,7 @@ import {
 import type { MaxSiteManagerState } from "@/lib/talent-site/server/site-management-types";
 import { isThemeApplyBusy, useThemeApplyBusy } from "@/lib/talent-site/history/apply-busy";
 import { CustomDomainRow } from "@/components/talent/site/CustomDomainRow";
+import { FreeTierAppsEntry } from "@/components/talent/site/FreeTierAppsEntry";
 import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
 import {
   PERSONAL_SITE_BUILDER_HREF,
@@ -78,6 +79,8 @@ type ManagerProps = Props & {
   /** When true, CustomDomainRow is omitted (Wave 3 Domain tile owns it). */
   hideDomainRow?: boolean;
 };
+
+const MANAGER_LOAD_TIMEOUT_MS = 20_000;
 
 export function TalentMaxSiteManager({
   locale = "en",
@@ -98,7 +101,14 @@ export function TalentMaxSiteManager({
   // Never hang on "Loading your website…": a thrown action lands in `error`.
   const reload = useCallback(async () => {
     try {
-      const res = await takeOr("manager", "manager", loadMaxSiteManagerAction);
+      // TUL-728: server actions queue one at a time; a stuck one left this card
+      // on "Loading your website…" forever. Time out into the retry state.
+      const res = await Promise.race([
+        takeOr("manager", "manager", loadMaxSiteManagerAction),
+        new Promise<never>((_, reject) => {
+          window.setTimeout(() => reject(new Error("manager-load-timeout")), MANAGER_LOAD_TIMEOUT_MS);
+        }),
+      ]);
       if (!res.ok) {
         setError(res.error);
         setState(null);
@@ -172,7 +182,18 @@ export function TalentMaxSiteManager({
   }
 
   if (!state.canManage) {
-    return <UpsellCard />;
+    // TUL-39: free / flags-off still browses Apps (Nail Designer + Web Office
+    // badge + Upgrade). Upsell alone left the pack with no Apps entry.
+    return (
+      <div
+        style={{ display: "flex", flexDirection: "column", gap: 14 }}
+        data-talent-max-site-manager
+        data-testid="talent-site-free-upsell"
+      >
+        <UpsellCard />
+        <FreeTierAppsEntry locale={locale === "es" ? "es" : "en"} />
+      </div>
+    );
   }
 
   if (!state.siteExists) {

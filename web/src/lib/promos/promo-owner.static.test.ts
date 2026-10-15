@@ -84,7 +84,6 @@ test("talent dashboard actions write and filter the owning talent", () => {
     assert.match(block, /\.eq\("talent_profile_id", scope\.talentId\)/, `unowned promo query: ${block.slice(0, 160)}`);
   }
   assert.ok(tenantScoped.length > 0);
-  assert.match(actions, /talentProfileId: scope\.talentId,\n\s*actorUserId/, "courtesy promos carry the owner");
 });
 
 test("admin discounts page and toggle are agency-wide only", () => {

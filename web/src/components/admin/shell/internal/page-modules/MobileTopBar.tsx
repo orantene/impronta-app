@@ -12,9 +12,10 @@
  * Token classes only; the identity bar hides its desktop row under the same
  * breakpoint. The workspace pill reads "Workspace · Location" on the board;
  * there is no locations table (D-POS-18), so it reads the workspace's name.
- * On the talent surface the pill is inert (no workspace switch sheet).
+ * On the talent surface the pill opens the profile (TUL-907; it used to do nothing).
  */
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { useT } from "@/i18n/use-t";
@@ -23,6 +24,7 @@ import { deriveWorkRole } from "@/lib/workspace/nav-context";
 import { WhatsAppTopBarButton } from "@/components/admin/channels/WhatsAppChrome";
 import { NotificationsBell } from "../notifications-hub";
 import { ShellCountBubbles } from "../shell-count-bubbles";
+import { LanguageMenu } from "./LanguageMenu";
 import { PromosHeaderButton } from "@/components/promos/talent/PromosHeaderButton";
 import { Icon } from "../primitives";
 import { useAdminShell } from "../state";
@@ -40,7 +42,7 @@ const ICON_BUTTON =
   "relative inline-flex h-[34px] w-[34px] shrink-0 cursor-pointer items-center justify-center rounded-[10px] border border-admin-border bg-admin-card text-admin-ink-muted";
 
 export function MobileTopBar() {
-  const { state, effectiveTenant, bridgeTalentSelfProfile } = useAdminShell();
+  const { state, effectiveTenant, bridgeTalentSelfProfile, setTalentPage } = useAdminShell();
   const t = useT();
   const router = useRouter();
   const detail = useMobileDetailHeader();
@@ -86,22 +88,17 @@ export function MobileTopBar() {
       data-tulala-mobile-topbar={inTalent ? "talent" : "workspace"}
       className="flex h-full w-full items-center gap-[8px] font-admin-body"
     >
-      <button
-        type="button"
-        data-tulala-mobile-workspace-pill
-        onClick={
-          inTalent
-            ? undefined
-            : () => window.dispatchEvent(new Event(WORKSPACE_SWITCH_OPEN_EVENT))
-        }
-        aria-label={
-          inTalent
-            ? pillName
-            : `${pillName} · ${t("dashboard.mobile.switch.title")}`
-        }
-        className="flex min-w-0 cursor-pointer items-center gap-[7px] rounded-full border border-admin-border bg-admin-card py-[5px] pl-[5px] pr-[9px] text-left"
-        disabled={inTalent}
-      >
+      {inTalent ? (
+        /* TUL-907: a real link, so the tap navigates to Perfil even when the
+           shell's setTalentPage returns early (it skips silently without a
+           route base); the handler only syncs the shell page at once. */
+        <Link
+          href="/talent/profile"
+          data-tulala-mobile-workspace-pill
+          onClick={() => setTalentPage("profile", { navigate: false })}
+          aria-label={`${pillName} · ${t("dashboard.mobile.talentPillAria")}`}
+          className="relative z-10 flex min-w-0 cursor-pointer items-center gap-[7px] rounded-full border border-admin-border bg-admin-card py-[5px] pl-[5px] pr-[9px] text-left no-underline"
+        >
         <span
           aria-hidden
           className="inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-full bg-admin-brand text-[10px] font-bold text-white"
@@ -114,7 +111,29 @@ export function MobileTopBar() {
         {inTalent ? null : (
           <Icon name="chevron-down" size={13} stroke={1.75} color="var(--color-admin-ink-dim)" />
         )}
-      </button>
+        </Link>
+      ) : (
+        <button
+          type="button"
+          data-tulala-mobile-workspace-pill
+          onClick={() => window.dispatchEvent(new Event(WORKSPACE_SWITCH_OPEN_EVENT))}
+          aria-label={`${pillName} · ${t("dashboard.mobile.switch.title")}`}
+          className="relative z-10 flex min-w-0 cursor-pointer items-center gap-[7px] rounded-full border border-admin-border bg-admin-card py-[5px] pl-[5px] pr-[9px] text-left no-underline"
+        >
+        <span
+          aria-hidden
+          className="inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-full bg-admin-brand text-[10px] font-bold text-white"
+        >
+          {initials}
+        </span>
+        <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-admin-13 font-semibold text-admin-ink">
+          {pillName}
+        </span>
+        {inTalent ? null : (
+          <Icon name="chevron-down" size={13} stroke={1.75} color="var(--color-admin-ink-dim)" />
+        )}
+        </button>
+      )}
       <span className="flex-1" />
       {inTalent ? null : (
         <span
@@ -135,6 +154,9 @@ export function MobileTopBar() {
         </button>
       )}
       {inTalent ? null : <WhatsAppTopBarButton size={34} iconOnly />}
+      {/* TUL-995: the ES/EN switch stays reachable on a phone (renders nothing
+          when the talent has no second language). */}
+      {inTalent ? <LanguageMenu /> : null}
       {inTalent ? <PromosHeaderButton size="md" /> : null}
       <ShellCountBubbles size="md" />
       <NotificationsBell size="md" />

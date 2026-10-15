@@ -15,7 +15,7 @@ export function ResumeCard({
   onContinue: () => void;
   onFresh: () => void;
 }) {
-  const words = snapshot.state.input?.value ?? "";
+  const words = (snapshot.state.input?.value ?? "").trim();
   return (
     <div data-testid="onb-resume">
       <Title>{t("public.onboarding.resume.title")}</Title>

@@ -100,6 +100,7 @@ export const TALENT_HELP_ES: Record<string, HelpEntry> = {
     purpose:
       "Tu horario de trabajo define las horas en que tus clientes pueden reservar contigo. Lo configuras en Calendario.",
     youCanHere: [
+      "Abrir Ajustes en la barra lateral y tocar Horario y días libres, la primera fila bajo cuándo trabajas",
       "Abrir Calendario en la barra lateral y tocar Disponibilidad para abrir tu Horario",
       "Definir tu horario semanal y guardarlo",
       "Encontrar la tarjeta Horario de reservas más abajo en la página de Calendario, con el mismo horario semanal",
@@ -118,6 +119,50 @@ export const TALENT_HELP_ES: Record<string, HelpEntry> = {
       {
         q: "¿Cómo dejo un margen entre reservas o pido aviso con anticipación?",
         a: "Abre Servicios y luego Valores predeterminados. En Preparación y márgenes define el tiempo de espera después de cada reserva, y define el Aviso mínimo que aceptas.",
+      },
+    ],
+  },
+  "talent-days-off": {
+    audience: "Talent",
+    category: "Días libres",
+    purpose:
+      "Bloquea un día o un periodo para que nadie pueda reservarte, sin cambiar tu horario semanal.",
+    youCanHere: [
+      "Abrir Calendario, luego Disponibilidad, y buscar Días libres y horario de un día",
+      "Bloquear una fecha por un feriado, un viaje o tiempo personal",
+      "Cambiar el horario de un solo día sin tocar tu Horario y días libres semanal en Ajustes",
+    ],
+    ticketCategory: "Bookings & inquiries",
+    faqs: [
+      {
+        q: "¿Cómo bloqueo un día libre o tomo vacaciones?",
+        a: "Abre Calendario, toca Disponibilidad y usa Días libres y horario de un día para bloquear la fecha. Tus clientes no pueden reservarte en los días bloqueados. Tu horario semanal en Ajustes no cambia.",
+      },
+      {
+        q: "¿Cómo trabajo con otro horario solo un día?",
+        a: "En Disponibilidad, usa Días libres y horario de un día y define el horario de esa fecha. Los demás días siguen tu Horario y días libres semanal.",
+      },
+    ],
+  },
+  "talent-booking-changes": {
+    audience: "Talent",
+    category: "Reprogramar y cancelar una reserva (Reservas)",
+    purpose:
+      "Abre una reserva desde Calendario u Hoy para reprogramarla, cancelarla o escribirle al cliente.",
+    youCanHere: [
+      "Abrir la reserva y tocar Reprogramar para proponer un nuevo horario. El cliente lo confirma",
+      "Abrir la reserva y elegir Cancelar reserva. Te muestra qué pasa con el pago antes de cancelar nada",
+      "Usar Mensaje en la reserva para hablar primero con el cliente",
+    ],
+    ticketCategory: "Bookings & inquiries",
+    faqs: [
+      {
+        q: "¿Cómo cancelo una reserva?",
+        a: "Abre la reserva desde Calendario u Hoy y elige Cancelar reserva. Primero te muestra qué pasa con el pago y después confirmas.",
+      },
+      {
+        q: "¿Cómo reprogramo una reserva o muevo una cita?",
+        a: "Abre la reserva desde Calendario y toca Reprogramar. Elige un nuevo horario. El horario anterior se libera cuando el cliente acepta. Una reserva solo se puede reprogramar una vez confirmada.",
       },
     ],
   },
@@ -229,6 +274,45 @@ export const TALENT_HELP_ES: Record<string, HelpEntry> = {
       {
         q: "¿Cómo muestro una reseña en mi perfil?",
         a: "Cuando un cliente deja una reseña, puedes publicarla con Publicar reseña. Mientras no la publiques, no aparece en tu perfil público.",
+      },
+    ],
+  },
+  "talent-plan": {
+    audience: "Talent",
+    category: "Tu plan (Ajustes)",
+    purpose:
+      "Tu plan decide qué herramientas tiene tu página personal. El plan Free es la base y Oficina Web es el plan de pago que desbloquea más. Ves tu plan actual y lo cambias desde Ajustes.",
+    youCanHere: [
+      "Ver tu plan actual en la tarjeta de plan de Ajustes, bajo Tu plan de página personal",
+      "Abrir la comparación (Comparar planes de talento) para ver qué incluyen Free y Oficina Web",
+      "Mejorar a Oficina Web, pagando Mensual o Anual",
+      "Usar Manage subscription para actualizar tu forma de pago o cambiar o cancelar un plan de pago",
+    ],
+    ticketCategory: "Billing",
+    faqs: [
+      {
+        q: "¿Cómo cambio mi plan?",
+        a: "Abre Ajustes y mira la tarjeta de plan, Tu plan de página personal, para ver en qué plan estás. Para mejorar tu plan, toca Upgrade to Web Office, o toca la etiqueta del plan junto a tu nombre en tu perfil para abrir Comparar planes de talento y elegirlo ahí. Para bajar de plan o cancelar un plan de pago, toca Manage subscription en la misma tarjeta. Los detalles de cobro se muestran antes de que confirmes algo.",
+      },
+      {
+        q: "¿Cómo mejoro mi plan?",
+        a: "Cuando intentas usar una herramienta que es parte de Oficina Web, como tu propio dominio, las apps premium o todas las plantillas, se abre una ventana con el precio de Oficina Web. Elige Mensual o Anual y toca Mejorar a Oficina Web. También puedes tocar Ver todos los planes en esa ventana para revisar todo primero.",
+      },
+      {
+        q: "¿Cómo cambio entre pago mensual y anual?",
+        a: "En la ventana para mejorar tu plan, elige Mensual o Anual antes de continuar. Para cambiar el cobro de un plan que ya pagas, toca Manage subscription en Ajustes y revisa las opciones que aparecen ahí antes de confirmar.",
+      },
+      {
+        q: "¿Cómo bajo de plan o cancelo mi plan?",
+        a: "Abre Ajustes y toca Manage subscription en la tarjeta de tu plan. Las opciones y los detalles de cobro aparecen antes de que confirmes. Tu página y tus datos siguen seguros en el plan Free, pero las herramientas que son parte de Oficina Web dejan de estar disponibles.",
+      },
+      {
+        q: "¿Dónde veo en qué plan estoy?",
+        a: "En Ajustes, la tarjeta Tu plan de página personal lo muestra. El plan también aparece junto a tu nombre en tu perfil, y al tocarlo se abre Comparar planes de talento.",
+      },
+      {
+        q: "¿Qué pasa con mis funciones y mi cobro cuando cambio de plan?",
+        a: "Las herramientas que son parte de Oficina Web, como tu propio dominio, las apps premium y todas las plantillas, necesitan Oficina Web. Comparar planes de talento lista lo que incluye cada plan. Los detalles de cobro de cualquier cambio se muestran antes de que lo confirmes, así que revísalos ahí.",
       },
     ],
   },

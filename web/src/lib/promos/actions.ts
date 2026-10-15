@@ -16,6 +16,7 @@ import { loadCalloutState } from "@/lib/promos/callouts/dismissals.actions";
 import { pickCallout, type Callout } from "@/lib/promos/callouts/engine";
 import { loadCalloutInputs } from "@/lib/promos/callouts/inputs.server";
 import { loadPromoResults, type PromoResultsBundle } from "@/lib/promos/results/load.server";
+import { failFrom, newErrorRef, type PromoActionError } from "./fail-from";
 import { canGoLive, type PlanGateReason } from "./plan-gating";
 import { effectiveStatus, planEndedCount } from "./plan-downgrade";
 import { promoStatus } from "./quote";
@@ -23,6 +24,7 @@ import { DEFAULT_PROMO_TZ, PROMO_COLUMNS, loadTenantPromos, loadUsage, rowToProm
 import { promoSiteOrigin } from "./share/site-origin";
 import { applyEdit, endNowPatch, type EditVerdict } from "./safe-edit";
 import { promoAttention } from "./talent-view";
+import { endPromoUpdate, goLivePatch, pausePatch, showOnSiteFor } from "./hygiene/show-on-site";
 import {
   draftToColumns, draftToPromo, duplicateDraft, promoSlug, repeatDraft, rowToDraft, validateDraft,
   type DraftError, type PromoDraft,
@@ -31,10 +33,10 @@ import type { Promo, PromoStatus } from "./types";
 
 // ── result shapes ──────────────────────────────────────────────────────
 
-export type PromoActionError = "not_allowed" | "not_found" | "invalid" | "code_taken" | "unavailable";
+export type { PromoActionError } from "./fail-from";
 
 export type PromoFail =
-  | { ok: false; error: PromoActionError; fields?: DraftError[] }
+  | { ok: false; error: PromoActionError; fields?: DraftError[]; /** Short support id, only on "unavailable"; logged with the same id. */ ref?: string }
   /** The draft is kept; the UI opens the upgrade modal. */
   | { ok: false; needsUpgrade: true; reason: PlanGateReason | "paid_feature"; draftId: string | null };
 
@@ -283,8 +285,11 @@ async function writeTargets(scope: Scope, promoId: string, ids: readonly string[
   return true;
 }
 
-function failFrom(error: { code?: string } | null): PromoFail {
-  return { ok: false, error: error?.code === "23505" ? "code_taken" : "unavailable" };
+/** Log a failed write with a fresh short ref and return the typed failure carrying it. */
+function dbFail(context: string, error: { code?: string; message?: string } | null): PromoFail {
+  const ref = newErrorRef();
+  if (error) logServerError(`${context} ref=${ref}`, error);
+  return failFrom(error, ref);
 }
 
 const refresh = () => revalidatePath("/talent/promos");
@@ -435,6 +440,7 @@ async function insertPromo(
     .from("tenant_promo_codes")
     .insert({
       ...draftToColumns(draft),
+      show_on_site: showOnSiteFor({ ...draftToColumns(draft), is_draft: flags.is_draft }),
       link_slug: promoSlug(draft.name, crypto.randomUUID().slice(0, 6)),
       tenant_id: scope.tenantId,
       // The owner: hub talents share one tenant, so the talent IS the scope.
@@ -448,10 +454,7 @@ async function insertPromo(
     })
     .select("id")
     .single();
-  if (error || !data) {
-    if (error) logServerError("promos.actions/insert", error);
-    return failFrom(error);
-  }
+  if (error || !data) return dbFail("promos.actions/insert", error);
   const id = String((data as { id: string }).id);
   if (!(await writeTargets(scope, id, draft.target_ids))) return { ok: false, error: "unavailable" };
   return { ok: true, id };
@@ -503,14 +506,11 @@ export async function goLivePromo(id: string): Promise<PromoResult<{ status: Pro
   if (!gate.allowed) return { ok: false, needsUpgrade: true, reason: gate.reason, draftId: id };
   const { error } = await scope.admin
     .from("tenant_promo_codes")
-    .update({ is_draft: false, is_paused: false, is_trial: gate.reason === "trial" })
+    .update(goLivePatch(owned.row, gate.reason === "trial"))
     .eq("id", id)
     .eq("tenant_id", scope.tenantId)
     .eq("talent_profile_id", scope.talentId);
-  if (error) {
-    logServerError("promos.actions/go-live", error);
-    return { ok: false, error: "unavailable" };
-  }
+  if (error) return dbFail("promos.actions/go-live", error);
   refresh();
   return { ok: true, status: promoStatus(draftToPromo(draft, id), new Date(), { used: 0 }) };
 }
@@ -534,14 +534,15 @@ export async function updatePromo(id: string, input: PromoDraft): Promise<PromoR
   }
   const { error } = await scope.admin
     .from("tenant_promo_codes")
-    .update({ ...draftToColumns(draft), updated_at: new Date().toISOString() })
+    .update({
+      ...draftToColumns(draft),
+      show_on_site: showOnSiteFor({ ...draftToColumns(draft), is_draft: owned.row.is_draft, is_paused: owned.row.is_paused, archived_at: owned.row.archived_at }),
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", id)
     .eq("tenant_id", scope.tenantId)
     .eq("talent_profile_id", scope.talentId);
-  if (error) {
-    logServerError("promos.actions/update", error);
-    return failFrom(error);
-  }
+  if (error) return dbFail("promos.actions/update", error);
   if (!(await writeTargets(scope, id, draft.target_ids))) return { ok: false, error: "unavailable" };
   refresh();
   return { ok: true, verdict };
@@ -568,14 +569,11 @@ async function setPaused(id: string, paused: boolean): Promise<PromoResult> {
   }
   const { error } = await scope.admin
     .from("tenant_promo_codes")
-    .update({ is_paused: paused })
+    .update(pausePatch(paused, owned.row))
     .eq("id", id)
     .eq("tenant_id", scope.tenantId)
     .eq("talent_profile_id", scope.talentId);
-  if (error) {
-    logServerError("promos.actions/pause", error);
-    return { ok: false, error: "unavailable" };
-  }
+  if (error) return dbFail("promos.actions/pause", error);
   refresh();
   return { ok: true };
 }
@@ -620,14 +618,11 @@ export async function endPromo(id: string): Promise<PromoResult> {
   const patch = endNowPatch(rowToPromo(owned.row, { targetIds: owned.targets }), new Date());
   const { error } = await scope.admin
     .from("tenant_promo_codes")
-    .update(patch.kind === "archive" ? { archived_at: patch.archived_at } : { ends_at: patch.ends_at })
+    .update(endPromoUpdate(patch))
     .eq("id", id)
     .eq("tenant_id", scope.tenantId)
     .eq("talent_profile_id", scope.talentId);
-  if (error) {
-    logServerError("promos.actions/end", error);
-    return { ok: false, error: "unavailable" };
-  }
+  if (error) return dbFail("promos.actions/end", error);
   refresh();
   return { ok: true };
 }

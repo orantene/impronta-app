@@ -233,7 +233,6 @@ html:has([data-profile-theme="atelier"]){ scroll-behavior:smooth; } [data-profil
 export function AtelierProfileLayout(props: LightProfileLayoutProps) {
   const {
     name,
-    firstName,
     profileImageUrl,
     bannerUrl,
     isFeatured,
@@ -736,7 +735,7 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
       <section className="at-cta at-section" aria-label={t("public.profile.ctaSectionAria")}>
         <div className="at-col">
           <span className="at-eyebrow">{ui.common.brand}</span>
-          <h2>{t("public.profile.footerCtaTitle").replace("{firstName}", firstName)}</h2>
+          <h2>{t("public.profile.footerCtaTitle").replace("{firstName}", name)}</h2>
           <p>{t("public.profile.footerCtaBody")}</p>
           <div className="at-cta__btns">
             {inquireButtonFooter}

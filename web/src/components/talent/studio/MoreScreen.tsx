@@ -2,9 +2,12 @@
 
 import { signOutEverywhere } from "@/lib/auth/sign-out-client";
 import { useState } from "react";
+import { DashboardLocaleToggle } from "@/components/dashboard-locale-toggle";
+import { DASHBOARD_LOCALES } from "@/components/admin/shell/internal/talent/pages/DashboardLanguagePanel";
 import { WebsiteRewardControl } from "@/components/talent/website-reward/WebsiteRewardControl";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { useAdminShell, type TalentPage } from "@/components/admin/shell/internal/state";
+import { openWorkingHoursPanel } from "@/components/admin/shell/internal/talent/agenda/WorkingHoursPanel";
 import { openGuideHome } from "@/lib/guide/open-guide";
 import { useWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
 import { countItemsLabel } from "@/components/admin/shell/internal/count-items-label";
@@ -13,7 +16,8 @@ type Row = { label: string; detail: string; page?: TalentPage; run?: () => void 
 
 export function TalentMoreScreen({ onClose }: { onClose: () => void }) {
   const copy = useDashboardText();
-  const { setTalentPage, bridgeTalentSelfProfile, bridgeTalentCompletion } = useAdminShell();
+  const { setTalentPage, openDrawer, bridgeTalentSelfProfile, bridgeTalentCompletion, talentLocales, supportedLocales, tenantDefaultLocale } =
+    useAdminShell();
   const eligibility = useWebsiteEligibility();
   const [signingOut, setSigningOut] = useState(false);
   const name = bridgeTalentSelfProfile?.displayName?.trim() || copy.t("Not available");
@@ -50,9 +54,8 @@ export function TalentMoreScreen({ onClose }: { onClose: () => void }) {
     {
       title: "Presence",
       rows: [
-        { label: "My public page", detail: publicPageDetail, page: "public-page" },
-        { label: "Where I appear", detail: publicPageDetail, page: "public-page" },
-        { label: "Edit my profile", detail: profileLeft, page: "profile" },
+        { label: "My presence", detail: publicPageDetail, page: "public-page" },
+        { label: "Profile", detail: profileLeft, page: "profile" },
         { label: "Photos of my work", detail: photosDetail, page: "profile" },
         { label: "Reviews", detail: copy.t("Open"), page: "reviews" },
       ],
@@ -62,14 +65,36 @@ export function TalentMoreScreen({ onClose }: { onClose: () => void }) {
       rows: [
         { label: "Services", detail: bookable, page: "services" },
         { label: "Clients", detail: copy.t("Open"), page: "clients" },
-        { label: "Working hours", detail: hoursDetail, page: "calendar" },
+        // TUL-821: open the Horario modal itself, not just the calendar behind it.
+        {
+          label: "Working hours",
+          detail: hoursDetail,
+          run: () => {
+            onClose();
+            openWorkingHoursPanel();
+          },
+        },
       ],
     },
     {
       title: "You",
       rows: [
+        // TUL-986: desktop rail footer has Plan (opens the tier-compare drawer); same label here.
+        {
+          label: "Plan",
+          detail: "",
+          run: () => {
+            openDrawer("talent-tier-compare");
+            onClose();
+          },
+        },
         { label: "Settings", detail: "", page: "settings" },
-        { label: "Get help", detail: "", run: () => openGuideHome() },
+        { label: "Get help", detail: "", run: () => {
+            // The sheet is full-screen above the panel: close it first or the tap looks dead (TUL-904).
+            onClose();
+            openGuideHome();
+          },
+        },
         {
           label: signingOut ? "Signing out…" : "Sign out",
           detail: "",
@@ -84,11 +109,11 @@ export function TalentMoreScreen({ onClose }: { onClose: () => void }) {
   ];
 
   return (
-    <div className="fixed inset-0 z-[80] overflow-y-auto bg-white font-admin-body" role="dialog" aria-label={copy.t("More")}>
+    <div className="fixed inset-0 z-[80] overflow-y-auto bg-white font-admin-body min-[721px]:hidden" role="dialog" aria-label={copy.t("More")}>
       <div className="mx-auto max-w-[480px] px-4 pb-28 pt-4">
         <div className="flex items-center justify-between">
           <h1 className="text-[22px] font-semibold text-admin-ink">{copy.t("More")}</h1>
-          <button type="button" className="text-[13px] font-semibold text-admin-ink-muted" onClick={onClose}>
+          <button type="button" className="-mr-3 min-h-[44px] px-3 text-[14px] font-semibold text-admin-ink-muted" onClick={onClose}>
             {copy.t("Close")}
           </button>
         </div>
@@ -96,6 +121,15 @@ export function TalentMoreScreen({ onClose }: { onClose: () => void }) {
           {name}
           {city ? ` · ${city}` : ""}
         </p>
+        {/* TUL-995: the phone header has no room for the ES/EN switch, so it lives here. */}
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <span className="text-[13px] font-medium text-admin-ink">{copy.t("Language")}</span>
+          <DashboardLocaleToggle
+            variant="prototype"
+            supportedLocales={talentLocales ? DASHBOARD_LOCALES : supportedLocales}
+            defaultLocale={talentLocales?.primary ?? tenantDefaultLocale}
+          />
+        </div>
         <div className="mt-3">
           <WebsiteRewardControl placement="mobile" />
         </div>

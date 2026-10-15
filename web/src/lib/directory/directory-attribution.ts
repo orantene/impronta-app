@@ -23,12 +23,16 @@ export function resolveDirectoryAgencyAttribution(
 
 /**
  * PostgREST `or()` filter so search finds a talent by display name or by
- * profile code (e.g. TAL-93940). Characters that would break the or()
+ * profile code (e.g. TAL-93940) or by category. Characters that would break the or()
  * grammar are replaced with spaces; null when nothing searchable is left.
  */
-export function buildDirectoryQueryOrFilter(q: string): string | null {
+export function buildDirectoryQueryOrFilter(q: string, categorySlugs: readonly string[] = []): string | null {
   const term = q.replace(/[,()%*\\]/g, " ").trim();
   if (!term) return null;
   const pat = `%${term}%`;
-  return `display_name.ilike.${pat},profile_code.ilike.${pat}`;
+  // TUL-802: the text also finds a talent by category. The label is matched
+  // directly; `categorySlugs` carries the intent matches (other language, synonyms).
+  const slugs = categorySlugs.filter((s) => /^[a-z0-9-]+$/.test(s));
+  const byCategory = slugs.length ? `,category_slug.in.(${slugs.join(",")})` : "";
+  return `display_name.ilike.${pat},profile_code.ilike.${pat},category_label.ilike.${pat}${byCategory}`;
 }

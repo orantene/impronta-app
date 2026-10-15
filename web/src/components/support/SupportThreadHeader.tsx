@@ -35,7 +35,7 @@ export function SupportThreadStatusLine({
     return (
       <div style={row}>
         <span style={{ width: 6, height: 6, borderRadius: "50%", background: COLORS.success, flexShrink: 0 }} />
-        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
           {interpolate(t("dashboard.adminSupport.oranOnline"), SUPPORT_AGENT_VARS)}
         </span>
       </div>
@@ -46,7 +46,7 @@ export function SupportThreadStatusLine({
     return (
       <div style={row}>
         <span style={{ width: 6, height: 6, borderRadius: "50%", background: COLORS.success, flexShrink: 0 }} />
-        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
           {t("dashboard.adminSupport.statusResolved")}
         </span>
       </div>
@@ -56,7 +56,7 @@ export function SupportThreadStatusLine({
     return (
       <div style={row}>
         <span style={{ width: 6, height: 6, borderRadius: "50%", background: COLORS.inkDim, flexShrink: 0 }} />
-        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
           {t("dashboard.adminSupport.statusClosed")}
         </span>
       </div>
@@ -82,7 +82,7 @@ export function SupportThreadStatusLine({
         >
           OT
         </span>
-        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
           {interpolate(t("dashboard.adminSupport.humanReplyEta"), SUPPORT_AGENT_VARS)}
         </span>
       </div>
@@ -91,7 +91,7 @@ export function SupportThreadStatusLine({
   return (
     <div style={row}>
       <span style={{ width: 5, height: 5, borderRadius: "50%", background: COLORS.royal, flexShrink: 0 }} />
-      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+      <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
         {t("dashboard.adminSupport.aiHandling")}
       </span>
     </div>
@@ -153,8 +153,10 @@ export function SupportThreadHeader({
             fontWeight: 600,
             color: COLORS.ink,
             overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflowWrap: "anywhere",
           }}
         >
           {ticket?.subject || t("dashboard.adminSupport.untitled")}

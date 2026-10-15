@@ -73,7 +73,6 @@ export function MarketingContactForm({
       <label className="flex flex-col gap-1 text-sm">
         {copy.nameLabel}
         <input
-          required
           value={name}
           onChange={(e) => setName(e.target.value)}
           className="rounded-xl border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg)] px-3 py-2"

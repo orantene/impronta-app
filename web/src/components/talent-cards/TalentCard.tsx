@@ -19,6 +19,7 @@ import {
   AgencyLine,
   AvailabilityLine,
   OwnershipBadge,
+  ownershipLabel,
   StandingChip,
   VerifiedBadge,
 } from "./talent-card-parts";
@@ -175,6 +176,7 @@ export function TalentCard({
   ctaSlot,
   showAgencyLine = false,
   showStanding = "auto",
+  locale = "en",
 }: TalentCardProps) {
   const displayName = resolveName(data.name, show.showName, nameFallback);
   const href = data.profileHref || "#";
@@ -239,7 +241,7 @@ export function TalentCard({
               (show.showAvailability ? (
                 <span
                   data-card-availability
-                  className="inline-flex max-w-full items-center gap-1.5 truncate rounded-full bg-white/[0.92] px-2.5 py-1 text-[11px] font-medium text-[#17160f] shadow-[0_2px_8px_rgba(0,0,0,0.14)]"
+                  className="inline-flex max-w-full items-center gap-1.5 rounded-2xl bg-white/[0.92] px-2.5 py-1 text-[11px] leading-tight font-medium text-[#17160f] shadow-[0_2px_8px_rgba(0,0,0,0.14)]"
                 >
                   <span
                     aria-hidden
@@ -249,7 +251,7 @@ export function TalentCard({
                         : "bg-[#9a968c]"
                     }`}
                   />
-                  <span className="truncate">{data.availabilityLabel}</span>
+                  <span className="min-w-0">{data.availabilityLabel}</span>
                 </span>
               ) : (
                 <span />
@@ -259,7 +261,7 @@ export function TalentCard({
                 data-card-badge-exclusive
                 className="inline-flex shrink-0 items-center rounded-full bg-[var(--token-card-cta,#1f4d3a)] px-2 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-white"
               >
-                Exclusive
+                {ownershipLabel("exclusive", locale)}
               </span>
             ) : null}
           </div>
@@ -274,7 +276,7 @@ export function TalentCard({
             {displayName ? (
               <h3
                 data-card-name
-                className={`min-w-0 truncate font-[family-name:var(--font-fraunces,Georgia,serif)] font-medium leading-[1.1] tracking-[-0.01em] ${
+                className={`min-w-0 line-clamp-2 break-words font-[family-name:var(--font-fraunces,Georgia,serif)] font-medium leading-[1.1] tracking-[-0.01em] ${
                   compact ? "text-base! @[240px]:text-lg!" : "text-lg! @[240px]:text-[22px]!"
                 }`}
               >
@@ -326,7 +328,7 @@ export function TalentCard({
               ) : null}
               {showAgencyLine ? <AgencyLine data={data} onScrim={false} /> : null}
               {show.showBadges && !data.isExclusive ? (
-                <OwnershipBadge data={data} />
+                <OwnershipBadge data={data} locale={locale} />
               ) : null}
             </div>
             {ctaSlot ? <div className="shrink-0">{ctaSlot}</div> : null}
@@ -426,7 +428,7 @@ export function TalentCard({
           {traitSlot}
           <StandingChip data={data} onScrim={false} showStanding={showStanding} />
           <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
-            {show.showBadges ? <OwnershipBadge data={data} /> : <span />}
+            {show.showBadges ? <OwnershipBadge data={data} locale={locale} /> : <span />}
             {/* availabilitySlot overrides the built-in line so a richer surface
                 (the Discover 14-day strip) can render in its place. */}
             {availabilitySlot ??
@@ -459,7 +461,7 @@ export function TalentCard({
           <span
             data-card-availability
             title={data.availabilityLabel}
-            className="pointer-events-none inline-flex h-[26px] max-w-full items-center gap-1.5 overflow-hidden rounded-full border border-white/[0.28] bg-[rgba(6,6,8,0.62)] px-2.5 text-[10px] font-semibold tracking-[0.02em] text-[#f3efe6] backdrop-blur-md @[260px]:uppercase @[260px]:tracking-[0.08em] @[280px]:h-[30px] @[280px]:gap-2 @[280px]:px-3 @[340px]:text-[11px] @[340px]:tracking-[0.14em]"
+            className="pointer-events-none inline-flex min-h-[26px] max-w-full items-center gap-1.5 rounded-2xl border border-white/[0.28] bg-[rgba(6,6,8,0.62)] px-2.5 py-1 text-[10px] leading-tight font-semibold tracking-[0.02em] text-[#f3efe6] backdrop-blur-md @[260px]:uppercase @[260px]:tracking-[0.08em] @[280px]:h-[30px] @[280px]:gap-2 @[280px]:px-3 @[340px]:text-[11px] @[340px]:tracking-[0.14em]"
           >
             <span
               aria-hidden
@@ -467,7 +469,7 @@ export function TalentCard({
                 data.availabilityKnown ? "bg-[#7ED957]" : "bg-white/40"
               }`}
             />
-            <span className="hidden truncate @[220px]:inline">{data.availabilityLabel}</span>
+            <span className="hidden min-w-0 break-words @[220px]:inline">{data.availabilityLabel}</span>
           </span>
         ))
       : null;
@@ -522,7 +524,7 @@ export function TalentCard({
               data-card-badge-exclusive
               className="truncate text-[9px] font-semibold uppercase tracking-[0.16em] text-[var(--token-card-price-color,var(--dir-accent,#c8a04a))] @[280px]:text-[11px] @[280px]:tracking-[0.2em]"
             >
-              Exclusive
+              {ownershipLabel("exclusive", locale)}
               {data.agencyName ? ` · ${data.agencyName}` : ""}
             </span>
           ) : null}
@@ -619,7 +621,7 @@ export function TalentCard({
       {show.showBadges ? (
         <div className="absolute left-2.5 top-2.5 z-[1] flex flex-wrap gap-1.5">
           {data.verified ? <VerifiedBadge /> : null}
-          <OwnershipBadge data={data} />
+          <OwnershipBadge data={data} locale={locale} />
         </div>
       ) : null}
 

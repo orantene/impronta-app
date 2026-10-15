@@ -34,6 +34,7 @@ import { FeaturedTalentCard } from "@/lib/site-admin/sections/featured_talent/Fe
 import { localeUrlSettings } from "@/i18n/pathnames";
 import type { FeaturedTalentCardDTO } from "@/lib/site-admin/sections/featured_talent/fetch";
 import { formatMoney } from "@/lib/talent/offerings-money";
+import { publicPriceLine } from "@/lib/talent/public-price-line";
 import {
   isSafeRichTextHref,
   renderInlineRich,
@@ -161,9 +162,11 @@ import { QrCodeBlock } from "./qr-code-block";
 import { menuBoardCopy } from "./menu-board-copy";
 import { offeringIsQuote, type TalentOffering } from "@/lib/talent/offerings-types";
 import { CatalogIslandBoundary } from "@/components/public-booking/catalog-island-boundary";
+import { effectiveCatalogColumns } from "./services-catalog-columns";
 import { resolveServicesCatalogSheetAccent } from "./services-catalog-defaults";
 import { renderStatsSpecBlock } from "./stats-spec-block";
 import { ServicesCatalogFilter } from "./services-catalog-filter";
+import { servicePageHrefs } from "@/lib/talent-site/service-page";
 import type { CatalogPromoPrices } from "@/lib/promos/catalog-promo-prices";
 import { SERVICES_CATALOG_ROW_CARD_CSS } from "./services-catalog-row-card-css";
 import { filterOfferingsForCatalog } from "./services-catalog-selection";
@@ -366,6 +369,11 @@ export interface BuilderNodeRenderDataSources {
   talentOfferingsLoading?: boolean;
   /** Plan-tier rule for this talent — mirrors `TalentStorefront`'s own DB read, precomputed here so the (sync) render dispatcher never needs one. */
   talentOfferingsConfirmsByHand?: boolean;
+  /**
+   * TUL-792: locale-aware path prefix of a published talent site ("" or "/en"). When set, each
+   * eligible home service card links to its own service page. Unset (builder, hub, previews): no links.
+   */
+  talentServiceLinkBase?: string | null;
   /**
    * Talent selling defaults for sheet CTAs (default booking mode instant / request / inquiry + who-step
    * vocabulary). Prep minutes live in the same JSON but are applied server-side
@@ -5226,6 +5234,7 @@ function renderBuilderNodeElement(
             <BuilderNodeCarouselTrack
               nodeId={node.id}
               variant="hero"
+              locale={options.visitorLocale ?? options.contentLocale?.locale}
               slideCount={heroSlides.length}
               autoplayMs={node.props.autoplayMs}
               loop={node.props.loop}
@@ -5323,6 +5332,7 @@ function renderBuilderNodeElement(
           <BuilderNodeCarouselTrack
             nodeId={node.id}
             variant="rail"
+            locale={options.visitorLocale ?? options.contentLocale?.locale}
             showArrows={node.props.showArrows}
             showDots={node.props.showDots}
             autoplayMs={node.props.autoplayMs}
@@ -5950,6 +5960,7 @@ function renderBuilderNodeElement(
             : "No services are published yet.");
       const confirmsByHand = options.dataSources.talentOfferingsConfirmsByHand ?? true;
       const usdRates = options.dataSources.talentOfferingsUsdRates ?? null;
+      const serviceHrefs = servicePageHrefs(visible, options.dataSources.talentServiceLinkBase);
       const layout = p.layout ?? "rows";
       const useWebsiteTheme = p.useWebsiteTheme !== false;
       // Live band ground: when useWebsiteTheme skips custom Style overrides,
@@ -5961,9 +5972,10 @@ function renderBuilderNodeElement(
         useWebsiteTheme && p.style?.backgroundColor
           ? { backgroundColor: styleToken(p.style.backgroundColor) }
           : undefined;
-      const columns =
-        p.columns ??
-        (layout === "grid" ? 3 : layout === "cards" || layout === "editorial" ? 2 : 1);
+      const columns = effectiveCatalogColumns(
+        p.columns ?? (layout === "grid" ? 3 : layout === "cards" || layout === "editorial" ? 2 : 1),
+        visible.length,
+      );
 
       // Categories: saved `category_order` first, then first-seen leftovers.
       const seen: string[] = [];
@@ -6118,6 +6130,7 @@ function renderBuilderNodeElement(
               }
             >
               <ServicesCatalogFilter
+                serviceHrefs={serviceHrefs}
                 groups={groups}
                 locale={locale}
                 nav={navMode}
@@ -6326,10 +6339,10 @@ function renderBuilderNodeElement(
         }
         // TUL-383: one public money format (`$700 MXN`) via shared formatter.
         const locale = options.contentLocale?.locale ?? "en";
-        const es = locale.toLowerCase().startsWith("es");
-        const formatted = formatMoney(item.amountCents, item.currency, locale);
-        if (item.priceDisplay === "from") return es ? `desde ${formatted}` : `from ${formatted}`;
-        return formatted;
+        return (
+          publicPriceLine({ ...item, priceDisplay: item.priceDisplay === "from" ? "from" : "exact" }, locale) ??
+          formatMoney(item.amountCents, item.currency, locale)
+        );
       };
       const usdLine = (item: {
         amountCents: number | null;

@@ -15,6 +15,7 @@ import { HowYouWorkCard } from "@/components/settings/how-you-work-card";
 import { HYW_DESC, HYW_TITLE } from "@/components/settings/how-you-work-copy";
 import { AccountExportLinks } from "@/components/account/AccountExportLinks";
 import { AccountDeletionCard } from "@/components/account/AccountDeletionCard";
+import { openUpgrade } from "@/components/talent/upgrade/open-upgrade";
 import { TalentInstagramCard } from "@/components/talent/connections/TalentInstagramCard";
 import { TALENT_INSTAGRAM_RETURN_MARKER } from "@/lib/talent-integrations/instagram-card-state";
 import { usePresenceText } from "@/components/talent/studio/presence-i18n";
@@ -281,7 +282,7 @@ export function SettingsPage() {
           panel: (
             <TalentPlanCard
               onCompare={() => openDrawer("talent-tier-compare")}
-              onUpgrade={() => openDrawer("talent-tier-compare")}
+              onUpgrade={() => openUpgrade({ feature: "generic", from: "settings-plan-card" })}
             />
           ),
         }
@@ -294,7 +295,7 @@ export function SettingsPage() {
     {
       key: "help",
       label: tx("Help and support"),
-      sub: tx("Common questions, payouts, contact our team."),
+      sub: tx("Shortcuts, help centre, contact our team."),
       onOpen: () => openDrawer("help"),
     },
   );
@@ -305,7 +306,7 @@ export function SettingsPage() {
           key: "instagram",
           label: "Instagram",
           sub: tx("Your latest posts on your website."),
-          panel: <TalentInstagramCard onUpgrade={() => openDrawer("talent-tier-compare")} />,
+          panel: <TalentInstagramCard onUpgrade={() => openUpgrade({ feature: "generic", from: "settings-instagram" })} />,
         },
       ]
     : [];

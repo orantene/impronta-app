@@ -43,6 +43,32 @@ export function foldComponentsForPagelessHome(components: Map<SlotId, BuilderNod
   return out;
 }
 
+/** Inner pages a Look links to that a page-less tenant does not have (TUL-697). */
+const UNSERVED_INNER_PAGE = /^\/(services|about|gallery|contact)$/;
+
+function isUnservedLink(v: unknown): boolean {
+  if (!v || typeof v !== "object") return false;
+  const o = v as { href?: unknown; props?: { href?: unknown } };
+  const href = typeof o.href === "string" ? o.href : typeof o.props?.href === "string" ? o.props.href : null;
+  return href !== null && UNSERVED_INNER_PAGE.test(href);
+}
+
+/**
+ * Drop every link, button and CTA that points at an inner page nothing serves:
+ * those answered 404 for a signed-out visitor. `/book` and external links stay.
+ * Pure; returns a new tree.
+ */
+export function pruneUnservedInnerLinks<T>(node: T): T {
+  if (Array.isArray(node)) return node.filter((n) => !isUnservedLink(n)).map(pruneUnservedInnerLinks) as T;
+  if (!node || typeof node !== "object") return node;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+    if (isUnservedLink(v)) continue;
+    out[k] = pruneUnservedInnerLinks(v);
+  }
+  return out as T;
+}
+
 export type PagelessHomeInput = Omit<InstantiateSiteInput, "components"> & { typeId: string; ctx: ComponentContext };
 
 /** Header + home (with the type's components folded in) + footer, or null when
@@ -52,5 +78,5 @@ export function composePagelessHome(input: PagelessHomeInput): { tree: BuilderNo
   const site = instantiateSite({ ...rest, components: foldComponentsForPagelessHome(buildComponentsForType(typeId, ctx)) });
   // A validator issue means this tree must not reach a visitor; image gaps are tolerated.
   if (site.issues.some((i) => !/image slot .* unresolved/.test(i))) return { tree: null, issues: site.issues };
-  return { tree: [...site.shell.header, ...site.pages.home, ...site.shell.footer], issues: site.issues };
+  return { tree: pruneUnservedInnerLinks([...site.shell.header, ...site.pages.home, ...site.shell.footer]), issues: site.issues };
 }

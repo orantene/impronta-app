@@ -16,12 +16,12 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadOwnedGuestTicket } from "@/lib/support/guest-access";
 import { buildGuestCorpus, flattenGroundingText, type GuestCorpusLocale } from "@/lib/support/guest-corpus";
 import { retrieveHelpEntries } from "@/lib/support/help-corpus";
+import { shouldOfferHumanInsteadOfEscalating, supportAiErrorCard } from "@/lib/support/support-ai-failure";
 import { supportEngine } from "@/lib/support/support-engine";
 import { wantsHumanSupport } from "@/lib/support/support-human-prefilter";
 import { sanitizeGuestAiOutput } from "@/lib/support/support-ai-guardrails";
 import { supportFrom } from "@/lib/support/support-from";
 import {
-  supportChatFailOpenBody,
   SUPPORT_CHAT_REASONS,
   SUPPORT_CHAT_SCHEMA,
   parseSupportChatModel,
@@ -72,18 +72,19 @@ const SYSTEM_PROMPT = [
  */
 async function failOpen(ticketId: string, stage: string, detail?: string): Promise<void> {
   void improntaLog("support.guest_ai.fail_open", { ticketId, stage, detail: detail ?? null });
+  // TUL-660: an AI error never auto-escalates. Offer a person (tap) or an email;
+  // escalation happens only when the guest asks (requestGuestHumanAction / attachGuestContactAction).
+  const locale = await getRequestLocale().catch(() => "en");
+  const card = supportAiErrorCard(locale);
   await supportEngine.appendMessage({
     ticketId,
-    authorKind: "system",
+    authorKind: "ai",
     authorUserId: null,
-    body: supportChatFailOpenBody(await getRequestLocale().catch(() => "en"), true),
-    messageKind: "system",
+    body: card.description,
+    messageKind: "card",
+    cardPayload: card,
+    aiMeta: { fail_open: stage },
     skipNotify: true,
-  });
-  await supportEngine.escalateTicket({
-    ticketId,
-    reason: "ai_unavailable",
-    actorUserId: null,
   });
 }
 
@@ -324,13 +325,14 @@ export async function POST(request: Request) {
     }
     if (confidence < 0.4) escalateReason = escalateReason ?? "ai_low_confidence";
 
-    if (escalateReason) {
+    // TUL-660: the AI asks before handing over; only dispute/safety/legal escalate on their own.
+    if (escalateReason && !shouldOfferHumanInsteadOfEscalating(escalateReason)) {
       await supportEngine.escalateTicket({
         ticketId,
         reason: escalateReason,
         actorUserId: null,
       });
-    } else if (aiTurns >= 3) {
+    } else if (escalateReason || aiTurns >= 3) {
       await supportEngine.appendMessage({
         ticketId,
         authorKind: "ai",

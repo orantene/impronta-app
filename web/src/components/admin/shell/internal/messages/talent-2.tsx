@@ -441,6 +441,19 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
         )}
         {/* F2: Group tab — the booking-team coordination channel. */}
         {activeTab === "group" && (
+          <>
+          {/* TUL-955: the guest's original request leads the thread (it was only in the list preview). */}
+          {conv.brief ? (
+            <div
+              data-original-inquiry=""
+              className="mx-3 mt-3 rounded-lg border border-admin-border-soft bg-admin-surface-muted px-3 py-2 text-[13px] text-admin-ink"
+            >
+              <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-admin-ink-muted">
+                {t("dashboard.talentThread.originalRequest")}
+              </div>
+              <div className="whitespace-pre-wrap [overflow-wrap:anywhere]">{conv.brief}</div>
+            </div>
+          ) : null}
           <ConversationTab
             conv={conv}
             threadKey={`${conv.id}:talent`}
@@ -451,6 +464,7 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
             povCanSeeCoordNote={true}
             mode="chat"
           />
+          </>
         )}
         {/* F2: Activity tab — the job's money/booking timeline (offer →
             payment → booking) as read-only timestamped cards. Same

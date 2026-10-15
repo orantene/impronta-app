@@ -54,7 +54,7 @@ export const UPDATE_COPY = {
   },
   /** TUL-325: matches MyWebsiteCard unpublished pill wording. */
   unpublishedPill: { en: "Unpublished changes", es: "Cambios sin publicar" },
-  publishCta: { en: "Publish site", es: "Publicar sitio" },
+  publishCta: { en: "Publish changes", es: "Publicar cambios" },
   publishing: { en: "Publishing…", es: "Publicando…" },
   close: { en: "Close", es: "Cerrar" },
   cancel: { en: "Cancel", es: "Cancelar" },

@@ -36,6 +36,11 @@ export type EligibleLine = {
   totalCents: number;
   eventId?: string | null;
   variantId?: string | null;
+  /**
+   * The talent that owns the line's offering. A talent's promo only ever
+   * covers that talent's lines (hub talents share one tenant).
+   */
+  talentProfileId?: string | null;
 };
 
 /** The lines a code's scope actually covers. */

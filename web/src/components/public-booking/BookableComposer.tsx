@@ -50,6 +50,7 @@ export function BookableComposer({
   signedIn = false,
   captcha = null,
   locale: localeProp,
+  contactHref = null,
 }: {
   tenantSlug: string;
   tenantId?: string | null;
@@ -62,6 +63,8 @@ export function BookableComposer({
   captcha?: GuestCaptchaConfig | null;
   /** Page locale (CMS Live booking / /book). Prefer over dashboard cookie. */
   locale?: string | null;
+  /** Empty-slot escape hatch for the inline picker (TUL-698). */
+  contactHref?: string | null;
 }) {
   const cookieT = useT();
   const dashboardLocale = useDashboardLocale();
@@ -224,6 +227,7 @@ export function BookableComposer({
           durationMinutes={active.durationMinutes}
           timezone={active.timezone}
           locale={pageLocale}
+          contactHref={contactHref}
           value={slot}
           onChange={(next) => {
             setSlot(next);

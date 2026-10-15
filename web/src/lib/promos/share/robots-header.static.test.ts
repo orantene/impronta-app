@@ -1,15 +1,14 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import path from "node:path";
+import { join } from "node:path";
+import { test } from "node:test";
 
-const config = readFileSync(path.join(process.cwd(), "next.config.ts"), "utf8");
+const cfg = readFileSync(join(process.cwd(), "next.config.ts"), "utf8");
 
-test("promo share pages send X-Robots-Tag: noindex on talent hosts and the hub", () => {
-  for (const source of ["/p/:slug", "/t/:code/p/:slug"]) {
-    const i = config.indexOf(`source: "${source}"`);
-    assert.ok(i > 0, `next.config.ts has a headers rule for ${source}`);
-    const rule = config.slice(i, i + 160);
-    assert.match(rule, /key: "X-Robots-Tag", value: "noindex"/);
+test("promo pages and their OG images send X-Robots-Tag noindex", () => {
+  for (const source of ["/p/:slug*", "/t/:code/p/:slug*"]) {
+    const at = cfg.indexOf(`source: "${source}"`);
+    assert.ok(at > 0, `${source} header rule present`);
+    assert.ok(cfg.slice(at, at + 160).includes('"X-Robots-Tag"') && cfg.slice(at, at + 160).includes("noindex"));
   }
 });

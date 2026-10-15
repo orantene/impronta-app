@@ -329,7 +329,7 @@ export async function notifyGuestInstantBooking(input: {
     await sendGuestClaimEmail({
       email: input.email,
       tenantSlug: slug,
-      talentName: input.talentName?.trim() || "the studio",
+      talentName: input.talentName?.trim() || "",
       appUrl: getAppUrl(),
       tenantId: input.tenantId,
       returnUrl: input.returnUrl ?? null,

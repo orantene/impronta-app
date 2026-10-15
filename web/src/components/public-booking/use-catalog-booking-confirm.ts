@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
 import { catalogSelectedStartStillOpen } from "./catalog-booking-logic";
+import { firstInvalidWhoField, focusBookingField } from "./catalog-booking-validation";
 import {
   catalogConfirmNetworkError,
   catalogSlotLostMessage,
@@ -10,6 +11,7 @@ import {
   type CatalogBookFn,
 } from "./catalog-booking-confirm";
 import type { CatalogBookingMode } from "./catalog-booking-logic";
+import type { CatalogDoneFacts } from "./catalog-done-snapshot";
 import { catalogTakenSlotMessage, type CatalogTakenSlotNotice } from "./catalog-taken-slot";
 import type { OfferingReserveMode } from "@/lib/talent/offerings-types";
 import type { OfferingTaskBrief } from "@/lib/talent/offering-task-brief";
@@ -58,6 +60,8 @@ export function useCatalogBookingConfirm(input: {
   setWrote: Dispatch<SetStateAction<boolean>>;
   /** TUL-92: where the done panel links the guest (their conversation), when the write returned one. */
   setDoneHref?: Dispatch<SetStateAction<string | null>>;
+  /** TUL-896: the saved booking's reference and place for the done step. */
+  setDoneFacts?: (facts: CatalogDoneFacts) => void;
   setSlotsRefreshKey: Dispatch<SetStateAction<number>>;
   /** DS-4: the notice shown on the time step after a taken-slot error. */
   setTakenNotice: Dispatch<SetStateAction<CatalogTakenSlotNotice | null>>;
@@ -90,7 +94,17 @@ export function useCatalogBookingConfirm(input: {
   const confirm = async () => {
     input.setTouched(true);
     input.showServiceAddressError?.(true);
-    if (!input.nameValid || !input.emailValid || !input.phoneValid || input.serviceAddressValid === false) return;
+    const firstInvalid = firstInvalidWhoField({
+      nameValid: input.nameValid,
+      phoneValid: input.phoneValid,
+      emailValid: input.emailValid,
+      addressValid: input.serviceAddressValid !== false,
+    });
+    if (firstInvalid) {
+      // TUL-841: a field below the fold must not fail silently.
+      focusBookingField(firstInvalid);
+      return;
+    }
     if (input.captchaRequired && !input.captchaToken.trim()) {
       input.setError(
         input.locale.toLowerCase().startsWith("es")
@@ -150,6 +164,7 @@ export function useCatalogBookingConfirm(input: {
         return;
       }
       const { outcome } = written;
+      if (outcome.kind === "redirect" || outcome.kind === "done") input.setDoneFacts?.({ ref: written.bookingRef, place: input.eventLocation ?? null });
       if (outcome.kind === "slot_taken") {
         recoverTakenSlot(outcome.message);
         return;

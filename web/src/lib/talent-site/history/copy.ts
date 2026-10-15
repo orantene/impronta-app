@@ -172,6 +172,14 @@ export function firstPublishSummary(pages: number, sections: number): Bilingual 
   };
 }
 
+/** Phone-width chip: dot + count, so Publish never clips it. */
+export function unpublishedChangesShort(n: number): Bilingual {
+  return {
+    en: `${n} change${n === 1 ? "" : "s"}`,
+    es: `${n} cambio${n === 1 ? "" : "s"}`,
+  };
+}
+
 export function unpublishedChangesLabel(n: number): Bilingual {
   return {
     en: `Draft · ${n} unpublished change${n === 1 ? "" : "s"}`,

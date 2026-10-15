@@ -28,6 +28,8 @@
  * is a talent signup path, promote client→talent before redirect.
  */
 
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { activateSelfSignedClient } from "@/lib/client-account/guest-activate.server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -71,6 +73,7 @@ import {
   isValidAuthEmail,
   normalizeAuthEmail,
   normalizeOtpCode,
+  OTP_CODE_LENGTH,
   otpSendErrorKey,
   otpVerifyErrorKey,
 } from "@/lib/auth/otp-flow";
@@ -186,7 +189,7 @@ export async function requestEmailCode(
   const ip = await requestIp();
 
   return sendEmailCodeCore(
-    { email, ip, resent, shouldCreateUser },
+    { email, ip, resent, shouldCreateUser, fullName: String(formData.get("full_name") ?? "") },
     {
       t,
       // Layer 2: free in-process floor first, so a hot loop never even
@@ -234,6 +237,16 @@ export async function submitEmailCode(
     return {
       step: "code",
       error: t("public.auth.passwordless.errors.codeRequired"),
+      email,
+    };
+  }
+
+  // TUL-909: a code shorter than the project's emailed length can never be right; say how many
+  // digits to expect instead of the generic "that code did not work" (and skip the verify call).
+  if (code.length < OTP_CODE_LENGTH) {
+    return {
+      step: "code",
+      error: t("public.auth.passwordless.errors.codeTooShort").replace("{n}", String(OTP_CODE_LENGTH)),
       email,
     };
   }
@@ -294,6 +307,11 @@ export async function submitEmailCode(
     // path — otherwise a missing signup_intent leaves app_role=client.
     if (isTalentSignupNext(nextPath)) {
       await promoteFreshProfileToTalent(user.id);
+    }
+    // TUL-771: an explicit client sign-up is a client; skip the role screen.
+    if (String(formData.get("signup_intent") ?? "") === "client") {
+      const admin = createServiceRoleClient();
+      if (admin) await activateSelfSignedClient(admin, { userId: user.id, signupIntent: "client" });
     }
     // G3: the code proved the email. Claim + activate before routing.
     await claimAndActivateVerifiedClient({ userId: user.id, email: user.email ?? email, emailProven: true });

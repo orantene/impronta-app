@@ -3,9 +3,9 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { logServerError } from "@/lib/server/safe-error";
-import { withLocalePath, type LocaleUrlSettings } from "@/i18n/pathnames";
+import type { LocaleUrlSettings } from "@/i18n/pathnames";
 
-import { counterpartSlug, resolveMissingPage } from "./public-page-fallback";
+import { counterpartSlug, missingPageRedirectPath, resolveMissingPage } from "./public-page-fallback";
 
 /**
  * The URL to send a visitor to when the requested published page is missing
@@ -26,5 +26,5 @@ export async function missingPageRedirect(
   }
   const hit = resolveMissingPage((data ?? []) as Array<{ locale: string; slug: string }>, input.locale, input.slug);
   if (!hit) return null;
-  return `${input.pathPrefix ?? ""}${withLocalePath(`/${hit.slug}`, hit.locale, input.settings)}`;
+  return missingPageRedirectPath({ hit, settings: input.settings, pathPrefix: input.pathPrefix });
 }
