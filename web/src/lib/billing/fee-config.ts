@@ -87,7 +87,9 @@ export type PayoutArrivalCountry = keyof typeof PAYOUT_ARRIVAL.businessDays;
 /** Business days for a payout country (ISO-2), or null when not documented. */
 export function payoutBusinessDaysForCountry(iso2: string | null | undefined): number | null {
   const k = (iso2 ?? "").trim().toLowerCase();
-  return k in PAYOUT_ARRIVAL.businessDays ? PAYOUT_ARRIVAL.businessDays[k as PayoutArrivalCountry] : null;
+  return Object.prototype.hasOwnProperty.call(PAYOUT_ARRIVAL.businessDays, k)
+    ? PAYOUT_ARRIVAL.businessDays[k as PayoutArrivalCountry]
+    : null;
 }
 
 export type PayoutPlatform = "mx" | "us";

@@ -111,6 +111,8 @@ function MoneyHomePane(props: {
   onRefund: (row: MoneyAgendaRow) => void;
   refundBusyId: string | null;
   refundStatus: string | null;
+  /** ISO-2 payout country, drives the arrival text on the breakdown card. */
+  payoutCountry: string | null;
 }) {
   const copy = useDashboardText();
   const t = copy.t;
@@ -375,7 +377,7 @@ function MoneyHomePane(props: {
           )}
           <PayoutBreakdownCard
             currency={cur}
-            payoutCountry={bridgeTalentPayoutSnapshot?.ok === true ? (bridgeTalentPayoutSnapshot.data.payoutCountry ?? null) : null}
+            payoutCountry={props.payoutCountry}
             grossCents={cardRows.reduce((n, p) => n + p.grossCents, 0)}
             netCents={cardRows.reduce((n, p) => n + p.netCents, 0)}
           />
@@ -674,6 +676,7 @@ export function MoneyHomePage() {
             onRefund={refund}
             refundBusyId={refundBusyId}
             refundStatus={refundStatus}
+            payoutCountry={bridgeTalentPayoutSnapshot?.ok === true ? (bridgeTalentPayoutSnapshot.data.payoutCountry ?? null) : null}
           />
         </>
       )}
