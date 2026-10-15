@@ -8,6 +8,7 @@ import {
   accountHrefFor,
   accountHomeMode,
   agencyAccountTabs,
+  authBrandHead,
   authPageBrand,
   isTenantAccountHost,
   legacyClientEntryRedirect,
@@ -174,4 +175,13 @@ test("path-addressed /w/ sites on the marketing host link signed-out clients to 
 test("HeaderAuthArea uses the client sign-in helper for the signed-out icon", () => {
   const src = readFileSync(join(__dirname, "..", "..", "components", "site-shell", "HeaderAuthArea.tsx"), "utf8");
   assert.match(src, /pathWorkspaceClientSignInHref\(/);
+});
+
+test("TUL-870: whitelabel login head carries the tenant brand everywhere, ES and EN", () => {
+  const en = authBrandHead("Impronta Models", "en");
+  assert.equal(en.openGraph.siteName, "Impronta Models");
+  assert.equal(en.appleWebApp.title, "Impronta Models");
+  assert.equal(en.description, "Sign in to Impronta Models.");
+  assert.equal(authBrandHead("Impronta Models", "es").description, "Inicia sesión en Impronta Models.");
+  assert.ok(!JSON.stringify(en).includes("Tulala"));
 });

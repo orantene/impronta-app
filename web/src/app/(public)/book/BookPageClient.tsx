@@ -4,8 +4,9 @@ import { useMemo, useState } from "react";
 import { BookableComposer } from "@/components/public-booking/BookableComposer";
 import { pickBookableOffering } from "@/components/public-booking/pick-bookable-offering";
 import { translatorFor, useT } from "@/i18n/use-t";
-import type { TalentOffering } from "@/lib/talent/offerings-types";
+import { offeringPriceLabel, type TalentOffering } from "@/lib/talent/offerings-types";
 import { publicPriceLine } from "@/lib/talent/public-price-line";
+import { bookPagePaymentLine } from "@/lib/talent/who-step-payment-copy";
 import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptchaField";
 
 export function BookPageClient({
@@ -68,12 +69,15 @@ export function BookPageClient({
     >
       <div className="flex items-baseline justify-between gap-3">
         <p className="text-base font-medium">{selected.title}</p>
-        {priceLine ? (
-          <p className="text-sm font-medium tabular-nums" data-book-page-price="">
-            {priceLine}
-          </p>
-        ) : null}
+        {/* TUL-690 shared price + currency line; TUL-976 label when no exact price. */}
+        <p className="text-sm font-medium tabular-nums" data-book-page-price="" data-book-page-amount="">
+          {priceLine ?? offeringPriceLabel(selected, pageLocale)}
+        </p>
       </div>
+      {/* TUL-976: when it is paid, before any time is picked. */}
+      <p className="-mt-4 text-sm text-[var(--token-color-muted,rgba(11,11,13,0.62))]" data-book-page-pay="">
+        {bookPagePaymentLine(selected, selected.bookingMode === "instant" ? "instant" : "request", pageLocale)}
+      </p>
       {offerings.length > 1 ? (
         <label className="flex flex-col gap-1.5 text-sm">
           <span className="font-medium">{t("public.bookPage.chooseService")}</span>
@@ -84,7 +88,7 @@ export function BookPageClient({
           >
             {offerings.map((o) => (
               <option key={o.id} value={o.id}>
-                {o.title}
+                {`${o.title} · ${offeringPriceLabel(o, pageLocale)}`}
               </option>
             ))}
           </select>

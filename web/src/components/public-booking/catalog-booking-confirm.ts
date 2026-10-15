@@ -19,6 +19,12 @@ import {
 
 export type CatalogBookFn = (payload: InstantBookFormPayload) => Promise<InstantBookActionResult>;
 
+/** TUL-896: the reference the guest quotes, same shape as the confirmation PDF (`TUL-` + 8 of the id). */
+export function catalogBookingRef(bookingId: string | null | undefined): string | null {
+  const id = (bookingId ?? "").replace(/-/g, "").trim();
+  return id ? `TUL-${id.slice(0, 8).toUpperCase()}` : null;
+}
+
 export function catalogSlotLostMessage(locale: string): string {
   return locale.toLowerCase().startsWith("es")
     ? "Ese horario ya no está disponible. Elige otro."
@@ -61,7 +67,7 @@ export async function runCatalogConfirmWrite(input: {
   onPromoGone?: () => void;
 }): Promise<
   | { phase: "preview" }
-  | { phase: "outcome"; outcome: ReturnType<typeof resolveCatalogConfirmOutcome> }
+  | { phase: "outcome"; outcome: ReturnType<typeof resolveCatalogConfirmOutcome>; bookingRef: string | null }
 > {
   const submitted = await submitCatalogBooking(input.mode, input.intent, async () => {
     if (!input.tenantId || !input.talentProfileId) {
@@ -110,8 +116,10 @@ export async function runCatalogConfirmWrite(input: {
     return res;
   });
   if (!submitted.wrote) return { phase: "preview" };
+  const saved = submitted.result;
   return {
     phase: "outcome",
+    bookingRef: saved && saved.ok ? catalogBookingRef(saved.bookingId) : null,
     outcome: resolveCatalogConfirmOutcome({
       wrote: submitted.wrote,
       result: submitted.result,

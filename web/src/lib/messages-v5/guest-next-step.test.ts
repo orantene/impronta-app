@@ -129,3 +129,13 @@ test("before accept: a single offer shows no version, never an internal v3", () 
   assert.equal(step?.kind, "accept_offer");
   assert.equal(step?.values.version, "");
 });
+
+test("TUL-919: Reservado only when the booking stands, not after a failed or unpaid payment", () => {
+  const rec = (paymentState: string | null) => ({ fulfilmentState: "confirmed", recordDate: "2026-10-15T20:00:00Z", paymentState });
+  assert.equal(deriveGuestNextStep(base({ records: [rec("paid")] }))?.kind, "booked");
+  assert.equal(deriveGuestNextStep(base({ records: [rec(null)] }))?.kind, "booked");
+  assert.equal(deriveGuestNextStep(base({ records: [rec("failed")] })), null);
+  assert.equal(deriveGuestNextStep(base({ records: [rec("unpaid")] })), null);
+  const inPerson = [{ kind: "booking_confirmed", payload: { payInPerson: true } }];
+  assert.equal(deriveGuestNextStep(base({ records: [rec("unpaid")], messages: inPerson }))?.kind, "booked");
+});

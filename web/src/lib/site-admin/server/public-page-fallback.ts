@@ -41,3 +41,23 @@ export function resolveMissingPage(rows: ReadonlyArray<PageKey>, locale: string,
   if (other) for (const l of others) if (has(l, other)) return { locale: l, slug: other };
   return null;
 }
+
+/** Slugs a page read should match so a role link resolves in place: the requested slug plus its counterpart. */
+export function inPlaceSlugs(slug: string): string[] {
+  const other = counterpartSlug(slug);
+  return other ? [slug, other] : [slug];
+}
+
+/**
+ * From rows fetched with `inPlaceSlugs`, keep the requested slug's rows when
+ * any exist, else the counterpart's. The visitor stays on the URL they asked
+ * for (no locale prefix forced); the page renders in place. Pure.
+ */
+export function preferRequestedSlug<T extends { slug?: string | null }>(
+  rows: ReadonlyArray<T> | null | undefined,
+  slug: string,
+): T[] | null {
+  if (!rows) return null;
+  const exact = rows.filter((r) => r.slug === slug);
+  return exact.length > 0 ? exact : [...rows];
+}
