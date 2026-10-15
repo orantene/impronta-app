@@ -160,3 +160,16 @@ test("TUL-947: at 390 the support launcher sits above the connection-lost banner
   const launcherZ = Number(launcher.match(/zIndex: (\d+)/)?.[1]);
   assert.ok(launcherZ > bannerZ, `launcher z ${launcherZ} must be above banner z ${bannerZ}`);
 });
+
+test("TUL-916: 'Cerrar tu cuenta' (row) and the support panel close button announce different names", () => {
+  const settings = readFileSync("src/components/admin/shell/internal/talent/pages/SettingsPage.tsx", "utf8");
+  assert.match(settings, /label: tx\("Close your account"\)/);
+  const presenceEs = readFileSync("src/components/talent/studio/presence-es-text.ts", "utf8");
+  assert.match(presenceEs, /"Close your account": "Cerrar tu cuenta"/);
+  const es = JSON.parse(readFileSync("messages/es.json", "utf8")).dashboard.adminSupport;
+  const en = JSON.parse(readFileSync("messages/en.json", "utf8")).dashboard.adminSupport;
+  assert.notEqual(es.closeAria, "Cerrar tu cuenta");
+  assert.notEqual(es.closeAria, "Cerrar");
+  assert.notEqual(en.closeAria, "Close your account");
+  assert.notEqual(en.closeAria, "Close");
+});
