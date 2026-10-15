@@ -11,7 +11,7 @@ import {
   AuthNotice,
   AuthSubmitButton,
 } from "@/components/auth/auth-ui";
-import { readAuthEmailDraft, writeAuthEmailDraft } from "@/lib/auth/email-draft";
+import { pickAuthEmail, readAuthEmailDraft, writeAuthEmailDraft } from "@/lib/auth/email-draft";
 import { createTranslator } from "@/i18n/messages";
 import { withLocaleHref } from "@/i18n/pathnames";
 
@@ -58,7 +58,7 @@ export function LoginForm({
   >(signInWithEmail, undefined);
   const [remember, setRemember] = useState(true);
   // TUL-768: React resets uncontrolled fields after a form action, so a failed login wiped the typed email.
-  const [email, setEmail] = useState(defaultEmail ?? readAuthEmailDraft());
+  const [email, setEmail] = useState(pickAuthEmail(readAuthEmailDraft(), defaultEmail));
 
   useEffect(() => {
     try {
