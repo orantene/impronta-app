@@ -459,7 +459,7 @@ export function TalentCard({
           <span
             data-card-availability
             title={data.availabilityLabel}
-            className="pointer-events-none inline-flex h-[26px] max-w-full items-center gap-1.5 overflow-hidden rounded-full border border-white/[0.28] bg-[rgba(6,6,8,0.62)] px-2.5 text-[10px] font-semibold tracking-[0.02em] text-[#f3efe6] backdrop-blur-md @[260px]:uppercase @[260px]:tracking-[0.08em] @[280px]:h-[30px] @[280px]:gap-2 @[280px]:px-3 @[340px]:text-[11px] @[340px]:tracking-[0.14em]"
+            className="pointer-events-none inline-flex min-h-[26px] max-w-full items-center gap-1.5 rounded-2xl border border-white/[0.28] bg-[rgba(6,6,8,0.62)] px-2.5 py-1 text-[10px] leading-tight font-semibold tracking-[0.02em] text-[#f3efe6] backdrop-blur-md @[260px]:uppercase @[260px]:tracking-[0.08em] @[280px]:h-[30px] @[280px]:gap-2 @[280px]:px-3 @[340px]:text-[11px] @[340px]:tracking-[0.14em]"
           >
             <span
               aria-hidden
@@ -467,7 +467,7 @@ export function TalentCard({
                 data.availabilityKnown ? "bg-[#7ED957]" : "bg-white/40"
               }`}
             />
-            <span className="hidden truncate @[220px]:inline">{data.availabilityLabel}</span>
+            <span className="hidden min-w-0 break-words @[220px]:inline">{data.availabilityLabel}</span>
           </span>
         ))
       : null;
