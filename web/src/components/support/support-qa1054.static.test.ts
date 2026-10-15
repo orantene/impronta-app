@@ -62,7 +62,8 @@ test("TUL-904/907: More sheet 'Get help' closes the sheet and opens the Guide ho
 test("TUL-600: the new-ticket form lets you pick screenshots and uploads them after create", () => {
   const forms = readFileSync("src/components/support/SupportPanelForms.tsx", "utf8");
   assert.match(forms, /type="file"/);
-  assert.match(forms, /uploadSupportAttachment\(r\.ticketId, f\)/);
+  assert.match(forms, /uploadStagedAttachments\(r\.ticketId, files/);
+  assert.match(forms, /dashboard\.adminSupport\.attachAria/);
   for (const l of ["en", "es", "fr"]) {
     const m = JSON.parse(readFileSync(`messages/${l}.json`, "utf8")).dashboard.adminSupport;
     assert.ok(m.fieldAttachments, `${l} fieldAttachments`);
