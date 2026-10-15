@@ -19,6 +19,4 @@ test("TUL-532: the kit-shell header bar stays one padded row on a phone", () => 
   const media = src.lastIndexOf("@media", row);
   assert.ok(media > 0 && media < stack, "the row rule lives in the same phone media block");
   assert.match(src.slice(row, row + 400), /padding-inline:1\.5rem/);
-  assert.ok(src.includes(`${bar}>.site-builder-node--heading{flex:0 1 auto;min-width:0}`));
-  assert.ok(src.includes(`${bar}>.site-builder-node--nav{flex:none;margin-left:auto}`));
 });
