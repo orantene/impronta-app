@@ -4,10 +4,10 @@
  * Content inspector for the Posts v1 (PO1) `posts_feed` widget. Same idiom as
  * the reviews / portfolio inspectors: one flat panel, sections, `commitPatch`.
  *
- *   Style   → 8 styles, each with a small preview thumbnail
+ *   Style   → 7 styles, each with a small preview thumbnail
  *   Source  → latest / featured / hand-picked (multi-select + order, fed by
  *             `listPostsForWidgetPickerAction`, a READ action)
- *   Filters → category, tags (any-of), hidden posts
+ *   Filters → hidden posts, sort
  *   Show    → field toggles; sort, limit, columns, pagination, empty state
  *
  * The picker asks the action for THIS builder's site (`gallerySurface.surfaceTarget`
@@ -58,7 +58,6 @@ export function PostsFeedStyleThumb({ layout }: { layout: PostsFeedStyle }) {
     grid: [r(2, 3, 12, 9), r(18, 3, 12, 9), r(34, 3, 12, 9), line(2, 14, 10), line(18, 14, 10), line(34, 14, 10), r(2, 19, 12, 9), r(18, 19, 12, 9), r(34, 19, 12, 9)],
     slider: [r(2, 5, 16, 14), r(21, 5, 16, 14), r(40, 5, 8, 14, 0.2), line(2, 22, 12), line(21, 22, 12), r(20, 28, 8, 1.5, 0.6)],
     magazine: [r(2, 3, 24, 20), line(2, 26, 18), r(29, 3, 7, 6), line(38, 5, 10), r(29, 12, 7, 6), line(38, 14, 10), r(29, 21, 7, 6), line(38, 23, 10)],
-    masonry: [r(2, 3, 14, 14), r(18, 3, 14, 9), r(34, 3, 14, 18), r(2, 19, 14, 10), r(18, 14, 14, 15), r(34, 23, 14, 6)],
     list: [r(2, 3, 10, 7), line(15, 5, 26), r(2, 12, 10, 7), line(15, 14, 22), r(2, 21, 10, 7), line(15, 23, 28)],
     minimal: [line(2, 5, 34), r(2, 9, 18, 1.5, 0.3), line(2, 14, 28), r(2, 18, 18, 1.5, 0.3), line(2, 23, 38), r(2, 27, 18, 1.5, 0.3)],
     bento: [r(2, 3, 22, 25), r(26, 3, 10, 12), r(38, 3, 10, 25), r(26, 17, 10, 11)],
@@ -127,17 +126,6 @@ export function PostsFeedContentInspector({ node, commitPatch }: { node: Builder
         </div>
       </Section>
 
-      <Section title={t.content}>
-        <div className={KIT.field}>
-          <label className={KIT.label}>{t.eyebrow}</label>
-          <input className={KIT.input} value={o.eyebrow} placeholder={t.optional} onChange={(e) => commitPatch({ eyebrow: e.target.value })} />
-        </div>
-        <div className={KIT.field}>
-          <label className={KIT.label}>{t.heading}</label>
-          <input className={KIT.input} value={o.title} placeholder={t.optional} onChange={(e) => commitPatch({ title: e.target.value })} />
-        </div>
-      </Section>
-
       <Section title={t.source}>
         <select className={KIT.input} value={o.source} onChange={(e) => commitPatch({ source: e.target.value })}>
           {POSTS_FEED_SOURCES.map((s) => (
@@ -149,6 +137,19 @@ export function PostsFeedContentInspector({ node, commitPatch }: { node: Builder
         {picker.status === "loading" ? <p className={KIT.hint}>{t.loading}</p> : null}
         {picker.status === "error" ? <p className={KIT.hint}>{t.loadError}</p> : null}
         {picker.status === "ready" && posts.length === 0 ? <p className={KIT.hint}>{t.noPosts}</p> : null}
+        {o.source === "category" ? (
+          <div className={KIT.field} data-posts-feed-category="">
+            <label className={KIT.label}>{t.category}</label>
+            <select className={KIT.input} value={o.categoryId ?? ""} onChange={(e) => commitPatch({ categoryId: e.target.value })}>
+              <option value="">{t.chooseCategory}</option>
+              {(picker.status === "ready" ? picker.categories : []).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
         {o.source === "hand_picked" ? (
           <div className="flex flex-col gap-2" data-posts-feed-handpick="">
             <InspectorLabelWithInfo label={t.pick} info={t.pickInfo} />
@@ -184,44 +185,38 @@ export function PostsFeedContentInspector({ node, commitPatch }: { node: Builder
         ) : null}
       </Section>
 
+      <Section title={t.content}>
+        <div className={KIT.field}>
+          <label className={KIT.label}>{t.limit}</label>
+          <input
+            className={KIT.input}
+            type="number"
+            min={POSTS_FEED_LIMIT_MIN}
+            max={POSTS_FEED_LIMIT_MAX}
+            value={o.limit}
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              commitPatch({ limit: Math.max(POSTS_FEED_LIMIT_MIN, Math.min(POSTS_FEED_LIMIT_MAX, Number.isFinite(n) ? Math.trunc(n) : 6)) });
+            }}
+          />
+        </div>
+        <div className={KIT.field}>
+          <label className={KIT.label}>{t.heading}</label>
+          <input className={KIT.input} value={o.title} placeholder={t.optional} onChange={(e) => commitPatch({ title: e.target.value })} />
+        </div>
+      </Section>
+
+      <details className="rounded-md border border-stone-200 px-2.5 py-2" data-posts-feed-advanced="">
+        <summary className={KIT.label}>{t.advanced}</summary>
+        <div className="mt-3 flex flex-col gap-4">
+          <Section title={t.eyebrow}>
+        <div className={KIT.field}>
+          <label className={KIT.label}>{t.eyebrow}</label>
+          <input className={KIT.input} value={o.eyebrow} placeholder={t.optional} onChange={(e) => commitPatch({ eyebrow: e.target.value })} />
+        </div>
+          </Section>
       {o.source !== "hand_picked" ? (
         <Section title={t.filters}>
-          <div className={KIT.field}>
-            <label className={KIT.label}>{t.category}</label>
-            <select
-              className={KIT.input}
-              value={o.categoryId ?? ""}
-              onChange={(e) => commitPatch({ categoryId: e.target.value })}
-            >
-              <option value="">{t.anyCategory}</option>
-              {(picker.status === "ready" ? picker.categories : []).map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          {picker.status === "ready" && picker.tags.length > 0 ? (
-            <div className={KIT.field} data-posts-feed-tags="">
-              <InspectorLabelWithInfo label={t.tags} info={t.tagsInfo} />
-              <div className="flex flex-wrap gap-1.5">
-                {picker.tags.map((tag) => {
-                  const on = o.tags.includes(tag);
-                  return (
-                    <button
-                      key={tag}
-                      type="button"
-                      aria-pressed={on}
-                      className={`rounded-full px-2.5 py-1 text-[12px] ${on ? KIT.enumChipOn : KIT.enumChipOff}`}
-                      onClick={() => commitPatch({ tags: toggleIn(o.tags, tag) })}
-                    >
-                      {tag}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ) : null}
           {posts.length > 0 ? (
             <details className="text-[13px] text-stone-800">
               <summary className={KIT.label}>{t.exclude}</summary>
@@ -251,20 +246,6 @@ export function PostsFeedContentInspector({ node, commitPatch }: { node: Builder
       ) : null}
 
       <Section title={t.show}>
-        <div className={KIT.field}>
-          <label className={KIT.label}>{t.limit}</label>
-          <input
-            className={KIT.input}
-            type="number"
-            min={POSTS_FEED_LIMIT_MIN}
-            max={POSTS_FEED_LIMIT_MAX}
-            value={o.limit}
-            onChange={(e) => {
-              const n = Number(e.target.value);
-              commitPatch({ limit: Math.max(POSTS_FEED_LIMIT_MIN, Math.min(POSTS_FEED_LIMIT_MAX, Number.isFinite(n) ? Math.trunc(n) : 6)) });
-            }}
-          />
-        </div>
         {POSTS_FEED_COLUMN_STYLES.has(o.layout) ? (
           <div className={KIT.field}>
             <label className={KIT.label}>{t.columns}</label>
@@ -278,7 +259,7 @@ export function PostsFeedContentInspector({ node, commitPatch }: { node: Builder
           </div>
         ) : null}
         <div className="grid grid-cols-2 gap-1.5">
-          {POSTS_FEED_FIELDS.map((f) => (
+          {POSTS_FEED_FIELDS.filter((f) => f !== "tags").map((f) => (
             <label key={f} className="flex items-center gap-2 text-[13px] text-stone-800">
               <input
                 type="checkbox"
@@ -320,6 +301,8 @@ export function PostsFeedContentInspector({ node, commitPatch }: { node: Builder
           </select>
         </div>
       </Section>
+        </div>
+      </details>
     </div>
   );
 }

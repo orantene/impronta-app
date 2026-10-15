@@ -23,6 +23,8 @@ type Copy = {
   filters: string;
   category: string;
   anyCategory: string;
+  chooseCategory: string;
+  advanced: string;
   tags: string;
   tagsInfo: string;
   exclude: string;
@@ -48,13 +50,13 @@ type Copy = {
 export const POSTS_FEED_INSPECTOR_COPY: { es: Copy; en: Copy } = {
   es: {
     style: "Estilo",
-    styleInfo: "Ocho diseños. Todos se adaptan al celular y usan los colores y letras de tu tema.",
+    styleInfo: "Siete diseños. Todos se adaptan al celular y usan los colores y letras de tu tema.",
     content: "Contenido",
     eyebrow: "Antetítulo",
     heading: "Título",
     optional: "Opcional",
     source: "Qué posts",
-    sources: { latest: "Los más recientes", featured: "Destacados", hand_picked: "Elegidos a mano" },
+    sources: { latest: "Los más recientes", featured: "Destacados", hand_picked: "Elegidos a mano", category: "De una categoría" },
     pick: "Elegir posts",
     pickInfo: "Marca los posts y ordénalos. Se muestran en este orden.",
     picked: "Elegidos",
@@ -65,6 +67,8 @@ export const POSTS_FEED_INSPECTOR_COPY: { es: Copy; en: Copy } = {
     filters: "Filtros",
     category: "Categoría",
     anyCategory: "Todas las categorías",
+    chooseCategory: "Elegir categoría",
+    advanced: "Avanzado",
     tags: "Etiquetas",
     tagsInfo: "Muestra posts con cualquiera de las etiquetas marcadas.",
     exclude: "Ocultar estos posts",
@@ -84,8 +88,8 @@ export const POSTS_FEED_INSPECTOR_COPY: { es: Copy; en: Copy } = {
       readMore: "Leer más",
     },
     pagination: "Paginación",
-    paginations: { none: "Sin paginación", load_more: "Botón Ver más", numbered: "Páginas numeradas" },
-    paginationInfo: "Hasta 4 páginas en el bloque. Las páginas numeradas usan ?page en esta página.",
+    paginations: { none: "Sin paginación", load_more: "Botón Ver más" },
+    paginationInfo: "Hasta 4 páginas en el bloque.",
     empty: "Si no hay posts",
     emptyPlaceholder: "Ocultar el bloque",
     emptyInfo: "Vacío: el bloque se oculta en tu sitio. En el editor ves posts de ejemplo.",
@@ -104,13 +108,13 @@ export const POSTS_FEED_INSPECTOR_COPY: { es: Copy; en: Copy } = {
   },
   en: {
     style: "Style",
-    styleInfo: "Eight designs. All fit phones and use your theme colours and fonts.",
+    styleInfo: "Seven designs. All fit phones and use your theme colours and fonts.",
     content: "Content",
     eyebrow: "Eyebrow",
     heading: "Heading",
     optional: "Optional",
     source: "Which posts",
-    sources: { latest: "Latest", featured: "Featured", hand_picked: "Hand-picked" },
+    sources: { latest: "Latest", featured: "Featured", hand_picked: "Hand-picked", category: "From a category" },
     pick: "Pick posts",
     pickInfo: "Tick posts and order them. They show in this order.",
     picked: "Picked",
@@ -121,6 +125,8 @@ export const POSTS_FEED_INSPECTOR_COPY: { es: Copy; en: Copy } = {
     filters: "Filters",
     category: "Category",
     anyCategory: "All categories",
+    chooseCategory: "Choose a category",
+    advanced: "Advanced",
     tags: "Tags",
     tagsInfo: "Shows posts with any of the ticked tags.",
     exclude: "Hide these posts",
@@ -140,8 +146,8 @@ export const POSTS_FEED_INSPECTOR_COPY: { es: Copy; en: Copy } = {
       readMore: "Read more",
     },
     pagination: "Pagination",
-    paginations: { none: "None", load_more: "Load more button", numbered: "Numbered pages" },
-    paginationInfo: "Up to 4 pages in the block. Numbered pages use ?page on this page.",
+    paginations: { none: "None", load_more: "Load more button" },
+    paginationInfo: "Up to 4 pages in the block.",
     empty: "When there are no posts",
     emptyPlaceholder: "Hide the block",
     emptyInfo: "Empty: the block hides on your site. The editor shows example posts.",
