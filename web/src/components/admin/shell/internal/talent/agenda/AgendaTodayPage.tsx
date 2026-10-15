@@ -43,6 +43,8 @@ import {
 } from "@/lib/talent-agenda/today-view";
 import type { BookingHours } from "@/lib/scheduling/hours-types";
 import { useAgendaCopy } from "./use-agenda-copy";
+import { useAdminShell } from "../../state";
+import { dashboardPlanKind, dashboardStatusCopy } from "@/lib/talent/dashboard-status";
 import { unscheduledAgendaItems } from "@/lib/talent-agenda/load-unscheduled";
 import { settleServerAction } from "@/lib/client/settle-server-action";
 
@@ -184,7 +186,7 @@ export function AgendaTodayPage({
   monthCollected?: TodayMonthCollected | null;
   payoutsEnabled?: boolean | null;
 }) {
-  const copy = useAgendaCopy();
+  const copy = useAgendaCopy(), { talentTier } = useAdminShell().state;
   const locale = copy.isSpanish ? "es-MX" : "en-GB";
   const clock = now ?? new Date();
   const [attentionLimit, setAttentionLimit] = useState(3);
@@ -525,8 +527,7 @@ export function AgendaTodayPage({
           <div className="flex-1">
             <div className="text-[13.5px] font-semibold text-[var(--tc-primary)]">{copy.t("Profile quality")}</div>
             <div className={`text-[12px] ${MUTED}`}>
-              {leftCount}{" "}
-              {copy.t(leftCount === 1 ? "thing left before your free website" : "things left before your free website")}
+              {dashboardStatusCopy({ plan: dashboardPlanKind(talentTier), publish: "draft", es: copy.isSpanish }).leftLine(leftCount)}
             </div>
           </div>
         </div>
