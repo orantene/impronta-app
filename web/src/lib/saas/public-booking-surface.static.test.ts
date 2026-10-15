@@ -58,3 +58,12 @@ test("TUL-21 agent endpoints are reachable wherever the slot endpoint is", () =>
     }
   }
 });
+
+test("TUL-539: public open times fall back to demo roster hours when the row is missing", () => {
+  const loader = readFileSync(join(SRC, "lib/scheduling/public-open-times.ts"), "utf8");
+  assert.match(loader, /demoPublicBookingHoursFallback/);
+  assert.match(loader, /is_demo/);
+  assert.match(loader, /profile_code/);
+  const fallback = readFileSync(join(SRC, "lib/talent-site/demos/demo-hours-fallback.ts"), "utf8");
+  assert.match(fallback, /TAL-93005/);
+});
