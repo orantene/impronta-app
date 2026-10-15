@@ -96,3 +96,12 @@ test("the nightly orphan scan counts list-file entries as covered", () => {
   const listed = listFiles().flatMap((f) => lanePaths.readListFile(`@scripts/lanes/${f}`));
   assert.deepEqual(listed.filter((p) => orphans.has(p)), []);
 });
+
+test("TUL-609: a lane-test.cjs lane keeps no long inline path list (use scripts/lanes/<lane>.txt)", () => {
+  const inlineLong = Object.entries(scripts)
+    .filter(([lane, cmd]) => lane.startsWith("test:") && cmd.includes("scripts/lane-test.cjs"))
+    .map(([lane, cmd]) => [lane, cmd.split(/\s+/).map(unquote).filter((t) => TEST_PATH.test(t)).length] as const)
+    .filter(([, n]) => n >= 8)
+    .map(([lane, n]) => `${lane}: ${n} inline paths`);
+  assert.deepEqual(inlineLong, []);
+});

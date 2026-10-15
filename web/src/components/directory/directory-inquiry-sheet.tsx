@@ -29,6 +29,7 @@ import { usePublicDiscoveryState } from "@/components/directory/public-discovery
 import { InquiryTalentQuickAdd } from "@/components/directory/inquiry-talent-quick-add";
 import { InquiryDrawer, InquiryDrawerShell, type RosterLiteItem } from "@/components/inquiry/InquiryDrawer";
 import { Button } from "@/components/ui/button";
+import { DashboardLocaleProvider } from "@/i18n/use-dashboard-locale";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 import type { Locale } from "@/i18n/config";
 import type { DirectoryInquiryPayload } from "@/lib/load-directory-inquiry-payload";
@@ -38,7 +39,21 @@ type DirectoryInquirySheetProps = {
   locale: Locale;
 };
 
-export function DirectoryInquirySheet({ ui }: DirectoryInquirySheetProps) {
+/**
+ * TUL-951: the canonical InquiryDrawer reads its strings through `useT()`,
+ * which on a guest surface falls back to the dashboard cookie (always "en" for
+ * a signed-out visitor). The page already resolved its language (from `?lang=`,
+ * the tenant default, ...), so hand THAT down instead of inheriting the cookie.
+ */
+export function DirectoryInquirySheet(props: DirectoryInquirySheetProps) {
+  return (
+    <DashboardLocaleProvider locale={props.locale}>
+      <DirectoryInquirySheetBody {...props} />
+    </DashboardLocaleProvider>
+  );
+}
+
+function DirectoryInquirySheetBody({ ui }: DirectoryInquirySheetProps) {
   const s = ui.inquirySheet;
   // OPTIONAL for the same reason as DirectoryInquiryUrlSync: this sheet is
   // rendered by trees that can appear under the ROOT layout, which mounts no

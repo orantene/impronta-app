@@ -8,6 +8,7 @@ import { Icon } from "@/components/admin/shell/internal/primitives";
 import { COLORS } from "./support-tokens";
 import { useCompactViewport } from "./use-compact-viewport";
 import { SupportPanel } from "./SupportPanel";
+import { SUPPORT_LAUNCHER_COMPACT_BOTTOM, SUPPORT_LAUNCHER_COMPACT_CSS } from "./support-panel-geometry";
 import type { SupportContract } from "./support-contract";
 import { useSupportDeepLink, useSupportUnread } from "./support-hooks";
 import { SUPPORT_PANEL_OPEN_EVENT } from "@/lib/support/open-support-panel";
@@ -171,11 +172,12 @@ export function SupportLauncher({
         onClick={toggle}
         style={{
           position: "fixed",
-          right: compact ? 14 : 18,
-          top: compact ? "62%" : "50%",
-          transform: "translateY(-50%)",
-          width: compact ? 46 : 52,
-          height: compact ? 46 : 52,
+          right: compact ? 12 : 18,
+          ...(compact
+            ? { bottom: SUPPORT_LAUNCHER_COMPACT_BOTTOM }
+            : { top: "50%", transform: "translateY(-50%)" }),
+          width: compact ? 42 : 52,
+          height: compact ? 42 : 52,
           background: COLORS.fill,
           border: "none",
           borderRadius: "50%",
@@ -221,7 +223,7 @@ export function SupportLauncher({
         guideNodeId={guideNodeId}
         onConsumedGuideNode={() => setGuideNodeId(null)}
       />
-      <style>{`
+      <style>{`${SUPPORT_LAUNCHER_COMPACT_CSS}
         button[data-tulala-support-launcher=""]:hover{transform:translateY(-50%) scale(1.06)}
         button[data-tulala-support-launcher=""]:active{transform:translateY(-50%) scale(.97)}
         @keyframes tulala-support-badge{0%{box-shadow:0 0 0 2.5px ${COLORS.surface},0 0 0 2.5px rgba(194,106,69,.45)}100%{box-shadow:0 0 0 2.5px ${COLORS.surface},0 0 0 12px rgba(194,106,69,0)}}

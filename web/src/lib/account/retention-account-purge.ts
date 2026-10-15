@@ -62,6 +62,8 @@ export const ACCOUNT_REFERENCE_GUARDS: readonly ReferenceGuard[] = [
   // Orders and, through them, payment_links hang off order_lines.
   { table: "order_lines", column: "talent_profile_id", reason: "order" },
   { table: "discount_redemptions", column: "talent_profile_id", reason: "money" },
+  // Promo codes move money (they set the price a client pays) and carry the redemption audit trail.
+  { table: "tenant_promo_codes", column: "talent_profile_id", reason: "promo" },
   { table: "inquiry_offer_line_items", column: "talent_profile_id", reason: "money" },
   { table: "talent_subscriptions", column: "talent_profile_id", reason: "subscription" },
   { table: "subscription_discounts", column: "talent_profile_id", reason: "subscription" },

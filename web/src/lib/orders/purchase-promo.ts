@@ -63,6 +63,13 @@ export async function redeemTypedCode(
   return { ok: true };
 }
 
+/** The one talent every line belongs to, or null when lines are mixed / talent-less. */
+export function soleTalent(ids: readonly (string | null)[]): string | null {
+  const set = new Set(ids);
+  if (set.size !== 1) return null;
+  return ids[0] ?? null;
+}
+
 // ── Booking promos ─────────────────────────────────────────────────────────
 
 export type BookingPromoRequest = {
@@ -100,6 +107,8 @@ export async function priceBookingPromo(
   admin: SupabaseClient,
   input: {
     tenantId: string;
+    /** The talent that owns the booked offering(s); null = agency-wide promos only. */
+    talentProfileId: string | null;
     customerId: string | null;
     currency: string;
     lines: readonly BookingPricedLine[];
@@ -118,6 +127,7 @@ export async function priceBookingPromo(
   }
   const q = await deps.quoteBooking(admin, {
     tenantId: input.tenantId,
+    talentProfileId: input.talentProfileId,
     customerId: input.customerId,
     lines: bookingCartLines(input.lines, { currency: input.currency, appointmentStart: input.request.appointmentStart ?? null }),
     code: input.request.code ?? null,
