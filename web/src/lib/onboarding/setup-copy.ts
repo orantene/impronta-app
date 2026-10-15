@@ -15,6 +15,8 @@ export type SetupCopy = {
   quote: string;
   quoteOn: string;
   hiddenUntilPriced: string;
+  /** TUL-805: shown when "price on quote" is chosen. */
+  quoteShown: string;
   addService: string;
   remove: string;
   hours: string;
@@ -26,6 +28,7 @@ export type SetupCopy = {
   place: string;
   placeModes: { studio: string; home: string; client: string };
   area: string;
+  areaClient: string;
   areaHint: string;
   homePrivate: string;
   timezone: string;
@@ -39,8 +42,6 @@ export type SetupCopy = {
   ownerProvides: string;
   ownerProvidesHint: string;
   errors: { services: string; hours: string; place: string; timezone: string; providerEmail: string; save: string };
-  /** TUL-805: notice under a quote-priced service: it is live, labelled "A cotizar". */
-  quoteShowsAs: string;
   next: string;
 };
 
@@ -60,7 +61,8 @@ export const SETUP_COPY: Record<FlowLocale, SetupCopy> = {
     currencyLabel: "Currency",
     quote: "Price on quote",
     quoteOn: "On quote",
-    hiddenUntilPriced: "No price yet: it stays off your site until you add one.",
+    hiddenUntilPriced: "No price yet: add one, or choose price on quote.",
+    quoteShown: "Shown on your site as Price on request, with a button to ask you for a quote.",
     addService: "Add a service",
     remove: "Remove",
     hours: "Your hours",
@@ -72,6 +74,7 @@ export const SETUP_COPY: Record<FlowLocale, SetupCopy> = {
     place: "Where do you work?",
     placeModes: { studio: "At my studio", home: "At home", client: "I go to the client" },
     area: "Area clients see",
+    areaClient: "Service area",
     areaHint: "Neighborhood or city",
     homePrivate: "Only the area is public. Your exact address is never shown; you share it after a booking.",
     timezone: "Your time zone",
@@ -91,7 +94,6 @@ export const SETUP_COPY: Record<FlowLocale, SetupCopy> = {
       providerEmail: "That email does not look right. Fix it or choose Add later.",
       save: "We could not save this. Check your connection and try again.",
     },
-    quoteShowsAs: "On your site it shows as \"Quote\", with a Request a quote button.",
     next: "Continue",
   },
   es: {
@@ -109,7 +111,8 @@ export const SETUP_COPY: Record<FlowLocale, SetupCopy> = {
     currencyLabel: "Moneda",
     quote: "Precio a cotizar",
     quoteOn: "A cotizar",
-    hiddenUntilPriced: "Sin precio: no aparece en tu sitio hasta que lo agregues.",
+    hiddenUntilPriced: "Sin precio: agrégalo o elige precio a cotizar.",
+    quoteShown: "Se muestra en tu sitio como Precio a cotizar, con un botón para pedirte una cotización.",
     addService: "Agregar un servicio",
     remove: "Quitar",
     hours: "Tu horario",
@@ -121,6 +124,7 @@ export const SETUP_COPY: Record<FlowLocale, SetupCopy> = {
     place: "¿Dónde trabajas?",
     placeModes: { studio: "En mi estudio", home: "En casa", client: "Voy con el cliente" },
     area: "Zona que ven tus clientes",
+    areaClient: "Zona de servicio",
     areaHint: "Colonia o ciudad",
     homePrivate: "Solo la zona es pública. Tu dirección exacta nunca se muestra; la compartes después de una reserva.",
     timezone: "Tu zona horaria",
@@ -140,7 +144,6 @@ export const SETUP_COPY: Record<FlowLocale, SetupCopy> = {
       providerEmail: "Ese correo no se ve bien. Corrígelo o elige Agregar después.",
       save: "No pudimos guardar. Revisa tu conexión e inténtalo de nuevo.",
     },
-    quoteShowsAs: "En tu sitio aparece como \"A cotizar\", con un botón para pedir cotización.",
     next: "Continuar",
   },
 };

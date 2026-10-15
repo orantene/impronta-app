@@ -1987,6 +1987,9 @@
         "readFailed": "We couldn't read that. Try again or type it differently.",
         "aiUnavailable": "We could not read your description right now. Please try again in a moment.",
         "looksGood": "Looks good, continue",
+        "titleFailed": "We couldn't read that",
+        "subFailed": "Answer a few quick questions and we'll set it up anyway.",
+        "continueManual": "Answer a few questions",
         "editHint": "Tap any line to change it.",
         "laterValue": "Later, in your site",
         "missingValue": "We'll ask next"
@@ -1995,6 +1998,7 @@
       "questions": {
         "basicsWhatTalentHint": "Search: nail technician, photographer, DJ…",
         "basicsWhatBusinessHint": "Search: nail salon, restaurant, gym…",
+        "useTyped": "Use \"{text}\"",
         "basicsCityHint": "Search your city",
         "basicsOther": "Not in the list?",
         "basicsOtherHint": "Type it here",
@@ -2054,7 +2058,7 @@
       "building": {
         "title": "Building it",
         "titleTalent": "Saving your page",
-        "sub": "Usually under half a minute, up to one. You can close this; it keeps building.",
+        "sub": "Usually under half a minute, up to one.",
         "steps": {
           "account": "Your account",
           "workspace": "Your workspace",
@@ -2063,7 +2067,7 @@
           "menu": "Your menu",
           "profile": "Your page"
         },
-        "subTalent": "About ten seconds. You can close this; it keeps going.",
+        "subTalent": "Usually under half a minute.",
         "progressLabel": "Building",
         "canClose": "You can close this; it keeps building and your page will be here when you come back.",
         "while": {
@@ -2120,6 +2124,8 @@
         "viewMyWebsite": "View my website",
         "customizeInBuilder": "Customize in builder",
         "draftTitle": "Your draft is saved",
+        "draftReason": "Your page did not go online on this try. This is usually temporary and nothing you entered is lost. Try again first.",
+        "draftDetails": "Details for support",
         "draftSub": "Everything you told us is saved, but your page does not open online yet. Try again or open it in the editor.",
         "draftSubStudio": "Everything you told us is saved, but your site does not open online yet. Try again or open it in the editor.",
         "openEditor": "Open the editor",
@@ -2142,6 +2148,8 @@
         "businessNameHint": "How people know your business",
         "yourName": "Your name",
         "yourNameHint": "The name people know you by",
+        "soloBusinessName": "Business name (optional)",
+        "soloBusinessNameHint": "If your page goes by another name",
         "location": "Your location",
         "whatsapp": "WhatsApp (optional)",
         "whatsappHint": "Mexican number without the country code; we add +52.",
@@ -2166,7 +2174,7 @@
       },
       "design": {
         "title": "Pick how your page looks",
-        "sub": "Three ready looks. You can change it later in the editor.",
+        "sub": "Ready-made looks for you. You can change it later in the editor.",
         "recommended": "Recommended",
         "keep": "Keep the default look",
         "rose": "Rosé",
@@ -2222,6 +2230,7 @@
       "past": "Past",
       "noVisits": "No visits yet.",
       "bookAgain": "Book again",
+      "bookFirst": "Book your first visit",
       "browseTalent": "Find someone to book",
       "viewDetails": "Details",
       "cancellationPolicy": "Cancellation policy",
@@ -17978,7 +17987,7 @@
         "langMissing": "{lang} missing",
         "langMissingHint": "No title in {language} yet",
         "needsPrice": "Needs a price",
-        "needsPriceHint": "Not on your site until it has a price. Add one, then publish.",
+        "needsPriceHint": "Add a price, then publish. Or switch it to price on request to show it now.",
         "title": "Catalog",
         "intro": "Everything the POS, the website and the profile can sell · one record per item",
         "import": "Import",

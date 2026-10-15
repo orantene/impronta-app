@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  catalogBookingWhenLabel,
   offeringPriceUnit,
   catalogApplyDayPick,
   catalogBookingDurationMinutes,
@@ -462,4 +463,11 @@ test("DS-4: nearest alternatives skip the lost start and stay chronological", as
   assert.match(catalogTakenSlotMessage({ locale: "es", lostClock: "10:00", serverMessage: "x" }), /^Las 10:00 se acaban de ocupar/);
   assert.match(catalogTakenSlotMessage({ locale: "en", lostClock: "10:00", serverMessage: "x" }), /^10:00 was just taken/);
   assert.equal(catalogTakenSlotMessage({ locale: "en", lostClock: null, serverMessage: "x" }), "x");
+});
+
+test("TUL-1022: one date/time line for the recap and the confirmation, with the zone", () => {
+  const wed = new Date(2026, 9, 14);
+  assert.equal(catalogBookingWhenLabel(wed, "15:00", "America/Cancun", true), "Miércoles 14 oct, 15:00 · Hora de Cancún");
+  assert.equal(catalogBookingWhenLabel(wed, "15:00", "America/Cancun", false), "Wednesday Oct 14, 15:00 · Cancún time");
+  assert.equal(catalogBookingWhenLabel(wed, "15:00", null, false), "Wednesday Oct 14, 15:00");
 });

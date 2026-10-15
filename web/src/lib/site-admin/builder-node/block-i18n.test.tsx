@@ -96,6 +96,8 @@ const CASES: Case[] = [
   },
   {
     kind: "reviews",
+    // TUL-869: the carousel aria-labels follow the page language, like task_picker.
+    chromeFollowsLocale: true,
     props: { eyebrow: "Client praise", title: "What they say" },
     dataSources: { talentReviews: [REVIEW] },
     english: ["Client praise", "What they say", "She made my nails look effortless."],

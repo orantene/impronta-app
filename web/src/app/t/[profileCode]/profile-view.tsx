@@ -1374,12 +1374,12 @@ export async function buildTalentProfileMetadata({
   searchParams,
 }: {
   params: Promise<{ profileCode: string }>;
-  searchParams: Promise<{ preview?: string }>;
+  searchParams: Promise<{ preview?: string; lang?: string | string[] }>;
 }): Promise<Metadata> {
   if (!isSupabaseConfigured()) return {};
 
   const profileCode = await liveTalentProfileCode((await params).profileCode, { quiet: true });
-  const { preview } = await searchParams;
+  const { preview, lang: langQuery } = await searchParams;
   const site =
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "http://localhost:3000";
   const hostCtx = await getPublicHostContext();
@@ -1435,6 +1435,7 @@ export async function buildTalentProfileMetadata({
     profileCode,
     canonicalAbsolute: await canonicalTalentUrl(profileCode),
     fallbackOrigin: site,
+    langQuery,
   });
   const { locale, chain } = localeMeta.profile;
 
@@ -1710,6 +1711,9 @@ export async function TalentProfileView({
     const curated: Record<string, { en: string; es: string }> = {
       measurements: { en: "Measurements", es: "Medidas" },
       physical: { en: "Physical", es: "Físico" },
+      "physical-casting": { en: "Physical casting", es: "Casting físico" },
+      physical_casting: { en: "Physical casting", es: "Casting físico" },
+      casting: { en: "Casting", es: "Casting" },
       logistics: { en: "Logistics", es: "Logística" },
       availability: { en: "Availability", es: "Disponibilidad" },
       experience: { en: "Experience", es: "Experiencia" },
@@ -2633,7 +2637,7 @@ export async function TalentProfileView({
                 pathnameWithoutLocale={marketingPathnameWithoutLocale}
                 account={marketingAccount}
                 signOutAction={signOut}
-                clientEntry={platformChrome ? buildHubClientEntry(getAppUrl(), canonicalShareUrl) : undefined}
+                clientEntry={platformChrome ? buildHubClientEntry(getAppUrl(), canonicalShareUrl, locale) : undefined}
               />
               {/* id="main-content" lives inside LightProfileLayout (<main>) */}
               <div className="flex-1 pt-[var(--plt-header-h,84px)] sm:pt-[72px]">

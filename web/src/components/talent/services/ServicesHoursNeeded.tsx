@@ -7,9 +7,10 @@ import { publicationWord } from "@/lib/talent/publication-state";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 
-export function useHasBookableHours(talentId: string): boolean | null {
+export function useHasBookableHours(talentId: string, enabled = true): boolean | null {
   const [hasBookableHours, setHasBookableHours] = useState<boolean | null>(null);
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
     void loadBookingHours(talentId).then((res) => {
       if (cancelled) return;
@@ -27,7 +28,7 @@ export function useHasBookableHours(talentId: string): boolean | null {
     return () => {
       cancelled = true;
     };
-  }, [talentId]);
+  }, [talentId, enabled]);
   return hasBookableHours;
 }
 

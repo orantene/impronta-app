@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { CHOOSE_COPY, FLOW_STEP_OF, FLOW_TOTAL, defaultFlowLocale, flowLocaleFromPath, flowStepOf, flowUrl } from "./flow";
+import { CHOOSE_COPY, FLOW_STEP_OF, FLOW_TOTAL, defaultFlowLocale, flowLocaleFromPath, flowStepOf, flowSubLabel, flowUrl } from "./flow";
 import { isModuleStep, type ModuleStep } from "./module-state";
 
 test("every module step maps into exactly one of the 4 steps; fork is gone", () => {
@@ -66,4 +66,11 @@ test("TUL-146: /es/start is an explicit Spanish choice, /start is not", () => {
   assert.equal(flowLocaleFromPath("/es/startup"), null);
   assert.equal(flowLocaleFromPath(null), null);
   assert.equal(defaultFlowLocale({ saved: flowLocaleFromPath("/es/start"), acceptLanguage: "en-US", country: "US" }), "es");
+});
+
+test("TUL-813: email and code are named sub-steps of 4, the total never changes", () => {
+  assert.equal(flowSubLabel("readyToBuild", "en"), null);
+  assert.equal(flowSubLabel("save", "en"), "YOUR ACCOUNT");
+  assert.equal(flowSubLabel("code", "es"), "CÓDIGO DEL CORREO");
+  assert.equal(FLOW_TOTAL, 4);
 });

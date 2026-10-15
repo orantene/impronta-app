@@ -76,16 +76,12 @@ export function SetupServices({
             </label>
           </div>
           <label className="mt-2 flex min-h-11 items-center gap-2 text-[0.875rem]" style={{ color: "var(--tl-ink-soft)" }}>
-            <input type="checkbox" checked={s.quote} onChange={(e) => patch(i, { quote: e.target.checked, quoteChosen: e.target.checked, priceCents: e.target.checked ? null : s.priceCents })} className="size-5" data-testid={`onb-service-quote-${i}`} />
+            <input type="checkbox" checked={s.quote} onChange={(e) => patch(i, { quote: e.target.checked, priceCents: e.target.checked ? null : s.priceCents })} className="size-5" data-testid={`onb-service-quote-${i}`} />
             {copy.quote}
           </label>
-          {s.quote && s.quoteChosen ? (
-            <p className="mt-1 text-[0.8125rem]" style={{ color: "var(--tl-muted)" }} data-testid={`onb-service-quote-note-${i}`}>
-              {copy.quoteShowsAs}
-            </p>
-          ) : s.quote || !s.priceCents ? (
+          {s.quote || !s.priceCents ? (
             <p className="mt-1 text-[0.8125rem]" style={{ color: "var(--tl-muted)" }} data-testid={`onb-service-hidden-${i}`}>
-              {copy.hiddenUntilPriced}
+              {s.quote ? copy.quoteShown : copy.hiddenUntilPriced}
             </p>
           ) : null}
         </div>

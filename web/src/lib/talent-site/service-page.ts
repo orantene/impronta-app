@@ -59,6 +59,23 @@ export function serviceSlug(o: { id: string; title: string }): string {
   return `${SERVICE_SLUG_PREFIX}${t ? `${t}-` : ""}${id8}`;
 }
 
+/**
+ * TUL-792: id -> service page path for the home service cards. `base` is the locale prefix of a
+ * published talent site ("" or "/en"); null/undefined (builder, hub, previews) means no links.
+ */
+export function servicePageHrefs(
+  offerings: ReadonlyArray<{ id: string; title: string; kind: JsonLdOfferingSource["kind"]; visibility?: JsonLdOfferingSource["visibility"] }>,
+  base: string | null | undefined,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (base == null) return out;
+  const prefix = base.replace(/\/+$/, "");
+  for (const o of offerings) {
+    if (isServicePageEligible(o)) out[o.id] = `${prefix}/${serviceSlug(o)}`;
+  }
+  return out;
+}
+
 /** The id fragment a service slug carries, or null when the slug is not a service slug. */
 export function parseServiceSlug(slug: string | null | undefined): string | null {
   if (!slug) return null;

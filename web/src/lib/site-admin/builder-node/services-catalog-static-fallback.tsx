@@ -1,6 +1,5 @@
 "use client";
 
-import { quoteOnlyLabel } from "@/lib/talent/public-price";
 import type { ReactNode } from "react";
 
 import {
@@ -79,7 +78,7 @@ export function ServicesCatalogStaticFallback({
                 >
                   {cover ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={cover} alt="" className="site-builder-node--services-catalog-photo" />
+                    <img src={cover} alt="" loading="lazy" decoding="async" className="site-builder-node--services-catalog-photo" />
                   ) : null}
                   <span className="site-builder-node--services-catalog-copy">
                     <strong className="site-builder-node--services-catalog-name">{item.title}</strong>
@@ -99,10 +98,10 @@ export function ServicesCatalogStaticFallback({
                           {es
                             ? onRequest
                               ? "Bajo consulta"
-                              : quoteOnlyLabel("es")
+                              : "Precio a cotizar"
                             : onRequest
                               ? "On request"
-                              : quoteOnlyLabel("en")}
+                              : "Price on request"}
                         </strong>
                       ) : (
                         <>

@@ -7,7 +7,5 @@ import type { TalentOffering } from "@/lib/talent/offerings-types";
 
 export function offeringNeedsPrice(item: Pick<TalentOffering, "status" | "priceDisplay" | "amountCents">): boolean {
   if (item.status !== "draft") return false;
-  // TUL-805: a deliberate quote is a valid public price ("A cotizar"), so it never asks for a number.
-  if (item.priceDisplay === "quote") return false;
-  return !item.amountCents || item.amountCents <= 0;
+  return item.priceDisplay === "quote" || !item.amountCents || item.amountCents <= 0;
 }

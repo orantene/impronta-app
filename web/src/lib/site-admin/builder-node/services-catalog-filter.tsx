@@ -1,6 +1,5 @@
 "use client";
 
-import { quoteOnlyLabel } from "@/lib/talent/public-price";
 import { useEffect, useReducer, useRef, useState, type ReactNode } from "react";
 import { offeringIsQuote, type TalentOffering } from "@/lib/talent/offerings-types";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
@@ -61,6 +60,7 @@ import { catalogGroupNavLabel, catalogGroupTabKey } from "./catalog-group-nav";
 export { detailFor } from "./services-catalog-detail";
 
 export function ServicesCatalogFilter({
+  serviceHrefs,
   groups,
   locale,
   nav,
@@ -96,6 +96,8 @@ export function ServicesCatalogFilter({
   liveStatus = null,
   promoPrices,
 }: {
+  /** TUL-792: offering id -> its own service page; absent where no such page exists. */
+  serviceHrefs?: Record<string, string>;
   groups: CatalogGroup[];
   locale: string;
   nav: CatalogNavMode;
@@ -434,6 +436,7 @@ export function ServicesCatalogFilter({
                     <CatalogRow
                       key={item.id}
                       item={item}
+                      serviceHref={serviceHrefs?.[item.id]}
                       locale={locale}
                       showPhoto={showPhoto}
                       showDescription={showDescription}
@@ -542,6 +545,7 @@ export function ServicesCatalogFilter({
 
 export function CatalogRow({
   item,
+  serviceHref,
   locale,
   showPhoto,
   showDescription = true,
@@ -565,6 +569,8 @@ export function CatalogRow({
   promoPrice,
 }: {
   item: TalentOffering;
+  /** TUL-792: the service's own page; the name links there when set. */
+  serviceHref?: string;
   locale: string;
   showPhoto: boolean;
   showDescription?: boolean;
@@ -643,7 +649,7 @@ export function CatalogRow({
   // Only paint a photo slot when the offering has a real public image.
   const photo = cover ? (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={cover} alt="" className="site-builder-node--services-catalog-photo" />
+    <img src={cover} alt="" loading="lazy" decoding="async" className="site-builder-node--services-catalog-photo" />
   ) : null;
   return (
     <li
@@ -663,7 +669,20 @@ export function CatalogRow({
       {photo && rowCard ? <span className="site-builder-node--services-catalog-thumb">{photo}</span> : photo}
       <span className="site-builder-node--services-catalog-copy">
         <strong className="site-builder-node--services-catalog-name" title={item.title}>
-          <span className="site-builder-node--services-catalog-name-text">{item.title}</span>
+          <span className="site-builder-node--services-catalog-name-text">
+            {serviceHref ? (
+              <a
+                href={serviceHref}
+                className="site-builder-node--services-catalog-name-link"
+                data-service-page-link=""
+                style={{ color: "inherit", textDecoration: "none" }}
+              >
+                {item.title}
+              </a>
+            ) : (
+              item.title
+            )}
+          </span>
           {selected ? (
             <span className="site-builder-node--services-catalog-check" aria-hidden>
               ✓
@@ -725,7 +744,7 @@ export function CatalogRow({
         {priceInMeta ? null : showPrice ? (
           <span className="site-builder-node--services-catalog-price">
             {onRequest || quote || minCents == null ? (
-              <strong>{es ? (onRequest ? "Bajo consulta" : quoteOnlyLabel("es")) : onRequest ? "On request" : quoteOnlyLabel("en")}</strong>
+              <strong>{es ? (onRequest ? "Bajo consulta" : "Precio a cotizar") : onRequest ? "On request" : "Price on request"}</strong>
             ) : (
               <>
                 {ladder ? <small>{es ? "Desde" : "From"}</small> : null}

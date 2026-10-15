@@ -212,6 +212,24 @@ const chip = (on: boolean): React.CSSProperties => ({
   textAlign: "center",
 });
 
+/** BCP-47 tag to the block's two locales: "es-MX" is Spanish too (TUL-974). */
+export function reserveLocale(raw: string | null | undefined): Locale {
+  return (raw ?? "").trim().toLowerCase().startsWith("es") ? "es" : "en";
+}
+
+/**
+ * TUL-974: the heading is the tenant's verb plus the block's noun, in ONE
+ * language. A verb that already names the table ("Reservar mesa", "Book a
+ * table") keeps its own noun, and the noun follows the verb's language when
+ * the verb is plainly Spanish, so "Reservar mesa a table" cannot be composed.
+ */
+export function reserveHeading(ctaVerb: string, locale: Locale): string {
+  const verb = ctaVerb.trim();
+  if (/\b(mesas?|tables?)\b/i.test(verb)) return verb;
+  const nounLocale: Locale = /^reserv(ar|a)\b/i.test(verb) ? "es" : locale;
+  return `${verb} ${UI[nounLocale].heading}`.trim();
+}
+
 export function ReserveTableIsland({
   tenantId,
   venueName,
@@ -223,7 +241,7 @@ export function ReserveTableIsland({
   locale: localeProp,
   onAskFirst,
 }: Props) {
-  const locale: Locale = localeProp === "es" ? "es" : "en";
+  const locale: Locale = reserveLocale(localeProp);
   const t = UI[locale];
 
   const [party, setParty] = useState(Math.min(2, partyMax));
@@ -326,7 +344,7 @@ export function ReserveTableIsland({
         {venueName}
       </p>
       <h2 style={{ fontSize: 26, fontWeight: 500, margin: "0 0 18px", color: C.ink }}>
-        {ctaVerb} {t.heading}
+        {reserveHeading(ctaVerb, locale)}
       </h2>
 
       <div
