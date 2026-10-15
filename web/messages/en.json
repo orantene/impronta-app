@@ -17679,8 +17679,6 @@
     "clientRecord": {
       "title": "Client",
       "unavailable": "We could not load this client. Nothing was changed. Try again in a moment.",
-      "notFound": "That client is not here. They may have been merged into another record, or the link may belong to another workspace.",
-      "invalidId": "That address is not a client.",
       "unnamed": "Name not recorded",
       "backToList": "All clients",
       "identity": "Identity",

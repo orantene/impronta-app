@@ -17679,8 +17679,6 @@
     "clientRecord": {
       "title": "Cliente",
       "unavailable": "No pudimos cargar este cliente. No se cambio nada. Intenta de nuevo en un momento.",
-      "notFound": "Ese cliente no está aquí. Puede haberse fusionado con otra ficha, o el enlace puede pertenecer a otro espacio de trabajo.",
-      "invalidId": "Esa dirección no es un cliente.",
       "unnamed": "Nombre no registrado",
       "backToList": "Todos los clientes",
       "identity": "Identidad",

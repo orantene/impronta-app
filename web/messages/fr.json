@@ -5287,8 +5287,6 @@
     "clientRecord": {
       "title": "Client",
       "unavailable": "Nous n'avons pas pu charger ce client. Rien n'a ete modifie. Reessayez dans un instant.",
-      "notFound": "Ce client n'est pas ici. Il a pu etre fusionne avec une autre fiche, ou le lien appartient a un autre espace de travail.",
-      "invalidId": "Cette adresse n'est pas un client.",
       "unnamed": "Nom non enregistre",
       "backToList": "Tous les clients",
       "identity": "Identite",
