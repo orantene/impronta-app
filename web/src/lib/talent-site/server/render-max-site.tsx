@@ -333,6 +333,8 @@ async function renderTalentMaxSiteUnguarded(
         servicePromo,
       );
     }
+    // Resolved here: the document callback below is not async. pSeoFacts never throws.
+    const serviceCity = serviceOffering ? ((await pSeoFacts).addressLocality ?? null) : null;
     const node = await timed("maxSite.document", () =>
       renderMaxSiteDocument({
         servicePagePath: servicePath ? talentSiteLocalePath(servicePath, locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales) : null,
@@ -346,7 +348,7 @@ async function renderTalentMaxSiteUnguarded(
                 reviews: serviceReviews,
                 promo: servicePromo,
                 talentName: identity?.name ?? null,
-                city: (await pSeoFacts).addressLocality ?? null,
+                city: serviceCity,
                 homePath: talentSiteLocalePath("/", locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales),
               })
             : undefined,
