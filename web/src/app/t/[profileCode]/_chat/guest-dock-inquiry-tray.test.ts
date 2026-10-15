@@ -3,11 +3,10 @@ import { test } from "node:test";
 
 import { inquiryTrayVisible } from "./guest-dock-inquiry-tray";
 
-test("the tray shows on every dock tab except the lineup, once something is in the inquiry", () => {
-  for (const view of ["home", "chat", "projects"] as const) {
+test("the tray shows on every dock tab, once something is in the inquiry", () => {
+  for (const view of ["home", "chat", "projects", "lineup"] as const) {
     assert.equal(inquiryTrayVisible({ count: 2, activeView: view, enabled: true }), true);
   }
-  assert.equal(inquiryTrayVisible({ count: 2, activeView: "lineup", enabled: true }), false);
 });
 
 test("the tray stays hidden for an empty inquiry or a disabled dock", () => {
