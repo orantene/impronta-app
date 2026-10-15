@@ -40,8 +40,7 @@ export const ES_TEXT: Record<string, string> = {
   // WAVE 4.4 (deep inspectors: style, layout, motion, data, site header).
   ...ES_INSPECTOR_TEXT,
   // Overflow splits of ES_INSPECTOR_TEXT (P3 2026-08-16; LUMINA 2026-09-16).
-  ...ES_INSPECTOR_TEXT_2, ...ES_INSPECTOR_TEXT_3,
-  ...ES_ADD_GALLERY_2, ...ES_APPS_TEXT, ...ES_PROMO_WIDGET_TEXT,
+  ...ES_INSPECTOR_TEXT_2, ...ES_INSPECTOR_TEXT_3, ...ES_ADD_GALLERY_2, ...ES_APPS_TEXT, ...ES_PROMO_WIDGET_TEXT,
   ...ES_BUILDER_2027_TEXT, // BUILDER 2027 · P2A native kinds
   ...ES_ICON_TEXT,
   // ── Animation tab (2026-08-20 rebuild of the entrance-motion surface) ──
