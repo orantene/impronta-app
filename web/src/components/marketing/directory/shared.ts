@@ -129,6 +129,11 @@ export function attachCardDesigns<
   });
 }
 
+/** TUL-875: a profile link keeps the directory's locale (`/es/t/<code>` on ES); EN stays unprefixed. */
+export function directoryProfileHref(profileCode: string, locale: "en" | "es" = "en"): string {
+  return `${locale === "es" ? "/es" : ""}/t/${profileCode}`;
+}
+
 /**
  * Map a directory row to the canonical `<TalentCard>` data shape. The marketing
  * directory is browse-only, so availability is rendered as the restrained
@@ -146,7 +151,7 @@ export function toCanonicalCardData(
     id: talent.profileCode ?? talent.displayName,
     name: talent.displayName,
     profileCode: talent.profileCode,
-    profileHref: talent.profileCode ? `/t/${talent.profileCode}` : "",
+    profileHref: talent.profileCode ? directoryProfileHref(talent.profileCode, copy.locale) : "",
     primaryType: talent.primaryTypeLabel,
     location: locationLine(talent.homeCity, talent.homeCountry, copy.locale),
     photoUrl: talent.headshotUrl,
