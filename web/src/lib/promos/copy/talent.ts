@@ -246,6 +246,15 @@ export const PROMO_COPY_ES = {
   "err.not_found": "No encontramos esa promo.",
   "err.invalid": "Revisa los datos de la promo.",
   "err.unavailable": "No pudimos completar la acción. Intenta de nuevo.",
+  "err.not_available_yet": "Las promos aún no están disponibles en tu cuenta.",
+  "err.ref": "Código de error: {ref}",
+  "header.label": "Promos",
+  "drawer.title": "Promos",
+  "drawer.summary": "Este mes: {bookings} reservas, {earned} ganados",
+  "drawer.empty": "Nada activo ahora",
+  "drawer.new": "Nueva promo",
+  "drawer.all": "Ver todas",
+  "drawer.active": "Activas",
 } as const;
 
 export type PromoCopyKey = keyof typeof PROMO_COPY_ES;
@@ -479,6 +488,15 @@ export const PROMO_COPY_EN: Record<PromoCopyKey, string> = {
   "err.not_found": "We could not find that promo.",
   "err.invalid": "Check the promo details.",
   "err.unavailable": "We could not complete that. Try again.",
+  "err.not_available_yet": "Promos are not available on your account yet.",
+  "err.ref": "Error code: {ref}",
+  "header.label": "Promos",
+  "drawer.title": "Promos",
+  "drawer.summary": "This month: {bookings} bookings, {earned} earned",
+  "drawer.empty": "Nothing live right now",
+  "drawer.new": "New promo",
+  "drawer.all": "See all",
+  "drawer.active": "Live",
 };
 
 export type PromoCopy = {

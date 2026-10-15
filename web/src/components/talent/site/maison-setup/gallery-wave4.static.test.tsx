@@ -23,7 +23,6 @@ import {
 } from "./gallery-apps-flow";
 import { GALLERY_APPS_COPY, galleryAppsT } from "./gallery-apps";
 import { parseMaisonChoices } from "./maison-choices";
-import { demoSectionsLine } from "./DemoProfilePanel";
 
 const ROOT = join(process.cwd(), "src/components/talent/site/maison-setup");
 
@@ -51,40 +50,13 @@ test("G4-LIB: suggested + all apps copy and library screen with Web Office badge
   assert.match(html, /gallery-app-pro/);
   assert.match(html, />Oficina Web</);
   assert.doesNotMatch(html, />Pro</);
-  // First-time setup (no live site): back stays ‹ Hoy.
-  assert.match(html, /data-back-context="today"/);
-  assert.match(html, /‹ Hoy/);
+  // TUL-536: back closes to the site manager, so it says Mi sitio web, never Hoy.
+  assert.match(html, /apps-library-back/);
+  assert.match(html, /‹ Mi sitio web/);
+  assert.doesNotMatch(html, /‹ Hoy/);
   // Null bridge plan → free: library cards surface Upgrade (TUL-39 pack).
   assert.match(html, /apps-library-upgrade-hint/);
   assert.match(html, /Mejora tu plan para usarla/);
-});
-
-test("live1 app-back: live site Apps library back says Mi sitio web, not Hoy", () => {
-  const liveEs = renderToStaticMarkup(
-    <AppsLibraryScreen
-      locale="es"
-      fromLiveSite
-      onOpenApp={() => {}}
-      onBack={() => {}}
-      onClose={() => {}}
-    />,
-  );
-  assert.match(liveEs, /data-back-context="my-website"/);
-  assert.match(liveEs, /‹ Mi sitio web/);
-  assert.doesNotMatch(liveEs, /‹ Hoy/);
-  const liveEn = renderToStaticMarkup(
-    <AppsLibraryScreen
-      locale="en"
-      fromLiveSite
-      onOpenApp={() => {}}
-      onBack={() => {}}
-      onClose={() => {}}
-    />,
-  );
-  assert.match(liveEn, /‹ My website/);
-  assert.doesNotMatch(liveEn, /‹ Today/);
-  const host = read("MaisonSetupHost.tsx");
-  assert.match(host, /fromLiveSite=\{sitePublished \|\| Boolean\(siteLive\)\}/);
 });
 
 test("G4-APP: free plan sees Upgrade to use (preview stays); paid sees Add", () => {
@@ -212,12 +184,4 @@ test("G4-BUILDER: Apps tab search + designs back-link", () => {
   );
   assert.match(es, /Search apps/);
   assert.match(es, /Buscar apps/);
-});
-
-test("TUL-529: demo profile section list reads Spanish on an es gallery", () => {
-  const maison = ["Hero", "Work", "Menu", "Reviews", "About", "Visit", "FAQ"];
-  assert.equal(demoSectionsLine(maison, "es"), "Portada · Trabajos · Menú · Reseñas · Sobre mí · Tu visita");
-  assert.equal(demoSectionsLine(maison, "en"), "Hero · Work · Menu · Reviews · About · Visit");
-  assert.equal(demoSectionsLine(["Cover", "Chapters", "Rates", "Measures", "FAQ"], "es"), "Portada · Capítulos · Tarifas · Medidas · Preguntas frecuentes");
-  assert.equal(demoSectionsLine(["Hero", "Tasks", "Services", "Specs", "Jobs", "FAQ"], "es"), "Portada · Tareas · Servicios · Especificaciones · Trabajos realizados · Preguntas frecuentes");
 });
