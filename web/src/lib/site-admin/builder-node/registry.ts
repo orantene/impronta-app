@@ -2414,7 +2414,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       kind: "posts_feed",
       label: "Posts",
       description:
-        "Your published posts in 8 styles: grid, slider, magazine, masonry, list, minimal, bento or hero. Filter by category or tags, or hand-pick.",
+        "Your published posts in 7 styles: grid, slider, magazine, list, minimal, bento or hero. Filter by category, or hand-pick.",
       children: { type: "none" },
       propsSchema: postsFeedPropsSchema,
     },

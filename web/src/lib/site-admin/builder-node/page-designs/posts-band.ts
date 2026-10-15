@@ -15,7 +15,7 @@ export const PAGE_DESIGN_POSTS_BAND: Readonly<Record<PageDesignArchetype, { layo
   saas: { layout: "grid", demoTrade: "general" },
   store: { layout: "grid", demoTrade: "general" },
   festival: { layout: "slider", demoTrade: "events" },
-  studio: { layout: "masonry", demoTrade: "general" },
+  studio: { layout: "grid", demoTrade: "general" },
   noir: { layout: "hero", demoTrade: "events" },
   restaurant: { layout: "list", demoTrade: "food" },
   conference: { layout: "grid", demoTrade: "events" },

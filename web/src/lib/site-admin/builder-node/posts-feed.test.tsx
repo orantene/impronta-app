@@ -149,7 +149,7 @@ test("pagination math: page count, offsets, chunks, fetch limit", () => {
   assert.deepEqual(chunkPostsFeedPages([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]]);
   assert.equal(postsFeedFetchLimit({ limit: 6, pagination: "none" }), 6);
   assert.equal(postsFeedFetchLimit({ limit: 6, pagination: "load_more" }), 24);
-  assert.equal(postsFeedFetchLimit({ limit: 24, pagination: "numbered" }), 48, "capped");
+  assert.equal(postsFeedFetchLimit({ limit: 24, pagination: "load_more" }), 48, "capped");
 });
 
 // ── the 8 styles ────────────────────────────────────────────────────────────

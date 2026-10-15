@@ -111,7 +111,7 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_BOOKING_BEFORE_ITEMS: ReadonlyArray<
     id: "conn-posts-feed-native",
     label: "Posts",
     description:
-      "Your published posts in 8 styles: grid, slider, magazine, masonry, list, minimal, bento or hero. Example posts until you publish.",
+      "Your published posts in 7 styles: grid, slider, magazine, list, minimal, bento or hero. Example posts until you publish.",
     category: "dynamic",
     icon: "image-grid",
     insertMethod: "nativeNode",

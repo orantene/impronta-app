@@ -264,7 +264,7 @@ export const DESIGN_POSTS_BAND: Readonly<Record<string, { layout: PostsFeedStyle
   maison: { layout: "grid", demoTrade: "beauty" },
   solace: { layout: "list", demoTrade: "wellness" },
   mono: { layout: "minimal", demoTrade: "beauty" },
-  frame: { layout: "masonry", demoTrade: "beauty" },
+  frame: { layout: "grid", demoTrade: "beauty" },
   folio: { layout: "magazine", demoTrade: "beauty" },
   gridline: { layout: "list", demoTrade: "general" },
   default: { layout: "grid", demoTrade: "general" },

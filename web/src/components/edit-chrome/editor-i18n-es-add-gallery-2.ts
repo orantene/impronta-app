@@ -271,7 +271,7 @@ export const ES_ADD_GALLERY_2: Record<string, string> = {
   "Live photos from your media library. Filmstrip, grid, masonry or contact sheet; each shot can open a service.": "Fotos en vivo de tu biblioteca de medios. Tira de película, cuadrícula, mosaico u hoja de contactos; cada foto puede abrir un servicio.",
   "Reviews": "Reseñas",
   "Live client reviews as quote cards. Trio, single, or row on the shared slider. Hidden when there are none.": "Reseñas de clientes en vivo como tarjetas de cita. Trío, una sola o fila en el carrusel compartido. Se oculta si no hay ninguna.",
-  "Your published posts in 8 styles: grid, slider, magazine, masonry, list, minimal, bento or hero. Example posts until you publish.": "Tus posts publicados en 8 estilos: cuadrícula, carrusel, revista, mosaico, lista, mínimo, bento o destacado. Posts de ejemplo hasta que publiques.",
+  "Your published posts in 7 styles: grid, slider, magazine, list, minimal, bento or hero. Example posts until you publish.": "Tus posts publicados en 7 estilos: cuadrícula, carrusel, revista, lista, mínimo, bento o destacado. Posts de ejemplo hasta que publiques.",
   "Visit": "Visita",
   "Where you work, days, and languages from your profile. Optional map beside the facts. Hidden when empty.": "Dónde trabajas, los días y los idiomas de tu perfil. Mapa opcional junto a los datos. Se oculta si está vacío.",
   "Where to find you: studio kind, your zone, how to arrive, and a map area drawn from your city. Follows your address setting. Hidden when empty.": "Dónde encontrarte: tipo de estudio, tu zona, cómo llegar y un área de mapa trazada desde tu ciudad. Respeta tu ajuste de dirección. Se oculta si está vacío.",
