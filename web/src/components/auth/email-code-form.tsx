@@ -28,7 +28,7 @@
  * the i18n catalog (EN + ES).
  */
 
-import { useActionState, useState, type ReactNode } from "react";
+import { useActionState, useEffect, useState, type ReactNode } from "react";
 
 import {
   requestEmailCode,
@@ -42,6 +42,13 @@ import {
   AuthNotice,
   AuthSubmitButton,
 } from "@/components/auth/auth-ui";
+import {
+  forgetCodeStep,
+  hasCodeStepParam,
+  recallCodeStep,
+  rememberCodeStep,
+  urlWithCodeStep,
+} from "@/lib/auth/code-step-url";
 import { pickAuthEmail, readAuthEmailDraft, readAuthNameDraft, writeAuthEmailDraft, writeAuthNameDraft } from "@/lib/auth/email-draft";
 import { authEmailHasPlusTag, OTP_CODE_MAX_LENGTH } from "@/lib/auth/otp-flow";
 import { createTranslator } from "@/i18n/messages";
@@ -140,14 +147,41 @@ export function EmailCodeForm({
   // The code step survives a FAILED resend (`step: "code"`) too: losing the
   // screen and the address because the resend was rate limited would be worse
   // than the rate limit itself.
-  const codeStepEmail =
+  // TUL-766: a reload (or coming back from the mail app) lands on the code box again.
+  const [restoredEmail, setRestoredEmail] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    try {
+      if (hasCodeStepParam(window.location.search)) {
+        const remembered = recallCodeStep(window.sessionStorage, Date.now());
+        if (remembered) setRestoredEmail(remembered);
+        else window.history.replaceState(window.history.state, "", urlWithCodeStep(window.location.href, false));
+      }
+    } catch {
+      /* storage unavailable: the form simply starts at step 1 */
+    }
+  }, []);
+  const liveCodeStepEmail =
     sendState?.step === "sent" || sendState?.step === "code"
       ? sendState.email
       : verifyState?.step === "code"
         ? verifyState.email
         : undefined;
+  const codeStepEmail = liveCodeStepEmail ?? (backToEmail ? undefined : restoredEmail);
   const email = codeStepEmail ?? stateEmail(sendState) ?? defaultEmail;
   const onCodeStep = Boolean(codeStepEmail) && !backToEmail;
+  useEffect(() => {
+    try {
+      if (onCodeStep && codeStepEmail) {
+        rememberCodeStep(window.sessionStorage, codeStepEmail, Date.now());
+        window.history.replaceState(window.history.state, "", urlWithCodeStep(window.location.href, true));
+      } else if (backToEmail) {
+        forgetCodeStep(window.sessionStorage);
+        window.history.replaceState(window.history.state, "", urlWithCodeStep(window.location.href, false));
+      }
+    } catch {
+      /* the URL marker is a nicety; never block the form */
+    }
+  }, [onCodeStep, codeStepEmail, backToEmail]);
 
   const stepError =
     lane === "verify" ? stateError(verifyState) : stateError(sendState);
@@ -256,7 +290,7 @@ export function EmailCodeForm({
           className="text-center text-[0.8125rem]"
           style={{ color: "var(--plt-muted)" }}
         >
-          <QuietAction onClick={() => setBackToEmail(true)}>
+          <QuietAction onClick={() => { setBackToEmail(true); setRestoredEmail(undefined); }}>
             {t("public.auth.passwordless.changeEmail")}
           </QuietAction>
           {passwordFallback ? (
