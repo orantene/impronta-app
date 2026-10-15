@@ -504,6 +504,7 @@ export function SupportThreadView({
                 value={ratingComment}
                 onChange={(e) => setRatingComment(e.target.value)}
                 placeholder={t("dashboard.adminSupport.ratingCommentPlaceholder")}
+                aria-label={t("dashboard.adminSupport.ratingCommentPlaceholder")}
                 maxLength={500}
                 style={{
                   border: `1px solid ${COLORS.border}`,

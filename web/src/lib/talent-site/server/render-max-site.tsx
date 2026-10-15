@@ -43,12 +43,22 @@ import { buildMaxSiteSeo, type MaxSiteSeo } from "./max-site-seo.server";
 import { loadMaxSiteSeoFacts } from "./max-site-seo-facts.server";
 import { loadTalentSiteLocaleContext } from "./talent-site-locale.server";
 import { webOfficeCtxFor } from "./web-office-footer";
+import { resolveTalentAccountEntry } from "./account-entry.server";
 import { siteHostFromOrigin } from "@/lib/talent-site/footer-socket";
 import { talentSiteLocalePath } from "@/lib/talent-site/talent-site-locale-routing";
 import { webOfficeSocialEnabled } from "../web-office-social";
 import { localiseSeededDesignLabel } from "../design-label-locale";
 import { loadTalentPolicyModel, policyMainNode, policySeo } from "./policy-main";
 import { policyDocForSlug } from "@/lib/talent-policies/public";
+import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
+import { parseServiceSlug, resolveServiceBySlug, serviceSlug } from "@/lib/talent-site/service-page";
+import { serviceFaqItems, type ServiceFaqItem } from "@/lib/talent-site/service-page-faq";
+import { loadPublishedFaqForProfile } from "@/lib/talent/faq-public";
+import { SERVICE_REVIEWS_MAX, shownServiceReviews, type ServiceReviews } from "@/lib/talent-site/service-page-reviews";
+import { loadReviewsSources } from "@/lib/site-admin/builder-node/reviews-sources";
+import { loadTalentRatingSummary } from "@/lib/reviews/load-reviews";
+import { serviceMainNode, serviceRelatedLinks, serviceSeo } from "./service-main";
+import { loadPublicPromosForTalent, priceContext } from "@/lib/promos/public-promos.server";
 import { renderMaxSiteDocument } from "./render-max-site-document";
 
 /** Re-export so existing `import type { MaxSiteSeo } from "./render-max-site"` stays valid. */
@@ -185,6 +195,8 @@ async function renderTalentMaxSiteUnguarded(
     // SEO scoping below needs it on both paths.
     const planKey = await pPlan;
     const ctaMode = await pCta; // seeded CTA copy follows booking mode
+    // TUL-694: per-site client account switch (flag + entitlement + Settings + smart default). Flag off = no read.
+    const accountEntry = await resolveTalentAccountEntry(talentProfileId, planKey);
     const gateOpen = maxSitePublicGate({
       sitePublishedAt: site.sitePublishedAt,
       planKey,
@@ -217,8 +229,11 @@ async function renderTalentMaxSiteUnguarded(
     const requirePublished = !isOwnerDraftPreview;
     // `/politicas` and `/privacidad` are platform pages: the site's shell and theme (from home), only the body swaps.
     const policyDoc = policyDocForSlug(input.pageSlug);
+    // TUL-586: `servicio-<title>-<id8>` is a platform page too (a talent's own page of that slug wins).
+    const isServiceSlug =
+      !policyDoc && parseServiceSlug(input.pageSlug) !== null && !pages.some((p) => p.slug === input.pageSlug);
     const page = selectMaxSitePage(pages, {
-      pageSlug: policyDoc ? null : input.pageSlug,
+      pageSlug: policyDoc || isServiceSlug ? null : input.pageSlug,
       requirePublished,
     });
     if (!page) return NOT_FOUND;
@@ -241,7 +256,7 @@ async function renderTalentMaxSiteUnguarded(
       }),
     );
     const blocks = pruneUnconfirmedGuestStubs(fixed.body);
-    if (!policyDoc && !hasRenderableBuilderNodes(blocks, { mode: "freeform" })) {
+    if (!policyDoc && !isServiceSlug && !hasRenderableBuilderNodes(blocks, { mode: "freeform" })) {
       // A published-but-empty page → 404 rather than a blank document.
       return NOT_FOUND;
     }
@@ -286,9 +301,53 @@ async function renderTalentMaxSiteUnguarded(
     const policyHomeHref = policyModel
       ? talentSiteLocalePath("/", locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales)
       : null;
+    // TUL-586: the service page. Slug title comes from the talent's primary language so hreflang pairs share one path.
+    let serviceOffering: Awaited<ReturnType<typeof loadPublicOfferingsForProfile>>[number] | null = null;
+    let servicePath: string | null = null;
+    let serviceRelated: ReturnType<typeof serviceRelatedLinks> = [];
+    let serviceFaq: ServiceFaqItem[] = [];
+    let serviceReviews: ServiceReviews | null = null;
+    let servicePromo: ReturnType<typeof priceContext> | null = null;
+    if (isServiceSlug) {
+      const primary = localeCtx.settings.defaultLocale;
+      const [inLocale, inPrimary, talentFaq, reviewRows, rating, livePromos] = await Promise.all([
+        loadPublicOfferingsForProfile(talentProfileId, locale, null, { bypassCache }).catch(() => []),
+        primary === locale
+          ? null
+          : loadPublicOfferingsForProfile(talentProfileId, primary, null, { bypassCache }).catch(() => []),
+        loadPublishedFaqForProfile(talentProfileId, locale).catch(() => []),
+        loadReviewsSources(talentProfileId, SERVICE_REVIEWS_MAX + 2).catch(() => ({ talentReviews: [] })),
+        loadTalentRatingSummary(talentProfileId).catch(() => ({ average: 0, count: 0 })),
+        // Promos v1 (TUL-937): live auto promos price the page through displayPrice. Never on a draft preview.
+        isOwnerDraftPreview ? null : loadPublicPromosForTalent(talentProfileId),
+      ]);
+      servicePromo = livePromos ? priceContext(livePromos, locale) : null;
+      serviceOffering = resolveServiceBySlug(inLocale, input.pageSlug);
+      if (!serviceOffering) return NOT_FOUND;
+      const primaryRow = (inPrimary ?? inLocale).find((o) => o.id === serviceOffering!.id) ?? serviceOffering;
+      servicePath = `/${serviceSlug(primaryRow)}`;
+      serviceFaq = serviceFaqItems(serviceOffering, talentFaq, locale);
+      serviceReviews = shownServiceReviews({ ...rating, reviews: reviewRows.talentReviews });
+      serviceRelated = serviceRelatedLinks(inLocale, inPrimary, serviceOffering.id, locale, (p) =>
+        talentSiteLocalePath(p, locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales),
+        servicePromo,
+      );
+    }
     const node = await timed("maxSite.document", () =>
       renderMaxSiteDocument({
-        mainOverride: policyModel ? policyMainNode(policyModel, { homeHref: policyHomeHref ?? "/" }) : undefined,
+        servicePagePath: servicePath ? talentSiteLocalePath(servicePath, locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales) : null,
+        mainOverride: policyModel
+          ? policyMainNode(policyModel, { homeHref: policyHomeHref ?? "/" })
+          : serviceOffering
+            ? serviceMainNode(serviceOffering, {
+                locale,
+                related: serviceRelated,
+                faq: serviceFaq,
+                reviews: serviceReviews,
+                promo: servicePromo,
+                homePath: talentSiteLocalePath("/", locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales),
+              })
+            : undefined,
         siteTokens,
         designSlug,
         shellTree: hydratedShell,
@@ -309,6 +368,7 @@ async function renderTalentMaxSiteUnguarded(
         profileCode: identity?.profileCode ?? null,
         siteHost: siteHostFromOrigin(input.canonicalOrigin ?? process.env.NEXT_PUBLIC_SITE_URL),
         canonicalOrigin: input.canonicalOrigin,
+        accountEntry,
         webOffice: webOfficeCtxFor(webOfficeSocialEnabled(planKey), {
           canonicalOrigin: input.canonicalOrigin ?? process.env.NEXT_PUBLIC_SITE_URL,
           canonicalPath: input.canonicalPath,
@@ -333,13 +393,18 @@ async function renderTalentMaxSiteUnguarded(
       locale,
       noindex: isOwnerDraftPreview,
       canonicalOrigin: input.canonicalOrigin,
-      canonicalPath: input.canonicalPath,
-      ignoreExplicitCanonical: Boolean(policyDoc),
+      canonicalPath: servicePath ?? input.canonicalPath,
+      ignoreExplicitCanonical: Boolean(policyDoc) || isServiceSlug,
       locales: { primary: localeCtx.settings.defaultLocale, urlDefault: localeCtx.grammar.defaultLocale, supported: localeCtx.settings.supportedLocales },
     });
 
     perfMark("maxSite.total", t0);
-    return { kind: "render", node, seo: policyModel ? policySeo(seo, policyModel) : seo, locale };
+    const finalSeo = policyModel
+      ? policySeo(seo, policyModel)
+      : serviceOffering
+        ? serviceSeo(seo, serviceOffering, { talentName: identity?.name ?? null, locale, city: seoFacts.addressLocality ?? null, faq: serviceFaq, reviews: serviceReviews, demo: isDemo })
+        : seo;
+    return { kind: "render", node, seo: finalSeo, locale };
   } catch {
     // Degrade safe — any unexpected failure becomes a 404, never a throw.
     return NOT_FOUND;

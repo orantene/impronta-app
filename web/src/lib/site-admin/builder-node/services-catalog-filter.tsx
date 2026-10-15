@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useReducer, useRef, useState, type ReactNode } from "react";
-import { type TalentOffering } from "@/lib/talent/offerings-types";
+import { offeringIsQuote, type TalentOffering } from "@/lib/talent/offerings-types";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import { formatMoney } from "@/lib/talent/offerings-money";
 import { formatOfferingWhereLabel, offeringWhereFromAttributes } from "@/lib/talent/offering-request-detail";
@@ -18,6 +18,9 @@ import {
 } from "@/components/public-booking/catalog-booking-logic";
 import { CatalogPurchaseMount } from "@/components/public-booking/CatalogPurchaseMount";
 import { catalogBarPriceLabel, catalogRowPriceText } from "./services-catalog-bar-price";
+import { PromoBadge, promoPriceText } from "@/components/promos/public/promo-badge";
+import type { CatalogPromoPrices } from "@/lib/promos/catalog-promo-prices";
+import type { DisplayPrice } from "@/lib/promos/display-price";
 import { ServicesCatalogDemoToast, useDemoToast } from "./services-catalog-demo-toast";
 import { catalogDurationShort, railCount } from "./services-catalog-format";
 import { CatalogIdleBarGo, CatalogIdleBarText, CatalogOverlayStyles } from "./services-catalog-idle-bar";
@@ -41,6 +44,7 @@ import {
   type TalentBookingPosture,
 } from "@/lib/talent/selling-booking-settings";
 import { deriveFor, detailFor, dispatchOffering } from "./services-catalog-detail";
+import { opensAskFlowOnly } from "@/lib/talent/offering-cta-derivation";
 
 export type CatalogGroup = { name: string | null; label?: string | null; items: TalentOffering[]; note?: string | null };
 
@@ -89,6 +93,7 @@ export function ServicesCatalogFilter({
   onlineCollectReady,
   matrix = false,
   liveStatus = null,
+  promoPrices,
 }: {
   groups: CatalogGroup[];
   locale: string;
@@ -127,6 +132,8 @@ export function ServicesCatalogFilter({
   bookingSettings?: CatalogSheetBookingSettings;
   /** PAY-2 B — platform Checkout ready; omit → sheet default true. */
   onlineCollectReady?: boolean;
+  /** Promos v1: live-promo prices by offering id (empty / omitted = list prices, unchanged markup). */
+  promoPrices?: CatalogPromoPrices;
   /** layout "matrix": one comparison table (wide) / stacked cards (narrow). */
   matrix?: boolean;
   liveStatus?: LiveStatusRenderContext | null;
@@ -174,10 +181,13 @@ export function ServicesCatalogFilter({
       const d = (e as CustomEvent).detail as { open?: boolean } | undefined;
       setSheetOpen(d?.open === true);
     };
+    const onBooked = () => dispatchDock({ type: "clear" }); // TUL-845
     window.addEventListener("tulala:maison-selected", onSelected);
+    window.addEventListener("tulala:maison-booked", onBooked);
     window.addEventListener("tulala:maison-sheet", onSheet);
     return () => {
       window.removeEventListener("tulala:maison-selected", onSelected);
+      window.removeEventListener("tulala:maison-booked", onBooked);
       window.removeEventListener("tulala:maison-sheet", onSheet);
     };
   }, []);
@@ -241,6 +251,10 @@ export function ServicesCatalogFilter({
       },
     ];
   });
+  const frontOffering = findOffering(dock.picked[0]?.id ?? null).found;
+  const dockAskOnly = frontOffering
+    ? opensAskFlowOnly(deriveFor(frontOffering, confirmsByHand, bookingPosture).cta)
+    : false;
   const dockCurrency = dock.picked[0]?.currency ?? "MXN";
   // CH-3: a service picked here (sheet never opened) still gets "Volver a mi reserva" in the chat.
   const front = dockItems[0];
@@ -439,6 +453,7 @@ export function ServicesCatalogFilter({
                       durationFormat={durationFormat}
                       selected={dock.picked.some((p) => p.id === item.id)}
                       onSelect={() => onRowAction(item, g.note)}
+                      promoPrice={promoPrices?.[item.id]}
                     />
                   ))}
                 </ul>
@@ -493,6 +508,7 @@ export function ServicesCatalogFilter({
         locale={locale}
         formatPrice={(c) => formatMoney(c, dockCurrency, locale)}
         onRemoveFront={removeFront}
+        askOnly={dockAskOnly}
         onAsk={askFromDock}
         onContinue={continueFromBar}
         toast={toast}
@@ -545,6 +561,7 @@ export function CatalogRow({
   durationFormat = "auto",
   selected = false,
   onSelect,
+  promoPrice,
 }: {
   item: TalentOffering;
   locale: string;
@@ -567,12 +584,14 @@ export function CatalogRow({
   durationFormat?: "auto" | "minutes" | "hours_minutes";
   selected?: boolean;
   onSelect?: () => void;
+  /** Promos v1: the displayPrice for this row when a live promo changes it. */
+  promoPrice?: DisplayPrice | null;
 }) {
   const es = locale.startsWith("es");
   const cover = showPhoto ? item.imageUrls[0] : undefined;
   const onRequest = item.visibility === "on_request";
   const quote =
-    item.priceDisplay === "quote" || item.priceType === "custom" || item.amountCents == null;
+    offeringIsQuote(item);
   const minCents = catalogRowMinCents(item);
   const ladder = catalogRowShowsFrom(item);
   const usd = usdEquivalentLabel(minCents, item.currency, usdRates, locale);
@@ -603,7 +622,10 @@ export function CatalogRow({
             : "By quote"
         : null;
   // One-line price for the meta row: "Desde $120 por uña" / "Desde $650" / "$900" / "A cotizar".
-  const priceText = catalogRowPriceText(item, locale);
+  const promo = promoPrice?.hasPromo ? promoPrice : null;
+  const priceText = promo
+    ? promoPriceText(promo, locale, catalogRowShowsFrom(item) ? (es ? "Desde" : "From") : null)
+    : catalogRowPriceText(item, locale);
   // Priced per unit: the unit replaces the duration in the meta row.
   const perUnit = !!offeringPriceUnit(item.attributes, locale) && !onRequest && !quote && minCents != null;
   const badges: string[] = [];
@@ -706,7 +728,7 @@ export function CatalogRow({
             ) : (
               <>
                 {ladder ? <small>{es ? "Desde" : "From"}</small> : null}
-                <strong>{formatMoney(minCents, item.currency, locale)}</strong>
+                <strong>{promo ? <PromoBadge price={promo} locale={locale} /> : formatMoney(minCents, item.currency, locale)}</strong>
               </>
             )}
             {showUsdEquivalent && usd ? <span className="site-builder-node--services-catalog-usd">{usd}</span> : null}

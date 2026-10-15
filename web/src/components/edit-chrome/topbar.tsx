@@ -81,6 +81,7 @@ import {
 } from "./kit";
 import { usePagePresence } from "./presence-provider";
 import { TalentDraftChip, useTalentPublishGate } from "./talent-draft-chip";
+import { TopbarOverflowMenu } from "./topbar-overflow";
 import { TalentBackLink, TalentIdentityMenu, useTalentBuilderIdentity } from "./talent-builder-identity";
 import { RailPresenceStack } from "./chrome-icon-rail";
 import { isBuilderPresenceEnabled } from "@/lib/site-admin/edit-mode/presence-flag";
@@ -3113,7 +3114,7 @@ export function TopBar({
         {localeToggle.mode === "inplace" ? (
           <ContentLocaleToggle defaultLocale={defaultLocale} availableLocales={toggleLocales} />
         ) : null}
-        <ViewportSwitcher
+        <span className="contents max-[640px]:hidden"><ViewportSwitcher
           device={device}
           setDevice={setDevice}
           previewFrame={editCtx?.previewFrame ?? null}
@@ -3121,7 +3122,7 @@ export function TopBar({
           togglePreviewRotated={editCtx?.togglePreviewRotated}
           mobileEditMode={editCtx?.mobileEditMode}
           setMobileEditMode={editCtx?.setMobileEditMode}
-        />
+        /></span>
       </div>
 
       {/* ── Spacer ── */}
@@ -3134,6 +3135,7 @@ export function TopBar({
        * only in the ⌘K command palette; Page Settings has its single home in
        * the publish menu below.
        */}
+      <span className="contents max-[640px]:hidden">
       <TbIconBtn title="Undo (⌘Z)" onClick={onUndo} disabled={!canUndo}>
         <svg width={TB_ICON_PX} height={TB_ICON_PX} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M3 7v6h6" />
@@ -3169,13 +3171,15 @@ export function TopBar({
       <CanvasHelpersToggle />
       <OpenLivePageButton />
       <PreviewToggle previewing={previewing} setPreviewing={setPreviewing} />
+      </span>
+      <TopbarOverflowMenu items={[{ label: t("Undo (⌘Z)"), onClick: onUndo, disabled: !canUndo }, { label: t("Redo (⇧⌘Z)"), onClick: onRedo, disabled: !canRedo }, { label: t("Revisions (⌘⇧Y)"), onClick: onRevisions, disabled: !onRevisions }, { label: t("Comments"), onClick: onComments }, { label: t("Preview"), onClick: () => setPreviewing(!previewing) }]} />
 
       <SaveStatusButton
         dirty={dirty}
         liveSitePublishedAt={liveSitePublishedAt}
         onSaveDraft={onSaveDraft}
       />
-      <TopBarPresence />
+      <span className="contents max-[640px]:hidden"><TopBarPresence /></span>
       <TalentDraftChip />
       {/* ── Publish split (primary CTA) ── */}
       {/* Perf spine — no `disabled={saving}` here: the button and its menu only

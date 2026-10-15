@@ -11,7 +11,7 @@ import { logServerError } from "@/lib/server/safe-error";
  * snapshot) and is queried by `loadDiscoverTalents`. Source-data
  * writes (talent_profiles.is_discoverable, agency_talent_roster,
  * talent_availability_blocks, agencies.plan_tier) don't auto-propagate;
- * this cron job keeps the view fresh on a 15-min cadence.
+ * this cron job keeps the view fresh on an hourly cadence (pre-launch).
  *
  * The SQL-side refresh function (`public.refresh_talent_discover_index`)
  * uses `REFRESH MATERIALIZED VIEW CONCURRENTLY`, so readers are never
@@ -23,9 +23,9 @@ import { logServerError } from "@/lib/server/safe-error";
  *
  * Configure in vercel.json:
  *   "crons": [
- *     { "path": "/api/cron/refresh-discover-index", "schedule": "* /15 * * * *" }
+ *     { "path": "/api/cron/refresh-discover-index", "schedule": "0 * * * *" }
  *   ]
- * (15-min cadence; spec § 6 allows 15-min staleness for the catalog.)
+ * (hourly pre-launch cadence; spec § 6 allows 15-min staleness, tighten at launch.)
  *
  * Companion: when Discover scales past a few hundred talents, swap
  * this for true on-event triggers on the source tables — but for
@@ -94,7 +94,7 @@ export async function GET(request: Request) {
       }
     },
     {
-      schedule: { type: "crontab", value: "*/15 * * * *" },
+      schedule: { type: "crontab", value: "0 * * * *" },
       checkinMargin: 5,
       maxRuntime: 25,
       timezone: "UTC",

@@ -264,16 +264,19 @@ const ES: Record<string, string> = {
   "Buffer (minutes)": "Margen entre citas (minutos)",
   "Time zone": "Zona horaria",
   "Use this device's time zone": "Usar la zona horaria de este dispositivo",
+  "Time zone taken from this device. Change it above if it is wrong.":
+    "Zona horaria tomada de este dispositivo. Cámbiala arriba si no es correcta.",
   "Search time zones": "Buscar zonas horarias",
   "Search, like Cancun or Madrid": "Busca, por ejemplo Cancún o Madrid",
   "Pick a time zone": "Elige una zona horaria",
   "Weekly hours, time off, buffer, and timezone. Travel stays on each booking.":
-    "Horario semanal, ausencias, buffer y zona. El viaje queda en cada reserva.",
+    "Horario semanal, ausencias, márgenes y zona. El viaje queda en cada reserva.",
   "Closed dates block bookings. Alternate windows replace that day's weekly hours.":
     "Las fechas cerradas bloquean reservas. Ventanas alternativas reemplazan el horario de ese día.",
   "No exceptions yet.": "Sin excepciones aún.",
-  "Let clients book open times on your page without a message first.":
-    "Permite que clientes reserven horarios libres en tu página sin escribir primero.",
+  "Direct booking from listings": "Reserva directa desde listados",
+  "Lets clients book open times from agency and Tulala hub listings. It does not change booking on your own site: set that in Services, Defaults, under On your site, clients book.":
+    "Permite que clientes reserven horarios libres desde los listados de agencias y del directorio de Tulala. No cambia la reserva en tu propio sitio: eso se ajusta en Servicios, Valores predeterminados, en En tu sitio, los clientes reservan.",
   "Cash stays with you. There is no card payout.":
     "El efectivo se queda contigo. No hay pago con tarjeta.",
   Week: "Semana",
@@ -566,6 +569,7 @@ const ES: Record<string, string> = {
   payments: "pagos",
   balances: "saldos",
   "Nothing owed": "Nada pendiente",
+  "pending payment": "pendiente de pago",
   "Payouts not set up": "Depósitos sin configurar",
   "Nothing booked after today yet.": "Aún no hay nada reservado después de hoy.",
   "No appointments today.": "No hay citas hoy.",

@@ -21,6 +21,41 @@ import { resolveMaxSiteLinkUrl } from "@/lib/talent-site/max-site-link-url";
  *   - the site has never been published (`site_published_at IS NULL`), OR
  *   - any error occurs (throw-safe — always degrades gracefully).
  */
+/**
+ * The address her site publishes to, on any plan and before a first publish
+ * (the builder's publish drawer names it). Same precedence as the hub link.
+ * Null when she has no site or on any error.
+ */
+export async function loadTalentSiteAddress(talentProfileId: string): Promise<string | null> {
+  try {
+    const admin = createServiceRoleClient();
+    if (!admin) return null;
+    const [siteRes, profileRes, domainRes] = await Promise.all([
+      admin.from("talent_sites").select("site_slug").eq("talent_profile_id", talentProfileId).maybeSingle(),
+      admin.from("talent_profiles").select("is_demo").eq("id", talentProfileId).maybeSingle(),
+      admin
+        .from("talent_site_domains")
+        .select("domain")
+        .eq("talent_profile_id", talentProfileId)
+        .eq("is_primary", true)
+        .eq("status", "active")
+        .limit(1)
+        .maybeSingle(),
+    ]);
+    if (siteRes.error || profileRes.error || domainRes.error) return null;
+    const siteSlug = (siteRes.data as { site_slug: string | null } | null)?.site_slug ?? null;
+    if (!siteSlug) return null;
+    return resolveMaxSiteLinkUrl({
+      customDomain: (domainRes.data as { domain: string | null } | null)?.domain ?? null,
+      siteSlug,
+      isDemo: (profileRes.data as { is_demo?: boolean | null } | null)?.is_demo === true,
+      subdomainsEnabled: isTalentSiteSubdomainsEnabled(),
+    });
+  } catch {
+    return null;
+  }
+}
+
 export async function loadTalentMaxSiteLink(
   talentProfileId: string,
 ): Promise<{ url: string } | null> {

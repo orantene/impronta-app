@@ -13,6 +13,7 @@ import {
   isUpcomingClient,
   mapBookingStatusToNext,
   matchesClientsSearch,
+  showClientsControls,
   showClientsFilterChip,
 } from "./clients-directory";
 
@@ -97,6 +98,11 @@ describe("clients-directory", () => {
     assert.equal(showClientsFilterChip("follow", empty, false), false);
     assert.equal(showClientsFilterChip("follow", empty, true), true);
     assert.equal(showClientsFilterChip("fresh", { ...empty, fresh: 1 }, false), true);
+    assert.equal(showClientsFilterChip("upcoming", empty, false), false);
+    assert.equal(showClientsFilterChip("outstanding", empty, false), false);
+    assert.equal(showClientsFilterChip("outstanding", { ...empty, outstanding: 2 }, false), true);
+    assert.equal(showClientsControls(0), false);
+    assert.equal(showClientsControls(3), true);
   });
 
   it("due for a refill: a repeat service whose last visit is older than its cycle", () => {

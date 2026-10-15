@@ -15,6 +15,7 @@ import { resolveTalentBookingMode, type TalentBookingMode } from "@/lib/scheduli
 import { parseBookingHours } from "@/lib/scheduling/hours-types";
 import { loadBusyIntervals } from "@/lib/scheduling/load-busy";
 import { computePublicSlots, type NoSlotsReason } from "@/lib/scheduling/public-slots";
+import { resolveSlotsWorkspaceScope } from "@/lib/scheduling/public-slots-workspace";
 import { addUtcDays, utcToZonedYmd } from "@/lib/scheduling/tz";
 import { NOT_ACCEPTING_BOOKINGS } from "@/lib/talent/accepting-readiness";
 import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
@@ -68,6 +69,8 @@ export async function loadPublicOpenTimes(
     /** Base + extras; null → the offering's own length. */
     parseDuration: (offeringDuration: number) => number;
     now: Date;
+    /** TUL-690: a `/w/<slug>` storefront on the hub host names its workspace. */
+    workspace?: { requested: boolean; tenantId: string | null };
   },
 ): Promise<PublicOpenTimesResult> {
   const { host } = input;
@@ -127,19 +130,28 @@ export async function loadPublicOpenTimes(
   const talentProfileId = talent.id as string;
   if (!offeringTenantId) return { ok: true, slots: [], reason: "not_bookable_here", talentProfileId };
 
-  const mode = await resolveTalentBookingMode(admin, {
-    talentProfileId,
-    offeringId: offering.id,
+  const scope = resolveSlotsWorkspaceScope({
     host: {
       kind: host.kind,
       tenantId: host.kind === "agency" || host.kind === "hub" ? host.tenantId : null,
     },
+    workspaceRequested: input.workspace?.requested ?? false,
+    workspaceTenantId: input.workspace?.tenantId ?? null,
+    offeringTenantId,
+  });
+  if (!scope.ok) return notFound;
+  const bookingHost = scope.host;
+
+  const mode = await resolveTalentBookingMode(admin, {
+    talentProfileId,
+    offeringId: offering.id,
+    host: bookingHost,
   });
   if (mode === "inquire") return { ok: true, slots: [], reason: "inquiry_only", mode, talentProfileId };
 
   // WSF-C §7: the talent's pause applies on their own site and the Tulala
   // profile (hub). An agency host owns its routing and is never paused here.
-  if (host.kind !== "agency") {
+  if (bookingHost.kind !== "agency") {
     const switches = await loadTalentSiteSwitches(admin, talentProfileId);
     if (!switches.acceptingBookings) {
       return { ok: true, slots: [], reason: NOT_ACCEPTING_BOOKINGS, mode, talentProfileId };

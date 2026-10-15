@@ -7,6 +7,7 @@ import {
   MAX_ESSENTIAL_SERVICES,
   defaultWeeklyHours,
   hoursHaveAnyOpenDay,
+  currencyForCountry,
   isMexico,
   type DayKey,
   type EssentialService,
@@ -15,8 +16,6 @@ import {
   type WeeklyEssentialHours,
 } from "./essentials";
 import type { OnboardingChoice } from "./choice";
-import { timezoneFromPlaceText } from "@/lib/scheduling/timezone-from-place";
-import { isValidIanaTimeZone } from "@/lib/scheduling/tz";
 
 /** Monday first for people, Sunday = "0" for the data. */
 export const DAY_ORDER: readonly DayKey[] = ["1", "2", "3", "4", "5", "6", "0"];
@@ -26,40 +25,31 @@ export const DAY_LABELS: Record<"en" | "es", Record<DayKey, string>> = {
   es: { "1": "Lun", "2": "Mar", "3": "Mié", "4": "Jue", "5": "Vie", "6": "Sáb", "0": "Dom" },
 };
 
-/** Zones offered on setup. Mexican zones first; bilingual labels (TUL-540). */
-export const TIMEZONE_OPTIONS: ReadonlyArray<{ id: string; label: { en: string; es: string } }> = [
-  { id: "America/Mexico_City", label: { en: "Mexico City (CDMX)", es: "Ciudad de México (CDMX)" } },
-  { id: "America/Cancun", label: { en: "Cancún (Quintana Roo)", es: "Cancún (Quintana Roo)" } },
-  { id: "America/Merida", label: { en: "Mérida (Yucatán)", es: "Mérida (Yucatán)" } },
-  { id: "America/Monterrey", label: { en: "Monterrey", es: "Monterrey" } },
-  { id: "America/Tijuana", label: { en: "Tijuana", es: "Tijuana" } },
-  { id: "America/Mazatlan", label: { en: "Mazatlán", es: "Mazatlán" } },
-  { id: "America/New_York", label: { en: "New York (ET)", es: "Nueva York (ET)" } },
-  { id: "America/Chicago", label: { en: "Chicago (CT)", es: "Chicago (CT)" } },
-  { id: "America/Denver", label: { en: "Denver (MT)", es: "Denver (MT)" } },
-  { id: "America/Los_Angeles", label: { en: "Los Angeles (PT)", es: "Los Ángeles (PT)" } },
-  { id: "America/Bogota", label: { en: "Bogotá", es: "Bogotá" } },
-  { id: "America/Argentina/Buenos_Aires", label: { en: "Buenos Aires", es: "Buenos Aires" } },
-  { id: "Europe/Madrid", label: { en: "Madrid", es: "Madrid" } },
-  { id: "Europe/London", label: { en: "London", es: "Londres" } },
+/** Zones offered when the person is not in Mexico. The list is short on purpose; the rest is "Other". */
+export const TIMEZONE_OPTIONS: ReadonlyArray<{ id: string; label: string }> = [
+  { id: "America/Mexico_City", label: "Ciudad de México (CT)" },
+  { id: "America/Cancun", label: "Cancún (EST)" },
+  { id: "America/New_York", label: "New York (ET)" },
+  { id: "America/Chicago", label: "Chicago (CT)" },
+  { id: "America/Denver", label: "Denver (MT)" },
+  { id: "America/Los_Angeles", label: "Los Angeles (PT)" },
+  { id: "America/Bogota", label: "Bogota" },
+  { id: "America/Argentina/Buenos_Aires", label: "Buenos Aires" },
+  { id: "Europe/Madrid", label: "Madrid" },
+  { id: "Europe/London", label: "London" },
 ];
 
-/** Label for a timezone option in the setup locale. */
-export function timezoneOptionLabel(id: string, locale: "en" | "es"): string {
-  const hit = TIMEZONE_OPTIONS.find((z) => z.id === id);
-  return hit ? hit.label[locale] : id;
+/** The short list, plus the current zone when it is not on it (the browser's zone, a saved one). */
+export function timezoneChoices(current: string | null | undefined): ReadonlyArray<{ id: string; label: string }> {
+  const id = current?.trim();
+  if (!id || TIMEZONE_OPTIONS.some((z) => z.id === id)) return TIMEZONE_OPTIONS;
+  const label = (id.split("/").pop() ?? id).replace(/_/g, " ");
+  return [{ id, label }, ...TIMEZONE_OPTIONS];
 }
 
-/**
- * Outside Mexico the zone is asked unless a known city resolves to one ("Chicago, United States"
- * stays hidden; a bare country asks). Inside Mexico the zone comes from the country/city and is never asked.
- */
-export function needsTimezoneQuestion(country: string | null | undefined, city?: string | null): boolean {
-  if (isMexico(country)) return false;
-  const cityTrim = city?.trim();
-  if (!cityTrim) return true;
-  const inferred = timezoneFromPlaceText([cityTrim, country].map((x) => x?.trim()).filter(Boolean).join(", "));
-  return !(inferred && isValidIanaTimeZone(inferred));
+/** Only outside Mexico: inside, the zone comes from the country and is never asked. */
+export function needsTimezoneQuestion(country: string | null | undefined): boolean {
+  return !isMexico(country);
 }
 
 /** "12:30" <-> minutes. */
@@ -116,6 +106,22 @@ export function blankService(currency: string): EssentialService {
   return { name: "", durationMin: 60, priceCents: null, quote: false, currency, packKey: null };
 }
 
+/**
+ * TUL-16 b: the currency the services step prices in. The person's own pick
+ * wins; otherwise the country decides (Mexico: pesos). With no country yet, a
+ * Spanish flow starts in pesos instead of a silent USD. MXN and USD only.
+ */
+export function setupCurrency(input: { chosen: string | null; country: string | null | undefined; locale: string }): string {
+  if (input.chosen === "MXN" || input.chosen === "USD") return input.chosen;
+  if (input.country && input.country.trim()) return currencyForCountry(input.country);
+  return input.locale === "es" ? "MXN" : "USD";
+}
+
+/** One currency for every service line (a menu does not mix them). */
+export function applyServiceCurrency(services: EssentialService[], currency: string): EssentialService[] {
+  return services.map((s) => (s.currency === currency ? s : { ...s, currency }));
+}
+
 /** Drop empty rows; a row without a number is a quote; cap the list. */
 export function cleanServices(services: EssentialService[]): EssentialService[] {
   return services
@@ -141,7 +147,7 @@ export function setupIssues(input: {
   if (cleanServices(e.services).length === 0) issues.push("services");
   if (!hoursHaveAnyOpenDay(e.hours)) issues.push("hours");
   if (!e.place) issues.push("place");
-  if (needsTimezoneQuestion(input.country, e.place?.area ?? null) && !e.timezone) issues.push("timezone");
+  if (needsTimezoneQuestion(input.country) && !e.timezone) issues.push("timezone");
   const draft = input.providerEmailDraft.trim();
   if (choice === "studio" && draft && !EMAIL_RE.test(draft)) issues.push("providerEmail");
   return issues;

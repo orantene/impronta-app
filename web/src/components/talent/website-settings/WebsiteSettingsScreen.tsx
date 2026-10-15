@@ -398,7 +398,7 @@ export function WebsiteSettingsScreen({
                 : t("Open personal site editor")
             }
             onOpen={() => {
-              window.location.assign(PERSONAL_SITE_BUILDER_HREF);
+              window.open(PERSONAL_SITE_BUILDER_HREF, "_blank", "noopener,noreferrer");
             }}
           />
         </div>

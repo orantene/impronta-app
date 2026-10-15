@@ -1,4 +1,5 @@
 import { languageToggleGroupLabel } from "@/i18n/language-toggle-label";
+import { localeSwitchRel } from "@/i18n/locale-switch-rel";
 import type { HeaderItem } from "./schema";
 
 /** How an item behaves on each breakpoint when the owner has not chosen (phone: brand stays, rest folds into the menu). */
@@ -51,6 +52,8 @@ export function HeaderSiteLocales({
           <a
             className="site-header__lang-code"
             href={hrefs?.[code] ?? `?locale=${code}`}
+            // TUL-793: a `?locale=` link is a switch action that redirects to the clean URL, never a page to index.
+            {...localeSwitchRel(hrefs?.[code] ?? `?locale=${code}`)}
             hrefLang={code}
             lang={code}
             data-active={code === locale ? "" : undefined}

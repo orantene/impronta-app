@@ -4,6 +4,7 @@
  */
 
 import { isDevGuestCaptchaSkipHostname } from "@/lib/scheduling/guest-captcha-dev-skip";
+import { publicSlotsUrl } from "@/lib/scheduling/public-slots-workspace";
 
 import { LIVE_SLOT_STRIP_DAYS } from "./catalog-booking-logic";
 
@@ -40,7 +41,7 @@ export async function fetchLiveSlots(
     days: String(LIVE_SLOT_STRIP_DAYS),
     duration: String(durationMinutes),
   });
-  const res = await fetch(`/api/public/booking/slots?${params.toString()}`, { cache: "no-store" });
+  const res = await fetch(publicSlotsUrl(params), { cache: "no-store" });
   const body = (await res.json()) as { slots?: string[]; timezone?: string };
   if (!res.ok) return { slots: [], timezone: "UTC", fromYmd };
   return {

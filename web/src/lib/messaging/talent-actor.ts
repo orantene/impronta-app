@@ -10,6 +10,7 @@ import { readUserId, type EffectiveReadContext } from "@/lib/impersonation/effec
 
 import { majorToMinorForDisplay } from "@/lib/inquiry/offer-minor-units";
 import { fail } from "./refusals";
+import { pickSaleOrder } from "./sale-order-pick";
 import { inquiryIsHers, talentIdsOnInquiry, talentIsSeller, type TalentOrderLine } from "./talent-pov";
 
 export type TalentSaleLine = TalentOrderLine & {
@@ -219,22 +220,24 @@ export async function loadTalentSale(
   | { ok: true; empty: true }
   | { ok: false; reason: MessagingRefusal }
 > {
-  const { data: order, error: orderErr } = await admin
+  const { data: orderRows, error: orderErr } = await admin
     .from("orders")
-    .select("id, status, currency, total_cents, tenant_id")
+    .select("id, status, currency, total_cents, tenant_id, source_channel, created_at")
     .eq("inquiry_id", inquiryId)
-    .eq("source_channel", "messages")
     .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(10);
   if (orderErr) return fail("unavailable");
-  const sale = order as {
-    id: string;
-    status: string;
-    currency: string | null;
-    total_cents: number | string | null;
-    tenant_id: string;
-  } | null;
+  const sale = pickSaleOrder(
+    (orderRows ?? []) as Array<{
+      id: string;
+      status: string;
+      currency: string | null;
+      total_cents: number | string | null;
+      tenant_id: string;
+      source_channel: string | null;
+      created_at: string;
+    }>,
+  );
   if (!sale || sale.tenant_id !== tenantId) return { ok: true, empty: true };
   const { data: rows, error: lineErr } = await admin
     .from("order_lines")

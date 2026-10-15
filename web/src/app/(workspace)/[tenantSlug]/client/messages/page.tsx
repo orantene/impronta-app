@@ -83,6 +83,7 @@ export default async function ClientMessagesPage({
       autoOpenDrawer={autoOpenDrawer}
       prefilledTalentId={prefilledTalentId}
       justSubmittedInquiryId={justSubmittedInquiryId ?? undefined}
+      viewerUserId={pageData.read.userId}
     />
   );
 }

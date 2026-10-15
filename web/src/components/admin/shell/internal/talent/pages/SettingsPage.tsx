@@ -15,7 +15,9 @@ import { HowYouWorkCard } from "@/components/settings/how-you-work-card";
 import { HYW_DESC, HYW_TITLE } from "@/components/settings/how-you-work-copy";
 import { JoinStudioCard } from "@/components/settings/join-studio-card";
 import { JS_DESC, JS_TITLE } from "@/components/settings/join-studio-copy";
+import { AccountExportLinks } from "@/components/account/AccountExportLinks";
 import { AccountDeletionCard } from "@/components/account/AccountDeletionCard";
+import { openUpgrade } from "@/components/talent/upgrade/open-upgrade";
 import { TalentInstagramCard } from "@/components/talent/connections/TalentInstagramCard";
 import { TALENT_INSTAGRAM_RETURN_MARKER } from "@/lib/talent-integrations/instagram-card-state";
 import { usePresenceText } from "@/components/talent/studio/presence-i18n";
@@ -171,7 +173,7 @@ export function SettingsPage() {
         key: "terms",
         label: tx("Deposit and cancellations"),
         sub: tx("Your defaults for new bookings. Each booking can still set its own."),
-        panel: <CommercialBookingTermsCard talentId={bridgeTalentSelfProfile.id} />,
+        panel: <CommercialBookingTermsCard talentId={bridgeTalentSelfProfile.id} solo={(bridgeTalentAgencies ?? []).length === 0} />,
       },
       {
         key: "currency",
@@ -273,9 +275,7 @@ export function SettingsPage() {
       key: "download-data",
       label: tx("Download my data"),
       sub: copy.t("A copy of the information Tulala holds about you, as a file."),
-      onOpen: () => {
-        window.location.assign("/api/account/export");
-      },
+      panel: <AccountExportLinks es={copy.isSpanish} />,
     },
     bridgeTalentSelfProfile
       ? {
@@ -285,7 +285,7 @@ export function SettingsPage() {
           panel: (
             <TalentPlanCard
               onCompare={() => openDrawer("talent-tier-compare")}
-              onUpgrade={() => openDrawer("talent-tier-compare")}
+              onUpgrade={() => openUpgrade({ feature: "generic", from: "settings-plan-card" })}
             />
           ),
         }
@@ -309,7 +309,7 @@ export function SettingsPage() {
           key: "instagram",
           label: "Instagram",
           sub: tx("Your latest posts on your website."),
-          panel: <TalentInstagramCard onUpgrade={() => openDrawer("talent-tier-compare")} />,
+          panel: <TalentInstagramCard onUpgrade={() => openUpgrade({ feature: "generic", from: "settings-instagram" })} />,
         },
       ]
     : [];

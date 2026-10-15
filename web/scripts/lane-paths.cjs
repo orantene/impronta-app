@@ -85,6 +85,22 @@ function resolveLaneArg(arg, root = WEB_ROOT) {
   return bases.filter((p) => isFile(root, p)).sort();
 }
 
+/**
+ * `@scripts/lanes/<lane>.txt` -> the entries of that list file: one path (or `*`/`?`
+ * pattern) per line, blank lines and `#` comments skipped, duplicates dropped (TUL-609).
+ * A list file keeps a long lane merge-safe: each file is its own line.
+ */
+function readListFile(arg, root = WEB_ROOT) {
+  const raw = fs.readFileSync(path.join(root, arg.replace(/^@/, "")), "utf8");
+  const lines = raw.split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("#"));
+  return [...new Set(lines)];
+}
+
+/** Replace every `@list` argument by its entries; other arguments pass through. */
+function expandListArgs(args, root = WEB_ROOT) {
+  return args.flatMap((a) => (a.startsWith("@") ? readListFile(a, root) : [a]));
+}
+
 /** Resolve many arguments; `empty` lists every argument that matched nothing. */
 function resolveLaneArgs(args, root = WEB_ROOT) {
   const files = new Set();
@@ -97,4 +113,4 @@ function resolveLaneArgs(args, root = WEB_ROOT) {
   return { files: [...files], empty };
 }
 
-module.exports = { WEB_ROOT, nodeMajor, toNodeArg, resolveLaneArg, resolveLaneArgs };
+module.exports = { WEB_ROOT, nodeMajor, toNodeArg, resolveLaneArg, resolveLaneArgs, readListFile, expandListArgs };

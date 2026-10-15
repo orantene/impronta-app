@@ -23,6 +23,22 @@ export const TALENT_SITE_ANON_CDN_CACHE =
 
 export const TALENT_SITE_PRIVATE_NO_STORE = "private, no-store";
 
+/**
+ * TUL-445 live QA fail: the CDN cache key ignored cookies, so a signed-in or
+ * guest-cookied visitor could be served the stored anonymous page (whose
+ * request carried no cookie). `Vary: Cookie` on EVERY talent-site response
+ * means an entry stored for a cookieless request never matches a request that
+ * carries any cookie; that request goes to the origin, which answers private,
+ * no-store. Cost: visitors holding any cookie miss the CDN; correctness wins.
+ */
+function addVaryCookie(res: NextResponse): void {
+  const existing = res.headers.get("Vary");
+  const parts = existing ? existing.split(",").map((v) => v.trim()).filter(Boolean) : [];
+  if (parts.some((v) => v === "*" || v.toLowerCase() === "cookie")) return;
+  parts.push("Cookie");
+  res.headers.set("Vary", parts.join(", "));
+}
+
 function responseSetsCookies(res: NextResponse): boolean {
   return res.cookies.getAll().length > 0;
 }
@@ -78,5 +94,6 @@ export function applyTalentSiteAnonCacheHeaders(
   // Vercel: CDN-specific directives override Cache-Control for the edge.
   res.headers.set("CDN-Cache-Control", value);
   res.headers.set("Vercel-CDN-Cache-Control", value);
+  addVaryCookie(res);
   return res;
 }

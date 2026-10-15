@@ -320,13 +320,23 @@ export function catalogNextDays(count = 12): Date[] {
   return out;
 }
 
+/** TUL-849: a day with no published hours is closed (read from the hours table, not a hardcoded weekday). */
+export function catalogDemoDayClosed(date: Date): boolean {
+  return demoSlotsFor(date, null).length === 0;
+}
+
+/** TUL-849: a live day with no bookable start (closed weekday in the talent timezone) is never pickable. */
+export function catalogLiveDayClosed(day: { starts: readonly string[] }): boolean {
+  return day.starts.length === 0;
+}
+
 /**
  * First day on the demo strip that is open. Sunday is closed and still listed,
  * but it must not be the selected day: the strip starts tomorrow, so a Saturday
  * visit otherwise opens on Sunday with no times.
  */
 export function firstOpenDemoDayIndex(days: readonly Date[]): number {
-  const index = days.findIndex((d) => d.getDay() !== 0);
+  const index = days.findIndex((d) => !catalogDemoDayClosed(d));
   return index >= 0 ? index : 0;
 }
 

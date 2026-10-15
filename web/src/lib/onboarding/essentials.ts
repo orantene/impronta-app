@@ -13,8 +13,6 @@
  */
 
 import type { OnboardingChoice } from "./choice";
-import { timezoneFromPlaceText } from "@/lib/scheduling/timezone-from-place";
-import { isValidIanaTimeZone } from "@/lib/scheduling/tz";
 import { offeringOwnerFor } from "./offering-owner";
 import { isSoleOwnerProvider } from "./owner-hours";
 
@@ -168,14 +166,7 @@ export function packKeyForTrade(...candidates: Array<string | null | undefined>)
   return null;
 }
 
-export type PackContext = {
-  trade?: string | null;
-  discipline?: string | null;
-  country?: string | null;
-  /** City from the brief; picks the zone (Cancún is not Mexico_City) when known (TUL-540). */
-  city?: string | null;
-  locale: "en" | "es";
-};
+export type PackContext = { trade?: string | null; discipline?: string | null; country?: string | null; locale: "en" | "es" };
 
 /** Suggested services for a trade, with MX defaults (MXN) in Mexico; other countries get durations and "quote". */
 export function suggestedServices(ctx: PackContext): EssentialService[] {
@@ -206,16 +197,6 @@ export function packServiceFor(pack: TradePack | null, said: string): PackServic
   return pack.services.find((s) => [s.en, s.es, ...(s.aliases ?? [])].some((n) => forms.has(n.toLowerCase()))) ?? null;
 }
 
-/** Soft zone for the prefill: the city (+ country) wins when it implies one, else the country default (TUL-540). */
-export function suggestedTimezoneForPlace(country: string | null | undefined, city?: string | null): string | null {
-  // Only a real city counts: a bare country must not silently pick a zone.
-  if (city?.trim()) {
-    const fromPlace = timezoneFromPlaceText([city, country].map((x) => x?.trim()).filter(Boolean).join(", "));
-    if (fromPlace && isValidIanaTimeZone(fromPlace)) return fromPlace;
-  }
-  return defaultTimezoneForCountry(country);
-}
-
 /** What the essentials screen opens with: pack services, Mon-Sat 9-19, country currency/timezone. */
 export function suggestedEssentials(ctx: PackContext & { name?: string | null }): Essentials {
   const services = suggestedServices(ctx);
@@ -223,7 +204,7 @@ export function suggestedEssentials(ctx: PackContext & { name?: string | null })
     name: ctx.name?.trim() || null,
     services,
     hours: defaultWeeklyHours(),
-    timezone: suggestedTimezoneForPlace(ctx.country, ctx.city),
+    timezone: defaultTimezoneForCountry(ctx.country) ?? (!ctx.country?.trim() && ctx.locale === "es" ? "America/Mexico_City" : null),
     place: null,
     firstProviderEmail: null,
     firstProviderName: null,
@@ -530,6 +511,17 @@ export async function runEssentialsWrites(store: EssentialsStore, input: Essenti
   if (choice !== "studio" && talent) {
     const tenantId = choice === "both" && workspace ? workspace.tenantId : talent.tenantId;
     await writeOfferings({ kind: "talent", talentProfileId: talent.talentProfileId, tenantId });
+    // TUL-650: the writer skips its own drafts when essentials carry services, so a
+    // failed write above left a confirmed talent with NO services. Check and retry once.
+    await step("offeringsRetry", async () => {
+      const owner: OfferingOwnerRef = { kind: "talent", talentProfileId: talent.talentProfileId, tenantId };
+      if (!e.services.length || (await store.listOfferings(owner)).length > 0) return;
+      const plan = planOfferingWrites([], e.services);
+      if (!plan.insert.length) return;
+      await store.insertOfferings(owner, plan.insert);
+      out.offeringsCreated += plan.insert.length;
+      out.warnings.push("essentials:offerings_recovered");
+    });
     await step("hours", async () => {
       out.hoursWritten = await store.upsertTalentHours({ talentProfileId: talent.talentProfileId, tenantId, weekly, timezone: e.timezone });
       if (!out.hoursWritten) out.warnings.push("essentials:hours:no_timezone");

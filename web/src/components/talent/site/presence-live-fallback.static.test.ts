@@ -43,8 +43,8 @@ test("TUL-325: manager gallery applySuccess wires Publish CTA", () => {
   assert.match(gallery, /data-theme-gallery-publish/);
   assert.match(gallery, /data-theme-gallery-unpublished/);
   const i18n = read("theme-gallery/theme-gallery-i18n.ts");
-  assert.match(i18n, /publishCta: "Publish site"/);
-  assert.match(i18n, /publishCta: "Publicar sitio"/);
+  assert.match(i18n, /publishCta: "Publish changes"/);
+  assert.match(i18n, /publishCta: "Publicar cambios"/);
   assert.match(i18n, /unpublishedPill: "Unpublished changes"/);
   assert.doesNotMatch(i18n, /—/);
   const fallback = read("PresenceLiveFallback.tsx");
@@ -77,4 +77,21 @@ test("TUL-329: Apps → design keeps overlay open (gallery view, not onClose)", 
   );
   assert.ok(onOpenBlock, "onOpenDesign handler present");
   assert.doesNotMatch(onOpenBlock[1]!, /\bonClose\b/);
+});
+
+test("TUL-536: post-apply shows one primary Publish changes and a quieter preview", () => {
+  const gallery = read("theme-gallery/ThemeGallery.tsx");
+  assert.match(gallery, /data-theme-gallery-publish/);
+  assert.match(gallery, /data-theme-gallery-preview-link/);
+  assert.match(gallery, /scrollIntoView/);
+  const i18n = read("theme-gallery/theme-gallery-i18n.ts");
+  assert.match(i18n, /publishCta: "Publish changes"/);
+  assert.match(i18n, /publishCta: "Publicar cambios"/);
+  assert.match(i18n, /previewCta: "View preview"/);
+  assert.match(i18n, /previewCta: "Ver vista previa"/);
+  const update = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/theme-releases/talent-update/copy.ts"),
+    "utf8",
+  );
+  assert.match(update, /publishCta: \{ en: "Publish changes", es: "Publicar cambios" \}/);
 });

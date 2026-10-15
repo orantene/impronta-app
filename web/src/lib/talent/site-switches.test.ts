@@ -22,6 +22,7 @@ test("explicit false is kept; junk falls back to on", () => {
     browseServices: false,
     aiBookingAssistantEnabled: false,
     agentBookingEnabled: false,
+    clientAccountEntry: "auto",
   });
 });
 
@@ -59,4 +60,12 @@ test("AI-agent booking (TUL-21) defaults off; only explicit true enables", () =>
     parseTalentSiteSwitches({ chat_config: { agentBookingEnabled: 1 } }).chatConfig.agentBookingEnabled,
     false,
   );
+});
+
+test("client account entry defaults to auto; only show / hide are kept", () => {
+  assert.equal(parseTalentSiteSwitches({ chat_config: {} }).chatConfig.clientAccountEntry, "auto");
+  assert.equal(parseTalentSiteSwitches({ chat_config: { clientAccountEntry: "hide" } }).chatConfig.clientAccountEntry, "hide");
+  assert.equal(parseTalentSiteSwitches({ chat_config: { clientAccountEntry: "show" } }).chatConfig.clientAccountEntry, "show");
+  assert.equal(parseTalentSiteSwitches({ chat_config: { clientAccountEntry: "nope" } }).chatConfig.clientAccountEntry, "auto");
+  assert.equal(parseTalentSiteSwitches(null).chatConfig.clientAccountEntry, "auto");
 });

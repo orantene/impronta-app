@@ -12,7 +12,8 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { checkBookingSlots } from "@/lib/rate-limit-kv";
-import { getPublicHostContext } from "@/lib/saas/scope";
+import { getPublicHostContext, getTenantPortalScopeBySlug } from "@/lib/saas/scope";
+import { workspaceSlugFromPathname } from "@/lib/scheduling/public-slots-workspace";
 import { HOST_TALENT_PROFILE_HEADER } from "@/lib/saas/host-context";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -97,7 +98,16 @@ export async function GET(request: Request) {
 
   try {
     const now = new Date();
+    const workspaceSlug = workspaceSlugFromPathname(
+      `/w/${(url.searchParams.get("workspace") ?? "").trim()}`,
+    );
+    const workspaceRequested = url.searchParams.has("workspace");
+    const workspaceTenantId =
+      workspaceRequested && workspaceSlug
+        ? ((await getTenantPortalScopeBySlug(workspaceSlug))?.tenantId ?? null)
+        : null;
     const result = await loadPublicOpenTimes(admin, {
+      workspace: { requested: workspaceRequested, tenantId: workspaceTenantId },
       host: {
         kind: host.kind,
         tenantId: host.kind === "agency" || host.kind === "hub" ? host.tenantId : null,

@@ -181,3 +181,23 @@ test("the render-time href and form-action neutralizers are still in force", () 
     "contact_form must keep neutralizing its action",
   );
 });
+
+// Promos PR4: `/p/<slug>` is a static sibling of the catch-all, so it must keep
+// the same anonymous, header-gated contract and be a valid, non-colliding route.
+const PROMO_HOST_ROUTE = "src/app/%5Ftalent-site/p/[slug]/page.tsx";
+
+test("the promo host route is anonymous and header-gated, like the catch-all", () => {
+  const source = src(PROMO_HOST_ROUTE);
+  for (const forbidden of ["getCachedActorSession", "createServerClient", "getCachedServerSupabase", "auth.getUser", "getSession"]) {
+    assert.equal(source.includes(forbidden), false, `${PROMO_HOST_ROUTE} must not reach for ${forbidden}`);
+  }
+  assert.match(source, /resolveGatedTalentProfileId\(/);
+  assert.match(source, /HOST_CONTEXT_HEADER/);
+  assert.match(source, /HOST_TALENT_PROFILE_HEADER/);
+  // Never takes the talent from the URL or query string.
+  assert.equal(/searchParams[^;]*profile/i.test(source), false);
+});
+
+test("`p` stays a reserved page slug so no site page can shadow the promo route", () => {
+  assert.match(src("src/lib/saas/talent-site-host-routing.ts"), /"p",/);
+});

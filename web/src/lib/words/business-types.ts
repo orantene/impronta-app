@@ -120,7 +120,7 @@ export const BUSINESS_TYPES: readonly BusinessType[] = [
   t("private-tours", "tours", "Private tours", "Tours privados", ["local tour guide", "walking tour", "guía turístico"], "tours_activities"),
   t("portrait-photographer", "craft", "Portrait photographer", "Fotógrafo de retrato", ["independent photographer", "photographer", "fotógrafo"], "portfolio"),
   t("dog-walker", "professional", "Dog walker", "Paseador de perros", []),
-  t("pet-grooming", "beauty", "Pet grooming", "Peluquería canina", ["groomer", "estética canina", "pet grooming salon"]),
+  t("pet-grooming", "beauty", "Pet grooming", "Peluquería canina", ["groomer", "estética canina", "pet grooming salon"], "pet_grooming"),
   t("wellness-retreat", "wellness", "Wellness retreat", "Retiro de bienestar", ["wellness retreat organiser", "retiro de bienestar"]),
   t("clinic", "wellness", "Clinic", "Clínica", [], "clinic"),
   t("theatre", "events", "Theatre", "Teatro", ["theater", "teatro"], "theatre_cinema"),

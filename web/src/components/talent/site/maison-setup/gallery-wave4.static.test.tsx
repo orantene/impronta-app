@@ -53,37 +53,10 @@ test("G4-LIB: suggested + all apps copy and library screen with Web Office badge
   // Null bridge plan → free: library cards surface Upgrade (TUL-39 pack).
   assert.match(html, /apps-library-upgrade-hint/);
   assert.match(html, /Mejora tu plan para usarla/);
-  // First-time setup (no live site): back stays ‹ Hoy.
-  assert.match(html, /data-back-context="today"/);
-  assert.match(html, /‹ Hoy/);
-});
-
-test("live1 app-back: live site Apps library back says Mi sitio web, not Hoy", () => {
-  const liveEs = renderToStaticMarkup(
-    <AppsLibraryScreen
-      locale="es"
-      fromLiveSite
-      onOpenApp={() => {}}
-      onBack={() => {}}
-      onClose={() => {}}
-    />,
-  );
-  assert.match(liveEs, /data-back-context="my-website"/);
-  assert.match(liveEs, /‹ Mi sitio web/);
-  assert.doesNotMatch(liveEs, /‹ Hoy/);
-  const liveEn = renderToStaticMarkup(
-    <AppsLibraryScreen
-      locale="en"
-      fromLiveSite
-      onOpenApp={() => {}}
-      onBack={() => {}}
-      onClose={() => {}}
-    />,
-  );
-  assert.match(liveEn, /‹ My website/);
-  assert.doesNotMatch(liveEn, /‹ Today/);
-  const host = read("MaisonSetupHost.tsx");
-  assert.match(host, /fromLiveSite=\{sitePublished \|\| Boolean\(siteLive\)\}/);
+  // TUL-536: back closes to the site manager, so it says Mi sitio web, never Hoy.
+  assert.match(html, /apps-library-back/);
+  assert.match(html, /‹ Mi sitio web/);
+  assert.doesNotMatch(html, /‹ Hoy/);
 });
 
 test("G4-APP: free plan sees Upgrade to use (preview stays); paid sees Add", () => {

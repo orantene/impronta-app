@@ -67,8 +67,9 @@ lane, take MAIN's line and re-append only your own test file.
   never pick up a fix that landed on main afterwards. One-command diagnostic:
   `git fetch origin refs/pull/N/merge:refs/tmp/m && git log -1 --format=%P refs/tmp/m`
   — if parent 1 is not current `origin/main`, the run is testing stale code.
-- Merging to `main` does NOT deploy. The `production` pointer fast-forwards on a
-  green structural gate. Do not push it by hand.
+- Merging to `main` does NOT deploy. The `production` pointer moves only when a
+  release is cut by hand (`promote-production.yml`, workflow_dispatch, batched;
+  P0 hotfix excepted). Do not push it by hand.
 
 ## Copy and i18n
 - Every new user-facing string needs **en + es**. `fr.json` has no
