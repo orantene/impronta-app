@@ -162,6 +162,7 @@ function DockButton({ item }: { item: DockItem }) {
       </span>
       <span
         aria-hidden
+        className="min-w-0 max-w-full max-sm:[overflow-wrap:anywhere]"
         style={{
           fontSize: DOCK_LABEL_PX,
           fontWeight: 600,
