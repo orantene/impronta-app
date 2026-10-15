@@ -148,14 +148,18 @@ export function AuthNotice({
   children,
   align = "left",
   className = "",
+  id,
 }: {
   tone: NoticeTone;
   children: ReactNode;
   align?: "left" | "center";
   className?: string;
+  /** Lets a field point at this notice with aria-describedby. */
+  id?: string;
 }) {
   return (
     <p
+      id={id}
       role={tone === "error" ? "alert" : "status"}
       className={`rounded-xl px-3 py-2 text-[0.8125rem] leading-[1.5] ${
         align === "center" ? "text-center" : ""
@@ -197,7 +201,9 @@ export function AuthField({
   const control =
     hintId && isValidElement(children)
       ? cloneElement(children as ReactElement<{ "aria-describedby"?: string }>, {
-          "aria-describedby": (children.props as { "aria-describedby"?: string })["aria-describedby"] ?? hintId,
+          "aria-describedby": [(children.props as { "aria-describedby"?: string })["aria-describedby"], hintId]
+            .filter(Boolean)
+            .join(" "),
         })
       : children;
   return (

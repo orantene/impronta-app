@@ -89,7 +89,7 @@ export function LoginForm({
       <input type="hidden" name="remember" value={remember ? "1" : "0"} />
 
       {friendlyError ? (
-        <AuthNotice tone="error">{friendlyError}</AuthNotice>
+        <AuthNotice tone="error" id="login-error">{friendlyError}</AuthNotice>
       ) : null}
 
       {state?.message ? (
@@ -104,6 +104,7 @@ export function LoginForm({
           autoComplete="email"
           required
           aria-invalid={friendlyError ? true : undefined}
+          aria-describedby={friendlyError ? "login-error" : undefined}
           value={email}
           onChange={(e) => {
             setEmail(e.target.value);
