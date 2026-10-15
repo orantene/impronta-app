@@ -779,6 +779,7 @@ export function MiniChatPanelColumn({
           accentInk={accentInk}
           t={t}
           isHub={isHub || Boolean(brand.omitPlatformBrand)}
+          solo={Boolean(brand.soloTalent)}
           brandName={brand.agencyName}
           surfaceMode={surfaceMode}
           disabled={sending || inCooldown}

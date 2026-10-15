@@ -21,3 +21,11 @@ test("TUL-1153: a one-talent workspace site is flagged soloTalent in the agency 
   assert.match(mount, /rosterSize !== null && rosterSize <= 1/);
   assert.match(mount, /\n\s+soloTalent,\n/);
 });
+
+test("TUL-1153: the send bar never says agency on a one-talent site", () => {
+  const bar = readFileSync(join(__dirname, "SendToAgencyBar.tsx"), "utf8");
+  const col = readFileSync(join(__dirname, "MiniChatPanelColumn.tsx"), "utf8");
+  assert.match(bar, /isHub \|\| solo\s*\n\s*\? t\("public\.guestChat\.sendHub"\)/);
+  assert.match(col, /solo=\{Boolean\(brand\.soloTalent\)\}/);
+  assert.doesNotMatch(es.public.guestChat.sendSoloSent, /agencia/i);
+});
