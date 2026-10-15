@@ -80,6 +80,10 @@ export type CatalogRow = {
   /** Talent services: extras stack. */
   readonly addOns?: readonly CatalogOption[];
   readonly durationMinutes?: number | null;
+  /** Who offers it (TUL-1063): a service or package shows its owner on the network-wide list. */
+  readonly ownerName?: string | null;
+  /** The owner's public profile code, so a page can scope the list to its own talent. */
+  readonly ownerCode?: string | null;
 };
 
 export type CatalogGroup = { readonly category: ItemCategory; readonly rows: readonly CatalogRow[] };
