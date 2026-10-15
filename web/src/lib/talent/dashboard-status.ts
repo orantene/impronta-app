@@ -40,6 +40,8 @@ export type DashboardStatusCopy = {
   activateCta: string;
   /** "{n} things left before your free website" (paid: "...before your website"). */
   leftLine: (count: number) => string;
+  /** Profile editor caption on a section that feeds the website score. */
+  countsTowardSite: string;
   /** Title of the public page banner on Profile. */
   publicPageTitle: string;
   /** Hint line under that title. */
@@ -67,6 +69,9 @@ export function dashboardStatusCopy(input: {
     activateCta: free
       ? T("Activate your free website", "Activa tu sitio gratis")
       : T("Activate your website", "Activa tu sitio"),
+    countsTowardSite: free
+      ? T("Counts toward your free website", "Cuenta para tu sitio gratis")
+      : T("Counts toward your website", "Cuenta para tu sitio"),
     leftLine: (count) => {
       const one = count === 1;
       if (free) {
