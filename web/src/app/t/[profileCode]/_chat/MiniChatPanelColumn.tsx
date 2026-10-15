@@ -589,7 +589,7 @@ export function MiniChatPanelColumn({
           accent={accent}
           accentInk={accentInk}
           C={C}
-          locale={brand.locale ?? "es"}
+          locale={brand.locale ?? "en"}
           businessName={brand.agencyName}
           presenceName={talentFirst}
         />

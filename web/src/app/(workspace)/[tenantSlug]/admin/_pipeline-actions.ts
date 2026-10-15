@@ -1035,7 +1035,6 @@ export async function rescheduleInquiry(
   }
 }
 
-// ─── Edit job — unified inquiry + booking field editor ───────────────────────
 //
 // The admin Messages thread header carries an "Edit job" pencil that opens a
 // Sheet where staff can revise every field the job needs in one place: the

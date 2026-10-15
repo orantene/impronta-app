@@ -61,6 +61,8 @@ import {
   NavigatorDisclosureChevron,
 } from "./use-navigator-disclosure";
 import { useEditorLocale } from "./use-editor-locale";
+import type { EditorLocale } from "./editor-i18n";
+import { sectionNameForLabel } from "@/lib/talent-site/history/draft-diff";
 import { useLayersTreeContainer } from "./use-roving-tree-focus";
 import {
   layerIcon,
@@ -127,8 +129,10 @@ function rawChildKindsForKind(kind: BuilderNodeKind): ReadonlyArray<BuilderNodeK
  * canvas chip, and inspector agree. `section_embed` rows resolve their friendly
  * curated-section label ("Featured talent") via `sectionEmbedTypeLabel`.
  */
-function rowLabel(node: BuilderNode): string {
-  return resolveLayerDisplayName(node, sectionEmbedTypeLabel);
+function rowLabel(node: BuilderNode, locale: EditorLocale): string {
+  const name = resolveLayerDisplayName(node, sectionEmbedTypeLabel);
+  // Design kits name their sections in English ("Ticker and recent work").
+  return locale === "es" ? (sectionNameForLabel(name, "es") ?? name) : name;
 }
 
 /** Section type key for Structure search aliases (TUL-80). */
@@ -205,7 +209,7 @@ function findFirstContainer(nodes: ReadonlyArray<BuilderNode>): BuilderNode | nu
  * still reads cleanly because `resolveLayerDisplayName` borrows the heading it
  * wraps for the row name (not a bare "Container").
  */
-export function flattenTree(tree: BuilderNodeTree): FlattenedTree {
+export function flattenTree(tree: BuilderNodeTree, locale: EditorLocale = "en"): FlattenedTree {
   const rows: LayerRow[] = [];
   const descendantsByNode = new Map<string, Set<string>>();
 
@@ -226,7 +230,7 @@ export function flattenTree(tree: BuilderNodeTree): FlattenedTree {
       rows.push({
         id: node.id,
         kind: node.kind,
-        label: rowLabel(node),
+        label: rowLabel(node, locale),
         Icon: layerIcon(node),
         depth,
         index,
@@ -388,13 +392,14 @@ export function FreeformLayersTree({
   const aiSurface = textToPageSurfaceForStarterSurface(
     starterSurfaceForKind(surfaceKind),
   );
+  const { locale: editorLocale, t: editorText } = useEditorLocale();
   const builderTree = useBuilderTree(); // WS2 — value from the tree micro-store
   const hoveredBuilderNodeId = useHoveredBuilderNodeId(); // W2-T3 — value from the bridge
   const selectedBuilderNodeId = useSelectedBuilderNodeId(); // W2 (selection-bridge) — value from the micro-store
 
   const { rows, rootContainerId, rootContainerKinds, descendantsByNode } = useMemo(
-    () => flattenTree(builderTree),
-    [builderTree],
+    () => flattenTree(builderTree, editorLocale),
+    [builderTree, editorLocale],
   );
 
   const searchFilteredRows = useMemo(() => {
@@ -756,7 +761,7 @@ export function FreeformLayersTree({
     <div
       ref={treeRef}
       role="tree"
-      aria-label="Page layers"
+      aria-label={editorText("Page layers")}
       style={{ display: "flex", flexDirection: "column", gap: 1 }}
     >
       {/* Click-to-locate flash keyframes (job #5). Inert until a canvas block
@@ -806,7 +811,7 @@ export function FreeformLayersTree({
             color: CHROME.ink,
           }}
         >
-          Page layers
+          {editorText("Page layers")}
         </span>
         {headerAddEnabled ? (
           <HeaderAddButton
