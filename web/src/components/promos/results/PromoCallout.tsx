@@ -31,14 +31,14 @@ export function PromoCallout(props: { callout: Callout; lang: Lang; createHref: 
     });
   };
   return (
-    <aside className="rounded-2xl border border-border bg-card p-4">
-      <p className="text-sm text-foreground">{text.title}</p>
+    <aside className="rounded-2xl border border-[var(--tc-border,#e5e5ea)] bg-white p-4">
+      <p className="text-sm text-[var(--tc-ink,#1c1c1e)]">{text.title}</p>
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
-        <Link href={props.createHref} onClick={() => respond("accept")} className="inline-flex min-h-11 items-center text-sm font-medium text-foreground underline underline-offset-4">
+        <Link href={props.createHref} onClick={() => respond("accept")} className="inline-flex min-h-11 items-center text-sm font-medium text-[var(--tc-ink,#1c1c1e)] underline underline-offset-4">
           {text.cta}
         </Link>
-        <button type="button" onClick={() => respond("snooze")} className="min-h-11 text-sm text-muted-foreground">{c.dismiss}</button>
-        <button type="button" onClick={() => respond("hide")} className="min-h-11 text-sm text-muted-foreground">{c.hide}</button>
+        <button type="button" onClick={() => respond("snooze")} className="min-h-11 text-sm text-[var(--tc-muted,#6b6b73)]">{c.dismiss}</button>
+        <button type="button" onClick={() => respond("hide")} className="min-h-11 text-sm text-[var(--tc-muted,#6b6b73)]">{c.hide}</button>
       </div>
     </aside>
   );

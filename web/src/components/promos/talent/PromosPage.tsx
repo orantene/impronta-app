@@ -1,5 +1,6 @@
 "use client";
 
+import { consumeNewPromoPickerRequest, NEW_PROMO_PICKER_EVENT } from "./new-promo-intent";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -100,6 +101,25 @@ export function PromosPage() {
     }
   }, [data, wanted, start, router]);
 
+  // The header drawer's "Nueva promo" lands here: /talent/promos?picker=1 opens the template picker.
+  const wantsPicker = params.get("picker") === "1";
+  // Robust handoff (see new-promo-intent.ts): a flag for a page that mounts after the
+  // request and an event for one that is already mounted.
+  useEffect(() => {
+    if (!data) return;
+    if (consumeNewPromoPickerRequest()) setPicker(true);
+  }, [data]);
+  useEffect(() => {
+    const open = () => setPicker(true);
+    window.addEventListener(NEW_PROMO_PICKER_EVENT, open);
+    return () => window.removeEventListener(NEW_PROMO_PICKER_EVENT, open);
+  }, []);
+  useEffect(() => {
+    if (!data || !wantsPicker) return;
+    setPicker(true);
+    router.replace("/talent/promos");
+  }, [data, wantsPicker, router]);
+
   if (failed && !data) {
     return (
       <div className="flex flex-col gap-3">
@@ -186,8 +206,8 @@ export function PromosPage() {
       )}
 
       <Sheet open={picker} onOpenChange={setPicker}>
-        <SheetContent side="bottom" aria-describedby={undefined} className="max-h-[92vh] overflow-y-auto rounded-t-3xl bg-[var(--tc-canvas,#fafafa)] p-4">
-          <SheetTitle className={`text-[17px] font-semibold ${UI.ink}`}>{copy.t("picker.title")}</SheetTitle>
+        <SheetContent side="bottom" aria-describedby={undefined} className="max-h-[92vh] max-w-full overflow-x-hidden overflow-y-auto rounded-t-3xl bg-[var(--tc-canvas,#fafafa)] text-[var(--tc-ink,#1c1c1e)] p-4">
+          <SheetTitle className={UI.title}>{copy.t("picker.title")}</SheetTitle>
           <SheetDescription className={`mb-3 text-[13px] ${UI.muted}`}>{copy.t("picker.sub")}</SheetDescription>
           <TemplateGrid copy={copy} onPick={start} />
         </SheetContent>
@@ -207,8 +227,9 @@ export function PromosPage() {
         />
       ) : null}
 
+      {/* The detail sheet is a modal dialog: while sharing it is closed (detailId is kept, so it comes back on close). */}
       <PromoDetailSheet
-        item={detail}
+        item={shareItem ? null : detail}
         data={data}
         copy={copy}
         onClose={() => setDetailId(null)}
