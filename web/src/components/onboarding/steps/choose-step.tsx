@@ -8,7 +8,7 @@
 
 import { withLocaleHref } from "@/i18n/pathnames";
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 
 import { CHOOSE_COPY, type FlowLocale } from "@/lib/onboarding/flow";
 import type { OnboardingChoice } from "@/lib/onboarding/module-state";
@@ -38,6 +38,17 @@ export function ChooseStep({
   const c = CHOOSE_COPY[locale];
   const [selected, setSelected] = useState<OnboardingChoice | null>(initial);
   const [agencyOpen, setAgencyOpen] = useState(false);
+  const cardRefs = useRef<Partial<Record<OnboardingChoice, HTMLButtonElement | null>>>({});
+  // Roving tabindex (TUL-1125): one Tab stop for the group, arrows move and select.
+  const tabStop: OnboardingChoice = selected ?? ORDER[0];
+  const onCardKey = (e: KeyboardEvent<HTMLButtonElement>, choice: OnboardingChoice) => {
+    const step = e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : e.key === "ArrowUp" || e.key === "ArrowLeft" ? -1 : 0;
+    if (!step) return;
+    e.preventDefault();
+    const next = ORDER[(ORDER.indexOf(choice) + step + ORDER.length) % ORDER.length];
+    setSelected(next);
+    cardRefs.current[next]?.focus();
+  };
   return (
     <div data-testid="onb-choose">
       <h1 className="tl-display font-semibold leading-[1.08] tracking-[-0.03em]" style={{ color: "var(--tl-ink)", fontSize: 32 }}>
@@ -53,10 +64,13 @@ export function ChooseStep({
               type="button"
               role="radio"
               aria-checked={on}
+              tabIndex={choice === tabStop ? 0 : -1}
+              ref={(el) => { cardRefs.current[choice] = el; }}
               disabled={busy}
               onClick={() => setSelected(choice)}
+              onKeyDown={(e) => onCardKey(e, choice)}
               data-testid={`onb-choice-${choice}`}
-              className="flex min-h-[76px] w-full touch-manipulation items-center gap-4 rounded-[22px] px-4 py-3 text-left transition-colors duration-100 motion-reduce:transition-none disabled:opacity-60"
+              className="flex min-h-[76px] w-full touch-manipulation items-center gap-4 rounded-[22px] px-4 py-3 text-left transition-colors duration-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tl-forest)] motion-reduce:transition-none disabled:opacity-60"
               style={{
                 background: on ? "var(--tl-lime)" : "var(--tl-surface-raised)",
                 border: `1.5px solid ${on ? "var(--tl-lime-edge)" : "var(--tl-hairline-strong)"}`,
