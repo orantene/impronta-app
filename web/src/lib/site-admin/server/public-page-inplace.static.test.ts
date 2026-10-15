@@ -14,3 +14,9 @@ test("TUL-867: the redirect builder is locale-first via missingPageRedirectPath"
   assert.match(server, /missingPageRedirectPath\(/);
   assert.doesNotMatch(server, /pathPrefix \?\? ""\}\$\{withLocalePath/);
 });
+
+test("TUL-697: metadata resolves with the body's alias/locale logic", () => {
+  assert.match(page, /pickMetaRow\(/);
+  assert.match(page, /inPlaceSlugs\(slugPath\)\);\n\n  const publishedRows/);
+  assert.match(page, /assemblePageMetadata\(/);
+});
