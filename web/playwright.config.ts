@@ -128,12 +128,17 @@ export default defineConfig({
     {
       name: "talent-website-setup",
       testMatch: /talent-website\/auth\.setup\.ts/,
+      // TUL-1138: CI runs `rm -rf .next` then `next dev`, so the FIRST dev-signin request pays the cold
+      // compile of the route and the proxy (observed > 30 s, the default test timeout). Give the setup
+      // and the journeys that sign in real headroom instead of failing on the compile.
+      timeout: 180_000,
       use: { ...devices["Desktop Chrome"] },
     },
     {
       name: "talent-website",
       testMatch: /talent-website\/.*\.spec\.ts/,
       dependencies: ["talent-website-setup"],
+      timeout: 120_000,
       use: { ...devices["Desktop Chrome"] },
     },
     // ── Promos v1 ────────────────────────────────────────────────────────
