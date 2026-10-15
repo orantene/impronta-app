@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { UI } from "@/components/promos/talent/ui";
 import { copyText } from "./copy-text";
+import { SharePreview } from "./share-preview";
 import { PROMO_SHARE_LAYER, PROMO_SHARE_QR_LAYER } from "./layers";
 import { encodeQr } from "@/lib/links/qr";
 import { toSvg } from "@/lib/links/qr/render";
@@ -200,8 +201,7 @@ export function PromoShareSheet(props: PromoShareSheetProps) {
           {(["story", "post"] as const).map((a) => (
             <figure key={a} className={`${UI.card} m-0 flex flex-col gap-2 p-2`}>
               <figcaption className={`text-[12px] font-medium ${UI.muted}`}>{a === "story" ? t.story : t.post}</figcaption>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={img(a)} alt={a === "story" ? t.story : t.post} className="w-full rounded-lg" loading="lazy" />
+              <SharePreview src={img(a)} alt={a === "story" ? t.story : t.post} format={a} lang={lang} />
             </figure>
           ))}
         </div>
