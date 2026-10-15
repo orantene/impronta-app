@@ -8,8 +8,8 @@
  * `<id8>` (first 8 hex of the offering id): a renamed service keeps resolving, and any other
  * title part is self-canonical to the current slug.
  */
-import { publicPriceLine } from "@/lib/talent/public-price-line";
 import { buildServiceOffers, type JsonLdOfferingSource } from "@/lib/seo/talent-json-ld";
+import { publicPriceForJsonLd, resolvePublicPrice } from "@/lib/talent/public-price";
 
 export const SERVICE_SLUG_PREFIX = "servicio-";
 
@@ -100,11 +100,9 @@ export function serviceSitemapPaths(offerings: readonly ServicePageOffering[]): 
   return offerings.filter(isServicePageEligible).map((o) => `/${serviceSlug(o)}`);
 }
 
-/** "Desde $300.00" / "$450.00", or null when the price is hidden or quote-only. */
-/** Same price string as the home services block (TUL alex demo mismatch): one shared helper. `from` kept for callers. */
+/** The price string every service-page surface paints: the shared public resolver (TUL-791), same text as the home card. Null when empty. `from` kept for callers. */
 export function servicePriceLine(o: ServicePageOffering, locale: string, _from?: string): string | null {
-  const line = publicPriceLine(o, locale);
-  return line ? line.charAt(0).toUpperCase() + line.slice(1) : null;
+  return resolvePublicPrice(o, locale).text || null;
 }
 
 export type ServicePageCopy = {
@@ -114,6 +112,8 @@ export type ServicePageCopy = {
   back: string;
   minutes: (n: number) => string;
   priceFrom: string;
+  /** TUL-794: CTA for quote-only services. */
+  quote: string;
   related: string;
   freeCancel: (hours: number) => string;
 };
@@ -121,8 +121,8 @@ export type ServicePageCopy = {
 export function servicePageCopy(locale: string): ServicePageCopy {
   const en = locale.toLowerCase().startsWith("en");
   return en
-    ? { book: "Book this service", bookShort: "Book", back: "All services", minutes: (n) => `${n} min`, priceFrom: "From", related: "Other services", freeCancel: (h) => `Free cancellation up to ${h} h before` }
-    : { book: "Reservar este servicio", bookShort: "Reservar", back: "Todos los servicios", minutes: (n) => `${n} min`, priceFrom: "Desde", related: "Otros servicios", freeCancel: (h) => `Cancelación gratuita hasta ${h} h antes` };
+    ? { book: "Book this service", bookShort: "Book", back: "All services", minutes: (n) => `${n} min`, priceFrom: "From", quote: "Request a quote", related: "Other services", freeCancel: (h) => `Free cancellation up to ${h} h before` }
+    : { book: "Reservar este servicio", bookShort: "Reservar", back: "Todos los servicios", minutes: (n) => `${n} min`, priceFrom: "Desde", quote: "Pedir cotización", related: "Otros servicios", freeCancel: (h) => `Cancelación gratuita hasta ${h} h antes` };
 }
 
 /** "All services" link: the home page's services section, locale-aware (`/` or `/en` -> `/#services`, `/en/#services`). */
@@ -167,16 +167,18 @@ export function buildServicePageJsonLd(input: {
 }): Record<string, unknown> {
   const { offering: o, canonicalUrl } = input;
   const personId = input.personId ?? `${canonicalUrl}#person`;
+  const price = publicPriceForJsonLd(o);
   const offer = buildServiceOffers(
     [{
       name: o.title,
       description: o.description,
-      amountCents: o.amountCents,
+      amountCents: price.amountCents,
       currency: o.currency,
-      priceDisplay: o.priceDisplay,
+      priceDisplay: price.priceDisplay,
       durationMinutes: o.durationMinutes,
     }],
     personId,
+    input.inLanguage,
   )[0] as Record<string, unknown> | undefined;
   const item = (offer?.itemOffered ?? {}) as Record<string, unknown>;
   const { itemOffered: _drop, ...offerRest } = offer ?? {};
@@ -196,4 +198,14 @@ export function buildServicePageJsonLd(input: {
     ...(o.imageUrls?.[0] ? { image: o.imageUrls[0] } : {}),
     ...(hasOffer ? { offers: offerRest } : {}),
   };
+}
+
+/** TUL-791: the price text every service-page surface paints (same string as the home card). */
+export function servicePagePriceText(o: ServicePageOffering, locale: string): string {
+  return resolvePublicPrice(o, locale).text;
+}
+
+/** TUL-794: true when the service has no stated price and the CTA should ask for a quote. */
+export function servicePageIsQuote(o: ServicePageOffering): boolean {
+  return resolvePublicPrice(o, "en").mode === "quote";
 }

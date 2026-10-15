@@ -801,8 +801,9 @@
       "fees": {
         "service_subtotal": "Service",
         "base_reservation_fee": "Frais de réservation",
-        "platform_fee": "Frais de plateforme",
+        "platform_fee": "Frais de service Tulala",
         "processing_fee": "Traitement de carte",
+        "card_fee_memo": "Frais de carte inclus dans le prix (environ)",
         "client_service_fee": "Frais de service",
         "total_charged": "Total",
         "nonRefundable": "Les frais ne sont pas remboursables."

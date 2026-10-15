@@ -1789,9 +1789,10 @@
       "fees": {
         "service_subtotal": "Service",
         "base_reservation_fee": "Reservation fee",
-        "platform_fee": "Platform fee",
+        "platform_fee": "Tulala service fee",
         "processing_fee": "Card processing",
-        "client_service_fee": "Service fee",
+        "card_fee_memo": "Card fee included in the price (about)",
+        "client_service_fee": "Tulala service fee",
         "total_charged": "Total",
         "nonRefundable": "Fees are non-refundable."
       },
