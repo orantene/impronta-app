@@ -32,14 +32,18 @@ describe("buildDirectoryQueryOrFilter", () => {
   it("matches name and profile code", () => {
     assert.equal(
       buildDirectoryQueryOrFilter("QA"),
-      "display_name.ilike.%QA%,profile_code.ilike.%QA%",
+      "display_name.ilike.%QA%,profile_code.ilike.%QA%,category_label.ilike.%QA%",
     );
     assert.match(buildDirectoryQueryOrFilter("TAL-93940") ?? "", /profile_code\.ilike\.%TAL-93940%/);
   });
 
   it("strips characters that would break the or() grammar", () => {
     const f = buildDirectoryQueryOrFilter("a,b(c)%");
-    assert.equal(f, "display_name.ilike.%a b c%,profile_code.ilike.%a b c%");
+    assert.equal(f, "display_name.ilike.%a b c%,profile_code.ilike.%a b c%,category_label.ilike.%a b c%");
+  });
+
+  it("adds the matched talent types by slug and refuses unsafe slugs", () => {
+    assert.match(buildDirectoryQueryOrFilter("limpieza", ["cleaner", "x),y"]) ?? "", /,category_slug\.in\.\(cleaner\)$/);
   });
 
   it("returns null for an empty query", () => {

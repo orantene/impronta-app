@@ -1,5 +1,7 @@
 "use server";
 
+import { isEmailNotConfirmed } from "@/lib/auth/email-not-confirmed";
+import { signupNameMetadata } from "@/lib/auth/signup-name";
 import {
   getAppUrl,
   isTalentSignupNext,
@@ -188,6 +190,11 @@ export async function signInWithEmail(
         });
       }
     }
+    // TUL-767: GoTrue only answers "email not confirmed" once the password was right, so naming it
+    // reveals nothing an attacker could not already do; the visitor needs it to get unstuck.
+    if (isEmailNotConfirmed(error)) {
+      return { error: t("public.auth.errors.emailNotConfirmed") };
+    }
     return { error: t("public.auth.actions.signInGeneric") };
   }
 
@@ -346,12 +353,13 @@ export async function signUpWithEmail(
   // Carry the page locale so the auth-email hook sends the confirm email in EN/ES.
   const lang = String(formData.get("locale") ?? "en") === "es" ? "es" : "en";
 
+  const nameMeta = signupNameMetadata(formData.get("full_name"));
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(nextPath)}&lang=${lang}`,
-      data: signupIntent ? { signup_intent: signupIntent } : undefined,
+      data: signupIntent || nameMeta ? { ...(signupIntent ? { signup_intent: signupIntent } : {}), ...nameMeta } : undefined,
     },
   });
   if (error) {

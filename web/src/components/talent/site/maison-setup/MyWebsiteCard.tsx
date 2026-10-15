@@ -442,10 +442,11 @@ export function MyWebsiteCard({
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col justify-center gap-3 lg:max-w-sm">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-nowrap items-center gap-2">
             <span
               data-testid="maison-live-address"
-              className="inline-flex max-w-full items-center gap-1.5 truncate rounded-full border border-admin-border-soft bg-admin-surface-alt px-3 py-1.5 text-[13px] font-semibold text-admin-ink"
+              title={address}
+              className="block min-w-0 shrink overflow-hidden text-ellipsis whitespace-nowrap rounded-full border border-admin-border-soft bg-admin-surface-alt px-3 py-1.5 text-[13px] font-semibold text-admin-ink"
             >
               {address}
             </span>
@@ -454,7 +455,7 @@ export function MyWebsiteCard({
               aria-label={t("Copy address")}
               title={copied ? "✓" : t("Copy address")}
               onClick={() => void copyAddress()}
-              className="grid h-11 w-11 place-items-center rounded-xl border border-admin-border-soft text-[14px]"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-admin-border-soft text-[14px]"
             >
               {copied ? "✓" : (
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -471,7 +472,7 @@ export function MyWebsiteCard({
                 data-testid="maison-view-website"
                 aria-label={t("Open site")}
                 title={t("Open site")}
-                className="grid h-11 w-11 place-items-center rounded-xl border border-admin-border-soft text-[14px] text-admin-ink"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-admin-border-soft text-[14px] text-admin-ink"
               >
                 ↗
               </Link>

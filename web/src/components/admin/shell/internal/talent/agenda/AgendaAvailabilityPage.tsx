@@ -267,6 +267,29 @@ export function AgendaAvailabilityPage({
         </p>
       ) : null}
 
+      {/* TUL-821: the zone decides what every hour below means, so it leads. */}
+      <section className="rounded-2xl border border-black/8 bg-white p-4" data-testid="working-hours-timezone-block">
+        <label className="block text-[13px]">
+          {copy.t("Time zone")}
+          <TimezonePicker value={tz} onChange={(z) => { setTz(z); setTzSource("saved"); setUnsaved(true); }} />
+          {tz && tzSource === "device" ? (
+            <p className="mt-2 text-[12px] text-black/60" data-testid="working-hours-timezone-source">
+              {copy.t("Time zone taken from this device. Change it above if it is wrong.")}
+            </p>
+          ) : null}
+          {suggestedTz ? (
+            <button
+              type="button"
+              data-testid="working-hours-timezone-device"
+              className="mt-2 text-left text-[13px] text-[var(--tc-accent)]"
+              onClick={() => { setTz(suggestedTz); setTzSource("device"); setUnsaved(true); }}
+            >
+              {copy.t("Use this device's time zone")}: {suggestedTz.replaceAll("_", " ")}
+            </button>
+          ) : null}
+        </label>
+      </section>
+
       <section className="space-y-3 rounded-2xl border border-black/8 bg-white p-4">
         {rows.map((row, idx) => (
           <div
@@ -320,7 +343,7 @@ export function AgendaAvailabilityPage({
         ))}
       </section>
 
-      <section className="grid gap-3 rounded-2xl border border-black/8 bg-white p-4 sm:grid-cols-2">
+      <section className="rounded-2xl border border-black/8 bg-white p-4">
         <label className="block text-[13px]">
           {copy.t("Buffer (minutes)")}
           <input
@@ -330,25 +353,6 @@ export function AgendaAvailabilityPage({
             value={bufferMin}
             onChange={(e) => setBufferMin(Number(e.target.value) || 0)}
           />
-        </label>
-        <label className="block text-[13px]">
-          {copy.t("Time zone")}
-          <TimezonePicker value={tz} onChange={(z) => { setTz(z); setTzSource("saved"); setUnsaved(true); }} />
-          {tz && tzSource === "device" ? (
-            <p className="mt-2 text-[12px] text-black/60" data-testid="working-hours-timezone-source">
-              {copy.t("Time zone taken from this device. Change it above if it is wrong.")}
-            </p>
-          ) : null}
-          {suggestedTz ? (
-            <button
-              type="button"
-              data-testid="working-hours-timezone-device"
-              className="mt-2 text-left text-[13px] text-[var(--tc-accent)]"
-              onClick={() => { setTz(suggestedTz); setTzSource("device"); setUnsaved(true); }}
-            >
-              {copy.t("Use this device's time zone")}: {suggestedTz.replaceAll("_", " ")}
-            </button>
-          ) : null}
         </label>
       </section>
 

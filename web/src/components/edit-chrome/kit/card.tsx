@@ -96,7 +96,7 @@ export function CardHead({
   const iconStyle = iconAccentStyle(iconAccent);
   return (
     <header
-      className={`flex items-center gap-2 px-[13px] pb-[9px] pt-[11px] ${className ?? ""}`}
+      className={`flex min-w-0 items-center gap-2 px-[13px] pb-[9px] pt-[11px] ${className ?? ""}`}
       style={{
         borderBottom: `1px solid ${CHROME.line}`,
         background:
@@ -117,7 +117,7 @@ export function CardHead({
         </span>
       ) : null}
       <span
-        className="flex-1 truncate uppercase"
+        className="min-w-0 flex-1 truncate uppercase max-sm:whitespace-normal max-sm:[overflow-wrap:anywhere]"
         style={{
           fontSize: 11.5,
           fontWeight: 700,
@@ -132,7 +132,7 @@ export function CardHead({
       </span>
       {sub ? (
         <span
-          className="shrink-0 truncate"
+          className="shrink-0 truncate max-sm:hidden"
           style={{
             fontSize: 10.5,
             color: CHROME.muted2,

@@ -27,6 +27,8 @@ import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-langua
 import { talentProfileSitemapEntries } from "@/lib/talent-site/talent-site-locale-routing";
 
 import { headers } from "next/headers";
+import { PUBLIC_PATH_PREFIX_HEADER } from "@/lib/saas/scope";
+import { prefixPathWorkspaceSitemap } from "@/lib/seo/path-workspace-sitemap";
 import {
   HOST_CONTEXT_HEADER,
   HOST_TALENT_PROFILE_HEADER,
@@ -259,6 +261,13 @@ async function loadTalentSiteHostSitemapEntries(base: URL): Promise<MetadataRout
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const entries = await buildSitemap();
+  // A `/w/<slug>` workspace shares the hub origin: move each URL under its prefix (TUL-591).
+  const prefix = (await headers()).get(PUBLIC_PATH_PREFIX_HEADER);
+  return prefix ? prefixPathWorkspaceSitemap(entries, prefix) : entries;
+}
+
+async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = await createClient();
 
   // Each host-kind advertises only the routes its surface-allow-list permits,
