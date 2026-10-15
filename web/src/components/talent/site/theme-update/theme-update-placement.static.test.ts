@@ -66,3 +66,10 @@ test("TUL-1028: the presence banner is a compact row on desktop and the address 
   assert.match(card, /flex flex-nowrap items-center gap-2">\s*<span\s+data-testid="maison-live-address"/);
   assert.match(card, /data-testid="maison-view-website"[\s\S]*?shrink-0/);
 });
+
+test("TUL-1029: on a phone the builder pill collapses to a dot so it never covers the site name or rail", () => {
+  const pill = classConst("BUILDER_PILL_CLASS");
+  assert.match(pill, /max-sm:w-7/);
+  assert.match(pill, /max-sm:px-0/);
+  assert.match(SRC, /<span className="max-sm:sr-only">\{t\("pill"\)\}<\/span>/, "label stays for screen readers");
+});
