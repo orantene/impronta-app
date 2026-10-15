@@ -140,7 +140,7 @@ export function PromoSwitch({
       className={`relative inline-flex h-11 w-14 shrink-0 items-center justify-center rounded-full disabled:opacity-50 ${FOCUS}`}
     >
       <span className={`relative block h-7 w-12 rounded-full transition-colors ${checked ? "bg-[#0f766e]" : "bg-[#6b6b73]"}`}>
-        <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-[22px]" : "translate-x-0.5"}`} />
+        <span className={`absolute left-0.5 top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-5" : "translate-x-0"}`} />
       </span>
     </button>
   );
