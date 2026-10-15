@@ -1557,6 +1557,7 @@
       "dateStatusNotSure": "Not sure yet",
       "dateStatusMultiDay": "Multi-day",
       "dateStatusRecurring": "Recurring",
+      "dateIncompleteError": "Please enter the full date (day, month and year).",
       "dateEventDateLabel": "Event date",
       "dateStartTimeLabel": "Start time (optional)",
       "dateDurationLabel": "Duration (optional)",

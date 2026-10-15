@@ -1024,6 +1024,7 @@ export function DateSection({
   value, onChange,
 }: { value: InquiryDate; onChange: (v: InquiryDate) => void }) {
   const t = useT();
+  const [dateIncomplete, setDateIncomplete] = useState(false);
   return (
     <Section title={t("public.inquiryDrawer.dateTitle")} subtitle={t("public.inquiryDrawer.dateSubtitle")}>
       <FieldRow>
@@ -1045,7 +1046,13 @@ export function DateSection({
             type="date"
             value={value.event_date ?? ""}
             onChange={(v) => onChange({ ...value, event_date: v })}
+            onValidity={(bad) => setDateIncomplete(bad)}
           />
+          {dateIncomplete ? (
+            <p role="alert" style={{ margin: "4px 0 0", fontSize: 12, color: "#b3261e" }}>
+              {t("public.inquiryDrawer.dateIncompleteError")}
+            </p>
+          ) : null}
         </Field>
       </FieldRow>
       <FieldRow>
@@ -1867,15 +1874,21 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
 }
 
 export function Input({
-  value, onChange, placeholder, type = "text",
+  value, onChange, placeholder, type = "text", onValidity,
 }: {
   value: string; onChange: (v: string) => void; placeholder?: string; type?: string;
+  /** Reports a half-typed native value (e.g. date 02/08/yyyy) so the caller can show an inline error. */
+  onValidity?: (badInput: boolean) => void;
 }) {
   return (
     <input
       type={type}
       value={value}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => {
+        onValidity?.(e.target.validity.badInput);
+        onChange(e.target.value);
+      }}
+      onBlur={onValidity ? (e) => onValidity(e.target.validity.badInput) : undefined}
       placeholder={placeholder}
       style={inputStyle}
     />
