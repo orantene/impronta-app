@@ -78,7 +78,7 @@ export function PromoDetailSheet({ item, data, copy, onClose, onEdit, onShare, o
     <Sheet open onOpenChange={(o) => (o ? undefined : onClose())}>
       <SheetContent side="bottom" aria-describedby={undefined} className="flex max-h-[94vh] flex-col gap-0 rounded-t-3xl bg-[var(--tc-canvas,#fafafa)] p-0">
         <div className="px-4 pb-2 pt-4">
-          <SheetTitle className={`pr-8 text-[17px] font-semibold ${UI.ink}`}>{item.name}</SheetTitle>
+          <SheetTitle className={`pr-10 ${UI.title}`}>{item.name}</SheetTitle>
           <SheetDescription className="sr-only">{offerLabel(promo, copy)}</SheetDescription>
           <div className="mt-1 flex items-center gap-3">
             <StatusBadge status={status} copy={copy} />

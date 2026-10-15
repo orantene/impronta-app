@@ -187,7 +187,7 @@ export function PromosPage() {
 
       <Sheet open={picker} onOpenChange={setPicker}>
         <SheetContent side="bottom" aria-describedby={undefined} className="max-h-[92vh] overflow-y-auto rounded-t-3xl bg-[var(--tc-canvas,#fafafa)] p-4">
-          <SheetTitle className={`text-[17px] font-semibold ${UI.ink}`}>{copy.t("picker.title")}</SheetTitle>
+          <SheetTitle className={UI.title}>{copy.t("picker.title")}</SheetTitle>
           <SheetDescription className={`mb-3 text-[13px] ${UI.muted}`}>{copy.t("picker.sub")}</SheetDescription>
           <TemplateGrid copy={copy} onPick={start} />
         </SheetContent>
@@ -207,8 +207,9 @@ export function PromosPage() {
         />
       ) : null}
 
+      {/* The detail sheet is a modal dialog: while sharing it is closed (detailId is kept, so it comes back on close). */}
       <PromoDetailSheet
-        item={detail}
+        item={shareItem ? null : detail}
         data={data}
         copy={copy}
         onClose={() => setDetailId(null)}

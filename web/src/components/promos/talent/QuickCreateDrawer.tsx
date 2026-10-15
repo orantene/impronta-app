@@ -140,7 +140,7 @@ export function QuickCreateDrawer({ open, onClose, copy, data, initial, editingI
         aria-describedby={undefined}
       >
         <div className="px-4 pb-2 pt-4">
-          <SheetTitle className={`text-[17px] font-semibold ${UI.ink}`}>{title}</SheetTitle>
+          <SheetTitle className={UI.title}>{title}</SheetTitle>
           <SheetDescription className="sr-only">{copy.t("picker.sub")}</SheetDescription>
         </div>
 
@@ -248,11 +248,11 @@ export function QuickCreateDrawer({ open, onClose, copy, data, initial, editingI
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <label className="flex flex-col gap-1 text-[12px]">
                     <span className={UI.muted}>{copy.t("dates.from")}</span>
-                    <input type="date" className="min-h-11 rounded-xl border border-[var(--tc-border,#e5e5ea)] bg-white px-3 text-[14px] text-[#1c1c1e]" value={draft.starts_at ?? ""} onChange={(e) => set({ starts_at: e.target.value || null })} />
+                    <input type="date" className="min-h-11 rounded-xl border border-[var(--tc-border,#d1d1d6)] bg-white px-3 text-[16px] text-[#1c1c1e]" value={draft.starts_at ?? ""} onChange={(e) => set({ starts_at: e.target.value || null })} />
                   </label>
                   <label className="flex flex-col gap-1 text-[12px]">
                     <span className={UI.muted}>{copy.t("dates.to")}</span>
-                    <input type="date" className="min-h-11 rounded-xl border border-[var(--tc-border,#e5e5ea)] bg-white px-3 text-[14px] text-[#1c1c1e]" value={draft.ends_at ?? ""} onChange={(e) => set({ ends_at: e.target.value || null })} />
+                    <input type="date" className="min-h-11 rounded-xl border border-[var(--tc-border,#d1d1d6)] bg-white px-3 text-[16px] text-[#1c1c1e]" value={draft.ends_at ?? ""} onChange={(e) => set({ ends_at: e.target.value || null })} />
                   </label>
                 </div>
               ) : null}
@@ -314,7 +314,7 @@ export function QuickCreateDrawer({ open, onClose, copy, data, initial, editingI
             <div className={`${UI.card} flex flex-col gap-4 p-4`}>
               <Field label={copy.t("create.name")}>
                 <input
-                  className="min-h-11 w-full rounded-xl border border-[var(--tc-border,#e5e5ea)] bg-white px-3 text-[14px] text-[#1c1c1e]"
+                  className={UI.field}
                   value={draft.name}
                   maxLength={80}
                   // The template fills a default name; typing should replace it, not append to it.
@@ -355,7 +355,7 @@ export function QuickCreateDrawer({ open, onClose, copy, data, initial, editingI
                 {draft.unlock === "code" ? (
                   <input
                     aria-label={copy.t("more.code")}
-                    className="mt-2 min-h-11 w-full rounded-xl border border-[var(--tc-border,#e5e5ea)] bg-white px-3 text-[14px] uppercase text-[#1c1c1e]"
+                    className={`mt-2 uppercase ${UI.field}`}
                     value={draft.code ?? ""}
                     disabled={locked}
                     maxLength={40}
@@ -370,8 +370,8 @@ export function QuickCreateDrawer({ open, onClose, copy, data, initial, editingI
               ) : null}
               <Field label={copy.t("more.time")}>
                 <div className="grid grid-cols-2 gap-2">
-                  <input type="time" aria-label={copy.t("dates.from")} className="min-h-11 rounded-xl border border-[var(--tc-border,#e5e5ea)] bg-white px-3 text-[14px] text-[#1c1c1e]" value={draft.time_from ?? ""} onChange={(e) => set({ time_from: e.target.value || null })} />
-                  <input type="time" aria-label={copy.t("dates.to")} className="min-h-11 rounded-xl border border-[var(--tc-border,#e5e5ea)] bg-white px-3 text-[14px] text-[#1c1c1e]" value={draft.time_to ?? ""} onChange={(e) => set({ time_to: e.target.value || null })} />
+                  <input type="time" aria-label={copy.t("dates.from")} className="min-h-11 rounded-xl border border-[var(--tc-border,#d1d1d6)] bg-white px-3 text-[16px] text-[#1c1c1e]" value={draft.time_from ?? ""} onChange={(e) => set({ time_from: e.target.value || null })} />
+                  <input type="time" aria-label={copy.t("dates.to")} className="min-h-11 rounded-xl border border-[var(--tc-border,#d1d1d6)] bg-white px-3 text-[16px] text-[#1c1c1e]" value={draft.time_to ?? ""} onChange={(e) => set({ time_to: e.target.value || null })} />
                 </div>
               </Field>
               <Field label={copy.t("more.per_client")}>
@@ -464,7 +464,7 @@ function NumberBox({
         type="number"
         inputMode="numeric"
         aria-label={label}
-        className="min-h-11 w-16 rounded-xl border border-[var(--tc-border,#e5e5ea)] bg-white px-2 text-center text-[14px] text-[#1c1c1e]"
+        className="min-h-11 w-16 rounded-xl border border-[var(--tc-border,#e5e5ea)] bg-white px-2 text-center text-[16px] text-[#1c1c1e]"
         value={Number.isFinite(value) ? value : ""}
         onChange={(e) => onChange(clamp(Number(e.target.value)))}
       />
