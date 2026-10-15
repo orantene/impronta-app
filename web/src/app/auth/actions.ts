@@ -1,5 +1,6 @@
 "use server";
 
+import { isEmailNotConfirmed } from "@/lib/auth/email-not-confirmed";
 import { signupNameMetadata } from "@/lib/auth/signup-name";
 import {
   getAppUrl,
@@ -188,6 +189,11 @@ export async function signInWithEmail(
           actorKind: "guest",
         });
       }
+    }
+    // TUL-767: GoTrue only answers "email not confirmed" once the password was right, so naming it
+    // reveals nothing an attacker could not already do; the visitor needs it to get unstuck.
+    if (isEmailNotConfirmed(error)) {
+      return { error: t("public.auth.errors.emailNotConfirmed") };
     }
     return { error: t("public.auth.actions.signInGeneric") };
   }

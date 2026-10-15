@@ -163,7 +163,7 @@
       },
       "errors": {
         "invalidCredentials": "Correo o contraseña incorrectos. Revisa el correo o usa Olvidé mi contraseña.",
-        "emailNotConfirmed": "Tu correo aún no está confirmado. Revisa tu bandeja de entrada para encontrar el enlace de confirmación.",
+        "emailNotConfirmed": "Tu correo aún no está verificado. Elige Envíame un código abajo para verificarlo e iniciar sesión.",
         "tooManyAttempts": "Demasiados intentos; espera un minuto e inténtalo de nuevo.",
         "network": "Problema de conexión; revisa tu red e inténtalo de nuevo."
       },
