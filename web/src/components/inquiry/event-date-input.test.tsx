@@ -27,7 +27,7 @@ function blurWith(locale: "es" | "en", badInput: boolean): string | null {
   dom.window.document.body.appendChild(host);
   const root = createRoot(host);
   act(() => {
-    root.render(createElement(DashboardLocaleProvider, { locale }, createElement(EventDateInput, { value: "", onChange: () => {}, style: {} })));
+    root.render(createElement(DashboardLocaleProvider, { locale, children: createElement(EventDateInput, { value: "", onChange: () => {}, style: {} }) }));
   });
   const input = host.querySelector("input")!;
   Object.defineProperty(input, "validity", { value: { badInput }, configurable: true });
