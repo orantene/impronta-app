@@ -67,13 +67,30 @@ export function SaveStep({
       <Title>{path === "talent" ? t("public.onboarding.save.title") : t("public.onboarding.save.titleBusiness")}</Title>
       <Sub>{t("public.onboarding.save.sub")}</Sub>
 
-      <div className="mt-5" data-testid="onb-google">
+      {/* One consent for both ways in (TUL-809): the checkbox gates Google and the email code. */}
+      <label className="mt-5 flex items-start gap-2 text-[0.8125rem] leading-snug" style={{ color: "var(--tl-muted)" }}>
+        <input
+          type="checkbox"
+          checked={ageTerms}
+          onChange={(e) => setAgeTerms(e.target.checked)}
+          className="mt-0.5 size-4 shrink-0"
+          data-testid="onb-age-terms"
+        />
+        <span>
+          {ageConfirmed ? t("public.onboarding.save.termsPrefix") : t("public.auth.register.ageTermsPrefix")}{" "}
+          <a href={legal.terms} target="_blank" rel="noreferrer" className="underline">{t("public.auth.register.ageTermsTerms")}</a>{" "}
+          {t("public.auth.register.ageTermsAnd")}{" "}
+          <a href={legal.privacy} target="_blank" rel="noreferrer" className="underline">{t("public.auth.register.ageTermsPrivacy")}</a>
+        </span>
+      </label>
+      <div className="mt-3" data-testid="onb-google">
         <AuthGoogleButtonSurface
           pending={google.pending}
           label={t("public.onboarding.save.google")}
           pendingLabel={t("public.onboarding.save.googleOpening")}
           error={googleError}
           onClick={google.open}
+          disabled={!ageTerms}
         />
       </div>
 
@@ -109,21 +126,6 @@ export function SaveStep({
             {t("public.onboarding.save.plusEmailHint")}
           </p>
         ) : null}
-        <label className="mt-3 flex items-start gap-2 text-[0.8125rem] leading-snug" style={{ color: "var(--tl-muted)" }}>
-          <input
-            type="checkbox"
-            checked={ageTerms}
-            onChange={(e) => setAgeTerms(e.target.checked)}
-            className="mt-0.5 size-4 shrink-0"
-            data-testid="onb-age-terms"
-          />
-          <span>
-            {ageConfirmed ? t("public.onboarding.save.termsPrefix") : t("public.auth.register.ageTermsPrefix")}{" "}
-            <a href={legal.terms} target="_blank" rel="noreferrer" className="underline">{t("public.auth.register.ageTermsTerms")}</a>{" "}
-            {t("public.auth.register.ageTermsAnd")}{" "}
-            <a href={legal.privacy} target="_blank" rel="noreferrer" className="underline">{t("public.auth.register.ageTermsPrivacy")}</a>
-          </span>
-        </label>
         {error ? <Notice tone="error" testId="onb-error">{error}</Notice> : null}
         <div className="mt-4">
           <PrimaryButton type="submit" disabled={busy || !email.trim() || !ageTerms} testId="onb-email-cta">
@@ -131,18 +133,6 @@ export function SaveStep({
           </PrimaryButton>
         </div>
       </form>
-
-      <p className="mt-4 text-center text-[0.75rem]" style={{ color: "var(--tl-muted)" }}>
-        {t("public.onboarding.save.terms").split(/(Terms|Términos|Privacy Policy|Política de privacidad)/).map((part, i) =>
-          part === "Terms" || part === "Términos" ? (
-            <a key={i} href={legal.terms} target="_blank" rel="noreferrer" className="underline">{part}</a>
-          ) : part === "Privacy Policy" || part === "Política de privacidad" ? (
-            <a key={i} href={legal.privacy} target="_blank" rel="noreferrer" className="underline">{part}</a>
-          ) : (
-            <span key={i}>{part}</span>
-          ),
-        )}
-      </p>
     </div>
   );
 }

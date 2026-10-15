@@ -314,19 +314,22 @@ export function AuthGoogleButtonSurface({
   pendingLabel,
   error,
   onClick,
+  disabled = false,
 }: {
   pending: boolean;
   label: ReactNode;
   pendingLabel: ReactNode;
   error?: string | null;
   onClick: () => void;
+  /** Held until a required checkbox (e.g. age and terms) is ticked. */
+  disabled?: boolean;
 }) {
   return (
     <div className="space-y-2">
       <button
         type="button"
         onClick={onClick}
-        disabled={pending}
+        disabled={pending || disabled}
         className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full px-5 py-3 text-[0.9375rem] font-medium leading-none tracking-[-0.005em] transition-[background,border-color,box-shadow] duration-200 disabled:cursor-wait disabled:opacity-70"
         style={{
           background: "var(--plt-bg-raised)",
