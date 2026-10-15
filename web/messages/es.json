@@ -72,6 +72,8 @@
         "remember": "Mantener mi sesión activa por 30 días",
         "noAccount": "¿No tienes cuenta?",
         "signUp": "Regístrate",
+        "clientPrompt": "¿Vas a reservar?",
+        "clientSignUp": "Crea una cuenta de cliente",
         "sessionExpired": "Tu sesión expiró. Vuelve a iniciar sesión.",
         "linkExpired": "Ese enlace de acceso venció o ya se usó. Pide uno nuevo abajo.",
         "eyebrow": "Bienvenido de nuevo",

@@ -72,6 +72,8 @@
         "remember": "Keep me signed in for 30 days",
         "noAccount": "No account?",
         "signUp": "Sign up",
+        "clientPrompt": "Booking a service?",
+        "clientSignUp": "Create a client account",
         "sessionExpired": "Your session expired. Please sign in again.",
         "linkExpired": "That sign-in link has expired or was already used. Request a new one below.",
         "eyebrow": "Welcome back",
