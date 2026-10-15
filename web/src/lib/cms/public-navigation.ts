@@ -99,6 +99,37 @@ function loadCachedNavigation(
 }
 
 /**
+ * Ordered, de-duplicated locales to try for navigation rows: the requested
+ * locale first, then the tenant default, then every other public locale.
+ * Pure so it can be unit-tested (TUL-697).
+ */
+export function navigationLocaleFallbackOrder(
+  locale: Locale,
+  candidates: readonly string[],
+): Locale[] {
+  return Array.from(new Set([locale, ...candidates])) as Locale[];
+}
+
+/**
+ * Nav rows are seeded per locale and often for ONE language only, so a
+ * Spanish visit rendered an empty menu (and an empty mobile drawer). Fall back
+ * to the next locale that has rows; hrefs are still resolved in the requested
+ * locale by the caller so links stay in-language.
+ */
+async function loadNavigationWithLocaleFallback(
+  tenantId: string,
+  locale: Locale,
+  zone: "header" | "footer",
+  candidates: readonly string[],
+): Promise<RawNavRow[]> {
+  for (const l of navigationLocaleFallbackOrder(locale, candidates)) {
+    const rows = await loadCachedNavigation(tenantId, l, zone);
+    if (rows.length > 0) return rows;
+  }
+  return [];
+}
+
+/**
  * Visible CMS navigation rows for a locale + zone (anon RLS, cached).
  *
  * Returns an empty array off-tenant (hub/marketing/app contexts) rather than
@@ -111,10 +142,15 @@ export async function getPublicCmsNavigationLinks(
   const publicScope = await getPublicTenantScope();
   if (!publicScope) return [];
 
-  const rows = await loadCachedNavigation(publicScope.tenantId, locale, zone);
+  const settings = await getRequestLocaleUrlSettings();
+  const rows = await loadNavigationWithLocaleFallback(
+    publicScope.tenantId,
+    locale,
+    zone,
+    [settings.defaultLocale, ...settings.publicLocales],
+  );
   if (rows.length === 0) return [];
 
-  const settings = await getRequestLocaleUrlSettings();
   return rows.map((r) => ({
     label: r.label,
     href: resolvePublicCmsNavHref(r.href, locale, settings),

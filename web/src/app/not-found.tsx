@@ -1,10 +1,14 @@
 import Link from "next/link";
 import { DirectoryInquiryModalProvider } from "@/components/directory/directory-inquiry-modal-context";
-import { getPublicHostContext } from "@/lib/saas/scope";
+import { getPublicHostContext, getPublicPathPrefix } from "@/lib/saas/scope";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { resolveNotFoundSlug } from "@/lib/site-admin/server/page-roles";
 import { getRequestLocale } from "@/i18n/request-locale";
-import { withLocaleHref } from "@/i18n/pathnames";
+import { localeUrlSettings, withLocaleHref } from "@/i18n/pathnames";
+import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
+import { SkipToContent } from "@/components/accessibility/skip-to-content";
+import { PublicFooter } from "@/components/public-footer";
+import { PublicHeader } from "@/components/public-header";
 import { notFoundCopy } from "@/lib/i18n/not-found-copy";
 import { isLocale } from "@/lib/site-admin/locales";
 import CmsPublicPage from "@/app/(public)/p/[[...slug]]/page";
@@ -88,13 +92,21 @@ export default async function NotFound() {
   const copy = notFoundCopy(locale, brand ? brand.name : null);
   const eyebrow = isAgency && brand ? brand.name.toUpperCase() : "TULALA";
   const { heading, body } = copy;
-  const primaryCta = { label: copy.primary.label, href: withLocaleHref(copy.primary.href, locale) };
-  const secondaryCta = {
-    label: copy.secondary.label,
-    href: withLocaleHref(copy.secondary.href, locale),
+  // Tenant 404: links keep the /w/<slug> prefix and the tenant's own locale
+  // grammar; the platform 404 keeps the platform defaults.
+  const pathPrefix = isAgency ? await getPublicPathPrefix() : "";
+  const hostCtx = isAgency ? await getPublicHostContext() : null;
+  const tenantLocales = hostCtx?.tenantId ? await loadTenantLocaleSettings(hostCtx.tenantId) : null;
+  const localize = (href: string) => {
+    const withPrefix = pathPrefix ? (href === "/" ? pathPrefix : `${pathPrefix}${href}`) : href;
+    return tenantLocales
+      ? withLocaleHref(withPrefix, locale, localeUrlSettings(tenantLocales.defaultLocale, tenantLocales.supportedLocales))
+      : withLocaleHref(withPrefix, locale);
   };
+  const primaryCta = { label: copy.primary.label, href: localize(copy.primary.href) };
+  const secondaryCta = { label: copy.secondary.label, href: localize(copy.secondary.href) };
 
-  return (
+  const card = (
     <div
       style={{
         minHeight: "70vh",
@@ -215,4 +227,17 @@ export default async function NotFound() {
       </div>
     </div>
   );
+
+  // A workspace public site keeps its chrome (nav + footer) on a 404; the
+  // provider is mounted here for the same reason as the role-page branch above.
+  return isAgency ? (
+    <DirectoryInquiryModalProvider>
+      <SkipToContent locale={locale} />
+      <PublicHeader />
+      <main id="main-content" className="w-full flex-1">
+        {card}
+      </main>
+      <PublicFooter />
+    </DirectoryInquiryModalProvider>
+  ) : card;
 }
