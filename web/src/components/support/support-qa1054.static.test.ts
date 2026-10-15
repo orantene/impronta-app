@@ -114,3 +114,20 @@ test("TUL-982: where the phone hides the floating circle, CSS hides it before hy
   assert.match(geometry, /SUPPORT_LAUNCHER_HIDE_COMPACT_CSS[\s\S]*display: none !important/);
   assert.match(launcher, /hideFloatingOnCompact \? SUPPORT_LAUNCHER_HIDE_COMPACT_CSS : ""/);
 });
+
+test("TUL-943: Si and No render side by side in the same branch, gated by the one showHelpfulRow check", () => {
+  assert.match(thread, /!showHelpfulRow\(ticket, Boolean\(acked\[m\.id\]\)\) \? null/);
+  const yes = thread.indexOf('t("dashboard.adminSupport.yesHelped")');
+  const no = thread.indexOf('t("dashboard.adminSupport.noHelped")');
+  assert.ok(yes > 0 && no > yes, "both buttons present, Si before No");
+  assert.equal(thread.slice(yes, no).includes("<>"), false, "no branch boundary between the two buttons");
+  assert.equal(thread.slice(yes, no).includes(") : ("), false);
+  assert.equal(thread.match(/dashboard\.adminSupport\.yesHelped/g)?.length, 1);
+  assert.equal(thread.match(/dashboard\.adminSupport\.noHelped/g)?.length, 1);
+});
+
+test("TUL-942: the footer escalate button is gated by placement 'footer' and the bubble one by the newest AI bubble", () => {
+  assert.equal(thread.match(/dashboard\.adminSupport\.talkToHuman/g)?.length, 2);
+  assert.match(thread, /humanPlacement === "footer" && ticket\?\.handledBy === "ai"/);
+  assert.match(thread, /hasAiAnswer: tone !== "hq" && lastAiId != null/);
+});
