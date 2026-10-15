@@ -222,7 +222,7 @@ export default async function MarketingDirectoryPage({
           "@context": "https://schema.org",
           "@type": "ItemList",
           itemListElement: listItems.map((t, i) => {
-            const location = locationLine(t.homeCity, t.homeCountry);
+            const location = locationLine(t.homeCity, t.homeCountry, locale === "es" ? "es" : "en");
             return {
               "@type": "ListItem",
               position: i + 1,

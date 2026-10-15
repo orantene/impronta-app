@@ -19,6 +19,7 @@
  * light side sheet; the compose state renders the full `InquiryDrawer`.
  */
 
+import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 
@@ -64,7 +65,8 @@ function DirectoryInquirySheetBody({ ui }: DirectoryInquirySheetProps) {
   const setOpen = modal?.setOpen;
   const success = modal?.success ?? null;
   const clearSuccess = modal?.clearSuccess;
-  const { savedIds, searchContext } = usePublicDiscoveryState();
+  const { searchContext } = usePublicDiscoveryState();
+  const savedIds = [...useInquiryCart().cartIds]; // TUL-1068 #11: only this context's entries
   const [payload, setPayload] = useState<DirectoryInquiryPayload | null>(null);
 
   const refreshPayload = useCallback(() => {

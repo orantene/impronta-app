@@ -90,6 +90,12 @@ export function resolveDocumentLocale(
       country: hints?.country ?? null,
     });
   }
+  // TUL-855: a hub profile honours `?lang=`; <html lang> must agree with the
+  // body and <head>, which resolve the same query.
+  if (pathname && /^\/(?:[a-z]{2}\/)?t\/[^/]+\/?$/.test(pathname)) {
+    const lang = new URLSearchParams((search ?? "").replace(/^\?/, "")).get("lang")?.trim().toLowerCase();
+    return lang === "es" || lang === "en" ? lang : requestLocale;
+  }
   if (!pathname || !/^\/(?:dev\/)?template-preview(?:\/|$)/.test(pathname)) return requestLocale;
   const raw = (search ?? "").replace(/^\?/, "");
   const explicit = new URLSearchParams(raw).get("locale");

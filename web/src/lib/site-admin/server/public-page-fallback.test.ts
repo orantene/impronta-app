@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { counterpartSlug, resolveMissingPage, ROLE_SLUG_PAIRS } from "./public-page-fallback";
+import { counterpartSlug, inPlaceSlugs, preferRequestedSlug, resolveMissingPage, ROLE_SLUG_PAIRS } from "./public-page-fallback";
 
 // The live case (isolated fxlank, studio/both site): pages exist as Spanish
 // slugs in locale "en"; the header links /services, /about, /gallery, /contact.
@@ -41,4 +41,20 @@ test("counterpartSlug is symmetric and null for non-role slugs", () => {
     assert.equal(counterpartSlug(es), en);
   }
   assert.equal(counterpartSlug("politicas"), null);
+});
+
+// TUL-867: role links resolve IN PLACE (no forced locale prefix redirect).
+test("inPlaceSlugs: role slugs match both spellings; unknown paths only themselves", () => {
+  assert.deepEqual(inPlaceSlugs("services"), ["services", "servicios"]);
+  assert.deepEqual(inPlaceSlugs("nosotros"), ["nosotros", "about"]);
+  assert.deepEqual(inPlaceSlugs("nope"), ["nope"]);
+});
+
+test("preferRequestedSlug: exact slug wins, counterpart serves otherwise, empty stays empty (404)", () => {
+  const both = [{ slug: "servicios", locale: "es" }, { slug: "services", locale: "es" }];
+  assert.deepEqual(preferRequestedSlug(both, "services"), [{ slug: "services", locale: "es" }]);
+  const only = [{ slug: "servicios", locale: "es" }];
+  assert.deepEqual(preferRequestedSlug(only, "services"), only);
+  assert.deepEqual(preferRequestedSlug([], "unknown"), []);
+  assert.equal(preferRequestedSlug(null, "x"), null);
 });

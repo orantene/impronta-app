@@ -14,6 +14,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { groupVisits, shapeReceiptLines, type ReceiptLine } from "./area-pure";
 import { loadVisitZones } from "./visit-zones.server";
 import { resolveVisitInquiryId } from "./visit-id";
+import { localizedServiceTitle } from "./localized-service-title";
 
 /** Every query here is `client_user_id = session user` AND `tenant_id = this site's tenant`. */
 
@@ -46,7 +47,7 @@ export type VisitDetail = {
   payCode: string | null;
 };
 
-export async function loadVisitDetail(userId: string, tenantId: string, visitId: string): Promise<VisitDetail | null> {
+export async function loadVisitDetail(userId: string, tenantId: string, visitId: string, locale = "en"): Promise<VisitDetail | null> {
   const admin = createServiceRoleClient();
   if (!admin) return null;
   // Emails historically carried a booking id; accept either (TUL-G5).
@@ -120,6 +121,13 @@ export async function loadVisitDetail(userId: string, tenantId: string, visitId:
     payCode = (link as { code?: string } | null)?.code ?? null;
   }
   const nowMs = requestNowMs();
+  // TUL-975: the booking stores the name it was booked under; show the service's own title in the page language.
+  let service = b?.title?.trim() || i.company?.trim() || "";
+  if (offeringId && service) {
+    const { data: off, error: offErr } = await admin.from("talent_offerings").select("title, title_i18n").eq("id", offeringId).maybeSingle();
+    if (offErr) logServerError("clientAccount.visit.serviceTitle", offErr);
+    service = localizedServiceTitle(off as { title: string; title_i18n?: unknown } | null, locale, service);
+  }
   const window = resolveCancellationWindow({ cancellationHours: policy.cancelFreeHours, startsAt: b?.starts_at ?? null, eventDate: null, nowMs });
   const status = (b?.status ?? i.status ?? "").toLowerCase();
   const closed = ["cancelled", "completed", "archived", "declined", "expired", "closed"].includes(status);
@@ -128,7 +136,7 @@ export async function loadVisitDetail(userId: string, tenantId: string, visitId:
   return {
     inquiryId,
     bookingId: b?.id ?? null,
-    service: b?.title?.trim() || i.company?.trim() || "",
+    service,
     status,
     startsAt: b?.starts_at ?? null,
     eventDate: i.event_date,

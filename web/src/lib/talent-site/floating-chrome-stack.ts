@@ -29,6 +29,8 @@
  * - GRK-036: phone Hablar FAB clears float/default sticky bar before JS measure.
  * - GRK-038: help teaser yields earlier when catalog filter chips enter the
  *   lower phone band (jorg rail), including individual pills.
+ * - TUL-931: while the booking sheet (.jb-back) is open the chat FAB and help
+ *   teaser step aside; the sheet's own footer owns the phone bottom.
  * - GRK-039: guest chat panels use aria-modal=false; consent yields to
  *   [data-guest-chat-panel] so the message box stays reachable.
  */
@@ -105,6 +107,7 @@ body:has(${CONSENT_BANNER_SELECTOR}) #hero{padding-bottom:max(2rem,calc(var(--fl
 /* TUL-795: service page sticky Reservar bar (phone only); body + chat bubble clear it. */
 @media (max-width:639px){:root:has(${SERVICE_STICKY_CTA_SELECTOR}){--cb-bar-h:calc(64px + env(safe-area-inset-bottom,0px))}body:has(${SERVICE_STICKY_CTA_SELECTOR}) [data-guest-chat-launcher]{bottom:calc(var(--cb-bar-h) + 12px)!important}}
 @media (min-width:640px){${SERVICE_STICKY_CTA_SELECTOR}{display:none!important}}
+body:has(.jb-back) [data-guest-chat-launcher],body:has(.jb-back) [data-help-bubble]{display:none!important}
 `.replace(/\n/g, "");
 
 /**

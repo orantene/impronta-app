@@ -15,3 +15,20 @@ export function authLegalHref(
   const prefix = loc && loc !== "en" && /^[a-z]{2}(-[a-z]{2})?$/.test(loc) ? `/${loc}` : "";
   return `${base}${prefix}/legal/${doc}`;
 }
+
+/**
+ * TUL-816: locale-prefixed marketing path on the environment's marketing
+ * origin (`/about` -> `https://staging.tulala.digital/es/about`; `""` -> the
+ * marketing home). The default locale (en) stays unprefixed.
+ */
+export function authMarketingHref(
+  marketingOrigin: string,
+  path: string,
+  locale: string | null | undefined,
+): string {
+  const base = marketingOrigin.replace(/\/+$/, "");
+  const loc = (locale ?? "").trim().toLowerCase();
+  const prefix = loc && loc !== "en" && /^[a-z]{2}(-[a-z]{2})?$/.test(loc) ? `/${loc}` : "";
+  const tail = path ? (path.startsWith("/") ? path : `/${path}`) : "";
+  return `${base}${prefix}${tail}` || base;
+}

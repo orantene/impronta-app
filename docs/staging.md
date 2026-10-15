@@ -67,8 +67,10 @@ non-empty; an empty value never matches. Store it only as a CI secret.
 
 ## Build sources (`web/vercel.json` `ignoreCommand`)
 
-Vercel builds only when `VERCEL_ENV=production` (the `production` pointer branch)
-or the ref is `main` (staging). Every other branch push is skipped (shows as
+Vercel builds only when the git ref is `production` (the pointer branch) or `main`
+(staging). The rule keys on `VERCEL_GIT_COMMIT_REF` only: `VERCEL_ENV` is not
+reliably set during the ignore step, so a rule that depended on it could skip a
+production build (guarded by `vercel-ignore-command.static.test.ts`). Every other branch push is skipped (shows as
 Canceled, no build cost). Staging's source is `main` since 2026-10-14: the staging
 domains (`staging.`, `*.staging.`, `staging-qa-*`) track git branch `main`, and the
 staging-only Preview env vars are scoped to branch `main`. Each merge to `main`

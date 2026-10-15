@@ -30,6 +30,7 @@ import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
 import { recordAiGenerationUsage } from "@/lib/ai/record-generation-usage";
 import { isResolvedAiChatConfigured } from "@/lib/ai/resolve-provider";
 import { resolveRoutedChat } from "@/lib/ai/call-routing.server";
+import { ensureNav } from "./nav-seed";
 import { buildCriticPrompt, checkHeadlineBank, CRITIC_JSON_SCHEMA, parseCriticReply, retryInstruction, type CriticVerdict } from "./copy-critic";
 import { dropOtherTradeStock } from "@/lib/onboarding/stock-hero";
 import { classifyTrade } from "@/lib/onboarding/trade-label";
@@ -339,12 +340,6 @@ async function upsertFreeformPage(
     .single<{ id: string }>();
   if (error || !page) return { ok: false, error: error?.message ?? "insert failed" };
   return { ok: true, pageId: page.id, action: "created" };
-}
-
-async function ensureNav(admin: SupabaseClient, input: { tenantId: string; locale: string; items: Array<{ label: string; href: string }> }): Promise<void> {
-  const { data: existing, error } = await admin.from("cms_navigation_items").select("id").eq("tenant_id", input.tenantId).eq("zone", "header").limit(1);
-  if (error || (existing && existing.length > 0)) return;
-  await admin.from("cms_navigation_items").insert(input.items.map((it, i) => ({ tenant_id: input.tenantId, locale: input.locale, zone: "header", label: it.label, href: it.href, sort_order: i, visible: true })));
 }
 
 async function writeStamp(admin: SupabaseClient, tenantId: string, stamp: SiteComposeStamp): Promise<void> {
@@ -730,10 +725,13 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
   const shell = await writeFreeformSiteShell(admin, { tenantId: input.tenantId, locale: writeLocale, actorProfileId: input.actorProfileId ?? null, businessName, header: site.shell.header, footer: site.shell.footer, publish: !!input.publish, overwrite: !!input.overwrite });
   if (!shell.ok) notes.push(`shell: ${shell.error}`);
 
+  const navRoles = ["catalogue", "transaction", "about", "gallery", "contact"] as const;
   await ensureNav(admin, {
     tenantId: input.tenantId,
-    locale,
-    items: (["catalogue", "transaction", "about", "gallery", "contact"] as const).map((r) => ({ label: titles[r][locale], href: linkHrefs[r] })),
+    itemsByLocale: {
+      es: navRoles.map((r) => ({ label: titles[r].es, href: linkHrefs[r] })),
+      en: navRoles.map((r) => ({ label: titles[r].en, href: linkHrefs[r] })),
+    },
   });
 
   // 11. Cost for this compose (success and failure rows both carry the id).

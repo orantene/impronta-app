@@ -119,6 +119,31 @@ export function whoStepPaymentCopyFor(input: {
 }
 
 /**
+ * TUL-976: the /book page line under a service: prepaid vs pay at the
+ * appointment, and for a request WHEN the payment is due (after it is
+ * confirmed), so "we will confirm" never leaves the guest guessing.
+ */
+export function bookPagePaymentLine(
+  offering: { reserveMode: OfferingReserveMode; allowPayInPerson: boolean; depositPct: number | null },
+  mode: "instant" | "request",
+  locale: string,
+): string {
+  const es = locale.toLowerCase().startsWith("es");
+  const needsOnline = offeringRequiresOnlineCollect(offering);
+  if (mode === "request") {
+    if (!needsOnline) {
+      return es
+        ? "Te confirmamos el horario por correo. El pago se realiza en la cita."
+        : "We confirm the time by email. Pay at the appointment.";
+    }
+    return es
+      ? "Te confirmamos el horario por correo y te enviamos el enlace de pago. La reserva queda firme al pagar."
+      : "We confirm the time by email and send a payment link. The booking is final once paid.";
+  }
+  return whoStepPaymentCopy({ ...offering, locale });
+}
+
+/**
  * Who-step primary label when the guest can still confirm.
  * Online collect → "Continue to payment"; pay-at-studio → confirm vocabulary.
  */
