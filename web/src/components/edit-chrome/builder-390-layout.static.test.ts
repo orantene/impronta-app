@@ -43,3 +43,14 @@ test("TUL-1027: the Design sheet wraps tabs, labels and card titles instead of c
   assert.match(card, /shrink-0 truncate max-sm:hidden/);
   assert.match(read("./command-dock.tsx"), /min-w-0 max-w-full max-sm:\[overflow-wrap:anywhere\]/);
 });
+
+test("TUL-1028: the update notice is one compact row on phones and the domain pill ellipsizes", () => {
+  const notice = read("../talent/site/theme-update/ThemeUpdateNotice.tsx");
+  assert.match(notice, /flex-row items-center justify-between gap-2[^"]*max-sm:p-1\.5/);
+  assert.doesNotMatch(notice, /mb-3 flex min-w-0 flex-col/);
+  assert.match(notice, /line-clamp-2 text-\[13px\] text-admin-ink-muted max-sm:hidden/);
+  assert.match(notice, /flex shrink-0 flex-nowrap gap-2 max-sm:gap-1/);
+  assert.match(notice, /min-h-11/);
+  const pill = read("../talent/site/maison-setup/MyWebsiteCard.tsx");
+  assert.match(pill, /data-testid="maison-live-address"[\s\S]{0,200}overflow-hidden text-ellipsis whitespace-nowrap/);
+});

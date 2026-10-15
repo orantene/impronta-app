@@ -234,23 +234,23 @@ export function ThemeUpdateNotice({
         className={
           floating
             ? BUILDER_CARD_CLASS
-            : "mb-3 flex min-w-0 flex-col gap-2 rounded-xl border border-admin-border-soft bg-white p-3 font-admin-body sm:flex-row sm:items-center sm:justify-between"
+            : "mb-3 flex min-w-0 flex-row items-center justify-between gap-2 rounded-xl border border-admin-border-soft bg-white p-3 font-admin-body max-sm:p-1.5 max-sm:pl-3"
         }
       >
         <div className="min-w-0 flex-1">
-        <p className="m-0 text-[15px] font-semibold text-admin-ink">{title}</p>
-        <p className="m-0 mt-1 line-clamp-2 text-[13px] text-admin-ink-muted">{t(again ? "againBody" : "bannerBody")}</p>
+        <p className="m-0 text-[15px] font-semibold text-admin-ink max-sm:truncate max-sm:text-[13px]">{title}</p>
+        <p className="m-0 mt-1 line-clamp-2 text-[13px] text-admin-ink-muted max-sm:hidden">{t(again ? "againBody" : "bannerBody")}</p>
         {error ? (
           <p role="alert" className="m-0 mt-2 text-[13px] text-admin-critical">
             {error}
           </p>
         ) : null}
         </div>
-        <div className={floating ? "mt-3 flex flex-wrap gap-2" : "flex shrink-0 flex-wrap gap-2"}>
+        <div className={floating ? "mt-3 flex flex-wrap gap-2" : "flex shrink-0 flex-nowrap gap-2 max-sm:gap-1"}>
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="inline-flex min-h-11 items-center rounded-lg border border-[var(--tulala-primary-fill)] bg-[var(--tulala-primary-fill)] px-4 text-[14px] font-semibold text-white hover:border-[var(--tulala-primary-fill-deep)] hover:bg-[var(--tulala-primary-fill-deep)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tulala-primary-fill)]"
+            className="inline-flex min-h-11 items-center rounded-lg border border-[var(--tulala-primary-fill)] bg-[var(--tulala-primary-fill)] px-4 text-[14px] max-sm:px-3 max-sm:text-[13px] font-semibold text-white hover:border-[var(--tulala-primary-fill-deep)] hover:bg-[var(--tulala-primary-fill-deep)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tulala-primary-fill)]"
             data-theme-update-whats-new
           >
             {t("whatsNew")}
@@ -260,7 +260,7 @@ export function ThemeUpdateNotice({
               type="button"
               disabled={busy}
               onClick={() => void apply(notice.draftRev)}
-              className="inline-flex min-h-11 items-center rounded-lg border border-[var(--tulala-primary-fill)] bg-[var(--tulala-primary-fill)] px-4 text-[14px] font-semibold text-white hover:border-[var(--tulala-primary-fill-deep)] hover:bg-[var(--tulala-primary-fill-deep)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tulala-primary-fill)] disabled:opacity-60"
+              className="inline-flex min-h-11 items-center rounded-lg border border-[var(--tulala-primary-fill)] bg-[var(--tulala-primary-fill)] px-4 text-[14px] max-sm:px-3 max-sm:text-[13px] font-semibold text-white hover:border-[var(--tulala-primary-fill-deep)] hover:bg-[var(--tulala-primary-fill-deep)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tulala-primary-fill)] disabled:opacity-60"
               data-theme-update-apply-again
             >
               {busy ? t("applying") : t("applyShort")}
@@ -270,7 +270,7 @@ export function ThemeUpdateNotice({
             type="button"
             disabled={busy}
             onClick={() => void dismiss()}
-            className="inline-flex min-h-11 items-center rounded-lg border border-admin-border-soft bg-white px-4 text-[14px] font-semibold text-admin-ink disabled:opacity-60"
+            className="inline-flex min-h-11 items-center rounded-lg border border-admin-border-soft bg-white px-4 text-[14px] max-sm:px-3 max-sm:text-[13px] font-semibold text-admin-ink disabled:opacity-60"
             data-theme-update-not-now
           >
             {t("notNow")}

@@ -57,8 +57,8 @@ test("TUL-1029: the builder pill docks right, compact, and never centres over th
   assert.doesNotMatch(pill, /left-1\/2|-translate-x-1\/2/);
 });
 
-test("TUL-1028: the presence banner is a compact row on desktop and the address row never wraps", () => {
-  assert.match(SRC, /sm:flex-row sm:items-center sm:justify-between/);
+test("TUL-1028: the presence banner is a compact row on every width and the address row never wraps", () => {
+  assert.match(SRC, /flex-row items-center justify-between gap-2/);
   const card = readFileSync(
     join(process.cwd(), "src/components/talent/site/maison-setup/MyWebsiteCard.tsx"),
     "utf8",
