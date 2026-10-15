@@ -1,6 +1,6 @@
 import type { GuestDockView } from "./guest-dock-view";
 
-/** The tray shows when the dock is on, something is in the inquiry, and the lineup tab (where it is reviewed) is not already open. */
+/** The tray shows on every dock tab once the dock is on and something is in the inquiry. */
 export function inquiryTrayVisible(input: { count: number; activeView: GuestDockView; enabled: boolean }): boolean {
-  return input.enabled && input.count > 0 && input.activeView !== "lineup";
+  return input.enabled && input.count > 0;
 }

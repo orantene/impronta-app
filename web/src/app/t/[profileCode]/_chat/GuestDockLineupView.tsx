@@ -40,10 +40,11 @@ import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 
 import { registerCartTalent, useCartTalentRegistry } from "./cart-talent-registry";
 import { useCartTalents } from "./use-cart-talents";
+import { useAddedCatalogItems } from "./guest-added-items-store";
 import { AVATAR_GROUND, FACE_OBJECT_POSITION, PERSON_SILHOUETTE_SVG } from "./launcher-avatar-styles";
 import { FONT, paletteFor, type SurfaceMode } from "./mini-chat-styles";
 import { GuestDockItemsShelf } from "./GuestDockItemsShelf";
-import { GuestDockCatalog, type AddedCatalogItem, type GuestDockCatalogProps } from "./GuestDockCatalog";
+import { GuestDockCatalog, type GuestDockCatalogProps } from "./GuestDockCatalog";
 import type { GuestConversationItems } from "@/lib/inquiry/guest-chat-contract";
 
 export type GuestDockLineupViewProps = {
@@ -232,9 +233,7 @@ export function GuestDockLineupView({
   const favoritesKey = [...favoriteIds].join(",");
   const [savedTiles, setSavedTiles] = useState<SavedTile[]>([]);
   // TUL-1068: catalog rows added this session; listed under "In your inquiry".
-  const [addedItems, setAddedItems] = useState<AddedCatalogItem[]>([]);
-  const onItemAdded = (item: AddedCatalogItem) =>
-    setAddedItems((list) => (list.some((x) => x.id === item.id) ? list : [...list, item]));
+  const addedItems = useAddedCatalogItems();
   const inquiryCount = cartTalents.length + addedItems.length;
   const showPeopleShelves =
     representsPeople || cartTalents.length > 0 || savedTiles.length > 0 || addedItems.length > 0;
@@ -367,7 +366,7 @@ export function GuestDockLineupView({
       {catalog ? (
         <>
           <ShelfHeader label={t("public.guestChat.catalogShelf")} count={0} C={C} />
-          <GuestDockCatalog {...catalog} onItemAdded={onItemAdded} />
+          <GuestDockCatalog {...catalog} />
         </>
       ) : null}
 

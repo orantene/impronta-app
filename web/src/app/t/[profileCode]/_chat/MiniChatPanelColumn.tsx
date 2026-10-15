@@ -480,7 +480,7 @@ export function MiniChatPanelColumn({
         card={card}
       />
 
-      <GuestDockInquiryTray count={cartTalentNames.length} activeView={activeDockView} enabled={dockEnabled} t={t} C={C} accent={accent} accentInk={accentInk} onOpen={() => onDockViewChange?.("lineup")} />
+      <GuestDockInquiryTray onRemoveCartTalent={onRemoveCartTalent} activeView={activeDockView} enabled={dockEnabled} t={t} C={C} accent={accent} accentInk={accentInk} onOpen={() => onDockViewChange?.("lineup")} />
 
       <GuestThreadSwitcherDrawer
         open={switcherOpen}
