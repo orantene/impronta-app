@@ -13850,7 +13850,8 @@
       "guideAskSupport": "Preguntar a soporte",
       "whatIsThis": "¿Qué es esto?",
       "guideListen": "Escuchar",
-      "guidePause": "Pausa"
+      "guidePause": "Pausa",
+      "attachmentFallbackName": "Imagen"
     },
     "adminMenu": {
       "noTenant": "No hay un espacio de trabajo activo.",
