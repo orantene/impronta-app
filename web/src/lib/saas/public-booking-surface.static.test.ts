@@ -50,3 +50,11 @@ test("the slot picker's endpoint is reachable on every public surface", () => {
     );
   }
 });
+
+test("TUL-21 agent endpoints are reachable wherever the slot endpoint is", () => {
+  for (const path of ["/api/public/booking/catalog", "/api/public/booking/mcp"]) {
+    for (const kind of ["app", "agency", "hub", "marketing"] as const) {
+      assert.equal(isPathAllowedForHostKind(kind, path), true, `${path} is 404'd on host kind "${kind}"`);
+    }
+  }
+});
