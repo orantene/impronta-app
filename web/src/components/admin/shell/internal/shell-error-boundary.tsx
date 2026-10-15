@@ -42,7 +42,7 @@ export class ErrorBoundary extends Component<
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="mt-2 cursor-pointer rounded-[10px] border-none bg-[#0F4F3E] px-[22px] py-[10px] text-[14px] font-semibold text-white"
+            className="mt-2 cursor-pointer rounded-[10px] border-none bg-admin-accent px-[22px] py-[10px] text-[14px] font-semibold text-white"
           >
             Reload
           </button>
