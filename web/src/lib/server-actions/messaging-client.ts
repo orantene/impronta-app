@@ -260,7 +260,8 @@ export async function messagingClientAddItem(input: {
     line: { offeringId: parsed.data.offeringId, units: parsed.data.units ?? 1, sessionId: parsed.data.sessionId ?? null },
     proposedBy: "client",
   });
-  if (!added.ok) return fail(added.reason === "conflict" ? "conflict" : "unavailable");
+  // TUL-1068 #2: keep "invalid" (not for sale / different currency) apart from a real outage.
+  if (!added.ok) return fail(added.reason === "conflict" ? "conflict" : added.reason === "invalid" ? "invalid" : "unavailable");
   return { ok: true, orderId: draft.orderId };
 }
 
