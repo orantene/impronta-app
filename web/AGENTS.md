@@ -57,9 +57,16 @@ That is correct, and undiagnosable without a signal. When you add one, log a
 dev-only warning naming the row and the reason.
 
 ## package.json test lanes
-`JSON.parse` keeps the LAST duplicate key silently, so a duplicated lane runs
-the wrong list. Edit the single canonical occurrence. On a rebase conflict in a
-lane, take MAIN's line and re-append only your own test file.
+A long lane keeps its test paths in `scripts/lanes/<lane>.txt`, **ONE path per
+line** (`#` comments allowed), and the script is just
+`... node scripts/lane-test.cjs @scripts/lanes/<lane>.txt`. Add your test file by
+appending ONE line to that file: two PRs then touch different lines and merge
+cleanly. Never paste a path onto the package.json line (a 10 KB line conflicts
+every wave, and `JSON.parse` keeps the LAST duplicate key silently, so a
+duplicated lane runs the wrong list). A lane must not name one file twice
+(`lane-file-lists.static.test.ts` pins it). On a rebase conflict in a list file,
+keep both sides' lines. Lanes still on a runner without `@file` support
+(`tsx --test ...`) stay inline until moved to `lane-test.cjs`.
 
 ## CI
 - A PR red only because `main` was red needs a **REBASE**. `gh run rerun`
