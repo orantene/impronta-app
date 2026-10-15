@@ -273,4 +273,15 @@ export const PRESENCE_ES_TEXT: Record<string, string> = {
     "La conexión con Instagram aún no está disponible. Te avisaremos cuando lo esté.",
   "Something went wrong while connecting. Please try again.":
     "Algo salió mal al conectar. Inténtalo de nuevo.",
+  "Ended today": "Terminó hoy",
+  "Ended yesterday": "Terminó ayer",
+  "Ends today": "Termina hoy",
+  "1 day left": "1 día restante",
+  "Plan gift active": "Regalo de plan activo",
+  "No expiry": "Sin vencimiento",
+  "Loading your plan…": "Cargando tu plan…",
+  "Compare plans": "Comparar planes",
+  "Visible across Tulala": "Visible en todo Tulala",
+  "Profile visibility": "Visibilidad del perfil",
+  "Manage →": "Gestionar →",
 };

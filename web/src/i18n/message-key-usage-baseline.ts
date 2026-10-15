@@ -216,7 +216,6 @@ export const DEAD_MESSAGE_KEY_BASELINE: readonly string[] = [
   "dashboard.roleAdmin",
   "dashboard.roleDashboard",
   "dashboard.sheetDashboardTitle",
-  "dashboard.talentDrawers.agency.planCommissionSummary",
   "dashboard.talentDrawers.domainStatus.failed",
   "dashboard.talentDrawers.domainStatus.notSet",
   "dashboard.talentDrawers.domainStatus.pending",

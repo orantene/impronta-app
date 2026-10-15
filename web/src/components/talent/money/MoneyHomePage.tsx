@@ -705,7 +705,7 @@ export function MoneyHomePage() {
                   >
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-admin-body text-[14px] font-semibold text-admin-ink">
-                        {r.name}
+                        {r.name || t("Client")}
                       </span>
                       <span className="block text-[12.5px] text-admin-ink-muted">
                         {[r.kind === "deposit" ? t("Deposit requested") : t("Balance due"), day(r.startsAt, copy.locale)]
@@ -739,7 +739,7 @@ export function MoneyHomePage() {
         <AgendaPayRequest
           orderId={linkFor.orderId}
           defaultCents={linkFor.amountCents}
-          clientName={linkFor.name}
+          clientName={linkFor.name || undefined}
           onClose={() => setLinkFor(null)}
         />
       ) : null}
