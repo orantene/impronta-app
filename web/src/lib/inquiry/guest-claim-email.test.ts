@@ -26,3 +26,18 @@ test("no locale falls back to English; names are escaped", () => {
   assert.match(buildGuestClaimEmail("l", "<b>", brand).html, /&lt;b&gt;/);
   assert.match(buildGuestClaimEmail("l", "Ana", brand, null).subject, /^Continue/);
 });
+
+test("TUL-854: ES with no talent name never says 'the studio' or 'the team'", () => {
+  for (const given of ["", "  ", "the studio", "the team"]) {
+    const { subject, html } = buildGuestClaimEmail("l", given, brand, "es");
+    assert.equal(subject, "Continúa tu conversación con Tulala");
+    assert.doesNotMatch(subject + html, /the studio|the team/i);
+  }
+  const noBrandName = { ...brand, accountName: "" };
+  assert.equal(buildGuestClaimEmail("l", "", noBrandName, "es").subject, "Continúa tu conversación con el equipo");
+  assert.equal(buildGuestClaimEmail("l", "", noBrandName, "en").subject, "Continue your conversation with the team");
+});
+
+test("TUL-854: the talent display name wins over the workspace name", () => {
+  assert.equal(buildGuestClaimEmail("l", "Jorgelina", brand, "es").subject, "Continúa tu conversación con Jorgelina");
+});

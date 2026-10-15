@@ -1143,7 +1143,7 @@ export async function startGuestChatInquiry(
       talentName = (talentRow?.display_name as string | null)?.trim() || "";
     }
     if (!talentName) {
-      talentName = (await loadAgencyName(admin, tenantId)) ?? "the team";
+      talentName = (await loadAgencyName(admin, tenantId)) ?? "";
     }
 
     const claimResult = await sendGuestClaimEmail({
@@ -1828,7 +1828,7 @@ export async function sendGuestClaimToEmail(
     talentName = (t?.display_name as string | null)?.trim() || "";
   }
   if (!talentName) {
-    talentName = (await loadAgencyName(admin, owned.inquiry.tenantId)) ?? "the team";
+    talentName = (await loadAgencyName(admin, owned.inquiry.tenantId)) ?? "";
   }
 
   // Resolve the tenant slug for the post-auth destination + branded email.

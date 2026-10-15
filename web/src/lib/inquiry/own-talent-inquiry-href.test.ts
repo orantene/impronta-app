@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { SupabaseClient } from "@supabase/supabase-js";
-
 import { ownTalentInquiryHref } from "./own-talent-inquiry-href";
+
+function fakeAdminAs(t: Parameters<typeof fakeAdmin>[0]) {
+  return fakeAdmin(t) as never;
+}
 
 const INQ = "1bf92cf3-0746-4d1d-9e69-462947a1984f";
 const OWNER = "f4fb4251-2b8f-4f1c-87fd-5b1855bc8695";
@@ -14,8 +16,8 @@ type Filters = Record<string, unknown>;
 function fakeAdmin(tables: {
   talent_profiles?: { data?: unknown; error?: unknown; seen?: Filters[] };
   inquiry_participants?: { data?: unknown; error?: unknown; seen?: Filters[] };
-}): SupabaseClient {
-  const fake = {
+}) {
+  return {
     from(table: string) {
       const spec = tables[table as keyof typeof tables] ?? { data: [] };
       const filters: Filters = {};
@@ -32,7 +34,6 @@ function fakeAdmin(tables: {
       return chain;
     },
   };
-  return fake as unknown as SupabaseClient;
 }
 
 test("the owner's own myself booking in another workspace → their talent inbox", async () => {
@@ -41,7 +42,7 @@ test("the owner's own myself booking in another workspace → their talent inbox
     talent_profiles: { data: [{ id: ROSA }] },
     inquiry_participants: { data: [{ id: "p1" }], seen },
   });
-  assert.equal(await ownTalentInquiryHref(admin, OWNER, INQ), `/talent/inbox/${INQ}`);
+  assert.equal(await ownTalentInquiryHref(admin as never, OWNER, INQ), `/talent/inbox/${INQ}`);
   assert.equal(seen[0]?.["eq:inquiry_id"], INQ);
   assert.equal(seen[0]?.["eq:role"], "talent");
   assert.deepEqual(seen[0]?.["in:talent_profile_id"], [ROSA]);
@@ -53,19 +54,19 @@ test("someone else's inquiry stays not-found", async () => {
     talent_profiles: { data: [{ id: ROSA }] },
     inquiry_participants: { data: [] },
   });
-  assert.equal(await ownTalentInquiryHref(admin, OWNER, INQ), null);
+  assert.equal(await ownTalentInquiryHref(admin as never, OWNER, INQ), null);
 });
 
 test("no talent profile, no user, or a read error → null (falls back to not-found)", async () => {
-  assert.equal(await ownTalentInquiryHref(fakeAdmin({ talent_profiles: { data: [] } }), OWNER, INQ), null);
-  assert.equal(await ownTalentInquiryHref(fakeAdmin({}), null, INQ), null);
+  assert.equal(await ownTalentInquiryHref(fakeAdminAs({ talent_profiles: { data: [] } }), OWNER, INQ), null);
+  assert.equal(await ownTalentInquiryHref(fakeAdminAs({}), null, INQ), null);
   assert.equal(
-    await ownTalentInquiryHref(fakeAdmin({ talent_profiles: { error: { message: "boom" } } }), OWNER, INQ),
+    await ownTalentInquiryHref(fakeAdminAs({ talent_profiles: { error: { message: "boom" } } }), OWNER, INQ),
     null,
   );
   assert.equal(
     await ownTalentInquiryHref(
-      fakeAdmin({ talent_profiles: { data: [{ id: ROSA }] }, inquiry_participants: { error: { message: "boom" } } }),
+      fakeAdminAs({ talent_profiles: { data: [{ id: ROSA }] }, inquiry_participants: { error: { message: "boom" } } }),
       OWNER,
       INQ,
     ),

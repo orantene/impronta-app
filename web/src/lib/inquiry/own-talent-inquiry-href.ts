@@ -9,11 +9,12 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-
 import { logServerError } from "@/lib/server/safe-error";
 
+type Reader = Pick<SupabaseClient, "from">;
+
 export async function ownTalentInquiryHref(
-  admin: SupabaseClient,
+  admin: Reader,
   userId: string | null | undefined,
   inquiryId: string,
 ): Promise<string | null> {

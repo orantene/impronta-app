@@ -68,8 +68,7 @@ const TALENT_SITE_PASSTHROUGH_EXACT = new Set([
 ]);
 
 // `/account` itself is an exact path (a `/account` prefix would also pass `/accounts`).
-// `/llms.txt` (TUL-21) tells AI assistants where the booking endpoints are.
-const TALENT_SITE_STATIC_PATHS = ["/sitemap.xml", "/robots.txt", "/favicon.ico", "/account", "/llms.txt"] as const;
+const TALENT_SITE_STATIC_PATHS = ["/sitemap.xml", "/robots.txt", "/llms.txt", "/favicon.ico", "/account"] as const;
 
 /**
  * A single page-slug segment: lowercase alphanumerics + hyphens, the same shape

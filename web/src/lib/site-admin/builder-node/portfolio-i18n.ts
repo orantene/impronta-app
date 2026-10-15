@@ -8,6 +8,7 @@
  * the walk is visitor locale, then the page's primary locale, then the base.
  */
 
+
 export type PortfolioI18nMap = Readonly<Record<string, string | null | undefined>>;
 
 function key(locale: string | null | undefined): string {
@@ -86,7 +87,7 @@ export function resolvePortfolioCaption(
 
 /**
  * Alt text: `alt_i18n`, then the alt column, then the resolved caption, then
- * the talent's name, then a generic label in the visitor's language.
+ * the generated suggestion, the talent's name, then a generic label in the visitor's language.
  */
 export function resolvePortfolioAlt(args: {
   metadata: Record<string, unknown> | null | undefined;
@@ -95,6 +96,8 @@ export function resolvePortfolioAlt(args: {
   displayName?: string | null;
   locale: string | null | undefined;
   primaryLocale?: string | null;
+  /** Zero-cost generated alt (TUL-588), used before the bare name. */
+  suggested?: string | null;
 }): string {
   const fromMaps = humanImageAlt(
     resolvePortfolioText(
@@ -107,6 +110,7 @@ export function resolvePortfolioAlt(args: {
   return (
     fromMaps ||
     text(args.caption) ||
+    text(args.suggested) ||
     text(args.displayName) ||
     portfolioPhotoFallbackAlt(args.locale)
   );

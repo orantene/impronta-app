@@ -1,8 +1,8 @@
 import { notFound, redirect } from "next/navigation";
-import Link from "next/link";
 import { ownTalentInquiryHref } from "@/lib/inquiry/own-talent-inquiry-href";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import Link from "next/link";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
@@ -188,14 +188,15 @@ export default async function WorkspaceWorkDetailPage({
     .eq("tenant_id", scope.tenantId)
     .eq("id", inquiryId)
     .maybeSingle();
+  // TUL-473: an id that is not in this workspace (another tenant's, the marketplace's, or removed)
+  // renders the explanation inline. `notFound()` here rendered the same copy on the server and
+  // then crashed the client ("This page couldn't load") on production.
   if (!inquiry) {
-    // TUL-571: a studio owner's own "myself" booking lives in their talent inbox.
+    // TUL-571: the signed-in user's OWN talent seat on this inquiry (a studio owner's "myself" booking
+    // lives in the hub tenant) goes to their talent inbox instead of the explanation card.
     const admin = createServiceRoleClient();
     const own = admin ? await ownTalentInquiryHref(admin, (await getCachedActorSession()).user?.id, inquiryId) : null;
     if (own) redirect(own);
-    // TUL-473: an id that is not in this workspace (another tenant's, the marketplace's, or removed)
-    // renders the explanation inline. `notFound()` here rendered the same copy on the server and
-    // then crashed the client ("This page couldn't load") on production.
     return <WorkNotFoundCard t={t} backHref={`/${tenantSlug}/admin/work`} />;
   }
 

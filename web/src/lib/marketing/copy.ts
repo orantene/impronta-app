@@ -113,7 +113,7 @@ const en = {
   /** Logo lockup descriptor: header (desktop) + footer (always). Category
    *  message only; never the hero headline. See PR-BRAND §0. */
   brand: {
-    descriptor: "Sell what you do, not what you ship",
+    descriptor: "Sell what you do",
   },
 
   hero: {
@@ -507,7 +507,7 @@ const es: MarketingCopy = {
   },
 
   brand: {
-    descriptor: "Vende lo que haces, no lo que envías",
+    descriptor: "Vende lo que haces",
   },
 
   hero: {

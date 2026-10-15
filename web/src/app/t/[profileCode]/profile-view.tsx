@@ -119,6 +119,7 @@ import {
   talentProfileMetaTitle,
 } from "@/lib/seo/talent-profile-meta-copy";
 import { buildTalentProfileJsonLd, jsonLdToString, offeringsToJsonLdServices } from "@/lib/seo/talent-json-ld";
+import { loadProfileReviewsJsonLd } from "@/lib/seo/talent-profile-reviews-ld.server";
 import {
   resolveTalentVisibility,
   type TalentSurface,
@@ -2308,6 +2309,13 @@ export async function TalentProfileView({
   // profiles. Public data only — no contact info, no agency-private
   // financials. See lib/seo/talent-json-ld.ts.
   const jsonLd = buildTalentProfileJsonLd({
+    // TUL-585: only reviews the page shows; none for a demo talent.
+    reviews: await loadProfileReviewsJsonLd({
+      profileId: profile.id,
+      reviewsEnabled,
+      summary: ratingSummary,
+      rows: talentReviews,
+    }),
     canonicalUrl: canonicalShareUrl,
     name,
     // null when every category is hidden for this tenant — buildTalentProfileJsonLd
