@@ -167,7 +167,7 @@ export function FloatingPanelShell({
       className={`fixed flex flex-col font-sans ${
         compactBottomSheetBelowLg
           ? "max-md:!bottom-0 max-md:!left-0 max-md:!right-0 max-md:!top-auto max-md:!h-[min(55vh,520px)] max-md:!w-full max-md:!max-w-full max-md:!max-h-none max-md:rounded-b-none max-md:rounded-t-[16px] max-md:pb-[env(safe-area-inset-bottom)]"
-          : ""
+          : "max-sm:!left-2 max-sm:!right-2 max-sm:!w-auto max-sm:!max-w-none"
       } ${className ?? ""}`}
       style={{
         top: topPx,

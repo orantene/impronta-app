@@ -1320,7 +1320,9 @@
       "timesAskPrefill": "La reserva temporal terminó. ¿Podemos elegir otro horario?",
       "catalogAdded": "{item} añadido a tu solicitud. Nada queda reservado hasta que confirmen.",
       "catalogAddFailed": "No se pudo añadir ahora. Intenta de nuevo o pregunta en el chat.",
-      "dockTrayLabel": "Consulta · {n}",
+      "dockTrayLabel": "Solicitud · {n}",
+      "dockTrayRemove": "Quitar",
+      "dockTrayOpenLineup": "Abrir Artículos",
       "dockTrayOpen": "Revisar",
       "catalogAddInvalid": "Este no se puede agregar a una consulta (puede estar en otra moneda). Pregunta por él en el chat.",
       "catalogSearchPlaceholder": "Buscar en esta lista",
@@ -3912,6 +3914,7 @@
       "lockedRequestSent": "Solicitud enviada, el coordinador la revisará"
     },
     "talentThread": {
+      "originalRequest": "Solicitud original",
       "backAria": "Volver a mis trabajos",
       "via": "vía {agency}",
       "youreCoord": "Eres coord",
@@ -13721,7 +13724,8 @@
       "sendFailedNetwork": "No se pudo enviar. Revisa tu conexión e inténtalo de nuevo.",
       "rateLimited": "Enviaste muchos mensajes en poco tiempo. Tu texto sigue aquí. Inténtalo de nuevo en unos {minutes} minutos.",
       "threadLoading": "Cargando la conversación…",
-      "threadLoadFailed": "No pudimos cargar esta conversación. Cierra y vuelve a abrir el panel para intentarlo de nuevo.",
+      "threadLoadFailed": "No pudimos cargar esta conversación. Inténtalo de nuevo en un momento.",
+      "threadLoadRetry": "Intentar de nuevo",
       "rateLimitedOne": "Enviaste muchos mensajes en poco tiempo. Tu texto sigue aquí. Inténtalo de nuevo en un minuto.",
       "cardTitle": "Actualización",
       "addNumber": "Añade un número para que te llamemos",

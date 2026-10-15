@@ -153,3 +153,14 @@ test("TUL-792: servicePageHrefs maps eligible offerings under the locale base", 
   assert.deepEqual(servicePageHrefs(rows, "/en/"), { [rows[0].id]: "/en/servicio-corte-3fa91c2b" });
   assert.deepEqual(servicePageHrefs(rows, null), {});
 });
+
+test("TUL-795: typed materials, warranty and response time show in the page language, empty ones are dropped", async () => {
+  const { serviceTypedFacts, servicePageCopy: copyFor } = await import("./service-page");
+  const attributes = { matrix: { materials: { en: "Client buys parts", es: "El cliente compra" }, warranty: { en: "6 months" } } };
+  assert.deepEqual(
+    serviceTypedFacts({ attributes }, "es", copyFor("es")).map((f) => [f.label, f.value]),
+    [["Materiales", "El cliente compra"], ["Garantía", "6 months"]],
+  );
+  assert.deepEqual(serviceTypedFacts({ attributes }, "en", copyFor("en")).map((f) => f.label), ["Materials", "Warranty"]);
+  assert.deepEqual(serviceTypedFacts({ attributes: null }, "en", copyFor("en")), []);
+});

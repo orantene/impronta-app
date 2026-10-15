@@ -40,6 +40,7 @@ import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 
 import { registerCartTalent, useCartTalentRegistry } from "./cart-talent-registry";
 import { useCartTalents } from "./use-cart-talents";
+import { useAddedCatalogItems } from "./guest-added-items-store";
 import { AVATAR_GROUND, FACE_OBJECT_POSITION, PERSON_SILHOUETTE_SVG } from "./launcher-avatar-styles";
 import { FONT, paletteFor, type SurfaceMode } from "./mini-chat-styles";
 import { GuestDockItemsShelf } from "./GuestDockItemsShelf";
@@ -231,7 +232,11 @@ export function GuestDockLineupView({
   const favoriteIds = favorites.favoriteIds;
   const favoritesKey = [...favoriteIds].join(",");
   const [savedTiles, setSavedTiles] = useState<SavedTile[]>([]);
-  const showPeopleShelves = representsPeople || cartTalents.length > 0 || savedTiles.length > 0;
+  // TUL-1068: catalog rows added this session; listed under "In your inquiry".
+  const addedItems = useAddedCatalogItems();
+  const inquiryCount = cartTalents.length + addedItems.length;
+  const showPeopleShelves =
+    representsPeople || cartTalents.length > 0 || savedTiles.length > 0 || addedItems.length > 0;
   const [savedLoading, setSavedLoading] = useState(false);
   // id → profileCode for BOTH shelves (names link to the talent's page).
   const [codeById, setCodeById] = useState<Record<string, string>>({});
@@ -369,10 +374,10 @@ export function GuestDockLineupView({
         <>
       <ShelfHeader
         label={t("public.guestChat.dockLineupShelfInquiry")}
-        count={cartTalents.length}
+        count={inquiryCount}
         C={C}
       />
-      {cartTalents.length === 0 ? (
+      {inquiryCount === 0 ? (
         <EmptyShelfNote
           text={
             dragTile
@@ -422,6 +427,16 @@ export function GuestDockLineupView({
                   ×
                 </button>
               )}
+            </li>
+          ))}
+          {addedItems.map((item) => (
+            <li key={item.id} data-inquiry-catalog-item style={rowStyle}>
+              <span style={{ ...nameStyle, flex: 1, minWidth: 0 }}>{item.title}</span>
+              {item.priceLabel ? (
+                <span style={{ fontSize: 11.5, color: C.inkDim, whiteSpace: "nowrap", fontFamily: FONT }}>
+                  {item.priceLabel}
+                </span>
+              ) : null}
             </li>
           ))}
         </ul>

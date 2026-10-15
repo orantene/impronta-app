@@ -45,3 +45,25 @@ test("badge and launcher dot share one count, and other tickets update live", ()
 test("reading a ticket also reads its bell rows", () => {
   assert.match(actions, /markTicketBellRead/);
 });
+
+test("TUL-677: a failed or hidden thread read is logged, shown as failed, and retryable", () => {
+  assert.match(panel, /if \(tErr \|\| mErr \|\| !tRow\)/);
+  assert.doesNotMatch(panel, /console\./);
+  assert.match(panel, /setLoadFailedFor\(\{ id: ticketId, code: tErr\?\.code \?\? mErr\?\.code \?\? \(tRow \? "error" : "no_row"\) \}\)/);
+  assert.match(panel, /<SupportThreadLoadError code=\{loadFailedFor\?\.code\} onRetry=\{\(\) => setLoadAttempt/);
+  assert.match(panel, /\[open, ticketId, contract, patchSummary, loadAttempt\]/);
+  const err = readFileSync("src/components/support/SupportThreadLoadError.tsx", "utf8");
+  assert.match(err, /threadLoadRetry/);
+  for (const l of ["en", "es"]) {
+    const m = JSON.parse(readFileSync(`messages/${l}.json`, "utf8")).dashboard.adminSupport;
+    assert.ok(m.threadLoadRetry && m.threadLoadFailed, l);
+    assert.doesNotMatch(m.threadLoadRetry + m.threadLoadFailed, /\u2014/);
+  }
+});
+
+test("TUL-677: an invalid support= value routes to the Tickets list through the hook and launcher", () => {
+  assert.match(hooks, /else openToList\?\.\(\)/);
+  const launcher = readFileSync("src/components/support/SupportLauncher.tsx", "utf8");
+  assert.match(launcher, /setDeepLinkList\(true\)/);
+  assert.match(panel, /else if \(deepLinkList\) setView\("tickets"\)/);
+});
