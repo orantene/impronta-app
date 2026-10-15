@@ -328,6 +328,7 @@ export function EmailCodeForm({
     <div className="space-y-3.5">
       <form
         action={sendAction}
+        noValidate // TUL-893: the server answers in the page language; no English browser tooltip
         className="space-y-3.5"
         onSubmit={() => {
           setBackToEmail(false);
