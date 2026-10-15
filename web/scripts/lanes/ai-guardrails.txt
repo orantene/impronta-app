@@ -78,3 +78,4 @@ src/lib/support/desk/topbar-staging-host.static.test.ts
 src/lib/quality/commerce-tab-alias.static.test.ts
 src/components/home/hub-landing-dev-hosts.static.test.ts
 src/lib/seo/talent-site-not-found-robots.static.test.ts
+src/lib/legal/platform-origin.test.ts
