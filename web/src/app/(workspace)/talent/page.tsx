@@ -21,7 +21,7 @@ import {
 import { loadTalentSelfProfileByUser } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent";
 import { loadAccessProfile } from "@/lib/access-profile";
 import { buildQuerySuffix } from "@/lib/saas/redirect-query";
-import { getSiteUrl } from "@/lib/auth-flow";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { buildStartUrl } from "@/lib/onboarding/legacy-signup-redirect";
 import { legacyFlowLang } from "@/lib/onboarding/legacy-signup-redirect.server";
 
@@ -87,6 +87,10 @@ export default async function PlatformTalentRootPage({
   // A talent role with no profile row yet: finish setup in the guided flow
   // rather than dead-ending. Cross-host, so the URL is absolute.
   redirect(
-    buildStartUrl({ siteUrl: getSiteUrl(), lang: await legacyFlowLang(), choice: "myself" }),
+    buildStartUrl({
+      siteUrl: resolveMarketingOrigin(),
+      lang: await legacyFlowLang(),
+      choice: "myself",
+    }),
   );
 }

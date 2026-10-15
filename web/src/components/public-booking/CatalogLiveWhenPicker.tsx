@@ -10,6 +10,8 @@ import {
   catalogTimezoneLabel,
   catalogWeekdayShort,
   formatClock,
+  nextDayWithSlotsIndex,
+  nextOpenDemoDayIndex,
 } from "./catalog-booking-logic";
 import { catalogEmptyWhenCopy } from "./catalog-booking-live-slots";
 import type { CatalogTakenSlotNotice } from "./catalog-taken-slot";
@@ -49,9 +51,19 @@ export function CatalogWeekNav({ stripRef, count, es }: { stripRef: RefObject<HT
 }
 
 /** Selected date + timezone line shown above the slots, so the pick is visible even when scrolled off the strip. */
-export function CatalogSelectedDateLine({ date, tz, es }: { date: Date | undefined; tz: string | null; es: boolean }) {
+export function CatalogSelectedDateLine({
+  date,
+  tz,
+  es,
+  placeCity,
+}: {
+  date: Date | undefined;
+  tz: string | null;
+  es: boolean;
+  placeCity?: string | null;
+}) {
   if (!date) return null;
-  const zone = catalogTimezoneLabel(tz, es);
+  const zone = catalogTimezoneLabel(tz, es, placeCity);
   return (
     <p className="jb-selected-date" data-catalog-selected-date="" aria-live="polite" style={{ margin: "2px 0 10px", fontSize: "0.9375rem" }}>
       <strong>{catalogSelectedDateLabel(date, es)}</strong>
@@ -72,6 +84,7 @@ export function CatalogLiveWhenPicker({
   dayIndex,
   liveStarts,
   liveTz,
+  placeCity,
   timeGroupLabel,
   emptyConsultButton,
   takenNotice,
@@ -84,6 +97,7 @@ export function CatalogLiveWhenPicker({
   dayIndex: number;
   liveStarts: string | null;
   liveTz: string;
+  placeCity?: string | null;
   timeGroupLabel: string;
   emptyConsultButton: ReactNode;
   takenNotice: CatalogTakenSlotNotice | null;
@@ -94,6 +108,11 @@ export function CatalogLiveWhenPicker({
   const liveTimes = liveDays[dayIndex]?.starts ?? [];
   const emptyCopy = catalogEmptyWhenCopy(es, liveDays.some((d) => d.starts.length > 0));
   const stripRef = useScrollSelectedDayIntoView(dayIndex, liveDays.length);
+  const nextFree = nextDayWithSlotsIndex(liveDays, dayIndex);
+  const jumpToNextFree = () => {
+    if (nextFree == null) return;
+    onPickDay(nextFree);
+  };
   return (
     <>
       {takenNotice && !liveStarts ? (
@@ -115,11 +134,21 @@ export function CatalogLiveWhenPicker({
         ))}
       </div>
       <CatalogWeekNav stripRef={stripRef} count={liveDays.length} es={es} />
-      <CatalogSelectedDateLine date={liveDays[dayIndex]?.date} tz={liveTz} es={es} />
+      <CatalogSelectedDateLine date={liveDays[dayIndex]?.date} tz={liveTz} es={es} placeCity={placeCity} />
       {liveTimes.length === 0 ? (
         <div className="jb-empty">
           <strong>{emptyCopy.title}</strong>
           <p>{emptyCopy.body}</p>
+          {nextFree != null ? (
+            <button
+              type="button"
+              className="jb-ask"
+              data-catalog-try-another-date=""
+              onClick={jumpToNextFree}
+            >
+              {es ? "Prueba otra fecha" : "Try another date"}
+            </button>
+          ) : null}
           {emptyConsultButton}
         </div>
       ) : (
@@ -163,6 +192,7 @@ export function CatalogDemoWhenPicker({
   onPickTime: (t: string) => void;
 }) {
   const stripRef = useScrollSelectedDayIntoView(dayIndex, days.length);
+  const nextOpen = nextOpenDemoDayIndex(days, dayIndex);
   return (
     <>
       <div ref={stripRef} className="jb-days" role="group" aria-label={es ? "Elige una fecha" : "Pick a date"}>
@@ -187,6 +217,16 @@ export function CatalogDemoWhenPicker({
         <div className="jb-empty">
           <strong>{es ? "Sin horarios disponibles ese día." : "No times that day."}</strong>
           <p>{es ? "Elige otra fecha." : "Pick another date."}</p>
+          {nextOpen != null ? (
+            <button
+              type="button"
+              className="jb-ask"
+              data-catalog-try-another-date=""
+              onClick={() => onPickDay(nextOpen)}
+            >
+              {es ? "Prueba otra fecha" : "Try another date"}
+            </button>
+          ) : null}
           {emptyConsultButton}
         </div>
       ) : (
