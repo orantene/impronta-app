@@ -1837,7 +1837,6 @@ export async function saveOfferDraft(
         : reason === "offer_not_editable" ? "This offer is locked (already sent / accepted)."
         : reason === "post_booking_immutable" ? "Inquiry is past its mutable phase."
         : reason === "inquiry_frozen" ? "Inquiry is frozen."
-        : reason === "offer_fee_unresolved" ? "Could not check the workspace fee. Nothing was saved; try again."
         // C5 — surface actual retry-after window.
         : reason === "rate_limited" ? formatRateLimitedCopy(retryAfterMs)
         : reason;

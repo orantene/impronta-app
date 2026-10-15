@@ -12,11 +12,9 @@ type OfferLine = OfferDraftSnapshot["lineItems"][number];
 /** One editable offer line (6-column table row, stacked in a narrow panel). */
 export function OfferDraftLineItem({
   li, lines, currencyCode, rosterOptions, coordTalentIds, labelTouched,
-  t, toast, updateLine, onRemove, onLabelTouched, onSwitchCurrency, solo = false,
+  t, toast, updateLine, onRemove, onLabelTouched, onSwitchCurrency,
 }: {
   li: OfferLine;
-  /** Solo owner-talent: the "talent gets" column is her own amount (TUL-380). */
-  solo?: boolean;
   lines: ReadonlyArray<OfferLine>;
   currencyCode: string;
   rosterOptions: ReadonlyArray<{ id: string; name: string }>;
@@ -29,9 +27,6 @@ export function OfferDraftLineItem({
   onLabelTouched: (id: string) => void;
   onSwitchCurrency: (code: string) => void;
 }) {
-  const talentGetsLabel = solo
-    ? t("dashboard.adminTabs.lineup.colYouGet")
-    : t("dashboard.adminTabs.lineup.colTalentGets");
   return (
     <div data-offer-line-row className={OFFER_LINE_ROW_CLASS}>
       <div className="col-span-full flex min-w-0 flex-col gap-0.5 @[640px]:col-span-1">
@@ -107,9 +102,9 @@ export function OfferDraftLineItem({
       />
       </div>
       <div className="flex min-w-0 flex-col gap-0.5">
-      <span aria-hidden className={OFFER_LINE_LABEL_CLASS}>{talentGetsLabel}</span>
+      <span aria-hidden className={OFFER_LINE_LABEL_CLASS}>{t("dashboard.adminTabs.lineup.colTalentGets")}</span>
       <input type="number" min={0} step="100" value={li.talentCost}
-        aria-label={talentGetsLabel}
+        aria-label={t("dashboard.adminTabs.lineup.colTalentGets")}
         onChange={(e) => updateLine(li.id, { talentCost: parseFloat(e.target.value) || 0 })}
         className={OFFER_LINE_CONTROL_CLASS}
         placeholder={t("dashboard.adminTabs.lineup.talentCostPlaceholder")}

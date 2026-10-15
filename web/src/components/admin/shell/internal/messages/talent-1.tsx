@@ -54,13 +54,11 @@ export function talentStageLabel(stage: string, t: Translator): string {
 // row: slim 4-step funnel (Inquiry → Offer → Booked → Wrapped). Trust
 // badges relocate to the Details rail.
 export function TalentJobShellHeader({
-  conv, yourRate, onBack, coordCommissionLabel, onStatusClick, toast, hideCoordPill = false,
+  conv, yourRate, onBack, coordCommissionLabel, onStatusClick, toast,
 }: {
   conv: Conversation;
   yourRate: string;
   onBack: () => void;
-  /** Solo owner-talent: she coordinates no one, so no "coord" pill (TUL-380). */
-  hideCoordPill?: boolean;
   /** Slice H + item #17 wiring: when this talent is ALSO a coordinator
    *  on the same offer, the caller computes the coord-commission share
    *  and passes it as a small "+€Y coord" badge to surface inline with
@@ -196,7 +194,7 @@ export function TalentJobShellHeader({
                 <span data-tulala-source-chip-text>{sourceMeta.label}</span>
               </span>
             )}
-            {conv.iAmCoordinator && !hideCoordPill && (
+            {conv.iAmCoordinator && (
               <span title={t("dashboard.talentThread.youreCoordTitle")} style={{
                 flexShrink: 0,
                 display: "inline-flex", alignItems: "center", gap: 4,
