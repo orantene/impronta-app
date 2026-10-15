@@ -4,10 +4,10 @@
  * amountCents all match; the first one wins. Other categories are never touched.
  */
 export type DedupeRow = {
-  category: string;
-  title: string;
-  amountCents: number | null;
-  talentProfileId: string | null;
+  readonly category: string;
+  readonly title: string;
+  readonly amountCents?: number | null;
+  readonly talentProfileId?: string | null;
 };
 
 const DEDUPED_CATEGORIES: ReadonlySet<string> = new Set(["package", "service"]);
