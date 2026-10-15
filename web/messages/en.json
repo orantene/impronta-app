@@ -1347,6 +1347,7 @@
       "catalogDurationAny": "Any length",
       "catalogDurationUpTo": "Up to {n} min",
       "catalogUnavailable": "Not available",
+      "catalogOwnerBy": "by {name}",
       "catalogShelf": "Browse and add",
       "dockNavLineup": "Items",
       "dockNavProjects": "Yours",

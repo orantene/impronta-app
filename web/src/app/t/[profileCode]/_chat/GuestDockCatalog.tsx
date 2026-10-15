@@ -40,6 +40,7 @@ import { requestChatAddService } from "@/components/public-booking/chat-catalog-
 
 import { dockServiceCtaLabel, dockServiceOpensBookingSheet, dockStorefrontCtaLabel } from "./dock-cta-label";
 
+import { showOwnerChips } from "@/lib/messages-v5/guest-catalog-owner";
 import { getGuestItemsCatalog, type GuestCatalogGroup, type GuestCatalogRow } from "../_actions/guest-catalog-actions";
 import { FONT, type paletteFor } from "./mini-chat-styles";
 import { addAddedCatalogItem } from "./guest-added-items-store";
@@ -249,6 +250,8 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
     [groups, category, searchText, availableOnly, sort, maxMinutes],
   );
 
+  const ownerChips = useMemo(() => showOwnerChips((groups ?? []).flatMap((g) => g.rows)), [groups]);
+
   const usingServices = serviceChips.length > 0;
   const activeService = serviceChip ?? serviceChips[0] ?? null;
   if (failed) return null;
@@ -357,6 +360,9 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
           <div key={row.id} data-guest-catalog-row={row.category} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, padding: "8px 14px", fontFamily: FONT }}>
             <div style={{ flex: "1 1 150px", minWidth: 0 }}>
               <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflowWrap: "anywhere", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{row.title}</div>
+              {ownerChips && row.ownerName ? (
+                <div data-guest-catalog-owner style={{ fontSize: 11.5, color: C.inkMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{interpolate(t("public.guestChat.catalogOwnerBy"), { name: row.ownerName })}</div>
+              ) : null}
               <div style={{ fontSize: 11.5, color: C.inkDim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {[price, row.sub, !row.available ? t("public.guestChat.catalogUnavailable") : null].filter(Boolean).join(" · ")}
               </div>

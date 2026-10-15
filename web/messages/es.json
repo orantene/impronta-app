@@ -1347,6 +1347,7 @@
       "catalogDurationAny": "Cualquier duración",
       "catalogDurationUpTo": "Hasta {n} min",
       "catalogUnavailable": "No disponible",
+      "catalogOwnerBy": "con {name}",
       "catalogShelf": "Explora y añade",
       "dockNavLineup": "Selección",
       "dockNavProjects": "Mis citas",
