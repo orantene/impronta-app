@@ -16,6 +16,8 @@
 // AND have at least one inquiry to this tenantId (establishes a relationship).
 
 import { notFound, redirect } from "next/navigation";
+import { headers } from "next/headers";
+import { loginUrlKeepingSupport } from "@/lib/support/login-next-support";
 import { Toaster } from "sonner";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { tenantReviewsEnabled } from "@/lib/reviews/reviews-entitlement";
@@ -116,7 +118,7 @@ export default async function ClientLayout({
   const session = await getCachedActorSession();
   if (!session.supabase) redirect("/login?error=config");
   const loginNext = clientLoginNext((await readAccountHost()).hostContext, tenantSlug);
-  if (!session.user) redirect(`/login?next=${loginNext}`);
+  if (!session.user) redirect(loginUrlKeepingSupport(loginNext, await headers()));
 
   // ── Tenant resolution ────────────────────────────────────────────────────────
   const scope = await getTenantPortalScopeBySlug(tenantSlug);
