@@ -13635,6 +13635,7 @@
       "panelAria": "Support conversation",
       "title": "Support",
       "close": "Close",
+      "closeAria": "Close support",
       "tabHome": "Home",
       "tabTickets": "Tickets",
       "greeting": "Hi {name}",
@@ -13727,6 +13728,7 @@
       "oranOnline": "{agent} is online",
       "oranTyping": "{agent} is typing",
       "attachAria": "Attach an image",
+      "fieldAttachments": "Screenshots (optional, up to 3)",
       "attachmentUnavailable": "Attachment unavailable",
       "askFeature": "Ask for a feature",
       "ideaHeading": "Tell us what you need",
@@ -18998,6 +19000,7 @@
     "mobile": {
       "close": "Close",
       "back": "Back",
+      "talentPillAria": "Open my profile",
       "search": "Search the workspace",
       "ownerOnly": "owner only",
       "myWorkNotBuilt": "My work is not built yet: there is no page that shows one person their own shifts and bookings.",

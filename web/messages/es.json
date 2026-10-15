@@ -13635,6 +13635,7 @@
       "panelAria": "Conversación de soporte",
       "title": "Soporte",
       "close": "Cerrar",
+      "closeAria": "Cerrar soporte",
       "tabHome": "Inicio",
       "tabTickets": "Tickets",
       "greeting": "Hola {name}",
@@ -13727,6 +13728,7 @@
       "oranOnline": "{agent} está en línea",
       "oranTyping": "{agent} está escribiendo",
       "attachAria": "Adjuntar una imagen",
+      "fieldAttachments": "Capturas de pantalla (opcional, hasta 3)",
       "attachmentUnavailable": "Adjunto no disponible",
       "askFeature": "Pedir una función",
       "ideaHeading": "Cuéntanos qué necesitas",
@@ -18998,6 +19000,7 @@
     "mobile": {
       "close": "Cerrar",
       "back": "Atrás",
+      "talentPillAria": "Abrir mi perfil",
       "search": "Buscar en el workspace",
       "ownerOnly": "solo propietario",
       "myWorkNotBuilt": "Mi trabajo todavía no existe: no hay una página que muestre a una persona sus propios turnos y reservas.",
