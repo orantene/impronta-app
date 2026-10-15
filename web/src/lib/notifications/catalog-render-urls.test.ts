@@ -106,3 +106,27 @@ test("a prefix match is a path-segment match, not a string prefix", () => {
     assert.equal(pageUrl(marketing, "/adminish"), `${SITE}/adminish`);
   });
 });
+
+test("support reply links use the app host; guest /contact stays on the brand host", async () => {
+  const { replyUrlFor } = await import("./catalog-entries-support");
+  const staging = { homeHref: "https://staging.tulala.digital" } as Parameters<typeof pageUrl>[0];
+  const prevApp = process.env.NEXT_PUBLIC_APP_URL;
+  process.env.NEXT_PUBLIC_APP_URL = "https://app.staging.tulala.digital";
+  try {
+    assert.equal(
+      replyUrlFor(staging, "/talent?support=abc"),
+      "https://app.staging.tulala.digital/talent?support=abc",
+    );
+    assert.equal(
+      replyUrlFor(staging, "/acme/client?support=abc"),
+      "https://app.staging.tulala.digital/acme/client?support=abc",
+    );
+    assert.equal(
+      replyUrlFor(staging, "/contact?t=x"),
+      "https://staging.tulala.digital/contact?t=x",
+    );
+  } finally {
+    if (prevApp === undefined) delete process.env.NEXT_PUBLIC_APP_URL;
+    else process.env.NEXT_PUBLIC_APP_URL = prevApp;
+  }
+});
