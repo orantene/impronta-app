@@ -92,3 +92,5 @@ src/lib/security/redact-display.test.ts
 src/lib/pricing/stripe-health-redact.test.ts
 src/lib/seo/staging-noindex.static.test.ts
 web/src/lib/notifications/auth-email-hook.static.test.ts
+src/app/admin/admin-not-found.static.test.ts
+src/app/admin/overview-hydration.static.test.ts
