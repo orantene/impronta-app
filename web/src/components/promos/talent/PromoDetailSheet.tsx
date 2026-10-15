@@ -1,5 +1,6 @@
 "use client";
 
+import { promoErrorMessage } from "./error-message";
 import { useEffect, useState } from "react";
 
 import { useAdminShell } from "@/components/admin/shell/internal/state";
@@ -67,7 +68,7 @@ export function PromoDetailSheet({ item, data, copy, onClose, onEdit, onShare, o
       } else if ("needsUpgrade" in r) {
         openUpgrade({ feature: copy.t("upgrade.feature"), why: copy.t("upgrade.why"), requiredPlan: "website" });
       } else {
-        toast(copy.t("toast.error"));
+        toast(promoErrorMessage(copy, r));
       }
     } finally {
       setBusy(false);

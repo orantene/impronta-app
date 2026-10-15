@@ -1,5 +1,6 @@
 "use client";
 
+import { promoErrorMessage } from "./error-message";
 import { useMemo, useState, type ReactNode } from "react";
 
 import { useAdminShell } from "@/components/admin/shell/internal/state";
@@ -50,7 +51,7 @@ export function QuickCreateDrawer({ open, onClose, copy, data, initial, editingI
   const [pickServices, setPickServices] = useState(false);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<DraftError[]>([]);
-  const [serverError, setServerError] = useState<PromoCopyKey | null>(null);
+  const [serverError, setServerError] = useState<string | null>(null);
 
   const set = (patch: Partial<PromoDraft>) => setDraft((d) => ({ ...d, ...patch }));
   const today = todayLocal(data.nowIso, draft.tz);
@@ -117,13 +118,13 @@ export function QuickCreateDrawer({ open, onClose, copy, data, initial, editingI
         return;
       }
       if (res.fields && res.fields.length > 0) setErrors(res.fields);
-      const errKeyFor: PromoCopyKey = res.error === "code_taken" ? "err.code_taken" : res.error === "not_allowed" ? "err.not_allowed" : res.error === "not_found" ? "err.not_found" : res.error === "invalid" ? "err.invalid" : "err.unavailable";
+      const message = promoErrorMessage(copy, res);
       // The inline alert sits below the fold on a phone; say it where the eye is too.
-      toast(copy.t(errKeyFor));
-      setServerError(errKeyFor);
+      toast(message);
+      setServerError(message);
     } catch {
       toast(copy.t("toast.error"));
-      setServerError("toast.error");
+      setServerError(copy.t("toast.error"));
     } finally {
       setBusy(false);
     }
@@ -404,7 +405,7 @@ export function QuickCreateDrawer({ open, onClose, copy, data, initial, editingI
               {errors.map((e) => <li key={e}>{copy.t(errKey(e))}</li>)}
             </ul>
           ) : null}
-          {serverError ? <p role="alert" className="rounded-xl bg-red-50 p-3 text-[13px] text-red-800">{copy.t(serverError)}</p> : null}
+          {serverError ? <p role="alert" className="rounded-xl bg-red-50 p-3 text-[13px] text-red-800">{serverError}</p> : null}
         </div>
 
         {/* Thumb zone: sticky footer with one primary action. */}
