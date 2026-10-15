@@ -35,4 +35,6 @@ test("dashboardOfferingPriceLabel uses DS-17 format (TUL-336)", () => {
   assert.match(nb(dashboardOfferingPriceLabel({ ...base, priceDisplay: "from" }, "en")), /^from /);
   assert.equal(dashboardOfferingPriceLabel({ ...base, priceDisplay: "quote" }, "en"), "Quote on request");
   assert.equal(dashboardOfferingPriceLabel({ ...base, visibility: "on_request" }, "es"), "Bajo consulta");
+  assert.match(nb(dashboardOfferingPriceLabel(base, "es")), /sesión/);
+  assert.doesNotMatch(nb(dashboardOfferingPriceLabel(base, "es")), /session/);
 });

@@ -21,6 +21,8 @@ export const QUOTE_ES_TEXT: Record<string, string> = {
   "Search your clients": "Busca entre tus clientes",
   "Sends the client your quote for this service. They can accept it from the link.": "Le envía al cliente tu cotización de este servicio. Puede aceptarla desde el enlace.",
   "The client has your quote": "El cliente ya tiene tu cotización",
+  "The quote did not go out": "La cotización no salió",
+  "Nothing reached the client. Try again in a moment.": "Al cliente no le llegó nada. Inténtalo de nuevo en un momento.",
   "The conversation was created but the quote did not go out": "La conversación se creó pero la cotización no salió",
   "They can accept it from the link. You will see the answer in the conversation.": "Puede aceptarla desde el enlace. Verás la respuesta en la conversación.",
   "What is it for?": "¿Para qué es?",

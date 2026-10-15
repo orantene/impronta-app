@@ -11,6 +11,10 @@ import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { parseSellingBookingSettings } from "@/lib/talent/selling-booking-settings";
 import { registeredAuthoredOverlays } from "./theme-catalog/collection/authored";
 import { localiseBakedLanguagesLine } from "./talent-locale-swaps";
+import {
+  EMERGENCIES_TODAY_LABEL,
+  NO_EMERGENCIES_TODAY_LABEL,
+} from "./theme-catalog/seed-i18n";
 
 /** Seeded English label -> Spanish. Keys are exact seed strings. */
 const CODE_SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
@@ -27,8 +31,9 @@ const CODE_SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "How it works": "Cómo funciona",
   "Where I work": "Dónde trabajo",
   "Emergency": "Emergencia",
-  "Emergencies today": "Emergencias hoy",
-  "No emergencies today": "Sin emergencias hoy",
+  // TUL-516 C2: Gridline utility-bar status pill (same pair as seed-i18n).
+  [EMERGENCIES_TODAY_LABEL.en]: EMERGENCIES_TODAY_LABEL.es,
+  [NO_EMERGENCIES_TODAY_LABEL.en]: NO_EMERGENCIES_TODAY_LABEL.es,
   "Call": "Llamar",
   "Same-day emergency": "Emergencia el mismo día",
   "Meanwhile:": "Mientras tanto:",
@@ -82,6 +87,10 @@ const CODE_SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "What clients say": "Lo que dicen mis clientes",
   Reviews: "Reseñas",
   Ask: "Pregunta",
+  // TUL-516 C: latin-dancer taxonomy is gender-neutral "Baile latino" (mig 358000).
+  // Applied trees may still bake the old masculine ES label or English EN seed.
+  "Bailarín Latino": "Baile latino",
+  "Latin Dancer": "Baile latino",
   // Maison v2 (the Rosé proposal copy).
   "Recent {i}work{/i}": "Trabajo {i}reciente{/i}",
   "Menu and prices": "Menú y precios",
@@ -134,6 +143,9 @@ const CODE_SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "Demo studio credit · CDMX": "Créditos ficticios de demo · Estudio en CDMX",
   "Demo show credit · 3 exits": "Show ficticio de demo · 3 salidas",
   "For editorials, runway and campaigns. I reply the same day.": "Para editoriales, runway y campañas. Respondo en el día.",
+  // TUL-516: Folio / proof line baked as English place name.
+  "Based in Mexico City": "Con base en Ciudad de México",
+  "BASED IN MEXICO CITY": "CON BASE EN CIUDAD DE MÉXICO",
   // Folio masthead + cover CTA is seeded in Spanish; English visitors read this.
   "Ask about this": "Consultar",
 };
@@ -353,6 +365,14 @@ function localiseHeaderProps(
     }
     if (changed) (next ??= { ...sp }).regions = out;
   }
+  // Header lockup under the name: trade tagline (TUL-516 Bailarín Latino → Baile latino).
+  if (sp.brand && typeof sp.brand === "object") {
+    const brand = sp.brand as Record<string, unknown>;
+    if (typeof brand.tagline === "string") {
+      const out = one(brand.tagline);
+      if (out !== null) (next ??= { ...sp }).brand = { ...brand, tagline: out };
+    }
+  }
   return next;
 }
 
@@ -424,6 +444,20 @@ export function localiseSeededDesignLabels(
       if (typeof v !== "string") continue;
       const out = one(v, key === "label" ? props.href : undefined);
       if (out !== null) (next ??= { ...props })[key] = out;
+    }
+    // TUL-516 C2: Gridline utility bars often omit status labels; the block
+    // then hardcodes English. Fill the seed English so the map can localise
+    // without a per-talent fixture or reapply (saul / Spanish-only trades).
+    if (node.kind === "utility_bar" && props.showStatus !== false) {
+      for (const [key, seedEn] of [
+        ["statusOnLabel", EMERGENCIES_TODAY_LABEL.en],
+        ["statusOffLabel", NO_EMERGENCIES_TODAY_LABEL.en],
+      ] as const) {
+        const cur = ((next ?? props)[key] as unknown);
+        if (typeof cur === "string" && cur.trim()) continue;
+        const out = one(seedEn);
+        (next ??= { ...props })[key] = out ?? seedEn;
+      }
     }
     if (node.kind === "section" && props.sectionTypeKey === "site_header") {
       const header = localiseHeaderProps(props.sectionProps, one);

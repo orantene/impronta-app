@@ -160,3 +160,11 @@ test("offer mapper: pricingType maps 1:1 to a valid offer unit; custom not price
   assert.equal(isServiceOfferPriceable({ pricingType: "custom", amountCents: 10000 }), false);
   assert.equal(isServiceOfferPriceable({ pricingType: "event", amountCents: null }), false);
 });
+
+test("TUL-516: servicePricingSuffix is Spanish on es (no English / session)", async () => {
+  const { servicePricingSuffix } = await import("./services-menu-types");
+  assert.equal(servicePricingSuffix("per_contact", "es"), "/ sesión");
+  assert.equal(servicePricingSuffix("per_contact", "es-MX"), "/ sesión");
+  assert.equal(servicePricingSuffix("per_contact", "en"), "/ session");
+  assert.doesNotMatch(servicePricingSuffix("per_contact", "es"), /session/);
+});
