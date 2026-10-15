@@ -23,7 +23,7 @@ import { translatorFor } from "@/i18n/use-t";
 import type { GuestThreadMessage, GuestThreadV5Extras } from "@/lib/inquiry/guest-chat-contract";
 import type { ThreadMessage } from "@/lib/messaging/types";
 import type { ClientOfferSummary } from "@/lib/messages-v5/client-thread-view";
-import { isClientCardKind, offerCardMessageIds } from "@/lib/messages-v5/client-thread-view";
+import { isClientCardKind, offerCardMessageIds, threadPaymentState } from "@/lib/messages-v5/client-thread-view";
 import { ClientCard } from "@/components/messages-v5/client/ClientCard";
 import { buildClientCopy } from "@/components/messages-v5/client/copy";
 import { useClientCardActions } from "@/components/messages-v5/client/use-client-card-actions";
@@ -84,6 +84,7 @@ export function useGuestClientCards(input: {
   const messages = useMemo(() => rows.map(toThreadMessage), [rows]);
   const offers = v5?.offers;
   const offerCards = useMemo(() => offerCardMessageIds(messages, offers), [messages, offers]);
+  const payment = useMemo(() => threadPaymentState(messages), [messages]);
   const baseActions = useClientCardActions({ token: v5?.threadToken ?? null, messages, refresh, onTick });
 
   // null = still checking; false = guest; true = signed-in client.
@@ -152,6 +153,7 @@ export function useGuestClientCards(input: {
     copy,
     messages,
     offerCards,
+    payment,
     actions,
     offers: offers ?? [],
     payCode: v5?.payCode ?? null,
@@ -212,6 +214,7 @@ export function GuestClientCardRow({
         offers={model.offers}
         payCode={model.payCode}
         offerCards={model.offerCards}
+        payment={model.payment}
         actions={model.actions}
         onAsk={model.onAsk}
         offerAcceptLabel={model.requireSignInToAccept ? model.signInToAcceptLabel : undefined}

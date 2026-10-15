@@ -70,7 +70,9 @@ const DISCOVERY_CARDS: DiscoveryCard[] = [
       { label: "Focus", value: "Image" },
     ],
     photoKey: "heroServices",
-    href: "https://improntamodels.com",
+    // GRK-056: stay on Tulala so View profile can inquire/contact in-product.
+    // External custom domains leave the platform with no Tulala contact path.
+    href: "/w/impronta",
   },
   {
     id: "tulala-service-hub",

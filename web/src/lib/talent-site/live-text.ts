@@ -21,7 +21,7 @@
  *  - TUL-187: an About paragraph (or Folio masthead blurb) whose stored text
  *    still matches one of her bios binds as `bio` the same way, so Maison
  *    release trees that stripped `liveText: "bio"` still show the visitor's
- *    language and the "(Text in Spanish)" hint on fallback;
+ *    language and the "Disponible en español" hint on fallback;
  *  - pure and identity preserving: a tree with nothing to do comes back `===`.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
@@ -45,7 +45,7 @@ export interface TalentLiveText {
   tradeLabel?: string;
   /** The menu intro line ("Prices in MXN."), a default for a Maison v2 menu that never had one. */
   menuSubtitle?: string;
-  /** "(Text in Spanish)": shown under the live bio when it is not in the visitor's language. */
+  /** "Disponible en español": shown under the live bio when it is not in the visitor's language. */
   bioHint?: string;
 }
 
@@ -124,16 +124,24 @@ function isBaked(key: LiveTextKey, text: unknown, live: TalentLiveText): boolean
   return false;
 }
 
+/** Unexpanded bio tokens that still mean "this paragraph is her bio". */
+function isBioToken(text: unknown): boolean {
+  if (typeof text !== "string") return false;
+  const t = text.trim();
+  return t === "{{richBio}}" || t === "{{shortBio}}" || t === "{{bio}}";
+}
+
 /**
  * TUL-187: an About paragraph whose stored text is still one of her bios, even
  * when the applied tree never got `liveText: "bio"` (Maison numbered releases
- * strip it). Exact seed match only, so a line she rewrote by hand stays hers.
+ * strip it). Exact seed match (or an unexpanded bio token) only, so a line she
+ * rewrote by hand stays hers.
  */
 function isLegacyBioParagraph(node: BuilderNode, live: TalentLiveText): boolean {
   if (node.kind !== "paragraph") return false;
   const props = propsOf(node);
   if (isLiveTextKey(props.liveText)) return false;
-  return isBaked("bio", props.text, live);
+  return isBioToken(props.text) || isBaked("bio", props.text, live);
 }
 
 /** A Folio masthead whose baked blurb is still one of her bios (no `liveText` yet). */
@@ -141,7 +149,7 @@ function isLegacyBioMasthead(node: BuilderNode, live: TalentLiveText): boolean {
   if (node.kind !== "masthead") return false;
   const props = propsOf(node);
   if (props.liveText === "bio") return false;
-  return isBaked("bio", props.bio, live);
+  return isBioToken(props.bio) || isBaked("bio", props.bio, live);
 }
 
 /** The live key a node follows, explicit first, else the legacy hero / bio binding. */
@@ -273,6 +281,9 @@ export function treeHasLiveCandidates(tree: readonly BuilderNode[]): boolean {
       const origin = readOrigin(n);
       if (origin?.design === "maison-v2" && origin.key in LEGACY_HERO_KEYS) return true;
       if (typeof propsOf(n).layerLabel === "string" && propsOf(n).layerLabel as string in LEGACY_LABELS) return true;
+      // TUL-187: unexpanded bio token still means "load her bio" after Maison
+      // releases strip liveText:bio.
+      if (n.kind === "paragraph" && isBioToken(propsOf(n).text)) return true;
     }
     const kids = (n as AnyNode).children;
     return Array.isArray(kids) && treeHasLiveCandidates(kids);
