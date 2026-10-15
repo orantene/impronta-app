@@ -48,6 +48,6 @@ test("detail sheet: one merged results card (no repeated title) and a grid foote
   assert.match(d, /hideTitle/);
   assert.match(d, /progress=\{progressBody\}/);
   assert.match(d, /data-promo-footer-grid/);
-  assert.match(d, /grid-cols-1[^"]*grid-cols-2/);
+  assert.match(d, /grid-cols-1[^"]*grid-cols-\[repeat\(2,minmax\(0,1fr\)\)\]/);
   assert.match(read("src/components/promos/results/PromoResultsCard.tsx"), /props\.hideTitle \? null/);
 });

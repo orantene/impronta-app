@@ -100,6 +100,14 @@ export function PromosPage() {
     }
   }, [data, wanted, start, router]);
 
+  // The header drawer's "Nueva promo" lands here: /talent/promos?picker=1 opens the template picker.
+  const wantsPicker = params.get("picker") === "1";
+  useEffect(() => {
+    if (!data || !wantsPicker) return;
+    setPicker(true);
+    router.replace("/talent/promos");
+  }, [data, wantsPicker, router]);
+
   if (failed && !data) {
     return (
       <div className="flex flex-col gap-3">
@@ -186,7 +194,7 @@ export function PromosPage() {
       )}
 
       <Sheet open={picker} onOpenChange={setPicker}>
-        <SheetContent side="bottom" aria-describedby={undefined} className="max-h-[92vh] overflow-y-auto rounded-t-3xl bg-[var(--tc-canvas,#fafafa)] p-4">
+        <SheetContent side="bottom" aria-describedby={undefined} className="max-h-[92vh] max-w-full overflow-x-hidden overflow-y-auto rounded-t-3xl bg-[var(--tc-canvas,#fafafa)] p-4">
           <SheetTitle className={UI.title}>{copy.t("picker.title")}</SheetTitle>
           <SheetDescription className={`mb-3 text-[13px] ${UI.muted}`}>{copy.t("picker.sub")}</SheetDescription>
           <TemplateGrid copy={copy} onPick={start} />

@@ -10,7 +10,7 @@ const FILES = [
   ...readdirSync(join(ROOT, "components/promos/talent")).map((f) => join(ROOT, "components/promos/talent", f)),
   join(ROOT, "lib/promos/templates.ts"),
 ];
-const PREFIX = "page|month|tab|empty|picker|free|info|tpl|holiday|status|card|offer|weekday|create|dates|spots|pct|days|more|who|unlock|paid|preview|earn|nudge|action|detail|edit|field|upgrade|gate|downgrade|header|toast|err";
+const PREFIX = "page|month|tab|empty|picker|free|info|tpl|holiday|status|card|offer|weekday|create|dates|spots|pct|days|more|who|unlock|paid|preview|earn|nudge|action|detail|edit|field|upgrade|gate|downgrade|header|drawer|toast|err";
 
 test("every copy key literal used by the talent Promos UI exists", () => {
   const keys = new Set(Object.keys(PROMO_COPY_ES));

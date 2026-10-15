@@ -8,7 +8,7 @@ export function MonthRollup(props: { rollup: Rollup; currency: string; lang: Lan
   return (
     <section className="rounded-2xl border border-[var(--tc-border,#e5e5ea)] bg-white p-4" aria-label={c.month}>
       <h3 className="text-sm font-medium text-[var(--tc-ink,#1c1c1e)]">{c.month}</h3>
-      <dl className="mt-3 grid grid-cols-3 gap-3">
+      <dl className="mt-3 grid grid-cols-[repeat(3,minmax(0,1fr))] gap-3">
         <div>
           <dd className="text-lg font-semibold tabular-nums text-[var(--tc-ink,#1c1c1e)]">{m.bookings}</dd>
           <dt className="text-xs text-[var(--tc-muted,#6b6b73)]">{c.bookings(m.bookings)}</dt>

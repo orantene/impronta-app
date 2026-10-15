@@ -1,5 +1,6 @@
 "use client";
 
+import { promoErrorMessage } from "./error-message";
 import { useEffect, useState } from "react";
 
 import { useAdminShell } from "@/components/admin/shell/internal/state";
@@ -67,7 +68,7 @@ export function PromoDetailSheet({ item, data, copy, onClose, onEdit, onShare, o
       } else if ("needsUpgrade" in r) {
         openUpgrade({ feature: copy.t("upgrade.feature"), why: copy.t("upgrade.why"), requiredPlan: "website" });
       } else {
-        toast(copy.t("toast.error"));
+        toast(promoErrorMessage(copy, r));
       }
     } finally {
       setBusy(false);
@@ -91,7 +92,7 @@ export function PromoDetailSheet({ item, data, copy, onClose, onEdit, onShare, o
 
   return (
     <Sheet open onOpenChange={(o) => (o ? undefined : onClose())}>
-      <SheetContent side="bottom" aria-describedby={undefined} className="flex max-h-[94vh] flex-col gap-0 rounded-t-3xl bg-[var(--tc-canvas,#fafafa)] p-0">
+      <SheetContent side="bottom" aria-describedby={undefined} className="flex max-h-[94vh] max-w-full flex-col gap-0 overflow-x-hidden rounded-t-3xl bg-[var(--tc-canvas,#fafafa)] p-0">
         <div className="px-4 pb-2 pt-4">
           <SheetTitle className={`pr-10 ${UI.title}`}>{item.name}</SheetTitle>
           <SheetDescription className="sr-only">{offerLabel(promo, copy)}</SheetDescription>
@@ -101,7 +102,7 @@ export function PromoDetailSheet({ item, data, copy, onClose, onEdit, onShare, o
           </div>
         </div>
 
-        <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4">
+        <div className="flex min-w-0 flex-1 flex-col gap-3 overflow-y-auto overflow-x-hidden px-4 pb-4">
           {running ? (
             <div className={`${UI.card} flex min-h-14 items-center justify-between gap-3 px-4`}>
               <span className={`text-[14px] font-semibold ${UI.ink}`}>{status === "paused" ? copy.t("detail.paused") : copy.t("detail.live")}</span>
@@ -172,7 +173,7 @@ export function PromoDetailSheet({ item, data, copy, onClose, onEdit, onShare, o
 
         <div className="flex flex-col gap-2 border-t border-[var(--tc-border,#e5e5ea)] bg-white px-4 py-3 pb-[max(12px,env(safe-area-inset-bottom))]" data-promo-footer>
           {!ended ? <button type="button" className={`${UI.primary} w-full`} onClick={() => onShare(item)}>{copy.t("page.share")}</button> : null}
-          <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2" data-promo-footer-grid>
+          <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-[repeat(2,minmax(0,1fr))]" data-promo-footer-grid>
             {!ended ? <button type="button" className={`${UI.secondary} w-full`} onClick={() => onEdit(item)}>{copy.t("detail.edit")}</button> : null}
             <button type="button" className={`${UI.secondary} w-full`} disabled={busy} onClick={() => void run(() => duplicatePromo(item.id), "toast.duplicated", true)}>
               {copy.t("detail.duplicate")}
