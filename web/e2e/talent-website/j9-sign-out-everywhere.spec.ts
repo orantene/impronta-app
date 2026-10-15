@@ -52,7 +52,7 @@ async function plantBrowserSession(page: Page) {
   });
 }
 
-async function assertSignedOutEverywhere(page: Page, context: BrowserContext) {
+async function assertSignedOutEverywhere(page: Page, context: BrowserContext, clearsBrowserStorage: boolean) {
   for (const origin of HOSTS) {
     await page.goto(`${origin}/login`, { waitUntil: "domcontentloaded" });
     await page.reload({ waitUntil: "domcontentloaded" });
@@ -61,7 +61,7 @@ async function assertSignedOutEverywhere(page: Page, context: BrowserContext) {
     const stored = await evaluateSettled(page, () =>
       [...Object.keys(localStorage), ...Object.keys(sessionStorage)].filter((k) => k.startsWith("sb-")),
     );
-    if (origin === HOSTS[0]) expect(stored, "browser Supabase session cleared").toEqual([]);
+    if (origin === HOSTS[0] && clearsBrowserStorage) expect(stored, "browser Supabase session cleared").toEqual([]);
     // /account must not render a signed-in page after sign-out.
     await gotoSettled(page, `${origin}/account`);
     await expect(page.getByText(new RegExp(FX.email, "i"))).toHaveCount(0);
@@ -133,10 +133,14 @@ async function submitForm(page: Page, action: string) {
 }
 
 /** Each Log out entry point, driven the way the product drives it. */
-const ENTRY_POINTS: { name: string; run: (page: Page) => Promise<void> }[] = [
+// `clearsBrowserStorage`: only entries that go through the product's client code
+// (SignOutForm onSubmit -> clearBrowserAuthState) can drop local/sessionStorage.
+// A bare form POST is the no-JavaScript path: the server can only expire cookies.
+const ENTRY_POINTS: { name: string; clearsBrowserStorage: boolean; run: (page: Page) => Promise<void> }[] = [
   {
     // SignOutForm (headers, account menus, admin bars, marketing header).
     name: "declarative SignOutForm POST /auth/sign-out",
+    clearsBrowserStorage: false,
     run: async (page) => {
       await submitForm(page, "/auth/sign-out");
     },
@@ -144,6 +148,7 @@ const ENTRY_POINTS: { name: string; run: (page: Page) => Promise<void> }[] = [
   {
     // signOutEverywhere(CLIENT_SIGN_OUT_PATH): talent-host popover.
     name: "client popover POST /auth/client-sign-out",
+    clearsBrowserStorage: false,
     run: async (page) => {
       await submitForm(page, "/auth/client-sign-out");
     },
@@ -151,6 +156,7 @@ const ENTRY_POINTS: { name: string; run: (page: Page) => Promise<void> }[] = [
   {
     // Whatever visible Log out control the page renders (first click only).
     name: "visible Log out control, first click",
+    clearsBrowserStorage: true,
     run: async (page) => {
       await gotoSettled(page, `${HOSTS[0]}/account`);
       const control = page
@@ -203,7 +209,7 @@ test.describe("S1 sign-out ends the session on every subdomain", () => {
       expect(minted.map((h) => h.value)).toEqual([]);
       await page.waitForLoadState("domcontentloaded");
 
-      await assertSignedOutEverywhere(page, context);
+      await assertSignedOutEverywhere(page, context, entry.clearsBrowserStorage);
     });
   }
 });
