@@ -53,7 +53,7 @@ export const WORKSPACE_SLUG_RESERVED_PREFIXES = new Set([
   "link",
   "manage",
   // Static
-  "sitemap.xml", "robots.txt",
+  "sitemap.xml", "robots.txt", "llms.txt",
   // Prototypes + internals
   "prototypes", "_next", "share",
   // Phase 3.11 — HQ super_admin console at /platform/admin/*.

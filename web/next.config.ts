@@ -507,6 +507,9 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       { source: "/talent/_studio-kit", destination: "/talent/studio-kit" },
+      // TUL-589: llms.txt for marketing and published talent-site hosts. Served from an api route so no
+      // root `llms.txt` segment exists (root segments need a platform_reserved_slugs migration).
+      { source: "/llms.txt", destination: "/api/llms" },
     ];
   },
   async redirects() {

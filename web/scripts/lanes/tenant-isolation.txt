@@ -180,3 +180,5 @@ src/lib/impersonation/client-api-read.test.ts
 src/lib/saas/preview-host.test.ts
 src/lib/saas/unsupported-locale-redirect.test.ts
 src/lib/supabase/auth-cookie-variants.security.test.ts
+src/lib/seo/llms-txt.test.ts
+src/lib/seo/talent-llms-txt.test.ts
