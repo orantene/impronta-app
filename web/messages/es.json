@@ -2064,6 +2064,7 @@
         "googleOpening": "Abriendo Google…",
         "googleFailed": "Google no terminó. Inténtalo de nuevo o usa tu correo.",
         "termsPrefix": "Acepto los",
+        "consentHint": "Marca la casilla de arriba para continuar.",
         "popupBlocked": "Tu navegador bloqueó la ventana. Permite ventanas emergentes o usa tu correo.",
         "popupClosed": "La ventana de Google se cerró antes de terminar. Inténtalo de nuevo o usa tu correo.",
         "or": "o",

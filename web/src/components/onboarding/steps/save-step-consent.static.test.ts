@@ -29,3 +29,10 @@ test("TUL-809: one consent gates both Google and the email code", () => {
 test("TUL-809: no second 'by continuing you accept' line", () => {
   assert.doesNotMatch(src, /"public\.onboarding\.save\.terms"/);
 });
+
+test("A11y: the reason Google and the email button are held is read out with them", () => {
+  assert.match(src, /id="onb-consent-hint"/, "a visible hint carries the reason");
+  assert.match(src, /public\.onboarding\.save\.consentHint/);
+  const wired = src.match(/describedBy=\{!ageTerms \? "onb-consent-hint" : undefined\}/g) ?? [];
+  assert.equal(wired.length, 2, "both held controls point at the hint");
+});

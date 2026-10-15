@@ -41,18 +41,22 @@ export function PrimaryButton({
   disabled,
   type = "button",
   testId,
+  describedBy,
 }: {
   children: ReactNode;
   onClick?: () => void;
   disabled?: boolean;
   type?: "button" | "submit";
   testId?: string;
+  /** id of the text that says why the button is held (read out with the disabled state). */
+  describedBy?: string;
 }) {
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
+      aria-describedby={describedBy}
       data-testid={testId}
       className="inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-[0.9375rem] font-semibold transition-opacity disabled:opacity-40"
       style={{ background: "var(--tl-forest)", color: "var(--tl-forest-on)" }}

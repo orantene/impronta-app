@@ -83,6 +83,12 @@ export function SaveStep({
           <a href={legal.privacy} target="_blank" rel="noreferrer" className="underline">{t("public.auth.register.ageTermsPrivacy")}</a>
         </span>
       </label>
+      {/* Why Google and the email button are held: read out with their disabled state. */}
+      {!ageTerms ? (
+        <p id="onb-consent-hint" className="mt-2 text-[0.8125rem] leading-snug" style={{ color: "var(--tl-muted)" }} data-testid="onb-consent-hint">
+          {t("public.onboarding.save.consentHint")}
+        </p>
+      ) : null}
       <div className="mt-3" data-testid="onb-google">
         <AuthGoogleButtonSurface
           pending={google.pending}
@@ -91,6 +97,7 @@ export function SaveStep({
           error={googleError}
           onClick={google.open}
           disabled={!ageTerms}
+          describedBy={!ageTerms ? "onb-consent-hint" : undefined}
         />
       </div>
 
@@ -128,7 +135,7 @@ export function SaveStep({
         ) : null}
         {error ? <Notice tone="error" testId="onb-error">{error}</Notice> : null}
         <div className="mt-4">
-          <PrimaryButton type="submit" disabled={busy || !email.trim() || !ageTerms} testId="onb-email-cta">
+          <PrimaryButton type="submit" disabled={busy || !email.trim() || !ageTerms} testId="onb-email-cta" describedBy={!ageTerms ? "onb-consent-hint" : undefined}>
             {busy ? t("public.onboarding.save.emailPending") : t("public.onboarding.save.emailCta")}
           </PrimaryButton>
         </div>

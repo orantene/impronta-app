@@ -315,6 +315,7 @@ export function AuthGoogleButtonSurface({
   error,
   onClick,
   disabled = false,
+  describedBy,
 }: {
   pending: boolean;
   label: ReactNode;
@@ -323,6 +324,8 @@ export function AuthGoogleButtonSurface({
   onClick: () => void;
   /** Held until a required checkbox (e.g. age and terms) is ticked. */
   disabled?: boolean;
+  /** id of the text that says why the button is held (read out with the disabled state). */
+  describedBy?: string;
 }) {
   return (
     <div className="space-y-2">
@@ -330,6 +333,7 @@ export function AuthGoogleButtonSurface({
         type="button"
         onClick={onClick}
         disabled={pending || disabled}
+        aria-describedby={describedBy}
         className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full px-5 py-3 text-[0.9375rem] font-medium leading-none tracking-[-0.005em] transition-[background,border-color,box-shadow] duration-200 disabled:cursor-wait disabled:opacity-70"
         style={{
           background: "var(--plt-bg-raised)",
