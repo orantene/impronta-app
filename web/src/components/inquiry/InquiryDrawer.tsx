@@ -23,6 +23,7 @@
 import { useState, useEffect, useRef, useTransition, useMemo, useCallback } from "react";
 import { useActionState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   type InquiryIntent,
   type InquirySource,
@@ -142,9 +143,19 @@ export function InquiryDrawer({
   talentToolsSlot,
   representsPeople,
   bookableOffering = null,
-  onClose,
+  onClose: onCloseProp,
 }: InquiryDrawerProps) {
   const t = useT();
+  // TUL-966: the submit action no longer revalidates the client pages, because
+  // refreshing the page the drawer sits on re-rendered it through the loading
+  // skeleton and dropped the "sent" confirmation. The page refreshes here
+  // instead, once the person closes the confirmation.
+  const router = useRouter();
+  const submittedRef = useRef(false);
+  const onClose = useCallback(() => {
+    onCloseProp();
+    if (submittedRef.current) router.refresh();
+  }, [onCloseProp, router]);
   // ─ Body scroll lock + ESC ──────────────────────────────────────────────────
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -232,6 +243,7 @@ export function InquiryDrawer({
     FormData
   >(submitInquiryNowAction, { kind: "idle" });
   const submitted = submitState.kind === "submitted";
+  submittedRef.current = submitted;
   const sentKeys = sentCopyKeys(soloTalentName);
   const sentVars = { agency: agencyName, talent: soloTalentName ?? agencyName };
 
