@@ -81,3 +81,16 @@ test("sign-in activates only inside the verified-claim gate, after the claim rel
   const activate = src.indexOf("claimAndActivateVerifiedClient(", gate);
   assert.ok(gate > 0 && relink > gate && activate > relink, "claim + activation must follow the claim relink inside the mayClaim gate");
 });
+
+import { shouldActivateSelfSignedClient } from "./guest-activate";
+
+test("TUL-771: an explicit client sign-up activates a fresh client row; nothing else does", () => {
+  assert.equal(shouldActivateSelfSignedClient({ signupIntent: "client", appRole: "client", accountStatus: "onboarding" }), true);
+  // no intent (a guest booker with no booking keeps onboarding, owner decision TUL-465)
+  assert.equal(shouldActivateSelfSignedClient({ signupIntent: null, appRole: "client", accountStatus: "onboarding" }), false);
+  // never touches a talent, staff or already-active account
+  assert.equal(shouldActivateSelfSignedClient({ signupIntent: "client", appRole: "talent", accountStatus: "onboarding" }), false);
+  assert.equal(shouldActivateSelfSignedClient({ signupIntent: "client", appRole: "agency_staff", accountStatus: "onboarding" }), false);
+  assert.equal(shouldActivateSelfSignedClient({ signupIntent: "client", appRole: "client", accountStatus: "active" }), false);
+  assert.equal(shouldActivateSelfSignedClient({ signupIntent: "talent", appRole: "client", accountStatus: "onboarding" }), false);
+});
