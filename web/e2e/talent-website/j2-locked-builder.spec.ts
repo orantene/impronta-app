@@ -172,7 +172,7 @@ test.describe("J2 locked builder (free talent)", () => {
     await expect(page.getByText(/Visitors still see the old design until you publish/)).toBeVisible({
       timeout: 60_000,
     });
-    await page.getByRole("button", { name: /(Re)?[Pp]ublish site/ }).click();
+    await page.getByRole("button", { name: /(Re)?[Pp]ublish (site|changes)/ }).first().click();
     await expect(page.getByText(/your site is live/)).toBeVisible({ timeout: 120_000 });
 
     // The public site serves, and still carries the free "Made with Tulala" badge.

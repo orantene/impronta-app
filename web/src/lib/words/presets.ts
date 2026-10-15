@@ -64,6 +64,8 @@ export const INDUSTRY_PRESET_IDS = [
   "act",
   "portfolio",
   "agency",
+  // Added 2026-10-14 (TUL-613). Additive: no stored value changes.
+  "pet_grooming",
   "custom",
 ] as const;
 
@@ -490,6 +492,35 @@ const PRESETS: Readonly<Record<IndustryPresetId, IndustryPreset>> = {
     chatVoiceSolo: {
       en: "Tell me about the dinner: the date, how many guests, and any allergies.",
       es: "Cuéntame de la cena: la fecha, cuántas personas y si hay alergias.",
+    },
+    designId: "services",
+    representsPeople: false,
+  },
+  pet_grooming: {
+    id: "pet_grooming",
+    label: { en: "Pet grooming", es: "Peluquería canina" },
+    blurb: { en: "grooms, pets, breeds", es: "baños, mascotas, razas" },
+    words: {
+      ...STAFF_WORDS,
+      "menu.item": { en: "Service", es: "Servicio" },
+      "menu.items": { en: "Services", es: "Servicios" },
+      "customers.chat_items": { en: "Services", es: "Servicios" },
+      "appointments.item": { en: "Groom", es: "Baño y corte" },
+      "appointments.items": { en: "Grooms", es: "Baños y cortes" },
+      "appointments.provider": { en: "Groomer", es: "Estilista canino" },
+      "appointments.cta": { en: "Book", es: "Agendar" },
+      "customers.person": { en: "Pet parent", es: "Dueño" },
+      "customers.people": { en: "Pet parents", es: "Dueños" },
+    },
+    features: { menu: true, reservations: false, events: false, appointments: true },
+    headerVerb: "book",
+    chatVoice: {
+      en: "Tell us about your pet: breed, size and the groom you want",
+      es: "Cuéntanos de tu mascota: raza, tamaño y el servicio que quieres",
+    },
+    chatVoiceSolo: {
+      en: "Tell me about your pet: breed, size and the groom you want",
+      es: "Cuéntame de tu mascota: raza, tamaño y el servicio que quieres",
     },
     designId: "services",
     representsPeople: false,

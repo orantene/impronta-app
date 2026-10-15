@@ -10,7 +10,6 @@ import { loadPublicPageBySlug } from "@/lib/site-admin/server/pages-reads";
 import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { authPageBrand } from "@/lib/client-account/agency-area-pure";
-import { clientAccountEnabledFor } from "@/lib/client-account/flag";
 import { dashboardTabTitle } from "@/i18n/dashboard-metadata";
 import { getRequestLocale, ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
@@ -29,7 +28,7 @@ import {
 const AUTH_ROBOTS: Metadata = { robots: { index: false, follow: false } };
 
 /**
- * TUL-64: with the client account flag on, a whitelabel agency's own login page
+ * TUL-64: a whitelabel agency's own login page
  * is titled with the agency's name, not "Tulala". Everything else is unchanged.
  */
 export async function generateMetadata(): Promise<Metadata> {
@@ -37,14 +36,11 @@ export async function generateMetadata(): Promise<Metadata> {
   // TUL-518: the root default title is the English brand line; follow the page language.
   const localized: Metadata = { ...AUTH_ROBOTS, title: { absolute: dashboardTabTitle(await getRequestLocale()) } };
   if (ctx.kind !== "agency" && ctx.kind !== "hub") return localized;
-  // TUL-64: flag kind matches x-impronta-host-context (agency / hub), not `app`.
-  if (!clientAccountEnabledFor(ctx.kind)) return localized;
   const [identity, whitelabel] = await Promise.all([
     loadPublicIdentity(ctx.tenantId).catch(() => null),
     loadTenantWhitelabel(ctx.tenantId).catch(() => false),
   ]);
   const brand = authPageBrand({
-    flagOn: true,
     hostKind: ctx.kind,
     whitelabel,
     publicName: identity?.public_name,
@@ -349,6 +345,7 @@ export default async function AuthLayout({
               contact: t("public.auth.shell.contact"),
             }}
             contactHref={contactHref}
+            locale={locale}
             languageToggle={
               <AuthLanguageToggle
                 activeLocale={locale}

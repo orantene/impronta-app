@@ -4,6 +4,8 @@ import { test } from "node:test";
 import type { PurchaseResult } from "@/lib/orders/purchase-types";
 
 import { actCartCheckoutCore, readCartCheckoutCore, workspaceCartCurrency, type CartCheckoutDeps } from "./cart-checkout.core";
+import { isPromoGoneRefusal } from "@/lib/promos/public-view";
+
 import { fakeAdmin, uuid, type FakeStore } from "./__fixtures__/fake-admin";
 import { memoryIdempotentRunner } from "./__fixtures__/memory-runner";
 
@@ -215,4 +217,22 @@ test("TUL-284 create: a new cart takes the WORKSPACE currency; an unreadable wor
   const refused = await actCartCheckoutCore(blank.deps, { op: "create", tenantId: TENANT });
   assert.ok(!refused.ok);
   assert.equal(blank.store.orders!.length, ordersBefore, "no draft order is created when the workspace currency is unreadable");
+});
+
+test("TUL-937: a promo that sold out mid-checkout refuses BEFORE payment; never a silent full-price charge", async () => {
+  const checkouts: unknown[] = [];
+  const { deps, store } = setup({
+    createPurchase: async () => ({ ok: false, reason: "promo_exhausted", error: "That code could not be applied." }),
+    createCheckout: async (i) => {
+      checkouts.push(i);
+      return { ok: true, url: "https://pay.test/x", sessionId: "s", mock: true };
+    },
+  });
+  store.orders![0]!.customer_id = CUSTOMER;
+  store.orders![0]!.promo_code_id = PROMO;
+  const r = await actCartCheckoutCore(deps, { op: "start_payment", tenantId: TENANT, orderId: CART, payment: "full" }, 3);
+  assert.ok(!r.ok && r.reason === "refused" && r.code === "promo_exhausted");
+  assert.ok(isPromoGoneRefusal(r), "the checkout UI reads it as 'promo gone' and shows the regular price");
+  assert.equal(checkouts.length, 0, "no payment session was opened");
+  assert.equal(store.orders![0]!.status, "draft", "the cart stays open to book at the regular price");
 });

@@ -1,5 +1,5 @@
 /**
- * Spanish for the operator-facing errors the Builder Lab server actions return (TUL-208 F11).
+ * Spanish for the operator-facing errors the Builder Lab server actions return (TUL-208 F11 / TUL-519 W5-7).
  *
  * The actions return `{ ok: false, error }` in English. Some also return `errorEs` (the authored
  * gate, publish); the rest did not, so a Spanish-speaking operator saw English in the middle of a
@@ -10,6 +10,8 @@
  * `builder-lab-errors.test.ts` scans the action sources for every literal `error: "..."` and fails
  * when one has no Spanish here, so a new error cannot ship English-only.
  */
+
+import { AUTHORED_GATE_COPY } from "../theme-catalog/authored-sync-rule";
 
 export type BuilderLabLang = "en" | "es";
 
@@ -36,6 +38,12 @@ export const BUILDER_LAB_ERROR_ES: Readonly<Record<string, string>> = {
   "Could not create the design.": "No se pudo crear el diseño.",
   "Could not open the new design in the editor.": "No se pudo abrir el diseño nuevo en el editor.",
   "Action failed.": "La acción falló.",
+  "Restore failed.": "No se pudo restaurar.",
+  "Site not found.": "No se encontró el sitio.",
+  "Paste or choose a .look.json file.": "Pega o elige un archivo .look.json.",
+  "That is not valid JSON.": "Eso no es JSON válido.",
+  "draft revision unknown": "revisión del borrador desconocida",
+  [AUTHORED_GATE_COPY.en]: AUTHORED_GATE_COPY.es,
 };
 
 type Pattern = { re: RegExp; es: (m: RegExpMatchArray) => string };
@@ -48,7 +56,31 @@ export const BUILDER_LAB_ERROR_PATTERNS: readonly Pattern[] = [
   { re: /^Base build failed: ([\s\S]+)$/, es: (m) => `Falló la compilación base: ${m[1]}` },
   { re: /^Target build failed: ([\s\S]+)$/, es: (m) => `Falló la compilación de destino: ${m[1]}` },
   { re: /^Publish failed: ([\s\S]+)\.$/, es: (m) => `No se pudo publicar: ${m[1]}.` },
+  {
+    re: /^Hydration tokens unavailable for (.+); refusing empty apply\.$/,
+    es: (m) => `Tokens de hidratación no disponibles para ${m[1]}; se rechaza una aplicación vacía.`,
+  },
+  {
+    re: /^The catalog is already at v(\d+); making v(\d+) the default would move it backward\. This release is superseded\.$/,
+    es: (m) => `El catálogo ya está en la v${m[1]}; hacer predeterminada la v${m[2]} lo movería hacia atrás. Esta entrega quedó superada.`,
+  },
+  {
+    re: /^No snapshot for v(\d+); run the catalog sync first\.$/,
+    es: (m) => `No hay captura para la v${m[1]}; sincroniza el catálogo primero.`,
+  },
+  {
+    re: /^v(\d+) payload is invalid: ([\s\S]+)$/,
+    es: (m) => `La carga de la v${m[1]} no es válida: ${m[2]}`,
+  },
 ];
+
+/** Keys that are fallbacks / UI-only and may not appear as `error: "..."` in action sources. */
+export const BUILDER_LAB_ERROR_ES_EXTRA_KEYS = [
+  "Action failed.",
+  "Restore failed.",
+  "draft revision unknown",
+  AUTHORED_GATE_COPY.en,
+] as const;
 
 export function localizeBuilderLabError(error: string, lang: BuilderLabLang, errorEs?: string | null): string {
   if (lang !== "es") return error;

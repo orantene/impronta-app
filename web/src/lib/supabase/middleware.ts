@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { authCoordinationOptions } from "@/lib/supabase/auth-coordination";
 import { cookieDomainForHost, isSupabaseAuthCookie } from "@/lib/supabase/cookie-domain";
+import { isSignOutPath } from "@/lib/auth/sign-out-paths";
 import { loadAccessProfile } from "@/lib/access-profile";
 import {
   buildAuthDebugHeaders,
@@ -258,6 +259,11 @@ export async function updateSession(
   let supabaseResponse = attachGuestCookie(nextPreservingUrl());
 
   if (!url || !anon) {
+    return { response: supabaseResponse, requestHeaders: forwardedHeaders };
+  }
+
+  // S1: never refresh (re-mint) a session on the sign-out request itself.
+  if (isSignOutPath(pathnameForAuth)) {
     return { response: supabaseResponse, requestHeaders: forwardedHeaders };
   }
 

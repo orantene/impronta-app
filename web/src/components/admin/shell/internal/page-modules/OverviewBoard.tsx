@@ -17,7 +17,7 @@
  * (the one `style` is a CSS custom property for the readiness bar's width).
  */
 
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 
@@ -36,14 +36,12 @@ import type {
   TodayBadge,
   TodayRow,
 } from "@/lib/overview/model";
+import { greetingHour } from "@/lib/overview/greeting-hour";
 import { setupProgress } from "@/lib/overview/model";
-import { utcToZonedHour } from "@/lib/scheduling/tz";
 import { useDashboardText } from "../dashboard-i18n";
 import { Icon } from "../primitives";
 import { meetsRole, useAdminShell } from "../state";
 import { useOverviewSnapshot } from "./overview-snapshot-store";
-
-const subscribeNever = () => () => undefined;
 
 const K = "dashboard.overviewBoard";
 
@@ -127,34 +125,19 @@ export function OverviewBoard() {
       personName: bridgeSessionIdentity?.displayName,
       businessName: bridgeTenantIdentity?.displayName,
     }) ?? t("dashboard.adminOverview.greetingFallbackName");
-  // onb1-21: date + greeting must share the venue zone. `Date#getHours()` is
-  // the browser/SSR host clock — at ~8:40 pm Cancún the UTC server paints
-  // "Buenos días" + "sáb 10 oct", then the client flips to evening / Viernes 9.
-  const hydrated = useSyncExternalStore(subscribeNever, () => true, () => false);
   const now = snapshot ? new Date(snapshot.nowIso) : new Date();
-  const venueZone = snapshot?.timeZone;
   const locale = t("dashboard.adminOverview.dateLocale");
   // The kit's day-first date, "Thu 17 Sep" (MW02 / the Overview board), in
   // every locale: the parts are reordered rather than trusting the locale's.
-  // Without a snapshot zone, wait for hydration so SSR (UTC) does not disagree
-  // with the operator's Cancún wall clock.
-  const dateParts =
-    venueZone || hydrated
-      ? new Intl.DateTimeFormat(locale, {
-          weekday: "short",
-          day: "numeric",
-          month: "short",
-          ...(venueZone ? { timeZone: venueZone } : {}),
-        }).formatToParts(now)
-      : [];
+  const dateParts = new Intl.DateTimeFormat(locale, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    ...(snapshot ? { timeZone: snapshot.timeZone } : {}),
+  }).formatToParts(now);
   const datePart = (type: string) => dateParts.find((p) => p.type === type)?.value ?? "";
-  const dateLabel = dateParts.length
-    ? `${datePart("weekday")} ${datePart("day")} ${datePart("month")}`.replace(/\.\s/g, " ").trim()
-    : "…";
-  const hour =
-    (venueZone ? utcToZonedHour(now, venueZone) : null) ??
-    (hydrated ? now.getHours() : 12);
-  const greeting = interpolate(t(greetingKey(hour)), {
+  const dateLabel = `${datePart("weekday")} ${datePart("day")} ${datePart("month")}`.replace(/\.\s/g, " ").trim();
+  const greeting = interpolate(t(greetingKey(greetingHour(now, snapshot?.timeZone))), {
     name: greetingName,
   });
 
@@ -588,7 +571,7 @@ function SetupReadiness({
         </div>
         {missingAll.length > 3 ? (
           <button type="button" onClick={onFinish} className={`${BUTTON_BASE} h-[30px] px-[14px] text-[12px] ${TONE_SECONDARY}`}>
-            {t(`${K}.setup.seeAll`)}
+            {interpolate(t(`${K}.setup.seeAllCount`), { count: missingAll.length })}
           </button>
         ) : null}
       </div>

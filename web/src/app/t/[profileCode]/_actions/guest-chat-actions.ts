@@ -74,6 +74,7 @@ import { scheduleBookingAssistantTurn } from "@/lib/ai/booking-assistant/turn.se
 import { nextFreeTimesForTalent } from "@/lib/scheduling/next-free-times";
 import { scanGuestConversationForDetails } from "@/app/t/[profileCode]/_actions/guest-conversation-scan-action";
 import { sendGuestClaimEmail } from "@/lib/inquiry/guest-claim-link";
+import { readSiteReturnUrl } from "@/lib/inquiry/claim-return-url.server";
 import { getTypicalReplyLabel } from "@/lib/inquiry/guest-reply-latency";
 import {
   buildInquiryReceipt,
@@ -1149,6 +1150,7 @@ export async function startGuestChatInquiry(
       talentName,
       appUrl: getAppUrl(),
       tenantId,
+      returnUrl: await readSiteReturnUrl(),
     });
     claimEmailSent = claimResult.ok;
     if (!claimResult.ok) {
@@ -1842,6 +1844,7 @@ export async function sendGuestClaimToEmail(
     talentName,
     appUrl: getAppUrl(),
     tenantId: owned.inquiry.tenantId,
+    returnUrl: await readSiteReturnUrl(),
   });
   if (!claimResult.ok) {
     logServerError(

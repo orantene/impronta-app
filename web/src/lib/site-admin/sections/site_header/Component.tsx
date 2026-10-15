@@ -12,8 +12,9 @@ import { HeaderScrollObserver } from "./HeaderScrollObserver";
 import { NavChromeScrollSpy } from "@/lib/site-admin/builder-node/NavChromeScrollSpy";
 import { navChromeNeedsScrollSpy, normalizeNavChrome } from "@/lib/site-admin/nav-chrome";
 import { ClusterIcon } from "./header-cluster-icon";
-import { HeaderAccountItem } from "./HeaderAccountItem";
 import { primaryNavAriaLabel } from "@/i18n/primary-nav-label";
+import { accountPreviewMode } from "@/lib/client-account/account-preview";
+import { renderAccountItem } from "./HeaderAccountPreview";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
 import { resolveShellBrandLogoUrl } from "@/lib/site-admin/server/shell-brand-logo";
@@ -495,7 +496,7 @@ export async function SiteHeaderComponent({
             </div>
           ) : null;
         case "account":
-          return props.siteChrome?.account ? <HeaderAccountItem key={key} attrs={attrs} locale={locale} /> : null;
+          return renderAccountItem(accountPreviewMode(props.siteChrome, item.previewAs), key, attrs, locale);
         case "section_switcher": {
           // H-4: phone section switcher over the in-page links of the Navigation list.
           const own = switcherLinksFrom(navLinks);

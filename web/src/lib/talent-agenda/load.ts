@@ -10,8 +10,9 @@ import {
   totalClientRevenueToCents,
 } from "@/lib/money/total-client-revenue";
 
+import { effectiveBookingStatus, loadOrderStatuses } from "./abandoned-order";
 import { blocksTime, deriveBookingState, derivePaymentState } from "./derive";
-import { mapAgencyBookingPayment, mapDeliverableDeadline, openInquiriesWithoutBooking, pickBookingClient } from "./load-map";
+import { attachSentOffers, mapAgencyBookingPayment, mapDeliverableDeadline, openInquiriesWithoutBooking, pickBookingClient, type SentOfferRow } from "./load-map";
 import { loadUnscheduledDraftsForTalent, txRefundPending } from "./load-unscheduled";
 import { summarizeCommercialEvent } from "@/lib/commercial-activity-summary";
 import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
@@ -410,6 +411,7 @@ export async function loadTalentAgenda(
       if (res.error) logServerError("talent-agenda.payment-links", res.error);
     }
 
+    const orderStatusById = await loadOrderStatuses(moneyDb, orderIds);
     const openLinkByOrder = new Map<string, PaymentLinkRow>();
     const openLinkByInquiry = new Map<string, PaymentLinkRow>();
     for (const res of paymentLinkResults) {
@@ -479,13 +481,20 @@ export async function loadTalentAgenda(
         agency?.order_id != null ? openLinkByOrder.get(agency.order_id) : undefined;
       const linkOpen =
         openLink != null && Date.parse(openLink.expires_at) > range.from.getTime();
+      // TUL-714: a confirmed booking whose order died unpaid is not Confirmado.
+      const effectiveStatus = effectiveBookingStatus({
+        status: agency?.status ?? booking.status,
+        orderStatus: agency?.order_id ? orderStatusById.get(agency.order_id) : null,
+        paymentStatus: agency?.payment_status,
+        paidCents,
+      });
       const bookingState = deriveBookingState({
         kind: "booking",
-        status: agency?.status ?? booking.status,
+        status: effectiveStatus,
         now: range.from,
       });
       const payment = mapAgencyBookingPayment({
-        agencyStatus: agency?.status,
+        agencyStatus: effectiveStatus,
         talentBookingStatus: booking.status,
         agency: agency
           ? { ...agency, total_client_revenue: agency.total_client_revenue }
@@ -762,8 +771,15 @@ export async function loadTalentAgenda(
       if (!seen.has(item.id)) items.push(item);
     }
 
-    items.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-    return { items, hours };
+    // TUL-957: a request whose offer is sent shows its total as awaiting payment.
+    const requestIds = items.filter((i) => i.kind === "request").map((i) => i.id);
+    const offersRes = requestIds.length === 0
+      ? { data: [], error: null }
+      : await moneyDb.from("inquiry_offers").select("id, inquiry_id, status, total_client_price, deposit_amount_cents, currency_code").in("inquiry_id", requestIds).eq("status", "sent");
+    if (offersRes.error) logServerError("talent-agenda.sent-offers", offersRes.error);
+    const withOffers = attachSentOffers(items, (offersRes.data ?? []) as SentOfferRow[]);
+    withOffers.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+    return { items: withOffers, hours };
   } catch (error) {
     logServerError("talent-agenda.load", error);
     return { items: [], hours: null };

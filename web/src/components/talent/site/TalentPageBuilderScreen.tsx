@@ -45,6 +45,8 @@ type Props = {
   talentDisplayName: string | null;
   /** Profile photo for the top bar identity menu (initials when null). */
   talentHeadshotUrl?: string | null;
+  /** Her site's public address (`loadTalentSiteAddress`); the publish drawer names it. */
+  talentSiteUrl?: string | null;
   locale?: string;
   /** Server-assembled in-editor canvas render data (data sources + islands). */
   canvasRenderData?: InEditorCanvasRenderData | null;
@@ -82,6 +84,7 @@ export function TalentPageBuilderScreen({
   siteCapabilities,
   talentDisplayName,
   talentHeadshotUrl = null,
+  talentSiteUrl = null,
   locale,
   canvasRenderData = null,
   initialComposition = null,
@@ -219,7 +222,7 @@ export function TalentPageBuilderScreen({
 
   return (
     <DashboardLocaleProvider locale={locale ?? ""}>
-    <TalentBuilderIdentityProvider value={{ displayName: talentDisplayName, headshotUrl: talentHeadshotUrl }}>
+    <TalentBuilderIdentityProvider value={{ displayName: talentDisplayName, headshotUrl: talentHeadshotUrl, siteUrl: talentSiteUrl }}>
     <div
       data-talent-page-builder-screen=""
       // Light "desk" behind the editor canvas (modern 2026 builder). The canvas

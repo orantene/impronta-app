@@ -16,6 +16,7 @@ import { ConnectEmbeddedOnboarding } from "@/components/payments/ConnectEmbedded
 // service agreement, so a Mexican talent was told "payouts aren't available in
 // Mexico yet" even though account creation works. Never re-inline this list.
 import { PAYOUT_COUNTRIES, isConnectPayoutCountry } from "@/lib/payments/payout-countries";
+import { payoutSetupErrorText } from "@/lib/payments/connect-account-setup";
 import { PayoutAttentionPanel } from "@/components/payments/PayoutAttentionPanel";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { GlobalPayoutsBankCard } from "./GlobalPayoutsBankCard";
@@ -311,7 +312,7 @@ export function PayoutsShell({
                   </option>
                 ))}
               </select>
-              {error && <div role="alert" style={{ fontSize: 12, color: C.coral, marginBottom: 10 }}>{error}</div>}
+              {error && <div role="alert" style={{ fontSize: 12, color: C.coral, marginBottom: 10 }}>{payoutSetupErrorText(error, copy.isSpanish)}</div>}
               <div style={{ display: "flex", gap: 8 }}>
                 <button type="button" onClick={onSubmitCountry} disabled={pending} style={primaryBtn(pending)}>
                   {pending ? copy.t("Setting up…") : copy.t("Continue")}
@@ -336,7 +337,7 @@ export function PayoutsShell({
                   </div>
                 </div>
               </div>
-              {error && <div role="alert" style={{ fontSize: 12, color: C.coral, marginTop: 12 }}>{error}</div>}
+              {error && <div role="alert" style={{ fontSize: 12, color: C.coral, marginTop: 12 }}>{payoutSetupErrorText(error, copy.isSpanish)}</div>}
               <button type="button" data-testid="talent-connect-cta" onClick={onConnect} disabled={pending} style={{ ...ghostBtn, marginTop: 14 }}>
                 {pending ? copy.t("Opening…") : copy.t("Update bank or payout details")}
               </button>
@@ -349,7 +350,7 @@ export function PayoutsShell({
                   "Connect your bank to receive booking payouts. It takes a few minutes, and Stripe verifies your identity and bank securely.",
                 )}
               </p>
-              {error && <div role="alert" style={{ fontSize: 12, color: C.coral, marginBottom: 10 }}>{error}</div>}
+              {error && <div role="alert" style={{ fontSize: 12, color: C.coral, marginBottom: 10 }}>{payoutSetupErrorText(error, copy.isSpanish)}</div>}
               <button type="button" data-testid="talent-connect-cta" onClick={onConnect} disabled={pending} style={primaryBtn(pending)}>
                 {pending ? copy.t("Opening…") : copy.t("Set up payouts")}
               </button>

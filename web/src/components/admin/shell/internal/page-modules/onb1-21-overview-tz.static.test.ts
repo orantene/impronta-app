@@ -25,6 +25,6 @@ test("utcToZonedHour: Cancún evening is not UTC morning", () => {
 
 test("OverviewBoard greets from venue zone, not Date#getHours", () => {
   const src = readFileSync(BOARD, "utf8");
-  assert.match(src, /utcToZonedHour/);
+  assert.match(src, /greetingHour/);
   assert.doesNotMatch(src, /greetingKey\(now\.getHours\(\)\)/);
 });

@@ -3,6 +3,8 @@
 import { useEffect, useRef, type ReactNode } from "react";
 
 import {
+  catalogDemoDayClosed,
+  catalogLiveDayClosed,
   catalogMonthShort,
   catalogSelectedDateLabel,
   catalogTimezoneLabel,
@@ -85,7 +87,7 @@ export function CatalogLiveWhenPicker({
       ) : null}
       <div ref={stripRef} className="jb-days" role="group" aria-label={es ? "Elige una fecha" : "Pick a date"}>
         {liveDays.map((d, i) => (
-          <button key={d.key} type="button" className="jb-day" data-on={i === dayIndex} onClick={() => onPickDay(i)}>
+          <button key={d.key} type="button" className="jb-day" data-on={i === dayIndex} disabled={catalogLiveDayClosed(d)} onClick={() => onPickDay(i)}>
             <span>{catalogWeekdayShort(d.date, es)}</span>
             <b>{d.date.getDate()}</b>
             <small>{catalogMonthShort(d.date, es)}</small>
@@ -153,7 +155,7 @@ export function CatalogDemoWhenPicker({
             type="button"
             className="jb-day"
             data-on={i === dayIndex}
-            disabled={d.getDay() === 0}
+            disabled={catalogDemoDayClosed(d)}
             onClick={() => onPickDay(i)}
           >
             <span>{catalogWeekdayShort(d, es)}</span>

@@ -37,6 +37,7 @@ import {
   verifyResendSignature,
   type ResendWebhookEvent,
 } from "@/lib/notifications/resend-webhook";
+import { stagingIgnoreReason } from "@/lib/notifications/resend-staging-filter";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -66,6 +67,20 @@ export async function POST(req: NextRequest) {
   }
   if (!event?.type) {
     return NextResponse.json({ error: "Missing event type" }, { status: 400 });
+  }
+
+  // TUL-891: staging shares the Resend account, so it sees production events.
+  // Off production, ack (200) and drop anything without a staging/QA address.
+  const ignoreReason = stagingIgnoreReason(event, {
+    VERCEL_ENV: process.env.VERCEL_ENV,
+    RESEND_STAGING_ALLOWED_DOMAINS: process.env.RESEND_STAGING_ALLOWED_DOMAINS,
+  });
+  if (ignoreReason) {
+    if (process.env.NODE_ENV !== "production" || process.env.VERCEL_ENV !== "production") {
+      // eslint-disable-next-line no-console -- non-production diagnostic only
+      console.warn(`[webhooks.resend] ignored ${event.type}: ${ignoreReason}`);
+    }
+    return NextResponse.json({ received: true, status: "ignored_non_staging" });
   }
 
   if (event.type === "email.received") {
