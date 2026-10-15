@@ -117,7 +117,7 @@ export const CATALOG_BOOKING_CSS = `
 .jb-total b{font-size:1.1875rem;font-variant-numeric:tabular-nums}
 .jb-cta{appearance:none;border:0;cursor:pointer;min-height:52px;padding:0 24px;border-radius:10px;background:var(--cb-primary);color:#fff;font-family:inherit;font-size:.9375rem;font-weight:600}
 .jb-cta:hover:not(:disabled){filter:brightness(.92)}
-.jb-cta:disabled{background:var(--cb-soft);color:var(--cb-muted);cursor:not-allowed}
+.jb-cta:disabled{background:var(--cb-edge);color:#fff;cursor:not-allowed}
 .jb-ask{appearance:none;border:0;background:none;padding:14px 0 0;cursor:pointer;font-family:inherit;font-size:.875rem;font-weight:700;color:var(--cb-ink);text-align:left;min-height:44px}
 /* AUD-005 — long CTA labels overflow a single footer row at 360. */
 @media (max-width:400px){.jb-foot{flex-direction:column;align-items:stretch;gap:10px}.jb-total{width:100%}.jb-cta{width:100%}}

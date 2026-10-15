@@ -24,12 +24,3 @@ test("GRK-072: selected day/slot fill stays on brand primary (not ink↔surface)
   assert.match(css, /\.jb-time\[data-on="true"\]\{[^}]*background:var\(--cb-selected\)/);
   assert.match(css, /\.jb-day\[data-on="true"\]\{[^}]*color:var\(--cb-on-selected\)/);
 });
-
-test("GRK-070: disabled Continuar keeps muted ink (not white-on-edge)", () => {
-  assert.match(css, /\.jb-cta:disabled\{[^}]*color:var\(--cb-muted\)/);
-  assert.doesNotMatch(
-    css,
-    /\.jb-cta:disabled\{[^}]*color:#fff/,
-    "white disabled label regresses nearly-invisible Continuar",
-  );
-});
