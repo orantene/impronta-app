@@ -1,70 +1,47 @@
-# CI-gated production pointer. THIS IS THE LIVE RELEASE PATH.
+# CI-gated, MANUAL production release. THIS IS THE LIVE RELEASE PATH.
 #
-# Vercel's production branch is `production` (flipped from `main` on
-# 2026-08-04). This workflow is the only thing that advances that pointer: it
-# fast-forwards `production` to a `main` commit ONLY after the structural
-# quality gate succeeds on that exact commit. A red `main` therefore cannot
-# reach production at all — the pointer just stops advancing until main is
-# green again (main-red-alert.yml raises the alarm meanwhile).
+# Vercel's production branch is `production`. This workflow is the only thing
+# that advances that pointer: it fast-forwards `production` to a `main` commit
+# ONLY after the structural quality gate succeeded on that exact commit.
 #
-# Nothing about the developer workflow changes: everyone still branches from
-# and merges to `main`. Merging does not deploy; the pointer advancing does.
-# Full flow in web/docs/development-workflow.md §4.
+# RELEASE FLOW (TUL-827, 2026-10-14). Production no longer follows every green
+# main. The flow is: PRs merge to `main` -> `main` deploys to staging -> staging
+# is tested in large chunks -> promoted to production as ONE release, by hand
+# (or batched). This workflow therefore has NO automatic trigger: the former
+# `workflow_run` (every gate completion) and 10-minute `schedule` triggers were
+# removed. It runs only on `workflow_dispatch`.
 #
-# The pointer only ever moves FORWARD, and only to commits that are ancestors
-# of origin/main — see the guards below. Never force-push it.
+# P0 EXCEPTION. Only a P0 hotfix may be promoted outside the batch. Run it the
+# same way with release_note="P0 hotfix: <reason>" and the hotfix commit's sha.
 #
-# FALLBACK TO THE NEWEST GREEN COMMIT (TUL-197, 2026-10-07). The promote job
-# used to promote only the exact commit of the gate run that triggered it, and
-# only when that run was green. On 2026-10-07 the job for 26bd096 sat queued
-# ~50 min behind PR runs and the pointer froze with a green batch on main. It
-# now RECONCILES instead: on every gate completion (green, red or cancelled),
-# on a 10-minute schedule and by hand, it finds the newest main commit whose
-# `CI — structural quality gate` run SUCCEEDED and fast-forwards `production`
-# to it. A red, cancelled or still-queued newest head no longer freezes the
-# pointer, and a promote run lost to the queue is repaired by the next one.
+# HOW TO RUN:
+#   gh workflow run promote-production.yml -f release_note="<what is in this release>" [-f sha=<sha>]
+# `release_note` is required (one line; echoed into the job summary). `sha` is
+# optional: blank = the newest green main commit ahead of production.
+#
 # Invariants (pinned by web/src/lib/quality/promote-production.static.test.ts):
+#   - manual only: no workflow_run, no schedule, no pull_request trigger;
 #   - fast-forward only: a plain `git push`, never --force / +refspec, and the
 #     target must be a descendant of the current pointer (never backwards);
-#   - the target is always a main commit with a green gate run, never a commit
-#     that merely lacks a verdict;
-#   - own concurrency group, shared with no PR workflow. cancel-in-progress is
-#     true (TUL-412): a newer promote cancels a still-queued/superseded one.
-#     Safe because every run RECONCILES to the newest green main commit — a
-#     cancelled promote is no longer a frozen pointer.
-# Runner priority: GitHub offers none. The job is tiny and shares no queue
-# group with PR CI, but ubuntu-latest capacity is a shared pool. Set the repo
-# variable PROMOTE_RUNNER to a dedicated runner label to take it off the pool.
-# Ordinary PR gates share one concurrency slot (see ci.yml) so they cannot
-# saturate the pool ahead of main / integ / this job (TUL-412).
-#
-# MANUAL RUNS (added 2026-08-30). This workflow can also be started by hand.
-# It was not, and that cost hours: a Vercel builder froze mid-deploy, and with
-# the pointer already sitting at the commit whose build hung there was nothing
-# left to fast-forward and no supported way to retry. A manual run fixes that.
-#
-# A manual run does NOT bypass the gate. With an explicit sha it re-checks that
-# the structural quality gate concluded success on that exact commit and
-# refuses otherwise. The guarantee stays exactly what it was: nothing reaches
-# production that CI has not vetted.
+#   - the target is always a main commit whose `CI — structural quality gate`
+#     run SUCCEEDED, never a commit that merely lacks a verdict. A manual run
+#     does NOT bypass the gate; an explicit sha is re-checked and refused if red;
+#   - own concurrency group, shared with no PR workflow (cancel-in-progress).
+# Runner: set the repo variable PROMOTE_RUNNER to a dedicated runner label to
+# take the job off the shared ubuntu-latest pool.
 
 name: Promote production pointer
 
 on:
-  workflow_run:
-    workflows: ["CI — structural quality gate"]
-    # Any conclusion: a red or cancelled newest head must still let the pointer
-    # advance to the newest green commit behind it.
-    types: [completed]
-    branches: [main]
-  schedule:
-    # Self-heal: repairs a promote run that never started or was displaced.
-    - cron: "7,17,27,37,47,57 * * * *"
   workflow_dispatch:
     inputs:
       sha:
         description: "Commit on main to promote (its gate run must be green). Leave blank for the newest green main commit."
         required: false
+        type: string
+      release_note:
+        description: "One line: what is in this release, or `P0 hotfix: <reason>`."
+        required: true
         type: string
 
 permissions:
@@ -91,6 +68,18 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Record release note
+        env:
+          RELEASE_NOTE: ${{ inputs.release_note }}
+        run: |
+          {
+            echo "### Production release"
+            echo
+            echo "- Release note: ${RELEASE_NOTE}"
+            echo "- Requested sha: ${{ inputs.sha || '(newest green main commit)' }}"
+            echo "- Triggered by: ${{ github.actor }}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Resolve the newest commit whose gate run succeeded
         id: resolve

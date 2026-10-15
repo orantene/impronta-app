@@ -17,6 +17,7 @@
  * Returns flat ActionState objects compatible with React's useActionState.
  */
 
+import { normalizeTalentPageIntent } from "@/lib/inquiry/talent-page-intent";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
@@ -247,7 +248,8 @@ export async function submitInquiryNowAction(
   const intentJson = String(formData.get("intent") ?? "");
   let intent: InquiryIntent;
   try {
-    intent = JSON.parse(intentJson);
+    // TUL-964: from a talent's page, route to that talent like the guest path.
+    intent = normalizeTalentPageIntent(JSON.parse(intentJson));
   } catch {
     return { kind: "error", message: "Malformed intent payload." };
   }

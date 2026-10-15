@@ -41,6 +41,7 @@ import {
 import { choiceToPath, type OnboardingChoice, type OnboardingPath } from "@/lib/onboarding/module-state";
 import { requestOnboardingCode, verifyOnboardingCode } from "@/lib/server-actions/onboarding-account";
 
+import { OnboardingStepSkeleton } from "./step-skeleton";
 import { ConfirmWordsStep } from "./steps/confirm-words-step";
 import { EntryStep } from "./steps/entry-step";
 import { ChooseStep } from "./steps/choose-step";
@@ -550,7 +551,7 @@ export function OnboardingModule({
     body = setupData ? (
       <SetupStep locale={locale} setup={setupData} busy={state.busy} saveFailed={state.error === "save_failed"} onSave={(e) => void saveSetup(e)} />
     ) : (
-      <div aria-busy className="py-16 text-center text-[0.875rem]" style={{ color: "var(--tl-muted)" }} data-testid="onb-setup-loading">…</div>
+      <div data-testid="onb-setup-loading"><OnboardingStepSkeleton /></div>
     );
   } else if (state.step === "style") {
     body = <StyleStep t={t} initial={state.styleChoice} busy={state.busy} onChoose={(d, notes) => void chooseStyle(d, notes)} />;

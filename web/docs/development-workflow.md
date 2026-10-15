@@ -14,7 +14,8 @@ rewritten 2026-08-08 to match the CI-gated production pointer that went live
   to `main` directly.
 - **`production` is the branch Vercel actually deploys.** It is a pointer,
   not a place you work: `promote-production.yml` fast-forwards it to a `main`
-  commit only after the structural quality gate passes on that exact commit.
+  commit, by hand and batched (TUL-827), only after the structural quality gate
+  passes on that exact commit.
   **A red `main` cannot reach production.**
 - Every other branch you push builds an SSO-gated preview (401), which
   middleware won't render on a raw `*.vercel.app` host — see §6.
@@ -61,22 +62,26 @@ and only the first is yours:
 2. **CI runs the structural quality gate on that commit** (~11 min). If it
    fails, nothing below happens and `main-red-alert.yml` opens a pinned
    `🔴 MAIN IS RED` issue (see §10).
-3. **`promote-production.yml` fast-forwards `production` to that commit** —
-   automatically, on green CI only. Vercel then builds `production` with
-   `target: "production"`. The workflow refuses to rewind: it promotes only
-   commits that are ancestors of `origin/main`.
+3. **A release is cut by hand.** `main` deploys to staging; once staging has
+   been tested in a large chunk, run `gh workflow run promote-production.yml
+   -f release_note="<what is in this release>" [-f sha=<sha>]`. It
+   fast-forwards `production` to that commit (green gate only), and Vercel
+   builds `production` with `target: "production"`. It refuses to rewind: it
+   promotes only commits that are ancestors of `origin/main`. Only a P0 hotfix
+   may go outside the batch (`release_note="P0 hotfix: <reason>"`).
+   **Who cuts it:** the PM. When QA Staging signs off a chunk on staging, the PM
+   runs the promote with a release note that lists the PRs in the release. A P0
+   hotfix is promoted by the PM right after it merges. Developers and agents do
+   not run it and never push the `production` branch.
 4. **`vercel-post-deploy-alias.yml` re-aliases** `tulala.digital` and
    `app.tulala.digital` onto the new deployment, because the production
    pointer does not reliably reassign custom domains on its own.
 
-The promote job reconciles rather than promoting only its own trigger: on every
-gate completion and every 10 minutes it fast-forwards `production` to the
-**newest `main` commit whose gate run succeeded**, so a red, cancelled or
-still-queued newest head does not freeze the pointer. It never moves the
-pointer to a commit without a green gate and never backwards. Pacing: avoid
-stacking many merges in a few minutes; each main run takes ~11 min and an
-unfinished newest head simply waits while the pointer sits on the newest green
-one behind it.
+There is no automatic or scheduled promote (removed 2026-10-14, TUL-827). With
+a blank `sha` the run picks the **newest `main` commit whose gate run
+succeeded** and is ahead of `production`; with an explicit `sha` it re-checks
+the gate on that commit and refuses if it is not green. It never moves the
+pointer to a commit without a green gate and never backwards.
 
 Then run the smoke test (§6).
 
@@ -99,8 +104,8 @@ Verified via `gh api repos/orantene/impronta-app/branches/<branch>/protection/re
   "Structural quality gate", "Builder perf budget", "Fidelity goldens",
   "Admin boot (prod build)".
 - Strict ("require branch to be up to date") is OFF on both.
-- `production` is a pointer branch, fast-forwarded by `promote-production.yml`
-  only when all four checks are green on that `main` commit.
+- `production` is a pointer branch, fast-forwarded by a manual
+  `promote-production.yml` run only when all four checks are green on that `main` commit.
 - Manual fallback is a fast-forward push of a green commit, never a force.
 
 Typecheck and lint go through `npm run typecheck` / `npm run lint` only (the
@@ -204,8 +209,8 @@ promoted to a production deployment on Vercel, live on all domains.
 branch is now `production`, not `main`: the live deployment's
 `meta.githubCommitRef` is `production` with `target: "production"`, while
 `main`-ref builds carry `target: null` (preview). `promote-production.yml` is
-the only thing that advances the pointer, and it does so on green CI without
-anyone pushing by hand.
+the only thing that advances the pointer, and only when a release is
+dispatched by hand (TUL-827); nobody pushes the pointer directly.
 
 ## 10. When main is red — and how the gate contains it
 
@@ -321,7 +326,7 @@ These run on other events and never report a status on a PR to `main`:
 
 | Workflow file | Job id | Trigger |
 |---|---|---|
-| `promote-production.yml` | `promote` | `workflow_run` of the structural gate on `main` (acts only on success), manual |
+| `promote-production.yml` | `promote` | Manual only (`workflow_dispatch`, requires `release_note`); refuses a commit without a green gate |
 | `main-red-alert.yml` | `alert` | `workflow_run` of the structural gate, fidelity and admin boot on `main` |
 | `db-push.yml` | `push` ("Dry run" or "Apply" migrations) | Manual only, and only on `main` |
 | `vercel-post-deploy-alias.yml` | `alias` | `deployment_status` success on the Production environment |
@@ -399,8 +404,8 @@ PR runs:
 
 - `ci.yml:45-46` runs the same gate on every push to `main`, so the merged
   state is always tested after it lands.
-- `promote-production.yml` advances `production` only when that run succeeded
-  on the exact commit (line 51, re-checked at lines 90-91 for manual runs).
+- `promote-production.yml` (manual) advances `production` only when that run
+  succeeded on the exact commit.
 - `main-red-alert.yml` opens the pinned red-main issue when it fails.
 
 So an ungated stack cannot reach production. What it can do is turn `main`

@@ -3,6 +3,7 @@
  * assert the same payment / deadline wiring `loadTalentAgenda` uses.
  */
 
+import { tryMajorToMinor } from "@/lib/inquiry/offer-minor-units";
 import { totalClientRevenueToCents } from "@/lib/money/total-client-revenue";
 
 import { deriveBookingState, derivePaymentState } from "./derive";
@@ -176,4 +177,47 @@ export function pickBookingClient(input: {
     email: first(input.agency?.contact_email, input.inquiry?.contact_email),
     phone: first(input.agency?.contact_phone, input.inquiry?.contact_phone),
   };
+}
+
+export type SentOfferRow = {
+  id: string;
+  inquiry_id: string;
+  status: string;
+  total_client_price: number | null;
+  deposit_amount_cents: number | null;
+  currency_code: string | null;
+};
+
+/**
+ * TUL-957: an open request whose offer is SENT (client has not paid) carries
+ * the offer total so Money and Today can say "Awaiting payment". Display
+ * only: amounts are read from the offer row, never computed or written.
+ * Accepted, rejected, expired and draft offers are left alone (accepted
+ * becomes a booking; the others are not money).
+ */
+export function attachSentOffers<T extends Pick<TalentAgendaItem, "id" | "kind" | "money" | "payment" | "offer">>(
+  items: readonly T[],
+  offers: readonly SentOfferRow[],
+): T[] {
+  const byInquiry = new Map<string, SentOfferRow>();
+  for (const o of offers) if (o.status === "sent") byInquiry.set(o.inquiry_id, o);
+  return items.map((item) => {
+    if (item.kind !== "request") return item;
+    const offer = byInquiry.get(item.id);
+    if (!offer) return item;
+    const totalCents = tryMajorToMinor(Number(offer.total_client_price ?? 0), offer.currency_code);
+    if (totalCents == null || totalCents <= 0) return item;
+    return {
+      ...item,
+      offer: { id: offer.id },
+      payment: "awaiting" as const,
+      money: {
+        totalCents,
+        paidCents: 0,
+        dueCents: totalCents,
+        ...(offer.deposit_amount_cents ? { depositCents: offer.deposit_amount_cents } : {}),
+        currency: (offer.currency_code ?? item.money.currency).toUpperCase(),
+      },
+    };
+  });
 }

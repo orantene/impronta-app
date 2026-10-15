@@ -239,7 +239,7 @@ export function TalentCard({
               (show.showAvailability ? (
                 <span
                   data-card-availability
-                  className="inline-flex max-w-full items-center gap-1.5 truncate rounded-full bg-white/[0.92] px-2.5 py-1 text-[11px] font-medium text-[#17160f] shadow-[0_2px_8px_rgba(0,0,0,0.14)]"
+                  className="inline-flex max-w-full items-center gap-1.5 rounded-2xl bg-white/[0.92] px-2.5 py-1 text-[11px] leading-tight font-medium text-[#17160f] shadow-[0_2px_8px_rgba(0,0,0,0.14)]"
                 >
                   <span
                     aria-hidden
@@ -249,7 +249,7 @@ export function TalentCard({
                         : "bg-[#9a968c]"
                     }`}
                   />
-                  <span className="truncate">{data.availabilityLabel}</span>
+                  <span className="min-w-0">{data.availabilityLabel}</span>
                 </span>
               ) : (
                 <span />
@@ -274,7 +274,7 @@ export function TalentCard({
             {displayName ? (
               <h3
                 data-card-name
-                className={`min-w-0 truncate select-none font-[family-name:var(--font-fraunces,Georgia,serif)] font-medium leading-[1.1] tracking-[-0.01em] ${
+                className={`min-w-0 line-clamp-2 select-none break-words font-[family-name:var(--font-fraunces,Georgia,serif)] font-medium leading-[1.1] tracking-[-0.01em] ${
                   compact ? "text-base! @[240px]:text-lg!" : "text-lg! @[240px]:text-[22px]!"
                 }`}
               >

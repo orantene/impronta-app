@@ -42,6 +42,7 @@ import { talentProfileCodeAliasRedirectResponse } from "@/lib/talent/profile-cod
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { talentSiteHostResponse } from "@/lib/saas/talent-site-host-response";
 import { withTalentHostClientSession } from "@/lib/client-account/talent-host-session";
+import { withAuthScopeSweep } from "@/lib/supabase/auth-scope-sweep";
 import { unsupportedLocaleRedirectTarget } from "@/lib/saas/unsupported-locale-redirect";
 import { isTenantHostContext, resolveProxyLocaleContext } from "@/lib/saas/proxy-locale-context";
 import { clientIp, stripInboundHostContextHeaders } from "@/lib/saas/proxy-inbound-sanitize";
@@ -59,8 +60,7 @@ import { marketingDemoSlugRedirect } from "@/lib/marketing/demo-slug-apex-redire
 import { marketingSpanishAliasRedirect } from "@/lib/marketing/spanish-path-alias";
 import { langQueryForStartAfterDefaultLocaleStrip } from "@/lib/onboarding/flow";
 import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
-
-export async function proxy(request: NextRequest) {
+async function proxyInner(request: NextRequest) {
   const ip = clientIp(request);
   const { pathname } = request.nextUrl;
 
@@ -197,7 +197,6 @@ export async function proxy(request: NextRequest) {
 
   const demoSlugHop = marketingDemoSlugRedirect({ pathname: request.nextUrl.pathname, search: request.nextUrl.search, method: request.method, hostKind: hostContext.kind });
   if (demoSlugHop) return NextResponse.redirect(demoSlugHop, 308);
-
   // Support Desk host: DEAD while SUPPORT_DESK_ENABLED is off — even when
   // support.tulala.digital is seeded in agency_domains (Phase 1a). When the
   // flag is on, still restrict to the desk surface (not a full app host).
@@ -413,7 +412,6 @@ export async function proxy(request: NextRequest) {
 
   const marketingAccountRedirect = marketingAccountPathRedirect({ request, canonicalPath, hostKind: effectiveHostContext.kind });
   if (marketingAccountRedirect) return marketingAccountRedirect;
-
   const freeSubdomainRedirect = await freeSubdomainPathRedirect({ request, pathname, canonicalPath, hostContext });
   if (freeSubdomainRedirect) return freeSubdomainRedirect;
 
@@ -448,7 +446,8 @@ export async function proxy(request: NextRequest) {
       !isPathAllowedForHostKind(effectiveHostContext.kind, effectiveCanonicalPath)
     )
   ) {
-    // Render the branded "page not found" page, not bare text (target whitelisted above).
+    // Render the branded "page not found" page (Tulala chrome + a way home).
+    // The rewrite target is whitelisted in the short-circuit block above (no recursion).
     // The locale header rides along so /es/<typo> answers in Spanish.
     const missHeaders = new Headers(sanitizedInboundHeaders);
     missHeaders.set(LOCALE_HEADER, resolveLocaleForPathname(pathname, request, effectiveLangSettings));
@@ -779,7 +778,7 @@ export async function proxy(request: NextRequest) {
   ensureExperimentVisitorCookie(request, sessionRes);
   return sessionRes;
 }
-
+export const proxy = withAuthScopeSweep(proxyInner); // TUL-621: auth-scope-sweep.ts
 export const config = {
   matcher: [
     // `sw.js` + `manifest.webmanifest` are static PWA files in `public/` that

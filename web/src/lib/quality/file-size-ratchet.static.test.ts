@@ -554,7 +554,8 @@ const BUDGETS: Record<string, number> = {
   // note saying why deriving it turns a missed registration into a compile
   // error. Net +4 against the 29 literals it replaced.
   // 2026-09-24 services-rebuild: +1 (2891). Measured wc -l.
-  "src/components/admin/shell/internal/state/types.ts": 2895,
+  // +1: "promos" TalentPage (TUL-936)
+  "src/components/admin/shell/internal/state/types.ts": 2896,
   // 2026-09-09 messages mobile pass: the ≤720px messages stylesheet (360
   // lines, no interpolation, a self-contained concern) moved out to
   // internal/messages-mobile-css.ts rather than growing this file past its

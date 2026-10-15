@@ -3,7 +3,8 @@ import { describe, it } from "node:test";
 
 import type { TalentClientRow } from "./clients-merge";
 import { EMPTY_TALENT_EARNINGS, type TalentEarnings, type TalentEarningsRow } from "./earnings-types";
-import { agendaMoneyRows, buildMoneyHomeView, methodBucket, moneyMonths, shiftMonth, talentOwedSummary } from "./money-home";
+import { agendaMoneyRows, awaitingOfferSummary, buildMoneyHomeView, methodBucket, moneyMonths, shiftMonth, talentOwedSummary } from "./money-home";
+import { attachSentOffers } from "@/lib/talent-agenda/load-map";
 import { readFileSync } from "node:fs";
 
 describe("agendaMoneyRows", () => {
@@ -257,5 +258,54 @@ describe("F69 talentOwedSummary: Today card and Money page share one number", ()
     }
     const today = readFileSync(new URL("../../components/admin/shell/internal/talent/agenda/AgendaTodayPage.tsx", import.meta.url), "utf8");
     assert.ok(today.includes("loadTalentClients("), "Today reads the same client ledger");
+  });
+});
+
+describe("TUL-957: a sent offer shows as awaiting payment, never as earned", () => {
+  const now = new Date(2026, 9, 14, 12, 0);
+  const request = (id: string) => ({
+    id,
+    kind: "request" as const,
+    title: "Boda",
+    client: { name: "Ana", initials: "A" },
+    startsAt: new Date(2026, 9, 20, 0, 0).toISOString(),
+    booking: "requested" as const,
+    payment: "none" as const,
+    money: { totalCents: 0, paidCents: 0, dueCents: 0, currency: "MXN" },
+  });
+  const offers = [
+    { id: "o-sent", inquiry_id: "r-sent", status: "sent", total_client_price: 1500, deposit_amount_cents: 50000, currency_code: "MXN" },
+    { id: "o-paid", inquiry_id: "r-paid", status: "accepted", total_client_price: 900, deposit_amount_cents: null, currency_code: "MXN" },
+    { id: "o-cancel", inquiry_id: "r-cancel", status: "rejected", total_client_price: 700, deposit_amount_cents: null, currency_code: "MXN" },
+  ];
+
+  it("attaches only sent offers to open requests, amounts read as-is", () => {
+    const items = attachSentOffers([request("r-sent"), request("r-paid"), request("r-cancel")], offers);
+    const offerOf = (i: object | undefined) => (i as { offer?: { id: string } } | undefined)?.offer;
+    const sent = items.find((i) => i.id === "r-sent")!;
+    assert.deepEqual(offerOf(sent), { id: "o-sent" });
+    assert.equal(sent.money.totalCents, 150000);
+    assert.equal(sent.money.dueCents, 150000);
+    assert.equal(sent.money.paidCents, 0);
+    assert.equal(sent.payment, "awaiting");
+    assert.equal(offerOf(items.find((i) => i.id === "r-paid")!), undefined);
+    assert.equal(offerOf(items.find((i) => i.id === "r-cancel")!), undefined);
+  });
+
+  it("lists the sent offer under waiting (kind offer), not owed and not collected", () => {
+    const items = attachSentOffers([request("r-sent"), request("r-paid"), request("r-cancel")], offers);
+    const out = agendaMoneyRows(items, now);
+    assert.equal(out.owed.length, 0);
+    assert.equal(out.waiting.length, 1);
+    assert.equal(out.waiting[0]!.kind, "offer");
+    assert.equal(out.waiting[0]!.amountCents, 150000);
+    assert.equal(out.waiting[0]!.bookingHref, "/talent/inbox/r-sent");
+    assert.equal(awaitingOfferSummary(out.waiting, "MXN").cents, 150000);
+    assert.equal(awaitingOfferSummary(out.waiting, "MXN").count, 1);
+  });
+
+  it("a plain request with no sent offer stays off the money surfaces", () => {
+    const out = agendaMoneyRows([request("r-none")], now);
+    assert.equal(out.waiting.length + out.owed.length, 0);
   });
 });

@@ -60,7 +60,7 @@ import { designTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/
 import { typeSystemComponentStyleDefaults } from "@/lib/talent-site/theme-catalog/collection/design-type-system";
 
 import { type MaxSitePageRow } from "@/lib/talent-site/resolve-max-site-core";
-import { TalentSiteSocket } from "@/components/talent-site/talent-site-socket";
+import { TulalaLegalStrip } from "@/components/talent-site/tulala-legal-strip";
 import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import {
   buildSocketModel,
@@ -114,6 +114,8 @@ export async function renderMaxSiteDocument(args: {
   demoAcceptingBookings?: boolean;
   /** The talent's display name: labels the first group of the Tulala strip. */
   talentName?: string | null;
+  /** TUL-872: the locale-aware path of the service page being rendered (footer services link). */
+  servicePagePath?: string | null;
   /** TUL-310 footer Help context. */
   profileCode?: string | null;
   siteHost?: string | null;
@@ -312,7 +314,7 @@ export async function renderMaxSiteDocument(args: {
   const renderedBlocks = pruneEmptyBoundSections(blocks, pricedDataSources);
   // Off the home page (policy pages) the anchors point back at the home page: `/#services`, `/en#services`.
   const homePath = args.mainOverride ? talentSiteLocalePath("/", locale, args.localeCtx.settings.defaultLocale, args.localeCtx.settings.supportedLocales) : undefined;
-  const liveFooterTree = pruneDeadSectionLinks(footerTree, renderedBlocks, [headerTree], { homePath });
+  const liveFooterTree = pruneDeadSectionLinks(footerTree, renderedBlocks, [headerTree], { homePath, serviceHref: args.servicePagePath ?? undefined });
   // The header's section links get the same treatment (a talent with no reviews has no #reviews band, so the link goes).
   const liveHeaderTree = pruneDeadSectionLinks(headerTree, renderedBlocks, [footerTree], { homePath });
   // TUL-133: a transparent header gets white text only over a dark full-bleed hero.
@@ -568,9 +570,15 @@ export async function renderMaxSiteDocument(args: {
 
       {args.isDemo ? <MaxSiteDemoFooter locale={locale} acceptingBookings={args.demoAcceptingBookings !== false} /> : null}
 
-      {/* Global Tulala footer socket: one shared bottom strip under every
-          design's own footer (replaces the scattered "Made with Tulala"). */}
-      <TalentSiteSocket model={socketModel} />
+      {/* TUL-889: the slim Tulala legal strip under every design's own footer
+          (replaces the old socket band that read as a second footer, TUL-796). */}
+      <TulalaLegalStrip
+        locale={locale}
+        languages={socketModel.languages}
+        talentLinks={socketModel.siteLinks}
+        profileCode={args.profileCode}
+        siteHost={args.siteHost}
+      />
     </div>
   );
 }

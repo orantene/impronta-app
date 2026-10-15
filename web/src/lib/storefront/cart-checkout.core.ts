@@ -50,9 +50,9 @@ export type CartCheckoutDeps = {
   reprice: (
     admin: StorefrontAdmin,
     input: { tenantId: string; orderId: string; promoCode?: string | null; expectedVersion?: number },
-    deps: { resolvePromo: (args: { tenantId: string; code: string; customerId: string; lines: Array<{ id: string; totalCents: number; variantId: string | null; eventId: null }> }) => Promise<{ ok: true; discountCents: number; codeId: string } | { ok: false; error: string }> },
+    deps: { resolvePromo: (args: { tenantId: string; code: string; customerId: string; lines: Array<{ id: string; totalCents: number; variantId: string | null; eventId: null; talentProfileId: string | null }> }) => Promise<{ ok: true; discountCents: number; codeId: string } | { ok: false; error: string }> },
   ) => Promise<RepriceResult>;
-  resolvePromo: (admin: StorefrontAdmin, input: { tenantId: string; code: string; customerId: string; lines: Array<{ id: string; totalCents: number; variantId?: string | null; eventId?: string | null }> }) => Promise<PromoResolution>;
+  resolvePromo: (admin: StorefrontAdmin, input: { tenantId: string; code: string; customerId: string; lines: Array<{ id: string; totalCents: number; variantId?: string | null; eventId?: string | null; talentProfileId?: string | null }> }) => Promise<PromoResolution>;
   setTip: (admin: StorefrontAdmin, input: { tenantId: string; orderId: string; tipCents: number; operationKey: string; expectedVersion: number }) => Promise<SetTipResult>;
   ensureCustomer: (input: { tenantId: string; email?: string | null; phone?: string | null; displayName?: string | null; userId?: string | null; locale?: string | null }, deps: { admin: StorefrontAdmin }) => Promise<EnsureCustomerResult>;
   createPurchase: (admin: StorefrontAdmin, input: PurchaseInput) => Promise<PurchaseResult>;

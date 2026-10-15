@@ -12,15 +12,49 @@ import { DesignChangeSummaryBody } from "../maison-setup/DesignChangeSummaryBody
 import type { LiveDesignChangeSummary } from "../maison-setup/live-design-change";
 import { themeGalleryCopy, type ThemeGalleryLocale } from "./theme-gallery-i18n";
 
+/** TUL-536: sections the new Design hides / keeps (null = not known, show nothing). */
+export type ThemePickWarn = { hidden: string[]; kept: string[] };
+
+function WarnList({
+  testId,
+  heading,
+  note,
+  items,
+}: {
+  testId: string;
+  heading: string;
+  note: string;
+  items: string[];
+}) {
+  return (
+    <div className="mt-4" data-testid={testId}>
+      <p className="text-[12px] font-semibold uppercase tracking-wide text-admin-ink-dim">{heading}</p>
+      <p className="mt-1 text-[13px] leading-relaxed text-admin-ink-muted">{note}</p>
+      <ul className="mt-2 flex flex-wrap gap-1.5">
+        {items.map((label) => (
+          <li
+            key={label}
+            className="rounded-full border border-admin-border-soft bg-admin-surface-alt px-2.5 py-1 text-[12.5px] font-medium text-admin-ink"
+          >
+            {label}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function ThemePickDraftDialog({
   locale,
   summary,
+  warn = null,
   onConfirm,
   onPublishNow,
   onCancel,
 }: {
   locale: ThemeGalleryLocale;
   summary: LiveDesignChangeSummary;
+  warn?: ThemePickWarn | null;
   onConfirm: () => void;
   onPublishNow: () => void;
   onCancel: () => void;
@@ -59,6 +93,27 @@ export function ThemePickDraftDialog({
           {themeGalleryCopy(locale, "draftDialogNote")}
         </p>
         <DesignChangeSummaryBody locale={locale} summary={summary} />
+        {warn && warn.hidden.length > 0 ? (
+          <WarnList
+            testId="theme-pick-warn-hidden"
+            heading={themeGalleryCopy(locale, "warnHiddenHeading")}
+            note={themeGalleryCopy(locale, "warnHiddenNote")}
+            items={warn.hidden}
+          />
+        ) : null}
+        {warn && warn.kept.length > 0 ? (
+          <WarnList
+            testId="theme-pick-warn-kept"
+            heading={themeGalleryCopy(locale, "warnKeptHeading")}
+            note={themeGalleryCopy(locale, "warnKeptNote")}
+            items={warn.kept}
+          />
+        ) : null}
+        {warn && (warn.hidden.length > 0 || warn.kept.length > 0) ? (
+          <p className="mt-3 text-[12.5px] text-admin-ink-muted" data-testid="theme-pick-warn-undo">
+            {themeGalleryCopy(locale, "warnUndoNote")}
+          </p>
+        ) : null}
         <div className="mt-5 flex flex-col gap-2 sm:flex-row-reverse">
           <button
             type="button"
