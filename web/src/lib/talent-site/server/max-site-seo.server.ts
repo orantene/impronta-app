@@ -1,6 +1,7 @@
 import "server-only";
 
 import { isOwnCanonical } from "@/lib/talent-site/canonical-own-host";
+import { seoDescriptionFallback } from "@/lib/talent-site/seo-description-fallback";
 import { seoTitleFallback } from "@/lib/talent-site/seo-title-fallback";
 import { buildLocaleAlternates } from "@/i18n/alternates";
 import { buildTalentProfileJsonLd, type TalentJsonLdService } from "@/lib/seo/talent-json-ld";
@@ -94,6 +95,10 @@ export function buildMaxSiteSeo(args: {
    * hreflang at all (`buildLocaleAlternates` rule 2).
    */
   locales?: { primary: string; urlDefault: string; supported: readonly string[] };
+  /** TUL-411: locale-resolved bio when page meta description is empty/scrubbed. */
+  bio?: string | null;
+  /** TUL-411: primary talent-type label in the visitor locale. */
+  talentType?: string | null;
 }): MaxSiteSeo {
   const { site, page, identity, locale, noindex } = args;
 
@@ -112,14 +117,23 @@ export function buildMaxSiteSeo(args: {
       name: identity?.name,
       city: args.addressLocality,
     }) ?? storedTitle;
-  // TUL-798: no description written for this language -> derive one from name, city and services (home only;
-  // other pages keep their own text or none), so the SERP never shows the generic platform blurb.
+  // TUL-798: no description written for this language -> derive one from name, city and services (home only, when she has published services).
+  // TUL-411: otherwise fall back to her locale bio / structured copy so root PLATFORM_BRAND English is never inherited.
   const written = resolveMaxSiteDescription(page, locale);
   const description =
     written ||
-    ((args.canonicalPath?.trim() || "/") === "/"
+    ((args.canonicalPath?.trim() || "/") === "/" && (args.services?.length ?? 0) > 0
       ? deriveSiteDescription({ name: identity?.name, city: args.addressLocality, serviceNames: args.services?.map((x) => x.name), locale })
-      : undefined);
+      : undefined) ||
+    seoDescriptionFallback({
+      locale,
+      stored: written,
+      bio: args.bio,
+      name: identity?.name,
+      talentType: args.talentType,
+      city: args.addressLocality,
+    }) ||
+    undefined;
 
   // Canonical — explicit column wins; else origin + path. Never the profile.
   const origin = (args.canonicalOrigin?.trim() || publicSiteMetadataBase().origin)

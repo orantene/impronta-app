@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  humanImageAlt,
+  isAssetSlugAlt,
   portfolioPhotoFallbackAlt,
   resolvePortfolioAlt,
   resolvePortfolioCaption,
@@ -45,4 +47,30 @@ test("generic fallback is localized", () => {
   assert.equal(portfolioPhotoFallbackAlt("es"), "Foto del portafolio");
   assert.equal(portfolioPhotoFallbackAlt("en"), "Portfolio photo");
   assert.equal(portfolioPhotoFallbackAlt(undefined), "Portfolio photo");
+});
+
+test("GRK-101: asset-key alts are rejected", () => {
+  assert.equal(isAssetSlugAlt("f-hero"), true);
+  assert.equal(isAssetSlugAlt("f-d-knit"), true);
+  assert.equal(isAssetSlugAlt("gallery-1"), true);
+  assert.equal(isAssetSlugAlt("Mateo Ferrer"), false);
+  assert.equal(isAssetSlugAlt("Editorial portrait"), false);
+  assert.equal(humanImageAlt("f-hero"), null);
+  assert.equal(humanImageAlt("Mateo"), "Mateo");
+});
+
+test("GRK-101: resolvePortfolioAlt skips slug alts for caption/name/generic", () => {
+  const base = { metadata: null, locale: "es", primaryLocale: "es" };
+  assert.equal(
+    resolvePortfolioAlt({ ...base, alt: "f-hero", caption: "01 · Retrato" }),
+    "01 · Retrato",
+  );
+  assert.equal(
+    resolvePortfolioAlt({ ...base, alt: "f-d-knit", caption: null, displayName: "Mateo" }),
+    "Mateo",
+  );
+  assert.equal(
+    resolvePortfolioAlt({ ...base, alt: "f-hero", caption: null }),
+    "Foto del portafolio",
+  );
 });
