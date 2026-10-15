@@ -149,6 +149,7 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
   }, [serviceMenu]);
   const [serviceChip, setServiceChip] = useState<string | null>(null);
   const pathname = usePathname();
+  const pageProfileCode = /^\/(?:[a-z]{2}\/)?t\/([^/?#]+)/.exec(pathname ?? "")?.[1] ?? null; // P0: per-talent page => that talent only
   const cart = useInquiryCart();
   const [groups, setGroups] = useState<GuestCatalogGroup[] | null>(null);
   const [failed, setFailed] = useState(false);
@@ -160,7 +161,7 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
 
   useEffect(() => {
     let cancelled = false;
-    void getGuestItemsCatalog({ tenantSlug, inquiryId }).then((res) => {
+    void getGuestItemsCatalog({ tenantSlug, inquiryId, profileCode: pageProfileCode }).then((res) => {
       if (cancelled) return;
       if (!res.ok) {
         setFailed(true);
@@ -173,7 +174,7 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
       cancelled = true;
     };
     // The catalog is per tenant; the inquiry only adds a date for availability.
-  }, [tenantSlug, inquiryId]);
+  }, [tenantSlug, inquiryId, pageProfileCode]);
 
   const add = useCallback(
     async (row: GuestCatalogRow, token: string) => {

@@ -70,7 +70,17 @@ function dayWindow(date: string, timezone: string): { from: Date; to: Date } | n
   return { from, to };
 }
 
-export async function loadItemsCatalog(admin: Admin, input: { tenantId: string; inquiryId: string; now?: Date }): Promise<ItemsCatalog> {
+/**
+ * P0 tenant/talent scope: a page that belongs to ONE talent (`forcedTalentId`, resolved
+ * server-side from the page) always lists only that talent. Otherwise a talent-owned
+ * conversation with exactly one talent does. Never widens: both inputs only narrow.
+ */
+export function pickScopedTalentId(input: { forcedTalentId: string | null | undefined; talentOwned: boolean; contextTalentIds: readonly string[] }): string | null {
+  if (input.forcedTalentId) return input.forcedTalentId;
+  return input.talentOwned && input.contextTalentIds.length === 1 ? input.contextTalentIds[0] : null;
+}
+
+export async function loadItemsCatalog(admin: Admin, input: { tenantId: string; inquiryId: string; talentProfileId?: string | null; now?: Date }): Promise<ItemsCatalog> {
   const now = input.now ?? new Date();
   const [inqRes, tenantRes, tz] = await Promise.all([
     admin.from("inquiries").select("event_date, event_timezone, source_context").eq("id", input.inquiryId).eq("tenant_id", input.tenantId).maybeSingle(),
@@ -94,7 +104,7 @@ export async function loadItemsCatalog(admin: Admin, input: { tenantId: string; 
     tenantId: input.tenantId,
     hubTenantId: hub?.tenantId ?? null,
   });
-  const talentProfileId = talentOwned && context.talentIds.length === 1 ? context.talentIds[0] : null;
+  const talentProfileId = pickScopedTalentId({ forcedTalentId: input.talentProfileId, talentOwned, contextTalentIds: context.talentIds });
 
   const [talent, offerings, sessions, tables] = await Promise.all([
     // A solo talent sells only their own services: the hub roster lists other
@@ -153,7 +163,7 @@ async function loadTalentRows(admin: Admin, tenantId: string, window: { from: Da
   }));
 }
 
-async function loadOfferingRows(admin: Admin, tenantId: string): Promise<CatalogRow[]> {
+export async function loadOfferingRows(admin: Admin, tenantId: string): Promise<CatalogRow[]> {
   const { data, error } = await admin
     .from("talent_offerings")
     .select("id, title, amount_cents, kind, inventory_qty, capacity_pool_id, duration_minutes")
@@ -184,7 +194,7 @@ async function loadOfferingRows(admin: Admin, tenantId: string): Promise<Catalog
 }
 
 /** Her published services, with the option as a variant and extras as add-ons. */
-async function loadTalentProfileOfferingRows(admin: Admin, tenantId: string, talentProfileId: string): Promise<CatalogRow[]> {
+export async function loadTalentProfileOfferingRows(admin: Admin, tenantId: string, talentProfileId: string): Promise<CatalogRow[]> {
   const { data, error } = await admin
     .from("talent_offerings")
     .select("id, title, amount_cents, currency, kind, inventory_qty, capacity_pool_id, duration_minutes")
