@@ -75,11 +75,15 @@ export async function loadPostsFeedSources(input: {
     let author: string | null = null;
     let demo = false;
     if (scope.kind === "talent") {
-      const { data } = await admin
+      const { data, error: authorError } = await admin
         .from("talent_profiles")
         .select("display_name, first_name, is_demo")
         .eq("id", scope.talentProfileId)
         .maybeSingle();
+      if (authorError) {
+        logServerError("posts-feed.author", authorError);
+        return { postsFeedByNodeId: {} };
+      }
       const row = data as { display_name: string | null; first_name: string | null; is_demo: boolean | null } | null;
       author = row?.display_name?.trim() || row?.first_name?.trim() || null;
       demo = row?.is_demo === true;

@@ -11,7 +11,6 @@ import type { BuiltinDesignEntry, BuiltinLookEntry } from "../builtins/types";
 import { buildBuiltinDesignPayload } from "../builtins/designs/_shared";
 import type { DemoPayload, LookPayload } from "../types";
 import { buildMaisonDesignPayload } from "./design-payload";
-import { withPostsBand } from "../section-kit-bands";
 import { MAISON_PALETTE_ORDER, MAISON_PALETTES, MAISON_SEED, type MaisonPaletteKey } from "./seed";
 
 export const MAISON_BUILTIN_DESIGN: BuiltinDesignEntry = {
@@ -35,8 +34,8 @@ export const MAISON_BUILTIN_DESIGN: BuiltinDesignEntry = {
     },
     fontPreview: { heading: "Fraunces", body: "Inter" },
   },
-  // Posts v1 (PO1): the live posts band ships in code (seeded es + en by the band's copy).
-  buildPayload: () => withPostsBand(buildMaisonDesignPayload(), "maison"),
+  // Posts v1 (PO1): the posts band is applied inside buildMaisonDesignPayload.
+  buildPayload: buildMaisonDesignPayload,
 };
 
 function lookTokensFor(key: MaisonPaletteKey): LookPayload {

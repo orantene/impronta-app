@@ -28,6 +28,13 @@ function items(root: HTMLElement | null): HTMLElement[] {
   return section ? Array.from(section.querySelectorAll<HTMLElement>("[data-post-index]")) : [];
 }
 
+function revealRange(root: HTMLElement | null, from: number, to: number) {
+  for (const el of items(root)) {
+    const i = Number(el.dataset.postIndex);
+    el.hidden = !(i >= from && i < to);
+  }
+}
+
 export function PostsFeedPager({
   mode,
   pageCount,
@@ -43,15 +50,9 @@ export function PostsFeedPager({
   const [shown, setShown] = useState(1); // load_more: pages visible
   const [page, setPage] = useState(1); // numbered: current page
 
-  const showRange = useCallback(
-    (from: number, to: number) => {
-      for (const el of items(ref.current)) {
-        const i = Number(el.dataset.postIndex);
-        el.hidden = !(i >= from && i < to);
-      }
-    },
-    [],
-  );
+  const showRange = useCallback((from: number, to: number) => {
+    revealRange(ref.current, from, to);
+  }, []);
 
   useEffect(() => {
     if (mode !== "numbered") return;
@@ -81,7 +82,7 @@ export function PostsFeedPager({
     );
   }
 
-  const go = (n: number) => (e: MouseEvent<HTMLAnchorElement>) => {
+  const go = (e: MouseEvent<HTMLAnchorElement>, n: number) => {
     e.preventDefault();
     setPage(n);
     showRange((n - 1) * perPage, n * perPage);
@@ -96,7 +97,7 @@ export function PostsFeedPager({
     <div ref={ref}>
       <nav className="sb-pf-pager" aria-label={labels.pagination}>
         {page > 1 ? (
-          <a href={`?${POSTS_FEED_PAGE_PARAM}=${page - 1}`} onClick={go(page - 1)} rel="prev">
+          <a href={`?${POSTS_FEED_PAGE_PARAM}=${page - 1}`} onClick={(e) => go(e, page - 1)} rel="prev">
             {labels.previous}
           </a>
         ) : null}
@@ -104,7 +105,7 @@ export function PostsFeedPager({
           <a
             key={n}
             href={`?${POSTS_FEED_PAGE_PARAM}=${n}`}
-            onClick={go(n)}
+            onClick={(e) => go(e, n)}
             aria-current={n === page ? "page" : undefined}
             aria-label={`${labels.page} ${n}`}
           >
@@ -112,7 +113,7 @@ export function PostsFeedPager({
           </a>
         ))}
         {page < pageCount ? (
-          <a href={`?${POSTS_FEED_PAGE_PARAM}=${page + 1}`} onClick={go(page + 1)} rel="next">
+          <a href={`?${POSTS_FEED_PAGE_PARAM}=${page + 1}`} onClick={(e) => go(e, page + 1)} rel="next">
             {labels.next}
           </a>
         ) : null}
