@@ -22,7 +22,7 @@
  * ensure path), then the add runs once the thread token arrives.
  */
 
-import { searchCatalogRows } from "@/lib/messages-v5/catalog-search";
+import { onlyAvailableRows, searchCatalogRows, sortCatalogRows, type CatalogSort } from "@/lib/messages-v5/catalog-search";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 
@@ -221,9 +221,11 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
   );
 
   const [searchText, setSearchText] = useState("");
+  const [sort, setSort] = useState<CatalogSort>("default");
+  const [availableOnly, setAvailableOnly] = useState(false);
   const visible = useMemo(
-    () => searchCatalogRows(groups?.find((g) => g.category === category)?.rows ?? [], searchText),
-    [groups, category, searchText],
+    () => sortCatalogRows(onlyAvailableRows(searchCatalogRows(groups?.find((g) => g.category === category)?.rows ?? [], searchText), availableOnly), sort),
+    [groups, category, searchText, availableOnly, sort],
   );
 
   const usingServices = serviceChips.length > 0;
@@ -255,6 +257,19 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
             aria-label={t("public.guestChat.catalogSearchPlaceholder")}
             style={{ width: "100%", boxSizing: "border-box", border: `1px solid ${C.borderSoft}`, borderRadius: 999, padding: "7px 12px", fontSize: 13, fontFamily: FONT, color: C.ink, background: "#fff" }}
           />
+          <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as CatalogSort)}
+              aria-label={t("public.guestChat.catalogSortLabel")}
+              style={{ border: `1px solid ${C.borderSoft}`, borderRadius: 999, padding: "5px 10px", fontSize: 12, fontFamily: FONT, color: C.ink, background: "#fff" }}
+            >
+              <option value="default">{t("public.guestChat.catalogSortDefault")}</option>
+              <option value="price_asc">{t("public.guestChat.catalogSortPriceAsc")}</option>
+              <option value="price_desc">{t("public.guestChat.catalogSortPriceDesc")}</option>
+            </select>
+            <Chip on={availableOnly} label={t("public.guestChat.catalogAvailableOnly")} onClick={() => setAvailableOnly((v) => !v)} C={C} accent={accent} />
+          </div>
         </div>
       ) : null}
       {notice && (

@@ -18,3 +18,24 @@ export function searchCatalogRows<T extends Searchable>(rows: readonly T[], quer
     return words.every((w) => hay.includes(w));
   });
 }
+
+/** TUL-1064 slice 2: sort + availability filter for the same rows. */
+export type CatalogSort = "default" | "price_asc" | "price_desc";
+
+type Sortable = { amountCents: number | null; available: boolean };
+
+export function sortCatalogRows<T extends Sortable>(rows: readonly T[], sort: CatalogSort): T[] {
+  if (sort === "default") return [...rows];
+  const dir = sort === "price_asc" ? 1 : -1;
+  // Rows without a price (people, table times) always sink to the end.
+  return [...rows].sort((a, b) => {
+    if (a.amountCents == null && b.amountCents == null) return 0;
+    if (a.amountCents == null) return 1;
+    if (b.amountCents == null) return -1;
+    return (a.amountCents - b.amountCents) * dir;
+  });
+}
+
+export function onlyAvailableRows<T extends Sortable>(rows: readonly T[], only: boolean): T[] {
+  return only ? rows.filter((r) => r.available) : [...rows];
+}
