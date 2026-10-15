@@ -66,7 +66,7 @@ function DirectoryInquirySheetBody({ ui }: DirectoryInquirySheetProps) {
   const success = modal?.success ?? null;
   const clearSuccess = modal?.clearSuccess;
   const { searchContext } = usePublicDiscoveryState();
-  const savedIds = useInquiryCart().cartIds; // TUL-1068 #11: only this context's entries
+  const savedIds = [...useInquiryCart().cartIds]; // TUL-1068 #11: only this context's entries
   const [payload, setPayload] = useState<DirectoryInquiryPayload | null>(null);
 
   const refreshPayload = useCallback(() => {
