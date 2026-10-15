@@ -115,7 +115,7 @@ function Chip({ on, label, onClick, C, accent }: { on: boolean; label: string; o
   );
 }
 
-function SmallButton({ label, onClick, primary, disabled, C, accent, accentInk, href }: { label: string; onClick?: () => void; primary?: boolean; disabled?: boolean; C: Palette; accent: string; accentInk: string; href?: string }) {
+function SmallButton({ label, onClick, primary, disabled, C, accent, accentInk, href, onSelect }: { label: string; onClick?: () => void; primary?: boolean; disabled?: boolean; C: Palette; accent: string; accentInk: string; href?: string; onSelect?: () => boolean }) {
   const style: React.CSSProperties = {
     border: primary ? "none" : `1px solid ${C.borderSoft}`,
     background: primary ? accent : "#fff",
@@ -131,7 +131,8 @@ function SmallButton({ label, onClick, primary, disabled, C, accent, accentInk, 
     textDecoration: "none",
     display: "inline-block",
   };
-  if (href) return <a href={href} style={style}>{label}</a>;
+  // TUL-1068: `onSelect` returns true when the page opened the in-page sheet; the link is only the fallback.
+  if (href) return <a href={href} style={style} onClick={onSelect ? (e) => { if (onSelect()) e.preventDefault(); } : undefined}>{label}</a>;
   return (
     <button type="button" onClick={onClick} disabled={disabled} style={style}>
       {label}
@@ -372,7 +373,16 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
                 accentInk={accentInk}
               />
             ) : null}
-            {buyHref && row.available ? <SmallButton label={dockStorefrontCtaLabel(row.category, locale, t("public.guestChat.catalogBuyNow"))} href={buyHref} C={C} accent={accent} accentInk={accentInk} /> : null}
+            {buyHref && row.available ? (
+              <SmallButton
+                label={dockStorefrontCtaLabel(row.category, locale, t("public.guestChat.catalogBuyNow"))}
+                href={buyHref}
+                onSelect={row.offeringId && (row.category === "service" || row.category === "class") ? () => requestChatAddService(row.offeringId as string) : undefined}
+                C={C}
+                accent={accent}
+                accentInk={accentInk}
+              />
+            ) : null}
             <SmallButton label={t("public.guestChat.catalogAsk")} onClick={() => onAsk(interpolate(t("public.guestChat.catalogAskPrefill"), { item: row.title, business: businessName }))} C={C} accent={accent} accentInk={accentInk} />
           </div>
         );
