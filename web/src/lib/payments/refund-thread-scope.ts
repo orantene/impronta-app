@@ -38,3 +38,24 @@ export async function assertTransactionOnThread(
   }
   return { ok: true, bookingId };
 }
+
+export type ThreadRefundDeps = {
+  /** The caller's BILLING permission on the owning workspace (refund or manage_billing). */
+  canRefund: () => Promise<boolean>;
+  execute: (transactionId: string) => Promise<{ ok: true } | { ok: false; error: string }>;
+};
+
+/**
+ * Permission first, then thread scope, then the single Stripe refund path.
+ * The inquiry is the thread: a transaction from any other inquiry is refused.
+ */
+export async function refundOnThread(
+  sb: SupabaseClient,
+  input: { tenantId: string; inquiryId: string; transactionId: string },
+  deps: ThreadRefundDeps,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!(await deps.canRefund())) return { ok: false, error: "You do not have permission to refund a payment." };
+  const scope = await assertTransactionOnThread(sb, input);
+  if (!scope.ok) return { ok: false, error: scope.error };
+  return deps.execute(input.transactionId);
+}
