@@ -27,6 +27,8 @@
  * (house rule) — the accent is the tenant's own brand color or a neutral fallback.
  */
 
+import { offeringsTenantScope } from "@/lib/inquiry/roster-scope";
+import { loadTenantKind } from "@/lib/inquiry/tenant-kind.server";
 import { dockViewerCtaIdentity } from "@/lib/client-account/dock-viewer-identity";
 import { resolveDockViewerIdentityTier } from "@/lib/client-account/dock-viewer-identity.server";
 import { loadGuestDockFlags } from "@/lib/inquiry/guest-dock-flags";
@@ -221,7 +223,11 @@ export async function TalentProfileChatLauncherMount({
   // W2-B — the talent's published services as in-chat request chips. Talents
   // with none get a single "Custom quote" default so EVERY talent is
   // requestable from the chat.
-  const publicOfferings = await loadPublicOfferingsForProfile(talentProfileId, locale ?? "en");
+  // P0 TUL-1070: read the talent's offerings under THIS tenant only. Without a tenant the
+  // reader returns everything the talent offers on every roster, which leaked other tenants'
+  // services into the dock chips and the Servicios menu.
+  const offeringsTenantId = offeringsTenantScope(await loadTenantKind(tenantId), tenantId);
+  const publicOfferings = await loadPublicOfferingsForProfile(talentProfileId, locale ?? "en", offeringsTenantId);
   const [usdRates, sellingDefaults, planKey] = await Promise.all([
     loadUsdRatesForSitePrices(publicOfferings, locale ?? "en"),
     loadTalentSellingDefaults(talentProfileId),
@@ -279,6 +285,7 @@ export async function TalentProfileChatLauncherMount({
       sourcePage={sourcePage}
       brand={{
         ...dockFlags,
+        dockTalentProfileCode: talentProfileCode,
         dockServiceMenu: publicOfferings
           .map((o) => {
             const category = categoryChipLabel(o.category);

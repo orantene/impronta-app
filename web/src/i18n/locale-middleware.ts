@@ -293,7 +293,7 @@ export function shouldRewriteLocalePublicPath(
   return !isDashboardInnerPathForLocalePrefix(inner);
 }
 
-export function syncLocaleCookieForPath(
+function syncLocaleCookieForPathCore(
   res: import("next/server").NextResponse,
   originalPathname: string,
   settings: LanguageSettings = FALLBACK_LANGUAGE_SETTINGS,
@@ -366,6 +366,39 @@ export function syncLocaleCookieForPath(
     // the feature does not work. This is the ONLY writer allowed to set it.
     markLocaleCookieAuto(res);
   }
+}
+
+/**
+ * Public entry. A 308 whose original path carries the explicit DEFAULT locale
+ * prefix (`/en/login` -> `/login`, TUL-146) also records that choice, so proxy.ts
+ * needs no extra call (it sits at its 800-line cap).
+ */
+export function syncLocaleCookieForPath(
+  res: import("next/server").NextResponse,
+  originalPathname: string,
+  settings: LanguageSettings = FALLBACK_LANGUAGE_SETTINGS,
+  request?: import("next/server").NextRequest,
+  fallbackLocale?: string,
+): void {
+  syncLocaleCookieForPathCore(res, originalPathname, settings, request, fallbackLocale);
+  if (res.status === 308) syncLocaleCookieForDefaultPrefixStrip(res, originalPathname, settings);
+}
+
+/**
+ * TUL-146: `/en/login` is 308'd to `/login`. The explicit `/en` prefix is a
+ * choice, exactly like `/es`, but `syncLocaleCookieForPath` only records the
+ * non-default case. Without this the redirected page re-derives its language
+ * from a Spanish cookie or browser. Writes a DELIBERATE `locale=<default>`.
+ */
+export function syncLocaleCookieForDefaultPrefixStrip(
+  res: import("next/server").NextResponse,
+  originalPathname: string,
+  settings: LanguageSettings = FALLBACK_LANGUAGE_SETTINGS,
+): void {
+  const seg = firstSegment(originalPathname);
+  if (!seg || seg !== settings.defaultLocale) return;
+  res.cookies.set(LOCALE_COOKIE, seg, localeCookieOptions);
+  clearLocaleCookieAutoMarker(res);
 }
 
 export function redirectToLocaleEquivalent(

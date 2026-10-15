@@ -26,7 +26,7 @@ import {
 } from "@/lib/home/default-storefront-roster";
 import { loadDiscoverTalents } from "@/app/(workspace)/[tenantSlug]/_data-bridge/discover";
 import { discoverTalentsToRosterItems } from "@/lib/inquiry/hub-roster-adapter";
-import { scopeRosterToTalent } from "@/lib/inquiry/roster-scope";
+import { narrowTalentForTenant, scopeRosterToTalent } from "@/lib/inquiry/roster-scope";
 import type {
   GuestChatErrorCode,
   GuestChatFailure,
@@ -136,9 +136,10 @@ export async function listGuestTenantRoster(input: {
     // directory lists) instead of the empty agency-scoped roster.
     if (tenant.isHub) {
       const { items } = await loadDiscoverTalents({ limit: HUB_ROSTER_LIMIT });
-      return { ok: true, roster: scopeRosterToTalent(discoverTalentsToRosterItems(items), input.talentProfileId) };
+      return { ok: true, roster: scopeRosterToTalent(discoverTalentsToRosterItems(items), narrowTalentForTenant("hub", input.talentProfileId)) };
     }
 
+    // Agency page: the agency's own roster (this tenant only), not narrowed to one talent.
     const rows = await loadDefaultStorefrontRoster(tenant.tenantId);
     return {
       ok: true,
@@ -150,7 +151,7 @@ export async function listGuestTenantRoster(input: {
           city: r.city ?? undefined,
           photoUrl: r.thumb,
         })),
-        input.talentProfileId,
+        narrowTalentForTenant("agency", input.talentProfileId),
       ),
     };
   } catch (err) {

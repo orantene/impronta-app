@@ -255,6 +255,8 @@ export const PROMO_COPY_ES = {
   "drawer.new": "Nueva promo",
   "drawer.all": "Ver todas",
   "drawer.active": "Activas",
+  "share.preview_unavailable": "Vista previa no disponible",
+  "share.retry": "Reintentar",
 } as const;
 
 export type PromoCopyKey = keyof typeof PROMO_COPY_ES;
@@ -497,6 +499,8 @@ export const PROMO_COPY_EN: Record<PromoCopyKey, string> = {
   "drawer.new": "New promo",
   "drawer.all": "See all",
   "drawer.active": "Live",
+  "share.preview_unavailable": "Preview unavailable",
+  "share.retry": "Retry",
 };
 
 export type PromoCopy = {

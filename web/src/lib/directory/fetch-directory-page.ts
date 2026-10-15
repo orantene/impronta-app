@@ -17,6 +17,7 @@ import { mapApiDirectoryRpcRowToDirectoryCardDTO } from "@/lib/directory/talent-
 import type { ApiDirectoryCardRpcRow } from "@/lib/directory/talent-card-dto";
 import { resolveTalentCardThumbsForHub } from "@/lib/media/talent-media-for-hub";
 import { fetchLegacyDirectorySearchTalentIds } from "@/lib/directory/directory-search-legacy";
+import { filterToPubliclyListedIds } from "@/lib/directory/public-listing-predicate";
 import { fetchDirectoryCardValues } from "@/lib/field-engine/read-source-directory-card-values";
 import { extractPrimaryRoleTerm, type ProfileTaxonomyRow } from "@/lib/taxonomy/engine";
 import {
@@ -698,6 +699,9 @@ async function fetchDirectoryWindow(
       }
     }
 
+    // Search legs (RPC, taxonomy, field values) are not all gated at source:
+    // drop any id that is not publicly listed (TUL-862).
+    searchIds = await filterToPubliclyListedIds(supabase, searchIds);
     const searchSet = new Set(searchIds);
     filteredTalentIds = filteredTalentIds
       ? filteredTalentIds.filter((id) => searchSet.has(id))

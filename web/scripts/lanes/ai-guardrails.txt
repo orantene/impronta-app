@@ -76,3 +76,10 @@ src/lib/support/attachment-rate-limit.static.test.ts
 src/lib/support/login-next-support.test.ts
 src/lib/support/desk/topbar-staging-host.static.test.ts
 src/lib/quality/commerce-tab-alias.static.test.ts
+src/components/home/hub-landing-dev-hosts.static.test.ts
+src/lib/seo/talent-site-not-found-robots.static.test.ts
+src/lib/legal/platform-origin.test.ts
+src/lib/analytics/sanitize-url.test.ts
+src/lib/analytics/scrub-leaks.test.ts
+src/i18n/locale-default-prefix-strip.test.ts
+src/lib/talent-site/talent-site-true-404.static.test.ts

@@ -2,6 +2,7 @@ import "server-only";
 
 import { bookingConfirmedClient, bookingConfirmedTalent, loadBookingConfirmedView } from "./catalog-audiences-booking";
 import * as React from "react";
+import { brandForSeller } from "./booking-confirmed-email";
 import ClientInquiryReceived from "../../../emails/client/InquiryReceived";
 import ClientReplyReady from "../../../emails/client/ReplyReady";
 import ClientOfferReady from "../../../emails/client/OfferReady";
@@ -282,11 +283,14 @@ const BOOKING_CONFIRMED_CLIENT: CatalogEntry = {
     subject: () => "Booking confirmed",
     render: ({ event, recipient, brand, unsubscribeUrl }) => {
       const bookingId = str(event.payload.bookingId);
+      const sellerBrand = brandForSeller(brand, str(event.payload.sellerName));
       return React.createElement(ClientBookingConfirmed, {
         clientName: recipient.displayName ?? str(event.payload.contactName),
         contactName: str(event.payload.contactName),
         eventDate: str(event.payload.eventDate),
         eventLocation: str(event.payload.eventLocation),
+        serviceName: str(event.payload.serviceName),
+        priceLabel: str(event.payload.priceLabel),
         bookingUrl: clientManageUrl(
           brand,
           bookingId,
@@ -294,8 +298,8 @@ const BOOKING_CONFIRMED_CLIENT: CatalogEntry = {
           undefined,
           { inquiryId: event.inquiryId, tenantId: event.tenantId },
         ),
-        sellerName: brand.accountName,
-        brand,
+        sellerName: sellerBrand.accountName,
+        brand: sellerBrand,
         unsubscribeUrl,
         categoryLabel: "booking",
       });
@@ -331,8 +335,11 @@ const BOOKING_CONFIRMED_TALENT: CatalogEntry = {
         contactName: str(event.payload.contactName),
         eventDate: str(event.payload.eventDate),
         eventLocation: str(event.payload.eventLocation),
+        serviceName: str(event.payload.serviceName),
+        // Only a single-talent booking shows the price: it is that talent's own sale.
+        priceLabel: Number(event.payload.talentCount) === 1 ? str(event.payload.priceLabel) : null,
         inquiriesUrl: pageUrl(brand, `/talent/inbox`),
-        brand,
+        brand: brandForSeller(brand, str(event.payload.sellerName)),
         unsubscribeUrl,
         categoryLabel: "booking",
       }),

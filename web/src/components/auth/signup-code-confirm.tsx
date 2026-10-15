@@ -58,10 +58,13 @@ export function SignupCodeConfirm({
   nextPath,
   locale = "en",
   onChangeEmail,
+  clientSignup = false,
 }: {
   email: string;
   nextPath?: string;
   locale?: string;
+  /** TUL-771: explicit client sign-up; the verified account skips the role screen. */
+  clientSignup?: boolean;
   /** When given, offers a way back to the email/password form. */
   onChangeEmail?: () => void;
 }) {
@@ -122,6 +125,7 @@ export function SignupCodeConfirm({
         <input type="hidden" name="email" value={email} />
         <input type="hidden" name="locale" value={locale} />
         {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
+        {clientSignup ? <input type="hidden" name="signup_intent" value="client" /> : null}
 
         <OtpCodeInput
           disabled={verifying}

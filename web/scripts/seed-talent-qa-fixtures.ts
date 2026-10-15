@@ -126,7 +126,7 @@ async function ensureTalentProfile(fx: FixtureSpec, userId: string): Promise<str
     display_name: fx.displayName,
     first_name: fx.displayName,
     profile_kind: "person",
-    short_bio: "Seeded fixture — talent builder QA, not a real talent.",
+    short_bio: "Perfil de prueba para QA del constructor. No es un talento real.",
     preferred_locale: "es",
     default_currency: "MXN",
     talent_plan_key: fx.planKey,

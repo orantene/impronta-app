@@ -807,6 +807,8 @@ export type MiniChatBrand = {
    * This talent's own services, grouped into catalogue chips by category name.
    * `priceLabel` is the printed money line ("$500 MXN · ≈ US$28") when known.
    */
+  /** P0 TUL-1070: the talent this dock belongs to, set server-side so the catalog scopes without parsing the URL. */
+  dockTalentProfileCode?: string | null;
   dockServiceMenu?: readonly {
     /** Real offering id — book/request CTAs open CatalogBookingSheet (not Ask). */
     offeringId?: string | null;

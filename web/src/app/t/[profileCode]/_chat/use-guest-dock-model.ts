@@ -126,6 +126,7 @@ export function useGuestDockModel(input: {
       onAsk: (text: string) => void;
     }): GuestDockCatalogProps => ({
       serviceMenu: input.brand.dockServiceMenu,
+      profileCode: input.brand.dockTalentProfileCode ?? null,
       tenantSlug: c.tenantSlug,
       businessName,
       locale,

@@ -4,7 +4,7 @@
  * P4 — the passwordless email-code form (CLIENT / booker intent).
  *
  * Two steps, one card:
- *   1. email  →  "Email me a sign-in code"   (requestEmailCode)
+ *   1. email  →  "Email me a code"   (requestEmailCode)
  *   2. code   →  the emailed digits + "Continue" (submitEmailCode)
  *
  * B2 (2026-08-07) — the code really is in the email: the Supabase Send Email
@@ -28,7 +28,7 @@
  * the i18n catalog (EN + ES).
  */
 
-import { useActionState, useState, type ReactNode } from "react";
+import { useActionState, useEffect, useState, type ReactNode } from "react";
 
 import {
   requestEmailCode,
@@ -42,6 +42,14 @@ import {
   AuthNotice,
   AuthSubmitButton,
 } from "@/components/auth/auth-ui";
+import {
+  forgetCodeStep,
+  hasCodeStepParam,
+  recallCodeStep,
+  rememberCodeStep,
+  urlWithCodeStep,
+} from "@/lib/auth/code-step-url";
+import { pickAuthEmail, readAuthEmailDraft, readAuthNameDraft, writeAuthEmailDraft, writeAuthNameDraft } from "@/lib/auth/email-draft";
 import { authEmailHasPlusTag, OTP_CODE_MAX_LENGTH } from "@/lib/auth/otp-flow";
 import { createTranslator } from "@/i18n/messages";
 import { AgeTermsCheckbox } from "@/components/auth/age-terms-checkbox";
@@ -90,6 +98,8 @@ export function EmailCodeForm({
   passwordFallback,
   footer,
   startWithPassword = false,
+  collectName = false,
+  clientSignup = false,
 }: {
   nextPath?: string;
   locale?: string;
@@ -107,6 +117,10 @@ export function EmailCodeForm({
    * (magic link or Google) always has a way back in.
    */
   startWithPassword?: boolean;
+  /** TUL-762: ask for a name on the create path; it rides as `full_name` into the new profile. */
+  collectName?: boolean;
+  /** TUL-771: this is an explicit client sign-up; the verified account skips the role screen. */
+  clientSignup?: boolean;
 }) {
   const t = createTranslator(locale);
   const [sendState, sendAction, sending] = useActionState<EmailCodeState, FormData>(
@@ -122,7 +136,11 @@ export function EmailCodeForm({
   const [backToEmail, setBackToEmail] = useState(false);
   const [showPassword, setShowPassword] = useState(startWithPassword);
   // TUL-558: warn before send when the visitor types a +tag alias.
-  const [emailDraft, setEmailDraft] = useState(defaultEmail ?? "");
+  const [emailDraft, setEmailDraft] = useState(() => {
+    const seed = pickAuthEmail(readAuthEmailDraft(), defaultEmail);
+    if (seed) writeAuthEmailDraft(seed);
+    return seed;
+  });
   // Which action the visitor most recently triggered. Both `useActionState`
   // hooks keep their last result forever, so without this a stale "that code
   // isn't right" would sit on top of a fresh "new code sent" (and vice versa).
@@ -132,14 +150,41 @@ export function EmailCodeForm({
   // The code step survives a FAILED resend (`step: "code"`) too: losing the
   // screen and the address because the resend was rate limited would be worse
   // than the rate limit itself.
-  const codeStepEmail =
+  // TUL-766: a reload (or coming back from the mail app) lands on the code box again.
+  const [restoredEmail, setRestoredEmail] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    try {
+      if (hasCodeStepParam(window.location.search)) {
+        const remembered = recallCodeStep(window.sessionStorage, Date.now());
+        if (remembered) setRestoredEmail(remembered);
+        else window.history.replaceState(window.history.state, "", urlWithCodeStep(window.location.href, false));
+      }
+    } catch {
+      /* storage unavailable: the form simply starts at step 1 */
+    }
+  }, []);
+  const liveCodeStepEmail =
     sendState?.step === "sent" || sendState?.step === "code"
       ? sendState.email
       : verifyState?.step === "code"
         ? verifyState.email
         : undefined;
+  const codeStepEmail = liveCodeStepEmail ?? (backToEmail ? undefined : restoredEmail);
   const email = codeStepEmail ?? stateEmail(sendState) ?? defaultEmail;
   const onCodeStep = Boolean(codeStepEmail) && !backToEmail;
+  useEffect(() => {
+    try {
+      if (onCodeStep && codeStepEmail) {
+        rememberCodeStep(window.sessionStorage, codeStepEmail, Date.now());
+        window.history.replaceState(window.history.state, "", urlWithCodeStep(window.location.href, true));
+      } else if (backToEmail) {
+        forgetCodeStep(window.sessionStorage);
+        window.history.replaceState(window.history.state, "", urlWithCodeStep(window.location.href, false));
+      }
+    } catch {
+      /* the URL marker is a nicety; never block the form */
+    }
+  }, [onCodeStep, codeStepEmail, backToEmail]);
 
   const stepError =
     lane === "verify" ? stateError(verifyState) : stateError(sendState);
@@ -153,7 +198,13 @@ export function EmailCodeForm({
           className="text-center text-[0.8125rem]"
           style={{ color: "var(--plt-muted)" }}
         >
-          <QuietAction onClick={() => setShowPassword(false)}>
+          <QuietAction
+            onClick={() => {
+              // Back from the password lane: take the address typed there.
+              setEmailDraft(readAuthEmailDraft());
+              setShowPassword(false);
+            }}
+          >
             {t("public.auth.passwordless.useCode")}
           </QuietAction>
         </p>
@@ -178,6 +229,7 @@ export function EmailCodeForm({
           <input type="hidden" name="email" value={email} />
           <input type="hidden" name="locale" value={locale} />
           {allowCreate ? <input type="hidden" name="create" value="1" /> : null}
+          {allowCreate && clientSignup ? <input type="hidden" name="signup_intent" value="client" /> : null}
           {/* Step 1 required the 18+ and Terms box on the create path. */}
           {allowCreate ? <input type="hidden" name="age_terms" value="on" /> : null}
           {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
@@ -221,6 +273,7 @@ export function EmailCodeForm({
           <input type="hidden" name="email" value={email} />
           <input type="hidden" name="locale" value={locale} />
           <input type="hidden" name="resend" value="1" />
+          {allowCreate && collectName ? <input type="hidden" name="full_name" value={readAuthNameDraft()} /> : null}
           <input type="hidden" name="create" value={allowCreate ? "1" : "0"} />
           {allowCreate ? <input type="hidden" name="age_terms" value="on" /> : null}
           {allowCreate ? <input type="hidden" name="terms_form" value="1" /> : null}
@@ -241,7 +294,7 @@ export function EmailCodeForm({
           className="text-center text-[0.8125rem]"
           style={{ color: "var(--plt-muted)" }}
         >
-          <QuietAction onClick={() => setBackToEmail(true)}>
+          <QuietAction onClick={() => { setBackToEmail(true); setRestoredEmail(undefined); }}>
             {t("public.auth.passwordless.changeEmail")}
           </QuietAction>
           {passwordFallback ? (
@@ -276,6 +329,24 @@ export function EmailCodeForm({
 
         {stepError ? <AuthNotice tone="error">{stepError}</AuthNotice> : null}
 
+        {allowCreate && collectName ? (
+          <AuthField label={t("public.auth.form.name")} htmlFor="full_name">
+            <input
+              id="full_name"
+              name="full_name"
+              type="text"
+              autoComplete="name"
+              required
+              maxLength={120}
+              defaultValue={readAuthNameDraft()}
+              onChange={(e) => writeAuthNameDraft(e.target.value)}
+              placeholder={t("public.auth.form.namePlaceholder")}
+              className={AUTH_INPUT_CLASS}
+              style={AUTH_INPUT_STYLE}
+            />
+          </AuthField>
+        ) : null}
+
         <AuthField
           label={t("public.auth.form.email")}
           htmlFor="email"
@@ -291,8 +362,11 @@ export function EmailCodeForm({
             type="email"
             autoComplete="email"
             required
-            defaultValue={email}
-            onChange={(e) => setEmailDraft(e.target.value)}
+            defaultValue={pickAuthEmail(readAuthEmailDraft(), email)}
+            onChange={(e) => {
+              setEmailDraft(e.target.value);
+              writeAuthEmailDraft(e.target.value);
+            }}
             placeholder={t("public.auth.form.emailPlaceholder")}
             className={AUTH_INPUT_CLASS}
             style={AUTH_INPUT_STYLE}

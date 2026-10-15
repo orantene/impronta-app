@@ -15,7 +15,7 @@ import type { PromoCopy } from "@/lib/promos/copy/talent";
 import { promoTips } from "@/lib/promos/results/compute";
 import { formatMoney, formatShortDate, progressOf } from "@/lib/promos/talent-view";
 import { offerLabel, scheduleLine } from "./describe";
-import { InfoTip, ProgressBar, PromoSwitch, StatusBadge, UI } from "./ui";
+import { InfoTip, PANEL_MD, ProgressBar, PromoSwitch, StatusBadge, UI } from "./ui";
 
 type Props = {
   item: PromoListItem | null;
@@ -92,7 +92,7 @@ export function PromoDetailSheet({ item, data, copy, onClose, onEdit, onShare, o
 
   return (
     <Sheet open onOpenChange={(o) => (o ? undefined : onClose())}>
-      <SheetContent side="bottom" aria-describedby={undefined} className="flex max-h-[94vh] max-w-full flex-col gap-0 overflow-x-hidden rounded-t-3xl bg-[var(--tc-canvas,#fafafa)] text-[var(--tc-ink,#1c1c1e)] p-0">
+      <SheetContent side="bottom" aria-describedby={undefined} className={`flex max-h-[94vh] max-w-full flex-col gap-0 overflow-x-hidden rounded-t-3xl ${PANEL_MD} bg-[var(--tc-canvas,#fafafa)] text-[var(--tc-ink,#1c1c1e)] p-0`}>
         <div className="px-4 pb-2 pt-4">
           <SheetTitle className={`pr-10 ${UI.title}`}>{item.name}</SheetTitle>
           <SheetDescription className="sr-only">{offerLabel(promo, copy)}</SheetDescription>

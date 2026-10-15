@@ -14,6 +14,7 @@ import {
   DESK_AUTH_RESCOPE_COOKIE,
   shouldAttemptDeskAuthRescope,
 } from "@/lib/support/desk/desk-access";
+import { nextPathKeepingSupport } from "@/lib/support/login-next-support";
 import { isSupportDeskHost } from "@/lib/support/desk-hosts";
 import {
   ACCESS_PROFILE_REFRESH_COOKIE,
@@ -593,7 +594,7 @@ export async function updateSession(
       incoming.forEach((value, key) => redirectUrl.searchParams.set(key, value));
     }
     if (decision.loginNext) {
-      redirectUrl.searchParams.set("next", decision.loginNext);
+      redirectUrl.searchParams.set("next", nextPathKeepingSupport(decision.loginNext, request.nextUrl.search));
       // Distinguish a DROPPED/expired session (an auth cookie was present but
       // produced no user — e.g. a refresh-token rotation race) from a plain
       // never-logged-in visit, so /login can explain the forced re-login

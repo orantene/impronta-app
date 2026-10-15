@@ -16,7 +16,7 @@ import {
 } from "@/lib/promos/templates";
 import type { Audience, OfferKind, Unlock } from "@/lib/promos/types";
 import { PromoPreview } from "./PromoPreview";
-import { Chip, InfoTip, UI } from "./ui";
+import { Chip, InfoTip, PANEL_MD, UI } from "./ui";
 
 const PCT_CHIPS = [10, 15, 20, 30] as const;
 const SPOT_CHIPS = [3, 5, 10] as const;
@@ -137,7 +137,7 @@ export function QuickCreateDrawer({ open, onClose, copy, data, initial, editingI
     <Sheet open={open} onOpenChange={(o) => (o ? undefined : onClose())}>
       <SheetContent
         side="bottom"
-        className="flex max-h-[94vh] max-w-full flex-col gap-0 overflow-x-hidden rounded-t-3xl bg-[var(--tc-canvas,#fafafa)] p-0 text-[var(--tc-ink,#1c1c1e)]"
+        className={`flex max-h-[94vh] max-w-full flex-col gap-0 overflow-x-hidden rounded-t-3xl ${PANEL_MD} bg-[var(--tc-canvas,#fafafa)] p-0 text-[var(--tc-ink,#1c1c1e)]`}
         aria-describedby={undefined}
       >
         <div className="px-4 pb-2 pt-4">

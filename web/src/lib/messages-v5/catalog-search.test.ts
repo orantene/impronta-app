@@ -41,3 +41,11 @@ test("the availability filter keeps only bookable rows", () => {
   assert.deepEqual(onlyAvailableRows(PRICED, true).map((r) => r.id), ["a", "b"]);
   assert.equal(onlyAvailableRows(PRICED, false).length, 3);
 });
+
+import { maxDurationRows } from "./catalog-search";
+
+test("the duration filter drops longer rows but keeps rows with no length", () => {
+  const rows = [{ id: "a", durationMinutes: 45 }, { id: "b", durationMinutes: 120 }, { id: "c", durationMinutes: null }];
+  assert.deepEqual(maxDurationRows(rows, 60).map((r) => r.id), ["a", "c"]);
+  assert.equal(maxDurationRows(rows, null).length, 3);
+});
