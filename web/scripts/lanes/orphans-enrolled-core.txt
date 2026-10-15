@@ -12,6 +12,7 @@ src/components/admin/shell/internal/talent/pages/profile-render-safety.static.te
 src/components/admin/shell/internal/talent/shared/plan-oficina-web.static.test.ts
 src/components/admin/shell/internal/talent/pages/talent-hydration-418.static.test.ts
 src/components/admin/shell/internal/talent/availability-accepting.static.test.ts
+src/components/onboarding/steps/save-step-consent.static.test.ts
 src/components/talent/site/maison-setup/maison-setup-audit.test.ts
 src/lib/field-engine/public-surface-visibility.test.ts
 src/lib/guide/guide-search.test.ts
