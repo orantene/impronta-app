@@ -11,12 +11,12 @@ test("TUL-857: the talent host route has no loading.tsx (it locked unknown paths
 });
 
 test("TUL-857: unknown first segments 404 before the Suspense boundary, only when no page/policy/service can match", () => {
-  const pre = page.indexOf("notFound();\n  }\n  return (\n    <Suspense");
+  const pre = page.indexOf("notFound();\n    }\n  }\n  return (\n    <Suspense");
   assert.ok(pre > 0, "pre-check must sit right before the Suspense return");
   const block = page.slice(page.indexOf("TUL-857: an unknown first segment"), pre);
   assert.match(block, /seg &&/);
   assert.match(block, /preview !== "draft"/);
-  assert.match(block, /seg !== LEGACY_PRIVACY_SLUG/);
+  assert.match(block, /seg === LEGACY_PRIVACY_SLUG \|\|/);
   assert.match(block, /!policyDocForSlug\(seg\)/);
   assert.match(block, /parseServiceSlug\(seg\) === null/);
   assert.match(block, /pages\.some\(\(p\) => p\.slug === seg\)/);
