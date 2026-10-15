@@ -170,15 +170,42 @@ async function loadPriorAssistantMeta(
     const t = typeof meta.system_event_type === "string" ? meta.system_event_type : null;
     return { systemEventType: t, createdAt: row.created_at };
   });
+  // TUL-320: the newest-40 window can miss an older handoff on a long thread,
+  // which re-posted the handoff copy. Look the latest handoff up on its own.
   const lastHandoffAt =
-    newestFirst.find((m) => m.systemEventType === "booking_assistant_handoff")?.createdAt ?? null;
+    newestFirst.find((m) => m.systemEventType === "booking_assistant_handoff")?.createdAt ??
+    (await latestHandoffAt(admin, inquiryId, tenantId));
   const prior: Array<{ systemEventType?: string | null; humanTookOver?: boolean }> = newestFirst
     .reverse()
     .map((m) => ({ systemEventType: m.systemEventType }));
+  if (lastHandoffAt && !prior.some((m) => m.systemEventType === "booking_assistant_handoff")) {
+    prior.unshift({ systemEventType: "booking_assistant_handoff" });
+  }
   if (lastHandoffAt && (await teamRepliedSince(admin, inquiryId, tenantId, lastHandoffAt))) {
     prior.push({ humanTookOver: true });
   }
   return prior;
+}
+
+async function latestHandoffAt(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  inquiryId: string,
+  tenantId: string,
+): Promise<string | null> {
+  const { data, error } = await admin
+    .from("inquiry_messages")
+    .select("created_at")
+    .eq("inquiry_id", inquiryId)
+    .eq("tenant_id", tenantId)
+    .eq("message_kind", "system_event")
+    .eq("metadata->>system_event_type", "booking_assistant_handoff")
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (error) {
+    logServerError("booking-assistant/lastHandoff", error);
+    return null;
+  }
+  return ((data ?? []) as Array<{ created_at: string }>)[0]?.created_at ?? null;
 }
 
 /**
