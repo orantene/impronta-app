@@ -219,14 +219,7 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
     [add, onEnsureInquiry, t, threadToken],
   );
 
-  // TUL-1063: on a talent page the list starts as that talent's own, with a switch to the whole network.
-  const pageCode = (/^\/(?:[a-z]{2}\/)?t\/([^/?#]+)/.exec(pathname ?? "")?.[1]) ?? null;
-  const [wholeNetwork, setWholeNetwork] = useState(false);
-  const scoped = pageCode !== null && !wholeNetwork;
-  const visible = useMemo(() => {
-    const rows = groups?.find((g) => g.category === category)?.rows ?? [];
-    return scoped ? rows.filter((r) => r.profileCode === pageCode || r.ownerCode === pageCode) : rows;
-  }, [groups, category, scoped, pageCode]);
+  const visible = useMemo(() => groups?.find((g) => g.category === category)?.rows ?? [], [groups, category]);
 
   const usingServices = serviceChips.length > 0;
   const activeService = serviceChip ?? serviceChips[0] ?? null;
@@ -247,11 +240,6 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
               <Chip key={g.category} on={g.category === category} label={t(CATEGORY_KEY[g.category])} onClick={() => { setCategory(g.category); setNotice(null); }} C={C} accent={accent} />
             ))}
       </div>
-      {pageCode && !usingServices ? (
-        <div style={{ padding: "0 14px" }}>
-          <Chip on={false} label={scoped ? t("public.guestChat.catalogScopeShowAll") : t("public.guestChat.catalogScopeShowThis")} onClick={() => setWholeNetwork((v) => !v)} C={C} accent={accent} />
-        </div>
-      ) : null}
       {notice && (
         <div role="status" style={{ margin: "0 14px", padding: "7px 10px", borderRadius: 10, background: `${accent}14`, color: accent, fontSize: 12.5, fontWeight: 600, fontFamily: FONT }}>
           {notice}
@@ -306,7 +294,7 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.title}</div>
               <div style={{ fontSize: 11.5, color: C.inkDim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {[price, row.ownerName, row.sub, !row.available ? t("public.guestChat.catalogUnavailable") : null].filter(Boolean).join(" · ")}
+                {[price, row.sub, !row.available ? t("public.guestChat.catalogUnavailable") : null].filter(Boolean).join(" · ")}
               </div>
             </div>
             {isTalent ? (
