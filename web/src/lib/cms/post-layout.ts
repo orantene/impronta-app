@@ -63,6 +63,64 @@ export function defaultPostLayout(locale: string): PostLayoutSection[] {
   ];
 }
 
+type PostLayoutArchetype = "editorial" | "minimal" | "bold";
+
+const KEEP_READING_HEADING = { es: "Sigue leyendo", en: "Keep reading" } as const;
+const LATEST_HEADING = { es: "Lo último", en: "Latest" } as const;
+
+/** Design slug -> archetype. Talent theme designs and agency starter ids. */
+const POST_LAYOUT_ARCHETYPE_BY_DESIGN: Readonly<Record<string, PostLayoutArchetype>> = {
+  editorial: "editorial",
+  portfolio: "editorial",
+  impronta: "editorial",
+  minimal: "minimal",
+  noir: "minimal",
+  saas: "minimal",
+  bold: "bold",
+  agency: "bold",
+  studio: "bold",
+  festival: "bold",
+};
+
+/** Slugs with a dedicated archetype (anything else gets the generic default). */
+export const POST_LAYOUT_DESIGN_SLUGS: readonly string[] = Object.keys(POST_LAYOUT_ARCHETYPE_BY_DESIGN);
+
+/**
+ * The per-design default "Diseño de posts" (TUL-1069). Same closed section set
+ * as the generic default; only order, author card and the "more posts" count
+ * and heading differ. Unknown or null slug = `defaultPostLayout` unchanged.
+ */
+export function defaultPostLayoutForDesign(
+  designSlug: string | null | undefined,
+  locale: string,
+): PostLayoutSection[] {
+  const key = typeof designSlug === "string" ? designSlug.trim().toLowerCase() : "";
+  const archetype = Object.prototype.hasOwnProperty.call(POST_LAYOUT_ARCHETYPE_BY_DESIGN, key)
+    ? POST_LAYOUT_ARCHETYPE_BY_DESIGN[key]
+    : undefined;
+  if (!archetype) return defaultPostLayout(locale);
+  const l = locale === "es" ? "es" : "en";
+  switch (archetype) {
+    case "editorial":
+      return [
+        { id: "content", type: "post_content" },
+        { id: "author", type: "post_author" },
+        { id: "more", type: "blog_index", limit: 3, heading: KEEP_READING_HEADING[l] },
+      ];
+    case "minimal":
+      return [
+        { id: "content", type: "post_content" },
+        { id: "more", type: "blog_index", limit: 2, heading: MORE_POSTS_HEADING[l] },
+      ];
+    case "bold":
+      return [
+        { id: "content", type: "post_content" },
+        { id: "more", type: "blog_index", limit: 4, heading: LATEST_HEADING[l] },
+        { id: "author", type: "post_author" },
+      ];
+  }
+}
+
 export function toPostLayoutEnvelope(sections: readonly PostLayoutSection[]): PostLayoutEnvelope {
   return { kind: "post_layout", v: POST_LAYOUT_VERSION, sections: [...sections] };
 }

@@ -35,6 +35,11 @@ import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { interpolate } from "@/i18n/interpolate";
 import { buildPostPublicPathname } from "@/lib/cms/paths";
 import { resolveWebsiteLiveOrigin } from "@/lib/admin/website-editor-links";
+import { AiCrawlerToggle } from "@/components/posts/AiCrawlerToggle";
+import {
+  workspaceLoadAiCrawlersAllowedAction,
+  workspaceSetAiCrawlersAllowedAction,
+} from "@/lib/server-actions/posts-ai-toggle-actions";
 import { workspaceCreatePostDraftAction } from "@/lib/server-actions/posts-writer-actions";
 
 import { EmptyState, Icon } from "../primitives";
@@ -169,6 +174,17 @@ export function WebsitePostsPage() {
   );
 
   const pathname = usePathname();
+  const [aiAllowed, setAiAllowed] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!canWrite) return;
+    let cancelled = false;
+    void workspaceLoadAiCrawlersAllowedAction().then((res) => {
+      if (!cancelled) setAiAllowed(res.ok ? res.allowed : true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [canWrite]);
   const dashboardLocale = useDashboardLocale();
   const [isCreating, startCreateTransition] = useTransition();
 
@@ -224,6 +240,15 @@ export function WebsitePostsPage() {
         subtitle={t("dashboard.adminWebsite.postsPageSubtitle")}
         actions={canWrite ? <AddPostButton busy={isCreating} onClick={handleAddPost} /> : undefined}
       />
+      {canWrite && aiAllowed !== null ? (
+        <div className="mb-[8px]">
+          <AiCrawlerToggle
+            initialAllowed={aiAllowed}
+            locale={dashboardLocale === "es" ? "es" : "en"}
+            onSave={workspaceSetAiCrawlersAllowedAction}
+          />
+        </div>
+      ) : null}
       {posts.length === 0 ? (
         canWrite ? (
           <div className="flex flex-col items-start gap-[10px] rounded-admin-lg border border-admin-border-soft bg-admin-card p-[16px]">

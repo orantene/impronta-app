@@ -18,7 +18,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
-  defaultPostLayout,
+  defaultPostLayoutForDesign,
   parsePostLayout,
   POST_LAYOUT_SLUG,
   POST_LAYOUT_SYSTEM_KEY,
@@ -42,6 +42,8 @@ export interface PostLayoutStore {
   updateWorkspaceLayout(tenantId: string, id: string, envelope: PostLayoutEnvelope): Promise<boolean>;
   readTalentLayout(talentProfileId: string): Promise<unknown | null>;
   writeTalentLayout(talentProfileId: string, envelope: PostLayoutEnvelope): Promise<boolean>;
+  /** Talent site theme design slug (`talent_sites.theme_design_slug`); optional, null = generic default. */
+  readTalentDesignSlug?(talentProfileId: string): Promise<string | null>;
 }
 
 export type EnsuredPostLayout = {
@@ -63,7 +65,16 @@ export async function ensurePostLayout(
   scope: PostScope,
   locale: string,
 ): Promise<EnsuredPostLayout | null> {
-  const fallback = defaultPostLayout(locale);
+  let designSlug: string | null = null;
+  if (scope.kind === "talent" && store.readTalentDesignSlug) {
+    try {
+      designSlug = await store.readTalentDesignSlug(scope.talentProfileId);
+    } catch {
+      designSlug = null;
+    }
+  }
+  // Workspace sites pass null: no cheap site-level record of the applied starter.
+  const fallback = defaultPostLayoutForDesign(designSlug, locale);
   const envelope = toPostLayoutEnvelope(fallback);
 
   if (scope.kind === "talent") {
@@ -176,6 +187,19 @@ export function createSupabasePostLayoutStore(db: SupabaseClient): PostLayoutSto
         return null;
       }
       return (data as { post_layout?: unknown } | null)?.post_layout ?? null;
+    },
+    async readTalentDesignSlug(talentProfileId) {
+      const { data, error } = await db
+        .from("talent_sites")
+        .select("theme_design_slug")
+        .eq("talent_profile_id", talentProfileId)
+        .maybeSingle();
+      if (error) {
+        logServerError("cms/post-layout/talent-design-read", error);
+        return null;
+      }
+      const slug = (data as { theme_design_slug?: unknown } | null)?.theme_design_slug;
+      return typeof slug === "string" && slug.trim() ? slug.trim() : null;
     },
     async writeTalentLayout(talentProfileId, envelope) {
       const { data, error } = await db

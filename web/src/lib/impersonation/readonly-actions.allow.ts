@@ -9,6 +9,7 @@ export type AllowEntry = [suffix: string, names: string[], reason: string];
 
 export const EXTRA_ALLOW: AllowEntry[] = [
   ["lib/server-actions/posts-reader-actions.ts", ["talentListPostsAction"], READ],
+  ["lib/server-actions/posts-ai-toggle-actions.ts", ["workspaceLoadAiCrawlersAllowedAction"], READ],
   ["lib/server-actions/posts-layout-actions.ts", ["workspaceListPostsTreeAction", "talentListPostsTreeAction"], READ],
   ["lib/server-actions/posts-widget-actions.ts", ["listPostsForWidgetPickerAction"], READ],
   ["lib/promos/actions.ts", ["loadPromosPage", "getPromoAttention", "loadPromoBookings"], READ],

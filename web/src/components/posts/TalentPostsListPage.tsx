@@ -19,6 +19,8 @@ import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { derivePostUiStatus, type PostUiStatus } from "@/lib/cms/post-writer-status";
 import type { PostListRow } from "@/lib/cms/post-writer-types";
 import { talentListPostsAction } from "@/lib/server-actions/posts-reader-actions";
+import { AiCrawlerToggle } from "@/components/posts/AiCrawlerToggle";
+import { talentSetAiCrawlersAllowedAction } from "@/lib/server-actions/posts-ai-toggle-actions";
 import { talentCreatePostDraftAction } from "@/lib/server-actions/posts-writer-actions";
 import { SEO_DOT_CLASS, seoLevelLabel } from "@/components/posts/writer/PostSettingsSheet";
 import { postsTranslator, type PostsT } from "@/components/posts/writer/posts-t";
@@ -27,7 +29,7 @@ type Filter = "all" | "published" | "drafts" | "scheduled";
 type Load =
   | { status: "loading" }
   | { status: "error"; message: string }
-  | { status: "ready"; posts: PostListRow[]; canPublish: boolean };
+  | { status: "ready"; posts: PostListRow[]; canPublish: boolean; aiCrawlersAllowed: boolean };
 
 const FILTERS: readonly Filter[] = ["all", "published", "drafts", "scheduled"];
 
@@ -110,7 +112,7 @@ export function TalentPostsListPage() {
       if (cancelled) return;
       setLoad(
         res.ok
-          ? { status: "ready", posts: res.posts, canPublish: res.canPublish }
+          ? { status: "ready", posts: res.posts, canPublish: res.canPublish, aiCrawlersAllowed: res.aiCrawlersAllowed }
           : { status: "error", message: res.message },
       );
     });
@@ -157,6 +159,14 @@ export function TalentPostsListPage() {
         <p role="alert" className="m-0 text-[14px] text-admin-ink">
           {createError}
         </p>
+      ) : null}
+
+      {load.status === "ready" ? (
+        <AiCrawlerToggle
+          initialAllowed={load.aiCrawlersAllowed}
+          locale={uiLocale}
+          onSave={talentSetAiCrawlersAllowedAction}
+        />
       ) : null}
 
       {load.status === "ready" && !load.canPublish ? (
