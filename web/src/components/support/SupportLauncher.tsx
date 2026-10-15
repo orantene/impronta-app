@@ -8,7 +8,7 @@ import { Icon } from "@/components/admin/shell/internal/primitives";
 import { COLORS } from "./support-tokens";
 import { useCompactViewport } from "./use-compact-viewport";
 import { SupportPanel } from "./SupportPanel";
-import { SUPPORT_LAUNCHER_COMPACT_BOTTOM, SUPPORT_LAUNCHER_COMPACT_CSS } from "./support-panel-geometry";
+import { SUPPORT_LAUNCHER_COMPACT_BOTTOM, SUPPORT_LAUNCHER_COMPACT_CSS, SUPPORT_LAUNCHER_HIDE_COMPACT_CSS } from "./support-panel-geometry";
 import type { SupportContract } from "./support-contract";
 import { useSupportDeepLink, useSupportUnread } from "./support-hooks";
 import { SUPPORT_PANEL_OPEN_EVENT } from "@/lib/support/open-support-panel";
@@ -233,7 +233,7 @@ export function SupportLauncher({
         guideNodeId={guideNodeId}
         onConsumedGuideNode={() => setGuideNodeId(null)}
       />
-      <style>{`${SUPPORT_LAUNCHER_COMPACT_CSS}
+      <style>{`${SUPPORT_LAUNCHER_COMPACT_CSS}${hideFloatingOnCompact ? SUPPORT_LAUNCHER_HIDE_COMPACT_CSS : ""}
         button[data-tulala-support-launcher=""]:hover{transform:translateY(-50%) scale(1.06)}
         button[data-tulala-support-launcher=""]:active{transform:translateY(-50%) scale(.97)}
         @keyframes tulala-support-badge{0%{box-shadow:0 0 0 2.5px ${COLORS.surface},0 0 0 2.5px rgba(194,106,69,.45)}100%{box-shadow:0 0 0 2.5px ${COLORS.surface},0 0 0 12px rgba(194,106,69,0)}}
