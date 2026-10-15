@@ -97,3 +97,15 @@ test("TUL-536: weekly rows stack the day label above the times on a phone so AM/
   assert.match(page, /col-span-3 sm:col-span-1/);
   assert.match(fields, /type="time"[\s\S]{0,80}min-w-\[7\.5rem\]/);
 });
+
+// TUL-821: More > Working hours opens the Horario modal, and the zone leads the modal.
+test("TUL-821: the phone More row opens the Horario panel and the zone sits above the day rows", () => {
+  const more = readFileSync(
+    join(process.cwd(), "src/components/talent/studio/MoreScreen.tsx"),
+    "utf8",
+  );
+  assert.match(more, /openWorkingHoursPanel\(\)/);
+  assert.doesNotMatch(more, /label: "Working hours"[^}]*page: "calendar"/);
+  const page = read("talent/agenda/AgendaAvailabilityPage.tsx");
+  assert.ok(page.indexOf("<TimezonePicker") < page.indexOf("rows.map("));
+});
