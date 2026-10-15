@@ -1,59 +1,27 @@
 "use client";
 
 /**
- * Tiny client bridge — receives a thread id from the deep-link page,
- * pins it into the talent shell's module-level "pending conversation"
- * slot, then router.replaces to the inbox so the URL doesn't keep the
- * id in history (next visit to /inbox stays clean).
+ * Thread deep link: `/talent/inbox/<id>` opens that conversation IN PLACE.
  *
- * C8 — talent thread deep-link from inquiry-booking-improvement-plan.
- * Replaces the old hard-redirect that lost the id entirely.
+ * TUL-391 / TUL-959 / TUL-956: this used to pin the id and then
+ * redirect to the bare inbox. The redirect was a second dynamic route
+ * load (5-10 s on a loading banner with 0 conversations) and it cut
+ * the id out of the URL, so a bell click never landed on its own address.
+ * Now the id is pinned during the first render (before the lazy Messages page
+ * mounts and peeks it) and the shell is told to show Messages without
+ * navigating. The URL stays `/talent/inbox/<id>`.
  */
 
-import { useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { useState } from "react";
 import { pinNextConversation } from "@/components/admin/shell/internal/messages/conversation-pending";
+import { TalentPageRouteSyncer } from "../../_talent-page-route-syncer";
 
-export function PinThenRedirect({
-  conversationId,
-  tenantSlug,
-  platformTalentRoutes = false,
-}: {
-  conversationId: string;
-  tenantSlug?: string;
-  platformTalentRoutes?: boolean;
-}) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const locale = useDashboardLocale();
-  useEffect(() => {
+export function PinAndOpenThread({ conversationId }: { conversationId: string }) {
+  // State initialiser: runs once, synchronously, before any effect, so the
+  // Messages page that the syncer's effect mounts finds the pinned id.
+  useState(() => {
     pinNextConversation(conversationId);
-    const target = platformTalentRoutes
-      ? "/talent/inbox"
-      : `/${tenantSlug}/talent/inbox`;
-    router.replace(target);
-  }, [conversationId, tenantSlug, platformTalentRoutes, router]);
-  // TUL-1031: once the URL has left /inbox/<id> the thread is rendering, so the
-  // banner must not linger above it.
-  if (pathname && !pathname.includes(`/inbox/${encodeURIComponent(conversationId)}`)) {
     return null;
-  }
-  // Render a thin loading shell so the page isn't a flash of nothing
-  // while the redirect resolves. The talent inbox shell takes over.
-  return (
-    <div
-      role="status"
-      aria-live="polite"
-      style={{
-        padding: 40,
-        textAlign: "center",
-        fontFamily: '"Inter", system-ui, sans-serif',
-        fontSize: 13,
-        color: "rgba(11,11,13,0.55)",
-      }}
-    >
-      {locale.toLowerCase().startsWith("es") ? "Abriendo la conversación…" : "Opening conversation…"}
-    </div>
-  );
+  });
+  return <TalentPageRouteSyncer page="messages" />;
 }

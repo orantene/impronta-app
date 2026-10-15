@@ -42,13 +42,22 @@ function TalentMessagesV5() {
   const linkedInquiry = searchParams.get("inquiry");
   const fromQuery =
     linkedInquiry && /^[0-9a-f-]{36}$/i.test(linkedInquiry) ? linkedInquiry : null;
-  // `/talent/inbox/[id]` PinThenRedirect pins then replaces to /talent/inbox.
+  // `/talent/inbox/[id]` PinAndOpenThread pins the id and stays on that URL.
   const [fromPin] = useState(() => peekPendingConversation());
   useEffect(() => {
     clearPendingConversation();
   }, []);
   const initialInquiryId = fromQuery ?? fromPin;
   const [activeId, setActiveId] = useState<string | null>(initialInquiryId);
+  // TUL-956: the address follows the open thread, so a refresh or a shared
+  // link reopens it. Only on the platform /talent/inbox routes.
+  useEffect(() => {
+    if (!activeId || typeof window === "undefined") return;
+    const path = window.location.pathname;
+    if (!path.startsWith("/talent/inbox")) return;
+    const next = `/talent/inbox/${encodeURIComponent(activeId)}`;
+    if (path !== next) window.history.replaceState(window.history.state, "", next);
+  }, [activeId]);
   const dispatchRef = useRef<(id: ShellActionId) => void>(() => undefined);
   const copy = useDashboardText();
   // F54: the first run needs her total across every segment. The shell's own
