@@ -23,6 +23,7 @@ import {
 } from "./gallery-apps-flow";
 import { GALLERY_APPS_COPY, galleryAppsT } from "./gallery-apps";
 import { parseMaisonChoices } from "./maison-choices";
+import { demoSectionsLine } from "./DemoProfilePanel";
 
 const ROOT = join(process.cwd(), "src/components/talent/site/maison-setup");
 
@@ -211,4 +212,12 @@ test("G4-BUILDER: Apps tab search + designs back-link", () => {
   );
   assert.match(es, /Search apps/);
   assert.match(es, /Buscar apps/);
+});
+
+test("TUL-529: demo profile section list reads Spanish on an es gallery", () => {
+  const maison = ["Hero", "Work", "Menu", "Reviews", "About", "Visit", "FAQ"];
+  assert.equal(demoSectionsLine(maison, "es"), "Portada · Trabajos · Menú · Reseñas · Sobre mí · Tu visita");
+  assert.equal(demoSectionsLine(maison, "en"), "Hero · Work · Menu · Reviews · About · Visit");
+  assert.equal(demoSectionsLine(["Cover", "Chapters", "Rates", "Measures", "FAQ"], "es"), "Portada · Capítulos · Tarifas · Medidas · Preguntas frecuentes");
+  assert.equal(demoSectionsLine(["Hero", "Tasks", "Services", "Specs", "Jobs", "FAQ"], "es"), "Portada · Tareas · Servicios · Especificaciones · Trabajos realizados · Preguntas frecuentes");
 });

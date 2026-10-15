@@ -66,7 +66,7 @@ const COPY = {
     stepLook: "Estilo",
     categoryAll: "Todos",
     newBadge: "Nuevo",
-    lockedPill: "Web Office",
+    lockedPill: "Oficina Web",
     currentPill: "Actual",
     loading: "Cargando temas.",
     loadError: "No pudimos cargar la galería de temas.",
