@@ -100,3 +100,18 @@ test("the old 'still open to verify' wording is gone from the processing view an
   assert.match(page, /\?status=cancelled/);
   assert.match(page, /cancelledReturn/);
 });
+
+test("TUL-437: every return state sits in the themed Shell (seller tokens, neutral Tulala fallbacks, no admin classes)", () => {
+  const view = readFileSync("src/app/(public)/pay/[code]/CheckoutView.tsx", "utf8");
+  // The paid confirmation is wrapped by the same token Shell as the checkout itself.
+  const paidBranch = view.slice(view.indexOf('if (phase === "paid")'), view.indexOf('if (phase === "processing")'));
+  assert.match(paidBranch, /<Shell>/);
+  assert.match(paidBranch, /<PaidConfirmation/);
+  const shell = view.slice(view.indexOf("function Shell("));
+  assert.match(shell, /data-pay-theme="tokens"/);
+  assert.match(shell, /background: SURFACE/);
+  // Seller palette first, the neutral look only as the CSS-var fallback (no talent site).
+  assert.match(view, /SURFACE = "var\(--token-color-background, var\(--token-color-surface, #fafafa\)\)"/);
+  assert.match(view, /INK = "var\(--token-color-ink, #1a1a1a\)"/);
+  assert.doesNotMatch(view, /className="[^"]*\badmin-/);
+});
