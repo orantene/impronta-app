@@ -530,11 +530,12 @@ export async function reportGuestChatToSupportAction(input: {
   }
   const ident = await requireSignedGuest();
   if (!ident.ok) return ident;
-  const { data: inquiry } = await ident.admin
+  const { data: inquiry, error: inquiryError } = await ident.admin
     .from("inquiries")
     .select("id, tenant_id, guest_session_id, client_user_id")
     .eq("id", inquiryId)
     .maybeSingle();
+  if (inquiryError) return { ok: false, error: "We couldn't report this chat right now. Try again." };
   const row = inquiry as { id: string; tenant_id: string | null; guest_session_id: string | null; client_user_id: string | null } | null;
   const owns =
     Boolean(row) &&
