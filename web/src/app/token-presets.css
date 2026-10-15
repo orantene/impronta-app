@@ -5919,6 +5919,17 @@ html:has(.site-header[data-tone="transparent"]) {
 @keyframes site-secsw-up { from { transform: translateY(100%); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes site-secsw-down { from { transform: translateY(-100%); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes site-secsw-line { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+/* Phone header crowding (max-talent, /w sites): the 44vw cap on the section switcher lives in an earlier media
+   block, and the unscoped 190px rule just above won the cascade, so the switcher took ~190px of a 390px bar
+   and the brand name was squeezed to "A Fixture...". Scoped here so it wins: a narrower switcher, no index
+   number on the smallest phones, and a floor under the brand so the name always keeps room to read. */
+@media (max-width: 767px) {
+  .site-header .site-header__secsw-btn { max-width: min(150px, 38vw); }
+  .site-header[data-variant="freeform"] .site-header__region[data-region="left"] { min-width: 96px; }
+}
+@media (max-width: 480px) {
+  .site-header .site-header__secsw-idx { display: none; }
+}
 @media (prefers-reduced-motion: reduce) {
   .site-header__secsw-name, .site-header__secsw-line { animation: none; }
   .site-header__secsw-chev { transition: none; }

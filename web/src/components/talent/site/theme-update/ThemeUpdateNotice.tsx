@@ -42,7 +42,7 @@ import { ThemeUpdateSheet } from "./ThemeUpdateSheet";
  * opens directly beneath it, on phones too.
  */
 export const BUILDER_PILL_CLASS =
-  "fixed right-3 top-[64px] z-[250] inline-flex min-h-7 items-center rounded-full border border-admin-border-soft bg-white px-3 font-admin-body text-[12px] font-semibold text-admin-ink shadow-lg";
+  "fixed right-3 top-[64px] z-[250] inline-flex min-h-7 items-center rounded-full border border-admin-border-soft bg-white px-3 font-admin-body text-[12px] font-semibold text-admin-ink shadow-lg max-sm:h-7 max-sm:w-7 max-sm:justify-center max-sm:px-0";
 export const BUILDER_CARD_CLASS =
   "fixed right-3 top-[100px] max-h-[60dvh] overflow-y-auto z-[250] w-[calc(100vw-1.5rem)] max-w-[360px] rounded-xl border border-admin-border-soft bg-white p-4 font-admin-body shadow-lg";
 
@@ -224,7 +224,10 @@ export function ThemeUpdateNotice({
           onClick={() => setCardOpen((v) => !v)}
           className={BUILDER_PILL_CLASS}
         >
-          {t("pill")}
+          {/* TUL-1029: on a phone the 164px text pill covered the site name and rail, so it
+              collapses to a 28px dot; the label stays for screen readers and for sm and up. */}
+          <span className="max-sm:sr-only">{t("pill")}</span>
+          <span className="hidden h-2 w-2 rounded-full bg-[var(--tulala-primary-fill)] max-sm:inline-block" aria-hidden />
         </button>
       ) : null}
       {floating && !cardOpen ? null : (
