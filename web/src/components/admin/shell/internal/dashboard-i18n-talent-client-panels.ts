@@ -4,7 +4,7 @@
  */
 
 export const TALENT_CLIENT_PANELS_ES_TEXT: Record<string, string> = {
-  "Add client": "Agregar clienta",
+  "Add client": "Agregar cliente",
   "Edit client": "Editar clienta",
   Name: "Nombre",
   Email: "Correo",

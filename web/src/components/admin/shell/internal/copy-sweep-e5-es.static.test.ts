@@ -110,3 +110,20 @@ test("field visibility offers no Agency audience to an independent Profesional",
   assert.match(forms, /solo \? \["public", "private"\]/);
   assert.match(forms, /has\("agency"\) && !solo/);
 });
+
+// TUL-721: the passkey card was fully English on the Spanish admin.
+test("the passkey card follows the dashboard language", () => {
+  const card = read("modern-features.tsx");
+  assert.match(card, /useDashboardText/);
+  for (const en of ["Sign in with passkey", "Set up a passkey", "Remove passkey", "Sign in to test"]) {
+    assert.match(card, new RegExp(`copy\\.t\\(.*${en}`), en);
+    assert.notEqual(translateDashboardText(en, "es"), en, en);
+  }
+});
+
+// TUL-721: the Clientes button said the feminine "Agregar clienta".
+test("Add client reads as the inclusive Agregar cliente", () => {
+  for (const en of ["Add client", "Add a client", "Add a new client"]) {
+    assert.doesNotMatch(translateDashboardText(en, "es"), /clienta/i, en);
+  }
+});
