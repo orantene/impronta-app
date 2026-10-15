@@ -333,8 +333,8 @@ export type OfferingRowDraft = {
   title: string;
   description: null;
   kind: "service";
-  price_type: "flat_package";
-  price_display: "exact";
+  price_type: "flat_package" | "custom";
+  price_display: "exact" | "quote";
   /** Null = no price yet: publishing is refused until one is set (or the owner picks "Contact for price"). */
   amount_cents: number | null;
   currency: string;
@@ -355,14 +355,17 @@ export const DEFAULT_SERVICE_MINUTES = 60;
 
 export function offeringRowFor(s: EssentialService, sortOrder: number): OfferingRowDraft {
   const exact = !s.quote && s.priceCents !== null && s.priceCents > 0;
+  // TUL-805: "Price on quote" is a deliberate choice, so it goes live as a quote service
+  // ("Precio a cotizar" + a request CTA). Only a row with neither a price nor that choice stays a draft.
+  const quote = s.quote;
+  const live = exact || quote;
   return {
     ...(s.nameI18n ? { title_i18n: s.nameI18n } : {}),
     title: s.name.trim(),
     description: null,
     kind: "service",
-    // Not "quote": a quote row passes publish validation, so one click would put an unpriced service live.
-    price_type: "flat_package",
-    price_display: "exact",
+    price_type: quote ? "custom" : "flat_package",
+    price_display: quote ? "quote" : "exact",
     amount_cents: exact ? s.priceCents : null,
     currency: s.currency,
     // Instant needs a fixed price; a quote is a request. Fresh accounts have
@@ -373,13 +376,13 @@ export function offeringRowFor(s: EssentialService, sortOrder: number): Offering
     allow_pay_in_person: true,
     duration_minutes: s.durationMin && s.durationMin > 0 ? s.durationMin : DEFAULT_SERVICE_MINUTES,
     category: s.packKey ?? null,
-    status: exact ? "published" : "draft",
+    status: live ? "published" : "draft",
     visibility: "public",
     sort_order: sortOrder,
   };
 }
 
-/** How many of these services onboarding publishes (priced exactly); the rest stay drafts until the owner adds a price. */
+/** How many of these services onboarding publishes (priced, or deliberately on quote); the rest stay drafts until the owner adds a price. */
 export function publishedServiceCount(services: EssentialService[] | null | undefined): number {
   return (services ?? []).filter((s) => offeringRowFor(s, 0).status === "published").length;
 }
