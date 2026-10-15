@@ -277,8 +277,6 @@ export type BridgeData = {
     | { ok: true; data: import("@/lib/payments/stripe-connect-talent").TalentConnectedAccountSnapshot }
     | { ok: false; error: string }
     | null;
-  /** The talent's payout country (ISO-2), null when unknown. Drives the Money arrival text. */
-  talentPayoutCountry?: string | null;
   /**
    * The current talent's payout legs that did NOT land — reversed, failed, or
    * still held — with booking context. Drives the Payouts page's attention
@@ -552,7 +550,6 @@ export function createBridgeDataFromRoster(
     talentCompletion: null,
     talentPageAnalytics: null,
     talentPayoutSnapshot: null,
-    talentPayoutCountry: null,
     talentPayoutAttention: null,
     talentAttentionSignals: null,
     talentInquiries: null,

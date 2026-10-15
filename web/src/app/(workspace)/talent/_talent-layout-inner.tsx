@@ -299,6 +299,7 @@ export async function TalentLayoutInner({
     operatingCurrency,
     requestLocale,
     talentAttentionSignals,
+    talentPayoutCountry,
   ] = await Promise.all([
     loadTalentInquiriesAllAgencies(baseProfile.id),
     loadTalentAgencies(talentSelfProfile.id),
@@ -374,9 +375,10 @@ export async function TalentLayoutInner({
     getRequestLocale(),
     // TUL-392: theme update waiting + site needs publish (Attention signals).
     loadTalentAttentionSignals(talentSelfProfile.id),
+    // Payout country (ISO-2) so the Money arrival text states the documented
+    // timing for it. Runs in parallel with the rest; returns null on any failure.
+    resolveTalentPayoutCountry(talentSelfProfile.id),
   ]);
-  // Payout country (ISO-2) so the Money arrival text states the documented timing for it.
-  const talentPayoutCountry = await resolveTalentPayoutCountry(talentSelfProfile.id);
 
   const userNotifications = scopeTalentNotificationsToInbox(userNotificationsAll, talentInboxSummary?.ids ?? null);
 
@@ -497,8 +499,9 @@ export async function TalentLayoutInner({
               }
             : null,
         talentPageAnalytics,
-        talentPayoutSnapshot,
-        talentPayoutCountry,
+        talentPayoutSnapshot: talentPayoutSnapshot.ok
+          ? { ok: true as const, data: { ...talentPayoutSnapshot.data, payoutCountry: talentPayoutCountry } }
+          : talentPayoutSnapshot,
         talentPayoutAttention,
         talentAttentionSignals,
         talentInquiries,

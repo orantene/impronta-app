@@ -375,7 +375,7 @@ function MoneyHomePane(props: {
           )}
           <PayoutBreakdownCard
             currency={cur}
-            payoutCountry={bridgeTalentPayoutCountry}
+            payoutCountry={bridgeTalentPayoutSnapshot?.ok === true ? (bridgeTalentPayoutSnapshot.data.payoutCountry ?? null) : null}
             grossCents={cardRows.reduce((n, p) => n + p.grossCents, 0)}
             netCents={cardRows.reduce((n, p) => n + p.netCents, 0)}
           />
@@ -546,7 +546,7 @@ function MoneyHomePane(props: {
 }
 
 export function MoneyHomePage() {
-  const { openDrawer, bridgeTalentSelfProfile, bridgeTalentAgendaItems, bridgeTalentPayoutSnapshot, bridgeTalentPayoutCountry } = useAdminShell();
+  const { openDrawer, bridgeTalentSelfProfile, bridgeTalentAgendaItems, bridgeTalentPayoutSnapshot } = useAdminShell();
   const router = useRouter();
   const copy = useDashboardText();
   const money = (c: number, cur: string) => formatDashboardMoneyCents(c, cur, copy.locale);

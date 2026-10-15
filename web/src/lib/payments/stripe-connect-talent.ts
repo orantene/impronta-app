@@ -56,6 +56,8 @@ export type TalentConnectedAccountSnapshot = {
   payoutsEnabled: boolean;
   detailsSubmitted: boolean;
   syncedAt: string | null;
+  /** ISO-2 payout country, filled in by the talent layout for the Money arrival text. */
+  payoutCountry?: string | null;
 };
 
 export type TalentConnectResult<T> =
