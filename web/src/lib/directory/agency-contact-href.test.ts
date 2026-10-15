@@ -3,19 +3,29 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 
+import { isPathAllowedForHostKind } from "@/lib/saas/gate";
 import { agencyContactHref } from "./agency-contact-href";
 
 describe("agencyContactHref", () => {
-  it("points at /contact, not the inquiry chat launcher", () => {
-    assert.equal(agencyContactHref("/t/TAL-00031"), "/contact");
-    assert.equal(agencyContactHref("/es/t/TAL-00031"), "/es/contact");
-  });
-
-  it("attaches hub-profile + code for support context", () => {
-    const href = agencyContactHref("/t/TAL-00031", { profileCode: "TAL-00031" });
-    assert.match(href, /^\/contact\?/);
+  it("hub hosts get an absolute marketing URL (relative /contact 404s there)", () => {
+    assert.equal(isPathAllowedForHostKind("hub", "/contact"), false);
+    const href = agencyContactHref("/t/TAL-00031", { profileCode: "TAL-00031", hostKind: "hub" });
+    assert.match(href, /^https:\/\/tulala\.digital\/contact\?/);
     assert.match(href, /source=hub-profile/);
     assert.match(href, /code=TAL-00031/);
+    assert.equal(agencyContactHref("/es/t/TAL-00031", { hostKind: "hub" }), "https://tulala.digital/es/contact");
+  });
+
+  it("unknown host kind falls back to the absolute URL", () => {
+    assert.match(agencyContactHref("/t/X"), /^https:\/\/tulala\.digital\/contact$/);
+  });
+
+  it("relative only where reachable: agency (CMS rewrite) and marketing (allow-list)", () => {
+    assert.equal(isPathAllowedForHostKind("marketing", "/contact"), true);
+    assert.equal(agencyContactHref("/t/TAL-00031", { hostKind: "agency" }), "/contact");
+    assert.equal(agencyContactHref("/es/t/TAL-00031", { hostKind: "marketing" }), "/es/contact");
+    const href = agencyContactHref("/t/TAL-00031", { profileCode: "TAL-00031", hostKind: "agency" });
+    assert.match(href, /^\/contact\?.*source=hub-profile.*code=TAL-00031/);
   });
 });
 

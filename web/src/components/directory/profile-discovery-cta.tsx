@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { clientLocaleHref } from "@/i18n/client-directory-href";
 import { agencyContactHref } from "@/lib/directory/agency-contact-href";
+import type { HostKind } from "@/lib/saas/host-kinds";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 
 export function ProfileDiscoveryCta({
@@ -23,6 +24,7 @@ export function ProfileDiscoveryCta({
   portalInquiryHref,
   profileCta,
   inquiry,
+  hostKind,
 }: {
   talentId: string;
   profileCode: string;
@@ -33,6 +35,7 @@ export function ProfileDiscoveryCta({
   portalInquiryHref?: string | null;
   profileCta: DirectoryUiCopy["profileCta"];
   inquiry: DirectoryUiCopy["inquiry"];
+  hostKind?: HostKind | null;
 }) {
   const pathname = usePathname();
   const talent = { id: talentId, profileCode, displayName };
@@ -112,7 +115,7 @@ export function ProfileDiscoveryCta({
         variant="ghost"
         className="gap-2 text-[var(--impronta-muted)] hover:text-[var(--impronta-foreground)]"
       >
-        <Link href={agencyContactHref(pathname, { profileCode })}>
+        <Link href={agencyContactHref(pathname, { profileCode, hostKind })}>
           <Mail className="size-4" />
           {profileCta.contactImpronta}
         </Link>
