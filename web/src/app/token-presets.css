@@ -822,6 +822,12 @@ html[data-token-typography-scale-preset="editorial"] {
 [data-section-container="editorial"]   > *[class*="__inner"] { width: min(1240px, 100% - 48px) !important; }
 [data-section-container="full-bleed"]  > * > *[class*="__inner"],
 [data-section-container="full-bleed"]  > *[class*="__inner"] { width: 100% !important; max-width: 100% !important; padding-inline: 0 !important; }
+/* GRK-073: site_header is chrome, not a content band — full-bleed must not
+ * wipe its side gutter (brand flush to x=0 on phone demos). ≥16px floor. */
+.site-header[data-section-container="full-bleed"] > .site-header__inner,
+.site-header[data-section-container="full-bleed"] > .site-header__inner--freeform {
+  padding-inline: clamp(16px, 3vw, 44px) !important;
+}
 
 /* Alignment (applies to text children). */
 [data-section-align="left"]   { text-align: left; }
@@ -911,6 +917,10 @@ html[data-token-typography-scale-preset="editorial"] {
   [data-section-tablet-container="editorial"]  > *[class*="__inner"] { width: min(960px, 100% - 32px) !important; }
   [data-section-tablet-container="full-bleed"] > * > *[class*="__inner"],
   [data-section-tablet-container="full-bleed"] > *[class*="__inner"] { width: 100% !important; max-width: 100% !important; padding-inline: 0 !important; }
+  .site-header[data-section-tablet-container="full-bleed"] > .site-header__inner,
+  .site-header[data-section-tablet-container="full-bleed"] > .site-header__inner--freeform {
+    padding-inline: clamp(16px, 3vw, 44px) !important;
+  }
 
   /* Tablet alignment. */
   [data-section-tablet-align="left"]   { text-align: left; }
@@ -955,6 +965,10 @@ html[data-token-typography-scale-preset="editorial"] {
   [data-section-mobile-container="editorial"]  > *[class*="__inner"] { width: 100% !important; max-width: calc(100% - 16px); }
   [data-section-mobile-container="full-bleed"] > * > *[class*="__inner"],
   [data-section-mobile-container="full-bleed"] > *[class*="__inner"] { width: 100% !important; max-width: 100% !important; padding-inline: 0 !important; }
+  .site-header[data-section-mobile-container="full-bleed"] > .site-header__inner,
+  .site-header[data-section-mobile-container="full-bleed"] > .site-header__inner--freeform {
+    padding-inline: clamp(16px, 3vw, 44px) !important;
+  }
 
   /* Mobile alignment. */
   [data-section-mobile-align="left"]   { text-align: left; }
@@ -5858,7 +5872,8 @@ html:has(.site-header[data-tone="transparent"]) {
 .site-header[data-variant="freeform"] .site-header__region { display: flex; align-items: center; gap: clamp(10px, 1.6vw, 20px); min-width: 0; }
 .site-header[data-variant="freeform"] .site-header__region[data-region="center"] { flex: 1 1 auto; justify-content: center; }
 .site-header[data-variant="freeform"] .site-header__region[data-region="right"] { justify-content: flex-end; }
-.site-header[data-variant="freeform"] .site-header__ritem { display: inline-flex; align-items: center; gap: 0.5em; text-decoration: none; color: inherit; white-space: nowrap; }
+.site-header[data-variant="freeform"] .site-header__ritem { display: inline-flex; align-items: center; gap: 0.5em; text-decoration: none; white-space: nowrap; }
+.site-header[data-variant="freeform"] .site-header__ritem:not(.site-btn) { color: inherit; }
 /* One row, always: the base `.site-header__inner` wraps, so a long name pushed the section switcher
    onto a second row. The lockup (left) is the part that gives way: it shrinks and its name gets an ellipsis. */
 .site-header[data-variant="freeform"] .site-header__inner--freeform { flex-wrap: nowrap; }
@@ -5958,7 +5973,8 @@ html:has(.site-header[data-tone="transparent"]) {
 .site-header[data-variant="minimal"] .site-header__inner { flex-direction: column; align-items: center; gap: 8px; padding-block: 8px; }
 
 .site-header__brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: var(--token-color-ink); font-family: var(--site-heading-font); font-weight: 600; letter-spacing: -0.005em; opacity: 1; }
-.site-header__brand-mark { width: clamp(20px, 2vw, 28px); height: clamp(20px, 2vw, 28px); object-fit: contain; }
+/* TUL-532: height-led so a wide wordmark keeps its proportions (a fixed square drew a 533x174 logo at 26x8px). */
+.site-header__brand-mark { width: auto; height: clamp(36px, 3.2vw, 44px); min-height: 30px; max-height: 72px; max-width: min(240px, 50vw); object-fit: contain; }
 /* TUL-524: name must stay full-ink readable on every theme header band. */
 .site-header__brand-label { font-size: clamp(14px, 1.1vw, 16px); color: inherit; opacity: 1; font-weight: 600; }
 .site-header[data-tone="surface"] .site-header__brand,
@@ -6448,7 +6464,7 @@ html:has(.site-header[data-tone="transparent"]) {
 }
 
 /* ---- Optional density controls (only match when operator set them) --- */
-.site-header[data-logo-scale="sm"] .site-header__brand-mark { height: clamp(24px, 2.4vw, 30px); }
+.site-header[data-logo-scale="sm"] .site-header__brand-mark { height: clamp(30px, 2.6vw, 34px); }
 .site-header[data-logo-scale="lg"] .site-header__brand-mark { height: clamp(38px, 4vw, 52px); }
 .site-header[data-logo-scale="xl"] .site-header__brand-mark { height: clamp(46px, 5vw, 64px); }
 .site-header[data-logo-scale="sm"] .site-header__brand-label { font-size: clamp(0.95rem, 1.7vw, 1.25rem); }

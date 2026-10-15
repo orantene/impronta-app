@@ -52,6 +52,17 @@ test("the gate itself is GET/HEAD, preview-safe, and 404s to the branded page", 
       "('Domain not connected' would say the whole site is broken)");
 });
 
+test("a /<locale>/t/<code> miss answers in that language, on the sanitized headers", () => {
+  const gate = readFileSync(GATE, "utf8");
+  assert.match(gate, /new Headers\(inboundHeaders\)/,
+    "the forwarded set must start from the proxy's sanitized headers, never request.headers");
+  assert.match(gate, /headers\.set\(LOCALE_HEADER, locale\)/);
+  assert.match(gate, /status: 404, request: \{ headers \}/);
+  const src = readFileSync(PROXY, "utf8");
+  assert.match(src, /offRosterTalentResponse\([^)]*sanitizedInboundHeaders\)/,
+    "proxy.ts must hand the gate the sanitized inbound headers");
+});
+
 test("the edge roster check is cached and fails OPEN", () => {
   const src = readFileSync(HOST_CTX, "utf8");
   const fn = src.slice(src.indexOf("export async function isProfileCodeOnTenantRoster"));

@@ -41,6 +41,9 @@ test("shared plumbing + static assets pass through untouched", () => {
     "/sitemap.xml",
     "/robots.txt",
     "/favicon.ico",
+    "/llms.txt",
+    "/api/public/booking/catalog",
+    "/api/public/booking/mcp",
   ]) {
     assert.deepEqual(
       isTalentSiteHostPathAllowed(p),

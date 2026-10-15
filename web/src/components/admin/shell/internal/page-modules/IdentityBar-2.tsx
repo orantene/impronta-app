@@ -160,13 +160,14 @@ export function LocaleToggle({
 
 export function ModeTogglePill({
   surface,
-  flipMode,
+  onSwitch,
   workspaceUnread = 0,
   talentUnread = 0,
   showFirstRunTip = false,
 }: {
   surface: Surface;
-  flipMode: () => void;
+  /** Leave for the other hat (same leaveRailHat path as the rail / Más). */
+  onSwitch: () => void;
   workspaceUnread?: number;
   talentUnread?: number;
   /** When true, show the first-run tooltip prompting the user to explore
@@ -176,7 +177,10 @@ export function ModeTogglePill({
   const copy = useDashboardText();
   const inTalent = surface === "talent";
   return (
-    <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+    <div
+      data-tulala-mode-toggle-pill
+      style={{ position: "relative", display: "inline-flex", alignItems: "center", flexShrink: 0 }}
+    >
       <div
         role="group"
         aria-label={copy.t("Switch between Talent and Admin")}
@@ -194,13 +198,13 @@ export function ModeTogglePill({
           active={inTalent}
           label={copy.t("Talent")}
           unread={inTalent ? 0 : talentUnread}
-          onClick={inTalent ? undefined : flipMode}
+          onClick={inTalent ? undefined : onSwitch}
         />
         <ModeTogglePillButton
           active={!inTalent}
           label={copy.t("Admin")}
           unread={!inTalent ? 0 : workspaceUnread}
-          onClick={!inTalent ? undefined : flipMode}
+          onClick={!inTalent ? undefined : onSwitch}
         />
       </div>
       {showFirstRunTip && <ModeToggleFirstRunTip />}

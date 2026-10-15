@@ -39,6 +39,10 @@ import {
   isSafeRichTextHref,
   renderInlineRich,
 } from "@/lib/site-admin/sections/shared/rich-text";
+import {
+  TALENT_BOOKING_POLICY_PATH,
+  talentPolicyPageHref,
+} from "@/lib/talent-site/footer-socket";
 
 import {
   BACKGROUND_MEDIA_CSS,
@@ -79,6 +83,7 @@ import {
   collectPresentContainerQueryBreakpoints,
 } from "./renderer-css-scope";
 import { anchorIdAttrs } from "./anchor-id";
+import { humanImageAlt } from "./portfolio-i18n";
 import {
   groupMenuByCategory,
   shouldShowCategoryNav,
@@ -188,6 +193,7 @@ import { renderAlertBandBlock } from "./alert-band-block";
 import { renderTaskPickerBlock } from "./task-picker-block";
 import { renderNailDesignerBlock } from "./nail-designer-block";
 import { NextFreeChipView } from "./next-free-chip";
+import { headerLogoDeclarations } from "../header-logo-limits";
 import type { LiveStatusRenderContext } from "@/lib/talent/live-status-render";
 
 export interface BuilderNodeRenderDataSources {
@@ -1390,7 +1396,18 @@ export const BUILDER_NODE_RENDERER_CSS = `
    paddingX/paddingLeft/Right are inline styles and the mobile lane is
    !important. Full-bleed and background-media blocks are untouched. */
 [data-talent-max-site-main] [data-cms-block]>.site-builder-node--container:not([data-builder-full-bleed]):not([data-bn-bg-media]){padding-inline:1.5rem}
+/* Same gutter for the kit-shell header bar: trees seeded before the shell
+   carried paddingX:"m" put the wordmark and CTA at x=0 (tomas, valeria).
+   Row only, so the utility_bar stack wrapper keeps its own padding and colour.
+   The bar sits outside the talent main, so without an ink colour its nav
+   inherited the body's light foreground; inline textColor/contrast still wins.
+   The nav shrinks to its links so brand · nav · CTA share one row on desktop. */
+[data-talent-max-site-header]>.site-builder-node--container[data-builder-layout="row"]:not([data-builder-full-bleed]):not([data-bn-bg-media]){padding-inline:1.5rem;color:var(--token-color-ink)}
+[data-talent-max-site-header]>.site-builder-node--container[data-builder-layout="row"]>.site-builder-node--nav{width:auto;margin:0}
 .site-builder-node--container[data-builder-layout="row"]{flex-direction:row;flex-wrap:wrap}
+/* TUL-532: a kit-shell header logo is a plain image node (inline width:100% + cover), so a
+   wordmark was cropped or blown up. Same platform limits as .site-header__brand-mark. */
+[data-talent-max-site-header] .site-builder-node--container[data-builder-layout="row"]>:is(.site-builder-node--image,.site-builder-node--image-link>.site-builder-node--image){${headerLogoDeclarations(true)};flex:0 0 auto}
 .site-builder-node--container[data-builder-layout="grid"],.site-builder-node--container[data-builder-display="grid"]{display:grid;grid-template-columns:repeat(var(--bn-columns,2),minmax(0,1fr))}
 @media (min-width:641px){.site-builder-node--container[data-bn-odd-tail]{grid-template-columns:repeat(4,minmax(0,1fr))}.site-builder-node--container[data-bn-odd-tail]>*{grid-column:span 2}.site-builder-node--container[data-bn-odd-tail]>:last-child{grid-column:2/span 2}}
 .site-builder-node--container[data-builder-display="slider"]{display:flex;flex-direction:row;flex-wrap:nowrap;gap:var(--bn-slider-gap,var(--bn-gap,16px));overflow-x:auto;scroll-snap-type:x mandatory}
@@ -1459,7 +1476,11 @@ export const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--p2a-empty{margin:0;width:100%;padding:1.5rem;text-align:center;color:color-mix(in oklab,currentColor 58%,transparent);border:1px dashed color-mix(in oklab,currentColor 22%,transparent)}
 .site-builder-node--p2a-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .site-builder-node--p2a-ratio{aspect-ratio:var(--bn-p2a-ratio,16/9)}
-.site-builder-node--marquee{display:block;width:100%;overflow:hidden;padding:clamp(0.9rem,2vw,1.4rem) 0;box-sizing:border-box}
+/* OnbDev-folio-scroll / TUL-532: max-content track must never widen the
+   document. overflow-x:clip (not hidden) matches the band invariant — no
+   scroll container, sticky chrome stays free; max-width + min-width:0 stop
+   flex/grid ancestors from growing with the track (~20px phone H-scroll). */
+.site-builder-node--marquee{display:block;width:100%;max-width:100%;min-width:0;overflow-x:clip;overflow-y:hidden;padding:clamp(0.9rem,2vw,1.4rem) 0;box-sizing:border-box}
 .site-builder-node--marquee-track{display:flex;width:max-content;animation:bn-marquee var(--bn-marquee-duration,32s) linear infinite}
 .site-builder-node--marquee[data-bn-marquee-speed="slow"]{--bn-marquee-duration:52s}
 .site-builder-node--marquee[data-bn-marquee-speed="fast"]{--bn-marquee-duration:18s}
@@ -1861,6 +1882,7 @@ ${extraResponsiveLaneRules("tablet")}${hoverV2ViewportRules("tablet")}
 ${extraResponsiveLaneRules("mobile")}${hoverV2ViewportRules("mobile")}
   .site-builder-node--container{align-items:stretch}
   .site-builder-node--container[data-builder-mobile-layout="stack"],.site-builder-node--container:not([data-builder-mobile-layout]){display:flex;flex-direction:column}
+  [data-talent-max-site-header]>[data-builder-layout=row]:not([data-builder-mobile-layout]){flex-direction:row;flex-wrap:nowrap;justify-content:space-between;align-items:center;gap:.75rem;padding-inline:1.5rem}
   .site-builder-node--container[data-builder-mobile-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
   .site-builder-node--container[data-builder-mobile-layout="grid"]{display:grid;grid-template-columns:repeat(var(--bn-mobile-columns,1),minmax(0,1fr))}
   .site-builder-node--container[data-builder-mobile-display="grid"]{display:grid;grid-template-columns:repeat(var(--bn-mobile-columns,var(--bn-columns,1)),minmax(0,1fr));overflow-x:visible}
@@ -3207,10 +3229,10 @@ function clampFreeWidthForMobile(value: string): string {
 
 /**
  * Muted tone: inside a band that sets its own ink (`--bn-ink`), fine print is
- * that ink at 60%; elsewhere the theme's muted token (unchanged).
+ * that ink at ~60–72%; elsewhere the AA-guaranteed muted-text token (GRK-077).
  */
 const MUTED_TONE_COLOR =
-  "var(--bn-ink-muted, var(--token-color-muted, rgba(18, 18, 18, 0.62)))";
+  "var(--bn-ink-muted, var(--token-color-muted-text, var(--token-color-muted, rgba(18, 18, 18, 0.62))))";
 
 export function inlineNodeStyle(
   style: BuilderNodeStyle | undefined,
@@ -3241,16 +3263,27 @@ export function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSPropert
   if (style.radius) out.borderRadius = NODE_RADIUS[style.radius];
   if (style.background === "surface") out.background = "var(--token-color-surface-raised, rgba(246, 241, 232, 0.92))";
   if (style.background === "contrast") {
+    // Pair ink fill with the page paper as text (not hardcoded white) so dark
+    // Looks keep readable chrome. Publish band ink so child `tone: muted`
+    // copyright/© lines use soft paper, not page muted-on-ink (GRK-077/100).
+    const contrastInk = "var(--token-color-background,#fff)";
     out.background = "var(--token-color-ink,#111)";
-    out.color = "#fff";
+    out.color = contrastInk;
+    (out as Record<string, string>)["--bn-ink"] = contrastInk;
+    (out as Record<string, string>)["--bn-ink-muted"] =
+      `color-mix(in oklab, ${contrastInk} 72%, transparent)`;
   }
   // AIQ-13 — theme-paired band roles. Each emits a background AND its guaranteed
   // paired foreground (like "contrast" does), so a tenant's own brand color paints
   // the band and the text stays readable on every theme. Kept AFTER surface/
   // contrast and BEFORE tone so an explicit tone/textColor still wins.
   if (style.background === "accent") {
+    const accentInk = "var(--token-color-surface-raised, #fff)";
     out.background = "var(--token-color-primary, var(--token-color-ink, #111))";
-    out.color = "var(--token-color-surface-raised, #fff)";
+    out.color = accentInk;
+    (out as Record<string, string>)["--bn-ink"] = accentInk;
+    (out as Record<string, string>)["--bn-ink-muted"] =
+      `color-mix(in oklab, ${accentInk} 72%, transparent)`;
   }
   if (style.background === "muted") {
     out.background =
@@ -4478,14 +4511,14 @@ const SERVICES_CATALOG_CSS = `
 /* No page-ground paint here — non-Maison catalogs must keep authored/parent bg.
    Maison soft blush: Design services container OR an authored style.backgroundColor
    on the catalog node (live binding; see useWebsiteTheme band exception). */
-.site-builder-node--services-catalog{color:var(--token-color-ink);font:inherit;--plt-ink:var(--token-color-ink);--plt-bg:var(--token-color-surface-raised, #fff);--plt-bg-raised:var(--token-color-surface-raised, #fff);--plt-muted:var(--token-color-muted);--plt-hairline-strong:var(--token-color-line)}
+.site-builder-node--services-catalog{align-self:stretch;color:var(--token-color-ink);font:inherit;--plt-ink:var(--token-color-ink);--plt-bg:var(--token-color-surface-raised, #fff);--plt-bg-raised:var(--token-color-surface-raised, #fff);--plt-muted:var(--token-color-muted);--plt-hairline-strong:var(--token-color-line)}
 /* AUD-026: a catalog dropped straight on the page (no padded container parent)
    gets the same side gutter a paddingX:"m" container has. Inline authored
    padding still wins; nested catalogs keep their parent's padding. */
 [data-cms-block]>.site-builder-node--services-catalog{padding-inline:1.5rem}
 /* A catalog has no intrinsic width (the matrix table shrinks to ~200px), so a
    stack container aligned start/center must still give it the full row. */
-.site-builder-node--container:not([data-builder-layout="row"]):not([data-builder-layout="grid"]):not([data-builder-display="grid"])>.site-builder-node--services-catalog{align-self:stretch}
+.site-builder-node--container:not([data-builder-layout="row"]):not([data-builder-layout="grid"]):not([data-builder-display="grid"])>.site-builder-node--services-catalog{align-self:stretch;min-width:0}
 .site-builder-node--services-catalog-header{display:flex;flex-wrap:wrap;justify-content:space-between;gap:1.25rem;margin-bottom:1.5rem}
 .site-builder-node--services-catalog-eyebrow{margin:0 0 .35rem;font-size:.6875rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--token-color-primary,var(--token-color-ink))}
 .site-builder-node--services-catalog-title{margin:0;font-size:clamp(1.75rem,4vw,2.75rem);font-weight:500;line-height:1.1;font-family:var(--token-font-display,inherit)}
@@ -4545,18 +4578,20 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-list{display:grid;grid-template-columns:repeat(var(--svc-columns,3),minmax(0,1fr));gap:.85rem}
 .site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-list{display:grid;grid-template-columns:repeat(var(--svc-columns,2),minmax(0,1fr));gap:1.75rem}
 .site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-row,
-.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-row{display:flex;flex-direction:column;align-items:stretch;gap:.75rem;padding:0;border:1px solid var(--token-color-line);border-radius:12px;overflow:hidden;background:var(--token-color-surface-raised,#fff)}
-.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-row{display:flex;flex-direction:column;align-items:stretch;gap:.5rem;padding:0;border:0;border-radius:0;overflow:hidden;background:transparent}
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-row{display:flex;flex-direction:column;align-items:stretch;gap:.75rem;padding:0;border:1px solid var(--token-color-line);border-radius:12px;overflow:visible;background:var(--token-color-surface-raised,#fff)}
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-row{display:flex;flex-direction:column;align-items:stretch;gap:.5rem;padding:0;border:0;border-radius:0;overflow:visible;background:transparent}
 .site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-photo,
-.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-photo{width:100%;height:auto;aspect-ratio:4/3}
-.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-photo{width:100%;height:auto;aspect-ratio:1/1}
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-photo{width:100%;height:auto;aspect-ratio:4/3;overflow:hidden;border-radius:12px 12px 0 0}
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-photo{width:100%;height:auto;aspect-ratio:1/1;overflow:hidden}
 .site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-copy,
 .site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-copy,
 .site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-copy{padding:0 1rem}
 .site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-copy{padding:0}
 .site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-buy,
-.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-buy{margin:0 1rem 1rem;flex:0 0 auto;min-width:0;width:auto;justify-content:flex-start;gap:.75rem}
-.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-buy{margin:.25rem 0 0;flex:0 0 auto;justify-content:flex-start;gap:.5rem}
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-buy{margin:0 1rem 1rem;flex:0 0 auto;min-width:0;width:100%;max-width:100%;box-sizing:border-box;justify-content:flex-start;align-items:stretch;gap:.75rem;flex-wrap:wrap}
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-buy{margin:.25rem 0 0;flex:0 0 auto;min-width:0;width:100%;justify-content:flex-start;gap:.5rem;flex-wrap:wrap}
+/* TUL-532 / GRK-083: never clip "Solicitar cita" to "Soli" on phone cards. */
+.site-builder-node--services-catalog:is([data-layout="cards"],[data-layout="grid"],[data-layout="editorial"]) .site-builder-node--services-catalog-cta{flex:1 1 auto;min-width:0;max-width:100%;white-space:normal;text-wrap:balance;overflow-wrap:anywhere}
 .site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-price,
 .site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-price,
 .site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-price{align-items:flex-start;text-align:left}
@@ -4615,15 +4650,14 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row[data-has-photo="true"] .site-builder-node--services-catalog-buy{grid-area:buy;flex:none;width:100%;min-width:0;justify-content:space-between;gap:10px}
 .site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row[data-has-photo="false"] .site-builder-node--services-catalog-buy,
 .site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row[data-has-photo="false"] .site-builder-node--services-catalog-buy{flex:1 0 100%}
-.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-list,
-.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-list,
-.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-list{grid-template-columns:1fr}
 .site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:first-child{grid-template-columns:1fr}
 .site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:not(:first-child){display:grid;grid-template-columns:64px minmax(0,1fr);grid-template-areas:"photo copy" "photo buy";gap:8px 12px}
 .site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:not(:first-child) .site-builder-node--services-catalog-photo{grid-area:photo;width:64px;height:64px}
 .site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:not(:first-child) .site-builder-node--services-catalog-copy{grid-area:copy}
 .site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:not(:first-child) .site-builder-node--services-catalog-buy{grid-area:buy;flex:none;width:100%}
 }
+/* TUL-532 / GRK-083: phone + tablet stay one column so CTA labels never clip. */
+@media (max-width:899px){.site-builder-node--services-catalog:is([data-layout="cards"],[data-layout="grid"],[data-layout="editorial"]) .site-builder-node--services-catalog-list{grid-template-columns:1fr}}
 @media (min-width:561px){
 .site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row,
 .site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row{display:flex;flex-wrap:nowrap;align-items:center;gap:1.25rem 1.75rem;padding:1.15rem 0}
@@ -5534,9 +5568,11 @@ function renderBuilderNodeElement(
             )
           : null;
       const baseSrc = mediaAsset?.publicUrl ?? node.props.src ?? "";
-      const baseAlt = node.props.alt?.trim()
+      // GRK-101: skip asset-key alts (`f-hero`) so empty falls through cleanly.
+      const rawAlt = node.props.alt?.trim()
         ? node.props.alt
         : (mediaAsset?.alt ?? "");
+      const baseAlt = humanImageAlt(rawAlt) ?? "";
       const src = renderImageSrc(
         resolveNodeStringProp(node, "src", baseSrc, options.repeatItem),
       );
@@ -6231,12 +6267,25 @@ function renderBuilderNodeElement(
       );
     }
     case "visit": {
+      // GRK-029: location "Payments, changes…" must keep /en on EN visits
+      // (footer socket already used talentPolicyPageHref; this path did not).
+      const visitLocale = options.visitorLocale ?? options.contentLocale?.locale ?? "en";
+      const visitPrimary = options.contentLocale?.defaultLocale ?? visitLocale;
+      const visitSupported = options.contentLocale
+        ? [options.contentLocale.defaultLocale, ...options.contentLocale.chain]
+        : [visitPrimary];
       return renderVisitBlock({
         node: localizeBlockNode(node, options.contentLocale),
         facts: options.dataSources?.talentVisitFacts ?? [],
         location: options.dataSources?.talentLocation,
-        locale: options.visitorLocale ?? options.contentLocale?.locale,
-        policyHref: `${(options.publicPathPrefix ?? "").replace(/\/+$/, "")}/politicas`,
+        locale: visitLocale,
+        policyHref: talentPolicyPageHref({
+          path: TALENT_BOOKING_POLICY_PATH,
+          locale: visitLocale,
+          primaryLocale: visitPrimary,
+          supportedLocales: visitSupported,
+          publicPathPrefix: options.publicPathPrefix,
+        }),
         styleAttr: sharedNodeStyle(node.props.style),
       });
     }
@@ -6371,6 +6420,9 @@ function renderBuilderNodeElement(
         }
         // TUL-383: one public money format (`$700 MXN`) via shared formatter.
         const locale = options.contentLocale?.locale ?? "en";
+        const es = locale.toLowerCase().startsWith("es");
+        // TUL-533 / GRK-064: never paint "$0 MXN" on public Max-site menus.
+        if (item.amountCents <= 0) return es ? "Consultar" : "Ask";
         return (
           publicPriceLine({ ...item, priceDisplay: item.priceDisplay === "from" ? "from" : "exact" }, locale) ??
           formatMoney(item.amountCents, item.currency, locale)

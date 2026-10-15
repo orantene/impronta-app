@@ -15,7 +15,7 @@ import { FONT, paletteFor, type SurfaceMode } from "./mini-chat-styles";
 export const ASK_QUICK_KEYS = [
   "public.guestChat.askQuickWhen",
   "public.guestChat.askQuickDuration",
-  "public.guestChat.askQuickChange",
+  "public.guestChat.askQuickPrice",
 ] as const;
 
 export function GuestAskAboutCard({

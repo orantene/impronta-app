@@ -109,7 +109,6 @@
   "src/app/api/discover/talent/[id]/route.ts": 1,
   "src/app/api/media/asset/[...path]/route.ts": 1,
   "src/app/api/payout-statement/[bookingId]/route.ts": 1,
-  "src/app/api/public/booking/slots/route.ts": 1,
   "src/app/api/talent/media/library/route.ts": 4,
   "src/app/auth/actions.ts": 1,
   "src/app/auth/callback/route.ts": 1,
