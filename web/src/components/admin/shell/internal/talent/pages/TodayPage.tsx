@@ -20,6 +20,7 @@ import { ConversationCalendarRow, NeedsReplySection } from "../shared/today-3";
 import { WeekRhythmStrip } from "../shared/week-rhythm-1";
 import { TalentAgencyFilterChips } from "../shared/TalentAgencyFilterChips";
 import { TalentReviewsCard } from "../shared/reviews-card-1";
+import { TalentPresenceStatsCard } from "../shared/presence-stats-card";
 import { TalentServicesNudge } from "@/components/talent/services/TalentServicesNudge";
 import { WebsiteTodayUnlockCard } from "@/components/talent/website-reward/WebsiteTodayUnlockCard";
 import { WebsiteTodayHero } from "@/components/talent/website-reward/WebsiteTodayHero";
@@ -535,6 +536,8 @@ export function TalentTodayPage() {
 
       {/* F23 / F34: the ONE website card (ready / preview), same state as the pill. */}
       {bridgeTalentSelfProfile && <WebsiteTodayHero canBook={websiteEligibility.hasAvailability === true} />}
+
+      {bridgeTalentSelfProfile && <TalentPresenceStatsCard />}
 
       <TalentTodayHero
         firstName={profile.name.split(" ")[0]}

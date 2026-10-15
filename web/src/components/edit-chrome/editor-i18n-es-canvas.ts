@@ -18,6 +18,8 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   "Collapse inspector": "Contraer inspector",
   "Hide inspector": "Ocultar inspector",
   "Open inspector": "Abrir inspector",
+  "Open section editor tabs": "Abrir pestañas del editor",
+  "Collapse section editor tabs": "Plegar pestañas del editor",
   "Show inspector tab": "Mostrar pestaña del inspector",
   // ── WAVE 4.3 — AI panels (rewrite, translate, brief, revise, image) ───
   Apply: "Aplicar",

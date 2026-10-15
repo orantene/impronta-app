@@ -491,6 +491,9 @@ const nextConfig: NextConfig = {
             },
           ]
         : []),
+      /** Promo landing pages (and their OG images) are never indexed: header-level, in addition to the page metadata. */
+      { source: "/p/:slug*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
+      { source: "/t/:code/p/:slug*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
       {
         source: "/:path((?!_next/|api/|favicon\\.ico|robots\\.txt).*)",
         headers: [{ key: "Vary", value: "Cookie" }],

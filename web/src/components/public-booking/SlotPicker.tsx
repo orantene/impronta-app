@@ -5,6 +5,7 @@
  * later OfferingInstantMount. Fetches GET /api/public/booking/slots.
  */
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { translatorFor, useT } from "@/i18n/use-t";
 import { publicSlotsUrl } from "@/lib/scheduling/public-slots-workspace";
@@ -25,6 +26,8 @@ type Props = {
   days?: number;
   /** Page locale when known (CMS /book). Falls back to dashboard cookie via useT. */
   locale?: string;
+  /** Where a guest with no times to pick can write to the studio (TUL-698). */
+  contactHref?: string | null;
 };
 
 const INK = "var(--token-color-ink, #0B0B0D)";
@@ -57,6 +60,7 @@ export function SlotPicker({
   onChange,
   days = 14,
   locale: localeProp,
+  contactHref = null,
 }: Props) {
   const cookieT = useT();
   const t = useMemo(() => {
@@ -118,6 +122,17 @@ export function SlotPicker({
         ? "es"
         : "en";
 
+  const contactLink = contactHref ? (
+    <Link
+      href={contactHref}
+      data-testid="slot-picker-contact"
+      className="mt-2 inline-block rounded-lg border border-[rgba(24,24,27,0.12)] px-3 py-2 text-xs font-medium"
+      style={{ color: INK }}
+    >
+      {t("public.bookPage.contactCta")}
+    </Link>
+  ) : null;
+
   return (
     <div data-testid="slot-picker" style={{ color: INK }}>
       <p className="text-sm font-semibold" style={{ color: INK }}>
@@ -134,10 +149,14 @@ export function SlotPicker({
           ))}
         </div>
       ) : error ? (
-        <p className="mt-3 text-xs text-[#dc2626]">{error}</p>
+        <div className="mt-3">
+          <p className="text-xs text-[#dc2626]">{error}</p>
+          {contactLink}
+        </div>
       ) : slots.length === 0 ? (
+        <div className="mt-3">
         <p
-          className="mt-3 text-xs"
+          className="text-xs"
           style={{ color: MUTED }}
           data-testid="slot-picker-empty"
           data-reason={emptyReason ?? "unknown"}
@@ -150,6 +169,8 @@ export function SlotPicker({
                 ? t("public.slotPicker.fullyBooked")
                 : t("public.slotPicker.empty")}
         </p>
+        {contactLink}
+        </div>
       ) : (
         <div className="mt-3 flex flex-col gap-1.5 max-h-64 overflow-auto">
           {slots.map((start) => {

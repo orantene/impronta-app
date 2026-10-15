@@ -302,7 +302,7 @@ function TalentSidebar() {
         {/* Support Center launcher portals in here instead of floating. */}
         <div
           data-tulala-support-slot="rail"
-          data-ready={supportSlotReady ? "" : undefined}
+          data-ready={supportSlotReady ? "true" : undefined}
           className="contents"
         />
         {renderItem("settings")}

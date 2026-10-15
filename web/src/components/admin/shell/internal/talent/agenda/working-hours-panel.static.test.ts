@@ -82,9 +82,9 @@ test("New booking opens as the same drawer / bottom sheet from Today and Calenda
   assert.match(read("talent/agenda/AgendaNewBooking.tsx"), /embedded \? "grid gap-4"/);
 });
 
-test("Calendar header reads Bookings with List and Working hours buttons (calendar_d)", () => {
+test("Calendar header reads Calendar with List and Working hours buttons (calendar_d)", () => {
   const cal = read("talent/agenda/AgendaCalendarPage.tsx");
-  assert.match(cal, /title=\{copy\.t\("Bookings"\)\}/);
+  assert.match(cal, /title=\{copy\.t\("Calendar"\)\}/);
   assert.match(cal, /copy\.t\("List"\)/);
   assert.match(cal, /copy\.t\("Working hours"\)/);
 });
@@ -96,4 +96,16 @@ test("TUL-536: weekly rows stack the day label above the times on a phone so AM/
   assert.match(page, /grid-cols-\[minmax\(6\.75rem,1fr\)_auto_minmax\(6\.75rem,1fr\)\] items-center gap-2 sm:grid-cols-/);
   assert.match(page, /col-span-3 sm:col-span-1/);
   assert.match(fields, /type="time"[\s\S]{0,80}min-w-\[7\.5rem\]/);
+});
+
+// TUL-821: More > Working hours opens the Horario modal, and the zone leads the modal.
+test("TUL-821: the phone More row opens the Horario panel and the zone sits above the day rows", () => {
+  const more = readFileSync(
+    join(process.cwd(), "src/components/talent/studio/MoreScreen.tsx"),
+    "utf8",
+  );
+  assert.match(more, /openWorkingHoursPanel\(\)/);
+  assert.doesNotMatch(more, /label: "Working hours"[^}]*page: "calendar"/);
+  const page = read("talent/agenda/AgendaAvailabilityPage.tsx");
+  assert.ok(page.indexOf("<TimezonePicker") < page.indexOf("rows.map("));
 });

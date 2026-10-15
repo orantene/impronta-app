@@ -143,6 +143,21 @@ export default async function LoginPage({
       >
         {t("public.auth.login.signUp")}
       </Link>
+      {/* TUL-759: the generic login only offered the seller sign-up; clients get their own entry. */}
+      {!passwordlessFirst && !proStartUrl ? (
+        <>
+          <br />
+          {t("public.auth.login.clientPrompt")}{" "}
+          <Link
+            href={withLocaleHref(buildRegisterHref("client", nextPath ? { next: nextPath } : {}), locale)}
+            className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
+            style={{ color: "var(--plt-ink-soft)" }}
+            data-client-signup-link=""
+          >
+            {t("public.auth.login.clientSignUp")}
+          </Link>
+        </>
+      ) : null}
     </p>
   );
 

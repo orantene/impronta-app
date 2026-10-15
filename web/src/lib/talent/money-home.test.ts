@@ -26,6 +26,18 @@ describe("agendaMoneyRows", () => {
     assert.equal(/className="[^"]*\bcapitalize\b/.test(src), false);
     assert.match(src, /formatMonthLabel/);
   });
+  it("TUL-961: a row with no client keeps the service out of the name slot", () => {
+    const out = agendaMoneyRows([{ ...base, id: "h9", title: "Gel manicure", client: undefined }], now);
+    const row = [...out.owed, ...out.waiting][0];
+    assert.equal(row.name, "");
+    assert.equal(row.service, "Gel manicure");
+  });
+  it("TUL-961: a row with a client puts the client in the name and the service apart", () => {
+    const out = agendaMoneyRows([{ ...base, id: "h8", title: "Gel manicure", client: { name: "Regina", initials: "R" } }], now);
+    const row = [...out.owed, ...out.waiting][0];
+    assert.equal(row.name, "Regina");
+    assert.equal(row.service, "Gel manicure");
+  });
   it("lists holds awaiting a deposit as waiting requests, with no invented amount", () => {
     const out = agendaMoneyRows([{ ...base, id: "h1" }], now);
     assert.equal(out.owed.length, 0);

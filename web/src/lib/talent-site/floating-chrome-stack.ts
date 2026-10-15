@@ -56,6 +56,8 @@ export const HELP_BUBBLE_CHIP_CLEARANCE_PX = 160;
 
 export const CONSENT_BANNER_SELECTOR = "[data-consent-banner]";
 export const LOCALE_SUGGESTION_SELECTOR = "[data-locale-suggestion]";
+/** Body clearance for the fixed language toast (card height + gap), so footer links stay tappable. */
+export const LOCALE_SUGGESTION_RESERVE_PX = 88;
 /** TUL-697: mounted only while the public header's mobile drawer is open (Radix unmounts it when closed). */
 export const PUBLIC_HEADER_MENU_SELECTOR = "[data-public-header-menu]";
 export const DEMO_BADGE_SELECTOR = "[data-demo-badge]";
@@ -93,6 +95,8 @@ body:has([data-help-bubble]) ${DEMO_BADGE_SELECTOR}{display:none}
 body:has(${CONSENT_BANNER_SELECTOR}){--floating-consent-clearance:calc(${CONSENT_BANNER_RESERVE_PX}px + env(safe-area-inset-bottom,0px))}
 @media (max-width:480px){body:has([data-guest-chat-launcher]){--floating-launcher-clearance:calc(${GUEST_CHAT_LAUNCHER_CLEARANCE_PX}px + env(safe-area-inset-bottom,0px))}}
 body{padding-bottom:var(--floating-chrome-bottom)}
+/* TUL-884: the language toast is fixed over the page bottom; reserve its height so the last footer links scroll clear of it. */
+body:has(${LOCALE_SUGGESTION_SELECTOR}){padding-bottom:calc(var(--floating-chrome-bottom) + ${LOCALE_SUGGESTION_RESERVE_PX}px)}
 ${LOCALE_SUGGESTION_SELECTOR}{bottom:calc(var(--floating-chrome-bottom) + 12px)}
 ${LOCALE_SUGGESTION_SELECTOR}>div{animation:floating-toast-in .3s ease-out both}
 @keyframes floating-toast-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}

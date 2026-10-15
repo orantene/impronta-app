@@ -64,6 +64,7 @@ const INQUIRY_DRAFT_AUTOSAVE_MS = 10_000;
 import { C, FONT, FONT_DISPLAY, primaryBtn, primaryLinkStyle, type RosterLiteItem } from "./inquiry-drawer-tokens";
 export type { RosterLiteItem } from "./inquiry-drawer-tokens";
 import { SubmittedView } from "./InquirySubmittedView";
+import { EventDateInput } from "./EventDateInput";
 
 // ─── Drawer props ────────────────────────────────────────────────────────────
 export type InquiryDrawerProps = {
@@ -1041,11 +1042,7 @@ export function DateSection({
           />
         </Field>
         <Field label={t("public.inquiryDrawer.dateEventDateLabel")}>
-          <Input
-            type="date"
-            value={value.event_date ?? ""}
-            onChange={(v) => onChange({ ...value, event_date: v })}
-          />
+          <EventDateInput value={value.event_date ?? ""} onChange={(v) => onChange({ ...value, event_date: v })} style={inputStyle} />
         </Field>
       </FieldRow>
       <FieldRow>

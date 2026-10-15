@@ -258,11 +258,13 @@ export function agendaMoneyRows(
       // Cancelled still surfaces when money landed after cancel (refund pending).
       if (item.payment !== "refund_pending") continue;
     }
-    const name = item.client?.name ?? item.title;
+    // The client slot never shows the service: a hold with no client label
+    // leaves the name empty and the UI prints a neutral "Client" instead.
+    const name = item.client?.name?.trim() ?? "";
     const base = {
       id: item.id,
       name,
-      service: item.title && item.title.trim().toLowerCase() !== name.trim().toLowerCase() ? item.title : "",
+      service: item.title && item.title.trim().toLowerCase() !== name.toLowerCase() ? item.title : "",
       startsAt: item.startsAt,
       currency: (item.money.currency || "MXN").toUpperCase(),
       overdue: item.payment === "overdue",

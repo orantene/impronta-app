@@ -44,6 +44,9 @@
       "googlePopupBlocked": "Popup blocked. Allow popups for this site and try again.",
       "googleUnableToStart": "Unable to start Google sign-in.",
       "shell": {
+        "clientHeading": "Book and manage everything in one place.",
+        "clientLead": "Create a free client account to follow your bookings, messages and payments.",
+        "clientPoints": {"book": "Follow every booking and payment", "thread": "Message the talent or team in one thread", "secure": "Sign in with a code or a password"},
         "back": "Back to {site}",
         "tenantHeading": "Your work and your bookings, in one place.",
         "tenantLead": "Manage your profile, your bookings, and your messages with {brand}.",
@@ -63,12 +66,14 @@
         "descriptionNoApple": "Continue with Google or email. With Google, a password is optional; you can add one later under Account.",
         "inviteDescription": "{agency} invited you to their roster. Sign in to claim your profile and start receiving bookings.",
         "google": "Continue with Google",
-        "emailSubmit": "Log in with email",
+        "emailSubmit": "Log in",
         "pending": "Signing in…",
         "forgot": "Forgot password?",
         "remember": "Keep me signed in for 30 days",
         "noAccount": "No account?",
         "signUp": "Sign up",
+        "clientPrompt": "Booking a service?",
+        "clientSignUp": "Create a client account",
         "sessionExpired": "Your session expired. Please sign in again.",
         "linkExpired": "That sign-in link has expired or was already used. Request a new one below.",
         "eyebrow": "Welcome back",
@@ -134,7 +139,9 @@
       },
       "form": {
         "email": "Email",
-        "emailPlaceholder": "you@studio.com",
+        "emailPlaceholder": "you@example.com",
+        "name": "Full name",
+        "namePlaceholder": "Your name",
         "password": "Password"
       },
       "actions": {
@@ -158,7 +165,7 @@
       },
       "errors": {
         "invalidCredentials": "Invalid email or password. Check the email or use Forgot password.",
-        "emailNotConfirmed": "Your email isn't confirmed yet. Check your inbox for the confirmation link.",
+        "emailNotConfirmed": "Your email isn't verified yet. Choose Email me a code below to verify it and sign in.",
         "tooManyAttempts": "Too many attempts, please wait a minute and try again.",
         "network": "Connection issue, check your network and try again."
       },
@@ -192,7 +199,7 @@
         "unknownBody": "We couldn't finish claiming your profile. Ask {agency} to send a fresh invite."
       },
       "passwordless": {
-        "emailSubmit": "Email me a sign-in code",
+        "emailSubmit": "Email me a code",
         "emailPending": "Sending your code",
         "emailHint": "No password needed. We email you a sign-in code plus a sign-in link.",
         "plusEmailHint": "Addresses with a + tag (name+tag@) often never receive the code. Use a plain address if you can.",
@@ -1035,6 +1042,7 @@
       "cancel": "Cancel",
       "confirm": "Confirm",
       "editorDateLabel": "Event date",
+      "dateIncompleteError": "Please enter the full date (day, month and year).",
       "dateExact": "Exact date",
       "dateFlexible": "Flexible",
       "dateNotSure": "Not sure yet",
@@ -1320,6 +1328,10 @@
       "timesAskPrefill": "The hold ended. Can we look at another time?",
       "catalogAdded": "{item} added to your inquiry. Nothing is booked until they confirm.",
       "catalogAddFailed": "Could not add that right now. Try again, or just ask in the chat.",
+      "dockTrayLabel": "Inquiry · {n}",
+      "dockTrayRemove": "Remove",
+      "dockTrayOpenLineup": "Open the Items tab",
+      "dockTrayOpen": "Review",
       "catalogAddInvalid": "This one cannot be added to an inquiry (it may be in a different currency). Ask about it in the chat.",
       "catalogSearchPlaceholder": "Search this list",
       "catalogSortLabel": "Sort",
@@ -1558,6 +1570,7 @@
       "dateStatusNotSure": "Not sure yet",
       "dateStatusMultiDay": "Multi-day",
       "dateStatusRecurring": "Recurring",
+      "dateIncompleteError": "Please enter the full date (day, month and year).",
       "dateEventDateLabel": "Event date",
       "dateStartTimeLabel": "Start time (optional)",
       "dateDurationLabel": "Duration (optional)",
@@ -1709,7 +1722,9 @@
       "lead": "Pick a service and a time. We will confirm shortly.",
       "bookCta": "Book",
       "chooseService": "Service",
-      "studioFallback": "the studio"
+      "studioFallback": "the studio",
+      "noServices": "Nothing is open for online booking yet. Send the studio a message and they will reply.",
+      "contactCta": "Send a message"
     },
     "siteShellSurface": {
       "title": "Site header & footer",
@@ -2009,6 +2024,7 @@
         "basicsWhatTalentHint": "Search: nail technician, photographer, DJ…",
         "basicsWhatBusinessHint": "Search: nail salon, restaurant, gym…",
         "useTyped": "Use \"{text}\"",
+        "useTypedCategory": "Use \"{text}\" as my category",
         "basicsCityHint": "Search your city",
         "basicsOther": "Not in the list?",
         "basicsOtherHint": "Type it here",
@@ -3370,7 +3386,23 @@
         "presetOpen": "Open to everyone",
         "presetVerified": "Verified clients only",
         "allowInquiriesFrom": "Allow inquiries from {tier} clients",
-        "selectivityNote": "Blocked tiers can still see your roster page. They'll be invited to verify or fund their account before they can send you a direct inquiry. Your agency's coordinator inbox is unaffected."
+        "selectivityNote": "Blocked tiers can still see your roster page. They'll be invited to verify or fund their account before they can send you a direct inquiry. Your agency's coordinator inbox is unaffected.",
+        "contactPreferencesDescSolo": "Decide which client trust tiers can send you inquiries. This gates inbound contact, not visibility.",
+        "howThisWorksBodySolo": "Higher-trust clients have completed verification or funded their account on Tulala. You decide which tiers can reach you. Lower-trust tiers can still see your page, they just can't send you a direct inquiry.",
+        "selectivityNoteSolo": "Blocked tiers can still see your page. They'll be invited to verify or fund their account before they can send you a direct inquiry.",
+        "trustChipTip": "{label} client. {hint}",
+        "trustBasicLabel": "Basic",
+        "trustBasicHint": "Free signup, no verification yet. Default trust level.",
+        "trustBasicRationale": "Anyone with a Tulala client account. No verification yet, so identity isn't confirmed.",
+        "trustVerifiedLabel": "Verified",
+        "trustVerifiedHint": "Identity verified: card on file or completed account verification.",
+        "trustVerifiedRationale": "Has verified their identity (card on file or account verification). A real, traceable client, not anonymous.",
+        "trustSilverLabel": "Silver",
+        "trustSilverHint": "Funded account above the standard threshold. Serious buying intent.",
+        "trustSilverRationale": "Has funded their account above the Silver threshold. Real budget already on the platform.",
+        "trustGoldLabel": "Trusted",
+        "trustGoldHint": "High funded balance and sustained activity. Highest trust signal.",
+        "trustGoldRationale": "High funded balance plus sustained booking activity. The strongest trust signal Tulala issues."
       },
       "monetization": {
         "payouts": "Payouts",
@@ -3890,6 +3922,7 @@
       "lockedRequestSent": "Request sent, coordinator will review"
     },
     "talentThread": {
+      "originalRequest": "Original request",
       "backAria": "Back to my jobs",
       "via": "via {agency}",
       "youreCoord": "You're coord",
@@ -13702,7 +13735,8 @@
       "sendFailedNetwork": "Couldn't send. Check your connection and try again.",
       "rateLimited": "You have sent a lot in a short time. Your text is still here. Try again in about {minutes} minutes.",
       "threadLoading": "Loading conversation…",
-      "threadLoadFailed": "Could not load this conversation. Close and reopen the panel to try again.",
+      "threadLoadFailed": "Could not load this conversation. Try again in a moment.",
+      "threadLoadRetry": "Try again",
       "rateLimitedOne": "You have sent a lot in a short time. Your text is still here. Try again in about a minute.",
       "cardTitle": "Update",
       "addNumber": "Add a number for a call back",

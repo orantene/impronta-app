@@ -6,6 +6,7 @@ import { loadUsage, PROMO_COLUMNS, rowToPromo, type PromoRow } from "@/lib/promo
 import { isPersonalPromo } from "./landing-core";
 import { isUuid } from "./cookies";
 import { buildPromoLink, type ViaTag } from "./links";
+import { EMPTY_SHARE_THEME, loadShareTheme, type ShareTheme, type ShareThemeClient } from "./theme-defaults";
 import type { Promo } from "@/lib/promos/types";
 
 export type ShareAssetData = {
@@ -16,6 +17,8 @@ export type ShareAssetData = {
   profileCode: string;
   /** `talent_profiles.talent_plan_key` of the tenant's talent (paid-only assets gate on it). */
   talentPlanKey: string | null;
+  /** The talent's published-site colours + photo; empty when there is no published site. */
+  theme: ShareTheme;
   /** Spots left, when the promo has a cap. */
   spotsLeft: number | null;
   /** The shareable link with the given source tag. */
@@ -69,8 +72,14 @@ export async function loadShareAssetData(input: {
   const usage = row.max_redemptions ? await loadUsage(admin, [row.id], null) : null;
   const spotsLeft = row.max_redemptions ? Math.max(0, row.max_redemptions - (usage?.[row.id]?.used ?? 0)) : null;
   const slug = row.link_slug;
+  let theme = EMPTY_SHARE_THEME;
+  try {
+    theme = await loadShareTheme(admin as unknown as ShareThemeClient, profileId, process.env.NEXT_PUBLIC_SUPABASE_URL);
+  } catch (e) {
+    logServerError("promos.share/theme", e);
+  }
   return {
-    promo, row, slug, spotsLeft,
+    promo, row, slug, spotsLeft, theme,
     talentName: (p.display_name ?? "").trim() || p.profile_code,
     profileCode: p.profile_code,
     talentPlanKey: p.talent_plan_key ?? null,

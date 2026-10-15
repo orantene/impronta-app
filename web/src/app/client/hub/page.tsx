@@ -8,6 +8,7 @@
 // whitelabel) dashboard would leak one agency's client relationships into
 // another's branded surface.
 
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -38,11 +39,7 @@ const C = {
 } as const;
 
 function fmtMoney(cents: number, currency: string, locale: string) {
-  return new Intl.NumberFormat(locale === "es" ? "es-ES" : locale === "fr" ? "fr-FR" : "en-US", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 0,
-  }).format(cents / 100);
+  return formatDashboardMoneyCents(cents, currency, locale);
 }
 
 function fmtDate(iso: string | null, fallback: string) {
