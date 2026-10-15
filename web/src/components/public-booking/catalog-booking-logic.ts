@@ -1,5 +1,5 @@
-import { zoneCity } from "@/lib/events/public-event-time";
 import { bookingDurationMinutes } from "@/lib/scheduling/reservation-window";
+import { zoneCity } from "@/lib/events/public-event-time";
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 import { resolveOfferingCta, type TalentOffering } from "@/lib/talent/offerings-types";
 import {
@@ -7,6 +7,7 @@ import {
   type TalentBookingPosture,
 } from "@/lib/talent/selling-booking-settings";
 import { deriveOfferingCta, offeringCtaLabel } from "@/lib/talent/offering-cta-derivation";
+import { localizePlaceCity } from "@/lib/talent-site/city-label";
 
 export type CatalogBookingMode = "demo" | "live";
 
@@ -340,6 +341,14 @@ export function firstOpenDemoDayIndex(days: readonly Date[]): number {
   return index >= 0 ? index : 0;
 }
 
+/** Next open demo day after `fromIndex` (Sunday closed). Null when none remain. */
+export function nextOpenDemoDayIndex(days: readonly Date[], fromIndex: number): number | null {
+  for (let i = fromIndex + 1; i < days.length; i += 1) {
+    if (days[i]!.getDay() !== 0) return i;
+  }
+  return null;
+}
+
 export function localDayKey(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -347,10 +356,15 @@ export function localDayKey(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+/** Public catalog sheet window — same length the slots fetch requests. */
+export const LIVE_SLOT_STRIP_DAYS = 30;
+
+export type LiveDayStripEntry = { key: string; date: Date; starts: string[] };
+
 export function groupIsoSlotsByDay(
   slots: string[],
   timezone: string,
-): Array<{ key: string; date: Date; starts: string[] }> {
+): LiveDayStripEntry[] {
   const map = new Map<string, { date: Date; starts: string[] }>();
   for (const start of slots) {
     const key = ymdInTimezone(start, timezone);
@@ -364,6 +378,69 @@ export function groupIsoSlotsByDay(
   return [...map.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([key, v]) => ({ key, date: v.date, starts: v.starts }));
+}
+
+/**
+ * Continuous day strip for the live when-step (TUL-531 / GRK-003).
+ *
+ * Days without free starts stay in the strip so an empty today (after hours,
+ * closed weekday, fully booked) is visible and "try another date" can move
+ * the selection forward. Previously only days with slots were listed, so the
+ * empty copy's "Prueba otra fecha" had nowhere to go.
+ */
+export function buildLiveDayStrip(input: {
+  slots: readonly string[];
+  timezone: string;
+  fromYmd: string;
+  dayCount?: number;
+}): LiveDayStripEntry[] {
+  const count = Math.max(1, input.dayCount ?? LIVE_SLOT_STRIP_DAYS);
+  const byDay = new Map<string, string[]>();
+  for (const start of input.slots) {
+    const key = ymdInTimezone(start, input.timezone);
+    const list = byDay.get(key);
+    if (list) list.push(start);
+    else byDay.set(key, [start]);
+  }
+  const out: LiveDayStripEntry[] = [];
+  let ymd = input.fromYmd;
+  for (let i = 0; i < count; i += 1) {
+    out.push({ key: ymd, date: dateFromYmd(ymd), starts: byDay.get(ymd) ?? [] });
+    const next = addCalendarDays(ymd, 1);
+    if (!next) break;
+    ymd = next;
+  }
+  return out;
+}
+
+/** First strip index that still has free starts; 0 when the strip is empty or fully closed. */
+export function firstDayWithSlotsIndex(days: readonly { starts: readonly string[] }[]): number {
+  const index = days.findIndex((d) => d.starts.length > 0);
+  return index >= 0 ? index : 0;
+}
+
+/**
+ * Next strip index after `fromIndex` that has free starts.
+ * Null when nothing later in the window is open (caller keeps consult).
+ */
+export function nextDayWithSlotsIndex(
+  days: readonly { starts: readonly string[] }[],
+  fromIndex: number,
+): number | null {
+  for (let i = fromIndex + 1; i < days.length; i += 1) {
+    if (days[i]!.starts.length > 0) return i;
+  }
+  return null;
+}
+
+/** YYYY-MM-DD plus N calendar days (UTC date arithmetic on the YMD parts). */
+export function addCalendarDays(ymd: string, days: number): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
+  if (!m) return null;
+  const dt = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  if (Number.isNaN(dt.getTime())) return null;
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
 }
 
 export function ymdInTimezone(iso: string, timezone: string): string {
@@ -460,14 +537,24 @@ const ZONE_CITY_DISPLAY: Record<string, string> = {
 };
 
 /**
- * TUL-59 / TUL-494: "Hora de {city}" / "{city} time" from an IANA zone.
- * City name follows the page language (America/Mexico_City → "Ciudad de México"
- * on ES, not "Mexico City"). Accent-only overrides keep Cancún / Mérida etc.
- * when the shared zone map has no entry.
+ * TUL-59 / TUL-533: "Hora de {city}" / "{city} time".
+ * Prefer the talent's place city when known (Houston over Chicago for
+ * America/Chicago; Morelia over Mexico City for America/Mexico_City). Otherwise
+ * name the IANA zone in the page language (ES → Ciudad de México, not Mexico City).
+ * Accent-only overrides keep Cancún / Mérida etc. when the shared zone map has no entry.
  */
-export function catalogTimezoneLabel(tz: string | null | undefined, es: boolean): string {
+export function catalogTimezoneLabel(
+  tz: string | null | undefined,
+  es: boolean,
+  placeCity?: string | null,
+): string {
   const zone = (tz ?? "").trim();
   if (!zone) return "";
+  const place = placeCity?.trim();
+  if (place) {
+    const city = localizePlaceCity(place, es ? "es" : "en");
+    return es ? `Hora de ${city}` : `${city} time`;
+  }
   const raw = zone.includes("/") ? (zone.split("/").pop() ?? zone) : zone;
   const city = ZONE_CITY_DISPLAY[raw] ?? zoneCity(zone, es ? "es" : "en");
   return es ? `Hora de ${city}` : `${city} time`;
@@ -485,17 +572,37 @@ export function catalogDayKey(date: Date): string {
  * offering's long-tail `attributes.price_unit`: a plain string or `{ es, en }`.
  * Null when the service is not priced per unit.
  */
+/** English unit words that must not leak onto Spanish price lines (GRK-026). */
+const PRICE_UNIT_ES: Record<string, string> = {
+  session: "sesión",
+  hour: "hora",
+  day: "día",
+  week: "semana",
+  event: "evento",
+  person: "persona",
+  nail: "uña",
+};
+
 export function offeringPriceUnit(
   attributes: Record<string, unknown> | null | undefined,
   locale: string,
 ): string | null {
+  const es = locale.toLowerCase().startsWith("es");
+  const localize = (unit: string): string => {
+    if (!es) return unit;
+    return PRICE_UNIT_ES[unit.toLowerCase()] ?? unit;
+  };
   const raw = attributes?.price_unit;
-  if (typeof raw === "string") return raw.trim() || null;
+  if (typeof raw === "string") {
+    const t = raw.trim();
+    return t ? localize(t) : null;
+  }
   if (raw && typeof raw === "object") {
     const map = raw as Record<string, unknown>;
-    const lang = locale.startsWith("es") ? "es" : "en";
+    const lang = es ? "es" : "en";
     const pick = map[lang] ?? map.en ?? map.es;
-    return typeof pick === "string" && pick.trim() ? pick.trim() : null;
+    if (typeof pick === "string" && pick.trim()) return localize(pick.trim());
+    return null;
   }
   return null;
 }

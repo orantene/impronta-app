@@ -132,6 +132,12 @@ export function TalentDraftChip(): ReactElement | null {
   const fullLabel = summary.firstPublish
     ? pick(FIRST_PUBLISH_COPY.chip, locale)
     : pick(unpublishedChangesLabel(summary.unpublishedCount), locale);
+  // TUL-81 builder: ES "Borrador · N cambio(s) sin publicar" is long enough that
+  // sticky Publicar (z-2, right edge) paints over the chip. Cap width + ellipsis;
+  // full label stays in `title`.
+  const draftTitle = applyBusy
+    ? `${fullLabel}. ${copyOf("applying")}`
+    : `${fullLabel}. ${copyOf("whatWillGoLive")}`;
   const chipStyle = {
     display: "inline-flex",
     alignItems: "center",
@@ -141,20 +147,26 @@ export function TalentDraftChip(): ReactElement | null {
     fontSize: 12,
     fontWeight: 600,
     whiteSpace: "nowrap" as const,
+    maxWidth: "min(200px, 28vw)",
+    overflow: "hidden" as const,
+    textOverflow: "ellipsis" as const,
+    flexShrink: 0,
   };
 
   if (summary.unpublishedCount === 0 && !summary.firstPublish) {
+    const live = liveLabel(summary.lastPublishAt ?? summary.sitePublishedAt, locale);
     return (
       <>
       {toastEl}
       <span
         data-talent-live-chip
         className="min-h-11 sm:min-h-[26px]"
+        title={live}
         style={{ ...chipStyle, color: CHROME.green, background: CHROME.greenBg, border: `1px solid ${CHROME.greenLine}` }}
       >
-        {liveLabel(summary.lastPublishAt ?? summary.sitePublishedAt, locale)}
+        <span className="min-w-0 truncate">{live}</span>
         {summary.siteUrl ? (
-          <a href={summary.siteUrl} target="_blank" rel="noreferrer" style={{ color: CHROME.green, textDecoration: "underline" }}>
+          <a href={summary.siteUrl} target="_blank" rel="noreferrer" style={{ color: CHROME.green, textDecoration: "underline", flexShrink: 0 }}>
             {copyOf("viewSite")}
           </a>
         ) : null}
@@ -169,10 +181,10 @@ export function TalentDraftChip(): ReactElement | null {
       <button
         type="button"
         data-talent-draft-chip
-        className="min-h-11 sm:min-h-[26px]"
+        className="min-h-11 sm:min-h-[26px] max-w-[min(200px,28vw)] truncate"
         onClick={() => setOpen(true)}
         aria-label={fullLabel}
-        title={applyBusy ? copyOf("applying") : copyOf("whatWillGoLive")}
+        title={draftTitle}
         style={{ ...chipStyle, cursor: "pointer", color: CHROME.text, background: CHROME.surface2, border: `1px solid ${CHROME.lineMid}` }}
       >
         {summary.firstPublish ? (
