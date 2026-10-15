@@ -1320,6 +1320,8 @@
       "timesAskPrefill": "La reserva temporal terminó. ¿Podemos elegir otro horario?",
       "catalogAdded": "{item} añadido a tu solicitud. Nada queda reservado hasta que confirmen.",
       "catalogAddFailed": "No se pudo añadir ahora. Intenta de nuevo o pregunta en el chat.",
+      "dockTrayLabel": "Consulta · {n}",
+      "dockTrayOpen": "Revisar",
       "catalogAddInvalid": "Este no se puede agregar a una consulta (puede estar en otra moneda). Pregunta por él en el chat.",
       "catalogSearchPlaceholder": "Buscar en esta lista",
       "catalogSortLabel": "Ordenar",
