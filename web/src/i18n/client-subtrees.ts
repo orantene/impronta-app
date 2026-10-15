@@ -25,6 +25,7 @@ export const CLIENT_MESSAGE_SUBTREES = [
   "dashboard.clientHub",
   "dashboard.clientNav",
   "public.auth",
+  "public.bookPage",
   "public.clientAccount",
   "public.consent",
   "public.directory",
@@ -32,6 +33,8 @@ export const CLIENT_MESSAGE_SUBTREES = [
   "public.onboarding",
   "public.guestChat",
   "public.profileCta",
+  "public.slotPicker",
+  "public.thread",
 ] as const;
 
 type Catalog = Record<string, unknown>;

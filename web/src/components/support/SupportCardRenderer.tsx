@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useT } from "@/i18n/use-t";
 import { translatorFor } from "@/i18n/translator-for";
 import { interpolate } from "@/i18n/interpolate";
 import { SupportAgentAvatar } from "./SupportAgentAvatar";
@@ -14,6 +13,7 @@ import {
   declineProposedActionAction,
 } from "@/lib/support/proposed-actions/actions";
 import { getSupportAttachmentUrlAction } from "@/lib/support/attachment-actions";
+import { usePublicT } from "@/i18n/use-public-t";
 
 export type SupportThreadTone = "light" | "hq";
 
@@ -34,7 +34,7 @@ export function SupportCardRenderer({
   /**
    * Language of the surface this card is rendered on.
    *
-   * Without it the card falls back to `useT()`, which reads the DASHBOARD
+   * Without it the card falls back to `usePublicT()`, which reads the DASHBOARD
    * locale from a cookie. That is right inside the workspace, where the cookie
    * IS the user's choice, and wrong on a marketing page, where the URL decides.
    * Production QA caught the consequence: after visiting /es/support once, the
@@ -44,7 +44,7 @@ export function SupportCardRenderer({
    */
   locale?: string;
 }) {
-  const dashboardT = useT();
+  const dashboardT = usePublicT();
   // An explicit surface locale wins; the cookie remains the default for the
   // workspace surfaces that have no page locale to hand down.
   const t = useMemo(
@@ -404,7 +404,7 @@ function AttachmentCard({
   name: string;
   tone?: SupportThreadTone;
 }) {
-  const t = useT();
+  const t = usePublicT();
   const [url, setUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const mutedInk = tone === "hq" ? "rgba(245,242,235,0.62)" : COLORS.inkMuted;

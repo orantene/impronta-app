@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 
 import { EngineFeeLines } from "@/components/payments/FeeLines";
 import { interpolate } from "@/i18n/interpolate";
-import { translatorFor, useT } from "@/i18n/use-t";
 import type { FeeLine } from "@/lib/billing/processing-fee-payer";
 import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import type { PayLinkPathPrefix } from "@/lib/payments/pay-link-url";
 import { SaveBookingsBlock } from "@/components/client-account/SaveBookingsBlock";
+import { usePublicT } from "@/i18n/use-public-t";
+import { translatorFor } from "@/i18n/translator-for";
 
 /**
  * TOKENS ONLY (TUL-437). This page sits on the seller's own site: `--token-color-*`,
@@ -59,7 +60,7 @@ export type CheckoutViewProps = {
 };
 
 export function CheckoutView(props: CheckoutViewProps) {
-  const dashboardT = useT();
+  const dashboardT = usePublicT();
   const t = props.locale ? translatorFor(props.locale) : dashboardT;
   const [phase, setPhase] = useState<CheckoutViewProps["status"]>(props.status);
   // The server re-renders with a new status once the webhook settles; follow it.
