@@ -202,11 +202,11 @@
         "emailSubmit": "Envíame un código",
         "emailPending": "Enviando tu código",
         "emailHint": "Sin contraseña. Te enviamos por correo un código de acceso y también un enlace de acceso.",
-        "plusEmailHint": "Los correos con un + (nombre+tag@) a menudo nunca reciben el código. Usa una dirección sin + si puedes.",
+        "plusEmailHint": "¿Usas un alias con +? Enviaremos el código ahí. Si no llega en un minuto, vuelve a enviarlo o prueba con tu dirección principal.",
         "sentNotice": "Código enviado a {email}. Escríbelo abajo o abre el enlace del mismo correo.",
         "resentNotice": "Enviamos un código nuevo a {email}. Usa el más reciente.",
-        "plusSentNotice": "Enviamos un código a {email}. Muchas bandejas no entregan correo a direcciones con +. Si no llega en un minuto, usa una dirección sin + e inténtalo de nuevo.",
-        "plusResentNotice": "Enviamos un código nuevo a {email}. Si sigue sin llegar, cambia a una dirección sin +.",
+        "plusSentNotice": "Enviamos un código a {email}. Puede tardar un minuto. Si no llega, envía uno nuevo o prueba con tu dirección principal.",
+        "plusResentNotice": "Enviamos un código nuevo a {email}. Si sigue sin llegar, prueba con tu dirección principal (sin el +).",
         "codeLabel": "Código de tu correo",
         "codeHint": "De un solo uso. También puedes abrir el enlace de acceso del mismo correo. Revisa tu carpeta de spam si no llega.",
         "verifySubmit": "Continuar",
@@ -2066,7 +2066,7 @@
         "emailPlaceholder": "tu@ejemplo.com",
         "emailCta": "Envíame un código",
         "emailPending": "Enviando…",
-        "plusEmailHint": "Los correos con un + (nombre+tag@) a menudo nunca reciben el código. Usa una dirección sin + si puedes.",
+        "plusEmailHint": "¿Usas un alias con +? Enviaremos el código ahí. Si no llega en un minuto, vuelve a enviarlo o prueba con tu dirección principal.",
         "terms": "Al continuar aceptas los Términos y la Política de privacidad."
       },
       "code": {
