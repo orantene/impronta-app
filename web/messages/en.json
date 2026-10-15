@@ -3912,6 +3912,7 @@
       "lockedRequestSent": "Request sent, coordinator will review"
     },
     "talentThread": {
+      "originalRequest": "Original request",
       "backAria": "Back to my jobs",
       "via": "via {agency}",
       "youreCoord": "You're coord",
