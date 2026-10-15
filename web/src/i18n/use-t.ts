@@ -10,8 +10,6 @@ import "./full-catalogs.client";
 import { withPluralization } from "./interpolate";
 import { useDashboardLocale } from "./use-dashboard-locale";
 
-export { translatorFor };
-
 /** Same hook as `usePublicT`; the difference is only this module's catalog import. */
 export const useT = usePublicT;
 

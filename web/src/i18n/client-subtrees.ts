@@ -55,4 +55,3 @@ export function pickClientSubtrees(catalog: Catalog): Catalog {
   return out;
 }
 
-export { CLIENT_MESSAGES_GLOBAL } from "./client-messages-global";
