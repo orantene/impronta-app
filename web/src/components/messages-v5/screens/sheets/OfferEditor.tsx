@@ -36,6 +36,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { formatRecordMoney } from "@/lib/messages-v5/record-money";
+import { TALENT_CHARGEABLE_CURRENCY_OPTIONS } from "@/lib/billing/currencies";
 import { quoteSummary, type SellerChrome } from "../../shell/seller";
 import { messagingSendOffer } from "@/lib/server-actions/messaging-engine";
 import {
@@ -111,7 +112,7 @@ export type OfferEditorViewProps = {
   readonly refusalCode?: MessagingRefusal | null;
   readonly onRetry?: () => void;
   /** The seller's currency is unknown: the refusal offers MXN / USD and retries with the pick (484). */
-  readonly onPickCurrency?: (code: "MXN" | "USD") => void;
+  readonly onPickCurrency?: (code: (typeof TALENT_CHARGEABLE_CURRENCY_OPTIONS)[number]) => void;
 
   readonly draft: OfferDraftState | null;
   readonly clientName: string;
@@ -213,7 +214,7 @@ export function OfferEditorView(props: OfferEditorViewProps) {
           <RefusalLine code={refusalCode} copy={copy.kit} variant={variant} action={props.onRetry && refusalCode !== "offer_currency_unresolved" ? { label: copy.shell.tryAgain, onClick: props.onRetry } : undefined} />
           {refusalCode === "offer_currency_unresolved" && props.onPickCurrency ? (
             <div role="group" data-offer-currency-chooser className="mt-3 flex gap-2">
-              {(["MXN", "USD"] as const).map((code) => (
+              {TALENT_CHARGEABLE_CURRENCY_OPTIONS.map((code) => (
                 <Btn key={code} size="sm" variant="secondary" onClick={() => props.onPickCurrency?.(code)}>
                   {code}
                 </Btn>

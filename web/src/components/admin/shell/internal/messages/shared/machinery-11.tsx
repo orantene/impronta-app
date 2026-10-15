@@ -19,6 +19,7 @@ import { PanelSkeleton, ghostBtn, primaryBtn } from "./machinery-13";
 import type { Offer } from "./machinery-9";
 import { OfferDraftLineItem } from "./offer-draft-line-item";
 import { formatOfferMoney } from "@/lib/inquiry/offer-currency";
+import { TALENT_CHARGEABLE_CURRENCY_OPTIONS } from "@/lib/billing/currencies";
 
 
 /**
@@ -724,7 +725,7 @@ export function CreateOfferButton({
         <div role="group" aria-label={t("dashboard.adminTabs.lineup.offerCurrencyChoose")} data-offer-currency-chooser>
           <div className="text-[12.5px] mb-1.5">{t("dashboard.adminTabs.lineup.offerCurrencyChoose")}</div>
           <div className="flex gap-2">
-            {["MXN", "USD"].map((code) => (
+            {TALENT_CHARGEABLE_CURRENCY_OPTIONS.map((code) => (
               <button key={code} type="button" disabled={pending} onClick={() => start(code)} style={primaryBtn(COLORS.accent)}>
                 {pending ? t("dashboard.adminTabs.lineup.starting") : code}
               </button>
