@@ -156,7 +156,7 @@ async function loadTalentRows(admin: Admin, tenantId: string, window: { from: Da
 async function loadOfferingRows(admin: Admin, tenantId: string): Promise<CatalogRow[]> {
   const { data, error } = await admin
     .from("talent_offerings")
-    .select("id, title, amount_cents, kind, inventory_qty, capacity_pool_id, duration_minutes, talent_profile_id")
+    .select("id, title, amount_cents, kind, inventory_qty, capacity_pool_id, duration_minutes")
     .eq("tenant_id", tenantId)
     .eq("status", "published")
     .in("kind", ["package", "service", "product"])
@@ -165,18 +165,8 @@ async function loadOfferingRows(admin: Admin, tenantId: string): Promise<Catalog
     logServerError("messagesV5.itemsCatalog/offerings", error);
     return [];
   }
-  type Row = { id: string; title: string | null; amount_cents: number | null; kind: string; inventory_qty: number | null; capacity_pool_id: string | null; duration_minutes: number | null; talent_profile_id: string | null };
-  const offerRows = (data ?? []) as Row[];
-  // TUL-1063: name the owner so a network-wide list says whose service it is.
-  const ownerIds = [...new Set(offerRows.map((r) => r.talent_profile_id).filter((v): v is string => Boolean(v)))];
-  const owners = new Map<string, { name: string | null; code: string | null }>();
-  if (ownerIds.length > 0) {
-    const { data: people } = await admin.from("talent_profiles").select("id, display_name, profile_code").in("id", ownerIds);
-    for (const person of (people ?? []) as Array<{ id: string; display_name: string | null; profile_code: string | null }>) {
-      owners.set(person.id, { name: person.display_name?.trim() || null, code: person.profile_code });
-    }
-  }
-  return offerRows.map((row) => {
+  type Row = { id: string; title: string | null; amount_cents: number | null; kind: string; inventory_qty: number | null; capacity_pool_id: string | null; duration_minutes: number | null };
+  return ((data ?? []) as Row[]).map((row) => {
     const counted = !!row.capacity_pool_id && typeof row.inventory_qty === "number" && Number.isFinite(row.inventory_qty);
     const soldOut = counted && Math.round(row.inventory_qty as number) <= 0;
     const category = row.kind === "package" ? "package" : row.kind === "service" ? "service" : "menu";
@@ -189,8 +179,6 @@ async function loadOfferingRows(admin: Admin, tenantId: string): Promise<Catalog
       availability: soldOut ? { kind: "busy", reason: "sold_out" } : { kind: "free" },
       offeringId: row.id,
       durationMinutes: row.duration_minutes,
-      ownerName: row.talent_profile_id ? owners.get(row.talent_profile_id)?.name ?? null : null,
-      ownerCode: row.talent_profile_id ? owners.get(row.talent_profile_id)?.code ?? null : null,
     } satisfies CatalogRow;
   });
 }

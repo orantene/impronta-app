@@ -32,9 +32,6 @@ export type GuestCatalogRow = {
   eventSlug: string | null;
   startsAt: string | null;
   partySize: number | null;
-  /** Who offers a service or package (TUL-1063). */
-  ownerName: string | null;
-  ownerCode: string | null;
 };
 
 export type GuestCatalogGroup = { category: ItemCategory; rows: GuestCatalogRow[] };
@@ -93,8 +90,6 @@ export async function getGuestItemsCatalog(raw: { tenantSlug: string; inquiryId?
           eventSlug: r.eventSlug ?? null,
           startsAt: r.startsAt ?? null,
           partySize: r.partySize ?? null,
-          ownerName: r.ownerName ?? null,
-          ownerCode: r.ownerCode ?? null,
         })),
       })),
     };
