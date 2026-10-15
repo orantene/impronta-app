@@ -34,7 +34,8 @@ test("work detail has its own not-found screen with ES and EN copy", () => {
 test("TUL-473: a work id outside this workspace renders the card inline, not through notFound()", () => {
   const dir = "src/app/(workspace)/[tenantSlug]/admin/work/[id]";
   const page = read(`${dir}/page.tsx`);
-  assert.match(page, /if \(!inquiry\) return <WorkNotFoundCard /);
+  // TUL-571 may redirect a studio owner's own booking first; the miss still ends in the inline card.
+  assert.match(page, /if \(!inquiry\) \{[\s\S]*?return <WorkNotFoundCard /);
   assert.doesNotMatch(page, /if \(!inquiry\) notFound\(\)/);
   // The card is a plain server component (no hooks, no client boundary) that links with next/link.
   const card = read(`${dir}/work-not-found-card.tsx`);

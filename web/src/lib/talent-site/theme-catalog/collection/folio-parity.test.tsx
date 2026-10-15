@@ -25,9 +25,9 @@ const PINS = {
   highlight: "154aa0752c478aa5", // TUL-474: TITLE_HOOKS includes .sb-area-title
   booking: "d0b8ff4d6dc7b695",
   // Re-pinned: only added props.i18n (es + en seed copy), see seed-i18n.ts.
-  maison: "347695625983b226", // was ff484407b68ec492; TUL-121 Maison v2 QA minors (#3116). Before: ca897a06ce5564b6; TUL-345: aftercare + before-after seed explicit en overlays. Before (42d225e3c02a4810): TUL-230: the About paragraph is liveText "bio". Before: #88 Book an appointment leads in header + hero; #209: + es/en overlay on portfolio, reviews, header labels
+  maison: "9c25d0bebf6062b8", // TUL-207/TUL-516 seed es+en copy + before-after/hero spec (old-misc consolidation). Was 347695625983b226; before ff484407b68ec492; TUL-121 Maison v2 QA minors (#3116). Before: ca897a06ce5564b6; TUL-345: aftercare + before-after seed explicit en overlays. Before (42d225e3c02a4810): TUL-230: the About paragraph is liveText "bio". Before: #88 Book an appointment leads in header + hero; #209: + es/en overlay on portfolio, reviews, header labels
   // Re-pinned after Gridline contentWidth/full + matrix viewport MQ (#2530), then es + en seed copy.
-  gridline: "a0a148cca5d4853d", // was ae8c700f7439ee2d; TUL-530 utility_bar homeHref + default CTA #services. Before: TUL-496 proof/area phone gutter
+  gridline: "5adca71f48d6a282", // TUL-207/TUL-516 seed es+en copy + Gridline hero kicker dot (old-misc consolidation). Was a0a148cca5d4853d; before ae8c700f7439ee2d; TUL-530 utility_bar homeHref + default CTA #services. Before: TUL-496 proof/area phone gutter
 
 };
 

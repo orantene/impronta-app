@@ -34,7 +34,7 @@ const html = (locale: string, liveStatus?: typeof ON | typeof OFF | null) =>
 
 // TUL-344: re-pinned on purpose (sticky bar hides at the top and reserves --cb-bar-h for every theme).
 test("existing designs: the base booking stylesheet is byte-pinned", () => {
-  assert.equal(createHash("sha256").update(CATALOG_BOOKING_CSS).digest("hex"), "d454f215d21636ad24662fc2e249367af20d76a5af0f2133b9e7da427e5e79c7"); // re-pinned: GRK-072 selected day/slot -> --cb-selected
+  assert.equal(createHash("sha256").update(CATALOG_BOOKING_CSS).digest("hex"), "f14173f2b79cf3ec2c51e7dfe7115ecaa13f6682c771f4e16a978526914afe5d"); // re-pinned: GRK-072 selected day/slot -> --cb-selected; TUL-542 .jb-try-date
 });
 
 test("existing designs: dock markup is identical with no status, null or off", () => {

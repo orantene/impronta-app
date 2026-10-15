@@ -286,7 +286,7 @@ test("AUD-003 empty slots shows Consultar disponibilidad and opens ask chat", as
   host.remove();
 });
 
-test("TUL-531 GRK-003: lands on first free day; Prueba otra fecha jumps the strip", async () => {
+test("TUL-531 GRK-003: lands on first free day; closed days stay unpickable (TUL-849)", async () => {
   const book = mockBook();
   const host = dom.window.document.createElement("div");
   dom.window.document.body.appendChild(host);
@@ -317,13 +317,10 @@ test("TUL-531 GRK-003: lands on first free day; Prueba otra fecha jumps the stri
   const dayButtons = [...host.querySelectorAll<HTMLButtonElement>(".jb-day")];
   assert.ok(dayButtons.length >= 14, "continuous 14-day strip");
   assert.equal(dayButtons[2]?.getAttribute("data-on"), "true");
-  // Pick an empty day, then jump forward.
+  // TUL-849: a day with no starts is closed and cannot be picked, so the strip never
+  // lands on an empty day; clicking one leaves the selection on the first free day.
+  assert.equal(dayButtons[0]?.disabled, true);
   act(() => dayButtons[0]?.click());
-  assert.ok(host.querySelector(".jb-empty"));
-  const tryDate = host.querySelector<HTMLButtonElement>("[data-catalog-try-another-date]");
-  assert.ok(tryDate);
-  assert.match(tryDate.textContent ?? "", /Prueba otra fecha/);
-  act(() => tryDate.click());
   assert.equal(host.querySelector(".jb-empty"), null);
   assert.ok(host.querySelector(".jb-time"));
   assert.equal(dayButtons[2]?.getAttribute("data-on"), "true");

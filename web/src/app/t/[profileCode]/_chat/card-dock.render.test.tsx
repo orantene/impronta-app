@@ -219,10 +219,10 @@ test("Servicios and Mis citas get a slim back link to the chat; Hablar does not"
   home.unmount();
 });
 
-test("the progress rail stays reachable: its label alone, then one compact line with a selection", () => {
+test("the progress rail is hidden until a pick (TUL-531), then one compact line with a selection", () => {
   const none = render(chrome({ lineupCount: 0 }));
-  // Nothing chosen: the line is the rail's own label, still the way into the details sheet.
-  assert.equal(none.host.querySelector("[data-card-dock-rail]")?.textContent, "Falta el d\u00eda");
+  // Nothing chosen: no empty rail on a fresh card.
+  assert.equal(none.host.querySelector("[data-card-dock-rail]"), null);
   none.unmount();
   const one = render(chrome({ lineupCount: 1 }));
   assert.equal(one.host.querySelector("[data-card-dock-rail]")?.textContent, "1 servicio \u00b7 falta el d\u00eda");
