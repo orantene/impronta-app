@@ -304,9 +304,8 @@ function groupByKind(locale: string, terms: TaxonomyTerm[], chain?: readonly str
 }
 
 function displayName(p: TalentProfile): string {
-  if (p.display_name?.trim()) return softTitleCaseName(p.display_name);
   const parts = [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
-  return softTitleCaseName(parts || p.profile_code);
+  return softTitleCaseName(p.display_name?.trim() || parts || p.profile_code);
 }
 
 function residenceLabel(locale: string, p: TalentProfile, chain?: readonly string[]): string {
@@ -1459,7 +1458,6 @@ export async function buildTalentProfileMetadata({
     return new URL(site);
   })();
 
-  // GRK-052: same soft title-case as displayName() so the hero matches OG/etc.
   const name = displayName(profile as TalentProfile) || profileCode;
 
   // A category the tenant disabled must not reach <title> / og:title (it reaches
