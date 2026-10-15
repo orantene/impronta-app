@@ -24,6 +24,7 @@ import type { CSSProperties } from "react";
 import type {
   GuestChatOffering,
   ScanGuestConversationCallback,
+  ReportGuestChatCallback,
   TalentChatLauncherProps,
 } from "@/lib/inquiry/guest-chat-contract";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
@@ -97,6 +98,7 @@ type TalentProfileChatLauncherLocalProps = TalentChatLauncherProps & {
   ctaIdentity?: "guest" | "client";
   /** DOCK v2 — forwarded to the panel: the AI conversation scan action. */
   onScanConversation?: ScanGuestConversationCallback | null;
+  onReportToSupport?: ReportGuestChatCallback | null;
   /**
    * P0-5 / W0-F — this launcher is mounted on a HUB host (platform/network hub
    * or the marketing apex), not an agency. Threaded to the panel so the SEND
@@ -150,6 +152,7 @@ export function TalentProfileChatLauncher({
   onListRoster = null,
   onResolveCartPortraits = null,
   onScanConversation = null,
+  onReportToSupport = null,
   soundOnReply = true,
   identity = "guest",
   // `label` (legacy static override) is intentionally NOT destructured: the
@@ -737,6 +740,7 @@ export function TalentProfileChatLauncher({
         onLoadDetails={onLoadDetails}
         onListRoster={onListRoster}
         onScanConversation={onScanConversation}
+        onReportToSupport={onReportToSupport}
         soundOnReply={soundOnReply}
         identity={identity}
         openFullHref={openFullHref}

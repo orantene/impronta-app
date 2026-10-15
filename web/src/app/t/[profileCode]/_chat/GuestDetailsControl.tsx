@@ -21,6 +21,7 @@ import type {
   GuestChipValue,
   ListGuestTenantRosterCallback,
   ScanGuestConversationCallback,
+  ReportGuestChatCallback,
 } from "@/lib/inquiry/guest-chat-contract";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 import type { Translator } from "@/i18n/interpolate";
@@ -48,6 +49,7 @@ export type GuestDetailsControlProps = {
   onBriefChange?: (summary: string) => void;
   onContactChange?: (value: { name: string; email: string; phone: string }) => void;
   onScanConversation?: ScanGuestConversationCallback | null;
+  onReportToSupport?: ReportGuestChatCallback | null;
   /** Unsent composer text, threaded down to the sheet's AI scan. */
   composerDraft?: string;
   inquiryId: string | null;
@@ -78,6 +80,7 @@ export function GuestDetailsControl({
   onBriefChange,
   onContactChange,
   onScanConversation = null,
+  onReportToSupport = null,
   composerDraft = "",
   inquiryId,
   openToSection = null,
@@ -184,6 +187,7 @@ export function GuestDetailsControl({
         onBriefChange={onBriefChange}
         onContactChange={onContactChange}
         onScanConversation={onScanConversation}
+        onReportToSupport={onReportToSupport}
         composerDraft={composerDraft}
         inquiryId={inquiryId}
       />
