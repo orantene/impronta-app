@@ -1321,6 +1321,8 @@
       "catalogAdded": "{item} added to your inquiry. Nothing is booked until they confirm.",
       "catalogAddFailed": "Could not add that right now. Try again, or just ask in the chat.",
       "dockTrayLabel": "Inquiry · {n}",
+      "dockTrayRemove": "Remove",
+      "dockTrayOpenLineup": "Open the Items tab",
       "dockTrayOpen": "Review",
       "catalogAddInvalid": "This one cannot be added to an inquiry (it may be in a different currency). Ask about it in the chat.",
       "catalogSearchPlaceholder": "Search this list",
@@ -3912,6 +3914,7 @@
       "lockedRequestSent": "Request sent, coordinator will review"
     },
     "talentThread": {
+      "originalRequest": "Original request",
       "backAria": "Back to my jobs",
       "via": "via {agency}",
       "youreCoord": "You're coord",

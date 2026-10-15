@@ -42,6 +42,7 @@ import {
   AuthNotice,
   AuthSubmitButton,
 } from "@/components/auth/auth-ui";
+import { readAuthEmailDraft, writeAuthEmailDraft } from "@/lib/auth/email-draft";
 import { authEmailHasPlusTag, OTP_CODE_MAX_LENGTH } from "@/lib/auth/otp-flow";
 import { createTranslator } from "@/i18n/messages";
 import { AgeTermsCheckbox } from "@/components/auth/age-terms-checkbox";
@@ -122,7 +123,7 @@ export function EmailCodeForm({
   const [backToEmail, setBackToEmail] = useState(false);
   const [showPassword, setShowPassword] = useState(startWithPassword);
   // TUL-558: warn before send when the visitor types a +tag alias.
-  const [emailDraft, setEmailDraft] = useState(defaultEmail ?? "");
+  const [emailDraft, setEmailDraft] = useState(defaultEmail ?? readAuthEmailDraft());
   // Which action the visitor most recently triggered. Both `useActionState`
   // hooks keep their last result forever, so without this a stale "that code
   // isn't right" would sit on top of a fresh "new code sent" (and vice versa).
@@ -291,8 +292,11 @@ export function EmailCodeForm({
             type="email"
             autoComplete="email"
             required
-            defaultValue={email}
-            onChange={(e) => setEmailDraft(e.target.value)}
+            defaultValue={email ?? emailDraft}
+            onChange={(e) => {
+              setEmailDraft(e.target.value);
+              writeAuthEmailDraft(e.target.value);
+            }}
             placeholder={t("public.auth.form.emailPlaceholder")}
             className={AUTH_INPUT_CLASS}
             style={AUTH_INPUT_STYLE}

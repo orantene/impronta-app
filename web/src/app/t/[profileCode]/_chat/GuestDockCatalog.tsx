@@ -41,6 +41,7 @@ import { dockServiceCtaLabel, dockServiceOpensBookingSheet, dockStorefrontCtaLab
 
 import { getGuestItemsCatalog, type GuestCatalogGroup, type GuestCatalogRow } from "../_actions/guest-catalog-actions";
 import { FONT, type paletteFor } from "./mini-chat-styles";
+import { addAddedCatalogItem } from "./guest-added-items-store";
 
 type Palette = ReturnType<typeof paletteFor>;
 
@@ -56,6 +57,7 @@ const CATEGORY_KEY: Record<ItemCategory, string> = {
 
 /** Kinds with a self-serve storefront page. */
 const BUY_HREF: Partial<Record<ItemCategory, string>> = { service: "/book", class: "/book", ticket: "/events" };
+
 
 export type GuestDockCatalogProps = {
   tenantSlug: string;
@@ -190,6 +192,11 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
         return;
       }
       setAddedIds((s) => new Set(s).add(row.id));
+      addAddedCatalogItem({
+        id: row.id,
+        title: row.title,
+        priceLabel: row.amountCents != null && row.amountCents > 0 ? formatOrderMoney(row.amountCents, "USD") : null,
+      });
       setNotice(interpolate(t("public.guestChat.catalogAdded"), { item: row.title }));
       onRefresh();
     },
