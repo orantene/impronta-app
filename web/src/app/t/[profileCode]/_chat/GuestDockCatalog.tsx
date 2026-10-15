@@ -57,7 +57,12 @@ const CATEGORY_KEY: Record<ItemCategory, string> = {
 /** Kinds with a self-serve storefront page. */
 const BUY_HREF: Partial<Record<ItemCategory, string>> = { service: "/book", class: "/book", ticket: "/events" };
 
+/** A catalog row the visitor just added to the inquiry (shown under "In your inquiry"). */
+export type AddedCatalogItem = { id: string; title: string; priceLabel: string | null };
+
 export type GuestDockCatalogProps = {
+  /** Fired once per successful add so the lineup shelf can list it. */
+  onItemAdded?: (item: AddedCatalogItem) => void;
   tenantSlug: string;
   /** The talent this dock belongs to (server-provided). Falls back to the /t/<code> path. */
   profileCode?: string | null;
@@ -138,7 +143,7 @@ function SmallButton({ label, onClick, primary, disabled, C, accent, accentInk, 
 }
 
 export function GuestDockCatalog(p: GuestDockCatalogProps) {
-  const { tenantSlug, businessName, locale, t, C, accent, accentInk, inquiryId, threadToken, sourcePage, onEnsureInquiry, onRefresh, onAsk, serviceMenu = [] } = p;
+  const { tenantSlug, businessName, locale, t, C, accent, accentInk, inquiryId, threadToken, sourcePage, onEnsureInquiry, onRefresh, onAsk, serviceMenu = [], onItemAdded } = p;
   const serviceChips = useMemo(() => {
     const seen = new Set<string>();
     const out: string[] = [];
@@ -190,10 +195,15 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
         return;
       }
       setAddedIds((s) => new Set(s).add(row.id));
+      onItemAdded?.({
+        id: row.id,
+        title: row.title,
+        priceLabel: row.amountCents != null && row.amountCents > 0 ? formatOrderMoney(row.amountCents, "USD") : null,
+      });
       setNotice(interpolate(t("public.guestChat.catalogAdded"), { item: row.title }));
       onRefresh();
     },
-    [onRefresh, t],
+    [onRefresh, t, onItemAdded],
   );
 
   // An add requested before the inquiry (and its token) existed runs once the token lands.
