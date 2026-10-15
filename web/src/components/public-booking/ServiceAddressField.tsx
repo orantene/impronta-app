@@ -8,11 +8,8 @@
  * (and the admin ones are gated), so street autocomplete is a later phase.
  * Length is validated, not truncated by maxLength, so a long paste gets an
  * explanation instead of silently losing its tail.
- *
- * TUL-933: the address is a two-row auto-growing field, so a long street
- * address wraps and stays fully readable at 390 before the guest confirms.
  */
-import { useEffect, useId, useRef } from "react";
+import { useId, type CSSProperties } from "react";
 
 import type { ServiceAddressErrorCode } from "@/lib/scheduling/service-address";
 
@@ -32,14 +29,6 @@ export function ServiceAddressField({
   locale?: string | null;
 }) {
   const copy = serviceAddressCopy(locale);
-  const areaRef = useRef<HTMLTextAreaElement>(null);
-  // Grow with the text so nothing is clipped; never shrinks below the two rows.
-  useEffect(() => {
-    const el = areaRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  }, [value]);
   const uid = useId();
   const addressId = `${uid}-address`;
   const noteId = `${uid}-note`;
@@ -51,20 +40,20 @@ export function ServiceAddressField({
   return (
     <div className="jb-field" data-service-address-field>
       <label htmlFor={addressId}>{copy.addressLabel}</label>
+      {/* TUL-933: a textarea wraps, so a long address can be read in full at 390px before confirming. */}
       <textarea
-        ref={areaRef}
         id={addressId}
+        rows={2}
+        style={{ fieldSizing: "content", minHeight: 52 } as CSSProperties}
         name="service-address"
         autoComplete="street-address"
         required
-        rows={2}
         value={value}
         placeholder={copy.addressPlaceholder}
         aria-invalid={addressError ? true : undefined}
         aria-describedby={addressError ? `${hintId} ${errorId}` : hintId}
-        onChange={(e) => onChange({ address: e.target.value.replace(/\s*\n+\s*/g, " "), note })}
+        onChange={(e) => onChange({ address: e.target.value, note })}
         data-testid="cb-service-address"
-        style={{ minHeight: 0, resize: "none", overflow: "hidden" }}
       />
       <small id={hintId} className="jb-fixture">
         {copy.privacy}

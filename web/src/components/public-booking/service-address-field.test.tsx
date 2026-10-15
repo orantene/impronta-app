@@ -52,11 +52,9 @@ test("note error attaches to the note input, not the address", () => {
   assert.ok(!html.includes('data-testid="cb-service-address-error"'));
 });
 
-test("TUL-933: the address is a wrapping auto-growing textarea, not a one-line input", () => {
-  const html = renderToStaticMarkup(
-    <ServiceAddressField value="Avenida Insurgentes Sur 1234, Interior 5, Colonia del Valle Centro, Benito Juarez" note="" onChange={noop} locale="es" />,
-  );
-  assert.match(html, /<textarea[^>]*data-testid="cb-service-address"/);
-  assert.match(html, /rows="2"/);
-  assert.match(html, /Colonia del Valle Centro, Benito Juarez<\/textarea>/);
+test("TUL-933: the address is a wrapping field so a long address stays fully visible at 390px", () => {
+  const long = "Calle 38 Norte entre 5a Avenida y 10a Avenida, Edificio Mar Azul depto 402, Playa del Carmen";
+  const html = renderToStaticMarkup(<ServiceAddressField value={long} note="" onChange={noop} locale="es" />);
+  assert.match(html, /<textarea[^>]*name="service-address"/);
+  assert.ok(html.includes(long));
 });

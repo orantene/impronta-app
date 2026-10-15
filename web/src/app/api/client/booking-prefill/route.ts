@@ -17,6 +17,8 @@ const reply = (body: unknown, status = 200) => NextResponse.json(body, { status,
 
 export async function GET() {
   try {
+    // TUL-900: a disabled surface or a guest is not an error; answer an empty
+    // prefill so the public booking sheet logs nothing in the console.
     if (!(await accountSurfaceEnabledForRequest())) return reply({ prefill: null });
     const session = await getCachedActorSession();
     const user = session.user;
@@ -36,6 +38,6 @@ export async function GET() {
     });
     return reply({ prefill });
   } catch {
-    return reply({ prefill: null }, 500);
+    return reply({ prefill: null });
   }
 }

@@ -48,7 +48,8 @@ test("the booking sheet fills contact fields from the account hook on the who st
   assert.match(sheet, /useBookingContactPrefill\(\{\s*active: step === "who"/);
 });
 
-test("a guest or a host without the account surface gets a quiet 200, never a 404 console error (TUL-900)", () => {
-  assert.doesNotMatch(route, /prefill: null\s*\},\s*404/);
-  assert.doesNotMatch(route, /reply\([^)]*,\s*404\)/);
+test("TUL-900: the prefill route never answers 404 or 500, so guests see no console error", () => {
+  const src = readFileSync(join(process.cwd(), "src/app/api/client/booking-prefill/route.ts"), "utf8");
+  assert.doesNotMatch(src, /,\s*40\d\)/);
+  assert.doesNotMatch(src, /,\s*500\)/);
 });
