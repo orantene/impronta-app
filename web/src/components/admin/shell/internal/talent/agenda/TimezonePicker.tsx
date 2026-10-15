@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useAgendaCopy } from "./use-agenda-copy";
+import { cityForLocale } from "./timezone-city-es";
 
 /**
  * TimezonePicker (TUL-94): a searchable pick from the IANA list, never free
@@ -76,7 +77,7 @@ function genericName(zone: string, locale: string): string {
  * tail so the zone is still findable, plus the UTC offset.
  */
 export function zoneLabel(zone: string, locale: string): string {
-  const city = (zone.split("/").pop() ?? zone).replaceAll("_", " ");
+  const city = cityForLocale((zone.split("/").pop() ?? zone).replaceAll("_", " "), locale);
   const generic = genericName(zone, locale);
   const off = offsetLabel(zone);
   const head = generic && generic.toLowerCase() !== city.toLowerCase() ? `${generic} · ${city}` : city;
