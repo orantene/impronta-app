@@ -28,17 +28,17 @@ function salesEntries(locale: GuestCorpusLocale): HelpCorpusEntry[] {
           "Tulala tiene un plan gratis para siempre. Puedes abrir un workspace gratis, publicar un roster y recibir solicitudes sin tarjeta. El plan gratis se queda gratis hasta que crezcas. Precio del plan gratis: $0. Empieza en /get-started.",
         youCanHere: [
           "Crear un workspace gratis sin tarjeta",
-          "Publicar un roster y una pagina en una direccion tulala",
+          "Publicar un roster y una página en una dirección tulala",
           "Recibir solicitudes en la bandeja",
         ],
         faqs: [
           {
-            q: "Cuanto cuesta el plan gratis?",
+            q: "¿Cuánto cuesta el plan gratis?",
             a: "Cero. El plan gratis cuesta $0 y se queda gratis. Studio es $29 al mes cuando lo necesitas.",
           },
           {
-            q: "Hay prueba gratis para agencias?",
-            a: "Si. Agency tiene una prueba de 14 dias. Empieza en /get-started?audience=agency.",
+            q: "¿Hay prueba gratis para agencias?",
+            a: "Sí. Agency tiene una prueba de 14 días. Empieza en /get-started?audience=agency.",
           },
         ],
         category: "pricing",
@@ -54,7 +54,7 @@ function salesEntries(locale: GuestCorpusLocale): HelpCorpusEntry[] {
         ],
         faqs: [
           {
-            q: "Cuanto se queda Tulala de cada reserva?",
+            q: "¿Cuánto se queda Tulala de cada reserva?",
             a: "6% sobre una reserva pagada. En el ejemplo de $1,000, Tulala se queda con $60.",
           },
         ],
@@ -71,7 +71,7 @@ function salesEntries(locale: GuestCorpusLocale): HelpCorpusEntry[] {
         ],
         faqs: [
           {
-            q: "Como hablo con una persona?",
+            q: "¿Cómo hablo con una persona?",
             a: "Pide un humano en este chat o usa /contact. Te responde una persona real.",
           },
         ],
@@ -81,12 +81,12 @@ function salesEntries(locale: GuestCorpusLocale): HelpCorpusEntry[] {
       {
         slug: "sales-where-team",
         purpose:
-          `Tulala es una empresa pequena. El equipo esta entre Mexico y Estados Unidos. El fundador se llama ${SUPPORT_AGENT.name}. Soporte en espanol e ingles.`,
-        youCanHere: ["Preguntar en espanol o ingles", `Hablar con ${SUPPORT_AGENT.name}`],
+          `Tulala es una empresa pequeña. El equipo está entre México y Estados Unidos. El fundador se llama ${SUPPORT_AGENT.name}. Soporte en español e inglés.`,
+        youCanHere: ["Preguntar en español o inglés", `Hablar con ${SUPPORT_AGENT.name}`],
         faqs: [
           {
-            q: "Donde esta el equipo?",
-            a: `Entre Mexico y Estados Unidos. ${SUPPORT_AGENT.name} lee el soporte.`,
+            q: "¿Dónde está el equipo?",
+            a: `Entre México y Estados Unidos. ${SUPPORT_AGENT.name} lee el soporte.`,
           },
         ],
         category: "about",
@@ -95,12 +95,12 @@ function salesEntries(locale: GuestCorpusLocale): HelpCorpusEntry[] {
       {
         slug: "sales-spanish-support",
         purpose:
-          "Si, hay soporte en espanol. Puedes preguntar en espanol. El sitio tiene paginas en espanol en /es. El chat responde en el idioma de tu pregunta.",
-        youCanHere: ["Preguntar en espanol", "Abrir /es/pricing y /es/funciones"],
+          "Sí, hay soporte en español. Puedes preguntar en español. El sitio tiene páginas en español en /es. El chat responde en el idioma de tu pregunta.",
+        youCanHere: ["Preguntar en español", "Abrir /es/pricing y /es/funciones"],
         faqs: [
           {
-            q: "Atienden en espanol?",
-            a: "Si. Puedes escribir en espanol y te respondemos en espanol.",
+            q: "¿Atienden en español?",
+            a: "Sí. Puedes escribir en español y te respondemos en español.",
           },
         ],
         category: "support",
@@ -109,12 +109,12 @@ function salesEntries(locale: GuestCorpusLocale): HelpCorpusEntry[] {
       {
         slug: "sales-data-export",
         purpose:
-          "Puedes exportar tus datos cuando quieras. No hay costo de instalacion. Si te vas, te llevas roster, clientes y reservas.",
+          "Puedes exportar tus datos cuando quieras. No hay costo de instalación. Si te vas, te llevas roster, clientes y reservas.",
         youCanHere: ["Exportar datos desde el workspace", "Irte sin perder el roster"],
         faqs: [
           {
-            q: "Puedo exportar mis datos?",
-            a: "Si. Puedes exportar tus datos cuando quieras.",
+            q: "¿Puedo exportar mis datos?",
+            a: "Sí. Puedes exportar tus datos cuando quieras.",
           },
         ],
         category: "trust",
@@ -123,15 +123,15 @@ function salesEntries(locale: GuestCorpusLocale): HelpCorpusEntry[] {
       {
         slug: "sales-from-spreadsheet",
         purpose:
-          "Si hoy corres el negocio en una hoja de calculo o WhatsApp, puedes pasar a Tulala. Importas el roster, publicas una pagina, y las solicitudes dejan de vivir en tus mensajes.",
+          "Si hoy corres el negocio en una hoja de cálculo o WhatsApp, puedes pasar a Tulala. Importas el roster, publicas una página, y las solicitudes dejan de vivir en tus mensajes.",
         youCanHere: [
           "Empezar gratis y cargar el roster",
           "Pasar clientes del chat a una solicitud con timeline",
         ],
         faqs: [
           {
-            q: "Puedo migrar desde Excel o WhatsApp?",
-            a: "Si. Empiezas gratis, cargas el roster, y las solicitudes quedan en Tulala en vez del chat.",
+            q: "¿Puedo migrar desde Excel o WhatsApp?",
+            a: "Sí. Empiezas gratis, cargas el roster, y las solicitudes quedan en Tulala en vez del chat.",
           },
         ],
         category: "onboarding",
@@ -140,15 +140,15 @@ function salesEntries(locale: GuestCorpusLocale): HelpCorpusEntry[] {
       {
         slug: "sales-what-is-tulala",
         purpose:
-          "Tulala es la plataforma para vender tu trabajo y correr el negocio: pagina, solicitudes, reservas y pagos. Para talento, operadores y agencias. No es solo un directorio.",
+          "Tulala es la plataforma para vender tu trabajo y correr el negocio: página, solicitudes, reservas y pagos. Para talento, operadores y agencias. No es solo un directorio.",
         youCanHere: [
-          "Vender tu trabajo desde una pagina",
+          "Vender tu trabajo desde una página",
           "Correr un roster y una agencia",
         ],
         faqs: [
           {
-            q: "Que es Tulala?",
-            a: "Una plataforma para vender tu trabajo y operar el negocio: pagina, solicitudes, reservas y pagos.",
+            q: "¿Qué es Tulala?",
+            a: "Una plataforma para vender tu trabajo y operar el negocio: página, solicitudes, reservas y pagos.",
           },
         ],
         category: "about",

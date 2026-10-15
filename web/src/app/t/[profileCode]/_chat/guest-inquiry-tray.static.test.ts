@@ -1,4 +1,4 @@
-/** TUL-1066: the persistent tray lists talent + catalog items; only talent can be removed. */
+/** TUL-1066: the persistent tray lists talent + catalog items; talent and catalog items can both be removed. */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -13,11 +13,11 @@ test("the tray count is talent plus added catalog items", () => {
   assert.match(src, /talents\.length \+ useAddedCatalogItems\(\)\.length/);
 });
 
-test("talent remove goes through the unified path; catalog items have no remove", () => {
+test("talent remove goes through the unified path; catalog items remove through removeAddedCatalogLine", () => {
   const src = read("GuestInquiryTray.tsx");
   assert.match(src, /onRemoveCartTalent\(tl\.talentProfileId\)/);
-  assert.equal((src.match(/dockTrayRemove/g) ?? []).length, 1);
-  assert.doesNotMatch(src, /messagingClient/);
+  assert.equal((src.match(/dockTrayRemove/g) ?? []).length, 2);
+  assert.match(src, /removeAddedCatalogLine\(it\)/);
 });
 
 test("the dock mounts the tray with the remove path", () => {

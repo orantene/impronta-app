@@ -139,3 +139,17 @@ test("TUL-814: the signup language rides on the new user so the email hook can s
   await sendEmailCodeCore({ email: "a@b.co", ip: "1.2.3.4", resent: false, shouldCreateUser: true }, deps(plain.client));
   assert.equal("data" in plain.calls[0].options, false);
 });
+
+test("TUL-762: sign-up sends the typed name as full_name; login never does", async () => {
+  const signup = fakeClient(null);
+  await sendEmailCodeCore({ ip: "1.2.3.4", resent: false, shouldCreateUser: true, email: "new@example.com", fullName: "  Ana  López " }, deps(signup.client));
+  assert.deepEqual(signup.calls[0]?.options.data, { full_name: "Ana López" });
+
+  const noName = fakeClient(null);
+  await sendEmailCodeCore({ ip: "1.2.3.4", resent: false, shouldCreateUser: true, email: "new@example.com", fullName: "   " }, deps(noName.client));
+  assert.equal(noName.calls[0]?.options.data, undefined);
+
+  const login = fakeClient(null);
+  await sendEmailCodeCore({ ...LOGIN, email: "known@example.com", fullName: "Ana" }, deps(login.client));
+  assert.equal(login.calls[0]?.options.data, undefined, "a login send must not carry a name");
+});

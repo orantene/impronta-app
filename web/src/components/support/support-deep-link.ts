@@ -5,7 +5,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 /**
  * `ticketId` is set only for a real uuid. A present but malformed `support`
  * value (a placeholder, a ticket number) sets `invalid` so the panel opens on
- * the Tickets list instead of a thread that can never load.
+ * the panel Home instead of a thread that can never load.
  */
 export function parseSupportDeepLink(search: string): {
   ticketId: string | null;

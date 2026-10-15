@@ -14,6 +14,7 @@
  *     costs no outbound email.
  */
 
+import { signupNameMetadata } from "@/lib/auth/signup-name";
 import {
   authEmailHasPlusTag,
   otpSendErrorKey,
@@ -51,10 +52,14 @@ export type SendEmailCodeDeps = {
 };
 
 export async function sendEmailCodeCore(
-  input: { email: string; ip: string; resent: boolean; shouldCreateUser: boolean },
+  input: { email: string; ip: string; resent: boolean; shouldCreateUser: boolean; fullName?: string | null },
   deps: SendEmailCodeDeps,
 ): Promise<EmailCodeState> {
   const { email, ip, resent, shouldCreateUser } = input;
+  // TUL-762: the name is only meaningful when this send can create the account.
+  const nameData = shouldCreateUser ? signupNameMetadata(input.fullName) : undefined;
+  // TUL-814 language + TUL-762 name both ride on the new user's metadata.
+  const userData = deps.newUserData || nameData ? { ...deps.newUserData, ...nameData } : undefined;
   const { t } = deps;
   const fail = (error: string): EmailCodeState =>
     resent ? { step: "code", error, email } : { step: "email", error, email };
@@ -75,7 +80,7 @@ export async function sendEmailCodeCore(
   try {
     ({ error } = await client.auth.signInWithOtp({
       email,
-      options: { shouldCreateUser, emailRedirectTo: deps.emailRedirectTo, ...(deps.newUserData ? { data: deps.newUserData } : {}) },
+      options: { shouldCreateUser, emailRedirectTo: deps.emailRedirectTo, ...(userData ? { data: userData } : {}) },
     }));
   } catch (thrown) {
     error = thrown;

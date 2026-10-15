@@ -232,6 +232,7 @@ export function ServicesCatalogFilter({
   useChatAddService((id) => {
     const { found } = findOffering(id);
     if (found && !dock.picked.some((p) => p.id === found.id)) onRowAction(found);
+    return Boolean(found);
   });
 
   const continueFromBar = () => {
