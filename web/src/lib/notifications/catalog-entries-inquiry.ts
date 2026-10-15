@@ -191,8 +191,15 @@ const OFFER_SENT_TALENT: CatalogEntry = {
   in_app: {
     kind: "offer",
     surface: "talent",
-    title: () => "You have an offer to review",
+    // TUL-958: the talent who sent the offer is waiting on the client, not asked to approve.
+    title: (event, recipient) =>
+      recipient.userId && recipient.userId === event.userId
+        ? "Your offer was sent"
+        : "You have an offer to review",
     body: (event, recipient) => {
+      if (recipient.userId && recipient.userId === event.userId) {
+        return "Your offer was sent to the client. Waiting on the client's approval.";
+      }
       const netMap = (event.payload.talentNetByUserId ?? {}) as Record<string, string>;
       const net = (recipient.userId && netMap[recipient.userId]) || "";
       const contact = str(event.payload.contactName);
@@ -311,12 +318,9 @@ const BOOKING_CONFIRMED_TALENT: CatalogEntry = {
     surface: "talent",
     title: () => "New booking confirmed",
     body: () => "A client booked a time with you.",
-    // TUL-959: the bell row opens the booking itself (/talent/bookings/<id>).
-    targetDrawer: "talent-booking",
-    targetPayload: (event) => {
-      const bookingId = str(event.payload.bookingId);
-      return bookingId ? { bookingId } : {};
-    },
+    // TUL-959: same target as the offer bell, so the row opens the inquiry workspace.
+    targetDrawer: "talent-inquiry",
+    targetPayload: (event) => (event.inquiryId ? { inquiryId: event.inquiryId } : {}),
   },
   email: {
     templateId: "talent.booking_confirmed",

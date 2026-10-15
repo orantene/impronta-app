@@ -87,7 +87,7 @@ export type HubClickTarget =
 export function hubClickTarget(n: UserNotification, adminBasePath: string): HubClickTarget | null {
   const raw = targetOf(n);
   if (!raw) return null;
-  const f = notificationDrawerFields(raw, n.originInquiryId, adminBasePath, n.targetPayload);
+  const f = notificationDrawerFields(raw, n.originInquiryId, adminBasePath);
   // TUL-391 r3: the inquiry-workspace drawer is a fixture drawer; it resolves a
   // real inquiry uuid to RICH_INQUIRIES[0] (a demo inquiry). A talent bell row
   // opens the real chat-first inbox instead.

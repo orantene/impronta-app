@@ -390,7 +390,7 @@ export function SupportPanel({
         <button
           type="button"
           onClick={onClose}
-          aria-label={t("dashboard.adminSupport.close")}
+          aria-label={t("dashboard.adminSupport.closeAria")}
           style={{
             border: "none",
             background: "transparent",

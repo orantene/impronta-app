@@ -66,6 +66,7 @@ export async function previewBookingQuoteAction(
     const cart = bookingCartLines(lines, { currency: ccy.currency, appointmentStart: input.startsAt ?? null });
     const q = await quoteBooking(admin, {
       tenantId: policy.tenantId,
+      talentProfileId: offering.talentProfileId,
       lines: cart,
       contact: { email: input.contactEmail ?? null, phone: input.contactPhone ?? null },
       code: req.code,

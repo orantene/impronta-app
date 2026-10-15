@@ -5,7 +5,7 @@
 import {
   isSupportDeskHost,
   normalizeHostname,
-  SUPPORT_DESK_PRIMARY_HOST,
+  supportDeskPrimaryHostFor,
 } from "@/lib/support/desk-hosts";
 
 /** Local QA path on the app host (localhost / app.tulala.digital). */
@@ -28,7 +28,7 @@ export function supportDeskHref(opts?: {
   const suffix = qs ? `?${qs}` : "";
 
   if (opts?.absoluteHost) {
-    return `https://${SUPPORT_DESK_PRIMARY_HOST}${SUPPORT_DESK_HOST_PATH}${suffix}`;
+    return `https://${supportDeskPrimaryHostFor(opts?.host)}${SUPPORT_DESK_HOST_PATH}${suffix}`;
   }
 
   const host = normalizeHostname(opts?.host ?? null);
@@ -43,11 +43,11 @@ export function supportDeskHref(opts?: {
  * Dev uses same-origin `/desk` (local QA path redirects there). Prod builds
  * open the dedicated host so agents leave Platform Admin chrome.
  */
-export function supportDeskOpenFromHqHref(): string {
+export function supportDeskOpenFromHqHref(requestHost?: string | null): string {
   if (typeof process !== "undefined" && process.env.NODE_ENV === "development") {
     return SUPPORT_DESK_HOST_PATH;
   }
-  return `https://${SUPPORT_DESK_PRIMARY_HOST}${SUPPORT_DESK_HOST_PATH}`;
+  return `https://${supportDeskPrimaryHostFor(requestHost)}${SUPPORT_DESK_HOST_PATH}`;
 }
 
 /**
@@ -57,8 +57,10 @@ export function supportDeskOpenFromHqHref(): string {
 export function supportDeskPortalRedirectHref(opts?: {
   ticketId?: string | null;
   view?: string | null;
+  /** Request host (server: headers()); picks the staging vs prod desk. */
+  host?: string | null;
 }): string {
-  const base = supportDeskOpenFromHqHref();
+  const base = supportDeskOpenFromHqHref(opts?.host);
   const params = new URLSearchParams();
   if (opts?.ticketId) params.set("ticket", opts.ticketId);
   if (opts?.view) params.set("view", opts.view);

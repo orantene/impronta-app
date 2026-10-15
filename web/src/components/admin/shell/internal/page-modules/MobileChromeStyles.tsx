@@ -54,6 +54,10 @@ export function MobileChromeStyles() {
           border-radius: 20px 20px 0 0 !important;
           padding-bottom: env(safe-area-inset-bottom, 0px) !important;
         }
+        /* TUL-960: the sheet dims the page behind it, like the record sheets. */
+        .tulala-shell [data-tulala-notifications-popover]:popover-open::backdrop {
+          background: rgba(11, 11, 13, 0.4);
+        }
         /* W44/W48/W50 record sheets (Collect, Replace, Close, Record
            approval) become bottom sheets with full-width 50px buttons. */
         [data-record-overlay] {

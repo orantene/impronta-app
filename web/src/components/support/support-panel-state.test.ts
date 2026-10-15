@@ -10,6 +10,7 @@ import {
   EMPTY_THREAD,
   applyIncomingMessage,
   canOfferHuman,
+  shouldShowThinking,
   humanRequestedPatch,
   selectThread,
   threadReducer,
@@ -188,4 +189,12 @@ test("canOfferHuman: no escalation offer once a human has the ticket", () => {
   assert.equal(canOfferHuman({ handledBy: "human", status: "open" }), false);
   assert.equal(canOfferHuman({ handledBy: "ai", status: "closed" }), false);
   assert.equal(canOfferHuman(null), true);
+});
+
+test("shouldShowThinking: hides the bubble once an AI reply is the last message (TUL-948)", () => {
+  const mk = (authorKind: string) => ({ authorKind, deletedAt: null }) as never;
+  assert.equal(shouldShowThinking(true, [mk("requester")]), true);
+  assert.equal(shouldShowThinking(true, [mk("requester"), mk("ai")]), false);
+  assert.equal(shouldShowThinking(false, [mk("requester")]), false);
+  assert.equal(shouldShowThinking(true, []), true);
 });
