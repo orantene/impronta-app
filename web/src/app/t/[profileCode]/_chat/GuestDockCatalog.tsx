@@ -361,7 +361,7 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
             <div style={{ flex: "1 1 150px", minWidth: 0 }}>
               <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflowWrap: "anywhere", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{row.title}</div>
               {ownerChips && row.ownerName ? (
-                <div data-guest-catalog-owner style={{ fontSize: 11.5, color: C.inkMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{interpolate(t("public.guestChat.catalogOwnerBy"), { name: row.ownerName })}</div>
+                <div data-guest-catalog-owner title={interpolate(t("public.guestChat.catalogOwnerBy"), { name: row.ownerName })} style={{ fontSize: 12.5, color: C.inkDim, overflowWrap: "anywhere" }}>{interpolate(t("public.guestChat.catalogOwnerBy"), { name: row.ownerName })}</div>
               ) : null}
               <div style={{ fontSize: 11.5, color: C.inkDim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {[price, row.sub, !row.available ? t("public.guestChat.catalogUnavailable") : null].filter(Boolean).join(" · ")}
