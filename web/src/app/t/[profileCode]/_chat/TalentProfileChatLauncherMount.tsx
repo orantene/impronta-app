@@ -173,6 +173,13 @@ export async function TalentProfileChatLauncherMount({
   // Guest chat only makes sense on an agency surface (the thread is tenant-owned).
   if (!tenantSlug) return null;
 
+  // P0 tenant/talent scope: this page belongs to one talent, so its roster picker lists only
+  // that talent (the closure is a server action; the client cannot swap the id).
+  async function listRosterForThisTalent(input: { tenantSlug: string }) {
+    "use server";
+    return listGuestTenantRoster({ tenantSlug: input.tenantSlug, talentProfileId });
+  }
+
   // P2 chrome hygiene — defense-in-depth mirror of AgencyChatLauncherMount's
   // edit-mode gate. EditChromeMount currently never mounts on `/t/` profile
   // paths (see NON_STOREFRONT_PREFIXES in edit-chrome-mount.tsx), so this is
@@ -321,7 +328,7 @@ export async function TalentProfileChatLauncherMount({
       onCaptureChip={captureGuestChip}
       onEnsureInquiry={ensureGuestChatInquiry}
       onLoadDetails={getGuestInquiryDetails}
-      onListRoster={listGuestTenantRoster}
+      onListRoster={listRosterForThisTalent}
       onResolveCartPortraits={resolveGuestCartPortraits}
       onScanConversation={scanGuestConversationForDetails}
       soundOnReply
