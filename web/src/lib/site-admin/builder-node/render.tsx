@@ -6169,6 +6169,10 @@ function renderBuilderNodeElement(
                 matrix={layout === "matrix"}
                 liveStatus={options.dataSources.liveStatus ?? null}
                 promoPrices={options.dataSources.talentOfferingsPromoPrices}
+                signedIn={
+                  options.dataSources.headerWidgets?.account?.signedIn === true ||
+                  options.visibilityContext?.signedIn === true
+                }
               />
             </CatalogIslandBoundary>
           )}

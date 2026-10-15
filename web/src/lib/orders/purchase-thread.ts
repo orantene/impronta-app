@@ -143,7 +143,12 @@ export async function openPurchaseThread(
   if (input.bookingId) {
     const { error: srcErr } = await admin
       .from("agency_bookings")
-      .update({ source_inquiry_id: inquiryId })
+      .update({
+        source_inquiry_id: inquiryId,
+        // TUL-62: keep booking ownership aligned with the inquiry client when
+        // the insert path had no actor yet (or a guest later claimed).
+        ...(input.actorUserId ? { client_user_id: input.actorUserId } : {}),
+      })
       .eq("id", input.bookingId);
     if (srcErr) {
       logServerError("orders.createPurchase/booking-inquiry", srcErr);

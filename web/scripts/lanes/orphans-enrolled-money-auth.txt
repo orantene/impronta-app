@@ -22,3 +22,4 @@ src/lib/supabase/forged-host-name.security.test.ts
 src/lib/client-account/account-timezone.test.ts
 src/lib/client-account/visit-zone.test.ts
 src/lib/payments/failed-refund-attention.test.ts
+src/lib/client-account/account-pay-cancel.test.ts

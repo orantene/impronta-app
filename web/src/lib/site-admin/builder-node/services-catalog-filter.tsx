@@ -95,6 +95,7 @@ export function ServicesCatalogFilter({
   matrix = false,
   liveStatus = null,
   promoPrices,
+  signedIn = false,
 }: {
   /** TUL-792: offering id -> its own service page; absent where no such page exists. */
   serviceHrefs?: Record<string, string>;
@@ -140,6 +141,8 @@ export function ServicesCatalogFilter({
   /** layout "matrix": one comparison table (wide) / stacked cards (narrow). */
   matrix?: boolean;
   liveStatus?: LiveStatusRenderContext | null;
+  /** TUL-62: signed-in catalog purchase skips empty guest contact fields. */
+  signedIn?: boolean;
 }) {
   // Include the uncategorised bucket so "Otros" is a real chip (pills/tabs/rail),
   // not only a jump/sections heading.
@@ -538,6 +541,7 @@ export function ServicesCatalogFilter({
         captcha={captcha}
         mode={bookingMode}
         onlineCollectReady={onlineCollectReady}
+        signedIn={signedIn}
       />
     </div>
   );
