@@ -4899,6 +4899,7 @@
       "greetingMorning": "Buenos días, {name}",
       "greetingAfternoon": "Buenas tardes, {name}",
       "greetingEvening": "Buenas noches, {name}",
+      "greetingNeutral": "Hola, {name}",
       "greetingFallbackName": "de nuevo",
       "dateLocale": "es-ES",
       "newInquiry": "Nueva consulta",
