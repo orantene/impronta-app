@@ -1319,6 +1319,8 @@
       "timesAskPrefill": "The hold ended. Can we look at another time?",
       "catalogAdded": "{item} added to your inquiry. Nothing is booked until they confirm.",
       "catalogAddFailed": "Could not add that right now. Try again, or just ask in the chat.",
+      "catalogScopeShowAll": "Show the whole network",
+      "catalogScopeShowThis": "Show only this talent",
       "catalogUnavailable": "Not available",
       "catalogShelf": "Browse and add",
       "dockNavLineup": "Items",
