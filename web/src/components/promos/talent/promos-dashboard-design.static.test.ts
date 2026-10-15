@@ -60,3 +60,17 @@ test("promo sheets set an ink text colour so the shared close button and icons a
     assert.match(m![0], /text-\[var\(--tc-ink,#1c1c1e\)\]/, f);
   }
 });
+
+test("wide viewports: max width, responsive card grid, template columns and an md+ side panel", () => {
+  const page = read("src/components/promos/talent/PromosPage.tsx");
+  assert.match(page, /data-promos-page className="mx-auto flex w-full max-w-5xl/);
+  assert.match(page, /grid-cols-\[minmax\(0,1fr\)\][^"]*md:grid-cols-\[repeat\(2,minmax\(0,1fr\)\)\][^"]*xl:grid-cols-\[repeat\(3,minmax\(0,1fr\)\)\]/);
+  assert.match(page, /<TemplateGrid copy=\{copy\} onPick=\{start\} wide \/>/);
+  const grid = read("src/components/promos/talent/TemplateGrid.tsx");
+  assert.match(grid, /md:grid-cols-\[repeat\(3,minmax\(0,1fr\)\)\] xl:grid-cols-\[repeat\(4,minmax\(0,1fr\)\)\]/);
+  const ui = read("src/components/promos/talent/ui.tsx");
+  assert.match(ui, /PANEL_MD =\s*"md:inset-y-0[^"]*md:max-w-lg[^"]*md:rounded-l-3xl/);
+  for (const f of ["PromosPage", "QuickCreateDrawer", "PromoDetailSheet"]) {
+    assert.match(read(`src/components/promos/talent/${f}.tsx`), /\$\{PANEL_MD\}/, f);
+  }
+});
