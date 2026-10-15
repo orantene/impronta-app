@@ -750,7 +750,10 @@ export function stripCssComments(sheet: string): string {
   return out
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n[ \t]+/g, "\n")
-    .replace(/\n{2,}/g, "\n");
+    .replace(/\n{2,}/g, "\n")
+    // A line break after `;` `{` `}` `,` separates nothing. Every other break stays: it can be
+    // the descendant combinator between two compound selectors.
+    .replace(/([;{},])\n/g, "$1");
 }
 
 export function buildScopedRendererCss(

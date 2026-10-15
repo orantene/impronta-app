@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { useFocusTrap } from "@/components/support/use-focus-trap";
 import { deriveGuestBookingPresentation } from "@/lib/booking/guest-booking-presentation";
+
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 import { durationLabel } from "@/lib/talent/duration-label";
 import { formatMoney } from "@/lib/talent/offerings-money";
@@ -26,6 +26,7 @@ import {
   type CatalogBookingSelection,
 } from "./catalog-booking-chat";
 import {
+  buildLiveDayStrip,
   catalogBookingDurationMinutes,
   catalogApplyDayPick,
   catalogCanContinueWhen,
@@ -39,9 +40,10 @@ import {
   catalogBookingWhenLabel,
   catalogTotalCents,
   demoSlotsFor,
+  firstDayWithSlotsIndex,
   firstOpenDemoDayIndex,
   formatClock,
-  groupIsoSlotsByDay,
+  LIVE_SLOT_STRIP_DAYS,
   type CatalogBookingMode,
 } from "./catalog-booking-logic";
 import {
@@ -78,6 +80,7 @@ import { ServiceAddressField } from "./ServiceAddressField";
 import { CatalogWhoContact } from "./catalog-who-contact";
 import { useServiceAddress } from "./use-service-address";
 import { useCatalogBookingConfirm } from "./use-catalog-booking-confirm";
+import { useBookingSheetFocusTrap } from "./use-booking-sheet-focus";
 import { CatalogDonePanel, CatalogSheetHeader } from "./catalog-done-panel";
 import { CatalogSheetFooter } from "./catalog-sheet-footer";
 import { isCatalogDoneEcho, useCatalogDoneSnapshot, type CatalogDoneFacts } from "./catalog-done-snapshot";
@@ -122,6 +125,7 @@ export function CatalogBookingSheet({
   const [time, setTime] = useState<string | null>(null);
   const [liveStarts, setLiveStarts] = useState<string | null>(null);
   const [liveTz, setLiveTz] = useState("UTC");
+  const [livePlaceCity, setLivePlaceCity] = useState<string | null>(null);
   const [liveDays, setLiveDays] = useState<Array<{ key: string; date: Date; starts: string[] }>>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsReady, setSlotsReady] = useState(false);
@@ -146,7 +150,7 @@ export function CatalogBookingSheet({
     !skipCaptcha && captcha != null && captcha.provider !== "none" && Boolean(captcha.siteKey);
 
   const days = useMemo(() => catalogNextDays(), []);
-  const trapRef = useFocusTrap<HTMLDivElement>(detail !== null);
+  const { trapRef, captureOpener, clearStaleOpener } = useBookingSheetFocusTrap(detail !== null);
   // TUL-553: opening the sheet lands on its first real step (the first option, else Continue), not the close X.
   const openedOffering = detail?.offeringId ?? null;
   useEffect(() => {
@@ -182,6 +186,7 @@ export function CatalogBookingSheet({
       // PKG-2: products / untimed packages use CatalogPurchaseMount; skip only when that rail handles it.
       if (d.intent === "instant" && catalogDetailIsPurchase(d)) return;
       if (isCatalogDoneEcho(d.offeringId)) return; // TUL-1035: a post-confirm re-open keeps the confirmation
+      captureOpener();
       // G13: a picked task pre-selects matching intake chips (still editable).
       setDetail(d.intake?.length ? { ...d, answers: preselectIntakeFromTask(d.intake, d.task, d.answers) } : d);
       // TUL-59: same service reopened in this session keeps every pick and field.
@@ -204,7 +209,7 @@ export function CatalogBookingSheet({
     const names = ["tulala:offering-instant", "tulala:offering-slot", "tulala:offering-request"];
     names.forEach((n) => window.addEventListener(n, open));
     return () => names.forEach((n) => window.removeEventListener(n, open));
-  }, [mode, days, draftKey]);
+  }, [mode, days, draftKey, captureOpener]);
 
   // CH-3: "back to my booking" re-opens the sheet with every pick kept (G9b: the task note rides on detail).
   useEffect(() => {
@@ -223,7 +228,7 @@ export function CatalogBookingSheet({
     window.dispatchEvent(
       new window.CustomEvent("tulala:maison-sheet", { detail: { open: detail !== null } }),
     );
-    if (!detail) return;
+    if (!detail) { clearStaleOpener(); return; }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setDetail(null);
     };
@@ -286,21 +291,31 @@ export function CatalogBookingSheet({
       .then((r) => {
         if (cancelled) return;
         setLiveTz(r.timezone);
-        const grouped = groupIsoSlotsByDay(r.slots, r.timezone);
-        setLiveDays(grouped);
+        setLivePlaceCity(r.placeCity?.trim() || null);
+        // TUL-531: continuous 30-day strip (empty days kept); fromYmd falls back to the first slot day.
+        const fromYmd =
+          r.fromYmd ?? r.slots.map((s) => s.slice(0, 10)).sort()[0] ?? new Date().toISOString().slice(0, 10);
+        const strip = buildLiveDayStrip({
+          slots: r.slots,
+          timezone: r.timezone,
+          fromYmd,
+          dayCount: LIVE_SLOT_STRIP_DAYS,
+        });
+        setLiveDays(strip);
         // TUL-232: opened at a slot: select it, or fall back to its day / the first day with the notice.
-        const arrival = slotArrivalPlan(pendingSlotRef.current, grouped, r.timezone, locale);
+        const arrival = slotArrivalPlan(pendingSlotRef.current, strip, r.timezone, locale);
         pendingSlotRef.current = null;
         if (arrival) { setDayIndex(arrival.dayIndex); setTime(arrival.time); setLiveStarts(arrival.liveStarts); setTakenNotice(arrival.notice); return; }
         // BUF-6: keep the pick only when that ISO is still offered; otherwise
         // clear clock + ISO so confirm cannot send a start that no longer fits.
         const prev = liveStartsRef.current;
         if (catalogSelectedStartStillOpen(prev, r.slots)) {
-          const idx = grouped.findIndex((d) => d.starts.some((s) => catalogSameInstant(s, prev!)));
+          const idx = strip.findIndex((d) => d.starts.some((s) => catalogSameInstant(s, prev!)));
           if (idx >= 0) setDayIndex(idx);
           return;
         }
-        setDayIndex(0);
+        // Land on the first free day in the window (today may be closed after hours).
+        setDayIndex(firstDayWithSlotsIndex(strip));
         setTime(null);
         setLiveStarts(null);
       })
@@ -631,6 +646,7 @@ export function CatalogBookingSheet({
                   dayIndex={dayIndex}
                   liveStarts={liveStarts}
                   liveTz={liveTz}
+                  placeCity={livePlaceCity}
                   timeGroupLabel={timeGroupLabel}
                   emptyConsultButton={emptyConsultButton}
                   takenNotice={takenNotice}
@@ -671,6 +687,7 @@ export function CatalogBookingSheet({
                 day={day}
                 time={time}
                 tz={mode === "live" ? liveTz : null}
+                placeCity={mode === "live" ? livePlaceCity : null}
                 total={isQuote ? (es ? "A cotizar" : "Quote") : money(total, detail.currency)}
                 addressNote={addr.rule === "required" ? "client" : "studio"}
               />

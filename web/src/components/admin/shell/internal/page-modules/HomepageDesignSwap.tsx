@@ -6,10 +6,15 @@
  * (`allowDbTemplates: false`), so without this picker a bad seed is permanent.
  *
  * Apply writes a DRAFT. The live site stays until the operator publishes.
+ *
+ * TUL-331: talent workspaces do NOT see this picker - their look change is the
+ * finished theme gallery (Maison v2 / Folio / Gridline), not 14 agency/SaaS
+ * page starters. Business workspaces see workspace|both starters only.
  */
 
 import { useActionState, useEffect, useState } from "react";
 
+import { starterSummariesForSurface } from "@/components/edit-chrome/empty-canvas-starter-surface";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { PAGE_DESIGN_SUMMARIES } from "@/lib/site-admin/builder-node/page-designs/summaries";
@@ -37,14 +42,17 @@ export function HomepageDesignSwap() {
     toast(formState.error);
   }, [formState, t, toast]);
 
-  if (!canEdit) return null;
+  // Talent site look = finished theme gallery, not PAGE_DESIGN agency starters.
+  if (!canEdit || state.workspaceType === "talent") return null;
 
-  const selected = PAGE_DESIGN_SUMMARIES.find((row) => row.id === selectedId);
+  const designs = starterSummariesForSurface(PAGE_DESIGN_SUMMARIES, "workspace");
+  const selected = designs.find((row) => row.id === selectedId);
 
   return (
     <section
       aria-label={t("dashboard.adminWebsite.designSwap.aria")}
       className="mb-[18px] rounded-admin-lg border border-admin-border bg-admin-card p-[16px]"
+      data-homepage-design-swap="workspace"
     >
       <h2 className="m-0 text-admin-13h font-semibold text-admin-ink">
         {t("dashboard.adminWebsite.designSwap.title")}
@@ -53,7 +61,7 @@ export function HomepageDesignSwap() {
         {t("dashboard.adminWebsite.designSwap.body")}
       </p>
       <div className="mt-[12px] grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-[8px]">
-        {PAGE_DESIGN_SUMMARIES.map((design) => {
+        {designs.map((design) => {
           const active = design.id === selectedId;
           return (
             <button

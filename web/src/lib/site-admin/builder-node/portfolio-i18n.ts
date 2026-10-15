@@ -8,7 +8,6 @@
  * the walk is visitor locale, then the page's primary locale, then the base.
  */
 
-import { looksLikeSlugAlt } from "./portfolio-alt-suggest";
 
 export type PortfolioI18nMap = Readonly<Record<string, string | null | undefined>>;
 
@@ -54,6 +53,25 @@ export function portfolioPhotoFallbackAlt(locale: string | null | undefined): st
   return key(locale) === "es" ? "Foto del portafolio" : "Portfolio photo";
 }
 
+/**
+ * GRK-101: demo / CDN asset keys (`f-hero`, `f-d-knit`, `gallery-1`) sometimes
+ * land in the `alt` column. Those are storage ids, not descriptions — reject so
+ * callers can fall through to caption / name / a localized generic.
+ */
+export function isAssetSlugAlt(alt: string | null | undefined): boolean {
+  const s = text(alt);
+  if (!s || s.length > 64 || /\s/.test(s)) return false;
+  // kebab/snake token with ≥1 separator; all lowercase letters/digits.
+  return /^[a-z0-9]+(?:[-_.][a-z0-9]+)+$/.test(s);
+}
+
+/** Return `alt` when it is human copy; otherwise null. */
+export function humanImageAlt(alt: string | null | undefined): string | null {
+  const s = text(alt);
+  if (!s || isAssetSlugAlt(s)) return null;
+  return s;
+}
+
 export function resolvePortfolioCaption(
   metadata: Record<string, unknown> | null | undefined,
   locale: string | null | undefined,
@@ -81,15 +99,17 @@ export function resolvePortfolioAlt(args: {
   /** Zero-cost generated alt (TUL-588), used before the bare name. */
   suggested?: string | null;
 }): string {
-  const stored = resolvePortfolioText(
-    readPortfolioI18nMap(args.metadata?.alt_i18n),
-    args.alt,
-    args.locale,
-    args.primaryLocale,
+  const fromMaps = humanImageAlt(
+    resolvePortfolioText(
+      readPortfolioI18nMap(args.metadata?.alt_i18n),
+      args.alt,
+      args.locale,
+      args.primaryLocale,
+    ),
   );
   return (
-    (stored && !looksLikeSlugAlt(stored) ? stored : "") ||
-    args.caption ||
+    fromMaps ||
+    text(args.caption) ||
     text(args.suggested) ||
     text(args.displayName) ||
     portfolioPhotoFallbackAlt(args.locale)

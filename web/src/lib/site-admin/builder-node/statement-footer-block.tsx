@@ -21,17 +21,18 @@ export const STATEMENT_FOOTER_CSS = `
 .sb-statement-footer-rule{width:min(4.5rem,30%);height:1px;background:var(--token-color-line);border:0;margin:0}
 .sb-statement-footer-statement{margin:0;font-family:var(--token-typography-heading-font-family,var(--site-heading-font,Georgia,serif));font-size:clamp(1.35rem,3.2vw,2rem);font-weight:400;letter-spacing:-0.02em;line-height:1.25;text-wrap:balance;color:var(--token-color-ink);max-width:28ch}
 .sb-statement-footer-meta{display:flex;flex-direction:column;gap:0.3rem;max-width:36rem}
-.sb-statement-footer-credit{margin:0;font-size:0.78rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--token-color-muted)}
+.sb-statement-footer-credit{margin:0;font-size:0.78rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--token-color-muted-text,var(--token-color-muted))}
 .sb-statement-footer-contact{margin:0;font-size:0.95rem;letter-spacing:0.01em;line-height:1.45;color:var(--token-color-ink);font-family:var(--token-typography-body-font-family,var(--site-body-font,system-ui,sans-serif));opacity:0.88}
 `;
 
 /** Magazine closing page: ink rule, giant serif line (last word italic), CTA. */
 export const STATEMENT_FOOTER_MAGAZINE_CSS = `
-.sb-statement-footer[data-edition="magazine"]{${MAGAZINE_ROOT_VARS};margin-top:52px;padding:30px 16px 120px;border-top:1px solid var(--sb-mag-ink);color:var(--sb-mag-ink)}
-.sb-statement-footer[data-edition="magazine"] h2{margin:0;font:400 var(--token-type-footer-title-size,64px)/.9 var(--sb-mag-serif);letter-spacing:-.01em;color:var(--sb-mag-ink);text-wrap:balance}
+.sb-statement-footer[data-edition="magazine"]{${MAGAZINE_ROOT_VARS};margin-top:52px;padding:30px 16px 120px;border-top:1px solid var(--sb-mag-ink);color:var(--sb-mag-ink);max-width:100%;min-width:0;box-sizing:border-box;overflow-x:clip}
+.sb-statement-footer[data-edition="magazine"] h2{margin:0;font:400 var(--token-type-footer-title-size,64px)/.9 var(--sb-mag-serif);letter-spacing:-.01em;color:var(--sb-mag-ink);text-wrap:balance;max-width:100%}
 .sb-statement-footer[data-edition="magazine"] h2 em{font-style:italic}
-.sb-statement-footer[data-edition="magazine"] .sb-mag-copy{margin:12px 0 16px;color:var(--sb-mag-mute);font:400 14px/21px var(--sb-mag-sans)}
-.sb-statement-footer[data-edition="magazine"] .sb-mag-fine{margin-top:24px;display:flex;justify-content:space-between;gap:12px;font:600 10px/1.2 var(--sb-mag-label);letter-spacing:.16em;text-transform:uppercase;color:var(--sb-mag-mute)}
+.sb-statement-footer[data-edition="magazine"] .sb-mag-copy{margin:12px 0 16px;color:var(--sb-mag-mute);font:400 14px/21px var(--sb-mag-sans);max-width:100%}
+.sb-statement-footer[data-edition="magazine"] .sb-mag-btn{max-width:100%;box-sizing:border-box}
+.sb-statement-footer[data-edition="magazine"] .sb-mag-fine{margin-top:24px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;min-width:0;max-width:100%;font:600 10px/1.2 var(--sb-mag-label);letter-spacing:.16em;text-transform:uppercase;color:var(--sb-mag-mute)}
 ${MAGAZINE_BUTTON_CSS}
 @media (min-width:900px){
   .sb-statement-footer[data-edition="magazine"]{margin:90px 40px 0;padding:40px 0 120px}
