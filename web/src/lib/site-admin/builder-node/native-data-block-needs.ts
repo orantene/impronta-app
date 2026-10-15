@@ -24,7 +24,6 @@ export type NativePostsFeedNeed = {
     source: PostsFeedSource;
     postIds: string[];
     categoryId: string | null;
-    tags: string[];
     excludeIds: string[];
     sort: PostsFeedSort;
   };
@@ -245,7 +244,6 @@ export function collectNativeDataBlockNeeds(
           source: o.source,
           postIds: o.postIds,
           categoryId: o.source === "category" ? o.categoryId : null,
-          tags: [],
           excludeIds: o.excludeIds,
           sort: o.sort,
         },

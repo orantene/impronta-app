@@ -25,8 +25,6 @@ import {
   normalizePostsFeedOptions,
   postsFeedDemoTradeForFamily,
   postsFeedFetchLimit,
-  postsFeedPageCount,
-  postsFeedPageOffset,
   resolvePostsFeedCards,
   type PostsFeedCard,
   type PostsFeedNodeData,
@@ -71,7 +69,6 @@ function liveCards(n: number): PostsFeedCard[] {
     imageAlt: `Cover ${i + 1}`,
     readingMinutes: 3,
     author: "Ana",
-    tags: ["care"],
   }));
 }
 
@@ -95,7 +92,7 @@ test("defaults: grid, latest, newest, 6 per page, no pagination, cover/category/
   assert.equal(normalizePostsFeedOptions(null).layout, "grid");
 });
 
-test("validation: bad enums fall back, limit clamps 1..24, ids dedupe, tags normalise, minimal forces no cover", () => {
+test("validation: bad enums fall back, limit clamps 1..24, ids dedupe, stored tags ignored, minimal forces no cover", () => {
   const o = normalizePostsFeedOptions({
     layout: "carousel" as PostsFeedStyle,
     source: "random" as "latest",
@@ -116,7 +113,7 @@ test("validation: bad enums fall back, limit clamps 1..24, ids dedupe, tags norm
   assert.equal(o.limit, 24);
   assert.equal(o.columns, 3);
   assert.deepEqual(o.postIds, ["a", "b", "c"]);
-  assert.deepEqual(o.tags, ["care", "nails"]);
+  assert.equal("tags" in o, false, "stored tags are ignored (v1.1)");
   assert.deepEqual(o.excludeIds, ["x"]);
   assert.equal(o.categoryId, null);
   assert.equal(o.demoTrade, "general");
@@ -139,13 +136,7 @@ test("registry schema accepts every style and rejects an unknown one", () => {
   assert.ok(schema.safeParse({ source: "category", categoryId: "c1" }).success);
 });
 
-test("pagination math: page count, offsets, chunks, fetch limit", () => {
-  assert.equal(postsFeedPageCount(0, 6), 1);
-  assert.equal(postsFeedPageCount(13, 6), 3);
-  assert.equal(postsFeedPageOffset(1, 6, 13), 0);
-  assert.equal(postsFeedPageOffset(3, 6, 13), 12);
-  assert.equal(postsFeedPageOffset(9, 6, 13), 12, "clamped to the last page");
-  assert.equal(postsFeedPageOffset(0, 6, 13), 0);
+test("pagination math: chunks, fetch limit", () => {
   assert.deepEqual(chunkPostsFeedPages([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]]);
   assert.equal(postsFeedFetchLimit({ limit: 6, pagination: "none" }), 6);
   assert.equal(postsFeedFetchLimit({ limit: 6, pagination: "load_more" }), 24);
@@ -215,7 +206,7 @@ test("CSS is token-only: no hex colours, no hard-coded font stacks, mobile-first
   assert.match(POSTS_FEED_CSS, /scroll-snap-type:x mandatory/);
 });
 
-test("fields: toggles hide/show cover, date, excerpt, reading time, author, tags, read more", () => {
+test("fields: toggles hide/show cover, date, excerpt, reading time, author, read more (stored tags ignored)", () => {
   const on = render(
     [node({ fields: { readingTime: true, author: true, tags: true, readMore: true } })],
     ds("pf-1", { cards: liveCards(1), total: 1 }),
@@ -223,6 +214,7 @@ test("fields: toggles hide/show cover, date, excerpt, reading time, author, tags
   assert.match(on, /3 min read/);
   assert.match(on, /By Ana/);
   assert.doesNotMatch(on, /site-blog__tag/, "tag chips are v1.1");
+  assert.equal(normalizePostsFeedOptions({ fields: { tags: true } }).fields.tags, undefined);
   assert.match(on, /Read more/);
   const off = render(
     [node({ fields: { cover: false, date: false, excerpt: false, category: false, readMore: false } })],
@@ -263,13 +255,13 @@ test("exactly 7 styles; stored masonry normalizes to grid", () => {
   assert.doesNotMatch(html, /masonry/);
 });
 
-test("category source: needs carry categoryId only for source=category; tags never queried", () => {
+test("category source: needs carry categoryId only for source=category; stored tags never queried", () => {
   const needs = collectNativeDataBlockNeeds([
     node({ source: "category", categoryId: "c1", tags: ["x"] }, "a"),
     node({ source: "latest", categoryId: "c1" }, "b"),
   ]).postsFeeds;
   assert.equal(needs[0]!.query.categoryId, "c1");
-  assert.deepEqual(needs[0]!.query.tags, []);
+  assert.equal("tags" in needs[0]!.query, false);
   assert.equal(needs[1]!.query.categoryId, null);
   assert.equal(normalizePostsFeedOptions({ source: "category", categoryId: " c1 " }).categoryId, "c1");
 });
@@ -378,7 +370,7 @@ test("data needs: one per node, with its own query and fetch size", () => {
   assert.equal(needs.length, 2);
   assert.deepEqual(needs[0], {
     nodeId: "a",
-    query: { source: "featured", postIds: [], categoryId: null, tags: [], excludeIds: [], sort: "newest" },
+    query: { source: "featured", postIds: [], categoryId: null, excludeIds: [], sort: "newest" },
     fetchLimit: 12,
   });
   assert.deepEqual(needs[1]!.query.postIds, ["p2", "p1"]);

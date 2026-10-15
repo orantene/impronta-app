@@ -259,7 +259,7 @@ export function PostsFeedContentInspector({ node, commitPatch }: { node: Builder
           </div>
         ) : null}
         <div className="grid grid-cols-2 gap-1.5">
-          {POSTS_FEED_FIELDS.filter((f) => f !== "tags").map((f) => (
+          {POSTS_FEED_FIELDS.map((f) => (
             <label key={f} className="flex items-center gap-2 text-[13px] text-stone-800">
               <input
                 type="checkbox"

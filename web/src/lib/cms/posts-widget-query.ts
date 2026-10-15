@@ -5,7 +5,7 @@ import "server-only";
  * (Posts v1, PO1). Same listability rule as `listPublicPosts`
  * (`isListablePost`: no drafts, unlisted, expired or taken-down posts) plus the
  * widget's own filters: source (latest / featured / hand-picked in order),
- * category, tags (any-of), excluded ids, sort, limit and page offset.
+ * category, excluded ids, sort, limit and page offset.
  *
  * The data source is injectable (`PostsWidgetSource`) so tests use typed fakes;
  * `createSupabasePostsWidgetSource` is the owner-scoped production reader
@@ -28,17 +28,15 @@ import { logServerError } from "@/lib/server/safe-error";
 import { talentScopedQuery } from "@/lib/supabase/talent-scoped-query";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import {
-  normalizePostTag,
   type PostsFeedCard,
   type PostsFeedNodeData,
   type PostsFeedSort,
   type PostsFeedSource,
 } from "@/lib/site-admin/builder-node/posts-feed-model";
 
-/** A public row plus the Posts v1 `tags text[]` column (migration section 9). */
-export type PostsWidgetRow = PublicPostRow & { tags: string[] | null };
+export type PostsWidgetRow = PublicPostRow;
 
-export const POSTS_WIDGET_COLUMNS = `${PUBLIC_POST_COLUMNS}, tags`;
+export const POSTS_WIDGET_COLUMNS = PUBLIC_POST_COLUMNS;
 
 export interface PostsWidgetSource {
   /** Published, not-taken-down rows of one locale, owner-scoped. The pure filter does the rest. */
@@ -52,13 +50,11 @@ export type PostsWidgetQuery = {
   /** hand_picked: ids in display order. */
   postIds?: readonly string[];
   categoryId?: string | null;
-  /** Any-of, case-insensitive. */
-  tags?: readonly string[];
   excludeIds?: readonly string[];
   sort: PostsFeedSort;
   /** Cards per page. */
   limit: number;
-  /** 0-based offset (`postsFeedPageOffset`). */
+  /** 0-based offset. */
   offset?: number;
 };
 
@@ -66,10 +62,6 @@ function ms(value: string | null): number {
   if (!value) return 0;
   const t = Date.parse(value);
   return Number.isNaN(t) ? 0 : t;
-}
-
-function rowTags(row: PostsWidgetRow): string[] {
-  return (row.tags ?? []).map(normalizePostTag).filter(Boolean);
 }
 
 /**
@@ -95,15 +87,10 @@ export function selectPostsWidgetRows(
       if (row && !matched.includes(row)) matched.push(row);
     }
   } else {
-    const tags = (query.tags ?? []).map(normalizePostTag).filter(Boolean);
     matched = listable.filter((r) => {
       if (query.source === "featured" && r.is_featured !== true) return false;
       if (query.source === "category" && !query.categoryId) return false;
       if (query.categoryId && r.category_id !== query.categoryId) return false;
-      if (tags.length > 0) {
-        const own = rowTags(r);
-        if (!tags.some((t) => own.includes(t))) return false;
-      }
       return true;
     });
     matched = sortWidgetRows(matched, query.sort);
@@ -138,7 +125,6 @@ export function toPostsFeedCard(
   const date = formatPostCardDate(row.published_at, ctx.locale);
   const category = row.category_id ? ctx.categoryNames.get(row.category_id) : undefined;
   const minutes = postsWidgetReadingMinutes(row);
-  const tags = (row.tags ?? []).map((t) => t.trim()).filter(Boolean);
   const excerpt = (row.excerpt ?? "").trim();
   return {
     id: row.id,
@@ -150,7 +136,6 @@ export function toPostsFeedCard(
     ...(row.cover_image_url ? { imageUrl: row.cover_image_url, imageAlt: row.cover_image_alt ?? "" } : {}),
     ...(minutes > 0 ? { readingMinutes: minutes } : {}),
     ...(ctx.author ? { author: ctx.author } : {}),
-    ...(tags.length > 0 ? { tags } : {}),
     ...(row.is_featured === true ? { featured: true } : {}),
   };
 }
@@ -180,13 +165,6 @@ export async function loadPostsWidgetCards(input: {
     cards: picked.rows.map((r) => toPostsFeedCard(r, { locale, categoryNames, author: input.author ?? null })),
     total: picked.total,
   };
-}
-
-/** Every distinct tag of the scope's listable posts (inspector picker), sorted. */
-export function collectPostsWidgetTags(rows: readonly PostsWidgetRow[], now: Date): string[] {
-  const set = new Set<string>();
-  for (const r of rows) if (isListablePost(r, now)) for (const t of rowTags(r)) set.add(t);
-  return [...set].sort((a, b) => a.localeCompare(b));
 }
 
 // ── production source ───────────────────────────────────────────────────────

@@ -4,7 +4,7 @@
  * 8 styles on ONE card component (`BlogCardList`, the same `.site-blog__*`
  * card the `blog_index` section and the post layout use, so theme styles
  * apply). Mobile-first at 390px; theme tokens only (no hex, no font stacks).
- * Server-safe: no hooks here. Load-more / numbered pagination is the small
+ * Server-safe: no hooks here. Load-more pagination is the small
  * `PostsFeedPager` island, which reveals pages the server already rendered.
  */
 import type { CSSProperties, ReactNode } from "react";
@@ -42,8 +42,6 @@ export const POSTS_FEED_CSS = `
 .sb-pf .site-blog__category{color:var(--token-color-accent,var(--token-color-primary));text-transform:uppercase;letter-spacing:.08em}
 .sb-pf .site-blog__title{margin:0;font-family:var(--token-typography-heading-font-family,var(--site-heading-font,inherit));font-size:1.2rem;line-height:1.25;font-weight:500;color:var(--token-color-ink);overflow-wrap:anywhere}
 .sb-pf .site-blog__excerpt{margin:0;font-size:.95rem;line-height:1.5;color:var(--token-color-muted)}
-.sb-pf .site-blog__tags{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:.35rem}
-.sb-pf .site-blog__tag{font-size:.72rem;padding:.15rem .5rem;border:1px solid var(--token-color-line);border-radius:999px;color:var(--token-color-muted)}
 .sb-pf .site-blog__more{font-size:.85rem;color:var(--token-color-ink);text-decoration:underline;text-underline-offset:.2em}
 .sb-pf .site-blog__link:hover .site-blog__title,.sb-pf .site-blog__link:focus-visible .site-blog__title{text-decoration:underline;text-underline-offset:.15em}
 .sb-pf .site-blog__link:focus-visible{outline:2px solid var(--token-color-accent,var(--token-color-primary));outline-offset:4px}
@@ -88,8 +86,7 @@ export const POSTS_FEED_CSS = `
 @media (min-width:1024px){.sb-pf--hero .site-blog__grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 /* pager */
 .sb-pf-pager{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;justify-content:center}
-.sb-pf-pager button,.sb-pf-pager a{min-height:44px;min-width:44px;padding:.5rem 1rem;border:1px solid var(--token-color-line);border-radius:999px;background:transparent;color:var(--token-color-ink);font:inherit;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box}
-.sb-pf-pager [aria-current="page"]{background:var(--token-color-ink);color:var(--token-color-background);border-color:var(--token-color-ink)}
+.sb-pf-pager button{min-height:44px;min-width:44px;padding:.5rem 1rem;border:1px solid var(--token-color-line);border-radius:999px;background:transparent;color:var(--token-color-ink);font:inherit;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box}
 `;
 
 export type PostsFeedViewArgs = {
@@ -212,16 +209,9 @@ export function PostsFeedBlockView(args: PostsFeedViewArgs): ReactNode {
       />
       {paged ? (
         <PostsFeedPager
-          mode="load_more"
           pageCount={pages.length}
           perPage={o.limit}
-          labels={{
-            loadMore: copy.loadMore,
-            pagination: copy.pagination,
-            page: copy.page,
-            previous: copy.previous,
-            next: copy.next,
-          }}
+          labels={{ loadMore: copy.loadMore }}
         />
       ) : null}
     </section>

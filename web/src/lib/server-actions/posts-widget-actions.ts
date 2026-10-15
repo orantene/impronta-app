@@ -1,8 +1,8 @@
 "use server";
 
 /**
- * Posts v1 (PO1) `posts_feed` inspector picker: the site's listable posts,
- * categories and tags. PURE READ (allow-listed READ in
+ * Posts v1 (PO1) `posts_feed` inspector picker: the site's listable posts
+ * and categories. PURE READ (allow-listed READ in
  * `impersonation/readonly-actions.allow.ts`); no write path.
  *
  *   workspace → the session tenant (cms_posts.tenant_id), pages.edit capability
@@ -14,7 +14,7 @@
  */
 import type { PublicPostCategoryRow } from "@/lib/cms/posts-public-model";
 import type { PostScope } from "@/lib/cms/posts-writer";
-import { collectPostsWidgetTags, createSupabasePostsWidgetSource, selectPostsWidgetRows } from "@/lib/cms/posts-widget-query";
+import { createSupabasePostsWidgetSource, selectPostsWidgetRows } from "@/lib/cms/posts-widget-query";
 import { requireTenantScope } from "@/lib/saas";
 import { requireSession } from "@/lib/server/action-guards";
 import { logServerError } from "@/lib/server/safe-error";
@@ -22,10 +22,10 @@ import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import { requirePhase5Capability } from "@/lib/site-admin";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
-export type PostsWidgetPickerPost = { id: string; title: string; categoryId: string | null; featured: boolean; tags: string[] };
+export type PostsWidgetPickerPost = { id: string; title: string; categoryId: string | null; featured: boolean };
 
 export type PostsWidgetPickerResult =
-  | { ok: true; posts: PostsWidgetPickerPost[]; categories: { id: string; name: string }[]; tags: string[] }
+  | { ok: true; posts: PostsWidgetPickerPost[]; categories: { id: string; name: string }[] }
   | { ok: false; error: string };
 
 async function resolveScope(family: "workspace" | "talent"): Promise<{ ok: true; scope: PostScope } | { ok: false; error: string }> {
@@ -71,10 +71,8 @@ export async function listPostsForWidgetPickerAction(
         title: r.title,
         categoryId: r.category_id,
         featured: r.is_featured === true,
-        tags: (r.tags ?? []).filter(Boolean),
       })),
       categories: categories.map((c) => ({ id: c.id, name: c.name })),
-      tags: collectPostsWidgetTags(rows, now),
     };
   } catch (error) {
     logServerError("posts-widget-actions/picker", error);

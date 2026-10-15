@@ -25,8 +25,6 @@ type Copy = {
   anyCategory: string;
   chooseCategory: string;
   advanced: string;
-  tags: string;
-  tagsInfo: string;
   exclude: string;
   sort: string;
   sorts: Record<PostsFeedSort, string>;
@@ -69,8 +67,6 @@ export const POSTS_FEED_INSPECTOR_COPY: { es: Copy; en: Copy } = {
     anyCategory: "Todas las categorías",
     chooseCategory: "Elegir categoría",
     advanced: "Avanzado",
-    tags: "Etiquetas",
-    tagsInfo: "Muestra posts con cualquiera de las etiquetas marcadas.",
     exclude: "Ocultar estos posts",
     sort: "Orden",
     sorts: { newest: "Más nuevos primero", oldest: "Más antiguos primero", featured_first: "Destacados primero" },
@@ -84,7 +80,6 @@ export const POSTS_FEED_INSPECTOR_COPY: { es: Copy; en: Copy } = {
       excerpt: "Resumen",
       readingTime: "Tiempo de lectura",
       author: "Autor",
-      tags: "Etiquetas",
       readMore: "Leer más",
     },
     pagination: "Paginación",
@@ -127,8 +122,6 @@ export const POSTS_FEED_INSPECTOR_COPY: { es: Copy; en: Copy } = {
     anyCategory: "All categories",
     chooseCategory: "Choose a category",
     advanced: "Advanced",
-    tags: "Tags",
-    tagsInfo: "Shows posts with any of the ticked tags.",
     exclude: "Hide these posts",
     sort: "Sort",
     sorts: { newest: "Newest first", oldest: "Oldest first", featured_first: "Featured first" },
@@ -142,7 +135,6 @@ export const POSTS_FEED_INSPECTOR_COPY: { es: Copy; en: Copy } = {
       excerpt: "Excerpt",
       readingTime: "Reading time",
       author: "Author",
-      tags: "Tags",
       readMore: "Read more",
     },
     pagination: "Pagination",

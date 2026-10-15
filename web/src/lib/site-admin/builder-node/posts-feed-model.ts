@@ -41,7 +41,6 @@ export const POSTS_FEED_FIELDS = [
   "excerpt",
   "readingTime",
   "author",
-  "tags",
   "readMore",
 ] as const;
 export type PostsFeedField = (typeof POSTS_FEED_FIELDS)[number];
@@ -55,12 +54,11 @@ export const POSTS_FEED_COLUMN_STYLES: ReadonlySet<PostsFeedStyle> = new Set(["g
 
 export const POSTS_FEED_LIMIT_MIN = 1;
 export const POSTS_FEED_LIMIT_MAX = 24;
-/** Pages the server pre-renders for load-more / numbered (the island reveals them). */
+/** Pages the server pre-renders for load-more (the island reveals them). */
 export const POSTS_FEED_MAX_PAGES = 4;
 /** Hard cap on cards fetched for one node, whatever the pagination. */
 export const POSTS_FEED_MAX_FETCH = 48;
 export const POSTS_FEED_MAX_IDS = 48;
-export const POSTS_FEED_MAX_TAGS = 10;
 
 /** The stored props (all optional: `normalizePostsFeedOptions` fills defaults). */
 export type PostsFeedProps = {
@@ -71,13 +69,13 @@ export type PostsFeedProps = {
   postIds?: string[];
   /** source=category: the one category (`cms_post_categories.id`). */
   categoryId?: string;
-  /** Filter: any-of tags. */
+  /** Retired (tags are v1.1): old stored data is accepted and ignored. */
   tags?: string[];
   /** Never show these post ids. */
   excludeIds?: string[];
   limit?: number;
   sort?: PostsFeedSort;
-  fields?: Partial<PostsFeedFields>;
+  fields?: Partial<PostsFeedFields> & { /** Retired: ignored. */ tags?: boolean };
   pagination?: PostsFeedPagination | "numbered";
   /** grid / bento desktop columns. */
   columns?: 2 | 3 | 4;
@@ -94,7 +92,6 @@ export type PostsFeedOptions = {
   source: PostsFeedSource;
   postIds: string[];
   categoryId: string | null;
-  tags: string[];
   excludeIds: string[];
   limit: number;
   sort: PostsFeedSort;
@@ -114,7 +111,6 @@ export const POSTS_FEED_DEFAULT_FIELDS: PostsFeedFields = {
   excerpt: true,
   readingTime: false,
   author: false,
-  tags: false,
   readMore: true,
 };
 
@@ -123,7 +119,6 @@ export const POSTS_FEED_DEFAULTS: PostsFeedOptions = {
   source: "latest",
   postIds: [],
   categoryId: null,
-  tags: [],
   excludeIds: [],
   limit: 6,
   sort: "newest",
@@ -163,24 +158,6 @@ function cleanIds(value: unknown, max: number): string[] {
   return out;
 }
 
-/** Tags are compared case-insensitively; stored trimmed + lower-cased. */
-export function normalizePostTag(tag: string): string {
-  return tag.trim().toLowerCase();
-}
-
-function cleanTags(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  const out: string[] = [];
-  for (const v of value) {
-    if (typeof v !== "string") continue;
-    const t = normalizePostTag(v);
-    if (!t || t.length > 40 || out.includes(t)) continue;
-    out.push(t);
-    if (out.length >= POSTS_FEED_MAX_TAGS) break;
-  }
-  return out;
-}
-
 export function clampPostsFeedLimit(value: unknown): number {
   const n = typeof value === "number" && Number.isFinite(value) ? Math.trunc(value) : POSTS_FEED_DEFAULTS.limit;
   return Math.max(POSTS_FEED_LIMIT_MIN, Math.min(POSTS_FEED_LIMIT_MAX, n));
@@ -200,8 +177,6 @@ export function normalizePostsFeedOptions(props: PostsFeedProps | null | undefin
   }
   // Legacy: the retired "masonry" style maps explicitly to grid.
   const layout = p.layout === "masonry" ? "grid" : oneOf(POSTS_FEED_STYLES, p.layout, POSTS_FEED_DEFAULTS.layout);
-  // Tags are v1.1: never shown, whatever an old node stored.
-  fields.tags = false;
   // Minimal is text-only by definition.
   if (layout === "minimal") fields.cover = false;
   const columns: 2 | 3 | 4 =
@@ -212,7 +187,6 @@ export function normalizePostsFeedOptions(props: PostsFeedProps | null | undefin
     source: oneOf(POSTS_FEED_SOURCES, p.source, POSTS_FEED_DEFAULTS.source),
     postIds: cleanIds(p.postIds, POSTS_FEED_MAX_IDS),
     categoryId,
-    tags: cleanTags(p.tags),
     excludeIds: cleanIds(p.excludeIds, POSTS_FEED_MAX_IDS),
     limit: clampPostsFeedLimit(p.limit),
     sort: oneOf(POSTS_FEED_SORTS, p.sort, POSTS_FEED_DEFAULTS.sort),
@@ -232,20 +206,6 @@ export function normalizePostsFeedOptions(props: PostsFeedProps | null | undefin
 export function postsFeedFetchLimit(o: Pick<PostsFeedOptions, "limit" | "pagination">): number {
   const pages = o.pagination === "none" ? 1 : POSTS_FEED_MAX_PAGES;
   return Math.min(POSTS_FEED_MAX_FETCH, o.limit * pages);
-}
-
-/** Total pages for `total` posts at `limit` per page (min 1). */
-export function postsFeedPageCount(total: number, limit: number): number {
-  const per = Math.max(1, Math.trunc(limit));
-  return Math.max(1, Math.ceil(Math.max(0, total) / per));
-}
-
-/** 0-based offset of a 1-based page, clamped to the available pages. */
-export function postsFeedPageOffset(page: number, limit: number, total: number): number {
-  const per = Math.max(1, Math.trunc(limit));
-  const last = postsFeedPageCount(total, per);
-  const p = Math.max(1, Math.min(last, Number.isFinite(page) ? Math.trunc(page) : 1));
-  return (p - 1) * per;
 }
 
 /** Split already-fetched cards into pages of `limit`. */
@@ -271,7 +231,6 @@ export type PostsFeedCard = {
   imageAlt?: string;
   readingMinutes?: number;
   author?: string;
-  tags?: string[];
   featured?: boolean;
   demo?: boolean;
 };
@@ -289,29 +248,19 @@ export const POSTS_FEED_COPY = {
   es: {
     readMore: "Leer más",
     loadMore: "Ver más posts",
-    pagination: "Páginas de posts",
-    page: "Página",
-    previous: "Anterior",
-    next: "Siguiente",
     minutes: (n: number) => `${n} min de lectura`,
     demoNote: "Posts de ejemplo. Tus posts publicados aparecen aquí.",
     emptyEditor: "Todavía no hay posts publicados. Los visitantes no ven este bloque hasta que publiques uno.",
     by: "Por",
-    tags: "Etiquetas",
     sliderLabel: "Posts",
   },
   en: {
     readMore: "Read more",
     loadMore: "Show more posts",
-    pagination: "Post pages",
-    page: "Page",
-    previous: "Previous",
-    next: "Next",
     minutes: (n: number) => `${n} min read`,
     demoNote: "Example posts. Your published posts show here.",
     emptyEditor: "No published posts yet. Visitors do not see this block until you publish one.",
     by: "By",
-    tags: "Tags",
     sliderLabel: "Posts",
   },
 } as const;
