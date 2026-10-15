@@ -190,7 +190,7 @@ function ShotFigure({
   /** Magazine: 1-based plate number shown as "01 · caption". */
   magazineIndex?: number;
   es?: boolean;
-  /** TUL-15: "(en español)" under a caption shown in another language than the visitor's. */
+  /** TUL-187: "Disponible en español" under a caption shown in another language than the visitor's. */
   captionHint?: string | null;
 }) {
   const hint = captionHint ? (
@@ -334,10 +334,23 @@ export function renderPortfolioBlock(args: {
   const bookable = listBookableOfferings({ offerings: args.offerings ?? [], confirmsByHand: args.confirmsByHand ?? true });
   const entry = bookEntryFrom(bookable);
   const generalIntent: OpenIntent | null = entry.kind === "sheet" ? openIntentFor("book", entry) : null;
-  const galleryItems = buildPortfolioGallery(visible, (id) => byOffering.has(id), es, showCaptions ? (shot) => {
-    const full = visible.find((v) => v.id === shot.id);
-    return captionLanguageHint({ caption: full?.caption, captionI18n: full?.captionI18n, locale: args.locale, primaryLocale: args.primaryLocale });
-  } : undefined);
+  const languageHintFor = (shot: { id: string; caption?: string | null; captionI18n?: TalentPortfolioShot["captionI18n"] }) => {
+    const full = visible.find((v) => v.id === shot.id) ?? shot;
+    return captionLanguageHint({
+      caption: full.caption,
+      captionI18n: full.captionI18n,
+      locale: args.locale,
+      primaryLocale: args.primaryLocale,
+    });
+  };
+  // Work-order tiles always show their caption (Gridline jobs); other layouts
+  // honour showCaptions. Either way a cross-language caption never stays silent.
+  const galleryItems = buildPortfolioGallery(
+    visible,
+    (id) => byOffering.has(id),
+    es,
+    workOrder || showCaptions ? (shot) => languageHintFor(shot) : undefined,
+  );
   const shotNodes = visible.map((shot, index) => workOrder ? (
     <WorkOrderFigure
       key={shot.id}
@@ -346,6 +359,7 @@ export function renderPortfolioBlock(args: {
       es={es}
       locale={args.locale}
       generalIntent={generalIntent}
+      captionHint={languageHintFor(shot)}
     />
   ) : (
     <ShotFigure
@@ -359,16 +373,7 @@ export function renderPortfolioBlock(args: {
       framed={framed}
       magazineIndex={magazine ? index + 1 : undefined}
       es={es}
-      captionHint={
-        showCaptions
-          ? captionLanguageHint({
-              caption: shot.caption,
-              captionI18n: shot.captionI18n,
-              locale: args.locale,
-              primaryLocale: args.primaryLocale,
-            })
-          : null
-      }
+      captionHint={showCaptions ? languageHintFor(shot) : null}
       gallery={{ items: galleryItems, index }}
       generalIntent={generalIntent}
     />
