@@ -85,6 +85,13 @@ export function MiniChatGateForm({
 
   return (
     <div
+      onKeyDown={(e) => {
+        // TUL-949: Enter in any gate field sends (IME commit excluded).
+        if (e.key === "Enter" && !e.nativeEvent.isComposing && canSend) {
+          e.preventDefault();
+          onSend();
+        }
+      }}
       style={{
         padding: "11px 14px",
         borderTop: `1px solid ${C.borderSoft}`,
@@ -154,6 +161,7 @@ export function MiniChatGateForm({
         onChange={(e) => onEmailChange(e.target.value)}
         placeholder={t("public.guestChat.contactEmail")}
         type="email"
+        enterKeyHint="send"
         autoComplete="email"
         style={inputStyle}
       />
