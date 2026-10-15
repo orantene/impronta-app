@@ -182,3 +182,4 @@ src/lib/saas/unsupported-locale-redirect.test.ts
 src/lib/supabase/auth-cookie-variants.security.test.ts
 src/lib/seo/llms-txt.test.ts
 src/lib/seo/talent-llms-txt.test.ts
+src/lib/seo/business-workspace-seo.test.ts
