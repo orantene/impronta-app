@@ -184,7 +184,8 @@ test("resolver: each node gets its own cards; scope is the rendering site", asyn
   const needs = collectNativeDataBlockNeeds(tree).postsFeeds;
   const source = new FakeSource(fixture());
   const out = await resolvePostsFeedNeeds({ needs, scope: TALENT, locale: "es", deps: { source, now: () => NOW } });
-  assert.deepEqual(out.a!.cards.map((c) => c.id), ["p2"]);
+  // TUL-1050: tags are v1.1, so a stored tag filter is ignored and node a shows the latest posts.
+  assert.deepEqual(out.a!.cards.map((c) => c.id), ["p10", "p8", "p3", "p2", "p1"]);
   assert.deepEqual(out.b!.cards.map((c) => c.id), ["p1", "p3"]);
   assert.equal(out.c!.cards.length, 5, "load-more pre-fetches up to 4 pages of 2");
   assert.equal(out.c!.total, 5);
