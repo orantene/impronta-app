@@ -142,7 +142,7 @@ export function CatalogLiveWhenPicker({
           {nextFree != null ? (
             <button
               type="button"
-              className="jb-try-date"
+              className="jb-ask"
               data-catalog-try-another-date=""
               onClick={jumpToNextFree}
             >
@@ -220,7 +220,7 @@ export function CatalogDemoWhenPicker({
           {nextOpen != null ? (
             <button
               type="button"
-              className="jb-try-date"
+              className="jb-ask"
               data-catalog-try-another-date=""
               onClick={() => onPickDay(nextOpen)}
             >
