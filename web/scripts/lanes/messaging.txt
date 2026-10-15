@@ -35,3 +35,4 @@ src/lib/server-actions/messaging-identity.static.test.ts
 src/lib/messaging/offer-shared-seed.test.ts
 src/lib/server-actions/messaging-offers.static.test.ts
 src/app/t/*/_chat/dock-viewer-identity-mount.static.test.ts
+src/lib/inquiry/hub-chat-es.i18n.test.ts
