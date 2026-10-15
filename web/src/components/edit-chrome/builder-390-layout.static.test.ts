@@ -87,6 +87,11 @@ test("TUL-1151: at 390 the rail handle and unfolded rail sit below the preview h
   assert.match(rail, /className="fixed flex flex-col max-sm:!right-0 max-sm:!top-\[38vh\] /);
 });
 
+test("TUL-1173: the unfolded phone rail is height-capped below the 38vh line and scrolls on short viewports", () => {
+  const rail = read("./inspector-command-rail.tsx");
+  assert.match(rail, /max-sm:!top-\[38vh\] max-sm:max-h-\[calc\(100dvh-38vh-8px\)\] max-sm:overflow-y-auto /);
+});
+
 test("TUL-914: picking a rail tab on a phone also slides the inspector dock in, so the panel is visible", () => {
   const dock = read("./command-dock.tsx");
   assert.match(dock, /export const MOBILE_INSPECTOR_OPEN_EVENT = "ec-mobile-inspector-open"/);

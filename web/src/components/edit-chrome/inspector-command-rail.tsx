@@ -116,6 +116,8 @@ export function InspectorCommandRail() {
   // extra classes are max-sm: scoped, so desktop renders exactly as before.
   // TUL-1151: on a phone the handle and the unfolded rail sit at 38vh, below the
   // preview site's header band, so they never cover its nav or ES / EN switch.
+  // TUL-1173: the unfolded rail is height-capped to the space below that line and scrolls
+  // inside it, so a short viewport (landscape phone) never pushes tabs off screen.
   const [mobileExpanded, setMobileExpanded] = useState(false);
   useEffect(() => {
     function onOtherRailExpand(event: Event) {
@@ -165,7 +167,7 @@ export function InspectorCommandRail() {
       data-inspector-rail-docked={dockedToRail ? "true" : "false"}
       data-mobile-expanded={mobileExpanded ? "true" : "false"}
       aria-label={t("Section editor tabs")}
-      className="fixed flex flex-col max-sm:!right-0 max-sm:!top-[38vh] max-sm:transition-transform max-sm:duration-300 max-sm:ease-out max-sm:!translate-x-[var(--ec-mobile-rail-x)]"
+      className="fixed flex flex-col max-sm:!right-0 max-sm:!top-[38vh] max-sm:max-h-[calc(100dvh-38vh-8px)] max-sm:overflow-y-auto max-sm:transition-transform max-sm:duration-300 max-sm:ease-out max-sm:!translate-x-[var(--ec-mobile-rail-x)]"
       style={{
         "--ec-mobile-rail-x": mobileExpanded ? "0px" : "120%",
         right: INSPECTOR_RAIL_RIGHT_PX,
