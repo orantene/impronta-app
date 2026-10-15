@@ -73,7 +73,7 @@ test("TUL-600: the new-ticket form lets you pick screenshots and uploads them af
 
 test("TUL-907/995: the talent name chip opens the profile and the More sheet carries the language switch", () => {
   const bar = readFileSync("src/components/admin/shell/internal/page-modules/MobileTopBar.tsx", "utf8");
-  assert.match(bar, /inTalent\s*\?\s*\(\) => setTalentPage\("profile"\)/);
+  assert.match(bar, /href="\/talent\/profile"[\s\S]*setTalentPage\("profile"/);
   assert.doesNotMatch(bar, /disabled=\{inTalent\}/);
   const more = readFileSync("src/components/talent/studio/MoreScreen.tsx", "utf8");
   assert.match(more, /<DashboardLocaleToggle/);
