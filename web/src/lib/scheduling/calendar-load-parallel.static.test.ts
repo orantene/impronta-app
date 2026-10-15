@@ -37,3 +37,11 @@ test("the Resources board does not wait for the schedule to paint", () => {
   assert.match(board, /loadAppointments\(tenantId\)\s*\.then/);
   assert.match(board, /loadSchedule\(tenantId\)\s*\.then/);
 });
+
+// TUL-700: the header shows a readable zone name, never the raw IANA id, and
+// it comes from the same helper as the time zone picker (TUL-822).
+test("Calendar header labels the zone with zoneLabel, not the raw id", () => {
+  const page = read("../../components/admin/shell/internal/page-modules/CalendarPage.tsx");
+  assert.match(page, /zoneLabel\(timeZone, locale\)/);
+  assert.doesNotMatch(page, /\{timeZone\} · /);
+});
