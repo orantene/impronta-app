@@ -138,3 +138,11 @@ test("TUL-648: publishedServiceCount matches the rows offeringRowFor publishes",
   assert.equal(publishedServiceCount([svc(50000), svc(null, true), svc(0), svc(30000, true)]), 3);
   assert.equal(publishedServiceCount(null), 0);
 });
+
+test("TUL-990: a talent draft's editor door is the page builder, its panel door stays Today", () => {
+  const talent = { publicUrl: null, todayUrl: "https://app.tulala.digital/talent/today", editorUrl: "https://app.tulala.digital/talent/page-builder", siteUrl: "https://rosa.tulala.digital" };
+  const a = arrivalFromStamp({ path: "talent", stamp: null, ...liveBase, talent, liveCheck: { ok: false } });
+  assert.equal(a.variant, "draft_saved");
+  assert.equal(a.editorHref, "https://app.tulala.digital/talent/page-builder");
+  assert.equal(a.panelHref, "https://app.tulala.digital/talent/today");
+});

@@ -127,6 +127,7 @@ export async function runOnboardingBuild(input: {
       ? {
           publicUrl: prov.talent.profileCode ? `${apex}/t/${prov.talent.profileCode}` : null,
           todayUrl: `${appUrl}/talent/today`,
+          editorUrl: `${appUrl}/talent/page-builder`,
           siteUrl: prov.site?.publicUrl ?? null,
         }
       : null;
