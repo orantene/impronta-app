@@ -639,13 +639,22 @@ export function MiniChatPanel({
     // through the same ensure path the chips use; the full load then brings
     // the token and the queued add runs.
     onEnsureInquiryForItems: onEnsureInquiry
-      ? async () => {
-          if (inquiryId) return inquiryId;
-          const res = await onEnsureInquiry({ tenantSlug, talentProfileId, sourcePage });
-          if (!res.ok) return null;
-          setInquiryId(res.inquiryId);
-          return res.inquiryId;
-        }
+      ? Object.assign(
+          async () => {
+            if (inquiryId) return inquiryId;
+            const res = await onEnsureInquiry({ tenantSlug, talentProfileId, sourcePage });
+            if (!res.ok) return null;
+            setInquiryId(res.inquiryId);
+            return res.inquiryId;
+          },
+          {
+            // TUL-1066: the catalog discarded the empty draft it just made; forget it.
+            onDiscarded: (gone: string) => {
+              setInquiryId((cur) => (cur === gone ? null : cur));
+              setThreadMeta((m) => ({ ...m, v5: null }));
+            },
+          },
+        )
       : null,
     emailedTo,
     seenAtByInquiry,

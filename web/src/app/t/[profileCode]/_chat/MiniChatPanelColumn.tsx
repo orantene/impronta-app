@@ -89,7 +89,7 @@ export type MiniChatPanelColumnProps = {
   /** L13: v5 extras + full-load bump + early-row ensure for catalog adds. */
   v5?: GuestThreadV5Extras | null;
   onRefreshThread?: () => void;
-  onEnsureInquiryForItems?: (() => Promise<string | null>) | null;
+  onEnsureInquiryForItems?: import("./guest-catalog-add-flow").EnsureInquiryForItems | null;
   emailedTo: string | null;
   seenAtByInquiry: Record<string, string>;
   pulseActive: boolean;
