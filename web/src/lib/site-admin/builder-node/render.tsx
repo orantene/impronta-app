@@ -6197,7 +6197,7 @@ function renderBuilderNodeElement(
     case "visit": {
       // GRK-029: location "Payments, changes…" must keep /en on EN visits
       // (footer socket already used talentPolicyPageHref; this path did not).
-      const visitLocale = options.visitorLocale ?? options.contentLocale?.locale ?? "es";
+      const visitLocale = options.visitorLocale ?? options.contentLocale?.locale ?? "en";
       const visitPrimary = options.contentLocale?.defaultLocale ?? visitLocale;
       const visitSupported = options.contentLocale
         ? [options.contentLocale.defaultLocale, ...options.contentLocale.chain]
