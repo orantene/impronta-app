@@ -1,5 +1,6 @@
 "use client";
 
+import { requestNewPromoPicker } from "./new-promo-intent";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
@@ -122,14 +123,14 @@ export function PromosDrawer({
     : null;
 
   const newButton = (
-    <Link href="/talent/promos?picker=1" onClick={onClose} className={`${UI.primary} w-full`} data-promos-drawer-new>
+    <Link href="/talent/promos" onClick={() => { requestNewPromoPicker(); onClose(); }} className={`${UI.primary} w-full`} data-promos-drawer-new>
       {copy.t("drawer.new")}
     </Link>
   );
 
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <SheetContent side="right" aria-describedby={undefined} className="flex w-full max-w-full flex-col gap-4 overflow-x-hidden overflow-y-auto bg-[var(--tc-canvas,#fafafa)] p-4 sm:max-w-sm" data-promos-drawer>
+      <SheetContent side="right" aria-describedby={undefined} className="flex w-full max-w-full flex-col gap-4 overflow-x-hidden overflow-y-auto bg-[var(--tc-canvas,#fafafa)] text-[var(--tc-ink,#1c1c1e)] p-4 sm:max-w-sm" data-promos-drawer>
         <div className="flex items-center gap-2 pr-8">
           <TagIcon size={18} />
           <SheetTitle className={UI.title}>{copy.t("drawer.title")}</SheetTitle>

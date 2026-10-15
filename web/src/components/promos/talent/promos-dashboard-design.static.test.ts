@@ -51,3 +51,12 @@ test("detail sheet: one merged results card (no repeated title) and a grid foote
   assert.match(d, /grid-cols-1[^"]*grid-cols-\[repeat\(2,minmax\(0,1fr\)\)\]/);
   assert.match(read("src/components/promos/results/PromoResultsCard.tsx"), /props\.hideTitle \? null/);
 });
+
+test("promo sheets set an ink text colour so the shared close button and icons are visible (they inherited near-white)", () => {
+  for (const f of ["PromosDrawer", "PromosPage", "PromoDetailSheet", "QuickCreateDrawer"]) {
+    const s = read(`src/components/promos/talent/${f}.tsx`);
+    const m = /<SheetContent[\s\S]*?>/.exec(s);
+    assert.ok(m, f);
+    assert.match(m![0], /text-\[var\(--tc-ink,#1c1c1e\)\]/, f);
+  }
+});

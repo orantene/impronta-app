@@ -29,7 +29,8 @@ test("the drawer reads loadPromosPage with retry, can take injected data, and li
   assert.match(d, /setInterval/);
   assert.match(d, /if \(!open \|\| injected\) return/);
   assert.match(d, /data-promos-drawer-skeleton/);
-  assert.match(d, /href="\/talent\/promos\?picker=1"/);
+  assert.match(d, /requestNewPromoPicker\(\)/);
+  assert.match(d, /data-promos-drawer-new/);
   assert.match(d, /href="\/talent\/promos"/);
   assert.match(d, /drawer\.empty/);
   assert.match(here("PromosPage.tsx"), /params\.get\("picker"\) === "1"/);

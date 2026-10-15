@@ -137,7 +137,7 @@ export function QuickCreateDrawer({ open, onClose, copy, data, initial, editingI
     <Sheet open={open} onOpenChange={(o) => (o ? undefined : onClose())}>
       <SheetContent
         side="bottom"
-        className="flex max-h-[94vh] max-w-full flex-col gap-0 overflow-x-hidden rounded-t-3xl bg-[var(--tc-canvas,#fafafa)] p-0"
+        className="flex max-h-[94vh] max-w-full flex-col gap-0 overflow-x-hidden rounded-t-3xl bg-[var(--tc-canvas,#fafafa)] p-0 text-[var(--tc-ink,#1c1c1e)]"
         aria-describedby={undefined}
       >
         <div className="px-4 pb-2 pt-4">
