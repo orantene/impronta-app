@@ -291,6 +291,7 @@ export async function messagingClientRemoveItem(input: { token: string; lineId: 
   const orderId = (draft as { id: string } | null)?.id;
   if (!orderId) return fail("not_found");
   const owned = await clientRemovableLine(l.admin, orderId, parsed.data.lineId);
+  if (owned === "unavailable") return fail("unavailable");
   if (owned !== "ok") return fail(owned === "missing" ? "not_found" : "not_allowed");
   const removed = await removeLine(l.admin, { tenantId: l.tenantId, orderId, lineId: parsed.data.lineId });
   if (!removed.ok) return fail(removed.reason === "conflict" ? "conflict" : "unavailable");

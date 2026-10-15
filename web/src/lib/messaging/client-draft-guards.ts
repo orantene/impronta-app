@@ -67,8 +67,9 @@ export async function clientRemovableLine(
   admin: SupabaseClient,
   orderId: string,
   lineId: string,
-): Promise<"ok" | "missing" | "not_allowed"> {
-  const { data } = await admin.from("order_lines").select("id, proposed_by, confirmed_at").eq("id", lineId).eq("order_id", orderId).maybeSingle();
+): Promise<"ok" | "missing" | "not_allowed" | "unavailable"> {
+  const { data, error } = await admin.from("order_lines").select("id, proposed_by, confirmed_at").eq("id", lineId).eq("order_id", orderId).maybeSingle();
+  if (error) return "unavailable";
   const row = data as { proposed_by: string | null; confirmed_at: string | null } | null;
   if (!row) return "missing";
   return row.proposed_by === "client" && !row.confirmed_at ? "ok" : "not_allowed";
