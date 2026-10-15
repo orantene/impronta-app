@@ -21,6 +21,10 @@ function fakeAdmin(tables: Record<string, Row[]>) {
       eq: (col: string, v: unknown) => ((rows = rows.filter((r) => r[col] === v)), q),
       neq: (col: string, v: unknown) => ((rows = rows.filter((r) => r[col] !== v)), q),
       in: (col: string, vs: unknown[]) => ((rows = rows.filter((r) => vs.includes(r[col]))), q),
+      gte: (col: string, v: unknown) => ((rows = rows.filter((r) => String(r[col] ?? "") >= String(v))), q),
+      lte: (col: string, v: unknown) => ((rows = rows.filter((r) => String(r[col] ?? "") <= String(v))), q),
+      gt: (col: string, v: unknown) => ((rows = rows.filter((r) => String(r[col] ?? "") > String(v))), q),
+      lt: (col: string, v: unknown) => ((rows = rows.filter((r) => String(r[col] ?? "") < String(v))), q),
       is: (col: string, v: unknown) => ((rows = rows.filter((r) => (r[col] ?? null) === v)), q),
       order: () => q,
       limit: () => q,
@@ -119,4 +123,54 @@ test("TUL-1070: the launcher mount never loads offerings without the tenant scop
   const src = readFileSync(join(process.cwd(), "src/app/t/[profileCode]/_chat/TalentProfileChatLauncherMount.tsx"), "utf8");
   assert.match(src, /loadPublicOfferingsForProfile\(talentProfileId, locale \?\? "en", offeringsTenantId\)/);
   assert.doesNotMatch(src, /loadPublicOfferingsForProfile\(talentProfileId, locale \?\? "en"\)/);
+});
+
+import { loadCatalogRowsForScope } from "./items-catalog";
+
+// TUL-1070 round 3: the dock must be scoped by the talent it BELONGS to, not by the URL. A talent
+// site's path is "/", so the hub-wide catalog (other tenants' services + the global roster) leaked.
+const THREE = {
+  agency_talent_roster: [
+    { tenant_id: "hub", status: "active", talent_profile_id: "t-andres", talent_profiles: { id: "t-andres", profile_code: "TAL-AND", display_name: "Andres" } },
+    { tenant_id: "hub", status: "active", talent_profile_id: "t-max", talent_profiles: { id: "t-max", profile_code: "TAL-MAX", display_name: "Max" } },
+    { tenant_id: "hub", status: "active", talent_profile_id: "t-qa", talent_profiles: { id: "t-qa", profile_code: "TAL-QA", display_name: "QA Fixture" } },
+  ],
+  talent_offerings: [
+    offering("o-and", "hub", "t-andres", "Menú Andrés"),
+    offering("o-max", "tenant-max", "t-max", "QA Grok Manicure"),
+    offering("o-qa1", "hub", "t-qa", "Sesión de retrato QA"),
+    offering("o-qa2", "hub", "t-qa", "Limpieza profunda"),
+  ],
+  sessions: [{ id: "s1", tenant_id: "hub", offering_id: "o-qa1", status: "scheduled", title: "Someone else's event" }],
+};
+
+test("a dock bound to one talent lists only that talent: no foreign services, roster or sessions", async () => {
+  const base = { tenantId: "hub", forcedTalent: true, window: null, now: new Date(), date: null, reservations: false };
+  const andres = await loadCatalogRowsForScope(fakeAdmin(THREE), { ...base, talentProfileId: "t-andres" });
+  assert.deepEqual(andres.map((r) => r.title), ["Menú Andrés"]);
+
+  const max = await loadCatalogRowsForScope(fakeAdmin(THREE), { ...base, talentProfileId: "t-max" });
+  assert.deepEqual(max.map((r) => r.title), ["QA Grok Manicure"], "its own service must be present even when its row sits on another tenant");
+
+  const qa = await loadCatalogRowsForScope(fakeAdmin(THREE), { ...base, talentProfileId: "t-qa" });
+  assert.deepEqual(qa.map((r) => r.title).sort(), ["Limpieza profunda", "Sesión de retrato QA"]);
+
+  const foreign = new Set(["t-max", "t-qa"]);
+  assert.ok(andres.every((r) => !r.talentProfileId || !foreign.has(r.talentProfileId)), "zero foreign talent ids");
+  assert.ok(andres.every((r) => !r.title.includes("QA") && r.title !== "Limpieza profunda"), "zero foreign services");
+});
+
+test("without a bound talent the tenant keeps its own roster (agency pages unchanged)", async () => {
+  const rows = await loadCatalogRowsForScope(fakeAdmin(THREE), { tenantId: "hub", talentProfileId: null, forcedTalent: false, window: null, now: new Date(), date: null, reservations: false });
+  const people = rows.filter((r) => r.category === "talent").map((r) => r.title).sort();
+  assert.deepEqual(people, ["Andres", "Max", "QA Fixture"]);
+});
+
+test("the dock receives its talent from the server, never only from the URL", () => {
+  const model = readFileSync(join(process.cwd(), "src/app/t/[profileCode]/_chat/use-guest-dock-model.ts"), "utf8");
+  const mount = readFileSync(join(process.cwd(), "src/app/t/[profileCode]/_chat/TalentProfileChatLauncherMount.tsx"), "utf8");
+  const dock = readFileSync(join(process.cwd(), "src/app/t/[profileCode]/_chat/GuestDockCatalog.tsx"), "utf8");
+  assert.match(mount, /dockTalentProfileCode: talentProfileCode/);
+  assert.match(model, /profileCode: input\.brand\.dockTalentProfileCode/);
+  assert.match(dock, /p\.profileCode \?\? /);
 });

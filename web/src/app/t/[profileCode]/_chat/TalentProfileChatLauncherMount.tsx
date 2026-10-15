@@ -285,6 +285,7 @@ export async function TalentProfileChatLauncherMount({
       sourcePage={sourcePage}
       brand={{
         ...dockFlags,
+        dockTalentProfileCode: talentProfileCode,
         dockServiceMenu: publicOfferings
           .map((o) => {
             const category = categoryChipLabel(o.category);
