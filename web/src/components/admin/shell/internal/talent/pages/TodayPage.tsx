@@ -185,7 +185,7 @@ export function TalentTodayPage() {
         onNewBooking={openNewBookingPanel}
         onOpenAvailability={openWorkingHoursPanel}
         onOpenServices={() => setTalentPage("services")}
-        onOpenSite={() => setTalentPage("public-page")}
+        onOpenSite={() => openAgendaPath("/talent/page-builder", "public-page")}
         onOpenProfile={() => setTalentPage("profile")}
         onOpenRecord={(id) => openAgendaPath(`/talent/bookings/${id}`, "booking-record")}
         onOpenMoney={openMoney}
