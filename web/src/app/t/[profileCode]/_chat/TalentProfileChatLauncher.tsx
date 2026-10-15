@@ -232,6 +232,7 @@ export function TalentProfileChatLauncher({
       return () => cancelAnimationFrame(raf);
     }
     wasOpenRef.current = open;
+    return undefined;
   }, [open]);
   // Card → pill fly clone (reduced-motion-safe; no portal under reduce). The
   // flight is driven by the directory card's animateAdd payload via context.
