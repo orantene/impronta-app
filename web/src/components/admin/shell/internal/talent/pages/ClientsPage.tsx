@@ -143,7 +143,7 @@ function FilterChips(props: {
     <div
       role="tablist"
       aria-label={props.t("Clients")}
-      className="flex gap-2 overflow-x-auto pb-1"
+      className="flex flex-wrap gap-2 pb-1"
       data-clients-filters
     >
       {FILTERS.filter((f) => (f.id === props.filter || showClientsFilterChip(f.id, props.counts, props.showRefill))).map((f) => {
