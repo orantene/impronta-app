@@ -143,7 +143,7 @@ const CART = bookingCartLines([{ offeringId: SERVICE, kind: "service", totalCent
 
 test("quoteBooking: live promos priced; paused / draft promos never read for usage", async () => {
   const d = deps({ promos: [promo(), promo({ id: "p-paused", is_paused: true, value: 50 })] });
-  const r = await quoteBooking(DB, { tenantId: "t1", lines: CART, customerId: "c1", now: NOW }, d);
+  const r = await quoteBooking(DB, { tenantId: "t1", talentProfileId: null, lines: CART, customerId: "c1", now: NOW }, d);
   assert.equal(r.ok, true);
   if (!r.ok) return;
   assert.equal(r.value.quote.totals.charged_cents, 40000);
@@ -154,7 +154,7 @@ test("quoteBooking: live promos priced; paused / draft promos never read for usa
 test("quoteBooking: a link cookie unlocks its promo; the customer comes from the contact when unknown", async () => {
   const link = promo({ id: "p-link", unlock: "link", value: 15 });
   const d = deps({ promos: [link] });
-  const r = await quoteBooking(DB, { tenantId: "t1", lines: CART, contact: { email: "a@b.co", phone: null }, linkPromoIds: ["p-link"], now: NOW }, d);
+  const r = await quoteBooking(DB, { tenantId: "t1", talentProfileId: null, lines: CART, contact: { email: "a@b.co", phone: null }, linkPromoIds: ["p-link"], now: NOW }, d);
   assert.ok(r.ok);
   if (!r.ok) return;
   assert.equal(r.value.customerId, "c-from-email");
@@ -164,7 +164,7 @@ test("quoteBooking: a link cookie unlocks its promo; the customer comes from the
 
 test("quoteBooking: a typed paused code is still FOUND, so the client hears why", async () => {
   const paused = promo({ id: "p-code", unlock: "code", code: "LUZ10", is_paused: true });
-  const r = await quoteBooking(DB, { tenantId: "t1", lines: CART, customerId: "c1", code: "luz10", now: NOW }, deps({ promos: [paused] }));
+  const r = await quoteBooking(DB, { tenantId: "t1", talentProfileId: null, lines: CART, customerId: "c1", code: "luz10", now: NOW }, deps({ promos: [paused] }));
   assert.ok(r.ok);
   if (!r.ok) return;
   assert.deepEqual(r.value.typed, { kind: "refused", reason: "promo_unknown" });
@@ -177,7 +177,28 @@ test("quoteBooking: any failed read is promo_unavailable, never 'no promos'", as
     deps({ loadClientStatus: async () => null }),
   ];
   for (const d of failed) {
-    const r = await quoteBooking(DB, { tenantId: "t1", lines: CART, customerId: "c1", now: NOW }, d);
+    const r = await quoteBooking(DB, { tenantId: "t1", talentProfileId: null, lines: CART, customerId: "c1", now: NOW }, d);
     assert.deepEqual(r, { ok: false, reason: "promo_unavailable" });
   }
+});
+
+test("hub: talent A's promo never prices talent B's booking on the same tenant", async () => {
+  const byOwner: Record<string, Promo[]> = { "tp-a": [promo({ id: "p-a", value: 20 })], agency: [] };
+  const asked: string[] = [];
+  const d = deps({
+    loadTenantPromos: async (_db, _tenant, owner) => {
+      const key = "talentProfileId" in owner ? owner.talentProfileId : "agency";
+      asked.push(key);
+      return { ok: true as const, rows: [], promos: byOwner[key] ?? [] };
+    },
+  });
+  const b = await quoteBooking(DB, { tenantId: "t1", talentProfileId: "tp-b", lines: CART, customerId: "c1", now: NOW }, d);
+  assert.equal(b.ok, true);
+  if (!b.ok) return;
+  assert.equal(b.value.quote.applied.length, 0);
+  assert.deepEqual(asked.sort(), ["agency", "tp-b"]);
+  const a = await quoteBooking(DB, { tenantId: "t1", talentProfileId: "tp-a", lines: CART, customerId: "c1", now: NOW }, d);
+  assert.equal(a.ok, true);
+  if (!a.ok) return;
+  assert.deepEqual(a.value.quote.applied.map((x) => x.promoId), ["p-a"]);
 });
