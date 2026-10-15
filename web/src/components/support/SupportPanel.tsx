@@ -125,7 +125,7 @@ export function SupportPanel({
 
   useEffect(() => {
     if (deepLinkTicketId) setView("thread", deepLinkTicketId);
-    else if (deepLinkList) setView("tickets");
+    else if (deepLinkList) setView("home");
   }, [deepLinkTicketId, deepLinkList, setView]);
 
   useEffect(() => {

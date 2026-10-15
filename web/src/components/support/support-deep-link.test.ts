@@ -31,7 +31,7 @@ test("nextUrlAfterSupportDeepLink matches history.replaceState cleanup", () => {
   assert.equal(nextUrlAfterSupportDeepLink("/admin", "", ""), null);
 });
 
-test("TUL-677: a non-uuid support value opens the Tickets list, not a thread that cannot load", () => {
+test("TUL-677: a non-uuid support value opens the panel Home, not a thread that cannot load", () => {
   for (const bad of ["abc", "<id>", "8", "11111111-1111-1111-1111-11111111111"]) {
     const parsed = parseSupportDeepLink(`?support=${encodeURIComponent(bad)}&x=1`);
     assert.equal(parsed.ticketId, null, bad);

@@ -3,14 +3,17 @@
 /**
  * GuestInquiryTray (TUL-1066): the expandable list behind the persistent tray
  * bar. Lists every talent in the inquiry (with Remove, through the launcher's
- * unified remove path) and every catalog item added this session (no remove:
- * there is no server action to drop a catalog line).
+ * unified remove path) and every catalog item added this session (Remove takes
+ * that one line back through messagingClientRemoveItem).
  */
+
+import { useState } from "react";
 
 import { useCartTalentRegistry } from "./cart-talent-registry";
 import { useAddedCatalogItems } from "./guest-added-items-store";
 import { useCartTalents } from "./use-cart-talents";
 import { FONT, type paletteFor } from "./mini-chat-styles";
+import { removeAddedCatalogLine } from "./remove-added-item";
 
 type Palette = ReturnType<typeof paletteFor>;
 
@@ -28,6 +31,7 @@ export function GuestInquiryTrayList({
 }) {
   const talents = useCartTalents(useCartTalentRegistry());
   const added = useAddedCatalogItems();
+  const [notice, setNotice] = useState<string | null>(null);
   const row = { display: "flex", alignItems: "center", gap: 10, padding: "6px 14px", fontFamily: FONT, fontSize: 13, color: C.ink } as const;
   return (
     <ul data-guest-inquiry-tray-list="" role="list" style={{ listStyle: "none", margin: 0, padding: "4px 0", borderBottom: `1px solid ${C.borderSoft}`, maxHeight: 220, overflowY: "auto" }}>
@@ -45,8 +49,20 @@ export function GuestInquiryTrayList({
         <li key={it.id} style={row}>
           <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.title}</span>
           {it.priceLabel ? <span style={{ fontSize: 11.5, color: C.inkDim }}>{it.priceLabel}</span> : null}
+          <button
+            type="button"
+            data-inquiry-catalog-remove=""
+            onClick={() => {
+              setNotice(null);
+              void removeAddedCatalogLine(it).then((r) => { if (!r.ok) setNotice(t(r.messageKey)); });
+            }}
+            style={{ border: `1px solid ${C.borderSoft}`, borderRadius: 8, background: "transparent", color: C.inkMuted, padding: "3px 9px", fontSize: 12, cursor: "pointer", fontFamily: FONT }}
+          >
+            {t("public.guestChat.dockTrayRemove")}
+          </button>
         </li>
       ))}
+      {notice ? <li role="status" style={{ ...row, color: C.inkDim, fontSize: 12 }}>{notice}</li> : null}
     </ul>
   );
 }
