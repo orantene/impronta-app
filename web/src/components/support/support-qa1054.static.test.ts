@@ -148,3 +148,15 @@ test("TUL-949: the home question box is a single input inside a form with a type
   assert.match(home, /onSubmit=\{\(e\) => \{\s*e\.preventDefault\(\);\s*onSubmit\(\);/);
   assert.doesNotMatch(home.slice(formAt, home.indexOf("</form>")), /<textarea/);
 });
+
+test("TUL-947: at 390 the support launcher sits above the connection-lost banner and paints over it", () => {
+  const banner = readFileSync("src/components/admin/offline-banner.tsx", "utf8");
+  const bannerBottom = Number(banner.match(/bottom: calc\((\d+)px \+ env\(safe-area-inset-bottom/)?.[1]);
+  const launcherBottom = Number(
+    geometry.match(/data-tulala-offline-banner\]\) button\[data-tulala-support-launcher=""\] \{\s*bottom: calc\((\d+)px/)?.[1],
+  );
+  assert.ok(bannerBottom > 0 && launcherBottom > bannerBottom, `launcher ${launcherBottom}px must clear banner ${bannerBottom}px`);
+  const bannerZ = Number(banner.match(/zIndex: (\d+)/)?.[1]);
+  const launcherZ = Number(launcher.match(/zIndex: (\d+)/)?.[1]);
+  assert.ok(launcherZ > bannerZ, `launcher z ${launcherZ} must be above banner z ${bannerZ}`);
+});
