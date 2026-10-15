@@ -62,7 +62,7 @@ type EmailData = {
 };
 
 type HookPayload = {
-  user?: { id?: string; email?: string; new_email?: string };
+  user?: { id?: string; email?: string; new_email?: string; user_metadata?: { lang?: unknown } };
   email_data?: EmailData;
 };
 
@@ -88,12 +88,16 @@ function copyKeyFor(action: string): EmailCopyKey {
  * app's auth actions append `?lang=es` to redirectTo (the language of the page
  * the user was on); we read it back here. Defaults to English.
  */
-function localeFromRedirect(redirectTo: string | undefined): "en" | "es" {
-  if (!redirectTo) return "en";
+function localeFromRedirect(redirectTo: string | undefined, metadataLang?: unknown): "en" | "es" {
+  // Fallback when redirect_to lost its `?lang=` (a redirect URL outside Supabase's allow-list
+  // is replaced by the site URL): the language stored on the new user at signup.
+  const fromMetadata = typeof metadataLang === "string" ? normalizeEmailLocale(metadataLang) : "en";
+  if (!redirectTo) return fromMetadata;
   try {
-    return normalizeEmailLocale(new URL(redirectTo).searchParams.get("lang"));
+    const lang = new URL(redirectTo).searchParams.get("lang");
+    return lang ? normalizeEmailLocale(lang) : fromMetadata;
   } catch {
-    return "en";
+    return fromMetadata;
   }
 }
 
@@ -182,7 +186,7 @@ export async function POST(req: NextRequest) {
 
   const url = confirmUrl(action, tokenHash, data.redirect_to);
   const newEmail = data.new_email ?? payload.user?.new_email;
-  const locale = localeFromRedirect(data.redirect_to);
+  const locale = localeFromRedirect(data.redirect_to, payload.user?.user_metadata?.lang);
   const subject = getEmailCopy(locale)[copyKeyFor(action)].subject;
 
   let html: string;

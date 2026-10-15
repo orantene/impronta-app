@@ -213,6 +213,7 @@ export async function requestEmailCode(
         nextPath,
         lang: otpLang(formData),
       }),
+      newUserData: { lang: otpLang(formData) },
       logError: logServerError,
     },
   );

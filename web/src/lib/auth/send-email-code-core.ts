@@ -31,7 +31,7 @@ export type OtpSendClient = {
   auth: {
     signInWithOtp(args: {
       email: string;
-      options: { shouldCreateUser: boolean; emailRedirectTo: string };
+      options: { shouldCreateUser: boolean; emailRedirectTo: string; data?: Record<string, unknown> };
     }): Promise<{ error: unknown }>;
   };
 };
@@ -45,6 +45,8 @@ export type SendEmailCodeDeps = {
   getClient: () => Promise<OtpSendClient | null>;
   envHelp: string;
   emailRedirectTo: string;
+  /** Stored on a NEW user (user_metadata) so the auth-email hook can still pick the language if redirect_to loses `?lang=` (TUL-814). */
+  newUserData?: Record<string, unknown>;
   logError?: (scope: string, error: unknown) => void;
 };
 
@@ -73,7 +75,7 @@ export async function sendEmailCodeCore(
   try {
     ({ error } = await client.auth.signInWithOtp({
       email,
-      options: { shouldCreateUser, emailRedirectTo: deps.emailRedirectTo },
+      options: { shouldCreateUser, emailRedirectTo: deps.emailRedirectTo, ...(deps.newUserData ? { data: deps.newUserData } : {}) },
     }));
   } catch (thrown) {
     error = thrown;
