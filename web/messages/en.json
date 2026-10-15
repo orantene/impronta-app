@@ -14000,7 +14000,7 @@
     "sales": {
       "pageTitle": "Sales",
       "pageIntro": "One commercial view across every product · click a row to open the source record",
-      "empty": "No sales yet.",
+      "empty": "When you record a sale or a payment, it will appear here.",
       "emptyTitle": "No sales yet",
       "colCustomer": "Customer",
       "filterKindLabel": "Kind",
@@ -14033,7 +14033,7 @@
       "noResultsBody": "There are sales on this workspace; none is of this kind on this channel.",
       "clearFilters": "Show every sale",
       "retry": "Try again",
-      "footnote": "A free registration is never shown as an unpaid invoice. Payment and fulfilment are one pill on purpose: what the record says, not a guess.",
+      "footnote": "A free registration is never shown as an unpaid invoice. Payment and fulfilment are one label on purpose: it shows what the record says, not a guess.",
       "state": {
         "free": "Free · Confirmed",
         "paid": "Paid",

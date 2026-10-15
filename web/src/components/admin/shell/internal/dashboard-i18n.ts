@@ -727,7 +727,7 @@ const ES_TEXT: Record<string, string> = {
   "Client accounts, trust tiers, and booking history": "Cuentas de cliente, niveles de confianza e historial de reservas",
   "Analytics, queues, SLAs, automations, and team workload": "Analítica, colas, SLA, automatizaciones y carga del equipo",
   "Casting, crew bookings, call sheets, rights, and safety": "Casting, equipo, call sheets, derechos y seguridad",
-  "Pages, posts, redirects, custom code, tracking, SEO, domain": "Páginas, posts, redirecciones, código personalizado, tracking, SEO y dominio",
+  "Pages, posts, redirects, custom code, tracking, SEO, domain": "Páginas, publicaciones, redirecciones, código personalizado, seguimiento de visitas, posicionamiento en buscadores y dominio",
   "Workspace photo library, watermark control, and usage tracking": "Biblioteca de fotos, marca de agua y seguimiento de uso",
   "Curated talent suggestions sent to clients": "Sugerencias curadas de talento enviadas a clientes",
   "Account, plan, branding, integrations, team, and danger zone": "Cuenta, plan, marca, integraciones, equipo y zona crítica",
