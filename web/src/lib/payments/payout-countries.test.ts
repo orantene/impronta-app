@@ -112,7 +112,7 @@ describe("picker rows", () => {
   it("names come from Intl in ES and EN, flags from the code", () => {
     assert.equal(payoutPickerRows("es").selectable.find((c) => c.iso2 === "MX")?.label, "México");
     assert.equal(payoutPickerRows("en").selectable.find((c) => c.iso2 === "MX")?.label, "Mexico");
-    assert.equal(payoutPickerRows("en").selectable.find((c) => c.iso2 === "US")?.flag, "\u{1F1FA}\u{1F1F8}");
+    assert.equal(payoutPickerRows("en").selectable.find((c) => c.iso2 === "US")?.flag, String.fromCodePoint(0x1f1fa, 0x1f1f8));
   });
 });
 
