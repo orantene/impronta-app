@@ -214,7 +214,7 @@ test("fields: toggles hide/show cover, date, excerpt, reading time, author, read
   assert.match(on, /3 min read/);
   assert.match(on, /By Ana/);
   assert.doesNotMatch(on, /site-blog__tag/, "tag chips are v1.1");
-  assert.equal(normalizePostsFeedOptions({ fields: { tags: true } }).fields.tags, undefined);
+  assert.equal((normalizePostsFeedOptions({ fields: { tags: true } }).fields as Record<string, unknown>).tags, undefined);
   assert.match(on, /Read more/);
   const off = render(
     [node({ fields: { cover: false, date: false, excerpt: false, category: false, readMore: false } })],
