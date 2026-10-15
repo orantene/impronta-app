@@ -3,6 +3,7 @@
 import { stopBrowserAuthClient } from "@/lib/supabase/client";
 import { authCookieScopeVariants, isSupabaseAuthCookie } from "@/lib/supabase/cookie-domain";
 
+import { announceSignOut } from "./cross-tab-sign-out";
 import { SIGN_OUT_PATH } from "./sign-out-paths";
 
 /**
@@ -54,6 +55,7 @@ function safeStorage(win: Window, kind: "localStorage" | "sessionStorage"): Stor
 
 /** Imperative entry point: clear browser state, then full-page POST sign-out. */
 export function signOutEverywhere(path: string = SIGN_OUT_PATH): void {
+  announceSignOut();
   try {
     clearBrowserAuthState();
   } catch {

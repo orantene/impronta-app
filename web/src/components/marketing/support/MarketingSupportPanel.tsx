@@ -501,6 +501,14 @@ export function MarketingSupportPanel({
         <textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
+          enterKeyHint="send"
+          onKeyDown={(e) => {
+            // TUL-949: Enter sends, Shift+Enter is a newline, IME commit never sends.
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              if (!busy && draft.trim()) void sendQuestion();
+            }
+          }}
           placeholder={signedIn ? copy.composerPlaceholderSignedIn : copy.composerPlaceholder}
           rows={3}
           className="mb-2 w-full resize-none rounded-xl border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg)] px-3 py-2 text-[0.875rem]"
