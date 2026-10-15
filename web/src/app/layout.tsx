@@ -236,7 +236,7 @@ export default async function RootLayout({
         <script
           id="tulala-client-messages"
           dangerouslySetInnerHTML={{
-            __html: `self.${CLIENT_MESSAGES_GLOBAL}=${JSON.stringify(getClientMessagesPayload()).replace(/</g, "\\u003c")};`,
+            __html: `self.${CLIENT_MESSAGES_GLOBAL}=${JSON.stringify(getClientMessagesPayload(locale)).replace(/</g, "\\u003c")};`,
           }}
         />
         {/* TUL-516: floating chrome stack (consent/locale/chat/bar clearance)

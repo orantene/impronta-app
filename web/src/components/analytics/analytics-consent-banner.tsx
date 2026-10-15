@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { translatorFor } from "@/i18n/use-t";
+import { translatorFor } from "@/i18n/translator-for";
 import { getSiteUrl } from "@/lib/auth-flow";
 import {
   PRIVACY_CHOICES_EVENT,

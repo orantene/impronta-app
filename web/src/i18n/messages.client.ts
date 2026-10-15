@@ -85,6 +85,6 @@ export function getMessageStringArray(locale: string, key: string): string[] {
 }
 
 /** Server-only in practice; kept so the two builds export the same names. */
-export function getClientMessagesPayload(): Record<string, Catalog> {
+export function getClientMessagesPayload(_locale: string): Record<string, Catalog> {
   return store();
 }

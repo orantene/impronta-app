@@ -20,13 +20,13 @@ import { CLIENT_MESSAGE_SUBTREES, pickClientSubtrees } from "./client-subtrees";
 const WEB = join(__dirname, "..", "..");
 
 function directClientTranslatorFiles(): string[] {
-  const listed = execSync(`git grep -l "i18n/messages\\"" -- src`, { cwd: WEB, encoding: "utf8" })
+  const listed = execSync(`git grep -lE "i18n/(messages|translator-for)\\"" -- src`, { cwd: WEB, encoding: "utf8" })
     .trim()
     .split("\n")
     .filter((f) => f && !/\.test\.tsx?$/.test(f));
   return listed.filter((f) => {
     const src = readFileSync(join(WEB, f), "utf8");
-    return /^\s*["']use client["']/.test(src) && /\b(createTranslator|getMessageStringArray)\b/.test(src);
+    return /^\s*["']use client["']/.test(src) && /\b(createTranslator|getMessageStringArray|translatorFor)\b/.test(src);
   });
 }
 

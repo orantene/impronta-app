@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useT } from "@/i18n/use-t";
-import { translatorFor } from "@/i18n/use-t";
+import { translatorFor } from "@/i18n/translator-for";
 import { interpolate } from "@/i18n/interpolate";
 import { SupportAgentAvatar } from "./SupportAgentAvatar";
 import { SUPPORT_AGENT_VARS } from "@/lib/support/support-persona";

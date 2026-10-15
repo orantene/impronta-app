@@ -122,10 +122,11 @@ export function getMessageStringArray(locale: string, key: string): string[] {
  * The client-safe subtrees of every catalog, for the root layout to inline as
  * the browser translator's store (see `client-subtrees.ts`).
  */
-export function getClientMessagesPayload(): Record<string, Catalog> {
+export function getClientMessagesPayload(locale: string): Record<string, Catalog> {
   const out: Record<string, Catalog> = {};
-  for (const [code, catalog] of Object.entries(CATALOG_REGISTRY)) {
-    out[code] = pickClientSubtrees(catalog);
+  // The page's own locale plus the same fallback chain the translator walks.
+  for (const code of new Set([locale, defaultLocale, ROOT_FALLBACK_LOCALE])) {
+    if (hasMessageCatalog(code)) out[code] = pickClientSubtrees(CATALOG_REGISTRY[code]);
   }
   return out;
 }

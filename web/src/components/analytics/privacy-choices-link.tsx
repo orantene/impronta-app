@@ -1,6 +1,6 @@
 "use client";
 
-import { translatorFor } from "@/i18n/use-t";
+import { translatorFor } from "@/i18n/translator-for";
 import { openPrivacyChoices } from "@/lib/analytics/consent";
 
 /**

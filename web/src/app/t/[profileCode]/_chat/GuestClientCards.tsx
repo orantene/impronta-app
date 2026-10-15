@@ -19,7 +19,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 
-import { translatorFor } from "@/i18n/use-t";
+import { translatorFor } from "@/i18n/translator-for";
 import type { GuestThreadMessage, GuestThreadV5Extras } from "@/lib/inquiry/guest-chat-contract";
 import type { ThreadMessage } from "@/lib/messaging/types";
 import type { ClientOfferSummary } from "@/lib/messages-v5/client-thread-view";
