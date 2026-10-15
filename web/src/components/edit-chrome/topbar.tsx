@@ -3039,7 +3039,7 @@ export function TopBar({
   return (
     <div
       data-edit-topbar
-      className="fixed inset-x-0 top-0 z-[90] overflow-x-auto overflow-y-hidden"
+      className="fixed inset-x-0 top-0 z-[90] overflow-x-auto overflow-y-hidden max-[640px]:overflow-x-hidden"
       style={{
         height: TOPBAR_H,
         background: "rgba(249, 249, 251, 0.96)",
@@ -3053,7 +3053,7 @@ export function TopBar({
           horizontal scroll parent, Publish/Exit sit outside the viewport and
           Playwright (and operators) cannot reach them. Inner row keeps natural
           width; outer bar scrolls. */}
-      <div className="flex h-full min-w-max items-center gap-[12px] px-[20px] max-[1100px]:gap-[6px] max-[1100px]:px-[12px]">
+      <div className="flex h-full min-w-max items-center gap-[12px] px-[20px] max-[1100px]:gap-[6px] max-[1100px]:px-[12px] max-[640px]:w-full max-[640px]:min-w-0 max-[640px]:gap-[4px] max-[640px]:px-[8px]">
       {/* ── Left cluster — page-level navigation ── */}
       {headerVariant === "lab" ? (
         <LabExitButton onExit={onExit} exitLabel={exitLabel} />
