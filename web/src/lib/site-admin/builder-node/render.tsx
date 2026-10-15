@@ -4657,10 +4657,10 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog-duration,.site-builder-node--services-catalog-meta{font-size:.75rem}
 .site-builder-node--services-catalog-buy{flex:0 0 auto;justify-content:flex-end;gap:1.25rem;min-width:0;width:auto}
 .site-builder-node--services-catalog-price{align-items:flex-end;text-align:right;min-width:5.5rem;font-size:1rem}
-.site-builder-node--services-catalog-cta{min-height:44px;padding:.5rem 1.05rem;font-size:.8125rem}
+.site-builder-node--services-catalog-cta{min-height:44px;padding:.5rem 1.05rem;font-size:.8125rem;max-width:100%;white-space:normal}
 .site-builder-node--services-catalog[data-layout="compact_list"] .site-builder-node--services-catalog-row{flex-wrap:nowrap}
 .site-builder-node--services-catalog[data-layout="compact_list"] .site-builder-node--services-catalog-copy{max-width:46ch}
-.site-builder-node--services-catalog[data-layout="compact_list"] .site-builder-node--services-catalog-buy{flex:0 0 auto;margin-inline-start:.75rem}
+.site-builder-node--services-catalog[data-layout="compact_list"] .site-builder-node--services-catalog-buy{flex:0 1 auto;margin-inline-start:.75rem}
 .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-row{grid-template-columns:minmax(0,1fr) auto;align-items:baseline}
 .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-copy{max-width:none}
 .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-buy{margin-inline-start:0}
