@@ -22,6 +22,7 @@
  * ensure path), then the add runs once the thread token arrives.
  */
 
+import { searchCatalogRows } from "@/lib/messages-v5/catalog-search";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 
@@ -219,7 +220,11 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
     [add, onEnsureInquiry, t, threadToken],
   );
 
-  const visible = useMemo(() => groups?.find((g) => g.category === category)?.rows ?? [], [groups, category]);
+  const [searchText, setSearchText] = useState("");
+  const visible = useMemo(
+    () => searchCatalogRows(groups?.find((g) => g.category === category)?.rows ?? [], searchText),
+    [groups, category, searchText],
+  );
 
   const usingServices = serviceChips.length > 0;
   const activeService = serviceChip ?? serviceChips[0] ?? null;
@@ -240,6 +245,18 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
               <Chip key={g.category} on={g.category === category} label={t(CATEGORY_KEY[g.category])} onClick={() => { setCategory(g.category); setNotice(null); }} C={C} accent={accent} />
             ))}
       </div>
+      {!usingServices ? (
+        <div style={{ padding: "0 14px" }}>
+          <input
+            type="search"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            placeholder={t("public.guestChat.catalogSearchPlaceholder")}
+            aria-label={t("public.guestChat.catalogSearchPlaceholder")}
+            style={{ width: "100%", boxSizing: "border-box", border: `1px solid ${C.borderSoft}`, borderRadius: 999, padding: "7px 12px", fontSize: 13, fontFamily: FONT, color: C.ink, background: "#fff" }}
+          />
+        </div>
+      ) : null}
       {notice && (
         <div role="status" style={{ margin: "0 14px", padding: "7px 10px", borderRadius: 10, background: `${accent}14`, color: accent, fontSize: 12.5, fontWeight: 600, fontFamily: FONT }}>
           {notice}
