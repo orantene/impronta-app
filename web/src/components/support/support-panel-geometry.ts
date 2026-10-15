@@ -60,3 +60,15 @@ export const SUPPORT_LAUNCHER_COMPACT_CSS = `
     }
   }
 `;
+
+/**
+ * TUL-982: the launcher is server-rendered with the desktop (mid-right) style
+ * because the viewport is unknown until hydration. Where the phone hides the
+ * floating circle (talent), hide it in CSS too so it never flashes over
+ * cards before React removes it.
+ */
+export const SUPPORT_LAUNCHER_HIDE_COMPACT_CSS = `
+  @media (max-width: 520px), (pointer: coarse) {
+    button[data-tulala-support-launcher=""] { display: none !important; }
+  }
+`;
