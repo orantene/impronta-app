@@ -27,6 +27,10 @@ export const UI = {
     "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-[14px] font-medium text-[var(--tc-muted,#6b6b73)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tc-action,#0f766e)]",
 } as const;
 
+/** md+ (>=768px): the bottom sheet becomes a right-side panel (max-w-lg); below md it stays a bottom sheet. */
+export const PANEL_MD =
+  "md:inset-y-0 md:bottom-auto md:left-auto md:right-0 md:top-0 md:h-full md:max-h-none md:w-full md:max-w-lg md:rounded-none md:rounded-l-3xl md:border-l md:border-t-0 md:data-[state=closed]:translate-y-0 md:data-[state=closed]:translate-x-full md:data-[state=open]:translate-x-0";
+
 export function TagIcon({ size = 18 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
