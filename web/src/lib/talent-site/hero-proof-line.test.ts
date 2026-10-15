@@ -24,12 +24,14 @@ test("every part drops out when unknown, and a new profile gets a shorter line, 
   assert.equal(formatHeroProofLine({ years: 0, languages: [], rating: 0, count: 0 }), "");
   assert.equal(formatHeroProofLine({ years: 1 }, "en"), "1 year of craft");
   assert.equal(formatHeroProofLine({ years: 1 }, "es"), "1 año de oficio");
-  assert.equal(formatHeroProofLine({ languages: ["Spanish"] }), "Español");
+  assert.equal(formatHeroProofLine({ languages: ["Spanish"] }), "", "TUL-850: a lone language is not a proof line");
+  assert.equal(formatHeroProofLine({ years: 3, languages: ["Spanish"] }, "en"), "3 years of craft · Español");
+  assert.equal(formatHeroProofLine({ languages: ["Spanish", "English"] }, "en"), "Español · English");
   // A rating without a review count (or the reverse) is not shown: one number alone proves nothing.
   assert.equal(formatHeroProofLine({ rating: 5 }), "");
   assert.equal(formatHeroProofLine({ count: 12 }), "");
   assert.equal(formatHeroProofLine({ rating: 4.5, count: 1 }, "en"), "★ 4.5 · 1 review");
-  assert.equal(formatHeroProofLine({ languages: ["Spanish", "spanish", " Español "] }), "Español", "the same language is listed once");
+  assert.equal(formatHeroProofLine({ years: 2, languages: ["Spanish", "spanish", " Español "] }), "2 years of craft · Español", "the same language is listed once");
 });
 
 test("a demo talent's reviews read 'demo reviews' (never passed off as real)", () => {

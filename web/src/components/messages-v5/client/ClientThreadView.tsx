@@ -89,6 +89,8 @@ export type ClientThreadViewProps = {
   readonly offerAcceptLabel?: string;
   readonly offerSignInOfferId?: string | null;
   readonly offerSignInPanel?: ReactNode;
+  /** TUL-G4: "Save your bookings" block for a signed-out guest; null/absent renders nothing. */
+  readonly saveBookingsSlot?: ReactNode;
 };
 
 export function ClientThreadView(p: ClientThreadViewProps) {
@@ -156,6 +158,7 @@ export function ClientThreadView(p: ClientThreadViewProps) {
                 <Btn size="sm" onClick={p.onSaveToEmail ?? undefined}>{copy.composer.retry}</Btn>
               </div>
             ) : null}
+            {p.saveBookingsSlot ?? null}
             {p.threadTokenExpiresAt ? (
               <div data-client-link-expiry>
                 {fill(copy.footer.expires, { date: formatClientDate(p.threadTokenExpiresAt, locale) })}

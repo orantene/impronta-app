@@ -207,7 +207,7 @@
         "resending": "Sending",
         "changeEmail": "Use a different email",
         "usePassword": "Use a password instead",
-        "useCode": "Email me a code instead",
+        "useCode": "Email me a code",
         "errors": {
           "codeRequired": "Enter the code from your email.",
           "codeInvalid": "That code did not work. Check the digits, or send a new code.",
@@ -276,7 +276,13 @@
         "copyLinkDone": "Link copied",
         "shareWhatsapp": "Share on WhatsApp",
         "shareSystem": "Share…",
-        "whatsappTemplate": "{name}, {url}"
+        "whatsappTemplate": "{name}, {url}",
+        "shareX": "Share on X",
+        "shareFacebook": "Share on Facebook",
+        "shareLinkedin": "Share on LinkedIn",
+        "copyForInstagram": "Copy link for Instagram",
+        "copiedForInstagram": "Link copied for Instagram",
+        "print": "Print profile"
       },
       "ctaSectionAria": "Call to action",
       "footerCtaTitle": "Ready to work with {firstName}?",
@@ -1912,7 +1918,9 @@
         "line1": "What you do",
         "line2": "Where you are",
         "line3": "What people can book",
-        "next": "Next: what we understood"
+        "next": "Next: what we understood",
+        "skipAi": "Continue without AI",
+        "skipAiHint": "This is taking a while. You can answer a few short questions instead."
       },
       "tooLittle": {
         "title": "Tell us a little more",
@@ -2013,6 +2021,7 @@
         "google": "Continue with Google",
         "googleOpening": "Opening Google…",
         "googleFailed": "Google didn't finish. Try again or use your email.",
+        "termsPrefix": "I agree to the",
         "popupBlocked": "Your browser blocked the popup. Allow popups or use your email.",
         "popupClosed": "The Google window closed before finishing. Try again or use your email.",
         "or": "or",
@@ -2142,7 +2151,7 @@
         "minimalSub": "Quiet, lots of space",
         "vibrant": "Vibrant",
         "vibrantSub": "Bold colour, energy",
-        "notesLabel": "Anything about your style? (optional)",
+        "notesLabel": "Style notes (optional)",
         "notesHint": "Colours you love, a brand you admire, what to avoid…",
         "changeLater": "Your Look, colours and photos can all be changed in the builder.",
         "continue": "Continue"
@@ -2303,6 +2312,9 @@
       "noVisit": "No upcoming visits",
       "unread": "Unread messages",
       "balanceDue": "Balance due",
+      "quickBookings": "My bookings",
+      "quickMessages": "Messages",
+      "quickReceipts": "Receipts",
       "myAccount": "My account",
       "logOut": "Log out",
       "signedInAs": "Signed in as {email}",
@@ -2729,6 +2741,8 @@
       "refundLabel": "Preferred refund policy",
       "refundNoPreference": "No preference",
       "refundFallback": "Fall back to your agency's policy.",
+      "refundFallbackSolo": "Each offer sets its own refund terms.",
+      "instantBookHintSolo": "Signals you're happy to be booked without a back-and-forth. Whether instant-book is offered still depends on the project.",
       "instantBookTitle": "Open to instant booking",
       "instantBookHint": "Signals you're happy to be booked without a back-and-forth. Whether instant-book is offered still depends on your agency and the project.",
       "saving": "Saving…",
@@ -4069,7 +4083,6 @@
       "soon": "soon",
       "saving": "Saving...",
       "creating": "Creating...",
-      "loading": "Loading...",
       "logistics": {
         "callSheet": "Call sheet",
         "date": "Date",
@@ -4107,8 +4120,6 @@
         "total": "Total",
         "status": "Status",
         "netAmount": "Net amount",
-        "paidAt": "Paid at",
-        "failureReason": "Failure reason",
         "noTransactionYet": "No transaction yet",
         "noBookingYet": "No booking yet",
         "requestPayment": "Request payment",
@@ -4148,7 +4159,6 @@
         "markPaidCashDeposit": "Mark deposit paid in cash ({amount})",
         "markPaidCashBalance": "Mark balance paid in cash",
         "markPaidCashFull": "Mark full amount paid in cash",
-        "loadFailedShort": "Could not load",
         "retry": "Retry",
         "refundInOrders": "Refund in Orders"
       },
@@ -4940,7 +4950,7 @@
       },
       "resources": {
         "viewWeek": "Week",
-        "viewWeekOff": "A week timeline is not built; Month shows the week's days.",
+        "viewWeekOff": "The weekly view isn't available yet; Month shows the days of the week.",
         "viewResources": "Resources",
         "add": "Add",
         "loading": "Reading the day...",
@@ -4969,7 +4979,7 @@
         "emptyDay": "Nothing on this day for these filters.",
         "holdExpires": "Hold on {title} at {time}",
         "holdExpiresAt": "Hold expires {time}",
-        "dragOff": "Drag to reschedule is not built; Move it on Appointments & Classes reschedules with the window you saw.",
+        "dragOff": "To reschedule, open the appointment in Appointments & Classes.",
         "prevDay": "Previous day",
         "nextDay": "Next day"
       }
@@ -5015,7 +5025,10 @@
       "title": "Clients",
       "freeSubtitle": "Inquiries from your channels. Filter by what needs you.",
       "oneInquiryTitle": "One inquiry so far",
-      "oneInquiryDesc": "A test inquiry from a friend referral. No client relationship yet.",
+      "oneInquiryDesc": "Open it to see the conversation. It becomes a client once you work together.",
+      "noInquiryTitle": "No inquiries yet",
+      "noInquiryDesc": "When someone reaches out through your channels, it shows up here and in your Inbox.",
+      "manyInquiryTitle": "{count} inquiries so far",
       "seeInquiry": "See inquiry",
       "ownedListTitle": "Owned client list",
       "ownedListDesc": "With Studio, every inquiry on your domain becomes a client you own. We never share your client list with anyone, including Tulala discovery.",
@@ -5467,7 +5480,13 @@
         "pendingEmptyBody": "When someone registers from your site in approval mode, their request shows up here for review.",
         "requestedOn": "Requested {date}",
         "decline": "Decline",
-        "approve": "Approve"
+        "approve": "Approve",
+        "tier": {
+          "free": "Free",
+          "studio": "Studio",
+          "agency": "Agency",
+          "network": "Network"
+        }
       },
       "registrationModes": {
         "closedLabel": "Closed",
@@ -7395,6 +7414,10 @@
         "free": "Free",
         "studio": "Studio",
         "agency": "Agency",
+        "website": "Website",
+        "legacy": "Legacy",
+        "pro": "Pro",
+        "max": "Web Office",
         "network": "Network"
       },
       "role": {
@@ -7992,7 +8015,7 @@
         "working": "Working…",
         "entity": {
           "hub": "·•· Hub",
-          "agency": "▣ Agency"
+          "agency": "▣ Workspace"
         },
         "status": {
           "active": "Active",
@@ -8085,7 +8108,7 @@
       "users": {
         "page": {
           "title": "Users",
-          "summary": "{total} total · {talent} talent · {client} client · {staff} staff · {operators}",
+          "summary": "{total} accounts · {talent} talent profiles · {client} client · {staff} staff · {operators}",
           "operatorsOne": "{count} workspace operator",
           "operatorsMany": "{count} workspace operators",
           "unconfirmedSuffix": "{count} email unconfirmed",
@@ -9890,7 +9913,25 @@
         "overrideActive": "Override active",
         "save": "Save",
         "resetToDefault": "Reset {locale} to code default",
-        "templatesCustomized": "{customized} of {total} templates customized · {locales}."
+        "templatesCustomized": "{customized} of {total} templates customized · {locales}.",
+        "tabCopies": "Copies",
+        "copiesTitle": "Notification email copies",
+        "copiesIntro": "These addresses get a copy of the notifications you tick. Pause an address to stop its copies for a while.",
+        "copiesEmail": "Email address",
+        "copiesLabel": "Label",
+        "copiesLabelPlaceholder": "e.g. Ops inbox",
+        "copiesAdd": "Add address",
+        "copiesEmpty": "No addresses yet.",
+        "copiesPaused": "Paused",
+        "copiesPause": "Pause",
+        "copiesResume": "Resume",
+        "copiesSendTest": "Send test",
+        "copiesTestSent": "Test email sent.",
+        "copiesKindSupportNew": "New support tickets",
+        "copiesKindSupportUrgent": "Urgent / escalated tickets",
+        "copiesKindSupportInbound": "Support email replies",
+        "copiesKindLeads": "New leads",
+        "copiesKindPaymentIssues": "Payment issues"
       },
       "support": {
         "pageTitle": "Support",
@@ -9936,6 +9977,8 @@
         "empty": "Nothing in this view.",
         "keyboardHint": "j/k move, Enter open, r reply, e resolve, a assign",
         "unknownRequester": "Unknown",
+        "searchLoadMore": "Show more results",
+        "searchLoading": "Searching all tickets...",
         "ageJustNow": "now",
         "contextWorkspace": "Workspace",
         "noWorkspace": "No workspace",
@@ -11141,10 +11184,14 @@
           "label": "Captcha",
           "description": "Protect your storefront contact forms from spam with hCaptcha or Cloudflare Turnstile. Bring your own keys; the widget renders on your forms and submissions are verified server-side.",
           "steps": {
-            "s1": "Pick a provider: hCaptcha (hcaptcha.com) or Cloudflare Turnstile (dash.cloudflare.com → Turnstile).",
-            "s2": "Create a site for your storefront domain and copy the Site key (public) and Secret key (private).",
-            "s3": "Paste the Site key and Secret key below and choose the matching provider.",
-            "s4": "Save. Your contact forms render the widget and reject submissions that fail verification."
+            "s1": "Create a free Turnstile widget in Cloudflare (dash.cloudflare.com, Turnstile).",
+            "s2": "Add your domain as the widget's hostname.",
+            "s3": "Copy the Site key and the Secret key.",
+            "s4": "Paste them here and save."
+          },
+          "notice": {
+            "title": "Protect your forms on {domain}: add your free captcha.",
+            "cta": "Add captcha"
           },
           "fields": {
             "provider": "Provider",
@@ -13620,6 +13667,7 @@
       "aiMicrocopy": "AI replies instantly. {agent} sees every ticket.",
       "composerPlaceholder": "Write a reply",
       "sendFailed": "That did not send. Your text is still here, try again.",
+      "sendFailedNetwork": "Couldn't send. Check your connection and try again.",
       "rateLimited": "You have sent a lot in a short time. Your text is still here. Try again in about {minutes} minutes.",
       "threadLoading": "Loading conversation…",
       "threadLoadFailed": "Could not load this conversation. Close and reopen the panel to try again.",
@@ -13774,7 +13822,7 @@
     "adminReviews": {
       "eyebrow": "Reputation",
       "title": "Reviews",
-      "subtitle": "Reported reviews, rating integrity, and review photos across your talent.",
+      "subtitle": "Reported reviews, rating integrity, and review photos across your workspace.",
       "reviewPhotos": "Review photos",
       "noTenant": "Sign in to a workspace to moderate its reviews."
     },
@@ -17823,7 +17871,7 @@
         "missing": "Missing: {items}",
         "complete": "Everything is set up.",
         "finish": "Finish setup",
-        "seeAll": "See all",
+        "seeAllCount": "See all {count}",
         "setUp": "Set up",
         "item": {
           "timeZone": "Time zone",

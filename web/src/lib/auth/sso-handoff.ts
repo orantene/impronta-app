@@ -20,6 +20,7 @@ import "server-only";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { needsSsoHandoffHost } from "@/lib/auth/registered-return-host.server";
 import {
   SSO_HANDOFF_TTL_MS,
   mintHandoffExpiresAt,
@@ -30,22 +31,15 @@ import {
 
 export { SSO_HANDOFF_TTL_MS } from "@/lib/auth/sso-handoff-pure";
 
-/** Is `host` a verified tenant CUSTOM domain (so SSO to it is allowed)? */
+/**
+ * Is `host` a verified CUSTOM domain SSO may hand a session to? An active
+ * agency custom domain (agency_domains kind "custom") or, since TUL-691, a
+ * live talent custom domain (talent_site_domain_lookup: active domain,
+ * published site, visible talent). Platform hosts share cookies and never
+ * qualify. Exact host match; fails closed on any error.
+ */
 export async function isVerifiedCustomHost(host: string): Promise<boolean> {
-  const admin = createServiceRoleClient();
-  if (!admin) return false;
-  const { data, error } = await admin
-    .from("agency_domains")
-    .select("hostname, kind, status")
-    .eq("hostname", normalizeHandoffHost(host))
-    .eq("kind", "custom")
-    .in("status", ["active", "verified", "ssl_provisioned"])
-    .maybeSingle();
-  if (error) {
-    logServerError("sso.isVerifiedCustomHost", error);
-    return false;
-  }
-  return Boolean(data);
+  return needsSsoHandoffHost(normalizeHandoffHost(host));
 }
 
 /** Mint a single-use nonce for `userId` bound to `targetHost`. */

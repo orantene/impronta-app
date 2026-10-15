@@ -71,7 +71,11 @@ export default async function DirectoryPage() {
     );
   }
 
-  const publicSettings = await getPublicSettings();
+  const [publicSettings, initialSavedIds, publicScope] = await Promise.all([
+    getPublicSettings(),
+    getSavedTalentIds(),
+    getPublicTenantScope(),
+  ]);
   if (!publicSettings.directoryPublic) {
     return (
       <>
@@ -87,12 +91,10 @@ export default async function DirectoryPage() {
     );
   }
 
-  const initialSavedIds = await getSavedTalentIds();
 
   // Phase 3 Step 2 — try the seeded `__directory__` builder page; fall
   // back to the direct component when absent (zero-regression until the
   // seed lands).
-  const publicScope = await getPublicTenantScope();
   const tenantId = publicScope?.tenantId ?? "";
   // TUL-505: business / studio / both have no roster — `/directory` used to
   // hard-404. Seeded/legacy CTAs still point here, so soft-redirect to `/book`

@@ -27,6 +27,8 @@ export const TALENT_DASHBOARD_FALLBACK_HREF = "/talent/site";
 export type TalentBuilderIdentity = {
   displayName: string | null;
   headshotUrl: string | null;
+  /** Where her site publishes (`resolveMaxSiteLinkUrl`): absolute, or a `/t/site/…` path. */
+  siteUrl?: string | null;
 };
 
 const IdentityContext = createContext<TalentBuilderIdentity | null>(null);
@@ -64,6 +66,15 @@ export function resolveTalentBackHref(referrer: string, origin: string): string 
     /* no usable referrer */
   }
   return TALENT_DASHBOARD_FALLBACK_HREF;
+}
+
+/** The publish target the drawer names: her site's address when known, else
+ *  the editor's own host (agency editors publish the site they are on). */
+export function publishTargetHost(siteUrl: string | null | undefined, editorHost: string): string {
+  const url = (siteUrl ?? "").trim();
+  if (!url) return editorHost;
+  if (url.startsWith("/")) return `${editorHost}${url}`;
+  return url.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
 }
 
 /** Dashboard main-menu entries, from the dashboard's own nav config. */

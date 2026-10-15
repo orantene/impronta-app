@@ -53,6 +53,8 @@ import { DashboardLocaleProvider } from "@/i18n/use-dashboard-locale";
 import { loadMyNotifications } from "@/lib/notifications/self";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
+import { clientLoginNext } from "@/lib/client-account/agency-area-pure";
+import { readAccountHost } from "@/lib/client-account/area-site.server";
 import { TULALA_BRAND } from "@/lib/brand/tulala";
 
 type LayoutParams = Promise<{ tenantSlug: string }>;
@@ -113,7 +115,8 @@ export default async function ClientLayout({
   // ── Auth ────────────────────────────────────────────────────────────────────
   const session = await getCachedActorSession();
   if (!session.supabase) redirect("/login?error=config");
-  if (!session.user) redirect(`/login?next=/${tenantSlug}/client`);
+  const loginNext = clientLoginNext((await readAccountHost()).hostContext, tenantSlug);
+  if (!session.user) redirect(`/login?next=${loginNext}`);
 
   // ── Tenant resolution ────────────────────────────────────────────────────────
   const scope = await getTenantPortalScopeBySlug(tenantSlug);
@@ -179,7 +182,7 @@ export default async function ClientLayout({
             }}>
               Open admin dashboard
             </a>
-            <a href={`/login?next=/${tenantSlug}/client`} style={{
+            <a href={`/login?next=${loginNext}`} style={{
               display: "block", padding: "11px 20px", borderRadius: 10,
               border: "1px solid rgba(24,24,27,0.10)", background: "transparent",
               color: "#0B0B0D", fontWeight: 600, fontSize: 14, textDecoration: "none",

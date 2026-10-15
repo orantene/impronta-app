@@ -19,7 +19,7 @@ export function OwnershipBadge({ data }: { data: CanonicalTalentCardData }) {
       <span
         data-card-ownership
         data-card-chip
-        className="pointer-events-none inline-flex max-w-full items-center truncate rounded-full border border-[var(--dir-accent)] bg-background/85 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.1em] text-[var(--impronta-gold-bright)] backdrop-blur-sm"
+        className="pointer-events-none inline-flex max-w-full items-center whitespace-normal break-words text-center leading-tight rounded-full border border-[var(--dir-accent)] bg-background/85 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.1em] text-[var(--impronta-gold-bright)] backdrop-blur-sm"
       >
         Exclusive
       </span>
@@ -30,7 +30,7 @@ export function OwnershipBadge({ data }: { data: CanonicalTalentCardData }) {
     <span
       data-card-ownership
       data-card-chip
-      className="pointer-events-none inline-flex max-w-full items-center truncate rounded-full border border-border bg-background/85 px-2 py-0.5 text-[10px] font-medium tracking-wide text-foreground backdrop-blur-sm"
+      className="pointer-events-none inline-flex max-w-full items-center whitespace-normal break-words text-center leading-tight rounded-full border border-border bg-background/85 px-2 py-0.5 text-[10px] font-medium tracking-wide text-foreground backdrop-blur-sm"
     >
       Independent
     </span>

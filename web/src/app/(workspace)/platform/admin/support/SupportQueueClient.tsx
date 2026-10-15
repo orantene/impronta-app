@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
-import { HQ, HQ_F, PlanChip } from "../tenants/hq-kit";
+import { HQ, HQ_F, PlanChip, planTierLabel } from "../tenants/hq-kit";
 import type { HqQueueRow } from "@/lib/support/load-hq";
 import type { SupportMessageRow, SupportTicketRow } from "@/lib/support/support-types";
 import type { SupportCannedReply } from "@/lib/platform/support-canned";
 import { SupportTicketHqDrawer } from "./SupportTicketHqDrawer";
+import { useServerTicketSearch } from "./use-server-ticket-search";
 import { hqChangeStatusAction, hqClaimSelfAction } from "@/lib/support/hq-actions";
 import { useHqSupportRealtime } from "@/components/support/support-hooks";
 import {
@@ -157,16 +158,29 @@ export function SupportQueueClient({
     onOpenCountChange?.(queue.filter((r) => r.ticket.status === "open").length);
   }, [queue, onOpenCountChange]);
 
+  const search = useServerTicketSearch(q);
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
-    return queue.filter((row) => {
-      if (!matchesFilter(row, filter)) return false;
-      if (audience !== "all" && row.ticket.surface !== audience) return false;
-      if (!query) return true;
-      const hay = hqQueueSearchHaystack(row);
-      return hay.includes(query);
-    });
-  }, [queue, filter, audience, q]);
+    if (query) {
+      // A search looks across every view (a reply moves a ticket between
+      // views) and across the whole table, not only the 200-row window.
+      const seen = new Set<string>();
+      return [...queue, ...search.rows]
+        .filter((row) => {
+          if (seen.has(row.ticket.id)) return false;
+          if (audience !== "all" && row.ticket.surface !== audience) return false;
+          const hit =
+            hqQueueSearchHaystack(row).includes(query) ||
+            search.rows.some((r) => r.ticket.id === row.ticket.id);
+          if (hit) seen.add(row.ticket.id);
+          return hit;
+        })
+        .sort((a, b) => b.ticket.lastMessageAt.localeCompare(a.ticket.lastMessageAt));
+    }
+    return queue.filter(
+      (row) => matchesFilter(row, filter) && (audience === "all" || row.ticket.surface === audience),
+    );
+  }, [queue, filter, audience, q, search.rows]);
 
   useEffect(() => {
     if (cursor >= filtered.length) setCursor(0);
@@ -302,7 +316,7 @@ export function SupportQueueClient({
                     <span style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis" }}>
                       {row.requesterName ?? row.requesterEmail ?? t("dashboard.platform.support.unknownRequester")}
                     </span>
-                    {row.planTier ? <PlanChip plan={row.planTier} /> : null}
+                    {row.planTier ? <PlanChip plan={row.planTier} label={planTierLabel(t, row.planTier)} /> : null}
                     {/*
                       A reopened ticket is a resolution that did not hold. The
                       count was stored on every row and shown nowhere, so the
@@ -365,6 +379,18 @@ export function SupportQueueClient({
           })
         )}
       </div>
+      {q.trim() && (search.hasMore || search.loading) ? (
+        <button
+          type="button"
+          disabled={search.loading}
+          onClick={search.loadMore}
+          style={{ ...chipStyle(false), marginTop: 10 }}
+        >
+          {search.loading
+            ? t("dashboard.platform.support.searchLoading")
+            : t("dashboard.platform.support.searchLoadMore")}
+        </button>
+      ) : null}
       <div style={{ fontSize: 11, color: HQ.inkDim, marginTop: 10 }}>
         {t("dashboard.platform.support.keyboardHint")}
       </div>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
+import { localizeBuilderLabError } from "@/lib/talent-site/theme-releases/builder-lab-errors";
 import type { FirstPublishSummary, StaleDraftRow } from "@/lib/talent-site/theme-template/stale-drafts";
 import { STALE_DRAFTS_COPY } from "@/lib/talent-site/theme-template/stale-drafts-copy";
 import { themeTemplateEditHref } from "@/lib/talent-site/theme-template/types";
@@ -45,7 +46,7 @@ export function StaleDraftsPanel({ rows: initial, lang }: { rows: StaleDraftRow[
       const res = await actionFirstPublishDryRun(design);
       setBusyDesign(null);
       if (res.ok) setSummaries((s) => ({ ...s, [design]: res.data }));
-      else setError((lang === "es" ? res.errorEs : null) ?? res.error ?? t.genericError);
+      else setError(res.error ? localizeBuilderLabError(res.error, lang, res.errorEs) : t.genericError);
     });
   }
 
@@ -62,7 +63,7 @@ export function StaleDraftsPanel({ rows: initial, lang }: { rows: StaleDraftRow[
           setRows((all) => all.filter((r) => r.design !== p.row.design));
           setNotice(t.discarded(p.row.design));
           router.refresh();
-        } else setError(res.error || t.genericError);
+        } else setError(res.error ? localizeBuilderLabError(res.error, lang) : t.genericError);
         return;
       }
       const res = await actionPublishDesignAndUpdateDemos(p.row.design, p.row.rev);
@@ -71,7 +72,7 @@ export function StaleDraftsPanel({ rows: initial, lang }: { rows: StaleDraftRow[
         setRows((all) => all.filter((r) => r.design !== p.row.design));
         setNotice(t.published(p.row.design, res.data.version, res.data.demosApplied));
         router.refresh();
-      } else setError((lang === "es" ? res.errorEs : null) ?? res.error ?? t.genericError);
+      } else setError(res.error ? localizeBuilderLabError(res.error, lang, res.errorEs) : t.genericError);
     });
   }
 

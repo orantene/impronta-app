@@ -104,8 +104,14 @@ export function GhostLink({ children, onClick, testId }: { children: ReactNode; 
 export function Notice({ children, tone = "muted", testId }: { children: ReactNode; tone?: "muted" | "warn" | "error"; testId?: string }) {
   const color = tone === "error" ? "var(--tl-error)" : tone === "warn" ? "var(--tl-warning)" : "var(--tl-muted)";
   const bg = tone === "error" ? "var(--tl-error-bg)" : tone === "warn" ? "var(--tl-warning-bg)" : "var(--tl-stone-soft)";
+  const ref = useRef<HTMLParagraphElement>(null);
+  // An error that lands below the fold is brought into view (TUL-16).
+  useEffect(() => {
+    if (tone === "error") ref.current?.scrollIntoView?.({ block: "center", behavior: "smooth" });
+  }, [tone, children]);
   return (
     <p
+      ref={ref}
       role={tone === "error" ? "alert" : undefined}
       aria-live="polite"
       data-testid={testId}

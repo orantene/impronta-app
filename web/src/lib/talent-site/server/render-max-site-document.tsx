@@ -60,7 +60,7 @@ import { designTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/
 import { typeSystemComponentStyleDefaults } from "@/lib/talent-site/theme-catalog/collection/design-type-system";
 
 import { type MaxSitePageRow } from "@/lib/talent-site/resolve-max-site-core";
-import { TalentSiteSocket } from "@/components/talent-site/talent-site-socket";
+import { TulalaLegalStrip } from "@/components/talent-site/tulala-legal-strip";
 import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import {
   buildSocketModel,
@@ -78,6 +78,8 @@ import { LiveStatusExpiry } from "@/components/talent-site/LiveStatusExpiry";
 import type { TalentSiteLocaleContext } from "./talent-site-locale.server";
 import { loadUsdRatesForSitePrices } from "./vanity-usd-rates";
 import { loadTalentSocialLinks } from "./talent-social-links";
+import { HeaderAccountOverlay } from "@/components/client-account/HeaderAccountOverlay";
+import { resolveClientAccountMount } from "@/lib/client-account/gate";
 import { webOfficeFooter, webOfficeHeaderSocial, type WebOfficeCtx } from "./web-office-footer";
 
 /**
@@ -112,12 +114,16 @@ export async function renderMaxSiteDocument(args: {
   demoAcceptingBookings?: boolean;
   /** The talent's display name: labels the first group of the Tulala strip. */
   talentName?: string | null;
+  /** TUL-872: the locale-aware path of the service page being rendered (footer services link). */
+  servicePagePath?: string | null;
   /** TUL-310 footer Help context. */
   profileCode?: string | null;
   siteHost?: string | null;
   /** Request origin for magazine footer credit (hostname only). */
   canonicalOrigin?: string;
   /** Paid Web Office only: footer links + source WhatsApp text. */ webOffice?: WebOfficeCtx | null;
+  /** TUL-694: the site's client account switch, resolved in render-max-site (default on; the host flag still gates). */
+  accountEntry?: boolean;
 }): Promise<ReactNode> {
   const {
     siteTokens,
@@ -298,7 +304,9 @@ export async function renderMaxSiteDocument(args: {
   const dataAttrs = hasTokens ? designTokensToDataAttrs(effectiveTokens) : {};
 
   const hasShell = hasRenderableBuilderNodes(shellTree, { mode: "freeform" });
-  const [headerTree, rawFooterTree] = splitShell(shellTree, { webOfficeSocial: Boolean(args.webOffice) });
+  // TUL-694: container-style headers have no site_header regions; they get the one shared overlay slot.
+  const showHeaderAccountOverlay = args.accountEntry !== false && resolveClientAccountMount("talent").headerItem;
+  const [headerTree, rawFooterTree] = splitShell(shellTree, { webOfficeSocial: Boolean(args.webOffice), accountEntry: args.accountEntry });
   // The socket carries the ONE Tulala credit: hide any design-level credit at render time.
   const footerTree = stripDesignCredits(rawFooterTree);
   // Footer links to Location / Visit are decided against the sections this page really renders
@@ -306,7 +314,7 @@ export async function renderMaxSiteDocument(args: {
   const renderedBlocks = pruneEmptyBoundSections(blocks, pricedDataSources);
   // Off the home page (policy pages) the anchors point back at the home page: `/#services`, `/en#services`.
   const homePath = args.mainOverride ? talentSiteLocalePath("/", locale, args.localeCtx.settings.defaultLocale, args.localeCtx.settings.supportedLocales) : undefined;
-  const liveFooterTree = pruneDeadSectionLinks(footerTree, renderedBlocks, [headerTree], { homePath });
+  const liveFooterTree = pruneDeadSectionLinks(footerTree, renderedBlocks, [headerTree], { homePath, serviceHref: args.servicePagePath ?? undefined });
   // The header's section links get the same treatment (a talent with no reviews has no #reviews band, so the link goes).
   const liveHeaderTree = pruneDeadSectionLinks(headerTree, renderedBlocks, [footerTree], { homePath });
   // TUL-133: a transparent header gets white text only over a dark full-bleed hero.
@@ -361,7 +369,7 @@ export async function renderMaxSiteDocument(args: {
         localiseTalentHeaderDefaults(headerSectionProps(root, locale), locale),
         askVisible,
       );
-      const parsed = schema?.safeParse(withHeaderSiteChrome(localised, root.props.sectionTypeKey, args.isDemo === true, args.localeCtx.settings.supportedLocales, args.localeCtx.switcherHrefs, webOfficeHeaderSocial(args.webOffice, footerSocialLinks, locale)));
+      const parsed = schema?.safeParse(withHeaderSiteChrome(localised, root.props.sectionTypeKey, args.isDemo === true, args.localeCtx.settings.supportedLocales, args.localeCtx.switcherHrefs, webOfficeHeaderSocial(args.webOffice, footerSocialLinks, locale), args.accountEntry !== false));
       if (!entry || !parsed?.success) return null;
       const Comp = entry.Component;
       return (
@@ -505,7 +513,8 @@ export async function renderMaxSiteDocument(args: {
             ) : null}
           </div>
         ) : (
-          <header data-talent-max-site-header="" {...overHeroAttr}>
+          <header data-talent-max-site-header="" {...overHeroAttr} {...(showHeaderAccountOverlay ? { style: { position: "relative" } } : {})}>
+            {showHeaderAccountOverlay ? <HeaderAccountOverlay locale={locale} /> : null}
             {renderBuilderNodes(liveHeaderTree, {
               publicPathPrefix,
               mode: "freeform",
@@ -562,9 +571,15 @@ export async function renderMaxSiteDocument(args: {
 
       {args.isDemo ? <MaxSiteDemoFooter locale={locale} acceptingBookings={args.demoAcceptingBookings !== false} /> : null}
 
-      {/* Global Tulala footer socket: one shared bottom strip under every
-          design's own footer (replaces the scattered "Made with Tulala"). */}
-      <TalentSiteSocket model={socketModel} />
+      {/* TUL-889: the slim Tulala legal strip under every design's own footer
+          (replaces the old socket band that read as a second footer, TUL-796). */}
+      <TulalaLegalStrip
+        locale={locale}
+        languages={socketModel.languages}
+        talentLinks={socketModel.siteLinks}
+        profileCode={args.profileCode}
+        siteHost={args.siteHost}
+      />
     </div>
   );
 }

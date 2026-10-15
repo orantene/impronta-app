@@ -1,6 +1,6 @@
 /**
- * TUL-232: the idle bar button's markup does not change when no slot is known (SSR / no effects
- * run, so no slot has loaded); the slot only adds an attribute after the client fetch.
+ * The idle bar never jumps to a next-free slot (GRK-042): wiring groups and buildDetail leaves the
+ * markup identical to the bare bar, and no slot attribute is ever rendered.
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";

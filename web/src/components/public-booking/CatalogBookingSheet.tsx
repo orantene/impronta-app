@@ -47,6 +47,7 @@ import {
 import {
   catalogIsQuote,
   catalogPriceLabel,
+  catalogSheetFooterTotal,
   catalogSheetSummaryCaption,
   catalogSheetSummaryCents,
 } from "./catalog-booking-price";
@@ -54,22 +55,15 @@ import { CatalogInquiryBrief } from "./catalog-inquiry-brief";
 import { CatalogTaskNote, catalogTaskBrief } from "./catalog-task-note";
 import { CatalogIntakeFields } from "./catalog-intake-fields";
 import { preselectIntakeFromTask } from "@/lib/talent/offering-intake";
-import {
-  fetchLiveSlots,
-  shouldSkipGuestCaptchaOnHost,
-  type CatalogSlotsFn,
-} from "./catalog-booking-live-slots";
+import { fetchLiveSlots, shouldSkipGuestCaptchaOnHost, type CatalogSlotsFn } from "./catalog-booking-live-slots";
 import { CATALOG_BOOKING_CSS } from "./catalog-booking-styles";
 import { GuestCaptchaField, type GuestCaptchaConfig } from "./GuestCaptchaField";
 import { CatalogLiveWhenPicker, CatalogDemoWhenPicker } from "./CatalogLiveWhenPicker";
 import { bookingDraftKey, clearBookingDraft, loadBookingDraft } from "./booking-draft-store";
 import { CatalogWhoSummary, useBookingDraftEffects } from "./catalog-who-summary";
-import {
-  BOOKING_RESUME_EVENT,
-  clearBookingResume,
-  peekBookingResume,
-  setBookingResume,
-} from "./booking-resume-store";
+import { useBookingContactPrefill } from "./use-booking-contact-prefill";
+import { BOOKING_RESUME_EVENT, clearBookingResume, peekBookingResume, setBookingResume } from "./booking-resume-store";
+import { BookingPromoPanel, useBookingPromo } from "@/components/promos/public/booking-promo-panel";
 import type { CatalogTakenSlotNotice } from "./catalog-taken-slot";
 import { resolveSheetOpening, slotArrivalPlan } from "./booking-slot-selection";
 import { ServiceAddressField } from "./ServiceAddressField";
@@ -84,7 +78,6 @@ export type CatalogBookingDetail = OfferingRequestDetail & {
 };
 
 export type { CatalogBookFn, CatalogSlotsFn, CatalogSheetBookingSettings };
-
 export function CatalogBookingSheet({
   locale = "es",
   mode = "demo",
@@ -131,6 +124,7 @@ export function CatalogBookingSheet({
   const [askAttempted, setAskAttempted] = useState(false);
   const [slotsRefreshKey, setSlotsRefreshKey] = useState(0);
   const [takenNotice, setTakenNotice] = useState<CatalogTakenSlotNotice | null>(null);
+  const promo = useBookingPromo(); // Promos v1: pay-step promo choice + re-quote after "offer ran out"
   const liveStartsRef = useRef<string | null>(null);
   const pendingSlotRef = useRef<string | null>(null); // TUL-232: slotStart awaiting the first live fetch
   const errorRef = useRef<HTMLParagraphElement | null>(null); // the error sits below the sheet's fold on most screens
@@ -223,9 +217,10 @@ export function CatalogBookingSheet({
   const needsVariant = (detail?.variants ?? []).length > 0;
   const summaryCents = detail ? catalogSheetSummaryCents(detail, variantId) ?? 0 : 0;
   const total = detail ? catalogTotalCents(detail, variantId, addOnIds) : 0;
+  const footerTotal = detail ? catalogSheetFooterTotal(detail, variantId, addOnIds) : { cents: 0, from: false };
 
   useEffect(() => {
-    if (!detail || (needsVariant && !variant)) return;
+    if (!detail || step === "done" || (needsVariant && !variant)) return;
     const bits = [variant?.label, ...extras.map((e) => e.label)].filter(Boolean);
     window.dispatchEvent(new window.CustomEvent("tulala:maison-selected", {
       detail: {
@@ -233,9 +228,22 @@ export function CatalogBookingSheet({
         detail: bits.length ? bits.join(" · ") : null, totalCents: total, currency: detail.currency,
       },
     }));
-  }, [detail, variant, needsVariant, extras, total]);
+  }, [detail, variant, needsVariant, extras, total, step]);
 
+  // TUL-845: done releases the sticky bar / dock selection (no double booking via Continuar).
+  useEffect(() => {
+    if (detail && step === "done") window.dispatchEvent(new window.CustomEvent("tulala:maison-booked", { detail: { offeringId: detail.offeringId } }));
+  }, [detail, step]);
   useEffect(() => { liveStartsRef.current = liveStarts; }, [liveStarts]);
+
+  // TUL-723: a signed-in client's own contact details, only into empty fields.
+  const contactRef = useRef({ name, email, phone });
+  useEffect(() => { contactRef.current = { name, email, phone }; }, [name, email, phone]);
+  useBookingContactPrefill({
+    active: step === "who" && mode === "live",
+    read: () => contactRef.current,
+    write: (n) => { setName(n.name); setEmail(n.email); setPhone(n.phone); },
+  });
 
   useBookingDraftEffects({
     detail, step, variantId, addOnIds, dayIndex, time, liveStarts, name, email, phone, mode, days, draftKey,
@@ -248,8 +256,7 @@ export function CatalogBookingSheet({
     setSlotsReady(false);
     setSlotsLoading(true);
     const run = slotsFn ?? fetchLiveSlots;
-    // BUF-5: project slots for base + extras so near-close / near-busy starts
-    // that only fit the shorter base duration never appear.
+    // BUF-5: project slots for base + extras so near-close / near-busy starts that only fit the shorter base duration never appear.
     run(detail.offeringId, bookingDurationMinutes)
       .then((r) => {
         if (cancelled) return;
@@ -331,7 +338,7 @@ export function CatalogBookingSheet({
     setWrote,
     setDoneHref,
     setSlotsRefreshKey,
-    setTakenNotice,
+    setTakenNotice, promo: promo.choice, onPromoGone: promo.promoGone,
   });
 
   useEffect(() => {
@@ -488,6 +495,7 @@ export function CatalogBookingSheet({
               <CatalogTaskNote detail={detail} locale={locale} onChange={(note) => setDetail({ ...detail, note })} />
               <CatalogIntakeFields
                 questions={detail.intake}
+                hideNeighbourhood={addr.rule === "required"}
                 answers={detail.answers}
                 locale={locale}
                 onChange={(answers) => setDetail({ ...detail, answers })}
@@ -634,12 +642,11 @@ export function CatalogBookingSheet({
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  onBlur={() => setTouched(true)}
                   placeholder={es ? "Tu nombre" : "Your name"}
                   aria-invalid={touched && !nameValid}
                   data-testid="cb-name"
                 />
-                {touched && !nameValid ? <em>{es ? "Escribe tu nombre para confirmar." : "Enter your name to confirm."}</em> : null}
+                {touched && !nameValid ? <em role="alert">{es ? "Escribe tu nombre para confirmar." : "Enter your name to confirm."}</em> : null}
               </label>
               <label className="jb-field">
                 <span>
@@ -648,14 +655,13 @@ export function CatalogBookingSheet({
                 <input
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  onBlur={() => setTouched(true)}
                   inputMode="tel"
                   autoComplete="tel"
                   placeholder={es ? "Para avisarte de cualquier cambio" : "If we need to reach you"}
                   aria-invalid={touched && !phoneValid}
                   data-testid="cb-phone"
                 />
-                {touched && !phoneValid ? <em>{es ? "Revisa el número." : "Check the number."}</em> : null}
+                {touched && !phoneValid ? <em role="alert">{es ? "Revisa el número." : "Check the number."}</em> : null}
                 {askAttempted && !chatPhoneValid ? <em>{es ? "WhatsApp hace falta para chatear." : "WhatsApp is needed to chat."}</em> : null}
               </label>
               <label className="jb-field">
@@ -663,7 +669,6 @@ export function CatalogBookingSheet({
                 <input
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  onBlur={() => setTouched(true)}
                   type="email"
                   inputMode="email"
                   autoComplete="email"
@@ -671,12 +676,13 @@ export function CatalogBookingSheet({
                   aria-invalid={touched && !emailValid}
                   data-testid="cb-email"
                 />
-                {touched && !emailValid ? <em>{es ? "Necesitamos un correo válido." : "We need a valid email."}</em> : null}
+                {touched && !emailValid ? <em role="alert">{es ? "Necesitamos un correo válido." : "We need a valid email."}</em> : null}
               </label>
               {addr.rule === "required" ? <ServiceAddressField value={addr.fields.address} note={addr.fields.note} onChange={addr.setFields} error={addr.error} locale={locale} /> : null}
               <p className="jb-fixture" data-catalog-who-pay="">
                 {paymentFixture}
               </p>
+              {mode === "live" && !isRequest && !isQuote ? <BookingPromoPanel locale={locale} refreshKey={promo.refreshKey} onChange={promo.setChoice} request={{ offeringId: detail.offeringId, variantId, addOnIds, startsAt: liveStarts, contactEmail: emailValid ? email.trim() : null }} /> : null}
               {captchaRequired ? <GuestCaptchaField captcha={captcha} locale={locale} onToken={(token) => setCaptchaToken(token)} /> : null}
               {showAsk ? (
                 <button
@@ -724,7 +730,8 @@ export function CatalogBookingSheet({
             <div className="jb-total">
               <span>Total</span>
               <b data-catalog-price={isQuote ? "quote" : "money"}>
-                {catalogPriceLabel(detail, total, locale, money)}
+                {footerTotal.from && !isQuote ? (es ? "Desde " : "From ") : ""}
+                {catalogPriceLabel(detail, step === "who" && !footerTotal.from ? Math.max(0, footerTotal.cents - (promo.choice.promoShownDiscountCents ?? 0)) : footerTotal.cents, locale, money)}
               </b>
             </div>
           ) : (

@@ -290,7 +290,7 @@ test("category_order wins over first-seen order in the pill strip", () => {
 
 test("layout prop is emitted and cards layout uses a multi-column list", () => {
   const html = render([catalogNode({ layout: "cards", columns: 2 })], {
-    talentOfferings: [offering({})],
+    talentOfferings: [offering({}), offering({ id: "b2", title: "Second" })],
   });
   assert.match(html, /data-layout="cards"/);
   assert.match(html, /--svc-columns:\s*2/);
@@ -522,7 +522,7 @@ test("featured layout puts featuredOfferingIds first as hero", () => {
 
 test("grid defaults to 3 columns via --svc-columns", () => {
   const html = render([catalogNode({ layout: "grid" })], {
-    talentOfferings: [offering({})],
+    talentOfferings: [offering({}), offering({ id: "b2", title: "Second" }), offering({ id: "b3", title: "Third" })],
   });
   assert.match(html, /--svc-columns:\s*3/);
 });
@@ -672,4 +672,11 @@ test("instant row with extras says Select and ignores the inspector ctaLabel", (
   });
   assert.match(html, />Select</);
   assert.doesNotMatch(html, />Book it</);
+});
+
+test("TUL-848: a single service never sits in a multi-column grid", () => {
+  for (const layout of ["grid", "cards"] as const) {
+    const html = render([catalogNode({ layout })], { talentOfferings: [offering({})] });
+    assert.match(html, /--svc-columns:\s*1/);
+  }
 });

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import {
+  customerTierName,
   getPricingLaddersCopy,
   localizeTierCadence,
   localizeTierName,
@@ -48,7 +49,7 @@ test("ladders and teaser render names, prices, cadence and CTAs through marketin
     join(process.cwd(), "src/components/marketing/pricing-ladders-section.tsx"),
     "utf8",
   );
-  assert.match(ladders, /name: localizeTierName\(t\.name, locale\)/);
+  assert.match(ladders, /name: localizeTierName\(customerTierName\(t\.key, t\.name\), locale\)/);
   assert.match(ladders, /localizeTierPrice\(t\.price, locale\)/);
   assert.match(ladders, /localizeTierCadence\(t\.cadence, locale\)/);
 
@@ -84,4 +85,22 @@ test("teaser overlays tagline/highlights from code copy only for Spanish", () =>
     teaser,
     /highlights: esCopy && tierCopy \? \[\.\.\.tierCopy\.bullets\] : t\.highlights/,
   );
+});
+
+// TUL-556: Spanish /pricing printed "revisado el 4 September 2026", and the Team
+// plan's button said "Empieza con Studio" (the catalog calls that plan Team).
+test("the Eventbrite checked-on date is localized", async () => {
+  const { formatCheckedOn } = await import("./ticket-fee-comparison");
+  assert.equal(formatCheckedOn("es"), "4 de septiembre de 2026");
+  assert.equal(formatCheckedOn("en"), "4 September 2026");
+});
+
+test("the card name equals the plan named in the CTA for slug studio", () => {
+  for (const locale of ["en", "es"]) {
+    const name = localizeTierName(customerTierName("studio", "Team"), locale);
+    assert.equal(name, "Studio");
+    assert.match(getPricingLaddersCopy(locale).workspace.studio.cta, /Studio$/);
+  }
+  assert.equal(customerTierName("agency", "Business"), "Agency");
+  assert.equal(customerTierName("max", "Portfolio"), "Portfolio");
 });
