@@ -1,5 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
+import { logServerError } from "@/lib/server/safe-error";
+
 /**
  * HMAC-signed resume token for guest support threads.
  * Wire format: `v1.<base64url(payload-json)>.<base64url(hmac-sha256)>`.
@@ -102,7 +104,14 @@ export function verifyGuestResumeToken(
 
 export function guestResumePath(ticketId: string): string {
   const token = signGuestResumeToken(ticketId);
-  return token ? `/contact?t=${encodeURIComponent(token)}` : "/contact";
+  if (token) return `/contact?t=${encodeURIComponent(token)}`;
+  // Never degrade silently: a missing secret turns every "Reply in app" link
+  // into a blank /contact form (TUL-619).
+  logServerError(
+    "guest-resume-path",
+    new Error("guest resume link degraded to /contact: GUEST_COOKIE_SECRET missing or empty ticket id"),
+  );
+  return "/contact";
 }
 
 /**

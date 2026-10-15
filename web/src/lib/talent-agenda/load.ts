@@ -12,6 +12,7 @@ import {
 
 import { effectiveBookingStatus, loadOrderStatuses } from "./abandoned-order";
 import { blocksTime, deriveBookingState, derivePaymentState } from "./derive";
+import { bookingPlace } from "./place-kind";
 import { attachSentOffers, mapAgencyBookingPayment, mapDeliverableDeadline, openInquiriesWithoutBooking, pickBookingClient, type SentOfferRow } from "./load-map";
 import { loadUnscheduledDraftsForTalent, txRefundPending } from "./load-unscheduled";
 import { summarizeCommercialEvent } from "@/lib/commercial-activity-summary";
@@ -581,12 +582,11 @@ export async function loadTalentAgenda(
         tz: agency?.timezone ?? hours?.timezone ?? "UTC",
         clientTz: agency?.client_timezone ?? undefined,
         where: {
-          mode: agency?.venue_name || agency?.venue_location_text || booking.location_text ? "away" : "studio",
-          label:
-            agency?.venue_name ??
-            agency?.venue_location_text ??
-            booking.location_text ??
-            "Booking",
+          ...bookingPlace({
+            venueName: agency?.venue_name,
+            venueLocationText: agency?.venue_location_text,
+            locationText: booking.location_text,
+          }),
           travelMin: travelMin > 0 ? travelMin : undefined,
           travelBeforeMin: travelBefore > 0 ? travelBefore : undefined,
           travelAfterMin: travelAfter > 0 ? travelAfter : undefined,

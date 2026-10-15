@@ -14,6 +14,15 @@ function envOpenAi(): string | null {
   return process.env.OPENAI_API_KEY?.trim() || null;
 }
 
+/**
+ * Dev boxes and non-production deploys (staging) cannot read production's vault-encrypted
+ * secrets, so an unreadable agency-mode secret falls back to the platform env key there
+ * (TUL-750). Production semantics are unchanged: agency mode = DB key only.
+ */
+export function envFallbackAllowed(env: { NODE_ENV?: string; VERCEL_ENV?: string } = process.env): boolean {
+  return env.NODE_ENV === "development" || env.VERCEL_ENV === "preview";
+}
+
 function envAnthropic(): string | null {
   return process.env.ANTHROPIC_API_KEY?.trim() || null;
 }
@@ -29,7 +38,10 @@ async function resolvedKeyForOpenAiInstance(
   }
   const mode = effectiveCredentialMode(inst, tenant);
   const db = await getDecryptedSecretForInstance(inst.id);
-  return resolveKeyForMode(mode, db, envOpenAi());
+  const resolved = resolveKeyForMode(mode, db, envOpenAi());
+  // Same non-production fallback as Anthropic below (TUL-750).
+  if (!resolved && envFallbackAllowed()) return envOpenAi();
+  return resolved;
 }
 
 async function resolvedKeyForAnthropicInstance(
@@ -53,7 +65,7 @@ async function resolvedKeyForAnthropicInstance(
   // what the Anthropic SDK already does implicitly when handed a null key, and
   // keeps isResolvedAiChatConfigured() consistent with the adapter's real
   // behavior. Production semantics are unchanged (agency mode = DB key only).
-  if (!resolved && process.env.NODE_ENV === "development") {
+  if (!resolved && envFallbackAllowed()) {
     return envAnthropic();
   }
   return resolved;

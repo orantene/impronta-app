@@ -61,9 +61,10 @@ test("TUL-677: a failed or hidden thread read is logged, shown as failed, and re
   }
 });
 
-test("TUL-677: an invalid support= value routes to the Tickets list through the hook and launcher", () => {
+test("TUL-677: an invalid support= value opens the panel Home through the hook and launcher", () => {
   assert.match(hooks, /else openToList\?\.\(\)/);
   const launcher = readFileSync("src/components/support/SupportLauncher.tsx", "utf8");
   assert.match(launcher, /setDeepLinkList\(true\)/);
-  assert.match(panel, /else if \(deepLinkList\) setView\("tickets"\)/);
+  assert.match(panel, /else if \(deepLinkList\) setView\("home"\)/);
+  assert.doesNotMatch(panel, /deepLinkList\) setView\("tickets"\)/);
 });
