@@ -19,7 +19,8 @@
  *                                       card skin); quote and Ask stay in chat.
  *
  * A visitor with no inquiry yet gets one on the first add (the panel's
- * ensure path), then the add runs once the thread token arrives.
+ * ensure path); the thread token is read from that new thread and the add runs
+ * at once. A first add that fails discards the empty draft it created.
  */
 
 import { maxDurationRows, onlyAvailableRows, searchCatalogRows, sortCatalogRows, type CatalogSort } from "@/lib/messages-v5/catalog-search";
@@ -42,6 +43,7 @@ import { dockServiceCtaLabel, dockServiceOpensBookingSheet, dockStorefrontCtaLab
 import { getGuestItemsCatalog, type GuestCatalogGroup, type GuestCatalogRow } from "../_actions/guest-catalog-actions";
 import { FONT, type paletteFor } from "./mini-chat-styles";
 import { addAddedCatalogItem } from "./guest-added-items-store";
+import { discardEmptyDraft, readGuestThreadToken, type EnsureInquiryForItems } from "./guest-catalog-add-flow";
 
 type Palette = ReturnType<typeof paletteFor>;
 
@@ -73,7 +75,7 @@ export type GuestDockCatalogProps = {
   threadToken: string | null;
   sourcePage: string;
   /** Creates the early inquiry row when none exists; resolves to its id. */
-  onEnsureInquiry: (() => Promise<string | null>) | null;
+  onEnsureInquiry: EnsureInquiryForItems | null;
   /** Re-read the thread (lines + token) after a write. */
   onRefresh: () => void;
   /** Prefill the composer and jump to Chat. */
@@ -162,7 +164,6 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
   const [category, setCategory] = useState<ItemCategory | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [addedIds, setAddedIds] = useState<ReadonlySet<string>>(() => new Set());
-  const [pending, setPending] = useState<GuestCatalogRow | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
@@ -182,54 +183,61 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
     // The catalog is per tenant; the inquiry only adds a date for availability.
   }, [tenantSlug, inquiryId, pageProfileCode]);
 
+  /** Runs the add with a thread token. Resolves true when the line landed. */
   const add = useCallback(
-    async (row: GuestCatalogRow, token: string) => {
-      if (!row.offeringId) return;
-      setBusyId(row.id);
+    async (row: GuestCatalogRow, token: string): Promise<boolean> => {
+      if (!row.offeringId) return false;
       const res = await messagingClientAddItem({ token, offeringId: row.offeringId, label: row.title, units: 1, sessionId: row.sessionId });
-      setBusyId(null);
       if (!res.ok) {
         setNotice(t(res.reason === "invalid" ? "public.guestChat.catalogAddInvalid" : "public.guestChat.catalogAddFailed"));
-        return;
+        return false;
       }
       setAddedIds((s) => new Set(s).add(row.id));
       addAddedCatalogItem({
         id: row.id,
         title: row.title,
         priceLabel: row.amountCents != null && row.amountCents > 0 ? formatOrderMoney(row.amountCents, "USD") : null,
+        lineId: res.lineId,
+        token,
       });
       setNotice(interpolate(t("public.guestChat.catalogAdded"), { item: row.title }));
       onRefresh();
+      return true;
     },
     [onRefresh, t],
   );
 
-  // An add requested before the inquiry (and its token) existed runs once the token lands.
-  useEffect(() => {
-    if (pending && threadToken) {
-      const row = pending;
-      setPending(null);
-      void add(row, threadToken);
-    }
-  }, [pending, threadToken, add]);
-
+  // TUL-1066: the first add of a visitor with no inquiry. The token is read straight
+  // from the new thread instead of waiting for the panel's own reload to hand it down
+  // (that wait never finished for a signed-out guest, so the add silently never ran).
+  // If the add then fails, the empty draft we just created is discarded.
   const onAdd = useCallback(
     async (row: GuestCatalogRow) => {
-      if (threadToken) return add(row, threadToken);
-      if (!onEnsureInquiry) {
-        setNotice(t("public.guestChat.catalogAddFailed"));
-        return;
-      }
+      if (busyId) return;
       setBusyId(row.id);
-      const id = await onEnsureInquiry();
-      setBusyId(null);
-      if (!id) {
-        setNotice(t("public.guestChat.catalogAddFailed"));
-        return;
+      try {
+        if (threadToken) {
+          await add(row, threadToken);
+          return;
+        }
+        if (!onEnsureInquiry) {
+          setNotice(t("public.guestChat.catalogAddFailed"));
+          return;
+        }
+        const createdHere = !inquiryId;
+        const id = await onEnsureInquiry();
+        const token = id ? await readGuestThreadToken(id) : null;
+        if (!id || !token) {
+          setNotice(t("public.guestChat.catalogAddFailed"));
+          return;
+        }
+        const added = await add(row, token);
+        if (!added && createdHere) await discardEmptyDraft(token, id, onEnsureInquiry);
+      } finally {
+        setBusyId(null);
       }
-      setPending(row);
     },
-    [add, onEnsureInquiry, t, threadToken],
+    [add, busyId, inquiryId, onEnsureInquiry, t, threadToken],
   );
 
   const [searchText, setSearchText] = useState("");

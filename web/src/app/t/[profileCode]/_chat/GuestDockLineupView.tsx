@@ -40,7 +40,9 @@ import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 
 import { registerCartTalent, useCartTalentRegistry } from "./cart-talent-registry";
 import { useCartTalents } from "./use-cart-talents";
-import { useAddedCatalogItems } from "./guest-added-items-store";
+import { useAddedCatalogItems, useRemovedLineIds } from "./guest-added-items-store";
+import { itemsWithoutAddedDuplicates } from "./guest-added-items-dedupe";
+import { removeAddedCatalogLine } from "./remove-added-item";
 import { AVATAR_GROUND, FACE_OBJECT_POSITION, PERSON_SILHOUETTE_SVG } from "./launcher-avatar-styles";
 import { FONT, paletteFor, type SurfaceMode } from "./mini-chat-styles";
 import { GuestDockItemsShelf } from "./GuestDockItemsShelf";
@@ -234,6 +236,8 @@ export function GuestDockLineupView({
   const [savedTiles, setSavedTiles] = useState<SavedTile[]>([]);
   // TUL-1068: catalog rows added this session; listed under "In your inquiry".
   const addedItems = useAddedCatalogItems();
+  const removedLineIds = useRemovedLineIds();
+  const [removeNotice, setRemoveNotice] = useState<string | null>(null);
   const inquiryCount = cartTalents.length + addedItems.length;
   const showPeopleShelves =
     representsPeople || cartTalents.length > 0 || savedTiles.length > 0 || addedItems.length > 0;
@@ -437,8 +441,20 @@ export function GuestDockLineupView({
                   {item.priceLabel}
                 </span>
               ) : null}
+              <button
+                type="button"
+                data-inquiry-catalog-remove=""
+                onClick={() => {
+                  setRemoveNotice(null);
+                  void removeAddedCatalogLine(item).then((r) => { if (!r.ok) setRemoveNotice(t(r.messageKey)); });
+                }}
+                style={{ border: `1px solid ${C.borderSoft}`, borderRadius: 8, background: "transparent", color: C.inkMuted, padding: "3px 9px", fontSize: 12, cursor: "pointer", fontFamily: FONT, flexShrink: 0 }}
+              >
+                {t("public.guestChat.dockTrayRemove")}
+              </button>
             </li>
           ))}
+          {removeNotice ? <li role="status" style={{ ...rowStyle, fontSize: 12, color: C.inkDim }}>{removeNotice}</li> : null}
         </ul>
       )}
 
@@ -474,7 +490,7 @@ export function GuestDockLineupView({
 
       {/* ── Shelf A2: the conversation's other items (L13 wave 2) ─────────── */}
       <GuestDockItemsShelf
-        items={items ?? null}
+        items={itemsWithoutAddedDuplicates(items ?? null, addedItems, removedLineIds)}
         businessName={businessName ?? ""}
         locale={locale ?? "en"}
         t={t}

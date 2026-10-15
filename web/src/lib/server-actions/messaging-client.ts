@@ -43,7 +43,8 @@ import { fail } from "@/lib/messaging/refusals";
 import { verifyThreadToken } from "@/lib/messaging/thread-token";
 import { threadTokenMatchesRequestHost } from "@/lib/messaging/thread-token-host";
 import type { ActionResult, MessagingRefusal } from "@/lib/messaging/types";
-import { addLine, createDraftOrder } from "@/lib/pos/draft";
+import { clientRemovableLine, inquiryCommitment, isUntouchedSeedDraft } from "@/lib/messaging/client-draft-guards";
+import { addLine, createDraftOrder, removeLine } from "@/lib/pos/draft";
 import { nextFreeTimesForTalent } from "@/lib/scheduling/next-free-times";
 import { placeReservationHold } from "@/lib/scheduling/reservation-hold";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -238,7 +239,7 @@ export async function messagingClientAddItem(input: {
   label: string;
   units?: number;
   sessionId?: string | null;
-}): Promise<ActionResult<{ orderId: string }>> {
+}): Promise<ActionResult<{ orderId: string; lineId: string | null }>> {
   await requireNotImpersonating();
   const parsed = z
     .object({
@@ -262,7 +263,65 @@ export async function messagingClientAddItem(input: {
   });
   // TUL-1068 #2: keep "invalid" (not for sale / different currency) apart from a real outage.
   if (!added.ok) return fail(added.reason === "conflict" ? "conflict" : added.reason === "invalid" ? "invalid" : "unavailable");
-  return { ok: true, orderId: draft.orderId };
+  return { ok: true, orderId: draft.orderId, lineId: added.lineId ?? null };
+}
+
+/**
+ * TUL-1066: the client takes back ONE line they added. Only while the thread
+ * has no offer / settled order / payment link / record, and only a line the
+ * client proposed and staff have not confirmed. Refusals are typed:
+ * `checkout_locked` (something is attached), `not_allowed` (not theirs / confirmed).
+ */
+export async function messagingClientRemoveItem(input: { token: string; lineId: string }): Promise<ActionResult<{ orderId: string }>> {
+  await requireNotImpersonating();
+  const parsed = z.object({ token: z.string().min(1), lineId: uuid }).safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  const l = await link(parsed.data.token);
+  if (isFail(l)) return l;
+  const commitment = await inquiryCommitment(l.admin, l.tenantId, l.inquiryId);
+  if (commitment !== "none") return fail(commitment === "committed" ? "checkout_locked" : "unavailable");
+  const { data: draft } = await scoped(l.admin, "orders", l.tenantId)
+    .select("id")
+    .eq("inquiry_id", l.inquiryId)
+    .eq("status", "draft")
+    .eq("source_channel", "messages")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const orderId = (draft as { id: string } | null)?.id;
+  if (!orderId) return fail("not_found");
+  const owned = await clientRemovableLine(l.admin, orderId, parsed.data.lineId);
+  if (owned !== "ok") return fail(owned === "missing" ? "not_found" : "not_allowed");
+  const removed = await removeLine(l.admin, { tenantId: l.tenantId, orderId, lineId: parsed.data.lineId });
+  if (!removed.ok) return fail(removed.reason === "conflict" ? "conflict" : "unavailable");
+  return { ok: true, orderId };
+}
+
+/**
+ * TUL-1066: a failed first add must not leave an empty "unsent" draft behind.
+ * Deletes the thread's inquiry ONLY when it is still the untouched seed draft:
+ * seed contact, no messages, no order of any kind, nothing committed.
+ */
+export async function messagingClientDiscardEmptyDraft(input: { token: string }): Promise<ActionResult> {
+  await requireNotImpersonating();
+  const parsed = z.object({ token: z.string().min(1) }).safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  const l = await link(parsed.data.token);
+  if (isFail(l)) return l;
+  const { data: inquiry } = await scoped(l.admin, "inquiries", l.tenantId).select("id, status, contact_name, interpreted_query").eq("id", l.inquiryId).maybeSingle();
+  if (!inquiry) return fail("not_found");
+  if (!isUntouchedSeedDraft(inquiry as { status: unknown; contact_name: unknown; interpreted_query: unknown })) return fail("not_allowed");
+  if ((await inquiryCommitment(l.admin, l.tenantId, l.inquiryId)) !== "none") return fail("not_allowed");
+  const head = { count: "exact", head: true } as const;
+  const [msgs, orders] = await Promise.all([
+    scoped(l.admin, "inquiry_messages", l.tenantId).select("id", head).eq("inquiry_id", l.inquiryId),
+    scoped(l.admin, "orders", l.tenantId).select("id", head).eq("inquiry_id", l.inquiryId),
+  ]);
+  if (msgs.error || orders.error) return fail("unavailable");
+  if ((msgs.count ?? 0) > 0 || (orders.count ?? 0) > 0) return fail("not_allowed");
+  const { error } = await scoped(l.admin, "inquiries", l.tenantId).delete().eq("id", l.inquiryId).eq("status", "draft");
+  if (error) return fail("unavailable");
+  return { ok: true };
 }
 
 /* ---------- 4. accept / decline an exact offer version (D-MSG-162) ---------- */

@@ -38,3 +38,5 @@ src/app/t/*/_chat/dock-viewer-identity-mount.static.test.ts
 src/app/t/*/_chat/guest-dock-inquiry-tray.test.ts
 src/app/t/*/_chat/guest-inquiry-tray.static.test.ts
 src/components/public-booking/chat-catalog-events.test.ts
+src/lib/messaging/client-draft-guards.test.ts
+src/app/t/*/_chat/guest-added-items-dedupe.test.ts
