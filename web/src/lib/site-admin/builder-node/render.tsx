@@ -6288,7 +6288,6 @@ function renderBuilderNodeElement(
         siteLocales: options.dataSources?.siteLocales,
         locale: options.visitorLocale ?? options.contentLocale?.locale,
         publicPathPrefix: options.publicPathPrefix,
-        siteLocales: options.dataSources?.siteLocales,
         styleAttr: sharedNodeStyle(node.props.style),
       });
     }
