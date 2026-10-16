@@ -3,7 +3,9 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
-const src = readFileSync(path.join(process.cwd(), "src/components/talent/get-found/GscTokenField.tsx"), "utf8");
+import { blankComments } from "@/lib/quality/supabase-unchecked-read";
+
+const src = blankComments(readFileSync(path.join(process.cwd(), "src/components/talent/get-found/GscTokenField.tsx"), "utf8"));
 
 test("TUL-1021: field imports and calls the existing save action", () => {
   assert.ok(src.includes('from "@/lib/talent/google-site-verification-actions"'));
