@@ -15,7 +15,6 @@ import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 import type { BookableOffering } from "@/components/public-booking/pick-bookable-offering";
 import { createInstantBookingAction } from "@/lib/server-actions/instant-book-action";
 import type { TalentBookingMode } from "@/lib/scheduling/booking-surface";
-import { translatorFor, useT } from "@/i18n/use-t";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { GuestInstantContact } from "@/components/public-booking/GuestInstantContact";
 import {
@@ -23,6 +22,8 @@ import {
   type GuestCaptchaConfig,
 } from "@/components/public-booking/GuestCaptchaField";
 import { shouldSkipGuestCaptchaOnHost } from "@/components/public-booking/catalog-booking-live-slots";
+import { usePublicT } from "@/i18n/use-public-t";
+import { translatorFor } from "@/i18n/translator-for";
 
 export type { BookableOffering };
 
@@ -75,7 +76,7 @@ export function BookableComposer({
   /** Empty-slot escape hatch for the inline picker (TUL-698). */
   contactHref?: string | null;
 }) {
-  const cookieT = useT();
+  const cookieT = usePublicT();
   const dashboardLocale = useDashboardLocale();
   const pageLocale = (localeProp?.trim() || dashboardLocale || "en").startsWith("es")
     ? "es"

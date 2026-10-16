@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 
-import { translatorFor } from "@/i18n/use-t";
+import { translatorFor } from "@/i18n/translator-for";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 import { BACK, initialMachineState, reduceMachine, type MachineErrorCode } from "@/lib/onboarding/machine";
 import { CHOOSE_COPY, FLOW_TOTAL, flowStepOf, flowSubLabel, urlChoiceBeatsGuestDraft, type FlowLocale } from "@/lib/onboarding/flow";
