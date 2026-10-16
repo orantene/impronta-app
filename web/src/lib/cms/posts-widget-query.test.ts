@@ -192,3 +192,37 @@ test("resolver: a failing source yields an empty node, never a throw", async () 
   const out = await resolvePostsFeedNeeds({ needs, scope: TALENT, locale: "es", deps: { source: broken } });
   assert.deepEqual(out.a, { cards: [], total: 0 });
 });
+
+test("resolver: a demo account's empty widget gets server-resolved example posts (TUL-1164)", async () => {
+  const tree: BuilderNode[] = [{ id: "a", kind: "posts_feed", props: { demoTrade: "beauty", limit: 3 } }];
+  const needs = collectNativeDataBlockNeeds(tree).postsFeeds;
+  // No fr posts exist, so the real query comes back empty.
+  const demo = await resolvePostsFeedNeeds({
+    needs,
+    scope: TALENT,
+    locale: "fr",
+    deps: { source: new FakeSource(fixture()) },
+    allowDemo: true,
+  });
+  assert.equal(demo.a!.demo, true);
+  assert.equal(demo.a!.cards.length, 3);
+  assert.ok(demo.a!.cards.every((c) => c.demo === true && c.path === "#"));
+  // A real account (no allowDemo) never gets invented posts.
+  const real = await resolvePostsFeedNeeds({
+    needs,
+    scope: TALENT,
+    locale: "fr",
+    deps: { source: new FakeSource(fixture()) },
+  });
+  assert.deepEqual(real.a, { cards: [], total: 0 });
+  // Real posts always win over examples, even on a demo account.
+  const withPosts = await resolvePostsFeedNeeds({
+    needs,
+    scope: TALENT,
+    locale: "es",
+    deps: { source: new FakeSource(fixture()), now: () => NOW },
+    allowDemo: true,
+  });
+  assert.notEqual(withPosts.a!.demo, true);
+  assert.ok(withPosts.a!.cards.length > 0);
+});
