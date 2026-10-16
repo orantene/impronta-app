@@ -1,0 +1,54 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { test } from "node:test";
+
+import { JS_ERRORS } from "../../components/settings/join-studio-copy";
+import { parseStudioReference } from "./join-studio";
+
+const root = join(__dirname, "..", "..", "..");
+const read = (rel: string) => readFileSync(join(root, rel), "utf8");
+
+test("TUL-75 join studio: a bare address and Tulala /w links resolve to the slug", () => {
+  assert.deepEqual(parseStudioReference("bella-studio"), { kind: "slug", slug: "bella-studio" });
+  assert.deepEqual(parseStudioReference("  Bella-Studio "), { kind: "slug", slug: "bella-studio" });
+  assert.deepEqual(parseStudioReference("tulala.digital/w/bella-studio"), { kind: "slug", slug: "bella-studio" });
+  assert.deepEqual(parseStudioReference("https://www.tulala.digital/es/w/bella-studio/servicios?x=1"), {
+    kind: "slug",
+    slug: "bella-studio",
+  });
+  assert.deepEqual(parseStudioReference("https://app.tulala.digital/w/bella-studio"), { kind: "slug", slug: "bella-studio" });
+});
+
+test("TUL-75 join studio: subdomains and own domains are looked up by host, www dropped", () => {
+  assert.deepEqual(parseStudioReference("https://bella-studio.tulala.digital/"), { kind: "host", host: "bella-studio.tulala.digital" });
+  assert.deepEqual(parseStudioReference("www.bellastudio.mx/reservar"), { kind: "host", host: "bellastudio.mx" });
+});
+
+test("TUL-75 join studio: junk, Tulala pages that are not a studio, and odd schemes are refused", () => {
+  for (const raw of ["", "   ", "Bella Studio", "tulala.digital", "tulala.digital/pricing", "app.tulala.digital/bella/admin", "javascript:alert(1)", "ftp://bella.mx", "-bad-", "a".repeat(301)]) {
+    assert.equal(parseStudioReference(raw), null, raw);
+  }
+});
+
+test("TUL-75 join studio: closed studios answer like unknown ones, and the action is guarded", () => {
+  const src = read("src/lib/server-actions/join-studio.ts");
+  assert.match(src, /assertNotImpersonating\(\)/);
+  assert.match(src, /tryConsumeRateLimit\(`join-studio:\$\{userId\}`/);
+  assert.match(src, /if \(!registrationIsLive\(settings\)\) return \{ ok: false, code: "not_found" \};/);
+  assert.match(src, /if \(!studio\) return \{ ok: false, code: "not_found" \};/);
+  assert.match(src, /applyRegistrationPolicy\(admin,/);
+  assert.doesNotMatch(src, /getTenantPortalScopeBySlug/);
+  const server = read("src/lib/onboarding/join-studio.server.ts");
+  assert.match(server, /agency\.kind !== "agency"/);
+  assert.match(server, /isLiveDomainStatus/);
+});
+
+test("TUL-75 join studio: the card is in talent Settings and every error has EN + ES copy", () => {
+  const page = read("src/components/admin/shell/internal/talent/pages/SettingsPage.tsx");
+  assert.match(page, /key: "join-studio"[^\n]*<JoinStudioCard \/>/);
+  for (const [code, pair] of Object.entries(JS_ERRORS)) {
+    assert.ok(pair.en.trim() && pair.es.trim(), code);
+    assert.notEqual(pair.en, pair.es, code);
+  }
+});
