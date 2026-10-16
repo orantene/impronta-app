@@ -1,4 +1,10 @@
 import type { CSSProperties } from "react";
+import { BlogCardList } from "@/components/posts/BlogCardList";
+import { localeAlternateUrl } from "@/i18n/alternates";
+import { resolveBlogIndexCards, effectiveBlogIndexSource, type BlogCard } from "@/lib/cms/blog-index-cards";
+import { loadLatestPostCards } from "@/lib/cms/posts-latest";
+import { blogPostPath } from "@/lib/cms/posts-public-model";
+import { loadTenantLocaleSettings } from "../../server/locale-resolver";
 import { buildNodePresentationResponsiveCss } from "../shared/node-presentation";
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
@@ -147,12 +153,63 @@ function sectionHeadAlignDecls(align?: "left" | "center" | "right"): string[] {
   return [];
 }
 
-export function BlogIndexComponent({
+/**
+ * Manual (legacy) lists render synchronously, exactly as before. The live
+ * "Últimos posts" source goes through the async server loader below.
+ */
+export function BlogIndexComponent(p: SectionComponentProps<BlogIndexV1>) {
+  if (effectiveBlogIndexSource(p.props) === "manual") {
+    const posts = resolveBlogIndexCards({
+      props: p.props,
+      live: [],
+      limit: p.props.limit ?? 3,
+      preview: p.preview,
+      locale: p.locale,
+    });
+    return <BlogIndexView {...p} posts={posts} />;
+  }
+  return <BlogIndexLive {...p} />;
+}
+
+async function BlogIndexLive(p: SectionComponentProps<BlogIndexV1>) {
+  const { props, tenantId, locale, preview, publicPathPrefix } = p;
+  const limit = props.limit ?? 3;
+  const settings = await loadTenantLocaleSettings(tenantId).catch(() => null);
+  const hrefFor = (slug: string) => {
+    const abs = new URL(
+      localeAlternateUrl(
+        {
+          origin: "https://site.invalid",
+          pathnameWithoutLocale: blogPostPath(slug),
+          defaultLocale: settings?.defaultLocale ?? locale,
+          supportedLocales: settings?.supportedLocales ?? [locale],
+          pathPrefix: publicPathPrefix ?? "",
+        },
+        locale,
+      ),
+    );
+    return `${abs.pathname}${abs.search}`;
+  };
+  const live: BlogCard[] = await loadLatestPostCards({
+    scope: { kind: "tenant", tenantId },
+    locale,
+    limit,
+    ...(props.categorySlug ? { categorySlug: props.categorySlug } : {}),
+    hrefFor,
+  }).catch(() => []);
+  const posts = resolveBlogIndexCards({ props, live, limit, preview, locale });
+  // Public site, live source, no posts yet: no empty hole.
+  if (posts.length === 0 && !preview) return null;
+  return <BlogIndexView {...p} posts={posts} />;
+}
+
+function BlogIndexView({
   props,
+  posts,
   sectionId,
   builderNodeBindings,
-}: SectionComponentProps<BlogIndexV1>) {
-  const { eyebrow, headline, posts, variant, columnsDesktop, nodePresentation, presentation } = props;
+}: SectionComponentProps<BlogIndexV1> & { posts: readonly BlogCard[] }) {
+  const { eyebrow, headline, variant, columnsDesktop, nodePresentation, presentation } = props;
   const nodeIdsByRole = builderNodeBindings?.nodeIdsByRole;
   const eyebrowNode = nodePresentation?.subheadline;
   const headlineNode = nodePresentation?.headline;
@@ -209,35 +266,7 @@ export function BlogIndexComponent({
             headlineBuilderNodeId={nodeIdsByRole?.headline}
           />
         ) : null}
-        <ul className="site-blog__grid">
-          {posts.map((post, i) => (
-            <li className="site-blog__item" key={`${post.title}-${i}`}>
-              <a className="site-blog__link" href={post.href}>
-                {post.imageUrl ? (
-                  <div className="site-blog__media">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={post.imageUrl}
-                      alt={post.imageAlt ?? ""}
-                      aria-hidden={post.imageAlt ? undefined : true}
-                      loading="lazy"
-                    />
-                  </div>
-                ) : (
-                  <div className="site-blog__media site-blog__media--placeholder" aria-hidden />
-                )}
-                <div className="site-blog__copy">
-                  <div className="site-blog__meta">
-                    {post.category ? <span className="site-blog__category">{post.category}</span> : null}
-                    {post.date ? <span className="site-blog__date">{post.date}</span> : null}
-                  </div>
-                  <h3 className="site-blog__title">{post.title}</h3>
-                  {post.excerpt ? <p className="site-blog__excerpt">{post.excerpt}</p> : null}
-                </div>
-              </a>
-            </li>
-          ))}
-        </ul>
+        <BlogCardList cards={posts} />
       </Container>
     </section>
   );

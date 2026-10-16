@@ -101,3 +101,70 @@ test("the plan tier is NOT written by cancel — the webhook owns that at the bo
     "cancel must not downgrade the tier immediately; access runs to period end",
   );
 });
+
+// ─── Talents (TUL-832) ───────────────────────────────────────────────────────
+
+const talentBilling = readFileSync(join(SRC, "lib/stripe/talent-billing.ts"), "utf8");
+const talentActions = readFileSync(
+  join(SRC, "app/(workspace)/[tenantSlug]/talent/settings/stripe-talent-actions.ts"),
+  "utf8",
+);
+const planCard = readFileSync(
+  join(SRC, "app/(workspace)/[tenantSlug]/talent/settings/TalentPlanCard.tsx"),
+  "utf8",
+);
+const planChange = readFileSync(join(SRC, "lib/talent-site/server/plan-change.ts"), "utf8");
+
+test("talent cancel and resume reach STRIPE with idempotency keys", () => {
+  const cancel = bodyOf(talentBilling, "cancelTalentSubscriptionAtPeriodEnd");
+  assert.match(cancel, /stripe\.subscriptions\.update\(/);
+  assert.match(cancel, /cancel_at_period_end:\s*true/);
+  assert.match(cancel, /idempotencyKey/);
+  assert.doesNotMatch(cancel, /stripe\.subscriptions\.cancel\(/, "never end immediately");
+  assert.doesNotMatch(cancel, /refunds\.create/);
+  const resume = bodyOf(talentBilling, "resumeTalentSubscription");
+  assert.match(resume, /stripe\.subscriptions\.update\(/);
+  assert.match(resume, /cancel_at_period_end:\s*false/);
+  assert.match(resume, /idempotencyKey/);
+  assert.doesNotMatch(resume, /checkout\.sessions\.create|invoices\.create/);
+});
+
+test("talent cancel and resume never write plan state (webhook is the single writer)", () => {
+  for (const fn of ["cancelTalentSubscriptionAtPeriodEnd", "resumeTalentSubscription"]) {
+    const body = bodyOf(talentBilling, fn);
+    assert.doesNotMatch(body, /talent_plan_key/, `${fn} must not touch talent_plan_key`);
+    assert.doesNotMatch(body, /from\("talent_subscriptions"\)\s*\.(update|upsert|insert)/);
+  }
+});
+
+test("talent cancel and resume are owner-checked and fail closed without Stripe", () => {
+  const loader = talentBilling.slice(talentBilling.indexOf("async function loadOwnedSubscription"));
+  assert.match(loader, /row\.user_id !== userId/, "must compare the row owner to the caller");
+  for (const fn of ["cancelTalentSubscriptionAtPeriodEnd", "resumeTalentSubscription"]) {
+    const body = bodyOf(talentBilling, fn);
+    assert.match(body, /loadOwnedSubscription\(/);
+    assert.match(body, /isStripeConfigured\(\)/);
+    assert.match(body, /Billing is not available right now/);
+  }
+  assert.match(bodyOf(talentBilling, "resumeTalentSubscription"), /already ended/);
+});
+
+test("talent cancel actions are self-scoped and not callable while impersonating", () => {
+  for (const fn of ["cancelTalentPlan", "resumeTalentPlan"]) {
+    const body = bodyOf(talentActions, fn);
+    assert.match(body, /assertNotImpersonating\(\)/);
+    assert.match(body, /requireTalentSelf\(\)/, "profile must come from the session, not the client");
+  }
+});
+
+test("the talent plan card shows the cancel / resume block", () => {
+  assert.match(planCard, /TalentCancelBlock/);
+  assert.match(planCard, /cancelAtPeriodEnd/);
+});
+
+test("subscription.deleted drops talent to Free and plan-change never deletes content", () => {
+  assert.doesNotMatch(planChange, /\.delete\(/, "plan change must keep site content");
+  const state = readFileSync(join(SRC, "lib/billing/talent-plan-state.ts"), "utf8");
+  assert.match(state, /customer\.subscription\.deleted/);
+  assert.match(state, /profilePlan = FREE_TALENT_PLAN/);
+});

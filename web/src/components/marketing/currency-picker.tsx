@@ -19,10 +19,14 @@
 
 import { useState, useRef, useEffect } from "react";
 import {
-  DEFAULT_CURRENCY_OPTIONS,
   localizedCurrencyLabel,
   type DefaultCurrencyCode,
 } from "@/lib/billing/currencies";
+import {
+  MARKETING_PRICE_CURRENCIES,
+  coerceMarketingCurrency,
+  isMarketingPriceCurrency,
+} from "@/lib/pricing/pick-marketing-currency";
 
 import { currencyPickerCopy } from "./currency-picker-copy";
 
@@ -47,16 +51,15 @@ export function CurrencyPicker({
   // shell), so without this useEffect the chip would say USD on a page
   // loaded with `?currency=MXN`. The effect ALSO writes the cookie so
   // the next navigation persists the choice.
-  const [displayedCurrency, setDisplayedCurrency] = useState(current);
+  const [displayedCurrency, setDisplayedCurrency] = useState<string>(
+    coerceMarketingCurrency(current),
+  );
   const [displayedSource, setDisplayedSource] = useState(source);
   useEffect(() => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
     const urlValue = url.searchParams.get("currency")?.toUpperCase();
-    if (
-      urlValue &&
-      (DEFAULT_CURRENCY_OPTIONS as readonly string[]).includes(urlValue)
-    ) {
+    if (urlValue && isMarketingPriceCurrency(urlValue)) {
       setDisplayedCurrency(urlValue);
       setDisplayedSource("url-param");
       // Sticky-fy the URL choice via cookie so the next page render
@@ -149,7 +152,7 @@ export function CurrencyPicker({
             overflowY: "auto",
           }}
         >
-          {DEFAULT_CURRENCY_OPTIONS.map((code) => {
+          {MARKETING_PRICE_CURRENCIES.map((code) => {
             const isCurrent = code === upperCurrent;
             return (
               <button

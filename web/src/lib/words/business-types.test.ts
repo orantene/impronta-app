@@ -67,3 +67,12 @@ test("TUL-1163: the new aliases do not steal each other's trades", () => {
   assert.ok(searchBusinessTypes("barber").some((r) => r.id === "barber-shop"));
   assert.ok(searchBusinessTypes("uñas").some((r) => r.id === "nail-salon"));
 });
+
+test("TUL-1161: dentist and doctor words land on the clinic row", () => {
+  const first = (q: string) => searchBusinessTypes(q)[0]?.id;
+  assert.equal(first("dentista"), "clinic");
+  assert.equal(first("dentist"), "clinic");
+  assert.equal(first("clínica dental"), "clinic");
+  assert.equal(first("médico"), "clinic");
+  assert.equal(first("consultorio"), "clinic");
+});

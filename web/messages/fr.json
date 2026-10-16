@@ -802,8 +802,9 @@
       "fees": {
         "service_subtotal": "Service",
         "base_reservation_fee": "Frais de réservation",
-        "platform_fee": "Frais de plateforme",
+        "platform_fee": "Frais de service Tulala",
         "processing_fee": "Traitement de carte",
+        "card_fee_memo": "Frais de carte inclus dans le prix (environ)",
         "client_service_fee": "Frais de service",
         "total_charged": "Total",
         "nonRefundable": "Les frais ne sont pas remboursables."
@@ -1147,9 +1148,11 @@
       "markResolved": "Marquer comme résolu",
       "keepItOpen": "Le laisser ouvert",
       "handoffTitle": "Votre ticket est avec {agent}",
-      "handoffBody": "Vous recevrez une notification et un e-mail quand il répondra. Vous pouvez continuer à écrire ici en attendant.",
+      "handoffBody": "Vous recevrez une notification et un e-mail dès qu'une réponse arrive. Vous pouvez continuer à écrire ici en attendant.",
       "handoffHq": "Escalade vers vous",
       "humanReplyEta": "{agent} répondra, en général en quelques heures",
+      "ticketReceipt": "Ticket n° {number} reçu. {agent} répondra, en général en quelques heures.",
+      "humanHandling": "Une personne s'en occupe",
       "aiHandling": "L'IA aide, un humain est à un geste",
       "statusClosed": "Fermé",
       "thinking1": "Lecture de votre question",

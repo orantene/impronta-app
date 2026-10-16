@@ -308,7 +308,8 @@ export function TalentCard({
             </p>
           ) : null}
           {traitSlot ? <div className="hidden @[200px]:contents">{traitSlot}</div> : null}
-          <div className="flex items-center justify-between gap-2 pt-0.5 @[240px]:gap-3">
+          {/* TUL-888: on a narrow card (two columns at 390px) the call to action took 107px of a 141px row and left 26px for the ownership badge, clipping "Independiente" to "Ind". Wrap so the call to action drops to its own line instead. */}
+          <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 pt-0.5 @[240px]:gap-x-3">
             <div className="flex min-w-0 flex-col gap-0.5">
               {data.priceFromLabel ? (
                 <span
