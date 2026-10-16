@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, Copy, ExternalLink, Info, Link2, Map } from "lucide-react";
 
+import { GscTokenField } from "@/components/talent/get-found/GscTokenField";
 import type { GscGuide, GscLang } from "@/lib/talent/search-console-guide";
 
 const UI = {
@@ -30,7 +31,7 @@ const UI = {
   },
 } as const;
 
-export function SearchConsoleGuide({ guide, lang }: { guide: GscGuide; lang: GscLang }) {
+export function SearchConsoleGuide({ guide, lang, initialToken = null }: { guide: GscGuide; lang: GscLang; initialToken?: string | null }) {
   const t = UI[lang];
   const [done, setDone] = useState<string | null>(null);
   const copy = async (key: string, value: string) => {
@@ -97,6 +98,7 @@ export function SearchConsoleGuide({ guide, lang }: { guide: GscGuide; lang: Gsc
           </li>
         ))}
       </ol>
+      <GscTokenField initialToken={initialToken} lang={lang} />
     </section>
   );
 }
