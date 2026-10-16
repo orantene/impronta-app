@@ -8,6 +8,7 @@
  */
 
 import type { CSSProperties, ReactNode } from "react";
+import { planCatalogLabel, resolvePlanKey } from "@/lib/access/plan-catalog";
 
 /**
  * Each value reads a `--hq-*` custom property and falls back to the dark HQ
@@ -87,6 +88,7 @@ export function Chip({
 // resolve a label with the maps below and pass it as the `label` prop; callers
 // that have no translator fall back to the chip's built-in text.
 
+/** @deprecated See `catalogPlanLabel`; kept for support/users screens. */
 export const PLAN_TIER_LABEL_KEY: Record<string, string> = {
   free: "dashboard.platform.tier.free",
   studio: "dashboard.platform.tier.studio",
@@ -104,7 +106,21 @@ export const PLAN_TIER_LABEL_KEY: Record<string, string> = {
   talent_portfolio: "dashboard.platform.tier.max",
 };
 
-/** The one display name for a plan key on every platform admin surface. */
+/**
+ * TUL-817: THE plan name on the platform-admin Health / Catalog / Revenue /
+ * Tenants screens. Reads the plan catalog (`planCatalogLabel`), never a local
+ * map, so every screen prints the same name the customer sees. `fallback`
+ * covers a catalog row whose slug is not a plan (prints its own name).
+ */
+export function catalogPlanLabel(locale: string, plan: string, fallback?: string): string {
+  if (fallback !== undefined && !resolvePlanKey(plan)) return fallback;
+  return planCatalogLabel(plan, locale);
+}
+
+/**
+ * @deprecated i18n-key lookup still used by the support and users screens
+ * (outside TUL-817). New code calls `catalogPlanLabel`.
+ */
 export function planTierLabel(t: (key: string) => string, plan: string): string {
   const key = PLAN_TIER_LABEL_KEY[plan];
   return key ? t(key) : plan;

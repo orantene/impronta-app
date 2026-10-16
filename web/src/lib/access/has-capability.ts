@@ -173,7 +173,23 @@ export async function authorize(
   // import would drag `server-only` into every `tsx --test` lane that has no
   // shim registered and break it at load time, which is exactly what it did on
   // the first push of this change.
-  const plan = (membership as { agency_plan_tier?: unknown }).agency_plan_tier;
+  const storedPlan = (membership as { agency_plan_tier?: unknown }).agency_plan_tier;
+  // TUL-835: a workspace past_due beyond the 7-day grace window reads as free.
+  // Dynamic imports keep this barrel-exported module free of server-only code;
+  // any failure keeps the stored plan (fail open).
+  let plan: unknown = storedPlan;
+  if (typeof storedPlan === "string" && isKnownPlan(storedPlan) && storedPlan !== "free") {
+    try {
+      const [{ createServiceRoleClient }, { resolveEffectiveWorkspacePlanKey }] = await Promise.all([
+        import("@/lib/supabase/admin"),
+        import("@/lib/billing/effective-workspace-plan"),
+      ]);
+      const sb = createServiceRoleClient();
+      if (sb) plan = await resolveEffectiveWorkspacePlanKey(sb, tenantId, storedPlan);
+    } catch {
+      plan = storedPlan;
+    }
+  }
   if (typeof plan === "string" && isKnownPlan(plan)) {
     const { loadPlanEntitlements } = await import("./plan-entitlements-store");
     const entitlements = await loadPlanEntitlements();

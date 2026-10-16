@@ -11,9 +11,11 @@ import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { assertTicketAccess } from "@/lib/support/support-access";
 import { supportEngine } from "@/lib/support/support-engine";
-import { insightRowsToCorpus, retrieveHelpEntries } from "@/lib/support/help-corpus";
+import { insightRowsToCorpus } from "@/lib/support/help-corpus";
+import { retrieveHelpEntriesForLocale } from "@/lib/support/help-corpus-locale";
 import { loadConfirmedInsightCorpus } from "@/lib/support/insights/load";
 import { shouldOfferHumanInsteadOfEscalating, supportAiErrorBody, supportAiErrorCard } from "@/lib/support/support-ai-failure";
+import { decideAiTurn } from "@/lib/support/support-ai-turn";
 import { wantsHumanSupport } from "@/lib/support/support-human-prefilter";
 import { sanitizeSupportAiOutput } from "@/lib/support/support-ai-guardrails";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -104,10 +106,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: access.error }, { status: 403 });
     }
 
-    if (access.ticket.handledBy === "human") {
-      return NextResponse.json({ skipped: "escalated" }, { status: 200 });
-    }
-
     const admin = createServiceRoleClient();
     if (!admin) {
       await failOpen(ticketId, "unavailable", null, reqLocale);
@@ -124,8 +122,20 @@ export async function POST(request: Request) {
       .filter((m): m is SupportMessageRow => Boolean(m))
       .reverse();
 
+    const lastHuman = [...messages].reverse().find((m) => m.authorKind === "agent");
+    if (
+      decideAiTurn({
+        handledBy: access.ticket.handledBy,
+        lastHumanReplyAt: lastHuman?.createdAt ?? null,
+        escalatedAt: access.ticket.escalatedAt,
+        now: new Date(),
+      }) === "human_active"
+    ) {
+      return NextResponse.json({ skipped: "human_active" }, { status: 200 });
+    }
+
     const latestRequester = [...messages].reverse().find((m) => m.authorKind === "requester");
-    if (latestRequester && wantsHumanSupport(latestRequester.body)) {
+    if (access.ticket.handledBy !== "human" && latestRequester && wantsHumanSupport(latestRequester.body)) {
       await supportEngine.escalateTicket({
         ticketId,
         reason: "user_requested",
@@ -152,7 +162,8 @@ export async function POST(request: Request) {
 
     const lastThree = messages.slice(-3).map((m) => m.body);
     const confirmed = await loadConfirmedInsightCorpus();
-    const grounding = retrieveHelpEntries(latestRequester?.body ?? access.ticket.subject, {
+    // TUL-882: a Spanish-speaking talent is grounded in the Spanish how-tos.
+    const grounding = retrieveHelpEntriesForLocale(latestRequester?.body ?? access.ticket.subject, reqLocale, {
       originSlug: access.ticket.originSurfaceSlug,
       category: access.ticket.category,
       extraTexts: lastThree,

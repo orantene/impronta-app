@@ -6,6 +6,7 @@ import "server-only";
  * request only, `appointments-plan-policy.ts`). A failed read returns an empty
  * map: unknown never downgrades, the same rule as hours presence.
  */
+import { resolveEffectiveTalentPlans } from "@/lib/billing/effective-talent-plan";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { logServerError } from "@/lib/server/safe-error";
@@ -25,8 +26,10 @@ export async function loadPlanAllowsInstant(
     logServerError("talent.planAllowsInstant", error);
     return out;
   }
-  for (const row of (data ?? []) as { id: string; talent_plan_key: string | null }[]) {
-    out.set(row.id, talentOffersInstantBooking(row.talent_plan_key));
+  const rows = (data ?? []) as { id: string; talent_plan_key: string | null }[];
+  const effective = await resolveEffectiveTalentPlans(db, rows);
+  for (const row of rows) {
+    out.set(row.id, talentOffersInstantBooking(effective.get(row.id) ?? row.talent_plan_key));
   }
   return out;
 }
