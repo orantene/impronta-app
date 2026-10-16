@@ -134,7 +134,7 @@ export function CatalogLiveWhenPicker({
         ))}
       </div>
       <CatalogWeekNav stripRef={stripRef} count={liveDays.length} es={es} />
-      <CatalogSelectedDateLine date={liveDays[dayIndex]?.date} tz={liveTz} es={es} placeCity={placeCity} />
+      <CatalogSelectedDateLine date={liveDays[dayIndex]?.date} tz={liveTz === "UTC" && !placeCity && !liveDays.some((d) => d.starts.length > 0) ? null : liveTz} es={es} placeCity={placeCity} />
       {liveTimes.length === 0 ? (
         <div className="jb-empty">
           <strong>{emptyCopy.title}</strong>
