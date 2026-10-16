@@ -20,6 +20,9 @@ registerFullCatalogs({
   fr: fr as Record<string, unknown>,
 });
 
+// Dashboard code that imported `translatorFor` from here (posts-t.ts) keeps working, and keeps getting the catalogs registered above.
+export { translatorFor };
+
 /** Same hook as `usePublicT`; the difference is only this module's catalog import. */
 export const useT = usePublicT;
 
