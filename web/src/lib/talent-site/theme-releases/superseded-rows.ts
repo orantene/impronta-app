@@ -11,12 +11,15 @@
 import { OPEN_UPDATE_STATES } from "./talent-update/view";
 
 export const SUPERSEDED_REASON = "superseded_by_pin";
+export const DESIGN_SWITCHED_REASON = "design_switched";
 
 export interface StaleCandidate {
   id: string;
   state: string;
   /** The release's to-version; null when the release row could not be read. */
   toVersion: number | null;
+  /** True when the row's release belongs to a design the site is no longer on (switched away). */
+  otherDesign?: boolean;
   report?: Record<string, unknown> | null;
 }
 
@@ -27,10 +30,15 @@ export interface SupersedeChange {
 
 /** Open rows whose release target is at or below the site's pin. A null pin plans nothing. */
 export function planSupersede(pin: number | null, rows: ReadonlyArray<StaleCandidate>): SupersedeChange[] {
-  if (typeof pin !== "number") return [];
   const out: SupersedeChange[] = [];
   for (const r of rows) {
     if (!OPEN_UPDATE_STATES.includes(r.state as (typeof OPEN_UPDATE_STATES)[number])) continue;
+    // Switching theme closes every open notice of the design she left, whatever the pin.
+    if (r.otherDesign) {
+      out.push({ id: r.id, report: { ...(r.report ?? {}), reason: DESIGN_SWITCHED_REASON } });
+      continue;
+    }
+    if (typeof pin !== "number") continue;
     if (typeof r.toVersion !== "number" || r.toVersion > pin) continue;
     out.push({ id: r.id, report: { ...(r.report ?? {}), reason: SUPERSEDED_REASON, supersededByPin: pin } });
   }
@@ -39,5 +47,6 @@ export function planSupersede(pin: number | null, rows: ReadonlyArray<StaleCandi
 
 /** True for a row `planSupersede` closed (offers no blocks of its own). */
 export function isSupersededReport(report: unknown): boolean {
-  return !!report && typeof report === "object" && (report as { reason?: unknown }).reason === SUPERSEDED_REASON;
+  const reason = report && typeof report === "object" ? (report as { reason?: unknown }).reason : null;
+  return reason === SUPERSEDED_REASON || reason === DESIGN_SWITCHED_REASON;
 }
