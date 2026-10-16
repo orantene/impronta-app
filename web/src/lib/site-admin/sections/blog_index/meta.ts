@@ -4,9 +4,11 @@ export const blogIndexMeta: SectionMeta = {
   key: "blog_index",
   label: "Blog index",
   description:
-    "Card grid of recent posts. Each item is editor-managed (manual list), and can be pointed at a real CMS query later.",
+    "Últimos posts: a card grid of the site's real, published posts (newest first, optional category). A manual list still works.",
   businessPurpose: "feature",
   visibleToAgency: true,
   category: "story",
   inDefault: false,
+  // Posts v1: renders against server-resolved live posts (async Component).
+  hasLiveData: true,
 };
