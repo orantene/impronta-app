@@ -239,10 +239,12 @@ const hidden = (n: FakeEl) => armed(n) && !revealed(n);
 
 test("wrapper: above-the-fold content is revealed at mount, no observer callback needed", () => {
   const { root, h } = runWrapper({ top: 80, bottom: 400 });
-  assert.ok(armed(root), "the entrance animation still arms (it plays from load)");
-  // No IntersectionObserver callback is ever delivered in this test.
+  assert.ok(armed(root), "the entrance animation still arms");
+  // TUL-495: revealed BEFORE arm (sync), so first paint is never blank while
+  // rAF waits on a busy main thread. flushFrames is a no-op re-check.
+  assert.ok(revealed(root), "hero in the viewport stayed hidden waiting for rAF");
   h.flushFrames();
-  assert.ok(revealed(root), "hero in the viewport stayed hidden waiting for an observer");
+  assert.ok(revealed(root));
   assert.ok(!hidden(root));
 });
 
@@ -374,8 +376,10 @@ test("lane: on-screen node revealed at mount; off-screen waits; safety drops the
   const r = runLane([top, below]);
   assert.deepEqual(r.h.observed, [top, below], "observer must be observing before arming");
   assert.ok(r.sheet(), "hidden pose armed");
+  // TUL-495: fold is revealed sync before arm; flushFrames is a re-check only.
+  assert.ok(top.hasAttribute("data-bn-revealed"), "above the fold waited for rAF before reveal");
   r.h.flushFrames();
-  assert.ok(top.hasAttribute("data-bn-revealed"), "above the fold waited for an observer");
+  assert.ok(top.hasAttribute("data-bn-revealed"));
   assert.ok(!below.hasAttribute("data-bn-revealed"));
   assert.ok(r.h.timers.some((t) => t.ms === REVEAL_SAFETY_MS), "no safety timer");
   r.h.advance(REVEAL_SAFETY_MS);
