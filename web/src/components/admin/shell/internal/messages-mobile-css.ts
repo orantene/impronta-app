@@ -280,11 +280,14 @@ export const MESSAGES_MOBILE_CSS = `
                phone parks it right on top of the conversation. Dock it
                above the bottom nav instead of over the content.
                NOT scoped to .tulala-shell: the launcher is mounted as a
-               sibling of the shell, so a scoped selector never matches. */
+               sibling of the shell, so a scoped selector never matches.
+               For the same reason --tulala-mobile-nav-h (set on the shell
+               element) is not visible here: use the literal nav height
+               (65px) plus the home-indicator inset (TUL-982). */
             [data-tulala-support-launcher] {
               top: auto !important;
               transform: none !important;
-              bottom: calc(var(--tulala-mobile-nav-h, 65px) + 12px) !important;
+              bottom: calc(65px + 12px + env(safe-area-inset-bottom, 0px)) !important;
             }
             /* …and it lands exactly where the inbox's bulk action bar
                appears, covering "Reassign". The bar is in a different

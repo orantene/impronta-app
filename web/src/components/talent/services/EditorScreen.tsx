@@ -29,6 +29,7 @@ import { MatrixFields } from "./MatrixFields";
 import { IntakeFields } from "./IntakeFields";
 import { ProductEditorCard } from "./ProductEditorCard";
 import { categoryNearMatch } from "@/lib/talent/publication-state";
+import { SiteModeOverrideNotice } from "./SiteModeOverrideNotice";
 import { localizeOfferingSaveError } from "./offering-editor-save";
 import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 
@@ -372,7 +373,7 @@ export function EditorScreen({
                 return (
                   <button key={m.id} type="button" aria-pressed={on} onClick={() => {
                     if (m.id === "quote") patch({ priceDisplay: "quote", bookingMode: "request" });
-                    else patch({ bookingMode: m.id, priceDisplay: quote ? "exact" : item.priceDisplay });
+                    else patch({ bookingMode: m.id, priceDisplay: quote ? "exact" : item.priceDisplay, ...(quote && item.priceType === "custom" ? { priceType: "flat_package" as const } : {}) });
                   }} className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-left ${on ? "border-emerald-900/60 bg-emerald-900/[0.06]" : "border-admin-border-soft bg-white"}`}>
                     <span aria-hidden className={`mt-0.5 grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full border ${on ? "border-emerald-900" : "border-admin-ink-dim/50"}`}>
                       {on && <span className="h-2.5 w-2.5 rounded-full bg-emerald-900" />}
@@ -400,7 +401,7 @@ export function EditorScreen({
                 ) : null}
               </p>
             ) : null}
-
+            {!quote && <SiteModeOverrideNotice own={item.bookingMode} site={defaultMode} locale={locale} />}
             {activeMode === "instant" && needsWorkingHours && onOpenWorkingHours ? (
               <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-950">
                 {copy.t(

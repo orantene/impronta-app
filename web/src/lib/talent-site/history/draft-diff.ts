@@ -174,6 +174,7 @@ const LABEL_NAMES: Record<string, { en: string; es: string }> = {
   "visit & faq": { en: "Visit & FAQ", es: "Tu visita y preguntas frecuentes" },
   "contact & faq": { en: "Contact & FAQ", es: "Contacto y preguntas frecuentes" },
   contact: { en: "Contact", es: "Contacto" },
+  location: { en: "Location", es: "Ubicación" },
   gallery: { en: "Gallery", es: "Galería" },
   chapter: { en: "Chapter", es: "Capítulo" },
   "before and after": { en: "Before and after", es: "Antes y después" },

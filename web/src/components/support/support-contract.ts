@@ -5,7 +5,7 @@ import type {
 
 export type SupportActionResult<T = object> =
   | ({ ok: true } & T)
-  | { ok: false; error: string };
+  | { ok: false; error: string; code?: "rate_limited"; retryAfterSec?: number };
 
 export type SupportContract = {
   surface: "workspace" | "talent" | "client";

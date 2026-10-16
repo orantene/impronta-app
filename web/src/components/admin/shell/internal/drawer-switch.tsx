@@ -51,6 +51,7 @@ import { BrandAssetsDrawer, SiteContextSwitcherDrawer, PageSchedulerDrawer } fro
 import { MinorAccountDrawer } from "./drawers/light-21";
 import { FeatureControlsDrawer, CircleManageDrawer, CircleRecommendDrawer } from "./drawers/light-23";
 import { SupportTicketDrawer } from "./drawers/light-support";
+import { PromosDrawerHost } from "@/components/promos/talent/PromosDrawerHost";
 
 // ════════════════════════════════════════════════════════════════════
 // Drawer root — reads drawer state and dispatches to the right body
@@ -353,6 +354,8 @@ export function DrawerSwitch({ id }: { id: DrawerId }) {
       return <WhatsNewDrawer />;
     case "help":
       return <HelpDrawer />;
+    case "promos":
+      return <PromosDrawerHost />;
     case "support-ticket":
       return <SupportTicketDrawer />;
 

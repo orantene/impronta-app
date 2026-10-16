@@ -45,12 +45,13 @@ test("Spanish public pages print no ≈ US$ line (TUL-551 / GRK-063)", () => {
   assert.equal(showsUsdEquivalent(null), true);
 });
 
-test("a talent prices in pesos or dollars, nothing else", async () => {
+test("a talent prices in the approved list (TUL-654), nothing else", async () => {
   const { isTalentCurrency, TALENT_CURRENCY_OPTIONS } = await import("../billing/currencies");
-  assert.deepEqual([...TALENT_CURRENCY_OPTIONS], ["MXN", "USD"]);
+  assert.deepEqual([...TALENT_CURRENCY_OPTIONS], ["MXN", "USD", "GBP", "CAD", "EUR", "CHF"]);
   assert.equal(isTalentCurrency("MXN"), true);
   assert.equal(isTalentCurrency(" usd "), true);
-  assert.equal(isTalentCurrency("EUR"), false);
+  assert.equal(isTalentCurrency("EUR"), true);
+  assert.equal(isTalentCurrency("AUD"), false);
   assert.equal(isTalentCurrency(""), false);
   assert.equal(isTalentCurrency(null), false);
 });

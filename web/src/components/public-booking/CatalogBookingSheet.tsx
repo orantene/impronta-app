@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { useFocusTrap } from "@/components/support/use-focus-trap";
 import { deriveGuestBookingPresentation } from "@/lib/booking/guest-booking-presentation";
+
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 import { durationLabel } from "@/lib/talent/duration-label";
 import { formatMoney } from "@/lib/talent/offerings-money";
@@ -26,24 +26,30 @@ import {
   type CatalogBookingSelection,
 } from "./catalog-booking-chat";
 import {
+  buildLiveDayStrip,
   catalogBookingDurationMinutes,
+  catalogApplyDayPick,
   catalogCanContinueWhen,
+  catalogLiveDraftDayIndex,
+  catalogSameInstant,
   catalogDayKey,
   catalogDetailIsPurchase,
   catalogNeedsOptions,
   catalogNextDays,
   catalogSelectedStartStillOpen,
-  catalogSlotDateLabel,
+  catalogBookingWhenLabel,
   catalogTotalCents,
   demoSlotsFor,
+  firstDayWithSlotsIndex,
   firstOpenDemoDayIndex,
   formatClock,
-  groupIsoSlotsByDay,
+  LIVE_SLOT_STRIP_DAYS,
   type CatalogBookingMode,
 } from "./catalog-booking-logic";
 import {
   catalogIsQuote,
   catalogPriceLabel,
+  catalogSheetFooterTotal,
   catalogSheetSummaryCaption,
   catalogSheetSummaryCents,
 } from "./catalog-booking-price";
@@ -61,6 +67,7 @@ import { GuestCaptchaField, type GuestCaptchaConfig } from "./GuestCaptchaField"
 import { CatalogLiveWhenPicker, CatalogDemoWhenPicker } from "./CatalogLiveWhenPicker";
 import { bookingDraftKey, clearBookingDraft, loadBookingDraft } from "./booking-draft-store";
 import { CatalogWhoSummary, useBookingDraftEffects } from "./catalog-who-summary";
+import { useBookingContactPrefill } from "./use-booking-contact-prefill";
 import {
   BOOKING_RESUME_EVENT,
   clearBookingResume,
@@ -70,9 +77,13 @@ import {
 import type { CatalogTakenSlotNotice } from "./catalog-taken-slot";
 import { resolveSheetOpening, slotArrivalPlan } from "./booking-slot-selection";
 import { ServiceAddressField } from "./ServiceAddressField";
+import { CatalogWhoContact } from "./catalog-who-contact";
 import { useServiceAddress } from "./use-service-address";
 import { useCatalogBookingConfirm } from "./use-catalog-booking-confirm";
+import { useBookingSheetFocusTrap } from "./use-booking-sheet-focus";
 import { CatalogDonePanel, CatalogSheetHeader } from "./catalog-done-panel";
+import { CatalogSheetFooter } from "./catalog-sheet-footer";
+import { isCatalogDoneEcho, useCatalogDoneSnapshot, type CatalogDoneFacts } from "./catalog-done-snapshot";
 
 type Step = "choose" | "when" | "who" | "done";
 export type CatalogBookingDetail = OfferingRequestDetail & {
@@ -81,7 +92,6 @@ export type CatalogBookingDetail = OfferingRequestDetail & {
 };
 
 export type { CatalogBookFn, CatalogSlotsFn, CatalogSheetBookingSettings };
-
 export function CatalogBookingSheet({
   locale = "es",
   mode = "demo",
@@ -115,6 +125,7 @@ export function CatalogBookingSheet({
   const [time, setTime] = useState<string | null>(null);
   const [liveStarts, setLiveStarts] = useState<string | null>(null);
   const [liveTz, setLiveTz] = useState("UTC");
+  const [livePlaceCity, setLivePlaceCity] = useState<string | null>(null);
   const [liveDays, setLiveDays] = useState<Array<{ key: string; date: Date; starts: string[] }>>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsReady, setSlotsReady] = useState(false);
@@ -124,6 +135,7 @@ export function CatalogBookingSheet({
   const [touched, setTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [wrote, setWrote] = useState(false); const [doneHref, setDoneHref] = useState<string | null>(null);
+  const [doneFacts, setDoneFacts] = useState<CatalogDoneFacts | null>(null); // TUL-896
   const [captchaToken, setCaptchaToken] = useState("");
   const [askAttempted, setAskAttempted] = useState(false);
   const [slotsRefreshKey, setSlotsRefreshKey] = useState(0);
@@ -138,7 +150,20 @@ export function CatalogBookingSheet({
     !skipCaptcha && captcha != null && captcha.provider !== "none" && Boolean(captcha.siteKey);
 
   const days = useMemo(() => catalogNextDays(), []);
-  const trapRef = useFocusTrap<HTMLDivElement>(detail !== null);
+  const { trapRef, captureOpener, clearStaleOpener } = useBookingSheetFocusTrap(detail !== null);
+  // TUL-553: opening the sheet lands on its first real step (the first option, else Continue), not the close X.
+  const openedOffering = detail?.offeringId ?? null;
+  useEffect(() => {
+    if (!openedOffering) return;
+    const id = window.setTimeout(() => {
+      const root = trapRef.current;
+      const target =
+        root?.querySelector<HTMLElement>('input[name="cb-variant"]:not([disabled])') ??
+        root?.querySelector<HTMLElement>('[data-catalog-continue]:not([disabled])');
+      target?.focus();
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [openedOffering, trapRef]);
   const money = useCallback(
     (cents: number, currency: string) => formatMoney(cents, currency, locale),
     [locale],
@@ -160,6 +185,8 @@ export function CatalogBookingSheet({
       }
       // PKG-2: products / untimed packages use CatalogPurchaseMount; skip only when that rail handles it.
       if (d.intent === "instant" && catalogDetailIsPurchase(d)) return;
+      if (isCatalogDoneEcho(d.offeringId)) return; // TUL-1035: a post-confirm re-open keeps the confirmation
+      captureOpener();
       // G13: a picked task pre-selects matching intake chips (still editable).
       setDetail(d.intake?.length ? { ...d, answers: preselectIntakeFromTask(d.intake, d.task, d.answers) } : d);
       // TUL-59: same service reopened in this session keeps every pick and field.
@@ -167,22 +194,22 @@ export function CatalogBookingSheet({
       const draftDay = draft && mode === "demo" ? days.findIndex((x) => catalogDayKey(x) === draft.dayKey) : -1;
       setVariantId(draft?.variantId ?? null);
       setAddOnIds(draft?.addOnIds ?? []);
-      setDayIndex(mode === "live" ? 0 : draftDay >= 0 ? draftDay : firstOpenDemoDayIndex(days));
-      // TUL-232: an explicit slotStart beats the draft's time; the draft's other fields still restore.
+      // GRK-067: keep draft.dayIndex on live reopen so the chip stays lit while slots reload.
+      setDayIndex(mode === "live" ? catalogLiveDraftDayIndex(draft) : draftDay >= 0 ? draftDay : firstOpenDemoDayIndex(days));
+      // TUL-232: explicit slotStart beats draft time; other draft fields still restore.
       const opening = resolveSheetOpening({ mode, slotStart: d.slotStart, needsOptions: catalogNeedsOptions(d), startAt: d.startAt, draft });
       pendingSlotRef.current = opening.slot;
       setTime(opening.time); setLiveStarts(opening.liveStarts); liveStartsRef.current = opening.liveStarts;
       setName(draft?.name ?? ""); setPhone(draft?.phone ?? ""); setEmail(draft?.email ?? "");
-      setTouched(false); setError(null); setWrote(false); setAskAttempted(false); setTakenNotice(null);
+      setTouched(false); setError(null); setWrote(false); setAskAttempted(false); setTakenNotice(null); setDoneFacts(null);
       clearBookingResume();
-      // Live slots are re-fetched on the "when" step (which also re-validates the picked start), so a
-      // live draft that left from "who" resumes there rather than on a day the strip has not loaded.
+      // Live drafts that left "who" resume on "when" so the strip can re-validate the start.
       setStep(opening.step);
     };
     const names = ["tulala:offering-instant", "tulala:offering-slot", "tulala:offering-request"];
     names.forEach((n) => window.addEventListener(n, open));
     return () => names.forEach((n) => window.removeEventListener(n, open));
-  }, [mode, days, draftKey]);
+  }, [mode, days, draftKey, captureOpener]);
 
   // CH-3: "back to my booking" re-opens the sheet with every pick kept (G9b: the task note rides on detail).
   useEffect(() => {
@@ -201,7 +228,7 @@ export function CatalogBookingSheet({
     window.dispatchEvent(
       new window.CustomEvent("tulala:maison-sheet", { detail: { open: detail !== null } }),
     );
-    if (!detail) return;
+    if (!detail) { clearStaleOpener(); return; }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setDetail(null);
     };
@@ -216,35 +243,37 @@ export function CatalogBookingSheet({
 
   const variant = (detail?.variants ?? []).find((v) => v.id === variantId) ?? null;
   const extras = (detail?.addOns ?? []).filter((a) => addOnIds.includes(a.id));
-  const bookingDurationMinutes = catalogBookingDurationMinutes(
-    detail?.durationMinutes,
-    detail?.addOns ?? [],
-    addOnIds,
-  );
+  const bookingDurationMinutes = catalogBookingDurationMinutes(detail?.durationMinutes, detail?.addOns ?? [], addOnIds);
   const needsVariant = (detail?.variants ?? []).length > 0;
   const summaryCents = detail ? catalogSheetSummaryCents(detail, variantId) ?? 0 : 0;
   const total = detail ? catalogTotalCents(detail, variantId, addOnIds) : 0;
+  const footerTotal = detail ? catalogSheetFooterTotal(detail, variantId, addOnIds) : { cents: 0, from: false };
 
   useEffect(() => {
-    if (!detail) return;
-    if (needsVariant && !variant) return;
+    if (!detail || step === "done" || (needsVariant && !variant)) return;
     const bits = [variant?.label, ...extras.map((e) => e.label)].filter(Boolean);
-    window.dispatchEvent(
-      new window.CustomEvent("tulala:maison-selected", {
-        detail: {
-          offeringId: detail.offeringId,
-          title: detail.title,
-          detail: bits.length ? bits.join(" · ") : null,
-          totalCents: total,
-          currency: detail.currency,
-        },
-      }),
-    );
-  }, [detail, variant, needsVariant, extras, total]);
+    window.dispatchEvent(new window.CustomEvent("tulala:maison-selected", {
+      detail: {
+        offeringId: detail.offeringId, title: detail.title,
+        detail: bits.length ? bits.join(" · ") : null, totalCents: total, currency: detail.currency,
+      },
+    }));
+  }, [detail, variant, needsVariant, extras, total, step]);
 
+  // TUL-845: done releases the sticky bar / dock selection (no double booking via Continuar).
   useEffect(() => {
-    liveStartsRef.current = liveStarts;
-  }, [liveStarts]);
+    if (detail && step === "done") window.dispatchEvent(new window.CustomEvent("tulala:maison-booked", { detail: { offeringId: detail.offeringId } }));
+  }, [detail, step]);
+  useEffect(() => { liveStartsRef.current = liveStarts; }, [liveStarts]);
+
+  // TUL-723: a signed-in client's own contact details, only into empty fields.
+  const contactRef = useRef({ name, email, phone });
+  useEffect(() => { contactRef.current = { name, email, phone }; }, [name, email, phone]);
+  useBookingContactPrefill({
+    active: step === "who" && mode === "live",
+    read: () => contactRef.current,
+    write: (n) => { setName(n.name); setEmail(n.email); setPhone(n.phone); },
+  });
 
   useBookingDraftEffects({
     detail, step, variantId, addOnIds, dayIndex, time, liveStarts, name, email, phone, mode, days, draftKey,
@@ -257,27 +286,36 @@ export function CatalogBookingSheet({
     setSlotsReady(false);
     setSlotsLoading(true);
     const run = slotsFn ?? fetchLiveSlots;
-    // BUF-5: project slots for base + extras so near-close / near-busy starts
-    // that only fit the shorter base duration never appear.
+    // BUF-5: project slots for base + extras so near-close / near-busy starts that only fit the shorter base duration never appear.
     run(detail.offeringId, bookingDurationMinutes)
       .then((r) => {
         if (cancelled) return;
         setLiveTz(r.timezone);
-        const grouped = groupIsoSlotsByDay(r.slots, r.timezone);
-        setLiveDays(grouped);
+        setLivePlaceCity(r.placeCity?.trim() || null);
+        // TUL-531: continuous 30-day strip (empty days kept); fromYmd falls back to the first slot day.
+        const fromYmd =
+          r.fromYmd ?? r.slots.map((s) => s.slice(0, 10)).sort()[0] ?? new Date().toISOString().slice(0, 10);
+        const strip = buildLiveDayStrip({
+          slots: r.slots,
+          timezone: r.timezone,
+          fromYmd,
+          dayCount: LIVE_SLOT_STRIP_DAYS,
+        });
+        setLiveDays(strip);
         // TUL-232: opened at a slot: select it, or fall back to its day / the first day with the notice.
-        const arrival = slotArrivalPlan(pendingSlotRef.current, grouped, r.timezone, locale);
+        const arrival = slotArrivalPlan(pendingSlotRef.current, strip, r.timezone, locale);
         pendingSlotRef.current = null;
         if (arrival) { setDayIndex(arrival.dayIndex); setTime(arrival.time); setLiveStarts(arrival.liveStarts); setTakenNotice(arrival.notice); return; }
         // BUF-6: keep the pick only when that ISO is still offered; otherwise
         // clear clock + ISO so confirm cannot send a start that no longer fits.
         const prev = liveStartsRef.current;
         if (catalogSelectedStartStillOpen(prev, r.slots)) {
-          const idx = grouped.findIndex((d) => d.starts.includes(prev!));
+          const idx = strip.findIndex((d) => d.starts.some((s) => catalogSameInstant(s, prev!)));
           if (idx >= 0) setDayIndex(idx);
           return;
         }
-        setDayIndex(0);
+        // Land on the first free day in the window (today may be closed after hours).
+        setDayIndex(firstDayWithSlotsIndex(strip));
         setTime(null);
         setLiveStarts(null);
       })
@@ -339,6 +377,7 @@ export function CatalogBookingSheet({
     setStep,
     setWrote,
     setDoneHref,
+    setDoneFacts,
     setSlotsRefreshKey,
     setTakenNotice,
   });
@@ -347,6 +386,15 @@ export function CatalogBookingSheet({
     if (detail) return;
     resetConfirmGuards();
   }, [detail, resetConfirmGuards]);
+  const slotLabel = time != null ? catalogBookingWhenLabel(day, time, mode === "live" ? liveTz : null, es) : null; // TUL-1022
+  // TUL-1035: the confirmation outlives a remount / refresh / same-service re-open.
+  const { doneSlot } = useCatalogDoneSnapshot({
+    step, detail, variantId, addOnIds, slotLabel, wrote, doneHref, facts: doneFacts,
+    restore: (snap) => {
+      setDetail(snap.detail); setVariantId(snap.variantId); setAddOnIds(snap.addOnIds); setDoneFacts(snap.facts ?? null);
+      setWrote(snap.wrote); setDoneHref(snap.doneHref); setStep("done");
+    },
+  });
   if (!detail) return <style>{CATALOG_BOOKING_CSS}</style>;
 
   const demoTimes = demoSlotsFor(day, bookingDurationMinutes);
@@ -361,8 +409,7 @@ export function CatalogBookingSheet({
     reserveMode: detail.reserveMode,
     allowPayInPerson: detail.allowPayInPerson,
     depositPct: detail.depositPct,
-    onlineCollectReady,
-    locale,
+    onlineCollectReady, payAtClientPlace: addr.rule === "required", locale,
     offeringIntent: detail.intent,
     bookingSettings,
   });
@@ -372,6 +419,7 @@ export function CatalogBookingSheet({
   const chatNameValid = name.trim().length >= 2;
   const chatPhoneValid = phone.replace(/\D/g, "").length >= 8;
 
+  const hasPicks = Boolean(variantId || addOnIds.length || time || name.trim() || phone.trim() || email.trim());
   /** Explicit "Start over": drop the draft and every pick. */
   const startOver = () => {
     clearBookingDraft(draftKey);
@@ -381,8 +429,6 @@ export function CatalogBookingSheet({
     setTouched(false); setError(null); setAskAttempted(false); setCaptchaToken(""); setTakenNotice(null);
     setStep("choose");
   };
-
-  const slotLabel = time != null ? catalogSlotDateLabel(day, time, es) : null;
 
   const buildSelection = (): CatalogBookingSelection => ({
     variantId,
@@ -463,7 +509,7 @@ export function CatalogBookingSheet({
         />
 
         <div className="jb-body">
-          {step !== "choose" && step !== "done" ? (
+          {step !== "choose" && step !== "done" && hasPicks ? ( // TUL-898: nothing to start over from yet
             <button type="button" className="jb-back-link" data-catalog-start-over="" onClick={startOver}>
               {es ? "Empezar de nuevo" : "Start over"}
             </button>
@@ -498,6 +544,7 @@ export function CatalogBookingSheet({
               <CatalogTaskNote detail={detail} locale={locale} onChange={(note) => setDetail({ ...detail, note })} />
               <CatalogIntakeFields
                 questions={detail.intake}
+                hideNeighbourhood={addr.rule === "required"}
                 answers={detail.answers}
                 locale={locale}
                 onChange={(answers) => setDetail({ ...detail, answers })}
@@ -599,31 +646,33 @@ export function CatalogBookingSheet({
                   dayIndex={dayIndex}
                   liveStarts={liveStarts}
                   liveTz={liveTz}
+                  placeCity={livePlaceCity}
                   timeGroupLabel={timeGroupLabel}
                   emptyConsultButton={emptyConsultButton}
                   takenNotice={takenNotice}
-                  onPickDay={(i) => { setDayIndex(i); setTime(null); setLiveStarts(null); }}
+                  onPickDay={(i) => {
+                    const n = catalogApplyDayPick(dayIndex, i, { time, liveStarts });
+                    setDayIndex(n.dayIndex); setTime(n.time); setLiveStarts(n.liveStarts);
+                  }}
                   onPickStart={(iso, label, i) => {
                     if (i !== undefined && i >= 0) setDayIndex(i);
-                    setLiveStarts(iso);
-                    setTime(label);
-                    setTakenNotice(null);
+                    setLiveStarts(iso); setTime(label); setTakenNotice(null);
                   }}
                 />
               ) : (
                 <CatalogDemoWhenPicker
-                  es={es}
-                  days={days}
-                  day={day}
-                  dayIndex={dayIndex}
-                  time={time}
-                  demoTimes={demoTimes}
-                  timeGroupLabel={timeGroupLabel}
-                  emptyConsultButton={emptyConsultButton}
-                  onPickDay={(i) => { setDayIndex(i); setTime(null); }}
+                  es={es} days={days} day={day} dayIndex={dayIndex} time={time}
+                  demoTimes={demoTimes} timeGroupLabel={timeGroupLabel} emptyConsultButton={emptyConsultButton}
+                  onPickDay={(i) => {
+                    const n = catalogApplyDayPick(dayIndex, i, { time, liveStarts: null });
+                    setDayIndex(n.dayIndex); setTime(n.time);
+                  }}
                   onPickTime={setTime}
                 />
               )}
+              {!selectedTime && (mode !== "live" || (slotsReady && liveDays.some((d) => d.starts.length > 0))) ? (
+                <p id="jb-when-hint" className="jb-fixture" data-catalog-when-hint="">{es ? "Elige una hora para continuar." : "Pick a time to continue."}</p>
+              ) : null}
             </>
           ) : null}
 
@@ -638,52 +687,16 @@ export function CatalogBookingSheet({
                 day={day}
                 time={time}
                 tz={mode === "live" ? liveTz : null}
+                placeCity={mode === "live" ? livePlaceCity : null}
                 total={isQuote ? (es ? "A cotizar" : "Quote") : money(total, detail.currency)}
+                addressNote={addr.rule === "required" ? "client" : "studio"}
               />
-              <label className="jb-field">
-                <span>{es ? "Nombre" : "Name"}</span>
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  onBlur={() => setTouched(true)}
-                  placeholder={es ? "Tu nombre" : "Your name"}
-                  aria-invalid={touched && !nameValid}
-                  data-testid="cb-name"
-                />
-                {touched && !nameValid ? <em>{es ? "Escribe tu nombre para confirmar." : "Enter your name to confirm."}</em> : null}
-              </label>
-              <label className="jb-field">
-                <span>
-                  WhatsApp <i>{es ? "opcional" : "optional"}</i>
-                </span>
-                <input
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  onBlur={() => setTouched(true)}
-                  inputMode="tel"
-                  autoComplete="tel"
-                  placeholder={es ? "Para avisarte de cualquier cambio" : "If we need to reach you"}
-                  aria-invalid={touched && !phoneValid}
-                  data-testid="cb-phone"
-                />
-                {touched && !phoneValid ? <em>{es ? "Revisa el número." : "Check the number."}</em> : null}
-                {askAttempted && !chatPhoneValid ? <em>{es ? "WhatsApp hace falta para chatear." : "WhatsApp is needed to chat."}</em> : null}
-              </label>
-              <label className="jb-field">
-                <span>{es ? "Correo" : "Email"}</span>
-                <input
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onBlur={() => setTouched(true)}
-                  type="email"
-                  inputMode="email"
-                  autoComplete="email"
-                  placeholder={es ? "Para enviarte la confirmación" : "For the confirmation"}
-                  aria-invalid={touched && !emailValid}
-                  data-testid="cb-email"
-                />
-                {touched && !emailValid ? <em>{es ? "Necesitamos un correo válido." : "We need a valid email."}</em> : null}
-              </label>
+              <CatalogWhoContact
+                es={es} locale={locale} fallbackCountry={detail.currency === "MXN" ? "MX" : null} name={name} phone={phone} email={email} setName={setName} setPhone={setPhone} setEmail={setEmail}
+                touched={touched} nameValid={nameValid} phoneValid={phoneValid}
+                emailValid={emailValid} askAttempted={askAttempted} chatPhoneValid={chatPhoneValid}
+                onBlur={() => setTouched(true)}
+              />
               {addr.rule === "required" ? <ServiceAddressField value={addr.fields.address} note={addr.fields.note} onChange={addr.setFields} error={addr.error} locale={locale} /> : null}
               <p className="jb-fixture" data-catalog-who-pay="">
                 {paymentFixture}
@@ -709,7 +722,7 @@ export function CatalogBookingSheet({
             <CatalogDonePanel
               detail={detail}
               es={es}
-              slotLabel={slotLabel}
+              slotLabel={doneSlot ?? slotLabel}
               variantLabel={variant ? variant.label : null}
               extraLabels={extras.map((e) => e.label)}
               isQuote={isQuote}
@@ -719,57 +732,34 @@ export function CatalogBookingSheet({
                 reserveMode: detail.reserveMode,
                 allowPayInPerson: detail.allowPayInPerson,
                 depositPct: detail.depositPct,
-                onlineCollectReady,
-                locale,
+                onlineCollectReady, payAtClientPlace: addr.rule === "required", locale,
                 wrote,
                 isRequest,
               })}
               showDemoNote={mode === "demo" || !wrote}
               chatHref={wrote ? doneHref : null}
+              bookingRef={wrote ? doneFacts?.ref : null} place={doneFacts?.place ?? null} placeIsClient={addr.rule === "required"}
             />
           ) : null}
         </div>
 
-        {step === "who" ? <div style={{ textAlign: "center", padding: "6px 0" }}><PolicyLinkSheet talentProfileId={detail.talentProfileId} locale={locale} /></div> : null}
-        <footer className="jb-foot">
-          {step !== "done" ? (
-            <div className="jb-total">
-              <span>Total</span>
-              <b data-catalog-price={isQuote ? "quote" : "money"}>
-                {catalogPriceLabel(detail, total, locale, money)}
-              </b>
-            </div>
-          ) : (
-            <span />
-          )}
-
-          {step === "choose" ? (
-            <button
-              type="button"
-              className="jb-cta"
-              data-catalog-continue="choose"
-              disabled={needsVariant && !variant}
-              onClick={() => setStep("when")}
-            >
-              {chooseStepContinueLabel({
-                action: whoAction,
-                locale,
-                needsOption: needsVariant && !variant,
-              })}
-            </button>
-          ) : null}
-          {step === "when" ? (
-            <button
-              type="button"
-              className="jb-cta"
-              data-catalog-continue="when"
-              disabled={!selectedTime}
-              onClick={() => setStep("who")}
-            >
-              {es ? "Continuar" : "Continue"}
-            </button>
-          ) : null}
-          {step === "who" ? (
+        {step === "who" ? <div className="jb-policy"><PolicyLinkSheet talentProfileId={detail.talentProfileId} locale={locale} /></div> : null}
+        <CatalogSheetFooter
+          step={step}
+          es={es}
+          totalLabel={
+            <b data-catalog-price={isQuote ? "quote" : "money"}>
+              {footerTotal.from && !isQuote ? (es ? "Desde " : "From ") : ""}
+              {catalogPriceLabel(detail, footerTotal.cents, locale, money)}
+            </b>
+          }
+          chooseDisabled={needsVariant && !variant}
+          chooseLabel={chooseStepContinueLabel({ action: whoAction, locale, needsOption: needsVariant && !variant })}
+          onContinueChoose={() => setStep("when")}
+          whenReady={selectedTime}
+          onContinueWhen={() => { if (catalogCanContinueWhen(time)) setStep("who"); }}
+          onDone={() => setDetail(null)}
+          whoCta={
             <button
               type="button"
               className="jb-cta"
@@ -779,19 +769,10 @@ export function CatalogBookingSheet({
               disabled={busy}
               onClick={() => (whoAction === "chat" ? startChat() : void confirm())}
             >
-              {busy && whoAction === "confirm"
-                ? es
-                  ? "Enviando…"
-                  : "Sending…"
-                : whoCtaText}
+              {busy && whoAction === "confirm" ? (es ? "Enviando…" : "Sending…") : whoCtaText}
             </button>
-          ) : null}
-          {step === "done" ? (
-            <button type="button" className="jb-cta" onClick={() => setDetail(null)}>
-              {es ? "Listo" : "Done"}
-            </button>
-          ) : null}
-        </footer>
+          }
+        />
       </div>
     </div>
   );

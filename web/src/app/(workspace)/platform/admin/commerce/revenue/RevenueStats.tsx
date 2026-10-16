@@ -27,6 +27,7 @@ import { interpolate } from "@/i18n/interpolate";
 import type { PlatformMrrSnapshot } from "@/lib/billing/platform-mrr";
 import type { SubscriptionAttentionCounts } from "../../../platform-data";
 import { HQ, F, FD } from "../_tokens";
+import { planTierLabel } from "../../tenants/hq-kit";
 
 export function usd(cents: number): string {
   return (cents / 100).toLocaleString("en-US", {
@@ -331,7 +332,7 @@ export function PlanDistribution({
                 textTransform: "capitalize" as const,
               }}
             >
-              {row.plan}
+              {planTierLabel(t, row.plan)}
             </span>
             <span
               style={{

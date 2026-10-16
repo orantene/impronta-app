@@ -1,6 +1,7 @@
 "use server";
 
 import { bookingOwedCents } from "@/lib/talent/booking-owed";
+import { effectiveBookingStatus, loadOrderStatuses } from "@/lib/talent-agenda/abandoned-order";
 import { isDeadBookingStatus } from "@/lib/money/money-rules";
 import { loadLedgerPaidByBooking } from "@/lib/bookings/ledger-paid";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -99,7 +100,7 @@ export async function loadTalentClients(
       admin
         .from("booking_talent")
         .select(
-          "booking_id, client_charge_total, agency_bookings!inner ( id, title, contact_name, contact_phone, contact_email, starts_at, ends_at, currency_code, payment_status, total_client_revenue, deposit_amount_cents, source_inquiry_id, status )",
+          "booking_id, client_charge_total, agency_bookings!inner ( id, title, contact_name, contact_phone, contact_email, starts_at, ends_at, currency_code, payment_status, total_client_revenue, deposit_amount_cents, source_inquiry_id, status, order_id )",
         )
         .eq("talent_profile_id", talentProfileId)
         .limit(200),
@@ -141,12 +142,31 @@ export async function loadTalentClients(
       [...new Set((legs ?? []).map((l) => l.booking_id as string).filter(Boolean))],
     );
 
+    // TUL-715: same shared read as Hoy and the agenda (a dead unpaid order is not Confirmado).
+    const orderStatusById = await loadOrderStatuses(
+      admin,
+      [
+        ...new Set(
+          (legs ?? []).flatMap((l) => {
+            const b = Array.isArray(l.agency_bookings) ? l.agency_bookings[0] : l.agency_bookings;
+            return b?.order_id ? [b.order_id as string] : [];
+          }),
+        ),
+      ],
+    );
+
     for (const leg of legs ?? []) {
       const booking = Array.isArray(leg.agency_bookings)
         ? leg.agency_bookings[0]
         : leg.agency_bookings;
       if (!booking) continue;
-      if (isDeadBookingStatus(booking.status as string | null)) continue;
+      const shownStatus = effectiveBookingStatus({
+        status: booking.status as string | null,
+        orderStatus: booking.order_id ? orderStatusById.get(booking.order_id as string) : null,
+        paymentStatus: booking.payment_status as string | null,
+        paidCents: ledgerByBooking.get(booking.id as string)?.paidCents ?? 0,
+      });
+      if (isDeadBookingStatus(shownStatus)) continue;
       const name = (booking.contact_name as string | null)?.trim() || "Client";
       const start = (booking.starts_at as string | null) ?? null;
       // total_client_revenue / client_charge_total are major units; deposit is cents.
@@ -170,7 +190,7 @@ export async function loadTalentClients(
       if (owed && owed > 0 && start && start < nowIso) overdue = true;
       const inquiryId = booking.source_inquiry_id as string | null;
       const visit = clientVisit({
-        status: booking.status as string | null,
+        status: shownStatus ?? null,
         startsAt: start,
         endsAt: (booking.ends_at as string | null) ?? null,
         nowIso,

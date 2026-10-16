@@ -7,6 +7,8 @@
  * catalogue. Same gate and owner resolution as the rest of the module.
  */
 
+import { headers } from "next/headers";
+
 import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
 import { loadBrief } from "@/lib/tulala/brief-store.server";
 import { listFact, stringFact } from "@/lib/tulala/brief-store";
@@ -14,12 +16,17 @@ import { updateBriefModuleState } from "@/lib/tulala/brief-module-state.server";
 import { resolveBriefOwner } from "@/lib/tulala/owner.server";
 import { choiceToPath, localePatch, parsePersistedModuleState } from "@/lib/onboarding/module-state";
 import { choiceToIntent } from "@/lib/onboarding/module-state";
+import { normalizeHoursValue } from "@/lib/tulala/normalize-facts";
 import {
+  hoursHaveAnyOpenDay,
+  weeklyHoursFromCanonical,
+  packKeyForTrade,
   parseEssentials,
   servicesFromFacts,
   suggestedEssentials,
   type Essentials,
 } from "@/lib/onboarding/essentials";
+import { setupCountry, setupTimezone } from "@/lib/onboarding/essentials-resolve";
 import { getSuggestedPrice, serviceKeyFor } from "@/lib/pricing/suggested-price";
 import { applySuggestedPrices } from "@/lib/onboarding/service-price-choice";
 import type { OnboardingChoice } from "@/lib/onboarding/choice";
@@ -28,6 +35,8 @@ import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 export type SetupPayload = {
   choice: OnboardingChoice;
   country: string | null;
+  /** Trade pack key (e.g. "cleaning"), used to adapt where-you-work options. */
+  tradeKey?: string | null;
   /** What the screen opens with: the saved record, else AI-read services over a trade pack. */
   essentials: Essentials;
   /** True when the person already confirmed once (resume). */
@@ -51,28 +60,37 @@ export async function loadOnboardingSetup(): Promise<SetupLoadResult> {
   if ("error" in got && got.error) return { ok: false, code: got.error };
   const { brief, state } = got as Exclude<typeof got, { error: string }>;
   const choice = state.choice ?? (state.path === "business" ? "studio" : state.path === "both" ? "both" : "myself");
-  const country = stringFact(brief, "person.country");
+  const country = setupCountry(stringFact(brief, "person.country"), (await headers()).get("x-vercel-ip-country"));
+  const city = stringFact(brief, "person.city");
   const locale = state.locale ?? "en";
   const name = stringFact(brief, "business.name") ?? stringFact(brief, "person.professional_name") ?? stringFact(brief, "person.name");
   const ctx = {
     trade: state.typeChoice?.slug ?? null,
     discipline: stringFact(brief, "work.discipline") ?? stringFact(brief, "work.industry"),
     country,
+    city,
     locale,
   } as const;
   const saved = state.essentials ?? null;
   let essentials: Essentials;
   if (saved && saved.services.length) essentials = saved;
   else {
-    const base = suggestedEssentials({ ...ctx, name });
+    const suggested = suggestedEssentials({ ...ctx, name });
+    const base = { ...suggested, timezone: setupTimezone(city, country) ?? suggested.timezone };
     const fromWords = servicesFromFacts(listFact(brief, "work.services"), ctx);
     // What the person said wins over a trade pack; the pack fills in when they said nothing.
     essentials = fromWords.length ? { ...base, services: fromWords, source: "ai" } : base;
+    // TUL-540 / onb1-05: seed the weekly grid from what they said about hours.
+    const hoursRaw = brief.facts.find((f) => f.factKey === "business.hours" && f.status !== "rejected")?.value;
+    const normalized = normalizeHoursValue(hoursRaw);
+    const hourLines = Array.isArray(normalized) ? normalized.map(String) : typeof normalized === "string" ? [normalized] : [];
+    const fromSaid = weeklyHoursFromCanonical(hourLines);
+    if (fromSaid && hoursHaveAnyOpenDay(fromSaid)) essentials = { ...essentials, hours: fromSaid };
     // TUL-633: each pack service arrives with a suggested price the person must confirm.
     essentials = { ...essentials, services: await applySuggestedPrices(essentials.services, country, { getSuggestedPrice, serviceKeyFor }) };
     if (saved) essentials = { ...essentials, hours: saved.hours ?? essentials.hours, place: saved.place, timezone: saved.timezone ?? essentials.timezone };
   }
-  return { ok: true, setup: { choice, country, essentials, saved: !!saved?.confirmed } };
+  return { ok: true, setup: { choice, country, tradeKey: packKeyForTrade(ctx.trade, ctx.discipline), essentials, saved: !!saved?.confirmed } };
 }
 
 export async function saveOnboardingSetup(input: { essentials: unknown; locale?: "en" | "es" }): Promise<SetupSaveResult> {

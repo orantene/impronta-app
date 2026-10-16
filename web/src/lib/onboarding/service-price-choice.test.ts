@@ -23,15 +23,20 @@ test("TUL-633: editing the amount confirms it", () => {
   assert.equal(rowOf(s).amount_cents, 4200);
 });
 
-test("TUL-633: Get a quote publishes as Request a quote; an unchosen quote stays a draft (TUL-567)", () => {
+test("TUL-633: Get a quote publishes as Request a quote; an unpriced non-quote row stays a draft (TUL-567)", () => {
   const chosen = rowOf(chooseQuote(base));
   assert.equal(chosen.status, "published");
   assert.equal(chosen.price_display, "quote");
   assert.equal(chosen.amount_cents, null);
   assert.equal(chosen.booking_mode, "request");
+  // main's TUL-805: "Price on quote" is itself a deliberate choice, so a quote row goes live even
+  // without the PR's quoteChosen flag; only a row with neither a price nor a quote stays a draft.
   const unchosen = rowOf({ ...base, priceCents: null, quote: true });
-  assert.equal(unchosen.status, "draft");
-  assert.equal(unchosen.price_display, "exact");
+  assert.equal(unchosen.status, "published");
+  assert.equal(unchosen.price_display, "quote");
+  const unpriced = rowOf({ ...base, priceCents: null, quote: false });
+  assert.equal(unpriced.status, "draft");
+  assert.equal(unpriced.price_display, "exact");
   const back = rowOf(chooseFixed(chooseQuote(base)));
   assert.equal(back.status, "draft", "fixed with no number yet is not published");
 });

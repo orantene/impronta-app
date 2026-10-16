@@ -11,6 +11,8 @@ import {
 } from "@react-email/components";
 import * as React from "react";
 
+import { resolveEmailHomeHost, resolveEmailHomeOrigin } from "@/lib/brand/marketing-origin";
+
 import {
   TULALA_EMAIL_ACCENT,
   TULALA_EMAIL_ACCENT_ON,
@@ -41,6 +43,8 @@ export interface EmailBrand {
    * than silently telling account holders they are strangers.
    */
   recipientHasAccount?: boolean;
+  /** TUL-G4: absolute "save your bookings" sign-in URL for a guest; absent renders no line. */
+  saveBookingsUrl?: string | null;
   /** Absolute https logo URL; replaces the text wordmark when present. */
   logoUrl?: string | null;
   /**
@@ -55,18 +59,19 @@ export interface EmailBrand {
   accentOn?: string;
 }
 
-const DEFAULTS = {
+/** Built per render: the footer/home origin follows the environment (TUL-764). */
+const defaults = () => ({
   wordmark: "TULALA",
   accountName: "Tulala",
-  footerDomain: "tulala.digital",
-  homeHref: "https://tulala.digital",
+  footerDomain: resolveEmailHomeHost(),
+  homeHref: resolveEmailHomeOrigin(),
   locale: "en",
   recipientHasAccount: true,
   logoUrl: null,
   markUrl: null,
   accent: TULALA_EMAIL_ACCENT,
   accentOn: TULALA_EMAIL_ACCENT_ON,
-};
+});
 
 /**
  * Why this email reached you, in the reader's own language.
@@ -86,6 +91,11 @@ function footerReason(locale: string, hasAccount: boolean, accountName: string):
     ? `You received this because you have an account with ${accountName}.`
     : `You received this because this address was used to contact ${accountName}.`;
 }
+
+const SAVE_BOOKINGS_FOOTER = {
+  es: { lead: "Guarda tus reservas:", cta: "crea o activa tu cuenta con este correo." },
+  en: { lead: "Save your bookings:", cta: "create or activate your account with this email." },
+} as const;
 
 interface LayoutProps {
   preview: string;
@@ -107,7 +117,7 @@ function sellerLine(locale: string, seller: string): string {
 }
 
 export function Layout({ preview, brand, unsubscribeUrl, categoryLabel, sellerName, children }: LayoutProps) {
-  const b = { ...DEFAULTS, ...brand };
+  const b = { ...defaults(), ...brand };
 
   return (
     <Html lang={b.locale ?? "en"}>
@@ -146,6 +156,14 @@ export function Layout({ preview, brand, unsubscribeUrl, categoryLabel, sellerNa
                 {b.footerDomain}
               </Link>
             </Text>
+            {b.saveBookingsUrl && b.recipientHasAccount === false ? (
+              <Text style={footerText} data-save-bookings="">
+                {SAVE_BOOKINGS_FOOTER[b.locale === "es" ? "es" : "en"].lead}{" "}
+                <Link href={b.saveBookingsUrl} style={footerLink}>
+                  {SAVE_BOOKINGS_FOOTER[b.locale === "es" ? "es" : "en"].cta}
+                </Link>
+              </Text>
+            ) : null}
             <UnsubscribeFooter
               unsubscribeUrl={unsubscribeUrl}
               categoryLabel={categoryLabel}

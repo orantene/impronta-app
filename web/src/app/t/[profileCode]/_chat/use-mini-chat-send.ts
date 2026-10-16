@@ -31,7 +31,8 @@ import {
   firstSendDecision,
 } from "./guest-instant-answer";
 import { clearPendingOffering, pendingOfferingPayload } from "./pending-offering-store";
-import { useRef } from "react";
+import { useRef, useState } from "react";
+import { createSendLock } from "./send-lock";
 import type { MutableRefObject } from "react";
 
 import type {
@@ -166,6 +167,8 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
   // Set when sendToAgency forced the ContactCard gate, so the gate's own submit
   // (handleFirstSend) fires the success note once it lands. Cleared on completion.
   const sendToAgencyPendingRef = useRef(false);
+  // TUL-920: one send at a time, decided synchronously (state `sending` lags a tick).
+  const [lock] = useState(createSendLock);
 
   function flushLookImage(id: string) {
     void attachPendingLookImage({ tenantSlug, inquiryId: id }).finally(() => {
@@ -233,7 +236,7 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
     }
   }
 
-  async function handleFirstSend() {
+  async function handleFirstSendUnlocked() {
     // When the gate was forced by "Send to agency" (rail-first flow), the guest
     // may have typed no chat line — synthesize a default first message so the
     // submit still lands. Normal composer behavior (empty draft = no-op) holds
@@ -422,7 +425,7 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
    * ContactCard gate when the contact is still the placeholder seed, otherwise
    * promotes + sends a default first message and confirms.
    */
-  async function sendToAgency(): Promise<"sent" | "needs_contact" | "error"> {
+  async function sendToAgencyUnlocked(): Promise<"sent" | "needs_contact" | "error"> {
     if (sending || inCooldown) return "error";
 
     // Already a live, contact-promoted thread → nothing to submit, just confirm.
@@ -454,7 +457,7 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
     return "error";
   }
 
-  async function handleReply() {
+  async function handleReplyUnlocked() {
     const body = draft.trim();
     if (!body || !inquiryId) return;
     setSending(true);
@@ -491,6 +494,11 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
       applyFailure("engine_error", t("public.guestChat.notSent"));
     }
   }
+
+  const handleFirstSend = async () => { await lock.run(handleFirstSendUnlocked); };
+  const handleReply = async () => { await lock.run(handleReplyUnlocked); };
+  const sendToAgency = async (): Promise<"sent" | "needs_contact" | "error"> =>
+    (await lock.run(sendToAgencyUnlocked)) ?? "error";
 
   function submit() {
     if (sending || inCooldown) return;

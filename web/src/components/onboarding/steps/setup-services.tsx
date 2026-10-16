@@ -13,17 +13,26 @@ const field = { background: "var(--tl-surface-raised)", border: "1px solid var(-
 export function SetupServices({
   copy,
   currency,
+  onCurrency,
   services,
   onChange,
 }: {
   copy: SetupCopy;
   currency: string;
+  onCurrency: (currency: string) => void;
   services: EssentialService[];
   onChange: (next: EssentialService[]) => void;
 }) {
   const patch = (i: number, p: Partial<EssentialService>) => onChange(services.map((s, j) => (j === i ? { ...s, ...p } : s)));
   return (
     <div className="flex flex-col gap-3" data-testid="onb-setup-services">
+      <label className="flex items-center gap-2 text-[0.875rem]" style={{ color: "var(--tl-ink-soft)" }}>
+        {copy.currencyLabel}
+        <select value={currency} onChange={(e) => onCurrency(e.target.value)} data-testid="onb-service-currency" className="h-11 rounded-[12px] px-3 text-[1rem]" style={field}>
+          <option value="MXN">MXN</option>
+          <option value="USD">USD</option>
+        </select>
+      </label>
       {services.filter((s) => s.priceSuggested).length > 1 ? (
         <button type="button" onClick={() => onChange(confirmAllPrices(services))} data-testid="onb-service-confirm-all" className="min-h-11 self-start rounded-full border border-[var(--tl-forest)] px-4 text-[0.875rem] font-semibold text-[var(--tl-forest)]">
           {copy.confirmAll}

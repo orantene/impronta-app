@@ -72,7 +72,7 @@ test.describe("J1 theme gallery", () => {
     page.once("dialog", (d) => void d.accept());
     await page.getByRole("button", { name: /Use this (theme|look)/ }).click();
     await expect(page.getByText(/Visitors still see the old design until you publish/)).toBeVisible();
-    await page.getByRole("button", { name: /(Re)?[Pp]ublish site/ }).click();
+    await page.getByRole("button", { name: /(Re)?[Pp]ublish (site|changes)/ }).first().click();
     await expect(page.getByText(/your site is live/)).toBeVisible();
   }
 

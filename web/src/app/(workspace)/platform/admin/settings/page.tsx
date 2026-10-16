@@ -127,16 +127,29 @@ function initials(name: string) {
 export default async function PlatformSettingsPage() {
   const locale = await getRequestLocale();
   const t = createTranslator(locale);
-  const session = await getCachedActorSession();
-  const hqTeam = await loadPlatformSuperAdmins();
+  // TUL-745: independent reads run together, not as 9 serial round trips.
+  const [
+    session,
+    hqTeam,
+    operatingCurrency,
+    commercialDefaults,
+    activePayoutSystem,
+    workspaceUi,
+    messagingChannelsEnabled,
+    gatedMedia,
+    guestCaptchaEnforced,
+  ] = await Promise.all([
+    getCachedActorSession(),
+    loadPlatformSuperAdmins(),
+    loadPlatformOperatingCurrency(),
+    loadPlatformCommercialDefaults(),
+    loadActivePayoutSystem(),
+    loadPlatformWorkspaceUi(),
+    isMessagingChannelsEnabled(),
+    loadPrivateMediaAccessState(),
+    loadGuestCaptchaEnforced(),
+  ]);
   const currentUserId = session.user?.id;
-  const operatingCurrency = await loadPlatformOperatingCurrency();
-  const commercialDefaults = await loadPlatformCommercialDefaults();
-  const activePayoutSystem = await loadActivePayoutSystem();
-  const workspaceUi = await loadPlatformWorkspaceUi();
-  const messagingChannelsEnabled = await isMessagingChannelsEnabled();
-  const gatedMedia = await loadPrivateMediaAccessState();
-  const guestCaptchaEnforced = await loadGuestCaptchaEnforced();
   // Rounded up: the card promises "within about N minutes", and rounding a
   // 5-minute lag down to 4 would understate it.
   const revocationLagMinutes = Math.ceil(GATED_MEDIA_CDN_MAX_AGE_SECONDS / 60);

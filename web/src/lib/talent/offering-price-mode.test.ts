@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { resolveOfferingCta, blankOffering } from "./offerings-types";
-import { quoteNeedsPriceReminder, toFixedMode, toQuoteMode } from "./offering-price-mode";
+import { leaveCustomPriceType, quoteNeedsPriceReminder, toFixedMode, toQuoteMode } from "./offering-price-mode";
 
 const o = blankOffering("tp", "USD", 0);
 
@@ -19,4 +19,14 @@ test("TUL-633: the price reminder shows only for a live quote service", () => {
   assert.equal(quoteNeedsPriceReminder({ status: "published", priceDisplay: "quote" }), true);
   assert.equal(quoteNeedsPriceReminder({ status: "draft", priceDisplay: "quote" }), false);
   assert.equal(quoteNeedsPriceReminder({ status: "published", priceDisplay: "exact" }), false);
+});
+
+test("main's #3657 rules survive the merge: quote clears the amount; leaving quote resets a custom priceType", () => {
+  assert.equal(toQuoteMode().amountCents, null);
+  assert.deepEqual(toFixedMode("custom"), { priceDisplay: "exact", bookingMode: null, priceType: "flat_package" });
+  assert.deepEqual(toFixedMode("flat_package"), { priceDisplay: "exact", bookingMode: null });
+  assert.deepEqual(toFixedMode(), { priceDisplay: "exact", bookingMode: null });
+  assert.deepEqual(leaveCustomPriceType("custom"), { priceType: "flat_package" });
+  assert.deepEqual(leaveCustomPriceType("flat_package"), {});
+  assert.deepEqual(leaveCustomPriceType(undefined), {});
 });

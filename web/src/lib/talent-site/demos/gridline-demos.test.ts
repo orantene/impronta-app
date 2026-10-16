@@ -138,12 +138,29 @@ test("offerings: existing demo rows keep their ids and other attributes, quote k
   assert.deepEqual((a.patch.attributes as Record<string, unknown>).where, ["client"]);
   assert.equal((a.patch.attributes as Record<string, unknown>).demo_batch, "demo-2026-09-28");
   assert.equal(a.patch.cancellation_hours, 4);
+  // GRK-065: offerings that were missing where still get client delivery on rebuild.
+  const c = ops[2]!;
+  assert.equal(c.op, "update");
+  if (c.op === "update") {
+    assert.deepEqual((c.patch.attributes as Record<string, unknown>).where, ["client"]);
+  }
   const d = ops[3]!;
   if (d.op !== "update") throw new Error("update");
   assert.equal(d.patch.booking_mode, "inquiry");
   assert.equal(d.patch.price_display, "from");
   assert.equal(d.patch.amount_cents, 450000);
+  assert.deepEqual((d.patch.attributes as Record<string, unknown>).where, ["client"]);
   assert.equal(matchOfferings(f, have).get(2)?.id, "c");
+});
+
+test("GRK-065: fresh Gridline inserts stamp attributes.where = client", () => {
+  const f = fx("TAL-93206");
+  const ops = planOfferingOps(f, []);
+  assert.ok(ops.length >= 1);
+  for (const op of ops) {
+    if (op.op !== "insert") continue;
+    assert.deepEqual((op.row.attributes as Record<string, unknown>).where, ["client"]);
+  }
 });
 
 test("offerings: the emergency flag follows the urgency service, and a bilingual demo carries both languages", () => {

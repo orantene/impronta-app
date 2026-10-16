@@ -15,6 +15,7 @@ import { NextResponse } from "next/server";
 
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { countryLabel } from "@/lib/geo/country-code";
 
 export const dynamic = "force-dynamic";
 
@@ -146,7 +147,7 @@ export async function POST(req: Request) {
         (p.display_name ?? "").trim() ||
         `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() ||
         "Unnamed";
-      const cityCountry = [p.home_city_text, p.home_country_text]
+      const cityCountry = [p.home_city_text, countryLabel(p.home_country_text)]
         .filter((s): s is string => typeof s === "string" && s.trim().length > 0)
         .join(", ");
       return {

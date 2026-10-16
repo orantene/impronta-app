@@ -13,6 +13,8 @@
  * behind a link. No redirects off the talent host.
  */
 
+import { signOutEverywhere } from "@/lib/auth/sign-out-client";
+import { CLIENT_SIGN_OUT_PATH } from "@/lib/auth/sign-out-paths";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { requestEmailCode } from "@/app/auth/otp-actions";
@@ -27,9 +29,10 @@ import {
   finalizeClientAccountGoogleSession,
   saveClientMarketingConsent,
   signInClientAccountPassword,
-  signOutClientAccount,
   verifyClientAccountCode,
 } from "@/lib/client-account/actions";
+import { ACCOUNT_DOCK_Z_INDEX, shouldHideAccountDock } from "@/lib/client-account/dock-visibility";
+import { accountQuickLinks } from "@/lib/client-account/quick-links";
 import { resendSecondsLeft, type AccountSummary } from "@/lib/client-account/pure";
 
 type Me = { signedIn: false; signedInAs?: "business" } | { signedIn: true; email: string | null; initials: string; summary: AccountSummary };
@@ -351,9 +354,11 @@ export function ClientAccountButton({
     close();
   }
 
-  async function logOut() {
+  function logOut() {
     setBusy(true);
-    await signOutClientAccount();
+    // S1 / TUL-708: one top-level POST (also served on talent hosts) revokes
+    // the session and expires every scope + chunk; see sign-out-client.ts.
+    signOutEverywhere(CLIENT_SIGN_OUT_PATH);
     setBusy(false);
     setMe({ signedIn: false });
     setStep("email");
@@ -391,7 +396,7 @@ export function ClientAccountButton({
         cursor: "pointer",
         boxShadow: variant === "dock" ? "0 4px 14px rgba(0,0,0,.18)" : "none",
         ...(variant === "dock"
-          ? { position: "fixed", right: "max(16px, env(safe-area-inset-right))", bottom: "var(--client-account-dock-bottom, 194px)", zIndex: 95 }
+          ? { position: "fixed", right: "max(16px, env(safe-area-inset-right))", bottom: "var(--client-account-dock-bottom, 194px)", zIndex: ACCOUNT_DOCK_Z_INDEX }
           : {}),
       }}
     >
@@ -440,6 +445,8 @@ export function ClientAccountButton({
     </label>
   );
 
+  if (shouldHideAccountDock(variant, me)) return null;
+
   return (
     <>
       <style>{`[data-client-account-dock]{--client-account-dock-bottom:194px}@media (max-width:480px){[data-client-account-dock]{--client-account-dock-bottom:calc(88px + env(safe-area-inset-bottom))}}[data-client-account-sheet]{position:fixed;z-index:120;background:${BG};color:${INK};border:1px solid ${LINE};box-shadow:0 12px 40px rgba(0,0,0,.25);padding:20px;display:flex;flex-direction:column;gap:12px;font-family:var(--site-body-font,inherit)}@media (min-width:640px){[data-client-account-sheet]{width:340px;border-radius:14px;right:16px;${variant === "dock" ? "bottom:250px" : "top:64px"}}}@media (max-width:639px){[data-client-account-sheet]{left:0;right:0;bottom:0;border-radius:16px 16px 0 0;padding-bottom:calc(20px + env(safe-area-inset-bottom));max-height:85vh;overflow:auto}}`}</style>
@@ -478,9 +485,17 @@ export function ClientAccountButton({
                     </div>
                   ) : null}
                 </dl>
-                <a href={accountHref} style={{ ...primary, textAlign: "center", textDecoration: "none", boxSizing: "border-box" }}>
-                  {t("public.clientAccount.myAccount")}
-                </a>
+                <nav aria-label={t("public.clientAccount.account")} style={{ display: "grid", gap: 4 }}>
+                  {accountQuickLinks(t, accountHref).map((l) => (
+                    <a
+                      key={l.key}
+                      href={l.href}
+                      style={{ display: "flex", alignItems: "center", minHeight: 44, color: INK, textDecoration: "none", fontSize: 15, borderBottom: `1px solid ${LINE}` }}
+                    >
+                      {l.label}
+                    </a>
+                  ))}
+                </nav>
                 <button type="button" onClick={logOut} disabled={busy} style={linkBtn}>
                   {t("public.clientAccount.logOut")}
                 </button>

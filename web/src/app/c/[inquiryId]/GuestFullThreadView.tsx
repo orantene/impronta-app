@@ -254,7 +254,7 @@ export function GuestFullThreadView({
   const sendDisabled = !draft.trim() || sending || inCooldown;
 
   return (
-    <div
+    <main
       style={{
         minHeight: "100dvh",
         background: C.surfaceFaint,
@@ -290,6 +290,11 @@ export function GuestFullThreadView({
         {/* ── Tall scrolling message list ─────────────────────────────────── */}
         <div
           ref={scrollRef}
+          role="log"
+          aria-live="polite"
+          aria-relevant="additions"
+          aria-label={t("public.guestChat.threadLogAria")}
+          tabIndex={0}
           style={{
             flex: 1,
             overflowY: "auto",
@@ -380,6 +385,7 @@ export function GuestFullThreadView({
               }
             }}
             placeholder={t("public.guestChat.replyPlaceholder")}
+            aria-label={t("public.guestChat.replyPlaceholder")}
             rows={1}
             disabled={sending || inCooldown}
             style={{
@@ -395,7 +401,6 @@ export function GuestFullThreadView({
               lineHeight: 1.45,
               color: C.ink,
               resize: "none",
-              outline: "none",
               boxSizing: "border-box",
             }}
           />
@@ -417,7 +422,7 @@ export function GuestFullThreadView({
           </button>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
 

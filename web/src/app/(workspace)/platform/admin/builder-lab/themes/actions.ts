@@ -18,6 +18,7 @@ import {
   runDryRun,
 } from "@/lib/talent-site/theme-releases/manager/release-manager.server";
 import type { DryRunReport } from "@/lib/talent-site/theme-releases/manager/dry-run";
+import { createFirstRelease } from "@/lib/talent-site/theme-releases/first-release.server";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const BASE = "/platform/admin/builder-lab/themes";
@@ -117,6 +118,28 @@ export async function actionSetRollout(releaseId: string, pct: number): Promise<
     const res = await changeRollout(admin, release, pct);
     return res.ok ? { ok: true, data: { updates: res.updates, bells: res.bells } } : res;
   });
+}
+
+/**
+ * TUL-404: first release of a design with no release row (draft, catalog version,
+ * no items). Dry run and Publish to demos stay on the release page.
+ */
+export async function actionCreateFirstRelease(design: string): Promise<Result<{ releaseId: string; version: number }>> {
+  await requireNotImpersonating();
+  const g = await gate();
+  if (!g.ok) return g;
+  if (typeof design !== "string" || !/^[a-z0-9][a-z0-9-]{0,63}$/.test(design)) return { ok: false, error: "Unknown design." };
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+  try {
+    const r = await createFirstRelease(admin, { design, actorId: g.userId });
+    if (!r.ok) return { ok: false, error: r.error };
+    revalidatePath(BASE);
+    return { ok: true, data: { releaseId: r.releaseId, version: r.version } };
+  } catch (err) {
+    logServerError("themeReleaseManager.firstRelease", err);
+    return { ok: false, error: err instanceof Error ? err.message : "Action failed." };
+  }
 }
 
 /** Pause hides the release from talents; resume also fans out to sites that became eligible meanwhile (F126). */

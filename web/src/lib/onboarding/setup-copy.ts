@@ -11,9 +11,12 @@ export type SetupCopy = {
   serviceName: string;
   minutes: string;
   price: string;
+  currencyLabel: string;
   quote: string;
   quoteOn: string;
   hiddenUntilPriced: string;
+  /** TUL-805: shown when "price on quote" is chosen. */
+  quoteShown: string;
   priceFixed: string;
   priceQuote: string;
   suggested: string;
@@ -32,6 +35,7 @@ export type SetupCopy = {
   place: string;
   placeModes: { studio: string; home: string; client: string };
   area: string;
+  areaClient: string;
   areaHint: string;
   homePrivate: string;
   timezone: string;
@@ -61,9 +65,11 @@ export const SETUP_COPY: Record<FlowLocale, SetupCopy> = {
     serviceName: "Service name",
     minutes: "Minutes",
     price: "Price",
+    currencyLabel: "Currency",
     quote: "Price on quote",
     quoteOn: "On quote",
-    hiddenUntilPriced: "No price yet: it stays off your site until you add one.",
+    hiddenUntilPriced: "No price yet: add one, or choose price on quote.",
+    quoteShown: "Shown on your site as Price on request, with a button to ask you for a quote.",
     priceFixed: "Fixed price",
     priceQuote: "Get a quote",
     suggested: "Suggested · tap to change",
@@ -82,6 +88,7 @@ export const SETUP_COPY: Record<FlowLocale, SetupCopy> = {
     place: "Where do you work?",
     placeModes: { studio: "At my studio", home: "At home", client: "I go to the client" },
     area: "Area clients see",
+    areaClient: "Service area",
     areaHint: "Neighborhood or city",
     homePrivate: "Only the area is public. Your exact address is never shown; you share it after a booking.",
     timezone: "Your time zone",
@@ -116,9 +123,11 @@ export const SETUP_COPY: Record<FlowLocale, SetupCopy> = {
     serviceName: "Nombre del servicio",
     minutes: "Minutos",
     price: "Precio",
+    currencyLabel: "Moneda",
     quote: "Precio a cotizar",
     quoteOn: "A cotizar",
-    hiddenUntilPriced: "Sin precio: no aparece en tu sitio hasta que lo agregues.",
+    hiddenUntilPriced: "Sin precio: agrégalo o elige precio a cotizar.",
+    quoteShown: "Se muestra en tu sitio como Precio a cotizar, con un botón para pedirte una cotización.",
     priceFixed: "Precio fijo",
     priceQuote: "Pedir cotización",
     suggested: "Sugerido · toca para cambiar",
@@ -137,6 +146,7 @@ export const SETUP_COPY: Record<FlowLocale, SetupCopy> = {
     place: "¿Dónde trabajas?",
     placeModes: { studio: "En mi estudio", home: "En casa", client: "Voy con el cliente" },
     area: "Zona que ven tus clientes",
+    areaClient: "Zona de servicio",
     areaHint: "Colonia o ciudad",
     homePrivate: "Solo la zona es pública. Tu dirección exacta nunca se muestra; la compartes después de una reserva.",
     timezone: "Tu zona horaria",

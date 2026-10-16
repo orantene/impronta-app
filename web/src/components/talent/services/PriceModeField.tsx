@@ -1,7 +1,7 @@
 "use client";
 
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
-import { toFixedMode, toQuoteMode } from "@/lib/talent/offering-price-mode";
+import { leaveCustomPriceType, toFixedMode, toQuoteMode } from "@/lib/talent/offering-price-mode";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 
 /**
@@ -32,7 +32,7 @@ export function PriceModeField({
             role="radio"
             aria-checked={quote === q}
             data-testid={`service-price-mode-${q ? "quote" : "fixed"}`}
-            onClick={() => patch(q ? toQuoteMode() : toFixedMode())}
+            onClick={() => patch(q ? toQuoteMode() : toFixedMode(item.priceType))}
             className={`rounded-md px-3 py-2 text-[14px] font-semibold ${quote === q ? "bg-emerald-900 text-white" : "text-admin-ink"}`}
           >
             {q ? copy.t("Get a quote") : copy.t("Fixed price")}
@@ -41,7 +41,7 @@ export function PriceModeField({
       </div>
       {!quote && (
         <label className="mt-2 flex items-center gap-2 text-[13px] text-admin-ink-dim">
-          <input type="checkbox" checked={item.priceDisplay === "from"} onChange={(e) => patch({ priceDisplay: e.target.checked ? "from" : "exact" })} />
+          <input type="checkbox" checked={item.priceDisplay === "from"} onChange={(e) => patch({ priceDisplay: e.target.checked ? "from" : "exact", ...leaveCustomPriceType(item.priceType) })} />
           {copy.t("Show as starting at")}
         </label>
       )}

@@ -5,6 +5,7 @@
  * shared draft only; nothing is written until Save (report §7, §8, Q3).
  */
 
+import { clientAccountEntryDefault } from "@/lib/client-account/entry-visibility";
 import type { TalentSiteSwitches } from "@/lib/talent/site-switches";
 import { LiveOnSaveNote, SettingsCard, Switch } from "./primitives";
 
@@ -79,6 +80,19 @@ export function ChatInquiriesGroup({
             })
           }
         />
+        <Switch
+          checked={switches.chatConfig.agentBookingEnabled}
+          label={t("Let AI assistants book me")}
+          detail={t(
+            "Assistants like ChatGPT or Claude can send a client a link to request one of your services. The client confirms it in your chat. Starts off.",
+          )}
+          onChange={(v) =>
+            setSwitches({
+              ...switches,
+              chatConfig: { ...switches.chatConfig, agentBookingEnabled: v },
+            })
+          }
+        />
         {strandedTitles.length > 0 ? (
           <p role="status" className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-[12.5px] text-amber-900">
             {(strandedTitles.length === 1
@@ -97,11 +111,32 @@ export function ChatInquiriesGroup({
   );
 }
 
+/** TUL-694: show or hide the client account icon in the site header. Starts on automatic (on while taking bookings). */
+export function ClientAccountCard({ t, switches, setSwitches }: SwitchProps) {
+  const setting = switches.chatConfig.clientAccountEntry;
+  const on = setting === "auto" ? clientAccountEntryDefault(switches) : setting === "show";
+  return (
+    <SettingsCard>
+      <Switch
+        checked={on}
+        label={t("Client account on your site")}
+        detail={t(
+          "A small account icon in your site header. Clients sign in to see their bookings, messages and receipts. Starts on while you take bookings.",
+        )}
+        onChange={(v) =>
+          setSwitches({ ...switches, chatConfig: { ...switches.chatConfig, clientAccountEntry: v ? "show" : "hide" } })
+        }
+      />
+    </SettingsCard>
+  );
+}
+
 export function VisibilityGroup(props: SwitchProps) {
   return (
     <>
       <LiveOnSaveNote>{props.t(LIVE_NOTE)}</LiveOnSaveNote>
       <AcceptBookingsCard {...props} />
+      <ClientAccountCard {...props} />
     </>
   );
 }

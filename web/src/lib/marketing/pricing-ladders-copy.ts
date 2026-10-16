@@ -272,6 +272,17 @@ function isSpanishLocale(locale: string): boolean {
   return locale.toLowerCase().startsWith("es");
 }
 
+/** Customer-facing plan names by catalog slug (internal rows say Team / Business / Network). */
+const CUSTOMER_TIER_NAMES: Readonly<Record<string, string>> = {
+  studio: "Studio",
+  agency: "Agency",
+  hub: "Network",
+};
+
+export function customerTierName(key: string, dbName: string): string {
+  return CUSTOMER_TIER_NAMES[key] ?? dbName;
+}
+
 export function localizeTierName(name: string, locale: string): string {
   return isSpanishLocale(locale) ? (ES_TIER_NAMES[name] ?? name) : name;
 }

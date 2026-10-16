@@ -12,6 +12,8 @@
  * (strategy §3.1 / §10). House rule: the only warm color is the tenant accent.
  */
 
+import type { KeyboardEvent } from "react";
+
 import { interpolate } from "@/i18n/interpolate";
 
 import {
@@ -82,9 +84,22 @@ export function MiniChatGateForm({
   const canSend = gateReady && !emailBlocksSubmit && !sending;
   const C = paletteFor(surfaceMode);
   const inputStyle = inputStyleFor(C);
+  // TUL-531 chat UX: Enter in the gate fields must send (composer is hidden here).
+  const onGateKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
+    e.preventDefault();
+    if (canSend) onSend();
+  };
 
   return (
     <div
+      onKeyDown={(e) => {
+        // TUL-949: Enter in any gate field sends (IME commit excluded).
+        if (e.key === "Enter" && !e.nativeEvent.isComposing && canSend) {
+          e.preventDefault();
+          onSend();
+        }
+      }}
       style={{
         padding: "11px 14px",
         borderTop: `1px solid ${C.borderSoft}`,
@@ -137,6 +152,7 @@ export function MiniChatGateForm({
         <input
           value={firstName}
           onChange={(e) => onFirstNameChange(e.target.value)}
+          onKeyDown={onGateKeyDown}
           placeholder={t("public.guestChat.gateFirstName")}
           autoComplete="given-name"
           style={inputStyle}
@@ -144,6 +160,7 @@ export function MiniChatGateForm({
         <input
           value={lastName}
           onChange={(e) => onLastNameChange(e.target.value)}
+          onKeyDown={onGateKeyDown}
           placeholder={t("public.guestChat.gateLastName")}
           autoComplete="family-name"
           style={inputStyle}
@@ -152,8 +169,10 @@ export function MiniChatGateForm({
       <input
         value={email}
         onChange={(e) => onEmailChange(e.target.value)}
+        onKeyDown={onGateKeyDown}
         placeholder={t("public.guestChat.contactEmail")}
         type="email"
+        enterKeyHint="send"
         autoComplete="email"
         style={inputStyle}
       />

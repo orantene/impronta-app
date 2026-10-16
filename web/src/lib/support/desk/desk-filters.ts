@@ -59,10 +59,14 @@ export function filterDeskQueue(
   selfUserId: string | null,
 ): HqQueueRow[] {
   const q = query.trim().toLowerCase();
+  // A search looks across EVERY view. Scoping it to the active view hid a
+  // ticket as soon as support replied (it moves from "needs you" to "waiting
+  // on customer"), so "#45" found nothing even though the ticket existed.
+  const needle = q.replace(/^#/, "");
   return rows.filter((row) => {
-    if (!matchesDeskView(row, view, selfUserId)) return false;
-    if (!q) return true;
-    return hqQueueSearchHaystack(row).includes(q);
+    if (!q) return matchesDeskView(row, view, selfUserId);
+    const hay = hqQueueSearchHaystack(row);
+    return hay.includes(q) || hay.includes(needle);
   });
 }
 

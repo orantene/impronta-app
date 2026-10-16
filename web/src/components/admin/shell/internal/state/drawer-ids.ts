@@ -156,6 +156,7 @@ export type DrawerId =
   | "talent-share-card"
   | "whats-new"
   | "help"
+  | "promos"            // talent header tag icon: active promos summary
   // ── WS-5 Money & Trust ──────────────────────────────────────────────
   | "client-trust-detail"    // WS-5.9 — trust-tier explanation + upgrade path
   | "escrow-detail"          // WS-5.1 — escrow state machine visualiser

@@ -317,19 +317,23 @@ export function LiveCategoryFieldsPanel({
   const [viewAs, setViewAs] = useState<ViewerRole>("public");
 
   useEffect(() => {
-    if (!open || fields !== null || loading) return;
+    if (!open || fields !== null || loading || error !== null) return;
     setLoading(true);
     setError(null);
-    getFieldsForTalent({ talent_profile_id: talentProfileId }).then((res) => {
-      if (res.ok) {
-        setFields(res.fields);
-        setGroups(res.groups);
-      } else {
-        setError(res.error);
-      }
-      setLoading(false);
-    });
-  }, [open, talentProfileId, fields, loading]);
+    getFieldsForTalent({ talent_profile_id: talentProfileId })
+      .then((res) => {
+        if (res.ok) {
+          setFields(res.fields);
+          setGroups(res.groups);
+        } else {
+          setError(res.error);
+        }
+      })
+      // TUL-671: a throwing/rejected server action must not leave the panel on
+      // "Loading..." forever; settle with a plain message instead.
+      .catch(() => setError(copy.t("Could not load these fields. Try again.")))
+      .finally(() => setLoading(false));
+  }, [open, talentProfileId, fields, loading, error, copy]);
 
   // Group fields by their resolved field_group (Phase 6 architecture).
   // Universal/global fields without a group end up in a "Universal" bucket.
@@ -405,7 +409,7 @@ export function LiveCategoryFieldsPanel({
               ? (copy.isSpanish
                 ? `${fields.length} campo${fields.length === 1 ? "" : "s"} resuelto${fields.length === 1 ? "" : "s"} desde tipos principales y secundarios`
                 : `${fields.length} field${fields.length === 1 ? "" : "s"} resolved from primary + secondary types`)
-              : copy.t("DB-resolved field catalog for this talent's types")}
+              : copy.t("Fields that apply to this talent's types")}
           </div>
         </div>
         <span className="text-admin-ink-muted text-admin-11">{open ? "▾" : "▸"}</span>

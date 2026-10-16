@@ -19,6 +19,7 @@ import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { talentOffersInstantBooking } from "@/lib/scheduling/talent-booking-mode";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { StorefrontBody } from "./StorefrontBody";
+import { categoryLabelFor } from "@/lib/site-admin/builder-node/catalog-category-label";
 import { StorefrontFilter } from "./StorefrontFilter";
 import { orderCategoryNames } from "@/lib/site-admin/builder-node/services-catalog-title";
 import { LightSectionLabel } from "../_light/section-label";
@@ -63,6 +64,11 @@ export async function TalentStorefront({
   }
   const categories = orderCategoryNames(seen, savedOrder);
   const showFilter = categories.length >= 2;
+  const categoryLabels: Record<string, string> = {};
+  for (const c of categories) {
+    const label = categoryLabelFor(visible, c);
+    if (label) categoryLabels[c] = label;
+  }
 
   // "≈ US$" beside prices in another currency. Fetched only when one exists;
   // a failed fetch prints no line rather than a guessed one.
@@ -74,7 +80,7 @@ export async function TalentStorefront({
 
       <div className="mt-5">
         {showFilter ? (
-          <StorefrontFilter visible={visible} locale={locale} categories={categories} confirmsByHand={confirmsByHand} usdRates={usdRates} />
+          <StorefrontFilter visible={visible} locale={locale} categories={categories} categoryLabels={categoryLabels} confirmsByHand={confirmsByHand} usdRates={usdRates} />
         ) : (
           <StorefrontBody visible={visible} locale={locale} confirmsByHand={confirmsByHand} usdRates={usdRates} />
         )}

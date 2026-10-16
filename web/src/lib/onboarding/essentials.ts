@@ -105,6 +105,30 @@ export function currencyForCountry(country: string | null | undefined): string {
   return isMexico(country) ? "MXN" : "USD";
 }
 
+/**
+ * TUL-540 / onb1-03: Cancún (or other MX city) without `person.country` must still
+ * land MXN. City keywords reuse the same place→IANA map as hours.
+ */
+export function currencyForCountryOrPlace(
+  country: string | null | undefined,
+  city?: string | null,
+): string {
+  if (isMexico(country)) return "MXN";
+  const place = [city, country].map((x) => x?.trim()).filter(Boolean).join(", ");
+  if (!place) return "USD";
+  // Deferred import kept at call sites that already pull timezone-from-place;
+  // here we detect MX cities by the same keyword set without a circular import.
+  const n = place.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  if (
+    /\b(cancun|tulum|playa del carmen|cdmx|ciudad de mexico|mexico city|guadalajara|monterrey|merida|oaxaca|puebla|queretaro|mexico|méxico)\b/.test(
+      n,
+    )
+  ) {
+    return "MXN";
+  }
+  return "USD";
+}
+
 export function defaultTimezoneForCountry(country: string | null | undefined): string | null {
   return isMexico(country) ? "America/Mexico_City" : null;
 }
@@ -145,11 +169,20 @@ export const BEAUTY_PACKS: Record<string, TradePack> = {
   ] },
 };
 
+/** Home cleaning: the first pack outside beauty, so a cleaner never lands on an empty services screen (TUL-568). */
+BEAUTY_PACKS.cleaning = { key: "cleaning", services: [
+  { en: "Standard home cleaning", es: "Limpieza de casa estándar", durationMin: 120, mxnCents: 90000 },
+  { en: "Deep cleaning", es: "Limpieza profunda", durationMin: 240, mxnCents: 180000 },
+  { en: "Move-in or move-out cleaning", es: "Limpieza de mudanza", durationMin: 240, mxnCents: 200000 },
+  { en: "Office cleaning", es: "Limpieza de oficina", durationMin: 120, mxnCents: 100000 },
+] };
+
 const TRADE_PATTERNS: Array<[string, RegExp]> = [
   ["lashes", /lash|pesta/i],
   ["nails", /nail|u[ñn]a|manicur|pedicur/i],
   ["brows", /brow|ceja/i],
   ["makeup", /make-?up|maquill|\bmua\b/i],
+  ["cleaning", /clean|limpie|limpio|aseo|housekeep/i],
   ["hair", /hair|cabello|peluq|barber|stylist|estilista|colorist/i],
 ];
 
@@ -162,13 +195,20 @@ export function packKeyForTrade(...candidates: Array<string | null | undefined>)
   return null;
 }
 
-export type PackContext = { trade?: string | null; discipline?: string | null; country?: string | null; locale: "en" | "es" };
+export type PackContext = {
+  trade?: string | null;
+  discipline?: string | null;
+  country?: string | null;
+  /** City from the brief; drives MXN / Cancún zone when country is missing (TUL-540). */
+  city?: string | null;
+  locale: "en" | "es";
+};
 
 /** Suggested services for a trade, with MX defaults (MXN) in Mexico; other countries get durations and "quote". */
 export function suggestedServices(ctx: PackContext): EssentialService[] {
   const key = packKeyForTrade(ctx.trade, ctx.discipline);
   if (!key) return [];
-  const currency = currencyForCountry(ctx.country);
+  const currency = currencyForCountryOrPlace(ctx.country, ctx.city);
   const mx = currency === "MXN";
   return BEAUTY_PACKS[key].services.map((s) => ({
     name: ctx.locale === "es" ? s.es : s.en,
@@ -193,6 +233,101 @@ export function packServiceFor(pack: TradePack | null, said: string): PackServic
   return pack.services.find((s) => [s.en, s.es, ...(s.aliases ?? [])].some((n) => forms.has(n.toLowerCase()))) ?? null;
 }
 
+/**
+ * Soft timezone for the essentials prefill: city (+ country) wins; country
+ * default only when the place does not imply a zone. Never bake Mexico_City
+ * when the city is Cancún (TUL-540 / onb1-04).
+ */
+export function suggestedTimezoneForPlace(
+  country: string | null | undefined,
+  city?: string | null,
+): string | null {
+  // Lazy import avoided: callers that need IANA validation go through essentials-resolve.
+  // Here we only need the place→zone map; country default stays as before.
+  const place = [city, country].map((x) => x?.trim()).filter(Boolean).join(", ");
+  if (place) {
+    // Inline keyword path mirrors timezoneFromPlaceText for MX cities so we do
+    // not create a circular import with scheduling → onboarding.
+    const n = place.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+    if (/\b(quintana roo|cancun|tulum|playa del carmen|cozumel|bacalar|chetumal|holbox)\b/.test(n)) {
+      return "America/Cancun";
+    }
+    if (/\b(tijuana|mexicali|ensenada|rosarito|baja california)\b/.test(n) && !/baja california sur/.test(n)) {
+      return "America/Tijuana";
+    }
+    if (/\b(mazatlan|la paz|los cabos|culiacan|sinaloa|nayarit)\b/.test(n)) {
+      return "America/Mazatlan";
+    }
+    if (/\b(merida|yucatan)\b/.test(n)) return "America/Merida";
+    if (/\b(monterrey|nuevo leon)\b/.test(n)) return "America/Monterrey";
+    if (/\b(cdmx|ciudad de mexico|mexico city|guadalajara|puebla|oaxaca|queretaro)\b/.test(n)) {
+      return "America/Mexico_City";
+    }
+    if (/\bmexico\b/.test(n) && isMexico(country)) return defaultTimezoneForCountry(country);
+  }
+  return defaultTimezoneForCountry(country);
+}
+
+/**
+ * Canonical hours lines ("Mon-Sat 09:00-19:00", "Tue-Sun 13:00-23:00",
+ * "Every day 10:00-20:00") → weekly grid. Null when nothing readable
+ * (TUL-540 / onb1-05). Day keys match talent_booking_hours (Sun=0).
+ */
+export function weeklyHoursFromCanonical(lines: string[]): WeeklyEssentialHours | null {
+  const DAY: Record<string, DayKey> = {
+    mon: "1",
+    tue: "2",
+    wed: "3",
+    thu: "4",
+    fri: "5",
+    sat: "6",
+    sun: "0",
+  };
+  const ORDER = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+  const w = emptyWeek();
+  let any = false;
+  for (const raw of lines) {
+    const s = raw.trim();
+    if (!s || /^by appointment$/i.test(s)) continue;
+    const timeM = s.match(/(\d{2}):(\d{2})-(\d{2}):(\d{2})\s*$/);
+    const startMin = timeM ? Number(timeM[1]) * 60 + Number(timeM[2]) : 9 * 60;
+    const endMin = timeM ? Number(timeM[3]) * 60 + Number(timeM[4]) : 19 * 60;
+    if (!(endMin > startMin)) continue;
+    const daysPart = (timeM ? s.slice(0, timeM.index).trim() : s).toLowerCase();
+    let keys: DayKey[] = [];
+    if (/^every day$/.test(daysPart)) {
+      keys = ["0", "1", "2", "3", "4", "5", "6"];
+    } else if (daysPart.includes(",")) {
+      keys = daysPart
+        .split(",")
+        .map((p) => DAY[p.trim().slice(0, 3)])
+        .filter((d): d is DayKey => !!d);
+    } else {
+      const range = daysPart.match(/^(mon|tue|wed|thu|fri|sat|sun)-(mon|tue|wed|thu|fri|sat|sun)$/);
+      if (range) {
+        const a = ORDER.indexOf(range[1] as (typeof ORDER)[number]);
+        const b = ORDER.indexOf(range[2] as (typeof ORDER)[number]);
+        if (a >= 0 && b >= 0) {
+          if (a <= b) {
+            for (let i = a; i <= b; i++) keys.push(DAY[ORDER[i]]);
+          } else {
+            for (let i = a; i <= 6; i++) keys.push(DAY[ORDER[i]]);
+            for (let i = 0; i <= b; i++) keys.push(DAY[ORDER[i]]);
+          }
+        }
+      } else {
+        const one = DAY[daysPart.slice(0, 3)];
+        if (one) keys = [one];
+      }
+    }
+    for (const d of keys) {
+      w[d] = [{ startMin, endMin }];
+      any = true;
+    }
+  }
+  return any ? w : null;
+}
+
 /** What the essentials screen opens with: pack services, Mon-Sat 9-19, country currency/timezone. */
 export function suggestedEssentials(ctx: PackContext & { name?: string | null }): Essentials {
   const services = suggestedServices(ctx);
@@ -200,7 +335,7 @@ export function suggestedEssentials(ctx: PackContext & { name?: string | null })
     name: ctx.name?.trim() || null,
     services,
     hours: defaultWeeklyHours(),
-    timezone: defaultTimezoneForCountry(ctx.country),
+    timezone: suggestedTimezoneForPlace(ctx.country, ctx.city) ?? (!ctx.country?.trim() && ctx.locale === "es" ? "America/Mexico_City" : null),
     place: null,
     firstProviderEmail: null,
     firstProviderName: null,
@@ -215,7 +350,7 @@ export function suggestedEssentials(ctx: PackContext & { name?: string | null })
  * in the person's language (the AI may answer "Haircuts" in a Spanish flow); anything else is kept as said.
  */
 export function servicesFromFacts(names: string[], ctx: PackContext): EssentialService[] {
-  const currency = currencyForCountry(ctx.country);
+  const currency = currencyForCountryOrPlace(ctx.country, ctx.city);
   const pack = (() => { const k = packKeyForTrade(ctx.trade, ctx.discipline); return k ? BEAUTY_PACKS[k] : null; })();
   const seen = new Set<string>();
   const out: EssentialService[] = [];
@@ -331,7 +466,7 @@ export type OfferingRowDraft = {
   title: string;
   description: null;
   kind: "service";
-  price_type: "flat_package";
+  price_type: "flat_package" | "custom";
   price_display: "exact" | "quote";
   /** Null = no price yet: publishing is refused until one is set (or the owner picks "Contact for price"). */
   amount_cents: number | null;
@@ -348,16 +483,22 @@ export type OfferingRowDraft = {
   title_i18n?: { en: string; es: string };
 };
 
+/** Same default the manual "add a service" row starts with (setup.ts blankService). A row with no length offers no slots. */
+export const DEFAULT_SERVICE_MINUTES = 60;
+
 export function offeringRowFor(s: EssentialService, sortOrder: number): OfferingRowDraft {
   const exact = !s.quote && s.priceCents !== null && s.priceCents > 0;
+  // TUL-805: "Price on quote" is a deliberate choice, so it goes live as a quote service
+  // ("Precio a cotizar" + a request CTA). Only a row with neither a price nor that choice stays a draft.
+  const quote = s.quote;
+  const live = exact || quote;
   return {
     ...(s.nameI18n ? { title_i18n: s.nameI18n } : {}),
     title: s.name.trim(),
     description: null,
     kind: "service",
-    // Not "quote": a quote row passes publish validation, so one click would put an unpriced service live.
-    price_type: "flat_package",
-    price_display: "exact",
+    price_type: quote ? "custom" : "flat_package",
+    price_display: quote ? "quote" : "exact",
     amount_cents: exact ? s.priceCents : null,
     currency: s.currency,
     // Instant needs a fixed price; a quote is a request. Fresh accounts have
@@ -366,12 +507,17 @@ export function offeringRowFor(s: EssentialService, sortOrder: number): Offering
     booking_mode: exact ? "instant" : "request",
     reserve_mode: "free",
     allow_pay_in_person: true,
-    duration_minutes: s.durationMin,
+    duration_minutes: s.durationMin && s.durationMin > 0 ? s.durationMin : DEFAULT_SERVICE_MINUTES,
     category: s.packKey ?? null,
-    status: exact ? "published" : "draft",
+    status: live ? "published" : "draft",
     visibility: "public",
     sort_order: sortOrder,
   };
+}
+
+/** How many of these services onboarding publishes (priced, or deliberately on quote); the rest stay drafts until the owner adds a price. */
+export function publishedServiceCount(services: EssentialService[] | null | undefined): number {
+  return (services ?? []).filter((s) => offeringRowFor(s, 0).status === "published").length;
 }
 
 export type OfferingPlan = {
@@ -501,6 +647,17 @@ export async function runEssentialsWrites(store: EssentialsStore, input: Essenti
   if (choice !== "studio" && talent) {
     const tenantId = choice === "both" && workspace ? workspace.tenantId : talent.tenantId;
     await writeOfferings({ kind: "talent", talentProfileId: talent.talentProfileId, tenantId });
+    // TUL-650: the writer skips its own drafts when essentials carry services, so a
+    // failed write above left a confirmed talent with NO services. Check and retry once.
+    await step("offeringsRetry", async () => {
+      const owner: OfferingOwnerRef = { kind: "talent", talentProfileId: talent.talentProfileId, tenantId };
+      if (!e.services.length || (await store.listOfferings(owner)).length > 0) return;
+      const plan = planOfferingWrites([], e.services);
+      if (!plan.insert.length) return;
+      await store.insertOfferings(owner, plan.insert);
+      out.offeringsCreated += plan.insert.length;
+      out.warnings.push("essentials:offerings_recovered");
+    });
     await step("hours", async () => {
       out.hoursWritten = await store.upsertTalentHours({ talentProfileId: talent.talentProfileId, tenantId, weekly, timezone: e.timezone });
       if (!out.hoursWritten) out.warnings.push("essentials:hours:no_timezone");

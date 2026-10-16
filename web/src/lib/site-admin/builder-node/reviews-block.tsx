@@ -247,6 +247,7 @@ export function renderReviewsBlock(args: {
         <BuilderNodeCarouselTrack
           nodeId={args.node.id}
           variant="rail"
+          locale={args.locale ?? undefined}
           showArrows={showArrows}
           showDots={showDots}
           autoplayMs={autoplayMs}

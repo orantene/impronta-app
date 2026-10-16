@@ -1,8 +1,8 @@
 "use client";
 
+import { signOutEverywhere } from "@/lib/auth/sign-out-client";
 import { useEffect, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import { signOut } from "@/app/auth/actions";
 
 const START_WORKSPACE_EVENT = "tulala:open-start-workspace-dialog";
 import { DASHBOARD_LOCALES } from "../talent/pages/DashboardLanguagePanel";
@@ -14,6 +14,7 @@ import type { Locale } from "@/i18n/config";
 import { useDashboardText } from "../dashboard-i18n";
 import { NotificationsBell } from "../notifications-hub";
 import { ShellCountBubbles } from "../shell-count-bubbles";
+import { PromosHeaderButton } from "@/components/promos/talent/PromosHeaderButton";
 import { Avatar, Icon, ShortcutsModal } from "../primitives";
 import { COLORS, MY_TALENT_PROFILE, PAGE_META, PLAN_META, meetsRole, useAdminShell } from "../state";
 import { TulalaBrandLockup } from "@/components/brand/tulala-logo";
@@ -34,6 +35,10 @@ import { WebsiteRewardControl } from "@/components/talent/website-reward/Website
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
 import { shouldShowTalentActingChip } from "@/lib/impersonation/acting-as";
 import { TalentPreviewEyeControl } from "./TalentPreviewEyeControl";
+import {
+  canShowRailModeSwitch,
+  leaveRailHat,
+} from "./rail-mode-switch-action";
 
 
 export function TulalaIdentityBar() {
@@ -50,6 +55,7 @@ export function TulalaIdentityBar() {
     overviewMetrics,
     bridgeTalentUnread,
     bridgeWorkspaceUnread,
+    bridgeOwnedWorkspaceSlug,
     bridgeFirstRunToggleTipSeen,
     effectiveTenant,
     tenantSlug,
@@ -388,23 +394,53 @@ export function TulalaIdentityBar() {
 
             <div className="flex-1" />
 
-            {/* Mode toggle — only for hybrid users (talent who also have a
-                workspace). Hidden on the client surface — clients are
-                single-mode and don't have a talent/workspace dual identity. */}
+            {/* Mode toggle — dual owners only (hybrid OR owned business slug),
+                same gate as the talent rail. Phone Más also mounts the switch
+                (TUL-378) when this pill is clipped at 390. */}
             {inTalent && <WebsiteRewardControl placement="topbar" />}
 
-            {alsoTalent && (
+            {inTalent &&
+              canShowRailModeSwitch({
+                active: "talent",
+                alsoTalent,
+                ownedWorkspaceSlug: bridgeOwnedWorkspaceSlug,
+                talentSelfProfile: bridgeTalentSelfProfile,
+              }) && (
               <ModeTogglePill
                 surface={surface}
-                flipMode={flipMode}
+                onSwitch={() =>
+                  leaveRailHat({
+                    active: "talent",
+                    alsoTalent,
+                    ownedWorkspaceSlug: bridgeOwnedWorkspaceSlug,
+                    flipMode,
+                  })
+                }
                 workspaceUnread={bridgeTotalUnread > 0 ? bridgeTotalUnread : (bridgeWorkspaceUnread ?? 0)}
                 talentUnread={bridgeTalentUnread !== undefined ? bridgeTalentUnread : TALENT_UNREAD}
                 showFirstRunTip={bridgeFirstRunToggleTipSeen === false && alsoTalent}
               />
             )}
 
-            {/* PR 7: talent language switch (ES | EN pill); also seeds the content locale. */}
-            {inTalent ? <LanguageMenu /> : null}
+            {/* PR 7: talent language switch (ES | EN pill); also seeds the content locale.
+                Hide on phone when the dual-owner pill is present so Admin stays tappable. */}
+            {inTalent ? (
+              <span
+                className={
+                  canShowRailModeSwitch({
+                    active: "talent",
+                    alsoTalent,
+                    ownedWorkspaceSlug: bridgeOwnedWorkspaceSlug,
+                    talentSelfProfile: bridgeTalentSelfProfile,
+                  })
+                    ? "max-[720px]:hidden"
+                    : undefined
+                }
+              >
+                <LanguageMenu />
+              </span>
+            ) : null}
+            {inTalent ? <PromosHeaderButton /> : null}
             <ShellCountBubbles />
             <NotificationsBell />
 
@@ -711,11 +747,11 @@ function AccountMenuTrigger({
               label={signingOut ? "Signing out…" : "Sign out"}
               sub=""
               tone="coral"
-              onClick={async () => {
+              onClick={() => {
                 if (signingOut) return;
                 setOpen(false);
                 setSigningOut(true);
-                await signOut();
+                signOutEverywhere();
               }}
             />
           </div>

@@ -38,12 +38,16 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * work today": that is exactly the rot this guard exists to catch.
  */
 export const ALLOWLIST: Readonly<Record<string, string>> = {
+  "src/lib/orders/promo-resolve.adapter.test.ts": "pins NOW constant and passes it as now to resolvePromo; fixture dates are relative to it",
+  "src/lib/orders/promo-resolve.client-status.test.ts": "pins NOW constant and passes it to resolvePromo and classifyClientStatus",
   "src/lib/bookings/cancellation-window.test.ts": "pins NOW constant and feeds it as nowMs to the code under test",
   "src/lib/scheduling/load-busy.test.ts": "pins NOW constant and passes it as now to loadBusy",
   "src/lib/scheduling/inquiry-event-stamp.test.ts": "pure local-date and zone arithmetic over explicit stamps, never reads the clock",
   "src/lib/scheduling/tul-93-guest-confirmation.test.ts": "explicit booking stamps and an explicit `from` date are fed to the code; no clock comparison",
   "src/lib/scheduling/reservation-window.test.ts": "pins now and passes it to the reservation-window rules",
+  "src/lib/scheduling/calendar-clock.test.ts": "pure function over an explicit `now` argument, never reads the clock",
   "src/lib/scheduling/slots.test.ts": "pure timezone and DST arithmetic on explicit dates, never reads the clock",
+  "src/lib/scheduling/slots-lead-time.test.ts": "explicit now (14:10 site time) passed to the slot generator on fixed DST and non-DST days, never reads the clock",
   "src/lib/scheduling/tz.test.ts": "pure wall-clock and DST arithmetic on explicit dates, never reads the clock (would trip the guard 30 days before 2027-01-15)",
   "src/lib/scheduling/reservation-intent.test.ts": "pure conversion of an explicit starts_at/ends_at stamp, never reads the clock",
   "src/lib/scheduling/booking-reminder-window.test.ts": "pure predicate over explicit today/tomorrow arguments, never reads the clock",
