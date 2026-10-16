@@ -43,10 +43,10 @@ export function buildTalentLlmsTxt(input: {
     "",
     `- [Service list (JSON)](${input.origin}${AGENT_CATALOG_PATH})`,
     `- [Open times (JSON)](${input.origin}${AGENT_SLOTS_PATH}?offering=<service_id>&days=7): free start times, ISO 8601 UTC`,
-    `- [MCP server](${input.origin}${AGENT_MCP_PATH}): streamable HTTP, tools list_services, find_open_times, request_booking`,
+    `- [MCP server](${input.origin}${AGENT_MCP_PATH}): streamable HTTP, tools list_services, find_open_times, request_booking, get_request_status`,
     "",
     input.agentBookingEnabled
-      ? "request_booking does not book anything. It returns a link the person opens to confirm in the talent's chat."
+      ? "request_booking does not book anything. It returns a link the person opens to confirm in the talent's chat. get_request_status takes the returned handoff_id and answers link_not_used, sent, accepted, declined or expired, with no personal details."
       : `${name} has not turned on booking through AI assistants. You can read services and open times; send the person to this site to book.`,
     "",
   );
