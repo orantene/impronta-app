@@ -9,7 +9,8 @@ import type { PublicOpenTimesResult } from "./public-open-times";
 import { liveSlotsAllEmpty } from "./profile-live-availability-core";
 
 const empty = (reason?: "no_booking_hours" | "fully_booked"): PublicOpenTimesResult => ({ ok: true, slots: [], reason: reason ?? null });
-const open: PublicOpenTimesResult = { ok: true, slots: ["2026-10-20T15:00:00.000Z"] };
+// Relative to now, so the fixture never goes stale (test-fixed-dates guard).
+const open: PublicOpenTimesResult = { ok: true, slots: [new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()] };
 const failed: PublicOpenTimesResult = { ok: false, status: 500, error: "query_failed" };
 
 describe("liveSlotsAllEmpty", () => {
