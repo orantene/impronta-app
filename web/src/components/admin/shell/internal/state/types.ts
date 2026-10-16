@@ -8,6 +8,7 @@ import type { DrawerId } from "./drawer-ids";
 import type { DestinationId } from "@/lib/workspace/destinations";
 import type { OfferCommercialTerms } from "@/lib/billing/commercial-terms-types";
 import type { WebsiteHealthReport } from "@/lib/admin/website-health";
+import type { WebsitePost } from "./website-post-types";
 
 // ─── Surface dimensions ──────────────────────────────────────────────
 
@@ -87,6 +88,7 @@ export type TalentPage =
   | "clients"       // People who booked or messaged this talent
   | "payouts"       // Embedded Stripe Connect payout onboarding. In-shell section (not in nav; reached from Settings).
   | "public-page"   // WS-8.2: split from reach (personal page editor)
+  | "posts"         // Posts v1 (TUL-1007): Website -> Posts list; the writer is a bare /talent/posts/<id> route
   | "settings";
 
 // Client surface — its own plan ladder. Free is browse-only, Pro adds active
@@ -2721,30 +2723,8 @@ export type WebsitePageRow = {
   systemTemplateKey?: string | null;
 };
 
-/**
- * One `cms_posts` row as the Website surfaces see it (W3). Every field is
- * real — the fixture-era `author` / `tags` / `hits7d` are gone: author was a
- * literal placeholder, tags have no column, and no per-post analytics exist.
- */
-export type WebsitePost = {
-  id: string;
-  title: string;
-  /** Leading-slash path form of the slug (e.g. "/spring-2026"). */
-  slug: string;
-  status: "published" | "draft" | "archived";
-  /** cms_posts.locale — en|es. */
-  locale: string;
-  /** True when the post has a non-empty excerpt (summary). */
-  hasExcerpt: boolean;
-  publishedAt?: string;
-  updatedAt: string;
-  /**
-   * `cms_posts.updated_by` resolved to a display name via the workspace
-   * teamMembers map; "" when unresolvable (member left, or no editor
-   * recorded) so surfaces render nothing instead of a raw UUID.
-   */
-  lastEditedBy: string;
-};
+// WebsitePost lives in its own module (size ratchet); re-exported for existing importers.
+export type { WebsitePost };
 
 export type WebsiteRedirect = {
   id: string;

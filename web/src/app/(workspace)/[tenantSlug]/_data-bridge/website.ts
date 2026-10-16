@@ -100,6 +100,9 @@ export type WebsitePostItem = {
    * `cms_pages.updated_by` becomes a page row's `lastEditedBy`.
    */
   updatedBy: string | null;
+  /** cms_posts.taken_down_reason when the platform admin hid the post, else null. */
+  takenDownReason?: string | null;
+  takenDown?: boolean;
 };
 
 export type WebsiteRedirectItem = {
@@ -204,7 +207,7 @@ export async function loadWebsiteData(tenantId: string): Promise<WebsiteData> {
       listPagesForStaff(supabase, tenantId).catch(() => []),
       supabase
         .from("cms_posts")
-        .select("id, slug, title, status, updated_at, locale, excerpt, published_at, updated_by")
+        .select("id, slug, title, status, updated_at, locale, excerpt, published_at, updated_by, taken_down_at, taken_down_reason")
         .eq("tenant_id", tenantId)
         .order("updated_at", { ascending: false })
         .limit(50),
@@ -232,6 +235,8 @@ export async function loadWebsiteData(tenantId: string): Promise<WebsiteData> {
       excerpt: string | null;
       published_at: string | null;
       updated_by: string | null;
+      taken_down_at?: string | null;
+      taken_down_reason?: string | null;
     };
     type RedirectRow = { id: string; old_path: string; new_path: string; status_code: number; active: boolean };
 
@@ -271,6 +276,8 @@ export async function loadWebsiteData(tenantId: string): Promise<WebsiteData> {
         hasExcerpt: !!p.excerpt?.trim(),
         publishedAt: p.published_at ?? null,
         updatedBy: p.updated_by ?? null,
+        takenDown: !!p.taken_down_at,
+        takenDownReason: p.taken_down_reason ?? null,
       })),
       redirects: ((redirectsRes.data ?? []) as unknown as RedirectRow[]).map((r) => ({
         id: r.id,

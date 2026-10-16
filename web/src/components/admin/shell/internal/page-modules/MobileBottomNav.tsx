@@ -629,6 +629,7 @@ const TALENT_TAB_ICON: Partial<Record<TalentPage, AdminShellIconName>> = {
   money: "credit",       // mirrors desktop rail (talent.tsx)
   profile: "user",
   "public-page": "globe",
+  posts: "pencil",
   services: "briefcase", // mirrors desktop rail (talent.tsx)
   clients: "team",
   reviews: "star",
