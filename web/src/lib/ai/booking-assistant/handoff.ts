@@ -63,6 +63,16 @@ const GATED: Record<BookingAssistantLocale, string> = {
   es: "El asistente esta en pausa por ahora. El equipo te responde en este chat.",
 };
 
+const NO_TIMES: Record<BookingAssistantLocale, string> = {
+  en: "I could not find open times for that right now. A person on the team will follow up in this chat.",
+  es: "No encontré horarios libres por ahora. Una persona del equipo te responde en este chat.",
+};
+
+/** Posted instead of the model's reply when it offered times but none are open. */
+export function bookingAssistantNoTimesCopy(locale: BookingAssistantLocale): string {
+  return NO_TIMES[locale];
+}
+
 export type BookingHandoffReason = "unsure" | "human_requested" | "turn_ceiling" | "gated" | "off";
 
 export function bookingAssistantHandoffCopy(

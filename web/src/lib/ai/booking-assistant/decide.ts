@@ -1,6 +1,7 @@
 /**
- * Pure phase-1 routing for the booking assistant after instant-answer misses.
- * No book / pay tools — facts via LLM or handoff.
+ * Pure routing for the booking assistant after instant-answer misses.
+ * No book / pay tools — facts (and, phase 2 flow A, a guest-confirmed times
+ * card) via LLM, or handoff.
  */
 
 import {
@@ -17,6 +18,12 @@ export type BookingAssistantDecideInput = {
   priorMessages: ReadonlyArray<{ systemEventType?: string | null; humanTookOver?: boolean }>;
   /** Instant-answer already handled this turn (skip AI). */
   instantAnswered: boolean;
+  /**
+   * Talent's effective booking mode (TUL-36 phase 2). "instant" / "request"
+   * send booking verbs to the model so it can offer real times; "inquiry"
+   * (the default when omitted) keeps the phase-1 handoff.
+   */
+  bookingMode?: "instant" | "request" | "inquiry";
 };
 
 export type BookingAssistantDecision =
@@ -31,6 +38,10 @@ export type BookingAssistantDecision =
  */
 const BOOKING_INTENT_RE =
   /\b(book|booking|reserve|reservation|appointment|reservar|reserva|cita|agendar|reserver|rendez[- ]?vous)\b/i;
+
+export function hasBookingIntent(body: string): boolean {
+  return BOOKING_INTENT_RE.test(body);
+}
 
 function hasPriorHandoff(
   prior: ReadonlyArray<{ systemEventType?: string | null }>,
@@ -57,7 +68,10 @@ export function decideBookingAssistantTurn(input: BookingAssistantDecideInput): 
   const turns = countBookingAssistantTurns(input.priorMessages);
   if (bookingAssistantTurnCeilingReached(turns)) return handoff("turn_ceiling");
   if (wantsHumanBookingHelp(body)) return handoff("human_requested");
-  // Phase 1 = instant-answer + handoff only (no book/pay tools yet).
-  if (BOOKING_INTENT_RE.test(body)) return handoff("unsure");
+  // Booking verbs go to the model only when the talent takes bookings; the
+  // model can offer real times, the guest's tap is what books. Inquiry mode
+  // keeps the handoff.
+  const mode = input.bookingMode ?? "inquiry";
+  if (BOOKING_INTENT_RE.test(body) && mode === "inquiry") return handoff("unsure");
   return { action: "llm_facts" };
 }

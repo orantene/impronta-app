@@ -45,6 +45,8 @@ src/lib/ai/booking-assistant/handoff.test.ts
 src/lib/ai/booking-assistant/model.test.ts
 src/lib/ai/booking-assistant/price-label.test.ts
 src/lib/ai/booking-assistant/schedule.static.test.ts
+src/lib/ai/booking-assistant/structured.test.ts
+src/lib/ai/booking-assistant/turn-no-money.static.test.ts
 src/lib/support/talent-site-help-contact.static.test.ts
 src/lib/support/talent-site-help-context.test.ts
 src/components/support/support-send-error.test.ts
