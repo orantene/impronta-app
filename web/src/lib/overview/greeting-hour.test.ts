@@ -31,6 +31,6 @@ test("OverviewBoard routes the snapshot zone through venueZoneOrNull (TUL-734)",
     "src/components/admin/shell/internal/page-modules/OverviewBoard.tsx",
     "utf8",
   );
-  assert.match(src, /venueZoneOrNull\(snapshot\?\.timeZone\)/);
-  assert.doesNotMatch(src, /greetingHour\(now, snapshot\?\.timeZone\)/);
+  assert.match(src, /venueZoneOrNull\(snapshot\??\.timeZone\)/);
+  assert.doesNotMatch(src, /greetingHour\(now, snapshot\??\.timeZone\)/);
 });
