@@ -1150,6 +1150,7 @@
       "sendHub": "Enviar",
       "sendHubNoPayment": "Sin pago ahora. Dirigiremos tu consulta a las personas indicadas.",
       "sendHubSent": "Enviado. {brand} dirigirá tu consulta a las personas indicadas.",
+      "sendSoloSent": "Enviado. {brand} te responderá aquí pronto.",
       "hubConciergeName": "{brand} Concierge",
       "hubConciergeGreeting": "Cuéntanos sobre tu evento y reuniremos al talento indicado de toda nuestra red.",
       "syncSaving": "Guardando…",
@@ -1232,7 +1233,7 @@
       "dockLineupUnsaveAria": "Quitar a {name} de guardados",
       "dockLineupShelfInquiry": "En tu solicitud",
       "dockLineupShelfSaved": "Guardados",
-      "dockLineupEmptyInquiry": "Aún no hay talento en tu solicitud. Mueve a alguien desde Guardados o explora el directorio.",
+      "dockLineupEmptyInquiry": "Aún no hay nada en tu solicitud. Pasa algo desde Guardados o elige de la lista.",
       "dockLineupEmptySaved": "Aún no has guardado a nadie. Guarda el talento que te guste y aparecerá aquí.",
       "dockLineupMoveToInquiry": "Mover a la solicitud",
       "dockLineupInInquiry": "En la solicitud",
@@ -2165,6 +2166,15 @@
         "nextTalentShare": "Comparte tu enlace",
         "viewMyWebsite": "Ver mi sitio",
         "customizeInBuilder": "Personalizar en el editor",
+        "draftTitlePublished": "Tu sitio ya está publicado",
+        "draftSubPublished": "Está guardado y publicado. Estamos confirmando que abra en línea; suele tardar unos segundos.",
+        "checkAgain": "Comprobar de nuevo",
+        "draftWhy": {
+          "publishedNotReachable": "Motivo: tu dirección todavía no responde. Toca Comprobar de nuevo en unos segundos.",
+          "notReachable": "Motivo: tu página no respondió cuando la abrimos. Toca Intentar de nuevo.",
+          "oldContent": "Motivo: tu dirección todavía muestra contenido anterior. Toca Intentar de nuevo en unos segundos.",
+          "notCreated": "Motivo: no pudimos crear tu dirección. Abre el editor para terminarla."
+        },
         "draftTitle": "Tu borrador está guardado",
         "draftReason": "Tu página no pudo abrir en línea esta vez. Casi siempre es temporal y no pierdes nada de lo que escribiste. Primero inténtalo de nuevo.",
         "draftDetails": "Detalles para soporte",
@@ -2172,6 +2182,7 @@
         "draftSubStudio": "Todo lo que nos contaste está guardado, pero tu sitio todavía no abre en línea. Inténtalo de nuevo o ábrelo en el editor.",
         "openEditor": "Abrir el editor",
         "goToPanel": "Ir a mi panel",
+        "finishUpgrade": "Terminar de mejorar a {plan}",
         "openMyPanel": "Abrir mi panel",
         "bookPreview": "Reservar",
         "bookingsStartStudio": "Las reservas empiezan cuando agregues a un proveedor.",
@@ -2395,9 +2406,28 @@
       "appleOpening": "Abriendo Apple…",
       "appleFailed": "Apple no terminó. Inténtalo de nuevo o usa tu correo.",
       "applePopupBlocked": "El navegador bloqueó la ventana emergente. Permite ventanas emergentes e inténtalo de nuevo."
+    },
+    "pricingInterval": {
+      "groupLabel": "Periodo de facturación",
+      "monthly": "Mensual",
+      "yearly": "Anual",
+      "saveUpTo": "Ahorra hasta {pct}%",
+      "savePct": "Ahorra {pct}%",
+      "perMonth": "al mes",
+      "billedYearly": "{amount} al año",
+      "billedMonthly": "Facturado cada mes",
+      "popular": "Más elegido"
     }
   },
   "dashboard": {
+    "promoCode": {
+      "toggle": "¿Tienes un código?",
+      "label": "Código promocional",
+      "placeholder": "Ingresa el código",
+      "apply": "Aplicar",
+      "checking": "Verificando...",
+      "remove": "Quitar"
+    },
     "enums": {
       "servicePricing": {
         "hour": "Por hora",
@@ -11100,6 +11130,15 @@
           "hub": "Descubrimiento entre agencias",
           "multiagency": "Opera varias marcas"
         }
+      },
+      "planChange": {
+        "loading": "Calculando el precio...",
+        "payToday": "Pagas {amount} hoy. {plan} empieza ahora.",
+        "changesOn": "Tu plan cambia a {plan} el {date}. Hoy no se cobra nada.",
+        "cancelPending": "Conserva tu plan actual y cancela el cambio programado.",
+        "noChange": "Ya tienes este plan.",
+        "confirm": "Confirmar cambio",
+        "cancel": "Ahora no"
       }
     },
     "adminIntegrationsCatalog": {
@@ -13752,6 +13791,8 @@
       "handoffBody": "Recibirás una notificación y un correo cuando responda. Puedes seguir escribiendo aquí mientras tanto.",
       "handoffHq": "Escalado a ti",
       "humanReplyEta": "{agent} responderá, normalmente en unas horas",
+      "ticketReceipt": "Ticket #{number} recibido. {agent} responderá, normalmente en unas horas.",
+      "humanHandling": "Una persona está atendiendo esto",
       "aiHandling": "La IA está ayudando, una persona está a un toque",
       "statusClosed": "Cerrado",
       "thinking1": "Leyendo tu pregunta",
@@ -20993,6 +21034,11 @@
       "planPriceWebsite": "$12/mes",
       "billing": {
         "redirecting": "Redirigiendo…",
+        "pastDueTitle": "Pago fallido.",
+        "pastDueGraceBody": "Tu pago no pasó. Las funciones de pago siguen activas {days} día(s) más. Actualiza tu tarjeta para conservarlas.",
+        "pastDueExpiredBody": "Tu pago no pasó y tu plan está en pausa. Tu contenido está a salvo. Restaura tu plan para recuperar las funciones de pago.",
+        "updateCard": "Actualizar tarjeta",
+        "restorePlan": "Restaurar plan",
         "openingPortal": "Abriendo portal…",
         "manageSubscription": "Administrar suscripción →",
         "statusActive": "Activo",
