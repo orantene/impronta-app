@@ -19,6 +19,7 @@
 import type Stripe from "stripe";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { markFailed, markPaid } from "@/lib/bookings/transactions";
+import { unwindClosedCheckoutSession } from "@/lib/orders/unwind-failed-checkout";
 import { closePaymentLinkForClosedCheckout } from "@/lib/payments/link-settlement";
 import { releasePromoHoldsForClosedCheckout } from "@/lib/promos/redemption/order-redemptions";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -169,6 +170,12 @@ export async function closeCheckoutSession(action: {
     { markFailed },
   );
   if (!closed.ok) return { ok: false, error: `checkout_session_closed(${action.transactionId}): ${closed.reason}` };
+  if (closed.outcome === "skipped") {
+    // TUL-706: not a payment link. An instant-book row gets the failed-checkout
+    // unwind (booking, transaction, order), each write guarded on unpaid.
+    const unwound = await unwindClosedCheckoutSession(sb, action);
+    if (!unwound.ok) return { ok: false, error: `checkout_session_closed(${action.transactionId}): unwind incomplete` };
+  }
   // Promos v1: an abandoned instant checkout frees its held promo now (the
   // sweep cron covers anything this misses). Best effort, never a retry.
   if (UUID_TXN.test(action.transactionId)) await releasePromoHoldsForClosedCheckout(sb, action.transactionId);
