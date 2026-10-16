@@ -194,7 +194,7 @@ export function ImportStarterPanel({
       <div
         role="dialog"
         aria-modal="true"
-        className="flex h-full w-full max-w-[560px] flex-col bg-white shadow-xl max-md:max-w-none"
+        className="flex h-full w-full max-w-[560px] min-w-0 flex-col bg-white text-neutral-900 shadow-xl [color-scheme:light] max-md:max-w-none"
         onClick={(e) => e.stopPropagation()}
       >
         {body}

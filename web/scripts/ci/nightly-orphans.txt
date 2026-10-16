@@ -239,7 +239,6 @@ src/lib/talent-languages-service.test.ts
 src/lib/talent/accepting-readiness.test.ts
 src/lib/talent/active-agency-context.test.ts
 src/lib/talent/agency-overlay.test.ts
-src/lib/talent/clients-directory.test.ts
 src/lib/talent/clients-merge.test.ts
 src/lib/talent/earnings.test.ts
 src/lib/talent/experience.test.ts
