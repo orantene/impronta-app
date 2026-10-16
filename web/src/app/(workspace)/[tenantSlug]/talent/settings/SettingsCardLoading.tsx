@@ -43,7 +43,7 @@ export function SettingsCardLoading({ label }: { label: string }) {
           flexShrink: 0,
         }}
       />
-      <span style={{ fontSize: 12.5, color: "rgba(11,11,13,0.55)" }}>{label}</span>
+      <span style={{ fontSize: 12.5, color: "rgba(11,11,13,0.6)" }}>{label}</span>
       <style>{`@keyframes tulala-settings-card-spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );

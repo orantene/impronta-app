@@ -955,6 +955,13 @@ export async function startGuestChatInquiry(
           ? { types_needed: talentTypesNeeded }
           : {}),
       };
+  // TUL-21: an AI-assistant hand-off carries a random id in its signed choice.
+  // Stored so get_request_status can find this inquiry; nothing reads it back as identity.
+  const agentHandoff = input.offeringIntent ? verifyTalentOfferingIntent(input.offeringIntent) : null;
+  const agentHandoffId =
+    agentHandoff?.ok === true && agentHandoff.payload.h && agentHandoff.payload.profile === talentProfileId
+      ? agentHandoff.payload.h
+      : null;
   const intent: InquiryIntent = {
     source: hasTalent ? "public_talent_profile" : "agency_site",
     source_context: {
@@ -966,6 +973,7 @@ export async function startGuestChatInquiry(
       ...(input.locale ? { guest_locale: input.locale } : {}),
       ...(capture.eventType ? { ai_event_type: capture.eventType } : {}),
       ...(offering ? { offering } : {}),
+      ...(agentHandoffId ? { agent_handoff_id: agentHandoffId, agent_handoff_talent_id: talentProfileId } : {}),
       ...(input.entryPoint === "inquiry_form" ? { entry_point: "inquiry_form" } : {}),
       ...(input.lines && input.lines.length > 1 ? { lines: input.lines.slice(0, 12) } : {}),
     },
