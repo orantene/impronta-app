@@ -388,7 +388,8 @@ test("data needs: one per node, with its own query and fetch size", () => {
     query: { source: "featured", postIds: [], categoryId: null, excludeIds: [], sort: "newest" },
     fetchLimit: 12,
     demoTrade: "general",
-    demoCount: 3,
+    // limit 3 with load_more pre-fetches 12, and examples never exceed six per trade.
+    demoCount: 6,
   });
   assert.deepEqual(needs[1]!.query.postIds, ["p2", "p1"]);
   assert.equal(needs[1]!.fetchLimit, 6);
