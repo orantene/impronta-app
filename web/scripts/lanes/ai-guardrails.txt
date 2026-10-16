@@ -43,6 +43,7 @@ src/lib/notifications/auth-email-hook.static.test.ts
 src/lib/notifications/dispatcher-cold-start-graph.static.test.ts
 src/lib/pricing/stripe-health-redact.test.ts
 src/lib/quality/commerce-tab-alias.static.test.ts
+src/lib/quality/guest-chat-no-hardcoded-copy.static.test.ts
 src/lib/quality/no-conflict-markers.static.test.ts
 src/lib/rate-limit-kv-guest-ai.test.ts
 src/lib/saas/deactivate-legacy-hub-hostname.migration.test.ts
@@ -68,9 +69,6 @@ src/lib/support/guest-resume-claim.test.ts
 src/lib/support/guest-resume-path.test.ts
 src/lib/support/guest-resume-race.test.ts
 src/lib/support/guest-retention.test.ts
-src/lib/support/support-ai-turn.test.ts
-src/lib/support/support-ai-failure.test.ts
-src/lib/quality/guest-chat-no-hardcoded-copy.static.test.ts
 src/lib/support/guest-submit-critical-path.static.test.ts
 src/lib/support/help-corpus.test.ts
 src/lib/support/investigation/bundle.test.ts

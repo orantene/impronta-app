@@ -74,6 +74,7 @@ src/lib/notifications/resend-webhook.test.ts
 src/lib/notifications/suppression-conflict-target.static.test.ts
 src/lib/notifications/unclaimed-talent-booking.test.ts
 src/lib/notifications/whatsapp-schema.migration.test.ts
+src/lib/notifications/whatsapp/inbound.test.ts
 src/lib/notifications/whatsapp/provider.test.ts
 src/lib/payments/booking-confirmation-pdf.test.ts
 src/lib/payments/booking-payouts-ledger.test.ts
@@ -137,4 +138,3 @@ src/lib/talent/talent_content_i18n_columns.migration.test.ts
 src/lib/talent/translation-coverage.test.ts
 src/lib/talent/website-reward.test.ts
 src/lib/translation/bios-to-bio-i18n.test.ts
-src/lib/notifications/whatsapp/inbound.test.ts
