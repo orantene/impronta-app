@@ -10,7 +10,39 @@ import https from "node:https";
 
 export type LiveCheck =
   | { ok: true }
-  | { ok: false; reason: "no_url" | "no_name" | "status" | "name_missing" | "network"; status?: number };
+  | { ok: false; reason: LiveCheckFailReason; status?: number };
+
+/**
+ * TUL-818: `protected` = the host answered with a deployment-protection wall
+ * (Vercel Authentication on staging), not with the person's page. The page may
+ * well be published; the check simply could not see it.
+ */
+export type LiveCheckFailReason = "no_url" | "no_name" | "status" | "name_missing" | "network" | "protected";
+
+/**
+ * TUL-818: staging sits behind Vercel Authentication, so the server-side check
+ * of a just-published site met the SSO wall and every new site "failed" to
+ * publish. Vercel's automation bypass secret (a server-only system env var)
+ * lets our own check through. Sent only to our own hosts, never elsewhere.
+ */
+export function protectionBypassHeaders(url: string, secret: string | null | undefined): Record<string, string> {
+  if (!secret) return {};
+  let host = "";
+  try {
+    host = new URL(url).hostname.toLowerCase();
+  } catch {
+    return {};
+  }
+  const own = host === "tulala.digital" || host.endsWith(".tulala.digital");
+  return own ? { "x-vercel-protection-bypass": secret } : {};
+}
+
+/** A Vercel Authentication wall (or its SSO redirect) instead of the site. */
+export function isProtectionWall(status: number, html: string, finalUrl?: string | null): boolean {
+  if (finalUrl && /^https:\/\/vercel\.com\/(sso-api|login)/.test(finalUrl)) return true;
+  if (status === 401) return true;
+  return /protected by vercel authentication|vercel\.com\/sso-api/i.test(html);
+}
 
 /**
  * LIVE_CHECK_ORIGIN lets the journey server (local dev against the isolated
@@ -108,6 +140,8 @@ export async function verifyLivePage(input: {
   name: string | null;
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
+  /** Injected for tests; defaults to VERCEL_AUTOMATION_BYPASS_SECRET. */
+  bypassSecret?: string | null;
 }): Promise<LiveCheck> {
   if (!input.url) return { ok: false, reason: "no_url" };
   const needle = normalizeForMatch(input.name ?? "");
@@ -115,7 +149,10 @@ export async function verifyLivePage(input: {
   const doFetch: typeof fetch | null = input.fetchImpl ?? null;
   let target = input.url;
   let viaLocalOrigin = false;
-  const headers: Record<string, string> = { "user-agent": "TulalaOnboardingVerify/1" };
+  const headers: Record<string, string> = {
+    "user-agent": "TulalaOnboardingVerify/1",
+    ...protectionBypassHeaders(input.url, input.bypassSecret === undefined ? process.env.VERCEL_AUTOMATION_BYPASS_SECRET : input.bypassSecret),
+  };
   try {
     const orig = new URL(input.url);
     const origin = resolveLiveCheckOrigin({
@@ -145,8 +182,11 @@ export async function verifyLivePage(input: {
             signal: AbortSignal.timeout(timeoutMs),
             headers,
           });
+    const raw = await res.text();
+    const finalUrl = (res as { url?: string }).url ?? null;
+    if (isProtectionWall(res.status, raw, finalUrl)) return { ok: false, reason: "protected", status: res.status };
     if (res.status !== 200) return { ok: false, reason: "status", status: res.status };
-    const html = normalizeForMatch(await res.text());
+    const html = normalizeForMatch(raw);
     return html.includes(needle) ? { ok: true } : { ok: false, reason: "name_missing" };
   } catch {
     return { ok: false, reason: "network" };

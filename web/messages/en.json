@@ -2165,6 +2165,15 @@
         "nextTalentShare": "Share your link",
         "viewMyWebsite": "View my website",
         "customizeInBuilder": "Customize in builder",
+        "draftTitlePublished": "Your site is published",
+        "draftSubPublished": "It is saved and published. We are confirming it opens online; this usually takes a few seconds.",
+        "checkAgain": "Check again",
+        "draftWhy": {
+          "publishedNotReachable": "Why: your address is not answering yet. Tap Check again in a few seconds.",
+          "notReachable": "Why: your page did not answer when we opened it. Tap Try again.",
+          "oldContent": "Why: your address still shows older content. Tap Try again in a few seconds.",
+          "notCreated": "Why: we could not create your address. Open the editor to finish it."
+        },
         "draftTitle": "Your draft is saved",
         "draftReason": "Your page did not go online on this try. This is usually temporary and nothing you entered is lost. Try again first.",
         "draftDetails": "Details for support",
@@ -2172,6 +2181,7 @@
         "draftSubStudio": "Everything you told us is saved, but your site does not open online yet. Try again or open it in the editor.",
         "openEditor": "Open the editor",
         "goToPanel": "Go to my dashboard",
+        "finishUpgrade": "Finish upgrading to {plan}",
         "openMyPanel": "Open my panel",
         "bookPreview": "Book",
         "bookingsStartStudio": "Bookings start when you add a provider.",
@@ -2395,9 +2405,28 @@
       "appleOpening": "Opening Apple…",
       "appleFailed": "Apple didn't finish. Try again or use your email.",
       "applePopupBlocked": "Pop-up blocked. Allow pop-ups for this site and try again."
+    },
+    "pricingInterval": {
+      "groupLabel": "Billing period",
+      "monthly": "Monthly",
+      "yearly": "Yearly",
+      "saveUpTo": "Save up to {pct}%",
+      "savePct": "Save {pct}%",
+      "perMonth": "per month",
+      "billedYearly": "{amount} billed yearly",
+      "billedMonthly": "Billed monthly",
+      "popular": "Most popular"
     }
   },
   "dashboard": {
+    "promoCode": {
+      "toggle": "Have a code?",
+      "label": "Promo code",
+      "placeholder": "Enter code",
+      "apply": "Apply",
+      "checking": "Checking...",
+      "remove": "Remove"
+    },
     "enums": {
       "servicePricing": {
         "hour": "Per hour",
@@ -11100,6 +11129,15 @@
           "hub": "Cross-agency discovery",
           "multiagency": "Operate multiple brands"
         }
+      },
+      "planChange": {
+        "loading": "Checking the price...",
+        "payToday": "You pay {amount} today. {plan} starts now.",
+        "changesOn": "Your plan changes to {plan} on {date}. Nothing is charged today.",
+        "cancelPending": "Keep your current plan and cancel the change you scheduled.",
+        "noChange": "You are already on this plan.",
+        "confirm": "Confirm change",
+        "cancel": "Not now"
       }
     },
     "adminIntegrationsCatalog": {
@@ -20993,6 +21031,11 @@
       "planPriceWebsite": "$12/mo",
       "billing": {
         "redirecting": "Redirecting…",
+        "pastDueTitle": "Payment failed.",
+        "pastDueGraceBody": "Your payment didn't go through. Paid features stay on for {days} more day(s). Update your card to keep them.",
+        "pastDueExpiredBody": "Your payment didn't go through and your plan is paused. Your content is safe. Restore your plan to get paid features back.",
+        "updateCard": "Update your card",
+        "restorePlan": "Restore plan",
         "openingPortal": "Opening portal…",
         "manageSubscription": "Manage subscription →",
         "statusActive": "Active",
