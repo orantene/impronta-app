@@ -63,14 +63,19 @@ function copyKey(action: string): string {
   return "signup"; // signup, invite, default
 }
 
-function localeFromRedirect(redirectTo?: string): Locale {
-  if (!redirectTo) return "en";
-  try {
-    const lang = new URL(redirectTo).searchParams.get("lang") ?? "";
-    return lang.toLowerCase().startsWith("es") ? "es" : "en";
-  } catch {
-    return "en";
+// Mirrors web/src/lib/notifications/auth-email-locale.ts (TUL-1179): redirect
+// ?lang= wins; if the redirect lost it, user_metadata.lang (stamped at sign-up).
+function emailLocale(redirectTo: string | undefined, metadataLang: unknown): Locale {
+  const pick = (v: string) => (v.toLowerCase().startsWith("es") ? "es" : "en");
+  if (redirectTo) {
+    try {
+      const lang = new URL(redirectTo).searchParams.get("lang");
+      if (lang) return pick(lang);
+    } catch {
+      // malformed redirect: fall through to metadata
+    }
   }
+  return typeof metadataLang === "string" ? pick(metadataLang) : "en";
 }
 
 function renderHtml(c: { heading: string; intro: string; button: string }, url: string): string {
@@ -102,7 +107,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: { http_code: 400, message: "missing email/token_hash" } }), { status: 400 });
   }
 
-  const locale = localeFromRedirect(ed.redirect_to);
+  const locale = emailLocale(ed.redirect_to as string | undefined, (user.user_metadata as { lang?: unknown } | undefined)?.lang);
   const c = COPY[copyKey(action)][locale];
   const type = action === "email_change_new" ? "email_change" : action === "invite" ? "invite" : action;
   const params = new URLSearchParams({ token_hash: tokenHash, type });
