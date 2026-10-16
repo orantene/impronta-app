@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LegalPage } from "@/components/marketing/legal-page";
+import { clientServiceFeePercentLabel } from "@/lib/billing/fee-config";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { withLocaleHref } from "@/i18n/pathnames";
 
@@ -124,7 +125,7 @@ export function TermsEs() {
               </p>
               <p>
                 Tarifa de servicio: los clientes pagan una tarifa de servicio de{" "}
-                {PLATFORM_BRAND.name} de 1.5% sobre el precio de la reservación. Se muestra al
+                {PLATFORM_BRAND.name} de {clientServiceFeePercentLabel()} sobre el precio de la reservación. Se muestra al
                 pagar, antes de que el cliente confirme, y es independiente de la comisión de
                 procesamiento de tarjeta descrita arriba. Las comisiones y tarifas para talentos
                 se indican en los planes.

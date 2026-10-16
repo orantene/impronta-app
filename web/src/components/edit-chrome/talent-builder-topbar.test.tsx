@@ -57,7 +57,7 @@ test("quick links mirror the dashboard nav in order, in Spanish", () => {
   assert.equal(links.length, TALENT_PAGES.length);
   assert.deepEqual(
     links.map((l) => l.label),
-    ["Hoy", "Mensajes", "Calendario", "Clientes", "Dinero", "Perfil", "Mi presencia", "Servicios", "Reseñas", "Ajustes"],
+    ["Hoy", "Mensajes", "Calendario", "Clientes", "Dinero", "Perfil", "Mi presencia", "Publicaciones", "Servicios", "Reseñas", "Ajustes"],
   );
   assert.equal(links[0]?.href, "/talent/today");
   assert.equal(links.find((l) => l.page === "public-page")?.href, "/talent/site");

@@ -5,6 +5,7 @@
  * plain Q&A derived only from fields the service already holds (duration, price, what is
  * paid at booking, free-cancel window). A missing field yields no question; nothing is invented.
  */
+import { resolvePublicPrice } from "@/lib/talent/public-price";
 import { servicePageCopy, servicePriceLine, type ServicePageOffering } from "./service-page";
 
 export type ServiceFaqItem = { question: string; answer: string };
@@ -65,7 +66,8 @@ export function serviceFaqItems(
     .filter((f) => f.question && f.answer);
   if (own.length) return own;
   const c = serviceFaqCopy(locale);
-  const price = servicePriceLine(o, locale, servicePageCopy(locale).priceFrom);
+  // A quote-only or on-request service has no figure to state: the FAQ never answers "how much" with a label.
+  const price = resolvePublicPrice(o, locale).cents != null ? servicePriceLine(o, locale, servicePageCopy(locale).priceFrom) : null;
   const pay = payAnswer(o, c);
   const rows: [string, string | null][] = [
     [c.duration, o.durationMinutes && o.durationMinutes > 0 ? `${servicePageCopy(locale).minutes(o.durationMinutes)}.` : null],

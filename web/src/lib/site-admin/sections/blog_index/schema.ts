@@ -15,7 +15,17 @@ const postSchema = z.object({
 export const blogIndexSchemaV1 = z.object({
   eyebrow: z.string().max(60).optional(),
   headline: z.string().max(200).optional(),
-  posts: z.array(postSchema).min(1).max(24),
+  /**
+   * "live" = the site's real posts ("Últimos posts"); "manual" = the list below.
+   * Absent = legacy: manual when `posts` has items, live otherwise.
+   */
+  source: z.enum(["live", "manual"]).optional(),
+  /** Live source: how many posts to show (default 3). */
+  limit: z.number().int().min(1).max(12).optional(),
+  /** Live source: only this category (slug). */
+  categorySlug: z.string().max(80).optional(),
+  /** Manual list. Optional now that the section can be live. */
+  posts: z.array(postSchema).max(24).optional(),
   variant: z.enum(["cards", "list", "magazine"]).default("cards"),
   columnsDesktop: z.number().int().min(2).max(4).default(3),
   nodePresentation: z
