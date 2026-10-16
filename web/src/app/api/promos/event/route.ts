@@ -10,7 +10,7 @@ import { handlePromoEvent, type PromoEventDeps } from "@/lib/promos/share/events
 import { promoLinkSecret, verifyPersonalToken } from "@/lib/promos/share/token";
 
 /**
- * POST /api/promos/event  { promoId, kind: view | link_open | share, via?, t? }
+ * POST /api/promos/event  { promoId, kind: view | link_open | share | reveal, via?, t? }
  *
  * The only writer of promo_events (service role). Rate limited per cookie
  * session + IP. A `link_open` also pins the promo for 7 days in an httpOnly

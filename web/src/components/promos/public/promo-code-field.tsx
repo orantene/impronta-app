@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { publicPromoCopy } from "@/lib/promos/copy/public";
 import { normalizeTypedCode, promoCodeMessage, type PromoCodeOutcome } from "@/lib/promos/public-view";
@@ -12,15 +12,47 @@ import { normalizeTypedCode, promoCodeMessage, type PromoCodeOutcome } from "@/l
 export function PromoCodeField({
   locale,
   onApply,
+  prefillCode = null,
+  onPrefillResult,
 }: {
   locale: string;
   onApply: (code: string) => Promise<PromoCodeOutcome>;
+  /** A code handed over by "Book with promo": opened and applied ONCE on mount. */
+  prefillCode?: string | null;
+  onPrefillResult?: (outcome: PromoCodeOutcome | null) => void;
 }) {
   const copy = publicPromoCopy(locale);
-  const [open, setOpen] = useState(false);
-  const [value, setValue] = useState("");
+  const [open, setOpen] = useState(prefillCode !== null);
+  const [value, setValue] = useState(prefillCode ?? "");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const prefillRan = useRef(false);
+  const applyRef = useRef(onApply);
+  const resultRef = useRef(onPrefillResult);
+  useEffect(() => {
+    applyRef.current = onApply;
+    resultRef.current = onPrefillResult;
+  });
+
+  useEffect(() => {
+    if (prefillCode === null || prefillRan.current) return;
+    prefillRan.current = true;
+    setOpen(true);
+    setValue(prefillCode);
+    setBusy(true);
+    applyRef.current(prefillCode).then(
+      (outcome) => {
+        setMsg({ text: promoCodeMessage(outcome, prefillCode, locale), ok: outcome.ok });
+        setBusy(false);
+        resultRef.current?.(outcome);
+      },
+      () => {
+        setMsg({ text: publicPromoCopy(locale).codeTryAgain, ok: false });
+        setBusy(false);
+        resultRef.current?.(null);
+      },
+    );
+  }, [prefillCode, locale]);
 
   if (!open) {
     return (

@@ -15,6 +15,7 @@
 import type { OnboardingChoice } from "./choice";
 import { offeringOwnerFor } from "./offering-owner";
 import { isSoleOwnerProvider } from "./owner-hours";
+import { applyPriceChoice } from "./service-price-choice";
 
 export type DayKey = "0" | "1" | "2" | "3" | "4" | "5" | "6";
 export type HourRange = { startMin: number; endMin: number };
@@ -36,6 +37,10 @@ export type EssentialService = {
   nameI18n?: { en: string; es: string } | null;
   /** The words the person used when the line was renamed to the pack name (finds the AI draft row). */
   saidAs?: string | null;
+  /** TUL-633: the price is a pre-filled suggestion the person has not confirmed yet. Never published as a price. */
+  priceSuggested?: boolean;
+  /** TUL-633: the person chose "Get a quote" on purpose: published as "Request a quote", not held as an unpriced draft. */
+  quoteChosen?: boolean;
 };
 
 export type PlaceMode = "studio" | "home" | "client";
@@ -416,6 +421,8 @@ export function parseEssentialService(raw: unknown, fallbackCurrency = "USD"): E
     // Kept only while the line still carries one of the pack names: an edited name is the person's own words.
     nameI18n: en && es && (name === en || name === es) ? { en, es } : null,
     saidAs: saidAs || null,
+    priceSuggested: r.priceSuggested === true && priceCents !== null && r.quote !== true,
+    quoteChosen: r.quoteChosen === true && (r.quote === true || priceCents === null),
   };
 }
 
@@ -534,7 +541,7 @@ export function planOfferingWrites(existing: ExistingOffering[], services: Essen
     const key = norm(s.name);
     if (!key || seen.has(key)) return;
     seen.add(key);
-    const row = offeringRowFor(s, i);
+    const row = applyPriceChoice(offeringRowFor(s, i), s);
     const hit = [s.name, s.saidAs, s.nameI18n?.en, s.nameI18n?.es]
       .map((t) => (t ? byTitle.get(norm(t)) : undefined))
       .find((o) => o && !claimed.has(o.id));
