@@ -1,3 +1,4 @@
+-- Applied to prod 2026-10-14 (or earlier); file landed for ledger parity (no re-apply needed).
 -- TUL-633: suggested starting prices for NEW talents' services (what a talent charges her clients).
 -- Used only to pre-fill signup as "Suggested, tap to change". Not Tulala plan prices.
 -- ADDITIVE ONLY. Draft rows are invisible to anon/authenticated until a super_admin approves them.
