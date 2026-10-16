@@ -126,3 +126,18 @@ export function openMarketingSupport(ticketId?: string): void {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent(TULALA_SUPPORT_OPEN_EVENT, { detail: { ticketId } }));
 }
+
+/**
+ * Starter chips for the Ask Tulala panel. Signed-in users get the support
+ * set on every viewport; the sales set is for signed-out marketing visitors.
+ */
+export function supportStarters(signedIn: boolean, copy: MarketingSupportCopy): string[] {
+  return signedIn
+    ? [copy.starterBroken, copy.starterBilling, copy.starterAccount, copy.starterHuman]
+    : [copy.starterPricing, copy.starterDomain, copy.starterPayments, copy.starterHuman];
+}
+
+/** Composer placeholder: support wording when signed in, sales wording otherwise. */
+export function supportComposerPlaceholder(signedIn: boolean, copy: MarketingSupportCopy): string {
+  return signedIn ? copy.composerPlaceholderSignedIn : copy.composerPlaceholder;
+}

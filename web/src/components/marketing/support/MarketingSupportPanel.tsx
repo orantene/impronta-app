@@ -1,7 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getMarketingSupportCopy, type MarketingSupportCopy } from "@/lib/marketing/support-copy";
+import {
+  getMarketingSupportCopy,
+  supportComposerPlaceholder,
+  supportStarters,
+  type MarketingSupportCopy,
+} from "@/lib/marketing/support-copy";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 import {
@@ -40,9 +45,7 @@ async function requestGuestSupportAnswer(ticketId: string): Promise<boolean> {
  * whether we asked for an email address.
  */
 function startersFor(signedIn: boolean, copy: MarketingSupportCopy): string[] {
-  return signedIn
-    ? [copy.starterBroken, copy.starterBilling, copy.starterAccount, copy.starterHuman]
-    : [copy.starterPricing, copy.starterDomain, copy.starterPayments, copy.starterHuman];
+  return supportStarters(signedIn, copy);
 }
 
 /**
@@ -509,7 +512,7 @@ export function MarketingSupportPanel({
               if (!busy && draft.trim()) void sendQuestion();
             }
           }}
-          placeholder={signedIn ? copy.composerPlaceholderSignedIn : copy.composerPlaceholder}
+          placeholder={supportComposerPlaceholder(signedIn, copy)}
           rows={3}
           className="mb-2 w-full resize-none rounded-xl border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg)] px-3 py-2 text-[0.875rem]"
         />
