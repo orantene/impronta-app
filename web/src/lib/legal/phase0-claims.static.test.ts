@@ -55,21 +55,26 @@ test("self-cancel copy does not promise a link-based cancel", () => {
   );
 });
 
-test("terms state talent merchant of record and 18+ in EN and ES, marked for review", () => {
+test("terms describe collect-and-pay-out (TUL-43 option A) and 18+ in EN and ES, marked for review", () => {
   const s = read("src/app/(marketing)/legal/terms/page.tsx");
-  assert.match(s, /merchant of record/);
+  // Option A (Oran, 2026-10-16): the Terms follow the code. Tulala's platform account takes the card
+  // payment and pays the seller out; the talent is not merchant of record through its own Connect account.
+  assert.doesNotMatch(s, /merchant of record|own Stripe Connect/);
+  assert.match(s, /collects the client\u2019s payment/);
   const es = read("src/app/(marketing)/legal/terms/terms-es.tsx");
-  assert.match(es, /comerciante registrado/);
+  assert.doesNotMatch(es, /comerciante registrado|propia cuenta de Stripe Connect/);
+  assert.match(es, /Tulala cobra el pago del cliente/);
   assert.match(es, /LEGAL_REVIEW_PENDING/);
   assert.match(s, /18 or older/);
   assert.match(es, /18 años o más/);
   assert.match(s, /LEGAL_REVIEW_PENDING/);
   const panel = read("src/components/talent/money/MoneyPayoutsPanel.tsx");
-  assert.match(panel, /merchant of record/);
+  assert.doesNotMatch(panel, /merchant of record/);
+  assert.match(panel, /Tulala collects your clients/);
   assert.match(panel, /LEGAL_REVIEW_PENDING/);
 });
 
-test("no legal page claims Tulala covers chargebacks; chargebacks belong to the talent", () => {
+test("no legal page claims Tulala covers chargebacks; lost disputes are recovered from the seller", () => {
   const pages = [
     "src/app/(marketing)/legal/terms/page.tsx",
     "src/app/(marketing)/legal/terms/terms-es.tsx",
@@ -83,8 +88,9 @@ test("no legal page claims Tulala covers chargebacks; chargebacks belong to the 
     assert.doesNotMatch(s, /\{PLATFORM_BRAND\.name\} (covers it|lo cubre)/, p);
     assert.doesNotMatch(s, /Tulala covers|Tulala cubre/i, p);
   }
-  assert.match(read(pages[0]).replace(/\s+/g, " "), /chargebacks and disputes are the talent&rsquo;s responsibility/);
-  assert.match(read(pages[1]).replace(/\s+/g, " "), /contracargos y las disputas son responsabilidad del talento/);
-  assert.match(read(pages[4]).replace(/\s+/g, " "), /chargebacks and disputes are the talent&rsquo;s responsibility/);
-  assert.match(read(pages[5]).replace(/\s+/g, " "), /contracargos y las disputas son responsabilidad del talento/);
+  // TUL-43 option A: disputes land on Tulala's payment account; Tulala handles them and can reverse the payout.
+  assert.match(read(pages[0]).replace(/\s+/g, " "), /raised against \{PLATFORM_BRAND\.name\}&rsquo;s payment account/);
+  assert.match(read(pages[1]).replace(/\s+/g, " "), /se presenta contra la cuenta de pagos de/);
+  assert.match(read(pages[4]).replace(/\s+/g, " "), /raised against \{PLATFORM_BRAND\.name\}&rsquo;s payment account/);
+  assert.match(read(pages[5]).replace(/\s+/g, " "), /se presenta contra la cuenta de pagos de/);
 });
