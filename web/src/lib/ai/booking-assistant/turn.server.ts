@@ -57,14 +57,14 @@ import { improntaLog } from "@/lib/server/structured-log";
 export { BOOKING_ASSISTANT_MODEL } from "./model";
 
 /** Hard cut for deferred LLM work (guest already got their send response). */
-const LLM_TIMEOUT_MS = 5_000;
+const LLM_TIMEOUT_MS = 8_000;
 
 /**
  * Live QA / ops: every silent skip must leave a greppable line.
  * Event name: booking_assistant_skip | booking_assistant_run | booking_assistant_schedule.
  */
 function logBookingAssistant(
-  event: "booking_assistant_skip" | "booking_assistant_run" | "booking_assistant_schedule",
+  event: "booking_assistant_skip" | "booking_assistant_run" | "booking_assistant_schedule" | "booking_assistant_handoff",
   fields: Record<string, string | number | boolean | null | undefined>,
 ): void {
   void improntaLog(event, fields);
@@ -642,6 +642,7 @@ export async function maybeRunBookingAssistantTurn(
     // TUL-1155: after a handoff the canned copy is never posted twice.
     const handedOffBefore = prior.some((m) => m.systemEventType === "booking_assistant_handoff");
     if (!completion.ok) {
+      logBookingAssistant("booking_assistant_handoff", { ...base, detail: "completion_failed" });
       if (handedOffBefore) return null;
       return insertSystemEvent({
         inquiryId: args.inquiryId,
@@ -657,8 +658,11 @@ export async function maybeRunBookingAssistantTurn(
     // Bare, fenced or prose-wrapped JSON is used; broken JSON never reaches the guest.
     const output = classifyAssistantOutput(completion.text);
     const parsed = output.kind === "structured" ? output.value : null;
-    const handoffNow = (reason: BookingHandoffReason) =>
-      handedOffBefore
+    // Every post-LLM handoff logs WHY, so a live run can tell timeout, parse,
+    // guardrail and catalog misses apart (TUL-36 runtime check).
+    const handoffNow = (reason: BookingHandoffReason, detail: string) => {
+      logBookingAssistant("booking_assistant_handoff", { ...base, detail });
+      return handedOffBefore
         ? null
         : insertSystemEvent({
             inquiryId: args.inquiryId,
@@ -668,8 +672,9 @@ export async function maybeRunBookingAssistantTurn(
             reason,
             locale,
           });
+    };
     // Unparseable JSON-looking text must never be posted to the guest verbatim.
-    if (output.kind === "broken") return handoffNow("unsure");
+    if (output.kind === "broken") return handoffNow("unsure", "broken_json");
 
     const catalogIds = new Set(
       offerings.map((o) => o.id).filter((id): id is string => typeof id === "string" && id !== ""),
@@ -678,14 +683,14 @@ export async function maybeRunBookingAssistantTurn(
       ? resolveAssistantAction(parsed, { catalogIds, canOfferTimes: bookingMode !== "inquiry" })
       : ({ kind: "answer", reply: output.kind === "text" ? output.text : "" } as const);
 
-    if (resolved.kind === "handoff") return handoffNow("unsure");
+    if (resolved.kind === "handoff") return handoffNow("unsure", "model_or_catalog_handoff");
 
     const sanitized = sanitizeBookingAssistantOutput(resolved.reply, grounding);
-    if (sanitized.escalate || !sanitized.text.trim()) return handoffNow("unsure");
+    if (sanitized.escalate || !sanitized.text.trim()) return handoffNow("unsure", sanitized.escalate ? "guardrail_escalate" : "empty_reply");
 
     if (resolved.kind === "offer_times") {
       const offering = offerings.find((o) => o.id === resolved.offeringId);
-      if (!offering || !offering.id) return handoffNow("unsure");
+      if (!offering || !offering.id) return handoffNow("unsure", "offering_not_found");
       const replyBody = sanitized.text.trim();
       let replyPosted: GuestThreadMessage | null = null;
       const outcome = await postOfferTimesCard({
@@ -706,7 +711,7 @@ export async function maybeRunBookingAssistantTurn(
         },
       });
       if (outcome === "posted") return replyPosted;
-      if (outcome === "unavailable") return handoffNow("unsure");
+      if (outcome === "unavailable") return handoffNow("unsure", "times_unavailable");
       if (outcome === "no_times") {
         // The model's reply promised times; say none are open instead, then hand off.
         if (handedOffBefore) return null;
