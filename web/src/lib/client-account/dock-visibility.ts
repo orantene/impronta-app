@@ -18,3 +18,11 @@ export function shouldHideAccountDock(
  * taps on the bubble.
  */
 export const ACCOUNT_DOCK_Z_INDEX = 94;
+
+/**
+ * TUL-1207: at 390px the fixed 44px dock (right edge) passed over the save
+ * hearts that sit in the top-right corner of the right-column directory cards.
+ * On narrow screens it moves to the left edge, which no card control uses.
+ */
+export const DOCK_NARROW_SIDE_CSS =
+  '[data-client-account-trigger="dock"]{right:auto!important;left:max(16px,env(safe-area-inset-left))!important}';
