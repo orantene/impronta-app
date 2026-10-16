@@ -1054,7 +1054,7 @@ const BUILDER_NODE_CAROUSEL_HERO_CSS = `
 .site-bn-hero__sub{margin-top:26px;font-size:clamp(1rem,1.4vw,1.2rem);max-width:46ch;color:rgba(255,255,255,0.84);font-weight:300;line-height:1.55}
 .site-bn-hero__cta{margin-top:40px;display:flex;gap:14px;flex-wrap:wrap}
 .site-bn-hero__btn{display:inline-flex;align-items:center;justify-content:center;padding:0.95rem 1.8rem;border-radius:var(--site-radius-base,2px);font-size:0.8rem;letter-spacing:0.12em;text-transform:uppercase;font-weight:500;text-decoration:none;transition:transform .4s var(--bn-ease),filter .4s var(--bn-ease)}
-.site-bn-hero__btn--primary{background:linear-gradient(135deg,color-mix(in srgb,var(--token-color-primary,#c6a14e) 80%,#fff),var(--token-color-primary,#c6a14e) 55%,color-mix(in srgb,var(--token-color-primary,#c6a14e) 72%,#000));color:#1a1408}
+.site-bn-hero__btn--primary{background:linear-gradient(135deg,color-mix(in srgb,var(--token-color-primary,#c6a14e) 80%,#fff),var(--token-color-primary,#c6a14e) 55%,color-mix(in srgb,var(--token-color-primary,#c6a14e) 72%,#000));color:#1a1408;color:oklch(from var(--token-color-primary,#c6a14e) clamp(0,(.6 - l)*1000,1) 0 0)}
 .site-bn-hero__btn--secondary{border:1px solid color-mix(in srgb,var(--token-color-primary,#c6a14e) 60%,transparent);color:#fff}
 .site-bn-hero__btn:hover{transform:translateY(-2px);filter:brightness(1.08)}
 .site-bn-hero__meta{position:absolute;z-index:6;right:clamp(20px,5vw,88px);bottom:clamp(74px,11vh,134px);display:flex;flex-direction:column;gap:14px;align-items:flex-end}
