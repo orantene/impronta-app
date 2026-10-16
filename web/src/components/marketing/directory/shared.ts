@@ -20,6 +20,7 @@ import {
 } from "@/lib/site-admin/sections/directory/card-data";
 import type { CardDesign } from "@/lib/site-admin/server/card-design-shape";
 import { DIRECTORY_COPY_EN, type DirectoryCopy } from "./directory-copy";
+import { spanishPlaceName } from "@/lib/i18n/place-names-es";
 
 export type {
   DiscoverTalentListItem,
@@ -314,12 +315,16 @@ export function availabilityLine(
  * capitalized. Commas, hyphens, apostrophes and spacing survive because we only
  * transform letter/number runs in place.
  */
+/** Lowercase connectors inside a place name ("Ciudad de México", "Playa del Carmen"). */
+const LOWER_PARTICLES = new Set(["de", "del", "la", "las", "los", "y", "da", "do", "dos"]);
+
 export function smartTitleCase(input: string): string {
-  return input.replace(/[\p{L}\p{N}]+/gu, (token) =>
-    token === token.toLowerCase()
+  return input.replace(/[\p{L}\p{N}]+/gu, (token, offset: number) => {
+    if (offset > 0 && LOWER_PARTICLES.has(token)) return token;
+    return token === token.toLowerCase()
       ? token.charAt(0).toUpperCase() + token.slice(1)
-      : token,
-  );
+      : token;
+  });
 }
 
 let enRegionIndex: Map<string, string> | null = null;
@@ -366,12 +371,30 @@ function trailingCountry(city: string, country: string, localized: string): stri
   return [localized, raw, en].find((t) => t && lc.endsWith(t.toLowerCase())) ?? null;
 }
 
+/**
+ * TUL-738: stored city labels reach the marketing directory in English or
+ * without accents ("Mexico City", "Cancun, Quintana Roo, Mexico"). On a Spanish
+ * page each comma-separated part goes through the shared place-name table
+ * (Ciudad de México, Cancún, México); unknown parts pass through untouched and
+ * English is never changed.
+ */
+export function localizeCityLabel(city: string, locale: "en" | "es"): string {
+  if (locale !== "es" || !city) return city;
+  return city
+    .split(",")
+    .map((part) => {
+      const lead = part.match(/^\s*/)?.[0] ?? "";
+      return lead + spanishPlaceName(part.trim(), locale);
+    })
+    .join(",");
+}
+
 export function locationLine(
   city: string | null,
   country: string | null,
   locale: "en" | "es" = "en",
 ): string | null {
-  const c = (city ?? "").trim();
+  const c = localizeCityLabel((city ?? "").trim(), locale);
   const co = localizeCountry(country ?? "", locale);
   let line: string;
   if (!c) {
