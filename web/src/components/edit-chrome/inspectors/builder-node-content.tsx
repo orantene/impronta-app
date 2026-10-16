@@ -1602,10 +1602,24 @@ function BuilderNodeContentInspectorBody({
   }
 
   if (node.kind === "services_catalog") {
-    return <ServicesCatalogContentInspector node={node} commitPatch={commitPatch} />;
+    return (
+      <ServicesCatalogContentInspector
+        node={node}
+        commitPatch={commitPatch}
+        tenantId={tenantId}
+        LocalizableTextField={BuilderNodeLocalizableTextField}
+      />
+    );
   }
   if (node.kind === "portfolio") {
-    return <PortfolioContentInspector node={node} commitPatch={commitPatch} />;
+    return (
+      <PortfolioContentInspector
+        node={node}
+        commitPatch={commitPatch}
+        tenantId={tenantId}
+        LocalizableTextField={BuilderNodeLocalizableTextField}
+      />
+    );
   }
   if (node.kind === "reviews") {
     return <ReviewsContentInspector node={node} commitPatch={commitPatch} />;
@@ -1663,7 +1677,14 @@ function BuilderNodeContentInspectorBody({
     return <SpecTableContentInspector node={node} commitPatch={commitPatch} />;
   }
   if (node.kind === "comp_card") {
-    return <CompCardContentInspector node={node} commitPatch={commitPatch} />;
+    return (
+      <CompCardContentInspector
+        node={node}
+        commitPatch={commitPatch}
+        tenantId={tenantId}
+        LocalizableTextField={BuilderNodeLocalizableTextField}
+      />
+    );
   }
   if (node.kind === "next_free_chip") {
     return <NextFreeChipContentInspector node={node} commitPatch={commitPatch} />;
