@@ -27,6 +27,7 @@ import {
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { logServerError } from "@/lib/server/safe-error";
 import { parseTalentSiteHelpContactInput } from "@/lib/support/talent-site-help-context";
+import { buildChatReportTicket } from "@/lib/support/chat-report";
 
 export type GuestSupportFail = { ok: false; error: string };
 export type GuestSupportOk<T extends object = object> = { ok: true } & T;
@@ -508,4 +509,65 @@ async function ticketHadAiError(
   return ((data ?? []) as unknown[])
     .map(mapMessageRow)
     .some((m) => Boolean(m?.aiMeta && (m.aiMeta as Record<string, unknown>).fail_open));
+}
+
+/**
+ * TUL-645: a visitor reports THEIR OWN talent-page chat to Tulala. Ownership is proven by the
+ * guest session (or the signed-in client) on the inquiry; the ticket links the inquiry by id
+ * and never copies the conversation.
+ */
+export async function reportGuestChatToSupportAction(input: {
+  inquiryId: string;
+  note?: string | null;
+  talentProfileCode?: string | null;
+  locale?: "en" | "es";
+  honeypot?: string | null;
+}): Promise<GuestSupportOk<{ ticketNumber: number }> | GuestSupportFail> {
+  await requireNotImpersonating();
+  const inquiryId = (input.inquiryId ?? "").trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inquiryId)) {
+    return { ok: false, error: "We couldn't find that conversation." };
+  }
+  const ident = await requireSignedGuest();
+  if (!ident.ok) return ident;
+  const { data: inquiry, error: inquiryError } = await ident.admin
+    .from("inquiries")
+    .select("id, tenant_id, guest_session_id, client_user_id")
+    .eq("id", inquiryId)
+    .maybeSingle();
+  if (inquiryError) return { ok: false, error: "We couldn't report this chat right now. Try again." };
+  const row = inquiry as { id: string; tenant_id: string | null; guest_session_id: string | null; client_user_id: string | null } | null;
+  const owns =
+    Boolean(row) &&
+    (row?.guest_session_id === ident.guestSessionId || (ident.userId !== null && row?.client_user_id === ident.userId));
+  if (!row || !owns) return { ok: false, error: "We couldn't find that conversation." };
+
+  const abuse = await checkGuestSupportCreateAbuse({
+    honeypot: input.honeypot,
+    guestSessionId: ident.guestSessionId,
+    ip: await resolveClientIp(),
+    email: ident.email,
+  });
+  if (!abuse.ok) return { ok: false, error: abuse.error };
+
+  const t = buildChatReportTicket({
+    inquiryId: row.id,
+    tenantId: row.tenant_id,
+    talentProfileCode: input.talentProfileCode ?? null,
+    note: input.note,
+    locale: input.locale,
+  });
+  const result = await supportEngine.createTicket({
+    tenantId: null,
+    surface: "guest",
+    requester: { kind: "guest", guestSessionId: ident.guestSessionId, userId: ident.userId },
+    subject: t.subject,
+    body: t.body,
+    originSlug: "/chat-report",
+    contactEmail: ident.email,
+    handledBy: "human",
+    metadata: t.metadata,
+  });
+  if (!result.ok) return result;
+  return { ok: true, ticketNumber: result.data.ticket.ticketNumber };
 }

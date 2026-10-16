@@ -18,6 +18,7 @@ import { Briefcase, Calendar, MessageCircle } from "lucide-react";
 
 import type { Translator } from "@/i18n/interpolate";
 
+import { dockTabDisplayLabel } from "./guest-dock-nav-label";
 import type { GuestDockView } from "./guest-dock-view";
 import { FONT, readableOn, type Palette } from "./mini-chat-styles";
 
@@ -72,7 +73,6 @@ export function GuestDockNav({
     if (view === "projects" && projectsLabel) return projectsLabel;
     return t(labelKey);
   };
-
   return (
     <div
       role="tablist"
@@ -103,6 +103,7 @@ export function GuestDockNav({
             role="tab"
             aria-selected={isActive}
             aria-label={labelFor(view, labelKey)}
+            title={labelFor(view, labelKey)}
             onClick={() => {
               if (active === "home" && view === "chat") {
                 onChange("chat");
@@ -115,11 +116,11 @@ export function GuestDockNav({
               flex: 1,
               minWidth: 0,
               display: "inline-flex",
-              flexDirection: "row",
+              flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              gap: 6,
-              padding: "7px 10px",
+              gap: 3,
+              padding: "6px 4px",
               border: "none",
               borderRadius: 999,
               // DoR active = transparent fill + inset accent outline (not white pill).
@@ -165,14 +166,15 @@ export function GuestDockNav({
                 fontSize: 10.5,
                 fontWeight: isActive ? 700 : 500,
                 letterSpacing: 0.1,
-                lineHeight: 1,
+                lineHeight: 1.15,
+                textAlign: "center",
                 maxWidth: "100%",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
               }}
             >
-              {labelFor(view, labelKey)}
+              {dockTabDisplayLabel(labelFor(view, labelKey))}
             </span>
           </button>
         );

@@ -15,6 +15,12 @@ export type TalentChatConfig = {
    * control). Distinct from `chatEnabled` (dock visible vs hidden).
    */
   aiBookingAssistantEnabled: boolean;
+  /**
+   * TUL-21: outside AI assistants (MCP `request_booking`) may hand a person a
+   * link to book this talent. Default off. Read-only tools (services, open
+   * times) do not need it: they show what the public site already shows.
+   */
+  agentBookingEnabled: boolean;
   /** TUL-694: client account icon in the site header. `auto` = smart default (on while taking bookings). */
   clientAccountEntry: ClientAccountEntrySetting;
 };
@@ -30,7 +36,7 @@ export const DEFAULT_TALENT_SITE_SWITCHES: TalentSiteSwitches = {
   acceptingBookings: true,
   acceptingInquiries: true,
   chatEnabled: true,
-  chatConfig: { greeting: null, browseServices: true, aiBookingAssistantEnabled: false, clientAccountEntry: "auto" },
+  chatConfig: { greeting: null, browseServices: true, aiBookingAssistantEnabled: false, agentBookingEnabled: false, clientAccountEntry: "auto" },
 };
 
 const GREETING_MAX = 280;
@@ -50,6 +56,7 @@ export function parseTalentChatConfig(raw: unknown): TalentChatConfig {
     browseServices: bool(obj.browseServices, true),
     // Explicit true only; missing / junk stays off (PM: default OFF).
     aiBookingAssistantEnabled: obj.aiBookingAssistantEnabled === true,
+    agentBookingEnabled: obj.agentBookingEnabled === true,
     clientAccountEntry: parseClientAccountEntrySetting(obj.clientAccountEntry),
   };
 }

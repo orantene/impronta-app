@@ -1,7 +1,14 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 
-import { normalizeExtractedFacts, normalizeHoursPhrase, normalizeHoursValue, normalizePhoneValue, normalizeServiceList } from "./normalize-facts";
+import {
+  formatCanonicalHoursForLocale,
+  normalizeExtractedFacts,
+  normalizeHoursPhrase,
+  normalizeHoursValue,
+  normalizePhoneValue,
+  normalizeServiceList,
+} from "./normalize-facts";
 
 describe("hours phrases", () => {
   const cases: Array<[string, string | null]> = [
@@ -26,6 +33,13 @@ describe("hours phrases", () => {
     assert.deepEqual(normalizeHoursValue(["lunes", "martes", "miercoles", "jueves", "viernes", "sabado"]), ["Mon-Sat"]);
     assert.deepEqual(normalizeHoursValue(["de lunes a viernes", "cuando se pueda"]), ["Mon-Fri", "cuando se pueda"]);
     assert.equal(normalizeHoursValue(42), 42);
+  });
+
+  test("TUL-540: ES display of canonical hours keeps EN storage shape", () => {
+    assert.equal(formatCanonicalHoursForLocale("Tue-Sun 13:00-23:00", "es"), "Mar-Dom 13:00-23:00");
+    assert.equal(formatCanonicalHoursForLocale("Every day 10:00-20:00", "es"), "Todos los días 10:00-20:00");
+    assert.equal(formatCanonicalHoursForLocale("By appointment", "es"), "Con cita");
+    assert.equal(formatCanonicalHoursForLocale("Mon-Sat 09:00-19:00", "en"), "Mon-Sat 09:00-19:00");
   });
 });
 

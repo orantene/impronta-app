@@ -52,3 +52,8 @@ src/lib/words/business-types-everyday-words.test.ts
 src/components/onboarding/arrival-failed.static.test.ts
 src/components/onboarding/sticky-footer-clearance.static.test.ts
 src/components/onboarding/choose-step-keyboard.static.test.ts
+src/components/admin/shell/internal/palette-help-key.static.test.ts
+src/components/admin/shell/internal/talent/today-mobile-header.static.test.ts
+src/components/support/support-qa1054.static.test.ts
+src/components/talent/site/max-site-manager-timeout.static.test.ts
+src/lib/talent/clients-directory.test.ts
