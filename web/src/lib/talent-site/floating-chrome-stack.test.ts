@@ -161,3 +161,18 @@ test("TUL-697: an open public-header mobile drawer hides chat FAB, help teaser, 
     assert.ok(FLOATING_CHROME_STACK_CSS.includes(`${m} ${target}`), target);
   }
 });
+
+// TUL-799: while the sticky booking bar is painted the phone launcher floats ABOVE the
+// bar (bar height + 24px), so the reserved bottom clearance must grow with it or the
+// bubble sits over the last footer links ("Términos").
+test("TUL-799: bar-up phone clearance covers the launcher lifted above the bar", () => {
+  const css = FLOATING_CHROME_STACK_CSS;
+  const m = css.match(
+    /@media \(max-width:719px\)\{body:has\(\[data-guest-chat-launcher\]\):has\(\.cb-bar\[data-show="true"\]:not\(\[data-top="true"\]\),\.mn-bar\[data-show="true"\]\)\{--floating-launcher-clearance:calc\(var\(--cb-bar-h\) \+ (\d+)px \+ (\d+)px \+ (\d+)px\)\}\}/,
+  );
+  assert.ok(m, "bar-up clearance rule missing");
+  // 24 (launcher offset above the bar) + 52 (launcher) + 12 (gap)
+  assert.deepEqual(m.slice(1).map(Number), [24, 52, 12]);
+  // Must come after the base ≤480 launcher clearance so it wins.
+  assert.ok(css.indexOf(m[0]) > css.indexOf("--floating-launcher-clearance:calc(") );
+});

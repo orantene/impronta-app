@@ -75,3 +75,17 @@ test("TUL-676: offer bells (title + body, stored in English) render in ES", () =
     "MXN 300.00 for QA Guest Grok. Open the Offer tab to review and approve.",
   );
 });
+
+// TUL-721: the day-of reminder bell stayed English with a raw ISO date.
+test("TUL-721: day-of reminder bells localize title and body, with a readable date", () => {
+  assert.equal(localizeNotificationText("Your event is tomorrow", "es"), "Tu evento es mañana");
+  assert.equal(localizeNotificationText("Your appointment is tomorrow", "es"), "Tu cita es mañana");
+  assert.equal(localizeNotificationText("Your booking is tomorrow.", "es"), "Tu reserva es mañana.");
+  const body = localizeNotificationText("Your booking on 2026-10-15 is tomorrow.", "es");
+  assert.doesNotMatch(body, /2026-10-15|Your/);
+  assert.match(body, /15 de octubre/);
+  assert.equal(
+    localizeNotificationText("Your booking on 2026-10-15 is tomorrow.", "en"),
+    "Your booking on 2026-10-15 is tomorrow.",
+  );
+});
