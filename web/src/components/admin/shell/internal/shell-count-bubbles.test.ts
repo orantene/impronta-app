@@ -290,3 +290,63 @@ describe("TUL-1109 contrast", () => {
   });
 });
 
+describe("TUL-1109 /talent/today node groups (09's axe list)", () => {
+  const read = (rel: string) => readFileSync(join(DIR, rel), "utf8");
+  const fixtures = read("state/fixtures.ts");
+  const hexOf = (key: string): number[] => {
+    const m = fixtures.match(new RegExp(`\\b${key}:\\s*"#([0-9A-Fa-f]{6})"`));
+    assert.ok(m, `COLORS.${key} is a hex in fixtures.ts`);
+    return [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16));
+  };
+  const over = (fg: readonly number[], alpha: number, bg: readonly number[]) =>
+    fg.map((v, i) => v * alpha + bg[i] * (1 - alpha));
+  const WHITE = [255, 255, 255];
+  const SURFACE_ALT = hexOf("surfaceAlt");
+  const INK = hexOf("ink");
+  const INK_MUTED_ALPHA = 0.72;
+
+  it("stage pills: coral/green text sits on its 10% tint at 4.5:1 or better (30 + 4 nodes)", () => {
+    const src = read("talent/shared/client-threads-1.tsx");
+    assert.match(src, /inquiry: \{ label: "Inquiry", tone: COLORS\.coralDeep,/);
+    assert.match(src, /cancelled: \{ label: "Cancelled", tone: COLORS\.coralDeep,/);
+    assert.match(src, /booked: \{ label: "Booked", tone: COLORS\.successDeep,/);
+    const coralTint = over(token("--color-admin-coral"), 0.1, WHITE);
+    const greenTint = over(token("--color-admin-green"), 0.1, WHITE);
+    assert.ok(contrast(hexOf("coralDeep"), coralTint) >= 4.5, "coralDeep on the coral tint");
+    assert.ok(contrast(hexOf("successDeep"), greenTint) >= 4.5, "successDeep on the green tint");
+    assert.ok(contrast(token("--color-admin-coral"), coralTint) < 4.5, "the old raw coral failed (3.43)");
+  });
+
+  it("week strip 'Gratis'/'Hoy' 9px labels: the extra opacity no longer drops them below 4.5:1 (7 nodes)", () => {
+    const src = read("talent/shared/week-rhythm-1.tsx");
+    const m = src.match(/fontSize: 9, color: theme\.label, fontFamily: FONTS\.body,\s*opacity: ([0-9.]+),/);
+    assert.ok(m, "the Free/Today label keeps an explicit opacity");
+    const opacity = Number(m[1]);
+    const flat = over(INK, INK_MUTED_ALPHA * opacity, SURFACE_ALT);
+    assert.ok(contrast(flat, SURFACE_ALT) >= 4.5, `Gratis at opacity ${opacity} is ${contrast(flat, SURFACE_ALT).toFixed(2)}:1`);
+  });
+
+  it("stat-tile captions use the muted ink (empty hints) and the deep coral, never the dim ink", () => {
+    const src = read("talent/shared/calendar-2.tsx");
+    assert.match(src, /\? COLORS\.coralDeep\n\s+: captionTone === "indigo"\n\s+\? COLORS\.indigo\n\s+: COLORS\.inkMuted;/);
+    assert.ok(contrast(over(INK, INK_MUTED_ALPHA, WHITE), WHITE) >= 4.5);
+  });
+
+  it("talent muted token passes on the grey segmented strip (was #66717D at 4.43:1)", () => {
+    const tokens = read("talent/visual/tokens.ts");
+    const m = tokens.match(/muted: "#([0-9A-Fa-f]{6})"/);
+    assert.ok(m, "TALENT_VISUAL.muted is a hex");
+    const rgb = [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16));
+    assert.ok(contrast(rgb, SURFACE_ALT) >= 4.5, `muted ${m[1]} on the strip is ${contrast(rgb, SURFACE_ALT).toFixed(2)}:1`);
+    assert.notEqual(m[1].toUpperCase(), "66717D");
+  });
+
+  it("small eyebrows and the sidebar group labels use the muted ink class, not the 0.38-alpha dim one", () => {
+    assert.match(read("talent/shared/earnings-tile-1.tsx"), /className="text-admin-ink-muted">\s*\{copy\.t\("Earnings"\)\}/);
+    assert.match(read("../../../talent/website-reward/WebsiteRewardControl.tsx"), /truncate text-\[11px\] leading-tight text-admin-ink-muted/);
+    const talent = read("../internal/talent.tsx");
+    assert.match(talent, /tracking-\[0\.14em\] text-admin-ink-muted/);
+    assert.doesNotMatch(talent, /pt-\[10px\] text-\[10px\] font-bold uppercase tracking-\[0\.14em\] text-admin-ink-dim/);
+  });
+});
+

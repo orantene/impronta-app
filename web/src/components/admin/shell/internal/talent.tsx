@@ -254,7 +254,7 @@ function TalentSidebar() {
             {group.label && (
               <div
                 aria-hidden
-                className="px-[10px] pb-[4px] pt-[10px] text-[10px] font-bold uppercase tracking-[0.14em] text-admin-ink-dim"
+                className="px-[10px] pb-[4px] pt-[10px] text-[10px] font-bold uppercase tracking-[0.14em] text-admin-ink-muted"
               >
                 {copy.t(group.label)}
               </div>
