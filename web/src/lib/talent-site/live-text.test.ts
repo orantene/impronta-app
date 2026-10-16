@@ -432,3 +432,14 @@ test("TUL-59 C: contact line links the Instagram handle and a WhatsApp link she 
   assert.equal(contactLine("", null, "javascript:alert(1)"), "");
   assert.equal(contactLine("", null, "https://wa.me/5219990000000"), "[WhatsApp](https://wa.me/5219990000000)");
 });
+
+test("TUL-578: a stored plain hero H1 gets the accent word; explicit markup and unstamped headings are kept", () => {
+  const plain = applyTalentLiveText(stampedHero("Nail Artist", "x", "Pestañas que enmarcan tu mirada."), LIVE);
+  const c = (plain[0] as unknown as { children: Array<{ children: BuilderNode[] }> }).children[0]!.children;
+  assert.equal(textOf(c[0]!), "Pestañas que {i}enmarcan{/i} tu mirada.");
+  const own = applyTalentLiveText(stampedHero("Nail Artist", "x", "Pestañas {i}tu{/i} mirada"), LIVE);
+  const c2 = (own[0] as unknown as { children: Array<{ children: BuilderNode[] }> }).children[0]!.children;
+  assert.equal(textOf(c2[0]!), "Pestañas {i}tu{/i} mirada");
+  const bare = applyTalentLiveText([box("x", [h("h", "Pestañas que enmarcan tu mirada.")])], LIVE);
+  assert.equal(textOf((bare[0] as unknown as { children: BuilderNode[] }).children[0]!), "Pestañas que enmarcan tu mirada.");
+});

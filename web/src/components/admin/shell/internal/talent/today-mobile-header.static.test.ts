@@ -38,3 +38,14 @@ test("TUL-907: the talent name chip is a real link to Perfil, above its neighbou
   assert.match(bar, /relative z-10 flex min-w-0/);
   assert.doesNotMatch(bar, /pointer-events-none/);
 });
+
+test("TUL-907: at 390 the name chip only links in Talent Studio, announces its target,", () => {
+  const bar = readFileSync(join(root, "page-modules/MobileTopBar.tsx"), "utf8");
+  const talentBranch = bar.slice(bar.indexOf("{inTalent ? ("), bar.indexOf(") : (", bar.indexOf("{inTalent ? (")));
+  assert.match(talentBranch, /<Link\s+href="\/talent\/profile"/);
+  assert.match(talentBranch, /aria-label=\{`\$\{pillName\} · \$\{t\("dashboard\.mobile\.talentPillAria"\)\}`\}/);
+  assert.doesNotMatch(talentBranch, /disabled/);
+  assert.match(talentBranch, /relative z-10/);
+  const en = JSON.parse(readFileSync(join(process.cwd(), "messages/en.json"), "utf8")).dashboard.mobile;
+  assert.equal(en.talentPillAria, "Open my profile");
+});
