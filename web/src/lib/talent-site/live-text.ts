@@ -31,6 +31,7 @@ import {
   type LiveTextKey,
 } from "@/lib/site-admin/builder-node/live-text-keys";
 
+import { accentHeadline } from "./hero-headline";
 import { applyMastheadBio, isLiveBioMasthead, withBioHints } from "./live-bio";
 import { readOrigin } from "./theme-releases/origin";
 
@@ -47,6 +48,8 @@ export interface TalentLiveText {
   menuSubtitle?: string;
   /** "Disponible en español": shown under the live bio when it is not in the visitor's language. */
   bioHint?: string;
+  /** Keep the stored hero H1 as written: no auto accent (TUL-578 per-site opt-out, protected sites). */
+  keepHeroHeading?: boolean;
 }
 
 /** Design origin of a Maison v2 node, else null. */
@@ -221,6 +224,16 @@ export function applyTalentLiveText(tree: BuilderNode[], live: TalentLiveText): 
           ...node,
           props: { ...propsOf(node), sectionProps: { ...sp, brand: { ...brand, tagline: live.tradeLabel } } },
         } as unknown as BuilderNode;
+      }
+    }
+    // A Maison v2 hero H1 holding stored plain text (a line typed in the builder, or carried over by
+    // "use it") has no accent word: give it the same middle-word accent live values get (TUL-578).
+    // Explicit `{i}` markup is kept as written.
+    if (!live.keepHeroHeading && node.kind === "heading" && maisonKey(node) === "hero/container/heading") {
+      const text = propsOf(node).text;
+      if (typeof text === "string" && text.trim() && !text.includes("{{")) {
+        const accented = accentHeadline(text);
+        if (accented !== text.trim()) return { ...node, props: { ...propsOf(node), text: accented } } as BuilderNode;
       }
     }
     // A Maison v2 menu with no intro line gets the currency sentence (once she writes one, it is hers).
