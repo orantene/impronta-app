@@ -46,6 +46,8 @@ const SECTION_DIR = new URL("./", import.meta.url);
  * scan resolves to these EIGHT. The scan is ground truth — keep them in sync.
  */
 const EXPECTED_DATA_BOUND_SECTIONS = [
+  // Posts v1 (TUL-1008): "Últimos posts" reads real posts at render time.
+  "blog_index",
   "directory",
   "featured_talent",
   "hero_search",

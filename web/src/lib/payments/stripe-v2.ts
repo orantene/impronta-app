@@ -19,6 +19,7 @@
  */
 
 import "server-only";
+import { stripeEnv } from "@/lib/stripe/env-keys";
 
 /**
  * The pinned Stripe v2 preview version used for Global Payouts. Bump here when
@@ -54,7 +55,7 @@ export type StripeV2List<T> = {
  * (fine in test mode, where the normal secret key works for v2).
  */
 export function stripeV2Key(): string | undefined {
-  return process.env.STRIPE_V2_SECRET_KEY || process.env.STRIPE_SECRET_KEY;
+  return stripeEnv("STRIPE_V2_SECRET_KEY") || stripeEnv("STRIPE_SECRET_KEY");
 }
 
 export function isStripeV2Configured(): boolean {

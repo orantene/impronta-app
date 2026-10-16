@@ -223,12 +223,14 @@ export function ClientTimesCard({
 
 export type OfferMode = "view" | "change" | "decline";
 
-export function ClientOfferCard({ offer, offers, copy, kit, business, locale, now, phase = "idle", refusal, payCode, onAccept, onDecline, onChange, onPay, acceptLabel, signInPanel }: Common & {
+export function ClientOfferCard({ offer, offers, copy, kit, business, locale, now, phase = "idle", refusal, payCode, payment = null, onAccept, onDecline, onChange, onPay, acceptLabel, signInPanel }: Common & {
   readonly offer: ClientOfferSummary;
   /** All guest-visible offers on the thread; drives the guest-facing version number. */
   readonly offers?: readonly ClientOfferSummary[];
   readonly now: Date;
   readonly payCode?: string | null;
+  /** Where the thread's money stands ("sitting 3"): paid, fully refunded, or nothing yet. */
+  readonly payment?: "paid" | "refunded" | null;
   readonly onAccept?: (offer: ClientOfferSummary) => void;
   readonly onDecline?: (offer: ClientOfferSummary, reason: string) => void;
   readonly onChange?: (offer: ClientOfferSummary, text: string) => void;
@@ -265,6 +267,10 @@ export function ClientOfferCard({ offer, offers, copy, kit, business, locale, no
     state === "accepted"
       ? payCode
         ? copy.offer.acceptedPayNext
+        : payment === "paid"
+        ? copy.offer.acceptedPaid
+        : payment === "refunded"
+        ? copy.offer.acceptedRefunded
         : fill(copy.offer.acceptedPayLater, { business })
       : state === "expired"
         ? offer.status === "superseded"

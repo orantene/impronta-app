@@ -74,6 +74,14 @@ export type BookingTransaction = {
   payoutReceiverKind: PayoutReceiverKind | null;
   payoutReceiverDisplayName: string | null;
   grossAmountCents: number;
+  /**
+   * NOT the platform take rate. This is the fee-NETTED lane marker (TUL-154):
+   * > 0 only when the commission was deducted from gross (net = gross - fee).
+   * Pass-through and net = gross rows store 0 by design, and the DB CHECK
+   * `booking_transactions_fee_netted_no_order` requires 0 on any row with an
+   * order_id. The real per-booking take (incl. the pass-through client fee)
+   * lives in `booking_commission_snapshot`; reports must read that (TUL-1176).
+   */
   platformFeeBasisPoints: number;
   platformFeeCents: number;
   netAmountCents: number;
@@ -1594,6 +1602,7 @@ export type TransactionRow = {
   payout_receiver_kind: string | null;
   payout_receiver_display_name: string | null;
   gross_amount_cents: number;
+  /** Fee-netted lane marker, not a take rate; see `platformFeeBasisPoints` (TUL-1176). */
   platform_fee_basis_points: number;
   platform_fee_cents: number;
   net_amount_cents: number;

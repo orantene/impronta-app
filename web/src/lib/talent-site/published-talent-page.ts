@@ -10,6 +10,8 @@
  * The core ALSO re-checks `status==='published'` as defense-in-depth.
  */
 
+import { resolveEffectiveTalentPlanKey } from "@/lib/billing/effective-talent-plan";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 
 import { loadOwnHosts } from "./server/own-hosts.server";
@@ -62,6 +64,7 @@ export async function loadPublishedTalentPage(input: {
         .is("deleted_at", null)
         .maybeSingle();
       if (error || !data) return null;
+      const admin = createServiceRoleClient();
       const row = data as {
         id: string;
         display_name: string | null;
@@ -74,7 +77,9 @@ export async function loadPublishedTalentPage(input: {
         id: row.id,
         managingTenantId: row.created_by_agency_id ?? null,
         displayName: row.display_name,
-        talentPlanKey: row.talent_plan_key ?? null,
+        talentPlanKey: admin
+          ? await resolveEffectiveTalentPlanKey(admin, row.id, row.talent_plan_key ?? null)
+          : (row.talent_plan_key ?? null),
       };
     },
 

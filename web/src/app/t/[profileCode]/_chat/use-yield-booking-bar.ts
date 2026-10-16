@@ -6,7 +6,7 @@
  * Seleccionar on the last rows stays tappable).
  */
 
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 
 import {
   GUEST_CHAT_LAUNCHER_BOOKING_BAR_LIFT_PX,
@@ -14,8 +14,10 @@ import {
   GUEST_CHAT_LAUNCHER_BOTTOM_PX,
 } from "./mini-chat-styles";
 
-/** Gap between a sticky bottom chrome top edge and the launcher bottom edge. */
-const BOOKING_BAR_CLEARANCE_PX = 16;
+/** Gap between a sticky bottom chrome top edge and the launcher bottom edge (GRK-036). */
+export const BOOKING_BAR_CLEARANCE_PX = 24;
+
+export const BOTTOM_CHROME_SELECTOR = ".cb-bar, .cb-dock, .mn-bar";
 
 function visibleFixedChrome(el: HTMLElement | null): el is HTMLElement {
   if (!el) return false;
@@ -38,7 +40,9 @@ export function useYieldBookingBar(mounted: boolean, narrowLauncher: boolean): {
   const [selectionDockUp, setSelectionDockUp] = useState(false);
   const [chromeLiftPx, setChromeLiftPx] = useState(0);
 
-  useEffect(() => {
+  // GRK-036: layout effect so Hablar clears the sticky bar before first paint
+  // (useEffect left the FAB at bottom:24 for a frame on top of Continuar).
+  useLayoutEffect(() => {
     if (!mounted) return;
     const measure = () => {
       // The pill capsule carries its own chat button: the FAB tucks away too.
@@ -92,9 +96,16 @@ export function useYieldBookingBar(mounted: boolean, narrowLauncher: boolean): {
       ],
     });
     window.addEventListener("resize", measure);
+    // The bar fades in when data-top drops: the mutation fires while its
+    // visibility still reads "hidden", so measure again once the fade ends.
+    const onTransitionEnd = (e: TransitionEvent) => {
+      if (e.target instanceof Element && e.target.matches(BOTTOM_CHROME_SELECTOR)) measure();
+    };
+    document.addEventListener("transitionend", onTransitionEnd, true);
     return () => {
       mo?.disconnect();
       window.removeEventListener("resize", measure);
+      document.removeEventListener("transitionend", onTransitionEnd, true);
     };
   }, [mounted]);
 

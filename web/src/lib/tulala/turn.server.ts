@@ -50,6 +50,7 @@ import {
   logQuestionYield,
 } from "./intake-telemetry";
 import type { Brief } from "./brief-store";
+import { afterResponse } from "@/lib/server/after-response";
 
 /** Tokens for a reply. Two or three sentences needs nothing like this much. */
 const REPLY_MAX_TOKENS = 400;
@@ -242,7 +243,7 @@ export async function* runTurn(request: TurnRequest): AsyncIterable<TurnEvent> {
     streamFailed = { code: "stream_failed", message: "The reply was interrupted." };
   }
 
-  void recordAiUsageEstimate().catch(() => {});
+  afterResponse(() => recordAiUsageEstimate().catch(() => {}));
 
   const guarded = sanitizeAgentReply(raw, { locale, move: move.kind });
 

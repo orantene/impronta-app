@@ -7,7 +7,7 @@ import { buildComponentsForType } from "./business-components";
 import { EXAMPLE_IDENTITY, fixtureImageResolver } from "./examples";
 import { DEFAULT_LOOK_BY_FAMILY } from "./look-defaults";
 import { getLook } from "./looks";
-import { composePagelessHome, foldComponentsForPagelessHome } from "./pageless-home";
+import { composePagelessHome, foldComponentsForPagelessHome, stripPagelessFooterChrome } from "./pageless-home";
 import type { ComponentContext, SiteLocale } from "./types";
 
 // D-169: a page-less tenant renders ONE page. The Look puts the type's
@@ -71,4 +71,94 @@ test("an example context keeps the honest empty line for the session picker", ()
   const ctx = { ...ctxFor("fitness", "yoga-studio"), example: true };
   const kinds = kindsOf(buildComponentsForType("yoga-studio", ctx).get("transaction") ?? []);
   assert.ok(!kinds.has("session_picker"));
+});
+
+// TUL-697: the fallback home is the ONLY page a page-less tenant has. Its
+// header, footer and teaser buttons must not link to inner pages nothing
+// serves (/services, /about, /gallery, /contact answer 404 signed out).
+function innerPageLinks(tree: BuilderNode[]): string[] {
+  const inner = /^\/(services|about|gallery|contact)$/;
+  const found: string[] = [];
+  const walk = (n: unknown) => {
+    if (Array.isArray(n)) return n.forEach(walk);
+    if (!n || typeof n !== "object") return;
+    const o = n as Record<string, unknown>;
+    if (typeof o.href === "string" && inner.test(o.href)) found.push(o.href);
+    for (const v of Object.values(o)) walk(v);
+  };
+  walk(tree);
+  return found;
+}
+
+for (const [family, typeId] of [["agency", "agency"], ["fitness", "yoga-studio"], ["dining", "restaurant"]] as const) {
+  test(`TUL-697: a page-less ${typeId} home links to no unserved inner page`, () => {
+    const { tree, issues } = composeFor(family, typeId);
+    assert.ok(tree, `tree composed: ${issues.join(" | ")}`);
+    assert.deepEqual(innerPageLinks(tree!), []);
+  });
+}
+
+test("TUL-697: the page-less home keeps its /book link", () => {
+  const { tree } = composeFor("agency", "agency");
+  assert.ok(JSON.stringify(tree).includes('"/book"'), "/book survives");
+});
+
+// TUL-885: the page-less home sits inside the platform's own header + footer, so
+// the Look's footer band must not add a second "©" line or a second hamburger.
+
+function textsOf(tree: BuilderNode[], kind: string): string[] {
+  const out: string[] = [];
+  const walk = (n: BuilderNode) => {
+    if (n.kind === kind) out.push(String((n as { props?: { text?: unknown } }).props?.text ?? ""));
+    for (const c of (n as { children?: BuilderNode[] }).children ?? []) walk(c);
+  };
+  for (const n of tree) walk(n);
+  return out;
+}
+
+function navCount(tree: BuilderNode[]): number {
+  let n = 0;
+  const walk = (x: BuilderNode) => {
+    if (x.kind === "nav") n += 1;
+    for (const c of (x as { children?: BuilderNode[] }).children ?? []) walk(c);
+  };
+  for (const x of tree) walk(x);
+  return n;
+}
+
+test("TUL-885: the page-less home has no © line and exactly one nav (the header's)", () => {
+  for (const [family, typeId] of [
+    ["dining", "restaurant"],
+    ["fitness", "yoga-studio"],
+  ] as const) {
+    const { tree, issues } = composeFor(family, typeId);
+    assert.ok(tree, `${typeId} composed: ${issues.join(" | ")}`);
+    const rights = textsOf(tree!, "paragraph").filter((t) => t.replace(/\{\/?[a-z]\}/gi, "").trim().startsWith("©"));
+    assert.deepEqual(rights, [], `${typeId}: the platform footer prints the single © line`);
+    assert.equal(navCount(tree!), 1, `${typeId}: one nav, in the header; the footer has no hamburger`);
+  }
+});
+
+test("TUL-885: stripPagelessFooterChrome removes the © paragraph and nav at any depth and keeps the rest", () => {
+  const footer = [
+    {
+      kind: "container",
+      children: [
+        { kind: "paragraph", props: { text: "© Acme" } },
+        { kind: "nav", props: { links: [] } },
+        { kind: "heading", props: { text: "Acme" } },
+        { kind: "container", children: [{ kind: "paragraph", props: { text: "{b}© 2026 Acme{/b}" } }, { kind: "paragraph", props: { text: "Tagline" } }] },
+      ],
+    },
+  ];
+  const out = stripPagelessFooterChrome(footer) as unknown as Array<{ children: Array<{ kind: string; children?: Array<{ kind: string; props?: { text?: string } }> }> }>;
+  assert.deepEqual(out[0].children.map((c) => c.kind), ["heading", "container"]);
+  assert.deepEqual(out[0].children[1].children?.map((c) => c.props?.text), ["Tagline"]);
+  // Non-mutating: the input still has everything.
+  assert.equal((footer[0].children as unknown[]).length, 4);
+});
+
+test("TUL-885: a paragraph that merely mentions © mid-sentence is kept", () => {
+  const out = stripPagelessFooterChrome([{ kind: "paragraph", props: { text: "All images © their owners" } }]);
+  assert.equal(out.length, 1);
 });

@@ -8,7 +8,8 @@ import {
 } from "./support-engine-db";
 import { auditHq, auditTenant, notify } from "./support-engine-emit";
 import { supportFrom } from "./support-from";
-import { requestSupportLocale, supportHandoffBody } from "./support-handoff-copy";
+import { deriveTicketSubject } from "./ticket-title";
+import { requestSupportLocale, supportHandoffBody, ticketHandoffLocale } from "./support-handoff-copy";
 import { assignEscalationOwner } from "./escalation-owner";
 import {
   mapEventRow,
@@ -62,16 +63,15 @@ export async function createTicket(input: {
     input.requester.kind === "user"
       ? input.requester.userId
       : (input.requester.userId ?? null);
-  const guestSessionId =
-    input.requester.kind === "guest" ? input.requester.guestSessionId : null;
+  const guestSessionId = input.requester.kind === "guest" ? input.requester.guestSessionId : null;
 
   const handledBy: SupportHandledBy = input.messageOranDirectly
     ? "human"
     : (input.handledBy ?? "human");
   const now = new Date().toISOString();
-  const subject = input.messageOranDirectly
-    ? "Direct message"
-    : (input.subject ?? "").trim() || (input.body.trim().slice(0, 80) || "Support request");
+  const subject = input.messageOranDirectly && !(input.subject ?? "").trim()
+    ? "Direct message" // only the panel's canned body; a typed subject/message wins
+    : deriveTicketSubject({ subject: input.subject, body: input.body, typed: true });
 
   const insertRow: Record<string, unknown> = {
     tenant_id: input.tenantId,
@@ -84,7 +84,7 @@ export async function createTicket(input: {
     category: input.category ?? null,
     origin_surface_slug: input.originSlug ?? null,
     status: "open",
-    waiting_on: handledBy === "ai" ? "support" : "support",
+    waiting_on: "support",
     priority: "normal",
     handled_by: handledBy,
     contact_email: input.contactEmail ?? null,
@@ -575,7 +575,7 @@ export async function escalateTicket(input: {
     authorUserId: null,
     messageKind: "card",
     skipNotify: true,
-    body: supportHandoffBody(await requestSupportLocale()),
+    body: supportHandoffBody(ticketHandoffLocale(ticket.metadata, await requestSupportLocale())),
     cardPayload: {
       kind: "handoff",
       ticketId: ticket.id,

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { arrivalFromStamp, parseArrivalStamp } from "./arrival";
+import { applyRetryCheck, arrivalFromStamp, draftReasonKey, parseArrivalStamp } from "./arrival";
 
 const site = { publicUrl: "https://el-paisa.tulala.digital", editorUrl: "https://el-paisa.tulala.digital/?edit=1&panel=sections", adminPath: "/el-paisa/admin" };
 
@@ -91,8 +91,120 @@ test("1D: a studio whose page does not verify becomes draft_saved with its edito
   assert.equal(a.urlDiffers, true);
 });
 
+test("onb1-15: Free path URL that verifies is ready, never draft_saved", () => {
+  const a = arrivalFromStamp({
+    path: "business",
+    stamp: { outcome: "composed", placed: { photos: { hero: "type" }, hoursPresent: true } },
+    person: { name: "QA Grok Uno", city: "Cancún" },
+    businessName: "QA Grok Salon",
+    services: 2,
+    site: {
+      publicUrl: "https://tulala.digital/w/qa-grok-salon",
+      editorUrl: "https://tulala.digital/w/qa-grok-salon/?edit=1",
+      adminPath: "https://app.tulala.digital/qa-grok-salon/admin",
+    },
+    talent: null,
+    liveCheck: { ok: true },
+  });
+  assert.equal(a.variant, "business");
+  assert.equal(a.verified, true);
+  assert.notEqual(a.variant, "draft_saved");
+  assert.equal(a.link?.href, "https://tulala.digital/w/qa-grok-salon");
+  assert.equal(a.link?.display, "tulala.digital/w/qa-grok-salon");
+});
+
 test("1D: unchecked callers keep the old behaviour", () => {
   const a = arrivalFromStamp({ path: "talent", stamp: null, ...liveBase });
   assert.equal(a.verified, undefined);
   assert.equal(a.variant, "talent");
+});
+
+test("TUL-648: the finish fact counts published services only; unpriced ones become a cue", () => {
+  const base = { path: "business" as const, stamp: null, person: { name: null, city: null }, businessName: "X", site, talent: null };
+  const none = arrivalFromStamp({ ...base, services: 0, unpricedServices: 2 });
+  assert.equal(none.fact.services, 0);
+  assert.equal(none.fact.unpriced, 2);
+  const mixed = arrivalFromStamp({ ...base, services: 1, unpricedServices: 1 });
+  assert.equal(mixed.fact.services, 1);
+  assert.equal(mixed.fact.unpriced, 1);
+  const clean = arrivalFromStamp({ ...base, services: 3 });
+  assert.equal("unpriced" in clean.fact, false);
+});
+
+test("TUL-648: publishedServiceCount matches the rows offeringRowFor publishes", async () => {
+  const { publishedServiceCount } = await import("./essentials");
+  const svc = (priceCents: number | null, quote = false) => ({ name: "S", durationMin: 60, priceCents, quote, currency: "MXN", packKey: null }) as never;
+  // TUL-805: a quote choice is live too; only a row with neither a price nor that choice is a draft.
+  assert.equal(publishedServiceCount([svc(50000), svc(null, true), svc(0), svc(30000, true)]), 3);
+  assert.equal(publishedServiceCount(null), 0);
+});
+
+test("TUL-990: a talent draft's editor door is the page builder, its panel door stays Today", () => {
+  const talent = { publicUrl: null, todayUrl: "https://app.tulala.digital/talent/today", editorUrl: "https://app.tulala.digital/talent/page-builder", siteUrl: "https://rosa.tulala.digital" };
+  const a = arrivalFromStamp({ path: "talent", stamp: null, ...liveBase, talent, liveCheck: { ok: false } });
+  assert.equal(a.variant, "draft_saved");
+  assert.equal(a.editorHref, "https://app.tulala.digital/talent/page-builder");
+  assert.equal(a.panelHref, "https://app.tulala.digital/talent/today");
+});
+
+// TUL-818 / TUL-819 · a published site whose address check fails must say so honestly, and a retry must re-check.
+const talentDraftInput = {
+  path: "talent" as const, stamp: null, person: { name: "QA Limpieza 1014a", city: "Playa del Carmen" }, businessName: null, services: 1,
+  site: null,
+  talent: { publicUrl: null, todayUrl: "https://app.staging.tulala.digital/talent/today", siteUrl: "https://qa-limpieza-1014a.staging.tulala.digital" },
+};
+
+test("TUL-818: published talent site behind a protection wall is a draft that knows it is published", () => {
+  const a = arrivalFromStamp({ ...talentDraftInput, liveCheck: { ok: false, reason: "protected" }, published: true });
+  assert.equal(a.variant, "draft_saved");
+  assert.equal(a.published, true);
+  assert.equal(a.draftReason, "protected");
+  assert.equal(a.liveVariant, "talent");
+  assert.equal(a.liveSiteLive, true);
+  assert.equal(draftReasonKey(a), "public.onboarding.arrival.draftWhy.publishedNotReachable");
+});
+
+test("TUL-818: a retry whose check passes promotes the draft to the live arrival", () => {
+  const draft = arrivalFromStamp({ ...talentDraftInput, liveCheck: { ok: false, reason: "network" }, published: true });
+  const live = applyRetryCheck(draft, { ok: true });
+  assert.equal(live.variant, "talent");
+  assert.equal(live.siteLive, true);
+  assert.equal(live.verified, true);
+  assert.equal(live.draftReason, undefined);
+  assert.equal(live.published, undefined);
+  assert.equal(live.fallbackReason, undefined);
+  assert.equal(live.link?.href, "https://qa-limpieza-1014a.staging.tulala.digital");
+});
+
+test("TUL-818: a retry whose check fails keeps the draft with the fresh reason", () => {
+  const draft = arrivalFromStamp({ ...talentDraftInput, liveCheck: { ok: false, reason: "network" }, published: true });
+  const still = applyRetryCheck(draft, { ok: false, reason: "name_missing" });
+  assert.equal(still.variant, "draft_saved");
+  assert.equal(still.draftReason, "name_missing");
+});
+
+test("TUL-818: a draft stored before the fix (no liveVariant) still promotes on a passing retry", () => {
+  const legacy = arrivalFromStamp({ ...talentDraftInput, liveCheck: { ok: false } });
+  delete legacy.liveVariant;
+  delete legacy.liveSiteLive;
+  const live = applyRetryCheck(legacy, { ok: true });
+  assert.equal(live.variant, "talent");
+  assert.equal(live.siteLive, true);
+});
+
+test("TUL-819: every draft reason maps to a plain-language key", () => {
+  assert.equal(draftReasonKey({ draftReason: "no_url" }), "public.onboarding.arrival.draftWhy.notCreated");
+  assert.equal(draftReasonKey({ draftReason: "name_missing" }), "public.onboarding.arrival.draftWhy.oldContent");
+  assert.equal(draftReasonKey({ draftReason: "status" }), "public.onboarding.arrival.draftWhy.notReachable");
+  assert.equal(draftReasonKey({ draftReason: "status", published: true }), "public.onboarding.arrival.draftWhy.publishedNotReachable");
+});
+
+test("TUL-819: the draft reason keys exist in en and es", async () => {
+  const { readFileSync } = await import("node:fs");
+  for (const loc of ["en", "es"]) {
+    const m = JSON.parse(readFileSync(new URL(`../../../messages/${loc}.json`, import.meta.url), "utf8"));
+    const arrival = m.public.onboarding.arrival;
+    for (const k of ["publishedNotReachable", "notReachable", "oldContent", "notCreated"]) assert.ok(arrival.draftWhy[k], `${loc}:${k}`);
+    for (const k of ["draftTitlePublished", "draftSubPublished", "checkAgain"]) assert.ok(arrival[k], `${loc}:${k}`);
+  }
 });

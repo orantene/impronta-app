@@ -272,3 +272,22 @@ test("publicLocaleHref preserves tenant slug before locale prefixing", () => {
   );
   assert.equal(clientLocaleHref("/es/impronta", "/t/TAL-1"), "/es/impronta/t/TAL-1");
 });
+
+test("TUL-697: /w/<slug> workspace paths keep the /w/ prefix on every href (EN, ES, locale-first)", () => {
+  assert.equal(publicPathPrefixFromPathname("/w/qa-paid-owner"), "/w/qa-paid-owner");
+  assert.equal(publicPathPrefixFromPathname("/w/qa-paid-owner/servicios"), "/w/qa-paid-owner");
+  assert.equal(publicPathPrefixFromPathname("/es/w/qa-paid-owner/servicios"), "/w/qa-paid-owner");
+  const es = { defaultLocale: "en", publicLocales: ["en", "es"] } as never;
+  for (const [cur, locale, target, want] of [
+    ["/w/qa-paid-owner", "en", "/", "/w/qa-paid-owner"],
+    ["/w/qa-paid-owner/x", "en", "/servicios", "/w/qa-paid-owner/servicios"],
+    ["/w/qa-paid-owner/x", "en", "/directory?q=1", "/w/qa-paid-owner/directory?q=1"],
+    ["/es/w/qa-paid-owner/x", "es", "/servicios", "/es/w/qa-paid-owner/servicios"],
+    ["/es/w/qa-paid-owner", "es", "/", "/es/w/qa-paid-owner"],
+    ["/w/qa-paid-owner/x", "es", "/", "/es/w/qa-paid-owner"],
+  ] as const) {
+    const got = publicLocaleHref(cur, target, locale, es);
+    assert.equal(got, want, `${cur} -> ${target} (${locale})`);
+    assert.ok(got.startsWith("/w/qa-paid-owner") || got.startsWith("/es/w/qa-paid-owner"));
+  }
+});

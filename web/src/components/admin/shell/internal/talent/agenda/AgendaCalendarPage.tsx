@@ -41,6 +41,7 @@ import {
   localYmd,
   sameDay,
 } from "./AgendaCalendarViews";
+import { normalizeBounds } from "./calendar-bounds";
 import { itemsInTalentWallClock, talentWallClockToInstant, wallClockIn } from "@/lib/talent-agenda/agenda-now";
 import {
   daySummary,
@@ -188,7 +189,7 @@ export function AgendaCalendarPage({
   const bounds = (() => {
     const base = gridBounds(hours, days, clock);
     if (overnightToHour != null && overnightToHour > 24) {
-      return { ...base, endMin: Math.max(base.endMin, overnightToHour * 60) };
+      return normalizeBounds({ ...base, endMin: Math.max(base.endMin, overnightToHour * 60) });
     }
     return base;
   })();
@@ -383,7 +384,7 @@ export function AgendaCalendarPage({
   return (
     <div style={TALENT_AGENDA_VARS} className="space-y-4">
       <PageHeader
-        title={copy.t("Bookings")}
+        title={copy.t("Calendar")}
         subtitle={phone ? undefined : subtitle}
         actions={
           phone ? (

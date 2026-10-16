@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
-import { findHeroImageNode, pickStockHero, planStockHero, primaryTypeOf, stockQueryForTalentType, withStockHero } from "./stock-hero";
+import { dropOtherTradeStock, findHeroImageNode, pickStockHero, planStockHero, primaryTypeOf, stockQueryForTalentType, withStockHero } from "./stock-hero";
 
 type Photo = Parameters<typeof pickStockHero>[0][number];
 const photo = (id: string, over: Partial<Photo> = {}): Photo => ({
@@ -20,7 +20,7 @@ const maisonHome = (heroSrc: string) => [
 ];
 
 test("type query: a chip slug that names a catalogue type picks that type and its family", () => {
-  assert.deepEqual(stockQueryForTalentType({ slug: "makeup-artist" }), { businessType: "makeup-artist", family: "beauty" });
+  assert.deepEqual(stockQueryForTalentType({ slug: "makeup-artist" }), { businessType: "makeup-artist", family: "beauty", trade: "makeup" });
 });
 
 test("type query: no slug and no match falls to the universal pack", () => {
@@ -166,4 +166,36 @@ test("TUL-118 / DS-60: a matching type or neutral pack still wins; other-trade p
   assert.equal(pickStockHero(pool.filter((p) => p.id !== "lash"), { businessType: "lash-artist", family: "beauty" })?.stockId, "beauty-pack");
   assert.equal(pickStockHero([pool[0]!], { businessType: "lash-artist", family: "beauty" }), null);
   assert.equal(pickStockHero(pool, { businessType: null, family: "custom" })?.stockId, "neutral");
+});
+
+test("TUL-846: a cleaning talent gets the house-cleaner pack, never a fuzzy dry-cleaning hit", () => {
+  const q = stockQueryForTalentType({ slug: "cleaning-service", labelEn: "Cleaning service" });
+  assert.equal(q.businessType, "house-cleaner");
+  assert.equal(q.trade, "cleaning");
+});
+
+test("TUL-846: untyped photos that name another trade (chef, makeup) never serve a cleaning hero", () => {
+  const query = stockQueryForTalentType({ slug: "cleaner", labelEn: "Cleaner" });
+  const photos = [
+    photo("chef", { alt: { es: "Chef emplatando", en: "Chef plating dinner" }, family: "professional" }),
+    photo("mu", { alt: { es: "Maquillaje de novia", en: "Bridal makeup" }, tags: { subject: "makeup" } }),
+  ];
+  assert.equal(pickStockHero(photos, query), null);
+  const got = pickStockHero([...photos, photo("neutral", { alt: { es: "Luz de ventana", en: "Window light" } })], query);
+  assert.equal(got?.stockId, "neutral");
+});
+
+test("TUL-846: an unrecognised trade keeps neutral photos working", () => {
+  const got = pickStockHero([photo("chef", { alt: { es: "Chef", en: "Chef" } }), photo("n")], { businessType: null, family: "custom" });
+  assert.ok(got);
+});
+
+test("TUL-846: composer pool drops photos naming another trade, keeps neutral and the tenant's own", () => {
+  const pool = [
+    photo("chef", { alt: { es: "Chef emplatando", en: "Chef plating dinner" } }),
+    photo("n"),
+    photo("own", { alt: { es: "Chef", en: "Chef" }, originTenantId: "t1" }),
+  ];
+  assert.deepEqual(dropOtherTradeStock(pool, "cleaning", "t1").map((p) => p.id), ["n", "own"]);
+  assert.equal(dropOtherTradeStock(pool, null, "t1").length, 3);
 });

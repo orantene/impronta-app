@@ -124,6 +124,10 @@ describe("talent inbox i18n", () => {
       translateDashboardText("Booking confirmed. Check logistics tab.", "es"),
       "Reserva confirmada. Revisa la pestaña de logística.",
     );
+    assert.equal(
+      translateDashboardText("Booking confirmed. Check the logistics tab.", "es"),
+      "Reserva confirmada. Revisa la pestaña de logística.",
+    );
   });
 
   it("Today checklist chip labels have ES rows (TUL-519 card 146)", () => {
@@ -147,10 +151,33 @@ describe("talent inbox i18n", () => {
     );
   });
 
+  it("open thread panel offer/empty chrome has ES rows and no raw Loading (TUL-536 / TUL-500)", () => {
+    for (const [en, es] of [
+      ["Submit your rate", "Envía tu tarifa"],
+      ["No offer yet. Your coordinator will send one when it's ready.", "Aún no hay oferta. Tu coordinador enviará una cuando esté lista."],
+      ["No offer yet", "Aún no hay oferta"],
+      ["Offer sent", "Oferta enviada"],
+      ["Loading…", "Cargando..."],
+      ["Identified", "Identificado"],
+      ["Block", "Bloquear"],
+      ["Report", "Reportar"],
+    ] as const) {
+      assert.equal(translateDashboardText(en, "es"), es, en);
+    }
+    const stream = readFileSync(
+      join(DIR, "../../../talent/talent-thread-stream.tsx"),
+      "utf8",
+    );
+    assert.match(stream, /copy\.t\("Loading…"\)/);
+    assert.doesNotMatch(stripComments(stream), /(?<!copy\.t\()["']Loading…["']/);
+    const deal = stripComments(read("messages/shared/machinery-12.tsx"));
+    assert.match(deal, /copy\.t\(\s*(?:isBooked[\s\S]*?)?"Submit your rate"/);
+  });
+
   it("synthetic talent previews use system sender so inboxPreviewText can translate", () => {
     const adapter = read("talent/shared/conversation-adapter-1.tsx");
     assert.match(adapter, /sender:\s*"system"/);
-    assert.match(adapter, /Awaiting your response\./);
-    assert.match(adapter, /Booking confirmed\. Check logistics tab\./);
+    assert.match(adapter, /INBOX_PREVIEW_AWAITING/);
+    assert.match(adapter, /INBOX_PREVIEW_BOOKED/);
   });
 });

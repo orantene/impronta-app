@@ -125,6 +125,11 @@ function isEmptyBoundBlock(n: BuilderNode, ds: BuilderNodeRenderDataSources): bo
     return (ds.talentVisitFacts ?? []).length === 0;
   }
   if (n.kind === "reviews") return (ds.talentReviews ?? []).length === 0;
+  // Posts v1 (PO1): only when the source was loaded for this node.
+  if (n.kind === "posts_feed") {
+    const data = ds.postsFeedByNodeId?.[n.id];
+    return data !== undefined && data.cards.length === 0 && !(typeof p.emptyMessage === "string" && p.emptyMessage.trim());
+  }
   // TUL-118 (DS-64): only when the source was actually loaded (an array), so a
   // render path that never fetched it keeps the block.
   if (n.kind === "services_catalog") {

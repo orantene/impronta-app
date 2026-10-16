@@ -10,12 +10,17 @@ import { DashboardLanguagePanel } from "./DashboardLanguagePanel";
 import { getLocaleMetadata } from "@/i18n/config";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { ProfileVisibilityCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/ProfileVisibilityCard";
+import { TalentBillingCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/TalentBillingCard";
 import { TalentPlanCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/TalentPlanCard";
 import { HowYouWorkCard } from "@/components/settings/how-you-work-card";
 import { HYW_DESC, HYW_TITLE } from "@/components/settings/how-you-work-copy";
+import { AccountExportLinks } from "@/components/account/AccountExportLinks";
 import { JoinStudioCard } from "@/components/settings/join-studio-card";
 import { JS_DESC, JS_TITLE } from "@/components/settings/join-studio-copy";
 import { AccountDeletionCard } from "@/components/account/AccountDeletionCard";
+import { openUpgrade } from "@/components/talent/upgrade/open-upgrade";
+import { TalentInstagramCard } from "@/components/talent/connections/TalentInstagramCard";
+import { TALENT_INSTAGRAM_RETURN_MARKER } from "@/lib/talent-integrations/instagram-card-state";
 import { usePresenceText } from "@/components/talent/studio/presence-i18n";
 import { useDashboardText } from "../../dashboard-i18n";
 import { PasskeysCard } from "../../modern-features";
@@ -42,8 +47,22 @@ type Row = {
   panel?: ReactNode;
 };
 
-function SettingsGroup({ title, rows, tone = "plain" }: { title: string; rows: Row[]; tone?: "plain" | "risk" }) {
+function SettingsGroup({
+  title,
+  rows,
+  tone = "plain",
+  openKeyRequest = null,
+}: {
+  title: string;
+  rows: Row[];
+  tone?: "plain" | "risk";
+  /** Unfold this row once it is known, e.g. when returning from an OAuth connect. */
+  openKeyRequest?: string | null;
+}) {
   const [openKey, setOpenKey] = useState<string | null>(null);
+  useEffect(() => {
+    if (openKeyRequest) setOpenKey(openKeyRequest);
+  }, [openKeyRequest]);
   if (rows.length === 0) return null;
   return (
     <section
@@ -122,6 +141,14 @@ export function SettingsPage() {
       live = false;
     };
   }, []);
+  const [instagramReturn, setInstagramReturn] = useState(false);
+  useEffect(() => {
+    const search = new URLSearchParams(window.location.search);
+    setInstagramReturn(
+      search.get("connection_success") === "instagram" ||
+        search.get(TALENT_INSTAGRAM_RETURN_MARKER) === "instagram",
+    );
+  }, []);
   const copy = useDashboardText();
   const dashboardLocale = useDashboardLocale();
   const { t: tx } = usePresenceText();
@@ -147,7 +174,7 @@ export function SettingsPage() {
         key: "terms",
         label: tx("Deposit and cancellations"),
         sub: tx("Your defaults for new bookings. Each booking can still set its own."),
-        panel: <CommercialBookingTermsCard talentId={bridgeTalentSelfProfile.id} />,
+        panel: <CommercialBookingTermsCard talentId={bridgeTalentSelfProfile.id} solo={(bridgeTalentAgencies ?? []).length === 0} />,
       },
       {
         key: "currency",
@@ -243,15 +270,13 @@ export function SettingsPage() {
       key: "privacy",
       label: tx("Privacy"),
       sub: tx("Search-engine indexing, sensitive measurements and document visibility."),
-      onOpen: () => openSection("admin"),
+      onOpen: () => openDrawer("talent-privacy"),
     },
     {
       key: "download-data",
       label: tx("Download my data"),
       sub: copy.t("A copy of the information Tulala holds about you, as a file."),
-      onOpen: () => {
-        window.location.assign("/api/account/export");
-      },
+      panel: <AccountExportLinks es={copy.isSpanish} />,
     },
     bridgeTalentSelfProfile
       ? {
@@ -261,7 +286,7 @@ export function SettingsPage() {
           panel: (
             <TalentPlanCard
               onCompare={() => openDrawer("talent-tier-compare")}
-              onUpgrade={() => openDrawer("talent-tier-compare")}
+              onUpgrade={() => openUpgrade({ feature: "generic", from: "settings-plan-card" })}
             />
           ),
         }
@@ -271,13 +296,34 @@ export function SettingsPage() {
           value: copy.t(TALENT_TIER_META[state.talentTier].label),
           onOpen: () => openDrawer("talent-tier-compare"),
         },
+    ...(bridgeTalentSelfProfile && tenantSlug
+      ? [
+          {
+            key: "billing",
+            label: tx("Billing"),
+            sub: tx("Plan, next charge, card and invoices."),
+            panel: <TalentBillingCard tenantSlug={tenantSlug} />,
+          } satisfies Row,
+        ]
+      : []),
     {
       key: "help",
       label: tx("Help and support"),
-      sub: tx("Common questions, payouts, contact our team."),
+      sub: tx("Shortcuts, help centre, contact our team."),
       onOpen: () => openDrawer("help"),
     },
   );
+
+  const connections: Row[] = bridgeTalentSelfProfile
+    ? [
+        {
+          key: "instagram",
+          label: "Instagram",
+          sub: tx("Your latest posts on your website."),
+          panel: <TalentInstagramCard onUpgrade={() => openUpgrade({ feature: "generic", from: "settings-instagram" })} />,
+        },
+      ]
+    : [];
 
   const hard: Row[] = [
     {
@@ -347,6 +393,11 @@ export function SettingsPage() {
         </div>
         <div className="flex min-w-0 flex-col gap-[16px]">
           <SettingsGroup title={tx("You and your account")} rows={account} />
+          <SettingsGroup
+            title={tx("Connections")}
+            rows={connections}
+            openKeyRequest={instagramReturn ? "instagram" : null}
+          />
           <SettingsGroup title={tx("Things that are hard to undo")} rows={hard} tone="risk" />
           <SettingsGroup title={tx("Who you work with")} rows={workWith} />
         </div>

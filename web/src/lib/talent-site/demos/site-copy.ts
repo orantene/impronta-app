@@ -82,6 +82,7 @@ export type GridlineSiteCopyOverlay = {
   tasks?: { title?: string };
   specTable?: { eyebrow?: string; title?: string; rows?: Array<{ label: string; value: string }> };
   services?: { title?: string; subtitle?: string };
+  area?: { arrivalNote?: string };
 };
 
 /** Gridline page copy: design-owned editable defaults the demo fills the way a talent would in the builder. */
@@ -114,6 +115,8 @@ export type GridlineSiteCopy = {
     i18n?: Partial<Record<"en" | "es", SpecTableText>>;
   };
   services?: { title?: string; subtitle?: string };
+  /** Area card note: written on the `visit` node (layout "area") so `/en` can carry its own language. */
+  area?: { arrivalNote: string };
   /** Per-language overlays for every chrome field this copy writes (TUL-302). */
   overlays?: Partial<Record<"en" | "es", GridlineSiteCopyOverlay>>;
 };
@@ -348,6 +351,14 @@ function gridlineNode(n: Node, ctx: { inHero: boolean }, g: GridlineSiteCopy, ne
         ...(s.title ? { title: s.title } : {}),
         rows: s.rows.map((r) => ({ ...r })),
         ...mergeI18n(p.i18n, add),
+      });
+    }
+    case "visit": {
+      const a = g.area;
+      if (!a || p.layout !== "area") return n;
+      return withProps(n, {
+        arrivalNote: a.arrivalNote,
+        ...mergeI18n(p.i18n, flatOverlay(ov, (o) => (o.area?.arrivalNote ? { arrivalNote: o.area.arrivalNote } : undefined))),
       });
     }
     case "services_catalog": {

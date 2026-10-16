@@ -544,11 +544,10 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     props: {
       eyebrow: "Field notes",
       headline: "From the studio.",
-      posts: [
-        { title: "Behind the camera at three weddings", excerpt: "What the bride sees, and what we see.", date: "Apr 2026", category: "Field notes", href: "#" },
-        { title: "How we color-match across cameras", excerpt: "A short guide to consistent skin tones.", date: "Mar 2026", category: "Craft", href: "#" },
-        { title: "Why we don't release RAWs", excerpt: "Edits are the product.", date: "Feb 2026", category: "Workflow", href: "#" },
-      ],
+      // Posts v1: live by default. The builder shows demo cards until the
+      // site has a published post; the public site hides the section.
+      source: "live",
+      limit: 3,
       variant: "cards",
       columnsDesktop: 3,
     },

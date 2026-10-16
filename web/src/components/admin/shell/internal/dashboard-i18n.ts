@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { BILLING_ES_TEXT } from "./dashboard-i18n-billing";
 import { LEFTOVERS_ES_TEXT } from "./dashboard-i18n-leftovers";
 import { NOTIFICATIONS_ES_TEXT } from "./dashboard-i18n-notifications";
 import { QA_FORMATS_ES_TEXT } from "./dashboard-i18n-qa-formats";
@@ -15,7 +16,7 @@ function isSpanish(locale: string): boolean {
 }
 
 const ES_TEXT: Record<string, string> = {
-  ...RAIL_ES_TEXT, ...LEFTOVERS_ES_TEXT, ...QUOTE_ES_TEXT, ...QA_FORMATS_ES_TEXT,
+  ...RAIL_ES_TEXT, ...BILLING_ES_TEXT, ...LEFTOVERS_ES_TEXT, ...QUOTE_ES_TEXT, ...QA_FORMATS_ES_TEXT,
   // Global chrome / nav
   "Prototype control bar": "Barra de control del prototipo",
   "Workspace sections": "Secciones del espacio de trabajo",
@@ -290,7 +291,7 @@ const ES_TEXT: Record<string, string> = {
   "Deposit percentage": "Porcentaje de anticipo",
   "Cancelling hours": "Horas para cancelar",
   "Rescheduling hours": "Horas para reprogramar",
-  "Buffer after": "Buffer después",
+  "Buffer after": "Margen después",
   "Shortest notice (minutes)": "Aviso mínimo (minutos)",
   "with a photo": "con foto",
   "Rename": "Renombrar",
@@ -306,8 +307,9 @@ const ES_TEXT: Record<string, string> = {
   "From portfolio": "Del portafolio",
   "How the price works": "Cómo funciona el precio",
   "Fixed price": "Precio fijo",
-  "Starting at": "Desde",
-  "Quote each time": "Cotizar cada vez",
+  "Get a quote": "Pedir cotización",
+  "Show as starting at": "Mostrar como desde",
+  "Clients see Request a quote. Add a price to take bookings.": "Tus clientes ven Pedir cotización. Agrega un precio para recibir reservas.",
   "Category": "Categoría",
   "How long it takes": "Cuánto dura",
   "How many do you have?": "¿Cuántos tienes?",
@@ -716,7 +718,7 @@ const ES_TEXT: Record<string, string> = {
   "inquiries": "consultas",
   "open": "abiertas",
   "pending approvals": "aprobaciones pendientes",
-  "items need attention": "elementos necesitan atención",
+  "items need attention": "artículos necesitan atención",
   "pending": "pendiente",
   // Workspace page descriptions
   "Today's snapshot: unread, pending actions, recent activity": "Resumen de hoy: no leídos, pendientes y actividad reciente",
@@ -932,7 +934,6 @@ const ES_TEXT: Record<string, string> = {
   "Other": "Otro",
   // Services / skills
   "Category fields (live)": "Campos por categoría (en vivo)",
-  "DB-resolved field catalog for this talent's types": "Catálogo de campos resuelto desde la DB para los tipos de este talento",
   "One primary category · up to two secondary categories · max 9 skills total": "Una categoría principal · hasta dos categorías secundarias · máximo 9 habilidades en total",
   "Primary category": "Categoría principal",
   "Secondary category": "Categoría secundaria",
@@ -1431,7 +1432,7 @@ const ES_TEXT: Record<string, string> = {
   "Unread": "Sin leer",
   "Needs action": "Requiere acción",
   "Nothing here": "Nada aquí",
-  "No items need your attention right now.": "Ningún elemento necesita tu atención ahora mismo.",
+  "No items need your attention right now.": "Ningún artículo necesita tu atención ahora mismo.",
   "Switch to a different filter to see other notifications.": "Cambia de filtro para ver otras notificaciones.",
   "Message": "Mensaje",
   "Offer": "Oferta",

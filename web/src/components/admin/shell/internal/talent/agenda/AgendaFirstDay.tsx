@@ -3,6 +3,7 @@
 import { TALENT_AGENDA_VARS } from "./primitives";
 import { useAgendaCopy } from "./use-agenda-copy";
 import { nextFirstDayStep, type FirstDayStepId } from "@/lib/talent-agenda/first-day";
+import { HOURS_NUDGE_COPY, showHoursSetupNudge } from "@/lib/scheduling/hours-setup-nudge";
 
 const STEPS = [
   { id: "photo", label: "Add a photo" },
@@ -98,6 +99,17 @@ export function AgendaFirstDay({
             );
           })}
         </ol>
+
+        {showHoursSetupNudge(completedStepIds) ? (
+          <button
+            type="button"
+            onClick={onOpenAvailability}
+            data-testid="hours-setup-nudge"
+            className="mt-3 min-h-[44px] w-full rounded-xl bg-[rgba(59,76,202,0.08)] px-3 text-left text-[13.5px] font-medium text-[var(--tc-accent)]"
+          >
+            {HOURS_NUDGE_COPY[copy.isSpanish ? "es" : "en"]}
+          </button>
+        ) : null}
 
         {next === null ? (
           <button

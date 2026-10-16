@@ -8,7 +8,7 @@ import { validateDesign } from "../validate";
 import { isMaisonCatalogSlug } from "../maison/catalog-visibility";
 import { localiseOne } from "../../design-label-locale";
 import { MODE_DEPENDENT_LABELS } from "../seed-i18n";
-import { COLLECTION_DESIGNS, COLLECTION_DESIGN_GAPS, isCollectionDesignSlug } from "./designs";
+import { COLLECTION_DESIGNS, COLLECTION_DESIGN_GAPS, buildFramePayload, isCollectionDesignSlug } from "./designs";
 
 for (const d of COLLECTION_DESIGNS) {
   test(`${d.slug} validates as a Design`, () => {
@@ -500,4 +500,12 @@ test("maison-v2 has the serif ticker and the staggered recent-work strip", () =>
   const sp = (header!.props as { sectionProps: Record<string, unknown> }).sectionProps;
   assert.deepEqual((sp.primaryCta as { label: string }).label, "Book an appointment");
   assert.equal((sp.brand as { tagline?: string }).tagline, "{{primaryTypeLabel}}");
+});
+
+test("TUL-547: frame header 'Book' link opens the booking sheet (#book), not a scroll to #services", () => {
+  const header = buildFramePayload().shellTree[0] as unknown as {
+    props?: { sectionProps?: { navItems?: { label: string; href: string }[] } };
+  };
+  const items = header.props?.sectionProps?.navItems ?? [];
+  assert.equal(items.find((l) => l.label === "Book")?.href, "#book");
 });

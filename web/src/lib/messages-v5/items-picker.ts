@@ -66,6 +66,8 @@ export type CatalogRow = {
   readonly currency?: string | null;
   readonly availability: ItemAvailability;
   readonly talentProfileId?: string;
+  /** Who offers this row, on tenant-wide catalogs (agency/hub). Absent on per-talent catalogs. */
+  readonly ownerName?: string | null;
   readonly offeringId?: string;
   readonly sessionId?: string;
   readonly eventId?: string;

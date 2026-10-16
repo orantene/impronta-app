@@ -77,3 +77,14 @@ test("Services preview is a bottom sheet under sm", () => {
   assert.match(SERVICES, /items-end justify-center bg-black\/40 sm:items-center/);
   assert.match(SERVICES, /max-h-\[88dvh\][^"]*rounded-t-2xl/);
 });
+
+test("TUL-914: at 390px the builder panels stay inside the screen and the sheet has a 44px close", () => {
+  const dock = read("./inspector-dock.tsx");
+  // Sheet body can shrink below its content; the tab row scrolls inside itself.
+  assert.match(SHELL, /max-md:!w-full max-md:!max-w-full/);
+  assert.match(SHELL, /flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden/);
+  assert.match(DRAWER, /flex min-w-0 max-w-full shrink-0 items-stretch gap-5 overflow-x-auto overscroll-x-contain/);
+  assert.match(DRAWER, /transition-colors max-sm:size-11/);
+  // The phone slide-in wrapper clips whatever it holds, so it cannot widen the page.
+  assert.match(dock, /max-sm:pointer-events-none max-sm:overflow-hidden/);
+});

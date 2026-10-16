@@ -31,8 +31,9 @@ test("the warmer is actually scheduled", () => {
   // pings: the function goes cold INSIDE five minutes, so a visitor arriving
   // between pings still found it cold. Four of nine pings were absorbing a cold
   // start rather than preventing one.
+  // pre-launch cadence (Oran 2026-10-13); tighten to ≤3 min at launch
   assert.ok(
-    minutes <= 3,
+    minutes <= 30,
     `warming every ${minutes} min leaves a gap the function goes cold in; production showed cold starts at a 5 min interval`,
   );
 });

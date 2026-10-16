@@ -55,6 +55,7 @@ import { resolveWorkspaceSiteEditorUrl } from "@/lib/talent-site/workspace-site-
 import { siteScaffoldComplete } from "@/lib/talent-site/server/site-scaffold-complete";
 import { PageBuilderCreateSite } from "@/components/talent/site/PageBuilderCreateSite";
 import { loadSiteRev } from "@/lib/talent-site/history/history.server";
+import { loadTalentSiteAddress } from "@/lib/talent-site/server/load-max-site-link";
 import type { MaxSiteManagerPage } from "@/lib/talent-site/server/site-management-types";
 import { buildTalentSiteCapabilities } from "@/lib/access/talent-membership";
 import { TalentPageBuilderScreen } from "@/components/talent/site/TalentPageBuilderScreen";
@@ -122,7 +123,7 @@ async function resolveSiteExists(input: { profileId: string; canEdit: boolean })
   const [siteRes, pagesRes] = await Promise.all([
     admin
       .from("talent_sites")
-      .select("site_slug, shell_tree")
+      .select("site_slug, shell_head:shell_tree->0")
       .eq("talent_profile_id", input.profileId)
       .maybeSingle(),
     admin.from("talent_pages").select("is_home").eq("talent_profile_id", input.profileId),
@@ -235,13 +236,14 @@ export default async function TalentPageBuilderRoute({
     redirect(talentLocaleSeedHref(`/talent/page-builder${query ? `?${query}` : ""}`));
   }
 
-  const [locale, talentLocale, tenantId, siteExists] = await Promise.all([
+  const [locale, talentLocale, tenantId, siteExists, siteUrl] = await Promise.all([
     getRequestLocale(),
     // PR 7: the builder's content-locale pill + inspector tabs follow the
     // talent's own languages (primary first), not the managing agency's.
     loadTalentLocaleSettings(profile.id),
     resolveBuilderTenantId(profile.id),
     resolveSiteExists({ profileId: profile.id, canEdit }),
+    canEdit ? loadTalentSiteAddress(profile.id) : Promise.resolve(null),
   ]);
 
   // Phase 1 gate: edit capability + an existing site. No site yet: show the
@@ -340,6 +342,7 @@ export default async function TalentPageBuilderRoute({
       siteCapabilities={siteCapabilities}
       talentDisplayName={profile.displayName}
       talentHeadshotUrl={profile.headshotUrl}
+      talentSiteUrl={siteUrl}
       locale={locale}
       canvasRenderData={canvasRenderData}
       initialComposition={initialComposition}

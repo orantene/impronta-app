@@ -226,6 +226,10 @@ test("auth and non-storefront paths never suggest", () => {
     "/forgot-password",
     "/auth/callback",
     "/onboarding",
+    "/start",
+    "/start/",
+    "/get-started",
+    "/es/start",
     "/update-password",
     "/es/login",
     "/impronta/login",
@@ -233,6 +237,21 @@ test("auth and non-storefront paths never suggest", () => {
   ]) {
     assertSkipped(shouldSuggestLocale(visit({ pathname })), "non-public-path");
   }
+});
+
+test("TUL-394: /start never offers a language banner over Continuar", () => {
+  // Spanish browser on already-Spanish /start (document locale es, URL unprefixed).
+  assertSkipped(
+    shouldSuggestLocale(
+      visit({
+        pathname: "/start",
+        currentLocale: "en",
+        renderLocale: "es",
+        acceptLanguage: "es-MX,es;q=0.9",
+      }),
+    ),
+    "non-public-path",
+  );
 });
 
 test("crawlers never see the banner — indexed HTML stays clean", () => {
@@ -501,4 +520,11 @@ test("INVARIANT: the decision never proposes changing what the CURRENT url serve
       }
     }
   }
+});
+
+test("TUL-16d: a Spanish-primary talent site rendered in Spanish never offers English", () => {
+  const input = visit({ tenantSettings: ES_DEFAULT, currentLocale: "es", renderLocale: "es", acceptLanguage: "en-US,en;q=0.9", talentSitePrimaryLocale: "es", pathname: "/" });
+  assertSkipped(shouldSuggestLocale(input), "talent-es-default");
+  // Same visitor off a talent site (no marker) still gets the suggestion.
+  assert.equal(shouldSuggestLocale({ ...input, talentSitePrimaryLocale: null }).suggest, true);
 });
