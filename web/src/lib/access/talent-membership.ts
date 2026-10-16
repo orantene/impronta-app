@@ -1,5 +1,5 @@
 import type { CapabilityKey } from "./capabilities";
-import type { PlanKey } from "./plan-catalog";
+import { planGrantsPosts, type PlanKey } from "./plan-catalog";
 import { hasEntitlement, type TalentEntitlement } from "./talent-entitlements";
 import { talentTierLabel } from "./talent-tier-label";
 
@@ -21,6 +21,8 @@ export type TalentPlanCapability =
   /** @deprecated Alias of `personalSiteSections` — kept so existing callers compile. */
   | "personalSiteCustomBuilder"
   | "personalSiteCustomDomain"
+  /** Posts v1 — publish / edit live posts. Every Web Office key (plan-catalog `planGrantsPosts`). */
+  | "talentPosts"
   | TalentSiteCapability;
 
 /**
@@ -165,8 +167,16 @@ export function talentPlanGrantsCapability(
  */
 export function talentPlanGrantsSiteCapability(
   planKey: string | null | undefined,
-  capability: TalentSiteCapability,
+  capability: TalentSiteCapability | "talentPosts",
 ): boolean {
+  // Posts is NOT part of the Phase 1 dark switch: it is granted by every Web
+  // Office key (talent_portfolio AND talent_pro) in both switch positions,
+  // matching the DB gate `talent_profile_has_web_office()`. It is also kept
+  // out of TALENT_SITE_CAPABILITY_KEYS so the flags-off parity record is
+  // byte-stable.
+  if (capability === "talentPosts") return planGrantsPosts(normalizeTalentPlanKey(planKey));
+  // Every other site capability: the plan -> feature map lives in
+  // `talent-entitlements.ts` (TUL-837); one answer, free-website switch included.
   return hasEntitlement(planKey, capability, "site");
 }
 

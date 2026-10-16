@@ -12,6 +12,7 @@ import {
   type ScheduledPageRow,
   type ScheduledPublishHandlers,
 } from "@/lib/site-admin/server/scheduled-publish-sweep";
+import { sweepScheduledPosts } from "@/lib/cms/posts-scheduled-sweep";
 
 /**
  * Phase 12 — scheduled-publish cron sweep.
@@ -229,5 +230,13 @@ export async function GET(request: Request) {
     );
   }
 
-  return NextResponse.json({ ok: true, ...report });
+  // Posts v1 (TUL-1007): scheduled posts publish only while the owner holds
+  // the posts capability; a lapsed owner's row is skipped (never mutated) and
+  // reported under posts.skipped with reason owner_lacks_posts_capability.
+  const posts = await sweepScheduledPosts(supabase, nowIso);
+  for (const failure of posts.failed) {
+    logServerError("cron/publish-scheduled/posts-publish", new Error(`${failure.postId}: ${failure.error}`));
+  }
+
+  return NextResponse.json({ ok: true, ...report, posts });
 }

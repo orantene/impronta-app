@@ -18,6 +18,7 @@ import { PastDueBanner } from "@/components/billing/PastDueBanner";
 import { PromoCodeInput } from "@/components/billing/promo-code-input";
 import { startTalentUpgrade, openTalentSubscriptionPortal } from "./stripe-talent-actions";
 import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
+import { useT } from "@/i18n/use-t";
 import type { TalentSubscriptionState } from "../../_data-bridge";
 import type { TalentPlanKey } from "@/lib/stripe/price-ids";
 
@@ -240,6 +241,7 @@ export function TalentSubscriptionShell({
   subscription: TalentSubscriptionState | null;
   stripeEnabled: boolean;
 }) {
+  const t = useT();
   const planKey: PlanKey =
     rawPlanKey === "talent_pro" || rawPlanKey === "talent_portfolio"
       ? rawPlanKey
@@ -320,6 +322,12 @@ export function TalentSubscriptionShell({
             {meta.perks.map((p) => (
               <li key={p} style={{ fontSize: 12.5, color: C.inkMuted, fontFamily: FONT }}>{p}</li>
             ))}
+            {/* Posts v1 (TUL-1007): every Web Office key, grandfathered talent_pro included. */}
+            {(planKey === "talent_pro" || planKey === "talent_portfolio") && (
+              <li style={{ fontSize: 12.5, color: C.inkMuted, fontFamily: FONT }}>
+                {t("dashboard.talentPosts.planPerk")}
+              </li>
+            )}
           </ul>
         </div>
 
