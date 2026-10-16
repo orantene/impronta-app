@@ -20,6 +20,7 @@ const DAY_INDEX: Record<string, number> = {
   sab: 5, sabado: 5, dom: 6, domingo: 6,
 };
 const DAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAY_SHORT_ES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
 function strip(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -106,6 +107,25 @@ function finish(days: string | null, time: string | null): string | null {
   if (days && time) return `${days} ${time}`;
   if (days) return days;
   return null;
+}
+
+/**
+ * TUL-540 / onb1-01: show canonical EN hours ("Mon-Sat 09:00-19:00") in the
+ * flow locale. Internal storage stays EN so weeklyHoursFromCanonical stays
+ * stable; only the understood card / UI should call this.
+ */
+export function formatCanonicalHoursForLocale(
+  canonical: string,
+  locale: "en" | "es",
+): string {
+  if (locale !== "es") return canonical;
+  const s = canonical.trim();
+  if (/^by appointment$/i.test(s)) return "Con cita";
+  let out = s.replace(/^Every day/i, "Todos los días");
+  for (let i = 0; i < DAY_SHORT.length; i++) {
+    out = out.replaceAll(DAY_SHORT[i], DAY_SHORT_ES[i]);
+  }
+  return out;
 }
 
 /** Whole `business.hours` value (string or list) → canonical lines; unreadable lines kept verbatim. */
