@@ -24,6 +24,7 @@ describe("TUL-391 / TUL-959 / TUL-956 thread deep link opens in place", () => {
   it("moves focus to the Messages region on a deep link (a11y)", () => {
     const page = readFileSync(PAGE, "utf8");
     assert.match(page, /regionRef\.current\?\.focus\(\{ preventScroll: true \}\)/);
+    assert.doesNotMatch(page, /eslint-disable-next-line react-hooks\/exhaustive-deps/, "no new hook-deps suppression (ratchet is frozen)");
     assert.match(page, /ref=\{regionRef\}\s+tabIndex=\{-1\}\s+role="region"/);
   });
   it("Messages keeps the address on the open thread", () => {

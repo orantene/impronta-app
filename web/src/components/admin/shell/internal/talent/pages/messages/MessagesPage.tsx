@@ -53,9 +53,10 @@ function TalentMessagesV5() {
   // page, so keyboard and screen-reader focus must follow it: land on the
   // Messages region once, on mount.
   const regionRef = useRef<HTMLDivElement>(null);
+  // A ref holds the first value so the effect runs once without a suppression.
+  const openedFromLinkRef = useRef(Boolean(initialInquiryId));
   useEffect(() => {
-    if (initialInquiryId) regionRef.current?.focus({ preventScroll: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on mount
+    if (openedFromLinkRef.current) regionRef.current?.focus({ preventScroll: true });
   }, []);
   // TUL-956: the address follows the open thread, so a refresh or a shared
   // link reopens it. Only on the platform /talent/inbox routes.
