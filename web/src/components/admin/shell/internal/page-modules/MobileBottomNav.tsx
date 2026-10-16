@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useT } from "@/i18n/use-t";
 import { useDashboardText } from "../dashboard-i18n";
@@ -21,6 +21,7 @@ import { TalentMoreScreen } from "@/components/talent/studio/MoreScreen";
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
 import { MOBILE_NAV_CSS } from "./mobile-nav-css";
 import { MOBILE_BUTTON_SECONDARY, MobileSheet } from "./MobileSheet";
+import { PhoneRailModeSwitch } from "./PhoneRailModeSwitch";
 import { WORKSPACE_SWITCH_OPEN_EVENT, WorkspaceSwitchSheet } from "./WorkspaceSwitchSheet";
 import type { TalentPage, WorkspacePage } from "../state";
 import {
@@ -36,7 +37,7 @@ import {
   type WorkRole,
   type WorkspaceNavContext,
 } from "@/lib/workspace/destinations";
-import { canManageBilling, derivePreset, deriveWorkRole } from "@/lib/workspace/nav-context";
+import { deriveWorkRole, workspaceNavContext } from "@/lib/workspace/nav-context";
 import { mobileMoreActions } from "@/lib/workspace/mobile-more-actions";
 import { MOBILE_TAB_LIMIT } from "./SurfaceRouter";
 
@@ -89,6 +90,9 @@ export function MobileBottomNav() {
     workspacePosEnabled,
     workspacePosModes,
     effectiveTenant,
+    bridgeTenantIdentity,
+    bridgeSessionIdentity,
+    effectiveTeamMembers,
   } = useAdminShell();
   const copy = useDashboardText();
   const studioV2 = useTalentStudioV2();
@@ -103,6 +107,22 @@ export function MobileBottomNav() {
   const bottomNavRef = useRef<HTMLElement | null>(null);
   useRovingTabindex(bottomNavRef, "button", { orientation: "horizontal" });
 
+  // TUL-907: the More sheet is a phone-only full-screen layer. When the window
+  // grows past the mobile breakpoint (720px, the shell's own media query) the
+  // bar disappears, so close the sheets instead of leaving them stuck open.
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(min-width: 721px)");
+    const onChange = (e: MediaQueryListEvent) => {
+      if (e.matches) {
+        setMoreOpen(false);
+        setMyWorkOpen(false);
+      }
+    };
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
   // The point of sale owns the whole screen (destinations.ts: `chrome: "pos"`)
   // and this bar must never show over it. `usePathname` is null during the
   // initial server render in this shell (see ConditionalAdminShellRoot in
@@ -116,29 +136,21 @@ export function MobileBottomNav() {
 
   if (state.surface === "workspace") {
     const role: WorkRole = deriveWorkRole(state.role);
-    // `agencies.settings.industry_preset` is not threaded onto the client
-    // shell's state today (context.tsx carries no such field) — this mirrors
-    // nav-context.ts's own documented fail-open default for missing input.
-    // Cafe/solo preset label overrides ("Menu and catalog", "Team",
-    // "Services") will not appear on mobile until a later task wires that
-    // data onto the bridge, the same gap the sidebar rewrite will hit too.
-    const preset = derivePreset({ industryPreset: undefined });
-    const navContext: WorkspaceNavContext = {
+    // TUL-525: same bridge → nav-context chain as the desktop rail, so a
+    // salon phone never draws Pedidos / Mesas / Open POS.
+    const navContext: WorkspaceNavContext = workspaceNavContext({
+      tenantIdentity: bridgeTenantIdentity,
+      sessionIdentity: bridgeSessionIdentity,
       workspaceType: state.workspaceType,
       plan: state.plan,
-      preset,
-      role,
-      professional: state.alsoTalent,
-      takesReservations: state.visiblePages.includes("reservations"),
-      runsEvents: state.visiblePages.includes("events"),
-      // The platform POS kill switch (`platform_settings.workspace_pos_enabled`,
-      // read by `loadPlatformWorkspaceUi`) now rides the shell bridge as
-      // `workspaceUi.posEnabled`, the same channel fabEnabled/tourEnabled/
-      // supportEnabled already use. It was a hardcoded `false` here, which made
-      // the Open POS row below unreachable no matter what HQ had switched on.
-      posEnabled: workspacePosEnabled,
-      canManageBilling: canManageBilling(role),
-    };
+      visiblePages: state.visiblePages,
+      teamMemberCount: effectiveTeamMembers.length,
+      hasTalentProfile: state.alsoTalent,
+      fallbackRole: state.role,
+    });
+    // Platform kill switch still gates Open POS; industry counterOps folds in.
+    const preset = navContext.preset;
+    const counterOps = navContext.counterOps;
 
     // The registry carries no per-destination "needs attention" marker today
     // (`Destination` has no such field). These are the same two live signals
@@ -188,7 +200,8 @@ export function MobileBottomNav() {
     // `enabledPosModesFromSettings` on the server — never the `[]` this file
     // used to pass, which could only ever resolve to "no modes".
     const moreActions = mobileMoreActions({
-      posEnabled: workspacePosEnabled,
+      posEnabled: workspacePosEnabled && counterOps,
+      counterOps,
       role: state.role,
       workspaceEnabledModes: workspacePosModes,
     });
@@ -274,6 +287,9 @@ export function MobileBottomNav() {
             </span>
             <Icon name="chevron-down" size={14} stroke={1.75} color="currentColor" />
           </button>
+
+          {/* Dual-owner Talent | Admin — rail is hidden on phone (TUL-378). */}
+          <PhoneRailModeSwitch active="admin" onAfterSwitch={() => setMoreOpen(false)} className="mb-3" />
 
           {chipGroups.map((g) => (
             <div key={g.group}>
@@ -509,6 +525,9 @@ export function MobileBottomNav() {
                   margin: "8px auto 12px",
                 }}
               />
+              <div className="px-[14px] pb-2">
+                <PhoneRailModeSwitch active="talent" onAfterSwitch={() => setMoreOpen(false)} className="" />
+              </div>
               {overflow.map((t) => (
                 <button
                   key={t.id}

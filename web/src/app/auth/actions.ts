@@ -1,5 +1,7 @@
 "use server";
 
+import { isEmailNotConfirmed } from "@/lib/auth/email-not-confirmed";
+import { signupNameMetadata } from "@/lib/auth/signup-name";
 import {
   getAppUrl,
   isTalentSignupNext,
@@ -34,6 +36,8 @@ import { isAgeAndTermsConfirmed } from "@/lib/legal/acceptances.core";
 import { recordSignupAcceptance } from "@/lib/legal/acceptances";
 import { resetLocaleOnSignIn } from "@/lib/auth/reset-locale-on-sign-in";
 import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { claimAndActivateVerifiedClient } from "@/lib/client-account/after-verified-sign-in.server";
+import { isAuthEmailConfirmedForClaim } from "@/lib/client-account/pure";
 
 /**
  * `pendingEmail` is set when signup succeeded but the session is not live yet
@@ -186,6 +190,11 @@ export async function signInWithEmail(
         });
       }
     }
+    // TUL-767: GoTrue only answers "email not confirmed" once the password was right, so naming it
+    // reveals nothing an attacker could not already do; the visitor needs it to get unstuck.
+    if (isEmailNotConfirmed(error)) {
+      return { error: t("public.auth.errors.emailNotConfirmed") };
+    }
     return { error: t("public.auth.actions.signInGeneric") };
   }
 
@@ -194,6 +203,14 @@ export async function signInWithEmail(
   // by Supabase), not a second getUser() round trip; the independent
   // post-auth reads then run together instead of one after another.
   const user = signInData?.user ?? null;
+  // G3: a confirmed client who signs in by password claims + activates first.
+  if (user) {
+    await claimAndActivateVerifiedClient({
+      userId: user.id,
+      email: user.email,
+      emailProven: isAuthEmailConfirmedForClaim(user),
+    });
+  }
   const [profileData] = await Promise.all([
     user ? loadAccessProfile(supabase, user.id) : Promise.resolve(null),
     user ? resetLocaleOnSignIn(user.id) : Promise.resolve(),
@@ -280,6 +297,11 @@ export async function signInWithEmailModal(
   }
 
   if (data.user) {
+    await claimAndActivateVerifiedClient({
+      userId: data.user.id,
+      email: data.user.email,
+      emailProven: isAuthEmailConfirmedForClaim(data.user),
+    });
     await resetLocaleOnSignIn(data.user.id);
     await claimGuestSupportOnAuth(data.user.id);
     await claimTulalaBriefOnAuth(supabase, data.user.id);
@@ -331,12 +353,14 @@ export async function signUpWithEmail(
   // Carry the page locale so the auth-email hook sends the confirm email in EN/ES.
   const lang = String(formData.get("locale") ?? "en") === "es" ? "es" : "en";
 
+  const nameMeta = signupNameMetadata(formData.get("full_name"));
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(nextPath)}&lang=${lang}`,
-      data: signupIntent ? { signup_intent: signupIntent } : undefined,
+      // lang: fallback for the auth-email hook when the redirect loses ?lang= (TUL-1179).
+      data: { ...(signupIntent ? { signup_intent: signupIntent } : {}), ...nameMeta, lang },
     },
   });
   if (error) {
@@ -522,5 +546,7 @@ export async function signOut(): Promise<void> {
   }
   await clearGuestCookie();
   revalidatePath("/", "layout");
-  redirect("/");
+  // S1: a server action cannot expire both cookie scopes (name-keyed jar); the
+  // route does it with raw Set-Cookie headers, then lands on the home page.
+  redirect("/auth/sign-out");
 }

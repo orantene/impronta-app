@@ -17,6 +17,8 @@
 // Spec: project_discover_unified.md §9 (talent audit T2/T4/T5).
 
 import Link from "next/link";
+
+import { DirectorySwitch } from "./_directory-switch";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
@@ -27,6 +29,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { SmartImage } from "@/components/ui/smart-image";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { discoverCopy } from "./_discover-copy";
+import { countryLabel } from "@/lib/geo/country-code";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug?: string }>;
@@ -53,6 +56,7 @@ const C = {
 } as const;
 
 type TalentDiscoverData = {
+  id: string;
   displayName: string;
   profileCode: string | null;
   isDiscoverable: boolean;
@@ -191,12 +195,13 @@ async function loadTalentDiscover(
     || discoverCopy(locale).unnamed;
 
   return {
+    id: talentProfileId,
     displayName,
     profileCode: (tp.profile_code as string | null) ?? null,
     isDiscoverable: tp.is_discoverable === true,
     workflowStatus: (tp.workflow_status as string | null) ?? null,
     homeCity: (tp.home_city_text as string | null) ?? null,
-    homeCountry: (tp.home_country_text as string | null) ?? null,
+    homeCountry: countryLabel(tp.home_country_text as string | null),
     travelRadiusKm: (tp.travel_radius_km as number | null) ?? null,
     remoteOnly: tp.remote_only === true,
     categoryLabel,
@@ -253,6 +258,15 @@ export default async function PlatformTalentDiscoverPage() {
           {c.presenceLede}
         </div>
       </div>
+
+      <DirectorySwitch
+        talentProfileId={d.id}
+        initial={d.isDiscoverable}
+        label={c.directorySwitchLabel}
+        hint={c.directorySwitchHint}
+        savedText={c.directorySwitchSaved}
+        errorText={c.directorySwitchError}
+      />
 
       {/* Enrollment status banner */}
       <div style={{
@@ -416,6 +430,14 @@ export default async function PlatformTalentDiscoverPage() {
           borderRadius: 8, fontSize: 12.5, fontWeight: 600, textDecoration: "none",
         }}>
           {c.trustSignals}
+        </Link>
+        <Link href={talentSubHref(tenantSlug, "get-found", platformRoutes)} style={{
+          display: "inline-flex", alignItems: "center", gap: 6,
+          padding: "9px 14px", background: "transparent",
+          color: C.ink, border: `1px solid ${C.border}`,
+          borderRadius: 8, fontSize: 12.5, fontWeight: 600, textDecoration: "none",
+        }}>
+          {c.googleGuide}
         </Link>
       </div>
     </div>

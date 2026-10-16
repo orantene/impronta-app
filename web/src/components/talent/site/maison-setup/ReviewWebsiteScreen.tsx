@@ -11,6 +11,7 @@ import {
   type MaisonReviewState,
 } from "@/lib/talent-site/server/maison-review-actions";
 import { undoMaisonDesignAction } from "@/lib/talent-site/server/maison-apply-actions";
+import { discardMaisonLivePendingAction } from "@/lib/talent-site/server/maison-options-actions";
 import { publishMaxSiteAction } from "@/lib/talent-site/server/site-management-actions";
 import { isThemeApplyBusy, useThemeApplyBusy } from "@/lib/talent-site/history/apply-busy";
 import { maisonReadinessHeadline } from "@/lib/talent-site/server/maison-publish-readiness";
@@ -24,6 +25,7 @@ import {
 import { ThemeGalleryPreviewFrame } from "@/components/talent/site/theme-gallery/ThemeGalleryPreviewFrame";
 import { useThemePreview } from "@/components/talent/site/theme-gallery/useThemePreview";
 import type { MaisonSetupChoices } from "./maison-choices";
+import { reviewPublishButton } from "./review-flow-state";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
 
 type Props = {
@@ -32,6 +34,8 @@ type Props = {
   choices: MaisonSetupChoices;
   onChange: (next: Partial<MaisonSetupChoices>) => void;
   onBackToDetail: () => void;
+  /** After a successful Undo; defaults to onBackToDetail. The host sends a live site back to the site page. */
+  onUndone?: () => void;
   onPublished: () => void;
 };
 
@@ -41,6 +45,7 @@ export function ReviewWebsiteScreen({
   choices,
   onChange,
   onBackToDetail,
+  onUndone,
   onPublished,
 }: Props) {
   const [state, setState] = useState<MaisonReviewState | null>(null);
@@ -50,6 +55,8 @@ export function ReviewWebsiteScreen({
   );
   const [toast, setToast] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  // Publish has its own transition so the label never reads "Publishing…" while the review loads.
+  const [publishing, startPublish] = useTransition();
   const preview = useThemePreview({ talentProfileId, locale });
   // Each design previews in its OWN palette (Maison: the maison-* Look rows).
   const galleryDesign = getGalleryDesign(choices.designSlug);
@@ -106,20 +113,24 @@ export function ReviewWebsiteScreen({
 
   function handleUndo() {
     startTransition(async () => {
-      const res = await undoMaisonDesignAction();
+      // TUL-658: a live site's unpublished change is dropped with Discard.
+      const res =
+        state?.undoKind === "live"
+          ? await discardMaisonLivePendingAction()
+          : await undoMaisonDesignAction();
       if (!res.ok) {
         setPublishError({ message: res.error, code: res.code });
         return;
       }
       onChange({ screen: "detail", status: "Choices saved", phoneSheet: null });
-      onBackToDetail();
+      (onUndone ?? onBackToDetail)();
     });
   }
 
   const applyBusy = useThemeApplyBusy();
   function handlePublish() {
     if (isThemeApplyBusy()) return;
-    startTransition(async () => {
+    startPublish(async () => {
       setPublishError(null);
       const res = await publishMaxSiteAction();
       if (!res.ok) {
@@ -137,6 +148,7 @@ export function ReviewWebsiteScreen({
 
   const readiness = state?.readiness;
   const ready = readiness?.ready === true;
+  const publishButton = reviewPublishButton({ loading: pending, publishing, ready, applyBusy });
   const headline = readiness
     ? ready
       ? maisonSetupT(locale, "Ready to publish")
@@ -251,7 +263,7 @@ export function ReviewWebsiteScreen({
               type="button"
               data-testid="maison-publish-retry"
               onClick={handlePublish}
-              disabled={pending || !ready || applyBusy}
+              disabled={publishButton.disabled}
               className="mt-2 text-[13px] font-semibold text-red-900 underline"
             >
               {maisonSetupT(locale, "Try again")}
@@ -265,10 +277,10 @@ export function ReviewWebsiteScreen({
           type="button"
           data-testid="maison-publish"
           onClick={handlePublish}
-          disabled={pending || !ready || applyBusy}
+          disabled={publishButton.disabled}
           className="min-h-12 w-full rounded-xl bg-admin-ink text-[14px] font-semibold text-white disabled:opacity-40"
         >
-          {pending
+          {publishButton.showPublishing
             ? maisonSetupT(locale, "Publishing…")
             : maisonSetupT(locale, "Publish")}
         </button>
@@ -308,6 +320,11 @@ export function ReviewWebsiteScreen({
           <p className="mt-0.5 text-[13px] text-admin-ink-muted" data-testid="maison-review-sub">
             {state?.summaryLine ?? "…"}
           </p>
+          {state?.canUndo && state.undoRevertsToName ? (
+            <p className="mt-0.5 text-[12px] text-admin-ink-dim" data-testid="maison-undo-target">
+              {maisonSetupT(locale, "Undo goes back to")} {state.undoRevertsToName}
+            </p>
+          ) : null}
         </div>
         {state?.canUndo ? (
           <button
@@ -317,7 +334,7 @@ export function ReviewWebsiteScreen({
             disabled={pending}
             className="min-h-10 shrink-0 rounded-xl border border-admin-border-soft px-3 text-[13px] font-semibold text-admin-ink"
           >
-            {maisonSetupT(locale, "Undo")}
+            {maisonSetupT(locale, "Undo design change")}
           </button>
         ) : null}
       </header>

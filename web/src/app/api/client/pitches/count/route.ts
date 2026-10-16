@@ -11,6 +11,7 @@
 
 import { NextResponse } from "next/server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
+import { resolveClientApiRead } from "@/lib/impersonation/client-api-read";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -22,13 +23,15 @@ export async function GET() {
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   }
 
+  // TUL-255: count the effective client's pitches (impersonation subject, else the session user).
+  const read = await resolveClientApiRead();
   const admin = createServiceRoleClient();
-  if (!admin) return NextResponse.json({ count: 0 });
+  if (!admin || !read) return NextResponse.json({ count: 0 });
 
   const { count, error } = await admin
     .from("pitches")
     .select("id", { count: "exact", head: true })
-    .eq("recipient_user_id", session.user.id);
+    .eq("recipient_user_id", read.userId);
 
   if (error) {
     logServerError("api.client.pitches.count", error);

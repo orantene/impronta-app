@@ -15,11 +15,12 @@ import {
   type StripeThinEvent,
 } from "@/lib/payments/webhook-v2";
 import { logServerError } from "@/lib/server/safe-error";
+import { stripeEnv } from "@/lib/stripe/env-keys";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request): Promise<Response> {
-  const secret = process.env.STRIPE_V2_WEBHOOK_SECRET;
+  const secret = stripeEnv("STRIPE_V2_WEBHOOK_SECRET");
   if (!secret) {
     // Not configured yet (Global Payouts not live). 503 so Stripe retries and
     // the misconfiguration is visible, rather than silently dropping an event.

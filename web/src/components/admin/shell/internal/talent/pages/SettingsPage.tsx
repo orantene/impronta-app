@@ -13,7 +13,11 @@ import { ProfileVisibilityCard } from "@/app/(workspace)/[tenantSlug]/talent/set
 import { TalentPlanCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/TalentPlanCard";
 import { HowYouWorkCard } from "@/components/settings/how-you-work-card";
 import { HYW_DESC, HYW_TITLE } from "@/components/settings/how-you-work-copy";
+import { AccountExportLinks } from "@/components/account/AccountExportLinks";
+import { JoinStudioCard } from "@/components/settings/join-studio-card";
+import { JS_DESC, JS_TITLE } from "@/components/settings/join-studio-copy";
 import { AccountDeletionCard } from "@/components/account/AccountDeletionCard";
+import { openUpgrade } from "@/components/talent/upgrade/open-upgrade";
 import { TalentInstagramCard } from "@/components/talent/connections/TalentInstagramCard";
 import { TALENT_INSTAGRAM_RETURN_MARKER } from "@/lib/talent-integrations/instagram-card-state";
 import { usePresenceText } from "@/components/talent/studio/presence-i18n";
@@ -169,7 +173,7 @@ export function SettingsPage() {
         key: "terms",
         label: tx("Deposit and cancellations"),
         sub: tx("Your defaults for new bookings. Each booking can still set its own."),
-        panel: <CommercialBookingTermsCard talentId={bridgeTalentSelfProfile.id} />,
+        panel: <CommercialBookingTermsCard talentId={bridgeTalentSelfProfile.id} solo={(bridgeTalentAgencies ?? []).length === 0} />,
       },
       {
         key: "currency",
@@ -234,6 +238,7 @@ export function SettingsPage() {
   if (bridgeTalentSelfProfile) {
     const l = copy.isSpanish ? "es" : "en";
     account.push({ key: "how-you-work", label: HYW_TITLE[l], sub: HYW_DESC[l], panel: <HowYouWorkCard /> });
+    account.push({ key: "join-studio", label: JS_TITLE[l], sub: JS_DESC[l], panel: <JoinStudioCard /> });
   }
   account.push(
     {
@@ -264,15 +269,13 @@ export function SettingsPage() {
       key: "privacy",
       label: tx("Privacy"),
       sub: tx("Search-engine indexing, sensitive measurements and document visibility."),
-      onOpen: () => openSection("admin"),
+      onOpen: () => openDrawer("talent-privacy"),
     },
     {
       key: "download-data",
       label: tx("Download my data"),
       sub: copy.t("A copy of the information Tulala holds about you, as a file."),
-      onOpen: () => {
-        window.location.assign("/api/account/export");
-      },
+      panel: <AccountExportLinks es={copy.isSpanish} />,
     },
     bridgeTalentSelfProfile
       ? {
@@ -282,7 +285,7 @@ export function SettingsPage() {
           panel: (
             <TalentPlanCard
               onCompare={() => openDrawer("talent-tier-compare")}
-              onUpgrade={() => openDrawer("talent-tier-compare")}
+              onUpgrade={() => openUpgrade({ feature: "generic", from: "settings-plan-card" })}
             />
           ),
         }
@@ -295,7 +298,7 @@ export function SettingsPage() {
     {
       key: "help",
       label: tx("Help and support"),
-      sub: tx("Common questions, payouts, contact our team."),
+      sub: tx("Shortcuts, help centre, contact our team."),
       onOpen: () => openDrawer("help"),
     },
   );
@@ -306,7 +309,7 @@ export function SettingsPage() {
           key: "instagram",
           label: "Instagram",
           sub: tx("Your latest posts on your website."),
-          panel: <TalentInstagramCard onUpgrade={() => openDrawer("talent-tier-compare")} />,
+          panel: <TalentInstagramCard onUpgrade={() => openUpgrade({ feature: "generic", from: "settings-instagram" })} />,
         },
       ]
     : [];

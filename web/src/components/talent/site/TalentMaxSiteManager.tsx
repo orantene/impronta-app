@@ -61,6 +61,7 @@ import {
 import type { MaxSiteManagerState } from "@/lib/talent-site/server/site-management-types";
 import { isThemeApplyBusy, useThemeApplyBusy } from "@/lib/talent-site/history/apply-busy";
 import { CustomDomainRow } from "@/components/talent/site/CustomDomainRow";
+import { FreeTierAppsEntry } from "@/components/talent/site/FreeTierAppsEntry";
 import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
 import {
   PERSONAL_SITE_BUILDER_HREF,
@@ -78,6 +79,8 @@ type ManagerProps = Props & {
   /** When true, CustomDomainRow is omitted (Wave 3 Domain tile owns it). */
   hideDomainRow?: boolean;
 };
+
+const MANAGER_LOAD_TIMEOUT_MS = 20_000;
 
 export function TalentMaxSiteManager({
   locale = "en",
@@ -98,7 +101,14 @@ export function TalentMaxSiteManager({
   // Never hang on "Loading your website…": a thrown action lands in `error`.
   const reload = useCallback(async () => {
     try {
-      const res = await takeOr("manager", "manager", loadMaxSiteManagerAction);
+      // TUL-728: server actions queue one at a time; a stuck one left this card
+      // on "Loading your website…" forever. Time out into the retry state.
+      const res = await Promise.race([
+        takeOr("manager", "manager", loadMaxSiteManagerAction),
+        new Promise<never>((_, reject) => {
+          window.setTimeout(() => reject(new Error("manager-load-timeout")), MANAGER_LOAD_TIMEOUT_MS);
+        }),
+      ]);
       if (!res.ok) {
         setError(res.error);
         setState(null);
@@ -172,7 +182,18 @@ export function TalentMaxSiteManager({
   }
 
   if (!state.canManage) {
-    return <UpsellCard />;
+    // TUL-39: free / flags-off still browses Apps (Nail Designer + Web Office
+    // badge + Upgrade). Upsell alone left the pack with no Apps entry.
+    return (
+      <div
+        style={{ display: "flex", flexDirection: "column", gap: 14 }}
+        data-talent-max-site-manager
+        data-testid="talent-site-free-upsell"
+      >
+        <UpsellCard />
+        <FreeTierAppsEntry locale={locale === "es" ? "es" : "en"} />
+      </div>
+    );
   }
 
   if (!state.siteExists) {
@@ -335,18 +356,19 @@ function SecondaryPersonalWebsiteCard({
 
 function UpsellCard() {
   const { openDrawer } = useAdminShell();
+  const copy = useDashboardText();
   return (
     <Card>
-      <Badge>PORTFOLIO FEATURE</Badge>
+      <Badge>{copy.t("PORTFOLIO FEATURE")}</Badge>
       <h3 style={{ margin: "10px 0 6px", fontFamily: FONTS.display, fontSize: 16, fontWeight: 700, color: COLORS.ink }}>
-        Your own website
+        {copy.t("Your own website")}
       </h3>
       <p style={{ margin: "0 0 14px", fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.55, maxWidth: 560 }}>
-        Upgrade to Portfolio to build a full multi-page website with your own header, logo,
-        footer, and a custom address — published at its own link, separate from your
-        discovery profile.
+        {copy.t(
+          "Upgrade to Portfolio to build a full multi-page website with your own header, logo, footer, and a custom address — published at its own link, separate from your discovery profile.",
+        )}
       </p>
-      <PrimaryButton onClick={() => openDrawer("talent-tier-compare")}>See plans</PrimaryButton>
+      <PrimaryButton onClick={() => openDrawer("talent-tier-compare")}>{copy.t("See plans")}</PrimaryButton>
     </Card>
   );
 }

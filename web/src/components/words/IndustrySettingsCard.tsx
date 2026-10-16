@@ -9,6 +9,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 
+import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { loadIndustrySettings, setBusinessType, setIndustryPreset } from "@/lib/server-actions/industry-settings";
 import { presetPickerModel, presetSummary } from "@/lib/words/picker-options";
 import { resolveWords, type IndustryPresetId } from "@/lib/words";
@@ -55,7 +56,10 @@ function Row({
   );
 }
 
-export function IndustrySettingsCard({ locale = "en" }: { locale?: "en" | "es" }) {
+/** `locale` overrides; without it the card follows the dashboard language (TUL-702). */
+export function IndustrySettingsCard({ locale: localeProp }: { locale?: "en" | "es" }) {
+  const dash = useDashboardText();
+  const locale: "en" | "es" = localeProp ?? (dash.isSpanish ? "es" : "en");
   const [saving, startTransition] = useTransition();
   const [current, setCurrent] = useState<unknown>(undefined);
   const [typeId, setTypeId] = useState<string | null>(null);
@@ -131,7 +135,7 @@ export function IndustrySettingsCard({ locale = "en" }: { locale?: "en" | "es" }
         title={es ? "Tipo de negocio" : "Business type"}
         desc={
           es
-            ? "Busca el tipo más cercano. Puedes cambiarlo después. Other business queda fuera de los 120."
+            ? "Busca el tipo más cercano. Puedes cambiarlo después. Otro negocio queda fuera de los 120 tipos."
             : "Search for the closest match. You can change this later. Other business sits outside the 120 types."
         }
         right={

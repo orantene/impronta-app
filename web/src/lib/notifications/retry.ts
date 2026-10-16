@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { auditFailure } from "@/lib/audit/emit";
 import { logServerError } from "@/lib/server/safe-error";
 import { sendEmailNotification } from "./channels/email";
+import { isChannelSkip } from "./dispatcher-outcome";
 import { findCatalogEntryById } from "./catalog";
 import { isEmailSuppressed } from "./suppressions";
 import type { NotificationEvent, RecipientRole, ResolvedRecipient } from "./types";
@@ -229,6 +230,14 @@ async function retryRow(
 
   try {
     const providerRef = await sendEmailNotification(event, entry, recipient, { admin });
+    if (isChannelSkip(providerRef)) {
+      await mark(admin, row.id, {
+        status: "skipped",
+        error_message: `skipped: ${providerRef.reason}`,
+        attempts,
+      });
+      return "skipped";
+    }
     await mark(admin, row.id, {
       status: "sent",
       sent_at: now.toISOString(),

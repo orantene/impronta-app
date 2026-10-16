@@ -41,6 +41,20 @@ export const WORKSPACE_EN = {
       "{who} asked to join your roster from your public site. Review the request to approve or decline.",
     button: "Review request →",
   },
+  "workspace.unclaimed_talent_booking": {
+    subject: "A booking needs you: the talent has not claimed their profile",
+    preview: "A booking for an unclaimed talent profile",
+    heading: "A booking is waiting for you to handle",
+    fallbackName: "there",
+    fallbackTalent: "A talent",
+    fallbackEvent: "a new booking",
+    labelDate: "Date",
+    labelLocation: "Location",
+    intro:
+      "Hi {name}, {event} was booked for {talent}, who hasn't claimed their profile yet, so they were not notified.",
+    note: "Please reach out to the talent directly and share the booking details.",
+    button: "Open booking →",
+  },
   "workspace.coordinator_assigned": {
     // {offeringSuffix} = ": <service title>" for storefront service requests,
     // "" for ordinary inquiries (missing vars interpolate to empty).
@@ -167,6 +181,20 @@ export const WORKSPACE_ES: typeof WORKSPACE_EN = {
     intro:
       "{who} solicitó unirse a tu roster desde tu sitio público. Revisa la solicitud para aprobarla o rechazarla.",
     button: "Revisar solicitud →",
+  },
+  "workspace.unclaimed_talent_booking": {
+    subject: "Una reserva te necesita: el talento no ha reclamado su perfil",
+    preview: "Una reserva para un perfil de talento sin reclamar",
+    heading: "Hay una reserva que debes gestionar",
+    fallbackName: "hola",
+    fallbackTalent: "Un talento",
+    fallbackEvent: "una nueva reserva",
+    labelDate: "Fecha",
+    labelLocation: "Ubicación",
+    intro:
+      "Hola {name}, se reservó {event} para {talent}, quien aún no ha reclamado su perfil, así que no recibió ningún aviso.",
+    note: "Contacta al talento directamente y comparte los detalles de la reserva.",
+    button: "Abrir reserva →",
   },
   "workspace.coordinator_assigned": {
     subject: "Se te asignó una nueva solicitud{offeringSuffix}",

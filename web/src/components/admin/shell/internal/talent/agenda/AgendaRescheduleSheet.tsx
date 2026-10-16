@@ -1,5 +1,6 @@
 "use client";
 
+import { DateFormatHint } from "../../primitives/DateFormatHint";
 import { useState, useTransition } from "react";
 import { TaskShell } from "./primitives/TaskShell";
 import { proposeReschedule } from "@/lib/talent-agenda";
@@ -80,6 +81,7 @@ export function AgendaRescheduleSheet({
               onChange={(e) => setDate(e.target.value)}
               className="w-full rounded-xl border border-black/10 px-3 py-2"
             />
+            <DateFormatHint locale={copy.locale} />
           </label>
 
           <div className="grid grid-cols-2 gap-2">

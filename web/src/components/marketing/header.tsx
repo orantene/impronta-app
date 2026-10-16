@@ -28,6 +28,7 @@ import {
   type MarketingAccount,
 } from "./marketing-account-menu";
 import { useStickyDesktopMenu } from "./marketing-header-sticky-menu";
+import type { HubClientEntry } from "@/lib/marketing/hub-client-entry";
 
 export function MarketingHeader({
   locale,
@@ -35,6 +36,7 @@ export function MarketingHeader({
   account,
   signOutAction,
   discoveryTools,
+  clientEntry,
 }: {
   locale: string;
   pathnameWithoutLocale: string;
@@ -46,6 +48,9 @@ export function MarketingHeader({
    *  first in the action cluster at every width, so a talent hearted on the
    *  global directory has a way back on phones too. */
   discoveryTools?: ReactNode;
+  /** TUL-730: set where no modal host is mounted (hub /t/ profile). Entrar and
+   *  Crear cuenta become links to the app-host client sign-in / sign-up. */
+  clientEntry?: HubClientEntry;
 }) {
   const copy = getMarketingCopy(locale);
   /** Every internal href in this header goes through here — see `buildNav`. */
@@ -181,7 +186,7 @@ export function MarketingHeader({
             icons (language / support / account) carry what the old hamburger
             menu buried: the bar stops feeling empty and the menu can go back
             to being pure navigation. */}
-        <div className="flex items-center gap-1 sm:gap-2">
+        <div className="flex items-center gap-0.5 min-[400px]:gap-1 sm:gap-2">
           {discoveryTools}
           <MarketingLanguageMenu
             activeLocale={locale}
@@ -198,6 +203,23 @@ export function MarketingHeader({
             />
           ) : (
             <>
+              {clientEntry ? (
+                <>
+                  <a
+                    href={clientEntry.signInHref}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] px-2.5 text-[0.8125rem] font-medium leading-none tracking-[-0.005em] text-[var(--plt-ink-soft)] transition-[background-color,border-color,color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] hover:text-[var(--plt-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)] lg:px-3.5 lg:text-[0.875rem]"
+                  >
+                    <SignInGlyph />
+                    {copy.nav.signIn}
+                  </a>
+                  <a
+                    href={clientEntry.createHref}
+                    className="hidden h-9 items-center gap-1.5 rounded-[10px] border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] px-3.5 text-[0.875rem] font-medium leading-none tracking-[-0.005em] text-[var(--plt-ink-soft)] transition-[background-color,border-color,color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] hover:text-[var(--plt-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)] lg:inline-flex"
+                  >
+                    {copy.nav.createAccount}
+                  </a>
+                </>
+              ) : (
               <button
                 type="button"
                 onClick={() =>
@@ -205,12 +227,13 @@ export function MarketingHeader({
                 }
                 /* Colours as classes, not inline `style` — inline wins over
                    stylesheet rules and would nullify the `hover:` variants.
-                   Desktop-only: on mobile Sign in lives in the menu footer. */
-                className="hidden h-9 items-center gap-1.5 rounded-[10px] border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] px-3.5 text-[0.875rem] font-medium leading-none tracking-[-0.005em] text-[var(--plt-ink-soft)] transition-[background-color,border-color,color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] hover:text-[var(--plt-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)] lg:inline-flex"
+                   TUL-787: visible at every width (compact on phones); the menu footer keeps one too. */
+                className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] px-2.5 text-[0.8125rem] font-medium leading-none tracking-[-0.005em] text-[var(--plt-ink-soft)] transition-[background-color,border-color,color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] hover:text-[var(--plt-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)] lg:px-3.5 lg:text-[0.875rem]"
               >
                 <SignInGlyph />
                 {copy.nav.signIn}
               </button>
+              )}
               <span className="relative hidden lg:inline-flex">
                 <MarketingCta
                   href={L("/get-started")}
@@ -251,18 +274,6 @@ export function MarketingHeader({
             {menuOpen ? <CloseGlyph /> : <MenuGlyph />}
           </button>
         </div>
-      </div>
-
-      {/* Phones only: the category line as its own row under the bar, one
-          line at full width, so the bar keeps six controls and the slogan
-          stays visible (#2088). The bar is h-16 + this row = 84px; the
-          shell's main padding matches. */}
-      <div
-        aria-hidden
-        className="mx-auto w-full max-w-7xl px-4 pb-1.5 -mt-1 text-[0.5625rem] font-medium uppercase leading-none tracking-[0.2em] sm:hidden"
-        style={{ color: "var(--plt-ink-strong)", opacity: 0.55 }}
-      >
-        {copy.brand.descriptor}
       </div>
 
       {menuOpen ? (
@@ -353,6 +364,26 @@ export function MarketingHeader({
                 </a>
               ) : (
                 <>
+                  {clientEntry ? (
+                    <>
+                      <a
+                        href={clientEntry.signInHref}
+                        className="flex w-full items-center justify-between rounded-2xl px-4 py-4 text-left text-[1rem] font-medium"
+                        style={{ color: "var(--plt-ink-soft)" }}
+                      >
+                        {copy.nav.signIn}
+                        <ChevronGlyph />
+                      </a>
+                      <a
+                        href={clientEntry.createHref}
+                        className="flex w-full items-center justify-between rounded-2xl px-4 py-4 text-left text-[1rem] font-medium"
+                        style={{ color: "var(--plt-ink-soft)" }}
+                      >
+                        {copy.nav.createAccount}
+                        <ChevronGlyph />
+                      </a>
+                    </>
+                  ) : (
                   <button
                     type="button"
                     onClick={() => {
@@ -365,6 +396,7 @@ export function MarketingHeader({
                     {copy.nav.signIn}
                     <ChevronGlyph />
                   </button>
+                  )}
                   <span className="relative block w-full">
                     <MarketingCta
                       href={L("/get-started")}
@@ -378,7 +410,7 @@ export function MarketingHeader({
                     </MarketingCta>
                     <span
                       aria-hidden
-                      className="pointer-events-none absolute -right-1.5 -top-1.5 inline-flex items-center rounded-full px-1.5 py-[3px] text-[0.5625rem] font-bold uppercase leading-none tracking-[0.04em]"
+                      className="pointer-events-none absolute right-3 -top-1.5 inline-flex items-center rounded-full px-1.5 py-[3px] text-[0.5625rem] font-bold uppercase leading-none tracking-[0.04em]"
                       style={{
                         background: "var(--plt-accent)",
                         /* TUL-518 / J3: white on accent was 2.46:1; ink clears AA. */
@@ -600,14 +632,11 @@ function TulalaHeaderLogo({ descriptor }: { descriptor: string }) {
           Letter-spacing is tuned so the line optically matches the wordmark's
           width. Still ~60% opacity, so it never becomes a second dark bold
           element in the bar. */}
-      {/* From sm up the line sits under the wordmark. On phones it moves to
-          its own row under the bar (see the header body): measured live at
-          375px, six controls leave the logo ~91px, so beside the wordmark the
-          slogan either overflowed the bar (menu at x=511, untappable) or
-          wrapped to four lines. */}
+      {/* Same stack at every width (TUL-593): tight gap under the wordmark,
+          tracking narrowed on phones so it fits beside the bar controls. */}
       <span
         aria-hidden
-        className="mt-1 hidden whitespace-nowrap text-[0.5625rem] font-medium uppercase tracking-[0.2em] sm:block"
+        className="mt-0.5 block whitespace-nowrap text-[0.5625rem] font-medium uppercase tracking-[0.12em] sm:tracking-[0.2em]"
         style={{ color: "var(--plt-ink-strong)", opacity: 0.55 }}
       >
         {descriptor}

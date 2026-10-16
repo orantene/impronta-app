@@ -1,4 +1,4 @@
-import type { TalentOffering } from "@/lib/talent/offerings-types";
+import { offeringIsQuote, type TalentOffering } from "@/lib/talent/offerings-types";
 import { formatMoney } from "@/lib/talent/offerings-money";
 import {
   catalogRowMinCents,
@@ -15,11 +15,13 @@ export function catalogBarPriceLabel(
   item: Pick<TalentOffering, "priceDisplay" | "priceType" | "amountCents" | "currency" | "variants">,
   locale: string,
 ): string {
-  const es = locale.startsWith("es");
+  const es = locale.toLowerCase().startsWith("es");
   const minCents = catalogRowMinCents(item);
-  if (item.priceDisplay === "quote" || item.priceType === "custom" || minCents == null) {
+  if (offeringIsQuote(item) || minCents == null) {
     return es ? "A cotizar" : "Quote";
   }
+  // TUL-533 / GRK-064: never paint "$0 MXN" on the public bar.
+  if (minCents <= 0) return es ? "Consultar" : "Ask";
   const money = formatMoney(minCents, item.currency, locale);
   return catalogRowShowsFrom(item) ? `${es ? "Desde" : "From"} ${money}` : money;
 }
@@ -36,12 +38,14 @@ export function catalogRowPriceText(
   >,
   locale: string,
 ): string {
-  const es = locale.startsWith("es");
+  const es = locale.toLowerCase().startsWith("es");
   const onRequest = item.visibility === "on_request";
-  const quote = item.priceDisplay === "quote" || item.priceType === "custom" || item.amountCents == null;
+  const quote = offeringIsQuote(item);
   const minCents = catalogRowMinCents(item);
   if (onRequest) return es ? "Bajo consulta" : "On request";
   if (quote || minCents == null) return es ? "A cotizar" : "Quote";
+  // TUL-533 / GRK-064: zero-priced public rows say Consultar / Ask.
+  if (minCents <= 0) return es ? "Consultar" : "Ask";
   const money = formatMoney(minCents, item.currency, locale);
   const unit = offeringPriceUnit(item.attributes, locale);
   if (unit) return `${es ? "Desde" : "From"} ${money} ${es ? "por" : "per"} ${unit}`;

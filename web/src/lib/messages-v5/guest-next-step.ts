@@ -66,7 +66,7 @@ export type GuestNextStepInput = {
   readonly payAmountCents?: number | null;
   /** The `professional_times` payloads in the thread (a pick holds a slot). */
   readonly timesPayloads: readonly (Record<string, unknown> | null)[];
-  readonly records: readonly { readonly fulfilmentState: string | null; readonly recordDate: string | null }[];
+  readonly records: readonly { readonly fulfilmentState: string | null; readonly recordDate: string | null; readonly paymentState?: string | null }[];
   /**
    * @deprecated Prefer `messages`. Kept so older callers that only passed
    * phantom kinds (`offer_declined` / `payment_failed` / `refunded`) still work.
@@ -126,6 +126,17 @@ function visibleVersion(offer: ClientOfferSummary, offers: readonly ClientOfferS
   return n == null ? "" : String(n);
 }
 
+const PAYMENT_FAILED = new Set(["failed", "payment_failed", "declined", "expired", "void", "voided", "canceled", "cancelled", "refunded"]);
+const PAYMENT_OWED = new Set(["unpaid", "pending", "requires_payment", "processing"]);
+
+/** PURE: a payment state that means the booking does not stand (yet). */
+export function paymentBlocksBooked(state: string | null | undefined, payInPerson: boolean): boolean {
+  const v = (state ?? "").trim().toLowerCase();
+  if (!v) return false;
+  if (PAYMENT_FAILED.has(v)) return true;
+  return PAYMENT_OWED.has(v) && !payInPerson;
+}
+
 export function deriveGuestNextStep(input: GuestNextStepInput): GuestNextStep | null {
   const { now } = input;
   if (input.threadStatus === "draft" || input.threadStatus === "closed") return null;
@@ -174,7 +185,14 @@ export function deriveGuestNextStep(input: GuestNextStepInput): GuestNextStep | 
   }
   if (heldTime(input.timesPayloads, now)) return { kind: "waiting_confirm", values: {} };
 
-  const booked = input.records.find((r) => r.fulfilmentState === "confirmed" || r.fulfilmentState === "seated" || r.fulfilmentState === "checked_in");
+  // TUL-919: "Reservado" only for a booking that really stands. A record whose
+  // payment failed or never completed is not booked, even if a row exists.
+  const payInPerson = (input.messages ?? []).some((m) => m.kind === "booking_confirmed" && m.payload?.payInPerson === true);
+  const booked = input.records.find(
+    (r) =>
+      (r.fulfilmentState === "confirmed" || r.fulfilmentState === "seated" || r.fulfilmentState === "checked_in") &&
+      !paymentBlocksBooked(r.paymentState, payInPerson),
+  );
   if (booked) return { kind: "booked", values: { date: booked.recordDate ? input.date(booked.recordDate) : "" } };
   return null;
 }

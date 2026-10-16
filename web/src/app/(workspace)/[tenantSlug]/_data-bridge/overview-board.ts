@@ -56,6 +56,7 @@ import { loadHostStand, type HostStandState } from "../admin/reservations/host-s
 import { loadTenantOwedOrders, loadTenantTakings } from "./payments-activity";
 import { loadWorkspaceOrders } from "./orders";
 import { timed } from "@/lib/server/perf-trace";
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import { loadSetupItems, readAgencySetupRow } from "./setup-checklist";
 
 const DEFAULT_ZONE = "UTC";
@@ -77,29 +78,29 @@ function clock(iso: string | Date, timeZone: string): string {
 }
 
 function money(currency: string, cents: number): string {
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency,
-      maximumFractionDigits: cents % 100 === 0 ? 0 : 2,
-    }).format(cents / 100);
-  } catch {
-    return `${(cents / 100).toFixed(2)} ${currency}`;
-  }
+  return formatDashboardMoneyCents(cents, currency);
 }
 
 async function readMoney(
   tenantId: string,
   sinceIso: string,
   day: ClassesDay | null,
+  workspaceCurrency: string | null,
 ): Promise<OverviewMoney> {
   const [takings, owed] = await Promise.all([
     loadTenantTakings(tenantId, { since: sinceIso }),
     loadTenantOwedOrders(tenantId),
   ]);
+  // TUL-525: never paint "$0 USD" for an MXN studio — fall back to the
+  // workspace preferred currency before the platform default.
+  const fallbackCurrency =
+    (workspaceCurrency?.trim().toUpperCase() || null) &&
+    /^[A-Z]{3}$/.test(workspaceCurrency!.trim().toUpperCase())
+      ? workspaceCurrency!.trim().toUpperCase()
+      : "USD";
   const empty: OverviewMoney = {
     ok: false,
-    currency: "USD",
+    currency: fallbackCurrency,
     collectedTodayCents: 0,
     cashCents: 0,
     cardCents: 0,
@@ -111,7 +112,7 @@ async function readMoney(
   if (!takings.ok || !owed.ok) return empty;
   const byMethod = groupTakingsByMethod(takings.rows);
   const currency =
-    byMethod[0]?.currency ?? sumOwedByCurrency(owed.rows)[0]?.currency ?? "USD";
+    byMethod[0]?.currency ?? sumOwedByCurrency(owed.rows)[0]?.currency ?? fallbackCurrency;
   let cash = 0;
   let card = 0;
   let other = 0;
@@ -421,7 +422,34 @@ export async function loadOverviewSnapshot(input: {
 
   const day = dayRead.ok ? dayRead.day : null;
   const book = stand.kind === "ok" ? stand.data.entries : [];
-  const money = await timed("overview.money", () => readMoney(input.tenantId, window.from.toISOString(), day));
+  // Prefer the agency column; else the first catalog currency (onboarding
+  // seeds MXN services in Mexico but does not always write preferred_currency).
+  let workspaceCurrency = agency?.preferred_currency ?? null;
+  if (!workspaceCurrency && admin) {
+    const { data: offering, error: offeringError } = await admin
+      .from("talent_offerings")
+      .select("currency")
+      .eq("tenant_id", input.tenantId)
+      .not("currency", "is", null)
+      .limit(1)
+      .maybeSingle();
+    if (offeringError) {
+      logServerError("overview.workspaceCurrency", offeringError);
+    } else {
+      const raw = (offering as { currency?: string | null } | null)?.currency;
+      if (typeof raw === "string" && /^[A-Za-z]{3}$/.test(raw.trim())) {
+        workspaceCurrency = raw.trim().toUpperCase();
+      }
+    }
+  }
+  const money = await timed("overview.money", () =>
+    readMoney(
+      input.tenantId,
+      window.from.toISOString(),
+      day,
+      workspaceCurrency,
+    ),
+  );
 
   const arrivals: OverviewArrivals =
     stand.kind === "ok"

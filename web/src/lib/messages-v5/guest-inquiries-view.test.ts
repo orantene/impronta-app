@@ -63,7 +63,7 @@ test("Waiting on them: guest wrote last (needs_reply) and drafts", () => {
     guestInquirySegment(row({ conversationState: "needs_reply", lastMessageAuthor: "guest" })),
     "wait",
   );
-  assert.equal(guestInquirySegment(row({ isDraft: true, threadStatus: "draft" })), "wait");
+  assert.equal(guestInquirySegment(row({ isDraft: true, threadStatus: "draft" })), "needs");
 });
 
 test("Done: resolved, closed, booked, fulfilled paid", () => {

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { mapMessageRow, mapTicketRow, type SupportMessageRow, type SupportTicketRow, type SupportTicketSummary } from "@/lib/support/support-types";
 import { parseSupportDeepLink } from "./support-deep-link";
+import { unreadOpenCount } from "./support-panel-state";
 
 const VIEW_KEY = "tulala.support.view";
 
@@ -52,22 +53,67 @@ export function useSupportSessionRestore(): {
 
 export function useSupportDeepLink(
   openToTicket: (ticketId: string) => void,
+  openToList?: () => void,
 ): void {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const parsed = parseSupportDeepLink(window.location.search);
-    if (!parsed.ticketId) return;
-    openToTicket(parsed.ticketId);
+    if (!parsed.ticketId && !parsed.invalid) return;
+    if (parsed.ticketId) openToTicket(parsed.ticketId);
+    else openToList?.();
     window.history.replaceState(
       {},
       "",
       `${window.location.pathname}${parsed.nextQuery}${window.location.hash}`,
     );
-  }, [openToTicket]);
+  }, [openToTicket, openToList]);
 }
 
 export function useSupportUnread(tickets: SupportTicketSummary[]): number {
-  return tickets.filter((t) => t.unread && t.status === "open").length;
+  return unreadOpenCount(tickets);
+}
+
+/**
+ * Live replies for the user's OTHER tickets. useSupportRealtime only follows
+ * the thread on screen, so a reply to any other ticket never reached the
+ * badge until a reload. RLS limits the stream to rows the user may read; the
+ * consumer ignores tickets it does not list.
+ */
+export function useSupportInboxRealtime(opts: {
+  enabled: boolean;
+  onMessage: (row: SupportMessageRow) => void;
+}): void {
+  const { enabled, onMessage } = opts;
+  useEffect(() => {
+    if (!enabled) return;
+    const supabase = createClient();
+    if (!supabase) return;
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    void (async () => {
+      // No session -> an anon socket gets nothing through RLS, so skip the
+      // subscription instead of silently listening to nothing.
+      const { data, error } = await supabase.auth.getSession();
+      if (error || !data.session) return;
+      await supabase.realtime.setAuth(data.session.access_token);
+      if (cancelled) return;
+      channel = supabase
+        .channel("support_inbox")
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "support_messages" },
+          (payload) => {
+            const row = mapMessageRow(payload.new);
+            if (row) onMessage(row);
+          },
+        )
+        .subscribe();
+    })();
+    return () => {
+      cancelled = true;
+      if (channel) void supabase.removeChannel(channel);
+    };
+  }, [enabled, onMessage]);
 }
 
 export function useSupportRealtime(opts: {

@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 
 import { EngineFeeLines } from "@/components/payments/FeeLines";
 import { interpolate } from "@/i18n/interpolate";
-import { useT } from "@/i18n/use-t";
+import { translatorFor, useT } from "@/i18n/use-t";
 import type { FeeLine } from "@/lib/billing/processing-fee-payer";
 import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import type { PayLinkPathPrefix } from "@/lib/payments/pay-link-url";
+import { SaveBookingsBlock } from "@/components/client-account/SaveBookingsBlock";
 
 /**
  * TOKENS ONLY (TUL-437). This page sits on the seller's own site: `--token-color-*`,
@@ -45,7 +46,7 @@ export type CheckoutViewProps = {
   readonly serviceFeeCents?: number;
   /** Seller shown on the confirmation ("Pagado a ..."). */
   readonly sellerName?: string | null;
-  /** UI locale for money formatting ("es" | "en"). */
+  /** Page language ("es" | "en") for copy and money; without it the dashboard cookie decides (board preview). */
   readonly locale?: string;
   /** The link came from a conversation: the paid page sends the client back to it. */
   readonly autoReturn?: boolean;
@@ -53,10 +54,13 @@ export type CheckoutViewProps = {
   readonly calendar?: CheckoutCalendarLinks | null;
   /** The link's currency differs from its order's: say so plainly instead of "status unknown". */
   readonly currencyMismatch?: { readonly linkCurrency: string; readonly orderCurrency: string };
+  /** Paid confirmation only: false shows "Save your bookings" (account CTA); null/true hides it. */
+  readonly signedIn?: boolean | null;
 };
 
 export function CheckoutView(props: CheckoutViewProps) {
-  const t = useT();
+  const dashboardT = useT();
+  const t = props.locale ? translatorFor(props.locale) : dashboardT;
   const [phase, setPhase] = useState<CheckoutViewProps["status"]>(props.status);
   // The server re-renders with a new status once the webhook settles; follow it.
   useEffect(() => setPhase(props.status), [props.status]);
@@ -90,6 +94,7 @@ export function CheckoutView(props: CheckoutViewProps) {
           addToCalendarLabel={t("public.thread.addToCalendar")}
           googleCalendarLabel={t("public.thread.googleCalendar")}
         />
+        <SaveBookingsBlock locale={props.locale} signedIn={props.signedIn} className="mt-2" />
       </Shell>
     );
   }

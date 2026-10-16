@@ -1,12 +1,12 @@
 import type { CSSProperties } from "react";
 
-import { TalentSiteSocket } from "@/components/talent-site/talent-site-socket";
+import { TulalaLegalStrip } from "@/components/talent-site/tulala-legal-strip";
 import { buildSocketModel } from "@/lib/talent-site/footer-socket";
 
 /**
- * The global Tulala footer socket on the legacy `/t/[profileCode]` templates
- * (Classic, Noir, Lumen, Atelier, Maison). One strip, the ONE Tulala credit,
- * and whitelabel hides the credit. Each template passes the CSS variables of
+ * The Tulala legal strip (TUL-889) on the hub `/t/[profileCode]` templates
+ * (Classic, Noir, Lumen, Atelier, Maison). One strip, the ONE Tulala credit;
+ * it is not a tenant setting, so whitelabel no longer hides it. Each template passes the CSS variables of
  * its own palette (surface, ink, line) so the strip is painted by that
  * template's tokens and keeps the same contrast as the page around it.
  */
@@ -47,7 +47,13 @@ export function ProfileFooterSocket({
   } as CSSProperties;
   return (
     <div style={style} data-profile-socket="">
-      <TalentSiteSocket model={model} clearDock={false} />
+      <TulalaLegalStrip
+        locale={locale}
+        languages={model.languages}
+        profileCode={profileCode}
+        siteHost={siteHost}
+        clearDock={false}
+      />
     </div>
   );
 }
