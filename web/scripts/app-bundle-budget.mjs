@@ -138,17 +138,57 @@ export function discoverRouteManifests(appDir, readDir) {
  * no `process` and no timers — the file's only statement is an assignment.
  */
 export function chunksFromManifestSource(source) {
+  return parseManifestSource(source).chunks;
+}
+
+/**
+ * Same parse, plus the attribution: which client modules (source file paths,
+ * export stripped) name each chunk. Chunk file names are hashes, so this is
+ * what makes the largest chunks readable (TUL-1178).
+ */
+export function parseManifestSource(source) {
   const sandbox = {};
   sandbox.globalThis = sandbox;
   createContext(sandbox);
   runInContext(source, sandbox, { timeout: 10_000 });
   const chunks = new Set();
+  const owners = new Map();
   for (const entry of Object.values(sandbox.__RSC_MANIFEST ?? {})) {
-    for (const mod of Object.values(entry?.clientModules ?? {})) {
-      for (const chunk of mod?.chunks ?? []) chunks.add(chunk);
+    for (const [modKey, mod] of Object.entries(entry?.clientModules ?? {})) {
+      const file = String(modKey).split("#")[0];
+      for (const chunk of mod?.chunks ?? []) {
+        chunks.add(chunk);
+        let set = owners.get(chunk);
+        if (!set) owners.set(chunk, (set = new Set()));
+        set.add(file);
+      }
     }
   }
-  return chunks;
+  return { chunks, owners };
+}
+
+/**
+ * The N largest chunks of one budget's route union, each with the client
+ * modules that name it. Pure given its inputs. Report only: it never affects a
+ * budget verdict.
+ */
+export function largestChunks(routes, budget, sizer, n = 12) {
+  const prefixes = [budget.match].flat();
+  const chunks = new Set();
+  const owners = new Map();
+  for (const entry of routes) {
+    if (!prefixes.some((prefix) => entry.route.startsWith(prefix))) continue;
+    for (const chunk of entry.chunks) chunks.add(chunk);
+    for (const [chunk, files] of entry.owners ?? []) {
+      let set = owners.get(chunk);
+      if (!set) owners.set(chunk, (set = new Set()));
+      for (const file of files) set.add(file);
+    }
+  }
+  return [...chunks]
+    .map((chunk) => ({ chunk, bytes: sizer(chunk) ?? 0, files: [...(owners.get(chunk) ?? [])].sort() }))
+    .sort((a, b) => b.bytes - a.bytes)
+    .slice(0, n);
 }
 
 // ── Measuring ────────────────────────────────────────────────────────────────
@@ -281,7 +321,7 @@ function readRoutes() {
   );
   return manifests.map(({ route, file }) => ({
     route,
-    chunks: chunksFromManifestSource(readFileSync(file, "utf8")),
+    ...parseManifestSource(readFileSync(file, "utf8")),
   }));
 }
 
@@ -352,6 +392,23 @@ function runEnforce(mode) {
           `${report.routeCount} route(s), ${report.chunkCount} chunk(s))`,
       );
     }
+    // TUL-1178: the biggest admin chunks and who names them, so a reduction pass starts from data.
+    // Report only; it never changes the verdict.
+    const adminBudget = BUDGETS.find((budget) => budget.id === "admin");
+    if (adminBudget) {
+      console.log(`\n[perf:app-budget] Largest chunks in the ${adminBudget.label} union:`);
+      for (const top of largestChunks(routes, adminBudget, diskSizer)) {
+        // The bundler merges chunks, so owner lists are mostly node_modules; show the app's own modules first.
+        const own = top.files.filter((file) => /\/src\//.test(file) && !/\bnode_modules\b/.test(file));
+        const shown = own.slice(0, 6).map((file) => file.replace(/^.*\/src\//, "src/"));
+        const more = own.length > shown.length ? ` +${own.length - shown.length} more` : "";
+        const lib = top.files.length - own.length;
+        console.log(
+          `   ${fmt(top.bytes).padStart(10)}  ${top.chunk.replace(/^\/_next\/static\/chunks\//, "")}  ` +
+            `[${own.length} src module(s), ${lib} other] ${shown.join(", ")}${more}`,
+        );
+      }
+    }
     if (violations.length === 0) {
       console.log(`\n✓ App bundle budget OK.`);
     } else {
@@ -372,7 +429,7 @@ function runEnforce(mode) {
 }
 
 /**
- * Prove the gate can fail, with no build on disk. Five checks:
+ * Prove the gate can fail, with no build on disk. Five checks (plus the attribution report, check 8):
  *   1. unique chunks are unioned across routes, not summed per route,
  *   2. a narrower prefix does not pick up its siblings,
  *   3. an over-ceiling measurement produces a violation,
@@ -463,6 +520,21 @@ function runSelfTest() {
   )[0];
   if (arrays.routeCount !== 2 || arrays.bytes !== 3) failures.push(`array match measured ${arrays.bytes} B over ${arrays.routeCount} route(s), expected 3 B over 2`);
   console.log(`[7/7] growth budget → ceiling ${ceilingFor(growth)} B, array prefixes → ${arrays.bytes} B`);
+
+  // [8] the attribution report (TUL-1178): biggest chunks first, each with the client modules that name it, and a
+  // parse of a synthetic manifest that strips the export suffix. Report only, so it must never move a verdict.
+  const manifest = parseManifestSource(
+    'globalThis.__RSC_MANIFEST = { "/a/page": { clientModules: { "/w/src/big.tsx#default": { chunks: ["/_next/big.js"] }, "/w/src/small.tsx#X": { chunks: ["/_next/small.js", "/_next/big.js"] } } } };',
+  );
+  const top = largestChunks(
+    [{ route: "/(workspace)/[tenantSlug]/admin", chunks: manifest.chunks, owners: manifest.owners }],
+    { id: "admin", label: "admin", match: "/(workspace)/[tenantSlug]/admin" },
+    (chunk) => ({ "/_next/big.js": 50, "/_next/small.js": 5 })[chunk] ?? null,
+    1,
+  );
+  if (top.length !== 1 || top[0].chunk !== "/_next/big.js") failures.push(`largestChunks returned ${JSON.stringify(top)}, expected only big.js`);
+  else if (top[0].files.join(",") !== "/w/src/big.tsx,/w/src/small.tsx") failures.push(`largestChunks owners were ${top[0].files.join(",")}`);
+  console.log(`[8/8] attribution report → top chunk ${top[0]?.chunk} named by ${top[0]?.files.length} module(s)`);
 
   if (failures.length > 0) {
     console.error(`\n✗ Self-test FAILED — this gate would not catch bundle growth:`);

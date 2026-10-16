@@ -8,6 +8,7 @@ import type { BackgroundMediaProps } from "./background-media";
 import type { BuilderIconName } from "./icon-registry";
 import type { LiveTextKey } from "./live-text-keys";
 import type { BuilderVisibilityCondition } from "./visibility";
+import type { PromoWidgetOptions } from "@/lib/promos/widgets/types";
 
 export type BuilderNodeKind =
   | "section"
@@ -72,6 +73,8 @@ export type BuilderNodeKind =
   | "app_nail_designer"
   /** Next free slot chip — bound to public booking slots; hidden when empty. */
   | "next_free_chip"
+  /** Promo widget: banner / cards / reveal / countdown / pop-up / sticky / book button over the talent's live promos. */
+  | "promo"
   | "reserve_table"
   | "session_picker"
   | "ticket_picker"
@@ -1708,6 +1711,18 @@ export interface BuilderNextFreeChipNode extends BuilderNodeBase {
   };
 }
 
+/**
+ * Promo widget (TUL-1051 part B): one block, seven looks (`variant`), bound to
+ * the talent's LIVE promos. Hidden when no promo is live. Every option is a
+ * display rule; the price a client pays is still decided by quote() at booking.
+ */
+export interface BuilderPromoNode extends BuilderNodeBase {
+  kind: "promo";
+  props: PromoWidgetOptions & {
+    style?: BuilderNodeStyle;
+  };
+}
+
 export interface BuilderServicesCatalogNode extends BuilderNodeBase {
   kind: "services_catalog";
   props: {
@@ -2769,6 +2784,7 @@ export type BuilderNode =
   | BuilderTaskPickerNode
   | BuilderAppNailDesignerNode
   | BuilderNextFreeChipNode
+  | BuilderPromoNode
   | BuilderReserveTableNode
   | BuilderSessionPickerNode
   | BuilderTicketPickerNode

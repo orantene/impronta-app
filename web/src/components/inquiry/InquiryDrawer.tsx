@@ -23,6 +23,7 @@
 import { useState, useEffect, useRef, useTransition, useMemo, useCallback } from "react";
 import { useActionState } from "react";
 import Image from "next/image";
+import { useRefreshOnClose } from "./use-refresh-on-close";
 import {
   type InquiryIntent,
   type InquirySource,
@@ -124,7 +125,7 @@ export type InquiryDrawerProps = {
    * When the offering resolves bookable, Compose swaps the date picker for
    * SlotPicker and hides event-only sections (budget / brief / wardrobe).
    */
-  bookableOffering?: BookableOffering | null;
+  bookableOffering?: BookableOffering | null; followUpOnSite?: boolean;
   onClose: () => void;
 };
 
@@ -141,10 +142,11 @@ export function InquiryDrawer({
   bindToInquiryCart = false,
   talentToolsSlot,
   representsPeople,
-  bookableOffering = null,
-  onClose,
+  bookableOffering = null, followUpOnSite = false,
+  onClose: onCloseProp,
 }: InquiryDrawerProps) {
   const t = useT();
+  const [onClose, noteSubmitted] = useRefreshOnClose(onCloseProp); // TUL-966
   // ─ Body scroll lock + ESC ──────────────────────────────────────────────────
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -232,6 +234,7 @@ export function InquiryDrawer({
     FormData
   >(submitInquiryNowAction, { kind: "idle" });
   const submitted = submitState.kind === "submitted";
+  useEffect(() => noteSubmitted(submitted), [noteSubmitted, submitted]);
   const sentKeys = sentCopyKeys(soloTalentName);
   const sentVars = { agency: agencyName, talent: soloTalentName ?? agencyName };
 
@@ -463,7 +466,7 @@ export function InquiryDrawer({
         <div style={{ flex: 1, overflowY: "auto", padding: "16px 22px 24px" }}>
           {submitState.kind === "submitted" ? (
             <>
-              <SubmittedView state={submitState} agencyName={agencyName} soloTalentName={soloTalentName} />
+              <SubmittedView state={submitState} agencyName={agencyName} soloTalentName={soloTalentName} followUpOnSite={followUpOnSite} />
               <AttachmentStatus phase={attachmentPhase} />
             </>
           ) : step === "compose" ? (

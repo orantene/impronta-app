@@ -4,12 +4,25 @@
  * Master switch: `SUPPORT_DESK_ENABLED` (default OFF on Vercel).
  */
 
+import type { Metadata } from "next";
+
 import { SupportDeskForbidden } from "@/components/support-desk/SupportDeskForbidden";
 import { SupportDeskPortal } from "@/components/support-desk/SupportDeskPortal";
+import { createTranslator } from "@/i18n/messages";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { TULALA_BRAND } from "@/lib/brand/tulala";
 import { loadDeskPage } from "@/lib/support/desk/load-desk-page";
 import { SUPPORT_DESK_HOST_PATH } from "@/lib/support/desk/desk-url";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = createTranslator(await getRequestLocale());
+  return {
+    title: { absolute: `${t("dashboard.platform.support.deskBrand")} · ${TULALA_BRAND.name}` },
+    robots: { index: false, follow: false },
+  };
+}
 
 export default async function SupportDeskPage({
   searchParams,
@@ -32,7 +45,7 @@ export default async function SupportDeskPage({
   });
 
   if (!result.ok) {
-    return <SupportDeskForbidden email={result.email} />;
+    return <SupportDeskForbidden email={result.email} savedLocale={result.savedLocale} />;
   }
 
   const data = result.data;

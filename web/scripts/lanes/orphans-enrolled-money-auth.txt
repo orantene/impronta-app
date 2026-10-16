@@ -22,3 +22,7 @@ src/lib/server-actions/no-db-on-guard-fail.contract.test.ts
 src/lib/stripe/charge-platform.test.ts
 src/lib/stripe/key-mode.test.ts
 src/lib/supabase/forged-host-name.security.test.ts
+src/lib/client-account/account-timezone.test.ts
+src/lib/client-account/visit-zone.test.ts
+src/lib/payments/failed-refund-attention.test.ts
+src/lib/client-account/account-pay-cancel.test.ts

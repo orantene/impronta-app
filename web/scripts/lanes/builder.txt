@@ -64,6 +64,7 @@ src/lib/site-admin/sections/no-dead-default-cta.static.test.ts
 src/lib/site-admin/sections/registry-freeze.static.test.ts
 src/lib/talent-profile/profile-page-templates.parity.test.ts
 src/lib/talent-site/theme-releases/builder-lab-errors.test.ts
+src/lib/analytics/talent-presence-stats.test.ts
 src/lib/talent-site/theme-releases/superseded-rows.test.ts
 src/lib/talent/agency-roster-profile-url.test.ts
 src/lib/talent/load-representation.test.ts

@@ -216,3 +216,6 @@ src/lib/visits/guest-order.test.ts
 src/lib/visits/page-wire.static.test.ts
 src/lib/visits/restaurant-screens.render.test.ts
 src/lib/visits/seat-reservation.test.ts
+src/lib/money/dashboard-prices-use-dashboard-format.static.test.ts
+src/lib/inquiry/offer-solo-fee.test.ts
+src/lib/payments/pay-expiry-words.test.ts

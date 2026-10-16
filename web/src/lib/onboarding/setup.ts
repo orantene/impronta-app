@@ -17,6 +17,7 @@ import {
 } from "./essentials";
 import type { OnboardingChoice } from "./choice";
 import { isValidIanaTimeZone } from "@/lib/scheduling/tz";
+import { hasUnconfirmedPrice } from "./service-price-choice";
 
 /** Monday first for people, Sunday = "0" for the data. */
 export const DAY_ORDER: readonly DayKey[] = ["1", "2", "3", "4", "5", "6", "0"];
@@ -153,13 +154,13 @@ export function cleanServices(services: EssentialService[]): EssentialService[] 
   return services
     .map((s) => ({ ...s, name: s.name.trim() }))
     .filter((s) => s.name.length > 0)
-    .map((s) => ({ ...s, quote: s.quote || s.priceCents === null, priceCents: s.quote ? null : s.priceCents }))
+    .map((s) => ({ ...s, quote: s.quote || s.priceCents === null, priceCents: s.quote ? null : s.priceCents, quoteChosen: s.quoteChosen === true && (s.quote || s.priceCents === null) }))
     .slice(0, MAX_ESSENTIAL_SERVICES);
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export type SetupIssue = "services" | "hours" | "place" | "timezone" | "providerEmail";
+export type SetupIssue = "services" | "confirmPrices" | "hours" | "place" | "timezone" | "providerEmail";
 
 /** What blocks "Continue". Studio may add the first provider later; an invalid typed email still blocks. */
 export function setupIssues(input: {
@@ -171,6 +172,7 @@ export function setupIssues(input: {
   const { choice, essentials: e } = input;
   const issues: SetupIssue[] = [];
   if (cleanServices(e.services).length === 0) issues.push("services");
+  if (hasUnconfirmedPrice(e.services)) issues.push("confirmPrices");
   if (!hoursHaveAnyOpenDay(e.hours)) issues.push("hours");
   if (!e.place) issues.push("place");
   if (needsTimezoneQuestion(input.country) && !e.timezone) issues.push("timezone");

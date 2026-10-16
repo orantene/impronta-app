@@ -3,16 +3,25 @@
  * Soft 404 lied ("Page not found") when a talent/client session hit `/desk`.
  */
 
+import { cookies } from "next/headers";
 import { deskSignOutToLogin } from "@/lib/support/desk/desk-sign-out";
+import { deskForbiddenLocale } from "@/lib/support/desk/desk-access";
 import { createTranslator } from "@/i18n/messages";
+import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
 import { getRequestLocale } from "@/i18n/request-locale";
 
 export async function SupportDeskForbidden({
   email,
+  savedLocale,
 }: {
   email: string | null;
+  savedLocale: string | null;
 }) {
-  const locale = await getRequestLocale();
+  const locale = deskForbiddenLocale({
+    cookieLocale: (await cookies()).get(LOCALE_COOKIE)?.value,
+    savedLocale,
+    requestLocale: await getRequestLocale(),
+  });
   const t = createTranslator(locale);
 
   return (

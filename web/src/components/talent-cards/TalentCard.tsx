@@ -104,6 +104,20 @@ function Photo({
         // initials and icons — all four read as placeholder.
         <TalentCardEmptyPlate discipline={data.primaryType} />
       )}
+      {data.promoBadge ? (
+        // The talent's own live public offer (TUL-1051). Server-decided: the
+        // hub always, an agency only when its Card Design opts in.
+        <span
+          data-card-promo-badge
+          className="pointer-events-none absolute bottom-[8px] left-[8px] z-[1] inline-flex max-w-[calc(100%-16px)] items-center gap-[6px] rounded-full px-[10px] py-[3px] text-[12px] font-semibold leading-tight shadow-sm"
+          style={{ backgroundColor: TALENT_CARD_VARS.surface, color: TALENT_CARD_VARS.name }}
+        >
+          <span>{data.promoBadge.label}</span>
+          {data.promoBadge.line ? (
+            <span className="truncate font-normal opacity-80">{data.promoBadge.line}</span>
+          ) : null}
+        </span>
+      ) : null}
     </div>
   );
 }
