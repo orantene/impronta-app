@@ -132,7 +132,7 @@ async function resolveTenantAccent(tenantId: string): Promise<string | null> {
  *   2. `agency_business_identity.contact_email` as a `mailto:` — still the
  *      agency, not the platform. NOTE: no tenant has this column set today, so
  *      this rung is unexercised in production as shipped.
- *   3. The platform contact surface (locale-prefixed /about on the marketing origin).
+ *   3. The platform contact surface (locale-prefixed /contact on the marketing origin (TUL-816)).
  *
  * Gated to `kind === "agency"`: the CMS clean-URL rewrite in `proxy.ts` is
  * agency-hosts-only, so `/contact` on a HUB host would 404.
@@ -144,7 +144,7 @@ async function resolveContactHref(params: {
   locale: string;
   contactEmail: string | null;
 }): Promise<string> {
-  const platformContact = authMarketingHref(resolveMarketingOrigin(), "/about", params.locale);
+  const platformContact = authMarketingHref(resolveMarketingOrigin(), "/contact", params.locale);
   if (!params.isTenant || params.hostKind !== "agency") return platformContact;
 
   const contactPage = await loadPublicPageBySlug(
@@ -227,7 +227,7 @@ async function resolveAuthBrand(
           tenantId: ctx.tenantId,
           locale,
           contactEmail: identity?.contact_email ?? null,
-        }).catch(() => authMarketingHref(resolveMarketingOrigin(), "/about", locale)),
+        }).catch(() => authMarketingHref(resolveMarketingOrigin(), "/contact", locale)),
       ]);
       const tagline =
         identity?.tagline?.trim() || identity?.footer_tagline?.trim() || null;
@@ -285,7 +285,7 @@ async function resolveAuthBrand(
       ),
       backHref: authMarketingHref(resolveMarketingOrigin(), "", locale),
     },
-    contactHref: authMarketingHref(resolveMarketingOrigin(), "/about", locale),
+    contactHref: authMarketingHref(resolveMarketingOrigin(), "/contact", locale),
   };
 }
 

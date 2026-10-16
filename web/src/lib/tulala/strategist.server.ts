@@ -41,6 +41,7 @@ import {
   listPendingUpgradeTriggers,
   resolveUpgradeTrigger,
 } from "./upgrade-triggers.server";
+import { afterResponse } from "@/lib/server/after-response";
 
 export type StrategistTurnRequest = {
   owner: BriefOwner;
@@ -124,7 +125,7 @@ export async function runStrategistTurn(
     justLearned: learned.map((l) => ({ factKey: l.factKey, value: l.value })),
   });
 
-  void recordAiUsageEstimate().catch(() => {});
+  afterResponse(() => recordAiUsageEstimate().catch(() => {}));
 
   return {
     ok: true,
