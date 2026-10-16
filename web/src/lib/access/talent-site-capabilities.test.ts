@@ -54,7 +54,7 @@ test("switch OFF: every site capability is Max-only, on every plan", () => {
   });
 });
 
-test("switch ON: Free holds edit, publish and design presets, nothing paid", () => {
+test("switch ON: Free holds edit, publish, design presets and basic SEO, nothing paid", () => {
   withFreeWebsite(true, () => {
     const free = buildTalentSiteCapabilities("talent_basic");
     assert.deepEqual(free, {
@@ -64,6 +64,7 @@ test("switch ON: Free holds edit, publish and design presets, nothing paid", () 
       personalSiteSections: false,
       personalSitePages: false,
       personalSiteSeo: false,
+      personalSiteSeoBasic: true,
       personalSiteAnalytics: false,
       personalSiteCustomDomain: false,
     });
@@ -91,6 +92,7 @@ test("switch ON: a grandfathered talent_pro gets the FREE website, not Web Offic
     assert.equal(pro.personalSiteSections, false);
     assert.equal(pro.personalSitePages, false);
     assert.equal(pro.personalSiteSeo, false);
+    assert.equal(pro.personalSiteSeoBasic, true);
     assert.equal(pro.personalSiteAnalytics, false);
     assert.equal(pro.personalSiteCustomDomain, false);
 
@@ -139,5 +141,19 @@ test("buildTalentSiteCapabilities covers exactly the declared key set", () => {
     for (const key of Object.keys(record) as TalentSiteCapability[]) {
       assert.equal(typeof record[key], "boolean");
     }
+  });
+});
+
+test("TUL-587: basic SEO (title + description) is on every plan once the free website is on, Max-only before", () => {
+  withFreeWebsite(true, () => {
+    for (const plan of ["talent_basic", "talent_pro", "talent_portfolio"]) {
+      assert.equal(buildTalentSiteCapabilities(plan).personalSiteSeoBasic, true, plan);
+    }
+    // The advanced columns stay Web Office.
+    assert.equal(buildTalentSiteCapabilities("talent_basic").personalSiteSeo, false);
+  });
+  withFreeWebsite(false, () => {
+    assert.equal(buildTalentSiteCapabilities("talent_basic").personalSiteSeoBasic, false);
+    assert.equal(buildTalentSiteCapabilities("talent_portfolio").personalSiteSeoBasic, true);
   });
 });
