@@ -14,6 +14,7 @@ import { filterGalleryItemsForSiteKind } from "@/lib/site-admin/add-gallery/site
 import { createBuilderNode } from "./create";
 import { collectNativeDataBlockNeeds } from "./native-data-block-needs";
 import { POSTS_FEED_CSS, postsFeedItemClass } from "./posts-feed-block";
+import { demoPostsFeedCards } from "./posts-feed-demo";
 import { postsFeedHref } from "./posts-feed-href";
 import {
   POSTS_FEED_DEFAULTS,
@@ -21,8 +22,8 @@ import {
   POSTS_FEED_STYLES,
   chunkPostsFeedPages,
   clampPostsFeedLimit,
-  demoPostsFeedCards,
   normalizePostsFeedOptions,
+  postsFeedDemoCount,
   postsFeedDemoTradeForFamily,
   postsFeedFetchLimit,
   resolvePostsFeedCards,
@@ -295,29 +296,43 @@ test("demo: 6 tasteful posts per trade, es + en, platform photos, no em dashes",
   assert.equal(postsFeedDemoTradeForFamily(null), "general");
 });
 
-test("demo fallback only when empty: real posts always win", () => {
-  const o = normalizePostsFeedOptions({ limit: 3 });
-  const real = resolvePostsFeedCards({ live: { cards: liveCards(2), total: 2 }, options: o, allowDemo: true, locale: "en" });
+test("the pure resolver never invents posts: it shows what the server resolved", () => {
+  const real = resolvePostsFeedCards({ live: { cards: liveCards(2), total: 2 } });
   assert.equal(real.demo, false);
   assert.equal(real.cards.length, 2);
-  const demo = resolvePostsFeedCards({ live: { cards: [], total: 0 }, options: o, allowDemo: true, locale: "en" });
-  assert.equal(demo.demo, true);
-  assert.equal(demo.cards.length, 3);
-  const none = resolvePostsFeedCards({ live: undefined, options: o, allowDemo: false, locale: "en" });
-  assert.deepEqual(none, { cards: [], total: 0, demo: false });
+  const empty = resolvePostsFeedCards({ live: { cards: [], total: 0 } });
+  assert.deepEqual(empty, { cards: [], total: 0, demo: false });
+  assert.deepEqual(resolvePostsFeedCards({ live: undefined }), { cards: [], total: 0, demo: false });
+  // Example cards arrive flagged by the server, and keep the flag.
+  const examples = demoPostsFeedCards("beauty", "en", 3);
+  const flagged = resolvePostsFeedCards({ live: { cards: examples, total: 3, demo: true } });
+  assert.equal(flagged.demo, true);
+  assert.equal(flagged.cards.length, 3);
 });
 
-test("builder canvas with no posts shows example posts (es) labelled as examples", () => {
+test("example count: the widget's page size, never more than six", () => {
+  assert.equal(postsFeedDemoCount(normalizePostsFeedOptions({ limit: 3 })), 3);
+  assert.equal(postsFeedDemoCount(normalizePostsFeedOptions({ limit: 24, pagination: "load_more" })), 6);
+});
+
+test("builder canvas with no posts renders the example-posts island (cards load on the server)", () => {
+  // Static markup runs no effects, so the island shows its "no posts yet" note;
+  // the example posts themselves are fetched by loadPostsFeedDemoCardsAction.
   const html = render([node({ demoTrade: "beauty", limit: 3 })], ds("pf-1", { cards: [], total: 0 }), true, "es");
-  assert.match(html, /data-posts-feed-demo="1"/);
-  assert.match(html, /Posts de ejemplo/);
-  assert.equal(count(html, 'class="site-blog__item'), 3);
-  assert.match(html, /\/marketing\/photos\//);
+  assert.match(html, /data-posts-feed-empty="1"/);
+  assert.match(html, /data-not-shown-on-site-host/);
+  assert.equal(count(html, 'class="site-blog__item'), 0);
+  assert.doesNotMatch(html, /\/marketing\/photos\//);
 });
 
-test("demo account (theme preview) with no posts shows example posts on the public render", () => {
-  const html = render([node({ limit: 2 })], ds("pf-1", { cards: [], total: 0 }, { postsFeedDemo: true }));
+test("demo account (theme preview): server-resolved example posts render on the public path", () => {
+  const html = render(
+    [node({ limit: 2 })],
+    ds("pf-1", { cards: demoPostsFeedCards("general", "en", 2), total: 2, demo: true }),
+  );
   assert.match(html, /data-posts-feed-demo="1"/);
+  assert.equal(count(html, 'class="site-blog__item'), 2);
+  assert.match(html, /\/marketing\/photos\//);
 });
 
 test("real published site with no posts renders nothing visible; empty message when set", () => {
@@ -372,6 +387,8 @@ test("data needs: one per node, with its own query and fetch size", () => {
     nodeId: "a",
     query: { source: "featured", postIds: [], categoryId: null, excludeIds: [], sort: "newest" },
     fetchLimit: 12,
+    demoTrade: "general",
+    demoCount: 3,
   });
   assert.deepEqual(needs[1]!.query.postIds, ["p2", "p1"]);
   assert.equal(needs[1]!.fetchLimit, 6);
