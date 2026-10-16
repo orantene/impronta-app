@@ -233,6 +233,9 @@
         "resentNotice": "New code sent.",
         "verifySubmit": "Confirm",
         "verifyPending": "Confirming",
+        "progressVerifying": "Checking your code",
+        "progressCreating": "Creating your account",
+        "progressSetup": "Setting up your page",
         "resendPrompt": "Didn't get it?",
         "resend": "Resend",
         "resendIn": "Resend in {seconds}s",
@@ -1824,9 +1827,10 @@
       "fees": {
         "service_subtotal": "Service",
         "base_reservation_fee": "Reservation fee",
-        "platform_fee": "Platform fee",
+        "platform_fee": "Tulala service fee",
         "processing_fee": "Card processing",
-        "client_service_fee": "Service fee",
+        "card_fee_memo": "Card fee included in the price (about)",
+        "client_service_fee": "Tulala service fee",
         "total_charged": "Total",
         "nonRefundable": "Fees are non-refundable."
       },
