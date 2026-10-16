@@ -53,3 +53,4 @@ src/components/admin/shell/internal/talent/today-mobile-header.static.test.ts
 src/components/support/support-qa1054.static.test.ts
 src/components/talent/site/max-site-manager-timeout.static.test.ts
 src/lib/talent/clients-directory.test.ts
+scripts/e2e-web-server-command.test.ts
