@@ -32,7 +32,7 @@ export function ClientOfferBanner({ pending, focusOnArrival, hint, cta }: { pend
 
   if (!pending) return null;
   return (
-    <div role="region" aria-label={cta} data-client-offer-banner="" className="pointer-events-none fixed inset-x-3 z-[60] flex justify-center" style={{ bottom: "calc(96px + env(safe-area-inset-bottom, 0px))" }}>
+    <div role="region" aria-label={cta} data-client-offer-banner="" className="pointer-events-none fixed inset-x-3 bottom-[calc(96px+env(safe-area-inset-bottom,0px))] z-[60] flex justify-center">
       <div className="pointer-events-auto flex max-w-[420px] items-center gap-3 rounded-full bg-[#1c2230] py-2.5 pl-4 pr-3 text-[13px] text-white shadow-[0_8px_24px_rgba(0,0,0,0.25)]">
         <span>{hint}</span>
         <button type="button" onClick={() => void jumpWhenReady()} className="cursor-pointer rounded-full border-0 bg-white px-3.5 py-[7px] font-semibold text-[#1c2230]">
