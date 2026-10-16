@@ -8,7 +8,7 @@
 
 import { signOutEverywhere } from "@/lib/auth/sign-out-client";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, useId } from "react";
 
 import { cancelMyBooking, rescheduleMyBooking, type MyBookingRefusal } from "@/lib/client-account/booking-actions";
 import { replyToMyThread, type ReplyRefusal } from "@/lib/client-account/message-actions";
@@ -212,6 +212,71 @@ export function SettingsForm({ initial, copy }: {
       </label>
       <div><button type="submit" style={btnPrimary} disabled={pending}>{copy.save}</button></div>
       {msg ? <p role="status" style={{ margin: 0 }}>{msg}</p> : null}
+    </form>
+  );
+}
+
+export function NamePrompt({ profile, copy }: {
+  profile: { name: string; phone: string; locale: string; marketingOptIn: boolean };
+  copy: { title: string; body: string; label: string; save: string; dismiss: string; error: string };
+}) {
+  const router = useRouter();
+  const [hidden, setHidden] = useState(false);
+  const [name, setName] = useState("");
+  const [err, setErr] = useState(false);
+  const [pending, start] = useTransition();
+  const uid = useId();
+  const bodyId = `${uid}-body`;
+  const errId = `${uid}-err`;
+  useEffect(() => {
+    try {
+      if (window.sessionStorage.getItem("tulala-name-prompt") === "1") setHidden(true);
+    } catch { /* storage unavailable: show the prompt */ }
+  }, []);
+  if (hidden) return null;
+  return (
+    <form
+      style={{ border: `1px solid ${LINE}`, borderRadius: RADIUS, padding: 16, margin: "16px 0", display: "grid", gap: 10 }}
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!name.trim()) return;
+        setErr(false);
+        start(async () => {
+          const r = await saveAccountSettings({ ...profile, name: name.trim() });
+          if (!r.ok) return setErr(true);
+          router.refresh();
+        });
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+        <strong>{copy.title}</strong>
+        <button
+          type="button"
+          aria-label={copy.dismiss}
+          onClick={() => {
+            try { window.sessionStorage.setItem("tulala-name-prompt", "1"); } catch { /* ignore */ }
+            setHidden(true);
+          }}
+          style={{ background: "none", border: 0, cursor: "pointer", color: INK, minHeight: 44, minWidth: 44, font: "inherit" }}
+        >
+          ×
+        </button>
+      </div>
+      <p id={bodyId} style={{ margin: 0, fontSize: 14 }}>{copy.body}</p>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <input
+          style={{ ...field, flex: "1 1 200px" }}
+          value={name}
+          maxLength={120}
+          autoComplete="name"
+          aria-label={copy.label}
+          aria-invalid={err || undefined}
+          aria-describedby={err ? `${bodyId} ${errId}` : bodyId}
+          onChange={(e) => setName(e.target.value)}
+        />
+        <button type="submit" style={btnPrimary} disabled={pending || !name.trim()}>{copy.save}</button>
+      </div>
+      {err ? <p id={errId} role="alert" style={{ margin: 0, color: "#b42318" }}>{copy.error}</p> : null}
     </form>
   );
 }

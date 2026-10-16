@@ -15,7 +15,7 @@ import {
   PlanChip,
   StatusChip,
   EntityChip,
-  PLAN_TIER_LABEL_KEY,
+  catalogPlanLabel,
   WORKSPACE_STATUS_LABEL_KEY,
 } from "../hq-kit";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -52,7 +52,7 @@ export default async function PlatformTenantDetailPage({
 
   const locale = await getRequestLocale();
   const t = createTranslator(locale);
-  const planLabel = PLAN_TIER_LABEL_KEY[detail.plan] ? t(PLAN_TIER_LABEL_KEY[detail.plan]) : undefined;
+  const planLabel = catalogPlanLabel(locale, detail.plan);
   const statusLabel = WORKSPACE_STATUS_LABEL_KEY[detail.status] ? t(WORKSPACE_STATUS_LABEL_KEY[detail.status]) : undefined;
   const entityLabel =
     detail.entityType === "hub"
