@@ -398,9 +398,15 @@ function runEnforce(mode) {
     if (adminBudget) {
       console.log(`\n[perf:app-budget] Largest chunks in the ${adminBudget.label} union:`);
       for (const top of largestChunks(routes, adminBudget, diskSizer)) {
-        const shown = top.files.slice(0, 4).map((file) => file.replace(/^.*\/src\//, "src/"));
-        const more = top.files.length > shown.length ? ` +${top.files.length - shown.length} more` : "";
-        console.log(`   ${fmt(top.bytes).padStart(10)}  ${top.chunk.replace(/^\/_next\/static\/chunks\//, "")}  ${shown.join(", ")}${more}`);
+        // The bundler merges chunks, so owner lists are mostly node_modules; show the app's own modules first.
+        const own = top.files.filter((file) => /\/src\//.test(file) && !/\bnode_modules\b/.test(file));
+        const shown = own.slice(0, 6).map((file) => file.replace(/^.*\/src\//, "src/"));
+        const more = own.length > shown.length ? ` +${own.length - shown.length} more` : "";
+        const lib = top.files.length - own.length;
+        console.log(
+          `   ${fmt(top.bytes).padStart(10)}  ${top.chunk.replace(/^\/_next\/static\/chunks\//, "")}  ` +
+            `[${own.length} src module(s), ${lib} other] ${shown.join(", ")}${more}`,
+        );
       }
     }
     if (violations.length === 0) {
