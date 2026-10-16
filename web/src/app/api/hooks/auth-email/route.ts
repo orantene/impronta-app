@@ -37,7 +37,8 @@ import { verifyResendSignature } from "@/lib/notifications/resend-webhook";
 import { sendEmailResult } from "@/lib/email";
 import { renderEmailHtml } from "@/lib/email/render";
 import { platformBrand } from "@/lib/brand/resolve-tenant-brand";
-import { getEmailCopy, normalizeEmailLocale, type EmailCopyKey } from "@/lib/notifications/email-copy";
+import { authEmailLocale } from "@/lib/notifications/auth-email-locale";
+import { getEmailCopy, type EmailCopyKey } from "@/lib/notifications/email-copy";
 import { getAppUrl, normalizeNextPath } from "@/lib/auth-flow";
 import { authEmailLinkNext } from "@/lib/auth/otp-flow";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -62,7 +63,7 @@ type EmailData = {
 };
 
 type HookPayload = {
-  user?: { id?: string; email?: string; new_email?: string };
+  user?: { id?: string; email?: string; new_email?: string; user_metadata?: { lang?: unknown } };
   email_data?: EmailData;
 };
 
@@ -80,20 +81,6 @@ function copyKeyFor(action: string): EmailCopyKey {
     case "invite":
     default:
       return "auth.signup";
-  }
-}
-
-/**
- * Locale for the auth email. There's no per-user locale in Supabase, so the
- * app's auth actions append `?lang=es` to redirectTo (the language of the page
- * the user was on); we read it back here. Defaults to English.
- */
-function localeFromRedirect(redirectTo: string | undefined): "en" | "es" {
-  if (!redirectTo) return "en";
-  try {
-    return normalizeEmailLocale(new URL(redirectTo).searchParams.get("lang"));
-  } catch {
-    return "en";
   }
 }
 
@@ -182,7 +169,7 @@ export async function POST(req: NextRequest) {
 
   const url = confirmUrl(action, tokenHash, data.redirect_to);
   const newEmail = data.new_email ?? payload.user?.new_email;
-  const locale = localeFromRedirect(data.redirect_to);
+  const locale = authEmailLocale(data.redirect_to, payload.user?.user_metadata?.lang);
   const subject = getEmailCopy(locale)[copyKeyFor(action)].subject;
 
   let html: string;
