@@ -354,13 +354,17 @@ export function renderLocationBlock(args: {
                   </Row>
                   <Row icon={<Lock {...iconProps} />} title={es ? "Dirección exacta" : "Exact address"}>
                     <span>
-                      {location.addressMode === "after_booking"
+                      {location.studioKind === "home_visits"
                         ? es
-                          ? "Te enviamos la ubicación exacta al confirmar."
-                          : "We send you the exact location when you confirm."
-                        : es
-                          ? "No se publica."
-                          : "Not published."}
+                          ? "La pedimos al reservar. Voy a donde estés."
+                          : "We ask for it when you book. I come to you."
+                        : location.addressMode === "after_booking"
+                          ? es
+                            ? "Te enviamos la ubicación exacta al confirmar."
+                            : "We send you the exact location when you confirm."
+                          : es
+                            ? "No se publica."
+                            : "Not published."}
                     </span>
                   </Row>
                 </>

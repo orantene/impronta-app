@@ -10,6 +10,7 @@ import { Icon } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS } from "./support-tokens";
 import type { SupportMessageRow, SupportTicketRow } from "@/lib/support/support-types";
 import { resolveSupportTicketAction } from "@/lib/support/actions";
+import { canOfferHuman, humanOfferPlacement, lastAiAnswerId, shouldShowThinking, showHelpfulRow } from "./support-panel-state";
 import { SupportCardRenderer, type SupportThreadTone } from "./SupportCardRenderer";
 
 export type { SupportThreadTone };
@@ -123,6 +124,16 @@ export function SupportThreadView({
   const [pickedRating, setPickedRating] = useState<number | null>(null);
   const [ratingComment, setRatingComment] = useState("");
   const [ratingThanks, setRatingThanks] = useState(false);
+  const hasOfferCard = useMemo(
+    () => messages.some((m) => m.messageKind === "card" && m.cardPayload?.kind === "offer-human"),
+    [messages],
+  );
+  const lastAiId = useMemo(() => lastAiAnswerId(messages), [messages]);
+  const humanPlacement = humanOfferPlacement({
+    canOffer: canOfferHuman(ticket),
+    hasOfferCard,
+    hasAiAnswer: tone !== "hq" && lastAiId != null,
+  });
   const grouped = useMemo(() => {
     const out: Array<{ day: string; items: SupportMessageRow[] }> = [];
     for (const m of messages) {
@@ -156,6 +167,8 @@ export function SupportThreadView({
           </div>
           {g.items.map((m) => {
             if (m.messageKind === "card" && m.cardPayload) {
+              // A person already has the ticket: drop the stale "talk to a person" offer.
+              if (m.cardPayload.kind === "offer-human" && !canOfferHuman(ticket)) return null;
               return (
                 <SupportCardRenderer
                   key={m.id}
@@ -233,7 +246,7 @@ export function SupportThreadView({
                         alignItems: "center",
                       }}
                     >
-                      {acked[m.id] ? null : confirmHelpful === m.id ? (
+                      {!showHelpfulRow(ticket, Boolean(acked[m.id])) ? null : confirmHelpful === m.id ? (
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
                           <span style={{ fontSize: 11, color: COLORS.royal }}>
                             {t("dashboard.adminSupport.helpedConfirm")}
@@ -289,14 +302,20 @@ export function SupportThreadView({
                           >
                             {t("dashboard.adminSupport.yesHelped")}
                           </button>
-                          <button type="button" onClick={onRequestHuman} style={ghostBtn}>
+                          <button
+                            type="button"
+                            onClick={canOfferHuman(ticket) ? onRequestHuman : () => setAcked((prev) => ({ ...prev, [m.id]: true }))}
+                            style={ghostBtn}
+                          >
                             {t("dashboard.adminSupport.noHelped")}
                           </button>
                         </>
                       )}
-                      <button type="button" onClick={onRequestHuman} style={ghostBtn}>
-                        {t("dashboard.adminSupport.talkToHuman")}
-                      </button>
+                      {humanPlacement === "bubble" && m.id === lastAiId ? (
+                        <button type="button" onClick={onRequestHuman} style={ghostBtn}>
+                          {t("dashboard.adminSupport.talkToHuman")}
+                        </button>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>
@@ -442,7 +461,7 @@ export function SupportThreadView({
           })}
         </div>
       ))}
-      {thinking ? (
+      {shouldShowThinking(thinking, messages) ? (
         <div style={{ background: COLORS.royalSoft, borderRadius: 16, padding: "12px 14px", maxWidth: "70%" }}>
           <div
             style={{
@@ -497,6 +516,7 @@ export function SupportThreadView({
                 value={ratingComment}
                 onChange={(e) => setRatingComment(e.target.value)}
                 placeholder={t("dashboard.adminSupport.ratingCommentPlaceholder")}
+                aria-label={t("dashboard.adminSupport.ratingCommentPlaceholder")}
                 maxLength={500}
                 style={{
                   border: `1px solid ${COLORS.border}`,
@@ -542,7 +562,7 @@ export function SupportThreadView({
           ) : null}
         </div>
       ) : null}
-      {ticket?.handledBy === "ai" && onRequestHuman ? (
+      {humanPlacement === "footer" && ticket?.handledBy === "ai" && onRequestHuman ? (
         <button type="button" onClick={onRequestHuman} style={{ ...ghostBtn, alignSelf: "center" }}>
           <Icon name="user" size={12} color={COLORS.royal} />
           {t("dashboard.adminSupport.talkToHuman")}

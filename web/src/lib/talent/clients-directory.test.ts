@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import type { TalentClientRow } from "./clients-merge";
+import { upsertClient, type TalentClientRow } from "./clients-merge";
 import {
   clientVisit,
   clientsRowAction,
@@ -13,6 +13,7 @@ import {
   isUpcomingClient,
   mapBookingStatusToNext,
   matchesClientsSearch,
+  showClientsControls,
   showClientsFilterChip,
 } from "./clients-directory";
 
@@ -65,7 +66,7 @@ describe("clients-directory", () => {
         completedCount: 1,
         visitCount: 1,
       }),
-      row({ id: "c", name: "Cora", source: "inquiry", completedCount: 0, visitCount: 0 }),
+      row({ id: "c", name: "Cora", source: "inquiry", completedCount: 0, visitCount: 0, firstSeenAt: "2026-09-25T12:00:00.000Z" }),
       row({
         id: "d",
         name: "Dani",
@@ -81,7 +82,7 @@ describe("clients-directory", () => {
     assert.equal(counts.upcoming, 1); // Ana only — requested excluded
     assert.equal(counts.outstanding, 1);
     assert.equal(counts.follow, 0);
-    assert.equal(counts.fresh, 2); // Cora + Dani (done === 0; request still counts as New)
+    assert.equal(counts.fresh, 1); // Cora only: Dani has no first-seen date, so no claim of newness (TUL-717)
   });
 
   it("TUL-359 / DS-49: hides New filter chip at zero (and refill unless enabled)", () => {
@@ -97,6 +98,11 @@ describe("clients-directory", () => {
     assert.equal(showClientsFilterChip("follow", empty, false), false);
     assert.equal(showClientsFilterChip("follow", empty, true), true);
     assert.equal(showClientsFilterChip("fresh", { ...empty, fresh: 1 }, false), true);
+    assert.equal(showClientsFilterChip("upcoming", empty, false), false);
+    assert.equal(showClientsFilterChip("outstanding", empty, false), false);
+    assert.equal(showClientsFilterChip("outstanding", { ...empty, outstanding: 2 }, false), true);
+    assert.equal(showClientsControls(0), false);
+    assert.equal(showClientsControls(3), true);
   });
 
   it("due for a refill: a repeat service whose last visit is older than its cycle", () => {
@@ -203,7 +209,10 @@ describe("clients-directory", () => {
 
   it("classifies new vs upcoming", () => {
     const now = "2026-09-28T12:00:00.000Z";
-    assert.equal(isNewClient(row({ id: "1", name: "N" })), true);
+    assert.equal(isNewClient(row({ id: "1", name: "N", firstSeenAt: "2026-09-20T12:00:00.000Z" }), Date.parse(now)), true);
+    // TUL-717: no first-seen date, or older than 14 days, is not new.
+    assert.equal(isNewClient(row({ id: "1b", name: "N" }), Date.parse(now)), false);
+    assert.equal(isNewClient(row({ id: "1c", name: "N", firstSeenAt: "2026-06-01T12:00:00.000Z" }), Date.parse(now)), false);
     assert.equal(
       isUpcomingClient(
         row({
@@ -238,5 +247,40 @@ describe("clientVisit", () => {
       clientVisit({ status: "confirmed", startsAt: "2026-09-28T20:30:00.000Z", endsAt: "2026-09-28T21:30:00.000Z", nowIso }),
       { state: "confirmed", done: false, upcoming: true },
     );
+  });
+});
+
+describe("TUL-717: Clientes 'Nuevo N' counts only new clients", () => {
+  const nowIso = "2026-09-28T12:00:00.000Z";
+  const recent = "2026-09-25T12:00:00.000Z";
+
+  it("excludes returning clients (completed work) and old first-seen dates", () => {
+    const items = [
+      row({ id: "new", name: "Nia", firstSeenAt: recent, completedCount: 0 }),
+      row({ id: "ret", name: "Rita", firstSeenAt: recent, completedCount: 2, visitCount: 2 }),
+      row({ id: "old", name: "Olga", firstSeenAt: "2026-05-01T12:00:00.000Z", completedCount: 0 }),
+      row({ id: "nodate", name: "Dani", completedCount: 0 }),
+    ];
+    assert.equal(countClientsByFilter(items, nowIso).fresh, 1);
+    assert.deepEqual(
+      filterClientsDirectory({ items, filter: "fresh", query: "", nowIso }).map((r) => r.id),
+      ["new"],
+    );
+  });
+
+  it("a person with several inquiries/bookings merges into one row and counts once", () => {
+    const byKey = new Map<string, TalentClientRow>();
+    const mk = (id: string) => row({ id, name: "Nia", firstSeenAt: recent, completedCount: 0, source: "inquiry" });
+    upsertClient(byKey, mk("inquiry:i1"), { inquiryId: "i1", accumulateVisit: false });
+    upsertClient(byKey, mk("booking:b1"), { inquiryId: "i1", accumulateVisit: true, countCompleted: true });
+    upsertClient(byKey, mk("agency:b1"), { inquiryId: "i1", accumulateVisit: true, countCompleted: true });
+    assert.equal(byKey.size, 1);
+    assert.equal(countClientsByFilter([...byKey.values()], nowIso).fresh, 1);
+  });
+
+  it("the page chip count and the filtered list share one rule", () => {
+    const items = [row({ id: "a", name: "A", firstSeenAt: recent }), row({ id: "b", name: "B", firstSeenAt: recent, completedCount: 1 })];
+    const counts = countClientsByFilter(items, nowIso);
+    assert.equal(filterClientsDirectory({ items, filter: "fresh", query: "", nowIso }).length, counts.fresh);
   });
 });

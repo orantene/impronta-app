@@ -19,6 +19,12 @@ import {
 
 export type CatalogBookFn = (payload: InstantBookFormPayload) => Promise<InstantBookActionResult>;
 
+/** TUL-896: the reference the guest quotes, same shape as the confirmation PDF (`TUL-` + 8 of the id). */
+export function catalogBookingRef(bookingId: string | null | undefined): string | null {
+  const id = (bookingId ?? "").replace(/-/g, "").trim();
+  return id ? `TUL-${id.slice(0, 8).toUpperCase()}` : null;
+}
+
 export function catalogSlotLostMessage(locale: string): string {
   return locale.toLowerCase().startsWith("es")
     ? "Ese horario ya no está disponible. Elige otro."
@@ -56,9 +62,12 @@ export async function runCatalogConfirmWrite(input: {
   time: string | null;
   captchaToken: string | null;
   bookFn?: CatalogBookFn;
+  /** Promos v1: the pay step's promo choice, and a callback when the offer ran out. */
+  promo?: { promoCode: string | null; promoShownDiscountCents: number | null } | null;
+  onPromoGone?: () => void;
 }): Promise<
   | { phase: "preview" }
-  | { phase: "outcome"; outcome: ReturnType<typeof resolveCatalogConfirmOutcome> }
+  | { phase: "outcome"; outcome: ReturnType<typeof resolveCatalogConfirmOutcome>; bookingRef: string | null }
 > {
   const submitted = await submitCatalogBooking(input.mode, input.intent, async () => {
     if (!input.tenantId || !input.talentProfileId) {
@@ -84,7 +93,8 @@ export async function runCatalogConfirmWrite(input: {
     const run =
       input.bookFn ??
       (await import("@/lib/server-actions/instant-book-action")).createInstantBookingAction;
-    return run({
+    const res = await run({
+      ...(input.promo ? { promoCode: input.promo.promoCode, promoShownDiscountCents: input.promo.promoShownDiscountCents } : {}),
       talentProfileId: input.talentProfileId,
       tenantId: input.tenantId,
       contactName: input.contactName,
@@ -102,10 +112,14 @@ export async function runCatalogConfirmWrite(input: {
       locale: input.locale,
       sourcePage: typeof window !== "undefined" ? window.location.pathname : null,
     });
+    if (!res.ok && res.promoGone) input.onPromoGone?.();
+    return res;
   });
   if (!submitted.wrote) return { phase: "preview" };
+  const saved = submitted.result;
   return {
     phase: "outcome",
+    bookingRef: saved && saved.ok ? catalogBookingRef(saved.bookingId) : null,
     outcome: resolveCatalogConfirmOutcome({
       wrote: submitted.wrote,
       result: submitted.result,

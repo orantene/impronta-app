@@ -31,8 +31,21 @@ export function isIndexableHostKind(kind: string): boolean {
   return INDEXABLE_KINDS.has(kind);
 }
 
-export function buildRobots(kind: string, base: URL): MetadataRoute.Robots {
-  if (!isIndexableHostKind(kind)) {
+/**
+ * TUL-857: only a production deploy may be indexed. Vercel preview / staging
+ * builds (`VERCEL_ENV=preview`) serve tenant hosts too, and must never be
+ * crawlable. Unset (local dev, tests) keeps the production behaviour.
+ */
+export function isNonProductionDeploy(vercelEnv: string | undefined): boolean {
+  return vercelEnv === "preview" || vercelEnv === "development";
+}
+
+export function buildRobots(
+  kind: string,
+  base: URL,
+  opts: { nonProduction?: boolean } = {},
+): MetadataRoute.Robots {
+  if (opts.nonProduction || !isIndexableHostKind(kind)) {
     return { rules: [{ userAgent: "*", disallow: "/" }] };
   }
   return {

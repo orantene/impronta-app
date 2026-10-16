@@ -26,6 +26,7 @@ import "server-only";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { loadPortalVisitWhenMapForRequest } from "@/lib/client-account/portal-visit-when.server";
 import {
   loadCrossTenantContext,
   describeCrossTenantContext,
@@ -72,6 +73,8 @@ export type ClientInquiryDetails = {
     start_time: string | null;
     duration: string | null;
     date_status: string | null; // exact / flexible / not_sure / ...
+    /** TUL-503: booking start in its own zone, zone named; null until a booking has a time. */
+    when: { date: string; time: string; tzLabel: string } | null;
   };
 
   // ─── Section: Location ────────────────────────────────────────────────
@@ -804,6 +807,7 @@ export async function loadClientInquiryDetails(
         start_time: iq.date?.start_time ?? null,
         duration: iq.date?.duration ?? null,
         date_status: iq.date?.status ?? null,
+        when: (await loadPortalVisitWhenMapForRequest(tenantId, [inquiryId]))[inquiryId] ?? null,
       },
 
       location: {

@@ -233,7 +233,6 @@ html:has([data-profile-theme="atelier"]){ scroll-behavior:smooth; } [data-profil
 export function AtelierProfileLayout(props: LightProfileLayoutProps) {
   const {
     name,
-    firstName,
     profileImageUrl,
     bannerUrl,
     isFeatured,
@@ -351,7 +350,7 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
     featured: pickLocale(locale, { en: "Featured", es: "Destacado" }),
     availability: pickLocale(locale, { en: "Availability", es: "Disponibilidad" }),
     reviews: pickLocale(locale, { en: "Reviews", es: "Reseñas" }),
-    roster: pickLocale(locale, { en: "More from this roster", es: "Más de este roster" }),
+    roster: pickLocale(locale, { en: "More from this roster", es: "Más de esta lista" }),
     represented: pickLocale(locale, { en: "Represented", es: "Representada" }),
     travels: pickLocale(locale, { en: "Travels worldwide", es: "Viaja a todo el mundo" }),
     featuredChip: ui.card.featuredLabel,
@@ -515,6 +514,7 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
               availableDaysInNext30={availableDaysInNext30}
               availabilityDots14d={availabilityDots14d}
               nextAvailableDate={nextAvailableDate}
+              locale={locale}
             />
           </div>
         </section>
@@ -735,7 +735,7 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
       <section className="at-cta at-section" aria-label={t("public.profile.ctaSectionAria")}>
         <div className="at-col">
           <span className="at-eyebrow">{ui.common.brand}</span>
-          <h2>{t("public.profile.footerCtaTitle").replace("{firstName}", firstName)}</h2>
+          <h2>{t("public.profile.footerCtaTitle").replace("{firstName}", name)}</h2>
           <p>{t("public.profile.footerCtaBody")}</p>
           <div className="at-cta__btns">
             {inquireButtonFooter}

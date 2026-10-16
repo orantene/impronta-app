@@ -15,11 +15,11 @@ import type {
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge/discover";
 import type { CanonicalTalentCardData } from "@/components/talent-cards/talent-card-shape";
 import {
-  AVAILABILITY_UNKNOWN,
   type DirectoryCardAttribute,
   type DirectoryCardFitLabel,
 } from "@/lib/site-admin/sections/directory/card-data";
 import type { CardDesign } from "@/lib/site-admin/server/card-design-shape";
+import { DIRECTORY_COPY_EN, type DirectoryCopy } from "./directory-copy";
 
 export type {
   DiscoverTalentListItem,
@@ -138,6 +138,7 @@ export function attachCardDesigns<
  */
 export function toCanonicalCardData(
   talent: DirectoryCardRow,
+  copy: DirectoryCopy = DIRECTORY_COPY_EN,
 ): CanonicalTalentCardData {
   const days = talent.availableDaysInNext30;
   const known = typeof days === "number" && days > 0;
@@ -147,17 +148,17 @@ export function toCanonicalCardData(
     profileCode: talent.profileCode,
     profileHref: talent.profileCode ? `/t/${talent.profileCode}` : "",
     primaryType: talent.primaryTypeLabel,
-    location: locationLine(talent.homeCity, talent.homeCountry),
+    location: locationLine(talent.homeCity, talent.homeCountry, copy.locale),
     photoUrl: talent.headshotUrl,
-    agencyName: talent.agencyName,
+    agencyName: localizeIndependent(talent.agencyName, copy),
     isExclusive: talent.isExclusive,
     // The portrait/profile "Verified" badge reads this boolean; the trust
     // ladder ("basic" | "verified" | "silver" | "gold") already carries the
     // same fact, so no new field — "basic" is the unverified default.
     verified: talent.trustTier != null && talent.trustTier !== "basic",
     availabilityLabel: known
-      ? availabilityLine(days).text
-      : AVAILABILITY_UNKNOWN,
+      ? availabilityLine(days, copy).text
+      : copy.availabilityUnknown,
     availabilityKnown: known,
     availableDaysInNext30: days,
     fitLabels: talent.fitLabels,
@@ -229,35 +230,33 @@ export function isTruthyFlag(raw: string | undefined): boolean {
  */
 export function trustTierMeta(
   tier: string | null,
+  copy: DirectoryCopy = DIRECTORY_COPY_EN,
 ): { label: string; weight: "soft" | "strong" } | null {
   switch ((tier ?? "").toLowerCase()) {
     case "verified":
-      return { label: "Verified", weight: "soft" };
+      return { label: copy.trustVerified, weight: "soft" };
     case "silver":
-      return { label: "Silver", weight: "soft" };
+      return { label: copy.trustSilver, weight: "soft" };
     case "gold":
-      return { label: "Gold", weight: "strong" };
+      return { label: copy.trustGold, weight: "strong" };
     default:
       return null;
   }
 }
 
-const TRUST_TIER_ORDER: Array<{ value: string; label: string }> = [
-  { value: "verified", label: "Verified" },
-  { value: "silver", label: "Silver" },
-  { value: "gold", label: "Gold" },
-];
+const TRUST_TIER_ORDER = ["verified", "silver", "gold"] as const;
 
 /** Trust tiers to expose as filter rows, in ladder order, intersected with
  *  whatever the facet pass actually found. `basic` is omitted — it's the
  *  unverified default, not a meaningful filter. */
 export function orderedTrustFacets(
   facetTiers: Array<{ value: string; count: number }>,
+  copy: DirectoryCopy = DIRECTORY_COPY_EN,
 ): Array<{ value: string; label: string; count: number }> {
   const byValue = new Map(facetTiers.map((t) => [t.value.toLowerCase(), t.count]));
-  return TRUST_TIER_ORDER.map(({ value, label }) => ({
+  return TRUST_TIER_ORDER.map((value) => ({
     value,
-    label,
+    label: trustTierMeta(value, copy)?.label ?? value,
     count: byValue.get(value) ?? 0,
   })).filter((t) => t.count > 0);
 }
@@ -272,22 +271,33 @@ export function initialsOf(name: string): string {
     .join("");
 }
 
+/** A stored agency name that is just the word "Independent" reads in the page locale. */
+function localizeIndependent(name: string | null, copy: DirectoryCopy): string | null {
+  return name && name.trim().toLowerCase() === "independent" ? copy.independent : name;
+}
+
 /** Subtle agency attribution string. Product decision: "show agency, subtle".
  *  Independent talents read "Independent"; exclusive rosters get a quiet tag. */
-export function agencyLine(agencyName: string | null, isExclusive: boolean): string {
-  if (!agencyName) return "Independent";
-  return isExclusive ? `${agencyName} · exclusive` : agencyName;
+export function agencyLine(
+  agencyName: string | null,
+  isExclusive: boolean,
+  copy: DirectoryCopy = DIRECTORY_COPY_EN,
+): string {
+  const name = localizeIndependent(agencyName, copy);
+  if (!name) return copy.independent;
+  return isExclusive ? `${name} · ${copy.exclusiveSuffix}` : name;
 }
 
 /** Restrained availability copy. Never buyer-framed; "on request" when the
  *  30-day window is fully blocked or the snapshot is missing. */
 export function availabilityLine(
   availableDaysInNext30: number | null,
+  copy: DirectoryCopy = DIRECTORY_COPY_EN,
 ): { text: string; open: boolean } {
   if (typeof availableDaysInNext30 === "number" && availableDaysInNext30 > 0) {
-    return { text: `Open ${availableDaysInNext30} of next 30 days`, open: true };
+    return { text: copy.openDays(availableDaysInNext30), open: true };
   }
-  return { text: "Availability on request", open: false };
+  return { text: copy.availabilityOnRequest, open: false };
 }
 
 /**
@@ -307,19 +317,69 @@ export function smartTitleCase(input: string): string {
   );
 }
 
-export function locationLine(city: string | null, country: string | null): string | null {
+let enRegionIndex: Map<string, string> | null = null;
+
+/**
+ * Render a stored country in the page locale. Accepts an ISO 3166 code
+ * ("MX") or the English name ("Mexico"); anything unrecognised is returned
+ * untouched. English keeps the stored text exactly as before.
+ */
+export function localizeCountry(country: string, locale: "en" | "es"): string {
+  const raw = country.trim();
+  if (!raw || locale === "en") return raw;
+  try {
+    const es = new Intl.DisplayNames(["es"], { type: "region" });
+    if (/^[A-Za-z]{2}$/.test(raw)) return es.of(raw.toUpperCase()) ?? raw;
+    if (!enRegionIndex) {
+      const en = new Intl.DisplayNames(["en"], { type: "region" });
+      enRegionIndex = new Map();
+      for (let a = 65; a <= 90; a++) {
+        for (let b = 65; b <= 90; b++) {
+          const code = String.fromCharCode(a, b);
+          const name = en.of(code);
+          if (name && name !== code) enRegionIndex.set(name.toLowerCase(), code);
+        }
+      }
+    }
+    const code = enRegionIndex.get(raw.toLowerCase());
+    return code ? (es.of(code) ?? raw) : raw;
+  } catch {
+    return raw;
+  }
+}
+
+/** The country text a stored city label already ends with (localized, raw, or English name of an ISO code). */
+function trailingCountry(city: string, country: string, localized: string): string | null {
+  const raw = country.trim();
+  let en = "";
+  if (/^[A-Za-z]{2}$/.test(raw)) {
+    try {
+      en = new Intl.DisplayNames(["en"], { type: "region" }).of(raw.toUpperCase()) ?? "";
+    } catch {}
+  }
+  const lc = city.toLowerCase();
+  return [localized, raw, en].find((t) => t && lc.endsWith(t.toLowerCase())) ?? null;
+}
+
+export function locationLine(
+  city: string | null,
+  country: string | null,
+  locale: "en" | "es" = "en",
+): string | null {
   const c = (city ?? "").trim();
-  const co = (country ?? "").trim();
+  const co = localizeCountry(country ?? "", locale);
   let line: string;
   if (!c) {
     if (co.length === 0) return null;
     line = co;
   } else if (!co) {
     line = c;
-  } else if (c.toLowerCase().endsWith(co.toLowerCase())) {
+  } else if (trailingCountry(c, country ?? "", co)) {
     // Stored city labels sometimes already include the country
-    // ("Cancún, Quintana Roo, Mexico") — don't append it a second time.
-    line = c;
+    // ("Cancún, Quintana Roo, Mexico") — don't append it a second time, and
+    // read that trailing country in the page locale (ES: "México").
+    const tail = trailingCountry(c, country ?? "", co)!;
+    line = `${c.slice(0, c.length - tail.length)}${co}`;
   } else {
     line = `${c}, ${co}`;
   }

@@ -52,6 +52,17 @@ test("the gate itself is GET/HEAD, preview-safe, and 404s to the branded page", 
       "('Domain not connected' would say the whole site is broken)");
 });
 
+test("a /<locale>/t/<code> miss answers in that language, on the sanitized headers", () => {
+  const gate = readFileSync(GATE, "utf8");
+  assert.match(gate, /new Headers\(inboundHeaders\)/,
+    "the forwarded set must start from the proxy's sanitized headers, never request.headers");
+  assert.match(gate, /headers\.set\(LOCALE_HEADER, locale\)/);
+  assert.match(gate, /status: 404, request: \{ headers \}/);
+  const src = readFileSync(PROXY, "utf8");
+  assert.match(src, /offRosterTalentResponse\([^)]*sanitizedInboundHeaders\)/,
+    "proxy.ts must hand the gate the sanitized inbound headers");
+});
+
 test("the edge roster check is cached and fails OPEN", () => {
   const src = readFileSync(HOST_CTX, "utf8");
   const fn = src.slice(src.indexOf("export async function isProfileCodeOnTenantRoster"));
@@ -64,6 +75,40 @@ test("the edge roster check is cached and fails OPEN", () => {
   assert.match(body, /"site_visible", "featured"/,
     "visibility must match filterTalentIdsOnTenantRoster, or the edge and the " +
       "page gate would disagree and a real profile could 404");
+});
+
+test("platform hosts 404 an unknown talent code at the edge", () => {
+  const src = readFileSync(PROXY, "utf8");
+  const i = src.indexOf("unknownTalentCodeResponse(request");
+  assert.ok(i > 0, "proxy.ts must call the unknown-code gate");
+  assert.match(
+    src.slice(Math.max(0, i - 300), i),
+    /hostContext\.kind === "app" \|\| hostContext\.kind === "marketing" \|\| hostContext\.kind === "hub"/,
+    "platform hosts only: agency hosts already 404 unknown codes via the roster gate, " +
+      "and talent_site hosts return before this point",
+  );
+  assert.match(src.slice(i, i + 200), /if \(unknownCode\) return unknownCode/);
+
+  const gate = readFileSync(GATE, "utf8");
+  const fn = gate.slice(gate.indexOf("export async function unknownTalentCodeResponse"));
+  const body = fn.slice(0, fn.indexOf("\n}\n"));
+  assert.match(body, /request\.method !== "GET" && request\.method !== "HEAD"/);
+  assert.match(body, /searchParams\.has\("preview"\)/);
+  assert.match(body, /talentProfileCodeExists\(/);
+  assert.match(body, /catch \{\s*return null;/, "a malformed %-escape must fall through, not throw");
+});
+
+test("the code-exists check is cached, exact-case, and fails OPEN", () => {
+  const src = readFileSync(HOST_CTX, "utf8");
+  const fn = src.slice(src.indexOf("export async function talentProfileCodeExists"));
+  const body = fn.slice(0, fn.indexOf("\n}\n"));
+  assert.match(body, /cacheGet\(/);
+  assert.match(body, /cacheSet\(/);
+  assert.match(body, /return true; \/\/ fail open/);
+  assert.match(body, /resolve_talent_profile_code/,
+    "must accept retired vanity aliases, which the page 308-redirects");
+  assert.doesNotMatch(body, /toLowerCase/,
+    "the RPC matches the code exactly; a folded cache key would serve one casing's answer for another");
 });
 
 test("the page-level gate is still there as defence in depth", () => {

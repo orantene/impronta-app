@@ -11,6 +11,7 @@ import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
+import { bustTalentSiteCache } from "@/lib/talent-site/cache-tags";
 
 export type SetAcceptingBookingsResult =
   | { ok: true; acceptingBookings: boolean }
@@ -52,6 +53,9 @@ export async function setTalentAcceptingBookingsAction(
     return { ok: false, error: "write_failed" };
   }
 
+  // GRK-068: the public offerings are cached with these switches baked in (120s). Clear them so
+  // "Reservar" goes away the moment bookings are turned off, not minutes later.
+  bustTalentSiteCache(id, null);
   const switches = await loadTalentSiteSwitches(admin, id);
   return { ok: true, acceptingBookings: switches.acceptingBookings };
 }

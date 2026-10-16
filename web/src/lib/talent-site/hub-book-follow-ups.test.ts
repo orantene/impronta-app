@@ -144,11 +144,11 @@ test("latest queued intent wins and the fallback never delivers twice", () => {
   assert.deepEqual(sent, [SHEET]);
 });
 
-test("bounded fallback: a sheet that never mounts degrades to the chat, never lost", () => {
+test("bounded fallback: a sheet that never mounts keeps the sheet intent (never opens chat)", () => {
   const { sent, queue, runTimer } = harness();
   queue.request(SHEET);
   runTimer();
-  assert.deepEqual(sent, [{ channel: "chat" }]);
+  assert.deepEqual(sent, [SHEET]);
   queue.announceReady("sheet"); // a very late mount does not replay
   assert.equal(sent.length, 1);
 });

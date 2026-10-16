@@ -91,8 +91,50 @@ test("1D: a studio whose page does not verify becomes draft_saved with its edito
   assert.equal(a.urlDiffers, true);
 });
 
+test("onb1-15: Free path URL that verifies is ready, never draft_saved", () => {
+  const a = arrivalFromStamp({
+    path: "business",
+    stamp: { outcome: "composed", placed: { photos: { hero: "type" }, hoursPresent: true } },
+    person: { name: "QA Grok Uno", city: "Cancún" },
+    businessName: "QA Grok Salon",
+    services: 2,
+    site: {
+      publicUrl: "https://tulala.digital/w/qa-grok-salon",
+      editorUrl: "https://tulala.digital/w/qa-grok-salon/?edit=1",
+      adminPath: "https://app.tulala.digital/qa-grok-salon/admin",
+    },
+    talent: null,
+    liveCheck: { ok: true },
+  });
+  assert.equal(a.variant, "business");
+  assert.equal(a.verified, true);
+  assert.notEqual(a.variant, "draft_saved");
+  assert.equal(a.link?.href, "https://tulala.digital/w/qa-grok-salon");
+  assert.equal(a.link?.display, "tulala.digital/w/qa-grok-salon");
+});
+
 test("1D: unchecked callers keep the old behaviour", () => {
   const a = arrivalFromStamp({ path: "talent", stamp: null, ...liveBase });
   assert.equal(a.verified, undefined);
   assert.equal(a.variant, "talent");
+});
+
+test("TUL-648: the finish fact counts published services only; unpriced ones become a cue", () => {
+  const base = { path: "business" as const, stamp: null, person: { name: null, city: null }, businessName: "X", site, talent: null };
+  const none = arrivalFromStamp({ ...base, services: 0, unpricedServices: 2 });
+  assert.equal(none.fact.services, 0);
+  assert.equal(none.fact.unpriced, 2);
+  const mixed = arrivalFromStamp({ ...base, services: 1, unpricedServices: 1 });
+  assert.equal(mixed.fact.services, 1);
+  assert.equal(mixed.fact.unpriced, 1);
+  const clean = arrivalFromStamp({ ...base, services: 3 });
+  assert.equal("unpriced" in clean.fact, false);
+});
+
+test("TUL-648: publishedServiceCount matches the rows offeringRowFor publishes", async () => {
+  const { publishedServiceCount } = await import("./essentials");
+  const svc = (priceCents: number | null, quote = false) => ({ name: "S", durationMin: 60, priceCents, quote, currency: "MXN", packKey: null }) as never;
+  // TUL-805: a quote choice is live too; only a row with neither a price nor that choice is a draft.
+  assert.equal(publishedServiceCount([svc(50000), svc(null, true), svc(0), svc(30000, true)]), 3);
+  assert.equal(publishedServiceCount(null), 0);
 });

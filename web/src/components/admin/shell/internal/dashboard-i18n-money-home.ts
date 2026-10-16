@@ -95,6 +95,8 @@ export const MONEY_HOME_ES_TEXT: Record<string, string> = {
   "Refund sent": "Reembolso enviado",
   "Money updates when Stripe confirms it.": "Dinero se actualiza cuando Stripe lo confirma.",
   "Deposit requested": "Depósito solicitado",
+  "Pending payment": "Pendiente de pago",
+  "Client": "Cliente",
   "Balance due": "Saldo pendiente",
   "Amount not set": "Monto sin definir",
   "Send a payment link": "Enviar link de pago",

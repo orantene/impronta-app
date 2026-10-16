@@ -20,6 +20,13 @@ const PATH_BASED_STOREFRONT_PREFIXES = [
   "/share",
 ] as const;
 
+/**
+ * Dotted public files. They fail the page-slug test below (`sitemap.xml` is not
+ * `[a-z0-9-]+`), so without this entry `/w/<slug>/sitemap.xml` resolved to no
+ * tenant and fell through to a 404 page (TUL-591).
+ */
+const PATH_BASED_PUBLIC_FILES = ["/sitemap.xml"] as const;
+
 const PATH_BASED_REGISTER_PATHS = [
   "/client/register",
   "/talent/register",
@@ -110,6 +117,7 @@ function resolveTenantPartsToPublicPath(
   const rest = `/${parts.slice(1).join("/")}`;
   if (
     PATH_BASED_REGISTER_PATHS.includes(rest as typeof PATH_BASED_REGISTER_PATHS[number]) ||
+    PATH_BASED_PUBLIC_FILES.includes(rest as typeof PATH_BASED_PUBLIC_FILES[number]) ||
     anyPrefix(rest, PATH_BASED_STOREFRONT_PREFIXES)
   ) {
     return { tenantSlug, pathnameWithoutTenant: rest };

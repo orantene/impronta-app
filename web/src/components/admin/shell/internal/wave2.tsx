@@ -27,7 +27,7 @@
 import React, { useMemo, useState, useEffect, useCallback, useTransition, type ReactNode } from "react";
 import { seatCapForPlan } from "@/lib/saas/plan-seat-caps";
 import { workspaceLiveHost } from "@/lib/saas/workspace-live-url";
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/navigation"; import { openSupportPanel } from "@/lib/support/open-support-panel";
 import { setActiveTalentAgencyAction } from "@/lib/talent/set-active-agency-action";
 import { interpolate } from "@/i18n/interpolate";
 import { useT } from "@/i18n/use-t";
@@ -38,7 +38,7 @@ import {
   MOCK_TALENT_NOTIFS,
   NOTIF_CATEGORY_META,
   parseAge,
-  talentNotifsFromBridge,
+  talentDrawerNotifs,
   type NotifCategory,
   type TalentNotif,
 } from "./talent-notification-rows";
@@ -2096,15 +2096,15 @@ const NOTIF_DEFAULTS: Record<string, { email: boolean; push: boolean }> = {
   "weekly-summary":   { email: false, push: false },
 };
 const NOTIF_ROWS: { id: string; label: string; description: string }[] = [
-  { id: "new-offer",        label: "New offer",             description: "When an agency sends you an offer." },
-  { id: "hold-expiring",    label: "Hold expiring soon",    description: "When a hold is about to release." },
-  { id: "booking-reminder", label: "Booking reminders",     description: "24h and 2h before a confirmed booking." },
-  { id: "payouts",          label: "Payouts",               description: "When a booking is paid." },
-  { id: "weekly-summary",   label: "Weekly summary",        description: "Monday digest of last week's activity." },
+  { id: "new-offer",        label: "dashboard.talentNotifications.prefNewOffer",        description: "dashboard.talentNotifications.prefNewOfferHint" },
+  { id: "hold-expiring",    label: "dashboard.talentNotifications.prefHoldExpiring",    description: "dashboard.talentNotifications.prefHoldExpiringHint" },
+  { id: "booking-reminder", label: "dashboard.talentNotifications.prefBookingReminder", description: "dashboard.talentNotifications.prefBookingReminderHint" },
+  { id: "payouts",          label: "dashboard.talentNotifications.prefPayouts",         description: "dashboard.talentNotifications.prefPayoutsHint" },
+  { id: "weekly-summary",   label: "dashboard.talentNotifications.prefWeeklySummary",   description: "dashboard.talentNotifications.prefWeeklySummaryHint" },
 ];
 
 export function TalentNotificationsDrawer() {
-  const { state, closeDrawer, openDrawer, toast, bridgeUserNotifications, adminBasePath } = useAdminShell();
+  const { state, closeDrawer, openDrawer, toast, bridgeUserNotifications, bridgeTalentAttentionSignals, adminBasePath, locale } = useAdminShell();
   const t = useT();
   const open = state.drawer.drawerId === "talent-notifications";
   // A9: deep-link from Settings → opens with settings pane expanded
@@ -2118,9 +2118,9 @@ export function TalentNotificationsDrawer() {
   const sourceNotifs = useMemo(
     () =>
       bridgeUserNotifications !== null
-        ? talentNotifsFromBridge(bridgeUserNotifications, adminBasePath)
+        ? talentDrawerNotifs(bridgeUserNotifications, bridgeTalentAttentionSignals, locale, adminBasePath)
         : MOCK_TALENT_NOTIFS,
-    [bridgeUserNotifications, adminBasePath],
+    [bridgeUserNotifications, bridgeTalentAttentionSignals, adminBasePath, locale],
   );
   // Recent / Archive tab state — Archive shows previously-dismissed
   // updates so the talent can find a notification they cleared by mistake.
@@ -2133,14 +2133,14 @@ export function TalentNotificationsDrawer() {
   // pull a server-action module into its own chunk.
   const markOneRead = useCallback((id: string) => {
     setReadIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
-    if (!isLive) return Promise.resolve({ ok: true });
+    if (!isLive || id.startsWith("signal-")) return Promise.resolve({ ok: true });
     return import("@/lib/notifications/actions")
       .then((m) => m.markNotificationRead(id))
       .catch(() => ({ ok: false }));
   }, [isLive]);
   const markAllRead = useCallback(async () => {
     const unreadIds = sourceNotifs
-      .filter((n) => n.unread && !readIds.has(n.id))
+      .filter((n) => n.unread && !readIds.has(n.id) && !n.id.startsWith("signal-"))
       .map((n) => n.id);
     setReadIds(new Set(sourceNotifs.map((n) => n.id)));
     if (!isLive) {
@@ -2229,10 +2229,10 @@ export function TalentNotificationsDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Notifications"
+      title={t("dashboard.talentNotifications.title")}
       description={
         isLive
-          ? "What's waiting on you, and what's running through email + push."
+          ? t("dashboard.talentNotifications.liveDescription")
           : t("dashboard.talentNotifications.demoNotice")
       }
     >
@@ -2274,10 +2274,9 @@ export function TalentNotificationsDrawer() {
                   fontSize: 12.5,
                   fontWeight: 500,
                   color: active ? "#fff" : COLORS.inkMuted,
-                  textTransform: "capitalize",
                 }}
               >
-                {v}
+                {t(v === "archive" ? "dashboard.talentNotifications.tabArchive" : "dashboard.talentNotifications.tabRecent")}
                 <span
                   style={{
                     fontSize: 11,
@@ -2336,15 +2335,15 @@ export function TalentNotificationsDrawer() {
                 }}
               >
                 <span className="text-admin-ink-muted text-admin-10h font-semibold">
-                  {meta.label} · {items.length}
+                  {t(meta.label)} · {items.length}
                   {oldestForCategory(cat) && cat === "action" && (
                     <span style={{ marginLeft: 8, textTransform: "none", letterSpacing: 0, fontWeight: 500 }} className="text-admin-coral">
-                      oldest {oldestForCategory(cat)}
+                      {t("dashboard.talentNotifications.oldest").replace("{age}", oldestForCategory(cat) ?? "")}
                     </span>
                   )}
                 </span>
                 <span style={{ fontSize: 10.5, fontFamily: FONTS.body }} className="text-admin-ink-dim">
-                  {meta.hint}
+                  {t(meta.hint)}
                 </span>
               </div>
               <div className="flex flex-col gap-1">
@@ -2427,10 +2426,10 @@ export function TalentNotificationsDrawer() {
         <span className="inline-flex items-center gap-2">
           <Icon name="settings" size={13} stroke={1.7} color={COLORS.inkMuted} />
           <span className="text-admin-ink text-admin-13 font-semibold">
-            Notification settings
+            {t("dashboard.talentNotifications.settingsTitle")}
           </span>
           <span className="text-admin-ink-muted text-admin-11h">
-            Email + push per event
+            {t("dashboard.talentNotifications.settingsHint")}
           </span>
         </span>
         <span
@@ -2457,9 +2456,9 @@ export function TalentNotificationsDrawer() {
           }}
         >
           <div style={{ display: "grid", gridTemplateColumns: "1fr 70px 70px", padding: "8px 14px", borderBottom: `1px solid ${COLORS.borderSoft}`, background: "rgba(11,11,13,0.02)", fontSize: 10.5, fontWeight: 600 }} className="text-admin-ink-muted">
-            <span>Event</span>
-            <span className="text-center">Email</span>
-            <span className="text-center">Push</span>
+            <span>{t("dashboard.talentNotifications.colEvent")}</span>
+            <span className="text-center">{t("dashboard.talentNotifications.colEmail")}</span>
+            <span className="text-center">{t("dashboard.talentNotifications.colPush")}</span>
           </div>
           {NOTIF_ROWS.map((row) => (
             <div
@@ -2475,10 +2474,10 @@ export function TalentNotificationsDrawer() {
             >
               <div>
                 <div className="text-admin-ink text-admin-12h font-medium">
-                  {row.label}
+                  {t(row.label)}
                 </div>
                 <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
-                  {row.description}
+                  {t(row.description)}
                 </div>
               </div>
               <div className="flex justify-center">
@@ -4150,7 +4149,7 @@ export function WhatsNewDrawer() {
 // ════════════════════════════════════════════════════════════════════
 export function HelpDrawer() {
   const t = useT();
-  const { state, closeDrawer, openDrawer } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "help";
   return (
     <DrawerShell
@@ -4217,7 +4216,7 @@ export function HelpDrawer() {
               type="button"
               onClick={() => {
                 closeDrawer();
-                openDrawer("support-ticket");
+                openSupportPanel();
               }}
               style={helpRowStyle}
             >

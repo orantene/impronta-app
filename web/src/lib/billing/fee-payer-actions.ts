@@ -33,44 +33,88 @@ export type SetFeePayerResult =
   | { ok: false; error: string };
 
 /**
- * Live platform fee inputs for the settings preview — same
+ * Platform inputs for the preview: the processing-mode RPC and the take floor.
+ * The two reads are independent, so they run in PARALLEL (TUL-668: they used
+ * to run back to back, after the guard, so a cold start paid three round trips
+ * in a row). Floor failures keep the old behavior: log and fall back to 0.
+ */
+async function readPreviewInputs(admin: SupabaseClient) {
+  const [row, takeFloorCents] = await Promise.all([
+    readPlatformProcessingMode(admin),
+    (async () => {
+      try {
+        const { data: floorRow, error: floorErr } = await admin
+          .from("platform_commission_config")
+          .select("default_take_floor_cents")
+          .eq("singleton_key", true)
+          .maybeSingle();
+        if (floorErr) {
+          logServerError("billing.getFeePreviewConfig/floor", floorErr);
+        } else if (typeof floorRow?.default_take_floor_cents === "number") {
+          return floorRow.default_take_floor_cents;
+        }
+      } catch {
+        /* floor stays 0: rates/bps still authoritative */
+      }
+      return 0;
+    })(),
+  ]);
+  return { row, takeFloorCents };
+}
+
+/**
+ * Live platform fee inputs for the settings preview: same
  * `engine_platform_processing_mode` row (+ take floor) the booking engine uses.
  * Returns null when the RPC/rates are missing so the client never invents 150 bps.
+ * The guard and the platform reads run in parallel; the result is discarded
+ * unless the guard passes.
  */
 export async function getFeePreviewConfig(
   currency: string,
 ): Promise<FeePreviewPlatformConfig | null> {
   try {
-    const guard = await requireTalentSelf();
-    if (!guard.ok) return null;
     const admin = createServiceRoleClient() as unknown as SupabaseClient | null;
     if (!admin) return null;
-
-    const row = await readPlatformProcessingMode(admin);
-    if (!row) return null;
-
-    // Floor is not on the processing-mode RPC; read the same singleton the
-    // engine's platform_config carries so a non-zero floor is previewed too.
-    let takeFloorCents = 0;
-    try {
-      const { data: floorRow, error: floorErr } = await admin
-        .from("platform_commission_config")
-        .select("default_take_floor_cents")
-        .eq("singleton_key", true)
-        .maybeSingle();
-      if (floorErr) {
-        logServerError("billing.getFeePreviewConfig/floor", floorErr);
-      } else if (typeof floorRow?.default_take_floor_cents === "number") {
-        takeFloorCents = floorRow.default_take_floor_cents;
-      }
-    } catch {
-      /* floor stays 0 — rates/bps still authoritative */
-    }
-
-    return feePreviewConfigFromProcessingModeRow(row, currency, takeFloorCents);
+    const [guard, inputs] = await Promise.all([requireTalentSelf(), readPreviewInputs(admin)]);
+    if (!guard.ok || !inputs.row) return null;
+    return feePreviewConfigFromProcessingModeRow(inputs.row, currency, inputs.takeFloorCents);
   } catch (err) {
     logServerError("billing.getFeePreviewConfig", err);
     return null;
+  }
+}
+
+/**
+ * One round trip for the whole fee card (TUL-668). Next.js runs a client's
+ * server actions one at a time, so the card's two separate reads (payer +
+ * preview config) queued behind each other and each repeated the heavy
+ * talent-self guard. Here: one guard, then payer + RPC + floor in parallel.
+ * Values are exactly what getFeePayer / getFeePreviewConfig return.
+ */
+export async function getFeeCardInit(
+  currency: string,
+): Promise<{ feePayer: FeePayer; config: FeePreviewPlatformConfig | null }> {
+  try {
+    const guard = await requireTalentSelf();
+    if (!guard.ok) return { feePayer: "seller", config: null };
+    const admin = createServiceRoleClient() as unknown as SupabaseClient | null;
+    if (!admin) return { feePayer: "seller", config: null };
+    const [feePayer, inputs] = await Promise.all([
+      getProcessingFeePayer(admin, { kind: "talent", id: guard.talentProfile.id }).catch(
+        (err: unknown): FeePayer => {
+          logServerError("billing.getFeeCardInit/payer", err);
+          return "seller";
+        },
+      ),
+      readPreviewInputs(admin),
+    ]);
+    const config = inputs.row
+      ? feePreviewConfigFromProcessingModeRow(inputs.row, currency, inputs.takeFloorCents)
+      : null;
+    return { feePayer, config };
+  } catch (err) {
+    logServerError("billing.getFeeCardInit", err);
+    return { feePayer: "seller", config: null };
   }
 }
 

@@ -14,6 +14,7 @@ import {
 } from "@/lib/stripe/event-idempotency";
 import { processStripeEvent } from "@/lib/stripe/webhook-handler";
 import type Stripe from "stripe";
+import { stripeEnv } from "./env-keys";
 
 /**
  * Returns `true` when this event.id was already processed (caller should
@@ -58,8 +59,8 @@ export async function handleStripeWebhook(
   // (account.updated, capability.updated, account.external_account.*).
   // Accept either secret so ONE URL can serve both endpoints.
   const webhookSecrets = (account === "mx"
-    ? [process.env.STRIPE_MX_WEBHOOK_SECRET, process.env.STRIPE_MX_WEBHOOK_SECRET_CONNECT]
-    : [process.env.STRIPE_WEBHOOK_SECRET, process.env.STRIPE_WEBHOOK_SECRET_CONNECT]
+    ? [stripeEnv("STRIPE_MX_WEBHOOK_SECRET"), stripeEnv("STRIPE_MX_WEBHOOK_SECRET_CONNECT")]
+    : [stripeEnv("STRIPE_WEBHOOK_SECRET"), stripeEnv("STRIPE_WEBHOOK_SECRET_CONNECT")]
   ).filter((s): s is string => !!s && s.trim().length > 0);
   if (webhookSecrets.length === 0) {
     logServerError(
@@ -97,7 +98,7 @@ export async function handleStripeWebhook(
     return NextResponse.json({ error: "Invalid signature." }, { status: 400 });
   }
 
-  const modeKey = account === "mx" ? process.env.STRIPE_MX_SECRET_KEY : process.env.STRIPE_SECRET_KEY;
+  const modeKey = stripeEnv(account === "mx" ? "STRIPE_MX_SECRET_KEY" : "STRIPE_SECRET_KEY");
   if (eventModeMismatch(event.livemode, modeKey)) {
     logServerError(
       "stripe-webhook.livemode-mismatch",

@@ -125,6 +125,7 @@ export const EDITORIAL_TYPE_SYSTEM_CSS = [
   `${S} .site-builder-node--services-catalog-pill[data-active="true"]{background:var(--token-color-ink);color:var(--token-color-background);border-color:var(--token-color-ink)}`,
   `${S} .site-builder-node--services-catalog-group-title{margin:22px 0 4px;font-family:var(--site-heading-font,Georgia,serif);font-style:${v("type.accent-style")};font-weight:${v("type.accent-weight")};font-size:${v("type.group-title-size")};line-height:1.2}`,
   `${S} .site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row[data-has-photo]{display:grid;grid-template-columns:64px minmax(0,1fr) auto;grid-template-areas:none;align-items:center;gap:13px;padding:${v("layout.menu-row-gap")} 0;border-bottom:${RULE} solid var(--token-color-line)}`,
+  `${S} .site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row[data-has-photo="false"]{grid-template-columns:minmax(0,1fr) auto}`,
   `${S} .site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row[data-has-photo] > *{grid-area:auto}`,
   `${S} .site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-photo{width:64px;height:64px;border-radius:${v("shape.thumb-radius")};background:var(--token-color-blush,var(--token-color-surface-raised))}`,
   `${S} .site-builder-node--services-catalog-copy{max-width:none;gap:3px}`,

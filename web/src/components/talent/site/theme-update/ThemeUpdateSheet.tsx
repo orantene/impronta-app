@@ -25,6 +25,7 @@ import {
   changesLine,
   copyKeptLine,
   decisionLine,
+  itemFallbackLabel,
   keptLine,
   keptRemovedLine,
   type UpdateLocale,
@@ -257,7 +258,7 @@ export function ItemRow(p: {
   const [after, setAfter] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const note = (locale === "es" ? item.noteEs : item.noteEn) || item.noteEn || item.noteEs || item.key;
+  const note = (locale === "es" ? item.noteEs : item.noteEn) || item.noteEn || item.noteEs || itemFallbackLabel(item.key, locale);
   const canPlace = item.type === "new-block" && (item.tree === null || item.tree === "home");
   const groupName = `theme-update-place-${item.id}`;
 

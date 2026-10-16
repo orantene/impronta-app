@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useAgendaCopy } from "./use-agenda-copy";
+import { cityForLocale } from "./timezone-city-es";
 
 /**
  * TimezonePicker (TUL-94): a searchable pick from the IANA list, never free
@@ -48,9 +49,39 @@ function offsetLabel(zone: string): string {
   }
 }
 
-function labelFor(zone: string): string {
+/** Zones offered first (TUL-821): Mexico, where most talents work. */
+export const SUGGESTED_ZONES = [
+  "America/Cancun",
+  "America/Mexico_City",
+  "America/Monterrey",
+  "America/Merida",
+  "America/Chihuahua",
+  "America/Tijuana",
+];
+
+function genericName(zone: string, locale: string): string {
+  try {
+    return (
+      new Intl.DateTimeFormat(locale, { timeZone: zone, timeZoneName: "longGeneric" })
+        .formatToParts(new Date())
+        .find((p) => p.type === "timeZoneName")?.value ?? ""
+    );
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * TUL-822: the raw IANA id ("Africa/Addis Ababa") is English-only. Lead with
+ * the locale's own zone name ("hora de África oriental") and keep the city
+ * tail so the zone is still findable, plus the UTC offset.
+ */
+export function zoneLabel(zone: string, locale: string): string {
+  const city = cityForLocale((zone.split("/").pop() ?? zone).replaceAll("_", " "), locale);
+  const generic = genericName(zone, locale);
   const off = offsetLabel(zone);
-  return off ? `${zone.replaceAll("_", " ")} (${off})` : zone.replaceAll("_", " ");
+  const head = generic && generic.toLowerCase() !== city.toLowerCase() ? `${generic} · ${city}` : city;
+  return off ? `${head} (${off})` : head;
 }
 
 export function TimezonePicker({ value, onChange }: { value: string; onChange: (zone: string) => void }) {
@@ -63,6 +94,8 @@ export function TimezonePicker({ value, onChange }: { value: string; onChange: (
     // The current value stays selectable even when the filter hides it.
     return value && !list.includes(value) && zones.includes(value) ? [value, ...list] : list;
   }, [query, zones, value]);
+
+  const suggested = useMemo(() => (query.trim() ? [] : SUGGESTED_ZONES.filter((z) => zones.includes(z))), [query, zones]);
 
   return (
     <div className="mt-1 flex flex-col gap-2">
@@ -82,11 +115,22 @@ export function TimezonePicker({ value, onChange }: { value: string; onChange: (
         onChange={(e) => onChange(e.target.value)}
       >
         {!zones.includes(value) ? <option value="">{copy.t("Pick a time zone")}</option> : null}
-        {shown.map((z) => (
-          <option key={z} value={z}>
-            {labelFor(z)}
-          </option>
-        ))}
+        {suggested.length > 0 ? (
+          <optgroup label={copy.t("Suggested")}>
+            {suggested.map((z) => (
+              <option key={`s-${z}`} value={z}>
+                {zoneLabel(z, copy.locale)}
+              </option>
+            ))}
+          </optgroup>
+        ) : null}
+        <optgroup label={copy.t("All time zones")}>
+          {shown.map((z) => (
+            <option key={z} value={z}>
+              {zoneLabel(z, copy.locale)}
+            </option>
+          ))}
+        </optgroup>
       </select>
     </div>
   );

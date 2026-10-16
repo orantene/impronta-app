@@ -35,7 +35,7 @@ import {
   offeringMatrixValue,
   type OfferingMatrixKey,
 } from "@/lib/talent/offering-matrix";
-import type { TalentOffering } from "@/lib/talent/offerings-types";
+import { offeringIsQuote, type TalentOffering } from "@/lib/talent/offerings-types";
 
 import { catalogRowPriceText } from "./services-catalog-bar-price";
 import { catalogDurationPhrase } from "./services-catalog-title";
@@ -56,7 +56,7 @@ const ROW_ORDER: RowKey[] = ["price", "duration", "booking", "materials", "warra
 export const SERVICES_MATRIX_CSS = `
 .sb-mx{container:sbmx/inline-size;width:100%;min-width:0;box-sizing:border-box;color:var(--token-color-ink);overflow-x:clip}
 .sb-mx-scroll{display:none;overflow-x:clip;max-width:100%;width:100%}
-/* TUL-496: fixed layout fills the band at 1280; cells wrap instead of a one-column scrollbar. */
+/* TUL-532 / GRK-048: fixed layout fills the band; cells wrap instead of a one-column H-scroll. */
 .sb-mx-table{border-collapse:separate;border-spacing:0;table-layout:fixed;width:100%;font-size:13px;background:var(--token-color-surface-raised,var(--token-color-background));border:var(--token-shape-rule-width,1.5px) solid var(--token-color-ink);border-radius:var(--site-radius-md,10px);overflow:hidden}
 .sb-mx-table th,.sb-mx-table td{position:relative;padding:10px;text-align:left;vertical-align:top;border-bottom:1px solid var(--token-color-line);overflow-wrap:anywhere;word-break:break-word;min-width:0}
 .sb-mx-table tr:last-child th,.sb-mx-table tr:last-child td{border-bottom:0}
@@ -131,7 +131,7 @@ export function CatalogMatrix({
   const cols = items.map((item) => {
     const derived = deriveOfferingCta({ offering: item, defaults: { bookingPosture }, confirmsByHand });
     const quote =
-      item.priceDisplay === "quote" || item.priceType === "custom" || item.amountCents == null;
+      offeringIsQuote(item);
     const selected = selectedIds.includes(item.id);
     const cta = catalogRowCtaLabel({
       selected,

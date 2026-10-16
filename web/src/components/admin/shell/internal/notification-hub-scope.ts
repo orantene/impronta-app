@@ -64,6 +64,21 @@ export function countUnreadRealNotifications(
   }, 0);
 }
 
+/**
+ * Hub item ids that render as read: the hub's local set plus every real row
+ * the server already marked read (`notif-<id>`). Derived during render, not
+ * seeded in an effect, so the server HTML and the pre-hydration badge carry
+ * the true unread count instead of counting every row until hydration.
+ */
+export function hubReadItemIds(
+  localReadIds: ReadonlySet<string>,
+  rows: readonly UserNotification[] | null,
+): Set<string> {
+  const out = new Set(localReadIds);
+  for (const row of rows ?? []) if (row.read) out.add(`notif-${row.id}`);
+  return out;
+}
+
 export type HubClickTarget =
   | { kind: "href"; href: string }
   | { kind: "drawer"; drawerId: DrawerId; payload: Record<string, unknown> | undefined };
@@ -73,6 +88,13 @@ export function hubClickTarget(n: UserNotification, adminBasePath: string): HubC
   const raw = targetOf(n);
   if (!raw) return null;
   const f = notificationDrawerFields(raw, n.originInquiryId, adminBasePath);
+  // TUL-391 r3: the inquiry-workspace drawer is a fixture drawer; it resolves a
+  // real inquiry uuid to RICH_INQUIRIES[0] (a demo inquiry). A talent bell row
+  // opens the real chat-first inbox instead.
+  if (n.surface === "talent" && f.targetDrawer === "inquiry-workspace") {
+    const id = n.originInquiryId ?? (f.targetPayload?.inquiryId as string | undefined);
+    if (id) return { kind: "href", href: `/talent/inbox?inquiry=${encodeURIComponent(id)}` };
+  }
   if (f.targetHref) return { kind: "href", href: f.targetHref };
   return { kind: "drawer", drawerId: f.targetDrawer, payload: f.targetPayload };
 }

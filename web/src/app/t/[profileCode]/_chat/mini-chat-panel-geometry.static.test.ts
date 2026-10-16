@@ -48,6 +48,13 @@ test("leaves desktop geometry untouched by the keyboard inset", () => {
   assert.equal(open.top, closed.top);
 });
 
+test("desktop panel z-index sits above the launcher stacking context (✕ stays clickable)", () => {
+  const desk = miniPanelContainerStyle(C, false, 0);
+  const phone = miniPanelContainerStyle(C, true, 0);
+  assert.equal(desk.zIndex, 96);
+  assert.equal(phone.zIndex, 96);
+});
+
 test("wires Visual Viewport into MiniChatPanel and keeps the hook source clean", () => {
   const panel = readFileSync(join(dir, "MiniChatPanel.tsx"), "utf8");
   assert.match(panel, /useVisualViewportInset/);

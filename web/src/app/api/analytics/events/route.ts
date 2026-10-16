@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import { redactSecretPath } from "@/lib/analytics/redact-secret-path";
 import { z } from "zod";
 import { logAnalyticsEventServer } from "@/lib/analytics/server-log";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 import { deriveTenantIdFromRequest } from "@/lib/analytics/derive-tenant";
+import { sanitizeReferrer, scrubAnalyticsPayload, stripUrlQuery } from "@/lib/analytics/sanitize-url";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 import { tryConsumeRateLimit, rateLimitJsonResponse } from "@/lib/rate-limit";
 
@@ -77,9 +79,13 @@ export async function POST(request: Request) {
 
   // Merge referrer into payload so the top-referrers loader can group by it.
   // analytics_events has no dedicated referrer column; payload is jsonb.
+  // Query strings can carry auth codes, magic-link/reset tokens, pay codes and
+  // emails: referrer is reduced to its origin and url-like payload fields to
+  // origin + path before anything is stored.
+  const safeReferrer = sanitizeReferrer(referrer);
   const mergedPayload: Record<string, unknown> = {
-    ...(payload ?? {}),
-    ...(referrer != null ? { referrer } : {}),
+    ...scrubAnalyticsPayload(payload),
+    ...(safeReferrer ? { referrer: safeReferrer } : {}),
   };
 
   // `talent_id` belongs in the COLUMN, not just the payload — every
@@ -99,7 +105,7 @@ export async function POST(request: Request) {
     sessionId: session_id ?? null,
     talentId: resolvedTalentId,
     tenantId,
-    path: path ?? null,
+    path: (() => { const p = stripUrlQuery(path); return p ? redactSecretPath(p) : p; })(),
     locale: locale ?? null,
   });
 

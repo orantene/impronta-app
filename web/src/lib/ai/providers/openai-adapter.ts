@@ -43,6 +43,7 @@ export function createOpenAiChatAdapter(apiKey?: string | null): AiProviderAdapt
           messages,
         };
 
+        const reqOpts = input.signal ? { signal: input.signal } : undefined;
         const completion = input.jsonSchema
           ? await client.chat.completions.create({
               ...common,
@@ -54,8 +55,8 @@ export function createOpenAiChatAdapter(apiKey?: string | null): AiProviderAdapt
                   schema: input.jsonSchema.schema as never,
                 },
               },
-            })
-          : await client.chat.completions.create(common);
+            }, reqOpts)
+          : await client.chat.completions.create(common, reqOpts);
 
         const text = completion.choices[0]?.message?.content?.trim() ?? "";
         if (!text) {
@@ -77,6 +78,9 @@ export function createOpenAiChatAdapter(apiKey?: string | null): AiProviderAdapt
       } catch (e: unknown) {
         const err = e as { status?: number; message?: string };
         const status = typeof err.status === "number" ? err.status : undefined;
+        if (input.signal?.aborted) {
+          return { ok: false, code: "timeout", message: "OpenAI request aborted." };
+        }
         if (status === 429) {
           return {
             ok: false,

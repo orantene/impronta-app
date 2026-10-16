@@ -9,15 +9,15 @@ import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-langua
 import { MarketingSupportLauncher } from "./MarketingSupportLauncher";
 
 /**
- * The floating "?" launcher is hidden on marketing hosts unless
- * `NEXT_PUBLIC_MARKETING_SUPPORT_FAB=1` is set (owner ruling 2026-09-17).
- * Nothing else dispatches TULALA_SUPPORT_OPEN_EVENT, so with the flag off the
- * guest support panel is unreachable from tulala.digital by design.
+ * The floating "?" button stays hidden on marketing hosts unless
+ * `NEXT_PUBLIC_MARKETING_SUPPORT_FAB=1` (owner ruling 2026-09-17). The panel
+ * itself is always mounted (button-less) so in-page CTAs that dispatch
+ * TULALA_SUPPORT_OPEN_EVENT (/support hero, header support menu) open it
+ * regardless of the flag. Nothing renders in the DOM until the event fires.
  */
 const SUPPORT_FAB_ENABLED = process.env.NEXT_PUBLIC_MARKETING_SUPPORT_FAB === "1";
 
 export async function MarketingSupportLauncherMount() {
-  if (!SUPPORT_FAB_ENABLED) return null;
   const ctx = await getPublicHostContext();
   if (ctx.kind !== "marketing") return null;
   if (!guestSupportMayServe(guestCookieSigningEnabled())) return null;
@@ -36,6 +36,7 @@ export async function MarketingSupportLauncherMount() {
       locale={locale === "es" ? "es" : "en"}
       originSlug={pathnameWithoutLocale || "/"}
       signedIn={Boolean(actor.user)}
+      showFab={SUPPORT_FAB_ENABLED}
     />
   );
 }

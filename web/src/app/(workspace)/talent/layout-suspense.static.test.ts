@@ -19,7 +19,10 @@ export function hasSuspenseWithFallback(src: string): boolean {
 
 /** True when the session redirect appears before the first <Suspense. */
 export function sessionRedirectBeforeSuspense(src: string): boolean {
-  const redirectAt = src.indexOf('redirect("/login');
+  const redirectAt = Math.max(
+    src.indexOf('redirect("/login'),
+    src.indexOf("redirect(loginUrlKeepingSupport("),
+  );
   const suspenseAt = src.indexOf("<Suspense");
   return redirectAt !== -1 && suspenseAt !== -1 && redirectAt < suspenseAt;
 }
@@ -40,7 +43,10 @@ test("default export wraps the heavy inner layout in Suspense with a fallback", 
 
 test("session redirect stays outside (before) the Suspense", () => {
   assert.ok(sessionRedirectBeforeSuspense(layout), "login redirect must precede <Suspense");
-  assert.match(layout, /redirect\("\/login\?next=\/talent\/today"\)/);
+  assert.match(
+    layout,
+    /redirect\("\/login\?next=\/talent\/today"\)|redirect\(loginUrlKeepingSupport\("\/talent\/today"/,
+  );
 });
 
 test("skeleton module exists, is aria-busy and has no hex literal", () => {
