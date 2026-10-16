@@ -33,7 +33,7 @@ import { loadClientFieldSource } from "@/lib/field-engine/client-field-source";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import {
   WORKSPACE_LOCALE_SEED_ATTEMPT_COOKIE,
-  isWorkspaceSeedablePath,
+  workspaceLocaleSeedHopPossible,
   workspaceLocaleSeedHref,
   workspaceLocaleSeedMayApply,
   workspaceLocaleSeedPlan,
@@ -173,9 +173,13 @@ export default async function WorkspaceAdminLayout({
     userId: session.user.id,
   };
   if (
-    !jar.get(WORKSPACE_LOCALE_SEED_ATTEMPT_COOKIE)?.value &&
-    hdrs.get("x-impronta-original-pathname") &&
-    isWorkspaceSeedablePath(pathname, tenantSlug) &&
+    workspaceLocaleSeedHopPossible({
+      attemptCookie: jar.get(WORKSPACE_LOCALE_SEED_ATTEMPT_COOKIE)?.value,
+      originalPathnameHeader: hdrs.get("x-impronta-original-pathname"),
+      pathname,
+      tenantSlug,
+      rscHeader: hdrs.get("rsc"),
+    }) &&
     workspaceLocaleSeedMayApply(seedCookies)
   ) {
     const primary = await timed("layout.loadWorkspaceSeedPrimary", () => loadWorkspaceSeedPrimary(scope.tenantId));
