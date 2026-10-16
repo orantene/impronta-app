@@ -158,10 +158,10 @@ const STATUS_BG: Record<string, { bg: string; color: string; key: string }> = {
   active:             { bg: "rgba(46,125,91,0.08)",  color: "#2E7D5B",              key: "admin.account.billing.statusActive" },
   trialing:           { bg: "rgba(27,110,200,0.08)", color: "#1B6EC8",              key: "admin.account.billing.statusTrial" },
   past_due:           { bg: "rgba(200,100,20,0.10)", color: "#B05B0D",              key: "admin.account.billing.statusPastDue" },
-  cancelled:          { bg: "rgba(11,11,13,0.06)",   color: "rgba(11,11,13,0.55)", key: "admin.account.billing.statusCancelled" },
+  cancelled:          { bg: "rgba(11,11,13,0.06)",   color: "rgba(11,11,13,0.6)", key: "admin.account.billing.statusCancelled" },
   paused:             { bg: "rgba(180,130,20,0.10)", color: "var(--color-admin-amber)",              key: "admin.account.billing.statusPaused" },
   incomplete:         { bg: "rgba(200,100,20,0.08)", color: "#B05B0D",              key: "admin.account.billing.statusIncomplete" },
-  incomplete_expired: { bg: "rgba(11,11,13,0.06)",   color: "rgba(11,11,13,0.55)", key: "admin.account.billing.statusExpired" },
+  incomplete_expired: { bg: "rgba(11,11,13,0.06)",   color: "rgba(11,11,13,0.6)", key: "admin.account.billing.statusExpired" },
 };
 
 export function SubscriptionStatusBadge({ status, locale = "en" }: { status: string; locale?: string }) {
@@ -169,7 +169,7 @@ export function SubscriptionStatusBadge({ status, locale = "en" }: { status: str
   const s = STATUS_BG[status];
   const meta = s
     ? { label: t(s.key), bg: s.bg, color: s.color }
-    : { label: status, bg: "rgba(11,11,13,0.06)", color: "rgba(11,11,13,0.55)" };
+    : { label: status, bg: "rgba(11,11,13,0.06)", color: "rgba(11,11,13,0.6)" };
   return (
     <span
       style={{
