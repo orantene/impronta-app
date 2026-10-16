@@ -88,6 +88,9 @@ src/lib/talent-site/seo-description-fallback.test.ts
 src/app/(public)/book/book-page-empty.test.tsx
 src/lib/client-account/agency-account-site-pure.test.ts
 src/lib/client-account/published-shell-account-chrome.test.ts
+src/lib/talent-site/live-text-services.test.ts
+src/lib/talent-site/hero-proof-line.test.ts
+src/lib/talent/location-kind.test.ts
 src/lib/talent/dashboard-status.test.ts
 src/lib/talent/google-business-profile-guide.test.ts
 src/lib/talent/google-site-verification.test.ts

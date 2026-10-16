@@ -19,6 +19,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["lib/server-actions/posts-ai-toggle-actions.ts", ["workspaceLoadAiCrawlersAllowedAction"], READ],
   ["lib/server-actions/posts-layout-actions.ts", ["workspaceListPostsTreeAction", "talentListPostsTreeAction"], READ],
   ["lib/server-actions/posts-widget-actions.ts", ["listPostsForWidgetPickerAction"], READ],
+  ["lib/site-admin/builder-node/posts-feed-demo-action.ts", ["loadPostsFeedDemoCardsAction"], READ],
   ["lib/promos/actions.ts", ["loadPromosPage", "getPromoAttention", "loadPromoBookings"], READ],
   ["lib/promos/booking-quote.actions.ts", ["previewBookingQuoteAction"], "public client price preview: reads only, holds nothing, no talent session"],
   ["lib/promos/callouts/dismissals.actions.ts", ["loadCalloutState"], READ],
