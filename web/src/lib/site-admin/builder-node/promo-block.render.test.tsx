@@ -7,6 +7,7 @@ import type { PromoWidgetData, WidgetPromo } from "@/lib/promos/widgets/types";
 
 import { createBuilderNode } from "./create";
 import { BUILDER_NODE_REGISTRY } from "./registry";
+import { renderPromoBlock } from "./promo-block";
 import { renderBuilderNodes } from "./render";
 import type { BuilderPromoNode } from "./types";
 import { validateBuilderNodeTree } from "./validate";
@@ -21,7 +22,14 @@ const data = (items: WidgetPromo[], preview = false): PromoWidgetData => ({ item
 
 function html(node: BuilderPromoNode, promoWidgets?: PromoWidgetData, locale = "en") {
   return renderToStaticMarkup(
-    createElement("div", null, renderBuilderNodes([node], { mode: "freeform", visitorLocale: locale, dataSources: { promoWidgets } })),
+    createElement("div", null, renderBuilderNodes([node], {
+      mode: "freeform",
+      visitorLocale: locale,
+      dataSources: { promoWidgets },
+      // The server callers (live site, My content preview) inject the real renderer; render.tsx no
+      // longer imports it (TUL-1178 step 2), so the tests do what those callers do.
+      renderPromoBlock,
+    })),
   );
 }
 const make = (props: Partial<BuilderPromoNode["props"]> = {}): BuilderPromoNode => {
@@ -112,4 +120,45 @@ test("no em dashes in the shipped promo copy", async () => {
     ]);
     assert.ok(!text.includes("—"), loc);
   }
+});
+
+// TUL-1178 step 2: render.tsx no longer imports the promo renderer; the callers inject it.
+function bare(node: BuilderPromoNode, opts: { editorPreview?: boolean; locale?: string; promoWidgets?: PromoWidgetData } = {}) {
+  return renderToStaticMarkup(
+    createElement(
+      "div",
+      null,
+      renderBuilderNodes([node], {
+        mode: "freeform",
+        visitorLocale: opts.locale ?? "en",
+        dataSources: { promoWidgets: opts.promoWidgets },
+        ...(opts.editorPreview ? { contentLocale: { locale: opts.locale ?? "en", defaultLocale: "en", chain: [opts.locale ?? "en"], editorPreview: true } } : {}),
+      }),
+    ),
+  );
+}
+
+test("TUL-1178: with no injected renderer the editor canvas shows a visible hint that names the block", () => {
+  const out = bare(make({ headline: "Spring offer" }), { editorPreview: true });
+  assert.match(out, /data-promo-state="placeholder"/);
+  assert.doesNotMatch(out, /\shidden(=|\s|>)/);
+  assert.match(out, /Promo block: Spring offer\. Shows live on your site\./);
+  const es = bare(make({ headline: "Oferta" }), { editorPreview: true, locale: "es" });
+  assert.match(es, /Bloque de promo: Oferta\. Se muestra en vivo en tu sitio\./);
+  assert.match(bare(make(), { editorPreview: true }), /Promo block\. Shows live on your site\./);
+});
+
+test("TUL-1178: with no injected renderer a non-editor render is the same hidden marker the real block gives with no data", () => {
+  const fallback = bare(make());
+  assert.match(fallback, /data-promo-state="empty"/);
+  assert.match(fallback, /hidden/);
+  assert.doesNotMatch(fallback, /Promo block/);
+  assert.equal(fallback, html(make()), "identical to the real renderer with no data");
+});
+
+test("TUL-1178: an injected renderer still wins, so the live site is unchanged", () => {
+  const live = html(make(), data([wp()]));
+  assert.match(live, /data-promo-state="live"/);
+  // Without it the same data renders no live promo: this is why every data-bearing server caller injects it.
+  assert.doesNotMatch(bare(make(), { promoWidgets: data([wp()]) }), /data-promo-state="live"/);
 });
