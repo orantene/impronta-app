@@ -22,6 +22,7 @@ test("quote, hidden or empty prices yield null", () => {
 });
 
 test("home block and service page use the shared helper", () => {
-  assert.match(readFileSync("src/lib/talent-site/service-page.ts", "utf8"), /publicPriceLine\(/);
+  // TUL-791: the service page reads the one shared resolver, which uses the same money formatter as publicPriceLine.
+  assert.match(readFileSync("src/lib/talent-site/service-page.ts", "utf8"), /resolvePublicPrice\(/);
   assert.match(readFileSync("src/lib/site-admin/builder-node/render.tsx", "utf8"), /publicPriceLine\(/);
 });

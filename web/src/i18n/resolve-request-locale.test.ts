@@ -49,12 +49,51 @@ describe("resolveRequestLocale (TUL-518 hub ?lang=)", () => {
     );
   });
 
-  it("falls back to the middleware header when there is no query", () => {
+  it("TUL-1187: unprefixed path: the locale cookie beats the path-derived header", () => {
     assert.equal(
       resolveRequestLocale({
         ...LOCALES,
         headerLocale: "en",
-        pathname: "/t/TAL-00031",
+        pathname: "/directory",
+        search: "",
+        cookieLocale: "es",
+      }),
+      "es",
+    );
+  });
+
+  it("TUL-1187: unprefixed path: header is used when there is no cookie", () => {
+    assert.equal(
+      resolveRequestLocale({
+        ...LOCALES,
+        headerLocale: "en",
+        pathname: "/directory",
+        search: "",
+        cookieLocale: null,
+      }),
+      "en",
+    );
+  });
+
+  it("TUL-1187: prefixed path still beats the cookie", () => {
+    assert.equal(
+      resolveRequestLocale({
+        ...LOCALES,
+        headerLocale: "es",
+        pathname: "/es/directory",
+        search: "",
+        cookieLocale: "en",
+      }),
+      "es",
+    );
+  });
+
+  it("uses the header over the cookie when no pathname is known", () => {
+    assert.equal(
+      resolveRequestLocale({
+        ...LOCALES,
+        headerLocale: "en",
+        pathname: null,
         search: "",
         cookieLocale: "es",
       }),

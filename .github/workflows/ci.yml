@@ -448,6 +448,10 @@ jobs:
         if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
         run: npm run test:publish-preflight
 
+      - name: tests — posts
+        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
+        run: npm run test:posts
+
       # The Impronta page-tree suites (12 files, 133 assertions) existed but
       # ran nowhere: no npm script, no CI step. Their section-structure
       # snapshot had been red since the location map landed and nothing said

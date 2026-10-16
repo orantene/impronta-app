@@ -73,6 +73,7 @@ export function EngineFeeLines({
   label,
   nonRefundable,
   formatMoney,
+  platformFeePct = null,
 }: {
   lines: readonly EngineFeeLine[];
   currency: string;
@@ -81,6 +82,8 @@ export function EngineFeeLines({
   nonRefundable: string;
   /** Lets a page print these lines in the same format as its other amounts. */
   formatMoney?: (cents: number) => string;
+  /** "1.5%" for the platform_fee row (see platformFeePercentLabel); null = no percent. */
+  platformFeePct?: string | null;
 }) {
   const fmt = formatMoney ?? ((cents: number) => formatFeeMoney(cents, currency, locale));
   if (!lines.length) return null;
@@ -91,9 +94,15 @@ export function EngineFeeLines({
           <div
             key={l.code}
             data-fee-line={l.code}
-            className={`flex justify-between gap-3 py-1 ${l.code === "total_charged" ? "border-t border-admin-border-soft pt-2 font-semibold" : ""}`}
+            className={`flex justify-between gap-3 py-1 ${
+              l.code === "total_charged"
+                ? "border-t border-admin-border-soft pt-2 font-semibold"
+                : l.code === "card_fee_memo"
+                  ? "text-[12.5px] text-admin-ink-muted"
+                  : ""
+            }`}
           >
-            <dt>{label(l.code)}</dt>
+            <dt>{l.code === "platform_fee" && platformFeePct ? `${label(l.code)} (${platformFeePct})` : label(l.code)}</dt>
             <dd className="m-0 whitespace-nowrap tabular-nums">{fmt(l.cents)}</dd>
           </div>
         ))}

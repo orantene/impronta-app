@@ -25,6 +25,7 @@ import {
   reservedSlugMessage,
 } from "./reserved-routes";
 import { isPathAllowedForHostKind } from "@/lib/saas/surface-allow-list";
+import { isValidSlugPath } from "@/lib/cms/paths";
 import { STATIC_LOCALES, localeMetadata } from "@/i18n/config";
 
 const APP_DIR = join(process.cwd(), "src", "app");
@@ -55,8 +56,11 @@ test("every route segment reachable on a tenant host is reserved", () => {
   const segments = topLevelRouteSegments(APP_DIR);
   assert.ok(segments.length > 10, "route-tree walk found suspiciously few segments");
 
-  const colliding = segments.filter((segment) =>
-    isPathAllowedForHostKind("agency", `/${segment}`),
+  // A segment the page-slug rule can never produce (e.g. the dotted `llms.txt`
+  // route) cannot be shadowed by a CMS page, so it needs no reservation.
+  const colliding = segments.filter(
+    (segment) =>
+      isValidSlugPath(segment) && isPathAllowedForHostKind("agency", `/${segment}`),
   );
   assert.ok(colliding.length > 5, "allow-list probe found suspiciously few collisions");
 

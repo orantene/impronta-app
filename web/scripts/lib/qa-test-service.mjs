@@ -4,6 +4,9 @@
  * Pure helpers shared by the read-only scanner (scripts/qa/scan-test-services.mjs) and by
  * any harness that creates services. A service is "test data" when its title (or any
  * translated title) says so: a QA / E2E marker (also glued to a number, "QA17") or the English word Test.
+ *
+ * Runtime public strip (catalog + storefront loaders) lives in
+ * `web/src/lib/talent/qa-test-service.ts` — keep the title heuristics in sync (TUL-537).
  */
 
 const QA_MARKER = /(^|[^a-z])(qa|e2e)(?=\d|[^a-z]|$)/i;
