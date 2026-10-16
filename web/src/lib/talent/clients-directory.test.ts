@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import type { TalentClientRow } from "./clients-merge";
+import { upsertClient, type TalentClientRow } from "./clients-merge";
 import {
   clientVisit,
   clientsRowAction,
@@ -247,5 +247,40 @@ describe("clientVisit", () => {
       clientVisit({ status: "confirmed", startsAt: "2026-09-28T20:30:00.000Z", endsAt: "2026-09-28T21:30:00.000Z", nowIso }),
       { state: "confirmed", done: false, upcoming: true },
     );
+  });
+});
+
+describe("TUL-717: Clientes 'Nuevo N' counts only new clients", () => {
+  const nowIso = "2026-09-28T12:00:00.000Z";
+  const recent = "2026-09-25T12:00:00.000Z";
+
+  it("excludes returning clients (completed work) and old first-seen dates", () => {
+    const items = [
+      row({ id: "new", name: "Nia", firstSeenAt: recent, completedCount: 0 }),
+      row({ id: "ret", name: "Rita", firstSeenAt: recent, completedCount: 2, visitCount: 2 }),
+      row({ id: "old", name: "Olga", firstSeenAt: "2026-05-01T12:00:00.000Z", completedCount: 0 }),
+      row({ id: "nodate", name: "Dani", completedCount: 0 }),
+    ];
+    assert.equal(countClientsByFilter(items, nowIso).fresh, 1);
+    assert.deepEqual(
+      filterClientsDirectory({ items, filter: "fresh", query: "", nowIso }).map((r) => r.id),
+      ["new"],
+    );
+  });
+
+  it("a person with several inquiries/bookings merges into one row and counts once", () => {
+    const byKey = new Map<string, TalentClientRow>();
+    const mk = (id: string) => row({ id, name: "Nia", firstSeenAt: recent, completedCount: 0, source: "inquiry" });
+    upsertClient(byKey, mk("inquiry:i1"), { inquiryId: "i1", accumulateVisit: false });
+    upsertClient(byKey, mk("booking:b1"), { inquiryId: "i1", accumulateVisit: true, countCompleted: true });
+    upsertClient(byKey, mk("agency:b1"), { inquiryId: "i1", accumulateVisit: true, countCompleted: true });
+    assert.equal(byKey.size, 1);
+    assert.equal(countClientsByFilter([...byKey.values()], nowIso).fresh, 1);
+  });
+
+  it("the page chip count and the filtered list share one rule", () => {
+    const items = [row({ id: "a", name: "A", firstSeenAt: recent }), row({ id: "b", name: "B", firstSeenAt: recent, completedCount: 1 })];
+    const counts = countClientsByFilter(items, nowIso);
+    assert.equal(filterClientsDirectory({ items, filter: "fresh", query: "", nowIso }).length, counts.fresh);
   });
 });

@@ -66,7 +66,7 @@ test("metadata builder: title, description, canonical, hreflang kept, Service JS
   assert.equal(seo.canonical, alternates.canonical);
   assert.deepEqual(seo.alternates, alternates);
   assert.equal(seo.ogImageUrl, "https://x/y.jpg");
-  const ld = seo.jsonLd as { "@type": string; url: string; inLanguage: string };
+  const ld = (seo.jsonLd as { "@graph": { "@type": string; url: string; inLanguage: string }[] })["@graph"][0]!;
   assert.equal(ld["@type"], "Service");
   assert.equal(ld.url, alternates.canonical);
   assert.equal(ld.inLanguage, "en");
