@@ -34,6 +34,7 @@ export const MAISON_BUILTIN_DESIGN: BuiltinDesignEntry = {
     },
     fontPreview: { heading: "Fraunces", body: "Inter" },
   },
+  // Posts v1 (PO1): the posts band is applied inside buildMaisonDesignPayload.
   buildPayload: buildMaisonDesignPayload,
 };
 

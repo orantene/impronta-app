@@ -88,6 +88,7 @@ import { GenericContent } from "./generic-content";
 import { ServicesCatalogContentInspector } from "./services-catalog-inspector";
 import { PortfolioContentInspector } from "./portfolio-inspector";
 import { ReviewsContentInspector } from "./reviews-inspector";
+import { PostsFeedContentInspector } from "./posts-feed-inspector";
 import { VisitContentInspector } from "./visit-inspector";
 import { ContentsContentInspector } from "./contents-inspector";
 import { MastheadContentInspector } from "./masthead-inspector";
@@ -1607,6 +1608,9 @@ function BuilderNodeContentInspectorBody({
   }
   if (node.kind === "reviews") {
     return <ReviewsContentInspector node={node} commitPatch={commitPatch} />;
+  }
+  if (node.kind === "posts_feed") {
+    return <PostsFeedContentInspector node={node} commitPatch={commitPatch} />;
   }
   if (node.kind === "visit") {
     return <VisitContentInspector node={node} commitPatch={commitPatch} />;
@@ -5415,6 +5419,8 @@ function childSecondaryLabel(node: BuilderNode): string {
       return "Portfolio · your live media";
     case "reviews":
       return "Reviews · your client quotes";
+    case "posts_feed":
+      return "Posts · your published posts";
     case "visit":
       return node.props.layout === "location"
         ? "Location · zone, hours, how to arrive"
