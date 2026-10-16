@@ -63,6 +63,7 @@ import {
   type CatalogSlotsFn,
 } from "./catalog-booking-live-slots";
 import { CATALOG_BOOKING_CSS } from "./catalog-booking-styles";
+import { localizeOptionLabels } from "./catalog-option-locale";
 import { GuestCaptchaField, type GuestCaptchaConfig } from "./GuestCaptchaField";
 import { CatalogLiveWhenPicker, CatalogDemoWhenPicker } from "./CatalogLiveWhenPicker";
 import { bookingDraftKey, clearBookingDraft, loadBookingDraft } from "./booking-draft-store";
@@ -117,7 +118,9 @@ export function CatalogBookingSheet({
   onlineCollectReady?: boolean;
 }) {
   const es = locale.startsWith("es");
-  const [detail, setDetail] = useState<CatalogBookingDetail | null>(null);
+  const [rawDetail, setDetail] = useState<CatalogBookingDetail | null>(null);
+  // TUL-876: option and extra labels in the visitor's language when she wrote one.
+  const detail = useMemo(() => (rawDetail ? localizeOptionLabels(rawDetail, locale) : null), [rawDetail, locale]);
   const [step, setStep] = useState<Step>("choose");
   const [variantId, setVariantId] = useState<string | null>(null);
   const [addOnIds, setAddOnIds] = useState<string[]>([]);
@@ -129,6 +132,7 @@ export function CatalogBookingSheet({
   const [liveDays, setLiveDays] = useState<Array<{ key: string; date: Date; starts: string[] }>>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsReady, setSlotsReady] = useState(false);
+  const [liveReason, setLiveReason] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -292,6 +296,7 @@ export function CatalogBookingSheet({
         if (cancelled) return;
         setLiveTz(r.timezone);
         setLivePlaceCity(r.placeCity?.trim() || null);
+        setLiveReason(r.reason ?? null);
         // TUL-531: continuous 30-day strip (empty days kept); fromYmd falls back to the first slot day.
         const fromYmd =
           r.fromYmd ?? r.slots.map((s) => s.slice(0, 10)).sort()[0] ?? new Date().toISOString().slice(0, 10);
@@ -647,6 +652,7 @@ export function CatalogBookingSheet({
                   liveStarts={liveStarts}
                   liveTz={liveTz}
                   placeCity={livePlaceCity}
+                  emptyReason={liveReason}
                   timeGroupLabel={timeGroupLabel}
                   emptyConsultButton={emptyConsultButton}
                   takenNotice={takenNotice}
@@ -695,7 +701,6 @@ export function CatalogBookingSheet({
                 es={es} locale={locale} fallbackCountry={detail.currency === "MXN" ? "MX" : null} name={name} phone={phone} email={email} setName={setName} setPhone={setPhone} setEmail={setEmail}
                 touched={touched} nameValid={nameValid} phoneValid={phoneValid}
                 emailValid={emailValid} askAttempted={askAttempted} chatPhoneValid={chatPhoneValid}
-                onBlur={() => setTouched(true)}
               />
               {addr.rule === "required" ? <ServiceAddressField value={addr.fields.address} note={addr.fields.note} onChange={addr.setFields} error={addr.error} locale={locale} /> : null}
               <p className="jb-fixture" data-catalog-who-pay="">

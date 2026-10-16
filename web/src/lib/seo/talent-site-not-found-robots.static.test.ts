@@ -12,9 +12,8 @@ test("TUL-857: talent-site 404 has the branded document title and no second robo
   assert.doesNotMatch(src, /robots:/);
 });
 
-test("TUL-857: /privacy is a real 308 before the Suspense boundary, only when no page owns the slug", () => {
-  const block = page.slice(page.indexOf("TUL-857: an unknown first segment"), page.indexOf("<Suspense fallback"));
-  assert.match(block, /seg === LEGACY_PRIVACY_SLUG \|\|/);
-  assert.match(block, /if \(seg === LEGACY_PRIVACY_SLUG\) permanentRedirect\(`\/\$\{POLICY_SLUG\.privacy\}`\)/);
-  assert.match(block, /pages\.some\(\(p\) => p\.slug === seg\)/);
+test("TUL-857: /privacy is a real 308 before the Suspense boundary (verdict helper)", () => {
+  const block = page.slice(page.indexOf("needsRouteLookup(seg, preview)"), page.indexOf("<Suspense fallback"));
+  assert.match(block, /verdict === "privacy-redirect"\) permanentRedirect/);
+  assert.match(block, /loadMaxSitePages\(talentProfileId\)/);
 });

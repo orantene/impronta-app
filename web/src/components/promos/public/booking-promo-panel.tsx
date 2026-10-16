@@ -10,6 +10,7 @@ import type { BookingPreviewInput } from "@/lib/promos/booking-quote.actions";
 const previewBookingQuoteAction = async (input: Parameters<typeof import("@/lib/promos/booking-quote.actions").previewBookingQuoteAction>[0]) =>
   (await import("@/lib/promos/booking-quote.actions")).previewBookingQuoteAction(input);
 import type { BookingPreview } from "@/lib/promos/booking-preview-view";
+import { clearPromoCodeHint, readPromoCodeHint, sessionHintStorage } from "@/lib/promos/code-hint";
 import { publicPromoCopy } from "@/lib/promos/copy/public";
 import type { PromoCodeOutcome } from "@/lib/promos/public-view";
 
@@ -34,14 +35,27 @@ export function BookingPromoPanel({
   request,
   refreshKey = 0,
   onChange,
+  previewAction = previewBookingQuoteAction,
 }: {
   locale: string;
   request: Omit<BookingPreviewInput, "promoCode">;
   refreshKey?: number;
   onChange: (choice: BookingPromoChoice) => void;
+  /** Test seam: the server preview. Defaults to the on-demand server action. */
+  previewAction?: typeof previewBookingQuoteAction;
 }) {
   const [preview, setPreview] = useState<BookingPreview | null>(null);
   const [code, setCode] = useState<string | null>(null);
+  // "Book with promo" hint: read ONCE on mount, applied through the same apply()
+  // the typed field uses. The server re-checks it (preview and purchase).
+  const [prefill, setPrefill] = useState<string | null>(null);
+  useEffect(() => {
+    setPrefill(readPromoCodeHint(sessionHintStorage(), Date.now()));
+  }, []);
+  const onPrefillResult = useCallback((outcome: PromoCodeOutcome | null) => {
+    setPrefill(null); // consumed: a "promo gone" remount must not re-apply it
+    if (!outcome?.ok) clearPromoCodeHint(sessionHintStorage());
+  }, []);
   const onChangeRef = useRef(onChange);
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -58,7 +72,7 @@ export function BookingPromoPanel({
     // Read the request back out of `key` so the effect depends on its value,
     // not on a new object identity every render.
     const [req] = JSON.parse(key) as [Omit<BookingPreviewInput, "promoCode">];
-    void previewBookingQuoteAction({ ...req, promoCode: code })
+    void previewAction({ ...req, promoCode: code })
       .then((res) => {
         if (!live) return;
         const next = res.ok ? res.preview : null;
@@ -75,10 +89,10 @@ export function BookingPromoPanel({
     return () => {
       live = false;
     };
-  }, [key, code]);
+  }, [key, code, previewAction]);
 
   const apply = async (typed: string): Promise<PromoCodeOutcome> => {
-    const res = await previewBookingQuoteAction({ ...request, promoCode: typed });
+    const res = await previewAction({ ...request, promoCode: typed });
     if (!res.ok) return { ok: false, reason: "promo_unavailable" };
     const outcome = res.preview.code ?? { ok: false, reason: "promo_unavailable" };
     if (outcome.ok) setCode(typed);
@@ -100,7 +114,7 @@ export function BookingPromoPanel({
         <CheckoutPromoBreakdown lines={preview.lines} gifts={preview.gifts} currency={preview.currency} locale={locale} />
       ) : null}
       <div style={{ fontSize: 13 }}>
-        <PromoCodeField key={refreshKey} locale={locale} onApply={apply} />
+        <PromoCodeField key={refreshKey} locale={locale} onApply={apply} prefillCode={prefill} onPrefillResult={onPrefillResult} />
       </div>
     </div>
   );

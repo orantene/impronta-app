@@ -78,3 +78,4 @@ e2e/.auth/
 
 # Isolated Live-QA stack PIDs (start-isolated-stack.sh)
 .isolated-stack.pids
+e2e-billing/.auth/

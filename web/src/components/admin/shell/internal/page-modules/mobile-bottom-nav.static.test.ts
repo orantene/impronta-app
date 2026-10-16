@@ -56,6 +56,7 @@ import {
   visibleDestinations,
   type WorkspaceNavContext,
 } from "@/lib/workspace/destinations";
+import { MOBILE_NAV_CSS } from "./mobile-nav-css";
 import { navWorkspacePages } from "@/lib/workspace/page-ids";
 import { canManageBilling, derivePreset, deriveWorkRole } from "@/lib/workspace/nav-context";
 import { blankComments } from "@/lib/quality/supabase-unchecked-read";
@@ -407,4 +408,40 @@ test("the professional hat gates mywork, which has nowhere to route yet — neve
   assert.ok(visibleDestinations(bookable).some((d) => d.id === "mywork"));
   assert.ok(!visibleDestinations(notBookable).some((d) => d.id === "mywork"));
   assert.ok(DESTINATIONS.mywork.mobilePriority === undefined, "mywork must stay out of the fixed bar — it has no live route");
+});
+
+// ── TUL-1109: count badges must pass WCAG AA for small text (4.5:1) ──────────
+
+const tokenHex = (name: string): number[] => {
+  const css = readRaw("src/styles/admin-color-bridge.css");
+  const m = css.match(new RegExp(`${name}:\\s*#([0-9a-fA-F]{6})`));
+  assert.ok(m, `${name} is defined in admin-color-bridge.css`);
+  return [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16));
+};
+
+function luminance(rgb: readonly number[]): number {
+  const lin = (c: number) => {
+    const v = c / 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * lin(rgb[0]) + 0.7152 * lin(rgb[1]) + 0.0722 * lin(rgb[2]);
+}
+
+const contrastOnWhite = (rgb: readonly number[]): number => 1.05 / (luminance(rgb) + 0.05);
+
+test("TUL-1109: the contrast helper reproduces QA's measurement of the raw coral (3.85:1, truncated)", () => {
+  const raw = contrastOnWhite(tokenHex("--color-admin-coral"));
+  assert.ok(raw >= 3.85 && raw < 3.87, `raw coral measured ${raw}`);
+  assert.ok(raw < 4.5, "white on the raw coral fails AA for small text");
+});
+
+test("TUL-1109: both mobile count badges are white on the deep coral, which passes 4.5:1", () => {
+  const rules = [...MOBILE_NAV_CSS.matchAll(/\.(tulala-mnav-tab-badge|tulala-mnav-badge)\s*\{([^}]*)\}/g)];
+  assert.deepEqual(rules.map((m) => m[1]).sort(), ["tulala-mnav-badge", "tulala-mnav-tab-badge"]);
+  for (const [, name, body] of rules) {
+    assert.match(body, /color:\s*#fff/, `${name} text is white`);
+    assert.match(body, /background:\s*var\(--color-admin-coral-deep\)/, `${name} uses the deep coral, not the raw token`);
+  }
+  const ratio = contrastOnWhite(tokenHex("--color-admin-coral-deep"));
+  assert.ok(ratio >= 4.5, `white on the deep coral is ${ratio.toFixed(2)}:1, needs 4.5`);
 });

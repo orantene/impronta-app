@@ -15,6 +15,22 @@ function catalogConsultLabel(locale: string): string {
   return locale.toLowerCase().startsWith("es") ? "Consultar" : "Ask";
 }
 
+/**
+ * TUL-551 / TUL-533 (GRK-064): the purchase panel's total. A service whose OWN list price is
+ * zero reads Consultar / Ask, never "$0 MXN". A total that is zero only because a promo
+ * covered it is a real price and stays formatted. Display only: nothing here prices or charges.
+ */
+export function catalogPurchaseTotalLabel(
+  listCents: number | null,
+  totalCents: number | null,
+  locale: string,
+  money: (cents: number) => string,
+): string {
+  if (totalCents == null) return "";
+  if (listCents != null && listCents <= 0) return catalogConsultLabel(locale);
+  return money(totalCents);
+}
+
 export function catalogPriceLabel(
   detail: Pick<OfferingRequestDetail, "priceDisplay" | "priceType" | "amountCents" | "currency">,
   cents: number,

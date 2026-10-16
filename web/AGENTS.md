@@ -30,6 +30,9 @@ gives you the RULES. Every line here exists because skipping it cost a wave.
   checkout's `node_modules`, runs `tsx --test`, and removes the link on exit.
   Local gates are CI's job: no tsc, no eslint, no next build/dev, no npm ci;
   use `npm run test:wt`. The helper refuses those requests (exit 2).
+  It also takes a MACHINE-WIDE lock (`~/.tulala-test.lock`, prints who holds it),
+  waits while the 5-min load is above 12, and runs one test file at a time
+  (`--test-concurrency=1`): only one lane may run tests at once (Oct 15 crash).
 
 ## Migrations
 - The repo FUTURE-DATES migrations. Yours must sort AFTER the newest existing

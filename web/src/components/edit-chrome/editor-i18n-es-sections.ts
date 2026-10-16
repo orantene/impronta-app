@@ -31,8 +31,8 @@ export const ES_SECTION_CATALOG_TEXT: Record<string, string> = {
   "Long-form post with hero image, byline, body, optional pull-quote.":
     "Entrada extensa con imagen principal, autoría, cuerpo y cita destacada opcional.",
   "Blog index": "Índice de blog",
-  "Card grid of recent posts. Each item is editor-managed (manual list), and can be pointed at a real CMS query later.":
-    "Cuadrícula de tarjetas con entradas recientes. Cada elemento se gestiona desde el editor (lista manual) y luego puede apuntar a una consulta real del CMS.",
+  "Últimos posts: a card grid of the site's real, published posts (newest first, optional category). A manual list still works.":
+    "Últimos posts: cuadrícula con los posts publicados del sitio (los más nuevos primero, categoría opcional). Una lista manual sigue funcionando.",
   "Booking widget": "Widget de reservas",
   "Embedded scheduling widget (Calendly / Cal.com / Acuity / SavvyCal). First-class section with pre-tuned defaults.":
     "Widget de agenda incrustado (Calendly / Cal.com / Acuity / SavvyCal). Sección de primer nivel con valores predeterminados ya ajustados.",
