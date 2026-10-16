@@ -35,6 +35,7 @@ const ROOT_ALLOWED_KINDS: ReadonlySet<BuilderNodeKind> = new Set([
   "services_catalog",
   "portfolio",
   "reviews",
+  "posts_feed",
   "visit",
   "contents",
   "masthead",

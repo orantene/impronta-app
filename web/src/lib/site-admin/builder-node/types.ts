@@ -51,6 +51,8 @@ export type BuilderNodeKind =
   | "portfolio"
   /** W-14 — live-bound talent_reviews quote cards (trio / single / row). */
   | "reviews"
+  /** Posts v1 (PO1) — live blog posts of the rendering site, 8 styles. */
+  | "posts_feed"
   /** Visit facts — live service areas / languages / hours; hidden when empty. */
   | "visit"
   /** Contents — authored chapter index / TOC with anchor links. */
@@ -1383,6 +1385,21 @@ export interface BuilderReviewsNode extends BuilderNodeBase {
     showArrows?: boolean;
     showDots?: boolean;
     useWebsiteTheme?: boolean;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
+ * Posts v1 (PO1) — the "Posts" widget: the rendering site's published posts
+ * (talent or workspace scope) in one of 8 styles, with source / filter / sort /
+ * field / pagination options. Option schema + defaults live in
+ * `posts-feed-model.ts`. Hidden on a real site with no posts (unless an empty
+ * message is set); demo example posts in the builder and theme previews.
+ */
+export interface BuilderPostsFeedNode extends BuilderNodeBase {
+  kind: "posts_feed";
+  props: import("./posts-feed-model").PostsFeedProps & {
+    layerLabel?: string;
     style?: BuilderNodeStyle;
   };
 }
@@ -2755,6 +2772,7 @@ export type BuilderNode =
   | BuilderServicesCatalogNode
   | BuilderPortfolioNode
   | BuilderReviewsNode
+  | BuilderPostsFeedNode
   | BuilderVisitNode
   | BuilderContentsNode
   | BuilderMastheadNode

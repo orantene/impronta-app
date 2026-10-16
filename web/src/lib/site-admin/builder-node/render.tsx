@@ -180,6 +180,8 @@ import { ServicesCatalogStaticFallback } from "./services-catalog-static-fallbac
 import { orderCategoryNames, renderItalicMarkedTitle } from "./services-catalog-title";
 import { renderPortfolioBlock } from "./portfolio-block";
 import { ReviewsBlockView } from "./reviews-block";
+import { PostsFeedBlockView } from "./posts-feed-block";
+import { postsFeedHref } from "./posts-feed-href";
 import { renderVisitBlock } from "./visit-block";
 import { renderContentsBlock } from "./contents-block";
 import { renderMastheadBlock } from "./masthead-block";
@@ -349,6 +351,15 @@ export interface BuilderNodeRenderDataSources {
    * Resolved by the SERVER caller; the renderer never invents quotes.
    */
   talentReviews?: ReadonlyArray<import("./reviews-types").TalentSiteReview>;
+  /**
+   * Posts v1 (PO1) — each `posts_feed` node's cards, keyed by node id, resolved
+   * by the SERVER caller for the rendering site's scope. The renderer never
+   * queries and only shows demo example posts in the builder or on a demo
+   * account (`postsFeedDemo`).
+   */
+  postsFeedByNodeId?: Readonly<Record<string, import("./posts-feed-model").PostsFeedNodeData>>;
+  /** True on a demo account's site (theme previews): empty widgets show example posts. */
+  postsFeedDemo?: boolean;
   /**
    * Visit facts — service areas / languages / hours for `visit` nodes.
    * Resolved by the SERVER caller; the renderer never invents facts.
@@ -6238,6 +6249,27 @@ function renderBuilderNodeElement(
           styleAttr={sharedNodeStyle(node.props.style)}
           locale={options.contentLocale?.locale ?? options.visitorLocale}
           editorPreview={options.contentLocale?.editorPreview === true}
+        />
+      );
+    }
+    case "posts_feed": {
+      const editorPreview = options.contentLocale?.editorPreview === true;
+      const locale = options.contentLocale?.locale ?? options.visitorLocale ?? "en";
+      return (
+        <PostsFeedBlockView
+          node={localizeBlockNode(node, options.contentLocale)}
+          data={options.dataSources?.postsFeedByNodeId?.[node.id]}
+          allowDemo={editorPreview || options.dataSources?.postsFeedDemo === true}
+          locale={locale}
+          hrefFor={(path) =>
+            postsFeedHref(path, {
+              locale,
+              defaultLocale: options.contentLocale?.defaultLocale ?? locale,
+              pathPrefix: options.publicPathPrefix ?? "",
+            })
+          }
+          styleAttr={sharedNodeStyle(node.props.style)}
+          editorPreview={editorPreview}
         />
       );
     }

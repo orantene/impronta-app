@@ -14,6 +14,7 @@ import { loadPromoWidgetData } from "@/lib/promos/widgets/load.server";
 import { splitShell } from "./render-max-site-shell";
 import { builderTreeHasFaqBind, builderTreeHasKind } from "./builder-tree-has-kind";
 import { collectSocialFeedProviders } from "@/lib/site-admin/builder-node/social-feed-source";
+import { collectNativeDataBlockNeeds } from "@/lib/site-admin/builder-node/native-data-block-needs";
 import { pruneEmptyBoundSections } from "@/lib/talent-site/my-content-prune";
 import { pruneDeadSectionLinks } from "@/lib/talent-site/dead-section-links";
 import { headerOverlayAllowed } from "@/lib/talent-site/header-overlay";
@@ -176,6 +177,8 @@ export async function renderMaxSiteDocument(args: {
   const pageNeedsTalentOfferings =
     pageNeedsServicesCatalog || pageNeedsPortfolio || pageNeedsNextFreeChip;
   const pageSocialFeedProviders = collectSocialFeedProviders(blocks);
+  // Posts v1 (PO1): `posts_feed` nodes read this talent's own posts.
+  const pagePostsFeeds = collectNativeDataBlockNeeds(blocks).postsFeeds;
 
   // Codex P2: catalogBookingLive=false mounts demo booking on published free vanity; own-work Path A uses the platform hub (like Agenda).
   let bookingTenantId: string | null = tenantId;
@@ -197,7 +200,8 @@ export async function renderMaxSiteDocument(args: {
               pageNeedsVisit ||
               pageNeedsCompCard ||
               pageNeedsFaq ||
-              pageSocialFeedProviders.length > 0
+              pageSocialFeedProviders.length > 0 ||
+              pagePostsFeeds.length > 0
             ? loadPersonalMaxNativeSources({
                 talentProfileId,
                 locale,
@@ -210,6 +214,7 @@ export async function renderMaxSiteDocument(args: {
                 compCard: pageNeedsCompCard,
                 talentFaq: pageNeedsFaq,
                 socialFeedProviders: pageSocialFeedProviders,
+                postsFeeds: pagePostsFeeds,
               })
             : Promise.resolve({} as BuilderNodeRenderDataSources),
       ),

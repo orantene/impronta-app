@@ -84,6 +84,7 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "services_catalog",
   "portfolio",
   "reviews",
+  "posts_feed",
   "visit",
   "contents",
   "masthead",
@@ -1168,6 +1169,38 @@ export const reviewsPropsSchema = z.object({
   showArrows: z.boolean().optional(),
   showDots: z.boolean().optional(),
   useWebsiteTheme: z.boolean().optional(),
+  style: builderNodeStyleSchema,
+});
+
+/** Posts v1 (PO1) — the Posts widget. Defaults + clamps in posts-feed-model.ts. */
+export const postsFeedPropsSchema = z.object({
+  layout: z.enum(["grid", "slider", "magazine", "masonry", "list", "minimal", "bento", "hero"]).optional(),
+  source: z.enum(["latest", "featured", "hand_picked", "category"]).optional(),
+  postIds: z.array(z.string().max(64)).max(48).optional(),
+  categoryId: z.string().max(64).optional(),
+  tags: z.array(z.string().max(40)).max(10).optional(),
+  excludeIds: z.array(z.string().max(64)).max(48).optional(),
+  limit: z.number().int().min(1).max(24).optional(),
+  sort: z.enum(["newest", "oldest", "featured_first"]).optional(),
+  fields: z
+    .object({
+      cover: z.boolean().optional(),
+      category: z.boolean().optional(),
+      date: z.boolean().optional(),
+      excerpt: z.boolean().optional(),
+      readingTime: z.boolean().optional(),
+      author: z.boolean().optional(),
+      tags: z.boolean().optional(),
+      readMore: z.boolean().optional(),
+    })
+    .optional(),
+  pagination: z.enum(["none", "load_more", "numbered"]).optional(),
+  columns: z.union([z.literal(2), z.literal(3), z.literal(4)]).optional(),
+  eyebrow: z.string().max(80).optional(),
+  title: z.string().max(160).optional(),
+  emptyMessage: z.string().max(240).optional(),
+  demoTrade: z.enum(["general", "beauty", "wellness", "fitness", "food", "events"]).optional(),
+  layerLabel: z.string().max(120).optional(),
   style: builderNodeStyleSchema,
 });
 
@@ -2416,6 +2449,14 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         "Live client reviews as quote cards. Trio, single, or row on the shared slider. Hidden when there are none.",
       children: { type: "none" },
       propsSchema: reviewsPropsSchema,
+    },
+    posts_feed: {
+      kind: "posts_feed",
+      label: "Posts",
+      description:
+        "Your published posts in 7 styles: grid, slider, magazine, list, minimal, bento or hero. Filter by category, or hand-pick.",
+      children: { type: "none" },
+      propsSchema: postsFeedPropsSchema,
     },
     visit: {
       kind: "visit",
