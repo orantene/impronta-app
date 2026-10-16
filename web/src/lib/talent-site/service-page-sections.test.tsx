@@ -57,9 +57,9 @@ test("TUL-795 FAQ: the section renders each shown question, and nothing when emp
 test("TUL-795 FAQ: JSON-LD carries Service + FAQPage only when an FAQ is shown", () => {
   const withFaq = serviceSeo(SEO, A, { talentName: "Ana", locale: "es", faq: FAQ }).jsonLd as { "@context": string; "@graph": { "@type": string }[] };
   assert.equal(withFaq["@context"], "https://schema.org");
-  assert.deepEqual(withFaq["@graph"].map((n) => n["@type"]), ["Service", "FAQPage"]);
-  const plain = serviceSeo(SEO, A, { talentName: "Ana", locale: "es" }).jsonLd as { "@type": string };
-  assert.equal(plain["@type"], "Service");
+  assert.deepEqual(withFaq["@graph"].map((n) => n["@type"]), ["Service", "BreadcrumbList", "FAQPage"]);
+  const plain = serviceSeo(SEO, A, { talentName: "Ana", locale: "es" }).jsonLd as { "@graph": { "@type": string }[] };
+  assert.deepEqual(plain["@graph"].map((n) => n["@type"]), ["Service", "BreadcrumbList"]);
 });
 
 test("TUL-795 FAQ wiring: the renderer loads the talent's published FAQ for the service page", () => {
@@ -92,12 +92,14 @@ test("TUL-795 reviews: rating line + review cards render when data exists, nothi
 });
 
 test("TUL-795 reviews: Service JSON-LD gains AggregateRating/Review only when shown and not demo", () => {
-  const ld = serviceSeo(SEO, A, { talentName: "Ana", locale: "es", reviews: REVIEWS }).jsonLd as { aggregateRating?: { reviewCount: number }; review?: unknown[] };
+  // TUL-1085: the Service is the first node of an @graph that also carries the BreadcrumbList.
+  const serviceNode = (jsonLd: unknown) => (jsonLd as { "@graph": Record<string, unknown>[] })["@graph"][0]!;
+  const ld = serviceNode(serviceSeo(SEO, A, { talentName: "Ana", locale: "es", reviews: REVIEWS }).jsonLd) as { aggregateRating?: { reviewCount: number }; review?: unknown[] };
   assert.equal(ld.aggregateRating?.reviewCount, 12);
   assert.equal(ld.review?.length, 1);
-  const demo = serviceSeo(SEO, A, { talentName: "Ana", locale: "es", reviews: REVIEWS, demo: true }).jsonLd as Record<string, unknown>;
+  const demo = serviceNode(serviceSeo(SEO, A, { talentName: "Ana", locale: "es", reviews: REVIEWS, demo: true }).jsonLd);
   assert.equal("aggregateRating" in demo, false);
-  const none = serviceSeo(SEO, A, { talentName: "Ana", locale: "es" }).jsonLd as Record<string, unknown>;
+  const none = serviceNode(serviceSeo(SEO, A, { talentName: "Ana", locale: "es" }).jsonLd);
   assert.equal("aggregateRating" in none, false);
 });
 

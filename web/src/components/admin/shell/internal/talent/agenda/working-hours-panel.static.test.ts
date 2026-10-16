@@ -109,3 +109,15 @@ test("TUL-821: the phone More row opens the Horario panel and the zone sits abov
   const page = read("talent/agenda/AgendaAvailabilityPage.tsx");
   assert.ok(page.indexOf("<TimezonePicker") < page.indexOf("rows.map("));
 });
+
+test("TUL-823: the Horario 24h selects keep a floor width and the row grid gives each side 6.75rem at 390", () => {
+  const fields = read("talent/agenda/HoursFields.tsx");
+  assert.match(fields, /role="group" aria-label=\{label\} className="flex min-w-\[6\.75rem\] items-center gap-1"/);
+  assert.equal((fields.match(/className=\{`\$\{FIELD\} min-w-\[2\.9rem\] flex-1`\}/g) ?? []).length, 2);
+  assert.doesNotMatch(fields, /min-w-0 flex-1/);
+  const page = read("talent/agenda/AgendaAvailabilityPage.tsx");
+  assert.match(page, /grid-cols-\[minmax\(6\.75rem,1fr\)_auto_minmax\(6\.75rem,1fr\)\]/);
+  // The embedded panel renders the same form, so it inherits the fix.
+  const panel = read("talent/agenda/WorkingHoursPanel.tsx");
+  assert.match(panel, /AgendaAvailabilityPage|HoursFields|AvailabilityForm/);
+});
