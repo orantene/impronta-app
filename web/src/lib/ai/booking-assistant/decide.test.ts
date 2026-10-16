@@ -56,7 +56,7 @@ test("prior handoff: repeat handoff ask is skipped (no canned spam)", () => {
   assert.deepEqual(d, { action: "skip", reason: "already_handed_off" });
 });
 
-test("booking intent hands off in phase 1 (no book tools)", () => {
+test("booking intent hands off in inquiry mode (default)", () => {
   const d = decideBookingAssistantTurn({
     enabled: true,
     guestMessage: "Quiero reservar una cita manana",
@@ -124,4 +124,46 @@ test("TUL-1155: once a team member replied after the handoff, the assistant stay
     instantAnswered: false,
   });
   assert.deepEqual(d, { action: "skip", reason: "human_took_over" });
+});
+
+for (const bookingMode of ["instant", "request"] as const) {
+  test(`booking verb routes to the model in ${bookingMode} mode`, () => {
+    const d = decideBookingAssistantTurn({
+      enabled: true,
+      guestMessage: "Quiero reservar una cita manana",
+      priorMessages: [],
+      instantAnswered: false,
+      bookingMode,
+    });
+    assert.deepEqual(d, { action: "llm_facts" });
+  });
+}
+
+test("booking verb still hands off in inquiry mode when passed explicitly", () => {
+  const d = decideBookingAssistantTurn({
+    enabled: true,
+    guestMessage: "I want to book Friday",
+    priorMessages: [],
+    instantAnswered: false,
+    bookingMode: "inquiry",
+  });
+  assert.deepEqual(d, { action: "handoff", reason: "unsure" });
+});
+
+test("booking mode never overrides ceiling, human ask or prior handoff", () => {
+  const prior = Array.from({ length: BOOKING_ASSISTANT_TURN_CEILING }, () => ({
+    systemEventType: "booking_assistant_reply",
+  }));
+  assert.deepEqual(
+    decideBookingAssistantTurn({ enabled: true, guestMessage: "book me", priorMessages: prior, instantAnswered: false, bookingMode: "instant" }),
+    { action: "handoff", reason: "turn_ceiling" },
+  );
+  assert.deepEqual(
+    decideBookingAssistantTurn({ enabled: true, guestMessage: "I want to book, real person please", priorMessages: [], instantAnswered: false, bookingMode: "instant" }),
+    { action: "handoff", reason: "human_requested" },
+  );
+  assert.deepEqual(
+    decideBookingAssistantTurn({ enabled: true, guestMessage: "book Friday", priorMessages: [{ humanTookOver: true }], instantAnswered: false, bookingMode: "request" }),
+    { action: "skip", reason: "human_took_over" },
+  );
 });

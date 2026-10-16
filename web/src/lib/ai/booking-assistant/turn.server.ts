@@ -1,8 +1,10 @@
 import "server-only";
 
 /**
- * TUL-36 phase 1: after a guest message lands, optionally post a facts-only
- * AI reply or a handoff system_event. No book / pay-link tools.
+ * TUL-36: after a guest message lands, optionally post a facts-only AI reply,
+ * a guest-confirmed times card (phase 2, flow A), or a handoff system_event.
+ * The AI never places a hold, books, or touches payment; the guest's tap on
+ * the card runs the existing `messagingClientPickTime` path.
  *
  * Guest send actions MUST schedule this via `scheduleBookingAssistantTurn`
  * (Next `after()`), never await it inline — the LLM path can take seconds.
@@ -19,12 +21,26 @@ import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
+import { loadPublicOpenTimes } from "@/lib/scheduling/public-open-times";
+import { resolveTalentBookingMode } from "@/lib/scheduling/booking-surface";
+import { insertMessage } from "@/lib/messaging/insert-message";
+import { renderCard } from "@/lib/messaging/cards";
+import { timesPayload } from "@/lib/messages-v5/items-picker";
 import type { GuestThreadMessage } from "@/lib/inquiry/guest-chat-contract";
 import { catalogTenantForPublicHost } from "./catalog-tenant";
 import { decideBookingAssistantTurn } from "./decide";
 import {
+  BOOKING_ASSISTANT_JSON_SCHEMA,
+  OFFER_TIMES_WINDOW_DAYS,
+  offerTimesFrom,
+  classifyAssistantOutput,
+  pickOfferStarts,
+  resolveAssistantAction,
+} from "./structured";
+import {
   bookingAssistantDisclosureLabel,
   bookingAssistantHandoffCopy,
+  bookingAssistantNoTimesCopy,
   resolveBookingAssistantReplyLocale,
   type BookingHandoffReason,
 } from "./handoff";
@@ -41,14 +57,14 @@ import { improntaLog } from "@/lib/server/structured-log";
 export { BOOKING_ASSISTANT_MODEL } from "./model";
 
 /** Hard cut for deferred LLM work (guest already got their send response). */
-const LLM_TIMEOUT_MS = 5_000;
+const LLM_TIMEOUT_MS = 8_000;
 
 /**
  * Live QA / ops: every silent skip must leave a greppable line.
  * Event name: booking_assistant_skip | booking_assistant_run | booking_assistant_schedule.
  */
 function logBookingAssistant(
-  event: "booking_assistant_skip" | "booking_assistant_run" | "booking_assistant_schedule",
+  event: "booking_assistant_skip" | "booking_assistant_run" | "booking_assistant_schedule" | "booking_assistant_handoff",
   fields: Record<string, string | number | boolean | null | undefined>,
 ): void {
   void improntaLog(event, fields);
@@ -57,11 +73,16 @@ function logBookingAssistant(
 const SYSTEM_PROMPT = `You are a booking assistant on a talent's public site chat.
 Answer ONLY from the SERVICE_CATALOG JSON. Never invent a price, duration, or availability.
 If the catalog does not contain the answer, say you are unsure and that a person will follow up.
-Do not book, reserve, or mint payment links. Keep answers under 600 characters.
+You never confirm, book, or reserve anything yourself, never quote a price that is not in the catalog, and never create payment links.
+When the guest wants to book a service in the catalog, you may offer real open times: set action "offer_times", offering_id to that service's id from the catalog, and date (YYYY-MM-DD) only if the guest named a day. The server then shows the guest real open times and the guest picks one; your reply must not name any time or day itself.
+Otherwise use action "answer" for catalog facts, or "handoff" when you are unsure or the guest needs a person.
+Reply with a JSON object only: {"reply": string, "action": "answer"|"offer_times"|"handoff", "offering_id"?: string, "date"?: string}. Keep reply under 600 characters.
 Reply in the language of the guest's message (en or es); the locale line is only a fallback. Mexican Spanish tú form only (never voseo), never em dashes.
-Reply with plain text only (no markdown links).`;
+The reply field is plain text only (no markdown links).`;
 
 export type BookingAssistantOfferingGround = {
+  /** talent_offerings.id; lets the model propose times for exactly this service. */
+  id?: string;
   title: string;
   priceLabel?: string | null;
   durationMinutes?: number | null;
@@ -341,27 +362,113 @@ async function loadGroundingOfferings(
   locale: string,
   provided?: readonly BookingAssistantOfferingGround[],
 ): Promise<BookingAssistantOfferingGround[]> {
-  if (provided && provided.length > 0) return [...provided];
   const publicRows = await loadPublicOfferingsForProfile(
     talentProfileId,
     locale,
     catalogTenantId,
   );
-  return publicRows.map((o) => ({
+  const fromPublic = publicRows.map((o) => ({
+    id: o.id,
     title: o.title,
     priceLabel: offeringPriceLabel(o.amountCents, o.currency, o.visibility, locale),
     durationMinutes: o.durationMinutes,
   }));
+  if (provided && provided.length > 0) {
+    // Callers pass title/price only; attach the public id by title so the
+    // model can name a service. No match = no id = that row can't get times.
+    const idByTitle = new Map(fromPublic.map((o) => [o.title, o.id]));
+    return provided.map((o) => ({ ...o, id: o.id ?? idByTitle.get(o.title) }));
+  }
+  return fromPublic;
 }
 
 function catalogGrounding(offerings: readonly BookingAssistantOfferingGround[]): string {
   return JSON.stringify(
     offerings.slice(0, 40).map((o) => ({
+      id: o.id ?? null,
       title: o.title,
       price: o.priceLabel ?? null,
       durationMinutes: o.durationMinutes ?? null,
     })),
   );
+}
+
+/** The talent's effective booking mode on this host; any failure reads as inquiry (phase-1 behaviour). */
+async function resolveAssistantBookingMode(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  talentProfileId: string,
+): Promise<"instant" | "request" | "inquiry"> {
+  try {
+    const host = await getPublicHostContext();
+    const mode = await resolveTalentBookingMode(admin, {
+      talentProfileId,
+      host: { kind: host.kind, tenantId: host.tenantId },
+    });
+    return mode === "instant" || mode === "request" ? mode : "inquiry";
+  } catch (err) {
+    logServerError("booking-assistant/mode", err);
+    return "inquiry";
+  }
+}
+
+type OfferTimesOutcome = "posted" | "no_times" | "unavailable";
+
+/**
+ * Flow A: real open times as the SAME `professional_times` card staff send
+ * (`timesPayload` + `renderCard`, inserted with `insertMessage`). The guest's
+ * tap runs `messagingClientPickTime`, which is the only place a hold is placed.
+ */
+async function postOfferTimesCard(input: {
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>;
+  inquiryId: string;
+  tenantId: string;
+  talentProfileId: string;
+  offering: BookingAssistantOfferingGround & { id: string };
+  date: string | null;
+  /** Runs right before the card insert so the thread reads reply, then card. */
+  postReply: () => Promise<void>;
+}): Promise<OfferTimesOutcome> {
+  const host = await getPublicHostContext();
+  const now = new Date();
+  const result = await loadPublicOpenTimes(input.admin, {
+    host: {
+      kind: host.kind,
+      tenantId: host.kind === "agency" || host.kind === "hub" ? host.tenantId : null,
+      talentSiteId: host.kind === "talent_site" ? input.talentProfileId : null,
+    },
+    offeringId: input.offering.id,
+    from: offerTimesFrom(input.date, now),
+    days: OFFER_TIMES_WINDOW_DAYS,
+    parseDuration: (offeringMinutes) => offeringMinutes,
+    now,
+  });
+  if (!result.ok || result.mode === "inquire") return "unavailable";
+  const starts = pickOfferStarts(result.slots, now);
+  if (starts.length === 0) return "no_times";
+  const payload = {
+    ...timesPayload({
+      starts,
+      professionalName: null,
+      talentProfileId: input.talentProfileId,
+      offeringId: input.offering.id,
+      timezone: result.timezone ?? "UTC",
+      // Marks the card as assistant-offered (TUL-36 flow B keys its sandbox pay link on it).
+      source: "booking_assistant",
+    }),
+    title: input.offering.title,
+    state: "sent",
+  };
+  const card = renderCard("professional_times", payload, "operator");
+  await input.postReply();
+  const inserted = await insertMessage(input.admin, {
+    tenantId: input.tenantId,
+    inquiryId: input.inquiryId,
+    kind: "professional_times",
+    body: card.summary || card.title,
+    payload,
+    senderUserId: null,
+  });
+  return inserted.ok ? "posted" : "unavailable";
 }
 
 /**
@@ -400,8 +507,13 @@ export async function maybeRunBookingAssistantTurn(
     const switches = await loadTalentSiteSwitches(admin, args.talentProfileId);
     const enabled = switches.chatConfig.aiBookingAssistantEnabled === true;
     const prior = await loadPriorAssistantMeta(args.inquiryId, args.tenantId);
+    // Phase 2: only read the mode when the assistant is on; failure = inquiry.
+    const bookingMode = enabled
+      ? await resolveAssistantBookingMode(admin, args.talentProfileId)
+      : "inquiry";
     const decision = decideBookingAssistantTurn({
       enabled,
+      bookingMode,
       guestMessage: args.guestMessage,
       priorMessages: prior,
       instantAnswered: args.instantAnswered === true,
@@ -478,6 +590,7 @@ export async function maybeRunBookingAssistantTurn(
     try {
       completion = await adapter.chatCompletion({
         systemPrompt: SYSTEM_PROMPT,
+        jsonSchema: BOOKING_ASSISTANT_JSON_SCHEMA,
         userMessage: [
           "SERVICE_CATALOG_BEGIN",
           grounding,
@@ -488,7 +601,7 @@ export async function maybeRunBookingAssistantTurn(
           "UNTRUSTED_GUEST_MESSAGE_END",
         ].join("\n"),
         temperature: 0.2,
-        maxTokens: 500,
+        maxTokens: 700,
         thinking: false,
         model: BOOKING_ASSISTANT_MODEL,
         signal: controller.signal,
@@ -529,6 +642,7 @@ export async function maybeRunBookingAssistantTurn(
     // TUL-1155: after a handoff the canned copy is never posted twice.
     const handedOffBefore = prior.some((m) => m.systemEventType === "booking_assistant_handoff");
     if (!completion.ok) {
+      logBookingAssistant("booking_assistant_handoff", { ...base, detail: "completion_failed" });
       if (handedOffBefore) return null;
       return insertSystemEvent({
         inquiryId: args.inquiryId,
@@ -540,20 +654,80 @@ export async function maybeRunBookingAssistantTurn(
       });
     }
 
-    const sanitized = sanitizeBookingAssistantOutput(completion.text, grounding);
-    if (sanitized.escalate || !sanitized.text.trim()) {
-      if (handedOffBefore) return null;
-      const reason: BookingHandoffReason = "unsure";
-      return insertSystemEvent({
+    // Structured reply first; any parse failure keeps the phase-1 text path.
+    // Bare, fenced or prose-wrapped JSON is used; broken JSON never reaches the guest.
+    const output = classifyAssistantOutput(completion.text);
+    const parsed = output.kind === "structured" ? output.value : null;
+    // Every post-LLM handoff logs WHY, so a live run can tell timeout, parse,
+    // guardrail and catalog misses apart (TUL-36 runtime check).
+    const handoffNow = (reason: BookingHandoffReason, detail: string) => {
+      logBookingAssistant("booking_assistant_handoff", { ...base, detail });
+      return handedOffBefore
+        ? null
+        : insertSystemEvent({
+            inquiryId: args.inquiryId,
+            tenantId: args.tenantId,
+            body: bookingAssistantHandoffCopy(reason, locale),
+            systemEventType: "booking_assistant_handoff",
+            reason,
+            locale,
+          });
+    };
+    // Unparseable JSON-looking text must never be posted to the guest verbatim.
+    if (output.kind === "broken") return handoffNow("unsure", "broken_json");
+
+    const catalogIds = new Set(
+      offerings.map((o) => o.id).filter((id): id is string => typeof id === "string" && id !== ""),
+    );
+    const resolved = parsed
+      ? resolveAssistantAction(parsed, { catalogIds, canOfferTimes: bookingMode !== "inquiry" })
+      : ({ kind: "answer", reply: output.kind === "text" ? output.text : "" } as const);
+
+    if (resolved.kind === "handoff") return handoffNow("unsure", "model_or_catalog_handoff");
+
+    const sanitized = sanitizeBookingAssistantOutput(resolved.reply, grounding);
+    if (sanitized.escalate || !sanitized.text.trim()) return handoffNow("unsure", sanitized.escalate ? "guardrail_escalate" : "empty_reply");
+
+    if (resolved.kind === "offer_times") {
+      const offering = offerings.find((o) => o.id === resolved.offeringId);
+      if (!offering || !offering.id) return handoffNow("unsure", "offering_not_found");
+      const replyBody = sanitized.text.trim();
+      let replyPosted: GuestThreadMessage | null = null;
+      const outcome = await postOfferTimesCard({
+        admin,
         inquiryId: args.inquiryId,
         tenantId: args.tenantId,
-        body: bookingAssistantHandoffCopy(reason, locale),
-        systemEventType: "booking_assistant_handoff",
-        reason,
-        locale,
+        talentProfileId: args.talentProfileId,
+        offering: { ...offering, id: offering.id },
+        date: resolved.date,
+        postReply: async () => {
+          replyPosted = await insertSystemEvent({
+            inquiryId: args.inquiryId,
+            tenantId: args.tenantId,
+            body: replyBody,
+            systemEventType: "booking_assistant_reply",
+            locale,
+          });
+        },
       });
+      if (outcome === "posted") return replyPosted;
+      if (outcome === "unavailable") return handoffNow("unsure", "times_unavailable");
+      if (outcome === "no_times") {
+        // The model's reply promised times; say none are open instead, then hand off.
+        if (handedOffBefore) return null;
+        return insertSystemEvent({
+          inquiryId: args.inquiryId,
+          tenantId: args.tenantId,
+          body: bookingAssistantNoTimesCopy(locale),
+          systemEventType: "booking_assistant_handoff",
+          reason: "no_times",
+          locale,
+        });
+      }
     }
 
+    // The reply row is the counted assistant turn for this answer (and for
+    // the card posted just above it).
     return insertSystemEvent({
       inquiryId: args.inquiryId,
       tenantId: args.tenantId,
