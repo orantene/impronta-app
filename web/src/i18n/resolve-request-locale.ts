@@ -57,13 +57,14 @@ export function resolveRequestLocale(input: {
     return fromQuery;
   }
 
-  if (isAllowed(input.headerLocale, input.publicLocales, input.defaultLocale)) {
-    return input.headerLocale;
-  }
-
-  if (isAllowed(input.cookieLocale, input.publicLocales, input.defaultLocale)) {
-    return input.cookieLocale;
-  }
+  // TUL-1187: an unprefixed path carries no locale signal; the middleware
+  // header is just the path-derived default there, so an explicit choice (the
+  // locale cookie) must beat it. With no pathname, keep header-first.
+  const cookieOk = isAllowed(input.cookieLocale, input.publicLocales, input.defaultLocale);
+  const headerOk = isAllowed(input.headerLocale, input.publicLocales, input.defaultLocale);
+  if (input.pathname && cookieOk) return input.cookieLocale as string;
+  if (headerOk) return input.headerLocale as string;
+  if (cookieOk) return input.cookieLocale as string;
 
   return input.defaultLocale;
 }
