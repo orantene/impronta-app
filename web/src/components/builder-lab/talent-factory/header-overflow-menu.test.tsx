@@ -45,7 +45,7 @@ describe("TUL-1001: the Builder Lab ⋯ menu is not clipped by the top bar", () 
   });
 
   it("server render: just the labelled button, closed, with no panel yet", () => {
-    const html = renderToStaticMarkup(createElement(HeaderOverflowMenu, { label: "Más acciones" }, createElement("span", null, "child")));
+    const html = renderToStaticMarkup(createElement(HeaderOverflowMenu, { label: "Más acciones", children: createElement("span", null, "child") }));
     assert.match(html, /aria-label="Más acciones"/);
     assert.match(html, /aria-expanded="false"/);
     assert.match(html, /data-header-overflow/);
