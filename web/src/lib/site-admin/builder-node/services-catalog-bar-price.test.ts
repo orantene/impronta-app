@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { catalogBarPriceLabel } from "./services-catalog-bar-price";
+import { catalogBarPriceLabel, catalogRowPriceText } from "./services-catalog-bar-price";
 
 const base = { priceType: "fixed", currency: "MXN", variants: [] } as const;
 
@@ -26,4 +26,21 @@ test("exact pricing is just the money", () => {
   const label = catalogBarPriceLabel(item, "es");
   assert.match(label, /500/);
   assert.doesNotMatch(label, /Desde|cotizar/);
+});
+
+test("zero-priced offering shows Consultar / Ask, never $0 MXN (TUL-533 GRK-064)", () => {
+  const item = { ...base, priceDisplay: "exact", amountCents: 0 } as never;
+  assert.equal(catalogBarPriceLabel(item, "es"), "Consultar");
+  assert.equal(catalogBarPriceLabel(item, "en"), "Ask");
+  assert.doesNotMatch(catalogBarPriceLabel(item, "es"), /\$0|0 MXN/);
+  // Row text used by matrix + cards meta must agree with the buy-column path.
+  const row = {
+    ...base,
+    priceDisplay: "exact",
+    amountCents: 0,
+    visibility: "public",
+    attributes: {},
+  } as never;
+  assert.equal(catalogRowPriceText(row, "es"), "Consultar");
+  assert.equal(catalogRowPriceText(row, "en"), "Ask");
 });

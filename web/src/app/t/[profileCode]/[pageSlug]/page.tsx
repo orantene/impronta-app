@@ -243,6 +243,7 @@ export default async function PublicTalentFreeformPage({
       style={{
         ...(talentCssVars as React.CSSProperties),
         backgroundColor: "var(--token-color-background, #ffffff)",
+        color: "var(--token-color-ink, inherit)",
         minHeight: "100vh",
       }}
     >

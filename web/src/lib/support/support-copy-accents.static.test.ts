@@ -42,4 +42,32 @@ describe("support copy carries its accents (TUL-620)", () => {
     const bad = strings.filter(([, v]) => FR_BAD.test(v)).map(([k, v]) => `${k}: ${v}`);
     assert.deepEqual(bad, []);
   });
+
+  // TUL-1104: guest-corpus ES and the rest of the FR support areas.
+  it("guest corpus ES block has no unaccented words", () => {
+    const src = readFileSync(join(WEB, "src/lib/support/guest-corpus.ts"), "utf8");
+    const es = src.slice(src.indexOf('if (locale === "es") {'), src.indexOf('slug: "sales-free-plan"', src.indexOf('sales-what-is-tulala')));
+    const GUEST_ES_BAD =
+      /\b(pagina|paginas|direccion|dias|Cuanto|Como|Donde|Que es|espanol|ingles|Mexico|pequena|esta entre|instalacion|calculo)\b/;
+    assert.deepEqual(es.match(new RegExp(GUEST_ES_BAD.source, "g")) ?? [], []);
+    assert.match(es, /¿Cuánto cuesta el plan gratis\?/);
+    assert.match(es, /Soporte en español e inglés/);
+    assert.match(es, /hoja de cálculo/);
+  });
+  it("FR platform support and guest chat carry their accents", () => {
+    const json = JSON.parse(readFileSync(join(WEB, "messages/fr.json"), "utf8")) as {
+      dashboard: { platform: { support: Record<string, unknown> } };
+      public: { guestChat: Record<string, unknown> };
+    };
+    const FR_BAD2 =
+      /\b(Reponses?|reponses?|predefinies|Resum\w+|precedents?|dernieres?|Resolus?|resoudre|Echecs|reseau|Repondre|repondre|telephone|deplacer|Invites|etes|pret|Envoye|reessayer|demarre|reservation|generalement|Approuve|Idees|Planifiee|Livree?|Refusee|Prevenir|equipes?)\b/;
+    const all = [...Object.entries(json.dashboard.platform.support), ...Object.entries(json.public.guestChat)].filter(
+      (e): e is [string, string] => typeof e[1] === "string",
+    );
+    assert.ok(all.length > 150);
+    assert.deepEqual(all.filter(([, v]) => FR_BAD2.test(v)).map(([k, v]) => `${k}: ${v}`), []);
+    assert.equal(json.dashboard.platform.support.reply, "Répondre");
+    assert.equal(json.dashboard.platform.support.statusResolved, "Résolu");
+    assert.equal(json.public.guestChat.stripBooked, "Réservé. Tout est prêt");
+  });
 });

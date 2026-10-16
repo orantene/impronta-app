@@ -21,6 +21,7 @@ import type {
   ListGuestTenantRosterCallback,
   MiniChatBrand,
   ScanGuestConversationCallback,
+  ReportGuestChatCallback,
 } from "@/lib/inquiry/guest-chat-contract";
 import type { UnifiedSyncState } from "./use-unified-inquiry";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
@@ -89,7 +90,7 @@ export type MiniChatPanelColumnProps = {
   /** L13: v5 extras + full-load bump + early-row ensure for catalog adds. */
   v5?: GuestThreadV5Extras | null;
   onRefreshThread?: () => void;
-  onEnsureInquiryForItems?: (() => Promise<string | null>) | null;
+  onEnsureInquiryForItems?: import("./guest-catalog-add-flow").EnsureInquiryForItems | null;
   emailedTo: string | null;
   seenAtByInquiry: Record<string, string>;
   pulseActive: boolean;
@@ -260,6 +261,7 @@ export type MiniChatPanelColumnProps = {
   onRemoveCartTalent?: (talentProfileId: string) => void;
   /** DOCK v2 — the AI conversation scan for the Add-details sheet. */
   onScanConversation?: ScanGuestConversationCallback | null;
+  onReportToSupport?: ReportGuestChatCallback | null;
   /** DOCK v2: remount-with-fresh-draft (active thread already sent). */
   onStartFresh?: (() => void) | null;
   /** DOCK v2 — signed-in client dashboard link for the Home Account card. */
@@ -356,6 +358,7 @@ export function MiniChatPanelColumn({
   sourcePage = "",
   onRemoveCartTalent,
   onScanConversation = null,
+  onReportToSupport = null,
   onStartFresh = null,
   dashboardHref = null,
   card = null,
@@ -592,7 +595,7 @@ export function MiniChatPanelColumn({
           accent={accent}
           accentInk={accentInk}
           C={C}
-          locale={brand.locale ?? "es"}
+          locale={brand.locale ?? "en"}
           businessName={brand.agencyName}
           presenceName={talentFirst}
         />
@@ -714,6 +717,7 @@ export function MiniChatPanelColumn({
           onBriefChange={onBriefChange}
           onContactChange={onContactChange}
           onScanConversation={onScanConversation}
+          onReportToSupport={onReportToSupport}
           composerDraft={draft}
           inquiryId={inquiryId}
           openToSection={railOpenToSection}

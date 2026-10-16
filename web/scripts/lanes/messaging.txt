@@ -35,5 +35,10 @@ src/lib/server-actions/messaging-identity.static.test.ts
 src/lib/messaging/offer-shared-seed.test.ts
 src/lib/server-actions/messaging-offers.static.test.ts
 src/app/t/*/_chat/dock-viewer-identity-mount.static.test.ts
+src/lib/inquiry/hub-chat-es.i18n.test.ts
 src/app/t/*/_chat/guest-dock-inquiry-tray.test.ts
 src/app/t/*/_chat/guest-inquiry-tray.static.test.ts
+src/components/public-booking/chat-catalog-events.test.ts
+src/lib/messaging/client-draft-guards.test.ts
+src/app/t/*/_chat/guest-added-items-dedupe.test.ts
+src/lib/saas/talent-site-private-cache-key.test.ts

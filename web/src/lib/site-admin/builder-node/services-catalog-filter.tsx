@@ -12,8 +12,8 @@ import {
   catalogRowCtaLabel,
   offeringPriceUnit,
   catalogRowMinCents,
-  catalogRowOpensSheetImmediately,
   catalogRowShowsFrom,
+  catalogRowOpensSheetImmediately,
   type CatalogBookingMode,
 } from "@/components/public-booking/catalog-booking-logic";
 import { CatalogPurchaseMount } from "@/components/public-booking/CatalogPurchaseMount";
@@ -232,6 +232,7 @@ export function ServicesCatalogFilter({
   useChatAddService((id) => {
     const { found } = findOffering(id);
     if (found && !dock.picked.some((p) => p.id === found.id)) onRowAction(found);
+    return Boolean(found);
   });
 
   const continueFromBar = () => {
@@ -745,6 +746,9 @@ export function CatalogRow({
           <span className="site-builder-node--services-catalog-price">
             {onRequest || quote || minCents == null ? (
               <strong>{es ? (onRequest ? "Bajo consulta" : "Precio a cotizar") : onRequest ? "On request" : "Price on request"}</strong>
+            ) : minCents <= 0 ? (
+              // TUL-533: a $0 public rate never paints "$0 MXN" in the buy column.
+              <strong>{es ? "Consultar" : "Ask"}</strong>
             ) : (
               <>
                 {ladder ? <small>{es ? "Desde" : "From"}</small> : null}

@@ -115,3 +115,30 @@ test("TUL-1068: a catalog add is listed under 'In your inquiry' and clears the e
   assert.match(lineup, /\{inquiryCount === 0 \? \(/);
   assert.match(lineup, /data-inquiry-catalog-item/);
 });
+
+test("TUL-1068: Select on a service/class row opens the in-page sheet first and only links when nothing on the page owns it", () => {
+  const dock = read("app/t/[profileCode]/_chat/GuestDockCatalog.tsx");
+  assert.match(dock, /onSelect=\{row\.offeringId && \(row\.category === "service" \|\| row\.category === "class"\) \? \(\) => requestChatAddService\(row\.offeringId as string\)/);
+  assert.match(dock, /if \(onSelect\(\)\) e\.preventDefault\(\)/);
+  const island = read("lib/site-admin/builder-node/services-catalog-filter.tsx");
+  assert.match(island, /return Boolean\(found\)/);
+  assert.match(read("components/public-booking/use-chat-add-service.ts"), /=== true\) e\.preventDefault\(\)/);
+});
+
+test("TUL-1066: the first add reads the token from the new thread, never waits on panel state, and discards the draft it made on failure", () => {
+  const dock = read("app/t/[profileCode]/_chat/GuestDockCatalog.tsx");
+  assert.doesNotMatch(dock, /setPending|\bpending\b/);
+  assert.match(dock, /readGuestThreadToken\(id\)/);
+  assert.match(dock, /if \(!added && createdHere\) await discardEmptyDraft\(token, id, onEnsureInquiry\)/);
+  assert.match(dock, /lineId: res\.lineId,\s*token,/);
+  const flow = read("app/t/[profileCode]/_chat/guest-catalog-add-flow.ts");
+  assert.match(flow, /messagingClientDiscardEmptyDraft\(\{ token \}\)/);
+  assert.match(read("app/t/[profileCode]/_chat/MiniChatPanel.tsx"), /onDiscarded: \(gone: string\)/);
+});
+
+test("TUL-1066: remove copy exists in EN and ES", () => {
+  for (const lang of ["en", "es"]) {
+    const m = JSON.parse(readFileSync(join(HERE, "..", "..", "..", "..", "..", "messages", `${lang}.json`), "utf8")) as { public: { guestChat: Record<string, string> } };
+    for (const k of ["catalogRemoveLocked", "catalogRemoveFailed"]) assert.ok(m.public.guestChat[k], `${lang}.${k}`);
+  }
+});
