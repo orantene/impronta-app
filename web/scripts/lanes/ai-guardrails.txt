@@ -102,3 +102,5 @@ src/lib/saas/deactivate-legacy-hub-hostname.migration.test.ts
 src/lib/quality/no-conflict-markers.static.test.ts
 src/lib/support/support-ai-turn.test.ts
 src/lib/support/support-ai-failure.test.ts
+src/lib/support/guest-submit-critical-path.static.test.ts
+src/lib/support/support-engine-append.test.ts
