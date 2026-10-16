@@ -57,3 +57,31 @@ test("never logs the raw key (it can embed an email or ip)", () => {
   assert.ok(all.includes("auth_otp:"));
   assert.equal(all.includes("someone@example.com"), false);
 });
+
+test("TUL-1139: exceeding the hourly threshold logs ONE distinct threshold error per hour", () => {
+  const prev = process.env.RATE_LIMIT_FAILOPEN_ALERT_PER_HOUR;
+  process.env.RATE_LIMIT_FAILOPEN_ALERT_PER_HOUR = "3";
+  try {
+    const lines = captureErrors(() => {
+      for (let i = 0; i < 8; i++) failOpen(`lim-${i}`, "k:v", new Error("boom"), 1_000 + i);
+    });
+    const threshold = lines.filter((l) => l.includes("fail-open threshold exceeded"));
+    assert.equal(threshold.length, 1, lines.join("\n"));
+    assert.match(threshold[0], /4 in the last hour \(limit 3\)/);
+    // A new hour re-arms the alert.
+    const again = captureErrors(() => {
+      for (let i = 0; i < 5; i++) failOpen(`lim-${i}`, "k:v", new Error("boom"), 3_700_000 + i);
+    });
+    assert.equal(again.filter((l) => l.includes("fail-open threshold exceeded")).length, 1);
+  } finally {
+    if (prev === undefined) delete process.env.RATE_LIMIT_FAILOPEN_ALERT_PER_HOUR;
+    else process.env.RATE_LIMIT_FAILOPEN_ALERT_PER_HOUR = prev;
+  }
+});
+
+test("TUL-1139: at or below the threshold nothing extra is logged", () => {
+  const lines = captureErrors(() => {
+    for (let i = 0; i < 20; i++) failOpen("same", "k:v", new Error("boom"), 5_000 + i);
+  });
+  assert.equal(lines.filter((l) => l.includes("threshold exceeded")).length, 0);
+});

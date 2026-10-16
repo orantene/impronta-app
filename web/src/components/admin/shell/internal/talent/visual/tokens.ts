@@ -17,7 +17,7 @@ export const TALENT_VISUAL = {
   canvas: "#F7F8FA",
   surface: "#FFFFFF",
   ink: "#26313B",
-  muted: "#66717D",
+  muted: "#5C6772",
   border: "#E6E9ED",
   action: "#3B8277",
   actionHover: "#326F66",

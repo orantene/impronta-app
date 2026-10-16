@@ -10,6 +10,7 @@ import { FabWithQuickCreate } from "./InboxPage";
 import { StatusBadge } from "./PitchesPage-1";
 import { selectStyle } from "./WorkspaceTopbar";
 import { Grid, PageHeader } from "./pages-shared";
+import { clientsInquiryCard } from "./clients-inquiry-card";
 import { byName } from "@/lib/field-engine/sort-comparators";
 
 
@@ -19,7 +20,7 @@ import { byName } from "@/lib/field-engine/sort-comparators";
 
 export function ClientsPage() {
   const t = useT();
-  const { state, openDrawer, openUpgrade, toast, effectiveClients, importedClients } = useAdminShell();
+  const { state, openDrawer, openUpgrade, toast, effectiveClients, importedClients, effectiveMessagesInquiries } = useAdminShell();
   // Phase 3.12 — use bridge clients when available, fall back to mock.
   // importedClients (CSV imports from proto state) are always merged in.
   const clients = [...effectiveClients, ...importedClients];
@@ -60,6 +61,8 @@ export function ClientsPage() {
     toast(interpolate(t("dashboard.adminClients.exportedRows"), { count: filteredClients.length }));
   };
 
+  const inquiryCard = clientsInquiryCard(effectiveMessagesInquiries);
+
   if (isFree) {
     return (
       <>
@@ -69,13 +72,27 @@ export function ClientsPage() {
           subtitle={t("dashboard.adminClients.freeSubtitle")}
         />
         <Grid cols="2">
-          <PrimaryCard
-            title={t("dashboard.adminClients.oneInquiryTitle")}
-            description={t("dashboard.adminClients.oneInquiryDesc")}
-            icon={<Icon name="mail" size={14} stroke={1.7} />}
-            affordance={t("dashboard.adminClients.seeInquiry")}
-            onClick={() => openDrawer("inquiry-peek", { id: "iq1" })}
-          />
+          {inquiryCard.kind === "none" ? (
+            <PrimaryCard
+              title={t("dashboard.adminClients.noInquiryTitle")}
+              description={t("dashboard.adminClients.noInquiryDesc")}
+              icon={<Icon name="mail" size={14} stroke={1.7} />}
+            />
+          ) : (
+            <PrimaryCard
+              title={
+                inquiryCard.kind === "one"
+                  ? t("dashboard.adminClients.oneInquiryTitle")
+                  : interpolate(t("dashboard.adminClients.manyInquiryTitle"), { count: inquiryCard.count })
+              }
+              description={t("dashboard.adminClients.oneInquiryDesc")}
+              icon={<Icon name="mail" size={14} stroke={1.7} />}
+              affordance={t("dashboard.adminClients.seeInquiry")}
+              onClick={() =>
+                openDrawer("inquiry-peek", { id: inquiryCard.kind === "one" ? inquiryCard.id : inquiryCard.firstId })
+              }
+            />
+          )}
           <LockedCard
             title={t("dashboard.adminClients.ownedListTitle")}
             description={t("dashboard.adminClients.ownedListDesc")}

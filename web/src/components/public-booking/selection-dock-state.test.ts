@@ -176,8 +176,10 @@ test("chat quick questions + FAB hover label exist in en/es with no em dashes", 
   assert.equal(en.askAboutEyebrow, "Asking about");
   assert.equal(es.askQuickWhen, "¿Tienes hueco esta semana?");
   assert.equal(es.askQuickDuration, "¿Cuánto dura?");
-  assert.equal(es.askQuickChange, "¿Puedo cambiar el diseño?");
-  for (const k of ["askQuickWhen", "askQuickDuration", "askQuickChange", "askQuickLabel"]) {
+  assert.equal(es.askQuickPrice, "¿Cuánto cuesta?");
+  assert.equal(en.askQuickPrice, "How much does it cost?");
+  assert.doesNotMatch(es.askQuickPrice + en.askQuickPrice, /diseño|design/i);
+  for (const k of ["askQuickWhen", "askQuickDuration", "askQuickPrice", "askQuickLabel"]) {
     assert.ok(en[k], `en ${k}`);
     assert.doesNotMatch(en[k] + es[k], /—/);
   }

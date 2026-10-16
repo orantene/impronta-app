@@ -38,6 +38,7 @@ import {
   type GenerationModelId,
 } from "@/lib/ai/ai-generation-model";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { afterResponse } from "@/lib/server/after-response";
 
 export type ReviseNodeActionState =
   | { ok: true; node: BuilderNode; nodeCount?: number; source: "model" }
@@ -74,7 +75,7 @@ function recordReviseUsageOnce(
   const inTok = sink.reduce((s, e) => s + (e.usage?.inputTokens ?? 0), 0);
   const outTok = sink.reduce((s, e) => s + (e.usage?.outputTokens ?? 0), 0);
   const latencyMs = sink.reduce((s, e) => s + e.latencyMs, 0);
-  void recordAiGenerationUsage({
+  afterResponse(() => recordAiGenerationUsage({
     provider: sink[0]!.provider,
     model: sink[0]!.model,
     usage: { inputTokens: inTok || null, outputTokens: outTok || null },
@@ -83,7 +84,7 @@ function recordReviseUsageOnce(
     scope: "revise",
     latencyMs,
     tenantId,
-  });
+  }));
 }
 
 /** Injected model call — pins the generation model (adaptive thinking + effort:xhigh). */

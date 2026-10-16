@@ -1,10 +1,51 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { suggestedEssentials, essentialsReady, parseEssentials } from "./essentials";
+import { setupCountry, setupTimezone } from "./essentials-resolve";
 import {
-  DAY_ORDER, applyServiceCurrency, cleanServices, copyDayToAll, finalizeSetup, minToTime, needsTimezoneQuestion,
-  parsePriceToCents, setupCurrency, setupIssues, timeToMin, toggleDay,
+  DAY_ORDER,
+  cleanServices,
+  copyDayToAll,
+  finalizeSetup,
+  minToTime,
+  needsTimezoneQuestion,
+  parsePriceToCents,
+  setupIssues,
+  timeToMin,
+  timezoneChoices,
+  timezoneWithBrowserFallback,
+  placeModesForTrade,
+  defaultPlaceForTrade,
+  toggleDay,
+  TIMEZONE_OPTIONS,
+  applyServiceCurrency,
+  setupCurrency,
 } from "./setup";
+
+test("a Tulum studio that named no country, browsing from Mexico, is not asked for a zone and gets Cancun", () => {
+  const country = setupCountry(null, "MX");
+  assert.equal(country, "MX");
+  assert.equal(needsTimezoneQuestion(country), false);
+  assert.equal(setupTimezone("Tulum", country), "America/Cancun");
+  assert.equal(setupTimezone(null, country), "America/Mexico_City");
+  assert.equal(setupTimezone("Guadalajara", "Mexico"), "America/Mexico_City");
+});
+
+test("only Mexico is inferred from the request; what the person said always wins", () => {
+  assert.equal(setupCountry("Spain", "MX"), "Spain");
+  assert.equal(setupCountry(null, "US"), null);
+  assert.equal(setupCountry("  ", null), null);
+  assert.equal(setupTimezone("Austin", "United States"), null, "outside Mexico the screen asks");
+});
+
+test("the zone select always shows the current zone, even off the short list", () => {
+  assert.equal(timezoneChoices(null), TIMEZONE_OPTIONS);
+  assert.equal(timezoneChoices("Europe/Madrid"), TIMEZONE_OPTIONS);
+  const lima = timezoneChoices("America/Lima");
+  assert.deepEqual(lima[0], { id: "America/Lima", label: "Lima" });
+  assert.equal(lima.length, TIMEZONE_OPTIONS.length + 1);
+  assert.equal(timezoneChoices("America/Argentina/Cordoba")[0]?.label, "Cordoba");
+});
 
 test("timezone is asked only outside Mexico", () => {
   assert.equal(needsTimezoneQuestion("Mexico"), false);
@@ -78,4 +119,34 @@ test("the zone list offers Mexico when the country was not detected (TUL-568)", 
   const ids = TIMEZONE_OPTIONS.map((z) => z.id);
   assert.ok(ids.includes("America/Mexico_City"));
   assert.ok(ids.includes("America/Cancun"));
+});
+test("TUL-16 b: the services currency defaults to the talent's own and can be chosen", () => {
+  assert.equal(setupCurrency({ chosen: null, country: "Mexico", locale: "es" }), "MXN");
+  assert.equal(setupCurrency({ chosen: null, country: "MX", locale: "en" }), "MXN");
+  // Country not asked yet on a Spanish flow: pesos, not a silent USD.
+  assert.equal(setupCurrency({ chosen: null, country: null, locale: "es" }), "MXN");
+  assert.equal(setupCurrency({ chosen: null, country: null, locale: "en" }), "USD");
+  assert.equal(setupCurrency({ chosen: null, country: "United States", locale: "es" }), "USD");
+  assert.equal(setupCurrency({ chosen: "USD", country: "Mexico", locale: "es" }), "USD");
+  assert.equal(setupCurrency({ chosen: "MXN", country: "United States", locale: "en" }), "MXN");
+  const rows = [
+    { name: "A", durationMin: 30, priceCents: 100, quote: false, currency: "USD", packKey: null },
+    { name: "B", durationMin: 30, priceCents: null, quote: true, currency: "USD", packKey: null },
+  ];
+  assert.deepEqual(applyServiceCurrency(rows, "MXN").map((r) => r.currency), ["MXN", "MXN"]);
+});
+
+test("TUL-815: the browser zone fills a missing zone silently, a saved zone wins", () => {
+  assert.equal(timezoneWithBrowserFallback(null, "America/Cancun"), "America/Cancun");
+  assert.equal(timezoneWithBrowserFallback("America/Mexico_City", "America/Cancun"), "America/Mexico_City");
+  assert.equal(timezoneWithBrowserFallback(null, "Not/AZone"), null);
+  assert.equal(timezoneWithBrowserFallback(null, null), null);
+});
+
+test("TUL-808: a cleaning business is never offered 'at my studio'; beauty keeps all three", () => {
+  assert.deepEqual(placeModesForTrade("cleaning"), ["client"]);
+  assert.deepEqual(defaultPlaceForTrade("cleaning"), { mode: "client", area: null });
+  assert.deepEqual(placeModesForTrade("lashes"), ["studio", "home", "client"]);
+  assert.equal(defaultPlaceForTrade("lashes"), null);
+  assert.deepEqual(placeModesForTrade(null), ["studio", "home", "client"]);
 });

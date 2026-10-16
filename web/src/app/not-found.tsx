@@ -1,9 +1,16 @@
 import Link from "next/link";
+import { TulalaWordmark } from "@/components/brand/tulala-logo";
 import { DirectoryInquiryModalProvider } from "@/components/directory/directory-inquiry-modal-context";
-import { getPublicHostContext } from "@/lib/saas/scope";
+import { getPublicHostContext, getPublicPathPrefix } from "@/lib/saas/scope";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { resolveNotFoundSlug } from "@/lib/site-admin/server/page-roles";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { localeUrlSettings, withLocaleHref } from "@/i18n/pathnames";
+import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
+import { SkipToContent } from "@/components/accessibility/skip-to-content";
+import { PublicFooter } from "@/components/public-footer";
+import { PublicHeader } from "@/components/public-header";
+import { notFoundCopy } from "@/lib/i18n/not-found-copy";
 import { isLocale } from "@/lib/site-admin/locales";
 import CmsPublicPage from "@/app/(public)/p/[[...slug]]/page";
 
@@ -82,21 +89,26 @@ export default async function NotFound() {
 
   const brand = await loadAgencyBrand();
   const isAgency = brand !== null;
-  const eyebrow = isAgency && brand ? brand.name.toUpperCase() : "TULALA";
-  const heading = isAgency && brand
-    ? "This page is no longer here"
-    : "Page not found";
-  const body = isAgency && brand
-    ? `We couldn't find that page on ${brand.name}. The roster, news, or campaign you were looking for may have moved.`
-    : "We couldn't find the page you're looking for.";
-  const primaryCta = isAgency
-    ? { label: "Back to homepage", href: "/" }
-    : { label: "Go home", href: "/" };
-  const secondaryCta = isAgency
-    ? { label: "Send an inquiry", href: "/client/inquiries/new" }
-    : { label: "Sign in", href: "/login" };
+  const locale = await getRequestLocale();
+  const copy = notFoundCopy(locale, brand ? brand.name : null);
+  const eyebrow = isAgency && brand ? brand.name.toUpperCase() : "";
+  const BRAND_INK = "#0B0B0D";
+  const { heading, body } = copy;
+  // Tenant 404: links keep the /w/<slug> prefix and the tenant's own locale
+  // grammar; the platform 404 keeps the platform defaults.
+  const pathPrefix = isAgency ? await getPublicPathPrefix() : "";
+  const hostCtx = isAgency ? await getPublicHostContext() : null;
+  const tenantLocales = hostCtx?.tenantId ? await loadTenantLocaleSettings(hostCtx.tenantId) : null;
+  const localize = (href: string) => {
+    const withPrefix = pathPrefix ? (href === "/" ? pathPrefix : `${pathPrefix}${href}`) : href;
+    return tenantLocales
+      ? withLocaleHref(withPrefix, locale, localeUrlSettings(tenantLocales.defaultLocale, tenantLocales.supportedLocales))
+      : withLocaleHref(withPrefix, locale);
+  };
+  const primaryCta = { label: copy.primary.label, href: localize(copy.primary.href) };
+  const secondaryCta = { label: copy.secondary.label, href: localize(copy.secondary.href) };
 
-  return (
+  const card = (
     <div
       style={{
         minHeight: "70vh",
@@ -117,19 +129,25 @@ export default async function NotFound() {
           padding: "32px 32px",
         }}
       >
-        <p
-          style={{
-            fontFamily: '"Inter", system-ui, sans-serif',
-            fontSize: 11,
-            fontWeight: 600,
-            color: "rgba(11,11,13,0.38)",
-            letterSpacing: 0.8,
-            textTransform: "uppercase" as const,
-            margin: 0,
-          }}
-        >
-          {eyebrow}
-        </p>
+        {isAgency ? (
+          <p
+            style={{
+              fontFamily: '"Inter", system-ui, sans-serif',
+              fontSize: 11,
+              fontWeight: 600,
+              color: "rgba(11,11,13,0.38)",
+              letterSpacing: 0.8,
+              textTransform: "uppercase" as const,
+              margin: 0,
+            }}
+          >
+            {eyebrow}
+          </p>
+        ) : (
+          <div style={{ color: BRAND_INK, lineHeight: 0 }}>
+            <TulalaWordmark height={26} />
+          </div>
+        )}
         <h1
           style={{
             fontFamily: '"Inter", system-ui, sans-serif',
@@ -211,10 +229,23 @@ export default async function NotFound() {
               marginBottom: 0,
             }}
           >
-            Powered by Tulala
+            {copy.poweredBy}
           </p>
         ) : null}
       </div>
     </div>
   );
+
+  // A workspace public site keeps its chrome (nav + footer) on a 404; the
+  // provider is mounted here for the same reason as the role-page branch above.
+  return isAgency ? (
+    <DirectoryInquiryModalProvider>
+      <SkipToContent locale={locale} />
+      <PublicHeader />
+      <main id="main-content" className="w-full flex-1">
+        {card}
+      </main>
+      <PublicFooter />
+    </DirectoryInquiryModalProvider>
+  ) : card;
 }

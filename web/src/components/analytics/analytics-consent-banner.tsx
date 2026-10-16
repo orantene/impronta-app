@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { translatorFor } from "@/i18n/use-t";
+import { translatorFor } from "@/i18n/translator-for";
 import { getSiteUrl } from "@/lib/auth-flow";
 import {
   PRIVACY_CHOICES_EVENT,
@@ -15,6 +15,7 @@ import {
   type ConsentRegion,
   type StoredConsent,
 } from "@/lib/analytics/consent";
+import { trackConsentBannerTop } from "@/lib/talent-site/consent-banner-top";
 
 // Session-only dismiss flag — user wants to close the banner without
 // committing to accept/decline for now. Cleared by tab close.
@@ -158,6 +159,13 @@ export function AnalyticsConsentBanner({
     return () => window.removeEventListener(PRIVACY_CHOICES_EVENT, reopen);
   }, []);
 
+  const bannerRef = useRef<HTMLDivElement>(null);
+  const shown = mounted && open && !isPreviewRoute;
+  useEffect(() => {
+    const el = bannerRef.current;
+    return shown && el ? trackConsentBannerTop(el) : undefined;
+  }, [shown, variant]);
+
   const dismiss = useCallback(() => {
     try {
       window.sessionStorage.setItem(DISMISS_SESSION_KEY, String(Date.now()));
@@ -175,7 +183,7 @@ export function AnalyticsConsentBanner({
     setOpen(false);
   }, []);
 
-  if (!mounted || !open || isPreviewRoute) return null;
+  if (!shown) return null;
 
   const privacyHref = `${getSiteUrl()}/legal/privacy`;
   const cookiesHref = `${getSiteUrl()}/legal/cookies`;
@@ -186,6 +194,7 @@ export function AnalyticsConsentBanner({
         <style>{CONSENT_BANNER_SHELL_OFFSET_CSS}</style>
         <style>{CONSENT_CARD_CSS}</style>
         <div
+          ref={bannerRef}
           role="region"
           aria-label={t("public.consent.ariaLabel")}
           data-consent-banner=""
@@ -224,6 +233,7 @@ export function AnalyticsConsentBanner({
       <style>{CONSENT_BANNER_SHELL_OFFSET_CSS}</style>
       <style>{CONSENT_CARD_CSS}</style>
       <div
+        ref={bannerRef}
         role="dialog"
         aria-label={t("public.consent.ariaLabel")}
         data-consent-banner=""

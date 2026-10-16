@@ -39,6 +39,7 @@ export const WEBSITE_ES_TEXT: Record<string, string> = {
   "Activate your website": "Activa tu sitio",
   "Finish website setup": "Termina la configuración del sitio",
   "Website live": "Sitio en vivo",
+  "Checking your website": "Comprobando tu sitio",
   "Finish with AI": "Terminar con IA",
   "Write it myself": "Lo escribo yo",
   "Your free website is unlocked": "Tu sitio gratis está desbloqueado",
@@ -131,6 +132,18 @@ export const WEBSITE_ES_TEXT: Record<string, string> = {
   "Connect domain": "Conectar dominio",
   "Loading domains…": "Cargando dominios…",
   "Connecting your own domain is a Web Office feature. Upgrade to Web Office to point a custom domain at your site.": "Conectar tu propio dominio es una función de Oficina Web. Mejora a Oficina Web para apuntar un dominio personalizado a tu sitio.",
+  "Your Web Office plan ended. Your custom domain is paused. Restore Web Office by {date} to keep it.":
+    "Tu plan de Oficina Web terminó. Tu dominio propio está en pausa. Restaura Oficina Web antes del {date} para conservarlo.",
+  "Your Web Office plan ended. Your custom domain is paused. Restore Web Office within 30 days to keep it.":
+    "Tu plan de Oficina Web terminó. Tu dominio propio está en pausa. Restaura Oficina Web en 30 días para conservarlo.",
+  "After the grace period we disconnect the domain from Tulala. Purchased domains will not keep auto-renewing at our cost.":
+    "Después del periodo de gracia desconectamos el dominio de Tulala. Los dominios comprados no seguirán renovándose a nuestro costo.",
+  "Restore plan": "Restaurar plan",
+  "Restore plan to keep your domain": "Restaura el plan para conservar tu dominio",
+  "Transfer out (auth code)": "Transferir (código de autorización)",
+  "Let it expire": "Dejar que expire",
+  "Transfer-out selected. Auto-renew is off.": "Transferencia elegida. La renovación automática está desactivada.",
+  "This domain will expire. Auto-renew is off.": "Este dominio expirará. La renovación automática está desactivada.",
   "No custom domain yet. Add one above to serve your site from your own address. We will show the DNS records to add.": "Aún no hay dominio personalizado. Agrega uno arriba para servir tu sitio desde tu propia dirección. Te mostraremos los registros DNS a agregar.",
   "Serve your site from your own domain": "Sirve tu sitio desde tu propio dominio",
   "Awaiting TXT": "Esperando TXT",
@@ -140,4 +153,25 @@ export const WEBSITE_ES_TEXT: Record<string, string> = {
   "1. Add this TXT record to prove you own the domain": "1. Agrega este registro TXT para demostrar que eres el dueño del dominio",
   "2. Then point the domain at Vercel": "2. Luego apunta el dominio a Vercel",
   "Point the domain at Vercel": "Apunta el dominio a Vercel",
+  // live1 / TUL-39 — LegacyPresence + discovery strip (ES shell was English)
+  "Your multi-page website": "Tu sitio de varias páginas",
+  "A full website with its own link, header, logo and footer, separate from your discovery profile. The starter gallery below sets up its home page and shell.":
+    "Un sitio completo con su propio enlace, encabezado, logo y pie, aparte de tu perfil de descubrimiento. La galería de abajo configura su página de inicio y la estructura.",
+  "Your discovery profile": "Tu perfil de descubrimiento",
+  "The single page clients land on from Discover, at /t/<your code>. The template here restyles that profile — it does not change your multi-page website above.":
+    "La página a la que llegan los clientes desde Discover, en /t/<tu código>. La plantilla aquí cambia el estilo de ese perfil — no modifica tu sitio de varias páginas de arriba.",
+  "PORTFOLIO FEATURE": "FUNCIÓN PORTFOLIO",
+  "Your own website": "Tu propio sitio web",
+  "Upgrade to Portfolio to build a full multi-page website with your own header, logo, footer, and a custom address — published at its own link, separate from your discovery profile.":
+    "Mejora a Portfolio para crear un sitio de varias páginas con tu propio encabezado, logo, pie y dirección personalizada — publicado en su propio enlace, aparte de tu perfil de descubrimiento.",
+  "Intro tagline": "Frase de presentación",
+  "Draft updated": "Borrador actualizado",
+  "Last published": "Última publicación",
+  "Version": "Versión",
+  "View published site": "Ver sitio publicado",
+  "Preview draft (owner)": "Vista previa del borrador (dueño)",
+  "Standard profile": "Perfil estándar",
+  "Unpublished": "Sin publicar",
+  "Unpublish": "Despublicar",
+  "Coming soon": "Próximamente",
 };

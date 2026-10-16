@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalPage } from "@/components/marketing/legal-page";
+import { clientServiceFeePercentLabel } from "@/lib/billing/fee-config";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { withLocaleHref } from "@/i18n/pathnames";
@@ -139,7 +140,7 @@ export default async function TermsPage() {
                 being estimated.
               </p>
               <p>
-                Service fee: customers pay a {PLATFORM_BRAND.name} service fee of 1.5% on top of
+                Service fee: customers pay a {PLATFORM_BRAND.name} service fee of {clientServiceFeePercentLabel()} on top of
                 the booking price. It is shown at checkout before the customer pays and is
                 separate from the card processing fee described above. Commission and fees for
                 talents are disclosed in the plans.

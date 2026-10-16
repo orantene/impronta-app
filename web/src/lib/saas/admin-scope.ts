@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { pickTalentTenant } from "@/lib/saas/talent-self-tenant";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
@@ -6,6 +7,7 @@ import { requireSession } from "@/lib/server/action-guards";
 import { userHasCapability, type CapabilityKey } from "@/lib/access";
 import { auditFailure } from "@/lib/audit/emit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { inquiryManagerDeniedMessage, resolveDeniedLocale } from "./inquiry-manager-denied";
 import { getTenantScope, type TenantScope } from "./scope";
 import { getAdminWorkspaceScope } from "./admin-workspace-scope";
 
@@ -205,6 +207,16 @@ export async function requireWorkspaceStaffAction(options?: {
 }
 
 /**
+ * {@link requireWorkspaceStaffAction} with the default capability, memoised for
+ * the REQUEST (React `cache`, which also shares the in-flight promise). A
+ * surface that reads several things in one server action (TUL-701: the
+ * Appointments screen) pays the session, scope, membership and capability
+ * trips once instead of once per reader. Same identity, same request, same
+ * answer; each reader still compares `tenantId` itself.
+ */
+export const requireWorkspaceStaffActionOnce = cache(() => requireWorkspaceStaffAction());
+
+/**
  * Server-action guard for ANY active coordinator of a specific inquiry —
  * staff OR a roster talent appointed as coordinator (pov 'talent_coord').
  *
@@ -285,7 +297,7 @@ export async function requireInquiryManagerAction(
     .maybeSingle();
 
   if (!coordRow || coordRow.status !== "active") {
-    return { ok: false, error: "You are not the coordinator of this inquiry." };
+    return { ok: false, error: inquiryManagerDeniedMessage(await resolveDeniedLocale()) };
   }
   const tenantId = (coordRow.tenant_id as string | null) ?? null;
   if (!tenantId) return { ok: false, error: "Coordinator assignment is missing a tenant." };

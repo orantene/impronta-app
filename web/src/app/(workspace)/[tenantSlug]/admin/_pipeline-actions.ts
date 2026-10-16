@@ -18,6 +18,7 @@
 import { resolveOfferAuthorName } from "./offer-author";
 import { revalidatePath } from "next/cache";
 import { requireWorkspaceStaffAction, requireInquiryManagerAction } from "@/lib/saas/admin-scope";
+import { requireInquiryOfferAction } from "@/lib/saas/inquiry-offer-guard";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import {
@@ -217,7 +218,6 @@ export async function submitTalentRate(
       const retryAfterMs = (result as { retryAfterMs?: number }).retryAfterMs;
       const friendly =
         reason === "invalid_rate" ? "Rate must be a positive number."
-        // C5 — surface actual retry-after window.
         : reason === "rate_limited" ? formatRateLimitedCopy(retryAfterMs)
         : reason === "forbidden" ? "You can only submit a rate on your own line item."
         : reason === "offer_not_editable" ? "This offer is locked — counter the offer to revise rates."
@@ -644,7 +644,7 @@ export async function sendOfferAction(
 ): Promise<PipelineActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireInquiryManagerAction(inquiryId);
+    const auth = await requireInquiryOfferAction(inquiryId, "send_offer");
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -1034,7 +1034,6 @@ export async function rescheduleInquiry(
   }
 }
 
-// ─── Edit job — unified inquiry + booking field editor ───────────────────────
 //
 // The admin Messages thread header carries an "Edit job" pencil that opens a
 // Sheet where staff can revise every field the job needs in one place: the
@@ -1800,7 +1799,7 @@ export async function saveOfferDraft(
     const resolvedInquiryId = (offerOwner?.inquiry_id as string | null) ?? null;
     if (!resolvedInquiryId) return { ok: false, error: "Offer not found." };
 
-    const auth = await requireInquiryManagerAction(resolvedInquiryId);
+    const auth = await requireInquiryOfferAction(resolvedInquiryId, "update_offer");
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -1837,7 +1836,7 @@ export async function saveOfferDraft(
         : reason === "offer_not_editable" ? "This offer is locked (already sent / accepted)."
         : reason === "post_booking_immutable" ? "Inquiry is past its mutable phase."
         : reason === "inquiry_frozen" ? "Inquiry is frozen."
-        // C5 — surface actual retry-after window.
+        : reason === "offer_fee_unresolved" ? "Could not check the workspace fee. Nothing was saved; try again."
         : reason === "rate_limited" ? formatRateLimitedCopy(retryAfterMs)
         : reason;
       return { ok: false, error: friendly };
@@ -2148,7 +2147,7 @@ export async function createOfferAction(
   );
   const work = (async (): Promise<PipelineActionResult<{ offerId: string }>> => {
     try {
-      const auth = await requireInquiryManagerAction(inquiryId);
+      const auth = await requireInquiryOfferAction(inquiryId, "create_offer");
       if (!auth.ok) return { ok: false, error: auth.error };
       const { supabase, user, tenantId } = auth;
 
@@ -3152,7 +3151,6 @@ export async function cancelBookingAction(
         p_kind: "booking_cancelled",
         p_payload: { booking_id: bookingId, by_user_id: user.id, cancellation_policy: cancellationPolicy },
       }).then((r) => { if (r.error) logServerError("audit.emit.booking_cancelled", r.error); });
-
 
       // booking.cancelled notifications (spec §6.4) — client + talent +
       // coordinator, email + in-app. Needs the inquiry for contact/schedule +

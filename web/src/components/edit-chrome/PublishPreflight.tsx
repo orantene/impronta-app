@@ -19,6 +19,7 @@ import { useEditContext } from "./edit-context";
 import { locateCanvasNode } from "./freeform-layer-row";
 import { Button, DrawerSkeleton } from "./kit";
 import { useEditorLocale } from "./use-editor-locale";
+import { localisePublishPreflightMessage } from "./publish-preflight-message-es";
 import { setBrandIdentityWordmark } from "@/lib/site-admin/edit-mode/brand-identity-action";
 
 /** W1-L2 — hard ceiling for the preflight action. A hung server action used to
@@ -118,7 +119,7 @@ export function PublishPreflight({
   onStatusChange,
   onFocusSection,
 }: Props) {
-  const { t } = useEditorLocale();
+  const { t, locale: editorLocale } = useEditorLocale();
   const { reportMutationError, fixAllMobileIssues, flushBuilderTreeSave, toggleBrandPanel } =
     useEditContext();
   // Held in a ref and kept OUT of the checks effect's dep list. When it was a
@@ -400,7 +401,9 @@ export function PublishPreflight({
             </span>
           ) : null}
         </div>
-        <p className="leading-snug">{issue.category === "brand_identity" || issue.category === "headings" || issue.category === "builder_payload" || issue.category === "app_config" || issue.category === "design" || issue.category === "ticker_source" ? t(issue.message) : issue.message}</p>
+        <p className="leading-snug">
+          {localisePublishPreflightMessage(issue.message, editorLocale)}
+        </p>
         {issue.fixHref && issue.fixLabel ? (
           <div className="mt-1.5" data-testid={`preflight-fix-${issue.category}`}>
             <Button

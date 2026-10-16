@@ -78,7 +78,7 @@ export function ServicesCatalogStaticFallback({
                 >
                   {cover ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={cover} alt="" className="site-builder-node--services-catalog-photo" />
+                    <img src={cover} alt="" loading="lazy" decoding="async" className="site-builder-node--services-catalog-photo" />
                   ) : null}
                   <span className="site-builder-node--services-catalog-copy">
                     <strong className="site-builder-node--services-catalog-name">{item.title}</strong>
@@ -98,11 +98,14 @@ export function ServicesCatalogStaticFallback({
                           {es
                             ? onRequest
                               ? "Bajo consulta"
-                              : "Cotización a pedido"
+                              : "Precio a cotizar"
                             : onRequest
                               ? "On request"
-                              : "Quote on request"}
+                              : "Price on request"}
                         </strong>
+                      ) : minCents <= 0 ? (
+                        // TUL-533 / GRK-064: SSR fallback must not paint "$0 MXN".
+                        <strong>{es ? "Consultar" : "Ask"}</strong>
                       ) : (
                         <>
                           {ladder ? <small>{es ? "Desde" : "From"}</small> : null}

@@ -11,6 +11,7 @@
  * talent_profiles.talent_plan_key is synced by syncTalentSubscriptionToDb().
  */
 
+import { nextPastDueSince } from "@/lib/billing/dunning-grace";
 import "server-only";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { type TalentPlanKey } from "@/lib/stripe/price-ids";
@@ -19,18 +20,30 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { mapStripeStatus } from "@/lib/stripe/utils";
 import { notifyTrialStarted } from "@/lib/notifications/producers/trial-notify";
+import { reconcileTalentDomainPlanGrace } from "@/lib/talent-site/server/talent-domain-plan-grace";
 import { resolveCheckoutDiscount } from "@/lib/billing/checkout-discounts";
 import {
   reconcileAppliedDiscount,
   resolveSubscriptionDiscountMirror,
 } from "@/lib/billing/subscription-discounts";
 import { idempotencySuffix, returnQuery } from "@/lib/billing/checkout-return";
+import { duplicateSubscriptionGuard } from "@/lib/billing/subscription-guard.server";
+import { checkoutIdempotencyKey, checkoutPriceError, resolveCheckoutPrice } from "@/lib/billing/checkout-interval";
 import { loadTrialOffer } from "@/lib/plan-trials/offers";
+import { buildPortalSessionParams } from "@/lib/stripe/portal-params";
 import {
-  stripeBillingPortalLocale,
   stripeCheckoutLocale,
 } from "@/lib/i18n/vendor-locale";
 import type Stripe from "stripe";
+import { decideTalentPlanState, type StoredTalentPlanRow } from "@/lib/billing/talent-plan-state";
+import {
+  cleanCancelComment,
+  isLiveTalentSubscriptionStatus,
+  stripeFeedbackFor,
+  talentCancelIdempotencyKey,
+  type TalentCancelReason,
+} from "@/lib/billing/talent-cancel";
+import { onTalentPlanChanged } from "@/lib/talent-site/server/plan-change";
 import type { BillingResult } from "@/lib/stripe/workspace-billing";
 
 // Re-export BillingResult so callers can import from one place.
@@ -48,6 +61,7 @@ export type TalentSubscriptionState = {
   cancelledAt: string | null;
   trialEnd: string | null;
   stripePriceId: string | null;
+  pastDueSince?: string | null;
 };
 
 // ─── Customer management ──────────────────────────────────────────────────────
@@ -161,16 +175,19 @@ export async function createTalentCheckoutSession(opts: {
   promoCode?: string | null;
   /** Signed return-to-spot token (`lib/billing/checkout-return.ts`). */
   returnToken?: string | null;
+  interval?: string | null; // TUL-830 toggle; anything but "year" is monthly
 }): Promise<BillingResult<{ url: string }>> {
   if (!isStripeConfigured()) {
     return { ok: false, error: "Stripe is not configured." };
   }
   const stripe = getStripe()!;
 
-  const priceId = await resolveTalentPriceId(opts.planKey, "monthly");
-  if (!priceId) {
-    return { ok: false, error: `No Stripe price configured for plan "${opts.planKey}".` };
-  }
+  // TUL-830: one subscription per talent; an existing one changes plan in the portal.
+  const duplicate = await duplicateSubscriptionGuard("talent", opts.talentProfileId);
+  if (duplicate) return { ok: false, error: duplicate };
+  const price = await resolveCheckoutPrice((i) => resolveTalentPriceId(opts.planKey, i), opts.interval);
+  if (!price.ok) return { ok: false, error: checkoutPriceError(price.code, opts.planKey) };
+  const priceId = price.priceId;
 
   const customerResult = await getOrCreateTalentStripeCustomer(
     opts.userId,
@@ -198,7 +215,8 @@ export async function createTalentCheckoutSession(opts: {
       customer: customerResult.data,
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${opts.appBaseUrl}/${opts.tenantSlug}/talent/settings?billing=success${returnQuery(opts.returnToken)}`,
+      // TUL-836: {CHECKOUT_SESSION_ID} lets the success page sync the plan if the webhook is late.
+      success_url: `${opts.appBaseUrl}/${opts.tenantSlug}/talent/settings?billing=success&session_id={CHECKOUT_SESSION_ID}${returnQuery(opts.returnToken)}`,
       cancel_url:  `${opts.appBaseUrl}/${opts.tenantSlug}/talent/settings?billing=cancelled`,
       // Show Checkout in the talent's app language, not their browser's.
       locale: stripeCheckoutLocale(opts.locale),
@@ -206,6 +224,7 @@ export async function createTalentCheckoutSession(opts: {
         talent_profile_id: opts.talentProfileId,
         user_id:           opts.userId,
         plan_key:          opts.planKey,
+        billing_interval:  price.interval,
         checkout_type:     "talent_subscription",
       },
       subscription_data: {
@@ -213,6 +232,7 @@ export async function createTalentCheckoutSession(opts: {
           talent_profile_id: opts.talentProfileId,
           user_id:           opts.userId,
           plan_key:          opts.planKey,
+          billing_interval:  price.interval,
           checkout_type:     "talent_subscription",
         },
         ...(trialDays != null ? { trial_period_days: trialDays } : {}),
@@ -223,7 +243,7 @@ export async function createTalentCheckoutSession(opts: {
     },
     // Idempotency: a double submit must not mint a SECOND Checkout session.
     // One subscription per talent profile per plan; a second session risks a second sub.
-    { idempotencyKey: `cs_talent_${opts.talentProfileId}_${opts.planKey}${idempotencySuffix(opts.returnToken)}` });
+    { idempotencyKey: checkoutIdempotencyKey({ prefix: "cs_talent", subjectId: opts.talentProfileId, planKey: opts.planKey, interval: price.interval, suffix: idempotencySuffix(opts.returnToken) }) });
 
     if (!session.url) {
       return { ok: false, error: "Stripe returned no checkout URL." };
@@ -266,11 +286,13 @@ export async function createTalentBillingPortalSession(opts: {
       return { ok: false, error: "No billing account found." };
     }
 
-    const session = await stripe.billingPortal.sessions.create({
-      customer: customer.stripe_customer_id,
-      return_url: `${opts.appBaseUrl}/${opts.tenantSlug}/talent/settings`,
-      locale: stripeBillingPortalLocale(opts.locale),
-    });
+    const session = await stripe.billingPortal.sessions.create(
+      buildPortalSessionParams({
+        customerId: customer.stripe_customer_id,
+        returnUrl: `${opts.appBaseUrl}/${opts.tenantSlug}/talent/settings`,
+        locale: opts.locale,
+      }),
+    );
 
     return { ok: true, data: { url: session.url } };
   } catch (err) {
@@ -291,12 +313,19 @@ export async function createTalentBillingPortalSession(opts: {
 export async function syncTalentSubscriptionToDb(
   subscription: Stripe.Subscription,
   planKey: string,
+  opts: {
+    /** Stripe event type; "sync" for checkout and invoice re-syncs. */
+    eventType?: string;
+    /** Resolved server-side when legacy subscriptions lack metadata. */
+    talentProfileId?: string;
+    userId?: string;
+  } = {},
 ): Promise<BillingResult<void>> {
   const sb = createServiceRoleClient();
   if (!sb) return { ok: false, error: "Database not available." };
 
-  const talentProfileId = subscription.metadata?.talent_profile_id;
-  const userId = subscription.metadata?.user_id;
+  const talentProfileId = opts.talentProfileId ?? subscription.metadata?.talent_profile_id;
+  const userId = opts.userId ?? subscription.metadata?.user_id;
 
   if (!talentProfileId || !userId) {
     return {
@@ -322,40 +351,43 @@ export async function syncTalentSubscriptionToDb(
     ? new Date(subscription.canceled_at * 1000).toISOString()
     : null;
 
-  const status = mapStripeStatus(subscription.status);
-  // Written through unconditionally — nulls included — so a discount removed in
+  // Written through unconditionally, nulls included, so a discount removed in
   // the Stripe dashboard propagates back instead of lingering in our table.
   const discountMirror = await resolveSubscriptionDiscountMirror(subscription);
-  const isTerminallyCancelled = status === "cancelled" || status === "incomplete_expired";
-  const newPlanKey = isTerminallyCancelled ? "talent_basic" : planKey;
 
   try {
-    // Audit H2 — guard against out-of-order webhook deliveries: if the
-    // existing row is already in a terminal state, a stale 'updated'
-    // event for the same subscription must NOT re-promote the talent.
-    // We also short-circuit when the existing row's status is more recent
-    // than what this event is asking us to write.
-    const { data: existingRow } = await sb
-      .from("talent_subscriptions")
-      .select("status, plan_key, updated_at")
-      .eq("talent_profile_id", talentProfileId)
-      .maybeSingle();
+    // TUL-836: one rule set for every event (see talent-plan-state.ts),
+    // including the out-of-order guard (Audit H2) and resubscribe handling.
+    const [{ data: existingRow }, { data: profileRow }] = await Promise.all([
+      sb
+        .from("talent_subscriptions")
+        .select("status, plan_key, stripe_subscription_id, past_due_since")
+        .eq("talent_profile_id", talentProfileId)
+        .maybeSingle(),
+      sb
+        .from("talent_profiles")
+        .select("talent_plan_key, profile_code")
+        .eq("id", talentProfileId)
+        .maybeSingle(),
+    ]);
+    const existing = (existingRow as StoredTalentPlanRow | null) ?? null;
+    const profile = profileRow as { talent_plan_key?: string | null; profile_code?: string | null } | null;
+    const existingStatus = existing?.status ?? undefined;
 
-    const existingStatus = (existingRow as { status?: string } | null)?.status;
-    if (
-      existingStatus === "cancelled" || existingStatus === "incomplete_expired"
-    ) {
-      if (!isTerminallyCancelled) {
-        // The DB says the subscription is already terminal, but this event
-        // wants to bring it back to active. That's almost certainly a stale
-        // delivery. Log and skip the upsert; profile plan stays talent_basic.
-        logServerError(
-          "talent-billing.syncSubscription.staleEvent",
-          `subscription ${subscription.id} already terminal=${existingStatus}, refusing to re-promote to status=${status}`,
-        );
-        return { ok: true, data: undefined };
-      }
+    const decision = decideTalentPlanState({
+      eventType: opts.eventType ?? "sync",
+      subscriptionId: subscription.id,
+      status: mapStripeStatus(subscription.status),
+      planKey,
+      existing,
+      previousProfilePlan: profile?.talent_plan_key ?? null,
+    });
+    if (decision.kind === "skip_stale") {
+      logServerError("talent-billing.syncSubscription.staleEvent", decision.reason);
+      return { ok: true, data: undefined };
     }
+    const status = decision.status;
+    const newPlanKey = decision.profilePlan;
 
     const { error: subError } = await sb
       .from("talent_subscriptions")
@@ -368,9 +400,7 @@ export async function syncTalentSubscriptionToDb(
           // Audit H2: when terminally cancelled, write the LAST plan tier
           // we knew about so the row's plan_key reflects what they had.
           // talent_profiles.talent_plan_key is set to talent_basic separately.
-          plan_key:               isTerminallyCancelled
-                                    ? ((existingRow as { plan_key?: string } | null)?.plan_key ?? "talent_pro")
-                                    : (planKey === "talent_basic" ? "talent_pro" : planKey),
+          plan_key:               decision.rowPlan,
           status,
           current_period_end:     periodEnd,
           cancel_at_period_end:   subscription.cancel_at_period_end ?? false,
@@ -381,6 +411,7 @@ export async function syncTalentSubscriptionToDb(
           discount_percent_off:      discountMirror.percentOff,
           discount_amount_off_cents: discountMirror.amountOffCents,
           discount_ends_at:          discountMirror.endsAt,
+          past_due_since:         nextPastDueSince(status, (existingRow as { past_due_since?: string | null } | null)?.past_due_since, new Date()),
           updated_at:             new Date().toISOString(),
         },
         { onConflict: "talent_profile_id" },
@@ -413,6 +444,19 @@ export async function syncTalentSubscriptionToDb(
       });
     }
 
+    // Read prior plan before overwrite so D6 domain grace can detect loss /
+    // restore of Web Office custom-domain access. Money/renewal = D5.
+    const { data: profileBefore, error: profileBeforeError } = await sb
+      .from("talent_profiles")
+      .select("talent_plan_key")
+      .eq("id", talentProfileId)
+      .maybeSingle();
+    // A failed read leaves previousPlanKey null, which reconcile treats as "no transition".
+    if (profileBeforeError) logServerError("talent-billing.syncSubscription.planKeyBefore", profileBeforeError);
+    const previousPlanKey =
+      (profileBefore as { talent_plan_key?: string | null } | null)?.talent_plan_key ??
+      null;
+
     // Sync talent_profiles.talent_plan_key
     const { error: profileError } = await sb
       .from("talent_profiles")
@@ -424,6 +468,23 @@ export async function syncTalentSubscriptionToDb(
 
     if (profileError) {
       logServerError("talent-billing.syncSubscription.planKey", profileError);
+      return { ok: false, error: "Failed to update talent plan." };
+    }
+
+    // D6: domain plan grace reacts to the Web Office loss / restore (previousPlanKey read above).
+    await reconcileTalentDomainPlanGrace({
+      talentProfileId,
+      previousPlanKey,
+      nextPlanKey: newPlanKey,
+    });
+
+    if (decision.planChanged) {
+      await onTalentPlanChanged(
+        talentProfileId,
+        profile?.talent_plan_key ?? "talent_basic",
+        newPlanKey,
+        profile?.profile_code ?? null,
+      );
     }
 
     // Ensure talent_stripe_customers row exists
@@ -438,6 +499,133 @@ export async function syncTalentSubscriptionToDb(
   } catch (err) {
     logServerError("talent-billing.syncSubscription", err);
     return { ok: false, error: "Unexpected error syncing talent subscription." };
+  }
+}
+
+// ─── Cancel / resume (TUL-832) ────────────────────────────────────────────────
+
+type OwnedSubRow = {
+  user_id: string | null;
+  stripe_subscription_id: string | null;
+  status: string | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean | null;
+};
+
+/**
+ * Loads the talent's subscription row and proves the caller owns it. Reads
+ * only: plan state is written by the webhook single writer
+ * (syncTalentSubscriptionToDb), never from the cancel / resume actions.
+ */
+async function loadOwnedSubscription(
+  talentProfileId: string,
+  userId: string,
+): Promise<BillingResult<OwnedSubRow | null>> {
+  const sb = createServiceRoleClient();
+  if (!sb) return { ok: false, error: "Database not available." };
+  const { data, error } = await sb
+    .from("talent_subscriptions")
+    .select("user_id, stripe_subscription_id, status, current_period_end, cancel_at_period_end")
+    .eq("talent_profile_id", talentProfileId)
+    .maybeSingle();
+  if (error) {
+    logServerError("talent-billing.cancel.load", error);
+    return { ok: false, error: "Could not read the subscription." };
+  }
+  const row = (data as OwnedSubRow | null) ?? null;
+  if (row && row.user_id !== userId) return { ok: false, error: "Not allowed." };
+  return { ok: true, data: row };
+}
+
+/**
+ * Schedule the talent plan to end at the close of the paid period. Stripe is
+ * told (`cancel_at_period_end: true`); access and the plan key are untouched
+ * until `customer.subscription.deleted` reaches the webhook writer, which
+ * drops the talent to Free and keeps their content.
+ */
+export async function cancelTalentSubscriptionAtPeriodEnd(opts: {
+  talentProfileId: string;
+  userId: string;
+  reason: TalentCancelReason;
+  comment?: string | null;
+}): Promise<BillingResult<{ effectiveAt: string | null; hadSubscription: boolean }>> {
+  const loaded = await loadOwnedSubscription(opts.talentProfileId, opts.userId);
+  if (!loaded.ok) return loaded;
+  const row = loaded.data;
+  if (!row?.stripe_subscription_id) {
+    return { ok: true, data: { effectiveAt: null, hadSubscription: false } };
+  }
+  if (!isLiveTalentSubscriptionStatus(row.status)) {
+    return { ok: true, data: { effectiveAt: row.current_period_end, hadSubscription: true } };
+  }
+  const stripe = isStripeConfigured() ? getStripe() : null;
+  if (!stripe) {
+    return { ok: false, error: "Billing is not available right now. Nothing was changed." };
+  }
+  try {
+    const updated = await stripe.subscriptions.update(
+      row.stripe_subscription_id,
+      {
+        cancel_at_period_end: true,
+        cancellation_details: {
+          feedback: stripeFeedbackFor(opts.reason),
+          ...(cleanCancelComment(opts.comment) ? { comment: cleanCancelComment(opts.comment) } : {}),
+        },
+      },
+      { idempotencyKey: talentCancelIdempotencyKey("cancel", row.stripe_subscription_id, Date.now()) },
+    );
+    const end = updated.cancel_at ?? updated.items?.data?.[0]?.current_period_end ?? null;
+    return {
+      ok: true,
+      data: {
+        effectiveAt: end ? new Date(end * 1000).toISOString() : row.current_period_end,
+        hadSubscription: true,
+      },
+    };
+  } catch (err) {
+    logServerError("talent-billing.cancelAtPeriodEnd", err);
+    return { ok: false, error: "Stripe could not cancel the subscription. Nothing was changed." };
+  }
+}
+
+/**
+ * Undo a pending cancellation before the period ends. No new charge: nothing
+ * was refunded or ended. Refuses once the subscription is gone.
+ */
+export async function resumeTalentSubscription(opts: {
+  talentProfileId: string;
+  userId: string;
+}): Promise<BillingResult<{ renewsAt: string | null; hadSubscription: boolean }>> {
+  const loaded = await loadOwnedSubscription(opts.talentProfileId, opts.userId);
+  if (!loaded.ok) return loaded;
+  const row = loaded.data;
+  if (!row?.stripe_subscription_id) {
+    return { ok: true, data: { renewsAt: null, hadSubscription: false } };
+  }
+  if (!isLiveTalentSubscriptionStatus(row.status)) {
+    return { ok: false, error: "This plan has already ended. Start it again from the plans page." };
+  }
+  const stripe = isStripeConfigured() ? getStripe() : null;
+  if (!stripe) {
+    return { ok: false, error: "Billing is not available right now. Nothing was changed." };
+  }
+  try {
+    const updated = await stripe.subscriptions.update(
+      row.stripe_subscription_id,
+      { cancel_at_period_end: false },
+      { idempotencyKey: talentCancelIdempotencyKey("resume", row.stripe_subscription_id, Date.now()) },
+    );
+    const end = updated.items?.data?.[0]?.current_period_end ?? null;
+    return {
+      ok: true,
+      data: {
+        renewsAt: end ? new Date(end * 1000).toISOString() : row.current_period_end,
+        hadSubscription: true,
+      },
+    };
+  } catch (err) {
+    logServerError("talent-billing.resume", err);
+    return { ok: false, error: "Stripe could not restore the subscription. Nothing was changed." };
   }
 }
 
@@ -475,6 +663,7 @@ export async function loadTalentSubscriptionState(
       cancelled_at: string | null;
       trial_end: string | null;
       stripe_price_id: string | null;
+      past_due_since?: string | null;
     };
     const row = data as unknown as Row;
     return {
@@ -487,6 +676,7 @@ export async function loadTalentSubscriptionState(
       cancelledAt: row.cancelled_at,
       trialEnd: row.trial_end,
       stripePriceId: row.stripe_price_id,
+      pastDueSince: row.past_due_since ?? null,
     };
   } catch (err) {
     logServerError("talent-billing.loadState", err);

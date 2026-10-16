@@ -162,3 +162,11 @@ test("resolveJourneyLabel maps offer / draft / sent / thread", () => {
     "headerJourneyThread",
   );
 });
+
+test("TUL-873: the card rail counts real selected services, never lit journey steps", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const src = readFileSync(join(__dirname, "GuestDockChrome.tsx"), "utf8");
+  assert.match(src, /<CardDockRail count=\{lineupCount\}/);
+  assert.doesNotMatch(src, /lineupCount \|\| journeySegs/);
+});

@@ -20,7 +20,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientPrimaryTenantSlug } from "@/lib/saas/role-tenant-resolver";
 import { logServerError } from "@/lib/server/safe-error";
 import { buildQuerySuffix } from "@/lib/saas/redirect-query";
-import { TULALA_APEX_HOST } from "@/lib/brand/tulala";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { legacyClientEntryRedirectFor } from "@/lib/client-account/entry-redirect.server";
 import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
 import { effectiveReadContext } from "@/lib/impersonation/effective-read";
@@ -81,6 +81,6 @@ export default async function ClientRootPage({
   });
   if (fallback === "account") redirect("/account");
   // /directory is a marketing-host route; the apex is absolute so the app host never 404s.
-  if (fallback === "discover") redirect(`https://${TULALA_APEX_HOST}`);
+  if (fallback === "discover") redirect(resolveMarketingOrigin());
   redirect(`/onboarding/role${querySuffix}`);
 }

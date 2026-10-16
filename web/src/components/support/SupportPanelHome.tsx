@@ -85,7 +85,7 @@ export function HomeView({
           <button
             type="button"
             onClick={onDismissIdeaSent}
-            aria-label={t("dashboard.adminSupport.close")}
+            aria-label={t("dashboard.adminSupport.closeAria")}
             style={{ border: "none", background: "transparent", cursor: "pointer", color: COLORS.royalDeep, padding: 6, margin: -6, display: "flex" }}
           >
             <Icon name="x" size={13} color={COLORS.royalDeep} />
@@ -107,7 +107,11 @@ export function HomeView({
 
       {/* AI ask: kept (it works and escalates to a human); below the cards
           so the three doors read first, as in the mockup. */}
-      <div
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSubmit();
+        }}
         style={{
           display: "flex",
           alignItems: "center",
@@ -122,18 +126,14 @@ export function HomeView({
         <input
           value={ask}
           onChange={(e) => setAsk(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              onSubmit();
-            }
-          }}
+          enterKeyHint="send"
           placeholder={t("dashboard.adminSupport.askPlaceholder")}
+          aria-label={t("dashboard.adminSupport.askPlaceholder")}
+          maxLength={2000}
           style={{ flex: 1, border: "none", outline: "none", fontSize: 13, fontFamily: FONTS.body, background: "transparent", color: COLORS.ink }}
         />
         <button
-          type="button"
-          onClick={onSubmit}
+          type="submit"
           disabled={!ask.trim() || sending}
           aria-label={t("dashboard.adminSupport.send")}
           style={{
@@ -151,7 +151,7 @@ export function HomeView({
         >
           <Icon name="send" size={13} color={ask.trim() ? "#fff" : COLORS.inkDim} />
         </button>
-      </div>
+      </form>
       {error ? (
         <div role="alert" style={{ fontSize: 12, color: COLORS.critical }}>
           {error}

@@ -23,6 +23,21 @@
  * the 6% split and is not a catalog price.
  */
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { planDisplayNameFor, type PlanKey } from "@/lib/access/plan-catalog";
+import {
+  MARKETING_SLUG_TO_PLAN,
+  tierFeatureBullets,
+  tierRow,
+} from "@/lib/access/plan-tier-table";
+
+/**
+ * TUL-839: the bullets of every tier in the approved table come from the plan
+ * catalog (`plan-tier-table.ts`), filled in per locale by
+ * `getPricingLaddersCopy`. The literal below is only the typed slot.
+ */
+function CATALOG_BULLETS(): string[] {
+  return [];
+}
 
 const en = {
   eyebrow: "Plans",
@@ -47,32 +62,18 @@ const en = {
   },
   talent: {
     free: {
-      line: "Your profile page, discovery, and an inquiry inbox.",
-      bullets: [
-        "Profile page on a tulala address",
-        "Listed in Discover",
-        "Inquiry inbox",
-      ],
+      line: "A live site with booking, chat and payments from day one.",
+      bullets: CATALOG_BULLETS(),
       cta: "Start free",
     },
     pro: {
       line: "A premium page, with your name on it instead of ours.",
-      bullets: [
-        "Page templates, embeds and press",
-        "Media kit",
-        "Analytics",
-        "No Tulala badge",
-      ],
+      bullets: CATALOG_BULLETS(),
       cta: "Create your page",
     },
     max: {
       line: "Everything in Pro, plus a full website that is yours.",
-      bullets: [
-        "Your own full website",
-        "Custom domain",
-        "SEO controls",
-        "Top placement in Discover",
-      ],
+      bullets: CATALOG_BULLETS(),
       cta: "Create your page",
     },
   },
@@ -94,22 +95,12 @@ const en = {
     },
     studio: {
       line: "The website, plus the people behind it.",
-      bullets: [
-        "Talent roster",
-        "Commissions",
-        "Coordinated bookings",
-        "Team seats",
-      ],
+      bullets: CATALOG_BULLETS(),
       cta: "Start on Studio",
     },
     agency: {
       line: "For a roster and a team with no ceiling on either.",
-      bullets: [
-        "Unlimited roster and team",
-        "Exclusivity",
-        "Pitch tools",
-        "Priority support",
-      ],
+      bullets: CATALOG_BULLETS(),
       cta: "Start 14-day trial",
     },
     hub: {
@@ -160,32 +151,18 @@ const es: PricingLaddersCopy = {
   },
   talent: {
     free: {
-      line: "Tu página de perfil, presencia en Discover y una bandeja de solicitudes.",
-      bullets: [
-        "Página de perfil en una dirección tulala",
-        "Apareces en Discover",
-        "Bandeja de solicitudes",
-      ],
+      line: "Un sitio en vivo con reservas, chat y pagos desde el primer día.",
+      bullets: CATALOG_BULLETS(),
       cta: "Empieza gratis",
     },
     pro: {
       line: "Una página premium, con tu nombre en vez del nuestro.",
-      bullets: [
-        "Plantillas de página, embeds y prensa",
-        "Media kit",
-        "Analítica",
-        "Sin sello de Tulala",
-      ],
+      bullets: CATALOG_BULLETS(),
       cta: "Crea tu página",
     },
     max: {
       line: "Todo lo de Pro, más un sitio web completo que es tuyo.",
-      bullets: [
-        "Tu sitio web completo",
-        "Dominio propio",
-        "Controles de SEO",
-        "Posición destacada en Discover",
-      ],
+      bullets: CATALOG_BULLETS(),
       cta: "Crea tu página",
     },
   },
@@ -207,22 +184,12 @@ const es: PricingLaddersCopy = {
     },
     studio: {
       line: "El sitio web, más las personas detrás de él.",
-      bullets: [
-        "Catálogo de talento",
-        "Comisiones",
-        "Reservas coordinadas",
-        "Lugares para tu equipo",
-      ],
+      bullets: CATALOG_BULLETS(),
       cta: "Empieza con Studio",
     },
     agency: {
       line: "Para un catálogo y un equipo sin tope en ninguno de los dos.",
-      bullets: [
-        "Catálogo y equipo ilimitados",
-        "Exclusividad",
-        "Herramientas para propuestas",
-        "Soporte prioritario",
-      ],
+      bullets: CATALOG_BULLETS(),
       cta: "Prueba de 14 días",
     },
     hub: {
@@ -252,8 +219,51 @@ const es: PricingLaddersCopy = {
   },
 };
 
+function catalogBullets(planKey: PlanKey, locale: string): string[] {
+  return tierFeatureBullets(planKey, locale, (k) => planDisplayNameFor(k, locale));
+}
+
 export function getPricingLaddersCopy(locale: string): PricingLaddersCopy {
-  return pickLocale(locale, { en, es });
+  const c = pickLocale(locale, { en, es });
+  const b = (k: PlanKey) => catalogBullets(k, locale);
+  return {
+    ...c,
+    talent: {
+      free: { ...c.talent.free, bullets: b("talent_basic") },
+      pro: { ...c.talent.pro, bullets: b("talent_pro") },
+      max: { ...c.talent.max, bullets: b("talent_portfolio") },
+    },
+    workspace: {
+      ...c.workspace,
+      studio: { ...c.workspace.studio, bullets: b("studio") },
+      agency: { ...c.workspace.agency, bullets: b("agency") },
+    },
+  };
+}
+
+type PricingPackage = keyof typeof MARKETING_SLUG_TO_PLAN;
+
+/** The plan key behind a /pricing catalog slug, or null for an unmapped tier. */
+export function planKeyForPricingSlug(packageSlug: PricingPackage, slug: string): PlanKey | null {
+  return MARKETING_SLUG_TO_PLAN[packageSlug][slug] ?? null;
+}
+
+/** "Most popular" comes from the approved tier table; unmapped tiers keep the catalog row's flag. */
+export function pricingTierFeatured(packageSlug: PricingPackage, slug: string, dbFeatured: boolean): boolean {
+  const key = planKeyForPricingSlug(packageSlug, slug);
+  const row = key ? tierRow(key) : null;
+  return row ? row.mostPopular : dbFeatured;
+}
+
+/** Card name for a /pricing tier: the plan catalog's name in the reader's language. */
+export function pricingTierName(
+  packageSlug: PricingPackage,
+  slug: string,
+  dbName: string,
+  locale: string,
+): string {
+  const key = planKeyForPricingSlug(packageSlug, slug);
+  return key ? planDisplayNameFor(key, locale) : localizeTierName(customerTierName(slug, dbName), locale);
 }
 
 /**
@@ -265,11 +275,23 @@ const ES_TIER_NAMES: Readonly<Record<string, string>> = {
   Free: "Gratis",
   Website: "Sitio web",
   Portfolio: "Portafolio",
+  "Web Office": "Oficina Web",
   Agency: "Agencia",
 };
 
 function isSpanishLocale(locale: string): boolean {
   return locale.toLowerCase().startsWith("es");
+}
+
+/** Customer-facing plan names by catalog slug (internal rows say Team / Business / Network). */
+const CUSTOMER_TIER_NAMES: Readonly<Record<string, string>> = {
+  studio: "Studio",
+  agency: "Agency",
+  hub: "Network",
+};
+
+export function customerTierName(key: string, dbName: string): string {
+  return CUSTOMER_TIER_NAMES[key] ?? dbName;
 }
 
 export function localizeTierName(name: string, locale: string): string {

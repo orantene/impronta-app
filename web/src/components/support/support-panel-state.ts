@@ -146,3 +146,61 @@ export function canOfferHuman(ticket: Pick<SupportTicketRow, "handledBy" | "stat
   if (!ticket) return true;
   return ticket.handledBy !== "human" && ticket.status !== "closed";
 }
+
+/**
+ * TUL-942: the id of the newest AI answer. The "talk to a person" control
+ * lives on that one bubble only, never on older answers and never beside it.
+ */
+export function lastAiAnswerId(
+  messages: ReadonlyArray<Pick<SupportMessageRow, "id" | "authorKind" | "messageKind" | "deletedAt">>,
+): string | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m.deletedAt) continue;
+    if (m.authorKind === "ai" && m.messageKind !== "card") return m.id;
+  }
+  return null;
+}
+
+/**
+ * TUL-942: ONE escalate control per thread. The offer card wins, then the
+ * newest AI bubble; the standalone footer button is only for threads that
+ * have neither.
+ */
+export function humanOfferPlacement(input: {
+  canOffer: boolean;
+  hasOfferCard: boolean;
+  hasAiAnswer: boolean;
+}): "card" | "bubble" | "footer" | "none" {
+  if (!input.canOffer) return "none";
+  if (input.hasOfferCard) return "card";
+  return input.hasAiAnswer ? "bubble" : "footer";
+}
+
+/**
+ * TUL-943: the "Did this help?" Yes/No row only exists while the AI owns the
+ * ticket. After a person takes over, half of it used to linger.
+ */
+export function showHelpfulRow(
+  ticket: Pick<SupportTicketRow, "handledBy" | "status"> | null,
+  acked: boolean,
+): boolean {
+  return !acked && canOfferHuman(ticket);
+}
+
+/**
+ * TUL-948: the AI turn flag outlives the reply (the request resolves after
+ * realtime already delivered it), which drew a second "thinking" bubble
+ * under the answer. Show it only while the last message is not an AI reply.
+ */
+export function shouldShowThinking(
+  thinking: boolean,
+  messages: ReadonlyArray<Pick<SupportMessageRow, "authorKind" | "deletedAt">>,
+): boolean {
+  if (!thinking) return false;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].deletedAt) continue;
+    return messages[i].authorKind !== "ai";
+  }
+  return true;
+}

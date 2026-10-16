@@ -10,6 +10,7 @@ import { readUserId, type EffectiveReadContext } from "@/lib/impersonation/effec
 
 import { majorToMinorForDisplay } from "@/lib/inquiry/offer-minor-units";
 import { fail } from "./refusals";
+import { pickSaleOrder } from "./sale-order-pick";
 import { inquiryIsHers, talentIdsOnInquiry, talentIsSeller, type TalentOrderLine } from "./talent-pov";
 
 export type TalentSaleLine = TalentOrderLine & {
@@ -117,13 +118,14 @@ export async function loadOwnedTalentInquiry(
   if (partErr) return fail("unavailable");
   const { data: inquiry, error } = await admin
     .from("inquiries")
-    .select("id, tenant_id, version, source_context, interpreted_query")
+    .select("id, tenant_id, version, status, source_context, interpreted_query")
     .eq("id", inquiryId)
     .maybeSingle();
   if (error) return fail("unavailable");
   const row = inquiry as {
     tenant_id?: string;
     version?: number;
+    status?: string | null;
     source_context?: unknown;
     interpreted_query?: unknown;
   } | null;
@@ -133,6 +135,7 @@ export async function loadOwnedTalentInquiry(
     profileId: talentProfileId,
     participant: Boolean(part),
     talentIds: talentIdsOnInquiry(row?.source_context, row?.interpreted_query),
+    status: row?.status ?? null,
   });
   if (!hers) return fail("not_found");
   const hub = await getPlatformHubTenant();
@@ -174,20 +177,20 @@ export async function listTalentInquiryIds(
   const [bySource, byLineup] = await Promise.all([
     admin
       .from("inquiries")
-      .select("id, source_context, interpreted_query")
+      .select("id, status, source_context, interpreted_query")
       .contains("source_context", { talent_ids: [profileId] })
       .order("created_at", { ascending: false })
       .limit(TALENT_INBOX_SCAN_LIMIT),
     admin
       .from("inquiries")
-      .select("id, source_context, interpreted_query")
+      .select("id, status, source_context, interpreted_query")
       .contains("interpreted_query", { talent: { selected_ids: [profileId] } })
       .order("created_at", { ascending: false })
       .limit(TALENT_INBOX_SCAN_LIMIT),
   ]);
   const namedRows = [
-    ...((bySource.error ? [] : bySource.data ?? []) as { id: string; source_context: unknown; interpreted_query: unknown }[]),
-    ...((byLineup.error ? [] : byLineup.data ?? []) as { id: string; source_context: unknown; interpreted_query: unknown }[]),
+    ...((bySource.error ? [] : bySource.data ?? []) as { id: string; status: string | null; source_context: unknown; interpreted_query: unknown }[]),
+    ...((byLineup.error ? [] : byLineup.data ?? []) as { id: string; status: string | null; source_context: unknown; interpreted_query: unknown }[]),
   ];
   const ids = [
     ...new Set([
@@ -198,6 +201,7 @@ export async function listTalentInquiryIds(
             profileId,
             participant: participantIds.has(row.id),
             talentIds: talentIdsOnInquiry(row.source_context, row.interpreted_query),
+            status: row.status,
           }),
         )
         .map((row) => row.id),
@@ -216,22 +220,24 @@ export async function loadTalentSale(
   | { ok: true; empty: true }
   | { ok: false; reason: MessagingRefusal }
 > {
-  const { data: order, error: orderErr } = await admin
+  const { data: orderRows, error: orderErr } = await admin
     .from("orders")
-    .select("id, status, currency, total_cents, tenant_id")
+    .select("id, status, currency, total_cents, tenant_id, source_channel, created_at")
     .eq("inquiry_id", inquiryId)
-    .eq("source_channel", "messages")
     .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(10);
   if (orderErr) return fail("unavailable");
-  const sale = order as {
-    id: string;
-    status: string;
-    currency: string | null;
-    total_cents: number | string | null;
-    tenant_id: string;
-  } | null;
+  const sale = pickSaleOrder(
+    (orderRows ?? []) as Array<{
+      id: string;
+      status: string;
+      currency: string | null;
+      total_cents: number | string | null;
+      tenant_id: string;
+      source_channel: string | null;
+      created_at: string;
+    }>,
+  );
   if (!sale || sale.tenant_id !== tenantId) return { ok: true, empty: true };
   const { data: rows, error: lineErr } = await admin
     .from("order_lines")

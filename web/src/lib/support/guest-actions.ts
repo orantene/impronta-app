@@ -1,5 +1,7 @@
 "use server";
 
+import { after } from "next/server";
+
 import { guestCookieSigningEnabled } from "@/lib/guest-cookie";
 import { guestSupportMayServe } from "@/lib/support/guest-support-serve";
 import { ensureGuestSessionId, resolveClientIp, resolveGuestSessionId } from "@/lib/guest/guest-session";
@@ -27,6 +29,7 @@ import {
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { logServerError } from "@/lib/server/safe-error";
 import { parseTalentSiteHelpContactInput } from "@/lib/support/talent-site-help-context";
+import { buildChatReportTicket } from "@/lib/support/chat-report";
 
 export type GuestSupportFail = { ok: false; error: string };
 export type GuestSupportOk<T extends object = object> = { ok: true } & T;
@@ -81,6 +84,25 @@ async function stampLeadId(
     .eq("id", ticket.id);
 }
 
+/**
+ * Lead stamping is a read plus a write the visitor never sees. It runs after
+ * the response flushes (TUL-602 slow1) instead of holding the submit; errors
+ * are logged, never thrown.
+ */
+function stampLeadIdAfterResponse(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  ticket: SupportTicketRow,
+  email: string,
+): void {
+  const run = () =>
+    stampLeadId(admin, ticket, email).catch((err) => logServerError("support.guest.stampLeadId", err));
+  try {
+    after(run);
+  } catch {
+    void run();
+  }
+}
+
 export async function startGuestSupportChatAction(input: {
   body: string;
   originSlug?: string | null;
@@ -122,7 +144,7 @@ export async function startGuestSupportChatAction(input: {
   });
   if (!result.ok) return result;
   if (ident.email) {
-    await stampLeadId(ident.admin, result.data.ticket, ident.email);
+    stampLeadIdAfterResponse(ident.admin, result.data.ticket, ident.email);
   }
   return {
     ok: true,
@@ -229,7 +251,15 @@ export async function attachGuestContactAction(input: {
     actorUserId: ident.userId,
   });
   if (!updated.ok) return updated;
-  await stampLeadId(ident.admin, updated.data, email);
+  stampLeadIdAfterResponse(ident.admin, updated.data, email);
+  // TUL-660: after an AI error the guest was promised a person; an email is that ask.
+  if (await ticketHadAiError(ident.admin, ticket.id)) {
+    await supportEngine.escalateTicket({
+      ticketId: ticket.id,
+      reason: "user_requested",
+      actorUserId: ident.userId,
+    });
+  }
 
   const eventId = crypto.randomUUID();
   notify({
@@ -406,8 +436,8 @@ export async function submitMarketingContactAction(input: {
     email,
   });
   if (!abuse.ok) return { ok: false, error: abuse.error };
-  if (!input.name.trim() || !email.includes("@") || !input.message.trim()) {
-    return { ok: false, error: "Name, email, and a message are required." };
+  if (!email.includes("@") || !input.message.trim()) {
+    return { ok: false, error: "Email and a message are required." };
   }
 
   const talentSite = parseTalentSiteHelpContactInput({
@@ -450,14 +480,14 @@ export async function submitMarketingContactAction(input: {
     body: input.message.trim(),
     originSlug: talentSite ? "talent-site" : "/contact",
     contactEmail: email,
-    contactName: input.name.trim(),
+    contactName: input.name.trim() || null,
     contactPhone: input.phone?.trim() || null,
     handledBy: "human",
     messageOranDirectly: true,
     metadata,
   });
   if (!result.ok) return result;
-  await stampLeadId(ident.admin, result.data.ticket, email);
+  stampLeadIdAfterResponse(ident.admin, result.data.ticket, email);
 
   // Tell the person we have it.
   //
@@ -486,4 +516,79 @@ export async function submitMarketingContactAction(input: {
   });
 
   return { ok: true, ticketId: result.data.ticket.id };
+}
+
+async function ticketHadAiError(
+  admin: Parameters<typeof supportFrom>[0],
+  ticketId: string,
+): Promise<boolean> {
+  const { data } = await supportFrom(admin, "support_messages")
+    .select("*")
+    .eq("ticket_id", ticketId)
+    .order("created_at", { ascending: false })
+    .limit(20);
+  return ((data ?? []) as unknown[])
+    .map(mapMessageRow)
+    .some((m) => Boolean(m?.aiMeta && (m.aiMeta as Record<string, unknown>).fail_open));
+}
+
+/**
+ * TUL-645: a visitor reports THEIR OWN talent-page chat to Tulala. Ownership is proven by the
+ * guest session (or the signed-in client) on the inquiry; the ticket links the inquiry by id
+ * and never copies the conversation.
+ */
+export async function reportGuestChatToSupportAction(input: {
+  inquiryId: string;
+  note?: string | null;
+  talentProfileCode?: string | null;
+  locale?: "en" | "es";
+  honeypot?: string | null;
+}): Promise<GuestSupportOk<{ ticketNumber: number }> | GuestSupportFail> {
+  await requireNotImpersonating();
+  const inquiryId = (input.inquiryId ?? "").trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inquiryId)) {
+    return { ok: false, error: "We couldn't find that conversation." };
+  }
+  const ident = await requireSignedGuest();
+  if (!ident.ok) return ident;
+  const { data: inquiry, error: inquiryError } = await ident.admin
+    .from("inquiries")
+    .select("id, tenant_id, guest_session_id, client_user_id")
+    .eq("id", inquiryId)
+    .maybeSingle();
+  if (inquiryError) return { ok: false, error: "We couldn't report this chat right now. Try again." };
+  const row = inquiry as { id: string; tenant_id: string | null; guest_session_id: string | null; client_user_id: string | null } | null;
+  const owns =
+    Boolean(row) &&
+    (row?.guest_session_id === ident.guestSessionId || (ident.userId !== null && row?.client_user_id === ident.userId));
+  if (!row || !owns) return { ok: false, error: "We couldn't find that conversation." };
+
+  const abuse = await checkGuestSupportCreateAbuse({
+    honeypot: input.honeypot,
+    guestSessionId: ident.guestSessionId,
+    ip: await resolveClientIp(),
+    email: ident.email,
+  });
+  if (!abuse.ok) return { ok: false, error: abuse.error };
+
+  const t = buildChatReportTicket({
+    inquiryId: row.id,
+    tenantId: row.tenant_id,
+    talentProfileCode: input.talentProfileCode ?? null,
+    note: input.note,
+    locale: input.locale,
+  });
+  const result = await supportEngine.createTicket({
+    tenantId: null,
+    surface: "guest",
+    requester: { kind: "guest", guestSessionId: ident.guestSessionId, userId: ident.userId },
+    subject: t.subject,
+    body: t.body,
+    originSlug: "/chat-report",
+    contactEmail: ident.email,
+    handledBy: "human",
+    metadata: t.metadata,
+  });
+  if (!result.ok) return result;
+  return { ok: true, ticketNumber: result.data.ticket.ticketNumber };
 }

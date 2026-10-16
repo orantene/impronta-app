@@ -298,6 +298,18 @@ max_frequency = "5s"
 # enabled = true
 # uri = "pg-functions://<database>/<schema>/<hook_name>"
 
+# TUL-911: Send Email hook -> /api/hooks/auth-email (branded Resend mail + platform log).
+# Kept disabled here on purpose: local `supabase start` / CI have no
+# SEND_EMAIL_HOOK_SECRET, and with the hook on every local magic link / OTP
+# would be POSTed to a Next server that refuses unsigned calls (503) instead of
+# landing in Inbucket. The hook is enabled in the REMOTE Supabase dashboard
+# (Authentication > Hooks), where the secret is set in Vercel first. To try it
+# locally set SEND_EMAIL_HOOK_SECRET, run the app on :3000 and flip enabled.
+[auth.hook.send_email]
+enabled = false
+uri = "http://host.docker.internal:3000/api/hooks/auth-email"
+secrets = "env(SEND_EMAIL_HOOK_SECRET)"
+
 # Configure one of the supported SMS providers: `twilio`, `twilio_verify`, `messagebird`, `textlocal`, `vonage`.
 [auth.sms.twilio]
 enabled = false

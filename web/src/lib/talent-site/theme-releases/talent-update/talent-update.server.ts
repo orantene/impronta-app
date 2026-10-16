@@ -179,7 +179,7 @@ export async function loadTalentUpdateNotices(
         list.map((r) => r.release_id),
       ),
     // supabase-read-unchecked-ok: a missing rev only weakens the race check to "reload".
-    admin.from("talent_sites").select("draft_rev, theme_design_version").eq("talent_profile_id", talentProfileId).maybeSingle(),
+    admin.from("talent_sites").select("draft_rev, theme_design_version, theme_design_slug").eq("talent_profile_id", talentProfileId).maybeSingle(),
   ]);
   if (relRes.error) {
     logServerError("themeUpdate.notices.releases", relRes.error);
@@ -189,11 +189,11 @@ export async function loadTalentUpdateNotices(
   const byId = new Map(releases.map((r) => [r.id, r]));
   const site = siteRes.data;
   const draftRev = typeof (site as { draft_rev?: number } | null)?.draft_rev === "number" ? (site as { draft_rev: number }).draft_rev : 0;
-  const pin = (site as { theme_design_version?: number | null } | null)?.theme_design_version;
-  const pinned = typeof pin === "number" ? pin : null;
+  const siteRow = site as { theme_design_version?: number | null; theme_design_slug?: string | null } | null;
+  const pinned = typeof siteRow?.theme_design_version === "number" ? siteRow.theme_design_version : null;
   const open = list.filter((row) => {
     const rel = byId.get(row.release_id);
-    return rel && rel.status === "published" && OPEN_CHANNELS.has(rel.channel) && (pinned === null || rel.to_version > pinned);
+    return rel && (!siteRow?.theme_design_slug || rel.design_slug === siteRow.theme_design_slug) && rel.status === "published" && OPEN_CHANNELS.has(rel.channel) && (pinned === null || rel.to_version > pinned);
   });
   // F110/F111: ONE notice per design, driven by ALL its open rows: labelled
   // from her pin to the newest release; "dismissed" only if every row is.
@@ -208,10 +208,10 @@ export async function loadTalentUpdateNotices(
   // her page, or all added) shows no banner, no quiet entry; its rows close.
   const actionable = new Map<string, boolean>();
   for (const [slug, rows] of byDesign) {
-    const newest = byId.get([...rows].sort((a, b) => byId.get(a.release_id)!.to_version - byId.get(b.release_id)!.to_version).pop()!.release_id)!;
-    const newestRowId = [...rows].sort((a, b) => byId.get(a.release_id)!.to_version - byId.get(b.release_id)!.to_version).pop()!.id;
+    const newestRow = [...rows].sort((a, b) => byId.get(a.release_id)!.to_version - byId.get(b.release_id)!.to_version).pop()!;
+    const newest = byId.get(newestRow.release_id)!;
     const verdict = await offerActionableFor(admin, talentProfileId, slug, pinned, rows, newest, async () => {
-      const ctx = await loadUpdateContext(admin, talentProfileId, newestRowId);
+      const ctx = await loadUpdateContext(admin, talentProfileId, newestRow.id);
       const m = ctx ? await makeSiteMerge(admin)(ctx, applyItemsOf(ctx.release.items ?? [])) : null;
       return !!(m && m.ok && m.critical);
     });

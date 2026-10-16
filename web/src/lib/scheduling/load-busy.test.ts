@@ -273,14 +273,19 @@ test("public slots route returns starts only and does not re-add the hold reaper
     join(here, "..", "..", "app", "api", "public", "booking", "slots", "route.ts"),
     "utf8",
   );
+  // The route keeps the HTTP edge; the guards and the projection live in the
+  // loader it shares with the AI-agent tools (TUL-21).
+  const loader = readFileSync(join(here, "public-open-times.ts"), "utf8");
   assert.match(route, /s-maxage=30/);
   assert.match(route, /checkBookingSlots/);
-  // The intent is that the route DELEGATES the projection to the pure helper,
-  // not that it calls one particular name. Either export satisfies that;
-  // pinning the name is what made this fail when the reason channel was added.
-  assert.match(route, /computePublicSlots(Starts)?\(/);
-  assert.doesNotMatch(route, /\.from\("talent_holds"\)/);
-  assert.doesNotMatch(route, /\.from\("talent_bookings"\)/);
-  assert.match(route, /loadBusyIntervals/);
-  assert.match(route, /resolveTalentBookingMode/);
+  assert.match(route, /loadPublicOpenTimes\(/);
+  // The intent is that the projection is DELEGATED to the pure helper, not
+  // that one particular name is called.
+  assert.match(loader, /computePublicSlots(Starts)?\(/);
+  for (const src of [route, loader]) {
+    assert.doesNotMatch(src, /\.from\("talent_holds"\)/);
+    assert.doesNotMatch(src, /\.from\("talent_bookings"\)/);
+  }
+  assert.match(loader, /loadBusyIntervals/);
+  assert.match(loader, /resolveTalentBookingMode/);
 });

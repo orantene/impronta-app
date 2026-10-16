@@ -18,6 +18,7 @@ import { openToTalentsVersionOf } from "@/components/builder-lab/talent-factory/
 
 import { COPY, langOf } from "./copy";
 import { DemoRebuildPanel } from "./demo-rebuild-panel";
+import { FirstReleaseButton } from "./first-release-button";
 import { StaleDraftsPanel } from "./stale-drafts-panel";
 import { logServerError } from "@/lib/server/safe-error";
 import { loadStaleDrafts } from "@/lib/talent-site/theme-template/stale-drafts.server";
@@ -109,7 +110,10 @@ export default async function BuilderLabThemesPage({
               <div>
                 <p className="text-xs uppercase tracking-wider text-white/40">{t.openReleases}</p>
                 {d.openReleases.length === 0 ? (
-                  <p className="mt-1 text-sm text-white/50">{t.noReleases}</p>
+                  <>
+                    <p className="mt-1 text-sm text-white/50">{t.noReleases}</p>
+                    <FirstReleaseButton design={d.slug} version={d.version} lang={lang} />
+                  </>
                 ) : (
                   <ul className="mt-1 grid gap-1 text-sm">
                     {d.openReleases.map((r) => (

@@ -44,9 +44,11 @@
  */
 
 import type Stripe from "stripe";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getStripe, getStripeFor, withObjectPlatformFallback, type StripeAccountKey } from "@/lib/stripe/client";
 import { recordChargePlatform, resolveSellerPlatformForTransaction } from "@/lib/stripe/charge-platform";
 import { checkTransactionChargeCurrency, type ChargeCurrencyGuard } from "@/lib/payments/seller-currency-guard";
+import { checkTransactionConnectedAccount, type ConnectedAccountCheck } from "@/lib/payments/connected-account-guard";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { paymentsMockAllowed } from "@/lib/payments/mock-guard";
 import { logServerError } from "@/lib/server/safe-error";
@@ -171,29 +173,39 @@ export function checkoutFailureIsUncertain(err: unknown): boolean {
  */
 export async function createCheckoutSessionForTransaction(
   input: CheckoutSessionInput,
-  deps: { stripe?: Stripe | null; platform?: StripeAccountKey; currencyGuard?: ChargeCurrencyGuard } = {},
+  deps: {
+    stripe?: Stripe | null;
+    platform?: StripeAccountKey;
+    currencyGuard?: ChargeCurrencyGuard;
+    /** Tests: TUL-483 connected-account guard. */
+    accountGuard?: (transactionId: string, stripe: Stripe) => Promise<ConnectedAccountCheck>;
+    /** Tests: injected DB client for the guard, platform resolution and the platform stamp. */
+    sb?: SupabaseClient | null;
+    /** Tests: per-platform Stripe client factory. */
+    stripeFor?: (key: StripeAccountKey) => Stripe | null;
+  } = {},
 ): Promise<CheckoutSessionResult> {
   try {
     // TUL-284: the charge currency must match the seller of record. Fails
     // CLOSED on a seller-read error, before any platform or Stripe work. An
     // injected stripe / platform (tests) skips it unless a guard is injected.
-    const guardFn = deps.currencyGuard ?? (deps.stripe !== undefined || deps.platform ? null : checkTransactionChargeCurrency);
+    const guardFn = deps.currencyGuard ?? ((deps.stripe !== undefined || deps.platform) && !deps.sb ? null : checkTransactionChargeCurrency);
     if (guardFn) {
-      const check = await guardFn(createServiceRoleClient(), { transactionId: input.transactionId, currency: input.currency });
+      const check = await guardFn(deps.sb ?? createServiceRoleClient(), { transactionId: input.transactionId, currency: input.currency, locale: input.locale });
       if (!check.ok) return { ok: false, error: check.message, uncertain: false };
     }
     // The seller of record's platform decides which Stripe account takes the
     // charge (default 'us'). An injected client (tests) is used as-is.
     let platform: StripeAccountKey;
     if (deps.platform) platform = deps.platform;
-    else if (deps.stripe !== undefined) platform = "us";
+    else if (deps.stripe !== undefined && !deps.sb) platform = "us";
     else {
-      const resolved = await resolveSellerPlatformForTransaction(input.transactionId);
+      const resolved = await resolveSellerPlatformForTransaction(input.transactionId, deps.sb);
       // Fail closed: never guess a platform (TUL-142).
       if (!resolved.ok) return { ok: false, error: "Payments for this seller are not available right now.", uncertain: false };
       platform = resolved.key;
     }
-    const stripe = deps.stripe !== undefined ? deps.stripe : getStripeFor(platform);
+    const stripe = deps.stripe !== undefined ? deps.stripe : (deps.stripeFor ?? getStripeFor)(platform);
     if (!stripe && platform === "mx") {
       return { ok: false, error: "Payments for this seller are not available right now.", uncertain: false };
     }
@@ -216,6 +228,19 @@ export async function createCheckoutSessionForTransaction(
 
     if (input.amountCents <= 0) {
       return { ok: false, error: "Amount must be positive." };
+    }
+
+    // TUL-483: refuse before Stripe work when the seller's connected account
+    // does not exist on this platform (read-only `accounts.retrieve`).
+    const accountGuard = deps.accountGuard ?? (deps.stripe !== undefined && !deps.sb
+      ? null
+      : (txId: string, client: Stripe) => checkTransactionConnectedAccount(deps.sb ?? createServiceRoleClient(), (id) => client.accounts.retrieve(id), txId));
+    if (accountGuard) {
+      const acct = await accountGuard(input.transactionId, stripe);
+      if (!acct.ok) {
+        logServerError("payments.stripe.connectedAccountRefused", `transaction ${input.transactionId}: ${acct.code}`);
+        return { ok: false, error: acct.message, uncertain: false };
+      }
     }
 
     // Unix seconds, and only when the caller named one that parses. A bad
@@ -286,7 +311,7 @@ export async function createCheckoutSessionForTransaction(
     // resume of an abandoned checkout correctly returns the same session.
     // Fail closed: an MX charge must be recorded as MX before it can exist, or
     // payouts/refunds would later run on the wrong platform.
-    if (!(await recordChargePlatform(input.transactionId, platform))) {
+    if (!(await recordChargePlatform(input.transactionId, platform, deps.sb))) {
       return { ok: false, error: "Failed to create payment session.", uncertain: false };
     }
     const session = await stripe.checkout.sessions.create(sessionParams, {

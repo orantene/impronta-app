@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Mail } from "lucide-react";
 import {
   ContactTalentButton,
   OpenInquiryCartButton,
@@ -9,8 +10,20 @@ import {
 } from "@/components/directory/directory-inquiry-actions";
 import { Button } from "@/components/ui/button";
 import { clientLocaleHref } from "@/i18n/client-directory-href";
+import { agencyContactHref } from "@/lib/directory/agency-contact-href";
+import type { HostKind } from "@/lib/saas/host-kinds";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 
+/*
+ * TUL-1084: the text colours below are the light-profile tokens (`--plt-*`), not
+ * `--impronta-*`. The hub profile is a light page, but its <body> carries
+ * `site-theme-dark`, so `--impronta-muted` resolved to the dark-scope #a1a1aa
+ * (2.0 to 2.6:1 on white and sand) and `--impronta-foreground` to near-white on
+ * hover. This band renders only in the Light and Atelier profile layouts (Noir
+ * does not mount it), so a light-only token is correct here. The gold Save
+ * button keeps `--impronta-gold` / `--impronta-gold-ink` (7.8:1), which the
+ * light scope would have turned into white on #96731a (4.4:1).
+ */
 export function ProfileDiscoveryCta({
   talentId,
   profileCode,
@@ -21,6 +34,7 @@ export function ProfileDiscoveryCta({
   portalInquiryHref,
   profileCta,
   inquiry,
+  hostKind,
 }: {
   talentId: string;
   profileCode: string;
@@ -31,6 +45,7 @@ export function ProfileDiscoveryCta({
   portalInquiryHref?: string | null;
   profileCta: DirectoryUiCopy["profileCta"];
   inquiry: DirectoryUiCopy["inquiry"];
+  hostKind?: HostKind | null;
 }) {
   const pathname = usePathname();
   const talent = { id: talentId, profileCode, displayName };
@@ -75,12 +90,15 @@ export function ProfileDiscoveryCta({
           inquiry={inquiry}
           portalInquiryHref={portalInquiryHref}
           label={profileCta.openInquiryCart}
-          className="w-full border-[var(--impronta-gold-border)] text-[var(--impronta-muted)] hover:text-[var(--impronta-foreground)]"
+          className="w-full border-[var(--impronta-gold-border)] text-[var(--plt-muted)] hover:text-[var(--plt-ink)]"
         />
       </>
     );
   }
 
+  // GRK-050 — "Contact the agency" must not open the Inquire chat drawer.
+  // Route to the host `/contact` surface (form), leaving Inquire as the only
+  // path into the guest-chat launcher.
   return (
     <>
       <SaveTalentButton
@@ -95,22 +113,23 @@ export function ProfileDiscoveryCta({
         asChild
         size="lg"
         variant="outline"
-        className="border-[var(--impronta-gold-border)] text-[var(--impronta-muted)] hover:text-[var(--impronta-foreground)]"
+        className="border-[var(--impronta-gold-border)] text-[var(--plt-muted)] hover:text-[var(--plt-ink)]"
       >
         <Link href={clientLocaleHref(pathname, "/directory")}>
           {profileCta.browseMoreTalent}
         </Link>
       </Button>
-      <ContactTalentButton
-        talent={talent}
-        sourcePage={sourcePage}
-        initialSaved={initialSaved}
+      <Button
+        asChild
+        size="lg"
         variant="ghost"
-        portalInquiryHref={portalInquiryHref}
-        inquiry={inquiry}
-        label={profileCta.contactImpronta}
-        className="text-[var(--impronta-muted)] hover:text-[var(--impronta-foreground)]"
-      />
+        className="gap-2 text-[var(--plt-muted)] hover:text-[var(--plt-ink)]"
+      >
+        <Link href={agencyContactHref(pathname, { profileCode, hostKind })}>
+          <Mail className="size-4" />
+          {profileCta.contactImpronta}
+        </Link>
+      </Button>
     </>
   );
 }

@@ -14,3 +14,16 @@ export function isSoloSeller(input: {
   if (!own) return false;
   return input.lineTalentProfileIds.every((id) => !id || id === own);
 }
+
+/**
+ * TUL-380 follow-up: in her own talent workspace, a talent who is the only
+ * talent on the inquiry is not "coordinating" anyone, so the coordinator
+ * banner and pill stay hidden. An unknown lineup count keeps them shown.
+ */
+export function isSoloOwnerThread(input: {
+  workspaceType: string | null | undefined;
+  lineupTotal: number | undefined;
+}): boolean {
+  if (input.workspaceType !== "talent") return false;
+  return input.lineupTotal !== undefined && input.lineupTotal < 2;
+}

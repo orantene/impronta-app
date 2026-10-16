@@ -6,6 +6,9 @@
  *
  *   node scripts/lane-test.cjs 'src/app/t/?profileCode?/_chat/*.test.ts' src/lib/x/*.test.ts
  *
+ * An `@scripts/lanes/<lane>.txt` argument is replaced by that file's entries (one per line,
+ * `#` comments allowed; TUL-609), so a long lane is one merge-safe line per test file.
+ *
  * Every non-flag argument is resolved to real files (scripts/lane-paths.cjs);
  * an argument that matches nothing FAILS the lane (exit 2) instead of being
  * skipped; the files are then handed to `tsx --test` in the form this Node
@@ -15,7 +18,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
-const { WEB_ROOT, toNodeArg, resolveLaneArgs } = require("./lane-paths.cjs");
+const { WEB_ROOT, toNodeArg, resolveLaneArgs, expandListArgs } = require("./lane-paths.cjs");
 
 function readLaneQuarantine() {
   try {
@@ -29,7 +32,7 @@ function readLaneQuarantine() {
 function main() {
   const argv = process.argv.slice(2);
   const flags = argv.filter((a) => a.startsWith("-"));
-  const patterns = argv.filter((a) => !a.startsWith("-"));
+  const patterns = expandListArgs(argv.filter((a) => !a.startsWith("-")));
   const { files, empty } = resolveLaneArgs(patterns);
   if (empty.length > 0) {
     console.error(`lane-test: ${empty.length} argument(s) resolved to ZERO files (a silent skip is a CI hole):`);

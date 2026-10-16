@@ -40,7 +40,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction, requireWorkspaceStaffActionOnce } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { logBookingActivity } from "@/lib/server/commercial-audit";
@@ -103,10 +103,12 @@ export type AppointmentsResult =
 
 type Scope = { tenantId: string; tenantSlug: string; userId: string };
 
-async function scopedTo(tenantId: string): Promise<
-  { ok: true; scope: Scope } | { ok: false; error: string }
-> {
-  const staff = await requireWorkspaceStaffAction();
+async function scopedTo(
+  tenantId: string,
+  /** Readers share one guard per request; writes always run their own. */
+  shareGuard = false,
+): Promise<{ ok: true; scope: Scope } | { ok: false; error: string }> {
+  const staff = shareGuard ? await requireWorkspaceStaffActionOnce() : await requireWorkspaceStaffAction();
   if (!staff.ok) return { ok: false, error: staff.error };
   if (staff.tenantId !== tenantId) {
     return { ok: false, error: "Not authorized for this workspace." };
@@ -127,7 +129,7 @@ async function scopedTo(tenantId: string): Promise<
  */
 export async function loadAppointments(tenantId: string): Promise<AppointmentsResult> {
   try {
-    const scoped = await scopedTo(tenantId);
+    const scoped = await scopedTo(tenantId, true);
     if (!scoped.ok) return { ok: false, error: scoped.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Service unavailable." };
@@ -136,13 +138,15 @@ export async function loadAppointments(tenantId: string): Promise<AppointmentsRe
     const from = new Date(now.getTime() - LOOKBACK_DAYS * 86_400_000).toISOString();
     const to = new Date(now.getTime() + HORIZON_DAYS * 86_400_000).toISOString();
 
-    const { timezone: tenantZone } = await resolveTenantTimezone(tenantId);
+    // Started now, awaited with the bookings: one round of trips, not two.
+    const zonePromise = resolveTenantTimezone(tenantId);
 
     // Dated bookings in the window, plus the undated ones, which have no
     // `starts_at` to filter on and would otherwise never appear at all.
     const columns =
       "id, title, status, starts_at, ends_at, timezone, contact_name, client_account_name, source_inquiry_id, order_id";
-    const [dated, undated] = await Promise.all([
+    const [{ timezone: tenantZone }, dated, undated] = await Promise.all([
+      zonePromise,
       admin
         .from("agency_bookings")
         .select(columns)
@@ -199,16 +203,18 @@ export async function loadAppointments(tenantId: string): Promise<AppointmentsRe
     const todayYmd = utcToZonedYmd(now, tenantZone) ?? now.toISOString().slice(0, 10);
     if (bookings.length === 0) return { ok: true, rows: [], timeZone: tenantZone, todayYmd };
 
-    const servedBy = await servingNamesByInquiry(
-      admin,
-      tenantId,
-      bookings.map((b) => b.source_inquiry_id).filter((id): id is string => Boolean(id)),
-    );
-    const places = await placeNamesByOrder(
-      admin,
-      tenantId,
-      bookings.map((b) => b.order_id).filter((id): id is string => Boolean(id)),
-    );
+    const [servedBy, places] = await Promise.all([
+      servingNamesByInquiry(
+        admin,
+        tenantId,
+        bookings.map((b) => b.source_inquiry_id).filter((id): id is string => Boolean(id)),
+      ),
+      placeNamesByOrder(
+        admin,
+        tenantId,
+        bookings.map((b) => b.order_id).filter((id): id is string => Boolean(id)),
+      ),
+    ]);
 
     const rows: AppointmentRow[] = bookings.map((b) => {
       const zone = b.timezone && b.timezone.trim() ? b.timezone.trim() : tenantZone;
@@ -342,7 +348,7 @@ export async function loadSessionWaitlists(
   alwaysInclude: string | null = null,
 ): Promise<WaitlistResult> {
   try {
-    const scoped = await scopedTo(tenantId);
+    const scoped = await scopedTo(tenantId, true);
     if (!scoped.ok) return { ok: false, error: scoped.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Service unavailable." };
@@ -552,20 +558,21 @@ export async function loadBookingHoursProposals(
   tenantId: string,
 ): Promise<BookingHoursProposalsResult> {
   try {
-    const scoped = await scopedTo(tenantId);
+    const scoped = await scopedTo(tenantId, true);
     if (!scoped.ok) return { ok: false, error: scoped.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Service unavailable." };
 
-    const { timezone: defaultTimezone } = await resolveTenantTimezone(tenantId);
-
-    const { data, error } = await admin
-      .from("talent_booking_hours_proposals")
-      .select("talent_profile_id, timezone, source, proposed_at")
-      .eq("tenant_id", tenantId)
-      .eq("status", "proposed")
-      .order("proposed_at", { ascending: true })
-      .limit(50);
+    const [{ timezone: defaultTimezone }, { data, error }] = await Promise.all([
+      resolveTenantTimezone(tenantId),
+      admin
+        .from("talent_booking_hours_proposals")
+        .select("talent_profile_id, timezone, source, proposed_at")
+        .eq("tenant_id", tenantId)
+        .eq("status", "proposed")
+        .order("proposed_at", { ascending: true })
+        .limit(50),
+    ]);
     if (error) {
       logServerError("scheduling.loadBookingHoursProposals", error);
       return { ok: false, error: "Could not load the proposed hours." };

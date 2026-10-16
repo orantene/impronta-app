@@ -68,6 +68,11 @@ export function computeOrphans({ extraCovered = [] } = {}) {
   const texts = [];
   const scripts = JSON.parse(readFileSync(join(WEB, "package.json"), "utf8")).scripts ?? {};
   texts.push(...Object.values(scripts));
+  // Lane list files (scripts/lanes/*.txt, one path per line; TUL-609) cover what they name.
+  const lanesDir = join(WEB, "scripts", "lanes");
+  if (existsSync(lanesDir)) {
+    for (const f of readdirSync(lanesDir)) if (f.endsWith(".txt")) texts.push(readFileSync(join(lanesDir, f), "utf8"));
+  }
   const wfDir = join(REPO, ".github", "workflows");
   if (existsSync(wfDir)) {
     for (const f of readdirSync(wfDir)) {

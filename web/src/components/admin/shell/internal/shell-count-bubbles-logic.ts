@@ -13,7 +13,7 @@ const ORDER: readonly ShellBubbleKind[] = ["messages", "money", "attention"];
 
 /** Brand fills — coral / forest / slate via admin tokens (no gold or rust). */
 export const SHELL_BUBBLE_FILL_CLASS: Record<ShellBubbleKind, string> = {
-  messages: "bg-admin-coral text-white border-white",
+  messages: "bg-admin-coral-deep text-white border-white",
   money: "bg-admin-green text-white border-white",
   attention: "bg-admin-amber text-white border-white",
 };
@@ -124,4 +124,29 @@ export function shellAttentionTooltip(
 ): string {
   if (count === 1) return t("1 conversation awaits your reply");
   return t("{n} conversations await your reply").replace("{n}", String(count));
+}
+
+export type ShellBubbleClickTarget =
+  | { type: "page"; page: "messages" }
+  | {
+      type: "drawer";
+      drawerId: "notifications" | "talent-notifications";
+      payload: { category: ShellBubbleKind };
+    };
+
+/**
+ * TUL-718: the Messages bubble is labelled "Mensajes" like the sidebar row, so
+ * it must go where that row goes (the messages page). Only money and
+ * attention open the notification center, filtered by category.
+ */
+export function shellBubbleClickTarget(
+  kind: ShellBubbleKind,
+  surface: "workspace" | "talent",
+): ShellBubbleClickTarget {
+  if (kind === "messages") return { type: "page", page: "messages" };
+  return {
+    type: "drawer",
+    drawerId: surface === "workspace" ? "notifications" : "talent-notifications",
+    payload: { category: kind },
+  };
 }

@@ -42,6 +42,7 @@ export function EditorialSplitHeroComponent({
   tenantId,
   publicPathPrefix = "",
   builderNodeBindings,
+  aboveFold = false,
 }: SectionComponentProps<EditorialSplitHeroV1>) {
   const {
     eyebrow,
@@ -303,6 +304,7 @@ export function EditorialSplitHeroComponent({
               </div>
             ) : (
               <MediaFrame
+                eager={aboveFold}
                 src={resolvedMedia}
                 alt={mediaAlt ?? headline ?? ""}
                 ratio={mediaRatio ?? "4/3"}

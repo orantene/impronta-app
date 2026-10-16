@@ -43,3 +43,8 @@ test("TUL-131: the Spanish draft uses the taxonomy es name, English stays as typ
   assert.ok(draftBio(facts, "en").startsWith("I'm Rosa, a house cleaner in Playa del Carmen."));
   assert.ok(draftBio({ ...facts, disciplineEs: null }, "es").startsWith("Soy Rosa, house cleaner"));
 });
+
+test("TUL-858: the English draft uses the term's English name, not the Spanish words as typed", () => {
+  const facts = { name: "QA", discipline: "limpieza profunda", disciplineEn: "Deep Cleaning Specialist", city: "Playa del Carmen", services: [], yearsExperience: null };
+  assert.ok(draftBio(facts, "en").startsWith("I'm QA, a deep cleaning specialist in Playa del Carmen."));
+});

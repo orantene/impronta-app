@@ -17,9 +17,10 @@
  *
  * WHY $10 AND $20 ARE THE HEADLINE AND $5 IS NOT.
  * The $5 row is the most dramatic and it is deliberately not the pitch. Our
- * own cost on a typical Riviera Maya transaction is 5.4% plus $0.30, so on a
- * $5 ticket we take $0.30 and pay $0.57: we lose money on every ticket under
- * about $50. Leading with the row where we look best would advertise hardest
+ * own card cost on a typical Riviera Maya transaction is higher than the base
+ * card rate (the exact figure is unverified and must not be quoted), so on a
+ * $5 ticket we take $0.30 and the card cost can exceed it: we can lose money on
+ * small tickets. Leading with the row where we look best would advertise hardest
  * into the segment that costs us most, and if it worked we would buy volume
  * that loses money on every transaction. So the row stays in the table as
  * evidence, and the copy leads on $10 to $20, which is the realistic
@@ -33,7 +34,7 @@
 /** Eventbrite, US, paid tickets. Read from their pricing page 4 Sep 2026. */
 const EB_SERVICE_RATE = 0.037;
 const EB_SERVICE_FLAT = 1.79;
-const EB_PROCESSING_RATE = 0.029;
+const EB_PROCESSING_RATE = 0.029; // fee-config-ok: Eventbrite's published rate, not ours
 
 /**
  * Ours: one rate, every plan, card processing inside it.
@@ -100,7 +101,19 @@ export function ticketFeeRows(tulalaRate: number = TULALA_RATE_FALLBACK): FeeRow
 /** Their published terms, rendered so a reader can check our arithmetic. */
 export const EVENTBRITE_TERMS = {
   checkedOn: "4 September 2026",
+  checkedOnIso: "2026-09-04",
   sourceUrl: "https://www.eventbrite.com/organizer/pricing/",
+  // fee-config-ok: Eventbrite published terms (competitor), not our rate
   en: "3.7% plus $1.79 per paid ticket, plus 2.9% payment processing per order. Their page states ticket fees are paid by buyers by default, and an organiser may choose to absorb them instead.",
+  // fee-config-ok: Eventbrite published terms (competitor), not our rate
   es: "3.7% más $1.79 por boleto pagado, más 2.9% de procesamiento por orden. Su página dice que las cuotas las paga el comprador por defecto, y que el organizador puede elegir absorberlas.",
 } as const;
+
+/** The "checked on" date in the page language, so Spanish never prints "4 September". */
+export function formatCheckedOn(locale: string): string {
+  const es = locale.toLowerCase().startsWith("es");
+  return new Date(`${EVENTBRITE_TERMS.checkedOnIso}T12:00:00Z`).toLocaleDateString(
+    es ? "es-MX" : "en-GB",
+    { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" },
+  );
+}

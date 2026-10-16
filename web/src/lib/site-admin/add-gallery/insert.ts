@@ -17,7 +17,7 @@ import {
   BACKGROUND_VARIANT_STYLES,
 } from "./registry-catalog-backgrounds";
 import { buildAddGallerySectionTemplate } from "./section-templates";
-import type { TemplateCopyContext } from "./section-template-copy";
+import { localizeSectionTemplate, type TemplateCopyContext } from "./section-template-copy";
 import type { AddGalleryInsertMethod, AddGalleryItem, AddGalleryNativeVariant } from "./types";
 
 const FORBIDDEN_INSERT_METHODS: ReadonlySet<AddGalleryInsertMethod> = new Set([
@@ -583,7 +583,7 @@ export function resolveAddGalleryInsertAction(
     case "nativeNode":
       return {
         type: "nativeNode",
-        node: applyItemOverlayAtInsert(createNativeNodeForGalleryItem(item), item),
+        node: localizeSectionTemplate(applyItemOverlayAtInsert(createNativeNodeForGalleryItem(item), item), copy),
       };
     case "sectionTemplate": {
       const templateId = item.sectionTemplateId;

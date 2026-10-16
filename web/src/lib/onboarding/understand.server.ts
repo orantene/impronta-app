@@ -36,7 +36,15 @@ import type { OnboardingIntent, OnboardingPath } from "./module-state";
 import { proposeTypeChip } from "./type-chip.server";
 import type { TypeChipProposal } from "./type-chip";
 import { buildUnderstanding, type Understanding } from "./understanding";
+import {
+  EXTRACTION_ATTEMPT_TIMEOUT_MS,
+  EXTRACTION_RETRY_BACKOFF_MS,
+  planExtractionAttempts,
+  RETRYABLE_EXTRACTION_CODES,
+  sleep,
+} from "./understand-budget";
 import { aiProblemLogLine, classifyExtraction, classifyProviderState, type UnderstandAiProblem } from "./understand-outcome";
+import { afterResponse } from "@/lib/server/after-response";
 
 const AI_PROBLEM_MESSAGE = "We could not read your description right now. Please try again in a moment.";
 
@@ -65,8 +73,14 @@ export async function understandingFor(input: {
   brief: Brief;
   intent: OnboardingIntent;
   userPath: OnboardingPath | null;
+  locale?: "en" | "es";
 }): Promise<{ understanding: Understanding; chip: TypeChipProposal | null }> {
-  const understanding = buildUnderstanding({ brief: input.brief, intent: input.intent, userPath: input.userPath });
+  const understanding = buildUnderstanding({
+    brief: input.brief,
+    intent: input.intent,
+    userPath: input.userPath,
+    locale: input.locale,
+  });
   const chip = understanding.typeChip
     ? await proposeTypeChip({
         kind: understanding.path === "talent" ? "talent" : "business",
@@ -92,7 +106,12 @@ export async function understandBrief(input: {
   if (providerState === "ai_not_configured") return reportAiProblem("ai_not_configured", await getResolvedAiChatKind());
   if (providerState === "degrade") {
     // Honest degradation: nothing read, everything asked by the short form.
-    const { understanding, chip } = await understandingFor({ brief: input.brief, intent: input.intent, userPath: input.userPath });
+    const { understanding, chip } = await understandingFor({
+      brief: input.brief,
+      intent: input.intent,
+      userPath: input.userPath,
+      locale: input.locale,
+    });
     return { ok: true, understanding, chip, learned: [], brief: input.brief };
   }
 
@@ -125,14 +144,16 @@ export async function understandBrief(input: {
       const text = (input.text ?? "").trim();
       if (text.length > MAX_USER_MESSAGE_CHARS) return { ok: false, code: "too_long", message: "Keep it shorter." };
       // Routed per call (Operations → AI routing); Haiku 4.5 by the bake-off.
-      // One provider error must not cost the person their signup: retry
-      // once on the same provider, then once on the other one when it has a
-      // key. Every attempt writes a usage row (cost, latency, ok).
+      // One provider error must not cost the person their signup, but the
+      // reading screen must not wait forever either (TUL-541): each call is
+      // aborted at its own clock, and a failure gets ONE retry after a short
+      // backoff (the other provider when it has a key). Every attempt writes
+      // a usage row (cost, latency, ok).
       const first = await resolveRoutedChat("extraction");
-      const attempts: Array<{ chat: typeof first; attempt: string }> = [{ chat: first, attempt: "first" }, { chat: first, attempt: "retry" }];
       const failover = await resolveFailoverChat("extraction", first.adapter.id);
-      if (failover) attempts.push({ chat: failover, attempt: "failover" });
-      for (const { chat, attempt } of attempts) {
+      const attempts = planExtractionAttempts(first, failover);
+      for (const [i, { chat, attempt }] of attempts.entries()) {
+        if (i > 0) await sleep(EXTRACTION_RETRY_BACKOFF_MS);
         let outcome: ExtractionOutcome | null = null;
         const t0 = Date.now();
         learned = await extractAndRecord({
@@ -142,12 +163,13 @@ export async function understandBrief(input: {
           question: null,
           pack: packForBrief(input.brief),
           locale: input.locale,
+          timeoutMs: EXTRACTION_ATTEMPT_TIMEOUT_MS,
           report: (o) => {
             outcome = o;
           },
         });
         const o = outcome as ExtractionOutcome | null;
-        void recordAiGenerationUsage({
+        afterResponse(() => recordAiGenerationUsage({
           provider: chat.adapter.id,
           model: o?.model ?? chat.model ?? "auto",
           usage: o?.usage,
@@ -157,11 +179,11 @@ export async function understandBrief(input: {
           latencyMs: Date.now() - t0,
           tenantId: null,
           context: { brief_id: input.brief.id, attempt, error: o?.ok ? null : (o?.code ?? "unknown"), facts: learned.length },
-        }).catch((err) => logServerError("onboarding.understand.usage", err));
+        }).catch((err) => logServerError("onboarding.understand.usage", err)));
         const problem = classifyExtraction(o);
         aiProblem = problem ? { kind: problem, provider: String(chat.adapter.id) } : null;
         if (o?.ok) break;
-        if (o && !["api_error", "quota", "timeout", "empty_response"].includes(o.code ?? "")) break;
+        if (o && !RETRYABLE_EXTRACTION_CODES.includes(o.code ?? "")) break;
       }
       await recordAiUsageEstimate();
     }
@@ -178,6 +200,11 @@ export async function understandBrief(input: {
   // Re-read: recordFacts applies precedence, so a proposal may have lost to an
   // existing confirmed fact. The card must describe the brief, not the model.
   const refreshed = (await loadBrief(input.owner)) ?? input.brief;
-  const { understanding, chip } = await understandingFor({ brief: refreshed, intent: input.intent, userPath: input.userPath });
+  const { understanding, chip } = await understandingFor({
+    brief: refreshed,
+    intent: input.intent,
+    userPath: input.userPath,
+    locale: input.locale,
+  });
   return { ok: true, understanding, chip, learned, brief: refreshed };
 }

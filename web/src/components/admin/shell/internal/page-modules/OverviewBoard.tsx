@@ -36,6 +36,7 @@ import type {
   TodayBadge,
   TodayRow,
 } from "@/lib/overview/model";
+import { greetingHour, venueZoneOrNull } from "@/lib/overview/greeting-hour";
 import { setupProgress } from "@/lib/overview/model";
 import { useDashboardText } from "../dashboard-i18n";
 import { Icon } from "../primitives";
@@ -124,21 +125,32 @@ export function OverviewBoard() {
       personName: bridgeSessionIdentity?.displayName,
       businessName: bridgeTenantIdentity?.displayName,
     }) ?? t("dashboard.adminOverview.greetingFallbackName");
-  const now = snapshot ? new Date(snapshot.nowIso) : new Date();
+  // TUL-1152: with no snapshot (the server render and the first client render,
+  // `readServer` is null) nothing here may read the runtime clock: the server
+  // runs in UTC and the browser in its own zone, so a `new Date()` date or
+  // greeting hour differs between the two and hydration throws #418. The
+  // date and the time-of-day greeting wait for the snapshot, which carries
+  // the server's `nowIso` and the venue time zone.
   const locale = t("dashboard.adminOverview.dateLocale");
-  // The kit's day-first date, "Thu 17 Sep" (MW02 / the Overview board), in
-  // every locale: the parts are reordered rather than trusting the locale's.
-  const dateParts = new Intl.DateTimeFormat(locale, {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    ...(snapshot ? { timeZone: snapshot.timeZone } : {}),
-  }).formatToParts(now);
-  const datePart = (type: string) => dateParts.find((p) => p.type === type)?.value ?? "";
-  const dateLabel = `${datePart("weekday")} ${datePart("day")} ${datePart("month")}`.replace(/\.\s/g, " ").trim();
-  const greeting = interpolate(t(greetingKey(now.getHours())), {
-    name: greetingName,
-  });
+  let dateLabel = "";
+  let greeting = interpolate(t("dashboard.adminOverview.greetingNeutral"), { name: greetingName });
+  if (snapshot) {
+    const now = new Date(snapshot.nowIso);
+    // TUL-734: a workspace that never picked a venue zone snapshots as "UTC";
+    // treat that as unset so the viewer's own clock is used.
+    const venueZone = venueZoneOrNull(snapshot.timeZone);
+    // The kit's day-first date, "Thu 17 Sep" (MW02 / the Overview board), in
+    // every locale: the parts are reordered rather than trusting the locale's.
+    const dateParts = new Intl.DateTimeFormat(locale, {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      ...(venueZone ? { timeZone: venueZone } : {}),
+    }).formatToParts(now);
+    const datePart = (type: string) => dateParts.find((p) => p.type === type)?.value ?? "";
+    dateLabel = `${datePart("weekday")} ${datePart("day")} ${datePart("month")}`.replace(/\.\s/g, " ").trim();
+    greeting = interpolate(t(greetingKey(greetingHour(now, venueZone))), { name: greetingName });
+  }
 
   // TUL-525: Open POS only for counter-shaped industries (not salon / clinic).
   const counterOps = industryCounterOps(bridgeTenantIdentity?.industryPreset);
@@ -157,7 +169,7 @@ export function OverviewBoard() {
         interpolate(t(`${K}.header.arrivalsToday`), { count: snapshot.arrivals.expected }),
         interpolate(t(needCount === 1 ? `${K}.header.needYouOne` : `${K}.header.needYouOther`), { count: needCount }),
       ].join(" · ")
-    : `${dateLabel} · ${t(`${K}.loading`)}`;
+    : t(`${K}.loading`);
 
   return (
     // The board is one screen (Main: `overflow:hidden` on the page column):
@@ -570,7 +582,7 @@ function SetupReadiness({
         </div>
         {missingAll.length > 3 ? (
           <button type="button" onClick={onFinish} className={`${BUTTON_BASE} h-[30px] px-[14px] text-[12px] ${TONE_SECONDARY}`}>
-            {t(`${K}.setup.seeAll`)}
+            {interpolate(t(`${K}.setup.seeAllCount`), { count: missingAll.length })}
           </button>
         ) : null}
       </div>

@@ -5,6 +5,7 @@
 // signals. The drawer lists every workspace and hub the user belongs to.
 
 import { loadPlatformUsers } from "../../platform-data";
+import { summarizePeople } from "@/lib/platform/people-counts";
 import { UsersClient } from "./UsersClient";
 import { HQ, HQ_F, HQ_FD } from "../tenants/hq-kit";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -22,11 +23,8 @@ export default async function PlatformUsersPage({
   const locale = await getRequestLocale();
   const t = createTranslator(locale);
 
-  const talentCount = users.filter((u) => u.appRole === "talent").length;
-  const clientCount = users.filter((u) => u.appRole === "client").length;
-  const staffCount = users.filter(
-    (u) => u.appRole === "super_admin" || u.appRole === "agency_staff" || u.appRole === "admin",
-  ).length;
+  // Same rule as the Today cards (test rows excluded), see people-counts.ts.
+  const counts = summarizePeople(users);
   const operatorCount = users.filter((u) => u.workspaceAdminCount > 0).length;
   // Only count actual humans with unconfirmed emails — unclaimed talents have
   // emailConfirmed=null (not a real "unconfirmed" state) so exclude them.
@@ -60,10 +58,10 @@ export default async function PlatformUsersPage({
           }}
         >
           {interpolate(t("dashboard.platform.users.page.summary"), {
-            total: users.length,
-            talent: talentCount,
-            client: clientCount,
-            staff: staffCount,
+            total: counts.accounts,
+            talent: counts.talentProfiles,
+            client: counts.clients,
+            staff: counts.staff,
             operators: interpolate(
               t(
                 operatorCount === 1

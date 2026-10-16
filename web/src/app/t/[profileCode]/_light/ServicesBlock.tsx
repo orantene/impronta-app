@@ -87,10 +87,10 @@ export function ServicesBlock({
               ] ?? null;
             const kindLabel =
               area.service_kind === "home_base"
-                ? "Based in"
+                ? pickLocale(locale, { en: "Based in", es: "Con base en" })
                 : area.service_kind === "remote_only"
-                ? "Remote"
-                : "Travels to";
+                ? pickLocale(locale, { en: "Remote", es: "Remoto" })
+                : pickLocale(locale, { en: "Travels to", es: "Viaja a" });
             const label = locationName ? `${kindLabel}: ${locationName}` : kindLabel;
             return (
               <span
@@ -108,7 +108,7 @@ export function ServicesBlock({
                     className="plt-mono ml-1.5 text-[0.625rem] uppercase tracking-[0.1em]"
                     style={{ color: "var(--plt-muted-soft)" }}
                   >
-                    · fee
+                    · {pickLocale(locale, { en: "fee", es: "con costo" })}
                   </span>
                 ) : null}
               </span>

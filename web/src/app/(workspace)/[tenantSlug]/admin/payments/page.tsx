@@ -29,7 +29,7 @@ import { userHasCapability } from "@/lib/access";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
-import { formatOrderMoney } from "@/lib/orders/money-format";
+import { formatDashboardMoneyCents as formatOrderMoney } from "@/lib/money/dashboard-money-format";
 import { ActionButton } from "@/components/admin/shell/internal/page-modules/appointments-classes-ui";
 import { Icon } from "@/components/admin/shell/internal/primitives";
 import { loadPaymentsBoard } from "../../_data-bridge/payments-board";

@@ -13,6 +13,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { supportFrom } from "@/lib/support/support-from";
 import { loadHqInsightsDashboard } from "@/lib/support/insights/load";
+import { afterResponse } from "@/lib/server/after-response";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -108,7 +109,7 @@ export async function GET(request: Request) {
           suggestedFixes = parsed.suggestedFixes.map((s) => String(s).slice(0, 160)).slice(0, 5);
           aiUsed = true;
         }
-        if (aiUsed) void recordAiUsageEstimate(DEFAULT_AI_TENANT_ID);
+        if (aiUsed) afterResponse(() => recordAiUsageEstimate(DEFAULT_AI_TENANT_ID));
         else logServerError("cron/support-weekly-digest", "model output unusable; sent fallback copy");
       } else if (!completion) {
         logServerError("cron/support-weekly-digest", `model timed out after ${TIMEOUT_MS}ms`);
