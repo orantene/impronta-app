@@ -166,3 +166,13 @@ test("admin storefront cards do not synthesize slug.tulala.digital", () => {
     );
   }
 });
+
+test("TUL-1188: path address honours a non-production pathOrigin (isolated stack stays on its host)", async () => {
+  const { workspaceLiveUrl: live } = await import("@/lib/saas/workspace-live-url");
+  assert.equal(
+    live({ slug: "acme", planTier: "free", domains: null, pathOrigin: "http://localhost:3001" }),
+    "http://localhost:3001/w/acme",
+  );
+  // default stays production
+  assert.equal(live({ slug: "acme", planTier: "free", domains: null }), "https://tulala.digital/w/acme");
+});

@@ -47,6 +47,7 @@ export async function resolveWorkspaceSiteEditorUrl(
       ? workspaceLiveUrl({
           slug,
           planTier,
+          pathOrigin: resolveMarketingOrigin(),
           domains: {
             subdomains: rows
               .filter((r) => r.kind === "subdomain")
