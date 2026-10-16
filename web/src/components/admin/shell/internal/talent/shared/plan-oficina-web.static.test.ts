@@ -33,3 +33,10 @@ test("client denial copy uses Oficina Web in Spanish", () => {
   assert.match(DENIED, /parte de Oficina Web/);
   assert.doesNotMatch(DENIED, /parte de Web Office/);
 });
+
+test("TUL-529: the Spanish messages never say \"Web Office\" (the ES product name is Oficina Web), Posts included", () => {
+  const es = readFileSync(join(process.cwd(), "messages/es.json"), "utf8");
+  const offenders = es.split("\n").map((line, i) => ({ line, n: i + 1 })).filter((r) => /Web Office/.test(r.line));
+  assert.deepEqual(offenders.map((r) => `messages/es.json:${r.n}`), []);
+  assert.match(es, /"upgradeTitle": "Publica con Oficina Web"/);
+});

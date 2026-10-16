@@ -29,7 +29,7 @@ const FONT = '"Inter", system-ui, sans-serif';
 const C = {
   ink: "#0B0B0D",
   inkMuted: "rgba(11,11,13,0.62)",
-  inkDim: "rgba(11,11,13,0.38)",
+  inkDim: "rgba(11,11,13,0.6)",
   border: "rgba(11,11,13,0.10)",
   borderSoft: "rgba(11,11,13,0.06)",
   surface: "#FCFBF7",

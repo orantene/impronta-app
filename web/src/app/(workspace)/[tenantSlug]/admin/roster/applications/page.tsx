@@ -64,7 +64,7 @@ export default async function AdminRosterApplicationsPage({ params }: { params: 
         <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: "#0B0B0D", lineHeight: 1.1 }}>
           Roster · Applications
         </h1>
-        <p style={{ margin: 0, fontSize: 13, color: "rgba(11,11,13,0.55)" }}>
+        <p style={{ margin: 0, fontSize: 13, color: "rgba(11,11,13,0.6)" }}>
           Talent who applied to join your roster. Approve to add — you&apos;ll
           still go through the standard Invite step in the Roster tab so the
           roster row is created with the right contract terms.

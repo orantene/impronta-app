@@ -12,7 +12,7 @@ import { type CSSProperties, type ReactNode } from "react";
 import { useInspectorSearchFilter } from "./inspector-search";
 
 import { CHROME, CHROME_RADII, CHROME_SHADOWS } from "../../kit/tokens";
-import { useEditContext } from "../../edit-context";
+import { useEditContext } from "../../edit-context-core";
 import {
   baseBreakpointId,
   breakpointLabelForDevice,

@@ -9,10 +9,11 @@ test("sitemap url is site + /sitemap.xml with no double slash", () => {
   assert.equal(g.sitemapUrl, "https://tulala.digital/t/TAL-1/sitemap.xml");
 });
 
-test("tulala hosts use the HTML tag method and say it is not self-serve yet", () => {
+test("tulala hosts use the HTML tag method, now self-serve (TUL-1021 field)", () => {
   const g = buildGscGuide({ siteUrl: "https://ana.tulala.digital" }, "en");
   assert.equal(g.mode, "tulala");
-  assert.equal(g.tagSupported, false);
+  assert.equal(g.tagSupported, true);
+  assert.ok(!g.steps.some((s) => /not self-serve|aún no es autoservicio/.test(s.hint)));
   assert.ok(g.steps.some((s) => /HTML tag/i.test(s.title)));
   assert.ok(!g.steps.some((s) => /TXT/.test(s.title)));
 });
