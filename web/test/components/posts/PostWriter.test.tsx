@@ -165,7 +165,7 @@ describe("PostWriter", () => {
     expect(sent.draft?.bodyBlocks).toEqual([expect.objectContaining({ text: "Contenido" })]);
 
     expect(screen.getByTestId("post-upgrade-sheet")).toBeInTheDocument();
-    expect(screen.getByRole("dialog")).toHaveTextContent("Publica con Web Office");
+    expect(screen.getByRole("dialog")).toHaveTextContent("Publica con Oficina Web");
     // The draft is still on screen and counted as saved: nothing was lost.
     expect(screen.getByLabelText("Título")).toHaveValue("Mi primer post");
     expect(screen.getByPlaceholderText("Escribe aquí...")).toHaveValue("Contenido");
