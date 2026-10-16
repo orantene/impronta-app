@@ -75,3 +75,4 @@ src/lib/i18n/place-names-es.test.ts
 src/components/talent/services/offering-editor-leave.test.ts
 src/components/admin/shell/internal/talent/agenda/today-row-name-wrap.static.test.ts
 src/lib/workspace/agency-upsell.test.ts
+src/lib/quality/projects-loading-skeleton.static.test.ts
