@@ -2254,14 +2254,14 @@ export const TALENT_TIER_META: Record<
   pro: {
     label: "Pro",
     tagline: "Get seen, keep more",
-    monthlyPrice: "$9 / mo",
+    monthlyPrice: "$9 USD / mo",
     blurb: "Template choices, video + social embeds, press band, media kit, priority discovery, and a lower Tulala fee on direct bookings.",
     accent: "gold",
   },
   max: {
     label: "Web Office",
     tagline: "Your own brand",
-    monthlyPrice: "$15 / mo",
+    monthlyPrice: "$15 USD / mo",
     blurb: "Template choices, video + social embeds, press band, media kit, priority discovery, a multi-section page builder, custom domain, SEO controls, branded invoices, full analytics, and the lowest fee on direct bookings.",
     accent: "deep",
   },
