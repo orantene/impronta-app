@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getMarketingSupportCopy, TULALA_SUPPORT_OPEN_EVENT } from "@/lib/marketing/support-copy";
+import { consumePendingSupportOpen, getMarketingSupportCopy, TULALA_SUPPORT_OPEN_EVENT } from "@/lib/marketing/support-copy";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 import { MarketingSupportPanel } from "./MarketingSupportPanel";
@@ -27,9 +27,17 @@ export function MarketingSupportLauncher({
     const onOpen = (e: Event) => {
       const detail = (e as CustomEvent<{ ticketId?: string }>).detail;
       if (detail?.ticketId) setResumeTicketId(detail.ticketId);
+      consumePendingSupportOpen();
       setOpen(true);
       trackProductEvent(PRODUCT_ANALYTICS_EVENTS.marketing_support_opened, { locale, origin: originSlug });
     };
+    // A CTA clicked before this listener attached left a pending request.
+    const pending = consumePendingSupportOpen();
+    if (pending) {
+      if (pending.ticketId) setResumeTicketId(pending.ticketId);
+      setOpen(true);
+      trackProductEvent(PRODUCT_ANALYTICS_EVENTS.marketing_support_opened, { locale, origin: originSlug });
+    }
     window.addEventListener(TULALA_SUPPORT_OPEN_EVENT, onOpen);
     return () => window.removeEventListener(TULALA_SUPPORT_OPEN_EVENT, onOpen);
   }, [locale, originSlug]);

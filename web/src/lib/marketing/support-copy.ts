@@ -122,7 +122,24 @@ export function getMarketingSupportCopy(locale: string): MarketingSupportCopy {
 
 export const TULALA_SUPPORT_OPEN_EVENT = "tulala:support:open";
 
+type PendingSupportOpen = { ticketId?: string };
+const PENDING_KEY = "__tulalaSupportOpenPending";
+
+/**
+ * Remembers the request before dispatching: the launcher is a streamed async
+ * server mount and may attach its listener after the CTA hydrated, in which
+ * case a bare event is lost (TUL-617). The launcher consumes the request on mount.
+ */
 export function openMarketingSupport(ticketId?: string): void {
   if (typeof window === "undefined") return;
+  (window as unknown as Record<string, unknown>)[PENDING_KEY] = { ticketId } satisfies PendingSupportOpen;
   window.dispatchEvent(new CustomEvent(TULALA_SUPPORT_OPEN_EVENT, { detail: { ticketId } }));
+}
+
+export function consumePendingSupportOpen(): PendingSupportOpen | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as Record<string, PendingSupportOpen | undefined>;
+  const pending = w[PENDING_KEY] ?? null;
+  delete w[PENDING_KEY];
+  return pending;
 }
