@@ -8,6 +8,7 @@ export const READ = "pure loader: reads only, no write path, nothing for read-on
 export type AllowEntry = [suffix: string, names: string[], reason: string];
 
 export const EXTRA_ALLOW: AllowEntry[] = [
+  ["lib/scheduling/appointments-surface-action.ts", ["loadAppointmentsSurface"], READ],
   ["lib/promos/actions.ts", ["loadPromosPage", "getPromoAttention", "loadPromoBookings"], READ],
   ["lib/promos/booking-quote.actions.ts", ["previewBookingQuoteAction"], "public client price preview: reads only, holds nothing, no talent session"],
   ["lib/promos/callouts/dismissals.actions.ts", ["loadCalloutState"], READ],
