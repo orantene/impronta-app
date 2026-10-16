@@ -129,7 +129,7 @@ export function EarningsTile({
       {/* Header row */}
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
         <div className="flex-1">
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: FONTS.body, marginBottom: 4 }} className="text-admin-ink-dim">
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: FONTS.body, marginBottom: 4 }} className="text-admin-ink-muted">
             {copy.t("Earnings")}
             {/* Trend bullet — green = above 6-mo avg, amber = below. Demo only:
                 hidden in real mode (we don't fabricate a trend). */}

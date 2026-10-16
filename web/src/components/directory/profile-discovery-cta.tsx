@@ -14,6 +14,16 @@ import { agencyContactHref } from "@/lib/directory/agency-contact-href";
 import type { HostKind } from "@/lib/saas/host-kinds";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 
+/*
+ * TUL-1084: the text colours below are the light-profile tokens (`--plt-*`), not
+ * `--impronta-*`. The hub profile is a light page, but its <body> carries
+ * `site-theme-dark`, so `--impronta-muted` resolved to the dark-scope #a1a1aa
+ * (2.0 to 2.6:1 on white and sand) and `--impronta-foreground` to near-white on
+ * hover. This band renders only in the Light and Atelier profile layouts (Noir
+ * does not mount it), so a light-only token is correct here. The gold Save
+ * button keeps `--impronta-gold` / `--impronta-gold-ink` (7.8:1), which the
+ * light scope would have turned into white on #96731a (4.4:1).
+ */
 export function ProfileDiscoveryCta({
   talentId,
   profileCode,
@@ -80,7 +90,7 @@ export function ProfileDiscoveryCta({
           inquiry={inquiry}
           portalInquiryHref={portalInquiryHref}
           label={profileCta.openInquiryCart}
-          className="w-full border-[var(--impronta-gold-border)] text-[var(--impronta-muted)] hover:text-[var(--impronta-foreground)]"
+          className="w-full border-[var(--impronta-gold-border)] text-[var(--plt-muted)] hover:text-[var(--plt-ink)]"
         />
       </>
     );
@@ -103,7 +113,7 @@ export function ProfileDiscoveryCta({
         asChild
         size="lg"
         variant="outline"
-        className="border-[var(--impronta-gold-border)] text-[var(--impronta-muted)] hover:text-[var(--impronta-foreground)]"
+        className="border-[var(--impronta-gold-border)] text-[var(--plt-muted)] hover:text-[var(--plt-ink)]"
       >
         <Link href={clientLocaleHref(pathname, "/directory")}>
           {profileCta.browseMoreTalent}
@@ -113,7 +123,7 @@ export function ProfileDiscoveryCta({
         asChild
         size="lg"
         variant="ghost"
-        className="gap-2 text-[var(--impronta-muted)] hover:text-[var(--impronta-foreground)]"
+        className="gap-2 text-[var(--plt-muted)] hover:text-[var(--plt-ink)]"
       >
         <Link href={agencyContactHref(pathname, { profileCode, hostKind })}>
           <Mail className="size-4" />

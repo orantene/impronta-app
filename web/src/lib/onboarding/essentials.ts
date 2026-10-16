@@ -81,10 +81,10 @@ export function emptyWeek(): WeeklyEssentialHours {
   return { "0": [], "1": [], "2": [], "3": [], "4": [], "5": [], "6": [] };
 }
 
-/** Mon-Sat 09:00-19:00 (the suggestion the notion ticket asks for). Sunday closed. */
+/** Mon-Fri 09:00-19:00 (TUL-992). Weekend closed: the owner opens a weekend day on purpose. */
 export function defaultWeeklyHours(): WeeklyEssentialHours {
   const w = emptyWeek();
-  for (const d of ["1", "2", "3", "4", "5", "6"] as const) w[d] = [{ startMin: 9 * 60, endMin: 19 * 60 }];
+  for (const d of ["1", "2", "3", "4", "5"] as const) w[d] = [{ startMin: 9 * 60, endMin: 19 * 60 }];
   return w;
 }
 

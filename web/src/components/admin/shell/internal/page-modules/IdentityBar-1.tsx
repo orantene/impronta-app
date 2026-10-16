@@ -344,7 +344,7 @@ export function TulalaIdentityBar() {
                   wordmarkHeight={24}
                   isSpanish={copy.isSpanish}
                   className="text-admin-ink pr-[4px]"
-                  descriptorOpacity={0.5}
+                  descriptorOpacity={0.6}
                 />
               );
             })()}

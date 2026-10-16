@@ -19,6 +19,25 @@ export type TalentTypeLabels = {
 
 export const NO_TALENT_TYPE_LABELS: TalentTypeLabels = { bySlug: {}, byEnglish: {} };
 
+/** Spanish connectors that stay lowercase inside a type name ("Chef de Cena Privada"). */
+const ES_CONNECTORS = new Set(["de", "del", "la", "las", "los", "el", "y", "e", "o", "u", "en", "con", "para", "a", "al", "por"]);
+
+/**
+ * Display-side casing for Spanish type names (TUL-738). `name_i18n.es` mixes
+ * "Modelo de moda" with "Modelos de Moda" and "Chef de Cena Privada", which shows
+ * when cards and chips sit side by side. Capitalize-only: each word starts
+ * uppercase, connectors after the first word stay lowercase, and nothing is
+ * ever lowercased, so acronyms and brands ("DJ", "3D", "Airbnb") survive. No
+ * data change.
+ */
+export function normalizeSpanishTypeName(name: string): string {
+  return name.replace(/[\p{L}\p{N}]+/gu, (token, offset: number) => {
+    if (offset > 0 && ES_CONNECTORS.has(token.toLowerCase())) return token.toLowerCase();
+    const first = token.charAt(0);
+    return first === first.toUpperCase() ? token : first.toUpperCase() + token.slice(1);
+  });
+}
+
 function langOf(locale: string | null | undefined): string {
   return (locale ?? "").trim().toLowerCase().slice(0, 2);
 }
@@ -39,8 +58,9 @@ export function buildTalentTypeLabels(
   const bySlug: Record<string, string> = {};
   const byEnglish: Record<string, string> = {};
   for (const row of rows) {
-    const local = row.name_i18n?.[lang]?.trim();
-    if (!local) continue;
+    const raw = row.name_i18n?.[lang]?.trim();
+    if (!raw) continue;
+    const local = lang === "es" ? normalizeSpanishTypeName(raw) : raw;
     const slug = row.slug?.trim();
     if (slug) bySlug[slug] = local;
     const en = row.name_i18n?.en?.trim();

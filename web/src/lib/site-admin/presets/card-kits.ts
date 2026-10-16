@@ -70,7 +70,8 @@ export const CARD_KITS: Record<CardKitSlug, CardKit> = {
       "card.surface": "#f4f1ea",
       "card.name-color": "#171717",
       "card.muted": "#6b6b6b",
-      "card.price-color": "#8a6d2f",
+      // TUL-1083: was #8a6d2f, 4.32:1 on the #f4f1ea paper ground.
+      "card.price-color": "#7a5f22",
     },
   },
   "editorial-bridal": {
@@ -95,7 +96,8 @@ export const CARD_KITS: Record<CardKitSlug, CardKit> = {
       "template.directory-card-family": "minimal-portrait",
       "card.surface": "#ffffff",
       "card.name-color": "#171717",
-      "card.muted": "#8a8a8a",
+      // TUL-1083: was #8a8a8a, 3.45:1 on white (axe color-contrast on /es/directory).
+      "card.muted": "#6b6b6b",
       "card.price-color": "#3f3f46",
     },
   },

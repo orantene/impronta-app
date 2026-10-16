@@ -93,7 +93,7 @@ type ArrivalInput = {
   /** Public site URL (no params) and the builder deep link, when a tenant exists. */
   site: { publicUrl: string; editorUrl: string; adminPath: string } | null;
   /** Talent page URL and the Today deep link, when a profile exists. */
-  talent: { publicUrl: string | null; todayUrl: string; /** Published own-site URL (TUL-32), when live. */ siteUrl?: string | null } | null;
+  talent: { publicUrl: string | null; todayUrl: string; /** The talent page builder: the "open the editor" door when no workspace exists (TUL-990). */ editorUrl?: string; /** Published own-site URL (TUL-32), when live. */ siteUrl?: string | null } | null;
   /** 1D: server-side check of the finish URL. Omitted = unchecked (legacy callers). */
   liveCheck?: { ok: boolean; reason?: string } | null;
   /** TUL-818: the publish write succeeded (talent_sites / agency site is published). */
@@ -110,7 +110,7 @@ type ArrivalInput = {
  */
 export function arrivalFromStamp(input: ArrivalInput): ArrivalPayload {
   const base = baseArrival(input);
-  const editorHref = input.site?.editorUrl ?? input.talent?.todayUrl;
+  const editorHref = input.site?.editorUrl ?? input.talent?.editorUrl ?? input.talent?.todayUrl;
   const panelHref = input.path === "talent" ? input.talent?.todayUrl : (input.site?.adminPath ?? input.talent?.todayUrl);
   const common = { editorHref, panelHref, firstService: input.firstService ?? null, urlDiffers: input.urlDiffers === true ? true : undefined };
   if (input.liveCheck && !input.liveCheck.ok) {
