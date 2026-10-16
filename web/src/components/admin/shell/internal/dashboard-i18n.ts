@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { BILLING_ES_TEXT } from "./dashboard-i18n-billing";
 import { LEFTOVERS_ES_TEXT } from "./dashboard-i18n-leftovers";
