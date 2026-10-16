@@ -17,6 +17,8 @@ const ROOTS = [
   join(SRC, "api", "client"),
   join(SRC, "(workspace)", "[tenantSlug]", "client"),
   join(SRC, "client"),
+  // TUL-611: the root-level /account area (client account, brief) is guarded the same way.
+  join(SRC, "account"),
 ];
 const CTX_HELPERS = /\b(clientPageReadCtx|effectiveReadContext|resolveClientApiRead)\(/;
 const ACTOR_ID = /\b(?:session\??\.user\??\.id|user\.id)\b/;
@@ -30,6 +32,13 @@ const TARGETS = /(?:^|\/)(?:page\.tsx|route\.ts)$/;
 const ACTOR_OWN_ALLOW = new Set([
   "src/app/api/client/account/route.ts",
   "src/app/api/client/booking-prefill/route.ts",
+  // /account: read the signed-in person's OWN id. The home page only routes by role
+  // (staff are redirected to their own area, never shown client data); the brief pages
+  // are the signed-in person's own discovery brief. Any NEW /account page reading the
+  // actor id must justify itself here or build a verified read context.
+  "src/app/account/page.tsx",
+  "src/app/account/brief/page.tsx",
+  "src/app/account/brief/agent/page.tsx",
 ]);
 
 function walk(dir: string, out: string[] = []): string[] {
@@ -61,4 +70,12 @@ test("client pages and /api/client routes never key reads on the actor without a
 test("the guard sees the portal files (not a silent empty scan)", () => {
   const n = ROOTS.reduce((a, r) => a + walk(r).length, 0);
   assert.ok(n >= 15, `expected to scan the portal, got ${n} files`);
+});
+
+test("TUL-611: the /account routes are scanned, and every actor-own allowance still exists (no stale exemptions)", () => {
+  const account = walk(join(SRC, "account"));
+  assert.ok(account.length >= 5, `expected to scan /account, got ${account.length} files`);
+  for (const rel of ACTOR_OWN_ALLOW) assert.ok(statSync(join(WEB_ROOT, rel)).isFile(), `${rel} is allow-listed but missing`);
+  // the client-facing detail pages (visits, receipts, messages) must NOT be exempt
+  for (const rel of ACTOR_OWN_ALLOW) assert.doesNotMatch(rel, /account\/(visits|receipts|messages)\//, rel);
 });
