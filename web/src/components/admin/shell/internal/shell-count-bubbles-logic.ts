@@ -125,3 +125,28 @@ export function shellAttentionTooltip(
   if (count === 1) return t("1 conversation awaits your reply");
   return t("{n} conversations await your reply").replace("{n}", String(count));
 }
+
+export type ShellBubbleClickTarget =
+  | { type: "page"; page: "messages" }
+  | {
+      type: "drawer";
+      drawerId: "notifications" | "talent-notifications";
+      payload: { category: ShellBubbleKind };
+    };
+
+/**
+ * TUL-718: the Messages bubble is labelled "Mensajes" like the sidebar row, so
+ * it must go where that row goes (the messages page). Only money and
+ * attention open the notification center, filtered by category.
+ */
+export function shellBubbleClickTarget(
+  kind: ShellBubbleKind,
+  surface: "workspace" | "talent",
+): ShellBubbleClickTarget {
+  if (kind === "messages") return { type: "page", page: "messages" };
+  return {
+    type: "drawer",
+    drawerId: surface === "workspace" ? "notifications" : "talent-notifications",
+    payload: { category: kind },
+  };
+}
