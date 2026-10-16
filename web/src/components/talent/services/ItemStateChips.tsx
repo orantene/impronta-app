@@ -11,7 +11,7 @@ import {
   siteBookingModeView,
 } from "@/lib/talent/site-booking-mode";
 import type { TalentBookingPosture } from "@/lib/talent/selling-booking-settings";
-import { translatorFor } from "@/i18n/use-t";
+import { translatorFor } from "@/i18n/translator-for";
 import { MissingTranslationChip } from "@/components/admin/shell/internal/page-modules/catalog/MissingTranslationChip";
 import { NeedsPriceChip } from "@/components/admin/shell/internal/page-modules/catalog/NeedsPriceChip";
 

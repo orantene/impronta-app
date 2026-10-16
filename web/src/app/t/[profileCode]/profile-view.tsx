@@ -1024,11 +1024,11 @@ async function fetchPublicAvailability(
     availability_dots_14d: string | null;
   };
 
-  return {
+  return (await import("@/lib/scheduling/profile-live-availability")).withLiveAvailability({
     nextAvailableDate: row.next_available_date,
     availableDaysInNext30: row.available_days_in_next_30,
     availabilityDots14d: row.availability_dots_14d,
-  };
+  }, talentProfileId); // TUL-861: hide the badge when the live slot loader has no times
 }
 
 /**
