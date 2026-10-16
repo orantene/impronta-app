@@ -18,7 +18,9 @@ import { cache } from "react";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { loadStripeAccountInfo } from "./stripe-account-info";
+import { planNameEn } from "@/lib/platform/plan-labels";
 import { stripeEnv } from "@/lib/stripe/env-keys";
+import { redactStripeHealth } from "./stripe-health-redact";
 
 export type HealthStatus = "ok" | "warn" | "fail" | "unknown";
 
@@ -156,7 +158,7 @@ async function checkPrices(key: string): Promise<HealthCheck> {
 
   const items = await Promise.all(
     live.map(async (row) => {
-      const name = `${row.product_tiers.slug} ${row.interval}ly`;
+      const name = `${planNameEn(row.product_tiers.slug)} ${row.interval}ly`;
       if (!row.stripe_price_id) {
         return {
           name,
@@ -506,7 +508,7 @@ export const loadStripeHealth = cache(async (): Promise<StripeHealth> => {
   const account = await checkAccount();
 
   if (!key) {
-    return {
+    return redactStripeHealth({
       fetchedAt,
       checks: [
         account,
@@ -516,7 +518,7 @@ export const loadStripeHealth = cache(async (): Promise<StripeHealth> => {
         { id: "webhooks", label: "Webhooks", status: "unknown", detail: "No Stripe key." },
         { id: "connect", label: "Connect accounts", status: "unknown", detail: "No Stripe key." },
       ],
-    };
+    });
   }
 
   const [prices, products, coupons, webhooks, connect] = await Promise.all([
@@ -526,8 +528,8 @@ export const loadStripeHealth = cache(async (): Promise<StripeHealth> => {
     checkWebhooks(key),
     checkConnect(key),
   ]);
-  return {
+  return redactStripeHealth({
     fetchedAt,
     checks: [account, prices, products, coupons, webhooks, connect],
-  };
+  });
 });

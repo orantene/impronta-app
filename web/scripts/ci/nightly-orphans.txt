@@ -174,7 +174,6 @@ src/lib/saas/custom-domain-routing.security.test.ts
 src/lib/saas/custom-domain-routing.test.ts
 src/lib/saas/domain-canonical.test.ts
 src/lib/saas/domain-display.test.ts
-src/lib/saas/off-roster-hard-404.static.test.ts
 src/lib/saas/redirect-query.security.test.ts
 src/lib/saas/redirect-query.test.ts
 src/lib/saas/roster-seat-limit.test.ts
@@ -240,7 +239,6 @@ src/lib/talent-languages-service.test.ts
 src/lib/talent/accepting-readiness.test.ts
 src/lib/talent/active-agency-context.test.ts
 src/lib/talent/agency-overlay.test.ts
-src/lib/talent/clients-directory.test.ts
 src/lib/talent/clients-merge.test.ts
 src/lib/talent/earnings.test.ts
 src/lib/talent/experience.test.ts

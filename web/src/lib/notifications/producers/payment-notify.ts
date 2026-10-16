@@ -2,6 +2,7 @@ import "server-only";
 
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { logServerError } from "@/lib/server/safe-error";
+import { afterResponse } from "@/lib/server/after-response";
 
 /**
  * Stripe payment producers (spec §6.5, Slice 15.4) — fire-and-forget emits from
@@ -40,7 +41,7 @@ export function notifyPaymentReceived(params: {
    *  workspace alert still fires. */
   checkoutType?: "deposit" | "balance" | "full";
 }): void {
-  void dispatchEventNotifications({
+  afterResponse(() => dispatchEventNotifications({
     type: "payment.received",
     tenantId: params.tenantId,
     inquiryId: params.inquiryId,
@@ -58,7 +59,7 @@ export function notifyPaymentReceived(params: {
     },
   }).catch((err) => {
     logServerError("notifyPaymentReceived", err);
-  });
+  }));
 }
 
 /**
@@ -79,7 +80,7 @@ export function notifyInvoiceIssued(params: {
   currency: string;
   paidAt: string | null;
 }): void {
-  void dispatchEventNotifications({
+  afterResponse(() => dispatchEventNotifications({
     type: "payment.invoice_issued",
     tenantId: params.tenantId,
     inquiryId: params.inquiryId,
@@ -97,7 +98,7 @@ export function notifyInvoiceIssued(params: {
     },
   }).catch((err) => {
     logServerError("notifyInvoiceIssued", err);
-  });
+  }));
 }
 
 /**
@@ -119,7 +120,7 @@ export function notifyDepositReceived(params: {
   currency: string;
   paidAt: string | null;
 }): void {
-  void dispatchEventNotifications({
+  afterResponse(() => dispatchEventNotifications({
     type: "payment.deposit_received",
     tenantId: params.tenantId,
     inquiryId: params.inquiryId,
@@ -136,7 +137,7 @@ export function notifyDepositReceived(params: {
     },
   }).catch((err) => {
     logServerError("notifyDepositReceived", err);
-  });
+  }));
 }
 
 /**
@@ -157,7 +158,7 @@ export function notifyTalentPayoutSettled(params: {
   netAmountCents: number;
   currency: string;
 }): void {
-  void dispatchEventNotifications({
+  afterResponse(() => dispatchEventNotifications({
     type: "payment.payout_settled",
     tenantId: params.tenantId,
     inquiryId: params.inquiryId,
@@ -172,7 +173,7 @@ export function notifyTalentPayoutSettled(params: {
     },
   }).catch((err) => {
     logServerError("notifyTalentPayoutSettled", err);
-  });
+  }));
 }
 
 /**
@@ -190,7 +191,7 @@ export function notifyWorkspacePaymentFailed(params: {
   currency: string | null;
   occurredOn: string;
 }): void {
-  void dispatchEventNotifications({
+  afterResponse(() => dispatchEventNotifications({
     type: "payment.failed",
     tenantId: params.tenantId,
     eventId: `payment-failed:${params.tenantId}:${params.occurredOn}`,
@@ -201,7 +202,7 @@ export function notifyWorkspacePaymentFailed(params: {
     },
   }).catch((err) => {
     logServerError("notifyWorkspacePaymentFailed", err);
-  });
+  }));
 }
 
 /**
@@ -220,7 +221,7 @@ export function notifyRefundFailed(params: {
   failureReason: string | null;
   status: string;
 }): void {
-  void dispatchEventNotifications({
+  afterResponse(() => dispatchEventNotifications({
     type: "refund.failed",
     tenantId: params.tenantId,
     inquiryId: params.inquiryId,
@@ -238,7 +239,7 @@ export function notifyRefundFailed(params: {
     },
   }).catch((err) => {
     logServerError("notifyRefundFailed", err);
-  });
+  }));
 }
 
 /**
@@ -260,7 +261,7 @@ export function notifyPaymentNeedsAttention(params: {
   refundId?: string | null;
 }): void {
   const refundSuffix = params.refundId?.trim() ? `:${params.refundId.trim()}` : "";
-  void dispatchEventNotifications({
+  afterResponse(() => dispatchEventNotifications({
     type: "payment.needs_attention",
     tenantId: params.tenantId,
     inquiryId: params.inquiryId,
@@ -278,5 +279,5 @@ export function notifyPaymentNeedsAttention(params: {
     },
   }).catch((err) => {
     logServerError("notifyPaymentNeedsAttention", err);
-  });
+  }));
 }

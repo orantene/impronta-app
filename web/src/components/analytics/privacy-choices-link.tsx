@@ -22,7 +22,7 @@ export function PrivacyChoicesLink({
     <button
       type="button"
       onClick={openPrivacyChoices}
-      className={className ?? "underline-offset-2 hover:underline"}
+      className={className ?? "inline-flex min-h-6 items-center underline-offset-2 hover:underline"}
       style={style}
     >
       {label}

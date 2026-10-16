@@ -12,6 +12,7 @@ import type { Understanding } from "@/lib/onboarding/understanding";
 import type { LinkCheck } from "@/lib/server-actions/onboarding-module";
 
 import { promisedHost, type DesignLookKey } from "@/lib/onboarding/finish-url";
+import type { ReviewLine } from "@/lib/onboarding/review-setup-lines";
 import { DesignPick } from "./design-pick";
 import { GhostLink, Notice, PrimaryButton, Sub, Title } from "../ui";
 
@@ -29,6 +30,7 @@ export function ReadyStep({
   onPickDesign,
   onConfirmAge18,
   ageRequiredNotice = false,
+  setupLines = [],
 }: {
   t: (key: string) => string;
   understanding: Understanding;
@@ -46,6 +48,8 @@ export function ReadyStep({
   onConfirmAge18?: () => Promise<{ ok: boolean }>;
   /** The build route refused for a missing confirmation: say so here. */
   ageRequiredNotice?: boolean;
+  /** TUL-806: services, hours and place from step 3. */
+  setupLines?: ReviewLine[];
 }) {
   const talentOnly = path === "talent";
   const needsAge = path !== "business" && !!onConfirmAge18;
@@ -100,7 +104,9 @@ export function ReadyStep({
     if (r?.available) setEditing(false);
   };
 
-  const facts = understanding.lines.filter((l) => l.value && l.status !== "later");
+  // Step 3 is the source of truth for services and hours once it saved them.
+  const setupIds = new Set<string>(setupLines.map((l) => l.id));
+  const facts = understanding.lines.filter((l) => l.value && l.status !== "later" && !setupIds.has(l.id));
   return (
     <div data-testid="onb-ready">
       <Title>{talentOnly ? t("public.onboarding.ready.titleTalent") : t("public.onboarding.ready.title")}</Title>
@@ -108,9 +114,15 @@ export function ReadyStep({
 
       <ul className="mt-4 flex flex-col gap-1.5 text-[0.9375rem]" data-testid="onb-ready-facts">
         {facts.map((l) => (
-          <li key={l.id} className="flex gap-2">
-            <span className="w-24 shrink-0 text-[0.75rem] font-semibold uppercase tracking-[0.06em] leading-[1.6]" style={{ color: "var(--tl-muted)" }}>{t(l.labelKey)}</span>
+          <li key={l.id} className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
+            <span className="shrink-0 text-[0.75rem] sm:w-32 font-semibold uppercase tracking-[0.06em] leading-[1.6]" style={{ color: "var(--tl-muted)" }}>{t(l.labelKey)}</span>
             <span className="min-w-0 truncate" style={{ color: "var(--tl-ink)" }}>{l.value}</span>
+          </li>
+        ))}
+        {setupLines.map((l) => (
+          <li key={`setup-${l.id}`} className="flex flex-col gap-0.5 sm:flex-row sm:gap-2" data-testid={`onb-ready-setup-${l.id}`}>
+            <span className="shrink-0 text-[0.75rem] sm:w-32 font-semibold uppercase tracking-[0.06em] leading-[1.6]" style={{ color: "var(--tl-muted)" }}>{l.label}</span>
+            <span className="min-w-0 break-words" style={{ color: "var(--tl-ink)" }}>{l.value}</span>
           </li>
         ))}
       </ul>

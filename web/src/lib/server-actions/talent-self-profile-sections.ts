@@ -40,6 +40,7 @@ import type {
   TalentDocumentEntry,
 } from "./admin-talent-profile-sections";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { countryForStorage } from "@/lib/geo/country-code";
 
 type Result = { ok: true; warnings?: string[] } | { ok: false; error: string };
 
@@ -451,7 +452,7 @@ export async function updateSelfIdentity(input: {
   if (genderValue !== undefined) patch.gender = genderValue;
   if (input.date_of_birth !== undefined) patch.date_of_birth = input.date_of_birth?.trim() || null;
   if (input.nationality !== undefined) patch.nationality = nullIfEmpty(input.nationality);
-  if (input.home_country !== undefined) patch.home_country_text = nullIfEmpty(input.home_country);
+  if (input.home_country !== undefined) patch.home_country_text = countryForStorage(input.home_country);
   if (input.is_discoverable !== undefined) patch.is_discoverable = input.is_discoverable;
   if (input.contact_email !== undefined) patch.invitation_email = nullIfEmpty(input.contact_email);
   if (input.contact_phone !== undefined || input.contact_phone_prefix !== undefined) {

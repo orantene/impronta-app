@@ -31,6 +31,10 @@ export type InstantBookFormPayload = {
   honeypot?: string | null;
   /** The language the guest is browsing in (the booking sheet's locale). TUL-93. */
   locale?: string | null;
+  /** Promos v1: the code typed in the sheet. Honoured, or the booking refuses. */
+  promoCode?: string | null;
+  /** Promos v1: the discount the sheet showed; a smaller one now refuses as "promo gone". */
+  promoShownDiscountCents?: number | null;
 };
 
 export type InstantBookActionResult =
@@ -41,4 +45,6 @@ export type InstantBookActionResult =
       needsAuth?: boolean;
       upgrade?: boolean;
       slotTaken?: boolean;
+      /** Promos v1: the offer ran out before payment. Show the regular price and ask again. */
+      promoGone?: boolean;
     };

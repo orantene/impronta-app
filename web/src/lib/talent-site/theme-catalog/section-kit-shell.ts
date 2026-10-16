@@ -267,6 +267,12 @@ export function withAccountItem(header: BuilderNode | undefined): BuilderNode | 
       done = true;
     } else out[zone] = items;
   }
+  if (!done) {
+    // No `language` item (single-language or custom header): the entry still shows, in the right region.
+    const zone = Array.isArray(out.right) ? "right" : Object.keys(out).reverse().find((k) => Array.isArray(out[k]));
+    if (!zone) return header;
+    out[zone] = [...(out[zone] as unknown[]), { type: "account", responsive: { mobile: "show" } }];
+  }
   return { ...header, props: { ...props, sectionProps: { ...sectionProps, regions: out } } } as unknown as BuilderNode;
 }
 

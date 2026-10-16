@@ -161,8 +161,9 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
     };
   }, [isWorkspace, talentId, workspaceTenantId, loadTick]);
 
+  // TUL-824: server actions run one at a time, so the stats read waits for the list.
   useEffect(() => {
-    if (isWorkspace) return;
+    if (isWorkspace || loading) return;
     let cancelled = false;
     loadTalentServicePerformance(talentId)
       .then((res) => {
@@ -172,7 +173,7 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
     return () => {
       cancelled = true;
     };
-  }, [isWorkspace, talentId]);
+  }, [isWorkspace, talentId, loading]);
 
   const flashSaved = useCallback(() => {
     setSavedOk(true);

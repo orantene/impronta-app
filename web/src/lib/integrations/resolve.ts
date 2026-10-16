@@ -1,6 +1,7 @@
 import "server-only";
 
 import { envCaptchaFallback } from "@/lib/captcha/env-fallback";
+import { chooseCaptchaSource, hostFromHeaders } from "@/lib/captcha/platform-hosts";
 import {
   CAPTCHA_INTEGRATION_KEY,
   CUSTOM_CODE_INTEGRATION_KEY,
@@ -248,8 +249,35 @@ async function platformCaptcha(): Promise<{
   return envCaptchaFallback(process.env);
 }
 
+/**
+ * Host of the current request, or null outside a request scope (scripts,
+ * cron, tests). Null keeps today's behavior (platform-covered).
+ */
+export async function currentRequestHost(): Promise<string | null> {
+  try {
+    const { headers } = await import("next/headers");
+    return hostFromHeaders(await headers());
+  } catch {
+    return null;
+  }
+}
+
+const NO_CAPTCHA: TenantCaptchaConfig = {
+  provider: "none",
+  siteKey: null,
+  tenantOwned: false,
+  getSecret: async () => null,
+};
+
+/**
+ * @param opts.host request host. Omitted: read from the request headers, so
+ * the widget render and the server verify make the SAME per-host decision
+ * (`chooseCaptchaSource`): own keys win, the platform key only on hosts its
+ * Turnstile widget covers, otherwise "none" (no widget, verify no-op).
+ */
 export async function resolveTenantCaptcha(
   tenantId: string,
+  opts: { host?: string | null } = {},
 ): Promise<TenantCaptchaConfig> {
   const row = await getTenantIntegration(tenantId, CAPTCHA_INTEGRATION_KEY);
   const config = (row?.config_json ?? {}) as Record<string, unknown>;
@@ -283,7 +311,9 @@ export async function resolveTenantCaptcha(
     };
   }
 
-  // No tenant captcha → fall back to the platform widget/secret.
+  // No tenant captcha → platform widget/secret, but only where it can render.
+  const host = opts.host !== undefined ? opts.host : await currentRequestHost();
+  if (chooseCaptchaSource({ ownUsable: false, host }) === "none") return NO_CAPTCHA;
   const plat = await platformCaptcha();
   return {
     provider: plat.provider,

@@ -521,3 +521,10 @@ test("INVARIANT: the decision never proposes changing what the CURRENT url serve
     }
   }
 });
+
+test("TUL-16d: a Spanish-primary talent site rendered in Spanish never offers English", () => {
+  const input = visit({ tenantSettings: ES_DEFAULT, currentLocale: "es", renderLocale: "es", acceptLanguage: "en-US,en;q=0.9", talentSitePrimaryLocale: "es", pathname: "/" });
+  assertSkipped(shouldSuggestLocale(input), "talent-es-default");
+  // Same visitor off a talent site (no marker) still gets the suggestion.
+  assert.equal(shouldSuggestLocale({ ...input, talentSitePrimaryLocale: null }).suggest, true);
+});

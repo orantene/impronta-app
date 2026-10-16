@@ -1,19 +1,9 @@
 "use client";
 
 /**
- * TalentProfileChatLauncher — floating, brand-skinned chat launcher (Lane D / F1).
- *
- * Mounts as a sibling of TalentProfileInquireButton on /t/[profileCode]. It is
- * the acquisition skin: a floating "Message {Name}" pill (label overridable to
- * e.g. "Ask availability" via the `label` prop) that opens the MiniChatPanel
- * inline — no navigation, per strategy §3.1.
- *
- *   • Color comes from agency_branding (accentColor on brand) — NO hard-coded
- *     gold/rust (house rule). Falls back to a neutral ink token when null.
- *   • Owns the open/close state; the panel is controlled.
- *   • Imports NO backend module — the three server actions arrive as props and
- *     are forwarded straight to the panel (the security boundary, the guest
- *     cookie, is resolved server-side inside those actions).
+ * TalentProfileChatLauncher — floating brand-skinned chat launcher (Lane D / F1).
+ * Sibling of TalentProfileInquireButton; opens MiniChatPanel inline (no nav).
+ * Accent from agency_branding; server actions arrive as props (guest cookie SSR).
  */
 
 import { useAskQuestionOpen } from "./use-ask-question-open";
@@ -24,6 +14,7 @@ import type { CSSProperties } from "react";
 import type {
   GuestChatOffering,
   ScanGuestConversationCallback,
+  ReportGuestChatCallback,
   TalentChatLauncherProps,
 } from "@/lib/inquiry/guest-chat-contract";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
@@ -68,9 +59,7 @@ import {
 } from "./mini-chat-styles";
 import type { ChatCardConfig } from "@/lib/talent-site/chat-card";
 
-// Jon 360 Phase 7 — `surfaceMode` is a LOCAL extension (the dark-surface signal
-// derived from the tenant's resolved background.mode), NOT added to the shared
-// read-only guest-chat-contract. Threaded launcher → panel.
+// Jon 360 Phase 7 — local `surfaceMode` (not on guest-chat-contract); threaded to panel.
 type TalentProfileChatLauncherLocalProps = TalentChatLauncherProps & {
   surfaceMode?: SurfaceMode;
   /** Every public service, for the instant price/duration answer only (chips keep `offerings`). */
@@ -97,6 +86,7 @@ type TalentProfileChatLauncherLocalProps = TalentChatLauncherProps & {
   ctaIdentity?: "guest" | "client";
   /** DOCK v2 — forwarded to the panel: the AI conversation scan action. */
   onScanConversation?: ScanGuestConversationCallback | null;
+  onReportToSupport?: ReportGuestChatCallback | null;
   /**
    * P0-5 / W0-F — this launcher is mounted on a HUB host (platform/network hub
    * or the marketing apex), not an agency. Threaded to the panel so the SEND
@@ -150,6 +140,7 @@ export function TalentProfileChatLauncher({
   onListRoster = null,
   onResolveCartPortraits = null,
   onScanConversation = null,
+  onReportToSupport = null,
   soundOnReply = true,
   identity = "guest",
   // `label` (legacy static override) is intentionally NOT destructured: the
@@ -222,6 +213,18 @@ export function TalentProfileChatLauncher({
   // so every rail avatar is a face-focus portrait, not initials (§4.A.1 / §5.5).
   useResolveCartPortraits(tenantSlug, onResolveCartPortraits);
   const pillRef = useRef<HTMLButtonElement>(null);
+  // TUL-1082: the launcher unmounts while the dock is open, so Esc / X used to
+  // drop focus on <body>. Hand it back to the launcher once it remounts.
+  const wasOpenRef = useRef(false);
+  useEffect(() => {
+    if (wasOpenRef.current && !open) {
+      const raf = requestAnimationFrame(() => pillRef.current?.focus());
+      wasOpenRef.current = false;
+      return () => cancelAnimationFrame(raf);
+    }
+    wasOpenRef.current = open;
+    return undefined;
+  }, [open]);
   // Card → pill fly clone (reduced-motion-safe; no portal under reduce). The
   // flight is driven by the directory card's animateAdd payload via context.
   const { flight, onFlightDone } = useFlyToRail(pillRef);
@@ -580,6 +583,9 @@ export function TalentProfileChatLauncher({
           display: "flex",
           flexDirection: "column",
           alignItems: "flex-end",
+          // While the panel is open the FAB unmounts, but this wrapper stays at
+          // z-95. Never let an empty hit box steal the panel's ✕ (Gridline desktop).
+          pointerEvents: open ? "none" : undefined,
         }}
       >
         {/* The avatar cart — DISPLAY-ONLY count (faces + a single "+N"). Only when
@@ -737,6 +743,7 @@ export function TalentProfileChatLauncher({
         onLoadDetails={onLoadDetails}
         onListRoster={onListRoster}
         onScanConversation={onScanConversation}
+        onReportToSupport={onReportToSupport}
         soundOnReply={soundOnReply}
         identity={identity}
         openFullHref={openFullHref}
@@ -771,9 +778,7 @@ export const GUEST_CHAT_FAB_CSS = `
 @keyframes tl-fab-ring{0%{opacity:.5;transform:scale(.9)}100%{opacity:0;transform:scale(1.25)}}
 .tl-fab:focus-visible{outline:2px solid var(--tl-fab-accent);outline-offset:3px}
 .tl-fab[data-gone="true"]{transform:translate(-40px,-6px) scale(.4);opacity:0;pointer-events:none}
-/* ONE dock holds booking and chat: while the catalog dock carries its own chat button (the pill capsule
-   or the selection dock), the round launcher must not draw a second one over it. Pure CSS, so it holds
-   from the first paint and for every design, with no timing against the dock's own mount. */
+/* Hide round FAB while catalog dock already shows chat (first paint; no mount race). */
 body:has(.cb-bar[data-show="true"] .cb-bar-chat,.cb-dock[data-show="true"]) .tl-fab{visibility:hidden;pointer-events:none}
 @media (prefers-reduced-motion:reduce){.tl-fab,.tl-fab-lbl,.tl-fab::before{transition:none!important;animation:none!important}}
 `;

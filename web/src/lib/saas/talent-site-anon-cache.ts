@@ -23,6 +23,22 @@ export const TALENT_SITE_ANON_CDN_CACHE =
 
 export const TALENT_SITE_PRIVATE_NO_STORE = "private, no-store";
 
+/**
+ * TUL-445 live QA fail: the CDN cache key ignored cookies, so a signed-in or
+ * guest-cookied visitor could be served the stored anonymous page (whose
+ * request carried no cookie). `Vary: Cookie` on EVERY talent-site response
+ * means an entry stored for a cookieless request never matches a request that
+ * carries any cookie; that request goes to the origin, which answers private,
+ * no-store. Cost: visitors holding any cookie miss the CDN; correctness wins.
+ */
+function addVaryCookie(res: NextResponse): void {
+  const existing = res.headers.get("Vary");
+  const parts = existing ? existing.split(",").map((v) => v.trim()).filter(Boolean) : [];
+  if (parts.some((v) => v === "*" || v.toLowerCase() === "cookie")) return;
+  parts.push("Cookie");
+  res.headers.set("Vary", parts.join(", "));
+}
+
 function responseSetsCookies(res: NextResponse): boolean {
   return res.cookies.getAll().length > 0;
 }
@@ -61,16 +77,47 @@ export function talentSiteShouldRememberLocale(
  * visitor has no auth/guest/locale cookie (path-locale-only), and the
  * response itself sets no cookies.
  */
+/**
+ * TUL-755 live QA fail: Next rewrites `Vary` on app-router HTML, so the
+ * `Vary: Cookie` set below never reaches the CDN and a cookie-bearing request
+ * was answered from the anonymous entry (x-vercel-cache: HIT). Routing
+ * middleware runs before the CDN lookup, so a request that must stay private
+ * is rewritten to the same URL plus this param: a cache key no anonymous
+ * request ever uses. The page ignores the param.
+ */
+export const TALENT_SITE_PRIVATE_KEY_PARAM = "__pv";
+
+/** True when this request may be served from (and stored in) the shared CDN entry. */
+export function talentSiteRequestIsCookieless(request: NextRequest): boolean {
+  return (
+    !hasSupabaseAuthCookie(request) &&
+    !request.cookies.get(GUEST_COOKIE_NAME)?.value &&
+    talentSiteLocaleIsPathOnly(request)
+  );
+}
+
+/**
+ * The URL to serve a talent-site request from. Cookie-bearing requests get the
+ * private cache key; cookieless ones (and anything already keyed) are unchanged.
+ * Returns null when no rewrite is needed.
+ */
+export function talentSitePrivateCacheKeyUrl(request: NextRequest, url: URL): URL | null {
+  const method = request.method.toUpperCase();
+  if (method !== "GET" && method !== "HEAD") return null; // never cached; leave actions alone
+  if (talentSiteRequestIsCookieless(request)) return null;
+  if (url.searchParams.has(TALENT_SITE_PRIVATE_KEY_PARAM)) return null;
+  const keyed = new URL(url);
+  keyed.searchParams.set(TALENT_SITE_PRIVATE_KEY_PARAM, "1");
+  return keyed;
+}
+
 export function applyTalentSiteAnonCacheHeaders(
   res: NextResponse,
   request: NextRequest,
 ): NextResponse {
   const method = request.method.toUpperCase();
   const isSafeRead = method === "GET" || method === "HEAD";
-  const cookieless =
-    !hasSupabaseAuthCookie(request) &&
-    !request.cookies.get(GUEST_COOKIE_NAME)?.value &&
-    talentSiteLocaleIsPathOnly(request);
+  const cookieless = talentSiteRequestIsCookieless(request);
   const canCdnCache = isSafeRead && cookieless && !responseSetsCookies(res);
 
   const value = canCdnCache ? TALENT_SITE_ANON_CDN_CACHE : TALENT_SITE_PRIVATE_NO_STORE;
@@ -78,5 +125,6 @@ export function applyTalentSiteAnonCacheHeaders(
   // Vercel: CDN-specific directives override Cache-Control for the edge.
   res.headers.set("CDN-Cache-Control", value);
   res.headers.set("Vercel-CDN-Cache-Control", value);
+  addVaryCookie(res);
   return res;
 }

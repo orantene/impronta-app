@@ -18,6 +18,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { readScalarFieldValuesFromCatalog } from "@/lib/talent/scalar-field-values-catalog";
+import { countryLabel } from "@/lib/geo/country-code";
 
 export const dynamic = "force-dynamic";
 
@@ -201,7 +202,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     primaryTypeSlug,
     secondaryTypeLabels,
     homeCity: row.home_city_text,
-    homeCountry: row.home_country_text,
+    homeCountry: countryLabel(row.home_country_text),
     agencyName: agencyRow?.display_name ?? null,
     agencyTenantId: primaryRoster?.tenant_id ?? null,
     isExclusive: !!primaryRoster?.is_primary,

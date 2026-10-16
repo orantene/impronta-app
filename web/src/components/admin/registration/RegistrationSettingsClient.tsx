@@ -66,6 +66,16 @@ export function RegistrationSettingsClient({
   };
 }) {
   const t = useT();
+  // The plan arrives as its English tier name; show it in the page language.
+  const tierName = (label: string) => {
+    switch (label.trim().toLowerCase()) {
+      case "free": return t("dashboard.adminWorkspace.registration.tier.free");
+      case "studio": return t("dashboard.adminWorkspace.registration.tier.studio");
+      case "agency": return t("dashboard.adminWorkspace.registration.tier.agency");
+      case "network": return t("dashboard.adminWorkspace.registration.tier.network");
+      default: return label;
+    }
+  };
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [toast, setToast] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
@@ -137,7 +147,7 @@ export function RegistrationSettingsClient({
             {t("dashboard.adminWorkspace.registration.masterDesc")}{" "}
             <span style={{ color: C.inkDim }}>
               {interpolate(t("dashboard.adminWorkspace.registration.planLine"), {
-                plan: planLabel,
+                plan: tierName(planLabel),
               })}
             </span>
           </span>

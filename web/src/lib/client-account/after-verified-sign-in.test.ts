@@ -15,6 +15,7 @@ type Chain = {
   eq: () => Chain;
   in: () => Chain;
   update: (patch: Record<string, unknown>) => Chain;
+  upsert: () => Chain;
   maybeSingle: () => Promise<{ data: unknown; error: null }>;
   then: (resolve: (v: unknown) => void) => void;
 };
@@ -32,9 +33,10 @@ function fake(profile: { app_role: string; account_status: string }, counts: Cou
           updates.push(patch);
           return chain;
         },
+        upsert: () => chain,
         maybeSingle: async () => ({ data: profile, error: null }),
         then: (resolve) => {
-          if (table === "profiles") return resolve({ error: null });
+          if (table === "profiles" || table === "client_profiles") return resolve({ error: null });
           if (table === "customers") return resolve({ data: customerIds.map((id) => ({ id })), error: null });
           resolve({ count: counts[table as keyof Counts] ?? 0, error: null });
         },

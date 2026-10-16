@@ -5,7 +5,11 @@ import {
   type LocaleUrlSettings,
 } from "@/i18n/pathnames";
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
-import { resolveAnyTenantPublicPath } from "@/lib/saas/surface-allow-list";
+import {
+  resolveAnyTenantPublicPath,
+  resolveWorkspacePathTenantPublicPath,
+  WORKSPACE_PATH_SEGMENT,
+} from "@/lib/saas/surface-allow-list";
 
 const EXTERNAL_OR_SPECIAL_HREF = /^(?:[a-z][a-z0-9+.-]*:|#|\?)/i;
 
@@ -27,6 +31,10 @@ export function publicPathPrefixFromPathname(
     visiblePathname,
     settings,
   );
+  // Canonical workspace shape keeps its `/w/` parent segment; dropping it
+  // (TUL-697) sent every header link to the platform root and 404'd.
+  const workspace = resolveWorkspacePathTenantPublicPath(pathnameWithoutLocale);
+  if (workspace) return `/${WORKSPACE_PATH_SEGMENT}/${workspace.tenantSlug}`;
   const resolved = resolveAnyTenantPublicPath(pathnameWithoutLocale);
   return resolved ? `/${resolved.tenantSlug}` : "";
 }

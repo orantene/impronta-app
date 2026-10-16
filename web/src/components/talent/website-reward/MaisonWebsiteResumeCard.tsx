@@ -64,7 +64,7 @@ export function MaisonWebsiteResumeCard({ onContinue }: Props) {
         aria-hidden
       >
         <iframe
-          title=""
+          title={locale === "es" ? "Vista previa del sitio" : "Website preview"}
           src={previewUrl}
           tabIndex={-1}
           className="pointer-events-none absolute inset-0 h-full w-full origin-top-left scale-[0.28] border-0"

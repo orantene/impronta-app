@@ -7,10 +7,11 @@ const QA = "https://fxlankepwnvelxjrahwk.supabase.co";
 const PROD = "https://pluhdapdnuiulvxmyspd.supabase.co";
 
 describe("tulala memory limiter (QA stand-in for Upstash)", () => {
-  test("allowed only off-production AND on the isolated branch", () => {
+  test("allowed only on the isolated QA branch, any NODE_ENV", () => {
     assert.equal(isMemoryLimiterAllowed({ NODE_ENV: "development", NEXT_PUBLIC_SUPABASE_URL: QA } as NodeJS.ProcessEnv), true);
     assert.equal(isMemoryLimiterAllowed({ NODE_ENV: "test", NEXT_PUBLIC_SUPABASE_URL: QA } as NodeJS.ProcessEnv), true);
-    assert.equal(isMemoryLimiterAllowed({ NODE_ENV: "production", NEXT_PUBLIC_SUPABASE_URL: QA } as NodeJS.ProcessEnv), false);
+    assert.equal(isMemoryLimiterAllowed({ NODE_ENV: "production", NEXT_PUBLIC_SUPABASE_URL: QA } as NodeJS.ProcessEnv), true);
+    assert.equal(isMemoryLimiterAllowed({ NODE_ENV: "production", NEXT_PUBLIC_SUPABASE_URL: PROD } as NodeJS.ProcessEnv), false);
     assert.equal(isMemoryLimiterAllowed({ NODE_ENV: "development", NEXT_PUBLIC_SUPABASE_URL: PROD } as NodeJS.ProcessEnv), false);
     assert.equal(isMemoryLimiterAllowed({ NODE_ENV: "development" } as NodeJS.ProcessEnv), false);
   });

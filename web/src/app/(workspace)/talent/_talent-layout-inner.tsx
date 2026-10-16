@@ -24,7 +24,7 @@ import { isAgendaV2 } from "@/lib/talent-agenda/flag";
 import { loadTalentDashboardData } from "@/lib/talent-dashboard-data";
 import { loadTalentEarningsByCurrency } from "@/lib/talent/earnings-by-currency";
 import { loadPlatformOperatingCurrency, applyOperatingCurrencyToEarnings } from "@/lib/platform/operating-currency";
-import { getTalentConnectedAccountSnapshot } from "@/lib/payments/stripe-connect-talent";
+import { getTalentConnectedAccountSnapshot, resolveTalentPayoutCountry } from "@/lib/payments/stripe-connect-talent";
 import { loadTalentPayoutAttention } from "@/lib/payments/talent-payout-attention";
 import { findTenantMembership } from "@/lib/saas/tenant";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -81,6 +81,7 @@ const TALENT_SEGMENT_MAP: Record<string, TalentPage> = {
   services: "services",
   profile: "profile",
   reviews: "reviews",
+  promos: "promos",
   calendar: "calendar",
   bookings: "booking-record",
   money: "money",
@@ -92,6 +93,7 @@ const TALENT_SEGMENT_MAP: Record<string, TalentPage> = {
   site: "public-page",
   presence: "public-page",
   "public-page": "public-page",
+  posts: "posts",
   settings: "settings",
 };
 
@@ -168,6 +170,18 @@ const PLATFORM_TENANT_IDENTITY: TenantIdentityPayload = {
   posModes: [],
 };
 
+async function loadOwnedWorkspaceSlug(subjectUserId: string): Promise<string | null> {
+  try {
+    const adminDb = createServiceRoleClient();
+    if (!adminDb) return null;
+    const owned = await loadOwnedBusinessWorkspace(adminDb, subjectUserId);
+    return owned.ownsBusinessWorkspace ? owned.workspaceSlug : null;
+  } catch (err) {
+    logServerError("talentLayout.ownedWorkspace", err);
+    return null;
+  }
+}
+
 export async function TalentLayoutInner({
   children,
 }: {
@@ -212,6 +226,10 @@ export async function TalentLayoutInner({
   if (isTalentRoot) {
     return <>{children}</>;
   }
+
+  // TUL-536: independent of the agency lookup and the batch below, so it runs
+  // beside them instead of as a serial query after them. Never rejects.
+  const ownedWorkspaceSlugPromise = loadOwnedWorkspaceSlug(subjectUserId);
 
   const activeAgency = await getActiveTalentAgencyContext(baseProfile.id);
   const tenantId = activeAgency?.tenantId ?? null;
@@ -282,6 +300,7 @@ export async function TalentLayoutInner({
     operatingCurrency,
     requestLocale,
     talentAttentionSignals,
+    talentPayoutCountry,
   ] = await Promise.all([
     loadTalentInquiriesAllAgencies(baseProfile.id),
     loadTalentAgencies(talentSelfProfile.id),
@@ -357,6 +376,9 @@ export async function TalentLayoutInner({
     getRequestLocale(),
     // TUL-392: theme update waiting + site needs publish (Attention signals).
     loadTalentAttentionSignals(talentSelfProfile.id),
+    // Payout country (ISO-2) so the Money arrival text states the documented
+    // timing for it. Runs in parallel with the rest; returns null on any failure.
+    resolveTalentPayoutCountry(talentSelfProfile.id),
   ]);
 
   const userNotifications = scopeTalentNotificationsToInbox(userNotificationsAll, talentInboxSummary?.ids ?? null);
@@ -390,16 +412,8 @@ export async function TalentLayoutInner({
 
   // Dual owner on the hub: isHybrid is per-tenant, so also look up a business workspace this
   // person owns (any tenant) for the rail's Talent | Admin switch. A failed read means no switch.
-  let ownedWorkspaceSlug: string | null = null;
-  try {
-    const adminDb = createServiceRoleClient();
-    if (adminDb) {
-      const owned = await loadOwnedBusinessWorkspace(adminDb, subjectUserId);
-      if (owned.ownsBusinessWorkspace) ownedWorkspaceSlug = owned.workspaceSlug;
-    }
-  } catch (err) {
-    logServerError("talentLayout.ownedWorkspace", err);
-  }
+  // The read was started above, next to the profile read (TUL-536), so it no longer adds its own wave.
+  const ownedWorkspaceSlug = await ownedWorkspaceSlugPromise;
 
   const isHybrid = membership != null;
   const workspaceUnread: number | undefined = isHybrid ? workspaceUnreadRaw : undefined;
@@ -486,7 +500,9 @@ export async function TalentLayoutInner({
               }
             : null,
         talentPageAnalytics,
-        talentPayoutSnapshot,
+        talentPayoutSnapshot: talentPayoutSnapshot.ok
+          ? { ok: true as const, data: { ...talentPayoutSnapshot.data, payoutCountry: talentPayoutCountry } }
+          : talentPayoutSnapshot,
         talentPayoutAttention,
         talentAttentionSignals,
         talentInquiries,

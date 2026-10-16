@@ -19,3 +19,17 @@ export function shouldActivateGuestBooker(input: {
 }): boolean {
   return input.emailProven && input.appRole === "client" && input.accountStatus === "onboarding" && input.hasBooking;
 }
+
+/**
+ * TUL-771: someone who explicitly signed up AS a client (`/register?as=client`) has already said
+ * what they are, so they skip /onboarding/role. This is different from a guest booker with no
+ * booking, who keeps 'onboarding' (above). Only a fresh client row is touched; a talent, staff or
+ * already-active account is left alone. Pure.
+ */
+export function shouldActivateSelfSignedClient(input: {
+  signupIntent: string | null | undefined;
+  appRole: string | null | undefined;
+  accountStatus: string | null | undefined;
+}): boolean {
+  return input.signupIntent === "client" && input.appRole === "client" && input.accountStatus === "onboarding";
+}

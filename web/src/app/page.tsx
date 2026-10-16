@@ -29,6 +29,7 @@ import {
 import { resolveAgencyHomeSlug } from "@/lib/site-admin/server/page-roles";
 import { businessHomeMeta } from "@/lib/site-admin/server/tenant-home-meta";
 import { loadTenantWords } from "@/lib/words/server";
+import { loadIsEmptyBusinessWorkspace } from "@/lib/seo/business-workspace-emptiness";
 import { isLocale } from "@/lib/site-admin/locales";
 import CmsPublicPage, {
   generateMetadata as cmsPageMetadata,
@@ -133,6 +134,8 @@ export async function generateMetadata(): Promise<Metadata> {
     const title = homepage?.metaTitle || homepage?.title || fallbackTitle;
     const description = homepage?.metaDescription || fallbackDescription;
     const localeAlternates = await buildTenantLocaleAlternates(locale, "/");
+    // TUL-591: an empty business workspace (no services, no published pages) is a placeholder; keep it out of search.
+    const emptyBusiness = ctx.kind === "agency" && (await loadIsEmptyBusinessWorkspace(ctx.tenantId));
 
     // OG image: a freeform homepage published by direct snapshot write (no SEO
     // panel) has `ogImageUrl: null`, so without a fallback NO image is emitted
@@ -157,7 +160,7 @@ export async function generateMetadata(): Promise<Metadata> {
     return {
       title,
       description,
-      robots: homepage?.noindex ? { index: false, follow: false } : undefined,
+      robots: homepage?.noindex || emptyBusiness ? { index: false, follow: false } : undefined,
       openGraph: {
         title: ogTitle,
         description: ogDescription,

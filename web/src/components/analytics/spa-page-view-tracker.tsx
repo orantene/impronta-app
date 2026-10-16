@@ -2,6 +2,8 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
+import { redactSecretPath } from "@/lib/analytics/redact-secret-path";
+import { buildGaPageLocation, buildGaReferrer } from "@/lib/analytics/ga-location";
 
 declare global {
   interface Window {
@@ -64,11 +66,11 @@ export function SpaPageViewTracker() {
       // page_referrer: after a soft nav document.referrer still holds the
       // EXTERNAL landing referrer; sending it on every hit reads as a new
       // referral mid-session in GA4. Send the previous in-app URL instead.
-      const referrer = prevUrlRef.current ?? document.referrer;
+      const referrer = buildGaReferrer(prevUrlRef.current ?? document.referrer);
       prevUrlRef.current = window.location.href;
       window.gtag?.("event", "page_view", {
-        page_location: window.location.href,
-        page_path: pathname,
+        page_location: buildGaPageLocation(window.location.href),
+        page_path: redactSecretPath(pathname),
         page_title: document.title,
         ...(referrer ? { page_referrer: referrer } : {}),
       });

@@ -12,7 +12,7 @@ test("/client routes its last resort through clientRootFallback and sends client
 });
 
 test("the apex bounce happens only on the discover branch", () => {
-  const apex = src.match(/redirect\(`https:\/\/\$\{TULALA_APEX_HOST\}`\)/g) ?? [];
+  const apex = src.match(/redirect\(resolveMarketingOrigin\(\)\)/g) ?? [];
   assert.equal(apex.length, 1);
-  assert.match(src, /fallback === "discover"\) redirect\(`https:\/\/\$\{TULALA_APEX_HOST\}`\)/);
+  assert.match(src, /fallback === "discover"\) redirect\(resolveMarketingOrigin\(\)\)/);
 });

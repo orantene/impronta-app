@@ -208,7 +208,7 @@ export function CancelFlow({ currentPlan, onComplete, onCancel }: CancelFlowProp
             Try pausing for 30 days first?
           </h3>
           <p style={{ fontSize: 13, color: C.inkMuted, lineHeight: 1.6, marginTop: 0 }}>
-            Your data stays put. Roster, inquiries, bookings, branding — all of it. Billing pauses for 30 days; auto-resume after that
+            Your data stays put. Roster, inquiries, bookings, branding — all of it. Your plan stays active. Invoices that fall in the next 30 days are skipped (voided, never billed later), and billing resumes by itself after that
             unless you cancel.
           </p>
           <div
@@ -224,8 +224,8 @@ export function CancelFlow({ currentPlan, onComplete, onCancel }: CancelFlowProp
               Pause vs cancel
             </div>
             <ul style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.6, marginTop: 4, paddingLeft: 16 }}>
-              <li>Pause: data intact, billing stops 30 days, auto-resume</li>
-              <li>Cancel: drop to Free, public site goes offline, custom domain disconnects</li>
+              <li>Pause: plan stays active, invoices skipped for 30 days, billing resumes on its own</li>
+              <li>Cancel: you keep your plan until the period you paid for ends, then drop to Free (public site goes offline, custom domain disconnects)</li>
             </ul>
           </div>
           <FlowButtons

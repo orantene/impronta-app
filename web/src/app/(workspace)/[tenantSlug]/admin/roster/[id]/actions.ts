@@ -27,6 +27,7 @@ import { notifyTalentProfileApproved } from "@/lib/notifications/producers/talen
 import { assertTalentReadyForPublicListing } from "@/lib/field-engine/profile-publish-server-gate";
 import { workspaceOwnedStamp } from "@/lib/media/ownership";
 import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { afterResponse } from "@/lib/server/after-response";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -691,7 +692,7 @@ export async function setRosterTalentSiteVisibility(
   // their profile is now discoverable to clients. Fire-and-forget; deduped per
   // tenant+talent so re-toggling the eye won't re-email.
   if (visible) {
-    void notifyTalentProfileApproved({ admin, tenantId, talentProfileId: talentId });
+    afterResponse(() => notifyTalentProfileApproved({ admin, tenantId, talentProfileId: talentId }));
   }
 
   auditTalentEvent(

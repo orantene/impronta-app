@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useT } from "@/i18n/use-t";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { supportA11yCopy } from "./support-a11y-copy";
 import {
   subscribePushAction,
   unsubscribePushAction,
@@ -19,6 +21,7 @@ type Status = "idle" | "on" | "denied" | "unsupported" | "missing" | "busy";
 
 export function PushSubscribeControl({ tone = "light" }: { tone?: "light" | "hq" }) {
   const t = useT();
+  const copy = supportA11yCopy(useDashboardLocale());
   const [status, setStatus] = useState<Status>("idle");
   const vapid = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim() ?? "";
 
@@ -97,12 +100,20 @@ export function PushSubscribeControl({ tone = "light" }: { tone?: "light" | "hq"
   const blocked = status === "denied" || status === "unsupported" || status === "missing";
   const disabled = blocked || status === "busy";
 
+  const help =
+    status === "denied" ? copy.pushDeniedHelp : status === "unsupported" ? copy.pushUnsupportedHelp : null;
+
   return (
+    <>
     <button
       type="button"
       onClick={() => (status === "on" ? void disable() : void enable())}
       disabled={disabled}
+      aria-pressed={status === "on"}
+      aria-busy={status === "busy"}
+      aria-label={label}
       style={{
+        minHeight: 44,
         border: `1px solid ${border}`,
         background: status === "on" ? "transparent" : hq ? "#F5F2EB" : "#4D4855",
         color: status === "on" ? idleColor : hq ? "#0F0F11" : "#fff",
@@ -115,7 +126,23 @@ export function PushSubscribeControl({ tone = "light" }: { tone?: "light" | "hq"
         opacity: blocked ? 0.7 : 1,
       }}
     >
-      {status === "busy" ? "…" : label}
+      {status === "busy" ? (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeOpacity="0.3" strokeWidth="3" />
+            <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+              <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.8s" repeatCount="indefinite" />
+            </path>
+          </svg>
+          {copy.pushBusy}
+        </span>
+      ) : (
+        label
+      )}
     </button>
+    {help ? (
+      <p style={{ margin: "6px 0 0", fontSize: 11.5, lineHeight: 1.4, opacity: 0.8, color: idleColor }}>{help}</p>
+    ) : null}
+    </>
   );
 }

@@ -23,8 +23,9 @@ const sameInstant = (a: string, b: string) => {
 
 /**
  * Where the requested slot lands once the live slots for the CURRENT total duration are in.
- * `liveDays` already holds only starts that fit that duration (the fetch projects it), so a slot
- * that stopped fitting after add-ons is simply absent and falls back like a taken one.
+ * `liveDays` is the continuous strip (empty days included); starts on each day already fit
+ * the current duration (the fetch projects it), so a slot that stopped fitting after add-ons
+ * is simply absent and falls back like a taken one.
  */
 export function resolveSlotSelection(input: {
   slotStart: string;

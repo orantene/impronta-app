@@ -28,15 +28,15 @@ export function isTulalaKvConfigured(): boolean {
 /**
  * The isolated QA stack has no Upstash (its production values are sealed in
  * Vercel), so a real-model run there would fail closed forever. An in-memory
- * sliding window stands in ONLY when the process is not production AND the
- * Supabase target is the isolated QA branch. Both conditions are checked on
- * every call; a production build with the QA URL, or a dev process on the
- * production project, gets the Upstash rule unchanged.
+ * sliding window stands in ONLY when the Supabase target is the isolated QA
+ * branch. NODE_ENV is deliberately not checked: Vercel staging builds are
+ * production builds, so a NODE_ENV gate kept the fallback off exactly where QA
+ * needs it. The production project never gets the fallback; it keeps the
+ * Upstash rule unchanged. Checked on every call.
  */
 export const MEMORY_LIMITER_ALLOWED_REF = "fxlankepwnvelxjrahwk";
 
 export function isMemoryLimiterAllowed(env: NodeJS.ProcessEnv = process.env): boolean {
-  if (env.NODE_ENV === "production") return false;
   const url = env.NEXT_PUBLIC_SUPABASE_URL ?? "";
   return url.includes(`https://${MEMORY_LIMITER_ALLOWED_REF}.supabase.co`);
 }

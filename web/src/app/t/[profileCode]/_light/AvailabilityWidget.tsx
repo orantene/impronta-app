@@ -6,17 +6,22 @@
  * Server component — pure presentational, no interactivity.
  */
 
+import { lightProfileLabels } from "./profile-labels";
+
 type AvailabilityWidgetProps = {
   availableDaysInNext30: number | null;
   availabilityDots14d: string | null;
   nextAvailableDate: string | null;
+  locale?: string;
 };
 
 export function AvailabilityWidget({
   availableDaysInNext30,
   availabilityDots14d,
   nextAvailableDate,
+  locale = "en",
 }: AvailabilityWidgetProps) {
+  const labels = lightProfileLabels(locale);
   if (
     availableDaysInNext30 === null &&
     availabilityDots14d === null &&
@@ -53,15 +58,15 @@ export function AvailabilityWidget({
             }}
           />
           <span className="text-[0.6875rem] font-medium" style={{ color: "var(--plt-ink)" }}>
-            Available{" "}
-            <span className="font-semibold">{availableDaysInNext30}</span> of next 30 days
+            {labels.availableOf}{" "}
+            <span className="font-semibold">{availableDaysInNext30}</span> {labels.ofNext30}
           </span>
         </div>
       )}
 
       {/* 14-day dot strip */}
       {dots && dots.length > 0 && (
-        <div className="flex items-center gap-[3px]" aria-label="14-day availability strip">
+        <div className="flex items-center gap-[3px]" aria-label={labels.strip14Aria}>
           {dots.map((dot, i) => {
             const isFree = dot === "·";
             const isBlocked = dot === "×";
@@ -85,7 +90,7 @@ export function AvailabilityWidget({
             className="plt-mono ml-1 text-[0.625rem] uppercase tracking-[0.12em]"
             style={{ color: "var(--plt-muted)" }}
           >
-            14 days
+            {labels.days14}
           </span>
         </div>
       )}
@@ -93,9 +98,9 @@ export function AvailabilityWidget({
       {/* Next available date */}
       {nextAvailableDate && !availableDaysInNext30 && (
         <p className="text-[0.6875rem]" style={{ color: "var(--plt-muted)" }}>
-          Next available:{" "}
+          {labels.nextAvailable}{" "}
           <span className="font-medium" style={{ color: "var(--plt-ink)" }}>
-            {new Date(nextAvailableDate).toLocaleDateString("en-US", {
+            {new Date(nextAvailableDate).toLocaleDateString(locale === "es" ? "es-MX" : "en-US", {
               month: "short",
               day: "numeric",
             })}

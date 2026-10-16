@@ -13,6 +13,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { verifyShortlistToken } from "@/lib/discover/shortlist-share-token";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
+import { countryLabel } from "@/lib/geo/country-code";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ token: string }>;
@@ -217,7 +218,7 @@ async function loadPublicShortlist(
         profileCode: t.profile_code,
         primaryTypeLabel: primary?.taxonomy_terms?.name_i18n?.en ?? null,
         homeCity: t.home_city_text,
-        homeCountry: t.home_country_text,
+        homeCountry: countryLabel(t.home_country_text),
         agencyName: agencyRow?.display_name ?? null,
         isExclusive: !!primaryRoster?.is_primary,
         headshotUrl: photoByTalent.get(t.id) ?? null,

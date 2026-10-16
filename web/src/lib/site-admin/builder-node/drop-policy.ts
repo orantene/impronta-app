@@ -35,6 +35,7 @@ const ROOT_ALLOWED_KINDS: ReadonlySet<BuilderNodeKind> = new Set([
   "services_catalog",
   "portfolio",
   "reviews",
+  "posts_feed",
   "visit",
   "contents",
   "masthead",
@@ -47,6 +48,7 @@ const ROOT_ALLOWED_KINDS: ReadonlySet<BuilderNodeKind> = new Set([
   "app_nail_designer",
   // RESERVATIONS — the booking block is a whole page band like the others.
   "next_free_chip",
+  "promo",
   "reserve_table",
   "session_picker",
   "ticket_picker",

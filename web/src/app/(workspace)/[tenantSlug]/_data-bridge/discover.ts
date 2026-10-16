@@ -1,9 +1,9 @@
 import "server-only";
 
 import {
-  buildDirectoryQueryOrFilter,
   resolveDirectoryAgencyAttribution,
 } from "@/lib/directory/directory-attribution";
+import { directoryQueryOrFilter } from "@/lib/directory/directory-category-search.server";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -16,6 +16,7 @@ import {
   resolveLocationFilterIds,
   type CanonicalLocation,
 } from "@/lib/directory/location-facets";
+import { countryLabel } from "@/lib/geo/country-code";
 
 /**
  * _data-bridge/discover.ts — cross-tenant Discover catalog reads.
@@ -279,7 +280,7 @@ export async function loadDiscoverTalents(
   }
   if (opts.trustTier) query = query.eq("trust_tier", opts.trustTier);
   if (opts.availableOnly) query = query.gt("available_days_in_next_30", 0);
-  const qFilter = opts.q ? buildDirectoryQueryOrFilter(opts.q) : null;
+  const qFilter = opts.q ? await directoryQueryOrFilter(opts.q) : null;
   if (qFilter)        query = query.or(qFilter);
 
   if (opts.sort === "availability") {
@@ -375,7 +376,7 @@ export async function loadDiscoverTalents(
       primaryTypeLabel: row.category_label,
       primaryTypeSlug: row.category_slug,
       homeCity: row.home_city_text,
-      homeCountry: row.home_country_text,
+      homeCountry: countryLabel(row.home_country_text),
       homeLat: coords?.lat ?? null,
       homeLng: coords?.lng ?? null,
       agencyName: attribution.agencyName,
@@ -531,7 +532,7 @@ export async function loadDiscoverMapPoints(
   }
   if (opts.trustTier) query = query.eq("trust_tier", opts.trustTier);
   if (opts.availableOnly) query = query.gt("available_days_in_next_30", 0);
-  const qFilter = opts.q ? buildDirectoryQueryOrFilter(opts.q) : null;
+  const qFilter = opts.q ? await directoryQueryOrFilter(opts.q) : null;
   if (qFilter)        query = query.or(qFilter);
 
   const { data, error } = await query;
@@ -607,7 +608,7 @@ export async function loadDiscoverMapPoints(
       profileCode: row.profile_code,
       primaryTypeLabel: row.category_label,
       homeCity: row.home_city_text,
-      homeCountry: row.home_country_text,
+      homeCountry: countryLabel(row.home_country_text),
       agencyName: attribution.agencyName,
       isExclusive: attribution.isExclusive,
       headshotUrl: photoByTalent.get(row.id) ?? null,
@@ -669,7 +670,7 @@ export async function loadDiscoverFacets(): Promise<DiscoverFacets> {
   const categoryCounts = new Map<string, { label: string; count: number }>();
 
   for (const row of rows) {
-    const country = row.home_country_text?.trim();
+    const country = countryLabel(row.home_country_text);
     if (country) {
       const key = country.toLowerCase();
       const cur = countryAgg.get(key);
@@ -827,7 +828,7 @@ export async function loadClientShortlistsForUser(
           profileCode: p.profile_code,
           primaryTypeLabel: primaryLabel,
           homeCity: p.home_city_text,
-          homeCountry: p.home_country_text,
+          homeCountry: countryLabel(p.home_country_text),
           agencyName: pickAgencyName(primary),
           agencyTenantId: primary?.tenant_id ?? null,
           isExclusive: !!primary?.is_primary,
@@ -1099,7 +1100,7 @@ export async function loadClientFavoritesForUser(
         profileCode: p.profile_code,
         primaryTypeLabel: primaryLabel,
         homeCity: p.home_city_text,
-        homeCountry: p.home_country_text,
+        homeCountry: countryLabel(p.home_country_text),
         agencyName: pickAgencyName(primary),
         agencyTenantId: primary?.tenant_id ?? null,
         isExclusive: !!primary?.is_primary,
