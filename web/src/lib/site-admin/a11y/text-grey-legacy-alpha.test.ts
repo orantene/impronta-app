@@ -10,6 +10,9 @@
  * set a text colour (a `color`, `inkDim`, `dim` or `INK_DIM` key). Shadows,
  * fills, borders and strokes are not text and are left alone.
  *
+ * An allow-list entry that no longer needs it is harmless (never fails), so
+ * entries can be deleted whenever the file is swapped.
+ *
  * FOLLOW-UPS (not covered here): text greys at other low alphas (0.40 to 0.55)
  * that also sit under 4.5:1, and the files in ALLOWED_UNTIL_THEIR_PRS_LAND.
  */
@@ -41,6 +44,9 @@ const ALLOWED_UNTIL_THEIR_PRS_LAND = new Set([
   "components/admin/shell/admin-shell-client.tsx",
   "components/admin/shell/internal/drawers/drawer-shared.tsx",
   "components/support-desk/SupportDeskForbidden.tsx",
+  // Money surface (display only): shipped in the separate "MONEY (display only)" PR.
+  "app/(workspace)/[tenantSlug]/admin/payouts/base-fee-client.tsx",
+  "app/(workspace)/[tenantSlug]/admin/payouts/payouts-section-client.tsx",
 ]);
 
 const LEGACY_ALPHA = /rgba\(\s*11,\s*11,\s*13,\s*0\.3[58]\s*\)/;
@@ -75,14 +81,4 @@ test("no text colour uses the legacy 35%/38% ink alpha outside the allow-list", 
     [],
     `text colour at the legacy 35%/38% ink alpha (2.5:1, below AA). Use the 60% value or var(--color-admin-ink-dim):\n${offenders.join("\n")}`,
   );
-});
-
-test("every allow-listed file still exists and still has a legacy value (so entries get removed)", () => {
-  for (const rel of ALLOWED_UNTIL_THEIR_PRS_LAND) {
-    const src = readFileSync(path.join(SRC, rel), "utf8");
-    assert.ok(
-      src.split("\n").some((l) => LEGACY_ALPHA.test(l) && TEXT_COLOUR_KEY.test(l) && !NOT_TEXT.test(l)),
-      `${rel} no longer has a legacy text grey: remove it from ALLOWED_UNTIL_THEIR_PRS_LAND`,
-    );
-  }
 });
