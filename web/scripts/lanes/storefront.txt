@@ -65,6 +65,7 @@ src/components/edit-chrome/selection-focus.test.ts
 src/lib/admin/website-editor-base-url.test.ts
 src/components/edit-chrome/mobile-edit-panel-tablet.static.test.ts
 src/lib/client-account/guest-activate.test.ts
+src/lib/client-account/guest-activate-pay-only.test.ts
 src/lib/client-account/claim-landing.test.ts
 src/app/client/client-root-discover-origin.static.test.ts
 src/lib/client-account/client-root-landing.static.test.ts
