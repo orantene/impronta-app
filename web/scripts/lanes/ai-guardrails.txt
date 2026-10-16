@@ -68,6 +68,7 @@ src/lib/support/guest-resume-claim.test.ts
 src/lib/support/guest-resume-path.test.ts
 src/lib/support/guest-resume-race.test.ts
 src/lib/support/guest-retention.test.ts
+src/lib/support/guest-submit-critical-path.static.test.ts
 src/lib/support/help-corpus.test.ts
 src/lib/support/investigation/bundle.test.ts
 src/lib/support/login-next-support.test.ts
@@ -87,6 +88,7 @@ src/lib/support/support-ai-guardrails.test.ts
 src/lib/support/support-ai-language.test.ts
 src/lib/support/support-ai-turn.test.ts
 src/lib/support/support-chat-fail-open-log.test.ts
+src/lib/support/support-engine-append.test.ts
 src/lib/support/support-guest-access.test.ts
 src/lib/support/support-hq-presentation.test.ts
 src/lib/support/support-human-prefilter.test.ts
@@ -102,5 +104,3 @@ src/lib/support/ticket-plan.test.ts
 src/lib/support/ticket-title.test.ts
 src/lib/talent-site/route-verdict.test.ts
 src/lib/talent-site/talent-site-true-404.static.test.ts
-src/lib/support/guest-submit-critical-path.static.test.ts
-src/lib/support/support-engine-append.test.ts
