@@ -1,7 +1,7 @@
 import "server-only";
 
 import { renderCard } from "./cards";
-import { CLIENT_THREAD, INTERNAL_NOTE_KIND, type InquiryThreadType } from "./thread-rule";
+import { CLIENT_THREAD, INTERNAL_NOTE_KIND, TALENT_THREAD, type InquiryThreadType } from "./thread-rule";
 import type { CardKind, ThreadMessage } from "./types";
 
 type Admin = {
@@ -15,7 +15,7 @@ export async function loadMessagingThread(
 ): Promise<{ ok: true; messages: ThreadMessage[] } | { ok: false; reason: "unavailable" | "not_found" | "wrong_tenant" }> {
   const { data: inquiry, error: inqErr } = await admin
     .from("inquiries")
-    .select("id, tenant_id")
+    .select("id, tenant_id, message, created_at")
     .eq("id", input.inquiryId)
     .maybeSingle();
   if (inqErr) return { ok: false, reason: "unavailable" };
@@ -69,7 +69,39 @@ export async function loadMessagingThread(
     aiDisclosureLabel:
       typeof row.metadata?.disclosure_label === "string" ? row.metadata.disclosure_label : null,
   }));
+  // TUL-955: the request the guest typed is the inquiry's own `message`, not an inquiry_messages
+  // row, so the opened thread started at the first reply. Lead the stream with it (client side,
+  // the inquiry's creation time) unless an identical client message is already there.
+  const original = inquiryOriginalRequest(inquiry as { id: string; message?: string | null; created_at?: string | null });
+  if (original && !messages.some((m) => !m.internal && !m.system && m.senderUserId === null && m.body.trim() === original.body)) {
+    messages.unshift(original);
+  }
   return { ok: true, messages };
+}
+
+/** PURE: the inquiry's own request as a leading group-thread text message from the client side, or null when there is none. */
+export function inquiryOriginalRequest(inquiry: { id: string; message?: string | null; created_at?: string | null }): ThreadMessage | null {
+  const body = (inquiry.message ?? "").trim();
+  if (!body || !inquiry.created_at) return null;
+  return {
+    id: `inquiry-request:${inquiry.id}`,
+    inquiryId: inquiry.id,
+    kind: "text",
+    body,
+    payload: null,
+    senderUserId: null,
+    guestSessionId: null,
+    createdAt: inquiry.created_at,
+    editedAt: null,
+    deletedAt: null,
+    // Group thread: visible to the coordinating talent as well as a solo seller (the list preview
+    // already shows this text to both); the client thread is the client's own and already has it.
+    thread: TALENT_THREAD,
+    internal: false,
+    delivery: null,
+    system: false,
+    systemEvent: null,
+  };
 }
 
 /**
