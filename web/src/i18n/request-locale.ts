@@ -5,6 +5,11 @@ import { defaultLocale } from "@/i18n/config";
 import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
 import { getLanguageSettingsPublicCached } from "@/lib/language-settings/get-language-settings";
 import { resolveRequestLocale } from "@/i18n/resolve-request-locale";
+import {
+  WORKSPACE_HOST_KIND_HEADER,
+  explicitUrlLocale,
+  resolveWorkspacePageLocale,
+} from "@/i18n/workspace-page-locale";
 
 const LOCALE_HEADER = "x-impronta-locale";
 
@@ -45,6 +50,28 @@ export async function getRequestSearchParams(): Promise<URLSearchParams> {
 export async function getRequestLocale(): Promise<Locale> {
   const settings = await getLanguageSettingsPublicCached();
   const h = await headers();
+  // TUL-699: workspace public pages speak the workspace's language unless the
+  // URL asks for one explicitly. Never touches talent sites or marketing.
+  const tenantId = h.get("x-impronta-tenant-id");
+  if (tenantId && h.get(WORKSPACE_HOST_KIND_HEADER) === "agency") {
+    const forWorkspace = resolveWorkspacePageLocale({
+      hostKind: "agency",
+      explicit: explicitUrlLocale(
+        h.get(ORIGINAL_PATHNAME_HEADER),
+        h.get(ORIGINAL_SEARCH_HEADER),
+        settings.publicLocales,
+      ),
+      // Lazy: the loader imports "server-only", which the node test runner for this module cannot resolve.
+      facts: await (await import("@/lib/site-admin/server/workspace-page-locale")).loadWorkspaceLocaleFacts(tenantId),
+      platformDefault: settings.defaultLocale ?? defaultLocale,
+    });
+    if (
+      forWorkspace &&
+      (settings.publicLocales.includes(forWorkspace) || forWorkspace === settings.defaultLocale)
+    ) {
+      return forWorkspace as Locale;
+    }
+  }
   const jar = await cookies();
   return resolveRequestLocale({
     headerLocale: h.get(LOCALE_HEADER),
