@@ -743,7 +743,7 @@ function DiscoverCard({
             marginRight: 36,
             width: 32, height: 32, borderRadius: "50%",
             background: "rgba(255,255,255,0.88)",
-            color: "rgba(11,11,13,0.55)",
+            color: "rgba(11,11,13,0.6)",
             border: "none", padding: 0,
             display: "inline-flex", alignItems: "center", justifyContent: "center",
             fontSize: 18, lineHeight: 1, fontWeight: 400, cursor: "pointer",

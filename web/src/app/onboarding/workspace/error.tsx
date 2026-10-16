@@ -129,7 +129,7 @@ export default function OnboardingWorkspaceError({
             style={{
               fontFamily: "monospace",
               fontSize: 11,
-              color: "rgba(11,11,13,0.45)",
+              color: "rgba(11,11,13,0.6)",
               marginTop: 14,
               padding: "8px 10px",
               background: "rgba(11,11,13,0.03)",

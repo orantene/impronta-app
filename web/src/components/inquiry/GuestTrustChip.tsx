@@ -309,7 +309,7 @@ export function GuestTrustChip({
         style={{
           margin: 0,
           fontSize: 11,
-          color: "rgba(11,11,13,0.50)",
+          color: "rgba(11,11,13,0.6)",
           lineHeight: 1.4,
         }}
       >
@@ -367,7 +367,7 @@ export function GuestTrustChip({
                   cursor: reportState === "pending" ? "default" : "pointer",
                   fontSize: 11,
                   fontWeight: 500,
-                  color: "rgba(11,11,13,0.55)",
+                  color: "rgba(11,11,13,0.6)",
                   fontFamily: '"Inter", system-ui, sans-serif',
                   opacity: reportState === "pending" ? 0.6 : 1,
                 }}

@@ -273,7 +273,7 @@ export default function GlobalError({
             style={{
               fontFamily: '"Inter", system-ui, sans-serif',
               fontSize: 11.5,
-              color: "rgba(11,11,13,0.42)",
+              color: "rgba(11,11,13,0.6)",
               marginTop: 24,
               marginBottom: 0,
             }}

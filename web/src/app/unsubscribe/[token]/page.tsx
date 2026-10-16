@@ -235,7 +235,7 @@ const wordmark: CSSProperties = {
   fontSize: 15,
   fontWeight: 700,
   letterSpacing: -0.2,
-  color: "rgba(11,11,13,0.55)",
+  color: "rgba(11,11,13,0.6)",
 };
 
 const card: CSSProperties = {

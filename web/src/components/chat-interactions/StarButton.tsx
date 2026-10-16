@@ -67,7 +67,7 @@ export function StarButton({
         border: `1px solid ${starred ? "rgba(207,160,42,0.30)" : "transparent"}`,
         borderRadius: 999,
         cursor: pending ? "wait" : "pointer",
-        color: starred ? "#8A6F1A" : "rgba(11,11,13,0.45)",
+        color: starred ? "#8A6F1A" : "rgba(11,11,13,0.6)",
         fontSize: 11,
         fontWeight: 600,
         fontFamily: '"Inter", system-ui, sans-serif',

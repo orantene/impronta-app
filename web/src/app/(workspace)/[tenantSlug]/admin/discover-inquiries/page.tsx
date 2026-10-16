@@ -159,7 +159,7 @@ export default async function AdminDiscoverInquiriesPage({
       <div className="mb-6">
         <div style={{
           fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5,
-          textTransform: "uppercase", color: "rgba(11,11,13,0.55)",
+          textTransform: "uppercase", color: "rgba(11,11,13,0.6)",
           marginBottom: 6,
         }}>
           Admin · Discover
@@ -181,7 +181,7 @@ export default async function AdminDiscoverInquiriesPage({
           )}
         </h1>
         <p style={{
-          fontSize: 13, color: "rgba(11,11,13,0.55)",
+          fontSize: 13, color: "rgba(11,11,13,0.6)",
           margin: 0, lineHeight: 1.5, maxWidth: 600,
         }}>
           Inquiries routed to this workspace from Tulala Discover.

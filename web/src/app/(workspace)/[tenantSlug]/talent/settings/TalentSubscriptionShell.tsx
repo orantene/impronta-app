@@ -50,7 +50,7 @@ const PLAN_META = {
     label: "Free",
     price: "Free",
     tagline: "Standard profile on tulala.digital/t/<slug>",
-    color: "rgba(11,11,13,0.55)",
+    color: "rgba(11,11,13,0.6)",
     bg: "rgba(11,11,13,0.06)",
     perks: [
       "Public profile at tulala.digital/t/<slug>",
