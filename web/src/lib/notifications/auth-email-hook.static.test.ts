@@ -12,9 +12,11 @@ test("TUL-911: magic link / OTP email has a bilingual subject", () => {
   assert.match(es, /sesi/i);
 });
 
-test("TUL-911: hook route resolves locale from ?lang and subject from the copy catalog", () => {
+test("TUL-911: hook route resolves locale (redirect ?lang, then user_metadata.lang) and subject from the copy catalog", () => {
   const src = readFileSync("src/app/api/hooks/auth-email/route.ts", "utf8");
-  assert.match(src, /searchParams\.get\("lang"\)/);
+  // TUL-1179 moved the ?lang read into authEmailLocale (adds the user_metadata.lang fallback).
+  assert.match(src, /authEmailLocale\(data\.redirect_to, payload\.user\?\.user_metadata\?\.lang\)/);
+  assert.match(readFileSync("src/lib/notifications/auth-email-locale.ts", "utf8"), /searchParams\.get\("lang"\)/);
   assert.match(src, /getEmailCopy\(locale\)\[copyKeyFor\(action\)\]\.subject/);
   assert.match(src, /case "magiclink":\s*return "auth\.magiclink"/);
 });
