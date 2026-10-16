@@ -67,7 +67,7 @@ test("TUL-601 and TUL-661 copy exists in en/es without em dashes", () => {
 test("guest failOpen posts the offer-human card; talk-to-a-person and email both escalate", () => {
   const route = readFileSync("src/app/api/ai/guest-support-chat/route.ts", "utf8");
   const fo = route.slice(route.indexOf("async function failOpen"), route.indexOf("export async function POST"));
-  assert.match(fo, /SUPPORT_AI_ERROR_CARD/);
+  assert.match(fo, /supportAiErrorCard/);
   assert.match(fo, /messageKind: "card"/);
   const actions = readFileSync("src/lib/support/guest-actions.ts", "utf8");
   const human = actions.slice(actions.indexOf("export async function requestGuestHumanAction"));
