@@ -14,6 +14,7 @@
 
 import type { Translator } from "@/i18n/interpolate";
 import { refusalKey } from "@/lib/messaging/refusals";
+import { buildEngineLinesCopy } from "./copy-engine-lines";
 import type {
   ConversationState,
   IdentityLevel,
@@ -217,6 +218,7 @@ export function buildKitCopy(t: Translator) {
       total: t("dashboard.messagesV5.card.total"),
       amount: t("dashboard.messagesV5.card.amount"),
     },
+    engineLines: buildEngineLinesCopy(t),
     offer: {
       draft: t("dashboard.messagesV5.offer.draft"),
       sentV: t("dashboard.messagesV5.offer.sentV"),

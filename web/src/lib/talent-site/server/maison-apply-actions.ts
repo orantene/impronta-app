@@ -6,6 +6,7 @@
  * pending_design for Undo. Live sites write ONLY `pending_design` (colors_only).
  */
 
+import { getRequestLocale } from "@/i18n/request-locale";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { isTalentMaisonThemeEnabled } from "@/lib/access/talent-maison-theme";
 import { logServerError } from "@/lib/server/safe-error";
@@ -232,6 +233,7 @@ export async function applyMaisonDesignAction(input: {
     design,
     displayName: g.displayName,
     userId: g.userId,
+    locale: await getRequestLocale(),
   });
   if (!designRes.ok) return designRes;
 

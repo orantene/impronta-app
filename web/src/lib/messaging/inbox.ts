@@ -1,5 +1,11 @@
 import "server-only";
 
+import { readQaFixtureMarker } from "@/lib/messages-v5/qa-fixture-row";
+import { displayableContact } from "@/lib/inquiry/guest-send-gate";
+
+import { VISITOR_FALLBACK_NAME } from "./inquiry-name-pure";
+
+import { settleChipsFromOrders } from "@/lib/talent-agenda/abandoned-order";
 import { toRecordChip, type ConversationRecordRow } from "./record-chip";
 import { readConversationState, readOpportunityState } from "./state";
 import type { InboxFilter, InboxNextAction, InboxRow, MessagingChannel, RecordChip } from "./types";
@@ -29,7 +35,11 @@ type InquiryRow = {
   message: string | null;
   updated_at: string;
   version: number;
+  source_context: unknown;
 };
+
+/** Upper bound on rows one inbox load reads (newest first). */
+export const INBOX_ROW_LIMIT = 1000;
 
 export async function loadMessagingInbox(
   admin: Admin,
@@ -48,13 +58,13 @@ export async function loadMessagingInbox(
   let query = admin
     .from("inquiries")
     .select(
-      "id, tenant_id, location_slug, contact_name, contact_phone, contact_email, conversation_state, opportunity_state, channel, owner_user_id, last_customer_message_at, last_staff_message_at, resolved_at, lost_reason, status, current_offer_id, message, updated_at, version",
+      "id, tenant_id, location_slug, contact_name, contact_phone, contact_email, conversation_state, opportunity_state, channel, owner_user_id, last_customer_message_at, last_staff_message_at, resolved_at, lost_reason, status, current_offer_id, message, updated_at, version, source_context",
     )
     .order("updated_at", { ascending: false });
   query = input.onlyInquiryIds
     ? query.in("id", [...input.onlyInquiryIds])
     : query.eq("tenant_id", input.tenantId);
-  const { data, error } = await query;
+  const { data, error } = await query.limit(INBOX_ROW_LIMIT);
   if (error) return { ok: false, reason: "unavailable" };
 
   const inquiries = (data ?? []) as InquiryRow[];
@@ -71,13 +81,15 @@ export async function loadMessagingInbox(
     const unread = isUnread(row, reads.get(row.id) ?? null);
     if (unread) unreadCount += 1;
     const paid = (chips.get(row.id) ?? []).some((chip) => chip.paymentState === "paid" || chip.paymentState === "partially_refunded");
+    // TUL-379: never surface seed Guest / pending-…@guest.impronta in the list.
+    const contact = displayableContact(row.contact_name, row.contact_email);
     const mapped: InboxRow = {
       id: row.id,
       tenantId: row.tenant_id,
       locationSlug: row.location_slug ?? "default",
-      contactName: row.contact_name,
+      contactName: contact.contactName,
       contactPhone: row.contact_phone,
-      contactEmail: row.contact_email,
+      contactEmail: contact.contactEmail,
       conversationState: readConversationState({
         conversationState: row.conversation_state,
         opportunityState: row.opportunity_state,
@@ -106,7 +118,7 @@ export async function loadMessagingInbox(
       ownerLabel: row.owner_user_id ? (owners.get(row.owner_user_id) ?? null) : null,
       unread,
       unreadCount: unread ? 1 : 0,
-      subject: clip(row.message ?? "") || clip(previews.get(row.id) ?? "") || displayName(row.contact_name),
+      subject: clip(row.message ?? "") || clip(previews.get(row.id) ?? "") || displayName(contact.contactName),
       lastMessagePreview: clip(previews.get(row.id) ?? row.message ?? ""),
       nextAction: deriveNextAction({
         ownerUserId: row.owner_user_id,
@@ -140,6 +152,7 @@ export async function loadMessagingInbox(
       updatedAt: row.updated_at,
       version: row.version,
       recordChips: chips.get(row.id) ?? [],
+      ...(readQaFixtureMarker(row.source_context) ? { qaFixture: true } : {}),
     };
     if (matchesFilter(mapped, input.filter, input.actorUserId)) rows.push(mapped);
   }
@@ -188,7 +201,7 @@ function matchesFilter(row: InboxRow, filter: InboxFilter, actorUserId: string):
 
 function displayName(name: string): string {
   const trimmed = name.trim();
-  return trimmed === "" ? "Visitor" : trimmed;
+  return trimmed === "" ? VISITOR_FALLBACK_NAME : trimmed;
 }
 
 function clip(value: string): string {
@@ -250,6 +263,11 @@ async function loadChips(admin: Admin, tenantId: string | null, inquiryIds: stri
     list.push(toRecordChip(row));
     map.set(row.inquiry_id, list);
   }
+  // TUL-715: an order chip follows the live order (cancelled/expired), same as Clientes and Hoy.
+  const all = [...map.values()].flat();
+  const settled = await settleChipsFromOrders(admin, all);
+  let i = 0;
+  for (const [id, list] of map) map.set(id, settled.slice(i, (i += list.length)));
   return map;
 }
 

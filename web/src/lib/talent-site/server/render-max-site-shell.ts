@@ -37,10 +37,10 @@ function splitShellRaw(shellTree: BuilderNode[]): [BuilderNode[], BuilderNode[]]
  * into design payloads: authored-overlay hashes and published snapshots stay put,
  * and with the flag off this is the identical split.
  */
-export function splitShell(shellTree: BuilderNode[], opts: { webOfficeSocial?: boolean } = {}): [BuilderNode[], BuilderNode[]] {
+export function splitShell(shellTree: BuilderNode[], opts: { webOfficeSocial?: boolean; /** Per-site switch (TUL-694); default on, the host flag still gates. */ accountEntry?: boolean } = {}): [BuilderNode[], BuilderNode[]] {
   const [raw, footer] = splitShellRaw(shellTree);
   // TUL-240: paid Web Office only, render time only (the item shows what `siteChrome.social` carries).
   const header = opts.webOfficeSocial ? raw.map(withSocialItem) : raw;
-  if (!resolveClientAccountMount("talent").headerItem) return [header, footer];
+  if (opts.accountEntry === false || !resolveClientAccountMount("talent").headerItem) return [header, footer];
   return [header.map((n) => withAccountItem(n) ?? n), footer];
 }

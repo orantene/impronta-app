@@ -25,6 +25,7 @@ export const WEBSITE_ES_TEXT: Record<string, string> = {
   "This is your business site. Edit pages, design and domain here.":
     "Este es tu sitio de negocio. Edita páginas, diseño y dominio aquí.",
   "Open site": "Abrir sitio",
+  "Change design": "Cambiar diseño",
   "Other websites": "Otros sitios",
   "Personal site": "Sitio personal",
   "Edit your personal site separately from your business site.":
@@ -80,8 +81,8 @@ export const WEBSITE_ES_TEXT: Record<string, string> = {
   "Something went wrong.": "Algo salió mal.",
   "Address, logo and pages": "Dirección, logo y páginas",
   "Site address, logo, pages and custom domain": "Dirección del sitio, logo, páginas y dominio propio",
-  "Address, logo, pages, booking, payments and cancelling":
-    "Dirección, logo, páginas, reservas, pagos y cancelaciones",
+  "Address, logo, pages, booking, chat, payments and cancelling":
+    "Dirección, logo, páginas, reservas, chat, pagos y cancelaciones",
   // Custom domain unlock (Web Office) — kept here so dashboard-i18n.ts stays at 3968.
   "Domain setup": "Configurar dominio",
   "Buy a domain at the registrar price, connect one you own, or get help.": "Compra un dominio al precio del registrador, conecta uno propio, o pide ayuda.",
@@ -139,4 +140,25 @@ export const WEBSITE_ES_TEXT: Record<string, string> = {
   "1. Add this TXT record to prove you own the domain": "1. Agrega este registro TXT para demostrar que eres el dueño del dominio",
   "2. Then point the domain at Vercel": "2. Luego apunta el dominio a Vercel",
   "Point the domain at Vercel": "Apunta el dominio a Vercel",
+  // live1 / TUL-39 — LegacyPresence + discovery strip (ES shell was English)
+  "Your multi-page website": "Tu sitio de varias páginas",
+  "A full website with its own link, header, logo and footer, separate from your discovery profile. The starter gallery below sets up its home page and shell.":
+    "Un sitio completo con su propio enlace, encabezado, logo y pie, aparte de tu perfil de descubrimiento. La galería de abajo configura su página de inicio y la estructura.",
+  "Your discovery profile": "Tu perfil de descubrimiento",
+  "The single page clients land on from Discover, at /t/<your code>. The template here restyles that profile — it does not change your multi-page website above.":
+    "La página a la que llegan los clientes desde Discover, en /t/<tu código>. La plantilla aquí cambia el estilo de ese perfil — no modifica tu sitio de varias páginas de arriba.",
+  "PORTFOLIO FEATURE": "FUNCIÓN PORTFOLIO",
+  "Your own website": "Tu propio sitio web",
+  "Upgrade to Portfolio to build a full multi-page website with your own header, logo, footer, and a custom address — published at its own link, separate from your discovery profile.":
+    "Mejora a Portfolio para crear un sitio de varias páginas con tu propio encabezado, logo, pie y dirección personalizada — publicado en su propio enlace, aparte de tu perfil de descubrimiento.",
+  "Intro tagline": "Frase de presentación",
+  "Draft updated": "Borrador actualizado",
+  "Last published": "Última publicación",
+  "Version": "Versión",
+  "View published site": "Ver sitio publicado",
+  "Preview draft (owner)": "Vista previa del borrador (dueño)",
+  "Standard profile": "Perfil estándar",
+  "Unpublished": "Sin publicar",
+  "Unpublish": "Despublicar",
+  "Coming soon": "Próximamente",
 };

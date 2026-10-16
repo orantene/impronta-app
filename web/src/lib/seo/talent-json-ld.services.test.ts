@@ -68,6 +68,8 @@ test("JSON-LD: nothing invented (no duration, no price, blank names dropped)", (
   assert.equal(p.makesOffer.length, 1);
   assert.deepEqual(p.makesOffer[0], {
     "@type": "Offer",
+    // TUL-794: an unpriced service is a quote, and says so (no price invented).
+    description: "Quote on request",
     itemOffered: { "@type": "Service", name: "Consult", provider: { "@id": "https://morena.tulala.digital/#person" } },
   });
 });

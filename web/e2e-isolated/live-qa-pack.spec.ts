@@ -40,6 +40,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { assertIsolatedJourneysTarget } from "../scripts/isolated-target-guard.mjs";
+import { fixtureRoleProblems } from "./live-qa-pack-fixture-roles";
 
 // ───────────────────────── config + guard ─────────────────────────
 assertIsolatedJourneysTarget(process.env, { requireIsolatedFlag: true });
@@ -130,17 +131,48 @@ const siteUrl = (host: string, path = "/") => `http://${host}:${SITE_PORT}${path
 const bodyText = async (page: Page) => (await page.locator("body").innerText().catch(() => "")).replace(/\s+/g, " ");
 const shot = (page: Page, name: string) => page.screenshot({ path: join(evidence, `${name}.png`) }).catch(() => undefined);
 
+/** Consent card hides `[data-guest-chat-launcher]` (opacity/visibility) until dismissed. */
+async function dismissConsent(page: Page) {
+  const decline = page
+    .getByRole("button", { name: /^(Rechazar|Decline)$/i })
+    .or(page.locator("[data-consent-banner] button").filter({ hasText: /^(Rechazar|Decline)$/i }));
+  if (await decline.first().isVisible().catch(() => false)) {
+    await decline.first().click().catch(() => undefined);
+    await page.waitForTimeout(400);
+  }
+}
+
 async function go(page: Page, url: string, settleMs = 12_000) {
   await page.goto(url, { waitUntil: "domcontentloaded" }).catch(() => undefined);
   await page.waitForTimeout(settleMs);
-  const reject = page.getByRole("button", { name: /^Rechazar$/ });
-  if (await reject.first().isVisible().catch(() => false)) await reject.first().click().catch(() => undefined);
+  await dismissConsent(page);
+}
+
+/** Floating guest-chat pill (ES "Enviar mensaje a …" / EN "Message …"). */
+function guestChatLauncher(page: Page) {
+  return page
+    .locator("[data-guest-chat-launcher]")
+    .or(page.locator('[aria-label^="Enviar mensaje a"]'))
+    .or(page.locator('[aria-label^="Message "]'))
+    .first();
 }
 
 // ───────────────────────── throwaway client (created + removed by the pack) ─────────────────────────
 const created: { clientUserId?: string; clientEmail?: string; notes: string[] } = { notes: [] };
 
 test.beforeAll(async () => {
+  // TUL-595: refuse to run checks as an account whose role does not match its fixture name
+  // (a "superAdmin" that is really a client bounced every admin check to /start).
+  const ids = (Object.entries(FIX) as Array<[string, { userId?: string } | string[] | undefined]>)
+    .map(([, v]) => (v && !Array.isArray(v) ? v.userId : undefined))
+    .filter((id): id is string => typeof id === "string");
+  const { data: rows, error: rolesErr } = await svc.from("profiles").select("id, app_role").in("id", ids);
+  if (rolesErr) throw new Error(`[live-qa-pack] could not read fixture roles: ${rolesErr.message}`);
+  const byId = new Map((rows ?? []).map((r) => [String(r.id), { app_role: r.app_role as string | null }]));
+  const problems = fixtureRoleProblems(FIX, byId);
+  if (problems.length > 0) {
+    throw new Error(`[live-qa-pack] fixtures do not match their roles:\n - ${problems.join("\n - ")}`);
+  }
   const email = `qa-pack-client-${Date.now().toString(36)}@example.test`;
   const r = await svc.auth.admin.createUser({ email, email_confirm: true });
   if (r.error || !r.data.user) throw r.error ?? new Error("could not create the throwaway client");
@@ -408,7 +440,14 @@ test("FIRST-RUN · a new studio's dashboard greets a person, has no restaurant P
   await go(page, `${APP}/${fx.slug}/admin`, 14_000);
   const t = await bodyText(page);
   await shot(page, "FIRST-RUN-dashboard");
-  expect(t, "greeting is not the account handle").not.toContain(email.split("@")[0]!);
+  const handle = email.split("@")[0]!;
+  const { data: prof } = await svc.from("profiles").select("display_name").eq("id", fx.userId).maybeSingle();
+  const nameIsHandle = ((prof?.display_name as string | null) ?? "").trim().toLowerCase() === handle.toLowerCase();
+  // TUL-636: the handle check only proves the product when the fixture's display name differs from
+  // its email local part. Otherwise the greeting legitimately shows the name, so assert on the raw email only.
+  expect(t, "greeting is not the raw account email").not.toContain(email);
+  if (nameIsHandle) test.info().annotations.push({ type: "fixture-bound", description: "display_name equals email local part; handle assertion skipped" });
+  else expect(t, "greeting is not the account handle").not.toContain(handle);
   expect(t, "no restaurant-only surfaces for a service studio").not.toMatch(/Abrir POS|Mesas|Pedidos/);
   await go(page, `http://localhost:${SITE_PORT}/w/${fx.slug}?edit=1`, 25_000);
   await page.getByRole("button", { name: /^Publicar$/ }).first().click();
@@ -447,6 +486,118 @@ test("TUL-117 · three choices journey: covered by e2e/onboarding/choices-journe
 
 test("TUL-120 · support AI answers a Spanish ticket in Spanish", async () => {
   test.skip(process.env.QA_PACK_AI_SUPPORT !== "1", "needs platform_settings.workspace_support_enabled and settings.ai_support_enabled on fxlank: a shared-row change that needs the PM's yes, backed up and restored (QA_PACK_AI_SUPPORT=1 only inside that window)");
+});
+
+// ───────────────────────── TUL-51 Support Desk (entry + permissions; AI/write steps stay TUL-120 / signed-in sitting) ─────────────────────────
+
+test("TUL-51 · Support Desk: marketing /support, talent panel chrome, /desk permissions (anon + talent + client + admin)", async ({
+  browser,
+}) => {
+  // Automates the packable slice of the 30-step script (B1, A1 chrome, E2/E3, D1 chrome).
+  // Ticket/chat writes, email, AI answers → TUL-120 + signed-in stack sitting (Oran admin once).
+
+  // B1 — marketing /support ES + EN (anonymous)
+  {
+    const { ctx, page } = await guestPage(browser);
+    await go(page, `${MARKETING}/es/support`, 8_000);
+    let t = await bodyText(page);
+    await shot(page, "TUL-51-support-es");
+    expect(t, "ES support promise").toMatch(/Soporte:\s*te responde una persona real|Te responde una persona real/i);
+    expect(t, "no personal names on marketing support").not.toMatch(/\b(Oran|Vic|Valeria|Jorgelina)\b/);
+    await go(page, `${MARKETING}/support`, 8_000);
+    t = await bodyText(page);
+    await shot(page, "TUL-51-support-en");
+    expect(t, "EN support promise").toMatch(/Support:\s*a real person answers|A real person answers/i);
+
+    // E2 anon — /desk must not show the queue (login bounce or soft 404 when flag off)
+    const resp = await page.goto(`${APP}/desk`, { waitUntil: "domcontentloaded" }).catch(() => null);
+    await page.waitForTimeout(6_000);
+    const url = page.url();
+    t = await bodyText(page);
+    await shot(page, "TUL-51-desk-anon");
+    const bounced =
+      /\/login/i.test(url) ||
+      /sign[\s-]?in|iniciar sesi[oó]n|accede|log in/i.test(t) ||
+      /Page not found|No encontramos|not found/i.test(t);
+    expect(bounced, `anon /desk must not show the desk queue; url=${url} status=${resp?.status()}`).toBeTruthy();
+    await ctx.close();
+  }
+
+  // A1 — talent Support launcher → Home / Tickets / Guide
+  {
+    const fx = need(FIX.myself, "myself");
+    const { ctx, page } = await openAs(browser, fx.userId, { width: 1440, height: 1000 });
+    await go(page, `${APP}/talent`, 12_000);
+    const launcher = page.locator("[data-tulala-support-launcher]").first();
+    // With platform_settings.workspace_support_enabled off (fxlank default) the launcher is not
+    // mounted by config, not by defect: record it. QA_PACK_AI_SUPPORT=1 means the switch is on.
+    const launcherMounted =
+      process.env.QA_PACK_AI_SUPPORT === "1" ||
+      (await launcher.waitFor({ state: "visible", timeout: 15_000 }).then(() => true, () => false));
+    if (!launcherMounted) {
+      created.notes.push("TUL-51 A1 skipped: support launcher not mounted (workspace_support_enabled off on this stack)");
+    } else {
+      await expect(launcher, "support launcher is mounted in the talent shell").toBeVisible({ timeout: 15_000 });
+      await launcher.click();
+      await page.waitForTimeout(2_500);
+      const panel = page
+        .getByRole("dialog")
+        .or(page.locator('[aria-label="Conversación de soporte"], [aria-label="Support conversation"]'))
+        .first();
+      await expect(panel, "support panel opens").toBeVisible({ timeout: 10_000 });
+      const panelText = await bodyText(page);
+      await shot(page, "TUL-51-talent-panel");
+      expect(panelText, "Home tab").toMatch(/\bInicio\b|\bHome\b/);
+      expect(panelText, "Tickets tab").toMatch(/\bTickets\b/);
+      expect(panelText, "Guide tab").toMatch(/\bGu[ií]a\b|\bGuide\b/);
+    }
+
+    // E3 — talent /desk is honest forbidden (or soft 404 when flag off)
+    await go(page, `${APP}/desk`, 10_000);
+    const t = await bodyText(page);
+    await shot(page, "TUL-51-desk-talent");
+    const talentBlocked =
+      /Se necesita acceso de administrador de plataforma|Platform admin sign-in required/i.test(t) ||
+      /\/login/i.test(page.url()) ||
+      /Page not found|No encontramos/i.test(t);
+    expect(talentBlocked, "talent /desk is forbidden or hidden").toBeTruthy();
+    await ctx.close();
+  }
+
+  // E2 signed-in client (throwaway from beforeAll)
+  if (!created.clientUserId) {
+    created.notes.push("TUL-51 client /desk step skipped: throwaway client missing");
+  } else {
+    const { ctx, page } = await openAs(browser, created.clientUserId, { width: 1440, height: 900 });
+    await go(page, `${APP}/desk`, 10_000);
+    const t = await bodyText(page);
+    await shot(page, "TUL-51-desk-client");
+    const clientBlocked =
+      /Se necesita acceso de administrador de plataforma|Platform admin sign-in required/i.test(t) ||
+      /\/login/i.test(page.url()) ||
+      /Page not found|No encontramos/i.test(t);
+    expect(clientBlocked, "client /desk is forbidden or hidden").toBeTruthy();
+    await ctx.close();
+  }
+
+  // D1 chrome — platform admin /desk (no ticket writes). Soft-404 when flag off is recorded, not a fail.
+  if (!FIX.superAdmin) {
+    created.notes.push("TUL-51 admin /desk step skipped: fixture missing superAdmin");
+  } else {
+    const { ctx, page } = await openAs(browser, FIX.superAdmin.userId, { width: 1440, height: 1000 });
+    await go(page, `${APP}/desk`, 14_000);
+    const t = await bodyText(page);
+    await shot(page, "TUL-51-desk-admin");
+    if (/Page not found|No encontramos/i.test(t)) {
+      created.notes.push("TUL-51 admin /desk soft-404: SUPPORT_DESK_ENABLED off on this stack");
+    } else {
+      expect(t, "admin is not bounced to the talent forbidden gate").not.toMatch(
+        /Se necesita acceso de administrador de plataforma|Platform admin sign-in required/i,
+      );
+      expect(t, "desk shell shows support chrome").toMatch(/Soporte|Support|Tickets|Ideas|Insights/i);
+    }
+    await ctx.close();
+  }
 });
 
 test("TUL-421 · theme A to B to A: business data identical and the live page restored byte for byte", async ({ browser }) => {
@@ -497,7 +648,7 @@ test("TUL-39 · free talent Apps: premium Nail Designer shows Web Office badge a
   await shot(page, "TUL-39-apps");
   expect(t, "Nail Designer is listed").toMatch(/Nail Designer|Diseñador de uñas/i);
   expect(t, "Web Office / Oficina Web badge on premium").toMatch(/Web Office|Oficina Web/);
-  expect(t, "free plan sees Upgrade to use (or Spanish equivalent)").toMatch(/Upgrade to use|Mejorar para usar|Actualizar para usar/i);
+  expect(t, "free plan sees Upgrade to use (or Spanish equivalent)").toMatch(/Upgrade to use|Mejora(?:r)? tu plan para usarla|Mejorar para usar|Actualizar para usar/i);
   await ctx.close();
 });
 
@@ -577,16 +728,38 @@ test("TUL-93 · confirmed booking on the fixture talent has guest + talent notif
     .order("created_at", { ascending: false })
     .limit(1);
   test.skip(!bookings?.length, "fixture missing: no confirmed booking on myself talent");
+  const bookingId = bookings![0]!.id as string;
   const inquiryId = bookings![0]!.inquiry_id as string | null;
   test.skip(!inquiryId, "fixture missing: confirmed booking has no inquiry_id");
-  const { data: dispatches } = await svc
+  // Column is event_kind (not kind) — a bad select 400s and looks like "no rows".
+  const { data: byInquiry, error: byInquiryErr } = await svc
     .from("notification_dispatch_log")
-    .select("id, status, channel, kind")
+    .select("id, status, channel, event_kind, error_message, catalog_entry_id")
     .eq("inquiry_id", inquiryId)
     .limit(20);
-  writeFileSync(join(evidence, "TUL-93-dispatches.json"), JSON.stringify(dispatches ?? [], null, 2));
-  expect((dispatches ?? []).length, "at least one dispatch row for the booking inquiry").toBeGreaterThan(0);
-  const skipped = (dispatches ?? []).filter((d) => String(d.status).includes("skipped") || /not configured/i.test(String(d.status)));
+  expect(byInquiryErr, `dispatch by inquiry: ${byInquiryErr?.message ?? ""}`).toBeNull();
+  let dispatches = byInquiry ?? [];
+  if (dispatches.length === 0) {
+    // Free-path emits may stamp inquiry_id null on older rows; match payload.bookingId.
+    const { data: byBooking, error: byBookingErr } = await svc
+      .from("notification_dispatch_log")
+      .select("id, status, channel, event_kind, error_message, catalog_entry_id")
+      .eq("event_kind", "booking.confirmed")
+      .filter("payload->>bookingId", "eq", bookingId)
+      .limit(20);
+    expect(byBookingErr, `dispatch by bookingId: ${byBookingErr?.message ?? ""}`).toBeNull();
+    dispatches = byBooking ?? [];
+  }
+  writeFileSync(
+    join(evidence, "TUL-93-dispatches.json"),
+    JSON.stringify({ inquiryId, bookingId, dispatches }, null, 2),
+  );
+  expect(dispatches.length, "at least one dispatch row for the booking inquiry").toBeGreaterThan(0);
+  const skipped = dispatches.filter(
+    (d) =>
+      d.status === "skipped" &&
+      /not configured|no endpoint/i.test(String(d.error_message ?? "")),
+  );
   expect(skipped, "no 'channel not configured' skips for this inquiry").toEqual([]);
 });
 
@@ -704,16 +877,30 @@ test("TUL-391 · money/approval notification catalog includes refund.failed, pay
 });
 
 test("TUL-397 · builder device switch: content returns; inspector does not cover the whole canvas", async ({ browser }) => {
-  const fx = need(FIX.myself, "myself");
-  const { ctx, page } = await openAs(browser, fx.userId, { width: 1280, height: 900 });
-  await go(page, `${APP}/talent/page-builder`, 20_000);
+  // Pack 2026-10-10 FAIL on myself:/talent/page-builder was the Web Office upsell
+  // ("El editor de páginas es una función de Web Office") — no canvas iframe.
+  // Blank-frame product fix already on main via #3257. Prefer a studio edit
+  // surface that has the builder; skip clearly when the fixture is paywalled.
+  const studio = FIX.studio;
+  const myself = FIX.myself;
+  const fx = studio ?? myself;
+  need(fx, "studio (or myself with Web Office)");
+  const { ctx, page } = await openAs(browser, fx!.userId, { width: 1280, height: 900 });
+  if (studio?.slug) {
+    await go(page, `http://localhost:${SITE_PORT}/w/${studio.slug}?edit=1`, 25_000);
+  } else {
+    await go(page, `${APP}/talent/page-builder`, 20_000);
+  }
+  const paywalled = await page.getByText(/función de Web Office|Web Office feature|no puedes editar este sitio/i).first().isVisible().catch(() => false);
+  test.skip(paywalled, "fixture missing: Web Office / page-builder access (upsell wall, no canvas)");
   const phone = page.getByRole("button", { name: /390|phone|m[oó]vil/i }).or(page.locator("[data-viewport=phone]")).first();
   if (await phone.isVisible().catch(() => false)) {
     await phone.click();
     await page.waitForTimeout(2500);
   }
+  // Require a real canvas — do not accept bare <main> (paywall / empty shell false-pass).
   const canvas = page.locator("iframe, [data-edit-canvas]").first();
-  await expect(canvas).toBeVisible({ timeout: 20_000 });
+  await expect(canvas, "builder canvas iframe after device switch").toBeVisible({ timeout: 20_000 });
   const canvasBox = await canvas.boundingBox();
   const inspector = page.locator("[data-edit-inspector], [data-edit-drawer]").first();
   if (canvasBox && (await inspector.count())) {
@@ -767,10 +954,20 @@ test("TUL-449 · talent site secondary-read degrade: public home stays 200 (not 
 });
 
 test("TUL-458 · hub guest chat: second message after Solicitud recibida is sent (composer clears)", async ({ browser }) => {
-  const fx = need(FIX.myself, "myself");
+  // Hub / platform guest chat lives on hub+agency hosts (PublicChatSurface) and on
+  // marketing `/global-directory` (AgencyChatLauncherMount → platform hub tenant).
+  // Pack 2026-10-10 hit myself.siteHost on :3008 and got `/_host-unregistered`
+  // ("This domain isn't connected yet") — no launcher. Product second-send fix
+  // already on main via #3013 / integ #3060; this test must open a hub surface.
   const { ctx, page } = await guestPage(browser);
-  await go(page, siteUrl(fx.siteHost), 10_000);
-  await page.locator('[aria-label^="Enviar mensaje a"]').first().evaluate((el) => (el as HTMLElement).click());
+  await go(page, `${MARKETING}/global-directory`, 10_000);
+  const body = await bodyText(page);
+  expect(body, "hub surface must not be the unregistered-domain page").not.toMatch(
+    /domain isn't connected|Host not registered/i,
+  );
+  const launcher = guestChatLauncher(page);
+  await expect(launcher, "guest chat dock on hub/marketing directory").toBeVisible({ timeout: 30_000 });
+  await launcher.evaluate((el) => (el as HTMLElement).click());
   await page.waitForTimeout(3000);
   const name = page.getByLabel(/Nombre/i).or(page.locator('input[name*=name i]')).first();
   if (await name.isVisible().catch(() => false)) {

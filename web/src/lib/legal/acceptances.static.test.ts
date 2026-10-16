@@ -46,7 +46,7 @@ test("server actions validate the checkbox", () => {
   assert.match(signUp, /isAgeAndTermsConfirmed\(formData\.get\("age_terms"\)\)/);
   assert.ok(signUp.indexOf("isAgeAndTermsConfirmed") < signUp.indexOf("supabase.auth.signUp"), "checked before the account is created");
   const otp = read("src/app/auth/otp-actions.ts");
-  assert.ok(otp.indexOf("isAgeAndTermsConfirmed") < otp.indexOf("signInWithOtp({"), "checked before the code is sent");
+  assert.ok(otp.indexOf("isAgeAndTermsConfirmed") < otp.indexOf("sendEmailCodeCore("), "checked before the code is sent");
   assert.match(read("src/app/(auth)/register/accept-terms/actions.ts"), /isAgeAndTermsConfirmed\(formData\.get\("age_terms"\)\)/);
 });
 

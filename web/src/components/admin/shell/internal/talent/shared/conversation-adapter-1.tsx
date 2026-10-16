@@ -3,9 +3,17 @@
 import { useMemo } from "react";
 import { type TalentInquiryRow } from "../../data-bridge";
 import { pinNextConversation as pinNextConversationT } from "../../messages";
+import {
+  INBOX_PREVIEW_AWAITING,
+  INBOX_PREVIEW_BOOKED,
+  INBOX_PREVIEW_CLOSED,
+} from "../../messages/inbox-generated-previews";
 import { ClientTrustChip, Icon } from "../../primitives";
 import { COLORS, FONTS, INQUIRY_STAGE_META, MY_TALENT_PROFILE, useAdminShell, type ClientTrustLevel, type RichInquiry } from "../../state";
-import { talentInquiryMsgStageFromStatus } from "../../shell-count-bubbles-logic";
+import {
+  isTalentAwaitingYouStage,
+  talentInquiryMsgStageFromStatus,
+} from "../../shell-count-bubbles-logic";
 import { MOCK_CONVERSATIONS, type Conversation, type MsgStage } from "./conversations-1";
 import { myStatusOn, unreadOnInquiry } from "./inquiry-bridge-1";
 import { TALENT_INQUIRY_TO_CONV } from "./today-1";
@@ -74,8 +82,16 @@ function adaptTalentInquiry(row: InquiryBridgeRow, fallbackAgencyName: string): 
     // inbox row can translate them. A coordinator sender would stay verbatim
     // (TUL-478 / TUL-519 cards 379+500).
     lastMessage: {
+      // Synthetic previews: system sender so inboxPreviewText always translates
+      // (TUL-478 / TUL-519). Keys from inbox-generated-previews.
       sender:  "system" as const,
-      preview: stage === "booked" ? "Booking confirmed. Check logistics tab." : "Awaiting your response.",
+      // Honest preview: only inquiry|hold are "awaiting you" (same predicate as
+      // the attention bubble / Hoy — TUL-387 Live QA FAIL vs inbox of 4).
+      preview: isTalentAwaitingYouStage(stage)
+        ? INBOX_PREVIEW_AWAITING
+        : stage === "booked"
+          ? INBOX_PREVIEW_BOOKED
+          : INBOX_PREVIEW_CLOSED,
       ageHrs,
     },
     unreadCount: row.unreadCount,

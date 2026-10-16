@@ -13,6 +13,7 @@
 // #310 / hydration mismatch arrives with a de-minified component stack via the
 // source maps the Sentry build step already uploads.
 
+import { redactSecretPath } from "@/lib/analytics/redact-secret-path";
 import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
 
@@ -30,7 +31,7 @@ export default function GlobalError({
     try {
       Sentry.withScope((scope) => {
         scope.setTag("context", "app/global-error-boundary");
-        scope.setTag("route", typeof window !== "undefined" ? window.location.pathname : "unknown");
+        scope.setTag("route", typeof window !== "undefined" ? redactSecretPath(window.location.pathname) : "unknown");
         scope.setTag("host", typeof window !== "undefined" ? window.location.hostname : "unknown");
         scope.setExtra("digest", error?.digest ?? null);
         Sentry.captureException(error);

@@ -15,16 +15,21 @@ export function CatalogWhoSummary({
   day,
   time,
   tz,
+  placeCity,
   total,
+  /** GRK-065: client-place bookings collect the address below; hide the studio "we send location" note. */
+  addressNote = "studio",
 }: {
   es: boolean;
   service: string;
   day: Date;
   time: string | null;
   tz: string | null;
+  placeCity?: string | null;
   total: string;
+  addressNote?: "studio" | "client" | "none";
 }) {
-  const zone = tz ? catalogTimezoneLabel(tz, es) : "";
+  const zone = tz ? catalogTimezoneLabel(tz, es, placeCity) : "";
   const val = { textAlign: "right" } as const;
   return (
     <div className="jb-recap" data-catalog-who-summary="">
@@ -44,9 +49,15 @@ export function CatalogWhoSummary({
         <span>Total</span>
         <b style={val}>{total}</b>
       </div>
-      <p className="jb-fixture" data-catalog-address-note="">
-        {es ? "Te enviamos la ubicación exacta al confirmar" : "We'll send the exact address when you confirm"}
-      </p>
+      {addressNote === "studio" ? (
+        <p className="jb-fixture" data-catalog-address-note="studio">
+          {es ? "Te enviamos la ubicación exacta al confirmar" : "We'll send the exact address when you confirm"}
+        </p>
+      ) : addressNote === "client" ? (
+        <p className="jb-fixture" data-catalog-address-note="client">
+          {es ? "Indica abajo la dirección donde será el servicio" : "Enter the address where the service will happen below"}
+        </p>
+      ) : null}
     </div>
   );
 }

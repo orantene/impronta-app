@@ -1,6 +1,7 @@
 import { improntaLog } from "@/lib/server/structured-log";
 import { loadProfileStorefrontPayload } from "./profile-storefront-payload";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { SOLO_PROFILE_BRAND, profilePriceCurrency, withSoloProfileCopy } from "./solo-profile-copy";
 import { pickByChain } from "@/lib/talent-site/talent-profile-locale";
 import {
   resolveTalentProfileLocale,
@@ -15,6 +16,7 @@ import { SkipToContent } from "@/components/accessibility/skip-to-content";
 
 import { resolveProfileTemplate } from "./_shared/profile-template-dispatch";
 import { ProfileShareRow } from "./_light/ProfileShareRow";
+import { buildShareLabels } from "./_light/share-labels";
 import { ProfileHubsIndicator } from "./_light/ProfileHubsIndicator";
 import type { ResolvedSkill } from "@/lib/server-actions/admin-talent-skills.types";
 
@@ -33,6 +35,7 @@ import { resolveTalentBooking } from "@/lib/scheduling/booking-surface";
 import { resolveProfileCtasFromOfferings } from "@/lib/scheduling/profile-cta-precedence";
 import { PublicHeader } from "@/components/public-header";
 import { MarketingHeader } from "@/components/marketing/header";
+import { buildHubClientEntry } from "@/lib/marketing/hub-client-entry";
 import { MarketingFooter } from "@/components/marketing/footer";
 import type { MarketingAccount } from "@/components/marketing/marketing-account-menu";
 import { resolveAccountHref, getAppUrl } from "@/lib/auth-flow";
@@ -91,8 +94,10 @@ import {
   resolveResidenceLocationEmbed,
   type CanonicalLocationEmbed,
 } from "@/lib/canonical-location-display";
+import { isSurfaceHostKind } from "@/lib/saas/host-kinds";
 import { getPublicHostContext, getPublicPathPrefix } from "@/lib/saas/scope";
 import { resolvePublicProfileOverrideTenantId } from "@/lib/saas/talent-roster";
+import { talentProfileRobotsMeta } from "@/lib/talent-site/talent-profile-robots";
 import { assertTalentVisibleOnAgencySurface } from "./_guards/agency-roster-visibility";
 import {
   ALLOW_ALL_TAXONOMY_VISIBILITY,
@@ -114,6 +119,7 @@ import {
   talentProfileMetaTitle,
 } from "@/lib/seo/talent-profile-meta-copy";
 import { buildTalentProfileJsonLd, jsonLdToString, offeringsToJsonLdServices } from "@/lib/seo/talent-json-ld";
+import { loadProfileReviewsJsonLd } from "@/lib/seo/talent-profile-reviews-ld.server";
 import {
   resolveTalentVisibility,
   type TalentSurface,
@@ -128,17 +134,19 @@ import { TalentProfileInquireButton } from "./talent-profile-inquire-button";
 import { TalentProfileInstantBookButton } from "./talent-profile-instant-book-button";
 import { HubProfileCta } from "./hub-profile-book-cta";
 import { FreeformHubBook } from "./freeform-hub-book";
+import { HubProfileBookingChrome } from "./hub-profile-booking-chrome";
 import type { HubProfileCtaSlot } from "@/lib/talent-site/hub-profile-book-cta";
+import { hubProfileBookEntry } from "@/lib/talent-site/hub-profile-book-entry";
 import { loadInstantBookEligibility } from "@/lib/scheduling/instant-book-eligibility";
 import { servicesMenuForPublicHost } from "@/lib/talent/services-menu-for-host";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
 import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
-import { pickHeadlinePrice } from "@/lib/directory/headline-price";
+import { hubHeadlinePriceText } from "@/lib/promos/hub-price";
+import { loadPublicPromosForTalent, priceContext } from "@/lib/promos/public-promos.server";
 import { formatMoney } from "@/lib/talent/offerings-money";
 import { TalentIntakeSurfaces } from "./_chat/TalentIntakeSurfaces";
 import { askEntryPointsVisible } from "@/lib/talent/chat-entry";
 import { loadTalentIntake } from "./_chat/talent-intake.server";
-import { ProfileInstantBookingMount } from "./_shared/ProfileInstantBookingMount";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { publicNameOrGeneric } from "@/lib/messaging/public-name";
 import { isTalentExclusiveToTenant } from "@/lib/agency/talent-exclusivity";
@@ -163,6 +171,7 @@ import type {
   TalentReview,
   Testimonial,
 } from "@/lib/reviews/review-types";
+import { softTitleCaseName } from "@/lib/talent/soft-title-case-name";
 
 // ── Types ──
 
@@ -200,7 +209,7 @@ type TalentProfile = {
   short_bio: string | null;
   /** Per-locale published bio map { "en": …, "es": … } (replaces bio_en/bio_es). */
   bio_i18n: LocalizedMap | null;
-  is_publicly_hidden: boolean | null;
+  is_publicly_hidden: boolean | null; is_publicly_listed?: boolean | null; visibility?: string | null;
   is_featured: boolean | null;
   height_cm: number | null;
   talent_plan_key?: string | null;
@@ -297,9 +306,8 @@ function groupByKind(locale: string, terms: TaxonomyTerm[], chain?: readonly str
 }
 
 function displayName(p: TalentProfile): string {
-  if (p.display_name?.trim()) return p.display_name.trim();
   const parts = [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
-  return parts || p.profile_code;
+  return softTitleCaseName(p.display_name?.trim() || parts || p.profile_code);
 }
 
 function residenceLabel(locale: string, p: TalentProfile, chain?: readonly string[]): string {
@@ -411,7 +419,7 @@ async function fetchTalentProfileRow(profileCode: string, preview: boolean) {
             last_name,
             short_bio,
             bio_i18n,
-            is_publicly_hidden,
+            is_publicly_hidden, is_publicly_listed, visibility,
             is_featured,
             height_cm,
             talent_plan_key,
@@ -473,7 +481,7 @@ async function fetchTalentProfileRow(profileCode: string, preview: boolean) {
       last_name,
       short_bio,
       bio_i18n,
-      is_publicly_hidden,
+      is_publicly_hidden, is_publicly_listed, visibility,
       is_featured,
       height_cm,
       talent_plan_key,
@@ -1370,12 +1378,12 @@ export async function buildTalentProfileMetadata({
   searchParams,
 }: {
   params: Promise<{ profileCode: string }>;
-  searchParams: Promise<{ preview?: string }>;
+  searchParams: Promise<{ preview?: string; lang?: string | string[] }>;
 }): Promise<Metadata> {
   if (!isSupabaseConfigured()) return {};
 
   const profileCode = await liveTalentProfileCode((await params).profileCode, { quiet: true });
-  const { preview } = await searchParams;
+  const { preview, lang: langQuery } = await searchParams;
   const site =
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "http://localhost:3000";
   const hostCtx = await getPublicHostContext();
@@ -1431,6 +1439,7 @@ export async function buildTalentProfileMetadata({
     profileCode,
     canonicalAbsolute: await canonicalTalentUrl(profileCode),
     fallbackOrigin: site,
+    langQuery,
   });
   const { locale, chain } = localeMeta.profile;
 
@@ -1451,9 +1460,7 @@ export async function buildTalentProfileMetadata({
     return new URL(site);
   })();
 
-  const name = profile.display_name?.trim() ||
-    [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim() ||
-    profileCode;
+  const name = displayName(profile as TalentProfile) || profileCode;
 
   // A category the tenant disabled must not reach <title> / og:title (it reaches
   // search engines from there). With every category hidden the title degrades to
@@ -1493,6 +1500,7 @@ export async function buildTalentProfileMetadata({
       locale: localeMeta.openGraphLocale,
       alternateLocale: localeMeta.openGraphAlternateLocale,
     },
+    ...talentProfileRobotsMeta(profile),
   };
 }
 
@@ -1638,11 +1646,12 @@ export async function TalentProfileView({
   }
   const { pub, fieldValuesClient, profile, preview: resolvedPreview } = result;
   // Follow the talent's own languages (requested locale only if in their set).
-  const profileLocale = await resolveTalentProfileLocale(profile.id);
+  const profileLocale = await resolveTalentProfileLocale(profile.id, sp.lang);
   const chain = profileLocale.chain;
   locale = profileLocale.locale as typeof locale;
   t = createTranslator(locale);
-  ui = buildDirectoryUiCopy(t, tenantBrand);
+  if (surface === "freelancer") t = withSoloProfileCopy(t, locale); // TUL-707: no agency wording
+  ui = buildDirectoryUiCopy(t, surface === "freelancer" ? SOLO_PROFILE_BRAND : tenantBrand);
 
   // Phase 5/6 M2 — explicit surface-aware visibility. On non-preview flows,
   // the freelancer/app surface requires is_publicly_hidden = false AND
@@ -1718,6 +1727,9 @@ export async function TalentProfileView({
     const curated: Record<string, { en: string; es: string }> = {
       measurements: { en: "Measurements", es: "Medidas" },
       physical: { en: "Physical", es: "Físico" },
+      "physical-casting": { en: "Physical casting", es: "Casting físico" },
+      physical_casting: { en: "Physical casting", es: "Casting físico" },
+      casting: { en: "Casting", es: "Casting" },
       logistics: { en: "Logistics", es: "Logística" },
       availability: { en: "Availability", es: "Disponibilidad" },
       experience: { en: "Experience", es: "Experiencia" },
@@ -1855,6 +1867,8 @@ export async function TalentProfileView({
     hostCtx.kind === "agency" ? hostCtx.tenantId : null,
     chain,
   );
+  // Promos v1 (TUL-937): live auto promos price the hub headline; never on an agency surface.
+  const publicPromos = hostCtx.kind === "agency" ? null : await loadPublicPromosForTalent(profile.id);
 
   // S6 — id → label for any discipline a service is scoped to (talent_type terms).
   const disciplineLabels: Record<string, string> = {};
@@ -1982,6 +1996,7 @@ export async function TalentProfileView({
     legacyEligible: instantBook.eligible && instantBook.fixedRateDollars != null,
   });
   const showSlotPicker = profileCtas.showSlotPicker;
+  const hubBookEntry = hubProfileBookEntry(storefrontOfferings, profile.talent_plan_key);
   const slotTenantSlug = booking.tenantSlug ?? chatTenantSlug;
   const slotTenantId = booking.tenantId ?? chatTenantId;
   const chatBrandName =
@@ -2192,12 +2207,7 @@ export async function TalentProfileView({
   const canonicalShareUrl =
     (await canonicalTalentUrl(profile.profile_code)) ??
     `${siteBase}/t/${encodeURIComponent(profile.profile_code)}`;
-  const shareLabels = {
-    heading: t("public.profile.share.heading"),
-    copyLink: t("public.profile.share.copyLink"),
-    copyLinkDone: t("public.profile.share.copyLinkDone"),
-    whatsappTemplate: t("public.profile.share.whatsappTemplate"),
-  };
+  const shareLabels = buildShareLabels(t);
 
   const detailsLabels = {
     measurements: pickLocale(locale, { en: "Basic info", es: "Información básica" }),
@@ -2221,9 +2231,7 @@ export async function TalentProfileView({
   const firstName = name.split(" ")[0] ?? name;
 
   // ── Platform-host marketing chrome props ──────────────────────────────
-  // On the platform host (app / marketing) the profile is wrapped in the real
-  // tulala.digital chrome (MarketingHeader + MarketingFooter). Agency hosts
-  // keep their own white-label chrome (no chrome forced here).
+  // Platform hosts get the tulala.digital chrome; agency hosts keep their own.
   const platformChrome = isTalentProfilePlatformHost(hostCtx.kind);
   let marketingAccount: MarketingAccount | undefined;
   let marketingPathnameWithoutLocale = "/";
@@ -2277,9 +2285,9 @@ export async function TalentProfileView({
     "inline-flex items-center justify-center rounded-full bg-[var(--plt-forest)] px-5 py-2.5 text-sm font-medium text-[var(--plt-forest-on)] shadow-[var(--plt-shadow-forest)] transition-[background,transform] hover:bg-[var(--plt-forest-deep)] hover:-translate-y-[1px]";
   const inquireBtnClassFull = `${inquireBtnClass} w-full`;
 
-  // TUL-170: the hub Book CTA also shows when the slot picker replaces the Inquire controls.
+  // TUL-246: Book when bookable; Inquire otherwise (also when the slot picker is up).
   const inquireButtons = (btnClass: string, slot: HubProfileCtaSlot) => (
-      <HubProfileCta slot={slot} platformHost={platformHost} maxSiteUrl={maxSiteUrl} askEntry={talentAskEntry} locale={locale} className={btnClass}>
+      <HubProfileCta slot={slot} platformHost={platformHost} hasBookableServices={hubBookEntry.kind === "sheet"} locale={locale} className={btnClass}>
         {showSlotPicker ? null : <>
         {profileCtas.showLegacyInstantBook ? (
           <TalentProfileInstantBookButton
@@ -2315,6 +2323,13 @@ export async function TalentProfileView({
   // profiles. Public data only — no contact info, no agency-private
   // financials. See lib/seo/talent-json-ld.ts.
   const jsonLd = buildTalentProfileJsonLd({
+    // TUL-585: only reviews the page shows; none for a demo talent.
+    reviews: await loadProfileReviewsJsonLd({
+      profileId: profile.id,
+      reviewsEnabled,
+      summary: ratingSummary,
+      rows: talentReviews,
+    }),
     canonicalUrl: canonicalShareUrl,
     name,
     // null when every category is hidden for this tenant — buildTalentProfileJsonLd
@@ -2428,25 +2443,10 @@ export async function TalentProfileView({
         })()}
         serviceAreas={structuredServiceAreas}
         startingFrom={(() => {
-          // Prefer the modern catalogue headline (same picker as directory cards).
+          // Same picker as directory cards, priced through displayPrice (promos L6).
           // Legacy `talent_profiles.starting_from` is free text and often raw cents.
-          const headline = pickHeadlinePrice(
-            storefrontOfferings
-              .filter(
-                (o) =>
-                  o.priceDisplay !== "quote" &&
-                  o.priceType !== "custom" &&
-                  typeof o.amountCents === "number" &&
-                  o.amountCents > 0,
-              )
-              .map((o) => ({
-                amountCents: o.amountCents as number,
-                currency: o.currency,
-                priceType: o.priceType,
-                isFeatured: o.isFeatured === true,
-              })),
-          );
-          if (headline) return formatMoney(headline.amountCents, headline.currency, locale);
+          const headline = hubHeadlinePriceText(storefrontOfferings, publicPromos && priceContext(publicPromos, locale), locale);
+          if (headline) return headline;
           const legacy = profile.starting_from?.trim() ?? "";
           if (!legacy) return null;
           if (/^\d+$/.test(legacy)) {
@@ -2567,6 +2567,7 @@ export async function TalentProfileView({
             initialSaved={initialSavedIds.includes(profile.id)}
             portalInquiryHref={portalInquiryHref}
             mode="footer"
+            hostKind={isSurfaceHostKind(hostCtx.kind) ? hostCtx.kind : null}
             profileCta={ui.profileCta}
             inquiry={ui.inquiry}
           />
@@ -2578,15 +2579,7 @@ export async function TalentProfileView({
           CTA; renders only on the agency surface AND when the tenant has guest
           chat enabled + shown on talent profiles (tenant_guest_chat_settings).
           Self-positions fixed bottom-right, so DOM placement here is logical. */}
-      {/* Storefront Book now / Buy — armed when a seller tenant resolved. */}
-      {slotTenantId ? (
-        <ProfileInstantBookingMount
-          tenantId={slotTenantId}
-          talentProfileId={profile.id}
-          sourcePage={`/t/${profile.profile_code}`}
-          locale={locale}
-        />
-      ) : null}
+      <HubProfileBookingChrome platformHost={platformHost} tenantId={slotTenantId} talentProfileId={profile.id} sourcePage={`/t/${profile.profile_code}`} locale={locale} bookEntry={hubBookEntry} />
       {!isModal ? <TalentIntakeSurfaces askEntry={talentAskEntry} switches={talentSwitches} agencyChatOn={guestChatSettings.enabled && guestChatSettings.showOnTalent} agencyGreeting={guestChatSettings.greeting} launcher={{ talentProfileId: profile.id, talentProfileCode: profile.profile_code, talentDisplayName: name, tenantSlug: chatTenantSlug, tenantId: chatTenantId, agencyName: chatBrandName, accentColor: chatAccentColor, logoUrl: watermarkLogoUrl, sourcePage: profileSourcePage, locale, backgroundMode: chatBackgroundMode, omitPlatformBrand: Boolean(chatHub) }} /> : null}
     </>
   );
@@ -2668,12 +2661,13 @@ export async function TalentProfileView({
                 pathnameWithoutLocale={marketingPathnameWithoutLocale}
                 account={marketingAccount}
                 signOutAction={signOut}
+                clientEntry={platformChrome ? buildHubClientEntry(getAppUrl(), canonicalShareUrl, locale) : undefined}
               />
               {/* id="main-content" lives inside LightProfileLayout (<main>) */}
               <div className="flex-1 pt-[var(--plt-header-h,84px)] sm:pt-[72px]">
                 {profileBody}
               </div>
-              <MarketingFooter />
+              <MarketingFooter priceCurrency={profilePriceCurrency(storefrontOfferings)} />
             </div>
           ) : (
             // AGENCY HOST — keep the white-label agency chrome: the platform

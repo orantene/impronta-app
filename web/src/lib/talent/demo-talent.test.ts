@@ -8,10 +8,12 @@
  */
 
 import { strict as assert } from "node:assert";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { anyDemoTalent } from "./demo-talent";
+import { anyDemoTalent, demoSiteFooterText } from "./demo-talent";
 
 function stub(rows: { id: string }[] | null, error = false) {
   const calls: string[][] = [];
@@ -56,5 +58,35 @@ describe("anyDemoTalent", () => {
     const { db, calls } = stub([{ id: "x" }]);
     assert.equal(await anyDemoTalent(db, [null, undefined, ""]), false);
     assert.equal(calls.length, 0);
+  });
+});
+
+describe("demoSiteFooterText (TUL-531 eyes-0433-01)", () => {
+  it("never says bookings are off while the widget offers slots", () => {
+    assert.doesNotMatch(demoSiteFooterText("es", true), /desactivadas/);
+    assert.doesNotMatch(demoSiteFooterText("en", true), /disabled/);
+  });
+
+  it("says bookings are off when the switch is off", () => {
+    assert.match(demoSiteFooterText("es-MX", false), /desactivadas/);
+    assert.match(demoSiteFooterText("en", false), /disabled/);
+  });
+
+  it("matches ES and EN meaning when bookings are on", () => {
+    assert.equal(demoSiteFooterText("es", true), "Las reservas son simuladas.");
+    assert.equal(demoSiteFooterText("en", true), "Bookings are simulated.");
+  });
+});
+
+describe("instant booking refuses demo talents", () => {
+  it("checks anyDemoTalent before placing the purchase", () => {
+    const src = readFileSync(
+      join(process.cwd(), "src/lib/server-actions/instant-book-action.ts"),
+      "utf8",
+    );
+    const guard = src.indexOf("anyDemoTalent(");
+    assert.ok(guard > 0, "instant-book-action must call anyDemoTalent");
+    assert.ok(guard < src.indexOf("placeInstantPurchase("), "guard must run before the purchase");
+    assert.match(src, /return \{ ok: false, error: DEMO_SUBMIT_REFUSAL \}/);
   });
 });

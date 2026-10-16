@@ -136,9 +136,20 @@ export default defineConfig({
       dependencies: ["talent-website-setup"],
       use: { ...devices["Desktop Chrome"] },
     },
+    // ── Promos v1 ────────────────────────────────────────────────────────
+    // Same local-Supabase lane and fixtures as talent-website: the specs sign in
+    // as seeded fixture talents (storage states written by talent-website-setup)
+    // and seed/clean their own promos through the service role. Kept out of
+    // `chromium` (testIgnore below) because they need that setup project.
+    {
+      name: "promos",
+      testMatch: /promos\/.*\.spec\.ts/,
+      dependencies: ["talent-website-setup"],
+      use: { ...devices["Desktop Chrome"] },
+    },
     {
       name: useGoogleChrome ? "google-chrome" : "chromium",
-      testIgnore: /talent-website\//,
+      testIgnore: /(talent-website|promos)\//,
       use: {
         ...devices["Desktop Chrome"],
         ...(useGoogleChrome ? { channel: "chrome" as const } : {}),
@@ -168,12 +179,13 @@ export default defineConfig({
       testMatch: /cases\/.*\.spec\.ts/,
       use: { ...devices["iPhone 14"] },
     },
-    // Onboarding module: phone-first, so every onboarding spec also runs on an
-    // iPhone 14 (390 px). The chromium project above covers the desktop overlay.
+    // Onboarding module: phone-first at iPhone 14 (390 px). Pin Chromium —
+    // the stock iPhone 14 descriptor uses WebKit, which drops `impronta_guest`
+    // on http://localhost and breaks multi-step journeys (TUL-520 harness).
     {
       name: "mobile-onboarding",
       testMatch: /onboarding\/.*\.spec\.ts/,
-      use: { ...devices["iPhone 14"] },
+      use: { ...devices["iPhone 14"], defaultBrowserType: "chromium" },
     },
   ],
 });

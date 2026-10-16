@@ -144,6 +144,32 @@ export function surfaceModeFromBackgroundMode(
 // for the brand color so nothing falls back to a near-black fill.
 export const DEFAULT_ACCENT = "#33507a";
 
+/**
+ * GRK-037 — Hablar FAB fill floor. A near-black brand accent on a dark header
+ * (karla / noir) paints an invisible circle. Below this relative-luminance
+ * floor we substitute DEFAULT_ACCENT so the FAB stays findable on every theme.
+ */
+export const LAUNCHER_ACCENT_MIN_LUMINANCE = 0.18;
+
+/** Solid fill for the guest-chat FAB; never a near-black brand colour. */
+export function launcherAccentFill(hex: string | null | undefined): string {
+  if (!hex || typeof hex !== "string") return DEFAULT_ACCENT;
+  const m = hex.trim().replace(/^#/, "");
+  const full =
+    m.length === 3
+      ? m
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : m;
+  if (full.length !== 6 || !/^[0-9a-fA-F]{6}$/.test(full)) return DEFAULT_ACCENT;
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return lum < LAUNCHER_ACCENT_MIN_LUMINANCE ? DEFAULT_ACCENT : `#${full.toLowerCase()}`;
+}
+
 /** Launcher pill offset from the viewport bottom (safe-area added at use site). */
 export const GUEST_CHAT_LAUNCHER_BOTTOM_PX = 130;
 
@@ -285,10 +311,18 @@ export function formatTime(iso: string): string {
   }
 }
 
+/** Word tokens of a name; a standalone dash (" \u2014 ", " - ") is a separator, not a word. */
+function nameWords(name: string): string[] {
+  return name
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w && !/^[\u2012-\u2015-]+$/u.test(w));
+}
+
 export function firstNameOf(name: string): string {
   const t = name.trim();
   if (!t) return name;
-  return t.split(/\s+/)[0] ?? t;
+  return nameWords(t)[0] ?? t;
 }
 
 /** Split a stored full name into gate first/last fields (prefill resume). */
@@ -298,7 +332,10 @@ export function splitGuestFullName(name: string | null | undefined): {
 } {
   const t = (name ?? "").trim();
   if (!t) return { firstName: "", lastName: "" };
-  const parts = t.split(/\s+/);
+  const sep = t.split(/\s+[\u2012-\u2015-]+\s+/u).map((x) => x.trim()).filter(Boolean);
+  if (sep.length >= 2) return { firstName: sep[0] ?? "", lastName: sep.slice(1).join(" ") };
+  const parts = nameWords(t);
+  if (parts.length === 0) return { firstName: "", lastName: "" };
   if (parts.length === 1) return { firstName: parts[0] ?? "", lastName: "" };
   return { firstName: parts[0] ?? "", lastName: parts.slice(1).join(" ") };
 }
@@ -384,7 +421,7 @@ export function expandedShellStyle(p: Palette = C): CSSProperties {
     position: "fixed",
     right: "max(16px, env(safe-area-inset-right))",
     bottom: `calc(${GUEST_CHAT_PANEL_BOTTOM_PX}px + env(safe-area-inset-bottom))`,
-    zIndex: 90,
+    zIndex: 96,
     width: EXPANDED_WIDTH,
     maxHeight: EXPANDED_MAX_HEIGHT,
     display: "flex",

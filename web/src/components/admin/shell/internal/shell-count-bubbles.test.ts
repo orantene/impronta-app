@@ -178,6 +178,12 @@ describe("ShellCountBubbles mount (static)", () => {
     assert.match(src, /shellAttentionTooltip/);
     assert.match(src, /title=\{title\}/);
     assert.match(src, /Attention/);
+    // TUL-536: talent must not prefer shellCounts.attention over inbox awaiting.
+    assert.match(src, /inWorkspace\s*\?\s*\(shellCounts\?\.attention/);
+    assert.doesNotMatch(
+      src,
+      /shellCounts\?\.attention && shellCounts\.attention > 0\s*\?\s*shellCounts\.attention\s*:\s*awaiting/,
+    );
   });
 
   it("Hoy Requiere atención uses the same awaiting count as the bubble", () => {
@@ -193,7 +199,10 @@ describe("ShellCountBubbles mount (static)", () => {
     );
     const jobShell = readFileSync(join(DIR, "messages/TalentJobShell.tsx"), "utf8");
     assert.match(adapter, /talentInquiryMsgStageFromStatus/);
+    assert.match(adapter, /isTalentAwaitingYouStage\(stage\)/);
     assert.match(jobShell, /isTalentAwaitingYouStage/);
+    // Closed / booked rows must not look like "awaiting you" in the inbox list.
+    assert.match(adapter, /: INBOX_PREVIEW_CLOSED/);
   });
 
   it("Attention label + tooltip have ES catalog rows", () => {

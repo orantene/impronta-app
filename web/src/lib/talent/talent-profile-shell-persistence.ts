@@ -5,6 +5,7 @@
  */
 
 import { z } from "zod";
+import { countryForStorage } from "@/lib/geo/country-code";
 
 // ─── Identity (mirrors admin-talent-identity.ts) ─────────────────────────────
 
@@ -121,7 +122,7 @@ export function buildTalentIdentityProfilePatch(
   const nationality = nullifyEmpty(v.nationality);
   if (nationality !== undefined) patch.nationality = nationality;
   const homeCountry = nullifyEmpty(v.home_country);
-  if (homeCountry !== undefined) patch.home_country_text = homeCountry;
+  if (homeCountry !== undefined) patch.home_country_text = countryForStorage(homeCountry);
   if (v.response_time !== undefined) migratedFieldValues.response_time = v.response_time;
   if (v.is_discoverable !== undefined) patch.is_discoverable = v.is_discoverable;
   if (v.field_visibility !== undefined) patch.field_visibility = v.field_visibility;

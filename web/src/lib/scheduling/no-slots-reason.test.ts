@@ -173,3 +173,18 @@ test("?duration= override accepts extras total and rejects garbage", () => {
   assert.equal(parsePublicSlotDuration(String(PUBLIC_SLOTS_MAX_DURATION_MIN + 1), 60), 60);
   assert.equal(parsePublicSlotDuration(String(PUBLIC_SLOTS_MAX_DURATION_MIN), 60), PUBLIC_SLOTS_MAX_DURATION_MIN);
 });
+
+// ── TUL-1023: guest same-day starts honour the minimum notice ───────────────
+
+test("TUL-1023: a start inside the talent's minimum notice is never offered", () => {
+  // Monday 13:00Z, window 09:00-17:00, hourly starts.
+  const now = new Date("2027-03-01T13:00:00Z");
+  const twoHours = computePublicSlotStarts({ hours: hours({ minNoticeMin: 120 }), durationMinutes: 60, from: now, days: 1 });
+  assert.equal(twoHours[0], "2027-03-01T15:00:00.000Z", "2h notice: 14:00 (1h ahead) is hidden");
+  const unset = computePublicSlotStarts({ hours: hours({ minNoticeMin: 120 }), durationMinutes: 60, from: now, days: 1, sellingDefaults: {} });
+  assert.equal(unset[0], "2027-03-01T15:00:00.000Z", "no selling-defaults notice keeps the hours-row notice");
+  const talentChoseOneHour = computePublicSlotStarts({
+    hours: hours({ minNoticeMin: 120 }), durationMinutes: 60, from: now, days: 1, sellingDefaults: { minNoticeMin: 60 },
+  });
+  assert.equal(talentChoseOneHour[0], "2027-03-01T14:00:00.000Z", "the talent's own 60 min setting wins");
+});

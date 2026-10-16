@@ -66,6 +66,7 @@ import {
   type SegmentedOption,
 } from "./kit";
 import { useEditContext } from "./edit-context";
+import { useEditorLocale } from "./use-editor-locale";
 // Direct file import, NOT the inspectors/kit barrel — avoids the barrel
 // module cycle documented in kit/field.tsx.
 import { InspectorInfoTip } from "./inspectors/kit/inspector-info-tip";
@@ -386,6 +387,7 @@ function patchesEqual(
 export function ThemeDrawer(): ReactElement | null {
   const { themeOpen, closeTheme, queueRouterRefresh, surfaceKind, pageSlug } =
     useEditContext();
+  const { t, locale } = useEditorLocale();
 
   // Surface-aware theme backend: talent_page → talent_pages.theme; everything
   // else → tenant agency_branding. Memoized so the action closures are stable
@@ -423,7 +425,7 @@ export function ThemeDrawer(): ReactElement | null {
     if (!themeActions) {
       setSnapshot(null);
       setDraft(null);
-      setLoadError("This page has no theme to edit yet.");
+      setLoadError(t("This page has no theme to edit yet."));
       setBusy("idle");
       return;
     }
@@ -448,7 +450,7 @@ export function ThemeDrawer(): ReactElement | null {
     return () => {
       cancelled = true;
     };
-  }, [themeOpen, themeActions]);
+  }, [themeOpen, themeActions, t]);
 
   const dirty = useMemo(() => {
     if (!snapshot || !draft) return false;
@@ -530,7 +532,7 @@ export function ThemeDrawer(): ReactElement | null {
         setConfirmingPublish(false);
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : "Could not apply theme preset.",
+          err instanceof Error ? err.message : t("Could not apply theme preset."),
         );
       } finally {
         setBusy("idle");
@@ -574,12 +576,12 @@ export function ThemeDrawer(): ReactElement | null {
       setDraft({ ...res.themeDraft, ...draft });
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Network error. Try again.",
+        err instanceof Error ? err.message : t("Network error. Try again."),
       );
     } finally {
       setBusy("idle");
     }
-  }, [snapshot, draft, themeActions]);
+  }, [snapshot, draft, themeActions, t]);
 
   const handlePublish = useCallback(async () => {
     if (!snapshot || !themeActions) return;
@@ -646,12 +648,12 @@ export function ThemeDrawer(): ReactElement | null {
       setConfirmingPublish(false);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Network error. Try again.",
+        err instanceof Error ? err.message : t("Network error. Try again."),
       );
     } finally {
       setBusy("idle");
     }
-  }, [snapshot, draft, dirty, queueRouterRefresh, themeActions]);
+  }, [snapshot, draft, dirty, queueRouterRefresh, themeActions, t]);
 
   const chipStatus =
     busy === "saving" || busy === "publishing"
@@ -661,7 +663,7 @@ export function ThemeDrawer(): ReactElement | null {
         : "saved";
 
   const lastPublishedLabel = snapshot?.themePublishedAt
-    ? new Date(snapshot.themePublishedAt).toLocaleDateString(undefined, {
+    ? new Date(snapshot.themePublishedAt).toLocaleDateString(locale, {
         month: "short",
         day: "numeric",
       })
@@ -677,7 +679,7 @@ export function ThemeDrawer(): ReactElement | null {
       ariaLabelledBy="theme-drawer-title"
       onRequestClose={busy === "publishing" ? undefined : closeTheme}
       floating
-      floatLabel="Theme"
+      floatLabel={t("Theme")}
       floatPanelId="theme"
     >
       {/* QA 2026-05-13 — during the first ~2s while `loadDesignAction`
@@ -694,32 +696,32 @@ export function ThemeDrawer(): ReactElement | null {
         titleId="theme-drawer-title"
         title={
           !snapshot && busy === "loading"
-            ? "Theme · loading…"
+            ? t("Theme · loading…")
             : snapshot?.designDisplayName
               ? snapshot.paletteDisplayName
                 ? `${snapshot.designDisplayName} · ${snapshot.paletteDisplayName}`
                 : snapshot.designDisplayName
               : snapshot?.presetSlug
-                ? `Theme · ${prettyPreset(snapshot.presetSlug)}`
-                : "Theme · Custom"
+                ? t("Theme · {name}").replace("{name}", prettyPreset(snapshot.presetSlug))
+                : t("Theme · Custom")
         }
         icon={<ThemeIcon />}
         saveChip={<SaveChip status={chipStatus} />}
         meta={
           !snapshot && busy === "loading" ? (
-            <span style={{ color: CHROME.muted2 }}>Loading theme…</span>
+            <span style={{ color: CHROME.muted2 }}>{t("Loading theme…")}</span>
           ) : snapshot?.designDisplayName ? (
             <>
-              {lastPublishedLabel ? `Published ${lastPublishedLabel}` : "Site theme"}
+              {lastPublishedLabel ? t("Published {date}").replace("{date}", lastPublishedLabel) : t("Site theme")}
               {dirty ? (
                 <>
-                  <span style={{ color: CHROME.muted2 }}> · </span>Unsaved
+                  <span style={{ color: CHROME.muted2 }}> · </span>{t("Unsaved")}
                 </>
               ) : null}
             </>
           ) : (
             <>
-              {lastPublishedLabel ? `Published ${lastPublishedLabel}` : "Never published"}
+              {lastPublishedLabel ? t("Published {date}").replace("{date}", lastPublishedLabel) : t("Never published")}
               {snapshot ? (
                 <>
                   <span style={{ color: CHROME.muted2 }}> · </span>v{snapshot.version}
@@ -732,13 +734,13 @@ export function ThemeDrawer(): ReactElement | null {
       />
 
       <DrawerTabs>
-        {TABS.map((t) => (
+        {TABS.map((tb) => (
           <DrawerTab
-            key={t.key}
-            active={tab === t.key}
-            onClick={() => setTab(t.key)}
+            key={tb.key}
+            active={tab === tb.key}
+            onClick={() => setTab(tb.key)}
           >
-            {t.key === "style" ? <SiteStyleTabLabel /> : t.label}
+            {tb.key === "style" ? <SiteStyleTabLabel /> : t(tb.label)}
           </DrawerTab>
         ))}
       </DrawerTabs>
@@ -765,21 +767,21 @@ export function ThemeDrawer(): ReactElement | null {
             {tab === "typography" ? (
               <>
                 <PresetsTab
-                  cardTitle="Typography"
+                  cardTitle={t("Typography")}
                   icon={<TypeIcon />}
                   presets={TYPOGRAPHY_PRESETS}
                   draft={draft}
                   onChange={set}
                 />
                 <Card>
-                  <CardHead icon={<TypeIcon />} title="Google Fonts" />
+                  <CardHead icon={<TypeIcon />} title={t("Google Fonts")} />
                   <CardBody>
                     <Field>
                       <FieldLabel
                         htmlFor="theme-typography.heading-font-family"
-                        info="Overrides the heading-preset above. Loads on save + publish."
+                        info={t("Overrides the heading-preset above. Loads on save + publish.")}
                       >
-                        Heading family
+                        {t("Heading family")}
                       </FieldLabel>
                       <GoogleFontPicker
                         slot="heading"
@@ -791,7 +793,7 @@ export function ThemeDrawer(): ReactElement | null {
                     </Field>
                     <Field flush>
                       <FieldLabel htmlFor="theme-typography.body-font-family">
-                        Body family
+                        {t("Body family")}
                       </FieldLabel>
                       <GoogleFontPicker
                         slot="body"
@@ -807,9 +809,9 @@ export function ThemeDrawer(): ReactElement | null {
                 <Card>
                   <CardHead
                     icon={<TypeIcon />}
-                    title="Type scale (h1–h6)"
+                    title={t("Type scale (h1–h6)")}
                     sub={
-                      <InspectorInfoTip content="Free CSS length values (clamp(), px, rem, %). Empty = use the type-scale preset above." />
+                      <InspectorInfoTip content={t("Free CSS length values (clamp(), px, rem, %). Empty = use the type-scale preset above.")} />
                     }
                   />
                   <CardBody>
@@ -825,7 +827,7 @@ export function ThemeDrawer(): ReactElement | null {
                       ] as const
                     ).map(([key, label, placeholder], i, arr) => (
                       <Field key={key} flush={i === arr.length - 1}>
-                        <FieldLabel htmlFor={`theme-${key}`}>{label}</FieldLabel>
+                        <FieldLabel htmlFor={`theme-${key}`}>{t(label)}</FieldLabel>
                         <TextInput
                           id={`theme-${key}`}
                           value={draft[key] ?? ""}
@@ -842,7 +844,7 @@ export function ThemeDrawer(): ReactElement | null {
             ) : null}
             {tab === "layout" ? (
               <PresetsTab
-                cardTitle="Layout"
+                cardTitle={t("Layout")}
                 icon={<GridIcon />}
                 presets={LAYOUT_PRESETS}
                 draft={draft}
@@ -851,7 +853,7 @@ export function ThemeDrawer(): ReactElement | null {
             ) : null}
             {tab === "effects" ? (
               <PresetsTab
-                cardTitle="Effects"
+                cardTitle={t("Effects")}
                 icon={<SparkleIcon />}
                 presets={EFFECT_PRESETS}
                 draft={draft}
@@ -867,7 +869,7 @@ export function ThemeDrawer(): ReactElement | null {
                     ? themeActions.saveComponentStyles(input)
                     : Promise.resolve({
                         ok: false as const,
-                        error: "This page has no theme to edit yet.",
+                        error: t("This page has no theme to edit yet."),
                       })
                 }
                 onSaved={(newVersion, saved) =>
@@ -936,10 +938,10 @@ export function ThemeDrawer(): ReactElement | null {
                     return classifyContrast(r) === "fail";
                   });
                   const base = draftDiffersFromLive
-                    ? "This will replace what visitors see."
-                    : "Re-publish current draft?";
+                    ? t("This will replace what visitors see.")
+                    : t("Re-publish current draft?");
                   if (failing.length > 0) {
-                    return `⚠ ${failing.length} color pair${failing.length > 1 ? "s fail" : " fails"} WCAG AA. ${base}`;
+                    return `${t(failing.length > 1 ? "⚠ {n} color pairs fail WCAG AA." : "⚠ {n} color pair fails WCAG AA.").replace("{n}", String(failing.length))} ${base}`;
                   }
                   return base;
                 })()}
@@ -962,7 +964,7 @@ export function ThemeDrawer(): ReactElement | null {
                   textUnderlineOffset: 3,
                 }}
               >
-                Discard changes
+                {t("Discard changes")}
               </button>
             )
           }
@@ -975,7 +977,7 @@ export function ThemeDrawer(): ReactElement | null {
                   disabled={busy === "publishing"}
                   style={btnGhostStyle(busy === "publishing")}
                 >
-                  Cancel
+                  {t("Cancel")}
                 </button>
                 <button
                   type="button"
@@ -983,7 +985,7 @@ export function ThemeDrawer(): ReactElement | null {
                   disabled={busy === "publishing"}
                   style={btnPrimaryStyle(busy === "publishing")}
                 >
-                  {busy === "publishing" ? "Publishing…" : "Yes, publish"}
+                  {busy === "publishing" ? t("Publishing…") : t("Yes, publish")}
                 </button>
               </>
             ) : (
@@ -993,9 +995,9 @@ export function ThemeDrawer(): ReactElement | null {
                   onClick={() => void handleSaveDraft()}
                   disabled={!dirty || busy !== "idle"}
                   style={btnGhostStyle(!dirty || busy !== "idle")}
-                  title="Save your changes without going live"
+                  title={t("Save your changes without going live")}
                 >
-                  {busy === "saving" ? "Saving…" : "Save draft"}
+                  {busy === "saving" ? t("Saving…") : t("Save draft")}
                 </button>
                 {surfaceKind === "theme_template" ? null : (
                 <button
@@ -1009,11 +1011,11 @@ export function ThemeDrawer(): ReactElement | null {
                   )}
                   title={
                     dirty || draftDiffersFromLive
-                      ? "Publish theme to live storefront"
-                      : "Draft already matches live"
+                      ? t("Publish theme to live storefront")
+                      : t("Draft already matches live")
                   }
                 >
-                  Publish theme
+                  {t("Publish theme")}
                 </button>
                 )}
               </>
@@ -1061,18 +1063,19 @@ function ColorsTab({
   draft: Record<string, string>;
   onChange: (key: string, value: string) => void;
 }) {
+  const { t } = useEditorLocale();
   return (
     <>
       <CustomAccentCard draft={draft} onChange={onChange} />
       <Card>
-        <CardHead icon={<BackgroundIcon />} title="Page background" />
+        <CardHead icon={<BackgroundIcon />} title={t("Page background")} />
         <CardBody>
           <Field>
             <FieldLabel
               htmlFor="theme-color.background"
-              info="The main background of your site. White (#ffffff) by default."
+              info={t("The main background of your site. White (#ffffff) by default.")}
             >
-              Background color
+              {t("Background color")}
             </FieldLabel>
             <ColorRow
               value={draft["color.background"] ?? "#ffffff"}
@@ -1082,14 +1085,14 @@ function ColorsTab({
           <Field flush>
             <FieldLabel
               htmlFor="theme-background.mode"
-              info="Layers warmth or grain over the background color above. Also in Layout tab."
+              info={t("Layers warmth or grain over the background color above. Also in Layout tab.")}
             >
-              Background texture
+              {t("Background texture")}
             </FieldLabel>
             <Segmented
               value={draft["background.mode"] ?? "plain"}
               onChange={(v) => onChange("background.mode", v)}
-              options={BACKGROUND_MODE_OPTIONS}
+              options={trOpts(BACKGROUND_MODE_OPTIONS, t)}
               fullWidth
               compact
             />
@@ -1098,12 +1101,12 @@ function ColorsTab({
       </Card>
 
       <Card>
-        <CardHead icon={<PaletteIcon />} title="Brand colors" />
+        <CardHead icon={<PaletteIcon />} title={t("Brand colors")} />
         <CardBody>
           {BRAND_COLORS.map((c, i) => (
             <Field key={c.key} flush={i === BRAND_COLORS.length - 1}>
-              <FieldLabel htmlFor={`theme-${c.key}`} info={c.hint}>
-                {c.label}
+              <FieldLabel htmlFor={`theme-${c.key}`} info={c.hint ? t(c.hint) : undefined}>
+                {t(c.label)}
               </FieldLabel>
               <ColorRow
                 value={draft[c.key] ?? ""}
@@ -1115,11 +1118,11 @@ function ColorsTab({
       </Card>
 
       <Card>
-        <CardHead icon={<PaletteIcon />} title="Editorial palette" />
+        <CardHead icon={<PaletteIcon />} title={t("Editorial palette")} />
         <CardBody>
           {EDITORIAL_COLORS.map((c, i) => (
             <Field key={c.key} flush={i === EDITORIAL_COLORS.length - 1}>
-              <FieldLabel htmlFor={`theme-${c.key}`}>{c.label}</FieldLabel>
+              <FieldLabel htmlFor={`theme-${c.key}`}>{t(c.label)}</FieldLabel>
               <ColorRow
                 value={draft[c.key] ?? ""}
                 onChange={(v) => onChange(c.key, v)}
@@ -1130,7 +1133,7 @@ function ColorsTab({
       </Card>
 
       <Card>
-        <CardHead icon={<PaletteIcon />} title="A11y · contrast" />
+        <CardHead icon={<PaletteIcon />} title={t("A11y · contrast")} />
         <CardBody>
           <ContrastChecker draft={draft} />
         </CardBody>
@@ -1152,19 +1155,20 @@ function PresetsTab({
   draft: Record<string, string>;
   onChange: (key: string, value: string) => void;
 }) {
+  const { t } = useEditorLocale();
   return (
     <Card>
       <CardHead icon={icon} title={cardTitle} />
       <CardBody>
         {presets.map((p, i) => (
           <Field key={p.key} flush={i === presets.length - 1}>
-            <FieldLabel htmlFor={`theme-${p.key}`} info={p.hint}>
-              {p.label}
+            <FieldLabel htmlFor={`theme-${p.key}`} info={p.hint ? t(p.hint) : undefined}>
+              {t(p.label)}
             </FieldLabel>
             <Segmented
               value={draft[p.key] ?? p.options[0]?.value ?? ""}
               onChange={(v) => onChange(p.key, v)}
-              options={p.options}
+              options={trOpts(p.options, t)}
               fullWidth
               compact
             />
@@ -1221,6 +1225,7 @@ function AdvancedTab({
   currentPreset: string | null;
   presetBusy: boolean;
 }) {
+  const { t } = useEditorLocale();
   const [copied, setCopied] = useState(false);
   const json = useMemo(() => {
     const sorted: Record<string, string> = {};
@@ -1259,8 +1264,8 @@ function AdvancedTab({
       <Card>
         <CardHead
           icon={<CodeIcon />}
-          title="Theme JSON"
-          sub={`${Object.keys(draft).length} tokens`}
+          title={t("Theme JSON")}
+          sub={t("{n} tokens").replace("{n}", String(Object.keys(draft).length))}
           action={
             <button
               type="button"
@@ -1276,10 +1281,10 @@ function AdvancedTab({
               }}
             >
               {copied
-                ? "Copied"
+                ? t("Copied")
                 : copyError
-                  ? "Select all (clipboard blocked)"
-                  : "Copy"}
+                  ? t("Select all (clipboard blocked)")
+                  : t("Copy JSON")}
             </button>
           }
         />
@@ -1313,14 +1318,14 @@ function AdvancedTab({
               borderTop: `1px solid ${CHROME.line}`,
             }}
           >
-            <CardSubHead borderTop={false} marginBottom={8}>Theme preset</CardSubHead>
+            <CardSubHead borderTop={false} marginBottom={8}>{t("Theme preset")}</CardSubHead>
             <div style={{ opacity: presetBusy ? 0.5 : 1, pointerEvents: presetBusy ? "none" : undefined }}>
               <Segmented
                 value={currentPreset ?? ""}
                 onChange={(slug) => onApplyPreset(slug)}
                 options={PRESET_OPTIONS.map((p) => ({
                   value: p.slug,
-                  label: p.label,
+                  label: t(p.label),
                 }))}
                 fullWidth
                 compact
@@ -1334,8 +1339,7 @@ function AdvancedTab({
                 lineHeight: 1.45,
               }}
             >
-              Applies the preset bundle to your <b>draft</b>. Click{" "}
-              <b>Publish</b> to make it live on the storefront.
+              {t("Applies the preset bundle to your draft. Click Publish to make it live on the storefront.")}
             </p>
           </div>
           <div
@@ -1348,7 +1352,7 @@ function AdvancedTab({
             }}
           >
             <span style={{ fontSize: 11, color: CHROME.muted }}>
-              Read-only. Edit through the controls above.
+              {t("Read-only. Edit through the controls above.")}
             </span>
             <button
               type="button"
@@ -1365,7 +1369,7 @@ function AdvancedTab({
                 textUnderlineOffset: 3,
               }}
             >
-              Reset to platform defaults
+              {t("Reset to platform defaults")}
             </button>
           </div>
         </CardBody>
@@ -1374,21 +1378,21 @@ function AdvancedTab({
       <Card>
         <CardHead
           icon={null}
-          title="Power tools"
-          sub="Bulk-apply tokens or generate visual recipes."
+          title={t("Power tools")}
+          sub={t("Bulk-apply tokens or generate visual recipes.")}
         />
         <CardBody padding="flush">
           <AccordionSection
-            title="Brand-kit import"
-            sub="Paste a JSON token bundle or extract from a URL."
+            title={t("Brand-kit import")}
+            sub={t("Paste a JSON token bundle or extract from a URL.")}
             data-theme-control="brand-kit-import"
           >
             <BrandKitImport onApply={onBulkApply} />
           </AccordionSection>
 
           <AccordionSection
-            title="Mesh gradient generator"
-            sub="Compose a free mesh background and copy the CSS."
+            title={t("Mesh gradient generator")}
+            sub={t("Compose a free mesh background and copy the CSS.")}
             marginBottom={0}
             data-theme-control="mesh-gradient-generator"
           >
@@ -1449,6 +1453,10 @@ function btnPrimaryStyle(disabled: boolean) {
     cursor: disabled ? "not-allowed" : "pointer",
     boxShadow: disabled ? "none" : "0 1px 2px rgba(0,0,0,0.10)",
   } as const;
+}
+
+function trOpts<T extends { label: unknown }>(opts: ReadonlyArray<T>, t: (s: string) => string): T[] {
+  return opts.map((o) => (typeof o.label === "string" ? ({ ...o, label: t(o.label) } as T) : o));
 }
 
 function prettyPreset(slug: string): string {

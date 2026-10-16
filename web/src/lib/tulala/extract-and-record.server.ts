@@ -14,11 +14,12 @@ import { logServerError } from "@/lib/server/safe-error";
 import type { Brief } from "./brief-store";
 import { recordFacts } from "./brief-store.server";
 import { EXTRACTION_SCHEMA, parseExtraction } from "./extraction";
+import { dropUngroundedContactFacts } from "./ground-contact-facts";
 import { normalizeExtractedFacts } from "./normalize-facts";
 import type { IndustryPack } from "./industry-packs";
 import { buildExtractionMessage, buildExtractionPrompt } from "./prompts";
 import type { Question } from "./questions";
-import { withTimeout } from "./with-timeout";
+import { withAbortTimeout } from "./with-timeout";
 
 export type LearnedFact = { factKey: string; value: unknown; confidence: number };
 
@@ -42,17 +43,22 @@ export async function extractAndRecord(input: {
   userMessage: string;
   question: Question | null;
   pack: IndustryPack | null;
+  /** Flow language: descriptive values come back in it. */
+  locale?: "en" | "es";
   /**
    * Called once with the model call's outcome so a caller can record cost
    * and fail over to another provider. The return value (the facts written)
    * is unchanged; a caller that ignores this sees exactly the old behaviour.
    */
   report?: (outcome: ExtractionOutcome) => void;
+  /** Per-call wall clock; defaults to MODEL_TIMEOUT_MS. */
+  timeoutMs?: number;
 }): Promise<LearnedFact[]> {
   try {
-    const completion = await withTimeout(
-      input.adapter.chatCompletion({
-        systemPrompt: buildExtractionPrompt({ pack: input.pack }),
+    const completion = await withAbortTimeout(
+      (signal) =>
+        input.adapter.chatCompletion({
+        systemPrompt: buildExtractionPrompt({ pack: input.pack, locale: input.locale }),
         userMessage: buildExtractionMessage({
           userMessage: input.userMessage,
           brief: input.brief,
@@ -61,8 +67,9 @@ export async function extractAndRecord(input: {
         jsonSchema: EXTRACTION_SCHEMA,
         maxTokens: EXTRACTION_MAX_TOKENS,
         temperature: 0,
+        signal,
       }),
-      MODEL_TIMEOUT_MS,
+      input.timeoutMs ?? MODEL_TIMEOUT_MS,
       { ok: false as const, code: "timeout", message: "Extraction timed out." },
     );
 
@@ -94,7 +101,9 @@ export async function extractAndRecord(input: {
 
     // Shape before store: hours to one canonical form, phones to E.164 when
     // the country is known, service lists tidy. The model reads; this shapes.
-    const facts = normalizeExtractedFacts(parsed.facts);
+    const grounded = dropUngroundedContactFacts(parsed.facts, input.userMessage);
+    if (grounded.length === 0) return [];
+    const facts = normalizeExtractedFacts(grounded);
     const result = await recordFacts(input.brief.id, facts);
     const written = new Set(result.written);
     return facts

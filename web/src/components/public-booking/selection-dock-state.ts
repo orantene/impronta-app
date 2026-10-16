@@ -136,6 +136,8 @@ export type DockCopy = {
   ask: string;
   askMany: string;
   continueLabel: string;
+  /** GRK-042: Continuar on a quote / request service opens the chat, so it says so. */
+  askOnlyLabel: string;
   /** Gridline: the dock action while "Atiendo emergencias hoy" is on (G12). */
   liveLabel: string;
 };
@@ -151,6 +153,7 @@ const EN: DockCopy = {
   ask: "Ask about this service",
   askMany: "Ask about these services",
   continueLabel: "Continue",
+  askOnlyLabel: "Ask for a quote",
   liveLabel: "Ask now",
 };
 
@@ -165,6 +168,7 @@ const ES: DockCopy = {
   ask: "Preguntar por este servicio",
   askMany: "Preguntar por estos servicios",
   continueLabel: "Continuar",
+  askOnlyLabel: "Pedir cotización",
   liveLabel: "Consultar",
 };
 

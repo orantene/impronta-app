@@ -16,6 +16,8 @@
 // AND have at least one inquiry to this tenantId (establishes a relationship).
 
 import { notFound, redirect } from "next/navigation";
+import { cookies, headers } from "next/headers";
+import { loginUrlKeepingSupport } from "@/lib/support/login-next-support";
 import { Toaster } from "sonner";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { tenantReviewsEnabled } from "@/lib/reviews/reviews-entitlement";
@@ -27,6 +29,11 @@ import {
 } from "@/lib/public-discovery-effective";
 import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
 import { effectiveReadContext, mayMergeGuestActivity } from "@/lib/impersonation/effective-read";
+import {
+  clientActingAsBannerCopy,
+  resolveClientActingAs,
+} from "@/lib/impersonation/acting-as";
+import { ImpersonationBanner } from "@/components/dashboard/impersonation-banner";
 import {
   DiscoveryStateBridge,
   PublicDiscoveryStateProvider,
@@ -42,12 +49,16 @@ import { ClientNotificationBell } from "./_components/ClientNotificationBell";
 import { SupportLauncherMount } from "@/components/support/SupportLauncherMount";
 import { GlobalSearch } from "./_components/GlobalSearch";
 import { ClientKeyboardShortcuts, type KeyboardShortcutLabels } from "./_keyboard-shortcuts";
-import { getRequestLocale } from "@/i18n/request-locale";
+import { getRequestLocale, ORIGINAL_PATHNAME_HEADER, ORIGINAL_SEARCH_HEADER } from "@/i18n/request-locale";
+import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
+import { pickClientLayoutLocale, urlNamesLocale } from "@/lib/client-account/client-layout-locale";
 import { createTranslator } from "@/i18n/messages";
 import { DashboardLocaleProvider } from "@/i18n/use-dashboard-locale";
 import { loadMyNotifications } from "@/lib/notifications/self";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
+import { clientLoginNext } from "@/lib/client-account/agency-area-pure";
+import { readAccountHost } from "@/lib/client-account/area-site.server";
 import { TULALA_BRAND } from "@/lib/brand/tulala";
 
 type LayoutParams = Promise<{ tenantSlug: string }>;
@@ -85,7 +96,27 @@ export default async function ClientLayout({
   params: LayoutParams;
 }) {
   const { tenantSlug } = await params;
-  const locale = await getRequestLocale();
+  // ── Auth ────────────────────────────────────────────────────────────────────
+  const session = await getCachedActorSession();
+  if (!session.supabase) redirect("/login?error=config");
+  const loginNext = clientLoginNext((await readAccountHost()).hostContext, tenantSlug);
+  if (!session.user) redirect(loginUrlKeepingSupport(loginNext, await headers()));
+
+  // TUL-968: an unprefixed client URL resolves to English through the
+  // path-derived locale header; follow the visitor's cookie or saved language.
+  const reqHeaders = await headers();
+  const { data: clientLocaleRow, error: clientLocaleError } = await session.supabase
+    .from("client_profiles")
+    .select("preferred_locale")
+    .eq("user_id", session.user.id)
+    .maybeSingle();
+  const locale = pickClientLayoutLocale({
+    requestLocale: await getRequestLocale(),
+    urlNamesLocale: urlNamesLocale(reqHeaders.get(ORIGINAL_PATHNAME_HEADER), reqHeaders.get(ORIGINAL_SEARCH_HEADER)),
+    cookieLocale: (await cookies()).get(LOCALE_COOKIE)?.value,
+    // A failed read only loses the saved-language fallback; the cookie and URL still apply.
+    savedLocale: clientLocaleError ? null : (clientLocaleRow as { preferred_locale?: string | null } | null)?.preferred_locale,
+  });
   const t = createTranslator(locale);
   const keyboardLabels: KeyboardShortcutLabels = {
     title: t("public.keyboard.title"),
@@ -105,10 +136,6 @@ export default async function ClientLayout({
     },
   };
 
-  // ── Auth ────────────────────────────────────────────────────────────────────
-  const session = await getCachedActorSession();
-  if (!session.supabase) redirect("/login?error=config");
-  if (!session.user) redirect(`/login?next=/${tenantSlug}/client`);
 
   // ── Tenant resolution ────────────────────────────────────────────────────────
   const scope = await getTenantPortalScopeBySlug(tenantSlug);
@@ -121,10 +148,8 @@ export default async function ClientLayout({
   // the admin dashboard (workspace owners land here by accident often).
   // TUL-245: the portal loads the EFFECTIVE user's data. The context comes only
   // from the verified impersonation helper; a throw means "not acting".
-  const readCtx = effectiveReadContext(
-    session.user.id,
-    await resolveDashboardIdentity().catch(() => null),
-  );
+  const impersonationIdentity = await resolveDashboardIdentity().catch(() => null);
+  const readCtx = effectiveReadContext(session.user.id, impersonationIdentity);
   const clientProfile = await loadClientSelfProfile(readCtx.userId, scope.tenantId, readCtx);
   if (!clientProfile) {
     const tenantDisplayName = tenantSlug
@@ -176,7 +201,7 @@ export default async function ClientLayout({
             }}>
               Open admin dashboard
             </a>
-            <a href={`/login?next=/${tenantSlug}/client`} style={{
+            <a href={`/login?next=${loginNext}`} style={{
               display: "block", padding: "11px 20px", borderRadius: 10,
               border: "1px solid rgba(24,24,27,0.10)", background: "transparent",
               color: "#0B0B0D", fontWeight: 600, fontSize: 14, textDecoration: "none",
@@ -231,10 +256,25 @@ export default async function ClientLayout({
 
   const userInitials = initials(clientProfile.displayName);
 
+  // TUL-255: real impersonation banner with Exit (mirrors talent shell).
+  const actingAs = resolveClientActingAs(impersonationIdentity);
+  const actingAsCopy = actingAs ? clientActingAsBannerCopy(locale, actingAs.name) : null;
+
   // Seed client dashboard copy with the SERVER-resolved locale (as the admin
   // layout does) so the first paint is not English on a Spanish cookie.
   return (
     <DashboardLocaleProvider locale={locale}>
+      {actingAs && actingAsCopy ? (
+        <ImpersonationBanner
+          effectiveName={actingAsCopy.effectiveName}
+          effectiveAvatarUrl={impersonationIdentity?.effectiveProfile?.avatar_url ?? null}
+          roleLabel={actingAsCopy.roleLabel}
+          readOnlyLine={actingAsCopy.readOnlyLine}
+          v1ReadOnlyQaLine={actingAsCopy.v1ReadOnlyQaLine}
+          returnCta={actingAsCopy.returnCta}
+          ariaLabel={actingAsCopy.ariaLabel}
+        />
+      ) : null}
       <style>{`
         .client-root {
           --admin-workspace-fg:  ${C.ink};
@@ -467,20 +507,6 @@ export default async function ClientLayout({
               minWidth: 0,
             }}
           >
-            {readCtx.impersonated ? (
-              <p
-                role="status"
-                style={{
-                  margin: "0 0 16px",
-                  padding: "10px 14px",
-                  borderRadius: 10,
-                  background: "rgba(0,0,0,0.04)",
-                  fontSize: 13,
-                }}
-              >
-                {t("dashboard.clientSettings.readOnlyViewingAs")}
-              </p>
-            ) : null}
             {children}
           </main>
         </div>

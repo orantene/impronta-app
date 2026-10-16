@@ -59,8 +59,16 @@ export const ES_PUBLISH_TEXT: Record<string, string> = {
   "Brand identity": "Identidad de marca",
   "Complete your brand identity to publish: upload a logo, or use your business name as your logo.":
     "Completa tu identidad de marca para publicar: sube un logo o usa el nombre de tu negocio como logo.",
+  "Your business name is your logo for now. Upload a custom logo anytime from Brand.":
+    "Por ahora el nombre de tu negocio es tu logo. Sube un logo propio cuando quieras desde Marca.",
   "Upload my logo": "Subir mi logo",
   "Use my business name as my logo": "Usar el nombre de mi negocio como logo",
+  // ── TUL-524 first-publish dialog ─────────────────────────────────────────
+  "Your page will be published at {host}.": "Tu página se publicará en {host}.",
+  "More options": "Más opciones",
+  "Hide options": "Ocultar opciones",
+  "Add at least one section to {slots} before publishing.":
+    "Agrega al menos una sección a {slots} antes de publicar.",
   // ── TUL-326 publish-disabled / hard-block reasons ─────────────────────────
   "Publishing. Please wait.": "Publicando. Espera un momento.",
   "This page changed in another tab or session. Resolve the conflict banner first: Reload latest or Keep editing this copy.":
@@ -91,4 +99,10 @@ export const ES_PUBLISH_TEXT: Record<string, string> = {
     "{count} bloques se desbordan horizontalmente en la vista móvil. Una página que se desplaza de lado en teléfonos no se puede publicar. Usa \"Mostrar en el lienzo\" arriba para corregir cada uno, y luego publica.",
   "Page version is unavailable. Reload and try again.":
     "La versión de la página no está disponible. Recarga e inténtalo de nuevo.",
+  // ── TUL-81 / W5-1 Spanish publish blockers ────────────────────────────────
+  "Saving your last edit…": "Guardando tu último cambio...",
+  "You have unsaved edits. Wait for them to save first.":
+    "Tienes cambios sin guardar. Espera a que se guarden primero.",
+  " (Free publish policy)": " (política de publicación del plan gratuito)",
+  " Add alt text before publishing.": " Agrega texto alternativo antes de publicar.",
 };

@@ -407,10 +407,8 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
     demos: [
       // Featured Folio demo = Mateo Ferrer (artifact).
       talentDemo("fashion-model", { en: "Fashion Model", es: "Modelo de moda" }, ["model"], "stone", "TAL-93011", "mateo-ferrer", "Mateo Ferrer"),
-      // The guide's seven Folio demos (Lucía live, six drafts).
+      // Guide Folio demos (models + mixologist, photographer, designer).
       ...guideDemos("folio"),
-      planned("portrait-photographer", { en: "Portrait Photographer", es: "Fotógrafo de retrato" }, ["photographer"], "stone"),
-      planned("graphic-designer", { en: "Graphic Designer", es: "Diseñador gráfico" }, ["designer"], "light"),
       planned("illustrator", { en: "Illustrator", es: "Ilustrador" }, ["illustrator"], "stone"),
       planned("interior-designer", { en: "Interior Designer", es: "Diseñador de interiores" }, ["interior_designer"], "light"),
     ],

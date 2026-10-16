@@ -25,7 +25,7 @@ test("footer, footer-socket, sitemap, and marketing copy include refunds", () =>
   const socket = read("src/lib/talent-site/footer-socket.ts");
   assert.match(socket, /export const TULALA_LEGAL_REFUNDS_URL/);
   assert.match(socket, /tulala-refunds/);
-  assert.match(socket, /https:\/\/tulala\.digital\/legal\/refunds/);
+  assert.match(socket, /\$\{platformOrigin\(\)\}\/legal\/refunds/);
 });
 
 test("Terms EN+ES Payments section links to /legal/refunds", () => {

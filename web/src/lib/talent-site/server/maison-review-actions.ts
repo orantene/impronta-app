@@ -20,6 +20,8 @@ import {
   type MaisonPublishReadiness,
 } from "./maison-publish-readiness";
 import { isMaisonPendingUndo } from "./maison-design-snapshot";
+import { effectiveReviewDesign } from "@/lib/talent-site/maison-review-effective";
+import { appliedThemeLabel } from "@/lib/talent-site/theme-catalog/applied-theme-label";
 import { MAISON_PALETTES, type MaisonPaletteKey } from "@/lib/talent-site/theme-catalog/maison/seed";
 import { designSummaryLine } from "@/lib/talent-site/maison-summary-line";
 import {
@@ -33,6 +35,12 @@ export type MaisonReviewState = {
   themeDesignSlug: string | null;
   themeLookSlug: string | null;
   canUndo: boolean;
+  /** TUL-658: the shown design is a draft not yet on the public site. */
+  unpublishedDraft: boolean;
+  /** "snapshot" = Undo restores the prior draft; "live" = Undo drops the pending change. */
+  undoKind: "snapshot" | "live" | null;
+  /** Localized name of the design Undo returns to. */
+  undoRevertsToName: string | null;
   readiness: MaisonPublishReadiness;
   /** e.g. "Maison · Lilac & Plum · Your content" or "Maison · My colors · Your content" (W66) */
   summaryLine: string;
@@ -62,6 +70,7 @@ function buildSummaryLine(input: {
   paletteKey: MaisonPaletteKey | null;
   customPalette: MaisonCustomPaletteStored | null;
   contentMode: "demo" | "mine";
+  unpublishedDraft: boolean;
   locale: "en" | "es";
 }): string {
   const content =
@@ -73,7 +82,11 @@ function buildSummaryLine(input: {
         ? "Contenido demo"
         : "Demo content";
   // F33: the applied design + look from the saved row, never "Maison" by default.
-  return designSummaryLine({ ...input, tail: content });
+  const draft = input.locale === "es" ? "borrador sin publicar" : "unpublished draft";
+  return designSummaryLine({
+    ...input,
+    tail: input.unpublishedDraft ? `${content} · ${draft}` : content,
+  });
 }
 
 export async function loadMaisonReviewStateAction(input?: {
@@ -91,7 +104,7 @@ export async function loadMaisonReviewStateAction(input?: {
   const [{ data, error }, demoRes] = await Promise.all([
     sb
       .from("talent_sites")
-      .select("site_slug, theme_design_slug, theme_look_slug, pending_design, custom_palette")
+      .select("site_slug, site_published_at, theme_design_slug, theme_look_slug, pending_design, custom_palette")
       .eq("talent_profile_id", g.talentProfileId)
       .maybeSingle(),
     sb.from("talent_profiles").select("is_demo").eq("id", g.talentProfileId).maybeSingle(),
@@ -103,28 +116,39 @@ export async function loadMaisonReviewStateAction(input?: {
   const isDemo = (demoRes.data as { is_demo?: boolean } | null)?.is_demo === true;
   const row = (data ?? null) as {
     site_slug: string | null;
+    site_published_at: string | null;
     theme_design_slug: string | null;
     theme_look_slug: string | null;
     pending_design: unknown;
     custom_palette: unknown;
   } | null;
 
-  const contentMode = input?.contentMode === "mine" ? "mine" : "demo";
   const locale = input?.locale === "es" ? "es" : "en";
-  const paletteKey = lookSlugToPaletteKey(row?.theme_look_slug ?? null);
   const pending = row?.pending_design;
+  const eff = effectiveReviewDesign(
+    { designSlug: row?.theme_design_slug ?? null, lookSlug: row?.theme_look_slug ?? null },
+    pending,
+    !!row?.site_published_at,
+  );
+  const contentMode = eff.contentMode ?? (input?.contentMode === "mine" ? "mine" : "demo");
+  const rowPaletteKey = lookSlugToPaletteKey(row?.theme_look_slug ?? null);
+  const pendingPalette =
+    eff.paletteKey && eff.paletteKey in MAISON_PALETTES ? (eff.paletteKey as MaisonPaletteKey) : null;
   const appliedMode =
     isMaisonPendingUndo(pending) && pending.applied.contentMode === "mine" ? "mine" : contentMode;
   const appliedCustom =
+    (eff.undoKind === "live" ? parseMaisonCustomPaletteStored(eff.customPalette) : null) ??
     (isMaisonPendingUndo(pending) && pending.applied.customPalette
       ? parseMaisonCustomPaletteStored(pending.applied.customPalette)
-      : null) ?? parseMaisonCustomPaletteStored(row?.custom_palette);
-  const appliedPalette =
-    appliedCustom
-      ? null
+      : null) ??
+    (eff.undoKind === "live" ? null : parseMaisonCustomPaletteStored(row?.custom_palette));
+  const appliedPalette = appliedCustom
+    ? null
+    : eff.undoKind === "live"
+      ? pendingPalette
       : isMaisonPendingUndo(pending) && pending.applied.paletteKey
         ? pending.applied.paletteKey
-        : paletteKey;
+        : rowPaletteKey;
 
   const slugForCheck = (row?.site_slug ?? "").trim();
   const slugTaken = slugForCheck
@@ -144,16 +168,22 @@ export async function loadMaisonReviewStateAction(input?: {
     data: {
       siteSlug: row?.site_slug ?? null,
       publicSiteUrl: siteUrl(row?.site_slug ?? null, isDemo),
-      themeDesignSlug: row?.theme_design_slug ?? null,
-      themeLookSlug: row?.theme_look_slug ?? null,
-      canUndo: isMaisonPendingUndo(pending),
+      themeDesignSlug: eff.designSlug,
+      themeLookSlug: eff.lookSlug,
+      canUndo: eff.undoKind !== null,
+      unpublishedDraft: eff.unpublishedDraft,
+      undoKind: eff.undoKind,
+      undoRevertsToName: eff.undoRevertsToSlug
+        ? (appliedThemeLabel(eff.undoRevertsToSlug, null, locale)?.design ?? null)
+        : null,
       readiness,
       summaryLine: buildSummaryLine({
-        designSlug: row?.theme_design_slug ?? null,
-        lookSlug: row?.theme_look_slug ?? null,
+        designSlug: eff.designSlug,
+        lookSlug: eff.lookSlug,
         paletteKey: appliedPalette,
         customPalette: appliedCustom,
         contentMode: appliedMode,
+        unpublishedDraft: eff.unpublishedDraft,
         locale,
       }),
       contentMode: appliedMode,

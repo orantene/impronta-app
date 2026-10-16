@@ -104,6 +104,8 @@ export const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = 
   // (card preview + travel reach + 30-day stats). Standalone server
   // component; talent.tsx mega-shell untouched.
   (s) => s[0] === "talent" && s[1] === "discover",
+  // /talent/get-found — Google Business Profile setup guide (TUL-584), standalone server page.
+  (s) => s[0] === "talent" && s[1] === "get-found",
   // /talent/page-builder — bare editor (talent layout opts out of the shell on
   // hard load). Soft nav from My presence keeps TalentShellClient mounted
   // because layouts do not remount; mark canonical so ConditionalAdminShellRoot

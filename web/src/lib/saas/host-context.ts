@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { previewHostContext } from "./preview-host";
 import type { NextRequest } from "next/server";
 
 import { createBoundedFetch, SUPABASE_EDGE_LOOKUP_TIMEOUT_MS } from "@/lib/supabase/bounded-fetch";
@@ -204,6 +205,11 @@ export async function resolveTenantContext(
     return { kind: "not_found", tenantId: null, hostname: "" };
   }
 
+  // Vercel preview deploys of this project act as the app host, in preview
+  // only (see preview-host.ts for the security reasoning).
+  const preview = previewHostContext(hostname, process.env.VERCEL_ENV);
+  if (preview) return preview;
+
   const cached = cacheGet(hostname);
   if (cached) return cached;
 
@@ -398,6 +404,46 @@ export async function isProfileCodeOnTenantRoster(
         : { kind: "not_found", tenantId: null, hostname: key },
     );
     return onRoster;
+  } catch {
+    return true; // fail open
+  }
+}
+
+/**
+ * Does this /t/<code> segment name ANY talent profile (live code or retired
+ * alias)? Platform hosts (app, marketing, hub) serve every talent, so an
+ * unknown code is the only case the edge can 404 there; hidden or unpublished
+ * profiles are left to the page. Same `loading.tsx` reason as the roster gate
+ * above: a page-level notFound() lands on a 200 already on the wire.
+ *
+ * Cached on the same 60s TTL. `resolve_talent_profile_code` is SECURITY
+ * DEFINER and matches the code exactly, so the key keeps its case. Fails OPEN.
+ */
+export async function talentProfileCodeExists(
+  request: NextRequest,
+  profileCode: string,
+): Promise<boolean> {
+  const key = `_code/${profileCode}`;
+  const cached = cacheGet(key);
+  if (cached) return cached.kind !== "not_found";
+
+  const supabase = buildEdgeSupabase(request);
+  if (!supabase) return true; // no client — fail open, never hide a real page
+
+  try {
+    const { data, error } = await supabase.rpc("resolve_talent_profile_code", {
+      p_code: profileCode,
+    });
+    if (error) return true; // fail open
+    const row = Array.isArray(data) ? data[0] : data;
+    const exists = Boolean(row?.profile_id);
+    cacheSet(
+      key,
+      exists
+        ? { kind: "app", tenantId: null, hostname: key }
+        : { kind: "not_found", tenantId: null, hostname: key },
+    );
+    return exists;
   } catch {
     return true; // fail open
   }

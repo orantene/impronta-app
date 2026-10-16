@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
-  DEFAULT_INBOUND_FORWARD_TO,
   INBOUND_BODY_STORE_BYTES,
   normalizeToAddresses,
   processResendInboundEmail,
@@ -11,19 +10,37 @@ import {
   type InboundForwardStatus,
 } from "./resend-inbound-forward";
 
-test("resolveInboundForwardTo defaults to platform owner Gmail", () => {
-  const prev = process.env.RESEND_INBOUND_FORWARD_TO;
-  delete process.env.RESEND_INBOUND_FORWARD_TO;
-  assert.equal(resolveInboundForwardTo(), DEFAULT_INBOUND_FORWARD_TO);
-  if (prev !== undefined) process.env.RESEND_INBOUND_FORWARD_TO = prev;
-});
+// Default for the legacy forward tests below; withEnv overrides per test.
+process.env.RESEND_INBOUND_FORWARD_TO = "ops@example.com";
 
-test("resolveInboundForwardTo respects env override", () => {
-  const prev = process.env.RESEND_INBOUND_FORWARD_TO;
-  process.env.RESEND_INBOUND_FORWARD_TO = " ops@example.com ";
+function withEnv(value: string | undefined, fn: () => void | Promise<void>) {
+  return async () => {
+    const prev = process.env.RESEND_INBOUND_FORWARD_TO;
+    if (value === undefined) delete process.env.RESEND_INBOUND_FORWARD_TO;
+    else process.env.RESEND_INBOUND_FORWARD_TO = value;
+    try {
+      await fn();
+    } finally {
+      if (prev !== undefined) process.env.RESEND_INBOUND_FORWARD_TO = prev;
+      else delete process.env.RESEND_INBOUND_FORWARD_TO;
+    }
+  };
+}
+
+test("resolveInboundForwardTo is null when env unset", withEnv(undefined, () => {
+  assert.equal(resolveInboundForwardTo(), null);
+}));
+
+test("resolveInboundForwardTo trims a valid env value", withEnv(" ops@example.com ", () => {
   assert.equal(resolveInboundForwardTo(), "ops@example.com");
-  if (prev !== undefined) process.env.RESEND_INBOUND_FORWARD_TO = prev;
-  else delete process.env.RESEND_INBOUND_FORWARD_TO;
+}));
+
+test("resolveInboundForwardTo rejects invalid values and lists", async () => {
+  for (const bad of ["nope", "a@b", "a@x.com, b@x.com", "a@x.com;b@x.com", "a b@x.com", "Name <a@x.com>", "   "]) {
+    await withEnv(bad, () => {
+      assert.equal(resolveInboundForwardTo(), null, bad);
+    })();
+  }
 });
 
 test("normalizeToAddresses accepts string, list, and CSV", () => {
@@ -188,4 +205,149 @@ test("processResendInboundEmail fails closed when store is unavailable", async (
   assert.equal(result.stored, false);
   assert.equal(result.ok, false);
   assert.match(result.detail, /store unavailable/);
+});
+
+const inboundData = {
+  data: { from: "z@ex.com", to: "hello@tulala.digital", subject: "S", text: "t", html: null },
+  error: null,
+};
+const sentOk = { status: "sent" as const, id: "x", from: "Tulala <noreply@tulala.digital>" };
+
+test("unset env: stored, marked skipped, send NOT called", withEnv(undefined, async () => {
+  const mem = memoryStore("pending");
+  let sendCalls = 0;
+  const result = await processResendInboundEmail(
+    { type: "email.received", data: { email_id: "re_in_5" } },
+    {
+      store: mem.store,
+      fetchInbound: async () => inboundData,
+      sendForward: async () => {
+        sendCalls += 1;
+        return sentOk;
+      },
+    },
+  );
+  assert.equal(result.stored, true);
+  assert.equal(result.ok, true);
+  assert.equal(result.forwardStatus, "skipped");
+  assert.equal(sendCalls, 0);
+  assert.equal(mem.rows.get("re_in_5")?.payload.forward_to, null);
+  assert.equal(mem.marks[0]?.status, "skipped");
+  assert.match(mem.marks[0]?.error ?? "", /RESEND_INBOUND_FORWARD_TO/);
+}));
+
+test("invalid env: stored, skipped, send NOT called", withEnv("a@x.com, b@x.com", async () => {
+  const mem = memoryStore("pending");
+  let sendCalls = 0;
+  const result = await processResendInboundEmail(
+    { type: "email.received", data: { email_id: "re_in_6" } },
+    {
+      store: mem.store,
+      fetchInbound: async () => inboundData,
+      sendForward: async () => {
+        sendCalls += 1;
+        return sentOk;
+      },
+    },
+  );
+  assert.equal(result.forwardStatus, "skipped");
+  assert.equal(sendCalls, 0);
+}));
+
+test("valid env: forwards to that address and marks sent", withEnv("ops@example.com", async () => {
+  const mem = memoryStore("pending");
+  let sentTo: unknown = null;
+  const result = await processResendInboundEmail(
+    { type: "email.received", data: { email_id: "re_in_7" } },
+    {
+      store: mem.store,
+      fetchInbound: async () => inboundData,
+      sendForward: async (args) => {
+        sentTo = args.to;
+        return sentOk;
+      },
+    },
+  );
+  assert.equal(result.forwardStatus, "sent");
+  assert.equal(sentTo, "ops@example.com");
+  assert.equal(mem.rows.get("re_in_7")?.payload.forward_to, "ops@example.com");
+}));
+
+test("copy list targets: forwards once per address and ignores the env", withEnv("ops@example.com", async () => {
+  const mem = memoryStore("pending");
+  const sentTo: unknown[] = [];
+  const result = await processResendInboundEmail(
+    { type: "email.received", data: { email_id: "re_in_list_1" } },
+    {
+      store: mem.store,
+      fetchInbound: async () => inboundData,
+      resolveForwardTargets: async () => ({
+        targets: ["a@example.com", "b@example.com"],
+        source: "list",
+      }),
+      sendForward: async (args) => {
+        sentTo.push(args.to);
+        return sentOk;
+      },
+    },
+  );
+  assert.equal(result.forwardStatus, "sent");
+  assert.deepEqual(sentTo, ["a@example.com", "b@example.com"]);
+  assert.equal(mem.rows.get("re_in_list_1")?.payload.forward_to, "a@example.com, b@example.com");
+}));
+
+test("copy list with rows but no support_inbound address: skipped with list reason", withEnv("ops@example.com", async () => {
+  const mem = memoryStore("pending");
+  let sendCalls = 0;
+  const result = await processResendInboundEmail(
+    { type: "email.received", data: { email_id: "re_in_list_2" } },
+    {
+      store: mem.store,
+      fetchInbound: async () => inboundData,
+      resolveForwardTargets: async () => ({ targets: [], source: "list" }),
+      sendForward: async () => {
+        sendCalls += 1;
+        return sentOk;
+      },
+    },
+  );
+  assert.equal(result.forwardStatus, "skipped");
+  assert.equal(sendCalls, 0);
+  assert.match(mem.marks[0]?.error ?? "", /notification copy/);
+}));
+
+test("copy list: one failed address does not stop the others", async () => {
+  const mem = memoryStore("pending");
+  const result = await processResendInboundEmail(
+    { type: "email.received", data: { email_id: "re_in_list_3" } },
+    {
+      store: mem.store,
+      fetchInbound: async () => inboundData,
+      resolveForwardTargets: async () => ({
+        targets: ["bad@example.com", "good@example.com"],
+        source: "list",
+      }),
+      sendForward: async (args) =>
+        args.to === "bad@example.com"
+          ? { status: "failed" as const, error: "boom" }
+          : sentOk,
+    },
+  );
+  assert.equal(result.forwardStatus, "sent");
+  assert.equal(mem.marks.at(-1)?.status, "sent");
+});
+
+test("copy list: all addresses fail -> failed", async () => {
+  const mem = memoryStore("pending");
+  const result = await processResendInboundEmail(
+    { type: "email.received", data: { email_id: "re_in_list_4" } },
+    {
+      store: mem.store,
+      fetchInbound: async () => inboundData,
+      resolveForwardTargets: async () => ({ targets: ["bad@example.com"], source: "list" }),
+      sendForward: async () => ({ status: "failed" as const, error: "boom" }),
+    },
+  );
+  assert.equal(result.forwardStatus, "failed");
+  assert.equal(mem.marks.at(-1)?.error, "boom");
 });

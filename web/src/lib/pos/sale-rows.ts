@@ -53,6 +53,8 @@ export type OrderRow = {
 export type LineRow = {
   id: string;
   offering_id: string | null;
+  /** The talent that owns the line; a talent's promo covers only its own lines. */
+  talent_profile_id?: string | null;
   variant_id: string | null;
   addon_ids: string[] | null;
   session_id: string | null;
@@ -88,7 +90,7 @@ export const ORDER_COLUMNS =
   "id, tenant_id, status, currency, customer_id, guest_session_id, source_page, visit_id, space_id, version, subtotal_cents, discount_cents, tax_cents, total_cents, tip_cents";
 
 export const LINE_COLUMNS =
-  "id, offering_id, variant_id, addon_ids, session_id, label, units, unit_cents, total_cents, kind, operator_user_id, booking_id, booking_kind, price_phase_id, proposed_by, confirmed_at, confirmed_by, price_snapshot_cents, catalog_price_cents_at_add, discount_cents, discount_label, tax_cents, tax_label";
+  "id, offering_id, talent_profile_id, variant_id, addon_ids, session_id, label, units, unit_cents, total_cents, kind, operator_user_id, booking_id, booking_kind, price_phase_id, proposed_by, confirmed_at, confirmed_by, price_snapshot_cents, catalog_price_cents_at_add, discount_cents, discount_label, tax_cents, tax_label";
 
 /**
  * The per-line discounts on a draft, summed. They join the order's own

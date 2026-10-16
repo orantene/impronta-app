@@ -9,6 +9,8 @@ import {
 } from "@/app/(workspace)/[tenantSlug]/talent/inbox/[id]/actions";
 import { acceptTalentInvitation, declineTalentInvitation } from "@/lib/inquiry/inquiry-engine-roster";
 import { loadMessagingEssentials } from "@/lib/messaging/essentials";
+import { loadInquiryOffers } from "@/lib/messaging/sheets";
+import { pendingOfferMoney } from "@/lib/messaging/pending-offer-money";
 import { insertMessage } from "@/lib/messaging/insert-message";
 import { fail } from "@/lib/messaging/refusals";
 import { conversationHostKind, threadLinkUrl } from "@/lib/messaging/thread-link";
@@ -79,7 +81,17 @@ export async function messagingTalentLoadContextLines(input: { inquiryId: string
     gate.row.tenantId,
   );
   if (!sale.ok) return sale;
-  if ("empty" in sale) return { ok: true as const, lines: null, money: null };
+  if ("empty" in sale) {
+    // TUL-957: a sent offer nobody has paid yet has no order, so the panel read "Sin cargos aún".
+    // Show it as pending: total = the offer, paid = 0. Display only, never counted as earned.
+    const offers = await loadInquiryOffers(gate.actor.admin, {
+      tenantId: gate.row.tenantId,
+      inquiryId: parsed.data.inquiryId,
+    });
+    const sent = offers.find((o) => o.status === "sent" && o.totalClientPrice > 0);
+    const money = sent ? pendingOfferMoney(sent.totalClientPrice, sent.currencyCode) : null;
+    return { ok: true as const, lines: null, money };
+  }
   const projected = projectTalentLines(sale.lines, gate.actor.talentProfileId, gate.row.isSeller, sale.herNetCents);
   const money = projectTalentMoney({
     isSeller: gate.row.isSeller,

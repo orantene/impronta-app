@@ -8,6 +8,7 @@ import {
   type HowYouWorkFacts,
   type HowYouWorkMove,
   type MoveDeps,
+  resolveOwnSiteBookable,
   resolveProviderDisplayName,
 } from "./how-you-work";
 import { planProfilePromotion, type ProfileState } from "./talent-profile-promotion";
@@ -134,4 +135,42 @@ test("studio -> both: add_provider runs with a non-empty name for a studio owner
   // facts.displayName now comes from resolveProviderDisplayName, so the move never calls addProvider with "".
   const name = resolveProviderDisplayName(null, "Rosa Perez", "Estudio Rosa");
   assert.equal(name, "Rosa Perez");
+});
+
+// TUL-719: a workspace owner whose own talent site is public and who was never put on the
+// workspace roster still takes bookings (QA Max). That is "both", never "I do not take bookings".
+test("TUL-719: owner with a live own site and no roster row reads as taking bookings", () => {
+  const ownSite: HowYouWorkFacts = { ...studio, hasTalentProfile: true, talentProfileId: "tp1", ownSiteBookable: true };
+  assert.equal(deriveHowYouWork(ownSite), "both");
+  // nothing to stop on the roster, so no dead "stop" button
+  assert.deepEqual(movesFor(ownSite), []);
+  // a roster row hidden on purpose still reads as studio
+  assert.equal(deriveHowYouWork({ ...ownSite, ownSiteBookable: false }), "studio");
+});
+
+// TUL-719 (Oran): Stripe only matters for PAID services.
+const live = { workflowStatus: "approved", visibility: "public" };
+const offer = (amountCents: number | null) => ({ amount_cents: amountCents, status: "published", visibility: "public" });
+const noStripe = { stripeAccountId: null, chargesEnabled: false };
+const stripeOk = { stripeAccountId: "acct_1", chargesEnabled: true };
+
+test("TUL-719: paid service + no Stripe is not bookable", () => {
+  assert.equal(resolveOwnSiteBookable(live, [offer(5000)], noStripe), false);
+  assert.equal(resolveOwnSiteBookable(live, [offer(0), offer(5000)], noStripe), false);
+  // connected but charges not enabled yet still cannot take money
+  assert.equal(resolveOwnSiteBookable(live, [offer(5000)], { stripeAccountId: "acct_1", chargesEnabled: false }), false);
+});
+
+test("TUL-719: free-only services need no Stripe", () => {
+  assert.equal(resolveOwnSiteBookable(live, [offer(0), offer(null)], noStripe), true);
+});
+
+test("TUL-719: paid service + Stripe that can take charges is bookable", () => {
+  assert.equal(resolveOwnSiteBookable(live, [offer(5000)], stripeOk), true);
+});
+
+test("TUL-719: unpublished paid offerings do not count; unapproved or private site never bookable", () => {
+  assert.equal(resolveOwnSiteBookable(live, [{ ...offer(5000), status: "draft" }, offer(0)], noStripe), true);
+  assert.equal(resolveOwnSiteBookable({ ...live, visibility: "private" }, [offer(0)], stripeOk), false);
+  assert.equal(resolveOwnSiteBookable({ ...live, workflowStatus: "draft" }, [offer(0)], stripeOk), false);
 });

@@ -12,17 +12,26 @@ const field = { background: "var(--tl-surface-raised)", border: "1px solid var(-
 export function SetupServices({
   copy,
   currency,
+  onCurrency,
   services,
   onChange,
 }: {
   copy: SetupCopy;
   currency: string;
+  onCurrency: (currency: string) => void;
   services: EssentialService[];
   onChange: (next: EssentialService[]) => void;
 }) {
   const patch = (i: number, p: Partial<EssentialService>) => onChange(services.map((s, j) => (j === i ? { ...s, ...p } : s)));
   return (
     <div className="flex flex-col gap-3" data-testid="onb-setup-services">
+      <label className="flex items-center gap-2 text-[0.875rem]" style={{ color: "var(--tl-ink-soft)" }}>
+        {copy.currencyLabel}
+        <select value={currency} onChange={(e) => onCurrency(e.target.value)} data-testid="onb-service-currency" className="h-11 rounded-[12px] px-3 text-[1rem]" style={field}>
+          <option value="MXN">MXN</option>
+          <option value="USD">USD</option>
+        </select>
+      </label>
       {services.map((s, i) => (
         <div key={i} className="rounded-[18px] p-3" style={{ background: "var(--tl-surface)", border: "1px solid var(--tl-hairline)" }}>
           <div className="flex items-center gap-2">
@@ -70,6 +79,11 @@ export function SetupServices({
             <input type="checkbox" checked={s.quote} onChange={(e) => patch(i, { quote: e.target.checked, priceCents: e.target.checked ? null : s.priceCents })} className="size-5" data-testid={`onb-service-quote-${i}`} />
             {copy.quote}
           </label>
+          {s.quote || !s.priceCents ? (
+            <p className="mt-1 text-[0.8125rem]" style={{ color: "var(--tl-muted)" }} data-testid={`onb-service-hidden-${i}`}>
+              {s.quote ? copy.quoteShown : copy.hiddenUntilPriced}
+            </p>
+          ) : null}
         </div>
       ))}
       {services.length < MAX_ESSENTIAL_SERVICES ? (

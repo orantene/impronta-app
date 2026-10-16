@@ -24,6 +24,8 @@ export type DashboardMyWebsite = {
   publicUrl: string | null;
   /** In-app editor href. */
   editHref: string;
+  /** Workspace design picker (TUL-559); null when the gallery lives on Mi sitio itself. */
+  designHref: string | null;
   /** talent_sites status when primary is personal; null for workspace/hub/create. */
   personalStatus: TalentSiteStatus | null;
 };
@@ -40,6 +42,7 @@ export function resolveTalentDashboardMyWebsite(
       kind: "workspace",
       publicUrl: workspace.publicUrl,
       editHref: workspace.adminHref || workspaceSiteBuilderHref(workspace.slug),
+      designHref: `${workspaceSiteBuilderHref(workspace.slug)}/design`,
       personalStatus: null,
     };
   }
@@ -55,6 +58,7 @@ export function resolveTalentDashboardMyWebsite(
       kind: isHubOnly ? "hub" : "personal",
       publicUrl: state.publicSiteUrl,
       editHref: PERSONAL_BUILDER_HREF,
+      designHref: null,
       personalStatus: state.site.status,
     };
   }
@@ -63,6 +67,27 @@ export function resolveTalentDashboardMyWebsite(
     kind: "create",
     publicUrl: state.publicSiteUrl,
     editHref: CREATE_WEBSITE_HREF,
+    designHref: null,
     personalStatus: null,
   };
+}
+
+/**
+ * TUL-371: Hoy "Website live" pill. For a business owner the workspace site IS
+ * the website, so the pill is live only once it has a published page and it
+ * opens that URL. It never falls back to the personal `<slug>-2` site, even
+ * when that one is published.
+ */
+export function resolveTalentDashboardLivePill(
+  state: Pick<TalentSiteDashboardState, "publicSiteUrl" | "workspaceSite">,
+  personalPublished: boolean,
+): { isLive: boolean; siteUrl: string | null } {
+  const workspace = state.workspaceSite;
+  if (workspace) {
+    return {
+      isLive: workspace.isPublished,
+      siteUrl: workspace.isPublished ? workspace.publicUrl : null,
+    };
+  }
+  return { isLive: personalPublished, siteUrl: state.publicSiteUrl };
 }

@@ -9,7 +9,7 @@ import {
 } from "@/components/public-booking/catalog-booking-logic";
 import { usdEquivalentLabel } from "@/lib/pricing/usd-equivalent";
 import { formatMoney } from "@/lib/talent/offerings-money";
-import type { TalentOffering } from "@/lib/talent/offerings-types";
+import { offeringIsQuote, type TalentOffering } from "@/lib/talent/offerings-types";
 
 import { catalogDurationPhrase } from "@/lib/site-admin/builder-node/services-catalog-title";
 
@@ -58,7 +58,7 @@ export function ServicesCatalogStaticFallback({
               const cover = showPhoto ? item.imageUrls[0] : undefined;
               const onRequest = item.visibility === "on_request";
               const quote =
-                item.priceDisplay === "quote" || item.priceType === "custom" || item.amountCents == null;
+                offeringIsQuote(item);
               const minCents = catalogRowMinCents(item);
               const ladder = catalogRowShowsFrom(item);
               const usd = showUsdEquivalent
@@ -71,13 +71,15 @@ export function ServicesCatalogStaticFallback({
                 inspectorLabel: ctaLabel,
               });
               return (
-                <li key={item.id} className="site-builder-node--services-catalog-row" data-has-photo="true">
+                <li
+                  key={item.id}
+                  className="site-builder-node--services-catalog-row"
+                  data-has-photo={cover ? "true" : "false"}
+                >
                   {cover ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={cover} alt="" className="site-builder-node--services-catalog-photo" />
-                  ) : (
-                    <span className="site-builder-node--services-catalog-photo" aria-hidden />
-                  )}
+                    <img src={cover} alt="" loading="lazy" decoding="async" className="site-builder-node--services-catalog-photo" />
+                  ) : null}
                   <span className="site-builder-node--services-catalog-copy">
                     <strong className="site-builder-node--services-catalog-name">{item.title}</strong>
                     {item.description ? (
@@ -96,11 +98,14 @@ export function ServicesCatalogStaticFallback({
                           {es
                             ? onRequest
                               ? "Bajo consulta"
-                              : "Cotización a pedido"
+                              : "Precio a cotizar"
                             : onRequest
                               ? "On request"
-                              : "Quote on request"}
+                              : "Price on request"}
                         </strong>
+                      ) : minCents <= 0 ? (
+                        // TUL-533 / GRK-064: SSR fallback must not paint "$0 MXN".
+                        <strong>{es ? "Consultar" : "Ask"}</strong>
                       ) : (
                         <>
                           {ladder ? <small>{es ? "Desde" : "From"}</small> : null}

@@ -57,6 +57,7 @@ import { ShellUpgradeModal } from "./internal/shell-upgrade-modal";
 import { CommandPalette } from "./internal/palette";
 import { DRAWER_HELP } from "./internal/help";
 import { useDashboardText } from "./internal/dashboard-i18n";
+import { TabTitleBridge } from "./internal/dashboard-tab-title-bridge";
 import { MESSAGES_MOBILE_CSS } from "./internal/messages-mobile-css";
 import { interpolate } from "@/i18n/interpolate";
 // Type-only import — `_data-bridge.ts` is a server-only module guarded by
@@ -72,32 +73,6 @@ import type { BridgeData } from "./internal/data-bridge";
 function ToastBridge() {
   const { state, dismissToast } = useAdminShell();
   return <ToastHost toasts={state.toasts} onDismiss={dismissToast} />;
-}
-
-/**
- * Browser tab title reflects total unread count. e.g. "(3) Tulala" so
- * the talent sees at a glance from another tab that something needs
- * them. Uses bridge unread counts when live data is wired.
- */
-function TabTitleBridge() {
-  const { state, bridgeTalentUnread, totalUnread } = useAdminShell();
-
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    const unread =
-      state.surface === "talent"
-        ? (bridgeTalentUnread ?? 0)
-        : state.surface === "workspace"
-          ? totalUnread
-          : 0;
-    const base = "Tulala";
-    document.title = unread > 0 ? `(${unread}) ${base}` : base;
-    return () => {
-      document.title = base;
-    };
-  }, [state.surface, bridgeTalentUnread, totalUnread]);
-
-  return null;
 }
 
 /**
@@ -148,6 +123,7 @@ function DevOnlyControlBar({ show }: { show: boolean }) {
 // the host-shape logic can be unit-tested without mounting this shell. Add new
 // canonical pages to the matcher list there.
 import { pathIsCanonical } from "./canonical-routes";
+import { TalentLeavesForAdminGuard } from "./talent-leaves-for-admin-guard";
 import { TALENT_VISUAL, TALENT_VISUAL_VARS } from "./internal/talent/visual/tokens";
 
 
@@ -234,6 +210,7 @@ export function AdminShellClient({
     <ShellBoundary supportSlot={supportSlot}>
       <AdminShellProvider
         initialBridgeData={initialBridgeData}
+        initialSurface="workspace" // URL intent beats sticky preferredSurface=talent
         initialPage={initialPage}
         tenantSlug={tenantSlug}
         brandedHost={brandedHost}
@@ -301,6 +278,7 @@ export function TalentShellClient({
             existing /talent/* route is absent from
             CANONICAL_ROUTE_MATCHERS, so they all still render the SPA
             exactly as before (pathIsCanonical → false → AdminShellRoot). */}
+        <TalentLeavesForAdminGuard />
         <ConditionalAdminShellRoot />
         <SupportSlotGate />
       </AdminShellProvider>
@@ -1485,7 +1463,7 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
                aren't squeezed by 28px of side gutters. */
             .tulala-shell [data-tulala-workspace-grid] > main,
             .tulala-shell [data-tulala-workspace-grid] [data-tulala-surface-main] {
-              padding: 14px 14px 60px !important;
+              padding: 14px 14px var(--tulala-fab-clear) !important;
             }
             /* Show the mobile bottom tab bar */
             .tulala-shell [data-tulala-mobile-bottom-nav] {
@@ -1500,7 +1478,7 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
                Also clamp side padding from desktop's 28px → 14px so cards
                can use the full mobile viewport width. */
             .tulala-shell [data-tulala-surface-main] {
-              padding: 14px 14px calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+              padding: 14px 14px var(--tulala-fab-clear) !important;
               max-width: 100% !important;
               min-width: 0 !important;
               box-sizing: border-box !important;
@@ -2119,6 +2097,11 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
             // used to subtract 52px and its composer sat 13px under the nav.
             ["--tulala-mobile-nav-h" as never]:
               "calc(65px + env(safe-area-inset-bottom, 0px))",
+            // Space the content reserves at the bottom on phones: the FAB's
+            // bottom offset (80px) + its 52px size + 16px air. Keep in sync
+            // with BottomActionFab (static test pins it).
+            ["--tulala-fab-clear" as never]:
+              "calc(148px + env(safe-area-inset-bottom, 0px))",
             // Whitelabel accent (whitelabel-tier tenants only) — re-tints the
             // shell's accent tokens from the agency's brand color.
             ...accentVars,

@@ -12,6 +12,8 @@ import { test } from "node:test";
 
 import {
   loadShellCounts,
+  sanitizeShellCount,
+  sumTalentInquiryUnread,
   type ShellCountLoaders,
   type ShellCounts,
 } from "./shell-counts";
@@ -22,6 +24,8 @@ const read = (rel: string) => readFileSync(join(root, rel), "utf8");
 function fakeLoaders(opts: {
   workspace?: number | (() => Promise<number>);
   talent?: number | (() => Promise<number>);
+  money?: number;
+  attention?: number;
 }): ShellCountLoaders {
   const asFn = (v: number | (() => Promise<number>) | undefined, label: string) => {
     if (v === undefined) {
@@ -35,6 +39,13 @@ function fakeLoaders(opts: {
   return {
     loadWorkspaceUnread: asFn(opts.workspace, "workspace"),
     loadTalentUnread: asFn(opts.talent, "talent"),
+    countUnreadNotifications: async () => ({
+      total: (opts.money ?? 0) + (opts.attention ?? 0),
+      messages: 0,
+      money: opts.money ?? 0,
+      attention: opts.attention ?? 0,
+      updates: 0,
+    }),
   };
 }
 
@@ -119,14 +130,30 @@ test("negative / non-finite loader results sanitize to 0 messages", async () => 
   );
 });
 
-test("money and attention stay stubbed at 0 (TUL-389)", async () => {
+test("money and attention come from countUnreadNotifications (TUL-389)", async () => {
   const counts = await loadShellCounts(
     "workspace",
     { tenantId: "t1" },
-    fakeLoaders({ workspace: 12 }),
+    fakeLoaders({ workspace: 12, money: 2, attention: 5 }),
   );
-  assert.equal(counts.money, 0);
-  assert.equal(counts.attention, 0);
+  assert.deepEqual(counts, {
+    messages: 12,
+    money: 2,
+    attention: 5,
+  } satisfies ShellCounts);
+});
+
+test("notif loader throw leaves money/attention at 0 without blanking messages", async () => {
+  const counts = await loadShellCounts("workspace", { tenantId: "t1" }, {
+    loadWorkspaceUnread: async () => 4,
+    loadTalentUnread: async () => {
+      throw new Error("talent unused");
+    },
+    countUnreadNotifications: async () => {
+      throw new Error("notif down");
+    },
+  });
+  assert.deepEqual(counts, { messages: 4, money: 0, attention: 0 });
 });
 
 // ── Layout bridge wiring (source scan) ──────────────────────────────────────
@@ -168,8 +195,16 @@ test("talent layout no longer hardcodes totalUnread: 0; uses loadShellCounts", (
     "talent layout must call loadShellCounts for the talent surface",
   );
   assert.ok(
-    /totalUnread:\s*shellCounts\.messages/.test(src),
-    "talent layout must keep totalUnread === shellCounts.messages",
+    /sumTalentInquiryUnread\(talentInquiries\)/.test(src),
+    "talent layout must sum bridge unread across agencies for Messages",
+  );
+  assert.ok(
+    /countTalentAwaitingInquiries\(talentInquiries\)/.test(src),
+    "talent layout must stamp attention from the awaiting-you predicate",
+  );
+  assert.ok(
+    /totalUnread:\s*shellCountsResolved\.messages/.test(src),
+    "talent layout must keep totalUnread === shellCountsResolved.messages",
   );
   // The bug this card fixes: a literal zero on the bridge.
   assert.ok(
@@ -177,9 +212,23 @@ test("talent layout no longer hardcodes totalUnread: 0; uses loadShellCounts", (
     "talent layout must not hardcode totalUnread: 0",
   );
   assert.ok(
-    /talentUnread:\s*shellCounts\.messages/.test(src),
-    "talent layout must set talentUnread from shellCounts.messages for the identity bar",
+    /talentUnread:\s*shellCountsResolved\.messages/.test(src),
+    "talent layout must set talentUnread from shellCountsResolved.messages for the identity bar",
   );
+});
+
+test("sumTalentInquiryUnread matches agency-filter All chip math", () => {
+  assert.equal(
+    sumTalentInquiryUnread([
+      { unreadCount: 2 },
+      { unreadCount: 0 },
+      { unreadCount: 2 },
+      { unreadCount: null },
+    ]),
+    4,
+  );
+  assert.equal(sumTalentInquiryUnread([]), 0);
+  assert.equal(sanitizeShellCount(-3), 0);
 });
 
 test("BridgeData carries optional shellCounts; context exposes it", () => {

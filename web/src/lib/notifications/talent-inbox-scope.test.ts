@@ -37,6 +37,15 @@ test("orphan conversation notifications are dropped, system rows kept", () => {
   assert.deepEqual(scopeTalentNotificationsToInbox(notifs, visible).map((x) => x.id), ["1", "5", "6"]);
 });
 
+test("TUL-536: non-conversation rows count even when their inquiry is outside Messages", () => {
+  const rows = [
+    { id: "b1", kind: "booking" as const, originInquiryId: "q", read: false },
+    { id: "b2", kind: "payment" as const, originInquiryId: "gone", read: false },
+    { id: "m1", kind: "message" as const, originInquiryId: "q", read: false },
+  ];
+  assert.deepEqual(scopeTalentNotificationsToInbox(rows, visible).map((x) => x.id), ["b1", "b2"]);
+});
+
 test("unknown visibility hides nothing", () => {
   assert.equal(scopeTalentNotificationsToInbox(notifs, null).length, notifs.length);
 });

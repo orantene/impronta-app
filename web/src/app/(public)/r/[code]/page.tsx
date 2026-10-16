@@ -14,6 +14,7 @@ import { encodeQr } from "@/lib/links/qr";
 import { toSvg } from "@/lib/links/qr/render";
 import { formatOrderMoney } from "@/lib/orders/money-format";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { getCachedActorSession } from "@/lib/server/request-cache";
 import { COPY, ReceiptPageView, type ReceiptLocale } from "./receipt-page-view";
 
 /**
@@ -226,12 +227,16 @@ export default async function ReceiptPage({ params }: Params) {
   if (eventErr) logServerError("receipt.read/events", eventErr);
   const eventHref = eventRows?.[0]?.slug ? `/events/${eventRows[0].slug as string}` : null;
 
+  // TUL-G4: null on failure hides the "save your bookings" block.
+  const signedIn = await getCachedActorSession().then((s) => Boolean(s.user)).catch(() => null);
+
   return (
     <>
       <PublicHeader />
       <div className="flex-1" style={{ background: "var(--token-color-background)" }}>
       <ReceiptPageView
         locale={locale}
+        signedIn={signedIn}
         isRefunded={isRefunded}
         createdAtLabel={whenLabel(receipt.order.createdAt, zone, locale)}
         totalLabel={moneyLabel(receipt.order.totalCents)}

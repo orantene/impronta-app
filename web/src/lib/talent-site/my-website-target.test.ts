@@ -41,7 +41,7 @@ test("an explicit personal request keeps the personal builder reachable", () => 
 
 test("pure talent opens the personal site; none yet points at the create path", () => {
   assert.equal(resolveMyWebsiteTarget({ ...base, hasPersonalSite: true }).kind, "personal");
-  assert.deepEqual(resolveMyWebsiteTarget(base), { kind: "create", href: "/talent/public-page" });
+  assert.deepEqual(resolveMyWebsiteTarget(base), { kind: "create", href: "/talent/site" });
 });
 
 test("a business owner whose site is not ready yet never falls into a personal site", () => {
@@ -71,9 +71,10 @@ test("the build resolves a timezone from the city so hours are written", () => {
 });
 
 function recordingStore(calls: string[]): EssentialsStore {
+  let inserted = 0;
   return {
-    async listOfferings() { return []; },
-    async insertOfferings() { calls.push("offerings"); },
+    async listOfferings() { return Array.from({ length: inserted }, (_, i) => ({ id: `o${i}`, title: `o${i}`, status: "published" })) as never; },
+    async insertOfferings(_o, rows) { inserted += rows.length; calls.push("offerings"); },
     async updateOffering() {},
     async upsertTalentHours({ timezone }) { calls.push(`hours:${timezone}`); return !!timezone; },
     async setTalentBookable() { calls.push("bookable"); },

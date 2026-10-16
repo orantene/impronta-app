@@ -23,15 +23,14 @@ import { CHROME } from "@/components/edit-chrome/kit/tokens";
 
 const COPY = {
   en: "Web Office",
-  es: "Web Office",
+  es: "Oficina Web",
 } as const;
 
-/** "Web Office" is an English brand name, kept the same in Spanish copy
- *  (mirrors `siteCapabilityDeniedMessage`, which always names it in English
- *  even inside Spanish sentences). Exported so callers needing the plain
- *  label (not the chip) stay in sync with this one string. */
-export function talentSiteLockedUpsellLabel(): string {
-  return COPY.en;
+/** The paid tier's name in the talent's language (TUL-146: Spanish reads
+ *  "Oficina Web"). Exported so callers needing the plain label (not the chip)
+ *  stay in sync with this one string. */
+export function talentSiteLockedUpsellLabel(locale?: string | null): string {
+  return locale === "es" ? COPY.es : COPY.en;
 }
 
 export type TalentSiteWebOfficeLockChipProps = {
@@ -49,7 +48,7 @@ export function TalentSiteWebOfficeLockChip({
   ariaLabel,
   style,
 }: TalentSiteWebOfficeLockChipProps) {
-  const label = talentSiteLockedUpsellLabel();
+  const label = talentSiteLockedUpsellLabel(locale);
   const fallbackAriaLabel =
     locale === "es"
       ? `${label}, función bloqueada`

@@ -138,12 +138,29 @@ test("offerings: existing demo rows keep their ids and other attributes, quote k
   assert.deepEqual((a.patch.attributes as Record<string, unknown>).where, ["client"]);
   assert.equal((a.patch.attributes as Record<string, unknown>).demo_batch, "demo-2026-09-28");
   assert.equal(a.patch.cancellation_hours, 4);
+  // GRK-065: offerings that were missing where still get client delivery on rebuild.
+  const c = ops[2]!;
+  assert.equal(c.op, "update");
+  if (c.op === "update") {
+    assert.deepEqual((c.patch.attributes as Record<string, unknown>).where, ["client"]);
+  }
   const d = ops[3]!;
   if (d.op !== "update") throw new Error("update");
   assert.equal(d.patch.booking_mode, "inquiry");
   assert.equal(d.patch.price_display, "from");
   assert.equal(d.patch.amount_cents, 450000);
+  assert.deepEqual((d.patch.attributes as Record<string, unknown>).where, ["client"]);
   assert.equal(matchOfferings(f, have).get(2)?.id, "c");
+});
+
+test("GRK-065: fresh Gridline inserts stamp attributes.where = client", () => {
+  const f = fx("TAL-93206");
+  const ops = planOfferingOps(f, []);
+  assert.ok(ops.length >= 1);
+  for (const op of ops) {
+    if (op.op !== "insert") continue;
+    assert.deepEqual((op.row.attributes as Record<string, unknown>).where, ["client"]);
+  }
 });
 
 test("offerings: the emergency flag follows the urgency service, and a bilingual demo carries both languages", () => {
@@ -164,7 +181,8 @@ test("variants carry the delta label text and the profile keeps both bios", () =
   const op = planOfferingOps(f, [])[0]!;
   if (op.op !== "insert") throw new Error("insert");
   assert.equal(op.variants.length, 3);
-  assert.equal((op.variants[1]!.presentation as { deltaLabel?: string }).deltaLabel, "-$10");
+  // TUL-569: typed prices are written with the code, like the services table.
+  assert.equal((op.variants[1]!.presentation as { deltaLabel?: string }).deltaLabel, "-$10 USD");
   assert.equal(op.variants[1]!.amount_cents, 8500);
   // The English fixture writes the English bio and leaves the Spanish one alone.
   const patch = planProfilePatch(f, { short_bio: f.talent.tagline, home_city_text: f.talent.city, bio_i18n: { en: f.talent.bio, es: "Hago trabajos" } });
@@ -201,6 +219,25 @@ test("faq, areas and captions: planned from the fixture, idempotent, home base u
   assert.deepEqual(planCaptionOps(f, done), []);
   // A fixture whose job items have no title (Maison, Folio) writes no captions.
   assert.deepEqual(planCaptionOps(loadDemoContentFixture("maison-v2"), gallery), []);
+});
+
+test("TUL-572: bilingual Gridline demos write the English job captions to caption_i18n.en", () => {
+  for (const f of [loadDemoContentFixture("gridline"), fx("TAL-93212")]) {
+    const en = f.translations!.en!.portfolio!;
+    assert.equal(en.length, f.portfolio.items.length, f.profileCode);
+    const gallery = Array.from({ length: 6 }, (_, i) => ({ id: `m${i}`, metadata: { source: "ai", caption_i18n: { fr: "x" } } }));
+    const caps = planCaptionOps(f, gallery);
+    assert.equal(caps.length, 6, f.profileCode);
+    caps.forEach((c, i) => {
+      const meta = c.metadata as { caption: string; caption_i18n: Record<string, string> };
+      assert.equal(meta.caption, `${f.portfolio.items[i]!.title}\n${f.portfolio.items[i]!.caption}`);
+      assert.deepEqual(meta.caption_i18n, { fr: "x", en: `${en[i]!.title}\n${en[i]!.caption}` });
+      assert.doesNotMatch(meta.caption_i18n.en!, /\bOT-|\b(de|con|día|lámparas?|revisión)\b/i, `${f.profileCode} job ${i}`);
+    });
+    const done = gallery.map((g, i) => ({ ...g, metadata: caps[i]!.metadata }));
+    assert.deepEqual(planCaptionOps(f, done), [], `${f.profileCode} idempotent`);
+    assert.match(f.translations!.en!.arrivalNote!, /^Outside this area/);
+  }
 });
 
 test("restore: a backup without the newer tables leaves service areas and photos alone", () => {
