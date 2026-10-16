@@ -25,8 +25,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { useT } from "@/i18n/use-t";
 import { humanizeMediaError, readMediaJson } from "@/lib/media/humanize-media-error";
+import { usePublicT } from "@/i18n/use-public-t";
 
 import type {
   MediaLibraryKindFilter,
@@ -137,7 +137,7 @@ export function useMediaLibrary(input: {
   initialKind?: MediaLibraryKindFilter;
 }) {
   const { active } = input;
-  const t = useT();
+  const t = usePublicT();
   // The caller builds `input.source` inline, so it is a fresh object on every
   // render. Rebuild it from its primitives here: that makes `runFetch` — and
   // therefore the refetch effect below — depend on the source's IDENTITY

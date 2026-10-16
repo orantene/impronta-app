@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { GuestCaptchaField, type GuestCaptchaConfig } from "./GuestCaptchaField";
-import { translatorFor } from "@/i18n/use-t";
+import { translatorFor } from "@/i18n/translator-for";
 
 const INK = "var(--token-color-ink, #0B0B0D)";
 const FIELD =

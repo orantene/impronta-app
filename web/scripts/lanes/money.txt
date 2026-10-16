@@ -218,3 +218,8 @@ src/lib/visits/guest-order.test.ts
 src/lib/visits/page-wire.static.test.ts
 src/lib/visits/restaurant-screens.render.test.ts
 src/lib/visits/seat-reservation.test.ts
+src/lib/bookings/cancel-unpaid-booking.test.ts
+src/lib/orders/unwind-failed-checkout.test.ts
+src/lib/talent-agenda/abandoned-order-wire.static.test.ts
+src/lib/talent-agenda/abandoned-order.test.ts
+src/lib/talent-agenda/unified-status.test.ts

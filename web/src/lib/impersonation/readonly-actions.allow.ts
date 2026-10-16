@@ -8,6 +8,7 @@ export const READ = "pure loader: reads only, no write path, nothing for read-on
 export type AllowEntry = [suffix: string, names: string[], reason: string];
 
 export const EXTRA_ALLOW: AllowEntry[] = [
+  ["lib/scheduling/appointments-surface-action.ts", ["loadAppointmentsSurface"], READ],
   ["app/(workspace)/[tenantSlug]/admin/account/plan-change-actions.ts", ["previewWorkspacePlanChange"], "plan-change preview: Stripe upcoming-invoice read only; confirmWorkspacePlanChange is guarded"],
   ["app/(workspace)/[tenantSlug]/admin/account/stripe-billing-actions.ts", ["loadWorkspaceYearlyCheckoutPlans"], READ],
   ["app/(workspace)/[tenantSlug]/talent/settings/plan-change-actions.ts", ["previewTalentPlanChange"], "plan-change preview: Stripe upcoming-invoice read only; confirmTalentPlanChange is guarded"],

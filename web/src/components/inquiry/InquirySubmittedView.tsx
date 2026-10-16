@@ -2,7 +2,7 @@
 
 import type { InquiryIntentActionState } from "@/app/(workspace)/[tenantSlug]/client/_actions/inquiry-intent-actions";
 import { interpolate } from "@/i18n/interpolate";
-import { useT } from "@/i18n/use-t";
+import { usePublicT } from "@/i18n/use-public-t";
 import { sentCopyKeys } from "@/lib/inquiry/reserve-slot-taken";
 
 import { C, FONT, FONT_DISPLAY, primaryLinkStyle } from "./inquiry-drawer-tokens";
@@ -18,7 +18,7 @@ export function SubmittedView({
   soloTalentName?: string | null;
   followUpOnSite?: boolean;
 }) {
-  const t = useT();
+  const t = usePublicT();
   const messagesHref = followUpOnSite
     ? `/c/${encodeURIComponent(state.inquiryId)}`
     : `/${state.tenantSlug}/client/messages`

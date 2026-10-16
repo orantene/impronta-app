@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState, type CSSProperties } from "react";
-import { useT } from "@/i18n/use-t";
+import { usePublicT } from "@/i18n/use-public-t";
 
 /**
  * Event date input that shows an inline error for a half-typed native value
@@ -10,7 +10,7 @@ import { useT } from "@/i18n/use-t";
 export function EventDateInput({
   value, onChange, style,
 }: { value: string; onChange: (v: string) => void; style: CSSProperties }) {
-  const t = useT();
+  const t = usePublicT();
   const [incomplete, setIncomplete] = useState(false);
   const errorId = useId();
   return (
