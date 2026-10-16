@@ -314,6 +314,6 @@ const secondaryLink: CSSProperties = {
 
 const footerNote: CSSProperties = {
   fontSize: 11.5,
-  color: "rgba(11,11,13,0.38)",
+  color: "rgba(11,11,13,0.6)",
   margin: 0,
 };
