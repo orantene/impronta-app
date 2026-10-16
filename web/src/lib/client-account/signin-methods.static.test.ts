@@ -84,3 +84,18 @@ test("oauth next is normalized; callback uses host-safe destination", () => {
   assert.match(callback, /normalizeNextPath/);
   assert.match(callback, /hostSafeRedirectDestination/);
 });
+
+// TUL-691: both link/OAuth entry points claim + activate BEFORE they redirect.
+test("TUL-691: /auth/confirm and /auth/callback await claimAndActivateVerifiedClient before the success redirect", () => {
+  for (const rel of ["src/app/auth/confirm/route.ts", "src/app/auth/callback/route.ts"]) {
+    const src = read(rel);
+    const claim = src.indexOf("await claimAndActivateVerifiedClient(");
+    assert.ok(claim > -1, `${rel}: claim is awaited`);
+    // the success redirect target is built by `await resolvePostAuthRedirect(` (the import line has no `await`)
+    const firstUse = src.indexOf("await resolvePostAuthRedirect(");
+    assert.ok(firstUse > -1, `${rel}: success redirect present`);
+    assert.ok(claim < firstUse, `${rel}: claim (${claim}) must come before the success redirect (${firstUse})`);
+    // and it only fires for a real session user, with email proof from the auth user
+    assert.match(src, /emailProven:\s*isAuthEmailConfirmedForClaim\(user\)/, rel);
+  }
+});

@@ -37,3 +37,15 @@ test("TUL-929: country names follow the site language", () => {
   assert.equal(guestCountryOptions("en").find((o) => o.iso === "DE")?.label, "Germany");
   assert.equal(es[0]?.iso, "MX", "popular markets lead");
 });
+
+test("TUL-844: typing the first digit keeps it, in every country, one keystroke at a time", () => {
+  for (const iso of ["MX", "US", "ES", "AR", "GB"]) {
+    let value = "";
+    for (const ch of "5512345678") {
+      const national = splitGuestPhone(value, iso).national;
+      value = joinGuestPhone(iso, sanitizeGuestPhone(national + ch));
+      assert.equal(splitGuestPhone(value, iso).national.replace(/\s/g, "").slice(0, 1), "5", `${iso}: first digit survives`);
+    }
+    assert.equal(splitGuestPhone(value, iso).national.replace(/\s/g, ""), "5512345678", `${iso}: full number round-trips`);
+  }
+});

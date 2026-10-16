@@ -5,7 +5,11 @@ import { parseVia, type ViaTag } from "./links";
  * promo_events writer (L4). The decision logic, with every effect injected so
  * it is testable without a database: load, token check, rate limit, insert.
  */
-export const EVENT_KINDS = ["view", "link_open", "share"] as const;
+/**
+ * `reveal`: a visitor tapped "Show code" on a promo widget (TUL-1051 part B).
+ * Needs the promo_events CHECK from 20261231386500_promo_events_reveal.sql.
+ */
+export const EVENT_KINDS = ["view", "link_open", "share", "reveal"] as const;
 export type PromoEventKind = (typeof EVENT_KINDS)[number];
 
 export type EventPromoRef = {

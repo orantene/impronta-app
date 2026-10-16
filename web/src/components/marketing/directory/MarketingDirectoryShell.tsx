@@ -209,6 +209,8 @@ function DirectoryShellBody({
 
   return (
     <MarketingContainer size="wide" className="pb-[calc(8rem+env(safe-area-inset-bottom))]">
+      {/* TUL-879: on a phone the 2-up grid puts a save heart under the chat launcher in the right column; park the launcher on the left here. */}
+      <style>{`@media (max-width: 639px){[data-guest-chat-launcher]{left:16px!important;right:auto!important}}`}</style>
       <div className="flex flex-col gap-5">
         <DirectorySearch value={activeFilters.q} onCommit={(v) => updateParams({ q: v })} />
         <DirectoryTypeBar

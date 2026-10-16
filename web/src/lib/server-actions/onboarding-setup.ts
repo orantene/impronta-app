@@ -27,6 +27,8 @@ import {
   type Essentials,
 } from "@/lib/onboarding/essentials";
 import { setupCountry, setupTimezone } from "@/lib/onboarding/essentials-resolve";
+import { getSuggestedPrice, serviceKeyFor } from "@/lib/pricing/suggested-price";
+import { applySuggestedPrices } from "@/lib/onboarding/service-price-choice";
 import type { OnboardingChoice } from "@/lib/onboarding/choice";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
@@ -84,6 +86,8 @@ export async function loadOnboardingSetup(): Promise<SetupLoadResult> {
     const hourLines = Array.isArray(normalized) ? normalized.map(String) : typeof normalized === "string" ? [normalized] : [];
     const fromSaid = weeklyHoursFromCanonical(hourLines);
     if (fromSaid && hoursHaveAnyOpenDay(fromSaid)) essentials = { ...essentials, hours: fromSaid };
+    // TUL-633: each pack service arrives with a suggested price the person must confirm.
+    essentials = { ...essentials, services: await applySuggestedPrices(essentials.services, country, { getSuggestedPrice, serviceKeyFor }) };
     if (saved) essentials = { ...essentials, hours: saved.hours ?? essentials.hours, place: saved.place, timezone: saved.timezone ?? essentials.timezone };
   }
   return { ok: true, setup: { choice, country, tradeKey: packKeyForTrade(ctx.trade, ctx.discipline), essentials, saved: !!saved?.confirmed } };

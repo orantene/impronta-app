@@ -29,6 +29,7 @@ import {
 } from "@/lib/server-actions/admin-site-pages-inline";
 import { resolveAddPageDenialMessage } from "./all-pages-panel-deny-reason";
 import { TalentAllPagesPanel } from "./all-pages-panel-talent";
+import { WorkspacePostsTreeGroup } from "./posts-tree-group-workspace";
 import { resolveWorkspaceAdminBaseForLocation } from "./workspace-admin-base";
 import { aiCreatePageHref } from "./empty-canvas-ai-front-door";
 import {
@@ -46,7 +47,6 @@ import { DockFloatingPanel } from "./dock-floating-panel";
 import { navigateToEditSurface } from "./navigate-to-edit-surface";
 import { CHROME } from "./kit";
 import { useEditorLocale } from "./use-editor-locale";
-
 interface AllPagesPanelProps {
   open: boolean;
   onClose: () => void;
@@ -238,7 +238,7 @@ function InlineDeleteConfirm({ page, onDone, onError }: InlineDeleteProps) {
 // ── Main panel ────────────────────────────────────────────────────────────────
 
 export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
-  const { t } = useEditorLocale();
+  const { t, locale: editorLocale } = useEditorLocale();
   const dirty = useDirty();
   const {
     pageId,
@@ -481,7 +481,6 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
     setRenamingId(null);
     setDeletingId(null);
   }
-
   if (isTalentSurface) return <TalentAllPagesPanel open={open} onClose={onClose} onHistory={openRevisions} />;
 
   return (
@@ -794,6 +793,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
             {t("No pages yet.")}
           </p>
         ) : null}
+        <WorkspacePostsTreeGroup open={open} locale={editorLocale} adminBase={adminBase} onNavigate={onClose} />
       </div>
     </DockFloatingPanel>
   );

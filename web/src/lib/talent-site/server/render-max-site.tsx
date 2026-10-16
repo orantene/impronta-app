@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { ReactNode } from "react";
+import { cache, type ReactNode } from "react";
 import { loadHistoryPreviewSnapshot } from "../history/history.server";
 import { loadThemeUpdatePreviewSnapshot } from "../theme-releases/talent-update/talent-update.server";
 import { early } from "@/lib/server/early";
@@ -40,6 +40,7 @@ import {
   loadTalentSiteIdentity,
 } from "./load-max-site";
 import { buildMaxSiteSeo, type MaxSiteSeo } from "./max-site-seo.server";
+import { loadTalentGoogleSiteVerification } from "./load-google-site-verification.server";
 import { loadMaxSiteSeoFacts } from "./max-site-seo-facts.server";
 import { loadTalentSiteLocaleContext } from "./talent-site-locale.server";
 import { webOfficeCtxFor } from "./web-office-footer";
@@ -123,6 +124,12 @@ export interface RenderTalentMaxSiteInput {
    * `/[<page>]` for a custom-domain apex).
    */
   canonicalPath?: string;
+  /**
+   * Posts v1 (TUL-1009): a platform body rendered inside the site's HOME shell
+   * and theme (like the policy and service pages). When set, `pageSlug` is
+   * ignored and the home page supplies shell + tokens; the caller owns the SEO.
+   */
+  mainOverride?: ReactNode;
 }
 
 export type RenderTalentMaxSiteResult =
@@ -139,8 +146,25 @@ const resolveSiteRow = async (input: RenderTalentMaxSiteInput): Promise<MaxSiteR
   input.siteSlug ? loadMaxSiteBySlug(input.siteSlug) : input.talentProfileId ? loadMaxSiteByProfileId(input.talentProfileId) : null;
 
 /** TUL-444: a read that timed out must surface as an error (500, never cached), not a 404 or a half-rendered site. */
-export const renderTalentMaxSite = (input: RenderTalentMaxSiteInput): Promise<RenderTalentMaxSiteResult> =>
-  failOnReadTimeout(() => renderTalentMaxSiteUnguarded(input));
+const renderMemo = cache(() => new Map<string, Promise<RenderTalentMaxSiteResult>>());
+
+/**
+ * TUL-1181: `generateMetadata` and the page render the same site in one request;
+ * without this the whole pipeline (every read + document build) ran twice on a
+ * cold miss. One request, one render per distinct input. A `mainOverride` body is
+ * a ReactNode and cannot be keyed, so those callers render uncached.
+ */
+export const renderTalentMaxSite = (input: RenderTalentMaxSiteInput): Promise<RenderTalentMaxSiteResult> => {
+  if (input.mainOverride) return failOnReadTimeout(() => renderTalentMaxSiteUnguarded(input));
+  const memo = renderMemo();
+  const key = JSON.stringify(input);
+  let hit = memo.get(key);
+  if (!hit) {
+    hit = failOnReadTimeout(() => renderTalentMaxSiteUnguarded(input));
+    memo.set(key, hit);
+  }
+  return hit;
+};
 
 async function renderTalentMaxSiteUnguarded(
   input: RenderTalentMaxSiteInput,
@@ -232,8 +256,9 @@ async function renderTalentMaxSiteUnguarded(
     // TUL-586: `servicio-<title>-<id8>` is a platform page too (a talent's own page of that slug wins).
     const isServiceSlug =
       !policyDoc && parseServiceSlug(input.pageSlug) !== null && !pages.some((p) => p.slug === input.pageSlug);
+    const externalMain = input.mainOverride ?? null;
     const page = selectMaxSitePage(pages, {
-      pageSlug: policyDoc || isServiceSlug ? null : input.pageSlug,
+      pageSlug: policyDoc || isServiceSlug || externalMain ? null : input.pageSlug,
       requirePublished,
     });
     if (!page) return NOT_FOUND;
@@ -256,7 +281,7 @@ async function renderTalentMaxSiteUnguarded(
       }),
     );
     const blocks = pruneUnconfirmedGuestStubs(fixed.body);
-    if (!policyDoc && !isServiceSlug && !hasRenderableBuilderNodes(blocks, { mode: "freeform" })) {
+    if (!policyDoc && !isServiceSlug && !externalMain && !hasRenderableBuilderNodes(blocks, { mode: "freeform" })) {
       // A published-but-empty page → 404 rather than a blank document.
       return NOT_FOUND;
     }
@@ -338,7 +363,9 @@ async function renderTalentMaxSiteUnguarded(
     const node = await timed("maxSite.document", () =>
       renderMaxSiteDocument({
         servicePagePath: servicePath ? talentSiteLocalePath(servicePath, locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales) : null,
-        mainOverride: policyModel
+        mainOverride: externalMain
+          ? externalMain
+          : policyModel
           ? policyMainNode(policyModel, { homeHref: policyHomeHref ?? "/" })
           : serviceOffering
             ? serviceMainNode(serviceOffering, {
@@ -381,7 +408,10 @@ async function renderTalentMaxSiteUnguarded(
       }),
     );
 
-    const seoFacts = await pSeoFacts; // services, links, city; never throws
+    const [seoFacts, googleSiteVerification] = await Promise.all([
+      pSeoFacts, // services, links, city; never throws
+      loadTalentGoogleSiteVerification(talentProfileId), // fail-soft, null when unset
+    ]);
 
     const seo = buildMaxSiteSeo({
       ...seoFacts,
@@ -400,10 +430,11 @@ async function renderTalentMaxSiteUnguarded(
       noindex: isOwnerDraftPreview,
       canonicalOrigin: input.canonicalOrigin,
       canonicalPath: servicePath ?? input.canonicalPath,
-      ignoreExplicitCanonical: Boolean(policyDoc) || isServiceSlug,
+      ignoreExplicitCanonical: Boolean(policyDoc) || isServiceSlug || Boolean(externalMain),
       locales: { primary: localeCtx.settings.defaultLocale, urlDefault: localeCtx.grammar.defaultLocale, supported: localeCtx.settings.supportedLocales },
     });
 
+    if (googleSiteVerification) seo.googleSiteVerification = googleSiteVerification;
     perfMark("maxSite.total", t0);
     const finalSeo = policyModel
       ? policySeo(seo, policyModel)

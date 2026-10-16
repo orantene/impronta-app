@@ -126,3 +126,21 @@ export function openMarketingSupport(ticketId?: string): void {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent(TULALA_SUPPORT_OPEN_EVENT, { detail: { ticketId } }));
 }
+
+/**
+ * TUL-922 (PM decision): Ask Tulala's starters and placeholder follow the PAGE
+ * CONTEXT, never screen size and never sign-in: public pages get the sales set,
+ * surfaces inside a dashboard get the support set. Desktop and mobile match.
+ */
+export type SupportSurface = "public" | "dashboard";
+
+export function supportStarters(surface: SupportSurface, copy: MarketingSupportCopy): string[] {
+  return surface === "dashboard"
+    ? [copy.starterBroken, copy.starterBilling, copy.starterAccount, copy.starterHuman]
+    : [copy.starterPricing, copy.starterDomain, copy.starterPayments, copy.starterHuman];
+}
+
+/** Composer placeholder for the same page context. */
+export function supportComposerPlaceholder(surface: SupportSurface, copy: MarketingSupportCopy): string {
+  return surface === "dashboard" ? copy.composerPlaceholderSignedIn : copy.composerPlaceholder;
+}

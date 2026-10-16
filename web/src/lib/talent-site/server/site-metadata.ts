@@ -1,5 +1,6 @@
 import "server-only";
 
+import { sanitizeStoredVerificationToken } from "@/lib/talent/google-site-verification";
 import type { Metadata } from "next";
 
 import type { Locale } from "@/i18n/config";
@@ -74,6 +75,10 @@ export function maxSiteSeoToMetadata(
     ...(seo.noindex ? { robots: { index: false, follow: false } } : {}),
     // DS-18: the business's own tab icon replaces the platform icon from the root layout.
     ...(seo.faviconUrl ? { icons: { icon: [{ url: seo.faviconUrl }] } } : {}),
+    // Per-talent Search Console ownership tag (subdomain and custom domain).
+    ...(sanitizeStoredVerificationToken(seo.googleSiteVerification)
+      ? { verification: { google: sanitizeStoredVerificationToken(seo.googleSiteVerification) as string } }
+      : {}),
     openGraph: {
       type: "website",
       title: seo.ogTitle ?? seo.title,

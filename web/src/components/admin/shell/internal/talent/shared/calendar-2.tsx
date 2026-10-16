@@ -478,10 +478,10 @@ export function ReachStat({
     captionTone === "success"
       ? COLORS.green
       : captionTone === "coral"
-        ? COLORS.coral
+        ? COLORS.coralDeep
         : captionTone === "indigo"
           ? COLORS.indigo
-          : COLORS.inkDim;
+          : COLORS.inkMuted;
   return (
     <div className="flex-1 min-w-0">
       <div style={{ fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600 }} className="text-admin-ink-muted">

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { EMPTY_ME, formatAmount, shapeMeData, type MeRow } from "./shape-me";
+import { EMPTY_ME, formatAmount, meVisitListFields, shapeMeData, type MeRow } from "./shape-me";
 
 const NOW = Date.parse("2026-09-03T19:00:00.000Z");
 const DAY = 24 * 60 * 60 * 1000;
@@ -113,4 +113,32 @@ test("money is formatted from integer cents, never a float", () => {
   assert.equal(formatAmount(6450, "MXN"), "MXN 64.50");
   assert.equal(formatAmount(null, "USD"), null);
   assert.equal(formatAmount(0, "USD"), "$0");
+});
+
+test("TUL-62: list visit fields prefer booking title, status, starts_at (detail parity)", () => {
+  const fields = meVisitListFields({
+    company: null,
+    inquiryStatus: "new",
+    eventDate: "2026-10-20",
+    booking: {
+      title: "Volumen ruso 4D",
+      status: "confirmed",
+      starts_at: "2026-10-20T16:00:00.000Z",
+    },
+  });
+  assert.equal(fields.title, "Volumen ruso 4D");
+  assert.equal(fields.status, "confirmed");
+  assert.equal(fields.eventDate, "2026-10-20T16:00:00.000Z");
+});
+
+test("TUL-62: list falls back to inquiry when there is no booking", () => {
+  const fields = meVisitListFields({
+    company: "Consulta",
+    inquiryStatus: "new",
+    eventDate: "2026-11-01",
+    booking: null,
+  });
+  assert.equal(fields.title, "Consulta");
+  assert.equal(fields.status, "new");
+  assert.equal(fields.eventDate, "2026-11-01");
 });

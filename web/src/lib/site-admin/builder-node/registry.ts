@@ -1,5 +1,14 @@
 import { z } from "zod";
 import { CHIP_HREF_RE } from "./next-free-chip-href";
+import {
+  PROMO_WIDGET_AUDIENCES,
+  PROMO_WIDGET_FREQUENCIES,
+  PROMO_WIDGET_PAGES_MODES,
+  PROMO_WIDGET_POPUP_STYLES,
+  PROMO_WIDGET_POSITIONS,
+  PROMO_WIDGET_TONES,
+  PROMO_WIDGET_VARIANTS,
+} from "@/lib/promos/widgets/types";
 import { LIVE_TEXT_KEYS } from "./live-text-keys";
 import { BUILDER_ICON_NAMES } from "./icon-registry";
 import {
@@ -75,6 +84,7 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "services_catalog",
   "portfolio",
   "reviews",
+  "posts_feed",
   "visit",
   "contents",
   "masthead",
@@ -86,6 +96,7 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "task_picker",
   "app_nail_designer",
   "next_free_chip",
+  "promo",
   "reserve_table",
   "session_picker",
   "ticket_picker",
@@ -1161,6 +1172,38 @@ export const reviewsPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+/** Posts v1 (PO1) — the Posts widget. Defaults + clamps in posts-feed-model.ts. */
+export const postsFeedPropsSchema = z.object({
+  layout: z.enum(["grid", "slider", "magazine", "masonry", "list", "minimal", "bento", "hero"]).optional(),
+  source: z.enum(["latest", "featured", "hand_picked", "category"]).optional(),
+  postIds: z.array(z.string().max(64)).max(48).optional(),
+  categoryId: z.string().max(64).optional(),
+  tags: z.array(z.string().max(40)).max(10).optional(),
+  excludeIds: z.array(z.string().max(64)).max(48).optional(),
+  limit: z.number().int().min(1).max(24).optional(),
+  sort: z.enum(["newest", "oldest", "featured_first"]).optional(),
+  fields: z
+    .object({
+      cover: z.boolean().optional(),
+      category: z.boolean().optional(),
+      date: z.boolean().optional(),
+      excerpt: z.boolean().optional(),
+      readingTime: z.boolean().optional(),
+      author: z.boolean().optional(),
+      tags: z.boolean().optional(),
+      readMore: z.boolean().optional(),
+    })
+    .optional(),
+  pagination: z.enum(["none", "load_more", "numbered"]).optional(),
+  columns: z.union([z.literal(2), z.literal(3), z.literal(4)]).optional(),
+  eyebrow: z.string().max(80).optional(),
+  title: z.string().max(160).optional(),
+  emptyMessage: z.string().max(240).optional(),
+  demoTrade: z.enum(["general", "beauty", "wellness", "fitness", "food", "events"]).optional(),
+  layerLabel: z.string().max(120).optional(),
+  style: builderNodeStyleSchema,
+});
+
 /** Visit facts — live service areas / languages / hours. */
 export const visitPropsSchema = z.object({
   layout: z.enum(["facts", "split", "location", "area"]).optional(),
@@ -1372,6 +1415,36 @@ export const nextFreeChipPropsSchema = z.object({
   variant: z.enum(["inline", "stacked"]).optional(),
   href: z.string().max(200).regex(CHIP_HREF_RE, "Use a same-page anchor like #services or a site path").optional(),
   useWebsiteTheme: z.boolean().optional(),
+  style: builderNodeStyleSchema,
+});
+
+/**
+ * Promo widget (TUL-1051 part B). Display options only: nothing here changes a
+ * price. `promoId` empty = the best live promo. Dates are read in the promo's
+ * own timezone. The link must stay on the site (same rule as the next-free chip).
+ */
+const PROMO_SCHEDULE_RE = /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2})?$/;
+export const promoPropsSchema = z.object({
+  variant: z.enum(PROMO_WIDGET_VARIANTS).optional(),
+  promoId: pgUuidSchema().optional(),
+  audience: z.enum(PROMO_WIDGET_AUDIENCES).optional(),
+  startsAt: z.string().regex(PROMO_SCHEDULE_RE, "Use a date like 2026-10-31").optional(),
+  endsAt: z.string().regex(PROMO_SCHEDULE_RE, "Use a date like 2026-10-31").optional(),
+  pagesMode: z.enum(PROMO_WIDGET_PAGES_MODES).optional(),
+  pages: z.string().max(500).optional(),
+  headline: z.string().max(80).optional(),
+  body: z.string().max(200).optional(),
+  ctaLabel: z.string().max(40).optional(),
+  ctaHref: z.string().max(200).regex(CHIP_HREF_RE, "Use a same-page anchor like #services or a site path").optional(),
+  dismissible: z.boolean().optional(),
+  popupStyle: z.enum(PROMO_WIDGET_POPUP_STYLES).optional(),
+  delaySec: z.number().int().min(0).max(120).optional(),
+  scrollPct: z.number().int().min(0).max(100).optional(),
+  exitIntent: z.boolean().optional(),
+  frequency: z.enum(PROMO_WIDGET_FREQUENCIES).optional(),
+  position: z.enum(PROMO_WIDGET_POSITIONS).optional(),
+  tone: z.enum(PROMO_WIDGET_TONES).optional(),
+  maxCards: z.number().int().min(1).max(6).optional(),
   style: builderNodeStyleSchema,
 });
 
@@ -2377,6 +2450,14 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       children: { type: "none" },
       propsSchema: reviewsPropsSchema,
     },
+    posts_feed: {
+      kind: "posts_feed",
+      label: "Posts",
+      description:
+        "Your published posts in 7 styles: grid, slider, magazine, list, minimal, bento or hero. Filter by category, or hand-pick.",
+      children: { type: "none" },
+      propsSchema: postsFeedPropsSchema,
+    },
     visit: {
       kind: "visit",
       label: "Visit",
@@ -2464,6 +2545,14 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         "Shows the next open booking slot from the live calendar. Hidden when nothing is free.",
       children: { type: "none" },
       propsSchema: nextFreeChipPropsSchema,
+    },
+    promo: {
+      kind: "promo",
+      label: "Promo",
+      description:
+        "Shows one of your live promos as a banner, offer cards, a reveal-the-code card, a countdown, a pop-up, a floating button or a Book button. Hidden when you have no live promo.",
+      children: { type: "none" },
+      propsSchema: promoPropsSchema,
     },
     reserve_table: {
       kind: "reserve_table",
