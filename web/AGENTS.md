@@ -60,12 +60,14 @@ dev-only warning naming the row and the reason.
 A long lane keeps its test paths in `scripts/lanes/<lane>.txt`, **ONE path per
 line** (`#` comments allowed), and the script is just
 `... node scripts/lane-test.cjs @scripts/lanes/<lane>.txt`. Add your test file by
-appending ONE line to that file: two PRs then touch different lines and merge
-cleanly. Never paste a path onto the package.json line (a 10 KB line conflicts
+inserting ONE line at its SORTED position (byte order; `npm run lanes:sort`
+does it for you). Entries are kept sorted and the files carry
+`merge=union` (`.gitattributes`), so two PRs adding different tests no longer
+conflict at the end of the file (TUL-1185/1186). Never paste a path onto the package.json line (a 10 KB line conflicts
 every wave, and `JSON.parse` keeps the LAST duplicate key silently, so a
 duplicated lane runs the wrong list). A lane must not name one file twice
-(`lane-file-lists.static.test.ts` pins it). On a rebase conflict in a list file,
-keep both sides' lines. Lanes still on a runner without `@file` support
+(`lane-file-lists.static.test.ts` pins it). If a list file ever conflicts, keep both sides' lines and run
+`npm run lanes:sort`. Lanes still on a runner without `@file` support
 (`tsx --test ...`) stay inline until moved to `lane-test.cjs`.
 
 ## CI
