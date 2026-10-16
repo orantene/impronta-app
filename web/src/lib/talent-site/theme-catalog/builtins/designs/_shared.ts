@@ -34,6 +34,7 @@ import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { buildMaxSiteTemplateTrees } from "@/lib/talent-site/max-site-templates/registry";
 import type { MaxSiteTemplateKey } from "@/lib/talent-site/max-site-templates/types";
 import type { DesignPayload } from "../../types";
+import { withPostsBand } from "../../section-kit-bands";
 
 /** `© <4-digit-year>` — the literal text `buildDefaultShellTree` /
  * `section-kit-shell.ts`'s `copyrightLine` bakes in when no `year` is given. */
@@ -68,5 +69,6 @@ export function buildBuiltinDesignPayload(key: MaxSiteTemplateKey): DesignPayloa
     { displayName: "{{displayName}}" },
     makeSeqIdFactory(`builtin-${key}`),
   );
-  return { shellTree: shellTree.map(deferCopyrightYear), homeTree };
+  // Posts v1 (PO1): every built-in Design ships the live posts band in code.
+  return withPostsBand({ shellTree: shellTree.map(deferCopyrightYear), homeTree }, key);
 }
