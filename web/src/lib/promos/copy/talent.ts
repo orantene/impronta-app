@@ -8,6 +8,8 @@
  * ("tus clientes" avoided for "clientas" only where the design doc uses it).
  */
 
+import { clientServiceFeePercentLabel } from "@/lib/billing/fee-config";
+
 export const PROMO_COPY_ES = {
   // ── page ────────────────────────────────────────────────────────────
   "page.title": "Promos",
@@ -175,7 +177,7 @@ export const PROMO_COPY_ES = {
   "preview.empty": "Elige un servicio para ver el precio.",
   "earn.each": "Ganarías aprox. {amount} por reserva",
   "earn.total": "Ganarías aprox. {amount} si se llena",
-  "earn.info": "Precio con descuento menos comisión de pago y 1.5% de Tulala. Es un estimado.",
+  "earn.info": `Precio con descuento menos comisión de pago y ${clientServiceFeePercentLabel()} de Tulala. Es un estimado.`,
   "nudge.big": "Es un descuento grande ({n}%). ¿Seguro?",
   "nudge.overlap_other": "{name} ({n}%) también aplica. Tus clientes recibirán la mejor oferta, la de {name}.",
   "nudge.overlap_this": "{name} ({n}%) también aplica. Tus clientes recibirán la mejor oferta, la nueva.",
@@ -436,7 +438,7 @@ export const PROMO_COPY_EN: Record<PromoCopyKey, string> = {
   "preview.empty": "Pick a service to see the price.",
   "earn.each": "You would earn about {amount} per booking",
   "earn.total": "You would earn about {amount} if it fills",
-  "earn.info": "Discounted price minus the payment fee and Tulala's 1.5%. An estimate.",
+  "earn.info": `Discounted price minus the payment fee and Tulala's ${clientServiceFeePercentLabel()}. An estimate.`,
   "nudge.big": "That is a big discount ({n}%). Sure?",
   "nudge.overlap_other": "{name} ({n}%) also applies. Clients get the better offer, which is {name}.",
   "nudge.overlap_this": "{name} ({n}%) also applies. Clients get the better offer, which is the new one.",

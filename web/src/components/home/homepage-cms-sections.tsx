@@ -512,7 +512,7 @@ export async function HomepageCmsSections({
           nodes={builderTreeResolution.tree}
         />
       ) : null}
-      {entries.map((entry) => {
+      {entries.map((entry, entryIndex) => {
         // Registry entries are keyed by type key; we widen to the generic
         // `SectionRegistryEntry` to hand off to the version-agnostic
         // `migrateSectionPayload` helper.
@@ -645,6 +645,7 @@ export async function HomepageCmsSections({
             mapsApiKey={mapsApiKey}
             captcha={captchaConfig}
             builderNodeBindings={builderNodeBindings}
+            aboveFold={entryIndex === 0}
           />
         );
         // Wrap unconditionally (visitor + edit mode). Visitor mode needs the

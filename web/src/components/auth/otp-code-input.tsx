@@ -69,6 +69,17 @@ export function OtpCodeInput({
   // the hidden input. Calling it inside the key handler submitted the form one
   // render too early, with the last digit still missing from the posted value
   // (server answered "Enter the code from your email." for a full code).
+  // Re-enabled after a failed verify: put the cursor back in the first empty
+  // box so the retry needs no extra tap (TUL-779). Disabled inputs drop focus.
+  const wasDisabled = useRef(disabled);
+  useEffect(() => {
+    if (wasDisabled.current && !disabled) {
+      const firstEmpty = digits.findIndex((d) => !d);
+      focusBox(firstEmpty === -1 ? length - 1 : firstEmpty);
+    }
+    wasDisabled.current = disabled;
+  }, [disabled, digits, focusBox, length]);
+
   const firedFor = useRef("");
   useEffect(() => {
     const complete = value.length === length && digits.every(Boolean);

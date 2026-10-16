@@ -37,7 +37,7 @@ import { loadAccountPlatform } from "@/lib/stripe/account-platform";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { normalizePayoutCountry, payoutCountryLabel } from "@/lib/payments/payout-countries";
-import { connectAccountTermsFor, MX_PLATFORM_UNCONFIGURED } from "@/lib/payments/connect-account-setup";
+import { connectAccountTermsFor, MX_PLATFORM_UNCONFIGURED, payoutCountryRefusalCode } from "@/lib/payments/connect-account-setup";
 
 export type ConnectAccountStatus =
   | "none"
@@ -207,6 +207,9 @@ export async function createOrGetConnectedAccount(
     return { ok: true, data: { stripeAccountId: agency.stripeAccountId } };
   }
 
+  // TUL-1052: refuse a known country that is not live yet (clear coming-soon error).
+  const refusal = payoutCountryRefusalCode(opts.country);
+  if (refusal) return { ok: false, error: refusal };
   const country = normalizePayoutCountry(opts.country) ?? PLATFORM_DEFAULT_COUNTRY;
   // MX workspaces are created on the Mexico platform account.
   const platform = resolveStripeAccountForSeller({ payoutCountry: country });

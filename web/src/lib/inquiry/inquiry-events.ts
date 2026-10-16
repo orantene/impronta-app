@@ -9,6 +9,7 @@ import { scheduleWorkspaceAuditWith } from "@/lib/audit/workspace-audit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { enrichBookingFromReservation } from "@/lib/scheduling/reservation-convert";
 import { releaseHoldsForInquiry } from "@/lib/scheduling/reservation-hold";
+import { settleRequestPromosForEvent } from "@/lib/promos/redemption/request-holds";
 
 export type EngineEventPriority = "high" | "medium" | "low";
 
@@ -231,6 +232,16 @@ const listeners: Listener[] = [
       const released = await releaseHoldsForInquiry(admin, event.inquiryId);
       if (!released.ok) throw new Error(released.error);
     }
+  },
+  // Promos v1: request-to-book promo holds (anchored on the inquiry id).
+  // Accept confirms, decline / cancel / archive / expire releases. Appended
+  // so earlier listener_${i} retry rows keep their indexes. Idempotent.
+  async (_supabase, event) => {
+    const admin = createServiceRoleClient();
+    // promo_* RPCs are service_role only; without it there is nothing to settle
+    // and the 24h hold lapses on its own.
+    if (!admin) return;
+    await settleRequestPromosForEvent(admin, { type: event.type, inquiryId: event.inquiryId });
   },
 ];
 
