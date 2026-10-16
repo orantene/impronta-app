@@ -55,6 +55,31 @@ export function parseBookingAssistantJson(raw: string): BookingAssistantStructur
   return { reply: o.reply, action: o.action, offeringId, date };
 }
 
+/**
+ * TUL-36 runtime check 1: how a raw completion is used. The adapter only asks
+ * for the schema in the prompt, so the model may wrap the JSON in prose or cut
+ * it off. Structured JSON (bare, fenced or embedded) is used; JSON-looking text
+ * that will not parse is "broken" (the caller hands off and posts nothing); any
+ * other text keeps the phase-1 text path.
+ */
+export type AssistantOutput =
+  | { kind: "structured"; value: BookingAssistantStructuredReply }
+  | { kind: "text"; text: string }
+  | { kind: "broken" };
+
+export function classifyAssistantOutput(raw: string): AssistantOutput {
+  const direct = parseBookingAssistantJson(raw);
+  if (direct) return { kind: "structured", value: direct };
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start >= 0 && end > start) {
+    const embedded = parseBookingAssistantJson(raw.slice(start, end + 1));
+    if (embedded) return { kind: "structured", value: embedded };
+  }
+  if (start >= 0 || /"(reply|action)"\s*:/.test(raw)) return { kind: "broken" };
+  return { kind: "text", text: raw.trim() };
+}
+
 export type ResolvedAssistantAction =
   | { kind: "answer"; reply: string }
   | { kind: "handoff"; reply: string }

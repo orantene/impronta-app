@@ -33,7 +33,7 @@ import {
   BOOKING_ASSISTANT_JSON_SCHEMA,
   OFFER_TIMES_WINDOW_DAYS,
   offerTimesFrom,
-  parseBookingAssistantJson,
+  classifyAssistantOutput,
   pickOfferStarts,
   resolveAssistantAction,
 } from "./structured";
@@ -652,8 +652,9 @@ export async function maybeRunBookingAssistantTurn(
     }
 
     // Structured reply first; any parse failure keeps the phase-1 text path.
-    const parsed = parseBookingAssistantJson(completion.text);
-    const looksLikeJson = completion.text.trim().startsWith("{");
+    // Bare, fenced or prose-wrapped JSON is used; broken JSON never reaches the guest.
+    const output = classifyAssistantOutput(completion.text);
+    const parsed = output.kind === "structured" ? output.value : null;
     const handoffNow = (reason: BookingHandoffReason) =>
       handedOffBefore
         ? null
@@ -666,14 +667,14 @@ export async function maybeRunBookingAssistantTurn(
             locale,
           });
     // Unparseable JSON-looking text must never be posted to the guest verbatim.
-    if (!parsed && looksLikeJson) return handoffNow("unsure");
+    if (output.kind === "broken") return handoffNow("unsure");
 
     const catalogIds = new Set(
       offerings.map((o) => o.id).filter((id): id is string => typeof id === "string" && id !== ""),
     );
     const resolved = parsed
       ? resolveAssistantAction(parsed, { catalogIds, canOfferTimes: bookingMode !== "inquiry" })
-      : ({ kind: "answer", reply: completion.text } as const);
+      : ({ kind: "answer", reply: output.kind === "text" ? output.text : "" } as const);
 
     if (resolved.kind === "handoff") return handoffNow("unsure");
 
