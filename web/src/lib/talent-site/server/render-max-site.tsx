@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { ReactNode } from "react";
+import { cache, type ReactNode } from "react";
 import { loadHistoryPreviewSnapshot } from "../history/history.server";
 import { loadThemeUpdatePreviewSnapshot } from "../theme-releases/talent-update/talent-update.server";
 import { early } from "@/lib/server/early";
@@ -145,8 +145,25 @@ const resolveSiteRow = async (input: RenderTalentMaxSiteInput): Promise<MaxSiteR
   input.siteSlug ? loadMaxSiteBySlug(input.siteSlug) : input.talentProfileId ? loadMaxSiteByProfileId(input.talentProfileId) : null;
 
 /** TUL-444: a read that timed out must surface as an error (500, never cached), not a 404 or a half-rendered site. */
-export const renderTalentMaxSite = (input: RenderTalentMaxSiteInput): Promise<RenderTalentMaxSiteResult> =>
-  failOnReadTimeout(() => renderTalentMaxSiteUnguarded(input));
+const renderMemo = cache(() => new Map<string, Promise<RenderTalentMaxSiteResult>>());
+
+/**
+ * TUL-1181: `generateMetadata` and the page render the same site in one request;
+ * without this the whole pipeline (every read + document build) ran twice on a
+ * cold miss. One request, one render per distinct input. A `mainOverride` body is
+ * a ReactNode and cannot be keyed, so those callers render uncached.
+ */
+export const renderTalentMaxSite = (input: RenderTalentMaxSiteInput): Promise<RenderTalentMaxSiteResult> => {
+  if (input.mainOverride) return failOnReadTimeout(() => renderTalentMaxSiteUnguarded(input));
+  const memo = renderMemo();
+  const key = JSON.stringify(input);
+  let hit = memo.get(key);
+  if (!hit) {
+    hit = failOnReadTimeout(() => renderTalentMaxSiteUnguarded(input));
+    memo.set(key, hit);
+  }
+  return hit;
+};
 
 async function renderTalentMaxSiteUnguarded(
   input: RenderTalentMaxSiteInput,
