@@ -52,7 +52,7 @@ export function ReplyTriggerButton({
         cursor: "pointer",
         borderRadius: 999,
         display: "inline-flex", alignItems: "center", justifyContent: "center",
-        color: "rgba(11,11,13,0.55)",
+        color: "rgba(11,11,13,0.6)",
         boxShadow: "0 2px 8px rgba(11,11,13,0.06)",
       }}
     >
@@ -119,7 +119,7 @@ export function ReplyContextBar({
           border: "none",
           background: "transparent",
           cursor: "pointer",
-          color: "rgba(11,11,13,0.45)",
+          color: "rgba(11,11,13,0.6)",
           fontSize: 18,
           lineHeight: 1,
           display: "inline-flex", alignItems: "center", justifyContent: "center",
@@ -256,7 +256,7 @@ function ReactPlaceholderIcon({ onClick }: { onClick: () => void }) {
         background: "transparent",
         cursor: "pointer",
         borderRadius: 999,
-        color: "rgba(11,11,13,0.55)",
+        color: "rgba(11,11,13,0.6)",
       }}
     >
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -282,7 +282,7 @@ function DotsPlaceholderIcon({ onClick }: { onClick: () => void }) {
         background: "transparent",
         cursor: "pointer",
         borderRadius: 999,
-        color: "rgba(11,11,13,0.55)",
+        color: "rgba(11,11,13,0.6)",
       }}
     >
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none">

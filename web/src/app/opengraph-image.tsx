@@ -70,7 +70,7 @@ export default async function Image() {
 
   const surface = "#FAFAF7";
   const ink = "#0B0B0D";
-  const muted = "rgba(11,11,13,0.55)";
+  const muted = "rgba(11,11,13,0.6)";
   const accent = data?.accentColor ?? "#0F4F3E";
   const title = data?.name ?? "Tulala";
   const subtitle = isAgency && data

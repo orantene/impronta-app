@@ -193,7 +193,7 @@ export function dayLabel(ymd: string, timeZone: string, locale: Locale, isToday:
 const C = {
   ink: "#0B0B0D",
   muted: "rgba(11,11,13,0.55)",
-  dim: "rgba(11,11,13,0.35)",
+  dim: "rgba(11,11,13,0.6)",
   line: "rgba(24,24,27,0.12)",
   accent: "#0F4F3E",
   accentSoft: "rgba(15,79,62,0.08)",
