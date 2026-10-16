@@ -67,6 +67,7 @@ export const TYPE_CONTEXT: Readonly<Record<string, string>> = {
   "wine-tasting-room": "a wine tasting room: glasses in a row, a bottle being poured, oak",
   // beauty
   "nail-salon": "a nail salon: manicure stations, a polish wall, a technician's hands finishing nails",
+  "beauty-salon": "a beauty salon: a styling chair, a manicure station and a facial bed in one bright room, a stylist at work",
   "hair-salon": "a hair salon: a styling chair, a mirror, a stylist's hands cutting or colouring",
   "barber-shop": "a barber shop: a barber chair, clippers, a hot towel, a fade in progress",
   "bridal-beauty-team": "bridal beauty: brushes and pins laid out, a veil, hands pinning hair",
