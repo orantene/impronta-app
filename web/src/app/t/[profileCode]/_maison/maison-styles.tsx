@@ -160,7 +160,8 @@ h3.mn-display { font-size: 1.625rem; line-height: 1.15; letter-spacing: -0.02em;
 .mn-hero-media { position: relative; margin-top: 40px; }
 .mn-hero-main { position: relative; aspect-ratio: 4 / 5; border-radius: var(--mn-rs); overflow: hidden; background: var(--mn-tint); }
 .mn-hero-main img { object-fit: cover; }
-.mn-hero-inset { position: absolute; right: -6px; bottom: -30px; width: 43%; max-width: 200px; aspect-ratio: 1 / 1; border-radius: var(--mn-rs); overflow: hidden; border: 6px solid var(--mn-white); background: var(--mn-tint); }
+.mn-hero-inset { position: absolute; right: 0; bottom: 0; width: 43%; max-width: 200px; aspect-ratio: 1 / 1; border-radius: var(--mn-rs); overflow: hidden; border: 6px solid var(--mn-white); background: var(--mn-tint); }
+.mn-root[data-mn-legacy-hero] .mn-hero-inset { right: -6px; bottom: -30px; }
 .mn-hero-inset img { object-fit: cover; }
 
 /* ── Marquee ──────────────────────────────────────────────────────────── */
@@ -392,7 +393,8 @@ h3.mn-display { font-size: 1.625rem; line-height: 1.15; letter-spacing: -0.02em;
   .mn-hero-grid { display: grid; grid-template-columns: 1.02fr 1fr; gap: 72px; align-items: center; }
   .mn-hero-media { margin-top: 0; }
   .mn-hero-main { aspect-ratio: 3 / 4; }
-  .mn-hero-inset { width: 46%; max-width: 240px; right: -40px; bottom: -44px; border-width: 9px; }
+  .mn-hero-inset { width: 46%; max-width: 240px; right: 0; bottom: 0; border-width: 9px; }
+  .mn-root[data-mn-legacy-hero] .mn-hero-inset { right: -40px; bottom: -44px; }
   .mn-marquee { margin-top: 96px; }
   .mn-artist-grid { grid-template-columns: 0.7fr 1fr; gap: 72px; align-items: center; }
   .mn-menu-head { grid-template-columns: 1fr auto; align-items: end; gap: 48px; }
