@@ -54,6 +54,19 @@ test("the talent's promo tenant is the oldest active roster row", async () => {
   assert.equal(await talentPromoTenantId(admin as unknown as SupabaseClient, "tp"), "a");
 });
 
+test("a free talent's live promo is not advertised, but the trial promo is", async () => {
+  const { admin } = fakeAdmin({
+    tenant_promo_codes: [row("paidpromo"), row("trial", { is_trial: true })],
+    tenant_promo_redemptions: [],
+    promo_targets: [],
+  });
+  const now = new Date("2026-10-14T18:00:00Z");
+  const free = await loadPublicPromosWith(admin as unknown as SupabaseClient, T, TP, now, "free");
+  assert.deepEqual(free.promos.map((p) => p.id), ["trial"]);
+  const paid = await loadPublicPromosWith(admin as unknown as SupabaseClient, T, TP, now, "paid");
+  assert.deepEqual(paid.promos.map((p) => p.id).sort(), ["paidpromo", "trial"]);
+});
+
 test("hub: talent A's promo never prices talent B on the same tenant", async () => {
   const { admin } = fakeAdmin({
     tenant_promo_codes: [row("a-promo", { talent_profile_id: "tp-a" }), row("agency-wide", { talent_profile_id: null })],
