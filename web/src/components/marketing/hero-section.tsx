@@ -158,11 +158,11 @@ export function HeroSection({ locale }: { locale: string }) {
               </svg>
             </OpenTalentModalButton>
             <MarketingCta
-              href={withLocaleHref("/get-started", locale)}
+              href={withLocaleHref("/how-it-works", locale)}
               variant="secondary"
               size="lg"
               eventSource="home-hero"
-              eventIntent="start-business"
+              eventIntent="how-it-works"
               className="!border-[rgba(241,237,227,0.6)] !bg-transparent !text-[var(--plt-on-inverse)] hover:!border-[var(--plt-on-inverse)] hover:!bg-[rgba(241,237,227,0.08)]"
             >
               {copy.ctaBusiness}
