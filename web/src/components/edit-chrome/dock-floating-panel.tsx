@@ -12,7 +12,7 @@ import { useLayoutEffect, useRef, type DragEvent, type ReactNode } from "react";
 
 import { COMMAND_DOCK_PANEL_INSET_PX } from "./command-dock";
 import { useFloatingDrag } from "./floating-panel";
-import { useEditContext } from "./edit-context";
+import { useEditContext } from "./edit-context-core";
 import { useCommandDockCoupling } from "./use-command-dock-coupling";
 import {
   COMMAND_DOCK_CHROME_TOP_PX,
