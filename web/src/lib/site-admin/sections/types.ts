@@ -135,6 +135,12 @@ export interface SectionComponentProps<TShape> {
    * semantic child roles (e.g. headline, subheadline, primaryCta) to
    * BuilderNode ids so live DOM can be selected at child-node granularity.
    */
+  /**
+   * True for the first body section on the page (above the fold). Its media
+   * is the likely LCP element, so it renders eager + fetchPriority="high";
+   * everything else stays lazy. Set by the section renderers from the index.
+   */
+  aboveFold?: boolean;
   builderNodeBindings?: {
     sectionNodeId?: string | null;
     nodeIdsByRole?: Readonly<Record<string, string>>;

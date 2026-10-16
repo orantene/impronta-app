@@ -558,6 +558,8 @@ export interface MediaFrameProps {
   caption?: ReactNode;
   className?: string;
   builderNodeId?: string;
+  /** Above-the-fold media: eager + high fetch priority (LCP). Default lazy. */
+  eager?: boolean;
 }
 
 export function MediaFrame({
@@ -572,6 +574,7 @@ export function MediaFrame({
   caption,
   className,
   builderNodeId,
+  eager = false,
 }: MediaFrameProps) {
   const strengthOpacity =
     overlayStrength && overlayStrength !== "none"
@@ -590,7 +593,8 @@ export function MediaFrame({
           className="site-prim-media__img"
           src={src}
           alt={alt}
-          loading="lazy"
+          loading={eager ? "eager" : "lazy"}
+          fetchPriority={eager ? "high" : undefined}
           style={objectPosition ? { objectPosition } : undefined}
         />
       ) : (
