@@ -28,6 +28,8 @@
  * DEFAULT, editable in the builder. What a default may not do is 404 on the
  * majority of workspaces before anyone has touched it.
  */
+import { GALLERY_EMBED_PLACEHOLDERS } from "@/lib/site-admin/add-gallery/gallery-placeholder-images";
+
 import type { SectionTypeKey } from "../registry";
 import { v11FeaturedTalentPreset } from "../featured_talent/presets";
 import { v11TalentTypeGridPreset } from "../talent_type_grid/presets";
@@ -331,23 +333,8 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     props: {
       eyebrow: "Moments",
       headline: "Recent work.",
-      items: [
-        {
-          src: "https://images.unsplash.com/photo-1519741497674-611481863552",
-          alt: "Ceremony at sunset",
-          aspect: "wide",
-        },
-        {
-          src: "https://images.unsplash.com/photo-1519225421980-715cb0215aed",
-          alt: "Bridal portrait",
-          aspect: "tall",
-        },
-        {
-          src: "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3",
-          alt: "Floral details",
-          aspect: "square",
-        },
-      ],
+      // Soft tiles only (TUL-398): no stock talent / wedding portraits.
+      items: GALLERY_EMBED_PLACEHOLDERS.map((p) => ({ ...p })),
       caption: "",
       variant: "mosaic",
     },
@@ -395,21 +382,20 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
       eyebrow: "Common questions",
       headline: "Things people ask before they book.",
       intro: "Answers to the most common questions. Anything else? Reach out.",
+      // Neutral defaults (TUL-398): no agency scouting / travel-cost copy.
+      // localizeSectionTemplate / embed rows still swap by site kind + locale.
       items: [
         {
           question: "What's included in a booking?",
-          answer:
-            "All sessions include scouting, scheduling, and a single revision round.",
+          answer: "Every booking includes scheduling and a single revision round.",
         },
         {
           question: "How quickly can you respond?",
-          answer:
-            "Inquiries are answered within 24 business hours.",
+          answer: "Inquiries are answered within 24 business hours.",
         },
         {
           question: "Do you travel?",
-          answer:
-            "Yes, domestic and international. Travel costs are billed at cost.",
+          answer: "Yes, domestic and international, costs billed at cost.",
         },
       ],
       variant: "bordered",

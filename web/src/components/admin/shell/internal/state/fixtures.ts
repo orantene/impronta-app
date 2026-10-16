@@ -305,6 +305,7 @@ export const TALENT_PAGE_META: Record<TalentPage, { label: string }> = {
   profile:     { label: "Profile" },
   services:    { label: "Services" },
   reviews:     { label: "Reviews" },
+  promos:      { label: "Promos" },      // header tag icon, not in the rail
   inbox:       { label: "Inbox" },         // legacy
   calendar:    { label: "Calendar" },
   "calendar-availability": { label: "Availability" },
@@ -4588,6 +4589,12 @@ export function buildFreshTalentProfile(bridge: {
    *  built profile stamped tier "free", so the profile hero's TierPill
    *  contradicted the nav's plan badge (which reads the bridge tier). */
   talentTier?: MyTalentProfile["subscription"]["tier"];
+  /**
+   * TUL-538 — `talent_sites.accepting_bookings`. Missing → true (fail-open,
+   * same as loadTalentSiteSwitches). Hardcoding false made every bridged
+   * talent show "sin aceptar trabajos" with no real switch behind it.
+   */
+  acceptingBookings?: boolean;
 },
   /** ANALYTICS — the talent's REAL page analytics from the layout bridge, when
    *  their tier includes them. The three engagement fields below were hardcoded
@@ -4616,7 +4623,7 @@ export function buildFreshTalentProfile(bridge: {
     age: 0,
     city: bridge.homeCity || "",
     currentLocation: bridge.homeCity || "",
-    availableForWork: false,
+    availableForWork: bridge.acceptingBookings !== false,
     availableToTravel: false,
     coverPhoto: "",
     profilePhoto: bridge.headshotUrl || "",

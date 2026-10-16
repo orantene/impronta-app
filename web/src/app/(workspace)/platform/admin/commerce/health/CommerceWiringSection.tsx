@@ -48,6 +48,20 @@ const KEYS: Record<string, Keys> = {
   },
 };
 
+const MX_LANE_KEYS = {
+  label: "dashboard.platform.commerce.health.wiring.rows.mxLane.label",
+  none: "dashboard.platform.commerce.health.wiring.rows.mxLane.none",
+  last: "dashboard.platform.commerce.health.wiring.rows.mxLane.last",
+  silent: "dashboard.platform.commerce.health.wiring.rows.mxLane.silent",
+  connectMissing: "dashboard.platform.commerce.health.wiring.rows.mxLane.connectMissing",
+  fix: "dashboard.platform.commerce.health.wiring.fix.mxLane",
+};
+const MX_LANE_MODE_KEYS: Record<string, string> = {
+  live: "dashboard.platform.commerce.health.wiring.rows.mxLane.mode.live",
+  test: "dashboard.platform.commerce.health.wiring.rows.mxLane.mode.test",
+  unknown: "dashboard.platform.commerce.health.wiring.rows.mxLane.mode.unknown",
+};
+
 const SECRET_KEYS = {
   label: "dashboard.platform.commerce.health.wiring.rows.secret.label",
   set: "dashboard.platform.commerce.health.wiring.rows.secret.set",
@@ -78,6 +92,14 @@ function rowKeys(row: CommerceHealthRow): Keys {
       label: SECRET_KEYS.label,
       detail: row.data.present ? SECRET_KEYS.set : SECRET_KEYS.unset,
       fix: row.data.name === "STRIPE_MX_WEBHOOK_SECRET_CONNECT" ? SECRET_KEYS.fixMx : SECRET_KEYS.fix,
+    };
+  }
+  if (row.id === "mx-lane") {
+    const state = String(row.data?.state ?? "no_events");
+    return {
+      label: MX_LANE_KEYS.label,
+      detail: state === "silent" ? MX_LANE_KEYS.silent : state === "last" ? MX_LANE_KEYS.last : MX_LANE_KEYS.none,
+      fix: MX_LANE_KEYS.fix,
     };
   }
   const keys = KEYS[row.id];
@@ -133,6 +155,9 @@ export async function CommerceWiringSection({ result }: { result: CommerceHealth
             source: String(row.data?.mxPublishableSource ?? ""),
             hours: String(row.data?.hours ?? ""),
             modes: row.status === "ok" && row.data?.mode ? String(row.data.mode) : "",
+            sellers: String(row.data?.sellers ?? ""),
+            events: String(row.data?.events24h ?? ""),
+            mode: row.id === "mx-lane" ? t(MX_LANE_MODE_KEYS[String(row.data?.mode ?? "unknown")] ?? MX_LANE_MODE_KEYS.unknown) : "",
           };
           return (
             <li key={row.id} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12.5, lineHeight: 1.5 }}>
@@ -147,7 +172,7 @@ export async function CommerceWiringSection({ result }: { result: CommerceHealth
                 <div style={{ color: HQ.inkMuted, overflowWrap: "anywhere", fontFamily: F }}>
                   {row.id === "key-modes"
                     ? KEY_MODE_VARS.map((n) => `${n}: ${t(MODE_WORD_KEYS[String(row.data?.[`m:${n}`] ?? "unset")] ?? MODE_WORD_KEYS.unset)}`).join(", ")
-                    : interpolate(t(k.detail), params)}
+                    : interpolate(t(k.detail), params) + (row.id === "mx-lane" && row.data?.connectMissing ? ` ${t(MX_LANE_KEYS.connectMissing)}` : "")}
                 </div>
                 <div style={{ color: HQ.inkMuted, overflowWrap: "anywhere", fontFamily: F }}>
                   {row.id === "key-modes" && row.data?.mxPublishableSource && row.data.mxPublishableSource !== "none"

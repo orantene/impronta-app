@@ -15,7 +15,7 @@ import {
   loadTalentAgencies,
   loadTalentRepresentation,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent";
-import { loadTalentVisibleInquiryIds } from "@/lib/messaging/talent-inbox-rows";
+import { loadTalentInboxSummary } from "@/lib/messaging/talent-inbox-rows";
 import { scopeTalentNotificationsToInbox } from "@/lib/notifications/talent-inbox-scope";
 import { loadTalentSurfaceNotifications } from "@/app/(workspace)/[tenantSlug]/_data-bridge/notifications";
 import { loadTalentCalendarEntries } from "@/components/admin/shell/internal/data-bridge";
@@ -30,12 +30,22 @@ import { findTenantMembership } from "@/lib/saas/tenant";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { loadWorkspaceUnreadCount } from "@/lib/saas/unread-counts";
-import { loadShellCounts, type ShellCounts } from "@/lib/shell/shell-counts";
+import {
+  loadShellCounts,
+  sanitizeShellCount,
+  sumTalentInquiryUnread,
+  type ShellCounts,
+} from "@/lib/shell/shell-counts";
+import { countTalentAwaitingInquiries } from "@/components/admin/shell/internal/shell-count-bubbles-logic";
+import { loadTalentAttentionSignals } from "@/lib/talent-site/attention-signals.server";
+import { ensureSiteThemeUpdates } from "@/lib/talent-site/theme-releases/lazy-fan-out.server";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadUserPrefs, type UserPrefs } from "@/lib/server-actions/user-prefs";
 import { TalentShellClient } from "@/components/admin/shell/admin-shell-client";
 import { SupportLauncherShellMount } from "@/components/support/SupportLauncherShellMount";
 import type { TalentPage } from "@/components/admin/shell/internal/state";
 import { loadTenantIdentity, loadProfileDisplayName, type TenantIdentityPayload } from "../[tenantSlug]/_layout-identity";
+import { resolveHybridSessionDisplayName } from "@/lib/saas/session-display-name";
 import { getActiveTalentAgencyContext } from "@/lib/talent/active-agency-context";
 import { TalentSiteDashboardProvider } from "@/components/talent/site/TalentSiteDashboardProvider";
 import { loadTalentPersonalSiteDashboardState } from "@/lib/talent-site/server/dashboard-state";
@@ -57,6 +67,7 @@ import { loadPlatformWorkspaceUi } from "@/lib/platform/workspace-ui";
 import { loadTalentPlanGrants } from "@/lib/plan-trials/talent-grants";
 import { talentStudioV2Enabled } from "@/lib/talent/studio-flag";
 import { logServerError } from "@/lib/server/safe-error";
+import { loadOwnedBusinessWorkspace } from "@/lib/talent-site/server/workspace-site-context";
 import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
 import { effectiveReadContext } from "@/lib/impersonation/effective-read";
 import { resolveTalentActingAs, talentActingAsBannerCopy } from "@/lib/impersonation/acting-as";
@@ -70,6 +81,7 @@ const TALENT_SEGMENT_MAP: Record<string, TalentPage> = {
   services: "services",
   profile: "profile",
   reviews: "reviews",
+  promos: "promos",
   calendar: "calendar",
   bookings: "booking-record",
   money: "money",
@@ -85,6 +97,16 @@ const TALENT_SEGMENT_MAP: Record<string, TalentPage> = {
 };
 
 /** Snapshot the agenda window outside the layout body so purity lint stays quiet. */
+async function ensureThemeBellThenLoad(talentProfileId: string, readCtx: Parameters<typeof loadTalentSurfaceNotifications>[0]) {
+  try {
+    const admin = createServiceRoleClient();
+    if (admin) await ensureSiteThemeUpdates(admin, talentProfileId);
+  } catch {
+    // best-effort: the bell still loads what exists
+  }
+  return loadTalentSurfaceNotifications(readCtx);
+}
+
 async function loadTalentAgendaForLayout(talentProfileId: string) {
   const nowMs = Date.now();
   try {
@@ -147,6 +169,18 @@ const PLATFORM_TENANT_IDENTITY: TenantIdentityPayload = {
   posModes: [],
 };
 
+async function loadOwnedWorkspaceSlug(subjectUserId: string): Promise<string | null> {
+  try {
+    const adminDb = createServiceRoleClient();
+    if (!adminDb) return null;
+    const owned = await loadOwnedBusinessWorkspace(adminDb, subjectUserId);
+    return owned.ownsBusinessWorkspace ? owned.workspaceSlug : null;
+  } catch (err) {
+    logServerError("talentLayout.ownedWorkspace", err);
+    return null;
+  }
+}
+
 export async function TalentLayoutInner({
   children,
 }: {
@@ -191,6 +225,10 @@ export async function TalentLayoutInner({
   if (isTalentRoot) {
     return <>{children}</>;
   }
+
+  // TUL-536: independent of the agency lookup and the batch below, so it runs
+  // beside them instead of as a serial query after them. Never rejects.
+  const ownedWorkspaceSlugPromise = loadOwnedWorkspaceSlug(subjectUserId);
 
   const activeAgency = await getActiveTalentAgencyContext(baseProfile.id);
   const tenantId = activeAgency?.tenantId ?? null;
@@ -256,10 +294,11 @@ export async function TalentLayoutInner({
     talentPageAnalytics,
     workspaceUi,
     talentDashboardLoad,
-    visibleInquiryIds,
+    talentInboxSummary,
     talentPlanGrants,
     operatingCurrency,
     requestLocale,
+    talentAttentionSignals,
   ] = await Promise.all([
     loadTalentInquiriesAllAgencies(baseProfile.id),
     loadTalentAgencies(talentSelfProfile.id),
@@ -285,7 +324,9 @@ export async function TalentLayoutInner({
       ? loadTalentAgendaForLayout(talentSelfProfile.id)
       : Promise.resolve({ items: [], hours: null, error: null as string | null }),
     loadTalentEarningsByCurrency(talentSelfProfile.id),
-    loadTalentPersonalSiteDashboardState(undefined, readCtx),
+    loadTalentPersonalSiteDashboardState(undefined, readCtx, undefined, {
+      requestHost: hdrs.get("x-forwarded-host") ?? hdrs.get("host"),
+    }),
     // Stripe Connect payout snapshot for the in-shell Payouts section.
     // Returns { ok:false } on any failure, so it never breaks the layout.
     getTalentConnectedAccountSnapshot(talentSelfProfile.id),
@@ -309,7 +350,9 @@ export async function TalentLayoutInner({
     // shell's `bridgeUserNotifications` stayed null on the whole talent
     // surface and the notifications drawer had nothing but mock rows to
     // render. Returns [] on any failure, so it never breaks the layout.
-    loadTalentSurfaceNotifications(readCtx),
+    // TUL-675: the theme-update bell is created lazily; make sure it exists BEFORE the bell loads
+    // (idempotent, best-effort, never throws), so it shows without opening Mi sitio first.
+    ensureThemeBellThenLoad(talentSelfProfile.id, readCtx),
     // Pro/Portfolio page analytics — profile views + inquiry conversion for the
     // signed-in talent's OWN profile. Scoped by the SESSION user id (the
     // profile id is only a cross-check, never the scope), tier-gated inside the
@@ -325,13 +368,29 @@ export async function TalentLayoutInner({
     // above, stacking four round trips onto every talent page before the shell
     // could stream. None depends on the batch, so they ride in it.
     // The bell counts only conversations she can open in Messages (TUL-52 B).
-    loadTalentVisibleInquiryIds(readCtx).catch(() => null),
+    loadTalentInboxSummary(readCtx).catch(() => null),
     loadTalentPlanGrants(talentSelfProfile.id).catch(() => null),
     loadPlatformOperatingCurrency(),
     getRequestLocale(),
+    // TUL-392: theme update waiting + site needs publish (Attention signals).
+    loadTalentAttentionSignals(talentSelfProfile.id),
   ]);
 
-  const userNotifications = scopeTalentNotificationsToInbox(userNotificationsAll, visibleInquiryIds);
+  const userNotifications = scopeTalentNotificationsToInbox(userNotificationsAll, talentInboxSummary?.ids ?? null);
+
+  // TUL-387/388: Messages and Attention say what the inbox says (its unread
+  // count and its "Needs reply" count). Only when that read fails do they fall
+  // back to the bridge rows (cross-agency unread, awaiting-you statuses).
+  const shellCountsResolved: ShellCounts = {
+    messages: sanitizeShellCount(
+      talentInboxSummary?.unreadCount ?? sumTalentInquiryUnread(talentInquiries),
+    ),
+    money: sanitizeShellCount(shellCounts.money),
+    attention: sanitizeShellCount(
+      talentInboxSummary?.needsReply ?? countTalentAwaitingInquiries(talentInquiries),
+    ),
+  };
+
 
   // Platform currency policy: unless a super-admin has turned multi-currency
   // display ON, collapse the talent's earnings to the single operating currency
@@ -346,6 +405,11 @@ export async function TalentLayoutInner({
 
   const actingAs = resolveTalentActingAs(impersonationIdentity);
 
+  // Dual owner on the hub: isHybrid is per-tenant, so also look up a business workspace this
+  // person owns (any tenant) for the rail's Talent | Admin switch. A failed read means no switch.
+  // The read was started above, next to the profile read (TUL-536), so it no longer adds its own wave.
+  const ownedWorkspaceSlug = await ownedWorkspaceSlugPromise;
+
   const isHybrid = membership != null;
   const workspaceUnread: number | undefined = isHybrid ? workspaceUnreadRaw : undefined;
   const userPrefs: UserPrefs | null = isHybrid ? userPrefsRaw : null;
@@ -354,7 +418,11 @@ export async function TalentLayoutInner({
     userId: session.user.id,
     email: session.user.email ?? "",
     role: membership?.role ?? "viewer",
-    displayName: profileDisplayName,
+    // onb1-22: keep Admin/Talento greeting aligned on the talent profile name.
+    displayName: resolveHybridSessionDisplayName({
+      profileDisplayName,
+      talentDisplayName: talentSelfProfile.displayName,
+    }),
     isPlatformAdmin: isPlatformAdmin(session.profile),
     // TUL-164: set only for a validated impersonation cookie, never for an owner.
     actingAs,
@@ -391,10 +459,10 @@ export async function TalentLayoutInner({
         pitches: null,
         teamMembers: null,
         // Compat: totalUnread mirrors shellCounts.messages for existing consumers.
-        totalUnread: shellCounts.messages,
+        totalUnread: shellCountsResolved.messages,
         // Identity bar / mobile nav read talentUnread on the talent surface.
-        talentUnread: shellCounts.messages,
-        shellCounts,
+        talentUnread: shellCountsResolved.messages,
+        shellCounts: shellCountsResolved,
         // Stamp the talent's exclusivity to the active agency onto the identity
         // payload. Whitelabel branding on the talent dashboard shows the agency
         // logo only when the talent is EXCLUSIVE to it (is_primary) AND the
@@ -429,10 +497,12 @@ export async function TalentLayoutInner({
         talentPageAnalytics,
         talentPayoutSnapshot,
         talentPayoutAttention,
+        talentAttentionSignals,
         talentInquiries,
         talentAgencies,
         talentRepresentation,
         isHybrid,
+        ownedWorkspaceSlug,
         workspaceUnread: workspaceUnread ?? 0,
         preferredSurface: userPrefs?.preferredSurface ?? null,
         firstRunToggleTipSeen: userPrefs?.firstRunToggleTipSeen ?? false,

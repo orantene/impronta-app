@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useT } from "@/i18n/use-t";
 import { InfoTip } from "@/components/ui/info-tip";
+import { getAppUrl } from "@/lib/auth-flow";
+import { resolveStorefrontEditorOpenUrl } from "@/lib/auth/edit-handoff";
 import {
   resolveWebsiteEditorBaseUrl,
   resolveWebsiteLiveOrigin,
@@ -179,7 +181,13 @@ export function WebsitePage() {
       toast(t("dashboard.adminWebsite.toastLiveUrlUnavailable"));
       return;
     }
-    window.open(`${editorBaseUrl}?edit=1&panel=sections`, "_blank", "noopener,noreferrer");
+    const editorAbsoluteUrl = `${editorBaseUrl}?edit=1&panel=sections`;
+    const openUrl = resolveStorefrontEditorOpenUrl({
+      editorAbsoluteUrl,
+      currentHostname: window.location.hostname,
+      appUrl: getAppUrl(),
+    });
+    window.open(openUrl, "_blank", "noopener,noreferrer");
     toast(t("dashboard.adminWebsite.toastOpeningHomepageEditor"));
   }, [editorBaseUrl, t, toast]);
 

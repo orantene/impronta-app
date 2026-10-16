@@ -28,6 +28,8 @@
  *   - ORDER is structural, compared separately by the merge (child key order).
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import { localizablePropsForKind } from "@/lib/i18n/builder-i18n-props";
+import { localizableListSpecsForKind } from "@/lib/i18n/builder-i18n-list-props";
 import {
   DESIGN_KEY_PROP,
   DESIGN_ORIGIN_PROP,
@@ -138,6 +140,122 @@ export function designLeafValues(props: Props, cp: ReadonlyArray<string> = []): 
   const out = new Map<string, unknown>();
   for (const [path, v] of flattenProps(props)) if (!isContentPath(path, set)) out.set(path, v);
   return out;
+}
+
+/**
+ * COPY leaves (theme copy ownership): the visitor-facing text a Design seeds,
+ * as `path -> string`, for the merge's per-leaf copy rule. NOT part of the
+ * fingerprint (`fp` is unchanged; `i18n` stays out of `flattenProps`).
+ *   i18n.<locale>.<key>   every overlay entry; `<key>` may itself be dotted
+ *                         (`items.0.text`, `sectionProps.navItems.0.label`)
+ *   <prop>                a base text prop in LOCALIZABLE_PROPS_BY_KIND
+ *   <list>.<n>.<field>    a base list item field (builder-i18n-list-props)
+ * A leaf whose value carries a `{{token}}`, or that sits under a content path
+ * (`cp`), stays content-owned and is excluded. `kind` is needed for the base
+ * text paths; without it only the i18n leaves are returned.
+ */
+export function copyLeaves(props: Props, cp: ReadonlyArray<string> = [], kind?: string): Map<string, string> {
+  const set = new Set(cp);
+  const out = new Map<string, string>();
+  const add = (path: string, v: unknown) => {
+    if (typeof v !== "string" || TOKEN_RE.test(v) || isContentPath(path, set)) return;
+    out.set(path, v);
+  };
+  if (kind) {
+    const k = kind as Parameters<typeof localizablePropsForKind>[0];
+    for (const prop of localizablePropsForKind(k)) add(prop, props[prop]);
+    for (const spec of localizableListSpecsForKind(k)) {
+      const list = props[spec.list];
+      if (!Array.isArray(list)) continue;
+      list.forEach((item, i) => {
+        if (!isPlainObject(item)) return;
+        for (const field of spec.fields) add(`${spec.list}.${i}.${field}`, item[field]);
+      });
+    }
+  }
+  const overlay = props.i18n;
+  if (isPlainObject(overlay)) {
+    for (const [locale, bag] of Object.entries(overlay)) {
+      if (!isPlainObject(bag)) continue;
+      for (const [key, v] of Object.entries(bag)) add(`i18n.${locale}.${key}`, v);
+    }
+  }
+  return out;
+}
+
+export function isI18nCopyPath(path: string): boolean {
+  return path.startsWith("i18n.");
+}
+
+/** Read one copy leaf (see `copyLeaves` for the path shapes). */
+export function getCopyLeaf(props: Props, path: string): string | undefined {
+  if (isI18nCopyPath(path)) {
+    const rest = path.slice("i18n.".length);
+    const dot = rest.indexOf(".");
+    if (dot < 0) return undefined;
+    const bag = isPlainObject(props.i18n) ? props.i18n[rest.slice(0, dot)] : undefined;
+    const v = isPlainObject(bag) ? bag[rest.slice(dot + 1)] : undefined;
+    return typeof v === "string" ? v : undefined;
+  }
+  const [head, idx, field] = path.split(".");
+  if (idx === undefined) return typeof props[head!] === "string" ? (props[head!] as string) : undefined;
+  const list = props[head!];
+  const item = Array.isArray(list) ? (list[Number(idx)] as unknown) : undefined;
+  const v = isPlainObject(item) && field !== undefined ? item[field] : undefined;
+  return typeof v === "string" ? v : undefined;
+}
+
+/** Immutable write of one copy leaf (`value` undefined deletes it). */
+export function setCopyLeaf(props: Props, path: string, value: string | undefined): Props {
+  if (isI18nCopyPath(path)) {
+    const rest = path.slice("i18n.".length);
+    const dot = rest.indexOf(".");
+    if (dot < 0) return props;
+    const locale = rest.slice(0, dot);
+    const key = rest.slice(dot + 1);
+    const overlay: Props = isPlainObject(props.i18n) ? { ...props.i18n } : {};
+    const bag: Props = isPlainObject(overlay[locale]) ? { ...(overlay[locale] as Props) } : {};
+    if (value === undefined) delete bag[key];
+    else bag[key] = value;
+    if (Object.keys(bag).length === 0) delete overlay[locale];
+    else overlay[locale] = bag;
+    const out: Props = { ...props };
+    if (Object.keys(overlay).length === 0) delete out.i18n;
+    else out.i18n = overlay;
+    return out;
+  }
+  const [head, idx, field] = path.split(".");
+  const out: Props = { ...props };
+  if (idx === undefined) {
+    if (value === undefined) delete out[head!];
+    else out[head!] = value;
+    return out;
+  }
+  const list = props[head!];
+  if (!Array.isArray(list) || field === undefined) return props;
+  const item = list[Number(idx)] as unknown;
+  if (!isPlainObject(item)) return props;
+  const nextItem: Props = { ...item };
+  if (value === undefined) delete nextItem[field];
+  else nextItem[field] = value;
+  const nextList = [...list];
+  nextList[Number(idx)] = nextItem;
+  out[head!] = nextList;
+  return out;
+}
+
+/**
+ * Write a copy leaf on a node, keeping the `node.i18n` mirror in step (the
+ * renderer reads the mirror first, so a props-only write would not show).
+ */
+export function setNodeCopyLeaf(node: BuilderNode, path: string, value: string | undefined): BuilderNode {
+  const props = setCopyLeaf(propsOf(node), path, value);
+  const out = { ...node, props } as Record<string, unknown>;
+  if (isI18nCopyPath(path) && "i18n" in node) {
+    if (props.i18n === undefined) delete out.i18n;
+    else out.i18n = props.i18n;
+  }
+  return out as unknown as BuilderNode;
 }
 
 export function fingerprintProps(props: Props, cp: ReadonlyArray<string> = []): string {

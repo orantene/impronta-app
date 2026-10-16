@@ -44,6 +44,9 @@ export function useOfferSave(args: {
   // After save, `reload()` replaces local `new-` ids with server rows. Re-baseline
   // once that snapshot lands so Send is not stuck on "unsaved" from count/id drift.
   const rebaselineAfterReload = useRef(false);
+  // TUL-472 — ignore stale async completions so a late failure cannot
+  // overwrite a newer success (sticky "Error al guardar" after retry).
+  const saveGeneration = useRef(0);
 
   // Seed the baseline from the first server-loaded draft so an unchanged,
   // already-persisted offer counts as "saved" (otherwise lastSaved only tracks
@@ -57,6 +60,7 @@ export function useOfferSave(args: {
   const runSave = useCallback(async () => {
     const snap = snapshotRef.current;
     if (!snap) return;
+    const gen = ++saveGeneration.current;
     const lineCount = snap.lineItems.length;
     const total = snap.lineItems.reduce((sum, li) => sum + (Number(li.totalPrice) || 0), 0);
     const lineItems = snap.lineItems.map((li, idx) => ({
@@ -98,6 +102,8 @@ export function useOfferSave(args: {
         /* refresh failed — banner shows the auth message; snapshot is safe */
       }
     }
+
+    if (gen !== saveGeneration.current) return;
 
     if (!r.ok) {
       setSaveState({ status: "error", cls: classifySaveError(r.error), rawError: r.error ?? "" });

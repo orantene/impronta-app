@@ -29,3 +29,11 @@ test("/start renders the flow language in the server HTML lang (TUL-117)", () =>
   assert.equal(resolveDocumentLocale("en", "/start/", "?lang=es"), "es");
   assert.equal(resolveDocumentLocale("en", "/starting", "?lang=es"), "en");
 });
+
+test("TUL-855: a hub profile document honours ?lang so <html lang> matches head and body", () => {
+  assert.equal(resolveDocumentLocale("en", "/t/TAL-1", "?lang=es"), "es");
+  assert.equal(resolveDocumentLocale("es", "/t/TAL-1", "?lang=en"), "en");
+  assert.equal(resolveDocumentLocale("es", "/es/t/TAL-1", ""), "es");
+  assert.equal(resolveDocumentLocale("en", "/t/TAL-1", "?lang=xx"), "en");
+  assert.equal(resolveDocumentLocale("en", "/directory", "?lang=es"), "en");
+});

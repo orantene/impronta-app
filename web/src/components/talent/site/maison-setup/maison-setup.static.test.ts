@@ -21,6 +21,11 @@ test("P3: Choose a design renders the browse gallery (supersedes W75)", () => {
   assert.match(src, /<GalleryBrowseScreen/);
   const gallery = read("GalleryBrowseScreen.tsx");
   assert.match(gallery, /t\("Find your website style"\)/);
+  assert.match(gallery, /gallery-finished-count/);
+  assert.match(
+    gallery,
+    /t\("\{n\} designs ready today\. Preview any with your photos and services\."/,
+  );
   assert.match(gallery, /t\("Search a profession or theme"\)/);
   assert.match(gallery, /t\("Reset filters"\)/);
   // The last-viewed design is marked on its card (ring + data attribute), not
@@ -32,9 +37,31 @@ test("P3: Choose a design renders the browse gallery (supersedes W75)", () => {
   assert.equal(gallery.includes("—"), false, "no em dashes");
 });
 
-test("cr_gallery chrome: Today back + close above the gallery hero", () => {
+test("TUL-331 G12: honest finished-theme count in gallery copy (en+es)", () => {
+  const copy = read("maison-setup-copy.ts");
+  assert.match(copy, /\{n\} designs ready today\. Preview any with your photos and services\./);
+  assert.match(copy, /\{n\} diseños listos hoy\. Previsualiza cualquiera con tus fotos y servicios\./);
+  assert.equal(copy.includes("~32"), false, "no aspirational ~32 in talent copy");
+  const designStep = readFileSync(
+    join(process.cwd(), "src/components/talent/site/theme-gallery/DesignStep.tsx"),
+    "utf8",
+  );
+  assert.match(designStep, /themeGalleryDesignStepSubtitle/);
+  assert.match(designStep, /theme-gallery-finished-count/);
+  assert.equal(designStep.includes("40+"), false, "no 40+ library implication");
+  const i18n = readFileSync(
+    join(process.cwd(), "src/components/talent/site/theme-gallery/theme-gallery-i18n.ts"),
+    "utf8",
+  );
+  assert.match(i18n, /designStepSubtitle: "\{n\} designs ready/);
+  assert.match(i18n, /emptyFilter: "No designs in this category\."/);
+  assert.equal(i18n.includes("in this category yet"), false, "emptyFilter must not imply more later");
+});
+
+test("cr_gallery chrome: My website back + close above the gallery hero", () => {
   const src = read("ChooseDesignScreen.tsx");
-  assert.match(src, /maisonSetupT\(locale, "Today"\)/);
+  assert.match(src, /maisonSetupT\(locale, "My website"\)/);
+  assert.doesNotMatch(src, /maisonSetupT\(locale, "Today"\)/);
   assert.match(src, /maison-gallery-close/);
   const chooseIdx = src.indexOf('maisonSetupT(locale, "Choose a design")');
   const galleryIdx = src.indexOf("<GalleryBrowseScreen");
@@ -122,6 +149,9 @@ test("W40: My website card has Live + View / Change / Design options", () => {
   assert.match(card, /maison-my-website-card/);
   assert.match(card, /maison-view-website/);
   assert.match(card, /maison-change-design/);
+  assert.match(card, /maison-live-publish/);
+  assert.match(card, /publishMaxSiteAction/);
+  assert.match(card, /Publish site/);
   assert.match(card, /maison-design-options/);
   assert.match(card, /data-testid="maison-live-pill"/);
   assert.match(card, /maison-edit-site/);
@@ -282,4 +312,28 @@ test("AUD-023: setup choices persist server-side + Today resume card", () => {
   );
   assert.match(card, /maison-website-resume-card/);
   assert.match(card, /Continue your website/);
+});
+
+test("TUL-658: Review names the pending (draft) design and states what Undo reverts to", () => {
+  const review = read("ReviewWebsiteScreen.tsx");
+  assert.match(review, /Undo design change/);
+  assert.match(review, /maison-undo-target/);
+  assert.match(review, /discardMaisonLivePendingAction/);
+  const action = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/server/maison-review-actions.ts"),
+    "utf8",
+  );
+  assert.match(action, /effectiveReviewDesign/);
+  assert.match(action, /borrador sin publicar/);
+  assert.match(action, /unpublished draft/);
+});
+
+test("TUL-746: the design picker subtitle never says 'free' (it shows on paid accounts too)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  for (const f of ["maison-setup/ChooseDesignScreen.tsx", "PresenceLiveFallback.tsx"]) {
+    const src = readFileSync(join(__dirname, "..", f), "utf8");
+    assert.ok(!src.includes('"Your free website"'), f);
+    assert.ok(src.includes('"Your website"'), f);
+  }
 });

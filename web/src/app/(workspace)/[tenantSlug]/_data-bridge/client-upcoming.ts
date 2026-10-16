@@ -14,11 +14,13 @@
  * coordinator fee + commission internals are not selected.
  */
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import "server-only";
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { loadPortalVisitWhenMapForRequest } from "@/lib/client-account/portal-visit-when.server";
 
 export type UpcomingTalentRow = {
   participant_id: string;
@@ -32,6 +34,8 @@ export type UpcomingBooking = {
   event_date: string; // YYYY-MM-DD
   start_time: string | null;
   duration: string | null;
+  /** TUL-503: the booking start in its own zone, zone named (null when no booking time). */
+  when: { date: string; time: string; tzLabel: string } | null;
   /** Title rendered on the card (job_name from interpreted_query or company). */
   title: string;
   venue_name: string | null;
@@ -68,12 +72,19 @@ function todayKey(): string {
 export async function loadClientUpcoming(
   userId: string,
   tenantId: string,
+  /**
+   * TUL-255: from `pickReadClient` only (client portal page loaders). Absent =
+   * the request's own RLS client, exactly as before.
+   */
+  effectiveReadClient?: SupabaseClient | null,
 ): Promise<UpcomingBooking[]> {
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = effectiveReadClient ?? (await createSupabaseServerClient());
     if (!supabase) return [];
-    const admin = createServiceRoleClient();
-    const readClient = admin ?? supabase;
+    // ONE client for every read: the verified-impersonation client when one was passed (no service-role
+    // fan-out beside it), else the existing service-role-or-RLS client.
+    const admin = effectiveReadClient ? null : createServiceRoleClient();
+    const readClient = effectiveReadClient ?? admin ?? supabase;
 
     const now = new Date();
     const start = now.toISOString().slice(0, 10); // YYYY-MM-DD
@@ -158,11 +169,12 @@ export async function loadClientUpcoming(
       talentByInquiry.set(p.inquiry_id, list);
     }
 
+    const whenMap = await loadPortalVisitWhenMapForRequest(tenantId, inquiryIds);
     const today = todayKey();
     const oneWeekOut = new Date(now.getTime() + 7 * ONE_DAY_MS).toISOString().slice(0, 10);
 
     return rows
-      .map((r) => {
+      .map((r): UpcomingBooking => {
         const row = r as {
           id: string;
           event_date: string;
@@ -179,6 +191,7 @@ export async function loadClientUpcoming(
           date?: { start_time?: string; duration?: string };
           brief?: { special_requirements?: string };
         };
+        const visitWhen = whenMap[row.id] ?? null;
         const coord = row.coordinator_id ? coordMap.get(row.coordinator_id) : null;
         const eventDateKey = dateKey(row.event_date);
         const bucket: UpcomingBooking["bucket"] =
@@ -191,8 +204,9 @@ export async function loadClientUpcoming(
         return {
           inquiry_id: row.id,
           event_date: row.event_date,
-          start_time: iq.date?.start_time ?? null,
+          start_time: visitWhen ? `${visitWhen.time} ${visitWhen.tzLabel}` : (iq.date?.start_time ?? null),
           duration: iq.date?.duration ?? null,
+          when: visitWhen ? { date: visitWhen.date, time: visitWhen.time, tzLabel: visitWhen.tzLabel } : null,
           title:
             iq.client?.job_name?.trim()
             || row.company
@@ -208,8 +222,7 @@ export async function loadClientUpcoming(
           talent: talentByInquiry.get(row.id) ?? [],
           bucket,
         };
-      })
-      .filter((b): b is UpcomingBooking => true);
+      });
   } catch (err) {
     logServerError("client.loadUpcoming", err);
     return [];

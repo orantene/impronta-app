@@ -9,6 +9,11 @@
 
 export const ES_HEADER_TASKS_TEXT: Record<string, string> = {
   "Header tasks": "Tareas del encabezado",
+  "Preview as": "Vista previa como",
+  "Signed out": "Sin sesión",
+  "Signed in": "Con sesión",
+  "Only changes this editor preview. Visitors always see their real state.":
+    "Solo cambia esta vista previa del editor. Los visitantes siempre ven su estado real.",
   "Logo and brand": "Logo y marca",
   "Logo image, site name, colours and contact details.":
     "Imagen del logo, nombre del sitio, colores y datos de contacto.",

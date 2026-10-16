@@ -11,7 +11,7 @@ import { formatOrderMoney } from "@/lib/orders/money-format";
 import type { AccountSummary } from "@/lib/client-account/pure";
 
 import { ClientAccountButton } from "./ClientAccountButton";
-import { LogOutButton, SettingsForm, ThreadReply, VisitActions, btnPrimary, type VisitActionsCopy } from "./AccountClientIslands";
+import { LogOutButton, SessionSyncListener, SettingsForm, ThreadReply, VisitActions, btnPrimary, type VisitActionsCopy } from "./AccountClientIslands";
 
 const INK = "var(--token-color-ink, #111)";
 const BG = "var(--token-color-background, #fff)";
@@ -20,7 +20,7 @@ const MUTED = "var(--token-color-muted, #737373)";
 const RADIUS = "var(--site-radius-base, 8px)";
 
 export type AreaData = {
-  visits?: { upcoming: MeItem[]; waiting: MeItem[]; past: MeItem[] };
+  visits?: { upcoming: MeItem[]; waiting: MeItem[]; past: MeItem[]; /** inquiry id -> its booking talent's zone */ zones?: Record<string, string> };
   visit?: VisitDetail | null;
   threads?: ThreadRow[];
   thread?: { title: string; messages: ThreadMessage[] } | null;
@@ -58,7 +58,16 @@ export function ClientAccountArea(props: Props) {
   const shell = (children: ReactNode) => (
     <main style={wrap} data-client-account-area="">
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "24px 16px 64px" }}>
-        <p style={{ margin: 0, fontSize: 14, color: MUTED }}>{props.talentName}</p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <p style={{ margin: 0, fontSize: 14, color: MUTED }}>{props.talentName}</p>
+          {props.audience === "client" ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: MUTED }}>
+              {props.email ? <span style={{ overflowWrap: "anywhere" }}>{props.email}</span> : null}
+              <LogOutButton label={a("logOut")} />
+            </div>
+          ) : null}
+        </div>
+        {props.audience === "client" ? <SessionSyncListener /> : null}
         <h1 style={{ ...heading, fontSize: 28, marginTop: 4 }}>{a("title")}</h1>
         {children}
       </div>
@@ -229,7 +238,7 @@ export function ClientAccountArea(props: Props) {
   };
   const extraLabel = { quotes: a("tabQuotes"), shortlists: a("tabShortlists"), approvals: a("tabApprovals") };
   const nav = (
-    <nav aria-label={a("title")} style={{ display: "flex", gap: 6, overflowX: "auto", margin: "20px 0", paddingBottom: 4, WebkitOverflowScrolling: "touch" }}>
+    <nav aria-label={a("title")} style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "20px 0", paddingBottom: 4 }}>
       {ACCOUNT_TABS.map((k) => (
         <Link
           key={k}
@@ -262,7 +271,7 @@ export function ClientAccountArea(props: Props) {
   );
 
   const visitRow = (v: MeItem) => {
-    const when = formatZonedWhen(v.eventDate, props.timeZone, loc);
+    const when = formatZonedWhen(v.eventDate, visitZone(props.data.visits?.zones?.[v.id], props.timeZone), loc);
     return (
       <li key={v.id} style={{ listStyle: "none" }}>
         <Link href={`/account/visits/${v.id}`} style={{ ...card, display: "block", textDecoration: "none", color: INK }}>
@@ -279,7 +288,7 @@ export function ClientAccountArea(props: Props) {
       <section style={{ marginBottom: 24 }}>
         <h2 style={{ ...heading, fontSize: 16, marginBottom: 10 }}>{title}</h2>
         <ul style={{ margin: 0, padding: 0, display: "grid", gap: 10 }}>{items.map(visitRow)}</ul>
-        {again ? <p style={{ marginTop: 12 }}><Link href="/" style={{ color: INK }}>{a("bookAgain")}</Link></p> : null}
+        {again ? <p style={{ marginTop: 12 }}><Link href="/" style={{ color: INK }}>{a("browseTalent")}</Link></p> : null}
       </section>
     );
 
@@ -288,7 +297,7 @@ export function ClientAccountArea(props: Props) {
     const g = props.data.visits;
     const empty = !g || g.upcoming.length + g.waiting.length + g.past.length === 0;
     body = empty ? (
-      <p>{a("noVisits")} <Link href="/" style={{ color: INK }}>{a("bookAgain")}</Link></p>
+      <p>{a("noVisits")} <Link href="/" style={{ color: INK }}>{a("bookFirst")}</Link></p>
     ) : (
       <>
         {group(a("waiting"), g.waiting)}

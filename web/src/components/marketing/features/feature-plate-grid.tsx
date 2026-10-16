@@ -3,6 +3,7 @@
 import * as React from "react";
 import { withLocaleHref } from "@/i18n/pathnames";
 import type { FeatureGroup, FeaturePlatePayload } from "@/lib/marketing/features";
+import { bandColumns } from "@/lib/marketing/features/band-columns";
 import { useFeatureHub } from "./feature-hub";
 import { FeatureIcon } from "./feature-icons";
 
@@ -90,6 +91,7 @@ function StageBand({
   locale: string;
   comingLabel: string;
 }) {
+  const count = band.features.length;
   return (
     <section id={`stage-${band.group}`} className="scroll-mt-28">
       <div className="text-center">
@@ -97,7 +99,17 @@ function StageBand({
           {band.stage}
         </h3>
       </div>
-      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div
+        className="mkt-band mt-6"
+        data-testid={`feature-band-${band.group}`}
+        style={
+          {
+            "--cols-sm": bandColumns(count, 2),
+            "--cols-lg": bandColumns(count, 3),
+            "--cols-xl": bandColumns(count, 4),
+          } as React.CSSProperties
+        }
+      >
         {band.features.map((f) => (
           <FeatureCard
             key={`${band.group}-${f.key}`}

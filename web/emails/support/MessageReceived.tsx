@@ -10,6 +10,8 @@ interface Props {
   brand?: EmailBrand;
   unsubscribeUrl?: string;
   categoryLabel?: string;
+  /** The send carries a signed Reply-To, so replying to the email works. */
+  repliesRead?: boolean;
 }
 
 /**
@@ -39,6 +41,7 @@ export default function MessageReceived({
   brand,
   unsubscribeUrl,
   categoryLabel,
+  repliesRead,
 }: Props) {
   const locale = brand?.locale === "es" ? "es" : "en";
   const t =
@@ -48,7 +51,7 @@ export default function MessageReceived({
           intro: `Lo hemos recibido y le hemos puesto el número ${ticketNumber}. ${SUPPORT_AGENT.name} lo lee y te responde por aquí.`,
           about: "Sobre",
           cta: "Ver la conversación",
-          note: "Puedes responder a este correo o seguir escribiendo en la conversación.",
+          note: "Puedes seguir escribiendo en la conversación cuando quieras.",
         }
       : {
           heading: "We have your message",
@@ -70,6 +73,7 @@ export default function MessageReceived({
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}
+      repliesRead={repliesRead}
     />
   );
 }

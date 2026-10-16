@@ -26,19 +26,23 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  */
 export async function renderTenantAccountPage(view: AccountView, hostContext: string | null) {
   const flagKind = accountFlagKindForHost(hostContext);
-  if (flagKind !== "app" || !clientAccountEnabledFor("app")) notFound();
+  // TUL-64: agency / hub / app / marketing each use their own CLIENT_ACCOUNT_HOSTS
+  // kind (from x-impronta-host-context). Collapsing them onto `app` bounced
+  // onboarded clients back to /onboarding/role when only `agency` was listed.
+  if (!flagKind || flagKind === "talent" || !clientAccountEnabledFor(flagKind)) notFound();
   if ((view.kind === "visit" || view.kind === "thread") && !UUID.test(view.id)) notFound();
   const [locale, session, tenant] = await Promise.all([getRequestLocale(), getCachedActorSession(), resolveAccountTenant()]);
   if (!tenant) notFound();
   const identity = await loadPublicIdentity(tenant.tenantId).catch(() => null);
   const brandName = identity?.public_name?.trim() || (hostContext === "agency" ? tenant.slug : PLATFORM_BRAND.name);
   const userId = session.user?.id ?? null;
-  const audience = accountAudience({ userId, appRole: session.profile?.app_role ?? null });
+  const appRole = session.profile?.app_role ?? null;
+  const audience = accountAudience({ userId, appRole });
 
   const data: AreaData = {};
   if (audience === "client" && userId) {
     const tenantId = tenant.tenantId;
-    if (view.kind === "visit") data.visit = await loadVisitDetail(userId, tenantId, view.id);
+    if (view.kind === "visit") data.visit = await loadVisitDetail(userId, tenantId, view.id, locale);
     else if (view.kind === "thread") data.thread = await loadThread(userId, tenantId, view.id);
     else if (view.kind === "receipt") data.receipt = await loadReceiptDetail(userId, tenantId, view.code);
     else if (view.tab === "visits") data.visits = await loadVisitGroups(userId, tenantId);
@@ -60,7 +64,7 @@ export async function renderTenantAccountPage(view: AccountView, hostContext: st
       email={session.user?.email ?? null}
       timeZone={tenant.timeZone}
       data={data}
-      extraTabs={agencyAccountTabs({ hostContext, tenantSlug: tenant.slug, audience })}
+      extraTabs={agencyAccountTabs({ hostContext, tenantSlug: tenant.slug, userId, appRole })}
     />
   );
 }

@@ -125,6 +125,23 @@ export async function saveThemeDraftTree(
   return casUpdate(admin, cur.value, input.expectedRev, { payload }, input.actorId);
 }
 
+/** Replace the whole design payload in one CAS write (code-seed review path). */
+export async function saveThemeDraftPayload(
+  admin: SupabaseClient,
+  input: {
+    design: string;
+    payload: DesignPayload;
+    expectedRev: number;
+    actorId: string | null;
+  },
+): Promise<ThemeDraftResult<ThemeDraft>> {
+  const cur = await readOpen(admin, input.design);
+  if (!cur.ok) return cur;
+  if (cur.value.rev !== input.expectedRev) return fail("stale_rev", STALE);
+  const payload = rekeyOnSave(cur.value.payload, freezeDesignKeysHook(canonicalDesignPayload(input.payload)));
+  return casUpdate(admin, cur.value, input.expectedRev, { payload }, input.actorId);
+}
+
 export async function saveThemeDraftTokens(
   admin: SupabaseClient,
   input: ThemeDraftSaveTokens,
@@ -163,17 +180,24 @@ export async function discardThemeDraft(
   admin: SupabaseClient,
   design: string,
   actorId: string | null,
+  /** When given, only discard the draft at exactly this rev (CAS); a moved draft is `stale_rev`. */
+  expectedRev?: number,
 ): Promise<ThemeDraftResult<null>> {
-  const { data, error } = await admin
+  let q = admin
     .from(TABLE)
     .update({ status: "discarded", updated_by: actorId, updated_at: new Date().toISOString() })
     .eq("design", design)
-    .eq("status", "open")
-    .select("id");
+    .eq("status", "open");
+  if (expectedRev !== undefined) q = q.eq("rev", expectedRev);
+  const { data, error } = await q.select("id");
   if (error) {
     logServerError("themeTemplate.drafts.discard", error);
     return fail("error", error.message);
   }
-  if (!data || data.length === 0) return fail("not_found", "No open draft for this design.");
+  if (!data || data.length === 0) {
+    return expectedRev !== undefined
+      ? fail("stale_rev", "The draft changed or was already closed. Reload the list.")
+      : fail("not_found", "No open draft for this design.");
+  }
   return { ok: true, value: null };
 }

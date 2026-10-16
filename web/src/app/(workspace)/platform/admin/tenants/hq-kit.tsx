@@ -92,7 +92,23 @@ export const PLAN_TIER_LABEL_KEY: Record<string, string> = {
   studio: "dashboard.platform.tier.studio",
   agency: "dashboard.platform.tier.agency",
   network: "dashboard.platform.tier.network",
+  // Catalog/billing slugs and talent plan keys resolve to the same names the
+  // customer reads (Studio/Agency/Network, Web Office), never the raw slug.
+  website: "dashboard.platform.tier.website",
+  legacy: "dashboard.platform.tier.legacy",
+  hub: "dashboard.platform.tier.network",
+  pro: "dashboard.platform.tier.pro",
+  max: "dashboard.platform.tier.max",
+  talent_basic: "dashboard.platform.tier.free",
+  talent_pro: "dashboard.platform.tier.pro",
+  talent_portfolio: "dashboard.platform.tier.max",
 };
+
+/** The one display name for a plan key on every platform admin surface. */
+export function planTierLabel(t: (key: string) => string, plan: string): string {
+  const key = PLAN_TIER_LABEL_KEY[plan];
+  return key ? t(key) : plan;
+}
 
 export const WORKSPACE_ROLE_LABEL_KEY: Record<string, string> = {
   owner: "dashboard.platform.role.owner",
@@ -122,6 +138,11 @@ const PLAN_COLORS: Record<string, { bg: string; color: string }> = {
   studio: { bg: "rgba(122,183,224,0.15)", color: HQ.blue },
   agency: { bg: HQ.greenSoft, color: HQ.green },
   network: { bg: "rgba(160,122,224,0.15)", color: HQ.purple },
+  hub: { bg: "rgba(160,122,224,0.15)", color: HQ.purple },
+  max: { bg: HQ.greenSoft, color: HQ.green },
+  talent_portfolio: { bg: HQ.greenSoft, color: HQ.green },
+  pro: { bg: "rgba(122,183,224,0.15)", color: HQ.blue },
+  talent_pro: { bg: "rgba(122,183,224,0.15)", color: HQ.blue },
 };
 
 export function PlanChip({

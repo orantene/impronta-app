@@ -45,3 +45,31 @@ describe("white-text rule is gated on the over-hero marker", () => {
     assert.ok(!css.includes('[data-talent-max-site-header] .site-header[data-tone="transparent"] { color: #fff; }'));
   });
 });
+
+describe("policy / mainOverride pages never stamp over-hero (TUL-516 H1)", () => {
+  it("render-max-site gates data-over-hero on !mainOverride", () => {
+    const src = ["render-max-site.tsx", "render-max-site-document.tsx"]
+      .map((f) => readFileSync(path.join(process.cwd(), "src/lib/talent-site/server", f), "utf8"))
+      .join("\n");
+    assert.match(src, /!args\.mainOverride\s*&&\s*headerOverlayAllowed/);
+    assert.match(src, /policyMainNode\(policyModel,\s*\{\s*homeHref:/);
+  });
+});
+
+describe("talent site text follows the theme ink, not the platform body (TUL-549 white-on-white brand)", () => {
+  it("every talent root paints color from --token-color-ink next to its background", () => {
+    for (const f of [
+      "src/lib/talent-site/server/render-max-site-document.tsx",
+      "src/components/talent/site/TalentSiteFreeformRenderer.tsx",
+      "src/app/t/[profileCode]/[pageSlug]/page.tsx",
+    ]) {
+      const src = readFileSync(path.join(process.cwd(), f), "utf8");
+      assert.match(src, /backgroundColor: "var\(--token-color-background, #ffffff\)",\s*color: "var\(--token-color-ink, inherit\)"/, f);
+    }
+  });
+  it("header items inherit the ink, but the CTA button keeps its own primary text colour", () => {
+    const css = readFileSync(path.join(process.cwd(), "src/app/token-presets.css"), "utf8");
+    assert.ok(css.includes('.site-header[data-variant="freeform"] .site-header__ritem:not(.site-btn) { color: inherit; }'));
+    assert.doesNotMatch(css, /\.site-header\[data-variant="freeform"\] \.site-header__ritem \{[^}]*color: inherit/);
+  });
+});

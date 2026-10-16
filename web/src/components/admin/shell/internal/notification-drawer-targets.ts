@@ -52,10 +52,12 @@ export type NotificationDrawerTarget = {
  *     tenant-scoped routes: every `/<slug>/talent/*` page 308s to `/talent/*`
  *     (lib/talent/legacy-talent-redirect.ts), so prefixing a slug would only
  *     add a redirect hop.
+ *   • "client" — `path` is host-local and ABSOLUTE (`/client/inquiries/<id>`,
+ *     the same shape the inquiry emails link to; the host resolves the tenant).
  */
 export type NotificationPageTarget = {
   kind: "page";
-  surface: "workspace" | "talent";
+  surface: "workspace" | "talent" | "client";
   path: string;
 };
 
@@ -141,10 +143,24 @@ export const NOTIFICATION_PAGE_TARGETS: Readonly<Record<string, NotificationPage
   // drawer id here would resolve to the stub.
   whatsapp: { kind: "page", surface: "workspace", path: "/settings/channels" },
 
+  // TUL-391 — refund.failed / payment.needs_attention workspace bells. Admin →
+  // Payments → Refunds is where paid-after-cancel and failed Stripe refunds
+  // surface for a manual alternative refund. Relative to adminBasePath.
+  "workspace-payments": {
+    kind: "page",
+    surface: "workspace",
+    path: "/payments?tab=refunds",
+  },
+
   // lib/talent-site/theme-releases/manager/notify.ts: "Maison v2 has an update"
   // (theme releases). My presence (/talent/site) hosts the update notice; the
   // query opens its What's new sheet straight away.
   "theme-update": { kind: "page", surface: "talent", path: "/talent/site?themeUpdate=open" },
+
+  // TUL-392 derived Attention signal "site needs publish" (lib/notifications/
+  // attention-signals.ts). My presence's live card shows the Publish button
+  // whenever the draft is ahead of live, so the page itself is the target.
+  "site-publish": { kind: "page", surface: "talent", path: "/talent/site" },
 };
 
 /**
@@ -229,6 +245,23 @@ export function notificationDrawerFields(
     rawTargetDrawer ?? "notifications",
     inquiryId ? { inquiryId } : undefined,
   );
+  // TUL-391 r3: the inquiry-workspace drawer only knows FIXTURE ids and falls
+  // back to the demo inquiry (RI-201) for a real UUID. A real inquiry id must
+  // land on the routed page that loads the real thread.
+  if (inquiryId && resolved?.kind === "drawer" && resolved.drawerId === "inquiry-workspace") {
+    const id = encodeURIComponent(inquiryId);
+    const page: NotificationPageTarget =
+      rawTargetDrawer === "talent-inquiry"
+        ? { kind: "page", surface: "talent", path: `/talent/inbox/${id}` }
+        : rawTargetDrawer === "client-inquiry"
+          ? { kind: "page", surface: "client", path: `/client/inquiries/${id}` }
+          : { kind: "page", surface: "workspace", path: `/messages?inquiry=${id}` };
+    return {
+      targetDrawer: "notifications" as DrawerId,
+      targetPayload: undefined,
+      targetHref: notificationTargetHref(page, adminBasePath),
+    };
+  }
   if (resolved?.kind === "page") {
     return {
       targetDrawer: "notifications" as DrawerId,

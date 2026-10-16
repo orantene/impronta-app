@@ -9,15 +9,15 @@
  *                 entry deep-links here with `?themeUpdate=open`
  *   - `builder`   a floating card in the talent builder; after an apply the
  *                 page reloads so the editor opens on the new draft
- * Actions: What's new (sheet), Not now (dismiss). Apply shows the toast
- * "Update applied to your draft · we kept N of your edits"; nothing goes
- * live until she publishes, and History can undo it.
+ * Actions: What's new (sheet), Not now (dismiss). Apply shows a post-apply
+ * banner with an Unpublished pill + primary Publish site CTA (TUL-325);
+ * nothing goes live until she publishes, and History can undo it.
  */
 import { useCallback, useEffect, useState } from "react";
 import type { ReactElement } from "react";
 
 import { pick } from "@/lib/talent-site/history/copy";
-import { runThemeApply } from "@/lib/talent-site/history/apply-busy";
+import { isThemeApplyBusy, runThemeApply } from "@/lib/talent-site/history/apply-busy";
 import {
   UPDATE_COPY,
   appliedToast,
@@ -32,6 +32,7 @@ import {
   loadThemeUpdateNoticesAction,
 } from "@/lib/talent-site/theme-releases/talent-update/talent-update-actions";
 import type { TalentUpdateNotice } from "@/lib/talent-site/theme-releases/talent-update/talent-update.server";
+import { publishMaxSiteAction } from "@/lib/talent-site/server/site-management-actions";
 import { ThemeUpdateSheet } from "./ThemeUpdateSheet";
 
 /**
@@ -41,29 +42,36 @@ import { ThemeUpdateSheet } from "./ThemeUpdateSheet";
  * opens directly beneath it, on phones too.
  */
 export const BUILDER_PILL_CLASS =
-  "fixed left-1/2 top-[68px] z-[250] inline-flex min-h-9 -translate-x-1/2 items-center rounded-full border border-admin-border-soft bg-white px-4 font-admin-body text-[13px] font-semibold text-admin-ink shadow-lg";
+  "fixed right-3 top-[64px] z-[250] inline-flex min-h-7 items-center rounded-full border border-admin-border-soft bg-white px-3 font-admin-body text-[12px] font-semibold text-admin-ink shadow-lg max-sm:h-7 max-sm:w-7 max-sm:justify-center max-sm:px-0";
 export const BUILDER_CARD_CLASS =
-  "fixed inset-x-3 top-[112px] max-h-[60dvh] overflow-y-auto z-[250] mx-auto max-w-[360px] rounded-xl border border-admin-border-soft bg-white p-4 font-admin-body shadow-lg";
+  "fixed right-3 top-[100px] max-h-[60dvh] overflow-y-auto z-[250] w-[calc(100vw-1.5rem)] max-w-[360px] rounded-xl border border-admin-border-soft bg-white p-4 font-admin-body shadow-lg";
 
-const TOAST_KEY = "tulala-theme-update-toast";
-const TOAST_MS = 6_000;
+/** Survives the builder reload after Apply so the Publish CTA stays visible. */
+const POST_APPLY_KEY = "tulala-theme-update-post-apply";
 
-function readQueuedToast(): string | null {
+function readQueuedPostApply(): string | null {
   try {
-    const v = window.sessionStorage.getItem(TOAST_KEY);
-    if (v) window.sessionStorage.removeItem(TOAST_KEY);
+    const v = window.sessionStorage.getItem(POST_APPLY_KEY);
+    if (v) window.sessionStorage.removeItem(POST_APPLY_KEY);
     return v;
   } catch {
     return null;
   }
 }
 
-function queueToast(text: string): void {
+function queuePostApply(text: string): void {
   try {
-    window.sessionStorage.setItem(TOAST_KEY, text);
+    window.sessionStorage.setItem(POST_APPLY_KEY, text);
   } catch {
     /* the reload still shows the new draft */
   }
+}
+
+function openBuilderPublish(): void {
+  const url = new URL(window.location.href);
+  url.pathname = "/talent/page-builder";
+  url.searchParams.set("panel", "publish");
+  window.location.assign(url.toString());
 }
 
 export function ThemeUpdateNotice({
@@ -79,7 +87,8 @@ export function ThemeUpdateNotice({
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [cardOpen, setCardOpen] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const [postApply, setPostApply] = useState<string | null>(null);
+  const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -89,31 +98,39 @@ export function ThemeUpdateNotice({
   }, []);
 
   useEffect(() => {
-    const queued = readQueuedToast();
-    if (queued) setToast(queued);
+    const queued = readQueuedPostApply();
+    if (queued) setPostApply(queued);
     void load().then((n) => {
       if (n && new URLSearchParams(window.location.search).get("themeUpdate") === "open") setOpen(true);
     });
   }, [load]);
 
-  useEffect(() => {
-    if (!toast) return;
-    const id = setTimeout(() => setToast(null), TOAST_MS);
-    return () => clearTimeout(id);
-  }, [toast]);
-
   const afterWrite = useCallback(
     (text: string) => {
       if (surface === "builder") {
-        queueToast(text);
+        queuePostApply(text);
         window.location.reload();
         return;
       }
-      setToast(text);
+      setPostApply(text);
       void load();
     },
     [load, surface],
   );
+
+  async function publishDraft(): Promise<void> {
+    if (publishing || isThemeApplyBusy()) return;
+    if (surface === "builder") {
+      openBuilderPublish();
+      return;
+    }
+    setPublishing(true);
+    setError(null);
+    const res = await publishMaxSiteAction().catch(() => null);
+    setPublishing(false);
+    if (res && res.ok) setPostApply(null);
+    else setError(res && !res.ok ? res.error : t("failed"));
+  }
 
   async function apply(draftRev: number): Promise<void> {
     if (!notice) return;
@@ -125,7 +142,7 @@ export function ThemeUpdateNotice({
     setBusy(false);
     if (res && res.ok) {
       setOpen(false);
-      afterWrite(appliedToast(res.value.kept, locale));
+      afterWrite(appliedToast(res.value.kept, locale, res.value.copyKept ?? 0));
     } else setError(res?.error ?? t("failed"));
   }
 
@@ -140,18 +157,40 @@ export function ThemeUpdateNotice({
     } else setError(res?.error ?? t("failed"));
   }
 
-  const toastEl = toast ? (
+  const postApplyEl = postApply ? (
     <div
       role="status"
       aria-live="polite"
       data-theme-update-toast
-      className="fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[310] mx-auto max-w-md rounded-xl bg-[var(--tulala-primary-fill)] px-4 py-3 text-center text-[14px] font-semibold text-white shadow-lg"
+      data-theme-update-post-apply
+      className="fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[310] mx-auto flex max-w-md flex-col gap-3 rounded-xl border border-admin-border-soft bg-white p-4 font-admin-body shadow-lg"
     >
-      {toast}
+      <span
+        data-theme-update-unpublished
+        className="inline-flex w-fit items-center gap-1.5 rounded-full border border-admin-border-soft bg-admin-surface-alt px-3 py-1 text-[12.5px] font-semibold text-admin-ink"
+      >
+        <span className="inline-block h-1.5 w-1.5 rounded-full bg-admin-ink-dim" aria-hidden />
+        {t("unpublishedPill")}
+      </span>
+      <p className="m-0 text-[14px] font-semibold text-admin-ink">{postApply}</p>
+      {error && !notice ? (
+        <p role="alert" className="m-0 text-[13px] text-admin-critical">
+          {error}
+        </p>
+      ) : null}
+      <button
+        type="button"
+        data-theme-update-publish
+        disabled={publishing}
+        onClick={() => void publishDraft()}
+        className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-[var(--tulala-primary-fill)] bg-[var(--tulala-primary-fill)] px-4 text-[14px] font-semibold text-white hover:border-[var(--tulala-primary-fill-deep)] hover:bg-[var(--tulala-primary-fill-deep)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tulala-primary-fill)] disabled:opacity-60"
+      >
+        {publishing ? t("publishing") : t("publishCta")}
+      </button>
     </div>
   ) : null;
 
-  if (!notice) return toastEl;
+  if (!notice) return postApplyEl;
 
   const again = notice.state === "undone";
   const title = again ? bannerTitleAgain(notice.designTitle, locale) : bannerTitle(notice.designTitle, locale);
@@ -185,7 +224,10 @@ export function ThemeUpdateNotice({
           onClick={() => setCardOpen((v) => !v)}
           className={BUILDER_PILL_CLASS}
         >
-          {t("pill")}
+          {/* TUL-1029: on a phone the 164px text pill covered the site name and rail, so it
+              collapses to a 28px dot; the label stays for screen readers and for sm and up. */}
+          <span className="max-sm:sr-only">{t("pill")}</span>
+          <span className="hidden h-2 w-2 rounded-full bg-[var(--tulala-primary-fill)] max-sm:inline-block" aria-hidden />
         </button>
       ) : null}
       {floating && !cardOpen ? null : (
@@ -195,21 +237,23 @@ export function ThemeUpdateNotice({
         className={
           floating
             ? BUILDER_CARD_CLASS
-            : "mb-5 min-w-0 rounded-xl border border-admin-border-soft bg-white p-4 font-admin-body"
+            : "mb-3 flex min-w-0 flex-row items-center justify-between gap-2 rounded-xl border border-admin-border-soft bg-white p-3 font-admin-body max-sm:p-1.5 max-sm:pl-3"
         }
       >
-        <p className="m-0 text-[15px] font-semibold text-admin-ink">{title}</p>
-        <p className="m-0 mt-1 text-[13px] text-admin-ink-muted">{t(again ? "againBody" : "bannerBody")}</p>
+        <div className="min-w-0 flex-1">
+        <p className="m-0 text-[15px] font-semibold text-admin-ink max-sm:truncate max-sm:text-[13px]">{title}</p>
+        <p className="m-0 mt-1 line-clamp-2 text-[13px] text-admin-ink-muted max-sm:hidden">{t(again ? "againBody" : "bannerBody")}</p>
         {error ? (
           <p role="alert" className="m-0 mt-2 text-[13px] text-admin-critical">
             {error}
           </p>
         ) : null}
-        <div className="mt-3 flex flex-wrap gap-2">
+        </div>
+        <div className={floating ? "mt-3 flex flex-wrap gap-2" : "flex shrink-0 flex-nowrap gap-2 max-sm:gap-1"}>
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="inline-flex min-h-11 items-center rounded-lg border border-[var(--tulala-primary-fill)] bg-[var(--tulala-primary-fill)] px-4 text-[14px] font-semibold text-white hover:border-[var(--tulala-primary-fill-deep)] hover:bg-[var(--tulala-primary-fill-deep)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tulala-primary-fill)]"
+            className="inline-flex min-h-11 items-center rounded-lg border border-[var(--tulala-primary-fill)] bg-[var(--tulala-primary-fill)] px-4 text-[14px] max-sm:px-3 max-sm:text-[13px] font-semibold text-white hover:border-[var(--tulala-primary-fill-deep)] hover:bg-[var(--tulala-primary-fill-deep)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tulala-primary-fill)]"
             data-theme-update-whats-new
           >
             {t("whatsNew")}
@@ -219,7 +263,7 @@ export function ThemeUpdateNotice({
               type="button"
               disabled={busy}
               onClick={() => void apply(notice.draftRev)}
-              className="inline-flex min-h-11 items-center rounded-lg border border-[var(--tulala-primary-fill)] bg-[var(--tulala-primary-fill)] px-4 text-[14px] font-semibold text-white hover:border-[var(--tulala-primary-fill-deep)] hover:bg-[var(--tulala-primary-fill-deep)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tulala-primary-fill)] disabled:opacity-60"
+              className="inline-flex min-h-11 items-center rounded-lg border border-[var(--tulala-primary-fill)] bg-[var(--tulala-primary-fill)] px-4 text-[14px] max-sm:px-3 max-sm:text-[13px] font-semibold text-white hover:border-[var(--tulala-primary-fill-deep)] hover:bg-[var(--tulala-primary-fill-deep)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tulala-primary-fill)] disabled:opacity-60"
               data-theme-update-apply-again
             >
               {busy ? t("applying") : t("applyShort")}
@@ -229,7 +273,7 @@ export function ThemeUpdateNotice({
             type="button"
             disabled={busy}
             onClick={() => void dismiss()}
-            className="inline-flex min-h-11 items-center rounded-lg border border-admin-border-soft bg-white px-4 text-[14px] font-semibold text-admin-ink disabled:opacity-60"
+            className="inline-flex min-h-11 items-center rounded-lg border border-admin-border-soft bg-white px-4 text-[14px] max-sm:px-3 max-sm:text-[13px] font-semibold text-admin-ink disabled:opacity-60"
             data-theme-update-not-now
           >
             {t("notNow")}
@@ -253,7 +297,7 @@ export function ThemeUpdateNotice({
           }}
         />
       ) : null}
-      {toastEl}
+      {postApplyEl}
     </>
   );
 }

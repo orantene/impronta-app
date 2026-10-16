@@ -28,7 +28,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { applyMaisonDesignAction } from "@/lib/talent-site/server/maison-apply-actions";
 import { provisionTalentPersonalSiteIfMissing } from "@/lib/talent-site/server/provision";
 import { publishMaxSiteAction } from "@/lib/talent-site/server/site-management-actions";
-import type { Brief } from "@/lib/tulala/brief-store";
+import { stringFact, type Brief } from "@/lib/tulala/brief-store";
 import { linkBriefObjects } from "@/lib/tulala/brief-store.server";
 import { upsertLeadForBrief } from "@/lib/tulala/approve.server";
 
@@ -40,6 +40,7 @@ import { ensureOwnSitePublished } from "./publish-own-site";
 import { createEssentialsStore, resolveTalentHubTenantId } from "./essentials.server";
 import { runEssentialsWrites, type Essentials } from "./essentials";
 import { essentialsSkipWarning } from "./essentials-resolve";
+import { talentDisplayNameFor } from "./talent-display-name";
 import { writeTalentProfileFromBrief } from "./talent-writer.server";
 import { promoteTalentProfileLive } from "./talent-profile-promotion.server";
 
@@ -102,7 +103,7 @@ export async function provisionForChoice(
       const tp = await writeTalentProfileFromBrief({
         userClient: input.userClient, admin, userId, email: input.email, brief,
         locale: input.locale, typeSlug: input.talentTypeSlug, originDomain: input.requestHost,
-        displayNameFallback: input.essentials?.name ?? null,
+        displayNameFallback: talentDisplayNameFor({ choice, businessName: stringFact(brief, "business.name"), personName: input.essentials?.name }),
         skipDraftOfferings: !!input.essentials?.services.length,
       });
       if (!tp.talentProfileId) return { ok: false, code: "talent_writer_failed", message: "Could not create your page." };
@@ -220,5 +221,5 @@ export async function provisionForChoice(
       }
       return { ok: true };
     },
-  });
+  }, { studioOwnerProvides: input.essentials?.ownerProvides !== false });
 }

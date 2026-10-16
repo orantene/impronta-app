@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import {
   talentPlanGrantsAccessCapability,
   talentPlanGrantsCapability,
@@ -46,9 +48,17 @@ export type TalentSelfDeps = {
   loadProfileByUser: typeof loadTalentSelfProfileByUser;
 };
 
+/**
+ * PERF-SITE: one request fans several guarded loaders out in parallel (the
+ * `/talent/site` bootstrap runs four `gate()` calls at once). Each used to run
+ * the full self-profile read (embeds + media); per-request `cache()` makes the
+ * concurrent callers share one read. Keyed by user id; never crosses requests.
+ */
+const loadProfileByUserOncePerRequest = cache(loadTalentSelfProfileByUser);
+
 const DEFAULT_SELF_DEPS: TalentSelfDeps = {
   requireSession,
-  loadProfileByUser: loadTalentSelfProfileByUser,
+  loadProfileByUser: loadProfileByUserOncePerRequest,
 };
 
 /**
@@ -302,7 +312,10 @@ export function siteCapabilityDeniedMessage(
   capability: TalentSiteDeniedCapability,
   locale?: string | null,
 ): string {
-  return withTalentPaidTierLabel(pickLocale(locale, SITE_DENIED_COPY[capability]));
+  return withTalentPaidTierLabel(
+    pickLocale(locale, SITE_DENIED_COPY[capability]),
+    locale,
+  );
 }
 
 export function planDeniedMessage(
@@ -332,17 +345,19 @@ export function planDeniedMessage(
     return withTalentTierLabel(
       "Upgrade to {tier} to add social and video embeds and a press band to your profile.",
       "pro",
+      locale,
     );
   }
   if (capability === "template") {
-    return withTalentTierLabel("Upgrade to {tier} to choose premium templates.", "pro");
+    return withTalentTierLabel("Upgrade to {tier} to choose premium templates.", "pro", locale);
   }
   if (capability === "media_kit") {
-    return withTalentTierLabel("Upgrade to {tier} to download your media kit.", "pro");
+    return withTalentTierLabel("Upgrade to {tier} to download your media kit.", "pro", locale);
   }
   if (capability === "custom_builder") {
     return withTalentPaidTierLabel(
       "Upgrade to {tier} to customize sections and build your service website.",
+      locale,
     );
   }
   if (!isTalentSiteTierExpansionEnabled()) {
@@ -350,6 +365,7 @@ export function planDeniedMessage(
   }
   return withTalentPaidTierLabel(
     "Upgrade to {tier} to customize sections and build your service website.",
+    locale,
   );
 }
 

@@ -133,6 +133,8 @@ function noteFor(item: ReleaseItem, title: string, labels: Readonly<Record<strin
       return tokenNote(item);
     case "variant-default":
       return { en: `${en} gets a refreshed design ${KEEP_EN}.`, es: `${es} tiene un diseño renovado ${KEEP_ES}.` };
+    case "copy":
+      return { en: `${en} gets updated text ${KEEP_EN}.`, es: `${es} tiene textos actualizados ${KEEP_ES}.` };
     case "new-block":
       return { en: `New block: ${en}. You can add it to your page.`, es: `Bloque nuevo: ${es}. Puedes agregarlo a tu página.` };
     case "code":

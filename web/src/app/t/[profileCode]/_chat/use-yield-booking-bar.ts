@@ -1,12 +1,12 @@
 "use client";
 
 /**
- * BJ-07 / AUD-025 — lift Hablar when bottom chrome is showing so Continuar,
- * the language suggestion strip, and the legacy Maison bar do not fight the
- * same bottom-right corner (and so Seleccionar on the last rows stays tappable).
+ * BJ-07 / AUD-025 — lift Hablar when bottom chrome is showing so Continuar
+ * and the legacy Maison bar do not fight the same bottom-right corner (and so
+ * Seleccionar on the last rows stays tappable).
  */
 
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 
 import {
   GUEST_CHAT_LAUNCHER_BOOKING_BAR_LIFT_PX,
@@ -14,8 +14,10 @@ import {
   GUEST_CHAT_LAUNCHER_BOTTOM_PX,
 } from "./mini-chat-styles";
 
-/** Gap between a sticky bottom chrome top edge and the launcher bottom edge. */
-const BOOKING_BAR_CLEARANCE_PX = 16;
+/** Gap between a sticky bottom chrome top edge and the launcher bottom edge (GRK-036). */
+export const BOOKING_BAR_CLEARANCE_PX = 24;
+
+export const BOTTOM_CHROME_SELECTOR = ".cb-bar, .cb-dock, .mn-bar";
 
 function visibleFixedChrome(el: HTMLElement | null): el is HTMLElement {
   if (!el) return false;
@@ -38,7 +40,9 @@ export function useYieldBookingBar(mounted: boolean, narrowLauncher: boolean): {
   const [selectionDockUp, setSelectionDockUp] = useState(false);
   const [chromeLiftPx, setChromeLiftPx] = useState(0);
 
-  useEffect(() => {
+  // GRK-036: layout effect so Hablar clears the sticky bar before first paint
+  // (useEffect left the FAB at bottom:24 for a frame on top of Continuar).
+  useLayoutEffect(() => {
     if (!mounted) return;
     const measure = () => {
       // The pill capsule carries its own chat button: the FAB tucks away too.
@@ -58,16 +62,18 @@ export function useYieldBookingBar(mounted: boolean, narrowLauncher: boolean): {
         }
       }
 
-      // Locale suggestion + legacy Maison bar: lift Hablar even when the booking
-      // dock owns language-bar stacking (dock idle → strip is still guest-visible).
-      const locale = document.querySelector<HTMLElement>("[data-locale-suggestion]");
-      if (visibleFixedChrome(locale)) {
-        lift = Math.max(lift, chromeLiftFor(locale));
-      }
+      // The locale toast is not measured: it sits bottom-left and clears the
+      // launcher through --floating-chrome-bottom, so lifting Hablar over it
+      // would only make the launcher jump when the toast appears.
       const mnBar = document.querySelector<HTMLElement>(".mn-bar[data-show='true']");
       if (visibleFixedChrome(mnBar)) {
         bookingUp = true;
         lift = Math.max(lift, Math.max(GUEST_CHAT_LAUNCHER_BOOKING_BAR_LIFT_PX, chromeLiftFor(mnBar)));
+      }
+      // TUL-516 F2: lift above the cookie card if CSS hide has not applied yet.
+      const consent = document.querySelector<HTMLElement>("[data-consent-banner]");
+      if (visibleFixedChrome(consent)) {
+        lift = Math.max(lift, chromeLiftFor(consent));
       }
 
       setYieldBookingBar(bookingUp);
@@ -79,12 +85,27 @@ export function useYieldBookingBar(mounted: boolean, narrowLauncher: boolean): {
       subtree: true,
       childList: true,
       attributes: true,
-      attributeFilter: ["data-show", "data-top", "data-has-selection", "data-locale-suggestion", "class", "style", "hidden"],
+      attributeFilter: [
+        "data-show",
+        "data-top",
+        "data-has-selection",
+        "data-consent-banner",
+        "class",
+        "style",
+        "hidden",
+      ],
     });
     window.addEventListener("resize", measure);
+    // The bar fades in when data-top drops: the mutation fires while its
+    // visibility still reads "hidden", so measure again once the fade ends.
+    const onTransitionEnd = (e: TransitionEvent) => {
+      if (e.target instanceof Element && e.target.matches(BOTTOM_CHROME_SELECTOR)) measure();
+    };
+    document.addEventListener("transitionend", onTransitionEnd, true);
     return () => {
       mo?.disconnect();
       window.removeEventListener("resize", measure);
+      document.removeEventListener("transitionend", onTransitionEnd, true);
     };
   }, [mounted]);
 

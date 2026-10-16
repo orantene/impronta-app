@@ -1,0 +1,176 @@
+/**
+ * TUL-530 / GRK-081: every talent theme header must expose a primary CTA.
+ *
+ * Heals three shell shapes at render/hydrate time so stale demo trees (kit
+ * heading+nav only, empty utility_bar CTA, site_header missing primaryCta) get
+ * a Book → `#book` control without a per-talent rebuild.
+ *
+ * E6-kbd-open (TUL-534): `#services` only scrolls; `#book` opens the booking
+ * sheet (TalentSiteContactBridge). Primary booking CTAs must not dead-end on
+ * a scroll target when activated from the keyboard.
+ */
+import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import { TALENT_BOOK_HREF } from "@/lib/talent-site/contact-channels";
+
+const DEFAULT_CTA_LABEL = "Book";
+const DEFAULT_CTA_HREF = TALENT_BOOK_HREF;
+
+type Rec = Record<string, unknown>;
+type AnyNode = BuilderNode & { children?: BuilderNode[] };
+
+function regionHasCta(regions: unknown): boolean {
+  if (!regions || typeof regions !== "object") return false;
+  for (const items of Object.values(regions as Rec)) {
+    if (
+      Array.isArray(items) &&
+      items.some((it) => it && typeof it === "object" && (it as Rec).type === "cta")
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function ensureSiteHeaderCta(node: BuilderNode, label: string): BuilderNode {
+  if (node.kind !== "section" || node.props.sectionTypeKey !== "site_header") return node;
+  const cfg = (node.props.sectionProps ?? {}) as Rec;
+  const primary = cfg.primaryCta;
+  const hasPrimary =
+    primary &&
+    typeof primary === "object" &&
+    typeof (primary as Rec).label === "string" &&
+    String((primary as Rec).label).trim() &&
+    typeof (primary as Rec).href === "string" &&
+    String((primary as Rec).href).trim();
+  if (hasPrimary) {
+    const href = String((primary as Rec).href);
+    const next = bookingHref(href);
+    if (next === href) return node;
+    return {
+      ...node,
+      props: {
+        ...node.props,
+        sectionProps: {
+          ...cfg,
+          primaryCta: { ...(primary as Rec), href: next },
+        },
+      },
+    };
+  }
+  if (regionHasCta(cfg.regions)) return node;
+
+  const cta = { label, href: DEFAULT_CTA_HREF };
+  const regions = cfg.regions && typeof cfg.regions === "object" ? ({ ...(cfg.regions as Rec) } as Rec) : {};
+  const right = Array.isArray(regions.right) ? [...(regions.right as unknown[])] : [];
+  if (!right.some((it) => it && typeof it === "object" && (it as Rec).type === "cta")) {
+    right.push({ type: "cta", label: cta.label, href: cta.href, responsive: { mobile: "menu" } });
+  }
+  return {
+    ...node,
+    props: {
+      ...node.props,
+      sectionProps: {
+        ...cfg,
+        primaryCta: cta,
+        regions: { ...regions, right },
+      },
+    },
+  };
+}
+
+/** Primary CTA that still points at the services band — rewrite to open booking. */
+function bookingHref(href: string): string {
+  const h = href.trim();
+  if (h === "#services" || h === "/#services" || /\/#services$/.test(h)) return DEFAULT_CTA_HREF;
+  return h || DEFAULT_CTA_HREF;
+}
+
+function ensureUtilityBarCta(node: BuilderNode, ctaLabel: string): BuilderNode {
+  if (node.kind !== "utility_bar") return node;
+  const props = (node.props ?? {}) as Rec;
+  const label = typeof props.ctaLabel === "string" ? props.ctaLabel.trim() : "";
+  const href = typeof props.ctaHref === "string" ? props.ctaHref.trim() : "";
+  if (label && href) {
+    const next = bookingHref(href);
+    if (next === href) return node;
+    return { ...node, props: { ...props, ctaHref: next } } as BuilderNode;
+  }
+  return {
+    ...node,
+    props: {
+      ...props,
+      ctaLabel: label || ctaLabel,
+      ctaHref: href ? bookingHref(href) : DEFAULT_CTA_HREF,
+    },
+  } as BuilderNode;
+}
+
+function isBrandNode(n: BuilderNode): boolean {
+  if (n.kind !== "heading" && n.kind !== "image") return false;
+  const layer = String(((n.props ?? {}) as Rec).layerLabel ?? "");
+  return layer === "Wordmark" || layer === "Logo";
+}
+
+function kitHeaderHasCta(children: readonly BuilderNode[]): boolean {
+  return children.some((c) => c.kind === "button" || c.kind === "utility_bar");
+}
+
+function ensureKitShellCta(node: BuilderNode, label: string): BuilderNode {
+  const kids = (node as AnyNode).children;
+  if (!Array.isArray(kids) || kids.length === 0) return node;
+  const hasNav = kids.some((c) => c.kind === "nav");
+  const hasBrand = kids.some(isBrandNode);
+  if (!hasNav || !hasBrand || kitHeaderHasCta(kids)) {
+    return { ...node, children: kids.map((k) => ensureHeaderCtaNode(k, label)) } as BuilderNode;
+  }
+  const cta: BuilderNode = {
+    id: `hdr-cta-${node.id}`,
+    kind: "button",
+    props: {
+      label,
+      href: DEFAULT_CTA_HREF,
+      tone: "primary",
+      layerLabel: "Header CTA",
+    },
+  } as BuilderNode;
+  return {
+    ...node,
+    children: [...kids.map((k) => ensureHeaderCtaNode(k, label)), cta],
+  } as BuilderNode;
+}
+
+function ensureButtonBookHref(node: BuilderNode): BuilderNode {
+  if (node.kind !== "button") return node;
+  const props = (node.props ?? {}) as Rec;
+  const layer = String(props.layerLabel ?? "");
+  if (layer !== "Header CTA" && layer !== "CTA") return node;
+  const href = typeof props.href === "string" ? props.href : "";
+  const next = bookingHref(href);
+  if (next === href) return node;
+  return { ...node, props: { ...props, href: next } } as BuilderNode;
+}
+
+function ensureHeaderCtaNode(node: BuilderNode, label: string): BuilderNode {
+  let next = ensureSiteHeaderCta(node, label);
+  next = ensureUtilityBarCta(next, label);
+  next = ensureButtonBookHref(next);
+  const kids = (next as AnyNode).children;
+  if (Array.isArray(kids) && kids.length > 0) {
+    // Kit shell header: container with brand + nav (and maybe no button yet).
+    const layer = String(((next.props ?? {}) as Rec).layerLabel ?? "");
+    if (next.kind === "container" && (layer === "Header" || kids.some((c) => c.kind === "nav"))) {
+      return ensureKitShellCta(next, label);
+    }
+    return { ...next, children: kids.map((k) => ensureHeaderCtaNode(k, label)) } as BuilderNode;
+  }
+  return next;
+}
+
+/**
+ * Pure: return a shell tree where every header shape has a primary CTA.
+ * `label` is the site-language label (this runs after seeded-label localisation).
+ */
+export function ensureHeaderCta(tree: readonly BuilderNode[], label: string = DEFAULT_CTA_LABEL): BuilderNode[] {
+  const l = label.trim() || DEFAULT_CTA_LABEL;
+  return tree.map((n) => ensureHeaderCtaNode(n, l));
+}

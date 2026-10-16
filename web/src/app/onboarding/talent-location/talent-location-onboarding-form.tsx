@@ -337,7 +337,7 @@ function SelectInput(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
       style={{
         ...INPUT_STYLE,
         backgroundImage:
-          "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%236b7065' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='M1 1.5L6 6.5L11 1.5'/></svg>\")",
+          "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%235f645a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='M1 1.5L6 6.5L11 1.5'/></svg>\")",
         ...(props.style ?? {}),
       }}
     />

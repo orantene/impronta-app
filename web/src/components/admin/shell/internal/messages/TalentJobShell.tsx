@@ -8,6 +8,7 @@ import { formatShortDate, isSpanishLocale } from "@/lib/locale-time";
 const ISO_DATE_LIKE = /^\d{4}-\d{2}-\d{2}/;
 import { COLORS, FONTS, useAdminShell } from "../state";
 import { useDashboardText } from "../dashboard-i18n";
+import { isTalentAwaitingYouStage } from "../shell-count-bubbles-logic";
 import { Avatar, useKeyboardListNav } from "../primitives";
 import { useTalentConversations, type Conversation } from "../talent";
 import { TalentAgencyFilterChips } from "../talent/shared/TalentAgencyFilterChips";
@@ -39,7 +40,14 @@ export function TalentJobShell() {
   const [activeId, setActiveId] = useState<string>(() => conversations[0]?.id ?? "");
   const [mobilePane, setMobilePane] = useState<"list" | "thread">("list");
   useEffect(() => {
-    const pending = consumePendingConversation();
+    // TUL-956: `?thread=<id>` deep-links a conversation (a pinned id still wins).
+    let fromUrl: string | null = null;
+    try {
+      fromUrl = new URLSearchParams(window.location.search).get("thread");
+    } catch {
+      /* no window */
+    }
+    const pending = consumePendingConversation() ?? fromUrl;
     if (pending && conversations.some((c) => c.id === pending)) {
       setActiveId(pending);
       setMobilePane("thread");
@@ -53,6 +61,19 @@ export function TalentJobShell() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<TalentFilter>("all");
   const layout = useResizableInboxLayout("talent");
+
+  // TUL-956: mirror the open thread into the URL so it can be shared or reloaded.
+  useEffect(() => {
+    if (!activeId) return;
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get("thread") === activeId) return;
+      url.searchParams.set("thread", activeId);
+      window.history.replaceState(window.history.state, "", url);
+    } catch {
+      /* URL sync is a nicety, never block the inbox */
+    }
+  }, [activeId]);
 
   const filtered = conversations.filter(c => {
     // "coordinating" filter — jobs where Marta runs her own workspace
@@ -255,8 +276,10 @@ export function TalentJobRow({
   // "Awaiting you" only when the talent actually owes a response. The
   // "✓ confirmed" pill on booked rows was duplicate signal — the funnel
   // step already says Booked and the take-home rate already says Paid /
-  // confirmed. Drop it.
-  const showAwaiting = myStatus === "pending";
+  // confirmed. Drop it. Predicate shared with ShellCountBubbles
+  // (`isTalentAwaitingYouStage` / countTalentAwaitingInquiries) so the
+  // attention bubble and inbox chip cannot disagree (TUL-519).
+  const showAwaiting = isTalentAwaitingYouStage(conv.stage);
 
   // Stage-tinted row backgrounds — subtle wash that helps the eye sort
   // the inbox at a glance. Brand-new (unseen) inquiries get a coral

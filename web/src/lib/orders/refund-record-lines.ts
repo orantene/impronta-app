@@ -165,12 +165,29 @@ export async function bumpLineRefunded(
 }
 
 export type OrderLineReconcile =
-  | { ok: true; expectedCents: number; actualCents: number; mismatch: boolean }
+  | { ok: true; expectedCents: number; expectedLowCents: number; actualCents: number; mismatch: boolean }
   | { ok: false };
 
 /** What the lines should read after these refunds: the refunded money, capped by what the lines can return. */
 export function expectedLineRefundCents(lineTotalsCents: readonly number[], refundedSiblingCents: number): number {
   return Math.min(Math.max(0, refundedSiblingCents), lineTotalsCents.reduce((n, t) => n + Math.max(0, t), 0));
+}
+
+/**
+ * The plausible band for `sum(order_lines.refunded_cents)`. A refund can include a TIP or the client's service
+ * fee, neither of which belongs to a line, so the lines may legitimately read anywhere from "everything refunded
+ * except tip + fee" up to "everything refunded", each capped by what the lines can return. Comparing against a
+ * single number false-flagged correct orders (#3119 review); a crash that left the lines at 0 still falls below
+ * the band unless the refund was no bigger than the tip + fee.
+ */
+export function expectedLineRefundBand(
+  lineTotalsCents: readonly number[],
+  refundedSiblingCents: number,
+  tipAndClientFeeCents: number,
+): { low: number; high: number } {
+  const high = expectedLineRefundCents(lineTotalsCents, refundedSiblingCents);
+  const low = expectedLineRefundCents(lineTotalsCents, refundedSiblingCents - Math.max(0, tipAndClientFeeCents));
+  return { low, high };
 }
 
 /**
@@ -195,13 +212,28 @@ export async function reconcileOrderLineRefunds(admin: Admin, orderId: string): 
     }
     const ls = (lines ?? []) as Array<{ total_cents: number; refunded_cents: number | null }>;
     const rs = (refunds ?? []) as Array<{ id: string; gross_amount_cents: number; metadata?: unknown }>;
-    const expectedCents = expectedLineRefundCents(ls.map((l) => Number(l.total_cents)), rs.reduce((n, r) => n + Number(r.gross_amount_cents ?? 0), 0));
+    // The tip and the client's service fee ride in refunds but belong to no line.
+    const { data: ord, error: oErr } = await admin.from("orders").select("tip_cents").eq("id", orderId).maybeSingle();
+    const { data: parents, error: pErr } = await admin
+      .from("booking_transactions")
+      .select("platform_fee_cents")
+      .eq("order_id", orderId)
+      .is("refund_of_transaction_id", null)
+      .in("status", ["paid", "payout_pending", "payout_sent", "refunded"]);
+    if (oErr || pErr) {
+      logServerError("orders.reconcileLineRefunds/read", oErr ?? pErr);
+      return { ok: false };
+    }
+    const tipCents = Number((ord as { tip_cents?: number | null } | null)?.tip_cents ?? 0);
+    const clientFeeCents = ((parents ?? []) as Array<{ platform_fee_cents: number | null }>).reduce((n, p) => n + Number(p.platform_fee_cents ?? 0), 0);
+    const band = expectedLineRefundBand(ls.map((l) => Number(l.total_cents)), rs.reduce((n, r) => n + Number(r.gross_amount_cents ?? 0), 0), tipCents + clientFeeCents);
+    const expectedCents = band.high;
     const actualCents = ls.reduce((n, l) => n + Number(l.refunded_cents ?? 0), 0);
-    const mismatch = expectedCents !== actualCents;
+    const mismatch = actualCents < band.low || actualCents > band.high;
     if (mismatch && rs[0]) {
       logServerError(
         "orders.reconcileLineRefunds/MISMATCH",
-        `order ${orderId}: lines read ${actualCents} refunded, refunded transactions say ${expectedCents}. Needs a human.`,
+        `order ${orderId}: lines read ${actualCents} refunded, refunded transactions say ${band.low} to ${band.high} (tip and client fee excluded at the low end). Needs a human.`,
       );
       const meta = ((rs[0].metadata ?? {}) as Record<string, unknown>);
       await admin
@@ -209,13 +241,13 @@ export async function reconcileOrderLineRefunds(admin: Admin, orderId: string): 
         .update({
           metadata: {
             ...meta,
-            order_lines_mismatch: { expected_cents: expectedCents, actual_cents: actualCents },
+            order_lines_mismatch: { expected_cents: expectedCents, expected_low_cents: band.low, actual_cents: actualCents },
             ...(meta.needs_attention ? {} : { needs_attention: "order_lines_mismatch", needs_attention_at: new Date().toISOString() }),
           },
         })
         .eq("id", rs[0].id);
     }
-    return { ok: true, expectedCents, actualCents, mismatch };
+    return { ok: true, expectedCents, expectedLowCents: band.low, actualCents, mismatch };
   } catch (err) {
     logServerError("orders.reconcileLineRefunds", err);
     return { ok: false };

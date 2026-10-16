@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { authCoordinationOptions } from "@/lib/supabase/auth-coordination";
 import { cookieDomainForHost, isSupabaseAuthCookie } from "@/lib/supabase/cookie-domain";
+import { isSignOutPath } from "@/lib/auth/sign-out-paths";
 import { loadAccessProfile } from "@/lib/access-profile";
 import {
   buildAuthDebugHeaders,
@@ -13,6 +14,7 @@ import {
   DESK_AUTH_RESCOPE_COOKIE,
   shouldAttemptDeskAuthRescope,
 } from "@/lib/support/desk/desk-access";
+import { nextPathKeepingSupport } from "@/lib/support/login-next-support";
 import { isSupportDeskHost } from "@/lib/support/desk-hosts";
 import {
   ACCESS_PROFILE_REFRESH_COOKIE,
@@ -81,6 +83,8 @@ const ACTOR_HEADERS_TO_STRIP = [
   ACTOR_STATUS_HEADER,
   ACTOR_ONBOARDED_HEADER,
   ACTOR_HOME_PREF_HEADER,
+  // Never trust a client-supplied guest id; only re-bind from the verified cookie.
+  GUEST_HEADER_NAME,
 ];
 
 
@@ -256,6 +260,11 @@ export async function updateSession(
   let supabaseResponse = attachGuestCookie(nextPreservingUrl());
 
   if (!url || !anon) {
+    return { response: supabaseResponse, requestHeaders: forwardedHeaders };
+  }
+
+  // S1: never refresh (re-mint) a session on the sign-out request itself.
+  if (isSignOutPath(pathnameForAuth)) {
     return { response: supabaseResponse, requestHeaders: forwardedHeaders };
   }
 
@@ -585,7 +594,7 @@ export async function updateSession(
       incoming.forEach((value, key) => redirectUrl.searchParams.set(key, value));
     }
     if (decision.loginNext) {
-      redirectUrl.searchParams.set("next", decision.loginNext);
+      redirectUrl.searchParams.set("next", nextPathKeepingSupport(decision.loginNext, request.nextUrl.search));
       // Distinguish a DROPPED/expired session (an auth cookie was present but
       // produced no user — e.g. a refresh-token rotation race) from a plain
       // never-logged-in visit, so /login can explain the forced re-login

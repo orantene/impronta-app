@@ -1,3 +1,4 @@
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { getAppUrl } from "@/lib/auth-flow";
 import { sendProvisioningFailureEmailOnce } from "./workspace-signup-failure-notify";
 import { notifyPlatformNewWorkspace } from "./workspace-signup-platform-alerts";
@@ -328,13 +329,12 @@ async function finalizeProvisionResult(params: {
 }): Promise<ProvisionWorkspaceResult> {
   const adminPath = `/${params.agency.slug}/admin`;
   const publicPath = `/${params.agency.slug}`;
-  const publicUrl = workspacePathUrl(params.agency.slug);
+  const publicUrl = workspacePathUrl(params.agency.slug, resolveMarketingOrigin());
   const tierInterest = params.lead.tier_interest;
 
   // revalidatePath is forbidden during server component renders in Next.js 16
-  // (throws "used during render which is unsupported"). The workspace is new and
-  // the browser is immediately redirected to it, so there are no stale cache
-  // entries to invalidate here anyway. Drop the calls entirely.
+  // (throws "used during render which is unsupported"). The workspace is new and the
+  // browser is redirected to it, so no stale cache entries exist. Drop the calls entirely.
 
   const ownerEmail = (params.userEmail ?? params.lead.email).trim();
   const ownerName = params.lead.name.trim() || params.agency.display_name;

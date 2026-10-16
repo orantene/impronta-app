@@ -21,6 +21,7 @@ import { SettingsCardLoading } from "./SettingsCardLoading";
  */
 
 import { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import {
   loadTalentDefaultCurrency,
   updateTalentDefaultCurrency,
@@ -55,6 +56,8 @@ export function DefaultCurrencyCard() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedOk, setSavedOk] = useState(false);
+  // Her services priced in another currency after a change (we never rewrite them for her).
+  const [otherCurrencyServices, setOtherCurrencyServices] = useState(0);
   const [, startTransition] = useTransition();
 
   useEffect(() => {
@@ -79,6 +82,7 @@ export function DefaultCurrencyCard() {
       const res = await updateTalentDefaultCurrency(next);
       setSaving(false);
       if (res.ok) {
+        setOtherCurrencyServices(res.otherCurrencyServices);
         setSavedOk(true);
         setTimeout(() => setSavedOk(false), 2000);
       } else {
@@ -139,6 +143,14 @@ export function DefaultCurrencyCard() {
         )}
         {error && (
           <div style={{ fontSize: 11, color: C.error, marginTop: 4 }}>{error}</div>
+        )}
+        {otherCurrencyServices > 0 && !saving && (
+          <div data-other-currency-services style={{ fontSize: 11, color: C.inkMuted, marginTop: 4 }}>
+            {copy.t("New services will use this currency. Your existing services keep theirs; change them in Services.")}{" "}
+            <Link href="/talent/services" style={{ color: C.accentDeep, fontWeight: 600 }}>
+              {copy.t("Open Services")}
+            </Link>
+          </div>
         )}
       </div>
       <select

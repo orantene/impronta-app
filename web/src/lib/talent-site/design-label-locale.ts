@@ -10,6 +10,11 @@
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { parseSellingBookingSettings } from "@/lib/talent/selling-booking-settings";
 import { registeredAuthoredOverlays } from "./theme-catalog/collection/authored";
+import { localiseBakedLanguagesLine } from "./talent-locale-swaps";
+import {
+  EMERGENCIES_TODAY_LABEL,
+  NO_EMERGENCIES_TODAY_LABEL,
+} from "./theme-catalog/seed-i18n";
 
 /** Seeded English label -> Spanish. Keys are exact seed strings. */
 const CODE_SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
@@ -26,8 +31,9 @@ const CODE_SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "How it works": "Cómo funciona",
   "Where I work": "Dónde trabajo",
   "Emergency": "Emergencia",
-  "Emergencies today": "Emergencias hoy",
-  "No emergencies today": "Sin emergencias hoy",
+  // TUL-516 C2: Gridline utility-bar status pill (same pair as seed-i18n).
+  [EMERGENCIES_TODAY_LABEL.en]: EMERGENCIES_TODAY_LABEL.es,
+  [NO_EMERGENCIES_TODAY_LABEL.en]: NO_EMERGENCIES_TODAY_LABEL.es,
   "Call": "Llamar",
   "Same-day emergency": "Emergencia el mismo día",
   "Meanwhile:": "Mientras tanto:",
@@ -36,6 +42,8 @@ const CODE_SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "The menu": "El menú",
   "Services {i}and prices{/i}": "Servicios {i}y precios{/i}",
   "Recent work": "Trabajo reciente",
+  // Gridline work_order portfolio heading (seed + render-time rewrite).
+  "Recent jobs": "Trabajos recientes",
   "How booking works": "Cómo reservar",
   Questions: "Preguntas",
   "Ask a question": "Hacer una pregunta",
@@ -51,6 +59,8 @@ const CODE_SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "Let's work together": "Trabajemos juntos",
   "She confirms by hand.": "Confirmo cada cita personalmente.",
   "You can book a time on this page.": "Puedes reservar tu hora en esta página.",
+  "Not taking new bookings right now. You can still send an inquiry.":
+    "No estoy tomando nuevas reservas por ahora. Puedes consultarme.",
   "No services are published yet.": "Aún no hay servicios publicados.",
   "No photos in your portfolio yet.": "Aún no hay fotos en tu portafolio.",
   // Theme collection v1 designs (Maison v2, Solace, Mono, Frame, Folio).
@@ -77,6 +87,10 @@ const CODE_SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "What clients say": "Lo que dicen mis clientes",
   Reviews: "Reseñas",
   Ask: "Pregunta",
+  // TUL-516 C: latin-dancer taxonomy is gender-neutral "Baile latino" (mig 358000).
+  // Applied trees may still bake the old masculine ES label or English EN seed.
+  "Bailarín Latino": "Baile latino",
+  "Latin Dancer": "Baile latino",
   // Maison v2 (the Rosé proposal copy).
   "Recent {i}work{/i}": "Trabajo {i}reciente{/i}",
   "Menu and prices": "Menú y precios",
@@ -129,6 +143,9 @@ const CODE_SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "Demo studio credit · CDMX": "Créditos ficticios de demo · Estudio en CDMX",
   "Demo show credit · 3 exits": "Show ficticio de demo · 3 salidas",
   "For editorials, runway and campaigns. I reply the same day.": "Para editoriales, runway y campañas. Respondo en el día.",
+  // TUL-516: Folio / proof line baked as English place name.
+  "Based in Mexico City": "Con base en Ciudad de México",
+  "BASED IN MEXICO CITY": "CON BASE EN CIUDAD DE MÉXICO",
   // Folio masthead + cover CTA is seeded in Spanish; English visitors read this.
   "Ask about this": "Consultar",
 };
@@ -199,13 +216,20 @@ export type SiteCtaMode = "instant" | "request" | "inquiry";
  * Site-wide CTA mode: the talent default posture (`selling_defaults`), with
  * the plan ceiling applied the same way deriveOfferingCta does (a plan that
  * confirms by hand turns instant into request).
+ *
+ * GRK-068: when `acceptingBookings` is off, every seeded CTA must read as
+ * inquiry (never "Reservar" / "You can book") — same public effect as
+ * `applySwitchesToMode`.
  */
 export function resolveSiteCtaMode(input: {
   sellingDefaults: unknown;
   confirmsByHand: boolean;
   /** false = instant cannot work yet (no working hours): same readiness step as resolveEffectiveBookingMode. */
   instantReady?: boolean;
+  /** false = taking new bookings is paused (§8). undefined = not asked. */
+  acceptingBookings?: boolean;
 }): SiteCtaMode {
+  if (input.acceptingBookings === false) return "inquiry";
   const posture = parseSellingBookingSettings(input.sellingDefaults).bookingPosture;
   if (posture === "instant" && input.confirmsByHand) return "request";
   if (posture === "instant" && input.instantReady === false) return "request";
@@ -289,6 +313,12 @@ const LABEL_PROPS = [
   "creditLine",
   "contactLine",
   "subtitle",
+  // Gridline utility / alert chrome (TUL-494): seed map must rewrite these too.
+  "statusOnLabel",
+  "statusOffLabel",
+  "callLabel",
+  "safetyLabel",
+  "safetyNote",
 ] as const;
 
 /**
@@ -334,6 +364,14 @@ function localiseHeaderProps(
         : items;
     }
     if (changed) (next ??= { ...sp }).regions = out;
+  }
+  // Header lockup under the name: trade tagline (TUL-516 Bailarín Latino → Baile latino).
+  if (sp.brand && typeof sp.brand === "object") {
+    const brand = sp.brand as Record<string, unknown>;
+    if (typeof brand.tagline === "string") {
+      const out = one(brand.tagline);
+      if (out !== null) (next ??= { ...sp }).brand = { ...brand, tagline: out };
+    }
   }
   return next;
 }
@@ -393,8 +431,11 @@ export function localiseSeededDesignLabels(
 ): BuilderNode[] {
   const target = labelTarget(locale);
   if (target === "other" && mode === null && Object.keys(swaps).length === 0) return tree;
+  // Languages line: pattern-match the baked "Languages: …" seed so a stale
+  // About node (languages changed after apply) still becomes Idiomas, even
+  // when `swaps` only carries the *current* proof list (Codex P2 / TUL-121).
   const one = (v: string, href?: unknown): string | null =>
-    swaps[v.trim()] ?? localiseOne(v, target, mode, href);
+    swaps[v.trim()] ?? localiseBakedLanguagesLine(v, locale) ?? localiseOne(v, target, mode, href);
   const visit = (node: BuilderNode): BuilderNode => {
     const props = (node.props ?? {}) as Record<string, unknown>;
     let next: Record<string, unknown> | null = null;
@@ -403,6 +444,20 @@ export function localiseSeededDesignLabels(
       if (typeof v !== "string") continue;
       const out = one(v, key === "label" ? props.href : undefined);
       if (out !== null) (next ??= { ...props })[key] = out;
+    }
+    // TUL-516 C2: Gridline utility bars often omit status labels; the block
+    // then hardcodes English. Fill the seed English so the map can localise
+    // without a per-talent fixture or reapply (saul / Spanish-only trades).
+    if (node.kind === "utility_bar" && props.showStatus !== false) {
+      for (const [key, seedEn] of [
+        ["statusOnLabel", EMERGENCIES_TODAY_LABEL.en],
+        ["statusOffLabel", NO_EMERGENCIES_TODAY_LABEL.en],
+      ] as const) {
+        const cur = ((next ?? props)[key] as unknown);
+        if (typeof cur === "string" && cur.trim()) continue;
+        const out = one(seedEn);
+        (next ??= { ...props })[key] = out ?? seedEn;
+      }
     }
     if (node.kind === "section" && props.sectionTypeKey === "site_header") {
       const header = localiseHeaderProps(props.sectionProps, one);

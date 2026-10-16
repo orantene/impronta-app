@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -27,7 +28,12 @@ const row = (slug: string, title: string, over: Partial<FactoryOverview["rows"][
 const DATA: FactoryOverview = {
   mockupMode: "local",
   rows: [
-    row("maison-v2", "Maison v2", { status: "code_ahead", codeVersion: 3 }),
+    row("maison-v2", "Maison v2", {
+      status: "code_ahead",
+      codeVersion: 3,
+      catalogVersion: 14,
+      releasedVersion: 23,
+    }),
     row("folio", "Folio", {
       mockupRun: { timestamp: "2026-09-30T10:00:00Z", pass: 4, fail: 0, known: 1, openDeltas: 2, deltasByLayer: { token: 1, payload: 1, kit: 0, platform: 0, "new-capability": 0 }, reportPath: "web/qa-evidence/mockup-parity/x/report.html" },
     }),
@@ -75,9 +81,19 @@ describe("TalentFactoryTab render", () => {
     assert.match(p, /Run this on your machine/);
     assert.doesNotMatch(p, /Open deltas/);
   });
-  it("shows released version and Released in catalog without a release row", () => {
-    assert.match(html, /Released/);
+  it("labels catalog default vs open to talents and hints when they lag", () => {
+    assert.match(html, /Catalog default/);
+    assert.match(html, /Open to talents/);
+    assert.match(html, /data-catalog-default="14"/);
+    assert.match(html, /data-open-to-talents="23"/);
+    assert.match(html, /data-version-lag/);
+    assert.match(html, /Catalog default can lag until Make default/);
     assert.match(html, /Released in catalog \(v5\)/);
+    assert.doesNotMatch(html, /JSON\.stringify|^\s*\{[\s\S]*"created"/m);
+  });
+  it("never dumps raw sync JSON in the tab source", () => {
+    const src = readFileSync(new URL("./talent-factory-tab.tsx", import.meta.url), "utf8");
+    assert.doesNotMatch(src, /JSON\.stringify\(sync/);
   });
   it("groups hidden drafts in a collapsed section", () => {
     const m = html.match(/<details[^>]*data-hidden-drafts[^>]*>([\s\S]*?)<\/details>/);

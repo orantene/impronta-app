@@ -34,6 +34,8 @@ import { useRouter } from "next/navigation";
 import type { Locale } from "@/i18n/config";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
+import { getAppUrl } from "@/lib/auth-flow";
+import { resolveStorefrontEditorOpenUrl } from "@/lib/auth/edit-handoff";
 import { buildPublicPathname, isValidSlugPath, normalizeSlugPath } from "@/lib/cms/paths";
 import {
   resolveWebsiteEditorBaseUrl,
@@ -144,7 +146,13 @@ function useWebsitePagesSurface() {
         // (tenant_id, locale, slug), so the wrong locale 404s the `/p/`
         // underlay and the editor reports "not found".
         const pathname = buildPublicPathname((res.locale as Locale) ?? (locale as Locale), inner);
-        window.open(`${editorBaseUrl}${pathname}?edit=1&panel=pageSettings`, "_blank", "noopener,noreferrer");
+        const editorAbsoluteUrl = `${editorBaseUrl}${pathname}?edit=1&panel=pageSettings`;
+        const openUrl = resolveStorefrontEditorOpenUrl({
+          editorAbsoluteUrl,
+          currentHostname: window.location.hostname,
+          appUrl: getAppUrl(),
+        });
+        window.open(openUrl, "_blank", "noopener,noreferrer");
         toast(tRef.current("dashboard.adminWebsite.toastOpeningVisualEditor"));
       })();
     });

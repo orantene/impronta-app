@@ -26,6 +26,7 @@ import { clearGuestCookie } from "@/lib/guest-cookie-clear.server";
 import { loadAccessProfile } from "@/lib/access-profile";
 import { isAppleAuthProviderEnabled } from "@/lib/auth/apple-provider-flag";
 import { relinkFirstConfirmedClaim } from "@/lib/auth/guest-claim-relink";
+import { claimAndActivateVerifiedClient } from "./after-verified-sign-in.server";
 import {
   isCompleteOtpCode,
   isValidAuthEmail,
@@ -33,7 +34,6 @@ import {
   normalizeOtpCode,
   otpVerifyErrorKey,
 } from "@/lib/auth/otp-flow";
-import { claimInquiriesByConfirmedEmail } from "@/lib/inquiry/claim-by-email";
 import { hasSignupAcceptance, recordSignupAcceptance } from "@/lib/legal/acceptances";
 import { tryConsumeRateLimit } from "@/lib/rate-limit";
 import {
@@ -164,15 +164,13 @@ async function completeClientAccountSignIn(input: {
   });
   if (mayClaim) {
     await relinkFirstConfirmedClaim(input.userId);
-    const adminForClaim = createServiceRoleClient();
-    const claimEmail = normalizeAuthEmail(input.email ?? "");
-    if (adminForClaim && claimEmail) {
-      await claimInquiriesByConfirmedEmail({
-        admin: adminForClaim,
-        userId: input.userId,
-        verifiedEmail: claimEmail,
-      }).catch((e) => logServerError("clientAccount/claimByEmail", e));
-    }
+    // G1/G2 (TUL-465): claim every guest record for the proven email, then
+    // activate a guest booker (a client is a client, never /onboarding/role).
+    await claimAndActivateVerifiedClient({
+      userId: input.userId,
+      email: normalizeAuthEmail(input.email ?? ""),
+      emailProven: true,
+    });
   }
 
   // Age/terms: record ONLY when the UI checkbox was ticked (never hard-code).

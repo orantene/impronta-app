@@ -30,6 +30,7 @@
  * styling into a cross-app primitive.
  */
 
+import { SignOutForm } from "@/components/auth/SignOutForm";
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Menu, X, LayoutDashboard, LogOut } from "lucide-react";
@@ -37,7 +38,9 @@ import * as Dialog from "@radix-ui/react-dialog";
 
 import type { PublicNavLink } from "@/lib/cms/public-navigation";
 import { getLocaleMetadata, type Locale } from "@/i18n/config";
+import { languageToggleGroupLabel } from "@/i18n/language-toggle-label";
 import { withLocalePath } from "@/i18n/pathnames";
+import { useLocationHash, withLocationHash } from "@/i18n/use-location-hash";
 import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 
 type MobileNavVariant = "drawer-right" | "sheet-bottom" | "full-screen-fade";
@@ -261,7 +264,7 @@ export function PublicHeaderMobileMenu({
             ) : null}
             {/* C4 — Sign-out inside the menu for signed-in users. */}
             {signOutAction ? (
-              <form action={signOutAction} className="-mt-1">
+              <SignOutForm className="-mt-1">
                 <button
                   type="submit"
                   className="flex w-full items-center gap-2 rounded-md py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -269,7 +272,7 @@ export function PublicHeaderMobileMenu({
                   <LogOut className="size-4" aria-hidden />
                   Sign out
                 </button>
-              </form>
+              </SignOutForm>
             ) : null}
           </div>
         </Dialog.Content>
@@ -311,6 +314,7 @@ function LanguageRow({
   const localeOptions = Array.from(
     new Set([defaultLocale, ...availableLocales].filter(Boolean)),
   );
+  const hash = useLocationHash();
   if (!showLanguageSwitcher || localeOptions.length <= 1) return null;
 
   const pathSettings = {
@@ -319,17 +323,18 @@ function LanguageRow({
     publicLocales: localeOptions,
   };
 
+  const groupLabel = languageToggleGroupLabel(locale);
   return (
     <div className="flex items-center gap-3 text-xs">
       <span
         aria-hidden
         className="font-display uppercase tracking-[0.16em] text-muted-foreground"
       >
-        Language
+        {groupLabel}
       </span>
       <div
         role="group"
-        aria-label="Language"
+        aria-label={groupLabel}
         className="flex items-center gap-1 rounded-md border border-border/60 bg-background/80 px-1 py-0.5 text-xs font-medium"
       >
         {localeOptions.map((code, i) => {
@@ -343,7 +348,10 @@ function LanguageRow({
                 </span>
               ) : null}
               <Link
-                href={withLocalePath(pathnameWithoutLocale || "/", code, pathSettings)}
+                href={withLocationHash(
+                  withLocalePath(pathnameWithoutLocale || "/", code, pathSettings),
+                  hash,
+                )}
                 onClick={onPick}
                 aria-current={active ? "true" : undefined}
                 aria-label={meta.label}

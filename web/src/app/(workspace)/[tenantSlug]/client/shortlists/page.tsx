@@ -12,10 +12,10 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { loadClientSelfProfile } from "../../_data-bridge";
-import { loadClientShortlistsForUser } from "../../_data-bridge/discover";
+import { clientPageReadCtx } from "../_data-bridge/client-read-ctx";
+import { loadShortlistsPageData } from "../_data-bridge/client-page-loaders";
 import { loadClientCardDesign } from "../_data-bridge/load-card-design";
-import { loadClientSubscription, canUsePro } from "@/lib/discover/client-subscription";
+import { canUsePro } from "@/lib/discover/client-subscription";
 import { ShortlistsShell } from "./ShortlistsShell";
 import { ClientPageHeader, HeaderBadge } from "../_components/ClientPageHeader";
 import { EmptyState } from "../_components/EmptyState";
@@ -35,14 +35,12 @@ export default async function ClientShortlistsPage({ params }: { params: PagePar
   const scope = await getTenantPortalScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
-  const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
-  if (!clientProfile) notFound();
-
-  const [shortlists, subscription, cardDesign] = await Promise.all([
-    loadClientShortlistsForUser(session.user.id),
-    loadClientSubscription(session.user.id),
+  const [pageData, cardDesign] = await Promise.all([
+    loadShortlistsPageData(session.user.id, scope.tenantId, await clientPageReadCtx(session.user.id)),
     loadClientCardDesign(scope.tenantId),
   ]);
+  if (!pageData) notFound();
+  const { shortlists, subscription } = pageData;
   const hasPro = canUsePro(subscription);
 
   return (

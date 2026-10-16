@@ -8,13 +8,9 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate, withPluralization } from "@/i18n/interpolate";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import {
-  loadClientSelfProfile,
-  loadClientInquiries,
-  loadWorkspaceRosterLite,
-} from "../../_data-bridge";
-import { loadClientUpcoming } from "../../_data-bridge/client-upcoming";
-import { loadClientBookings } from "../../_data-bridge/bookings";
+import type { loadClientInquiries } from "../../_data-bridge";
+import { clientPageReadCtx } from "../_data-bridge/client-read-ctx";
+import { loadTodayPageData } from "../_data-bridge/client-page-loaders";
 import { clientDateMs, formatClientDate } from "../date-format";
 import { ClientPageHeader, HeaderBadge } from "../_components/ClientPageHeader";
 import { NewInquiryButton } from "../_components/NewInquiryButton";
@@ -102,15 +98,19 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
   const scope = await getTenantPortalScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
-  const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
-  if (!clientProfile) notFound();
-
-  const [allInquiries, roster, upcoming, bookings] = await Promise.all([
-    loadClientInquiries(session.user.id, scope.tenantId),
-    loadWorkspaceRosterLite(scope.tenantId),
-    loadClientUpcoming(session.user.id, scope.tenantId),
-    loadClientBookings(session.user.id, scope.tenantId),
-  ]);
+  const pageData = await loadTodayPageData(
+    session.user.id,
+    scope.tenantId,
+    await clientPageReadCtx(session.user.id),
+  );
+  if (!pageData) notFound();
+  const {
+    inquiries: allInquiries,
+    roster,
+    upcoming,
+    bookings,
+    read: { profile: clientProfile, userId: effectiveUserId, impersonated },
+  } = pageData;
 
   const todayBooking = upcoming.find((u) => u.bucket === "today") ?? null;
   const thisWeekBookings = upcoming.filter((u) => u.bucket === "this_week");
@@ -194,8 +194,9 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
               displayName: clientProfile.displayName,
               company: clientProfile.company,
               agencyName: clientProfile.agencyName,
-              userId: session.user.id,
-              email: session.user.email,
+              userId: effectiveUserId,
+              // The session email is the staff actor's, never the subject's.
+              email: impersonated ? undefined : session.user.email,
               trustLevel: "basic",
             }}
             roster={roster}

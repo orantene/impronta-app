@@ -325,5 +325,45 @@ export const RAMON: Def = {
       t4: { label: "Get my seasonal home ready", hint: "Inspection and repairs before you arrive, priced from your list." },
     },
     taskDefault: { kicker: "Not sure where to start?", hint: "Make a list of what is pending, even a short one. At the visit I review it with you, quote it and fix the quick items right there." },
+    // TUL-302: page chrome EN so site-copy writes props.i18n.en on every Gridline block.
+    topBar: { subtitle: "Home repairs · Mazatlan", phoneAriaLabel: "Call" },
+    urgency: {
+      statusOn: "Emergencies today",
+      statusOff: "No emergencies today",
+      band: {
+        title: "Something cannot wait",
+        safetyLead: "Meanwhile:",
+        safety: "if there is a water leak, shut the main valve; if it is the door lock, do not force it.",
+      },
+      ctaLabel: "Ask now",
+    },
+    hero: {
+      eyebrow: "Schedule open · Mazatlan",
+      headline: "Those home to-dos, {i}done with a clear price.{/i}",
+      badges: ["Homes and apartments", "Tools included"],
+      ctas: ["See times", "What do you need?"],
+    },
+    tasksTitle: "What do you need?",
+    specTable: {
+      title: "Specifications",
+      subtitle: "How I work",
+      rows: [
+        { label: "Jobs", value: "Hang, adjust, assemble, seal and change locks" },
+        { label: "Tools", value: "Included on visits and hourly work" },
+        { label: "Materials", value: "Bought with your approval, with a receipt" },
+        { label: "Price", value: "Always before I start" },
+        { label: "Payment", value: "When I finish: cash or transfer" },
+      ],
+    },
+    menu: { title: "Services and prices", subtitle: "Prices in MXN" },
+    portfolio: [
+      { title: "Repair list", caption: "WO-0350 · Centro Histórico · 1 h" },
+      { title: "Cabinet hinge", caption: "WO-0347 · Playa Sur · 30 min" },
+      { title: "Bed frame assembled", caption: "WO-0344 · Zona Dorada · 1 h 30" },
+      { title: "Home ready", caption: "WO-0341 · Marina · 1 day" },
+      { title: "Picture hung", caption: "WO-0338 · Centro Histórico · 30 min" },
+      { title: "Wall hook", caption: "WO-0335 · Telleria · 30 min" },
+    ],
+    arrivalNote: "Outside this area, travel is added to the quote.",
   },
 };

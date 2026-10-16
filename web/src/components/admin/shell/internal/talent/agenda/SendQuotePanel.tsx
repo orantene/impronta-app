@@ -1,17 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 
 import { messagingTalentQuoteSend, messagingTalentQuoteStart } from "@/lib/server-actions/messaging-talent-quote";
 import { loadTalentClients } from "@/lib/talent/clients-actions";
 import { clientPickerHint, dedupeClientsByPerson, type TalentClientRow } from "@/lib/talent/clients-merge";
 import { loadTalentOfferingsForEditor } from "@/lib/talent/offerings-actions";
-import { formatOfferingPrice, type TalentOffering } from "@/lib/talent/offerings-types";
+import { type TalentOffering } from "@/lib/talent/offerings-types";
 
 import { useAdminShell } from "../../state";
 import { AgendaPanelFrame, createPanelStore } from "./AgendaPanelFrame";
 import { TaskShell } from "./primitives/TaskShell";
 import { useAgendaCopy } from "./use-agenda-copy";
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 
 /**
  * Send quote as ONE shared panel over Today and Messages (mockup tc_ctas,
@@ -90,6 +92,8 @@ function SendQuoteForm({
   const [note, setNote] = useState("");
   const [amount, setAmount] = useState("");
   const [sent, setSent] = useState(false);
+  // Why the quote did not go out, when the server said so (e.g. the service has no usable currency).
+  const [failReason, setFailReason] = useState<string | null>(null);
   const [step, setStep] = useState<0 | 1 | 2>(0);
   const [error, setError] = useState<string | null>(null);
   const [createdId, setCreatedId] = useState<string | null>(null);
@@ -140,6 +144,7 @@ function SendQuoteForm({
         const res = await messagingTalentQuoteSend({ inquiryId: threadId, offeringId: offering.id, amountCents, note: note.trim() || null }).catch(() => ({ ok: false as const }));
         setStep(0);
         setSent(res.ok);
+        setFailReason(res.ok ? null : ("reason" in res ? String(res.reason) : null));
         setCreatedId(threadId);
       });
       return;
@@ -175,6 +180,7 @@ function SendQuoteForm({
       setStep(0);
       // The conversation exists even if the quote did not go out: say so, never fake a send.
       setSent(res.ok);
+      setFailReason(res.ok ? null : ("reason" in res ? String(res.reason) : null));
       setCreatedId(started.inquiryId);
     });
   }
@@ -199,13 +205,28 @@ function SendQuoteForm({
       >
         <div className="space-y-2" aria-live="polite">
           <p className={`text-[15px] font-semibold ${sent ? "text-[var(--tc-ok)]" : "text-[var(--tc-risk)]"}`}>
-            {sent ? copy.t("The client has your quote") : copy.t("The conversation was created but the quote did not go out")}
+            {sent
+              ? copy.t("The client has your quote")
+              : threadId
+                ? copy.t("The quote did not go out")
+                : copy.t("The conversation was created but the quote did not go out")}
           </p>
           <p className="text-[13.5px] text-[var(--tc-primary)]">
             {sent
               ? copy.t("They can accept it from the link. You will see the answer in the conversation.")
-              : copy.t("Open the conversation to send the quote from there. Nothing reached the client yet.")}
+              : threadId
+                ? copy.t("Nothing reached the client. Try again in a moment.")
+                : copy.t("Open the conversation to send the quote from there. Nothing reached the client yet.")}
           </p>
+          {!sent && failReason === "offer_currency_unresolved" ? (
+            <p className="text-[13.5px] text-[var(--tc-primary)]" data-quote-currency-unresolved>
+              {copy.t("This service has no usable currency, so the quote could not be priced.")}{" "}
+              <Link className="font-semibold underline" href="/talent/services">
+                {copy.t("Set the service's currency in Services")}
+              </Link>
+              {copy.t(", then send the quote again.")}
+            </p>
+          ) : null}
         </div>
       </TaskShell>
     );
@@ -353,7 +374,7 @@ function SendQuoteForm({
               {offerings.map((o) => (
                 <option key={o.id} value={o.id}>
                   {o.title}
-                  {o.amountCents != null ? ` · ${formatOfferingPrice(o.amountCents, o.currency, copy.locale)}` : ""}
+                  {o.amountCents != null ? ` · ${formatDashboardMoneyCents(o.amountCents, o.currency, copy.locale)}` : ""}
                 </option>
               ))}
             </select>

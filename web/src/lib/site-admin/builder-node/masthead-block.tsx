@@ -44,15 +44,23 @@ export const MASTHEAD_MAGAZINE_CSS = `
 .sb-mag-name{margin:0;padding:0 12px;font:400 clamp(48px,27cqi,330px)/.8 var(--sb-mag-serif);font-size:min(clamp(48px,27cqi,330px),var(--sb-fit-m,999px));max-width:100%;box-sizing:border-box;letter-spacing:-.045em;text-transform:uppercase;white-space:nowrap;color:var(--sb-mag-ink)}
 .sb-mag-name span{display:block}
 .sb-mag-cover{position:relative;margin:12px 16px 0;aspect-ratio:3/4;overflow:hidden;background:var(--sb-mag-tint)}
-.sb-mag-cover img{display:block;width:100%;height:100%;object-fit:cover}
+/* TUL-476: keep faces in frame (cover crop was centering and cutting heads). */
+.sb-mag-cover img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 18%}
 .sb-masthead[data-masthead-filter="bw"] .sb-mag-cover img{filter:grayscale(1) contrast(1.05)}
-.sb-mag-lines{position:absolute;left:14px;right:14px;bottom:14px;display:grid;gap:8px;color:white}
+/* TUL-476: scrim under cover copy so white type stays ≥4.5:1 on any body crop. */
+.sb-mag-cover::after{content:"";position:absolute;left:0;right:0;bottom:0;height:46%;pointer-events:none;background:linear-gradient(180deg,transparent 0%,color-mix(in srgb,black 55%,transparent) 72%,color-mix(in srgb,black 72%,transparent) 100%)}
+.sb-mag-lines{position:absolute;left:14px;right:14px;bottom:14px;z-index:1;display:grid;gap:8px;color:white}
 .sb-mag-lines p{margin:0;font:italic 400 30px/1 var(--sb-mag-serif);text-shadow:0 2px 20px color-mix(in srgb,black 35%,transparent);max-width:12ch}
 .sb-mag-lines small{font:600 10.5px/1.2 var(--sb-mag-label);letter-spacing:.2em;text-transform:uppercase;text-shadow:0 1px 12px color-mix(in srgb,black 45%,transparent)}
 .sb-mag-tag{padding:16px 16px 0;display:grid;gap:14px}
 .sb-mag-tag p{margin:0;font:400 21px/1.3 var(--sb-mag-serif);color:var(--sb-mag-ink)}
 .sb-mag-row{display:flex;gap:8px;flex-wrap:wrap}
 .sb-mag-side .sb-mag-toc{margin:36px 16px 0;width:auto}
+/* TUL-476: phone intro (bio + CTAs) clears sticky header + floating guest chrome. */
+@media (max-width:899px){
+  .sb-masthead[data-edition="magazine"] .sb-mag-tag{scroll-margin-top:72px;padding-bottom:max(20px,calc(72px + env(safe-area-inset-bottom,0px)))}
+  .sb-masthead[data-edition="magazine"] .sb-mag-lines{bottom:max(14px,calc(14px + env(safe-area-inset-bottom,0px)))}
+}
 ${MAGAZINE_BUTTON_CSS}
 @media (min-width:900px){
   .sb-masthead[data-edition="magazine"] .sb-mag-mast{padding:16px 40px 8px}

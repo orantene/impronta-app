@@ -128,6 +128,11 @@ export const CHROME_COPY = {
     en: "Undo only this design update? Your later edits stay.",
     es: "¿Deshacer solo esta actualización del diseño? Tus cambios posteriores se conservan.",
   },
+  undoDesign: { en: "Undo this design change", es: "Deshacer este cambio de diseño" },
+  undoDesignConfirm: {
+    en: "Restore the previous design in your draft exactly? Nothing goes live until you publish.",
+    es: "¿Restaurar el diseño anterior exactamente en tu borrador? Nada se publica hasta que publiques.",
+  },
   cancel: { en: "Cancel", es: "Cancelar" },
   close: { en: "Close", es: "Cerrar" },
   previewing: { en: "Previewing a saved version · read only", es: "Vista previa de una versión guardada · solo lectura" },
@@ -167,9 +172,19 @@ export function firstPublishSummary(pages: number, sections: number): Bilingual 
   };
 }
 
+/** Phone-width chip: dot + count, so Publish never clips it. */
+export function unpublishedChangesShort(n: number): Bilingual {
+  return {
+    en: `${n} change${n === 1 ? "" : "s"}`,
+    es: `${n} cambio${n === 1 ? "" : "s"}`,
+  };
+}
+
 export function unpublishedChangesLabel(n: number): Bilingual {
   return {
     en: `Draft · ${n} unpublished change${n === 1 ? "" : "s"}`,
-    es: `Borrador · ${n} cambio${n === 1 ? "" : "s"} sin publicar`,
+    // TUL-81 builder: shorter ES so sticky Publicar does not cover the chip;
+    // full sense stays ("draft · N unpublished").
+    es: `Borrador · ${n} sin publicar`,
   };
 }

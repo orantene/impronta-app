@@ -20,6 +20,8 @@
 import { useCallback } from "react";
 
 import type { Locale } from "@/i18n/config";
+import { getAppUrl } from "@/lib/auth-flow";
+import { resolveStorefrontEditorOpenUrl } from "@/lib/auth/edit-handoff";
 import { buildPublicPathname, isValidSlugPath, normalizeSlugPath } from "@/lib/cms/paths";
 
 import type { WebsitePageRow } from "../state";
@@ -66,11 +68,13 @@ export function useWebsitePageLinks({
         notify("dashboard.adminWebsite.toastUrlNoPublicPath");
         return;
       }
-      window.open(
-        `${editorBaseUrl}${pathname}?edit=1&panel=${panel}`,
-        "_blank",
-        "noopener,noreferrer",
-      );
+      const editorAbsoluteUrl = `${editorBaseUrl}${pathname}?edit=1&panel=${panel}`;
+      const openUrl = resolveStorefrontEditorOpenUrl({
+        editorAbsoluteUrl,
+        currentHostname: window.location.hostname,
+        appUrl: getAppUrl(),
+      });
+      window.open(openUrl, "_blank", "noopener,noreferrer");
       notify("dashboard.adminWebsite.toastOpeningVisualEditor");
     },
     [editorBaseUrl, notify, pagePublicPath],

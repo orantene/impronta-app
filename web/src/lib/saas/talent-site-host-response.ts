@@ -14,9 +14,15 @@ import {
   HOST_TALENT_PROFILE_HEADER,
   HOST_TENANT_SLUG_HEADER,
 } from "@/lib/saas/host-context";
+import {
+  applyTalentSiteAnonCacheHeaders,
+  talentSitePrivateCacheKeyUrl,
+  talentSiteShouldRememberLocale,
+} from "@/lib/saas/talent-site-anon-cache";
 import { attachTalentSiteGuestIdentity } from "@/lib/saas/talent-site-guest-identity";
 import { isTalentSiteHostPathAllowed, talentSiteHostRewritePath } from "@/lib/saas/talent-site-host-routing";
 import { PUBLIC_PATH_PREFIX_HEADER, TENANT_HEADER_NAME } from "@/lib/saas/scope";
+import { talentGuestAliasTarget, talentGuestServiceAlias } from "@/lib/talent-site/guest-path-aliases";
 import { talentDemoBareHostRedirectHost } from "@/lib/talent-site/site-public-url";
 import { loadTalentLocaleSettingsForProxy } from "@/lib/talent-site/talent-site-locale-proxy";
 import { decideTalentSiteLocale } from "@/lib/talent-site/talent-site-locale-routing";
@@ -46,8 +52,10 @@ export async function talentSiteHostResponse(
     siteSlug?: string | null;
   },
 ): Promise<NextResponse> {
-  // Demo convention: bare `{site_slug}.tulala.digital` 308s to the canonical
-  // `{site_slug}-demo.tulala.digital` public host. Custom domains are untouched.
+  // Demo convention: any demo subdomain that is not already
+  // `{site_slug}-demo.<apex>` 308s to that canonical host (bare cutover and
+  // design vanity aliases like folio-demo → mateo-ferrer-demo). Custom domains
+  // are untouched.
   if (
     hostContext.hostKind === "subdomain" &&
     (request.method === "GET" || request.method === "HEAD")
@@ -80,18 +88,62 @@ export async function talentSiteHostResponse(
   });
   const localeStripped = talentLocale.innerPath;
 
+  // GRK-028: /agendar|/servicios|/contacto (and EN twins) are guest guesses,
+  // not page slugs — send them to the home anchors before the allow-list 404s.
+  {
+    const guestSeg = localeStripped.replace(/^\/+/, "").split("/")[0] ?? "";
+    const localePrefix =
+      talentLocale.locale !== talentLocales.defaultLocale ? talentLocale.locale : null;
+    const serviceAlias = talentGuestServiceAlias(localeStripped, { localePrefix });
+    const isRead = request.method === "GET" || request.method === "HEAD";
+    if (serviceAlias?.kind === "redirect" && isRead) {
+      const target = new URL(serviceAlias.path, request.nextUrl.origin);
+      target.search = request.nextUrl.search;
+      const res = NextResponse.redirect(target, 308);
+      if (talentLocale.explicit) {
+        res.cookies.set(LOCALE_COOKIE, talentLocale.locale, localeCookieOptions);
+        clearLocaleCookieAutoMarker(res);
+      }
+      return res;
+    }
+    // A second segment that is not a service slug is a miss, not the home anchor.
+    const guestTarget = serviceAlias ? null : talentGuestAliasTarget(guestSeg, { localePrefix });
+    if (guestTarget && (request.method === "GET" || request.method === "HEAD")) {
+      const target = new URL(guestTarget, request.nextUrl.origin);
+      const res = NextResponse.redirect(target, 302);
+      if (talentLocale.explicit) {
+        res.cookies.set(LOCALE_COOKIE, talentLocale.locale, localeCookieOptions);
+        clearLocaleCookieAutoMarker(res);
+      }
+      return res;
+    }
+  }
+
   const decision = isTalentSiteHostPathAllowed(localeStripped);
   if (!decision) {
-    return NextResponse.rewrite(
-      new URL("/_page-not-found", request.url),
-      { status: 404 },
-    );
+    // Keep talent host + locale on the branded 404 so Spanish sites never see
+    // the English Tulala chrome (GRK-028).
+    const missHeaders = new Headers(sanitizedInboundHeaders);
+    missHeaders.set(LOCALE_HEADER, talentLocale.locale);
+    missHeaders.set(HOST_CONTEXT_HEADER, "talent_site");
+    missHeaders.set(HOST_NAME_HEADER, hostContext.hostname);
+    missHeaders.set(HOST_TALENT_PROFILE_HEADER, hostContext.talentProfileId);
+    missHeaders.delete(TENANT_HEADER_NAME);
+    return NextResponse.rewrite(new URL("/_page-not-found", request.url), {
+      status: 404,
+      request: { headers: missHeaders },
+    });
   }
-  const rememberChoice = (res: NextResponse): NextResponse => {
+  const rememberChoice = (res: NextResponse, redirect = false): NextResponse => {
     if (talentLocale.explicit) {
-      res.cookies.set(LOCALE_COOKIE, talentLocale.locale, localeCookieOptions);
-      clearLocaleCookieAutoMarker(res);
-    } else {
+      if (talentSiteShouldRememberLocale(request, talentLocale.locale, { redirect })) {
+        res.cookies.set(LOCALE_COOKIE, talentLocale.locale, localeCookieOptions);
+        clearLocaleCookieAutoMarker(res);
+      }
+    } else if (request.cookies.get(LOCALE_COOKIE)?.value) {
+      // Returning visitor with a locale cookie — keep sync bookkeeping.
+      // TUL-445: do NOT auto-stamp locale on a fresh cookieless GET; that
+      // Set-Cookie alone prevents CDN caching of anonymous page views.
       syncLocaleCookieForPath(res, localeStripped, talentGrammar, request);
     }
     return res;
@@ -100,7 +152,7 @@ export async function talentSiteHostResponse(
     const target = request.nextUrl.clone();
     target.pathname = talentLocale.redirectPath;
     target.searchParams.delete("locale");
-    return rememberChoice(NextResponse.redirect(target, 302));
+    return rememberChoice(NextResponse.redirect(target, 302), true);
   }
 
   const talentHeaders = new Headers(sanitizedInboundHeaders);
@@ -115,17 +167,29 @@ export async function talentSiteHostResponse(
   talentHeaders.delete(PUBLIC_PATH_PREFIX_HEADER);
 
   const attachGuestCookie = attachTalentSiteGuestIdentity(request, talentHeaders);
+  const finish = (res: NextResponse): NextResponse =>
+    applyTalentSiteAnonCacheHeaders(rememberChoice(attachGuestCookie(res)), request);
+  // TUL-755: cookie-bearing requests are served under a private cache key (see
+  // talentSitePrivateCacheKeyUrl); a rewrite to it is the only key change the CDN sees.
+  const serve = (url: URL): NextResponse =>
+    finish(
+      NextResponse.rewrite(talentSitePrivateCacheKeyUrl(request, url) ?? url, {
+        request: { headers: talentHeaders },
+      }),
+    );
   if (decision.kind === "passthrough") {
     if (localeStripped === pathname) {
-      return attachGuestCookie(NextResponse.next({ request: { headers: talentHeaders } }));
+      const privateKey = talentSitePrivateCacheKeyUrl(request, request.nextUrl);
+      if (privateKey) return serve(privateKey);
+      return finish(NextResponse.next({ request: { headers: talentHeaders } }));
     }
     // `/en/c/<id>`: serve the unprefixed route under the chosen language.
     const inner = request.nextUrl.clone();
     inner.pathname = localeStripped;
-    return rememberChoice(attachGuestCookie(NextResponse.rewrite(inner, { request: { headers: talentHeaders } })));
+    return serve(inner);
   }
 
   const rewriteUrl = request.nextUrl.clone();
   rewriteUrl.pathname = talentSiteHostRewritePath(decision.pageSlug);
-  return rememberChoice(attachGuestCookie(NextResponse.rewrite(rewriteUrl, { request: { headers: talentHeaders } })));
+  return serve(rewriteUrl);
 }

@@ -48,6 +48,8 @@ const MyWebsiteCard = dynamic(
     import("@/components/talent/site/maison-setup/MyWebsiteCard").then((m) => m.MyWebsiteCard),
   { ssr: false },
 );
+import { SitePublishEntry } from "@/components/talent/site/maison-setup/SitePublishEntry";
+import { sitePublishEntryState } from "@/components/talent/site/maison-setup/site-publish-entry";
 import { PresenceSiteTiles } from "@/components/talent/site/maison-setup/MyWebsiteCard";
 import { PrimaryButton } from "@/components/admin/shell/internal/primitives";
 import { takeOr } from "./public-page-bootstrap";
@@ -59,6 +61,13 @@ import {
 import type { MaxSiteManagerState } from "@/lib/talent-site/server/site-management-types";
 import { isThemeApplyBusy, useThemeApplyBusy } from "@/lib/talent-site/history/apply-busy";
 import { CustomDomainRow } from "@/components/talent/site/CustomDomainRow";
+import { FreeTierAppsEntry } from "@/components/talent/site/FreeTierAppsEntry";
+import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
+import {
+  PERSONAL_SITE_BUILDER_HREF,
+  resolveTalentDashboardMyWebsite,
+} from "@/lib/talent-site/dashboard-my-website";
+import { talentLeaveForWorkspaceAdminHref } from "@/lib/talent-site/hard-nav-workspace-admin";
 
 type Props = { locale?: "en" | "es" };
 
@@ -71,6 +80,8 @@ type ManagerProps = Props & {
   hideDomainRow?: boolean;
 };
 
+const MANAGER_LOAD_TIMEOUT_MS = 20_000;
+
 export function TalentMaxSiteManager({
   locale = "en",
   onOpenDomain,
@@ -80,6 +91,9 @@ export function TalentMaxSiteManager({
   hideDomainRow = false,
 }: ManagerProps) {
   const copy = useDashboardText();
+  const dashLoad = useTalentSiteDashboardInitialLoad();
+  const myWebsite =
+    dashLoad && dashLoad.ok ? resolveTalentDashboardMyWebsite(dashLoad.state) : null;
   const [state, setState] = useState<MaxSiteManagerState | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +101,14 @@ export function TalentMaxSiteManager({
   // Never hang on "Loading your website…": a thrown action lands in `error`.
   const reload = useCallback(async () => {
     try {
-      const res = await takeOr("manager", "manager", loadMaxSiteManagerAction);
+      // TUL-728: server actions queue one at a time; a stuck one left this card
+      // on "Loading your website…" forever. Time out into the retry state.
+      const res = await Promise.race([
+        takeOr("manager", "manager", loadMaxSiteManagerAction),
+        new Promise<never>((_, reject) => {
+          window.setTimeout(() => reject(new Error("manager-load-timeout")), MANAGER_LOAD_TIMEOUT_MS);
+        }),
+      ]);
       if (!res.ok) {
         setError(res.error);
         setState(null);
@@ -119,6 +140,31 @@ export function TalentMaxSiteManager({
     void reload();
   };
 
+  // TUL-180 Option A: dual / business owners treat the workspace site as
+  // "My website". Keep a visible secondary personal card for dual owners so
+  // the personal site stays reachable from Presence (not only Website settings).
+  if (myWebsite?.kind === "workspace") {
+    const isDual = Boolean(dashLoad?.ok && dashLoad.state.isDualSiteOwner);
+    const personalUrl =
+      dashLoad?.ok ? dashLoad.state.personalPublicSiteUrl ?? null : null;
+    return (
+      <div
+        style={{ display: "flex", flexDirection: "column", gap: 14 }}
+        data-talent-max-site-manager
+        data-testid="workspace-primary-website"
+      >
+        <WorkspacePrimaryWebsiteCard
+          publicUrl={myWebsite.publicUrl}
+          editHref={myWebsite.editHref}
+          designHref={myWebsite.designHref}
+        />
+        {isDual ? (
+          <SecondaryPersonalWebsiteCard personalPublicUrl={personalUrl} />
+        ) : null}
+      </div>
+    );
+  }
+
   if (loading) {
     return <Card><span style={mutedText}>{copy.t("Loading your website…")}</span></Card>;
   }
@@ -136,7 +182,18 @@ export function TalentMaxSiteManager({
   }
 
   if (!state.canManage) {
-    return <UpsellCard />;
+    // TUL-39: free / flags-off still browses Apps (Nail Designer + Web Office
+    // badge + Upgrade). Upsell alone left the pack with no Apps entry.
+    return (
+      <div
+        style={{ display: "flex", flexDirection: "column", gap: 14 }}
+        data-talent-max-site-manager
+        data-testid="talent-site-free-upsell"
+      >
+        <UpsellCard />
+        <FreeTierAppsEntry locale={locale === "es" ? "es" : "en"} />
+      </div>
+    );
   }
 
   if (!state.siteExists) {
@@ -157,22 +214,161 @@ export function TalentMaxSiteManager({
   );
 }
 
+/** Compact Presence card when "My website" is the business workspace (TUL-180). */
+function WorkspacePrimaryWebsiteCard({
+  publicUrl,
+  editHref,
+  designHref,
+}: {
+  publicUrl: string | null;
+  editHref: string;
+  designHref: string | null;
+}) {
+  const copy = useDashboardText();
+  const host = publicUrl ? publicUrl.replace(/^https?:\/\//, "") : null;
+  return (
+    <Card>
+      <p style={{ margin: 0, fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: COLORS.inkMuted }}>
+        {copy.t("My website")}
+      </p>
+      <h3
+        style={{
+          margin: "8px 0 6px",
+          fontFamily: FONTS.display,
+          fontSize: 18,
+          fontWeight: 700,
+          color: COLORS.ink,
+        }}
+      >
+        {host ?? copy.t("Your business website")}
+      </h3>
+      <p style={{ margin: "0 0 14px", fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+        {copy.t("This is your business site. Edit pages, design and domain here.")}
+      </p>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+        {/* live4-01: hard nav into workspace admin — soft Link leaves Hoy stuck. */}
+        {talentLeaveForWorkspaceAdminHref(editHref) ? (
+          <a
+            href={editHref}
+            data-testid="workspace-primary-edit-site"
+            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-[var(--tulala-primary-fill,#3B8277)] bg-[var(--tulala-primary-fill,#3B8277)] px-5 text-[14px] font-semibold text-white no-underline hover:border-[var(--tulala-primary-fill-deep,#326F66)] hover:bg-[var(--tulala-primary-fill-deep,#326F66)]"
+          >
+            {copy.t("Edit site")}
+          </a>
+        ) : (
+          <Link
+            href={editHref}
+            data-testid="workspace-primary-edit-site"
+            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-[var(--tulala-primary-fill,#3B8277)] bg-[var(--tulala-primary-fill,#3B8277)] px-5 text-[14px] font-semibold text-white no-underline hover:border-[var(--tulala-primary-fill-deep,#326F66)] hover:bg-[var(--tulala-primary-fill-deep,#326F66)]"
+          >
+            {copy.t("Edit site")}
+          </Link>
+        )}
+        {designHref && talentLeaveForWorkspaceAdminHref(designHref) ? (
+          <a
+            href={designHref}
+            data-testid="maison-change-design"
+            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-admin-border-soft bg-white px-5 text-[14px] font-semibold text-admin-ink no-underline"
+          >
+            {copy.t("Change design")}
+          </a>
+        ) : designHref ? (
+          <Link
+            href={designHref}
+            data-testid="maison-change-design"
+            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-admin-border-soft bg-white px-5 text-[14px] font-semibold text-admin-ink no-underline"
+          >
+            {copy.t("Change design")}
+          </Link>
+        ) : null}
+        {publicUrl ? (
+          <Link
+            href={publicUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="workspace-primary-view-site"
+            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-admin-border-soft bg-white px-5 text-[14px] font-semibold text-admin-ink no-underline"
+          >
+            {copy.t("Open site")}
+          </Link>
+        ) : null}
+      </div>
+    </Card>
+  );
+}
+
+/** Dual-owner escape hatch: personal site stays visible on Presence (TUL-180). */
+function SecondaryPersonalWebsiteCard({
+  personalPublicUrl,
+}: {
+  personalPublicUrl: string | null;
+}) {
+  const copy = useDashboardText();
+  const host = personalPublicUrl
+    ? personalPublicUrl.replace(/^https?:\/\//, "")
+    : null;
+  return (
+    <Card data-testid="secondary-personal-website">
+      <p style={{ margin: 0, fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: COLORS.inkMuted }}>
+        {copy.t("Other websites")}
+      </p>
+      <h3
+        style={{
+          margin: "8px 0 6px",
+          fontFamily: FONTS.display,
+          fontSize: 16,
+          fontWeight: 700,
+          color: COLORS.ink,
+        }}
+      >
+        {copy.t("Personal site")}
+      </h3>
+      <p style={{ margin: "0 0 14px", fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+        {host
+          ? host
+          : copy.t("Edit your personal site separately from your business site.")}
+      </p>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+        <Link
+          href={PERSONAL_SITE_BUILDER_HREF}
+          data-testid="secondary-personal-edit-site"
+          className="inline-flex min-h-12 items-center justify-center rounded-xl border border-admin-border-soft bg-white px-5 text-[14px] font-semibold text-admin-ink no-underline"
+        >
+          {copy.t("Edit site")}
+        </Link>
+        {personalPublicUrl ? (
+          <Link
+            href={personalPublicUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="secondary-personal-view-site"
+            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-admin-border-soft bg-white px-5 text-[14px] font-semibold text-admin-ink no-underline"
+          >
+            {copy.t("Open site")}
+          </Link>
+        ) : null}
+      </div>
+    </Card>
+  );
+}
+
 // ── Upsell (non-Max) ─────────────────────────────────────────────────────────
 
 function UpsellCard() {
   const { openDrawer } = useAdminShell();
+  const copy = useDashboardText();
   return (
     <Card>
-      <Badge>PORTFOLIO FEATURE</Badge>
+      <Badge>{copy.t("PORTFOLIO FEATURE")}</Badge>
       <h3 style={{ margin: "10px 0 6px", fontFamily: FONTS.display, fontSize: 16, fontWeight: 700, color: COLORS.ink }}>
-        Your own website
+        {copy.t("Your own website")}
       </h3>
       <p style={{ margin: "0 0 14px", fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.55, maxWidth: 560 }}>
-        Upgrade to Portfolio to build a full multi-page website with your own header, logo,
-        footer, and a custom address — published at its own link, separate from your
-        discovery profile.
+        {copy.t(
+          "Upgrade to Portfolio to build a full multi-page website with your own header, logo, footer, and a custom address — published at its own link, separate from your discovery profile.",
+        )}
       </p>
-      <PrimaryButton onClick={() => openDrawer("talent-tier-compare")}>See plans</PrimaryButton>
+      <PrimaryButton onClick={() => openDrawer("talent-tier-compare")}>{copy.t("See plans")}</PrimaryButton>
     </Card>
   );
 }
@@ -304,6 +500,8 @@ function ManagerBody({
             setMaisonForceReason("restored");
             setMaisonForceScreen("gallery");
           }}
+          onOpenReview={() => openSetup("review")}
+          hasReviewHost={maisonSetupEnabled}
           onRestoredToReview={() => {
             setMaisonForceReason("restored");
             setMaisonForceScreen("review");
@@ -325,6 +523,33 @@ function ManagerBody({
       ) : setupOpen ? null : (
         <>
           <WebsiteEligibilityPanel onActivate={openSetup} />
+          <SitePublishEntry
+            locale={locale === "es" ? "es" : "en"}
+            state={sitePublishEntryState({
+              published: false,
+              publishable: Boolean(state.themeDesignSlug?.trim() && state.siteSlug),
+              hasPending: null,
+            })}
+            publicSiteUrl={null}
+            onOpenReview={() => openSetup("review")}
+            hasReviewHost={maisonSetupEnabled}
+          />
+          {/* TUL-559: Cambiar diseño must be reachable before publish too
+              (live card is the only place that had it). */}
+          <div className="flex flex-wrap gap-2" data-testid="maison-site-secondary-actions">
+            <button
+              type="button"
+              data-testid="maison-change-design"
+              onClick={() => {
+                setMaisonForceReason("restored");
+                setMaisonForceScreen("gallery");
+                openSetup("gallery");
+              }}
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-admin-border-soft bg-white px-3 text-[13px] font-semibold text-admin-ink hover:bg-admin-surface-alt focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tc-action,#3B8277)]"
+            >
+              {locale === "es" ? "Cambiar diseño" : "Change design"}
+            </button>
+          </div>
           {/* Pre-publish: Domain / Questions / Settings / Apps stay reachable
               when MyWebsiteCard (live-only) is not mounted. */}
           {hideDomainRow || onOpenQuestions || onOpenSettings || onOpenApps ? (
@@ -392,6 +617,8 @@ function ManagerBody({
           <ManagerThemeGallery
             locale={locale}
             onApplied={onReload}
+            onPublish={handlePublish}
+            publishPending={pending}
             wrap={(gallery) => <Card>{gallery}</Card>}
             fallback={
               <Card>

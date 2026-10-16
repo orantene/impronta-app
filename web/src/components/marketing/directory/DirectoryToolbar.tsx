@@ -1,5 +1,6 @@
 "use client";
 
+import { useDirectoryCopy } from "./directory-copy-context";
 import { FOCUS_RING, type DirectoryView, type DiscoverSort } from "./shared";
 
 /**
@@ -25,6 +26,7 @@ export function DirectoryToolbar({
   onSort: (sort: DiscoverSort) => void;
   onOpenFilters: () => void;
 }) {
+  const t = useDirectoryCopy();
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex items-center gap-3">
@@ -39,7 +41,7 @@ export function DirectoryToolbar({
           }}
         >
           <FilterGlyph />
-          Filters
+          {t.filters}
           {activeFilterCount > 0 ? (
             <span
               className="inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[0.625rem] font-semibold"
@@ -51,49 +53,49 @@ export function DirectoryToolbar({
         </button>
         <p className="text-[0.875rem]" style={{ color: "var(--plt-muted)" }}>
           <span className="font-semibold" style={{ color: "var(--plt-ink)" }}>
-            {total.toLocaleString()}
+            {total.toLocaleString(t.numberLocale)}
           </span>{" "}
-          {total === 1 ? "profile" : "profiles"}
+          {t.profileNoun(total)}
         </p>
       </div>
 
       <div className="flex items-center gap-2.5">
         {view !== "map" ? (
           <label className="flex items-center gap-2 text-[0.8125rem]" style={{ color: "var(--plt-muted)" }}>
-            <span className="hidden sm:inline">Sort</span>
+            <span className="hidden sm:inline">{t.sort}</span>
             <select
               value={sort}
-              aria-label="Sort"
+              aria-label={t.sort}
               onChange={(e) => onSort(e.target.value === "availability" ? "availability" : "recommended")}
               className="h-9 rounded-full pl-3.5 pr-8 text-[0.8125rem] font-medium outline-none transition-colors focus:shadow-[0_0_0_4px_var(--plt-forest-ring)]"
               style={{
                 border: "1px solid var(--plt-hairline-strong)",
                 background:
-                  "var(--plt-bg-raised) url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%236b7065' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\") no-repeat right 0.9rem center",
+                  "var(--plt-bg-raised) url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%235f645a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\") no-repeat right 0.9rem center",
                 color: "var(--plt-ink)",
                 appearance: "none",
                 WebkitAppearance: "none",
               }}
             >
-              <option value="recommended">Recommended</option>
-              <option value="availability">Most available</option>
+              <option value="recommended">{t.sortRecommended}</option>
+              <option value="availability">{t.sortAvailability}</option>
             </select>
           </label>
         ) : null}
 
         <div
           role="tablist"
-          aria-label="View mode"
+          aria-label={t.viewMode}
           className="inline-flex items-center gap-0.5 rounded-full p-0.5"
           style={{ background: "var(--plt-bg-deep)", border: "1px solid var(--plt-hairline)" }}
         >
-          <ViewTab label="Grid" active={view === "grid"} onClick={() => onView("grid")}>
+          <ViewTab label={t.viewGrid} active={view === "grid"} onClick={() => onView("grid")}>
             <GridGlyph />
           </ViewTab>
-          <ViewTab label="List" active={view === "list"} onClick={() => onView("list")}>
+          <ViewTab label={t.viewList} active={view === "list"} onClick={() => onView("list")}>
             <ListGlyph />
           </ViewTab>
-          <ViewTab label="Map" active={view === "map"} onClick={() => onView("map")}>
+          <ViewTab label={t.viewMap} active={view === "map"} onClick={() => onView("map")}>
             <MapGlyph />
           </ViewTab>
         </div>

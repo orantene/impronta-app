@@ -38,6 +38,7 @@ export const ES_TALENT_CHROME_TEXT: Record<string, string> = {
     "Los visitantes siguen viendo la última versión publicada hasta que publiques.",
   "Click to save now (⌘S).": "Haz clic para guardar ahora (⌘S).",
   "Mobile health": "Salud en móvil",
+  "Mobile checks": "Revisiones móvil",
   "All clear": "Todo en orden",
   "{n} block publish": "{n} bloquea la publicación",
   "{n} blocks publish": "{n} bloquean la publicación",

@@ -31,6 +31,7 @@ export interface AddGalleryInsertDeps {
     parentId: string | null,
     sectionTypeKey: string,
     index?: number,
+    copy?: TemplateCopyContext,
   ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
   insertBuilderComponent: (
     parentId: string | null,
@@ -87,6 +88,7 @@ export async function performAddGalleryInsert(
         parentId,
         action.sectionTypeKey,
         index,
+        context.copy,
       );
     default:
       return { ok: false, error: "Unsupported insert action." };

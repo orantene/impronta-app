@@ -14,6 +14,9 @@ import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type { DryRunReport } from "@/lib/talent-site/theme-releases/manager/dry-run";
 import type { ReleaseItem } from "@/lib/talent-site/theme-releases/types";
+import { loadFirstPublishSummary } from "@/lib/talent-site/theme-template/stale-drafts.server";
+import type { FirstPublishSummary } from "@/lib/talent-site/theme-template/stale-drafts";
+import { discardThemeDraft } from "@/lib/talent-site/theme-template/drafts.server";
 import {
   previewThemeDraftPublish,
   publishAndUpdateDemos,
@@ -104,5 +107,36 @@ export async function actionPublishDesignAndUpdateDemos(
     revalidatePath(releaseHref(r.value.releaseId));
     const { version, releaseId, demosApplied, warnings } = r.value;
     return { ok: true, data: { version, releaseId, demosApplied, warnings, href: releaseHref(releaseId) } };
+  });
+}
+
+/**
+ * Discard the open draft of a design (status -> discarded; the row is kept).
+ * Same platform-admin gate as publish, and a `draft_rev` check: a draft saved
+ * after the list loaded is not discarded.
+ */
+export async function actionDiscardDesignDraft(
+  design: string,
+  expectedRev: number,
+): Promise<Result<{ design: string }>> {
+  await requireNotImpersonating();
+  const slug = cleanSlug(design);
+  const rev = cleanRev(expectedRev);
+  if (!slug || rev === null) return { ok: false, error: "Unknown design or draft revision." };
+  return withAdmin(async (admin, userId) => {
+    const r = await discardThemeDraft(admin, slug, userId, rev);
+    if (!r.ok) return { ok: false, code: r.code, error: r.error };
+    revalidatePath(RELEASES);
+    return { ok: true, data: { design: slug } };
+  });
+}
+
+/** Read-only: what the first publish would change for the design's real sites (no writes). */
+export async function actionFirstPublishDryRun(design: string): Promise<Result<FirstPublishSummary>> {
+  const slug = cleanSlug(design);
+  if (!slug) return { ok: false, error: "Unknown design." };
+  return withAdmin(async (admin) => {
+    const r = await loadFirstPublishSummary(admin, slug);
+    return r.ok ? { ok: true, data: r.summary } : { ok: false, error: r.error, errorEs: r.errorEs };
   });
 }

@@ -6,11 +6,9 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import {
-  loadClientSelfProfile,
-  loadClientInquiries,
-  loadWorkspaceRosterLite,
-} from "../../_data-bridge";
+import type { loadClientInquiries } from "../../_data-bridge";
+import { clientPageReadCtx } from "../_data-bridge/client-read-ctx";
+import { loadInquiriesPageData } from "../_data-bridge/client-page-loaders";
 import { clientDateMs, formatClientDate } from "../date-format";
 import { ClientPageHeader, HeaderBadge } from "../_components/ClientPageHeader";
 import { NewInquiryButton } from "../_components/NewInquiryButton";
@@ -326,13 +324,13 @@ export default async function ClientInquiriesPage({ params }: { params: PagePara
   const scope = await getTenantPortalScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
-  const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
-  if (!clientProfile) notFound();
-
-  const [inquiries, roster] = await Promise.all([
-    loadClientInquiries(session.user.id, scope.tenantId),
-    loadWorkspaceRosterLite(scope.tenantId),
-  ]);
+  const pageData = await loadInquiriesPageData(
+    session.user.id,
+    scope.tenantId,
+    await clientPageReadCtx(session.user.id),
+  );
+  if (!pageData) notFound();
+  const { inquiries, roster, read: { profile: clientProfile } } = pageData;
 
   const open   = inquiries.filter((i) => !isTerminal(i.status));
   const closed = inquiries.filter((i) => isTerminal(i.status));

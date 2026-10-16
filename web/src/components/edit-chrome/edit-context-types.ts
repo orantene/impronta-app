@@ -660,7 +660,7 @@ export interface EditContextValue extends EditContextChromeAndSessionValue {
   insertBuilderSectionEmbed: (
     parentId: string | null,
     sectionTypeKey: string,
-    index?: number,
+    index?: number, copy?: import("@/lib/site-admin/add-gallery/section-template-copy").TemplateCopyContext,
   ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
   /**
    * Living components — insert a saved block subtree (ids re-minted to copies)

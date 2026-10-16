@@ -44,6 +44,7 @@
  */
 
 import type Stripe from "stripe";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getStripe, getStripeFor, withObjectPlatformFallback, type StripeAccountKey } from "@/lib/stripe/client";
 import { recordChargePlatform, resolveSellerPlatformForTransaction } from "@/lib/stripe/charge-platform";
 import { checkTransactionChargeCurrency, type ChargeCurrencyGuard } from "@/lib/payments/seller-currency-guard";
@@ -68,6 +69,8 @@ export { getStripe };
 export type CheckoutSessionInput = {
   transactionId: string;
   amountCents: number;
+  /** Part of `amountCents` that is the client service fee; shown as its own Checkout line (the total is unchanged). */
+  serviceFeeCents?: number;
   currency: string;
   payerEmail: string | null;
   /**
@@ -169,29 +172,37 @@ export function checkoutFailureIsUncertain(err: unknown): boolean {
  */
 export async function createCheckoutSessionForTransaction(
   input: CheckoutSessionInput,
-  deps: { stripe?: Stripe | null; platform?: StripeAccountKey; currencyGuard?: ChargeCurrencyGuard } = {},
+  deps: {
+    stripe?: Stripe | null;
+    platform?: StripeAccountKey;
+    currencyGuard?: ChargeCurrencyGuard;
+    /** Tests: injected DB client for the guard, platform resolution and the platform stamp. */
+    sb?: SupabaseClient | null;
+    /** Tests: per-platform Stripe client factory. */
+    stripeFor?: (key: StripeAccountKey) => Stripe | null;
+  } = {},
 ): Promise<CheckoutSessionResult> {
   try {
     // TUL-284: the charge currency must match the seller of record. Fails
     // CLOSED on a seller-read error, before any platform or Stripe work. An
     // injected stripe / platform (tests) skips it unless a guard is injected.
-    const guardFn = deps.currencyGuard ?? (deps.stripe !== undefined || deps.platform ? null : checkTransactionChargeCurrency);
+    const guardFn = deps.currencyGuard ?? ((deps.stripe !== undefined || deps.platform) && !deps.sb ? null : checkTransactionChargeCurrency);
     if (guardFn) {
-      const check = await guardFn(createServiceRoleClient(), { transactionId: input.transactionId, currency: input.currency });
+      const check = await guardFn(deps.sb ?? createServiceRoleClient(), { transactionId: input.transactionId, currency: input.currency, locale: input.locale });
       if (!check.ok) return { ok: false, error: check.message, uncertain: false };
     }
     // The seller of record's platform decides which Stripe account takes the
     // charge (default 'us'). An injected client (tests) is used as-is.
     let platform: StripeAccountKey;
     if (deps.platform) platform = deps.platform;
-    else if (deps.stripe !== undefined) platform = "us";
+    else if (deps.stripe !== undefined && !deps.sb) platform = "us";
     else {
-      const resolved = await resolveSellerPlatformForTransaction(input.transactionId);
+      const resolved = await resolveSellerPlatformForTransaction(input.transactionId, deps.sb);
       // Fail closed: never guess a platform (TUL-142).
       if (!resolved.ok) return { ok: false, error: "Payments for this seller are not available right now.", uncertain: false };
       platform = resolved.key;
     }
-    const stripe = deps.stripe !== undefined ? deps.stripe : getStripeFor(platform);
+    const stripe = deps.stripe !== undefined ? deps.stripe : (deps.stripeFor ?? getStripeFor)(platform);
     if (!stripe && platform === "mx") {
       return { ok: false, error: "Payments for this seller are not available right now.", uncertain: false };
     }
@@ -237,18 +248,7 @@ export async function createCheckoutSessionForTransaction(
       // Dashboard payment-method configuration (Link, wallets, installments,
       // crypto, and delayed methods such as OXXO/SPEI once enabled). Delayed
       // methods settle via `checkout.session.async_payment_*` (webhook-routing).
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: input.currency.toLowerCase(),
-            unit_amount: input.amountCents,
-            product_data: {
-              name: input.description ?? "Booking invoice",
-            },
-          },
-        },
-      ],
+      line_items: checkoutLineItems(input),
       customer_email: input.payerEmail ?? undefined,
       // Pay in the language the client is already reading the app in.
       locale: stripeCheckoutLocale(input.locale),
@@ -295,7 +295,7 @@ export async function createCheckoutSessionForTransaction(
     // resume of an abandoned checkout correctly returns the same session.
     // Fail closed: an MX charge must be recorded as MX before it can exist, or
     // payouts/refunds would later run on the wrong platform.
-    if (!(await recordChargePlatform(input.transactionId, platform))) {
+    if (!(await recordChargePlatform(input.transactionId, platform, deps.sb))) {
       return { ok: false, error: "Failed to create payment session.", uncertain: false };
     }
     const session = await stripe.checkout.sessions.create(sessionParams, {
@@ -388,4 +388,27 @@ export async function expireCheckoutSession(
     logServerError("payments.stripe.expireCheckoutSession", err);
     return { ok: false, reason: "unavailable" };
   }
+}
+
+const SERVICE_FEE_LABEL: Record<string, string> = { es: "Cargo por servicio", fr: "Frais de service" };
+
+/** One line, or the principal plus a separate service-fee line; the two always sum to `amountCents`. */
+export function checkoutLineItems(input: {
+  amountCents: number;
+  currency: string;
+  description?: string;
+  serviceFeeCents?: number;
+  locale?: string | null;
+}): NonNullable<Stripe.Checkout.SessionCreateParams["line_items"]> {
+  const currency = input.currency.toLowerCase();
+  const name = input.description ?? "Booking invoice";
+  const fee = Math.round(input.serviceFeeCents ?? 0);
+  if (!(fee > 0) || fee >= input.amountCents) {
+    return [{ quantity: 1, price_data: { currency, unit_amount: input.amountCents, product_data: { name } } }];
+  }
+  const feeName = SERVICE_FEE_LABEL[(input.locale ?? "").slice(0, 2).toLowerCase()] ?? "Service fee";
+  return [
+    { quantity: 1, price_data: { currency, unit_amount: input.amountCents - fee, product_data: { name } } },
+    { quantity: 1, price_data: { currency, unit_amount: fee, product_data: { name: feeName } } },
+  ];
 }

@@ -120,7 +120,7 @@ test("live values: Spanish and English come from real facts, empty parts drop ou
   assert.equal(es.footer_intro, "Manicurista en Mérida.");
   assert.equal(es.footer_where, "Centro, Mérida");
   assert.equal(es.footer_hours, "Con cita, lun a sáb");
-  assert.match(es.footer_contact ?? "", /^Instagram · \[@alba\.unas\.demo\]\(https:\/\/[^)]+\)$/);
+  assert.match(es.footer_contact ?? "", /^\[Instagram · @alba\.unas\.demo\]\(https:\/\/[^)]+\)$/);
   const en = buildTalentLiveText(SRC, "en").values;
   assert.equal(en.hero_eyebrow, "Nail Artist · Merida");
   assert.equal(en.hero_proof, "9 years of craft · Español · English · ★ 4.9 · 212 reviews");
@@ -173,7 +173,7 @@ test("explicit live lines take the profile value; eyebrow and headline keep thei
   assert.equal(textOf(left[1]!), "Nail Artist");
 });
 
-test("a footer column with no live line disappears whole; the contact column keeps its button", () => {
+test("a footer column with no live line disappears whole (WHERE and CONTACT)", () => {
   const col = (slot: string, lines: BuilderNode[]) => box(slot, [h(`${slot}-h`, "x", {}), ...lines, p(`${slot}-l`, "link")], { slotKey: slot });
   const footer = box("f", [
     box("cols", [
@@ -183,12 +183,11 @@ test("a footer column with no live line disappears whole; the contact column kee
   ]);
   const full = applyTalentLiveText([footer], LIVE);
   assert.equal(JSON.stringify(full).includes("footer_where"), true);
+  assert.equal(JSON.stringify(full).includes("footer_contact"), true);
 
   const empty = applyTalentLiveText([footer], { values: {} });
-  const cols = ((empty[0] as unknown as { children: BuilderNode[] }).children[0] as unknown as { children: BuilderNode[] }).children;
-  assert.equal(cols.length, 1, "only the contact column is left");
-  assert.equal((cols[0]!.props as { slotKey?: string }).slotKey, "footer_contact");
-  assert.equal(((cols[0] as unknown as { children: BuilderNode[] }).children).length, 2, "heading + link, the Instagram line is gone");
+  // Both columns are husks without live data; the whole cols wrapper goes.
+  assert.equal(empty.length, 0, "empty WHERE + CONTACT columns drop the footer cols row");
 
   const nothing = applyTalentLiveText([box("f2", [box("cols", [col("footer_where", [p("w", "​", { liveText: "footer_where" })])])])], { values: {} });
   assert.equal(nothing.length, 0, "an empty row of nothing goes too");
@@ -427,9 +426,20 @@ test("TUL-59 C: contact line links the Instagram handle and a WhatsApp link she 
   const { contactLine } = await import("./live-text-values");
   assert.equal(
     contactLine("@alba", "https://instagram.com/alba", "https://wa.me/5219990000000"),
-    "Instagram · [@alba](https://instagram.com/alba) · [WhatsApp](https://wa.me/5219990000000)",
+    "[Instagram · @alba](https://instagram.com/alba) · [WhatsApp](https://wa.me/5219990000000)",
   );
-  assert.equal(contactLine("@alba", null, null), "Instagram · [@alba](https://instagram.com/alba)");
+  assert.equal(contactLine("@alba", null, null), "[Instagram · @alba](https://instagram.com/alba)");
   assert.equal(contactLine("", null, "javascript:alert(1)"), "");
   assert.equal(contactLine("", null, "https://wa.me/5219990000000"), "[WhatsApp](https://wa.me/5219990000000)");
+});
+
+test("TUL-578: a stored plain hero H1 gets the accent word; explicit markup and unstamped headings are kept", () => {
+  const plain = applyTalentLiveText(stampedHero("Nail Artist", "x", "Pestañas que enmarcan tu mirada."), LIVE);
+  const c = (plain[0] as unknown as { children: Array<{ children: BuilderNode[] }> }).children[0]!.children;
+  assert.equal(textOf(c[0]!), "Pestañas que {i}enmarcan{/i} tu mirada.");
+  const own = applyTalentLiveText(stampedHero("Nail Artist", "x", "Pestañas {i}tu{/i} mirada"), LIVE);
+  const c2 = (own[0] as unknown as { children: Array<{ children: BuilderNode[] }> }).children[0]!.children;
+  assert.equal(textOf(c2[0]!), "Pestañas {i}tu{/i} mirada");
+  const bare = applyTalentLiveText([box("x", [h("h", "Pestañas que enmarcan tu mirada.")])], LIVE);
+  assert.equal(textOf((bare[0] as unknown as { children: BuilderNode[] }).children[0]!), "Pestañas que enmarcan tu mirada.");
 });

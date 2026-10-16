@@ -61,12 +61,19 @@ test("map: carries EN + ES summaries, actor, edit count, last write time and rev
   assert.equal(r!.version, 12);
 });
 
-test("map: only theme_update / auto_improve entries can offer Undo this update", () => {
+test("map: theme_update / auto_improve / design_apply can offer Undo when flagged", () => {
   const rows = mapHistoryRowsToRevisions(
-    [row("theme_update", { undoable: true }), row("auto_improve", { undoable: true }), row("edit", { undoable: true }), row("theme_update", { undoable: false })],
+    [
+      row("theme_update", { undoable: true }),
+      row("auto_improve", { undoable: true }),
+      row("design_apply", { undoable: true }),
+      row("edit", { undoable: true }),
+      row("theme_update", { undoable: false }),
+      row("design_apply", { undoable: false }),
+    ],
     target,
   );
-  assert.deepEqual(rows.map((r) => r.history!.undoable), [true, true, false, false]);
+  assert.deepEqual(rows.map((r) => r.history!.undoable), [true, true, true, false, false, false]);
 });
 
 test("map: author names resolve from the profiles map", () => {
@@ -127,6 +134,6 @@ test("copy: conflict notice and draft chip in EN + ES, no em dashes", () => {
   assert.equal(pick(CONFLICT_COPY, "en"), "Updated in another tab · Reload");
   assert.equal(pick(CONFLICT_COPY, "es-MX"), "Actualizado en otra pestaña · Recargar");
   assert.equal(pick(unpublishedChangesLabel(1), "en"), "Draft · 1 unpublished change");
-  assert.equal(pick(unpublishedChangesLabel(3), "es"), "Borrador · 3 cambios sin publicar");
+  assert.equal(pick(unpublishedChangesLabel(3), "es"), "Borrador · 3 sin publicar");
   assert.equal(/—/.test(JSON.stringify([CONFLICT_COPY, unpublishedChangesLabel(2)])), false);
 });

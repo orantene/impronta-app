@@ -49,7 +49,11 @@ export function mapHistoryRowsToRevisions(
       actor: r.actor,
       summaryEn: r.summary_en,
       summaryEs: r.summary_es,
-      undoable: r.kind === "theme_update" || r.kind === "auto_improve" ? r.undoable : false,
+      // L3 / TUL-421: design_apply stores a pre-switch snapshot (undoable).
+      undoable:
+        r.kind === "theme_update" || r.kind === "auto_improve" || r.kind === "design_apply"
+          ? r.undoable
+          : false,
       editCount: r.edit_count ?? 1,
       previewUrl: historyPreviewUrl(r.id, target),
     },

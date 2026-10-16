@@ -26,6 +26,18 @@ export function moneyStore(tables: Record<string, Row[]>) {
           return q;
         },
         eq: (col: string, v: unknown) => {
+          // PostgREST JSON path filters (`col->>key`) used by refund PI fallback.
+          if (col.includes("->>")) {
+            const [objCol, jsonKey] = col.split("->>");
+            filters.push((r) => {
+              const obj = r[objCol!];
+              if (obj && typeof obj === "object" && !Array.isArray(obj)) {
+                return (obj as Record<string, unknown>)[jsonKey!] === v;
+              }
+              return r[col] === v;
+            });
+            return q;
+          }
           filters.push((r) => r[col] === v);
           return q;
         },

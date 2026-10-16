@@ -3,24 +3,35 @@ import "server-only";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { getLanguageSettingsPublicCached } from "@/lib/language-settings/get-language-settings";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
-import { loadTalentLocaleSettings } from "@/lib/site-admin/server/talent-locale-settings";
+import { loadTalentLocaleState } from "@/lib/site-admin/server/talent-locale-settings";
 import {
+  applyLangQuery,
   decideTalentProfileLocale,
+  talentProfileSupportedSet,
   ogLocale,
   talentProfileAlternates,
   type TalentProfileLocale,
 } from "./talent-profile-locale";
 
 /** The locale a public talent profile renders in, bounded to the talent's set. */
-export async function resolveTalentProfileLocale(profileId: string): Promise<TalentProfileLocale> {
-  const [requested, settings] = await Promise.all([
+export async function resolveTalentProfileLocale(
+  profileId: string,
+  langQuery?: string | string[] | null,
+): Promise<TalentProfileLocale> {
+  const [requested, state, language] = await Promise.all([
     getRequestLocale(),
-    loadTalentLocaleSettings(profileId),
+    loadTalentLocaleState(profileId),
+    getLanguageSettingsPublicCached().catch(() => null),
   ]);
+  const { settings } = state;
   return decideTalentProfileLocale({
-    requested,
+    requested: applyLangQuery(requested, langQuery),
     primary: settings.defaultLocale,
-    supported: settings.supportedLocales,
+    supported: talentProfileSupportedSet({
+      unset: state.seedPrimary === null && settings.secondaryLocales.length === 0,
+      supported: settings.supportedLocales,
+      publicLocales: language?.publicLocales ?? [],
+    }),
   });
 }
 
@@ -34,9 +45,11 @@ export async function talentProfileLocaleMetadata(input: {
   /** Absolute app-host URL of `/t/<code>`, or null when unresolvable. */
   canonicalAbsolute: string | null;
   fallbackOrigin: string;
+  /** `?lang=` of the request: head and body must resolve the same locale (TUL-855). */
+  langQuery?: string | string[] | null;
 }) {
   const [profile, language] = await Promise.all([
-    resolveTalentProfileLocale(input.profileId),
+    resolveTalentProfileLocale(input.profileId, input.langQuery),
     getLanguageSettingsPublicCached().catch(() => null),
   ]);
   const origin = new URL(input.canonicalAbsolute ?? input.fallbackOrigin).origin;

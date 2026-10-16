@@ -35,6 +35,14 @@ test("English-only Semi-permanent gel becomes Gel semipermanente on an ES ticker
   assert.deepEqual(buildTickerServiceWords(onlyEn, "en"), ["Semi-permanent gel"]);
 });
 
+test("A-02 / TUL-475: English-only titles with no platform translation drop from an ES ticker", () => {
+  const onlyEn = [{ title: "Bridal soft glam", title_i18n: { en: "Bridal soft glam" } }];
+  assert.deepEqual(buildTickerServiceWords(onlyEn, "es"), []);
+  assert.deepEqual(buildTickerServiceWords(onlyEn, "en"), ["Bridal soft glam"]);
+  // Plain title with no i18n map still shows (Pedicure-shaped primary column).
+  assert.deepEqual(buildTickerServiceWords([{ title: "Pedicure", title_i18n: null }], "es"), ["Pedicure"]);
+});
+
 test("blank titles drop, repeats collapse in any casing, and the list is capped", () => {
   const many = Array.from({ length: 30 }, (_, i) => ({ title: `Service ${i}`, title_i18n: null }));
   assert.equal(buildTickerServiceWords(many, "en").length, 12);

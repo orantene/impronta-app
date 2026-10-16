@@ -15,7 +15,12 @@ const GOOGLE_CSS_ORIGIN = "https://fonts.googleapis.com/css2";
 const GSTATIC_ORIGIN = "https://fonts.gstatic.com";
 const MAX_FAMILIES = 8;
 const AXIS_RE = /^[0-9A-Za-z.,;@]{1,200}$/;
-const GSTATIC_PATH_RE = /^\/s\/[a-z0-9]+\/[A-Za-z0-9_.\-/]{1,200}\.(woff2|woff|ttf)$/;
+/** Classic per-file gstatic paths (`/s/fraunces/v38/….woff2`). */
+const GSTATIC_FILE_RE = /^\/s\/[a-z0-9]+\/[A-Za-z0-9_.\-/]{1,200}\.(woff2|woff|ttf)$/;
+/** Kit id / skey / version on Google's `/l/font?kit=…` CSS faces. */
+const KIT_RE = /^[A-Za-z0-9_-]{8,200}$/;
+const SKEY_RE = /^[A-Za-z0-9_-]{1,64}$/;
+const KIT_V_RE = /^v\d{1,4}$/;
 
 /** Turn a fonts.googleapis.com css2 href into the same-origin proxy href. */
 export function toFontProxyHref(googleHref: string): string {
@@ -85,16 +90,83 @@ export function buildUpstreamCssUrl(search: string): string | null {
   return `${GOOGLE_CSS_ORIGIN}?${out.join("&")}&display=swap`;
 }
 
-/** Validate a gstatic path (from the proxy file route) and return the upstream URL. */
+/**
+ * Validate a gstatic path (from the proxy file route) and return the upstream
+ * URL. Accepts:
+ *   • `/s/<family>/vN/<file>.woff2` — normal css2 faces
+ *   • `/l/font?kit=…&skey=…&v=…` — kit faces Google still emits for some
+ *     families (DM Sans); the old rewrite dropped the query and 400'd.
+ */
 export function buildUpstreamFileUrl(path: string): string | null {
-  if (!GSTATIC_PATH_RE.test(path) || path.includes("..")) return null;
-  return `${GSTATIC_ORIGIN}${path}`;
+  let p = path.trim();
+  if (!p || p.includes("..")) return null;
+  // Mirror the CSS proxy: tolerate one layer of percent-encoding (CDN /
+  // double-encode) so `%2Fs%2F…` still resolves.
+  if (/%[0-9A-Fa-f]{2}/.test(p)) {
+    try {
+      p = decodeURIComponent(p);
+    } catch {
+      return null;
+    }
+  }
+  if (p.startsWith(GSTATIC_ORIGIN)) p = p.slice(GSTATIC_ORIGIN.length);
+  if (GSTATIC_FILE_RE.test(p)) return `${GSTATIC_ORIGIN}${p}`;
+  return buildUpstreamKitUrl(p);
 }
 
-/** Rewrite every gstatic URL inside a Google CSS sheet to the file proxy. */
+/** Allow-listed `/l/font?kit=&skey=&v=` only — no other query keys. */
+function buildUpstreamKitUrl(path: string): string | null {
+  if (!path.startsWith("/l/font?")) return null;
+  let params: URLSearchParams;
+  try {
+    params = new URLSearchParams(path.slice("/l/font?".length));
+  } catch {
+    return null;
+  }
+  const kit = params.get("kit");
+  if (!kit || !KIT_RE.test(kit)) return null;
+  const skey = params.get("skey");
+  if (skey !== null && !SKEY_RE.test(skey)) return null;
+  const v = params.get("v");
+  if (v !== null && !KIT_V_RE.test(v)) return null;
+  for (const key of params.keys()) {
+    if (key !== "kit" && key !== "skey" && key !== "v") return null;
+  }
+  const out = new URLSearchParams();
+  out.set("kit", kit);
+  if (skey) out.set("skey", skey);
+  if (v) out.set("v", v);
+  return `${GSTATIC_ORIGIN}/l/font?${out.toString()}`;
+}
+
+/**
+ * When an older rewritten sheet left `?kit=&skey=&v=` as *sibling* query
+ * params next to `p=/l/font`, fold them back into `p` so cached CSS keeps
+ * working until it expires.
+ */
+export function coalesceFontFilePath(
+  p: string,
+  siblings: { kit?: string | null; skey?: string | null; v?: string | null },
+): string {
+  const base = p.trim();
+  if (!siblings.kit) return base;
+  if (base !== "/l/font" && !base.startsWith("/l/font?")) return base;
+  const out = new URLSearchParams();
+  out.set("kit", siblings.kit);
+  if (siblings.skey) out.set("skey", siblings.skey);
+  if (siblings.v) out.set("v", siblings.v);
+  return `/l/font?${out.toString()}`;
+}
+
+/**
+ * Rewrite every gstatic URL inside a Google CSS sheet to the file proxy.
+ * Captures query strings (`/l/font?kit=…`) so they are not left dangling
+ * after `p=` (which previously produced `/api/fonts/file?p=%2Fl%2Ffont?kit=`
+ * and 400'd).
+ */
 export function rewriteFontCss(css: string): string {
   return css.replace(
-    /https:\/\/fonts\.gstatic\.com(\/[A-Za-z0-9_.\-/]+)/g,
+    /https:\/\/fonts\.gstatic\.com(\/[^)\s'"]+)/g,
     (_m, path: string) => `${FONT_FILE_PROXY_PATH}?p=${encodeURIComponent(path)}`,
   );
 }

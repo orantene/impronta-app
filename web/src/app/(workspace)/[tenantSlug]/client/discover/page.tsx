@@ -16,10 +16,11 @@ import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { loadClientSelfProfile } from "../../_data-bridge";
+import { clientPageReadCtx } from "../_data-bridge/client-read-ctx";
+import { loadDiscoverPageData } from "../_data-bridge/client-page-loaders";
 import { loadDiscoverTalents, loadDiscoverFacets, loadDiscoverHubs } from "../../_data-bridge/discover";
 import { loadClientCardDesign } from "../_data-bridge/load-card-design";
-import { loadClientSubscription, canUsePro } from "@/lib/discover/client-subscription";
+import { canUsePro } from "@/lib/discover/client-subscription";
 import { tenantReviewsEnabled } from "@/lib/reviews/reviews-entitlement";
 import { DiscoverShell } from "./DiscoverShell";
 import { ClientPageHeader, HeaderBadge } from "../_components/ClientPageHeader";
@@ -53,12 +54,17 @@ export default async function ClientDiscoverPage({
   const scope = await getTenantPortalScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
-  const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
-  if (!clientProfile) notFound();
+  const pageUser = await loadDiscoverPageData(
+    session.user.id,
+    scope.tenantId,
+    await clientPageReadCtx(session.user.id),
+  );
+  if (!pageUser) notFound();
+  const { subscription } = pageUser;
 
   // Parallel SSR loads: paginated talents + filter facets + hubs + tier +
   // the shell-tenant card palette (painted on every Discover card).
-  const [{ items, total }, facets, hubs, subscription, cardDesign, reviewsEnabled] = await Promise.all([
+  const [{ items, total }, facets, hubs, cardDesign, reviewsEnabled] = await Promise.all([
     loadDiscoverTalents({
       country: sp.country,
       category: sp.category,
@@ -69,7 +75,6 @@ export default async function ClientDiscoverPage({
     }),
     loadDiscoverFacets(),
     loadDiscoverHubs(),
-    loadClientSubscription(session.user.id),
     loadClientCardDesign(scope.tenantId),
     // Discover is cross-tenant, so the STANDING chip is gated on the
     // DASHBOARD tenant's own reviews entitlement (the tenant hosting this

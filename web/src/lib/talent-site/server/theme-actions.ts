@@ -18,6 +18,7 @@
  * site (resolved from the gate, never from input).
  */
 
+import { getRequestLocale } from "@/i18n/request-locale";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { loadApplyDesignRow } from "@/lib/talent-site/theme-releases/release-design.server";
 import type { TalentSiteCapability } from "@/lib/access/talent-membership";
@@ -33,7 +34,9 @@ import { loadTalentLiveMedia } from "./load-live-media.server";
 import { provisionTalentMaxSite } from "./provision-max-site";
 import { gate, type GateOk } from "./site-action-gate";
 import type { ThemeActionResult } from "./theme-action-types";
-import { applyDesign, applyLook, publishSiteTheme } from "./theme-apply-core";
+import { applyDesign, applyLook, previewDesignSwitch, publishSiteTheme } from "./theme-apply-core";
+import type { DesignSwitchSummary } from "./design-switch-summary";
+import { previewSwitchSummary } from "./design-switch-preview";
 import { loadPublishedCatalogRow } from "./theme-catalog-row";
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
@@ -94,6 +97,41 @@ export async function applySiteDesignAction(input: {
     design,
     displayName: r.g.displayName,
     userId: r.g.userId,
+    locale: await getRequestLocale(),
+  });
+}
+
+/**
+ * TUL-536: read-only. What a Design switch would hide / keep, for the confirm
+ * sheet. Writes nothing; any failure just means the sheet shows no list.
+ */
+export async function previewSiteDesignSwitchAction(input: {
+  designSlug: string;
+}): Promise<ThemeActionResult<DesignSwitchSummary>> {
+  const r = await ready("personalSiteEdit");
+  if (!r.ok) return r;
+  const loaded = await loadRowFor(r, "design", input?.designSlug);
+  if (!loaded.ok) return loaded;
+  const design = (await loadApplyDesignRow(r.admin, input.designSlug)) ?? loaded.row;
+  return previewSwitchSummary({
+    locale: (await getRequestLocale()) === "es" ? "es" : "en",
+    findSiteId: async () => {
+      const { data, error } = await r.admin
+        .from("talent_sites")
+        .select("id")
+        .eq("talent_profile_id", r.g.talentProfileId)
+        .maybeSingle();
+      if (error) logServerError("talentTheme.previewSwitch.findSite", error);
+      return (data as { id: string } | null)?.id ?? null;
+    },
+    preview: async (siteId) => {
+      const res = await previewDesignSwitch(r.admin, {
+        talentProfileId: r.g.talentProfileId,
+        siteId,
+        design,
+      });
+      return res.ok ? { ok: true, warned: res.data.warned } : res;
+    },
   });
 }
 

@@ -34,6 +34,8 @@ export const DEMO_SITE_SETTINGS: Readonly<Record<string, DemoSiteSettings>> = {
   "TAL-93020": base({ siteLangs: ["es"], bookingMode: "instant", currency: "MXN" }),
   "TAL-93003": base({ siteLangs: ["es"], bookingMode: "instant", currency: "MXN" }),
   "TAL-93002": base({ siteLangs: ["es", "en"], bookingMode: "mixed", currency: "MXN", chatEnabled: true }),
+  // Valeria (GRK-068): bookings paused — public copy must not say "Puedes reservar"
+  "TAL-93001": base({ siteLangs: ["es"], bookingMode: "quote", currency: "MXN", acceptingBookings: false }),
   // Linh: request-only, chat off (shows a quieter rail)
   "TAL-93103": base({
     siteLangs: ["en"],
@@ -56,8 +58,11 @@ export const DEMO_SITE_SETTINGS: Readonly<Record<string, DemoSiteSettings>> = {
   "TAL-93112": base({ siteLangs: ["en"], bookingMode: "quote", currency: "USD", acceptingBookings: false }),
   "TAL-93113": base({ siteLangs: ["es", "en"], bookingMode: "request", currency: "MXN" }),
   "TAL-93114": base({ siteLangs: ["es", "en"], bookingMode: "mixed", currency: "MXN" }),
+  "TAL-93007": base({ siteLangs: ["es", "en"], bookingMode: "request", currency: "MXN" }),
+  "TAL-93115": base({ siteLangs: ["es", "en"], bookingMode: "mixed", currency: "MXN" }),
+  "TAL-93116": base({ siteLangs: ["es"], bookingMode: "mixed", currency: "MXN", chatEnabled: false }),
   // Gridline
-  "TAL-93030": base({ siteLangs: ["es"], bookingMode: "instant", currency: "MXN" }),
+  "TAL-93030": base({ siteLangs: ["es", "en"], bookingMode: "instant", currency: "MXN" }),
   "TAL-93206": base({ siteLangs: ["en"], bookingMode: "request", currency: "USD", chatEnabled: false }),
   "TAL-93207": base({ siteLangs: ["en"], bookingMode: "instant", currency: "USD" }),
   "TAL-93208": base({ siteLangs: ["es"], bookingMode: "quote", currency: "MXN", acceptingBookings: false }),
@@ -83,6 +88,7 @@ export function demoSiteSwitchColumns(profileCode: string): {
     greeting: string | null;
     browseServices: boolean;
     aiBookingAssistantEnabled: boolean;
+    agentBookingEnabled: boolean;
   };
 } {
   const s = demoSiteSettingsFor(profileCode);
@@ -94,6 +100,7 @@ export function demoSiteSwitchColumns(profileCode: string): {
       greeting: s.chatConfig.greeting,
       browseServices: s.chatConfig.browseServices,
       aiBookingAssistantEnabled: s.chatConfig.aiBookingAssistantEnabled,
+      agentBookingEnabled: s.chatConfig.agentBookingEnabled,
     },
   };
 }

@@ -4,6 +4,7 @@
  */
 import type { Bilingual } from "@/lib/talent-site/history/copy";
 import { sectionNameForKey } from "@/lib/talent-site/history/draft-diff";
+import { STYLE_TOKEN_BY_KEY } from "@/lib/site-admin/tokens/style-tokens";
 import { humanKey, type UpdateSummary, type WhatsNewGroup } from "./view";
 
 export type UpdateLocale = "en" | "es";
@@ -51,6 +52,10 @@ export const UPDATE_COPY = {
     en: "Block added to your draft. Publish when you are ready.",
     es: "Bloque agregado a tu borrador. Publica cuando estés lista.",
   },
+  /** TUL-325: matches MyWebsiteCard unpublished pill wording. */
+  unpublishedPill: { en: "Unpublished changes", es: "Cambios sin publicar" },
+  publishCta: { en: "Publish changes", es: "Publicar cambios" },
+  publishing: { en: "Publishing…", es: "Publicando…" },
   close: { en: "Close", es: "Cerrar" },
   cancel: { en: "Cancel", es: "Cancelar" },
   loading: { en: "Checking your site…", es: "Revisando tu sitio…" },
@@ -102,15 +107,32 @@ export function bannerTitleAgain(designTitle: string, locale: UpdateLocale): str
 }
 
 /** Toast after Apply: "Update applied to your draft · we kept N of your edits". */
-export function appliedToast(kept: number, locale: UpdateLocale): string {
+export function appliedToast(kept: number, locale: UpdateLocale, copyKept = 0): string {
+  const texts = copyKeptNoun(copyKept, locale);
   if (locale === "es") {
-    return kept > 0
-      ? `Actualización aplicada a tu borrador · conservamos ${kept} de tus cambios`
-      : "Actualización aplicada a tu borrador";
+    const base = "Actualización aplicada a tu borrador";
+    if (kept > 0) return `${base} · conservamos ${kept} de tus cambios${texts ? ` y ${texts}` : ""}`;
+    return texts ? `${base} · conservamos ${texts}` : base;
   }
-  return kept > 0
-    ? `Update applied to your draft · we kept ${kept} of your edits`
-    : "Update applied to your draft";
+  const base = "Update applied to your draft";
+  if (kept > 0) return `${base} · we kept ${kept} of your edits${texts ? ` and ${texts}` : ""}`;
+  return texts ? `${base} · we kept ${texts}` : base;
+}
+
+/** "2 texts you changed" / "2 textos que cambiaste" (null when none). */
+function copyKeptNoun(n: number, locale: UpdateLocale): string | null {
+  if (n <= 0) return null;
+  return locale === "es"
+    ? `${n} ${n === 1 ? "texto que cambiaste" : "textos que cambiaste"}`
+    : `${n} ${n === 1 ? "text you changed" : "texts you changed"}`;
+}
+
+/** The preview panel's copy line: "We keep 2 texts you changed", null when none. */
+export function copyKeptLine(s: Pick<UpdateSummary, "copyKept">, locale: UpdateLocale): string | null {
+  const n = s.copyKept ?? 0;
+  if (n <= 0) return null;
+  const noun = copyKeptNoun(n, locale);
+  return locale === "es" ? `Conservamos ${noun}` : `We keep ${noun}`;
 }
 
 /** F86: a kept part in the talent's language, from the same name map as the go-live sheet. */
@@ -138,6 +160,20 @@ export function keptRemovedLine(s: UpdateSummary, locale: UpdateLocale): string 
   return locale === "es"
     ? `Mantuvimos quitada${names.length > 1 ? "s las secciones" : " la sección"} ${names.join(", ")}, como la${names.length > 1 ? "s" : ""} dejaste`
     : `We kept ${names.join(", ")} removed, as you left ${names.length > 1 ? "them" : "it"}`;
+}
+
+/**
+ * L2 (TUL-420): where she and the Design both changed the same part, we keep
+ * her version and say so before Apply. Null when there are no conflicts.
+ * New blocks stay a separate choice ("Add this block").
+ */
+export function decisionLine(s: UpdateSummary, locale: UpdateLocale): string | null {
+  if ((s.conflicts ?? 0) <= 0) return null;
+  const names = [...new Set((s.conflictKeys ?? []).map((k) => keptPartLabel(k, locale)))];
+  const parts = names.length > 0 ? `: ${names.join(", ")}` : "";
+  return locale === "es"
+    ? `Donde el diseño también cambió, conservamos tu versión${parts}`
+    : `Where the design also changed, we keep your version${parts}`;
 }
 
 /** F125: history summary for an important fix applied to a site with no exact base. */
@@ -196,4 +232,15 @@ export function applyLabel(changes: number | null, locale: UpdateLocale): string
 /** F92: the quiet line for a dismissed update. */
 export function quietEntryTitle(designTitle: string, locale: UpdateLocale): string {
   return locale === "es" ? `${designTitle}: actualización disponible` : `${designTitle} update available`;
+}
+
+/**
+ * TUL-674: the line for an item that carries no authored note. Never the raw
+ * design key ("type.stretch"): a style token reads as its label, anything else
+ * as a section name or a humanized key.
+ */
+export function itemFallbackLabel(key: string, locale: UpdateLocale): string {
+  const token = STYLE_TOKEN_BY_KEY.get(key);
+  if (token) return token.label[locale];
+  return keptPartLabel(key, locale);
 }

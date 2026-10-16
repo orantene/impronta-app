@@ -11,6 +11,7 @@ export const ITEM_TYPES: readonly ReleaseItemType[] = [
   "variant-default",
   "new-block",
   "layout",
+  "copy",
   "critical",
 ];
 

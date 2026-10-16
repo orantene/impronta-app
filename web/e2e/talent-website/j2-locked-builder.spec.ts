@@ -8,7 +8,8 @@
  *   free      edit text, hide a section, change Look, publish
  *   locked    insert shows the lock chip and raises a lock event; reorder is refused
  *   server    a FORGED insert, replayed past the client guard, is refused
- *   server    SEO fields in a forged save are stripped, the save still succeeds
+ *   server    advanced SEO fields in a forged save are stripped, the save still succeeds
+ *             (title + description are allowed on every plan: TUL-587)
  *
  * The forged half matters more than the locked half: the client lock is UX,
  * the server guard (`assertFreeTalentSiteTreeMutation` and
@@ -169,10 +170,10 @@ test.describe("J2 locked builder (free talent)", () => {
     await swatches.nth(1).click();
 
     await page.getByRole("button", { name: /Use this (theme|look)/ }).click();
-    await expect(page.getByText(/Publish your site to make it live/)).toBeVisible({
+    await expect(page.getByText(/Visitors still see the old design until you publish/)).toBeVisible({
       timeout: 60_000,
     });
-    await page.getByRole("button", { name: /(Re)?[Pp]ublish site/ }).click();
+    await page.getByRole("button", { name: /(Re)?[Pp]ublish (site|changes)/ }).first().click();
     await expect(page.getByText(/your site is live/)).toBeVisible({ timeout: 120_000 });
 
     // The public site serves, and still carries the free "Made with Tulala" badge.
@@ -266,14 +267,15 @@ test.describe("J2 locked builder (free talent)", () => {
     await expect(page.locator(`[data-builder-node-id="${forgedId}"]`)).toHaveCount(0);
   });
 
-  test("SEO fields in a forged save are stripped, and the save still succeeds", async ({
+  test("advanced SEO fields in a forged save are stripped, and the save still succeeds", async ({
     page,
   }) => {
     const lastAction = captureActionPosts(page);
     await signIn(page, BUILDER);
     await waitForBuilder(page);
 
-    // The SEO surface is not offered at all on a free plan (capabilities.seo).
+    // The full SEO tab is not offered on a free plan (capabilities.seo); title and
+    // description are edited in the page form (personalSiteSeoBasic, TUL-587).
     await expect(page.getByRole("tab", { name: /^SEO$/i })).toHaveCount(0);
 
     const marker = `seo-probe-${Date.now()}`;
@@ -284,14 +286,15 @@ test.describe("J2 locked builder (free talent)", () => {
     await blurCommit(page);
     await expect.poll(() => lastAction() !== null, { timeout: 120_000 }).toBe(true);
 
-    // Inject SEO columns into the save patch. The Phase 1 rule is STRIP AND
-    // SUCCEED: a free talent editing text is never told their save failed
-    // because of a field they cannot see.
+    // Inject the ADVANCED SEO columns into the save patch (title + description
+    // are allowed on every plan, so they are not forged here). The Phase 1 rule
+    // is STRIP AND SUCCEED: a free talent editing text is never told their save
+    // failed because of a field they cannot see.
     const captured = lastAction()!;
     const forgedTitle = `FORGED SEO ${marker}`;
     const forgedBody = captured.body.replace(
       /"blocks"/,
-      `"meta_title":${JSON.stringify(forgedTitle)},"noindex":true,"blocks"`,
+      `"og_title":${JSON.stringify(forgedTitle)},"canonical_url":"https://forged.example/","noindex":true,"blocks"`,
     );
     expect(forgedBody, "the save payload must carry a blocks field to patch").not.toEqual(
       captured.body,
@@ -307,7 +310,11 @@ test.describe("J2 locked builder (free talent)", () => {
     // The stripped field never reaches the public render.
     const res = await page.goto(PUBLIC_HOME, { waitUntil: "domcontentloaded" });
     expect(res?.status()).toBe(200);
-    await expect(page).not.toHaveTitle(new RegExp(forgedTitle));
+    await expect(page.locator('meta[property="og:title"]')).not.toHaveAttribute(
+      "content",
+      new RegExp(forgedTitle),
+    );
+    await expect(page.locator('link[rel="canonical"][href^="https://forged.example"]')).toHaveCount(0);
     await expect(page.locator('meta[name="robots"][content*="noindex"]')).toHaveCount(0);
   });
 });

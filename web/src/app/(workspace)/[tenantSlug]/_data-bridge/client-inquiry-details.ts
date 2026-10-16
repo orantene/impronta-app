@@ -19,12 +19,14 @@
  * gate by RLS.
  */
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { policyChangedSinceRequest } from "@/lib/legal/acceptances.core";
 import "server-only";
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { loadPortalVisitWhenMapForRequest } from "@/lib/client-account/portal-visit-when.server";
 import {
   loadCrossTenantContext,
   describeCrossTenantContext,
@@ -71,6 +73,8 @@ export type ClientInquiryDetails = {
     start_time: string | null;
     duration: string | null;
     date_status: string | null; // exact / flexible / not_sure / ...
+    /** TUL-503: booking start in its own zone, zone named; null until a booking has a time. */
+    when: { date: string; time: string; tzLabel: string } | null;
   };
 
   // ─── Section: Location ────────────────────────────────────────────────
@@ -316,9 +320,14 @@ function resolveServiceName(sourceServiceId: string | null, servicesMenu: unknow
 export async function loadClientInquiryDetails(
   tenantId: string,
   inquiryId: string,
+  /**
+   * TUL-255: from `pickReadClient` only (client portal page loaders). Absent =
+   * the request's own RLS client, exactly as before.
+   */
+  effectiveReadClient?: SupabaseClient | null,
 ): Promise<ClientInquiryDetails | null> {
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = effectiveReadClient ?? (await createSupabaseServerClient());
     if (!supabase) return null;
 
     // Pull the inquiry row + interpreted_query (the rich InquiryIntent
@@ -377,7 +386,10 @@ export async function loadClientInquiryDetails(
     const iq = (inq.interpreted_query ?? {}) as Iq;
 
     // Parallel fan-out for the side data.
-    const admin = createServiceRoleClient();
+    // ONE client for every read AND for the privileged parts (the offer approval, signed attachments):
+    // the verified-impersonation client when one was passed (staff must see what the client sees; no extra
+    // service-role fan-out), else the existing service-role-or-RLS client.
+    const admin = effectiveReadClient ?? createServiceRoleClient();
     const readClient = admin ?? supabase;
     const [participantsRes, offerRes, coordRes, eventsRes, attachmentsRes, pitchRes, bookingRes, txnRes] = await Promise.all([
       // Talent lineup — visible-to-client subset
@@ -795,6 +807,7 @@ export async function loadClientInquiryDetails(
         start_time: iq.date?.start_time ?? null,
         duration: iq.date?.duration ?? null,
         date_status: iq.date?.status ?? null,
+        when: (await loadPortalVisitWhenMapForRequest(tenantId, [inquiryId]))[inquiryId] ?? null,
       },
 
       location: {

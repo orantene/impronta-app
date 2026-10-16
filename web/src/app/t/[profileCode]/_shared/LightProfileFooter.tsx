@@ -7,9 +7,11 @@ import { ProfileFooterSocket } from "./ProfileFooterSocket";
 export function LightProfileFooter({
   locale,
   whitelabel,
+  profileCode,
 }: {
   locale: Locale;
   whitelabel: boolean | undefined;
+  profileCode?: string | null;
 }) {
   return (
     <>
@@ -27,6 +29,7 @@ export function LightProfileFooter({
       <ProfileFooterSocket
         locale={locale}
         whitelabel={whitelabel}
+        profileCode={profileCode}
         tokens={{ surface: "var(--plt-bg-deep)", ink: "var(--plt-ink)", line: "var(--plt-hairline)" }}
       />
     </>

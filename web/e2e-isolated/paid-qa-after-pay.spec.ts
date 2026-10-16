@@ -17,10 +17,13 @@
  * build under test). A skipped case is a skip, never a pass.
  *
  * Inputs (env):
- *   PAID_QA_BASE_URL          local app origin for the talent app (e.g. http://127.0.0.1:3001)
+ *   PAID_QA_BASE_URL          local app origin for the talent app: use http://localhost:3001 (NOT 127.0.0.1 or
+ *                             a workspace host: sign-in there redirects /talent to localhost, where the cookie is missing)
  *   PAID_QA_ADMIN_BASE_URL    local origin of the workspace that owns the order (e.g. http://hub.localhost:3001)
  *   PAID_QA_PAID_ORDER        the paid order id
- *   PAID_QA_TALENT_EMAIL / PAID_QA_TALENT_PASSWORD   the seller, for the Money page
+ *   PAID_QA_TALENT_EMAIL / PAID_QA_TALENT_PASSWORD   the seller, for the Money page. A fixture seller must have an
+ *                             onboarding-complete profile (profiles.onboarding_completed_at set, app_role talent,
+ *                             account_status active); otherwise /talent bounces to onboarding or "Setting up your page"
  *   PAID_QA_STAFF_EMAIL  / PAID_QA_STAFF_PASSWORD    staff who may refund that order (refund-lines only)
  *   PAID_QA_REFUND_CENTS      the partial amount (default 30000)
  *   PAID_QA_EXPECT_RESIDUAL   1 = the talent_residual flag is mandatory when the talent leg already paid out

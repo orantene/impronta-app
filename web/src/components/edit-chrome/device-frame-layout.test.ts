@@ -11,6 +11,7 @@ import {
   isDeviceEditingHudOpen,
   resolveDeviceFrameHostPadding,
   resolveDeviceFrameHudLeftReserve,
+  resolveDisplayedDeviceTier,
   shouldShowDeviceFrameSkeleton,
 } from "./device-frame-layout";
 import {
@@ -76,14 +77,36 @@ test("device-frame host reserves inspector + Mobile/Tablet HUD gutters", () => {
   assert.deepEqual(mobilePad, { left: 280, right: 380 });
 });
 
-test("device-frame skeleton shows only for the active unloaded tier", () => {
+test("device-frame skeleton shows only when nothing ready can be held", () => {
   const loaded = new Set<"tablet" | "mobile">(["tablet"]);
   assert.equal(
     shouldShowDeviceFrameSkeleton({ device: "tablet", loadedTiers: loaded }),
     false,
   );
+  // Switching to unloaded mobile while tablet is holdable → no blank skeleton.
   assert.equal(
-    shouldShowDeviceFrameSkeleton({ device: "mobile", loadedTiers: loaded }),
+    shouldShowDeviceFrameSkeleton({
+      device: "mobile",
+      loadedTiers: loaded,
+      holdTier: "tablet",
+    }),
+    false,
+  );
+  assert.equal(
+    resolveDisplayedDeviceTier({
+      activeDevice: "mobile",
+      loadedTiers: loaded,
+      holdTier: "tablet",
+    }),
+    "tablet",
+  );
+  // First paint with nothing loaded still shows the skeleton.
+  assert.equal(
+    shouldShowDeviceFrameSkeleton({
+      device: "mobile",
+      loadedTiers: new Set(),
+      holdTier: null,
+    }),
     true,
   );
   assert.equal(
@@ -92,13 +115,18 @@ test("device-frame skeleton shows only for the active unloaded tier", () => {
   );
 });
 
-test("edit-shell wires reserve gutters + extracted skeleton load tracking", () => {
+test("edit-shell wires reserve gutters + warm-keep hold (no blank switch)", () => {
   const shell = readFileSync(join(THIS_DIR, "edit-shell.tsx"), "utf8");
   assert.match(shell, /resolveDeviceFrameHostPadding/);
   assert.match(shell, /DeviceFrameSkeleton/);
-  assert.match(shell, /useDeviceFrameLoadTracking/);
+  assert.match(shell, /useDeviceFrameWarmKeep/);
   assert.match(shell, /markTierLoaded/);
+  assert.match(shell, /displayedTier/);
   assert.match(shell, /BodyPaddingController/);
+  const warm = readFileSync(join(THIS_DIR, "use-device-frame-warm-keep.ts"), "utf8");
+  assert.match(warm, /useDeviceFrameLoadTracking/);
+  assert.match(warm, /idlePrewarmMs/);
+  assert.match(warm, /resolveDisplayedDeviceTier/);
   const bodyPad = readFileSync(
     join(THIS_DIR, "body-padding-controller.tsx"),
     "utf8",

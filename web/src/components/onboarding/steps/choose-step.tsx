@@ -8,7 +8,7 @@
 
 import { withLocaleHref } from "@/i18n/pathnames";
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 
 import { CHOOSE_COPY, type FlowLocale } from "@/lib/onboarding/flow";
 import type { OnboardingChoice } from "@/lib/onboarding/module-state";
@@ -38,6 +38,19 @@ export function ChooseStep({
   const c = CHOOSE_COPY[locale];
   const [selected, setSelected] = useState<OnboardingChoice | null>(initial);
   const [agencyOpen, setAgencyOpen] = useState(false);
+  const cardRefs = useRef<Partial<Record<OnboardingChoice, HTMLButtonElement | null>>>({});
+  // Roving tabindex (TUL-1125): one Tab stop for the group, arrows move and select.
+  const tabStop: OnboardingChoice = selected ?? ORDER[0];
+  const onCardKey = (e: KeyboardEvent<HTMLButtonElement>, choice: OnboardingChoice) => {
+    const step = e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : e.key === "ArrowUp" || e.key === "ArrowLeft" ? -1 : 0;
+    // Home / End jump to the first / last card (radio group pattern).
+    const edge = e.key === "Home" ? 0 : e.key === "End" ? ORDER.length - 1 : null;
+    if (!step && edge === null) return;
+    e.preventDefault();
+    const next = edge !== null ? ORDER[edge] : ORDER[(ORDER.indexOf(choice) + step + ORDER.length) % ORDER.length];
+    setSelected(next);
+    cardRefs.current[next]?.focus();
+  };
   return (
     <div data-testid="onb-choose">
       <h1 className="tl-display font-semibold leading-[1.08] tracking-[-0.03em]" style={{ color: "var(--tl-ink)", fontSize: 32 }}>
@@ -48,39 +61,47 @@ export function ChooseStep({
         {ORDER.map((choice) => {
           const on = selected === choice;
           return (
-            <div key={choice}>
-              <button
-                type="button"
-                role="radio"
-                aria-checked={on}
-                disabled={busy}
-                onClick={() => setSelected(choice)}
-                data-testid={`onb-choice-${choice}`}
-                className="flex min-h-[76px] w-full items-center gap-4 rounded-[22px] px-4 py-3 text-left transition-colors motion-reduce:transition-none disabled:opacity-60"
-                style={{
-                  background: on ? "var(--tl-lime)" : "var(--tl-surface-raised)",
-                  border: `1.5px solid ${on ? "var(--tl-lime-edge)" : "var(--tl-hairline-strong)"}`,
-                  color: "var(--tl-ink)",
-                }}
-              >
-                <span className="grid size-11 shrink-0 place-items-center rounded-[14px]" style={{ background: on ? "var(--tl-surface-raised)" : "var(--tl-stone-soft)", color: "var(--tl-forest)" }}>
-                  <Icon choice={choice} />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[1.0625rem] font-semibold leading-tight">{c.cards[choice].title}</span>
-                  <span className="mt-0.5 block text-[0.8125rem] leading-snug" style={{ color: "var(--tl-ink-soft)" }}>{c.cards[choice].sub}</span>
-                </span>
-                <svg aria-hidden width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M7 3.5L12.5 9 7 14.5" /></svg>
-              </button>
-              {on ? (
-                <p className="mt-2 px-2 text-[0.8125rem] leading-snug" style={{ color: "var(--tl-forest)" }} data-testid="onb-creates" aria-live="polite">
-                  {c.createsPrefix}
-                  {c.cards[choice].creates}
-                </p>
-              ) : null}
-            </div>
+            <button
+              key={choice}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              tabIndex={choice === tabStop ? 0 : -1}
+              ref={(el) => { cardRefs.current[choice] = el; }}
+              disabled={busy}
+              onClick={() => setSelected(choice)}
+              onKeyDown={(e) => onCardKey(e, choice)}
+              data-testid={`onb-choice-${choice}`}
+              className="flex min-h-[76px] w-full touch-manipulation items-center gap-4 rounded-[22px] px-4 py-3 text-left transition-colors duration-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tl-forest)] motion-reduce:transition-none disabled:opacity-60"
+              style={{
+                background: on ? "var(--tl-lime)" : "var(--tl-surface-raised)",
+                border: `1.5px solid ${on ? "var(--tl-lime-edge)" : "var(--tl-hairline-strong)"}`,
+                color: "var(--tl-ink)",
+              }}
+            >
+              <span className="grid size-11 shrink-0 place-items-center rounded-[14px]" style={{ background: on ? "var(--tl-surface-raised)" : "var(--tl-stone-soft)", color: "var(--tl-forest)" }}>
+                <Icon choice={choice} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[1.0625rem] font-semibold leading-tight">{c.cards[choice].title}</span>
+                <span className="mt-0.5 block text-[0.8125rem] leading-snug" style={{ color: "var(--tl-ink-soft)" }}>{c.cards[choice].sub}</span>
+              </span>
+              {/* TUL-811: a radio mark, not a chevron; the card selects, Continue moves on. */}
+              <span aria-hidden data-testid={`onb-choice-mark-${choice}`} className="grid size-6 shrink-0 place-items-center rounded-full" style={{ border: `1.5px solid ${on ? "var(--tl-forest)" : "var(--tl-hairline-strong)"}`, background: on ? "var(--tl-forest)" : "transparent" }}>
+                {on ? <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="var(--tl-forest-on)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.5 6.2l2.3 2.3 4.7-4.9" /></svg> : null}
+              </span>
+            </button>
           );
         })}
+      </div>
+      {/* Reserved height so selecting a card does not shove the rest of the page. */}
+      <div className="mt-2 min-h-[2.6em] px-2" aria-live="polite">
+        {selected ? (
+          <p className="text-[0.8125rem] leading-snug" style={{ color: "var(--tl-forest)" }} data-testid="onb-creates">
+            {c.createsPrefix}
+            {c.cards[selected].creates}
+          </p>
+        ) : null}
       </div>
       <button
         type="button"

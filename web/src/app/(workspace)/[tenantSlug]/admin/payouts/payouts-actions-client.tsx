@@ -24,6 +24,7 @@ import { PAYOUT_COUNTRIES, CONNECT_PAYOUT_COUNTRIES } from "@/lib/payments/payou
 // admin pick a country Stripe rejects at accounts.create with a confusing error.
 const CONNECT_COUNTRY_OPTIONS = PAYOUT_COUNTRIES.filter((c) => CONNECT_PAYOUT_COUNTRIES.has(c.iso2));
 import { createTranslator } from "@/i18n/messages";
+import { payoutSetupErrorText } from "@/lib/payments/connect-account-setup";
 
 const C = {
   ink:        "#0B0B0D",
@@ -269,7 +270,7 @@ export function PayoutsActionsClient({
 
       {error && (
         <div style={{ fontSize: 12, color: C.coral }}>
-          {error}
+          {payoutSetupErrorText(error, (locale ?? "").toLowerCase().startsWith("es"))}
         </div>
       )}
       {info && !error && (

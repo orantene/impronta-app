@@ -58,20 +58,20 @@
         "caption": "03 · Textura"
       },
       {
-        "group": "Runway",
+        "group": "Pasarela",
         "numeral": "II",
         "contents": "Salidas y detalles",
         "imageKey": "f-d-stride",
         "caption": "Salida 1"
       },
       {
-        "group": "Runway",
+        "group": "Pasarela",
         "numeral": "II",
         "imageKey": "f-d-feet",
-        "caption": "Fitting"
+        "caption": "Prueba de vestuario"
       },
       {
-        "group": "Runway",
+        "group": "Pasarela",
         "numeral": "II",
         "imageKey": "f-d-shirt",
         "caption": "Salida 3"
@@ -82,7 +82,7 @@
     {
       "id": "ed",
       "category": "Editorial",
-      "name": "Editorial shoot, half day",
+      "name": "Sesión editorial, medio día",
       "durationLabel": "4 h",
       "durationMinutes": 240,
       "priceLabel": "$9,500",
@@ -134,8 +134,8 @@
     },
     {
       "id": "run",
-      "category": "Runway",
-      "name": "Runway show booking",
+      "category": "Pasarela",
+      "name": "Reserva de show de pasarela",
       "durationLabel": "Por show",
       "durationMinutes": null,
       "priceLabel": "Desde $7,000",
@@ -182,7 +182,7 @@
     {
       "id": "look",
       "category": "E-commerce",
-      "name": "Lookbook / e-commerce day",
+      "name": "Día de lookbook y e-commerce",
       "durationLabel": "8 h",
       "durationMinutes": 480,
       "priceLabel": "$16,000",
@@ -300,7 +300,7 @@
       "value": "ES/EN"
     }
   ],
-  "statsTitle": "Medidas · Comp card",
+  "statsTitle": "Medidas · Ficha",
   "location": null,
   "footer": {
     "headline": "Siguiente número.",
@@ -322,5 +322,51 @@
     ],
     "sampleReply": "Gracias. ¿Me compartes el moodboard y el uso de las imágenes? Con eso te paso fecha y tarifa hoy.",
     "footerFine": "Hecho con Tulala"
+  },
+  "translations": {
+    "en": {
+      "services": {
+        "cast": {
+          "name": "In-person casting",
+          "description": "My open slots for castings and go-sees in Mexico City. You pick the time; I arrive with book, polaroids and up-to-date measurements.",
+          "category": "Casting"
+        },
+        "ed": {
+          "name": "Editorial shoot, half day",
+          "description": "Half day for a magazine or brand editorial. I arrive with hair and skin ready for camera and work with your stylist.",
+          "category": "Editorial"
+        },
+        "run": {
+          "name": "Runway show booking",
+          "description": "Runway for fashion weeks, brand presentations or showrooms. Includes a fitting the day before.",
+          "category": "Runway"
+        },
+        "look": {
+          "name": "Lookbook / e-commerce day",
+          "description": "Full day of catalogue or lookbook. Fast pace and look changes without losing consistency.",
+          "category": "E-commerce"
+        }
+      },
+      "faq": [
+        {
+          "q": "Do you travel outside Mexico City?",
+          "a": "Yes, with travel and lodging covered. Tell me the city and the dates."
+        },
+        {
+          "q": "Do the rates include usage rights?",
+          "a": "Base rates are for editorial use. Ads, territory and term are quoted separately."
+        },
+        {
+          "q": "How long do you take to reply?",
+          "a": "The same business day. If it is urgent, put the date in the subject."
+        },
+        {
+          "q": "Do you do fittings beforehand?",
+          "a": "Yes. Wardrobe fittings are booked separately before the shoot or the show."
+        }
+      ],
+      "tagline": "Editorial, runway and campaigns. 1.88 m, Mexico City.",
+      "bio": "Model with seven years between the runway and editorial. I arrive on time, with hair and skin ready for camera."
+    }
   }
 }

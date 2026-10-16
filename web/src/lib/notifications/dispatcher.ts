@@ -6,13 +6,12 @@ import { auditFailure } from "@/lib/audit/emit";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { buildAudienceContext, hydrateAudience } from "./audience";
-import { findCatalogEntries } from "./catalog";
-import { sendEmailNotification } from "./channels/email";
 import { sendInAppNotification } from "./channels/in_app";
 import { sendPushNotification } from "./channels/push";
 import { sendWhatsAppNotification } from "./channels/whatsapp";
 import { channelsForRecipient } from "./prefs";
 import { loadNotificationOverlay, isChannelEnabled } from "./overlay";
+import { copyKindForEntry } from "./email-copies/kinds";
 import type {
   AudienceContext,
   CatalogEntry,
@@ -22,8 +21,11 @@ import type {
   ResolvedRecipient,
 } from "./types";
 import {
+  dispatchLogLocale,
   dispatchLogPatchFromHandlerResult,
   dispatchLogPatchFromThrown,
+  isChannelSkip,
+  type ChannelSkip,
 } from "./dispatcher-outcome";
 
 /**
@@ -36,8 +38,11 @@ import {
  *
  * Key invariants:
  *  - The dispatch_log row is inserted BEFORE the channel send. The unique
- *    index on `dedupe_key` makes a duplicate `(event, recipient, channel)` a
- *    no-op — this is the idempotency guarantee.
+ *    index on `dedupe_key` makes a duplicate
+ *    `(event, catalog entry, recipient, channel)` a no-op — this is the
+ *    idempotency guarantee. Entry id is part of the key so two catalog
+ *    entries on the same engine event (e.g. offer.sent.talent +
+ *    offer.pending_approval.workspace) both land for a solo owner-talent.
  *  - Channel handlers are pure send-effects: they don't pick recipients,
  *    dedupe, or read preferences.
  *  - One failed send never blocks the rest. Failures flip the log row to
@@ -50,6 +55,11 @@ export async function dispatchEventNotifications(
 ): Promise<DispatchResult> {
   const result: DispatchResult = { dispatched: 0, suppressed: 0, failed: 0, queued: 0, skipped: 0 };
 
+  // TUL-573: catalog.ts statically pulls ~60 React Email templates and
+  // channels/email.ts pulls Resend + the renderer. Loaded here, on the first
+  // dispatch, instead of at module load, so every route that merely imports the
+  // dispatcher (admin, talent/today) no longer evaluates them on a cold start.
+  const { findCatalogEntries } = await import("./catalog");
   const entries = findCatalogEntries(event.type);
   if (entries.length === 0) return result;
 
@@ -68,6 +78,7 @@ export async function dispatchEventNotifications(
   // disabled (transactional/billing notices are never overlay-disabled).
   const overlay = await loadNotificationOverlay(ctx.admin);
 
+  const { sendEmailNotification } = await import("./channels/email");
   const handlers: Partial<Record<NotificationChannel, ChannelHandler>> = {
     email: sendEmailNotification,
     in_app: sendInAppNotification,
@@ -145,7 +156,7 @@ export async function dispatchEventNotifications(
         )
           continue;
 
-        const dedupeKey = `${enriched.eventId}:${recipient.dedupeId}:${channel}`;
+        const dedupeKey = `${enriched.eventId}:${entry.id}:${recipient.dedupeId}:${channel}`;
         // §7 digest: an email entry that opts into batching is logged `queued`
         // with `payload.digest = true` and NOT sent now — the digest cron sweeps
         // and collapses it. The flag must be on the persisted payload (the sweep
@@ -197,14 +208,17 @@ export async function dispatchEventNotifications(
           // both are properly narrowed for the rest of the block.
           let outcome: ChannelSendOutcome | null = null;
           let providerRef: string | null = null;
-          if (typeof handlerResult === "string") {
+          let skipReason: string | undefined;
+          if (isChannelSkip(handlerResult)) {
+            skipReason = handlerResult.reason;
+          } else if (typeof handlerResult === "string") {
             providerRef = handlerResult;
           } else if (handlerResult != null) {
             outcome = handlerResult;
             providerRef = handlerResult.providerRef;
           }
           if (providerRef == null) {
-            await markDispatchLogSkipped(ctx.admin, logId);
+            await markDispatchLogSkipped(ctx.admin, logId, skipReason);
             entryResult.skipped++;
             void improntaLog(`notif.send.${channel}`, {
               eventType: enriched.type,
@@ -288,6 +302,17 @@ export async function dispatchEventNotifications(
       }
     }
 
+    // Notification email copies: one copy per active list address per event
+    // (not per original recipient). Best-effort, never counted in `result`.
+    if (copyKindForEntry(entry.id)) {
+      try {
+        const { sendNotificationCopies } = await import("./email-copies/dispatch-copies");
+        await sendNotificationCopies(enriched, entry, ctx);
+      } catch (err) {
+        logServerError(`notifications.copy:${entry.id}`, err);
+      }
+    }
+
     result.dispatched += entryResult.dispatched;
     result.suppressed += entryResult.suppressed;
     result.failed += entryResult.failed;
@@ -320,7 +345,7 @@ type ChannelHandler = (
   entry: CatalogEntry,
   recipient: ResolvedRecipient,
   ctx: AudienceContext,
-) => Promise<string | null | ChannelSendOutcome>;
+) => Promise<string | null | ChannelSendOutcome | ChannelSkip>;
 
 /**
  * A channel that can report the envelope it used (email). `providerRef` is the
@@ -363,7 +388,7 @@ async function tryInsertDispatchLog(
       dedupe_key: dedupeKey,
       template_id: entry.email?.templateId ?? null,
       catalog_entry_id: entry.id,
-      locale: recipient.locale,
+      locale: dispatchLogLocale(recipient),
       payload: event.payload ?? {},
     })
     .select("id")
@@ -428,8 +453,12 @@ async function markDispatchLogFailed(
   if (error) logServerError("notifications.dispatchLog.markFailed", error);
 }
 
-async function markDispatchLogSkipped(admin: SupabaseClient, id: string): Promise<void> {
-  const patch = dispatchLogPatchFromHandlerResult(null);
+async function markDispatchLogSkipped(
+  admin: SupabaseClient,
+  id: string,
+  skipReason?: string,
+): Promise<void> {
+  const patch = dispatchLogPatchFromHandlerResult(null, skipReason);
   const { error } = await admin
     .from("notification_dispatch_log")
     .update({

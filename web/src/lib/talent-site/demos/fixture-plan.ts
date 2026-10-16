@@ -113,12 +113,16 @@ export function intakeOf(s: FixtureService): ReturnType<typeof normalizeIntakeQu
 function desiredAttributes(s: FixtureService, f: MockupFixture, have: Row | null): Row | null {
   const matrix = matrixAttr(s, f);
   const intake = intakeOf(s);
-  if (!matrix && intake.length === 0) return null;
+  // GRK-065: Gridline demos are home visits — every service needs attributes.where
+  // = ["client"] so the booking sheet asks for the client's address (TUL-436).
+  const homeVisitWhere = isGridline(f);
+  if (!matrix && intake.length === 0 && !homeVisitWhere) return null;
   const next: Row = { ...((have?.attributes as Row | null) ?? {}) };
   if (matrix) next.matrix = matrix;
   else delete next.matrix;
   if (intake.length) next.intake = intake;
   else delete next.intake;
+  if (homeVisitWhere) next.where = ["client"];
   return next;
 }
 
@@ -449,15 +453,24 @@ export interface CaptionOp {
  * Work-order job cards read a two-line caption from the media (`metadata.caption`:
  * title, then detail). The first gallery photos, in display order, take the
  * fixture's portfolio items in order. Only items with a `title` (Gridline) apply.
+ * A fixture translation's `portfolio` goes to `metadata.caption_i18n.<lang>`.
  */
 export function planCaptionOps(f: MockupFixture, gallery: Row[]): CaptionOp[] {
   const ops: CaptionOp[] = [];
+  const other = f.locale === "es" ? "en" : "es";
+  const translated = f.translations?.[other]?.portfolio;
   f.portfolio.items.forEach((it, i) => {
     const asset = gallery[i];
     if (!asset || !it.title) return;
     const caption = `${it.title}\n${it.caption}`;
     const meta = (asset.metadata as Row | null) ?? {};
-    if (!same(meta.caption ?? null, caption)) ops.push({ id: asset.id as string, metadata: { ...meta, caption } });
+    const next: Row = { ...meta, caption };
+    const t = translated?.[i];
+    if (t) {
+      const have = meta.caption_i18n && typeof meta.caption_i18n === "object" && !Array.isArray(meta.caption_i18n) ? (meta.caption_i18n as Row) : {};
+      next.caption_i18n = { ...have, [other]: `${t.title}\n${t.caption}` };
+    }
+    if (!same(meta, next)) ops.push({ id: asset.id as string, metadata: next });
   });
   return ops;
 }

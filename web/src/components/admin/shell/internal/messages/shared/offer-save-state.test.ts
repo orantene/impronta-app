@@ -15,6 +15,16 @@ test("classifySaveError is case + wrapping insensitive", () => {
   assert.equal(classifySaveError("Too many saves — rate_limited").kind, "rate_limited");
 });
 
+test("classifySaveError buckets the friendly pipeline version_conflict copy (TUL-472)", () => {
+  const c = classifySaveError("Offer was updated elsewhere — refresh and retry.");
+  assert.equal(c.kind, "conflict");
+  assert.equal(c.retryable, false);
+  assert.equal(
+    classifySaveError("Inquiry changed since you opened it — refresh and retry.").kind,
+    "conflict",
+  );
+});
+
 test("classifySaveError distinguishes not-editable / empty / not-found", () => {
   assert.equal(classifySaveError("offer_not_editable").kind, "not_editable");
   assert.equal(classifySaveError("post_booking_immutable").kind, "not_editable");

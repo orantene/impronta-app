@@ -3,6 +3,7 @@ import "server-only";
 import type { Metadata } from "next";
 
 import type { Locale } from "@/i18n/config";
+import { resolvePublicMetaDescription } from "@/lib/brand/platform-brand-locale";
 import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
 
 import type { MaxSiteSeo } from "./render-max-site";
@@ -30,9 +31,9 @@ export function ogLocaleTags(
  * that turns the SEO envelope into `openGraph` + `alternates` + `robots`.
  *
  * - `openGraph` carries og:title/og:description/og:image (with the page-level
- *   override falling back to title/description). The route-level
- *   `opengraph-image.tsx` ALSO contributes an `og:image` via the file
- *   convention; an explicit `ogImageUrl` here is an additional/override image.
+ *   override falling back to title/description). `buildMaxSiteSeo` always
+ *   supplies `ogImageUrl` (column → logo → generated `/opengraph-image` card)
+ *   so share previews never ship without a picture (TUL-554 / GRK-091).
  * - `alternates` reuse the SHARED platform locale-alternates builder (canonical
  *   + hreflang) when an English-relative `localePathWithoutLocale` is supplied
  *   (the `/t/site/...` routes, which are served from the platform apex and so
@@ -56,19 +57,27 @@ export function maxSiteSeoToMetadata(
   } = {},
 ): Metadata {
   const ogImages = seo.ogImageUrl ? [{ url: seo.ogImageUrl }] : undefined;
+  // TUL-121 theme8: pages without meta_description used to omit `description`
+  // and inherit the English root-layout PLATFORM_BRAND pitch on ES talent
+  // sites. Prefer ogLocale (the language the Max-site body actually rendered
+  // in after talent-locale bounding) over the platform request locale, so a
+  // Spanish-only site at unprefixed /t/site/… does not keep an English pitch.
+  const description = resolvePublicMetaDescription(
+    seo.description,
+    opts.ogLocale ?? opts.locale,
+  );
+  const socialDescription = seo.ogDescription ?? description;
 
   const base: Metadata = {
     title: seo.title,
-    ...(seo.description ? { description: seo.description } : {}),
+    ...(description ? { description } : {}),
     ...(seo.noindex ? { robots: { index: false, follow: false } } : {}),
     // DS-18: the business's own tab icon replaces the platform icon from the root layout.
     ...(seo.faviconUrl ? { icons: { icon: [{ url: seo.faviconUrl }] } } : {}),
     openGraph: {
       type: "website",
       title: seo.ogTitle ?? seo.title,
-      ...(seo.ogDescription ?? seo.description
-        ? { description: seo.ogDescription ?? seo.description }
-        : {}),
+      ...(socialDescription ? { description: socialDescription } : {}),
       ...(seo.canonical ? { url: seo.canonical } : {}),
       ...ogLocaleTags(opts.ogLocale, seo.alternates?.languages),
       ...(ogImages ? { images: ogImages } : {}),
@@ -76,9 +85,7 @@ export function maxSiteSeoToMetadata(
     twitter: {
       card: "summary_large_image",
       title: seo.ogTitle ?? seo.title,
-      ...(seo.ogDescription ?? seo.description
-        ? { description: seo.ogDescription ?? seo.description }
-        : {}),
+      ...(socialDescription ? { description: socialDescription } : {}),
       ...(ogImages ? { images: ogImages } : {}),
     },
   };

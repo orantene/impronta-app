@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useDashboardText } from "./dashboard-i18n";
 import { EmptyState, Icon, useRovingTabindex } from "./primitives";
 import { TALENT_SIDEBAR_ICON } from "./talent-nav-icons";
+import { RailModeSwitch } from "./page-modules/RailModeSwitch";
+import { leaveRailHat } from "./page-modules/rail-mode-switch-action";
 import { COLORS, FONTS, MY_TALENT_PROFILE, TALENT_PAGE_META, TALENT_TIER_META, useAdminShell, type TalentPage } from "./state";
 import { PageHeader } from "./talent/shared/page-chrome-1";
 import { ProfilePageSkeleton } from "./talent/pages/ProfilePageSkeleton";
@@ -35,6 +37,7 @@ import { pinNextConversation } from "./messages/conversation-pending";
 const CalendarPage = dynamic(() => import("./talent/pages/CalendarPage").then((m) => ({ default: m.CalendarPage })), { loading: () => null });
 const MyProfilePage = dynamic(() => import("./talent/pages/MyProfilePage").then((m) => ({ default: m.MyProfilePage })), { loading: () => <ProfilePageSkeleton /> });
 const PublicPageEditor = dynamic(() => import("./talent/pages/PublicPageEditor").then((m) => ({ default: m.PublicPageEditor })), { loading: () => null });
+const PromosPage = dynamic(() => import("@/components/promos/talent/PromosPage").then((m) => ({ default: m.PromosPage })), { loading: () => null });
 const ReviewsPage = dynamic(() => import("./talent/pages/ReviewsPage").then((m) => ({ default: m.ReviewsPage })), { loading: () => null });
 const ServicesPage = dynamic(() => import("./talent/pages/ServicesPage").then((m) => ({ default: m.ServicesPage })), { loading: () => null });
 const SettingsPage = dynamic(() => import("./talent/pages/SettingsPage").then((m) => ({ default: m.SettingsPage })), { loading: () => null });
@@ -156,7 +159,7 @@ function TalentSidebar() {
   const [supportSlotReady, setSupportSlotReady] = useState(false);
   useEffect(() => setSupportSlotReady(true), []);
   const copy = useDashboardText();
-  const { state, setTalentPage, openDrawer, bridgeTalentSelfProfile, bridgeTalentUnread, bridgeTalentPlanTrial } = useAdminShell();
+  const { state, setTalentPage, openDrawer, flipMode, bridgeTalentSelfProfile, bridgeTalentUnread, bridgeTalentPlanTrial, bridgeWorkspaceUnread, bridgeOwnedWorkspaceSlug } = useAdminShell();
   const studioV2 = useTalentStudioV2();
   // WS-12.6 — roving tabindex on the rail: arrow keys move between pages.
   const railNavRef = useRef<HTMLElement | null>(null);
@@ -171,7 +174,10 @@ function TalentSidebar() {
   const previewResolved = bridgeTalentSelfProfile?.profileCode
     ? resolveTalentPublicPreviewDestinations({
         profileCode: bridgeTalentSelfProfile.profileCode,
-        publicSiteUrl: siteLoad?.ok ? siteLoad.state.publicSiteUrl : null,
+        // TUL-180: dual owners prefer the business workspace URL.
+        publicSiteUrl: siteLoad?.ok
+          ? (siteLoad.state.workspaceSite?.publicUrl ?? siteLoad.state.publicSiteUrl)
+          : null,
         currentOrigin: origin,
       })
     : null;
@@ -225,6 +231,23 @@ function TalentSidebar() {
       data-tulala-app-sidebar
       className="sticky top-[calc(var(--proto-cbar,50px)+56px)] flex h-[calc(100vh-var(--proto-cbar,50px)-56px)] flex-col gap-[12px] self-start overflow-y-auto bg-[var(--tc-canvas)] px-[10px] pb-[12px] pt-[14px] font-admin-body"
     >
+      {/* Talent | Admin switch, same component and position as the admin rail
+          (top of the rail). Dual owners only: a person who also runs a
+          workspace; the top-bar pill uses the same flag. */}
+      {(state.alsoTalent || !!bridgeOwnedWorkspaceSlug) && (
+        <RailModeSwitch
+          active="talent"
+          adminUnread={bridgeWorkspaceUnread ?? 0}
+          onSwitch={() =>
+            leaveRailHat({
+              active: "talent",
+              alsoTalent: state.alsoTalent,
+              ownedWorkspaceSlug: bridgeOwnedWorkspaceSlug,
+              flipMode,
+            })
+          }
+        />
+      )}
       <nav ref={railNavRef} aria-label={copy.t("Talent sections")} className="flex flex-col gap-[2px]">
         {TALENT_SIDEBAR_GROUPS.map((group, gi) => (
           <div key={group.label ?? `group-${gi}`} className="flex flex-col gap-[2px]">
@@ -279,7 +302,7 @@ function TalentSidebar() {
         {/* Support Center launcher portals in here instead of floating. */}
         <div
           data-tulala-support-slot="rail"
-          data-ready={supportSlotReady ? "" : undefined}
+          data-ready={supportSlotReady ? "true" : undefined}
           className="contents"
         />
         {renderItem("settings")}
@@ -368,6 +391,9 @@ function TalentRouter() {
       break;
     case "reviews":
       page = <ReviewsPage />;
+      break;
+    case "promos":
+      page = <PromosPage />;
       break;
     case "inbox":
       // Legacy alias → the real Messages shell. The old InboxPage rendered a

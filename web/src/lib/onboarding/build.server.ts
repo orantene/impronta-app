@@ -31,6 +31,7 @@ import { arrivalFromStamp, parseArrivalStamp, type ArrivalPayload } from "./arri
 import { buildUnderstanding } from "./understanding";
 import { pathToChoice, resolveBuildPath } from "./choice";
 import { resolveEssentialsForBuild } from "./essentials-resolve";
+import { publishedServiceCount } from "./essentials";
 import { provisionForChoice } from "./provision-for-choice.server";
 import { ensureStockHero } from "./stock-hero.server";
 import type { OnboardingPath, PersistedModuleState } from "./module-state";
@@ -89,7 +90,10 @@ export async function runOnboardingBuild(input: {
     city: person.city,
     locale: input.locale,
   });
-  const services = Math.max(listFact(input.brief, "work.services").length, essentials?.services.length ?? 0);
+  // TUL-648: only priced services are published; the rest are drafts and must not be counted as live.
+  const namedServices = Math.max(listFact(input.brief, "work.services").length, essentials?.services.length ?? 0);
+  const services = publishedServiceCount(essentials?.services);
+  const unpricedServices = Math.max(namedServices - services, 0);
   const businessName = stringFact(input.brief, "business.name");
   const firstService = essentials?.services[0]?.name ?? listFact(input.brief, "work.services")[0] ?? null;
   const appUrl = getAppUrl();
@@ -131,7 +135,7 @@ export async function runOnboardingBuild(input: {
       // 1D: "ready" only when the real page opens with the person's own name.
       const liveCheck = await verifyLivePageWithRetry({ url: talent?.siteUrl ?? null, name: person.name });
       if (!liveCheck.ok) logServerError("onboarding.build.verifyLive", new Error(`talent:${liveCheck.reason}`));
-      const arrival = arrivalFromStamp({ path, stamp: null, person, businessName: null, services, site: null, talent, liveCheck, firstService });
+      const arrival = arrivalFromStamp({ path, stamp: null, person, businessName: null, services, unpricedServices, site: null, talent, liveCheck, firstService });
       return done(input, { status: "done", path, talentProfileId, arrival, finishedAt: new Date().toISOString() });
     }
 
@@ -139,7 +143,7 @@ export async function runOnboardingBuild(input: {
     if (ws.detail.kind === "free_limit_reuse") {
       const adminUrl = `${appUrl}${ws.detail.adminPath}`;
       const arrival = arrivalFromStamp({
-        path, stamp: null, reusedExisting: true, person, businessName, services,
+        path, stamp: null, reusedExisting: true, person, businessName, services, unpricedServices,
         site: { publicUrl: adminUrl, editorUrl: adminUrl, adminPath: adminUrl },
         talent,
       });
@@ -152,11 +156,19 @@ export async function runOnboardingBuild(input: {
     if (agencyErr) logServerError("onboarding.build.stampRead", agencyErr);
     const stamp = agencyErr ? null : parseArrivalStamp((agency?.settings as Record<string, unknown> | null)?.site_compose);
     const deliveredUrl = (await getTenantPreviewUrl(admin, result.tenantId, { requestHost: input.requestHost })) ?? result.publicUrl;
-    // 1D: one source for the address: the promised link when the workspace got that slug.
+    // 1D: Free path-canonical finish (`/w/<slug>`). Never verify a subdomain over a delivered path URL.
     const finish = resolveWorkspaceFinishUrl({ linkSlug: input.state.linkSlug ?? null, tenantSlug: result.tenantSlug, delivered: deliveredUrl });
-    const publicUrl = finish.url;
+    let publicUrl = finish.url;
     const finishName = businessName ?? result.tenantName;
-    const wsCheck = await verifyLivePageWithRetry({ url: publicUrl, name: finishName });
+    let wsCheck = await verifyLivePageWithRetry({ url: publicUrl, name: finishName });
+    // Defense: if finish URL failed but provision delivered a different live URL, trust the delivered one.
+    if (!wsCheck.ok && deliveredUrl && deliveredUrl !== publicUrl) {
+      const deliveredCheck = await verifyLivePageWithRetry({ url: deliveredUrl, name: finishName });
+      if (deliveredCheck.ok) {
+        publicUrl = deliveredUrl;
+        wsCheck = deliveredCheck;
+      }
+    }
     if (!wsCheck.ok) logServerError("onboarding.build.verifyLive", new Error(`workspace:${wsCheck.reason}`));
     // "both" also owns a talent site: it must exist and open with her name, or the finish is not "ready".
     let talentCheck: LiveCheck | null = null;
@@ -169,9 +181,10 @@ export async function runOnboardingBuild(input: {
     // `reusedExisting` here is this lead's own crash-recovered workspace, not
     // the one-free-workspace refusal (handled above): a normal arrival.
     const arrival = arrivalFromStamp({
-      path, stamp, person, businessName: finishName, services,
+      path, stamp, person, businessName: finishName, services, unpricedServices,
       site: { publicUrl, editorUrl, adminPath: `${appUrl}${result.adminPath}` },
       talent, liveCheck, urlDiffers: finish.differs, firstService,
+      ownerProvides: choice === "studio" && !!prov.talent,
     });
     return done(input, { status: "done", path, tenantId: result.tenantId, tenantSlug: result.tenantSlug, talentProfileId, arrival, finishedAt: new Date().toISOString() });
   } catch (err) {

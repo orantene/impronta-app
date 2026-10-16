@@ -24,6 +24,8 @@ import {
   hasIntroFromSources,
   homeCityFromSources,
 } from "@/lib/talent/website-eligibility-facts";
+import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
+import { primaryRoleLabelsFromTaxonomy } from "@/lib/talent/self-profile-trade-label";
 
 /**
  * _data-bridge/talent.ts — talent-side dashboard loaders.
@@ -41,8 +43,10 @@ export type TalentSelfProfile = {
   /** talent_profiles.id */
   id: string;
   displayName: string;
-  /** Primary talent type label (e.g. "Fashion Model") */
+  /** Primary talent type label in English (stable key for trade matching). */
   primaryTypeLabel: string | null;
+  /** Spanish primary trade label when taxonomy_terms.name_i18n.es is set. */
+  primaryTypeLabelEs?: string | null;
   /** Home city display name */
   homeCity: string | null;
   /** workflow_status: draft | published | invited */
@@ -68,6 +72,12 @@ export type TalentSelfProfile = {
   hasBio: boolean;
   /** Drawer availability (talent_profiles.availability_data) holds a pattern or day cells. */
   hasAvailabilityPattern: boolean;
+  /**
+   * TUL-538 — `talent_sites.accepting_bookings`. Drives the Today banner
+   * ("sin aceptar trabajos") and the Disponibilidad master switch. Missing
+   * site row → true (same fail-open as loadTalentSiteSwitches).
+   */
+  acceptingBookings: boolean;
   /** True if height_cm is non-null */
   hasHeight: boolean;
   /** Contact policy — which client trust tiers can initiate inbound contact */
@@ -189,10 +199,9 @@ export async function loadTalentSelfProfile(
       `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() ||
       "Unnamed";
 
-    const primaryTypeLabel =
-      (p.talent_profile_taxonomy ?? [])
-        .find((t) => t.relationship_type === "primary_role")
-        ?.taxonomy_terms?.name_i18n?.en ?? null;
+    const primaryTrade = primaryRoleLabelsFromTaxonomy(p.talent_profile_taxonomy);
+    const primaryTypeLabel = primaryTrade.en;
+    const primaryTypeLabelEs = primaryTrade.es;
 
     const homeCity = homeCityFromSources({
       serviceAreaHomeCity:
@@ -204,11 +213,13 @@ export async function loadTalentSelfProfile(
     // About writes bios to the catalog field value, not the legacy columns.
     const blobValues = await readBlobFieldValuesFromCatalog(mediaClient, p.id);
     const membership = buildTalentMembershipState(p.talent_plan_key);
+    const siteSwitches = await loadTalentSiteSwitches(trusted, p.id);
 
     return {
       id: p.id,
       displayName,
       primaryTypeLabel,
+      primaryTypeLabelEs,
       homeCity,
       workflowStatus: p.workflow_status ?? "draft",
       isPubliclyHidden: p.is_publicly_hidden ?? false,
@@ -225,6 +236,7 @@ export async function loadTalentSelfProfile(
         biosFieldValue: blobValues.bios,
       }),
       hasAvailabilityPattern: hasAvailabilityPattern(p.availability_data),
+      acceptingBookings: siteSwitches.acceptingBookings,
       hasHeight: p.height_cm !== null,
       contactPolicy: p.contact_policy ?? { basic: true, verified: true, silver: true, gold: true },
       portfolioCount: galleryCount ?? 0,
@@ -344,10 +356,9 @@ export async function loadTalentSelfProfileByUser(
       `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() ||
       "Unnamed";
 
-    const primaryTypeLabel =
-      (p.talent_profile_taxonomy ?? [])
-        .find((t) => t.relationship_type === "primary_role")
-        ?.taxonomy_terms?.name_i18n?.en ?? null;
+    const primaryTrade = primaryRoleLabelsFromTaxonomy(p.talent_profile_taxonomy);
+    const primaryTypeLabel = primaryTrade.en;
+    const primaryTypeLabelEs = primaryTrade.es;
 
     const homeCity = homeCityFromSources({
       serviceAreaHomeCity:
@@ -359,11 +370,13 @@ export async function loadTalentSelfProfileByUser(
     // About writes bios to the catalog field value, not the legacy columns.
     const blobValues = await readBlobFieldValuesFromCatalog(trusted, p.id);
     const membership = buildTalentMembershipState(p.talent_plan_key);
+    const siteSwitches = await loadTalentSiteSwitches(trusted, p.id);
 
     return {
       id: p.id,
       displayName,
       primaryTypeLabel,
+      primaryTypeLabelEs,
       homeCity,
       workflowStatus: p.workflow_status ?? "draft",
       isPubliclyHidden: p.is_publicly_hidden ?? false,
@@ -380,6 +393,7 @@ export async function loadTalentSelfProfileByUser(
         biosFieldValue: blobValues.bios,
       }),
       hasAvailabilityPattern: hasAvailabilityPattern(p.availability_data),
+      acceptingBookings: siteSwitches.acceptingBookings,
       hasHeight: p.height_cm !== null,
       contactPolicy: p.contact_policy ?? { basic: true, verified: true, silver: true, gold: true },
       portfolioCount: galleryCount ?? 0,

@@ -13,9 +13,9 @@
 // trigger it by dispatching a `client:open-help` CustomEvent that the
 // shortcuts component listens for; no shared state needed.
 
+import { signOutEverywhere } from "@/lib/auth/sign-out-client";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { signOut } from "@/app/auth/actions";
 import { DashboardLocaleToggle } from "@/components/dashboard-locale-toggle";
 import type { Locale } from "@/i18n/config";
 
@@ -303,11 +303,11 @@ export function ClientAccountMenu({
               sub=""
               tone="coral"
               disabled={signingOut}
-              onClick={async () => {
+              onClick={() => {
                 if (signingOut) return;
                 setSigningOut(true);
                 setOpen(false);
-                await signOut();
+                signOutEverywhere();
               }}
             />
           </div>

@@ -53,6 +53,16 @@ test("preview destinations collapse when publicSiteUrl is only the hub path", ()
   assert.equal(resolved.defaultHref, "https://tulala.digital/t/TAL-93900");
 });
 
+test("TUL-180: workspace public URL is a distinct website destination", () => {
+  const resolved = resolveTalentPublicPreviewDestinations({
+    profileCode: "TAL-93900",
+    publicSiteUrl: "https://maison.tulala.digital",
+  });
+  assert.equal(resolved.destinations[0]?.kind, "website");
+  assert.equal(resolved.destinations[0]?.href, "https://maison.tulala.digital");
+  assert.equal(resolved.defaultHref, "https://maison.tulala.digital");
+});
+
 test("relative /t/site URLs resolve against local origin in local QA", () => {
   const resolved = resolveTalentPublicPreviewDestinations({
     profileCode: "TAL-93900",

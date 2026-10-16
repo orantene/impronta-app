@@ -12,12 +12,18 @@ import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 import { groupVisits, shapeReceiptLines, type ReceiptLine } from "./area-pure";
+import { loadVisitZones } from "./visit-zones.server";
+import { resolveVisitInquiryId } from "./visit-id";
+import { localizedServiceTitle } from "./localized-service-title";
 
 /** Every query here is `client_user_id = session user` AND `tenant_id = this site's tenant`. */
 
 export async function loadVisitGroups(userId: string, tenantId: string) {
   const me = await loadMeData(userId, tenantId);
-  return groupVisits([...me.upcoming, ...me.waitingOnYou, ...me.past], Date.now());
+  const rows = [...me.upcoming, ...me.waitingOnYou, ...me.past];
+  // Each row shows in its booking talent's zone (visit-zone.ts); gaps fall back to the host zone.
+  const zones = await loadVisitZones(tenantId, rows.map((r) => r.id));
+  return { ...groupVisits(rows, Date.now()), zones };
 }
 
 export type VisitDetail = {
@@ -41,9 +47,11 @@ export type VisitDetail = {
   payCode: string | null;
 };
 
-export async function loadVisitDetail(userId: string, tenantId: string, inquiryId: string): Promise<VisitDetail | null> {
+export async function loadVisitDetail(userId: string, tenantId: string, visitId: string, locale = "en"): Promise<VisitDetail | null> {
   const admin = createServiceRoleClient();
   if (!admin) return null;
+  // Emails historically carried a booking id; accept either (TUL-G5).
+  const inquiryId = await resolveVisitInquiryId(admin, tenantId, visitId);
   const { data: inq, error } = await admin
     .from("inquiries")
     .select("id, company, status, event_date, event_location")
@@ -113,6 +121,13 @@ export async function loadVisitDetail(userId: string, tenantId: string, inquiryI
     payCode = (link as { code?: string } | null)?.code ?? null;
   }
   const nowMs = requestNowMs();
+  // TUL-975: the booking stores the name it was booked under; show the service's own title in the page language.
+  let service = b?.title?.trim() || i.company?.trim() || "";
+  if (offeringId && service) {
+    const { data: off, error: offErr } = await admin.from("talent_offerings").select("title, title_i18n").eq("id", offeringId).maybeSingle();
+    if (offErr) logServerError("clientAccount.visit.serviceTitle", offErr);
+    service = localizedServiceTitle(off as { title: string; title_i18n?: unknown } | null, locale, service);
+  }
   const window = resolveCancellationWindow({ cancellationHours: policy.cancelFreeHours, startsAt: b?.starts_at ?? null, eventDate: null, nowMs });
   const status = (b?.status ?? i.status ?? "").toLowerCase();
   const closed = ["cancelled", "completed", "archived", "declined", "expired", "closed"].includes(status);
@@ -121,7 +136,7 @@ export async function loadVisitDetail(userId: string, tenantId: string, inquiryI
   return {
     inquiryId,
     bookingId: b?.id ?? null,
-    service: b?.title?.trim() || i.company?.trim() || "",
+    service,
     status,
     startsAt: b?.starts_at ?? null,
     eventDate: i.event_date,

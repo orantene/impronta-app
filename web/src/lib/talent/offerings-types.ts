@@ -18,8 +18,8 @@ import type { LocalizedMap } from "@/lib/i18n/resolve-localized";
 import { IDENTITY_REASONS, isIdentityReason, type IdentityReason } from "@/lib/orders/identity-requirement";
 import { formatMoney } from "@/lib/talent/offerings-money";
 import {
-  SERVICE_PRICING_SUFFIX,
   SERVICE_PRICING_TYPES,
+  servicePricingSuffix,
   type ServicePricingType,
 } from "@/lib/talent/services-menu-types";
 import { resolveCategoryLabel } from "./category-label-fallback";
@@ -470,8 +470,10 @@ export function validateOffering(o: TalentOffering, defaultPosture?: string | nu
   // attached first: the photo is the second question, the price the third.
   // Only on "request" booking; instant booking still needs its exact price,
   // which the database also enforces (talent_offerings_instant_needs_price).
+  // An archived item is off sale, so a priceless draft can be archived too.
   // A negative amount is refused in every status.
-  const priceLaterDraft = o.status === "draft" && o.bookingMode !== "instant" && o.amountCents == null;
+  const priceLaterDraft =
+    (o.status === "draft" || o.status === "archived") && o.bookingMode !== "instant" && o.amountCents == null;
   if (!quoteOnly && !priceLaterDraft && (o.amountCents == null || o.amountCents < 0)) {
     errors.push(`“${o.title || "This service"}” needs a price — or switch it to “Contact for price.”`);
   }
@@ -492,13 +494,27 @@ export function validateOffering(o: TalentOffering, defaultPosture?: string | nu
   return errors;
 }
 
+/**
+ * TUL-16 d: one rule for "this is a quote, not a price". A service with a
+ * number on it shows the number: a draft started as "custom" (the AI draft)
+ * keeps that type after the owner prices it, and must not read "a cotizar".
+ * An explicit "quote" display, or no amount, is still a quote.
+ */
+export function offeringIsQuote(
+  o: { priceDisplay?: string | null; priceType?: string | null; amountCents?: number | null },
+): boolean {
+  if (o.amountCents == null) return true;
+  if (o.priceDisplay === "quote") return true;
+  return o.priceType === "custom" && !(o.amountCents > 0);
+}
+
 /** What the public CTA should be, resolved from BEHAVIOR (not kind). */
 export type OfferingCtaKind = "book_now" | "buy_now" | "request_to_book" | "request" | "ask_quote";
 export function resolveOfferingCta(
   o: Pick<TalentOffering, "kind" | "bookingMode" | "priceType" | "priceDisplay" | "amountCents" | "visibility">,
 ): OfferingCtaKind {
   if (o.visibility === "on_request") return "request";
-  if (o.priceDisplay === "quote" || o.priceType === "custom" || o.amountCents == null) return "ask_quote";
+  if (offeringIsQuote(o)) return "ask_quote";
   if (o.bookingMode === "inquiry") return "request";
   if (o.bookingMode === "instant") return o.kind === "product" ? "buy_now" : "book_now";
   return "request_to_book";
@@ -537,14 +553,20 @@ export function formatOfferingPrice(amountCents: number, currency: string, local
 export function offeringPriceLabel(
   o: Pick<TalentOffering, "priceType" | "priceDisplay" | "amountCents" | "currency" | "visibility">,
   locale: string,
+  /** The dashboard passes `formatDashboardMoneyCents`; public surfaces keep the default. */
+  format: (amountCents: number, currency: string, locale: string) => string = formatOfferingPrice,
 ): string {
-  const es = locale === "es";
+  const es = (locale ?? "").trim().toLowerCase().startsWith("es");
   if (o.visibility === "on_request") return es ? "Bajo consulta" : "On request";
-  if (o.priceDisplay === "quote" || o.priceType === "custom" || o.amountCents == null) {
+  // `amountCents == null` is already a quote per offeringIsQuote; the explicit
+  // check also narrows the type for `format` below.
+  if (o.amountCents == null || offeringIsQuote(o)) {
     return es ? "Cotización a pedido" : "Quote on request";
   }
-  const price = formatOfferingPrice(o.amountCents, o.currency, locale);
-  const suffix = SERVICE_PRICING_SUFFIX[o.priceType];
+  // TUL-533 / GRK-064: $0 → Consultar / Ask (display only; free can still book).
+  if (o.amountCents <= 0) return es ? "Consultar" : "Ask";
+  const price = format(o.amountCents, o.currency, locale);
+  const suffix = servicePricingSuffix(o.priceType, locale);
   const core = suffix ? `${price} ${suffix}` : price;
   return o.priceDisplay === "from" ? (es ? `desde ${core}` : `from ${core}`) : core;
 }

@@ -272,7 +272,8 @@ export async function loadTalentDefaultCurrency(): Promise<LoadTalentDefaultCurr
 }
 
 export type UpdateTalentDefaultCurrencyResult =
-  | { ok: true }
+  /** `otherCurrencyServices`: her live services still priced in another currency (information only; nothing is changed). */
+  | { ok: true; otherCurrencyServices: number }
   | { ok: false; error: string };
 
 export async function updateTalentDefaultCurrency(
@@ -303,8 +304,19 @@ export async function updateTalentDefaultCurrency(
       return { ok: false, error: "Failed to update default currency." };
     }
 
+    // Changing the default never rewrites existing services (that needs the owner's yes), so say how many
+    // are still priced in another currency instead of leaving them silently mismatched.
+    let otherCurrencyServices = 0;
+    const { count } = await admin
+      .from("talent_offerings")
+      .select("id", { count: "exact", head: true })
+      .eq("talent_profile_id", guard.talentProfile.id)
+      .neq("status", "archived")
+      .neq("currency", normalized);
+    if (typeof count === "number") otherCurrencyServices = count;
+
     revalidatePath(`/talent/settings`);
-    return { ok: true };
+    return { ok: true, otherCurrencyServices };
   } catch (err) {
     logServerError("talent.updateDefaultCurrency", err);
     return { ok: false, error: "Unexpected error" };

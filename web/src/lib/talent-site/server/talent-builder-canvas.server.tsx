@@ -40,7 +40,7 @@ import {
   loadTalentPlanKey,
   loadTalentSiteCtaMode,
 } from "./load-max-site";
-import { TalentSiteSocket } from "@/components/talent-site/talent-site-socket";
+import { TulalaLegalStrip } from "@/components/talent-site/tulala-legal-strip";
 import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import {
   buildSocketModel,
@@ -88,18 +88,27 @@ export async function buildTalentBuilderCanvasData(input: {
   const { talentProfileId } = input;
   const galleryOn = isTalentThemeGalleryEnabled();
 
+  // Edit canvas (?edit=1): always bypass the public Data Cache so a save is
+  // visible on the next paint (pages include draft blocks).
+  const bypassCache = true;
   const [site, pages, designSlug, siteTokens, platformDefault, localeCtx, planKey, isDemo] =
     await Promise.all([
       loadMaxSiteByProfileId(talentProfileId),
-      loadMaxSitePages(talentProfileId),
-      loadMaxSiteDesignSlug(talentProfileId),
+      loadMaxSitePages(talentProfileId, { bypassCache }),
+      loadMaxSiteDesignSlug(talentProfileId, { bypassCache }),
       loadMaxSiteThemeTokens(talentProfileId, { draft: true }),
       loadPlatformDefaultTheme("talent"),
       // The talent's languages; the canvas previews the primary, and a
       // translated node reads through its `node.i18n` overlay (dimmed when it
       // falls back, editor only).
-      loadTalentSiteLocaleContext({ talentProfileId, requestedLocale: null, hrefMode: "host-root", editorPreview: true }),
-      loadTalentPlanKey(talentProfileId),
+      loadTalentSiteLocaleContext({
+        talentProfileId,
+        requestedLocale: null,
+        hrefMode: "host-root",
+        editorPreview: true,
+        bypassCache,
+      }),
+      loadTalentPlanKey(talentProfileId, { bypassCache }),
       loadMaxSiteIsDemo(talentProfileId),
     ]);
   const siteLocale = localeCtx.locale;
@@ -160,11 +169,12 @@ export async function buildTalentBuilderCanvasData(input: {
     locale: siteLocale,
     publicPathPrefix: "",
     supportedLocales: localeCtx.settings.supportedLocales,
+    primaryLocale: localeCtx.settings.defaultLocale,
     switcherHrefs: localeCtx.switcherHrefs,
     showCredit: talentSiteShowsPlatformBadge(planKey),
     whitelabel: input.tenantId ? await loadTenantWhitelabel(input.tenantId) : false,
     consentTooling: socketConsentToolingEnabled(),
-    talentName: (await loadTalentSiteIdentity(talentProfileId))?.name ?? null,
+    talentName: (await loadTalentSiteIdentity(talentProfileId, { bypassCache }))?.name ?? null,
     headerHasLanguageSwitch: headerShowsLanguageSwitch(headerTree),
   });
 
@@ -208,7 +218,15 @@ export async function buildTalentBuilderCanvasData(input: {
     shellHeader: renderShell(headerTree),
     shellHeaderOverHero: headerOverlayAllowed(input.tree),
     shellFooter: renderShell(footerTree),
-    shellSocket: <TalentSiteSocket model={socketModel} hint={socketLockedHint(siteLocale)} clearDock={false} />,
+    shellSocket: (
+      <TulalaLegalStrip
+        locale={siteLocale}
+        languages={socketModel.languages}
+        talentLinks={socketModel.siteLinks}
+        hint={socketLockedHint(siteLocale)}
+        clearDock={false}
+      />
+    ),
     labelLocale: { locale: siteLocale, ctaMode, swaps, ...(live ? { live } : {}) },
   };
 }
@@ -223,6 +241,7 @@ export function renderShellRoot(root: BuilderNode, localeCtx: TalentSiteLocaleCo
     includeFontLinks: false,
     visitorLocale: locale,
     contentLocale: localeCtx.contentLocale,
+    dataSources: { siteLocales: { locales: localeCtx.settings.supportedLocales, hrefs: localeCtx.switcherHrefs } },
   };
   if (
     root.kind === "section" &&

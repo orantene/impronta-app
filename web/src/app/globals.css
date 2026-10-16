@@ -252,7 +252,7 @@ html[data-public-font-preset="editorial"] {
     --secondary: var(--tl-surface-deep, #ebe4d5);
     --secondary-foreground: var(--tl-ink, #161a16);
     --muted: var(--tl-surface-deep, #ebe4d5);
-    --muted-foreground: var(--tl-muted, #6b7065);
+    --muted-foreground: var(--tl-muted, #5f645a);
     --accent: var(--tl-forest-soft, rgba(30, 58, 45, 0.08));
     --accent-solid: var(--tl-forest, #1e3a2d);
     --accent-foreground: var(--tl-ink, #161a16);
@@ -1129,7 +1129,9 @@ html[data-public-font-preset="editorial"] {
   --tl-ink: #161a16;
   --tl-ink-soft: #3e4640;
   --tl-ink-strong: #0a0e0b;
-  --tl-muted: #6b7065;
+  /* TUL-518 / J3: was #6b7065 (4.44:1 on bone). #5f645a clears AA on bone
+     and on --tl-surface-deep (footer column headings). */
+  --tl-muted: #5f645a;
   --tl-muted-soft: #8e938a;
   --tl-on-inverse: #f1ede3;
   --tl-on-inverse-muted: rgba(241, 237, 227, 0.68);
@@ -1161,9 +1163,11 @@ html[data-public-font-preset="editorial"] {
   --tl-accent: #ff8332;
   --tl-accent-soft: #ffb583;
 
-  /* Editorial supports — used as accents in editorial composition, not UI */
-  --tl-sage: #8a907b;
-  --tl-sage-soft: rgba(138, 144, 123, 0.16);
+  /* Editorial supports. Sage was #8a907b (~2.9:1 on bone) so "For hubs"
+     failed AA; #5f6556 clears 4.5:1 on bone / surface / white. Soft tint
+     keeps the old hue so washes stay soft. */
+  --tl-sage: #5f6556;
+  --tl-sage-soft: rgba(95, 101, 86, 0.16);
   --tl-stone: #d4ccbd;
   --tl-stone-soft: rgba(212, 204, 189, 0.4);
   --tl-clay: #b3886b;
@@ -1508,6 +1512,46 @@ html[data-public-font-preset="editorial"] {
    numbers version read as a calendar. Interaction is a lift plus a warmed
    border, and the icon tile answers with it, which is enough movement for a
    grid of twenty one without any of them shouting. */
+
+/* A band is centred rows of equal-width cards. Card width is always the
+   four/three/two-up width of the full row; a band that uses fewer columns
+   (bandColumns) narrows itself instead, so short rows centre and no band ends
+   on one lone card. Breakpoints match Tailwind sm / lg / xl. */
+.mkt-band {
+  --gap: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--gap);
+  margin-inline: auto;
+}
+.mkt-band > * {
+  width: 100%;
+}
+@media (min-width: 640px) {
+  .mkt-band {
+    max-width: calc((100% - var(--gap)) / 2 * var(--cols-sm) + (var(--cols-sm) - 1) * var(--gap));
+  }
+  .mkt-band > * {
+    width: calc((100% - (var(--cols-sm) - 1) * var(--gap)) / var(--cols-sm));
+  }
+}
+@media (min-width: 1024px) {
+  .mkt-band {
+    max-width: calc((100% - 2 * var(--gap)) / 3 * var(--cols-lg) + (var(--cols-lg) - 1) * var(--gap));
+  }
+  .mkt-band > * {
+    width: calc((100% - (var(--cols-lg) - 1) * var(--gap)) / var(--cols-lg));
+  }
+}
+@media (min-width: 1280px) {
+  .mkt-band {
+    max-width: calc((100% - 3 * var(--gap)) / 4 * var(--cols-xl) + (var(--cols-xl) - 1) * var(--gap));
+  }
+  .mkt-band > * {
+    width: calc((100% - (var(--cols-xl) - 1) * var(--gap)) / var(--cols-xl));
+  }
+}
 
 .mkt-feature-card {
   transition:

@@ -1,5 +1,6 @@
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 
+import { EMBED_ROWS } from "./section-template-copy-embed-rows";
 import { EXTRA_ROWS, type CopyRow, type Variant } from "./section-template-copy-rows";
 
 /**
@@ -24,6 +25,37 @@ export function templateCopySiteKind(
   if (surfaceKind === "talent_page" || surfaceKind === "theme_template") return "talent";
   const p = pathname ?? "";
   return p.startsWith("/talent/") || p.startsWith("/t/") ? "talent" : "agency";
+}
+
+/**
+ * Language for inserted placeholder copy. The active content-locale store is
+ * only published by the top bar; until then it holds its "en" boot default,
+ * which made a Spanish site get English copy (TUL-80 / Grokbot B-9). When the
+ * store's tenant default does not match the editor's real tenant default it
+ * was never published for this site, so the site default wins.
+ */
+export function resolveCopyLocale(
+  active: { locale: string; defaultLocale: string },
+  siteDefaultLocale: string | null | undefined,
+): string {
+  const site = (siteDefaultLocale ?? "").trim();
+  if (!site) return active.locale || "en";
+  const published = active.defaultLocale.toLowerCase() === site.toLowerCase();
+  return published && active.locale ? active.locale : site;
+}
+
+/** One place that builds the context both insert call sites pass. */
+export function buildTemplateCopyContext(input: {
+  surfaceKind: string | null | undefined;
+  pathname: string | null | undefined;
+  workspaceType?: string | null;
+  active: { locale: string; defaultLocale: string };
+  siteDefaultLocale?: string | null;
+}): TemplateCopyContext {
+  return {
+    siteKind: templateCopySiteKind(input.surfaceKind, input.pathname, input.workspaceType),
+    locale: resolveCopyLocale(input.active, input.siteDefaultLocale),
+  };
 }
 
 type Row = CopyRow;
@@ -87,7 +119,7 @@ const BASE_ROWS: Record<string, Row> = {
   },
 };
 
-const ROWS: Record<string, Row> = { ...BASE_ROWS, ...Object.fromEntries(EXTRA_ROWS) };
+const ROWS: Record<string, Row> = { ...BASE_ROWS, ...Object.fromEntries(EXTRA_ROWS), ...Object.fromEntries(EMBED_ROWS) };
 
 // A business speaks as "we", not "I".
 const BUSINESS_VOICE: Record<string, Variant> = {
@@ -123,12 +155,24 @@ export function localizeTemplateString(value: string, ctx: TemplateCopyContext):
   return ctx.locale.toLowerCase().startsWith("es") ? variant.es : variant.en;
 }
 
+// Composed business sites publish Spanish page slugs in every site language
+// (compose-site-from-brief pageHrefsFor: /servicios, /contacto). /directory is
+// roster-only and 404s on a business, so inserted CTA links point at the
+// business's own pages instead.
+const BUSINESS_PATHS: Record<string, string> = { "/directory": "/servicios", "/contact": "/contacto" };
+
+function localizeHref(value: string, ctx: TemplateCopyContext): string {
+  return ctx.siteKind === "business" ? (BUSINESS_PATHS[value] ?? value) : value;
+}
+
 function walk(value: unknown, ctx: TemplateCopyContext): unknown {
   if (typeof value === "string") return localizeTemplateString(value, ctx);
   if (Array.isArray(value)) return value.map((v) => walk(v, ctx));
   if (value && typeof value === "object") {
     const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value)) out[k] = k === "id" || k === "kind" ? v : walk(v, ctx);
+    for (const [k, v] of Object.entries(value)) {
+      out[k] = k === "id" || k === "kind" ? v : k === "href" && typeof v === "string" ? localizeHref(v, ctx) : walk(v, ctx);
+    }
     return out;
   }
   return value;

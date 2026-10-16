@@ -24,6 +24,11 @@ export type TalentEarningsRow = {
    */
   collectedCents?: number | null;
   collectedByMethod?: Record<string, number> | null;
+  /**
+   * The client's service fee on top of HER price (gross charged minus her gross), when the sale carried one.
+   * Never hers: shown on the Money row so the card charge and her price are both explained.
+   */
+  clientFeeCents?: number | null;
 };
 
 export type TalentEarningsPerAgency = {
@@ -102,6 +107,11 @@ export type TalentSnapshotAggregateRow = {
    */
   collectedCents?: number | null;
   collectedByMethod?: Record<string, number> | null;
+  /**
+   * The client's service fee on top of HER price (gross charged minus her gross), when the sale carried one.
+   * Never hers: shown on the Money row so the card charge and her price are both explained.
+   */
+  clientFeeCents?: number | null;
 };
 
 type BookingPayoutFields = {
@@ -283,6 +293,7 @@ export function buildTalentEarnings(
       paymentStatus: row.paymentStatus ?? null,
       collectedCents: row.collectedCents ?? null,
       collectedByMethod: row.collectedByMethod ?? null,
+      clientFeeCents: row.clientFeeCents ?? null,
     })),
   };
 }

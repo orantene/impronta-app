@@ -1,9 +1,11 @@
 /**
- * Pure planning + orchestration for scripts/release-theme-i18n-overlay.mts.
+ * Pure planning helpers (types, arg parsing, guards) for the theme release scripts. The i18n
+ * overlay entrypoint is RETIRED: Builder Lab publishes copy-only drafts as a `copy` release
+ * item. release-theme-patch-cta still imports this module.
  *
  * Releases the seeded Spanish + English copy as new theme versions through
  * Builder Lab's OWN release path. Nothing here touches a database: every
- * effect goes through the injected `Ports`, which the .mts binds to the same
+ * effect goes through the injected `Ports`, which a script entrypoint binds to the same
  * functions Builder Lab's Release button calls (drafts.server.ts,
  * publish.server.ts, release-manager.server.ts). Tests inject fakes.
  *

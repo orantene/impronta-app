@@ -22,7 +22,13 @@ import {
   stripDesignCredits,
   TULALA_LEGAL_PRIVACY_URL,
   localizedLegalUrl,
+  localizedContactUrl,
+  talentSiteHelpHref,
+  siteHostFromOrigin,
   TULALA_LEGAL_TERMS_URL,
+  talentPolicyPageHref,
+  TALENT_BOOKING_POLICY_PATH,
+  TALENT_PRIVACY_PATH,
 } from "./footer-socket";
 
 const DESIGNS = [...BUILTIN_DESIGNS, MAISON_BUILTIN_DESIGN, ...COLLECTION_DESIGNS];
@@ -78,6 +84,7 @@ test("colours are tokens only: no hex, rgb or hsl literals in the strip", () => 
     "--ts-ink",
     "--ts-line",
     "--ts-muted",
+    "--floating-chrome-bottom",
   ]);
   for (const v of vars) assert.ok(allowed.has(v as string), `unexpected var ${v}`);
   assert.match(out, /color-mix\(in srgb,var\(--ts-ink\) 82%,var\(--ts-bg\)\)/);
@@ -141,7 +148,88 @@ test("links: talent policies on the talent host, Tulala documents off-host", () 
   assert.equal(by["tulala-privacy"]!.href, "https://tulala.digital/es/legal/privacy");
   assert.equal(by["tulala-terms"]!.external, true);
   assert.equal(model({ publicPathPrefix: "/t/site/jor/" }).siteLinks[0]!.href, "/t/site/jor/politicas");
+  // Same-tab next/link: never target=_blank (a cold marketing paint left about:blank).
   assert.match(html(), /rel="noopener"/);
+  assert.equal(html().includes('target="_blank"'), false);
+});
+
+test("DS-20: platform privacy/terms labels name Tulala so they are not a second Privacidad", () => {
+  const es = model({ locale: "es" });
+  const en = model({ locale: "en" });
+  const esBy = Object.fromEntries([...es.siteLinks, ...es.tulalaLinks].map((l) => [l.key, l]));
+  const enBy = Object.fromEntries([...en.siteLinks, ...en.tulalaLinks].map((l) => [l.key, l]));
+  assert.equal(esBy["privacy"]!.label, "Privacidad");
+  assert.equal(esBy["tulala-privacy"]!.label, "Privacidad Tulala");
+  assert.equal(esBy["tulala-terms"]!.label, "Términos Tulala");
+  assert.equal(enBy["privacy"]!.label, "Privacy");
+  assert.equal(enBy["tulala-privacy"]!.label, "Tulala privacy");
+  assert.equal(enBy["tulala-terms"]!.label, "Tulala terms");
+  const labels = [...es.siteLinks, ...es.tulalaLinks].map((l) => l.label);
+  assert.equal(labels.filter((l) => l === "Privacidad").length, 1);
+  assert.equal(labels.filter((l) => l === "Términos").length, 0);
+  assert.match(html({ locale: "es" }), /data-socket-link="tulala-privacy"[^>]*>Privacidad Tulala</);
+  assert.match(html({ locale: "en" }), /data-socket-link="tulala-privacy"[^>]*>Tulala privacy</);
+});
+
+test("TUL-498: EN visitor on an ES-primary site gets /en/politicas (and /en/privacidad)", () => {
+  const m = model({
+    locale: "en",
+    primaryLocale: "es",
+    supportedLocales: ["es", "en"],
+  });
+  const by = Object.fromEntries(m.siteLinks.map((l) => [l.key, l]));
+  assert.equal(by["booking-policy"]!.href, "/en/politicas");
+  assert.equal(by["privacy"]!.href, "/en/privacidad");
+  assert.equal(
+    model({
+      locale: "en",
+      primaryLocale: "es",
+      supportedLocales: ["es", "en"],
+      publicPathPrefix: "/t/site/jor/",
+    }).siteLinks[0]!.href,
+    "/t/site/jor/en/politicas",
+  );
+});
+
+test("GRK-029: talentPolicyPageHref localizes /politicas for location + socket", () => {
+  assert.equal(
+    talentPolicyPageHref({
+      path: TALENT_BOOKING_POLICY_PATH,
+      locale: "en",
+      primaryLocale: "es",
+      supportedLocales: ["es", "en"],
+    }),
+    "/en/politicas",
+  );
+  assert.equal(
+    talentPolicyPageHref({
+      path: TALENT_PRIVACY_PATH,
+      locale: "en",
+      primaryLocale: "es",
+      supportedLocales: ["es", "en"],
+      publicPathPrefix: "/t/site/sofia/",
+    }),
+    "/t/site/sofia/en/privacidad",
+  );
+  assert.equal(
+    talentPolicyPageHref({
+      path: TALENT_BOOKING_POLICY_PATH,
+      locale: "es",
+      primaryLocale: "es",
+      supportedLocales: ["es", "en"],
+    }),
+    "/politicas",
+  );
+});
+
+test("GRK-029: visit/location block wires talentPolicyPageHref (not bare /politicas)", () => {
+  const render = readFileSync("src/lib/site-admin/builder-node/render.tsx", "utf8");
+  assert.match(render, /talentPolicyPageHref/);
+  assert.match(render, /TALENT_BOOKING_POLICY_PATH/);
+  assert.doesNotMatch(
+    render,
+    /policyHref:\s*`\$\{\(options\.publicPathPrefix[^`]*\}\/politicas`/,
+  );
 });
 
 test("privacy choices only with the consent-tooling flag; default off", () => {
@@ -177,7 +265,14 @@ test("layout: stacked on phone, one row from 768px, room for the dock", () => {
   const out = html();
   assert.match(out, /@media \(min-width:768px\)/);
   assert.match(out, /grid-auto-flow:column/);
-  assert.match(out, /padding-bottom:132px/);
+  assert.match(out, /\[data-clear-dock="true"\]\{padding-bottom:calc\(22px \+ var\(--floating-chrome-bottom,0px\)\)\}/);
+});
+
+test("GRK-080 bottom band: the strip owns the dock reserve once, no fixed pad, no body pad under it", () => {
+  const out = html();
+  assert.doesNotMatch(out, /padding-bottom:(132|194)px/);
+  assert.match(out, /body:has\(\.tulala-socket\[data-clear-dock="true"\]\)\{padding-bottom:0\}/);
+  assert.match(out, /@media \(min-width:768px\)\{[^@]*\[data-clear-dock="true"\]\{padding-bottom:calc\(18px \+ var\(--floating-chrome-bottom,0px\)\)\}/);
 });
 
 test("Maison v2 credit is hidden at render time, not by a payload edit", () => {
@@ -193,10 +288,10 @@ test("Maison v2 credit is hidden at render time, not by a payload edit", () => {
 
 test("renderers wire the socket and the old badge div is gone", () => {
   const root = join(process.cwd(), "src");
-  const render = readFileSync(join(root, "lib/talent-site/server/render-max-site.tsx"), "utf8");
+  const render = readFileSync(join(root, "lib/talent-site/server/render-max-site-document.tsx"), "utf8");
   const canvas = readFileSync(join(root, "lib/talent-site/server/talent-builder-canvas.server.tsx"), "utf8");
   const stmt = readFileSync(join(root, "lib/site-admin/builder-node/statement-footer-block.tsx"), "utf8");
-  assert.match(render, /<TalentSiteSocket/);
+  assert.match(render, /<TulalaLegalStrip/);
   assert.equal(render.includes("data-talent-max-site-badge"), false);
   assert.match(canvas, /shellSocket/);
   assert.equal(stmt.includes("Hecho con Tulala"), false);
@@ -223,10 +318,14 @@ test("the Tulala group has Cookies and Refunds, pointing at the platform pages",
     "tulala-refunds",
   ]);
   const cookies = m.tulalaLinks.find((l) => l.key === "tulala-cookies")!;
-  assert.equal(cookies.label, "Cookies");
+  assert.equal(cookies.label, "Política de cookies");
   assert.equal(cookies.href, "https://tulala.digital/es/legal/cookies");
   assert.equal(cookies.external, true);
   assert.match(html(), /data-socket-link="tulala-cookies"/);
+  assert.equal(
+    model({ locale: "en" }).tulalaLinks.find((l) => l.key === "tulala-cookies")!.label,
+    "Cookies",
+  );
   const refunds = m.tulalaLinks.find((l) => l.key === "tulala-refunds")!;
   assert.equal(refunds.label, "Reembolsos");
   assert.equal(refunds.href, "https://tulala.digital/es/legal/refunds");
@@ -235,10 +334,49 @@ test("the Tulala group has Cookies and Refunds, pointing at the platform pages",
   assert.equal(model({ locale: "en" }).tulalaLinks.find((l) => l.key === "tulala-refunds")!.label, "Refunds");
 });
 
+test("TUL-310: Help opens marketing contact with host + talent code (all plans)", () => {
+  assert.equal(model().tulalaLinks.some((l) => l.key === "tulala-help"), false);
+  const m = model({
+    helpContext: { profileCode: "TAL-93900", siteHost: "jorg-beauty-qa.tulala.digital" },
+  });
+  assert.deepEqual(
+    m.tulalaLinks.map((l) => l.key),
+    ["tulala-help", "tulala-terms", "tulala-privacy", "tulala-cookies", "tulala-refunds"],
+  );
+  const help = m.tulalaLinks[0]!;
+  assert.equal(help.label, "Ayuda");
+  assert.equal(help.external, true);
+  assert.equal(
+    help.href,
+    "https://tulala.digital/es/contact?source=talent-site&host=jorg-beauty-qa.tulala.digital&code=TAL-93900",
+  );
+  assert.equal(
+    model({
+      locale: "en",
+      helpContext: { profileCode: "TAL-93900", siteHost: "demo.tulala.digital" },
+    }).tulalaLinks[0]!.label,
+    "Help",
+  );
+  assert.equal(localizedContactUrl("es"), "https://tulala.digital/es/contact");
+  assert.equal(localizedContactUrl("en"), "https://tulala.digital/contact");
+  assert.equal(
+    talentSiteHelpHref({ locale: "en", profileCode: "TAL-1", siteHost: "x.tulala.digital" }),
+    "https://tulala.digital/contact?source=talent-site&host=x.tulala.digital&code=TAL-1",
+  );
+  assert.equal(siteHostFromOrigin("https://jorg.tulala.digital/"), "jorg.tulala.digital");
+  assert.equal(siteHostFromOrigin(null), null);
+  assert.match(
+    html({ helpContext: { profileCode: "TAL-93900", siteHost: "jorg.tulala.digital" } }),
+    /data-socket-link="tulala-help"/,
+  );
+  // Agency storefront path (no helpContext) stays without Help.
+  assert.equal(model({ siteLinks: [] }).tulalaLinks.some((l) => l.key === "tulala-help"), false);
+});
+
 test("the credit reads 'Sitio creado con Tulala.digital' (EN 'Site made with'), linked, on the right, whitelabel-aware", () => {
   const es = html({ locale: "es" });
-  assert.match(es, /data-socket-credit[^>]*>Sitio creado con<a href="https:\/\/tulala\.digital"[^>]*>Tulala\.digital<\/a>/);
-  assert.match(html({ locale: "en" }), />Site made with<a href="https:\/\/tulala\.digital"[^>]*>Tulala\.digital</);
+  assert.match(es, /data-socket-credit[^>]*>Sitio creado con<a[^>]*href="https:\/\/tulala\.digital"[^>]*>Tulala\.digital<\/a>/);
+  assert.match(html({ locale: "en" }), />Site made with<a[^>]*href="https:\/\/tulala\.digital"[^>]*>Tulala\.digital</);
   assert.equal(html({ whitelabel: true }).includes("data-socket-credit"), false);
   assert.equal(html({ showCredit: false }).includes("data-socket-credit"), false);
   assert.ok(!html().includes("Hecho con Tulala"));
@@ -255,6 +393,9 @@ test("the language group is dropped when the header already has a language switc
   assert.equal(headerShowsLanguageSwitch(withSwitch), true);
   assert.equal(headerShowsLanguageSwitch(without), false);
   assert.equal(headerShowsLanguageSwitch([]), false);
+  // GRK-030: the Gridline utility bar draws the switch itself, so the strip drops its group.
+  assert.equal(headerShowsLanguageSwitch([{ kind: "utility_bar", props: {} }]), true);
+  assert.equal(headerShowsLanguageSwitch([{ kind: "container", children: [{ kind: "utility_bar", props: {} }] }]), true);
 });
 
 test("legal links: Spanish sites link /es/legal, English sites keep /legal", () => {

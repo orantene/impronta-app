@@ -30,7 +30,7 @@ test("folio site copy differs per demo (no shared caption for Rafa)", () => {
   const rafa = folioSiteCopyFor("TAL-93114");
   assert.equal(mateo.coverStatement, FOLIO_DEMO_SITE_COPY.coverStatement);
   assert.notEqual(rafa.coverStatement, mateo.coverStatement);
-  assert.match(rafa.coverStatement, /singer|music|Vallarta/i);
+  assert.match(rafa.coverStatement, /cantante|singer|música|music|Vallarta/i);
 });
 
 test("demo site settings vary across demos", () => {

@@ -212,7 +212,9 @@ export function GuestTrustChip({
             marginRight: 2,
           }}
         >
-          {displayName}
+          {displayName.trim() === "" || (displayName.trim() === "Guest" && identity === "guest")
+            ? copy.t("Guest")
+            : displayName}
         </span>
 
         {/* Identity chip */}
@@ -295,7 +297,9 @@ export function GuestTrustChip({
             <span aria-hidden style={{ fontSize: 9 }}>
               &#9733;
             </span>
-            {completedBookings} booking{completedBookings === 1 ? "" : "s"}
+            {completedBookings === 1
+              ? copy.t("1 booking")
+              : copy.t("{n} bookings").replace("{n}", String(completedBookings))}
           </span>
         )}
       </div>

@@ -82,8 +82,10 @@ export async function loadTotalUnreadMessages(tenantId: string): Promise<number>
 export async function loadClientInquiryMessages(
   tenantId: string,
   inquiryId: string,
+  /** TUL-255: the effective viewer (impersonation subject); absent = the session user. */
+  viewerUserId?: string,
 ): Promise<WorkspaceMessage[]> {
-  return loadInquiryMessages(tenantId, inquiryId, CLIENT_THREAD, { audience: "client" });
+  return loadInquiryMessages(tenantId, inquiryId, CLIENT_THREAD, { audience: "client", viewerUserId });
 }
 
 /**
@@ -97,14 +99,14 @@ export async function loadInquiryMessages(
   tenantId: string,
   inquiryId: string,
   threadType: ThreadType,
-  options?: { audience?: "staff" | "client" },
+  options?: { audience?: "staff" | "client"; viewerUserId?: string },
 ): Promise<WorkspaceMessage[]> {
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return [];
 
     const { data: { user } } = await supabase.auth.getUser();
-    const myUserId = user?.id ?? null;
+    const myUserId = options?.viewerUserId ?? user?.id ?? null;
 
     const admin = createServiceRoleClient();
     const readClient = admin ?? supabase;

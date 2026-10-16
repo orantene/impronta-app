@@ -29,7 +29,7 @@ export type ArrivalPayload = {
   headlineName: string | null;
   businessName: string | null;
   link: { display: string; href: string } | null;
-  fact: { services: number; city: string | null; logo: boolean; hours: boolean; whatsapp: boolean; menuItems: number; photos: boolean };
+  fact: { services: number; city: string | null; logo: boolean; hours: boolean; whatsapp: boolean; menuItems: number; photos: boolean; /** Services saved as drafts for lack of a price; absent when none. */ unpriced?: number };
   primary: { label: "finish_my_page" | "open_my_site" | "open_my_website" | "open_my_workspace"; href: string };
   quiet: "signed_in_as" | "own_page_drafted" | null;
   /** Talent path: the free site is published and `link` is its live address (TUL-32). */
@@ -51,6 +51,8 @@ export type ArrivalPayload = {
   addMemberHref?: string;
   /** TUL-16: where "also take bookings yourself" goes (workspace settings, 1E). */
   alsoBookHref?: string;
+  /** Studio whose owner takes clients too (seeded as a bookable provider): the page takes bookings from day one. */
+  ownerBookable?: boolean;
 };
 
 export function parseArrivalStamp(raw: unknown): ArrivalStamp {
@@ -69,7 +71,9 @@ type ArrivalInput = {
   reusedExisting?: boolean;
   person: { name: string | null; city: string | null };
   businessName: string | null;
+  /** Published services only (priced); drafts are counted in `unpricedServices`. */
   services: number;
+  unpricedServices?: number;
   /** Public site URL (no params) and the builder deep link, when a tenant exists. */
   site: { publicUrl: string; editorUrl: string; adminPath: string } | null;
   /** Talent page URL and the Today deep link, when a profile exists. */
@@ -78,6 +82,8 @@ type ArrivalInput = {
   liveCheck?: { ok: boolean } | null;
   urlDiffers?: boolean;
   firstService?: string | null;
+  /** Studio only: the owner was provisioned as a bookable provider (essentials.ownerProvides), so the studio is not inquiry-only. */
+  ownerProvides?: boolean;
 };
 
 /**
@@ -94,14 +100,16 @@ export function arrivalFromStamp(input: ArrivalInput): ArrivalPayload {
   }
   const studio = input.path === "business" && !input.reusedExisting && !!input.site && (base.variant === "business" || base.variant === "fallback");
   const admin = input.site?.adminPath.replace(/\/+$/, "");
-  const inquiry = studio && admin ? { inquiryOnly: true, addMemberHref: `${admin}/roster/new`, alsoBookHref: `${admin}/settings` } : {};
-  return { ...base, ...common, ...inquiry, ...(input.liveCheck?.ok ? { verified: true } : {}) };
+  const ownerBookable = studio && input.ownerProvides === true;
+  const inquiry = studio && admin && !ownerBookable ? { inquiryOnly: true, addMemberHref: `${admin}/roster/new`, alsoBookHref: `${admin}/settings` } : {};
+  return { ...base, ...common, ...inquiry, ...(ownerBookable ? { ownerBookable: true } : {}), ...(input.liveCheck?.ok ? { verified: true } : {}) };
 }
 
 function baseArrival(input: ArrivalInput): ArrivalPayload {
   const placed = input.stamp?.placed ?? {};
   const fact = {
     services: input.services,
+    ...(input.unpricedServices && input.unpricedServices > 0 ? { unpriced: input.unpricedServices } : {}),
     city: input.person.city,
     logo: placed.logoPresent === true,
     hours: placed.hoursPresent === true,

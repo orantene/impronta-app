@@ -52,30 +52,16 @@ export function CommandPalette() {
   const listRef = useRef<HTMLDivElement | null>(null);
 
   // Global ⌘K / Ctrl+K opener. Closes on Escape inside.
-  // Also: "?" without modifiers opens with the query pre-populated to
-  // "shortcuts" — surfaces the help/hotkeys list immediately.
+  // "?" is NOT handled here (TUL-906): the keyboard layer / shell own it and
+  // open the Keyboard shortcuts dialog; handling it here stacked the palette
+  // on top of that dialog and needed two Escapes.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const isOpenKey = (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k";
-      const isHelpKey =
-        e.key === "?" &&
-        !e.metaKey &&
-        !e.ctrlKey &&
-        !e.altKey &&
-        // Don't intercept when the user is typing in an input/textarea
-        !(e.target instanceof HTMLElement &&
-          (e.target.tagName === "INPUT" ||
-            e.target.tagName === "TEXTAREA" ||
-            e.target.isContentEditable));
       if (isOpenKey) {
         e.preventDefault();
         setOpen((v) => !v);
         setQuery("");
-        setActiveIdx(0);
-      } else if (isHelpKey) {
-        e.preventDefault();
-        setOpen(true);
-        setQuery("shortcut");
         setActiveIdx(0);
       }
     };

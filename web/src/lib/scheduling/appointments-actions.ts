@@ -136,13 +136,12 @@ export async function loadAppointments(tenantId: string): Promise<AppointmentsRe
     const from = new Date(now.getTime() - LOOKBACK_DAYS * 86_400_000).toISOString();
     const to = new Date(now.getTime() + HORIZON_DAYS * 86_400_000).toISOString();
 
-    const { timezone: tenantZone } = await resolveTenantTimezone(tenantId);
-
     // Dated bookings in the window, plus the undated ones, which have no
     // `starts_at` to filter on and would otherwise never appear at all.
     const columns =
       "id, title, status, starts_at, ends_at, timezone, contact_name, client_account_name, source_inquiry_id, order_id";
-    const [dated, undated] = await Promise.all([
+    const [{ timezone: tenantZone }, dated, undated] = await Promise.all([
+      resolveTenantTimezone(tenantId),
       admin
         .from("agency_bookings")
         .select(columns)

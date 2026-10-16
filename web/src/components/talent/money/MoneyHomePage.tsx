@@ -358,6 +358,9 @@ function MoneyHomePane(props: {
                     <span className="block text-[13px] text-admin-ink-muted">
                       {p.paymentMethod ? t(METHOD_LABEL[methodBucket(p.paymentMethod)]) : t("Method not recorded")}
                       {isPartPaidRow(p) ? ` · ${t("Part paid")}` : ` · ${t("Paid in full")}`}
+                      {!isPartPaidRow(p) && p.clientFeeCents != null && p.clientFeeCents > 0
+                        ? ` · ${t("Client paid {paid}, incl. {fee} service fee (not yours)").replace("{paid}", money(p.grossCents + p.clientFeeCents, cur)).replace("{fee}", money(p.clientFeeCents, cur))}`
+                        : ""}
                     </span>
                   </span>
                   <span className="whitespace-nowrap font-admin-body text-[15px] font-bold text-admin-ink">
@@ -584,7 +587,7 @@ export function MoneyHomePage() {
       router.refresh();
     });
   };
-  const pickRows = [...agenda.owed, ...agenda.waiting];
+  const pickRows = [...agenda.owed, ...agenda.waiting.filter((r) => r.kind !== "offer")];
   const { byCurrency, defaultCurrency, loadError } = useResolvedTalentEarningsByCurrency();
   const talentId = bridgeTalentSelfProfile?.id ?? null;
   const [clients, setClients] = useState<TalentClientRow[] | null>(null);
@@ -702,7 +705,7 @@ export function MoneyHomePage() {
                   >
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-admin-body text-[14px] font-semibold text-admin-ink">
-                        {r.name}
+                        {r.name || t("Client")}
                       </span>
                       <span className="block text-[12.5px] text-admin-ink-muted">
                         {[r.kind === "deposit" ? t("Deposit requested") : t("Balance due"), day(r.startsAt, copy.locale)]
@@ -736,7 +739,7 @@ export function MoneyHomePage() {
         <AgendaPayRequest
           orderId={linkFor.orderId}
           defaultCents={linkFor.amountCents}
-          clientName={linkFor.name}
+          clientName={linkFor.name || undefined}
           onClose={() => setLinkFor(null)}
         />
       ) : null}

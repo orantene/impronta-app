@@ -346,6 +346,8 @@ type Ctx = {
   bridgeTalentUnread: number | undefined;
   /** Phase 5 — unread count for the workspace inbox (cross-mode pill). undefined = prototype/mock mode. */
   bridgeWorkspaceUnread: number | undefined;
+  /** Slug of a business workspace the viewer owns (talent rail switch target). null/undefined = none. */
+  bridgeOwnedWorkspaceSlug: string | null | undefined;
   /** Phase 5 — whether the first-run toggle tip has been seen. undefined = prototype/mock mode. */
   bridgeFirstRunToggleTipSeen: boolean | undefined;
   /** W14 — whether the talent dismissed the Day-1 checklist. undefined = prototype/mock mode. */
@@ -382,6 +384,8 @@ type Ctx = {
   bridgeTalentPayoutAttention:
     | import("@/lib/payments/talent-payout-attention-types").TalentPayoutAttention
     | null;
+  /** TUL-392: derived Attention signals for the talent bell + drawer. */
+  bridgeTalentAttentionSignals: import("@/lib/notifications/attention-signals").TalentAttentionSignal[] | null;
   /**
    * The talent's agency relationships (cross-tenant). `null` means the
    * layout didn't load them (workspace-only entry). Empty array means the
@@ -1882,13 +1886,10 @@ export function AdminShellProvider({
   // Hybrid-mode toggle. Only meaningful for a user who is BOTH talent and
   // workspace owner. Flips between the two surfaces.
   // CRITICAL UX RULE: in production (cutover) mode the URL must lead, not
-  // follow. Optimistically flipping `state.surface` and then calling
-  // `router.push` produces a multi-second window where the URL still
-  // points at /talent/X but the inline render already shows the workspace
-  // shell — which the user (correctly) reads as "URL is stuck." So in
-  // bridge mode we navigate FIRST and let the destination layout's
-  // `initialSurface` drive the surface change. The destination layout's
-  // `loading.tsx` covers the brief render gap.
+  // follow. Soft `router.push` can leave the shared shell painting the old
+  // surface until a full reload (live2-01 / same class as live4-01). Hard
+  // `location.assign` remounts the destination layout so `initialSurface`
+  // wins immediately; `loading.tsx` covers the brief gap.
   // In standalone prototype mode (no tenantSlug, no bridge) we keep the
   // legacy behavior — flip state inline since there's no real route to
   // navigate to.
@@ -1900,9 +1901,19 @@ export function AdminShellProvider({
     else if (surface === "workspace") nextSurface = "talent";
     if (!nextSurface) return;
 
+    // Persist preference when in production (bridge) mode — fire before
+    // hard-nav so the request is not cancelled by unload.
+    if (initialBridgeData != null) {
+      const target = nextSurface as "talent" | "workspace";
+      // Dynamic import keeps the server action out of the standalone bundle.
+      import("@/lib/server-actions/user-prefs")
+        .then(({ setPreferredSurface }) => setPreferredSurface(target))
+        .catch((err: unknown) => logServerError("flipmode", err));
+    }
+
     const slug = tenantSlugRef.current;
     if (slug) {
-      // Production / cutover mode — URL leads.
+      // Production / cutover mode — URL leads via hard navigation.
       let nextHref: string;
       if (nextSurface === "workspace") {
         // Preserve the workspace page the user last had (so toggling
@@ -1915,22 +1926,13 @@ export function AdminShellProvider({
         const segment = talentPageToSegment(talentPage) ?? "calendar";
         nextHref = `/${slug}/talent/${segment}`;
       }
-      router.push(nextHref);
       setDrawer({ drawerId: null });
-    } else {
-      // Standalone prototype mode — just flip state inline.
-      handleSetSurface(nextSurface);
+      window.location.assign(nextHref);
+      return;
     }
-
-    // Persist preference when in production (bridge) mode.
-    if (initialBridgeData != null) {
-      const target = nextSurface as "talent" | "workspace";
-      // Dynamic import keeps the server action out of the standalone bundle.
-      import("@/lib/server-actions/user-prefs")
-        .then(({ setPreferredSurface }) => setPreferredSurface(target))
-        .catch((err: unknown) => logServerError("flipmode", err));
-    }
-  }, [alsoTalent, surface, page, talentPage, handleSetSurface, initialBridgeData, router]);
+    // Standalone prototype mode — just flip state inline.
+    handleSetSurface(nextSurface);
+  }, [alsoTalent, surface, page, talentPage, handleSetSurface, initialBridgeData]);
 
   // Impersonation: HQ user starts viewing a tenant's workspace. We jump to
   // the workspace surface in read-only mode, with a banner overlay (rendered
@@ -2036,10 +2038,9 @@ export function AdminShellProvider({
   // pill falls back to mock constants (preserves design-QA behaviour).
   const bridgeTalentUnread: number | undefined = initialBridgeData?.talentUnread;
   const bridgeWorkspaceUnread: number | undefined = initialBridgeData?.workspaceUnread;
-  // First-run tooltip flag. undefined in prototype mode → tooltip hidden.
-  const bridgeFirstRunToggleTipSeen: boolean | undefined = initialBridgeData?.firstRunToggleTipSeen;
-  // W14 — Day-1 checklist dismissal. undefined in prototype mode → not dismissed.
-  const bridgeTalentChecklistDismissed: boolean | undefined = initialBridgeData?.talentChecklistDismissed;
+  const bridgeOwnedWorkspaceSlug: string | null | undefined = initialBridgeData?.ownedWorkspaceSlug;
+  const bridgeFirstRunToggleTipSeen: boolean | undefined = initialBridgeData?.firstRunToggleTipSeen; // first-run tooltip; undefined (prototype) → hidden
+  const bridgeTalentChecklistDismissed: boolean | undefined = initialBridgeData?.talentChecklistDismissed; // W14 Day-1 checklist; undefined (prototype) → not dismissed
 
   // Phase 1 (master plan) — chrome identity bridge.
   // When provided by the workspace admin layout, the prototype's chrome
@@ -2134,6 +2135,7 @@ export function AdminShellProvider({
   const bridgeTalentPageAnalytics = initialBridgeData?.talentPageAnalytics ?? null;
   const bridgeTalentPayoutSnapshot = initialBridgeData?.talentPayoutSnapshot ?? null;
   const bridgeTalentPayoutAttention = initialBridgeData?.talentPayoutAttention ?? null;
+  const bridgeTalentAttentionSignals = initialBridgeData?.talentAttentionSignals ?? null;
   // Talent's agency relationships. `null` means the layout didn't load
   // them (workspace-only entry); empty array means "real bridge, no
   // agency relationships yet" — render empty state, not Marta's mocks.
@@ -2304,6 +2306,7 @@ export function AdminShellProvider({
       bridgeTalentPageAnalytics,
       bridgeTalentPayoutSnapshot,
       bridgeTalentPayoutAttention,
+      bridgeTalentAttentionSignals,
       bridgeTalentAgencies,
       bridgeTalentRepresentation,
       bridgeUserNotifications,
@@ -2327,9 +2330,9 @@ export function AdminShellProvider({
       pageSlicesReady,
       profileEditorLayout,
       clientFieldSource,
-      // Phase 5
-      bridgeTalentUnread,
+      bridgeTalentUnread, // Phase 5
       bridgeWorkspaceUnread,
+      bridgeOwnedWorkspaceSlug,
       bridgeFirstRunToggleTipSeen,
       bridgeTalentChecklistDismissed,
       supportedLocales,
@@ -2436,6 +2439,7 @@ export function AdminShellProvider({
       bridgeTalentPageAnalytics,
       bridgeTalentPayoutSnapshot,
       bridgeTalentPayoutAttention,
+      bridgeTalentAttentionSignals,
       bridgeTalentAgencies,
       bridgeTalentRepresentation,
       bridgeUserNotifications,
@@ -2459,9 +2463,9 @@ export function AdminShellProvider({
       pageSlicesReady,
       profileEditorLayout,
       clientFieldSource,
-      // Phase 5
-      bridgeTalentUnread,
+      bridgeTalentUnread, // Phase 5
       bridgeWorkspaceUnread,
+      bridgeOwnedWorkspaceSlug,
       bridgeFirstRunToggleTipSeen,
       bridgeTalentChecklistDismissed,
       supportedLocales,

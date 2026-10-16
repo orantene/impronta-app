@@ -53,3 +53,17 @@ test("TalentCard carries the data-card-* style hooks the token family targets", 
     );
   }
 });
+
+test("TUL-888: the card's price/badge row wraps so a narrow card never squeezes the ownership badge to 'Ind'", () => {
+  // At 390px (two columns, ~167px cards) the call to action took 107px of a 141px row and left
+  // 26px for the badge. The row must wrap, with a row gap for the dropped call to action.
+  assert.match(
+    cardSrc,
+    /flex flex-wrap items-center justify-between gap-x-2 gap-y-1\.5 pt-0\.5 @\[240px\]:gap-x-3/,
+  );
+  assert.doesNotMatch(
+    cardSrc,
+    /flex items-center justify-between gap-2 pt-0\.5 @\[240px\]:gap-3/,
+    "the non-wrapping row must be gone",
+  );
+});

@@ -410,6 +410,16 @@ test("TUL-59 C: a consent or language banner on screen blocks the bubble (one ov
   assert.equal(helpBubbleBannerUp(dom.window.document), false);
 });
 
+test("TUL-516 F4: filter chips in the lower band block the help teaser", async () => {
+  const { helpBubbleFilterNavBlocking } = await import("./help-bubble-logic");
+  const dom = new JSDOM(`<nav class="site-builder-node--services-catalog-nav"></nav>`);
+  const nav = dom.window.document.querySelector(".site-builder-node--services-catalog-nav") as HTMLElement;
+  nav.getBoundingClientRect = () => ({ width: 280, height: 36, top: 520, bottom: 556 }) as DOMRect;
+  assert.equal(helpBubbleFilterNavBlocking(dom.window.document, 844), true);
+  nav.getBoundingClientRect = () => ({ width: 280, height: 36, top: 80, bottom: 116 }) as DOMRect;
+  assert.equal(helpBubbleFilterNavBlocking(dom.window.document, 844), false);
+});
+
 test("DS-13: pure rule hides the bubble once the visitor scrolls 48px either way", () => {
   assert.equal(HELP_BUBBLE_HIDE_ON_SCROLL_PX, 48);
   assert.equal(shouldHideHelpBubbleOnScroll(700, 700), false);

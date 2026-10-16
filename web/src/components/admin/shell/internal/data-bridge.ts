@@ -287,6 +287,14 @@ export type BridgeData = {
     | import("@/lib/payments/talent-payout-attention-types").TalentPayoutAttention
     | null;
   /**
+   * TUL-392: derived Attention signals (theme update waiting, site needs
+   * publish). The Atención bubble adds them to `shellCounts.attention`; the
+   * bell and the talent notifications drawer list them. `null` = not loaded.
+   */
+  talentAttentionSignals?:
+    | import("@/lib/notifications/attention-signals").TalentAttentionSignal[]
+    | null;
+  /**
    * The talent's active inquiries — adapted into `Conversation[]` by the
    * AdminShellProvider adapter for use in TodayPage / InboxShell / CalendarPage.
    * `null` means talent surface is in mock mode (use MOCK_CONVERSATIONS).
@@ -348,6 +356,14 @@ export type BridgeData = {
    * (preserves the prototype's existing toggle visibility for design QA).
    */
   isHybrid?: boolean;
+
+  /**
+   * Slug of a business workspace this person OWNS, set by talent/layout. `isHybrid` is
+   * per-tenant (membership in the tenant being viewed), so on /talent (the hub) a dual
+   * owner whose workspace is another tenant reads isHybrid=false. This is the signal the
+   * talent rail's Talent | Admin switch uses (null/undefined = no owned workspace).
+   */
+  ownedWorkspaceSlug?: string | null;
 
   // ── Phase 1 (master plan) — chrome identity bridge ────────────────────────
   /**
@@ -535,6 +551,7 @@ export function createBridgeDataFromRoster(
     talentPageAnalytics: null,
     talentPayoutSnapshot: null,
     talentPayoutAttention: null,
+    talentAttentionSignals: null,
     talentInquiries: null,
     talentAgencies: null,
     website: null,

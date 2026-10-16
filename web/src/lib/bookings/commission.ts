@@ -81,13 +81,21 @@ export function calculateTransactionAmountsForBasisPoints(
 export function formatCents(cents: number, currency: string, locale?: string): string {
   // Whole amounts stay short ("$18"); anything with cents shows both digits
   // ("$6.50", never "$6.5").
+  // TUL-473: snapshot currency_code can be malformed ($$$ / ZZ). Intl throws
+  // RangeError and took down /admin/work/[id] behind "Something broke". Match
+  // billing defaultFormatCents — never throw from money display.
+  const code = currency || "USD";
   const whole = Number.isInteger(cents) && cents % 100 === 0;
-  return new Intl.NumberFormat(locale, {
-    style: "currency",
-    currency: currency || "USD",
-    minimumFractionDigits: whole ? 0 : 2,
-    maximumFractionDigits: 2,
-  }).format(cents / 100);
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency: code,
+      minimumFractionDigits: whole ? 0 : 2,
+      maximumFractionDigits: 2,
+    }).format(cents / 100);
+  } catch {
+    return `${code} ${(cents / 100).toFixed(2)}`;
+  }
 }
 
 /**

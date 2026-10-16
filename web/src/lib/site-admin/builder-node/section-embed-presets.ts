@@ -15,6 +15,8 @@
  * Kept out of create.ts (which is at its max-lines budget) and imported by the
  * `createBuilderSectionEmbed` factory there.
  */
+import { GALLERY_EMBED_PLACEHOLDERS } from "@/lib/site-admin/add-gallery/gallery-placeholder-images";
+import { localizeSectionTemplate, type TemplateCopyContext } from "@/lib/site-admin/add-gallery/section-template-copy";
 import { v11FeaturedTalentPreset } from "@/lib/site-admin/sections/featured_talent/presets";
 import { fashionDirectoryPreset } from "@/lib/site-admin/sections/directory/presets";
 
@@ -142,11 +144,10 @@ export const SECTION_EMBED_PRESETS: ReadonlyArray<SectionEmbedPreset> = [
   },
 
   /**
-   * gallery_strip — editorial image mosaic. Three images with cycling aspect
-   * ratios (wide / tall / square). `src` values use Unsplash editorial URLs —
-   * operator replaces with real agency photography.
+   * gallery_strip — editorial image mosaic. Three soft placeholder tiles
+   * (no fashion / talent Unsplash stock). Operator replaces with real photos.
    * Schema: gallerySchemaV1 (sections/gallery_strip/schema.ts).
-   * Note: items.src must be a valid URL (schema: z.string().url()).
+   * Note: items.src must be a valid absolute URL (schema: z.string().url()).
    */
   {
     id: "gallery-strip",
@@ -157,23 +158,7 @@ export const SECTION_EMBED_PRESETS: ReadonlyArray<SectionEmbedPreset> = [
     config: {
       eyebrow: "Portfolio",
       headline: "Behind the lens",
-      items: [
-        {
-          src: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&q=80",
-          alt: "Editorial fashion portrait — wide",
-          aspect: "wide",
-        },
-        {
-          src: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=800&q=80",
-          alt: "Model portrait in natural light — tall",
-          aspect: "tall",
-        },
-        {
-          src: "https://images.unsplash.com/photo-1529139574466-a303027614a1?w=800&q=80",
-          alt: "Behind-the-scenes creative set — square",
-          aspect: "square",
-        },
-      ],
+      items: GALLERY_EMBED_PLACEHOLDERS.map((p) => ({ ...p })),
       variant: "mosaic",
       caption: "Replace these with your agency's own editorial photography.",
       presentation: {},
@@ -495,14 +480,18 @@ export function sectionEmbedTypeLabel(
  * still produce a valid node (empty config → the renderer shows a placeholder),
  * so the factory never throws.
  */
-export function createBuilderSectionEmbed(sectionTypeKey: string): BuilderNode {
+export function createBuilderSectionEmbed(sectionTypeKey: string, copy?: TemplateCopyContext): BuilderNode {
   const preset = SECTION_EMBED_PRESET_BY_TYPE_KEY.get(sectionTypeKey);
-  return {
-    id: makeId("section_embed"),
-    kind: "section_embed",
-    props: {
-      sectionTypeKey,
-      config: preset ? { ...preset.config } : {},
+  // TUL-80: placeholder copy follows the site kind and language, same pass as templates.
+  return localizeSectionTemplate(
+    {
+      id: makeId("section_embed"),
+      kind: "section_embed",
+      props: {
+        sectionTypeKey,
+        config: preset ? { ...preset.config } : {},
+      },
     },
-  };
+    copy,
+  );
 }

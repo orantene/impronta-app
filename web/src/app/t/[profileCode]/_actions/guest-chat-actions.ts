@@ -57,6 +57,7 @@ import { isSeedContact, shouldRefuseGuestSend } from "@/lib/inquiry/guest-send-g
 import {
   pickGuestEnsureTargetOrForceNew,
   pickGuestResumeTarget,
+  readSelectedIds,
 } from "@/lib/inquiry/guest-draft-resume";
 import {
   checkGuestInquiryAbuse,
@@ -71,9 +72,11 @@ import { isBlocked } from "@/lib/inquiry/recipient-safety";
 import { resolveInquiryRecipients } from "@/lib/notifications/recipients";
 import { emitGuestAutoAck } from "@/lib/inquiry/guest-auto-ack";
 import { scheduleBookingAssistantTurn } from "@/lib/ai/booking-assistant/turn.server";
+import { resolveBookingAssistantTalentId } from "@/lib/ai/booking-assistant/resolve-talent-id";
 import { nextFreeTimesForTalent } from "@/lib/scheduling/next-free-times";
 import { scanGuestConversationForDetails } from "@/app/t/[profileCode]/_actions/guest-conversation-scan-action";
 import { sendGuestClaimEmail } from "@/lib/inquiry/guest-claim-link";
+import { readSiteReturnUrl } from "@/lib/inquiry/claim-return-url.server";
 import { getTypicalReplyLabel } from "@/lib/inquiry/guest-reply-latency";
 import {
   buildInquiryReceipt,
@@ -81,7 +84,7 @@ import {
 } from "@/lib/inquiry/inquiry-receipt-data";
 import { getAppUrl } from "@/lib/auth-flow";
 import { CLIENT_CARD_KINDS, isClientCardKind } from "@/lib/messages-v5/client-thread-view";
-import { resolveClientIp, resolveGuestSessionId } from "@/lib/guest/guest-session";
+import { ensureGuestSessionId, resolveClientIp, resolveGuestSessionId } from "@/lib/guest/guest-session";
 import type {
   AddGuestClaimEmailInput,
   AddGuestClaimEmailResult,
@@ -139,7 +142,7 @@ type GuestContext = {
   guestSessionId: string;
 };
 
-async function resolveGuestContext(): Promise<
+async function resolveGuestContext(options: { mint?: boolean } = {}): Promise<
   { ok: true; ctx: GuestContext } | { ok: false; failure: GuestChatFailure }
 > {
   const admin = createServiceRoleClient();
@@ -147,7 +150,10 @@ async function resolveGuestContext(): Promise<
     return { ok: false, failure: fail("db_unavailable", "Messaging is temporarily unavailable.") };
   }
 
-  const guestSessionId = await resolveGuestSessionId();
+  // TUL-445: write actions mint lazily; SSR resume (getActiveGuestInquiry)
+  // peeks only so anonymous page views stay CDN-cacheable.
+  const guestSessionId =
+    options.mint === false ? await resolveGuestSessionId() : await ensureGuestSessionId();
   if (!guestSessionId) {
     return { ok: false, failure: fail("forbidden", "We couldn't identify your session. Please refresh and try again.") };
   }
@@ -1137,7 +1143,7 @@ export async function startGuestChatInquiry(
       talentName = (talentRow?.display_name as string | null)?.trim() || "";
     }
     if (!talentName) {
-      talentName = (await loadAgencyName(admin, tenantId)) ?? "the team";
+      talentName = (await loadAgencyName(admin, tenantId)) ?? "";
     }
 
     const claimResult = await sendGuestClaimEmail({
@@ -1146,6 +1152,7 @@ export async function startGuestChatInquiry(
       talentName,
       appUrl: getAppUrl(),
       tenantId,
+      returnUrl: await readSiteReturnUrl(),
     });
     claimEmailSent = claimResult.ok;
     if (!claimResult.ok) {
@@ -1480,47 +1487,48 @@ export async function sendGuestMessageAction(
     .eq("tenant_id", owned.inquiry.tenantId)
     .maybeSingle();
 
-  let assistantTalentId: string | null = null;
-  {
-    const { data: talentPart, error: talentPartErr } = await admin
-      .from("inquiry_participants")
-      .select("talent_profile_id")
-      .eq("inquiry_id", owned.inquiry.id)
-      .eq("role", "talent")
-      .not("talent_profile_id", "is", null)
-      .limit(1)
-      .maybeSingle();
-    if (talentPartErr) {
-      logServerError(
-        "guest-chat-actions.sendGuestMessageAction/assistantTalent",
-        talentPartErr,
-      );
-    }
-    assistantTalentId = (talentPart?.talent_profile_id as string | null) ?? null;
+  // TUL-36: early drafts have no inquiry_participants — lineup is on
+  // interpreted_query.talent.selected_ids (same spine as guest-draft-resume).
+  const { data: talentPart, error: talentPartErr } = await admin
+    .from("inquiry_participants")
+    .select("talent_profile_id")
+    .eq("inquiry_id", owned.inquiry.id)
+    .eq("role", "talent")
+    .not("talent_profile_id", "is", null)
+    .limit(1)
+    .maybeSingle();
+  if (talentPartErr) {
+    logServerError(
+      "guest-chat-actions.sendGuestMessageAction/assistantTalent",
+      talentPartErr,
+    );
   }
+  const { data: iqRow, error: iqErr } = await admin
+    .from("inquiries")
+    .select("interpreted_query, source_context")
+    .eq("id", owned.inquiry.id)
+    .eq("tenant_id", owned.inquiry.tenantId)
+    .maybeSingle();
+  if (iqErr) {
+    logServerError(
+      "guest-chat-actions.sendGuestMessageAction/assistantLineup",
+      iqErr,
+    );
+  }
+  const assistantTalentId = resolveBookingAssistantTalentId({
+    fromParticipants: (talentPart?.talent_profile_id as string | null) ?? null,
+    selectedIds: readSelectedIds(iqRow?.interpreted_query),
+  });
   // Locale: prefer this send's value; else the locale stored at inquiry create.
-  let followUpLocale = input.locale?.trim() || null;
-  if (!followUpLocale) {
-    const { data: ctxRow, error: ctxErr } = await admin
-      .from("inquiries")
-      .select("source_context")
-      .eq("id", owned.inquiry.id)
-      .eq("tenant_id", owned.inquiry.tenantId)
-      .maybeSingle();
-    if (ctxErr) {
-      logServerError(
-        "guest-chat-actions.sendGuestMessageAction/guestLocale",
-        ctxErr,
-      );
-    }
-    const ctx =
-      ctxRow?.source_context &&
-      typeof ctxRow.source_context === "object" &&
-      !Array.isArray(ctxRow.source_context)
-        ? (ctxRow.source_context as Record<string, unknown>)
-        : {};
-    followUpLocale = typeof ctx.guest_locale === "string" ? ctx.guest_locale : null;
-  }
+  const ctx =
+    iqRow?.source_context &&
+    typeof iqRow.source_context === "object" &&
+    !Array.isArray(iqRow.source_context)
+      ? (iqRow.source_context as Record<string, unknown>)
+      : {};
+  const followUpLocale =
+    input.locale?.trim() ||
+    (typeof ctx.guest_locale === "string" ? ctx.guest_locale : null);
   scheduleBookingAssistantTurn({
     inquiryId: owned.inquiry.id,
     tenantId: owned.inquiry.tenantId,
@@ -1820,7 +1828,7 @@ export async function sendGuestClaimToEmail(
     talentName = (t?.display_name as string | null)?.trim() || "";
   }
   if (!talentName) {
-    talentName = (await loadAgencyName(admin, owned.inquiry.tenantId)) ?? "the team";
+    talentName = (await loadAgencyName(admin, owned.inquiry.tenantId)) ?? "";
   }
 
   // Resolve the tenant slug for the post-auth destination + branded email.
@@ -1839,6 +1847,7 @@ export async function sendGuestClaimToEmail(
     talentName,
     appUrl: getAppUrl(),
     tenantId: owned.inquiry.tenantId,
+    returnUrl: await readSiteReturnUrl(),
   });
   if (!claimResult.ok) {
     logServerError(
@@ -1953,7 +1962,7 @@ export async function getActiveGuestInquiry(input: {
   talentProfileId?: string | null;
 }): Promise<GetActiveGuestInquiryResult> {
   try {
-    const guest = await resolveGuestContext();
+    const guest = await resolveGuestContext({ mint: false });
     // No cookie / no session row yet = first-time visitor. Any resolve failure
     // here means "nothing to resume", not an error to surface in the launcher.
     if (!guest.ok) return { ok: true, active: null };

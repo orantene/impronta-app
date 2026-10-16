@@ -4,22 +4,16 @@
 import { notFound } from "next/navigation";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { loadClientSelfProfile, loadClientTrustBillingState } from "../../_data-bridge";
+import { clientPageReadCtx } from "../_data-bridge/client-read-ctx";
+import { loadSettingsPageData } from "../_data-bridge/client-page-loaders";
 import { ClientTrustShell } from "./ClientTrustShell";
 import { ClientSocialVerificationPanel } from "./ClientSocialVerificationPanel";
 import { isStripeConfigured } from "@/lib/stripe/client";
 import { ClientPageHeader } from "../_components/ClientPageHeader";
-import { loadUserPrefs } from "@/lib/server-actions/user-prefs";
 import { NotificationPrefsPanel, type UiCategory, type UiChannel } from "./NotificationPrefsPanel";
 import { ORDERED_CATEGORIES } from "@/lib/notifications/categories";
 import { LIVE_CHANNELS } from "@/lib/notifications/types";
 import { ProfileFields, AccountFields } from "./_components/AccountFormsClient";
-import {
-  loadClientReviews,
-  loadClientRatingSummary,
-  loadReviewsAuthoredByUser,
-} from "@/lib/reviews/load-reviews";
-import type { TalentReview } from "@/lib/reviews/review-types";
 import { ClientReviewsPanel, type GivenReview } from "../_components/ClientReviewsPanel";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { SettingsSectionIcon } from "@/components/admin/settings/settings-section-icons";
@@ -112,21 +106,26 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
   const scope = await getTenantPortalScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
-  const [clientProfile, trustState, userPrefs] = await Promise.all([
-    loadClientSelfProfile(session.user.id, scope.tenantId),
-    loadClientTrustBillingState(session.user.id, scope.tenantId),
-    loadUserPrefs(session.user.id),
-  ]);
-  if (!clientProfile) notFound();
+  // TUL-255: everything below is the EFFECTIVE user's (the subject under a
+  // verified impersonation, else the session user).
+  const pageData = await loadSettingsPageData(
+    session.user.id,
+    scope.tenantId,
+    await clientPageReadCtx(session.user.id),
+  );
+  if (!pageData) notFound();
+  const {
+    trustState,
+    userPrefs,
+    receivedReviews,
+    receivedSummary,
+    authoredReviews,
+    read: { profile: clientProfile, impersonated },
+  } = pageData;
   const stripeEnabled = isStripeConfigured();
 
   // W8 — two-sided reviews. Received (talent→client) + given (client→talent).
-  // Read with Agent 1's helpers; resolve talent names for the "given" list.
-  const [receivedReviews, receivedSummary, authoredReviews] = await Promise.all([
-    loadClientReviews(session.user.id),
-    loadClientRatingSummary(session.user.id),
-    loadReviewsAuthoredByUser(session.user.id) as Promise<TalentReview[]>,
-  ]);
+  // Resolve talent names for the "given" list.
   const talentNames = await resolveTalentNames(
     authoredReviews.map((r) => r.talentProfileId),
   );
@@ -158,8 +157,10 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
     ),
   }));
 
-  const userEmail =
-    (session.user.email as string | undefined) ?? "—";
+  // The session email / provider are the staff actor's, never the subject's.
+  const userEmail = impersonated
+    ? "—"
+    : (session.user.email as string | undefined) ?? "—";
 
   const rawProvider =
     (session.user.app_metadata?.provider as string | undefined) ??
@@ -177,6 +178,34 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
       : rawProvider === "azure"
       ? t("dashboard.clientSettings.signInMicrosoft")
       : t("dashboard.clientSettings.signInEmail");
+
+  // Every card below writes to the SESSION user's account (profile, password,
+  // notification prefs, data export, deletion). While a staff member views a
+  // client, none of that may be offered on the subject's behalf: show their
+  // reviews read-only instead.
+  if (impersonated) {
+    return (
+      <div style={{ fontFamily: FONT }}>
+        <ClientPageHeader
+          eyebrow={t("dashboard.clientSettings.eyebrow")}
+          title={t("dashboard.clientSettings.title")}
+          subtitle={t("dashboard.clientSettings.readOnlyViewingAs")}
+        />
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 680 }}>
+          <Card
+            title={t("dashboard.clientSettings.reviewsTitle")}
+            icon={<SettingsSectionIcon sectionId="brand" />}
+          >
+            <ClientReviewsPanel
+              received={receivedReviews}
+              receivedSummary={receivedSummary}
+              given={givenReviews}
+            />
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ fontFamily: FONT }}>

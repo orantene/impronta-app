@@ -1,6 +1,7 @@
 import type {
   MiniChatPanelProps,
   ScanGuestConversationCallback,
+  ReportGuestChatCallback,
 } from "@/lib/inquiry/guest-chat-contract";
 
 import type { GuestChatOffering } from "@/lib/inquiry/guest-chat-contract";
@@ -78,6 +79,7 @@ export type MiniChatPanelLocalProps = MiniChatPanelProps & {
    * details sheet. Null hides the scan affordance.
    */
   onScanConversation?: ScanGuestConversationCallback | null;
+  onReportToSupport?: ReportGuestChatCallback | null;
   /**
    * DOCK v2: remount the panel with resume suppressed so the next interaction
    * creates a fresh private draft (used by "Start an inquiry" when the active

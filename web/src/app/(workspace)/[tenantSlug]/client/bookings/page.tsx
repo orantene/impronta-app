@@ -8,15 +8,9 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate, withPluralization } from "@/i18n/interpolate";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import {
-  loadClientSelfProfile,
-  loadClientBookings,
-  loadClientTransactions,
-  loadClientPayableTransactions,
-  type ClientTransactionRow,
-  loadWorkspaceRosterLite,
-  type ClientBookingRow,
-} from "../../_data-bridge";
+import type { ClientTransactionRow, ClientBookingRow } from "../../_data-bridge";
+import { clientPageReadCtx } from "../_data-bridge/client-read-ctx";
+import { loadBookingsPageData } from "../_data-bridge/client-page-loaders";
 import {
   formatClientWeekdayDate,
   getClientDateParts,
@@ -377,20 +371,15 @@ export default async function ClientBookingsPage({ params }: { params: PageParam
   const scope = await getTenantPortalScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
-  const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
-  if (!clientProfile) notFound();
-
-  const [bookings, roster] = await Promise.all([
-    loadClientBookings(session.user.id, scope.tenantId),
-    loadWorkspaceRosterLite(scope.tenantId),
-  ]);
-  // CW5 — scope payments to THIS tenant via the client's own booking ids.
-  const agencyBookingIds = bookings.map((b) => b.agencyBookingId).filter((x): x is string => !!x);
-  const [transactions, payable] = await Promise.all([
-    loadClientTransactions(session.user.id, agencyBookingIds),
-    // CH2 — which of those bookings the client can pay right now.
-    loadClientPayableTransactions(session.user.id, agencyBookingIds),
-  ]);
+  // CW5 — payments are scoped to THIS tenant via the client's own booking ids,
+  // CH2 — `payable` is which of those the client can pay right now.
+  const pageData = await loadBookingsPageData(
+    session.user.id,
+    scope.tenantId,
+    await clientPageReadCtx(session.user.id),
+  );
+  if (!pageData) notFound();
+  const { bookings, roster, transactions, payable, read: { profile: clientProfile } } = pageData;
 
   // CW3 — every booking lives in exactly ONE bucket. Undated rows used to
   // appear under BOTH Upcoming (TBC box) and Past (!event_date), so 8

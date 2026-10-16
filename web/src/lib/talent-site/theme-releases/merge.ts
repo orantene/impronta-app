@@ -25,8 +25,11 @@
  *   sibling order changed       applied when ours still has the base order
  *                               (talent-added nodes travel with the node
  *                               before them), else kept (your_order)
- * Content-owned props (`cp`, `i18n`) and talent-added nodes are never
- * touched. Running the merge again on its own output changes nothing.
+ * Content-owned props (`cp`) and talent-added nodes are never touched.
+ * Default COPY (base text + `i18n` translations) follows the per-leaf rule in
+ * copy-merge.ts: a leaf she did not change takes the new default, one she did
+ * stays hers (and an `i18n` one is reported as a copy conflict).
+ * Running the merge again on its own output changes nothing.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import {
@@ -43,6 +46,7 @@ import {
   DESIGN_ORIGIN_PROP,
   type Props,
 } from "./origin";
+import { copyOwnedBasePaths, copyPathsAmong, mergeCopy } from "./copy-merge";
 import { makeAllow, type Allowance, type AllowFn } from "./policy";
 import { carryEdits, detectSwaps, type SwapPair } from "./swap";
 import { mergePaletteTokens, mergeTokenDefaults } from "./tokens-merge";
@@ -140,7 +144,13 @@ function subtreeDiffers(b: BuilderNode, t: BuilderNode): boolean {
   return false;
 }
 
+/** The design rule, then the per-leaf copy rule (copy-merge.ts) on its result. */
 function mergeNode(ctx: Ctx, key: string, b: BuilderNode, o: BuilderNode, t: BuilderNode): BuilderNode {
+  const merged = mergeNodeDesign(ctx, key, b, o, t);
+  return mergeCopy(ctx, key, b, o, t, merged);
+}
+
+function mergeNodeDesign(ctx: Ctx, key: string, b: BuilderNode, o: BuilderNode, t: BuilderNode): BuilderNode {
   const kids = hasKids(o) ? mergeList(ctx, key, kidsOf(b), kidsOf(o), kidsOf(t)) : null;
   const node = kids ? ({ ...o, children: kids } as BuilderNode) : o;
   const tOrigin = readOrigin(t);
@@ -183,10 +193,14 @@ function mergeNode(ctx: Ctx, key: string, b: BuilderNode, o: BuilderNode, t: Bui
     return node;
   }
   if (edited && !allowance.critical) {
+    // Base text the copy rule writes on its own is not a kept edit.
+    const owned = copyOwnedBasePaths(b, o, t, ctx.allow, ctx.tree, key);
+    const keptPaths = changed.filter((p) => !owned.has(p));
+    if (keptPaths.length === 0) return node;
     ctx.report.kept.push(
-      entry(ctx, { change: "props", key, changes: leafChanges(changed, O, T), reason: "edited" }, allowance),
+      entry(ctx, { change: "props", key, changes: leafChanges(keptPaths, O, T), reason: "edited" }, allowance),
     );
-    const overlap = changed.filter((p) => !sameLeaf(O, B, p) && !sameLeaf(O, T, p));
+    const overlap = keptPaths.filter((p) => !sameLeaf(O, B, p) && !sameLeaf(O, T, p));
     if (overlap.length > 0) {
       ctx.report.conflicts.push(
         entry(ctx, { change: "props", key, changes: leafChanges(overlap, O, T), reason: "edited" }, allowance),
@@ -201,6 +215,7 @@ function mergeNode(ctx: Ctx, key: string, b: BuilderNode, o: BuilderNode, t: Bui
   const originBefore = readOrigin(o);
   if (tOrigin) props = { ...props, [DESIGN_ORIGIN_PROP]: tOrigin };
   if (writes.length > 0) {
+    const copyPaths = copyPathsAmong(b, t, cp, writes);
     ctx.report.applied.push(
       entry(
         ctx,
@@ -208,6 +223,7 @@ function mergeNode(ctx: Ctx, key: string, b: BuilderNode, o: BuilderNode, t: Bui
           change: "props",
           key,
           changes: leafChanges(writes, O, T),
+          ...(copyPaths.length > 0 ? { copyPaths } : {}),
           ...(originBefore ? { originBefore } : {}),
           ...(edited ? { reason: "critical" as const } : {}),
         },

@@ -75,7 +75,7 @@ type LinkForCheckout = {
   inquiry_id: string | null;
 };
 
-type ClaimRow = { id: string; state: string; transaction_id: string | null; expires_at: string };
+export type ClaimRow = { id: string; state: string; transaction_id: string | null; expires_at: string };
 
 /**
  * Send the customer of a Stripe payment link to Checkout, the way the till's
@@ -239,7 +239,8 @@ async function openOnce(
       to: new Date(now() + CARD_RESERVATION_TTL_SECONDS * 1000).toISOString(),
       now,
     });
-    if (!extended.ok) return { ok: false, reason: extended.reason === "gone" ? "expired" : "unavailable" };
+    // Nothing has reached Stripe yet (no row, no session): a failed extension is a clean "could not start", never "status unknown".
+    if (!extended.ok) return { ok: false, reason: extended.reason === "gone" ? "expired" : "start_failed" };
     expiresAt = extended.expiresAt;
   }
 
@@ -348,6 +349,7 @@ async function openOnce(
   const session = await (deps.createCheckoutSession ?? createCheckoutSessionForTransaction)({
     transactionId,
     amountCents: collectCents,
+    serviceFeeCents: Math.max(0, collectCents - amountCents),
     currency,
     payerEmail: contact?.email ?? null,
     inquiryId: null,
@@ -424,43 +426,50 @@ async function loadClaim(admin: Admin, reservationId: string): Promise<ClaimRow 
  * `reap_payment_links` releases the claim when the LINK lapses: a link that
  * expired before its claim would hand the balance back under a live session.
  */
-async function extendLinkClaim(
+export async function extendLinkClaim(
   admin: Admin,
   input: { linkId: string; claim: ClaimRow; to: string; now: () => number },
 ): Promise<{ ok: true; expiresAt: string } | { ok: false; reason: "gone" | "unavailable" }> {
-  const { error } = await admin
+  // RETURNING answers for this very write; a lost compare-and-set returns no row and falls through to the re-read.
+  const { data: moved, error } = await admin
     .from("order_collection_reservations")
     .update({ expires_at: input.to })
     .eq("id", input.claim.id)
     .eq("state", "reserved")
-    .eq("expires_at", input.claim.expires_at);
+    .eq("expires_at", input.claim.expires_at)
+    .select("expires_at");
   if (error) {
     logServerError("payments.openPaymentLinkCheckout.extendClaim", error);
     return { ok: false, reason: "unavailable" };
   }
-  const reread = await loadClaim(admin, input.claim.id);
-  if (reread === false) return { ok: false, reason: "unavailable" };
-  if (!reread || reread.state !== "reserved") return { ok: false, reason: "gone" };
-  if (Date.parse(reread.expires_at) - input.now() < SESSION_FLOOR_MS - 60_000) {
+  const returned = (moved as { expires_at: string }[] | null)?.[0]?.expires_at ?? null;
+  let expiresAt = returned;
+  if (!expiresAt) {
+    const reread = await loadClaim(admin, input.claim.id);
+    if (reread === false) return { ok: false, reason: "unavailable" };
+    if (!reread || reread.state !== "reserved") return { ok: false, reason: "gone" };
+    expiresAt = reread.expires_at;
+  }
+  // A concurrent tap that moved the claim first is as good as this one: accept any expiry that clears the floor.
+  if (Date.parse(expiresAt) - input.now() < SESSION_FLOOR_MS - 60_000) {
     logServerError(
       "payments.openPaymentLinkCheckout.extendClaim",
-      `reservation ${input.claim.id} did not move (still ${reread.expires_at})`,
+      `reservation ${input.claim.id} did not move (still ${expiresAt})`,
     );
     return { ok: false, reason: "unavailable" };
   }
   const { error: linkErr } = await admin
     .from("payment_links")
-    .update({ expires_at: reread.expires_at })
+    .update({ expires_at: expiresAt })
     .eq("id", input.linkId)
     .eq("status", "open");
   if (linkErr) {
     logServerError("payments.openPaymentLinkCheckout.extendLink", linkErr);
     return { ok: false, reason: "unavailable" };
   }
-  return { ok: true, expiresAt: reread.expires_at };
+  return { ok: true, expiresAt };
 }
 
-/** Who the receipt goes to: the order's customer, when the order names one. */
 async function orderContact(admin: Admin, customerId: string | null): Promise<BookingShellContact | undefined> {
   if (!customerId) return undefined;
   const { data, error } = await admin

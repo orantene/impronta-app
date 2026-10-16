@@ -105,7 +105,7 @@ const headerItemSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("nav"), ...headerItemBase }),
   z.object({ type: z.literal("language"), ...headerItemBase }),
   /** Client account avatar/icon. Renders only when the platform flag is on for the host. */
-  z.object({ type: z.literal("account"), ...headerItemBase }),
+  z.object({ type: z.literal("account"), ...headerItemBase, /** Builder Lab preview only; the live site ignores it. */ previewAs: z.enum(["signed-in", "signed-out"]).optional() }),
   z.object({
     type: z.literal("cta"),
     label: z.string().max(60).optional(),
@@ -332,8 +332,8 @@ export const siteHeaderSchemaV1 = z.object({
   presentation: sectionPresentationSchema,
   /**
    * Render-time site chrome, injected by the talent site renderer (never
-   * saved): `demo` paints the small Demo pill in the header (the only demo
-   * marker), `locales` feeds the language switch ("ES / EN") on a talent site
+   * saved): `demo` flags a demo talent (the header paints nothing for it; the
+   * marker is the fixed corner badge), `locales` feeds the language switch ("ES / EN") on a talent site
    * whose languages are not the tenant's.
    */
   siteChrome: z

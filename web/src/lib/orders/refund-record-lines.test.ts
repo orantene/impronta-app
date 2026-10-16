@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
-import { allocateRefundAcrossLines, bumpLineRefunded, expectedLineRefundCents, reconcileOrderLineRefunds, recordRefundOnOrderLines } from "./refund-record-lines";
+import { allocateRefundAcrossLines, bumpLineRefunded, expectedLineRefundBand, expectedLineRefundCents, reconcileOrderLineRefunds, recordRefundOnOrderLines } from "./refund-record-lines";
 
 type Line = { id: string; total_cents: number; refunded_cents: number };
 
@@ -14,13 +14,17 @@ type Line = { id: string; total_cents: number; refunded_cents: number };
 type FakeQuery = { eq: (k: string, v: unknown) => FakeQuery; [k: string]: unknown };
 
 const _vref = { n: 0 };
-function world(opts: { orderId?: string | null; lines: Line[]; parents?: string[]; refundRows?: Array<{ id: string; gross_amount_cents: number }>; beforeLineWrite?: () => void }) {
+function world(opts: { orderId?: string | null; lines: Line[]; parents?: string[]; refundRows?: Array<{ id: string; gross_amount_cents: number }>; tipCents?: number; clientFeeCents?: number; beforeLineWrite?: () => void }) {
   const mk = (id: string) => ({ id, order_id: opts.orderId === undefined ? "o1" : opts.orderId, metadata: {} as Record<string, unknown>, updated_at: "v0" });
   const txns = (opts.parents ?? ["t1"]).map(mk);
   const lines = opts.lines.map((l) => ({ ...l }));
   const refundRows = (opts.refundRows ?? []).map((r) => ({ ...r, metadata: {} as Record<string, unknown>, created_at: new Date().toISOString() }));
   const admin = {
     from: (table: string) => {
+      if (table === "orders") {
+        const q: FakeQuery = { eq: () => q, select: () => q, maybeSingle: async () => ({ data: { tip_cents: opts.tipCents ?? 0 }, error: null }) };
+        return q;
+      }
       if (table === "booking_transactions") {
         return {
           select: (_cols?: string) => {
@@ -28,6 +32,9 @@ function world(opts: { orderId?: string | null; lines: Line[]; parents?: string[
             const q: FakeQuery = {
               eq: (k: string, v: unknown) => { f[k] = v; return q; },
               not: () => q,
+              is: () => q,
+              // the parent-fee read ends in .in(): hand back the order's paid parents
+              in: () => ({ then: (res: (v: unknown) => void) => res({ data: [{ platform_fee_cents: opts.clientFeeCents ?? 0 }], error: null }) }),
               order: async () => ({ data: refundRows, error: null }),
               maybeSingle: async () => ({ data: { ...(txns.find((t) => t.id === f.id) ?? txns[0]) }, error: null }),
             };
@@ -181,12 +188,40 @@ describe("(c) crash-window reconcile", () => {
     assert.equal(expectedLineRefundCents([], 5_000), 0);
   });
 
+  it("the band: a refund that includes a tip or client fee may land on the lines anywhere from (refund - tip - fee) to the refund", () => {
+    assert.deepEqual(expectedLineRefundBand([100_000], 30_000, 5_000), { low: 25_000, high: 30_000 });
+    assert.deepEqual(expectedLineRefundBand([100_000], 30_000, 0), { low: 30_000, high: 30_000 });
+    assert.deepEqual(expectedLineRefundBand([100_000], 3_000, 5_000), { low: 0, high: 3_000 }, "a refund smaller than tip + fee may legitimately touch no line");
+    assert.deepEqual(expectedLineRefundBand([100_000], 120_000, 5_000), { low: 100_000, high: 100_000 }, "both ends are capped by the line totals");
+  });
+
+  it("a partial refund that included the tip (lines got only their part) is NOT flagged", async () => {
+    // Paid 100,000 + 5,000 tip; refunded 30,000 of which 5,000 was tip: the lines read 25,000.
+    const w = world({ lines: [{ id: "l1", total_cents: 100_000, refunded_cents: 25_000 }], refundRows: [{ id: "rf1", gross_amount_cents: 30_000 }], tipCents: 5_000 });
+    const r = await reconcileOrderLineRefunds(w.admin, "o1");
+    assert.deepEqual(r, { ok: true, expectedCents: 30_000, expectedLowCents: 25_000, actualCents: 25_000, mismatch: false });
+    assert.equal(w.refundRows[0].metadata.needs_attention, undefined);
+  });
+
+  it("a refund that included the client's service fee is NOT flagged", async () => {
+    const w = world({ lines: [{ id: "l1", total_cents: 100_000, refunded_cents: 100_000 }], refundRows: [{ id: "rf1", gross_amount_cents: 101_500 }], clientFeeCents: 1_500 });
+    const r = await reconcileOrderLineRefunds(w.admin, "o1");
+    assert.equal(r.ok && r.mismatch, false);
+  });
+
+  it("a crash that left the lines at 0 on a real refund IS still flagged, even with a tip on the order", async () => {
+    const w = world({ lines: [{ id: "l1", total_cents: 100_000, refunded_cents: 0 }], refundRows: [{ id: "rf1", gross_amount_cents: 30_000 }], tipCents: 5_000 });
+    const r = await reconcileOrderLineRefunds(w.admin, "o1");
+    assert.equal(r.ok && r.mismatch, true);
+    assert.deepEqual(w.refundRows[0].metadata.order_lines_mismatch, { expected_cents: 30_000, expected_low_cents: 25_000, actual_cents: 0 });
+  });
+
   it("a refund the lines never got (crash after the marker) is flagged on the newest refund row", async () => {
     const w = world({ lines: [{ id: "l1", total_cents: 100_000, refunded_cents: 0 }], refundRows: [{ id: "rf1", gross_amount_cents: 30_000 }] });
     const r = await reconcileOrderLineRefunds(w.admin, "o1");
-    assert.deepEqual(r, { ok: true, expectedCents: 30_000, actualCents: 0, mismatch: true });
+    assert.deepEqual(r, { ok: true, expectedCents: 30_000, expectedLowCents: 30_000, actualCents: 0, mismatch: true });
     const m = w.refundRows[0].metadata;
-    assert.deepEqual(m.order_lines_mismatch, { expected_cents: 30_000, actual_cents: 0 });
+    assert.deepEqual(m.order_lines_mismatch, { expected_cents: 30_000, expected_low_cents: 30_000, actual_cents: 0 });
     assert.equal(m.needs_attention, "order_lines_mismatch");
   });
 

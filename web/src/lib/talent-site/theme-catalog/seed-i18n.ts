@@ -1,10 +1,18 @@
 /**
  * Seeded copy ships BOTH languages (theme core).
  *
+ * ONE RULE (TUL-494): every visitor-visible string a theme seed or
+ * `applyDemoSiteCopy` writes must set `props.i18n.es` and `props.i18n.en` for
+ * that prop (base = site primary; the other language is explicit). On an
+ * es-default site the base is read as Spanish, so English must never be implied
+ * from an English seed alone. Untouched-seed maps (`design-label-locale`) and
+ * profile swaps (`talent-locale-swaps`) are fallbacks for legacy trees, not the
+ * write path for new chrome.
+ *
  * Every released talent theme seeds English starter text. Without a per-node
  * overlay a Spanish site rendered that English until the render-time label map
- * (`design-label-locale.ts`) guessed a translation. This module puts the
- * overlay in the seed itself: each seeded text node gets
+ * guessed a translation. This module puts the overlay in the seed itself: each
+ * seeded text node gets
  * `props.i18n = { es: { <prop>: "..." }, en: { <prop>: "..." } }`, the same
  * shape the builder's language tabs write (validate mirrors it to `node.i18n`).
  * The base prop stays the English seed and `en` repeats it.
@@ -31,6 +39,21 @@ export type SeedI18nOverlay = {
   es: Record<string, string>;
   en: Record<string, string>;
 };
+
+/**
+ * Gridline utility-bar emergencies status pill (TUL-516 C2).
+ * One pair for seed overlays + the render-time design-label map — they must
+ * not drift (saul / karla / alex Spanish pages show English without this).
+ */
+export const EMERGENCIES_TODAY_LABEL = {
+  en: "Emergencies today",
+  es: "Urgencias hoy",
+} as const;
+
+export const NO_EMERGENCIES_TODAY_LABEL = {
+  en: "No emergencies today",
+  es: "Sin urgencias hoy",
+} as const;
 
 /** English seed text -> neutral Mexican Spanish (tuteo). Exact seed strings. */
 export const SEED_TEXT_ES: Readonly<Record<string, string>> = {
@@ -104,6 +127,14 @@ export const SEED_TEXT_ES: Readonly<Record<string, string>> = {
   Price: "Precio",
   Payment: "Pago",
   Review: "Revisión",
+  // Gridline utility bar + catalog chrome (TUL-302): every new site gets es+en.
+  Call: "Llamar",
+  "See times": "Ver horarios",
+  "Ask now": "Consultar",
+  [EMERGENCIES_TODAY_LABEL.en]: EMERGENCIES_TODAY_LABEL.es,
+  [NO_EMERGENCIES_TODAY_LABEL.en]: NO_EMERGENCIES_TODAY_LABEL.es,
+  Specifications: "Especificaciones",
+  "How I work": "Cómo trabajo",
 };
 
 /**

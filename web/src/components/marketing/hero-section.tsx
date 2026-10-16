@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { MARKETING_PHOTOS, type MarketingPhoto } from "@/lib/marketing/photography";
 import { getMarketingCopy } from "@/lib/marketing/copy";
+import { marketingShowSlideLabel } from "@/lib/marketing/chrome-aria";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { withLocaleHref } from "@/i18n/pathnames";
 import { MarketingContainer } from "./container";
@@ -148,10 +149,13 @@ export function HeroSection({ locale }: { locale: string }) {
           <div className="mkt-rise mkt-rise-delay-3 mt-8 flex flex-wrap items-center gap-3">
             <OpenTalentModalButton
               eventSource="home-hero"
-              className="inline-flex min-h-12 items-center justify-center rounded-full px-6 text-[0.9375rem] font-medium leading-none transition-transform duration-200 hover:-translate-y-[1px]"
-              style={{ background: "var(--plt-on-inverse)", color: "var(--plt-forest)" }}
+              className="inline-flex min-h-12 items-center justify-center rounded-full px-6 text-[0.9375rem] font-semibold leading-none shadow-[0_14px_34px_-14px_rgba(0,0,0,0.65)] transition-transform duration-200 hover:-translate-y-[1px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              style={{ background: "rgb(255 255 255)", color: "var(--plt-forest-deep)" }}
             >
-              {copy.ctaTalent}
+              <span>{copy.ctaTalent}</span>
+              <svg aria-hidden width="14" height="10" viewBox="0 0 14 10" fill="none" className="ml-2">
+                <path d="M1 5h11M8 1l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </OpenTalentModalButton>
             <MarketingCta
               href={withLocaleHref("/get-started", locale)}
@@ -159,7 +163,7 @@ export function HeroSection({ locale }: { locale: string }) {
               size="lg"
               eventSource="home-hero"
               eventIntent="start-business"
-              className="!border-[rgba(241,237,227,0.34)] !bg-transparent !text-[var(--plt-on-inverse)] hover:!border-[var(--plt-on-inverse)] hover:!bg-[rgba(241,237,227,0.08)]"
+              className="!border-[rgba(241,237,227,0.6)] !bg-transparent !text-[var(--plt-on-inverse)] hover:!border-[var(--plt-on-inverse)] hover:!bg-[rgba(241,237,227,0.08)]"
             >
               {copy.ctaBusiness}
             </MarketingCta>
@@ -170,7 +174,7 @@ export function HeroSection({ locale }: { locale: string }) {
               <li
                 key={t}
                 className="inline-flex items-center gap-1.5 text-[0.8125rem]"
-                style={{ color: "rgba(241,237,227,0.72)" }}
+                style={{ color: "rgba(250,247,240,0.96)", textShadow: "0 1px 10px rgba(8,18,14,0.75)" }}
               >
                 <TrustTick />
                 {t}
@@ -190,9 +194,9 @@ export function HeroSection({ locale }: { locale: string }) {
             key={photo.key}
             type="button"
             onClick={() => setActive(idx)}
-            aria-label={`Show slide ${idx + 1}`}
+            aria-label={marketingShowSlideLabel(locale, idx + 1)}
             aria-current={idx === active}
-            className="flex items-center justify-center px-1.5 py-3"
+            className="flex min-h-11 min-w-11 items-center justify-center"
           >
             <span
               className="block h-1.5 rounded-full transition-all duration-300"
@@ -296,10 +300,10 @@ function BookingAccent({ index, locale }: { index: number; locale: string }) {
 function TrustTick() {
   return (
     <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden>
-      <circle cx="7" cy="7" r="6.25" stroke="rgba(241,237,227,0.6)" strokeWidth="1.2" />
+      <circle cx="7" cy="7" r="6.25" stroke="rgba(250,247,240,0.85)" strokeWidth="1.2" />
       <path
         d="M4.5 7.25L6.2 9L9.5 5.5"
-        stroke="rgba(241,237,227,0.9)"
+        stroke="rgba(250,247,240,1)"
         strokeWidth="1.4"
         strokeLinecap="round"
         strokeLinejoin="round"

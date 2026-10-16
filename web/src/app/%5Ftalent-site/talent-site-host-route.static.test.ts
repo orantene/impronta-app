@@ -79,9 +79,9 @@ test("renderTalentMaxSite reads the actor session ONLY under previewDraft", () =
 });
 
 test("renderTalentMaxSite loads USD rates on the vanity path (D-MSG-421)", () => {
-  const source = src("src/lib/talent-site/server/render-max-site.tsx");
+  const source = src("src/lib/talent-site/server/render-max-site-document.tsx");
   assert.match(source, /loadUsdRatesForSitePrices/);
-  assert.match(source, /loadPublicOfferingsForProfile\(talentProfileId, locale, null\)/);
+  assert.match(source, /loadPublicOfferingsForProfile\(talentProfileId, locale, null[,)]/);
 });
 
 test("proxy rebinds talent headers on /_talent-site rewrite re-entry (D-MSG-431)", () => {
@@ -146,6 +146,16 @@ test("every talent-reachable builder surface pins raw HTML off", () => {
   );
 });
 
+test("TUL-516: talent host route mounts host-change full navigation guard", () => {
+  const source = src(HOST_ROUTE);
+  assert.match(source, /TalentSiteHostFullNav/);
+  assert.match(source, /servedHost=\{servedHost\}/);
+  assert.match(source, /resolveServedHost/);
+  const guard = src("src/components/talent-site/talent-site-host-full-nav.tsx");
+  assert.match(guard, /hrefRequiresFullNavigation/);
+  assert.match(guard, /location\.assign/);
+});
+
 test("the render-time href and form-action neutralizers are still in force", () => {
   const hrefs = src("src/lib/saas/public-hrefs.ts");
   assert.match(hrefs, /export function neutralizeDangerousHref\(/);
@@ -170,4 +180,24 @@ test("the render-time href and form-action neutralizers are still in force", () 
     /neutralizeFormAction\(action\)/,
     "contact_form must keep neutralizing its action",
   );
+});
+
+// Promos PR4: `/p/<slug>` is a static sibling of the catch-all, so it must keep
+// the same anonymous, header-gated contract and be a valid, non-colliding route.
+const PROMO_HOST_ROUTE = "src/app/%5Ftalent-site/p/[slug]/page.tsx";
+
+test("the promo host route is anonymous and header-gated, like the catch-all", () => {
+  const source = src(PROMO_HOST_ROUTE);
+  for (const forbidden of ["getCachedActorSession", "createServerClient", "getCachedServerSupabase", "auth.getUser", "getSession"]) {
+    assert.equal(source.includes(forbidden), false, `${PROMO_HOST_ROUTE} must not reach for ${forbidden}`);
+  }
+  assert.match(source, /resolveGatedTalentProfileId\(/);
+  assert.match(source, /HOST_CONTEXT_HEADER/);
+  assert.match(source, /HOST_TALENT_PROFILE_HEADER/);
+  // Never takes the talent from the URL or query string.
+  assert.equal(/searchParams[^;]*profile/i.test(source), false);
+});
+
+test("`p` stays a reserved page slug so no site page can shadow the promo route", () => {
+  assert.match(src("src/lib/saas/talent-site-host-routing.ts"), /"p",/);
 });

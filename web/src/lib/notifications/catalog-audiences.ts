@@ -19,8 +19,9 @@ import type {
 
 function bookingLocaleFromContext(ctx: unknown): string | null {
   if (!ctx || typeof ctx !== "object") return null;
-  const raw = (ctx as { locale?: unknown }).locale;
-  return normalizeBookingLocale(raw);
+  const c = ctx as { locale?: unknown; guest_locale?: unknown };
+  // `locale` is stamped on bookings; `guest_locale` on guest-chat inquiries.
+  return normalizeBookingLocale(c.locale) ?? normalizeBookingLocale(c.guest_locale);
 }
 
 /** Narrow an unknown payload value to a non-empty trimmed string, else null. */
@@ -224,6 +225,11 @@ export const clientOrGuest = async (
 ): Promise<AudienceMember[]> => {
   const clientUserId = str(event.payload.clientUserId);
   const email = str(event.payload.contactEmail);
+  // Client language (TUL-623): the language the inquiry was made in. When it is
+  // unknown no locale is set, so the email falls back to the workspace default
+  // locale (brand.locale) and finally "en", never a hard "en".
+  const normLocale = normalizeBookingLocale(event.payload.locale);
+  const localePart = normLocale ? { locale: normLocale } : {};
   if (clientUserId) {
     // A guest-created client account can have no email on the auth user, which
     // made the email channel skip with "no endpoint" (TUL-93). When the account
@@ -232,17 +238,17 @@ export const clientOrGuest = async (
       try {
         const { data, error } = await ctx.admin.auth.admin.getUserById(clientUserId);
         if (!error && data?.user && !data.user.email?.trim()) {
-          return [{ kind: "guest", email, displayName: str(event.payload.contactName), role: "client" }];
+          return [{ kind: "guest", email, displayName: str(event.payload.contactName), role: "client", ...localePart }];
         }
       } catch {
         // fall through to the user member; hydrateRecipient logs its own lookup failures
       }
     }
-    return [{ kind: "user", userId: clientUserId, role: "client" }];
+    return [{ kind: "user", userId: clientUserId, role: "client", ...localePart }];
   }
   if (email) {
     return [
-      { kind: "guest", email, displayName: str(event.payload.contactName), role: "client" },
+      { kind: "guest", email, displayName: str(event.payload.contactName), role: "client", ...localePart },
     ];
   }
   return [];

@@ -8,6 +8,7 @@ import {
   HELP_BUBBLE_VISIBLE_MS,
   shouldHideHelpBubbleOnScroll,
   helpBubbleBannerUp,
+  helpBubbleFilterNavBlocking,
   findHelpBubbleAnchor,
   findHelpBubbleBarTops,
   helpBubbleBottom,
@@ -94,6 +95,7 @@ export function ChatHelpBubble({
       if (shownRef.current) return;
       if (!shouldShowHelpBubble({ scrollY: window.scrollY, seen: readHelpBubbleSeen(storage, key), blocked: blockedRef.current })) return;
       if (helpBubbleBannerUp(document)) return; // a banner owns the bottom of the screen
+      if (helpBubbleFilterNavBlocking(document, window.innerHeight)) return; // F4: chips in the lower band
       const at = locate();
       if (!at) return; // no chat button on screen: nothing to point at
       if (otherHelpBubbleShown(document, null)) return; // one bubble only
@@ -118,6 +120,10 @@ export function ChatHelpBubble({
     const follow = () => {
       if (shouldHideHelpBubbleOnScroll(shownAtYRef.current, window.scrollY)) {
         setVisible(false); // the visitor kept scrolling: get out of the way (DS-13)
+        return;
+      }
+      if (helpBubbleFilterNavBlocking(document, window.innerHeight)) {
+        setVisible(false); // F4: filter chips moved into the teaser band
         return;
       }
       const at = locate();
