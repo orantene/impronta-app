@@ -21,6 +21,7 @@ import type { BuilderPortfolioNode } from "@/lib/site-admin/builder-node/types";
 
 import { KIT } from "./kit/tokens";
 import { InspectorLabelWithInfo } from "./kit";
+import type { LocalizableTextFieldComponent } from "./builder-2027-node-content";
 
 type CommitPatch = (patch: Record<string, unknown>) => void;
 
@@ -96,10 +97,38 @@ function useTalentMediaAlbums(): {
 export function PortfolioContentInspector({
   node,
   commitPatch,
+  tenantId,
+  LocalizableTextField,
 }: {
   node: BuilderPortfolioNode;
   commitPatch: CommitPatch;
+  tenantId: string;
+  /** The shared per-language field, passed in (not imported) so the module
+   * graph stays one-directional; see builder-2027-node-content. */
+  LocalizableTextField: LocalizableTextFieldComponent;
 }) {
+  // TUL-999: every copy field is localizable on this block (builder-i18n-props
+  // lists eyebrow, title, emptyMessage, creditLine), so each one gets the same
+  // ES/EN tabs as the canvas instead of a single plain input.
+  const textField = (
+    prop: "eyebrow" | "title" | "emptyMessage" | "creditLine",
+    baseValue: string,
+    ariaLabel: string,
+    placeholder?: string,
+  ) => (
+    <LocalizableTextField
+      node={node}
+      prop={prop}
+      tenantId={tenantId}
+      fieldKind="input"
+      baseValue={baseValue}
+      ariaLabel={ariaLabel}
+      className={KIT.input}
+      placeholder={placeholder}
+      onCommitBase={(next) => commitPatch({ [prop]: next })}
+      patch={commitPatch}
+    />
+  );
   const p = node.props;
   const layout = (p.layout ?? PORTFOLIO_DEFAULT_PROPS.layout) as PortfolioLayout;
   const showCaptions = p.showCaptions === true;
@@ -186,42 +215,22 @@ export function PortfolioContentInspector({
             </div>
             <div className={KIT.field}>
               <label className={KIT.label}>Title</label>
-              <input
-                className={KIT.input}
-                value={p.title ?? PORTFOLIO_DEFAULT_PROPS.title ?? ""}
-                placeholder="Editorial"
-                onChange={(e) => commitPatch({ title: e.target.value })}
-              />
+              {textField("title", p.title ?? PORTFOLIO_DEFAULT_PROPS.title ?? "", "Title", "Editorial")}
             </div>
             <div className={KIT.field}>
               <label className={KIT.label}>Credit line</label>
-              <input
-                className={KIT.input}
-                value={p.creditLine ?? ""}
-                placeholder="Photographer, client, year"
-                onChange={(e) => commitPatch({ creditLine: e.target.value })}
-              />
+              {textField("creditLine", p.creditLine ?? "", "Credit line", "Photographer, client, year")}
             </div>
           </>
         ) : (
           <>
             <div className={KIT.field}>
               <label className={KIT.label}>Eyebrow</label>
-              <input
-                className={KIT.input}
-                value={p.eyebrow ?? ""}
-                placeholder="Optional"
-                onChange={(e) => commitPatch({ eyebrow: e.target.value })}
-              />
+              {textField("eyebrow", p.eyebrow ?? "", "Eyebrow", "Optional")}
             </div>
             <div className={KIT.field}>
               <label className={KIT.label}>Heading</label>
-              <input
-                className={KIT.input}
-                value={p.title ?? PORTFOLIO_DEFAULT_PROPS.title ?? ""}
-                placeholder="Recent work"
-                onChange={(e) => commitPatch({ title: e.target.value })}
-              />
+              {textField("title", p.title ?? PORTFOLIO_DEFAULT_PROPS.title ?? "", "Heading", "Recent work")}
             </div>
           </>
         )}
@@ -272,11 +281,7 @@ export function PortfolioContentInspector({
         </label>
         <div className={KIT.field}>
           <label className={KIT.label}>Empty message</label>
-          <input
-            className={KIT.input}
-            value={p.emptyMessage ?? PORTFOLIO_DEFAULT_PROPS.emptyMessage ?? ""}
-            onChange={(e) => commitPatch({ emptyMessage: e.target.value })}
-          />
+          {textField("emptyMessage", p.emptyMessage ?? PORTFOLIO_DEFAULT_PROPS.emptyMessage ?? "", "Empty message")}
         </div>
       </Section>
       <Section title="Layout">

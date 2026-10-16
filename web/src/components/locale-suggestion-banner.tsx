@@ -112,6 +112,7 @@ async function resolveBannerProps(renderLocale: string): Promise<BannerProps | n
       renderLocale,
       tenantSettings: settings,
       showLanguageSwitcher,
+      talentSitePrimaryLocale: talent ? talent.defaultLocale : null,
       pathname,
       search: h.get(ORIGINAL_SEARCH_HEADER),
       userAgent: h.get("user-agent"),

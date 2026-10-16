@@ -1947,6 +1947,7 @@
         "listening": "Escuchando…",
         "transcribing": "Anotando…",
         "typePlaceholder": "O escríbelo aquí…",
+        "typePlaceholderDirect": "Escribe qué haces…",
         "linkPlaceholder": "https:// o @tunegocio",
         "send": "Enviar",
         "forExample": "Por ejemplo",
@@ -3490,8 +3491,6 @@
         "taxDocuments": "Documentos fiscales",
         "taxDocumentsDesc": "Resumen de fin de año + formularios descargables. Tulala reporta tus ingresos de la plataforma; los de fuera los declaras tú.",
         "taxYearTotal": "Total {year}",
-        "taxPlatform": "Plataforma",
-        "taxOffPlatform": "Fuera de la plataforma",
         "availableDocuments": "Documentos disponibles",
         "docIncomeSummary": "Resumen de ingresos {year}",
         "docIncomeSummaryBody": "Solo ingresos reportados por la plataforma · descarga en PDF",
@@ -4953,6 +4952,7 @@
       "greetingMorning": "Buenos días, {name}",
       "greetingAfternoon": "Buenas tardes, {name}",
       "greetingEvening": "Buenas noches, {name}",
+      "greetingNeutral": "Hola, {name}",
       "greetingFallbackName": "de nuevo",
       "dateLocale": "es-ES",
       "newInquiry": "Nueva consulta",
@@ -17700,11 +17700,14 @@
       "filesNone": "Todavía no hay ningún archivo adjunto a un hito.",
       "kpiCollectedNoteOne": "1 registro pagado"
     },
+    "adminNotFound": {
+      "title": "Página no encontrada",
+      "body": "Esta página no existe o pudo haberse movido. Revisa la dirección o vuelve a tu resumen.",
+      "back": "Volver al resumen"
+    },
     "clientRecord": {
       "title": "Cliente",
       "unavailable": "No pudimos cargar este cliente. No se cambio nada. Intenta de nuevo en un momento.",
-      "notFound": "Ese cliente no está aquí. Puede haberse fusionado con otra ficha, o el enlace puede pertenecer a otro espacio de trabajo.",
-      "invalidId": "Esa dirección no es un cliente.",
       "unnamed": "Nombre no registrado",
       "backToList": "Todos los clientes",
       "identity": "Identidad",
