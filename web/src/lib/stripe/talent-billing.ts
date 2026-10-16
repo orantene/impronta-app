@@ -20,6 +20,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { mapStripeStatus } from "@/lib/stripe/utils";
 import { notifyTrialStarted } from "@/lib/notifications/producers/trial-notify";
+import { reconcileTalentDomainPlanGrace } from "@/lib/talent-site/server/talent-domain-plan-grace";
 import { resolveCheckoutDiscount } from "@/lib/billing/checkout-discounts";
 import {
   reconcileAppliedDiscount,
@@ -443,6 +444,19 @@ export async function syncTalentSubscriptionToDb(
       });
     }
 
+    // Read prior plan before overwrite so D6 domain grace can detect loss /
+    // restore of Web Office custom-domain access. Money/renewal = D5.
+    const { data: profileBefore, error: profileBeforeError } = await sb
+      .from("talent_profiles")
+      .select("talent_plan_key")
+      .eq("id", talentProfileId)
+      .maybeSingle();
+    // A failed read leaves previousPlanKey null, which reconcile treats as "no transition".
+    if (profileBeforeError) logServerError("talent-billing.syncSubscription.planKeyBefore", profileBeforeError);
+    const previousPlanKey =
+      (profileBefore as { talent_plan_key?: string | null } | null)?.talent_plan_key ??
+      null;
+
     // Sync talent_profiles.talent_plan_key
     const { error: profileError } = await sb
       .from("talent_profiles")
@@ -456,6 +470,13 @@ export async function syncTalentSubscriptionToDb(
       logServerError("talent-billing.syncSubscription.planKey", profileError);
       return { ok: false, error: "Failed to update talent plan." };
     }
+
+    // D6: domain plan grace reacts to the Web Office loss / restore (previousPlanKey read above).
+    await reconcileTalentDomainPlanGrace({
+      talentProfileId,
+      previousPlanKey,
+      nextPlanKey: newPlanKey,
+    });
 
     if (decision.planChanged) {
       await onTalentPlanChanged(
