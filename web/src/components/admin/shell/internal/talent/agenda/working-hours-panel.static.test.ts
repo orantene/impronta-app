@@ -37,6 +37,19 @@ test("TUL-358: Horario panel opens on profile id alone (never week calendar with
   const legacyCal = read("talent/pages/CalendarPage.tsx");
   assert.match(legacyCal, /openWorkingHoursPanel/);
   assert.doesNotMatch(legacyCal, /openDrawer\("talent-block-dates"\)/);
+  // Zona horaria control lives on the hours form the panel embeds (TUL-536).
+  const hours = read("talent/agenda/AgendaAvailabilityPage.tsx");
+  assert.match(hours, /TimezonePicker/);
+  assert.match(panel, /AgendaAvailabilityPage/);
+});
+
+test("live2b-01: seeded bridge hours keep closed days closed (no fake Mon–Sat open)", () => {
+  const page = read("talent/agenda/AgendaAvailabilityPage.tsx");
+  assert.match(page, /open: seeded \? false : idx >= 1 && idx <= 6/);
+  assert.doesNotMatch(
+    page,
+    /return \{\s*day: idx,\s*label,\s*open: idx >= 1 && idx <= 6/,
+  );
 });
 
 test("the panel is a drawer on desktop and a bottom sheet on a phone, and closes after a real save", () => {
@@ -69,9 +82,42 @@ test("New booking opens as the same drawer / bottom sheet from Today and Calenda
   assert.match(read("talent/agenda/AgendaNewBooking.tsx"), /embedded \? "grid gap-4"/);
 });
 
-test("Calendar header reads Bookings with List and Working hours buttons (calendar_d)", () => {
+test("Calendar header reads Calendar with List and Working hours buttons (calendar_d)", () => {
   const cal = read("talent/agenda/AgendaCalendarPage.tsx");
-  assert.match(cal, /title=\{copy\.t\("Bookings"\)\}/);
+  assert.match(cal, /title=\{copy\.t\("Calendar"\)\}/);
   assert.match(cal, /copy\.t\("List"\)/);
   assert.match(cal, /copy\.t\("Working hours"\)/);
+});
+
+test("TUL-536: weekly rows stack the day label above the times on a phone so AM/PM is never clipped", () => {
+  const dir = join(process.cwd(), "src/components/admin/shell/internal/talent/agenda");
+  const page = readFileSync(join(dir, "AgendaAvailabilityPage.tsx"), "utf8");
+  const fields = readFileSync(join(dir, "HoursFields.tsx"), "utf8");
+  assert.match(page, /grid-cols-\[minmax\(6\.75rem,1fr\)_auto_minmax\(6\.75rem,1fr\)\] items-center gap-2 sm:grid-cols-/);
+  assert.match(page, /col-span-3 sm:col-span-1/);
+  assert.match(fields, /type="time"[\s\S]{0,80}min-w-\[7\.5rem\]/);
+});
+
+// TUL-821: More > Working hours opens the Horario modal, and the zone leads the modal.
+test("TUL-821: the phone More row opens the Horario panel and the zone sits above the day rows", () => {
+  const more = readFileSync(
+    join(process.cwd(), "src/components/talent/studio/MoreScreen.tsx"),
+    "utf8",
+  );
+  assert.match(more, /openWorkingHoursPanel\(\)/);
+  assert.doesNotMatch(more, /label: "Working hours"[^}]*page: "calendar"/);
+  const page = read("talent/agenda/AgendaAvailabilityPage.tsx");
+  assert.ok(page.indexOf("<TimezonePicker") < page.indexOf("rows.map("));
+});
+
+test("TUL-823: the Horario 24h selects keep a floor width and the row grid gives each side 6.75rem at 390", () => {
+  const fields = read("talent/agenda/HoursFields.tsx");
+  assert.match(fields, /role="group" aria-label=\{label\} className="flex min-w-\[6\.75rem\] items-center gap-1"/);
+  assert.equal((fields.match(/className=\{`\$\{FIELD\} min-w-\[2\.9rem\] flex-1`\}/g) ?? []).length, 2);
+  assert.doesNotMatch(fields, /min-w-0 flex-1/);
+  const page = read("talent/agenda/AgendaAvailabilityPage.tsx");
+  assert.match(page, /grid-cols-\[minmax\(6\.75rem,1fr\)_auto_minmax\(6\.75rem,1fr\)\]/);
+  // The embedded panel renders the same form, so it inherits the fix.
+  const panel = read("talent/agenda/WorkingHoursPanel.tsx");
+  assert.match(panel, /AgendaAvailabilityPage|HoursFields|AvailabilityForm/);
 });

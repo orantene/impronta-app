@@ -270,6 +270,13 @@ export const PRODUCT_ANALYTICS_EVENTS = {
   trial_door_shown: "trial_door_shown",
   trial_door_started: "trial_door_started",
   trial_door_dismissed: "trial_door_dismissed",
+  /**
+   * TUL-829 in-app upgrade modal at talent paywalls.
+   * Payload: { feature, from } (+ { plan, interval } on cta).
+   */
+  upgrade_modal_shown: "upgrade_modal_shown",
+  upgrade_modal_cta: "upgrade_modal_cta",
+  upgrade_modal_dismissed: "upgrade_modal_dismissed",
   /** Writing helper (Phase 9): { surface, op, tone }. */
   writing_helper_used: "writing_helper_used",
 } as const;

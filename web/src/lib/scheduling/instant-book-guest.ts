@@ -310,6 +310,8 @@ export async function notifyGuestInstantBooking(input: {
   email: string;
   tenantId: string;
   talentName?: string | null;
+  /** TUL-691: site URL the guest booked from (readSiteReturnUrl). */
+  returnUrl?: string | null;
 }): Promise<void> {
   if (input.kind !== "guest" || !input.email.includes("@")) return;
   try {
@@ -327,9 +329,10 @@ export async function notifyGuestInstantBooking(input: {
     await sendGuestClaimEmail({
       email: input.email,
       tenantSlug: slug,
-      talentName: input.talentName?.trim() || "the studio",
+      talentName: input.talentName?.trim() || "",
       appUrl: getAppUrl(),
       tenantId: input.tenantId,
+      returnUrl: input.returnUrl ?? null,
     });
   } catch (err) {
     logServerError("instantBook.guestNotify", err);

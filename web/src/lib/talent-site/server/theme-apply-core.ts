@@ -22,7 +22,7 @@ import {
   type StampSource,
 } from "../theme-releases/origin";
 import { stripDesignKeys } from "../theme-releases/design-keys";
-import { designApplySummary, lookSummary } from "../history/copy";
+import { designApplySummary, lookSummary, pick } from "../history/copy";
 import { isHistorySnapshot, planRestore } from "../history/restore-plan";
 import type { HistoryActor, HistorySnapshot } from "../history/types";
 import { writeSiteDraft } from "../history/writer";
@@ -33,6 +33,7 @@ import {
   canRestoreExactSinceLeave,
   planDesignSwitch,
   snapshotDesignSlug,
+  type DesignSwitchWarn,
 } from "./design-switch";
 
 export { DESIGN_APPLY_DRAFT_SITE_KEYS };
@@ -64,6 +65,7 @@ export { isLookOwnedTokenKey, mergeLookIntoTokens } from "../theme-catalog/look-
 
 export type ThemeApplyErrorCode =
   | "invalid_theme"
+  | "unreleased_version"
   | "site_not_found"
   | "page_not_found"
   | "conflict"
@@ -236,6 +238,8 @@ export interface ApplyDesignInput {
   expectedDraftRev?: number | null;
   /** History actor (a Tulala-run demo rebuild passes "tulala"). */
   actor?: HistoryActor;
+  /** Language of the talent-facing refusal text ("es…" = Spanish, else English). */
+  locale?: string | null;
 }
 
 type DraftRead = {
@@ -395,7 +399,7 @@ export async function applyDesign(
     version: design.version,
     where: "applyDesign",
   });
-  if (!pin.ok) return { ok: false, code: "invalid_theme", error: pin.reason.en };
+  if (!pin.ok) return { ok: false, code: "unreleased_version", error: pick(pin.reason, input.locale) };
 
   const draft = await readApplyDraft(admin, {
     talentProfileId: input.talentProfileId,
@@ -576,6 +580,49 @@ export async function applyDesign(
       warned: plan.warned.length,
     },
   };
+}
+
+/**
+ * TUL-536: read-only dry run of a Design switch. Same carry plan as
+ * `applyDesign` (fresh profile hydration, trade apps, planDesignSwitch) but
+ * nothing is written. Returns the plan's warnings so the confirm sheet can say
+ * what will be hidden / kept. A switch back that restores exactly has no
+ * warnings; the caller treats that as "nothing lost" only when it matches.
+ */
+export async function previewDesignSwitch(
+  admin: SupabaseClient,
+  input: { talentProfileId: string; siteId: string; design: TalentThemeDesignRow },
+): Promise<ThemeApplyResult<{ warned: DesignSwitchWarn[] }>> {
+  const { design } = input;
+  const check = validateDesign(design.payload);
+  if (!check.ok) return { ok: false, code: "invalid_theme", error: "That design is not available." };
+  const draft = await readApplyDraft(admin, input);
+  if (!draft) return { ok: false, code: "site_not_found", error: "Site not found." };
+  const tokens = await loadTemplateHydrationTokens(input.talentProfileId);
+  if (!tokens) return { ok: false, code: "server_error", error: "Could not load profile content." };
+  const built = buildDesignTrees(design.payload, tokens, undefined, {
+    design: design.slug,
+    version: design.version,
+  });
+  if (!built.ok) return { ok: false, code: "server_error", error: "Could not build that design." };
+  const trades = tradesFromTypeLabels([
+    tokens.primaryTypeLabel,
+    tokens.secondaryType1,
+    tokens.secondaryType2,
+    tokens.secondaryType3,
+  ]);
+  const home = placeMaisonTradeApps(built.homeTree, trades, { designSlug: design.slug }).tree;
+  const plan = planDesignSwitch({
+    fromShell: draft.shell,
+    fromHome: draft.home,
+    toShell: built.shellTree,
+    toHome: home,
+    fromSlug: draft.designSlug,
+    toSlug: design.slug,
+    fromVersion: draft.designVersion,
+    toVersion: design.version,
+  });
+  return { ok: true, data: { warned: plan.warned } };
 }
 
 export interface ApplyLookInput {

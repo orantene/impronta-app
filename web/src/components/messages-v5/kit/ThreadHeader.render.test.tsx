@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { EN_COPY } from "./test-copy";
+import { EN_COPY, ES_COPY } from "./test-copy";
 import { CHIP_OFFER, ESSENTIALS, ESSENTIALS_VISITOR, STATE_BARE, STATE_NEEDS, STATE_RESOLVED } from "./test-fixtures";
 import { ThreadHeader } from "./ThreadHeader";
 
@@ -50,4 +50,10 @@ test("mobile: back, name, subject, channel · owner, more; one state row with on
   assert.match(html, /class="st">.*Needs reply.*Offer v2/);
   const visitor = renderToStaticMarkup(<ThreadHeader {...base} essentials={ESSENTIALS_VISITOR} state={STATE_BARE} chips={[]} owner={null} variant="mobile" />);
   assert.match(visitor, /Web chat · unassigned · no identity/);
+});
+
+test("ES: the engine's English Visitor fallback name reads Visitante in the header", () => {
+  const html = renderToStaticMarkup(<ThreadHeader {...base} copy={ES_COPY} essentials={{ ...ESSENTIALS_VISITOR, name: "Visitor" }} state={STATE_BARE} chips={[]} owner={null} subject="Mesa para 6" when={null} />);
+  assert.match(html, /<b>Visitante<\/b>/);
+  assert.doesNotMatch(html, />Visitor</);
 });

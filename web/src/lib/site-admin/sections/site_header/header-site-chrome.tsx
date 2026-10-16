@@ -1,9 +1,22 @@
 import { languageToggleGroupLabel } from "@/i18n/language-toggle-label";
+import { localeSwitchRel } from "@/i18n/locale-switch-rel";
 import type { HeaderItem } from "./schema";
 
-/** How an item behaves on each breakpoint when the owner has not chosen (phone: brand stays, rest folds into the menu). */
+/** How an item behaves on each breakpoint when the owner has not chosen (phone: brand + language stay; rest folds into the menu). */
 export function headerItemMobileDefault(item: HeaderItem): "show" | "menu" {
-  return item.type === "wordmark" || item.type === "logo" || item.type === "section_switcher" ? "show" : "menu";
+  // GRK-030: language stays in the bar on phone so bilingual demos are not
+  // footer-only (cookie banner covers the socket language group).
+  return item.type === "wordmark" || item.type === "logo" || item.type === "section_switcher" || item.type === "language"
+    ? "show"
+    : "menu";
+}
+
+/** Effective phone visibility: language always shows (GRK-030), even if a seed pinned menu. */
+export function headerItemMobileResolved(
+  item: HeaderItem,
+): "show" | "label" | "icon" | "hide" | "menu" {
+  if (item.type === "language") return "show";
+  return item.responsive?.mobile ?? headerItemMobileDefault(item);
 }
 
 /** `data-header-item` + per-breakpoint attrs. The section switcher is phone-only unless the owner says otherwise. */
@@ -14,25 +27,18 @@ export function headerItemAttrs(item: HeaderItem): Record<string, string> {
     "data-header-item": item.type,
     "data-bp-desktop": bp.desktop ?? wide,
     "data-bp-tablet": bp.tablet ?? bp.desktop ?? wide,
-    "data-bp-mobile": bp.mobile ?? headerItemMobileDefault(item),
+    "data-bp-mobile": headerItemMobileResolved(item),
   };
 }
 
 /**
  * Render-time site chrome for the freeform header (`siteChrome`, injected by
- * the talent site renderer): the Demo pill and the talent site's own
- * language switch ("ES / EN"). Each code links to THIS page in that language
- * (`hrefs`, built in the talent's URL grammar); a `?locale=` link is the
- * fallback, which the talent host redirects to the prefixed URL.
+ * the talent site renderer): the talent site's own language switch
+ * ("ES / EN"). Each code links to THIS page in that language (`hrefs`, built
+ * in the talent's URL grammar); a `?locale=` link is the fallback, which the
+ * talent host redirects to the prefixed URL. The demo marker is not header
+ * chrome (TUL-560): it is the fixed corner badge, `MaxSiteDemoBadge`.
  */
-export function HeaderDemoPill({ show }: { show: boolean | undefined }) {
-  return show ? (
-    <span className="site-header__demo" title="Demo">
-      Demo
-    </span>
-  ) : null;
-}
-
 export function HeaderSiteLocales({
   locales,
   hrefs,
@@ -58,6 +64,8 @@ export function HeaderSiteLocales({
           <a
             className="site-header__lang-code"
             href={hrefs?.[code] ?? `?locale=${code}`}
+            // TUL-793: a `?locale=` link is a switch action that redirects to the clean URL, never a page to index.
+            {...localeSwitchRel(hrefs?.[code] ?? `?locale=${code}`)}
             hrefLang={code}
             lang={code}
             data-active={code === locale ? "" : undefined}

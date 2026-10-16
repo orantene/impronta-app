@@ -1,6 +1,7 @@
 "use client";
 
 import { getSiteUrl } from "@/lib/auth-flow";
+import { ageTermsLinks } from "@/lib/legal/age-terms-links";
 
 import Link from "next/link";
 
@@ -13,6 +14,7 @@ import { createTranslator } from "@/i18n/messages";
  */
 export function AgeTermsCheckbox({ locale = "en" }: { locale?: string }) {
   const t = createTranslator(locale);
+  const links = ageTermsLinks(getSiteUrl(), locale);
   return (
     <label
       className="flex items-start gap-2 text-[0.8125rem] leading-snug"
@@ -27,11 +29,11 @@ export function AgeTermsCheckbox({ locale = "en" }: { locale?: string }) {
       />
       <span>
         {t("public.auth.register.ageTermsPrefix")}{" "}
-        <Link href={`${getSiteUrl()}/legal/terms`} target="_blank" className="underline underline-offset-4">
+        <Link href={links.terms} target="_blank" className="underline underline-offset-4">
           {t("public.auth.register.ageTermsTerms")}
         </Link>{" "}
         {t("public.auth.register.ageTermsAnd")}{" "}
-        <Link href={`${getSiteUrl()}/legal/privacy`} target="_blank" className="underline underline-offset-4">
+        <Link href={links.privacy} target="_blank" className="underline underline-offset-4">
           {t("public.auth.register.ageTermsPrivacy")}
         </Link>
       </span>

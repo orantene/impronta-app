@@ -17,6 +17,7 @@ import { mapApiDirectoryRpcRowToDirectoryCardDTO } from "@/lib/directory/talent-
 import type { ApiDirectoryCardRpcRow } from "@/lib/directory/talent-card-dto";
 import { resolveTalentCardThumbsForHub } from "@/lib/media/talent-media-for-hub";
 import { fetchLegacyDirectorySearchTalentIds } from "@/lib/directory/directory-search-legacy";
+import { filterToPubliclyListedIds } from "@/lib/directory/public-listing-predicate";
 import { fetchDirectoryCardValues } from "@/lib/field-engine/read-source-directory-card-values";
 import { extractPrimaryRoleTerm, type ProfileTaxonomyRow } from "@/lib/taxonomy/engine";
 import {
@@ -46,7 +47,10 @@ import {
   getDemandScores,
 } from "@/lib/directory/demand-score";
 import { applyPortfolioPlacementBoost } from "@/lib/directory/portfolio-boost";
-import { applyPresentabilityOrdering } from "@/lib/directory/presentability-order";
+import {
+  applyPresentabilityOrdering,
+  presentabilityTier,
+} from "@/lib/directory/presentability-order";
 import { isTalentPortfolioTier } from "@/lib/access/talent-membership";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
@@ -341,10 +345,45 @@ function applySort<T extends { order: (column: string, options?: { ascending?: b
     .order("id", { ascending: false });
 }
 
+/**
+ * A window made only of empty cards would render as a blank page with a
+ * "Load more" button, so the next windows are fetched instead, at most this
+ * many times per request.
+ */
+const MAX_EMPTY_WINDOW_HOPS = 3;
+
 export async function fetchDirectoryPage(
   supabase: SupabaseClient,
   params: DirectoryListParams = {},
 ): Promise<DirectoryPageResponse> {
+  const first = await fetchDirectoryWindow(supabase, params);
+  let { hiddenCount = 0, ...page } = first;
+  let hops = 0;
+  while (page.items.length === 0 && page.nextCursor && hops < MAX_EMPTY_WINDOW_HOPS) {
+    hops += 1;
+    const { hiddenCount: nextHidden = 0, ...next } = await fetchDirectoryWindow(supabase, {
+      ...params,
+      cursor: page.nextCursor,
+      skipTotalCount: true,
+    });
+    hiddenCount += nextHidden;
+    page = {
+      ...next,
+      ...(first.totalCount !== undefined ? { totalCount: first.totalCount } : {}),
+    };
+  }
+  // Exact once every window is loaded; otherwise it only discounts the empty
+  // cards seen so far, so the header never counts a card that was dropped here.
+  if (page.totalCount !== undefined && hiddenCount > 0) {
+    page.totalCount = Math.max(page.totalCount - hiddenCount, page.items.length);
+  }
+  return page;
+}
+
+async function fetchDirectoryWindow(
+  supabase: SupabaseClient,
+  params: DirectoryListParams = {},
+): Promise<DirectoryPageResponse & { hiddenCount?: number }> {
   const audit = isDirectoryApiAudit();
   const timings: Record<string, number> = {};
   const wallStart = performance.now();
@@ -660,6 +699,9 @@ export async function fetchDirectoryPage(
       }
     }
 
+    // Search legs (RPC, taxonomy, field values) are not all gated at source:
+    // drop any id that is not publicly listed (TUL-862).
+    searchIds = await filterToPubliclyListedIds(supabase, searchIds);
     const searchSet = new Set(searchIds);
     filteredTalentIds = filteredTalentIds
       ? filteredTalentIds.filter((id) => searchSet.has(id))
@@ -1431,13 +1473,21 @@ export async function fetchDirectoryPage(
   // Presentability is the OUTERMOST key of "recommended", so it runs last.
   // 78 profiles are publicly listed and one meets the publish floor; without
   // this a client's first screen can be mostly grey boxes. Featured and
-  // manually-arranged slots are untouched, nobody is hidden, and the window
-  // and cursor are unchanged — it is a permutation of this page. Deliberately
-  // after the Portfolio boost: a paying tier buys placement among comparable
-  // cards, not the right to lead with an empty one.
+  // manually-arranged slots are untouched and the window and cursor are
+  // unchanged — it is a permutation of this page. Deliberately after the
+  // Portfolio boost: a paying tier buys placement among comparable cards, not
+  // the right to lead with an empty one.
   if (sort === "recommended") {
     applyPresentabilityOrdering(items);
   }
+
+  // Empty cards (no photo AND no trait, fit or price line) are not listed at
+  // all, in every sort (Oran, 2026-10-10, GRK-053). Partly filled profiles stay
+  // and only rank lower. `nextCursor` below is computed from the raw row count,
+  // so dropping cards here never skips or repeats a page.
+  const visibleItems = params.keepEmptyCards
+    ? items
+    : items.filter((card) => presentabilityTier(card) > 0);
 
   if (audit) {
     timings.mapProfilesToDtoMs = performance.now() - mapStart;
@@ -1460,17 +1510,18 @@ export async function fetchDirectoryPage(
         hasQuery: queryText.length > 0,
         hasLocationSlug: locationSlug.length > 0,
         taxonomyTermIdsCount: taxonomyTermIds.length,
-        itemCount: items.length,
+        itemCount: visibleItems.length,
       }),
     });
   }
 
   return {
-    items,
+    items: visibleItems,
     nextCursor,
     ...(totalCount !== undefined ? { totalCount } : {}),
     taxonomyTermIds,
     reviewsEnabled: reviewsStandingEnabled,
+    hiddenCount: items.length - visibleItems.length,
   };
 }
 

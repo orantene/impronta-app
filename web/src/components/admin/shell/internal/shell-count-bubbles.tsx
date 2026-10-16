@@ -72,6 +72,7 @@ export function ShellCountBubbles({
     bridgeTalentUnread,
     shellCounts,
     effectiveTalentInquiries,
+    bridgeTalentAttentionSignals,
   } = useAdminShell();
   const copy = useDashboardText();
   const inWorkspace = state.surface === "workspace";
@@ -86,14 +87,21 @@ export function ShellCountBubbles({
     countsProp?.find((c) => c.kind === "money")?.count ??
     shellCounts?.money ??
     0;
+  // Row recompute of "esperando tu respuesta" for when the layout sent no
+  // attention count. The workspace never falls back to talent rows (TUL-536).
   const awaiting = inWorkspace
     ? 0
     : countTalentAwaitingInquiries(effectiveTalentInquiries);
+  // Talent: the layout's count is the inbox "Needs reply" number (TUL-388), so
+  // it wins even at 0; the row recompute is only for a missing bridge. Site
+  // signals (TUL-392) add on top here, not in shellCounts.attention, because
+  // Hoy reads that count as "esperando tu respuesta".
+  const signals = inWorkspace ? 0 : (bridgeTalentAttentionSignals?.length ?? 0);
   const attention =
     countsProp?.find((c) => c.kind === "attention")?.count ??
-    (shellCounts?.attention && shellCounts.attention > 0
-      ? shellCounts.attention
-      : awaiting);
+    (inWorkspace
+      ? (shellCounts?.attention ?? 0)
+      : (shellCounts?.attention ?? awaiting) + signals);
 
   const visible = visibleShellCountBubbles([
     { kind: "messages", count: messages },

@@ -5,12 +5,12 @@ import { join } from "node:path";
 
 const ROOT = join(process.cwd(), "src");
 
-test("custom domain row opens tier-compare when locked and domain drawer when unlocked", () => {
+test("custom domain row opens the upgrade modal when locked and domain drawer when unlocked", () => {
   const src = readFileSync(
     join(ROOT, "components/talent/site/CustomDomainRow.tsx"),
     "utf8",
   );
-  assert.match(src, /openDrawer\("talent-tier-compare"\)/);
+  assert.match(src, /openUpgrade\(\{ feature: "custom-domain"/);
   assert.match(src, /openDrawer\("talent-custom-domain"\)/);
   assert.match(src, /bridgeTalentPlanTrial/);
   assert.match(src, /personalSiteCustomDomain|canManage/);

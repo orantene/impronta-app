@@ -13,9 +13,14 @@ const SETTLEMENT_KINDS: ReadonlySet<string> = new Set([
   "booking_confirmed",
 ]);
 
+// TUL-280: the offer summaries (and so the Accept action) ride the full load.
+// An offer sent while the dock is open arrives by poll as a bare row, so it
+// must trigger a full load or the guest sees a card with no Accept.
+const OFFER_KINDS: ReadonlySet<string> = new Set(["offer_event", "offer_review", "offer_state"]);
+
 /** PURE: true when freshly polled rows say money settled (or state moved) server-side. */
 export function pollNeedsFullReload(incoming: readonly { kind?: string | null; payload?: Record<string, unknown> | null }[]): boolean {
-  return incoming.some((m) => (m.kind ? SETTLEMENT_KINDS.has(m.kind) : false) || m.payload?.state === "paid");
+  return incoming.some((m) => (m.kind ? SETTLEMENT_KINDS.has(m.kind) || OFFER_KINDS.has(m.kind) : false) || m.payload?.state === "paid");
 }
 
 /** PURE: the only status the dock may call "paid" is one the server wrote. */

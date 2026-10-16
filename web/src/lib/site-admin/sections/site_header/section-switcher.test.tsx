@@ -101,6 +101,17 @@ test("scroll-spy: the last section whose top reached the reading line is active"
   assert.equal(pickActiveSection([{ id: "gallery", top: -2000 }, { id: "services", top: -900 }, { id: "reviews", top: -10 }], 250), "reviews");
 });
 
+test("scroll-spy follows the page, not the menu order (GRK-078: '04 Sobre mí' on services)", () => {
+  // Menu lists services before about; the page stacks about first.
+  const menuOrder = [
+    { id: "gallery", top: -1136 },
+    { id: "services", top: 120 },
+    { id: "about", top: -564 },
+  ];
+  assert.equal(pickActiveSection(menuOrder, 250), "services");
+  assert.equal(pickActiveSection([{ id: "services", top: 600 }, { id: "about", top: 200 }], 250), "about");
+});
+
 test("scrolling down slides the name up, scrolling back slides it down", () => {
   assert.equal(switchDirection(0, 2), "up");
   assert.equal(switchDirection(3, 1), "down");
@@ -164,6 +175,27 @@ test("the switcher shows the current section and follows the scroll", () => {
   scrollTo();
   assert.equal(name(), "Work");
   assert.equal(host.querySelector(".site-header__secsw-name")?.getAttribute("data-dir"), "down");
+  unmount();
+});
+
+test("the numbers and the menu follow the page order when the menu lists sections differently (GRK-078)", () => {
+  Object.defineProperty(dom.window, "innerHeight", { value: 800, configurable: true });
+  // The page stacks reviews before the menu; the menu lists it third.
+  const s = mountSections({ gallery: 600, reviews: 1400, services: 2200, visit: 3000 });
+  const { host, unmount } = mountSwitcher();
+  const bar = () => host.querySelector(".site-header__secsw-btn")?.textContent;
+
+  s[0]!.setTop(-1500);
+  s[1]!.setTop(-700);
+  s[2]!.setTop(100);
+  scrollTo();
+  assert.equal(bar(), "03Menu and prices", "on the menu section the bar names it, with its page position");
+
+  act(() => host.querySelector<HTMLButtonElement>(".site-header__secsw-btn")!.click());
+  assert.deepEqual(
+    [...host.querySelectorAll("[data-secsw-menu] a")].map((a) => a.textContent),
+    ["01Work", "02Reviews", "03Menu and prices", "04Your visit"],
+  );
   unmount();
 });
 

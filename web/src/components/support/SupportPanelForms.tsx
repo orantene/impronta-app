@@ -1,13 +1,20 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { SUPPORT_AGENT_VARS } from "@/lib/support/support-persona";
 import { Icon } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS, RADIUS } from "./support-tokens";
+import { supportSendErrorText } from "./support-send-error";
 import { ReplayConsent } from "./ReplayConsent";
 import { SupportAttachButton } from "./SupportAttachButton";
+import { uploadSupportAttachment } from "./upload-support-attachment";
+import {
+  SUPPORT_ATTACH_ACCEPT,
+  stageSupportAttachments,
+  uploadStagedAttachments,
+} from "./support-attachment-limits";
 import { getDiagnosticsSnapshot } from "@/lib/support/diagnostics/collector";
 import type { SupportContract } from "./support-contract";
 
@@ -31,7 +38,13 @@ export function NewTicketForm({
   const [category, setCategory] = useState("General");
   const [pref, setPref] = useState<"anytime" | "morning" | "afternoon" | "evening">("anytime");
   const [busy, setBusy] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (error) errorRef.current?.focus();
+  }, [error]);
   return (
     <form
       style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}
@@ -53,7 +66,12 @@ export function NewTicketForm({
             callbackPref: phone.trim() ? pref : undefined,
             diagnostics: getDiagnosticsSnapshot(),
           })
-          .then((r) => {
+          .then(async (r) => {
+            // TUL-600: screenshots picked on the form ride in as the first
+            // messages of the new thread; a failed upload never blocks the ticket.
+            if (r.ok && files.length > 0) {
+              await uploadStagedAttachments(r.ticketId, files, async (id, f) => (await uploadSupportAttachment(id, f)).ok);
+            }
             setBusy(false);
             if (r.ok) {
               onCreated(
@@ -64,7 +82,7 @@ export function NewTicketForm({
               );
             } else {
               // The form keeps everything typed; only surface the failure.
-              setError(t("dashboard.adminSupport.sendFailed"));
+              setError(supportSendErrorText(t, r));
             }
           });
       }}
@@ -83,15 +101,53 @@ export function NewTicketForm({
       </label>
       <label style={fieldLabel}>
         {t("dashboard.adminSupport.fieldSubject")}
-        <input value={subject} onChange={(e) => setSubject(e.target.value)} style={fieldInput} />
+        <input value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={200} style={fieldInput} />
       </label>
       <label style={fieldLabel}>
         {t("dashboard.adminSupport.fieldDescription")}
-        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5} required style={fieldInput} />
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5} maxLength={4000} required style={fieldInput} />
       </label>
+      <div style={fieldLabel}>
+        <span>{t("dashboard.adminSupport.fieldAttachments")}</span>
+        <input
+          ref={fileRef}
+          type="file"
+          multiple
+          hidden
+          accept={SUPPORT_ATTACH_ACCEPT}
+          onChange={(e) => {
+            const r = stageSupportAttachments(files, Array.from(e.target.files ?? []));
+            setFiles(r.files);
+            setError(r.rejected ? t("dashboard.adminSupport.attachFailed") : null);
+            if (fileRef.current) fileRef.current.value = "";
+          }}
+        />
+        <button
+          type="button"
+          disabled={busy}
+          aria-label={t("dashboard.adminSupport.attachAria")}
+          onClick={() => fileRef.current?.click()}
+          style={{ ...fieldInput, minHeight: 44, cursor: "pointer", textAlign: "left", background: COLORS.card }}
+        >
+          {t("dashboard.adminSupport.attachAria")}
+        </button>
+        {files.map((f, i) => (
+          <div key={`${f.name}-${i}`} style={{ fontSize: 13, color: COLORS.inkMuted, display: "flex", gap: 8, alignItems: "center" }}>
+            <span style={{ minWidth: 0, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+            <button
+              type="button"
+              aria-label={f.name}
+              onClick={() => setFiles(files.filter((_, j) => j !== i))}
+              style={{ minWidth: 44, minHeight: 44, border: "none", background: "none", cursor: "pointer", color: COLORS.inkMuted }}
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
       <label style={fieldLabel}>
         {t("dashboard.adminSupport.fieldPhone")}
-        <input value={phone} onChange={(e) => setPhone(e.target.value)} style={fieldInput} />
+        <input value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={40} type="tel" inputMode="tel" autoComplete="tel" style={fieldInput} />
       </label>
       <div style={{ fontSize: 12, color: COLORS.inkMuted }}>{t("dashboard.adminSupport.whatsappHint")}</div>
       {phone.trim() ? (
@@ -126,7 +182,7 @@ export function NewTicketForm({
         <ReplayConsent checked={attachReplay} onChange={setAttachReplay} />
       ) : null}
       {error ? (
-        <div role="alert" style={{ fontSize: 12, color: COLORS.critical }}>
+        <div ref={errorRef} role="alert" tabIndex={-1} style={{ fontSize: 12, color: COLORS.critical, outline: "none" }}>
           {error}
         </div>
       ) : null}
@@ -170,26 +226,33 @@ export function Composer({
   ticketId = null,
 }: {
   disabled: boolean;
-  /** Resolves true on success; false keeps the text in the box. */
-  onSend: (body: string) => Promise<boolean>;
+  /** Resolves true on success; false or `{ error }` keeps the text in the box. */
+  onSend: (body: string) => Promise<boolean | { error: string }>;
   ticketId?: string | null;
 }) {
   const t = useT();
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
   const send = async () => {
     const text = body.trim();
     if (!text || busy) return;
     setBusy(true);
-    setFailed(false);
-    const ok = await onSend(text);
+    setFailed(null);
+    // Clear at once so the box does not show the sent text through the round
+    // trip; a failure puts the text back (it must never be eaten).
+    setBody("");
+    let ok: Awaited<ReturnType<typeof onSend>> = false;
+    try {
+      ok = await onSend(text);
+    } catch {
+      // A thrown send (network drop) is a failed send: keep the text, free the box.
+      ok = false;
+    }
     setBusy(false);
-    if (ok) {
-      // Clear only AFTER a confirmed send — a failure must never eat the text.
-      setBody("");
-    } else {
-      setFailed(true);
+    if (ok !== true) {
+      setBody((current) => (current === "" ? text : current));
+      setFailed(typeof ok === "object" ? ok.error : t("dashboard.adminSupport.sendFailed"));
     }
   };
   return (
@@ -202,7 +265,7 @@ export function Composer({
     >
       {failed ? (
         <div role="alert" style={{ fontSize: 12, color: COLORS.critical, paddingBottom: 6 }}>
-          {t("dashboard.adminSupport.sendFailed")}
+          {failed}
         </div>
       ) : null}
       <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
@@ -212,13 +275,16 @@ export function Composer({
           disabled={disabled || busy}
           onChange={(e) => setBody(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
+            // IME composition (CJK, accents on some keyboards) uses Enter to
+            // commit the candidate; that must not send the message.
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
               void send();
             }
           }}
           placeholder={t("dashboard.adminSupport.composerPlaceholder")}
           rows={1}
+          enterKeyHint="send"
           style={{
             flex: 1,
             resize: "none",
@@ -259,8 +325,9 @@ const fieldLabel: CSSProperties = { display: "flex", flexDirection: "column", ga
 const fieldInput: CSSProperties = {
   border: `1px solid ${COLORS.border}`,
   borderRadius: RADIUS.md,
-  padding: "8px 10px",
-  fontSize: 13,
+  padding: "10px 10px",
+  // 16px stops iOS Safari zooming the panel on focus at 390px.
+  fontSize: 16,
   fontFamily: FONTS.body,
   color: COLORS.ink,
 };

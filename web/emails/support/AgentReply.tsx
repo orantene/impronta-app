@@ -10,6 +10,8 @@ interface Props {
   brand?: EmailBrand;
   unsubscribeUrl?: string;
   categoryLabel?: string;
+  /** The send carries a signed Reply-To, so replying to the email works. */
+  repliesRead?: boolean;
 }
 
 export default function AgentReply({
@@ -19,6 +21,7 @@ export default function AgentReply({
   brand,
   unsubscribeUrl,
   categoryLabel,
+  repliesRead,
 }: Props) {
   return (
     <SupportMail
@@ -29,6 +32,7 @@ export default function AgentReply({
       brand={brand}
       unsubscribeUrl={unsubscribeUrl}
       categoryLabel={categoryLabel}
+      repliesRead={repliesRead}
     />
   );
 }

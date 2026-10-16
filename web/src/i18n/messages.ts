@@ -47,13 +47,25 @@ export function hasMessageCatalog(locale: string): boolean {
 }
 
 /**
+ * Catalog key for a BCP-47 tag: language subtag, lowercased.
+ * "ES" / "es-MX" → "es". Without this, createTranslator("ES") missed the
+ * registry (keys are lowercase) and fell through to English — guest chat
+ * chips stayed EN while the selection dock (startsWith("es")) said Consultar.
+ */
+export function catalogLocaleKey(locale: string): string {
+  const raw = (locale ?? "").trim().toLowerCase();
+  if (!raw) return ROOT_FALLBACK_LOCALE;
+  return raw.split("-")[0] || ROOT_FALLBACK_LOCALE;
+}
+
+/**
  * Ordered, de-duplicated fallback chain for a locale:
- *   requested → platform default → en
+ *   requested language → platform default → en
  * Only codes with a registered catalog are kept.
  */
 function catalogChain(locale: string): Catalog[] {
   const order: string[] = [];
-  for (const code of [locale, defaultLocale, ROOT_FALLBACK_LOCALE]) {
+  for (const code of [catalogLocaleKey(locale), defaultLocale, ROOT_FALLBACK_LOCALE]) {
     if (code && !order.includes(code) && hasMessageCatalog(code)) order.push(code);
   }
   // Guarantee at least one catalog so callers never see an empty map.

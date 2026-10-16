@@ -34,6 +34,11 @@ import {
   type DirectoryActiveFilters,
 } from "@/components/marketing/directory/shared";
 import { loadHubCardTraits } from "@/lib/directory/hub-card-traits";
+import {
+  localizeCategoryFacets,
+  localizeRowTypeLabels,
+} from "@/lib/directory/talent-type-labels";
+import { loadTalentTypeLabels } from "@/lib/directory/talent-type-labels.server";
 import { resolveCardDesign } from "@/lib/site-admin/server/card-design-resolver";
 import { DEFAULT_CARD_DESIGN } from "@/lib/site-admin/server/card-design-shape";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
@@ -107,7 +112,14 @@ export default async function MarketingDirectoryPage({
 
   // Parallel SSR loads: facets always; then either the first grid/list page
   // or the (cap-500) map point set — never both.
-  const [facets, gridData, mapData] = await Promise.all([
+  // TUL-737: hub, card design and saved ids do not depend on the grid, so they
+  // start now instead of waterfalling after it.
+  const hubPromise = getPlatformHubTenant();
+  const hubDesignPromise = hubPromise.then((h) =>
+    h ? resolveCardDesign(h.tenantId) : DEFAULT_CARD_DESIGN,
+  );
+  const savedPromise = Promise.all([getSavedTalentIds(), getFavoriteTalentIds()]);
+  const [rawFacets, gridData, mapData, typeLabels] = await Promise.all([
     loadDirectoryFacets(),
     isMap
       ? Promise.resolve({ items: [], total: 0 })
@@ -132,7 +144,13 @@ export default async function MarketingDirectoryPage({
           availableOnly: activeFilters.availableOnly || undefined,
         })
       : Promise.resolve({ points: [], unmappedCount: 0 }),
+    loadTalentTypeLabels(locale),
   ]);
+  // The discover index stores English type names; /es shows the taxonomy's own.
+  const facets = {
+    ...rawFacets,
+    categories: localizeCategoryFacets(rawFacets.categories, typeLabels),
+  };
 
   // Resolver, not raw env: an operator who sets the Maps key in the HQ
   // Integrations panel expects it to be used. Reading process.env directly
@@ -148,10 +166,7 @@ export default async function MarketingDirectoryPage({
   // badge boxes here, and the grid mixed card families row by row. A public
   // marketplace grid reads as ONE product: uniform family, palette, aspect and
   // density, all controlled from the hub workspace's Card Design admin.
-  const hub = await getPlatformHubTenant();
-  const hubDesign = hub
-    ? await resolveCardDesign(hub.tenantId)
-    : DEFAULT_CARD_DESIGN;
+  const [hub, hubDesign] = await Promise.all([hubPromise, hubDesignPromise]);
   // Fit chips + engine attributes: the discover index carries none, so the
   // grid rendered every card trait-less. Projected here from the hub's card
   // catalog (same builders as the tenant directory); load-more rows fall
@@ -161,7 +176,7 @@ export default async function MarketingDirectoryPage({
     gridData.items.map((row) => row.id),
     locale,
   );
-  const gridItems = gridData.items.map((row) => ({
+  const gridItems = localizeRowTypeLabels(gridData.items, typeLabels).map((row) => ({
     ...row,
     design: hubDesign,
     ...(traitsByProfile.get(row.id) ?? {}),
@@ -178,11 +193,8 @@ export default async function MarketingDirectoryPage({
   // Card actions (favorite heart + inquire pill) need the discovery-state
   // provider; both hooks are guest-capable (localStorage mirror + guest RPCs),
   // so a signed-out visitor's favorites/lineup persist for their session.
-  const [initialSavedIds, initialFavoriteIds] = await Promise.all([
-    getSavedTalentIds(),
-    getFavoriteTalentIds(),
-  ]);
-  const mapPoints = mapData.points.map((point) => ({
+  const [initialSavedIds, initialFavoriteIds] = await savedPromise;
+  const mapPoints = localizeRowTypeLabels(mapData.points, typeLabels).map((point) => ({
     ...point,
     design: hubDesign,
   }));
@@ -210,7 +222,7 @@ export default async function MarketingDirectoryPage({
           "@context": "https://schema.org",
           "@type": "ItemList",
           itemListElement: listItems.map((t, i) => {
-            const location = locationLine(t.homeCity, t.homeCountry);
+            const location = locationLine(t.homeCity, t.homeCountry, locale === "es" ? "es" : "en");
             return {
               "@type": "ListItem",
               position: i + 1,
@@ -226,13 +238,13 @@ export default async function MarketingDirectoryPage({
   const c = pickLocale(locale, {
     en: {
       eyebrow: "The global directory",
-      titleA: "Hire from every roster,",
+      titleA: "Hire independents and rosters,",
       titleB: "in one directory.",
       body: `Browse and hire talent from across the entire ${PLATFORM_BRAND.name} network, independents and agency rosters alike. Search by craft, location, and availability; every profile is here because the talent chose to be seen.`,
     },
     es: {
       eyebrow: "El directorio global",
-      titleA: "Contrata de cada roster,",
+      titleA: "Contrata independientes y rosters,",
       titleB: "en un solo directorio.",
       body: `Explora y contrata talento de toda la red de ${PLATFORM_BRAND.name}, independientes y rosters de agencia por igual. Busca por oficio, ubicación y disponibilidad; cada perfil está aquí porque el talento eligió mostrarse.`,
     },
@@ -290,6 +302,7 @@ export default async function MarketingDirectoryPage({
           initialFavoriteIds={initialFavoriteIds}
         >
           <MarketingDirectoryShell
+            locale={locale}
             view={view}
             sort={sort}
             facets={facets}

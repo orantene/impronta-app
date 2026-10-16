@@ -6,6 +6,7 @@ import { requireSession } from "@/lib/server/action-guards";
 import { userHasCapability, type CapabilityKey } from "@/lib/access";
 import { auditFailure } from "@/lib/audit/emit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { inquiryManagerDeniedMessage, resolveDeniedLocale } from "./inquiry-manager-denied";
 import { getTenantScope, type TenantScope } from "./scope";
 import { getAdminWorkspaceScope } from "./admin-workspace-scope";
 
@@ -285,7 +286,7 @@ export async function requireInquiryManagerAction(
     .maybeSingle();
 
   if (!coordRow || coordRow.status !== "active") {
-    return { ok: false, error: "You are not the coordinator of this inquiry." };
+    return { ok: false, error: inquiryManagerDeniedMessage(await resolveDeniedLocale()) };
   }
   const tenantId = (coordRow.tenant_id as string | null) ?? null;
   if (!tenantId) return { ok: false, error: "Coordinator assignment is missing a tenant." };

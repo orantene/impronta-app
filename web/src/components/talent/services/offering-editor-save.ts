@@ -101,3 +101,11 @@ export function localizeOfferingSaveError(
 
   return opts.generic;
 }
+
+/** Toast text for a failed row action (archive / restore) on the Services list. */
+export function offeringRowErrorText(
+  error: string | undefined,
+  copy: { isSpanish: boolean; t: (value: string) => string },
+): string {
+  return localizeOfferingSaveError(error ?? "", { isSpanish: copy.isSpanish, t: copy.t, generic: copy.t("Could not save") });
+}

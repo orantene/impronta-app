@@ -1,8 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
+import { cancelUnpaidBookings } from "@/lib/bookings/cancel-unpaid-booking";
 import { releaseCapacity } from "@/lib/capacity";
 import { releaseReservationHold } from "@/lib/scheduling/reservation-hold";
+import { releaseOrderPromoHolds } from "@/lib/promos/redemption/order-redemptions";
 
 /**
  * F5 (Phase 0): the purchase pipeline placed the order, its hold and its money
@@ -21,6 +23,8 @@ import { releaseReservationHold } from "@/lib/scheduling/reservation-hold";
 export type FailedCheckoutUnwindInput = {
   orderId: string;
   transactionId: string | null;
+  /** TUL-714: the booking the purchase placed; cancelled while unpaid. */
+  bookingId?: string | null;
   allocationIds: readonly string[];
   reservationHoldId: string | null;
   why: string;
@@ -29,11 +33,14 @@ export type FailedCheckoutUnwindInput = {
 export type FailedCheckoutUnwindDeps = {
   releaseHold: typeof releaseReservationHold;
   releaseAllocations: typeof releaseCapacity;
+  /** Promos v1: the order's held promo uses go back to the pool. */
+  releasePromos?: (db: SupabaseClient, orderId: string) => Promise<{ ok: boolean }>;
 };
 
 const DEFAULT_DEPS: FailedCheckoutUnwindDeps = {
   releaseHold: releaseReservationHold,
   releaseAllocations: releaseCapacity,
+  releasePromos: releaseOrderPromoHolds,
 };
 
 export async function unwindFailedCheckout(
@@ -49,6 +56,10 @@ export async function unwindFailedCheckout(
       logServerError("orders.unwindFailedCheckout/slot", `${input.why}: ${released.error}`);
     }
   }
+  if (deps.releasePromos) {
+    const promos = await deps.releasePromos(admin, input.orderId);
+    if (!promos.ok) ok = false;
+  }
   if (input.allocationIds.length > 0) {
     const released = await deps.releaseAllocations(input.allocationIds, admin);
     if (!released.ok) ok = false;
@@ -63,6 +74,12 @@ export async function unwindFailedCheckout(
       ok = false;
       logServerError("orders.unwindFailedCheckout/txn", error);
     }
+  }
+  if (input.bookingId) {
+    // TUL-714 / TUL-706: the booking was confirmed at purchase; with no way to
+    // pay it must not stay Confirmado or hold the slot. Guarded on unpaid.
+    const cancelled = await cancelUnpaidBookings(admin, [input.bookingId]);
+    if (!cancelled.ok) ok = false;
   }
   const { error } = await admin
     .from("orders")

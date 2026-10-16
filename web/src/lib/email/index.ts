@@ -8,6 +8,7 @@ import { Resend } from "resend";
 import { logServerError } from "@/lib/server/safe-error";
 import { DEFAULT_PLATFORM_FROM } from "@/lib/email/resend-client";
 import { partitionReservedRecipients } from "@/lib/email/reserved-domains";
+import { normalizeRecipients } from "@/lib/email/recipient-address";
 
 let _client: Resend | null = null;
 
@@ -155,7 +156,7 @@ export type SendEmailResult =
       from: string;
       replyTo?: string;
     }
-  | { status: "skipped"; reason?: "no_api_key" | "reserved_domain" }
+  | { status: "skipped"; reason?: "no_api_key" | "reserved_domain" | "invalid_address" }
   | { status: "failed"; error: string };
 
 /**
@@ -169,6 +170,20 @@ export async function sendEmailResult(input: SendEmailInput): Promise<SendEmailR
   // Reserved domains (.test, .example, .invalid, .localhost) can never
   // receive mail; sending would only hard-bounce. Drop them before the
   // provider sees them, and skip entirely when nobody real is left.
+  // TUL-741: trim and validate first; a padded, empty or malformed address makes
+  // Resend reject the whole send with "Invalid `to` field". Skip with a reason.
+  const normalized = normalizeRecipients(input.to);
+  if (normalized.invalid > 0) {
+    void improntaLog("email.warn", {
+      message: "skipped_invalid_recipient",
+      input: input.subject,
+      recipients: normalized.invalid,
+    });
+  }
+  if (normalized.valid.length === 0) {
+    return { status: "skipped", reason: "invalid_address" };
+  }
+  input = { ...input, to: Array.isArray(input.to) ? normalized.valid : normalized.valid[0] };
   const { deliverable, reserved } = partitionReservedRecipients(input.to);
   if (reserved.length > 0) {
     void improntaLog("email.warn", {

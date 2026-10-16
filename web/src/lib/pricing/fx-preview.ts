@@ -24,7 +24,7 @@
 import "server-only";
 import type { FxPreview } from "./pricing-types";
 
-const FRANKFURTER_SYMBOLS = ["MXN", "EUR", "GBP", "BRL", "CAD", "AUD"] as const;
+const FRANKFURTER_SYMBOLS = ["MXN", "EUR", "GBP", "BRL", "CAD", "AUD", "CHF"] as const;
 const ENDPOINT =
   `https://api.frankfurter.dev/v1/latest?base=USD&symbols=${FRANKFURTER_SYMBOLS.join(",")}`;
 const TWELVE_HOURS_SECS = 43200;

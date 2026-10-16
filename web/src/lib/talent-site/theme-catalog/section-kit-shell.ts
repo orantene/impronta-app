@@ -100,7 +100,7 @@ export function buildKitShell(
   const homeHref = opts.homeHref ?? "/";
 
   const ctaLabel = (opts.primaryCtaLabel ?? opts.utilityBar?.ctaLabel ?? "Book").trim() || "Book";
-  const ctaHref = opts.utilityBar?.ctaHref ?? "#services";
+  const ctaHref = opts.utilityBar?.ctaHref ?? "#book";
 
   const brand: BuilderNode = opts.logoUrl
     ? ({
@@ -266,6 +266,12 @@ export function withAccountItem(header: BuilderNode | undefined): BuilderNode | 
       out[zone] = [...items.slice(0, at + 1), { type: "account", responsive: { mobile: "show" } }, ...items.slice(at + 1)];
       done = true;
     } else out[zone] = items;
+  }
+  if (!done) {
+    // No `language` item (single-language or custom header): the entry still shows, in the right region.
+    const zone = Array.isArray(out.right) ? "right" : Object.keys(out).reverse().find((k) => Array.isArray(out[k]));
+    if (!zone) return header;
+    out[zone] = [...(out[zone] as unknown[]), { type: "account", responsive: { mobile: "show" } }];
   }
   return { ...header, props: { ...props, sectionProps: { ...sectionProps, regions: out } } } as unknown as BuilderNode;
 }

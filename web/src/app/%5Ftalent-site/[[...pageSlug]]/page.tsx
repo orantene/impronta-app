@@ -26,20 +26,27 @@
  */
 
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { notFound, permanentRedirect, redirect } from "next/navigation";
 import { resolveGuestTokenResumeHref } from "@/app/t/[profileCode]/_actions/guest-order-resume-actions";
 import { headers } from "next/headers";
 
 import { DocumentLang } from "@/components/i18n/DocumentLang";
 import { TalentSiteHostFullNav } from "@/components/talent-site/talent-site-host-full-nav";
-import { getRequestLocale } from "@/i18n/request-locale";
+import { getRequestLocale, ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
 import {
   HOST_CONTEXT_HEADER,
   HOST_NAME_HEADER,
   HOST_TALENT_PROFILE_HEADER,
 } from "@/lib/saas/host-context";
-import { LEGACY_PRIVACY_SLUG, POLICY_SLUG } from "@/lib/talent-policies/public";
+import { LEGACY_PRIVACY_SLUG, POLICY_SLUG, policyDocForSlug } from "@/lib/talent-policies/public";
+import { TalentSitePaintSkeleton } from "@/components/talent-site/TalentSitePaintSkeleton";
+import { parseServiceSlug } from "@/lib/talent-site/service-page";
+import { loadMaxSitePages } from "@/lib/talent-site/server/load-max-site";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { talentGuestAliasTarget, talentGuestServiceAlias } from "@/lib/talent-site/guest-path-aliases";
+import { talentNotFoundCopy } from "@/lib/talent-site/talent-not-found-copy";
+import { loadTalentNotFoundCopy } from "@/lib/talent-site/server/talent-not-found.server";
 import { renderTalentMaxSite } from "@/lib/talent-site/server/render-max-site";
 import {
   maxSiteJsonLdString,
@@ -96,6 +103,17 @@ async function resolveCanonicalOrigin(): Promise<string | undefined> {
   return `https://${host}`;
 }
 
+/** `/en` when the visitor's original path carries the active (secondary) locale prefix. */
+async function originalLocalePrefix(locale: string): Promise<string | null> {
+  try {
+    const h = await headers();
+    const first = (h.get(ORIGINAL_PATHNAME_HEADER) ?? "").split("/").filter(Boolean)[0]?.toLowerCase();
+    return first && first === locale.toLowerCase() ? first : null;
+  } catch {
+    return null;
+  }
+}
+
 function firstSegment(pageSlug: string[] | undefined): string | null {
   if (!pageSlug || pageSlug.length === 0) return null;
   // The proxy only ever rewrites a single page segment here, but guard anyway:
@@ -109,6 +127,12 @@ function apexPath(pageSlug: string | null): string {
   return pageSlug ? `/${encodeURIComponent(pageSlug)}` : "/";
 }
 
+/** GRK-028: a missing page keeps the site's own name and language in the tab. */
+async function talentNotFoundMetadata(): Promise<Metadata> {
+  const copy = (await loadTalentNotFoundCopy()) ?? talentNotFoundCopy("en", null);
+  return { title: { absolute: copy.documentTitle }, robots: { index: false, follow: false } };
+}
+
 export async function generateMetadata({
   params,
   searchParams,
@@ -118,7 +142,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   if (!isSupabaseConfigured()) return {};
   const talentProfileId = await resolveTalentProfileId();
-  if (!talentProfileId) return { title: "Not found" };
+  if (!talentProfileId) return talentNotFoundMetadata();
   const { pageSlug } = await params;
   const { preview } = await searchParams;
   const [locale, canonicalOrigin] = await Promise.all([
@@ -138,7 +162,7 @@ export async function generateMetadata({
     canonicalOrigin,
     canonicalPath: apexPath(seg),
   });
-  if (result.kind !== "render") return { title: "Not found" };
+  if (result.kind !== "render") return talentNotFoundMetadata();
   return maxSiteSeoToMetadata(result.seo, { ogLocale: result.locale });
 }
 
@@ -166,8 +190,64 @@ export default async function TalentSiteHostPage({
     resolveCanonicalOrigin(),
     resolveServedHost(),
   ]);
+  // TUL-586 defense-in-depth: /servicios|services/<slug> -> canonical service URL
+  // (308, locale prefix kept; also handled in the proxy).
+  if (pageSlug && pageSlug.length > 1) {
+    const serviceAlias = talentGuestServiceAlias(`/${pageSlug.join("/")}`, {
+      localePrefix: await originalLocalePrefix(locale),
+    });
+    if (serviceAlias?.kind === "redirect") permanentRedirect(serviceAlias.path);
+  }
   const seg = firstSegment(pageSlug);
+  // GRK-028 defense-in-depth: guest path aliases (also handled in the proxy).
+  const guestAlias = talentGuestAliasTarget(seg);
+  if (guestAlias) redirect(guestAlias);
 
+  // TUL-857: an unknown first segment is a real HTTP 404. The slow render sits behind a
+  // Suspense boundary (the old loading.tsx streamed the skeleton first, which locked the
+  // status at 200). This check is exact: renderTalentMaxSite resolves a page by slug
+  // equality, policy slugs and service slugs only, so we 404 only when the slug is in
+  // none of those and in no page row at all (draft or published).
+  if (seg && preview !== "draft" && (seg === LEGACY_PRIVACY_SLUG || (!policyDocForSlug(seg) && parseServiceSlug(seg) === null))) {
+    const pages = await loadMaxSitePages(talentProfileId);
+    if (!pages.some((p) => p.slug === seg)) {
+      // `/privacy` is the English word talents and footers guess: a real 308 to the policy page (not a streamed redirect).
+      if (seg === LEGACY_PRIVACY_SLUG) permanentRedirect(`/${POLICY_SLUG.privacy}`);
+      notFound();
+    }
+  }
+  return (
+    <Suspense fallback={<TalentSitePaintSkeleton locale={locale} />}>
+      <TalentSiteBody
+        talentProfileId={talentProfileId}
+        seg={seg}
+        locale={locale}
+        preview={preview}
+        order={order}
+        canonicalOrigin={canonicalOrigin}
+        servedHost={servedHost}
+      />
+    </Suspense>
+  );
+}
+
+async function TalentSiteBody({
+  talentProfileId,
+  seg,
+  locale,
+  preview,
+  order,
+  canonicalOrigin,
+  servedHost,
+}: {
+  talentProfileId: string;
+  seg: string | null;
+  locale: string;
+  preview: string | undefined;
+  order: string | undefined;
+  canonicalOrigin: string | undefined;
+  servedHost: string | undefined;
+}) {
   const result = await renderTalentMaxSite({
     talentProfileId,
     pageSlug: seg,

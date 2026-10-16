@@ -11,7 +11,7 @@ import {
 import { timedInstantMissingSlot } from "@/lib/scheduling/instant-book-hours";
 import { appointmentWindowFor } from "@/lib/scheduling/appointment-window";
 import { openPurchaseBooking } from "@/lib/orders/purchase-booking";
-import { openPurchaseThread } from "@/lib/orders/purchase-thread";
+import { openPurchaseThreadWithRetry } from "@/lib/orders/purchase-thread-retry";
 import { attributePurchaseBooking } from "@/lib/orders/purchase-attribution";
 import { commitOrderTalentHolds } from "@/lib/scheduling/commit-order-holds";
 import {
@@ -22,6 +22,8 @@ import {
   mapCapacityRefusal,
 } from "@/lib/orders/purchase-catalog";
 import { resolvePromo } from "@/lib/orders/promo-resolve";
+import { holdBookingPromos, priceBookingPromo, redeemTypedCode, soleTalent } from "@/lib/orders/purchase-promo";
+import { confirmOrderPromos, releaseRedemptionIds } from "@/lib/promos/redemption/order-redemptions";
 import { doorHoldSeconds } from "@/lib/orders/door-hold";
 import { resolveOrderCurrency } from "@/lib/orders/display-currency";
 import { generateOpaqueCode } from "@/lib/links/code";
@@ -95,8 +97,10 @@ export async function createPurchase(
   let createdOrderId: string | null = null;
   let createdTransactionId: string | null = null;
   const placedHoldIds: string[] = [];
+  let heldPromoIds: string[] = [];
 
   const unwind = async (why: string) => {
+    if (heldPromoIds.length > 0) await releaseRedemptionIds(admin, heldPromoIds);
     // The slot first: it blocks a PERSON's calendar, so leaving it held is the
     // most visible kind of leak — a talent looks booked for a purchase that
     // never happened.
@@ -260,7 +264,7 @@ export async function createPurchase(
           id: l.offeringId,
           totalCents: l.totalCents,
           variantId: l.variantId,
-          eventId: null,
+          eventId: null, talentProfileId: l.talentProfileId,
         })),
       });
       if (!resolved.ok) {
@@ -273,6 +277,18 @@ export async function createPurchase(
       promoDiscountCents = resolved.discountCents;
       promoCodeId = resolved.codeId;
     }
+    // Promos v1: a booking's live promos, priced by the same engine the sheet previewed.
+    const bookingPromo = input.bookingPromo && !input.promoCode
+      ? await priceBookingPromo(admin, {
+          tenantId: input.tenantId, customerId, currency: orderCurrency, request: input.bookingPromo, talentProfileId: soleTalent(priced.lines.map((l) => l.talentProfileId)),
+          lines: priced.lines.map((l) => ({
+            offeringId: l.offeringId, kind: catalog.rawOfferings.get(l.offeringId)?.kind ?? "service", totalCents: l.totalCents,
+            addons: l.addonIds.map((id) => ({ id, cents: catalog.addons.get(id)?.amountCents ?? 0 })),
+          })),
+        })
+      : null;
+    if (bookingPromo && !bookingPromo.ok) return { ok: false, reason: bookingPromo.reason, error: bookingPromo.error };
+    if (bookingPromo) promoDiscountCents = bookingPromo.value.discountCents;
 
     // Settle + insert must agree; `orders_total_is_derived` refuses drift.
     const totalCents = priced.subtotalCents - promoDiscountCents;
@@ -342,46 +358,26 @@ export async function createPurchase(
 
     // ── 5c. Redeem, under the row lock, now that the order id exists.
     //
-    // THIS is the authority, not the counts read in 5b. Between resolving and
-    // here, another buyer can take the last redemption; both callers passed
-    // their advisory check and only one may have it. `redeem_tenant_promo`
-    // locks the code row, re-counts, and inserts.
-    //
-    // Losing that race UNWINDS rather than proceeding. The alternative — keep
-    // the order, drop the discount — charges someone full price for a purchase
-    // they agreed to at a discount, which is the overcharge-by-silence that 5b
-    // refuses to commit.
+    // THE authority, not 5b's advisory counts. Losing the race UNWINDS: keeping
+    // the order without the discount is overcharge by silence. A booking's
+    // promos are HELD here, before any payment row or Stripe session exists.
     if (promoCodeId) {
-      const { data: redeemed, error: redeemErr } = await admin.rpc("redeem_tenant_promo", {
-        p_code_id: promoCodeId,
-        p_order_id: createdOrderId,
-        p_customer_id: customerId,
-        p_amount_cents: promoDiscountCents,
+      const redeemed = await redeemTypedCode(admin, { codeId: promoCodeId, orderId: createdOrderId, customerId, discountCents: promoDiscountCents });
+      if (!redeemed.ok) {
+        await unwind(redeemed.why);
+        return { ok: false, reason: redeemed.reason, error: "That code could not be applied." };
+      }
+    }
+    if (bookingPromo?.ok && bookingPromo.value.plan.length > 0 && customerId && input.bookingPromo) {
+      const held = await holdBookingPromos(admin, {
+        orderId: createdOrderId, customerId, price: bookingPromo.value,
+        flow: input.bookingPromo.flow, via: input.bookingPromo.via ?? null,
       });
-
-      if (redeemErr) {
-        logServerError("orders.createPurchase/redeem", redeemErr);
-        await unwind("promo redemption failed");
-        return {
-          ok: false,
-          reason: "promo_unavailable",
-          error: "That code could not be applied.",
-        };
+      if (!held.ok) {
+        await unwind(held.why);
+        return { ok: false, reason: held.reason, error: "This offer just ran out." };
       }
-
-      const verdict = (redeemed ?? {}) as { ok?: boolean; reason?: string };
-      if (verdict.ok !== true) {
-        await unwind(`promo refused under lock: ${verdict.reason ?? "unknown"}`);
-        return {
-          ok: false,
-          // The lock saw a truth the advisory counts missed. `exhausted` is by
-          // far the likeliest and is what a buyer needs told.
-          reason: verdict.reason === "customer_limit_reached"
-            ? "promo_customer_limit"
-            : "promo_exhausted",
-          error: "That code could not be applied.",
-        };
-      }
+      heldPromoIds = held.redemptionIds;
     }
 
     // ── 6. Lines.
@@ -717,6 +713,11 @@ export async function createPurchase(
       await unwind("status transition failed");
       return { ok: false, reason: "engine_error", error: "Could not confirm the order." };
     }
+    // Promos v1 (L1): owes nothing now, or confirmed to pay at the visit, means a
+    // use now. Card checkouts confirm from the webhook (completeOrderForTransaction).
+    if (heldPromoIds.length > 0 && (settlement.settled || policy.payInPerson)) {
+      await confirmOrderPromos(admin, createdOrderId);
+    }
 
     // ── 10. The conversation, when the channel wants one.
     //
@@ -725,7 +726,7 @@ export async function createPurchase(
     // mirror) rides the same window so `/c/…` and the talent agenda agree.
     let inquiryId: string | null = null;
     if (input.openThread) {
-      inquiryId = await openPurchaseThread(admin, {
+      inquiryId = await openPurchaseThreadWithRetry(admin, {
         tenantId: input.tenantId,
         orderId: createdOrderId,
         actorUserId: input.actorUserId,
