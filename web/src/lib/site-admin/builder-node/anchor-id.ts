@@ -112,6 +112,7 @@ const KIT_SECTION_SLOT_IDS: ReadonlySet<string> = new Set([
   "area",
   "emergency",
   "tasks",
+  "posts",
 ]);
 
 /**

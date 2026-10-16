@@ -19,7 +19,7 @@ import {
   PlanChip,
   StatusDot,
   EntityChip,
-  PLAN_TIER_LABEL_KEY,
+  catalogPlanLabel,
   WORKSPACE_STATUS_LABEL_KEY,
 } from "./hq-kit";
 import { TenantDrawer } from "./TenantDrawer";
@@ -28,14 +28,10 @@ import type { PlatformTenantListRow } from "../../tenant-management-data";
 import { actionCreateTenant } from "./actions-control";
 import { byName } from "@/lib/field-engine/sort-comparators";
 import { useT } from "@/i18n/use-t";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { interpolate } from "@/i18n/interpolate";
 
 type Translate = (key: string) => string;
-
-function planLabel(t: Translate, plan: string): string {
-  const key = PLAN_TIER_LABEL_KEY[plan];
-  return key ? t(key) : plan;
-}
 
 function entityLabel(t: Translate, entityType: string): string {
   return entityType === "hub"
@@ -266,6 +262,7 @@ function Th({
 
 export function TenantsClient({ rows }: { rows: PlatformTenantListRow[] }) {
   const t = useT();
+  const locale = useDashboardLocale();
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [plan, setPlan] = useState("all");
@@ -523,7 +520,7 @@ export function TenantsClient({ rows }: { rows: PlatformTenantListRow[] }) {
                     </td>
                     <td style={{ padding: "10px 12px" }}>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                        <PlanChip plan={r.plan} label={planLabel(t, r.plan)} />
+                        <PlanChip plan={r.plan} label={catalogPlanLabel(locale, r.plan)} />
                         {r.hasActiveOverride && !clearedOverrides.has(r.id) && (
                           <span
                             title={`${t("dashboard.platform.tenants.overrideActiveTitle")} · ${expiryLabel(r.overrideExpiresAt, t)}`}

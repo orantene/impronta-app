@@ -34,6 +34,8 @@ export type GuestCatalogRow = {
   partySize: number | null;
   /** Length in minutes, when the offering has one (TUL-1064 duration filter). */
   durationMinutes: number | null;
+  /** Who offers it, on multi-owner (agency/hub) catalogs. */
+  ownerName: string | null;
 };
 
 export type GuestCatalogGroup = { category: ItemCategory; rows: GuestCatalogRow[] };
@@ -104,6 +106,7 @@ export async function getGuestItemsCatalog(raw: { tenantSlug: string; inquiryId?
           startsAt: r.startsAt ?? null,
           partySize: r.partySize ?? null,
           durationMinutes: r.durationMinutes ?? null,
+          ownerName: r.ownerName ?? null,
         })),
       })),
     };

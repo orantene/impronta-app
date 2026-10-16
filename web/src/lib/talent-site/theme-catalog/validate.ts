@@ -87,6 +87,8 @@ export const DESIGN_ALLOWED_NODE_KINDS: ReadonlySet<string> = new Set([
   "task_picker",
   "app_nail_designer",
   "next_free_chip",
+  // Posts v1 (PO1): the live posts widget (talent scope).
+  "posts_feed",
   // Maison v2 ticker (serif variant of the shared marquee).
   "marquee",
 ]);

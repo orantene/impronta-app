@@ -11,16 +11,16 @@ import type { SectionEditorProps } from "../types";
 import type { BlogIndexV1 } from "./schema";
 
 export function BlogIndexEditor({ initial, onChange, tenantId }: SectionEditorProps<BlogIndexV1>) {
+  // Posts v1: live ("Últimos posts") by default; legacy sections that carry a
+  // manual list keep it (absent `source` + posts present = manual).
+  const source = initial.source ?? (initial.posts && initial.posts.length > 0 ? "manual" : "live");
   const value: BlogIndexV1 = {
     eyebrow: initial.eyebrow ?? "",
     headline: initial.headline ?? "",
-    posts:
-      initial.posts ??
-      [
-        { title: "Behind the camera at three weddings", excerpt: "What the bride sees, and what we see.", date: "Apr 2026", category: "Field notes", href: "#" },
-        { title: "How we color-match across cameras", excerpt: "A short guide to consistent skin tones.", date: "Mar 2026", category: "Craft", href: "#" },
-        { title: "Why we don't release RAWs", excerpt: "Edits are the product.", date: "Feb 2026", category: "Workflow", href: "#" },
-      ],
+    source,
+    limit: initial.limit ?? 3,
+    categorySlug: initial.categorySlug,
+    posts: initial.posts,
     variant: initial.variant ?? "cards",
     columnsDesktop: initial.columnsDesktop ?? 3,
     presentation: initial.presentation,
