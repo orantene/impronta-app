@@ -30,11 +30,7 @@ import { getFavoriteTalentIds, getSavedTalentIds } from "@/lib/public-discovery"
 import { getPublicCmsNavigationLinks } from "@/lib/cms/public-navigation";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getPublicHostContext } from "@/lib/saas";
-import {
-  loadPublicBranding,
-  loadPublicIdentity,
-  loadWorkspaceOwnName,
-} from "@/lib/site-admin/server/reads";
+import { loadPublicBranding, loadPublicIdentity, loadWorkspaceOwnName } from "@/lib/site-admin/server/reads";
 import { resolvePublicBrandName } from "@/lib/site-admin/server/public-brand";
 import { loadTenantWords } from "@/lib/words/server";
 import { resolveHeaderVerbDestination } from "@/lib/words/verb-destination.server";

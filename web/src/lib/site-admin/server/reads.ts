@@ -199,11 +199,19 @@ export function loadWorkspaceOwnName(tenantId: string): Promise<string | null> {
     async (): Promise<string | null> => {
       const admin = createServiceRoleClient();
       if (!admin) return null;
-      const { data } = await admin
+      const { data, error } = await admin
         .from("agencies")
         .select("display_name")
         .eq("id", tenantId)
         .maybeSingle<{ display_name: string | null }>();
+      if (error) {
+        void improntaLog("site_admin_reads.warn", {
+          message: "[site-admin/reads] workspace name load failed",
+          tenantId,
+          error: error.message,
+        });
+        return null;
+      }
       return data?.display_name?.trim() || null;
     },
     ["site-admin:workspace-display-name", tenantId],
