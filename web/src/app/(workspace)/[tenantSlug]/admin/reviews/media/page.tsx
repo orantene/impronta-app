@@ -46,7 +46,7 @@ export default async function AdminReviewMediaPage({ params }: { params: PagePar
             fontWeight: 700,
             letterSpacing: 0.5,
             textTransform: "uppercase",
-            color: "rgba(11,11,13,0.55)",
+            color: "rgba(11,11,13,0.6)",
             marginBottom: 6,
           }}
         >
@@ -67,7 +67,7 @@ export default async function AdminReviewMediaPage({ params }: { params: PagePar
         <p
           style={{
             fontSize: 13,
-            color: "rgba(11,11,13,0.55)",
+            color: "rgba(11,11,13,0.6)",
             margin: 0,
             lineHeight: 1.55,
             maxWidth: 620,

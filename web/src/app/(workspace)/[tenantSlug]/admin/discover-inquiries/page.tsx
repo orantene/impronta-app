@@ -28,7 +28,7 @@ const FONT = '"Inter", system-ui, sans-serif';
 const C = {
   ink:        "#0B0B0D",
   inkMuted:   "rgba(11,11,13,0.55)",
-  inkDim:     "rgba(11,11,13,0.35)",
+  inkDim:     "rgba(11,11,13,0.6)",
   borderSoft: "rgba(24,24,27,0.08)",
 } as const;
 
@@ -159,7 +159,7 @@ export default async function AdminDiscoverInquiriesPage({
       <div className="mb-6">
         <div style={{
           fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5,
-          textTransform: "uppercase", color: "rgba(11,11,13,0.55)",
+          textTransform: "uppercase", color: "rgba(11,11,13,0.6)",
           marginBottom: 6,
         }}>
           Admin · Discover
@@ -181,7 +181,7 @@ export default async function AdminDiscoverInquiriesPage({
           )}
         </h1>
         <p style={{
-          fontSize: 13, color: "rgba(11,11,13,0.55)",
+          fontSize: 13, color: "rgba(11,11,13,0.6)",
           margin: 0, lineHeight: 1.5, maxWidth: 600,
         }}>
           Inquiries routed to this workspace from Tulala Discover.
