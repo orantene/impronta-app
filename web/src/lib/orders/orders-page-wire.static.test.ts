@@ -26,6 +26,67 @@ test("layer 1 — the canonical page file exists and is capability-gated", () =>
   assert.match(page, /loadWorkspaceOrders/, "the page must read through the data bridge");
 });
 
+/**
+ * TUL-434 PM HOLD: default `/admin/orders` must stay today's live desk
+ * (phone cards + desktop table + inline refund). The accordion mock mounts
+ * only when `?door=preview` sets `doorListProps`. Presence of both paths is
+ * not enough — the ternary must put the live list on the falsy branch.
+ */
+test("TUL-434 — default render is today's live list; door only behind ?door=preview", () => {
+  const page = read("src/app/(workspace)/[tenantSlug]/admin/orders/page.tsx");
+  assert.match(
+    page,
+    /const doorPreview = isDoorPreview\(/,
+    "preview gate must call isDoorPreview on the door search param",
+  );
+  assert.match(
+    page,
+    /const doorListProps = doorPreview\s*\?[\s\S]*?:\s*null/,
+    "doorListProps must be null when door is not preview",
+  );
+  // Truthy branch mounts the mock (desktop + mobile); falsy branch is today's
+  // list. Nested ternaries inside the else make naive string splits fragile,
+  // so pin the order in one structural match.
+  assert.match(
+    page,
+    /\{doorListProps \? \([\s\S]*?<OrdersDoorMockList[\s\S]*?<OrdersDoorMockList[\s\S]*?\) : \([\s\S]*?<ul[\s\S]*?<table[\s\S]*?OrdersRefundForm/,
+    "falsy doorListProps must render today's list (ul + table + refund); truthy mounts the mock",
+  );
+  const mockMounts = page.match(/<OrdersDoorMockList/g) ?? [];
+  assert.equal(
+    mockMounts.length,
+    2,
+    "exactly two mock mounts (desktop + mobile), both under doorListProps",
+  );
+  // No unconditional mock desk — every OrdersDoorMockList must sit after the
+  // doorListProps gate (both mounts are between `doorListProps ?` and its else).
+  const gateAt = page.indexOf("{doorListProps ?");
+  const elseAt = page.indexOf(") : (", gateAt);
+  assert.ok(gateAt >= 0 && elseAt > gateAt, "doorListProps ternary must exist");
+  const previewArm = page.slice(gateAt, elseAt);
+  const afterElse = page.slice(elseAt);
+  assert.equal(
+    (previewArm.match(/<OrdersDoorMockList/g) ?? []).length,
+    2,
+    "both mock mounts live on the preview arm",
+  );
+  assert.doesNotMatch(afterElse, /OrdersDoorMockList/, "default arm must not mount the door mock");
+  assert.match(afterElse, /<ul/, "default arm keeps the phone card list");
+  assert.match(afterElse, /<table/, "default arm keeps the desktop table");
+  assert.match(afterElse, /OrdersRefundForm/, "default arm keeps the live refund form");
+});
+
+test("TUL-434 — phone sheet and inline door split the width with no gap at 390 px", () => {
+  // Tailwind v4: `max-[N]` is `width < N`, `min-[N]` is `width >= N`. The pair
+  // must share one N, or a width (390 on the card's phone) shows neither.
+  const src = read("src/app/(workspace)/[tenantSlug]/admin/orders/orders-door-mock-list.tsx");
+  const sheet = src.match(/max-\[(\d+)px\]:flex/);
+  const inline = src.match(/min-\[(\d+)px\]:block/);
+  assert.ok(sheet && inline, "sheet and inline door breakpoints must exist");
+  assert.equal(sheet[1], inline[1], "sheet max-[N] and inline min-[N] must use the same N");
+  assert.ok(Number(sheet[1]) > 390, "a 390 px phone must get the sheet");
+});
+
 test("layer 2 — a canonical-route matcher claims /admin/orders", () => {
   // The matchers are now a projection of the destination registry (no
   // hand-written `s[1] === "orders"` line), so ask the real matcher list.

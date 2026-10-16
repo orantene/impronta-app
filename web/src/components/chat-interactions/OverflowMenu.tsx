@@ -98,7 +98,7 @@ export function OverflowMenu({
           background: "transparent",
           border: "none",
           cursor: "pointer",
-          color: "rgba(11,11,13,0.55)",
+          color: "rgba(11,11,13,0.6)",
           borderRadius: 8,
           display: "inline-flex", alignItems: "center", justifyContent: "center",
           // Visual circle inside the larger hitbox
@@ -185,7 +185,7 @@ export function OverflowMenu({
                 {item.hint && (
                   <span style={{
                     fontSize: 11,
-                    color: "rgba(11,11,13,0.45)",
+                    color: "rgba(11,11,13,0.6)",
                   }}>{item.hint}</span>
                 )}
               </button>

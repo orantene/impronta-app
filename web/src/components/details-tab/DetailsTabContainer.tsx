@@ -124,7 +124,7 @@ function DetailsTabError({
       <div style={{ fontSize: 14, fontWeight: 700, color: "#0B0B0D" }}>
         {timedOut ? "Details timed out" : "Could not load details"}
       </div>
-      <div style={{ fontSize: 12.5, color: "rgba(11,11,13,0.55)", lineHeight: 1.5, maxWidth: 280 }}>
+      <div style={{ fontSize: 12.5, color: "rgba(11,11,13,0.6)", lineHeight: 1.5, maxWidth: 280 }}>
         {timedOut
           ? "The request took too long. This can happen when the database is under load."
           : "There was a problem fetching the details for this inquiry. It may resolve on retry."}
@@ -178,7 +178,7 @@ function DetailsTabEmpty() {
       <div style={{ fontSize: 14, fontWeight: 700, color: "#0B0B0D" }}>
         No details yet
       </div>
-      <div style={{ fontSize: 12.5, color: "rgba(11,11,13,0.55)", lineHeight: 1.5, maxWidth: 260 }}>
+      <div style={{ fontSize: 12.5, color: "rgba(11,11,13,0.6)", lineHeight: 1.5, maxWidth: 260 }}>
         Details will appear here once the inquiry has more information filled in.
       </div>
     </div>
