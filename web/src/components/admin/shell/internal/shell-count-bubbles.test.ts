@@ -348,5 +348,30 @@ describe("TUL-1109 /talent/today node groups (09's axe list)", () => {
     assert.match(talent, /tracking-\[0\.14em\] text-admin-ink-muted/);
     assert.doesNotMatch(talent, /pt-\[10px\] text-\[10px\] font-bold uppercase tracking-\[0\.14em\] text-admin-ink-dim/);
   });
-});
 
+  it("KindChip, the chip that actually renders the Today rows (30 coral + 4 green nodes, 09's live re-run), uses the deep tones", () => {
+    const src = read("talent/shared/today-1.tsx");
+    assert.match(src, /success: \{ bg: COLORS\.successSoft, fg: COLORS\.successDeep \},/);
+    assert.match(src, /coral: \{ bg: COLORS\.coralSoft, fg: COLORS\.coralDeep \},/);
+    assert.doesNotMatch(src, /fg: COLORS\.green \}/, "the raw green text on its tint was 4.39:1");
+    assert.doesNotMatch(src, /fg: COLORS\.coral \}/, "the raw coral text on its tint was 3.43:1");
+    const coralTint = over(token("--color-admin-coral"), 0.1, WHITE);
+    const greenTint = over(token("--color-admin-green"), 0.1, WHITE);
+    assert.ok(contrast(hexOf("coralDeep"), coralTint) >= 4.5);
+    assert.ok(contrast(hexOf("successDeep"), greenTint) >= 4.5);
+  });
+
+  it("HeroStat, the tile that renders the Today captions ('aún nada', 'Aún sin pagos este mes', 'toca para terminar'), uses muted ink and deep coral", () => {
+    const src = read("talent/shared/today-3.tsx");
+    assert.match(src, /: captionTone === "coral"\n\s+\? COLORS\.coralDeep\n\s+: COLORS\.inkMuted;/);
+    assert.ok(contrast(over(INK, INK_MUTED_ALPHA, WHITE), WHITE) >= 4.5);
+  });
+
+  it("the Today row age stamps ('hace 5 h') no longer use the 0.38-alpha ink or the raw coral, in both row components", () => {
+    const src = read("talent/shared/today-3.tsx");
+    assert.match(src, /const ageColor = ageHrs >= 12 \? COLORS\.coralDeep : COLORS\.inkMuted;/);
+    assert.match(src, /const ageColor = request\.ageHrs >= 12 \? COLORS\.coralDeep : COLORS\.inkMuted;/);
+    assert.doesNotMatch(src, /ageColor = [^;]*COLORS\.inkDim/);
+    assert.doesNotMatch(src, /ageColor = [^;]*\? COLORS\.coral :/);
+  });
+});
