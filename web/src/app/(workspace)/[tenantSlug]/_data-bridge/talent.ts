@@ -1,5 +1,6 @@
 import "server-only";
 
+import { resolveEffectiveTalentPlanKey } from "@/lib/billing/effective-talent-plan";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -212,7 +213,9 @@ export async function loadTalentSelfProfile(
     });
     // About writes bios to the catalog field value, not the legacy columns.
     const blobValues = await readBlobFieldValuesFromCatalog(mediaClient, p.id);
-    const membership = buildTalentMembershipState(p.talent_plan_key);
+    const membership = buildTalentMembershipState(
+      await resolveEffectiveTalentPlanKey(trusted, p.id, p.talent_plan_key),
+    );
     const siteSwitches = await loadTalentSiteSwitches(trusted, p.id);
 
     return {
@@ -369,7 +372,9 @@ export async function loadTalentSelfProfileByUser(
     });
     // About writes bios to the catalog field value, not the legacy columns.
     const blobValues = await readBlobFieldValuesFromCatalog(trusted, p.id);
-    const membership = buildTalentMembershipState(p.talent_plan_key);
+    const membership = buildTalentMembershipState(
+      await resolveEffectiveTalentPlanKey(trusted, p.id, p.talent_plan_key),
+    );
     const siteSwitches = await loadTalentSiteSwitches(trusted, p.id);
 
     return {

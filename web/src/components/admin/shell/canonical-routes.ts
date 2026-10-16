@@ -46,7 +46,67 @@ const REGISTRY_MATCHERS: Array<(segments: string[]) => boolean> =
  * Each pattern is a function from path-segments-after-tenant → boolean.
  * The tenant slug itself isn't passed (it's variable across workspaces).
  */
+/**
+ * TUL-635: every top-level folder under `app/(workspace)/[tenantSlug]/admin/`.
+ * A segment NOT in this list has no route of its own, so Next serves it from the
+ * admin `[...missing]` catch-all (the in-shell "page not found" card). Marking
+ * those unknown segments canonical makes the shell host that card instead of
+ * stacking the Overview SPA under it. Pinned to the folders on disk by
+ * canonical-routes-admin-folders.static.test.ts, so a new section cannot be
+ * mistaken for "unknown" (which would blank it).
+ */
+export const ADMIN_ROUTE_FOLDERS: ReadonlySet<string> = new Set([
+  "account",
+  "activity-log",
+  "analytics",
+  "appointments",
+  "appts",
+  "bookings",
+  "calendar",
+  "catalog",
+  "channel-performance",
+  "clients",
+  "discounts",
+  "discover-inquiries",
+  "discover-performance",
+  "events",
+  "exceptions",
+  "financials",
+  "issues",
+  "media",
+  "menu",
+  "messages",
+  "operations",
+  "orders",
+  "payments",
+  "payouts",
+  "people",
+  "pitches",
+  "policy",
+  "pos",
+  "preparation",
+  "print",
+  "production",
+  "projects",
+  "reservations",
+  "reviews",
+  "roster",
+  "sales",
+  "sessions",
+  "settings",
+  "setup",
+  "site",
+  "site-settings",
+  "spaces",
+  "tables",
+  "triage",
+  "website",
+  "work",
+]);
+
 export const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = [
+  // TUL-635: an admin segment with no folder is the [...missing] catch-all.
+  (s) => s[0] === "admin" && typeof s[1] === "string" && s[1].length > 0 && !ADMIN_ROUTE_FOLDERS.has(s[1]),
   // Every destination the registry marks `render: "canonical"`, at BOTH its
   // canonical segment and the segment it actually renders at today — see
   // REGISTRY_CANONICAL_SEGMENTS above. `financials`, `exceptions`, `orders`,

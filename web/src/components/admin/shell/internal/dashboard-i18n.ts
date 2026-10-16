@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { BILLING_ES_TEXT } from "./dashboard-i18n-billing";
 import { LEFTOVERS_ES_TEXT } from "./dashboard-i18n-leftovers";
+import { PASSKEY_ES_TEXT } from "./dashboard-i18n-passkey";
 import { NOTIFICATIONS_ES_TEXT } from "./dashboard-i18n-notifications";
 import { QA_FORMATS_ES_TEXT } from "./dashboard-i18n-qa-formats";
 import { QUOTE_ES_TEXT } from "./dashboard-i18n-quote";
@@ -15,7 +16,7 @@ function isSpanish(locale: string): boolean {
 }
 
 const ES_TEXT: Record<string, string> = {
-  ...RAIL_ES_TEXT, ...LEFTOVERS_ES_TEXT, ...QUOTE_ES_TEXT, ...QA_FORMATS_ES_TEXT,
+  ...RAIL_ES_TEXT, ...PASSKEY_ES_TEXT, ...BILLING_ES_TEXT, ...LEFTOVERS_ES_TEXT, ...QUOTE_ES_TEXT, ...QA_FORMATS_ES_TEXT,
   // Global chrome / nav
   "Prototype control bar": "Barra de control del prototipo",
   "Workspace sections": "Secciones del espacio de trabajo",
@@ -306,8 +307,9 @@ const ES_TEXT: Record<string, string> = {
   "From portfolio": "Del portafolio",
   "How the price works": "Cómo funciona el precio",
   "Fixed price": "Precio fijo",
-  "Starting at": "Desde",
-  "Quote each time": "Cotizar cada vez",
+  "Get a quote": "Pedir cotización",
+  "Show as starting at": "Mostrar como desde",
+  "Clients see Request a quote. Add a price to take bookings.": "Tus clientes ven Pedir cotización. Agrega un precio para recibir reservas.",
   "Category": "Categoría",
   "How long it takes": "Cuánto dura",
   "How many do you have?": "¿Cuántos tienes?",
@@ -726,7 +728,7 @@ const ES_TEXT: Record<string, string> = {
   "Client accounts, trust tiers, and booking history": "Cuentas de cliente, niveles de confianza e historial de reservas",
   "Analytics, queues, SLAs, automations, and team workload": "Analítica, colas, SLA, automatizaciones y carga del equipo",
   "Casting, crew bookings, call sheets, rights, and safety": "Casting, equipo, call sheets, derechos y seguridad",
-  "Pages, posts, redirects, custom code, tracking, SEO, domain": "Páginas, posts, redirecciones, código personalizado, tracking, SEO y dominio",
+  "Pages, posts, redirects, custom code, tracking, SEO, domain": "Páginas, publicaciones, redirecciones, código personalizado, seguimiento de visitas, posicionamiento en buscadores y dominio",
   "Workspace photo library, watermark control, and usage tracking": "Biblioteca de fotos, marca de agua y seguimiento de uso",
   "Curated talent suggestions sent to clients": "Sugerencias curadas de talento enviadas a clientes",
   "Account, plan, branding, integrations, team, and danger zone": "Cuenta, plan, marca, integraciones, equipo y zona crítica",

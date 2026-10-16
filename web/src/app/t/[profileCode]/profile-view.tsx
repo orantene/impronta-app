@@ -170,6 +170,7 @@ import type {
   Testimonial,
 } from "@/lib/reviews/review-types";
 import { softTitleCaseName } from "@/lib/talent/soft-title-case-name";
+import { fieldGroupLabel } from "./_light/group-labels";
 
 // ── Types ──
 
@@ -1024,11 +1025,11 @@ async function fetchPublicAvailability(
     availability_dots_14d: string | null;
   };
 
-  return {
+  return (await import("@/lib/scheduling/profile-live-availability")).withLiveAvailability({
     nextAvailableDate: row.next_available_date,
     availableDaysInNext30: row.available_days_in_next_30,
     availabilityDots14d: row.availability_dots_14d,
-  };
+  }, talentProfileId); // TUL-861: hide the badge when the live slot loader has no times
 }
 
 /**
@@ -1702,32 +1703,6 @@ export async function TalentProfileView({
     return typeof slug === "string" && slug.trim() ? slug.trim() : null;
   }
 
-  // Humanize a field-group slug into a card heading. The new catalog stores
-  // group identity as a slug only (no per-locale label on the public embed),
-  // so we title-case the slug and apply a few curated labels. Ungrouped rows
-  // fall back to a generic "Details" bucket.
-  const groupLabelFromSlug = (slug: string | null): string => {
-    if (!slug) return pickLocale(locale, { en: "Details", es: "Detalles" });
-    const curated: Record<string, { en: string; es: string }> = {
-      measurements: { en: "Measurements", es: "Medidas" },
-      physical: { en: "Physical", es: "Físico" },
-      "physical-casting": { en: "Physical casting", es: "Casting físico" },
-      physical_casting: { en: "Physical casting", es: "Casting físico" },
-      casting: { en: "Casting", es: "Casting" },
-      logistics: { en: "Logistics", es: "Logística" },
-      availability: { en: "Availability", es: "Disponibilidad" },
-      experience: { en: "Experience", es: "Experiencia" },
-      rates: { en: "Rates", es: "Tarifas" },
-      preferences: { en: "Preferences", es: "Preferencias" },
-    };
-    const hit = curated[slug];
-    if (hit) return pickLocale(locale, hit);
-    return slug
-      .replace(/[_-]+/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase())
-      .trim();
-  };
-
   // FREE-TIER CONTACT GATE: on the free default profile, the ONLY contact path
   // is the in-Tulala inquiry — so any field VALUE that is a social handle,
   // external link, or direct contact channel is suppressed (clients must not be
@@ -1778,7 +1753,7 @@ export async function TalentProfileView({
         key: def.key,
         label: pickFieldLabel(locale, def.label_en, def.label_es),
         value,
-        group: groupLabelFromSlug(slug),
+        group: fieldGroupLabel(slug, locale),
         groupSort,
         sort: def.sort_order ?? 0,
       };

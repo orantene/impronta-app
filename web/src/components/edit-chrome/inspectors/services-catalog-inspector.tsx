@@ -17,6 +17,7 @@ import {
 } from "@/lib/site-admin/builder-node/services-catalog-style-presets";
 import { KIT } from "./kit/tokens";
 import { InspectorLabelWithInfo } from "./kit";
+import type { LocalizableTextFieldComponent } from "./builder-2027-node-content";
 import {
   ServicesCatalogOfferingsLoadNotice,
   ServicesCatalogSearchField,
@@ -48,11 +49,37 @@ const STYLE_PRESETS = SERVICES_CATALOG_STYLE_PRESETS;
 export function ServicesCatalogContentInspector({
   node,
   commitPatch,
+  tenantId,
+  LocalizableTextField,
 }: {
   node: BuilderServicesCatalogNode;
   commitPatch: (patch: Record<string, unknown>) => void | Promise<void>;
+  tenantId: string;
+  /** Shared per-language field, passed in to keep the module graph one-way. */
+  LocalizableTextField: LocalizableTextFieldComponent;
 }) {
   const catalog = node.props;
+  // TUL-999: eyebrow, title, intro, button label and empty message are localizable props on this block
+  // (builder-i18n-props), so they get the ES/EN tabs, not a single input.
+  const textField = (
+    prop: "eyebrow" | "title" | "subtitle" | "emptyMessage" | "ctaLabel",
+    baseValue: string,
+    ariaLabel: string,
+    placeholder?: string,
+  ) => (
+    <LocalizableTextField
+      node={node}
+      prop={prop}
+      tenantId={tenantId}
+      fieldKind="input"
+      baseValue={baseValue}
+      ariaLabel={ariaLabel}
+      className={KIT.input}
+      placeholder={placeholder}
+      onCommitBase={(next) => commitPatch({ [prop]: next })}
+      patch={commitPatch}
+    />
+  );
   const selectionMode = catalog.selectionMode ?? "all";
   const selectedIds = catalog.selectedOfferingIds ?? [];
   const featuredIds = catalog.featuredOfferingIds ?? [];
@@ -102,28 +129,16 @@ export function ServicesCatalogContentInspector({
         </a>
         <div className={KIT.field}>
           <label className={KIT.label}>Eyebrow</label>
-          <input
-            className={KIT.input}
-            value={catalog.eyebrow ?? ""}
-            onChange={(e) => void commitPatch({ eyebrow: e.target.value })}
-          />
+          {textField("eyebrow", catalog.eyebrow ?? "", "Eyebrow")}
         </div>
         <div className={KIT.field}>
           <label className={KIT.label}>Title</label>
-          <input
-            className={KIT.input}
-            value={catalog.title ?? ""}
-            onChange={(e) => void commitPatch({ title: e.target.value })}
-          />
+          {textField("title", catalog.title ?? "", "Title")}
           <p className="text-xs text-black/50">Use {"{i}italic{/i}"} for the italic span.</p>
         </div>
         <div className={KIT.field}>
           <label className={KIT.label}>Intro</label>
-          <input
-            className={KIT.input}
-            value={catalog.subtitle ?? ""}
-            onChange={(e) => void commitPatch({ subtitle: e.target.value })}
-          />
+          {textField("subtitle", catalog.subtitle ?? "", "Intro")}
         </div>
         <div className={KIT.field}>
           <label className={KIT.label}>Offerings to show</label>
@@ -335,12 +350,7 @@ export function ServicesCatalogContentInspector({
 
         <div className={KIT.field}>
           <label className={KIT.label}>Button label override</label>
-          <input
-            className={KIT.input}
-            value={catalog.ctaLabel ?? ""}
-            placeholder="Leave blank for behavior-aware labels"
-            onChange={(e) => void commitPatch({ ctaLabel: e.target.value })}
-          />
+          {textField("ctaLabel", catalog.ctaLabel ?? "", "Button label override", "Leave blank for behavior-aware labels")}
           <p className="text-xs text-black/50">
             Blank = Select / Choose options / Request appointment / Request a quote from offering
             behavior. Never invents Buy package when purchase is unsupported in this sheet.
@@ -439,11 +449,7 @@ export function ServicesCatalogContentInspector({
         </div>
         <div className={KIT.field}>
           <label className={KIT.label}>Empty message</label>
-          <input
-            className={KIT.input}
-            value={catalog.emptyMessage ?? ""}
-            onChange={(e) => void commitPatch({ emptyMessage: e.target.value })}
-          />
+          {textField("emptyMessage", catalog.emptyMessage ?? "", "Empty message")}
         </div>
         <button
           type="button"

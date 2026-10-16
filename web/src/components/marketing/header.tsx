@@ -28,6 +28,7 @@ import {
   type MarketingAccount,
 } from "./marketing-account-menu";
 import { useStickyDesktopMenu } from "./marketing-header-sticky-menu";
+import { ClientAccountButton, CLIENT_ACCOUNT_OPEN_EVENT } from "@/components/client-account/ClientAccountButton";
 import type { HubClientEntry } from "@/lib/marketing/hub-client-entry";
 
 export function MarketingHeader({
@@ -142,7 +143,9 @@ export function MarketingHeader({
         <Link
           href={L("/")}
           className="group relative -mx-1 flex items-center rounded-md px-1 py-1"
-          aria-label={`${PLATFORM_BRAND.name} home`}
+          // Accessible name must contain the visible text (WCAG 2.5.3): the lockup shows the
+          // wordmark and the descriptor line, so both are in the name. TUL-1084.
+          aria-label={`${PLATFORM_BRAND.name} ${copy.brand.descriptor}`}
           style={{ color: "var(--plt-ink)" }}
         >
           <TulalaHeaderLogo descriptor={copy.brand.descriptor} />
@@ -205,8 +208,13 @@ export function MarketingHeader({
             <>
               {clientEntry ? (
                 <>
+                  <ClientAccountButton variant="header" locale={locale} hideTrigger />
                   <a
                     href={clientEntry.signInHref}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.dispatchEvent(new CustomEvent(CLIENT_ACCOUNT_OPEN_EVENT));
+                    }}
                     className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] px-2.5 text-[0.8125rem] font-medium leading-none tracking-[-0.005em] text-[var(--plt-ink-soft)] transition-[background-color,border-color,color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] hover:text-[var(--plt-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)] lg:px-3.5 lg:text-[0.875rem]"
                   >
                     <SignInGlyph />
@@ -368,6 +376,11 @@ export function MarketingHeader({
                     <>
                       <a
                         href={clientEntry.signInHref}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setMenuOpen(false);
+                          window.dispatchEvent(new CustomEvent(CLIENT_ACCOUNT_OPEN_EVENT));
+                        }}
                         className="flex w-full items-center justify-between rounded-2xl px-4 py-4 text-left text-[1rem] font-medium"
                         style={{ color: "var(--plt-ink-soft)" }}
                       >
@@ -630,14 +643,14 @@ function TulalaHeaderLogo({ descriptor }: { descriptor: string }) {
           one brand unit instead of two competing elements separated by a rule,
           and it stops the descriptor from fighting the nav for horizontal room.
           Letter-spacing is tuned so the line optically matches the wordmark's
-          width. Still ~60% opacity, so it never becomes a second dark bold
+          width. ~65% opacity (4.5:1 needs more than the old 55%, TUL-1084), so it never becomes a second dark bold
           element in the bar. */}
       {/* Same stack at every width (TUL-593): tight gap under the wordmark,
           tracking narrowed on phones so it fits beside the bar controls. */}
       <span
         aria-hidden
         className="mt-0.5 block whitespace-nowrap text-[0.5625rem] font-medium uppercase tracking-[0.12em] sm:tracking-[0.2em]"
-        style={{ color: "var(--plt-ink-strong)", opacity: 0.55 }}
+        style={{ color: "var(--plt-ink-strong)", opacity: 0.65 }}
       >
         {descriptor}
       </span>

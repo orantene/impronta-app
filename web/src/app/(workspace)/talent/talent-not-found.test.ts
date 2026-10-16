@@ -25,3 +25,14 @@ test("TUL-670: segment uses the dashboard locale hook, next/link, and fills the 
   assert.doesNotMatch(src, /minHeight:\s*"70vh"/);
   assert.doesNotMatch(src, /—/);
 });
+
+test("TUL-670: unmatched /talent/* URLs reach the segment 404 inside the shell", () => {
+  const page = join(dir, "[...missing]", "page.tsx");
+  assert.ok(existsSync(page), "catch-all route needed so unmatched URLs do not fall to the root not-found");
+  assert.match(readFileSync(page, "utf8"), /notFound\(\)/);
+});
+
+test("TUL-670: dashboard-language tab title on the talent 404", () => {
+  const src = readFileSync(join(dir, "not-found.tsx"), "utf8");
+  assert.match(src, /document\.title\s*=/);
+});

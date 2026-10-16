@@ -95,10 +95,8 @@ import {
   getStyleClassRegistrySnapshot,
   subscribeStyleClassRegistry,
 } from "@/lib/site-admin/builder-node/style-classes-storage";
-import {
-  resolveSectionHeadlineFromProps,
-  sectionDisplayName,
-} from "@/lib/site-admin/section-display-name";
+import { resolveSectionHeadlineFromProps } from "@/lib/site-admin/section-display-name";
+import { localizedSectionDisplayName } from "./section-display-name-i18n";
 import { checkSlotTypeCompatibility } from "@/lib/site-admin/edit-mode/slot-type-compatibility";
 import {
   useEditContext,
@@ -630,7 +628,7 @@ function findCanvasNodeParentContext(
 }
 
 export function SelectionLayer() {
-  const { t } = useEditorLocale();
+  const { t, locale } = useEditorLocale();
   const {
     setSelectedSectionId,
     focusSectionForEdit,
@@ -2752,13 +2750,17 @@ export function SelectionLayer() {
       : null;
   const chipLabel =
     loadedSection?.id === selectedSectionId
-      ? sectionDisplayName({
-          typeKey: selectedTypeKey,
-          rawName: loadedSection?.name ?? null,
-          headline: resolveSectionHeadlineFromProps(selectedTypeKey, loadedProps),
-        }) || humanizeTypeKey(selectedTypeKey)
-      : humanizeTypeKey(selectedTypeKey);
-  const chipType = humanizeTypeKey(selectedTypeKey);
+      ? localizedSectionDisplayName(
+          {
+            typeKey: selectedTypeKey,
+            rawName: loadedSection?.name ?? null,
+            headline: resolveSectionHeadlineFromProps(selectedTypeKey, loadedProps),
+          },
+          t,
+          locale,
+        ) || t(humanizeTypeKey(selectedTypeKey))
+      : t(humanizeTypeKey(selectedTypeKey));
+  const chipType = t(humanizeTypeKey(selectedTypeKey));
   const selectedSectionNodeId = useMemo(() => {
     const sectionEl = getSelectedSectionEl();
     return sectionEl?.getAttribute("data-builder-node-id") ?? null;

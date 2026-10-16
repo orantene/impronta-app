@@ -97,6 +97,7 @@
         "inviteSubmit": "Crear cuenta y reclamar perfil",
         "pending": "Creando cuenta…",
         "passwordHint": "Al menos 8 caracteres.",
+        "passwordConfirmNote": "Después de registrarte, tu primer inicio de sesión necesita un código de un solo uso que te enviamos por correo.",
         "haveAccount": "¿Ya tienes una cuenta?",
         "logIn": "Inicia sesión",
         "eyebrow": "Empezar",
@@ -217,6 +218,7 @@
         "changeEmail": "Usar otro correo",
         "usePassword": "Usar una contraseña",
         "useCode": "Envíame un código",
+        "backToCode": "Volver al código",
         "errors": {
           "codeRequired": "Escribe el código de tu correo.",
           "codeInvalid": "Ese código no funcionó. Revisa los dígitos o pide un código nuevo.",
@@ -431,7 +433,7 @@
         "toggleHelp": "Mostrar / ocultar esta ayuda",
         "discover": "Descubrir",
         "favorites": "Favoritos",
-        "shortlists": "Shortlists",
+        "shortlists": "Preselecciones",
         "pitches": "Propuestas",
         "inquiries": "Consultas",
         "bookings": "Reservas",
@@ -1150,6 +1152,7 @@
       "sendHub": "Enviar",
       "sendHubNoPayment": "Sin pago ahora. Dirigiremos tu consulta a las personas indicadas.",
       "sendHubSent": "Enviado. {brand} dirigirá tu consulta a las personas indicadas.",
+      "sendSoloSent": "Enviado. {brand} te responderá aquí pronto.",
       "hubConciergeName": "{brand} Concierge",
       "hubConciergeGreeting": "Cuéntanos sobre tu evento y reuniremos al talento indicado de toda nuestra red.",
       "syncSaving": "Guardando…",
@@ -1209,6 +1212,10 @@
       "gateLastName": "Apellido",
       "gateYourMessageLabel": "TU MENSAJE",
       "gateSend": "Enviar mensaje",
+      "newMessageAria": "Mensaje nuevo",
+      "unreadConversationsAria": "Conversaciones sin leer",
+      "lookPreviewLabel": "Tu diseño",
+      "lookPreviewRemoveLabel": "Quitar diseño",
       "switcherAria": "Cambiar de solicitud",
       "switcherPaneTitle": "Tus solicitudes",
       "switcherEmpty": "Aún no tienes solicitudes.",
@@ -1232,7 +1239,7 @@
       "dockLineupUnsaveAria": "Quitar a {name} de guardados",
       "dockLineupShelfInquiry": "En tu solicitud",
       "dockLineupShelfSaved": "Guardados",
-      "dockLineupEmptyInquiry": "Aún no hay talento en tu solicitud. Mueve a alguien desde Guardados o explora el directorio.",
+      "dockLineupEmptyInquiry": "Aún no hay nada en tu solicitud. Pasa algo desde Guardados o elige de la lista.",
       "dockLineupEmptySaved": "Aún no has guardado a nadie. Guarda el talento que te guste y aparecerá aquí.",
       "dockLineupMoveToInquiry": "Mover a la solicitud",
       "dockLineupInInquiry": "En la solicitud",
@@ -1322,9 +1329,10 @@
       "catalogTickets": "Entradas",
       "catalogTables": "Mesas",
       "catalogMenu": "Menú",
-      "catalogAddLineup": "Añadir al equipo",
+      "catalogAddLineup": "Agregar",
       "catalogInLineup": "En tu equipo",
-      "catalogAddInquiry": "Añadir a la solicitud",
+      "catalogAddInquiry": "Agregar",
+      "catalogAdd": "Agregar",
       "catalogAdding": "Añadiendo…",
       "catalogInInquiry": "En la solicitud",
       "catalogBuyNow": "Comprar ahora",
@@ -1351,6 +1359,7 @@
       "catalogDurationAny": "Cualquier duración",
       "catalogDurationUpTo": "Hasta {n} min",
       "catalogUnavailable": "No disponible",
+      "catalogOwnerBy": "con {name}",
       "catalogShelf": "Explora y añade",
       "dockNavLineup": "Selección",
       "dockNavProjects": "Mis citas",
@@ -1824,6 +1833,8 @@
       "keepSlotAppointment": "Se guarda la hora de la cita mientras este enlace sea válido. No se cobra hasta que pagues.",
       "keepSlotNoTime": "Tu reserva se confirma al pagar. La hora se acuerda con la talento. No se cobra hasta que pagues.",
       "keepSlotGeneric": "Se guarda tu horario reservado mientras este enlace sea válido. No se cobra hasta que pagues.",
+      "linkValidUntil": "Este enlace de pago es válido hasta las {time} (hora de {zone}).",
+      "slotKeptUntil": "Tu horario se guarda hasta las {time} (hora de {zone}).",
       "fees": {
         "service_subtotal": "Servicio",
         "base_reservation_fee": "Cargo de reserva",
@@ -1940,6 +1951,7 @@
         "listening": "Escuchando…",
         "transcribing": "Anotando…",
         "typePlaceholder": "O escríbelo aquí…",
+        "typePlaceholderDirect": "Escribe qué haces…",
         "linkPlaceholder": "https:// o @tunegocio",
         "send": "Enviar",
         "forExample": "Por ejemplo",
@@ -2076,6 +2088,7 @@
         "googleOpening": "Abriendo Google…",
         "googleFailed": "Google no terminó. Inténtalo de nuevo o usa tu correo.",
         "termsPrefix": "Acepto los",
+        "consentHint": "Marca la casilla de arriba para continuar.",
         "popupBlocked": "Tu navegador bloqueó la ventana. Permite ventanas emergentes o usa tu correo.",
         "popupClosed": "La ventana de Google se cerró antes de terminar. Inténtalo de nuevo o usa tu correo.",
         "or": "o",
@@ -2165,6 +2178,15 @@
         "nextTalentShare": "Comparte tu enlace",
         "viewMyWebsite": "Ver mi sitio",
         "customizeInBuilder": "Personalizar en el editor",
+        "draftTitlePublished": "Tu sitio ya está publicado",
+        "draftSubPublished": "Está guardado y publicado. Estamos confirmando que abra en línea; suele tardar unos segundos.",
+        "checkAgain": "Comprobar de nuevo",
+        "draftWhy": {
+          "publishedNotReachable": "Motivo: tu dirección todavía no responde. Toca Comprobar de nuevo en unos segundos.",
+          "notReachable": "Motivo: tu página no respondió cuando la abrimos. Toca Intentar de nuevo.",
+          "oldContent": "Motivo: tu dirección todavía muestra contenido anterior. Toca Intentar de nuevo en unos segundos.",
+          "notCreated": "Motivo: no pudimos crear tu dirección. Abre el editor para terminarla."
+        },
         "draftTitle": "Tu borrador está guardado",
         "draftReason": "Tu página no pudo abrir en línea esta vez. Casi siempre es temporal y no pierdes nada de lo que escribiste. Primero inténtalo de nuevo.",
         "draftDetails": "Detalles para soporte",
@@ -2172,6 +2194,7 @@
         "draftSubStudio": "Todo lo que nos contaste está guardado, pero tu sitio todavía no abre en línea. Inténtalo de nuevo o ábrelo en el editor.",
         "openEditor": "Abrir el editor",
         "goToPanel": "Ir a mi panel",
+        "finishUpgrade": "Terminar de mejorar a {plan}",
         "openMyPanel": "Abrir mi panel",
         "bookPreview": "Reservar",
         "bookingsStartStudio": "Las reservas empiezan cuando agregues a un proveedor.",
@@ -2343,7 +2366,11 @@
       "logOut": "Cerrar sesión",
       "langEn": "Inglés",
       "langEs": "Español",
-      "fieldEmail": "Correo"
+      "fieldEmail": "Correo",
+      "namePromptTitle": "Agrega tu nombre",
+      "namePromptBody": "Tu nombre aparece como parte de tu correo. Agrega tu nombre real para que las reservas y los mensajes sean más personales.",
+      "namePromptSave": "Guardar nombre",
+      "namePromptDismiss": "Cerrar"
     },
     "clientAccount": {
       "signIn": "Iniciar sesión",
@@ -2395,9 +2422,28 @@
       "appleOpening": "Abriendo Apple…",
       "appleFailed": "Apple no terminó. Inténtalo de nuevo o usa tu correo.",
       "applePopupBlocked": "El navegador bloqueó la ventana emergente. Permite ventanas emergentes e inténtalo de nuevo."
+    },
+    "pricingInterval": {
+      "groupLabel": "Periodo de facturación",
+      "monthly": "Mensual",
+      "yearly": "Anual",
+      "saveUpTo": "Ahorra hasta {pct}%",
+      "savePct": "Ahorra {pct}%",
+      "perMonth": "al mes",
+      "billedYearly": "{amount} al año",
+      "billedMonthly": "Facturado cada mes",
+      "popular": "Más elegido"
     }
   },
   "dashboard": {
+    "promoCode": {
+      "toggle": "¿Tienes un código?",
+      "label": "Código promocional",
+      "placeholder": "Ingresa el código",
+      "apply": "Aplicar",
+      "checking": "Verificando...",
+      "remove": "Quitar"
+    },
     "enums": {
       "servicePricing": {
         "hour": "Por hora",
@@ -3449,8 +3495,6 @@
         "taxDocuments": "Documentos fiscales",
         "taxDocumentsDesc": "Resumen de fin de año + formularios descargables. Tulala reporta tus ingresos de la plataforma; los de fuera los declaras tú.",
         "taxYearTotal": "Total {year}",
-        "taxPlatform": "Plataforma",
-        "taxOffPlatform": "Fuera de la plataforma",
         "availableDocuments": "Documentos disponibles",
         "docIncomeSummary": "Resumen de ingresos {year}",
         "docIncomeSummaryBody": "Solo ingresos reportados por la plataforma · descarga en PDF",
@@ -4726,11 +4770,13 @@
         "colQty": "Cant.",
         "colClientRate": "Tarifa cliente",
         "colTalentGets": "Recibe el talento",
+        "colYouGet": "Recibes tú",
         "feeExtra": "Comisión de agencia",
         "feeTitle": "Un cargo adicional de la agencia sobre las líneas — tu tarifa de coordinación. Deja 0 si tu margen ya está en las tarifas.",
         "splitHeading": "A dónde va este dinero",
         "splitClientList": "Precio de lista al cliente",
         "splitTalentGets": "Se paga al talento",
+        "splitYouGet": "Te pagan a ti",
         "splitAgencyKeeps": "Tu espacio de trabajo retiene",
         "splitAgencyNote": "antes de la parte de la plataforma",
         "splitPlatformNote": "La comisión de la plataforma (un pequeño recargo al cliente más una parte de tu margen) se calcula al reservar y aparece en la reserva confirmada.",
@@ -4910,6 +4956,7 @@
       "greetingMorning": "Buenos días, {name}",
       "greetingAfternoon": "Buenas tardes, {name}",
       "greetingEvening": "Buenas noches, {name}",
+      "greetingNeutral": "Hola, {name}",
       "greetingFallbackName": "de nuevo",
       "dateLocale": "es-ES",
       "newInquiry": "Nueva consulta",
@@ -9641,7 +9688,7 @@
         "auditSeverityInfo": "info",
         "auditSeverityWarn": "aviso",
         "auditSeverityEmergency": "emergencia",
-        "analyticsTitle": "Analítica",
+        "analyticsTitle": "Analíticas",
         "checkPublicFilter": "Filtro público",
         "checkProfileBadge": "Insignia de perfil",
         "checkVisibleByDefault": "Visible por defecto",
@@ -10127,12 +10174,12 @@
         "contextBookings": "Reservas recientes",
         "reopenedBadge": "Reabierto ×{n}",
         "reopenedHint": "El cliente lo reabrió después de resolverlo",
-        "deskBrand": "Support Desk",
+        "deskBrand": "Mesa de soporte",
         "deskForbiddenTitle": "Se necesita acceso de administrador de plataforma",
-        "deskForbiddenBody": "Support Desk es solo para administradores de plataforma de Tulala. La cuenta con la que iniciaste sesión no tiene acceso.",
+        "deskForbiddenBody": "La Mesa de soporte es solo para administradores de plataforma de Tulala. La cuenta con la que iniciaste sesión no tiene acceso.",
         "deskForbiddenSignedIn": "Sesión iniciada como {email}",
         "deskForbiddenSignInAdmin": "Cerrar sesión e iniciar como admin",
-        "deskOpenFromHq": "Abrir Support Desk",
+        "deskOpenFromHq": "Abrir Mesa de soporte",
         "deskViewNeedsYou": "Te necesitan",
         "deskViewUnassigned": "Sin asignar",
         "deskViewMine": "Asignados a mí",
@@ -10174,7 +10221,7 @@
         "deskStatusClosed": "Cerrado",
         "deskWaitingSupport": "Esperando agente",
         "deskWaitingRequester": "Esperando cliente",
-        "deskFlagOffHint": "El flag de Support Desk está apagado en este entorno.",
+        "deskFlagOffHint": "El interruptor de la Mesa de soporte está apagado en este entorno.",
         "deskLoadError": "No se pudo cargar esta conversación.",
         "deskNetworkError": "Error de red. Revisa la conexión y reintenta.",
         "deskPresenceViewing": "También viendo"
@@ -11100,6 +11147,15 @@
           "hub": "Descubrimiento entre agencias",
           "multiagency": "Opera varias marcas"
         }
+      },
+      "planChange": {
+        "loading": "Calculando el precio...",
+        "payToday": "Pagas {amount} hoy. {plan} empieza ahora.",
+        "changesOn": "Tu plan cambia a {plan} el {date}. Hoy no se cobra nada.",
+        "cancelPending": "Conserva tu plan actual y cancela el cambio programado.",
+        "noChange": "Ya tienes este plan.",
+        "confirm": "Confirmar cambio",
+        "cancel": "Ahora no"
       }
     },
     "adminIntegrationsCatalog": {
@@ -13034,6 +13090,8 @@
       "reviewsOnProfilesHint": "Muestra u oculta toda la sección de reseñas en los perfiles de talento.",
       "showPriceLabel": "Mostrar precio “Desde $X”",
       "showPriceHint": "Muestra el precio inicial de cada talento en la tarjeta. Una sección de Directorio puede ocultarlo igualmente.",
+      "showPromoBadgesLabel": "Mostrar ofertas del talento en las tarjetas",
+      "showPromoBadgesHint": "Añade una insignia pequeña (por ejemplo -20%) cuando un talento tiene su propia oferta pública vigente. Desactivado por defecto en sitios de agencia.",
       "showQuickViewLabel": "Mostrar botón de vista rápida",
       "showQuickViewHint": "El icono de galería que abre las fotos sin salir del directorio.",
       "profilePopupLabel": "Abrir perfiles en ventana emergente",
@@ -13752,6 +13810,8 @@
       "handoffBody": "Recibirás una notificación y un correo cuando responda. Puedes seguir escribiendo aquí mientras tanto.",
       "handoffHq": "Escalado a ti",
       "humanReplyEta": "{agent} responderá, normalmente en unas horas",
+      "ticketReceipt": "Ticket #{number} recibido. {agent} responderá, normalmente en unas horas.",
+      "humanHandling": "Una persona está atendiendo esto",
       "aiHandling": "La IA está ayudando, una persona está a un toque",
       "statusClosed": "Cerrado",
       "thinking1": "Leyendo tu pregunta",
@@ -13870,8 +13930,8 @@
       "noTenant": "Inicia sesión en un espacio para moderar sus reseñas."
     },
     "adminAnalytics": {
-      "eyebrow": "Analítica",
-      "title": "Analítica",
+      "eyebrow": "Analíticas",
+      "title": "Analíticas",
       "subtitle": "Tu embudo, dinero, sitio web y reseñas. Solo números reales.",
       "tabFunnel": "Embudo",
       "tabMoney": "Dinero",
@@ -14026,7 +14086,7 @@
     "sales": {
       "pageTitle": "Ventas",
       "pageIntro": "Una vista comercial de todos los productos · haz clic en una fila para abrir el registro de origen",
-      "empty": "Aún no hay ventas.",
+      "empty": "Cuando registres una venta o un cobro, aparecerá aquí.",
       "emptyTitle": "Aún no hay ventas",
       "colCustomer": "Cliente",
       "filterKindLabel": "Tipo",
@@ -14059,7 +14119,7 @@
       "noResultsBody": "Hay ventas en este espacio de trabajo; ninguna es de este tipo en este canal.",
       "clearFilters": "Ver todas las ventas",
       "retry": "Reintentar",
-      "footnote": "Una inscripción gratuita nunca se muestra como factura impagada. Pago y entrega son una sola etiqueta a propósito: lo que dice el registro, no una suposición.",
+      "footnote": "Una inscripción gratuita nunca se muestra como factura sin pagar. El pago y la entrega son una sola etiqueta a propósito: muestra lo que dice el registro, no una suposición.",
       "state": {
         "free": "Gratis · Confirmada",
         "paid": "Pagado",
@@ -14090,7 +14150,7 @@
     },
     "payments": {
       "pageTitle": "Pagos",
-      "pageIntro": "Cobros, reembolsos, diferencias de caja, intentos desconocidos y pagos · entra en el registro del POS",
+      "pageIntro": "Cobros, reembolsos, diferencias de caja, intentos desconocidos y pagos · abre el historial de ventas en caja",
       "unavailableTitle": "No pudimos cargar los pagos",
       "unavailableBody": "Es un problema nuestro, no tuyo. Actualiza en un momento.",
       "takingsTitle": "Cobros por método",
@@ -14192,7 +14252,7 @@
       "reconciliationNoImport": "No se ha importado ningún informe del terminal; todavía no hay nada que cotejar.",
       "reconciliationClean": "Nada sin cotejar: cada cobro tiene respuesta.",
       "reconciliationUnknownRows": "cobro(s) todavía sin respuesta están en la pestaña Intentos.",
-      "callout": "Las filas importadas del terminal se cotejan por id externo; las que no coinciden se quedan en Conciliación, nunca se adivinan contra una reserva. Ingresos, cobros y pagos son tres números distintos aquí.",
+      "callout": "Las filas importadas del terminal se cotejan por el identificador del terminal; las que no coinciden se quedan en Conciliación, nunca se adivinan contra una reserva. Ingresos, cobros y pagos son tres números distintos aquí.",
       "notWired": {
         "import": "Importar un informe del terminal todavía no está conectado; no hay tabla donde guardar sus filas.",
         "export": "La exportación de estas tablas todavía no está conectada."
@@ -17322,7 +17382,8 @@
           "collisionNote": "{when} no se puede generar: la sala ya tiene {other} a esa hora. Mueve una de las dos; no se vende nada hasta resolverlo."
         },
         "templatesOff": "Todavía no existen plantillas de series; una serie no se puede crear desde el espacio de trabajo."
-      }
+      },
+      "loadTimeout": "Las citas tardan demasiado en cargar. Revisa tu conexión y recarga la página."
     },
     "projects": {
       "pageTitle": "Proyectos",
@@ -17706,11 +17767,14 @@
       "filesNone": "Todavía no hay ningún archivo adjunto a un hito.",
       "kpiCollectedNoteOne": "1 registro pagado"
     },
+    "adminNotFound": {
+      "title": "Página no encontrada",
+      "body": "Esta página no existe o pudo haberse movido. Revisa la dirección o vuelve a tu resumen.",
+      "back": "Volver al resumen"
+    },
     "clientRecord": {
       "title": "Cliente",
       "unavailable": "No pudimos cargar este cliente. No se cambio nada. Intenta de nuevo en un momento.",
-      "notFound": "Ese cliente no está aquí. Puede haberse fusionado con otra ficha, o el enlace puede pertenecer a otro espacio de trabajo.",
-      "invalidId": "Esa dirección no es un cliente.",
       "unnamed": "Nombre no registrado",
       "backToList": "Todos los clientes",
       "identity": "Identidad",
@@ -17815,7 +17879,7 @@
       "titleEmpty": "Nada necesita a una persona",
       "titleOne": "{count} cosa necesita a una persona",
       "titleOther": "{count} cosas necesitan a una persona",
-      "subtitle": "Reembolsos que no llegaron, entradas vendidas y nunca emitidas, pasos de una consulta que fallaron, pagos con tarjeta que nunca respondieron, tareas de fondo que se dieron por vencidas, y comandos que se detuvieron sin registrar qué hicieron. Ordenado por si todavía pueden perjudicar a alguien.",
+      "subtitle": "Reembolsos que no llegaron, entradas vendidas y nunca emitidas, pasos de una consulta que fallaron, pagos con tarjeta que nunca respondieron, tareas en segundo plano que se dieron por vencidas, y comandos que se detuvieron sin registrar qué hicieron. Ordenado por si todavía pueden perjudicar a alguien.",
       "incomplete": "Esta lista está incompleta. No se pudo leer: {sources}. Puede haber incidencias que no se muestran.",
       "severityCount": "{count} {severity}",
       "severity": {
@@ -17832,7 +17896,7 @@
         "coordination": "Consultas",
         "operations": "Segundo plano"
       },
-      "allClear": "Todos los reembolsos llegaron, todas las entradas se emitieron y todas las tareas de fondo terminaron.",
+      "allClear": "Todos los reembolsos llegaron, todas las entradas se emitieron y todas las tareas en segundo plano terminaron.",
       "attemptsOne": "{count} intento",
       "attemptsOther": "{count} intentos",
       "ageOld": "hace {age}",
@@ -21055,6 +21119,11 @@
       "planPriceWebsite": "$12/mes",
       "billing": {
         "redirecting": "Redirigiendo…",
+        "pastDueTitle": "Pago fallido.",
+        "pastDueGraceBody": "Tu pago no pasó. Las funciones de pago siguen activas {days} día(s) más. Actualiza tu tarjeta para conservarlas.",
+        "pastDueExpiredBody": "Tu pago no pasó y tu plan está en pausa. Tu contenido está a salvo. Restaura tu plan para recuperar las funciones de pago.",
+        "updateCard": "Actualizar tarjeta",
+        "restorePlan": "Restaurar plan",
         "openingPortal": "Abriendo portal…",
         "manageSubscription": "Administrar suscripción →",
         "statusActive": "Activo",

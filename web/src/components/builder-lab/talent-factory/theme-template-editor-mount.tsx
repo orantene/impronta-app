@@ -10,6 +10,7 @@
 
 import { SaveAsNewDesignDialog } from "./save-as-new-design-dialog";
 import { PublishDesignButton } from "./publish-design-button";
+import { HeaderOverflowMenu } from "./header-overflow-menu";
 import { ThemeTemplateSubjectPicker } from "@/lib/talent-site/theme-template/subject-picker";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -75,25 +76,16 @@ export function ThemeTemplateEditorMount({
       </nav>
       <ThemeTemplateSubjectPicker design={sourceDesign ?? design} subject={subjectCode ?? null} look={look ?? null} lang={lang} />
       <PublishDesignButton design={design} lang={lang} />
-      <details className="relative" data-header-overflow>
-        <summary
-          className="cursor-pointer list-none rounded border border-black/20 px-2 py-1 text-xs hover:bg-black/5"
-          aria-label={t.more}
-          title={t.more}
+      <HeaderOverflowMenu label={t.more}>
+        <SaveAsNewDesignDialog sourceDesign={design} lang={lang} />
+        <Link
+          href="/platform/admin/builder-lab/themes"
+          className="text-xs text-black/70 underline hover:text-black"
+          data-release-manager-link
         >
-          {"\u22EF"}
-        </summary>
-        <div className="absolute right-0 z-50 mt-1 flex min-w-[12rem] flex-col gap-2 rounded border border-black/15 bg-white p-3 shadow-lg">
-          <SaveAsNewDesignDialog sourceDesign={design} lang={lang} />
-          <Link
-            href="/platform/admin/builder-lab/themes"
-            className="text-xs text-black/70 underline hover:text-black"
-            data-release-manager-link
-          >
-            {t.releaseManager}
-          </Link>
-        </div>
-      </details>
+          {t.releaseManager}
+        </Link>
+      </HeaderOverflowMenu>
     </div>
   );
 

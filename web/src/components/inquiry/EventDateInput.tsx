@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
-import { useT } from "@/i18n/use-t";
+import { useId, useState, type CSSProperties } from "react";
+import { usePublicT } from "@/i18n/use-public-t";
 
 /**
  * Event date input that shows an inline error for a half-typed native value
@@ -10,8 +10,9 @@ import { useT } from "@/i18n/use-t";
 export function EventDateInput({
   value, onChange, style,
 }: { value: string; onChange: (v: string) => void; style: CSSProperties }) {
-  const t = useT();
+  const t = usePublicT();
   const [incomplete, setIncomplete] = useState(false);
+  const errorId = useId();
   return (
     <>
       <input
@@ -22,10 +23,12 @@ export function EventDateInput({
           onChange(e.target.value);
         }}
         onBlur={(e) => setIncomplete(e.target.validity.badInput)}
+        aria-invalid={incomplete || undefined}
+        aria-describedby={incomplete ? errorId : undefined}
         style={style}
       />
       {incomplete ? (
-        <p role="alert" style={{ margin: "4px 0 0", fontSize: 12, color: "#b3261e" }}>
+        <p id={errorId} role="alert" style={{ margin: "4px 0 0", fontSize: 12, color: "#b3261e" }}>
           {t("public.inquiryDrawer.dateIncompleteError")}
         </p>
       ) : null}

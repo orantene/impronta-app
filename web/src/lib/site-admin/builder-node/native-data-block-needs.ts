@@ -8,6 +8,8 @@ import { isLiveBookingLabel, isLiveServicesLabel } from "./live-booking-markers"
 import {
   normalizePostsFeedOptions,
   postsFeedFetchLimit,
+  postsFeedDemoCount,
+  type PostsFeedDemoTrade,
   type PostsFeedSort,
   type PostsFeedSource,
 } from "./posts-feed-model";
@@ -29,6 +31,9 @@ export type NativePostsFeedNeed = {
   };
   /** Cards to fetch: limit, times the pre-rendered pages for load-more / numbered. */
   fetchLimit: number;
+  /** TUL-1164: the example set and size a demo account's empty site shows (resolved server-side). */
+  demoTrade: PostsFeedDemoTrade;
+  demoCount: number;
 };
 
 /**
@@ -248,6 +253,8 @@ export function collectNativeDataBlockNeeds(
           sort: o.sort,
         },
         fetchLimit: postsFeedFetchLimit(o),
+        demoTrade: o.demoTrade,
+        demoCount: postsFeedDemoCount(o),
       });
     }
     if (node.kind === "header_account") headerWidgets.account = true;

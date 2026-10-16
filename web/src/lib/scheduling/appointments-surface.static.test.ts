@@ -389,7 +389,7 @@ test("a refresh that was overtaken does not paint over the one that overtook it"
   // any answer that is not the latest one asked for.
   const src = codeOnly(read("AppointmentsPage.tsx"));
   const issued = src.indexOf("refreshTicket.current = ticket");
-  const awaited = src.indexOf("await Promise.all([");
+  const awaited = src.indexOf("await Promise.race([");
   const guard = src.indexOf("if (refreshTicket.current !== ticket) return;", awaited);
   assert.ok(issued >= 0, "the refresh does not take a ticket");
   assert.ok(issued < awaited && awaited < guard, "the ticket is not checked after the reads return");

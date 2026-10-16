@@ -6,7 +6,8 @@ import { zoneLabel, SUGGESTED_ZONES } from "./TimezonePicker";
 test("TUL-822: Spanish labels lead with the localized zone name, not the raw IANA id", () => {
   const es = zoneLabel("Africa/Addis_Ababa", "es");
   assert.doesNotMatch(es, /Africa\//);
-  assert.match(es, /Addis Ababa/);
+  assert.match(es, /Adís Abeba/);
+  assert.doesNotMatch(es, /Addis/);
   assert.match(es, /UTC/);
   assert.match(zoneLabel("America/Mexico_City", "es"), /M[eé]xico/i);
 });
@@ -19,7 +20,7 @@ test("TUL-822: Spanish labels localize the city; English is unchanged", () => {
   assert.doesNotMatch(zoneLabel("America/Mexico_City", "es"), /Mexico City/);
   assert.match(zoneLabel("America/Mexico_City", "en"), /Mexico City/);
   assert.match(zoneLabel("America/Cancun", "en"), /Cancun/);
-  assert.match(zoneLabel("Asia/Kathmandu", "es"), /Kathmandu/);
+  assert.match(zoneLabel("Asia/Kathmandu", "es"), /Katmand/);
 });
 
 test("TUL-821: Mexico zones are suggested first", () => {
