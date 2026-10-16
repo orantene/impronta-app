@@ -5,8 +5,8 @@ import type { Comparison } from "./types";
  *
  * Fresha markets itself as free and is not, which is the honest hook for this
  * page: a subscription per bookable team member, 20% of a new marketplace
- * client's first booking, and processing on top. Ours is 6% with processing
- * inside it.
+ * client's first booking, and processing on top. Ours is a 1.5% fee paid by the client,
+ * with card processing at cost.
  *
  * As with Booksy, what they do better is on the page. Their marketplace has
  * demand and ours does not yet.
@@ -43,12 +43,12 @@ export const FRESHA_COMPARISON: Comparison = {
       },
       {
         label: "Cut of a new client",
-        tulala: "Six percent of the booking, the same for everyone.",
+        tulala: "A 1.5% service fee paid by the client, the same for everyone.",
         them: "20% of a new marketplace client's first booking, minimum $6, one time per client.",
       },
       {
         label: "Card processing",
-        tulala: "Included in the six percent.",
+        tulala: "At cost from the payment processor. You absorb it by default, or the client can cover it.",
         them: "Roughly 2.19% to 3.30% plus about $0.20 per transaction, on top.",
       },
       {
@@ -58,7 +58,7 @@ export const FRESHA_COMPARISON: Comparison = {
       },
       {
         label: "What you pay on your OWN client",
-        tulala: "Six percent, and nothing else.",
+        tulala: "The 1.5% client fee, plus processing at cost.",
         them: "No marketplace cut on your own clients, but the subscription and processing still apply.",
       },
     ],
@@ -102,12 +102,12 @@ export const FRESHA_COMPARISON: Comparison = {
       },
       {
         label: "Parte de un cliente nuevo",
-        tulala: "Seis por ciento de la reserva, igual para todos.",
+        tulala: "Una tarifa de servicio de 1.5% que paga el cliente, igual para todos.",
         them: "20% de la primera reserva de un cliente nuevo del marketplace, mínimo $6, una sola vez por cliente.",
       },
       {
         label: "Procesamiento de tarjeta",
-        tulala: "Incluido en el seis por ciento.",
+        tulala: "A costo del procesador de pagos. Lo absorbes por defecto, o lo puede cubrir el cliente.",
         them: "Aproximadamente 2.19% a 3.30% más unos $0.20 por transacción, aparte.",
       },
       {
@@ -117,7 +117,7 @@ export const FRESHA_COMPARISON: Comparison = {
       },
       {
         label: "Qué pagas por TU propio cliente",
-        tulala: "Seis por ciento, y nada más.",
+        tulala: "La tarifa de 1.5% para el cliente, más el procesamiento a costo.",
         them: "No hay comisión de marketplace por tus propios clientes, pero la suscripción y el procesamiento siguen aplicando.",
       },
     ],

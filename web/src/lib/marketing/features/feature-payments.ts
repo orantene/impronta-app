@@ -8,9 +8,10 @@ import type { Feature } from "./types";
  * platform rather than an integration, so a deposit is one setting on a
  * service instead of a processor account plus a plugin.
  *
- * FEE ACCURACY IS NON-NEGOTIABLE HERE. Six percent total, three from the
- * client and three from the seller, processing included, same on every plan.
- * Never round it, never omit the split, never imply it is lower.
+ * FEE ACCURACY IS NON-NEGOTIABLE HERE. Live model is pass-through: the client
+ * pays a 1.5% Tulala service fee on top, nothing comes off the seller's price,
+ * and card processing is charged at cost (seller absorbs it by default, or the
+ * client covers it). Same on every plan. Never round it, never imply it is lower.
  */
 export const PAYMENTS_FEATURE: Feature = {
   key: "payments",
@@ -65,7 +66,7 @@ export const PAYMENTS_FEATURE: Feature = {
         heading: "One clear fee, and no plan gate",
         body: [
           [
-            "The platform fee on booked work is six percent: three percent from the client and three percent from the seller, with card processing included in that number.",
+            "The platform fee on booked work is 1.5%, paid by the client as a separate service fee line at checkout. Nothing comes off the seller's price. Card processing is charged at cost by the payment processor: by default the seller absorbs it from the payout, and in settings the seller can have the client cover it instead.",
           ],
           [
             "It is the same on every plan including the free one. A business that cannot get paid is not a business, so we do not put the money rail behind a subscription.",
@@ -102,7 +103,7 @@ export const PAYMENTS_FEATURE: Feature = {
       "Checkout on your own site",
       "Deposits, balances and full prepayment",
       "Payouts to your own bank account",
-      "Six percent on booked work, processing included",
+      "1.5% client service fee on booked work, processing at cost",
       "Available on every plan, including free",
       "One report across bookings, jobs and campaigns",
     ],
@@ -114,7 +115,7 @@ export const PAYMENTS_FEATURE: Feature = {
       },
       {
         q: "What exactly does it cost?",
-        a: "Six percent on booked work: three from the client and three from the seller, with card processing included in that number. Subscription plans are separate and do not change the fee.",
+        a: "A 1.5% service fee that the client pays on top of the price, and nothing comes off the seller's price. Card processing is charged at cost: you absorb it by default, or you can have the client cover it. Subscription plans are separate and do not change the fee.",
       },
       {
         q: "When do I get the money?",
@@ -174,7 +175,7 @@ export const PAYMENTS_FEATURE: Feature = {
         heading: "Una comisión clara, y sin candado por plan",
         body: [
           [
-            "La comisión de la plataforma sobre el trabajo reservado es del seis por ciento: tres por ciento del cliente y tres por ciento del vendedor, con el procesamiento de tarjeta incluido en ese número.",
+            "La comisión de la plataforma sobre el trabajo reservado es de 1.5%, y la paga el cliente como una línea aparte de tarifa de servicio en el checkout. Nada sale del precio de quien vende. El procesamiento de tarjeta lo cobra el procesador de pagos a costo: por defecto quien vende lo absorbe de su pago, y en la configuración puede hacer que lo cubra el cliente.",
           ],
           [
             "Es igual en todos los planes, incluido el gratuito. Un negocio que no puede cobrar no es un negocio, así que no ponemos el cobro detrás de una suscripción.",
@@ -211,7 +212,7 @@ export const PAYMENTS_FEATURE: Feature = {
       "Cobro en tu propio sitio",
       "Anticipos, saldos y pago completo",
       "Depósitos a tu propia cuenta bancaria",
-      "Seis por ciento sobre trabajo reservado, procesamiento incluido",
+      "Tarifa de servicio de 1.5% para el cliente, procesamiento a costo",
       "Disponible en todos los planes, incluido el gratuito",
       "Un solo reporte entre reservas, trabajos y campañas",
     ],
@@ -223,7 +224,7 @@ export const PAYMENTS_FEATURE: Feature = {
       },
       {
         q: "¿Cuánto cuesta exactamente?",
-        a: "Seis por ciento sobre trabajo reservado: tres del cliente y tres del vendedor, con el procesamiento de tarjeta incluido en ese número. Los planes de suscripción son aparte y no cambian la comisión.",
+        a: "Una tarifa de servicio de 1.5% que paga el cliente encima del precio, y nada sale del precio de quien vende. El procesamiento de tarjeta se cobra a costo: lo absorbes por defecto, o puedes hacer que lo cubra el cliente. Los planes de suscripción son aparte y no cambian la comisión.",
       },
       {
         q: "¿Cuándo recibo el dinero?",
