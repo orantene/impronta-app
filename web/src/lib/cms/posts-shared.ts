@@ -2,7 +2,7 @@
  * posts-shared.ts — pure helpers for the Website → Posts manager.
  *
  * Client-safe and server-safe on purpose: the editor UI
- * (`WebsitePostEditor.tsx`) previews the slug as the title is typed, the
+ * (the Posts writer) previews the slug as the title is typed, the
  * server actions (`admin-site-posts.ts` → `lib/site-admin/server/posts.ts`)
  * validate the same shape, and the tests exercise both without touching
  * React or Supabase. Keeping the rules here is what stops the client

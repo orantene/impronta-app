@@ -45,7 +45,8 @@ export function ChatInquiriesGroup({
   switches,
   setSwitches,
   strandedTitles,
-}: SwitchProps & { strandedTitles: string[] }) {
+  usageLine,
+}: SwitchProps & { strandedTitles: string[]; usageLine?: string | null }) {
   return (
     <>
       <LiveOnSaveNote>{t(LIVE_NOTE)}</LiveOnSaveNote>
@@ -93,6 +94,7 @@ export function ChatInquiriesGroup({
             })
           }
         />
+        {usageLine ? <p className="pb-1 text-[12.5px] text-admin-ink-muted">{usageLine}</p> : null}
         {strandedTitles.length > 0 ? (
           <p role="status" className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-[12.5px] text-amber-900">
             {(strandedTitles.length === 1

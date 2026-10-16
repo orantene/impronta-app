@@ -49,6 +49,7 @@ src/app/(workspace)/talent/talent-hoy-skeleton.static.test.ts
 src/app/start/layout-landmark.static.test.ts
 src/components/admin/shell/internal/talent-counts-from-inbox.static.test.ts
 src/components/admin/shell/internal/talent/agenda/timezone-picker-qa1054.test.ts
+src/components/admin/shell/internal/messages/talent-thread-955-956.static.test.ts
 src/lib/words/business-types-everyday-words.test.ts
 src/components/onboarding/arrival-failed.static.test.ts
 src/components/onboarding/sticky-footer-clearance.static.test.ts
