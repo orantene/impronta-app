@@ -26,6 +26,7 @@ import { loadTalentInboxForActor } from "@/lib/messaging/talent-inbox-rows";
 import { loadMessagingThread } from "@/lib/messaging/thread";
 import type { InboxFilter } from "@/lib/messaging/types";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { loadTalentPendingOffers } from "@/lib/talent/sent-offers";
 
 const uuid = z.string().uuid();
 
@@ -41,6 +42,15 @@ export async function messagingTalentLoadInbox(input: { locationSlug: string; fi
   const actor = await loadTalentActor();
   if (!actor.ok) return actor;
   return loadTalentInboxForActor(actor, input.filter);
+}
+
+/** TUL-957: her sent, unpaid offers for the Money page ("awaiting payment"). */
+export async function messagingTalentLoadPendingOffers() {
+  const actor = await loadTalentActor();
+  if (!actor.ok) return actor;
+  const offers = await loadTalentPendingOffers(actor.admin, actor.talentProfileId);
+  if (!offers) return fail("unavailable");
+  return { ok: true as const, offers };
 }
 
 export async function messagingTalentLoadThread(input: { inquiryId: string }) {

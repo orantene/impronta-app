@@ -15,6 +15,9 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadItemsCatalog } from "@/lib/messages-v5/items-catalog";
 import { categoryOrderForPreset, groupCatalog, type CatalogGroup, type ItemCategory } from "@/lib/messages-v5/items-picker";
 import { logServerError } from "@/lib/server/safe-error";
+import { getPublicHostContext } from "@/lib/saas/scope";
+import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
+import { guestCatalogTenantAllowed } from "@/lib/messages-v5/guest-catalog-tenant-guard";
 
 export type GuestCatalogRow = {
   id: string;
@@ -34,6 +37,8 @@ export type GuestCatalogRow = {
   partySize: number | null;
   /** Length in minutes, when the offering has one (TUL-1064 duration filter). */
   durationMinutes: number | null;
+  /** Who offers it, on multi-owner (agency/hub) catalogs. */
+  ownerName: string | null;
 };
 
 export type GuestCatalogGroup = { category: ItemCategory; rows: GuestCatalogRow[] };
@@ -67,6 +72,13 @@ export async function getGuestItemsCatalog(raw: { tenantSlug: string; inquiryId?
   const tenantKind = (tenant as { kind?: string } | null)?.kind ?? null;
   const tenantId = (tenant as { id?: string; status?: string } | null)?.id ?? null;
   if (!tenantId) return { ok: false, error: "not_found" };
+  // TUL-1063: the slug is client-sent; it must match the tenant this host serves.
+  {
+    const [host, hub] = await Promise.all([getPublicHostContext(), getPlatformHubTenant()]);
+    if (!guestCatalogTenantAllowed(host, tenantId, hub?.tenantId ?? null)) {
+      return { ok: false, error: "not_found" };
+    }
+  }
   try {
     // A missing inquiry only means "no date": the catalog still loads.
     // P0: on a per-talent page the catalog is that talent's own. A code that does not
@@ -104,6 +116,7 @@ export async function getGuestItemsCatalog(raw: { tenantSlug: string; inquiryId?
           startsAt: r.startsAt ?? null,
           partySize: r.partySize ?? null,
           durationMinutes: r.durationMinutes ?? null,
+          ownerName: r.ownerName ?? null,
         })),
       })),
     };

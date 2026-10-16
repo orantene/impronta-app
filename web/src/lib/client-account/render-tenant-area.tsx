@@ -53,7 +53,9 @@ export async function renderTenantAccountPage(view: AccountView, hostContext: st
         loadOwedPayLinks(userId, tenantId),
         loadReceipts(userId, tenantId),
       ]);
-    } else data.profile = await loadAccountProfile(userId);
+    }
+    // TUL-777: every tab needs the profile for the name prompt.
+    if (view.kind === "home") data.profile = await loadAccountProfile(userId);
   }
   return (
     <ClientAccountArea

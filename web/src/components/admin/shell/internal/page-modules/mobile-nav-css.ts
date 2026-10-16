@@ -82,7 +82,7 @@ export const MOBILE_NAV_CSS = `
             height: 16px;
             padding: 0 4px;
             border-radius: 999px;
-            background: var(--color-admin-coral);
+            background: var(--color-admin-coral-deep);
             color: #fff;
             font-size: 9.5px;
             font-weight: 700;
@@ -220,7 +220,7 @@ export const MOBILE_NAV_CSS = `
             height: 18px;
             padding: 0 5px;
             border-radius: 999px;
-            background: var(--color-admin-coral);
+            background: var(--color-admin-coral-deep);
             color: #fff;
             font-size: 11px;
             font-weight: 700;

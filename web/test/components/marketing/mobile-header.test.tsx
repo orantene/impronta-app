@@ -114,7 +114,8 @@ describe("header utility popovers work at mobile widths", () => {
     const { container } = render(
       <MarketingHeader locale="en" pathnameWithoutLocale="/" />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Language" }));
+    // The button is named by its visible locale code plus the label (WCAG 2.5.3, TUL-1084).
+    fireEvent.click(screen.getByRole("button", { name: "EN Language" }));
 
     expect(screen.getByRole("menu", { name: "Language" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: /English/ })).toHaveAttribute("href", "/");
