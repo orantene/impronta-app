@@ -16,7 +16,10 @@ import { updateBriefModuleState } from "@/lib/tulala/brief-module-state.server";
 import { resolveBriefOwner } from "@/lib/tulala/owner.server";
 import { choiceToPath, localePatch, parsePersistedModuleState } from "@/lib/onboarding/module-state";
 import { choiceToIntent } from "@/lib/onboarding/module-state";
+import { normalizeHoursValue } from "@/lib/tulala/normalize-facts";
 import {
+  hoursHaveAnyOpenDay,
+  weeklyHoursFromCanonical,
   packKeyForTrade,
   parseEssentials,
   servicesFromFacts,
@@ -63,6 +66,7 @@ export async function loadOnboardingSetup(): Promise<SetupLoadResult> {
     trade: state.typeChoice?.slug ?? null,
     discipline: stringFact(brief, "work.discipline") ?? stringFact(brief, "work.industry"),
     country,
+    city,
     locale,
   } as const;
   const saved = state.essentials ?? null;
@@ -74,6 +78,12 @@ export async function loadOnboardingSetup(): Promise<SetupLoadResult> {
     const fromWords = servicesFromFacts(listFact(brief, "work.services"), ctx);
     // What the person said wins over a trade pack; the pack fills in when they said nothing.
     essentials = fromWords.length ? { ...base, services: fromWords, source: "ai" } : base;
+    // TUL-540 / onb1-05: seed the weekly grid from what they said about hours.
+    const hoursRaw = brief.facts.find((f) => f.factKey === "business.hours" && f.status !== "rejected")?.value;
+    const normalized = normalizeHoursValue(hoursRaw);
+    const hourLines = Array.isArray(normalized) ? normalized.map(String) : typeof normalized === "string" ? [normalized] : [];
+    const fromSaid = weeklyHoursFromCanonical(hourLines);
+    if (fromSaid && hoursHaveAnyOpenDay(fromSaid)) essentials = { ...essentials, hours: fromSaid };
     if (saved) essentials = { ...essentials, hours: saved.hours ?? essentials.hours, place: saved.place, timezone: saved.timezone ?? essentials.timezone };
   }
   return { ok: true, setup: { choice, country, tradeKey: packKeyForTrade(ctx.trade, ctx.discipline), essentials, saved: !!saved?.confirmed } };
