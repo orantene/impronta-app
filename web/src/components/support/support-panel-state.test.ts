@@ -224,3 +224,27 @@ test("TUL-943: the Yes/No helpful row disappears whole once a person has the tic
   assert.equal(showHelpfulRow(human, false), false);
   assert.equal(showHelpfulRow(null, false), true);
 });
+
+test("TUL-942: across every thread shape the panel renders at most one 'talk to a person' control, exactly one while the AI owns it", () => {
+  for (const canOffer of [true, false]) {
+    for (const hasOfferCard of [true, false]) {
+      for (const hasAiAnswer of [true, false]) {
+        const p = humanOfferPlacement({ canOffer, hasOfferCard, hasAiAnswer });
+        // Each render site (card, bubble, footer) fires on exactly one placement value.
+        const rendered = [p === "card", p === "bubble", p === "footer"].filter(Boolean).length;
+        assert.equal(rendered, canOffer ? 1 : 0, JSON.stringify({ canOffer, hasOfferCard, hasAiAnswer }));
+      }
+    }
+  }
+});
+
+test("TUL-943: escalating never leaves half of Si/No behind: the row is one unit keyed off showHelpfulRow", () => {
+  const before = { handledBy: "ai", status: "open" } as const;
+  assert.equal(showHelpfulRow(before, false), true);
+  const after = { ...before, ...humanRequestedPatch("2026-10-13T00:00:00.000Z") } as unknown as Pick<
+    SupportTicketRow,
+    "handledBy" | "status"
+  >;
+  assert.equal(canOfferHuman(after), false);
+  assert.equal(showHelpfulRow(after, false), false);
+});
