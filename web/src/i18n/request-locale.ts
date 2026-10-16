@@ -10,7 +10,6 @@ import {
   explicitUrlLocale,
   resolveWorkspacePageLocale,
 } from "@/i18n/workspace-page-locale";
-import { loadWorkspaceLocaleFacts } from "@/lib/site-admin/server/workspace-page-locale";
 
 const LOCALE_HEADER = "x-impronta-locale";
 
@@ -62,7 +61,8 @@ export async function getRequestLocale(): Promise<Locale> {
         h.get(ORIGINAL_SEARCH_HEADER),
         settings.publicLocales,
       ),
-      facts: await loadWorkspaceLocaleFacts(tenantId),
+      // Lazy: the loader imports "server-only", which the node test runner for this module cannot resolve.
+      facts: await (await import("@/lib/site-admin/server/workspace-page-locale")).loadWorkspaceLocaleFacts(tenantId),
       platformDefault: settings.defaultLocale ?? defaultLocale,
     });
     if (

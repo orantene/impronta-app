@@ -12,22 +12,24 @@ export const loadWorkspaceLocaleFacts = cache(
     const supabase = createPublicSupabaseClient();
     if (!supabase || !tenantId) return null;
     try {
-      const { data: identity } = await supabase
+      const { data: identity, error: identityError } = await supabase
         .from("agency_business_identity")
         .select("default_locale, supported_locales")
         .eq("tenant_id", tenantId)
         .maybeSingle<IdentityRow>();
+      if (identityError) return null; // a failed read is not 'no identity': no facts, the caller keeps its default
       const identityDefault = identity?.default_locale?.trim() || null;
       const supported = (identity?.supported_locales ?? []).filter(Boolean);
       let homeCmsLocale: string | null = null;
       if (!identityDefault) {
-        const { data: home } = await supabase
+        const { data: home, error: homeError } = await supabase
           .rpc("cms_public_pages_for_tenant", { p_tenant_id: tenantId })
           .select("locale")
           .eq("is_system_owned", true)
           .eq("system_template_key", "homepage")
           .limit(1)
           .maybeSingle<{ locale: string }>();
+        if (homeError) return null;
         homeCmsLocale = home?.locale ?? null;
       }
       return {
