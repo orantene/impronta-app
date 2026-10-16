@@ -154,17 +154,20 @@ test("scoped sheet NEVER omits a selector for a present kind (incl. sub-tokens)"
   assert.ok(scoped.includes(".site-builder-node--carousel{gap:1rem}"), "media carousel kept");
 });
 
+/** The wire form of a sheet: the same rules, with the line breaks between rules removed. */
+const onWire = (sheet: string): string => sheet.replace(/([;{},])\n/g, "$1");
+
 test("empty kind set → FULL sheet (conservative fallback)", () => {
   assert.equal(
     buildScopedRendererCss(SHEET, new Set<BuilderNodeKind>()),
-    SHEET,
+    onWire(SHEET),
     "no kinds known → emit the full sheet unchanged",
   );
 });
 
 test("undefined / null kinds → FULL sheet (conservative fallback)", () => {
-  assert.equal(buildScopedRendererCss(SHEET, undefined), SHEET);
-  assert.equal(buildScopedRendererCss(SHEET, null), SHEET);
+  assert.equal(buildScopedRendererCss(SHEET, undefined), onWire(SHEET));
+  assert.equal(buildScopedRendererCss(SHEET, null), onWire(SHEET));
 });
 
 test("a sheet with an UNKNOWN token keeps that block (never drop a needed rule)", () => {

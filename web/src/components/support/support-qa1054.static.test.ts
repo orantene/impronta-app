@@ -114,3 +114,62 @@ test("TUL-982: where the phone hides the floating circle, CSS hides it before hy
   assert.match(geometry, /SUPPORT_LAUNCHER_HIDE_COMPACT_CSS[\s\S]*display: none !important/);
   assert.match(launcher, /hideFloatingOnCompact \? SUPPORT_LAUNCHER_HIDE_COMPACT_CSS : ""/);
 });
+
+test("TUL-943: Si and No render side by side in the same branch, gated by the one showHelpfulRow check", () => {
+  assert.match(thread, /!showHelpfulRow\(ticket, Boolean\(acked\[m\.id\]\)\) \? null/);
+  const yes = thread.indexOf('t("dashboard.adminSupport.yesHelped")');
+  const no = thread.indexOf('t("dashboard.adminSupport.noHelped")');
+  assert.ok(yes > 0 && no > yes, "both buttons present, Si before No");
+  assert.equal(thread.slice(yes, no).includes("<>"), false, "no branch boundary between the two buttons");
+  assert.equal(thread.slice(yes, no).includes(") : ("), false);
+  assert.equal(thread.match(/dashboard\.adminSupport\.yesHelped/g)?.length, 1);
+  assert.equal(thread.match(/dashboard\.adminSupport\.noHelped/g)?.length, 1);
+});
+
+test("TUL-942: the footer escalate button is gated by placement 'footer' and the bubble one by the newest AI bubble", () => {
+  assert.equal(thread.match(/dashboard\.adminSupport\.talkToHuman/g)?.length, 2);
+  assert.match(thread, /humanPlacement === "footer" && ticket\?\.handledBy === "ai"/);
+  assert.match(thread, /hasAiAnswer: tone !== "hq" && lastAiId != null/);
+});
+
+test("TUL-949: Enter in the thread composer calls send() and blocks the newline; Shift+Enter falls through", () => {
+  const forms = readFileSync("src/components/support/SupportPanelForms.tsx", "utf8");
+  assert.match(
+    forms,
+    /if \(e\.key === "Enter" && !e\.shiftKey && !e\.nativeEvent\.isComposing\) \{\s*e\.preventDefault\(\);\s*void send\(\);/,
+  );
+  assert.match(forms, /<textarea[\s\S]*?rows=\{1\}/);
+});
+
+test("TUL-949: the home question box is a single input inside a form with a type=submit button (Enter submits natively)", () => {
+  const formAt = home.indexOf("<form");
+  const submitAt = home.indexOf('type="submit"');
+  assert.ok(formAt > 0 && submitAt > formAt);
+  assert.match(home, /onSubmit=\{\(e\) => \{\s*e\.preventDefault\(\);\s*onSubmit\(\);/);
+  assert.doesNotMatch(home.slice(formAt, home.indexOf("</form>")), /<textarea/);
+});
+
+test("TUL-947: at 390 the support launcher sits above the connection-lost banner and paints over it", () => {
+  const banner = readFileSync("src/components/admin/offline-banner.tsx", "utf8");
+  const bannerBottom = Number(banner.match(/bottom: calc\((\d+)px \+ env\(safe-area-inset-bottom/)?.[1]);
+  const launcherBottom = Number(
+    geometry.match(/data-tulala-offline-banner\]\) button\[data-tulala-support-launcher=""\] \{\s*bottom: calc\((\d+)px/)?.[1],
+  );
+  assert.ok(bannerBottom > 0 && launcherBottom > bannerBottom, `launcher ${launcherBottom}px must clear banner ${bannerBottom}px`);
+  const bannerZ = Number(banner.match(/zIndex: (\d+)/)?.[1]);
+  const launcherZ = Number(launcher.match(/zIndex: (\d+)/)?.[1]);
+  assert.ok(launcherZ > bannerZ, `launcher z ${launcherZ} must be above banner z ${bannerZ}`);
+});
+
+test("TUL-916: 'Cerrar tu cuenta' (row) and the support panel close button announce different names", () => {
+  const settings = readFileSync("src/components/admin/shell/internal/talent/pages/SettingsPage.tsx", "utf8");
+  assert.match(settings, /label: tx\("Close your account"\)/);
+  const presenceEs = readFileSync("src/components/talent/studio/presence-es-text.ts", "utf8");
+  assert.match(presenceEs, /"Close your account": "Cerrar tu cuenta"/);
+  const es = JSON.parse(readFileSync("messages/es.json", "utf8")).dashboard.adminSupport;
+  const en = JSON.parse(readFileSync("messages/en.json", "utf8")).dashboard.adminSupport;
+  assert.notEqual(es.closeAria, "Cerrar tu cuenta");
+  assert.notEqual(es.closeAria, "Cerrar");
+  assert.notEqual(en.closeAria, "Close your account");
+  assert.notEqual(en.closeAria, "Close");
+});

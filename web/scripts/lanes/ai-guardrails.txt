@@ -73,6 +73,7 @@ src/components/support/support-send-throw.test.ts
 src/components/support/bell-refresh.test.ts
 src/lib/support/support-chat-fail-open-log.test.ts
 src/lib/support/attachment-rate-limit.static.test.ts
+src/lib/ai/booking-assistant/resolve-talent-id.test.ts
 src/lib/support/login-next-support.test.ts
 src/lib/support/desk/topbar-staging-host.static.test.ts
 src/lib/quality/commerce-tab-alias.static.test.ts
@@ -87,3 +88,7 @@ src/lib/ai/resolve-api-keys-env-fallback.test.ts
 src/lib/support/guest-resume-path.test.ts
 src/components/admin/shell/internal/shell-boundary.render.test.tsx
 src/lib/notifications/dispatcher-cold-start-graph.static.test.ts
+src/app/(workspace)/talent/loading-inside-shell.static.test.ts
+src/lib/security/redact-display.test.ts
+src/lib/pricing/stripe-health-redact.test.ts
+src/lib/seo/staging-noindex.static.test.ts

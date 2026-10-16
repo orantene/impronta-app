@@ -26,14 +26,21 @@ import { FeaturePlateGrid, type PlateGroup } from "./feature-plate-grid";
 function bandsFor(section: "one" | "two", locale: string): PlateGroup[] {
   const features = featuresForHomeSection(section);
   const byGroup = new Map<FeatureGroup, PlateGroup>();
+  // Section one holds no other "run" feature, so the repeated Premium Support
+  // card would sit alone in a "Run and grow" band (TUL-565). It closes the
+  // last band that section does have instead, keeping the deliberate repeat.
+  const nonRun = features.filter((f) => f.group !== "run");
+  const lastGroup: FeatureGroup | undefined = nonRun[nonRun.length - 1]?.group;
   for (const feature of features) {
-    const existing = byGroup.get(feature.group);
+    const group: FeatureGroup =
+      section === "one" && feature.group === "run" && lastGroup ? lastGroup : feature.group;
+    const existing = byGroup.get(group);
     const plate = toPlatePayload(feature, locale);
     if (existing) existing.features.push(plate);
     else {
-      byGroup.set(feature.group, {
-        group: feature.group,
-        stage: featureGroupLabel(feature.group, locale),
+      byGroup.set(group, {
+        group,
+        stage: featureGroupLabel(group, locale),
         features: [plate],
       });
     }
