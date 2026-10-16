@@ -30,6 +30,7 @@ import {
 } from "./handoff";
 import { sanitizeBookingAssistantOutput } from "./guardrails";
 import { BOOKING_ASSISTANT_MODEL } from "./model";
+import { BOOKING_ASSISTANT_EVENT_TYPES } from "./turns";
 import { offeringPriceLabel } from "./price-label";
 import {
   bookingAssistantMonthlyCapCents,
@@ -184,6 +185,8 @@ async function loadPriorAssistantMeta(
     .eq("inquiry_id", inquiryId)
     .eq("tenant_id", tenantId)
     .eq("message_kind", "system_event")
+    // TUL-320 (#3746): only assistant rows count toward the 40-row window.
+    .in("metadata->>system_event_type", [...BOOKING_ASSISTANT_EVENT_TYPES])
     .order("created_at", { ascending: false })
     .limit(40);
   if (error) {
@@ -284,7 +287,7 @@ async function resolveCatalogTenantId(
   return catalogTenantForPublicHost(hostCtx.kind, hostCtx.tenantId);
 }
 
-async function loadTalentPlanKey(talentProfileId: string): Promise<string | null> {
+export async function loadTalentPlanKey(talentProfileId: string): Promise<string | null> {
   const admin = createServiceRoleClient();
   if (!admin) return null;
   const { data, error } = await admin
@@ -302,7 +305,7 @@ async function loadTalentPlanKey(talentProfileId: string): Promise<string | null
 }
 
 /** Sum successful booking-assistant spend for this talent in the UTC month. */
-async function loadTalentBookingAssistantSpendCentsThisMonth(
+export async function loadTalentBookingAssistantSpendCentsThisMonth(
   talentProfileId: string,
 ): Promise<number> {
   const admin = createServiceRoleClient();

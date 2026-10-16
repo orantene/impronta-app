@@ -276,6 +276,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["lib/reviews/review-token-actions.ts", ["loadReviewInviteByToken"], READ],
   ["lib/channels/pairing-actions.ts", ["loadWhatsAppConnection"], READ],
   ["lib/media/asset-assignments-actions.ts", ["actionListAssetAssignments"], READ],
+  ["components/talent/website-settings/booking-assistant-usage-action.ts", ["loadBookingAssistantUsageAction"], READ],
   ["app/auth/actions.ts", ["signOut"], "SIGN-OUT: ends the session; must keep working while impersonating (PM exception)"],
   ["lib/server-actions/admin-impersonation.ts", ["endImpersonationToAdmin"], "STOP-IMPERSONATION: ends the viewing-as session; must keep working while impersonating (PM exception)"],
   ["lib/support/desk/desk-sign-out.ts", ["deskSignOutToLogin"], "SIGN-OUT: ends the support desk session; must keep working while impersonating (PM exception)"],

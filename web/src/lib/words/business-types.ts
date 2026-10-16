@@ -131,7 +131,7 @@ export const BUSINESS_TYPES: readonly BusinessType[] = [
   t("dog-walker", "professional", "Dog walker", "Paseador de perros", []),
   t("pet-grooming", "beauty", "Pet grooming", "Peluquería canina", ["groomer", "estética canina", "pet grooming salon"], "pet_grooming"),
   t("wellness-retreat", "wellness", "Wellness retreat", "Retiro de bienestar", ["wellness retreat organiser", "retiro de bienestar"]),
-  t("clinic", "wellness", "Clinic", "Clínica", [], "clinic"),
+  t("clinic", "wellness", "Clinic", "Clínica", ["dentista", "dentist", "dental", "clinica dental", "consultorio", "doctor", "medico", "médico"], "clinic"),
   t("theatre", "events", "Theatre", "Teatro", ["theater", "teatro"], "theatre_cinema"),
   t("barber-shop", "beauty", "Barber shop", "Barbería", ["barber", "barberia", "barbero", "barber shop"], "salon_barber"),
   t("brow-studio", "beauty", "Brow studio", "Estudio de cejas", ["eyebrow shaping", "cejas"]),
