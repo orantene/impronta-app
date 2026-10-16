@@ -1,8 +1,13 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import type { NextRequest, NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
 import { authCoordinationOptions } from "@/lib/supabase/auth-coordination";
-import { cookieDomainForHost, isSupabaseAuthCookie } from "@/lib/supabase/cookie-domain";
+import { guestCookieExpiryHeader } from "@/lib/guest-cookie";
+import {
+  authCookieExpiryHeaders,
+  cookieDomainForHost,
+  isSupabaseAuthCookie,
+} from "@/lib/supabase/cookie-domain";
 
 import { clientAccountEnabledFor } from "./flag";
 
@@ -143,6 +148,8 @@ export async function withTalentHostClientSession(
   buildResponse: () => Promise<NextResponse>,
   deps: TalentHostSessionDeps = {},
 ): Promise<NextResponse> {
+  const signOut = talentHostSignOutResponse(request, host);
+  if (signOut) return signOut;
   const response = await buildResponse();
   if (!(deps.enabled ?? clientAccountTalentHostsEnabled)()) return response;
   if (!hasSupabaseAuthCookie(request)) return response;
@@ -154,4 +161,42 @@ export async function withTalentHostClientSession(
   // A response carrying a session token must never be cached by a CDN.
   for (const [key, value] of Object.entries(refresh.headers)) response.headers.set(key, value);
   return response;
+}
+
+/**
+ * Talent-host client sign-out (TUL-708). `/auth/sign-out` is deliberately 404
+ * on talent hosts (talent-site-host-routing.ts), so the popover's Log out ends
+ * here instead: `signOutClientAccount` has already revoked the session; this
+ * GET only expires every auth cookie scope + chunk the browser holds for THIS
+ * host (shared parents on a platform subdomain, host-only on a custom domain)
+ * plus the guest cookie, then lands on the site home. Cross-site requests are
+ * refused so a third-party page cannot force a sign-out.
+ */
+export const TALENT_HOST_SIGN_OUT_PATH = "/auth/client-sign-out";
+
+export function talentHostSignOutResponse(
+  request: NextRequest,
+  host: TalentHostForSession,
+): NextResponse | null {
+  if (request.nextUrl.pathname !== TALENT_HOST_SIGN_OUT_PATH) return null;
+  const home = new URL("/", request.url);
+  if (request.headers.get("sec-fetch-site") === "cross-site") {
+    return NextResponse.redirect(home, 303);
+  }
+  if (request.method === "POST") {
+    // S1: the POST revokes server-side, so it goes to the route handler
+    // (app/auth/client-sign-out) instead of the talent page routing that 404s
+    // `/auth/*`. Spoofable proxy headers are stripped first.
+    const headers = new Headers(request.headers);
+    for (const h of [...headers.keys()]) if (h.startsWith("x-impronta-")) headers.delete(h);
+    return NextResponse.next({ request: { headers } });
+  }
+  if (request.method !== "GET") return NextResponse.redirect(home, 303);
+  const res = NextResponse.redirect(home, 303);
+  const scopeHost = host.hostKind === "subdomain" ? host.hostname : null;
+  const names = request.cookies.getAll().map((c) => c.name);
+  for (const h of authCookieExpiryHeaders(names, scopeHost)) res.headers.append("set-cookie", h);
+  res.headers.append("set-cookie", guestCookieExpiryHeader());
+  res.headers.set("cache-control", "no-store");
+  return res;
 }

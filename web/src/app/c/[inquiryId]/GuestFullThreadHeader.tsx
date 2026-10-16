@@ -89,8 +89,10 @@ export function GuestFullThreadHeader({
         {!logoUrl && initial}
       </div>
       <div style={{ minWidth: 0, flex: 1 }}>
-        <div
+        {/* TUL-1103: the page's one heading (it had none). */}
+        <h1
           style={{
+            margin: 0,
             fontSize: 15.5,
             fontWeight: 700,
             color: C.ink,
@@ -100,7 +102,7 @@ export function GuestFullThreadHeader({
           }}
         >
           {agencyName}
-        </div>
+        </h1>
         <div
           style={{
             fontSize: 12,

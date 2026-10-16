@@ -88,6 +88,13 @@ export function hubClickTarget(n: UserNotification, adminBasePath: string): HubC
   const raw = targetOf(n);
   if (!raw) return null;
   const f = notificationDrawerFields(raw, n.originInquiryId, adminBasePath);
+  // TUL-391 r3: the inquiry-workspace drawer is a fixture drawer; it resolves a
+  // real inquiry uuid to RICH_INQUIRIES[0] (a demo inquiry). A talent bell row
+  // opens the real chat-first inbox instead.
+  if (n.surface === "talent" && f.targetDrawer === "inquiry-workspace") {
+    const id = n.originInquiryId ?? (f.targetPayload?.inquiryId as string | undefined);
+    if (id) return { kind: "href", href: `/talent/inbox?inquiry=${encodeURIComponent(id)}` };
+  }
   if (f.targetHref) return { kind: "href", href: f.targetHref };
   return { kind: "drawer", drawerId: f.targetDrawer, payload: f.targetPayload };
 }

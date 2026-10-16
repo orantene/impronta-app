@@ -2,7 +2,7 @@
 
 import type { InquiryIntentActionState } from "@/app/(workspace)/[tenantSlug]/client/_actions/inquiry-intent-actions";
 import { interpolate } from "@/i18n/interpolate";
-import { useT } from "@/i18n/use-t";
+import { usePublicT } from "@/i18n/use-public-t";
 import { sentCopyKeys } from "@/lib/inquiry/reserve-slot-taken";
 
 import { C, FONT, FONT_DISPLAY, primaryLinkStyle } from "./inquiry-drawer-tokens";
@@ -11,16 +11,18 @@ type SubmittedState = Extract<InquiryIntentActionState, { kind: "submitted" }>;
 
 /** Shown in the drawer once the inquiry is sent. */
 export function SubmittedView({
-  state, agencyName, soloTalentName = null,
+  state, agencyName, soloTalentName = null, followUpOnSite = false,
 }: {
   state: SubmittedState;
   agencyName: string;
   soloTalentName?: string | null;
+  followUpOnSite?: boolean;
 }) {
-  const t = useT();
-  const messagesHref =
-    `/${state.tenantSlug}/client/messages`
-    + `?inquiry=${encodeURIComponent(state.inquiryId)}&just_submitted=1`;
+  const t = usePublicT();
+  const messagesHref = followUpOnSite
+    ? `/c/${encodeURIComponent(state.inquiryId)}`
+    : `/${state.tenantSlug}/client/messages`
+      + `?inquiry=${encodeURIComponent(state.inquiryId)}&just_submitted=1`;
 
   // Guest follow-up CTA. The route is activation-dependent so the visitor
   // never lands on a dead end:

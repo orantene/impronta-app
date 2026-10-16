@@ -7,9 +7,10 @@ import { setTalentAcceptingBookingsAction } from "@/lib/talent/accepting-booking
 import { logServerError } from "@/lib/server/safe-error";
 import { useDashboardText } from "../../dashboard-i18n";
 import { computePaidThisMonth } from "@/lib/talent/paid-this-month";
+import { EMPTY_TALENT_EARNINGS } from "@/lib/talent/earnings-types";
 import { pinNextConversation as pinNextConversationT, pinNextThreadTab as pinNextThreadTabT } from "../../messages";
 import { EmptyState, Icon, PrimaryButton } from "../../primitives";
-import { COLORS, EARNINGS_ROWS, FONTS, MY_TALENT_PROFILE, RADIUS, TALENT_PROFILES_BY_ID, buildFreshTalentProfile, computeProfileCompleteness, useAdminShell } from "../../state";
+import { COLORS, FONTS, MY_TALENT_PROFILE, RADIUS, TALENT_PROFILES_BY_ID, buildFreshTalentProfile, computeProfileCompleteness, useAdminShell } from "../../state";
 import { TalentFirstRunBanner, TalentFunnelCard } from "../../wave2";
 import { useTalentConversations } from "../shared/conversation-adapter-1";
 import { EarningsTile } from "../shared/earnings-tile-1";
@@ -19,6 +20,7 @@ import { ConversationCalendarRow, NeedsReplySection } from "../shared/today-3";
 import { WeekRhythmStrip } from "../shared/week-rhythm-1";
 import { TalentAgencyFilterChips } from "../shared/TalentAgencyFilterChips";
 import { TalentReviewsCard } from "../shared/reviews-card-1";
+import { TalentPresenceStatsCard } from "../shared/presence-stats-card";
 import { TalentServicesNudge } from "@/components/talent/services/TalentServicesNudge";
 import { WebsiteTodayUnlockCard } from "@/components/talent/website-reward/WebsiteTodayUnlockCard";
 import { WebsiteTodayHero } from "@/components/talent/website-reward/WebsiteTodayHero";
@@ -184,7 +186,7 @@ export function TalentTodayPage() {
         onNewBooking={openNewBookingPanel}
         onOpenAvailability={openWorkingHoursPanel}
         onOpenServices={() => setTalentPage("services")}
-        onOpenSite={() => setTalentPage("public-page")}
+        onOpenSite={() => openAgendaPath("/talent/page-builder", "public-page")}
         onOpenProfile={() => setTalentPage("profile")}
         onOpenRecord={(id) => openAgendaPath(`/talent/bookings/${id}`, "booking-record")}
         onOpenMoney={openMoney}
@@ -230,26 +232,15 @@ export function TalentTodayPage() {
   // click takes the talent straight to the logistics tab inside the
   // messages shell where the call sheet, transport, hotel, schedule live.
   const upcoming = conversations.filter((c) => c.stage === "booked");
-  // Paid this month — REAL data when the talent bridge is active (matches the
-  // Money page); the EARNINGS_ROWS fixture only renders in standalone/demo mode
-  // (no bridge). A real talent with no paid bookings now honestly sees 0
-  // instead of the old hard-coded €6,800 demo total.
-  let paidThisMonthTotal: number;
-  let paidThisMonthCurrency: string;
-  let paidThisMonthCode: string | undefined;
-  if (bridgeTalentEarnings != null) {
-    const ptm = computePaidThisMonth(bridgeTalentEarnings);
-    paidThisMonthTotal = ptm.totalCents / 100;
-    paidThisMonthCurrency = CURRENCY_SYMBOL[ptm.currency.toUpperCase()] ?? ptm.currency.toUpperCase();
-    paidThisMonthCode = ptm.currency;
-  } else {
-    const fixtureRows = EARNINGS_ROWS.filter((e) => e.payoutDate.includes("Apr"));
-    paidThisMonthTotal = fixtureRows.reduce((sum, e) => {
-      const num = parseFloat(e.amount.replace(/[^0-9.]/g, ""));
-      return sum + (isNaN(num) ? 0 : num);
-    }, 0);
-    paidThisMonthCurrency = fixtureRows[0]?.amount.match(/[€£$]/)?.[0] ?? "€";
-  }
+  // Paid this month — REAL earnings only (matches the Money page). Earnings
+  // that have not loaded (e.g. this page inside the Admin shell) read as
+  // empty, never the EARNINGS_ROWS demo fixture: that fixture painted
+  // "Pagado este mes €6,800" in Admin while Hoy showed $0 (live2b-02).
+  const todayEarnings = bridgeTalentEarnings ?? EMPTY_TALENT_EARNINGS;
+  const ptm = computePaidThisMonth(todayEarnings);
+  const paidThisMonthTotal = ptm.totalCents / 100;
+  const paidThisMonthCurrency = CURRENCY_SYMBOL[ptm.currency.toUpperCase()] ?? ptm.currency.toUpperCase();
+  const paidThisMonthCode = ptm.currency;
   const pendingCount = replyConvs.length;
 
   // Pin a conversation and route into the messages shell. Single
@@ -546,6 +537,8 @@ export function TalentTodayPage() {
       {/* F23 / F34: the ONE website card (ready / preview), same state as the pill. */}
       {bridgeTalentSelfProfile && <WebsiteTodayHero canBook={websiteEligibility.hasAvailability === true} />}
 
+      {bridgeTalentSelfProfile && <TalentPresenceStatsCard />}
+
       <TalentTodayHero
         firstName={profile.name.split(" ")[0]}
         pendingCount={pendingCount}
@@ -684,7 +677,7 @@ export function TalentTodayPage() {
       <EarningsTile
         currency={paidThisMonthCurrency}
         monthTotal={paidThisMonthTotal}
-        earnings={bridgeTalentEarnings}
+        earnings={todayEarnings}
         // "See all earnings" belongs on the Money page (real ledger + payouts),
         // not the career-analytics drawer it used to open.
         onSeeAll={() => setTalentPage("money")}

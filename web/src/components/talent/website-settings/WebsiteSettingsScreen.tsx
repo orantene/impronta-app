@@ -28,6 +28,8 @@ import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { resolveEffectiveMinNoticeMin } from "@/lib/scheduling/instant-book-gates";
 import { MaxSiteSettingsPanels } from "@/components/talent/site/TalentMaxSiteSettingsPanels";
 import { settle } from "./settle";
+import { loadBookingAssistantUsageAction } from "./booking-assistant-usage-action";
+import { bookingAssistantUsageLine, type BookingAssistantUsage } from "@/lib/ai/booking-assistant/usage-format";
 import { loadHoursMinNoticeAction } from "./website-settings-gate-action";
 import { loadSiteSwitchesAction, saveSiteSwitchesAction, type SiteSwitchesSnapshot } from "./website-settings-switches-action";
 import {
@@ -114,6 +116,16 @@ export function WebsiteSettingsScreen({
   const [swReadiness, setSwReadiness] = useState<SiteSwitchesSnapshot["readiness"] | null>(null);
   /** A save that stored some parts and failed others. */
   const [partial, setPartial] = useState(false);
+  const [aiUsage, setAiUsage] = useState<BookingAssistantUsage | null>(null);
+  useEffect(() => {
+    let live = true;
+    void loadBookingAssistantUsageAction()
+      .then((u) => live && setAiUsage(u))
+      .catch(() => null);
+    return () => {
+      live = false;
+    };
+  }, []);
 
   useEffect(() => {
     let live = true;
@@ -398,7 +410,7 @@ export function WebsiteSettingsScreen({
                 : t("Open personal site editor")
             }
             onOpen={() => {
-              window.location.assign(PERSONAL_SITE_BUILDER_HREF);
+              window.open(PERSONAL_SITE_BUILDER_HREF, "_blank", "noopener,noreferrer");
             }}
           />
         </div>
@@ -469,7 +481,11 @@ export function WebsiteSettingsScreen({
           before={<AcceptBookingsCard {...switchProps} />}
         />
       ) : null}
-      {view === "chat" ? <ChatInquiriesGroup {...switchProps} strandedTitles={strandedTitles} /> : null}
+      {view === "chat" ? <ChatInquiriesGroup
+          {...switchProps}
+          strandedTitles={strandedTitles}
+          usageLine={aiUsage ? bookingAssistantUsageLine(aiUsage, copy.isSpanish ? "es" : "en") : null}
+        /> : null}
       {view === "vis" ? <VisibilityGroup {...switchProps} /> : null}
       {view === "contact" ? <CallNumberGroup t={t} /> : null}
       {status === "failed" && partial ? (

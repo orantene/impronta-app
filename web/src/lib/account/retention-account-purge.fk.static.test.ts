@@ -21,7 +21,7 @@ const MIGRATIONS = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", 
 const NON_FINANCIAL = new Set([
   "agency_inquiry_coordinators", "agency_talent_media", "agency_talent_overlays", "agency_talent_roster",
   "agency_talent_skill_overrides", "analytics_events", "client_favorites", "client_reviews",
-  "client_shortlist_items", "collection_items", "customers", "event_schedule_items", "field_values",
+  "client_shortlist_items", "cms_post_categories", "cms_posts", "cms_redirects", "collection_items", "customers", "event_schedule_items", "field_values",
   "inquiry_alternates", "inquiry_participants", "inquiry_talent", "media_release_bake_failures",
   "phone_e164_backfill_collisions", "pitch_attachments", "pitch_talents", "profile_revisions",
   "review_requests", "saved_talent", "search_queries", "support_tickets", "talent_addon_groups",

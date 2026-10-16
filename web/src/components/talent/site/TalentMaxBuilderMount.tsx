@@ -22,7 +22,7 @@
  * matching the talent's tier (§E).
  */
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 
 import { FirstPaintTipBottomProvider } from "@/components/edit-chrome/first-paint-tip-context";
 import { TalentAiTranslateProvider } from "@/components/locale-field/talent-ai-context";
@@ -30,6 +30,8 @@ import { BuilderEditorMount } from "@/lib/site-admin/builder-core/mount/BuilderE
 import { buildTalentPageBuilderConfig } from "@/lib/site-admin/builder-core/config";
 import { createBoundTalentPageAdapter } from "@/lib/site-admin/builder-core/adapters/talent-page-adapter";
 import { TALENT_LOCKED_OPERATION_EVENT } from "@/components/edit-chrome/talent-lock-broadcast";
+import { openUpgrade } from "@/components/talent/upgrade/open-upgrade";
+import { TalentUpgradeModalHost } from "@/components/talent/upgrade/TalentUpgradeModal";
 import { BuilderMediaScopeProvider } from "@/components/edit-chrome/builder-media-scope";
 import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
 import type { CompositionData } from "@/lib/site-admin/edit-mode/composition-actions";
@@ -108,29 +110,15 @@ export function TalentMaxBuilderMount({
     [talentProfileId, talentTier, siteCapabilities],
   );
 
-  // Phase 1 stopgap — the real Phase 4 upgrade dialog isn't shipped yet, so a
-  // sections-lock refusal would otherwise leave the talent with the denial
-  // toast and no path forward. Until that dialog exists, route to the plan
-  // card on Settings instead of leaving the event unheard. `navigatedRef`
-  // stops a second denial (e.g. a repeated click while the toast is still up)
-  // from firing a second navigation.
-  const navigatedRef = useRef(false);
+  // TUL-829: a sections-lock refusal opens the in-app upgrade modal right
+  // here, over the builder, instead of hard-navigating to Settings. The host
+  // below is mounted because this route renders without the dashboard shell.
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | undefined;
     const onLocked = () => {
-      if (navigatedRef.current) return;
-      navigatedRef.current = true;
-      // Give the existing denial toast a moment on screen before leaving.
-      // A HARD navigation: this route renders without the dashboard shell and
-      // a soft push keeps that bare layout, so the shell-only settings page
-      // would mount with no AdminShellProvider (the 2026-10-01 crash).
-      timer = setTimeout(() => window.location.assign("/talent/settings"), 1200);
+      openUpgrade({ feature: "extra-sections", from: "talent-builder-lock" });
     };
     window.addEventListener(TALENT_LOCKED_OPERATION_EVENT, onLocked);
-    return () => {
-      window.removeEventListener(TALENT_LOCKED_OPERATION_EVENT, onLocked);
-      if (timer) clearTimeout(timer);
-    };
+    return () => window.removeEventListener(TALENT_LOCKED_OPERATION_EVENT, onLocked);
   }, []);
 
   return (
@@ -166,6 +154,7 @@ export function TalentMaxBuilderMount({
       />
       </FirstPaintTipBottomProvider>
 </TalentAiTranslateProvider>
+      <TalentUpgradeModalHost />
     </div>
     </BuilderMediaScopeProvider>
   );

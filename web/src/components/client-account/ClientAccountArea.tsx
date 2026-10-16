@@ -4,14 +4,16 @@ import type { CSSProperties, ReactNode } from "react";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
 import { visitZone } from "@/lib/client-account/visit-zone";
-import { ACCOUNT_TABS, formatZonedWhen, type AccountTab, type AccountView } from "@/lib/client-account/area-pure";
+import { ACCOUNT_TABS, formatZonedWhen, needsRealName, type AccountTab, type AccountView } from "@/lib/client-account/area-pure";
 import type { ReceiptDetail, ReceiptRow, ThreadMessage, ThreadRow, VisitDetail } from "@/lib/client-account/area-data.server";
 import type { MeItem } from "@/lib/me/shape-me";
 import { formatOrderMoney } from "@/lib/orders/money-format";
 import type { AccountSummary } from "@/lib/client-account/pure";
+import { payMyBookingForm } from "@/lib/client-account/booking-actions";
 
 import { ClientAccountButton } from "./ClientAccountButton";
-import { LogOutButton, SettingsForm, ThreadReply, VisitActions, btnPrimary, type VisitActionsCopy } from "./AccountClientIslands";
+import { LogOutButton, NamePrompt, SessionSyncListener, SettingsForm, ThreadReply, VisitActions, type VisitActionsCopy } from "./AccountClientIslands";
+import { btnPrimary } from "./account-button-styles";
 
 const INK = "var(--token-color-ink, #111)";
 const BG = "var(--token-color-background, #fff)";
@@ -25,7 +27,7 @@ export type AreaData = {
   threads?: ThreadRow[];
   thread?: { title: string; messages: ThreadMessage[] } | null;
   summary?: AccountSummary;
-  payLinks?: Array<{ title: string; code: string }>;
+  payLinks?: Array<{ title: string; code: string | null; bookingId: string }>;
   receipts?: ReceiptRow[];
   receipt?: ReceiptDetail | null;
   profile?: { name: string; phone: string; locale: string; marketingOptIn: boolean };
@@ -58,8 +60,23 @@ export function ClientAccountArea(props: Props) {
   const shell = (children: ReactNode) => (
     <main style={wrap} data-client-account-area="">
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "24px 16px 64px" }}>
-        <p style={{ margin: 0, fontSize: 14, color: MUTED }}>{props.talentName}</p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <p style={{ margin: 0, fontSize: 14, color: MUTED }}>{props.talentName}</p>
+          {props.audience === "client" ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: MUTED }}>
+              {props.email ? <span style={{ overflowWrap: "anywhere" }}>{props.email}</span> : null}
+              <LogOutButton label={a("logOut")} />
+            </div>
+          ) : null}
+        </div>
+        {props.audience === "client" ? <SessionSyncListener /> : null}
         <h1 style={{ ...heading, fontSize: 28, marginTop: 4 }}>{a("title")}</h1>
+        {props.audience === "client" && props.data.profile && needsRealName(props.data.profile.name, props.email) ? (
+          <NamePrompt
+            profile={props.data.profile}
+            copy={{ title: a("namePromptTitle"), body: a("namePromptBody"), label: a("fieldName"), save: a("namePromptSave"), dismiss: a("namePromptDismiss"), error: a("errGeneric") }}
+          />
+        ) : null}
         {children}
       </div>
     </main>
@@ -138,7 +155,7 @@ export function ClientAccountArea(props: Props) {
           {v.amountCents !== null ? (<><dt style={{ color: MUTED }}>{a("price")}</dt><dd style={{ margin: 0 }}>{money(v.amountCents, v.currency)}</dd></>) : null}
           <dt style={{ color: MUTED }}>{a("status")}</dt><dd style={{ margin: 0 }}>{statusLabel(v.status)}</dd>
         </dl>
-        <p style={{ fontSize: 13, color: MUTED }}>{interpolate(a("timeZoneNote"), { zone: when?.tzLabel ?? props.timeZone })}</p>
+        {when ? <p style={{ fontSize: 13, color: MUTED }}>{interpolate(a("timeZoneNote"), { zone: when.tzLabel || props.timeZone })}</p> : null}
         {v.canManage && v.bookingId ? (
           <VisitActions
             bookingId={v.bookingId}
@@ -156,6 +173,12 @@ export function ClientAccountArea(props: Props) {
           />
         ) : null}
         {v.payCode ? <p style={{ marginTop: 16 }}><a href={`/pay/${encodeURIComponent(v.payCode)}`} style={{ ...btnPrimary, display: "inline-flex", alignItems: "center", textDecoration: "none" }}>{a("payNow")}</a></p> : null}
+        {v.canPay && v.bookingId ? (
+          <form action={payMyBookingForm} style={{ marginTop: 16 }}>
+            <input type="hidden" name="bookingId" value={v.bookingId} />
+            <button type="submit" style={btnPrimary}>{a("payNow")}</button>
+          </form>
+        ) : null}
       </>,
     );
   }
@@ -229,7 +252,7 @@ export function ClientAccountArea(props: Props) {
   };
   const extraLabel = { quotes: a("tabQuotes"), shortlists: a("tabShortlists"), approvals: a("tabApprovals") };
   const nav = (
-    <nav aria-label={a("title")} style={{ display: "flex", gap: 6, overflowX: "auto", margin: "20px 0", paddingBottom: 4, WebkitOverflowScrolling: "touch" }}>
+    <nav aria-label={a("title")} style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "20px 0", paddingBottom: 4 }}>
       {ACCOUNT_TABS.map((k) => (
         <Link
           key={k}
@@ -268,7 +291,7 @@ export function ClientAccountArea(props: Props) {
         <Link href={`/account/visits/${v.id}`} style={{ ...card, display: "block", textDecoration: "none", color: INK }}>
           <strong>{v.title || a("service")}</strong>
           <span style={{ display: "block", color: MUTED, fontSize: 14 }}>
-            {when ? `${when.date}, ${when.time}` : a("noDate")} · {statusLabel(v.status)}
+            {when ? [when.date, when.time].filter(Boolean).join(", ") : a("noDate")} · {statusLabel(v.status)}
           </span>
         </Link>
       </li>
@@ -279,7 +302,7 @@ export function ClientAccountArea(props: Props) {
       <section style={{ marginBottom: 24 }}>
         <h2 style={{ ...heading, fontSize: 16, marginBottom: 10 }}>{title}</h2>
         <ul style={{ margin: 0, padding: 0, display: "grid", gap: 10 }}>{items.map(visitRow)}</ul>
-        {again ? <p style={{ marginTop: 12 }}><Link href="/" style={{ color: INK }}>{a("bookAgain")}</Link></p> : null}
+        {again ? <p style={{ marginTop: 12 }}><Link href="/" style={{ color: INK }}>{a("browseTalent")}</Link></p> : null}
       </section>
     );
 
@@ -288,7 +311,7 @@ export function ClientAccountArea(props: Props) {
     const g = props.data.visits;
     const empty = !g || g.upcoming.length + g.waiting.length + g.past.length === 0;
     body = empty ? (
-      <p>{a("noVisits")} <Link href="/" style={{ color: INK }}>{a("bookAgain")}</Link></p>
+      <p>{a("noVisits")} <Link href="/" style={{ color: INK }}>{a("bookFirst")}</Link></p>
     ) : (
       <>
         {group(a("waiting"), g.waiting)}
@@ -318,11 +341,18 @@ export function ClientAccountArea(props: Props) {
           <h2 style={{ ...heading, fontSize: 16 }}>{a("balanceDue")}</h2>
           {due ? <p style={{ fontSize: 24, fontWeight: 700, margin: "6px 0 12px" }}>{money(due.amountCents, due.currencyCode)}</p> : <p style={{ color: MUTED }}>{a("noBalance")}</p>}
           {(props.data.payLinks ?? []).map((p) => (
-            <p key={p.code} style={{ margin: "0 0 8px" }}>
-              <a href={`/pay/${encodeURIComponent(p.code)}`} style={{ ...btnPrimary, display: "inline-flex", alignItems: "center", textDecoration: "none" }}>
-                {a("payNow")}{p.title ? ` · ${p.title}` : ""}
-              </a>
-            </p>
+            <div key={p.bookingId} style={{ margin: "0 0 8px" }}>
+              {p.code ? (
+                <a href={`/pay/${encodeURIComponent(p.code)}`} style={{ ...btnPrimary, display: "inline-flex", alignItems: "center", textDecoration: "none" }}>
+                  {a("payNow")}{p.title ? ` · ${p.title}` : ""}
+                </a>
+              ) : (
+                <form action={payMyBookingForm}>
+                  <input type="hidden" name="bookingId" value={p.bookingId} />
+                  <button type="submit" style={btnPrimary}>{a("payNow")}{p.title ? ` · ${p.title}` : ""}</button>
+                </form>
+              )}
+            </div>
           ))}
         </section>
         <h2 style={{ ...heading, fontSize: 16, marginBottom: 10 }}>{a("receipts")}</h2>

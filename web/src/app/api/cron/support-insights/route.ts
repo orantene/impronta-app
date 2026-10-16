@@ -12,6 +12,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { supportFrom } from "@/lib/support/support-from";
 import { parseLooseJson } from "@/lib/support/parse-loose-json";
+import { afterResponse } from "@/lib/server/after-response";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -203,7 +204,7 @@ export async function GET(request: Request) {
       event_type: "insight_generated",
       new_value: { model: MODEL },
     });
-    void recordAiUsageEstimate(ticket.tenant_id ?? DEFAULT_AI_TENANT_ID);
+    afterResponse(() => recordAiUsageEstimate(ticket.tenant_id ?? DEFAULT_AI_TENANT_ID));
     generated += 1;
   }
 

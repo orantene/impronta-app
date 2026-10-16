@@ -15,7 +15,7 @@ describe("484: an unresolved offer currency asks for one instead of dead-ending"
     const b = rd("../../components/admin/shell/internal/messages/shared/machinery-11.tsx");
     const btn = b.slice(b.indexOf("export function CreateOfferButton"));
     assert.match(btn, /r\.code === "offer_currency_unresolved"[\s\S]{0,60}setChooseCurrency\(true\)/);
-    assert.match(btn, /\["MXN", "USD"\]/);
+    assert.match(btn, /TALENT_CHARGEABLE_CURRENCY_OPTIONS\.map/);
     assert.match(btn, /createOfferAction\(effectiveTenant\.slug, inquiryId, currencyCode\)/);
     // Classes, never inline styles (the gate's inline-style freeze).
     const chooser = btn.slice(btn.indexOf("data-offer-currency-chooser"), btn.indexOf("data-offer-currency-chooser") + 700);

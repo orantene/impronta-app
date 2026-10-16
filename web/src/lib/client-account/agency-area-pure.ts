@@ -5,6 +5,7 @@
 
 import type { ClientAccountHostKind } from "./flag";
 import { isClientAccountEligible } from "./pure";
+import { accountReturnPath } from "./return-to";
 
 /**
  * Host contexts the proxy sets (`x-impronta-host-context`) that can show the
@@ -108,17 +109,16 @@ export function agencyAccountTabs(input: {
 }
 
 /**
- * Title and brand for the sign-in page. With the flag on and a whitelabel
- * agency or hub host, the page wears the tenant's own name; otherwise it stays
- * the platform brand exactly as before (`null` means "leave metadata as is").
+ * Title and brand for the sign-in page. On a whitelabel agency or hub host the
+ * page wears the tenant's own name, whatever CLIENT_ACCOUNT_HOSTS says (the flag
+ * gates the account area, not a brand leak); otherwise it stays the platform
+ * brand (`null` means "leave metadata as is").
  */
 export function authPageBrand(input: {
-  flagOn: boolean;
   hostKind: string | null | undefined;
   whitelabel: boolean;
   publicName: string | null | undefined;
 }): { title: string } | null {
-  if (!input.flagOn) return null;
   if (input.hostKind !== "agency" && input.hostKind !== "hub") return null;
   if (!input.whitelabel) return null;
   const name = (input.publicName ?? "").trim();
@@ -137,11 +137,22 @@ export function accountHrefFor(hostKind: string | null | undefined, appUrl: stri
 }
 
 /**
+ * `?next=` for the signed-out bounce from the workspace client shell. On the
+ * agency's own host the host already names the workspace, so the branded
+ * `/client` is the URL (the proxy serves it); `/<slug>/client` would put the
+ * slug in the address bar. Every other host keeps the slug path.
+ */
+export function clientLoginNext(hostContext: string | null | undefined, slug: string): string {
+  return hostContext === "agency" ? "/client" : `/${slug}/client`;
+}
+
+/**
  * Signed-out client entry for a path-addressed workspace site
  * (`tulala.digital/w/<slug>`). Those pages are served on the marketing host,
  * which has no client account surface of its own, so the entry points at the
- * app host's existing client sign-in. `next` is app-host relative (a sign-in
- * cannot carry a cross-host return), so a signed-in client lands on /account.
+ * app host's existing client sign-in. `next` stays app-host relative: it is
+ * `/account/return?to=<site path>`, which sends the signed-in client back to
+ * the site they came from through the allow-listed return-to (TUL-709).
  * Null for every other host or path: those keep their normal login link.
  */
 export function pathWorkspaceClientSignInHref(input: {
@@ -152,5 +163,25 @@ export function pathWorkspaceClientSignInHref(input: {
   if (input.hostKind !== "marketing") return null;
   if (!/^\/w\/[^/]+/.test(input.pathname)) return null;
   const base = input.appUrl.trim().replace(/\/$/, "");
-  return `${base}/login?as=client&next=${encodeURIComponent("/account")}`;
+  return `${base}/login?as=client&next=${encodeURIComponent(accountReturnPath(input.pathname))}`;
+}
+
+/**
+ * TUL-870: the head fields that still said "Tulala" on a whitelabel agency's
+ * login (description, og:site_name, og:title, apple-mobile-web-app title).
+ * Pure: the caller spreads it into Next metadata.
+ */
+export function authBrandHead(name: string, locale: string): {
+  description: string;
+  openGraph: { siteName: string; title: string; description: string };
+  twitter: { title: string; description: string };
+  appleWebApp: { capable: true; title: string; statusBarStyle: "default" };
+} {
+  const description = locale === "es" ? `Inicia sesión en ${name}.` : `Sign in to ${name}.`;
+  return {
+    description,
+    openGraph: { siteName: name, title: name, description },
+    twitter: { title: name, description },
+    appleWebApp: { capable: true, title: name, statusBarStyle: "default" },
+  };
 }

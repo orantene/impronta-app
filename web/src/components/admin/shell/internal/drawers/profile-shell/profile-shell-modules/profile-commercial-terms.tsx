@@ -33,6 +33,7 @@ import {
 } from "@/lib/billing/commercial-terms-types";
 import { useT } from "@/i18n/use-t";
 import { COLORS, FONTS, useDashboardText } from "../../drawer-shared";
+import { useAdminShellOptional } from "../../../state";
 
 const REFUND_KEYS: RefundPolicyKey[] = ["tiered", "flexible", "strict", "manual"];
 
@@ -67,6 +68,9 @@ export function CommercialTermsEditor({
 }) {
   const t = useT();
   const copy = useDashboardText();
+  // No agencies on the talent workspace: nothing to fall back to (TUL-721).
+  const shell = useAdminShellOptional();
+  const solo = shell?.bridgeTalentAgencies != null && shell.bridgeTalentAgencies.length === 0;
   const [terms, setTerms] = React.useState<TalentBookingTerms>(EMPTY);
   const [rateInput, setRateInput] = React.useState("");
   const [depositInput, setDepositInput] = React.useState("");
@@ -233,7 +237,7 @@ export function CommercialTermsEditor({
         <span style={{ fontSize: 11 }} className="text-admin-ink-muted">
           {terms.refundPolicy
             ? t(REFUND_POLICY_DESCRIPTION_KEYS[terms.refundPolicy])
-            : copy.t("Falls back to the agency's policy.")}
+            : copy.t(solo ? "Each offer sets its own refund terms." : "Falls back to the agency's policy.")}
         </span>
       </label>
 
@@ -249,7 +253,7 @@ export function CommercialTermsEditor({
         <span>
           <span className="text-admin-ink text-admin-12 font-semibold">{copy.t("Open to instant booking")}</span>
           <span style={{ display: "block", fontSize: 11, marginTop: 1, lineHeight: 1.45 }} className="text-admin-ink-muted">
-            {copy.t("Signals the talent is happy to be booked without a back-and-forth. Whether instant-book is offered still depends on the agency and project.")}
+            {copy.t(solo ? "Signals the talent is happy to be booked without a back-and-forth. Whether instant-book is offered still depends on the project." : "Signals the talent is happy to be booked without a back-and-forth. Whether instant-book is offered still depends on the agency and project.")}
           </span>
         </span>
       </label>

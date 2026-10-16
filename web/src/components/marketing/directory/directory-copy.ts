@@ -194,7 +194,7 @@ export const DIRECTORY_COPY_ES: DirectoryCopy = {
   standingTitle: (bookings) => `Reputación verificada de ${bookings} reservas completadas`,
   independent: "Independiente",
   exclusiveSuffix: "exclusivo",
-  openDays: (days) => `Disponible ${days} de los próximos 30 días`,
+  openDays: (days) => `Disp. ${days} de 30 días`,
   availabilityOnRequest: "Disponibilidad a consultar",
   availabilityUnknown: "Disponibilidad sin confirmar, consulta antes",
   mapUnavailableTitle: "El mapa no está disponible",

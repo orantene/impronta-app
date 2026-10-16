@@ -240,6 +240,19 @@ export function CardFeatureToggles({
       </div>
       <div className="mt-[10px]">
         <ToggleRow
+          label={t("dashboard.adminCardStudio2.showPromoBadgesLabel")}
+          hint={t("dashboard.adminCardStudio2.showPromoBadgesHint")}
+          on={readTemplateToken("directory.card.show-talent-promo-badges") === "on"}
+          onChange={
+            canEdit
+              ? (v) => setTemplateToken("directory.card.show-talent-promo-badges", v ? "on" : "off")
+              : undefined
+          }
+          disabled={!canEdit}
+        />
+      </div>
+      <div className="mt-[10px]">
+        <ToggleRow
           label={t("dashboard.adminCardStudio2.showQuickViewLabel")}
           hint={t("dashboard.adminCardStudio2.showQuickViewHint")}
           on={readTemplateToken("directory.card.show-quick-view") !== "off"}

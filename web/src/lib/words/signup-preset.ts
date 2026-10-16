@@ -44,6 +44,15 @@ const KEYWORD_PRESETS: ReadonlyArray<{
   readonly words: readonly string[];
   readonly presetId: IndustryPresetId;
 }> = [
+  // Pet grooming BEFORE the salon row: "peluquería canina" contains "peluquería".
+  {
+    words: [
+      "pet grooming", "dog grooming", "groomer", "grooming", "peluqueria canina",
+      "peluquería canina", "estetica canina", "estética canina", "peluqueria de mascotas",
+      "peluquería de mascotas",
+    ],
+    presetId: "pet_grooming",
+  },
   // Salon and spa BEFORE shop, for "barber shop".
   {
     words: [
@@ -107,7 +116,8 @@ const KEYWORD_PRESETS: ReadonlyArray<{
 
 /** Same normalisation as `signup-design-pick`, so the two read alike. */
 function normalizeHaystack(description: string): string {
-  return ` ${description.toLowerCase().replace(/[^a-z0-9áéíóúüñ]+/gi, " ")} `;
+  // "Playa del Carmen" is a city, not a beach club: a cafetería there is a restaurant.
+  return ` ${description.toLowerCase().replace(/playa del carmen/g, " ").replace(/[^a-z0-9áéíóúüñ]+/gi, " ")} `;
 }
 
 function hasWord(haystack: string, word: string): boolean {

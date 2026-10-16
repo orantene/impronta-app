@@ -24,6 +24,7 @@ import type Stripe from "stripe";
 import { getStripeFor, getStripeMxPublishableKey, type StripeAccountKey } from "@/lib/stripe/client";
 import { recordChargePlatform, resolveSellerPlatformForTransaction } from "@/lib/stripe/charge-platform";
 import { checkTransactionChargeCurrency, type ChargeCurrencyGuard } from "@/lib/payments/seller-currency-guard";
+import { checkTransactionConnectedAccount } from "@/lib/payments/connected-account-guard";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { paymentsMockAllowed } from "@/lib/payments/mock-guard";
 import { logServerError } from "@/lib/server/safe-error";
@@ -117,6 +118,15 @@ export async function createPaymentIntentForTransaction(
     // on the client. If either key is absent we mock — a real PaymentIntent
     // with no publishable key would strand the client on a config error.
     const hasPublishableKey = !!publishableKey;
+    // TUL-483: same read-only connected-account check as hosted Checkout.
+    // Injected clients (tests) skip it, matching the currency guard above.
+    if (stripe && hasPublishableKey && deps.stripe === undefined && !deps.platform) {
+      const acct = await checkTransactionConnectedAccount(createServiceRoleClient(), (id) => stripe.accounts.retrieve(id), input.transactionId);
+      if (!acct.ok) {
+        logServerError("payments.stripe.connectedAccountRefused", `transaction ${input.transactionId}: ${acct.code}`);
+        return { ok: false, error: acct.message };
+      }
+    }
     if ((!stripe || !hasPublishableKey) && !paymentsMockAllowed()) {
       logServerError("payments.stripe.mockRefused", `Stripe keys missing in production; refusing mock payment intent (transaction ${input.transactionId})`);
       return { ok: false, error: "Payments are not configured." };

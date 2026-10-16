@@ -40,12 +40,35 @@ export const DEFAULT_CURRENCY_OPTIONS = [
 export type DefaultCurrencyCode = (typeof DEFAULT_CURRENCY_OPTIONS)[number];
 
 /**
- * What a TALENT may price an offering in (owner ruling 2026-09-23): pesos for
- * the Mexican market, dollars for everything else. A peso price is shown with
- * its dollar equivalent (lib/pricing/usd-equivalent.ts). Workspace menus keep
- * the full list above.
+ * What a TALENT may price an offering in (owner ruling 2026-09-23, widened by
+ * Oran's TUL-654 list): pesos and dollars first, then GBP, CAD, EUR, CHF
+ * (AUD/ARS/COP wait for a confirmed payout route). A non-dollar price is shown
+ * with its dollar equivalent (lib/pricing/usd-equivalent.ts). This is the
+ * PRICING and DISPLAY currency only: the live charge path is still MXN/USD,
+ * enforced by LANE_CURRENCIES in payments/seller-currency-guard.ts. Workspace
+ * menus keep the full list above.
  */
-export const TALENT_CURRENCY_OPTIONS = ["MXN", "USD"] as const satisfies readonly DefaultCurrencyCode[];
+export type TalentCurrencyCode = DefaultCurrencyCode | "CHF";
+
+// CHF is talent-pricing only: kept out of DEFAULT_CURRENCY_OPTIONS so the
+// marketing currency picker and the platform tier-price admin do not offer a
+// currency that has no tier prices.
+/** The full approved list (Oran, TUL-654): live only once checkout can settle each code. */
+export const TALENT_LOCAL_CURRENCY_OPTIONS = ["MXN", "USD", "GBP", "CAD", "EUR", "CHF"] as const satisfies readonly TalentCurrencyCode[];
+
+/** Option (a): MXN and USD only, because the charge lanes settle only those (LANE_CURRENCIES). */
+export const TALENT_CHARGEABLE_CURRENCY_OPTIONS = ["MXN", "USD"] as const satisfies readonly TalentCurrencyCode[];
+
+/**
+ * The picker and the server gate share one list. Default is MXN/USD: a talent
+ * who priced in EUR would be refused at checkout (seller-currency-guard), a dead
+ * end for the client. Set NEXT_PUBLIC_TALENT_LOCAL_CURRENCIES=1 to open the full
+ * approved list once checkout supports it.
+ */
+export const TALENT_CURRENCY_OPTIONS: readonly TalentCurrencyCode[] =
+  process.env.NEXT_PUBLIC_TALENT_LOCAL_CURRENCIES === "1"
+    ? TALENT_LOCAL_CURRENCY_OPTIONS
+    : TALENT_CHARGEABLE_CURRENCY_OPTIONS;
 
 /** Server gate for a talent-owned offering's currency (the picker is only the UI gate). */
 export function isTalentCurrency(candidate: unknown): boolean {
@@ -54,7 +77,7 @@ export function isTalentCurrency(candidate: unknown): boolean {
 }
 
 /** Human-readable labels for the picker — symbol + ISO code + country/region. */
-export const CURRENCY_LABELS: Record<DefaultCurrencyCode, string> = {
+export const CURRENCY_LABELS: Record<TalentCurrencyCode, string> = {
   EUR: "EUR · € · Euro",
   USD: "USD · $ · US Dollar",
   GBP: "GBP · £ · British Pound",
@@ -66,6 +89,7 @@ export const CURRENCY_LABELS: Record<DefaultCurrencyCode, string> = {
   PEN: "PEN · S/ · Peruvian Sol",
   CAD: "CAD · $ · Canadian Dollar",
   AUD: "AUD · $ · Australian Dollar",
+  CHF: "CHF · CHF · Swiss Franc",
 };
 
 /**
@@ -74,7 +98,7 @@ export const CURRENCY_LABELS: Record<DefaultCurrencyCode, string> = {
  * tools); this swaps only the trailing currency NAME via Intl.DisplayNames, and
  * returns the English label untouched for English or when Intl cannot name it.
  */
-export function localizedCurrencyLabel(code: DefaultCurrencyCode, locale: string): string {
+export function localizedCurrencyLabel(code: TalentCurrencyCode, locale: string): string {
   const english = CURRENCY_LABELS[code];
   const lang = locale.trim().toLowerCase().split("-")[0];
   if (!lang || lang === "en") return english;

@@ -19,8 +19,9 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { SaveBookingsBlock } from "@/components/client-account/SaveBookingsBlock";
 import { GuestOfferSignIn } from "@/app/t/[profileCode]/_chat/GuestOfferSignIn";
-import { translatorFor } from "@/i18n/use-t";
+import { translatorFor } from "@/i18n/translator-for";
 import type { MessagingRefusal, ThreadMessage } from "@/lib/messaging/types";
 import type { ClientOfferSummary } from "@/lib/messages-v5/client-thread-view";
 import { payLinkTarget } from "@/lib/payments/pay-link-target";
@@ -323,6 +324,7 @@ export function ClientThread(props: ClientThreadProps) {
       offerAcceptLabel={requireSignInToAccept ? signInToAcceptLabel : undefined}
       offerSignInOfferId={signInOffer?.id ?? null}
       offerSignInPanel={offerSignInPanel}
+      saveBookingsSlot={<SaveBookingsBlock locale={props.locale} signedIn={clientSignedIn} />}
     />
   );
 }

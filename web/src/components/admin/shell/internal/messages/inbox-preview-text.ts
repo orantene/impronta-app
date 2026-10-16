@@ -10,11 +10,21 @@
  * then prefixes "Impronta: " and the English body was left verbatim.
  */
 
+import {
+  INBOX_PREVIEW_AWAITING,
+  INBOX_PREVIEW_BOOKED,
+  INBOX_PREVIEW_BOOKED_LEGACY,
+  INBOX_PREVIEW_CLOSED,
+} from "./inbox-generated-previews";
+
 export type PreviewSender = "you" | "coordinator" | "client" | "agency" | "system" | string;
 
 /** Catalog English keys the talent adapter invents when there is no real last message. */
-const SYNTHETIC_PREVIEWS = new Set([
-  "Awaiting your response.",
+const SYNTHETIC_PREVIEWS = new Set<string>([
+  INBOX_PREVIEW_AWAITING,
+  INBOX_PREVIEW_BOOKED,
+  INBOX_PREVIEW_BOOKED_LEGACY,
+  INBOX_PREVIEW_CLOSED,
   "Booking confirmed. Check logistics tab.",
 ]);
 

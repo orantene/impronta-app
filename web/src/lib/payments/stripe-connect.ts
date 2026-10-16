@@ -36,7 +36,8 @@ import { resolveStripeAccountForSeller } from "@/lib/stripe/account-routing";
 import { loadAccountPlatform } from "@/lib/stripe/account-platform";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { normalizePayoutCountry, payoutCountryLabel, requiresRecipientAgreement } from "@/lib/payments/payout-countries";
+import { normalizePayoutCountry, payoutCountryLabel } from "@/lib/payments/payout-countries";
+import { connectAccountTermsFor, MX_PLATFORM_UNCONFIGURED, payoutCountryRefusalCode } from "@/lib/payments/connect-account-setup";
 
 export type ConnectAccountStatus =
   | "none"
@@ -206,10 +207,13 @@ export async function createOrGetConnectedAccount(
     return { ok: true, data: { stripeAccountId: agency.stripeAccountId } };
   }
 
+  // TUL-1052: refuse a known country that is not live yet (clear coming-soon error).
+  const refusal = payoutCountryRefusalCode(opts.country);
+  if (refusal) return { ok: false, error: refusal };
   const country = normalizePayoutCountry(opts.country) ?? PLATFORM_DEFAULT_COUNTRY;
   // MX workspaces are created on the Mexico platform account.
   const platform = resolveStripeAccountForSeller({ payoutCountry: country });
-  if (!platform) return { ok: false, error: "Mexico payments are not configured yet." };
+  if (!platform) return { ok: false, error: MX_PLATFORM_UNCONFIGURED };
   const stripe = getStripeFor(platform);
   if (!stripe) return { ok: false, error: "Stripe is not configured." };
 
@@ -218,7 +222,8 @@ export async function createOrGetConnectedAccount(
     // workspace) can take its commission but can't be a card merchant, so we
     // request transfers only and accept the recipient service agreement.
     // Full-service countries keep card_payments so the agency could charge.
-    const recipientOnly = requiresRecipientAgreement(country);
+    // TUL-739: cross-border only; an MX agency on the MX platform is domestic.
+    const recipientOnly = connectAccountTermsFor(country, platform).recipientAgreement;
     const account = await stripe.accounts.create({
       type: "express",
       country,
@@ -277,7 +282,7 @@ export async function createOrGetConnectedAccount(
     // Most commonly: Stripe doesn't support Connect payouts in `country` yet.
     return {
       ok: false,
-      error: `Payouts aren't available in ${payoutCountryLabel(country)} yet — we're expanding coverage.`,
+      error: `We can't switch on payouts in ${payoutCountryLabel(country)} yet. Please contact support and we will help.`,
     };
   }
 }

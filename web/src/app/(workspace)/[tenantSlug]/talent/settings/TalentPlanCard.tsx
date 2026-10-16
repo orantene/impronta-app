@@ -26,6 +26,9 @@
 
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
+import { TalentCancelBlock } from "./TalentCancelBlock";
+import { isLiveTalentSubscriptionStatus } from "@/lib/billing/talent-cancel";
+import { usePresenceText } from "@/components/talent/studio/presence-i18n";
 import {
   loadTalentPlanSummary,
   type TalentPlanSummary,
@@ -64,11 +67,11 @@ type LoadState =
   | { status: "loaded"; data: TalentPlanSummary }
   | { status: "error"; error: string };
 
-function fmtDate(iso: string | null): string | null {
+function fmtDate(iso: string | null, es: boolean): string | null {
   if (!iso) return null;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  return d.toLocaleDateString(es ? "es-MX" : "en-US", { year: "numeric", month: "long", day: "numeric" });
 }
 
 /** Small filled CTA used inside the trial / promo blocks. */
@@ -128,6 +131,7 @@ function TrialStateBlock({
   trial: NonNullable<TalentPlanSummary["trial"]>;
   onUpgrade: () => void;
 }) {
+  const { es, t } = usePresenceText();
   const { phase } = trial;
   if (phase !== "active" && phase !== "expiring" && phase !== "expired") return null;
   const expired = phase === "expired";
@@ -137,31 +141,39 @@ function TrialStateBlock({
   const accent = expired ? C.royal : expiring ? C.slate : C.success;
   const pct = Math.max(0, Math.min(100, Math.round(trial.pct * 100)));
 
+  const granted = t(trial.grantedPlanLabel);
+  const base = t(trial.basePlanLabel);
   const heading = expired
-    ? `${trial.grantedPlanLabel} trial ended`
-    : `Free trial · ${trial.grantedPlanLabel}`;
+    ? es ? `Prueba de ${granted} terminada` : `${trial.grantedPlanLabel} trial ended`
+    : es ? `Prueba gratis · ${granted}` : `Free trial · ${trial.grantedPlanLabel}`;
 
   const countdown = expired
     ? trial.daysSinceExpiry <= 0
-      ? "Ended today"
+      ? t("Ended today")
       : trial.daysSinceExpiry === 1
-        ? "Ended yesterday"
-        : `Ended ${trial.daysSinceExpiry} days ago`
+        ? t("Ended yesterday")
+        : es ? `Terminó hace ${trial.daysSinceExpiry} días` : `Ended ${trial.daysSinceExpiry} days ago`
     : trial.daysLeft <= 0
-      ? "Ends today"
+      ? t("Ends today")
       : trial.daysLeft === 1
-        ? "1 day left"
-        : `${trial.daysLeft} days left`;
+        ? t("1 day left")
+        : es ? `${trial.daysLeft} días restantes` : `${trial.daysLeft} days left`;
 
   const blurb = expired
-    ? `You're back on ${trial.basePlanLabel}. Your page and data are safe — bring back ${trial.grantedPlanLabel} anytime.`
+    ? es
+      ? `Volviste a ${base}. Tu página y tus datos están a salvo. Recupera ${granted} cuando quieras.`
+      : `You're back on ${trial.basePlanLabel}. Your page and data are safe, bring back ${trial.grantedPlanLabel} anytime.`
     : expiring
-      ? `Upgrade to keep ${trial.grantedPlanLabel} when your trial ends.`
-      : `Enjoying ${trial.grantedPlanLabel}? Upgrade anytime to keep it.`;
+      ? es
+        ? `Mejora tu plan para conservar ${granted} cuando termine tu prueba.`
+        : `Upgrade to keep ${trial.grantedPlanLabel} when your trial ends.`
+      : es
+        ? `¿Te gusta ${granted}? Mejora tu plan cuando quieras para conservarlo.`
+        : `Enjoying ${trial.grantedPlanLabel}? Upgrade anytime to keep it.`;
 
   const ctaLabel = expired
-    ? `Restore ${trial.grantedPlanLabel}`
-    : `Keep ${trial.grantedPlanLabel}`;
+    ? es ? `Recuperar ${granted}` : `Restore ${trial.grantedPlanLabel}`
+    : es ? `Conservar ${granted}` : `Keep ${trial.grantedPlanLabel}`;
 
   return (
     <div style={{ marginTop: 12, padding: "12px 13px", background: bg, border: `1px solid ${C.borderSoft}`, borderRadius: 10 }}>
@@ -182,19 +194,20 @@ function TrialStateBlock({
 
 /** Platform-granted comp / gift block (indigo) — an active non-trial grant. */
 function OverrideBlock({ override }: { override: NonNullable<TalentPlanSummary["override"]> }) {
+  const { es, t } = usePresenceText();
   return (
     <div style={{ marginTop: 12, padding: "11px 13px", background: C.indigoSoft, border: `1px solid ${C.borderSoft}`, borderRadius: 10 }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: C.indigoDeep, marginBottom: 3 }}>Plan gift active</div>
+      <div style={{ fontSize: 12, fontWeight: 700, color: C.indigoDeep, marginBottom: 3 }}>{t("Plan gift active")}</div>
       <div style={{ fontSize: 12, color: C.ink, lineHeight: 1.45 }}>
-        {override.overridePlanLabel}
+        {t(override.overridePlanLabel)}
         {override.basePlanKey !== override.overridePlanKey && (
-          <span style={{ color: C.inkMuted }}> (base: {override.basePlanLabel})</span>
+          <span style={{ color: C.inkMuted }}> (base: {t(override.basePlanLabel)})</span>
         )}
       </div>
       <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 2 }}>
-        {override.expiresAt && fmtDate(override.expiresAt)
-          ? `Until ${fmtDate(override.expiresAt)}`
-          : "No expiry"}
+        {override.expiresAt && fmtDate(override.expiresAt, es)
+          ? `${es ? "Hasta el" : "Until"} ${fmtDate(override.expiresAt, es)}`
+          : t("No expiry")}
       </div>
       {override.reason && (
         <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 4, fontStyle: "italic", lineHeight: 1.4 }}>
@@ -213,15 +226,16 @@ function PromoBlock({
   offer: NonNullable<TalentPlanSummary["upgradeOffer"]>;
   onUpgrade: () => void;
 }) {
+  const { es, t } = usePresenceText();
   return (
     <div style={{ marginTop: 12, padding: "12px 13px", background: C.royalSoft, border: `1px solid ${C.borderSoft}`, borderRadius: 10 }}>
       <div style={{ fontSize: 13, fontWeight: 700, color: C.royalDeep, lineHeight: 1.3 }}>
-        {offer.ctaHeadline ?? `Try ${offer.planLabel} free`}
+        {offer.ctaHeadline ?? (es ? `Prueba ${t(offer.planLabel)} gratis` : `Try ${offer.planLabel} free`)}
       </div>
       {offer.ctaSubtext && (
         <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 3, lineHeight: 1.45 }}>{offer.ctaSubtext}</div>
       )}
-      <BlockCta label={`Start ${offer.planLabel} trial`} tone="accent" onClick={onUpgrade} />
+      <BlockCta label={es ? `Empezar prueba de ${t(offer.planLabel)}` : `Start ${offer.planLabel} trial`} tone="accent" onClick={onUpgrade} />
     </div>
   );
 }
@@ -236,11 +250,14 @@ export function TalentPlanCard({
   onUpgrade: () => void;
 }) {
   const copy = useDashboardText();
+  const { t: tx } = usePresenceText();
   const [load, setLoad] = useState<LoadState>({ status: "loading" });
   const startedRef = useRef(false);
 
+  const [reloadTick, setReloadTick] = useState(0);
+
   useEffect(() => {
-    if (startedRef.current) return;
+    if (startedRef.current && reloadTick === 0) return;
     startedRef.current = true;
     let cancelled = false;
     loadTalentPlanSummary()
@@ -253,13 +270,13 @@ export function TalentPlanCard({
         if (cancelled) return;
         setLoad({
           status: "error",
-          error: err instanceof Error ? err.message : "Could not load your plan.",
+          error: err instanceof Error ? err.message : copy.isSpanish ? "No se pudo cargar tu plan." : "Could not load your plan.",
         });
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadTick]);
 
   const cardShell: CSSProperties = {
     width: "100%",
@@ -288,7 +305,7 @@ export function TalentPlanCard({
             }}
           />
           <style>{`@keyframes talent-plan-spin { to { transform: rotate(360deg); } }`}</style>
-          Loading your plan…
+          {tx("Loading your plan…")}
         </div>
       </div>
     );
@@ -369,6 +386,19 @@ export function TalentPlanCard({
       {showOverride && <OverrideBlock override={data.override!} />}
       {showPromo && <PromoBlock offer={data.upgradeOffer!} onUpgrade={onUpgrade} />}
 
+      {/* TUL-832: cancel / resume for a live paid subscription */}
+      {data.subscription &&
+        data.planKey !== "talent_basic" &&
+        isLiveTalentSubscriptionStatus(data.subscription.status) && (
+          <TalentCancelBlock
+            es={copy.isSpanish}
+            cancelAtPeriodEnd={data.subscription.cancelAtPeriodEnd}
+            currentPeriodEnd={data.subscription.currentPeriodEnd}
+            onCompare={onCompare}
+            onChanged={() => setReloadTick((n) => n + 1)}
+          />
+        )}
+
       {/* Footer — always offer Compare plans */}
       <button
         type="button"
@@ -394,7 +424,7 @@ export function TalentPlanCard({
         onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(24,24,27,0.06)")}
         onMouseLeave={(e) => (e.currentTarget.style.background = C.surface)}
       >
-        Compare plans
+        {tx("Compare plans")}
         <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden>
           <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         </svg>

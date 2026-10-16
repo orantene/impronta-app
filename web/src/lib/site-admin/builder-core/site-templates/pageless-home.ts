@@ -43,14 +43,70 @@ export function foldComponentsForPagelessHome(components: Map<SlotId, BuilderNod
   return out;
 }
 
+/** Inner pages a Look links to that a page-less tenant does not have (TUL-697). */
+const UNSERVED_INNER_PAGE = /^\/(services|about|gallery|contact)$/;
+
+function isUnservedLink(v: unknown): boolean {
+  if (!v || typeof v !== "object") return false;
+  const o = v as { href?: unknown; props?: { href?: unknown } };
+  const href = typeof o.href === "string" ? o.href : typeof o.props?.href === "string" ? o.props.href : null;
+  return href !== null && UNSERVED_INNER_PAGE.test(href);
+}
+
+/**
+ * Drop every link, button and CTA that points at an inner page nothing serves:
+ * those answered 404 for a signed-out visitor. `/book` and external links stay.
+ * Pure; returns a new tree.
+ */
+export function pruneUnservedInnerLinks<T>(node: T): T {
+  if (Array.isArray(node)) return node.filter((n) => !isUnservedLink(n)).map(pruneUnservedInnerLinks) as T;
+  if (!node || typeof node !== "object") return node;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+    if (isUnservedLink(v)) continue;
+    out[k] = pruneUnservedInnerLinks(v);
+  }
+  return out as T;
+}
+
+/** Plain text of a node's `text` prop (inline `{b}` / `<b>` markup removed). */
+function plainText(node: unknown): string {
+  const t = (node as { props?: { text?: unknown } } | null)?.props?.text;
+  return typeof t === "string" ? t.replace(/\{\/?[a-z]\}|<\/?[a-z]+>/gi, "").trim() : "";
+}
+
+/**
+ * TUL-885: the page-less home is wrapped in the platform's own header and footer
+ * (`PublicHeader` / `PublicFooter`), and the platform footer already prints the
+ * single "© {brand}" line and the legal links. The Look's footer band therefore
+ * must not repeat them: its "©" paragraph is dropped (one copyright line), and
+ * its `nav` is dropped (the same `navNode()` as the header, so on a phone it
+ * collapsed into a second hamburger; a menu belongs in the header only).
+ * The rest of the band (headline, tagline, socials) stays. Pure; returns a new tree.
+ */
+export function stripPagelessFooterChrome<T>(nodes: readonly T[]): T[] {
+  const out: T[] = [];
+  for (const raw of nodes) {
+    const n = raw as unknown as { kind?: unknown; children?: unknown };
+    if (n && n.kind === "nav") continue;
+    if (n && n.kind === "paragraph" && plainText(raw).startsWith("©")) continue;
+    if (n && Array.isArray(n.children)) {
+      out.push({ ...(n as object), children: stripPagelessFooterChrome(n.children as unknown[]) } as T);
+    } else {
+      out.push(raw);
+    }
+  }
+  return out;
+}
+
 export type PagelessHomeInput = Omit<InstantiateSiteInput, "components"> & { typeId: string; ctx: ComponentContext };
 
-/** Header + home (with the type's components folded in) + footer, or null when
+/** Header + home (with the type's components folded in) + footer (minus its © line and nav, TUL-885), or null when
  *  the validator refuses the tree (image gaps are tolerated). */
 export function composePagelessHome(input: PagelessHomeInput): { tree: BuilderNodeTree | null; issues: string[] } {
   const { typeId, ctx, ...rest } = input;
   const site = instantiateSite({ ...rest, components: foldComponentsForPagelessHome(buildComponentsForType(typeId, ctx)) });
   // A validator issue means this tree must not reach a visitor; image gaps are tolerated.
   if (site.issues.some((i) => !/image slot .* unresolved/.test(i))) return { tree: null, issues: site.issues };
-  return { tree: [...site.shell.header, ...site.pages.home, ...site.shell.footer], issues: site.issues };
+  return { tree: pruneUnservedInnerLinks([...site.shell.header, ...site.pages.home, ...stripPagelessFooterChrome(site.shell.footer)]), issues: site.issues };
 }

@@ -276,6 +276,7 @@ const DATA_ATTR_NAMES: Readonly<Record<string, string>> = {
   "directory.card.show-destination-ready-ribbon":
     "data-token-card-ribbon",
   "directory.card.show-starting-from-price": "data-token-card-price",
+  "directory.card.show-talent-promo-badges": "data-token-card-promo-badges",
   "directory.card.style": "data-token-card-style",
   "directory.card.aspect": "data-token-card-aspect",
   "directory.card.hover": "data-token-card-hover",

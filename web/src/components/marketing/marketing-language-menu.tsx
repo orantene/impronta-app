@@ -94,7 +94,8 @@ export function MarketingLanguageMenu({
     <div ref={ref} className={cn("relative", className)}>
       <button
         type="button"
-        aria-label={label}
+        // The visible text is the active locale code, so the name starts with it (WCAG 2.5.3, TUL-1084).
+        aria-label={`${activeLocale.toUpperCase()} ${label}`}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
@@ -106,7 +107,7 @@ export function MarketingLanguageMenu({
         {/* The active locale stays visible so the current language is legible
             without opening the menu. Uppercase, quiet, never a second CTA. */}
         <span className="text-[0.6875rem] font-semibold uppercase leading-none tracking-[0.06em]">
-          {activeLocale}
+          {activeLocale.toUpperCase()}
         </span>
       </button>
 

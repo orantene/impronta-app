@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadAccountPlatform, loadAccountPlatformStrict } from "./account-platform";
+import { resolveNoReceiverTalentLane } from "./no-receiver-lane";
 import { decideLegPlatform, normalizeStripePlatform, type LegPlatformDecision, type StripeAccountKey } from "./account-routing";
 
 /** Release/retry guard for a held leg: its booking's charge platform vs the recipient's account platform. */
@@ -90,11 +91,11 @@ async function resolveSellerPlatformUnsafe(
   if (!sb) return null;
   const { data: txn, error } = await sb
     .from("booking_transactions")
-    .select("source_tenant_id, payout_receiver_id")
+    .select("source_tenant_id, payout_receiver_id, order_id")
     .eq("id", transactionId)
     .maybeSingle();
   if (error || !txn) return null;
-  const t = txn as { source_tenant_id?: string | null; payout_receiver_id?: string | null };
+  const t = txn as { source_tenant_id?: string | null; payout_receiver_id?: string | null; order_id?: string | null };
   if (t.payout_receiver_id) {
     const { data: pa, error: paErr } = await sb
       .from("payout_accounts")
@@ -110,6 +111,10 @@ async function resolveSellerPlatformUnsafe(
       return loadAccountPlatformStrict("agencies", { column: "id", value: p.owner_id }, sb);
     }
   }
+  // TUL-703: no receiver; an MXN-default talent seller routes to mx when the MX key is set.
+  const noReceiver = await resolveNoReceiverTalentLane(sb, t.order_id);
+  if (!noReceiver.ok) return null;
+  if (noReceiver.lane) return noReceiver.lane;
   if (t.source_tenant_id) return loadAccountPlatformStrict("agencies", { column: "id", value: t.source_tenant_id }, sb);
   return "us";
 }

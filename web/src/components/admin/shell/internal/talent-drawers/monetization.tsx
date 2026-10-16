@@ -11,7 +11,11 @@
 import { useState } from "react";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
-import { COLORS, EARNINGS_ROWS, FONTS, useAdminShell } from "../state";
+import { COLORS, FONTS, useAdminShell } from "../state";
+import { useResolvedTalentEarningsByCurrency } from "@/components/talent/money/use-resolved-talent-earnings-by-currency";
+import { primaryBundleOrEmpty } from "@/lib/talent/earnings-by-currency-types";
+import { formatMoneyCents } from "@/lib/talent/earnings-view";
+import { taxDocsView } from "./tax-docs-view";
 import {
   Divider,
   DrawerShell,
@@ -254,15 +258,7 @@ export function TalentTaxDocsDrawer() {
   const { state, closeDrawer } = useAdminShell();
   const t = useT();
   const open = state.drawer.drawerId === "talent-tax-docs";
-  const yearTotal = EARNINGS_ROWS.reduce((sum, e) => {
-    const num = parseFloat(e.amount.replace(/[^0-9.]/g, "")) || 0;
-    return sum + num;
-  }, 0);
-  const platformTotal = EARNINGS_ROWS
-    .filter((e) => e.source.kind !== "manual")
-    .reduce((sum, e) => sum + (parseFloat(e.amount.replace(/[^0-9.]/g, "")) || 0), 0);
-  const offPlatformTotal = yearTotal - platformTotal;
-
+  const view = taxDocsView(primaryBundleOrEmpty(useResolvedTalentEarningsByCurrency()));
   return (
     <DrawerShell
       open={open}
@@ -272,25 +268,18 @@ export function TalentTaxDocsDrawer() {
       width={580}
       footer={<SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>}
     >
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
-          gap: 8,
-          marginBottom: 16,
-        }}
-      >
-        <SummaryStat label={interpolate(t("dashboard.talentDrawers.monetization.taxYearTotal"), { year: 2026 })} value={`€${yearTotal.toLocaleString()}`} accent="ink" />
-        <SummaryStat label={t("dashboard.talentDrawers.monetization.taxPlatform")} value={`€${platformTotal.toLocaleString()}`} accent="green" />
-        <SummaryStat label={t("dashboard.talentDrawers.monetization.taxOffPlatform")} value={`€${offPlatformTotal.toLocaleString()}`} accent="amber" />
-      </div>
+      {view.empty ? null : (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8, marginBottom: 16 }}>
+          <SummaryStat label={interpolate(t("dashboard.talentDrawers.monetization.taxYearTotal"), { year: new Date().getUTCFullYear() })} value={formatMoneyCents(view.yearTotalCents, view.currency)} accent="ink" />
+        </div>
+      )}
 
       <Divider label={t("dashboard.talentDrawers.monetization.availableDocuments")} />
 
       <div className="flex flex-col gap-2">
         {[
           { label: interpolate(t("dashboard.talentDrawers.monetization.docIncomeSummary"), { year: new Date().getUTCFullYear() }), body: t("dashboard.talentDrawers.monetization.docIncomeSummaryBody"), action: t("dashboard.talentDrawers.monetization.docDownload"), href: `/api/talent/tax-summary?year=${new Date().getUTCFullYear()}` },
-          { label: t("dashboard.talentDrawers.monetization.docW8Label"), body: t("dashboard.talentDrawers.monetization.docW8Body"), action: t("dashboard.talentDrawers.monetization.docOpen"), href: "https://www.irs.gov/pub/irs-pdf/fw8ben.pdf" },
+          ...(view.showW8 ? [{ label: t("dashboard.talentDrawers.monetization.docW8Label"), body: t("dashboard.talentDrawers.monetization.docW8Body"), action: t("dashboard.talentDrawers.monetization.docOpen"), href: "https://www.irs.gov/pub/irs-pdf/fw8ben.pdf" }] : []),
           { label: interpolate(t("dashboard.talentDrawers.monetization.docIncomeSummary"), { year: 2025 }), body: t("dashboard.talentDrawers.monetization.docIncomeSummaryBody"), action: t("dashboard.talentDrawers.monetization.docDownload"), href: "/api/talent/tax-summary?year=2025" },
         ].map((doc, idx) => (
           <button

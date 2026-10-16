@@ -50,6 +50,7 @@ import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { resolveOfferingHomeTenant } from "@/lib/scheduling/offering-home-tenant";
 import { loadLatestPolicyVersionId } from "@/lib/talent-policies/public";
 import type { OfferingTaskBrief } from "@/lib/talent/offering-task-brief";
+import type { BookingPromoRequest } from "@/lib/orders/purchase-promo";
 
 export type InstantPurchaseInput = {
   tenantId: string;
@@ -89,6 +90,8 @@ export type InstantPurchaseInput = {
    * Omitted = a direct channel (own website / Tulala profile): enforced.
    */
   agencyRouted?: boolean;
+  /** Promos v1: price with live promos and hold them before payment (purchase-promo.ts). */
+  bookingPromo?: BookingPromoRequest | null;
 };
 
 export type InstantPurchaseResult =
@@ -485,6 +488,9 @@ export async function placeInstantPurchase(
     brief: input.brief ?? null,
     locale: input.locale ?? null,
     eventLocation: input.eventLocation ?? null,
+    bookingPromo: input.bookingPromo
+      ? { ...input.bookingPromo, appointmentStart: input.bookingPromo.appointmentStart ?? reservation?.startsAt ?? null }
+      : null,
     // Snapshot: the talent's published policy the buyer saw at checkout.
     policyVersionId: await loadLatestPolicyVersionId(admin, input.talentProfileId),
   });

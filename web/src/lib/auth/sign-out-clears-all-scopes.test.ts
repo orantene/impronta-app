@@ -38,7 +38,7 @@ test("GET /auth/sign-out expires host-only AND parent-domain auth cookies", asyn
     assert.ok(set.includes(`${n}=; Path=/; Max-Age=0; Domain=.tulala.digital`), `${n} parent`);
   }
   assert.ok(!set.some((h) => h.startsWith("other=")));
-  assert.equal(res.headers.get("cache-control"), "no-store");
+  assert.match(res.headers.get("cache-control") ?? "", /no-store/);
 });
 
 test("a cross-site GET cannot sign the user out", async () => {

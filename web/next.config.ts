@@ -77,6 +77,8 @@ remotePatterns.push({
 });
 
 const isProd = process.env.NODE_ENV === "production";
+/** TUL-857/895: Vercel preview + staging builds (never production). */
+const isPreviewDeploy = process.env.VERCEL_ENV === "preview";
 
 /**
  * TUL-703 STRIPE_FORCE_TEST_MODE: client bundles read
@@ -254,11 +256,15 @@ function contentSecurityPolicy(): string {
   // packages are silently blocked by CSP and never report — the Vercel dashboard
   // shows "Not Enabled" even though the React components are mounted.
   const vercelInsights = "https://va.vercel-scripts.com https://vitals.vercel-insights.com";
+  // TUL-895: the Vercel toolbar (feedback.js) only exists on preview/staging
+  // builds. Allow its origin there so the console is not flooded with CSP
+  // errors; production CSP is unchanged.
+  const vercelLive = isPreviewDeploy ? "https://vercel.live" : "";
   const directives = [
     "default-src 'self'",
     isProd
-      ? `script-src 'self' 'unsafe-inline' ${googleMapsCsp.script} ${stripeCsp.script} ${googleTag} ${captchaScript} ${vercelInsights} ${socialPostCsp.script} ${tenantTrackingCsp.script}`
-      : `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${googleMapsCsp.script} ${stripeCsp.script} ${googleTag} ${captchaScript} ${vercelInsights} ${socialPostCsp.script} ${tenantTrackingCsp.script}`,
+      ? `script-src 'self' 'unsafe-inline' ${googleMapsCsp.script} ${stripeCsp.script} ${googleTag} ${captchaScript} ${vercelInsights} ${vercelLive} ${socialPostCsp.script} ${tenantTrackingCsp.script}`
+      : `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${googleMapsCsp.script} ${stripeCsp.script} ${googleTag} ${captchaScript} ${vercelInsights} ${vercelLive} ${socialPostCsp.script} ${tenantTrackingCsp.script}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
     `img-src 'self' data: blob: https: https://www.google-analytics.com`,
@@ -271,8 +277,8 @@ function contentSecurityPolicy(): string {
     // NOT govern a media element, which is why the hole survived. Mirrors
     // `connectSrcDirectives()` so a custom / local Supabase host works too.
     `media-src ${mediaSrcDirectives().join(" ")}`,
-    `connect-src ${connectSrcDirectives().join(" ")} ${googleMapsCsp.connect} ${stripeCsp.connect} ${googleTag} ${captchaConnect} https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com ${vercelInsights} https://*.sentry.io ${tenantTrackingCsp.connect}`,
-    `frame-src 'self' ${googleMapsCsp.frameSrc} ${stripeCsp.frame} ${builderEmbedCsp.frame} ${captchaFrame} ${talentMediaEmbedCsp.frame} ${socialPostCsp.frame}`,
+    `connect-src ${connectSrcDirectives().join(" ")} ${googleMapsCsp.connect} ${stripeCsp.connect} ${googleTag} ${captchaConnect} https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com ${vercelInsights} ${vercelLive} https://*.sentry.io ${tenantTrackingCsp.connect}`,
+    `frame-src 'self' ${googleMapsCsp.frameSrc} ${stripeCsp.frame} ${builderEmbedCsp.frame} ${vercelLive} ${captchaFrame} ${talentMediaEmbedCsp.frame} ${socialPostCsp.frame}`,
     /** Maps workers use blob: URLs; service worker needs 'self'. */
     "worker-src 'self' blob:",
     "frame-ancestors 'self'",
@@ -449,9 +455,12 @@ const nextConfig: NextConfig = {
   turbopack: {
     resolveAlias: {
       "@radix-ui/react-id": radixReactIdTurbopackAlias,
+      // Browser bundles get the catalog-free translator (see
+      // src/i18n/client-subtrees.ts); the server keeps the full catalogs.
+      "@/i18n/messages": { browser: "./src/i18n/messages.client.ts" },
     },
   },
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
     const prev = config.resolve?.alias;
     const base =
       prev && typeof prev === "object" && !Array.isArray(prev)
@@ -461,6 +470,9 @@ const nextConfig: NextConfig = {
     config.resolve.alias = {
       ...base,
       "@radix-ui/react-id": radixReactIdRoot,
+      ...(isServer
+        ? {}
+        : { "@/i18n/messages$": path.resolve(process.cwd(), "src/i18n/messages.client.ts") }),
     };
     return config;
   },
@@ -469,6 +481,39 @@ const nextConfig: NextConfig = {
       {
         source: "/:path*",
         headers: securityHeaders,
+      },
+      /** Promo share pages are links shared by hand, never search results:
+       *  `/p/<slug>` on a talent-site host and `/t/<code>/p/<slug>` on the hub.
+       *  (On agency hosts `/p/*` only redirects to the clean path.) */
+      {
+        source: "/p/:slug",
+        headers: [{ key: "X-Robots-Tag", value: "noindex" }],
+      },
+      {
+        source: "/t/:code/p/:slug",
+        headers: [{ key: "X-Robots-Tag", value: "noindex" }],
+      },
+      /** TUL-445: `Vary: Cookie` on page HTML. The proxy sets it too, but Next
+       *  rewrites Vary/Cache-Control on dynamic page responses, so the proxy
+       *  value never reached the HTML (llms.txt/sitemap kept it). Static
+       *  assets, images and APIs are excluded so they stay cache-friendly. */
+      /** TUL-857: non-production deploys (staging tenant hosts included) must
+       *  never be indexed. Header-level so it covers every page, including
+       *  the home, without touching the proxy. */
+      ...(isPreviewDeploy
+        ? [
+            {
+              source: "/:path*",
+              headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+            },
+          ]
+        : []),
+      /** Promo landing pages (and their OG images) are never indexed: header-level, in addition to the page metadata. */
+      { source: "/p/:slug*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
+      { source: "/t/:code/p/:slug*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
+      {
+        source: "/:path((?!_next/|api/|favicon\\.ico|robots\\.txt).*)",
+        headers: [{ key: "Vary", value: "Cookie" }],
       },
     ];
   },
@@ -482,10 +527,18 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       { source: "/talent/_studio-kit", destination: "/talent/studio-kit" },
+      // TUL-589: llms.txt for marketing and published talent-site hosts. Served from an api route so no
+      // root `llms.txt` segment exists (root segments need a platform_reserved_slugs migration).
+      { source: "/llms.txt", destination: "/api/llms" },
     ];
   },
   async redirects() {
     return [
+      {
+        source: "/settings",
+        destination: "/account?tab=settings",
+        permanent: false,
+      },
       {
         source: "/platform/admin/pricing",
         destination: "/platform/admin/commerce?tab=catalog",
@@ -509,6 +562,15 @@ const nextConfig: NextConfig = {
       {
         source: "/platform/admin/billing/discount-codes",
         destination: "/platform/admin/commerce?tab=discounts",
+        permanent: false,
+      },
+      /** TUL-925: tab sub-paths of Commerce have no page of their own and 404ed
+       *  (signed out too). Send them to the tab, which sits behind the admin
+       *  layout's login redirect. */
+      {
+        source:
+          "/platform/admin/commerce/:tab(health|catalog|discounts|revenue|commission|entitlements)",
+        destination: "/platform/admin/commerce?tab=:tab",
         permanent: false,
       },
       {

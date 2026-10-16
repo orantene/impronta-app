@@ -44,6 +44,9 @@ import type { InstantBookActionResult, InstantBookFormPayload } from "./instant-
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { localizedBookingRefusal } from "@/lib/scheduling/instant-book-refusal-copy";
 import { readSiteReturnUrl } from "@/lib/inquiry/claim-return-url.server";
+import { cookies } from "next/headers";
+import { PROMO_COOKIE, PROMO_VIA_COOKIE } from "@/lib/promos/share/cookies";
+import { bookingPromoRequest, instantPaymentStep, promoRefusal } from "@/lib/scheduling/instant-book-promo";
 
 export async function createInstantBookingAction(
   payload: InstantBookFormPayload,
@@ -93,6 +96,17 @@ export async function createInstantBookingAction(
     const { operatingCurrency } = await loadPlatformOperatingCurrency();
     const convertClient =
       actor.kind === "fail" ? supabase : convertClientForActor(supabase, actor);
+
+    // Promos v1: live promos are priced and HELD inside the purchase pipeline,
+    // before the payment row and the Stripe session below exist.
+    const jar = await cookies();
+    const promoRequest = bookingPromoRequest({
+      promoCode: payload.promoCode,
+      promoShownDiscountCents: payload.promoShownDiscountCents,
+      linkCookie: jar.get(PROMO_COOKIE)?.value ?? null,
+      viaCookie: jar.get(PROMO_VIA_COOKIE)?.value ?? null,
+      flow: "instant",
+    });
 
     const res = await runResolvedInstantBook({
       actor,
@@ -148,9 +162,15 @@ export async function createInstantBookingAction(
           locale: bookingLocale,
           // TUL-426: the sheet's place, trimmed and capped here (visitor text).
           eventLocation: place.eventLocation,
+          bookingPromo: promoRequest,
         });
 
         if (!booked.ok) {
+          // Promos v1: the offer ran out (or the code did not apply) BEFORE any
+          // payment was opened. Typed, so the sheet shows the regular price and
+          // asks again; never a silent full-price charge.
+          const promo = promoRefusal(booked.reason, { locale: bookingLocale, code: promoRequest.code ?? null });
+          if (promo) return { ok: false as const, reason: promo.reason, error: promo.error };
           // The pipeline's reasons are its own. `slot_taken` and the policy
           // refusals are customer-facing states; everything else is ours.
           const customerFacing =
@@ -191,7 +211,7 @@ export async function createInstantBookingAction(
           };
         }
         let checkoutUrl: string | null = null;
-        if (booked.collectCents > 0 && booked.transactionId && booked.bookingId) {
+        if (instantPaymentStep(booked) === "checkout" && booked.transactionId && booked.bookingId) {
           // TUL-350 slice 1: return to the host + locale the guest paid from,
           // never NEXT_PUBLIC_BASE_URL (that dropped talent branding).
           const origin = await publicOrigin();
@@ -203,6 +223,7 @@ export async function createInstantBookingAction(
               await unwindFailedCheckout(admin, {
                 orderId: booked.orderId,
                 transactionId: booked.transactionId,
+                bookingId: booked.bookingId,
                 allocationIds: booked.allocationIds,
                 reservationHoldId: booked.reservationHoldId,
                 why: "checkout_origin_unavailable",
@@ -255,6 +276,7 @@ export async function createInstantBookingAction(
               await unwindFailedCheckout(admin, {
                 orderId: booked.orderId,
                 transactionId: booked.transactionId,
+                bookingId: booked.bookingId,
                 allocationIds: booked.allocationIds,
                 reservationHoldId: booked.reservationHoldId,
                 why: "checkout_session_refused",

@@ -49,7 +49,6 @@ import { FIELD_KIT } from "../edit-chrome/inspectors/field-kit/tokens";
 // picker's Upload button rendered gold inside admin chrome — the one palette
 // the owner has ruled out there. The chrome button is on the editor accent.
 import { Button } from "../edit-chrome/kit/button";
-import { useT } from "@/i18n/use-t";
 import type { MediaLibraryWireItem } from "@/lib/media/library-wire";
 import type {
   MediaLibraryKindFilter,
@@ -67,6 +66,7 @@ import type { CaptionEditor, CaptionLabels } from "./media-library-captions";
 import { MediaLibraryTile } from "./media-library-tile";
 import { MediaLibraryToolbar, type ToolbarLabels } from "./media-library-toolbar";
 import { EMPTY_MEDIA_FILTERS, type UseMediaLibraryReturn } from "./use-media-library";
+import { usePublicT } from "@/i18n/use-public-t";
 
 export type MediaLibrarySelectionMode = "none" | "single" | "multi";
 
@@ -112,7 +112,7 @@ export type MediaLibraryProps = {
 };
 
 export function MediaLibrary(props: MediaLibraryProps) {
-  const t = useT();
+  const t = usePublicT();
   const { library } = props;
   const gridRef = useRef<HTMLUListElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);

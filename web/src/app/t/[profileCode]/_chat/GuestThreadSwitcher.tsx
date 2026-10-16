@@ -317,7 +317,7 @@ function DropdownBody({
         </span>
         {hasAnyNew && !open && (
           <span
-            aria-label="Unread conversations"
+            aria-label={t("public.guestChat.unreadConversationsAria")}
             style={{
               display: "inline-block",
               width: 8,

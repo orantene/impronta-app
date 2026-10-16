@@ -30,6 +30,7 @@ import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-us
 import { isAcceptedAudioType, transcribeAudio } from "@/lib/ai/transcribe.server";
 import { resolveBriefOwner } from "@/lib/tulala/owner.server";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { afterResponse } from "@/lib/server/after-response";
 
 /**
  * Well under the provider's 25MB and under the platform body cap. At opus
@@ -112,7 +113,7 @@ export async function POST(req: Request): Promise<Response> {
     return NextResponse.json({ ok: false, error: "Could not read that recording." });
   }
 
-  void recordAiUsageEstimate().catch(() => {});
+  afterResponse(() => recordAiUsageEstimate().catch(() => {}));
 
   return NextResponse.json({ ok: true, text: result.text });
 }

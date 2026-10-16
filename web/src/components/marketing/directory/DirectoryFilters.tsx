@@ -5,6 +5,8 @@ import { useDirectoryCopy } from "./directory-copy-context";
 import {
   FOCUS_RING,
   orderedTrustFacets,
+  localizeCountry,
+  localizeCityLabel,
   smartTitleCase,
   cityFacetKey,
   parseCityFacetKey,
@@ -40,6 +42,7 @@ export function DirectoryFilters({
   onClearAll: () => void;
 }) {
   const t = useDirectoryCopy();
+  const loc = t.locale === "es" ? "es" : "en";
   const trustFacets = orderedTrustFacets(facets.trustTiers, t);
   const cities = active.country
     ? facets.cities.filter((c) => c.country === active.country)
@@ -96,7 +99,7 @@ export function DirectoryFilters({
           <FacetList
             items={facets.countries.map((c) => ({
               value: c.value,
-              label: smartTitleCase(c.value),
+              label: localizeCountry(smartTitleCase(c.value), loc),
               count: c.count,
             }))}
             activeValue={active.country}
@@ -106,14 +109,14 @@ export function DirectoryFilters({
       ) : null}
 
       {cities.length > 0 ? (
-        <FilterSection title={active.country ? t.citiesIn(smartTitleCase(active.country)) : t.city}>
+        <FilterSection title={active.country ? t.citiesIn(localizeCountry(smartTitleCase(active.country), loc)) : t.city}>
           <FacetList
             items={cities.map((c) => {
               const ambiguous = (cityNameCounts.get(c.city.toLowerCase()) ?? 0) > 1;
               const label =
                 ambiguous && c.country
-                  ? `${smartTitleCase(c.city)}, ${smartTitleCase(c.country)}`
-                  : smartTitleCase(c.city);
+                  ? `${localizeCityLabel(smartTitleCase(c.city), loc)}, ${localizeCountry(smartTitleCase(c.country), loc)}`
+                  : localizeCityLabel(smartTitleCase(c.city), loc);
               return { value: cityFacetKey(c.city, c.country), label, count: c.count };
             })}
             activeValue={active.city ? cityFacetKey(active.city, active.country) : null}

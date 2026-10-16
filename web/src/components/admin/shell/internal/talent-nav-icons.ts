@@ -10,6 +10,7 @@ export const TALENT_SIDEBAR_ICON: Record<string, AdminShellIconName> = {
   money: "credit",
   profile: "user",
   "public-page": "globe",
+  posts: "pencil",
   services: "briefcase",
   reviews: "star",
   settings: "settings",

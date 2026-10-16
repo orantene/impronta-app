@@ -1,6 +1,6 @@
 "use client";
 
-import { attentionSummary } from "./attention-summary";
+import { attentionSummary, photoOnlyTip } from "./attention-summary";
 import { useEffect, useMemo, useState } from "react";
 import {
   deleteTalentOfferingForever,
@@ -52,11 +52,12 @@ import {
 } from "./ServicesHoursNeeded";
 import { HideOutcome, RowMenu, listPrice, listPriceState } from "./ServicesHomeRowChrome";
 import { ServicesWebsiteSetupBanner } from "./ServicesWebsiteSetupBanner";
+import { ServicesListSkeleton } from "./ServicesListSkeleton";
+import { countItemsLabel } from "@/components/admin/shell/internal/count-items-label";
 import { useSearchParams } from "next/navigation";
 
 type Filter = "all" | "service" | "package" | "product" | "draft" | "hidden" | "archived" | "attention";
 type Screen = "list" | "editor" | "defaults" | "organize" | "addMany" | "camera" | "firstRun" | "patterns";
-
 export function ServicesHome({
   talentId,
   sellerName,
@@ -84,7 +85,7 @@ export function ServicesHome({
   const [destinations, setDestinations] = useState<OfferingDestination[]>([]);
   const websitePublished = useServicesWebsitePublished();
   const [defaults, setDefaults] = useState<SellingDefaults | null>(null);
-  const loc = useLocationSettings(talentId);
+  const loc = useLocationSettings(talentId, !editor.loading);
   const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
   const [addons, setAddons] = useState<AddonGroup[]>([]);
   const [toast, setToast] = useState<string | null>(null);
@@ -95,7 +96,7 @@ export function ServicesHome({
   const [dupPair, setDupPair] = useState<{ original: TalentOffering; copy: TalentOffering } | null>(null);
   const [hideFailedIds, setHideFailedIds] = useState<Set<string>>(new Set());
   const [shownIds, setShownIds] = useState<Set<string>>(new Set());
-  const hasBookableHours = useHasBookableHours(talentId);
+  const hasBookableHours = useHasBookableHours(talentId, !editor.loading);
 
   const failHide = (id: string) => {
     setHideFailedIds((prev) => new Set(prev).add(id));
@@ -428,7 +429,7 @@ export function ServicesHome({
               ? `${copy.t("Hiding")} "${hideTarget.title}"`
               : editor.loading
               ? copy.t("Your services are loading.")
-              : `${copy.t("Manage your services, packages and products")} · ${counts.all} ${copy.t("items")}`}
+              : `${copy.t("Manage your services, packages and products")} · ${countItemsLabel(copy.t, counts.all)}`}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -494,7 +495,7 @@ export function ServicesHome({
       {attentionTotal > 0 && filter !== "attention" && (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-[12px] border border-admin-border-soft bg-white px-4 py-3 text-[13px]">
           <p>
-            {attentionSummary({ total: attentionTotal, ...attention }, copy.locale)}
+            {photoOnlyTip({ total: attentionTotal, ...attention }, copy.locale) ?? attentionSummary({ total: attentionTotal, ...attention }, copy.locale)}
           </p>
           <button type="button" className="font-semibold text-admin-brand" onClick={() => setFilter("attention")}>
             {copy.t("Show them")}
@@ -517,16 +518,15 @@ export function ServicesHome({
 
       {editor.loading && (
         <div className="mt-6 text-[13px] text-admin-ink-muted" role="status">
-          <p>{slowLoad ? copy.t("Still trying") : copy.t("Loading")}</p>
-          <p className="mt-1">
-            {slowLoad
-              ? copy.t("This is taking longer than usual. Still trying. Nothing is lost.")
-              : copy.t("Your services are loading. No number is shown until they arrive.")}
-          </p>
+          <ServicesListSkeleton />
+          <p className="mt-3">{slowLoad ? copy.t("Still trying") : copy.t("Loading")}</p>
           {slowLoad && (
-            <button type="button" className="mt-2 font-semibold text-admin-brand" onClick={() => editor.reload()}>
-              {copy.t("Try now")}
-            </button>
+            <>
+              <p className="mt-1">{copy.t("This is taking longer than usual. Still trying. Nothing is lost.")}</p>
+              <button type="button" className="mt-2 font-semibold text-admin-brand" onClick={() => editor.reload()}>
+                {copy.t("Try now")}
+              </button>
+            </>
           )}
         </div>
       )}
@@ -612,7 +612,7 @@ export function ServicesHome({
                 </span>
               </span>
             </button>
-            <ServicesHomeItemChips item={item} locale={locale} hideFailed={hideFailedIds.has(item.id)} instantReady={hasBookableHours !== false} />
+            <ServicesHomeItemChips item={item} locale={locale} hideFailed={hideFailedIds.has(item.id)} instantReady={hasBookableHours !== false} sitePosture={defaults?.bookingPosture} />
             <button type="button" aria-label={copy.t("Row menu")} className="px-2" onClick={() => setMenuId(menuId === item.id ? null : item.id)}>
               ⋯
             </button>
