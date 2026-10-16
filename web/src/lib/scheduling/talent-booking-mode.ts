@@ -5,10 +5,11 @@
  * including null, is free.
  */
 
+import { hasEntitlement } from "@/lib/access/talent-entitlements";
 import { appointmentModeRank, getAppointmentsPlanPolicy } from "./appointments-plan-policy";
 
 export function appointmentsTierForTalentPlan(planKey: string | null | undefined): "free" | "website" {
-  return planKey === "talent_portfolio" ? "website" : "free";
+  return hasEntitlement(planKey, "booking.instant") ? "website" : "free";
 }
 
 export function talentOffersInstantBooking(planKey: string | null | undefined): boolean {

@@ -87,3 +87,4 @@ src/lib/talent-site/seo-description-fallback.test.ts
 src/app/(public)/book/book-page-empty.test.tsx
 src/lib/client-account/agency-account-site-pure.test.ts
 src/lib/client-account/published-shell-account-chrome.test.ts
+src/components/marketing/footer-tap-targets.static.test.ts

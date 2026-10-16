@@ -54,3 +54,31 @@ test("TUL-660: both AI routes consult the offer-first rule before escalating", (
     assert.match(src, /shouldOfferHumanInsteadOfEscalating\(/, f);
   }
 });
+
+test("TUL-601 and TUL-661 copy exists in en/es without em dashes", () => {
+  for (const l of ["en", "es"]) {
+    const j = JSON.parse(readFileSync(`messages/${l}.json`, "utf8")).dashboard.adminSupport;
+    assert.match(j.ticketReceipt, /#\{number\}/);
+    assert.ok(!j.ticketReceipt.includes("\u2014") && !j.humanHandling.includes("\u2014"));
+    assert.ok(j.humanHandling);
+  }
+});
+
+test("guest failOpen posts the offer-human card; talk-to-a-person and email both escalate", () => {
+  const route = readFileSync("src/app/api/ai/guest-support-chat/route.ts", "utf8");
+  const fo = route.slice(route.indexOf("async function failOpen"), route.indexOf("export async function POST"));
+  assert.match(fo, /supportAiErrorCard/);
+  assert.match(fo, /messageKind: "card"/);
+  const actions = readFileSync("src/lib/support/guest-actions.ts", "utf8");
+  const human = actions.slice(actions.indexOf("export async function requestGuestHumanAction"));
+  assert.match(human.slice(0, 900), /escalateTicket/);
+  const attach = actions.slice(actions.indexOf("export async function attachGuestContactAction"), actions.indexOf("export async function requestGuestHumanAction"));
+  assert.match(attach, /ticketHadAiError[\s\S]*escalateTicket/);
+});
+
+test("TUL-601: ticket receipt shows while the AI still handles the ticket", () => {
+  const src = readFileSync("src/components/support/SupportThreadHeader.tsx", "utf8");
+  const aiBranch = src.slice(src.indexOf("adminSupport.aiHandling"));
+  assert.match(aiBranch, /adminSupport\.ticketReceipt/);
+  assert.match(aiBranch, /ticketNumber > 0/);
+});

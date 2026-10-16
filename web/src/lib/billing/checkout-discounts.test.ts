@@ -119,3 +119,19 @@ test("EVERY branch of the matrix satisfies the exclusivity invariant", () => {
     assertNeverBoth(buildCheckoutDiscountParams(candidates));
   }
 });
+
+test("a seeded test promo code (TESTPRO20) resolves to its promotion code, never both fields", () => {
+  const got = buildCheckoutDiscountParams({
+    promo: { code: "TESTPRO20", couponId: "tulala_test_20pct_3m", promotionCodeId: "promo_test20" },
+  });
+  assert.deepEqual(got.params, { discounts: [{ promotion_code: "promo_test20" }] });
+  assertNeverBoth(got);
+});
+
+test("a stub promo (no Stripe ids) falls back to the open code box, still exclusive", () => {
+  const got = buildCheckoutDiscountParams({
+    promo: { code: "TESTFREE1M", couponId: null, promotionCodeId: null },
+  });
+  assert.deepEqual(got.params, { allow_promotion_codes: true });
+  assertNeverBoth(got);
+});

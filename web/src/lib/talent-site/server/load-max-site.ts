@@ -1,5 +1,6 @@
 import "server-only";
 
+import { resolveEffectiveTalentPlanKey } from "@/lib/billing/effective-talent-plan";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { toI18nMap } from "@/lib/i18n/i18n-columns";
@@ -256,7 +257,7 @@ async function loadTalentPlanKeyUncached(talentProfileId: string): Promise<strin
   };
   // A hidden talent's site never serves publicly.
   if (row.is_publicly_hidden) return null;
-  return row.talent_plan_key ?? null;
+  return resolveEffectiveTalentPlanKey(admin, talentProfileId, row.talent_plan_key ?? null);
 }
 
 /** Resolve `talent_profiles.user_id` for owner-only draft preview gating. */

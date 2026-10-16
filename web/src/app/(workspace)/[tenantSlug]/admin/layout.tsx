@@ -39,6 +39,7 @@ import {
   workspaceLocaleSeedPlan,
 } from "@/lib/site-admin/server/workspace-locale-seed";
 import { loadWorkspaceSeedPrimary } from "@/lib/site-admin/server/workspace-locale-seed.server";
+import { LocaleSeedHardRedirect } from "@/components/admin/shell/locale-seed-hard-redirect";
 import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
 import { LOCALE_AUTO_COOKIE, LOCALE_OWNER_COOKIE } from "@/i18n/locale-cookies";
 import { ORIGINAL_SEARCH_HEADER } from "@/i18n/request-locale";
@@ -178,14 +179,19 @@ export default async function WorkspaceAdminLayout({
       originalPathnameHeader: hdrs.get("x-impronta-original-pathname"),
       pathname,
       tenantSlug,
-      rscHeader: hdrs.get("rsc"),
     }) &&
     workspaceLocaleSeedMayApply(seedCookies)
   ) {
     const primary = await timed("layout.loadWorkspaceSeedPrimary", () => loadWorkspaceSeedPrimary(scope.tenantId));
     const seedPlan = workspaceLocaleSeedPlan({ ...seedCookies, primary });
     if (seedPlan.locale || seedPlan.stamp) {
-      redirect(workspaceLocaleSeedHref(`${pathname}${hdrs.get(ORIGINAL_SEARCH_HEADER) ?? ""}`, tenantSlug));
+      // TUL-1182: a HARD navigation, not redirect(): redirect() to a Route Handler
+      // inside the post-sign-in soft navigation loops in the client router.
+      return (
+        <LocaleSeedHardRedirect
+          href={workspaceLocaleSeedHref(`${pathname}${hdrs.get(ORIGINAL_SEARCH_HEADER) ?? ""}`, tenantSlug)}
+        />
+      );
     }
   }
   perfMark("layout.before-fanout", t0);
