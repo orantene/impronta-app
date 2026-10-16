@@ -75,6 +75,7 @@ src/lib/talent-site/hub-book-hash.test.ts
 src/lib/talent-site/server/max-site-loader-timing.test.ts
 src/lib/talent-site/server/public-site-data-cache.static.test.ts
 src/lib/talent-site/server/render-max-site.perf.static.test.ts
+src/lib/talent-site/server/render-max-site-request-memo.static.test.ts
 src/components/talent/site/talent-change-design-path.static.test.ts
 src/lib/talent-site/demos/demo-money-copy.test.ts
 src/lib/pricing/usd-equivalent.test.ts
@@ -88,6 +89,8 @@ src/app/(public)/book/book-page-empty.test.tsx
 src/lib/talent-site/live-text-services.test.ts
 src/lib/talent-site/hero-proof-line.test.ts
 src/lib/talent/location-kind.test.ts
+src/lib/talent/dashboard-status.test.ts
+src/lib/talent/google-business-profile-guide.test.ts
 src/lib/talent/google-site-verification.test.ts
 src/lib/talent-site/server/site-metadata-verification.test.ts
 src/components/marketing/footer-tap-targets.static.test.ts

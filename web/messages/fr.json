@@ -799,6 +799,8 @@
       "keepSlotAppointment": "L heure du rendez-vous est tenue tant que ce lien est valable. Rien n est debite avant le paiement.",
       "keepSlotNoTime": "Votre reservation est confirmee une fois payee. L heure est convenue avec le talent. Rien n est debite avant le paiement.",
       "keepSlotGeneric": "Votre créneau est tenu tant que ce lien est valable. Rien n est debite avant le paiement.",
+      "linkValidUntil": "Ce lien de paiement est valable jusqu'à {time} (heure de {zone}).",
+      "slotKeptUntil": "Votre créneau est tenu jusqu'à {time} (heure de {zone}).",
       "fees": {
         "service_subtotal": "Service",
         "base_reservation_fee": "Frais de réservation",
@@ -5291,8 +5293,6 @@
     "clientRecord": {
       "title": "Client",
       "unavailable": "Nous n'avons pas pu charger ce client. Rien n'a ete modifie. Reessayez dans un instant.",
-      "notFound": "Ce client n'est pas ici. Il a pu etre fusionne avec une autre fiche, ou le lien appartient a un autre espace de travail.",
-      "invalidId": "Cette adresse n'est pas un client.",
       "unnamed": "Nom non enregistre",
       "backToList": "Tous les clients",
       "identity": "Identite",
