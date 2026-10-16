@@ -72,7 +72,7 @@ type DiscoverTalentDetail = {
 const C = {
   ink:        "#0B0B0D",
   inkMuted:   "rgba(11,11,13,0.55)",
-  inkDim:     "rgba(11,11,13,0.35)",
+  inkDim:     "rgba(11,11,13,0.6)",
   border:     "rgba(24,24,27,0.16)",
   borderSoft: "rgba(24,24,27,0.08)",
   cardBg:     "#ffffff",
@@ -743,7 +743,7 @@ function DiscoverCard({
             marginRight: 36,
             width: 32, height: 32, borderRadius: "50%",
             background: "rgba(255,255,255,0.88)",
-            color: "rgba(11,11,13,0.55)",
+            color: "rgba(11,11,13,0.6)",
             border: "none", padding: 0,
             display: "inline-flex", alignItems: "center", justifyContent: "center",
             fontSize: 18, lineHeight: 1, fontWeight: 400, cursor: "pointer",

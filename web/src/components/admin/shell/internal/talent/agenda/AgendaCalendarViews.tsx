@@ -607,7 +607,7 @@ export function MonthGrid({
             onClick={() => onPick(day)}
             aria-current={today ? "date" : undefined}
             className={`min-h-[96px] rounded-lg border border-[rgba(11,11,13,0.08)] p-1.5 text-left text-[12px] ${
-              inMonth ? "bg-white" : "bg-[rgba(11,11,13,0.03)] text-[rgba(11,11,13,0.45)]"
+              inMonth ? "bg-white" : "bg-[rgba(11,11,13,0.03)] text-[rgba(11,11,13,0.6)]"
             }`}
           >
             <span

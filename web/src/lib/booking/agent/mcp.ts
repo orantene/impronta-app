@@ -2,9 +2,10 @@
  * TUL-21: a stateless MCP server (streamable HTTP, JSON responses) for one
  * talent's booking site. Pure JSON-RPC dispatch; the route injects the loaders.
  *
- * Three tools. Two read what the public site already shows. The third,
- * `request_booking`, never books: it returns a signed link the person opens to
- * confirm in the talent's own chat, so a human always takes the last step.
+ * Four tools. Two read what the public site already shows. `request_booking`
+ * never books: it returns a signed link the person opens to confirm in the
+ * talent's own chat, so a human always takes the last step.
+ * `get_request_status` reads back one coarse status for that link, no personal data.
  */
 
 import { z } from "zod";
@@ -35,8 +36,15 @@ const requestBookingArgs = z
   })
   .strict();
 
+const getRequestStatusArgs = z
+  .object({
+    handoff_id: z.string().uuid().describe("The handoff_id returned by request_booking."),
+  })
+  .strict();
+
 export type FindOpenTimesArgs = z.infer<typeof findOpenTimesArgs>;
 export type RequestBookingArgs = z.infer<typeof requestBookingArgs>;
+export type GetRequestStatusArgs = z.infer<typeof getRequestStatusArgs>;
 
 /** Each loader returns plain JSON. `error` marks a tool-level failure. */
 export type AgentToolResult = { ok: true; data: Record<string, unknown> } | { ok: false; error: string; message: string };
@@ -46,6 +54,7 @@ export type AgentToolDeps = {
   listServices: () => Promise<AgentToolResult>;
   findOpenTimes: (args: FindOpenTimesArgs) => Promise<AgentToolResult>;
   requestBooking: (args: RequestBookingArgs) => Promise<AgentToolResult>;
+  getRequestStatus: (args: GetRequestStatusArgs) => Promise<AgentToolResult>;
 };
 
 function inputSchema(schema: z.ZodType): Record<string, unknown> {
@@ -77,6 +86,15 @@ export function agentToolDefinitions(talentName: string) {
         `Get a link for the person to request one of ${talentName}'s services. Nothing is booked until the person ` +
         "opens the link and confirms in the talent's chat. The link expires in 30 minutes.",
       inputSchema: inputSchema(requestBookingArgs),
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    {
+      name: "get_request_status",
+      title: "Check a request",
+      description:
+        `Check what happened to a request_booking link for ${talentName}. Returns one of link_not_used, sent, ` +
+        "accepted, declined or expired. It never returns the person's details or messages.",
+      inputSchema: inputSchema(getRequestStatusArgs),
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
   ];
@@ -123,6 +141,11 @@ async function callTool(params: unknown, deps: AgentToolDeps) {
       if (!parsed.success) return toolResult({ ok: false, error: "invalid_arguments", message: parsed.error.message });
       return toolResult(await deps.requestBooking(parsed.data));
     }
+    case "get_request_status": {
+      const parsed = getRequestStatusArgs.safeParse(args);
+      if (!parsed.success) return toolResult({ ok: false, error: "invalid_arguments", message: parsed.error.message });
+      return toolResult(await deps.getRequestStatus(parsed.data));
+    }
     default:
       return undefined;
   }
@@ -158,7 +181,8 @@ export async function handleMcpMessage(message: unknown, deps: AgentToolDeps): P
           serverInfo: { name: "tulala-booking", title: `Book ${deps.talentName}`, version: "1.0.0" },
           instructions:
             `Tools for booking ${deps.talentName}. Call list_services, then find_open_times for a service. ` +
-            "request_booking returns a link; give it to the person so they can confirm. Never claim a booking is made.",
+            "request_booking returns a link; give it to the person so they can confirm. Never claim a booking is made. " +
+            "get_request_status with the handoff_id tells you if the person sent it and how the talent answered.",
         },
       };
     }
