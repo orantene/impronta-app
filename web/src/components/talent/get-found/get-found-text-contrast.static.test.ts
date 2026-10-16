@@ -10,9 +10,12 @@ import { test } from "node:test";
 
 const dir = __dirname;
 const page = readFileSync(join(dir, "../../../app/(workspace)/talent/get-found/page.tsx"), "utf8");
+const bridge = readFileSync(join(dir, "../../../styles/admin-color-bridge.css"), "utf8");
 
 test("the page declares its own ink and font", () => {
-  assert.match(page, /GET_FOUND_TEXT = \{ color: "#0B0B0D"/);
+  // Same ink as the admin scale (#0B0B0D), named so the hex ratchet stays at zero.
+  assert.match(bridge, /--color-admin-ink:\s*#0B0B0D/);
+  assert.match(page, /GET_FOUND_TEXT = \{ color: "var\(--color-admin-ink\)"/);
   assert.match(page, /<div style=\{GET_FOUND_TEXT\}>/);
 });
 

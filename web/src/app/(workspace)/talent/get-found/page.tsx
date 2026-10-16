@@ -21,7 +21,7 @@ export const dynamic = "force-dynamic";
  * headings and values took whatever the dashboard shell around it handed down (QA saw them very pale).
  * The sibling talent pages (Discover, Trust) declare ink and font themselves; this does the same.
  */
-const GET_FOUND_TEXT = { color: "#0B0B0D", fontFamily: '"Inter", system-ui, sans-serif' } as const;
+const GET_FOUND_TEXT = { color: "var(--color-admin-ink)", fontFamily: '"Inter", system-ui, sans-serif' } as const;
 
 /** TUL-584: Google Business Profile setup guide, pre-filled from the talent's own data. */
 export default async function PlatformTalentGetFoundPage() {
