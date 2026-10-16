@@ -198,7 +198,7 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
               {badge === "live" ? copy.t("Website live") : copy.t("Checking your website")}
             </span>
             {siteHost && (
-              <span className="block max-w-[180px] truncate text-[11px] leading-tight text-admin-ink-dim">{siteHost}</span>
+              <span className="block max-w-[180px] truncate text-[11px] leading-tight text-admin-ink-muted">{siteHost}</span>
             )}
           </span>
           {chevron}
