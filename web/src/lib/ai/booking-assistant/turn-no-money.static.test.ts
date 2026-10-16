@@ -7,6 +7,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import { blankComments } from "@/lib/quality/supabase-unchecked-read";
+
 const TURN = resolve(process.cwd(), "src/lib/ai/booking-assistant/turn.server.ts");
 
 test("turn.server.ts imports nothing from payment, stripe or instant-book", () => {
@@ -19,7 +21,8 @@ test("turn.server.ts imports nothing from payment, stripe or instant-book", () =
 });
 
 test("turn.server.ts never places a hold or books", () => {
-  const src = readFileSync(TURN, "utf8");
+  // Comments name the guest tap that places the hold. Only code can fail this.
+  const src = blankComments(readFileSync(TURN, "utf8"));
   assert.doesNotMatch(src, /placeReservationHold/);
   assert.doesNotMatch(src, /messagingClientPickTime/);
 });

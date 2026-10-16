@@ -29,7 +29,7 @@ test("scheduleBookingAssistantTurn uses next/server after()", () => {
   assert.match(src, /from\s+"next\/server"/);
   assert.match(src, /after\(run\)/);
   assert.match(src, /AbortController|signal:\s*controller\.signal/);
-  assert.match(src, /LLM_TIMEOUT_MS\s*=\s*5_000/);
+  assert.match(src, /LLM_TIMEOUT_MS\s*=\s*8_000/);
 });
 
 test("maybeRun logs every silent skip branch (Live QA: no silent OFF)", () => {
