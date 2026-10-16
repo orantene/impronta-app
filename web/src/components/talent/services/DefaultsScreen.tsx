@@ -1,5 +1,6 @@
 "use client";
 
+import { modeWord } from "@/lib/talent/site-booking-mode";
 import type { ReactNode } from "react";
 import { type SellingDefaults } from "@/lib/talent/services-settings-actions";
 import { whoPrimaryCtaLabel } from "@/lib/talent/selling-booking-settings";
@@ -375,9 +376,14 @@ export function DefaultsScreen({
         {/* How clients finish the booking sheet */}
         <Card title={copy.t("How clients book")} hint={copy.t("Sheet button and path")}>
           <div>
-            <span className={fieldLabel}>{copy.t("Default booking mode")}</span>
+            <span className={fieldLabel}>{copy.t("On your site, clients book")}</span>
             <p className="mt-0.5 text-[13px] text-admin-ink-dim">
-              {copy.t("Services that use your default follow this. A service with its own mode keeps it.")}
+              {copy.t("This is your site setting. Each service follows it unless it has its own mode, which is flagged in your Services list.")}
+            </p>
+            <p data-testid="site-booking-current" className="mt-0.5 text-[13px] font-medium text-admin-ink">
+              {copy
+                .t(defaults.bookingPostureSource === "platform" ? "Right now: {mode} (Tulala default, you have not chosen yet)" : "Right now: {mode}")
+                .replace("{mode}", modeWord(defaults.bookingPosture, copy.locale))}
             </p>
             <div className="mt-1.5 flex flex-wrap gap-2">
               {(
@@ -392,7 +398,7 @@ export function DefaultsScreen({
                   <button
                     key={m.id}
                     type="button"
-                    onClick={() => patch({ bookingPosture: m.id })}
+                    onClick={() => patch({ bookingPosture: m.id, bookingPostureSource: "talent" })}
                     className={`rounded-lg border px-3 py-2 text-[13px] font-medium ${
                       on
                         ? "border-[var(--tc-action)] bg-[var(--tc-soft)] font-semibold text-[var(--tc-ink)]"

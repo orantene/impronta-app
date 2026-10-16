@@ -60,4 +60,72 @@ export const DOMAIN_ERRORS_ES_TEXT: Record<string, string> = {
   "Could not save your expire choice.": "No pudimos guardar tu elección de expiración.",
   "Transfer-out saved. Auto-renew will turn off when domain tools are configured. Check back for your auth code.":
     "Transferencia guardada. La renovación automática se desactivará cuando las herramientas de dominio estén configuradas. Vuelve más tarde por tu código de autorización.",
+  "This domain is used by another Vercel project. Remove it from that project or transfer it to Tulala, then try again.":
+    "Este dominio lo usa otro proyecto de Vercel. Quítalo de ese proyecto o transfiérelo a Tulala y vuelve a intentar.",
+  "Vercel could not attach this domain. Check the domain status and try again.":
+    "Vercel no pudo conectar este dominio. Revisa el estado del dominio e inténtalo de nuevo.",
+  "Vercel could not attach this domain.": "Vercel no pudo conectar este dominio.",
+  "Vercel could not verify this domain.": "Vercel no pudo verificar este dominio.",
+  "DNS instructions are ready for {domain}. Add the records below to verify it.":
+    "Las instrucciones DNS ya están listas para {domain}. Agrega los registros de abajo para verificarlo.",
+  "1. Add these DNS records from Vercel": "1. Agrega estos registros DNS de Vercel",
+  "2. Also add this ownership TXT record": "2. También agrega este registro TXT de propiedad",
+  "3. Then point the domain at Vercel": "3. Luego apunta el dominio a Vercel",
+  "Vercel API timed out": "La API de Vercel agotó el tiempo de espera",
+  "Could not add domain to Vercel project.": "No pudimos agregar el dominio al proyecto de Vercel.",
+  "Could not verify domain ownership on Vercel project.":
+    "No pudimos verificar la propiedad del dominio en el proyecto de Vercel.",
+  "Vercel provisioning is not configured yet; finish DNS and re-check after env setup.":
+    "La conexión con Vercel aún no está lista. Termina el DNS y vuelve a revisar más tarde.",
+  "{domain} is already connected.": "{domain} ya está conectado.",
+  "{domain} is already verified.": "{domain} ya está verificado.",
+  "{domain} is now verified.": "{domain} ya quedó verificado.",
+  "TXT record for {domain} still has not been found within the verification window. Add it now and reconnect the domain for a fresh token.":
+    "Todavía no encontramos el registro TXT de {domain} dentro del plazo de verificación. Agrégalo ahora y vuelve a conectar el dominio para obtener un token nuevo.",
+  "TXT record not found for {domain} yet. DNS changes may still be propagating.":
+    "Aún no encontramos el registro TXT de {domain}. Los cambios de DNS pueden tardar en propagarse.",
+  "{domain} still needs TXT verification before routing can be checked.":
+    "{domain} aún necesita la verificación TXT antes de revisar el enrutamiento.",
+  "{domain} is now live with routing and HTTPS on Vercel.": "{domain} ya está activo, con enrutamiento y HTTPS en Vercel.",
+  "{domain} routing is detected. HTTPS is still finishing on Vercel.":
+    "Detectamos el enrutamiento de {domain}. HTTPS todavía se está configurando en Vercel.",
+  "Routing records for {domain} are not live yet. Add the Vercel A/CNAME record and check again.":
+    "Los registros de enrutamiento de {domain} aún no están activos. Agrega el registro A/CNAME de Vercel y vuelve a revisar.",
+  "{domain} is already your primary domain.": "{domain} ya es tu dominio principal.",
+  "{domain} must finish routing and SSL checks before it can become your primary domain.":
+    "{domain} debe terminar las revisiones de enrutamiento y SSL antes de ser tu dominio principal.",
+  "{domain} is now your primary domain.": "{domain} ahora es tu dominio principal.",
+  "{domain} was removed.": "Quitamos {domain}.",
 };
+
+/** Messages the domain actions build with the domain inside; keys of the map above. */
+const DOMAIN_MESSAGE_TEMPLATES = Object.keys(DOMAIN_ERRORS_ES_TEXT).filter((k) => k.includes("{domain}"));
+
+const VERCEL_NOT_CONFIGURED_HINT =
+  "Vercel provisioning is not configured yet; finish DNS and re-check after env setup.";
+
+function templateMatch(template: string, text: string): string | null {
+  const [before = "", after = ""] = template.split("{domain}");
+  if (text.length <= before.length + after.length) return null;
+  if (!text.startsWith(before) || !text.endsWith(after)) return null;
+  return text.slice(before.length, text.length - after.length);
+}
+
+/**
+ * Translate a domain action message that carries the domain inline
+ * ("x.com was removed.") through its `{domain}` template, so the dictionary
+ * can match it. Text with no template goes through `t` unchanged.
+ */
+export function translateDomainActionText(text: string, t: (value: string) => string): string {
+  let body = text;
+  let tail = "";
+  if (body.endsWith(` ${VERCEL_NOT_CONFIGURED_HINT}`)) {
+    body = body.slice(0, -(VERCEL_NOT_CONFIGURED_HINT.length + 1));
+    tail = ` ${t(VERCEL_NOT_CONFIGURED_HINT)}`;
+  }
+  for (const template of DOMAIN_MESSAGE_TEMPLATES) {
+    const domain = templateMatch(template, body);
+    if (domain) return t(template).replaceAll("{domain}", domain) + tail;
+  }
+  return t(body) + tail;
+}

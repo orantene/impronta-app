@@ -17,6 +17,7 @@ import {
   resolveCardShow,
   resolveHubCardStyle,
 } from "@/lib/site-admin/server/card-design-shape";
+import { useDirectoryCopy } from "./directory-copy-context";
 import type { DirectoryCardRow } from "./shared";
 import { toCanonicalCardData } from "./shared";
 
@@ -59,8 +60,10 @@ export function DirectoryTalentCard({
   captionNorms?: CaptionNorms;
 }) {
   const mediaRef = useRef<HTMLDivElement>(null);
+  const t = useDirectoryCopy();
+  const locale = t.locale;
   const design = talent.design ?? DEFAULT_CARD_DESIGN;
-  const data = toCanonicalCardData(talent);
+  const data = toCanonicalCardData(talent, t);
   // The tenant's explicit Card Design layout defaults win; the family only
   // decides the render branch when no explicit style was published.
   // Phase 2 (TUL-19): Showcase or Cinematic, chosen in Card Design. Unset
@@ -95,11 +98,22 @@ export function DirectoryTalentCard({
       />
     ) : undefined;
 
+  // E3-J4 — name taps must open the profile even when nested interactives
+  // leave [data-card-name] outside a.talent-card (HTML parser repair).
   const handleClickCapture =
     design.profilePopup === "off" && data.profileHref
       ? (event: React.MouseEvent) => {
-          const link = (event.target as HTMLElement).closest?.("a.talent-card");
-          if (!link) return;
+          const target = event.target as HTMLElement;
+          if (
+            target.closest?.(
+              "button, [data-card-inquiry-toggle], [data-card-favorite-toggle]",
+            )
+          ) {
+            return;
+          }
+          const link = target.closest?.("a.talent-card");
+          const nameEl = target.closest?.("[data-card-name]");
+          if (!link && !nameEl) return;
           // Preserve every native new-tab / save-link gesture.
           if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
           if (event.button !== 0) return;
@@ -124,6 +138,7 @@ export function DirectoryTalentCard({
         displayName={data.name}
         sourcePage="/directory"
         variant="pill"
+        locale={locale}
         hideFavorite
         portraitUrl={talent.headshotUrl ?? null}
         getInquiryPhotoRect={() =>
@@ -159,6 +174,7 @@ export function DirectoryTalentCard({
         // Platform-host surface: reviews-entitled, and the <html> standing
         // token gate never exists here — opt in the same way Discover does.
         showStanding="always"
+        locale={locale}
       />
       {/* Favorite heart + quick-view eye, always visible. Both hooks are
           guest-capable and render null until the discovery-state provider
@@ -172,11 +188,11 @@ export function DirectoryTalentCard({
               displayName={data.name}
               profileHref={data.profileHref}
               thumbnailUrl={talent.headshotUrl ?? null}
-              locale="en"
+              locale={locale}
               sourcePage="/directory"
-              openLabel="Quick view"
-              closeLabel="Close"
-              viewProfileLabel="View profile"
+              openLabel={t.quickView}
+              closeLabel={t.close}
+              viewProfileLabel={t.viewProfile}
             />
           ) : null}
           {showFavorite ? (
@@ -186,6 +202,7 @@ export function DirectoryTalentCard({
               displayName={data.name}
               sourcePage="/directory"
               variant="compact"
+              locale={locale}
               hideInquiry
             />
           ) : null}

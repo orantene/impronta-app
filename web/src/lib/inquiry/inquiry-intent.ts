@@ -278,6 +278,18 @@ export function validateIntentForSubmit(
   return { ok: true, missingInfoFlags: flags };
 }
 
+const MISSING_LABEL_KEY: Record<string, string> = {
+  "requester.name": "public.inquiryDrawer.missingName",
+  "requester.email_or_phone": "public.inquiryDrawer.missingContact",
+  "brief.summary_or_talent": "public.inquiryDrawer.missingBrief",
+  "location.city_or_status": "public.inquiryDrawer.missingLocation",
+};
+
+/** TUL-952: human labels for what the drawer still needs before it can send. */
+export function missingFieldLabels(fields: readonly string[], t: (key: string) => string): string {
+  return fields.map((f) => t(MISSING_LABEL_KEY[f] ?? "public.inquiryDrawer.missingDate")).join(", ");
+}
+
 /** Spec §16 — soft prompts that show in Details, not as form errors. */
 export function computeMissingInfoFlags(intent: InquiryIntent): MissingInfoFlag[] {
   const flags: MissingInfoFlag[] = [];

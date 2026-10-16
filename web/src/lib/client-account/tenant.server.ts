@@ -32,8 +32,8 @@ async function readSource(): Promise<{ decision: AccountTenantSource | null; tal
 
 /**
  * True when the client account surface is on for THIS request's host: the flag
- * named by the host decision (`talent` on a talent site, `app` on hub/agency/app
- * hosts, so the `/t/<code>` profile page). Unknown host: false.
+ * named by the host decision (`talent` on a talent site, `agency` / `hub` /
+ * `app` / `marketing` matching `x-impronta-host-context`). Unknown host: false.
  */
 export async function accountSurfaceEnabledForRequest(): Promise<boolean> {
   const { decision } = await readSource();

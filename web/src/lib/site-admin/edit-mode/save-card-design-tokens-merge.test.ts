@@ -28,6 +28,7 @@ const STUDIO_PATCH: Record<string, string> = {
   "directory.card.standing-style": "both",
   "profile.reviews-visibility": "visible",
   "directory.card.show-starting-from-price": "off",
+  "directory.card.show-talent-promo-badges": "off",
   "directory.card.show-quick-view": "on",
   "directory.card.profile-popup": "on",
   "directory.card.show-favorite": "on",

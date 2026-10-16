@@ -6,6 +6,7 @@ import {
   countUnreadRealNotifications,
   filterNotificationsByUiCategory,
   hubClickTarget,
+  hubReadItemIds,
   scopeRealNotifications,
   staffQueuesVisible,
 } from "./notification-hub-scope";
@@ -83,4 +84,35 @@ test("TUL-389: unread count follows read_at (n.read) and optimistic mark-read id
   assert.equal(countUnreadRealNotifications(rows, new Set(["u1"])), 1);
   assert.equal(countUnreadRealNotifications(rows, new Set(["notif-u3"])), 1);
   assert.equal(countUnreadRealNotifications(rows, new Set(["u1", "notif-u3"])), 0);
+});
+
+test("TUL-389: bell read ids include server-read rows before any effect runs (no all-unread first paint)", () => {
+  const rows = [
+    row({ id: "a", read: true }),
+    row({ id: "b", read: true }),
+    row({ id: "c", read: false }),
+  ];
+  const ids = hubReadItemIds(new Set(), rows);
+  assert.deepEqual([...ids].sort(), ["notif-a", "notif-b"]);
+  const itemIds = rows.map((r) => `notif-${r.id}`);
+  assert.equal(itemIds.filter((id) => !ids.has(id)).length, 1);
+  // Local (optimistic / fixture) ids survive the merge.
+  assert.ok(hubReadItemIds(new Set(["plan-cap", "notif-c"]), rows).has("notif-c"));
+  assert.ok(hubReadItemIds(new Set(["plan-cap"]), null).has("plan-cap"));
+});
+
+test("TUL-391 r2: a stored offer row without target_drawer still opens its inquiry", () => {
+  // Prod rows written before the catalog carried a target (kind=offer, talent
+  // surface, origin_inquiry_id set, target_drawer null) rendered as dead rows.
+  const legacy = row({ kind: "offer", originInquiryId: "inq-9", targetDrawer: null });
+  const t = hubClickTarget(legacy, "/admin");
+  assert.ok(t, "offer row must have a click target");
+  // Real ids never open the fixture-backed drawer (it shows the demo RI-201).
+  assert.deepEqual(t, { kind: "href", href: "/talent/inbox/inq-9" });
+  const wsRow = row({ kind: "message", originInquiryId: "inq-7", targetDrawer: "inquiry-workspace" });
+  assert.deepEqual(hubClickTarget(wsRow, "/acme/admin"), { kind: "href", href: "/acme/admin/messages?inquiry=inq-7" });
+  // No inquiry to open: stay inert rather than guess.
+  assert.equal(hubClickTarget(row({ kind: "offer", originInquiryId: null }), "/admin"), null);
+  // Other kinds without a target stay inert.
+  assert.equal(hubClickTarget(row({ kind: "system" }), "/admin"), null);
 });

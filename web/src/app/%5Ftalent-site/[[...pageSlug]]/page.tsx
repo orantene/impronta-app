@@ -26,19 +26,27 @@
  */
 
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { notFound, permanentRedirect, redirect } from "next/navigation";
 import { resolveGuestTokenResumeHref } from "@/app/t/[profileCode]/_actions/guest-order-resume-actions";
 import { headers } from "next/headers";
 
 import { DocumentLang } from "@/components/i18n/DocumentLang";
-import { getRequestLocale } from "@/i18n/request-locale";
+import { TalentSiteHostFullNav } from "@/components/talent-site/talent-site-host-full-nav";
+import { getRequestLocale, ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
 import {
   HOST_CONTEXT_HEADER,
   HOST_NAME_HEADER,
   HOST_TALENT_PROFILE_HEADER,
 } from "@/lib/saas/host-context";
 import { LEGACY_PRIVACY_SLUG, POLICY_SLUG } from "@/lib/talent-policies/public";
+import { needsRouteLookup, talentRouteVerdict } from "@/lib/talent-site/route-verdict";
+import { TalentSitePaintSkeleton } from "@/components/talent-site/TalentSitePaintSkeleton";
+import { loadMaxSitePages } from "@/lib/talent-site/server/load-max-site";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { talentGuestAliasTarget, talentGuestServiceAlias } from "@/lib/talent-site/guest-path-aliases";
+import { talentNotFoundCopy } from "@/lib/talent-site/talent-not-found-copy";
+import { loadTalentNotFoundCopy } from "@/lib/talent-site/server/talent-not-found.server";
 import { renderTalentMaxSite } from "@/lib/talent-site/server/render-max-site";
 import {
   maxSiteJsonLdString,
@@ -49,9 +57,10 @@ import { TalentOfferingIntentQuery } from "../TalentOfferingIntentQuery";
 import { TalentSiteMessagesDock } from "../TalentSiteMessagesDock";
 import { ClientAccountDock } from "@/components/client-account/ClientAccountDock";
 
-export const dynamic = "force-dynamic";
-export const fetchCache = "force-no-store";
-export const revalidate = 0;
+// TUL-445: anonymous cookieless GETs are CDN-cached at the proxy
+// (s-maxage=60, SWR=300). Keep the route eligible for short revalidation;
+// signed-in / guest-cookied responses stay private, no-store via proxy.
+export const revalidate = 60;
 
 /**
  * Resolve the talent_profile_id from the proxy-set host header — but ONLY when
@@ -78,14 +87,30 @@ async function resolveTalentProfileId(): Promise<string | null> {
  * (NEVER the /t/[code] discovery profile). Returns null if the header is absent
  * → render falls back to NEXT_PUBLIC_SITE_URL.
  */
-async function resolveCanonicalOrigin(): Promise<string | undefined> {
+async function resolveServedHost(): Promise<string | undefined> {
   try {
     const h = await headers();
     const host = h.get(HOST_NAME_HEADER)?.trim();
-    if (!host) return undefined;
-    return `https://${host}`;
+    return host || undefined;
   } catch {
     return undefined;
+  }
+}
+
+async function resolveCanonicalOrigin(): Promise<string | undefined> {
+  const host = await resolveServedHost();
+  if (!host) return undefined;
+  return `https://${host}`;
+}
+
+/** `/en` when the visitor's original path carries the active (secondary) locale prefix. */
+async function originalLocalePrefix(locale: string): Promise<string | null> {
+  try {
+    const h = await headers();
+    const first = (h.get(ORIGINAL_PATHNAME_HEADER) ?? "").split("/").filter(Boolean)[0]?.toLowerCase();
+    return first && first === locale.toLowerCase() ? first : null;
+  } catch {
+    return null;
   }
 }
 
@@ -102,6 +127,12 @@ function apexPath(pageSlug: string | null): string {
   return pageSlug ? `/${encodeURIComponent(pageSlug)}` : "/";
 }
 
+/** GRK-028: a missing page keeps the site's own name and language in the tab. */
+async function talentNotFoundMetadata(): Promise<Metadata> {
+  const copy = (await loadTalentNotFoundCopy()) ?? talentNotFoundCopy("en", null);
+  return { title: { absolute: copy.documentTitle }, robots: { index: false, follow: false } };
+}
+
 export async function generateMetadata({
   params,
   searchParams,
@@ -111,7 +142,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   if (!isSupabaseConfigured()) return {};
   const talentProfileId = await resolveTalentProfileId();
-  if (!talentProfileId) return { title: "Not found" };
+  if (!talentProfileId) return talentNotFoundMetadata();
   const { pageSlug } = await params;
   const { preview } = await searchParams;
   const [locale, canonicalOrigin] = await Promise.all([
@@ -131,7 +162,7 @@ export async function generateMetadata({
     canonicalOrigin,
     canonicalPath: apexPath(seg),
   });
-  if (result.kind !== "render") return { title: "Not found" };
+  if (result.kind !== "render") return talentNotFoundMetadata();
   return maxSiteSeoToMetadata(result.seo, { ogLocale: result.locale });
 }
 
@@ -154,12 +185,67 @@ export default async function TalentSiteHostPage({
     const href = await resolveGuestTokenResumeHref({ token: resumeToken, orderId: order ?? null });
     if (href) redirect(href);
   }
-  const [locale, canonicalOrigin] = await Promise.all([
+  const [locale, canonicalOrigin, servedHost] = await Promise.all([
     getRequestLocale(),
     resolveCanonicalOrigin(),
+    resolveServedHost(),
   ]);
+  // TUL-586 defense-in-depth: /servicios|services/<slug> -> canonical service URL
+  // (308, locale prefix kept; also handled in the proxy).
+  if (pageSlug && pageSlug.length > 1) {
+    const serviceAlias = talentGuestServiceAlias(`/${pageSlug.join("/")}`, {
+      localePrefix: await originalLocalePrefix(locale),
+    });
+    if (serviceAlias?.kind === "redirect") permanentRedirect(serviceAlias.path);
+  }
   const seg = firstSegment(pageSlug);
+  // GRK-028 defense-in-depth: guest path aliases (also handled in the proxy).
+  const guestAlias = talentGuestAliasTarget(seg);
+  if (guestAlias) redirect(guestAlias);
 
+  // TUL-857: an unknown first segment is a real HTTP 404. The slow render sits behind a
+  // Suspense boundary (the old loading.tsx streamed the skeleton first, which locked the
+  // status at 200). This check is exact: renderTalentMaxSite resolves a page by slug
+  // equality, policy slugs and service slugs only, so we 404 only when the slug is in
+  // none of those and in no page row at all (draft or published).
+  if (needsRouteLookup(seg, preview)) {
+    const verdict = talentRouteVerdict(seg, (await loadMaxSitePages(talentProfileId)).map((p) => p.slug));
+    // `/privacy` is the English word talents and footers guess: a real 308 to the policy page (not a streamed redirect).
+    if (verdict === "privacy-redirect") permanentRedirect(`/${POLICY_SLUG.privacy}`);
+    if (verdict === "not-found") notFound();
+  }
+  return (
+    <Suspense fallback={<TalentSitePaintSkeleton locale={locale} />}>
+      <TalentSiteBody
+        talentProfileId={talentProfileId}
+        seg={seg}
+        locale={locale}
+        preview={preview}
+        order={order}
+        canonicalOrigin={canonicalOrigin}
+        servedHost={servedHost}
+      />
+    </Suspense>
+  );
+}
+
+async function TalentSiteBody({
+  talentProfileId,
+  seg,
+  locale,
+  preview,
+  order,
+  canonicalOrigin,
+  servedHost,
+}: {
+  talentProfileId: string;
+  seg: string | null;
+  locale: string;
+  preview: string | undefined;
+  order: string | undefined;
+  canonicalOrigin: string | undefined;
+  servedHost: string | undefined;
+}) {
   const result = await renderTalentMaxSite({
     talentProfileId,
     pageSlug: seg,
@@ -186,6 +272,7 @@ export default async function TalentSiteHostPage({
         />
       ) : null}
       <DocumentLang locale={result.locale} />
+      {servedHost ? <TalentSiteHostFullNav servedHost={servedHost} /> : null}
       {result.node}
       <TalentOfferingIntentQuery />
       <TalentSiteMessagesDock talentProfileId={talentProfileId} locale={result.locale} orderId={order ?? null} />

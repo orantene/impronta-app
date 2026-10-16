@@ -7,7 +7,7 @@
 // Extracted from primitives.tsx — Phase 1f decomposition.
 
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { COLORS, FONTS, TRANSITION } from "../state";
+import { COLORS, FONTS, TRANSITION, useAdminShellOptional } from "../state";
 import {
   FIELD_CATALOG,
   applyWorkspaceFieldOverride,
@@ -69,7 +69,11 @@ export function ChannelVisibilityStrip({
   label?: string;
 }) {
   const copy = useDashboardText();
-  const channels: FieldChannel[] = ["public", "agency", "private"];
+  // An independent Profesional (talent workspace, no agencies) has no agency
+  // audience to share a field with, so the option is not offered (TUL-721).
+  const shell = useAdminShellOptional();
+  const solo = shell?.bridgeTalentAgencies != null && shell.bridgeTalentAgencies.length === 0;
+  const channels: FieldChannel[] = solo ? ["public", "private"] : ["public", "agency", "private"];
   const has = (c: FieldChannel) => value.includes(c);
   const toggle = (c: FieldChannel) => {
     if (!onChange) return;
@@ -84,9 +88,9 @@ export function ChannelVisibilityStrip({
   // Collapsed summary: broadest audience wins the label/colour.
   const summary = has("public")
     ? { word: "Public",  dot: CHANNEL_DOT.public }
-    : has("agency")
+    : has("agency") && !solo
       ? { word: "Agency",  dot: CHANNEL_DOT.agency }
-      : has("private")
+      : has("private") || has("agency")
         ? { word: "Private", dot: CHANNEL_DOT.private }
         : { word: "Hidden", dot: "rgba(11,11,13,0.28)" };
 

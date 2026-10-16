@@ -43,7 +43,7 @@ export const OFFER_LINE_CONTROL_CLASS =
   "w-full min-w-0 rounded border border-admin-border bg-white px-1.5 py-1 text-[11px] text-admin-ink";
 
 /** Column headings aligned to the line-item grid (table layout only). */
-export function OfferColumnHeaders({ t }: { t: (key: string) => string }) {
+export function OfferColumnHeaders({ t, solo = false }: { t: (key: string) => string; solo?: boolean }) {
   // Literal keys on purpose: the i18n static extractor treats a template key
   // as "everything under this prefix is live", which silently revives the
   // dead-key baseline for the whole lineup namespace.
@@ -52,7 +52,7 @@ export function OfferColumnHeaders({ t }: { t: (key: string) => string }) {
     t("dashboard.adminTabs.lineup.colUnit"),
     t("dashboard.adminTabs.lineup.colQty"),
     t("dashboard.adminTabs.lineup.colClientRate"),
-    t("dashboard.adminTabs.lineup.colTalentGets"),
+    solo ? t("dashboard.adminTabs.lineup.colYouGet") : t("dashboard.adminTabs.lineup.colTalentGets"),
   ];
   return (
     <div className="hidden grid-cols-[1.6fr_0.8fr_0.6fr_0.8fr_0.8fr_28px] gap-1.5 px-2.5 text-admin-ink-muted @[640px]:grid">
@@ -71,18 +71,23 @@ export function OfferMoneySplit({
   clientTotal,
   coordinatorFee,
   currencyCode,
+  hideWorkspaceTake = false,
   t,
 }: {
   lineItems: OfferSplitLine[];
   clientTotal: number;
   coordinatorFee: number;
   currencyCode: string;
+  /** Solo owner-talent: no workspace take to show (TUL-380). */
+  hideWorkspaceTake?: boolean;
   t: (key: string) => string;
 }) {
   const copy = {
     heading: t("dashboard.adminTabs.lineup.splitHeading"),
     clientList: t("dashboard.adminTabs.lineup.splitClientList"),
-    talentGets: t("dashboard.adminTabs.lineup.splitTalentGets"),
+    talentGets: hideWorkspaceTake
+      ? t("dashboard.adminTabs.lineup.splitYouGet")
+      : t("dashboard.adminTabs.lineup.splitTalentGets"),
     agencyKeeps: t("dashboard.adminTabs.lineup.splitAgencyKeeps"),
     agencyNote: t("dashboard.adminTabs.lineup.splitAgencyNote"),
     platformNote: t("dashboard.adminTabs.lineup.splitPlatformNote"),
@@ -105,7 +110,9 @@ export function OfferMoneySplit({
   const rows: Array<{ label: string; value: string; note?: string; strong?: boolean }> = [
     { label: copy.clientList, value: money(clientTotal) },
     { label: copy.talentGets, value: money(talentFull) },
-    { label: copy.agencyKeeps, value: money(agencyKeeps), note: copy.agencyNote, strong: true },
+    ...(hideWorkspaceTake
+      ? []
+      : [{ label: copy.agencyKeeps, value: money(agencyKeeps), note: copy.agencyNote, strong: true }]),
   ];
 
   return (
@@ -142,7 +149,7 @@ export function OfferMoneySplit({
  */
 export function OfferEditorFooter({
   t, pending, savePending, total, currencyCode, coordinatorFee,
-  onAddLine, onFeeChange, onSave,
+  hideFee = false, onAddLine, onFeeChange, onSave,
 }: {
   t: (key: string) => string;
   pending: boolean;
@@ -150,6 +157,8 @@ export function OfferEditorFooter({
   total: number;
   currencyCode: string;
   coordinatorFee: number;
+  /** Solo owner-talent: no workspace fee to charge (TUL-380). */
+  hideFee?: boolean;
   onAddLine: () => void;
   onFeeChange: (value: number) => void;
   onSave: () => void;
@@ -169,7 +178,7 @@ export function OfferEditorFooter({
       <span title={t("dashboard.adminTabs.lineup.totalTitle")} className="min-w-[90px] whitespace-nowrap px-1.5 py-1 text-right text-[13px] font-bold text-admin-ink">
         {formatOfferMoney(total, currencyCode, { maximumFractionDigits: 0 })}
       </span>
-      <span className="inline-flex shrink-0 items-center gap-1.5">
+      {hideFee ? null : <span className="inline-flex shrink-0 items-center gap-1.5">
         <label htmlFor="offer-agency-fee" title={t("dashboard.adminTabs.lineup.feeTitle")} className="whitespace-nowrap text-admin-11 text-admin-ink-muted">
           {t("dashboard.adminTabs.lineup.feeExtra")}
         </label>
@@ -184,7 +193,7 @@ export function OfferEditorFooter({
           onChange={(e) => onFeeChange(parseFloat(e.target.value) || 0)}
           className="w-20 rounded border border-admin-border px-1.5 py-1 text-[11px] text-admin-ink"
         />
-      </span>
+      </span>}
       <button
         type="button"
         disabled={savePending}

@@ -10,6 +10,7 @@ import {
   linesNeedingCompensation,
   recordCapacityLostCompensation,
 } from "@/lib/orders/capacity-lost-compensation";
+import { confirmOrderPromos } from "@/lib/promos/redemption/order-redemptions";
 
 /**
  * THE COMPLETION PATH. Step 12 of the 0.6 design, and until now it did not exist.
@@ -74,7 +75,7 @@ export type OnOrderPaid = (ctx: {
 export async function completeOrderForTransaction(
   admin: SupabaseClient,
   transactionId: string,
-  deps: { onOrderPaid?: OnOrderPaid } = {},
+  deps: { onOrderPaid?: OnOrderPaid; confirmPromos?: (db: SupabaseClient, orderId: string) => Promise<unknown> } = {},
 ): Promise<CompleteOrderResult> {
   try {
     const { data: txn, error: txnErr } = await admin
@@ -93,6 +94,12 @@ export async function completeOrderForTransaction(
     // Every quoted job before 0.5 has one, and they are settled by the booking
     // spine exactly as before.
     if (!orderId) return { ok: false, reason: "no_order" };
+
+    // Promos v1: a payment landed on this order, so the promo it was priced
+    // with is a use now (a deposit too: the booking is confirmed at that
+    // price). Before the "already settled" return so a redelivered webhook
+    // retries a confirm that failed the first time; idempotent, never throws.
+    await (deps.confirmPromos ?? confirmOrderPromos)(admin, orderId);
 
     const { data: order, error: orderErr } = await admin
       .from("orders")

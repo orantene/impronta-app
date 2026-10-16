@@ -10,4 +10,4 @@ mv supabase/migrations/_pending_pm/<file>.sql supabase/migrations/
 cd web && npm run db:push && npm run db:check
 ```
 
-Wave 1B D6: `20261231357100_talent_site_domains_plan_grace.sql`
+(Wave 1B D6 moved to supabase/migrations/20261231411100_talent_site_domains_plan_grace.sql.)

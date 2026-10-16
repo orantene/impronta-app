@@ -9,7 +9,8 @@
  * not listed. Pure (no React / no IO).
  */
 
-type Pair = { readonly en: string; readonly es: string };
+/** `enToEsOnly`: an EN title gets the ES name, but a title she wrote in ES is never turned into EN. */
+type Pair = { readonly en: string; readonly es: string; readonly enToEsOnly?: true };
 
 /** Curated platform copy for common descriptive service titles. */
 export const PLATFORM_SERVICE_TITLE_DICTIONARY: ReadonlyArray<Pair> = [
@@ -20,6 +21,10 @@ export const PLATFORM_SERVICE_TITLE_DICTIONARY: ReadonlyArray<Pair> = [
   { en: "Acrylic, polygel or soft gel removal", es: "Remoción de acrílico, polygel o Soft Gel" },
   { en: "Russian manicure with gel", es: "Manicura rusa con gel" },
   { en: "Semi-permanent gel, hands", es: "Esmaltado semipermanente, manos" },
+  // TUL-975: common generic titles seen on the ES booking page (one way: her Spanish stays hers on /en).
+  { en: "Gel manicure", es: "Manicura en gel", enToEsOnly: true },
+  { en: "Massage", es: "Masaje", enToEsOnly: true },
+  { en: "Couples massage", es: "Masaje en pareja", enToEsOnly: true },
 ];
 
 function norm(s: string): string {
@@ -35,7 +40,7 @@ const BY_TERM: ReadonlyMap<string, Pair> = (() => {
   const m = new Map<string, Pair>();
   for (const p of PLATFORM_SERVICE_TITLE_DICTIONARY) {
     m.set(norm(p.en), p);
-    m.set(norm(p.es), p);
+    if (!p.enToEsOnly) m.set(norm(p.es), p);
   }
   return m;
 })();
@@ -54,7 +59,7 @@ export function platformServiceTitle(
   const pair = BY_TERM.get(norm(text));
   if (!pair) return null;
   const lang = key(locale);
-  if (lang === "en") return pair.en;
+  if (lang === "en") return pair.enToEsOnly ? null : pair.en;
   if (lang === "es") return pair.es;
   return null;
 }

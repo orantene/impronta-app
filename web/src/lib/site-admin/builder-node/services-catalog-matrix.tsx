@@ -35,7 +35,7 @@ import {
   offeringMatrixValue,
   type OfferingMatrixKey,
 } from "@/lib/talent/offering-matrix";
-import type { TalentOffering } from "@/lib/talent/offerings-types";
+import { offeringIsQuote, type TalentOffering } from "@/lib/talent/offerings-types";
 
 import { catalogRowPriceText } from "./services-catalog-bar-price";
 import { catalogDurationPhrase } from "./services-catalog-title";
@@ -55,15 +55,16 @@ const ROW_ORDER: RowKey[] = ["price", "duration", "booking", "materials", "warra
 
 export const SERVICES_MATRIX_CSS = `
 .sb-mx{container:sbmx/inline-size;width:100%;min-width:0;box-sizing:border-box;color:var(--token-color-ink);overflow-x:clip}
-.sb-mx-scroll{display:none;overflow-x:auto;scrollbar-width:thin;max-width:100%}
-.sb-mx-table{border-collapse:separate;border-spacing:0;width:100%;font-size:13px;background:var(--token-color-surface-raised,var(--token-color-background));border:var(--token-shape-rule-width,1.5px) solid var(--token-color-ink);border-radius:var(--site-radius-md,10px);overflow:hidden}
-.sb-mx-table th,.sb-mx-table td{position:relative;padding:10px;text-align:left;vertical-align:top;border-bottom:1px solid var(--token-color-line)}
+.sb-mx-scroll{display:none;overflow-x:clip;max-width:100%;width:100%}
+/* TUL-532 / GRK-048: fixed layout fills the band; cells wrap instead of a one-column H-scroll. */
+.sb-mx-table{border-collapse:separate;border-spacing:0;table-layout:fixed;width:100%;font-size:13px;background:var(--token-color-surface-raised,var(--token-color-background));border:var(--token-shape-rule-width,1.5px) solid var(--token-color-ink);border-radius:var(--site-radius-md,10px);overflow:hidden}
+.sb-mx-table th,.sb-mx-table td{position:relative;padding:10px;text-align:left;vertical-align:top;border-bottom:1px solid var(--token-color-line);overflow-wrap:anywhere;word-break:break-word;min-width:0}
 .sb-mx-table tr:last-child th,.sb-mx-table tr:last-child td{border-bottom:0}
 .sb-mx-table thead th{background:var(--token-color-ink);color:var(--token-color-background);font:800 14px/1.15 var(--site-heading-font,inherit);font-stretch:108%}
-.sb-mx-table tbody th{position:sticky;left:0;z-index:2;width:140px;background:var(--token-color-surface-raised,var(--token-color-background));font:500 10.5px var(--token-typography-label-font-family,var(--token-shell-header-nav-font,ui-monospace,monospace));letter-spacing:.05em;text-transform:uppercase;color:var(--token-color-muted);border-right:1px solid var(--token-color-line)}
-.sb-mx-table thead th:first-child{position:sticky;left:0;z-index:3}
-.sb-mx-v{position:relative;z-index:1}
-.sb-mx-v b{font:800 16px var(--site-heading-font,inherit)}
+.sb-mx-table tbody th{position:sticky;left:0;z-index:2;width:18%;background:var(--token-color-surface-raised,var(--token-color-background));font:500 10.5px var(--token-typography-label-font-family,var(--token-shell-header-nav-font,ui-monospace,monospace));letter-spacing:.05em;text-transform:uppercase;color:var(--token-color-muted);border-right:1px solid var(--token-color-line)}
+.sb-mx-table thead th:first-child{position:sticky;left:0;z-index:3;width:18%}
+.sb-mx-v{position:relative;z-index:1;min-width:0}
+.sb-mx-v b{font:800 16px/1.2 var(--site-heading-font,inherit);overflow-wrap:anywhere}
 .sb-mx-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .sb-mx-dim{color:var(--token-color-muted)}
 .sb-mx-cta{width:100%;min-height:44px;padding:0 12px;border-radius:var(--token-button-radius,6px);border:var(--token-shape-rule-width,1.5px) solid var(--token-color-ink);background:transparent;color:var(--token-color-ink);font:700 13.5px var(--site-body-font,inherit);cursor:pointer}
@@ -72,18 +73,19 @@ export const SERVICES_MATRIX_CSS = `
 .sb-mx-table thead .sb-mx-hl{background:var(--token-color-accent,var(--token-color-primary))}
 [data-emergencies-today="on"] .sb-mx-table thead th[data-mx-emergency="1"]{color:var(--token-color-accent-on,var(--token-color-primary-on,var(--token-color-background)))}
 [data-emergencies-today="on"] .sb-mx [data-mx-emergency="1"] .sb-mx-cta{background:var(--token-color-accent,var(--token-color-primary));color:var(--token-color-accent-on,var(--token-color-primary-on,var(--token-color-background)))}
-.sb-mx-th{position:relative;z-index:1}
+.sb-mx-th{position:relative;z-index:1;overflow-wrap:anywhere}
+.sb-mx-link{color:inherit;text-decoration:underline;text-underline-offset:3px}
 .sb-mx-cards{display:grid;gap:8px}
 .sb-mx-card{position:relative;display:grid;background:var(--token-color-surface-raised,var(--token-color-background));border:var(--token-shape-rule-width,1.5px) solid var(--token-color-ink);border-radius:var(--site-radius-md,10px);overflow:hidden}
 .sb-mx-card-h{position:relative;display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:52px;padding:10px 12px;background:var(--token-color-ink);color:var(--token-color-background);font:800 16px/1.15 var(--site-heading-font,inherit)}
 .sb-mx-card-h span{position:relative;z-index:1;font-weight:700;font-size:13px;white-space:nowrap}
-.sb-mx-card-h b{position:relative;z-index:1;font-weight:inherit}
+.sb-mx-card-h b{position:relative;z-index:1;font-weight:inherit;overflow-wrap:anywhere;min-width:0}
 .sb-mx-card-h .sb-mx-hl{background:var(--token-color-accent,var(--token-color-primary))}
 [data-emergencies-today="on"] .sb-mx-card[data-mx-emergency="1"] .sb-mx-card-h{color:var(--token-color-accent-on,var(--token-color-primary-on,var(--token-color-background)))}
 .sb-mx-ring{position:absolute;inset:0;pointer-events:none;border-radius:inherit;box-shadow:inset 0 0 0 2px var(--token-color-accent,var(--token-color-primary))}
 .sb-mx-card dl{margin:0;padding:6px 12px;display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:13.5px}
 .sb-mx-card dt{padding-top:2px;font:500 10.5px var(--token-typography-label-font-family,var(--token-shell-header-nav-font,ui-monospace,monospace));letter-spacing:.05em;text-transform:uppercase;color:var(--token-color-muted)}
-.sb-mx-card dd{margin:0;text-align:right}
+.sb-mx-card dd{margin:0;text-align:right;overflow-wrap:anywhere}
 .sb-mx-card .sb-mx-cta{width:auto;margin:4px 12px 12px}
 @container sbmx (min-width:720px){
   .sb-mx-scroll{display:block}
@@ -105,6 +107,8 @@ type Props = {
   ctaLabel?: string;
   liveStatus?: LiveStatusRenderContext | null;
   selectedIds?: ReadonlyArray<string>;
+  /** TUL-792: offering id -> its own service page; the title links there when set. */
+  serviceHrefs?: Record<string, string>;
   onSelect: (item: TalentOffering) => void;
 };
 
@@ -122,6 +126,7 @@ export function CatalogMatrix({
   ctaLabel,
   liveStatus,
   selectedIds = [],
+  serviceHrefs,
   onSelect,
 }: Props): ReactNode {
   const es = locale.startsWith("es");
@@ -130,7 +135,7 @@ export function CatalogMatrix({
   const cols = items.map((item) => {
     const derived = deriveOfferingCta({ offering: item, defaults: { bookingPosture }, confirmsByHand });
     const quote =
-      item.priceDisplay === "quote" || item.priceType === "custom" || item.amountCents == null;
+      offeringIsQuote(item);
     const selected = selectedIds.includes(item.id);
     const cta = catalogRowCtaLabel({
       selected,
@@ -166,6 +171,14 @@ export function CatalogMatrix({
     e && emergencyOn ? (
       <span className={kind === "ring" ? "sb-mx-ring" : "sb-mx-hl"} data-live-when="on" aria-hidden="true" />
     ) : null;
+  const titleNode = (id: string, title: string): ReactNode =>
+    serviceHrefs?.[id] ? (
+      <a href={serviceHrefs[id]} className="sb-mx-link">
+        {title}
+      </a>
+    ) : (
+      title
+    );
   const button = (c: (typeof cols)[number]) =>
     c.derived.hidden ? null : (
       <button
@@ -194,7 +207,7 @@ export function CatalogMatrix({
               {cols.map((c) => (
                 <th key={c.item.id} scope="col" data-mx-emergency={c.emergency ? "1" : undefined}>
                   {hl(c.emergency, "fill")}
-                  <span className="sb-mx-th">{c.item.title}</span>
+                  <span className="sb-mx-th">{titleNode(c.item.id, c.item.title)}</span>
                 </th>
               ))}
             </tr>
@@ -231,7 +244,7 @@ export function CatalogMatrix({
             {hl(c.emergency, "ring")}
             <div className="sb-mx-card-h">
               {hl(c.emergency, "fill")}
-              <b>{c.item.title}</b>
+              <b>{titleNode(c.item.id, c.item.title)}</b>
               <span>{catalogRowPriceText(c.item, locale)}</span>
             </div>
             <dl>

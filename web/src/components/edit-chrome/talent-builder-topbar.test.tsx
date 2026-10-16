@@ -13,6 +13,7 @@ import {
   TalentBackLink,
   TalentBuilderIdentityProvider,
   TalentIdentityMenu,
+  publishTargetHost,
   resolveTalentBackHref,
   talentQuickLinks,
 } from "./talent-builder-identity";
@@ -56,7 +57,7 @@ test("quick links mirror the dashboard nav in order, in Spanish", () => {
   assert.equal(links.length, TALENT_PAGES.length);
   assert.deepEqual(
     links.map((l) => l.label),
-    ["Hoy", "Mensajes", "Calendario", "Clientes", "Dinero", "Perfil", "Mi presencia", "Servicios", "Reseñas", "Ajustes"],
+    ["Hoy", "Mensajes", "Calendario", "Clientes", "Dinero", "Perfil", "Mi presencia", "Publicaciones", "Servicios", "Reseñas", "Ajustes"],
   );
   assert.equal(links[0]?.href, "/talent/today");
   assert.equal(links.find((l) => l.page === "public-page")?.href, "/talent/site");
@@ -71,6 +72,17 @@ test("back arrow targets the talent dashboard", () => {
   assert.equal(resolveTalentBackHref("https://app.example/talent/page-builder", "https://app.example"), "/talent/site");
   assert.equal(resolveTalentBackHref("https://evil.example/talent/money", "https://app.example"), "/talent/site");
   assert.equal(resolveTalentBackHref("", "https://app.example"), "/talent/site");
+});
+
+test("publish drawer names her site, not the editor host", () => {
+  const app = "app.tulala.digital";
+  assert.equal(publishTargetHost("https://qa-fixture-free-talent.tulala.digital", app), "qa-fixture-free-talent.tulala.digital");
+  assert.equal(publishTargetHost("https://rosa.example.com/", app), "rosa.example.com");
+  assert.equal(publishTargetHost("/t/site/rosa", app), "app.tulala.digital/t/site/rosa");
+  assert.equal(publishTargetHost(null, "impronta.tulala.digital"), "impronta.tulala.digital");
+  const drawer = readFileSync(path.join(process.cwd(), "src/components/edit-chrome/publish-drawer.tsx"), "utf8");
+  assert.match(drawer, /setHost\(publishTargetHost\(talentSiteUrl, window\.location\.host\)\)/);
+  assert.ok(!/setHost\(window\.location\.host\)/.test(drawer));
 });
 
 test("workspace builder keeps its page picker and exit form (no provider, pinned)", () => {

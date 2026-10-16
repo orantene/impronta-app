@@ -9,7 +9,7 @@ import { loadClientSelfProfile } from "@/app/(workspace)/[tenantSlug]/_data-brid
 import { loadClientTrustBillingState } from "@/app/(workspace)/[tenantSlug]/_data-bridge";
 import { loadMyNotifications } from "@/lib/notifications/self";
 import { loadTalentActor } from "@/lib/messaging/talent-actor";
-import { loadTalentVisibleInquiryIds } from "@/lib/messaging/talent-inbox-rows";
+import { loadTalentInboxSummary } from "@/lib/messaging/talent-inbox-rows";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import { loadTalentPersonalSiteDashboardState } from "@/lib/talent-site/server/dashboard-state";
 import {
@@ -172,7 +172,7 @@ test("loadTalentSurfaceNotifications: no impersonation and forged context read t
   }
 });
 
-// ── loadTalentActor / loadTalentVisibleInquiryIds ───────────────────────────
+// ── loadTalentActor / loadTalentInboxSummary ───────────────────────────
 
 function actorDeps(calls: Call[]) {
   return {
@@ -198,15 +198,15 @@ test("loadTalentActor: no context and forged context resolve the real user", asy
   }
 });
 
-test("loadTalentVisibleInquiryIds: resolves the acting-as talent from B, not A", async () => {
+test("loadTalentInboxSummary: resolves the acting-as talent from B, not A", async () => {
   const calls: Call[] = [];
-  await loadTalentVisibleInquiryIds(impersonating, actorDeps(calls)).catch(() => null);
+  await loadTalentInboxSummary(impersonating, actorDeps(calls)).catch(() => null);
   assert.deepEqual(idsOf(calls, "admin", "talent_profiles"), [B]);
   const calls2: Call[] = [];
-  await loadTalentVisibleInquiryIds(undefined, actorDeps(calls2)).catch(() => null);
+  await loadTalentInboxSummary(undefined, actorDeps(calls2)).catch(() => null);
   assert.deepEqual(idsOf(calls2, "admin", "talent_profiles"), [A]);
   const calls3: Call[] = [];
-  await loadTalentVisibleInquiryIds(forgedForOtherActor, actorDeps(calls3)).catch(() => null);
+  await loadTalentInboxSummary(forgedForOtherActor, actorDeps(calls3)).catch(() => null);
   assert.deepEqual(idsOf(calls3, "admin", "talent_profiles"), [A]);
 });
 
@@ -239,7 +239,7 @@ function siteDeps(seen: { ctx: Array<EffectiveReadContext | undefined> }, calls:
       const userId = readUserId(A, ctx);
       return {
         ok: true,
-        session: { user: { id: A } },
+        session: { user: { id: A }, supabase: fakeClient("rls", calls) },
         tenantId: "",
         tenantSlug: "",
         talentProfile: { id: `profile-of-${userId}`, profileCode: "CODE", isPubliclyHidden: false },
@@ -258,14 +258,35 @@ test("loadTalentPersonalSiteDashboardState: A impersonating B reads B's site and
   assert.equal(res.ok && res.state.talentProfileId, `profile-of-${B}`);
   assert.deepEqual(seen.ctx, [impersonating]);
   assert.ok(!calls.some((c) => c.eq.some(([, v]) => v === `profile-of-${A}`)));
+  // TUL-180 N1 / #2824: workspace ownership via admin + effective id, never the actor.
+  assert.deepEqual(idsOf(calls, "admin", "agency_memberships"), [B, "owner", "active"]);
+  assert.deepEqual(idsOf(calls, "rls", "agency_memberships"), []);
+  assert.ok(!calls.some((c) => c.table === "agency_memberships" && c.eq.some(([, v]) => v === A)));
 });
 
 test("loadTalentPersonalSiteDashboardState: no impersonation is unchanged (actor's profile)", async () => {
   for (const ctx of [undefined, forgedForOtherActor, unverifiedClaim]) {
     const seen = { ctx: [] as Array<EffectiveReadContext | undefined> };
-    const res = await loadTalentPersonalSiteDashboardState(undefined, ctx, siteDeps(seen, []));
+    const calls: Call[] = [];
+    const res = await loadTalentPersonalSiteDashboardState(undefined, ctx, siteDeps(seen, calls));
     assert.equal(res.ok && res.state.talentProfileId, `profile-of-${A}`);
+    // Non-impersonating path keeps the RLS client for the workspace probe.
+    assert.deepEqual(idsOf(calls, "rls", "agency_memberships"), [A, "owner", "active"]);
+    assert.deepEqual(idsOf(calls, "admin", "agency_memberships"), []);
   }
+});
+
+test("loadTalentPersonalSiteDashboardState: impersonation with no admin client skips workspace (fail closed)", async () => {
+  const seen = { ctx: [] as Array<EffectiveReadContext | undefined> };
+  const calls: Call[] = [];
+  const deps = {
+    ...siteDeps(seen, calls),
+    admin: () => null,
+  };
+  const res = await loadTalentPersonalSiteDashboardState(undefined, impersonating, deps);
+  assert.ok(res.ok);
+  assert.equal(res.ok && res.state.workspaceSite, null);
+  assert.equal(calls.filter((c) => c.table === "agency_memberships").length, 0);
 });
 
 // ── loadClientSelfProfile ───────────────────────────────────────────────────
@@ -383,11 +404,33 @@ test("talent layout: shell loaders take the effective context, not session.user.
   const src = read("src/app/(workspace)/talent/_talent-layout-inner.tsx");
   assert.match(src, /effectiveReadContext\(/);
   assert.match(src, /loadTalentSelfProfileByUser\(subjectUserId\)/);
-  assert.match(src, /loadTalentPersonalSiteDashboardState\(undefined, readCtx\)/);
+  assert.match(src, /loadTalentPersonalSiteDashboardState\(undefined, readCtx/);
   assert.match(src, /loadTalentSurfaceNotifications\(readCtx\)/);
-  assert.match(src, /loadTalentVisibleInquiryIds\(readCtx\)/);
+  assert.match(src, /loadTalentInboxSummary\(readCtx\)/);
   assert.doesNotMatch(src, /loadTalentSelfProfileByUser\(session\.user\.id\)/);
   assert.doesNotMatch(src, /loadProfileDisplayName\(session\.user\.id\)/);
+});
+
+test("dashboard-state: workspace ownership uses readUserId + pickReadClient (#2824)", () => {
+  const src = read("src/lib/talent-site/server/dashboard-state.ts");
+  assert.match(src, /readUserId\(scope\.session\.user\.id, ctx\)/);
+  assert.match(src, /pickReadClient\(/);
+  assert.match(src, /loadOwnedBusinessWorkspace\(workspaceClient, subjectUserId\)/);
+  assert.doesNotMatch(src, /loadOwnedBusinessWorkspace\(admin, scope\.session\.user\.id\)/);
+  assert.doesNotMatch(src, /loadOwnedBusinessWorkspace\(admin, readUserId/);
+});
+
+test("page-builder: workspace probe uses readUserId + pickReadClient (#2824)", () => {
+  const src = read("src/app/(workspace)/talent/page-builder/page.tsx");
+  assert.match(src, /effectiveReadContext\(/);
+  assert.match(src, /readUserId\(session\.user\.id, readCtx\)/);
+  assert.match(src, /pickReadClient\(/);
+  assert.match(src, /loadOwnedBusinessWorkspace\(probe, subjectUserId\)/);
+  assert.match(src, /loadTalentSelfProfileByUser\(subjectUserId\)/);
+  assert.doesNotMatch(src, /loadOwnedBusinessWorkspace\([^,]+, session\.user\.id\)/);
+  assert.doesNotMatch(src, /loadTalentSelfProfileByUser\(session\.user\.id\)/);
+  // Service role only via pickReadClient adminClient, never a bare probe.
+  assert.doesNotMatch(src, /const probe = createServiceRoleClient\(\)/);
 });
 
 test("client layout: portal loaders take the effective context, not session.user.id", () => {
@@ -399,4 +442,13 @@ test("client layout: portal loaders take the effective context, not session.user
   assert.match(src, /loadClientTrustBillingState\(readCtx\.userId, scope\.tenantId, readCtx\)/);
   assert.doesNotMatch(src, /loadClientSelfProfile\(session\.user\.id/);
   assert.doesNotMatch(src, /loadClientSubscription\(session\.user\.id/);
+});
+
+test("client root resolver: bare /client keys tenant + profile on the effective user", () => {
+  const src = read("src/app/client/page.tsx");
+  assert.match(src, /effectiveReadContext\(/);
+  assert.match(src, /resolveDashboardIdentity\(\)/);
+  assert.match(src, /loadClientPrimaryTenantSlug\(subjectUserId\)/);
+  assert.match(src, /\.eq\("user_id", subjectUserId\)/);
+  assert.doesNotMatch(src, /loadClientPrimaryTenantSlug\(session\.user\.id\)/);
 });

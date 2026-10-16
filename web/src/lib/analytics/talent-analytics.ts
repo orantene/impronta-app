@@ -1,8 +1,12 @@
 import "server-only";
 
+import { resolveEffectiveTalentPlanKey } from "@/lib/billing/effective-talent-plan";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
-import { talentPlanToTier, type TalentPlanTier } from "@/lib/access/talent-membership";
+import {
+  talentPlanToTier,
+  type TalentPlanTier,
+} from "@/lib/access/talent-membership";
 import {
   emptyTalentPageAnalytics,
   groupTalentPageAnalytics,
@@ -10,6 +14,8 @@ import {
   type TalentPageAnalyticsData,
   type TalentViewRow,
 } from "@/lib/analytics/talent-analytics-group";
+import { loadTalentPresenceStats } from "@/lib/analytics/talent-presence-loader";
+import type { TalentPresenceStats } from "@/lib/analytics/talent-presence-stats";
 
 /**
  * loadTalentPageAnalytics — the READ PATH behind the Pro/Portfolio "page
@@ -51,6 +57,8 @@ export type TalentPageAnalyticsResult = {
    * uses it to say "no views yet" instead of implying a measured zero trend.
    */
   hasAnyViews: boolean;
+  /** TUL-582 "Mi presencia" card: 30d vs prior 30d, from collected data only. */
+  presence?: TalentPresenceStats;
 };
 
 /** Cap each scan so a high-traffic profile cannot blow the egress budget. */
@@ -98,9 +106,11 @@ async function resolveOwnedProfile(
   if (error || !data) return null;
 
   const row = data as { id: string; talent_plan_key: string | null };
-  if (expectedTalentProfileId && expectedTalentProfileId !== row.id) return null;
+  if (expectedTalentProfileId && expectedTalentProfileId !== row.id)
+    return null;
 
-  return { id: row.id, tier: talentPlanToTier(row.talent_plan_key) };
+  const effective = await resolveEffectiveTalentPlanKey(supabase, row.id, row.talent_plan_key);
+  return { id: row.id, tier: talentPlanToTier(effective) };
 }
 
 /**
@@ -124,7 +134,11 @@ export async function loadTalentPageAnalytics(
   if (!supabase) return null;
 
   try {
-    const owned = await resolveOwnedProfile(supabase, userId, talentProfileId ?? null);
+    const owned = await resolveOwnedProfile(
+      supabase,
+      userId,
+      talentProfileId ?? null,
+    );
     if (!owned) return null;
     if (!talentTierHasPageAnalytics(owned.tier)) return null;
 
@@ -132,32 +146,35 @@ export async function loadTalentPageAnalytics(
     const start14Iso = windowStartIso(14);
     const start7Iso = windowStartIso(7);
 
-    const [viewsRes, inquiriesRes] = await Promise.all([
-      // `talent_id` is an indexed column (idx_analytics_events_talent), so this
-      // is an index scan, not a jsonb payload filter.
-      supabase
-        .from("analytics_events")
-        .select("created_at, session_id")
-        .eq("talent_id", owned.id)
-        .eq("name", PRODUCT_ANALYTICS_EVENTS.view_talent_profile)
-        .gte("created_at", start30Iso)
-        .order("created_at", { ascending: false })
-        .limit(TALENT_SCAN_LIMIT)
-        .returns<TalentViewRow[]>(),
-      // Attribution: the talent is a named participant on the inquiry. Same
-      // join the unified inbox uses (`inquiry_participants.talent_profile_id`
-      // + role='talent'), so the tile and the inbox can never disagree.
-      supabase
-        .from("inquiry_participants")
-        .select("inquiries!inner(created_at, status)")
-        .eq("talent_profile_id", owned.id)
-        .eq("role", "talent")
-        .neq("status", "removed")
-        .gte("inquiries.created_at", start30Iso)
-        .limit(TALENT_SCAN_LIMIT),
+    const [presence, [viewsRes, inquiriesRes]] = await Promise.all([
+      loadTalentPresenceStats(supabase, owned.id).catch(() => undefined),
+      Promise.all([
+        // `talent_id` is an indexed column (idx_analytics_events_talent), so this
+        // is an index scan, not a jsonb payload filter.
+        supabase
+          .from("analytics_events")
+          .select("created_at, session_id")
+          .eq("talent_id", owned.id)
+          .eq("name", PRODUCT_ANALYTICS_EVENTS.view_talent_profile)
+          .gte("created_at", start30Iso)
+          .order("created_at", { ascending: false })
+          .limit(TALENT_SCAN_LIMIT)
+          .returns<TalentViewRow[]>(),
+        // Attribution: the talent is a named participant on the inquiry. Same
+        // join the unified inbox uses (`inquiry_participants.talent_profile_id`
+        // + role='talent'), so the tile and the inbox can never disagree.
+        supabase
+          .from("inquiry_participants")
+          .select("inquiries!inner(created_at, status)")
+          .eq("talent_profile_id", owned.id)
+          .eq("role", "talent")
+          .neq("status", "removed")
+          .gte("inquiries.created_at", start30Iso)
+          .limit(TALENT_SCAN_LIMIT),
+      ]),
     ]);
 
-    const views30 = viewsRes.error ? [] : viewsRes.data ?? [];
+    const views30 = viewsRes.error ? [] : (viewsRes.data ?? []);
 
     type ParticipantRow = {
       inquiries: { created_at: string; status: string | null } | null;
@@ -184,6 +201,7 @@ export async function loadTalentPageAnalytics(
         inquiries30,
       }),
       hasAnyViews: views30.length > 0,
+      presence,
     };
   } catch {
     // Best-effort, exactly like the workspace loader: a failed analytics read

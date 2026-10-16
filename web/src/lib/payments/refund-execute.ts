@@ -36,6 +36,7 @@ import { getStripeFor, isStripeConfigured } from "@/lib/stripe/client";
 import { loadChargePlatformForTransaction } from "@/lib/stripe/charge-platform";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { formatOrderMoney } from "@/lib/orders/money-format";
 import { recordRefundOnOrderLines } from "@/lib/orders/refund-record-lines";
 
 /**
@@ -398,7 +399,7 @@ export async function executeBookingRefund(input: {
   if (amountCents > eligibility.remainingCents) {
     return {
       ok: false,
-      error: `That is more than is left to refund. At most ${(eligibility.remainingCents / 100).toFixed(2)} ${eligibility.currency} can still be returned.`,
+      error: `That is more than is left to refund. At most ${formatOrderMoney(eligibility.remainingCents, eligibility.currency)} can still be returned.`,
       code: "amount",
     };
   }

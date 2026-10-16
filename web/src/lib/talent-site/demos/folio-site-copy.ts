@@ -20,7 +20,7 @@ const MATEO_EN: FolioSiteCopyOverlay = {
   ],
   coverStatement: "Editorial, runway and campaigns.",
   ratesSubtitle: "Base rates in MXN. Ad use and travel are quoted separately.",
-  footerCredit: "mateoferrer.tulala.digital",
+  footerCredit: "",
   footerContact: "For editorials, runway and campaigns. I reply the same day.",
 };
 
@@ -28,11 +28,11 @@ const MATEO_EN: FolioSiteCopyOverlay = {
 export const FOLIO_DEMO_SITE_COPY: FolioSiteCopy = {
   chapters: [
     { heading: "Editorial", creditLine: "Créditos ficticios de demo · Estudio en CDMX", tocCredit: "Estudio, luz dura" },
-    { heading: "Runway", creditLine: "Show ficticio de demo · 3 salidas", tocCredit: "Salidas y detalles" },
+    { heading: "Pasarela", creditLine: "Show ficticio de demo · 3 salidas", tocCredit: "Salidas y detalles" },
   ],
   coverStatement: "Editorial, runway y campañas.",
   ratesSubtitle: "Tarifas base en MXN. El uso en pauta y los viajes se cotizan aparte.",
-  footerCredit: "mateoferrer.tulala.digital",
+  footerCredit: "",
   footerContact: "Para editoriales, runway y campañas. Respondo en el día.",
   shoeLabel: { en: "Shoe MX", es: "Calzado MX" },
   overlays: { en: MATEO_EN },
@@ -47,7 +47,7 @@ const BY_CODE: Readonly<Record<string, FolioSiteCopy>> = {
     ],
     coverStatement: "Editorial, catálogo y campañas en la Ciudad de México.",
     ratesSubtitle: "Tarifas base en MXN. El uso en pauta y los viajes se cotizan aparte.",
-    footerCredit: "lucia-herrera.tulala.digital",
+    footerCredit: "",
     footerContact: "Para editoriales, catálogo y campañas. Respondo en el día.",
     shoeLabel: { en: "Shoe MX", es: "Calzado MX" },
     overlays: {
@@ -69,7 +69,7 @@ const BY_CODE: Readonly<Record<string, FolioSiteCopy>> = {
     ],
     coverStatement: "Commercial and lifestyle work in Dallas.",
     ratesSubtitle: "Base rates in USD. Usage rights are quoted by media and term.",
-    footerCredit: "priya-shah.tulala.digital",
+    footerCredit: "",
     footerContact: "For lifestyle and commercial bookings. Clear quotes, same day.",
     shoeLabel: { en: "Shoe US", es: "Calzado US" },
   },
@@ -80,7 +80,7 @@ const BY_CODE: Readonly<Record<string, FolioSiteCopy>> = {
     ],
     coverStatement: "Fitness and activewear modeling in Miami.",
     ratesSubtitle: "Base rates in USD. Usage rights are quoted by media and term.",
-    footerCredit: "andre-castillo.tulala.digital",
+    footerCredit: "",
     footerContact: "For activewear, gym and wellness brands. Clear quotes.",
     shoeLabel: { en: "Shoe US", es: "Calzado US" },
   },
@@ -91,7 +91,7 @@ const BY_CODE: Readonly<Record<string, FolioSiteCopy>> = {
     ],
     coverStatement: "Pasarela y presentaciones de colección en la Ciudad de México.",
     ratesSubtitle: "Tarifas base en MXN. Los viajes fuera de CDMX se cotizan aparte.",
-    footerCredit: "noemi-castaneda.tulala.digital",
+    footerCredit: "",
     footerContact: "Para fechas de pasarela y showroom. Respondo en el día.",
     shoeLabel: { en: "Shoe MX", es: "Calzado MX" },
     overlays: {
@@ -113,7 +113,7 @@ const BY_CODE: Readonly<Record<string, FolioSiteCopy>> = {
     ],
     coverStatement: "Hand modeling for jewelry and product in New York.",
     ratesSubtitle: "Base rates in USD. Usage rights are quoted by media and term.",
-    footerCredit: "daniel-kim.tulala.digital",
+    footerCredit: "",
     footerContact: "Hands only. Clear rates by the hour or by the day.",
     shoeLabel: { en: "N/A", es: "N/A" },
   },
@@ -124,7 +124,7 @@ const BY_CODE: Readonly<Record<string, FolioSiteCopy>> = {
     ],
     coverStatement: "Retratos lifestyle y editoriales maduros en San Miguel.",
     ratesSubtitle: "Tarifas base en MXN. Las sesiones fuera de San Miguel incluyen traslado.",
-    footerCredit: "elena-garza-trevino.tulala.digital",
+    footerCredit: "",
     footerContact: "Para hoteles, retiros y retratos editoriales. Español o inglés.",
     shoeLabel: { en: "Shoe MX", es: "Calzado MX" },
     overlays: {
@@ -146,7 +146,7 @@ const BY_CODE: Readonly<Record<string, FolioSiteCopy>> = {
     ],
     coverStatement: "Modelo y cantante para campañas y sets en vivo en Vallarta.",
     ratesSubtitle: "Tarifas base en MXN. Foto y música se pueden reservar juntas.",
-    footerCredit: "rafa-cuevas.tulala.digital",
+    footerCredit: "",
     footerContact: "Foto de día, música en vivo de noche. Dime la fecha y te propongo.",
     shoeLabel: { en: "Shoe MX", es: "Calzado MX" },
     overlays: {
@@ -158,6 +158,72 @@ const BY_CODE: Readonly<Record<string, FolioSiteCopy>> = {
         coverStatement: "Model and singer for campaigns and live sets in Vallarta.",
         ratesSubtitle: "Base rates in MXN. Photo and music can be booked together.",
         footerContact: "Photo by day, live music by night. Tell me the date and I will propose.",
+      },
+    },
+  },
+  "TAL-93007": {
+    chapters: [
+      { heading: "Barra", creditLine: "Eventos · Cancún", tocCredit: "Servicio en vivo" },
+      { heading: "Carta", creditLine: "Cócteles a la medida", tocCredit: "Clásicos y autor" },
+    ],
+    coverStatement: "Bartender y mixóloga para eventos en Cancún.",
+    ratesSubtitle: "Tarifas base en MXN. El alcohol lo compras tú con mi lista.",
+    footerCredit: "sofia-barra.tulala.digital",
+    footerContact: "Para bodas, fiestas privadas y talleres. Respondo en el día.",
+    shoeLabel: { en: "N/A", es: "N/A" },
+    overlays: {
+      en: {
+        chapters: [
+          { heading: "Bar", creditLine: "Events · Cancún", tocCredit: "Live service" },
+          { heading: "Menu", creditLine: "Custom cocktails", tocCredit: "Classics and signature" },
+        ],
+        coverStatement: "Bartender and mixologist for events in Cancún.",
+        ratesSubtitle: "Base rates in MXN. You buy the spirits using my shopping list.",
+        footerContact: "For weddings, private parties and workshops. I reply the same day.",
+      },
+    },
+  },
+  "TAL-93115": {
+    chapters: [
+      { heading: "Retrato", creditLine: "Luz natural · Guadalajara", tocCredit: "Calle y estudio" },
+      { heading: "Marca", creditLine: "Personal y pareja", tocCredit: "Entrega digital" },
+    ],
+    coverStatement: "Retratos personales y de marca en Guadalajara.",
+    ratesSubtitle: "Tarifas base en MXN. Más locaciones se cotizan aparte.",
+    footerCredit: "claudia-retratos.tulala.digital",
+    footerContact: "Para sesiones personales, pareja o marca. Respondo en el día.",
+    shoeLabel: { en: "N/A", es: "N/A" },
+    overlays: {
+      en: {
+        chapters: [
+          { heading: "Portrait", creditLine: "Natural light · Guadalajara", tocCredit: "Street and studio" },
+          { heading: "Brand", creditLine: "Personal and couples", tocCredit: "Digital delivery" },
+        ],
+        coverStatement: "Personal and brand portraits in Guadalajara.",
+        ratesSubtitle: "Base rates in MXN. Extra locations are quoted separately.",
+        footerContact: "For personal, couple or brand sessions. I reply the same day.",
+      },
+    },
+  },
+  "TAL-93116": {
+    chapters: [
+      { heading: "Identidad", creditLine: "Logotipo y manual", tocCredit: "Marca desde cero" },
+      { heading: "Digital", creditLine: "Redes e impresos", tocCredit: "Piezas listas" },
+    ],
+    coverStatement: "Identidad visual y piezas digitales en Puebla.",
+    ratesSubtitle: "Tarifas base en MXN. Proyectos grandes se cotizan por paquete.",
+    footerCredit: "ivan-reyes-diseno.tulala.digital",
+    footerContact: "Cuéntame tu proyecto y te mando propuesta con tiempos.",
+    shoeLabel: { en: "N/A", es: "N/A" },
+    overlays: {
+      en: {
+        chapters: [
+          { heading: "Identity", creditLine: "Logo and guide", tocCredit: "Brand from scratch" },
+          { heading: "Digital", creditLine: "Social and print", tocCredit: "Ready-to-use files" },
+        ],
+        coverStatement: "Visual identity and digital pieces in Puebla.",
+        ratesSubtitle: "Base rates in MXN. Larger projects are quoted as packages.",
+        footerContact: "Tell me about your project and I will send a proposal with timing.",
       },
     },
   },

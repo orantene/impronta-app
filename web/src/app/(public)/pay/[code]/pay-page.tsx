@@ -10,6 +10,8 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { publicThreadPath, signThreadToken } from "@/lib/messaging/thread-token";
 import { resolveTenantTimezone } from "@/lib/spaces/venues";
 import { venueHhmm } from "@/lib/spaces/venue-clock";
+import { isValidIanaTimeZone } from "@/lib/scheduling/tz";
+import { payZoneName } from "./pay-zone-name";
 
 import { googleCalendarUrl, icsDataHref } from "@/lib/payments/calendar-links";
 import { moneyMayHaveMoved } from "@/lib/payments/pay-closed-money";
@@ -17,9 +19,11 @@ import { CheckoutView } from "./CheckoutView";
 import { payCalendarEvent } from "@/lib/payments/pay-calendar-event";
 import { resolvePaidLinkDisplayStatus } from "@/lib/payments/pay-refund-status";
 import { loadPayLinkFeeLines } from "@/lib/payments/pay-link-fee-lines";
+import { collectForOrderPrincipal } from "@/lib/orders/purchase-collect";
 import { resolveOrderPayeeName } from "@/lib/payments/payee-name";
 import { interpolate } from "@/i18n/interpolate";
 import { createTranslator } from "@/i18n/messages";
+import { getCachedActorSession } from "@/lib/server/request-cache";
 
 /**
  * Absolute origin for Stripe success/cancel URLs. Prefer NEXT_PUBLIC_BASE_URL
@@ -35,6 +39,18 @@ async function checkoutOrigin(): Promise<string> {
   if (!host) return "";
   const proto = h.get("x-forwarded-proto") ?? "https";
   return `${proto}://${host}`;
+}
+
+/**
+ * Signed-in check for the "save your bookings" block (TUL-G4). `null` on any
+ * failure hides the block rather than showing it to a signed-in client.
+ */
+async function viewerSignedIn(): Promise<boolean | null> {
+  try {
+    return Boolean((await getCachedActorSession()).user);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -77,6 +93,7 @@ export async function PayByCodePage({
   const admin = createServiceRoleClient();
   if (!admin) notFound();
 
+  const uiLocale = (await getRequestLocale()) === "en" ? "en" : "es";
   const loaded = await loadPaymentLinkByCode(admin, code);
   if (!loaded.ok && loaded.reason === "expired") {
     // An expired request is exactly when the customer needs the conversation
@@ -86,6 +103,7 @@ export async function PayByCodePage({
     return (
       <CheckoutView
         code={code}
+        locale={uiLocale}
         pathPrefix={pathPrefix}
         amountCents={0}
         currency=""
@@ -103,7 +121,7 @@ export async function PayByCodePage({
 
   const { data: order, error: orderError } = await admin
     .from("orders")
-    .select("id, currency, inquiry_id, receipt_code, hold_expires_at, status")
+    .select("id, currency, inquiry_id, receipt_code, hold_expires_at, status, total_cents")
     .eq("id", loaded.orderId)
     .maybeSingle();
   if (orderError) notFound();
@@ -113,6 +131,7 @@ export async function PayByCodePage({
     receipt_code: string | null;
     hold_expires_at: string | null;
     status: string | null;
+    total_cents?: number | string | null;
   } | null;
   const { data: lines, error: linesError } = await admin
     .from("order_lines")
@@ -124,7 +143,7 @@ export async function PayByCodePage({
   // pickup hold is a pickup; anything else gets neutral wording.
   const { data: slotBooking } = await admin
     .from("agency_bookings")
-    .select("id, status, title, venue_name, venue_location_text")
+    .select("id, status, title, venue_name, venue_location_text, timezone")
     .eq("order_id", loaded.orderId)
     .limit(1)
     .maybeSingle();
@@ -137,6 +156,7 @@ export async function PayByCodePage({
     title?: string | null;
     venue_name?: string | null;
     venue_location_text?: string | null;
+    timezone?: string | null;
   } | null;
   const { data: slotTime } = slotBookingId
     ? await admin
@@ -162,10 +182,17 @@ export async function PayByCodePage({
 
   // The two clocks the customer reads ("expires 19:15", "pickup kept until
   // 19:40", MC15) in the VENUE's zone; the rows hold ISO instants and the
-  // page was printing them verbatim (live run 2026-09-11).
-  const { timezone } = loaded.tenantId ? await resolveTenantTimezone(loaded.tenantId) : { timezone: "UTC" };
+  // page was printing them verbatim (live run 2026-09-11). A booking stamped
+  // with its own zone (on-location work) wins over the workspace's default venue.
+  const bookingZone = agencySlot?.timezone?.trim() ?? "";
+  const { timezone } = isValidIanaTimeZone(bookingZone)
+    ? { timezone: bookingZone }
+    : loaded.tenantId
+      ? await resolveTenantTimezone(loaded.tenantId)
+      : { timezone: "UTC" };
   const expiresAtLabel = venueHhmm(loaded.expiresAt, timezone, "en");
   const holdUntilLabel = orderRow?.hold_expires_at ? venueHhmm(orderRow.hold_expires_at, timezone, "en") : null;
+  const zoneName = payZoneName(timezone);
 
   // The conversation behind the sale: the order's, or the link's own when
   // the request came from Messages (D-145: that flow left orders.inquiry_id
@@ -174,7 +201,6 @@ export async function PayByCodePage({
   const threadToken = inquiryId && loaded.tenantId ? signThreadToken(inquiryId, loaded.tenantId) : null;
   const threadHref = threadToken ? publicThreadPath(threadToken) : null;
   const receiptHref = orderRow?.receipt_code ? `/r/${orderRow.receipt_code}` : null;
-  const uiLocale = (await getRequestLocale()) === "en" ? "en" : "es";
   const cameFromConversation = Boolean(inquiryId);
   const orderLines = ((lines ?? []) as { label: string | null; units: number; unit_cents: number }[]).map((line) => ({
     label: line.label ?? "",
@@ -195,6 +221,7 @@ export async function PayByCodePage({
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? "USD"}
         expiresAt={expiresAtLabel}
+        zoneName={zoneName}
         status="processing"
         locale={uiLocale}
         lines={orderLines}
@@ -258,6 +285,7 @@ export async function PayByCodePage({
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? ""}
         expiresAt={expiresAtLabel}
+        zoneName={zoneName}
         status={paidDisplay}
         locale={uiLocale}
         sellerName={sellerName}
@@ -268,6 +296,7 @@ export async function PayByCodePage({
         threadHref={threadHref}
         receiptHref={paidDisplay === "paid" ? receiptHref : null}
         calendar={calendar}
+        signedIn={paidDisplay === "paid" ? await viewerSignedIn() : null}
       />
     );
   }
@@ -282,6 +311,7 @@ export async function PayByCodePage({
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? ""}
         expiresAt={expiresAtLabel}
+        zoneName={zoneName}
         status="cancelledReturn"
         locale={uiLocale}
         lines={[]}
@@ -307,12 +337,14 @@ export async function PayByCodePage({
     return (
       <CheckoutView
         code={code}
+        locale={uiLocale}
         pathPrefix={pathPrefix}
         moneyMayHaveMoved={moneyMoved}
         slotKind={slotKind}
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? ""}
         expiresAt={expiresAtLabel}
+        zoneName={zoneName}
         status={
           loaded.status === "cancelled" || orderCancelled
             ? "cancelled"
@@ -343,11 +375,13 @@ export async function PayByCodePage({
       return (
         <CheckoutView
           code={code}
+          locale={uiLocale}
           pathPrefix={pathPrefix}
         slotKind={slotKind}
           amountCents={loaded.amountCents}
           currency={orderRow?.currency ?? ""}
           expiresAt={expiresAtLabel}
+          zoneName={zoneName}
           status="unknown"
           lines={[]}
           holdUntil={null}
@@ -377,11 +411,13 @@ export async function PayByCodePage({
     return (
       <CheckoutView
         code={code}
+        locale={uiLocale}
         pathPrefix={pathPrefix}
         slotKind={slotKind}
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? ""}
         expiresAt={expiresAtLabel}
+        zoneName={zoneName}
         status={payStartViewStatus(opened.reason)}
         lines={[]}
         holdUntil={null}
@@ -403,11 +439,13 @@ export async function PayByCodePage({
     return (
       <CheckoutView
         code={code}
+        locale={uiLocale}
         pathPrefix={pathPrefix}
         slotKind={slotKind}
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? ""}
         expiresAt={expiresAtLabel}
+        zoneName={zoneName}
         status="unknown"
         lines={[]}
         holdUntil={null}
@@ -418,7 +456,19 @@ export async function PayByCodePage({
     );
   }
 
-  const feeLines = await loadPayLinkFeeLines(admin, loaded.orderId, loaded.amountCents);
+  // What the card will be charged: the SAME helper the checkout uses (never a second computation).
+  // The part above the principal is the client service fee, shown as its own line.
+  const collectCents = loaded.tenantId
+    ? await collectForOrderPrincipal(admin, {
+        tenantId: loaded.tenantId,
+        orderId: loaded.orderId,
+        orderCurrency: orderRow?.currency ?? "",
+        principalCents: loaded.amountCents,
+        subtotalCents: Number(orderRow?.total_cents ?? 0),
+      })
+    : loaded.amountCents;
+  const serviceFeeCents = Math.max(0, collectCents - loaded.amountCents);
+  const feeLines = await loadPayLinkFeeLines(admin, loaded.orderId, collectCents);
   return (
     <CheckoutView
       code={code}
@@ -427,9 +477,11 @@ export async function PayByCodePage({
       amountCents={loaded.amountCents}
       currency={orderRow?.currency ?? ""}
       expiresAt={expiresAtLabel}
+      zoneName={zoneName}
       status="open"
       locale={uiLocale}
       feeLines={feeLines}
+      serviceFeeCents={serviceFeeCents}
       lines={((lines ?? []) as { label: string | null; units: number; unit_cents: number }[]).map((line) => ({
         label: line.label ?? "",
         units: Number(line.units) || 1,

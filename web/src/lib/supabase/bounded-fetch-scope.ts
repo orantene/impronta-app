@@ -10,8 +10,9 @@
  *     whole render (500, never cached). Site / talent / profile rows stay here.
  *   - SECONDARY (`withSecondaryReadDegrade`): a timed-out read degrades only
  *     that section (empty/fallback) and the page stays 200. Reviews, gallery,
- *     availability chips, etc. Talent-site routes are already `force-no-store`,
- *     so a degraded paint is never CDN-cached.
+ *     availability chips, etc. Discovery `/t/site` stays `force-no-store`; the
+ *     vanity host rewrite (TUL-445) uses short CDN revalidate with cookied
+ *     responses forced private at the proxy.
  */
 
 import "server-only";

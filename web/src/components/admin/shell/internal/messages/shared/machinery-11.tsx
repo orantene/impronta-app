@@ -2,6 +2,7 @@
 
 import React, { useState, useTransition, useEffect, useRef } from "react";
 import { OfferColumnHeaders, OfferMoneySplit, OfferEditorFooter } from "@/components/admin/offer/offer-money-split";
+import { isSoloSeller } from "@/components/admin/offer/offer-solo-seller";
 import { useRouter } from "next/navigation";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
@@ -413,7 +414,8 @@ export function LiveLineupPanel({
  * matches the engine contract.
  */
 export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange }: { inquiryId: string; offerId: string; canEdit: boolean; onSendGateChange?: (gate: SendGateResult) => void }) {
-  const { toast, effectiveRoster, effectiveTenant } = useAdminShell();
+  const { state: shellState, toast, effectiveRoster, effectiveTenant, bridgeTalentSelfProfile } = useAdminShell();
+  const workspaceType = shellState.workspaceType;
   const t = useT();
   // Latest-`t` ref for async callbacks (see LiveLineupPanel note).
   const tRef = useRef(t);
@@ -491,6 +493,11 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
   // hand-typed — so the client sees and is charged exactly the same number
   // (convert already books the line-item sum). This removes the shown≠charged
   // drift that was the third structural root cause of the workflow audit.
+  const solo = isSoloSeller({
+    workspaceType,
+    ownTalentProfileId: bridgeTalentSelfProfile?.id,
+    lineTalentProfileIds: snapshot.lineItems.map((li) => li.talentProfileId),
+  });
   const computedTotal = snapshot.lineItems.reduce(
     (sum, li) => sum + (Number(li.totalPrice) || 0),
     0,
@@ -586,7 +593,7 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
           danger banner (with human reason + Retry) while a save is failing. */}
       <OfferSaveBanner state={saveState} onRetry={save} />
       {/* Column headings — see offer-money-split.tsx for why. */}
-      <OfferColumnHeaders t={t} />
+      <OfferColumnHeaders t={t} solo={solo} />
       <div className="flex flex-col gap-1.5">
         {snapshot.lineItems.map((li) => (
           <OfferDraftLineItem
@@ -597,6 +604,7 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
             rosterOptions={rosterOptions}
             coordTalentIds={coordTalentIds}
             labelTouched={labelTouched.has(li.id)}
+            solo={solo}
             t={t}
             toast={toast}
             updateLine={updateLine}
@@ -613,6 +621,7 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
         total={computedTotal}
         currencyCode={snapshot.currencyCode}
         coordinatorFee={snapshot.coordinatorFee}
+        hideFee={solo}
         onAddLine={addLineItem}
         onFeeChange={(v) => setSnapshot((s) => (s == null ? s : { ...s, coordinatorFee: v }))}
         onSave={save}
@@ -625,6 +634,7 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
         clientTotal={computedTotal}
         coordinatorFee={snapshot.coordinatorFee}
         currencyCode={snapshot.currencyCode}
+        hideWorkspaceTake={solo}
       />
 
       {/* W6a — negotiated booking terms, persisted via saveOfferDraft. */}
@@ -705,8 +715,10 @@ export function CreateOfferButton({
     else {
       setChooseCurrency(false);
       toast(t("dashboard.adminTabs.lineup.offerCreated"));
+      // Hydrate the talent Oferta tab immediately; do not keep "Starting…"
+      // pending on a full RSC refresh (that was ~20s of Iniciando on the stack).
       await onCreated?.();
-      router.refresh();
+      void router.refresh();
     }
   });
   return (

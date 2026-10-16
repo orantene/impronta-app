@@ -55,6 +55,8 @@ import type { ExceptionRow } from "@/lib/exceptions/model";
 import { loadHostStand, type HostStandState } from "../admin/reservations/host-stand-data";
 import { loadTenantOwedOrders, loadTenantTakings } from "./payments-activity";
 import { loadWorkspaceOrders } from "./orders";
+import { timed } from "@/lib/server/perf-trace";
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import { loadSetupItems, readAgencySetupRow } from "./setup-checklist";
 
 const DEFAULT_ZONE = "UTC";
@@ -76,29 +78,29 @@ function clock(iso: string | Date, timeZone: string): string {
 }
 
 function money(currency: string, cents: number): string {
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency,
-      maximumFractionDigits: cents % 100 === 0 ? 0 : 2,
-    }).format(cents / 100);
-  } catch {
-    return `${(cents / 100).toFixed(2)} ${currency}`;
-  }
+  return formatDashboardMoneyCents(cents, currency);
 }
 
 async function readMoney(
   tenantId: string,
   sinceIso: string,
   day: ClassesDay | null,
+  workspaceCurrency: string | null,
 ): Promise<OverviewMoney> {
   const [takings, owed] = await Promise.all([
     loadTenantTakings(tenantId, { since: sinceIso }),
     loadTenantOwedOrders(tenantId),
   ]);
+  // TUL-525: never paint "$0 USD" for an MXN studio — fall back to the
+  // workspace preferred currency before the platform default.
+  const fallbackCurrency =
+    (workspaceCurrency?.trim().toUpperCase() || null) &&
+    /^[A-Z]{3}$/.test(workspaceCurrency!.trim().toUpperCase())
+      ? workspaceCurrency!.trim().toUpperCase()
+      : "USD";
   const empty: OverviewMoney = {
     ok: false,
-    currency: "USD",
+    currency: fallbackCurrency,
     collectedTodayCents: 0,
     cashCents: 0,
     cardCents: 0,
@@ -110,7 +112,7 @@ async function readMoney(
   if (!takings.ok || !owed.ok) return empty;
   const byMethod = groupTakingsByMethod(takings.rows);
   const currency =
-    byMethod[0]?.currency ?? sumOwedByCurrency(owed.rows)[0]?.currency ?? "USD";
+    byMethod[0]?.currency ?? sumOwedByCurrency(owed.rows)[0]?.currency ?? fallbackCurrency;
   let cash = 0;
   let card = 0;
   let other = 0;
@@ -400,20 +402,54 @@ export async function loadOverviewSnapshot(input: {
   if (!window) return null;
   const takesReservations = agency?.takes_reservations === true;
 
-  const [dayRead, stand, floor, ordersRead, board, exceptions] = await Promise.all([
-    loadClassesDay(admin, { tenantId: input.tenantId, timeZone, now, dayOffset: 0 }),
+  // The setup checklist reads its own rows (and the People surface for the "who
+  // performs" row), none of it depending on the wave, so it rides in the same
+  // wave. It used to run last, which put the slowest reader on the critical
+  // path of every studio sign-in (20-38 s landing, measured 2026-10-09).
+  const [dayRead, stand, floor, ordersRead, board, exceptions, setup] = await Promise.all([
+    timed("overview.classesDay", () => loadClassesDay(admin, { tenantId: input.tenantId, timeZone, now, dayOffset: 0 })),
     takesReservations
-      ? loadHostStand(input.tenantId, window.ymd, now)
+      ? timed("overview.hostStand", () => loadHostStand(input.tenantId, window.ymd, now))
       : Promise.resolve<HostStandState>({ kind: "no_venue" }),
-    listFloor(admin, input.tenantId),
-    loadWorkspaceOrders(input.tenantId, { limit: 500 }),
-    listBoard(admin, input.tenantId),
-    loadExceptions(admin, { tenantId: input.tenantId, tenantSlug: input.tenantSlug, now: now.getTime() }),
+    timed("overview.floor", () => listFloor(admin, input.tenantId)),
+    timed("overview.orders", () => loadWorkspaceOrders(input.tenantId, { limit: 500 })),
+    timed("overview.board", () => listBoard(admin, input.tenantId)),
+    timed("overview.exceptions", () =>
+      loadExceptions(admin, { tenantId: input.tenantId, tenantSlug: input.tenantSlug, now: now.getTime() }),
+    ),
+    timed("overview.setupItems", () => loadSetupItems(input.tenantId, agency)),
   ]);
 
   const day = dayRead.ok ? dayRead.day : null;
   const book = stand.kind === "ok" ? stand.data.entries : [];
-  const money = await readMoney(input.tenantId, window.from.toISOString(), day);
+  // Prefer the agency column; else the first catalog currency (onboarding
+  // seeds MXN services in Mexico but does not always write preferred_currency).
+  let workspaceCurrency = agency?.preferred_currency ?? null;
+  if (!workspaceCurrency && admin) {
+    const { data: offering, error: offeringError } = await admin
+      .from("talent_offerings")
+      .select("currency")
+      .eq("tenant_id", input.tenantId)
+      .not("currency", "is", null)
+      .limit(1)
+      .maybeSingle();
+    if (offeringError) {
+      logServerError("overview.workspaceCurrency", offeringError);
+    } else {
+      const raw = (offering as { currency?: string | null } | null)?.currency;
+      if (typeof raw === "string" && /^[A-Za-z]{3}$/.test(raw.trim())) {
+        workspaceCurrency = raw.trim().toUpperCase();
+      }
+    }
+  }
+  const money = await timed("overview.money", () =>
+    readMoney(
+      input.tenantId,
+      window.from.toISOString(),
+      day,
+      workspaceCurrency,
+    ),
+  );
 
   const arrivals: OverviewArrivals =
     stand.kind === "ok"
@@ -476,6 +512,6 @@ export async function loadOverviewSnapshot(input: {
       adminBase: input.adminBase,
     }),
     today,
-    setup: await loadSetupItems(input.tenantId, agency),
+    setup,
   };
 }

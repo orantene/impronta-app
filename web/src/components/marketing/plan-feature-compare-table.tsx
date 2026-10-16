@@ -19,6 +19,7 @@
 import { loadCompareTable } from "@/lib/pricing/get-compare-table";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { localizeTierName } from "@/lib/marketing/pricing-ladders-copy";
 import {
   COMPARE_CATEGORY_LABEL,
   type CompareTableRow,
@@ -40,6 +41,7 @@ export async function PlanFeatureCompareTable({
   // rendered English labels on /es/pricing for every row.
   const locale = await getRequestLocale();
   const table = await loadCompareTable(packageSlug, pickLocale(locale, { en: "en", es: "es" }));
+  const copy = pickLocale(locale, { en: COPY_EN, es: COPY_ES });
   if (!table || table.tierSlugs.length === 0) {
     return (
       <div
@@ -50,14 +52,15 @@ export async function PlanFeatureCompareTable({
           color: "var(--plt-muted)",
         }}
       >
-        Plan-comparison data isn&rsquo;t available right now. Check{" "}
-        <code>/platform/admin/commerce?tab=discounts</code> &rarr; to add
-        per-tier feature rows.
+        {copy.unavailable}
       </div>
     );
   }
 
-  const captions = tierCaptions ?? DEFAULT_CAPTIONS;
+  const captions = tierCaptions ?? copy.captions;
+  const tierLabel = (slug: string) => localizeTierName(table.tierLabels[slug] ?? slug, locale);
+  const categoryLabel = (category: string) =>
+    copy.categories[category] ?? COMPARE_CATEGORY_LABEL[category] ?? category;
   const columnCount = table.tierSlugs.length;
   // Tailwind class for grid: 1 feature-label col + N tier cols, all flex-1.
   const gridTemplate = `1.5fr ${"1fr ".repeat(columnCount).trim()}`;
@@ -84,7 +87,7 @@ export async function PlanFeatureCompareTable({
             className="plt-mono text-[0.6875rem] uppercase tracking-[0.24em]"
             style={{ color: "var(--plt-muted)" }}
           >
-            Feature
+            {copy.feature}
           </span>
           {table.tierSlugs.map((slug) => (
             <div key={slug}>
@@ -97,7 +100,7 @@ export async function PlanFeatureCompareTable({
                       : "var(--plt-ink)",
                 }}
               >
-                {table.tierLabels[slug]}
+                {tierLabel(slug)}
               </span>
               {captions[slug] && (
                 <p
@@ -120,7 +123,7 @@ export async function PlanFeatureCompareTable({
                 color: "var(--plt-forest)",
               }}
             >
-              {COMPARE_CATEGORY_LABEL[section.category] ?? section.category}
+              {categoryLabel(section.category)}
             </div>
             <ul>
               {section.rows.map((row) => (
@@ -134,7 +137,7 @@ export async function PlanFeatureCompareTable({
                 >
                   <span style={{ color: "var(--plt-ink)" }}>{row.label}</span>
                   {row.cells.map((c, i) => (
-                    <Cell key={i} cell={c} />
+                    <Cell key={i} cell={c} copy={copy} />
                   ))}
                 </li>
               ))}
@@ -161,13 +164,13 @@ export async function PlanFeatureCompareTable({
                       : "var(--plt-ink)",
                 }}
               >
-                {table.tierLabels[slug]}
+                {tierLabel(slug)}
               </span>
               <span
                 className="plt-mono text-[0.625rem] uppercase tracking-[0.22em]"
                 style={{ color: "var(--plt-muted)" }}
               >
-                Tier {String(tierIdx + 1).padStart(2, "0")}
+                {copy.tier} {String(tierIdx + 1).padStart(2, "0")}
               </span>
             </div>
             {captions[slug] && (
@@ -185,7 +188,7 @@ export async function PlanFeatureCompareTable({
                     className="plt-mono text-[0.625rem] uppercase tracking-[0.22em]"
                     style={{ color: "var(--plt-forest)" }}
                   >
-                    {COMPARE_CATEGORY_LABEL[section.category] ?? section.category}
+                    {categoryLabel(section.category)}
                   </div>
                   <ul className="mt-2 space-y-2">
                     {section.rows.map((row) => {
@@ -199,7 +202,7 @@ export async function PlanFeatureCompareTable({
                             {row.label}
                           </span>
                           <span className="shrink-0">
-                            <Cell cell={cell} />
+                            <Cell cell={cell} copy={copy} />
                           </span>
                         </li>
                       );
@@ -215,20 +218,67 @@ export async function PlanFeatureCompareTable({
   );
 }
 
-const DEFAULT_CAPTIONS: Record<string, string> = {
-  free:   "Every operator, forever.",
-  studio: "Solo + small team, on WhatsApp.",
-  agency: "Teams running representation.",
-  hub:    "Staffing, casting, and scale.",
+type CompareTableCopy = {
+  feature: string;
+  tier: string;
+  included: string;
+  notIncluded: string;
+  /** Shown to visitors when the plan catalog has no compare rows. */
+  unavailable: string;
+  captions: Record<string, string>;
+  categories: Record<string, string>;
 };
 
-function Cell({ cell }: { cell: CompareTableRow["cells"][number] }) {
+const COPY_EN: CompareTableCopy = {
+  feature: "Feature",
+  tier: "Tier",
+  included: "Included",
+  notIncluded: "Not included",
+  unavailable: "The full plan comparison isn’t available right now. Every plan above lists what it includes.",
+  captions: {
+    free:   "Every operator, forever.",
+    studio: "Solo + small team, on WhatsApp.",
+    agency: "Teams running representation.",
+    hub:    "Staffing, casting, and scale.",
+  },
+  categories: {},
+};
+
+const COPY_ES: CompareTableCopy = {
+  feature: "Función",
+  tier: "Plan",
+  included: "Incluido",
+  notIncluded: "No incluido",
+  unavailable: "La comparación completa de planes no está disponible ahora. Cada plan de arriba muestra lo que incluye.",
+  captions: {
+    free:   "Para cualquier negocio, para siempre.",
+    studio: "Solo o equipo pequeño, por WhatsApp.",
+    agency: "Equipos que representan talento.",
+    hub:    "Personal, casting y escala.",
+  },
+  categories: {
+    pipeline:      "De la consulta a la reserva",
+    notifications: "Notificaciones y mensajes",
+    roster_site:   "Talentos y sitio",
+    media:         "Multimedia y marca",
+    team_access:   "Equipo y accesos",
+    network_data:  "Red y datos",
+  },
+};
+
+function Cell({
+  cell,
+  copy,
+}: {
+  cell: CompareTableRow["cells"][number];
+  copy: CompareTableCopy;
+}) {
   if ("missing" in cell || !cell.included) {
     return (
       <span
         className="text-[0.875rem]"
         style={{ color: "var(--plt-muted-soft)" }}
-        aria-label="Not included"
+        aria-label={copy.notIncluded}
       >
         &mdash;
       </span>
@@ -246,7 +296,7 @@ function Cell({ cell }: { cell: CompareTableRow["cells"][number] }) {
   }
   // included=true, no value_text → check mark
   return (
-    <span className="flex items-center" aria-label="Included">
+    <span className="flex items-center" aria-label={copy.included}>
       <span
         className="inline-flex h-5 w-5 items-center justify-center rounded-full"
         style={{

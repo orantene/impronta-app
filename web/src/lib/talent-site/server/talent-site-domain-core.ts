@@ -68,8 +68,8 @@ export type TalentSiteDomainRecord = {
 const DOMAIN_COLUMNS_BASE =
   "id, talent_profile_id, domain, status, verification_token, is_primary, created_at, updated_at, verified_at, ssl_provisioned_at, last_health_check_at, failure_reason, acquisition";
 
-// Parked for PM in `supabase/migrations/_pending_pm/20261231357100_…` until
-// `db:push`. Prefer selecting them; fall back when PostgREST says missing.
+// Migration `supabase/migrations/20261231411100_talent_site_domains_plan_grace.sql` (D6; renumbered
+// from the parked 357100) until it is applied. Prefer selecting them; fall back when PostgREST says missing.
 const DOMAIN_COLUMNS_WITH_GRACE =
   `${DOMAIN_COLUMNS_BASE}, plan_grace_started_at, plan_grace_ends_at, vercel_detached_at, registrar_auto_renew_disabled_at, domain_disposition`;
 
@@ -255,6 +255,29 @@ export async function verifyTalentSiteDomainRecord(
   if (error) throw error;
 
   return transition;
+}
+
+/**
+ * Persist attach/verify failure visibility (existing columns only — no
+ * migration). Vercel challenges are read live from the Vercel API, not stored.
+ */
+export async function persistTalentSiteDomainVercelState(
+  supabase: SupabaseClient,
+  domainId: string,
+  patch: {
+    status?: TalentSiteDomainStatus;
+    failureReason: string | null;
+  },
+): Promise<void> {
+  const update: Record<string, unknown> = {
+    failure_reason: patch.failureReason,
+  };
+  if (patch.status) update.status = patch.status;
+  const { error } = await supabase
+    .from("talent_site_domains")
+    .update(update)
+    .eq("id", domainId);
+  if (error) throw error;
 }
 
 /**

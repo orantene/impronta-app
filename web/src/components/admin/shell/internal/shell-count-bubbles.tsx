@@ -7,10 +7,9 @@
  * top bar. Hide at zero; 99+ cap; stable order. Built on `CountBadge` with
  * class fills (coral / forest / slate) — no gold or rust, no inline styles.
  *
- * Click opens the notifications center filtered by category (drawer payload
- * for TUL-390 tabs). Counts come from the shell bridge: messages via
- * `totalUnread` today; money / attention stay 0 until TUL-387/389 land
- * `shellCounts` on the bridge.
+ * Money and Attention open the notifications center filtered by category
+ * (drawer payload for TUL-390 tabs); Messages goes to the messages page (TUL-718). Counts prefer `shellCounts` from the bridge (TUL-387);
+ * talent attention also counts inquiries awaiting the talent (TUL-519 / 385).
  */
 
 import { CountBadge } from "@/components/ui/count-badge";
@@ -19,7 +18,10 @@ import { cn } from "@/lib/utils";
 import { useDashboardText } from "./dashboard-i18n";
 import { Icon, type AdminShellIconName } from "./primitives";
 import {
+  countTalentAwaitingInquiries,
   formatShellBubbleCount,
+  shellAttentionTooltip,
+  shellBubbleClickTarget,
   SHELL_BUBBLE_FILL_CLASS,
   visibleShellCountBubbles,
   type ShellBubbleCount,
@@ -29,7 +31,9 @@ import { useAdminShell } from "./state";
 
 export type { ShellBubbleCount, ShellBubbleKind };
 export {
+  countTalentAwaitingInquiries,
   formatShellBubbleCount,
+  shellAttentionTooltip,
   SHELL_BUBBLE_FILL_CLASS,
   shellBubbleFillsAvoidGoldRust,
   visibleShellCountBubbles,
@@ -62,18 +66,45 @@ export function ShellCountBubbles({
   counts: countsProp,
   className,
 }: ShellCountBubblesProps) {
-  const { state, openDrawer, totalUnread, bridgeTalentUnread } = useAdminShell();
+  const {
+    state,
+    openDrawer,
+    setPage,
+    setTalentPage,
+    totalUnread,
+    bridgeTalentUnread,
+    shellCounts,
+    effectiveTalentInquiries,
+    bridgeTalentAttentionSignals,
+  } = useAdminShell();
   const copy = useDashboardText();
   const inWorkspace = state.surface === "workspace";
 
+  const bridgeMessages = inWorkspace
+    ? (shellCounts?.messages ?? totalUnread)
+    : (shellCounts?.messages ??
+      (bridgeTalentUnread !== undefined ? bridgeTalentUnread : totalUnread));
   const messages =
-    countsProp?.find((c) => c.kind === "messages")?.count ??
-    (inWorkspace
-      ? totalUnread
-      : (bridgeTalentUnread !== undefined ? bridgeTalentUnread : totalUnread));
-  const money = countsProp?.find((c) => c.kind === "money")?.count ?? 0;
+    countsProp?.find((c) => c.kind === "messages")?.count ?? bridgeMessages;
+  const money =
+    countsProp?.find((c) => c.kind === "money")?.count ??
+    shellCounts?.money ??
+    0;
+  // Row recompute of "esperando tu respuesta" for when the layout sent no
+  // attention count. The workspace never falls back to talent rows (TUL-536).
+  const awaiting = inWorkspace
+    ? 0
+    : countTalentAwaitingInquiries(effectiveTalentInquiries);
+  // Talent: the layout's count is the inbox "Needs reply" number (TUL-388), so
+  // it wins even at 0; the row recompute is only for a missing bridge. Site
+  // signals (TUL-392) add on top here, not in shellCounts.attention, because
+  // Hoy reads that count as "esperando tu respuesta".
+  const signals = inWorkspace ? 0 : (bridgeTalentAttentionSignals?.length ?? 0);
   const attention =
-    countsProp?.find((c) => c.kind === "attention")?.count ?? 0;
+    countsProp?.find((c) => c.kind === "attention")?.count ??
+    (inWorkspace
+      ? (shellCounts?.attention ?? 0)
+      : (shellCounts?.attention ?? awaiting) + signals);
 
   const visible = visibleShellCountBubbles([
     { kind: "messages", count: messages },
@@ -84,7 +115,6 @@ export function ShellCountBubbles({
   if (visible.length === 0) return null;
 
   const iconSize = size === "sm" ? 14 : 15;
-  const drawerId = inWorkspace ? "notifications" : "talent-notifications";
 
   return (
     <div
@@ -93,13 +123,26 @@ export function ShellCountBubbles({
     >
       {visible.map(({ kind, count }) => {
         const label = copy.t(LABEL_KEY[kind]);
+        const countText = formatShellBubbleCount(count);
+        const aria = `${label} · ${countText}`;
+        const title =
+          kind === "attention" ? shellAttentionTooltip(count, copy.t) : aria;
         return (
           <button
             key={kind}
             type="button"
             data-shell-count-bubble={kind}
-            aria-label={`${label} · ${formatShellBubbleCount(count)}`}
-            onClick={() => openDrawer(drawerId, { category: kind })}
+            aria-label={aria}
+            title={title}
+            onClick={() => {
+              const target = shellBubbleClickTarget(kind, inWorkspace ? "workspace" : "talent");
+              if (target.type === "page") {
+                if (inWorkspace) setPage(target.page);
+                else setTalentPage(target.page);
+                return;
+              }
+              openDrawer(target.drawerId, target.payload);
+            }}
             className={cn(
               "relative inline-flex shrink-0 cursor-pointer items-center justify-center rounded-[8px] border border-admin-border-soft bg-white text-admin-ink-muted outline-none hover:border-admin-border hover:text-admin-ink [transition:border-color_var(--transition-admin-micro),color_var(--transition-admin-micro)]",
               size === "sm" ? "h-[28px] w-[28px]" : "h-[32px] w-[32px]",

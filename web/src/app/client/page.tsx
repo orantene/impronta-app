@@ -6,7 +6,8 @@
 // Resolution order:
 //   1. Unauthenticated → /login?next=/client (preserving query)
 //   2. Has agency_client_relationships row → /{slug}/client/today
-//   3. Has client_profiles row but no relationship → tulala.digital (marketing home)
+//   3. Client (profile row or active client) but no relationship → /account when
+//      this host serves the account area (TUL-691), else tulala.digital
 //      Clients with no agency attachment are directed to the marketing surface
 //      where they can discover talent. /directory only exists on the marketing
 //      host, so we use an absolute redirect rather than a relative one to avoid
@@ -19,8 +20,14 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientPrimaryTenantSlug } from "@/lib/saas/role-tenant-resolver";
 import { logServerError } from "@/lib/server/safe-error";
 import { buildQuerySuffix } from "@/lib/saas/redirect-query";
-import { TULALA_APEX_HOST } from "@/lib/brand/tulala";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { legacyClientEntryRedirectFor } from "@/lib/client-account/entry-redirect.server";
+import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
+import { effectiveReadContext } from "@/lib/impersonation/effective-read";
+import { accountFlagKindForHost } from "@/lib/client-account/agency-area-pure";
+import { readAccountHost } from "@/lib/client-account/area-site.server";
+import { clientAccountEnabledFor } from "@/lib/client-account/flag";
+import { clientRootFallback } from "@/lib/client-account/claim-landing";
 
 export const dynamic = "force-dynamic";
 
@@ -39,28 +46,41 @@ export default async function ClientRootPage({
     redirect(`/login?next=${encodeURIComponent(`/client${querySuffix}`)}`);
   }
 
-  const slug = await loadClientPrimaryTenantSlug(session.user.id).catch(() => null);
+  // TUL-255: under staff impersonation the subject has the agency relationship,
+  // not the actor. Resolving with session.user.id bounced staff to
+  // /onboarding/role → /admin → /client (infinite loop).
+  const readCtx = effectiveReadContext(
+    session.user.id,
+    await resolveDashboardIdentity().catch(() => null),
+  );
+  const subjectUserId = readCtx.userId;
+
+  const slug = await loadClientPrimaryTenantSlug(subjectUserId).catch(() => null);
   if (slug) redirect(`/${slug}/client/today${querySuffix}`);
 
-  // Determine onboarding completion. If a client_profiles row exists, the
-  // user already chose "client" — funnel them to discovery rather than
-  // re-asking the role question.
+  // TUL-691: a client with claimed history but no agency relationship (pay-only
+  // guest, hub booker) lands on their account area, never the marketing apex or
+  // the role picker. Account area off on this host keeps the discovery bounce.
+  let hasClientProfile = false;
   const admin = createServiceRoleClient();
   if (admin) {
     const { data: profile, error } = await admin
       .from("client_profiles")
       .select("user_id")
-      .eq("user_id", session.user.id)
+      .eq("user_id", subjectUserId)
       .maybeSingle();
-    if (error) {
-      logServerError("client/root-resolver/profile-lookup", error);
-    } else if (profile) {
-      // Redirect to the marketing site so the user can discover talent.
-      // /directory is a marketing-host route; using a relative path here
-      // would 404 when served from the app host (app.tulala.digital).
-      redirect(`https://${TULALA_APEX_HOST}`);
-    }
+    if (error) logServerError("client/root-resolver/profile-lookup", error);
+    hasClientProfile = Boolean(profile);
   }
-
+  const flagKind = accountFlagKindForHost((await readAccountHost()).hostContext);
+  const fallback = clientRootFallback({
+    hasClientProfile,
+    appRole: session.profile?.app_role,
+    accountStatus: session.profile?.account_status,
+    accountAreaOn: flagKind ? clientAccountEnabledFor(flagKind) : false,
+  });
+  if (fallback === "account") redirect("/account");
+  // /directory is a marketing-host route; the apex is absolute so the app host never 404s.
+  if (fallback === "discover") redirect(resolveMarketingOrigin());
   redirect(`/onboarding/role${querySuffix}`);
 }

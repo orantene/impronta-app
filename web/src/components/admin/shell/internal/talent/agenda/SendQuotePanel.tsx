@@ -7,12 +7,13 @@ import { messagingTalentQuoteSend, messagingTalentQuoteStart } from "@/lib/serve
 import { loadTalentClients } from "@/lib/talent/clients-actions";
 import { clientPickerHint, dedupeClientsByPerson, type TalentClientRow } from "@/lib/talent/clients-merge";
 import { loadTalentOfferingsForEditor } from "@/lib/talent/offerings-actions";
-import { formatOfferingPrice, type TalentOffering } from "@/lib/talent/offerings-types";
+import { type TalentOffering } from "@/lib/talent/offerings-types";
 
 import { useAdminShell } from "../../state";
 import { AgendaPanelFrame, createPanelStore } from "./AgendaPanelFrame";
 import { TaskShell } from "./primitives/TaskShell";
 import { useAgendaCopy } from "./use-agenda-copy";
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 
 /**
  * Send quote as ONE shared panel over Today and Messages (mockup tc_ctas,
@@ -204,12 +205,18 @@ function SendQuoteForm({
       >
         <div className="space-y-2" aria-live="polite">
           <p className={`text-[15px] font-semibold ${sent ? "text-[var(--tc-ok)]" : "text-[var(--tc-risk)]"}`}>
-            {sent ? copy.t("The client has your quote") : copy.t("The conversation was created but the quote did not go out")}
+            {sent
+              ? copy.t("The client has your quote")
+              : threadId
+                ? copy.t("The quote did not go out")
+                : copy.t("The conversation was created but the quote did not go out")}
           </p>
           <p className="text-[13.5px] text-[var(--tc-primary)]">
             {sent
               ? copy.t("They can accept it from the link. You will see the answer in the conversation.")
-              : copy.t("Open the conversation to send the quote from there. Nothing reached the client yet.")}
+              : threadId
+                ? copy.t("Nothing reached the client. Try again in a moment.")
+                : copy.t("Open the conversation to send the quote from there. Nothing reached the client yet.")}
           </p>
           {!sent && failReason === "offer_currency_unresolved" ? (
             <p className="text-[13.5px] text-[var(--tc-primary)]" data-quote-currency-unresolved>
@@ -367,7 +374,7 @@ function SendQuoteForm({
               {offerings.map((o) => (
                 <option key={o.id} value={o.id}>
                   {o.title}
-                  {o.amountCents != null ? ` · ${formatOfferingPrice(o.amountCents, o.currency, copy.locale)}` : ""}
+                  {o.amountCents != null ? ` · ${formatDashboardMoneyCents(o.amountCents, o.currency, copy.locale)}` : ""}
                 </option>
               ))}
             </select>

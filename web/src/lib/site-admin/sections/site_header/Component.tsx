@@ -1,4 +1,4 @@
-import { HeaderDemoPill, HeaderSiteLocales, headerItemAttrs, headerItemMobileDefault } from "./header-site-chrome";
+import { HeaderSiteLocales, headerItemAttrs, headerItemMobileResolved } from "./header-site-chrome";
 import { SectionSwitcher } from "./SectionSwitcher";
 import { switcherLinksFrom, withSwitcherHome } from "./section-switcher-logic";
 import type { CSSProperties } from "react";
@@ -12,11 +12,11 @@ import { HeaderScrollObserver } from "./HeaderScrollObserver";
 import { NavChromeScrollSpy } from "@/lib/site-admin/builder-node/NavChromeScrollSpy";
 import { navChromeNeedsScrollSpy, normalizeNavChrome } from "@/lib/site-admin/nav-chrome";
 import { ClusterIcon } from "./header-cluster-icon";
-import { HeaderAccountItem } from "./HeaderAccountItem";
+import { primaryNavAriaLabel } from "@/i18n/primary-nav-label";
+import { accountPreviewMode } from "@/lib/client-account/account-preview";
+import { renderAccountItem } from "./HeaderAccountPreview";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
-import { HeaderAuthArea } from "@/components/site-shell/HeaderAuthArea";
-import { EditorialSplitActions } from "./EditorialSplitActions";
 import { resolveShellBrandLogoUrl } from "@/lib/site-admin/server/shell-brand-logo";
 import { resolveShellBrandTagline } from "@/lib/site-admin/server/shell-brand-tagline";
 import {
@@ -25,90 +25,18 @@ import {
   type ShellContactLink,
 } from "@/lib/site-admin/server/shell-social-contact";
 import { headerContactHref } from "@/lib/site-admin/site-header/social-contact-normalize";
-import { getLocaleMetadata, type Locale } from "@/i18n/config";
-import { headers } from "next/headers";
-import { ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
-import { localeUrlSettings, stripLocaleFromPathname, withLocalePath } from "@/i18n/pathnames";
-import { publicLocaleHref } from "@/i18n/client-directory-href";
-import { getCachedActorSession } from "@/lib/server/request-cache";
-import { getFavoriteTalentIds, getSavedTalentIds } from "@/lib/public-discovery";
-import { resolveAccountHref } from "@/lib/auth-flow";
+import type { Locale } from "@/i18n/config";
 import {
   loadTenantLocaleSettings,
-  type TenantLocaleSettings,
 } from "@/lib/site-admin/server/locale-resolver";
-
-/**
- * Phase 6B editorial-split right zone: real destinations only (no invented
- * data). Other variants keep HeaderAuthArea unchanged.
- */
-async function renderRightZone(
-  variant: string | undefined,
-  locale: Locale,
-  primaryCta: { label: string; href: string; external?: boolean } | null,
-  navItems: { label: string; href: string; external?: boolean }[],
-  showAccount: boolean,
-  showLanguage: boolean,
-  showDiscovery: boolean,
-  localeSettings: TenantLocaleSettings,
-) {
-  if (variant !== "editorial-split") {
-    return showAccount || showLanguage || showDiscovery ? (
-      <HeaderAuthArea
-        locale={locale}
-        showAccountMenu={showAccount}
-        showLanguageToggle={showLanguage}
-        showDiscoveryTools={showDiscovery}
-        availableLocales={localeSettings.supportedLocales}
-        defaultLocale={localeSettings.defaultLocale}
-        showLanguageSwitcher={localeSettings.showLanguageSwitcher}
-      />
-    ) : null;
-  }
-  const h = await headers();
-  const originalPath = h.get(ORIGINAL_PATHNAME_HEADER) ?? "/";
-  // Moved ABOVE the strip: the strip's own input needs the tenant's grammar too.
-  // With the platform fallback it mis-reads which leading segment is a locale on
-  // any tenant whose default locale is not the platform default, so every
-  // switcher link below was built from a corrupted base path.
-  const pathSettings = localeUrlSettings(localeSettings.defaultLocale, localeSettings.supportedLocales);
-  const { pathnameWithoutLocale } = stripLocaleFromPathname(originalPath, pathSettings);
-  const actor = await getCachedActorSession();
-  const account = resolveAccountHref(Boolean(actor.user), actor.profile, locale);
-  const [savedIds, favoriteIds] = await Promise.all([
-    getSavedTalentIds(),
-    getFavoriteTalentIds(),
-  ]);
-  const localeLinks = showLanguage
-    ? localeSettings.supportedLocales.map((code) => ({
-        code,
-        label: getLocaleMetadata(code).label,
-        href: withLocalePath(pathnameWithoutLocale, code, pathSettings),
-      }))
-    : [];
-  return (
-    <EditorialSplitActions
-      localeLinks={localeLinks}
-      activeLocale={locale}
-      navItems={navItems}
-      primaryCta={primaryCta}
-      directoryHref={publicLocaleHref(pathnameWithoutLocale, "/directory", locale, pathSettings)}
-      accountHref={account.href}
-      accountLabel={account.label}
-      savedCount={savedIds.length}
-      favoritesCount={favoriteIds.length}
-      copy={{
-        menu: pickLocale(locale, { en: "Menu", es: "Menú" }),
-        close: pickLocale(locale, { en: "Close", es: "Cerrar" }),
-        saved: pickLocale(locale, { en: "Saved", es: "Guardados" }),
-        inquiry: pickLocale(locale, { en: "Your inquiry", es: "Tu solicitud" }),
-        startInquiry: pickLocale(locale, { en: "Start an inquiry", es: "Iniciar solicitud" }),
-        exploreTalent: pickLocale(locale, { en: "Explore talent", es: "Explorar talento" }),
-        language: pickLocale(locale, { en: "Language", es: "Idioma" }),
-      }}
-    />
-  );
-}
+import { resolveWorkspaceType } from "@/lib/saas/assert-roster-workspace";
+import { rosterEnabled } from "@/lib/saas/workspace-type";
+import {
+  directoryOrBookHref,
+  filterNavItemsForRoster,
+  resolveRosterSafeHref,
+} from "./directory-nav-href";
+import { renderRightZone } from "./EditorialSplitRightZone";
 
 function textAlignFor(align?: "left" | "center" | "right"): CSSProperties["textAlign"] {
   if (align === "left") return "left";
@@ -384,22 +312,30 @@ export async function SiteHeaderComponent({
     <NavChromeScrollSpy />
   ) : null;
   // 6C — resolve nav + CTA once; LinkRef + prefixPublicHref stay idempotent.
+  // TUL-519 card 77: business workspaces 404 on /directory, so drop those
+  // nav items and fall CTAs back to /book at render time (seeded + authored).
+  const hasRoster = rosterEnabled(await resolveWorkspaceType(tenantId));
+  const inquiryFallback = directoryOrBookHref(hasRoster);
   const linkCtx = { pathPrefix: publicPathPrefix ?? "", tenantId };
   const brandHref = resolveLinkLike(brand.href ?? "/", linkCtx).href;
-  const navLinks = navItems.map((item) => {
-    const L = resolveLinkLike(item.href, linkCtx);
-    return {
-      label: item.label,
-      href: L.href,
-      external: item.external || L.openInNew,
-    };
-  });
+  const navLinks = filterNavItemsForRoster(
+    navItems.map((item) => {
+      const L = resolveLinkLike(item.href, linkCtx);
+      return {
+        label: item.label,
+        href: L.href,
+        external: item.external || L.openInNew,
+      };
+    }),
+    hasRoster,
+  );
   const primaryCtaResolved = primaryCta
     ? (() => {
+        // Resolve LinkRef → string first; roster rewrite only accepts paths.
         const L = resolveLinkLike(primaryCta.href, linkCtx);
         return {
           label: primaryCta.label,
-          href: L.href,
+          href: resolveRosterSafeHref(L.href, hasRoster, inquiryFallback),
           external: primaryCta.external || L.openInNew,
         };
       })()
@@ -460,7 +396,6 @@ export async function SiteHeaderComponent({
   // the existing resolved config (brand / navLinks / social / contacts /
   // primaryCta), so there is no duplicate content store.
   const regions = props.regions;
-  const demoPill = <HeaderDemoPill show={props.siteChrome?.demo} />; // demo talents' only marker
   const siteLocales = props.siteChrome?.locales ?? []; // talent site languages, links to this page per locale
   if (regions) {
     const renderItem = (item: HeaderItem, idx: number) => {
@@ -483,7 +418,7 @@ export async function SiteHeaderComponent({
           ) : null;
         case "nav":
           return navLinks.length > 0 ? (
-            <nav key={key} {...attrs} className="site-header__ritem site-header__nav" aria-label="Primary">
+            <nav key={key} {...attrs} className="site-header__ritem site-header__nav" aria-label={primaryNavAriaLabel(locale)}>
               <ul className="site-header__nav-list">
                 {navLinks.map((l, i) => (
                   <li key={i} className="site-header__nav-item">
@@ -495,7 +430,11 @@ export async function SiteHeaderComponent({
           ) : null;
         case "cta": {
           const label = item.label ?? primaryCtaResolved?.label ?? "Inquire";
-          const href = item.href ?? primaryCtaResolved?.href ?? "/directory";
+          const href = resolveRosterSafeHref(
+            item.href ?? primaryCtaResolved?.href,
+            hasRoster,
+            inquiryFallback,
+          );
           return (
             <a key={key} {...attrs} className="site-header__ritem site-header__cta site-btn site-btn--primary" href={href}>{label}</a>
           );
@@ -530,7 +469,7 @@ export async function SiteHeaderComponent({
           ) : null;
         }
         case "inquiry": {
-          const href = item.href ?? "/directory";
+          const href = resolveRosterSafeHref(item.href, hasRoster, inquiryFallback);
           return (
             <a key={key} {...attrs} className="site-header__ritem site-header__inquiry" href={href} aria-label="Your inquiry">
               <ClusterIcon name="inquiry" />
@@ -539,7 +478,7 @@ export async function SiteHeaderComponent({
           );
         }
         case "saved": {
-          const href = item.href ?? "/directory";
+          const href = resolveRosterSafeHref(item.href, hasRoster, inquiryFallback);
           return (
             <a key={key} {...attrs} className="site-header__ritem site-header__saved" href={href} aria-label="Saved">
               <ClusterIcon name="saved" />
@@ -557,7 +496,7 @@ export async function SiteHeaderComponent({
             </div>
           ) : null;
         case "account":
-          return props.siteChrome?.account ? <HeaderAccountItem key={key} attrs={attrs} locale={locale} /> : null;
+          return renderAccountItem(accountPreviewMode(props.siteChrome, item.previewAs), key, attrs, locale);
         case "section_switcher": {
           // H-4: phone section switcher over the in-page links of the Navigation list.
           const own = switcherLinksFrom(navLinks);
@@ -574,7 +513,7 @@ export async function SiteHeaderComponent({
     };
     const allItems = [...regions.left, ...regions.center, ...regions.right];
     // Burger + panel only when an item actually folds into it on the phone.
-    const hasMobileMenu = allItems.some((i) => (i.responsive?.mobile ?? headerItemMobileDefault(i)) === "menu");
+    const hasMobileMenu = allItems.some((i) => headerItemMobileResolved(i) === "menu");
     return (
       <header
         className="site-header"
@@ -598,7 +537,7 @@ export async function SiteHeaderComponent({
         <div className="site-header__inner site-header__inner--freeform">
           <div className="site-header__region" data-region="left">{regions.left.map(renderItem)}</div>
           <div className="site-header__region" data-region="center">{regions.center.map(renderItem)}</div>
-          <div className="site-header__region" data-region="right">{demoPill}{regions.right.map(renderItem)}</div>
+          <div className="site-header__region" data-region="right">{regions.right.map(renderItem)}</div>
           {hasMobileMenu ? <input type="checkbox" id={`${sectionId}-menu`} className="site-header__menu-toggle" aria-hidden="true" tabIndex={-1} /> : null}
           {hasMobileMenu ? <label htmlFor={`${sectionId}-menu`} className="site-header__burger" aria-label="Menu"><span /><span /><span /></label> : null}
         </div>
@@ -730,7 +669,7 @@ export async function SiteHeaderComponent({
           ) : null}
         </a>
         {navLinks.length > 0 ? (
-          <nav className="site-header__nav" aria-label="Primary">
+          <nav className="site-header__nav" aria-label={primaryNavAriaLabel(locale)}>
             <ul className="site-header__nav-list">
               {navLinks.map((item, i) => (
                 <li key={i} className="site-header__nav-item">
@@ -751,7 +690,7 @@ export async function SiteHeaderComponent({
             standard / minimal / split / editorial keep their exact prior
             flat layout; editorial-split promotes it to a real flex zone
             so the brand stays optically centred. */}
-        <div className="site-header__actions">{demoPill}
+        <div className="site-header__actions">
           {/* The v11 prototype's top bar has NO inline CTA — "Start an
               Inquiry" lives in the hero + the ☰ drawer, keeping the
               wordmark dead-centre with air around it. So for
@@ -783,6 +722,7 @@ export async function SiteHeaderComponent({
             showLanguage,
             showDiscovery,
             tenantLocaleSettings,
+            inquiryFallback,
           )}
         </div>
       </div>

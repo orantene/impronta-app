@@ -99,8 +99,8 @@ export function guestInquirySegment(row: GuestInquiryRowInput): GuestInquirySegm
   if (status === "offer_pending") return "needs";
   if (conv === "awaiting_customer") return "needs";
 
-  if (conv === "needs_reply") return "wait";
-  if (row.isDraft) return "wait";
+  // TUL-1066 #6: an unsent draft is the guest's own move ("Not sent yet"), so it waits on them, not on the business.
+  if (row.isDraft) return "needs";
   return "wait";
 }
 

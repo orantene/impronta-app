@@ -7,6 +7,7 @@ import { formatOrderMoney } from "@/lib/orders/money-format";
 import { pickAProfessional } from "@/lib/people/hats";
 import { fetchOwnerTalentIds, workspaceOfferingOrFilter } from "@/lib/offerings/workspace-offering-scope";
 import type { SetupItem } from "@/lib/overview/model";
+import { timed } from "@/lib/server/perf-trace";
 import { loadPeopleSurface } from "../admin/people/people-data";
 
 /**
@@ -41,6 +42,8 @@ export type AgencySetupRow = {
   stripe_payouts_enabled: boolean | null;
   display_name: string | null;
   settings: Record<string, unknown> | null;
+  /** Workspace presentment currency (ISO). Used when no takings yet (TUL-525). */
+  preferred_currency: string | null;
 };
 
 export async function readAgencySetupRow(tenantId: string): Promise<AgencySetupRow | null> {
@@ -48,7 +51,9 @@ export async function readAgencySetupRow(tenantId: string): Promise<AgencySetupR
   if (!admin) return null;
   const { data, error } = await admin
     .from("agencies")
-    .select("timezone, takes_reservations, stripe_account_id, stripe_payouts_enabled, display_name, settings")
+    .select(
+      "timezone, takes_reservations, stripe_account_id, stripe_payouts_enabled, display_name, settings, preferred_currency",
+    )
     .eq("id", tenantId)
     .maybeSingle();
   if (error) {
@@ -84,7 +89,7 @@ export async function loadSetupItems(tenantId: string, agency: AgencySetupRow | 
         .limit(1),
       admin.from("talent_booking_hours").select("talent_profile_id", { count: "exact", head: true }).eq("tenant_id", tenantId),
       admin.from("cms_pages").select("title").eq("tenant_id", tenantId).eq("status", "published").limit(1),
-      loadPeopleSurface(tenantId).catch((e: unknown) => {
+      timed("setup.people", () => loadPeopleSurface(tenantId)).catch((e: unknown) => {
         logServerError("setupChecklist.people", e);
         return null;
       }),

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import {
   SWITCHER_LINE_RATIO,
   hashTargetOf,
+  isHomePrefixedHash,
   pickActiveSection,
   sectionIndexLabel,
   switchDirection,
@@ -35,7 +36,8 @@ export function SectionSwitcher({
 }) {
   const menuId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
-  // Only links whose anchor exists on this page count; resolved after mount.
+  // Only links whose anchor exists on this page count, in the order the page
+  // stacks them so the numbers follow the scroll; resolved after mount.
   const [live, setLive] = useState<ReadonlyArray<SwitcherLink>>(links);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [dir, setDir] = useState<"up" | "down">("up");
@@ -44,10 +46,21 @@ export function SectionSwitcher({
   const activeIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    setLive(links.filter((l) => {
-      const id = hashTargetOf(l.href);
-      return id !== null && document.getElementById(id) !== null;
-    }));
+    const kept = links.flatMap((link): Array<{ link: SwitcherLink; el: HTMLElement | null }> => {
+      const id = hashTargetOf(link.href);
+      if (id === null) return [];
+      // Off the home page, dead-section-links rewrites `#services` → `/#services`.
+      // Those still belong in the menu even when the section is not on this document.
+      if (isHomePrefixedHash(link.href)) return [{ link, el: null }];
+      const el = document.getElementById(id);
+      return el ? [{ link, el }] : [];
+    });
+    const onPage = kept.filter((k): k is { link: SwitcherLink; el: HTMLElement } => k.el !== null);
+    onPage.sort((a, b) =>
+      a.el === b.el ? 0 : a.el.compareDocumentPosition(b.el) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1,
+    );
+    let next = 0;
+    setLive(kept.map((k) => (k.el === null ? k.link : onPage[next++]!.link)));
   }, [links]);
 
   const measure = useCallback(() => {
@@ -96,9 +109,14 @@ export function SectionSwitcher({
 
   const current = Math.max(0, live.findIndex((l) => hashTargetOf(l.href) === activeId));
   const go = (href: string) => {
+    setOpen(false);
+    // Home-prefixed hashes leave this page (policy pages) and land on the section.
+    if (isHomePrefixedHash(href)) {
+      window.location.assign(href);
+      return;
+    }
     const id = hashTargetOf(href);
     const el = id ? document.getElementById(id) : null;
-    setOpen(false);
     if (!el) return;
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
     el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });

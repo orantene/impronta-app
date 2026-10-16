@@ -22,7 +22,7 @@ import {
   type StampSource,
 } from "../theme-releases/origin";
 import { stripDesignKeys } from "../theme-releases/design-keys";
-import { designApplySummary, lookSummary } from "../history/copy";
+import { designApplySummary, lookSummary, pick } from "../history/copy";
 import { isHistorySnapshot, planRestore } from "../history/restore-plan";
 import type { HistoryActor, HistorySnapshot } from "../history/types";
 import { writeSiteDraft } from "../history/writer";
@@ -30,9 +30,10 @@ import { ensureSiteThemeUpdates } from "../theme-releases/lazy-fan-out.server";
 import { checkSitePin } from "../theme-releases/pin-guard.server";
 import {
   DESIGN_APPLY_DRAFT_SITE_KEYS,
-  draftUnchangedSinceSwitch,
+  canRestoreExactSinceLeave,
   planDesignSwitch,
   snapshotDesignSlug,
+  type DesignSwitchWarn,
 } from "./design-switch";
 
 export { DESIGN_APPLY_DRAFT_SITE_KEYS };
@@ -64,6 +65,7 @@ export { isLookOwnedTokenKey, mergeLookIntoTokens } from "../theme-catalog/look-
 
 export type ThemeApplyErrorCode =
   | "invalid_theme"
+  | "unreleased_version"
   | "site_not_found"
   | "page_not_found"
   | "conflict"
@@ -236,6 +238,8 @@ export interface ApplyDesignInput {
   expectedDraftRev?: number | null;
   /** History actor (a Tulala-run demo rebuild passes "tulala"). */
   actor?: HistoryActor;
+  /** Language of the talent-facing refusal text ("es…" = Spanish, else English). */
+  locale?: string | null;
 }
 
 type DraftRead = {
@@ -353,6 +357,30 @@ export async function findPreLeaveSnapshot(
   return null;
 }
 
+/**
+ * History rows written after leaving a Design (`draft_rev` greater than the
+ * leave entry). Used so A→B→C→A with only gallery switches can restore-exact.
+ */
+export async function loadHistoryKindsAfterLeave(
+  admin: SupabaseClient,
+  input: { talentProfileId: string; leaveDraftRev: number },
+): Promise<Array<{ kind: string }> | null> {
+  const { data, error } = await admin
+    .from("talent_site_history")
+    .select("kind, draft_rev")
+    .eq("talent_profile_id", input.talentProfileId)
+    .gt("draft_rev", input.leaveDraftRev)
+    .order("draft_rev", { ascending: true })
+    .limit(40);
+  if (error) {
+    logServerError("talentTheme.applyDesign.historyAfterLeave", error);
+    return null;
+  }
+  return ((data ?? []) as Array<{ kind?: string | null }>).map((r) => ({
+    kind: typeof r.kind === "string" ? r.kind : "",
+  }));
+}
+
 export async function applyDesign(
   admin: SupabaseClient,
   input: ApplyDesignInput,
@@ -371,7 +399,7 @@ export async function applyDesign(
     version: design.version,
     where: "applyDesign",
   });
-  if (!pin.ok) return { ok: false, code: "invalid_theme", error: pin.reason.en };
+  if (!pin.ok) return { ok: false, code: "unreleased_version", error: pick(pin.reason, input.locale) };
 
   const draft = await readApplyDraft(admin, {
     talentProfileId: input.talentProfileId,
@@ -386,18 +414,32 @@ export async function applyDesign(
   const switchingAway =
     !!draft.designSlug && draft.designSlug.trim().toLowerCase() !== design.slug.trim().toLowerCase();
 
-  // Switch back: restore-exact ONLY when the draft is unchanged since she left
-  // that Design. Any edit since → fall through to carry-over (keep her work).
+  // Switch back: restore-exact when the draft is unchanged since she left that
+  // Design, OR she only tried other Designs in between (TUL-527 A→B→C→A).
+  // Any content edit since → fall through to carry-over (keep her work).
   if (switchingAway) {
     const prior = await findPreLeaveSnapshot(admin, {
       talentProfileId: input.talentProfileId,
       designSlug: design.slug,
     });
-    if (
-      prior &&
-      draft.homeId &&
-      draftUnchangedSinceSwitch(draft.draftRev, prior.leaveDraftRev)
-    ) {
+    let restoreExactOk = false;
+    if (prior && draft.homeId && typeof prior.leaveDraftRev === "number") {
+      const after =
+        draft.draftRev === prior.leaveDraftRev
+          ? []
+          : await loadHistoryKindsAfterLeave(admin, {
+              talentProfileId: input.talentProfileId,
+              leaveDraftRev: prior.leaveDraftRev,
+            });
+      restoreExactOk =
+        after !== null &&
+        canRestoreExactSinceLeave({
+          currentDraftRev: draft.draftRev,
+          leaveEntryDraftRev: prior.leaveDraftRev,
+          entriesAfterLeave: after,
+        });
+    }
+    if (prior && draft.homeId && restoreExactOk) {
       const restore = planRestore(prior.snapshot, {
         shell: draft.shell,
         pages: { [draft.homeId]: draft.home },
@@ -538,6 +580,49 @@ export async function applyDesign(
       warned: plan.warned.length,
     },
   };
+}
+
+/**
+ * TUL-536: read-only dry run of a Design switch. Same carry plan as
+ * `applyDesign` (fresh profile hydration, trade apps, planDesignSwitch) but
+ * nothing is written. Returns the plan's warnings so the confirm sheet can say
+ * what will be hidden / kept. A switch back that restores exactly has no
+ * warnings; the caller treats that as "nothing lost" only when it matches.
+ */
+export async function previewDesignSwitch(
+  admin: SupabaseClient,
+  input: { talentProfileId: string; siteId: string; design: TalentThemeDesignRow },
+): Promise<ThemeApplyResult<{ warned: DesignSwitchWarn[] }>> {
+  const { design } = input;
+  const check = validateDesign(design.payload);
+  if (!check.ok) return { ok: false, code: "invalid_theme", error: "That design is not available." };
+  const draft = await readApplyDraft(admin, input);
+  if (!draft) return { ok: false, code: "site_not_found", error: "Site not found." };
+  const tokens = await loadTemplateHydrationTokens(input.talentProfileId);
+  if (!tokens) return { ok: false, code: "server_error", error: "Could not load profile content." };
+  const built = buildDesignTrees(design.payload, tokens, undefined, {
+    design: design.slug,
+    version: design.version,
+  });
+  if (!built.ok) return { ok: false, code: "server_error", error: "Could not build that design." };
+  const trades = tradesFromTypeLabels([
+    tokens.primaryTypeLabel,
+    tokens.secondaryType1,
+    tokens.secondaryType2,
+    tokens.secondaryType3,
+  ]);
+  const home = placeMaisonTradeApps(built.homeTree, trades, { designSlug: design.slug }).tree;
+  const plan = planDesignSwitch({
+    fromShell: draft.shell,
+    fromHome: draft.home,
+    toShell: built.shellTree,
+    toHome: home,
+    fromSlug: draft.designSlug,
+    toSlug: design.slug,
+    fromVersion: draft.designVersion,
+    toVersion: design.version,
+  });
+  return { ok: true, data: { warned: plan.warned } };
 }
 
 export interface ApplyLookInput {

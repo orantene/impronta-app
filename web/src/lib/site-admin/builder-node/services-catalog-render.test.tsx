@@ -290,7 +290,7 @@ test("category_order wins over first-seen order in the pill strip", () => {
 
 test("layout prop is emitted and cards layout uses a multi-column list", () => {
   const html = render([catalogNode({ layout: "cards", columns: 2 })], {
-    talentOfferings: [offering({})],
+    talentOfferings: [offering({}), offering({ id: "b2", title: "Second" })],
   });
   assert.match(html, /data-layout="cards"/);
   assert.match(html, /--svc-columns:\s*2/);
@@ -522,7 +522,7 @@ test("featured layout puts featuredOfferingIds first as hero", () => {
 
 test("grid defaults to 3 columns via --svc-columns", () => {
   const html = render([catalogNode({ layout: "grid" })], {
-    talentOfferings: [offering({})],
+    talentOfferings: [offering({}), offering({ id: "b2", title: "Second" }), offering({ id: "b3", title: "Third" })],
   });
   assert.match(html, /--svc-columns:\s*3/);
 });
@@ -566,6 +566,8 @@ test("rail categoryNav emits data-category-nav=rail and body wrapper", () => {
   assert.match(html, /class="cb-island"/);
   // Proposal row packing: photo + name + buy/CTA still present.
   assert.match(html, /site-builder-node--services-catalog-photo/);
+  // TUL-871: catalog photos never compete with the hero for bandwidth.
+  assert.match(html, /<img[^>]*loading="lazy"[^>]*services-catalog-photo/);
   assert.match(html, /site-builder-node--services-catalog-name/);
   assert.match(html, /site-builder-node--services-catalog-cta/);
 });
@@ -672,4 +674,43 @@ test("instant row with extras says Select and ignores the inspector ctaLabel", (
   });
   assert.match(html, />Select</);
   assert.doesNotMatch(html, />Book it</);
+});
+
+test("TUL-848: a single service never sits in a multi-column grid", () => {
+  for (const layout of ["grid", "cards"] as const) {
+    const html = render([catalogNode({ layout })], { talentOfferings: [offering({})] });
+    assert.match(html, /--svc-columns:\s*1/);
+  }
+});
+
+// TUL-792: on a published talent site each home service card links to its own service page.
+test("TUL-792: card names link to the service page when the site gives a link base", () => {
+  const html = render([catalogNode({})], {
+    talentOfferings: [offering({ id: "3fa91c2b-1111-4222-8333-444455556666", title: "Corte de cabello" })],
+    talentServiceLinkBase: "/en",
+  });
+  assert.match(html, /href="\/en\/servicio-corte-de-cabello-3fa91c2b"/);
+});
+
+test("TUL-792: no link base (builder, hub, previews) means no service links", () => {
+  const html = render([catalogNode({})], { talentOfferings: [offering({})] });
+  assert.doesNotMatch(html, /data-service-page-link/);
+});
+
+test("TUL-805: a quote service shows on the site as Price on request / Precio a cotizar with a request CTA", () => {
+  const quote = offering({ title: "Cotizar evento", amountCents: null, priceDisplay: "quote", priceType: "custom", bookingMode: "request" });
+  const en = render([catalogNode({})], { talentOfferings: [quote] });
+  assert.match(en, /Cotizar evento/);
+  assert.match(en, /Price on request/);
+  assert.match(en, /data-offering-cta/);
+  const es = renderToStaticMarkup(
+    renderBuilderNodes([catalogNode({})], {
+      mode: "freeform",
+      includeRendererStyles: false,
+      includeFontLinks: false,
+      visitorLocale: "es",
+      dataSources: { talentOfferings: [quote] },
+    }) as Parameters<typeof renderToStaticMarkup>[0],
+  );
+  assert.match(es, /Precio a cotizar/);
 });

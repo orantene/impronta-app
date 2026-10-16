@@ -22,6 +22,9 @@ import { useState } from "react";
 import { setOfferingImages, listTalentPortfolioPhotos, type PortfolioPhoto } from "@/lib/talent/offerings-actions";
 import { setMenuItemStockAction } from "@/lib/talent/menu-offerings-actions";
 import { useOfferingsEditor } from "./use-offerings-editor";
+import { useSitePosture } from "./use-site-posture";
+import { SiteOverrideChip } from "./SiteOverrideChip";
+import { siteBookingModeView } from "@/lib/talent/site-booking-mode";
 import { actionUploadAndAssignMedia } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 import { uploadTalentMedia } from "@/lib/client/signed-upload";
 import {
@@ -40,6 +43,7 @@ import { OfferingOptionsEditor } from "./OfferingOptionsEditor";
 import type { ServicePricingType } from "@/lib/talent/services-menu-types";
 import { DEFAULT_CURRENCY_OPTIONS, CURRENCY_LABELS, TALENT_CURRENCY_OPTIONS } from "@/lib/billing/currencies";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 
 const C = {
   ink: "#0B0B0D",
@@ -1048,6 +1052,7 @@ export function TalentOfferingsManager(
   const [filter, setFilter] = useState<SellFilter>("all");
   /** The Add menu: which kind of thing (talent only). */
   const [kindMenu, setKindMenu] = useState(false);
+  const sitePosture = useSitePosture(isWorkspace ? null : talentId);
 
   /** Save a new item as a HIDDEN draft so photos can attach before the rest. */
   function ensureDraftSaved(): Promise<TalentOffering | null> {
@@ -1315,13 +1320,14 @@ export function TalentOfferingsManager(
                       {it.kind === "product" && it.inventoryQty === 0 && (
                         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", padding: "2px 8px", borderRadius: 20, background: "rgba(220,38,38,0.10)", color: C.error }}>Sold out</span>
                       )}
-                      {it.bookingMode === "instant" && (
+                      {siteBookingModeView(it.bookingMode, sitePosture).effective === "instant" && (
                         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", padding: "2px 8px", borderRadius: 20, background: C.accentSoft, color: C.accentDeep }}>
-                          Direct booking
+                          Direct booking{it.bookingMode ? "" : " (site setting)"}
                           {it.reserveMode === "deposit" ? ` · ${it.depositPct ?? ""}% deposit` : it.reserveMode === "free" ? " · free reserve" : ""}
                           {it.allowPayInPerson ? " · cash ok" : ""}
                         </span>
                       )}
+                      {!isWorkspace && <SiteOverrideChip own={it.bookingMode} site={sitePosture} />}
                     </div>
                     <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 2 }}>
                       {KIND_LABELS[it.kind]}

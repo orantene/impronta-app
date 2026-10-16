@@ -3,11 +3,11 @@ import { notFound } from "next/navigation";
 import { GoogleFontsLink } from "@/app/google-fonts-link";
 import { ClientAccountArea, type AreaData } from "@/components/client-account/ClientAccountArea";
 import { TalentSiteHtmlTokens } from "@/components/talent/site/TalentSiteHtmlTokens";
-import { getRequestLocale } from "@/i18n/request-locale";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { resolveGatedTalentProfileId } from "@/lib/talent-site/server/talent-site-host-gate";
 
 import { accountAreaGate, accountAudience, type AccountView } from "./area-pure";
+import { resolveAccountLocale } from "./account-locale.server";
 import { loadAccountSite, readAccountHost } from "./area-site.server";
 import {
   loadAccountProfile, loadOwedPayLinks, loadReceiptDetail, loadReceipts, loadThread, loadThreads,
@@ -29,27 +29,28 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  */
 export async function renderClientAccountPage(view: AccountView) {
   const host = await readAccountHost();
-  // Agency, hub and app hosts (TUL-64) have their own renderer behind the `app` flag.
+  // Agency, hub and app hosts (TUL-64) have their own renderer; flag kind follows
+  // x-impronta-host-context (agency / hub / app / marketing).
   if (host.hostContext !== "talent_site") return renderTenantAccountPage(view, host.hostContext);
   const talentProfileId = resolveGatedTalentProfileId({ hostContext: host.hostContext, talentProfileId: host.talentProfileId });
   if (accountAreaGate({ flagOn: clientAccountEnabledFor("talent"), hostContext: host.hostContext }) !== "render" || !talentProfileId) {
     notFound();
   }
   if ((view.kind === "visit" || view.kind === "thread") && !UUID.test(view.id)) notFound();
-  const [locale, session, site, tenant] = await Promise.all([
-    getRequestLocale(),
+  const [session, site, tenant] = await Promise.all([
     getCachedActorSession(),
     loadAccountSite(talentProfileId),
     resolveAccountTenant(),
   ]);
   if (!tenant) notFound();
   const userId = session.user?.id ?? null;
+  const locale = await resolveAccountLocale(userId); // TUL-1191: cookie / saved language, not the path-derived header
   const audience = accountAudience({ userId, appRole: session.profile?.app_role ?? null });
 
   const data: AreaData = {};
   if (audience === "client" && userId) {
     const tenantId = tenant.tenantId;
-    if (view.kind === "visit") data.visit = await loadVisitDetail(userId, tenantId, view.id);
+    if (view.kind === "visit") data.visit = await loadVisitDetail(userId, tenantId, view.id, locale);
     else if (view.kind === "thread") data.thread = await loadThread(userId, tenantId, view.id);
     else if (view.kind === "receipt") data.receipt = await loadReceiptDetail(userId, tenantId, view.code);
     else if (view.tab === "visits") data.visits = await loadVisitGroups(userId, tenantId);
@@ -60,7 +61,9 @@ export async function renderClientAccountPage(view: AccountView) {
         loadOwedPayLinks(userId, tenantId),
         loadReceipts(userId, tenantId),
       ]);
-    } else data.profile = await loadAccountProfile(userId);
+    }
+    // TUL-777: every tab needs the profile for the name prompt.
+    if (view.kind === "home") data.profile = await loadAccountProfile(userId);
   }
   const hasTokens = Object.keys(site.cssVars).length > 0;
   return (

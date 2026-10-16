@@ -217,3 +217,16 @@ export function buildRegisterHref(
   // string, so this is safe to apply unconditionally when a locale is known.
   return locale ? withLocaleHref(href, locale) : href;
 }
+
+/**
+ * TUL-761: true when the auth page was opened for a CLIENT (`?as=client`, or the legacy
+ * `?role=client`), so the shell's brand panel can speak to a client instead of pitching the
+ * seller product. The layout cannot see searchParams, so it reads the proxy's original query.
+ */
+export function isClientIntentSearch(search: string | null | undefined): boolean {
+  const params = new URLSearchParams((search ?? "").replace(/^\?/, ""));
+  return readRegisterIntent({
+    [REGISTER_INTENT_PARAM]: params.get(REGISTER_INTENT_PARAM) ?? undefined,
+    [REGISTER_INTENT_LEGACY_PARAM]: params.get(REGISTER_INTENT_LEGACY_PARAM) ?? undefined,
+  }) === "client";
+}

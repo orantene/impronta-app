@@ -24,6 +24,8 @@ import {
   bannerTitle,
   changesLine,
   copyKeptLine,
+  decisionLine,
+  itemFallbackLabel,
   keptLine,
   keptRemovedLine,
   type UpdateLocale,
@@ -152,6 +154,11 @@ export function ThemeUpdateSheet(props: ThemeUpdateSheetProps): ReactElement {
                       {keptRemovedLine(preview.summary, locale)}
                     </p>
                   ) : null}
+                  {decisionLine(preview.summary, locale) ? (
+                    <p className="m-0 mt-1 text-[13px] text-admin-ink-muted" data-theme-update-decision>
+                      {decisionLine(preview.summary, locale)}
+                    </p>
+                  ) : null}
                   {preview.previewUrl ? (
                     <a href={preview.previewUrl} target="_blank" rel="noreferrer" className={`${BTN_GHOST} mt-3`} data-theme-update-preview-link>
                       {t("previewOnSite")}
@@ -251,7 +258,7 @@ export function ItemRow(p: {
   const [after, setAfter] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const note = (locale === "es" ? item.noteEs : item.noteEn) || item.noteEn || item.noteEs || item.key;
+  const note = (locale === "es" ? item.noteEs : item.noteEn) || item.noteEn || item.noteEs || itemFallbackLabel(item.key, locale);
   const canPlace = item.type === "new-block" && (item.tree === null || item.tree === "home");
   const groupName = `theme-update-place-${item.id}`;
 

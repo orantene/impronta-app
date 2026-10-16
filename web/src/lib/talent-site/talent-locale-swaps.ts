@@ -9,10 +9,31 @@
  */
 
 import { platformServiceTitle } from "@/lib/talent/offering-title-fallback";
+import { localizePlaceCity } from "./city-label";
 import { accentHeadline, seedHeadlineFor } from "./hero-headline";
-import { formatHeroEyebrow, formatHeroProofLine, type HeroProofInput } from "./hero-proof-line";
+import {
+  formatHeroEyebrow,
+  formatHeroProofLine,
+  languageEndonym,
+  type HeroProofInput,
+} from "./hero-proof-line";
 
 export type LocalizedMapLike = Readonly<Record<string, string | null | undefined>> | null | undefined;
+
+/**
+ * Prior taxonomy ES labels that may still be baked into applied trees after a
+ * live `name_i18n.es` rename (TUL-516: latin-dancer → Baile latino). Keyed by
+ * the English term name still present on the row.
+ */
+const STALE_TYPE_ES: Readonly<Record<string, readonly string[]>> = {
+  "Latin Dancer": ["Bailarín Latino"],
+};
+
+/** Stale baked labels for a current English taxonomy name (header / live-text match). */
+export function staleTypeLabels(enName: string | null | undefined): readonly string[] {
+  const en = enName?.trim() ?? "";
+  return en ? (STALE_TYPE_ES[en] ?? []) : [];
+}
 
 export interface TalentLocaleSwapSource {
   bioI18n: LocalizedMapLike;
@@ -95,17 +116,52 @@ export function buildTalentLocaleSwaps(
     add(bioEn.slice(0, TAGLINE_MAX), clampWords(bio));
     add(clampWords(bioEn), clampWords(bio));
   }
+  // TUL-876: a tree baked in her main language (Spanish) must show the visitor's
+  // bio when she wrote one for that language. Only a real entry for the visitor's
+  // locale drives this, never a fallback, so no content is invented.
+  const ownBio = src.bioI18n?.[key]?.trim() ?? "";
+  if (ownBio) {
+    for (const [code, raw] of Object.entries(src.bioI18n ?? {})) {
+      const baked = raw?.trim() ?? "";
+      if (!baked || code === key || code === "en") continue;
+      add(baked, ownBio);
+      add(baked.slice(0, TAGLINE_MAX), clampWords(ownBio));
+      add(clampWords(baked), clampWords(ownBio));
+    }
+  }
+  // GRK-075: ES-primary trees bake `bioEs.slice(0,160)` mid-word with no EN key
+  // (e.g. Valeria "…preparo coreogra"). Heal every locale's raw mid-slice.
+  for (const raw of Object.values(src.bioI18n ?? {})) {
+    const t = typeof raw === "string" ? raw.trim() : "";
+    if (t.length > TAGLINE_MAX) {
+      add(t.slice(0, TAGLINE_MAX), clampWords(bio || t));
+    }
+  }
+  if (bio.length > TAGLINE_MAX) {
+    add(bio.slice(0, TAGLINE_MAX), clampWords(bio));
+  }
   for (const names of src.typeNames) {
-    const en = names?.en?.trim();
-    if (en) add(en, pick(names, key, chain));
+    const target = pick(names, key, chain);
+    if (!target) continue;
+    const en = names?.en?.trim() ?? "";
+    for (const from of new Set(
+      [en, names?.es?.trim() ?? "", ...(STALE_TYPE_ES[en] ?? [])].filter(Boolean),
+    )) {
+      add(from, target);
+    }
   }
   const cityEn = src.homeCity?.en?.trim();
   const cityNames = [cityEn, ...(src.cityAliases ?? [])].map((c) => c?.trim() ?? "").filter(Boolean);
   if (cityEn || cityNames.length) {
-    const city = pick(src.homeCity, key, chain) || cityNames[0]!;
-    for (const name of new Set(cityNames)) {
+    let city = pick(src.homeCity, key, chain) || cityNames[0]!;
+    // TUL-516: English place name "Mexico City" must not paint on Spanish pages.
+    city = localizePlaceCity(city, key);
+    for (const name of new Set([...cityNames, "Mexico City", cityEn].filter(Boolean) as string[])) {
       add(name, city);
-      if (key === "es") add(`Based in ${name}`, `Con base en ${city}`);
+      if (key === "es") {
+        add(`Based in ${name}`, `Con base en ${city}`);
+        add(`BASED IN ${name.toUpperCase()}`, `CON BASE EN ${city.toUpperCase()}`);
+      }
     }
   }
   for (const o of src.offerings ?? []) {
@@ -126,9 +182,15 @@ export function buildTalentLocaleSwaps(
   // The hero eyebrow is the trade and the city joined ("Nail Artist · Mérida"): a value of its own.
   const tradeEn = src.typeNames[0]?.en?.trim();
   if (tradeEn) {
-    const city = pick(src.homeCity, key, chain) || cityNames[0] || "";
+    const tradeNow = pick(src.typeNames[0], key, chain);
+    const city = localizePlaceCity(pick(src.homeCity, key, chain) || cityNames[0] || "", key);
+    const tradeFrom = new Set(
+      [tradeEn, src.typeNames[0]?.es?.trim() ?? "", ...(STALE_TYPE_ES[tradeEn] ?? [])].filter(Boolean),
+    );
     for (const name of new Set(cityNames)) {
-      add(formatHeroEyebrow(tradeEn, name), formatHeroEyebrow(pick(src.typeNames[0], key, chain), city));
+      for (const trade of tradeFrom) {
+        add(formatHeroEyebrow(trade, name), formatHeroEyebrow(tradeNow, city));
+      }
     }
   }
   // The hero headline seeded from her trade ("Hands that {i}speak{/i} for you.") has a Spanish form.
@@ -136,6 +198,36 @@ export function buildTalentLocaleSwaps(
   if (seed && key === "es") add(accentHeadline(seed.en), accentHeadline(seed.es));
   if (src.proof && key === "es") {
     add(formatHeroProofLine(src.proof, "en"), formatHeroProofLine(src.proof, "es"));
+    // About `{{languagesLine}}` bakes "Languages: …" from talent_languages at
+    // apply time. Prefer the pattern helper below for the render pass: an exact
+    // swap keyed only on *current* proof languages misses a stale baked line
+    // after the talent adds/removes/reorders languages (Codex P2 on #2791).
+    const spoken = (src.proof.languages ?? []).map((n) => n.trim()).filter(Boolean);
+    if (spoken.length) {
+      const enLine = `Languages: ${spoken.join(" · ")}`;
+      const es = localiseBakedLanguagesLine(enLine, "es");
+      if (es) add(enLine, es);
+    }
   }
   return out;
+}
+
+/**
+ * Translate a baked About languages line ("Languages: Spanish · English") to
+ * Spanish ("Idiomas: Español · Inglés") by recognising the seed prefix and
+ * endonymising each name. Independent of the talent's *current* language list
+ * so a tree baked before a profile edit still swaps. Null when not that seed.
+ */
+export function localiseBakedLanguagesLine(
+  text: string,
+  locale: string | null | undefined,
+): string | null {
+  if (localeKey(locale) !== "es") return null;
+  const m = text.trim().match(/^Languages:\s*(.+)$/);
+  if (!m) return null;
+  const names = m[1]!.split(/\s*·\s*/).map((n) => n.trim()).filter(Boolean);
+  if (!names.length) return null;
+  const esNames = names.map((n) => languageEndonym(n, "es")).filter(Boolean);
+  if (!esNames.length) return null;
+  return `Idiomas: ${esNames.join(" · ")}`;
 }

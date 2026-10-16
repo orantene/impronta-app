@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 
 import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
+import { resolveTalentDashboardMyWebsite } from "@/lib/talent-site/dashboard-my-website";
 import {
   resolveTalentPublicPreviewDestinations,
   type TalentPublicPreviewKind,
@@ -42,7 +43,10 @@ export function TalentPreviewEyeControl({
   const rootRef = useRef<HTMLDivElement | null>(null);
   const menuId = useId();
 
-  const publicSiteUrl = siteLoad?.ok ? siteLoad.state.publicSiteUrl : null;
+  // TUL-180: dual owners preview the business workspace as "My website".
+  const publicSiteUrl = siteLoad?.ok
+    ? resolveTalentDashboardMyWebsite(siteLoad.state).publicUrl
+    : null;
   const { destinations, defaultHref } = resolveTalentPublicPreviewDestinations({
     profileCode,
     publicSiteUrl,

@@ -8,6 +8,7 @@ import type { BackgroundMediaProps } from "./background-media";
 import type { BuilderIconName } from "./icon-registry";
 import type { LiveTextKey } from "./live-text-keys";
 import type { BuilderVisibilityCondition } from "./visibility";
+import type { PromoWidgetOptions } from "@/lib/promos/widgets/types";
 
 export type BuilderNodeKind =
   | "section"
@@ -50,6 +51,8 @@ export type BuilderNodeKind =
   | "portfolio"
   /** W-14 — live-bound talent_reviews quote cards (trio / single / row). */
   | "reviews"
+  /** Posts v1 (PO1) — live blog posts of the rendering site, 8 styles. */
+  | "posts_feed"
   /** Visit facts — live service areas / languages / hours; hidden when empty. */
   | "visit"
   /** Contents — authored chapter index / TOC with anchor links. */
@@ -70,6 +73,8 @@ export type BuilderNodeKind =
   | "app_nail_designer"
   /** Next free slot chip — bound to public booking slots; hidden when empty. */
   | "next_free_chip"
+  /** Promo widget: banner / cards / reveal / countdown / pop-up / sticky / book button over the talent's live promos. */
+  | "promo"
   | "reserve_table"
   | "session_picker"
   | "ticket_picker"
@@ -1385,6 +1390,21 @@ export interface BuilderReviewsNode extends BuilderNodeBase {
 }
 
 /**
+ * Posts v1 (PO1) — the "Posts" widget: the rendering site's published posts
+ * (talent or workspace scope) in one of 8 styles, with source / filter / sort /
+ * field / pagination options. Option schema + defaults live in
+ * `posts-feed-model.ts`. Hidden on a real site with no posts (unless an empty
+ * message is set); demo example posts in the builder and theme previews.
+ */
+export interface BuilderPostsFeedNode extends BuilderNodeBase {
+  kind: "posts_feed";
+  props: import("./posts-feed-model").PostsFeedProps & {
+    layerLabel?: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
  * Visit — live service-area / language / booking-hours facts.
  * Layouts: facts (list) · split (optional map beside facts) · location (the
  * Ubicación section: kind, zone, rows, actions and a token-coloured zone map
@@ -1409,6 +1429,8 @@ export interface BuilderVisitNode extends BuilderNodeBase {
     showMap?: boolean;
     mapImageUrl?: string;
     mapCaption?: string;
+    /** area layout: note under the chips, per language via `i18n`; empty = the location settings' note. */
+    arrivalNote?: string;
     /** Soft surface band behind the section. */
     band?: boolean;
     /** Talent-written facts shown after the live ones (e.g. a deposit note). */
@@ -1479,7 +1501,7 @@ export interface BuilderMastheadNode extends BuilderNodeBase {
     bio?: string;
     /** `"bio"`: the blurb is her live per-language bio (TUL-230); `bio` is the baked fallback. */
     liveText?: "bio";
-    /** Magazine: the "(Text in Spanish)" line after the blurb, set by the live-bio pass on a fallback. */
+    /** Magazine: the "Disponible en español" line after the blurb, set by the live-bio pass on a fallback. */
     bioHint?: string;
     /** Magazine: primary CTA. */
     ctaLabel?: string;
@@ -1551,6 +1573,8 @@ export interface BuilderUtilityBarNode extends BuilderNodeBase {
     name?: string;
     subtitle?: string;
     logoUrl?: string;
+    /** Site home URL for the logo + name brand control (hydrated like site_header.brand.href). */
+    homeHref?: string;
     showStatus?: boolean;
     statusOnLabel?: string;
     statusOffLabel?: string;
@@ -1559,6 +1583,11 @@ export interface BuilderUtilityBarNode extends BuilderNodeBase {
     callHref?: string;
     ctaLabel?: string;
     ctaHref?: string;
+    /** Section links (desktop inline, phone menu). Talent sites fill them at render from the page's sections. */
+    navLinks?: { label: string; href: string }[];
+    /** Accessible name of the section nav and its phone menu button. */
+    navLabel?: string;
+    menuLabel?: string;
     style?: BuilderNodeStyle;
   };
 }
@@ -1678,6 +1707,18 @@ export interface BuilderNextFreeChipNode extends BuilderNodeBase {
      */
     href?: string;
     useWebsiteTheme?: boolean;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
+ * Promo widget (TUL-1051 part B): one block, seven looks (`variant`), bound to
+ * the talent's LIVE promos. Hidden when no promo is live. Every option is a
+ * display rule; the price a client pays is still decided by quote() at booking.
+ */
+export interface BuilderPromoNode extends BuilderNodeBase {
+  kind: "promo";
+  props: PromoWidgetOptions & {
     style?: BuilderNodeStyle;
   };
 }
@@ -2731,6 +2772,7 @@ export type BuilderNode =
   | BuilderServicesCatalogNode
   | BuilderPortfolioNode
   | BuilderReviewsNode
+  | BuilderPostsFeedNode
   | BuilderVisitNode
   | BuilderContentsNode
   | BuilderMastheadNode
@@ -2742,6 +2784,7 @@ export type BuilderNode =
   | BuilderTaskPickerNode
   | BuilderAppNailDesignerNode
   | BuilderNextFreeChipNode
+  | BuilderPromoNode
   | BuilderReserveTableNode
   | BuilderSessionPickerNode
   | BuilderTicketPickerNode

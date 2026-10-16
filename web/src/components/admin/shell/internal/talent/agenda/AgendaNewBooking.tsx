@@ -1,5 +1,6 @@
 "use client";
 
+import { DateFormatHint } from "../../primitives/DateFormatHint";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { resolveTradeProfile } from "@/lib/talent-agenda/trades";
 import { createOwnSlotBooking } from "@/lib/talent-agenda/create-slot";
@@ -459,6 +460,7 @@ function SlotComposer({
               <label className={LABEL}>
                 {copy.t("Date")}
                 <input type="date" className={FIELD} value={date} onChange={(e) => setDate(e.target.value)} />
+                <DateFormatHint locale={copy.locale} />
               </label>
               <label className={LABEL}>
                 {copy.t("Starts")}

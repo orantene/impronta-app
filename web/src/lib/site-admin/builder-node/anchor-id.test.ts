@@ -71,6 +71,32 @@ test("a node with no anchor emits NO id key at all", () => {
   assert.deepEqual(Object.keys(anchorIdAttrs({})), []);
 });
 
+test("kit slotKey fills id when anchorId is missing (TUL-530 / #services)", () => {
+  // Stale solace/frame trees keep slotKey for parity but lose anchorId; CTAs
+  // to #services were kept by pruneDeadSectionLinks yet did not scroll.
+  assert.deepEqual(anchorIdAttrs({ props: { slotKey: "services" } }), {
+    id: "services",
+    "data-parity-key": "services",
+  });
+  assert.deepEqual(anchorIdAttrs({ props: { slotKey: "gallery" } }), {
+    id: "gallery",
+    "data-parity-key": "gallery",
+  });
+  // Operator-typed anchor still wins over the kit slot.
+  assert.deepEqual(anchorIdAttrs({ props: { slotKey: "services", anchorId: "Menu" } }), {
+    id: "menu",
+    "data-parity-key": "services",
+  });
+  // Non-kit layout keys (maison services_row_cards) do not invent an id.
+  assert.deepEqual(anchorIdAttrs({ props: { slotKey: "services_row_cards" } }), {
+    "data-parity-key": "services_row_cards",
+  });
+  // Shell landmarks are not section scroll targets.
+  assert.deepEqual(anchorIdAttrs({ props: { slotKey: "header" } }), {
+    "data-parity-key": "header",
+  });
+});
+
 test("anchorId survives a validate round-trip on props AND base", () => {
   // validateBuilderNodeTree rebuilds each node as { id, kind, props, children }
   // and strips any prop a per-kind schema does not declare. Without the carrier

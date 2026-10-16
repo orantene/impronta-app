@@ -54,3 +54,36 @@ test("the legacy /onboarding/role URL: marketing host hands it to /start, every 
   }
   assert.equal(startDoorRedirect({ ...base, method: "POST", pathname: "/onboarding/role", hostKind: "marketing" }), null);
 });
+
+test("a Spanish prefix is kept: app/agency/talent /es/start goes to the marketing /es/start", () => {
+  for (const hostKind of ["app", "agency", "talent_site"]) {
+    assert.equal(startDoorRedirect({ ...base, pathname: "/es/start", hostKind }), "https://tulala.digital/es/start", hostKind);
+    assert.equal(startDoorRedirect({ ...base, pathname: "/es/signup/", hostKind }), "https://tulala.digital/es/start", hostKind);
+  }
+  assert.equal(
+    startDoorRedirect({ ...base, pathname: "/es/start", hostKind: "app", search: "?choice=myself" }),
+    "https://tulala.digital/es/start?choice=myself",
+  );
+  assert.equal(startDoorRedirect({ ...base, pathname: "/es/start", hostKind: "marketing" }), null);
+  assert.equal(startDoorRedirect({ ...base, pathname: "/es/signup", hostKind: "marketing" }), "https://tulala.digital/es/start");
+  assert.equal(startDoorRedirect({ ...base, pathname: "/es/onboarding/role", hostKind: "marketing" }), "https://tulala.digital/es/start");
+  assert.equal(startDoorRedirect({ ...base, pathname: "/es/onboarding/role", hostKind: "app" }), null);
+  assert.equal(startDoorRedirect({ ...base, pathname: "/es/start", hostKind: "hub" }), null);
+  assert.equal(startDoorRedirect({ ...base, pathname: "/es", hostKind: "app" }), null);
+  assert.equal(startDoorRedirect({ ...base, pathname: "/esx/start", hostKind: "app" }), null);
+});
+
+test("TUL-905: the platform app host hands /help (and its pages) to the marketing help centre", () => {
+  assert.equal(startDoorRedirect({ ...base, pathname: "/help", hostKind: "app" }), "https://tulala.digital/help");
+  assert.equal(startDoorRedirect({ ...base, pathname: "/help/", hostKind: "app" }), "https://tulala.digital/help");
+  assert.equal(
+    startDoorRedirect({ ...base, pathname: "/help/talents", hostKind: "app", search: "?lang=es" }),
+    "https://tulala.digital/help/talents?lang=es",
+  );
+  // Tenant-branded hosts and the marketing host keep their own routing.
+  for (const hostKind of ["marketing", "agency", "talent_site", "hub"]) {
+    assert.equal(startDoorRedirect({ ...base, pathname: "/help", hostKind }), null, hostKind);
+  }
+  assert.equal(startDoorRedirect({ ...base, pathname: "/helpdesk", hostKind: "app" }), null);
+  assert.equal(startDoorRedirect({ ...base, method: "POST", pathname: "/help", hostKind: "app" }), null);
+});

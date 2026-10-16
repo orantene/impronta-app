@@ -4,7 +4,7 @@
  * P4 — the passwordless email-code form (CLIENT / booker intent).
  *
  * Two steps, one card:
- *   1. email  →  "Email me a sign-in code"   (requestEmailCode)
+ *   1. email  →  "Email me a code"   (requestEmailCode)
  *   2. code   →  the emailed digits + "Continue" (submitEmailCode)
  *
  * B2 (2026-08-07) — the code really is in the email: the Supabase Send Email
@@ -28,13 +28,13 @@
  * the i18n catalog (EN + ES).
  */
 
-import { useActionState, useState, type ReactNode } from "react";
+import { useActionState, useEffect, useState, type ReactNode } from "react";
 
 import {
   requestEmailCode,
   submitEmailCode,
-  type EmailCodeState,
 } from "@/app/auth/otp-actions";
+import type { EmailCodeState } from "@/lib/auth/send-email-code-core";
 import {
   AUTH_INPUT_CLASS,
   AUTH_INPUT_STYLE,
@@ -42,7 +42,16 @@ import {
   AuthNotice,
   AuthSubmitButton,
 } from "@/components/auth/auth-ui";
-import { OTP_CODE_MAX_LENGTH } from "@/lib/auth/otp-flow";
+import {
+  forgetCodeStep,
+  hasCodeStepParam,
+  recallCodeStep,
+  rememberCodeStep,
+  urlWithCodeStep,
+} from "@/lib/auth/code-step-url";
+import { pickAuthEmail, readAuthEmailDraft, readAuthNameDraft, writeAuthEmailDraft, writeAuthNameDraft } from "@/lib/auth/email-draft";
+import { authEmailHasPlusTag, OTP_CODE_LENGTH, OTP_CODE_MAX_LENGTH } from "@/lib/auth/otp-flow";
+import { useFocusFirstInvalidOnError } from "@/lib/auth/use-focus-first-invalid";
 import { createTranslator } from "@/i18n/messages";
 import { AgeTermsCheckbox } from "@/components/auth/age-terms-checkbox";
 
@@ -89,6 +98,9 @@ export function EmailCodeForm({
   allowCreate = true,
   passwordFallback,
   footer,
+  startWithPassword = false,
+  collectName = false,
+  clientSignup = false,
 }: {
   nextPath?: string;
   locale?: string;
@@ -100,6 +112,16 @@ export function EmailCodeForm({
   passwordFallback?: ReactNode;
   /** Rendered under both lanes (e.g. the "already have an account" line). */
   footer?: ReactNode;
+  /**
+   * TUL-16 (a): the default /login keeps the password form first, with
+   * "Email me a code" one tap away, so a passwordless account
+   * (magic link or Google) always has a way back in.
+   */
+  startWithPassword?: boolean;
+  /** TUL-762: ask for a name on the create path; it rides as `full_name` into the new profile. */
+  collectName?: boolean;
+  /** TUL-771: this is an explicit client sign-up; the verified account skips the role screen. */
+  clientSignup?: boolean;
 }) {
   const t = createTranslator(locale);
   const [sendState, sendAction, sending] = useActionState<EmailCodeState, FormData>(
@@ -113,28 +135,72 @@ export function EmailCodeForm({
 
   // "Use a different email" pins the form back to step 1 until the next send.
   const [backToEmail, setBackToEmail] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(startWithPassword);
+  // TUL-558: warn before send when the visitor types a +tag alias.
+  const [emailDraft, setEmailDraft] = useState(() => {
+    const seed = pickAuthEmail(readAuthEmailDraft(), defaultEmail);
+    if (seed) writeAuthEmailDraft(seed);
+    return seed;
+  });
   // Which action the visitor most recently triggered. Both `useActionState`
   // hooks keep their last result forever, so without this a stale "that code
   // isn't right" would sit on top of a fresh "new code sent" (and vice versa).
   const [lane, setLane] = useState<"send" | "verify">("send");
 
   const sent = sendState?.step === "sent" ? sendState : null;
+  // TUL-909: a short wait before the next code, like the sign-up code screen.
+  const [secondsLeft, setSecondsLeft] = useState(0);
+  useEffect(() => {
+    if (sent) setSecondsLeft(30);
+  }, [sent]);
+  useEffect(() => {
+    if (secondsLeft <= 0) return;
+    const id = window.setTimeout(() => setSecondsLeft((n) => n - 1), 1000);
+    return () => window.clearTimeout(id);
+  }, [secondsLeft]);
   // The code step survives a FAILED resend (`step: "code"`) too: losing the
   // screen and the address because the resend was rate limited would be worse
   // than the rate limit itself.
-  const codeStepEmail =
+  // TUL-766: a reload (or coming back from the mail app) lands on the code box again.
+  const [restoredEmail, setRestoredEmail] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    try {
+      if (hasCodeStepParam(window.location.search)) {
+        const remembered = recallCodeStep(window.sessionStorage, Date.now());
+        if (remembered) setRestoredEmail(remembered);
+        else window.history.replaceState(window.history.state, "", urlWithCodeStep(window.location.href, false));
+      }
+    } catch {
+      /* storage unavailable: the form simply starts at step 1 */
+    }
+  }, []);
+  const liveCodeStepEmail =
     sendState?.step === "sent" || sendState?.step === "code"
       ? sendState.email
       : verifyState?.step === "code"
         ? verifyState.email
         : undefined;
+  const codeStepEmail = liveCodeStepEmail ?? (backToEmail ? undefined : restoredEmail);
   const email = codeStepEmail ?? stateEmail(sendState) ?? defaultEmail;
   const onCodeStep = Boolean(codeStepEmail) && !backToEmail;
+  useEffect(() => {
+    try {
+      if (onCodeStep && codeStepEmail) {
+        rememberCodeStep(window.sessionStorage, codeStepEmail, Date.now());
+        window.history.replaceState(window.history.state, "", urlWithCodeStep(window.location.href, true));
+      } else if (backToEmail) {
+        forgetCodeStep(window.sessionStorage);
+        window.history.replaceState(window.history.state, "", urlWithCodeStep(window.location.href, false));
+      }
+    } catch {
+      /* the URL marker is a nicety; never block the form */
+    }
+  }, [onCodeStep, codeStepEmail, backToEmail]);
 
   const stepError =
     lane === "verify" ? stateError(verifyState) : stateError(sendState);
   const notice = lane === "send" ? sent?.notice : undefined;
+  useFocusFirstInvalidOnError(stepError);
 
   if (showPassword && passwordFallback) {
     return (
@@ -144,8 +210,16 @@ export function EmailCodeForm({
           className="text-center text-[0.8125rem]"
           style={{ color: "var(--plt-muted)" }}
         >
-          <QuietAction onClick={() => setShowPassword(false)}>
-            {t("public.auth.passwordless.useCode")}
+          <QuietAction
+            onClick={() => {
+              // Back from the password lane: take the address typed there.
+              setEmailDraft(readAuthEmailDraft());
+              setShowPassword(false);
+            }}
+          >
+            {onCodeStep && email
+              ? t("public.auth.passwordless.backToCode")
+              : t("public.auth.passwordless.useCode")}
           </QuietAction>
         </p>
         {footer}
@@ -159,7 +233,7 @@ export function EmailCodeForm({
         {notice ? (
           <AuthNotice tone="success">{notice.replace("{email}", email)}</AuthNotice>
         ) : null}
-        {stepError ? <AuthNotice tone="error">{stepError}</AuthNotice> : null}
+        {stepError ? <AuthNotice tone="error" id="code-step-error">{stepError}</AuthNotice> : null}
 
         <form
           action={verifyAction}
@@ -169,6 +243,7 @@ export function EmailCodeForm({
           <input type="hidden" name="email" value={email} />
           <input type="hidden" name="locale" value={locale} />
           {allowCreate ? <input type="hidden" name="create" value="1" /> : null}
+          {allowCreate && clientSignup ? <input type="hidden" name="signup_intent" value="client" /> : null}
           {/* Step 1 required the 18+ and Terms box on the create path. */}
           {allowCreate ? <input type="hidden" name="age_terms" value="on" /> : null}
           {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
@@ -176,7 +251,7 @@ export function EmailCodeForm({
           <AuthField
             label={t("public.auth.passwordless.codeLabel")}
             htmlFor="otp-code"
-            hint={t("public.auth.passwordless.codeHint")}
+            hint={`${t("public.auth.passwordless.codeLengthHint").replace("{n}", String(OTP_CODE_LENGTH))} ${t("public.auth.passwordless.codeHint")}`}
           >
             <input
               id="otp-code"
@@ -184,6 +259,8 @@ export function EmailCodeForm({
               type="text"
               inputMode="numeric"
               autoComplete="one-time-code"
+              aria-invalid={stepError ? true : undefined}
+              aria-describedby={stepError ? "code-step-error" : undefined}
               // The code box is the only control on this step; focusing it is
               // the whole point of the screen (and saves a tap on mobile).
               autoFocus
@@ -212,19 +289,22 @@ export function EmailCodeForm({
           <input type="hidden" name="email" value={email} />
           <input type="hidden" name="locale" value={locale} />
           <input type="hidden" name="resend" value="1" />
+          {allowCreate && collectName ? <input type="hidden" name="full_name" value={readAuthNameDraft()} /> : null}
           <input type="hidden" name="create" value={allowCreate ? "1" : "0"} />
           {allowCreate ? <input type="hidden" name="age_terms" value="on" /> : null}
           {allowCreate ? <input type="hidden" name="terms_form" value="1" /> : null}
           {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
           <button
             type="submit"
-            disabled={sending}
+            disabled={sending || secondsLeft > 0}
             className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)] disabled:opacity-60"
             style={{ color: "var(--plt-ink-soft)" }}
           >
             {sending
               ? t("public.auth.passwordless.resending")
-              : t("public.auth.passwordless.resend")}
+              : secondsLeft > 0
+                ? t("public.auth.signupCode.resendIn").replace("{seconds}", String(secondsLeft))
+                : t("public.auth.passwordless.resend")}
           </button>
         </form>
 
@@ -232,7 +312,7 @@ export function EmailCodeForm({
           className="text-center text-[0.8125rem]"
           style={{ color: "var(--plt-muted)" }}
         >
-          <QuietAction onClick={() => setBackToEmail(true)}>
+          <QuietAction onClick={() => { setBackToEmail(true); setRestoredEmail(undefined); }}>
             {t("public.auth.passwordless.changeEmail")}
           </QuietAction>
           {passwordFallback ? (
@@ -254,6 +334,7 @@ export function EmailCodeForm({
     <div className="space-y-3.5">
       <form
         action={sendAction}
+        noValidate // TUL-893: the server answers in the page language; no English browser tooltip
         className="space-y-3.5"
         onSubmit={() => {
           setBackToEmail(false);
@@ -265,12 +346,34 @@ export function EmailCodeForm({
         {allowCreate ? <input type="hidden" name="terms_form" value="1" /> : null}
         {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
 
-        {stepError ? <AuthNotice tone="error">{stepError}</AuthNotice> : null}
+        {stepError ? <AuthNotice tone="error" id="email-step-error">{stepError}</AuthNotice> : null}
+
+        {allowCreate && collectName ? (
+          <AuthField label={t("public.auth.form.name")} htmlFor="full_name">
+            <input
+              id="full_name"
+              name="full_name"
+              type="text"
+              autoComplete="name"
+              required
+              maxLength={120}
+              defaultValue={readAuthNameDraft()}
+              onChange={(e) => writeAuthNameDraft(e.target.value)}
+              placeholder={t("public.auth.form.namePlaceholder")}
+              className={AUTH_INPUT_CLASS}
+              style={AUTH_INPUT_STYLE}
+            />
+          </AuthField>
+        ) : null}
 
         <AuthField
           label={t("public.auth.form.email")}
           htmlFor="email"
-          hint={t("public.auth.passwordless.emailHint")}
+          hint={
+            authEmailHasPlusTag(emailDraft)
+              ? t("public.auth.passwordless.plusEmailHint")
+              : t("public.auth.passwordless.emailHint")
+          }
         >
           <input
             id="email"
@@ -278,8 +381,14 @@ export function EmailCodeForm({
             type="email"
             autoComplete="email"
             required
-            defaultValue={email}
-            placeholder="you@studio.com"
+            aria-invalid={stepError ? true : undefined}
+            aria-describedby={stepError ? "email-step-error" : undefined}
+            defaultValue={pickAuthEmail(readAuthEmailDraft(), email)}
+            onChange={(e) => {
+              setEmailDraft(e.target.value);
+              writeAuthEmailDraft(e.target.value);
+            }}
+            placeholder={t("public.auth.form.emailPlaceholder")}
             className={AUTH_INPUT_CLASS}
             style={AUTH_INPUT_STYLE}
           />

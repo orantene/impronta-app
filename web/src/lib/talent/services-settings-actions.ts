@@ -29,6 +29,8 @@ export type SellingDefaults = {
   minNoticeMin: number | null;
   /** Default booking mode for services that inherit: instant / request / inquiry. */
   bookingPosture: TalentBookingPosture;
+  /** TUL-685: "platform" = never chosen, the Tulala default (instant) applies. Display only, never saved. */
+  bookingPostureSource?: "talent" | "platform";
   /** Who-step primary CTA vocabulary. */
   whoPrimaryCta: WhoPrimaryCta;
 };
@@ -88,6 +90,7 @@ export async function loadSellingDefaults(
       bufferAfterMin: typeof raw.bufferAfterMin === "number" ? raw.bufferAfterMin : null,
       minNoticeMin: typeof raw.minNoticeMin === "number" ? raw.minNoticeMin : null,
       bookingPosture: booking.bookingPosture,
+      bookingPostureSource: parseBookingPosture(raw.bookingPosture) ? "talent" : "platform",
       whoPrimaryCta: booking.whoPrimaryCta,
     },
   };
@@ -109,9 +112,11 @@ export async function saveSellingDefaults(
       : {};
   // Merge so non-form keys (e.g. categoryNotes) survive a Defaults save.
   // Writers write the new three values only (legacy on_demand reads as request).
+  const { bookingPostureSource: _display, ...storable } = defaults;
+  void _display;
   const selling_defaults = {
     ...prev,
-    ...defaults,
+    ...storable,
     inPersonMethods: parseInPersonMethods(defaults.inPersonMethods ?? prev.inPersonMethods),
     bookingPosture: parseBookingPosture(defaults.bookingPosture) ?? PLATFORM_DEFAULT_BOOKING_POSTURE,
   };

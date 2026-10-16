@@ -37,6 +37,8 @@
  * a provider can never be added here without the directive following it.
  */
 
+import { ANALYTICS_ALLOWED_JS } from "@/lib/analytics/consent";
+
 /** The accounts an operator can connect. Stable ids; they are storage keys. */
 export const TRACKING_PROVIDER_IDS = ["ga4", "gtm", "metaPixel", "plausible"] as const;
 
@@ -302,11 +304,10 @@ function jsLiteral(id: string): string {
 }
 
 /** Consent Mode v2 default, run before any Google tag. Reads the shared
- *  localStorage choice; absent or "denied" means everything stays denied. */
+ *  choice and consent region (`ANALYTICS_ALLOWED_JS`). */
 export const CONSENT_DEFAULT_CODE =
   `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}` +
-  `window.gtag=window.gtag||gtag;var c='denied';` +
-  `try{if(localStorage.getItem('impronta_analytics_consent')==='granted')c='granted';}catch(e){}` +
+  `window.gtag=window.gtag||gtag;var c=${ANALYTICS_ALLOWED_JS}?'granted':'denied';` +
   `gtag('consent','default',{analytics_storage:c,ad_storage:c,ad_user_data:c,ad_personalization:c,wait_for_update:500});`;
 
 const CONSENT_DEFAULT_TAG: TrackingTag = {

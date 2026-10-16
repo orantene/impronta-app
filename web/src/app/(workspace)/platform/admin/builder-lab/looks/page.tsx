@@ -156,7 +156,7 @@ export default async function BuilderLabLooksPage({
         />
       </div>
 
-      <LookImportPanel rows={storedLooks} />
+      <LookImportPanel rows={storedLooks} lang={locale} />
     </div>
   );
 }

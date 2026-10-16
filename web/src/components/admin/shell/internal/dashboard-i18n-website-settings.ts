@@ -15,6 +15,13 @@ export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
     "Cancelación, anticipo y lo que leen tus clientas antes de reservar",
   "Website settings": "Ajustes del sitio",
   "How clients book, timing, payments and cancelling": "Cómo reservan tus clientes, horarios, pagos y cancelaciones",
+  // TUL-180 Option A
+  "Other websites": "Otros sitios",
+  "Personal site": "Sitio personal",
+  "Edit your personal site separately from your business site.":
+    "Edita tu sitio personal aparte de tu sitio de negocio.",
+  "Personal": "Personal",
+  "Open personal site editor": "Abrir editor del sitio personal",
   "Services & booking": "Servicios y reservas",
   "Availability & timing": "Disponibilidad y horarios",
   "Client self-service": "Autogestión del cliente",
@@ -112,11 +119,14 @@ export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
   "'Consultar' will open an inquiry form so inquiry-only services still reach you.":
     "'Consultar' abrirá un formulario de consulta para que los servicios solo por consulta te sigan llegando.",
   "Accept new inquiries": "Aceptar nuevas consultas",
-  "Off hides Ask and Consultar. Clients with a booking can still message you.":
+  "Off hides Ask and Inquire. Clients with a booking can still message you.":
     "Apagado oculta Preguntar y Consultar. Los clientes con una reserva aún pueden escribirte.",
   "Booking assistant (AI)": "Asistente de reservas (IA)",
   "Off keeps today's scripted chat. On lets the assistant answer from your public services and hand off to you when unsure. It does not book or send pay links yet. Starts off.":
     "Apagado deja el chat con guion de hoy. Encendido deja que el asistente responda con tus servicios públicos y te pase la conversación cuando no esté seguro. Todavía no reserva ni envía enlaces de pago. Empieza apagado.",
+  "Let AI assistants book me": "Dejar que asistentes de IA me reserven",
+  "Assistants like ChatGPT or Claude can send a client a link to request one of your services. The client confirms it in your chat. Starts off.":
+    "Asistentes como ChatGPT o Claude pueden enviarle a un cliente un enlace para pedir uno de tus servicios. El cliente lo confirma en tu chat. Empieza apagado.",
   "AI on": "IA activa",
   "AI off": "IA apagada",
   "This service will show as unavailable: {services}": "Este servicio se mostrará como no disponible: {services}",
@@ -131,6 +141,9 @@ export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
   "Taking inquiries": "Recibiendo consultas",
   "Inquiries paused": "Consultas en pausa",
   "Taking new bookings": "Recibiendo nuevas reservas",
+  "Client account on your site": "Cuenta de cliente en tu sitio",
+  "A small account icon in your site header. Clients sign in to see their bookings, messages and receipts. Starts on while you take bookings.":
+    "Un pequeño icono de cuenta en el encabezado de tu sitio. Tus clientes inician sesión para ver sus reservas, mensajes y recibos. Empieza activo mientras recibes reservas.",
   "New bookings paused": "Nuevas reservas en pausa",
   "Instant booking is not available on this plan": "La reserva inmediata no está disponible en este plan",
   "Add working hours to turn on instant booking": "Agrega tu horario de trabajo para activar la reserva inmediata",

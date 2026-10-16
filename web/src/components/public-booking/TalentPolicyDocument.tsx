@@ -6,21 +6,35 @@
  */
 
 import type { CSSProperties, ReactNode } from "react";
+import Link from "next/link";
 
 import type { PolicyPageModel } from "@/lib/talent-policies/public";
 
-const URL_RE = /(https?:\/\/[^\s]+)/g;
+// "Términos: https://…" links the word; a bare URL shows without its scheme.
+const URL_RE = /(?:(\p{L}+): )?(https?:\/\/[^\s]+)/gu;
+
+const LINK_STYLE: CSSProperties = { color: "inherit", textDecoration: "underline" };
 
 function linkify(text: string): ReactNode[] {
-  return text.split(URL_RE).map((part, i) =>
-    /^https?:\/\//.test(part) ? (
-      <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "underline" }}>
-        {part}
-      </a>
-    ) : (
-      part
-    ),
-  );
+  const out: ReactNode[] = [];
+  let last = 0;
+  let prevLabelled = false;
+  for (const m of text.matchAll(URL_RE)) {
+    const [whole, label, url] = m;
+    const at = m.index ?? 0;
+    const gap = text.slice(last, at);
+    if (prevLabelled && label && /^\s+$/.test(gap)) out.push(" · ");
+    else if (gap) out.push(gap);
+    prevLabelled = Boolean(label);
+    out.push(
+      <a key={at} href={url} target="_blank" rel="noopener noreferrer" style={LINK_STYLE}>
+        {label ?? url.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+      </a>,
+    );
+    last = at + whole.length;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out;
 }
 
 /** The platform default is shown as a plain policy: no version line, never an "not published yet" admission. */
@@ -31,11 +45,25 @@ export function versionLine(model: PolicyPageModel): string | null {
   return es ? `Versión ${model.version}${when ? `, publicada el ${when}` : ""}` : `Version ${model.version}${when ? `, published ${when}` : ""}`;
 }
 
+/** Locale-aware "back to site" label for the policy page escape hatch (TUL-516 H1). */
+export function policyHomeLabel(locale: string): string {
+  return (locale ?? "").toLowerCase().startsWith("es") ? "Volver al sitio" : "Back to site";
+}
+
 const INK = "var(--token-color-ink, CanvasText)";
 const SOFT = "color-mix(in srgb, var(--token-color-ink, CanvasText) 66%, var(--token-color-background, Canvas))";
 const LINE = "var(--token-color-line, color-mix(in srgb, CanvasText 16%, Canvas))";
 
-export function TalentPolicyDocument({ model, headingTag = "h1" }: { model: PolicyPageModel; headingTag?: "h1" | "h2" }) {
+export function TalentPolicyDocument({
+  model,
+  headingTag = "h1",
+  homeHref,
+}: {
+  model: PolicyPageModel;
+  headingTag?: "h1" | "h2";
+  /** When set (full policy pages), a home link sits above the title so the visitor is never stuck. */
+  homeHref?: string;
+}) {
   const Heading = headingTag;
   const line = versionLine(model);
   const wrap: CSSProperties = {
@@ -46,6 +74,13 @@ export function TalentPolicyDocument({ model, headingTag = "h1" }: { model: Poli
   };
   return (
     <article data-talent-policy-doc={model.doc} data-policy-default={model.isDefault ? "true" : "false"} lang={model.locale} style={wrap}>
+      {homeHref ? (
+        <p data-policy-home="" style={{ margin: "0 0 18px", fontSize: 14 }}>
+          <Link href={homeHref} style={{ color: INK, textUnderlineOffset: 3 }}>
+            {policyHomeLabel(model.locale)}
+          </Link>
+        </p>
+      ) : null}
       <Heading style={{ fontFamily: "var(--site-heading-font, inherit)", fontSize: 28, lineHeight: 1.2, margin: "0 0 6px" }}>{model.title}</Heading>
       {line ? (
         <p data-policy-version={model.version ?? "default"} style={{ margin: "0 0 24px", fontSize: 13, color: SOFT }}>

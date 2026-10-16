@@ -2,7 +2,9 @@
 
 import { useSearchParams } from "next/navigation";
 import { getLocaleMetadata, type Locale } from "@/i18n/config";
+import { languageToggleGroupLabel } from "@/i18n/language-toggle-label";
 import { withLocalePath } from "@/i18n/pathnames";
+import { useLocationHash, withLocationHash } from "@/i18n/use-location-hash";
 import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +15,8 @@ const linkClass =
  * EN | ES — uses real paths from the server (`pathnameWithoutLocale`) and plain `<a>`
  * so each switch is a full navigation. `next/link` + `usePathname()` breaks under `/es`
  * rewrites: pathname looks like `/` while the address bar is `/es`, so Link to `/` is a no-op.
+ *
+ * E3-J8-anchor: keep the section hash (`/#services` → `/en#services`).
  */
 export function PublicLanguageToggle({
   className,
@@ -33,6 +37,7 @@ export function PublicLanguageToggle({
   showLanguageSwitcher?: boolean;
 }) {
   const search = useSearchParams();
+  const hash = useLocationHash();
   const qs = search?.toString();
   const suffix = qs ? `?${qs}` : "";
   const locales = Array.from(
@@ -53,11 +58,15 @@ export function PublicLanguageToggle({
         className,
       )}
       role="group"
-      aria-label="Language"
+      aria-label={languageToggleGroupLabel(activeLocale)}
     >
       {locales.map((code, index) => {
         const active = activeLocale === code;
         const meta = getLocaleMetadata(code);
+        const href = withLocationHash(
+          `${withLocalePath(pathnameWithoutLocale, code, pathSettings)}${suffix}`,
+          hash,
+        );
         return (
           <span key={code} className="inline-flex items-center gap-1">
             {index > 0 ? (
@@ -66,7 +75,7 @@ export function PublicLanguageToggle({
               </span>
             ) : null}
             <a
-              href={`${withLocalePath(pathnameWithoutLocale, code, pathSettings)}${suffix}`}
+              href={href}
               className={cn(
                 linkClass,
                 active

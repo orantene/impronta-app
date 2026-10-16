@@ -5,12 +5,12 @@ import { join } from "node:path";
 
 const ROOT = join(process.cwd(), "src");
 
-test("custom domain row opens tier-compare when locked and domain drawer when unlocked", () => {
+test("custom domain row opens the upgrade modal when locked and domain drawer when unlocked", () => {
   const src = readFileSync(
     join(ROOT, "components/talent/site/CustomDomainRow.tsx"),
     "utf8",
   );
-  assert.match(src, /openDrawer\("talent-tier-compare"\)/);
+  assert.match(src, /openUpgrade\(\{ feature: "custom-domain"/);
   assert.match(src, /openDrawer\("talent-custom-domain"\)/);
   assert.match(src, /bridgeTalentPlanTrial/);
   assert.match(src, /personalSiteCustomDomain|canManage/);
@@ -132,18 +132,22 @@ test("D6 plan grace hooks subscription sync and disables registrar auto-renew", 
   assert.match(cron, /CRON_SECRET/);
 });
 
-test("D6 migration is parked for PM (not in drift-scanned migrations root)", () => {
+test("D6 migration lives in the migrations root under 20261231411100 (after D1's 411000), not parked", () => {
   const root = join(process.cwd(), "..", "supabase", "migrations");
-  const parked = join(
-    root,
-    "_pending_pm",
-    "20261231357100_talent_site_domains_plan_grace.sql",
-  );
-  assert.equal(existsSync(parked), true, "PM mig must stay in _pending_pm");
   const rootSql = readdirSync(root).filter((f) => f.endsWith(".sql"));
+  assert.equal(
+    rootSql.includes("20261231411100_talent_site_domains_plan_grace.sql"),
+    true,
+    "D6 mig must be in the migrations root at 411100 so it applies in order after D1",
+  );
+  assert.equal(
+    existsSync(join(root, "_pending_pm", "20261231357100_talent_site_domains_plan_grace.sql")),
+    false,
+    "the old out-of-order 357100 copy must not exist",
+  );
   assert.equal(
     rootSql.includes("20261231357100_talent_site_domains_plan_grace.sql"),
     false,
-    "parked mig must not sit in migrations root (Vercel prebuild drift check)",
+    "357100 sorts below prod's newest version and must never be applied",
   );
 });

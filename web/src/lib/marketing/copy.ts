@@ -72,6 +72,7 @@ const en = {
     stories: "Stories",
     joinAsTalent: "Join as talent",
     signIn: "Sign in",
+    createAccount: "Create account",
     startFree: "Get started",
     freeBadge: "free",
     dashboard: "Dashboard",
@@ -99,6 +100,10 @@ const en = {
     accountSettings: "Account settings",
     /** Accessible name + heading for the header's globe language menu. */
     language: "Language",
+    /** Accessible name for the mobile hamburger (same voice as public.header.openMenuAria). */
+    openMenu: "Open menu",
+    /** Accessible name when the mobile menu is open. */
+    closeMenu: "Close menu",
     /** Placeholder + accessible name for the mobile menu's directory search. */
     searchTalent: "Search talent…",
     /** Reassurance line under the mobile menu's Get started CTA. */
@@ -108,7 +113,7 @@ const en = {
   /** Logo lockup descriptor: header (desktop) + footer (always). Category
    *  message only; never the hero headline. See PR-BRAND §0. */
   brand: {
-    descriptor: "Sell what you do, not what you ship",
+    descriptor: "Sell what you do",
   },
 
   hero: {
@@ -126,6 +131,8 @@ const en = {
     ctaTalent: "Sell your work · free",
     ctaBusiness: "Start a business",
     trust: ["Free forever", "No code", "Bookings & payments built in"],
+    /** Hero carousel dot; `{n}` is the 1-based slide index. */
+    showSlide: "Show slide {n}",
   },
 
   audience: {
@@ -237,9 +244,6 @@ const en = {
         body: "Structured inquiries, versioned offers, approvals, and traceable bookings. Everything a real business needs that a group chat can't give you.",
       },
     ],
-    mockFeatured: "Featured roster",
-    mockHeading: "People worth booking.",
-    mockAvailable: "Available",
   },
 
   network: {
@@ -277,6 +281,7 @@ const en = {
     footnote:
       "Currency converts for LATAM & EU. Annual billing gives you 12 months for the price of 10. No setup fees, and your data is always yours: export anytime.",
     mostPopular: "Most popular",
+    sale: "Sale",
   },
 
   faq: {
@@ -330,6 +335,8 @@ const en = {
       "Illustrative stories that show what's possible today. Real customer pages connect here as they launch.",
     filters: ["All stories", "Talent", "Business", "Hubs", "Hybrid"],
     readStory: "Read the story",
+    /** Card overlay button; `{name}` is the persona. */
+    readStoryNamed: "Read {name}'s story",
     challengeLabel: "The challenge",
     approachLabel: "How they use Tulala",
     resultLabel: "The result",
@@ -466,6 +473,7 @@ const es: MarketingCopy = {
     stories: "Historias",
     joinAsTalent: "Únete como talento",
     signIn: "Entrar",
+    createAccount: "Crear cuenta",
     startFree: "Comenzar",
     freeBadge: "gratis",
     dashboard: "Tu panel",
@@ -492,12 +500,14 @@ const es: MarketingCopy = {
     savedTalent: "Talento guardado",
     accountSettings: "Configuración de cuenta",
     language: "Idioma",
+    openMenu: "Abrir menú",
+    closeMenu: "Cerrar menú",
     searchTalent: "Busca talento…",
     stageNote: "Espacios de trabajo gratis · Sin tarjeta · dirigido por su fundador",
   },
 
   brand: {
-    descriptor: "Vende lo que haces, no lo que envías",
+    descriptor: "Vende lo que haces",
   },
 
   hero: {
@@ -512,6 +522,7 @@ const es: MarketingCopy = {
     ctaTalent: "Vende tu trabajo · gratis",
     ctaBusiness: "Abre tu negocio",
     trust: ["Gratis para siempre", "Sin código", "Reservas y pagos incluidos"],
+    showSlide: "Mostrar diapositiva {n}",
   },
 
   audience: {
@@ -623,14 +634,11 @@ const es: MarketingCopy = {
         body: "Solicitudes estructuradas, ofertas con versiones, aprobaciones y reservas rastreables. Todo lo que un negocio de verdad necesita y un grupo de chat no te da.",
       },
     ],
-    mockFeatured: "Catálogo destacado",
-    mockHeading: "Gente que vale la pena reservar.",
-    mockAvailable: "Disponible",
   },
 
   network: {
     eyebrow: "La red",
-    titleLine1: "No estás solo con un enlace.",
+    titleLine1: "Hay más que un enlace.",
     titleLine2: "Estás en una red.",
     paragraph:
       "El talento encuentra agencias y hubs para postularse, los clientes descubren a las personas indicadas, y los negocios crecen más allá de su propio sitio. Es un feed de oportunidades, no una lista estática.",
@@ -641,7 +649,7 @@ const es: MarketingCopy = {
       },
       {
         title: "Los negocios conservan su marca",
-        body: "Cada workspace mantiene su sitio, su catálogo y sus reservas, y aun así lo encuentran en el descubrimiento compartido.",
+        body: "Cada espacio de trabajo mantiene su sitio, su catálogo y sus reservas, y aun así lo encuentran en el descubrimiento compartido.",
       },
       {
         title: "Tus datos son tuyos",
@@ -657,12 +665,13 @@ const es: MarketingCopy = {
 
   pricing: {
     eyebrow: "Precios",
-    title: "Empieza gratis. Crece cuando estés listo.",
+    title: "Empieza gratis. Crece cuando quieras.",
     subtitle:
       "Todos los planes te llevan de la solicitud a reservado y pagado, gratis. Los planes de pago suman tamaño de catálogo, marca y canales conforme creces.",
     footnote:
       "La moneda se ajusta para LATAM y la UE. Con el plan anual pagas 10 meses y tienes 12. Sin costos de instalación, y tus datos siempre son tuyos: expórtalos cuando quieras.",
     mostPopular: "Más popular",
+    sale: "Oferta",
   },
 
   faq: {
@@ -716,6 +725,7 @@ const es: MarketingCopy = {
       "Historias ilustrativas de lo que ya es posible hoy. Las páginas de clientes reales se conectan aquí conforme se lanzan.",
     filters: ["Todas", "Talento", "Negocios", "Hubs", "Híbrido"],
     readStory: "Leer la historia",
+    readStoryNamed: "Leer la historia de {name}",
     challengeLabel: "El reto",
     approachLabel: "Cómo usan Tulala",
     resultLabel: "El resultado",
@@ -728,7 +738,7 @@ const es: MarketingCopy = {
     titleLine1: "Convierte tu trabajo en dinero.",
     titleLine2: "Lleva un negocio de verdad.",
     subhead:
-      "Abre una página gratis y empieza a recibir solicitudes hoy. Cuando estés listo, lanza tu propio sitio, recibe tus solicitudes y lleva todo el negocio.",
+      "Abre una página gratis y empieza a recibir solicitudes hoy. Cuando quieras, lanza tu propio sitio, recibe tus solicitudes y lleva todo el negocio.",
     ctaTalent: "Vende tu trabajo · gratis",
     ctaBusiness: "Abre tu negocio",
     trust: [

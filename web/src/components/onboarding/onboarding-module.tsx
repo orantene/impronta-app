@@ -16,7 +16,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import { translatorFor } from "@/i18n/use-t";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 import { BACK, initialMachineState, reduceMachine, type MachineErrorCode } from "@/lib/onboarding/machine";
-import { CHOOSE_COPY, FLOW_TOTAL, flowStepOf, type FlowLocale } from "@/lib/onboarding/flow";
+import { CHOOSE_COPY, FLOW_TOTAL, flowStepOf, flowSubLabel, urlChoiceBeatsGuestDraft, type FlowLocale } from "@/lib/onboarding/flow";
 import type { VisualDirection } from "@/lib/onboarding/module-state";
 import type { ModuleStep, OnboardingIntent } from "@/lib/onboarding/module-state";
 import {
@@ -41,27 +41,30 @@ import {
 import { choiceToPath, type OnboardingChoice, type OnboardingPath } from "@/lib/onboarding/module-state";
 import { requestOnboardingCode, verifyOnboardingCode } from "@/lib/server-actions/onboarding-account";
 
+import { OnboardingStepSkeleton } from "./step-skeleton";
 import { ConfirmWordsStep } from "./steps/confirm-words-step";
 import { EntryStep } from "./steps/entry-step";
 import { ChooseStep } from "./steps/choose-step";
 import { SetupStep } from "./steps/setup-step";
 import { loadOnboardingSetup, saveOnboardingSetup, type SetupPayload } from "@/lib/server-actions/onboarding-setup";
 import type { Essentials } from "@/lib/onboarding/essentials";
+import { reviewSetupLines } from "@/lib/onboarding/review-setup-lines";
 import { EssentialsStep } from "./steps/essentials-step";
 import { StyleStep } from "./steps/style-step";
 import { ReadingStep } from "./steps/reading-step";
+import { FALLBACK_CARD_CEILING_MS, runUnderstandStep, settleWithin } from "@/lib/onboarding/understand-budget";
+import { TulalaWordmark } from "@/components/brand/tulala-logo";
 import { ReadyStep } from "./steps/ready-step";
 import { SaveStep } from "./steps/save-step";
 import { CodeStep } from "./steps/code-step";
 import { BuildingStep } from "./steps/building-step";
 import { ArrivalFailed, ArrivalStep } from "./steps/arrival-step";
+import type { PlanIntent } from "@/lib/onboarding/plan-intent";
 import type { ArrivalPayload } from "@/lib/onboarding/arrival";
 import { ResumeCard } from "./steps/resume-card";
 import { TooLittleStep } from "./steps/too-little-step";
 import { UnderstoodStep } from "./steps/understood-step";
 
-/** Reading ceiling: the model call is capped at 20 s server-side, plus retry and failover; past this the short form takes over. */
-const UNDERSTAND_CEILING_MS = 45_000;
 
 function isOffline(): boolean {
   return typeof navigator !== "undefined" && navigator.onLine === false;
@@ -73,6 +76,7 @@ export function OnboardingModule({
   onClose,
   variant = "modal",
   startChoice = null,
+  planIntent = null,
   onLocaleChange,
 }: {
   locale: "en" | "es";
@@ -81,6 +85,8 @@ export function OnboardingModule({
   variant?: "modal" | "page";
   /** A choice carried in the URL (`/start?choice=`); applied when nothing is saved yet. */
   startChoice?: OnboardingChoice | null;
+  /** A paid plan carried from /pricing (`/start?plan=&interval=`); offered as "Finish upgrading" on arrival. */
+  planIntent?: PlanIntent | null;
   onLocaleChange?: (locale: FlowLocale) => void;
   /** `saved` is true when there is progress worth a "saved on this phone" toast. */
   onClose: (result: { saved: boolean }) => void;
@@ -107,6 +113,8 @@ export function OnboardingModule({
   const cardRef = useRef<HTMLDivElement>(null);
   const [resumeChecked, setResumeChecked] = useState(false);
   const [setupData, setSetupData] = useState<SetupPayload | null>(null);
+  // TUL-806: what step 3 saved, so the review step can show it.
+  const [savedSetup, setSavedSetup] = useState<Essentials | null>(null);
 
   // Resume: what this owner already had. Opening creates nothing.
   useEffect(() => {
@@ -231,24 +239,31 @@ export function OnboardingModule({
     // must never leave the person on the reading ring (owner's phone run,
     // 2026-09-17: a provider error did exactly that). Past the ceiling, or
     // on any failure, the short-form card takes over and says why.
-    const ceiling = new Promise<{ ok: false; code: "failed" }>((resolve) => window.setTimeout(() => resolve({ ok: false, code: "failed" }), UNDERSTAND_CEILING_MS));
-    void Promise.race([understandOnboardingInput().catch(() => ({ ok: false as const, code: "failed" as const })), ceiling]).then((result) => {
-      if (result.ok) {
-        applyCard(result, { step: result.card.understanding.tooLittle ? "tooLittle" : "understood" });
+    // TUL-541: the fallback card load is bounded too, so every branch lands.
+    void runUnderstandStep({ understand: understandOnboardingInput, loadCard: loadOnboardingCard }).then((out) => {
+      if (understandingForRef.current !== key) return; // skipped or superseded
+      if (out.kind === "understood" && out.result.ok) {
+        applyCard(out.result, { step: out.result.card.understanding.tooLittle ? "tooLittle" : "understood" });
         return;
       }
       // Nothing read: show the card with everything missing so the person
       // can still answer the short questions, and say why.
-      const code: MachineErrorCode = result.code === "ai" ? (result.understandCode as MachineErrorCode) : (result.code as MachineErrorCode);
-      void loadOnboardingCard()
-        .catch(() => ({ ok: false as const }))
-        .then((fallback) => {
-          if (fallback.ok) dispatch({ type: "cardLoaded", understanding: fallback.card.understanding, chip: fallback.card.chip, step: "understood" });
-          else dispatch({ type: "toStep", step: "entry" });
-          dispatch({ type: "cardFailed", code });
-        });
+      const r = out.result;
+      const code: MachineErrorCode = !r || r.ok ? "failed" : r.code === "ai" ? (r.understandCode as MachineErrorCode) : (r.code as MachineErrorCode);
+      if (out.kind === "fallback" && out.card.ok) dispatch({ type: "cardLoaded", understanding: out.card.card.understanding, chip: out.card.card.chip, step: "understood" });
+      else dispatch({ type: "toStep", step: "entry" });
+      dispatch({ type: "cardFailed", code });
     });
   }, [state.step, state.understanding, state.briefId, state.input, applyCard]);
+
+  // "Seguir sin IA": drop the in-flight read and go to the short form now.
+  const skipAi = useCallback(() => {
+    understandingForRef.current = "skipped";
+    void settleWithin(loadOnboardingCard, FALLBACK_CARD_CEILING_MS, null).then((card) => {
+      if (card?.ok) dispatch({ type: "cardLoaded", understanding: card.card.understanding, chip: card.card.chip, step: "understood" });
+      else dispatch({ type: "toStep", step: "entry" });
+    });
+  }, []);
 
   // Resume at a Phase 3 step: the card is recomputed from the brief.
   const cardLoadRef = useRef(false);
@@ -257,9 +272,10 @@ export function OnboardingModule({
     if (!phase3 || state.understanding || cardLoadRef.current) return;
     cardLoadRef.current = true;
     dispatch({ type: "sendStarted" });
-    void loadOnboardingCard().then((result) => {
+    void settleWithin(loadOnboardingCard, FALLBACK_CARD_CEILING_MS, null).then((result) => {
       cardLoadRef.current = false;
-      applyCard(result, { step: state.step });
+      if (result) applyCard(result, { step: state.step });
+      else dispatch({ type: "cardFailed", code: "failed" });
     });
   }, [state.step, state.understanding, applyCard]);
 
@@ -278,7 +294,7 @@ export function OnboardingModule({
   const saveSetup = useCallback(async (essentials: Essentials) => {
     dispatch({ type: "sendStarted" });
     const r = await saveOnboardingSetup({ essentials, locale }).catch(() => null);
-    if (r && r.ok) dispatch({ type: "setupSaved", talentOnly: r.talentOnly });
+    if (r && r.ok) { setSavedSetup(essentials); dispatch({ type: "setupSaved", talentOnly: r.talentOnly }); }
     else dispatch({ type: "cardFailed", code: "save_failed" });
   }, [locale]);
 
@@ -306,12 +322,21 @@ export function OnboardingModule({
   }, [isPage, state.resume, state.isAuthenticated]);
   const startChoiceAppliedRef = useRef(false);
   useEffect(() => {
-    if (!isPage || !startChoice || startChoiceAppliedRef.current || state.step !== "choose" || state.choice || state.resume) return;
-    // Wait for the resume lookup: a saved choice and step win over the URL.
+    if (!isPage || !startChoice || startChoiceAppliedRef.current || state.step !== "choose" || state.choice) return;
+    // Wait for the resume lookup before deciding.
     if (!resumeChecked) return;
+    // GRK-102: a marketing CTA's explicit `?choice=` wins over a guest draft
+    // ("Bienvenido de nuevo"). Signed-in owners still resume where they left off.
+    if (state.resume) {
+      if (!urlChoiceBeatsGuestDraft({ hasUrlChoice: true, hasResume: true, isAuthenticated: state.isAuthenticated })) {
+        return;
+      }
+      dispatch({ type: "resumeFresh" });
+      void resetOnboardingDraft();
+    }
     startChoiceAppliedRef.current = true;
     void chooseHow(startChoice);
-  }, [isPage, startChoice, resumeChecked, state.step, state.choice, state.resume, chooseHow]);
+  }, [isPage, startChoice, resumeChecked, state.step, state.choice, state.resume, state.isAuthenticated, chooseHow]);
 
   const saveEssentials = useCallback(async (a: EssentialsAnswer) => {
     dispatch({ type: "sendStarted" });
@@ -336,12 +361,25 @@ export function OnboardingModule({
   // The 18+/Terms tick from the save step; carried to the verify step so the
   // acceptance is recorded once the account exists (Legal 2.2).
   const ageTermsRef = useRef(false);
+  // TUL-750: 18+ already confirmed on the ready step; the save step then asks only for Terms.
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
+  // Mirrors the ref for render: SaveStep reopens ticked after "change email".
+  const [ageTermsGiven, setAgeTermsGiven] = useState(false);
   const sendCode = useCallback(async (email: string, resend = false, ageTerms = ageTermsRef.current) => {
     dispatch({ type: "sendStarted" });
     ageTermsRef.current = ageTerms;
+    setAgeTermsGiven(ageTerms);
     const r = await requestOnboardingCode({ email, locale, resend, ageTerms });
-    if (r.ok) dispatch({ type: "codeSent", email: r.email, notice: resend ? t("public.onboarding.code.resent") : null });
-    else dispatch({ type: "accountFailed", message: r.code === "module_off" ? t("public.onboarding.errors.moduleOff") : r.message });
+    if (r.ok) {
+      const plus = r.email.includes("+") && r.email.includes("@");
+      dispatch({
+        type: "codeSent",
+        email: r.email,
+        notice: resend
+          ? t(plus ? "public.onboarding.code.plusResent" : "public.onboarding.code.resent")
+          : null,
+      });
+    } else dispatch({ type: "accountFailed", message: r.code === "module_off" ? t("public.onboarding.errors.moduleOff") : r.message });
   }, [locale, t]);
 
   const verifyCode = useCallback(async (code: string) => {
@@ -458,6 +496,7 @@ export function OnboardingModule({
         onText={(text) => dispatch({ type: "textChanged", text })}
         onDictation={(on) => dispatch({ type: "dictation", on })}
         onReview={() => dispatch({ type: "reviewWords" })}
+        onSendTyped={() => void send(state.text)}
         onSendLink={(url) => void send(url)}
         busy={state.busy}
         error={state.error}
@@ -482,6 +521,7 @@ export function OnboardingModule({
       <UnderstoodStep
         t={t}
         understanding={state.understanding}
+        locale={locale}
         fromLink={state.input?.kind === "url"}
         busy={state.busy}
         error={state.error}
@@ -519,7 +559,7 @@ export function OnboardingModule({
     body = setupData ? (
       <SetupStep locale={locale} setup={setupData} busy={state.busy} saveFailed={state.error === "save_failed"} onSave={(e) => void saveSetup(e)} />
     ) : (
-      <div aria-busy className="py-16 text-center text-[0.875rem]" style={{ color: "var(--tl-muted)" }} data-testid="onb-setup-loading">…</div>
+      <div data-testid="onb-setup-loading"><OnboardingStepSkeleton /></div>
     );
   } else if (state.step === "style") {
     body = <StyleStep t={t} initial={state.styleChoice} busy={state.busy} onChoose={(d, notes) => void chooseStyle(d, notes)} />;
@@ -536,8 +576,9 @@ export function OnboardingModule({
         onCheckLink={checkLink}
         designChoice={state.designChoice}
         onPickDesign={(look) => { dispatch({ type: "designPicked", look }); void saveOnboardingDesign({ look }); }}
-        onConfirmAge18={saveOnboardingAge18}
+        onConfirmAge18={async () => { const r = await saveOnboardingAge18(); if (r.ok) setAgeConfirmed(true); return r; }}
         ageRequiredNotice={ageRequired}
+        setupLines={reviewSetupLines(savedSetup ?? setupData?.essentials ?? null, locale)}
         onBuild={() => {
           // Already signed in: nothing to save, straight to the build.
           const next: ModuleStep = state.isAuthenticated ? "building" : "save";
@@ -551,9 +592,12 @@ export function OnboardingModule({
       <SaveStep
         t={t}
         path={path}
+        locale={locale}
         choice={state.choice}
+        ageConfirmed={ageConfirmed}
         busy={state.busy}
         error={state.accountMessage}
+        initialAgeTerms={ageTermsGiven}
         onEmail={(email, ageTerms) => void sendCode(email, false, ageTerms)}
         onGoogleSuccess={onGoogleSuccess}
       />
@@ -578,6 +622,7 @@ export function OnboardingModule({
       <ArrivalStep
         t={t}
         arrival={state.arrival}
+        planIntent={planIntent}
         busy={state.busy}
         onRetry={() => {
           dispatch({ type: "buildRetry" });
@@ -601,7 +646,7 @@ export function OnboardingModule({
   } else if (state.step === "arrival") {
     body = <BuildingStep t={t} path={path} />;
   } else {
-    body = <ReadingStep t={t} input={state.input} />;
+    body = <ReadingStep t={t} input={state.input} onSkipAi={skipAi} />;
   }
 
   const backBtn = showBack ? (
@@ -630,7 +675,7 @@ export function OnboardingModule({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {backBtn}
-              <span className="font-display text-[1.375rem] font-semibold tracking-[-0.02em]" aria-hidden>tulala.</span>
+              <TulalaWordmark height={26} className="shrink-0" />
             </div>
             <div className="flex overflow-hidden rounded-full" role="group" aria-label={CHOOSE_COPY[locale].toggleLabel} style={{ border: "1px solid var(--tl-hairline-strong)" }}>
               {(["es", "en"] as const).map((l) => (
@@ -655,7 +700,7 @@ export function OnboardingModule({
               ))}
             </div>
             <p className="mt-2 text-[0.6875rem] font-semibold tracking-[0.08em]" style={{ color: "var(--tl-ink-soft)" }} data-testid="onb-step-label">
-              {CHOOSE_COPY[locale].progress(flowN)} <span className="sr-only">{stepLabel}</span>
+              {CHOOSE_COPY[locale].progress(flowN)}{flowSubLabel(state.step, locale) ? ` · ${flowSubLabel(state.step, locale)}` : ""} <span className="sr-only">{stepLabel}</span>
             </p>
           </div>
           <div className="flex-1 pt-6">{body}</div>
@@ -687,7 +732,7 @@ export function OnboardingModule({
           <div className="flex items-center justify-between px-4 pt-[max(12px,env(safe-area-inset-top))] pb-2 sm:px-6 sm:pt-5">
             <div className="flex items-center gap-2">
               {backBtn}
-              <span className="font-display text-[1.25rem] font-semibold tracking-[-0.02em]" style={{ color: "var(--tl-ink)" }} aria-hidden>tulala.</span>
+              <TulalaWordmark height={24} className="shrink-0" />
               <span className="sr-only" data-testid="onb-step-label">{stepLabel}</span>
             </div>
             <div className="flex items-center gap-2">

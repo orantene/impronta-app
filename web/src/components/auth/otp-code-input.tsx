@@ -69,6 +69,17 @@ export function OtpCodeInput({
   // the hidden input. Calling it inside the key handler submitted the form one
   // render too early, with the last digit still missing from the posted value
   // (server answered "Enter the code from your email." for a full code).
+  // Re-enabled after a failed verify: put the cursor back in the first empty
+  // box so the retry needs no extra tap (TUL-779). Disabled inputs drop focus.
+  const wasDisabled = useRef(disabled);
+  useEffect(() => {
+    if (wasDisabled.current && !disabled) {
+      const firstEmpty = digits.findIndex((d) => !d);
+      focusBox(firstEmpty === -1 ? length - 1 : firstEmpty);
+    }
+    wasDisabled.current = disabled;
+  }, [disabled, digits, focusBox, length]);
+
   const firedFor = useRef("");
   useEffect(() => {
     const complete = value.length === length && digits.every(Boolean);
@@ -142,7 +153,13 @@ export function OtpCodeInput({
 
   let index = 0;
   return (
-    <div className="flex w-full items-center justify-center gap-3">
+    <div
+      className="flex w-full items-center justify-center gap-3"
+      // TUL-826: tapping the gap between boxes (or around them) also focuses the next empty box.
+      onClick={(e) => {
+        if (e.target === e.currentTarget) focusBox(Math.max(0, digits.findIndex((d) => !d)));
+      }}
+    >
       <input type="hidden" name={name} value={value} />
       {groups.map((count, g) => (
         <div key={g} className="flex gap-1.5 sm:gap-2">
@@ -174,7 +191,16 @@ export function OtpCodeInput({
                 onChange={(e) => fillFrom(i, e.target.value)}
                 onKeyDown={onKeyDown(i)}
                 onPaste={onPaste(i)}
-                onFocus={(e) => e.target.select()}
+                onFocus={(e) => {
+                  // TUL-826: a tap on a later box lands on the first empty one, so the code is
+                  // always typed left to right and never leaves gaps.
+                  const firstEmpty = digits.findIndex((d) => !d);
+                  if (firstEmpty !== -1 && i > firstEmpty) {
+                    focusBox(firstEmpty);
+                    return;
+                  }
+                  e.target.select();
+                }}
                 className="h-12 w-9 rounded-xl border text-center text-[1.25rem] font-semibold tabular-nums outline-none transition-[border-color,box-shadow] focus:ring-2 disabled:opacity-60 sm:h-14 sm:w-11"
                 style={{
                   borderColor: invalid

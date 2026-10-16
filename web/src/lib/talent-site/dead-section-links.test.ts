@@ -124,9 +124,9 @@ test("#talent-ask is never pruned: it is a real target on every talent page", ()
 });
 
 test("the home page renders the header and footer through the pruner", () => {
-  const src = readFileSync(join(process.cwd(), "src/lib/talent-site/server/render-max-site.tsx"), "utf8");
+  const src = readFileSync(join(process.cwd(), "src/lib/talent-site/server/render-max-site-document.tsx"), "utf8");
   assert.match(src, /pruneDeadSectionLinks\(headerTree, renderedBlocks, \[footerTree\], \{ homePath \}\)/);
-  assert.match(src, /pruneDeadSectionLinks\(footerTree, renderedBlocks, \[headerTree\], \{ homePath \}\)/);
+  assert.match(src, /pruneDeadSectionLinks\(footerTree, renderedBlocks, \[headerTree\], \{ homePath, serviceHref: args\.servicePagePath \?\? undefined \}\)/);
   assert.match(src, /renderBuilderNodes\(liveHeaderTree/);
 });
 
@@ -147,4 +147,49 @@ test("homeAnchorHref", () => {
   assert.equal(homeAnchorHref("/", "services"), "/#services");
   assert.equal(homeAnchorHref("/en", "services"), "/en/#services");
   assert.equal(homeAnchorHref("/en/", "about"), "/en/#about");
+});
+
+test("utility_bar ctaHref and site_header primaryCta rewrite off home (TUL-530)", () => {
+  const bar: BuilderNode[] = [
+    {
+      id: "ub",
+      kind: "utility_bar",
+      props: { name: "Alex", ctaLabel: "Book", ctaHref: "#services" },
+    } as unknown as BuilderNode,
+  ];
+  const home = [section("services")];
+  const out = pruneDeadSectionLinks(bar, home, [], { homePath: "/" });
+  assert.equal((out[0]!.props as { ctaHref: string }).ctaHref, "/#services");
+
+  const hdr: BuilderNode[] = [
+    {
+      id: "h",
+      kind: "section",
+      props: {
+        sectionTypeKey: "site_header",
+        sectionProps: { primaryCta: { label: "Book", href: "#services" }, navItems: [], regions: {} },
+      },
+    } as unknown as BuilderNode,
+  ];
+  const hdrOut = pruneDeadSectionLinks(hdr, home, [], { homePath: "/en" });
+  const sp = (hdrOut[0]!.props as { sectionProps: { primaryCta: { href: string } } }).sectionProps;
+  assert.equal(sp.primaryCta.href, "/en/#services");
+});
+
+test("slotKey alone keeps #services (parity with render id heal)", () => {
+  const page = [{ id: "s", kind: "container", props: { slotKey: "services" } }] as unknown as BuilderNode[];
+  assert.deepEqual(hrefs(pruneDeadSectionLinks(footer("#services"), page)), ["#services"]);
+});
+
+test("TUL-872: on a service page the footer services link goes to that service's own page", () => {
+  const nav = (hs: string[]): BuilderNode[] => [
+    { id: "n", kind: "container", props: {}, children: hs.map(link) } as unknown as BuilderNode,
+  ];
+  const svc = "/en/servicio-corte-ab12cd34";
+  assert.deepEqual(hrefs(pruneDeadSectionLinks(nav(["#services", "#gallery"]), [section("gallery")], [], { homePath: "/en", serviceHref: svc })), [svc, "/en/#gallery"]);
+  assert.deepEqual(hrefs(pruneDeadSectionLinks(nav(["/#services"]), [], [], { homePath: "/", serviceHref: "/servicio-x-ab12cd34" })), ["/servicio-x-ab12cd34"]);
+  // without a service page nothing changes
+  assert.deepEqual(hrefs(pruneDeadSectionLinks(nav(["#services"]), [section("services")], [], { homePath: "/" })), ["/#services"]);
+  const render = readFileSync(join(process.cwd(), "src/lib/talent-site/server/render-max-site.tsx"), "utf8");
+  assert.match(render, /servicePagePath: servicePath \? talentSiteLocalePath\(servicePath,/);
 });

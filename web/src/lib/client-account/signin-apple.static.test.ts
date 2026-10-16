@@ -16,7 +16,8 @@ test("login page mounts Apple next to Google only when provider flag is on", () 
   const page = read("src/app/(auth)/login/page.tsx");
   assert.match(page, /LoginAppleButton/);
   assert.match(page, /isAppleAuthProviderEnabled/);
-  assert.match(page, /isAppleAuthProviderEnabled\(\) \? \(/);
+  assert.match(page, /appleSignInEnabled = isAppleAuthProviderEnabled\(\)/);
+  assert.match(page, /\{appleSignInEnabled \? \(/);
   assert.match(page, /public\.auth\.login\.apple/);
   assert.match(page, /public\.auth\.appleUnableToStart/);
   assert.doesNotMatch(page, /TODO\(P5 mobile readiness/);
@@ -68,7 +69,7 @@ test("Apple finalize shares attach path; guards impersonation; never redirects",
   assert.match(actions, /shouldClaimInquiriesForSignIn/);
   assert.doesNotMatch(actions, /from "next\/navigation"/);
   assert.doesNotMatch(actions, /\bredirect\(/);
-  assert.match(actions, /claimInquiriesByConfirmedEmail/);
+  assert.match(actions, /claimAndActivateVerifiedClient/);
   assert.match(actions, /ensureTenantClientRelationship/);
   // assertNotImpersonating is the first await in Apple finalize (before getUser / attach).
   const appleFn = actions.slice(actions.indexOf("export async function finalizeClientAccountAppleSession"));

@@ -113,6 +113,7 @@ test("Projects is canonical at the list AND at the record; the Clients LIST is n
 test("platform-scoped talent routes still resolve", () => {
   assert.equal(pathIsCanonical("/talent/trust"), true);
   assert.equal(pathIsCanonical("/talent/discover"), true);
+  assert.equal(pathIsCanonical("/talent/get-found"), true);
   // Soft nav from My presence must yield the SPA so Edit site is bare.
   assert.equal(pathIsCanonical("/talent/page-builder"), true);
   assert.equal(pathIsCanonical("/talent/onboarding"), true);
@@ -127,12 +128,18 @@ test("platform-scoped talent routes still resolve", () => {
   assert.equal(pathIsCanonical("/impronta/talent/bookings/abc123"), false);
 });
 
-test("empty and unknown paths are not canonical", () => {
+test("empty paths are not canonical", () => {
   assert.equal(pathIsCanonical(null), false);
   assert.equal(pathIsCanonical(""), false);
   assert.equal(pathIsCanonical("/"), false);
-  assert.equal(pathIsCanonical("/admin/definitely-not-a-page"), false);
-  assert.equal(pathIsCanonical("/impronta/admin/definitely-not-a-page"), false);
+});
+
+// TUL-635: an admin segment with no route folder is served by the admin
+// [...missing] catch-all (the in-shell not-found card). It must be canonical so
+// the shell hosts that card; before the catch-all it silently showed Overview.
+test("unknown admin segments are canonical (hosted not-found card)", () => {
+  assert.equal(pathIsCanonical("/admin/definitely-not-a-page"), true);
+  assert.equal(pathIsCanonical("/impronta/admin/definitely-not-a-page"), true);
 });
 
 test("leading slashes are normalised", () => {

@@ -28,3 +28,28 @@ test("strip still drops the heavy editor fields", () => {
     assert.equal(k in stripped, false);
   }
 });
+
+test("a site with published offerings keeps its services band after the live prune", async () => {
+  const { pruneEmptyBoundSections } = await import("@/lib/talent-site/my-content-prune");
+  const tree = [
+    {
+      id: "band",
+      kind: "container",
+      props: { anchor: "services" },
+      children: [
+        { id: "h", kind: "heading", props: { text: "Services" } },
+        { id: "cat", kind: "services_catalog", props: { selectionMode: "all" } },
+      ],
+    },
+  ] as unknown as Parameters<typeof pruneEmptyBoundSections>[0];
+  const ds = {
+    talentOfferings: [stripPublicOfferingFlightFields(row)],
+  } as unknown as Parameters<typeof pruneEmptyBoundSections>[1];
+  const out = pruneEmptyBoundSections(tree, ds);
+  assert.equal(out.length, 1, "band must not be pruned when offerings exist");
+  assert.equal(
+    pruneEmptyBoundSections(tree, { talentOfferings: [] } as unknown as typeof ds).length,
+    0,
+    "band is pruned when there are genuinely no offerings",
+  );
+});

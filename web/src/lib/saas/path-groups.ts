@@ -9,6 +9,8 @@
 export const STATIC_PATHS = [
   "/sitemap.xml",
   "/robots.txt",
+  // llms.txt (TUL-589): the route itself 404s every host except marketing and published talent sites.
+  "/llms.txt",
   // Root Next.js metadata file-routes (`app/opengraph-image.tsx`,
   // `app/twitter-image.tsx`). They are host-aware (agency card vs. Tulala
   // card) and are referenced by absolute URL in every page's og:image /
@@ -34,6 +36,10 @@ export const STATIC_PATHS = [
   // same `public/` directory by the same deployment.
   "/tiktok8WGzEiKg9pe0okRf7eDPP6rPghXjVCJH.txt",
   "/tiktokOC3FhK8XbPutKlNiCH3nxdOjnMpxRLjN.txt",
+  // Posts v1 (TUL-1010): llms.txt for answer engines. Host-aware route
+  // (`app/llms.txt/route.ts`): agency + talent sites answer, everything else
+  // and a site with "IA puede leer mi sitio" OFF return 404.
+  "/llms.txt",
 ] as const;
 
 /**
@@ -92,8 +98,14 @@ export const SHARED_API_PREFIXES = [
   // bearer (scripts/demo-talents/rebuild.mjs); the handler is the gate.
   "/api/platform/demos",
   "/api/analytics/events",
+  // Promos v1: visitor link-open/share beacon and share images (story/post/card).
+  // Hit from talent sites, the hub and the talent dashboard; handlers gate.
+  "/api/promos",
   "/api/stripe",
   "/api/health",
+  // llms.txt (TUL-589): `/llms.txt` is rewritten here (next.config.ts). The handler decides by host:
+  // marketing and published talent sites get a file, every other host a 404.
+  "/api/llms",
   "/api/dev/reset-guest",
   "/api/media/asset",
   // Same-origin Google Fonts proxy (css + file). Every talent site, agency site
@@ -215,12 +227,13 @@ export const WELL_KNOWN_PREFIX = "/.well-known" as const;
 
 /**
  * Post-checkout landing pages reachable on every surface, regardless of host
- * kind. Stripe builds `success_url` / `cancel_url` from the request origin
- * (see `client-pipeline.ts`), so after a client pays, Stripe redirects them to
- * `/checkout/success` (or `/checkout/cancel`) on whatever host they started
- * from (app, agency subdomain, custom domain, hub). These pages read only the
- * returned checkout session and carry no cross-tenant data. Without this entry
- * a paying customer hits a branded 404 the instant they complete payment.
+ * kind. Stripe `success_url` / `cancel_url` come from the request host + locale
+ * via `buildCheckoutReturnUrls` (instant-book, appointment picker, client
+ * pipeline — TUL-350), never `NEXT_PUBLIC_BASE_URL`. After payment Stripe
+ * redirects to `/checkout/success` (or `/es/checkout/success`, etc.) on
+ * whatever host they started from. These pages read only the returned checkout
+ * session and carry no cross-tenant data. Without this entry a paying customer
+ * hits a branded 404 the instant they complete payment.
  */
 export const CHECKOUT_PREFIX = "/checkout" as const;
 
@@ -281,6 +294,13 @@ export const AGENCY_STOREFRONT_PREFIXES = [
   "/share",
   "/me", // F5 customer home; storefront surface, tenant-scoped in lib/me/load-me.ts
 ] as const;
+
+/**
+ * Posts v1 (TUL-1009): `/blog/<slug>` and `/blog/c/<category>` on agency
+ * storefronts. Matched as a strict `/blog/` PREFIX (never the bare `/blog`), so
+ * a CMS page slugged "blog" keeps its clean-URL rewrite to `/p/blog`.
+ */
+export const AGENCY_BLOG_DETAIL_PREFIX = "/blog/" as const;
 
 export const AGENCY_API_PREFIXES = [
   "/api/directory",
@@ -371,6 +391,15 @@ export const APP_API_PREFIXES = [
   // host and on the app host, where the host carries no tenant at all.
   "/api/links",
 ] as const;
+
+/**
+ * TUL-872: exact API paths a hub host reaches. The `/t/<code>` profile page on
+ * a hub host (hub.tulala.digital, pay.*) asks who is signed in; without this
+ * the gate 404'd it and the guest chat's "Reservar" never knew the client was
+ * signed in. Exactly this path; the rest of `/api/client` stays agency + app.
+ * The route itself is still flag-gated (CLIENT_ACCOUNT_HOSTS must list `hub`).
+ */
+export const HUB_API_EXACT_PATHS = ["/api/client/account"] as const;
 
 /**
  * TUL-87 — media APIs the page builder calls from a hub workspace site.

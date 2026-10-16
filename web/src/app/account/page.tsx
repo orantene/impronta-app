@@ -23,7 +23,7 @@
 import { redirect } from "next/navigation";
 
 import { isStaffRole } from "@/lib/auth-flow";
-import { accountHomeMode } from "@/lib/client-account/agency-area-pure";
+import { accountFlagKindForHost, accountHomeMode } from "@/lib/client-account/agency-area-pure";
 import { parseAccountTab } from "@/lib/client-account/area-pure";
 import { clientAccountEnabledFor } from "@/lib/client-account/flag";
 import { readAccountHost } from "@/lib/client-account/area-site.server";
@@ -47,12 +47,14 @@ export default async function AccountRedirectPage({
   const session = await getCachedActorSession();
 
   // TUL-64: agency, hub and app hosts show the client account area to signed-out
-  // visitors and client accounts (flag `app`). Staff, talent and platform
-  // accounts, and the flag off, keep the role redirect below untouched.
+  // visitors and client accounts. Flag kind follows x-impronta-host-context
+  // (agency / hub / app / marketing) — never a hard-coded `app` check. Staff,
+  // talent and platform accounts, and the flag off, keep the role redirect.
   const host = await readAccountHost();
+  const flagKind = accountFlagKindForHost(host.hostContext);
   if (
     accountHomeMode({
-      flagOn: clientAccountEnabledFor("app"),
+      flagOn: Boolean(flagKind && clientAccountEnabledFor(flagKind)),
       hostContext: host.hostContext,
       userId: session.user?.id ?? null,
       appRole: session.profile?.app_role ?? null,

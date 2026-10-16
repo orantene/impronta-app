@@ -31,6 +31,10 @@ test("F88: topbar, health panel, zoom HUD and tip wrap their copy in t()", () =>
   }
   const mh = read("components/edit-chrome/MobileHealthPanel.tsx");
   assert.ok(mh.includes('t("Mobile health")') && mh.includes('t("All clear")'));
+  assert.ok(
+    read("components/edit-chrome/mobile-edit-panel.tsx").includes('t("Mobile checks")'),
+    'mobile HUD t("Mobile checks")',
+  );
   assert.ok(read("components/edit-chrome/canvas-viewport.tsx").includes('t("Canvas zoom controls")'));
   assert.ok(read("components/edit-chrome/edit-shell.tsx").includes('t("Click any section to edit'));
   assert.ok(read("components/edit-chrome/topbar-icon-button.tsx").includes("t(title)"));
@@ -43,6 +47,7 @@ test("F88: every newly wrapped key resolves to Spanish", () => {
     "Publish options",
     "Exit to live site",
     "Mobile health",
+    "Mobile checks",
     "All clear",
     "Canvas zoom controls",
     "Zoom in (⌘+)",
@@ -54,4 +59,27 @@ test("F88: every newly wrapped key resolves to Spanish", () => {
   }
   assert.equal(editorT("Publish", "es"), "Publicar");
   assert.equal(editorT("Mobile health", "es"), "Salud en móvil");
+  assert.equal(editorT("Mobile checks", "es"), "Revisiones móvil");
+});
+
+test("TUL-519: mobile/tablet HUD structure hint and phone-menu card resolve in Spanish", () => {
+  const panel = read("components/edit-chrome/mobile-edit-panel.tsx");
+  assert.match(panel, /useEditorLocale/);
+  assert.match(panel, /on the canvas to hide it on \{device\}/);
+  assert.match(panel, /device tablet|device mobile/);
+  const hud = read("components/edit-chrome/mobile-hud-cards.tsx");
+  assert.match(hud, /t\("Phone menu"\)/);
+  assert.match(hud, /t\("Open on canvas"\)/);
+  for (const k of [
+    "on the canvas to hide it on {device} or change its {device} order. Style edits already apply to this breakpoint.",
+    "device tablet",
+    "device mobile",
+    "Phone menu",
+    "Open on canvas",
+    "{count} link",
+    "{count} links",
+  ] as const) {
+    assert.notEqual(editorT(k, "es"), k, k);
+    assert.equal(editorT(k, "en"), k);
+  }
 });

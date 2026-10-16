@@ -5,6 +5,8 @@
 
 export const MONEY_HOME_ES_TEXT: Record<string, string> = {
   "Card in person": "Tarjeta en persona",
+  "Offers awaiting payment": "Ofertas pendientes de pago",
+  "Sent, awaiting payment": "Enviada, pendiente de pago",
   "How was it paid?": "¿Cómo te pagaron?",
   "Still owed": "Aún te deben",
   "Paid in full.": "Pagado completo.",
@@ -95,6 +97,8 @@ export const MONEY_HOME_ES_TEXT: Record<string, string> = {
   "Refund sent": "Reembolso enviado",
   "Money updates when Stripe confirms it.": "Dinero se actualiza cuando Stripe lo confirma.",
   "Deposit requested": "Depósito solicitado",
+  "Pending payment": "Pendiente de pago",
+  "Client": "Cliente",
   "Balance due": "Saldo pendiente",
   "Amount not set": "Monto sin definir",
   "Send a payment link": "Enviar link de pago",

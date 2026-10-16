@@ -1,10 +1,13 @@
+import { CrossTabSignOutListener } from "@/components/auth/CrossTabSignOutListener";
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { ClientSpeedInsights } from "@/components/analytics/client-speed-insights";
 import { AnalyticsScripts } from "@/components/analytics/analytics-scripts";
 import { AnalyticsConsentBanner } from "@/components/analytics/analytics-consent-banner";
+import { consentRegionForCountry } from "@/lib/analytics/consent";
 import { SpaPageViewTracker } from "@/components/analytics/spa-page-view-tracker";
 import { CspViolationReporter } from "@/components/csp-violation-reporter";
+import { ImplicitHashSessionBridge } from "@/components/auth/implicit-hash-session-bridge";
 import { EditChromeMount } from "@/components/edit-chrome/edit-chrome-mount";
 import { AdminQuickBarMount } from "@/components/edit-chrome/admin-quick-bar-mount";
 import { WebVitalsReporter } from "@/components/web-vitals-reporter";
@@ -21,6 +24,7 @@ import { getPublicFontPreset } from "@/lib/site-font-preset";
 import { getSiteTheme } from "@/lib/site-theme";
 import { backgroundModeToPolarity } from "@/lib/site-admin/tokens/polarity";
 import { getPublicTenantScope } from "@/lib/saas/scope";
+import { HOST_CONTEXT_HEADER } from "@/lib/saas/host-context";
 // The three token helpers from their leaf, NOT the `@/lib/site-admin` barrel:
 // the barrel re-exports the sections registry, which imports every section's
 // Editor and Component, which put the whole website builder (its editors,
@@ -172,6 +176,7 @@ export default async function RootLayout({
     { acceptLanguage: reqHeaders.get("accept-language"), country: reqHeaders.get("x-vercel-ip-country") },
   );
   const { dir, hreflang } = getLocaleMetadata(locale);
+  const consentRegion = consentRegionForCountry(reqHeaders.get("x-vercel-ip-country"));
 
   // M6 — Governed design tokens. Public scope is non-null only for
   // tenant-resolved storefront requests (middleware sets the header).
@@ -214,6 +219,7 @@ export default async function RootLayout({
       dir={dir}
       suppressHydrationWarning
       data-public-font-preset={publicFontPreset}
+      data-consent-region={consentRegion}
       {...tokenDataAttrs}
       style={tokenCssVars as React.CSSProperties}
       className={`${bodySans.variable} ${geistSans.variable} ${geistMono.variable} ${cinzel.variable} ${interBody.variable} ${playfairDisplay.variable} ${fraunces.variable} h-full antialiased`}
@@ -280,10 +286,15 @@ export default async function RootLayout({
             (gtag config above uses send_page_view:false; this owns it). */}
         <SpaPageViewTracker />
         {/* Consent banner + reopen target for the footer "Privacy choices" link. */}
-        <AnalyticsConsentBanner locale={locale} />
+        <AnalyticsConsentBanner
+          locale={locale}
+          themed={Boolean(publicScope) || reqHeaders.get(HOST_CONTEXT_HEADER) === "talent_site"}
+          region={consentRegion}
+        />
         <WebVitalsReporter />
         <CspViolationReporter />
         {children}
+        <CrossTabSignOutListener />
         {/* Intercepted-route overlays (profile quick-open). Sibling of the
             page so closing = router.back() restores the page untouched. */}
         {modal}
@@ -291,6 +302,7 @@ export default async function RootLayout({
         {publicScope && <TenantCustomCodeBody tenantId={publicScope.tenantId} />}
         {/* Custom code library — snippets placed at the end of the page. */}
         {publicScope && <TenantCodeSnippetsBody tenantId={publicScope.tenantId} />}
+        <ImplicitHashSessionBridge />
         <TenantRegisterMount />
         <EditChromeMount />
         {/* Wave 6.1 — the admin quick bar mounts independently of the editor so

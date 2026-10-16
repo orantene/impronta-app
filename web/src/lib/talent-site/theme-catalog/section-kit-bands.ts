@@ -6,6 +6,11 @@
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { PORTFOLIO_DEFAULT_PROPS } from "@/lib/site-admin/builder-node/portfolio-defaults";
 import { REVIEWS_DEFAULT_PROPS } from "@/lib/site-admin/builder-node/reviews-defaults";
+import {
+  POSTS_FEED_DEFAULT_PROPS,
+  type PostsFeedDemoTrade,
+  type PostsFeedStyle,
+} from "@/lib/site-admin/builder-node/posts-feed-model";
 import { VISIT_DEFAULT_PROPS } from "@/lib/site-admin/builder-node/visit-defaults";
 import { CONTENTS_DEFAULT_PROPS, cloneContentsDefaultProps } from "@/lib/site-admin/builder-node/contents-defaults";
 import type { ContentsItem } from "@/lib/site-admin/builder-node/contents-defaults";
@@ -33,6 +38,7 @@ type KitIdFactory = MaxSiteTemplateIdFactory;
 const BAND_SLOTS = {
   gallery: { slotKey: "gallery", originRole: "talent.gallery" },
   reviews: { slotKey: "reviews", originRole: "talent.reviews" },
+  posts: { slotKey: "posts", originRole: "talent.posts" },
   visit: { slotKey: "visit", originRole: "talent.visit" },
   contents: { slotKey: "contents", originRole: "talent.contents" },
   compCard: { slotKey: "comp_card", originRole: "talent.comp_card" },
@@ -208,6 +214,81 @@ export function reviewsBlock(
       },
     ],
   } as BuilderNode;
+}
+
+/**
+ * Posts v1 (PO1): the live `posts_feed` widget band. Reads the talent's own
+ * published posts; hidden on the live site when there are none, example posts
+ * in the builder and on demo accounts (theme previews).
+ */
+export function postsBlock(
+  makeId: KitIdFactory,
+  opts: {
+    layout?: PostsFeedStyle;
+    heading?: string;
+    eyebrow?: string;
+    limit?: number;
+    demoTrade?: PostsFeedDemoTrade;
+  } = {},
+): BuilderNode {
+  return {
+    id: makeId(),
+    kind: "container",
+    props: stampBand("posts", {
+      layout: "stack",
+      gap: "m",
+      align: "start",
+      layerLabel: "Posts",
+      style: { maxWidth: "wide", paddingY: "l", paddingX: "m" },
+    }),
+    children: [
+      {
+        id: makeId(),
+        kind: "posts_feed",
+        props: {
+          ...POSTS_FEED_DEFAULT_PROPS,
+          layout: opts.layout ?? "grid",
+          limit: opts.limit ?? 3,
+          title: opts.heading ?? "Latest posts",
+          eyebrow: opts.eyebrow ?? "",
+          demoTrade: opts.demoTrade ?? "general",
+        },
+      },
+    ],
+  } as BuilderNode;
+}
+
+/** Per-design defaults for the posts band (style + example set). */
+export const DESIGN_POSTS_BAND: Readonly<Record<string, { layout: PostsFeedStyle; demoTrade: PostsFeedDemoTrade }>> = {
+  "maison-v2": { layout: "grid", demoTrade: "beauty" },
+  maison: { layout: "grid", demoTrade: "beauty" },
+  solace: { layout: "list", demoTrade: "wellness" },
+  mono: { layout: "minimal", demoTrade: "beauty" },
+  frame: { layout: "grid", demoTrade: "beauty" },
+  folio: { layout: "magazine", demoTrade: "beauty" },
+  gridline: { layout: "list", demoTrade: "general" },
+  default: { layout: "grid", demoTrade: "general" },
+  editorial: { layout: "magazine", demoTrade: "general" },
+  minimal: { layout: "minimal", demoTrade: "general" },
+  portfolio: { layout: "bento", demoTrade: "general" },
+  bold: { layout: "hero", demoTrade: "general" },
+};
+
+/**
+ * Posts v1 (PO1): every talent Design ships the posts band in code. Inserted
+ * before the contact section (else last) with deterministic ids, so built-in
+ * payload hashes stay stable across calls. Idempotent: a tree that already
+ * has a posts band is returned unchanged.
+ */
+export function withPostsBand<T extends { homeTree: BuilderNode[] }>(payload: T, designKey: string): T {
+  const has = payload.homeTree.some((n) => (n.props as { slotKey?: string } | undefined)?.slotKey === "posts");
+  if (has) return payload;
+  let n = 0;
+  const band = postsBlock(() => `${designKey}-posts-${(n += 1)}`, DESIGN_POSTS_BAND[designKey] ?? {});
+  const at = payload.homeTree.findIndex((node) => (node.props as { slotKey?: string } | undefined)?.slotKey === "contact");
+  const homeTree = [...payload.homeTree];
+  homeTree.splice(at >= 0 ? at : homeTree.length, 0, band);
+  return { ...payload, homeTree };
 }
 
 /**

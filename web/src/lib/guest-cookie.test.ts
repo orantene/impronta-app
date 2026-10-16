@@ -8,6 +8,7 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import {
+  peekGuestIdentity,
   resolveGuestIdentity,
   signGuestCookie,
   verifyGuestCookie,
@@ -73,3 +74,33 @@ describe("resolveGuestIdentity", () => {
     assert.equal(GUEST_HEADER_NAME, "x-impronta-guest");
   });
 });
+
+describe("peekGuestIdentity", () => {
+  let previousSecret: string | undefined;
+
+  beforeEach(() => {
+    previousSecret = process.env[SECRET_ENV];
+    process.env[SECRET_ENV] = "test-secret-for-guest-cookie-tests";
+  });
+
+  afterEach(() => {
+    if (previousSecret === undefined) delete process.env[SECRET_ENV];
+    else process.env[SECRET_ENV] = previousSecret;
+  });
+
+  it("TUL-445: returns null without minting when the cookie is absent", () => {
+    assert.equal(peekGuestIdentity(undefined), null);
+    assert.equal(peekGuestIdentity(""), null);
+  });
+
+  it("returns null for a forged cookie (no mint)", () => {
+    assert.equal(peekGuestIdentity("attacker-supplied-id.bad-signature"), null);
+  });
+
+  it("returns the plain id for a validly-signed cookie", () => {
+    const id = "55555555-5555-4555-8555-555555555555";
+    const peeked = peekGuestIdentity(signGuestCookie(id));
+    assert.deepEqual(peeked, { guestKey: id });
+  });
+});
+

@@ -469,24 +469,24 @@ const CASE_STUDIES_ES: Record<string, LocalizedStudy> = {
     plan: "Negocio · Studio",
     role: "Banda en vivo de 7 integrantes",
     location: "Cancún y Riviera Maya",
-    cardTitle: "Siete músicos, un workspace, pagos divididos",
+    cardTitle: "Siete músicos, un espacio de trabajo, pagos divididos",
     cardSummary:
       "Una banda opera sus shows como negocio: calendario compartido, un solo sitio de reservas y reparto automático de pagos por integrante.",
     challenge:
       "Coordinar la disponibilidad de siete músicos, una sola cuenta de banco y quién-cobra-cuánto después de cada show era una pesadilla de hojas de cálculo.",
     approach: [
-      "Levantaron un workspace Studio con un sitio de reservas creado en un clic",
+      "Levantaron un espacio de trabajo Studio con un sitio de reservas creado en un clic",
       "Cada integrante tiene un rol; el calendario compartido bloquea fechas en cuanto se confirma un show",
       "Las consultas de eventos → oferta → depósito → saldo corren por el mensajero de reservas",
       "Los pagos se reparten solos por integrante cuando se paga un evento",
     ],
     outcome: [
-      { stat: "7", label: "integrantes, un workspace" },
+      { stat: "7", label: "integrantes, un espacio de trabajo" },
       { stat: "auto", label: "reparto de pagos por show" },
       { stat: "+60%", label: "reservas de eventos corporativos" },
     ],
     quote: "Por fin operamos como empresa, no como un chat de grupo con instrumentos.",
-    tags: ["Workspace", "Roles de equipo", "Pagos divididos"],
+    tags: ["Espacio de trabajo", "Roles de equipo", "Pagos divididos"],
   },
   salon: {
     plan: "Negocio · Studio",
@@ -501,7 +501,7 @@ const CASE_STUDIES_ES: Record<string, LocalizedStudy> = {
       "Crearon un sitio de salón con su marca usando el editor: servicios, equipo y precios",
       "Cada estilista tiene su calendario reservable; el cliente elige con quién y cuándo",
       "El depósito aparta la silla; los recordatorios bajan las ausencias",
-      "La recepción lleva todo el día desde un solo buzón del workspace",
+      "La recepción lleva todo el día desde un solo buzón del espacio de trabajo",
     ],
     outcome: [
       { stat: "−75%", label: "empalmes de citas" },
@@ -509,7 +509,7 @@ const CASE_STUDIES_ES: Record<string, LocalizedStudy> = {
       { stat: "5", label: "estilistas, un calendario" },
     ],
     quote: "La agenda se lleva sola. Nosotros solo cortamos.",
-    tags: ["Reserva por estilista", "Depósitos", "Workspace"],
+    tags: ["Reserva por estilista", "Depósitos", "Espacio de trabajo"],
   },
   models: {
     plan: "Negocio · Agency",
@@ -555,7 +555,7 @@ const CASE_STUDIES_ES: Record<string, LocalizedStudy> = {
       { stat: "lleno", label: "clases, con listas de espera reales" },
     ],
     quote: "Vendimos toda la primera semana de paquetes antes de que secara la pintura.",
-    tags: ["Reserva de clases", "Paquetes", "Workspace"],
+    tags: ["Reserva de clases", "Paquetes", "Espacio de trabajo"],
   },
   cityhub: {
     plan: "Hub",
@@ -567,7 +567,7 @@ const CASE_STUDIES_ES: Record<string, LocalizedStudy> = {
     challenge:
       "Grandes trabajadores locales (amas de llaves, anfitriones, choferes) no tenían un lugar común y confiable donde ser encontrados. Los administradores de villas recontrataban a ciegas cada temporada.",
     approach: [
-      "Lanzaron un workspace Hub con un directorio de profesionales locales para buscar y filtrar",
+      "Lanzaron un espacio de trabajo Hub con un directorio de profesionales locales para buscar y filtrar",
       "Los trabajadores aplican para unirse; el hub los verifica y aprueba",
       "Los clientes filtran por servicio, zona y disponibilidad, y reservan por el mensajero",
       "El ruteo de consultas mantiene cada reserva atribuida al profesional correcto",
@@ -590,7 +590,7 @@ const CASE_STUDIES_ES: Record<string, LocalizedStudy> = {
     challenge:
       "Los chefs privados independientes competían en listados dispersos y DMs. Los invitados no podían comparar menús ni confiar en quién llegaría.",
     approach: [
-      "Crearon un workspace Hub que presenta a cada chef con menús, fotos y precios",
+      "Crearon un espacio de trabajo Hub que presenta a cada chef con menús, fotos y precios",
       "Los chefs aplican y publican menús de muestra desde su propio perfil",
       "Los invitados piden fecha y número de personas; los chefs cotizan y confirman en el mensajero",
       "El depósito asegura la reserva y la compra del mandado",
@@ -613,7 +613,7 @@ const CASE_STUDIES_ES: Record<string, LocalizedStudy> = {
     challenge:
       "Los administradores de rentas de lujo hacían malabares con una docena de proveedores por propiedad. Un solo eslabón flojo arruinaba la estancia de un huésped, y la reseña junto con ella.",
     approach: [
-      "Crearon un workspace Hub que reúne cada servicio que una villa necesita",
+      "Crearon un espacio de trabajo Hub que reúne cada servicio que una villa necesita",
       "Cada proveedor es un miembro verificado con disponibilidad y tarifas",
       "Los administradores arman el personal de una estancia y lo reservan todo por el mensajero",
       "Un solo hilo de reserva, una sola fuente de verdad por propiedad",
@@ -627,18 +627,18 @@ const CASE_STUDIES_ES: Record<string, LocalizedStudy> = {
     tags: ["Multiservicio", "Proveedores verificados", "Ruteo de consultas"],
   },
   hybrid: {
-    plan: "Talento + Workspace",
+    plan: "Talento + Espacio de trabajo",
     role: "Maquillista → fundadora de Glow Studio",
     location: "Guadalajara",
     cardTitle: "Empezó como el talento. Ahora dirige el estudio.",
     cardSummary:
-      "Sofía conservó su página personal de talento y le sumó un workspace para su equipo en crecimiento: una cuenta, dos lados del negocio.",
+      "Sofía conservó su página personal de talento y le sumó un espacio de trabajo para su equipo en crecimiento: una cuenta, dos lados del negocio.",
     challenge:
       "Sofía superó las reservas en solitario. Quería sumar a dos artistas y tomar trabajos más grandes, sin perder su marca personal ni empezar de cero.",
     approach: [
       "Conservó su página de Talento para sus clientes y reservas personales",
-      "Abrió un workspace Studio, Glow Studio, para el equipo y los eventos más grandes",
-      "Cambia entre su perfil de talento y el workspace desde un mismo login",
+      "Abrió un espacio de trabajo Studio, Glow Studio, para el equipo y los eventos más grandes",
+      "Cambia entre su perfil de talento y el espacio de trabajo desde un mismo login",
       "Manda los trabajos en solitario a ella y los de evento al equipo por el mensajero",
     ],
     outcome: [
@@ -647,7 +647,7 @@ const CASE_STUDIES_ES: Record<string, LocalizedStudy> = {
       { stat: "2×", label: "tamaño promedio de trabajo" },
     ],
     quote: "No tuve que elegir entre ser la artista y construir el negocio. Soy las dos.",
-    tags: ["Talento + workspace", "Equipo", "Un solo login"],
+    tags: ["Talento + espacio de trabajo", "Equipo", "Un solo login"],
   },
 };
 

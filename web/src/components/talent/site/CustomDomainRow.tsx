@@ -2,13 +2,14 @@
 
 /**
  * Compact Custom domain row for Presence → My website (and Website settings).
- * Locked / trial → upgrade drawer. Unlocked → Domain setup drawer.
+ * Locked / trial → in-app upgrade modal (TUL-829). Unlocked → Domain setup drawer.
  */
 
 import { useEffect, useState } from "react";
 
 import { COLORS, FONTS, useAdminShell } from "@/components/admin/shell/internal/state";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
+import { openUpgrade } from "@/components/talent/upgrade/open-upgrade";
 import {
   loadTalentSiteDomainsForPanel,
   type TalentSiteDomainView,
@@ -92,7 +93,7 @@ export function CustomDomainRow({
       return;
     }
     if (!unlocked) {
-      openDrawer("talent-tier-compare");
+      openUpgrade({ feature: "custom-domain", from: "custom-domain-row" });
       return;
     }
     openDrawer("talent-custom-domain");

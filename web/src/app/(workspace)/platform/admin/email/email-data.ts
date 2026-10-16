@@ -418,3 +418,34 @@ export async function loadSendingDomains(): Promise<SendingDomainState[]> {
     .filter((d) => d.domain)
     .sort((a, b) => (a.agencyName ?? a.tenantId).localeCompare(b.agencyName ?? b.tenantId));
 }
+
+// ─── Notification email copies ───────────────────────────────────────────────
+
+export type NotificationCopyRow = {
+  id: string;
+  email: string;
+  label: string | null;
+  kinds: string[];
+  paused: boolean;
+};
+
+export async function loadNotificationCopies(): Promise<NotificationCopyRow[]> {
+  const sb = createServiceRoleClient();
+  if (!sb) return [];
+  const { data, error } = await sb
+    .from("notification_email_copies")
+    .select("id, email, label, kinds, paused")
+    .order("created_at", { ascending: true });
+  if (error || !data) {
+    logServerError("email-console.loadNotificationCopies", error ?? new Error("no data"));
+    return [];
+  }
+  type Raw = { id: string; email: string; label: string | null; kinds: string[] | null; paused: boolean | null };
+  return (data as unknown as Raw[]).map((r) => ({
+    id: r.id,
+    email: r.email,
+    label: r.label,
+    kinds: r.kinds ?? [],
+    paused: Boolean(r.paused),
+  }));
+}

@@ -5,6 +5,7 @@
 import { centsToInput, blankService, parsePriceToCents } from "@/lib/onboarding/setup";
 import type { EssentialService } from "@/lib/onboarding/essentials";
 import { MAX_ESSENTIAL_SERVICES } from "@/lib/onboarding/essentials";
+import { chooseFixed, chooseQuote, confirmAllPrices, confirmPrice, isQuoteChosen as isQuote, setPrice } from "@/lib/onboarding/service-price-choice";
 import type { SetupCopy } from "@/lib/onboarding/setup-copy";
 
 const field = { background: "var(--tl-surface-raised)", border: "1px solid var(--tl-hairline)", color: "var(--tl-ink)" } as const;
@@ -12,17 +13,31 @@ const field = { background: "var(--tl-surface-raised)", border: "1px solid var(-
 export function SetupServices({
   copy,
   currency,
+  onCurrency,
   services,
   onChange,
 }: {
   copy: SetupCopy;
   currency: string;
+  onCurrency: (currency: string) => void;
   services: EssentialService[];
   onChange: (next: EssentialService[]) => void;
 }) {
   const patch = (i: number, p: Partial<EssentialService>) => onChange(services.map((s, j) => (j === i ? { ...s, ...p } : s)));
   return (
     <div className="flex flex-col gap-3" data-testid="onb-setup-services">
+      <label className="flex items-center gap-2 text-[0.875rem]" style={{ color: "var(--tl-ink-soft)" }}>
+        {copy.currencyLabel}
+        <select value={currency} onChange={(e) => onCurrency(e.target.value)} data-testid="onb-service-currency" className="h-11 rounded-[12px] px-3 text-[1rem]" style={field}>
+          <option value="MXN">MXN</option>
+          <option value="USD">USD</option>
+        </select>
+      </label>
+      {services.filter((s) => s.priceSuggested).length > 1 ? (
+        <button type="button" onClick={() => onChange(confirmAllPrices(services))} data-testid="onb-service-confirm-all" className="min-h-11 self-start rounded-full border border-[var(--tl-forest)] px-4 text-[0.875rem] font-semibold text-[var(--tl-forest)]">
+          {copy.confirmAll}
+        </button>
+      ) : null}
       {services.map((s, i) => (
         <div key={i} className="rounded-[18px] p-3" style={{ background: "var(--tl-surface)", border: "1px solid var(--tl-hairline)" }}>
           <div className="flex items-center gap-2">
@@ -40,36 +55,62 @@ export function SetupServices({
               <svg aria-hidden width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M2 2l10 10M12 2L2 12" /></svg>
             </button>
           </div>
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            <label className="block">
-              <span className="mb-1 block text-[0.6875rem] font-semibold uppercase tracking-[0.08em]" style={{ color: "var(--tl-muted)" }}>{copy.minutes}</span>
-              <input
-                inputMode="numeric"
-                value={s.durationMin ?? ""}
-                onChange={(e) => patch(i, { durationMin: Number(e.target.value.replace(/\D/g, "")) || null })}
-                data-testid={`onb-service-min-${i}`}
-                className="h-12 w-full rounded-[12px] px-3 text-[1rem] outline-none"
-                style={field}
-              />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-[0.6875rem] font-semibold uppercase tracking-[0.08em]" style={{ color: "var(--tl-muted)" }}>{copy.price} ({currency})</span>
-              <input
-                inputMode="decimal"
-                disabled={s.quote}
-                value={s.quote ? "" : centsToInput(s.priceCents)}
-                placeholder={s.quote ? copy.quoteOn : "0"}
-                onChange={(e) => patch(i, { priceCents: parsePriceToCents(e.target.value) })}
-                data-testid={`onb-service-price-${i}`}
-                className="h-12 w-full rounded-[12px] px-3 text-[1rem] outline-none disabled:opacity-60"
-                style={field}
-              />
-            </label>
+          <div role="radiogroup" aria-label={copy.price} className="mt-2 grid grid-cols-2 gap-1 rounded-full bg-[var(--tl-surface-raised)] p-1">
+            {([false, true] as const).map((q) => (
+              <button
+                key={String(q)}
+                type="button"
+                role="radio"
+                aria-checked={isQuote(s) === q}
+                onClick={() => patch(i, q ? chooseQuote(s) : chooseFixed(s))}
+                data-testid={`onb-service-mode-${q ? "quote" : "fixed"}-${i}`}
+                className={`min-h-10 rounded-full px-3 text-[0.875rem] font-semibold ${isQuote(s) === q ? "bg-[var(--tl-forest)] text-[var(--tl-forest-on)]" : "text-[var(--tl-ink-soft)]"}`}
+              >
+                {q ? copy.priceQuote : copy.priceFixed}
+              </button>
+            ))}
           </div>
-          <label className="mt-2 flex min-h-11 items-center gap-2 text-[0.875rem]" style={{ color: "var(--tl-ink-soft)" }}>
-            <input type="checkbox" checked={s.quote} onChange={(e) => patch(i, { quote: e.target.checked, priceCents: e.target.checked ? null : s.priceCents })} className="size-5" data-testid={`onb-service-quote-${i}`} />
-            {copy.quote}
-          </label>
+          {isQuote(s) ? (
+            <p className="mt-2 text-[0.8125rem] text-[var(--tl-muted)]" data-testid={`onb-service-quote-note-${i}`}>{copy.quoteLive}</p>
+          ) : (
+            <>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <label className="block">
+                  <span className="mb-1 block text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[var(--tl-muted)]">{copy.minutes}</span>
+                  <input
+                    inputMode="numeric"
+                    value={s.durationMin ?? ""}
+                    onChange={(e) => patch(i, { durationMin: Number(e.target.value.replace(/\D/g, "")) || null })}
+                    data-testid={`onb-service-min-${i}`}
+                    className="h-12 w-full rounded-[12px] border border-[var(--tl-hairline)] bg-[var(--tl-surface-raised)] px-3 text-[1rem] text-[var(--tl-ink)] outline-none"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[var(--tl-muted)]">{copy.price} ({s.currency || currency})</span>
+                  <input
+                    inputMode="decimal"
+                    value={centsToInput(s.priceCents)}
+                    placeholder="0"
+                    onChange={(e) => patch(i, setPrice(s, parsePriceToCents(e.target.value)))}
+                    data-testid={`onb-service-price-${i}`}
+                    className="h-12 w-full rounded-[12px] border border-[var(--tl-hairline)] bg-[var(--tl-surface-raised)] px-3 text-[1rem] text-[var(--tl-ink)] outline-none"
+                  />
+                </label>
+              </div>
+              {s.priceSuggested ? (
+                <div className="mt-2 flex items-center justify-between gap-2" data-testid={`onb-service-suggested-${i}`}>
+                  <span className="text-[0.8125rem] text-[var(--tl-muted)]">{copy.suggested}</span>
+                  <button type="button" onClick={() => patch(i, confirmPrice(s))} data-testid={`onb-service-confirm-${i}`} className="min-h-10 rounded-full border border-[var(--tl-forest)] px-4 text-[0.875rem] font-semibold text-[var(--tl-forest)]">
+                    {copy.confirm}
+                  </button>
+                </div>
+              ) : s.priceCents ? (
+                <p className="mt-2 text-[0.8125rem] text-[var(--tl-forest)]" data-testid={`onb-service-confirmed-${i}`}>{copy.confirmed}</p>
+              ) : (
+                <p className="mt-2 text-[0.8125rem] text-[var(--tl-muted)]" data-testid={`onb-service-hidden-${i}`}>{copy.hiddenUntilPriced}</p>
+              )}
+            </>
+          )}
         </div>
       ))}
       {services.length < MAX_ESSENTIAL_SERVICES ? (

@@ -4,16 +4,17 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const src = readFileSync(join(process.cwd(), "src/app/api/webhooks/stripe-mx/route.ts"), "utf8");
-const handler = readFileSync(join(process.cwd(), "src/lib/stripe/webhook-handler.ts"), "utf8");
+const handler = readFileSync(join(process.cwd(), "src/lib/stripe/webhook-http.ts"), "utf8");
 
 test("MX route delegates to the shared handler tagged mx", () => {
   assert.match(src, /handleStripeWebhook\(req, \{ account: "mx" \}\)/);
 });
 
 test("handler verifies MX deliveries with the MX secret only, 503 when unset", () => {
-  assert.match(handler, /STRIPE_MX_WEBHOOK_SECRET,/);
+  // TUL-703: reads go through stripeEnv() so STRIPE_FORCE_TEST_MODE can swap them.
+  assert.match(handler, /stripeEnv\("STRIPE_MX_WEBHOOK_SECRET"\),/);
   const mxBranch = handler.slice(handler.indexOf('account === "mx"\n    ? ['));
-  assert.ok(mxBranch.indexOf("STRIPE_MX_WEBHOOK_SECRET") < mxBranch.indexOf(": [process.env.STRIPE_WEBHOOK_SECRET"));
+  assert.ok(mxBranch.indexOf("STRIPE_MX_WEBHOOK_SECRET") < mxBranch.indexOf(': [stripeEnv("STRIPE_WEBHOOK_SECRET")'));
   assert.match(handler, /Webhook secret not configured\.[\s\S]{0,40}status: 503/);
 });
 

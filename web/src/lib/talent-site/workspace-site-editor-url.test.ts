@@ -46,3 +46,22 @@ test("pending domain rows do not invent a branded editor host", () => {
   });
   assert.equal(live, "https://tulala.digital/w/qa-fresh-studio-2");
 });
+
+test("TUL-1188: free workspace editor URL stays on this stack's marketing origin", async () => {
+  const { resolveWorkspaceSiteEditorUrl } = await import("@/lib/talent-site/workspace-site-editor-url");
+  const q = (data: unknown) => {
+    const b = { select: () => b, eq: () => b, in: () => Promise.resolve({ data, error: null }), maybeSingle: () => Promise.resolve({ data, error: null }) };
+    return b;
+  };
+  const admin = { from: (t: string) => (t === "agencies" ? q({ slug: "acme", plan_tier: "free" }) : q([])) } as never;
+  const prev = { o: process.env.TULALA_MARKETING_ORIGIN, v: process.env.VERCEL_ENV };
+  process.env.TULALA_MARKETING_ORIGIN = "http://localhost:3001";
+  delete process.env.VERCEL_ENV;
+  try {
+    const url = await resolveWorkspaceSiteEditorUrl(admin, { tenantId: "t1", slug: "acme" });
+    assert.equal(url, "http://localhost:3001/w/acme/?edit=1&panel=sections");
+  } finally {
+    if (prev.o === undefined) delete process.env.TULALA_MARKETING_ORIGIN; else process.env.TULALA_MARKETING_ORIGIN = prev.o;
+    if (prev.v !== undefined) process.env.VERCEL_ENV = prev.v;
+  }
+});
