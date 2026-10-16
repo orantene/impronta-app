@@ -191,6 +191,47 @@ export function largestChunks(routes, budget, sizer, n = 12) {
     .slice(0, n);
 }
 
+// ── Per-module sizes (TUL-1178 step 1c) ──────────────────────────────────────
+
+/** Turbopack module marker: `"[project]/src/x.tsx [app-client] (ecmascript)",` right before the module's factory. */
+const MODULE_MARKER = /"\[project\]\/([^"]+?) \[[^\]]+\] \(ecmascript[^"]*\)",/g;
+
+/**
+ * Approximate bytes per module inside one chunk's source: the distance between consecutive module markers (the
+ * last one runs to the end of the file). Pure. Returns [] when the chunk has no recognisable markers, so a
+ * different bundler format degrades to "nothing printed", never to a wrong number.
+ */
+export function moduleSizesFromChunkSource(source) {
+  const marks = [];
+  for (const match of source.matchAll(MODULE_MARKER)) marks.push({ path: match[1], at: match.index ?? 0 });
+  return marks.map((mark, i) => ({ path: mark.path, bytes: (marks[i + 1]?.at ?? source.length) - mark.at }));
+}
+
+/** First path segment(s) of a node_modules module (`@scope/pkg` or `pkg`), else null. */
+export function packageOf(modulePath) {
+  const m = /node_modules\/((?:@[^/]+\/)?[^/]+)/.exec(modulePath);
+  return m ? m[1] : null;
+}
+
+/** Merge per-module sizes across chunks (a module can appear in several; keep the largest copy). */
+export function topModules(chunkSources, n = 25) {
+  const best = new Map();
+  for (const source of chunkSources) {
+    for (const { path, bytes } of moduleSizesFromChunkSource(source)) {
+      if (bytes > (best.get(path) ?? 0)) best.set(path, bytes);
+    }
+  }
+  const all = [...best.entries()].map(([path, bytes]) => ({ path, bytes }));
+  const src = all.filter((m) => !packageOf(m.path)).sort((a, b) => b.bytes - a.bytes).slice(0, n);
+  const pkgBytes = new Map();
+  for (const m of all) {
+    const pkg = packageOf(m.path);
+    if (pkg) pkgBytes.set(pkg, (pkgBytes.get(pkg) ?? 0) + m.bytes);
+  }
+  const packages = [...pkgBytes.entries()].map(([pkg, bytes]) => ({ pkg, bytes })).sort((a, b) => b.bytes - a.bytes).slice(0, n);
+  return { src, packages, modules: all.length };
+}
+
 // ── Measuring ────────────────────────────────────────────────────────────────
 
 /**
@@ -325,6 +366,37 @@ function readRoutes() {
   }));
 }
 
+/** Report only: per-module and per-package bytes over the budget's chunk union. Never throws, never changes a verdict. */
+function printModuleSizes(routes, budget) {
+  try {
+    const prefixes = [budget.match].flat();
+    const chunks = new Set();
+    for (const entry of routes) {
+      if (prefixes.some((prefix) => entry.route.startsWith(prefix))) for (const chunk of entry.chunks) chunks.add(chunk);
+    }
+    const sources = [];
+    for (const chunk of chunks) {
+      const rel = chunk.replace(/^\/_next\//, "").replace(/^\//, "");
+      try {
+        sources.push(readFileSync(join(NEXT_DIR, rel), "utf8"));
+      } catch {
+        /* an unreadable chunk is simply not attributed */
+      }
+    }
+    const { src, packages, modules } = topModules(sources, 25);
+    if (modules === 0) {
+      console.log(`\n[perf:app-budget] Module sizes: no module markers recognised in the ${budget.label} chunks (bundler format).`);
+      return;
+    }
+    console.log(`\n[perf:app-budget] Largest app modules in the ${budget.label} union (${modules} modules seen, approx. bytes):`);
+    for (const m of src) console.log(`   ${fmt(m.bytes).padStart(10)}  src/${m.path.replace(/^.*\/src\//, "")}`);
+    console.log(`\n[perf:app-budget] Largest packages in the ${budget.label} union:`);
+    for (const p of packages) console.log(`   ${fmt(p.bytes).padStart(10)}  ${p.pkg}`);
+  } catch (error) {
+    console.log(`\n[perf:app-budget] Module sizes unavailable: ${error}`);
+  }
+}
+
 function runEnforce(mode) {
   let routes;
   try {
@@ -408,6 +480,7 @@ function runEnforce(mode) {
             `[${own.length} src module(s), ${lib} other] ${shown.join(", ")}${more}`,
         );
       }
+      printModuleSizes(routes, adminBudget);
     }
     if (violations.length === 0) {
       console.log(`\n✓ App bundle budget OK.`);
@@ -534,6 +607,18 @@ function runSelfTest() {
   );
   if (top.length !== 1 || top[0].chunk !== "/_next/big.js") failures.push(`largestChunks returned ${JSON.stringify(top)}, expected only big.js`);
   else if (top[0].files.join(",") !== "/w/src/big.tsx,/w/src/small.tsx") failures.push(`largestChunks owners were ${top[0].files.join(",")}`);
+  // [9] per-module sizes: marker distances, package roll-up, and a foreign format yields nothing, not garbage.
+  const chunkSrc =
+    'push(["a.js",{},"[project]/src/big.tsx [app-client] (ecmascript)",(e)=>{' + "x".repeat(100) + '}),"[project]/node_modules/@scope/pkg/index.js [app-client] (ecmascript)",(e)=>{' + "y".repeat(40) + "}),])";
+  const mods = moduleSizesFromChunkSource(chunkSrc);
+  if (mods.length !== 2 || mods[0].path !== "src/big.tsx" || mods[1].path !== "node_modules/@scope/pkg/index.js") failures.push(`moduleSizesFromChunkSource found ${JSON.stringify(mods.map((m) => m.path))}`);
+  else if (!(mods[0].bytes > 100 && mods[1].bytes > 40 && mods[0].bytes > mods[1].bytes)) failures.push(`module byte distances look wrong: ${JSON.stringify(mods)}`);
+  if (packageOf("node_modules/@scope/pkg/index.js") !== "@scope/pkg" || packageOf("src/big.tsx") !== null) failures.push("packageOf mis-parsed");
+  if (moduleSizesFromChunkSource('"./src/x.js":(e)=>{}').length !== 0) failures.push("a foreign chunk format must yield no modules");
+  const tm = topModules([chunkSrc]);
+  if (tm.src[0]?.path !== "src/big.tsx" || tm.packages[0]?.pkg !== "@scope/pkg") failures.push(`topModules wrong: ${JSON.stringify(tm)}`);
+  console.log(`[9/9] per-module sizes → ${mods.length} module(s), top package ${tm.packages[0]?.pkg}`);
+
   console.log(`[8/8] attribution report → top chunk ${top[0]?.chunk} named by ${top[0]?.files.length} module(s)`);
 
   if (failures.length > 0) {
