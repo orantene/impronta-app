@@ -135,3 +135,4 @@ src/app/(public)/r/?code?/receipt-save-bookings.test.tsx
 src/lib/notifications/email-copies/kinds.test.ts
 src/lib/notifications/whatsapp/provider.test.ts
 src/lib/notifications/auth-email-locale.test.ts
+src/lib/notifications/whatsapp-schema.migration.test.ts
