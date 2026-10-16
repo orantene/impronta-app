@@ -31,6 +31,8 @@ import {
 } from "../../kit";
 import { validateHref } from "../href-validation";
 import type { SiteHeaderConfig } from "@/lib/site-admin/site-header/types";
+import { accountLinkPreset, hasAccountLink } from "@/lib/site-admin/site-header/account-link-preset";
+import { useEditorLocale } from "../../../use-editor-locale";
 import type { SiteHeaderPatch } from "../SiteHeaderInspector";
 
 interface Props {
@@ -51,6 +53,7 @@ interface RowState {
 
 export function NavigationTab({ config, patch }: Props) {
   const items = config.navigation.items;
+  const { locale } = useEditorLocale();
 
   // Helper: convert local row state → action input shape.
   function toInput(rows: RowState[]) {
@@ -79,14 +82,14 @@ export function NavigationTab({ config, patch }: Props) {
     patch.patchNavigation(toInput(next));
   }
 
-  function onAdd() {
+  function onAdd(preset?: { label: string; href: string }) {
     const localId = `__new_${items.length}_${Date.now()}__`;
     const next: RowState[] = [
       ...items.map((it) => ({ ...it })),
       {
         id: localId,
-        label: "New link",
-        href: "/",
+        label: preset?.label ?? "New link",
+        href: preset?.href ?? "/",
         visible: true,
         version: 0,
         isNew: true,
@@ -102,7 +105,7 @@ export function NavigationTab({ config, patch }: Props) {
         info="The text links that appear in the header bar and inside the mobile menu. Drag to reorder. Changes save and publish on each edit."
       >
         {items.length === 0 ? (
-          <EmptyState onAdd={onAdd} />
+          <EmptyState onAdd={() => onAdd()} />
         ) : (
           <>
             <DraggableList<RowState>
@@ -121,12 +124,23 @@ export function NavigationTab({ config, patch }: Props) {
             </DraggableList>
             <button
               type="button"
-              onClick={onAdd}
+              onClick={() => onAdd()}
               className="mt-1 inline-flex items-center gap-1.5 self-start rounded-md px-2 py-1.5 text-[12px] font-medium text-stone-500 transition-colors duration-150 hover:bg-[#faf9f6] hover:text-stone-800 active:scale-[0.98]"
             >
               <PlusGlyph />
               Add link
             </button>
+            {/* TUL-695: one-click "Mi cuenta" link for signed-in clients. */}
+            {hasAccountLink(items) ? null : (
+              <button
+                type="button"
+                onClick={() => onAdd(accountLinkPreset(locale))}
+                className="inline-flex items-center gap-1.5 self-start rounded-md px-2 py-1.5 text-[12px] font-medium text-stone-500 transition-colors duration-150 hover:bg-[#faf9f6] hover:text-stone-800 active:scale-[0.98]"
+              >
+                <PlusGlyph />
+                Add My account link
+              </button>
+            )}
           </>
         )}
       </InspectorGroup>

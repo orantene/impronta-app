@@ -131,6 +131,21 @@ export async function cancelBookingWithRefund(input: {
     logServerError("agenda.cancelBookingWithRefund.money", `booking ${input.bookingId}: payment cleanup incomplete`);
   }
 
+  // B3: a talent cancel returns the promo seat and gives the client a
+  // personal 14-day code. Runs on "already" too (a retry heals it); rows it
+  // already released are never picked up again, so no second code.
+  if (input.cancelledBy === "talent") {
+    const { makeGoodOnTalentCancel } = await import("@/lib/promos/redemption/talent-cancel");
+    const makeGood = await makeGoodOnTalentCancel(admin, {
+      tenantId: String(row.tenant_id),
+      bookingId: input.bookingId,
+      orderId: row.order_id ? String(row.order_id) : null,
+    });
+    if (!makeGood.ok) {
+      logServerError("agenda.cancelBookingWithRefund.promoMakeGood", `booking ${input.bookingId}: promo make-good incomplete`);
+    }
+  }
+
   if (!result.already) {
     await logBookingActivity(admin, {
       bookingId: input.bookingId,

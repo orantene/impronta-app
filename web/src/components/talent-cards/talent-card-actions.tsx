@@ -76,13 +76,12 @@ export function TalentCardActions({
   const cartPending = cart.isPending(talentProfileId);
   const compact = variant === "compact";
   const isPill = variant === "pill";
-  const nameSuffix = displayName ? ` ${displayName}` : "";
-
   // Phase 3 — the per-card inquiry control is resolver-driven (single source of
   // truth for CTA state). The card only carries the lineup inputs (it has no
   // active-inquiry context client-side), so the resolver yields add_first /
   // add_to_lineup (-> "Inquire") or in_lineup (-> "In lineup, tap to remove").
-  // One tap toggles the shared lineup; never a modal, never drops the lineup.
+  // Inquire ADD joins the lineup AND opens the chat launcher (GRK-054); a second
+  // tap on "In lineup" removes without opening. Never a silent shortlist-only add.
   const ctaState = resolveInquiryCta({
     talentProfileId,
     isInLineup: inCart,
@@ -133,6 +132,13 @@ export function TalentCardActions({
     }
     cart.toggleInCart({ talentProfileId, profileCode, displayName }, sourcePage);
 
+    // GRK-054 — Inquire must open the composer, not only mutate the lineup.
+    // Matches favorites-modal onInquire (add then requestOpenChat). Remove path
+    // stays toggle-only so "In lineup" still means tap to remove.
+    if (willAdd) {
+      cart.openInquiry({ sourcePage });
+    }
+
     // Phase 6 — reversibility. A card removal is always a DRAFT-stage cart op
     // (the card is a pre-send acquisition surface; it carries no sent-inquiry
     // context), so it is always safe to offer Undo. Restoring the cart id is the
@@ -178,8 +184,8 @@ export function TalentCardActions({
           aria-pressed={favorited}
           aria-label={
             favorited
-              ? `Remove${nameSuffix} from favorites`
-              : `Save${nameSuffix} to favorites`
+              ? copy("public.directory.card.removeFavoriteAria", { name: fallbackName })
+              : copy("public.directory.card.saveFavoriteAria", { name: fallbackName })
           }
           className={cn(
             // Lane E — the circle is CONSTANT in both states; only the

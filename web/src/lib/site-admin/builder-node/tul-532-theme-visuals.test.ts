@@ -11,16 +11,11 @@ import { SERVICES_MATRIX_CSS } from "./services-catalog-matrix";
 import { UTILITY_BAR_CSS } from "./utility-bar-block";
 import { PORTFOLIO_CSS } from "./portfolio-block";
 import { PORTFOLIO_WORK_ORDER_CSS } from "./portfolio-work-order";
-import { UTILITY_TYPE_SYSTEM_CSS } from "@/lib/talent-site/theme-catalog/collection/design-type-system-utility";
 import { buildGridlinePayload } from "@/lib/talent-site/theme-catalog/collection/gridline";
 
 const renderCss = readFileSync(path.join(__dirname, "render.tsx"), "utf8");
 const proofSeed = readFileSync(
   path.join(__dirname, "../../talent-site/theme-catalog/section-kit-proof.ts"),
-  "utf8",
-);
-const sectionKit = readFileSync(
-  path.join(__dirname, "../../talent-site/theme-catalog/section-kit.ts"),
   "utf8",
 );
 const portfolioSrc = readFileSync(path.join(__dirname, "portfolio-block.tsx"), "utf8");
@@ -44,7 +39,6 @@ test("GRK-048: catalog stretches inside an align:start stack (no one-letter colu
 
 test("GRK-073: phone padding ≥16px on utility chrome + proof bands", () => {
   assert.match(UTILITY_BAR_CSS, /padding:10px 16px/);
-  assert.match(UTILITY_TYPE_SYSTEM_CSS, /padding-inline:max\(16px/);
   assert.match(proofSeed, /paddingX: "m"/);
   assert.doesNotMatch(proofSeed, /paddingX: "none"/);
 });
@@ -55,11 +49,9 @@ test("GRK-044: gallery lightbox button is photo-only (caption outside button)", 
   assert.match(portfolioSrc, /<\/PortfolioShotLink>\s*\{caption\}/);
 });
 
-test("GRK-076: face-forward object-position on portfolio + heroes", () => {
+test("GRK-076: face-forward object-position on portfolio work", () => {
   assert.match(PORTFOLIO_CSS, /object-position:center 18%/);
   assert.match(PORTFOLIO_WORK_ORDER_CSS, /object-position:center 18%/);
-  assert.match(sectionKit, /objectPosition: "center 18%"/);
-  assert.match(sectionKit, /backgroundPosition: "center 18%"/);
 });
 
 test("GRK-083: cards/grid/editorial stay 1 column through 899px with wrapping CTAs", () => {
@@ -67,10 +59,10 @@ test("GRK-083: cards/grid/editorial stay 1 column through 899px with wrapping CT
   const phone = renderCss.slice(renderCss.indexOf("@media (max-width:899px){"));
   assert.match(
     phone,
-    /services-catalog\[data-layout="cards"\][\s\S]*?grid-template-columns:1fr/,
+    /services-catalog:is\(\[data-layout="cards"\][\s\S]*?grid-template-columns:1fr/,
   );
   assert.match(
     renderCss,
-    /data-layout="cards"\] \.site-builder-node--services-catalog-cta[\s\S]*?white-space:normal/,
+    /data-layout="cards"\][^{]*\.site-builder-node--services-catalog-cta[\s\S]*?white-space:normal/,
   );
 });

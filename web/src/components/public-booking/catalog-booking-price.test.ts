@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  catalogSheetFooterTotal,
   catalogSheetSummaryCaption,
   catalogSheetSummaryCents,
 } from "./catalog-booking-price";
@@ -21,6 +22,16 @@ const revision = {
 
 test("catalog From floor is the cheapest option (TUL-516 price mismatch)", () => {
   assert.equal(catalogRowMinCents(revision), 50000);
+});
+
+test("footer total matches the summary line: From floor until an option is picked", () => {
+  const withExtra = { ...revision, addOns: [{ id: "x", label: "Urgente", amountCents: 10000 }] };
+  assert.deepEqual(catalogSheetFooterTotal(withExtra, null, []), { cents: 50000, from: true });
+  assert.deepEqual(catalogSheetFooterTotal(withExtra, null, ["x"]), { cents: 60000, from: true });
+  assert.deepEqual(catalogSheetFooterTotal(withExtra, "casa", []), { cents: 55000, from: false });
+  assert.deepEqual(catalogSheetFooterTotal(withExtra, "depa", ["x"]), { cents: 60000, from: false });
+  const flat = { amountCents: 30000, variants: [], addOns: [] };
+  assert.deepEqual(catalogSheetFooterTotal(flat, null, []), { cents: 30000, from: false });
 });
 
 test("sheet summary uses From floor until an option is picked", () => {

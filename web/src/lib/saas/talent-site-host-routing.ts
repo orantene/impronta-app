@@ -50,16 +50,25 @@ const TALENT_SITE_PASSTHROUGH_PREFIXES = [
 /**
  * Exact auth paths for client OAuth on talent hosts (TUL-173 Google; Apple via
  * TUL-65 if present). Allow-list ONLY these — never the whole `/auth/` prefix
- * (sign-out, confirm, SSO must stay 404 on vanity domains).
+ * (sign-out, confirm, SSO mint must stay 404 on vanity domains).
+ *
+ * `/auth/sso` (TUL-691) is the SSO REDEEM endpoint only: it consumes a
+ * single-use, 2-minute token minted on the app host for this exact host, then
+ * mints a fresh host-only session. `/auth/sso/start` (mint) stays 404 here.
  */
 const TALENT_SITE_PASSTHROUGH_EXACT = new Set([
   "/auth/apple",
   "/auth/google",
   "/auth/callback",
+  // TUL-350: Stripe success/cancel return pages. Booking checkouts send the
+  // payer back to the host they paid on, so these two must resolve there.
+  "/checkout/success",
+  "/checkout/cancel",
+  "/auth/sso",
 ]);
 
 // `/account` itself is an exact path (a `/account` prefix would also pass `/accounts`).
-const TALENT_SITE_STATIC_PATHS = ["/sitemap.xml", "/robots.txt", "/favicon.ico", "/account"] as const;
+const TALENT_SITE_STATIC_PATHS = ["/sitemap.xml", "/robots.txt", "/llms.txt", "/favicon.ico", "/account"] as const;
 
 /**
  * A single page-slug segment: lowercase alphanumerics + hyphens, the same shape
@@ -67,6 +76,7 @@ const TALENT_SITE_STATIC_PATHS = ["/sitemap.xml", "/robots.txt", "/favicon.ico",
  * uppercase letter, or reserved characters — so `/about` matches but
  * `/about/extra`, `/api/x`, and `/foo.bar` do not.
  */
+const PROMO_LINK_SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const TALENT_PAGE_SLUG = /^[a-z0-9][a-z0-9-]*$/;
 
 /**
@@ -100,6 +110,8 @@ const RESERVED_TALENT_SITE_SLUGS = new Set([
   // bare `/pay` or `/link` must not render as a talent page slug.
   "pay",
   "link",
+  // `/checkout/success|cancel` pass through; bare `/checkout` is not a page.
+  "checkout",
 ]);
 
 export type TalentSiteHostPath =
@@ -137,6 +149,13 @@ export function isTalentSiteHostPathAllowed(
     !RESERVED_TALENT_SITE_SLUGS.has(segments[0])
   ) {
     return { kind: "render", pageSlug: segments[0] };
+  }
+
+  // Promo share link `/p/<slug>` (promos engine PR4). Two segments, so it can
+  // never collide with a page slug (`p` is reserved above). Rewritten to the
+  // static `_talent-site/p/[slug]` route, which wins over the optional catch-all.
+  if (segments.length === 2 && segments[0] === "p" && PROMO_LINK_SLUG.test(segments[1])) {
+    return { kind: "render", pageSlug: `p/${segments[1]}` };
   }
 
   return null;

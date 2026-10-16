@@ -38,6 +38,7 @@ import {
   type DeskViewId,
 } from "@/lib/support/desk/desk-filters";
 import { deskShortcutFromKeyboardEvent } from "@/lib/support/desk/desk-shortcuts";
+import { displayTicketTitle } from "@/lib/support/ticket-title";
 import { beginDeskSend, type DeskSendAttempt } from "@/lib/support/desk/desk-send";
 import {
   applyDeskRequesterMessagePreview,
@@ -400,7 +401,7 @@ export function SupportDeskShell({
             const name =
               row.requesterName ||
               row.ticket.contactName ||
-              row.ticket.subject ||
+              displayTicketTitle(row.ticket) ||
               t("dashboard.platform.support.unknownRequester");
             return (
               <button
@@ -422,7 +423,7 @@ export function SupportDeskShell({
                     </span>
                   </span>
                   <span className="mt-0.5 block truncate text-[12px] text-admin-ink-muted">
-                    {row.ticket.subject}
+                    {displayTicketTitle(row.ticket)}
                   </span>
                   <span className="mt-1 inline-flex flex-wrap gap-1">
                     <span className="rounded-full bg-admin-surface-alt px-1.5 py-0.5 text-[10px] text-admin-ink-muted">
@@ -569,7 +570,7 @@ export function SupportDeskShell({
               <div className="truncate text-[14px] font-semibold text-admin-ink">
                 {context?.requesterName ||
                   ticket?.contactName ||
-                  ticket?.subject ||
+                  (ticket ? displayTicketTitle(ticket) : "") ||
                   "…"}
               </div>
               <div className="truncate text-[11px] text-admin-ink-dim">
@@ -718,7 +719,7 @@ export function SupportDeskShell({
                   }}
                 >
                   #{row.ticket.ticketNumber} ·{" "}
-                  {row.requesterName || row.ticket.subject}
+                  {row.requesterName || displayTicketTitle(row.ticket)}
                 </button>
               ))}
             {filterDeskQueue(queue, "all_open", cmdkQ, selfId).length === 0 ? (

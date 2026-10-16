@@ -3,6 +3,19 @@ import { test } from "node:test";
 
 import { buildAddGallerySectionTemplate } from "./section-templates";
 import { localizeSectionTemplate, templateCopySiteKind } from "./section-template-copy";
+import { resolveAddGalleryInsertAction } from "./insert";
+import { getAddGalleryItemById } from "./registry";
+
+test("gallery Text block starts in the site's language (Spanish talent: Párrafo)", () => {
+  const item = getAddGalleryItemById("el-text");
+  assert.ok(item);
+  const textOf = (action: ReturnType<typeof resolveAddGalleryInsertAction>) =>
+    action.type === "nativeNode" ? (action.node.props as { text?: string }).text : null;
+  assert.equal(textOf(resolveAddGalleryInsertAction(item, { siteKind: "talent", locale: "es" })), "Párrafo");
+  assert.equal(textOf(resolveAddGalleryInsertAction(item, { siteKind: "agency", locale: "es-MX" })), "Párrafo");
+  assert.equal(textOf(resolveAddGalleryInsertAction(item, { siteKind: "talent", locale: "en" })), "Paragraph");
+  assert.equal(textOf(resolveAddGalleryInsertAction(item)), "Paragraph");
+});
 
 const json = (n: unknown) => JSON.stringify(n);
 

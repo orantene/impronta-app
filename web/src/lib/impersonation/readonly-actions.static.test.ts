@@ -118,6 +118,7 @@ const BASE_ALLOW: AllowEntry[] = [
     ["loadTalentPayoutSnapshot", "loadTalentStablecoinEligibility", "loadTalentGpStatus", "loadTalentGpPrefillAction", "loadTalentGpMethods"],
     READ,
   ],
+  ["talent/settings/payouts/payout-waitlist-actions.ts", ["loadPayoutWaitlist"], READ],
   ["talent/inbox/[id]/actions.ts", ["loadTalentInquiryThread", "loadTalentInquiryLineupCount"], READ],
   ["talent/inbox/[id]/guest-trust-loader.ts", ["loadTalentInquiryGuestTrust"], READ],
   [
@@ -152,7 +153,7 @@ const BASE_ALLOW: AllowEntry[] = [
   ["components/talent/website-settings/live-status-action.ts", ["loadLiveStatusAction"], READ],
   ["components/talent/site/theme-gallery/gallery-bootstrap-action.ts", ["loadThemeGalleryBootstrapAction"], READ],
   ["components/talent/site/maison-setup/maison-setup-bootstrap.ts", ["loadMaisonSetupBootstrapAction"], READ],
-  ["lib/billing/fee-payer-actions.ts", ["getFeePayer", "getFeePreviewConfig"], READ],
+  ["lib/billing/fee-payer-actions.ts", ["getFeePayer", "getFeePreviewConfig", "getFeeCardInit"], READ],
   ["lib/server-actions/talent-plan-summary.ts", ["loadTalentPlanSummary"], READ],
   ["lib/server-actions/talent-media-release.ts", ["actionLoadTalentMediaLocks"], READ],
   ["lib/server-actions/ai-writing-helper.ts", ["loadMyBio"], READ],

@@ -262,3 +262,38 @@ test("createPaymentLink frees an expired key and mints a new open link", async (
   assert.equal(neu?.operation_key, "stable-key-aaaa");
   assert.equal(neu?.status, "open");
 });
+
+const linkRow = (status: string, expiresInMs: number) => ({
+  from: () => {
+    const api = {
+      select: () => api,
+      eq: () => api,
+      maybeSingle: async () => ({
+        data: {
+          tenant_id: "t1",
+          order_id: "o1",
+          amount_cents: 1800,
+          status,
+          provider: "stripe",
+          expires_at: new Date(Date.now() + expiresInMs).toISOString(),
+          inquiry_id: null,
+        },
+        error: null,
+      }),
+    };
+    return api;
+  },
+});
+
+test("TUL-466: only an open link dies with its expiry; paid, cancelled and replaced keep their own page", async () => {
+  const open = await loadPaymentLinkByCode(linkRow("open", -60_000) as never, "abcdefgh");
+  assert.equal(open.ok, false);
+  if (!open.ok) assert.equal(open.reason, "expired");
+  for (const status of ["paid", "cancelled", "replaced"]) {
+    const loaded = await loadPaymentLinkByCode(linkRow(status, -60_000) as never, "abcdefgh");
+    assert.equal(loaded.ok, true, status);
+    if (loaded.ok) assert.equal(loaded.status, status);
+  }
+  const marked = await loadPaymentLinkByCode(linkRow("expired", 60_000) as never, "abcdefgh");
+  assert.equal(marked.ok, false);
+});

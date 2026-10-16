@@ -298,7 +298,8 @@ export async function loadPaymentLinkByCode(
     expires_at: string;
     inquiry_id?: string | null;
   };
-  if (row.status === "expired" || Date.parse(row.expires_at) <= Date.now()) {
+  // Only an open link dies with its expiry: a paid, cancelled or replaced one keeps its own page.
+  if (row.status === "expired" || (row.status === "open" && Date.parse(row.expires_at) <= Date.now())) {
     return { ok: false, reason: "expired", tenantId: row.tenant_id, orderId: row.order_id, inquiryId: row.inquiry_id ?? null };
   }
   return {

@@ -157,7 +157,6 @@ src/lib/menu-import/menu-from-brief.test.ts
 src/lib/money/total-client-revenue.test.ts
 src/lib/notifications/copy-has-entry.static.test.ts
 src/lib/notifications/customer-copy-voice.static.test.ts
-src/lib/notifications/dispatcher-outcome.test.ts
 src/lib/notifications/envelope-log.test.ts
 src/lib/notifications/talent-inbox-scope.test.ts
 src/lib/pitch/pitch-engine.deep.test.ts
@@ -175,7 +174,6 @@ src/lib/saas/custom-domain-routing.security.test.ts
 src/lib/saas/custom-domain-routing.test.ts
 src/lib/saas/domain-canonical.test.ts
 src/lib/saas/domain-display.test.ts
-src/lib/saas/off-roster-hard-404.static.test.ts
 src/lib/saas/redirect-query.security.test.ts
 src/lib/saas/redirect-query.test.ts
 src/lib/saas/roster-seat-limit.test.ts
@@ -187,7 +185,6 @@ src/lib/saas/talent-demo-host-redirect.test.ts
 src/lib/saas/talent-self-tenant.test.ts
 src/lib/saas/talent-site-host-context.test.ts
 src/lib/saas/talent-site-rewrite-reentry.test.ts
-src/lib/saas/workspace-path-redirects.test.ts
 src/lib/saas/workspace-signup.test.ts
 src/lib/seo/request-base.test.ts
 src/lib/seo/robots-rules.test.ts
@@ -242,9 +239,7 @@ src/lib/talent-languages-service.test.ts
 src/lib/talent/accepting-readiness.test.ts
 src/lib/talent/active-agency-context.test.ts
 src/lib/talent/agency-overlay.test.ts
-src/lib/talent/clients-directory.test.ts
 src/lib/talent/clients-merge.test.ts
-src/lib/talent/demo-talent.test.ts
 src/lib/talent/earnings.test.ts
 src/lib/talent/experience.test.ts
 src/lib/talent/legacy-talent-redirect.test.ts

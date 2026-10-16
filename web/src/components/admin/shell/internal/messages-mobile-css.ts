@@ -280,11 +280,14 @@ export const MESSAGES_MOBILE_CSS = `
                phone parks it right on top of the conversation. Dock it
                above the bottom nav instead of over the content.
                NOT scoped to .tulala-shell: the launcher is mounted as a
-               sibling of the shell, so a scoped selector never matches. */
+               sibling of the shell, so a scoped selector never matches.
+               For the same reason --tulala-mobile-nav-h (set on the shell
+               element) is not visible here: use the literal nav height
+               (65px) plus the home-indicator inset (TUL-982). */
             [data-tulala-support-launcher] {
               top: auto !important;
               transform: none !important;
-              bottom: calc(var(--tulala-mobile-nav-h, 65px) + 12px) !important;
+              bottom: calc(65px + 12px + env(safe-area-inset-bottom, 0px)) !important;
             }
             /* …and it lands exactly where the inbox's bulk action bar
                appears, covering "Reassign". The bar is in a different
@@ -293,10 +296,12 @@ export const MESSAGES_MOBILE_CSS = `
               display: none !important;
             }
             /* AUD-046: same yield as OfflineBanner — sticky Save / drawer
-               footers / open sheets own the bottom edge at 390. Support
+               footers / open sheets / the cookie banner (its OK button sat
+               under the launcher) own the bottom edge at 390. Support
                stays reachable from More while chrome is up. */
             html:has([data-tulala-sticky-save-bar]) [data-tulala-support-launcher],
             html:has([data-tulala-drawer-footer]) [data-tulala-support-launcher],
+            html:has([data-consent-banner]) [data-tulala-support-launcher],
             html:has([role="dialog"][data-state="open"]) [data-tulala-support-launcher],
             html:has(.sticky.bottom-0) [data-tulala-support-launcher] {
               display: none !important;

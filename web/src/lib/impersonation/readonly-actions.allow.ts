@@ -8,6 +8,9 @@ export const READ = "pure loader: reads only, no write path, nothing for read-on
 export type AllowEntry = [suffix: string, names: string[], reason: string];
 
 export const EXTRA_ALLOW: AllowEntry[] = [
+  ["lib/promos/actions.ts", ["loadPromosPage", "getPromoAttention", "loadPromoBookings"], READ],
+  ["lib/promos/booking-quote.actions.ts", ["previewBookingQuoteAction"], "public client price preview: reads only, holds nothing, no talent session"],
+  ["lib/promos/callouts/dismissals.actions.ts", ["loadCalloutState"], READ],
   ["app/(workspace)/[tenantSlug]/admin/media/actions.ts", ["actionLoadTalentMediaBundleAll"], READ],
   ["app/(workspace)/[tenantSlug]/admin/media/profile-shell-media-actions.ts", ["actionLoadProfileShellMedia", "actionLoadProfileShellAlbumPage"], READ],
   ["app/(workspace)/platform/admin/integrations/captcha-override-actions.ts", ["loadWorkspaceCaptchaOverrides"], READ],
@@ -17,6 +20,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["lib/site-admin/add-gallery/workspace-copy-type-action.ts", ["fetchWorkspaceTypeForCopy"], READ],
   ["lib/client-account/actions.ts", ["signOutClientAccount"], "SIGN-OUT: ends the session; must keep working while impersonating (PM exception)"],
   ["lib/reviews/review-actions.ts", ["loadReviewableBookingsAction", "loadClientReviewablesAction"], READ],
+  ["lib/reviews/review-ask-load-action.ts", ["loadReviewAskBookingsAction", "loadReviewAskPicksAction"], READ],
   ["lib/server-actions/messaging-engine.ts", ["staff", "messagingLoadInbox", "messagingResolveOrderThread", "messagingLoadThread", "messagingLoadEssentials", "loadConversationHistory", "messagingResolve", "messagingRelinkImpact", "messagingSearch"], READ],
   ["lib/server-actions/messaging-identity.ts", ["messagingMatchCustomers"], READ],
   ["lib/server-actions/messaging-items.ts", ["messagingLoadItemsCatalog", "messagingLoadPersonSlots"], READ],
@@ -36,6 +40,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["lib/talent-site/history/history-actions.ts", ["loadTalentHistoryAction", "loadTalentGoLiveAction"], READ],
   ["lib/talent-site/server/actions.ts", ["fetchTalentPersonalSiteDashboardStateAction"], READ],
   ["lib/talent-site/server/site-management-actions.ts", ["loadMaxSiteManagerAction"], READ],
+  ["lib/talent-site/server/theme-actions.ts", ["previewSiteDesignSwitchAction"], READ],
   ["lib/talent/apply-actions.ts", ["listOwnApplications"], READ],
   ["lib/talent/clients-actions.ts", ["loadTalentClients"], READ],
   ["lib/talent/menu-offerings-actions.ts", ["loadWorkspaceMenuForEditor"], READ],
@@ -58,6 +63,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["app/(workspace)/[tenantSlug]/admin/_door-actions.ts", ["loadDoor", "loadNightReport", "loadDoorTiers", "loadHeldDoorOrders"], READ],
   ["app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts", ["loadInquiryPaymentState", "loadAgencySettingsNamespace", "loadEditableJobFields", "loadInquiryLineup", "loadInquiryAttachments", "loadOfferDraft", "loadInquiryPayoutReceiverCandidates", "loadWorkspaceCoordinatorCandidates", "loadCoordinatorAssignCandidates", "loadSecondaryCoordinators", "loadBookingCommissionSnapshotAction", "loadHoldsForInquiryAction"], READ],
   ["app/(workspace)/[tenantSlug]/admin/settings/integration-actions.ts", ["loadTenantIntegrations"], READ],
+  ["app/(workspace)/[tenantSlug]/admin/settings/captcha-notice-actions.ts", ["loadCaptchaNoticeDomain"], READ],
   ["app/(workspace)/[tenantSlug]/admin/settings/domain-actions.ts", ["checkCustomDomainProvisioningAction"], READ],
   ["app/(workspace)/[tenantSlug]/admin/messages/actions.ts", ["fetchMessages"], READ],
   ["app/(workspace)/[tenantSlug]/admin/roster/registration/actions.ts", ["loadRegistrationManageData"], READ],
@@ -241,7 +247,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["lib/sessions/roster-actions.ts", ["loadSessionParticipants"], READ],
   ["lib/sessions/schedule-actions.ts", ["loadSchedule", "loadSchedulableEvents"], READ],
   ["lib/support/guest-actions.ts", ["getGuestSupportThreadAction", "listGuestSupportThreadsAction"], READ],
-  ["lib/support/hq-actions.ts", ["hqLoadTicketDetailAction"], READ],
+  ["lib/support/hq-actions.ts", ["hqLoadTicketDetailAction", "hqSearchTicketsAction"], READ],
   ["lib/support/insights/actions.ts", ["hqLoadTicketInsightAction"], READ],
   ["lib/support/attachment-actions.ts", ["getSupportAttachmentUrlAction"], READ],
   ["lib/support/replay/replay-actions.ts", ["loadSupportReplayBufferSetting", "hqListReplaySessionsAction"], READ],
@@ -254,7 +260,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["lib/notifications/my-notifications-actions.ts", ["loadMyNotifications"], READ],
   ["lib/talent/profile-embeds/actions.ts", ["fetchTalentProfileExtrasAction"], READ],
   ["lib/reviews/review-owner-actions.ts", ["loadOwnerReceivedReviewsAction", "loadOwnerPrivateNoteThemesAction", "loadReviewAnalyticsAction"], READ],
-  ["lib/reviews/review-moderation-queue-actions.ts", ["loadReportedReviewsAction", "loadModerationIntegritySignalsAction"], READ],
+  ["lib/reviews/review-moderation-queue-actions.ts", ["loadReportedReviewsAction", "loadModerationIntegritySignalsAction", "loadModerationQueueAction"], READ],
   ["lib/reviews/review-request-actions.ts", ["loadReviewRequestsForOwnerAction", "reviewsEnabledForTenantAction"], READ],
   ["lib/reviews/review-token-actions.ts", ["loadReviewInviteByToken"], READ],
   ["lib/channels/pairing-actions.ts", ["loadWhatsAppConnection"], READ],
@@ -269,6 +275,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
  * with a one-line reason. Everything else under src/app must call the guard first.
  */
 export const ROUTE_ALLOW: Array<[suffix: string, reason: string]> = [
+  ["api/promos/event/route.ts", "public visitor analytics beacon (promo link opens/shares); no user session, writes only promo_events"],
   ["auth/sign-out/route.ts", "SIGN-OUT: ends the session; must keep working while impersonating (PM exception)"],
   ["api/discover/subscriptions/webhook/route.ts", "webhook: Stripe-signature authenticated, no user session"],
   ["api/webhooks/stripe-v2/route.ts", "webhook: Stripe-signature authenticated, no user session"],
@@ -280,6 +287,7 @@ export const ROUTE_ALLOW: Array<[suffix: string, reason: string]> = [
   ["api/hooks/auth-email/route.ts", "Supabase auth hook: secret authenticated, no user session"],
   ["api/public/places/street-suggest/route.ts", "public anonymous READ (POST only to keep typed text out of URLs); no session, writes nothing; flag-gated + rate-limited (TUL-439)"],
   ["api/public/places/street-details/route.ts", "public anonymous READ (POST only to keep typed text out of URLs); no session, writes nothing; flag-gated + rate-limited (TUL-439)"],
+  ["api/public/booking/mcp/route.ts", "public anonymous MCP JSON-RPC (POST is the protocol); no session, writes nothing, request_booking only signs a link; rate-limited (TUL-21)"],
   ["api/cron/revalidate-talent-site/route.ts", "cron: secret authenticated, no user session"],
   ["api/unsubscribe/[token]/route.ts", "token-authenticated unsubscribe link, no user session"],
   ["api/analytics/events/route.ts", "anonymous telemetry beacon, no actor identity and no user data written"],

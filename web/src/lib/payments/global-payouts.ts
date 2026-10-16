@@ -21,6 +21,7 @@
 import "server-only";
 import { stripeV2, isStripeV2Configured, type StripeV2List, type StripeV2Result } from "./stripe-v2";
 import { logServerError } from "@/lib/server/safe-error";
+import { stripeAllowLivePayouts, stripeEnv } from "@/lib/stripe/env-keys";
 
 export type GlobalPayoutsFinancialAccount = {
   id: string;
@@ -88,7 +89,7 @@ export async function isGlobalPayoutsActive(): Promise<boolean> {
 }
 
 /** True when the active secret key is a LIVE key (sk_live_…). */
-export function isLiveStripeKey(key = process.env.STRIPE_SECRET_KEY): boolean {
+export function isLiveStripeKey(key = stripeEnv("STRIPE_SECRET_KEY")): boolean {
   return !!key && key.startsWith("sk_live_");
 }
 
@@ -100,9 +101,9 @@ export function isLiveStripeKey(key = process.env.STRIPE_SECRET_KEY): boolean {
  * funds; flip the flag only at prod go-live (or for one deliberate live payout).
  */
 export function assertLivePayoutSafe(
-  key = process.env.STRIPE_SECRET_KEY,
+  key = stripeEnv("STRIPE_SECRET_KEY"),
 ): { ok: true } | { ok: false; error: string } {
-  if (isLiveStripeKey(key) && process.env.STRIPE_ALLOW_LIVE_PAYOUTS !== "true") {
+  if (isLiveStripeKey(key) && !stripeAllowLivePayouts()) {
     return { ok: false, error: "Live payouts disabled — set STRIPE_ALLOW_LIVE_PAYOUTS=true to move real money." };
   }
   return { ok: true };
@@ -119,9 +120,9 @@ export function assertLivePayoutSafe(
  * open so we can still verify against live with zero writes.
  */
 export function assertLiveRecipientWriteSafe(
-  key = process.env.STRIPE_SECRET_KEY,
+  key = stripeEnv("STRIPE_SECRET_KEY"),
 ): { ok: true } | { ok: false; error: string } {
-  if (isLiveStripeKey(key) && process.env.STRIPE_ALLOW_LIVE_PAYOUTS !== "true") {
+  if (isLiveStripeKey(key) && !stripeAllowLivePayouts()) {
     return {
       ok: false,
       error: "Live payout setup disabled — set STRIPE_ALLOW_LIVE_PAYOUTS=true to create a live payout recipient.",

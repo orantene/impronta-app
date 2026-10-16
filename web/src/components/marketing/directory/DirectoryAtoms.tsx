@@ -1,7 +1,8 @@
 /**
  * Presentational atoms shared by the directory card + list row.
- * Pure (no hooks) — cool palette only, forest accent, never gold/rust.
+ * Cool palette only, forest accent, never gold/rust.
  */
+import { useDirectoryCopy } from "./directory-copy-context";
 import { initialsOf, trustTierMeta, availabilityLine } from "./shared";
 
 export function TalentAvatar({
@@ -46,7 +47,7 @@ export function TalentAvatar({
 }
 
 export function TrustBadge({ tier }: { tier: string | null }) {
-  const meta = trustTierMeta(tier);
+  const meta = trustTierMeta(tier, useDirectoryCopy());
   if (!meta) return null;
   const strong = meta.weight === "strong";
   return (
@@ -71,7 +72,7 @@ export function AvailabilityLine({
 }: {
   availableDaysInNext30: number | null;
 }) {
-  const { text, open } = availabilityLine(availableDaysInNext30);
+  const { text, open } = availabilityLine(availableDaysInNext30, useDirectoryCopy());
   return (
     <span
       className="inline-flex items-center gap-1.5 text-[0.8125rem] leading-none"
