@@ -367,3 +367,31 @@ export function getUpgradePathFromPlan(currentPlan: PlanKey): PlanDef[] {
     )
     .sort((a, b) => a.rank - b.rank);
 }
+
+/**
+ * Posts v1 (TUL-1007) — the plan keys whose holders may PUBLISH posts (and
+ * edit a post that is live). Same idiom as `EXCLUSIVE_PLAN_KEYS`: the one
+ * commercial list, read through `planGrantsPosts`, never re-derived.
+ *
+ *   workspace  `website` and every package above it. `free` drafts + previews.
+ *   talent     every Web Office key: `talent_portfolio` and the grandfathered
+ *              `talent_pro` (one paid talent package). The talent-side reader
+ *              is the `talentPosts` site capability (talent-membership.ts).
+ *
+ * Mirrored at the DB by `talent_profile_has_web_office()` (migration
+ * 20261014205812) for the talent half.
+ */
+export const POSTS_PUBLISH_PLAN_KEYS: readonly PlanKey[] = [
+  "website",
+  "studio",
+  "agency",
+  "network",
+  "legacy",
+  "talent_pro",
+  "talent_portfolio",
+] as const;
+
+/** Does this plan grant Posts publishing? Raw column value; null/unknown fails closed. */
+export function planGrantsPosts(planKey: string | null | undefined): boolean {
+  return !!planKey && isKnownPlan(planKey) && POSTS_PUBLISH_PLAN_KEYS.includes(planKey);
+}

@@ -32,6 +32,7 @@ import {
 import type { EmailCodeState } from "@/lib/auth/send-email-code-core";
 import { AuthNotice, AuthSubmitButton } from "@/components/auth/auth-ui";
 import { OtpCodeInput } from "@/components/auth/otp-code-input";
+import { VerifyProgress } from "@/components/auth/verify-progress";
 import { createTranslator } from "@/i18n/messages";
 
 /** Seconds before "resend" becomes tappable. Mirrors Supabase's interval. */
@@ -90,6 +91,14 @@ export function SignupCodeConfirm({
     // `resendState` identity changes per action result, which is the signal we
     // want: two successful resends are two distinct objects.
   }, [resendSucceeded, resendState]);
+  // A failed verify clears the boxes (retry from a clean slate) and the input
+  // refocuses itself when it re-enables. Counted per distinct error result.
+  const [clearCount, setClearCount] = useState(0);
+  useEffect(() => {
+    if (verifyState && verifyState.step !== "sent" && verifyState.error) {
+      setClearCount((k) => k + 1);
+    }
+  }, [verifyState]);
   const secondsLeft = useCooldown(SIGNUP_RESEND_COOLDOWN_SECONDS, resendCount);
 
   const verifyError =
@@ -130,7 +139,7 @@ export function SignupCodeConfirm({
         <OtpCodeInput
           disabled={verifying}
           invalid={Boolean(verifyError) && lane === "verify"}
-          resetKey={resendCount}
+          resetKey={resendCount + clearCount}
           // Last box filled: submit without a second tap.
           onComplete={() => formRef.current?.requestSubmit()}
         />
@@ -140,6 +149,17 @@ export function SignupCodeConfirm({
           <AuthNotice tone="success">{t("public.auth.signupCode.resentNotice")}</AuthNotice>
         ) : null}
 
+        <VerifyProgress
+          active={verifying}
+          labels={[
+            t("public.auth.signupCode.progressVerifying"),
+            t("public.auth.signupCode.progressCreating"),
+            t("public.auth.signupCode.progressSetup"),
+          ]}
+        />
+
+        {/* Always rendered: it shows the loading state while verifying and is
+            re-enabled on failure, so Confirm never vanishes (TUL-779). */}
         <AuthSubmitButton
           pending={verifying}
           idle={t("public.auth.signupCode.verifySubmit")}
