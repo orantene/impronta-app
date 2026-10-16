@@ -221,6 +221,8 @@ test("AI facts are kept: names stay as said, pack match adds duration/price, nev
   assert.equal(resolveEssentialsForBuild({ essentials: null, serviceFacts: [], discipline: "nails", tradeSlug: null, country: "Mexico", locale: "en" }), null);
   assert.equal(servicesFromFacts(["a", "A", " "], { locale: "en" }).length, 1);
   assert.ok(defaultWeeklyHours()["0"].length === 0);
+  assert.ok(defaultWeeklyHours()["6"].length === 0, "TUL-992: Saturday is not on by default");
+  assert.ok(defaultWeeklyHours()["5"].length === 1);
 });
 
 // ── #178: solo studio owner's own booking hours ────────────────────────────

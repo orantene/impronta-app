@@ -213,6 +213,18 @@ export function TalentProfileChatLauncher({
   // so every rail avatar is a face-focus portrait, not initials (§4.A.1 / §5.5).
   useResolveCartPortraits(tenantSlug, onResolveCartPortraits);
   const pillRef = useRef<HTMLButtonElement>(null);
+  // TUL-1082: the launcher unmounts while the dock is open, so Esc / X used to
+  // drop focus on <body>. Hand it back to the launcher once it remounts.
+  const wasOpenRef = useRef(false);
+  useEffect(() => {
+    if (wasOpenRef.current && !open) {
+      const raf = requestAnimationFrame(() => pillRef.current?.focus());
+      wasOpenRef.current = false;
+      return () => cancelAnimationFrame(raf);
+    }
+    wasOpenRef.current = open;
+    return undefined;
+  }, [open]);
   // Card → pill fly clone (reduced-motion-safe; no portal under reduce). The
   // flight is driven by the directory card's animateAdd payload via context.
   const { flight, onFlightDone } = useFlyToRail(pillRef);

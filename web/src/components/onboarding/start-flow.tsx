@@ -2,9 +2,10 @@
 
 /** Client shell of `/start`: owns the ES/EN toggle and leaves via history or the home page. */
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import type { FlowLocale } from "@/lib/onboarding/flow";
+import { urlWithStep } from "@/lib/onboarding/step-url";
 import type { OnboardingChoice } from "@/lib/onboarding/module-state";
 
 import type { PlanIntent } from "@/lib/onboarding/plan-intent";
@@ -22,6 +23,22 @@ export function StartFlow({ initialLocale, startChoice, planIntent = null }: { i
     } catch {
       /* the toggle still works without the URL */
     }
+  }, []);
+  // TUL-812: mirror the wizard's step into ?step= (the module marks its root with data-onboarding-step).
+  useEffect(() => {
+    const sync = () => {
+      try {
+        const step = document.querySelector("[data-onboarding-step]")?.getAttribute("data-onboarding-step");
+        const next = urlWithStep(window.location.href, step);
+        if (next !== window.location.href) window.history.replaceState(window.history.state, "", next);
+      } catch {
+        /* the wizard works without the URL */
+      }
+    };
+    sync();
+    const observer = new MutationObserver(sync);
+    observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-onboarding-step"] });
+    return () => observer.disconnect();
   }, []);
   return (
     <OnboardingModule

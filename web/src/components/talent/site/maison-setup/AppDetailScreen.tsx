@@ -5,6 +5,7 @@
  * plan-aware primary CTA (Add vs Upgrade to use). Free talents keep the
  * playground; no dead Add button.
  */
+import { openUpgrade } from "@/components/talent/upgrade/open-upgrade";
 import Link from "next/link";
 import { useAdminShellOptional } from "@/components/admin/shell/internal/state";
 import { requestBuilderAppIntent } from "@/components/edit-chrome/builder-app-intent";
@@ -194,7 +195,7 @@ export function AppDetailScreen({
               if (!shell) return;
               e.preventDefault();
               onClose();
-              shell.openDrawer("talent-tier-compare");
+              openUpgrade({ feature: "apps", from: "app-detail" });
             }}
             className="inline-flex min-h-12 items-center justify-center rounded-xl bg-admin-ink px-5 text-[14px] font-semibold text-white"
           >

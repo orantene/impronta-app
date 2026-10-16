@@ -13,6 +13,7 @@
  * rest is optional here and can be finished in the builder.
  */
 
+import { localizeCitySubtitle } from "@/lib/onboarding/city-subtitle";
 import { useState } from "react";
 
 import type { ChipOption, TypeChipProposal } from "@/lib/onboarding/type-chip";
@@ -153,7 +154,7 @@ export function EssentialsStep({
           selectedLabel={(c) => c.name[locale] || c.name.en}
           search={(q) => searchOnboardingCities({ query: q })}
           itemLabel={(c) => c.name[locale] || c.name.en}
-          itemSub={(c) => c.subtitle}
+          itemSub={(c) => localizeCitySubtitle(c, locale)}
           itemKey={(c) => `${c.slug}:${c.countryIso2}`}
           onPick={(c) => setCity(c)}
           typed={{
