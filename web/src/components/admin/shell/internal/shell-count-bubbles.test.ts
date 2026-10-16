@@ -11,6 +11,7 @@ import {
   isTalentAwaitingYouStage,
   isTalentInquiryAwaitingYou,
   shellAttentionTooltip,
+  shellBubbleClickTarget,
   shellBubbleFillsAvoidGoldRust,
   SHELL_BUBBLE_FILL_CLASS,
   talentInquiryMsgStageFromStatus,
@@ -223,6 +224,21 @@ describe("ShellCountBubbles mount (static)", () => {
       missing = true;
     }
     assert.equal(missing, true);
+  });
+});
+
+describe("TUL-718: the Messages count bubble goes to messages, never the notifications drawer", () => {
+  it("messages bubble navigates to the messages page on both surfaces", () => {
+    assert.deepEqual(shellBubbleClickTarget("messages", "talent"), { type: "page", page: "messages" });
+    assert.deepEqual(shellBubbleClickTarget("messages", "workspace"), { type: "page", page: "messages" });
+  });
+  it("money and attention bubbles still open the notification center by category", () => {
+    assert.deepEqual(shellBubbleClickTarget("money", "talent"), {
+      type: "drawer", drawerId: "talent-notifications", payload: { category: "money" },
+    });
+    assert.deepEqual(shellBubbleClickTarget("attention", "workspace"), {
+      type: "drawer", drawerId: "notifications", payload: { category: "attention" },
+    });
   });
 });
 
