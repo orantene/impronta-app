@@ -71,7 +71,7 @@ test("TUL-914: at 390 the top bar row fits the viewport (site chip shrinks, Publ
 test("TUL-914: at 390 the right command rail folds behind an edge handle instead of covering the canvas", () => {
   const rail = read("./inspector-command-rail.tsx");
   assert.match(rail, /data-mobile-inspector-rail-tab/);
-  assert.match(rail, /hidden max-sm:flex fixed/);
+  assert.match(rail, /hidden max-sm:flex[^"]* fixed/);
   assert.match(rail, /max-sm:!right-0[^"]*max-sm:!translate-x-\[var\(--ec-mobile-rail-x\)\]/);
   assert.match(rail, /"--ec-mobile-rail-x": mobileExpanded \? "0px" : "120%"/);
   assert.match(rail, /MOBILE_RAIL_EXPAND_EVENT/);
@@ -79,6 +79,17 @@ test("TUL-914: at 390 the right command rail folds behind an edge handle instead
   const es = read("./editor-i18n-es-canvas.ts");
   assert.match(es, /"Open section editor tabs":/);
   assert.match(es, /"Collapse section editor tabs":/);
+});
+
+test("TUL-1151: at 390 the rail handle and unfolded rail sit below the preview header, clear of its ES / EN switch", () => {
+  const rail = read("./inspector-command-rail.tsx");
+  assert.match(rail, /data-mobile-inspector-rail-tab[\s\S]*?className="hidden max-sm:flex max-sm:!top-\[38vh\] fixed/);
+  assert.match(rail, /className="fixed flex flex-col max-sm:!right-0 max-sm:!top-\[38vh\] /);
+});
+
+test("TUL-1173: the unfolded phone rail is height-capped below the 38vh line and scrolls on short viewports", () => {
+  const rail = read("./inspector-command-rail.tsx");
+  assert.match(rail, /max-sm:!top-\[38vh\] max-sm:max-h-\[calc\(100dvh-38vh-8px\)\] max-sm:overflow-y-auto /);
 });
 
 test("TUL-914: picking a rail tab on a phone also slides the inspector dock in, so the panel is visible", () => {
