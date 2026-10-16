@@ -61,6 +61,8 @@ import {
   NavigatorDisclosureChevron,
 } from "./use-navigator-disclosure";
 import { useEditorLocale } from "./use-editor-locale";
+import type { EditorLocale } from "./editor-i18n";
+import { sectionNameForLabel } from "@/lib/talent-site/history/draft-diff";
 import { useLayersTreeContainer } from "./use-roving-tree-focus";
 import {
   layerIcon,
@@ -108,6 +110,12 @@ interface LayerRow {
   locked: boolean;
   /** Job #33 — which breakpoints this block overrides (drives the responsive dot). */
   responsive: ResponsiveOverrideSummary;
+  /**
+   * TUL-80 — curated / legacy section type key when the row is a section or
+   * section_embed (or a native services catalog). Feeds Structure search aliases
+   * so "servicios" / "galeria" match even when the visible label is "Stack".
+   */
+  sectionTypeKey: string | null;
 }
 
 /** Registry-policy child kinds for a kind (raw allow-list; `[]` for leaves). */
@@ -121,8 +129,24 @@ function rawChildKindsForKind(kind: BuilderNodeKind): ReadonlyArray<BuilderNodeK
  * canvas chip, and inspector agree. `section_embed` rows resolve their friendly
  * curated-section label ("Featured talent") via `sectionEmbedTypeLabel`.
  */
-function rowLabel(node: BuilderNode): string {
-  return resolveLayerDisplayName(node, sectionEmbedTypeLabel);
+function rowLabel(node: BuilderNode, locale: EditorLocale): string {
+  const name = resolveLayerDisplayName(node, sectionEmbedTypeLabel);
+  // Design kits name their sections in English ("Ticker and recent work").
+  return locale === "es" ? (sectionNameForLabel(name, "es") ?? name) : name;
+}
+
+/** Section type key for Structure search aliases (TUL-80). */
+function sectionTypeKeyOf(node: BuilderNode): string | null {
+  if (node.kind === "section_embed") {
+    const key = node.props.sectionTypeKey?.trim();
+    return key || null;
+  }
+  if (node.kind === "section") {
+    const key = node.props.sectionTypeKey?.trim();
+    return key || null;
+  }
+  if (node.kind === "services_catalog") return "services_catalog";
+  return null;
 }
 
 
@@ -185,7 +209,7 @@ function findFirstContainer(nodes: ReadonlyArray<BuilderNode>): BuilderNode | nu
  * still reads cleanly because `resolveLayerDisplayName` borrows the heading it
  * wraps for the row name (not a bare "Container").
  */
-export function flattenTree(tree: BuilderNodeTree): FlattenedTree {
+export function flattenTree(tree: BuilderNodeTree, locale: EditorLocale = "en"): FlattenedTree {
   const rows: LayerRow[] = [];
   const descendantsByNode = new Map<string, Set<string>>();
 
@@ -206,7 +230,7 @@ export function flattenTree(tree: BuilderNodeTree): FlattenedTree {
       rows.push({
         id: node.id,
         kind: node.kind,
-        label: rowLabel(node),
+        label: rowLabel(node, locale),
         Icon: layerIcon(node),
         depth,
         index,
@@ -217,6 +241,7 @@ export function flattenTree(tree: BuilderNodeTree): FlattenedTree {
         parentKind,
         parentLocked,
         rawChildKinds: rawChildKindsForKind(node.kind),
+        sectionTypeKey: sectionTypeKeyOf(node),
         locked: node.locked === true,
         responsive: resolveResponsiveOverrides(node),
       });
@@ -367,13 +392,14 @@ export function FreeformLayersTree({
   const aiSurface = textToPageSurfaceForStarterSurface(
     starterSurfaceForKind(surfaceKind),
   );
+  const { locale: editorLocale, t: editorText } = useEditorLocale();
   const builderTree = useBuilderTree(); // WS2 — value from the tree micro-store
   const hoveredBuilderNodeId = useHoveredBuilderNodeId(); // W2-T3 — value from the bridge
   const selectedBuilderNodeId = useSelectedBuilderNodeId(); // W2 (selection-bridge) — value from the micro-store
 
   const { rows, rootContainerId, rootContainerKinds, descendantsByNode } = useMemo(
-    () => flattenTree(builderTree),
-    [builderTree],
+    () => flattenTree(builderTree, editorLocale),
+    [builderTree, editorLocale],
   );
 
   const searchFilteredRows = useMemo(() => {
@@ -735,7 +761,7 @@ export function FreeformLayersTree({
     <div
       ref={treeRef}
       role="tree"
-      aria-label="Page layers"
+      aria-label={editorText("Page layers")}
       style={{ display: "flex", flexDirection: "column", gap: 1 }}
     >
       {/* Click-to-locate flash keyframes (job #5). Inert until a canvas block
@@ -785,7 +811,7 @@ export function FreeformLayersTree({
             color: CHROME.ink,
           }}
         >
-          Page layers
+          {editorText("Page layers")}
         </span>
         {headerAddEnabled ? (
           <HeaderAddButton

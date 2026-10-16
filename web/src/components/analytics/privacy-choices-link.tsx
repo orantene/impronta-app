@@ -1,6 +1,6 @@
 "use client";
 
-import { translatorFor } from "@/i18n/use-t";
+import { translatorFor } from "@/i18n/translator-for";
 import { openPrivacyChoices } from "@/lib/analytics/consent";
 
 /**
@@ -22,7 +22,7 @@ export function PrivacyChoicesLink({
     <button
       type="button"
       onClick={openPrivacyChoices}
-      className={className ?? "underline-offset-2 hover:underline"}
+      className={className ?? "inline-flex min-h-6 items-center underline-offset-2 hover:underline"}
       style={style}
     >
       {label}

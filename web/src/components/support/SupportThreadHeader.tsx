@@ -35,7 +35,7 @@ export function SupportThreadStatusLine({
     return (
       <div style={row}>
         <span style={{ width: 6, height: 6, borderRadius: "50%", background: COLORS.success, flexShrink: 0 }} />
-        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
           {interpolate(t("dashboard.adminSupport.oranOnline"), SUPPORT_AGENT_VARS)}
         </span>
       </div>
@@ -46,7 +46,7 @@ export function SupportThreadStatusLine({
     return (
       <div style={row}>
         <span style={{ width: 6, height: 6, borderRadius: "50%", background: COLORS.success, flexShrink: 0 }} />
-        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
           {t("dashboard.adminSupport.statusResolved")}
         </span>
       </div>
@@ -56,7 +56,7 @@ export function SupportThreadStatusLine({
     return (
       <div style={row}>
         <span style={{ width: 6, height: 6, borderRadius: "50%", background: COLORS.inkDim, flexShrink: 0 }} />
-        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
           {t("dashboard.adminSupport.statusClosed")}
         </span>
       </div>
@@ -82,19 +82,38 @@ export function SupportThreadStatusLine({
         >
           OT
         </span>
-        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {interpolate(t("dashboard.adminSupport.humanReplyEta"), SUPPORT_AGENT_VARS)}
+        <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
+          {`${t("dashboard.adminSupport.humanHandling")}. `}
+          {ticket.ticketNumber > 0
+            ? interpolate(t("dashboard.adminSupport.ticketReceipt"), {
+                ...SUPPORT_AGENT_VARS,
+                number: String(ticket.ticketNumber),
+              })
+            : interpolate(t("dashboard.adminSupport.humanReplyEta"), SUPPORT_AGENT_VARS)}
         </span>
       </div>
     );
   }
   return (
-    <div style={row}>
-      <span style={{ width: 5, height: 5, borderRadius: "50%", background: COLORS.royal, flexShrink: 0 }} />
-      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-        {t("dashboard.adminSupport.aiHandling")}
-      </span>
-    </div>
+    <>
+      <div style={row}>
+        <span style={{ width: 5, height: 5, borderRadius: "50%", background: COLORS.royal, flexShrink: 0 }} />
+        <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
+          {t("dashboard.adminSupport.aiHandling")}
+        </span>
+      </div>
+      {/* TUL-601: ticket id + expected response, visible from the moment the ticket exists. */}
+      {ticket.ticketNumber > 0 ? (
+        <div style={row}>
+          <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
+            {interpolate(t("dashboard.adminSupport.ticketReceipt"), {
+              ...SUPPORT_AGENT_VARS,
+              number: String(ticket.ticketNumber),
+            })}
+          </span>
+        </div>
+      ) : null}
+    </>
   );
 }
 
@@ -153,8 +172,10 @@ export function SupportThreadHeader({
             fontWeight: 600,
             color: COLORS.ink,
             overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflowWrap: "anywhere",
           }}
         >
           {ticket?.subject || t("dashboard.adminSupport.untitled")}

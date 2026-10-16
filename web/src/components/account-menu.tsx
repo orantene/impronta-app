@@ -1,5 +1,6 @@
 "use client";
 
+import { SignOutForm } from "@/components/auth/SignOutForm";
 import { useEffect, useRef, useState } from "react";
 import { LogOut, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,14 +16,14 @@ export function AccountMenu({
   roleLabel,
   dashboardAction,
   secondaryAction,
-  signOutAction,
 }: {
   triggerLabel: string;
   displayName: string;
   roleLabel: string;
   dashboardAction: MenuAction;
   secondaryAction?: MenuAction | null;
-  signOutAction: (formData: FormData) => void | Promise<void>;
+  /** Kept for callers; Log out always posts to the sign-out route (S1). */
+  signOutAction?: (formData: FormData) => void | Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -90,7 +91,7 @@ export function AccountMenu({
             ) : null}
           </div>
           <div className="border-t border-border/60 pt-1">
-            <form action={signOutAction}>
+            <SignOutForm>
               <button
                 type="submit"
                 className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-m text-foreground transition-colors hover:bg-accent"
@@ -98,7 +99,7 @@ export function AccountMenu({
                 <LogOut className="size-4" />
                 <span>Sign out</span>
               </button>
-            </form>
+            </SignOutForm>
           </div>
         </div>
       ) : null}

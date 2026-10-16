@@ -13,7 +13,9 @@
 import "server-only";
 import { cache } from "react";
 import { logServerError } from "@/lib/server/safe-error";
+import { scrubSecretsInText } from "@/lib/security/redact-display";
 import type { StripeAccountInfo } from "./pricing-types";
+import { stripeEnv } from "@/lib/stripe/env-keys";
 
 // Direct fetch (not the Stripe SDK) — `stripe.accounts.retrieve()` with no
 // args requires a Connect-style account ID in the 18.x TS types, but the
@@ -40,7 +42,7 @@ type StripeAccountResponse = {
 export const loadStripeAccountInfo = cache(
   async (): Promise<StripeAccountInfo> => {
     const now = new Date().toISOString();
-    const key = process.env.STRIPE_SECRET_KEY;
+    const key = stripeEnv("STRIPE_SECRET_KEY");
     if (!key) {
       return { ok: false, error: "STRIPE_SECRET_KEY not set.", reason: "no-key", fetchedAt: now };
     }
@@ -78,7 +80,7 @@ export const loadStripeAccountInfo = cache(
       const isAuthError = /invalid api key|expired|authentication/i.test(message);
       return {
         ok: false,
-        error: message,
+        error: scrubSecretsInText(message),
         reason: isAuthError ? "bad-key" : "api-error",
         fetchedAt: now,
       };

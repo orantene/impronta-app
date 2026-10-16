@@ -6,28 +6,40 @@ import { test } from "node:test";
 import { offeringNeedsPrice } from "../talent/offering-needs-price";
 import { missingTitleLocale } from "../talent/offering-missing-translation";
 import { blankOffering, validateOffering } from "../talent/offerings-types";
-import { offeringRowFor, parseEssentialService, planOfferingWrites, servicesFromFacts, suggestedServices } from "./essentials";
+import { DEFAULT_SERVICE_MINUTES, offeringRowFor, parseEssentialService, planOfferingWrites, servicesFromFacts, suggestedServices } from "./essentials";
 
 const root = join(__dirname, "..", "..", "..");
 const read = (rel: string) => readFileSync(join(root, rel), "utf8");
 const es = { trade: "hair", locale: "es" as const, country: "MX" };
 
-test("TUL-567: onboarding never publishes a service without a price", () => {
+test("TUL-567/805: onboarding publishes a priced service or a deliberate quote service, never a bare unpriced one", () => {
   const priced = offeringRowFor({ name: "Corte", durationMin: 45, priceCents: 35000, quote: false, currency: "MXN" }, 0);
   assert.equal(priced.status, "published");
+  // No price and no quote choice: stays a draft until the owner adds a price.
   for (const s of [
-    { name: "Corte", durationMin: 45, priceCents: null, quote: true, currency: "MXN" },
+    { name: "Corte", durationMin: 45, priceCents: null, quote: false, currency: "MXN" },
     { name: "Corte", durationMin: 45, priceCents: 0, quote: false, currency: "MXN" },
-    { name: "Corte", durationMin: 45, priceCents: 35000, quote: true, currency: "MXN" },
   ]) {
     const row = offeringRowFor(s, 0);
     assert.equal(row.status, "draft", JSON.stringify(s));
     assert.equal(row.amount_cents, null);
   }
+  // TUL-805: "Price on quote" is a choice, so the service is live as a quote service with a request CTA.
+  for (const s of [
+    { name: "Corte", durationMin: 45, priceCents: null, quote: true, currency: "MXN" },
+    { name: "Corte", durationMin: 45, priceCents: 35000, quote: true, currency: "MXN" },
+  ]) {
+    const row = offeringRowFor(s, 0);
+    assert.equal(row.status, "published", JSON.stringify(s));
+    assert.equal(row.price_display, "quote");
+    assert.equal(row.price_type, "custom");
+    assert.equal(row.amount_cents, null);
+    assert.equal(row.booking_mode, "request");
+  }
 });
 
 test("TUL-567: Publish on an unpriced onboarding draft is refused until it has a price", () => {
-  const row = offeringRowFor({ name: "Corte", durationMin: 45, priceCents: null, quote: true, currency: "MXN" }, 0);
+  const row = offeringRowFor({ name: "Corte", durationMin: 45, priceCents: null, quote: false, currency: "MXN" }, 0);
   const asOffering = {
     ...blankOffering("tp-1", row.currency, 0),
     title: row.title,
@@ -89,4 +101,13 @@ test("TUL-567: both service lists draw the cue, with EN and ES copy", () => {
   assert.equal(esMsg.needsPrice, "Falta precio");
   assert.ok(en.needsPrice && en.needsPriceHint && esMsg.needsPriceHint);
   assert.match(read("src/components/onboarding/steps/setup-services.tsx"), /copy\.hiddenUntilPriced/);
+});
+
+test("TUL-633: an AI-read service with no known length still gets a default duration, so it is never a dead row", () => {
+  const [custom] = servicesFromFacts(["Balayage"], { trade: "hair", country: "United States", locale: "en" });
+  assert.equal(custom.durationMin, null, "the essentials keep what was really said");
+  const row = offeringRowFor(custom, 0);
+  assert.equal(row.duration_minutes, DEFAULT_SERVICE_MINUTES);
+  assert.equal(row.status, custom.quote ? "published" : "draft", "the default length never publishes anything; only a price or a quote choice does (TUL-805)");
+  assert.equal(offeringRowFor({ ...custom, durationMin: 45 }, 0).duration_minutes, 45, "a real length wins");
 });

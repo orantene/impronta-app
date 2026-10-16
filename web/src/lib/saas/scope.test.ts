@@ -83,3 +83,51 @@ test("resolveTenantFromHost returns null when Supabase errors (no seed fallback)
   // to serve marketing / 404 rather than silently bind to tenant #1.
   assert.equal(await resolveTenantFromHost(supabase, "brand.mx"), null);
 });
+
+// TUL-255: a staff actor impersonating a client has no relationship to the
+// client's tenant. The portal scope check must also consider the verified
+// effective user, or every /<slug>/client page 404s.
+import { relationshipUserIds, userHasTenantRelationship } from "./scope";
+
+function fakeRelAdmin(rows: { client_profiles: Record<string, string>; rels: Array<[string, string]> }) {
+  return {
+    from(table: string) {
+      const eqs: Record<string, string> = {};
+      const chain = {
+        select() { return chain; },
+        eq(c: string, v: string) { eqs[c] = v; return chain; },
+        limit() { return chain; },
+        async maybeSingle() {
+          if (table === "client_profiles") {
+            const id = rows.client_profiles[eqs.user_id];
+            return { data: id ? { id } : null, error: null };
+          }
+          if (table === "agency_client_relationships") {
+            const hit = rows.rels.some(([t, c]) => t === eqs.tenant_id && c === eqs.client_profile_id);
+            return { data: hit ? { id: "rel" } : null, error: null };
+          }
+          return { data: null, error: null };
+        },
+      };
+      return chain;
+    },
+  } as unknown as SupabaseClient;
+}
+
+test("TUL-255: relationship check covers the impersonated subject, not only the staff actor", async () => {
+  const admin = fakeRelAdmin({ client_profiles: { bozo: "cp1" }, rels: [["hub", "cp1"]] });
+  const ids = relationshipUserIds("staff", "bozo");
+  assert.deepEqual(ids, ["staff", "bozo"]);
+  assert.equal(await userHasTenantRelationship(admin, "hub", "staff"), false);
+  assert.equal(await userHasTenantRelationship(admin, "hub", "bozo"), true);
+  let ok = false;
+  for (const id of ids) ok = ok || (await userHasTenantRelationship(admin, "hub", id));
+  assert.equal(ok, true);
+});
+
+test("TUL-255: not impersonating means the actor only; unrelated tenant stays denied", async () => {
+  const admin = fakeRelAdmin({ client_profiles: { bozo: "cp1" }, rels: [["hub", "cp1"]] });
+  assert.deepEqual(relationshipUserIds("staff", null), ["staff"]);
+  assert.deepEqual(relationshipUserIds("staff", "staff"), ["staff"]);
+  assert.equal(await userHasTenantRelationship(admin, "other-tenant", "bozo"), false);
+});

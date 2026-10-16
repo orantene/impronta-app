@@ -15,6 +15,7 @@
 import { useEffect, useState } from "react";
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 import { formatOfferingPrice } from "@/lib/talent/offerings-types";
+import { catalogPurchaseTotalLabel } from "./catalog-booking-price";
 import { QUANTITY_UNITS } from "@/lib/talent/offerings-offer";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { GuestInstantContact } from "@/components/public-booking/GuestInstantContact";
@@ -26,6 +27,7 @@ import {
   type CatalogBookingMode,
 } from "@/components/public-booking/catalog-booking-logic";
 import { offeringRequiresOnlineCollect } from "@/lib/talent/who-step-payment-copy";
+import { BookingPromoPanel, type BookingPromoChoice } from "@/components/promos/public/booking-promo-panel";
 
 const INK = "#101211";
 const MUTED = "rgba(16,18,17,0.62)";
@@ -38,6 +40,8 @@ export function CatalogPurchaseMount({
   captcha = null,
   mode = "live",
   onlineCollectReady,
+  signedIn = false,
+  client = null,
 }: {
   tenantId: string | null;
   locale: string;
@@ -45,6 +49,9 @@ export function CatalogPurchaseMount({
   mode?: CatalogBookingMode;
   /** PAY-2 B — platform Checkout ready; omit → assume ready (legacy). */
   onlineCollectReady?: boolean;
+  /** TUL-62: skip empty guest fields; session supplies contact. */
+  signedIn?: boolean;
+  client?: { displayName?: string | null; email?: string | null } | null;
 }) {
   const [sheet, setSheet] = useState<OfferingRequestDetail | null>(null);
   const [busy, setBusy] = useState(false);
@@ -53,11 +60,13 @@ export function CatalogPurchaseMount({
   const [variantId, setVariantId] = useState<string | null>(null);
   const [addOnIds, setAddOnIds] = useState<string[]>([]);
   const [qty, setQty] = useState(1);
-  const [guestName, setGuestName] = useState("");
-  const [guestEmail, setGuestEmail] = useState("");
+  const [guestName, setGuestName] = useState(() => client?.displayName?.trim() ?? "");
+  const [guestEmail, setGuestEmail] = useState(() => client?.email?.trim() ?? "");
   const [captchaToken, setCaptchaToken] = useState("");
   const [honeypot, setHoneypot] = useState("");
   const [sourcePage, setSourcePage] = useState("/");
+  const [promo, setPromo] = useState<BookingPromoChoice>({ promoCode: null, promoShownDiscountCents: null });
+  const [promoRefresh, setPromoRefresh] = useState(0);
 
   const armed = mode === "demo" || Boolean(tenantId);
 
@@ -75,6 +84,7 @@ export function CatalogPurchaseMount({
       setVariantId(d.variants?.[0]?.id ?? null);
       setAddOnIds([]);
       setQty(1);
+      setPromo({ promoCode: null, promoShownDiscountCents: null });
       setSheet(d);
     };
     window.addEventListener("tulala:offering-instant", onInstant);
@@ -108,10 +118,14 @@ export function CatalogPurchaseMount({
   const addOnCents = addOns
     .filter((a) => addOnIds.includes(a.id))
     .reduce((s, a) => s + a.amountCents, 0);
-  const totalCents = baseCents != null ? baseCents * effQty + addOnCents : null;
+  const listCents = baseCents != null ? baseCents * effQty + addOnCents : null;
+  // Promos v1: the live promo price the panel quoted (the server re-prices and holds on confirm).
+  const totalCents =
+    listCents != null && promo.promoShownDiscountCents != null
+      ? Math.max(0, listCents - promo.promoShownDiscountCents)
+      : listCents;
   const collectCents = catalogCollectNowCents(totalCents, d.reserveMode, d.depositPct);
-  const price =
-    totalCents != null ? formatOfferingPrice(totalCents, d.currency, locale) : "";
+  const price = catalogPurchaseTotalLabel(listCents, totalCents, locale, (c) => formatOfferingPrice(c, d.currency, locale));
   const collectPrice =
     collectCents != null && collectCents > 0
       ? formatOfferingPrice(collectCents, d.currency, locale)
@@ -216,13 +230,20 @@ export function CatalogPurchaseMount({
         variantId: variant?.id ?? null,
         addOnIds,
         quantity: effQty,
-        contactName: guestName,
-        contactEmail: guestEmail,
-        captchaToken: captchaToken || null,
-        honeypot,
+        // Signed-in: let the server use the session (same as BookableComposer).
+        contactName: signedIn ? undefined : guestName,
+        contactEmail: signedIn ? undefined : guestEmail,
+        captchaToken: signedIn ? undefined : captchaToken || null,
+        honeypot: signedIn ? undefined : honeypot,
         locale,
+        promoCode: promo.promoCode,
+        promoShownDiscountCents: promo.promoShownDiscountCents,
       });
       if (!res.ok) {
+        if (res.promoGone) {
+          // Nothing was charged. Re-quote so the regular price shows before they confirm again.
+          setPromoRefresh((n) => n + 1);
+        }
         if (res.needsAuth) {
           window.location.href = `/login?next=${encodeURIComponent(sourcePage)}`;
           return;
@@ -411,36 +432,63 @@ export function CatalogPurchaseMount({
           </div>
         ) : null}
 
+        {mode === "live" && !paymentSetupBlocksBuy ? (
+          <BookingPromoPanel
+            locale={locale}
+            refreshKey={promoRefresh}
+            onChange={setPromo}
+            request={{
+              offeringId: d.offeringId,
+              variantId: variant?.id ?? null,
+              addOnIds,
+              quantity: effQty,
+              contactEmail: guestEmail || null,
+            }}
+          />
+        ) : null}
+
         <p style={{ fontSize: 13, color: MUTED, lineHeight: 1.5, margin: "12px 0" }}>
           {payCopy}
         </p>
 
         {mode === "live" ? (
           <div style={{ margin: "8px 0 12px" }}>
-            <GuestInstantContact
-              name={guestName}
-              email={guestEmail}
-              captcha={captcha}
-              locale={locale}
-              onName={setGuestName}
-              onEmail={setGuestEmail}
-              onCaptchaToken={setCaptchaToken}
-            />
-            <input
-              type="text"
-              value={honeypot}
-              onChange={(e) => setHoneypot(e.target.value)}
-              tabIndex={-1}
-              autoComplete="off"
-              aria-hidden
-              style={{
-                position: "absolute",
-                left: -9999,
-                height: 1,
-                width: 1,
-                overflow: "hidden",
-              }}
-            />
+            {signedIn ? (
+              <p style={{ fontSize: 13, color: MUTED, margin: 0 }} data-catalog-signed-in="">
+                {pickLocale(locale, {
+                  en: "You are signed in.",
+                  es: "Tu sesión está iniciada.",
+                })}
+                {client?.email ? ` ${client.email}` : ""}
+              </p>
+            ) : (
+              <>
+                <GuestInstantContact
+                  name={guestName}
+                  email={guestEmail}
+                  captcha={captcha}
+                  locale={locale}
+                  onName={setGuestName}
+                  onEmail={setGuestEmail}
+                  onCaptchaToken={setCaptchaToken}
+                />
+                <input
+                  type="text"
+                  value={honeypot}
+                  onChange={(e) => setHoneypot(e.target.value)}
+                  tabIndex={-1}
+                  autoComplete="off"
+                  aria-hidden
+                  style={{
+                    position: "absolute",
+                    left: -9999,
+                    height: 1,
+                    width: 1,
+                    overflow: "hidden",
+                  }}
+                />
+              </>
+            )}
           </div>
         ) : null}
 

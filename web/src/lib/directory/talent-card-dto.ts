@@ -12,6 +12,7 @@ import type { DirectoryCardDTO } from "@/lib/directory/types";
 import type { Locale } from "@/i18n/config";
 import { createTranslator } from "@/i18n/messages";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { spanishPlaceName } from "@/lib/i18n/place-names-es";
 
 export const MAX_CARD_FIT_LABELS = 3;
 
@@ -164,10 +165,9 @@ export function mapApiDirectoryRpcRowToDirectoryCardDTO(
     row.primary_talent_type_name_en,
     row.primary_talent_type_name_es,
   );
-  const locName = pickLocalizedName(
+  const locName = spanishPlaceName(
+    pickLocalizedName(locale, row.location_display_en, row.location_display_es),
     locale,
-    row.location_display_en,
-    row.location_display_es,
   );
   const country = row.location_country_code?.trim();
   const locationLabel =

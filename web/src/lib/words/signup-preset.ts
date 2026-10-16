@@ -44,11 +44,23 @@ const KEYWORD_PRESETS: ReadonlyArray<{
   readonly words: readonly string[];
   readonly presetId: IndustryPresetId;
 }> = [
+  // Pet grooming BEFORE the salon row: "peluquería canina" contains "peluquería".
+  {
+    words: [
+      "pet grooming", "dog grooming", "groomer", "grooming", "peluqueria canina",
+      "peluquería canina", "estetica canina", "estética canina", "peluqueria de mascotas",
+      "peluquería de mascotas",
+    ],
+    presetId: "pet_grooming",
+  },
   // Salon and spa BEFORE shop, for "barber shop".
   {
     words: [
       "salon", "barber", "barbershop", "barberia", "barbería",
       "peluqueria", "peluquería", "nails", "beauty", "estetica", "estética",
+      // Not a bare "salón": this row wins first, and "salón de eventos" is a venue.
+      "belleza", "salón de belleza", "uñas", "manicure", "pedicure", "lashes",
+      "pestañas", "cejas",
     ],
     presetId: "salon_barber",
   },
@@ -61,8 +73,20 @@ const KEYWORD_PRESETS: ReadonlyArray<{
   { words: ["bar", "club", "nightclub", "cantina", "pub"], presetId: "bar_club" },
   { words: ["beach", "playa", "cabana", "cabaña"], presetId: "beach_club" },
   {
-    words: ["restaurant", "restaurante", "cafe", "café", "bistro", "kitchen", "cocina", "taqueria", "taquería", "dining"],
+    words: ["restaurant", "restaurante", "cafe", "café", "cafeteria", "cafetería", "coffee shop", "panaderia", "panadería", "bakery", "bistro", "kitchen", "cocina", "taqueria", "taquería", "dining"],
     presetId: "restaurant",
+  },
+  // Dry cleaning BEFORE home services: it contains "cleaning" but is drop-off.
+  { words: ["dry cleaning", "dry cleaner", "dry cleaners", "tintoreria", "tintorería"], presetId: "dropoff_service" },
+  // Home services BEFORE studio_gym: "estudio de limpieza" is a cleaner, not a gym.
+  {
+    words: [
+      "cleaning", "cleaner", "cleaners", "housekeeping", "limpieza", "limpiezas", "aseo",
+      "home service", "home services", "a domicilio", "handyman", "plumbing", "plumber",
+      "plomeria", "plomería", "plomero", "electrician", "electricista", "mantenimiento",
+      "gardening", "jardineria", "jardinería", "jardinero", "fumigacion", "fumigación",
+    ],
+    presetId: "home_services",
   },
   // Portfolio BEFORE studio_gym, and this ordering is load-bearing: a
   // "photography studio" and an "estudio fotográfico" both contain the word
@@ -92,7 +116,8 @@ const KEYWORD_PRESETS: ReadonlyArray<{
 
 /** Same normalisation as `signup-design-pick`, so the two read alike. */
 function normalizeHaystack(description: string): string {
-  return ` ${description.toLowerCase().replace(/[^a-z0-9áéíóúüñ]+/gi, " ")} `;
+  // "Playa del Carmen" is a city, not a beach club: a cafetería there is a restaurant.
+  return ` ${description.toLowerCase().replace(/playa del carmen/g, " ").replace(/[^a-z0-9áéíóúüñ]+/gi, " ")} `;
 }
 
 function hasWord(haystack: string, word: string): boolean {

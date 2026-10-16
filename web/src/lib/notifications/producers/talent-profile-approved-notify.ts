@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getAppUrl } from "@/lib/auth-flow";
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { logServerError } from "@/lib/server/safe-error";
+import { afterResponse } from "@/lib/server/after-response";
 
 /**
  * Emit `talent.profile_approved` (spec §6.3) when a workspace admin makes a
@@ -48,7 +49,7 @@ export async function notifyTalentProfileApproved(params: {
       ? `${getAppUrl()}/t/${encodeURIComponent(talent.profile_code)}`
       : `${getAppUrl()}/talent`;
 
-    void dispatchEventNotifications({
+    afterResponse(() => dispatchEventNotifications({
       type: "talent.profile_approved",
       tenantId,
       userId: talent.user_id,
@@ -59,7 +60,7 @@ export async function notifyTalentProfileApproved(params: {
       },
     }).catch((err) => {
       logServerError("notifyTalentProfileApproved.dispatch", err);
-    });
+    }));
   } catch (err) {
     logServerError("notifyTalentProfileApproved", err);
   }

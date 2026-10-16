@@ -4,6 +4,8 @@ import {
   loadBuilderNodeDataSources,
   loadPersonalMaxNativeSources,
 } from "@/components/home/homepage-cms-data-sources";
+import { collectSocialFeedProviders } from "@/lib/site-admin/builder-node/social-feed-source";
+import { collectNativeDataBlockNeeds } from "@/lib/site-admin/builder-node/native-data-block-needs";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import type { BuilderNodeRenderDataSources } from "@/lib/site-admin/builder-node/render";
 import { loadTalentLocaleSettings } from "@/lib/site-admin/server/talent-locale-settings";
@@ -19,6 +21,7 @@ import {
 } from "./load-max-site";
 import { prepareTalentSiteTrees } from "./talent-site-render-fixups.server";
 import { loadUsdRatesForSitePrices } from "./vanity-usd-rates";
+import { loadPromoWidgetData } from "@/lib/promos/widgets/load.server";
 
 /**
  * Theme gallery "My content" preview: the talent's site locale. An explicit
@@ -50,7 +53,7 @@ export async function loadPreviewDataSources(
   const needsPortfolio = has("portfolio");
   const needsChip = has("next_free_chip");
   const tenantId = await loadTalentManagingTenantId(talentProfileId);
-  const [dataSources, offerings] = await Promise.all([
+  const [dataSources, offerings, promoWidgets] = await Promise.all([
     tenantId
       ? loadBuilderNodeDataSources(tree, tenantId, locale, null, talentProfileId)
       : loadPersonalMaxNativeSources({
@@ -63,8 +66,12 @@ export async function loadPreviewDataSources(
           visit: has("visit"),
           compCard: has("comp_card"),
           talentFaq: builderTreeHasFaqBind(tree),
+          socialFeedProviders: collectSocialFeedProviders(tree),
+          postsFeeds: collectNativeDataBlockNeeds(tree).postsFeeds,
         }),
     loadPublicOfferingsForProfile(talentProfileId, locale, null),
+    // Promo widgets (TUL-1051 part B): real live promos, drawn in place (preview flag: no gates, no events).
+    has("promo") ? loadPromoWidgetData(talentProfileId) : Promise.resolve(undefined),
   ]);
   const talentOfferings =
     Array.isArray(dataSources.talentOfferings) && dataSources.talentOfferings.length > 0
@@ -73,8 +80,14 @@ export async function loadPreviewDataSources(
   const usdRates = await loadUsdRatesForSitePrices([
     ...talentOfferings,
     ...(dataSources.menuOfferings ?? []),
-  ]);
-  return { ...dataSources, talentOfferings, usdRates, catalogBookingLive: false };
+  ], locale);
+  return {
+    ...dataSources,
+    talentOfferings,
+    usdRates,
+    catalogBookingLive: false,
+    ...(promoWidgets ? { promoWidgets: { ...promoWidgets, preview: true } } : {}),
+  };
 }
 
 /**

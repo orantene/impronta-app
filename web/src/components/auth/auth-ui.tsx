@@ -22,7 +22,7 @@
  * from here (a client form that imports it just bundles it client-side).
  */
 
-import type { CSSProperties, ReactNode } from "react";
+import { cloneElement, isValidElement, type CSSProperties, type ReactElement, type ReactNode } from "react";
 
 import { AuthGoogleGlyph } from "@/components/auth/auth-google-glyph";
 
@@ -148,14 +148,18 @@ export function AuthNotice({
   children,
   align = "left",
   className = "",
+  id,
 }: {
   tone: NoticeTone;
   children: ReactNode;
   align?: "left" | "center";
   className?: string;
+  /** Lets a field point at this notice with aria-describedby. */
+  id?: string;
 }) {
   return (
     <p
+      id={id}
       role={tone === "error" ? "alert" : "status"}
       className={`rounded-xl px-3 py-2 text-[0.8125rem] leading-[1.5] ${
         align === "center" ? "text-center" : ""
@@ -192,6 +196,16 @@ export function AuthField({
   hint?: string;
   children: ReactNode;
 }) {
+  // TUL-1098: the hint is announced with the control (aria-describedby) instead of floating free.
+  const hintId = hint && htmlFor ? `${htmlFor}-hint` : undefined;
+  const control =
+    hintId && isValidElement(children)
+      ? cloneElement(children as ReactElement<{ "aria-describedby"?: string }>, {
+          "aria-describedby": [(children.props as { "aria-describedby"?: string })["aria-describedby"], hintId]
+            .filter(Boolean)
+            .join(" "),
+        })
+      : children;
   return (
     <div>
       <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -204,9 +218,10 @@ export function AuthField({
         </label>
         {rightSlot}
       </div>
-      {children}
+      {control}
       {hint ? (
         <p
+          id={hintId}
           className="mt-1.5 text-[0.75rem] leading-[1.45]"
           style={{ color: "var(--plt-muted)" }}
         >
@@ -314,19 +329,26 @@ export function AuthGoogleButtonSurface({
   pendingLabel,
   error,
   onClick,
+  disabled = false,
+  describedBy,
 }: {
   pending: boolean;
   label: ReactNode;
   pendingLabel: ReactNode;
   error?: string | null;
   onClick: () => void;
+  /** Held until a required checkbox (e.g. age and terms) is ticked. */
+  disabled?: boolean;
+  /** id of the text that says why the button is held (read out with the disabled state). */
+  describedBy?: string;
 }) {
   return (
     <div className="space-y-2">
       <button
         type="button"
         onClick={onClick}
-        disabled={pending}
+        disabled={pending || disabled}
+        aria-describedby={describedBy}
         className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full px-5 py-3 text-[0.9375rem] font-medium leading-none tracking-[-0.005em] transition-[background,border-color,box-shadow] duration-200 disabled:cursor-wait disabled:opacity-70"
         style={{
           background: "var(--plt-bg-raised)",

@@ -1,3 +1,4 @@
+import { CrossTabSignOutListener } from "@/components/auth/CrossTabSignOutListener";
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { ClientSpeedInsights } from "@/components/analytics/client-speed-insights";
@@ -6,6 +7,7 @@ import { AnalyticsConsentBanner } from "@/components/analytics/analytics-consent
 import { consentRegionForCountry } from "@/lib/analytics/consent";
 import { SpaPageViewTracker } from "@/components/analytics/spa-page-view-tracker";
 import { CspViolationReporter } from "@/components/csp-violation-reporter";
+import { ImplicitHashSessionBridge } from "@/components/auth/implicit-hash-session-bridge";
 import { EditChromeMount } from "@/components/edit-chrome/edit-chrome-mount";
 import { AdminQuickBarMount } from "@/components/edit-chrome/admin-quick-bar-mount";
 import { WebVitalsReporter } from "@/components/web-vitals-reporter";
@@ -59,6 +61,8 @@ import {
 } from "./fonts";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { LocaleSuggestionBanner } from "@/components/locale-suggestion-banner";
+import { CLIENT_MESSAGES_GLOBAL } from "@/i18n/messages.client";
+import { getClientMessagesPayload } from "@/i18n/messages";
 import { TenantRegisterMount } from "@/components/marketing/tenant-register-mount";
 import { PlatformJsonLd } from "@/components/marketing/platform-json-ld";
 import { BreakpointStyleEngine } from "@/components/edit-chrome/breakpoint-style-engine";
@@ -226,6 +230,15 @@ export default async function RootLayout({
         suppressHydrationWarning
         className={`site-theme-${resolvedSiteTheme}${publicScope ? " site-theme-tenant-override" : ""} flex min-h-full flex-col text-foreground`}
       >
+        {/* Browser translator store (see @/i18n/client-subtrees): the client
+            subtrees of every catalog, assigned before Next's async hydration
+            scripts run, so client components never import the full catalogs. */}
+        <script
+          id="tulala-client-messages"
+          dangerouslySetInnerHTML={{
+            __html: `self.${CLIENT_MESSAGES_GLOBAL}=${JSON.stringify(getClientMessagesPayload(locale)).replace(/</g, "\\u003c")};`,
+          }}
+        />
         {/* TUL-516: floating chrome stack (consent/locale/chat/bar clearance)
             before any fixed island so /politicas and every theme share one rule. */}
         <FloatingChromeStackStyles />
@@ -292,6 +305,7 @@ export default async function RootLayout({
         <WebVitalsReporter />
         <CspViolationReporter />
         {children}
+        <CrossTabSignOutListener />
         {/* Intercepted-route overlays (profile quick-open). Sibling of the
             page so closing = router.back() restores the page untouched. */}
         {modal}
@@ -299,6 +313,7 @@ export default async function RootLayout({
         {publicScope && <TenantCustomCodeBody tenantId={publicScope.tenantId} />}
         {/* Custom code library — snippets placed at the end of the page. */}
         {publicScope && <TenantCodeSnippetsBody tenantId={publicScope.tenantId} />}
+        <ImplicitHashSessionBridge />
         <TenantRegisterMount />
         <EditChromeMount />
         {/* Wave 6.1 — the admin quick bar mounts independently of the editor so

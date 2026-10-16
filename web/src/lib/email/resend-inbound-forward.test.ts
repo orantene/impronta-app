@@ -272,3 +272,82 @@ test("valid env: forwards to that address and marks sent", withEnv("ops@example.
   assert.equal(sentTo, "ops@example.com");
   assert.equal(mem.rows.get("re_in_7")?.payload.forward_to, "ops@example.com");
 }));
+
+test("copy list targets: forwards once per address and ignores the env", withEnv("ops@example.com", async () => {
+  const mem = memoryStore("pending");
+  const sentTo: unknown[] = [];
+  const result = await processResendInboundEmail(
+    { type: "email.received", data: { email_id: "re_in_list_1" } },
+    {
+      store: mem.store,
+      fetchInbound: async () => inboundData,
+      resolveForwardTargets: async () => ({
+        targets: ["a@example.com", "b@example.com"],
+        source: "list",
+      }),
+      sendForward: async (args) => {
+        sentTo.push(args.to);
+        return sentOk;
+      },
+    },
+  );
+  assert.equal(result.forwardStatus, "sent");
+  assert.deepEqual(sentTo, ["a@example.com", "b@example.com"]);
+  assert.equal(mem.rows.get("re_in_list_1")?.payload.forward_to, "a@example.com, b@example.com");
+}));
+
+test("copy list with rows but no support_inbound address: skipped with list reason", withEnv("ops@example.com", async () => {
+  const mem = memoryStore("pending");
+  let sendCalls = 0;
+  const result = await processResendInboundEmail(
+    { type: "email.received", data: { email_id: "re_in_list_2" } },
+    {
+      store: mem.store,
+      fetchInbound: async () => inboundData,
+      resolveForwardTargets: async () => ({ targets: [], source: "list" }),
+      sendForward: async () => {
+        sendCalls += 1;
+        return sentOk;
+      },
+    },
+  );
+  assert.equal(result.forwardStatus, "skipped");
+  assert.equal(sendCalls, 0);
+  assert.match(mem.marks[0]?.error ?? "", /notification copy/);
+}));
+
+test("copy list: one failed address does not stop the others", async () => {
+  const mem = memoryStore("pending");
+  const result = await processResendInboundEmail(
+    { type: "email.received", data: { email_id: "re_in_list_3" } },
+    {
+      store: mem.store,
+      fetchInbound: async () => inboundData,
+      resolveForwardTargets: async () => ({
+        targets: ["bad@example.com", "good@example.com"],
+        source: "list",
+      }),
+      sendForward: async (args) =>
+        args.to === "bad@example.com"
+          ? { status: "failed" as const, error: "boom" }
+          : sentOk,
+    },
+  );
+  assert.equal(result.forwardStatus, "sent");
+  assert.equal(mem.marks.at(-1)?.status, "sent");
+});
+
+test("copy list: all addresses fail -> failed", async () => {
+  const mem = memoryStore("pending");
+  const result = await processResendInboundEmail(
+    { type: "email.received", data: { email_id: "re_in_list_4" } },
+    {
+      store: mem.store,
+      fetchInbound: async () => inboundData,
+      resolveForwardTargets: async () => ({ targets: ["bad@example.com"], source: "list" }),
+      sendForward: async () => ({ status: "failed" as const, error: "boom" }),
+    },
+  );
+  assert.equal(result.forwardStatus, "failed");
+  assert.equal(mem.marks.at(-1)?.error, "boom");
+});

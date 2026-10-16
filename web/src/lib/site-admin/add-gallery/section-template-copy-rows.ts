@@ -132,4 +132,8 @@ export const EXTRA_ROWS: ReadonlyArray<[string, CopyRow]> = [
   r("• Talent representation and bookings", "• Representación de talento y reservas", "• Your first service", "• Tu primer servicio"),
   r("• Casting and brief matching", "• Casting y selección según el brief", "• Your second service", "• Tu segundo servicio"),
   r("• On-set coordination and logistics", "• Coordinación en set y logística", "• Your third service", "• Tu tercer servicio"),
+  // Starter text of the basic blocks (`createBuilderNode`) inserted from the gallery.
+  r("Heading", "Título", "Heading", "Título"),
+  r("Paragraph", "Párrafo", "Paragraph", "Párrafo"),
+  r("Button", "Botón", "Button", "Botón"),
 ];

@@ -2,7 +2,7 @@ import "server-only";
 
 import { loadMessagingInbox } from "@/lib/messaging/inbox";
 import { countAwaitingReply } from "@/lib/messages-v5/inbox-view";
-import { filterQaFixtureInboxRows } from "@/lib/messages-v5/qa-fixture-row";
+import { filterQaFixtureInboxRows, talentKeepsFixtureThreads } from "@/lib/messages-v5/qa-fixture-row";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 
 import type { EffectiveReadContext } from "@/lib/impersonation/effective-read";
@@ -35,8 +35,8 @@ export async function loadTalentInboxForActor(actor: Actor, filter: InboxFilter)
   let rows = inbox.rows.map((row) => ({ ...row, agency: !talentIsSeller(row.tenantId, hub?.tenantId ?? null) }));
   let unreadCount = inbox.unreadCount;
   // Live talents: hide agent/journey fixture threads from the inbox. Demo
-  // talents keep them: that account is the fixture surface for QA.
-  if (!actor.isDemo) {
+  // talents and QA accounts keep them: those are the fixture surfaces.
+  if (!talentKeepsFixtureThreads(actor)) {
     const filtered = filterQaFixtureInboxRows(rows);
     rows = filtered.rows;
     unreadCount = filtered.unreadCount;

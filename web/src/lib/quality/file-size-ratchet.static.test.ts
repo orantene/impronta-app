@@ -274,7 +274,7 @@ const BUDGETS: Record<string, number> = {
   // +10 (info-tip program): six standing <Helper> paragraphs moved behind ⓘ
   // via `info=` on their FieldLabel; multi-line labels cost more lines than the
   // single-line helpers they replaced, while the panel renders shorter.
-  "src/components/edit-chrome/theme-drawer.tsx": 1461,
+  "src/components/edit-chrome/theme-drawer.tsx": 1469,
   "src/components/edit-chrome/command-palette.tsx": 1287,
   // `assets-drawer.tsx` (1,244) is GONE — the pre-unification media library it
   // implemented was fully subsumed by <MediaLibrary>. The left rail's Assets
@@ -464,7 +464,8 @@ const BUDGETS: Record<string, number> = {
   // 2026-10-10 TUL-538: +4 ES for availability switch ("Turn on availability",
   // taking/paused bookings, public-page hint). Raise with the growth.
   // 2026-10-10 TUL-146: +1 ES "Your personal page plan" → "Tu plan de página personal".
-  "src/components/admin/shell/internal/dashboard-i18n.ts": 3847,
+  // +1 TUL-633: Fixed price | Get a quote switch copy (2 dead keys removed in the same commit).
+  "src/components/admin/shell/internal/dashboard-i18n.ts": 3848,
   "src/components/admin/shell/internal/help.tsx": 744,
   // 2026-08-28 support M2: DRAWER_HELP extracted so the AI corpus can import
   // the registry from a server module without pulling the HelpPanel island.
@@ -554,7 +555,8 @@ const BUDGETS: Record<string, number> = {
   // note saying why deriving it turns a missed registration into a compile
   // error. Net +4 against the 29 literals it replaced.
   // 2026-09-24 services-rebuild: +1 (2891). Measured wc -l.
-  "src/components/admin/shell/internal/state/types.ts": 2895,
+  // +1: "promos" TalentPage (TUL-936)
+  "src/components/admin/shell/internal/state/types.ts": 2896,
   // 2026-09-09 messages mobile pass: the ≤720px messages stylesheet (360
   // lines, no interpolation, a self-contained concern) moved out to
   // internal/messages-mobile-css.ts rather than growing this file past its
@@ -594,7 +596,9 @@ const BUDGETS: Record<string, number> = {
   // 2026-09-25 Agenda V2: +5 — stamp bridgeTalentAgendaV2 (server flag) so
   // the client shell does not re-read non-NEXT_PUBLIC env.
   // 2026-09-25: +3 — preserve agendaNow QA clock across shell URL rewrites.
-  "src/components/admin/shell/internal/state/context.tsx": 2496,
+  // 2026-10-10 TUL-392: +5 — thread bridgeTalentAttentionSignals (type, read,
+  // value, deps); the signal logic lives in lib/notifications.
+  "src/components/admin/shell/internal/state/context.tsx": 2501,
 
   // Workspace routes and server actions.
   "src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx": 3769,

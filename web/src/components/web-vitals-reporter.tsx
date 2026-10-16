@@ -1,30 +1,34 @@
 "use client";
-import { improntaLog } from "@/lib/server/structured-log";
 
+import * as Sentry from "@sentry/nextjs";
 import { useReportWebVitals } from "next/web-vitals";
 
 /**
- * Logs LCP, CLS, INP, etc. in development. Wire `metric` to analytics when
- * you add a provider (Vercel Analytics, custom endpoint).
+ * Real-user Core Web Vitals (LCP, INP, CLS, FCP, TTFB) as Sentry metrics (TUL-590).
+ * Sampled per page load at <= 10% so the cost stays about zero; no new vendor
+ * and no Vercel Observability Plus. Attributes carry the rating and the
+ * device class only (no URL, no PII).
  */
+const SAMPLE_RATE = 0.1;
+
+let sampled: boolean | null = null;
+function isSampled(): boolean {
+  if (sampled === null) sampled = Math.random() < SAMPLE_RATE;
+  return sampled;
+}
+
 export function WebVitalsReporter() {
   useReportWebVitals((metric) => {
-    const value = Math.round(metric.value * 100) / 100;
-    if (process.env.NODE_ENV === "development") {
-      void 0;
-      return;
-    }
-    if (metric.rating === "poor") {
-      void improntaLog("web_vitals_reporter.info", {
-        message: JSON.stringify({
-          ns: "impronta",
-          event: "web_vital_poor",
-          name: metric.name,
-          value,
-          rating: metric.rating,
-          ts: new Date().toISOString(),
-        }),
+    if (process.env.NODE_ENV === "development" || !isSampled()) return;
+    try {
+      const mobile =
+        typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
+      Sentry.metrics.distribution(`web_vitals.${metric.name.toLowerCase()}`, metric.value, {
+        unit: metric.name === "CLS" ? "none" : "millisecond",
+        attributes: { rating: metric.rating, device: mobile ? "mobile" : "desktop" },
       });
+    } catch {
+      /* telemetry must never break the page */
     }
   });
   return null;

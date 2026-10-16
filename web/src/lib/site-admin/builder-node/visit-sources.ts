@@ -13,6 +13,8 @@ import { cityLabelFromPlaceText } from "@/lib/scheduling/timezone-from-place";
 import { localizedLanguageName } from "@/lib/talent-site/language-label";
 import { canonicalCityLabel } from "@/lib/talent-site/server/city-label.server";
 
+import { primaryTypeOf, type TalentTypeRow } from "@/lib/onboarding/stock-hero";
+import { effectiveStudioKind } from "@/lib/talent/location-kind";
 import { parseLocationSettings, toPublicLocation, type TalentLocationPublic } from "@/lib/talent/location-settings";
 
 import type { TalentVisitFact, TalentVisitFacts } from "./visit-types";
@@ -112,7 +114,7 @@ export async function loadVisitSources(
   if (!admin) return { talentVisitFacts: [] };
 
   try {
-    const [areasRes, langsRes, hoursRes, cancelRes, profileRes, locationRes] = await Promise.all([
+    const [areasRes, langsRes, hoursRes, cancelRes, profileRes, locationRes, tradeRes] = await Promise.all([
       admin
         .from("talent_service_areas")
         .select("service_kind, city, locations ( display_name_i18n )")
@@ -147,7 +149,13 @@ export async function loadVisitSources(
         .select("address_mode, studio_kind, zone_neighbourhood, arrival_note, arrival_photo_url, exact_address")
         .eq("talent_profile_id", talentProfileId)
         .maybeSingle(),
+      // Primary trade: with no saved location choice it says whether the work is at the client's.
+      admin
+        .from("talent_profile_taxonomy")
+        .select("is_primary, display_order, taxonomy_terms ( kind, slug, name_i18n )")
+        .eq("talent_profile_id", talentProfileId),
     ]);
+    if (tradeRes.error) logServerError("visit.loadTrade", tradeRes.error);
     if (locationRes.error) logServerError("visit.loadLocationSettings", locationRes.error);
 
     if (areasRes.error) logServerError("visit.loadServiceAreas", areasRes.error);
@@ -175,7 +183,16 @@ export async function loadVisitSources(
     const baseRaw = (base ? placeName(base, locale) : null) ?? cityLabelFromPlaceText(profile?.home_city_text);
     const baseName = baseRaw ? await canonicalCityLabel(admin, baseRaw, locale, [cityLabelFromPlaceText(profile?.home_city_text)]) : null;
     const locationSettings = parseLocationSettings(locationRes.data ?? null);
-    const talentLocation = toPublicLocation(locationSettings, baseName ?? "");
+    const primaryTrade = primaryTypeOf((tradeRes.data ?? null) as unknown as TalentTypeRow[] | null);
+    const studioKind = effectiveStudioKind({
+      saved: Boolean(locationRes.data),
+      savedKind: locationSettings.studioKind,
+      travelsToClients: areas.some((a) => a.service_kind === "travel_to"),
+      tradeText: `${primaryTrade.slug ?? ""} ${primaryTrade.labelEn ?? ""}`,
+    });
+    // The kind is set on the PUBLIC output; the settings object (with the address) never leaves the gate.
+    const gated = toPublicLocation(locationSettings, baseName ?? "");
+    const talentLocation = gated ? { ...gated, studioKind } : null;
     // The note follows the talent's address setting (it used to always promise
     // the address at confirmation, which is only one of the three modes).
     const whereNote =

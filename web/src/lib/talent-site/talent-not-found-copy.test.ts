@@ -37,3 +37,13 @@ test("GRK-028: one-word talent paths have a talent-branded not-found boundary", 
   const proxy404 = readFileSync(path.join(APP, "%5Fpage-not-found", "page.tsx"), "utf8");
   assert.match(proxy404, /TalentSiteNotFoundCard/);
 });
+
+test("/es/<typo> on marketing and app hosts gets the Spanish 404, title included", () => {
+  const proxy = readFileSync(path.join(APP, "..", "proxy.ts"), "utf8");
+  const rewrite = proxy.match(/Render the branded "page not found" page[\s\S]*?\n {2}\}\n/)?.[0] ?? "";
+  assert.match(rewrite, /missHeaders\.set\(\s*LOCALE_HEADER,\s*resolveLocaleForPathname\(pathname, request, effectiveLangSettings\)/);
+  assert.match(rewrite, /request: \{ headers: missHeaders \}/, "the rewrite forwards the locale header");
+  const page = readFileSync(path.join(APP, "%5Fpage-not-found", "page.tsx"), "utf8");
+  assert.doesNotMatch(page, /: "Page not found · Tulala" \}/, "the title is not hardcoded English");
+  assert.match(page, /title: "Página no encontrada · Tulala"/);
+});

@@ -53,3 +53,39 @@ export function targetRoleMatchesWorkspace(
 ): boolean {
   return targetProfile?.app_role === workspace;
 }
+
+/** Why a QA persona switch failed, for the super admin only (no ids, no user data). */
+export const QA_SWITCH_REASONS = [
+  "not_configured",
+  "no_profile",
+  "inactive",
+  "wrong_role",
+  "not_allowlisted",
+  "not_authorized",
+  "no_relationship",
+] as const;
+export type QaSwitchReason = (typeof QA_SWITCH_REASONS)[number];
+
+/** Maps the validator result (plus the workspace role check) to a specific reason; null when fine. */
+export function qaSwitchFailureReason(
+  check: { ok: true } | { ok: false; reason: string },
+  workspace: "talent" | "client",
+  target?: { appRole: string | null | undefined },
+): QaSwitchReason | null {
+  if (!check.ok) {
+    switch (check.reason) {
+      case "not_super_admin":
+        return "not_authorized";
+      case "no_profile":
+        return "no_profile";
+      case "inactive":
+        return "inactive";
+      case "not_allowlisted":
+        return "not_allowlisted";
+      default:
+        return "wrong_role";
+    }
+  }
+  if (target && target.appRole !== workspace) return "wrong_role";
+  return null;
+}

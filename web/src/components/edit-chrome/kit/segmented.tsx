@@ -73,7 +73,7 @@ export function Segmented<T extends string>({
         // labels mid-word ("NoirChampagneNoise"). `auto-fit` + a 64px
         // minimum keeps ratio chips denser on narrow inspector panels.
         gridTemplateColumns: fullWidth
-          ? `repeat(auto-fit, minmax(64px, 1fr))`
+          ? `repeat(auto-fit, minmax(80px, 1fr))`
           : undefined,
         gap: fullWidth ? 2 : undefined,
         ...style,
@@ -145,9 +145,14 @@ export function Segmented<T extends string>({
             ) : null}
             <span
               style={{
+                // TUL-1027: full-width groups wrap long names ("Malla rosada")
+                // instead of cutting them with an ellipsis.
                 overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
+                textOverflow: fullWidth ? "clip" : "ellipsis",
+                whiteSpace: fullWidth ? "normal" : "nowrap",
+                overflowWrap: fullWidth ? "break-word" : undefined,
+                textAlign: fullWidth ? "center" : undefined,
+                lineHeight: fullWidth ? 1.2 : undefined,
                 minWidth: 0,
               }}
             >

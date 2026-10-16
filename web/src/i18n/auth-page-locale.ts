@@ -8,6 +8,7 @@
  * English sign-in with no way to know why (TUL-117, C1-02).
  *
  * The rule, in order:
+ *   0. `?lang=es|en` on the URL (only when that locale is enabled) wins.
  *   1. A DELIBERATE cookie (present, not auto-written) always wins.
  *   2. Otherwise the browser decides: an explicit `en-*` / `es-*` language wins;
  *      a Mexico country code picks Spanish only when the browser names no
@@ -31,6 +32,8 @@ export type AuthPageLocaleInput = {
   fallback: string;
   /** Locales that may be served on this host. */
   enabledLocales: readonly string[];
+  /** `?lang=` on the URL (TUL-146): an explicit request for this page, beats the cookie. */
+  urlLang?: string | null;
 };
 
 function hasExplicitBrowserLanguage(acceptLanguage: string | null | undefined, code: string): boolean {
@@ -39,6 +42,8 @@ function hasExplicitBrowserLanguage(acceptLanguage: string | null | undefined, c
 }
 
 export function resolveAuthPageLocale(input: AuthPageLocaleInput): string {
+  const urlLang = input.urlLang?.toLowerCase();
+  if ((urlLang === "es" || urlLang === "en") && input.enabledLocales.includes(urlLang)) return urlLang;
   if (input.cookieLocale && !input.cookieIsAuto) return input.cookieLocale;
   const detected = defaultFlowLocale({
     saved: null,

@@ -1,4 +1,6 @@
 import type { TrustBadgeRow } from "@/lib/trust/verified-mark";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { resolveEffectiveTalentPlans } from "@/lib/billing/effective-talent-plan";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   decodeDirectoryCursor,
@@ -17,6 +19,7 @@ import { mapApiDirectoryRpcRowToDirectoryCardDTO } from "@/lib/directory/talent-
 import type { ApiDirectoryCardRpcRow } from "@/lib/directory/talent-card-dto";
 import { resolveTalentCardThumbsForHub } from "@/lib/media/talent-media-for-hub";
 import { fetchLegacyDirectorySearchTalentIds } from "@/lib/directory/directory-search-legacy";
+import { filterToPubliclyListedIds } from "@/lib/directory/public-listing-predicate";
 import { fetchDirectoryCardValues } from "@/lib/field-engine/read-source-directory-card-values";
 import { extractPrimaryRoleTerm, type ProfileTaxonomyRow } from "@/lib/taxonomy/engine";
 import {
@@ -50,7 +53,8 @@ import {
   applyPresentabilityOrdering,
   presentabilityTier,
 } from "@/lib/directory/presentability-order";
-import { isTalentPortfolioTier } from "@/lib/access/talent-membership";
+import { attachTalentPromoBadges } from "@/lib/promos/talent-promo-badges.server";
+import { hasEntitlement } from "@/lib/access/talent-entitlements";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { auditTime, isDirectoryApiAudit } from "@/lib/directory/directory-api-audit";
@@ -698,6 +702,9 @@ async function fetchDirectoryWindow(
       }
     }
 
+    // Search legs (RPC, taxonomy, field values) are not all gated at source:
+    // drop any id that is not publicly listed (TUL-862).
+    searchIds = await filterToPubliclyListedIds(supabase, searchIds);
     const searchSet = new Set(searchIds);
     filteredTalentIds = filteredTalentIds
       ? filteredTalentIds.filter((id) => searchSet.has(id))
@@ -908,9 +915,15 @@ async function fetchDirectoryWindow(
   const profileIds = profiles.map((row) => row.id);
   // Portfolio (Max) talents on THIS page — feeds the priority-placement
   // tie-break applied to the loaded page below (see portfolio-boost.ts).
+  const effectivePlans = await resolveEffectiveTalentPlans(
+    createServiceRoleClient() ?? supabase,
+    profiles,
+  );
   const portfolioProfileIds = new Set(
     profiles
-      .filter((row) => isTalentPortfolioTier(row.talent_plan_key))
+      .filter((row) =>
+        hasEntitlement(effectivePlans.get(row.id) ?? row.talent_plan_key, "discover.priority"),
+      )
       .map((row) => row.id),
   );
 
@@ -1410,6 +1423,9 @@ async function fetchDirectoryWindow(
   const items = rows.map((row) =>
     mapApiDirectoryRpcRowToDirectoryCardDTO(supabase, row, locale),
   );
+  // Talent promo badge (TUL-1051): one batched read for the page; hub always,
+  // agency hosts only when their Card Design opts in. Never throws.
+  await attachTalentPromoBadges(items, { tenantScopeId, locale });
   // Patch thumbnail URLs from the shared resolver (thumb_bucket_id/storage_path
   // were set to null above so mapApiDirectoryRpcRowToDirectoryCardDTO produces
   // null; we fill in the canonical URL here). This is the only URL source.

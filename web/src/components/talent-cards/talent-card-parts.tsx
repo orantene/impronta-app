@@ -7,8 +7,21 @@ import {
 
 import { TALENT_CARD_VARS, type CanonicalTalentCardData } from "./talent-card-shape";
 
+/** Exclusive / Independent tag text in the page locale (ES: Exclusivo / Independiente). */
+export function ownershipLabel(kind: "exclusive" | "independent", locale = "en"): string {
+  const es = locale === "es" || locale.startsWith("es-");
+  if (kind === "exclusive") return es ? "Exclusivo" : "Exclusive";
+  return es ? "Independiente" : "Independent";
+}
+
 /** Shared caption / media primitives used by every <TalentCard> style branch. */
-export function OwnershipBadge({ data }: { data: CanonicalTalentCardData }) {
+export function OwnershipBadge({
+  data,
+  locale = "en",
+}: {
+  data: CanonicalTalentCardData;
+  locale?: string;
+}) {
   // A tenant storefront directory shows ONE agency's roster, so stamping the
   // agency's own name on every card is pure repetition (it's already the site
   // brand in the header). Render only a DIFFERENTIATING signal: an exclusive
@@ -19,9 +32,9 @@ export function OwnershipBadge({ data }: { data: CanonicalTalentCardData }) {
       <span
         data-card-ownership
         data-card-chip
-        className="pointer-events-none inline-flex max-w-full items-center truncate rounded-full border border-[var(--dir-accent)] bg-background/85 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.1em] text-[var(--impronta-gold-bright)] backdrop-blur-sm"
+        className="pointer-events-none inline-flex max-w-full items-center whitespace-normal break-words text-center leading-tight rounded-full border border-[var(--dir-accent)] bg-background/85 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.1em] text-[var(--impronta-gold-bright)] backdrop-blur-sm"
       >
-        Exclusive
+        {ownershipLabel("exclusive", locale)}
       </span>
     );
   }
@@ -30,9 +43,9 @@ export function OwnershipBadge({ data }: { data: CanonicalTalentCardData }) {
     <span
       data-card-ownership
       data-card-chip
-      className="pointer-events-none inline-flex max-w-full items-center truncate rounded-full border border-border bg-background/85 px-2 py-0.5 text-[10px] font-medium tracking-wide text-foreground backdrop-blur-sm"
+      className="pointer-events-none inline-flex max-w-full items-center whitespace-normal break-words text-center leading-tight rounded-full border border-border bg-background/85 px-2 py-0.5 text-[10px] font-medium tracking-wide text-foreground backdrop-blur-sm"
     >
-      Independent
+      {ownershipLabel("independent", locale)}
     </span>
   );
 }

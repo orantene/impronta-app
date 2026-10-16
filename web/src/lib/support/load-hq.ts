@@ -4,6 +4,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { supportFrom } from "./support-from";
 import { hqQueueRequesterEmail } from "./support-hq-presentation";
+import { ticketPlanTier } from "./ticket-plan";
 import {
   mapMessageRow,
   mapTicketRow,
@@ -19,6 +20,8 @@ export type HqQueueRow = {
   planTier: string | null;
   requesterName: string | null;
   requesterEmail: string | null;
+  /** Public talent code (TAL-…) so the desk can search by it. */
+  talentCode?: string | null;
 };
 
 export type HqTicketContext = {
@@ -53,7 +56,13 @@ export type HqTicketContext = {
   }>;
 };
 
-type AgencyLite = { id: string; slug: string | null; display_name: string | null; plan_tier: string | null };
+type AgencyLite = {
+  id: string;
+  slug: string | null;
+  display_name: string | null;
+  plan_tier: string | null;
+  kind: string | null;
+};
 type ProfileLite = { id: string; display_name: string | null; created_at?: string | null };
 
 async function hydrateTenants(
@@ -64,7 +73,7 @@ async function hydrateTenants(
   if (tenantIds.length === 0) return map;
   const { data } = await admin
     .from("agencies")
-    .select("id, slug, display_name, plan_tier")
+    .select("id, slug, display_name, plan_tier, kind")
     .in("id", tenantIds);
   for (const row of data ?? []) {
     map.set(row.id, row as AgencyLite);
@@ -85,20 +94,107 @@ async function hydrateProfiles(
   return map;
 }
 
+/** ticket id -> talent_plan_key, for tickets tied to a talent profile. */
+async function hydrateTalentPlans(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  tickets: SupportTicketRow[],
+): Promise<Map<string, string | null>> {
+  const out = new Map<string, string | null>();
+  const profileIds = [...new Set(tickets.map((t) => t.talentProfileId).filter(Boolean))] as string[];
+  if (profileIds.length === 0) return out;
+  const { data, error } = await admin
+    .from("talent_profiles")
+    .select("id, talent_plan_key")
+    .in("id", profileIds);
+  if (error) {
+    logServerError("support.hq.talent-plans", error);
+    return out;
+  }
+  const byId = new Map<string, string | null>();
+  for (const r of (data ?? []) as Array<{ id: string; talent_plan_key: string | null }>) {
+    byId.set(r.id, r.talent_plan_key);
+  }
+  for (const t of tickets) {
+    if (t.talentProfileId && byId.has(t.talentProfileId)) out.set(t.id, byId.get(t.talentProfileId) ?? null);
+  }
+  return out;
+}
+
+/** ticket id -> TAL code, from the ticket's talent profile or the requester's own. */
+async function hydrateTalentCodes(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  tickets: SupportTicketRow[],
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const profileIds = [...new Set(tickets.map((t) => t.talentProfileId).filter(Boolean))] as string[];
+  const userIds = [...new Set(tickets.map((t) => t.requesterUserId).filter(Boolean))] as string[];
+  if (profileIds.length === 0 && userIds.length === 0) return out;
+  const byId = new Map<string, string>();
+  const byUser = new Map<string, string>();
+  const [a, b] = await Promise.all([
+    profileIds.length
+      ? admin.from("talent_profiles").select("id, profile_code").in("id", profileIds)
+      : Promise.resolve({ data: [] as Array<{ id: string; profile_code: string | null }> }),
+    userIds.length
+      ? admin.from("talent_profiles").select("user_id, profile_code").in("user_id", userIds)
+      : Promise.resolve({ data: [] as Array<{ user_id: string | null; profile_code: string | null }> }),
+  ]);
+  for (const r of (a.data ?? []) as Array<{ id: string; profile_code: string | null }>) {
+    if (r.profile_code) byId.set(r.id, r.profile_code);
+  }
+  for (const r of (b.data ?? []) as Array<{ user_id: string | null; profile_code: string | null }>) {
+    if (r.user_id && r.profile_code) byUser.set(r.user_id, r.profile_code);
+  }
+  for (const t of tickets) {
+    const code =
+      (t.talentProfileId ? byId.get(t.talentProfileId) : undefined) ??
+      (t.requesterUserId ? byUser.get(t.requesterUserId) : undefined);
+    if (code) out.set(t.id, code);
+  }
+  return out;
+}
+
 export async function loadHqSupportOpenCount(): Promise<number> {
   try {
     const admin = createServiceRoleClient();
     if (!admin) return 0;
     const { count, error } = await supportFrom(admin, "support_tickets")
       .select("id", { count: "exact", head: true })
-      .eq("status", "open")
-      .eq("waiting_on", "support");
+      .eq("status", "open");
     if (error) return 0;
     return count ?? 0;
   } catch (err) {
     logServerError("support.hq.openCount", err);
     return 0;
   }
+}
+
+/** Raw support_tickets rows -> queue rows (tenant, requester and TAL code hydrated). */
+export async function hydrateHqQueueRows(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  data: unknown[],
+): Promise<HqQueueRow[]> {
+  const tickets = (data ?? []).map(mapTicketRow).filter(Boolean) as SupportTicketRow[];
+  const tenantIds = [...new Set(tickets.map((t) => t.tenantId).filter(Boolean))] as string[];
+  const userIds = [...new Set(tickets.map((t) => t.requesterUserId).filter(Boolean))] as string[];
+  const [tenants, profiles] = await Promise.all([
+    hydrateTenants(admin, tenantIds),
+    hydrateProfiles(admin, userIds),
+  ]);
+  const talentCodes = await hydrateTalentCodes(admin, tickets);
+  return tickets.map((ticket) => {
+    const tenant = ticket.tenantId ? tenants.get(ticket.tenantId) : undefined;
+    const profile = ticket.requesterUserId ? profiles.get(ticket.requesterUserId) : undefined;
+    return {
+      ticket,
+      tenantName: tenant?.display_name ?? tenant?.slug ?? null,
+      tenantSlug: tenant?.slug ?? null,
+      planTier: tenant?.plan_tier ?? null,
+      requesterName: profile?.display_name ?? ticket.contactName ?? null,
+      requesterEmail: hqQueueRequesterEmail(ticket),
+      talentCode: talentCodes.get(ticket.id) ?? null,
+    };
+  });
 }
 
 export async function loadHqSupportQueue(): Promise<HqQueueRow[]> {
@@ -120,6 +216,10 @@ export async function loadHqSupportQueue(): Promise<HqQueueRow[]> {
       hydrateTenants(admin, tenantIds),
       hydrateProfiles(admin, userIds),
     ]);
+    const [talentCodes, talentPlans] = await Promise.all([
+      hydrateTalentCodes(admin, tickets),
+      hydrateTalentPlans(admin, tickets),
+    ]);
     return tickets.map((ticket) => {
       const tenant = ticket.tenantId ? tenants.get(ticket.tenantId) : undefined;
       const profile = ticket.requesterUserId ? profiles.get(ticket.requesterUserId) : undefined;
@@ -127,9 +227,15 @@ export async function loadHqSupportQueue(): Promise<HqQueueRow[]> {
         ticket,
         tenantName: tenant?.display_name ?? tenant?.slug ?? null,
         tenantSlug: tenant?.slug ?? null,
-        planTier: tenant?.plan_tier ?? null,
+        planTier: ticketPlanTier({
+          tenantKind: tenant?.kind ?? null,
+          tenantPlan: tenant?.plan_tier ?? null,
+          talentPlanKey: talentPlans.get(ticket.id) ?? null,
+          hasTalent: Boolean(ticket.talentProfileId),
+        }),
         requesterName: profile?.display_name ?? ticket.contactName ?? null,
         requesterEmail: hqQueueRequesterEmail(ticket),
+        talentCode: talentCodes.get(ticket.id) ?? null,
       };
     });
   } catch (err) {
@@ -294,7 +400,12 @@ export async function loadHqTicketDetail(ticketId: string): Promise<{
       context: {
         tenantName: tenant?.display_name ?? tenant?.slug ?? null,
         tenantSlug: tenant?.slug ?? null,
-        planTier: tenant?.plan_tier ?? null,
+        planTier: ticketPlanTier({
+          tenantKind: tenant?.kind ?? null,
+          tenantPlan: tenant?.plan_tier ?? null,
+          talentPlanKey: (await hydrateTalentPlans(admin, [ticket])).get(ticket.id) ?? null,
+          hasTalent: Boolean(ticket.talentProfileId),
+        }),
         requesterName: profile?.display_name ?? ticket.contactName ?? null,
         requesterEmail:
           ticket.contactEmail ??

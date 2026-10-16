@@ -4,6 +4,8 @@
 // CollapsibleIdentityField + CountryAutocompleteInput (./profile-identity-fields)
 // and LockedHint inline.
 "use client";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { DateFormatHint } from "../../../primitives/DateFormatHint";
 import React, { useEffect, useRef, useState } from "react";
 import {
   COLORS,
@@ -250,6 +252,7 @@ export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lock
    *  separately; this is the safety floor for editing affordances. */
   disabled?: boolean;
 }) {
+  const dashLocale = useDashboardLocale();
   const copy = useDashboardText();
   const age = deriveAge(identity.dob);
   const ageRange = ageRangeFor(age);
@@ -432,6 +435,7 @@ export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lock
           onChange={(e) => onChange({ ...identity, dob: e.target.value || null })}
           style={inputStyle}
         />
+        <DateFormatHint locale={dashLocale} />
       </FieldRow>
 
       {age != null && (

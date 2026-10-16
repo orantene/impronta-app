@@ -18,6 +18,7 @@ import { resolveClientPageRead } from "../../_data-bridge/client-page-read";
 import { logServerError } from "@/lib/server/safe-error";
 import { resolveGoogleMapsKeyForClient } from "@/lib/integrations/resolve";
 import { DiscoverMapShell, type DiscoverMapTalent } from "./DiscoverMapShell";
+import { countryLabel } from "@/lib/geo/country-code";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -177,7 +178,7 @@ async function loadMappableTalents(): Promise<{
       profileCode: row.profile_code,
       primaryTypeLabel: primary?.taxonomy_terms?.name_i18n?.en ?? null,
       homeCity: row.home_city_text,
-      homeCountry: row.home_country_text,
+      homeCountry: countryLabel(row.home_country_text),
       agencyName: agencyRow?.display_name ?? null,
       isExclusive: !!primaryRoster?.is_primary,
       headshotUrl: photoByTalent.get(row.id) ?? null,

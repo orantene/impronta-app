@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
 import { StartFlow } from "@/components/onboarding/start-flow";
 import { defaultFlowLocale, flowLocaleFromPath } from "@/lib/onboarding/flow";
+import { parsePlanIntent } from "@/lib/onboarding/plan-intent";
 import { isOnboardingChoice } from "@/lib/onboarding/module-state";
 import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
 
@@ -22,7 +23,7 @@ export const metadata: Metadata = {
 export default async function StartPage({
   searchParams,
 }: {
-  searchParams: Promise<{ choice?: string; lang?: string; promo?: string }>;
+  searchParams: Promise<{ choice?: string; lang?: string; promo?: string; plan?: string; interval?: string }>;
 }) {
   if (!(await getOnboardingFlags()).onboarding_module_enabled) redirect("/get-started");
   const sp = await searchParams;
@@ -33,5 +34,5 @@ export default async function StartPage({
     country: h.get("x-vercel-ip-country"),
   });
   const choice = isOnboardingChoice(sp.choice) ? sp.choice : null;
-  return <StartFlow initialLocale={locale} startChoice={choice} />;
+  return <StartFlow initialLocale={locale} startChoice={choice} planIntent={parsePlanIntent(sp.plan, sp.interval)} />;
 }

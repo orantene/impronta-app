@@ -12,7 +12,12 @@ import {
   floatingBannerUp,
   floatingChromeBottomUsesMax,
   floatingChromeClearsHeroCtas,
+  floatingChromeClearsStickyBarFab,
+  floatingChromeReservesBarForIsland,
   floatingChromeYieldsToGuestChat,
+  HELP_BUBBLE_CHIP_CLEARANCE_PX,
+  HELP_BUBBLE_FILTER_BAND_RATIO,
+  helpBubbleFilterBandProtectsChips,
   helpBubbleFilterNavBlocking,
 } from "./floating-chrome-stack";
 
@@ -21,8 +26,12 @@ const root = join(process.cwd(), "src");
 describe("TUL-516 / TUL-528 floating chrome stack", () => {
   test("F1/F2: consent hides locale + chat launcher; reserves bottom for legal CTAs", () => {
     assert.match(FLOATING_CHROME_STACK_CSS, /body:has\(\[data-consent-banner\]\) \[data-locale-suggestion\]\{display:none\}/);
-    assert.match(FLOATING_CHROME_STACK_CSS, /body:has\(\[data-consent-banner\]\) \[data-guest-chat-launcher\]/);
-    assert.match(FLOATING_CHROME_STACK_CSS, /pointer-events:none/);
+    assert.match(FLOATING_CHROME_STACK_CSS, /body:has\(\[data-consent-banner\]\) \[data-guest-chat-launcher\]\{opacity:0;pointer-events:none\}/);
+    // visibility:hidden would drop the dock from the accessibility tree (W4-5).
+    assert.doesNotMatch(
+      FLOATING_CHROME_STACK_CSS,
+      /body:has\(\[data-consent-banner\]\) \[data-guest-chat-launcher\]\{[^}]*visibility:\s*hidden/,
+    );
     assert.match(FLOATING_CHROME_STACK_CSS, new RegExp(`--floating-consent-clearance:calc\\(${CONSENT_BANNER_RESERVE_PX}px`));
     assert.equal(FLOATING_CHROME_CONSENT_Z, 98);
   });
@@ -50,9 +59,21 @@ describe("TUL-516 / TUL-528 floating chrome stack", () => {
     assert.doesNotMatch(island, /\.cb-island\{padding-bottom:calc\(72px/);
   });
 
+  test("GRK-034: root stack reserves --cb-bar-h from SSR .cb-island before catalog CSS hydrates", () => {
+    assert.equal(floatingChromeReservesBarForIsland(FLOATING_CHROME_STACK_CSS), true);
+  });
+
   test("GRK-033: consent-open heroes pad CTAs above the cookie card", () => {
     assert.equal(floatingChromeClearsHeroCtas(FLOATING_CHROME_STACK_CSS), true);
     assert.match(FLOATING_CHROME_STACK_CSS, /site-bn-hero__inner\{padding-bottom:max\(/);
+    assert.match(
+      FLOATING_CHROME_STACK_CSS,
+      /#hero\.site-builder-node--split\{padding-top:1\.25rem!important/,
+    );
+    assert.match(
+      FLOATING_CHROME_STACK_CSS,
+      /#hero\.site-builder-node--split > :last-child\{display:none\}/,
+    );
   });
 
   test("GRK-039: consent yields to guest chat panel; shells mark data-guest-chat-panel", () => {
@@ -66,6 +87,17 @@ describe("TUL-516 / TUL-528 floating chrome stack", () => {
     }
   });
 
+  test("GRK-036: phone FAB clears sticky booking bar before JS yield", () => {
+    assert.equal(floatingChromeClearsStickyBarFab(FLOATING_CHROME_STACK_CSS), true);
+    assert.match(
+      FLOATING_CHROME_STACK_CSS,
+      /body:has\(\.cb-bar\[data-show="true"\]:not\(\[data-top="true"\]\)\) \[data-guest-chat-launcher\]/,
+    );
+    const yieldHook = readFileSync(join(root, "app/t/[profileCode]/_chat/use-yield-booking-bar.ts"), "utf8");
+    assert.match(yieldHook, /useLayoutEffect/);
+    assert.match(yieldHook, /BOOKING_BAR_CLEARANCE_PX = 24/);
+  });
+
   test("floatingBannerUp is true only for painted consent/locale nodes", () => {
     const dom = new JSDOM(`<div data-consent-banner></div>`);
     const el = dom.window.document.querySelector("[data-consent-banner]") as HTMLElement;
@@ -75,13 +107,23 @@ describe("TUL-516 / TUL-528 floating chrome stack", () => {
     assert.equal(floatingBannerUp(dom.window.document), false);
   });
 
-  test("F4: help teaser blocks when filter chips sit in the lower viewport band", () => {
-    const dom = new JSDOM(`<nav class="site-builder-node--services-catalog-nav"><button>Gel</button></nav>`);
+  test("F4 / GRK-038: help teaser blocks when filter chips sit in the lower viewport band", () => {
+    assert.equal(helpBubbleFilterBandProtectsChips(HELP_BUBBLE_FILTER_BAND_RATIO, HELP_BUBBLE_CHIP_CLEARANCE_PX), true);
+    const dom = new JSDOM(
+      `<nav class="site-builder-node--services-catalog-nav"><button class="site-builder-node--services-catalog-pill">Gel</button></nav>`,
+    );
     const nav = dom.window.document.querySelector(".site-builder-node--services-catalog-nav") as HTMLElement;
-    nav.getBoundingClientRect = () => ({ width: 300, height: 40, top: 500, bottom: 540, left: 0, right: 300 }) as DOMRect;
+    // Mid-lower row that 0.55 used to miss relative to the teaser (~y 500 on 844).
+    nav.getBoundingClientRect = () => ({ width: 300, height: 40, top: 360, bottom: 400, left: 0, right: 300 }) as DOMRect;
     assert.equal(helpBubbleFilterNavBlocking(dom.window.document, 844), true);
     nav.getBoundingClientRect = () => ({ width: 300, height: 40, top: 72, bottom: 112, left: 0, right: 300 }) as DOMRect;
     assert.equal(helpBubbleFilterNavBlocking(dom.window.document, 844), false);
+    // Pill alone in the FAB clearance zone.
+    const pill = dom.window.document.querySelector(".site-builder-node--services-catalog-pill") as HTMLElement;
+    nav.getBoundingClientRect = () => ({ width: 0, height: 0, top: 0, bottom: 0, left: 0, right: 0 }) as DOMRect;
+    pill.getBoundingClientRect = () =>
+      ({ width: 80, height: 36, top: 720, bottom: 756, left: 12, right: 92 }) as DOMRect;
+    assert.equal(helpBubbleFilterNavBlocking(dom.window.document, 844), true);
   });
 
   test("root layout mounts the stack styles; consent z-index is above the chat FAB", () => {
@@ -91,9 +133,46 @@ describe("TUL-516 / TUL-528 floating chrome stack", () => {
     assert.match(consent, /z-\[98\]|zIndex:\s*98|z-index:\s*98/);
   });
 
-  test("sticky bar measure never writes zero over the CSS default", () => {
+  test("sticky bar measure only tightens --cb-bar-h; never wipes the CSS default", () => {
     const hook = readFileSync(join(root, "lib/site-admin/builder-node/use-sticky-bar-visible.ts"), "utf8");
     assert.match(hook, /if \(reserve > 0\) root\.style\.setProperty\("--cb-bar-h"/);
-    assert.match(hook, /else root\.style\.removeProperty\("--cb-bar-h"\)/);
+    assert.doesNotMatch(hook, /else root\.style\.removeProperty\("--cb-bar-h"\)/);
   });
+
+  test("GRK-037: phone catalog + footer keep a right gutter clear of Hablar", () => {
+    assert.match(FLOATING_CHROME_STACK_CSS, /--floating-launcher-gutter:calc\(72px/);
+    assert.match(FLOATING_CHROME_STACK_CSS, /site-builder-node--services-catalog-groups/);
+    assert.match(FLOATING_CHROME_STACK_CSS, /sb-statement-footer-meta/);
+    assert.match(FLOATING_CHROME_STACK_CSS, /padding-inline-end:max\(12px,var\(--floating-launcher-gutter\)\)/);
+  });
+});
+
+test("TUL-799: the demo badge yields while the help bubble is up, so the two never overlap", () => {
+  assert.match(FLOATING_CHROME_STACK_CSS, /body:has\(\[data-help-bubble\]\) \[data-demo-badge\]\{display:none\}/);
+});
+
+test("TUL-931: the open booking sheet hides the chat FAB and help teaser", () => {
+  assert.ok(FLOATING_CHROME_STACK_CSS.includes("body:has(.jb-back) [data-guest-chat-launcher],body:has(.jb-back) [data-help-bubble]{display:none!important}"));
+});
+
+test("TUL-697: an open public-header mobile drawer hides chat FAB, help teaser, demo badge and locale toast", () => {
+  const m = "body:has([data-public-header-menu])";
+  for (const target of ["[data-guest-chat-launcher]", "[data-help-bubble]", "[data-demo-badge]", "[data-locale-suggestion]"]) {
+    assert.ok(FLOATING_CHROME_STACK_CSS.includes(`${m} ${target}`), target);
+  }
+});
+
+// TUL-799: while the sticky booking bar is painted the phone launcher floats ABOVE the
+// bar (bar height + 24px), so the reserved bottom clearance must grow with it or the
+// bubble sits over the last footer links ("Términos").
+test("TUL-799: bar-up phone clearance covers the launcher lifted above the bar", () => {
+  const css = FLOATING_CHROME_STACK_CSS;
+  const m = css.match(
+    /@media \(max-width:719px\)\{body:has\(\[data-guest-chat-launcher\]\):has\(\.cb-bar\[data-show="true"\]:not\(\[data-top="true"\]\),\.mn-bar\[data-show="true"\]\)\{--floating-launcher-clearance:calc\(var\(--cb-bar-h\) \+ (\d+)px \+ (\d+)px \+ (\d+)px\)\}\}/,
+  );
+  assert.ok(m, "bar-up clearance rule missing");
+  // 24 (launcher offset above the bar) + 52 (launcher) + 12 (gap)
+  assert.deepEqual(m.slice(1).map(Number), [24, 52, 12]);
+  // Must come after the base ≤480 launcher clearance so it wins.
+  assert.ok(css.indexOf(m[0]) > css.indexOf("--floating-launcher-clearance:calc(") );
 });

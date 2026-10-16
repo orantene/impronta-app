@@ -55,4 +55,11 @@ describe("dashboard skip link (TUL-278)", () => {
     assert.match(shell, /#tulala-talent-content/);
     assert.match(shell, /#tulala-workspace-content/);
   });
+
+  it("TUL-1071: the surface router wrapper is not a second main landmark", () => {
+    const router = read("components/admin/shell/internal/page-modules/SurfaceRouter.tsx");
+    assert.doesNotMatch(router, /<main[\s>]/);
+    assert.match(router, /<div id="tulala-main" role="group"/);
+    assert.equal((read("components/admin/shell/internal/talent.tsx").match(/<main[\s>]/g) ?? []).length, 1);
+  });
 });

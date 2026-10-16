@@ -1,3 +1,4 @@
+import { SignOutForm } from "@/components/auth/SignOutForm";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { LogOut, Search, UserRound } from "lucide-react";
@@ -29,7 +30,8 @@ import { getFavoriteTalentIds, getSavedTalentIds } from "@/lib/public-discovery"
 import { getPublicCmsNavigationLinks } from "@/lib/cms/public-navigation";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getPublicHostContext } from "@/lib/saas";
-import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
+import { loadPublicBranding, loadPublicIdentity, loadWorkspaceOwnName } from "@/lib/site-admin/server/reads";
+import { resolvePublicBrandName } from "@/lib/site-admin/server/public-brand";
 import { loadTenantWords } from "@/lib/words/server";
 import { resolveHeaderVerbDestination } from "@/lib/words/verb-destination.server";
 import {
@@ -46,6 +48,13 @@ import {
   PublishedShellHeader,
   shouldRenderSnapshotShell,
 } from "@/components/site-shell/PublishedShell";
+import { resolveWorkspaceType } from "@/lib/saas/assert-roster-workspace";
+import { rosterEnabled } from "@/lib/saas/workspace-type";
+import {
+  directoryOrBookHref,
+  filterNavItemsForRoster,
+  resolveRosterSafeHref,
+} from "@/lib/site-admin/sections/site_header/directory-nav-href";
 
 // C2 — Build role-specific dashboard nav links for the mobile menu.
 // Paths are absolute (no tenant slug) — the middleware/routing layer maps
@@ -183,19 +192,32 @@ export async function PublicHeader() {
     getSavedTalentIds(),
     getFavoriteTalentIds(),
   ]);
+  // TUL-505: business / studio / both workspaces 404 on `/directory`
+  // (assertRosterWorkspace). Marketing hosts keep the global directory.
+  // Agency/hub tenants resolve workspace_type once and rewrite search + nav.
+  const hasRoster = tenantIdForIdentity
+    ? rosterEnabled(await resolveWorkspaceType(tenantIdForIdentity))
+    : true;
+  const directorySearchHref = directoryOrBookHref(hasRoster);
   const cmsHeaderLinksRaw = await getPublicCmsNavigationLinks(locale, "header");
-  const cmsHeaderLinks = cmsHeaderLinksRaw.map((link) => ({
-    ...link,
-    href: headerHref(link.href),
-  }));
+  const cmsHeaderLinks = filterNavItemsForRoster(cmsHeaderLinksRaw, hasRoster).map(
+    (link) => ({
+      ...link,
+      href: headerHref(resolveRosterSafeHref(link.href, hasRoster, directorySearchHref)),
+    }),
+  );
 
-  const [identity, branding] = tenantIdForIdentity
+  const [identity, branding, workspaceName] = tenantIdForIdentity
     ? await Promise.all([
         loadPublicIdentity(tenantIdForIdentity),
         loadPublicBranding(tenantIdForIdentity),
+        loadWorkspaceOwnName(tenantIdForIdentity),
       ])
-    : [null, null];
-  const brandLabel = identity?.public_name?.trim() || PLATFORM_BRAND.name;
+    : [null, null, null];
+  // TUL-710: identity name, else the workspace's own name; the platform brand
+  // is only for hosts that have no tenant at all.
+  const brandLabel =
+    resolvePublicBrandName(identity?.public_name, workspaceName) ?? PLATFORM_BRAND.name;
 
   // Re-sanitize at render time — defense in depth. The admin path already
   // sanitized at save, but render-side sanitize is cheap and guarantees we
@@ -326,7 +348,10 @@ export async function PublicHeader() {
     presetVerb && presetVerbLabel && tenantIdForIdentity
       ? await resolveHeaderVerbDestination(tenantIdForIdentity, presetVerb.preset.headerVerb)
       : null;
-  const ctaHref = explicitCtaHref || presetVerbHref;
+  const ctaHrefRaw = explicitCtaHref || presetVerbHref;
+  const ctaHref = ctaHrefRaw
+    ? resolveRosterSafeHref(ctaHrefRaw, hasRoster, directorySearchHref)
+    : null;
 
   // AN UNBRANDED TENANT MUST NEVER RENDER AN UNREADABLE CTA.
   //
@@ -533,7 +558,7 @@ export async function PublicHeader() {
           ) : null}
           <Button variant="ghost" size="icon" className="shrink-0" asChild>
             <Link
-              href={headerHref("/directory")}
+              href={headerHref(directorySearchHref)}
               aria-label={t("public.header.searchTalentAria")}
             >
               <Search className="size-5" />
@@ -690,7 +715,7 @@ export async function PublicHeader() {
                   signOutAction={signOut}
                 />
               )}
-              <form action={signOut} className="ml-0.5">
+              <SignOutForm className="ml-0.5">
                 <Button
                   type="submit"
                   variant="ghost"
@@ -700,7 +725,7 @@ export async function PublicHeader() {
                 >
                   <LogOut className="size-5" />
                 </Button>
-              </form>
+              </SignOutForm>
             </>
           ) : (
             <Button size="icon" variant="ghost" className="shrink-0" asChild>

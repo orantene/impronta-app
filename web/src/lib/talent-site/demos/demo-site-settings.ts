@@ -34,6 +34,8 @@ export const DEMO_SITE_SETTINGS: Readonly<Record<string, DemoSiteSettings>> = {
   "TAL-93020": base({ siteLangs: ["es"], bookingMode: "instant", currency: "MXN" }),
   "TAL-93003": base({ siteLangs: ["es"], bookingMode: "instant", currency: "MXN" }),
   "TAL-93002": base({ siteLangs: ["es", "en"], bookingMode: "mixed", currency: "MXN", chatEnabled: true }),
+  // Valeria (GRK-068): bookings paused — public copy must not say "Puedes reservar"
+  "TAL-93001": base({ siteLangs: ["es"], bookingMode: "quote", currency: "MXN", acceptingBookings: false }),
   // Linh: request-only, chat off (shows a quieter rail)
   "TAL-93103": base({
     siteLangs: ["en"],
@@ -86,6 +88,7 @@ export function demoSiteSwitchColumns(profileCode: string): {
     greeting: string | null;
     browseServices: boolean;
     aiBookingAssistantEnabled: boolean;
+    agentBookingEnabled: boolean;
   };
 } {
   const s = demoSiteSettingsFor(profileCode);
@@ -97,6 +100,7 @@ export function demoSiteSwitchColumns(profileCode: string): {
       greeting: s.chatConfig.greeting,
       browseServices: s.chatConfig.browseServices,
       aiBookingAssistantEnabled: s.chatConfig.aiBookingAssistantEnabled,
+      agentBookingEnabled: s.chatConfig.agentBookingEnabled,
     },
   };
 }

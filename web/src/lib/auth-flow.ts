@@ -147,6 +147,10 @@ export function isPostAuthNextAllowedForActiveUser(
   if (appRole === "client" && tenantScopedSurface === "client") {
     return true;
   }
+  // G11: the host client area (/account) is a client home too.
+  if (appRole === "client" && (path === "/account" || path.startsWith("/account/"))) {
+    return true;
+  }
 
   return path === dashboardBase || path.startsWith(`${dashboardBase}/`);
 }
@@ -332,6 +336,15 @@ export function resolveAuthenticatedDestination(
   return dashboardPathForRole(profile.app_role);
 }
 
+/**
+ * Where a signed-in visitor lands after auth. CLIENT rule (TUL-782, PM 2026-10-15), one rule:
+ *   - a safe same-origin `next` that is the client's own home (`/account...`, `/client...`,
+ *     `/<slug>/client...`) is honored;
+ *   - anything else (no `next`, an absolute or protocol-relative URL, another role's area)
+ *     goes to `/client`.
+ * That is why two clients can land differently: one arrived with `next=/account`, the other
+ * with no `next`. Pinned by `auth-flow-client-landing.test.ts`.
+ */
 export function resolvePostAuthDestination(
   profile: AccessProfile | null | undefined,
   nextPath: string | null | undefined,
