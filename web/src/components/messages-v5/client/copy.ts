@@ -18,6 +18,10 @@ export function buildClientCopy(t: Translator) {
       handling: t("dashboard.messagesV5.client.link.header.handling"),
       handlingTeam: t("dashboard.messagesV5.client.link.header.handlingTeam"),
     },
+    offerBanner: {
+      hint: t("dashboard.messagesV5.client.link.offerBanner.hint"),
+      cta: t("dashboard.messagesV5.client.link.offerBanner.cta"),
+    },
     stream: {
       you: t("dashboard.messagesV5.client.link.stream.you"),
       today: t("dashboard.messagesV5.client.link.stream.today"),

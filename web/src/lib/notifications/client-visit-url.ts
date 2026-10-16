@@ -56,6 +56,20 @@ export function clientManageUrl(
 }
 
 /**
+ * The "your offer is ready" email's button (TUL-954). A guest has no account, so the old
+ * `/client/inquiries/<id>?tab=offer` link sent them to a sign-in wall. When the conversation is
+ * known the link is the signed thread page with `?focus=offer`, which opens with no account and
+ * scrolls to the offer; otherwise the legacy path is returned untouched.
+ */
+export function clientOfferUrl(brand: EmailBrand, legacyPath: string, ctx: ClientManageContext = {}): string {
+  if (ctx.inquiryId && ctx.tenantId) {
+    const token = signThreadToken(ctx.inquiryId, ctx.tenantId);
+    if (token) return `${pageUrl(brand, publicThreadPath(token))}?focus=offer`;
+  }
+  return pageUrl(brand, legacyPath);
+}
+
+/**
  * "Save your bookings" link for a guest's email footer: the existing client
  * sign-in, back to `/account`. The marketing apex sends the guest to the app host.
  */

@@ -19800,6 +19800,10 @@
             "handling": "{name} is handling your request",
             "handlingTeam": "The team is handling your request"
           },
+          "offerBanner": {
+            "hint": "You have an offer to review",
+            "cta": "View offer"
+          },
           "stream": {
             "you": "You",
             "today": "Today",
