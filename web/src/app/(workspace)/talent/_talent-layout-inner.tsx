@@ -6,6 +6,7 @@
 
 import { notFound, redirect } from "next/navigation";
 import { cookies, headers } from "next/headers";
+import { LocaleSeedHardRedirect } from "@/components/admin/shell/locale-seed-hard-redirect";
 
 import { TULALA_BRAND } from "@/lib/brand/tulala";
 import {
@@ -261,7 +262,13 @@ export async function TalentLayoutInner({
       primary: early.seedPrimary,
     });
     if (seedPlan.locale || seedPlan.stamp) {
-      redirect(talentLocaleSeedHref(`${pathname}${hdrs.get(ORIGINAL_SEARCH_HEADER) ?? ""}`));
+      // A HARD navigation, not redirect(): a layout redirect() to a Route Handler inside
+      // a client-router navigation can loop the router (TUL-1182, fixed for admin in #3898).
+      return (
+        <LocaleSeedHardRedirect
+          href={talentLocaleSeedHref(`${pathname}${hdrs.get(ORIGINAL_SEARCH_HEADER) ?? ""}`)}
+        />
+      );
     }
   }
 

@@ -22,6 +22,7 @@ import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import { loadTalentLocaleState } from "@/lib/site-admin/server/talent-locale-settings";
 import {
   safeTalentNextPath,
+  seedAttemptCookieSecure,
   TALENT_LOCALE_SEED_ATTEMPT_COOKIE,
   TALENT_LOCALE_SEED_ATTEMPT_MAX_AGE_SECONDS,
   talentLocaleSeedPlan,
@@ -38,7 +39,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     maxAge: TALENT_LOCALE_SEED_ATTEMPT_MAX_AGE_SECONDS,
     sameSite: "lax",
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: seedAttemptCookieSecure({
+      protocol: request.nextUrl.protocol,
+      forwardedProto: request.headers.get("x-forwarded-proto"),
+    }),
   });
 
   const scope = await requireTalentSelf();
