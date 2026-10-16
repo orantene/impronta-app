@@ -1,4 +1,4 @@
-import { isStablecoinPayoutCountry } from "./payout-countries";
+import { isStablecoinPayoutCountry, usdcPayoutsEnabled } from "./payout-countries";
 
 /**
  * Countries where we lead with USDC and put the bank option second. Argentina
@@ -16,7 +16,9 @@ export type UsdcPayoutOffer = {
 
 /** Pure: ISO-2 country -> how the payout setup should present USDC. */
 export function usdcPayoutOffer(iso2: string | null | undefined): UsdcPayoutOffer {
-  const eligible = isStablecoinPayoutCountry(iso2);
+  // TUL-1052: Connect stablecoin payouts are a private preview, not enabled for
+  // us. With NEXT_PUBLIC_USDC_PAYOUTS off nothing offers USDC.
+  const eligible = usdcPayoutsEnabled() && isStablecoinPayoutCountry(iso2);
   const recommended =
     eligible && USDC_RECOMMENDED_COUNTRIES.has((iso2 ?? "").trim().toUpperCase());
   return { eligible, recommended };
