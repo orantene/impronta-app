@@ -129,6 +129,7 @@ export function CatalogBookingSheet({
   const [liveDays, setLiveDays] = useState<Array<{ key: string; date: Date; starts: string[] }>>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsReady, setSlotsReady] = useState(false);
+  const [liveReason, setLiveReason] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -292,6 +293,7 @@ export function CatalogBookingSheet({
         if (cancelled) return;
         setLiveTz(r.timezone);
         setLivePlaceCity(r.placeCity?.trim() || null);
+        setLiveReason(r.reason ?? null);
         // TUL-531: continuous 30-day strip (empty days kept); fromYmd falls back to the first slot day.
         const fromYmd =
           r.fromYmd ?? r.slots.map((s) => s.slice(0, 10)).sort()[0] ?? new Date().toISOString().slice(0, 10);
@@ -647,6 +649,7 @@ export function CatalogBookingSheet({
                   liveStarts={liveStarts}
                   liveTz={liveTz}
                   placeCity={livePlaceCity}
+                  emptyReason={liveReason}
                   timeGroupLabel={timeGroupLabel}
                   emptyConsultButton={emptyConsultButton}
                   takenNotice={takenNotice}

@@ -85,6 +85,7 @@ export function CatalogLiveWhenPicker({
   liveStarts,
   liveTz,
   placeCity,
+  emptyReason = null,
   timeGroupLabel,
   emptyConsultButton,
   takenNotice,
@@ -98,6 +99,8 @@ export function CatalogLiveWhenPicker({
   liveStarts: string | null;
   liveTz: string;
   placeCity?: string | null;
+  /** Why the slots API returned nothing (`no_booking_hours`, `fully_booked`). */
+  emptyReason?: string | null;
   timeGroupLabel: string;
   emptyConsultButton: ReactNode;
   takenNotice: CatalogTakenSlotNotice | null;
@@ -106,7 +109,7 @@ export function CatalogLiveWhenPicker({
   onPickStart: (iso: string, label: string, dayIndex?: number) => void;
 }) {
   const liveTimes = liveDays[dayIndex]?.starts ?? [];
-  const emptyCopy = catalogEmptyWhenCopy(es, liveDays.some((d) => d.starts.length > 0));
+  const emptyCopy = catalogEmptyWhenCopy(es, liveDays.some((d) => d.starts.length > 0), emptyReason);
   const stripRef = useScrollSelectedDayIntoView(dayIndex, liveDays.length);
   const nextFree = nextDayWithSlotsIndex(liveDays, dayIndex);
   const jumpToNextFree = () => {
