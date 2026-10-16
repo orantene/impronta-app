@@ -4,8 +4,8 @@
  * The page is `force-dynamic`, so on a client navigation nothing painted in
  * the content area until the whole server render finished ("slow first
  * click"). This boundary paints the page's own shape (heading, segments, one
- * list card) the moment the click lands. It reads no data, takes no params and
- * does not speed up the server; the layout's own fan-out is TUL-722.
+ * list card) the moment the click lands. It reads no data, takes no route
+ * arguments and does not speed up the server; the layout's own fan-out is TUL-722.
  */
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
