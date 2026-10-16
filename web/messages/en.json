@@ -97,6 +97,7 @@
         "inviteSubmit": "Create account & claim profile",
         "pending": "Creating account…",
         "passwordHint": "At least 8 characters.",
+        "passwordConfirmNote": "After you sign up, your first sign-in needs a one-time code we email you.",
         "haveAccount": "Already have an account?",
         "logIn": "Log in",
         "eyebrow": "Get started",
@@ -217,6 +218,7 @@
         "changeEmail": "Use a different email",
         "usePassword": "Use a password instead",
         "useCode": "Email me a code",
+        "backToCode": "Back to the code",
         "errors": {
           "codeRequired": "Enter the code from your email.",
           "codeInvalid": "That code did not work. Check the digits, or send a new code.",
@@ -1150,6 +1152,7 @@
       "sendHub": "Send",
       "sendHubNoPayment": "No payment now. We'll route your inquiry to the right people.",
       "sendHubSent": "Sent. {brand} will route your inquiry to the right people.",
+      "sendSoloSent": "Sent. {brand} will reply here shortly.",
       "hubConciergeName": "{brand} Concierge",
       "hubConciergeGreeting": "Tell us about your event and we'll line up the right talent from across our network.",
       "syncSaving": "Saving…",
@@ -1232,7 +1235,7 @@
       "dockLineupUnsaveAria": "Remove {name} from saved",
       "dockLineupShelfInquiry": "In your inquiry",
       "dockLineupShelfSaved": "Saved",
-      "dockLineupEmptyInquiry": "No talent in your inquiry yet. Move someone over from Saved, or browse the directory.",
+      "dockLineupEmptyInquiry": "Nothing in your inquiry yet. Move something over from Saved, or pick from the list.",
       "dockLineupEmptySaved": "Nothing saved yet. Save talent you like and they will appear here.",
       "dockLineupMoveToInquiry": "Move to inquiry",
       "dockLineupInInquiry": "In inquiry",
@@ -2167,6 +2170,15 @@
         "nextTalentShare": "Share your link",
         "viewMyWebsite": "View my website",
         "customizeInBuilder": "Customize in builder",
+        "draftTitlePublished": "Your site is published",
+        "draftSubPublished": "It is saved and published. We are confirming it opens online; this usually takes a few seconds.",
+        "checkAgain": "Check again",
+        "draftWhy": {
+          "publishedNotReachable": "Why: your address is not answering yet. Tap Check again in a few seconds.",
+          "notReachable": "Why: your page did not answer when we opened it. Tap Try again.",
+          "oldContent": "Why: your address still shows older content. Tap Try again in a few seconds.",
+          "notCreated": "Why: we could not create your address. Open the editor to finish it."
+        },
         "draftTitle": "Your draft is saved",
         "draftReason": "Your page did not go online on this try. This is usually temporary and nothing you entered is lost. Try again first.",
         "draftDetails": "Details for support",
@@ -2174,6 +2186,7 @@
         "draftSubStudio": "Everything you told us is saved, but your site does not open online yet. Try again or open it in the editor.",
         "openEditor": "Open the editor",
         "goToPanel": "Go to my dashboard",
+        "finishUpgrade": "Finish upgrading to {plan}",
         "openMyPanel": "Open my panel",
         "bookPreview": "Book",
         "bookingsStartStudio": "Bookings start when you add a provider.",
@@ -2345,7 +2358,11 @@
       "logOut": "Log out",
       "langEn": "English",
       "langEs": "Spanish",
-      "fieldEmail": "Email"
+      "fieldEmail": "Email",
+      "namePromptTitle": "Add your name",
+      "namePromptBody": "Your name is showing as part of your email. Add your real name so bookings and messages feel personal.",
+      "namePromptSave": "Save name",
+      "namePromptDismiss": "Dismiss"
     },
     "clientAccount": {
       "signIn": "Sign in",
@@ -2397,9 +2414,28 @@
       "appleOpening": "Opening Apple…",
       "appleFailed": "Apple didn't finish. Try again or use your email.",
       "applePopupBlocked": "Pop-up blocked. Allow pop-ups for this site and try again."
+    },
+    "pricingInterval": {
+      "groupLabel": "Billing period",
+      "monthly": "Monthly",
+      "yearly": "Yearly",
+      "saveUpTo": "Save up to {pct}%",
+      "savePct": "Save {pct}%",
+      "perMonth": "per month",
+      "billedYearly": "{amount} billed yearly",
+      "billedMonthly": "Billed monthly",
+      "popular": "Most popular"
     }
   },
   "dashboard": {
+    "promoCode": {
+      "toggle": "Have a code?",
+      "label": "Promo code",
+      "placeholder": "Enter code",
+      "apply": "Apply",
+      "checking": "Checking...",
+      "remove": "Remove"
+    },
     "enums": {
       "servicePricing": {
         "hour": "Per hour",
@@ -11104,6 +11140,15 @@
           "hub": "Cross-agency discovery",
           "multiagency": "Operate multiple brands"
         }
+      },
+      "planChange": {
+        "loading": "Checking the price...",
+        "payToday": "You pay {amount} today. {plan} starts now.",
+        "changesOn": "Your plan changes to {plan} on {date}. Nothing is charged today.",
+        "cancelPending": "Keep your current plan and cancel the change you scheduled.",
+        "noChange": "You are already on this plan.",
+        "confirm": "Confirm change",
+        "cancel": "Not now"
       }
     },
     "adminIntegrationsCatalog": {
@@ -13753,9 +13798,11 @@
       "markResolved": "Mark resolved",
       "keepItOpen": "Keep it open",
       "handoffTitle": "Your ticket is with {agent}",
-      "handoffBody": "You will get a notification and an email when he replies. You can keep writing here in the meantime.",
+      "handoffBody": "You will get a notification and an email when they reply. You can keep writing here in the meantime.",
       "handoffHq": "Escalated to you",
       "humanReplyEta": "{agent} will reply, typically within a few hours",
+      "ticketReceipt": "Ticket #{number} received. {agent} will reply, typically within a few hours.",
+      "humanHandling": "A person is handling this",
       "aiHandling": "AI is helping, a human is one tap away",
       "statusClosed": "Closed",
       "thinking1": "Reading your question",
@@ -20997,6 +21044,11 @@
       "planPriceWebsite": "$12/mo",
       "billing": {
         "redirecting": "Redirecting…",
+        "pastDueTitle": "Payment failed.",
+        "pastDueGraceBody": "Your payment didn't go through. Paid features stay on for {days} more day(s). Update your card to keep them.",
+        "pastDueExpiredBody": "Your payment didn't go through and your plan is paused. Your content is safe. Restore your plan to get paid features back.",
+        "updateCard": "Update your card",
+        "restorePlan": "Restore plan",
         "openingPortal": "Opening portal…",
         "manageSubscription": "Manage subscription →",
         "statusActive": "Active",

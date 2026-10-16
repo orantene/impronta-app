@@ -19,13 +19,14 @@ import {
   PlanChip,
   StatusChip,
   EntityChip,
-  PLAN_TIER_LABEL_KEY,
+  catalogPlanLabel,
   WORKSPACE_STATUS_LABEL_KEY,
 } from "./hq-kit";
 import { TenantSectionStack } from "./tenant-sections";
 import { actionGetTenantManagementDetail } from "./actions";
 import type { TenantManagementDetail } from "../../tenant-management-data";
 import { useT } from "@/i18n/use-t";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 
 export function TenantDrawer({
   tenantId,
@@ -38,6 +39,7 @@ export function TenantDrawer({
   onChanged?: (tenantId: string) => void;
 }) {
   const t = useT();
+  const locale = useDashboardLocale();
   const router = useRouter();
   const [detail, setDetail] = useState<TenantManagementDetail | null>(null);
   const [loading, setLoading] = useState(false);
@@ -185,7 +187,7 @@ export function TenantDrawer({
               >
                 <PlanChip
                   plan={detail.plan}
-                  label={PLAN_TIER_LABEL_KEY[detail.plan] ? t(PLAN_TIER_LABEL_KEY[detail.plan]) : undefined}
+                  label={catalogPlanLabel(locale, detail.plan)}
                 />
                 <StatusChip
                   status={detail.status}

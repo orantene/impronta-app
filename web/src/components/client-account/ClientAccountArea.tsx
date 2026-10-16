@@ -4,7 +4,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
 import { visitZone } from "@/lib/client-account/visit-zone";
-import { ACCOUNT_TABS, formatZonedWhen, type AccountTab, type AccountView } from "@/lib/client-account/area-pure";
+import { ACCOUNT_TABS, formatZonedWhen, needsRealName, type AccountTab, type AccountView } from "@/lib/client-account/area-pure";
 import type { ReceiptDetail, ReceiptRow, ThreadMessage, ThreadRow, VisitDetail } from "@/lib/client-account/area-data.server";
 import type { MeItem } from "@/lib/me/shape-me";
 import { formatOrderMoney } from "@/lib/orders/money-format";
@@ -12,7 +12,7 @@ import type { AccountSummary } from "@/lib/client-account/pure";
 import { payMyBookingForm } from "@/lib/client-account/booking-actions";
 
 import { ClientAccountButton } from "./ClientAccountButton";
-import { LogOutButton, SessionSyncListener, SettingsForm, ThreadReply, VisitActions, type VisitActionsCopy } from "./AccountClientIslands";
+import { LogOutButton, NamePrompt, SessionSyncListener, SettingsForm, ThreadReply, VisitActions, type VisitActionsCopy } from "./AccountClientIslands";
 import { btnPrimary } from "./account-button-styles";
 
 const INK = "var(--token-color-ink, #111)";
@@ -71,6 +71,12 @@ export function ClientAccountArea(props: Props) {
         </div>
         {props.audience === "client" ? <SessionSyncListener /> : null}
         <h1 style={{ ...heading, fontSize: 28, marginTop: 4 }}>{a("title")}</h1>
+        {props.audience === "client" && props.data.profile && needsRealName(props.data.profile.name, props.email) ? (
+          <NamePrompt
+            profile={props.data.profile}
+            copy={{ title: a("namePromptTitle"), body: a("namePromptBody"), label: a("fieldName"), save: a("namePromptSave"), dismiss: a("namePromptDismiss"), error: a("errGeneric") }}
+          />
+        ) : null}
         {children}
       </div>
     </main>

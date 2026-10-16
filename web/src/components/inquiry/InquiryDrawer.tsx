@@ -23,6 +23,7 @@
 import { useState, useEffect, useRef, useTransition, useMemo, useCallback } from "react";
 import { useActionState } from "react";
 import Image from "next/image";
+import { useRefreshOnClose } from "./use-refresh-on-close";
 import {
   type InquiryIntent,
   type InquirySource,
@@ -142,9 +143,10 @@ export function InquiryDrawer({
   talentToolsSlot,
   representsPeople,
   bookableOffering = null, followUpOnSite = false,
-  onClose,
+  onClose: onCloseProp,
 }: InquiryDrawerProps) {
   const t = useT();
+  const [onClose, noteSubmitted] = useRefreshOnClose(onCloseProp); // TUL-966
   // ─ Body scroll lock + ESC ──────────────────────────────────────────────────
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -232,6 +234,7 @@ export function InquiryDrawer({
     FormData
   >(submitInquiryNowAction, { kind: "idle" });
   const submitted = submitState.kind === "submitted";
+  useEffect(() => noteSubmitted(submitted), [noteSubmitted, submitted]);
   const sentKeys = sentCopyKeys(soloTalentName);
   const sentVars = { agency: agencyName, talent: soloTalentName ?? agencyName };
 

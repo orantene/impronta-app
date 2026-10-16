@@ -15,6 +15,7 @@
 import { useEffect, useState } from "react";
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 import { formatOfferingPrice } from "@/lib/talent/offerings-types";
+import { catalogPurchaseTotalLabel } from "./catalog-booking-price";
 import { QUANTITY_UNITS } from "@/lib/talent/offerings-offer";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { GuestInstantContact } from "@/components/public-booking/GuestInstantContact";
@@ -124,14 +125,7 @@ export function CatalogPurchaseMount({
       ? Math.max(0, listCents - promo.promoShownDiscountCents)
       : listCents;
   const collectCents = catalogCollectNowCents(totalCents, d.reserveMode, d.depositPct);
-  const price =
-    totalCents == null
-      ? ""
-      : totalCents <= 0
-        ? locale.toLowerCase().startsWith("es")
-          ? "Consultar"
-          : "Ask"
-        : formatOfferingPrice(totalCents, d.currency, locale);
+  const price = catalogPurchaseTotalLabel(listCents, totalCents, locale, (c) => formatOfferingPrice(c, d.currency, locale));
   const collectPrice =
     collectCents != null && collectCents > 0
       ? formatOfferingPrice(collectCents, d.currency, locale)

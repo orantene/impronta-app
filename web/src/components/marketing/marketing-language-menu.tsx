@@ -94,7 +94,8 @@ export function MarketingLanguageMenu({
     <div ref={ref} className={cn("relative", className)}>
       <button
         type="button"
-        aria-label={label}
+        // The visible text is the active locale code, so the name starts with it (WCAG 2.5.3, TUL-1084).
+        aria-label={`${activeLocale.toUpperCase()} ${label}`}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}

@@ -7,9 +7,11 @@ import { useCallback, useState } from "react";
 import type { FlowLocale } from "@/lib/onboarding/flow";
 import type { OnboardingChoice } from "@/lib/onboarding/module-state";
 
+import type { PlanIntent } from "@/lib/onboarding/plan-intent";
+
 import { OnboardingModule } from "./onboarding-module";
 
-export function StartFlow({ initialLocale, startChoice }: { initialLocale: FlowLocale; startChoice: OnboardingChoice | null }) {
+export function StartFlow({ initialLocale, startChoice, planIntent = null }: { initialLocale: FlowLocale; startChoice: OnboardingChoice | null; planIntent?: PlanIntent | null }) {
   const [locale, setLocale] = useState<FlowLocale>(initialLocale);
   const onLocaleChange = useCallback((next: FlowLocale) => {
     setLocale(next);
@@ -27,6 +29,7 @@ export function StartFlow({ initialLocale, startChoice }: { initialLocale: FlowL
       locale={locale}
       intent="unknown"
       startChoice={startChoice}
+      planIntent={planIntent}
       onLocaleChange={onLocaleChange}
       onClose={() => {
         if (window.history.length > 1) window.history.back();
