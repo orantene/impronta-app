@@ -312,7 +312,7 @@ export function VoiceRecorderButton({
               style={{ height: 30, maxWidth: 170 }}
             />
           )}
-          <span style={{ fontSize: 11, color: "rgba(11,11,13,0.55)", fontVariantNumeric: "tabular-nums" }}>
+          <span style={{ fontSize: 11, color: "rgba(11,11,13,0.6)", fontVariantNumeric: "tabular-nums" }}>
             {fmtElapsed(durationMs)}
           </span>
           <button

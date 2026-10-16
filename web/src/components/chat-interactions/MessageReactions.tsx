@@ -111,7 +111,7 @@ export function ReactionPicker({
           background: "rgba(11,11,13,0.04)",
           cursor: "pointer",
           borderRadius: 999,
-          color: "rgba(11,11,13,0.55)",
+          color: "rgba(11,11,13,0.6)",
           fontSize: 16, fontWeight: 700,
         }}
       >+</button>
@@ -192,7 +192,7 @@ export function ReactTriggerButton({
         cursor: "pointer",
         borderRadius: 999,
         display: "inline-flex", alignItems: "center", justifyContent: "center",
-        color: "rgba(11,11,13,0.55)",
+        color: "rgba(11,11,13,0.6)",
         boxShadow: "0 2px 8px rgba(11,11,13,0.06)",
       }}
     >

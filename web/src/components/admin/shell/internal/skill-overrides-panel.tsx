@@ -53,7 +53,7 @@ type SkillRow = {
 const T = {
   ink: "#0B0B0D",
   inkMuted: "#5A5A60",
-  inkDim: "rgba(11,11,13,0.38)",
+  inkDim: "rgba(11,11,13,0.6)",
   surface: "#FFFFFF",
   surfaceAlt: "#F4F2EB",
   surfaceWarm: "#F9F7F1",

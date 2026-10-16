@@ -9,7 +9,7 @@ const CHIP: Record<ChipTone, string> = {
   info: "bg-[rgba(91,107,160,0.10)] text-[#5B6BA0]",
   warn: "bg-[rgba(82,96,109,0.10)] text-[#52606D]",
   risk: "bg-[rgba(176,48,58,0.10)] text-[#B0303A]",
-  idle: "bg-[rgba(11,11,13,0.05)] text-[rgba(11,11,13,0.55)]",
+  idle: "bg-[rgba(11,11,13,0.05)] text-[rgba(11,11,13,0.6)]",
   brand: "bg-admin-brand-soft text-admin-brand",
 };
 

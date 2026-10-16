@@ -1,6 +1,8 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { randomUUID } from "node:crypto";
+
 import { headers } from "next/headers";
 
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -21,7 +23,15 @@ import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 import { loadTalentPublicSiteByProfileCode } from "@/lib/talent-site/server/public-load";
 
 import { type AgentService, toAgentServices } from "./catalog";
-import { agentBookingRefusal, agentCatalogScope, agentHandoffUrl, agentOpenTimesView, AGENT_HANDOFF_TTL_MS } from "./handoff";
+import {
+  agentBookingRefusal,
+  agentCatalogScope,
+  agentHandoffUrl,
+  agentOpenTimesView,
+  agentRequestStatus,
+  agentRequestStatusView,
+  AGENT_HANDOFF_TTL_MS,
+} from "./handoff";
 import type { AgentToolDeps, AgentToolResult } from "./mcp";
 
 /** One talent's booking site, as an outside AI assistant reaches it. */
@@ -199,10 +209,12 @@ export function agentToolDeps(admin: SupabaseClient, site: AgentSite): AgentTool
         requestedTime = new Date(at).toISOString();
       }
 
+      const handoffId = randomUUID();
       const token = signTalentOfferingIntent({
         profileId: site.talentProfileId,
         offeringId: service.id,
         intent: "reserve",
+        handoffId,
       });
       if (!token) return fail("unavailable", "A booking link could not be made right now.");
 
@@ -210,6 +222,7 @@ export function agentToolDeps(admin: SupabaseClient, site: AgentSite): AgentTool
         ok: true,
         data: {
           confirm_url: agentHandoffUrl(site.origin, site.basePath, token),
+          handoff_id: handoffId,
           expires_at: new Date(Date.now() + AGENT_HANDOFF_TTL_MS).toISOString(),
           service: service.title,
           price: service.price,
@@ -217,9 +230,32 @@ export function agentToolDeps(admin: SupabaseClient, site: AgentSite): AgentTool
           next_step:
             `Give this link to the person. It opens ${site.name}'s chat with "${service.title}" chosen; ` +
             (requestedTime ? "they send a message with the time they want. " : "they send a message to request it. ") +
-            `Nothing is booked until ${site.name} confirms.`,
+            `Nothing is booked until ${site.name} confirms. Use get_request_status with handoff_id to follow it.`,
         },
       };
+    },
+
+    getRequestStatus: async (args) => {
+      if (!site.handoffTenantId) return fail("unavailable", "Status could not be read right now.");
+      // Scoped to this site's tenant and talent; only the status column is read.
+      const { data, error } = await admin
+        .from("inquiries")
+        .select("status, created_at")
+        .eq("tenant_id", site.handoffTenantId)
+        .contains("source_context", {
+          agent_handoff_id: args.handoff_id,
+          agent_handoff_talent_id: site.talentProfileId,
+        })
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) {
+        logServerError("api.public.booking.agent.status", error);
+        return fail("unavailable", "Status could not be read right now.");
+      }
+      const row = data as { status: string | null } | null;
+      // No row: the link was not used, or this id is not for this talent. Same answer for both.
+      return { ok: true, data: agentRequestStatusView(agentRequestStatus(row ? (row.status ?? "new") : null), null, Date.now()) };
     },
   };
 }

@@ -14,7 +14,7 @@ import type { ProofHealth } from "@/lib/talent-integrations/proof-health";
 const C = {
   ink: "#0B0B0D",
   inkMuted: "rgba(11,11,13,0.62)",
-  inkDim: "rgba(11,11,13,0.40)",
+  inkDim: "rgba(11,11,13,0.6)",
   border: "rgba(24,24,27,0.10)",
   accent: "#0F4F3E",
   accentSoft: "rgba(15,79,62,0.08)",

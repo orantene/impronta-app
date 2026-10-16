@@ -52,7 +52,7 @@ export default function ClientMessagesError({
             fontFamily: '"Inter", system-ui, sans-serif',
             fontSize: 11,
             fontWeight: 600,
-            color: "rgba(11,11,13,0.38)",
+            color: "rgba(11,11,13,0.6)",
             letterSpacing: 0.8,
             textTransform: "uppercase" as const,
             margin: 0,
@@ -91,7 +91,7 @@ export default function ClientMessagesError({
             style={{
               fontFamily: "monospace",
               fontSize: 11,
-              color: "rgba(11,11,13,0.35)",
+              color: "rgba(11,11,13,0.6)",
               marginTop: 8,
               marginBottom: 0,
             }}
