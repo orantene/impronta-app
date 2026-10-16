@@ -721,6 +721,12 @@ export type ScanGuestConversationResult =
     }
   | GuestChatFailure;
 
+/** TUL-645: report this chat to Tulala (opens a Support Desk ticket; the chat text is never copied). */
+export type ReportGuestChatCallback = (input: {
+  inquiryId: string;
+  note?: string;
+}) => Promise<{ ok: true; ticketNumber: number } | { ok: false; error: string }>;
+
 export type ScanGuestConversationCallback = (input: {
   inquiryId: string;
   /**

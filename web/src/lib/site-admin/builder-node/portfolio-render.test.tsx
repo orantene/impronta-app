@@ -300,7 +300,7 @@ test("TUL-440: every shape taps into the lightbox, linked or not, with or withou
   }
 });
 
-test("TUL-440: framed arrow-card keeps the arrow inside the tappable button; unlinked photo gets 'Ver foto N'", () => {
+test("TUL-440/TUL-532: framed arrow sits in figcaption beside the lightbox button; unlinked photo gets 'Ver foto N'", () => {
   const html = render(
     [portfolioNode({ layout: "staggered", cardStyle: "framed", showCaptions: true })],
     {
@@ -313,7 +313,10 @@ test("TUL-440: framed arrow-card keeps the arrow inside the tappable button; unl
     "es",
   );
   const btn = html.match(/<button[^>]*data-portfolio-shot-link[^>]*>[\s\S]*?<\/button>/)?.[0] ?? "";
-  assert.match(btn, /sb-portfolio-arrow/);
+  // GRK-044: figcaption (and its arrow) must not nest inside <button>.
+  assert.doesNotMatch(btn, /sb-portfolio-arrow|sb-portfolio-cap/);
   assert.match(btn, /data-offering-cta=/);
+  assert.match(html, /sb-portfolio-arrow/);
+  assert.match(html, /<\/button><figcaption class="sb-portfolio-cap"/);
   assert.match(html, /<button[^>]*aria-label="Ver foto 2: [^"]*"[^>]*data-portfolio-photo/);
 });

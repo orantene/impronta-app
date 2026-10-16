@@ -48,3 +48,8 @@ src/components/admin/shell/internal/shell-count-bubbles.test.ts
 src/app/(workspace)/talent/talent-hoy-skeleton.static.test.ts
 src/components/admin/shell/internal/talent-counts-from-inbox.static.test.ts
 src/components/admin/shell/internal/talent/agenda/timezone-picker-qa1054.test.ts
+src/components/admin/shell/internal/palette-help-key.static.test.ts
+src/components/admin/shell/internal/talent/today-mobile-header.static.test.ts
+src/components/support/support-qa1054.static.test.ts
+src/components/talent/site/max-site-manager-timeout.static.test.ts
+src/lib/talent/clients-directory.test.ts

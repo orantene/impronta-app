@@ -74,6 +74,7 @@ import {
 } from "@/app/t/[profileCode]/_actions/guest-roster-actions";
 import { ensureGuestChatInquiry } from "@/app/t/[profileCode]/_actions/guest-chat-actions";
 import { scanGuestConversationForDetails } from "@/app/t/[profileCode]/_actions/guest-conversation-scan-action";
+import { reportGuestChatToSupportAction } from "@/lib/support/guest-actions";
 import { TalentOfferingIntentQuery } from "@/app/%5Ftalent-site/TalentOfferingIntentQuery";
 import type { IndustryPresetId } from "@/lib/words/presets";
 import { catalogRowPriceText } from "@/lib/site-admin/builder-node/services-catalog-bar-price";
@@ -338,6 +339,7 @@ export async function TalentProfileChatLauncherMount({
       onListRoster={listRosterForThisTalent}
       onResolveCartPortraits={resolveGuestCartPortraits}
       onScanConversation={scanGuestConversationForDetails}
+      onReportToSupport={reportGuestChatToSupportAction}
       soundOnReply
       openFullHref={openFullHref}
       surfaceMode={surfaceModeFromBackgroundMode(backgroundMode)}
