@@ -5,35 +5,29 @@
  * holds, bookings, or blocks. Service-role internally. s-maxage=30.
  * Optional `duration` (minutes) is base + selected extras; omitted → offering.
  *
- * Guards: published + public offering, host-tenant match, appointments
- * enabled, effective mode ≥ request (M1). Missing hours or a disabled
- * policy yield an empty list, not a guessed calendar.
+ * Guards and reasons live in `loadPublicOpenTimes`, shared with the AI-agent
+ * tools (TUL-21) so both answer the same question the same way.
  */
 
-import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
-import { NOT_ACCEPTING_BOOKINGS } from "@/lib/talent/accepting-readiness";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { checkBookingSlots } from "@/lib/rate-limit-kv";
 import { getPublicHostContext, getTenantPortalScopeBySlug } from "@/lib/saas/scope";
-import {
-  resolveSlotsWorkspaceScope,
-  workspaceSlugFromPathname,
-} from "@/lib/scheduling/public-slots-workspace";
+import { workspaceSlugFromPathname } from "@/lib/scheduling/public-slots-workspace";
 import { HOST_TALENT_PROFILE_HEADER } from "@/lib/saas/host-context";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { resolveTalentBookingMode } from "@/lib/scheduling/booking-surface";
-import { parseBookingHours } from "@/lib/scheduling/hours-types";
-import { loadBusyIntervals } from "@/lib/scheduling/load-busy";
+import { resolvePublicClientIp } from "@/lib/server/public-client-ip";
+import {
+  loadPublicOpenTimes,
+  type OpenTimesReason,
+  PUBLIC_BOOKING_HOST_KINDS,
+} from "@/lib/scheduling/public-open-times";
 import {
   clampPublicSlotDays,
-  computePublicSlots,
-  type NoSlotsReason,
   parsePublicSlotDuration,
   parsePublicSlotFrom,
 } from "@/lib/scheduling/public-slots";
-import { addUtcDays, utcToZonedYmd } from "@/lib/scheduling/tz";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,30 +39,17 @@ const SLOTS_CACHE = "public, s-maxage=30, stale-while-revalidate=60";
 
 const SLOTS_VARY = "Host, x-impronta-host-name, x-impronta-host-context";
 
-/**
- * Why this endpoint returned nothing.
- *
- * Every branch below used to return the same `{"slots":[]}`, so "this talent
- * has never set hours", "this surface only takes inquiries" and "the day is
- * full" were one answer. An operator cannot act on that, and nobody can even
- * tell it is broken.
- */
-type SlotsReason =
-  | NoSlotsReason
-  | "not_bookable_here"
-  | "inquiry_only"
-  | "hours_unreadable"
-  | "not_accepting_bookings";
-
 function slotsJson(
   slots: string[],
   status = 200,
-  extra?: { timezone?: string; reason?: SlotsReason | null },
+  extra?: { timezone?: string; placeCity?: string | null; reason?: OpenTimesReason | null },
 ): NextResponse {
   return NextResponse.json(
     {
       slots,
       ...(extra?.timezone ? { timezone: extra.timezone } : {}),
+      // Talent's home city for the zone chip (Houston time, not Chicago time).
+      ...(extra?.placeCity ? { placeCity: extra.placeCity } : {}),
       // Only when empty: a caller with slots does not need a reason, and
       // sending one anyway invites a client to branch on it.
       ...(slots.length === 0 && extra?.reason ? { reason: extra.reason } : {}),
@@ -83,21 +64,9 @@ function slotsJson(
   );
 }
 
-function resolveClientIp(h: Headers): string {
-  const real = h.get("x-real-ip")?.trim();
-  if (real) return real;
-  const fwd = h.get("x-forwarded-for");
-  if (fwd) {
-    const hops = fwd.split(",").map((s) => s.trim()).filter(Boolean);
-    const trusted = hops[hops.length - 1];
-    if (trusted) return trusted;
-  }
-  return "x";
-}
-
 export async function GET(request: Request) {
   const reqHeaders = await headers();
-  const limited = await checkBookingSlots(resolveClientIp(reqHeaders));
+  const limited = await checkBookingSlots(resolvePublicClientIp(reqHeaders));
   if (!limited.ok) {
     const retryAfter = Math.max(1, Math.ceil((limited.retryAfterMs ?? 1000) / 1000));
     return NextResponse.json(
@@ -120,20 +89,7 @@ export async function GET(request: Request) {
     host.kind === "talent_site"
       ? reqHeaders.get(HOST_TALENT_PROFILE_HEADER)?.trim() || null
       : null;
-
-  // App and marketing hosts book too (localhost, the talent shell, the apex).
-  // The offering's own tenant is the scope there. Agency and talent-site hosts
-  // still have to match the host, below.
-  if (
-    host.kind !== "agency" &&
-    host.kind !== "talent_site" &&
-    host.kind !== "hub" &&
-    host.kind !== "app" &&
-    host.kind !== "marketing"
-  ) {
-    return NextResponse.json({ error: "not_found" }, { status: 404 });
-  }
-  if (host.kind === "talent_site" && !talentSiteId) {
+  if (!PUBLIC_BOOKING_HOST_KINDS.has(host.kind)) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
@@ -143,170 +99,34 @@ export async function GET(request: Request) {
   }
 
   try {
-    const { data: offering, error: offeringErr } = await admin
-      .from("talent_offerings")
-      .select(
-        "id, talent_profile_id, tenant_id, status, visibility, kind, booking_mode, reserve_mode, duration_minutes, attributes",
-      )
-      .eq("id", offeringId)
-      .maybeSingle();
-
-    if (offeringErr) {
-      logServerError("api.public.booking.slots.offering", offeringErr);
-      return NextResponse.json({ error: "query_failed" }, { status: 500 });
-    }
-    if (
-      !offering ||
-      offering.status !== "published" ||
-      offering.visibility !== "public" ||
-      offering.kind === "product"
-    ) {
-      return NextResponse.json({ error: "not_found" }, { status: 404 });
-    }
-
-    // A house-owned offering has no provider calendar here: answer with a
-    // reason instead of a failed `eq("id", null)` read (TUL-77).
-    if (!offering.talent_profile_id) {
-      return slotsJson([], 200, { reason: "not_bookable_here" });
-    }
-
-    const { data: talent, error: talentErr } = await admin
-      .from("talent_profiles")
-      .select("id, profile_kind, booking_terms, created_by_agency_id, selling_defaults")
-      .eq("id", offering.talent_profile_id)
-      .maybeSingle();
-
-    if (talentErr) {
-      logServerError("api.public.booking.slots.talent", talentErr);
-      return NextResponse.json({ error: "query_failed" }, { status: 500 });
-    }
-    if (!talent) {
-      return NextResponse.json({ error: "not_found" }, { status: 404 });
-    }
-
-    const offeringTenantId =
-      (typeof offering.tenant_id === "string" && offering.tenant_id) ||
-      (typeof talent.created_by_agency_id === "string" && talent.created_by_agency_id) ||
-      null;
-
-    if (host.kind === "agency") {
-      if (!offeringTenantId || offeringTenantId !== host.tenantId) {
-        return NextResponse.json({ error: "not_found" }, { status: 404 });
-      }
-    } else if (host.kind === "talent_site") {
-      if (talent.id !== talentSiteId) {
-        return NextResponse.json({ error: "not_found" }, { status: 404 });
-      }
-    }
-
-    if (!offeringTenantId) {
-      return slotsJson([], 200, { reason: "not_bookable_here" });
-    }
-
-    // TUL-690: a `/w/<slug>` storefront on the hub host names its workspace.
-    // The slug is resolved here, and the offering must belong to it.
+    const now = new Date();
     const workspaceSlug = workspaceSlugFromPathname(
       `/w/${(url.searchParams.get("workspace") ?? "").trim()}`,
     );
     const workspaceRequested = url.searchParams.has("workspace");
-    const scope = resolveSlotsWorkspaceScope({
+    const workspaceTenantId =
+      workspaceRequested && workspaceSlug
+        ? ((await getTenantPortalScopeBySlug(workspaceSlug))?.tenantId ?? null)
+        : null;
+    const result = await loadPublicOpenTimes(admin, {
+      workspace: { requested: workspaceRequested, tenantId: workspaceTenantId },
       host: {
         kind: host.kind,
         tenantId: host.kind === "agency" || host.kind === "hub" ? host.tenantId : null,
+        talentSiteId,
       },
-      workspaceRequested,
-      workspaceTenantId:
-        workspaceRequested && workspaceSlug
-          ? ((await getTenantPortalScopeBySlug(workspaceSlug))?.tenantId ?? null)
-          : null,
-      offeringTenantId,
-    });
-    if (!scope.ok) {
-      return NextResponse.json({ error: "not_found" }, { status: 404 });
-    }
-    const bookingHost = scope.host;
-
-    const mode = await resolveTalentBookingMode(admin, {
-      talentProfileId: talent.id,
-      offeringId: offering.id,
-      host: bookingHost,
-    });
-    if (mode === "inquire") return slotsJson([], 200, { reason: "inquiry_only" });
-
-    // WSF-C §7: the talent's pause applies on their own site and the Tulala
-    // profile (hub). An agency host owns its routing and is never paused here.
-    if (bookingHost.kind !== "agency") {
-      const switches = await loadTalentSiteSwitches(admin, talent.id);
-      if (!switches.acceptingBookings) {
-        return slotsJson([], 200, { reason: NOT_ACCEPTING_BOOKINGS });
-      }
-    }
-
-    const { data: hoursRow } = await admin
-      .from("talent_booking_hours")
-      .select(
-        "timezone, weekly, exceptions, slot_minutes, buffer_before_min, buffer_after_min, min_notice_min, horizon_days",
-      )
-      .eq("talent_profile_id", talent.id)
-      .maybeSingle();
-
-    const hours = parseBookingHours(hoursRow);
-    if (!hours) {
-      // Two different failures. No row means nobody has configured hours -
-      // today that is EVERY bookable offering in production. A row that will
-      // not parse is a data defect, and it fails closed to zero slots exactly
-      // like an unconfigured talent, which is how it stays invisible.
-      return slotsJson([], 200, {
-        reason: hoursRow ? "hours_unreadable" : "no_booking_hours",
-      });
-    }
-
-    const now = new Date();
-    const from = parsePublicSlotFrom(url.searchParams.get("from"), now);
-    const days = clampPublicSlotDays(url.searchParams.get("days"));
-    const horizon = Math.min(days, hours.horizonDays);
-    const startYmd = utcToZonedYmd(from, hours.timezone) ?? from.toISOString().slice(0, 10);
-    const endYmd = addUtcDays(startYmd, horizon) ?? startYmd;
-    const windowEnd = new Date(`${endYmd}T23:59:59.999Z`);
-
-    const busy = await loadBusyIntervals({
-      admin,
-      talentProfileId: talent.id,
-      from,
-      to: windowEnd,
+      offeringId,
+      from: parsePublicSlotFrom(url.searchParams.get("from"), now),
+      days: clampPublicSlotDays(url.searchParams.get("days")),
+      // Catalog extras lengthen the hold; clients send the total so projection
+      // matches confirm. Garbage / omitted → offering duration alone.
+      parseDuration: (base) => parsePublicSlotDuration(url.searchParams.get("duration"), base),
       now,
     });
-
-    const attr = offering.attributes;
-    const offeringBuffers =
-      attr && typeof attr === "object" && !Array.isArray(attr)
-        ? (attr as { bufferAfterMin?: unknown; bufferBeforeMin?: unknown })
-        : null;
-    const offeringDuration =
-      typeof offering.duration_minutes === "number" && offering.duration_minutes > 0
-        ? offering.duration_minutes
-        : hours.slotMinutes;
-    // Catalog extras lengthen the hold; clients send the total so projection
-    // matches confirm. Garbage / omitted → offering duration alone.
-    const durationMinutes = parsePublicSlotDuration(
-      url.searchParams.get("duration"),
-      offeringDuration,
-    );
-    const { starts: slots, reason } = computePublicSlots({
-      hours,
-      durationMinutes,
-      from,
-      days: horizon,
-      busy,
-      sellingDefaults: talent.selling_defaults,
-      offeringBufferAfterMin:
-        typeof offeringBuffers?.bufferAfterMin === "number" ? offeringBuffers.bufferAfterMin : null,
-      offeringBufferBeforeMin:
-        typeof offeringBuffers?.bufferBeforeMin === "number"
-          ? offeringBuffers.bufferBeforeMin
-          : null,
-    });
-    return slotsJson(slots, 200, { timezone: hours.timezone, reason });
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
+    }
+    return slotsJson(result.slots, 200, { timezone: result.timezone, placeCity: result.placeCity, reason: result.reason });
   } catch (err) {
     logServerError("api.public.booking.slots", err);
     return NextResponse.json({ error: "query_failed" }, { status: 500 });

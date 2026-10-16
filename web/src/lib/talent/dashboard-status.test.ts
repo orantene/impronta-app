@@ -68,6 +68,17 @@ describe("dashboard status copy, free/paid x live/draft", () => {
   });
 });
 
+describe("Profile editor caption follows the plan (TUL-579)", () => {
+  it("paid never says free in either language", () => {
+    for (const es of [false, true]) {
+      assert.doesNotMatch(dashboardStatusCopy({ plan: "paid", publish: "draft", es }).countsTowardSite, /free|gratis/i);
+    }
+  });
+  it("free keeps the free caption", () => {
+    assert.equal(dashboardStatusCopy({ plan: "free", publish: "draft", es: true }).countsTowardSite, "Cuenta para tu sitio gratis");
+  });
+});
+
 describe("websiteFlowCopy follows the plan", () => {
   for (const es of [false, true]) {
     for (const state of ["notReady", "ready", "preview", "published"] as const) {

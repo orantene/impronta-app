@@ -24,6 +24,7 @@ import {
 } from "@/lib/talent/profile-editor-sections";
 import { selfProfileTradeLabel } from "@/lib/talent/self-profile-trade-label";
 import { useAdminShell } from "../../state";
+import { dashboardPlanKind, dashboardStatusCopy } from "@/lib/talent/dashboard-status";
 
 const SECTION_COPY: Record<ProfileEditorSectionKey, { title: string; body: string }> = {
   nameTrade: { title: "dashboard.talentMyProfile.editor.nameTradeTitle", body: "dashboard.talentMyProfile.editor.nameTradeBody" },
@@ -96,7 +97,8 @@ export function ProfileReadyCard({ openSection }: { openSection: (section: strin
 export function ProfileEditorSections({ openSection }: { openSection: (section: string) => void }) {
   const t = useT();
   const dash = useDashboardText();
-  const { bridgeTalentSelfProfile } = useAdminShell();
+  const { bridgeTalentSelfProfile, state: shellState } = useAdminShell();
+  const countsTowardSite = dashboardStatusCopy({ plan: dashboardPlanKind(shellState.talentTier), publish: "draft", es: dash.locale.toLowerCase().startsWith("es") }).countsTowardSite;
   const eligibility = useWebsiteEligibility();
   const sections = buildProfileEditorSections(eligibility.slices);
   const photoCount = eligibility.photoCount;
@@ -163,7 +165,7 @@ export function ProfileEditorSections({ openSection }: { openSection: (section: 
             {s.key === "photos" && photoCount != null && (
               <p className="text-[13px] text-admin-ink">{interpolate(t("dashboard.talentMyProfile.editor.photosCount"), { count: photoCount })}</p>
             )}
-            {s.counts && <p className="text-[11px] text-admin-ink-muted">{t("dashboard.talentMyProfile.editor.countsTowardSite")}</p>}
+            {s.counts && <p className="text-[11px] text-admin-ink-muted">{countsTowardSite}</p>}
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
