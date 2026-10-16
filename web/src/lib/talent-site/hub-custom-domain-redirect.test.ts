@@ -79,13 +79,20 @@ test("profile-view wires hub custom-domain 308 before freeform render", () => {
     join(process.cwd(), "src/app/t/[profileCode]/profile-view.tsx"),
     "utf8",
   );
-  assert.match(src, /loadTalentHubCustomDomainHomeRedirect/);
-  assert.match(src, /permanentRedirect\(customHome\)/);
+  // The redirect lives in load-hub-custom-domain-redirect.ts (profile-view.tsx is on the file-size ratchet).
+  assert.match(src, /redirectHubProfileToCustomDomain/);
   // Compare inside TalentProfileView (metadata also calls the freeform resolver).
   const viewAt = src.indexOf("export async function TalentProfileView");
   assert.ok(viewAt > 0);
   const view = src.slice(viewAt);
-  const redirectAt = view.indexOf("loadTalentHubCustomDomainHomeRedirect");
+  const redirectAt = view.indexOf("redirectHubProfileToCustomDomain");
   const freeformAt = view.indexOf("resolvePlatformTalentSiteForProfile");
   assert.ok(redirectAt > 0 && freeformAt > redirectAt);
+  const loader = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/server/load-hub-custom-domain-redirect.ts"),
+    "utf8",
+  );
+  assert.match(loader, /export async function redirectHubProfileToCustomDomain/);
+  assert.match(loader, /loadTalentHubCustomDomainHomeRedirect\(/);
+  assert.match(loader, /permanentRedirect\(customHome\)/);
 });
