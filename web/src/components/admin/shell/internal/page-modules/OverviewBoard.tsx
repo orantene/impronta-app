@@ -36,7 +36,7 @@ import type {
   TodayBadge,
   TodayRow,
 } from "@/lib/overview/model";
-import { greetingHour } from "@/lib/overview/greeting-hour";
+import { greetingHour, venueZoneOrNull } from "@/lib/overview/greeting-hour";
 import { setupProgress } from "@/lib/overview/model";
 import { useDashboardText } from "../dashboard-i18n";
 import { Icon } from "../primitives";
@@ -136,17 +136,20 @@ export function OverviewBoard() {
   let greeting = interpolate(t("dashboard.adminOverview.greetingNeutral"), { name: greetingName });
   if (snapshot) {
     const now = new Date(snapshot.nowIso);
+    // TUL-734: a workspace that never picked a venue zone snapshots as "UTC";
+    // treat that as unset so the viewer's own clock is used.
+    const venueZone = venueZoneOrNull(snapshot.timeZone);
     // The kit's day-first date, "Thu 17 Sep" (MW02 / the Overview board), in
     // every locale: the parts are reordered rather than trusting the locale's.
     const dateParts = new Intl.DateTimeFormat(locale, {
       weekday: "short",
       day: "numeric",
       month: "short",
-      timeZone: snapshot.timeZone,
+      ...(venueZone ? { timeZone: venueZone } : {}),
     }).formatToParts(now);
     const datePart = (type: string) => dateParts.find((p) => p.type === type)?.value ?? "";
     dateLabel = `${datePart("weekday")} ${datePart("day")} ${datePart("month")}`.replace(/\.\s/g, " ").trim();
-    greeting = interpolate(t(greetingKey(greetingHour(now, snapshot.timeZone))), { name: greetingName });
+    greeting = interpolate(t(greetingKey(greetingHour(now, venueZone))), { name: greetingName });
   }
 
   // TUL-525: Open POS only for counter-shaped industries (not salon / clinic).

@@ -259,7 +259,7 @@ export function GuestDockProjectsView({
                 <span style={{ fontSize: 13, fontWeight: 700, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
                   {name}
                 </span>
-                {showNew && <NewDot accent={accent} />}
+                {showNew && <NewDot accent={accent} label={t("public.guestChat.newMessageAria")} />}
                 <span style={{ fontSize: 10.5, color: C.inkDim, flexShrink: 0 }}>{formatRelTime(inq.lastMessageAt)}</span>
               </span>
               <span style={{ fontSize: 12, fontWeight: 550, color: C.inkMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: FONT }}>

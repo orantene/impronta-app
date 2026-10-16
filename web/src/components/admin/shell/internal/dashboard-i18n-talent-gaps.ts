@@ -20,7 +20,7 @@ export const TALENT_GAPS_ES_TEXT: Record<string, string> = {
   "No messages yet": "Aún no hay mensajes",
   "Clients write to you from your page. Share your link and new conversations show up here. You can also start one with + New conversation.":
     "Las clientas te escriben desde tu página. Comparte tu enlace y las conversaciones nuevas aparecen aquí. También puedes empezar una con + Nueva conversación.",
-  "Add a client": "Agregar clienta",
+  "Add a client": "Agregar cliente",
   "Based on how often each client repeats a service.": "Según cada cuánto repite un servicio cada clienta.",
   person: "persona",
   people: "personas",

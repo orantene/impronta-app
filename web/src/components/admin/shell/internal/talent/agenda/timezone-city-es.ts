@@ -73,6 +73,47 @@ const CITY_ES: Readonly<Record<string, string>> = {
   Copenhagen: "Copenhague",
   Stockholm: "Estocolmo",
   Dublin: "Dublín",
+  // TUL-822: the rest of the browser's IANA list where standard Spanish differs from the
+  // English tail (accent, exonym or translation). Names that read the same in Spanish
+  // are deliberately not listed; a miss falls back to the English tail.
+  // Africa
+  Abidjan: "Abiyán", Accra: "Acra", "Addis Ababa": "Adís Abeba", Algiers: "Argel", Asmera: "Asmara",
+  Bissau: "Bisáu", Bujumbura: "Buyumbura", Cairo: "El Cairo", Conakry: "Conakri",
+  Djibouti: "Yibuti", Douala: "Duala", "El Aaiun": "El Aaiún", Johannesburg: "Johannesburgo", Juba: "Yuba",
+  Khartoum: "Jartum", Lome: "Lomé", Mogadishu: "Mogadiscio", Ndjamena: "Yamena", Nouakchott: "Nuakchot",
+  Ouagadougou: "Uagadugú", "Porto-Novo": "Portonovo", "Sao Tome": "Santo Tomé", Tripoli: "Trípoli", Tunis: "Túnez",
+  // Americas and Caribbean
+  Araguaina: "Araguaína", Bahia: "Bahía", Belem: "Belém", Belize: "Belice",
+  Bermuda: "Bermudas", Cayenne: "Cayena", Cayman: "Caimán", Cordoba: "Córdoba", Cuiaba: "Cuiabá",
+  Curacao: "Curazao", Eirunepe: "Eirunepé", Godthab: "Nuuk", "Grand Turk": "Gran Turca", Grenada: "Granada",
+  Guadeloupe: "Guadalupe", Indianapolis: "Indianápolis", Maceio: "Maceió", Manaus: "Manaos", Martinique: "Martinica",
+  Miquelon: "Miquelón", "Port of Spain": "Puerto España", "Port-au-Prince": "Puerto Príncipe", Santarem: "Santarém",
+  "St Barthelemy": "San Bartolomé", "St Helena": "Santa Elena", "St Kitts": "San Cristóbal", "St Lucia": "Santa Lucía",
+  "St Thomas": "Santo Tomás", "St Vincent": "San Vicente", Tortola: "Tórtola", Tucuman: "Tucumán",
+  "Rio Branco": "Río Branco", "Rio Gallegos": "Río Gallegos",
+  // Asia and Middle East
+  Amman: "Amán", Ashgabat: "Asjabad", Baghdad: "Bagdad", Bahrain: "Baréin", Baku: "Bakú",
+  Brunei: "Brunéi", Calcutta: "Calcuta", Damascus: "Damasco", Dhaka: "Daca", Dubai: "Dubái", Dushanbe: "Dusambé",
+  Hebron: "Hebrón", Istanbul: "Estambul", Jakarta: "Yakarta", Jerusalem: "Jerusalén", Katmandu: "Katmandú",
+  Macau: "Macao", Makassar: "Macasar", Muscat: "Mascate", Pyongyang: "Pionyang", Qatar: "Catar", Qostanay: "Kostanái",
+  Rangoon: "Rangún", Riyadh: "Riad", Saigon: "Ciudad Ho Chi Minh", Samarkand: "Samarcanda", Seoul: "Seúl",
+  Shanghai: "Shanghái", Singapore: "Singapur", Taipei: "Taipéi", Tashkent: "Taskent", Tehran: "Teherán",
+  Thimphu: "Timbu", Tokyo: "Tokio", Ulaanbaatar: "Ulán Bator", Vientiane: "Vientián", Yerevan: "Ereván",
+  // Europe and Russia
+  Amsterdam: "Ámsterdam", Astrakhan: "Astracán", Belgrade: "Belgrado", Bucharest: "Bucarest", Busingen: "Büsingen",
+  Faeroe: "Feroe", "Isle of Man": "Isla de Man", Kaliningrad: "Kaliningrado", Kirov: "Kírov",
+  Ljubljana: "Liubliana", Luxembourg: "Luxemburgo", Monaco: "Mónaco", Saratov: "Sarátov", Skopje: "Skopie",
+  Sofia: "Sofía", Tallinn: "Tallin", Tirane: "Tirana", Ulyanovsk: "Uliánovsk", Vatican: "Ciudad del Vaticano",
+  Vilnius: "Vilna", Volgograd: "Volgogrado", Yekaterinburg: "Ekaterimburgo", Simferopol: "Simferópol",
+  Chisinau: "Chisináu", Barnaul: "Barnaúl", Anadyr: "Anádyr", Chita: "Chitá", Magadan: "Magadán", Sakhalin: "Sajalín",
+  Srednekolymsk: "Srednekolimsk",
+  // Oceania, islands and polar
+  Adelaide: "Adelaida", Christmas: "Navidad", "Cape Verde": "Cabo Verde", Comoro: "Comoras", Easter: "Isla de Pascua",
+  Fiji: "Fiyi", Galapagos: "Galápagos", Maldives: "Maldivas", Mauritius: "Mauricio", Palau: "Palaos", Ponape: "Pohnpei",
+  Reunion: "Reunión", "South Georgia": "Georgia del Sur", Sydney: "Sídney", Tahiti: "Tahití", Truk: "Chuuk",
+  Noumea: "Numea", Saipan: "Saipán",
+  // Browsers differ on legacy vs current spellings of the same zone; both resolve.
+  Kolkata: "Calcuta", Kathmandu: "Katmandú", Yangon: "Rangún", "Ho Chi Minh": "Ciudad Ho Chi Minh", Kyiv: "Kiev", Faroe: "Feroe",
 };
 
 /** Spanish city name for a humanized IANA tail ("Mexico City"), else the input. */

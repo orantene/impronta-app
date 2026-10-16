@@ -186,4 +186,6 @@ src/lib/saas/off-roster-hard-404.static.test.ts
 src/lib/seo/llms-txt.test.ts
 src/lib/seo/talent-llms-txt.test.ts
 src/lib/seo/business-workspace-seo.test.ts
+src/app/not-found-shell.static.test.ts
+src/lib/marketing/hub-client-entry.test.ts
 src/components/admin/shell/canonical-routes-admin-folders.static.test.ts

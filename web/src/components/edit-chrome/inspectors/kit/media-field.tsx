@@ -40,12 +40,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FilmIcon, ImageIcon } from "lucide-react";
 
-import { useT } from "@/i18n/use-t";
 import { MediaPickerDrawer } from "@/components/edit-chrome/media-picker-drawer";
 import { useMediaUpload } from "@/lib/media/use-media-upload";
 import { humanizeMediaError, isOpaqueFilename } from "@/lib/media/humanize-media-error";
 
 import { KIT } from "./tokens";
+import { usePublicT } from "@/i18n/use-public-t";
 
 // ── Value model ─────────────────────────────────────────────────────────
 
@@ -155,7 +155,7 @@ export function MediaField({
   pickerTitle,
   kind = "image",
 }: MediaFieldProps) {
-  const t = useT();
+  const t = usePublicT();
   const isVideo = kind === "video";
   const [open, setOpen] = useState(false);
   const [urlMode, setUrlMode] = useState(false);

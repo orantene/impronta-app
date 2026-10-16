@@ -96,10 +96,10 @@ export function AvatarCircle({
 // NewDot
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function NewDot({ accent }: { accent: string }) {
+export function NewDot({ accent, label }: { accent: string; label: string }) {
   return (
     <span
-      aria-label="New message"
+      aria-label={label}
       style={{
         display: "inline-block",
         width: 7,

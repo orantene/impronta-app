@@ -1212,6 +1212,10 @@
       "gateLastName": "Apellido",
       "gateYourMessageLabel": "TU MENSAJE",
       "gateSend": "Enviar mensaje",
+      "newMessageAria": "Mensaje nuevo",
+      "unreadConversationsAria": "Conversaciones sin leer",
+      "lookPreviewLabel": "Tu diseño",
+      "lookPreviewRemoveLabel": "Quitar diseño",
       "switcherAria": "Cambiar de solicitud",
       "switcherPaneTitle": "Tus solicitudes",
       "switcherEmpty": "Aún no tienes solicitudes.",
@@ -9684,7 +9688,7 @@
         "auditSeverityInfo": "info",
         "auditSeverityWarn": "aviso",
         "auditSeverityEmergency": "emergencia",
-        "analyticsTitle": "Analítica",
+        "analyticsTitle": "Analíticas",
         "checkPublicFilter": "Filtro público",
         "checkProfileBadge": "Insignia de perfil",
         "checkVisibleByDefault": "Visible por defecto",
@@ -13926,8 +13930,8 @@
       "noTenant": "Inicia sesión en un espacio para moderar sus reseñas."
     },
     "adminAnalytics": {
-      "eyebrow": "Analítica",
-      "title": "Analítica",
+      "eyebrow": "Analíticas",
+      "title": "Analíticas",
       "subtitle": "Tu embudo, dinero, sitio web y reseñas. Solo números reales.",
       "tabFunnel": "Embudo",
       "tabMoney": "Dinero",
@@ -14020,7 +14024,7 @@
     "sales": {
       "pageTitle": "Ventas",
       "pageIntro": "Una vista comercial de todos los productos · haz clic en una fila para abrir el registro de origen",
-      "empty": "Aún no hay ventas.",
+      "empty": "Cuando registres una venta o un cobro, aparecerá aquí.",
       "emptyTitle": "Aún no hay ventas",
       "colCustomer": "Cliente",
       "filterKindLabel": "Tipo",
@@ -14053,7 +14057,7 @@
       "noResultsBody": "Hay ventas en este espacio de trabajo; ninguna es de este tipo en este canal.",
       "clearFilters": "Ver todas las ventas",
       "retry": "Reintentar",
-      "footnote": "Una inscripción gratuita nunca se muestra como factura impagada. Pago y entrega son una sola etiqueta a propósito: lo que dice el registro, no una suposición.",
+      "footnote": "Una inscripción gratuita nunca se muestra como factura sin pagar. El pago y la entrega son una sola etiqueta a propósito: muestra lo que dice el registro, no una suposición.",
       "state": {
         "free": "Gratis · Confirmada",
         "paid": "Pagado",
@@ -14084,7 +14088,7 @@
     },
     "payments": {
       "pageTitle": "Pagos",
-      "pageIntro": "Cobros, reembolsos, diferencias de caja, intentos desconocidos y pagos · entra en el registro del POS",
+      "pageIntro": "Cobros, reembolsos, diferencias de caja, intentos desconocidos y pagos · abre el historial de ventas en caja",
       "unavailableTitle": "No pudimos cargar los pagos",
       "unavailableBody": "Es un problema nuestro, no tuyo. Actualiza en un momento.",
       "takingsTitle": "Cobros por método",
@@ -14186,7 +14190,7 @@
       "reconciliationNoImport": "No se ha importado ningún informe del terminal; todavía no hay nada que cotejar.",
       "reconciliationClean": "Nada sin cotejar: cada cobro tiene respuesta.",
       "reconciliationUnknownRows": "cobro(s) todavía sin respuesta están en la pestaña Intentos.",
-      "callout": "Las filas importadas del terminal se cotejan por id externo; las que no coinciden se quedan en Conciliación, nunca se adivinan contra una reserva. Ingresos, cobros y pagos son tres números distintos aquí.",
+      "callout": "Las filas importadas del terminal se cotejan por el identificador del terminal; las que no coinciden se quedan en Conciliación, nunca se adivinan contra una reserva. Ingresos, cobros y pagos son tres números distintos aquí.",
       "notWired": {
         "import": "Importar un informe del terminal todavía no está conectado; no hay tabla donde guardar sus filas.",
         "export": "La exportación de estas tablas todavía no está conectada."
@@ -17316,7 +17320,8 @@
           "collisionNote": "{when} no se puede generar: la sala ya tiene {other} a esa hora. Mueve una de las dos; no se vende nada hasta resolverlo."
         },
         "templatesOff": "Todavía no existen plantillas de series; una serie no se puede crear desde el espacio de trabajo."
-      }
+      },
+      "loadTimeout": "Las citas tardan demasiado en cargar. Revisa tu conexión y recarga la página."
     },
     "projects": {
       "pageTitle": "Proyectos",
@@ -17812,7 +17817,7 @@
       "titleEmpty": "Nada necesita a una persona",
       "titleOne": "{count} cosa necesita a una persona",
       "titleOther": "{count} cosas necesitan a una persona",
-      "subtitle": "Reembolsos que no llegaron, entradas vendidas y nunca emitidas, pasos de una consulta que fallaron, pagos con tarjeta que nunca respondieron, tareas de fondo que se dieron por vencidas, y comandos que se detuvieron sin registrar qué hicieron. Ordenado por si todavía pueden perjudicar a alguien.",
+      "subtitle": "Reembolsos que no llegaron, entradas vendidas y nunca emitidas, pasos de una consulta que fallaron, pagos con tarjeta que nunca respondieron, tareas en segundo plano que se dieron por vencidas, y comandos que se detuvieron sin registrar qué hicieron. Ordenado por si todavía pueden perjudicar a alguien.",
       "incomplete": "Esta lista está incompleta. No se pudo leer: {sources}. Puede haber incidencias que no se muestran.",
       "severityCount": "{count} {severity}",
       "severity": {
@@ -17829,7 +17834,7 @@
         "coordination": "Consultas",
         "operations": "Segundo plano"
       },
-      "allClear": "Todos los reembolsos llegaron, todas las entradas se emitieron y todas las tareas de fondo terminaron.",
+      "allClear": "Todos los reembolsos llegaron, todas las entradas se emitieron y todas las tareas en segundo plano terminaron.",
       "attemptsOne": "{count} intento",
       "attemptsOther": "{count} intentos",
       "ageOld": "hace {age}",
