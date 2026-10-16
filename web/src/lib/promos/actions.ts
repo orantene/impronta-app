@@ -14,11 +14,14 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { loadCalloutState } from "@/lib/promos/callouts/dismissals.actions";
 import { pickCallout, type Callout } from "@/lib/promos/callouts/engine";
+import { loadCalloutInputs } from "@/lib/promos/callouts/inputs.server";
 import { loadPromoResults, type PromoResultsBundle } from "@/lib/promos/results/load.server";
 import { failFrom, newErrorRef, type PromoActionError } from "./fail-from";
 import { canGoLive, type PlanGateReason } from "./plan-gating";
+import { effectiveStatus, planEndedCount } from "./plan-downgrade";
 import { promoStatus } from "./quote";
 import { DEFAULT_PROMO_TZ, PROMO_COLUMNS, loadTenantPromos, loadUsage, rowToPromo, type PromoRow } from "./repo";
+import { promoSiteOrigin } from "./share/site-origin";
 import { applyEdit, endNowPatch, type EditVerdict } from "./safe-edit";
 import { promoAttention } from "./talent-view";
 import { endPromoUpdate, goLivePatch, pausePatch, showOnSiteFor } from "./hygiene/show-on-site";
@@ -69,6 +72,10 @@ export type PromosPageData = {
   /** Month roll-up always; per-promo results only the trial's own card on the free plan. */
   results: PromoResultsBundle;
   callout: Callout | null;
+  /** Promos the free plan ended or reverted to draft (lazy downgrade). 0 on paid. */
+  planEnded: number;
+  /** Origin of the talent's published site host for share links, or null (hub path). */
+  siteOrigin: string | null;
 };
 
 // ── scope ──────────────────────────────────────────────────────────────
@@ -287,6 +294,19 @@ function dbFail(context: string, error: { code?: string; message?: string } | nu
 
 const refresh = () => revalidatePath("/talent/promos");
 
+async function loadSiteOrigin(scope: Scope): Promise<string | null> {
+  const [sites, prof] = await Promise.all([
+    scope.admin.from("talent_sites").select("site_slug, status").eq("talent_profile_id", scope.talentId),
+    scope.admin.from("talent_profiles").select("is_demo").eq("id", scope.talentId).maybeSingle(),
+  ]);
+  if (sites.error) {
+    logServerError("promos.actions/site", sites.error);
+    return null;
+  }
+  if (prof.error) logServerError("promos.actions/site-demo", prof.error);
+  return promoSiteOrigin((sites.data ?? []) as { site_slug: string | null; status: string | null }[], (prof.data as { is_demo?: boolean | null } | null)?.is_demo === true);
+}
+
 // ── reads ──────────────────────────────────────────────────────────────
 
 export async function loadPromosPage(): Promise<PromoResult<{ data: PromosPageData }>> {
@@ -312,7 +332,7 @@ export async function loadPromosPage(): Promise<PromoResult<{ data: PromosPageDa
       name: row.name ?? row.label ?? row.code ?? "",
       draft: rowToDraft(row, promo.target_ids ?? [], addonList),
       promo: withAddon,
-      status: promoStatus(withAddon, now, usage[row.id]),
+      status: effectiveStatus(withAddon, promoStatus(withAddon, now, usage[row.id]), scope.plan, now),
       used: usage[row.id]?.used ?? 0,
       created_at: row.created_at,
       is_trial: !!row.is_trial,
@@ -337,11 +357,16 @@ export async function loadPromosPage(): Promise<PromoResult<{ data: PromosPageDa
       ? empty
       : { month: empty.month, results: Object.fromEntries(Object.entries(empty.results).filter(([id]) => trialIds.has(id))) };
 
+  const siteOrigin = await loadSiteOrigin(scope);
   const calloutState = await loadCalloutState();
-  // TODO(promos-callouts): feed upcomingDays / lapsedClients / services / cancellation
-  // once the agenda and clients loaders expose them. Until then only state is passed,
-  // so no callout fires from this page; the mount and the response actions are live.
-  const callout = pickCallout({ now, state: calloutState });
+  const calloutInputs = await loadCalloutInputs(
+    scope.admin,
+    { talentId: scope.talentId, tenantId: scope.tenantId },
+    catalog.services,
+    promos.map((p) => p.promo),
+    now,
+  );
+  const callout = pickCallout({ now, state: calloutState, ...calloutInputs });
 
   return {
     ok: true,
@@ -357,6 +382,8 @@ export async function loadPromosPage(): Promise<PromoResult<{ data: PromosPageDa
       addons: catalog.addons,
       results,
       callout,
+      planEnded: planEndedCount(promos.map((p) => ({ promo: p.promo, status: promoStatus(p.promo, now, usage[p.id]) })), scope.plan, now),
+      siteOrigin,
     },
   };
 }
@@ -370,7 +397,7 @@ export async function getPromoAttention(): Promise<{ attention: boolean }> {
   const now = new Date();
   const usage = await loadUsage(scope.admin, list.rows.map((r) => r.id), null, now);
   if (!usage) return { attention: false };
-  const items = list.promos.map((p) => ({ id: p.id, status: promoStatus(p, now, usage[p.id]), promo: p }));
+  const items = list.promos.map((p) => ({ id: p.id, status: effectiveStatus(p, promoStatus(p, now, usage[p.id]), scope.plan, now), promo: p }));
   const callout = pickCallout({ now, state: await loadCalloutState() });
   return { attention: promoAttention(items, now, callout !== null).length > 0 };
 }
@@ -598,4 +625,61 @@ export async function endPromo(id: string): Promise<PromoResult> {
   if (error) return dbFail("promos.actions/end", error);
   refresh();
   return { ok: true };
+}
+
+// ── Cortesía (Q6): a free booking for one client, recorded as gifted value ──
+
+export type CourtesyActionResult =
+  | { ok: true; already: boolean; giftedCents: number; currency: string }
+  | { ok: false; error: PromoActionError | "cancelled" | "needs_client" | "already_paid" };
+
+/**
+ * Mark one of the talent's own bookings as a Cortesía: charged 0, no fee, the
+ * reason recorded (influencer, gift, make_good, other). See
+ * `redemption/courtesy.ts` for the money rules.
+ */
+export async function giveCourtesyBooking(input: {
+  bookingId: string;
+  reason: string;
+  /** Only when the booking has no order to price it from. Integer minor units. */
+  listCents?: number | null;
+}): Promise<CourtesyActionResult> {
+  await requireNotImpersonating();
+  const scope = await resolvePromoScope(true);
+  if (!isScope(scope)) return { ok: false, error: scope.error };
+  const { requireOwnBooking } = await import("@/lib/talent-agenda/booking-actions");
+  const own = await requireOwnBooking(String(input.bookingId ?? ""));
+  if (!own.ok || own.talentId !== scope.talentId) return { ok: false, error: "not_allowed" };
+
+  const [{ giveCourtesy, defaultCourtesyCode }, money, { cancelPaymentLink }, service, { completeZeroTotalOrder }] = await Promise.all([
+    import("./redemption/courtesy"),
+    import("@/lib/talent-agenda/cancel-money"),
+    import("@/lib/payments/links"),
+    import("./redemption/service"),
+    import("@/lib/orders/complete-order"),
+  ]);
+  const res = await giveCourtesy(
+    scope.admin,
+    {
+      tenantId: scope.tenantId,
+      talentProfileId: scope.talentId,
+      actorUserId: scope.userId,
+      bookingId: input.bookingId,
+      reason: input.reason,
+      listCents: input.listCents ?? null,
+    },
+    {
+      holdPromo: service.holdPromo,
+      confirmRedemption: service.confirmRedemption,
+      ledgerPaidCents: money.ledgerPaidCents,
+      paymentInFlight: (db, orderId) => money.paymentInFlightForOrder(db, orderId),
+      releaseRedemption: service.releaseRedemption,
+      cancelPaymentLink,
+      completeZeroTotalOrder: (db, o) => completeZeroTotalOrder(db, o),
+      code: defaultCourtesyCode,
+    },
+  );
+  if (!res.ok) return { ok: false, error: res.error };
+  refresh();
+  return { ok: true, already: res.already, giftedCents: res.giftedCents, currency: res.currency };
 }

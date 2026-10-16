@@ -42,4 +42,5 @@ src/components/public-booking/chat-catalog-events.test.ts
 src/lib/messaging/client-draft-guards.test.ts
 src/app/t/*/_chat/guest-added-items-dedupe.test.ts
 src/components/inquiry/inquiry-drawer-refresh-on-close.static.test.ts
+src/lib/client-account/client-layout-locale.test.ts
 src/lib/saas/talent-site-private-cache-key.test.ts

@@ -1,7 +1,13 @@
 import Link from "next/link";
+import { Camera, Circle, Globe, Link2, Mail, MessageCircle, Music2, QrCode, Ticket, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import type { PromoResult, Tip } from "@/lib/promos/results/compute";
 import { money, resultsCopy, soldOutText, tipText, type Lang } from "@/lib/promos/results/copy";
+import { formatSources, type SourceIcon } from "@/lib/promos/results/sources";
+
+const SOURCE_ICON: Record<SourceIcon, LucideIcon> = {
+  instagram: Camera, tiktok: Music2, whatsapp: MessageCircle, qr: QrCode, link: Link2, email: Mail, code: Ticket, site: Globe, other: Circle,
+};
 
 /**
  * One card per promo. Earned and given are always side by side. Presentational:
@@ -23,6 +29,7 @@ export function PromoResultsCard(props: {
   const { result: r, lang, currency } = props;
   const c = resultsCopy(lang);
   const sold = soldOutText(r, lang);
+  const sources = formatSources(r.bySource, lang);
   return (
     <section className="rounded-2xl border border-[var(--tc-border,#e5e5ea)] bg-white p-4" aria-label={props.name}>
       {props.hideTitle ? null : <h3 className="text-sm font-medium text-[var(--tc-ink,#1c1c1e)]">{props.name}</h3>}
@@ -37,6 +44,20 @@ export function PromoResultsCard(props: {
         {r.linkOpens > 0 ? ` · ${r.linkOpens} ${c.opens}` : ""}
         {r.giftedCents > 0 ? ` · ${money(r.giftedCents, currency, lang)} ${c.gifted}` : ""}
       </p>
+      {sources.length > 0 ? (
+        <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1" aria-label={c.sources}>
+          {sources.map((s) => {
+            const Icon = SOURCE_ICON[s.key];
+            return (
+              <li key={s.key} className="inline-flex items-center gap-1 text-xs text-[var(--tc-muted,#6b6b73)]" title={s.label}>
+                <Icon className="size-3.5" aria-hidden />
+                <span className="tabular-nums text-[var(--tc-ink,#1c1c1e)]">{s.count}</span>
+                <span className="sr-only">{s.label}</span>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
       {sold ? <p className="mt-2 text-sm text-[var(--tc-ink,#1c1c1e)]">{sold}</p> : null}
       {(props.tips ?? []).slice(0, 1).map((t) => (
         <p key={t.id} className="mt-2 text-xs text-[var(--tc-muted,#6b6b73)]">{tipText(t.id, lang)}</p>

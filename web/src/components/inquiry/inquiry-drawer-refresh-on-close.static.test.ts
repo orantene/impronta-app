@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const drawer = readFileSync(join(here, "InquiryDrawer.tsx"), "utf8");
+const hook = readFileSync(join(here, "use-refresh-on-close.ts"), "utf8");
 const actions = readFileSync(
   join(here, "..", "..", "app", "(workspace)", "[tenantSlug]", "client", "_actions", "inquiry-intent-actions.ts"),
   "utf8",
@@ -22,10 +23,8 @@ test("the submit action does not revalidate the page the drawer is open on", () 
 });
 
 test("the drawer refreshes the page only after a submitted inquiry's confirmation is closed", () => {
-  assert.match(drawer, /onClose: onCloseProp,/);
-  assert.match(drawer, /submittedRef\.current = submitted;/);
-  assert.match(
-    drawer,
-    /const onClose = useCallback\(\(\) => \{\s*onCloseProp\(\);\s*if \(submittedRef\.current\) router\.refresh\(\);\s*\}, \[onCloseProp, router\]\);/,
-  );
+  assert.match(drawer, /const \[onClose, noteSubmitted\] = useRefreshOnClose\(onCloseProp\);/);
+  assert.match(drawer, /useEffect\(\(\) => noteSubmitted\(submitted\), \[noteSubmitted, submitted\]\);/);
+  assert.match(hook, /if \(submittedRef\.current\) router\.refresh\(\);/);
+  assert.doesNotMatch(drawer, /submittedRef\.current = /);
 });
