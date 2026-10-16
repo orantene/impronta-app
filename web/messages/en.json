@@ -4953,6 +4953,7 @@
       "greetingMorning": "Good morning, {name}",
       "greetingAfternoon": "Good afternoon, {name}",
       "greetingEvening": "Good evening, {name}",
+      "greetingNeutral": "Hello, {name}",
       "greetingFallbackName": "there",
       "dateLocale": "en-US",
       "newInquiry": "New inquiry",
@@ -17700,11 +17701,14 @@
       "filesNone": "No file is attached to a milestone yet.",
       "kpiCollectedNoteOne": "1 record paid"
     },
+    "adminNotFound": {
+      "title": "Page not found",
+      "body": "This page does not exist or may have moved. Check the address or head back to your overview.",
+      "back": "Back to Overview"
+    },
     "clientRecord": {
       "title": "Client",
       "unavailable": "We could not load this client. Nothing was changed. Try again in a moment.",
-      "notFound": "That client is not here. They may have been merged into another record, or the link may belong to another workspace.",
-      "invalidId": "That address is not a client.",
       "unnamed": "Name not recorded",
       "backToList": "All clients",
       "identity": "Identity",
