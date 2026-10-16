@@ -12,34 +12,32 @@ import {
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (f: string) => readFileSync(join(here, f), "utf8");
 
+// TUL-922 (PM decision): page context decides, never screen size or sign-in.
 for (const locale of ["en", "es"] as const) {
   const copy = getMarketingSupportCopy(locale);
-  test(`signed-in gets the support set (${locale})`, () => {
-    const s = supportStarters(true, copy);
+  test(`dashboard surface gets the support set (${locale})`, () => {
+    const s = supportStarters("dashboard", copy);
     assert.deepEqual(s.slice(0, 3), [copy.starterBroken, copy.starterBilling, copy.starterAccount]);
     assert.ok(!s.includes(copy.starterPricing));
-    assert.equal(supportComposerPlaceholder(true, copy), copy.composerPlaceholderSignedIn);
+    assert.equal(supportComposerPlaceholder("dashboard", copy), copy.composerPlaceholderSignedIn);
   });
-  test(`signed-out gets the sales set (${locale})`, () => {
-    const s = supportStarters(false, copy);
+  test(`public surface gets the sales set (${locale})`, () => {
+    const s = supportStarters("public", copy);
     assert.deepEqual(s.slice(0, 3), [copy.starterPricing, copy.starterDomain, copy.starterPayments]);
-    assert.equal(supportComposerPlaceholder(false, copy), copy.composerPlaceholder);
+    assert.equal(supportComposerPlaceholder("public", copy), copy.composerPlaceholder);
   });
 }
 
-test("panel selects starters and placeholder through the shared helpers", () => {
+test("the public marketing panel always uses the public set, whoever is signed in", () => {
   const p = read("MarketingSupportPanel.tsx");
-  assert.ok(p.includes("supportStarters(signedIn, copy)"));
-  assert.ok(p.includes("supportComposerPlaceholder(signedIn, copy)"));
-  assert.ok(!p.includes("copy.composerPlaceholder}"));
+  assert.match(p, /const MARKETING_SURFACE = "public" as const;/);
+  assert.ok(p.includes("supportStarters(MARKETING_SURFACE, copy)"));
+  assert.ok(p.includes("supportComposerPlaceholder(MARKETING_SURFACE, copy)"));
+  assert.ok(!/supportStarters\(signedIn/.test(p));
 });
 
-test("every mount passes the real signed-in state, never a literal", () => {
-  assert.ok(read("MarketingSupportLauncherMount.tsx").includes("signedIn={Boolean(actor.user)}"));
-  assert.ok(read("MarketingContactPage.tsx").includes("signedIn={Boolean(actor?.user)}"));
-  assert.ok(read("MarketingContactResume.tsx").includes("signedIn={signedIn}"));
-  assert.ok(read("MarketingSupportLauncher.tsx").includes("signedIn={signedIn}"));
-  for (const f of ["MarketingSupportLauncherMount.tsx", "MarketingContactPage.tsx", "MarketingContactResume.tsx", "MarketingSupportLauncher.tsx"]) {
-    assert.ok(!/signedIn=\{(false|true)\}/.test(read(f)), f);
-  }
+test("no support copy selection keys on screen size", () => {
+  const files = ["MarketingSupportPanel.tsx", "MarketingSupportLauncher.tsx", "MarketingSupportLauncherMount.tsx"];
+  for (const f of files) assert.ok(!/matchMedia|innerWidth|useMediaQuery/.test(read(f)), f);
+  assert.ok(!/matchMedia|innerWidth|useMediaQuery/.test(readFileSync(join(here, "../../../lib/marketing/support-copy.ts"), "utf8")));
 });

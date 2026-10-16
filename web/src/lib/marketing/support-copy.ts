@@ -128,16 +128,19 @@ export function openMarketingSupport(ticketId?: string): void {
 }
 
 /**
- * Starter chips for the Ask Tulala panel. Signed-in users get the support
- * set on every viewport; the sales set is for signed-out marketing visitors.
+ * TUL-922 (PM decision): Ask Tulala's starters and placeholder follow the PAGE
+ * CONTEXT, never screen size and never sign-in: public pages get the sales set,
+ * surfaces inside a dashboard get the support set. Desktop and mobile match.
  */
-export function supportStarters(signedIn: boolean, copy: MarketingSupportCopy): string[] {
-  return signedIn
+export type SupportSurface = "public" | "dashboard";
+
+export function supportStarters(surface: SupportSurface, copy: MarketingSupportCopy): string[] {
+  return surface === "dashboard"
     ? [copy.starterBroken, copy.starterBilling, copy.starterAccount, copy.starterHuman]
     : [copy.starterPricing, copy.starterDomain, copy.starterPayments, copy.starterHuman];
 }
 
-/** Composer placeholder: support wording when signed in, sales wording otherwise. */
-export function supportComposerPlaceholder(signedIn: boolean, copy: MarketingSupportCopy): string {
-  return signedIn ? copy.composerPlaceholderSignedIn : copy.composerPlaceholder;
+/** Composer placeholder for the same page context. */
+export function supportComposerPlaceholder(surface: SupportSurface, copy: MarketingSupportCopy): string {
+  return surface === "dashboard" ? copy.composerPlaceholderSignedIn : copy.composerPlaceholder;
 }

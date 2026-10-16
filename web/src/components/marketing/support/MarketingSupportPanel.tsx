@@ -23,6 +23,9 @@ import { SupportCardRenderer } from "@/components/support/SupportCardRenderer";
 import { SupportAgentAvatar } from "@/components/support/SupportAgentAvatar";
 import { SUPPORT_AGENT } from "@/lib/support/support-persona";
 
+/** TUL-922: this panel only mounts on public marketing pages, so it always uses the public set. */
+const MARKETING_SURFACE = "public" as const;
+
 const GUEST_SUPPORT_CHAT_PATH = "/api/ai/guest-support-chat";
 
 async function requestGuestSupportAnswer(ticketId: string): Promise<boolean> {
@@ -35,17 +38,9 @@ async function requestGuestSupportAnswer(ticketId: string): Promise<boolean> {
   return res.ok && ct.includes("application/json");
 }
 
-/**
- * What a visitor should be offered first, which is not the same question for
- * a stranger and for a customer.
- *
- * The panel used to show one screen to both: a signed-in customer whose
- * booking had broken was asked "Ask about plans, features, or how to start".
- * `signedIn` reached this component already and changed exactly one thing —
- * whether we asked for an email address.
- */
-function startersFor(signedIn: boolean, copy: MarketingSupportCopy): string[] {
-  return supportStarters(signedIn, copy);
+/** TUL-922: first questions follow the page (public = sales), not sign-in or screen size. */
+function startersFor(copy: MarketingSupportCopy): string[] {
+  return supportStarters(MARKETING_SURFACE, copy);
 }
 
 /**
@@ -94,7 +89,7 @@ export function MarketingSupportPanel({
   onUnread: () => void;
 }) {
   const copy = getMarketingSupportCopy(locale);
-  const starters = startersFor(signedIn, copy);
+  const starters = startersFor(copy);
   const [view, setView] = useState<"home" | "thread">(resumeTicketId ? "thread" : "home");
   const [ticketId, setTicketId] = useState<string | null>(resumeTicketId);
   const [ticket, setTicket] = useState<SupportTicketRow | null>(null);
@@ -512,7 +507,7 @@ export function MarketingSupportPanel({
               if (!busy && draft.trim()) void sendQuestion();
             }
           }}
-          placeholder={supportComposerPlaceholder(signedIn, copy)}
+          placeholder={supportComposerPlaceholder(MARKETING_SURFACE, copy)}
           rows={3}
           className="mb-2 w-full resize-none rounded-xl border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg)] px-3 py-2 text-[0.875rem]"
         />
