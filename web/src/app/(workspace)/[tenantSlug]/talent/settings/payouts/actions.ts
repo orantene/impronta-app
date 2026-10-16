@@ -29,7 +29,7 @@ import {
   refreshTalentAccountStatus,
   type TalentConnectedAccountSnapshot,
 } from "@/lib/payments/stripe-connect-talent";
-import { payoutCountryLabel } from "@/lib/payments/payout-countries";
+import { payoutCountryLabel, usdcPayoutsEnabled } from "@/lib/payments/payout-countries";
 import {
   loadActivePayoutSystem,
   type ActivePayoutSystem,
@@ -268,7 +268,7 @@ export async function createTalentDashboardLinkAction(): Promise<
  * path. Returns a human country label for the badge.
  */
 export async function loadTalentStablecoinEligibility(): Promise<
-  | { ok: true; eligible: boolean; recommended: boolean; countryLabel: string | null }
+  | { ok: true; eligible: boolean; recommended: boolean; countryLabel: string | null; usdcEnabled: boolean }
   | { ok: false; error: string }
 > {
   const tp = await resolveOwnTalentProfileId();
@@ -280,6 +280,7 @@ export async function loadTalentStablecoinEligibility(): Promise<
     eligible: offer.eligible,
     recommended: offer.recommended,
     countryLabel: r.country ? payoutCountryLabel(r.country) : null,
+    usdcEnabled: usdcPayoutsEnabled(),
   };
 }
 
