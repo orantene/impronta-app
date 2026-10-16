@@ -19,3 +19,15 @@ describe("TUL-1024 profile footer CTA uses the display name", () => {
     });
   }
 });
+
+describe("TUL-1024 footer CTA copy exists in both locales with the name slot", () => {
+  for (const [loc, re] of [["es", /^¿Listo para trabajar con \{firstName\}\?$/], ["en", /^Ready to work with \{firstName\}\?$/]] as const) {
+    it(`${loc}: footerCtaTitle carries {firstName} so a two-word name fills it whole`, () => {
+      const json = JSON.parse(readFileSync(join(process.cwd(), "messages", `${loc}.json`), "utf8"));
+      const title = json.public.profile.footerCtaTitle as string;
+      assert.match(title, re);
+      assert.equal(title.replace("{firstName}", "Ana María"), loc === "es" ? "¿Listo para trabajar con Ana María?" : "Ready to work with Ana María?");
+    });
+  }
+});
+

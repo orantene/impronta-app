@@ -80,8 +80,12 @@ export async function resolveCustomer(
 
 // ── No-show eligibility ───────────────────────────────────────────────────
 
-/** No-shows with THIS talent: the customers roll-up or promo no_show rows, whichever is higher. */
-export async function countNoShowsWithTalent(db: Db, tenantId: string, customerId: string): Promise<number> {
+/**
+ * No-shows with THIS talent: the customers roll-up or promo no_show rows,
+ * whichever is higher. `null` when either read failed: the caller decides
+ * (never read a failure as "zero no-shows").
+ */
+export async function countNoShowsWithTalent(db: Db, tenantId: string, customerId: string): Promise<number | null> {
   const [cust, rows] = await Promise.all([
     db.from("customers").select("no_shows").eq("id", customerId).eq("tenant_id", tenantId).maybeSingle(),
     db
@@ -91,17 +95,26 @@ export async function countNoShowsWithTalent(db: Db, tenantId: string, customerI
       .eq("status", "no_show")
       .eq("tenant_promo_codes.tenant_id", tenantId),
   ]);
-  const rollup = (cust.data as { no_shows: number } | null)?.no_shows ?? 0;
+  if (cust.error || rows.error) {
+    logServerError("promos.noShows/count", cust.error ?? rows.error);
+    return null;
+  }
+  const rollup = (cust.data as { no_shows: number | null } | null)?.no_shows ?? 0;
   return Math.max(rollup, rows.count ?? 0);
 }
 
-/** Silent: an ineligible client simply sees regular prices on limited promos. */
+/**
+ * Silent: an ineligible client simply sees regular prices on limited promos.
+ * A failed read degrades to regular price on LIMITED promos only (the talent
+ * never loses a capped seat to a read error; open promos are unaffected).
+ */
 export async function isEligibleForPromo(
   db: Db,
   input: { tenantId: string; customerId: string; promo: { max_redemptions: number | null } },
 ): Promise<boolean> {
   if (!isLimitedPromo(input.promo)) return true;
-  return !isBlockedFromLimitedPromos(await countNoShowsWithTalent(db, input.tenantId, input.customerId));
+  const n = await countNoShowsWithTalent(db, input.tenantId, input.customerId);
+  return n !== null && !isBlockedFromLimitedPromos(n);
 }
 
 // ── State transitions ─────────────────────────────────────────────────────
