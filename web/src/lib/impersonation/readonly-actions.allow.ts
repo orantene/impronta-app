@@ -38,7 +38,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["lib/server-actions/messaging-money-actions.ts", ["messagingPreviewCancel", "messagingLoadRefundableTransaction", "messagingCanReadNotes"], READ],
   ["lib/server-actions/messaging-offers.ts", ["messagingLoadOfferForEditor", "messagingListOffers"], READ],
   ["lib/server-actions/messaging-sheets.ts", ["messagingLoadHandOverTargets", "messagingLoadDelivery", "messagingLoadSnapshots", "messagingLoadOffers", "messagingLoadBasketDiff", "messagingLoadContextLines"], READ],
-  ["lib/server-actions/messaging-talent.ts", ["messagingTalentLoadInbox", "messagingTalentLoadThread", "messagingTalentLoadEssentials", "messagingTalentLoadContextLines"], READ],
+  ["lib/server-actions/messaging-talent.ts", ["messagingTalentLoadInbox", "messagingTalentLoadThread", "messagingTalentLoadEssentials", "messagingTalentLoadContextLines", "messagingTalentLoadPendingOffers"], READ],
   ["lib/server-actions/onboarding-lookups.ts", ["searchOnboardingTypes", "searchOnboardingCities"], READ],
   ["lib/server-actions/onboarding-module.ts", ["loadOnboardingResume", "loadOnboardingCard", "getOnboardingBuildStatus"], READ],
   ["lib/server-actions/onboarding-setup.ts", ["loadOnboardingSetup"], READ],
