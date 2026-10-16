@@ -1,5 +1,6 @@
 import "server-only";
 
+import { resolveEffectiveTalentPlanKey } from "@/lib/billing/effective-talent-plan";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 import {
@@ -108,7 +109,8 @@ async function resolveOwnedProfile(
   if (expectedTalentProfileId && expectedTalentProfileId !== row.id)
     return null;
 
-  return { id: row.id, tier: talentPlanToTier(row.talent_plan_key) };
+  const effective = await resolveEffectiveTalentPlanKey(supabase, row.id, row.talent_plan_key);
+  return { id: row.id, tier: talentPlanToTier(effective) };
 }
 
 /**
