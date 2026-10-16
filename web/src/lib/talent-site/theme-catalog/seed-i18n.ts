@@ -106,6 +106,8 @@ export const SEED_TEXT_ES: Readonly<Record<string, string>> = {
   "Recent work": "Trabajo reciente",
   "Recent {i}work{/i}": "Trabajo {i}reciente{/i}",
   "What they {i}say{/i}": "Lo que {i}dicen{/i}",
+  // Posts v1 (PO1) posts band
+  "Latest posts": "Últimos posts",
   "The space": "El espacio",
   "Selected work": "Trabajos elegidos",
   "More work": "Más trabajos",

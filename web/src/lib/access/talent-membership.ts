@@ -1,5 +1,5 @@
 import type { CapabilityKey } from "./capabilities";
-import type { PlanKey } from "./plan-catalog";
+import { planGrantsPosts, type PlanKey } from "./plan-catalog";
 import { isTalentFreeWebsiteEnabled } from "./talent-free-website";
 import { talentTierLabel } from "./talent-tier-label";
 import { isTalentSiteTierExpansionEnabled } from "./talent-site-tier-expansion";
@@ -22,6 +22,8 @@ export type TalentPlanCapability =
   /** @deprecated Alias of `personalSiteSections` — kept so existing callers compile. */
   | "personalSiteCustomBuilder"
   | "personalSiteCustomDomain"
+  /** Posts v1 — publish / edit live posts. Every Web Office key (plan-catalog `planGrantsPosts`). */
+  | "talentPosts"
   | TalentSiteCapability;
 
 /**
@@ -36,7 +38,8 @@ export type TalentPlanCapability =
  *   personalSiteDesignPresets  pick + switch Design and Look (FREE, all tiers)
  *   personalSiteSections    insert / paste / duplicate / move nested blocks + sections
  *   personalSitePages       add, delete, reorder, set-home extra pages
- *   personalSiteSeo         per-page SEO columns (write AND render)
+ *   personalSiteSeo         per-page SEO columns (write AND render): Web Office
+ *   personalSiteSeoBasic    page title + description only, on EVERY plan (TUL-587)
  *   personalSiteAnalytics   the site analytics surface
  *   personalSiteCustomDomain  connect / verify a custom domain
  */
@@ -47,6 +50,7 @@ export const TALENT_SITE_CAPABILITY_KEYS = [
   "personalSiteSections",
   "personalSitePages",
   "personalSiteSeo",
+  "personalSiteSeoBasic",
   "personalSiteAnalytics",
   "personalSiteCustomDomain",
 ] as const;
@@ -71,6 +75,7 @@ const FREE_WEBSITE_CAPABILITIES: ReadonlySet<TalentPlanCapability> = new Set([
   "personalSiteSections",
   "personalSitePages",
   "personalSiteSeo",
+  "personalSiteSeoBasic",
   "personalSiteAnalytics",
 ]);
 
@@ -127,6 +132,8 @@ const TALENT_PLAN_CAPABILITIES: Record<TalentPlanKey, ReadonlySet<TalentPlanCapa
     "personalSitePublish",
     // Free = a real site: pick and later switch Design, colours and fonts.
     "personalSiteDesignPresets",
+    // ...and own the two fields that make the search snippet (TUL-587).
+    "personalSiteSeoBasic",
   ]),
   talent_pro: new Set<TalentPlanCapability>([
     "profile.basic",
@@ -135,6 +142,7 @@ const TALENT_PLAN_CAPABILITIES: Record<TalentPlanKey, ReadonlySet<TalentPlanCapa
     "personalSitePublish",
     "personalSiteTemplate",
     "personalSiteDesignPresets",
+    "personalSiteSeoBasic",
   ]),
   talent_portfolio: new Set<TalentPlanCapability>([
     "profile.basic",
@@ -147,6 +155,7 @@ const TALENT_PLAN_CAPABILITIES: Record<TalentPlanKey, ReadonlySet<TalentPlanCapa
     "personalSiteSections",
     "personalSitePages",
     "personalSiteSeo",
+    "personalSiteSeoBasic",
     "personalSiteAnalytics",
     // Portfolio-only — connect / verify / manage a custom domain for the
     // Portfolio site. The DB RLS on `talent_site_domains` enforces the same
@@ -218,9 +227,15 @@ export function talentPlanGrantsCapability(
  */
 export function talentPlanGrantsSiteCapability(
   planKey: string | null | undefined,
-  capability: TalentSiteCapability,
+  capability: TalentSiteCapability | "talentPosts",
 ): boolean {
   const normalized = normalizeTalentPlanKey(planKey);
+  // Posts is NOT part of the Phase 1 dark switch: it is granted by every Web
+  // Office key (talent_portfolio AND talent_pro) in both switch positions,
+  // matching the DB gate `talent_profile_has_web_office()`. It is also kept
+  // out of TALENT_SITE_CAPABILITY_KEYS so the flags-off parity record is
+  // byte-stable.
+  if (capability === "talentPosts") return planGrantsPosts(normalized);
   if (!isTalentFreeWebsiteEnabled()) {
     return normalized === "talent_portfolio";
   }

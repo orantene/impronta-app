@@ -9,6 +9,7 @@
  * Kit slots only (validateDesign): hero · about · services · gallery · contact.
  * FAQ accordion lives inside contact and binds to `talent_faq_items` at render.
  */
+import { withPostsBand } from "../section-kit-bands";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { SERVICES_CATALOG_DEFAULT_PROPS } from "@/lib/site-admin/builder-node/services-catalog-defaults";
 import { styleTokenRef } from "@/lib/site-admin/builder-node/style-token-bindings";
@@ -172,7 +173,8 @@ function maisonAboutBlock(makeId: KitIdFactory): BuilderNode {
  */
 /** Seeded copy ships es + en (see seed-i18n.ts). */
 export function buildMaisonDesignPayload(): DesignPayload {
-  return seedI18nPayload(buildMaisonDesignPayloadUnseeded());
+  // Posts v1 (PO1): the live posts band joins before seeding so its copy ships es + en.
+  return seedI18nPayload(withPostsBand(buildMaisonDesignPayloadUnseeded(), "maison"));
 }
 
 function buildMaisonDesignPayloadUnseeded(): DesignPayload {
