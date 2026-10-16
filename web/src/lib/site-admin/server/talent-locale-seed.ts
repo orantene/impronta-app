@@ -20,6 +20,20 @@ export const TALENT_LOCALE_SEED_ATTEMPT_COOKIE = "talent_locale_seed_attempt";
 export const TALENT_LOCALE_SEED_ATTEMPT_MAX_AGE_SECONDS = 60;
 
 /**
+ * The loop-breaker cookie is `Secure` only when the request itself came over
+ * https. A production build served on plain http (a local or isolated test
+ * host) would otherwise set a Secure cookie that a browser refuses to keep,
+ * and the breaker would never hold.
+ */
+export function seedAttemptCookieSecure(input: {
+  protocol: string | null | undefined;
+  forwardedProto: string | null | undefined;
+}): boolean {
+  const proto = (input.forwardedProto?.split(",")[0] ?? input.protocol ?? "").trim().toLowerCase().replace(/:$/, "");
+  return proto === "https";
+}
+
+/**
  * Returns the locale to seed, or null when nothing should change:
  *   - cookie deliberate (present, no auto marker)  -> null
  *   - cookie already equals the primary             -> null
