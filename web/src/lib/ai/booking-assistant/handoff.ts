@@ -9,6 +9,45 @@ export function normalizeBookingAssistantLocale(raw: string | null | undefined):
   return (raw ?? "").toLowerCase().startsWith("es") ? "es" : "en";
 }
 
+const ES_WORDS = new Set([
+  "hola", "quiero", "cuanto", "cuánto", "cuesta", "precio", "tienes", "tienen", "puedo",
+  "gracias", "para", "por", "que", "qué", "como", "cómo", "cuando", "cuándo", "donde",
+  "dónde", "el", "la", "los", "las", "una", "un", "es", "esta", "está", "hay", "mi",
+  "tu", "con", "pero", "si", "sí", "buenas", "buenos", "dias", "días", "horario",
+]);
+const EN_WORDS = new Set([
+  "hi", "hello", "how", "much", "what", "when", "where", "is", "are", "the", "a", "an",
+  "do", "does", "you", "your", "can", "i", "my", "price", "cost", "have", "thanks",
+  "thank", "please", "for", "with", "available", "about", "and", "of", "to",
+]);
+
+/**
+ * TUL-1154: the page/inquiry locale is a fallback, not the reply language. An
+ * English guest on a Spanish site got Spanish. Detect the language of what the
+ * guest actually wrote; null when the message is too short or mixed to tell.
+ */
+export function detectGuestMessageLocale(text: string | null | undefined): BookingAssistantLocale | null {
+  const lower = (text ?? "").toLowerCase();
+  const words = lower.match(/[a-záéíóúñü]+/g) ?? [];
+  let es = /[ñ¿¡áéíóú]/.test(lower) ? 2 : 0;
+  let en = 0;
+  for (const w of words) {
+    if (ES_WORDS.has(w)) es += 1;
+    if (EN_WORDS.has(w)) en += 1;
+  }
+  if (es >= 2 && es > en) return "es";
+  if (en >= 2 && en > es) return "en";
+  return null;
+}
+
+/** Guest's own language wins; the page/inquiry locale breaks ties. */
+export function resolveBookingAssistantReplyLocale(
+  guestMessage: string | null | undefined,
+  pageLocale: string | null | undefined,
+): BookingAssistantLocale {
+  return detectGuestMessageLocale(guestMessage) ?? normalizeBookingAssistantLocale(pageLocale);
+}
+
 const HANDOFF: Record<BookingAssistantLocale, string> = {
   en: "A person on the team will take it from here and reply in this chat.",
   es: "Una persona del equipo lo toma desde aqui y te responde en este chat.",

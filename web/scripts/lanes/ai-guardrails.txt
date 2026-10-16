@@ -95,3 +95,4 @@ src/app/(workspace)/talent/loading-inside-shell.static.test.ts
 src/lib/security/redact-display.test.ts
 src/lib/pricing/stripe-health-redact.test.ts
 src/lib/seo/staging-noindex.static.test.ts
+src/lib/saas/deactivate-legacy-hub-hostname.migration.test.ts

@@ -9,13 +9,15 @@
  * 2026-10-07). Same wrapper the (auth) layout and /account/brief use.
  */
 export default function StartLayout({ children }: { children: React.ReactNode }) {
+  // One main landmark for the whole route (the page and its loading skeleton), so axe finds
+  // the content inside a landmark (TUL-1126). The root layout renders no main above it.
   return (
-    <div
+    <main
       className="site-theme-platform flex min-h-full flex-1 flex-col"
       data-platform-surface="marketing"
       style={{ background: "var(--tl-bone)", color: "var(--tl-ink)" }}
     >
       {children}
-    </div>
+    </main>
   );
 }

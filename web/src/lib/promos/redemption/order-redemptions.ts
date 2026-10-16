@@ -67,13 +67,26 @@ export function confirmArgs(row: HeldRow): Parameters<typeof confirmRedemption>[
   };
 }
 
-async function heldRows(db: SupabaseClient, orderId: string): Promise<HeldRow[] | null> {
+/**
+ * What a hold is anchored on. An order (instant checkout) or, for a
+ * request-to-book that has no order yet, the request (inquiry) id carried in
+ * `booking_id` (uuid, no FK; the anchor check needs one of the two).
+ */
+export type HoldAnchor = { orderId: string } | { requestId: string };
+
+function anchorLabel(a: HoldAnchor): string {
+  return "orderId" in a ? `order ${a.orderId}` : `request ${a.requestId}`;
+}
+
+async function heldRows(db: SupabaseClient, anchor: HoldAnchor | string): Promise<HeldRow[] | null> {
+  const a: HoldAnchor = typeof anchor === "string" ? { orderId: anchor } : anchor;
   try {
-    const { data, error } = await db
+    let q = db
       .from("tenant_promo_redemptions")
       .select("id, list_cents, discount_cents, amount_cents, currency, source_channel, client_status")
-      .eq("order_id", orderId)
       .eq("status", "held");
+    q = "orderId" in a ? q.eq("order_id", a.orderId) : q.eq("booking_id", a.requestId).is("order_id", null);
+    const { data, error } = await q;
     if (error) {
       logServerError("promos.orderRedemptions/read", error);
       return null;
@@ -95,10 +108,11 @@ export type ConfirmOutcome = { ok: boolean; confirmed: number; lost: string[] };
  */
 export async function confirmOrderPromos(
   db: SupabaseClient,
-  orderId: string,
+  orderId: string | HoldAnchor,
   deps: OrderRedemptionDeps = DEFAULT_DEPS,
 ): Promise<ConfirmOutcome> {
-  const rows = await heldRows(db, orderId);
+  const anchor: HoldAnchor = typeof orderId === "string" ? { orderId } : orderId;
+  const rows = await heldRows(db, anchor);
   if (!rows) return { ok: false, confirmed: 0, lost: [] };
   let confirmed = 0;
   let ok = true;
@@ -121,10 +135,10 @@ export async function confirmOrderPromos(
       lost.push(row.id);
       logServerError(
         "promos.orderRedemptions/PROMO_SEAT_LOST_AFTER_PAYMENT",
-        `order ${orderId}: redemption ${row.id} paid at the promo price after its hold lapsed and the promo sold out. Needs a human.`,
+        `${anchorLabel(anchor)}: redemption ${row.id} paid at the promo price after its hold lapsed and the promo sold out. Needs a human.`,
       );
     } else {
-      logServerError("promos.orderRedemptions/confirm", `order ${orderId}: ${row.id} ${res.reason ?? "unknown"}`);
+      logServerError("promos.orderRedemptions/confirm", `${anchorLabel(anchor)}: ${row.id} ${res.reason ?? "unknown"}`);
     }
   }
   return { ok, confirmed, lost };
@@ -133,7 +147,7 @@ export async function confirmOrderPromos(
 /** Checkout abandoned / failed / unwound: the held uses go back to the pool. */
 export async function releaseOrderPromoHolds(
   db: SupabaseClient,
-  orderId: string,
+  orderId: string | HoldAnchor,
   deps: Pick<OrderRedemptionDeps, "release"> = DEFAULT_DEPS,
 ): Promise<{ ok: boolean; released: number }> {
   const rows = await heldRows(db, orderId);
