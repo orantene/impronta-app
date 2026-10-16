@@ -28,7 +28,6 @@ import {
   loadRefundEligibility,
   isRefundReason,
 } from "@/lib/payments/refund-execute";
-import { assertTransactionOnThread } from "@/lib/payments/refund-thread-scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
@@ -472,15 +471,6 @@ export async function refundTransactionAction(formData: FormData): Promise<never
       returnToDetail(tenantSlug, inquiryId, p);
     }
     amountCents = Math.round(parsed * 100);
-  }
-
-  const scopeSb = await createSupabaseServerClient();
-  const scope = scopeSb
-    ? await assertTransactionOnThread(scopeSb, { tenantId: context.tenantId, inquiryId, transactionId })
-    : null;
-  if (!scope?.ok) {
-    const p = new URLSearchParams({ txerr: scope?.error ?? "Database unavailable." });
-    returnToDetail(tenantSlug, inquiryId, p);
   }
 
   const actor = await getCachedActorSession();
