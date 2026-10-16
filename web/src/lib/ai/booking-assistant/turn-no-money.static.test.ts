@@ -23,3 +23,8 @@ test("turn.server.ts never places a hold or books", () => {
   assert.doesNotMatch(src, /placeReservationHold/);
   assert.doesNotMatch(src, /messagingClientPickTime/);
 });
+
+test("assistant-offered time cards carry the booking_assistant source marker", () => {
+  const src = readFileSync(TURN, "utf8");
+  assert.match(src, /timesPayload\(\{[\s\S]*?source: "booking_assistant",[\s\S]*?\}\)/);
+});

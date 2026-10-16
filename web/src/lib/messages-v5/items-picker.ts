@@ -444,8 +444,9 @@ export function timesSelectionState(count: number, available: number): "few" | "
 }
 
 /** The `professional_times` payload `messagingSendOptions` inserts (ThreadCards reads `slots[].startsAt` / `professionalName`). */
-export function timesPayload(input: { readonly starts: readonly string[]; readonly professionalName: string | null; readonly talentProfileId: string | null; readonly offeringId: string | null; readonly timezone: string }): Record<string, unknown> {
+export function timesPayload(input: { readonly starts: readonly string[]; readonly professionalName: string | null; readonly talentProfileId: string | null; readonly offeringId: string | null; readonly timezone: string; readonly source?: "booking_assistant" }): Record<string, unknown> {
   return {
+    ...(input.source ? { source: input.source } : {}),
     slots: input.starts.map((startsAt) => ({ startsAt, professionalName: input.professionalName })),
     talentProfileId: input.talentProfileId,
     offeringId: input.offeringId,

@@ -452,6 +452,8 @@ async function postOfferTimesCard(input: {
       talentProfileId: input.talentProfileId,
       offeringId: input.offering.id,
       timezone: result.timezone ?? "UTC",
+      // Marks the card as assistant-offered (TUL-36 flow B keys its sandbox pay link on it).
+      source: "booking_assistant",
     }),
     title: input.offering.title,
     state: "sent",
