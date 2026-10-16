@@ -1,0 +1,2 @@
+# Lane test lists (web/scripts/lanes/*.txt) are append-heavy. Entries are kept sorted and merged with git's built-in union driver so two PRs adding different tests do not conflict (TUL-1185 / TUL-1186). If a list ever lands out of order, run `npm run lanes:sort` in web/.
+web/scripts/lanes/*.txt merge=union

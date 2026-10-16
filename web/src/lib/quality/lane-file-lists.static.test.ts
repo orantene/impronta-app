@@ -105,3 +105,27 @@ test("TUL-609: a lane-test.cjs lane keeps no long inline path list (use scripts/
     .map(([lane, n]) => `${lane}: ${n} inline paths`);
   assert.deepEqual(inlineLong, []);
 });
+
+// TUL-1185 / TUL-1186: lane lists are kept SORTED (byte order) so PRs insert at different
+// places instead of all appending to the end, and `.gitattributes` merges them with `union`.
+const laneSort = createRequire(join(WEB_ROOT, "package.json"))("./scripts/lanes-sort.cjs") as {
+  sortedText: (raw: string) => string;
+};
+
+test("GUARD BITES: sortedText orders by byte, keeps # comments on top and drops repeats", () => {
+  assert.equal(laneSort.sortedText("# head\nb.test.ts\na.test.ts\nb.test.ts\n"), "# head\na.test.ts\nb.test.ts\n");
+  assert.equal(laneSort.sortedText("Z.test.ts\na.test.ts\n"), "Z.test.ts\na.test.ts\n");
+});
+
+test("TUL-1185: every scripts/lanes/*.txt is sorted (fix: npm run lanes:sort)", () => {
+  const unsorted = listFiles().filter((f) => {
+    const raw = readFileSync(join(WEB_ROOT, "scripts", "lanes", f), "utf8");
+    return laneSort.sortedText(raw) !== raw;
+  });
+  assert.deepEqual(unsorted, []);
+});
+
+test("TUL-1186: .gitattributes merges the lane lists with the union driver", () => {
+  const attrs = readFileSync(join(WEB_ROOT, "..", ".gitattributes"), "utf8");
+  assert.match(attrs, /^web\/scripts\/lanes\/\*\.txt\s+merge=union$/m);
+});
