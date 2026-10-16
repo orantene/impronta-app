@@ -215,5 +215,7 @@ test("TUL-1218: orderIdsWithPaidBooking returns the paid ones, null on a read er
   const bad = guardedSweepAdmin({ paidOrderIds: [], paidReadError: true }).admin;
   assert.equal(await orderIdsWithPaidBooking(bad, ["a"]), null);
   const never = { from: () => { throw new Error("must not read"); } } as unknown as Parameters<typeof sweepExpiredOrders>[0];
-  assert.equal((await orderIdsWithPaidBooking(never, [])).size, 0);
+  const empty = await orderIdsWithPaidBooking(never, []);
+  assert.ok(empty);
+  assert.equal(empty.size, 0);
 });
