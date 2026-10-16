@@ -27,7 +27,7 @@ type PageParams = Promise<{ tenantSlug: string }>;
 const C = {
   ink:      "#0B0B0D",
   inkMuted: "rgba(11,11,13,0.72)",
-  inkDim:   "rgba(11,11,13,0.38)",
+  inkDim:   "rgba(11,11,13,0.6)",
   border:   "rgba(24,24,27,0.10)",
   accent:   "#0F4F3E",
 } as const;

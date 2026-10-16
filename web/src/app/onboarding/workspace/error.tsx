@@ -87,7 +87,7 @@ export default function OnboardingWorkspaceError({
             fontFamily: '"Inter", system-ui, sans-serif',
             fontSize: 11,
             fontWeight: 600,
-            color: "rgba(11,11,13,0.38)",
+            color: "rgba(11,11,13,0.6)",
             letterSpacing: 0.8,
             textTransform: "uppercase" as const,
             margin: 0,

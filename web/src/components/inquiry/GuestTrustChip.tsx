@@ -113,7 +113,7 @@ function SignalTick({
           : isPresent
             ? "1px solid rgba(176,125,42,0.14)"
             : "1px solid rgba(11,11,13,0.08)",
-        color: isVerified ? "#1A5E3C" : isPresent ? "#7A5010" : "rgba(11,11,13,0.38)",
+        color: isVerified ? "#1A5E3C" : isPresent ? "#7A5010" : "rgba(11,11,13,0.6)",
         userSelect: "none",
       }}
     >
