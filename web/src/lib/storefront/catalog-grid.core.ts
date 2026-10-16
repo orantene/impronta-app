@@ -11,6 +11,7 @@
 
 import { withEffectiveBookingModes } from "@/lib/talent/effective-booking-mode-loader";
 import { rowToOffering, type TalentOfferingRow } from "@/lib/talent/offerings-types";
+import { hideTestServiceOnPublicSite, type TestServiceScope } from "@/lib/talent/qa-test-service";
 
 import type { StorefrontAdmin } from "./admin";
 import type { CatalogAddon, CatalogCollection, CatalogGridData, CatalogGridProps, CatalogItem, CatalogOption } from "./catalog-grid.types";
@@ -25,6 +26,8 @@ export type CatalogGridDeps = {
   ) => Promise<{ ok: true; priceCents: number | null; phaseId: string | null } | { ok: false; reason: "unavailable" }>;
   /** offeringId → hero-first image urls. Cosmetic; a failure is an empty map. */
   loadImages: (admin: StorefrontAdmin, offeringIds: string[]) => Promise<Map<string, string[]>>;
+  /** Demo / fixture scope for dropping QA-named harness rows (TUL-537). Absent = keep all. */
+  testServiceScope?: (rows: TalentOfferingRow[]) => Promise<TestServiceScope>;
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -48,7 +51,11 @@ export async function readCatalogGridCore(
     if (Array.isArray(props.offeringIds) && props.offeringIds.length > 0) q = q.in("id", props.offeringIds);
     const { data: rows, error } = await q.order("sort_order", { ascending: true }).limit(MAX_ITEMS);
     if (error) return { ok: false, reason: "unavailable" };
-    const typedRows = (rows ?? []) as TalentOfferingRow[];
+    const loadedRows = (rows ?? []) as TalentOfferingRow[];
+    const testScope = deps.testServiceScope ? await deps.testServiceScope(loadedRows) : null;
+    const typedRows = testScope
+      ? loadedRows.filter((r) => !hideTestServiceOnPublicSite(r, testScope))
+      : loadedRows;
     const resolved = await withEffectiveBookingModes(
       deps.admin,
       typedRows.map((r) => rowToOffering(r, deps.locale, [])),

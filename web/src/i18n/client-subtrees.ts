@@ -7,7 +7,7 @@
  * browser build now aliases `@/i18n/messages` to `messages.client.ts`, which
  * reads these subtrees from a payload the root layout inlines (about 100 KB per
  * locale). Dashboard code that goes through `useT` registers the full catalogs
- * itself (see `full-catalogs.client.ts`), so only those routes pay for them.
+ * itself (see `use-t.ts`), so only those routes pay for them.
  *
  * Adding a `t("ns.sub…")` call in a client component that uses
  * `createTranslator` directly: add `ns.sub` here. `client-subtrees.static.test.ts`

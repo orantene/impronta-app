@@ -3,7 +3,7 @@
  * bundle only). Same API and the same per-key fallback chain as the server
  * module, but it never imports the 2.7 MB catalogs: it reads the client
  * subtrees the root layout inlines, plus the full catalogs once `useT` code has
- * registered them (`full-catalogs.client.ts`). See `client-subtrees.ts`.
+ * registered them (`use-t.ts`). See `client-subtrees.ts`.
  */
 import { defaultLocale } from "./config";
 
@@ -16,7 +16,7 @@ const ROOT_FALLBACK_LOCALE = "en";
 
 let fullCatalogs: Record<string, Catalog> | null = null;
 
-/** Called once by `full-catalogs.client.ts` (dashboard routes only). */
+/** Called once by `use-t.ts` (dashboard routes only). */
 export function registerFullCatalogs(catalogs: Record<string, Catalog>): void {
   fullCatalogs = catalogs;
 }

@@ -3,12 +3,22 @@ import { useMemo } from "react";
 
 import { translatorFor } from "./translator-for";
 import { usePublicT } from "./use-public-t";
-// Dashboard copy is read through `useT`; this registers the full catalogs in
-// the browser build, where `@/i18n/messages` otherwise holds only the
-// client subtrees (see `client-subtrees.ts`).
-import "./full-catalogs.client";
+import en from "../../messages/en.json";
+import es from "../../messages/es.json";
+import fr from "../../messages/fr.json";
+
+import { registerFullCatalogs } from "@/i18n/messages";
 import { withPluralization } from "./interpolate";
 import { useDashboardLocale } from "./use-dashboard-locale";
+
+// Dashboard copy is read through `useT`; importing this module registers the FULL catalogs in
+// the browser build, where `@/i18n/messages` otherwise holds only the client subtrees (see
+// `client-subtrees.ts`). Public pages use `usePublicT` and never import this file.
+registerFullCatalogs({
+  en: en as Record<string, unknown>,
+  es: es as Record<string, unknown>,
+  fr: fr as Record<string, unknown>,
+});
 
 /** Same hook as `usePublicT`; the difference is only this module's catalog import. */
 export const useT = usePublicT;

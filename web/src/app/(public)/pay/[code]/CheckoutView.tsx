@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { EngineFeeLines } from "@/components/payments/FeeLines";
 import { interpolate } from "@/i18n/interpolate";
-import type { FeeLine } from "@/lib/billing/processing-fee-payer";
+import { platformFeePercentLabel, type FeeLine } from "@/lib/billing/processing-fee-payer";
 import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import type { PayLinkPathPrefix } from "@/lib/payments/pay-link-url";
 import { SaveBookingsBlock } from "@/components/client-account/SaveBookingsBlock";
@@ -292,6 +292,7 @@ export function CheckoutView(props: CheckoutViewProps) {
           currency={props.currency}
           label={(c) => t(`public.thread.fees.${c}`)}
           nonRefundable={t("public.thread.fees.nonRefundable")}
+          platformFeePct={platformFeePercentLabel(props.feeLines)}
         />
       ) : (
         <p data-refund-fees-note="" className="mt-2 text-[13px]" style={{ color: MUTED }}>
