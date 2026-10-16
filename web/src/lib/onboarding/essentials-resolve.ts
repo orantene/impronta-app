@@ -28,11 +28,18 @@ export function resolveEssentialsTimezone(input: {
   country: string | null | undefined;
   /** Spanish flow with no country at all defaults to Mexico City. */
   locale?: "en" | "es";
+  /** TUL-540: `timezone` is a soft pack default; a city-derived zone (Cancún) may override Mexico_City. */
+  softTimezone?: boolean;
 }): string | null {
   const own = input.timezone?.trim();
-  if (own && isValidIanaTimeZone(own)) return own;
   const place = [input.city, input.country].map((x) => x?.trim()).filter(Boolean).join(", ");
   const fromPlace = place ? timezoneFromPlaceText(place) : null;
+  if (own && isValidIanaTimeZone(own)) {
+    if (input.softTimezone && own === "America/Mexico_City" && fromPlace && isValidIanaTimeZone(fromPlace) && fromPlace !== own) {
+      return fromPlace;
+    }
+    return own;
+  }
   if (fromPlace && isValidIanaTimeZone(fromPlace)) return fromPlace;
   const fromCountry = defaultTimezoneForCountry(input.country) ?? timezoneFromCountry(input.country);
   if (fromCountry) return fromCountry;
@@ -79,7 +86,7 @@ export function resolveEssentialsForBuild(input: {
     name: e?.name ?? null,
     services,
     hours: hoursHaveAnyOpenDay(e?.hours ?? null) ? e!.hours : defaultWeeklyHours(),
-    timezone: resolveEssentialsTimezone({ timezone: e?.timezone, city: input.city, country: input.country, locale: input.locale }),
+    timezone: resolveEssentialsTimezone({ timezone: e?.timezone, city: input.city, country: input.country, locale: input.locale, softTimezone: !e?.confirmed }),
     place: e?.place ?? null,
     firstProviderEmail: e?.firstProviderEmail ?? null,
     firstProviderName: e?.firstProviderName ?? null,
