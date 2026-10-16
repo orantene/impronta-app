@@ -1,6 +1,6 @@
 /**
  * THEME CORE P1: the stale-draft classifier (stale, fresh, qa-empty, no-diff,
- * behind, copy-only), the first-publish dry-run summary for a design with real
+ * behind, copy-only, new-sites-only), the first-publish dry-run summary for a design with real
  * sites and no release row (over the real planPublish), and en+es copy parity.
  */
 import test from "node:test";
@@ -132,12 +132,38 @@ test("a missing base snapshot is kept, not published", () => {
   assert.equal(r.designChanges, null);
 });
 
-test("copy-only drafts differ from the base but produce no design candidates: keep", () => {
+test("TUL-365: a stale copy-only draft is publishable, so it is recommended for publish-to-demos", () => {
   const r = classifyDraft(draft({ payload: withCopy(BASE), updatedAt: "2026-09-20T00:00:00Z" }), hist(), NOW);
   assert.equal(r.differs, true);
-  assert.equal(r.designChanges, 0);
+  assert.equal(r.designChanges, 0, "no design item");
+  assert.ok((r.copyChanges ?? 0) >= 1, "but a copy item a release carries");
+  assert.equal(r.action, "publish-to-demos");
+  assert.equal(r.reason, "stale-copy-only");
+});
+
+test("TUL-365: a fresh copy-only draft is kept like any fresh draft", () => {
+  const r = classifyDraft(draft({ payload: withCopy(BASE), updatedAt: "2026-10-08T00:00:00Z" }), hist(), NOW);
   assert.equal(r.action, "keep");
-  assert.equal(r.reason, "copy-only");
+  assert.equal(r.reason, "fresh");
+  assert.ok((r.copyChanges ?? 0) >= 1);
+});
+
+test("a draft whose only edits reach new sites has nothing a release can carry: keep, new-sites-only", () => {
+  const onlyOptional = clone(BASE);
+  onlyOptional.optionalBlocks = [{ kind: "faq" } as unknown as NonNullable<DesignPayload["optionalBlocks"]>[number]];
+  const r = classifyDraft(draft({ payload: onlyOptional, updatedAt: "2026-09-20T00:00:00Z" }), hist(), NOW);
+  assert.equal(r.differs, true);
+  assert.equal((r.designChanges ?? 0) + (r.copyChanges ?? 0), 0);
+  assert.equal(r.action, "keep");
+  assert.equal(r.reason, "new-sites-only");
+});
+
+test("a design change still reads as stale-with-changes even when copy changed too", () => {
+  const both = withCopy(withToken(BASE, "type.section-title-size", "40px"));
+  const r = classifyDraft(draft({ payload: both, updatedAt: "2026-09-20T00:00:00Z" }), hist(), NOW);
+  assert.ok((r.designChanges ?? 0) >= 1 && (r.copyChanges ?? 0) >= 1);
+  assert.equal(r.action, "publish-to-demos");
+  assert.equal(r.reason, "stale-with-changes");
 });
 
 test("a design with real sites and no release row needs the dry run first (gridline shape)", () => {
@@ -243,7 +269,7 @@ test("en and es copy: same shape, every action and reason labelled, no em dashes
   assert.deepEqual(Object.keys(en).sort(), Object.keys(es).sort());
   for (const lang of [en, es]) {
     for (const k of ["publish-to-demos", "discard", "delete-candidate", "keep"] as const) assert.ok(lang.action[k].length > 0);
-    for (const k of ["stale-with-changes", "stale-no-changes", "fresh", "qa-empty", "behind-latest", "copy-only", "no-base"] as const) {
+    for (const k of ["stale-with-changes", "stale-no-changes", "fresh", "qa-empty", "behind-latest", "stale-copy-only", "new-sites-only", "no-base"] as const) {
       assert.ok(lang.reason[k].length > 0);
     }
     const strings = [

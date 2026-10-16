@@ -14,8 +14,11 @@
  */
 
 import * as React from "react";
+import { PastDueBanner } from "@/components/billing/PastDueBanner";
+import { PromoCodeInput } from "@/components/billing/promo-code-input";
 import { startTalentUpgrade, openTalentSubscriptionPortal } from "./stripe-talent-actions";
 import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
+import { useT } from "@/i18n/use-t";
 import type { TalentSubscriptionState } from "../../_data-bridge";
 import type { TalentPlanKey } from "@/lib/stripe/price-ids";
 
@@ -61,7 +64,7 @@ const PLAN_META = {
   // to talent_portfolio still offers.
   talent_pro: {
     label: "Web Office",
-    price: "$9 / month",
+    price: "$9 USD / month",
     tagline: "Richer presentation and media embeds",
     color: C.violet,
     bg: C.violetSoft,
@@ -76,7 +79,7 @@ const PLAN_META = {
   },
   talent_portfolio: {
     label: "Web Office",
-    price: "$15 / month",
+    price: "$15 USD / month",
     tagline: "Your fully unlocked website with a custom domain",
     color: C.orange,
     bg: C.orangeSoft,
@@ -129,12 +132,14 @@ function UpgradeButton({
 }) {
   const [pending, startTransition] = React.useTransition();
   const [error, setError] = React.useState<string | null>(null);
+  // TUL-833: code applied via "Have a code?"; falls back to ?promo= from the URL.
+  const [appliedCode, setAppliedCode] = React.useState<string | null>(null);
 
   function handleClick() {
     if (pending) return;
     setError(null);
     startTransition(async () => {
-      const result = await startTalentUpgrade(plan, tenantSlug, readPromoCodeFromUrl());
+      const result = await startTalentUpgrade(plan, tenantSlug, appliedCode ?? readPromoCodeFromUrl());
       if (result.ok) {
         window.location.href = result.redirectUrl;
       } else {
@@ -168,6 +173,9 @@ function UpgradeButton({
       >
         {pending ? "Redirecting…" : label}
       </button>
+      <div data-testid="promo-code-input">
+        <PromoCodeInput plan={plan} interval="month" onApplied={(code) => setAppliedCode(code)} />
+      </div>
       {error && <span style={{ fontSize: 11, color: "#c0392b", fontFamily: FONT }}>{error}</span>}
     </div>
   );
@@ -233,6 +241,7 @@ export function TalentSubscriptionShell({
   subscription: TalentSubscriptionState | null;
   stripeEnabled: boolean;
 }) {
+  const t = useT();
   const planKey: PlanKey =
     rawPlanKey === "talent_pro" || rawPlanKey === "talent_portfolio"
       ? rawPlanKey
@@ -253,6 +262,14 @@ export function TalentSubscriptionShell({
 
   return (
     <section className="flex flex-col gap-3">
+      {subscription && (
+        <PastDueBanner
+          scope="talent"
+          tenantSlug={tenantSlug}
+          status={subscription.status}
+          pastDueSince={subscription.pastDueSince}
+        />
+      )}
       {/* Section header */}
       <div
         style={{
@@ -305,6 +322,12 @@ export function TalentSubscriptionShell({
             {meta.perks.map((p) => (
               <li key={p} style={{ fontSize: 12.5, color: C.inkMuted, fontFamily: FONT }}>{p}</li>
             ))}
+            {/* Posts v1 (TUL-1007): every Web Office key, grandfathered talent_pro included. */}
+            {(planKey === "talent_pro" || planKey === "talent_portfolio") && (
+              <li style={{ fontSize: 12.5, color: C.inkMuted, fontFamily: FONT }}>
+                {t("dashboard.talentPosts.planPerk")}
+              </li>
+            )}
           </ul>
         </div>
 
@@ -384,7 +407,7 @@ export function TalentSubscriptionShell({
 
       {/* Grandfathered Pro → the multi-page Web Office perks their plan key doesn't grant yet */}
       {stripeEnabled && planKey === "talent_pro" && !hasActiveSub && (
-        <UpgradeButton plan="talent_portfolio" tenantSlug={tenantSlug} label="Unlock the rest of Web Office — $15/mo" />
+        <UpgradeButton plan="talent_portfolio" tenantSlug={tenantSlug} label="Unlock the rest of Web Office — $15 USD/mo" />
       )}
 
       {/* Manage subscription (paid active subscribers) */}

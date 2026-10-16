@@ -39,9 +39,9 @@ import {
   HOST_NAME_HEADER,
   HOST_TALENT_PROFILE_HEADER,
 } from "@/lib/saas/host-context";
-import { LEGACY_PRIVACY_SLUG, POLICY_SLUG, policyDocForSlug } from "@/lib/talent-policies/public";
+import { LEGACY_PRIVACY_SLUG, POLICY_SLUG } from "@/lib/talent-policies/public";
+import { needsRouteLookup, talentRouteVerdict } from "@/lib/talent-site/route-verdict";
 import { TalentSitePaintSkeleton } from "@/components/talent-site/TalentSitePaintSkeleton";
-import { parseServiceSlug } from "@/lib/talent-site/service-page";
 import { loadMaxSitePages } from "@/lib/talent-site/server/load-max-site";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { talentGuestAliasTarget, talentGuestServiceAlias } from "@/lib/talent-site/guest-path-aliases";
@@ -208,13 +208,11 @@ export default async function TalentSiteHostPage({
   // status at 200). This check is exact: renderTalentMaxSite resolves a page by slug
   // equality, policy slugs and service slugs only, so we 404 only when the slug is in
   // none of those and in no page row at all (draft or published).
-  if (seg && preview !== "draft" && (seg === LEGACY_PRIVACY_SLUG || (!policyDocForSlug(seg) && parseServiceSlug(seg) === null))) {
-    const pages = await loadMaxSitePages(talentProfileId);
-    if (!pages.some((p) => p.slug === seg)) {
-      // `/privacy` is the English word talents and footers guess: a real 308 to the policy page (not a streamed redirect).
-      if (seg === LEGACY_PRIVACY_SLUG) permanentRedirect(`/${POLICY_SLUG.privacy}`);
-      notFound();
-    }
+  if (needsRouteLookup(seg, preview)) {
+    const verdict = talentRouteVerdict(seg, (await loadMaxSitePages(talentProfileId)).map((p) => p.slug));
+    // `/privacy` is the English word talents and footers guess: a real 308 to the policy page (not a streamed redirect).
+    if (verdict === "privacy-redirect") permanentRedirect(`/${POLICY_SLUG.privacy}`);
+    if (verdict === "not-found") notFound();
   }
   return (
     <Suspense fallback={<TalentSitePaintSkeleton locale={locale} />}>

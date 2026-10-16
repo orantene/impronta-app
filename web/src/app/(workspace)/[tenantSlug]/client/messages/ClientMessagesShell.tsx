@@ -662,7 +662,7 @@ function InquiryRow({ inq, active, onClick }: { inq: ClientInquiryRow; active: b
   const t = useT();
   const stage = stageStyle(inq.status, t);
   const company = clientInquiryTitle(inq, t("dashboard.clientMessages.unnamedInquiry"));
-  const dateLabel = inq.event_date ? formatDate(inq.event_date) : null;
+  const dateLabel = inq.visitWhen ? `${inq.visitWhen.date} · ${inq.visitWhen.time} ${inq.visitWhen.tzLabel}` : inq.event_date ? formatDate(inq.event_date) : null;
   const location = inq.event_location;
   const needsMe = inq.next_action_by === "client";
   const unread = inq.unreadCount > 0;
@@ -969,7 +969,7 @@ function ThreadPaneWithTabs({
               >
                 {stage.label}
               </button>
-              {inq.event_date && <span>· {formatDate(inq.event_date)}</span>}
+              {(inq.visitWhen || inq.event_date) && <span>· {inq.visitWhen ? `${inq.visitWhen.date} · ${inq.visitWhen.time} ${inq.visitWhen.tzLabel}` : formatDate(inq.event_date as string)}</span>}
               {inq.event_location && <span>· {inq.event_location}</span>}
             </div>
           </div>

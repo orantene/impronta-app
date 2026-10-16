@@ -45,6 +45,7 @@ const TalentPayoutsPage = dynamic(() => import("./page-modules/TalentPayoutsPage
 const TalentTodayPage = dynamic(() => import("./talent/pages/TodayPage").then((m) => ({ default: m.TalentTodayPage })), { loading: () => <TodaySkeleton /> });
 const TalentMessagesPage = dynamic(() => import("./talent/pages/messages/MessagesPage").then((m) => ({ default: m.TalentMessagesPage })), { loading: () => null });
 const MoneyPage = dynamic(() => import("@/components/talent/money/MoneyPage").then((m) => ({ default: m.MoneyPage })), { loading: () => null });
+const TalentPostsListPage = dynamic(() => import("@/components/posts/TalentPostsListPage").then((m) => ({ default: m.TalentPostsListPage })), { loading: () => null });
 const TalentClientsPage = dynamic(() => import("./talent/pages/ClientsPage").then((m) => ({ default: m.TalentClientsPage })), { loading: () => null });
 const AgendaAttentionPage = dynamic(() => import("./talent/agenda/AgendaAttentionPage").then((m) => ({ default: m.AgendaAttentionPage })), { loading: () => null });
 const AgendaCalendarPage = dynamic(() => import("./talent/agenda/AgendaCalendarPage").then((m) => ({ default: m.AgendaCalendarPage })), { loading: () => null });
@@ -102,7 +103,7 @@ export function TalentSurface() {
 const TALENT_SIDEBAR_GROUPS: Array<{ label: string | null; pages: TalentPage[] }> = [
   { label: null, pages: ["today"] },
   { label: "Work", pages: ["messages", "calendar", "clients", "money"] },
-  { label: "Presence", pages: ["profile", "public-page", "services", "reviews"] },
+  { label: "Presence", pages: ["profile", "public-page", "posts", "services", "reviews"] },
 ];
 
 function TalentSidebarNavButton({
@@ -254,7 +255,7 @@ function TalentSidebar() {
             {group.label && (
               <div
                 aria-hidden
-                className="px-[10px] pb-[4px] pt-[10px] text-[10px] font-bold uppercase tracking-[0.14em] text-admin-ink-dim"
+                className="px-[10px] pb-[4px] pt-[10px] text-[10px] font-bold uppercase tracking-[0.14em] text-admin-ink-muted"
               >
                 {copy.t(group.label)}
               </div>
@@ -521,6 +522,10 @@ function TalentRouter() {
       break;
     case "payouts":
       page = <TalentPayoutsPage />;
+      break;
+    case "posts":
+      // Posts v1 (TUL-1007) — Website -> Posts list
+      page = <TalentPostsListPage />;
       break;
     case "public-page":
       // WS-8.2 — new canonical page

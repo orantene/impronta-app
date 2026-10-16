@@ -121,7 +121,9 @@ test("no segment or alias is claimed twice", () => {
 const adminRouteDirs = (): ReadonlySet<string> =>
   new Set(
     readdirSync(join(process.cwd(), ADMIN_DIR), { withFileTypes: true })
-      .filter((e) => e.isDirectory() && !e.name.startsWith("_"))
+      // `_private` folders and `[dynamic]` segments (e.g. the TUL-635 `[...missing]`
+      // catch-all) are not named routes, so they belong in neither list.
+      .filter((e) => e.isDirectory() && !e.name.startsWith("_") && !e.name.startsWith("["))
       .map((e) => e.name),
   );
 

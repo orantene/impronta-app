@@ -151,7 +151,13 @@ export async function talentSiteHostResponse(
   }
 
   const decision = isTalentSiteHostPathAllowed(localeStripped);
-  if (!decision) {
+  // Posts v1: legacy `/posts/<slug>` → 301 `/blog/<slug>`, keeping the locale prefix.
+  if (decision?.kind === "redirect" && (request.method === "GET" || request.method === "HEAD")) {
+    const target = request.nextUrl.clone();
+    target.pathname = request.nextUrl.pathname.slice(0, request.nextUrl.pathname.length - localeStripped.length) + decision.location;
+    return NextResponse.redirect(target, decision.status);
+  }
+  if (!decision || decision.kind === "redirect") {
     // Keep talent host + locale on the branded 404 so Spanish sites never see
     // the English Tulala chrome (GRK-028).
     const missHeaders = new Headers(sanitizedInboundHeaders);
@@ -221,6 +227,6 @@ export async function talentSiteHostResponse(
   }
 
   const rewriteUrl = request.nextUrl.clone();
-  rewriteUrl.pathname = talentSiteHostRewritePath(decision.pageSlug);
+  rewriteUrl.pathname = decision.kind === "blog" ? decision.rewritePath : talentSiteHostRewritePath(decision.pageSlug);
   return serve(rewriteUrl);
 }

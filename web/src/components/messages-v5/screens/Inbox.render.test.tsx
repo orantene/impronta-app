@@ -200,3 +200,12 @@ test("msg_d: seller gets All / Needs reply / Quotes out / Agency and a waiting l
   assert.doesNotMatch(html, /Needs action/);
   assert.doesNotMatch(html, /data-inbox-chips/);
 });
+
+test("TUL-720: while loading, no count line claims 0 conversations (seller or staff)", () => {
+  for (const over of [{}, { seller: true, sellerChrome: SELLER_FILTERS }] as Partial<InboxProps>[]) {
+    const html = renderToStaticMarkup(<Inbox {...baseProps({ loading: true, ...over })} />);
+    assert.match(html, /data-skeleton/);
+    assert.doesNotMatch(html, /cnt-txt/);
+    assert.doesNotMatch(html, /0 conversations/);
+  }
+});
