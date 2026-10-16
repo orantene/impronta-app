@@ -122,9 +122,11 @@ test("TUL-1183: only a real, publicly enabled locale may seed", () => {
 test("TUL-1183: the proxy seeds after the redirect early-return and writes the cookies after syncLocaleCookieForPath", () => {
   const src = readFileSync(join(process.cwd(), "src/proxy.ts"), "utf8");
   const redirectReturn = src.indexOf('if (sessionRes.headers.get("location"))');
-  const seed = src.indexOf("planDashboardLocaleSeed({");
+  const seed = src.indexOf("loadDashboardLocaleSeed(");
   assert.ok(redirectReturn > 0 && seed > redirectReturn, "seed runs after the redirect early return");
-  const passThrough = src.slice(src.indexOf("if (dashboardSeed) {"));
-  assert.ok(passThrough.indexOf("syncLocaleCookieForPath(seeded") < passThrough.indexOf("writeDashboardSeed(seeded)"));
-  assert.match(src, /seededRequestHeaders\(forwardedRequestHeaders, dashboardSeed\)/);
+  const apply = readFileSync(join(process.cwd(), "src/lib/site-admin/server/proxy-locale-seed-apply.ts"), "utf8");
+  const passThrough = apply.slice(apply.indexOf("export function finishProxyPassThrough"));
+  assert.ok(passThrough.indexOf("syncLocaleCookieForPath(seeded") < passThrough.indexOf("seed.apply(seeded)"));
+  assert.match(apply, /seededRequestHeaders\(forwarded, plan\)/);
+  assert.match(src, /dashboardSeed\?\.apply\(res\)/);
 });
