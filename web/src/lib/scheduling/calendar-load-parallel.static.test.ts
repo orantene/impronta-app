@@ -17,7 +17,8 @@ test("loadAppointments reads the zone and both booking lists in ONE wave", () =>
     appts.indexOf("const todayYmd = utcToZonedYmd"),
   );
   assert.doesNotMatch(body, /await resolveTenantTimezone/, "zone must not be its own sequential await");
-  assert.match(body, /Promise\.all\(\[\s*resolveTenantTimezone\(tenantId\)/);
+  // TUL-701: the zone read may start before the wave (`zonePromise`) so it overlaps the setup; it is still awaited inside it.
+  assert.match(body, /Promise\.all\(\[\s*(?:resolveTenantTimezone\(tenantId\)|zonePromise)/);
 });
 
 test("loadSchedule reads series, sessions and venues in ONE wave", () => {

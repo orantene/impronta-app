@@ -3,6 +3,7 @@ import {
   publicationLabel,
   publicationWord,
 } from "@/lib/talent/publication-state";
+import { quoteNeedsPriceReminder } from "@/lib/talent/offering-price-mode";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 import {
   inheritedModeLabel,
@@ -10,7 +11,7 @@ import {
   siteBookingModeView,
 } from "@/lib/talent/site-booking-mode";
 import type { TalentBookingPosture } from "@/lib/talent/selling-booking-settings";
-import { translatorFor } from "@/i18n/use-t";
+import { translatorFor } from "@/i18n/translator-for";
 import { MissingTranslationChip } from "@/components/admin/shell/internal/page-modules/catalog/MissingTranslationChip";
 import { NeedsPriceChip } from "@/components/admin/shell/internal/page-modules/catalog/NeedsPriceChip";
 
@@ -92,6 +93,11 @@ export function ItemStateChips({
       {agencyOnly && (
         <span className="text-[11px] text-admin-ink-muted">
           {locale.startsWith("es") ? "Solo agencias" : "Agencies only"}
+        </span>
+      )}
+      {quoteNeedsPriceReminder(item) && (
+        <span className="rounded-full border border-admin-border-soft bg-white px-2 py-0.5 text-[11px] font-semibold text-admin-ink" data-testid="quote-needs-price">
+          {locale.startsWith("es") ? "Agrega un precio para recibir reservas" : "Add a price to take bookings"}
         </span>
       )}
       <NeedsPriceChip item={item} t={translatorFor(locale)} />

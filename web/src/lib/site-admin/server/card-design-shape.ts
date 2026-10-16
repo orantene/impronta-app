@@ -21,6 +21,8 @@
  * serializable `CardDesign`; the consumer spreads it as inline vars.
  */
 
+import { ACCENT_TEXT_MIN_CONTRAST, ensureContrast } from "@/lib/site-admin/tokens/contrast-pair";
+
 /**
  * The directory card families a tenant can pick. Mirrors the registry enum on
  * `template.directory-card-family` (widened in P2) — kept as a local literal
@@ -100,6 +102,12 @@ export type CardDesign = {
   showBadges?: "on" | "off";
   showRating?: "on" | "off";
   showPriceFrom?: "on" | "off";
+  /**
+   * Agency opt-in for the talent promo badge on its directory cards
+   * (TUL-1051). Absent = OFF: unlike the lines above, an unset value must not
+   * fall through to "on", so readers treat only an explicit "on" as opt-in.
+   */
+  showTalentPromoBadges?: "on" | "off";
 };
 
 /** Registry token key → `CardDesign` color field. */
@@ -132,6 +140,7 @@ const LINE_VISIBILITY_KEYS = {
   showBadges: "directory.card.show-badges",
   showRating: "directory.card.show-rating",
   showPriceFrom: "directory.card.show-starting-from-price",
+  showTalentPromoBadges: "directory.card.show-talent-promo-badges",
 } as const;
 
 /** Registry token key → `CardDesign` layout field, with its allowed values. */
@@ -235,10 +244,27 @@ export function cardDesignToCssVars(
 ): Record<string, string> {
   const out: Record<string, string> = {};
   if (design.surface) out["--token-card-surface"] = design.surface;
-  if (design.nameColor) out["--token-card-name-color"] = design.nameColor;
-  if (design.muted) out["--token-card-muted"] = design.muted;
-  if (design.priceColor) out["--token-card-price-color"] = design.priceColor;
+  if (design.nameColor) out["--token-card-name-color"] = legibleOnSurface(design.nameColor, design.surface);
+  if (design.muted) out["--token-card-muted"] = legibleOnSurface(design.muted, design.surface);
+  if (design.priceColor) out["--token-card-price-color"] = legibleOnSurface(design.priceColor, design.surface);
   return out;
+}
+
+/**
+ * A card text colour that reads at WCAG AA (4.5:1) on the card's own surface.
+ *
+ * Stored designs are tenant data (a kit's hex values are copied into `theme_json` when it is
+ * applied), so a preset that was later found too faint, such as Minimal's `#8a8a8a` muted text on
+ * white (3.45:1; TUL-1083, 30 axe violations at 390px on /es/directory), would otherwise stay
+ * faint on every tenant that already applied it. Guarding here, where every stored design becomes
+ * CSS, fixes them all with no data write: a colour that already passes is returned UNCHANGED, one
+ * that fails is moved along its own hue toward black (light surface) or white (dark surface) just
+ * far enough, and anything we cannot measure (no surface pinned, a `var(...)`, a non-hex value)
+ * is left alone so the theme cascade still decides. Pure.
+ */
+export function legibleOnSurface(color: string, surface: string | undefined): string {
+  if (!surface) return color;
+  return ensureContrast(color, surface, ACCENT_TEXT_MIN_CONTRAST) ?? color;
 }
 
 /**

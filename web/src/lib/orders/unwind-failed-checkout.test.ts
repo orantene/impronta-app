@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { unwindFailedCheckout } from "./unwind-failed-checkout";
+import { unwindClosedCheckoutSession, unwindFailedCheckout } from "./unwind-failed-checkout";
 
 type Write = { table: string; payload: Record<string, unknown>; eq: [string, unknown][]; inStatus: string[] };
 
@@ -102,4 +102,53 @@ test("TUL-714: a failed checkout also cancels the unpaid booking it placed (neve
   assert.equal(agency?.payload.status, "cancelled");
   assert.deepEqual(agency?.eq.find(([c]) => c === "payment_status"), ["payment_status", "unpaid"]);
   assert.deepEqual(agency?.inStatus, ["b3"]);
+});
+
+type TxnRow = { id: string; status: string; order_id: string | null; booking_id: string | null; metadata: unknown };
+
+function fakeAdminWithTxn(writes: Write[], txn: TxnRow | null) {
+  const base = fakeAdmin(writes) as unknown as { from: (t: string) => Record<string, unknown> };
+  return {
+    from(table: string) {
+      if (table !== "booking_transactions") return base.from(table);
+      const inner = base.from(table);
+      return {
+        ...inner,
+        select() {
+          const chain = { eq: () => chain, maybeSingle: () => Promise.resolve({ data: txn, error: null }) };
+          return chain;
+        },
+      };
+    },
+  } as unknown as SupabaseClient;
+}
+
+test("TUL-706 (b): an expired Stripe session for an instant order runs the same unwind", async () => {
+  const writes: Write[] = [];
+  const res = await unwindClosedCheckoutSession(
+    fakeAdminWithTxn(writes, { id: "t4", status: "pending", order_id: "o4", booking_id: "b3", metadata: {} }),
+    { transactionId: "00000000-0000-4000-8000-000000000004", reason: "expired" },
+  );
+  assert.equal(res.outcome, "unwound");
+  const tables = writes.map((w) => w.table);
+  assert.ok(tables.includes("agency_bookings"));
+  assert.ok(tables.includes("orders"));
+  const agency = writes.find((w) => w.table === "agency_bookings");
+  assert.deepEqual(agency?.eq.find(([c]) => c === "payment_status"), ["payment_status", "unpaid"]);
+});
+
+test("TUL-706 (b): a paid, link or foreign transaction is left alone", async () => {
+  for (const txn of [
+    { id: "t5", status: "paid", order_id: "o5", booking_id: "b5", metadata: {} },
+    { id: "t6", status: "pending", order_id: "o6", booking_id: "b6", metadata: { payment_link_id: "l1" } },
+    null,
+  ]) {
+    const writes: Write[] = [];
+    const res = await unwindClosedCheckoutSession(fakeAdminWithTxn(writes, txn), {
+      transactionId: "00000000-0000-4000-8000-000000000005",
+      reason: "expired",
+    });
+    assert.equal(res.outcome, "skipped");
+    assert.equal(writes.length, 0);
+  }
 });

@@ -7,6 +7,7 @@ import { supportEngine } from "./support-engine";
 import { auditHq } from "./support-engine-emit";
 import type { SupportPriority } from "./support-types";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { afterResponse } from "@/lib/server/after-response";
 
 const uuid = z.string().uuid();
 
@@ -402,7 +403,7 @@ export async function hqSummarizeDiagnosticsAction(raw: {
     logServerError("support.diagnostics.summarize", error);
     return { ok: false, error: "Could not save summary." };
   }
-  void recordAiUsageEstimate(DEFAULT_AI_TENANT_ID);
+  afterResponse(() => recordAiUsageEstimate(DEFAULT_AI_TENANT_ID));
   return { ok: true, summary };
 }
 

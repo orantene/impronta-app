@@ -18,3 +18,17 @@ export function greetingHour(now: Date, timeZone?: string | null): number {
     return now.getHours();
   }
 }
+
+/**
+ * The zone to render the Overview date and greeting in. A workspace that never
+ * picked a venue zone is stored (and snapshotted) as "UTC", which put a Cancun
+ * admin at 7 PM under a UTC date and greeting (TUL-734). Treat UTC / empty as
+ * "unset" so the viewer's own clock is used; a real venue zone still wins.
+ */
+export function venueZoneOrNull(timeZone?: string | null): string | null {
+  const zone = timeZone?.trim();
+  if (!zone) return null;
+  const upper = zone.toUpperCase();
+  if (upper === "UTC" || upper === "ETC/UTC" || upper === "GMT" || upper === "ETC/GMT" || upper === "Z") return null;
+  return zone;
+}

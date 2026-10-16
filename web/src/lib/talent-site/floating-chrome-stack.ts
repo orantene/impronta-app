@@ -37,7 +37,7 @@
  *   [data-guest-chat-panel] so the message box stays reachable.
  */
 
-import { GUEST_CHAT_LAUNCHER_CLEARANCE_PX } from "@/app/t/[profileCode]/_chat/launcher-clearance";import { STICKY_BAR_DEFAULT_RESERVE_PX } from "@/lib/talent-site/sticky-bar-visibility";
+import { GUEST_CHAT_LAUNCHER_CLEARANCE_PX, GUEST_CHAT_LAUNCHER_GAP_PX, GUEST_CHAT_LAUNCHER_HEIGHT_PX } from "@/app/t/[profileCode]/_chat/launcher-clearance";import { STICKY_BAR_DEFAULT_RESERVE_PX } from "@/lib/talent-site/sticky-bar-visibility";
 
 /** Consent owns the corner while open; above the chat FAB so Aceptar stays tappable (F2). */
 export const FLOATING_CHROME_CONSENT_Z = 98;
@@ -114,6 +114,8 @@ body:has(${CONSENT_BANNER_SELECTOR}) #hero{padding-bottom:max(2rem,calc(var(--fl
 /* GRK-036: Hablar clears float/default sticky booking chrome before JS measure.
    Pill bars already tuck the FAB via .cb-bar-chat (GUEST_CHAT_FAB_CSS). */
 @media (max-width:719px){body:has(.cb-bar[data-show="true"]:not([data-top="true"])) [data-guest-chat-launcher],body:has(.mn-bar[data-show="true"]) [data-guest-chat-launcher]{bottom:max(calc(24px + env(safe-area-inset-bottom,0px)),calc(var(--cb-bar-h) + 24px))!important;right:max(72px,calc(16px + 56px + env(safe-area-inset-right,0px)))!important}}
+/* TUL-799: with the bar painted the launcher floats above it (bar + 24px), so reserve bar + offset + launcher + gap or the bubble covers the last footer links. */
+@media (max-width:719px){body:has([data-guest-chat-launcher]):has(.cb-bar[data-show="true"]:not([data-top="true"]),.mn-bar[data-show="true"]){--floating-launcher-clearance:calc(var(--cb-bar-h) + 24px + ${GUEST_CHAT_LAUNCHER_HEIGHT_PX}px + ${GUEST_CHAT_LAUNCHER_GAP_PX}px)}}
 /* GRK-033 residual: Gridline/split heroes — compact phone + defer who-card. */
 @media (max-width:640px){body:has(${CONSENT_BANNER_SELECTOR}) #hero.site-builder-node--split{padding-top:1.25rem!important;padding-bottom:calc(var(--floating-consent-clearance) + 16px)!important;box-sizing:border-box}body:has(${CONSENT_BANNER_SELECTOR}) #hero.site-builder-node--split > .site-builder-node--container[data-builder-layout="stack"]{padding-top:0!important;padding-bottom:0!important;--bn-gap:0.5rem}body:has(${CONSENT_BANNER_SELECTOR}) #hero.site-builder-node--split > .site-builder-node--container[data-builder-layout="stack"] > .site-builder-node--container:has(> .site-builder-node--button){scroll-margin-bottom:calc(var(--floating-consent-clearance) + 16px)}body:has(${CONSENT_BANNER_SELECTOR}) #hero.site-builder-node--split > :last-child{display:none}}
 /* TUL-795: service page sticky Reservar bar (phone only); body + chat bubble clear it. */

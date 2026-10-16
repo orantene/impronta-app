@@ -216,3 +216,10 @@ src/lib/payments/pay-paid-note.static.test.ts
 src/lib/payments/checkout-return-urls.test.ts
 src/lib/storefront/trusted-public-origin.test.ts
 src/lib/money/dashboard-prices-use-dashboard-format.static.test.ts
+src/lib/inquiry/offer-solo-fee.test.ts
+src/lib/payments/pay-expiry-words.test.ts
+src/lib/bookings/cancel-unpaid-booking.test.ts
+src/lib/orders/unwind-failed-checkout.test.ts
+src/lib/talent-agenda/abandoned-order-wire.static.test.ts
+src/lib/talent-agenda/abandoned-order.test.ts
+src/lib/talent-agenda/unified-status.test.ts

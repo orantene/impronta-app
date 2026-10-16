@@ -19,11 +19,11 @@ import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 import type { NativePostsFeedNeed } from "./native-data-block-needs";
+import { demoPostsFeedCards } from "./posts-feed-demo";
 import type { PostsFeedNodeData } from "./posts-feed-model";
 
 export type PostsFeedDataSources = {
   postsFeedByNodeId?: Record<string, PostsFeedNodeData>;
-  postsFeedDemo?: boolean;
 };
 
 /** Talent site → talent scope; otherwise the workspace tenant. */
@@ -40,18 +40,26 @@ export async function resolvePostsFeedNeeds(input: {
   locale: string;
   deps: PostsWidgetDeps;
   author?: string | null;
+  /** A demo account's empty widget gets example posts (TUL-1164: resolved here, not in the browser). */
+  allowDemo?: boolean;
 }): Promise<Record<string, PostsFeedNodeData>> {
   const out: Record<string, PostsFeedNodeData> = {};
   await Promise.all(
     input.needs.map(async (need) => {
       try {
-        out[need.nodeId] = await loadPostsWidgetCards({
+        const loaded = await loadPostsWidgetCards({
           scope: input.scope,
           locale: input.locale,
           query: { ...need.query, limit: need.fetchLimit, offset: 0 },
           deps: input.deps,
           author: input.author ?? null,
         });
+        if (input.allowDemo && loaded.cards.length === 0) {
+          const cards = demoPostsFeedCards(need.demoTrade, input.locale, need.demoCount);
+          out[need.nodeId] = { cards, total: cards.length, demo: true };
+        } else {
+          out[need.nodeId] = loaded;
+        }
       } catch (error) {
         logServerError("posts-feed.resolve", error);
         out[need.nodeId] = { cards: [], total: 0 };
@@ -94,8 +102,9 @@ export async function loadPostsFeedSources(input: {
       locale: input.locale,
       deps: { source: createSupabasePostsWidgetSource(admin) },
       author,
+      allowDemo: demo,
     });
-    return { postsFeedByNodeId, ...(demo ? { postsFeedDemo: true } : {}) };
+    return { postsFeedByNodeId };
   } catch (error) {
     logServerError("posts-feed.load", error);
     return { postsFeedByNodeId: {} };

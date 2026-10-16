@@ -31,7 +31,7 @@ import { ImageIcon } from "lucide-react";
 
 import { RequestReleaseButton } from "./media-picker-request-release";
 import { describeRejections } from "@/components/media-library/rejection-copy";
-import { useT } from "@/i18n/use-t";
+import { usePublicT } from "@/i18n/use-public-t";
 import { humanizeMediaError, readMediaJson } from "@/lib/media/humanize-media-error";
 import { compressImage } from "@/lib/client/image-compress";
 import {
@@ -144,7 +144,7 @@ export function MediaPickerDrawer({
   // uploads (talent-self endpoint) instead of the staff-only agency library.
   const { talentProfileId } = useBuilderMediaScope();
   const isTalentScope = !!talentProfileId;
-  const t = useT();
+  const t = usePublicT();
 
   const library = useMediaLibrary({
     source: talentProfileId

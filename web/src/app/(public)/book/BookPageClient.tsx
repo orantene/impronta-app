@@ -2,13 +2,17 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { BookableComposer } from "@/components/public-booking/BookableComposer";
+import {
+  BookableComposer,
+  type BookableComposerClient,
+} from "@/components/public-booking/BookableComposer";
 import { pickBookableOffering } from "@/components/public-booking/pick-bookable-offering";
-import { translatorFor, useT } from "@/i18n/use-t";
 import { offeringPriceLabel, type TalentOffering } from "@/lib/talent/offerings-types";
 import { publicPriceLine } from "@/lib/talent/public-price-line";
 import { bookPagePaymentLine } from "@/lib/talent/who-step-payment-copy";
 import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptchaField";
+import { usePublicT } from "@/i18n/use-public-t";
+import { translatorFor } from "@/i18n/translator-for";
 
 export function BookPageClient({
   tenantSlug,
@@ -16,6 +20,7 @@ export function BookPageClient({
   agencyName,
   offerings,
   signedIn = false,
+  client = null,
   captcha = null,
   locale: localeProp,
   contactHref = null,
@@ -25,13 +30,14 @@ export function BookPageClient({
   agencyName: string;
   offerings: Array<TalentOffering & { bookingMode?: "inquire" | "request" | "instant"; seatsLabel?: string | null }>;
   signedIn?: boolean;
+  client?: BookableComposerClient | null;
   captcha?: GuestCaptchaConfig | null;
   /** Page/request locale — required on CMS Live booking so labels match the site. */
   locale?: string | null;
   /** Where a visitor with nothing to book can write to the studio (TUL-698). */
   contactHref?: string | null;
 }) {
-  const cookieT = useT();
+  const cookieT = usePublicT();
   const pageLocale = (localeProp?.trim() || "en").startsWith("es") ? "es" : "en";
   const t = useMemo(
     () => (localeProp?.trim() ? translatorFor(pageLocale) : cookieT),
@@ -123,6 +129,7 @@ export function BookPageClient({
         offering={bookable}
         bookingMode={selected.bookingMode === "instant" ? "instant" : "request"}
         signedIn={signedIn}
+        client={client}
         captcha={captcha}
         locale={pageLocale}
         contactHref={contactHref}

@@ -47,6 +47,12 @@ function baseRecord(overrides: Partial<TalentSiteDomainRecord> = {}): TalentSite
     sslProvisionedAt: null,
     lastHealthCheckAt: null,
     failureReason: null,
+    acquisition: "connected",
+    planGraceStartedAt: null,
+    planGraceEndsAt: null,
+    vercelDetachedAt: null,
+    registrarAutoRenewDisabledAt: null,
+    domainDisposition: null,
     ...overrides,
   };
 }
