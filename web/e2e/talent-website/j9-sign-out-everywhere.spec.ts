@@ -24,12 +24,32 @@ const HOSTS = [`http://localhost:${PORT}`, `http://${ACME_AGENCY_LOCAL_DOMAIN}:$
 const AUTH_RE = /^sb-.*-auth-token(\.\d+)?$/;
 const FX = talentFixture("t_ready");
 
+/**
+ * Dev sign-in through the context's request client (shared cookie jar), not a
+ * navigation: the endpoint answers 307 and the browser aborts a `page.goto`
+ * mid-redirect (net::ERR_ABORTED), which failed every run. The Set-Cookie on
+ * the 307 lands in the browser context for that host; the caller then
+ * asserts the session cookie is present (no navigation).
+ */
 async function signIn(page: Page, origin: string) {
-  const res = await page.goto(
-    `${origin}/api/dev/signin?email=${encodeURIComponent(FX.email)}&next=%2F`,
-    { waitUntil: "domcontentloaded" },
-  );
-  expect(res?.ok(), `dev-signin failed on ${origin}`).toBeTruthy();
+  const url = `${origin}/api/dev/signin?email=${encodeURIComponent(FX.email)}&next=%2F`;
+  let status = 0;
+  for (let attempt = 1; attempt <= 6; attempt += 1) {
+    try {
+      const res = await page.request.get(url, { maxRedirects: 0 });
+      status = res.status();
+      if (status === 307) break;
+    } catch {
+      status = 0; // server still warming up; retry
+    }
+    await page.waitForTimeout(250 * attempt);
+  }
+  expect(status, `dev-signin failed on ${origin}`).toBe(307);
+  // No navigation here: the acme.lvh.me root redirects cross-host, which the
+  // browser reports as net::ERR_ABORTED. The Set-Cookie on the 307 already
+  // landed in the shared jar, so assert the session cookie directly.
+  const auth = (await page.context().cookies(origin)).filter((c) => AUTH_RE.test(c.name));
+  expect(auth.length, `signed in (auth cookie) on ${origin}`).toBeGreaterThan(0);
 }
 
 /** Hold the session at every scope a real browser accumulates. */
@@ -51,8 +71,26 @@ async function plantBrowserSession(page: Page) {
   });
 }
 
-async function assertSignedOutEverywhere(page: Page, context: BrowserContext) {
-  for (const origin of HOSTS) {
+/**
+ * Whether a sign-out answered on `signOutOrigin` can expire cookies held for
+ * `origin`. A browser only accepts a Set-Cookie for the response host or a
+ * parent Domain of it, so `localhost` can never expire `acme.lvh.me` or
+ * `.lvh.me` cookies (fixture-vs-product: production's equivalent is
+ * app.tulala.digital expiring `.tulala.digital`, which the sweep does and
+ * cookie-domain.test.ts pins). Two origins share a sweep scope only when they
+ * are the same host or both sit under the shared `.lvh.me` parent.
+ */
+function sweepReaches(signOutOrigin: string, origin: string): boolean {
+  const a = new URL(signOutOrigin).hostname;
+  const b = new URL(origin).hostname;
+  if (a === b) return true;
+  const shared = (h: string) => (h === "lvh.me" || h.endsWith(".lvh.me") ? ".lvh.me" : undefined);
+  return shared(a) !== undefined && shared(a) === shared(b);
+}
+
+async function assertSignedOutEverywhere(page: Page, context: BrowserContext, checkStorage: boolean) {
+  // Every entry point signs out on HOSTS[0] (localhost).
+  for (const origin of HOSTS.filter((o) => sweepReaches(HOSTS[0], o))) {
     await page.goto(`${origin}/login`, { waitUntil: "domcontentloaded" });
     await page.reload({ waitUntil: "domcontentloaded" });
     const left = (await context.cookies(origin)).filter((c) => AUTH_RE.test(c.name));
@@ -60,7 +98,7 @@ async function assertSignedOutEverywhere(page: Page, context: BrowserContext) {
     const stored = await page.evaluate(() =>
       [...Object.keys(localStorage), ...Object.keys(sessionStorage)].filter((k) => k.startsWith("sb-")),
     );
-    if (origin === HOSTS[0]) expect(stored, "browser Supabase session cleared").toEqual([]);
+    if (checkStorage && origin === HOSTS[0]) expect(stored, "browser Supabase session cleared").toEqual([]);
     // /account must not render a signed-in page after sign-out.
     await gotoSettled(page, `${origin}/account`);
     await expect(page.getByText(new RegExp(FX.email, "i"))).toHaveCount(0);
@@ -99,10 +137,23 @@ async function gotoSettled(page: Page, url: string) {
 }
 
 /** Each Log out entry point, driven the way the product drives it. */
-const ENTRY_POINTS: { name: string; run: (page: Page) => Promise<void> }[] = [
+//
+// `clientJs`: whether the entry runs the product's browser-side cleanup
+// (`clearBrowserAuthState`, called by SignOutForm onSubmit and by
+// signOutEverywhere). The two synthetic-form entries below POST straight to
+// the route to pin the SERVER contract (303, no-store, every cookie scope
+// expired, nothing re-minted) and never run that JS. Browser storage is not
+// something a server response can clear here: the route sends only
+// Clear-Site-Data "cache", and Clear-Site-Data needs a secure context anyway
+// (http://*.lvh.me is not one). So the localStorage/sessionStorage
+// `sb-*` assertion applies only where the product's real control runs.
+// The helper's storage sweep is pinned by
+// src/lib/auth/sign-out-root-cause.security.test.ts.
+const ENTRY_POINTS: { name: string; clientJs: boolean; run: (page: Page) => Promise<void> }[] = [
   {
     // SignOutForm (headers, account menus, admin bars, marketing header).
     name: "declarative SignOutForm POST /auth/sign-out",
+    clientJs: false,
     run: async (page) => {
       await page.evaluate(() => {
         const f = document.createElement("form");
@@ -116,6 +167,7 @@ const ENTRY_POINTS: { name: string; run: (page: Page) => Promise<void> }[] = [
   {
     // signOutEverywhere(CLIENT_SIGN_OUT_PATH): talent-host popover.
     name: "client popover POST /auth/client-sign-out",
+    clientJs: false,
     run: async (page) => {
       await page.evaluate(() => {
         const f = document.createElement("form");
@@ -129,6 +181,7 @@ const ENTRY_POINTS: { name: string; run: (page: Page) => Promise<void> }[] = [
   {
     // Whatever visible Log out control the page renders (first click only).
     name: "visible Log out control, first click",
+    clientJs: true,
     run: async (page) => {
       await gotoSettled(page, `${HOSTS[0]}/account`);
       const control = page
@@ -162,7 +215,16 @@ test.describe("S1 sign-out ends the session on every subdomain", () => {
       // then client-side to /talent/today, and a late client redirect cancelled
       // the sign-out form navigation (POST never surfaced as a response).
       await gotoSettled(page, `${HOSTS[0]}/`);
-      await plantBrowserSession(page);
+      // CI trace (run 38640120408): gotoSettled returned on the /talent loading
+      // shell (URL stable 1.5s while /talent/today compiled); its client
+      // redirect fired 66ms after the form submit and cancelled the POST.
+      // Wait for the final landing page itself, rendered, before signing out.
+      await page.waitForURL(/\/talent\/today(?:[?#]|$)/, { timeout: 60_000 });
+      await page.waitForLoadState("load");
+      await expect(page.getByRole("button", { name: /open account menu/i })).toBeVisible({
+        timeout: 60_000,
+      });
+      if (entry.clientJs) await plantBrowserSession(page);
 
       const signOut = page.waitForResponse(
         (r) => /\/auth\/(client-)?sign-out$/.test(new URL(r.url()).pathname) && r.request().method() === "POST",
@@ -179,7 +241,7 @@ test.describe("S1 sign-out ends the session on every subdomain", () => {
       expect(minted.map((h) => h.value)).toEqual([]);
       await page.waitForLoadState("domcontentloaded");
 
-      await assertSignedOutEverywhere(page, context);
+      await assertSignedOutEverywhere(page, context, entry.clientJs);
     });
   }
 });

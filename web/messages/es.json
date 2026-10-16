@@ -1829,6 +1829,8 @@
       "keepSlotAppointment": "Se guarda la hora de la cita mientras este enlace sea válido. No se cobra hasta que pagues.",
       "keepSlotNoTime": "Tu reserva se confirma al pagar. La hora se acuerda con la talento. No se cobra hasta que pagues.",
       "keepSlotGeneric": "Se guarda tu horario reservado mientras este enlace sea válido. No se cobra hasta que pagues.",
+      "linkValidUntil": "Este enlace de pago es válido hasta las {time} (hora de {zone}).",
+      "slotKeptUntil": "Tu horario se guarda hasta las {time} (hora de {zone}).",
       "fees": {
         "service_subtotal": "Servicio",
         "base_reservation_fee": "Cargo de reserva",
@@ -4763,11 +4765,13 @@
         "colQty": "Cant.",
         "colClientRate": "Tarifa cliente",
         "colTalentGets": "Recibe el talento",
+        "colYouGet": "Recibes tú",
         "feeExtra": "Comisión de agencia",
         "feeTitle": "Un cargo adicional de la agencia sobre las líneas — tu tarifa de coordinación. Deja 0 si tu margen ya está en las tarifas.",
         "splitHeading": "A dónde va este dinero",
         "splitClientList": "Precio de lista al cliente",
         "splitTalentGets": "Se paga al talento",
+        "splitYouGet": "Te pagan a ti",
         "splitAgencyKeeps": "Tu espacio de trabajo retiene",
         "splitAgencyNote": "antes de la parte de la plataforma",
         "splitPlatformNote": "La comisión de la plataforma (un pequeño recargo al cliente más una parte de tu margen) se calcula al reservar y aparece en la reserva confirmada.",
@@ -4947,6 +4951,7 @@
       "greetingMorning": "Buenos días, {name}",
       "greetingAfternoon": "Buenas tardes, {name}",
       "greetingEvening": "Buenas noches, {name}",
+      "greetingNeutral": "Hola, {name}",
       "greetingFallbackName": "de nuevo",
       "dateLocale": "es-ES",
       "newInquiry": "Nueva consulta",
@@ -17694,11 +17699,14 @@
       "filesNone": "Todavía no hay ningún archivo adjunto a un hito.",
       "kpiCollectedNoteOne": "1 registro pagado"
     },
+    "adminNotFound": {
+      "title": "Página no encontrada",
+      "body": "Esta página no existe o pudo haberse movido. Revisa la dirección o vuelve a tu resumen.",
+      "back": "Volver al resumen"
+    },
     "clientRecord": {
       "title": "Cliente",
       "unavailable": "No pudimos cargar este cliente. No se cambio nada. Intenta de nuevo en un momento.",
-      "notFound": "Ese cliente no está aquí. Puede haberse fusionado con otra ficha, o el enlace puede pertenecer a otro espacio de trabajo.",
-      "invalidId": "Esa dirección no es un cliente.",
       "unnamed": "Nombre no registrado",
       "backToList": "Todos los clientes",
       "identity": "Identidad",

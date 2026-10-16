@@ -43,7 +43,7 @@ export const OFFER_LINE_CONTROL_CLASS =
   "w-full min-w-0 rounded border border-admin-border bg-white px-1.5 py-1 text-[11px] text-admin-ink";
 
 /** Column headings aligned to the line-item grid (table layout only). */
-export function OfferColumnHeaders({ t }: { t: (key: string) => string }) {
+export function OfferColumnHeaders({ t, solo = false }: { t: (key: string) => string; solo?: boolean }) {
   // Literal keys on purpose: the i18n static extractor treats a template key
   // as "everything under this prefix is live", which silently revives the
   // dead-key baseline for the whole lineup namespace.
@@ -52,7 +52,7 @@ export function OfferColumnHeaders({ t }: { t: (key: string) => string }) {
     t("dashboard.adminTabs.lineup.colUnit"),
     t("dashboard.adminTabs.lineup.colQty"),
     t("dashboard.adminTabs.lineup.colClientRate"),
-    t("dashboard.adminTabs.lineup.colTalentGets"),
+    solo ? t("dashboard.adminTabs.lineup.colYouGet") : t("dashboard.adminTabs.lineup.colTalentGets"),
   ];
   return (
     <div className="hidden grid-cols-[1.6fr_0.8fr_0.6fr_0.8fr_0.8fr_28px] gap-1.5 px-2.5 text-admin-ink-muted @[640px]:grid">
@@ -85,7 +85,9 @@ export function OfferMoneySplit({
   const copy = {
     heading: t("dashboard.adminTabs.lineup.splitHeading"),
     clientList: t("dashboard.adminTabs.lineup.splitClientList"),
-    talentGets: t("dashboard.adminTabs.lineup.splitTalentGets"),
+    talentGets: hideWorkspaceTake
+      ? t("dashboard.adminTabs.lineup.splitYouGet")
+      : t("dashboard.adminTabs.lineup.splitTalentGets"),
     agencyKeeps: t("dashboard.adminTabs.lineup.splitAgencyKeeps"),
     agencyNote: t("dashboard.adminTabs.lineup.splitAgencyNote"),
     platformNote: t("dashboard.adminTabs.lineup.splitPlatformNote"),

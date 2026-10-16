@@ -1829,6 +1829,8 @@
       "keepSlotAppointment": "The appointment time is kept while this payment link is valid. Nothing is charged until you pay.",
       "keepSlotNoTime": "Your booking is confirmed once paid. The time is agreed with the talent. Nothing is charged until you pay.",
       "keepSlotGeneric": "Your reserved time is kept while this payment link is valid. Nothing is charged until you pay.",
+      "linkValidUntil": "This payment link is valid until {time} ({zone} time).",
+      "slotKeptUntil": "Your time is kept until {time} ({zone} time).",
       "fees": {
         "service_subtotal": "Service",
         "base_reservation_fee": "Reservation fee",
@@ -4763,11 +4765,13 @@
         "colQty": "Qty",
         "colClientRate": "Client rate",
         "colTalentGets": "Talent gets",
+        "colYouGet": "You get",
         "feeExtra": "Agency fee",
         "feeTitle": "An extra agency charge added on top of the line items — your coordination fee. Leave 0 if your margin is already in the rates.",
         "splitHeading": "Where this money goes",
         "splitClientList": "Client list price",
         "splitTalentGets": "Talent is paid",
+        "splitYouGet": "You are paid",
         "splitAgencyKeeps": "Your workspace keeps",
         "splitAgencyNote": "before the platform share",
         "splitPlatformNote": "A platform fee (a small client surcharge plus a share of your margin) is calculated at booking and shown on the confirmed booking.",
@@ -4947,6 +4951,7 @@
       "greetingMorning": "Good morning, {name}",
       "greetingAfternoon": "Good afternoon, {name}",
       "greetingEvening": "Good evening, {name}",
+      "greetingNeutral": "Hello, {name}",
       "greetingFallbackName": "there",
       "dateLocale": "en-US",
       "newInquiry": "New inquiry",
@@ -17694,11 +17699,14 @@
       "filesNone": "No file is attached to a milestone yet.",
       "kpiCollectedNoteOne": "1 record paid"
     },
+    "adminNotFound": {
+      "title": "Page not found",
+      "body": "This page does not exist or may have moved. Check the address or head back to your overview.",
+      "back": "Back to Overview"
+    },
     "clientRecord": {
       "title": "Client",
       "unavailable": "We could not load this client. Nothing was changed. Try again in a moment.",
-      "notFound": "That client is not here. They may have been merged into another record, or the link may belong to another workspace.",
-      "invalidId": "That address is not a client.",
       "unnamed": "Name not recorded",
       "backToList": "All clients",
       "identity": "Identity",
