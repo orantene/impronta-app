@@ -129,6 +129,11 @@ export function attachCardDesigns<
   });
 }
 
+/** TUL-875: a profile link keeps the directory's locale (`/es/t/<code>` on ES); EN stays unprefixed. */
+export function directoryProfileHref(profileCode: string, locale: "en" | "es" = "en"): string {
+  return `${locale === "es" ? "/es" : ""}/t/${profileCode}`;
+}
+
 /**
  * Map a directory row to the canonical `<TalentCard>` data shape. The marketing
  * directory is browse-only, so availability is rendered as the restrained
@@ -146,7 +151,7 @@ export function toCanonicalCardData(
     id: talent.profileCode ?? talent.displayName,
     name: talent.displayName,
     profileCode: talent.profileCode,
-    profileHref: talent.profileCode ? `/t/${talent.profileCode}` : "",
+    profileHref: talent.profileCode ? directoryProfileHref(talent.profileCode, copy.locale) : "",
     primaryType: talent.primaryTypeLabel,
     location: locationLine(talent.homeCity, talent.homeCountry, copy.locale),
     photoUrl: talent.headshotUrl,
@@ -348,6 +353,19 @@ export function localizeCountry(country: string, locale: "en" | "es"): string {
   }
 }
 
+/** The country text a stored city label already ends with (localized, raw, or English name of an ISO code). */
+function trailingCountry(city: string, country: string, localized: string): string | null {
+  const raw = country.trim();
+  let en = "";
+  if (/^[A-Za-z]{2}$/.test(raw)) {
+    try {
+      en = new Intl.DisplayNames(["en"], { type: "region" }).of(raw.toUpperCase()) ?? "";
+    } catch {}
+  }
+  const lc = city.toLowerCase();
+  return [localized, raw, en].find((t) => t && lc.endsWith(t.toLowerCase())) ?? null;
+}
+
 export function locationLine(
   city: string | null,
   country: string | null,
@@ -361,10 +379,12 @@ export function locationLine(
     line = co;
   } else if (!co) {
     line = c;
-  } else if (c.toLowerCase().endsWith(co.toLowerCase())) {
+  } else if (trailingCountry(c, country ?? "", co)) {
     // Stored city labels sometimes already include the country
-    // ("Cancún, Quintana Roo, Mexico") — don't append it a second time.
-    line = c;
+    // ("Cancún, Quintana Roo, Mexico") — don't append it a second time, and
+    // read that trailing country in the page locale (ES: "México").
+    const tail = trailingCountry(c, country ?? "", co)!;
+    line = `${c.slice(0, c.length - tail.length)}${co}`;
   } else {
     line = `${c}, ${co}`;
   }

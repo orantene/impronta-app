@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { BILLING_ES_TEXT } from "./dashboard-i18n-billing";
 import { LEFTOVERS_ES_TEXT } from "./dashboard-i18n-leftovers";
 import { NOTIFICATIONS_ES_TEXT } from "./dashboard-i18n-notifications";
 import { QA_FORMATS_ES_TEXT } from "./dashboard-i18n-qa-formats";
@@ -15,7 +16,7 @@ function isSpanish(locale: string): boolean {
 }
 
 const ES_TEXT: Record<string, string> = {
-  ...RAIL_ES_TEXT, ...LEFTOVERS_ES_TEXT, ...QUOTE_ES_TEXT, ...QA_FORMATS_ES_TEXT,
+  ...RAIL_ES_TEXT, ...BILLING_ES_TEXT, ...LEFTOVERS_ES_TEXT, ...QUOTE_ES_TEXT, ...QA_FORMATS_ES_TEXT,
   // Global chrome / nav
   "Prototype control bar": "Barra de control del prototipo",
   "Workspace sections": "Secciones del espacio de trabajo",
@@ -306,8 +307,9 @@ const ES_TEXT: Record<string, string> = {
   "From portfolio": "Del portafolio",
   "How the price works": "Cómo funciona el precio",
   "Fixed price": "Precio fijo",
-  "Starting at": "Desde",
-  "Quote each time": "Cotizar cada vez",
+  "Get a quote": "Pedir cotización",
+  "Show as starting at": "Mostrar como desde",
+  "Clients see Request a quote. Add a price to take bookings.": "Tus clientes ven Pedir cotización. Agrega un precio para recibir reservas.",
   "Category": "Categoría",
   "How long it takes": "Cuánto dura",
   "How many do you have?": "¿Cuántos tienes?",

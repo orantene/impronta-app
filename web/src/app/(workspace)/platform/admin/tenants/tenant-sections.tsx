@@ -19,7 +19,7 @@ import {
   StatusChip,
   EntityChip,
   MonoId,
-  PLAN_TIER_LABEL_KEY,
+  catalogPlanLabel,
   WORKSPACE_STATUS_LABEL_KEY,
 } from "./hq-kit";
 import {
@@ -41,14 +41,11 @@ import { CommissionSection } from "./tenant-commission-section";
 import { CommercialTermsSection } from "./tenant-commercial-terms-section";
 import type { TenantManagementDetail } from "../../tenant-management-data";
 import { useT } from "@/i18n/use-t";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { interpolate } from "@/i18n/interpolate";
 
 type Translate = (key: string) => string;
 
-function planChipLabel(t: Translate, plan: string): string | undefined {
-  const key = PLAN_TIER_LABEL_KEY[plan];
-  return key ? t(key) : undefined;
-}
 
 function statusChipLabel(t: Translate, status: string): string | undefined {
   const key = WORKSPACE_STATUS_LABEL_KEY[status];
@@ -157,6 +154,7 @@ function localeLabel(code: string, t: Translate): string {
 
 function SummarySection({ detail, defaultOpen }: SectionProps) {
   const t = useT();
+  const locale = useDashboardLocale();
   const atCapacity =
     detail.seats !== null && detail.activeTalentCount >= detail.seats;
   return (
@@ -171,7 +169,7 @@ function SummarySection({ detail, defaultOpen }: SectionProps) {
       >
         <StatTile
           label={t("dashboard.platform.tenants.statPlan")}
-          value={<PlanChip plan={detail.plan} label={planChipLabel(t, detail.plan)} />}
+          value={<PlanChip plan={detail.plan} label={catalogPlanLabel(locale, detail.plan)} />}
           caption={entityChipLabel(t, detail.entityType)}
         />
         <StatTile
@@ -337,6 +335,7 @@ function LinksSection({ detail, defaultOpen }: SectionProps) {
 
 function OwnerBillingSection({ detail, defaultOpen }: SectionProps) {
   const t = useT();
+  const locale = useDashboardLocale();
   const { owner, billing, override } = detail;
   return (
     <Accordion title={t("dashboard.platform.tenants.sectionOwnerBilling")} defaultOpen={defaultOpen ?? true}>
@@ -390,7 +389,7 @@ function OwnerBillingSection({ detail, defaultOpen }: SectionProps) {
         )}
 
         <div style={{ marginTop: 4 }}>
-          <KV k={t("dashboard.platform.tenants.kvEffectivePlan")} v={<PlanChip plan={billing.effectivePlan} label={planChipLabel(t, billing.effectivePlan)} />} />
+          <KV k={t("dashboard.platform.tenants.kvEffectivePlan")} v={<PlanChip plan={billing.effectivePlan} label={catalogPlanLabel(locale, billing.effectivePlan)} />} />
           {billing.basePlan && (
             <KV
               k={t("dashboard.platform.tenants.kvBasePlan")}
@@ -398,7 +397,7 @@ function OwnerBillingSection({ detail, defaultOpen }: SectionProps) {
                 <span
                   style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
                 >
-                  <PlanChip plan={billing.basePlan} label={planChipLabel(t, billing.basePlan)} />
+                  <PlanChip plan={billing.basePlan} label={catalogPlanLabel(locale, billing.basePlan)} />
                   <span style={{ fontSize: 10.5, color: HQ.inkDim }}>
                     {t("dashboard.platform.tenants.underOverride")}
                   </span>

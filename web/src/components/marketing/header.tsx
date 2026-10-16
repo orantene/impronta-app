@@ -142,7 +142,9 @@ export function MarketingHeader({
         <Link
           href={L("/")}
           className="group relative -mx-1 flex items-center rounded-md px-1 py-1"
-          aria-label={`${PLATFORM_BRAND.name} home`}
+          // Accessible name must contain the visible text (WCAG 2.5.3): the lockup shows the
+          // wordmark and the descriptor line, so both are in the name. TUL-1084.
+          aria-label={`${PLATFORM_BRAND.name} ${copy.brand.descriptor}`}
           style={{ color: "var(--plt-ink)" }}
         >
           <TulalaHeaderLogo descriptor={copy.brand.descriptor} />
@@ -186,7 +188,7 @@ export function MarketingHeader({
             icons (language / support / account) carry what the old hamburger
             menu buried: the bar stops feeling empty and the menu can go back
             to being pure navigation. */}
-        <div className="flex items-center gap-1 sm:gap-2">
+        <div className="flex items-center gap-0.5 min-[400px]:gap-1 sm:gap-2">
           {discoveryTools}
           <MarketingLanguageMenu
             activeLocale={locale}
@@ -630,14 +632,14 @@ function TulalaHeaderLogo({ descriptor }: { descriptor: string }) {
           one brand unit instead of two competing elements separated by a rule,
           and it stops the descriptor from fighting the nav for horizontal room.
           Letter-spacing is tuned so the line optically matches the wordmark's
-          width. Still ~60% opacity, so it never becomes a second dark bold
+          width. ~65% opacity (4.5:1 needs more than the old 55%, TUL-1084), so it never becomes a second dark bold
           element in the bar. */}
       {/* Same stack at every width (TUL-593): tight gap under the wordmark,
           tracking narrowed on phones so it fits beside the bar controls. */}
       <span
         aria-hidden
         className="mt-0.5 block whitespace-nowrap text-[0.5625rem] font-medium uppercase tracking-[0.12em] sm:tracking-[0.2em]"
-        style={{ color: "var(--plt-ink-strong)", opacity: 0.55 }}
+        style={{ color: "var(--plt-ink-strong)", opacity: 0.65 }}
       >
         {descriptor}
       </span>

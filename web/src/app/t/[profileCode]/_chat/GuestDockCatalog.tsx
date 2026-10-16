@@ -40,6 +40,7 @@ import { requestChatAddService } from "@/components/public-booking/chat-catalog-
 
 import { dockServiceCtaLabel, dockServiceOpensBookingSheet, dockStorefrontCtaLabel } from "./dock-cta-label";
 
+import { showOwnerChips } from "@/lib/messages-v5/guest-catalog-owner";
 import { getGuestItemsCatalog, type GuestCatalogGroup, type GuestCatalogRow } from "../_actions/guest-catalog-actions";
 import { FONT, type paletteFor } from "./mini-chat-styles";
 import { addAddedCatalogItem } from "./guest-added-items-store";
@@ -249,8 +250,23 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
     [groups, category, searchText, availableOnly, sort, maxMinutes],
   );
 
+  const ownerChips = useMemo(() => showOwnerChips((groups ?? []).flatMap((g) => g.rows)), [groups]);
+
   const usingServices = serviceChips.length > 0;
   const activeService = serviceChip ?? serviceChips[0] ?? null;
+  const visibleServices = useMemo(
+    () =>
+      sortCatalogRows(
+        searchCatalogRows(
+          serviceMenu
+            .filter((item) => item.category === activeService)
+            .map((item) => ({ ...item, sub: null, amountCents: item.amountCents ?? null, available: true })),
+          searchText,
+        ),
+        sort,
+      ),
+    [serviceMenu, activeService, searchText, sort],
+  );
   if (failed) return null;
   if (!usingServices && !groups) {
     return <div style={{ padding: "8px 14px", fontSize: 12, color: C.inkDim, fontFamily: FONT }}>{t("public.guestChat.dockLoading")}</div>;
@@ -268,7 +284,8 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
               <Chip key={g.category} on={g.category === category} label={t(CATEGORY_KEY[g.category])} onClick={() => { setCategory(g.category); setNotice(null); }} C={C} accent={accent} />
             ))}
       </div>
-      {!usingServices ? (
+      {/* TUL-1064: search + sort also apply to a talent's categorized service menu. */}
+      {(
         <div style={{ padding: "0 14px" }}>
           <input
             type="search"
@@ -289,6 +306,7 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
               <option value="price_asc">{t("public.guestChat.catalogSortPriceAsc")}</option>
               <option value="price_desc">{t("public.guestChat.catalogSortPriceDesc")}</option>
             </select>
+            {!usingServices ? (<>
             <select
               value={maxMinutes ?? ""}
               onChange={(e) => setMaxMinutes(e.target.value ? Number(e.target.value) : null)}
@@ -301,16 +319,17 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
               <option value="90">{t("public.guestChat.catalogDurationUpTo").replace("{n}", "90")}</option>
             </select>
             <Chip on={availableOnly} label={t("public.guestChat.catalogAvailableOnly")} onClick={() => setAvailableOnly((v) => !v)} C={C} accent={accent} />
+            </>) : null}
           </div>
         </div>
-      ) : null}
+      )}
       {notice && (
         <div role="status" style={{ margin: "0 14px", padding: "7px 10px", borderRadius: 10, background: `${accent}14`, color: accent, fontSize: 12.5, fontWeight: 600, fontFamily: FONT }}>
           {notice}
         </div>
       )}
       {usingServices
-        ? serviceMenu.filter((item) => item.category === activeService).map((item) => {
+        ? visibleServices.map((item) => {
             const openSheet = dockServiceOpensBookingSheet(item.cta, item.offeringId);
             return (
             <div key={item.title} data-guest-catalog-row="service" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, padding: "8px 14px", fontFamily: FONT }}>
@@ -357,6 +376,9 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
           <div key={row.id} data-guest-catalog-row={row.category} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, padding: "8px 14px", fontFamily: FONT }}>
             <div style={{ flex: "1 1 150px", minWidth: 0 }}>
               <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflowWrap: "anywhere", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{row.title}</div>
+              {ownerChips && row.ownerName ? (
+                <div data-guest-catalog-owner title={interpolate(t("public.guestChat.catalogOwnerBy"), { name: row.ownerName })} style={{ fontSize: 12.5, color: C.inkDim, overflowWrap: "anywhere" }}>{interpolate(t("public.guestChat.catalogOwnerBy"), { name: row.ownerName })}</div>
+              ) : null}
               <div style={{ fontSize: 11.5, color: C.inkDim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {[price, row.sub, !row.available ? t("public.guestChat.catalogUnavailable") : null].filter(Boolean).join(" · ")}
               </div>

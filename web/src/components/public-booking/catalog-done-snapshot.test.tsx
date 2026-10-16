@@ -37,7 +37,7 @@ const DETAIL: OfferingRequestDetail = {
   variants: [], addOns: [], intent: "instant",
 };
 
-function mount(): { host: HTMLDivElement; root: Root; calls: unknown[] } {
+function mount(locale: "es" | "en" = "es"): { host: HTMLDivElement; root: Root; calls: unknown[] } {
   const host = dom.window.document.createElement("div");
   dom.window.document.body.appendChild(host);
   const root = createRoot(host);
@@ -48,7 +48,7 @@ function mount(): { host: HTMLDivElement; root: Root; calls: unknown[] } {
   };
   act(() => {
     root.render(
-      <CatalogBookingSheet locale="es" mode="live" tenantId="tenant-1" bookFn={book}
+      <CatalogBookingSheet locale={locale} mode="live" tenantId="tenant-1" bookFn={book}
         slotsFn={async () => ({ slots: ["2026-10-14T23:00:00.000Z"], timezone: "America/Cancun" })} />,
     );
   });
@@ -179,4 +179,33 @@ test("TUL-1025: the time step says what is missing while Continuar is disabled",
   assert.equal(m.host.querySelector("[data-catalog-when-hint]"), null);
   act(() => m.root.unmount());
   m.host.remove();
+});
+
+test("TUL-1025: EN time step shows the English hint and keeps Continue disabled", async () => {
+  clearCatalogDone();
+  const m = mount("en");
+  act(() => {
+    dom.window.dispatchEvent(new dom.window.CustomEvent("tulala:offering-instant", { detail: { ...DETAIL, offeringId: "off-hint-en", startAt: "when" } }));
+  });
+  await act(async () => { await new Promise((r) => setTimeout(r, 40)); });
+  const cta = m.host.querySelector<HTMLButtonElement>('[data-catalog-continue="when"]')!;
+  assert.equal(cta.disabled, true);
+  assert.equal(m.host.querySelector("[data-catalog-when-hint]")?.textContent, "Pick a time to continue.");
+  assert.equal(cta.getAttribute("aria-describedby"), "jb-when-hint");
+  act(() => m.host.querySelector<HTMLButtonElement>(".jb-times .jb-time")!.click());
+  assert.equal(cta.disabled, false);
+  assert.equal(m.host.querySelector("[data-catalog-when-hint]"), null);
+  act(() => m.root.unmount());
+  m.host.remove();
+});
+
+test("TUL-1022: EN confirmation keeps the picker date format and the venue zone label", async () => {
+  clearCatalogDone();
+  const m = mount("en");
+  await bookThrough(m.host);
+  assert.ok(m.host.querySelector(".jb-done"), "done step after confirm");
+  assert.match(m.host.querySelector(".jb-done h3")?.textContent ?? "", /^Wednesday Oct 14, 18:00 · Cancún time$/);
+  act(() => m.root.unmount());
+  m.host.remove();
+  clearCatalogDone();
 });

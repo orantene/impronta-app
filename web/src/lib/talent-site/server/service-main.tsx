@@ -18,12 +18,14 @@ import {
   servicePriceLine as priceLine,
   servicePageCopy,
   serviceSlug,
+  servicePageIsQuote,
   serviceTypedFacts,
   type ServicePageOffering,
 } from "@/lib/talent-site/service-page";
 
 import { serviceReviewsCopy, serviceReviewsJsonLd, type ServiceReviews } from "@/lib/talent-site/service-page-reviews";
 import { buildServiceFaqJsonLd, serviceFaqCopy, type ServiceFaqItem } from "@/lib/talent-site/service-page-faq";
+import { buildServiceBreadcrumbNode } from "@/lib/talent-site/service-page-breadcrumb";
 
 import type { MaxSiteSeo } from "./render-max-site";
 
@@ -176,7 +178,7 @@ export function serviceMainNode(
           data-talent-service-book=""
           style={{ display: "inline-block", padding: "12px 22px", border: `1px solid ${INK}`, color: INK, textDecoration: "none", fontWeight: 600 }}
         >
-          {copy.book}
+          {servicePageIsQuote(o) ? copy.quote : copy.book}
         </Link>
       )}
       {opts.reviews ? reviewsNode(opts.reviews, opts.locale) : null}
@@ -253,7 +255,7 @@ export function serviceSeo(
   };
 }
 
-/** Service JSON-LD alone, or an @graph with the FAQPage when the page shows an FAQ. */
+/** Service JSON-LD plus its BreadcrumbList (TUL-1085) as an @graph, with the FAQPage when the page shows an FAQ. */
 function serviceJsonLd(
   o: ServicePageOffering,
   canonical: string,
@@ -264,7 +266,9 @@ function serviceJsonLd(
     ...serviceReviewsJsonLd(ctx.reviews ?? null, ctx.demo === true),
   };
   const faq = buildServiceFaqJsonLd(ctx.faq ?? [], canonical);
-  if (!faq) return service;
+  const breadcrumb = buildServiceBreadcrumbNode({ canonicalUrl: canonical, title: o.title, locale: ctx.locale });
+  const extras = [breadcrumb, faq].filter((n): n is Record<string, unknown> => n !== null);
+  if (extras.length === 0) return service;
   const { "@context": ctxUrl, ...serviceNode } = service;
-  return { "@context": ctxUrl, "@graph": [serviceNode, faq] };
+  return { "@context": ctxUrl, "@graph": [serviceNode, ...extras] };
 }

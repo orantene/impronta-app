@@ -11,6 +11,11 @@ import { cleanup, render, screen, fireEvent, within } from "@testing-library/rea
 
 afterEach(cleanup);
 
+/** `label-content-name-mismatch`: the accessible name must contain the visible text. */
+function assert_contains(name: string, visible: string) {
+  expect(name.toLowerCase()).toContain(visible);
+}
+
 import { MarketingLanguageMenu } from "@/components/marketing/marketing-language-menu";
 
 function open(activeLocale: string, pathnameWithoutLocale = "/") {
@@ -21,7 +26,8 @@ function open(activeLocale: string, pathnameWithoutLocale = "/") {
       label="Language"
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Language" }));
+  // The button's name starts with its visible text, the locale code (WCAG 2.5.3, TUL-1084).
+  fireEvent.click(screen.getByRole("button", { name: `${activeLocale.toUpperCase()} Language` }));
   return screen.getByRole("menu");
 }
 
@@ -31,8 +37,18 @@ describe("MarketingLanguageMenu", () => {
       <MarketingLanguageMenu activeLocale="en" pathnameWithoutLocale="/" label="Language" />,
     );
     expect(screen.queryByRole("menu")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Language" }));
+    fireEvent.click(screen.getByRole("button", { name: "EN Language" }));
     expect(screen.getByRole("menu")).toBeTruthy();
+  });
+
+  test("the button's accessible name contains its visible locale code (WCAG 2.5.3)", () => {
+    for (const code of ["en", "es"]) {
+      cleanup();
+      render(<MarketingLanguageMenu activeLocale={code} pathnameWithoutLocale="/" label="Language" />);
+      const button = screen.getByRole("button", { name: new RegExp(code, "i") });
+      const visible = (button.textContent ?? "").trim().toLowerCase();
+      assert_contains(button.getAttribute("aria-label") ?? "", visible);
+    }
   });
 
   test("each row shows a flag alongside the written language name", () => {

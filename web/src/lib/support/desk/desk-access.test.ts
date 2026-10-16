@@ -3,8 +3,16 @@ import { test } from "node:test";
 
 import {
   decideDeskAccess,
+  deskForbiddenLocale,
   shouldAttemptDeskAuthRescope,
 } from "./desk-access";
+
+test("forbidden page uses the saved language unless the visitor picked one (TUL-51)", () => {
+  assert.equal(deskForbiddenLocale({ cookieLocale: null, savedLocale: "es", requestLocale: "en" }), "es");
+  assert.equal(deskForbiddenLocale({ cookieLocale: "en", savedLocale: "es", requestLocale: "en" }), "en");
+  assert.equal(deskForbiddenLocale({ cookieLocale: undefined, savedLocale: null, requestLocale: "en" }), "en");
+  assert.equal(deskForbiddenLocale({ cookieLocale: null, savedLocale: "fr", requestLocale: "es" }), "es");
+});
 
 test("flag off always hides the surface", () => {
   assert.deepEqual(
