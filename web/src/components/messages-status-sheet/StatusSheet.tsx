@@ -335,7 +335,7 @@ function WorkflowStepper({ currentStage, t }: { currentStage: StageStatus; t?: T
           ? "rgba(11,11,13,0.55)"
           : active
             ? "#0B0B0D"
-            : "rgba(11,11,13,0.35)";
+            : "rgba(11,11,13,0.6)";
         return (
           <div
             key={s.key}

@@ -12,6 +12,7 @@
  */
 
 import { setLocaleCookie } from "@/components/dashboard-locale-toggle";
+import { authLocaleSwitchHref } from "./auth-locale-switch";
 
 const CODES = ["en", "es"] as const;
 
@@ -40,14 +41,10 @@ export function AuthCardLocaleToggle({
               onClick={() => {
                 if (active) return;
                 setLocaleCookie(code);
-                // An explicit `/es/...` URL outranks the cookie on the server,
-                // so drop the prefix; otherwise a plain reload applies it.
+                // An explicit `/es/...` URL or `?lang=` outranks the cookie on the
+                // server, so rewrite both; the cookie carries the choice from here.
                 const { pathname, search } = window.location;
-                if (/^\/es(\/|$)/.test(pathname)) {
-                  window.location.assign(`${pathname.replace(/^\/es/, "") || "/"}${search}`);
-                } else {
-                  window.location.reload();
-                }
+                window.location.assign(authLocaleSwitchHref(pathname, search, code));
               }}
               className="rounded-full px-2.5 py-1 text-[0.6875rem] font-semibold uppercase tracking-[0.1em] transition-colors"
               style={

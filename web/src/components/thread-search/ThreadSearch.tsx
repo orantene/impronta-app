@@ -138,7 +138,7 @@ export function ThreadSearch({ open, messages, jumpTargets, onResultClick, onClo
           <span aria-hidden style={{
             position: "absolute", left: 12, top: "50%",
             transform: "translateY(-50%)",
-            color: "rgba(11,11,13,0.35)",
+            color: "rgba(11,11,13,0.6)",
           }}>
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <circle cx="6" cy="6" r="3.5" stroke="currentColor" strokeWidth="1.4"/>
