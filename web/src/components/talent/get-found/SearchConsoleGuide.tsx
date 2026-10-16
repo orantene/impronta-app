@@ -91,7 +91,7 @@ export function SearchConsoleGuide({ guide, lang, initialToken = null }: { guide
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-xs font-medium">{i + 1}</span>
             <div className="flex items-center gap-1 text-sm">
               {s.title}
-              <span title={s.hint} aria-label={s.hint} role="img" tabIndex={0} className="text-neutral-400">
+              <span title={s.hint} aria-label={s.hint} role="img" tabIndex={0} className="text-neutral-600">
                 <Info size={12} aria-hidden />
               </span>
             </div>
