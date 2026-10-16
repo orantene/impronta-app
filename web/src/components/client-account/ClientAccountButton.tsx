@@ -31,6 +31,7 @@ import {
   signInClientAccountPassword,
   verifyClientAccountCode,
 } from "@/lib/client-account/actions";
+import { ACCOUNT_DOCK_Z_INDEX, shouldHideAccountDock } from "@/lib/client-account/dock-visibility";
 import { accountQuickLinks } from "@/lib/client-account/quick-links";
 import { resendSecondsLeft, type AccountSummary } from "@/lib/client-account/pure";
 
@@ -407,7 +408,7 @@ export function ClientAccountButton({
         cursor: "pointer",
         boxShadow: variant === "dock" ? "0 4px 14px rgba(0,0,0,.18)" : "none",
         ...(variant === "dock"
-          ? { position: "fixed", right: "max(16px, env(safe-area-inset-right))", bottom: "var(--client-account-dock-bottom, 194px)", zIndex: 95 }
+          ? { position: "fixed", right: "max(16px, env(safe-area-inset-right))", bottom: "var(--client-account-dock-bottom, 194px)", zIndex: ACCOUNT_DOCK_Z_INDEX }
           : {}),
       }}
     >
@@ -455,6 +456,8 @@ export function ClientAccountButton({
       </span>
     </label>
   );
+
+  if (shouldHideAccountDock(variant, me)) return null;
 
   return (
     <>
