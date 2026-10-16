@@ -8,6 +8,7 @@ src/app/t/?profileCode?/_maison/maison-derivations.test.ts
 src/app/t/?profileCode?/_maison/maison-menu.test.ts
 src/app/t/?profileCode?/free-plan-storefront-parity.static.test.ts
 src/app/t/?profileCode?/noir-inquire-gate.static.test.ts
+src/components/admin/shell/canonical-routes-admin-folders.static.test.ts
 src/components/admin/shell/canonical-routes.test.ts
 src/components/admin/shell/internal/page-modules/mobile-bottom-nav.static.test.ts
 src/components/admin/shell/internal/page-modules/pos-mode-switch.static.test.ts
@@ -186,4 +187,3 @@ src/lib/workspace/nav-context.test.ts
 src/lib/workspace/page-ids.test.ts
 src/lib/workspace/pos-bridge.test.ts
 src/lib/workspace/pos-device-mode.test.ts
-src/components/admin/shell/canonical-routes-admin-folders.static.test.ts

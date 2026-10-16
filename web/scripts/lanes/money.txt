@@ -58,6 +58,7 @@ src/lib/inquiry/offer-minor-units-pipeline-wiring.static.test.ts
 src/lib/inquiry/offer-minor-units-wiring.static.test.ts
 src/lib/inquiry/offer-minor-units.test.ts
 src/lib/inquiry/offer-money-format.test.ts
+src/lib/inquiry/offer-solo-fee.test.ts
 src/lib/inquiry/owning-party-own-workspace.test.ts
 src/lib/inquiry/retry-failed-engine-effects.test.ts
 src/lib/ledger/project.test.ts
@@ -133,6 +134,7 @@ src/lib/payments/mxn-guest-pay-lane.test.ts
 src/lib/payments/off-platform.test.ts
 src/lib/payments/paid-qa-isolated.static.test.ts
 src/lib/payments/pay-calendar-event.test.ts
+src/lib/payments/pay-expiry-words.test.ts
 src/lib/payments/pay-paid-note.static.test.ts
 src/lib/payments/pay-refund-status.test.ts
 src/lib/payments/pay-return-views.test.tsx
@@ -216,6 +218,3 @@ src/lib/visits/guest-order.test.ts
 src/lib/visits/page-wire.static.test.ts
 src/lib/visits/restaurant-screens.render.test.ts
 src/lib/visits/seat-reservation.test.ts
-src/lib/money/dashboard-prices-use-dashboard-format.static.test.ts
-src/lib/inquiry/offer-solo-fee.test.ts
-src/lib/payments/pay-expiry-words.test.ts

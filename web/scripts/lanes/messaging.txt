@@ -23,10 +23,9 @@ src/app/t/*/_chat/look-image-handoff.static.test.ts
 src/app/t/*/_chat/mini-chat-panel-geometry.static.test.ts
 src/app/t/*/_chat/pending-look-image.test.ts
 src/app/t/*/_chat/use-live-reply-cue.test.ts
-src/components/public-booking/chat-catalog-events.test.ts
-src/lib/messaging/client-draft-guards.test.ts
-src/app/t/*/_chat/guest-added-items-dedupe.test.ts
 src/components/inquiry/inquiry-drawer-refresh-on-close.static.test.ts
+src/components/public-booking/catalog-booking-form-ux.test.tsx
+src/components/public-booking/chat-catalog-events.test.ts
 src/lib/client-account/client-layout-locale.test.ts
 src/lib/guest-cookie.test.ts
 src/lib/guest/ensure-guest-identity.server.test.ts
@@ -46,4 +45,3 @@ src/lib/server-actions/messaging-engine.static.test.ts
 src/lib/server-actions/messaging-identity.static.test.ts
 src/lib/server-actions/messaging-items.static.test.ts
 src/lib/server-actions/messaging-offers.static.test.ts
-src/components/public-booking/catalog-booking-form-ux.test.tsx

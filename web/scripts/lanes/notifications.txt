@@ -73,6 +73,7 @@ src/lib/notifications/reply-ready-copy.test.ts
 src/lib/notifications/resend-webhook.test.ts
 src/lib/notifications/suppression-conflict-target.static.test.ts
 src/lib/notifications/unclaimed-talent-booking.test.ts
+src/lib/notifications/whatsapp-schema.migration.test.ts
 src/lib/notifications/whatsapp/provider.test.ts
 src/lib/payments/booking-confirmation-pdf.test.ts
 src/lib/payments/booking-payouts-ledger.test.ts
@@ -98,6 +99,7 @@ src/lib/pricing/pick-marketing-currency.test.ts
 src/lib/pricing/plan-claim-audit.test.ts
 src/lib/quality/commerce-drawer-deeplink.static.test.ts
 src/lib/quality/upgrade-flow-wiring.static.test.ts
+src/lib/server/no-detached-dispatch.static.test.ts
 src/lib/stripe/checkout-idempotency.static.test.ts
 src/lib/stripe/event-idempotency.test.ts
 src/lib/stripe/price-ids.test.ts
@@ -135,6 +137,3 @@ src/lib/talent/talent_content_i18n_columns.migration.test.ts
 src/lib/talent/translation-coverage.test.ts
 src/lib/talent/website-reward.test.ts
 src/lib/translation/bios-to-bio-i18n.test.ts
-src/lib/notifications/auth-email-locale.test.ts
-src/lib/notifications/whatsapp-schema.migration.test.ts
-src/lib/server/no-detached-dispatch.static.test.ts
