@@ -102,7 +102,7 @@ test("G4-APP: free plan sees Upgrade to use (preview stays); paid sees Add", () 
   assert.doesNotMatch(paidHtml, /app-detail-upgrade-to-use/);
   const detail = read("AppDetailScreen.tsx");
   assert.match(detail, /requestBuilderAppIntent/);
-  assert.match(detail, /openDrawer\("talent-tier-compare"\)/);
+  assert.match(detail, /openUpgrade\(\{ feature: "apps"/);
   assert.match(detail, /canAddLibraryApp/);
   assert.match(detail, /isPremiumApp/);
   // Draft-save chokepoints must refuse premium inserts server-side.

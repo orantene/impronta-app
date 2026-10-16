@@ -20,6 +20,8 @@
  */
 
 import { notFound } from "next/navigation";
+
+import { AdminNotFoundCard } from "../../admin-not-found-card";
 import Link from "next/link";
 import * as React from "react";
 import { CalendarPlus, ChevronDown, Mail, Phone } from "lucide-react";
@@ -117,12 +119,10 @@ export default async function ClientRecordPage({ params, searchParams }: { param
   const load = await loadClientRecord(scope.tenantId, customerId);
 
   if (!load.ok) {
-    const message =
-      load.reason === "invalid"
-        ? tr("dashboard.clientRecord.invalidId")
-        : load.reason === "not_found"
-          ? tr("dashboard.clientRecord.notFound")
-          : tr("dashboard.clientRecord.unavailable");
+    // Inline, not notFound(): a notFound() swap inside the shell crashes the client (TUL-635/473).
+    if (load.reason === "invalid" || load.reason === "not_found") return <AdminNotFoundCard />;
+    // Only "unavailable" (the load itself failed) reaches here; the rest are 404s.
+    const message = tr("dashboard.clientRecord.unavailable");
     return (
       <PageShell>
         <Link href={`${base}/clients`} className="text-[13px] text-admin-ink-muted underline underline-offset-4">
