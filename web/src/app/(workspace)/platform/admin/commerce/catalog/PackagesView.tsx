@@ -19,10 +19,11 @@ import {
   formatPriceWindow,
 } from "@/lib/pricing/pricing-types";
 import { useT } from "@/i18n/use-t";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { interpolate } from "@/i18n/interpolate";
 import { HQ, F, FD, FAMILY_COLORS } from "../_tokens";
 import { Pill } from "../_primitives";
-import { PLAN_TIER_LABEL_KEY } from "../../tenants/hq-kit";
+import { catalogPlanLabel } from "../../tenants/hq-kit";
 
 export function PackagesView({
   catalog,
@@ -121,6 +122,7 @@ function TierCard({
   onClick: () => void;
 }) {
   const t = useT();
+  const locale = useDashboardLocale();
   const headline = pickHeadlinePrice(tier.prices);
   const accent = FAMILY_COLORS[family] ?? HQ.ink;
   const stripeOk = tier.stripeProductId !== null;
@@ -175,7 +177,7 @@ function TierCard({
             letterSpacing: -0.1,
           }}
         >
-          {PLAN_TIER_LABEL_KEY[tier.slug] ? t(PLAN_TIER_LABEL_KEY[tier.slug]) : tier.name}
+          {catalogPlanLabel(locale, tier.slug, tier.name)}
         </span>
         {tier.isFeatured && (
           <Pill color={accent}>

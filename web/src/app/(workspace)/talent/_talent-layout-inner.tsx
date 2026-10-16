@@ -93,6 +93,7 @@ const TALENT_SEGMENT_MAP: Record<string, TalentPage> = {
   site: "public-page",
   presence: "public-page",
   "public-page": "public-page",
+  posts: "posts",
   settings: "settings",
 };
 

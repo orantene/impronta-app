@@ -3,7 +3,6 @@ import test from "node:test";
 
 import {
   WORKSPACE_LOCALE_SEED_ROUTE,
-  isRscRequest,
   isWorkspaceSeedablePath,
   safeWorkspaceNextPath,
   workspaceLocaleSeedHopPossible,
@@ -118,34 +117,22 @@ test("seed href carries the slug and the guarded next path", () => {
   );
 });
 
-// ── Seed hop vs soft navigation (the post-sign-in redirect storm) ───────────
-// After sign-in the login form soft-navigates to /{slug}/admin. A layout
-// redirect() to the seed Route Handler inside that RSC render made the client
-// router bounce (290 requests to /api/admin/locale-seed in 8 s, blank page
-// until a reload). The hop must never run on an RSC request, but a hard load
-// must still seed on first visit.
+// ── The seed hop decision (TUL-1182) ────────────────────────────────────────
+// The hop itself is a hard navigation (LocaleSeedHardRedirect); this only
+// decides WHETHER it may run.
 const hop = {
   attemptCookie: undefined,
   originalPathnameHeader: "/rosa/admin",
   pathname: "/rosa/admin",
   tenantSlug: "rosa",
-  rscHeader: undefined,
 };
 
-test("hard load (document request, no RSC header) may hop: first-visit seeding unchanged", () => {
+test("a first visit to an admin path may hop", () => {
   assert.equal(workspaceLocaleSeedHopPossible(hop), true);
   assert.equal(workspaceLocaleSeedHopPossible({ ...hop, pathname: "/rosa/admin/messages" }), true);
 });
 
-test("an RSC / soft-navigation request never hops", () => {
-  assert.equal(workspaceLocaleSeedHopPossible({ ...hop, rscHeader: "1" }), false);
-  assert.equal(isRscRequest("1"), true);
-  assert.equal(isRscRequest(undefined), false);
-  assert.equal(isRscRequest(null), false);
-  assert.equal(isRscRequest("0"), false);
-});
-
-test("the existing guards still hold (attempt cookie, no original header, non-admin path)", () => {
+test("the guards hold: attempt cookie, no original header, non-admin path", () => {
   assert.equal(workspaceLocaleSeedHopPossible({ ...hop, attemptCookie: "1" }), false);
   assert.equal(workspaceLocaleSeedHopPossible({ ...hop, originalPathnameHeader: null }), false);
   assert.equal(workspaceLocaleSeedHopPossible({ ...hop, pathname: "/rosa/client" }), false);

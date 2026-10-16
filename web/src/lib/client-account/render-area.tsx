@@ -61,7 +61,9 @@ export async function renderClientAccountPage(view: AccountView) {
         loadOwedPayLinks(userId, tenantId),
         loadReceipts(userId, tenantId),
       ]);
-    } else data.profile = await loadAccountProfile(userId);
+    }
+    // TUL-777: every tab needs the profile for the name prompt.
+    if (view.kind === "home") data.profile = await loadAccountProfile(userId);
   }
   const hasTokens = Object.keys(site.cssVars).length > 0;
   return (
