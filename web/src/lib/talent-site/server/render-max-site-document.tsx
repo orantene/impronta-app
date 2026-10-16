@@ -41,6 +41,7 @@ import { loadTalentAskVisible } from "./talent-ask-visible";
 import { readableButtonDefaults } from "./talent-site-render-fixups.server";
 import { HeaderScrollObserver } from "@/lib/site-admin/sections/site_header/HeaderScrollObserver";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
+import { renderPromoBlock } from "@/lib/site-admin/builder-node/promo-block";
 import { resolveExperimentRenderContext } from "@/lib/site-admin/builder-node/experiment-context";
 import { coerceTheme } from "@/lib/talent-site/published-talent-page-core";
 import { readTalentDesignSlice } from "@/lib/site-admin/edit-mode/talent-design-store";
@@ -413,6 +414,7 @@ export async function renderMaxSiteDocument(args: {
                 visitorLocale: locale,
                 contentLocale: args.localeCtx.contentLocale,
                 renderSectionEmbed,
+                renderPromoBlock,
                 publicHost: publicHost || undefined,
               })
             : null}
@@ -432,6 +434,7 @@ export async function renderMaxSiteDocument(args: {
           visitorLocale: locale,
           contentLocale: args.localeCtx.contentLocale,
           renderSectionEmbed,
+          renderPromoBlock,
           publicHost: publicHost || undefined,
         })}
       </div>
@@ -547,6 +550,7 @@ export async function renderMaxSiteDocument(args: {
               visitorLocale: locale,
               contentLocale: args.localeCtx.contentLocale,
               renderSectionEmbed,
+              renderPromoBlock,
               publicHost: publicHost || undefined,
             })}
           </header>
@@ -569,6 +573,7 @@ export async function renderMaxSiteDocument(args: {
           contentLocale: args.localeCtx.contentLocale,
           ...experimentContext,
           renderSectionEmbed,
+          renderPromoBlock,
           publicHost: publicHost || undefined,
         })}
       </main>
@@ -585,6 +590,7 @@ export async function renderMaxSiteDocument(args: {
             visitorLocale: locale,
             contentLocale: args.localeCtx.contentLocale,
             renderSectionEmbed,
+            renderPromoBlock,
             publicHost: publicHost || undefined,
           })}{webOfficeStrip}
         </footer>
