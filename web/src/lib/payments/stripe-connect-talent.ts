@@ -29,6 +29,7 @@ import { loadAccountPlatform } from "@/lib/stripe/account-platform";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import {
+  normalizeKnownPayoutCountry,
   normalizePayoutCountry,
   payoutCountryLabel,
   isStablecoinPayoutCountry,
@@ -37,6 +38,7 @@ import { loadActivePayoutSystem } from "@/lib/payments/active-payout-system";
 import {
   connectAccountTermsFor,
   MX_PLATFORM_UNCONFIGURED,
+  payoutCountryRefusalCode,
   payoutSetupErrorCode,
 } from "@/lib/payments/connect-account-setup";
 
@@ -54,6 +56,8 @@ export type TalentConnectedAccountSnapshot = {
   payoutsEnabled: boolean;
   detailsSubmitted: boolean;
   syncedAt: string | null;
+  /** ISO-2 payout country, filled in by the talent layout for the Money arrival text. */
+  payoutCountry?: string | null;
 };
 
 export type TalentConnectResult<T> =
@@ -169,6 +173,12 @@ export async function createOrGetTalentConnectedAccount(
   const residenceIso2 =
     (await iso2FromCountryId(admin, tp.residence_country_id as string | null)) ??
     (await iso2FromCountryText(admin, tp.home_country_text as string | null));
+  // TUL-1052: a known country that is not live yet is refused with a clear
+  // coming-soon error (never a dead end); existing accounts returned above.
+  const refusal =
+    payoutCountryRefusalCode(opts.country) ??
+    (normalizePayoutCountry(opts.country) ? null : payoutCountryRefusalCode(residenceIso2));
+  if (refusal) return { ok: false, error: refusal };
   const country = normalizePayoutCountry(opts.country) ?? normalizePayoutCountry(residenceIso2);
   if (!country) {
     return { ok: false, error: "country_required" };
@@ -281,15 +291,16 @@ export async function resolveTalentPayoutCountry(
 ): Promise<string | null> {
   const admin = createServiceRoleClient();
   if (!admin) return null;
-  const { data } = await admin
+  const { data, error } = await admin
     .from("talent_profiles")
     .select("residence_country_id, home_country_text")
     .eq("id", talentProfileId)
     .maybeSingle();
+  if (error) return null;
   const iso2 =
     (await iso2FromCountryId(admin, (data?.residence_country_id as string | null) ?? null)) ??
     (await iso2FromCountryText(admin, (data?.home_country_text as string | null) ?? null));
-  return normalizePayoutCountry(iso2);
+  return normalizeKnownPayoutCountry(iso2);
 }
 
 /**

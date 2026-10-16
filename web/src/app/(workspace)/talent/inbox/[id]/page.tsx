@@ -1,4 +1,4 @@
-import { PinThenRedirect } from "../../../[tenantSlug]/talent/inbox/[id]/_pin-then-redirect";
+import { PinAndOpenThread } from "../../../[tenantSlug]/talent/inbox/[id]/_pin-then-redirect";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +10,5 @@ export default async function PlatformTalentInboxThreadPage({
   params: PageParams;
 }) {
   const { id } = await params;
-  return (
-    <PinThenRedirect conversationId={id} platformTalentRoutes />
-  );
+  return <PinAndOpenThread conversationId={id} />;
 }

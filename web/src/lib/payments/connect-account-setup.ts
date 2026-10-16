@@ -10,7 +10,13 @@
  */
 
 import type { StripeAccountKey } from "@/lib/stripe/client";
-import { payoutCountryLabel, requiresRecipientAgreement } from "./payout-countries";
+import {
+  normalizeKnownPayoutCountry,
+  payoutCountryComingSoonText,
+  payoutCountryLabel,
+  payoutCountryState,
+  requiresRecipientAgreement,
+} from "./payout-countries";
 
 /** Country the Mexico platform account is registered in. */
 const PLATFORM_COUNTRY: Record<StripeAccountKey, string> = { us: "US", mx: "MX" };
@@ -30,6 +36,19 @@ export function connectAccountTermsFor(
  *  `payoutSetupErrorText` in the viewer's language. */
 export const MX_PLATFORM_UNCONFIGURED = "payout_setup:mx_platform_unconfigured";
 const COUNTRY_PREFIX = "payout_setup:country_unavailable:";
+const COMING_SOON_PREFIX = "payout_setup:coming_soon:";
+
+/** Server-side gate for creating a payout account: null when the country is
+ *  live and routable (or not a country we know, so callers keep their own
+ *  fallback), else the error code to return. Existing accounts never call this. */
+export function payoutCountryRefusalCode(raw: string | null | undefined): string | null {
+  const iso2 = normalizeKnownPayoutCountry(raw);
+  if (!iso2) return null;
+  const state = payoutCountryState(iso2);
+  if (state === "coming_soon") return `${COMING_SOON_PREFIX}${iso2}`;
+  if (state === "unavailable") return payoutSetupErrorCode(iso2, "connect");
+  return null;
+}
 
 export function payoutSetupErrorCode(
   country: string,
@@ -51,6 +70,9 @@ export function payoutSetupErrorText(message: string, isSpanish: boolean): strin
     return isSpanish
       ? "Los pagos en México aún no están activados. Escríbenos a soporte y te ayudamos."
       : "Payouts in Mexico are not switched on yet. Please contact support and we will help.";
+  }
+  if (message.startsWith(COMING_SOON_PREFIX)) {
+    return payoutCountryComingSoonText(message.slice(COMING_SOON_PREFIX.length), isSpanish ? "es" : "en");
   }
   if (message.startsWith(COUNTRY_PREFIX)) {
     const [iso2 = "", rail = "connect"] = message.slice(COUNTRY_PREFIX.length).split(":");
