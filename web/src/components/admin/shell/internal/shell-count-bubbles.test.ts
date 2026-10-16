@@ -225,3 +225,68 @@ describe("ShellCountBubbles mount (static)", () => {
     assert.equal(missing, true);
   });
 });
+
+// ── TUL-1109: the shell's small text must pass WCAG AA (4.5:1) ──────────────
+
+const bridgeCss = readFileSync(join(DIR, "../../../../styles/admin-color-bridge.css"), "utf8");
+
+function token(name: string): number[] {
+  const m = bridgeCss.match(new RegExp(`${name}:\\s*#([0-9a-fA-F]{6})`));
+  assert.ok(m, `${name} is a hex token in admin-color-bridge.css`);
+  return [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16));
+}
+
+function luminance(rgb: readonly number[]): number {
+  const lin = (c: number) => {
+    const v = c / 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * lin(rgb[0]) + 0.7152 * lin(rgb[1]) + 0.0722 * lin(rgb[2]);
+}
+
+const contrast = (a: readonly number[], b: readonly number[]): number => {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
+
+describe("TUL-1109 contrast", () => {
+  it("every bubble fill carries white text at 4.5:1 or better", () => {
+    const fills: Record<string, string> = {
+      messages: "--color-admin-coral-deep",
+      money: "--color-admin-green",
+      attention: "--color-admin-amber",
+    };
+    for (const [kind, tok] of Object.entries(fills)) {
+      const cls = SHELL_BUBBLE_FILL_CLASS[kind as keyof typeof SHELL_BUBBLE_FILL_CLASS];
+      assert.ok(cls.includes(`bg-${tok.slice(2).replace("color-", "")}`), `${kind} fill is ${tok}`);
+      const ratio = contrast([255, 255, 255], token(tok));
+      assert.ok(ratio >= 4.5, `${kind}: white on ${tok} is ${ratio.toFixed(2)}:1`);
+    }
+  });
+
+  it("the raw coral would fail (3.86:1), so the messages bubble must not use it", () => {
+    assert.ok(contrast([255, 255, 255], token("--color-admin-coral")) < 4.5);
+    assert.doesNotMatch(SHELL_BUBBLE_FILL_CLASS.messages, /bg-admin-coral(?!-)/);
+  });
+
+  it("the brand tagline in the identity bar is ink at an opacity that passes 4.5:1 on the surface", () => {
+    const src = readFileSync(join(DIR, "page-modules/IdentityBar-1.tsx"), "utf8");
+    const m = src.match(/className="text-admin-ink pr-\[4px\]"\s*descriptorOpacity=\{([0-9.]+)\}/);
+    assert.ok(m, "the identity bar passes descriptorOpacity to the lockup");
+    const alpha = Number(m[1]);
+    const surface = token("--color-admin-surface");
+    const ink = token("--color-admin-ink");
+    const flat = ink.map((v, i) => v * alpha + surface[i] * (1 - alpha));
+    const ratio = contrast(flat, surface);
+    assert.ok(ratio >= 4.5, `tagline at opacity ${alpha} is ${ratio.toFixed(2)}:1 on the surface`);
+  });
+
+  it("the helper reproduces QA's numbers for the old values (coral 3.85, tagline at 0.5 = #838382 at ~3.6)", () => {
+    const surface = token("--color-admin-surface");
+    const ink = token("--color-admin-ink");
+    const old = ink.map((v, i) => v * 0.5 + surface[i] * 0.5);
+    assert.deepEqual(old.map(Math.round), [131, 131, 130]);
+    assert.ok(contrast(old, surface) < 4.5);
+  });
+});
+
