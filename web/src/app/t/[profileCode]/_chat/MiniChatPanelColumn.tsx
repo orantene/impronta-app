@@ -771,9 +771,9 @@ export function MiniChatPanelColumn({
           textareaRef={textareaRef}
           lookPreviewUrl={lookPreviewUrl}
           onClearLookPreview={onClearLookPreview}
-          sendLabel={(brand.locale ?? "en").toLowerCase().startsWith("es") ? "Enviar mensaje" : "Send message"}
-          lookPreviewLabel={(brand.locale ?? "en").toLowerCase().startsWith("es") ? "Tu diseño" : "Your look"}
-          lookPreviewRemoveLabel={(brand.locale ?? "en").toLowerCase().startsWith("es") ? "Quitar diseño" : "Remove look"}
+          sendLabel={t("public.guestChat.gateSend")}
+          lookPreviewLabel={t("public.guestChat.lookPreviewLabel")}
+          lookPreviewRemoveLabel={t("public.guestChat.lookPreviewRemoveLabel")}
         />
       )}
 
