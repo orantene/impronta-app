@@ -20,3 +20,17 @@ test("a path without the default prefix writes nothing", () => {
   syncLocaleCookieForDefaultPrefixStrip(res, "/login", S);
   assert.equal(res.cookies.get("locale"), undefined);
 });
+
+import { syncLocaleCookieForPath } from "./locale-middleware";
+
+test("syncLocaleCookieForPath records the explicit default prefix on a 308 (proxy.ts needs no extra call)", () => {
+  const res = NextResponse.redirect("https://x.test/login", 308);
+  syncLocaleCookieForPath(res, "/en/login", S);
+  assert.equal(res.cookies.get("locale")?.value, "en");
+});
+
+test("syncLocaleCookieForPath leaves a non-redirect /en path alone", () => {
+  const res = NextResponse.next();
+  syncLocaleCookieForPath(res, "/en/login", S);
+  assert.equal(res.cookies.get("locale")?.value === "en" && res.cookies.get("locale_auto")?.value === "", false);
+});

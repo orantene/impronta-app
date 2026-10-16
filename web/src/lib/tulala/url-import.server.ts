@@ -47,6 +47,7 @@ import {
   type ImportedPage,
 } from "./url-import";
 import { packForBrief } from "./pack-for-brief";
+import { afterResponse } from "@/lib/server/after-response";
 
 const FETCH_TIMEOUT_MS = 5000;
 const MAX_BYTES = 512 * 1024;
@@ -236,7 +237,7 @@ async function extractFromPage(
       return [];
     }
 
-    void recordAiUsageEstimate().catch(() => {});
+    afterResponse(() => recordAiUsageEstimate().catch(() => {}));
 
     const parsed = parseExtraction(completion.text, {
       // No question produced these, so there is no question to attribute the

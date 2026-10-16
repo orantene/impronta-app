@@ -103,6 +103,20 @@ export function inferWebsiteWorkingMode(
   return "bookings";
 }
 
+/** Label of a taxonomy term in any locale: English first, then Spanish, then any non-empty value. */
+export function pickTermLabel(nameI18n: Record<string, string | null> | null | undefined): string | null {
+  if (!nameI18n) return null;
+  const order = [nameI18n.en, nameI18n.es, ...Object.values(nameI18n)];
+  for (const v of order) if (typeof v === "string" && v.trim()) return v.trim();
+  return null;
+}
+
+/** "Name and what you do" is done when a real display name and a trade are both set. */
+export function hasNameAndTrade(displayName: string | null | undefined, tradeLabel: string | null | undefined): boolean {
+  const name = displayName?.trim();
+  return Boolean(name && name !== "Unnamed" && tradeLabel?.trim());
+}
+
 function renormalize(weights: Partial<Record<WebsiteSliceKey, number>>): Record<WebsiteSliceKey, number> {
   const keys = Object.keys(weights) as WebsiteSliceKey[];
   const sum = keys.reduce((n, k) => n + (weights[k] ?? 0), 0) || 1;

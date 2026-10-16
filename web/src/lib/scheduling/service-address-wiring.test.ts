@@ -67,5 +67,8 @@ test("/me: the loader selects event_location and the list shows the address", ()
 test("the sheet shows the field for client-place services and blocks confirm until it is valid", () => {
   const sheet = read("components/public-booking/CatalogBookingSheet.tsx");
   assert.match(sheet, /addr\.rule === "required" \? <ServiceAddressField/);
-  assert.match(read("components/public-booking/use-catalog-booking-confirm.ts"), /serviceAddressValid === false/);
+  const confirm = read("components/public-booking/use-catalog-booking-confirm.ts");
+  // The address validity feeds the shared first-invalid check, and any invalid field returns before submit.
+  assert.match(confirm, /addressValid: input\.serviceAddressValid !== false/);
+  assert.match(confirm, /if \(firstInvalid\) \{[\s\S]*?return;/);
 });

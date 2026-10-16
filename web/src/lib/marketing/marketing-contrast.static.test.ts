@@ -69,4 +69,49 @@ describe("marketing contrast (TUL-518)", () => {
       /brand\.tagline[\s\S]{0,200}--plt-muted-soft/,
     );
   });
+
+  // ── TUL-1084: Lighthouse accessibility on the talent profile (/es/t/<code>, 390) ──
+
+  const languageMenu = readFileSync(
+    join(process.cwd(), "src/components/marketing/marketing-language-menu.tsx"),
+    "utf8",
+  );
+
+  /** Blend `fg` at `alpha` over `bg` (both #rrggbb) into the colour the eye sees. */
+  function blend(fg: string, bg: string, alpha: number): string {
+    const ch = (hex: string, i: number) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
+    const mix = [0, 1, 2].map((i) => Math.round(alpha * ch(fg, i) + (1 - alpha) * ch(bg, i)));
+    return `#${mix.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+  }
+
+  it("--plt-muted-soft (profile + marketing tertiary text) clears AA on every light surface", () => {
+    const m = css.match(/--plt-muted-soft:\s*(#[0-9a-fA-F]{6})/);
+    assert.ok(m, "--plt-muted-soft must be a literal hex (the --tl alias is 2.74:1 on bone)");
+    const ink = m![1]!.toLowerCase();
+    for (const surface of [tlHex("bone"), tlHex("surface"), tlHex("surface-deep"), "#ffffff"]) {
+      const ratio = contrastRatio(ink, surface);
+      assert.ok(ratio != null && ratio >= 4.5, `muted-soft ${ink} on ${surface}: ${ratio}`);
+    }
+  });
+
+  it("the header logo descriptor (9px, translucent ink) clears AA on bone", () => {
+    const m = header.match(/--plt-ink-strong\)",\s*opacity:\s*([0-9.]+)/);
+    assert.ok(m, "descriptor opacity not found in header.tsx");
+    const seen = blend(tlHex("ink-strong"), tlHex("bone"), Number(m![1]));
+    const ratio = contrastRatio(seen, tlHex("bone"));
+    assert.ok(ratio != null && ratio >= 4.5, `descriptor at opacity ${m![1]}: ${ratio}`);
+  });
+
+  it("label-in-name: the logo link and the language button names contain their visible text", () => {
+    // Visible text of the logo lockup = wordmark + descriptor line.
+    assert.match(header, /aria-label=\{`\$\{PLATFORM_BRAND\.name\} \$\{copy\.brand\.descriptor\}`\}/);
+    // Visible text of the language button = the active locale code.
+    assert.match(languageMenu, /aria-label=\{`\$\{activeLocale\.toUpperCase\(\)\} \$\{label\}`\}/);
+  });
+
+  it("footer column labels are not headings (they skipped a level), and name their lists", () => {
+    assert.doesNotMatch(footer, /<h4\b/);
+    assert.match(footer, /id=\{`mkt-footer-col-\$\{colIndex\}`\}/);
+    assert.match(footer, /aria-labelledby=\{`mkt-footer-col-\$\{colIndex\}`\}/);
+  });
 });

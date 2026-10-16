@@ -1,5 +1,5 @@
 {
-  "ignoreCommand": "[ \"$VERCEL_ENV\" != \"production\" ]",
+  "ignoreCommand": "[ \"$VERCEL_GIT_COMMIT_REF\" != \"production\" ]",
   "regions": [
     "cle1"
   ],
@@ -131,7 +131,7 @@
     },
     {
       "path": "/api/cron/refresh-discover-index",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 * * * *"
     },
     {
       "path": "/api/cron/usage-audit",
@@ -143,7 +143,7 @@
     },
     {
       "path": "/api/cron/send-digest-emails",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 * * * *"
     },
     {
       "path": "/api/cron/retry-failed-emails",
@@ -187,7 +187,7 @@
     },
     {
       "path": "/api/cron/expire-calendar-holds",
-      "schedule": "*/5 * * * *"
+      "schedule": "*/15 * * * *"
     },
     {
       "path": "/api/cron/materialise-sessions",
@@ -207,7 +207,7 @@
     },
     {
       "path": "/api/cron/refresh-social-tokens",
-      "schedule": "0 */6 * * *"
+      "schedule": "0 3 * * *"
     },
     {
       "path": "/api/cron/reap-orphaned-media",
@@ -239,19 +239,19 @@
     },
     {
       "path": "/api/cron/support-notion-mirror",
-      "schedule": "*/10 * * * *"
+      "schedule": "*/30 * * * *"
     },
     {
       "path": "/api/cron/refresh-social-feeds",
-      "schedule": "40 * * * *"
+      "schedule": "40 */6 * * *"
     },
     {
       "path": "/api/cron/publish-scheduled",
-      "schedule": "*/5 * * * *"
+      "schedule": "*/15 * * * *"
     },
     {
       "path": "/api/cron/domain-verification",
-      "schedule": "*/10 * * * *"
+      "schedule": "*/30 * * * *"
     },
     {
       "path": "/api/cron/inquiry-engine",
@@ -263,15 +263,15 @@
     },
     {
       "path": "/api/cron/warm-front-door",
-      "schedule": "*/2 * * * *"
+      "schedule": "*/30 * * * *"
     },
     {
       "path": "/api/cron/ticket-refund-intents",
-      "schedule": "*/5 * * * *"
+      "schedule": "*/15 * * * *"
     },
     {
       "path": "/api/cron/expire-orders",
-      "schedule": "*/5 * * * *"
+      "schedule": "*/15 * * * *"
     },
     {
       "path": "/api/cron/outbox",
@@ -279,15 +279,23 @@
     },
     {
       "path": "/api/cron/messaging-reminders",
-      "schedule": "*/5 * * * *"
+      "schedule": "*/15 * * * *"
     },
     {
       "path": "/api/cron/messaging-delivery-retry",
-      "schedule": "*/10 * * * *"
+      "schedule": "*/30 * * * *"
     },
     {
       "path": "/api/cron/tenant-images",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/promo-hold-sweep",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/promo-notifications",
+      "schedule": "0 * * * *"
     }
   ]
 }

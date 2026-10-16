@@ -93,4 +93,23 @@ describe("public Max-site data cache (TUL-444 B1 Step 2)", () => {
     assert.match(IDENTITY_ACTIONS_SRC, /bustTalentSiteCache\(input\.talent_profile_id,\s*profileCode\)/);
     assert.match(LANGUAGES_ACTIONS_SRC, /bustTalentSiteCache\(who\.talentProfileId,\s*null\)/);
   });
+
+  it("TUL-445: the cached path reads no per-request dynamic API", () => {
+    // A cookies()/headers()/draftMode() read inside the cached loader would
+    // either throw inside unstable_cache or leak one visitor's state to all.
+    assert.doesNotMatch(CACHE_SRC, /\b(cookies|headers|draftMode)\s*\(/);
+    assert.doesNotMatch(CACHE_SRC, /from ["']next\/headers["']/);
+  });
+
+  it("TUL-445: publish busts the talent-keyed site tag", () => {
+    const ACTIONS_SRC = readFileSync(join(DIR, "actions.ts"), "utf8");
+    const TAGS_SRC = readFileSync(join(DIR, "../cache-tags.ts"), "utf8");
+    const publish = ACTIONS_SRC.slice(
+      ACTIONS_SRC.indexOf("export async function publishTalentPersonalSiteAction"),
+    );
+    const body = publish.slice(0, publish.indexOf("\nexport ", 10));
+    assert.match(body, /bustTalentSiteCache\(scope\.talentProfile\.id/);
+    assert.match(TAGS_SRC, /revalidateTag\(tagForTalentSite\(talentProfileId, "site"\)/);
+    assert.match(TAGS_SRC, /`talent:\$\{talentProfileId\}:\$\{kind\}`/);
+  });
 });

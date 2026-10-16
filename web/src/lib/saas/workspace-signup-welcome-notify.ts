@@ -11,6 +11,7 @@ import "server-only";
 import { getAppUrl } from "@/lib/auth-flow";
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { logServerError } from "@/lib/server/safe-error";
+import { afterResponse } from "@/lib/server/after-response";
 
 /**
  * Emit `workspace.signup_completed`; the catalog entry `workspace.signup_welcome`
@@ -28,7 +29,7 @@ export function notifyWorkspaceSignupWelcome(params: {
   publicUrl: string;
 }): void {
   const appBase = getAppUrl();
-  void dispatchEventNotifications({
+  afterResponse(() => dispatchEventNotifications({
     type: "workspace.signup_completed",
     tenantId: params.tenantId,
     userId: params.ownerUserId,
@@ -42,5 +43,5 @@ export function notifyWorkspaceSignupWelcome(params: {
     },
   }).catch((err) => {
     logServerError("workspace-signup.welcomeEmail", err);
-  });
+  }));
 }

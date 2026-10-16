@@ -21,8 +21,11 @@ import { SupportThreadView } from "./SupportThreadView";
 import { SupportThreadHeader } from "./SupportThreadHeader";
 import { Composer, NewTicketForm } from "./SupportPanelForms";
 import { SupportIdeaForm } from "./SupportIdeaForm";
+import { SupportThreadLoadError } from "./SupportThreadLoadError";
 import { HomeView, TicketRow } from "./SupportPanelHome";
 import { GuideTab } from "./GuideTab";
+import { NewQuestionStrip, showNewQuestionStripForThread } from "./support-new-question-strip";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import type { SupportContract } from "./support-contract";
 import { createClient } from "@/lib/supabase/client";
 import { supportFrom } from "@/lib/support/support-from";
@@ -34,7 +37,7 @@ import { uploadReplayForTicket } from "@/lib/support/replay/upload-replay";
 import { keepTicketOpenAction } from "@/lib/support/actions";
 import { useThreadPresence } from "@/lib/realtime/presence";
 import { relTime } from "./support-rel-time";
-import { supportSendErrorText } from "./support-send-error";
+import { guardSupportSend, supportSendErrorText } from "./support-send-error";
 import {
   EMPTY_THREAD,
   applyIncomingMessage,
@@ -53,6 +56,7 @@ export function SupportPanel({
   tickets,
   setTickets,
   deepLinkTicketId = null,
+  deepLinkList = false,
   guideNodeId = null,
   onConsumedGuideNode,
 }: {
@@ -64,11 +68,14 @@ export function SupportPanel({
   setTickets: (updater: (prev: SupportTicketSummary[]) => SupportTicketSummary[]) => void;
   /** Ticket to open on mount (email "Reply in app" deep link). */
   deepLinkTicketId?: string | null;
+  /** A `?support=` value that is not a ticket id: open the Tickets list. */
+  deepLinkList?: boolean;
   /** Guide article to open (the (i) next to a page title). */
   guideNodeId?: string | null;
   onConsumedGuideNode?: () => void;
 }) {
   const t = useT();
+  const panelLocale = useDashboardLocale();
   const compact = useCompactViewport();
   const trapRef = useFocusTrap<HTMLDivElement>(open && compact);
   const { view, ticketId, setView, restoredRef } = useSupportSessionRestore();
@@ -86,8 +93,9 @@ export function SupportPanel({
   const replay = useReplayBuffer();
   const unread = useSupportUnread(tickets);
   const { ticket, messages, loading: threadLoading } = selectThread(threadState, ticketId);
-  const [loadFailedFor, setLoadFailedFor] = useState<string | null>(null);
-  const threadLoadFailed = loadFailedFor !== null && loadFailedFor === ticketId && threadLoading;
+  const [loadFailedFor, setLoadFailedFor] = useState<{ id: string; code: string } | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const threadLoadFailed = loadFailedFor !== null && loadFailedFor.id === ticketId && threadLoading;
   const wasOpenRef = useRef(open);
   useEffect(() => {
     // Reopening lands on Home, not on whichever thread was open last.
@@ -117,7 +125,8 @@ export function SupportPanel({
 
   useEffect(() => {
     if (deepLinkTicketId) setView("thread", deepLinkTicketId);
-  }, [deepLinkTicketId, setView]);
+    else if (deepLinkList) setView("home");
+  }, [deepLinkTicketId, deepLinkList, setView]);
 
   useEffect(() => {
     if (!guideNodeId) return;
@@ -182,7 +191,7 @@ export function SupportPanel({
       await fetch("/api/ai/support-chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ticketId: id }),
+        body: JSON.stringify({ ticketId: id, locale: panelLocale }),
       });
       // TUL-656: pull the thread once the AI turn is done; a late or lagging socket left the reply hidden.
       const supabase = createClient();
@@ -204,7 +213,7 @@ export function SupportPanel({
     } finally {
       setThinking(false);
     }
-  }, []);
+  }, [panelLocale]);
 
   const viewingRef = useRef<string | null>(null);
   useEffect(() => {
@@ -269,9 +278,9 @@ export function SupportPanel({
         .eq("ticket_id", ticketId)
         .order("created_at", { ascending: true });
       if (cancelled) return;
-      if (tErr || mErr) {
-        // A failed read is not an empty thread: say so instead of showing "no messages".
-        setLoadFailedFor(ticketId);
+      if (tErr || mErr || !tRow) {
+        // A failed read (or a row RLS hides) is not an empty thread: say so, and keep the code for QA.
+        setLoadFailedFor({ id: ticketId, code: tErr?.code ?? mErr?.code ?? (tRow ? "error" : "no_row") });
         return;
       }
       setLoadFailedFor(null);
@@ -287,7 +296,7 @@ export function SupportPanel({
     return () => {
       cancelled = true;
     };
-  }, [open, ticketId, contract, patchSummary]);
+  }, [open, ticketId, contract, patchSummary, loadAttempt]);
 
   // Bottom-anchor the thread so a long thread does not open at the top with replies off-screen.
   useEffect(() => {
@@ -312,13 +321,13 @@ export function SupportPanel({
     setAskError(null);
     // Clear at once (the box kept the sent text for the round trip); a failure puts it back below.
     setAsk("");
-    const r = await contract.createTicket({
+    const r = await guardSupportSend(() => contract.createTicket({
       tenantSlug: contract.tenantSlug,
       surface: contract.surface,
       body,
       originSlug: contract.originSlug ?? undefined,
       diagnostics: getDiagnosticsSnapshot(),
-    });
+    }));
     setSending(false);
     if (r.ok) {
       // In-app support emitted no product events (only marketing did), so there was no support funnel.
@@ -387,7 +396,7 @@ export function SupportPanel({
         <button
           type="button"
           onClick={onClose}
-          aria-label={t("dashboard.adminSupport.close")}
+          aria-label={t("dashboard.adminSupport.closeAria")}
           style={{
             border: "none",
             background: "transparent",
@@ -454,14 +463,14 @@ export function SupportPanel({
             onMessageOran={() => {
               void (async () => {
                 setAskError(null);
-                const r = await contract.createTicket({
+                const r = await guardSupportSend(() => contract.createTicket({
                   tenantSlug: contract.tenantSlug,
                   surface: contract.surface,
                   subject: t("dashboard.adminSupport.messageOranSubject"),
                   body: interpolate(t("dashboard.adminSupport.messageOranBody"), SUPPORT_AGENT_VARS),
                   messageOranDirectly: true,
                   diagnostics: getDiagnosticsSnapshot(),
-                });
+                }));
                 if (r.ok) {
                   trackProductEvent(PRODUCT_ANALYTICS_EVENTS.support_ticket_created, {
                     surface: contract.surface,
@@ -485,12 +494,11 @@ export function SupportPanel({
             canSeeWorkspace={contract.canSeeWorkspaceTickets}
             userId={contract.userId}
             onOpen={(id) => setView("thread", id)}
+            onNew={() => setView("new")}
           />
         )}
         {view === "thread" && threadLoadFailed && (
-          <div role="alert" style={{ padding: 24, fontSize: 13, color: COLORS.inkMuted }}>
-            {t("dashboard.adminSupport.threadLoadFailed")}
-          </div>
+          <SupportThreadLoadError code={loadFailedFor?.code} onRetry={() => setLoadAttempt((n) => n + 1)} />
         )}
         {view === "thread" && threadLoading && !threadLoadFailed && (
           <div role="status" style={{ padding: 24, fontSize: 13, color: COLORS.inkMuted }}>
@@ -580,50 +588,21 @@ export function SupportPanel({
               {interpolate(t("dashboard.adminSupport.oranTyping"), SUPPORT_AGENT_VARS)}
             </div>
           ) : null}
-          {ticket?.status === "resolved" ? (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 10,
-                padding: "8px 12px",
-                borderTop: `1px solid ${COLORS.borderSoft}`,
-                fontSize: 12,
-                color: COLORS.inkMuted,
-              }}
-            >
-              <span>{t("dashboard.adminSupport.newQuestionHint")}</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setAsk("");
-                  setAskError(null);
-                  setView("home");
-                }}
-                style={{
-                  border: "none",
-                  background: COLORS.fill,
-                  color: "#fff",
-                  borderRadius: 999,
-                  padding: "8px 14px",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  flexShrink: 0,
-                }}
-              >
-                {t("dashboard.adminSupport.newQuestion")}
-              </button>
-            </div>
-          ) : null}
+          <NewQuestionStrip
+            show={showNewQuestionStripForThread(ticket, messages[messages.length - 1]?.authorKind)}
+            onNewQuestion={() => {
+              setAsk("");
+              setAskError(null);
+              setView("home");
+            }}
+          />
           <Composer
           key={ticketId ?? "none"}
           disabled={!ticketId || ticket?.status === "closed"}
           ticketId={ticketId}
           onSend={async (body) => {
             if (!ticketId) return false;
-            const r = await contract.sendMessage({ ticketId, body });
+            const r = await guardSupportSend(() => contract.sendMessage({ ticketId, body }));
             if (r.ok) {
               // Optimistic append (deduped against the realtime INSERT by id) so the message shows even when realtime lags or is down.
               if (r.messageId) {
@@ -723,11 +702,13 @@ function TicketListView({
   canSeeWorkspace,
   userId,
   onOpen,
+  onNew,
 }: {
   tickets: SupportTicketSummary[];
   canSeeWorkspace: boolean;
   userId: string;
   onOpen: (id: string) => void;
+  onNew: () => void;
 }) {
   const t = useT();
   const [seg, setSeg] = useState<"mine" | "workspace">("mine");
@@ -739,6 +720,24 @@ function TicketListView({
   const resolved = scoped.filter((x) => x.status !== "open");
   return (
     <div style={{ padding: 16 }}>
+      <button
+        type="button"
+        onClick={onNew}
+        style={{
+          width: "100%",
+          minHeight: 44,
+          marginBottom: 14,
+          border: `1px solid ${COLORS.border}`,
+          background: COLORS.card,
+          color: COLORS.ink,
+          borderRadius: 10,
+          fontSize: 13,
+          fontWeight: 600,
+          cursor: "pointer",
+        }}
+      >
+        {t("dashboard.adminSupport.cardTicket")}
+      </button>
       {canSeeWorkspace ? (
         <div
           style={{

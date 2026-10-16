@@ -20,6 +20,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { byLabel } from "@/lib/field-engine/sort-comparators";
+import { countryLabel } from "@/lib/geo/country-code";
 
 export const dynamic = "force-dynamic";
 
@@ -71,7 +72,7 @@ export async function GET() {
   const categoryCounts = new Map<string, { label: string; count: number }>();
 
   for (const row of rows) {
-    const country = row.home_country_text?.trim();
+    const country = countryLabel(row.home_country_text);
     if (country) {
       countryCounts.set(country, (countryCounts.get(country) ?? 0) + 1);
     }

@@ -22,7 +22,7 @@ export type LegacySignupInput = {
   /** `getOnboardingFlags().onboarding_module_enabled`. */
   flagOn: boolean;
   surface: LegacySignupSurface;
-  /** Absolute marketing origin, `getSiteUrl()`. */
+  /** Absolute marketing origin from `resolveMarketingOrigin()` (never a hard-coded production host). */
   siteUrl: string;
   lang: FlowLocale;
   /** Host kind. Only the platform's own hosts hand off to the platform `/start`. */

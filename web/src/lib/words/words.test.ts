@@ -71,9 +71,9 @@ test("every preset override names a row that exists, in both locales", () => {
   assert.deepEqual(offenders, []);
 });
 
-test("all twenty-one presets exist and resolve", () => {
-  assert.equal(INDUSTRY_PRESET_IDS.length, 22);
-  assert.equal(INDUSTRY_PRESETS.length, 22);
+test("all twenty-three presets exist and resolve", () => {
+  assert.equal(INDUSTRY_PRESET_IDS.length, 23);
+  assert.equal(INDUSTRY_PRESETS.length, 23);
   for (const id of INDUSTRY_PRESET_IDS) {
     assert.equal(parseIndustryPresetId(id), id);
   }
@@ -322,4 +322,14 @@ test("an unknown key resolves to itself rather than throwing", () => {
   const words = resolveWords({}, "en");
   assert.equal(words.word("not.a.row"), "not.a.row");
   assert.equal(words.sourceOf("not.a.row"), "default");
+});
+
+test("pet_grooming is registered and speaks pet words in both locales", () => {
+  assert.equal(parseIndustryPresetId("pet_grooming"), "pet_grooming");
+  const en = resolveWords({ presetId: "pet_grooming" }, "en");
+  const es = resolveWords({ presetId: "pet_grooming" }, "es");
+  assert.equal(en.word("customers.person"), "Pet parent");
+  assert.equal(es.word("customers.person"), "Dueño");
+  assert.equal(en.word("appointments.item"), "Groom");
+  assert.equal(es.word("appointments.item"), "Baño y corte");
 });

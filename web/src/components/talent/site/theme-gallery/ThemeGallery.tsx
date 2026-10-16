@@ -231,11 +231,35 @@ export function ThemeGallery({
                     : themeGalleryCopy(locale, "publishCta")}
                 </button>
               ) : null}
+              <button
+                type="button"
+                data-theme-gallery-preview-link=""
+                onClick={() =>
+                  document
+                    .getElementById("theme-gallery-preview")
+                    ?.scrollIntoView({ behavior: "smooth", block: "center" })
+                }
+                style={{
+                  alignSelf: "flex-start",
+                  background: "none",
+                  border: 0,
+                  padding: "4px 0",
+                  minHeight: 32,
+                  cursor: "pointer",
+                  color: COLORS.inkMuted,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  fontFamily: FONTS.body,
+                  textDecoration: "underline",
+                }}
+              >
+                {themeGalleryCopy(locale, "previewCta")}
+              </button>
             </div>
           ) : null}
         </div>
 
-        <div style={{ flex: "1 1 220px", minWidth: 220, maxWidth: 320 }}>
+        <div id="theme-gallery-preview" style={{ flex: "1 1 220px", minWidth: 220, maxWidth: 320 }}>
           {previewUrl ? (
             <ThemeGalleryPreviewFrame preview={preview} url={previewUrl} locale={locale} title={themeGalleryCopy(locale, "previewTitle")} />
           ) : null}

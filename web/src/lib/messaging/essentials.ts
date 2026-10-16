@@ -3,6 +3,7 @@ import "server-only";
 import { displayableContact } from "@/lib/inquiry/guest-send-gate";
 
 import { currentInquiryName } from "./inquiry-name";
+import { settleChipsFromOrders } from "@/lib/talent-agenda/abandoned-order";
 import { toRecordChip, type ConversationRecordRow } from "./record-chip";
 import type { Essentials, IdentityLevel } from "./types";
 
@@ -68,7 +69,7 @@ export async function loadMessagingEssentials(
         request: row.message,
         source: row.source_page,
       },
-      linked: ((links ?? []) as ConversationRecordRow[]).map(toRecordChip),
+      linked: await settleChipsFromOrders(admin, ((links ?? []) as ConversationRecordRow[]).map(toRecordChip)),
       notes: ((notes ?? []) as { id: string; body: string; created_at: string }[]).map((note) => ({
         id: note.id,
         body: note.body,

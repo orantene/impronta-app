@@ -5,6 +5,7 @@
  * plan-aware primary CTA (Add vs Upgrade to use). Free talents keep the
  * playground; no dead Add button.
  */
+import { openUpgrade } from "@/components/talent/upgrade/open-upgrade";
 import Link from "next/link";
 import { useAdminShellOptional } from "@/components/admin/shell/internal/state";
 import { requestBuilderAppIntent } from "@/components/edit-chrome/builder-app-intent";
@@ -56,7 +57,8 @@ export function AppDetailScreen({
   const app = findLibraryApp(appId);
   const designs = app ? designsThatSuitApp(app) : [];
   const play = app ? PLAYGROUND[app.nativeKind] : null;
-  const bridgePlan = useAdminShellOptional()?.bridgeTalentSelfProfile?.talentPlanKey ?? null;
+  const shell = useAdminShellOptional();
+  const bridgePlan = shell?.bridgeTalentSelfProfile?.talentPlanKey ?? null;
   // Gate only premium apps (`isPremiumApp && !canAdd` → Upgrade). `canAddApps`
   // is a test/host override for the Web Office capability.
   const planAllowsPremium = canAddApps ?? canAddLibraryApp(bridgePlan);
@@ -81,7 +83,7 @@ export function AppDetailScreen({
       data-can-add-apps={canAdd ? "1" : "0"}
       className="mx-auto flex w-full max-w-[1100px] flex-col gap-5 px-4 pb-10 pt-2 font-admin-body"
     >
-      <header className="flex min-h-12 items-center gap-2 border-b border-admin-border-soft pb-3">
+      <header className="flex min-h-12 flex-wrap items-center gap-2 border-b border-admin-border-soft pb-3">
         <button
           type="button"
           onClick={onBackToLibrary}
@@ -90,9 +92,9 @@ export function AppDetailScreen({
         >
           ‹ {galleryAppsT(locale, "backToApps")}
         </button>
-        <div className="min-w-0 flex-1">
+        <div data-testid="app-detail-title-block" className="order-last min-w-0 basis-full sm:order-none sm:basis-0 sm:flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="truncate text-[16px] font-semibold text-admin-ink">{appName(app, locale)}</h1>
+            <h1 className="break-words text-[16px] font-semibold text-admin-ink">{appName(app, locale)}</h1>
             {app.premium ? (
               <span
                 data-testid="gallery-app-pro"
@@ -102,7 +104,7 @@ export function AppDetailScreen({
               </span>
             ) : null}
           </div>
-          <p className="truncate text-[12px] text-admin-ink-muted">{appPitch(app, locale)}</p>
+          <p className="line-clamp-2 text-[12px] text-admin-ink-muted">{appPitch(app, locale)}</p>
         </div>
         <div className="flex rounded-lg border border-admin-border-soft p-0.5">
           {(["desktop", "phone"] as const).map((d) => (
@@ -189,6 +191,12 @@ export function AppDetailScreen({
           <a
             href={GALLERY_LOCKED_UPGRADE_HREF}
             data-testid="app-detail-upgrade-to-use"
+            onClick={(e) => {
+              if (!shell) return;
+              e.preventDefault();
+              onClose();
+              openUpgrade({ feature: "apps", from: "app-detail" });
+            }}
             className="inline-flex min-h-12 items-center justify-center rounded-xl bg-admin-ink px-5 text-[14px] font-semibold text-white"
           >
             {galleryAppsT(locale, "upgradeToUse")}

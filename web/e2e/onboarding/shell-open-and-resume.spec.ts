@@ -4,7 +4,8 @@
  * Opens from the three CTAs (talent button, business link, header link),
  * accepts a typed sentence, a pasted link, refuses too little, closes with the
  * saved toast, and resumes after a reload on the same browser (guest cookie).
- * Runs on chromium (desktop overlay) and mobile-onboarding (iPhone 14).
+ * Runs on chromium (desktop overlay) and mobile-onboarding (iPhone 14 viewport,
+ * Chromium browser — WebKit drops the guest cookie on http://localhost).
  */
 import { APP_BASE, MARKETING_BASE, ROSA_EN, evidence, expect, dialog, openHome, overlay, sentence, test } from "./_module";
 

@@ -18,10 +18,9 @@ import { TalentSurface } from "./pages-dynamic";
 export function SurfaceRouter() {
   const { state } = useAdminShell();
   const t = useT();
-  // Wrap each surface in a <main> landmark so screen readers can jump
-  // directly past the dark prototype ControlBar (which is treated as a
-  // toolbar/header in the page composition). Each surface has only one
-  // <main> at a time — surfaces are mutually exclusive.
+  // TUL-1071: the surface content (talent.tsx / WorkspaceShell) already
+  // renders the single main landmark of the page. This wrapper is a named
+  // group, never a second one. Surfaces are mutually exclusive.
   const inner = (() => {
     switch (state.surface) {
       case "workspace":
@@ -40,10 +39,10 @@ export function SurfaceRouter() {
     }
   })();
   return (
-    <main id="tulala-main" tabIndex={-1} aria-label={interpolate(t("dashboard.adminShell.surfaceLandmark"), { surface: state.surface })} style={{ display: "contents", outline: "none" }}>
+    <div id="tulala-main" role="group" tabIndex={-1} aria-label={interpolate(t("dashboard.adminShell.surfaceLandmark"), { surface: state.surface })} style={{ display: "contents", outline: "none" }}>
       {inner}
       <UpgradeCelebration />
-    </main>
+    </div>
   );
 }
 

@@ -39,3 +39,29 @@ export function resolveMarketingOrigin(env: MarketingOriginEnv = process.env): s
   if (url.protocol === "https:" || (url.protocol === "http:" && local)) return url.origin;
   return DEFAULT_MARKETING_ORIGIN;
 }
+
+/**
+ * TUL-764: the origin transactional-email links (wordmark, footer link, mark
+ * image) point at. A staging deploy sets `TULALA_MARKETING_ORIGIN`; honour it
+ * first, then `NEXT_PUBLIC_SITE_URL`, then the production default. Never
+ * hard-code the production host in a template. Server-side only.
+ */
+export function resolveEmailHomeOrigin(env: MarketingOriginEnv = process.env): string {
+  const marketing = resolveMarketingOrigin(env);
+  if (marketing !== DEFAULT_MARKETING_ORIGIN) return marketing;
+  const site = env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (site) {
+    try {
+      const url = new URL(site);
+      if (url.protocol === "https:" || url.protocol === "http:") return url.origin;
+    } catch {
+      /* fall through to the default */
+    }
+  }
+  return DEFAULT_MARKETING_ORIGIN;
+}
+
+/** Host part of {@link resolveEmailHomeOrigin}, for the footer link label. */
+export function resolveEmailHomeHost(env: MarketingOriginEnv = process.env): string {
+  return new URL(resolveEmailHomeOrigin(env)).host;
+}

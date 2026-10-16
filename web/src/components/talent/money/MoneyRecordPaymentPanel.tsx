@@ -128,7 +128,7 @@ export function MoneyRecordPaymentPanel({
   return (
     <AgendaPanelFrame
       title={t("Record payment")}
-      subtitle={row.name}
+      subtitle={row.name || row.service}
       onClose={step === "done" ? onDone : onClose}
       dataAttr="data-money-record-payment"
       footer={footer}

@@ -71,3 +71,28 @@ test("a link as the only name falls back to its brand, not scheme-www-tld soup",
   brief.facts.push(fact("business.name", "https://www.instagram.com/thebarberstudio"));
   assert.deepEqual(linkNameFor(brief, "business"), { slug: "thebarberstudio", from: "business.name" });
 });
+
+test("TUL-540 / onb1-02: a short business.description stands in for the kind of business", () => {
+  const brief = briefFromOnboardingFixture({ ...fixtureById("rosa"), facts: [] });
+  brief.facts.push(fact("business.name", "Salón QA Grok"), fact("business.description", "Salón de belleza"), fact("business.hours", "Mon-Sat 10:00-19:00"));
+  const u = buildUnderstanding({ brief, intent: "business", userPath: "business", locale: "es" });
+  const kind = u.lines.find((l) => l.id === "kind");
+  assert.equal(kind?.value, "Salón de belleza");
+  assert.equal(kind?.factKey, "business.description");
+  assert.equal(u.typeChip?.query, "Salón de belleza Salón QA Grok");
+  assert.equal(u.lines.find((l) => l.id === "hours")?.value, "Lun-Sáb 10:00-19:00");
+
+  const pitch = briefFromOnboardingFixture({ ...fixtureById("rosa"), facts: [] });
+  pitch.facts.push(fact("business.description", "We have been cutting hair for families since 1990"));
+  assert.equal(buildUnderstanding({ brief: pitch, intent: "business", userPath: "business" }).lines.find((l) => l.id === "kind")?.status, "missing");
+
+  const talent = buildUnderstanding({ brief, intent: "talent", userPath: "talent" });
+  assert.equal(talent.lines.find((l) => l.id === "what")?.status, "missing", "a salon description is not her discipline");
+});
+
+test("TUL-540: the talent 'what' line reads work.industry when no discipline was said", () => {
+  const brief = briefFromOnboardingFixture({ ...fixtureById("rosa"), facts: [] });
+  brief.facts.push(fact("work.industry", "Maquillaje"));
+  const u = buildUnderstanding({ brief, intent: "talent", userPath: "talent" });
+  assert.equal(u.lines.find((l) => l.id === "what")?.value, "Maquillaje");
+});

@@ -1,9 +1,22 @@
 import { languageToggleGroupLabel } from "@/i18n/language-toggle-label";
+import { localeSwitchRel } from "@/i18n/locale-switch-rel";
 import type { HeaderItem } from "./schema";
 
-/** How an item behaves on each breakpoint when the owner has not chosen (phone: brand stays, rest folds into the menu). */
+/** How an item behaves on each breakpoint when the owner has not chosen (phone: brand + language stay; rest folds into the menu). */
 export function headerItemMobileDefault(item: HeaderItem): "show" | "menu" {
-  return item.type === "wordmark" || item.type === "logo" || item.type === "section_switcher" ? "show" : "menu";
+  // GRK-030: language stays in the bar on phone so bilingual demos are not
+  // footer-only (cookie banner covers the socket language group).
+  return item.type === "wordmark" || item.type === "logo" || item.type === "section_switcher" || item.type === "language"
+    ? "show"
+    : "menu";
+}
+
+/** Effective phone visibility: language always shows (GRK-030), even if a seed pinned menu. */
+export function headerItemMobileResolved(
+  item: HeaderItem,
+): "show" | "label" | "icon" | "hide" | "menu" {
+  if (item.type === "language") return "show";
+  return item.responsive?.mobile ?? headerItemMobileDefault(item);
 }
 
 /** `data-header-item` + per-breakpoint attrs. The section switcher is phone-only unless the owner says otherwise. */
@@ -14,7 +27,7 @@ export function headerItemAttrs(item: HeaderItem): Record<string, string> {
     "data-header-item": item.type,
     "data-bp-desktop": bp.desktop ?? wide,
     "data-bp-tablet": bp.tablet ?? bp.desktop ?? wide,
-    "data-bp-mobile": bp.mobile ?? headerItemMobileDefault(item),
+    "data-bp-mobile": headerItemMobileResolved(item),
   };
 }
 
@@ -51,6 +64,8 @@ export function HeaderSiteLocales({
           <a
             className="site-header__lang-code"
             href={hrefs?.[code] ?? `?locale=${code}`}
+            // TUL-793: a `?locale=` link is a switch action that redirects to the clean URL, never a page to index.
+            {...localeSwitchRel(hrefs?.[code] ?? `?locale=${code}`)}
             hrefLang={code}
             lang={code}
             data-active={code === locale ? "" : undefined}

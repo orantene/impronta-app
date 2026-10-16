@@ -21,7 +21,8 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { BookingCommissionSnapshot, ProcessingFeePayer } from "./commission";
+import { estimateProcessorFeeCents, type BookingCommissionSnapshot, type ProcessingFeePayer, type ProcessorFeeRates } from "./commission";
+import { CLIENT_SERVICE_FEE_BPS, formatBpsPercent } from "./fee-config";
 
 export type FeePayerParty = { kind: "talent" | "workspace"; id: string };
 
@@ -65,6 +66,8 @@ export type FeeLineCode =
   | "platform_fee"
   | "processing_fee"
   | "total_charged"
+  /** Non-additive memo (after the total): the card fee already inside the price. */
+  | "card_fee_memo"
   | "talent_quote"
   | "workspace_margin"
   | "channel_referral"
@@ -143,11 +146,43 @@ export function sellerFeeLines(s: SnapForLines, actualFeeCents: number | null): 
  * the summed total equals `chargeCents`, so a deposit or partial link never
  * shows a breakdown that does not add up to what is being charged.
  */
-export function bookingClientFeeLines(rows: readonly SnapForLines[], chargeCents: number): FeeLine[] {
+export function bookingClientFeeLines(
+  rows: readonly SnapForLines[],
+  chargeCents: number,
+  opts?: {
+    /**
+     * Checkout card-fee display flag (fee-config checkoutCardFeeLineEnabled).
+     * When set and the seller absorbs the card fee, a non-additive
+     * `card_fee_memo` line follows the total, estimated from these (verified)
+     * rates. null/absent = today's lines exactly.
+     */
+    cardFeeMemoRates?: ProcessorFeeRates | null;
+  },
+): FeeLine[] {
   const sums = new Map<FeeLineCode, number>();
   for (const row of rows) {
     for (const l of clientFeeLines(row)) sums.set(l.code, (sums.get(l.code) ?? 0) + l.cents);
   }
   if (!rows.length || sums.get("total_charged") !== chargeCents) return [];
-  return [...sums].map(([code, cents]) => ({ code, cents }));
+  const out: FeeLine[] = [...sums].map(([code, cents]) => ({ code, cents }));
+  const rates = opts?.cardFeeMemoRates;
+  if (rates && !sums.has("processing_fee")) {
+    const memo = estimateProcessorFeeCents(chargeCents, rates);
+    if (memo > 0) out.push({ code: "card_fee_memo", cents: memo });
+  }
+  return out;
+}
+
+/**
+ * "(1.5%)" label for the platform_fee line, only when the line really is the
+ * configured percent of the service price (within one cent of rounding). A
+ * floored or overridden fee returns null, so the label never states a rate the
+ * charge did not use.
+ */
+export function platformFeePercentLabel(lines: readonly FeeLine[]): string | null {
+  const service = lines.find((l) => l.code === "service_subtotal")?.cents ?? 0;
+  const fee = lines.find((l) => l.code === "platform_fee")?.cents;
+  if (fee == null || service <= 0) return null;
+  const expected = Math.round((service * CLIENT_SERVICE_FEE_BPS) / 10_000);
+  return Math.abs(fee - expected) <= 1 ? formatBpsPercent(CLIENT_SERVICE_FEE_BPS) : null;
 }

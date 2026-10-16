@@ -29,6 +29,8 @@
  * decides the numbers, so they can be asserted without a card.
  */
 
+import { DEFAULT_PROCESSOR_FEE_RATES, percentToBps } from "@/lib/billing/fee-config";
+
 /** Stripe's standard card pricing, in the only two numbers it has. */
 export type ProcessingRate = {
   /** Basis points. 290 = 2.9%. */
@@ -37,7 +39,10 @@ export type ProcessingRate = {
   fixedCents: number;
 };
 
-export const DEFAULT_PROCESSING_RATE: ProcessingRate = { percentBps: 290, fixedCents: 30 };
+export const DEFAULT_PROCESSING_RATE: ProcessingRate = {
+  percentBps: percentToBps(DEFAULT_PROCESSOR_FEE_RATES.default.percent),
+  fixedCents: DEFAULT_PROCESSOR_FEE_RATES.default.fixed_cents,
+};
 
 export type ForfeitureSplit = {
   /** Charged to the guest's card, integer cents. */

@@ -293,7 +293,7 @@ export function shouldRewriteLocalePublicPath(
   return !isDashboardInnerPathForLocalePrefix(inner);
 }
 
-export function syncLocaleCookieForPath(
+function syncLocaleCookieForPathCore(
   res: import("next/server").NextResponse,
   originalPathname: string,
   settings: LanguageSettings = FALLBACK_LANGUAGE_SETTINGS,
@@ -314,6 +314,16 @@ export function syncLocaleCookieForPath(
     const inner = stripNonDefaultLocalePrefix(originalPathname, settings);
     if (!isDashboardInnerPathForLocalePrefix(inner)) {
       const loc = firstSegment(originalPathname);
+      // TUL-866: a visitor whose cookie already names this locale AND is a
+      // real choice (no auto marker) needs no write. Re-stamping two
+      // Set-Cookie headers on every /es/... view made Spanish pages
+      // uncacheable at the edge while English (early return below) was not.
+      if (
+        request?.cookies?.get(LOCALE_COOKIE)?.value === loc &&
+        !localeCookieIsAutoWritten(request)
+      ) {
+        return;
+      }
       res.cookies.set(LOCALE_COOKIE, loc, localeCookieOptions);
       // DELIBERATE. This branch is how the public language switcher persists a
       // choice: `PublicLanguageToggle` is plain `<a href="/es/...">`, it writes
@@ -356,6 +366,22 @@ export function syncLocaleCookieForPath(
     // the feature does not work. This is the ONLY writer allowed to set it.
     markLocaleCookieAuto(res);
   }
+}
+
+/**
+ * Public entry. A 308 whose original path carries the explicit DEFAULT locale
+ * prefix (`/en/login` -> `/login`, TUL-146) also records that choice, so proxy.ts
+ * needs no extra call (it sits at its 800-line cap).
+ */
+export function syncLocaleCookieForPath(
+  res: import("next/server").NextResponse,
+  originalPathname: string,
+  settings: LanguageSettings = FALLBACK_LANGUAGE_SETTINGS,
+  request?: import("next/server").NextRequest,
+  fallbackLocale?: string,
+): void {
+  syncLocaleCookieForPathCore(res, originalPathname, settings, request, fallbackLocale);
+  if (res.status === 308) syncLocaleCookieForDefaultPrefixStrip(res, originalPathname, settings);
 }
 
 /**

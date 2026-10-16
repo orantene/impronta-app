@@ -31,6 +31,7 @@ import type {
   GuestChipValue,
   ListGuestTenantRosterCallback,
   ScanGuestConversationCallback,
+  ReportGuestChatCallback,
 } from "@/lib/inquiry/guest-chat-contract";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 import type { Translator } from "@/i18n/interpolate";
@@ -171,6 +172,8 @@ export type GuestDetailsSheetProps = {
   onContactChange?: (value: { name: string; email: string; phone: string }) => void;
   /** The AI conversation scan (fill empty fields from the chat). Null hides it. */
   onScanConversation?: ScanGuestConversationCallback | null;
+  /** TUL-645: report this chat to Tulala. Null hides the link. */
+  onReportToSupport?: ReportGuestChatCallback | null;
   /** The guest's unsent composer text — the scan's main input pre-send. */
   composerDraft?: string;
   /** The inquiry the scan targets. Null hides the scan button. */
@@ -193,6 +196,7 @@ export function GuestDetailsSheet({
   onBriefChange,
   onContactChange,
   onScanConversation = null,
+  onReportToSupport = null,
   composerDraft = "",
   inquiryId,
 }: GuestDetailsSheetProps) {
@@ -202,6 +206,9 @@ export function GuestDetailsSheet({
   const [openKind, setOpenKind] = useState<RowKind | null>(null);
   const [scanState, setScanState] = useState<"idle" | "scanning" | "done">("idle");
   const [scanNote, setScanNote] = useState<string | null>(null);
+  const [reportState, setReportState] = useState<"idle" | "open" | "sending" | "sent" | "error">("idle");
+  const [reportNote, setReportNote] = useState("");
+  const [reportTicket, setReportTicket] = useState<number | null>(null);
 
   const rows: RowKind[] = ["date", "location", "budget", "headcount", "event_type"];
   if (onBriefChange) rows.push("brief");
@@ -236,6 +243,22 @@ export function GuestDetailsSheet({
       setScanNote(t("public.guestChat.detailsScanNothing"));
     }
     setScanState("done");
+  }
+
+  async function sendReport() {
+    if (!onReportToSupport || !inquiryId || reportState === "sending") return;
+    setReportState("sending");
+    try {
+      const res = await onReportToSupport({ inquiryId, note: reportNote.trim() || undefined });
+      if (res.ok) {
+        setReportTicket(res.ticketNumber);
+        setReportState("sent");
+      } else {
+        setReportState("error");
+      }
+    } catch {
+      setReportState("error");
+    }
   }
 
   return (
@@ -365,6 +388,43 @@ export function GuestDetailsSheet({
               );
             })}
           </ul>
+
+          {/* TUL-645: report this chat to Tulala (a Support Desk ticket; chats stay private). */}
+          {onReportToSupport && inquiryId && (
+            <div style={{ padding: "10px 16px 0", borderTop: `1px solid ${C.borderSoft}`, fontFamily: FONT }}>
+              {reportState === "sent" ? (
+                <div role="status" style={{ fontSize: 12, color: C.inkMuted }}>
+                  {interpolate(t("public.guestChat.reportSent"), { n: reportTicket ?? "" })}
+                </div>
+              ) : reportState === "idle" ? (
+                <button type="button" onClick={() => setReportState("open")} style={{ border: 0, background: "transparent", padding: 0, fontSize: 12, color: C.inkMuted, textDecoration: "underline", cursor: "pointer", fontFamily: FONT }}>
+                  {t("public.guestChat.reportCta")}
+                </button>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={{ fontSize: 11.5, color: C.inkMuted, lineHeight: 1.4 }}>{t("public.guestChat.reportHint")}</div>
+                  <textarea
+                    value={reportNote}
+                    onChange={(e) => setReportNote(e.target.value)}
+                    maxLength={1000}
+                    rows={2}
+                    placeholder={t("public.guestChat.reportPlaceholder")}
+                    aria-label={t("public.guestChat.reportPlaceholder")}
+                    style={{ width: "100%", boxSizing: "border-box", border: `1px solid ${C.borderSoft}`, borderRadius: 8, padding: "7px 9px", fontSize: 12.5, fontFamily: FONT, color: C.ink, background: "#fff", resize: "vertical" }}
+                  />
+                  {reportState === "error" && <div role="alert" style={{ fontSize: 11.5, color: C.inkMuted }}>{t("public.guestChat.reportFailed")}</div>}
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button type="button" onClick={() => void sendReport()} disabled={reportState === "sending"} style={{ border: 0, borderRadius: 999, padding: "6px 14px", background: accent, color: ink, fontSize: 12.5, fontWeight: 600, fontFamily: FONT, cursor: "pointer", opacity: reportState === "sending" ? 0.7 : 1 }}>
+                      {t("public.guestChat.reportSend")}
+                    </button>
+                    <button type="button" onClick={() => { setReportState("idle"); setReportNote(""); }} style={{ border: 0, background: "transparent", fontSize: 12.5, color: C.inkMuted, cursor: "pointer", fontFamily: FONT }}>
+                      {t("public.guestChat.reportCancel")}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column" }}>

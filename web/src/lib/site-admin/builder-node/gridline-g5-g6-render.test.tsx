@@ -164,7 +164,7 @@ test("GRK-030: on a phone the switch is one 44px button to the other language; t
 test("GRK-030: the live document and the builder canvas hand the site languages to header blocks", () => {
   const doc = libAt("talent-site/server/render-max-site-document.tsx");
   assert.match(doc, /const headerSiteLocales = \{ locales: args\.localeCtx\.settings\.supportedLocales, hrefs: args\.localeCtx\.switcherHrefs \}/);
-  assert.equal((doc.match(/dataSources: \{ liveStatus, siteLocales: headerSiteLocales \}/g) ?? []).length, 3);
+  assert.equal((doc.match(/dataSources: \{ liveStatus, siteLocales: headerSiteLocales(?:, \.\.\.promoShell)? \}/g) ?? []).length, 3);
   assert.match(libAt("talent-site/server/talent-builder-canvas.server.tsx"), /dataSources: \{ siteLocales: \{ locales: localeCtx\.settings\.supportedLocales, hrefs: localeCtx\.switcherHrefs \} \}/);
 });
 

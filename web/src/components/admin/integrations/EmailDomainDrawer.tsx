@@ -4,8 +4,9 @@ import { useState } from "react";
 
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
-import { DrawerShell, AsyncButton } from "@/components/admin/shell/internal/primitives";
+import { DrawerShell, AsyncButton, PrimaryButton } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS, RADIUS } from "@/components/admin/shell/internal/state";
+import { useUpgradeModal } from "@/components/admin/site-control-center/upgrade-context";
 import type { IntegrationView } from "@/app/(workspace)/[tenantSlug]/admin/settings/integration-actions";
 import {
   saveEmailDomain,
@@ -36,7 +37,8 @@ function readDnsRecords(config: Record<string, unknown>): DnsRecord[] {
 /**
  * Email-domain drawer — add a white-label sending domain, then show the DNS
  * records to add and a Verify button that polls Resend for verification.
- * Entitlement-gated (white_label_email): locked → read-only + upgrade prompt.
+ * Entitlement-gated (white_label_email): locked → read-only + upgrade CTA
+ * that opens the real Stripe plan modal (parity with CustomCodeDrawer / TUL-39).
  */
 export function EmailDomainDrawer({
   tenantSlug,
@@ -52,6 +54,7 @@ export function EmailDomainDrawer({
   onChanged: () => void;
 }) {
   const t = useT();
+  const { openUpgrade } = useUpgradeModal();
   const locked = integration.locked;
   const visual = resolveIntegrationStatus(integration, { locked });
   const config = integration.config;
@@ -106,8 +109,10 @@ export function EmailDomainDrawer({
     background: editable ? "#fff" : COLORS.surfaceAlt,
     fontSize: 13,
     fontFamily: FONTS.body,
-    color: COLORS.ink,
+    color: editable ? COLORS.ink : COLORS.inkDim,
     outline: "none",
+    cursor: editable ? "text" : "not-allowed",
+    opacity: editable ? 1 : 0.72,
   };
 
   return (
@@ -123,9 +128,17 @@ export function EmailDomainDrawer({
             {t("dashboard.adminWorkspace.integrations.noPermission")}
           </span>
         ) : locked ? (
-          <span style={{ fontSize: 12, color: COLORS.inkMuted }}>
+          <PrimaryButton
+            onClick={() =>
+              openUpgrade({
+                feature: t(integration.labelKey),
+                why: t("dashboard.adminWorkspace.integrations.emailLockedBanner"),
+                requiredPlan: "agency",
+              })
+            }
+          >
             {t("dashboard.adminWorkspace.integrations.emailUpgradeFooter")}
-          </span>
+          </PrimaryButton>
         ) : (
           <>
             {hasDomain && (

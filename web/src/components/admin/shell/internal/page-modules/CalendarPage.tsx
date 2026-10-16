@@ -8,6 +8,7 @@ import { rescheduleInquiry } from "@/app/(workspace)/[tenantSlug]/admin/_pipelin
 import { pinNextConversation as pinNextConversationP } from "../messages/conversation-pending";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { addUtcDays } from "@/lib/scheduling/tz";
+import { zoneLabel } from "../talent/agenda/TimezonePicker";
 import { formatDayFirst } from "@/lib/scheduling/day-first";
 import { Icon, StatusStrip } from "../primitives";
 import { COLORS, FONTS, RICH_INQUIRIES, TRANSITION, useAdminShell } from "../state";
@@ -172,7 +173,7 @@ export function CalendarPage() {
               {view === "month" ? monthLabel : formatDayFirst(dayYmd, locale)}
             </h1>
             <p className="m-0 mt-[4px] text-admin-13 leading-[1.2] text-admin-ink-muted" title={t("dashboard.adminCalendar.timezoneTip")}>
-              {timeZone} · {effectiveTenant.name}
+              {zoneLabel(timeZone, locale)} · {effectiveTenant.name}
             </p>
           </div>
         </div>

@@ -1,8 +1,7 @@
 import type { CapabilityKey } from "./capabilities";
-import type { PlanKey } from "./plan-catalog";
-import { isTalentFreeWebsiteEnabled } from "./talent-free-website";
+import { planGrantsPosts, type PlanKey } from "./plan-catalog";
+import { hasEntitlement, type TalentEntitlement } from "./talent-entitlements";
 import { talentTierLabel } from "./talent-tier-label";
-import { isTalentSiteTierExpansionEnabled } from "./talent-site-tier-expansion";
 
 export const TALENT_PLAN_KEYS = [
   "talent_basic",
@@ -22,6 +21,8 @@ export type TalentPlanCapability =
   /** @deprecated Alias of `personalSiteSections` — kept so existing callers compile. */
   | "personalSiteCustomBuilder"
   | "personalSiteCustomDomain"
+  /** Posts v1 — publish / edit live posts. Every Web Office key (plan-catalog `planGrantsPosts`). */
+  | "talentPosts"
   | TalentSiteCapability;
 
 /**
@@ -36,7 +37,8 @@ export type TalentPlanCapability =
  *   personalSiteDesignPresets  pick + switch Design and Look (FREE, all tiers)
  *   personalSiteSections    insert / paste / duplicate / move nested blocks + sections
  *   personalSitePages       add, delete, reorder, set-home extra pages
- *   personalSiteSeo         per-page SEO columns (write AND render)
+ *   personalSiteSeo         per-page SEO columns (write AND render): Web Office
+ *   personalSiteSeoBasic    page title + description only, on EVERY plan (TUL-587)
  *   personalSiteAnalytics   the site analytics surface
  *   personalSiteCustomDomain  connect / verify a custom domain
  */
@@ -47,6 +49,7 @@ export const TALENT_SITE_CAPABILITY_KEYS = [
   "personalSiteSections",
   "personalSitePages",
   "personalSiteSeo",
+  "personalSiteSeoBasic",
   "personalSiteAnalytics",
   "personalSiteCustomDomain",
 ] as const;
@@ -64,15 +67,6 @@ export type TalentSiteCapabilities = Readonly<Record<TalentSiteCapability, boole
 const CAPABILITY_ALIASES: Partial<Record<TalentPlanCapability, TalentPlanCapability>> = {
   personalSiteCustomBuilder: "personalSiteSections",
 };
-
-/** Capability keys introduced by Phase 1 — never read before the switch existed. */
-const FREE_WEBSITE_CAPABILITIES: ReadonlySet<TalentPlanCapability> = new Set([
-  "personalSiteDesignPresets",
-  "personalSiteSections",
-  "personalSitePages",
-  "personalSiteSeo",
-  "personalSiteAnalytics",
-]);
 
 export type TalentMembershipState = {
   planKey: TalentPlanKey;
@@ -120,40 +114,8 @@ function displayNameForTier(tier: TalentPlanTier): TalentMembershipState["displa
   return talentTierLabel(tier) as TalentMembershipState["displayName"];
 }
 
-const TALENT_PLAN_CAPABILITIES: Record<TalentPlanKey, ReadonlySet<TalentPlanCapability>> = {
-  talent_basic: new Set<TalentPlanCapability>([
-    "profile.basic",
-    "personalSiteEdit",
-    "personalSitePublish",
-    // Free = a real site: pick and later switch Design, colours and fonts.
-    "personalSiteDesignPresets",
-  ]),
-  talent_pro: new Set<TalentPlanCapability>([
-    "profile.basic",
-    "profile.enhanced",
-    "personalSiteEdit",
-    "personalSitePublish",
-    "personalSiteTemplate",
-    "personalSiteDesignPresets",
-  ]),
-  talent_portfolio: new Set<TalentPlanCapability>([
-    "profile.basic",
-    "profile.enhanced",
-    "personalSiteEdit",
-    "personalSitePublish",
-    "personalSiteTemplate",
-    "personalSiteDesignPresets",
-    // Web Office — the paid half of the personal website.
-    "personalSiteSections",
-    "personalSitePages",
-    "personalSiteSeo",
-    "personalSiteAnalytics",
-    // Portfolio-only — connect / verify / manage a custom domain for the
-    // Portfolio site. The DB RLS on `talent_site_domains` enforces the same
-    // gate (`talent_profile_has_max`) as a defense-in-depth backstop.
-    "personalSiteCustomDomain",
-  ]),
-};
+// The plan -> feature map lives in `talent-entitlements.ts` (TUL-837); every
+// reader below delegates to `hasEntitlement` so there is one answer.
 
 const TALENT_MONETIZATION_CAPABILITY_MAP: Partial<Record<CapabilityKey, TalentPlanCapability>> = {
   "talent.page.edit": "personalSiteEdit",
@@ -188,20 +150,7 @@ export function talentPlanGrantsCapability(
   capability: TalentPlanCapability,
 ): boolean {
   const resolved = CAPABILITY_ALIASES[capability] ?? capability;
-  const normalized = normalizeTalentPlanKey(planKey);
-  if (
-    !isTalentSiteTierExpansionEnabled() &&
-    (resolved === "personalSiteEdit" || resolved === "personalSitePublish") &&
-    normalized !== "talent_portfolio"
-  ) {
-    return false;
-  }
-  // Phase 1 keys are brand new: while the free website is dark, they resolve
-  // Max-only so nothing they gate can widen before the switch flips.
-  if (FREE_WEBSITE_CAPABILITIES.has(resolved) && !isTalentFreeWebsiteEnabled()) {
-    return normalized === "talent_portfolio";
-  }
-  return TALENT_PLAN_CAPABILITIES[normalized].has(resolved);
+  return hasEntitlement(planKey, resolved as TalentEntitlement);
 }
 
 /**
@@ -218,13 +167,17 @@ export function talentPlanGrantsCapability(
  */
 export function talentPlanGrantsSiteCapability(
   planKey: string | null | undefined,
-  capability: TalentSiteCapability,
+  capability: TalentSiteCapability | "talentPosts",
 ): boolean {
-  const normalized = normalizeTalentPlanKey(planKey);
-  if (!isTalentFreeWebsiteEnabled()) {
-    return normalized === "talent_portfolio";
-  }
-  return TALENT_PLAN_CAPABILITIES[normalized].has(capability);
+  // Posts is NOT part of the Phase 1 dark switch: it is granted by every Web
+  // Office key (talent_portfolio AND talent_pro) in both switch positions,
+  // matching the DB gate `talent_profile_has_web_office()`. It is also kept
+  // out of TALENT_SITE_CAPABILITY_KEYS so the flags-off parity record is
+  // byte-stable.
+  if (capability === "talentPosts") return planGrantsPosts(normalizeTalentPlanKey(planKey));
+  // Every other site capability: the plan -> feature map lives in
+  // `talent-entitlements.ts` (TUL-837); one answer, free-website switch included.
+  return hasEntitlement(planKey, capability, "site");
 }
 
 /**
@@ -297,8 +250,7 @@ export function buildTalentMembershipState(
 export function talentPlanRemovesPlatformBadge(
   planKey: string | null | undefined,
 ): boolean {
-  const normalized = normalizeTalentPlanKey(planKey);
-  return normalized === "talent_pro" || normalized === "talent_portfolio";
+  return hasEntitlement(planKey, "profile.noPlatformBadge");
 }
 
 /**
@@ -309,5 +261,5 @@ export function talentPlanRemovesPlatformBadge(
 export function isTalentPortfolioTier(
   planKey: string | null | undefined,
 ): boolean {
-  return normalizeTalentPlanKey(planKey) === "talent_portfolio";
+  return hasEntitlement(planKey, "profile.pageSeo");
 }

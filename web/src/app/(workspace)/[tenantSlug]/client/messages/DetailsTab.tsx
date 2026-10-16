@@ -267,7 +267,7 @@ export function DetailsTab({
           ) : (
             <>
               <KV label={t("client.messages.detailsDate")} value={formatDate(details.schedule.event_date)} fallback={t("client.messages.detailsNotSet")} />
-              <KV label={t("client.messages.detailsTime")} value={details.schedule.start_time} fallback="—" />
+              <KV label={t("client.messages.detailsTime")} value={details.schedule.when ? `${details.schedule.when.time} ${details.schedule.when.tzLabel}` : details.schedule.start_time} fallback="—" />
               <KV label={t("client.messages.detailsDuration")} value={details.schedule.duration} fallback="—" />
               <KV
                 label={t("client.messages.detailsStatus")}

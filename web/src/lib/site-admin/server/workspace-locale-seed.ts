@@ -56,6 +56,26 @@ export function workspaceLocaleSeedPlan(
 }
 
 /** True when `pathname` is this tenant's admin, in either URL shape (`/admin/...` on its own host, `/{slug}/admin/...` on the app host). */
+/**
+ * Whether the admin layout may hop through the seed route for THIS request: no
+ * recent attempt (loop breaker), a real original-pathname header (never guess
+ * the return URL) and a seedable admin path. The hop itself is a HARD browser
+ * navigation (see LocaleSeedHardRedirect): a layout `redirect()` to the seed
+ * Route Handler during the post-sign-in soft navigation made the client router
+ * re-apply the redirect forever (TUL-1182). An `RSC` request-header guard was
+ * tried first and never matched in the layout under Next 16, so it is gone.
+ */
+export function workspaceLocaleSeedHopPossible(input: {
+  attemptCookie: string | null | undefined;
+  originalPathnameHeader: string | null | undefined;
+  pathname: string | null | undefined;
+  tenantSlug: string;
+}): boolean {
+  if (input.attemptCookie) return false;
+  if (!input.originalPathnameHeader) return false;
+  return isWorkspaceSeedablePath(input.pathname, input.tenantSlug);
+}
+
 export function isWorkspaceSeedablePath(pathname: string | null | undefined, tenantSlug: string): boolean {
   if (!pathname || typeof pathname !== "string" || !tenantSlug) return false;
   const bases = ["/admin", `/${tenantSlug}/admin`];

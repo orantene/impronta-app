@@ -9,6 +9,7 @@ import { isPlatformCheckoutReady } from "@/lib/talent/online-collect-ready";
 import { parseTalentChatConfig, type TalentSiteSwitches } from "@/lib/talent/site-switches";
 import { loadTalentSiteSwitches, loadWorkingHoursPresence } from "@/lib/talent/site-switches-server";
 import { loadPlanAllowsInstant } from "@/lib/talent/plan-instant.server";
+import { bustTalentSiteCache } from "@/lib/talent-site/cache-tags";
 
 export type SiteSwitchesSnapshot = {
   switches: TalentSiteSwitches;
@@ -89,5 +90,8 @@ export async function saveSiteSwitchesAction(
     logServerError("talent.websiteSettings.switches.write", error);
     return { ok: false, error: "write_failed" };
   }
+  // GRK-068: the public offerings are cached with these switches baked in (120s). Clear them so
+  // "Reservar" goes away the moment bookings are turned off, not minutes later.
+  bustTalentSiteCache(id, null);
   return { ok: true, switches: await loadTalentSiteSwitches(admin, id) };
 }

@@ -1,6 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { CHOOSE_COPY, FLOW_STEP_OF, FLOW_TOTAL, defaultFlowLocale, flowLocaleFromPath, flowStepOf, flowUrl } from "./flow";
+import {
+  CHOOSE_COPY,
+  FLOW_STEP_OF,
+  FLOW_TOTAL,
+  defaultFlowLocale,
+  flowLocaleFromPath,
+  flowStepOf,
+  flowSubLabel,
+  flowUrl,
+  langQueryForStartAfterDefaultLocaleStrip,
+  urlChoiceBeatsGuestDraft,
+} from "./flow";
 import { isModuleStep, type ModuleStep } from "./module-state";
 
 test("every module step maps into exactly one of the 4 steps; fork is gone", () => {
@@ -16,9 +27,9 @@ test("every module step maps into exactly one of the 4 steps; fork is gone", () 
 
 test("step mapping follows the ticket", () => {
   assert.equal(flowStepOf("choose"), 1);
-  for (const s of ["entry", "listening", "confirmWords", "tooLittle", "reading", "understood"] as const) assert.equal(flowStepOf(s), 2, s);
-  for (const s of ["essentials", "setup", "question", "style", "readyToBuild"] as const) assert.equal(flowStepOf(s), 3, s);
-  for (const s of ["save", "code", "building", "arrival"] as const) assert.equal(flowStepOf(s), 4, s);
+  for (const s of ["entry", "listening", "confirmWords", "tooLittle", "reading", "understood", "essentials"] as const) assert.equal(flowStepOf(s), 2, s);
+  for (const s of ["setup", "style"] as const) assert.equal(flowStepOf(s), 3, s);
+  for (const s of ["readyToBuild", "save", "code", "building", "arrival"] as const) assert.equal(flowStepOf(s), 4, s);
 });
 
 test("locale default: Spanish for es-* and Mexico, saved choice wins", () => {
@@ -62,8 +73,32 @@ test("the /start choose screen offers a way out for visitors who want to book (T
 test("TUL-146: /es/start is an explicit Spanish choice, /start is not", () => {
   assert.equal(flowLocaleFromPath("/es/start"), "es");
   assert.equal(flowLocaleFromPath("/es/start/"), "es");
+  assert.equal(flowLocaleFromPath("/en/start"), "en");
+  assert.equal(flowLocaleFromPath("/en/start/"), "en");
   assert.equal(flowLocaleFromPath("/start"), null);
   assert.equal(flowLocaleFromPath("/es/startup"), null);
   assert.equal(flowLocaleFromPath(null), null);
   assert.equal(defaultFlowLocale({ saved: flowLocaleFromPath("/es/start"), acceptLanguage: "en-US", country: "US" }), "es");
+});
+
+test("GRK-102: default-locale strip of /start keeps ?lang when the flow would otherwise lose it", () => {
+  assert.equal(langQueryForStartAfterDefaultLocaleStrip({ pathnameAfterStrip: "/start", defaultLocale: "en" }), "en");
+  assert.equal(langQueryForStartAfterDefaultLocaleStrip({ pathnameAfterStrip: "/start/", defaultLocale: "en", existingLang: null }), "en");
+  assert.equal(langQueryForStartAfterDefaultLocaleStrip({ pathnameAfterStrip: "/start", defaultLocale: "en", existingLang: "es" }), null);
+  assert.equal(langQueryForStartAfterDefaultLocaleStrip({ pathnameAfterStrip: "/directory", defaultLocale: "en" }), null);
+  assert.equal(langQueryForStartAfterDefaultLocaleStrip({ pathnameAfterStrip: "/start", defaultLocale: "es" }), "es");
+});
+
+test("GRK-102: URL ?choice= beats a guest draft, not a signed-in resume", () => {
+  assert.equal(urlChoiceBeatsGuestDraft({ hasUrlChoice: true, hasResume: true, isAuthenticated: false }), true);
+  assert.equal(urlChoiceBeatsGuestDraft({ hasUrlChoice: true, hasResume: true, isAuthenticated: true }), false);
+  assert.equal(urlChoiceBeatsGuestDraft({ hasUrlChoice: true, hasResume: false, isAuthenticated: false }), false);
+  assert.equal(urlChoiceBeatsGuestDraft({ hasUrlChoice: false, hasResume: true, isAuthenticated: false }), false);
+});
+
+test("TUL-813: email and code are named sub-steps of 4, the total never changes", () => {
+  assert.equal(flowSubLabel("readyToBuild", "en"), null);
+  assert.equal(flowSubLabel("save", "en"), "YOUR ACCOUNT");
+  assert.equal(flowSubLabel("code", "es"), "CÓDIGO DEL CORREO");
+  assert.equal(FLOW_TOTAL, 4);
 });

@@ -27,6 +27,8 @@
  * (house rule) — the accent is the tenant's own brand color or a neutral fallback.
  */
 
+import { offeringsTenantScope } from "@/lib/inquiry/roster-scope";
+import { loadTenantKind } from "@/lib/inquiry/tenant-kind.server";
 import { dockViewerCtaIdentity } from "@/lib/client-account/dock-viewer-identity";
 import { resolveDockViewerIdentityTier } from "@/lib/client-account/dock-viewer-identity.server";
 import { loadGuestDockFlags } from "@/lib/inquiry/guest-dock-flags";
@@ -72,6 +74,7 @@ import {
 } from "@/app/t/[profileCode]/_actions/guest-roster-actions";
 import { ensureGuestChatInquiry } from "@/app/t/[profileCode]/_actions/guest-chat-actions";
 import { scanGuestConversationForDetails } from "@/app/t/[profileCode]/_actions/guest-conversation-scan-action";
+import { reportGuestChatToSupportAction } from "@/lib/support/guest-actions";
 import { TalentOfferingIntentQuery } from "@/app/%5Ftalent-site/TalentOfferingIntentQuery";
 import type { IndustryPresetId } from "@/lib/words/presets";
 import { catalogRowPriceText } from "@/lib/site-admin/builder-node/services-catalog-bar-price";
@@ -173,6 +176,13 @@ export async function TalentProfileChatLauncherMount({
   // Guest chat only makes sense on an agency surface (the thread is tenant-owned).
   if (!tenantSlug) return null;
 
+  // P0 tenant/talent scope: this page belongs to one talent, so its roster picker lists only
+  // that talent (the closure is a server action; the client cannot swap the id).
+  async function listRosterForThisTalent(input: { tenantSlug: string }) {
+    "use server";
+    return listGuestTenantRoster({ tenantSlug: input.tenantSlug, talentProfileId });
+  }
+
   // P2 chrome hygiene — defense-in-depth mirror of AgencyChatLauncherMount's
   // edit-mode gate. EditChromeMount currently never mounts on `/t/` profile
   // paths (see NON_STOREFRONT_PREFIXES in edit-chrome-mount.tsx), so this is
@@ -214,7 +224,11 @@ export async function TalentProfileChatLauncherMount({
   // W2-B — the talent's published services as in-chat request chips. Talents
   // with none get a single "Custom quote" default so EVERY talent is
   // requestable from the chat.
-  const publicOfferings = await loadPublicOfferingsForProfile(talentProfileId, locale ?? "en");
+  // P0 TUL-1070: read the talent's offerings under THIS tenant only. Without a tenant the
+  // reader returns everything the talent offers on every roster, which leaked other tenants'
+  // services into the dock chips and the Servicios menu.
+  const offeringsTenantId = offeringsTenantScope(await loadTenantKind(tenantId), tenantId);
+  const publicOfferings = await loadPublicOfferingsForProfile(talentProfileId, locale ?? "en", offeringsTenantId);
   const [usdRates, sellingDefaults, planKey] = await Promise.all([
     loadUsdRatesForSitePrices(publicOfferings, locale ?? "en"),
     loadTalentSellingDefaults(talentProfileId),
@@ -272,6 +286,7 @@ export async function TalentProfileChatLauncherMount({
       sourcePage={sourcePage}
       brand={{
         ...dockFlags,
+        dockTalentProfileCode: talentProfileCode,
         dockServiceMenu: publicOfferings
           .map((o) => {
             const category = categoryChipLabel(o.category);
@@ -321,9 +336,10 @@ export async function TalentProfileChatLauncherMount({
       onCaptureChip={captureGuestChip}
       onEnsureInquiry={ensureGuestChatInquiry}
       onLoadDetails={getGuestInquiryDetails}
-      onListRoster={listGuestTenantRoster}
+      onListRoster={listRosterForThisTalent}
       onResolveCartPortraits={resolveGuestCartPortraits}
       onScanConversation={scanGuestConversationForDetails}
+      onReportToSupport={reportGuestChatToSupportAction}
       soundOnReply
       openFullHref={openFullHref}
       surfaceMode={surfaceModeFromBackgroundMode(backgroundMode)}

@@ -31,6 +31,7 @@ test.describe("onboarding · account", () => {
     await expect(page.getByTestId("onb-step-label")).toHaveText(/3 · Save/);
     await expect(page.getByTestId("onb-account-pill")).toHaveText(/Not signed in/);
     await evidence(page, "20-save");
+    await page.getByTestId("onb-age-terms").check();
     const popupPromise = context.waitForEvent("page");
     await page.getByTestId("onb-google").getByRole("button").click();
     const popup = await popupPromise;
