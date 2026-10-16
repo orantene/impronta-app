@@ -1,4 +1,4 @@
-import { HeaderSiteLocales, headerItemAttrs, headerItemMobileDefault } from "./header-site-chrome";
+import { HeaderSiteLocales, headerItemAttrs, headerItemMobileResolved } from "./header-site-chrome";
 import { SectionSwitcher } from "./SectionSwitcher";
 import { switcherLinksFrom, withSwitcherHome } from "./section-switcher-logic";
 import type { CSSProperties } from "react";
@@ -12,6 +12,7 @@ import { HeaderScrollObserver } from "./HeaderScrollObserver";
 import { NavChromeScrollSpy } from "@/lib/site-admin/builder-node/NavChromeScrollSpy";
 import { navChromeNeedsScrollSpy, normalizeNavChrome } from "@/lib/site-admin/nav-chrome";
 import { ClusterIcon } from "./header-cluster-icon";
+import { primaryNavAriaLabel } from "@/i18n/primary-nav-label";
 import { accountPreviewMode } from "@/lib/client-account/account-preview";
 import { renderAccountItem } from "./HeaderAccountPreview";
 import { pickLocale } from "@/lib/i18n/pick-locale";
@@ -417,7 +418,7 @@ export async function SiteHeaderComponent({
           ) : null;
         case "nav":
           return navLinks.length > 0 ? (
-            <nav key={key} {...attrs} className="site-header__ritem site-header__nav" aria-label="Primary">
+            <nav key={key} {...attrs} className="site-header__ritem site-header__nav" aria-label={primaryNavAriaLabel(locale)}>
               <ul className="site-header__nav-list">
                 {navLinks.map((l, i) => (
                   <li key={i} className="site-header__nav-item">
@@ -512,7 +513,7 @@ export async function SiteHeaderComponent({
     };
     const allItems = [...regions.left, ...regions.center, ...regions.right];
     // Burger + panel only when an item actually folds into it on the phone.
-    const hasMobileMenu = allItems.some((i) => (i.responsive?.mobile ?? headerItemMobileDefault(i)) === "menu");
+    const hasMobileMenu = allItems.some((i) => headerItemMobileResolved(i) === "menu");
     return (
       <header
         className="site-header"
@@ -668,7 +669,7 @@ export async function SiteHeaderComponent({
           ) : null}
         </a>
         {navLinks.length > 0 ? (
-          <nav className="site-header__nav" aria-label="Primary">
+          <nav className="site-header__nav" aria-label={primaryNavAriaLabel(locale)}>
             <ul className="site-header__nav-list">
               {navLinks.map((item, i) => (
                 <li key={i} className="site-header__nav-item">

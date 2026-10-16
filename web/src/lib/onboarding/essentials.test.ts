@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   currencyForCountry,
+  currencyForCountryOrPlace,
   defaultWeeklyHours,
   essentialsReady,
   packKeyForTrade,
@@ -12,13 +13,14 @@ import {
   servicesFromFacts,
   suggestedEssentials,
   suggestedServices,
+  weeklyHoursFromCanonical,
   type Essentials,
   type EssentialsStore,
   type ExistingOffering,
   type OfferingOwnerRef,
   type OfferingRowDraft,
 } from "./essentials";
-import { resolveEssentialsForBuild } from "./essentials-resolve";
+import { resolveEssentialsForBuild, resolveEssentialsTimezone } from "./essentials-resolve";
 import { parsePersistedModuleState } from "./module-state";
 
 type Db = {
@@ -61,13 +63,54 @@ const workspace = { tenantId: "ws1", tenantSlug: "studio" };
 test("beauty pack: Mexico gets MXN prices, others get quotes; trade detection covers the five trades", () => {
   assert.equal(currencyForCountry("México"), "MXN");
   assert.equal(currencyForCountry("Spain"), "USD");
+  // TUL-540 / onb1-03: Cancún city without country still MXN.
+  assert.equal(currencyForCountryOrPlace(null, "Cancún"), "MXN");
+  assert.equal(currencyForCountryOrPlace(null, "Chicago"), "USD");
   for (const t of ["lashes", "nails", "brows", "hair", "makeup"]) assert.ok(suggestedServices({ trade: t, country: "MX", locale: "en" }).length > 0, t);
   const mx = suggestedServices({ trade: "lash artist", country: "Mexico", locale: "es" });
   assert.ok(mx.every((s) => s.currency === "MXN" && s.priceCents && s.durationMin && !s.quote));
   assert.equal(mx[0].name, "Pestañas clásicas");
   assert.ok(suggestedServices({ trade: "nails", country: "Spain", locale: "en" }).every((s) => s.quote && s.priceCents === null));
+  assert.equal(
+    suggestedServices({ trade: "hair", country: null, city: "Cancún", locale: "es" })[0]?.currency,
+    "MXN",
+  );
   assert.equal(packKeyForTrade("pestañas", null), "lashes");
   assert.equal(packKeyForTrade("dentist"), null);
+});
+
+test("TUL-540: Cancún city prefills America/Cancun; soft Mexico_City yields to city", () => {
+  assert.equal(suggestedEssentials({ trade: "hair", country: "Mexico", city: "Cancún", locale: "es" }).timezone, "America/Cancun");
+  assert.equal(
+    resolveEssentialsTimezone({
+      timezone: "America/Mexico_City",
+      city: "Cancún",
+      country: "Mexico",
+      softTimezone: true,
+    }),
+    "America/Cancun",
+  );
+  assert.equal(
+    resolveEssentialsTimezone({
+      timezone: "America/Mexico_City",
+      city: "Cancún",
+      country: "Mexico",
+      softTimezone: false,
+    }),
+    "America/Mexico_City",
+  );
+});
+
+test("TUL-540: weeklyHoursFromCanonical seeds Tue-Sun 13-23 from said hours", () => {
+  const w = weeklyHoursFromCanonical(["Tue-Sun 13:00-23:00"]);
+  assert.ok(w);
+  assert.deepEqual(w!["2"], [{ startMin: 13 * 60, endMin: 23 * 60 }]);
+  assert.deepEqual(w!["0"], [{ startMin: 13 * 60, endMin: 23 * 60 }]);
+  assert.deepEqual(w!["1"], []);
+  assert.equal(weeklyHoursFromCanonical(["By appointment"]), null);
+  const monSat = weeklyHoursFromCanonical(["Mon-Sat 09:00-19:00"]);
+  assert.deepEqual(monSat!["1"], [{ startMin: 9 * 60, endMin: 19 * 60 }]);
+  assert.deepEqual(monSat!["0"], []);
 });
 
 test("myself: services published+bookable, hours written, owner bookable, retry changes nothing", async () => {

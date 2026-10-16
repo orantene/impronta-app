@@ -733,7 +733,13 @@ function HeroBackground({
   }
 
   const totalMs = perSlideMs * slides.length;
+  // Slider: only slide 1 is visible on first paint, so preload only that one.
+  const firstSlideUrl = slides[0]?.backgroundImageUrl;
   return (
+    <>
+      {firstSlideUrl ? (
+        <link rel="preload" as="image" href={firstSlideUrl} fetchPriority="high" />
+      ) : null}
     <div
       className="site-hero__bg site-hero__bg--slider"
       style={
@@ -762,5 +768,6 @@ function HeroBackground({
         );
       })}
     </div>
+    </>
   );
 }

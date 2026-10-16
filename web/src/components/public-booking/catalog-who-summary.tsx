@@ -15,6 +15,7 @@ export function CatalogWhoSummary({
   day,
   time,
   tz,
+  placeCity,
   total,
   /** GRK-065: client-place bookings collect the address below; hide the studio "we send location" note. */
   addressNote = "studio",
@@ -24,10 +25,11 @@ export function CatalogWhoSummary({
   day: Date;
   time: string | null;
   tz: string | null;
+  placeCity?: string | null;
   total: string;
   addressNote?: "studio" | "client" | "none";
 }) {
-  const zone = tz ? catalogTimezoneLabel(tz, es) : "";
+  const zone = tz ? catalogTimezoneLabel(tz, es, placeCity) : "";
   const val = { textAlign: "right" } as const;
   return (
     <div className="jb-recap" data-catalog-who-summary="">

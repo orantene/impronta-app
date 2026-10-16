@@ -143,3 +143,22 @@ test("deleting one root never hoists a surviving container's children (delete !=
   );
   assert.equal(afterRows.filter((r) => r.depth === 0).length, 1);
 });
+
+test("Spanish editor shows design-kit layer names in Spanish; English and custom names unchanged", () => {
+  const named = (id: string, layerLabel: string) =>
+    ({ id, kind: "container", props: { layerLabel }, children: [] }) as unknown as BuilderNode;
+  const tree: BuilderNodeTree = [
+    named("t", "Ticker and recent work"),
+    named("m", "Menu"),
+    named("l", "Location"),
+    named("c", "My studio"),
+  ];
+  assert.deepEqual(
+    flattenTree(tree, "es").rows.map((r) => r.label),
+    ["Novedades y trabajos recientes", "Menú", "Ubicación", "My studio"],
+  );
+  assert.deepEqual(
+    flattenTree(tree).rows.map((r) => r.label),
+    ["Ticker and recent work", "Menu", "Location", "My studio"],
+  );
+});
