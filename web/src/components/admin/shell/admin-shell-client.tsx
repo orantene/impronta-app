@@ -1136,7 +1136,7 @@ function FabAiPanel({ seedQuestion }: { seedQuestion?: string }) {
             outline: "none", color: COLORS.ink, background: "#fff",
           }}
         />
-        <button type="button" onClick={() => send(input)} disabled={!input.trim()} style={{
+        <button type="button" aria-label={copy.t("Send")} onClick={() => send(input)} disabled={!input.trim()} style={{
           padding: "0 12px",
           background: input.trim() ? COLORS.royal : "rgba(11,11,13,0.10)",
           color: input.trim() ? "#fff" : COLORS.inkDim,
