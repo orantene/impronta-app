@@ -27,7 +27,7 @@ export function TalentSiteLockedCard({ state, onUpgrade }: Props) {
       <h3 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 700 }}>
         Personal site — {tierLabel} plan
       </h3>
-      <p style={{ margin: "0 0 16px", fontSize: 13, color: "rgba(11,11,13,0.55)", lineHeight: 1.5 }}>
+      <p style={{ margin: "0 0 16px", fontSize: 13, color: "rgba(11,11,13,0.6)", lineHeight: 1.5 }}>
         Upgrade to Web Office to create, edit, or publish your personal site. Your standard Tulala
         profile at {state.publicProfileUrl ?? "/t/…"} is unchanged.
       </p>

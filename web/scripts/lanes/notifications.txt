@@ -137,3 +137,4 @@ src/lib/talent/talent_content_i18n_columns.migration.test.ts
 src/lib/talent/translation-coverage.test.ts
 src/lib/talent/website-reward.test.ts
 src/lib/translation/bios-to-bio-i18n.test.ts
+src/lib/notifications/whatsapp/inbound.test.ts

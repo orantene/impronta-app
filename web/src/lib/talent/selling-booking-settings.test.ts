@@ -97,7 +97,7 @@ test("request offering never confirms even with confirm_now", () => {
 
 test("labels match product vocabulary", () => {
   assert.equal(whoPrimaryCtaLabel("confirm_now", "es"), "Confirmar cita");
-  assert.equal(whoPrimaryCtaLabel("confirm_now", "en"), "Confirm now");
+  assert.equal(whoPrimaryCtaLabel("confirm_now", "en"), "Confirm appointment");
   assert.equal(whoPrimaryCtaLabel("contact", "en"), "Contact");
   assert.equal(whoPrimaryCtaLabel("check_availability", "es"), "Consultar disponibilidad");
 });

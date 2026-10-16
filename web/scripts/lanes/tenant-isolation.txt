@@ -187,3 +187,10 @@ src/lib/workspace/nav-context.test.ts
 src/lib/workspace/page-ids.test.ts
 src/lib/workspace/pos-bridge.test.ts
 src/lib/workspace/pos-device-mode.test.ts
+src/lib/saas/domain-canonical.test.ts
+src/lib/saas/talent-demo-host-redirect.test.ts
+src/lib/saas/talent-site-canonical-redirect.test.ts
+src/lib/saas/talent-site-host-context.test.ts
+src/app/not-found-shell.static.test.ts
+src/lib/marketing/hub-client-entry.test.ts
+src/components/admin/shell/canonical-routes-admin-folders.static.test.ts

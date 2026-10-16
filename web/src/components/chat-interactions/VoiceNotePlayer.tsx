@@ -122,7 +122,7 @@ export function VoiceNotePlayer({ meta, accent = "#1D4ED8", onDark = false }: Pr
   }, []);
 
   const pct = totalMs > 0 ? Math.min(100, (posMs / totalMs) * 100) : 0;
-  const subtle = onDark ? "rgba(255,255,255,0.65)" : "rgba(11,11,13,0.50)";
+  const subtle = onDark ? "rgba(255,255,255,0.65)" : "rgba(11,11,13,0.6)";
   const trackBg = onDark ? "rgba(255,255,255,0.22)" : "rgba(11,11,13,0.12)";
   const fill = onDark ? "rgba(255,255,255,0.92)" : accent;
   const btnBg = onDark ? "rgba(255,255,255,0.18)" : `${accent}1A`;

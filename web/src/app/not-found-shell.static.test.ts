@@ -19,3 +19,9 @@ test("platform (non-tenant) 404 stays chrome-free", () => {
 test("tenant 404 card links keep the workspace path prefix", () => {
   assert.match(src, /getPublicPathPrefix\(\)/);
 });
+
+// TUL-694: the platform 404 showed small "TULALA" text instead of the logo.
+test("TUL-694: the platform 404 renders the Tulala wordmark, not eyebrow text", () => {
+  assert.match(src, /TulalaWordmark/);
+  assert.doesNotMatch(src, /: "TULALA"/);
+});
