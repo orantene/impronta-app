@@ -17,3 +17,17 @@ test("TUL-1021: field strings exist in both en and es", () => {
     assert.match(es ?? "", new RegExp(`\\b${k}:`));
   }
 });
+
+test("TUL-1222/1223/1224: GSC token field is accessible", () => {
+  // 1222: the error is announced and tied to the input
+  assert.ok(src.includes('role="alert"'), "error uses role=alert");
+  assert.ok(src.includes("aria-invalid="), "input sets aria-invalid on error");
+  assert.ok(src.includes("aria-describedby="), "input is described by help/error text");
+  // 1223: 40px targets + visible keyboard focus on opener, input and buttons
+  assert.ok((src.match(/min-h-10/g) ?? []).length >= 4, "summary, input, Save, Remove are >= 40px");
+  assert.ok(src.includes("focus-visible:outline"), "visible focus ring");
+  // 1224: no iOS zoom (16px input), no cut-off token, no hard-coded id
+  assert.ok(src.includes("text-base"), "input is 16px on phones");
+  assert.ok(!src.includes(" truncate"), "saved token is not truncated");
+  assert.ok(src.includes("useId(") && !src.includes('id="gsc-token"'), "ids come from useId");
+});
