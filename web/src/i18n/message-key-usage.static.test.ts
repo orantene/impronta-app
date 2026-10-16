@@ -84,6 +84,10 @@ const SRC = join(WEB_ROOT, "src");
 const SELF_FILES = new Set([
   "src/i18n/message-key-usage.static.test.ts",
   "src/i18n/message-key-usage-baseline.ts",
+  // The browser translator's subtree list names catalog prefixes ("admin.payouts"),
+  // which the scanner would read as usage of every key beneath them.
+  "src/i18n/client-subtrees.ts",
+  "src/i18n/client-subtrees.static.test.ts",
 ]);
 
 /**

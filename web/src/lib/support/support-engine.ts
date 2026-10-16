@@ -6,6 +6,7 @@ import { updateContact, keepTicketOpen } from "./support-engine-contact";
 import {
   adminClient, claimIfUnassigned, findMessageByClientSendKey, insertEvent, loadTicketById,
 } from "./support-engine-db";
+import { finishAppend, insertEvents } from "./support-engine-append";
 import { auditHq, auditTenant, notify } from "./support-engine-emit";
 import { supportFrom } from "./support-from";
 import { deriveTicketSubject } from "./ticket-title";
@@ -122,14 +123,17 @@ export async function createTicket(input: {
   });
   if (!first.ok) return first;
 
-  const eventId = await insertEvent(admin, {
-    ticketId: ticket.id,
-    tenantId: ticket.tenantId,
-    actorKind: "requester",
-    actorUserId: requesterUserId,
-    eventType: "created",
-    newValue: { subject: ticket.subject, surface: ticket.surface },
-  });
+  // Own event row for "escalated": the dispatcher's dedupe key is
+  // eventId:user:channel with no entry id, so sharing createdEventId would
+  // suppress whichever of created/escalated dispatches second. Both rows go
+  // in one multi-row insert.
+  const base = { ticketId: ticket.id, tenantId: ticket.tenantId, actorKind: "requester" as const, actorUserId: requesterUserId };
+  const [eventId, escalatedEventId] = await insertEvents(admin, [
+    { ...base, eventType: "created", newValue: { subject: ticket.subject, surface: ticket.surface } },
+    ...(input.messageOranDirectly
+      ? [{ ...base, eventType: "escalated" as const, newValue: { reason: "user_requested" } }]
+      : []),
+  ]);
 
   const createdEventId = eventId ?? crypto.randomUUID();
   notify({
@@ -148,17 +152,6 @@ export async function createTicket(input: {
     },
   });
   if (input.messageOranDirectly) {
-    // Own event row: the dispatcher's dedupe key is eventId:user:channel with
-    // no entry id, so sharing createdEventId here would suppress whichever of
-    // created/escalated dispatches second for the same admin + channel.
-    const escalatedEventId = await insertEvent(admin, {
-      ticketId: ticket.id,
-      tenantId: ticket.tenantId,
-      actorKind: "requester",
-      actorUserId: requesterUserId,
-      eventType: "escalated",
-      newValue: { reason: "user_requested" },
-    });
     notify({
       type: "support.ticket.escalated",
       tenantId: null,
@@ -184,8 +177,9 @@ export async function createTicket(input: {
     ticket.id,
   );
 
-  const fresh = (await loadTicketById(ticket.id, admin)) ?? ticket;
-  return { ok: true, data: { ticket: fresh, eventId: createdEventId } };
+  // first.data.ticket is the row after the message trigger + waiting_on flip;
+  // event inserts and audits do not touch support_tickets, so no reload.
+  return { ok: true, data: { ticket: first.data.ticket, eventId: createdEventId } };
 }
 
 export async function appendMessage(input: {
@@ -256,20 +250,7 @@ export async function appendMessage(input: {
   const message = mapMessageRow(data);
   if (!message) return { ok: false, error: "Could not send message." };
 
-  if (input.authorKind === "agent" && working.status === "open") {
-    await supportFrom(admin, "support_tickets")
-      .update({ waiting_on: "requester" })
-      .eq("id", working.id)
-      .eq("status", "open");
-  }
-  if (input.authorKind === "requester" && working.status === "open") {
-    await supportFrom(admin, "support_tickets")
-      .update({ waiting_on: "support" })
-      .eq("id", working.id)
-      .eq("status", "open");
-  }
-
-  const eventId = await insertEvent(admin, {
+  const { eventId, ticket: fresh } = await finishAppend(admin, working, input.authorKind, {
     ticketId: working.id,
     tenantId: working.tenantId,
     actorKind: input.authorKind,
@@ -358,7 +339,6 @@ export async function appendMessage(input: {
     await auditHq(input.authorUserId, working.id, "support.ticket.replied");
   }
 
-  const fresh = (await loadTicketById(working.id, admin)) ?? working;
   return { ok: true, data: { message, ticket: fresh } };
 }
 

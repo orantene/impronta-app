@@ -28,24 +28,25 @@ export async function checkGuestSupportCreateAbuse(input: {
   if (honeypotHit(input.honeypot)) {
     return { ok: false, code: "forbidden", error: "Could not start the chat." };
   }
-  const session = await checkSupportGuestCreateBySession(input.guestSessionId);
+  // Independent KV round trips: run together, then report in the same
+  // precedence as before (session, ip, disposable email, email).
+  const disposable = input.email ? isDisposableEmail(input.email) : false;
+  const [session, ip, email] = await Promise.all([
+    checkSupportGuestCreateBySession(input.guestSessionId),
+    input.ip ? checkSupportGuestCreateByIp(input.ip) : Promise.resolve({ ok: true }),
+    input.email && !disposable ? checkSupportGuestCreateByEmail(input.email) : Promise.resolve({ ok: true }),
+  ]);
   if (!session.ok) {
     return { ok: false, code: "rate_limited", error: "Too many chats from this session. Try again later." };
   }
-  if (input.ip) {
-    const ip = await checkSupportGuestCreateByIp(input.ip);
-    if (!ip.ok) {
-      return { ok: false, code: "rate_limited", error: "Too many chats from this network. Try again later." };
-    }
+  if (!ip.ok) {
+    return { ok: false, code: "rate_limited", error: "Too many chats from this network. Try again later." };
   }
-  if (input.email) {
-    if (isDisposableEmail(input.email)) {
-      return { ok: false, code: "disposable_email", error: "Please use a regular email address, not a disposable one." };
-    }
-    const email = await checkSupportGuestCreateByEmail(input.email);
-    if (!email.ok) {
-      return { ok: false, code: "rate_limited", error: "Too many chats from this email. Try again later." };
-    }
+  if (disposable) {
+    return { ok: false, code: "disposable_email", error: "Please use a regular email address, not a disposable one." };
+  }
+  if (!email.ok) {
+    return { ok: false, code: "rate_limited", error: "Too many chats from this email. Try again later." };
   }
   return { ok: true };
 }
