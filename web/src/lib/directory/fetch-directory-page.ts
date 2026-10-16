@@ -53,6 +53,7 @@ import {
   applyPresentabilityOrdering,
   presentabilityTier,
 } from "@/lib/directory/presentability-order";
+import { attachTalentPromoBadges } from "@/lib/promos/talent-promo-badges.server";
 import { hasEntitlement } from "@/lib/access/talent-entitlements";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
@@ -1422,6 +1423,9 @@ async function fetchDirectoryWindow(
   const items = rows.map((row) =>
     mapApiDirectoryRpcRowToDirectoryCardDTO(supabase, row, locale),
   );
+  // Talent promo badge (TUL-1051): one batched read for the page; hub always,
+  // agency hosts only when their Card Design opts in. Never throws.
+  await attachTalentPromoBadges(items, { tenantScopeId, locale });
   // Patch thumbnail URLs from the shared resolver (thumb_bucket_id/storage_path
   // were set to null above so mapApiDirectoryRpcRowToDirectoryCardDTO produces
   // null; we fill in the canonical URL here). This is the only URL source.

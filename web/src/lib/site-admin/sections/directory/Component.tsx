@@ -22,6 +22,7 @@ import { resolveGoogleMapsKeyForClient } from "@/lib/integrations/resolve";
 import { resolveCardDesign } from "@/lib/site-admin/server/card-design-resolver";
 import { logServerError } from "@/lib/server/safe-error";
 import { getCardKit } from "@/lib/site-admin/presets/card-kits";
+import { legibleOnSurface } from "@/lib/site-admin/server/card-design-shape";
 import { HeroSearch, type HeroSearchCopy } from "@/components/home/hero-search";
 
 import { nodePresentationInlineStyle } from "../shared/node-presentation";
@@ -84,9 +85,12 @@ function resolveCardKitOverrideStyle(
   const kit = getCardKit(slug);
   if (!kit) return undefined;
   const style: Record<string, string> = {};
+  const surface = kit.tokens["card.surface"];
   for (const [tokenKey, value] of Object.entries(kit.tokens)) {
     const cssVar = CARD_KIT_TOKEN_TO_CSS_VAR[tokenKey];
-    if (cssVar) style[cssVar] = value;
+    if (!cssVar) continue;
+    // Text colours are guarded against the kit's own surface (TUL-1083), same as stored designs.
+    style[cssVar] = tokenKey === "card.surface" ? value : legibleOnSurface(value, surface);
   }
   return Object.keys(style).length > 0
     ? (style as CSSProperties)

@@ -21,12 +21,19 @@ export type TemplateKey =
   | "launch"
   | "holiday"
   | "come_back"
+  | "first_booking"
+  | "signup_unlock"
+  | "returning_reward"
+  | "referral"
+  | "limited_deal"
+  | "slow_week"
   | "custom";
 
 export type TemplateIcon = "calendar" | "moon" | "bolt" | "sparkle" | "lock" | "star" | "ticket" | "mail" | "pencil";
 
 export const TEMPLATE_ORDER: readonly TemplateKey[] = [
-  "fill_week", "slow_day", "last_minute", "free_extra", "secret_code", "launch", "holiday", "come_back", "custom",
+  "fill_week", "slow_day", "last_minute", "free_extra", "secret_code", "launch", "holiday", "come_back",
+  "first_booking", "signup_unlock", "returning_reward", "referral", "limited_deal", "slow_week", "custom",
 ];
 
 export const TEMPLATE_ICON: Readonly<Record<TemplateKey, TemplateIcon>> = {
@@ -38,11 +45,17 @@ export const TEMPLATE_ICON: Readonly<Record<TemplateKey, TemplateIcon>> = {
   launch: "star",
   holiday: "ticket",
   come_back: "mail",
+  first_booking: "star",
+  signup_unlock: "lock",
+  returning_reward: "sparkle",
+  referral: "ticket",
+  limited_deal: "bolt",
+  slow_week: "calendar",
   custom: "pencil",
 };
 
 /** Templates whose meaning survives the free trial rules (public, automatic). */
-const TRIAL_COMPATIBLE: ReadonlySet<TemplateKey> = new Set(["fill_week", "slow_day", "last_minute", "free_extra", "holiday", "custom"]);
+const TRIAL_COMPATIBLE: ReadonlySet<TemplateKey> = new Set(["fill_week", "slow_day", "last_minute", "free_extra", "holiday", "limited_deal", "slow_week", "custom"]);
 
 export type PromoDraft = {
   id: string | null;
@@ -73,6 +86,12 @@ export type PromoDraft = {
   min_subtotal_cents: number | null;
   applies_on: AppliesOn;
   tz: string;
+  /**
+   * Engagement layer only (TUL-1051): the price is shown after the client signs
+   * in or registers. No column: it is implied by template 'signup_unlock'
+   * (set in buildDraft and rowToDraft) and mapped onto unlock='code'.
+   */
+  requires_account?: boolean;
 };
 
 export type TemplateContext = {
@@ -321,6 +340,45 @@ export function buildDraft(key: TemplateKey, ctx: TemplateContext): PromoDraft {
       d.ends_at = addDays(today, 13);
       d.applies_on = "purchase";
       break;
+    case "first_booking":
+      d.value = 20;
+      d.audience = "new_clients";
+      break;
+    case "signup_unlock":
+      // The widget hides the price until the client is signed in. Once they
+      // are, it unlocks the row's code (see engagement.ts signupUnlockedCodes),
+      // so quote() prices it through the normal code path. The per-account
+      // code (signupUnlockCode) is what gets recorded on the redemption.
+      d.value = 10;
+      d.unlock = "code";
+      d.requires_account = true;
+      d.code = suggestCode(copy.locale === "es" ? "REGISTRO" : "MEMBER", 0);
+      break;
+    case "returning_reward":
+      d.value = 15;
+      d.audience = "returning";
+      break;
+    case "referral":
+      // Referred side: a new client who arrives through the referrer's link.
+      // The referrer's reward is planned by engagement.ts planReferralReward.
+      d.value = 15;
+      d.audience = "new_clients";
+      d.unlock = "link";
+      break;
+    case "limited_deal":
+      d.value = 25;
+      d.starts_at = today;
+      d.ends_at = addDays(today, 2);
+      d.max_uses = 5;
+      break;
+    case "slow_week":
+      d.value = 15;
+      d.weekdays = [1, 2, 3];
+      d.time_from = "10:00";
+      d.time_to = "15:00";
+      d.starts_at = today;
+      d.ends_at = addDays(today, 13);
+      break;
     case "custom":
       d.value = 10;
       break;
@@ -454,6 +512,7 @@ export function rowToDraft(r: PromoRow, targetIds: readonly string[], addonListC
     min_subtotal_cents: r.min_subtotal_cents,
     applies_on: r.applies_on === "purchase" ? "purchase" : "appointment",
     tz,
+    ...(r.template_key === "signup_unlock" ? { requires_account: true } : {}),
   };
 }
 
