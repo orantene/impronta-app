@@ -25,7 +25,7 @@ import { decideBookingAssistantTurn } from "./decide";
 import {
   bookingAssistantDisclosureLabel,
   bookingAssistantHandoffCopy,
-  normalizeBookingAssistantLocale,
+  resolveBookingAssistantReplyLocale,
   type BookingHandoffReason,
 } from "./handoff";
 import { sanitizeBookingAssistantOutput } from "./guardrails";
@@ -35,17 +35,29 @@ import {
   bookingAssistantMonthlyCapCents,
   bookingAssistantMonthlyCapReached,
 } from "./credits";
+import { improntaLog } from "@/lib/server/structured-log";
 
 export { BOOKING_ASSISTANT_MODEL } from "./model";
 
 /** Hard cut for deferred LLM work (guest already got their send response). */
 const LLM_TIMEOUT_MS = 5_000;
 
+/**
+ * Live QA / ops: every silent skip must leave a greppable line.
+ * Event name: booking_assistant_skip | booking_assistant_run | booking_assistant_schedule.
+ */
+function logBookingAssistant(
+  event: "booking_assistant_skip" | "booking_assistant_run" | "booking_assistant_schedule",
+  fields: Record<string, string | number | boolean | null | undefined>,
+): void {
+  void improntaLog(event, fields);
+}
+
 const SYSTEM_PROMPT = `You are a booking assistant on a talent's public site chat.
 Answer ONLY from the SERVICE_CATALOG JSON. Never invent a price, duration, or availability.
 If the catalog does not contain the answer, say you are unsure and that a person will follow up.
 Do not book, reserve, or mint payment links. Keep answers under 600 characters.
-Match the guest locale (en or es). Mexican Spanish tú form only (never voseo), never em dashes.
+Reply in the language of the guest's message (en or es); the locale line is only a fallback. Mexican Spanish tú form only (never voseo), never em dashes.
 Reply with plain text only (no markdown links).`;
 
 export type BookingAssistantOfferingGround = {
@@ -85,7 +97,23 @@ export function scheduleBookingAssistantTurn(args: MaybeRunBookingAssistantTurnA
   };
   try {
     after(run);
+    logBookingAssistant("booking_assistant_schedule", {
+      mode: "after",
+      inquiry_id: args.inquiryId,
+      tenant_id: args.tenantId,
+      talent_profile_id: args.talentProfileId ?? null,
+      instant_answered: args.instantAnswered === true,
+      guest_len: args.guestMessage.trim().length,
+    });
   } catch {
+    logBookingAssistant("booking_assistant_schedule", {
+      mode: "fallback",
+      inquiry_id: args.inquiryId,
+      tenant_id: args.tenantId,
+      talent_profile_id: args.talentProfileId ?? null,
+      instant_answered: args.instantAnswered === true,
+      guest_len: args.guestMessage.trim().length,
+    });
     void run();
   }
 }
@@ -145,14 +173,14 @@ async function insertSystemEvent(input: {
 async function loadPriorAssistantMeta(
   inquiryId: string,
   tenantId: string,
-): Promise<Array<{ systemEventType?: string | null }>> {
+): Promise<Array<{ systemEventType?: string | null; humanTookOver?: boolean }>> {
   const admin = createServiceRoleClient();
   if (!admin) return [];
   // Newest first so the 40-row window includes recent handoffs / replies;
   // reverse to chronological for turn counting.
   const { data, error } = await admin
     .from("inquiry_messages")
-    .select("metadata")
+    .select("metadata, created_at")
     .eq("inquiry_id", inquiryId)
     .eq("tenant_id", tenantId)
     .eq("message_kind", "system_event")
@@ -162,15 +190,90 @@ async function loadPriorAssistantMeta(
     logServerError("booking-assistant/prior", error);
     return [];
   }
-  const newestFirst = ((data ?? []) as Array<{ metadata: unknown }>).map((row) => {
+  const rows = (data ?? []) as Array<{ metadata: unknown; created_at: string }>;
+  const newestFirst = rows.map((row) => {
     const meta =
       row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
         ? (row.metadata as Record<string, unknown>)
         : {};
     const t = typeof meta.system_event_type === "string" ? meta.system_event_type : null;
-    return { systemEventType: t };
+    return { systemEventType: t, createdAt: row.created_at };
   });
-  return newestFirst.reverse();
+  // TUL-320: the newest-40 window can miss an older handoff on a long thread,
+  // which re-posted the handoff copy. Look the latest handoff up on its own.
+  const lastHandoffAt =
+    newestFirst.find((m) => m.systemEventType === "booking_assistant_handoff")?.createdAt ??
+    (await latestHandoffAt(admin, inquiryId, tenantId));
+  const prior: Array<{ systemEventType?: string | null; humanTookOver?: boolean }> = newestFirst
+    .reverse()
+    .map((m) => ({ systemEventType: m.systemEventType }));
+  if (lastHandoffAt && !prior.some((m) => m.systemEventType === "booking_assistant_handoff")) {
+    prior.unshift({ systemEventType: "booking_assistant_handoff" });
+  }
+  if (lastHandoffAt && (await teamRepliedSince(admin, inquiryId, tenantId, lastHandoffAt))) {
+    prior.push({ humanTookOver: true });
+  }
+  return prior;
+}
+
+async function latestHandoffAt(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  inquiryId: string,
+  tenantId: string,
+): Promise<string | null> {
+  const { data, error } = await admin
+    .from("inquiry_messages")
+    .select("created_at")
+    .eq("inquiry_id", inquiryId)
+    .eq("tenant_id", tenantId)
+    .eq("message_kind", "system_event")
+    .eq("metadata->>system_event_type", "booking_assistant_handoff")
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (error) {
+    logServerError("booking-assistant/lastHandoff", error);
+    return null;
+  }
+  return ((data ?? []) as Array<{ created_at: string }>)[0]?.created_at ?? null;
+}
+
+/**
+ * TUL-1155: a person on the team (any non-client participant) wrote in the
+ * thread after the handoff, so they own the conversation now.
+ */
+async function teamRepliedSince(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  inquiryId: string,
+  tenantId: string,
+  sinceIso: string,
+): Promise<boolean> {
+  const { data: team, error: teamErr } = await admin
+    .from("inquiry_participants")
+    .select("user_id")
+    .eq("inquiry_id", inquiryId)
+    .neq("role", "client")
+    .not("user_id", "is", null);
+  if (teamErr) {
+    logServerError("booking-assistant/team", teamErr);
+    return false;
+  }
+  const ids = ((team ?? []) as Array<{ user_id: string | null }>)
+    .map((r) => r.user_id)
+    .filter((id): id is string => !!id);
+  if (ids.length === 0) return false;
+  const { data, error } = await admin
+    .from("inquiry_messages")
+    .select("id")
+    .eq("inquiry_id", inquiryId)
+    .eq("tenant_id", tenantId)
+    .in("sender_user_id", ids)
+    .gt("created_at", sinceIso)
+    .limit(1);
+  if (error) {
+    logServerError("booking-assistant/teamReply", error);
+    return false;
+  }
+  return (data ?? []).length > 0;
 }
 
 async function resolveCatalogTenantId(
@@ -265,15 +368,31 @@ function catalogGrounding(offerings: readonly BookingAssistantOfferingGround[]):
 export async function maybeRunBookingAssistantTurn(
   args: MaybeRunBookingAssistantTurnArgs,
 ): Promise<GuestThreadMessage | null> {
+  const base = {
+    inquiry_id: args.inquiryId,
+    tenant_id: args.tenantId,
+    talent_profile_id: args.talentProfileId ?? null,
+    guest_len: args.guestMessage.trim().length,
+    instant_answered: args.instantAnswered === true,
+  };
   try {
-    if (!args.talentProfileId) return null;
+    if (!args.talentProfileId) {
+      logBookingAssistant("booking_assistant_skip", { ...base, reason: "no_talent_profile_id" });
+      return null;
+    }
     const admin = createServiceRoleClient();
-    if (!admin) return null;
+    if (!admin) {
+      logBookingAssistant("booking_assistant_skip", { ...base, reason: "no_service_role_client" });
+      return null;
+    }
 
     // Design §5: platform kill switch — master off means the assistant never runs.
     // Distinct from per-talent monthly credits (below): master off is silent skip.
     const flags = await getAiFeatureFlags();
-    if (!flags.ai_master_enabled) return null;
+    if (!flags.ai_master_enabled) {
+      logBookingAssistant("booking_assistant_skip", { ...base, reason: "ai_master_disabled" });
+      return null;
+    }
 
     const switches = await loadTalentSiteSwitches(admin, args.talentProfileId);
     const enabled = switches.chatConfig.aiBookingAssistantEnabled === true;
@@ -285,9 +404,24 @@ export async function maybeRunBookingAssistantTurn(
       instantAnswered: args.instantAnswered === true,
     });
 
-    if (decision.action === "skip") return null;
+    if (decision.action === "skip") {
+      logBookingAssistant("booking_assistant_skip", {
+        ...base,
+        reason: decision.reason,
+        enabled,
+        prior_count: prior.length,
+      });
+      return null;
+    }
 
-    const locale = normalizeBookingAssistantLocale(args.locale);
+    const locale = resolveBookingAssistantReplyLocale(args.guestMessage, args.locale);
+    logBookingAssistant("booking_assistant_run", {
+      ...base,
+      action: decision.action,
+      decision_reason: decision.action === "handoff" ? decision.reason : "llm_facts",
+      locale,
+      enabled,
+    });
 
     if (decision.action === "handoff") {
       return insertSystemEvent({
@@ -389,7 +523,10 @@ export async function maybeRunBookingAssistantTurn(
       },
     });
 
+    // TUL-1155: after a handoff the canned copy is never posted twice.
+    const handedOffBefore = prior.some((m) => m.systemEventType === "booking_assistant_handoff");
     if (!completion.ok) {
+      if (handedOffBefore) return null;
       return insertSystemEvent({
         inquiryId: args.inquiryId,
         tenantId: args.tenantId,
@@ -402,6 +539,7 @@ export async function maybeRunBookingAssistantTurn(
 
     const sanitized = sanitizeBookingAssistantOutput(completion.text, grounding);
     if (sanitized.escalate || !sanitized.text.trim()) {
+      if (handedOffBefore) return null;
       const reason: BookingHandoffReason = "unsure";
       return insertSystemEvent({
         inquiryId: args.inquiryId,

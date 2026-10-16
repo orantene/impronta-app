@@ -9,6 +9,7 @@
  */
 
 import { platformServiceTitle } from "@/lib/talent/offering-title-fallback";
+import { localizePlaceCity } from "./city-label";
 import { accentHeadline, seedHeadlineFor } from "./hero-headline";
 import {
   formatHeroEyebrow,
@@ -18,6 +19,21 @@ import {
 } from "./hero-proof-line";
 
 export type LocalizedMapLike = Readonly<Record<string, string | null | undefined>> | null | undefined;
+
+/**
+ * Prior taxonomy ES labels that may still be baked into applied trees after a
+ * live `name_i18n.es` rename (TUL-516: latin-dancer → Baile latino). Keyed by
+ * the English term name still present on the row.
+ */
+const STALE_TYPE_ES: Readonly<Record<string, readonly string[]>> = {
+  "Latin Dancer": ["Bailarín Latino"],
+};
+
+/** Stale baked labels for a current English taxonomy name (header / live-text match). */
+export function staleTypeLabels(enName: string | null | undefined): readonly string[] {
+  const en = enName?.trim() ?? "";
+  return en ? (STALE_TYPE_ES[en] ?? []) : [];
+}
 
 export interface TalentLocaleSwapSource {
   bioI18n: LocalizedMapLike;
@@ -113,17 +129,39 @@ export function buildTalentLocaleSwaps(
       add(clampWords(baked), clampWords(ownBio));
     }
   }
+  // GRK-075: ES-primary trees bake `bioEs.slice(0,160)` mid-word with no EN key
+  // (e.g. Valeria "…preparo coreogra"). Heal every locale's raw mid-slice.
+  for (const raw of Object.values(src.bioI18n ?? {})) {
+    const t = typeof raw === "string" ? raw.trim() : "";
+    if (t.length > TAGLINE_MAX) {
+      add(t.slice(0, TAGLINE_MAX), clampWords(bio || t));
+    }
+  }
+  if (bio.length > TAGLINE_MAX) {
+    add(bio.slice(0, TAGLINE_MAX), clampWords(bio));
+  }
   for (const names of src.typeNames) {
-    const en = names?.en?.trim();
-    if (en) add(en, pick(names, key, chain));
+    const target = pick(names, key, chain);
+    if (!target) continue;
+    const en = names?.en?.trim() ?? "";
+    for (const from of new Set(
+      [en, names?.es?.trim() ?? "", ...(STALE_TYPE_ES[en] ?? [])].filter(Boolean),
+    )) {
+      add(from, target);
+    }
   }
   const cityEn = src.homeCity?.en?.trim();
   const cityNames = [cityEn, ...(src.cityAliases ?? [])].map((c) => c?.trim() ?? "").filter(Boolean);
   if (cityEn || cityNames.length) {
-    const city = pick(src.homeCity, key, chain) || cityNames[0]!;
-    for (const name of new Set(cityNames)) {
+    let city = pick(src.homeCity, key, chain) || cityNames[0]!;
+    // TUL-516: English place name "Mexico City" must not paint on Spanish pages.
+    city = localizePlaceCity(city, key);
+    for (const name of new Set([...cityNames, "Mexico City", cityEn].filter(Boolean) as string[])) {
       add(name, city);
-      if (key === "es") add(`Based in ${name}`, `Con base en ${city}`);
+      if (key === "es") {
+        add(`Based in ${name}`, `Con base en ${city}`);
+        add(`BASED IN ${name.toUpperCase()}`, `CON BASE EN ${city.toUpperCase()}`);
+      }
     }
   }
   for (const o of src.offerings ?? []) {
@@ -144,9 +182,15 @@ export function buildTalentLocaleSwaps(
   // The hero eyebrow is the trade and the city joined ("Nail Artist · Mérida"): a value of its own.
   const tradeEn = src.typeNames[0]?.en?.trim();
   if (tradeEn) {
-    const city = pick(src.homeCity, key, chain) || cityNames[0] || "";
+    const tradeNow = pick(src.typeNames[0], key, chain);
+    const city = localizePlaceCity(pick(src.homeCity, key, chain) || cityNames[0] || "", key);
+    const tradeFrom = new Set(
+      [tradeEn, src.typeNames[0]?.es?.trim() ?? "", ...(STALE_TYPE_ES[tradeEn] ?? [])].filter(Boolean),
+    );
     for (const name of new Set(cityNames)) {
-      add(formatHeroEyebrow(tradeEn, name), formatHeroEyebrow(pick(src.typeNames[0], key, chain), city));
+      for (const trade of tradeFrom) {
+        add(formatHeroEyebrow(trade, name), formatHeroEyebrow(tradeNow, city));
+      }
     }
   }
   // The hero headline seeded from her trade ("Hands that {i}speak{/i} for you.") has a Spanish form.

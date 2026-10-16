@@ -35,6 +35,7 @@ import { AgendaPayRequest } from "@/components/admin/shell/internal/talent/agend
 
 import { AgendaMoneyLine } from "./AgendaMoneyLine";
 import { FeePayerCard } from "./FeePayerCard";
+import { PayoutBreakdownCard } from "./PayoutBreakdownCard";
 import { useResolvedTalentEarningsByCurrency } from "./use-resolved-talent-earnings-by-currency";
 
 type Tab = "payments" | "outstanding" | "payouts";
@@ -110,6 +111,8 @@ function MoneyHomePane(props: {
   onRefund: (row: MoneyAgendaRow) => void;
   refundBusyId: string | null;
   refundStatus: string | null;
+  /** ISO-2 payout country, drives the arrival text on the breakdown card. */
+  payoutCountry: string | null;
 }) {
   const copy = useDashboardText();
   const t = copy.t;
@@ -138,6 +141,8 @@ function MoneyHomePane(props: {
   );
   const methodCount = (m: MoneyMethodBucket) => sourced.filter((p) => methodBucket(p.paymentMethod) === m).length;
   const payments = method === "all" ? sourced : sourced.filter((p) => methodBucket(p.paymentMethod) === method);
+  // Only card payments pass through Tulala, so only they have a Tulala payout breakdown.
+  const cardRows = sourced.filter((p) => methodBucket(p.paymentMethod) === "card" && !isPartPaidRow(p));
 
   // Owed = the client ledger, or the agenda's balances when those are larger (booked work
   // the ledger has not caught up with). Requests waiting are shown apart: not owed yet.
@@ -370,6 +375,12 @@ function MoneyHomePane(props: {
               ))}
             </div>
           )}
+          <PayoutBreakdownCard
+            currency={cur}
+            payoutCountry={props.payoutCountry}
+            grossCents={cardRows.reduce((n, p) => n + p.grossCents, 0)}
+            netCents={cardRows.reduce((n, p) => n + p.netCents, 0)}
+          />
           <p className="font-admin-body text-[12.5px] text-admin-ink-muted">
             {t("Cash and transfers never pass through Tulala, so they show as collected and never as a payout.")}
           </p>
@@ -665,6 +676,7 @@ export function MoneyHomePage() {
             onRefund={refund}
             refundBusyId={refundBusyId}
             refundStatus={refundStatus}
+            payoutCountry={bridgeTalentPayoutSnapshot?.ok === true ? (bridgeTalentPayoutSnapshot.data.payoutCountry ?? null) : null}
           />
         </>
       )}

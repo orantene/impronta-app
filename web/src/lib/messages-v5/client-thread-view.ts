@@ -399,6 +399,40 @@ export function readPaidPayment(payload: Record<string, unknown> | null): Paymen
   return { ...readPayment(payload), state: "paid" };
 }
 
+/**
+ * Where the client's money on this thread stands now, so an accepted offer stops
+ * promising a payment link once paid, and stops saying "received" once refunded.
+ * Paid cards minus refund results (`change_result` with `refundedCents`); a paid
+ * card with no amount on it leaves the latest money event to decide.
+ */
+export function threadPaymentState(
+  messages: readonly Pick<ThreadMessage, "kind" | "payload" | "internal" | "deletedAt">[],
+): "paid" | "refunded" | null {
+  let paidCents = 0;
+  let refundedCents = 0;
+  let unknownAmount = false;
+  let last: "paid" | "refunded" | null = null;
+  for (const m of messages) {
+    if (m.internal || m.deletedAt) continue;
+    if (m.kind === "payment_paid" || (m.kind === "payment_request" && readPayment(m.payload).state === "paid")) {
+      const view = readPayment(m.payload);
+      const cents = view.paidCents ?? view.amountCents ?? view.totalCents;
+      if (cents == null || cents <= 0) unknownAmount = true;
+      else paidCents += cents;
+      last = "paid";
+    } else if (m.kind === "change_result") {
+      const refunded = num((m.payload ?? {}).refundedCents);
+      if (refunded != null && refunded > 0) {
+        refundedCents += refunded;
+        if (last) last = "refunded";
+      }
+    }
+  }
+  if (!last) return null;
+  if (unknownAmount) return last;
+  return paidCents > refundedCents ? "paid" : "refunded";
+}
+
 export type ConfirmationView = { readonly recordKind: string | null; readonly recordId: string | null; readonly when: string | null; readonly title: string | null; readonly summary: string | null; readonly receiptCode: string | null; readonly lines: readonly { readonly label: string; readonly units: number; readonly amountCents: number }[]; readonly currency: string };
 
 export function readConfirmation(payload: Record<string, unknown> | null): ConfirmationView {

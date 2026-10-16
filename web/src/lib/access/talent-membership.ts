@@ -35,7 +35,8 @@ export type TalentPlanCapability =
  *   personalSiteDesignPresets  pick + switch Design and Look (FREE, all tiers)
  *   personalSiteSections    insert / paste / duplicate / move nested blocks + sections
  *   personalSitePages       add, delete, reorder, set-home extra pages
- *   personalSiteSeo         per-page SEO columns (write AND render)
+ *   personalSiteSeo         per-page SEO columns (write AND render): Web Office
+ *   personalSiteSeoBasic    page title + description only, on EVERY plan (TUL-587)
  *   personalSiteAnalytics   the site analytics surface
  *   personalSiteCustomDomain  connect / verify a custom domain
  */
@@ -46,6 +47,7 @@ export const TALENT_SITE_CAPABILITY_KEYS = [
   "personalSiteSections",
   "personalSitePages",
   "personalSiteSeo",
+  "personalSiteSeoBasic",
   "personalSiteAnalytics",
   "personalSiteCustomDomain",
 ] as const;

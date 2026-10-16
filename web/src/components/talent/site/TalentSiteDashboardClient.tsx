@@ -4,6 +4,7 @@ import { openUpgrade } from "@/components/talent/upgrade/open-upgrade";
 import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
 
+import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { COLORS, FONTS, useAdminShell } from "@/components/admin/shell/internal/state";
 import { PrimaryButton } from "@/components/admin/shell/internal/primitives";
 import { mergeTalentSiteDashboardWithShellTier } from "@/lib/talent-site/merge-shell-tier";
@@ -374,6 +375,7 @@ function ConnectedContentPanel() {
 function FuturePlaceholders() {
   // HYGIENE-1 Q7 — "Custom domain" removed: TalentSiteDomainPanel is live
   // (TalentMaxSiteManager.tsx). Only honest not-yet-shipped items remain.
+  const copy = useDashboardText();
   const items = ["SEO controls", "Page analytics"];
   return (
     <div
@@ -398,7 +400,7 @@ function FuturePlaceholders() {
           }}
         >
           {label}
-          <div style={{ fontSize: 10, marginTop: 4 }}>Coming soon</div>
+          <div style={{ fontSize: 10, marginTop: 4 }}>{copy.t("Coming soon")}</div>
         </div>
       ))}
     </div>
@@ -406,14 +408,15 @@ function FuturePlaceholders() {
 }
 
 function StatusStrip({ state }: { state: TalentSiteDashboardState }) {
+  const copy = useDashboardText();
   const site = state.site;
   if (!site) return null;
   const statusLabel =
     site.status === "published"
-      ? "Published"
+      ? copy.t("Published")
       : site.status === "unpublished"
-        ? "Unpublished"
-        : "Draft";
+        ? copy.t("Unpublished")
+        : copy.t("Draft");
   const statusTone =
     site.status === "published"
       ? { fg: COLORS.successDeep, bg: COLORS.successSoft }
@@ -435,7 +438,7 @@ function StatusStrip({ state }: { state: TalentSiteDashboardState }) {
       }}
     >
       <StatusField
-        label="Status"
+        label={copy.t("Status")}
         value={
           <span
             style={{
@@ -453,11 +456,11 @@ function StatusStrip({ state }: { state: TalentSiteDashboardState }) {
           </span>
         }
       />
-      <StatusField label="Draft updated" value={formatWhen(site.draftUpdatedAt)} />
+      <StatusField label={copy.t("Draft updated")} value={formatWhen(site.draftUpdatedAt)} />
       {site.publishedAt ? (
-        <StatusField label="Last published" value={formatWhen(site.publishedAt)} />
+        <StatusField label={copy.t("Last published")} value={formatWhen(site.publishedAt)} />
       ) : null}
-      <StatusField label="Version" value={`v${site.version}`} />
+      <StatusField label={copy.t("Version")} value={`v${site.version}`} />
     </div>
   );
 }
@@ -483,15 +486,16 @@ function StatusField({ label, value }: { label: string; value: React.ReactNode }
 }
 
 function PreviewLinks({ state }: { state: TalentSiteDashboardState }) {
+  const copy = useDashboardText();
   const items: { href: string; label: string }[] = [];
   if (state.publicSiteUrl && state.site?.hasPublishedSnapshot) {
-    items.push({ href: state.publicSiteUrl, label: "View published site" });
+    items.push({ href: state.publicSiteUrl, label: copy.t("View published site") });
   }
   if (state.profileCode) {
-    items.push({ href: `/t/${state.profileCode}?preview=draft`, label: "Preview draft (owner)" });
+    items.push({ href: `/t/${state.profileCode}?preview=draft`, label: copy.t("Preview draft (owner)") });
   }
   if (state.publicProfileUrl) {
-    items.push({ href: state.publicProfileUrl, label: "Standard profile" });
+    items.push({ href: state.publicProfileUrl, label: copy.t("Standard profile") });
   }
   if (items.length === 0) return null;
   return (

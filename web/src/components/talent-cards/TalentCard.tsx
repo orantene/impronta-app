@@ -276,7 +276,7 @@ export function TalentCard({
             {displayName ? (
               <h3
                 data-card-name
-                className={`min-w-0 line-clamp-2 break-words font-[family-name:var(--font-fraunces,Georgia,serif)] font-medium leading-[1.1] tracking-[-0.01em] ${
+                className={`min-w-0 line-clamp-2 select-none break-words font-[family-name:var(--font-fraunces,Georgia,serif)] font-medium leading-[1.1] tracking-[-0.01em] ${
                   compact ? "text-base! @[240px]:text-lg!" : "text-lg! @[240px]:text-[22px]!"
                 }`}
               >
@@ -308,7 +308,8 @@ export function TalentCard({
             </p>
           ) : null}
           {traitSlot ? <div className="hidden @[200px]:contents">{traitSlot}</div> : null}
-          <div className="flex items-center justify-between gap-2 pt-0.5 @[240px]:gap-3">
+          {/* TUL-888: on a narrow card (two columns at 390px) the call to action took 107px of a 141px row and left 26px for the ownership badge, clipping "Independiente" to "Ind". Wrap so the call to action drops to its own line instead. */}
+          <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 pt-0.5 @[240px]:gap-x-3">
             <div className="flex min-w-0 flex-col gap-0.5">
               {data.priceFromLabel ? (
                 <span
@@ -392,7 +393,7 @@ export function TalentCard({
             {displayName ? (
               <h3
                 data-card-name
-                className={`font-display font-medium leading-tight tracking-wide ${
+                className={`select-none font-display font-medium leading-tight tracking-wide ${
                   compact ? "text-base" : "text-lg"
                 }`}
                 style={{ color: TALENT_CARD_VARS.name }}
@@ -531,7 +532,7 @@ export function TalentCard({
           {displayName ? (
             <h3
               data-card-name
-              className={`font-[family-name:var(--font-fraunces,Georgia,serif)] font-normal leading-none tracking-[-0.02em] text-[var(--token-card-name-color,#f3efe6)] ${
+              className={`select-none font-[family-name:var(--font-fraunces,Georgia,serif)] font-normal leading-none tracking-[-0.02em] text-[var(--token-card-name-color,#f3efe6)] ${
                 compact
                   ? "text-[20px]! @[220px]:text-[26px]! @[300px]:text-[30px]!"
                   : "text-[22px]! @[220px]:text-[26px]! @[300px]:text-[34px]!"
@@ -651,7 +652,7 @@ export function TalentCard({
             data-card-name
             // Falls back to white, so a tenant that never set the token keeps
             // the exact previous rendering.
-            className={`font-display font-medium leading-tight tracking-wide text-[var(--token-card-name-color,#fff)] drop-shadow-sm ${
+            className={`select-none font-display font-medium leading-tight tracking-wide text-[var(--token-card-name-color,#fff)] drop-shadow-sm ${
               compact ? "text-sm sm:text-base" : "text-base sm:text-lg"
             }`}
           >

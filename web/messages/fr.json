@@ -420,6 +420,7 @@
       "askQuickWhen": "Avez-vous un créneau cette semaine ?",
       "askQuickDuration": "Combien de temps ça dure ?",
       "askQuickChange": "Puis-je changer le design ?",
+      "askQuickPrice": "Combien ça coûte ?",
       "removedToastDismissAria": "Fermer",
       "gateRecapOne": "Nous l'utiliserons pour vous envoyer la réponse de {agency} concernant {names}.",
       "gateRecapOverflow": "{names}, +{count}",
@@ -801,8 +802,9 @@
       "fees": {
         "service_subtotal": "Service",
         "base_reservation_fee": "Frais de réservation",
-        "platform_fee": "Frais de plateforme",
+        "platform_fee": "Frais de service Tulala",
         "processing_fee": "Traitement de carte",
+        "card_fee_memo": "Frais de carte inclus dans le prix (environ)",
         "client_service_fee": "Frais de service",
         "total_charged": "Total",
         "nonRefundable": "Les frais ne sont pas remboursables."
@@ -8143,6 +8145,8 @@
             "accepted": "Acceptée",
             "acceptedPayNext": "Acceptée. Prochaine étape : payer l'acompte pour confirmer.",
             "acceptedPayLater": "Acceptée. {business} vous enverra un lien de paiement pour confirmer.",
+            "acceptedPaid": "Acceptée. Paiement reçu.",
+            "acceptedRefunded": "Acceptée. Votre paiement a été remboursé.",
             "declined": "Refusée",
             "expired": "Cette offre a expiré. Demandez-en une nouvelle à {business}.",
             "superseded": "Une version plus récente a remplacé cette offre.",

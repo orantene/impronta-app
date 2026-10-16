@@ -39,6 +39,8 @@ export const TALENT_SITE_ENTITLEMENTS = [
   "personalSiteSections",
   "personalSitePages",
   "personalSiteSeo",
+  /** TUL-587: page title + description only, on EVERY plan. */
+  "personalSiteSeoBasic",
   "personalSiteAnalytics",
   "personalSiteCustomDomain",
 ] as const;
@@ -76,6 +78,8 @@ export const TALENT_ENTITLEMENTS: Readonly<
     "personalSiteEdit",
     "personalSitePublish",
     "personalSiteDesignPresets",
+    // ...and own the two fields that make the search snippet (TUL-587).
+    "personalSiteSeoBasic",
   ]),
   talent_pro: new Set<TalentEntitlement>([
     "profile.basic",
@@ -84,6 +88,7 @@ export const TALENT_ENTITLEMENTS: Readonly<
     "personalSitePublish",
     "personalSiteTemplate",
     "personalSiteDesignPresets",
+    "personalSiteSeoBasic",
     "profile.noPlatformBadge",
     "profile.socialLinks",
     "ai.paidCredits",
@@ -98,6 +103,7 @@ export const TALENT_ENTITLEMENTS: Readonly<
     "personalSiteSections",
     "personalSitePages",
     "personalSiteSeo",
+    "personalSiteSeoBasic",
     "personalSiteAnalytics",
     // DB RLS on talent_site_domains enforces the same gate (talent_profile_has_max).
     "personalSiteCustomDomain",
@@ -117,6 +123,7 @@ const FREE_WEBSITE_ENTITLEMENTS: ReadonlySet<TalentEntitlement> = new Set([
   "personalSiteSections",
   "personalSitePages",
   "personalSiteSeo",
+  "personalSiteSeoBasic",
   "personalSiteAnalytics",
 ]);
 
