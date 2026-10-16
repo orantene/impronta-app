@@ -51,6 +51,7 @@ import {
 } from "@/lib/auth/code-step-url";
 import { pickAuthEmail, readAuthEmailDraft, readAuthNameDraft, writeAuthEmailDraft, writeAuthNameDraft } from "@/lib/auth/email-draft";
 import { authEmailHasPlusTag, OTP_CODE_LENGTH, OTP_CODE_MAX_LENGTH } from "@/lib/auth/otp-flow";
+import { useFocusFirstInvalidOnError } from "@/lib/auth/use-focus-first-invalid";
 import { createTranslator } from "@/i18n/messages";
 import { AgeTermsCheckbox } from "@/components/auth/age-terms-checkbox";
 
@@ -199,6 +200,7 @@ export function EmailCodeForm({
   const stepError =
     lane === "verify" ? stateError(verifyState) : stateError(sendState);
   const notice = lane === "send" ? sent?.notice : undefined;
+  useFocusFirstInvalidOnError(stepError);
 
   if (showPassword && passwordFallback) {
     return (
@@ -215,7 +217,9 @@ export function EmailCodeForm({
               setShowPassword(false);
             }}
           >
-            {t("public.auth.passwordless.useCode")}
+            {onCodeStep && email
+              ? t("public.auth.passwordless.backToCode")
+              : t("public.auth.passwordless.useCode")}
           </QuietAction>
         </p>
         {footer}
@@ -229,7 +233,7 @@ export function EmailCodeForm({
         {notice ? (
           <AuthNotice tone="success">{notice.replace("{email}", email)}</AuthNotice>
         ) : null}
-        {stepError ? <AuthNotice tone="error">{stepError}</AuthNotice> : null}
+        {stepError ? <AuthNotice tone="error" id="code-step-error">{stepError}</AuthNotice> : null}
 
         <form
           action={verifyAction}
@@ -255,6 +259,8 @@ export function EmailCodeForm({
               type="text"
               inputMode="numeric"
               autoComplete="one-time-code"
+              aria-invalid={stepError ? true : undefined}
+              aria-describedby={stepError ? "code-step-error" : undefined}
               // The code box is the only control on this step; focusing it is
               // the whole point of the screen (and saves a tap on mobile).
               autoFocus
@@ -340,7 +346,7 @@ export function EmailCodeForm({
         {allowCreate ? <input type="hidden" name="terms_form" value="1" /> : null}
         {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
 
-        {stepError ? <AuthNotice tone="error">{stepError}</AuthNotice> : null}
+        {stepError ? <AuthNotice tone="error" id="email-step-error">{stepError}</AuthNotice> : null}
 
         {allowCreate && collectName ? (
           <AuthField label={t("public.auth.form.name")} htmlFor="full_name">
@@ -375,6 +381,8 @@ export function EmailCodeForm({
             type="email"
             autoComplete="email"
             required
+            aria-invalid={stepError ? true : undefined}
+            aria-describedby={stepError ? "email-step-error" : undefined}
             defaultValue={pickAuthEmail(readAuthEmailDraft(), email)}
             onChange={(e) => {
               setEmailDraft(e.target.value);

@@ -3,12 +3,12 @@ import { notFound } from "next/navigation";
 import { GoogleFontsLink } from "@/app/google-fonts-link";
 import { ClientAccountArea, type AreaData } from "@/components/client-account/ClientAccountArea";
 import { TalentSiteHtmlTokens } from "@/components/talent/site/TalentSiteHtmlTokens";
-import { getRequestLocale } from "@/i18n/request-locale";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
 
 import { accountAudience, type AccountView } from "./area-pure";
+import { resolveAccountLocale } from "./account-locale.server";
 import { accountFlagKindForHost, agencyAccountTabs } from "./agency-area-pure";
 import { loadAgencyAccountSite } from "./area-site.server";
 import {
@@ -34,8 +34,9 @@ export async function renderTenantAccountPage(view: AccountView, hostContext: st
   // onboarded clients back to /onboarding/role when only `agency` was listed.
   if (!flagKind || flagKind === "talent" || !clientAccountEnabledFor(flagKind)) notFound();
   if ((view.kind === "visit" || view.kind === "thread") && !UUID.test(view.id)) notFound();
-  const [locale, session, tenant] = await Promise.all([getRequestLocale(), getCachedActorSession(), resolveAccountTenant()]);
+  const [session, tenant] = await Promise.all([getCachedActorSession(), resolveAccountTenant()]);
   if (!tenant) notFound();
+  const locale = await resolveAccountLocale(session.user?.id ?? null); // TUL-1191: cookie / saved language, not the path-derived header
   const [identity, site] = await Promise.all([
     loadPublicIdentity(tenant.tenantId).catch(() => null),
     loadAgencyAccountSite(tenant.tenantId),
@@ -59,7 +60,9 @@ export async function renderTenantAccountPage(view: AccountView, hostContext: st
         loadOwedPayLinks(userId, tenantId),
         loadReceipts(userId, tenantId),
       ]);
-    } else data.profile = await loadAccountProfile(userId);
+    }
+    // TUL-777: every tab needs the profile for the name prompt.
+    if (view.kind === "home") data.profile = await loadAccountProfile(userId);
   }
   const hasTokens = Object.keys(site.cssVars).length > 0;
   return (
