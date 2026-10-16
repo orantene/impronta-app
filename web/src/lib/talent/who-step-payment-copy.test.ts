@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  bookPagePaymentLine,
   doneStepNextActionCopy,
   offeringRequiresOnlineCollect,
   resolveWhoStepPaymentUi,
@@ -274,4 +275,17 @@ test("done-step next action restates studio vs payment (never silent paid)", () 
     }),
     /estudio/,
   );
+});
+
+test("TUL-976: the /book line says prepaid vs pay at the appointment, and when a request is paid", () => {
+  const free = { reserveMode: "free" as const, allowPayInPerson: true, depositPct: null };
+  const deposit = { reserveMode: "deposit" as const, allowPayInPerson: false, depositPct: 30 };
+  assert.match(bookPagePaymentLine(free, "instant", "es"), /No se cobra nada ahora/);
+  assert.match(bookPagePaymentLine(deposit, "instant", "en"), /30% deposit is charged now/);
+  assert.match(bookPagePaymentLine(free, "request", "es"), /pago se realiza en la cita/);
+  assert.match(bookPagePaymentLine(deposit, "request", "es"), /enlace de pago/);
+  assert.match(bookPagePaymentLine(deposit, "request", "en"), /final once paid/);
+  for (const line of [bookPagePaymentLine(free, "request", "en"), bookPagePaymentLine(deposit, "request", "es")]) {
+    assert.doesNotMatch(line, /—/);
+  }
 });

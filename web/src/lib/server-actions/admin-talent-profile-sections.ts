@@ -56,6 +56,7 @@ import {
 import { syncTalentTypeTaxonomyFromShellSlugs } from "@/lib/talent/profile-shell-taxonomy-sync";
 import type { UiProfileShellStatus } from "@/lib/talent/profile-shell-workflow";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { countryLabel } from "@/lib/geo/country-code";
 
 // ─── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -1488,7 +1489,7 @@ export async function getTalentProfileEditorData(input: {
       // so `?? null` / `?? false` is the empty default.
       age_display_mode: sv.age_display_mode ?? null,
       nationality: (p.nationality as string | null) ?? null,
-      home_country_text: (p.home_country_text as string | null) ?? null,
+      home_country_text: countryLabel(p.home_country_text as string | null),
       response_time: sv.response_time ?? null,
       is_discoverable: Boolean(p.is_discoverable),
       field_visibility: p.field_visibility ?? null,

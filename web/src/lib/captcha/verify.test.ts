@@ -113,6 +113,36 @@ test("missing token with a provider is captcha_required; no provider is a no-op"
   assert.equal(calls.length, 0);
 });
 
+test("host is forwarded to the resolver (widget and verify share one decision)", async () => {
+  let seen: string | null | undefined = "unset";
+  await verifyCaptchaToken({
+    token: null,
+    tenantId: "t1",
+    host: "maria-nails.com",
+    resolver: async (_t, opts) => {
+      seen = opts?.host;
+      return { provider: "none", getSecret: async () => null };
+    },
+  });
+  assert.equal(seen, "maria-nails.com");
+});
+
+test("no tenant: platform env key applies on platform hosts only", async () => {
+  process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = "site";
+  process.env.TURNSTILE_SECRET = "plat-secret";
+  try {
+    mockFetch(() => Response.json({ success: true }));
+    const custom = await verifyCaptchaToken({ token: null, host: "maria-nails.com" });
+    assert.equal(custom.ok, true);
+    assert.equal(calls.length, 0);
+    const platform = await verifyCaptchaToken({ token: null, host: "app.tulala.digital" });
+    assert.equal(platform.ok, false);
+  } finally {
+    delete process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+    delete process.env.TURNSTILE_SECRET;
+  }
+});
+
 test("widget-ready gate needs the flag AND a resolved provider", async () => {
   assert.equal(await isGuestCaptchaWidgetReady("t1", tenantTurnstile), false);
   process.env.GUEST_CHAT_CAPTCHA_WIDGET_READY = "1";

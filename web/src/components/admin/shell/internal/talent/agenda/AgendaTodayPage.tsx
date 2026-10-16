@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { todayTotals } from "@/lib/talent-agenda/derive";
 import { loadTalentClients } from "@/lib/talent/clients-actions";
 import type { TalentClientRow } from "@/lib/talent/clients-merge";
-import { agendaMoneyRows, talentOwedSummary } from "@/lib/talent/money-home";
+import { agendaMoneyRows, awaitingOfferSummary, talentOwedSummary } from "@/lib/talent/money-home";
 import type { TalentAgendaItem } from "@/lib/talent-agenda/types";
 import {
   pinMoneyLanding,
@@ -43,6 +43,8 @@ import {
 } from "@/lib/talent-agenda/today-view";
 import type { BookingHours } from "@/lib/scheduling/hours-types";
 import { useAgendaCopy } from "./use-agenda-copy";
+import { useAdminShell } from "../../state";
+import { dashboardPlanKind, dashboardStatusCopy } from "@/lib/talent/dashboard-status";
 import { unscheduledAgendaItems } from "@/lib/talent-agenda/load-unscheduled";
 import { settleServerAction } from "@/lib/client/settle-server-action";
 
@@ -184,7 +186,7 @@ export function AgendaTodayPage({
   monthCollected?: TodayMonthCollected | null;
   payoutsEnabled?: boolean | null;
 }) {
-  const copy = useAgendaCopy();
+  const copy = useAgendaCopy(), { talentTier } = useAdminShell().state;
   const locale = copy.isSpanish ? "es-MX" : "en-GB";
   const clock = now ?? new Date();
   const [attentionLimit, setAttentionLimit] = useState(3);
@@ -247,11 +249,9 @@ export function AgendaTodayPage({
       cancelled = true;
     };
   }, [profileId]);
-  const owed = talentOwedSummary({
-    clients: ledgerClients,
-    agendaOwed: agendaMoneyRows(items, clock).owed,
-    currency: monthCollected?.currency ?? null,
-  });
+  const agendaMoney = agendaMoneyRows(items, clock);
+  const owed = talentOwedSummary({ clients: ledgerClients, agendaOwed: agendaMoney.owed, currency: monthCollected?.currency ?? null });
+  const awaiting = awaitingOfferSummary(agendaMoney.waiting, owed.currency ?? monthCollected?.currency ?? null);
   const idea = ideaDismissed ? null : rebookHint(items, clock);
 
   // TUL-525: greet by person name — never the account handle.
@@ -404,12 +404,12 @@ export function AgendaTodayPage({
             {initialsOf(item)}
           </span>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-[14px] font-semibold text-[var(--tc-primary)]">
+            <div className="line-clamp-2 break-words text-[14px] font-semibold text-[var(--tc-primary)]">
               {copy.t(item.client?.name ?? item.managedBy?.name ?? item.title)}
             </div>
             <div className="truncate text-[12.5px] text-black/70">{serviceLabel(item) ?? copy.t("No service set")}</div>
             {placeLabelFor(item.where) ? (
-              <div className={`mt-0.5 text-[11.5px] ${MUTED}`}>{placeLabelFor(item.where)}</div>
+              <div className={`mt-0.5 text-[11.5px] ${MUTED}`}>{copy.t(placeLabelFor(item.where) ?? "")}</div>
             ) : null}
           </div>
         </button>
@@ -469,7 +469,8 @@ export function AgendaTodayPage({
                 : formatMoney(0, currency ?? "MXN", locale)}
             </div>
             <div className={`text-[11.5px] ${MUTED}`}>
-              {owed.count > 0 ? `${owed.count} ${copy.t("balances")}` : copy.t("Nothing owed")}
+              {owed.count > 0 ? `${owed.count} ${copy.t("balances")}` : awaiting.count === 0 ? copy.t("Nothing owed") : ""}
+              {awaiting.count > 0 && awaiting.currency ? `${owed.count > 0 ? " · " : ""}${formatMoney(awaiting.cents, awaiting.currency, locale)} ${copy.t("pending payment")}` : ""}
             </div>
           </button>
         </div>
@@ -526,8 +527,7 @@ export function AgendaTodayPage({
           <div className="flex-1">
             <div className="text-[13.5px] font-semibold text-[var(--tc-primary)]">{copy.t("Profile quality")}</div>
             <div className={`text-[12px] ${MUTED}`}>
-              {leftCount}{" "}
-              {copy.t(leftCount === 1 ? "thing left before your free website" : "things left before your free website")}
+              {dashboardStatusCopy({ plan: dashboardPlanKind(talentTier), publish: "draft", es: copy.isSpanish }).leftLine(leftCount)}
             </div>
           </div>
         </div>

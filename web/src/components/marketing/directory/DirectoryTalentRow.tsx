@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { DirectoryCardRow } from "./shared";
-import { agencyLine, locationLine, FOCUS_RING } from "./shared";
+import { agencyLine, directoryProfileHref, locationLine, FOCUS_RING } from "./shared";
 import { TalentAvatar, TrustBadge, AvailabilityLine } from "./DirectoryAtoms";
 import { useDirectoryCopy } from "./directory-copy-context";
 import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
@@ -14,8 +14,8 @@ import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
 export function DirectoryTalentRow({ talent }: { talent: DirectoryCardRow }) {
   const t = useDirectoryCopy();
   const agency = agencyLine(talent.agencyName, talent.isExclusive, t);
-  const loc = locationLine(talent.homeCity, talent.homeCountry);
-  const href = talent.profileCode ? `/t/${talent.profileCode}` : null;
+  const loc = locationLine(talent.homeCity, talent.homeCountry, t.locale);
+  const href = talent.profileCode ? directoryProfileHref(talent.profileCode, t.locale) : null;
   // STANDING chip — verified review aggregate off the discover matview, shown
   // only past the credibility floor (>= 3 verified reviews) so a thin record is
   // never oversold. Absence is neutral (no chip).

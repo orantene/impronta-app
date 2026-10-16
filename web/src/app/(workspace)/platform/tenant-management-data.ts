@@ -136,6 +136,9 @@ export async function loadPlatformTenantList(): Promise<PlatformTenantListRow[]>
   const ids = agencies.map((r: { id: string }) => r.id);
   if (ids.length === 0) return [];
 
+  // TUL-745: the auth email list does not depend on the other reads, so it
+  // starts now and overlaps them instead of running last.
+  const usersPromise = sb.auth.admin.listUsers({ perPage: 1000 });
   const [rosterRes, membershipRes, overrideRes, domainRes, identityRes] = await Promise.all([
     sb
       .from("agency_talent_roster")
@@ -204,46 +207,43 @@ export async function loadPlatformTenantList(): Promise<PlatformTenantListRow[]>
     }
   }
 
-  // Talent-type taxonomy for active rostered talents.
+  // Taxonomy, owner names and auth emails are independent: one parallel batch.
   const typesByTalent = new Map<string, Set<string>>();
-  if (allActiveTalentIds.size > 0) {
-    const { data: tpt } = await sb
-      .from("talent_profile_taxonomy")
-      .select("talent_profile_id, taxonomy_term_id, taxonomy_terms!inner(kind)")
-      .in("talent_profile_id", Array.from(allActiveTalentIds))
-      .eq("taxonomy_terms.kind", "talent_type");
-    for (const row of (tpt ?? []) as Array<{
-      talent_profile_id: string;
-      taxonomy_term_id: string;
-    }>) {
-      let set = typesByTalent.get(row.talent_profile_id);
-      if (!set) {
-        set = new Set();
-        typesByTalent.set(row.talent_profile_id, set);
-      }
-      set.add(row.taxonomy_term_id);
-    }
-  }
-
-  // Owner names + emails.
   const ownerIds = Array.from(new Set(ownerProfileByTenant.values()));
   const ownerNameById = new Map<string, string>();
-  if (ownerIds.length > 0) {
-    const { data: profiles } = await sb
-      .from("profiles")
-      .select("id, display_name")
-      .in("id", ownerIds);
-    for (const p of (profiles ?? []) as Array<{
-      id: string;
-      display_name: string | null;
-    }>) {
-      if (p.display_name) ownerNameById.set(p.id, p.display_name);
-    }
-  }
   const emailById = new Map<string, string>();
+  const [tptRes, profilesRes, usersRes] = await Promise.all([
+    allActiveTalentIds.size > 0
+      ? sb
+          .from("talent_profile_taxonomy")
+          .select("talent_profile_id, taxonomy_term_id, taxonomy_terms!inner(kind)")
+          .in("talent_profile_id", Array.from(allActiveTalentIds))
+          .eq("taxonomy_terms.kind", "talent_type")
+      : Promise.resolve({ data: [] }),
+    ownerIds.length > 0
+      ? sb.from("profiles").select("id, display_name").in("id", ownerIds)
+      : Promise.resolve({ data: [] }),
+    usersPromise,
+  ]);
+  for (const row of (tptRes.data ?? []) as Array<{
+    talent_profile_id: string;
+    taxonomy_term_id: string;
+  }>) {
+    let set = typesByTalent.get(row.talent_profile_id);
+    if (!set) {
+      set = new Set();
+      typesByTalent.set(row.talent_profile_id, set);
+    }
+    set.add(row.taxonomy_term_id);
+  }
+  for (const p of (profilesRes.data ?? []) as Array<{
+    id: string;
+    display_name: string | null;
+  }>) {
+    if (p.display_name) ownerNameById.set(p.id, p.display_name);
+  }
   if (ownerIds.length > 0) {
-    const { data: usersData } = await sb.auth.admin.listUsers({ perPage: 1000 });
-    for (const u of usersData?.users ?? []) {
+    for (const u of usersRes.data?.users ?? []) {
       if (u.email) emailById.set(u.id, u.email);
     }
   }

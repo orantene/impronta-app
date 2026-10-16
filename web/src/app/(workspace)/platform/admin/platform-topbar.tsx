@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useT } from "@/i18n/use-t";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { TulalaBrandLockup } from "@/components/brand/tulala-logo";
+import { useRequestHost } from "@/lib/support/desk/use-request-host";
 import { supportDeskOpenFromHqHref } from "@/lib/support/desk/desk-url";
 
 // ─── HQ design tokens (dark surface) ─────────────────────────────────────────
@@ -65,6 +66,7 @@ const GROUPS: readonly NavGroup[] = [
       { id: "translations", labelKey: "dashboard.platform.nav.translations", segment: "translations" },
       { id: "builder-lab",  labelKey: "dashboard.platform.nav.builderLab",   segment: "builder-lab"  },
       { id: "stock",        labelKey: "dashboard.platform.nav.stock",        segment: "stock"        },
+      { id: "posts",        labelKey: "dashboard.platformPosts.nav",         segment: "posts"        },
     ],
   },
   {
@@ -88,19 +90,23 @@ const BASE = "/platform/admin";
 export function PlatformTopbar({
   supportOpenCount = 0,
   deskEnabled = false,
+  requestHostHint = null,
 }: {
   supportOpenCount?: number;
   /** Server-evaluated `isSupportDeskEnabled()` — Support tab becomes a portal redirect. */
   deskEnabled?: boolean;
+  /** Server-seen request host: the first paint (and no-JS) picks the staging vs prod desk. */
+  requestHostHint?: string | null;
 }) {
   const pathname = usePathname();
+  const requestHost = useRequestHost() ?? requestHostHint;
   const t = useT();
   const locale = useDashboardLocale();
 
   // Active segment: /platform/admin/tenants → "tenants"
   const after = pathname.startsWith(BASE) ? pathname.slice(BASE.length) : "";
   const activeSegment = after.startsWith("/") ? after.slice(1).split("/")[0] : "";
-  const supportPortalHref = deskEnabled ? supportDeskOpenFromHqHref() : null;
+  const supportPortalHref = deskEnabled ? supportDeskOpenFromHqHref(requestHost) : null;
 
   return (
     <header

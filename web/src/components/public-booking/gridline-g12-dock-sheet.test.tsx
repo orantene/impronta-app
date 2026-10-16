@@ -34,7 +34,7 @@ const html = (locale: string, liveStatus?: typeof ON | typeof OFF | null) =>
 
 // TUL-344: re-pinned on purpose (sticky bar hides at the top and reserves --cb-bar-h for every theme).
 test("existing designs: the base booking stylesheet is byte-pinned", () => {
-  assert.equal(createHash("sha256").update(CATALOG_BOOKING_CSS).digest("hex"), "d454f215d21636ad24662fc2e249367af20d76a5af0f2133b9e7da427e5e79c7"); // re-pinned: GRK-072 selected day/slot -> --cb-selected
+  assert.equal(createHash("sha256").update(CATALOG_BOOKING_CSS).digest("hex"), "089db7718a1618584da2780676163028d9aa2cab3facec4d516cfdde098bb396"); // re-pinned: TUL-930 phone date strip + start-over row; TUL-896/899/928/931/932/807 booking sheet polish (was GRK-072)
 });
 
 test("existing designs: dock markup is identical with no status, null or off", () => {
@@ -74,7 +74,7 @@ test("the booking CSS ships through the type-system sheet", () => {
 
 test("Gridline off state reads See times / Ver horarios by CSS only; markup and ON label unchanged", () => {
   for (const [loc, label, region] of [["en", "See times", "Your selection"], ["es", "Ver horarios", "Tu selección"]] as const) {
-    assert.ok(UTILITY_BOOKING_CSS.includes(`.cb-dock[aria-label="${region}"] .cb-dock-go:not(:has(.cb-dock-lbl-on))::before{content:"${label}"`));
+    assert.ok(UTILITY_BOOKING_CSS.includes(`.cb-dock[aria-label="${region}"] .cb-dock-go:not([data-ask-only]):not(:has(.cb-dock-lbl-on))::before{content:"${label}"`));
     assert.ok(html(loc, OFF).includes(`aria-label="${region}"`), "selector key present in markup");
     assert.ok(html(loc, OFF).includes(loc === "es" ? "Continuar" : "Continue"), "markup text untouched");
   }

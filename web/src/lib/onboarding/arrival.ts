@@ -53,7 +53,23 @@ export type ArrivalPayload = {
   alsoBookHref?: string;
   /** Studio whose owner takes clients too (seeded as a bookable provider): the page takes bookings from day one. */
   ownerBookable?: boolean;
+  /** TUL-818 · draft_saved only: why the check failed (drives the plain-language reason). */
+  draftReason?: DraftReason;
+  /** TUL-818 · draft_saved only: the site row IS published (same truth the dashboard reads); only the address check failed. */
+  published?: boolean;
+  /** TUL-818 · draft_saved only: what the arrival becomes once a retry check passes. */
+  liveVariant?: ArrivalVariant;
+  liveSiteLive?: boolean;
 };
+
+/** TUL-818/819: the reason families the finish screen explains. */
+export type DraftReason = "no_url" | "no_name" | "status" | "name_missing" | "network" | "protected";
+
+const DRAFT_REASONS: readonly DraftReason[] = ["no_url", "no_name", "status", "name_missing", "network", "protected"];
+
+function toDraftReason(raw: unknown): DraftReason {
+  return DRAFT_REASONS.includes(raw as DraftReason) ? (raw as DraftReason) : "network";
+}
 
 export function parseArrivalStamp(raw: unknown): ArrivalStamp {
   if (!raw || typeof raw !== "object") return null;
@@ -77,9 +93,11 @@ type ArrivalInput = {
   /** Public site URL (no params) and the builder deep link, when a tenant exists. */
   site: { publicUrl: string; editorUrl: string; adminPath: string } | null;
   /** Talent page URL and the Today deep link, when a profile exists. */
-  talent: { publicUrl: string | null; todayUrl: string; /** Published own-site URL (TUL-32), when live. */ siteUrl?: string | null } | null;
+  talent: { publicUrl: string | null; todayUrl: string; /** The talent page builder: the "open the editor" door when no workspace exists (TUL-990). */ editorUrl?: string; /** Published own-site URL (TUL-32), when live. */ siteUrl?: string | null } | null;
   /** 1D: server-side check of the finish URL. Omitted = unchecked (legacy callers). */
-  liveCheck?: { ok: boolean } | null;
+  liveCheck?: { ok: boolean; reason?: string } | null;
+  /** TUL-818: the publish write succeeded (talent_sites / agency site is published). */
+  published?: boolean;
   urlDiffers?: boolean;
   firstService?: string | null;
   /** Studio only: the owner was provisioned as a bookable provider (essentials.ownerProvides), so the studio is not inquiry-only. */
@@ -92,11 +110,17 @@ type ArrivalInput = {
  */
 export function arrivalFromStamp(input: ArrivalInput): ArrivalPayload {
   const base = baseArrival(input);
-  const editorHref = input.site?.editorUrl ?? input.talent?.todayUrl;
+  const editorHref = input.site?.editorUrl ?? input.talent?.editorUrl ?? input.talent?.todayUrl;
   const panelHref = input.path === "talent" ? input.talent?.todayUrl : (input.site?.adminPath ?? input.talent?.todayUrl);
   const common = { editorHref, panelHref, firstService: input.firstService ?? null, urlDiffers: input.urlDiffers === true ? true : undefined };
   if (input.liveCheck && !input.liveCheck.ok) {
-    return { ...base, ...common, variant: "draft_saved", siteLive: false, verified: false, fallbackReason: "failed" };
+    return {
+      ...base, ...common, variant: "draft_saved", siteLive: false, verified: false, fallbackReason: "failed",
+      draftReason: toDraftReason(input.liveCheck.reason),
+      published: input.published === true,
+      liveVariant: base.variant,
+      ...(base.siteLive ? { liveSiteLive: true } : {}),
+    };
   }
   const studio = input.path === "business" && !input.reusedExisting && !!input.site && (base.variant === "business" || base.variant === "fallback");
   const admin = input.site?.adminPath.replace(/\/+$/, "");
@@ -191,4 +215,34 @@ function baseArrival(input: ArrivalInput): ArrivalPayload {
     primary: { label: "open_my_website", href: input.site.editorUrl },
     quiet: input.path === "both" ? "own_page_drafted" : "signed_in_as",
   };
+}
+
+/**
+ * TUL-818: a retry re-checks the address instead of replaying the stored
+ * draft. A passing check promotes the draft to the arrival it would have been;
+ * a failing one keeps the draft with the fresh reason. Pure.
+ */
+export function applyRetryCheck(arrival: ArrivalPayload, check: { ok: boolean; reason?: string }): ArrivalPayload {
+  if (arrival.variant !== "draft_saved") return arrival;
+  if (!check.ok) return { ...arrival, draftReason: toDraftReason(check.reason) };
+  // Drafts stored before TUL-818 carry no liveVariant: infer it from the stored primary.
+  const talentSite = arrival.primary.label === "open_my_site";
+  const variant: ArrivalVariant = arrival.liveVariant ?? (talentSite || arrival.businessName === null ? "talent" : "business");
+  const siteLive = arrival.liveVariant ? arrival.liveSiteLive === true : talentSite;
+  const next: ArrivalPayload = { ...arrival, variant, verified: true, siteLive: siteLive ? true : undefined };
+  delete next.draftReason;
+  delete next.published;
+  delete next.liveVariant;
+  delete next.liveSiteLive;
+  delete next.fallbackReason;
+  return next;
+}
+
+/** TUL-819: the one-line, plain-language reason key for the draft screen. */
+export function draftReasonKey(arrival: Pick<ArrivalPayload, "draftReason" | "published">): string {
+  const base = "public.onboarding.arrival.draftWhy";
+  if (arrival.draftReason === "no_url" || arrival.draftReason === "no_name") return `${base}.notCreated`;
+  if (arrival.published) return `${base}.publishedNotReachable`;
+  if (arrival.draftReason === "name_missing") return `${base}.oldContent`;
+  return `${base}.notReachable`;
 }

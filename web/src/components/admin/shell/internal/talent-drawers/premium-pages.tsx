@@ -9,8 +9,11 @@
 // Bodies copied byte-for-byte from talent-drawers.tsx; no behavior change.
 // ════════════════════════════════════════════════════════════════════
 
+import { openUpgrade } from "@/components/talent/upgrade/open-upgrade";
 import { useCallback, useEffect, useState } from "react";
 import { useT } from "@/i18n/use-t";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { formatTalentPlanPrice } from "@/lib/billing/talent-plan-price";
 import { useDashboardText } from "../dashboard-i18n";
 import { personalPageLabel } from "./personal-page-label";
 import { interpolate } from "@/i18n/interpolate";
@@ -62,12 +65,12 @@ const TIER_PLAN_KEY: Partial<Record<TalentSubscriptionTier, TalentPlanKey>> = {
 const COMPARE_TIERS = ["free", "max"] as const;
 
 /** Monthly price for a tier, from the single catalog source. USD only. */
-function tierMonthlyPrice(tier: TalentSubscriptionTier): string | null {
+function tierMonthlyPrice(tier: TalentSubscriptionTier, locale: string): string | null {
   const planKey = TIER_PLAN_KEY[tier];
   if (!planKey) return null;
   const cents = PLAN_CATALOG[planKey]?.monthlyPriceCents;
   if (typeof cents !== "number") return null;
-  return `$${(cents / 100).toFixed(0)}`;
+  return formatTalentPlanPrice(cents, locale);
 }
 
 // ─── Tier-group discriminant → catalog-key map (render via t(), keep raw union) ──
@@ -113,6 +116,7 @@ function LockedBadge({ requiredTier }: { requiredTier: TalentSubscriptionTier })
 // is the single source for the rows below AND the per-feature gates.
 
 export function TalentTierCompareDrawer() {
+  const locale = useDashboardLocale();
   const { state, closeDrawer, setTalentTier, bridgeTalentSelfProfile } = useAdminShell();
   const profileCode = bridgeTalentSelfProfile?.profileCode ?? null;
   const t = useT();
@@ -189,9 +193,9 @@ export function TalentTierCompareDrawer() {
                   source, which is exactly how a stale price reaches a customer.
                   Replace with a catalog read when this drawer gets a loader. */}
               <div className="mt-2 text-[13px] font-semibold">
-                {tierMonthlyPrice(tierId)
+                {tierMonthlyPrice(tierId, locale)
                   ? interpolate(t("dashboard.talentDrawers.premiumPages.perMonth"), {
-                      price: tierMonthlyPrice(tierId)!,
+                      price: tierMonthlyPrice(tierId, locale)!,
                     })
                   : t("dashboard.talentDrawers.premiumPages.freePrice")}
               </div>
@@ -308,6 +312,7 @@ export function TalentTierCompareDrawer() {
  *    live the moment the price IDs land in env; nothing here needs redeploying.
  */
 function TierUpgradeCta({ current }: { current: TalentSubscriptionTier }) {
+  const locale = useDashboardLocale();
   const { tenantSlug } = useAdminShell();
   const t = useT();
   const [pending, setPending] = useState<TalentSubscriptionTier | null>(null);
@@ -344,7 +349,7 @@ function TierUpgradeCta({ current }: { current: TalentSubscriptionTier }) {
     <div className="mt-4">
       <div className="flex flex-wrap gap-[10px]">
         {upgradeable.map((tier) => {
-          const price = tierMonthlyPrice(tier);
+          const price = tierMonthlyPrice(tier, locale);
           const label = TALENT_TIER_META[tier].label;
           return (
             <PrimaryButton
@@ -492,7 +497,8 @@ export function TalentPageTemplateDrawer() {
               key={tpl.id}
               onClick={() => {
                 if (isLocked) {
-                  openDrawer("talent-tier-compare");
+                  closeDrawer();
+                  openUpgrade({ feature: sigLocked ? "extra-sections" : "template-picker", from: "template-drawer" });
                 }
               }}
               style={{

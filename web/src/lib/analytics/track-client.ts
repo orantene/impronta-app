@@ -1,11 +1,13 @@
 "use client";
 
+import { redactSecretPath } from "./redact-secret-path";
 import type { ProductAnalyticsEventName, ProductAnalyticsPayload } from "./product-events";
 import { getSessionId } from "./session-id";
 
 function postInternal(name: ProductAnalyticsEventName, payload: ProductAnalyticsPayload) {
   if (typeof window === "undefined") return;
-  const path = window.location?.pathname ?? null;
+  const rawPath = window.location?.pathname ?? null;
+  const path = rawPath ? redactSecretPath(rawPath) : null;
   // Promote `tenant_id` and `referrer` out of the payload into top-level body
   // fields the events route understands: `tenant_id` is written to the
   // analytics_events.tenant_id COLUMN (so per-tenant queries match), and

@@ -38,6 +38,28 @@ test("the isolated config is its own testDir and the other configs never collect
   assert.match(readFileSync("package.json", "utf8"), /"qa:paid-isolated": "playwright test -c playwright\.isolated\.config\.ts"/);
 });
 
+const mint = readFileSync("scripts/qa/paid-qa-mint-links.mts", "utf8");
+const teardown = readFileSync("e2e-isolated/global-teardown.ts", "utf8");
+
+test("the pay-link minter refuses non-isolated targets and live keys before it writes, and only mints local URLs", () => {
+  const firstWrite = mint.indexOf("await submitInquiry(");
+  assert.ok(firstWrite > -1);
+  const head = mint.slice(0, firstWrite);
+  assert.match(head, /assertIsolatedJourneysTarget\(process\.env, \{ requireIsolatedFlag: true \}\)/);
+  assert.match(head, /\(sk\|pk\|rk\)_test_/);
+  assert.match(head, /\^sk_test_\/\.test\(process\.env\.STRIPE_SECRET_KEY/);
+  assert.match(head, /if \(!isLocalHost\(base\)\) throw/);
+  assert.match(mint, /out\.links\[c\] = `\$\{base\}\/pay\/\$\{pay\.payCode\}`/);
+});
+
+test("global-setup mints only when no links are passed, and global-teardown cancels what is left open", () => {
+  assert.match(setup, /if \(!process\.env\.PAID_QA_PAY_URLS && process\.env\.PAID_QA_MINT !== "0"\) mintPayLinks\(base\)/);
+  assert.ok(setup.indexOf("assertIsolatedJourneysTarget(process.env") < setup.indexOf("mintPayLinks(base);"), "the guard runs before any mint");
+  assert.match(teardown, /paid-qa-mint-links\.mts", "--teardown"/);
+  assert.match(config, /globalTeardown: "\.\/e2e-isolated\/global-teardown\.ts"/);
+  assert.match(config, /testMatch: \/paid-qa\(-after-pay\)\?\\\.spec\\\.ts\//);
+});
+
 const after = readFileSync("e2e-isolated/paid-qa-after-pay.spec.ts", "utf8");
 
 test("the after-pay spec never pays or types a card, never writes the database, and skips until its feature is live", () => {

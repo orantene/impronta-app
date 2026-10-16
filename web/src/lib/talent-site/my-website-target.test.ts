@@ -71,9 +71,10 @@ test("the build resolves a timezone from the city so hours are written", () => {
 });
 
 function recordingStore(calls: string[]): EssentialsStore {
+  let inserted = 0;
   return {
-    async listOfferings() { return []; },
-    async insertOfferings() { calls.push("offerings"); },
+    async listOfferings() { return Array.from({ length: inserted }, (_, i) => ({ id: `o${i}`, title: `o${i}`, status: "published" })) as never; },
+    async insertOfferings(_o, rows) { inserted += rows.length; calls.push("offerings"); },
     async updateOffering() {},
     async upsertTalentHours({ timezone }) { calls.push(`hours:${timezone}`); return !!timezone; },
     async setTalentBookable() { calls.push("bookable"); },

@@ -12,6 +12,8 @@ import {
   AuthNotice,
   AuthSubmitButton,
 } from "@/components/auth/auth-ui";
+import { pickAuthEmail, readAuthEmailDraft, readAuthNameDraft, writeAuthEmailDraft, writeAuthNameDraft } from "@/lib/auth/email-draft";
+import { useFocusFirstInvalidOnError } from "@/lib/auth/use-focus-first-invalid";
 import { createTranslator } from "@/i18n/messages";
 import { withLocaleHref } from "@/i18n/pathnames";
 import { AgeTermsCheckbox } from "@/components/auth/age-terms-checkbox";
@@ -66,6 +68,8 @@ export function RegisterForm({
    * passwordless wrapper renders it once for BOTH lanes (code + password).
    */
   hideFooter = false,
+  collectName = false,
+  clientSignup = false,
 }: {
   nextPath?: string;
   submitLabel?: string;
@@ -73,6 +77,10 @@ export function RegisterForm({
   /** Pre-fills the email field (e.g. from the get-started lead) — editable. */
   defaultEmail?: string;
   hideFooter?: boolean;
+  /** TUL-762: ask for a name; it rides as `full_name` into the new profile. */
+  collectName?: boolean;
+  /** TUL-771: explicit client sign-up (`?as=client`); the verified account skips the role screen. */
+  clientSignup?: boolean;
 }) {
   const t = createTranslator(locale);
   const [state, formAction, pending] = useActionState<
@@ -81,6 +89,7 @@ export function RegisterForm({
   >(signUpWithEmail, undefined);
   // "Use a different email" pins the form back until the next signup attempt.
   const [backToForm, setBackToForm] = useState(false);
+  useFocusFirstInvalidOnError(state?.error);
 
   // Confirmation required: the code box replaces the form for that address.
   // The confirmation email carries the link too, so both ways still work.
@@ -92,6 +101,7 @@ export function RegisterForm({
           nextPath={nextPath}
           locale={locale}
           onChangeEmail={() => setBackToForm(true)}
+          clientSignup={clientSignup}
         />
         {hideFooter ? null : (
           <RegisterLoginFooter nextPath={nextPath} locale={locale} />
@@ -103,6 +113,7 @@ export function RegisterForm({
   return (
     <form
       action={formAction}
+      noValidate // TUL-893: the server answers in the page language; no English browser tooltip
       className="space-y-3.5"
       onSubmit={() => setBackToForm(false)}
     >
@@ -114,6 +125,24 @@ export function RegisterForm({
         <AuthNotice tone="success">{state.message}</AuthNotice>
       ) : null}
 
+      {collectName ? (
+        <AuthField label={t("public.auth.form.name")} htmlFor="full_name">
+          <input
+            id="full_name"
+            name="full_name"
+            type="text"
+            autoComplete="name"
+            required
+            maxLength={120}
+            defaultValue={readAuthNameDraft()}
+            onChange={(e) => writeAuthNameDraft(e.target.value)}
+            placeholder={t("public.auth.form.namePlaceholder")}
+            className={AUTH_INPUT_CLASS}
+            style={AUTH_INPUT_STYLE}
+          />
+        </AuthField>
+      ) : null}
+
       <AuthField label={t("public.auth.form.email")} htmlFor="email">
         <input
           id="email"
@@ -121,7 +150,9 @@ export function RegisterForm({
           type="email"
           autoComplete="email"
           required
-          defaultValue={defaultEmail}
+          aria-invalid={state?.error ? true : undefined}
+          defaultValue={pickAuthEmail(readAuthEmailDraft(), defaultEmail)}
+          onChange={(e) => writeAuthEmailDraft(e.target.value)}
           placeholder={t("public.auth.form.emailPlaceholder")}
           className={AUTH_INPUT_CLASS}
           style={AUTH_INPUT_STYLE}
@@ -145,6 +176,10 @@ export function RegisterForm({
           style={AUTH_INPUT_STYLE}
         />
       </AuthField>
+
+      <p className="text-[0.8125rem]" style={{ color: "var(--plt-muted)" }}>
+        {t("public.auth.register.passwordConfirmNote")}
+      </p>
 
       <AgeTermsCheckbox locale={locale} />
 

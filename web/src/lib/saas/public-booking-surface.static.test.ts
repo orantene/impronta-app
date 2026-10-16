@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { isPathAllowedForHostKind } from "./surface-allow-list";
+import { PUBLIC_SLOTS_PATH } from "../scheduling/public-slots-workspace";
 
 /**
  * public-booking-surface.static.test.ts — the slot picker's URL and the
@@ -27,9 +28,16 @@ test("the slot picker's endpoint is reachable on every public surface", () => {
     join(SRC, "components/public-booking/SlotPicker.tsx"),
     "utf8",
   );
-  const match = picker.match(/fetch\(\s*`(\/api\/[^?`]+)/);
-  assert.ok(match, "SlotPicker no longer fetches a literal /api path — repoint this test");
-  const path = match[1];
+  // TUL-690: the picker builds its URL through publicSlotsUrl (it adds the
+  // `/w/<slug>` workspace), so the path is pinned in that helper. TUL-977: the
+  // fetch goes through `loadPublicSlots` (a deadline).
+  assert.match(
+    picker,
+    /loadPublicSlots\(\s*publicSlotsUrl\(/,
+    "SlotPicker no longer loads via loadPublicSlots(publicSlotsUrl(...)) -- repoint this test",
+  );
+  const path = PUBLIC_SLOTS_PATH;
+  assert.match(path, /^\/api\//);
 
   // An appointment can be booked from an agency storefront, a talent site, the
   // app host or the marketing apex, so the endpoint must clear every host kind
@@ -41,4 +49,21 @@ test("the slot picker's endpoint is reachable on every public surface", () => {
       `${path} is 404'd on host kind "${kind}" — add its prefix to SHARED_API_PREFIXES`,
     );
   }
+});
+
+test("TUL-21 agent endpoints are reachable wherever the slot endpoint is", () => {
+  for (const path of ["/api/public/booking/catalog", "/api/public/booking/mcp"]) {
+    for (const kind of ["app", "agency", "hub", "marketing"] as const) {
+      assert.equal(isPathAllowedForHostKind(kind, path), true, `${path} is 404'd on host kind "${kind}"`);
+    }
+  }
+});
+
+test("TUL-539: public open times fall back to demo roster hours when the row is missing", () => {
+  const loader = readFileSync(join(SRC, "lib/scheduling/public-open-times.ts"), "utf8");
+  assert.match(loader, /demoPublicBookingHoursFallback/);
+  assert.match(loader, /is_demo/);
+  assert.match(loader, /profile_code/);
+  const fallback = readFileSync(join(SRC, "lib/talent-site/demos/demo-hours-fallback.ts"), "utf8");
+  assert.match(fallback, /TAL-93005/);
 });

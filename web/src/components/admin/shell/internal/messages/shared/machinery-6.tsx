@@ -20,8 +20,9 @@ import type { Offer } from "./machinery-9";
 // status-labels.ts; the export alias keeps existing callers stable.
 import { TRANSACTION_STATUS_LABELS as TRANSACTION_STATUS_LABEL, TRANSACTION_STATUS_LABEL_KEYS } from "@/lib/status-labels";
 import { depositMoney } from "./deposit-money";
+import { paymentTabView, withLoadTimeout } from "./payment-tab-state";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 export { TRANSACTION_STATUS_LABELS as TRANSACTION_STATUS_LABEL } from "@/lib/status-labels";
-
 
 export function LogisticsTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: DetailsPov }) {
   const { toast } = useAdminShell();
@@ -237,6 +238,7 @@ function txStatusLabel(status: string, t: ReturnType<typeof useT>): string {
 export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: DetailsPov }) {
   const { toast, effectiveTenant } = useAdminShell();
   const t = useT();
+  const locale = useDashboardLocale();
   const isClient = pov === "client";
   // WS4 — the appointed inquiry coordinator (talent_coord) manages payment +
   // payout for THIS booking with admin-equivalent rights. Every money action
@@ -253,34 +255,34 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
   const [loadFailed, setLoadFailed] = useState(false);
   const [pending, startTransition] = useTransition();
 
-  // Latest-t ref: useT() returns a fresh closure each render, so putting t in
-  // reload's deps would rebuild reload every render and make the
-  // `useEffect(reload)` below refetch on every render (infinite loop). Read the
-  // translator off a ref (only used in the error branch) so reload stays stable.
+  // Latest-t ref keeps reload stable (t in its deps would refetch every render).
   const tRef = React.useRef(t);
   useEffect(() => {
     tRef.current = t;
   }, [t]);
 
+  const reqRef = React.useRef(0); // TUL-536: capped read below, never an endless "Cargando..."; reqRef drops stale answers.
   const reload = React.useCallback(() => {
+    const req = ++reqRef.current;
     setLoading(true);
     setLoadFailed(false);
-    loadInquiryPaymentState(effectiveTenant.slug, inquiry.id)
+    withLoadTimeout(loadInquiryPaymentState(effectiveTenant.slug, inquiry.id))
       .then((r) => {
+        if (req !== reqRef.current) return;
         if (r.ok) setState(r.data ?? null);
         else {
           setLoadFailed(true);
           toast(interpolate(tRef.current("dashboard.adminTabs.payment.loadStateFailed"), { error: r.error ?? "" }));
         }
       })
-      .catch(() => setLoadFailed(true))
-      .finally(() => setLoading(false));
+      .catch(() => { if (req === reqRef.current) setLoadFailed(true); }).finally(() => { if (req === reqRef.current) setLoading(false); });
   }, [inquiry.id, effectiveTenant.slug, toast]);
 
   useEffect(() => { reload(); }, [reload]);
 
   const txn = state?.transaction;
   const txStatus = txn?.status ?? null;
+  const view = paymentTabView({ loading, failed: loadFailed, state }, locale);
   const totalCents = state?.totalRevenueCents ?? (fallbackTotal ? fallbackTotal * 100 : null);
   const currency = state?.currency ?? fallbackCurrency;
 
@@ -303,8 +305,7 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
         <DetailField
           label={t("dashboard.adminTabs.payment.status")}
           value={
-            loading ? t("dashboard.adminTabs.loading")
-              : loadFailed ? t("dashboard.adminTabs.payment.loadFailedShort")
+            view.kind !== "none" && view.kind !== "pending" ? view.label
               : txStatus ? txStatusLabel(txStatus, t)
               : state?.bookingId ? t("dashboard.adminTabs.payment.noTransactionYet")
               : t("dashboard.adminTabs.payment.noBookingYet")
@@ -312,9 +313,8 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
         />
         {txn && (
           <>
-            <DetailField label={t("dashboard.adminTabs.payment.netAmount")} value={formatCents(txn.netAmountCents, txn.currency)} />
-            {txn.paidAt && <DetailField label={t("dashboard.adminTabs.payment.paidAt")} value={new Date(txn.paidAt).toLocaleString()} />}
-            {txn.failureReason && <DetailField label={t("dashboard.adminTabs.payment.failureReason")} value={txn.failureReason} />}
+            {!isClient && <DetailField label={t("dashboard.adminTabs.payment.netAmount")} value={formatCents(txn.netAmountCents, txn.currency)} />}
+            {view.rows.map((row) => <DetailField key={row.label} label={row.label} value={row.value} />)}
           </>
         )}
         {loadFailed && !loading && (
@@ -322,7 +322,7 @@ export function PaymentTab({ inquiry, pov }: { inquiry: InquiryRecord; pov: Deta
             <button type="button" onClick={reload} style={ghostBtn()}>{t("dashboard.adminTabs.payment.retry")}</button>
           </div>
         )}
-        {isAdmin && txStatus === "paid" && (
+        {isAdmin && view.kind === "paid" && (
           <div className="mt-2.5">
             <Link href="/admin/orders" data-pago-refund-link="" style={ghostBtn()}>{t("dashboard.adminTabs.payment.refundInOrders")}</Link>
           </div>

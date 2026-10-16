@@ -28,6 +28,8 @@ export function Picker<Item>({
   noResultsLabel,
   testId,
   extra,
+  typed,
+  typedMinLength = 2,
 }: {
   id: string;
   label: string;
@@ -46,6 +48,10 @@ export function Picker<Item>({
   testId: string;
   /** Rendered under the list (the "Other" affordance). */
   extra?: React.ReactNode;
+  /** TUL-894: accept what was typed when no suggestion is picked (a city the list does not know). */
+  typed?: { label: (text: string) => string; make: (text: string) => Item };
+  /** Shortest text that offers the typed option (cities 2; categories 1). */
+  typedMinLength?: number;
 }) {
   const [query, setQuery] = useState("");
   const [items, setItems] = useState<Item[]>([]);
@@ -126,6 +132,18 @@ export function Picker<Item>({
               </button>
             ))
           )}
+          {typed && query.trim().length >= typedMinLength ? (
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => { onPick(typed.make(query.trim())); setOpen(false); }}
+              className="flex w-full items-start px-3 py-2 text-left text-[0.9375rem] font-medium"
+              style={{ color: "var(--tl-ink)", borderBottom: "1px solid var(--tl-hairline)" }}
+              data-testid={`${testId}-use-typed`}
+            >
+              {typed.label(query.trim())}
+            </button>
+          ) : null}
           {extra}
         </div>
       ) : null}
