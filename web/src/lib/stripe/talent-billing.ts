@@ -446,11 +446,13 @@ export async function syncTalentSubscriptionToDb(
 
     // Read prior plan before overwrite so D6 domain grace can detect loss /
     // restore of Web Office custom-domain access. Money/renewal = D5.
-    const { data: profileBefore } = await sb
+    const { data: profileBefore, error: profileBeforeError } = await sb
       .from("talent_profiles")
       .select("talent_plan_key")
       .eq("id", talentProfileId)
       .maybeSingle();
+    // A failed read leaves previousPlanKey null, which reconcile treats as "no transition".
+    if (profileBeforeError) logServerError("talent-billing.syncSubscription.planKeyBefore", profileBeforeError);
     const previousPlanKey =
       (profileBefore as { talent_plan_key?: string | null } | null)?.talent_plan_key ??
       null;

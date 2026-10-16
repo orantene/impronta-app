@@ -400,11 +400,16 @@ export async function sweepTalentDomainPlanGrace(
         ),
       ].slice(0, limit);
       for (const talentProfileId of profileIds) {
-        const { data: profile } = await admin
+        const { data: profile, error: profileError } = await admin
           .from("talent_profiles")
           .select("talent_plan_key")
           .eq("id", talentProfileId)
           .maybeSingle();
+        if (profileError) {
+          // Never start a grace (and detach a domain) off a plan we could not read.
+          logServerError("talentDomainGrace.sweep.planRead", profileError);
+          continue;
+        }
         const planKey =
           (profile as { talent_plan_key?: string | null } | null)?.talent_plan_key ??
           "talent_basic";

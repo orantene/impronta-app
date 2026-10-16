@@ -1,7 +1,7 @@
 import "server-only";
 
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
-import { logServerError } from "@/lib/server/safe-error";
+import { afterResponse } from "@/lib/server/after-response";
 
 /**
  * WAVE 1B D6 — in-app notices when a talent loses Web Office while holding a
@@ -22,16 +22,18 @@ export function notifyTalentDomainPlanGrace(params: {
 
   const eventId = `${type}:${params.talentProfileId}:${params.domain ?? "any"}:${params.graceEndsAt ?? "none"}`;
 
-  void dispatchEventNotifications({
-    type,
-    tenantId: null,
-    eventId,
-    payload: {
-      talentProfileId: params.talentProfileId,
-      graceEndsAt: params.graceEndsAt,
-      domain: params.domain,
-    },
-  }).catch((err) => {
-    logServerError("notifyTalentDomainPlanGrace", err);
-  });
+  afterResponse(
+    () =>
+      dispatchEventNotifications({
+        type,
+        tenantId: null,
+        eventId,
+        payload: {
+          talentProfileId: params.talentProfileId,
+          graceEndsAt: params.graceEndsAt,
+          domain: params.domain,
+        },
+      }),
+    "notifyTalentDomainPlanGrace",
+  );
 }
