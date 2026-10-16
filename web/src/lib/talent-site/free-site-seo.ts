@@ -1,8 +1,9 @@
 /**
  * Free personal website — per-page SEO scoping (pure).
  *
- * SEO is a Web Office capability (`personalSiteSeo`). Two halves, both here so
- * the write side and the read side cannot drift:
+ * SEO is a Web Office capability (`personalSiteSeo`), except the page title and
+ * description, which every plan may set (`personalSiteSeoBasic`, TUL-587).
+ * Two halves, both here so the write side and the read side cannot drift:
  *
  *   1. WRITE — `stripTalentSiteSeoPatch` removes the SEO columns from a save
  *      patch when the talent lacks the capability. The save still SUCCEEDS: a
@@ -30,6 +31,9 @@ export const TALENT_SITE_SEO_PATCH_KEYS = [
   "json_ld",
 ] as const;
 
+/** The two columns every plan may write and render. */
+export const TALENT_SITE_SEO_BASIC_KEYS = ["meta_title", "meta_description"] as const;
+
 export type TalentSiteSeoPatchKey = (typeof TALENT_SITE_SEO_PATCH_KEYS)[number];
 
 /**
@@ -40,10 +44,13 @@ export type TalentSiteSeoPatchKey = (typeof TALENT_SITE_SEO_PATCH_KEYS)[number];
 export function stripTalentSiteSeoPatch<T extends Record<string, unknown>>(
   patch: T,
   canEditSeo: boolean,
+  canEditBasicSeo = false,
 ): Record<string, unknown> {
   if (canEditSeo) return { ...patch };
   const out: Record<string, unknown> = {};
   const blocked = new Set<string>(TALENT_SITE_SEO_PATCH_KEYS);
+  // Basic SEO keeps title + description; every other SEO column is still dropped.
+  if (canEditBasicSeo) for (const k of TALENT_SITE_SEO_BASIC_KEYS) blocked.delete(k);
   for (const [key, value] of Object.entries(patch)) {
     if (!blocked.has(key)) out[key] = value;
   }
@@ -74,12 +81,13 @@ export interface TalentSiteSeoFields {
 export function scrubTalentSiteSeo<T extends TalentSiteSeoFields>(
   page: T,
   canRenderSeo: boolean,
+  canRenderBasicSeo = false,
 ): T {
   if (canRenderSeo) return page;
   return {
     ...page,
-    metaTitle: null,
-    metaDescription: null,
+    metaTitle: canRenderBasicSeo ? page.metaTitle : null,
+    metaDescription: canRenderBasicSeo ? page.metaDescription : null,
     ogTitle: null,
     ogDescription: null,
     ogImageUrl: null,

@@ -159,11 +159,16 @@ function holdRefusal(reason: string | undefined): PurchaseRefusalReason {
  * Step 5c for a booking: hold every applied promo against the order, BEFORE
  * the payment row. All or nothing: a failed hold releases the ones before it.
  * The snapshots go on the held row now so settling needs only the order id.
+ *
+ * A request-to-book has no order when it is sent: pass `requestId` (the
+ * inquiry id) instead and the hold is anchored on `booking_id` for up to 24h
+ * (see `promos/redemption/request-holds.ts`).
  */
 export async function holdBookingPromos(
   admin: SupabaseClient,
   input: {
-    orderId: string;
+    orderId?: string | null;
+    requestId?: string | null;
     customerId: string;
     price: BookingPromoPrice;
     flow: HoldFlow;
@@ -171,13 +176,17 @@ export async function holdBookingPromos(
   },
   deps: Pick<BookingPromoDeps, "holdPromo"> = DEPS,
 ): Promise<{ ok: true; redemptionIds: string[] } | { ok: false; reason: PurchaseRefusalReason; why: string }> {
+  if (!input.orderId && !input.requestId) {
+    return { ok: false, reason: "promo_unavailable", why: "promo hold needs an order or a request" };
+  }
   const held: string[] = [];
   for (const p of input.price.plan) {
     const res = await deps.holdPromo(admin, {
       promoId: p.promoId,
       customerId: input.customerId,
       flow: input.flow,
-      orderId: input.orderId,
+      orderId: input.orderId ?? null,
+      bookingId: input.orderId ? null : input.requestId ?? null,
       discountCents: p.discountCents,
       isPricePromo: p.isPricePromo,
       source: p.source,
