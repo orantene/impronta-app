@@ -13,14 +13,10 @@
  */
 
 import { useEffect, useState } from "react";
-import { loadClientReviewablesAction } from "@/lib/reviews/review-actions";
-import {
-  createReviewRequestAction,
-  loadReviewRequestsForOwnerAction,
-} from "@/lib/reviews/review-request-actions";
+import { loadReviewAskBookingsAction, loadReviewAskPicksAction } from "@/lib/reviews/review-ask-load-action";
+import { createReviewRequestAction } from "@/lib/reviews/review-request-actions";
 import type { ReviewableCounterparty } from "@/lib/reviews/review-types";
-import { reviewInviteCandidates, type ReviewInviteCandidate } from "@/lib/reviews/review-invite-candidates";
-import { loadTalentClients } from "@/lib/talent/clients-actions";
+import type { ReviewInviteCandidate } from "@/lib/reviews/review-invite-candidates";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 
@@ -88,27 +84,19 @@ export function AskForReviewCard({
     // TUL-981: a server action that never settles must not leave the card on
     // "Loading your completed bookings" forever; after the cap it degrades to
     // the email path like any other failure.
-    withLoadTimeout(
-      Promise.all([
-        loadClientReviewablesAction(tenantSlug),
-        loadReviewRequestsForOwnerAction(tenantSlug, talentProfileId),
-        loadTalentClients(talentProfileId).catch(() => ({ ok: false as const })),
-      ]),
-    )
-      .then(([reviewables, requests, clients]) => {
+    // TUL-981: bookings + filed invites come back in ONE server action (actions
+    // from one client run in sequence, so three calls stacked to ~3 s). The
+    // client list only feeds the email picker; it loads after the card is ready.
+    withLoadTimeout(loadReviewAskBookingsAction(tenantSlug, talentProfileId))
+      .then(({ reviewables, askedBookingIds: asked }) => {
         if (cancelled) return;
         setBookings(reviewables);
-        const askedEmails = new Set(
-          requests.map((r) => r.invitedEmail?.trim().toLowerCase()).filter((e): e is string => !!e),
-        );
-        setClientPicks(clients.ok ? reviewInviteCandidates(clients.items, askedEmails) : []);
-        setAskedBookingIds(
-          new Set(
-            requests
-              .map((r) => r.bookingId)
-              .filter((id): id is string => !!id),
-          ),
-        );
+        setAskedBookingIds(new Set(asked));
+        loadReviewAskPicksAction(tenantSlug, talentProfileId)
+          .then((picks) => {
+            if (!cancelled) setClientPicks(picks);
+          })
+          .catch(() => {});
       })
       .catch(() => {
         if (cancelled) return;

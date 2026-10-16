@@ -99,3 +99,11 @@ test("home line is null with no bookings and pairs earned with given", () => {
   assert.ok(!line.includes("—"));
   assert.ok(money(1080_00, "USD", "en").includes("1,080"));
 });
+
+test("a Cortesía (list = discount, not a price promo) is gifted value and earns nothing", () => {
+  const r = computePromoResult({ promoId: "p1", rows: [row({ is_price_promo: false, list_cents: 800_00, discount_cents: 800_00 })] });
+  assert.equal(r.giftedCents, 800_00);
+  assert.equal(r.givenCents, 0);
+  assert.equal(r.earnedCents, 0);
+  assert.equal(r.bookings, 1);
+});

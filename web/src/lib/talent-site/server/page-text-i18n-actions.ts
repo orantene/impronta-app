@@ -76,7 +76,9 @@ export async function loadMaxSitePageTextAction(input: {
     ok: true,
     data: {
       primary,
-      seoAllowed: g.capabilities.personalSiteSeo === true,
+      // Title + description are on every plan (personalSiteSeoBasic, TUL-587); the
+      // advanced columns (canonical, noindex, OG, JSON-LD) are not part of this form.
+      seoAllowed: g.capabilities.personalSiteSeoBasic === true,
       title: withPrimary(row.title_i18n, row.title, primary),
       metaTitle: withPrimary(row.meta_title_i18n, row.meta_title, primary),
       metaDescription: withPrimary(row.meta_description_i18n, row.meta_description, primary),
@@ -107,7 +109,7 @@ export async function saveMaxSitePageTextAction(input: {
     title_i18n: i18nPair(title, title[primary], primary),
     updated_at: new Date().toISOString(),
   };
-  const seoAllowed = g.capabilities.personalSiteSeo === true;
+  const seoAllowed = g.capabilities.personalSiteSeoBasic === true;
   if (seoAllowed && input.metaTitle) {
     const m = clean(input.metaTitle);
     patch.meta_title = m[primary]?.slice(0, 70) ?? null;

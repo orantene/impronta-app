@@ -233,6 +233,9 @@
         "resentNotice": "Código nuevo enviado.",
         "verifySubmit": "Confirmar",
         "verifyPending": "Confirmando",
+        "progressVerifying": "Verificando tu código",
+        "progressCreating": "Creando tu cuenta",
+        "progressSetup": "Preparando tu página",
         "resendPrompt": "¿No llegó?",
         "resend": "Reenviar",
         "resendIn": "Reenviar en {seconds}s",
@@ -1824,9 +1827,10 @@
       "fees": {
         "service_subtotal": "Servicio",
         "base_reservation_fee": "Cargo de reserva",
-        "platform_fee": "Cargo de la plataforma",
+        "platform_fee": "Cargo por servicio de Tulala",
         "processing_fee": "Procesamiento de tarjeta",
-        "client_service_fee": "Cargo por servicio",
+        "card_fee_memo": "Comisión de tarjeta incluida en el precio (aprox.)",
+        "client_service_fee": "Cargo por servicio de Tulala",
         "total_charged": "Total",
         "nonRefundable": "Los cargos no son reembolsables."
       },
