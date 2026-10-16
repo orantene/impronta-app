@@ -22,9 +22,9 @@ export function MoneyPayoutsPanel({
 }) {
   return (
     <div style={{ marginTop: 12 }}>
-      {/* LEGAL_REVIEW_PENDING: merchant of record + 18+ (owner decision 2026-10-01) */}
+      {/* LEGAL_REVIEW_PENDING: seller / collect-and-pay-out + 18+ (owner decision 2026-10-01) */}
       <p style={{ fontSize: 13.5, color: COLORS.inkMuted, lineHeight: 1.5, margin: "0 0 12px" }}>
-        You are the merchant of record for card payments from your clients, through your own Stripe Connect account. Chargebacks and tax invoicing (CFDI in Mexico) are yours. You and your paying clients must be 18 or older.
+        You are the seller. Tulala collects your clients' card payments and pays out your share. Tax invoicing for your services (CFDI in Mexico) is yours. You and your paying clients must be 18 or older.
       </p>
       <p style={{ fontSize: 13.5, color: COLORS.inkMuted, lineHeight: 1.5, margin: "0 0 12px" }}>
         Only card payments made through Tulala become payouts. Cash and transfers you record went

@@ -9,7 +9,7 @@ import { RefundsEs } from "./refunds-es";
 import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
 
 // DRAFT PENDING LEGAL REVIEW (2026-10-01). Expanded from the Terms Payments
-// section. Talent is merchant of record; refunds follow the talent's selected
+// section. Tulala collects and pays out (TUL-43 option A); refunds follow the talent's selected
 // policy; processing fees are non-refundable. Do not ship to production until
 // reviewed.
 
@@ -54,10 +54,11 @@ export default async function RefundsPage() {
           heading: "Who is the seller",
           body: (
             <>
-              {/* LEGAL_REVIEW_PENDING: talent is merchant of record (owner decision 2026-10-01) */}
+              {/* LEGAL_REVIEW_PENDING: collect-and-pay-out model (TUL-43 option A, Oran 2026-10-16); counsel review pending */}
               <p>
-                {"The talent is the merchant of record for each card payment they receive, through their own Stripe Connect account. The talent or workspace is the seller. "}
-                {PLATFORM_BRAND.name} provides the platform and the payment processing tools.
+                {"The talent or workspace is the seller of the service. "}
+                {PLATFORM_BRAND.name} collects the card payment through Stripe and pays the
+                seller&rsquo;s share out, and provides the platform and the payment tools.
                 Card details are entered with Stripe and never touch {PLATFORM_BRAND.name}.
               </p>
               <p className="text-xs opacity-70">Pending legal review</p>
@@ -87,7 +88,8 @@ export default async function RefundsPage() {
               </p>
               <p>
                 Card processing fees are non-refundable. Neither the talent nor{" "}
-                {PLATFORM_BRAND.name} covers those fees when a refund is issued.
+                {PLATFORM_BRAND.name} covers those fees when a refund is issued. The{" "}
+                {PLATFORM_BRAND.name} service fee paid by the client is not refunded either.
               </p>
             </>
           ),
@@ -106,10 +108,11 @@ export default async function RefundsPage() {
           heading: "Chargebacks and disputes",
           body: (
             <p>
-              If a customer disputes a charge with their bank, chargebacks and disputes are
-              the talent&rsquo;s responsibility. If a dispute is lost, {PLATFORM_BRAND.name}{" "}
-              may deduct the disputed amount and any dispute fee from the talent&rsquo;s
-              future payouts.
+              If a customer disputes a charge with their bank, the dispute is raised
+              against {PLATFORM_BRAND.name}&rsquo;s payment account and {PLATFORM_BRAND.name}{" "}
+              handles it with the card network, with the talent&rsquo;s help on evidence. If a
+              dispute is lost, {PLATFORM_BRAND.name} may reverse the payout for that payment
+              and may recover the dispute fee from the seller&rsquo;s future payouts.
             </p>
           ),
         },

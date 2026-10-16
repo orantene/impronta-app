@@ -99,15 +99,15 @@ export default async function TermsPage() {
           heading: "Payments",
           body: (
             <>
-              {/* LEGAL_REVIEW_PENDING: talent is merchant of record (owner decision 2026-10-01) */}
+              {/* LEGAL_REVIEW_PENDING: collect-and-pay-out model (TUL-43 option A, Oran 2026-10-16); counsel review pending */}
               <p>
-                {"The talent is the merchant of record for each card payment they receive, through their own Stripe Connect account. Chargebacks, lost disputes, and tax invoicing (for example, the CFDI in Mexico) are the talent\u2019s responsibility."}
+                {"The talent or workspace is the seller of the service. For card payments, Tulala collects the client\u2019s payment through its payment processor, Stripe, and then pays the seller\u2019s share out to the seller\u2019s payout account. The seller is responsible for tax invoicing for the service (for example, the CFDI in Mexico). Tulala is responsible for invoicing its own fees and plans."}
               </p>
               <p>
-                The talent or workspace is the seller. {PLATFORM_BRAND.name} provides the
-                platform and the payment processing tools, using Stripe Connect. Card details
-                are entered with Stripe and never touch {PLATFORM_BRAND.name}. Funds go to the
-                talent or workspace once they have completed payout onboarding.
+                {PLATFORM_BRAND.name} provides the platform and the payment tools, using
+                Stripe. Card details are entered with Stripe and never touch{" "}
+                {PLATFORM_BRAND.name}. The seller&rsquo;s share is paid out once the talent or
+                workspace has completed payout onboarding, after refunds and processing fees.
               </p>
               <p className="text-xs opacity-70">Pending legal review</p>
               <p>
@@ -120,10 +120,11 @@ export default async function TermsPage() {
                 >
                   Refund policy
                 </Link>{" "}
-                page. If a customer disputes a charge with their bank, chargebacks and disputes
-                are the talent&rsquo;s responsibility. If a dispute is lost,{" "}
-                {PLATFORM_BRAND.name} may deduct the disputed amount and any dispute fee from
-                the talent&rsquo;s future payouts.
+                page. If a customer disputes a charge with their bank, the dispute is raised
+                against {PLATFORM_BRAND.name}&rsquo;s payment account and {PLATFORM_BRAND.name}{" "}
+                handles it with the card network, with the talent&rsquo;s help on evidence. If a
+                dispute is lost, {PLATFORM_BRAND.name} may reverse the payout for that payment
+                and may recover the dispute fee from the seller&rsquo;s future payouts.
               </p>
               <p>
                 Card processing fees: every card payment carries a processing fee that the
@@ -142,7 +143,8 @@ export default async function TermsPage() {
               <p>
                 Service fee: customers pay a {PLATFORM_BRAND.name} service fee of {clientServiceFeePercentLabel()} on top of
                 the booking price. It is shown at checkout before the customer pays and is
-                separate from the card processing fee described above. Commission and fees for
+                separate from the card processing fee described above, and it is not refunded
+                when a booking is refunded. Commission and fees for
                 talents are disclosed in the plans.
               </p>
             </>
