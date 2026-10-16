@@ -49,3 +49,20 @@ test("a USD order still opens a USD booking", async () => {
   await openPurchaseBooking(admin as never, { ...base, currency: "USD" });
   assert.equal(inserted[0]?.currency_code, "USD");
 });
+
+test("TUL-62: signed-in actor stamps agency_bookings.client_user_id", async () => {
+  const { admin, inserted } = fakeAdmin();
+  const res = await openPurchaseBooking(admin as never, {
+    ...base,
+    currency: "MXN",
+    clientUserId: "user-client-1",
+  });
+  assert.equal(res.ok, true);
+  assert.equal(inserted[0]?.client_user_id, "user-client-1");
+});
+
+test("TUL-62: guest purchase leaves client_user_id unset", async () => {
+  const { admin, inserted } = fakeAdmin();
+  await openPurchaseBooking(admin as never, { ...base, currency: "MXN", clientUserId: null });
+  assert.equal(inserted[0]?.client_user_id, undefined);
+});

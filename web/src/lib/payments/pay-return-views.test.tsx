@@ -115,3 +115,9 @@ test("TUL-437: every return state sits in the themed Shell (seller tokens, neutr
   assert.match(view, /INK = "var\(--token-color-ink, #1a1a1a\)"/);
   assert.doesNotMatch(view, /className="[^"]*\badmin-/);
 });
+
+test("TUL-533: /pay fee lines use the page's money format, not MX$1,000.00", () => {
+  const view = readFileSync("src/app/(public)/pay/[code]/CheckoutView.tsx", "utf8");
+  const block = view.slice(view.indexOf("<EngineFeeLines"), view.indexOf("/>", view.indexOf("<EngineFeeLines")));
+  assert.match(block, /formatMoney=\{\(cents\) => formatDashboardMoneyCents\(cents, props\.currency/);
+});
