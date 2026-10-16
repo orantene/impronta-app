@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
-import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { HeaderOverflowMenu } from "./header-overflow-menu";
@@ -45,7 +44,7 @@ describe("TUL-1001: the Builder Lab ⋯ menu is not clipped by the top bar", () 
   });
 
   it("server render: just the labelled button, closed, with no panel yet", () => {
-    const html = renderToStaticMarkup(createElement(HeaderOverflowMenu, { label: "Más acciones", children: createElement("span", null, "child") }));
+    const html = renderToStaticMarkup(<HeaderOverflowMenu label="Más acciones"><span>child</span></HeaderOverflowMenu>);
     assert.match(html, /aria-label="Más acciones"/);
     assert.match(html, /aria-expanded="false"/);
     assert.match(html, /data-header-overflow/);
