@@ -219,7 +219,7 @@ function HelpOverlay({
             style={{
               width: 28, height: 28, borderRadius: 7, border: "none",
               background: "rgba(11,11,13,0.06)", cursor: "pointer",
-              fontSize: 14, color: "rgba(11,11,13,0.55)",
+              fontSize: 14, color: "rgba(11,11,13,0.6)",
             }}
           >
             ×

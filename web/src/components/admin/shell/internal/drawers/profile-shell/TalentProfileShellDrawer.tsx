@@ -2504,7 +2504,7 @@ export function TalentProfileShellDrawer() {
             flex-shrink: 0;
             font-size: 10px;
             font-weight: 700;
-            color: rgba(11,11,13,0.42);
+            color: rgba(11,11,13,0.6);
             font-variant-numeric: tabular-nums;
           }
           [data-tulala-pshell] [data-details-rail-child][data-active="true"] [data-details-rail-child-count] {
@@ -3071,7 +3071,7 @@ export function TalentProfileShellDrawer() {
                         padding: "6px 12px 4px",
                         fontSize: 9.5, fontWeight: 700,
                         letterSpacing: 0.7, textTransform: "uppercase",
-                        color: "rgba(11,11,13,0.42)",
+                        color: "rgba(11,11,13,0.6)",
                         fontFamily: FONTS.body,
                       }}>{copy.term(group.label, group.labelEs)}</div>
                       {items.map(s => {
@@ -3208,7 +3208,7 @@ export function TalentProfileShellDrawer() {
                       padding: "6px 12px 4px",
                       fontSize: 9.5, fontWeight: 700,
                       letterSpacing: 0.7, textTransform: "uppercase",
-                      color: "rgba(11,11,13,0.42)",
+                      color: "rgba(11,11,13,0.6)",
                       fontFamily: FONTS.body,
                     }}>{copy.t("Audit")}</div>
                     <button

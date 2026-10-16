@@ -246,7 +246,7 @@ export function CountryDialPicker({
               <div style={{
                 padding: "12px 14px",
                 fontSize: 12,
-                color: "rgba(11,11,13,0.55)",
+                color: "rgba(11,11,13,0.6)",
               }}>
                 No matches
               </div>
@@ -300,7 +300,7 @@ export function CountryDialPicker({
                       <span style={{
                         fontSize: 11,
                         fontWeight: 600,
-                        color: "rgba(11,11,13,0.55)",
+                        color: "rgba(11,11,13,0.6)",
                         letterSpacing: 0.3,
                         flexShrink: 0,
                       }}>

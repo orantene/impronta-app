@@ -153,7 +153,7 @@ export function ThreadSearch({ open, messages, jumpTargets, onResultClick, onClo
           padding: "4px 10px",
           borderRadius: 999,
           background: filesOnly ? "rgba(15,79,62,0.10)" : "transparent",
-          color: filesOnly ? "#0F4F3E" : "rgba(11,11,13,0.55)",
+          color: filesOnly ? "#0F4F3E" : "rgba(11,11,13,0.6)",
           fontSize: 12, fontWeight: 600,
           cursor: "pointer",
           marginBottom: 14,
@@ -172,7 +172,7 @@ export function ThreadSearch({ open, messages, jumpTargets, onResultClick, onClo
           <>
             <div style={{
               fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4,
-              color: "rgba(11,11,13,0.55)",
+              color: "rgba(11,11,13,0.6)",
               textTransform: "uppercase",
               marginBottom: 6,
             }}>
@@ -208,7 +208,7 @@ export function ThreadSearch({ open, messages, jumpTargets, onResultClick, onClo
         {/* Results */}
         <div style={{
           fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4,
-          color: "rgba(11,11,13,0.55)",
+          color: "rgba(11,11,13,0.6)",
           textTransform: "uppercase",
           marginBottom: 6,
         }}>
@@ -234,7 +234,7 @@ export function ThreadSearch({ open, messages, jumpTargets, onResultClick, onClo
               }}
             >
               <div style={{
-                fontSize: 11, color: "rgba(11,11,13,0.55)",
+                fontSize: 11, color: "rgba(11,11,13,0.6)",
                 display: "flex", alignItems: "baseline", gap: 6,
               }}>
                 <span className="font-semibold">{m.senderName}</span>
