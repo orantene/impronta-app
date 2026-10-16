@@ -443,6 +443,83 @@ export async function buyDomain(
   }
 }
 
+export type RegistrarDomainInfo = {
+  attempted: boolean;
+  ok: boolean;
+  /** When the registrar says the domain expires (ISO), null when unknown. */
+  expiresAt: string | null;
+  autoRenew: boolean | null;
+  /** What the registrar charges to renew, USD cents; null when it does not say. Never guessed from the buy price. */
+  renewalPriceCents: number | null;
+  skippedReason: string | null;
+  errorCode: string | null;
+  errorMessage: string | null;
+};
+
+function toIso(value: unknown): string | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d.toISOString();
+  }
+  if (typeof value === "string" && value.trim()) {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d.toISOString();
+  }
+  return null;
+}
+
+/**
+ * Read one registered domain: expiry, auto-renew flag and renewal price
+ * (`GET /v1/registrar/domains/{domain}`). Parsing is deliberately tolerant of
+ * the field spellings the registrar uses; anything it does not state stays null
+ * so callers never bill or schedule off a guess.
+ */
+export async function getRegistrarDomain(
+  domain: string,
+  options: { env?: EnvLike; fetchFn?: FetchLike } = {},
+): Promise<RegistrarDomainInfo> {
+  const empty = { expiresAt: null, autoRenew: null, renewalPriceCents: null } as const;
+  const config = readVercelRegistrarConfig(options.env);
+  if (!config) {
+    return {
+      attempted: false,
+      ok: false,
+      ...empty,
+      skippedReason: "VERCEL_API_TOKEN/VERCEL_TOKEN is not configured.",
+      errorCode: null,
+      errorMessage: null,
+    };
+  }
+  const fetchFn = options.fetchFn ?? fetch;
+  const url = `https://api.vercel.com/v1/registrar/domains/${encodeURIComponent(domain)}${teamQuery(config)}`;
+  try {
+    const response = await fetchFn(url, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${config.token}`, Accept: "application/json" },
+    });
+    if (!response.ok) {
+      const err = await parseVercelError(response);
+      return { attempted: true, ok: false, ...empty, skippedReason: null, errorCode: err.code, errorMessage: err.message };
+    }
+    const raw = (await response.json()) as Record<string, unknown>;
+    const body = (typeof raw.domain === "object" && raw.domain !== null ? raw.domain : raw) as Record<string, unknown>;
+    const renewal = body.renewalPrice ?? body.renewal_price ?? body.renewPrice;
+    return {
+      attempted: true,
+      ok: true,
+      expiresAt: toIso(body.expiresAt ?? body.expires_at ?? body.expirationDate),
+      autoRenew: typeof body.autoRenew === "boolean" ? body.autoRenew : null,
+      renewalPriceCents: typeof renewal === "number" ? toPriceCents(renewal) : null,
+      skippedReason: null,
+      errorCode: null,
+      errorMessage: null,
+    };
+  } catch (error) {
+    logServerError("vercelRegistrar.getDomain", error);
+    return { attempted: true, ok: false, ...empty, skippedReason: null, errorCode: "network_error", errorMessage: "Domain lookup failed." };
+  }
+}
+
 export type DomainAutoRenewResult = {
   attempted: boolean;
   updated: boolean;
