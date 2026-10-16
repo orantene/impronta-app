@@ -11,7 +11,8 @@ import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { assertTicketAccess } from "@/lib/support/support-access";
 import { supportEngine } from "@/lib/support/support-engine";
-import { insightRowsToCorpus, retrieveHelpEntries } from "@/lib/support/help-corpus";
+import { insightRowsToCorpus } from "@/lib/support/help-corpus";
+import { retrieveHelpEntriesForLocale } from "@/lib/support/help-corpus-locale";
 import { loadConfirmedInsightCorpus } from "@/lib/support/insights/load";
 import { shouldOfferHumanInsteadOfEscalating, supportAiErrorBody, supportAiErrorCard } from "@/lib/support/support-ai-failure";
 import { wantsHumanSupport } from "@/lib/support/support-human-prefilter";
@@ -152,7 +153,8 @@ export async function POST(request: Request) {
 
     const lastThree = messages.slice(-3).map((m) => m.body);
     const confirmed = await loadConfirmedInsightCorpus();
-    const grounding = retrieveHelpEntries(latestRequester?.body ?? access.ticket.subject, {
+    // TUL-882: a Spanish-speaking talent is grounded in the Spanish how-tos.
+    const grounding = retrieveHelpEntriesForLocale(latestRequester?.body ?? access.ticket.subject, reqLocale, {
       originSlug: access.ticket.originSurfaceSlug,
       category: access.ticket.category,
       extraTexts: lastThree,
