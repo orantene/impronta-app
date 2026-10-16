@@ -235,12 +235,29 @@ export function MyWebsiteCard({
     return () => ro.disconnect();
   }, []);
 
-  // A frame that finished loading before hydration never fires React's onLoad.
+  // A frame that finished loading before hydration (or before a client
+  // redirect such as /talent/presence -> /talent/site re-mounted this card)
+  // never fires React's onLoad. TUL-542: a single check at mount ran before
+  // the frame was done, so the placeholder stayed forever. Keep checking
+  // until the frame reports complete, then stop.
   useEffect(() => {
-    const doc = thumbRef.current?.contentDocument;
-    if (doc && doc.readyState === "complete" && doc.URL !== "about:blank") {
+    setThumbLoaded(false);
+    if (!thumbSrc) return;
+    const isDone = () => {
+      const doc = thumbRef.current?.contentDocument;
+      return Boolean(doc && doc.readyState === "complete" && doc.URL !== "about:blank");
+    };
+    if (isDone()) {
       setThumbLoaded(true);
+      return;
     }
+    const timer = window.setInterval(() => {
+      if (isDone()) {
+        setThumbLoaded(true);
+        window.clearInterval(timer);
+      }
+    }, 500);
+    return () => window.clearInterval(timer);
   }, [thumbSrc]);
 
   useEffect(() => {
@@ -425,6 +442,7 @@ export function MyWebsiteCard({
             ) : null}
             {thumbSrc ? (
               <iframe
+                key={thumbSrc}
                 ref={thumbRef}
                 src={thumbSrc}
                 title={t("Website preview")}

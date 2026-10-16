@@ -716,6 +716,17 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
     defaultValue: "off",
     group: "Template families",
   },
+  "directory.card.show-talent-promo-badges": {
+    key: "directory.card.show-talent-promo-badges",
+    label: "Show talent promo badges on cards",
+    scope: "template",
+    agencyConfigurable: true,
+    validator: z.enum(["on", "off"]),
+    defaultValue: "off",
+    group: "Template families",
+    description:
+      "When on, a directory card shows a small badge (for example -20%) for the talent's own live public offer. Always on in the Tulala hub; off by default on agency sites.",
+  },
   "card.price-color": {
     key: "card.price-color",
     label: "Price chip colour",

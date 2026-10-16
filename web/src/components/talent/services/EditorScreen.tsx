@@ -1,5 +1,6 @@
 "use client";
 
+import { PriceModeField } from "./PriceModeField";
 import { BOOKING_MODE_CHOICES, BOOKING_MODE_LABELS } from "@/lib/talent/booking-mode-labels";
 import { useEffect, useState, type ChangeEvent, type ReactNode } from "react";
 import { useBeforeUnloadGuard } from "@/components/locale-field/use-before-unload-guard";
@@ -304,17 +305,7 @@ export function EditorScreen({
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block">
-                <span className={LABEL}>{copy.t("How the price works")}</span>
-                <select className={INPUT} value={item.priceDisplay} onChange={(e) => {
-                  const v = e.target.value as TalentOffering["priceDisplay"];
-                  patch(v === "quote" ? { priceDisplay: v, amountCents: null, bookingMode: "request" } : { priceDisplay: v, priceType: item.priceType === "custom" ? "flat_package" : item.priceType });
-                }}>
-                  <option value="exact">{copy.t("Fixed price")}</option>
-                  <option value="from">{copy.t("Starting at")}</option>
-                  <option value="quote">{copy.t("Quote each time")}</option>
-                </select>
-              </label>
+              <PriceModeField item={item} patch={patch} labelClass={LABEL} />
               <label className="block">
                 <span className={LABEL}>{copy.t("Category")}</span>
                 <div className="relative">
