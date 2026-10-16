@@ -6,6 +6,7 @@ import {
   FOCUS_RING,
   orderedTrustFacets,
   localizeCountry,
+  localizeCityLabel,
   smartTitleCase,
   cityFacetKey,
   parseCityFacetKey,
@@ -114,8 +115,8 @@ export function DirectoryFilters({
               const ambiguous = (cityNameCounts.get(c.city.toLowerCase()) ?? 0) > 1;
               const label =
                 ambiguous && c.country
-                  ? `${smartTitleCase(c.city)}, ${localizeCountry(smartTitleCase(c.country), loc)}`
-                  : smartTitleCase(c.city);
+                  ? `${localizeCityLabel(smartTitleCase(c.city), loc)}, ${localizeCountry(smartTitleCase(c.country), loc)}`
+                  : localizeCityLabel(smartTitleCase(c.city), loc);
               return { value: cityFacetKey(c.city, c.country), label, count: c.count };
             })}
             activeValue={active.city ? cityFacetKey(active.city, active.country) : null}

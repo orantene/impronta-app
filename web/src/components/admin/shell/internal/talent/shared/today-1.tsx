@@ -470,8 +470,8 @@ export function KindChip({
   tone: "success" | "coral" | "indigo" | "amber" | "ink";
 }) {
   const palette = {
-    success: { bg: COLORS.successSoft, fg: COLORS.green },
-    coral: { bg: COLORS.coralSoft, fg: COLORS.coral },
+    success: { bg: COLORS.successSoft, fg: COLORS.successDeep },
+    coral: { bg: COLORS.coralSoft, fg: COLORS.coralDeep },
     indigo: { bg: COLORS.indigoSoft, fg: COLORS.indigo },
     amber: { bg: COLORS.amberSoft, fg: COLORS.amberDeep },
     ink: { bg: "rgba(11,11,13,0.06)", fg: COLORS.ink },

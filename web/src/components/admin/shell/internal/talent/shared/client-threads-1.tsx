@@ -19,11 +19,11 @@ import { type Conversation, type MsgStage, type Participant } from "./conversati
 
 
 export const STAGE_META: Record<MsgStage, { label: string; tone: string; bg: string }> = {
-  inquiry: { label: "Inquiry", tone: COLORS.coral, bg: COLORS.coralSoft },
+  inquiry: { label: "Inquiry", tone: COLORS.coralDeep, bg: COLORS.coralSoft },
   hold: { label: "Hold", tone: COLORS.amber, bg: "rgba(176,141,82,0.10)" },
-  booked: { label: "Booked", tone: COLORS.green, bg: COLORS.successSoft },
-  past: { label: "Past", tone: COLORS.inkDim, bg: "rgba(11,11,13,0.04)" },
-  cancelled: { label: "Cancelled", tone: COLORS.coral, bg: COLORS.coralSoft },
+  booked: { label: "Booked", tone: COLORS.successDeep, bg: COLORS.successSoft },
+  past: { label: "Past", tone: COLORS.inkMuted, bg: "rgba(11,11,13,0.04)" },
+  cancelled: { label: "Cancelled", tone: COLORS.coralDeep, bg: COLORS.coralSoft },
 };
 
 

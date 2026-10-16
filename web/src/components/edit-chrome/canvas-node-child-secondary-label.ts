@@ -115,6 +115,8 @@ export function canvasChildSecondaryLabel(node: BuilderNode): string {
       return "Spec table · key and value rows";
     case "comp_card":
       return "Comp card · measure strip";
+    case "promo":
+      return "Promo · your live offer";
     case "next_free_chip":
       return "Next free · live slot chip";
     case "session_picker":

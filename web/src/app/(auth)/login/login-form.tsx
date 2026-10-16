@@ -12,6 +12,7 @@ import {
   AuthSubmitButton,
 } from "@/components/auth/auth-ui";
 import { pickAuthEmail, readAuthEmailDraft, writeAuthEmailDraft } from "@/lib/auth/email-draft";
+import { useFocusFirstInvalidOnError } from "@/lib/auth/use-focus-first-invalid";
 import { createTranslator } from "@/i18n/messages";
 import { withLocaleHref } from "@/i18n/pathnames";
 
@@ -79,6 +80,7 @@ export function LoginForm({
   };
 
   const friendlyError = friendlyAuthError(state?.error, t);
+  useFocusFirstInvalidOnError(friendlyError);
 
   return (
     <form action={formAction} noValidate className="space-y-3.5">
@@ -87,7 +89,7 @@ export function LoginForm({
       <input type="hidden" name="remember" value={remember ? "1" : "0"} />
 
       {friendlyError ? (
-        <AuthNotice tone="error">{friendlyError}</AuthNotice>
+        <AuthNotice tone="error" id="login-error">{friendlyError}</AuthNotice>
       ) : null}
 
       {state?.message ? (
@@ -101,6 +103,8 @@ export function LoginForm({
           type="email"
           autoComplete="email"
           required
+          aria-invalid={friendlyError ? true : undefined}
+          aria-describedby={friendlyError ? "login-error" : undefined}
           value={email}
           onChange={(e) => {
             setEmail(e.target.value);
