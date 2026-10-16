@@ -47,6 +47,7 @@ export const ALLOWLIST: Readonly<Record<string, string>> = {
   "src/lib/scheduling/reservation-window.test.ts": "pins now and passes it to the reservation-window rules",
   "src/lib/scheduling/calendar-clock.test.ts": "pure function over an explicit `now` argument, never reads the clock",
   "src/lib/scheduling/slots.test.ts": "pure timezone and DST arithmetic on explicit dates, never reads the clock",
+  "src/lib/scheduling/slots-lead-time.test.ts": "explicit now (14:10 site time) passed to the slot generator on fixed DST and non-DST days, never reads the clock",
   "src/lib/scheduling/tz.test.ts": "pure wall-clock and DST arithmetic on explicit dates, never reads the clock (would trip the guard 30 days before 2027-01-15)",
   "src/lib/scheduling/reservation-intent.test.ts": "pure conversion of an explicit starts_at/ends_at stamp, never reads the clock",
   "src/lib/scheduling/booking-reminder-window.test.ts": "pure predicate over explicit today/tomorrow arguments, never reads the clock",
