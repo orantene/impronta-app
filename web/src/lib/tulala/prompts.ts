@@ -65,6 +65,7 @@ export function buildExtractionPrompt(
     "RULES",
     "1. Only use keys from the list below. Never invent a key.",
     "2. Only record what they actually said or clearly implied. Do not fill gaps.",
+    "2b. NEVER guess a phone, WhatsApp number, email or person name. Record one only when it appears in their words, exactly as typed. Otherwise leave it out.",
     "3. If you are guessing, lower the confidence. Below 0.4, leave it out.",
     "4. `quote` must be their exact words, copied, not paraphrased. Empty if there is no phrase to quote.",
     "5. Booleans are exactly 'true' or 'false'. Numbers are digits. Lists are comma separated.",

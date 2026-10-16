@@ -52,6 +52,11 @@ src/lib/words/business-types-everyday-words.test.ts
 src/components/onboarding/arrival-failed.static.test.ts
 src/components/onboarding/sticky-footer-clearance.static.test.ts
 src/components/onboarding/choose-step-keyboard.static.test.ts
+src/lib/quality/profile-footer-cta-full-name.static.test.ts
+src/lib/saas/host-unregistered-copy.test.ts
+src/components/admin/shell/internal/talent/agenda/today-row-location-label.test.ts
+src/components/inquiry/event-date-input.test.tsx
+src/lib/site-admin/server/public-page-role-titles.test.ts
 src/components/admin/shell/internal/palette-help-key.static.test.ts
 src/components/admin/shell/internal/talent/today-mobile-header.static.test.ts
 src/components/support/support-qa1054.static.test.ts
