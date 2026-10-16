@@ -23,7 +23,7 @@ const PINS = {
   editorial: "e9575657639ee44a", // TUL-537 SPRINT-348-NAILS: photo-less menu rows drop the 64px thumb column. Was 8e8ebb03a63e214c (TUL-528: soft catalog-groups pad uses var(--cb-bar-h)); before e11afe5bba3a69fe (TUL-121 Maison v2 #3116)
   utility: "fe78b6ccfefe12ed", // TUL-528: work_order pad uses var(--cb-bar-h). Was 5450f057f44cf0b4 (TUL-474)
   highlight: "154aa0752c478aa5", // TUL-474: TITLE_HOOKS includes .sb-area-title
-  booking: "8f87f1ae1e51bc17",
+  booking: "d0b8ff4d6dc7b695",
   // Re-pinned: only added props.i18n (es + en seed copy), see seed-i18n.ts.
   maison: "347695625983b226", // was ff484407b68ec492; TUL-121 Maison v2 QA minors (#3116). Before: ca897a06ce5564b6; TUL-345: aftercare + before-after seed explicit en overlays. Before (42d225e3c02a4810): TUL-230: the About paragraph is liveText "bio". Before: #88 Book an appointment leads in header + hero; #209: + es/en overlay on portfolio, reviews, header labels
   // Re-pinned after Gridline contentWidth/full + matrix viewport MQ (#2530), then es + en seed copy.

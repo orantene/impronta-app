@@ -8,7 +8,7 @@
  * window has elapsed (messages 30 min, roster_activity 60 min, else daily).
  * See `@/lib/notifications/digest` for the batching logic.
  *
- * Scheduled every 15 min in `web/vercel.json`. Safe to run more often — rows
+ * Scheduled hourly (pre-launch; was every 15 min) in `web/vercel.json`. Safe to run more often — rows
  * whose window hasn't closed are left queued; flushed rows are marked `sent`
  * so a re-run never double-sends.
  *

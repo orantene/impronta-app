@@ -4,6 +4,7 @@ import { useState, type KeyboardEvent, type ReactNode } from "react";
 import { type TalentOffering } from "@/lib/talent/offerings-types";
 import { listCategoryUndos } from "@/lib/talent/category-undo";
 import { categoryNearMatch } from "@/lib/talent/publication-state";
+import { countItemsLabel } from "@/components/admin/shell/internal/count-items-label";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 
 const NAME_MAX = 80;
@@ -91,7 +92,7 @@ export function OrganizeScreen({
         <div>
           <h1 className="font-admin-display text-[24px] font-semibold leading-tight">{copy.t("Categories")}</h1>
           <p className="mt-1 text-[13px] text-admin-ink-dim">
-            {names.length} {copy.t("categories")} · {items.length} {copy.t("items")} · {uncategorised.length} {copy.t("uncategorised")}
+            {names.length} {copy.t("categories")} · {countItemsLabel(copy.t, items.length)} · {uncategorised.length} {copy.t("uncategorised")}
           </p>
         </div>
         <button
@@ -183,7 +184,7 @@ export function OrganizeScreen({
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[14px] font-semibold">{name}</span>
                         <span className="block text-[12px] text-admin-ink-dim">
-                          {rows.length} {copy.t("items")} · {photos} {copy.t("with a photo")}
+                          {countItemsLabel(copy.t, rows.length)} · {photos} {copy.t("with a photo")}
                         </span>
                       </span>
                       <span className="hidden items-center gap-2 sm:flex">
@@ -253,7 +254,7 @@ export function OrganizeScreen({
                 <span className="min-w-0 flex-1">
                   <span className="block text-[14px] font-semibold">{copy.t("Everything else")}</span>
                   <span className="block text-[12px] text-admin-ink-dim">
-                    {uncategorised.length} {copy.t("items")} · {uncategorised.filter((i) => i.imageUrls.length > 0).length} {copy.t("with a photo")}
+                    {countItemsLabel(copy.t, uncategorised.length)} · {uncategorised.filter((i) => i.imageUrls.length > 0).length} {copy.t("with a photo")}
                   </span>
                 </span>
                 {uncategorised.length === 0 && (

@@ -42,9 +42,9 @@ import { ThemeUpdateSheet } from "./ThemeUpdateSheet";
  * opens directly beneath it, on phones too.
  */
 export const BUILDER_PILL_CLASS =
-  "fixed left-1/2 top-[68px] z-[250] inline-flex min-h-9 -translate-x-1/2 items-center rounded-full border border-admin-border-soft bg-white px-4 font-admin-body text-[13px] font-semibold text-admin-ink shadow-lg";
+  "fixed right-3 top-[64px] z-[250] inline-flex min-h-7 items-center rounded-full border border-admin-border-soft bg-white px-3 font-admin-body text-[12px] font-semibold text-admin-ink shadow-lg max-sm:h-7 max-sm:w-7 max-sm:justify-center max-sm:px-0";
 export const BUILDER_CARD_CLASS =
-  "fixed inset-x-3 top-[112px] max-h-[60dvh] overflow-y-auto z-[250] mx-auto max-w-[360px] rounded-xl border border-admin-border-soft bg-white p-4 font-admin-body shadow-lg";
+  "fixed right-3 top-[100px] max-h-[60dvh] overflow-y-auto z-[250] w-[calc(100vw-1.5rem)] max-w-[360px] rounded-xl border border-admin-border-soft bg-white p-4 font-admin-body shadow-lg";
 
 /** Survives the builder reload after Apply so the Publish CTA stays visible. */
 const POST_APPLY_KEY = "tulala-theme-update-post-apply";
@@ -224,7 +224,10 @@ export function ThemeUpdateNotice({
           onClick={() => setCardOpen((v) => !v)}
           className={BUILDER_PILL_CLASS}
         >
-          {t("pill")}
+          {/* TUL-1029: on a phone the 164px text pill covered the site name and rail, so it
+              collapses to a 28px dot; the label stays for screen readers and for sm and up. */}
+          <span className="max-sm:sr-only">{t("pill")}</span>
+          <span className="hidden h-2 w-2 rounded-full bg-[var(--tulala-primary-fill)] max-sm:inline-block" aria-hidden />
         </button>
       ) : null}
       {floating && !cardOpen ? null : (
@@ -234,21 +237,23 @@ export function ThemeUpdateNotice({
         className={
           floating
             ? BUILDER_CARD_CLASS
-            : "mb-5 min-w-0 rounded-xl border border-admin-border-soft bg-white p-4 font-admin-body"
+            : "mb-3 flex min-w-0 flex-row items-center justify-between gap-2 rounded-xl border border-admin-border-soft bg-white p-3 font-admin-body max-sm:p-1.5 max-sm:pl-3"
         }
       >
-        <p className="m-0 text-[15px] font-semibold text-admin-ink">{title}</p>
-        <p className="m-0 mt-1 text-[13px] text-admin-ink-muted">{t(again ? "againBody" : "bannerBody")}</p>
+        <div className="min-w-0 flex-1">
+        <p className="m-0 text-[15px] font-semibold text-admin-ink max-sm:truncate max-sm:text-[13px]">{title}</p>
+        <p className="m-0 mt-1 line-clamp-2 text-[13px] text-admin-ink-muted max-sm:hidden">{t(again ? "againBody" : "bannerBody")}</p>
         {error ? (
           <p role="alert" className="m-0 mt-2 text-[13px] text-admin-critical">
             {error}
           </p>
         ) : null}
-        <div className="mt-3 flex flex-wrap gap-2">
+        </div>
+        <div className={floating ? "mt-3 flex flex-wrap gap-2" : "flex shrink-0 flex-nowrap gap-2 max-sm:gap-1"}>
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="inline-flex min-h-11 items-center rounded-lg border border-[var(--tulala-primary-fill)] bg-[var(--tulala-primary-fill)] px-4 text-[14px] font-semibold text-white hover:border-[var(--tulala-primary-fill-deep)] hover:bg-[var(--tulala-primary-fill-deep)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tulala-primary-fill)]"
+            className="inline-flex min-h-11 items-center rounded-lg border border-[var(--tulala-primary-fill)] bg-[var(--tulala-primary-fill)] px-4 text-[14px] max-sm:px-3 max-sm:text-[13px] font-semibold text-white hover:border-[var(--tulala-primary-fill-deep)] hover:bg-[var(--tulala-primary-fill-deep)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tulala-primary-fill)]"
             data-theme-update-whats-new
           >
             {t("whatsNew")}
@@ -258,7 +263,7 @@ export function ThemeUpdateNotice({
               type="button"
               disabled={busy}
               onClick={() => void apply(notice.draftRev)}
-              className="inline-flex min-h-11 items-center rounded-lg border border-[var(--tulala-primary-fill)] bg-[var(--tulala-primary-fill)] px-4 text-[14px] font-semibold text-white hover:border-[var(--tulala-primary-fill-deep)] hover:bg-[var(--tulala-primary-fill-deep)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tulala-primary-fill)] disabled:opacity-60"
+              className="inline-flex min-h-11 items-center rounded-lg border border-[var(--tulala-primary-fill)] bg-[var(--tulala-primary-fill)] px-4 text-[14px] max-sm:px-3 max-sm:text-[13px] font-semibold text-white hover:border-[var(--tulala-primary-fill-deep)] hover:bg-[var(--tulala-primary-fill-deep)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tulala-primary-fill)] disabled:opacity-60"
               data-theme-update-apply-again
             >
               {busy ? t("applying") : t("applyShort")}
@@ -268,7 +273,7 @@ export function ThemeUpdateNotice({
             type="button"
             disabled={busy}
             onClick={() => void dismiss()}
-            className="inline-flex min-h-11 items-center rounded-lg border border-admin-border-soft bg-white px-4 text-[14px] font-semibold text-admin-ink disabled:opacity-60"
+            className="inline-flex min-h-11 items-center rounded-lg border border-admin-border-soft bg-white px-4 text-[14px] max-sm:px-3 max-sm:text-[13px] font-semibold text-admin-ink disabled:opacity-60"
             data-theme-update-not-now
           >
             {t("notNow")}

@@ -7,6 +7,7 @@ import { useDashboardText } from "./dashboard-i18n";
 import { EmptyState, Icon, useRovingTabindex } from "./primitives";
 import { TALENT_SIDEBAR_ICON } from "./talent-nav-icons";
 import { RailModeSwitch } from "./page-modules/RailModeSwitch";
+import { leaveRailHat } from "./page-modules/rail-mode-switch-action";
 import { COLORS, FONTS, MY_TALENT_PROFILE, TALENT_PAGE_META, TALENT_TIER_META, useAdminShell, type TalentPage } from "./state";
 import { PageHeader } from "./talent/shared/page-chrome-1";
 import { ProfilePageSkeleton } from "./talent/pages/ProfilePageSkeleton";
@@ -36,6 +37,7 @@ import { pinNextConversation } from "./messages/conversation-pending";
 const CalendarPage = dynamic(() => import("./talent/pages/CalendarPage").then((m) => ({ default: m.CalendarPage })), { loading: () => null });
 const MyProfilePage = dynamic(() => import("./talent/pages/MyProfilePage").then((m) => ({ default: m.MyProfilePage })), { loading: () => <ProfilePageSkeleton /> });
 const PublicPageEditor = dynamic(() => import("./talent/pages/PublicPageEditor").then((m) => ({ default: m.PublicPageEditor })), { loading: () => null });
+const PromosPage = dynamic(() => import("@/components/promos/talent/PromosPage").then((m) => ({ default: m.PromosPage })), { loading: () => null });
 const ReviewsPage = dynamic(() => import("./talent/pages/ReviewsPage").then((m) => ({ default: m.ReviewsPage })), { loading: () => null });
 const ServicesPage = dynamic(() => import("./talent/pages/ServicesPage").then((m) => ({ default: m.ServicesPage })), { loading: () => null });
 const SettingsPage = dynamic(() => import("./talent/pages/SettingsPage").then((m) => ({ default: m.SettingsPage })), { loading: () => null });
@@ -236,17 +238,14 @@ function TalentSidebar() {
         <RailModeSwitch
           active="talent"
           adminUnread={bridgeWorkspaceUnread ?? 0}
-          onSwitch={() => {
-            if (state.alsoTalent) {
-              flipMode();
-              return;
-            }
-            // isHybrid is per-tenant: on the hub a dual owner has no membership here, so go to the
-            // workspace they own directly (the admin rail's switch does the mirror with /talent/today).
-            // admin-href-allow: cross-tenant switch — target is another workspace
-            // (bridgeOwnedWorkspaceSlug), so the slug is required. adminBasePath here is the hub.
-            window.location.assign(`/${bridgeOwnedWorkspaceSlug}/admin`);
-          }}
+          onSwitch={() =>
+            leaveRailHat({
+              active: "talent",
+              alsoTalent: state.alsoTalent,
+              ownedWorkspaceSlug: bridgeOwnedWorkspaceSlug,
+              flipMode,
+            })
+          }
         />
       )}
       <nav ref={railNavRef} aria-label={copy.t("Talent sections")} className="flex flex-col gap-[2px]">
@@ -303,7 +302,7 @@ function TalentSidebar() {
         {/* Support Center launcher portals in here instead of floating. */}
         <div
           data-tulala-support-slot="rail"
-          data-ready={supportSlotReady ? "" : undefined}
+          data-ready={supportSlotReady ? "true" : undefined}
           className="contents"
         />
         {renderItem("settings")}
@@ -392,6 +391,9 @@ function TalentRouter() {
       break;
     case "reviews":
       page = <ReviewsPage />;
+      break;
+    case "promos":
+      page = <PromosPage />;
       break;
     case "inbox":
       // Legacy alias → the real Messages shell. The old InboxPage rendered a

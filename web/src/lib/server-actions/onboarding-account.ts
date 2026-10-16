@@ -13,7 +13,10 @@
  * callback does. Google runs through the existing popup (`/auth/google`).
  */
 
-import { requestEmailCode, type EmailCodeState } from "@/app/auth/otp-actions";
+import {
+  requestEmailCode,
+} from "@/app/auth/otp-actions";
+import type { EmailCodeState } from "@/lib/auth/send-email-code-core";
 import { isAgeAndTermsConfirmed } from "@/lib/legal/acceptances.core";
 import { recordSignupAcceptance } from "@/lib/legal/acceptances";
 import { relinkFirstConfirmedClaim } from "@/lib/auth/guest-claim-relink";

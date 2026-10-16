@@ -79,6 +79,7 @@ const BASE: WorkspaceNavContext = {
   takesReservations: true,
   runsEvents: true,
   posEnabled: false,
+  counterOps: true,
   canManageBilling: true,
 };
 

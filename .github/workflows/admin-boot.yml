@@ -53,6 +53,14 @@ jobs:
         # does not exist yet — override to the runner root.
         working-directory: .
         run: |
+          # Never run against PRODUCTION Supabase (2026-10-14: this job signed in as
+          # qa-admin on prod ~25x/hour). Point E2E_SUPABASE_* at staging (fxlank).
+          case "$NEXT_PUBLIC_SUPABASE_URL" in
+            *pluhdapdnuiulvxmyspd*)
+              echo "::warning title=Admin-boot gate UNARMED::E2E_SUPABASE_URL points at PRODUCTION; refusing to run. Repoint E2E_SUPABASE_URL / _ANON_KEY / _SERVICE_ROLE_KEY to the staging project."
+              echo "armed=false" >> "$GITHUB_OUTPUT"
+              exit 0;;
+          esac
           if [ -z "$NEXT_PUBLIC_SUPABASE_URL" ] || [ -z "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
             echo "::warning title=Admin-boot gate UNARMED::E2E_SUPABASE_URL / E2E_SUPABASE_ANON_KEY / E2E_SUPABASE_SERVICE_ROLE_KEY repository secrets are not set. The chunk-evaluation crash class (2026-08-03 sev-1) is NOT gated until they are added."
             echo "armed=false" >> "$GITHUB_OUTPUT"

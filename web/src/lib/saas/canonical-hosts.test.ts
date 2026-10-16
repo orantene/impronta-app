@@ -27,3 +27,22 @@ test("a lookalike host is not mistaken for the platform app host", () => {
     "https://app.tulala.digital.evil.example",
   );
 });
+
+test("TUL-781: a staging app host maps to the staging public host, never stays on app.*", () => {
+  // Marketing override (isolated staging) wins for any platform-family app host.
+  assert.equal(
+    talentCanonicalOrigin("https://app.staging.tulala.digital", "https://staging.tulala.digital"),
+    "https://staging.tulala.digital",
+  );
+  // Without an override, the app. label is stripped inside the platform family.
+  assert.equal(
+    talentCanonicalOrigin("https://app.staging.tulala.digital", "https://tulala.digital"),
+    "https://staging.tulala.digital",
+  );
+  // Prod unchanged; white-label hosts unchanged.
+  assert.equal(talentCanonicalOrigin("https://app.tulala.digital", "https://tulala.digital"), "https://tulala.digital");
+  assert.equal(
+    talentCanonicalOrigin("https://app.pdcvacations.com", "https://staging.tulala.digital"),
+    "https://app.pdcvacations.com",
+  );
+});

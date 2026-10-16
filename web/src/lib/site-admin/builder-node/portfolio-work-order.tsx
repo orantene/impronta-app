@@ -27,7 +27,8 @@ export const PORTFOLIO_WORK_ORDER_CSS = `
 .sb-wo-job{margin:0;border-radius:8px;overflow:hidden;background:var(--token-color-surface-raised,var(--token-color-background));border:1px solid var(--token-color-line);transition:transform .18s}
 .sb-wo-job:hover{transform:translateY(-2px)}
 .sb-wo-shot{display:block;width:100%;padding:0;border:0;background:transparent;cursor:pointer;text-align:inherit;font:inherit;color:inherit}
-.sb-wo-job img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block}
+/* TUL-532 / GRK-076: face-forward crop on job tiles. */
+.sb-wo-job img{width:100%;aspect-ratio:1/1;object-fit:cover;object-position:center 18%;display:block}
 .sb-wo-job figcaption{padding:8px;font:500 10.5px/1.4 var(--site-mono-font,ui-monospace,monospace);color:var(--token-color-muted);overflow-wrap:anywhere}
 .sb-wo-job figcaption b{display:block;color:var(--token-color-ink);font:800 13px var(--token-typography-heading-font-family,var(--site-heading-font,inherit));margin-bottom:2px}
 /* TUL-474/496: last job captions clear sticky book bar + chat bubble on phone. */
@@ -63,6 +64,7 @@ export function WorkOrderFigure({
   es,
   locale,
   generalIntent,
+  captionHint,
 }: {
   shot: TalentPortfolioShot;
   gallery: PortfolioGallery;
@@ -70,12 +72,19 @@ export function WorkOrderFigure({
   /** Visitor locale for the generic portfolio alt fallback (TUL-384). */
   locale?: string | null;
   generalIntent?: OpenIntent | null;
+  /** TUL-187: "Disponible en español" when the caption is not in the visitor's language. */
+  captionHint?: string | null;
 }): ReactNode {
   const { title, detail } = splitWorkOrderCaption(shot.caption);
   const label = title || (es ? "Ver foto" : "View photo");
   // Prefer the job-title line of the caption, never the media `alt` column,
   // which on demos is often a person name (see gridline G10/G11 tests).
   const alt = title || portfolioPhotoFallbackAlt(locale ?? (es ? "es" : "en"));
+  const hint = captionHint ? (
+    <small className="sb-portfolio-cap-hint" style={{ display: "block", opacity: 0.6, fontSize: "0.8em" }}>
+      {captionHint}
+    </small>
+  ) : null;
   return (
     <figure className="sb-wo-job" data-portfolio-media={shot.id}>
       <PortfolioShotLink
@@ -84,7 +93,8 @@ export function WorkOrderFigure({
         ariaLabel={`${es ? "Ver foto" : "View photo"} ${gallery.index + 1}: ${label}`}
         lightbox={{
           gallery,
-          bookLabel: es ? "Reservar este look" : "Book this look",
+          // Trades photos show a job, not a look.
+          bookLabel: es ? "Reservar este servicio" : "Book this service",
           closeLabel: es ? "Cerrar" : "Close",
           prevLabel: es ? "Foto anterior" : "Previous photo",
           nextLabel: es ? "Foto siguiente" : "Next photo",
@@ -98,6 +108,7 @@ export function WorkOrderFigure({
         <figcaption>
           <b>{title}</b>
           {detail}
+          {hint}
         </figcaption>
       ) : null}
     </figure>

@@ -88,3 +88,27 @@ test("TUL-321: publish-now reuses publishMaxSiteAction, no new publish path", ()
   assert.match(src, /import \{ publishMaxSiteAction \} from "@\/lib\/talent-site\/server\/site-management-actions"/);
   assert.match(src, /await publishMaxSiteAction\(\)/);
 });
+
+test("TUL-536: the pick sheet lists hidden / kept sections from a read-only preview", () => {
+  const mgr = read("theme-gallery/ManagerThemeGallery.tsx");
+  assert.match(mgr, /previewSiteDesignSwitchAction/);
+  assert.match(mgr, /warn=\{ask\.warn\}/);
+  const dlg = read("theme-gallery/ThemePickDraftDialog.tsx");
+  assert.match(dlg, /theme-pick-warn-hidden/);
+  assert.match(dlg, /theme-pick-warn-kept/);
+  assert.match(dlg, /theme-pick-draft-confirm/);
+  assert.match(dlg, /theme-pick-draft-keep/);
+  const actions = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/server/theme-actions.ts"),
+    "utf8",
+  );
+  const fn = actions.slice(actions.indexOf("previewSiteDesignSwitchAction"), actions.indexOf("export async function applySiteLookAction"));
+  assert.doesNotMatch(fn, /writeSiteDraft|\.update\(|\.insert\(/);
+  for (const locale of ["en", "es"] as const) {
+    for (const k of ["warnHiddenHeading", "warnHiddenNote", "warnKeptHeading", "warnKeptNote", "warnUndoNote"] as const) {
+      const v = themeGalleryCopy(locale, k);
+      assert.ok(v.length > 0);
+      assert.doesNotMatch(v, /—/);
+    }
+  }
+});

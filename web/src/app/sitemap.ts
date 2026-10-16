@@ -1,6 +1,9 @@
 import type { MetadataRoute } from "next";
 
 import { createClient } from "@/lib/supabase/server";
+import { businessFixedSitemapPaths } from "@/lib/seo/business-workspace-seo";
+import { loadIsEmptyBusinessWorkspace } from "@/lib/seo/business-workspace-emptiness";
+import { resolveWorkspaceType } from "@/lib/saas/assert-roster-workspace";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { withLocalePath } from "@/i18n/pathnames";
 import { SPANISH_NAMED_MARKETING_PATHS } from "@/lib/seo/spanish-named-routes";
@@ -24,6 +27,8 @@ import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-langua
 import { talentProfileSitemapEntries } from "@/lib/talent-site/talent-site-locale-routing";
 
 import { headers } from "next/headers";
+import { PUBLIC_PATH_PREFIX_HEADER } from "@/lib/saas/scope";
+import { prefixPathWorkspaceSitemap } from "@/lib/seo/path-workspace-sitemap";
 import {
   HOST_CONTEXT_HEADER,
   HOST_TALENT_PROFILE_HEADER,
@@ -39,6 +44,8 @@ import {
   scopeMaxSitePagesToPlan,
 } from "@/lib/talent-site/resolve-max-site-core";
 import { talentHostSitemapPaths } from "@/lib/talent-site/talent-site-sitemap";
+import { serviceSitemapPaths } from "@/lib/talent-site/service-page";
+import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
 
 const PLATFORM_TALENT_SITEMAP_BASE = `https://${TULALA_APEX_HOST}`;
@@ -239,7 +246,10 @@ async function loadTalentSiteHostSitemapEntries(base: URL): Promise<MetadataRout
     platform.publicLocales,
     platform.defaultLocale,
   );
-  return paths.flatMap((path) =>
+  // TUL-586: one URL per published service (slug title in the primary language, as the page canonicalises).
+  const offerings = await loadPublicOfferingsForProfile(talentProfileId, pair.primary, null).catch(() => []);
+  const allPaths = [...paths, ...serviceSitemapPaths(offerings)];
+  return allPaths.flatMap((path) =>
     talentProfileSitemapEntries({
       origin: base.origin,
       path,
@@ -251,6 +261,13 @@ async function loadTalentSiteHostSitemapEntries(base: URL): Promise<MetadataRout
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const entries = await buildSitemap();
+  // A `/w/<slug>` workspace shares the hub origin: move each URL under its prefix (TUL-591).
+  const prefix = (await headers()).get(PUBLIC_PATH_PREFIX_HEADER);
+  return prefix ? prefixPathWorkspaceSitemap(entries, prefix) : entries;
+}
+
+async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = await createClient();
 
   // Each host-kind advertises only the routes its surface-allow-list permits,
@@ -406,6 +423,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // advertised a URL that only ever serves fallback content, and annotating it
   // as a Spanish alternate would have been a false statement to every crawler.
   const localeSettings = await loadTenantLocaleSettings(hostContext.tenantId);
+  // TUL-591: an empty business workspace is noindexed on its homepage; list nothing for it.
+  if (await loadIsEmptyBusinessWorkspace(hostContext.tenantId)) return [];
 
   /**
    * One sitemap entry per locale a path exists in, each carrying the full
@@ -438,7 +457,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // is conditional — included only when the operator has not flagged the
   // homepage row noindex=true. The other paths are framework-owned and
   // always indexable.
-  const fixedStaticPaths = ["/contact", "/directory", "/models"];
+  // TUL-591: a business workspace has no roster, so /directory and /models only redirect to /book;
+  // list /book instead of advertising redirects.
+  const fixedStaticPaths = businessFixedSitemapPaths(await resolveWorkspaceType(hostContext.tenantId));
 
   // These routes are framework-rendered from live tenant data (roster, contact
   // details), and no single row owns them, so there is no truthful timestamp to

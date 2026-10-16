@@ -21,7 +21,7 @@
  *  - TUL-187: an About paragraph (or Folio masthead blurb) whose stored text
  *    still matches one of her bios binds as `bio` the same way, so Maison
  *    release trees that stripped `liveText: "bio"` still show the visitor's
- *    language and the "(Text in Spanish)" hint on fallback;
+ *    language and the "Disponible en español" hint on fallback;
  *  - pure and identity preserving: a tree with nothing to do comes back `===`.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
@@ -31,6 +31,7 @@ import {
   type LiveTextKey,
 } from "@/lib/site-admin/builder-node/live-text-keys";
 
+import { accentHeadline } from "./hero-headline";
 import { applyMastheadBio, isLiveBioMasthead, withBioHints } from "./live-bio";
 import { readOrigin } from "./theme-releases/origin";
 
@@ -45,8 +46,10 @@ export interface TalentLiveText {
   tradeLabel?: string;
   /** The menu intro line ("Prices in MXN."), a default for a Maison v2 menu that never had one. */
   menuSubtitle?: string;
-  /** "(Text in Spanish)": shown under the live bio when it is not in the visitor's language. */
+  /** "Disponible en español": shown under the live bio when it is not in the visitor's language. */
   bioHint?: string;
+  /** Keep the stored hero H1 as written: no auto accent (TUL-578 per-site opt-out, protected sites). */
+  keepHeroHeading?: boolean;
 }
 
 /** Design origin of a Maison v2 node, else null. */
@@ -124,16 +127,24 @@ function isBaked(key: LiveTextKey, text: unknown, live: TalentLiveText): boolean
   return false;
 }
 
+/** Unexpanded bio tokens that still mean "this paragraph is her bio". */
+function isBioToken(text: unknown): boolean {
+  if (typeof text !== "string") return false;
+  const t = text.trim();
+  return t === "{{richBio}}" || t === "{{shortBio}}" || t === "{{bio}}";
+}
+
 /**
  * TUL-187: an About paragraph whose stored text is still one of her bios, even
  * when the applied tree never got `liveText: "bio"` (Maison numbered releases
- * strip it). Exact seed match only, so a line she rewrote by hand stays hers.
+ * strip it). Exact seed match (or an unexpanded bio token) only, so a line she
+ * rewrote by hand stays hers.
  */
 function isLegacyBioParagraph(node: BuilderNode, live: TalentLiveText): boolean {
   if (node.kind !== "paragraph") return false;
   const props = propsOf(node);
   if (isLiveTextKey(props.liveText)) return false;
-  return isBaked("bio", props.text, live);
+  return isBioToken(props.text) || isBaked("bio", props.text, live);
 }
 
 /** A Folio masthead whose baked blurb is still one of her bios (no `liveText` yet). */
@@ -141,7 +152,7 @@ function isLegacyBioMasthead(node: BuilderNode, live: TalentLiveText): boolean {
   if (node.kind !== "masthead") return false;
   const props = propsOf(node);
   if (props.liveText === "bio") return false;
-  return isBaked("bio", props.bio, live);
+  return isBioToken(props.bio) || isBaked("bio", props.bio, live);
 }
 
 /** The live key a node follows, explicit first, else the legacy hero / bio binding. */
@@ -215,6 +226,16 @@ export function applyTalentLiveText(tree: BuilderNode[], live: TalentLiveText): 
         } as unknown as BuilderNode;
       }
     }
+    // A Maison v2 hero H1 holding stored plain text (a line typed in the builder, or carried over by
+    // "use it") has no accent word: give it the same middle-word accent live values get (TUL-578).
+    // Explicit `{i}` markup is kept as written.
+    if (!live.keepHeroHeading && node.kind === "heading" && maisonKey(node) === "hero/container/heading") {
+      const text = propsOf(node).text;
+      if (typeof text === "string" && text.trim() && !text.includes("{{")) {
+        const accented = accentHeadline(text);
+        if (accented !== text.trim()) return { ...node, props: { ...propsOf(node), text: accented } } as BuilderNode;
+      }
+    }
     // A Maison v2 menu with no intro line gets the currency sentence (once she writes one, it is hers).
     if (node.kind === "services_catalog" && live.menuSubtitle && maisonKey(node)?.startsWith("services")) {
       const props = propsOf(node);
@@ -273,6 +294,9 @@ export function treeHasLiveCandidates(tree: readonly BuilderNode[]): boolean {
       const origin = readOrigin(n);
       if (origin?.design === "maison-v2" && origin.key in LEGACY_HERO_KEYS) return true;
       if (typeof propsOf(n).layerLabel === "string" && propsOf(n).layerLabel as string in LEGACY_LABELS) return true;
+      // TUL-187: unexpanded bio token still means "load her bio" after Maison
+      // releases strip liveText:bio.
+      if (n.kind === "paragraph" && isBioToken(propsOf(n).text)) return true;
     }
     const kids = (n as AnyNode).children;
     return Array.isArray(kids) && treeHasLiveCandidates(kids);

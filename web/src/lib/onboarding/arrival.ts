@@ -29,7 +29,7 @@ export type ArrivalPayload = {
   headlineName: string | null;
   businessName: string | null;
   link: { display: string; href: string } | null;
-  fact: { services: number; city: string | null; logo: boolean; hours: boolean; whatsapp: boolean; menuItems: number; photos: boolean };
+  fact: { services: number; city: string | null; logo: boolean; hours: boolean; whatsapp: boolean; menuItems: number; photos: boolean; /** Services saved as drafts for lack of a price; absent when none. */ unpriced?: number };
   primary: { label: "finish_my_page" | "open_my_site" | "open_my_website" | "open_my_workspace"; href: string };
   quiet: "signed_in_as" | "own_page_drafted" | null;
   /** Talent path: the free site is published and `link` is its live address (TUL-32). */
@@ -71,7 +71,9 @@ type ArrivalInput = {
   reusedExisting?: boolean;
   person: { name: string | null; city: string | null };
   businessName: string | null;
+  /** Published services only (priced); drafts are counted in `unpricedServices`. */
   services: number;
+  unpricedServices?: number;
   /** Public site URL (no params) and the builder deep link, when a tenant exists. */
   site: { publicUrl: string; editorUrl: string; adminPath: string } | null;
   /** Talent page URL and the Today deep link, when a profile exists. */
@@ -107,6 +109,7 @@ function baseArrival(input: ArrivalInput): ArrivalPayload {
   const placed = input.stamp?.placed ?? {};
   const fact = {
     services: input.services,
+    ...(input.unpricedServices && input.unpricedServices > 0 ? { unpriced: input.unpricedServices } : {}),
     city: input.person.city,
     logo: placed.logoPresent === true,
     hours: placed.hoursPresent === true,

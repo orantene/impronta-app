@@ -27,7 +27,7 @@
 import React, { useMemo, useState, useEffect, useCallback, useTransition, type ReactNode } from "react";
 import { seatCapForPlan } from "@/lib/saas/plan-seat-caps";
 import { workspaceLiveHost } from "@/lib/saas/workspace-live-url";
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/navigation"; import { openSupportPanel } from "@/lib/support/open-support-panel";
 import { setActiveTalentAgencyAction } from "@/lib/talent/set-active-agency-action";
 import { interpolate } from "@/i18n/interpolate";
 import { useT } from "@/i18n/use-t";
@@ -38,7 +38,7 @@ import {
   MOCK_TALENT_NOTIFS,
   NOTIF_CATEGORY_META,
   parseAge,
-  talentNotifsFromBridge,
+  talentDrawerNotifs,
   type NotifCategory,
   type TalentNotif,
 } from "./talent-notification-rows";
@@ -2104,7 +2104,7 @@ const NOTIF_ROWS: { id: string; label: string; description: string }[] = [
 ];
 
 export function TalentNotificationsDrawer() {
-  const { state, closeDrawer, openDrawer, toast, bridgeUserNotifications, adminBasePath } = useAdminShell();
+  const { state, closeDrawer, openDrawer, toast, bridgeUserNotifications, bridgeTalentAttentionSignals, adminBasePath, locale } = useAdminShell();
   const t = useT();
   const open = state.drawer.drawerId === "talent-notifications";
   // A9: deep-link from Settings → opens with settings pane expanded
@@ -2118,9 +2118,9 @@ export function TalentNotificationsDrawer() {
   const sourceNotifs = useMemo(
     () =>
       bridgeUserNotifications !== null
-        ? talentNotifsFromBridge(bridgeUserNotifications, adminBasePath)
+        ? talentDrawerNotifs(bridgeUserNotifications, bridgeTalentAttentionSignals, locale, adminBasePath)
         : MOCK_TALENT_NOTIFS,
-    [bridgeUserNotifications, adminBasePath],
+    [bridgeUserNotifications, bridgeTalentAttentionSignals, adminBasePath, locale],
   );
   // Recent / Archive tab state — Archive shows previously-dismissed
   // updates so the talent can find a notification they cleared by mistake.
@@ -2133,14 +2133,14 @@ export function TalentNotificationsDrawer() {
   // pull a server-action module into its own chunk.
   const markOneRead = useCallback((id: string) => {
     setReadIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
-    if (!isLive) return Promise.resolve({ ok: true });
+    if (!isLive || id.startsWith("signal-")) return Promise.resolve({ ok: true });
     return import("@/lib/notifications/actions")
       .then((m) => m.markNotificationRead(id))
       .catch(() => ({ ok: false }));
   }, [isLive]);
   const markAllRead = useCallback(async () => {
     const unreadIds = sourceNotifs
-      .filter((n) => n.unread && !readIds.has(n.id))
+      .filter((n) => n.unread && !readIds.has(n.id) && !n.id.startsWith("signal-"))
       .map((n) => n.id);
     setReadIds(new Set(sourceNotifs.map((n) => n.id)));
     if (!isLive) {
@@ -4149,7 +4149,7 @@ export function WhatsNewDrawer() {
 // ════════════════════════════════════════════════════════════════════
 export function HelpDrawer() {
   const t = useT();
-  const { state, closeDrawer, openDrawer } = useAdminShell();
+  const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "help";
   return (
     <DrawerShell
@@ -4216,7 +4216,7 @@ export function HelpDrawer() {
               type="button"
               onClick={() => {
                 closeDrawer();
-                openDrawer("support-ticket");
+                openSupportPanel();
               }}
               style={helpRowStyle}
             >

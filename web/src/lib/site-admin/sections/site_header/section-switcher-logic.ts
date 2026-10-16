@@ -54,19 +54,21 @@ export function withSwitcherHome(links: ReadonlyArray<SwitcherLink>, homeLabel: 
 }
 
 /**
- * Scroll-spy: the active section is the LAST one whose top has reached the
- * reading line; before the first one does, nothing is active (the switcher then
- * shows the first link). `tops` are viewport-relative tops in document order.
+ * Scroll-spy: the active section is the one whose top reached the reading line
+ * most recently, i.e. the lowest top still at or above the line; before any
+ * does, nothing is active (the switcher then shows the first link). `tops` are
+ * viewport-relative and may come in any order: a header menu can list sections
+ * in a different order than the page stacks them.
  */
 export function pickActiveSection(
   tops: ReadonlyArray<{ id: string; top: number }>,
   lineY: number,
 ): string | null {
-  let active: string | null = null;
+  let active: { id: string; top: number } | null = null;
   for (const entry of tops) {
-    if (entry.top <= lineY) active = entry.id;
+    if (entry.top <= lineY && (active === null || entry.top >= active.top)) active = entry;
   }
-  return active;
+  return active?.id ?? null;
 }
 
 /** Animation direction when the active index changes: scrolling down slides the name up. */

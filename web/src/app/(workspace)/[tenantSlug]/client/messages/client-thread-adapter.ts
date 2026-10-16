@@ -65,3 +65,33 @@ export function clientInquiryMatchesFilter(
 export function toClientThreadItems(rows: ClientInquiryRow[]): ThreadShellListItem[] {
   return rows.map((r) => ({ id: r.id, title: r.company ?? r.id }));
 }
+
+/**
+ * TUL-610: a message is "mine" only when its sender is the EFFECTIVE client
+ * (the impersonated subject under staff view-as), never the staff actor.
+ */
+export function isOwnClientMessage(senderUserId: string | null, effectiveViewerId: string | null): boolean {
+  return effectiveViewerId != null && senderUserId != null && senderUserId === effectiveViewerId;
+}
+
+/**
+ * TUL-967: a row title that is never "Unnamed inquiry" when the row knows who
+ * it is about. Company first (the client's own label), then the talent on the
+ * lineup ("Ana, Luis +1"), then the event place, then the caller's fallback.
+ */
+export function clientInquiryTitle(
+  row: Pick<ClientInquiryRow, "company" | "talentLineup" | "event_location">,
+  fallback: string,
+): string {
+  const company = row.company?.trim();
+  if (company) return company;
+  const names = (row.talentLineup ?? []).map((t) => t.name?.trim()).filter((n): n is string => !!n);
+  if (names.length === 1) return names[0];
+  if (names.length > 1) {
+    const shown = names.slice(0, 2).join(", ");
+    return names.length > 2 ? `${shown} +${names.length - 2}` : shown;
+  }
+  const where = row.event_location?.trim();
+  if (where) return where;
+  return fallback;
+}

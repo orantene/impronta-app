@@ -26,3 +26,19 @@ test("a negative price is refused even on a draft", () => {
   const errs = validateOffering(draft({ status: "draft", bookingMode: "request", amountCents: -100 }));
   assert.ok(errs.length > 0);
 });
+
+test("a request draft with no price can be archived (TUL-577)", () => {
+  assert.deepEqual(validateOffering(draft({ status: "archived", bookingMode: "request", amountCents: null })), []);
+});
+
+test("an archived instant item still needs its exact price", () => {
+  const errs = validateOffering(draft({ status: "archived", bookingMode: "instant", amountCents: null }));
+  assert.ok(errs.some((e) => e.includes("Direct booking needs one exact price")));
+});
+
+test("a priceless draft that inherits an Instant default can still be archived", () => {
+  const o = draft({ status: "archived", bookingMode: null, amountCents: null, priceDisplay: "exact" });
+  assert.deepEqual(validateOffering(o, "instant"), []);
+  const published = validateOffering({ ...o, status: "published" }, "instant");
+  assert.ok(published.some((e) => e.includes("follows your Instant default")));
+});

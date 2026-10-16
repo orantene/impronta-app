@@ -5,6 +5,7 @@
 import { livePhasePrice } from "@/lib/catalog/price-phases";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { loadTestServiceScope } from "@/lib/talent/qa-test-service.server";
 
 import { loadOfferingImageUrls } from "./catalog-images";
 import { readCatalogGridCore } from "./catalog-grid.core";
@@ -19,7 +20,13 @@ export async function readCatalogGrid(
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, reason: "unavailable" };
     return await readCatalogGridCore(
-      { admin, locale: await storefrontLocale(props.locale), livePrice: livePhasePrice, loadImages: loadOfferingImageUrls },
+      {
+        admin,
+        locale: await storefrontLocale(props.locale),
+        livePrice: livePhasePrice,
+        loadImages: loadOfferingImageUrls,
+        testServiceScope: (rows) => loadTestServiceScope(admin, rows),
+      },
       tenantId,
       props,
     );

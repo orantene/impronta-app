@@ -44,6 +44,7 @@ A person or CI runs it. **Agent sessions do not run it**: it types card numbers 
 
 | Test (card id) | Expected today | Why |
 |---|---|---|
+| TUL-51 Support Desk entry + permissions | UNKNOWN until first stack run; SKIP admin step without superAdmin / flag | marketing /support ES+EN; talent panel Home/Tickets/Guide; anon+talent+client /desk blocked; admin /desk chrome when SUPPORT_DESK_ENABLED |
 | TUL-62 client /account list + cancel/reschedule | FAIL until fixed | list row shows "Servicio", date one day early; no cancel/reschedule (booking client_user_id NULL) |
 | TUL-64 client not bounced on the app host | FAIL until fixed | active client lands on /start or /onboarding/role |
 | TUL-116 guest chat price answer | PASS | verified by hand 2026-10-09 |
@@ -75,7 +76,7 @@ A person or CI runs it. **Agent sessions do not run it**: it types card numbers 
 | TUL-420 theme update decision | UNKNOWN until first stack run | keep/update/conflict copy |
 | TUL-441 starter fail retry | SKIP unless QA_PACK_STARTER_FAIL=1 | Tu sitio no se pudo preparar + Reintentar |
 | TUL-449 secondary-read degrade | PASS when home 200 | no whole-page 500 |
-| TUL-458 hub chat second send | FAIL until second send works | composer clears |
+| TUL-458 hub chat second send | FAIL until launcher opens on hub/marketing directory + second send clears | composer clears; targets MARKETING /global-directory (not talent siteHost) |
 | TUL-472 offer papercuts | FAIL until draft persists | no Abriendo la lista / Error al guardar |
 | TUL-473 admin work paid booking | SKIP without paidBooking fixture | not Something broke |
 | TUL-503 client zone labels | SKIP without visits | zone label on hub account |

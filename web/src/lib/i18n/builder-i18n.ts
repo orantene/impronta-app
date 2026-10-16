@@ -42,6 +42,10 @@ export function resolveNodeProp(
   const overlay = node.i18n ?? undefined;
   if (overlay) {
     for (const [code, props] of Object.entries(overlay)) {
+      // The base prop IS the default-locale value; a stray default-locale overlay
+      // (e.g. a theme release adding i18n.en to a block she relabelled) must not
+      // replace her text.
+      if (code === defaultLocale && typeof base === "string" && base.trim() !== "") continue;
       const v = props?.[prop];
       if (typeof v === "string") map[code] = v;
     }

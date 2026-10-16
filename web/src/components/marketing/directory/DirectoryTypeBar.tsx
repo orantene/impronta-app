@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useDirectoryCopy } from "./directory-copy-context";
 import { DIRECTORY_TOP_TYPES, FOCUS_RING, type DirectoryFacets } from "./shared";
 
 type Category = DirectoryFacets["categories"][number];
@@ -19,6 +20,7 @@ export function DirectoryTypeBar({
   active: string | null;
   onSelect: (slug: string | null) => void;
 }) {
+  const t = useDirectoryCopy();
   const [overflowOpen, setOverflowOpen] = useState(false);
 
   // Escape closes the overflow popover (click-away is handled by the backdrop).
@@ -39,7 +41,7 @@ export function DirectoryTypeBar({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Pill label="All talent" selected={active === null} onClick={() => onSelect(null)} />
+      <Pill label={t.allTalent} selected={active === null} onClick={() => onSelect(null)} />
       {top.map((c) => (
         <Pill
           key={c.value}
@@ -74,7 +76,7 @@ export function DirectoryTypeBar({
               color: "var(--plt-ink-soft)",
             }}
           >
-            More
+            {t.more}
             <ChevronGlyph open={overflowOpen} />
           </button>
           {overflowOpen ? (

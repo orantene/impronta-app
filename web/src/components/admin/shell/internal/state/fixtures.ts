@@ -305,6 +305,7 @@ export const TALENT_PAGE_META: Record<TalentPage, { label: string }> = {
   profile:     { label: "Profile" },
   services:    { label: "Services" },
   reviews:     { label: "Reviews" },
+  promos:      { label: "Promos" },      // header tag icon, not in the rail
   inbox:       { label: "Inbox" },         // legacy
   calendar:    { label: "Calendar" },
   "calendar-availability": { label: "Availability" },

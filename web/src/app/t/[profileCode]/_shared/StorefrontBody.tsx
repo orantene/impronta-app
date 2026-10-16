@@ -12,7 +12,7 @@
 
 import Image from "next/image";
 import type { TalentOffering, OfferingKind } from "@/lib/talent/offerings-types";
-import { offeringPriceLabel } from "@/lib/talent/offerings-types";
+import { offeringIsQuote, offeringPriceLabel } from "@/lib/talent/offerings-types";
 import { OfferingCta } from "./OfferingCta";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
@@ -31,7 +31,7 @@ const GROUP_LABELS: Record<OfferingKind, { en: string; es: string }> = {
  * have nothing to convert. Renders nothing when rates are unavailable.
  */
 function UsdLine({ it, locale, fx }: { it: TalentOffering; locale: string; fx: UsdRates | null }) {
-  if (it.visibility === "on_request" || it.priceDisplay === "quote" || it.priceType === "custom") return null;
+  if (it.visibility === "on_request" || offeringIsQuote(it)) return null;
   const line = usdEquivalentLabel(it.amountCents, it.currency, fx, locale);
   if (!line) return null;
   return (
@@ -70,7 +70,7 @@ function ServiceRow({ it, locale, confirmsByHand = false, usdRates = null }: { i
   const soldOut = it.capacityPoolId != null && it.inventoryQty === 0;
   return (
     <div
-      className="flex items-center gap-3 border-b py-3 last:border-b-0"
+      className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b py-3 last:border-b-0"
       style={{ borderColor: "var(--plt-hairline)" }}
       data-offering-row={it.id}
     >
@@ -79,7 +79,7 @@ function ServiceRow({ it, locale, confirmsByHand = false, usdRates = null }: { i
           <Image src={it.imageUrls[0]} alt={it.title} fill sizes="56px" className="object-cover" />
         </span>
       ) : null}
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 basis-40">
         <p className="flex flex-wrap items-center gap-2 font-medium" style={{ color: "var(--plt-ink)" }}>
           <span className="line-clamp-2" title={it.title}>{it.title}</span>
           {it.durationMinutes ? <DurationChip minutes={it.durationMinutes} locale={locale} /> : null}
@@ -126,7 +126,7 @@ function PackageCard({ it, locale, confirmsByHand = false, usdRates = null }: { 
             {it.description}
           </p>
         ) : null}
-        <div className="mt-3 flex items-center justify-between gap-3">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <p className="text-sm font-medium tabular-nums" style={{ color: "var(--plt-ink)" }}>
             {offeringPriceLabel(it, locale)}
         <UsdLine it={it} locale={locale} fx={usdRates} />
@@ -200,7 +200,7 @@ function FeaturedRail({ it, locale, confirmsByHand = false, usdRates = null }: {
             {it.description}
           </p>
         ) : null}
-        <div className="mt-auto flex items-center justify-between gap-3 pt-2">
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pt-2">
           <p className="text-sm font-medium tabular-nums" style={{ color: "var(--plt-ink)" }}>
             {offeringPriceLabel(it, locale)}
         <UsdLine it={it} locale={locale} fx={usdRates} />

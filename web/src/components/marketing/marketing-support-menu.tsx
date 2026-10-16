@@ -47,8 +47,10 @@ export function DesktopSupport({
     };
   }, [open]);
 
+  // TUL-1162: below 400px the signed-in cluster (favourites, cart, language, support, account, menu)
+  // is wider than the bar, so Support yields there; the footer keeps Help.
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative max-[399px]:hidden">
       <button
         type="button"
         aria-label={copy.support}

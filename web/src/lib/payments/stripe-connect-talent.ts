@@ -29,12 +29,18 @@ import { loadAccountPlatform } from "@/lib/stripe/account-platform";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import {
+  normalizeKnownPayoutCountry,
   normalizePayoutCountry,
   payoutCountryLabel,
-  requiresRecipientAgreement,
   isStablecoinPayoutCountry,
 } from "@/lib/payments/payout-countries";
 import { loadActivePayoutSystem } from "@/lib/payments/active-payout-system";
+import {
+  connectAccountTermsFor,
+  MX_PLATFORM_UNCONFIGURED,
+  payoutCountryRefusalCode,
+  payoutSetupErrorCode,
+} from "@/lib/payments/connect-account-setup";
 
 export type TalentConnectStatus =
   | "none"
@@ -50,6 +56,8 @@ export type TalentConnectedAccountSnapshot = {
   payoutsEnabled: boolean;
   detailsSubmitted: boolean;
   syncedAt: string | null;
+  /** ISO-2 payout country, filled in by the talent layout for the Money arrival text. */
+  payoutCountry?: string | null;
 };
 
 export type TalentConnectResult<T> =
@@ -165,6 +173,12 @@ export async function createOrGetTalentConnectedAccount(
   const residenceIso2 =
     (await iso2FromCountryId(admin, tp.residence_country_id as string | null)) ??
     (await iso2FromCountryText(admin, tp.home_country_text as string | null));
+  // TUL-1052: a known country that is not live yet is refused with a clear
+  // coming-soon error (never a dead end); existing accounts returned above.
+  const refusal =
+    payoutCountryRefusalCode(opts.country) ??
+    (normalizePayoutCountry(opts.country) ? null : payoutCountryRefusalCode(residenceIso2));
+  if (refusal) return { ok: false, error: refusal };
   const country = normalizePayoutCountry(opts.country) ?? normalizePayoutCountry(residenceIso2);
   if (!country) {
     return { ok: false, error: "country_required" };
@@ -175,25 +189,16 @@ export async function createOrGetTalentConnectedAccount(
   if (!residenceIso2 && opts.country) {
     const { data: matchedCountry } = await admin
       .from("countries")
-      .select("id, name_en")
+      .select("id")
       .eq("iso2", country)
       .maybeSingle();
     if (matchedCountry?.id) {
-      // Persist the PLAIN country name, never the flag-prefixed display label:
-      // this column is read back by name (ilike countries.name_en), and a
-      // "🇦🇷 Argentina" value matches nothing — which silently resolved the
-      // talent's country to null and hid country-gated features like the USDC
-      // card. `residence_country_id` is the reliable key, but a DB trigger
-      // clears it when the profile has no residence_city_id, so the text
-      // column is the fallback that actually has to work.
-      const countryName =
-        ((matchedCountry as { name_en?: string | null }).name_en ?? "").trim() ||
-        payoutCountryLabel(country).replace(/[\u{1F1E6}-\u{1F1FF}]/gu, "").trim();
+      // TUL-649: store the ISO-2 code (readers resolve it back by code or name).
       await admin
         .from("talent_profiles")
         .update({
           residence_country_id: matchedCountry.id as string,
-          home_country_text: countryName,
+          home_country_text: country,
         })
         .eq("id", talentProfileId);
     }
@@ -208,9 +213,12 @@ export async function createOrGetTalentConnectedAccount(
   // 4. Create the Express account in the payee's country, on the platform the
   //    router picks (MX sellers on the Mexico platform; USDC stays US).
   const platform = resolveStripeAccountForSeller({ payoutCountry: country });
-  if (!platform) return { ok: false, error: "Mexico payments are not configured yet." };
+  if (!platform) return { ok: false, error: MX_PLATFORM_UNCONFIGURED };
   const stripe = getStripeFor(platform);
   if (!stripe) return { ok: false, error: "Stripe client unavailable." };
+  // TUL-739: recipient agreement only for cross-border (e.g. MX on the US
+  // platform); an MX account on the MX platform is domestic.
+  const terms = connectAccountTermsFor(country, platform);
   let account: Stripe.Account;
   try {
     account = await stripe.accounts.create({
@@ -223,7 +231,7 @@ export async function createOrGetTalentConnectedAccount(
       business_type: "individual",
       capabilities: {
         transfers: { requested: true },
-        card_payments: { requested: false },
+        card_payments: { requested: terms.cardPayments && platform === "mx" },
       },
       business_profile: businessUrl ? { url: businessUrl } : undefined,
       // Receive-only countries (MX, AR and the rest of LatAm/Asia/Africa) REQUIRE
@@ -232,7 +240,7 @@ export async function createOrGetTalentConnectedAccount(
       // specify the `recipient` service agreement". The account can then receive
       // transfers and pay out locally, it just can't charge customers (which
       // talent never does — the client always pays the platform).
-      ...(requiresRecipientAgreement(country)
+      ...(terms.recipientAgreement
         ? { tos_acceptance: { service_agreement: "recipient" as const } }
         : {}),
       metadata: {
@@ -250,10 +258,10 @@ export async function createOrGetTalentConnectedAccount(
     const activePayoutSystem = await loadActivePayoutSystem();
     return {
       ok: false,
-      error:
-        activePayoutSystem === "connect"
-          ? `Payouts aren't available in ${payoutCountryLabel(country)} yet. Please reach out to support so we can set you up.`
-          : `${payoutCountryLabel(country)} isn't supported for direct Stripe payouts. Use "Get paid to your local bank" below, it covers ${payoutCountryLabel(country)}.`,
+      error: payoutSetupErrorCode(
+        country,
+        activePayoutSystem === "connect" ? "connect" : "global_payouts",
+      ),
     };
   }
 
@@ -283,15 +291,16 @@ export async function resolveTalentPayoutCountry(
 ): Promise<string | null> {
   const admin = createServiceRoleClient();
   if (!admin) return null;
-  const { data } = await admin
+  const { data, error } = await admin
     .from("talent_profiles")
     .select("residence_country_id, home_country_text")
     .eq("id", talentProfileId)
     .maybeSingle();
+  if (error) return null;
   const iso2 =
     (await iso2FromCountryId(admin, (data?.residence_country_id as string | null) ?? null)) ??
     (await iso2FromCountryText(admin, (data?.home_country_text as string | null) ?? null));
-  return normalizePayoutCountry(iso2);
+  return normalizeKnownPayoutCountry(iso2);
 }
 
 /**
