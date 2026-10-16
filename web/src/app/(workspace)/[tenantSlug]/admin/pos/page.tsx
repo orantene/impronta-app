@@ -146,7 +146,7 @@ export default async function PosPage({
           <h1 style={{ fontSize: 26, fontWeight: 600, margin: 0 }}>
             {tr("dashboard.pos.counterOffTitle")}
           </h1>
-          <p style={{ color: "rgba(11,11,13,0.55)", marginTop: 10, lineHeight: 1.6 }}>
+          <p style={{ color: "rgba(11,11,13,0.6)", marginTop: 10, lineHeight: 1.6 }}>
             {tr("dashboard.pos.counterOffBody")}
           </p>
         </main>

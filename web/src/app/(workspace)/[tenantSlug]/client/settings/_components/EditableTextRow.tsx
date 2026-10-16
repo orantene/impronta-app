@@ -186,7 +186,7 @@ export function EditableTextRow({
           <div
             style={{
               fontSize: 13,
-              color: value ? C.inkMuted : "rgba(11,11,13,0.35)",
+              color: value ? C.inkMuted : "rgba(11,11,13,0.6)",
               maxWidth: 260,
               overflow: "hidden",
               textOverflow: "ellipsis",

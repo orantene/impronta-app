@@ -97,7 +97,7 @@ export function ProposeTimeButton({
             }}
           >
             <div style={{ fontSize: 14, fontWeight: 650 }}>{t("dashboard.adminThread.proposeTime")}</div>
-            <p style={{ margin: 0, fontSize: 12, color: "rgba(11,11,13,0.55)" }}>
+            <p style={{ margin: 0, fontSize: 12, color: "rgba(11,11,13,0.6)" }}>
               {t("dashboard.adminThread.proposeTimeHint")}
             </p>
             <label style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 4 }}>

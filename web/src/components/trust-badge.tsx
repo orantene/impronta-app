@@ -31,7 +31,7 @@ const TIER_META: Record<
     label: "Basic",
     dot: "rgba(11,11,13,0.30)",
     bg: "rgba(11,11,13,0.05)",
-    color: "rgba(11,11,13,0.55)",
+    color: "rgba(11,11,13,0.6)",
     ring: "rgba(11,11,13,0.10)",
   },
   verified: {

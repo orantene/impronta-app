@@ -24,7 +24,7 @@ export const FONT = 'var(--font-admin-body, "Inter", system-ui, sans-serif)';
 
 // ─── Plan meta ────────────────────────────────────────────────────────────────
 export const PLAN_META: Record<WorkspacePlan, { label: string; bg: string; color: string }> = {
-  free:    { label: "Free",    bg: "rgba(11,11,13,0.07)",    color: "rgba(11,11,13,0.55)" },
+  free:    { label: "Free",    bg: "rgba(11,11,13,0.07)",    color: "rgba(11,11,13,0.6)" },
   website: { label: "Website", bg: "rgba(20,120,110,0.10)",  color: "#166F65" },
   studio:  { label: "Studio",  bg: "rgba(180,130,20,0.10)",  color: "var(--color-admin-amber)" },
   agency:  { label: "Agency",  bg: "rgba(30,80,160,0.10)",   color: "#2B5F8A" },
