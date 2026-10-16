@@ -59,12 +59,13 @@ export function ServicesCatalogContentInspector({
   LocalizableTextField: LocalizableTextFieldComponent;
 }) {
   const catalog = node.props;
-  // TUL-999: eyebrow, title and intro are localizable props on this block
+  // TUL-999: eyebrow, title, intro, button label and empty message are localizable props on this block
   // (builder-i18n-props), so they get the ES/EN tabs, not a single input.
   const textField = (
-    prop: "eyebrow" | "title" | "subtitle",
+    prop: "eyebrow" | "title" | "subtitle" | "emptyMessage" | "ctaLabel",
     baseValue: string,
     ariaLabel: string,
+    placeholder?: string,
   ) => (
     <LocalizableTextField
       node={node}
@@ -74,6 +75,7 @@ export function ServicesCatalogContentInspector({
       baseValue={baseValue}
       ariaLabel={ariaLabel}
       className={KIT.input}
+      placeholder={placeholder}
       onCommitBase={(next) => commitPatch({ [prop]: next })}
       patch={commitPatch}
     />
@@ -348,12 +350,7 @@ export function ServicesCatalogContentInspector({
 
         <div className={KIT.field}>
           <label className={KIT.label}>Button label override</label>
-          <input
-            className={KIT.input}
-            value={catalog.ctaLabel ?? ""}
-            placeholder="Leave blank for behavior-aware labels"
-            onChange={(e) => void commitPatch({ ctaLabel: e.target.value })}
-          />
+          {textField("ctaLabel", catalog.ctaLabel ?? "", "Button label override", "Leave blank for behavior-aware labels")}
           <p className="text-xs text-black/50">
             Blank = Select / Choose options / Request appointment / Request a quote from offering
             behavior. Never invents Buy package when purchase is unsupported in this sheet.
@@ -452,11 +449,7 @@ export function ServicesCatalogContentInspector({
         </div>
         <div className={KIT.field}>
           <label className={KIT.label}>Empty message</label>
-          <input
-            className={KIT.input}
-            value={catalog.emptyMessage ?? ""}
-            onChange={(e) => void commitPatch({ emptyMessage: e.target.value })}
-          />
+          {textField("emptyMessage", catalog.emptyMessage ?? "", "Empty message")}
         </div>
         <button
           type="button"
