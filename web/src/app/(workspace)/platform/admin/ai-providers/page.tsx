@@ -7,6 +7,7 @@ import {
 } from "@/lib/ai/ai-provider-admin";
 import { GENERATION_MODEL_OPTIONS } from "@/lib/ai/ai-generation-model";
 import { AiProvidersClient } from "./AiProvidersClient";
+import { BookingAssistantUsageSection } from "./BookingAssistantUsageSection";
 
 export const dynamic = "force-dynamic";
 
@@ -17,11 +18,14 @@ export default async function AiProvidersPage() {
     loadTenantSpendStatus(),
   ]);
   return (
+    <>
     <AiProvidersClient
       state={state}
       usage={usage}
       spend={spend}
       modelOptions={GENERATION_MODEL_OPTIONS.map((o) => ({ ...o }))}
     />
+    <BookingAssistantUsageSection />
+    </>
   );
 }

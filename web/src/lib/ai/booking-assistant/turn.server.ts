@@ -208,7 +208,7 @@ async function resolveCatalogTenantId(
   return catalogTenantForPublicHost(hostCtx.kind, hostCtx.tenantId);
 }
 
-async function loadTalentPlanKey(talentProfileId: string): Promise<string | null> {
+export async function loadTalentPlanKey(talentProfileId: string): Promise<string | null> {
   const admin = createServiceRoleClient();
   if (!admin) return null;
   const { data, error } = await admin
@@ -225,7 +225,7 @@ async function loadTalentPlanKey(talentProfileId: string): Promise<string | null
 }
 
 /** Sum successful booking-assistant spend for this talent in the UTC month. */
-async function loadTalentBookingAssistantSpendCentsThisMonth(
+export async function loadTalentBookingAssistantSpendCentsThisMonth(
   talentProfileId: string,
 ): Promise<number> {
   const admin = createServiceRoleClient();
