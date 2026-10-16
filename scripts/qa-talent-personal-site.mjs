@@ -327,6 +327,11 @@ async function runAll() {
 
   // Hidden profile blocks public access
   console.log("\n[6b] Hidden profile blocks RPC");
+  // TUL-862: remember the fixture's real visibility and restore THAT afterwards.
+  // Forcing `false` here un-hid TAL-93940 from the public directory on every run.
+  const [{ is_publicly_hidden: wasHidden } = { is_publicly_hidden: false }] = await sql(
+    `SELECT is_publicly_hidden FROM public.talent_profiles WHERE id = '${MAX_PROFILE_ID}'`,
+  );
   await sql(
     `UPDATE public.talent_profiles SET is_publicly_hidden = true WHERE id = '${MAX_PROFILE_ID}'`,
   );
@@ -339,7 +344,7 @@ async function runAll() {
     fail("public RPC vs hidden profile", JSON.stringify(rpcHidden));
   }
   await sql(
-    `UPDATE public.talent_profiles SET is_publicly_hidden = false WHERE id = '${MAX_PROFILE_ID}'`,
+    `UPDATE public.talent_profiles SET is_publicly_hidden = ${wasHidden === true} WHERE id = '${MAX_PROFILE_ID}'`,
   );
 
   // ── 7. anon role has EXECUTE on the RPC ───────────────────────────────

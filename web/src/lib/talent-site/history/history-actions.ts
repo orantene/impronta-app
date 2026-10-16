@@ -95,11 +95,12 @@ export async function undoTalentThemeUpdateAction(input: {
 export async function loadTalentGoLiveAction(): Promise<
   { ok: true; summary: GoLiveSummary } | { ok: false; error: string }
 > {
-  const g = await gate("personalSiteEdit");
+  // PERF-SITE: the locale read is independent of the gate; run them together.
+  const [g, requestLocale] = await Promise.all([gate("personalSiteEdit"), getRequestLocale()]);
   if (!g.ok) return { ok: false, error: g.error };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Not configured." };
-  const locale = (await getRequestLocale()).toLowerCase().startsWith("es") ? "es" : "en";
+  const locale = requestLocale.toLowerCase().startsWith("es") ? "es" : "en";
   const summary = await loadGoLiveSummary(admin, g.talentProfileId, locale);
   if (!summary) return { ok: false, error: "Site not found." };
   return { ok: true, summary };

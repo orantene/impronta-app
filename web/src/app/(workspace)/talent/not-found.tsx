@@ -4,11 +4,15 @@
 // dashboard locale provider and shell; copy follows the dashboard language.
 
 import Link from "next/link";
+import { useEffect } from "react";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { TALENT_NOT_FOUND_MIN_HEIGHT, talentNotFoundCopy } from "./_talent-not-found-copy";
 
 export default function TalentNotFound() {
   const copy = talentNotFoundCopy(useDashboardLocale());
+  useEffect(() => {
+    document.title = `${copy.title} | Tulala`;
+  }, [copy.title]);
   const font = '"Inter", system-ui, sans-serif';
   return (
     <div

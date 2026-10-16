@@ -16,7 +16,7 @@ export const CLIENTS_ES_TEXT: Record<string, string> = {
   Outstanding: "Con saldo",
   "Follow-up": "Seguimiento",
   New: "Nuevas",
-  "Add client": "Agregar clienta",
+  "Add client": "Agregar cliente",
   Client: "Clienta",
   "Last completed": "Última completada",
   Next: "Próxima",

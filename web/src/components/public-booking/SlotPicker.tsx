@@ -7,9 +7,10 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { translatorFor, useT } from "@/i18n/use-t";
 import { publicSlotsUrl } from "@/lib/scheduling/public-slots-workspace";
 import { loadPublicSlots } from "./slot-picker-load";
+import { usePublicT } from "@/i18n/use-public-t";
+import { translatorFor } from "@/i18n/translator-for";
 
 export type SlotPickerValue = {
   startsAt: string;
@@ -62,7 +63,7 @@ export function SlotPicker({
   locale: localeProp,
   contactHref = null,
 }: Props) {
-  const cookieT = useT();
+  const cookieT = usePublicT();
   const t = useMemo(() => {
     if (!localeProp?.trim()) return cookieT;
     return translatorFor(localeProp.startsWith("es") ? "es" : "en");

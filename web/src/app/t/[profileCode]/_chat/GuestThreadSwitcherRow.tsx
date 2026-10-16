@@ -97,7 +97,7 @@ export function ConversationRow({
           >
             {inq.projectLabel}
           </span>
-          {showNew && <NewDot accent={accent} />}
+          {showNew && <NewDot accent={accent} label={t("public.guestChat.newMessageAria")} />}
           <ProjectStatusPill isDraft={inq.isDraft} accent={accent} C={C} t={t} />
         </div>
         {inq.lastMessagePreview && (

@@ -16,8 +16,8 @@ import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { ensureCustomDomainOnVercelProject } from "@/lib/saas/custom-domain-actions";
+import { domainRenewalCopy } from "@/lib/domains/domain-renewal-copy";
 import { recordRegistrarSnapshot, recordRenewalConsent } from "@/lib/stripe/talent-domain-renewal";
-import { createTranslator } from "@/i18n/messages";
 import {
   buyDomain,
   REGISTRAR_AUTO_RENEW_POLICY,
@@ -151,7 +151,7 @@ export async function createTalentDomainPurchaseCheckoutSession(opts: {
         // 21 days before, and the card she pays with is saved for THAT charge only (D5). Stripe shows the
         // disclosure next to the pay button; the saved method becomes the domain's renewal method.
         custom_text: {
-          submit: { message: createTranslator(opts.locale ?? "en")("dashboard.domainRenewal.consentDisclosure") },
+          submit: { message: domainRenewalCopy(opts.locale ?? "en", "consentDisclosure") },
         },
         success_url: `${opts.appBaseUrl}${returnPath}?domainCheckout=done`,
         cancel_url: `${opts.appBaseUrl}${returnPath}?domainCheckout=cancel`,

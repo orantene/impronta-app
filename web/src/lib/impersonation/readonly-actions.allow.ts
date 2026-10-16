@@ -8,6 +8,7 @@ export const READ = "pure loader: reads only, no write path, nothing for read-on
 export type AllowEntry = [suffix: string, names: string[], reason: string];
 
 export const EXTRA_ALLOW: AllowEntry[] = [
+  ["lib/scheduling/appointments-surface-action.ts", ["loadAppointmentsSurface"], READ],
   ["app/(workspace)/[tenantSlug]/admin/account/plan-change-actions.ts", ["previewWorkspacePlanChange"], "plan-change preview: Stripe upcoming-invoice read only; confirmWorkspacePlanChange is guarded"],
   ["app/(workspace)/[tenantSlug]/admin/account/stripe-billing-actions.ts", ["loadWorkspaceYearlyCheckoutPlans"], READ],
   ["app/(workspace)/[tenantSlug]/talent/settings/plan-change-actions.ts", ["previewTalentPlanChange"], "plan-change preview: Stripe upcoming-invoice read only; confirmTalentPlanChange is guarded"],
@@ -19,6 +20,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["lib/server-actions/posts-ai-toggle-actions.ts", ["workspaceLoadAiCrawlersAllowedAction"], READ],
   ["lib/server-actions/posts-layout-actions.ts", ["workspaceListPostsTreeAction", "talentListPostsTreeAction"], READ],
   ["lib/server-actions/posts-widget-actions.ts", ["listPostsForWidgetPickerAction"], READ],
+  ["lib/site-admin/builder-node/posts-feed-demo-action.ts", ["loadPostsFeedDemoCardsAction"], READ],
   ["lib/promos/actions.ts", ["loadPromosPage", "getPromoAttention", "loadPromoBookings"], READ],
   ["lib/promos/booking-quote.actions.ts", ["previewBookingQuoteAction"], "public client price preview: reads only, holds nothing, no talent session"],
   ["lib/promos/callouts/dismissals.actions.ts", ["loadCalloutState"], READ],
@@ -296,6 +298,7 @@ export const ROUTE_ALLOW: Array<[suffix: string, reason: string]> = [
   ["api/stripe/webhook/route.ts", "webhook: Stripe-signature authenticated, no user session"],
   ["api/webhooks/messaging/[channel]/route.ts", "webhook: provider-signature authenticated, no user session"],
   ["api/webhooks/resend/route.ts", "webhook: Svix-signature authenticated, no user session"],
+  ["api/webhooks/whatsapp/inbound/route.ts", "webhook: Twilio-signature authenticated, no user session"],
   ["api/hooks/auth-email/route.ts", "Supabase auth hook: secret authenticated, no user session"],
   ["api/public/places/street-suggest/route.ts", "public anonymous READ (POST only to keep typed text out of URLs); no session, writes nothing; flag-gated + rate-limited (TUL-439)"],
   ["api/public/places/street-details/route.ts", "public anonymous READ (POST only to keep typed text out of URLs); no session, writes nothing; flag-gated + rate-limited (TUL-439)"],

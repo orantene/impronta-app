@@ -31,12 +31,15 @@ import {
   signInClientAccountPassword,
   verifyClientAccountCode,
 } from "@/lib/client-account/actions";
-import { ACCOUNT_DOCK_Z_INDEX, shouldHideAccountDock } from "@/lib/client-account/dock-visibility";
+import { ACCOUNT_DOCK_Z_INDEX, DOCK_NARROW_SIDE_CSS, shouldHideAccountDock } from "@/lib/client-account/dock-visibility";
 import { accountQuickLinks } from "@/lib/client-account/quick-links";
 import { resendSecondsLeft, type AccountSummary } from "@/lib/client-account/pure";
 
 type Me = { signedIn: false; signedInAs?: "business" } | { signedIn: true; email: string | null; initials: string; summary: AccountSummary };
 type Step = "email" | "code" | "password" | "consent";
+
+/** Dispatch on `window` to open the sign-in popover from a trigger that lives elsewhere (hub header "Entrar"). */
+export const CLIENT_ACCOUNT_OPEN_EVENT = "tulala:open-client-account" as const;
 
 const INK = "var(--token-color-ink, #111)";
 const BG = "var(--token-color-surface-raised, var(--token-color-background, #fff))";
@@ -65,6 +68,7 @@ export function ClientAccountButton({
   locale,
   accountHref = "/account",
   appleSignInEnabled = false,
+  hideTrigger = false,
 }: {
   variant: "dock" | "header";
   locale: string;
@@ -72,6 +76,8 @@ export function ClientAccountButton({
   accountHref?: string;
   /** Server-resolved `AUTH_APPLE_PROVIDER_ENABLED` — never trust the client. */
   appleSignInEnabled?: boolean;
+  /** Render only the popover; the caller supplies the trigger and fires CLIENT_ACCOUNT_OPEN_EVENT. */
+  hideTrigger?: boolean;
 }) {
   const loc = locale === "es" ? "es" : "en";
   const t = createTranslator(loc);
@@ -115,6 +121,12 @@ export function ClientAccountButton({
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener(CLIENT_ACCOUNT_OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(CLIENT_ACCOUNT_OPEN_EVENT, onOpen);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -449,8 +461,8 @@ export function ClientAccountButton({
 
   return (
     <>
-      <style>{`[data-client-account-dock]{--client-account-dock-bottom:194px}@media (max-width:480px){[data-client-account-dock]{--client-account-dock-bottom:calc(88px + env(safe-area-inset-bottom))}}[data-client-account-sheet]{position:fixed;z-index:120;background:${BG};color:${INK};border:1px solid ${LINE};box-shadow:0 12px 40px rgba(0,0,0,.25);padding:20px;display:flex;flex-direction:column;gap:12px;font-family:var(--site-body-font,inherit)}@media (min-width:640px){[data-client-account-sheet]{width:340px;border-radius:14px;right:16px;${variant === "dock" ? "bottom:250px" : "top:64px"}}}@media (max-width:639px){[data-client-account-sheet]{left:0;right:0;bottom:0;border-radius:16px 16px 0 0;padding-bottom:calc(20px + env(safe-area-inset-bottom));max-height:85vh;overflow:auto}}`}</style>
-      <span data-client-account-dock={variant === "dock" ? "" : undefined}>{trigger}</span>
+      <style>{`[data-client-account-dock]{--client-account-dock-bottom:194px}@media (max-width:480px){[data-client-account-dock]{--client-account-dock-bottom:calc(88px + env(safe-area-inset-bottom))}${DOCK_NARROW_SIDE_CSS}}[data-client-account-sheet]{position:fixed;z-index:120;background:${BG};color:${INK};border:1px solid ${LINE};box-shadow:0 12px 40px rgba(0,0,0,.25);padding:20px;display:flex;flex-direction:column;gap:12px;font-family:var(--site-body-font,inherit)}@media (min-width:640px){[data-client-account-sheet]{width:340px;border-radius:14px;right:16px;${variant === "dock" ? "bottom:250px" : "top:64px"}}}@media (max-width:639px){[data-client-account-sheet]{left:0;right:0;bottom:0;border-radius:16px 16px 0 0;padding-bottom:calc(20px + env(safe-area-inset-bottom));max-height:85vh;overflow:auto}}`}</style>
+      {hideTrigger ? null : <span data-client-account-dock={variant === "dock" ? "" : undefined}>{trigger}</span>}
       {open ? (
         <>
           <div onClick={close} aria-hidden style={{ position: "fixed", inset: 0, zIndex: 119, background: "rgba(0,0,0,.25)" }} />

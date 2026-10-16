@@ -104,7 +104,7 @@ function deps(calls: Calls, opts: { card?: boolean; intentStatus?: string; inten
     getDomain: async () => ({ attempted: true, ok: true, expiresAt: null, autoRenew: null, renewalPriceCents: null, skippedReason: null, errorCode: null, errorMessage: null, ...opts.info }),
     setAutoRenew: async (domain: string, on: boolean) => {
       calls.autoRenew.push([domain, on]);
-      return { attempted: true, ok: opts.turnOffOk !== false, skippedReason: null, errorCode: null, errorMessage: null };
+      return { attempted: true, updated: opts.turnOffOk !== false, skippedReason: null, errorCode: null, errorMessage: null };
     },
     notify: async (n) => {
       calls.notices.push(n as unknown as Row);

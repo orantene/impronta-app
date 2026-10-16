@@ -1216,6 +1216,10 @@
       "gateLastName": "Last name",
       "gateYourMessageLabel": "YOUR MESSAGE",
       "gateSend": "Send message",
+      "newMessageAria": "New message",
+      "unreadConversationsAria": "Unread conversations",
+      "lookPreviewLabel": "Your look",
+      "lookPreviewRemoveLabel": "Remove look",
       "switcherAria": "Switch inquiry",
       "switcherPaneTitle": "Your inquiries",
       "switcherEmpty": "No inquiries yet.",
@@ -1951,6 +1955,7 @@
         "listening": "Listening…",
         "transcribing": "Writing it down…",
         "typePlaceholder": "Or type it here…",
+        "typePlaceholderDirect": "Type what you do…",
         "linkPlaceholder": "https:// or @yourbusiness",
         "send": "Send",
         "forExample": "For example",
@@ -3476,8 +3481,6 @@
         "taxDocuments": "Tax documents",
         "taxDocumentsDesc": "Year-end summary + downloadable forms. Tulala reports your platform earnings; off-platform you declare yourself.",
         "taxYearTotal": "{year} total",
-        "taxPlatform": "Platform",
-        "taxOffPlatform": "Off-platform",
         "availableDocuments": "Available documents",
         "docIncomeSummary": "{year} income summary",
         "docIncomeSummaryBody": "Platform-reported earnings only · PDF download",
@@ -14002,12 +14005,74 @@
       "lineCountOne": "item",
       "lineCountOther": "items",
       "refundAmount": "Amount to refund",
-      "refundAmountHint": "Default is the full remaining ({max}). Lower it for a partial refund."
+      "refundAmountHint": "Default is the full remaining ({max}). Lower it for a partial refund.",
+      "door": {
+        "newBadge": "New",
+        "mockBanner": "Order door mockup on the live Pedidos desk. Dashed and New mark only what this slice adds; the columns and refund path stay as they are today.",
+        "mockPreview": "Mock content: later slices fill each section with real data and open names in stacked drawers.",
+        "copyCode": "Copy order code",
+        "codeCopied": "Copied",
+        "back": "Back to list",
+        "moreMenu": "More actions",
+        "primary": {
+          "sendPayLink": "Send payment link",
+          "collectPos": "Collect at counter",
+          "sendReceipt": "Send receipt",
+          "viewRefund": "View refund"
+        },
+        "sections": {
+          "summary": {
+            "title": "Summary",
+            "preview": "Timeline and money",
+            "body": "Timeline mock: created, offer, paid, fulfilled. Money lines (total, paid, pending, fee, net) land in the next slice."
+          },
+          "client": {
+            "title": "Client",
+            "preview": "Name and contact",
+            "body": "Client drawer mock: past orders, Message, WhatsApp, Copy email. Name will open a side drawer without leaving Pedidos."
+          },
+          "items": {
+            "title": "Items",
+            "preview": "Lines on this order",
+            "body": "Each line will show service, qty, price, person and space. Per-line refund moves here from the table cell."
+          },
+          "appointment": {
+            "title": "Appointment and dates",
+            "preview": "When and where",
+            "body": "Date, start to end, timezone and location. Needs the location field from TUL-426 before this section is real."
+          },
+          "payments": {
+            "title": "Payments",
+            "preview": "Transactions and links",
+            "body": "Each transaction opens the payment drawer. Refund lines stay available below while this mock is up."
+          },
+          "conversation": {
+            "title": "Conversation",
+            "preview": "No thread yet",
+            "body": "Origin and last message preview. Opens the conversation drawer; it never navigates away."
+          },
+          "origin": {
+            "title": "Origin and device",
+            "preview": "Channel and device",
+            "body": "Sales channel, source page or terminal, and coarse device family. No IP or precise location."
+          },
+          "activity": {
+            "title": "Activity",
+            "preview": "Who and when",
+            "body": "Status changes, messages sent, refunds and notes. Actor names open the person drawer."
+          },
+          "notes": {
+            "title": "Internal notes",
+            "preview": "No notes yet",
+            "body": "Team notes on the order. Add a note inline in a later slice."
+          }
+        }
+      }
     },
     "sales": {
       "pageTitle": "Sales",
       "pageIntro": "One commercial view across every product · click a row to open the source record",
-      "empty": "No sales yet.",
+      "empty": "When you record a sale or a payment, it will appear here.",
       "emptyTitle": "No sales yet",
       "colCustomer": "Customer",
       "filterKindLabel": "Kind",
@@ -14040,7 +14105,7 @@
       "noResultsBody": "There are sales on this workspace; none is of this kind on this channel.",
       "clearFilters": "Show every sale",
       "retry": "Try again",
-      "footnote": "A free registration is never shown as an unpaid invoice. Payment and fulfilment are one pill on purpose: what the record says, not a guess.",
+      "footnote": "A free registration is never shown as an unpaid invoice. Payment and fulfilment are one label on purpose: it shows what the record says, not a guess.",
       "state": {
         "free": "Free · Confirmed",
         "paid": "Paid",
@@ -17303,7 +17368,8 @@
           "collisionNote": "{when} cannot be generated: the room already holds {other} then. Move one of them; nothing is sold until it is resolved."
         },
         "templatesOff": "Series templates do not exist yet; a series cannot be created from the workspace."
-      }
+      },
+      "loadTimeout": "The appointments are taking too long to load. Check your connection and reload the page."
     },
     "projects": {
       "pageTitle": "Projects",
@@ -20293,15 +20359,6 @@
       "walletBody2": "To spend it locally, you can convert your USDC to pesos or your local currency whenever you like, using any service that supports it in your country.",
       "walletBody3": "Only link a wallet address you own. Double-check it before saving.",
       "checking": "Checking if USDC payouts are available for you..."
-    },
-    "domainRenewal": {
-      "chargedTitle": "Domain renewal paid",
-      "chargedBody": "We charged {amount} to your saved card to renew {domain}. That is our cost, with no markup. It renews on {date}.",
-      "payTitle": "Pay to keep {domain}",
-      "payBody": "{domain} renews on {date}. The renewal costs {amount}, our cost with no markup. Use the link within 24 hours; we will send a new one if needed. If it is not paid a week before, we turn off auto-renew and the domain will expire.",
-      "autorenewOffTitle": "Auto-renew is off for {domain}",
-      "autorenewOffBody": "We did not receive the renewal payment, so {domain} will expire on {date} and your site will stop loading there. Pay before then and we turn auto-renew back on.",
-      "consentDisclosure": "This domain renews every year at the registrar's price, with no markup. We tell you 21 days before and charge this card then. You can pay with a link instead at any time."
     },
     "promoCode": {
       "toggle": "Have a code?",

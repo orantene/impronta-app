@@ -85,7 +85,7 @@ function Pill({
         borderRadius: 999,
         fontSize: 11.5,
         fontWeight: active ? 700 : 600,
-        color: active ? "#fff" : "rgba(11,11,13,0.55)",
+        color: active ? "#fff" : "rgba(11,11,13,0.6)",
         background: active ? "#0F4F3E" : "transparent",
         textDecoration: "none",
         boxShadow: active ? "0 1px 3px rgba(11,11,13,0.10)" : "none",

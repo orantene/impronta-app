@@ -27,8 +27,8 @@
  */
 
 import { useEffect, useState } from "react";
+import { usePublicT } from "@/i18n/use-public-t";
 
-import { useT } from "@/i18n/use-t";
 import {
   formatMediaQuotaLine,
   mediaQuotaToneClass,
@@ -49,7 +49,7 @@ export function TalentMediaQuotaLine({
   quota?: MediaQuotaSnapshot | null;
   className?: string;
 }) {
-  const t = useT();
+  const t = usePublicT();
   const [fetched, setFetched] = useState<MediaQuotaSnapshot | null>(null);
   const shouldFetch = providedQuota === undefined && !!talentProfileId;
 

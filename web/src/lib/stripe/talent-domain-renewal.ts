@@ -22,8 +22,8 @@ import "server-only";
 import type Stripe from "stripe";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
+import { domainRenewalCopy, type DomainRenewalCopyKey } from "@/lib/domains/domain-renewal-copy";
 import {
   planRenewal,
   type RenewalAction,
@@ -103,10 +103,10 @@ function localeOf(preferred: string | null | undefined): "en" | "es" | "fr" {
 
 type Notice = "charged" | "pay" | "autorenewOff";
 
-const NOTICE_KEYS: Record<Notice, { title: string; body: string }> = {
-  charged: { title: "dashboard.domainRenewal.chargedTitle", body: "dashboard.domainRenewal.chargedBody" },
-  pay: { title: "dashboard.domainRenewal.payTitle", body: "dashboard.domainRenewal.payBody" },
-  autorenewOff: { title: "dashboard.domainRenewal.autorenewOffTitle", body: "dashboard.domainRenewal.autorenewOffBody" },
+const NOTICE_KEYS: Record<Notice, { title: DomainRenewalCopyKey; body: DomainRenewalCopyKey }> = {
+  charged: { title: "chargedTitle", body: "chargedBody" },
+  pay: { title: "payTitle", body: "payBody" },
+  autorenewOff: { title: "autorenewOffTitle", body: "autorenewOffBody" },
 };
 
 /** Bell notice to the talent, in her language. Best effort: never blocks the billing step. */
@@ -130,7 +130,6 @@ async function notifyTalent(
     const profile = data as { user_id: string | null; preferred_locale: string | null } | null;
     if (!profile?.user_id) return;
     const locale = localeOf(profile.preferred_locale);
-    const t = createTranslator(locale);
     const date = row.registrar_expires_at
       ? new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "UTC" }).format(new Date(row.registrar_expires_at))
       : "";
@@ -144,8 +143,8 @@ async function notifyTalent(
       tenantId: null,
       kind: "payment",
       surface: "talent",
-      title: interpolate(t(NOTICE_KEYS[notice].title), vars),
-      body: interpolate(t(NOTICE_KEYS[notice].body), vars),
+      title: interpolate(domainRenewalCopy(locale, NOTICE_KEYS[notice].title), vars),
+      body: interpolate(domainRenewalCopy(locale, NOTICE_KEYS[notice].body), vars),
       targetDrawer: "talent-site",
       targetPayload: deps.payUrl ? { payUrl: deps.payUrl, domain: row.domain } : { domain: row.domain },
       originEventId: null,
@@ -191,7 +190,7 @@ async function recordPaid(
   const expires = row.registrar_expires_at ? Date.parse(row.registrar_expires_at) : 0;
   if (wasOff && expires > Date.now()) {
     const back = await deps.setAutoRenew(row.domain, true);
-    if (back.attempted && !back.ok) {
+    if (back.attempted && !back.updated) {
       logServerError("domain-renewal.reenable", `${row.domain}: ${back.errorCode ?? ""} ${back.errorMessage ?? ""}`);
       await markState(sb, row, { renewal_state: "needs_attention" });
       return;
@@ -418,7 +417,7 @@ export async function runDomainRenewalSweep(
         }
       } else if (action.kind === "turn_off_autorenew") {
         const off = await setAutoRenew(row.domain, false);
-        if (off.ok) {
+        if (off.updated) {
           await markState(sb, row, {
             registrar_auto_renew: false,
             renewal_state: "unpaid_autorenew_off",

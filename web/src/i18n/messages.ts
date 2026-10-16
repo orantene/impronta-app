@@ -18,6 +18,7 @@ import en from "../../messages/en.json";
 import es from "../../messages/es.json";
 import fr from "../../messages/fr.json";
 
+import { pickClientSubtrees } from "./client-subtrees";
 import { defaultLocale } from "./config";
 
 type Catalog = Record<string, unknown>;
@@ -128,3 +129,22 @@ export function getMessageStringArray(locale: string, key: string): string[] {
   }
   return [];
 }
+
+/**
+ * The client-safe subtrees of every catalog, for the root layout to inline as
+ * the browser translator's store (see `client-subtrees.ts`).
+ */
+export function getClientMessagesPayload(locale: string): Record<string, Catalog> {
+  const out: Record<string, Catalog> = {};
+  // The page's own locale plus the same fallback chain the translator walks.
+  for (const code of new Set([locale, defaultLocale, ROOT_FALLBACK_LOCALE])) {
+    if (hasMessageCatalog(code)) out[code] = pickClientSubtrees(CATALOG_REGISTRY[code]);
+  }
+  return out;
+}
+
+/**
+ * Server no-op twin of the browser `registerFullCatalogs`: the server build
+ * already holds every catalog.
+ */
+export function registerFullCatalogs(_catalogs: Record<string, Catalog>): void {}

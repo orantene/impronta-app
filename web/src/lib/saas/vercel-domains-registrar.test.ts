@@ -4,11 +4,13 @@ import assert from "node:assert/strict";
 import {
   buyDomain,
   checkRegistrarSearchRateLimit,
+  getDomainAuthCode,
   getDomainAvailability,
   getDomainPrice,
   readVercelRegistrarConfig,
   resetRegistrarSearchRateLimitForTests,
   searchDomainQuote,
+  setDomainAutoRenew,
 } from "./vercel-domains-registrar";
 
 test("readVercelRegistrarConfig returns null when token missing", () => {
@@ -194,14 +196,14 @@ test("setDomainAutoRenew: PATCHes the flag, skips without a token, reports a reg
   const { setDomainAutoRenew } = await import("./vercel-domains-registrar");
   assert.equal((await setDomainAutoRenew("x.com", false, { env: {} })).attempted, false);
   let seen: { url: string; method?: string; body?: string } | null = null;
-  const ok = await setDomainAutoRenew("x.com", false, {
+  const patched = await setDomainAutoRenew("x.com", false, {
     env: { VERCEL_TOKEN: "tok" },
     fetchFn: async (url, init) => {
       seen = { url, method: init?.method, body: String(init?.body) };
       return new Response("{}", { status: 200 });
     },
   });
-  assert.equal(ok.ok, true);
+  assert.equal(patched.updated, true);
   assert.equal(seen!.method, "PATCH");
   assert.match(seen!.url, /\/v1\/registrar\/domains\/x\.com\/auto-renew/);
   assert.equal(seen!.body, JSON.stringify({ autoRenew: false }));
@@ -209,6 +211,43 @@ test("setDomainAutoRenew: PATCHes the flag, skips without a token, reports a reg
     env: { VERCEL_TOKEN: "tok" },
     fetchFn: async () => new Response(JSON.stringify({ error: { code: "forbidden" } }), { status: 403 }),
   });
-  assert.equal(refused.ok, false);
+  assert.equal(refused.updated, false);
   assert.equal(refused.errorCode, "forbidden");
+});
+
+test("setDomainAutoRenew skips without token and PATCHes when configured", async () => {
+  const skipped = await setDomainAutoRenew("bought.test", false, { env: {} });
+  assert.equal(skipped.attempted, false);
+
+  let method = "";
+  let body = "";
+  const updated = await setDomainAutoRenew("bought.test", false, {
+    env: { VERCEL_API_TOKEN: "tok", VERCEL_TEAM_ID: "team_1" },
+    fetchFn: async (url, init) => {
+      method = String(init?.method ?? "");
+      body = String(init?.body ?? "");
+      assert.match(url, /\/v1\/registrar\/domains\/bought\.test\/auto-renew/);
+      assert.match(url, /teamId=team_1/);
+      return new Response(null, { status: 204 });
+    },
+  });
+  assert.equal(updated.attempted, true);
+  assert.equal(updated.updated, true);
+  assert.equal(method, "PATCH");
+  assert.match(body, /"autoRenew":false/);
+});
+
+test("getDomainAuthCode skips without token and returns authCode", async () => {
+  const skipped = await getDomainAuthCode("bought.test", { env: {} });
+  assert.equal(skipped.attempted, false);
+
+  const got = await getDomainAuthCode("bought.test", {
+    env: { VERCEL_TOKEN: "tok" },
+    fetchFn: async (url) => {
+      assert.match(url, /\/v1\/registrar\/domains\/bought\.test\/auth-code/);
+      return new Response(JSON.stringify({ authCode: "AUTH-99" }), { status: 200 });
+    },
+  });
+  assert.equal(got.attempted, true);
+  assert.equal(got.authCode, "AUTH-99");
 });

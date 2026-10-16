@@ -32,7 +32,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { useMaybeEditContext } from "./edit-context";
+import { useMaybeEditContext } from "./edit-context-core";
 import { computeMagnetSnap } from "./workspace-layout";
 
 export interface FloatingOffset {

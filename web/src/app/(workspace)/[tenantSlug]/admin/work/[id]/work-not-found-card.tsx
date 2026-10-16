@@ -20,7 +20,7 @@ export function WorkNotFoundCard({
   return (
     <main className="mx-auto max-w-[560px] px-5 py-12 font-[system-ui,sans-serif] text-[color:var(--color-admin-ink)]" data-work-not-found="">
       <h1 className="m-0 text-[22px] tracking-normal">{t("admin.work.detail.notFoundTitle")}</h1>
-      <p className="mb-5 mt-2.5 text-[14px] leading-normal text-[rgba(11,11,13,0.55)]">
+      <p className="mb-5 mt-2.5 text-[14px] leading-normal text-[rgba(11,11,13,0.6)]">
         {t("admin.work.detail.notFoundBody")}
       </p>
       <Link
