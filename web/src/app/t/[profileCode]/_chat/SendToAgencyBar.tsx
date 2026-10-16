@@ -44,6 +44,8 @@ export type SendToAgencyBarProps = {
    * subline, and a sent note that names the platform instead of "the agency".
    */
   isHub?: boolean;
+  /** TUL-1153: a one-talent site; never says "agency". */
+  solo?: boolean;
   /** Display name of the receiving brand (the hub, e.g. "Tulala"). Used in the hub sent note. */
   brandName?: string;
   /** Disable while a send is in flight or during cooldown. */
@@ -77,6 +79,7 @@ export function SendToAgencyBar({
   accentInk,
   t,
   isHub = false,
+  solo = false,
   brandName,
   disabled = false,
   sent,
@@ -85,7 +88,7 @@ export function SendToAgencyBar({
 }: SendToAgencyBarProps) {
   const C = paletteFor(surfaceMode);
   // Hub hosts (Tulala) are not agencies — the CTA + notes must not say "agency".
-  const ctaLabel = isHub
+  const ctaLabel = isHub || solo
     ? t("public.guestChat.sendHub")
     : t("public.guestChat.sendToAgency");
   const noPaymentLine = isHub
@@ -93,7 +96,9 @@ export function SendToAgencyBar({
     : t("public.guestChat.sendNoPayment");
   const sentLine = isHub
     ? interpolate(t("public.guestChat.sendHubSent"), { brand: brandName ?? "" })
-    : t("public.guestChat.sendToAgencySent");
+    : solo
+      ? interpolate(t("public.guestChat.sendSoloSent"), { brand: brandName ?? "" })
+      : t("public.guestChat.sendToAgencySent");
   if (sent) {
     return (
       <div style={wrapStyle(C)}>

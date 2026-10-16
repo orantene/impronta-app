@@ -49,7 +49,7 @@ test("ladders and teaser render names, prices, cadence and CTAs through marketin
     join(process.cwd(), "src/components/marketing/pricing-ladders-section.tsx"),
     "utf8",
   );
-  assert.match(ladders, /name: localizeTierName\(customerTierName\(t\.key, t\.name\), locale\)/);
+  assert.match(ladders, /name: pricingTierName\(packageSlug, t\.key, t\.name, locale\)/);
   assert.match(ladders, /localizeTierPrice\(t\.price, locale\)/);
   assert.match(ladders, /localizeTierCadence\(t\.cadence, locale\)/);
 

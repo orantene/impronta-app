@@ -3,14 +3,20 @@
  * Auth + flag are enforced in `page.tsx` via `loadDeskPage`.
  */
 
-export default function SupportDeskLayout({
+import { getRequestLocale } from "@/i18n/request-locale";
+import { DashboardLocaleProvider } from "@/i18n/use-dashboard-locale";
+
+export default async function SupportDeskLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const locale = await getRequestLocale();
   return (
-    <div className="min-h-[100dvh] bg-admin-surface text-admin-ink antialiased">
-      {children}
-    </div>
+    <DashboardLocaleProvider locale={locale}>
+      <div className="min-h-[100dvh] bg-admin-surface text-admin-ink antialiased">
+        {children}
+      </div>
+    </DashboardLocaleProvider>
   );
 }

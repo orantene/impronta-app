@@ -30,3 +30,10 @@ test("live pill uses one translated key for both title and aria-label", () => {
 test("ES and EN strings exist for the shared label", () => {
   assert.match(i18n, /"Website live": "Sitio en vivo"/);
 });
+
+test("TUL-818: the personal live pill reads the verified state, not the published flag alone", () => {
+  assert.match(src, /loadMySiteLiveVerifiedAction\(\)/);
+  assert.match(src, /liveBadgeState\(\{ published: true, verified: liveVerified \}\)/);
+  assert.match(src, /badge === "live" \? copy\.t\("Website live"\)/);
+  assert.match(i18n, /"Checking your website": "Comprobando tu sitio"/);
+});

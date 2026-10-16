@@ -1,4 +1,6 @@
 import type { TrustBadgeRow } from "@/lib/trust/verified-mark";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { resolveEffectiveTalentPlans } from "@/lib/billing/effective-talent-plan";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   decodeDirectoryCursor,
@@ -51,7 +53,7 @@ import {
   applyPresentabilityOrdering,
   presentabilityTier,
 } from "@/lib/directory/presentability-order";
-import { isTalentPortfolioTier } from "@/lib/access/talent-membership";
+import { hasEntitlement } from "@/lib/access/talent-entitlements";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { auditTime, isDirectoryApiAudit } from "@/lib/directory/directory-api-audit";
@@ -912,9 +914,15 @@ async function fetchDirectoryWindow(
   const profileIds = profiles.map((row) => row.id);
   // Portfolio (Max) talents on THIS page — feeds the priority-placement
   // tie-break applied to the loaded page below (see portfolio-boost.ts).
+  const effectivePlans = await resolveEffectiveTalentPlans(
+    createServiceRoleClient() ?? supabase,
+    profiles,
+  );
   const portfolioProfileIds = new Set(
     profiles
-      .filter((row) => isTalentPortfolioTier(row.talent_plan_key))
+      .filter((row) =>
+        hasEntitlement(effectivePlans.get(row.id) ?? row.talent_plan_key, "discover.priority"),
+      )
       .map((row) => row.id),
   );
 

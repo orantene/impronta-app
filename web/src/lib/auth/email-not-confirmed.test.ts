@@ -22,3 +22,24 @@ test("TUL-767: the sign-in action names the unverified state and the copy points
     assert.match(m, f === "en" ? /Email me a code/ : /Envíame un código/);
   }
 });
+
+test("TUL-767: real Error instances and message variants are recognised; unrelated errors never are", () => {
+  assert.equal(isEmailNotConfirmed(new Error("Email not confirmed")), true);
+  assert.equal(isEmailNotConfirmed({ message: "EMAIL NOT CONFIRMED" }), true);
+  assert.equal(isEmailNotConfirmed({ code: "email_not_confirmed" }), true);
+  for (const e of [undefined, 42, {}, { message: 7 }, new Error("Too many requests"), { code: "over_request_rate_limit", message: "rate" }]) {
+    assert.equal(isEmailNotConfirmed(e), false, JSON.stringify(e));
+  }
+});
+
+test("TUL-767: the message offers the resend action by its exact on-screen label, in ES and EN, and survives the login form's error mapper", () => {
+  for (const f of ["en", "es"]) {
+    const a = JSON.parse(readFileSync(join(process.cwd(), `messages/${f}.json`), "utf8")).public.auth;
+    const msg = a.errors.emailNotConfirmed as string;
+    // the action the message names is the real button/link label, so the copy cannot drift from the UI
+    assert.ok(msg.includes(a.passwordless.useCode), `${f}: message names "${a.passwordless.useCode}"`);
+    // and none of the words the login form's mapper re-classifies on
+    assert.doesNotMatch(msg, /invalid login|invalid credentials|too many|network|fetch/i, `${f}: must not be remapped`);
+    assert.notEqual(msg, a.errors.invalidCredentials, `${f}: distinct from the wrong-password message`);
+  }
+});

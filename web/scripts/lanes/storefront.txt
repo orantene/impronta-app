@@ -87,3 +87,4 @@ src/lib/talent-site/seo-description-fallback.test.ts
 src/app/(public)/book/book-page-empty.test.tsx
 src/lib/talent/google-site-verification.test.ts
 src/lib/talent-site/server/site-metadata-verification.test.ts
+src/components/marketing/footer-tap-targets.static.test.ts

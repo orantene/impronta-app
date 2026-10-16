@@ -133,6 +133,7 @@ const KIND_ELEMENT_CATEGORY: Readonly<Record<BuilderNodeKind, ElementLibraryCate
     ticket_picker: "actions",
     event_program: "actions",
     qr_code: "actions",
+    posts_feed: "media",
     carousel: "layout",
     masonry: "layout",
     accordion: "structure",
@@ -238,6 +239,7 @@ export function elementLibrarySearchExtraTerms(kind: BuilderNodeKind): string {
   ticket_picker: "ticket tickets event night buy card checkout tier admission door show concert festival",
   event_program: "program programa schedule lineup agenda set times performers timeline event night stage",
   qr_code: "qr code scan link print table tent share menu",
+  posts_feed: "posts blog articles news journal latest featured feed grid slider magazine masonry bento publicaciones entradas noticias",
     form: "form contact lead newsletter signup input email field submit message inquiry capture",
     code: "code html css raw markup snippet iframe embed sandbox custom widget",
     divider: "rule separator hr",
@@ -336,6 +338,8 @@ export const SHIPPED_ELEMENT_INSERT_KINDS: ReadonlyArray<BuilderNodeKind> = [
     "event_program",
     "qr_code",
     "talent_type_grid",
+    // Posts v1 (PO1): reached through the CONNECTED tab like the other live blocks.
+    "posts_feed",
     // BUILDER 2027 · P2A — all twelve are shipped + droppable. The four roster
     // bands reach the picker through the CONNECTED tab and the four `header_*`
     // widgets through the shell builder, so they stay OUT of
