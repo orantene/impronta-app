@@ -101,7 +101,7 @@ export default async function TermsPage() {
             <>
               {/* LEGAL_REVIEW_PENDING: collect-and-pay-out model (TUL-43 option A, Oran 2026-10-16); counsel review pending */}
               <p>
-                {"The talent or workspace is the seller of the service. For card payments, Tulala collects the client\u2019s payment through its payment processor, Stripe, and then pays the seller\u2019s share out to the seller\u2019s payout account. The seller is responsible for tax invoicing for the service (for example, the CFDI in Mexico). Tulala is responsible for invoicing its own fees and plans."}
+                {"The talent or workspace is the seller of the service. For card payments, Tulala collects the client’s payment through its payment processor, Stripe, and then pays the seller’s share out to the seller’s payout account. The seller is responsible for tax invoicing for the service (for example, the CFDI in Mexico). Tulala is responsible for invoicing its own fees and plans."}
               </p>
               <p>
                 {PLATFORM_BRAND.name} provides the platform and the payment tools, using
