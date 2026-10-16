@@ -24,7 +24,7 @@ export type ResultEvent = { promo_id: string; kind: string; at: string };
 export type PromoResult = {
   promoId: string;
   bookings: number;
-  /** Net of discount, before fees. Gift rows contribute their full list price. */
+  /** Net of discount, before fees. Gift rows contribute their list price; a Cortesía (discount = list) earns 0. */
   earnedCents: number;
   /** Price discounts handed out (gifts are counted apart). */
   givenCents: number;
@@ -44,6 +44,13 @@ export type PromoResult = {
 };
 
 const n = (v: number | null | undefined) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+
+/**
+ * What a gift row earned. A gifted add-on rides a paid booking (list = what
+ * was paid for, discount = the add-on given on top). A Cortesía gives the whole
+ * booking (list = discount): it earned nothing.
+ */
+const giftEarned = (list: number, disc: number) => (list > 0 && disc >= list ? 0 : list);
 const ms = (iso: string) => new Date(iso).getTime();
 
 export function computePromoResult(input: {
@@ -67,7 +74,7 @@ export function computePromoResult(input: {
     const disc = n(r.discount_cents);
     if (r.is_price_promo === false) {
       gifted += disc;
-      earned += list;
+      earned += giftEarned(list, disc);
       gross += list;
     } else {
       given += disc;
@@ -128,7 +135,7 @@ export function computeMonthRollup(input: {
   let earned = 0, given = 0, gifted = 0, nw = 0, back = 0;
   for (const r of inRange) {
     const list = n(r.list_cents), disc = n(r.discount_cents);
-    if (r.is_price_promo === false) { gifted += disc; earned += list; }
+    if (r.is_price_promo === false) { gifted += disc; earned += giftEarned(list, disc); }
     else { given += disc; earned += Math.max(0, list - disc); }
     if (r.client_status === "new") nw += 1;
     else if (r.client_status === "returning" || r.client_status === "lapsed") back += 1;

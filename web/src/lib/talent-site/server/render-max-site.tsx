@@ -392,6 +392,8 @@ async function renderTalentMaxSiteUnguarded(
       page: scrubTalentSiteSeo(
         page,
         talentPlanGrantsSiteCapability(planKey, "personalSiteSeo"),
+        // TUL-587: title + description render on every plan.
+        talentPlanGrantsSiteCapability(planKey, "personalSiteSeoBasic"),
       ),
       identity,
       locale,
