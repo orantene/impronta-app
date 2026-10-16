@@ -9,7 +9,7 @@ import { resolveLiveBio } from "./live-bio";
 import { guessLineLanguage, resolveLocalizedLine } from "./live-line-language";
 import type { TalentLiveText } from "./live-text";
 import { tagLineFromVisibleServices, type ServiceVisibility } from "./live-text-services";
-import { pick, type LocalizedMapLike } from "./talent-locale-swaps";
+import { pick, staleTypeLabels, type LocalizedMapLike } from "./talent-locale-swaps";
 
 export interface LiveTextSource {
   displayName: string;
@@ -59,12 +59,16 @@ export function instagramHandle(href: string | null | undefined): string {
   }
 }
 
-/** Footer contact line with real links (the paragraph renders `[text](url)`): Instagram handle, WhatsApp click-to-chat. */
+/**
+ * Footer contact line with real links (the paragraph renders `[text](url)`).
+ * Instagram is ONE link (`Instagram · @handle`) so the middot never wraps as a
+ * dangling separator before the handle (unfinished-footer / TUL-532).
+ */
 export function contactLine(handle: string, instagramHref?: string | null, whatsappHref?: string | null): string {
   const parts: string[] = [];
   if (handle) {
     const url = instagramHref && /^https:\/\//i.test(instagramHref) ? instagramHref : `https://instagram.com/${handle.slice(1)}`;
-    parts.push(`Instagram · [${handle}](${url})`);
+    parts.push(`[Instagram · ${handle}](${url})`);
   }
   if (whatsappHref && /^https:\/\/(wa\.me|api\.whatsapp\.com)\//i.test(whatsappHref)) parts.push(`[WhatsApp](${whatsappHref})`);
   return parts.join(" · ");
@@ -112,12 +116,15 @@ export function buildTalentLiveText(
 
   const cityEs = src.city?.es?.trim() ?? "";
   const tradeEs = src.trade?.es?.trim() ?? "";
+  const staleTrades = staleTypeLabels(tradeEn);
   const eyebrows = new Set(
     [
       tradeEn,
       tradeEs,
+      ...staleTrades,
       formatHeroEyebrow(tradeEn, cityEn),
       formatHeroEyebrow(tradeEs, cityEs),
+      ...staleTrades.map((t) => formatHeroEyebrow(t, cityEs || cityEn)),
       formatHeroEyebrow(tradeNow, cityNow),
     ].filter(Boolean),
   );
@@ -126,7 +133,8 @@ export function buildTalentLiveText(
 
   const currency = src.menuCurrency?.trim().toUpperCase();
   return {
-    trades: [tradeEn, tradeEs].filter(Boolean),
+    // Include stale baked labels so the header lockup still matches after a taxonomy rename.
+    trades: [tradeEn, tradeEs, ...staleTrades].filter(Boolean),
     // The trade as the visitor's language names it ("Manicurista"): the header lockup under her name.
     tradeLabel: tradeNow,
     bioHint: bio.hint,

@@ -30,6 +30,8 @@ const VOSEO = new RegExp(
       "Contame", "Escribime", "Avisame", "Decime", "Mandame", "Ayudame", "Dejame", "Avisanos", "Escribinos",
       "Llamanos", "Contanos", "Tenés", "Podés", "Querés", "Sabés", "Necesitás", "Encontrás", "Atendés", "Pagás",
       "Elegís", "Preferís", "Venís", "Salís", "Decís", "Hacés", "Sos",
+      // GRK-018: present vos forms seen on Sofía demo copy ("qué look buscás", "te llevás").
+      "Buscás", "Llevás", "Hablás", "Charlás", "Armás", "Dejás", "Mandás", "Pasás", "Llamás",
     ].join("|") +
     ")(?![\\p{L}])|(?<![\\p{L}])[Vv]os(?![\\p{L}])(?! (?:êtes|avez|pouvez))",
   "iu",
@@ -116,7 +118,9 @@ test("the guard bites: voseo is caught, tú-form is not", () => {
   assert.ok(offenders("Elegí una fecha").length > 0);
   assert.ok(offenders("¿Tenés una duda? Preguntá antes de reservar").length > 0);
   assert.ok(offenders("Contame qué querés hacer").length > 0);
+  assert.ok(offenders("Primero charlamos qué look buscás y te llevás los pasos.").length > 0);
   assert.deepEqual(offenders("Elige una fecha. ¿Tienes una duda? Pregunta antes de reservar."), []);
+  assert.deepEqual(offenders("Primero charlamos qué look buscas y te llevas los pasos."), []);
   assert.ok(offenders("{agency} te envio una oferta. Revisala").length > 0);
   assert.ok(offenders("Abrilo y mandame el resultado").length >= 2);
   assert.ok(offenders("Compartilo con tu equipo").length > 0);

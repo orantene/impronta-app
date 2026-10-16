@@ -12,8 +12,10 @@ test("ignoreCommand builds the production branch", () => {
   assert.match(cmd, /\[ "\$VERCEL_GIT_COMMIT_REF" != "production" \]/);
 });
 
-test("ignoreCommand builds the main staging branch (staging deploys from main since 2026-10-14)", () => {
-  assert.match(cmd, /\[ "\$VERCEL_GIT_COMMIT_REF" != "main" \]/);
+// Oct 15: main no longer builds on push (every main merge was a paid build).
+// Only the `production` release pointer builds; staging is refreshed on purpose.
+test("ignoreCommand does NOT build main on push (cost rule, Oct 15)", () => {
+  assert.ok(!cmd.includes('"main"'));
 });
 
 test("ignoreCommand no longer builds the retired program/journeys-2026-09 branch", () => {

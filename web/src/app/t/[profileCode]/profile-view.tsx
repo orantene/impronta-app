@@ -94,6 +94,7 @@ import {
   resolveResidenceLocationEmbed,
   type CanonicalLocationEmbed,
 } from "@/lib/canonical-location-display";
+import { isSurfaceHostKind } from "@/lib/saas/host-kinds";
 import { getPublicHostContext, getPublicPathPrefix } from "@/lib/saas/scope";
 import { resolvePublicProfileOverrideTenantId } from "@/lib/saas/talent-roster";
 import { talentProfileRobotsMeta } from "@/lib/talent-site/talent-profile-robots";
@@ -168,6 +169,7 @@ import type {
   TalentReview,
   Testimonial,
 } from "@/lib/reviews/review-types";
+import { softTitleCaseName } from "@/lib/talent/soft-title-case-name";
 
 // ── Types ──
 
@@ -302,9 +304,8 @@ function groupByKind(locale: string, terms: TaxonomyTerm[], chain?: readonly str
 }
 
 function displayName(p: TalentProfile): string {
-  if (p.display_name?.trim()) return p.display_name.trim();
   const parts = [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
-  return parts || p.profile_code;
+  return softTitleCaseName(p.display_name?.trim() || parts || p.profile_code);
 }
 
 function residenceLabel(locale: string, p: TalentProfile, chain?: readonly string[]): string {
@@ -1457,9 +1458,7 @@ export async function buildTalentProfileMetadata({
     return new URL(site);
   })();
 
-  const name = profile.display_name?.trim() ||
-    [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim() ||
-    profileCode;
+  const name = displayName(profile as TalentProfile) || profileCode;
 
   // A category the tenant disabled must not reach <title> / og:title (it reaches
   // search engines from there). With every category hidden the title degrades to
@@ -2552,6 +2551,7 @@ export async function TalentProfileView({
             initialSaved={initialSavedIds.includes(profile.id)}
             portalInquiryHref={portalInquiryHref}
             mode="footer"
+            hostKind={isSurfaceHostKind(hostCtx.kind) ? hostCtx.kind : null}
             profileCta={ui.profileCta}
             inquiry={ui.inquiry}
           />

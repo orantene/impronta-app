@@ -205,12 +205,18 @@ function SendQuoteForm({
       >
         <div className="space-y-2" aria-live="polite">
           <p className={`text-[15px] font-semibold ${sent ? "text-[var(--tc-ok)]" : "text-[var(--tc-risk)]"}`}>
-            {sent ? copy.t("The client has your quote") : copy.t("The conversation was created but the quote did not go out")}
+            {sent
+              ? copy.t("The client has your quote")
+              : threadId
+                ? copy.t("The quote did not go out")
+                : copy.t("The conversation was created but the quote did not go out")}
           </p>
           <p className="text-[13.5px] text-[var(--tc-primary)]">
             {sent
               ? copy.t("They can accept it from the link. You will see the answer in the conversation.")
-              : copy.t("Open the conversation to send the quote from there. Nothing reached the client yet.")}
+              : threadId
+                ? copy.t("Nothing reached the client. Try again in a moment.")
+                : copy.t("Open the conversation to send the quote from there. Nothing reached the client yet.")}
           </p>
           {!sent && failReason === "offer_currency_unresolved" ? (
             <p className="text-[13.5px] text-[var(--tc-primary)]" data-quote-currency-unresolved>

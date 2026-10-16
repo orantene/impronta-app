@@ -80,6 +80,19 @@ export function ChatInquiriesGroup({
             })
           }
         />
+        <Switch
+          checked={switches.chatConfig.agentBookingEnabled}
+          label={t("Let AI assistants book me")}
+          detail={t(
+            "Assistants like ChatGPT or Claude can send a client a link to request one of your services. The client confirms it in your chat. Starts off.",
+          )}
+          onChange={(v) =>
+            setSwitches({
+              ...switches,
+              chatConfig: { ...switches.chatConfig, agentBookingEnabled: v },
+            })
+          }
+        />
         {strandedTitles.length > 0 ? (
           <p role="status" className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-[12.5px] text-amber-900">
             {(strandedTitles.length === 1

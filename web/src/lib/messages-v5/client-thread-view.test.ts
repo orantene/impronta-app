@@ -20,6 +20,7 @@ import {
   readPayment,
   readTickets,
   readTimes,
+  threadPaymentState,
   ticketsIssued,
   timesSlotOpen,
   timesState,
@@ -250,4 +251,25 @@ test("a failed payment stays failed", () => {
   const view = readChange("change_result", { state: "failed", summary: "Payment failed" }, "");
   assert.equal(view.state, "failed");
   assert.equal(view.body, "Payment failed");
+});
+
+test("sitting 3: a paid money card on the thread marks it paid; an open request, a note or a deleted row does not", () => {
+  assert.equal(threadPaymentState([msg({ id: "p1", kind: "payment_paid", payload: {} })]), "paid");
+  assert.equal(threadPaymentState([msg({ id: "p2", kind: "payment_request", payload: { state: "paid", amountCents: 500 } })]), "paid");
+  assert.equal(threadPaymentState([msg({ id: "p3", kind: "payment_request", payload: { state: "open" } })]), null);
+  assert.equal(threadPaymentState([msg({ id: "p4", kind: "payment_paid", payload: {}, internal: true })]), null);
+  assert.equal(threadPaymentState([msg({ id: "p5", kind: "payment_paid", payload: {}, deletedAt: "2026-10-01T00:00:00Z" })]), null);
+  assert.equal(threadPaymentState([]), null);
+});
+
+test("sitting 3: a refund nets against what was paid", () => {
+  const paid = msg({ id: "p", kind: "payment_paid", payload: { paidCents: 100000 } });
+  const refund = (id: string, cents: number) => msg({ id, kind: "change_result", payload: { state: "cancelled", refundedCents: cents } });
+  assert.equal(threadPaymentState([paid, refund("r1", 100000)]), "refunded");
+  assert.equal(threadPaymentState([paid, refund("r1", 40000)]), "paid");
+  assert.equal(threadPaymentState([paid, refund("r1", 40000), refund("r2", 60000)]), "refunded");
+  assert.equal(threadPaymentState([refund("r0", 5000)]), null, "a refund with nothing paid says nothing");
+  const unknown = msg({ id: "u", kind: "payment_paid", payload: {} });
+  assert.equal(threadPaymentState([unknown, refund("r1", 100)]), "refunded", "no amount on the card: the latest event decides");
+  assert.equal(threadPaymentState([unknown, refund("r1", 100), msg({ id: "u2", kind: "payment_paid", payload: {} })]), "paid");
 });
