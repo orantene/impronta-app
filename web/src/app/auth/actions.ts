@@ -359,7 +359,8 @@ export async function signUpWithEmail(
     password,
     options: {
       emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(nextPath)}&lang=${lang}`,
-      data: signupIntent || nameMeta ? { ...(signupIntent ? { signup_intent: signupIntent } : {}), ...nameMeta } : undefined,
+      // lang: fallback for the auth-email hook when the redirect loses ?lang= (TUL-1179).
+      data: { ...(signupIntent ? { signup_intent: signupIntent } : {}), ...nameMeta, lang },
     },
   });
   if (error) {

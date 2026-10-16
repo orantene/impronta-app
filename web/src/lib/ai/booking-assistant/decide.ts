@@ -14,13 +14,13 @@ export type BookingAssistantDecideInput = {
   enabled: boolean;
   guestMessage: string;
   /** Prior system_event rows already counted as assistant turns. */
-  priorMessages: ReadonlyArray<{ systemEventType?: string | null }>;
+  priorMessages: ReadonlyArray<{ systemEventType?: string | null; humanTookOver?: boolean }>;
   /** Instant-answer already handled this turn (skip AI). */
   instantAnswered: boolean;
 };
 
 export type BookingAssistantDecision =
-  | { action: "skip"; reason: "off" | "instant_answered" | "empty" | "already_handed_off" }
+  | { action: "skip"; reason: "off" | "instant_answered" | "empty" | "already_handed_off" | "human_took_over" }
   | { action: "handoff"; reason: BookingHandoffReason }
   | { action: "llm_facts" };
 
@@ -43,21 +43,21 @@ export function decideBookingAssistantTurn(input: BookingAssistantDecideInput): 
   if (!body) return { action: "skip", reason: "empty" };
   if (!input.enabled) return { action: "skip", reason: "off" };
   if (input.instantAnswered) return { action: "skip", reason: "instant_answered" };
-  // Terminal: once we yielded to the team, never resume LLM or spam handoffs.
-  if (hasPriorHandoff(input.priorMessages)) {
-    return { action: "skip", reason: "already_handed_off" };
+  // TUL-1155: a prior handoff no longer silences the assistant. Factual
+  // follow-ups still get answered; anything that would hand off again is
+  // skipped so the guest never gets the canned handoff copy twice.
+  // Once a person on the team has replied after the handoff, they own it.
+  if (input.priorMessages.some((m) => m.humanTookOver)) {
+    return { action: "skip", reason: "human_took_over" };
   }
+  const handedOff = hasPriorHandoff(input.priorMessages);
+  const handoff = (reason: BookingHandoffReason): BookingAssistantDecision =>
+    handedOff ? { action: "skip", reason: "already_handed_off" } : { action: "handoff", reason };
 
   const turns = countBookingAssistantTurns(input.priorMessages);
-  if (bookingAssistantTurnCeilingReached(turns)) {
-    return { action: "handoff", reason: "turn_ceiling" };
-  }
-  if (wantsHumanBookingHelp(body)) {
-    return { action: "handoff", reason: "human_requested" };
-  }
+  if (bookingAssistantTurnCeilingReached(turns)) return handoff("turn_ceiling");
+  if (wantsHumanBookingHelp(body)) return handoff("human_requested");
   // Phase 1 = instant-answer + handoff only (no book/pay tools yet).
-  if (BOOKING_INTENT_RE.test(body)) {
-    return { action: "handoff", reason: "unsure" };
-  }
+  if (BOOKING_INTENT_RE.test(body)) return handoff("unsure");
   return { action: "llm_facts" };
 }

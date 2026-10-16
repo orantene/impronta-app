@@ -307,6 +307,8 @@ export async function saveTalentPageAction(
     const scopedPayload = stripTalentSiteSeoPatch(
       updatePayload,
       siteCaps ? siteCaps.personalSiteSeo : true,
+      // TUL-587: every plan keeps title + description.
+      siteCaps ? siteCaps.personalSiteSeoBasic : true,
     );
 
     // Theme releases Phase 2 — the OWNER's page on a site writes through the
