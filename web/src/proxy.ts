@@ -8,7 +8,17 @@ import {
   shouldRewriteLocalePublicPath,
   stripNonDefaultLocalePrefix,
   syncLocaleCookieForPath,
+  localeCookieIsAutoWritten,
+  seedTalentDashboardLocaleCookie,
+  stampLocaleOwner,
 } from "@/i18n/locale-middleware";
+import {
+  planDashboardLocaleSeed,
+  seededRequestHeaders,
+  SEED_LOCALE_COOKIE,
+  SEED_LOCALE_OWNER_COOKIE,
+  type ProxySeedPlan,
+} from "@/lib/site-admin/server/proxy-locale-seed";
 import { langFromLocalePrefixedPath } from "@/lib/onboarding/legacy-signup-redirect";
 import { LOCALE_HEADER, ORIGINAL_PATHNAME_HEADER, ORIGINAL_SEARCH_HEADER } from "@/i18n/request-locale";
 import { getLanguageSettingsForMiddleware } from "@/lib/language-settings/middleware-locale-cache";
@@ -743,6 +753,26 @@ async function proxyInner(request: NextRequest) {
     return sessionRes;
   }
 
+  // TUL-1183: seed the dashboard language cookie HERE (the proxy can set cookies and
+  // rewrite the forwarded request), so the first render after sign-in is already in the
+  // tenant / talent language and no layout redirect hop is needed. Null (and the layout
+  // hops stay the fallback) whenever anything is unknown. See proxy-locale-seed.ts.
+  const dashboardSeed: ProxySeedPlan | null = await timed("proxy.dashboardLocaleSeed", () => planDashboardLocaleSeed({
+    method: request.method,
+    prefetch: Boolean(request.headers.get("next-router-prefetch")) || request.headers.get("purpose") === "prefetch",
+    pathname: originalPathname,
+    actorId: forwardedRequestHeaders.get("x-impronta-actor-id"),
+    cookieLocale: request.cookies.get(SEED_LOCALE_COOKIE)?.value ?? null,
+    cookieIsAuto: localeCookieIsAutoWritten(request),
+    cookieOwner: request.cookies.get(SEED_LOCALE_OWNER_COOKIE)?.value ?? null,
+    hostTenantId: isTenantHostContext(effectiveHostContext) ? effectiveHostContext.tenantId : null,
+  }));
+  const writeDashboardSeed = (res: NextResponse): void => {
+    if (!dashboardSeed) return;
+    if (dashboardSeed.locale) seedTalentDashboardLocaleCookie(res, dashboardSeed.locale);
+    if (dashboardSeed.stamp) stampLocaleOwner(res, dashboardSeed.userId);
+  };
+
   if (
     shouldRewriteLocalePublicPath(originalPathname, effectiveLangSettings) ||
     pathBasedTenantRewrite ||
@@ -756,7 +786,7 @@ async function proxyInner(request: NextRequest) {
     // Forward updateSession's headers (with `x-impronta-guest`), NOT the
     // pre-session `requestHeaders` which lacks it — see the destructure above.
     const res = NextResponse.rewrite(rewriteUrl, {
-      request: { headers: forwardedRequestHeaders },
+      request: { headers: dashboardSeed ? seededRequestHeaders(forwardedRequestHeaders, dashboardSeed) : forwardedRequestHeaders },
     });
 
     for (const cookie of sessionRes.cookies.getAll()) {
@@ -770,8 +800,25 @@ async function proxyInner(request: NextRequest) {
     });
 
     syncLocaleCookieForPath(res, originalPathname, effectiveLangSettings, request);
+    writeDashboardSeed(res);
     ensureExperimentVisitorCookie(request, res);
     return res;
+  }
+
+  if (dashboardSeed) {
+    // The render must see the seeded cookie too: rebuild the pass-through response with the
+    // seeded request headers, carrying over the session cookies and non-middleware headers.
+    const seeded = NextResponse.next({ request: { headers: seededRequestHeaders(forwardedRequestHeaders, dashboardSeed) } });
+    for (const cookie of sessionRes.cookies.getAll()) seeded.cookies.set(cookie);
+    sessionRes.headers.forEach((value, key) => {
+      const k = key.toLowerCase();
+      if (k.startsWith("x-middleware-") || k === "set-cookie") return;
+      seeded.headers.set(key, value);
+    });
+    syncLocaleCookieForPath(seeded, originalPathname, effectiveLangSettings, request);
+    writeDashboardSeed(seeded);
+    ensureExperimentVisitorCookie(request, seeded);
+    return seeded;
   }
 
   syncLocaleCookieForPath(sessionRes, originalPathname, effectiveLangSettings, request);
