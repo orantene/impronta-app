@@ -18,6 +18,8 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   "Collapse inspector": "Contraer inspector",
   "Hide inspector": "Ocultar inspector",
   "Open inspector": "Abrir inspector",
+  "Open section editor tabs": "Abrir pestañas del editor",
+  "Collapse section editor tabs": "Plegar pestañas del editor",
   "Show inspector tab": "Mostrar pestaña del inspector",
   // ── WAVE 4.3 — AI panels (rewrite, translate, brief, revise, image) ───
   Apply: "Aplicar",
@@ -297,6 +299,7 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   "Delete section...": "Eliminar sección...",
   "Close menu": "Cerrar menú",
   "Add block": "Agregar bloque",
+  "Page layers": "Capas de la página",
   "Show nested blocks ({count})": "Mostrar bloques anidados ({count})",
   "Select the parent ({label})": "Seleccionar el bloque padre ({label})",
   "Parent is selected": "El bloque padre está seleccionado",

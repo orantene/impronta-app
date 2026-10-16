@@ -69,8 +69,59 @@ if [ -n "$LANE" ]; then
   eval "set -- $ARGS"
 fi
 
+# Lane files: `lane-test.cjs @scripts/lanes/<x>.txt` passes a list file, which
+# tsx cannot read. Expand any @file argument into its paths (one per line, #
+# comments and blanks skipped).
+EXPANDED=()
+for a in "$@"; do
+  if [ "${a#@}" != "$a" ] && [ -f "${a#@}" ]; then
+    while IFS= read -r line; do
+      case "$line" in ''|\#*) continue ;; esac
+      EXPANDED+=("$line")
+    done < "${a#@}"
+  else
+    EXPANDED+=("$a")
+  fi
+done
+# bash 3.2 (macOS) + set -u treats an empty "${arr[@]}" as unbound: guard it.
+[ "${#EXPANDED[@]}" -gt 0 ] && set -- "${EXPANDED[@]}"
+
 [ "$#" -gt 0 ] || { echo "usage: $0 <test files...> | --lane <name>" >&2; exit 2; }
 
-NODE_OPTIONS="--require $WEB/scripts/register-server-only-test.cjs ${NODE_OPTIONS:-}" npx --no-install tsx --test "$@"
+# ── One test run per MACHINE (Oct 15: 4-5 lanes ran suites at once, load 55-65,
+# swap full, the Mac crashed). mkdir is atomic: the first caller gets the lock,
+# everyone else waits and is told who holds it. A lock whose holder process is
+# gone is stale and is removed. The lock is released on any exit.
+LOCK="${TULALA_TEST_LOCK:-$HOME/.tulala-test.lock}"
+HAVE_LOCK=0
+release_lock() { [ "$HAVE_LOCK" = 1 ] && rm -rf "$LOCK"; }
+trap 'cleanup; release_lock' EXIT
+waited=0
+while ! mkdir "$LOCK" 2>/dev/null; do
+  holder_pid="$(cat "$LOCK/pid" 2>/dev/null || true)"
+  if [ -n "$holder_pid" ] && ! kill -0 "$holder_pid" 2>/dev/null; then
+    echo "test-in-worktree: removing stale lock (pid $holder_pid is gone)" >&2
+    rm -rf "$LOCK"; continue
+  fi
+  if [ $((waited % 30)) -eq 0 ]; then
+    echo "test-in-worktree: waiting for the machine test lock, held by: $(cat "$LOCK/owner" 2>/dev/null || echo unknown)" >&2
+  fi
+  sleep 5; waited=$((waited + 5))
+done
+HAVE_LOCK=1
+echo "$$" > "$LOCK/pid"
+echo "pid $$ · $(basename "$(dirname "$WEB")") · since $(date '+%H:%M:%S')" > "$LOCK/owner"
+
+# Do not start while the machine is already overloaded (5-min load > 12).
+while :; do
+  load5="$(sysctl -n vm.loadavg 2>/dev/null | awk '{print $3}')"
+  [ -z "$load5" ] && load5="$(uptime | awk -F'load averages?: ' '{print $2}' | awk '{print $2}' | tr -d ,)"
+  awk -v l="${load5:-0}" 'BEGIN{exit !(l > 12)}' || break
+  echo "test-in-worktree: 5-min load is $load5 (> 12); waiting before starting tests" >&2
+  sleep 30
+done
+
+# One test file at a time inside this run, too.
+NODE_OPTIONS="--require $WEB/scripts/register-server-only-test.cjs ${NODE_OPTIONS:-}" npx --no-install tsx --test --test-concurrency=1 "$@"
 RC=$?
 exit "$RC"

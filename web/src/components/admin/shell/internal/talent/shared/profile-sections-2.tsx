@@ -5,7 +5,10 @@ import { Icon, PrimaryCard, SecondaryCard, StatDot } from "../../primitives";
 import { COLORS, FONTS, MY_TALENT_PROFILE, TALENT_PAGE_TEMPLATES, TALENT_TIER_META, tierAllows, useAdminShell, type TalentBadge, type TalentCredit, type TalentLimit, type TalentReview, type TalentSkill, type TalentSubscriptionTier } from "../../state";
 import { Grid } from "./page-chrome-1";
 import { resolveTalentOwnPageState } from "@/lib/talent/public-profile-href";
+import { dashboardPublishKind, dashboardStatusCopy } from "@/lib/talent/dashboard-status";
+import { useWebsiteFlow } from "@/components/talent/website-reward/useWebsiteFlow";
 import { useCurrentOrigin } from "@/lib/talent/use-public-profile-href";
+import { openUpgrade } from "@/components/talent/upgrade/open-upgrade";
 
 
 
@@ -23,6 +26,7 @@ export function PersonalPageBand() {
   // Tier from shared shell state — reflects live plan switches.
   const tier = state.talentTier;
   const origin = useCurrentOrigin();
+  const websiteFlow = useWebsiteFlow();
 
   // Real talent: the Pro/Max band below is fed entirely by the demo profile
   // (Marta's page URL, domain, embed/press counts, "6 sections"), and there's
@@ -58,7 +62,14 @@ export function PersonalPageBand() {
           currentOrigin: origin,
         })
       : null;
-    const live = own ? own.live : true;
+    // TUL-579: live/draft from ONE source (site flow + profile), so this banner
+    // can never say "not published" under a "Website live" pill.
+    const profileLive = own ? own.live : true;
+    const status = dashboardStatusCopy({
+      plan: "free",
+      publish: dashboardPublishKind({ sitePublished: websiteFlow.state === "published", profilePublished: profileLive }),
+      es: copy.isSpanish,
+    });
     const shownUrl = own ? own.label : sub.personalPageUrl;
     return (
       <div
@@ -73,17 +84,17 @@ export function PersonalPageBand() {
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
           <Icon name="globe" size={13} stroke={1.7} color={COLORS.inkMuted} />
           <div style={{ fontSize: 13.5, fontWeight: 600 }} className="text-admin-ink">
-            {copy.t(live ? "Your public page is live" : "Your public page is not published yet")}
+            {status.publicPageTitle}
           </div>
         </div>
         <div style={{ fontSize: 12, lineHeight: 1.55, maxWidth: 560 }} className="text-admin-ink-muted">
-          {live ? (
+          {profileLive ? (
             <>
               {copy.t("It's published at")}{" "}
               <span style={{ fontFamily: FONTS.mono }}>{shownUrl}</span>.{" "}
             </>
           ) : (
-            <>{copy.t("Publish your profile to get a public address you can share.")} </>
+            <>{status.publicPageHint} </>
           )}
           {copy.t("Richer personal-page tiers with custom templates, embeds and your own domain are on the way, we'll let you know when they open.")}
         </div>
@@ -155,7 +166,7 @@ export function PersonalPageBand() {
             onClick={() =>
               tierAllows(resolvedTier, "template-picker")
                 ? openDrawer("talent-page-template")
-                : openDrawer("talent-tier-compare")
+                : openUpgrade({ feature: "template-picker", from: "profile-page-tile" })
             }
           />
           <SecondaryCard
@@ -167,7 +178,7 @@ export function PersonalPageBand() {
             }
             meta={allowEmbeds ? <><StatDot tone="green" /> {sub.embeds.length} {copy.t("embeds")}</> : <LockedBadge requiredTier="pro" />}
             affordance={copy.t(allowEmbeds ? "Manage embeds" : "Unlock embeds")}
-            onClick={() => (allowEmbeds ? openDrawer("talent-media-embeds") : openDrawer("talent-tier-compare"))}
+            onClick={() => (allowEmbeds ? openDrawer("talent-media-embeds") : openUpgrade({ feature: "media-embeds", from: "profile-page-tile" }))}
           />
           <SecondaryCard
             title={copy.t("Press & clippings")}
@@ -178,7 +189,7 @@ export function PersonalPageBand() {
             }
             meta={allowPress ? <><StatDot tone="green" /> {sub.press.length} {copy.t("clips")}</> : <LockedBadge requiredTier="pro" />}
             affordance={copy.t(allowPress ? "Manage press" : "Unlock press band")}
-            onClick={() => (allowPress ? openDrawer("talent-press") : openDrawer("talent-tier-compare"))}
+            onClick={() => (allowPress ? openDrawer("talent-press") : openUpgrade({ feature: "press-band", from: "profile-page-tile" }))}
           />
           <SecondaryCard
             title={copy.t("Media kit (EPK)")}
@@ -191,7 +202,7 @@ export function PersonalPageBand() {
             }
             meta={allowKit ? <><StatDot tone="green" /> {copy.t("Ready")}</> : <LockedBadge requiredTier="pro" />}
             affordance={copy.t(allowKit ? "Manage media kit" : "Unlock media kit")}
-            onClick={() => (allowKit ? openDrawer("talent-media-kit") : openDrawer("talent-tier-compare"))}
+            onClick={() => (allowKit ? openDrawer("talent-media-kit") : openUpgrade({ feature: "media-kit", from: "profile-page-tile" }))}
           />
           <SecondaryCard
             title={copy.t("Custom domain")}
@@ -204,7 +215,7 @@ export function PersonalPageBand() {
             }
             meta={allowDomain ? <><StatDot tone={sub.customDomain ? "green" : "dim"} /> {copy.t(sub.customDomain ? "Live" : "Not set")}</> : <LockedBadge requiredTier="max" />}
             affordance={copy.t(allowDomain ? "Manage domain" : "Unlock custom domain")}
-            onClick={() => (allowDomain ? openDrawer("talent-custom-domain") : openDrawer("talent-tier-compare"))}
+            onClick={() => (allowDomain ? openDrawer("talent-custom-domain") : openUpgrade({ feature: "custom-domain", from: "profile-page-tile" }))}
           />
           <SecondaryCard
             title={copy.t("Extra sections")}
@@ -215,7 +226,7 @@ export function PersonalPageBand() {
             )}
             meta={allowExtraSections ? <><StatDot tone="green" /> 6 {copy.t("sections")}</> : <LockedBadge requiredTier="max" />}
             affordance={copy.t(allowExtraSections ? "Edit sections" : "Unlock sections")}
-            onClick={() => (allowExtraSections ? openDrawer("talent-personal-page") : openDrawer("talent-tier-compare"))}
+            onClick={() => (allowExtraSections ? openDrawer("talent-personal-page") : openUpgrade({ feature: "extra-sections", from: "profile-page-tile" }))}
           />
         </Grid>
       </div>

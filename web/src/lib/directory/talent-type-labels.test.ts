@@ -5,6 +5,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import {
+  normalizeSpanishTypeName,
   buildTalentTypeLabels,
   localizeCategoryFacets,
   localizeRowTypeLabels,
@@ -45,8 +46,8 @@ test("/es relabels type facets by slug and card types by their English name", ()
   );
   assert.deepEqual(
     facets.map((f) => f.label),
-    ["Modelo de moda", "DJ"],
-    "a type with no Spanish name keeps its English one",
+    ["Modelo de Moda", "DJ"],
+    "casing is normalized at render; a type with no Spanish name keeps its English one",
   );
   const rows = localizeRowTypeLabels(
     [{ primaryTypeLabel: "Photographer" }, { primaryTypeLabel: null }, { primaryTypeLabel: "Unknown" }],
@@ -73,7 +74,7 @@ test("/es directory chrome reads in Spanish", () => {
   assert.equal(t.next, "Siguiente");
   assert.equal(t.allTalent, "Todo el talento");
   assert.equal(t.profiles(1234), "1,234 perfiles");
-  assert.equal(availabilityLine(12, t).text, "Disponible 12 de los próximos 30 días");
+  assert.equal(availabilityLine(12, t).text, "Disp. 12 de 30 días");
   assert.equal(trustTierMeta("gold", t)?.label, "Oro");
 });
 
@@ -125,4 +126,25 @@ test("every directory component reads its chrome from the copy, not literals", (
     /<DirectoryCopyProvider value=\{copy\}>/,
     "the shell provides the locale's copy",
   );
+});
+
+test("TUL-738: Spanish type names get one casing at render; connectors lowercase, acronyms and brands untouched, nothing is lowercased", () => {
+  assert.equal(normalizeSpanishTypeName("Modelo de moda"), "Modelo de Moda");
+  assert.equal(normalizeSpanishTypeName("Baile latino"), "Baile Latino");
+  assert.equal(normalizeSpanishTypeName("Chef de Cena Privada"), "Chef de Cena Privada");
+  assert.equal(normalizeSpanishTypeName("Modelos de Moda"), "Modelos de Moda");
+  assert.equal(normalizeSpanishTypeName("Limpieza de Airbnb"), "Limpieza de Airbnb");
+  assert.equal(normalizeSpanishTypeName("DJ Open Format"), "DJ Open Format");
+  assert.equal(normalizeSpanishTypeName("Diseñador 3D"), "Diseñador 3D");
+  assert.equal(normalizeSpanishTypeName("Anfitriones Y Promo"), "Anfitriones y Promo", "a stray capital connector is lowercased");
+  assert.equal(normalizeSpanishTypeName("de la casa"), "De la Casa", "the first word is always capitalized");
+  assert.equal(normalizeSpanishTypeName(""), "");
+});
+
+test("TUL-738: the casing is applied to the relabelled cards and facets, English is untouched", () => {
+  const rows = [{ slug: "latin-dancer", name_i18n: { en: "Latin Dancer", es: "Baile latino" } }];
+  const es = buildTalentTypeLabels(rows, "es");
+  assert.equal(localizeRowTypeLabels([{ primaryTypeLabel: "Latin Dancer" }], es)[0]!.primaryTypeLabel, "Baile Latino");
+  assert.equal(localizeCategoryFacets([{ value: "latin-dancer", label: "Latin Dancer" }], es)[0]!.label, "Baile Latino");
+  assert.equal(buildTalentTypeLabels(rows, "en").byEnglish["Latin Dancer"], undefined, "English needs no relabel");
 });

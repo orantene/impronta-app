@@ -39,6 +39,12 @@ function baseIntent(offering: BookableOffering): InquiryIntent {
   };
 }
 
+export type BookableComposerClient = {
+  displayName?: string | null;
+  email?: string | null;
+  phone?: string | null;
+};
+
 export function BookableComposer({
   tenantSlug,
   tenantId,
@@ -48,8 +54,10 @@ export function BookableComposer({
   bookingMode = "request",
   showInlinePicker = true,
   signedIn = false,
+  client = null,
   captcha = null,
   locale: localeProp,
+  contactHref = null,
 }: {
   tenantSlug: string;
   tenantId?: string | null;
@@ -59,9 +67,13 @@ export function BookableComposer({
   bookingMode?: TalentBookingMode;
   showInlinePicker?: boolean;
   signedIn?: boolean;
+  /** TUL-62: signed-in client contact for InquiryDrawer prefill. */
+  client?: BookableComposerClient | null;
   captcha?: GuestCaptchaConfig | null;
   /** Page locale (CMS Live booking / /book). Prefer over dashboard cookie. */
   locale?: string | null;
+  /** Empty-slot escape hatch for the inline picker (TUL-698). */
+  contactHref?: string | null;
 }) {
   const cookieT = useT();
   const dashboardLocale = useDashboardLocale();
@@ -224,6 +236,7 @@ export function BookableComposer({
           durationMinutes={active.durationMinutes}
           timezone={active.timezone}
           locale={pageLocale}
+          contactHref={contactHref}
           value={slot}
           onChange={(next) => {
             setSlot(next);
@@ -306,9 +319,19 @@ export function BookableComposer({
           tenantSlug={tenantSlug}
           agencyName={agencyName}
           soloTalentName={soloTalentName}
-          client={null}
+          client={
+            signedIn && client
+              ? {
+                  displayName: client.displayName ?? undefined,
+                  email: client.email ?? undefined,
+                  phone: client.phone ?? undefined,
+                  trust_level: "verified",
+                }
+              : null
+          }
           enableDraftAutosave={false}
           bookableOffering={active}
+          followUpOnSite
           initialIntent={initialIntent}
           onClose={() => setOpen(false)}
         />

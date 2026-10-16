@@ -7,6 +7,9 @@
 // the primitives.tsx barrel so external importers stay byte-stable.
 
 import type { CSSProperties, ReactNode } from "react";
+import { interpolate } from "@/i18n/interpolate";
+import { useT } from "@/i18n/use-t";
+import { TRUST_TIER_KEYS as TK } from "./trust-tier-copy-keys";
 import {
   CLIENT_TRUST_META,
   COLORS,
@@ -452,6 +455,8 @@ export function ClientTrustChip({
   withDot?: boolean;
 }) {
   const meta = CLIENT_TRUST_META[level];
+  const t = useT();
+  const [tierLabel, tierHint] = [t(TK[level].label), t(TK[level].hint)];
   const palette: Record<typeof meta.tone, { bg: string; fg: string; dot: string; border: string }> = {
     // Basic — neutral / dim. Says "default", not "bad". Foreground bumped
     // darker to clear WCAG AA contrast on white at 12.5px.
@@ -488,7 +493,7 @@ export function ClientTrustChip({
   };
   const c = palette[meta.tone];
   return (
-    <Popover content={`${meta.label} client. ${meta.hint}`}>
+    <Popover content={interpolate(t("dashboard.talentDrawers.agency.trustChipTip"), { label: tierLabel, hint: tierHint })}>
       <span
         style={{
           display: "inline-flex",
@@ -521,7 +526,7 @@ export function ClientTrustChip({
           }}
         />
       ) : null}
-      {meta.short}
+      {tierLabel}
       </span>
     </Popover>
   );

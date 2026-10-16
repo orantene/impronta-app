@@ -10,6 +10,7 @@ import { admissionIsRefundable, classifyAdmissionEffect } from "@/lib/orders/ref
 import type { PromoScope } from "@/lib/orders/promo-eligibility";
 import { nonRefundableFeeCents } from "@/lib/billing/commission";
 import { loadBookingCommissionSnapshotsForRefund } from "@/lib/billing/commission-engine";
+import { voidRedemptionPatch } from "@/lib/orders/promo-redemption-status";
 
 /**
  * Refund whole order lines: money, per-line state, tickets, seats.
@@ -399,12 +400,15 @@ export async function refundOrderLines(
 
     // ── Promo. A FULL refund releases the redemption; a partial does not, and
     // eligibility is never re-evaluated. See `releasesPromoRedemption`.
+    // Released by VOIDING the row, never deleting it: a voided row no longer
+    // counts against the code's limits, and the audit trail survives.
     let releasedPromo = false;
     if (releasesPromoRedemption(plan)) {
       const { error } = await admin
         .from("tenant_promo_redemptions")
-        .delete()
-        .eq("order_id", input.orderId);
+        .update(voidRedemptionPatch())
+        .eq("order_id", input.orderId)
+        .in("status", ["confirmed", "held"]);
       if (error) logServerError("orders.refundLines/promoRelease", error);
       else releasedPromo = true;
     }

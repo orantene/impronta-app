@@ -13,9 +13,13 @@
  * rest is optional here and can be finished in the builder.
  */
 
+import { localizeCitySubtitle } from "@/lib/onboarding/city-subtitle";
 import { useState } from "react";
 
 import type { ChipOption, TypeChipProposal } from "@/lib/onboarding/type-chip";
+import { stripMxCountryCode } from "@/lib/onboarding/whatsapp-prefill";
+import { typedCategoryOption } from "@/lib/onboarding/type-search";
+import { whatLabelFor } from "@/lib/onboarding/what-label";
 import type { Understanding } from "@/lib/onboarding/understanding";
 import type { EssentialsAnswer } from "@/lib/server-actions/onboarding-module";
 import { searchOnboardingCities, searchOnboardingTypes, type OnboardingCity } from "@/lib/server-actions/onboarding-lookups";
@@ -64,10 +68,12 @@ export function EssentialsStep({
   const knownCity = known("city");
   const [city, setCity] = useState<OnboardingCity | null>(knownCity ? { id: null, slug: "", name: { en: knownCity, es: knownCity }, countryIso2: "", subtitle: null } : null);
   const [name, setName] = useState(known(business ? "businessName" : "name") ?? "");
+  // TUL-810: a solo pro may trade under a business name; optional, names the page.
+  const [soloBusiness, setSoloBusiness] = useState(business ? "" : known("businessName") ?? "");
   // Only a phone-shaped value may prefill the phone field (a stray "true" from
   // "WhatsApp orders" is refused at record time too; belt and braces).
   const knownWhatsapp = known("whatsapp");
-  const [whatsapp, setWhatsapp] = useState(knownWhatsapp && /^\+?[\d\s().-]{7,20}$/.test(knownWhatsapp) ? knownWhatsapp : "");
+  const [whatsapp, setWhatsapp] = useState(knownWhatsapp && /^\+?[\d\s().-]{7,20}$/.test(knownWhatsapp) ? stripMxCountryCode(knownWhatsapp) : "");
 
   const [typeCleared, setTypeCleared] = useState(false);
   const ready = (type !== null || other.trim().length >= 3 || (knownWhat !== null && !typeCleared)) && city !== null;
@@ -75,10 +81,11 @@ export function EssentialsStep({
   const submit = () => {
     if (!ready || busy || !city) return;
     onSave({
-      type: type ? { kind, id: type.id, slug: type.slug, label: type.label[locale] } : other.trim().length >= 3 ? { kind, id: "", slug: "", label: other.trim() } : null,
+      type: type ? { kind, id: type.id, slug: type.slug, label: whatLabelFor({ picked: type, proposed: chip?.proposed ?? null, userWords: knownWhat, locale }) ?? type.label[locale] } : other.trim().length >= 3 ? { kind, id: "", slug: "", label: other.trim() } : null,
       // The prefilled city (no slug, no id) is what the words gave: leave it unless changed.
       city: !city.slug && city.id === null && city.name.en === knownCity ? null : { id: city.id, slug: city.slug, name: city.name[locale] || city.name.en, countryIso2: city.countryIso2 },
       name: name.trim() || null,
+      businessName: !business && soloBusiness.trim() ? soloBusiness.trim() : null,
       // 1B: services and hours live on the step-3 setup screen now.
       services: null,
       hoursPreset: null,
@@ -89,7 +96,8 @@ export function EssentialsStep({
   };
 
   // What the AI read shows as the selected value; "Change" opens the picker.
-  const typeSelected: ChipOption | null = type ?? (knownWhat && !typeCleared ? { id: "", slug: "", label: { en: knownWhat, es: knownWhat } } : null);
+  const ownWords = type ? whatLabelFor({ picked: type, proposed: chip?.proposed ?? null, userWords: knownWhat, locale }) : null;
+  const typeSelected: ChipOption | null = type ? (ownWords ? { ...type, label: { en: ownWords, es: ownWords } } : type) : (knownWhat && !typeCleared ? { id: "", slug: "", label: { en: knownWhat, es: knownWhat } } : null);
 
   return (
     <div data-testid="onb-essentials">
@@ -104,9 +112,14 @@ export function EssentialsStep({
             locale={locale}
             selected={typeSelected}
             selectedLabel={(o) => o.label[locale] || o.label.en}
-            search={(q) => searchOnboardingTypes({ query: q, kind })}
+            search={(q) => searchOnboardingTypes({ query: q, kind, locale })}
             itemLabel={(o) => o.label[locale]}
-            itemKey={(o) => o.id}
+            itemKey={(o) => o.id || o.label.en}
+            typedMinLength={1}
+            typed={{
+              label: (text) => t("public.onboarding.questions.useTypedCategory").replace("{text}", text),
+              make: (text) => typedCategoryOption(text) ?? { id: "", slug: "", label: { en: text, es: text } },
+            }}
             onPick={(o) => { setType(o); setOther(""); setTypeCleared(false); }}
             onClear={() => { setType(null); setTypeCleared(true); }}
             changeLabel={t("public.onboarding.questions.change")}
@@ -125,6 +138,12 @@ export function EssentialsStep({
             <FieldLabel>{business ? t("public.onboarding.essentials.businessName") : t("public.onboarding.essentials.yourName")}</FieldLabel>
             <input value={name} onChange={(e) => setName(e.target.value)} name="onb-name" autoComplete="off" placeholder={business ? t("public.onboarding.essentials.businessNameHint") : t("public.onboarding.essentials.yourNameHint")} data-testid="onb-name-input" className="h-12 w-full rounded-[14px] px-3 text-[1rem] outline-none placeholder:text-[var(--tl-muted-soft)]" style={inputStyle} />
         </div>
+        {!business ? (
+          <div>
+            <FieldLabel>{t("public.onboarding.essentials.soloBusinessName")}</FieldLabel>
+            <input value={soloBusiness} onChange={(e) => setSoloBusiness(e.target.value)} name="onb-business-name" autoComplete="organization" placeholder={t("public.onboarding.essentials.soloBusinessNameHint")} data-testid="onb-business-name-input" className="h-12 w-full rounded-[14px] px-3 text-[1rem] outline-none placeholder:text-[var(--tl-muted-soft)]" style={inputStyle} />
+          </div>
+        ) : null}
 
         <Picker<OnboardingCity>
           id="onb-basics-city"
@@ -135,9 +154,13 @@ export function EssentialsStep({
           selectedLabel={(c) => c.name[locale] || c.name.en}
           search={(q) => searchOnboardingCities({ query: q })}
           itemLabel={(c) => c.name[locale] || c.name.en}
-          itemSub={(c) => c.subtitle}
+          itemSub={(c) => localizeCitySubtitle(c, locale)}
           itemKey={(c) => `${c.slug}:${c.countryIso2}`}
           onPick={(c) => setCity(c)}
+          typed={{
+            label: (text) => t("public.onboarding.questions.useTyped").replace("{text}", text),
+            make: (text) => ({ id: null, slug: "", name: { en: text, es: text }, countryIso2: "", subtitle: null }),
+          }}
           onClear={() => setCity(null)}
           changeLabel={t("public.onboarding.questions.change")}
           noResultsLabel={t("public.onboarding.questions.noCity")}

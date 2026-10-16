@@ -27,3 +27,14 @@ export function isWorkspaceAdminWebsiteHref(href: string): boolean {
 export function talentLeaveForWorkspaceAdminHref(href: string): boolean {
   return isWorkspaceAdminWebsiteHref(href);
 }
+
+/**
+ * The same trap, caught after the fact: a server `redirect()` (for example
+ * `/talent/page-builder` sending a business owner to `/<slug>/admin/website`)
+ * is followed by the soft router, so no click handler ever sees the target.
+ * The talent shell watches its own pathname with this and reloads when it has
+ * been carried into the workspace admin tree.
+ */
+export function pathIsWorkspaceAdmin(pathname: string): boolean {
+  return /^\/(?:[^/]+\/)?admin(?:\/|$)/.test(pathname) && !/^\/(?:talent)(?:\/|$)/.test(pathname);
+}

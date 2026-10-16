@@ -21,9 +21,27 @@ export function createClient(): SupabaseClient | null {
       ? cookieDomainForHost(window.location.hostname)
       : undefined;
 
-  return createBrowserClient(
+  const client = createBrowserClient(
     url,
     key,
     domain ? { cookieOptions: { domain } } : undefined,
   );
+  createdBrowserClient = client;
+  return client;
+}
+
+/** The browser singleton, once some component has created it (S1 sign-out). */
+let createdBrowserClient: SupabaseClient | null = null;
+
+/**
+ * S1 sign-out: stop the live browser client's auto-refresh timer so it cannot
+ * rotate the token and rewrite the auth cookie while sign-out is in flight.
+ * Never creates a client (a fresh one would recover and refresh the session).
+ */
+export function stopBrowserAuthClient(): void {
+  try {
+    void createdBrowserClient?.auth.stopAutoRefresh();
+  } catch {
+    // Best effort; the cookies are expired regardless.
+  }
 }

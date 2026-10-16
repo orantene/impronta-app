@@ -6,6 +6,7 @@ import {
   decideTalentProfileLocale,
   ogLocale,
   pickByChain,
+  talentProfileSupportedSet,
   talentProfileAlternates,
 } from "./talent-profile-locale";
 
@@ -97,4 +98,22 @@ test("applyLangQuery: ?lang wins over the path locale, bounded by the talent set
   assert.equal(d.locale, "es");
   const only = decideTalentProfileLocale({ requested: applyLangQuery("en", "es"), primary: "en", supported: ["en"] });
   assert.equal(only.locale, "en");
+});
+
+// TUL-736: a talent with no language choice speaks every platform language
+// (chrome), so /es/t/<code> renders Spanish instead of falling back to English.
+test("TUL-736: a talent with no language preference follows the platform public locales", () => {
+  const set = talentProfileSupportedSet({ unset: true, supported: ["en"], publicLocales: ["en", "es"] });
+  assert.deepEqual(set, ["en", "es"]);
+  const d = decideTalentProfileLocale({ requested: "es", primary: "en", supported: set });
+  assert.equal(d.locale, "es");
+  assert.deepEqual(d.chain, ["es", "en"]);
+  assert.equal(decideTalentProfileLocale({ requested: "fr", primary: "en", supported: set }).locale, "en");
+});
+
+test("TUL-736: an explicit single-language talent stays bounded", () => {
+  const set = talentProfileSupportedSet({ unset: false, supported: ["en"], publicLocales: ["en", "es"] });
+  assert.deepEqual(set, ["en"]);
+  assert.equal(decideTalentProfileLocale({ requested: "es", primary: "en", supported: set }).locale, "en");
+  assert.equal(decideTalentProfileLocale({ requested: "en", ...SOLO_ES }).locale, "es");
 });

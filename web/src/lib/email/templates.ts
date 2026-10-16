@@ -8,9 +8,9 @@
  */
 
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { resolveEmailHomeHost, resolveEmailHomeOrigin } from "@/lib/brand/marketing-origin";
 
-const siteUrl = () =>
-  (process.env.NEXT_PUBLIC_SITE_URL ?? `https://${PLATFORM_BRAND.domain}`).replace(/\/$/, "");
+const siteUrl = () => resolveEmailHomeOrigin();
 
 /**
  * Workspace paths (`/admin`, `/client`, `/talent`) live on the app host.
@@ -40,7 +40,7 @@ function resolveBrand(brand?: EmailBrand) {
   return {
     wordmark: brand?.wordmark ?? PLATFORM_BRAND.name.toUpperCase(),
     accountName: brand?.accountName ?? PLATFORM_BRAND.name,
-    footerDomain: brand?.footerDomain ?? PLATFORM_BRAND.domain,
+    footerDomain: brand?.footerDomain ?? resolveEmailHomeHost(),
     homeHref: brand?.homeHref ?? siteUrl(),
   };
 }

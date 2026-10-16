@@ -182,6 +182,29 @@ export function canResume(state: PersistedModuleState): boolean {
   return RESUMABLE_STEPS.has(state.step) && !!state.input?.value;
 }
 
+/** TUL-16 (e): a guest draft older than this is not restored on /start. */
+export const RESUME_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+const FINISHED_STEPS: ReadonlySet<ModuleStep> = new Set<ModuleStep>(["building", "arrival"]);
+
+/**
+ * TUL-16 (e): may this saved draft be offered again? A guest draft lives on a
+ * device cookie (maybe a shared device, maybe someone who already finished),
+ * so it resumes only within 24h of its last save and never once finished.
+ * A signed-in owner's draft is their own and keeps resuming, except a
+ * finished one older than 24h (they are starting something new).
+ */
+export function isResumeFresh(
+  state: PersistedModuleState,
+  opts: { now: number; isAuthenticated: boolean },
+): boolean {
+  const saved = state.updatedAt ? Date.parse(state.updatedAt) : NaN;
+  const recent = Number.isFinite(saved) && opts.now - saved <= RESUME_MAX_AGE_MS;
+  const finished = !!state.step && FINISHED_STEPS.has(state.step);
+  if (opts.isAuthenticated) return !(finished && !recent);
+  return recent && !finished;
+}
+
 /** Twelve words is the floor below which the AI has nothing to work with. */
 export const MIN_INPUT_WORDS = 3;
 export const MAX_INPUT_CHARS = 2000;

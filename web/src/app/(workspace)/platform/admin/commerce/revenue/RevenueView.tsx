@@ -52,7 +52,8 @@ export async function RevenueView({
   revenue: PlatformRevenueSummary;
   heldPayouts: HeldPayoutsResult;
 }) {
-  const t = createTranslator(await getRequestLocale());
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
 
   // Primary currency = the one with the most platform-fee revenue.
   const primary: PlatformRevenueByCurrency | null = revenue.byCurrency[0] ?? null;
@@ -69,7 +70,7 @@ export async function RevenueView({
           { total: stats.totalTenants, active: totalActiveTenants },
         )}
       >
-        <PlanDistribution t={t} rows={planDist} totalActive={totalActiveTenants} />
+        <PlanDistribution t={t} locale={locale} rows={planDist} totalActive={totalActiveTenants} />
       </HqCard>
 
       <div style={{ height: 12 }} />

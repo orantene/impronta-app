@@ -24,6 +24,7 @@ import {
   type DragHandleProps,
 } from "./kit";
 import { InspectorLabelWithInfo } from "./kit";
+import type { LocalizableTextFieldComponent } from "./builder-2027-node-content";
 
 type CommitPatch = (patch: Record<string, unknown>) => void;
 
@@ -62,11 +63,37 @@ function normalizeMeasures(raw: MeasureRow[] | undefined): MeasureRow[] {
 export function CompCardContentInspector({
   node,
   commitPatch,
+  tenantId,
+  LocalizableTextField,
 }: {
   node: BuilderCompCardNode;
   commitPatch: CommitPatch;
+  tenantId: string;
+  /** Shared per-language field, passed in to keep the module graph one-way. */
+  LocalizableTextField: LocalizableTextFieldComponent;
 }) {
   const p = node.props;
+  // TUL-999: eyebrow and title are localizable props on this block
+  // (builder-i18n-props), so they get the ES/EN tabs, not a single input.
+  const textField = (
+    prop: "eyebrow" | "title",
+    baseValue: string,
+    ariaLabel: string,
+    placeholder?: string,
+  ) => (
+    <LocalizableTextField
+      node={node}
+      prop={prop}
+      tenantId={tenantId}
+      fieldKind="input"
+      baseValue={baseValue}
+      ariaLabel={ariaLabel}
+      className="rounded-md border border-stone-300 bg-white px-2 py-1.5"
+      placeholder={placeholder}
+      onCommitBase={(next) => commitPatch({ [prop]: next })}
+      patch={commitPatch}
+    />
+  );
   const layout = (p.layout ??
     COMP_CARD_DEFAULT_PROPS.layout ??
     "strip_with_details") as CompCardLayout;
@@ -194,27 +221,14 @@ export function CompCardContentInspector({
       </Section>
 
       <Section title="Copy">
-        <label className="flex flex-col gap-1 text-[13px] text-stone-800">
+        <div className="flex flex-col gap-1 text-[13px] text-stone-800">
           <span>Eyebrow</span>
-          <input
-            type="text"
-            className="rounded-md border border-stone-300 bg-white px-2 py-1.5"
-            value={p.eyebrow ?? ""}
-            maxLength={80}
-            onChange={(e) => commitPatch({ eyebrow: e.target.value })}
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-[13px] text-stone-800">
+          {textField("eyebrow", p.eyebrow ?? "", "Eyebrow")}
+        </div>
+        <div className="flex flex-col gap-1 text-[13px] text-stone-800">
           <span>Title</span>
-          <input
-            type="text"
-            className="rounded-md border border-stone-300 bg-white px-2 py-1.5"
-            value={p.title ?? ""}
-            maxLength={160}
-            placeholder="Optional (leave blank for a bare strip)"
-            onChange={(e) => commitPatch({ title: e.target.value })}
-          />
-        </label>
+          {textField("title", p.title ?? "", "Title", "Optional (leave blank for a bare strip)")}
+        </div>
         <label className="flex flex-col gap-1 text-[13px] text-stone-800">
           <span>Details summary (EN)</span>
           <input

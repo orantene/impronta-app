@@ -11,6 +11,7 @@ import type { ServerActionResult } from "@/lib/server-actions/result";
 import { loadTalentSelfProfile } from "../../../_data-bridge";
 import type { InquiryReportReason } from "@/lib/inquiry/guest-chat-contract";
 import { blockSubject, reportInquiry } from "@/lib/inquiry/recipient-safety";
+import { maybeSendGuestReplyNudge } from "@/lib/inquiry/guest-reply-nudge";
 export type { TalentGuestTrustChipData } from "./guest-trust-loader";
 
 export type SendTalentInquiryMessageResult = ServerActionResult<{
@@ -132,6 +133,20 @@ export async function sendTalentInquiryMessage(
   if (insertError) {
     logServerError("talent.thread.send", insertError);
     return { ok: false, error: "Could not send message." };
+  }
+
+  // TUL-641: this raw insert bypassed the engine, so a coordinator-talent's
+  // reply to a guest/client on the private thread showed "sent" but queued no
+  // email dispatch (dispatch_log row) at all. Mirror it through the same
+  // dispatcher the admin reply uses; it self-gates and never throws.
+  if (threadType === "private") {
+    await maybeSendGuestReplyNudge({
+      inquiryId,
+      tenantId: inquiryTenantId,
+      senderUserId: user.id,
+      messageId: data.id as string,
+      body: trimmed,
+    });
   }
 
   const { error: readErr } = await supabase.rpc("inquiry_mark_thread_read", {

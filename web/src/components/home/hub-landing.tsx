@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { HubAgencyList } from "./hub-agency-list";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { loadPublicHomepage } from "@/lib/site-admin/server/homepage-reads";
 import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
@@ -6,7 +7,7 @@ import { HomepageCmsSections } from "@/components/home/homepage-cms-sections";
 import { isLocale } from "@/lib/site-admin/locales";
 import { getRequestLocale } from "@/i18n/request-locale";
 import type { Locale } from "@/i18n/config";
-import { canonicalTalentUrl } from "@/lib/saas/canonical-hosts";
+import { canonicalTalentUrl, isDevOnlyHostname } from "@/lib/saas/canonical-hosts";
 import { hubMayListTalent, mapTenantDiscoverExposure } from "@/lib/saas/discover-exposure";
 
 /**
@@ -74,20 +75,7 @@ export async function HubLanding({ tenantId }: { tenantId: string }) {
             No active agency domains yet.
           </p>
         ) : (
-          <ul className="mt-12 grid gap-3 sm:grid-cols-2">
-            {agencies.map((a) => (
-              <li key={a.hostname}>
-                <a
-                  href={`//${a.hostname}`}
-                  className="block rounded-[var(--site-radius)] border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)]/40 px-5 py-4 text-sm text-foreground transition hover:bg-[var(--impronta-surface)]/60"
-                >
-                  <span className="font-display tracking-[0.08em]">
-                    {a.hostname}
-                  </span>
-                </a>
-              </li>
-            ))}
-          </ul>
+          <HubAgencyList hostnames={agencies.map((a) => a.hostname)} />
         )}
 
         <HubTalentDirectory talent={hubTalent} />
@@ -274,5 +262,7 @@ async function loadActiveAgencyDomains(): Promise<AgencyDomainRow[]> {
     .in("kind", ["subdomain", "custom"])
     .in("status", ["active", "ssl_provisioned", "verified"])
     .order("hostname", { ascending: true });
-  return (data ?? []) as AgencyDomainRow[];
+  // Dev rows (localhost, *.local, LAN ips) are seeded for local work and must not
+  // show up on a public hub landing (TUL-978).
+  return ((data ?? []) as AgencyDomainRow[]).filter((r) => !isDevOnlyHostname(r.hostname));
 }

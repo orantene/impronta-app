@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { selectedDayScrollLeft } from "./catalog-selected-day-scroll";
+import { selectedDayScrollLeft, weekScrollLeft } from "./catalog-selected-day-scroll";
 
 function fakeEl(opts: {
   left: number;
@@ -46,4 +46,16 @@ test("selected day scroll centers relative to the strip, not an ancestor", () =>
 test("booking back links are block-level so Start over and Cambiar stack", () => {
   const css = readFileSync(join(process.cwd(), "src/components/public-booking/catalog-booking-styles.ts"), "utf8");
   assert.match(css, /\.jb-back-link\{[^}]*display:block/);
+});
+
+// TUL-899: only five 64px days fit at 390; the strip must show a full week and page by week.
+test("the day strip fits seven days per view and pages a week at a time", () => {
+  const css = readFileSync(join(process.cwd(), "src/components/public-booking/catalog-booking-styles.ts"), "utf8");
+  assert.match(css, /\.jb-day\{flex:0 0 calc\(\(100% - 36px\) \/ 7\)/);
+  assert.match(css, /\.jb-days\{[^}]*gap:6px/);
+  assert.equal(weekScrollLeft({ scrollLeft: 0, clientWidth: 350, scrollWidth: 720 }, 1), 350);
+  assert.equal(weekScrollLeft({ scrollLeft: 350, clientWidth: 350, scrollWidth: 720 }, 1), 370, "clamped to the end");
+  assert.equal(weekScrollLeft({ scrollLeft: 100, clientWidth: 350, scrollWidth: 720 }, -1), 0);
+  const picker = readFileSync(join(process.cwd(), "src/components/public-booking/CatalogLiveWhenPicker.tsx"), "utf8");
+  assert.equal((picker.match(/<CatalogWeekNav /g) ?? []).length, 2, "live and demo strips both page");
 });

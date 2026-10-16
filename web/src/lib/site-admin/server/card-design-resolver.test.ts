@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { contrastRatio } from "@/lib/site-admin/tokens/contrast-pair";
+
 import {
   CARD_DESIGN_DEFAULT_FAMILY,
   CARD_DESIGN_FAMILIES,
   DEFAULT_CARD_DESIGN,
   cardDesignToCssVars,
+  legibleOnSurface,
   projectCardDesign,
   type CardDesign,
 } from "./card-design-shape";
@@ -72,6 +75,40 @@ test("cardDesignToCssVars emits only the set colors", () => {
   );
   // default design pins no card vars (everything inherits the theme)
   assert.deepEqual(cardDesignToCssVars(DEFAULT_CARD_DESIGN), {});
+});
+
+// --- TUL-1083: card text stays legible on the card's own surface -------------
+
+test("cardDesignToCssVars lifts a stored muted colour that fails AA on its surface", () => {
+  // Minimal's stored value: #8a8a8a on white is 3.45:1 (30 axe violations on /es/directory at 390px).
+  const vars = cardDesignToCssVars({ family: "minimal-portrait", surface: "#ffffff", muted: "#8a8a8a" });
+  assert.notEqual(vars["--token-card-muted"], "#8a8a8a");
+  const ratio = contrastRatio(vars["--token-card-muted"]!, "#ffffff");
+  assert.ok(ratio != null && ratio >= 4.5, `muted on white is ${ratio}:1`);
+  // The surface itself is never touched.
+  assert.equal(vars["--token-card-surface"], "#ffffff");
+});
+
+test("cardDesignToCssVars guards the name and price colours the same way", () => {
+  const vars = cardDesignToCssVars({ family: "magazine", surface: "#f4f1ea", priceColor: "#8a6d2f", nameColor: "#cccccc" });
+  for (const key of ["--token-card-price-color", "--token-card-name-color"]) {
+    const ratio = contrastRatio(vars[key]!, "#f4f1ea");
+    assert.ok(ratio != null && ratio >= 4.5, `${key} on paper is ${ratio}:1`);
+  }
+});
+
+test("legibleOnSurface leaves passing colours and unmeasurable inputs untouched", () => {
+  assert.equal(legibleOnSurface("#171717", "#ffffff"), "#171717", "already passes: unchanged");
+  assert.equal(legibleOnSurface("#8a8478", "#0f0f0f"), "#8a8478", "noir muted passes on its dark ground");
+  assert.equal(legibleOnSurface("#8a8a8a", undefined), "#8a8a8a", "no surface pinned: the theme cascade decides");
+  assert.equal(legibleOnSurface("var(--x)", "#ffffff"), "var(--x)", "a var() cannot be measured");
+  assert.equal(legibleOnSurface("#8a8a8a", "var(--s)"), "#8a8a8a", "a var() surface cannot be measured");
+});
+
+test("legibleOnSurface keeps the hue: a warm muted stays warm, a cool one stays cool", () => {
+  const warm = legibleOnSurface("#a39a8b", "#faf7f2")!;
+  const [r, , b] = [1, 3, 5].map((i) => parseInt(warm.slice(i, i + 2), 16));
+  assert.ok(r >= b, `warm tone kept (r ${r} >= b ${b}): ${warm}`);
 });
 
 // --- per-row cross-tenant resolution ---------------------------------------

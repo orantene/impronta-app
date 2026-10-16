@@ -15,7 +15,7 @@ type Props = {
   talentProfileId: string;
   /** P3: opts carry the matching demo and the search it came from (optional). */
   onExplore: (designSlug: string, opts?: GalleryExploreOptions) => void;
-  /** PDF: ‹ Today — leave setup toward Today / presence. */
+  /** ‹ My website: closeToSite returns to the site manager, not Today (TUL-536). */
   onBack?: () => void;
   /** PDF: chrome close X. */
   onClose?: () => void;
@@ -54,7 +54,7 @@ export function ChooseDesignScreen({
               data-testid="maison-gallery-back"
               className="min-h-11 shrink-0 text-[13.5px] font-semibold text-admin-ink"
             >
-              ‹ {maisonSetupT(locale, "Today")}
+              ‹ {maisonSetupT(locale, "My website")}
             </button>
           ) : (
             <span className="w-16 shrink-0" aria-hidden />

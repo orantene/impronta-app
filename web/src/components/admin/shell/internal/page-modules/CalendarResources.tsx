@@ -33,6 +33,7 @@ import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { loadAppointments } from "@/lib/scheduling/appointments-actions";
 import type { AppointmentRow } from "@/lib/scheduling/appointments-board";
+import { resolveCalendarClock } from "@/lib/scheduling/calendar-clock";
 import { utcToZonedYmd } from "@/lib/scheduling/tz";
 import { loadSchedule, type ScheduleNight, type ScheduleSeries } from "@/lib/sessions/schedule-actions";
 import type { CalendarEvent } from "@/app/(workspace)/[tenantSlug]/_data-bridge/calendar";
@@ -127,17 +128,35 @@ export function CalendarResources({
   const [state, setState] = useState<"holds" | "confirmed">("holds");
   useEffect(() => {
     let alive = true;
-    Promise.all([loadAppointments(tenantId), loadSchedule(tenantId)]).then(
-      ([board, schedule]) => {
+    // Two independent reads, two chains: the board paints on the appointments
+    // alone and the sessions band fills in when the schedule lands.
+    loadAppointments(tenantId).then(
+      (board) => {
         if (!alive) return;
         if (board.ok) {
+          const clock = resolveCalendarClock({
+            serverZone: board.timeZone,
+            serverTodayYmd: board.todayYmd,
+            browserZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            now: new Date(),
+          });
           setRows(board.rows);
-          setTimeZone(board.timeZone);
-          onClock?.({ timeZone: board.timeZone, todayYmd: board.todayYmd });
+          setTimeZone(clock.timeZone);
+          onClock?.(clock);
         } else {
           setRows([]);
           setError(board.error);
         }
+      },
+      (err) => {
+        if (!alive) return;
+        setRows([]);
+        setError(err instanceof Error ? err.message : String(err));
+      },
+    );
+    loadSchedule(tenantId).then(
+      (schedule) => {
+        if (!alive) return;
         if (schedule.ok) {
           setSeries(schedule.series);
           setNights(schedule.nights);
@@ -147,8 +166,7 @@ export function CalendarResources({
       },
       (err) => {
         if (!alive) return;
-        setRows([]);
-        setError(err instanceof Error ? err.message : String(err));
+        setError((prev) => prev ?? (err instanceof Error ? err.message : String(err)));
       },
     );
     return () => {

@@ -134,7 +134,7 @@ function isEditorScaffolding(relFile: string): boolean {
  * raising one, or adding a file, is a regression and this test says so.
  */
 const SECTION_DEBT: ReadonlyMap<string, number> = new Map([
-  ["lib/site-admin/sections/shared/default-content.ts", 12],
+  ["lib/site-admin/sections/shared/default-content.ts", 9],
   ["lib/site-admin/sections/shared/section-template-starters.ts", 1],
 ]);
 

@@ -110,6 +110,7 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
   "New column": "Columna nueva",
   "Add column": "Agregar columna",
   "Add link": "Agregar enlace",
+  "Add My account link": "Agregar enlace Mi cuenta",
   "A footer can hold at most 5 columns.":
     "Un pie de página admite como máximo 5 columnas.",
   "Drag to reorder column": "Arrastra para reordenar la columna",

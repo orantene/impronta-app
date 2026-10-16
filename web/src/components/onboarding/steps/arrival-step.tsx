@@ -6,10 +6,12 @@
  * person's words and offers a retry.
  */
 
-import type { ArrivalPayload } from "@/lib/onboarding/arrival";
+import { planIntentLabel, upgradeHrefFromToday, workspaceUpgradeHref, type PlanIntent } from "@/lib/onboarding/plan-intent";
+import { draftReasonKey, type ArrivalPayload } from "@/lib/onboarding/arrival";
 import { ARRIVAL_THUMB_FRAME_NAME } from "@/components/edit-chrome/embedded-frame";
 
 import { finishPlan, type FinishPlan } from "@/lib/onboarding/finish-plan";
+import { buildArrivalNextSteps } from "@/lib/onboarding/arrival-next-steps";
 
 import { PrimaryButton, Sub, Title } from "../ui";
 
@@ -86,11 +88,14 @@ function InquiryOnlyArrival({ t, arrival, plan }: { t: (key: string) => string; 
   );
 }
 
-export function ArrivalStep({ t, arrival, onRetry, busy = false }: { t: (key: string) => string; arrival: ArrivalPayload; onRetry?: () => void; busy?: boolean }) {
+export function ArrivalStep({ t, arrival, onRetry, busy = false, planIntent = null }: { t: (key: string) => string; arrival: ArrivalPayload; onRetry?: () => void; busy?: boolean; planIntent?: PlanIntent | null }) {
   if (arrival.variant === "draft_saved") {
     return <DraftSaved t={t} arrival={arrival} onRetry={onRetry} busy={busy} />;
   }
   const plan = finishPlan(arrival);
+  const talentUpgradeHref = arrival.variant === "talent" || arrival.variant === "both" ? upgradeHrefFromToday(arrival.panelHref ?? arrival.finishHref, planIntent) : null;
+  const workspaceHref = arrival.variant === "talent" ? null : workspaceUpgradeHref(arrival.panelHref, planIntent);
+  const upgradeHref = talentUpgradeHref ?? workspaceHref;
   if (plan.kind === "inquiry_only") return <InquiryOnlyArrival t={t} arrival={arrival} plan={plan} />;
   const facts: string[] = [];
   if (arrival.fact.services > 0) facts.push(t("public.onboarding.arrival.factServices").replace("{n}", String(arrival.fact.services)));
@@ -120,11 +125,8 @@ export function ArrivalStep({ t, arrival, onRetry, busy = false }: { t: (key: st
 
   const business = arrival.variant === "business" || arrival.variant === "both" || arrival.variant === "fallback";
   const title = arrival.variant === "talent" ? t("public.onboarding.arrival.readyTalent") : business ? t("public.onboarding.arrival.readyBusiness") : t("public.onboarding.arrival.youreIn");
-  const nextSteps = arrival.siteLive
-    ? [t("public.onboarding.arrival.nextTalentLive"), t("public.onboarding.arrival.nextTalentPhotos"), t("public.onboarding.arrival.nextTalentBio")]
-    : business
-    ? [t("public.onboarding.arrival.nextVisit"), t("public.onboarding.arrival.nextCustomize"), t("public.onboarding.arrival.nextPhotos"), t("public.onboarding.arrival.nextDomain"), t("public.onboarding.arrival.nextPremium")]
-    : [t("public.onboarding.arrival.nextTalentPhotos"), t("public.onboarding.arrival.nextTalentBio"), t("public.onboarding.arrival.nextTalentShare")];
+  // onb1-19: only tick rows with evidence (siteLive). Never i===0.
+  const nextSteps = buildArrivalNextSteps({ siteLive: Boolean(arrival.siteLive), business }, t);
 
   return (
     <div data-testid="onb-arrival" data-variant={arrival.variant}>
@@ -185,7 +187,7 @@ export function ArrivalStep({ t, arrival, onRetry, busy = false }: { t: (key: st
             <a href={arrival.link.href} data-testid="onb-arrival-view" className="inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-[0.9375rem] font-semibold" style={{ background: "var(--tl-forest)", color: "var(--tl-forest-on)" }}>
               {t("public.onboarding.arrival.viewMyWebsite")}
             </a>
-            <a href={arrival.primary.href} data-testid="onb-arrival-cta" className="inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-[0.9375rem] font-semibold" style={{ background: "transparent", color: "var(--tl-ink)", border: "1px solid var(--tl-hairline-strong)" }}>
+            <a href={arrival.primary.href} data-testid="onb-arrival-cta" className="inline-flex h-11 w-full items-center justify-center rounded-full px-6 text-[0.875rem] font-semibold" style={{ background: "transparent", color: "var(--tl-ink)", border: "1px solid var(--tl-hairline)" }}>
               {t("public.onboarding.arrival.customizeInBuilder")}
             </a>
           </>
@@ -195,12 +197,17 @@ export function ArrivalStep({ t, arrival, onRetry, busy = false }: { t: (key: st
               {cta}
             </a>
             {arrival.siteLive ? (
-              <a href={arrival.editorHref ?? arrival.finishHref ?? "/talent/today"} data-testid="onb-arrival-finish" className="inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-[0.9375rem] font-semibold" style={{ background: "transparent", color: "var(--tl-ink)", border: "1px solid var(--tl-hairline-strong)" }}>
+              <a href={arrival.editorHref ?? arrival.finishHref ?? "/talent/today"} data-testid="onb-arrival-finish" className="inline-flex h-11 w-full items-center justify-center rounded-full px-6 text-[0.875rem] font-semibold" style={{ background: "transparent", color: "var(--tl-ink)", border: "1px solid var(--tl-hairline)" }}>
                 {t("public.onboarding.arrival.customizeInBuilder")}
               </a>
             ) : null}
           </>
         )}
+        {upgradeHref && planIntent ? (
+          <a href={upgradeHref} data-testid="onb-arrival-upgrade" className="inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-[0.9375rem] font-semibold" style={{ background: "transparent", color: "var(--tl-ink)", border: "1px solid var(--tl-hairline-strong)" }}>
+            {t("public.onboarding.arrival.finishUpgrade").replace("{plan}", planIntentLabel(planIntent))}
+          </a>
+        ) : null}
         {arrival.panelHref ? (
           <a href={arrival.panelHref} data-testid="onb-arrival-panel" className="inline-flex h-11 w-full items-center justify-center rounded-full px-6 text-[0.875rem] font-semibold" style={{ background: "transparent", color: "var(--tl-ink-soft)" }}>
             {t("public.onboarding.arrival.goToPanel")}
@@ -211,10 +218,10 @@ export function ArrivalStep({ t, arrival, onRetry, busy = false }: { t: (key: st
       <div className="mt-6" data-testid="onb-next-steps">
         <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em]" style={{ color: "var(--tl-muted)" }}>{t("public.onboarding.arrival.nextSteps")}</p>
         <ul className="mt-2 flex flex-col gap-2">
-          {nextSteps.map((step, i) => (
-            <li key={step} className="flex items-center gap-3 text-[0.9375rem]" style={{ color: "var(--tl-ink)" }}>
-              <span aria-hidden className="grid size-5 shrink-0 place-items-center rounded-full text-[0.7rem]" style={{ background: i === 0 ? "var(--tl-positive)" : "transparent", color: i === 0 ? "#fff" : "var(--tl-muted)", border: i === 0 ? "none" : "1px solid var(--tl-hairline-strong)" }}>{i === 0 ? "✓" : ""}</span>
-              {step}
+          {nextSteps.map((step) => (
+            <li key={step.label} className="flex items-center gap-3 text-[0.9375rem]" style={{ color: "var(--tl-ink)" }} data-done={step.done ? "true" : "false"}>
+              <span aria-hidden className="grid size-5 shrink-0 place-items-center rounded-full text-[0.7rem]" style={{ background: step.done ? "var(--tl-positive)" : "transparent", color: step.done ? "#fff" : "var(--tl-muted)", border: step.done ? "none" : "1px solid var(--tl-hairline-strong)" }}>{step.done ? "✓" : ""}</span>
+              {step.label}
             </li>
           ))}
         </ul>
@@ -230,10 +237,20 @@ export function ArrivalStep({ t, arrival, onRetry, busy = false }: { t: (key: st
 
 function DraftSaved({ t, arrival, onRetry, busy }: { t: (key: string) => string; arrival: ArrivalPayload; onRetry?: () => void; busy: boolean }) {
   const studio = arrival.variant === "draft_saved" && arrival.businessName !== null;
+  // TUL-818: the site row is published (the dashboard reads the same row), so
+  // never say "not online"; say it is published and we are confirming it opens.
+  const published = arrival.published === true;
+  const sub = published
+    ? t("public.onboarding.arrival.draftSubPublished")
+    : studio ? t("public.onboarding.arrival.draftSubStudio") : t("public.onboarding.arrival.draftSub");
   return (
     <DraftBody
       t={t}
-      sub={studio ? t("public.onboarding.arrival.draftSubStudio") : t("public.onboarding.arrival.draftSub")}
+      title={published ? t("public.onboarding.arrival.draftTitlePublished") : t("public.onboarding.arrival.draftTitle")}
+      sub={sub}
+      reason={arrival.draftReason ? t(draftReasonKey(arrival)) : undefined}
+      reasonCode={arrival.draftReason}
+      retryLabel={published ? t("public.onboarding.arrival.checkAgain") : undefined}
       onRetry={onRetry}
       busy={busy}
       editorHref={arrival.editorHref}
@@ -243,17 +260,24 @@ function DraftSaved({ t, arrival, onRetry, busy }: { t: (key: string) => string;
   );
 }
 
-/** The honest state: nothing is claimed live. Retry, open the editor, or leave. */
-function DraftBody({ t, sub, message, onRetry, busy, editorHref, panelHref, variant }: { t: (key: string) => string; sub: string; message?: string; onRetry?: () => void; busy: boolean; editorHref?: string; panelHref?: string; variant: string }) {
+/**
+ * The honest state: nothing is claimed live. TUL-819: one plain reason line,
+ * ONE primary (retry), then quiet text links (editor, dashboard).
+ */
+function DraftBody({ t, title, sub, reason, reasonCode, retryLabel, message, onRetry, busy, editorHref, panelHref, variant }: { t: (key: string) => string; title?: string; sub: string; reason?: string; reasonCode?: string; retryLabel?: string; message?: string; onRetry?: () => void; busy: boolean; editorHref?: string; panelHref?: string; variant: string }) {
   return (
-    <div data-testid="onb-arrival-failed" data-variant={variant}>
-      <Title>{t("public.onboarding.arrival.draftTitle")}</Title>
+    <div data-testid="onb-arrival-failed" data-variant={variant} data-reason={reasonCode}>
+      <Title>{title ?? t("public.onboarding.arrival.draftTitle")}</Title>
       <Sub>{sub}</Sub>
-      {message ? <p className="mt-3 text-[0.8125rem]" style={{ color: "var(--tl-error)" }}>{message}</p> : null}
+      <p className="mt-3 text-[0.9375rem] leading-[1.5]" style={{ color: "var(--tl-ink)" }} data-testid="onb-arrival-reason">{reason ?? t("public.onboarding.arrival.draftReason")}</p>
+      <details className="mt-2 text-[0.8125rem]" style={{ color: "var(--tl-ink-soft)" }} data-testid="onb-arrival-details">
+        <summary className="cursor-pointer font-semibold">{t("public.onboarding.arrival.draftDetails")}</summary>
+        <p className="mt-1 break-words">{message ? `${message} (${variant})` : variant}</p>
+      </details>
       <div className="mt-6 flex flex-col gap-2">
-        {onRetry ? <PrimaryButton onClick={onRetry} disabled={busy} testId="onb-arrival-retry">{t("public.onboarding.arrival.retry")}</PrimaryButton> : null}
+        {onRetry ? <PrimaryButton onClick={onRetry} disabled={busy} testId="onb-arrival-retry">{retryLabel ?? t("public.onboarding.arrival.retry")}</PrimaryButton> : null}
         {editorHref ? (
-          <a href={editorHref} data-testid="onb-arrival-editor" className="inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-[0.9375rem] font-semibold" style={{ background: "transparent", color: "var(--tl-ink)", border: "1px solid var(--tl-hairline-strong)" }}>
+          <a href={editorHref} data-testid="onb-arrival-editor" className="inline-flex h-11 w-full items-center justify-center rounded-full px-6 text-[0.875rem] font-semibold" style={{ background: "transparent", color: "var(--tl-ink)", border: "1px solid var(--tl-hairline)" }}>
             {t("public.onboarding.arrival.openEditor")}
           </a>
         ) : null}
