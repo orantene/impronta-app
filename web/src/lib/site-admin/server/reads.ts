@@ -193,7 +193,7 @@ export function loadPublicIdentity(
  * a public brand when the identity form has no `public_name`. Cached on the
  * identity tag so a rename busts it with the rest of the identity.
  */
-export function loadWorkspaceDisplayName(tenantId: string): Promise<string | null> {
+export function loadWorkspaceOwnName(tenantId: string): Promise<string | null> {
   if (!tenantId) return Promise.resolve(null);
   return unstable_cache(
     async (): Promise<string | null> => {

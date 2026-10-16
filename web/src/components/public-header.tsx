@@ -33,7 +33,7 @@ import { getPublicHostContext } from "@/lib/saas";
 import {
   loadPublicBranding,
   loadPublicIdentity,
-  loadWorkspaceDisplayName,
+  loadWorkspaceOwnName,
 } from "@/lib/site-admin/server/reads";
 import { resolvePublicBrandName } from "@/lib/site-admin/server/public-brand";
 import { loadTenantWords } from "@/lib/words/server";
@@ -215,7 +215,7 @@ export async function PublicHeader() {
     ? await Promise.all([
         loadPublicIdentity(tenantIdForIdentity),
         loadPublicBranding(tenantIdForIdentity),
-        loadWorkspaceDisplayName(tenantIdForIdentity),
+        loadWorkspaceOwnName(tenantIdForIdentity),
       ])
     : [null, null, null];
   // TUL-710: identity name, else the workspace's own name; the platform brand

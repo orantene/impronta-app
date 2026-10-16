@@ -41,7 +41,7 @@ import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
 import {
   loadPublicBranding,
   loadPublicIdentity,
-  loadWorkspaceDisplayName,
+  loadWorkspaceOwnName,
 } from "@/lib/site-admin/server/reads";
 import {
   resolveHomeFooterTagline,
@@ -147,7 +147,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
     // all. A restaurant's footer read "Agency-managed discovery and
     // representation" because nothing on this path asked.
     loadTenantWords(tenantId, locale === "es" ? "es" : "en").catch(() => null),
-    loadWorkspaceDisplayName(tenantId).catch(() => null),
+    loadWorkspaceOwnName(tenantId).catch(() => null),
   ]);
   const favoriteIcon = publicBranding?.favorite_icon ?? "bookmark";
   const tenantBrand = identity?.public_name?.trim() ?? null;
