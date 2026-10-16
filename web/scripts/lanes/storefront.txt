@@ -85,3 +85,6 @@ src/lib/site-admin/builder-node/tul-532-theme-visuals.test.ts
 src/lib/talent-site/header-brand-name.test.ts
 src/lib/talent-site/seo-description-fallback.test.ts
 src/app/(public)/book/book-page-empty.test.tsx
+src/lib/talent-site/live-text-services.test.ts
+src/lib/talent-site/hero-proof-line.test.ts
+src/lib/talent/location-kind.test.ts
