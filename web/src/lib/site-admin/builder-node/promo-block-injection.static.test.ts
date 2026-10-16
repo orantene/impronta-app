@@ -36,7 +36,7 @@ function runtimeImporters(re: RegExp): string[] {
     if (isTest(f)) continue;
     const src = readFileSync(f, "utf8");
     // `import type ...` is erased at build, so it does not count.
-    for (const m of src.matchAll(/^\s*import\s+(?!type\b)[^;]*?from\s+["']([^"']+)["']/gms)) {
+    for (const m of src.matchAll(/^\s*import\s+(?!type\b)[^;]*?from\s+["']([^"']+)["']/gm)) {
       if (re.test(m[1])) {
         hits.push(norm(relative(SRC, f)));
         break;
@@ -56,7 +56,7 @@ test("TUL-1178: render.tsx does not import the promo renderer or its private mod
 
 test("TUL-1178: the fallback module has no runtime import from the promo modules", () => {
   const src = read("lib/site-admin/builder-node/promo-block-fallback.tsx");
-  for (const m of src.matchAll(/^\s*import\s+(?!type\b)[^;]*?from\s+["']([^"']+)["']/gms)) {
+  for (const m of src.matchAll(/^\s*import\s+(?!type\b)[^;]*?from\s+["']([^"']+)["']/gm)) {
     assert.doesNotMatch(m[1], /promos\//, `runtime import ${m[1]} would pull the promo code back into the canvas`);
   }
 });

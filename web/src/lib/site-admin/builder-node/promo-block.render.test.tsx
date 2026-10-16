@@ -149,11 +149,13 @@ test("TUL-1178: with no injected renderer the editor canvas shows a visible hint
 });
 
 test("TUL-1178: with no injected renderer a non-editor render is the same hidden marker the real block gives with no data", () => {
-  const fallback = bare(make());
+  // One node: createBuilderNode mints a random id, so two make() calls never compare equal.
+  const node = make();
+  const fallback = bare(node);
   assert.match(fallback, /data-promo-state="empty"/);
   assert.match(fallback, /hidden/);
   assert.doesNotMatch(fallback, /Promo block/);
-  assert.equal(fallback, html(make()), "identical to the real renderer with no data");
+  assert.equal(fallback, html(node), "identical to the real renderer with no data");
 });
 
 test("TUL-1178: an injected renderer still wins, so the live site is unchanged", () => {
