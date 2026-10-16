@@ -16,6 +16,7 @@ import {
 } from "@/lib/saas/host-context";
 import {
   applyTalentSiteAnonCacheHeaders,
+  talentSitePrivateCacheKeyUrl,
   talentSiteShouldRememberLocale,
 } from "@/lib/saas/talent-site-anon-cache";
 import { attachTalentSiteGuestIdentity } from "@/lib/saas/talent-site-guest-identity";
@@ -119,7 +120,13 @@ export async function talentSiteHostResponse(
   }
 
   const decision = isTalentSiteHostPathAllowed(localeStripped);
-  if (!decision) {
+  // Posts v1: legacy `/posts/<slug>` → 301 `/blog/<slug>`, keeping the locale prefix.
+  if (decision?.kind === "redirect" && (request.method === "GET" || request.method === "HEAD")) {
+    const target = request.nextUrl.clone();
+    target.pathname = request.nextUrl.pathname.slice(0, request.nextUrl.pathname.length - localeStripped.length) + decision.location;
+    return NextResponse.redirect(target, decision.status);
+  }
+  if (!decision || decision.kind === "redirect") {
     // Keep talent host + locale on the branded 404 so Spanish sites never see
     // the English Tulala chrome (GRK-028).
     const missHeaders = new Headers(sanitizedInboundHeaders);
@@ -168,17 +175,27 @@ export async function talentSiteHostResponse(
   const attachGuestCookie = attachTalentSiteGuestIdentity(request, talentHeaders);
   const finish = (res: NextResponse): NextResponse =>
     applyTalentSiteAnonCacheHeaders(rememberChoice(attachGuestCookie(res)), request);
+  // TUL-755: cookie-bearing requests are served under a private cache key (see
+  // talentSitePrivateCacheKeyUrl); a rewrite to it is the only key change the CDN sees.
+  const serve = (url: URL): NextResponse =>
+    finish(
+      NextResponse.rewrite(talentSitePrivateCacheKeyUrl(request, url) ?? url, {
+        request: { headers: talentHeaders },
+      }),
+    );
   if (decision.kind === "passthrough") {
     if (localeStripped === pathname) {
+      const privateKey = talentSitePrivateCacheKeyUrl(request, request.nextUrl);
+      if (privateKey) return serve(privateKey);
       return finish(NextResponse.next({ request: { headers: talentHeaders } }));
     }
     // `/en/c/<id>`: serve the unprefixed route under the chosen language.
     const inner = request.nextUrl.clone();
     inner.pathname = localeStripped;
-    return finish(NextResponse.rewrite(inner, { request: { headers: talentHeaders } }));
+    return serve(inner);
   }
 
   const rewriteUrl = request.nextUrl.clone();
-  rewriteUrl.pathname = talentSiteHostRewritePath(decision.pageSlug);
-  return finish(NextResponse.rewrite(rewriteUrl, { request: { headers: talentHeaders } }));
+  rewriteUrl.pathname = decision.kind === "blog" ? decision.rewritePath : talentSiteHostRewritePath(decision.pageSlug);
+  return serve(rewriteUrl);
 }

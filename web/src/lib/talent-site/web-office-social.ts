@@ -9,7 +9,7 @@
  * Labels live in this module's own small es/en table on purpose; they are
  * not in the message catalog.
  */
-import { talentPlanGrantsSiteCapability } from "@/lib/access/talent-membership";
+import { hasEntitlement } from "@/lib/access/talent-entitlements";
 
 export type SocialRecord = { platform: string; href: string; label?: string };
 
@@ -24,9 +24,9 @@ export type WebOfficeLink = {
   ariaLabel: string;
 };
 
-/** Paid Web Office only. `personalSiteSections` is a Web Office-only capability. */
+/** Paid plans (Pro and Web Office, TUL-839 / DEC-17). Free never gets the links. */
 export function webOfficeSocialEnabled(planKey: string | null | undefined): boolean {
-  return talentPlanGrantsSiteCapability(planKey, "personalSiteSections");
+  return hasEntitlement(planKey, "profile.socialLinks");
 }
 
 export function webOfficeLocale(locale: string | null | undefined): WebOfficeLocale {

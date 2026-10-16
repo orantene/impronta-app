@@ -143,3 +143,11 @@ export function normalizeAccountSettings(raw: Partial<AccountSettingsInput>): Ac
   if (!locale) return null;
   return { name, phone, locale, marketingOptIn: raw.marketingOptIn === true };
 }
+
+/** TUL-777: true when the display name is empty or just the email local part. */
+export function needsRealName(name: string, email: string | null): boolean {
+  const n = name.trim().toLowerCase();
+  if (!n) return true;
+  const local = (email ?? "").split("@")[0].trim().toLowerCase();
+  return local !== "" && n === local;
+}

@@ -40,8 +40,9 @@ import {
   shell,
   tuneHeading,
 } from "./design-parts";
-import { buildWithAuthoredOverlay } from "./authored";
+import { buildWithAuthoredOverlay, loadAuthoredOverlay } from "./authored";
 import { seedI18nPayload } from "../seed-i18n";
+import { withPostsBand } from "../section-kit-bands";
 import { buildGridlinePayload } from "./gridline";
 import { buildMaisonV2Payload } from "./maison-v2";
 
@@ -395,6 +396,8 @@ function entry(
   sort: number,
   buildPayload: () => DesignPayload,
 ): BuiltinDesignEntry {
+  const withBand = (p: DesignPayload): DesignPayload =>
+    loadAuthoredOverlay(slug) ? p : withPostsBand(p, slug);
   return {
     kind: "design",
     slug,
@@ -406,10 +409,14 @@ function entry(
     sort_order: sort,
     is_new_until: null,
     preview: {},
-    buildPayloadRaw: buildPayload,
+    // Posts v1 (PO1): every Design ships the live posts band in code, EXCEPT
+    // designs with an authored overlay: authored overlay: adding the posts band
+    // is a theme release, pending approval (their code payload + hash must stay
+    // byte-identical). The Posts widget is still in the add gallery for them.
+    buildPayloadRaw: () => withBand(buildPayload()),
     // Seeded copy ships es + en. Applied AFTER the authored overlay so the
     // raw payload keeps reproducing the editor snapshot hash (see seed-i18n.ts).
-    buildPayload: () => seedI18nPayload(buildWithAuthoredOverlay(slug, buildPayload)),
+    buildPayload: () => seedI18nPayload(buildWithAuthoredOverlay(slug, () => withBand(buildPayload()))),
   };
 }
 

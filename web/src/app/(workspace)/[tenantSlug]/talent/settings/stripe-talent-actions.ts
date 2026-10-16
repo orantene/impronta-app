@@ -15,8 +15,15 @@ import { isStripeConfigured } from "@/lib/stripe/client";
 import {
   createTalentCheckoutSession,
   createTalentBillingPortalSession,
+  cancelTalentSubscriptionAtPeriodEnd,
+  resumeTalentSubscription,
 } from "@/lib/stripe/talent-billing";
+import { requireTalentSelf } from "@/lib/server/talent-self-guard";
+import { isTalentCancelReason } from "@/lib/billing/talent-cancel";
 import { deriveAppBaseUrl } from "@/lib/stripe/utils";
+import { resolveTalentPriceId } from "@/lib/stripe/price-catalog";
+import { yearlyCheckoutPlans } from "@/lib/billing/checkout-interval";
+import { isAlreadySubscribedError, planChangeTarget, type PlanChangeTarget } from "@/lib/billing/duplicate-subscription";
 import { signCheckoutReturn } from "@/lib/billing/checkout-return";
 import { isSafeReturnPath } from "@/lib/billing/trial-door";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -27,7 +34,13 @@ import type { TalentPlanKey } from "@/lib/stripe/price-ids";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type TalentBillingActionResult =
-  | { ok: true; redirectUrl: string }
+  | {
+      ok: true;
+      redirectUrl: string;
+      /** TUL-831: set when the talent already pays. Callers that support the
+       *  in-app flow (PlanChangeConfirm) open it instead of the portal URL. */
+      planChange?: PlanChangeTarget;
+    }
   | { ok: false; error: string };
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
@@ -51,6 +64,8 @@ export async function startTalentUpgrade(
    * workspace and signed here so only what this action issued can round-trip.
    */
   returnPath?: string | null,
+  /** TUL-830 toggle ("month" | "year"). Parsed server-side; yearly needs a catalog price. */
+  interval?: string | null,
 ): Promise<TalentBillingActionResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
@@ -86,7 +101,25 @@ export async function startTalentUpgrade(
     returnToken: isSafeReturnPath(returnPath, tenantSlug)
       ? signCheckoutReturn({ subjectId: talentProfile.id, path: returnPath })
       : null,
+    interval: interval ?? null,
   });
+
+  // TUL-830: an existing active/trialing/past_due plan is never sent through
+  // Checkout again (that would mint a second subscription). TUL-831: the
+  // result names the in-app plan change target; the portal URL stays as the
+  // fallback for callers that do not open PlanChangeConfirm yet.
+  if (!result.ok && isAlreadySubscribedError(result.error)) {
+    const planChange = planChangeTarget(planKey, interval);
+    const portal = await createTalentBillingPortalSession({
+      userId: session.user.id,
+      tenantSlug,
+      appBaseUrl,
+      locale: await getRequestLocale(),
+    });
+    if (portal.ok) return { ok: true, redirectUrl: portal.data.url, planChange };
+    logServerError("stripe-talent-actions.startUpgrade.portal", portal.error);
+    return { ok: false, error: result.error };
+  }
 
   if (!result.ok) {
     logServerError("stripe-talent-actions.startUpgrade", result.error);
@@ -94,6 +127,19 @@ export async function startTalentUpgrade(
   }
 
   return { ok: true, redirectUrl: result.data.url };
+}
+
+/**
+ * Paid talent plans that have a yearly catalog price (TUL-830). The upgrade
+ * modal offers the yearly toggle only for these; read-only, no ids accepted.
+ */
+export async function loadTalentYearlyCheckoutPlans(): Promise<TalentPlanKey[]> {
+  const session = await getCachedActorSession();
+  if (!session.user) return [];
+  return yearlyCheckoutPlans(
+    ["talent_pro", "talent_portfolio"] as const,
+    (k) => resolveTalentPriceId(k, "annual"),
+  );
 }
 
 /**
@@ -128,4 +174,52 @@ export async function openTalentSubscriptionPortal(
   }
 
   return { ok: true, redirectUrl: result.data.url };
+}
+
+// ─── Cancel / resume (TUL-832) ────────────────────────────────────────────────
+
+export type TalentCancelActionResult =
+  | { ok: true; effectiveAt: string | null }
+  | { ok: false; error: string };
+
+/**
+ * Schedules the signed-in talent's plan to end at period end. Self-scoped: the
+ * profile comes from the session, never from client input. Plan state is not
+ * written here; the webhook single writer owns it.
+ */
+export async function cancelTalentPlan(input: {
+  reason: string;
+  feedback?: string | null;
+}): Promise<TalentCancelActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
+  if (!isTalentCancelReason(input.reason)) {
+    return { ok: false, error: "Pick a reason for cancelling." };
+  }
+  const scope = await requireTalentSelf();
+  if (!scope.ok) return { ok: false, error: scope.error };
+
+  const r = await cancelTalentSubscriptionAtPeriodEnd({
+    talentProfileId: scope.talentProfile.id,
+    userId: scope.session.user.id,
+    reason: input.reason,
+    comment: input.feedback ?? null,
+  });
+  if (!r.ok) return { ok: false, error: r.error };
+  return { ok: true, effectiveAt: r.data.effectiveAt };
+}
+
+/** Undoes a pending cancellation (cancel_at_period_end back to false). */
+export async function resumeTalentPlan(): Promise<TalentCancelActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
+  const scope = await requireTalentSelf();
+  if (!scope.ok) return { ok: false, error: scope.error };
+
+  const r = await resumeTalentSubscription({
+    talentProfileId: scope.talentProfile.id,
+    userId: scope.session.user.id,
+  });
+  if (!r.ok) return { ok: false, error: r.error };
+  return { ok: true, effectiveAt: r.data.renewsAt };
 }

@@ -146,6 +146,7 @@ export function TalentSiteRenderer({
             preview={false}
             sectionId={entry.sectionId}
             publicPathPrefix=""
+            aboveFold={index === 0}
           />
         );
 

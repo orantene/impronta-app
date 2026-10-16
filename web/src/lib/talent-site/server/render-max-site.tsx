@@ -123,6 +123,12 @@ export interface RenderTalentMaxSiteInput {
    * `/[<page>]` for a custom-domain apex).
    */
   canonicalPath?: string;
+  /**
+   * Posts v1 (TUL-1009): a platform body rendered inside the site's HOME shell
+   * and theme (like the policy and service pages). When set, `pageSlug` is
+   * ignored and the home page supplies shell + tokens; the caller owns the SEO.
+   */
+  mainOverride?: ReactNode;
 }
 
 export type RenderTalentMaxSiteResult =
@@ -232,8 +238,9 @@ async function renderTalentMaxSiteUnguarded(
     // TUL-586: `servicio-<title>-<id8>` is a platform page too (a talent's own page of that slug wins).
     const isServiceSlug =
       !policyDoc && parseServiceSlug(input.pageSlug) !== null && !pages.some((p) => p.slug === input.pageSlug);
+    const externalMain = input.mainOverride ?? null;
     const page = selectMaxSitePage(pages, {
-      pageSlug: policyDoc || isServiceSlug ? null : input.pageSlug,
+      pageSlug: policyDoc || isServiceSlug || externalMain ? null : input.pageSlug,
       requirePublished,
     });
     if (!page) return NOT_FOUND;
@@ -256,7 +263,7 @@ async function renderTalentMaxSiteUnguarded(
       }),
     );
     const blocks = pruneUnconfirmedGuestStubs(fixed.body);
-    if (!policyDoc && !isServiceSlug && !hasRenderableBuilderNodes(blocks, { mode: "freeform" })) {
+    if (!policyDoc && !isServiceSlug && !externalMain && !hasRenderableBuilderNodes(blocks, { mode: "freeform" })) {
       // A published-but-empty page → 404 rather than a blank document.
       return NOT_FOUND;
     }
@@ -338,7 +345,9 @@ async function renderTalentMaxSiteUnguarded(
     const node = await timed("maxSite.document", () =>
       renderMaxSiteDocument({
         servicePagePath: servicePath ? talentSiteLocalePath(servicePath, locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales) : null,
-        mainOverride: policyModel
+        mainOverride: externalMain
+          ? externalMain
+          : policyModel
           ? policyMainNode(policyModel, { homeHref: policyHomeHref ?? "/" })
           : serviceOffering
             ? serviceMainNode(serviceOffering, {
@@ -392,13 +401,15 @@ async function renderTalentMaxSiteUnguarded(
       page: scrubTalentSiteSeo(
         page,
         talentPlanGrantsSiteCapability(planKey, "personalSiteSeo"),
+        // TUL-587: title + description render on every plan.
+        talentPlanGrantsSiteCapability(planKey, "personalSiteSeoBasic"),
       ),
       identity,
       locale,
       noindex: isOwnerDraftPreview,
       canonicalOrigin: input.canonicalOrigin,
       canonicalPath: servicePath ?? input.canonicalPath,
-      ignoreExplicitCanonical: Boolean(policyDoc) || isServiceSlug,
+      ignoreExplicitCanonical: Boolean(policyDoc) || isServiceSlug || Boolean(externalMain),
       locales: { primary: localeCtx.settings.defaultLocale, urlDefault: localeCtx.grammar.defaultLocale, supported: localeCtx.settings.supportedLocales },
     });
 

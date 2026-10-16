@@ -28,6 +28,7 @@ import { restaurantOrderableDesign } from "./restaurant-orderable";
 import { conferenceDesign } from "./conference";
 import { coachDesign } from "./coach";
 import { servicesDesign } from "./services";
+import { withPagePostsBand } from "./posts-band";
 
 export type { PageDesign, PageDesignArchetype } from "./types";
 export {
@@ -73,7 +74,8 @@ export const PAGE_DESIGNS: ReadonlyArray<PageDesign> = [
   conferenceDesign,
   coachDesign,
   servicesDesign,
-];
+  // Posts v1 (PO1): every starter ships the live posts widget in code.
+].map(withPagePostsBand);
 
 export function getPageDesign(id: string): PageDesign | undefined {
   return PAGE_DESIGNS.find((design) => design.id === id);

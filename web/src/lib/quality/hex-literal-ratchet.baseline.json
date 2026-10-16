@@ -12,7 +12,7 @@
   "src/app/(workspace)/[tenantSlug]/admin/_real-identity-banner.tsx": 14,
   "src/app/(workspace)/[tenantSlug]/admin/account/BillingActionButtons.tsx": 11,
   "src/app/(workspace)/[tenantSlug]/admin/account/CurrencyPicker.tsx": 5,
-  "src/app/(workspace)/[tenantSlug]/admin/account/page.tsx": 3,
+  "src/app/(workspace)/[tenantSlug]/admin/account/AccountPageParts.tsx": 3,
   "src/app/(workspace)/[tenantSlug]/admin/activity-log/ActivityLogClient.tsx": 15,
   "src/app/(workspace)/[tenantSlug]/admin/bookings/[id]/call-sheet/_editor.tsx": 6,
   "src/app/(workspace)/[tenantSlug]/admin/bookings/page.tsx": 6,

@@ -66,6 +66,7 @@ const GROUPS: readonly NavGroup[] = [
       { id: "translations", labelKey: "dashboard.platform.nav.translations", segment: "translations" },
       { id: "builder-lab",  labelKey: "dashboard.platform.nav.builderLab",   segment: "builder-lab"  },
       { id: "stock",        labelKey: "dashboard.platform.nav.stock",        segment: "stock"        },
+      { id: "posts",        labelKey: "dashboard.platformPosts.nav",         segment: "posts"        },
     ],
   },
   {

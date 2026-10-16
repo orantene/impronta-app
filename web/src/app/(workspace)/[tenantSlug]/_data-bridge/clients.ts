@@ -1,3 +1,5 @@
+import { loadPortalVisitWhenMapForRequest } from "@/lib/client-account/portal-visit-when.server";
+import type { PortalVisitWhen } from "@/lib/client-account/portal-visit-when";
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -355,6 +357,8 @@ export type ClientInquiryRow = {
   id: string;
   status: string;
   event_date: string | null;
+  /** The booked visit's local time with its zone named (TUL-1089); null when there is no booking start. */
+  visitWhen?: PortalVisitWhen | null;
   event_location: string | null;
   company: string | null;
   quantity: number | null;
@@ -551,10 +555,13 @@ export async function loadClientInquiries(
       lineupByInquiry.set(row.inquiry_id, list);
     }
 
+    // TUL-1089: the visit's own time + zone (same helper as the portal's Today / Details, TUL-503).
+    const visitWhenById = await loadPortalVisitWhenMapForRequest(tenantId, inquiryIds);
     const enriched = rows.map((row) => {
       const last = lastMessageByInquiry.get(row.id) ?? null;
       return {
         ...row,
+        visitWhen: visitWhenById[row.id] ?? null,
         unreadCount: unreadByInquiry.get(row.id) ?? 0,
         last_message_at: last?.at ?? null,
         last_message_body: last?.body ?? null,
