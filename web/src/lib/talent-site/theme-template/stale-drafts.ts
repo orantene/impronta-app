@@ -14,7 +14,10 @@
  *                      row itself is a production write that needs PM.
  *   keep             : fresh drafts, drafts behind the newest snapshot (a
  *                      publish would be refused as "design moved"), and
- *                      copy-only drafts (Builder Lab refuses those).
+ *                      drafts whose only changes reach NEW sites (nothing a
+ *                      release can carry). Copy-only and translation-only
+ *                      drafts are publishable (TUL-365): a stale one is
+ *                      recommended for publish-to-demos like any other.
  */
 import type { DesignPayload } from "../theme-catalog/types";
 import { diffDesignPayloads } from "../theme-releases/diff-payload";
@@ -32,7 +35,8 @@ export type StaleDraftReason =
   | "fresh"
   | "qa-empty"
   | "behind-latest"
-  | "copy-only"
+  | "stale-copy-only"
+  | "new-sites-only"
   | "no-base";
 
 export interface StaleDraftFact {
@@ -69,8 +73,10 @@ export interface StaleDraftRow {
   releaseRows: number;
   /** The canonical draft differs from its base snapshot (any change, copy included). */
   differs: boolean;
-  /** Release items a publish would carry; null when the base is missing. */
+  /** Design release items a publish would carry (copy excluded); null when the base is missing. */
   designChanges: number | null;
+  /** Copy / translation release items a publish would carry; null when the base is missing. */
+  copyChanges: number | null;
   realSites: number;
   demoSites: number;
   qa: boolean;
@@ -113,17 +119,21 @@ export function classifyDraft(
 
   let differs = true;
   let designChanges: number | null = null;
+  let copyChanges: number | null = null;
   if (draft.basePayload) {
     const base = canonicalDesign(draft.basePayload);
     const next = canonicalDesign(draft.payload);
     differs = payloadHash(base) !== payloadHash(next);
-    designChanges = differs
+    const items = differs
       ? diffDesignPayloads(
           draft.design,
           { payload: base, version: draft.baseVersion },
           { payload: next, version: draft.baseVersion + 1 },
-        ).filter((item) => item.type !== "copy").length // copy items are text, not design
-      : 0;
+        )
+      : [];
+    // Copy items are text, not design, but a release carries them (TUL-365).
+    copyChanges = items.filter((item) => item.type === "copy").length;
+    designChanges = items.length - copyChanges;
   }
 
   const hasSites = h.realSites + h.demoSites > 0;
@@ -144,12 +154,12 @@ export function classifyDraft(
   } else if (behind) {
     action = "keep";
     reason = "behind-latest";
-  } else if (designChanges === 0) {
+  } else if ((designChanges ?? 0) + (copyChanges ?? 0) === 0) {
     action = "keep";
-    reason = "copy-only";
+    reason = "new-sites-only";
   } else if (stale) {
     action = "publish-to-demos";
-    reason = "stale-with-changes";
+    reason = designChanges === 0 ? "stale-copy-only" : "stale-with-changes";
   } else {
     action = "keep";
     reason = "fresh";
@@ -166,6 +176,7 @@ export function classifyDraft(
     releaseRows: h.releaseRows,
     differs,
     designChanges,
+    copyChanges,
     realSites: h.realSites,
     demoSites: h.demoSites,
     qa,

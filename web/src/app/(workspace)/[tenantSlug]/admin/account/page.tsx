@@ -23,6 +23,10 @@ import {
   ManageSubscriptionButton,
   SubscriptionStatusBadge,
 } from "./BillingActionButtons";
+import { WorkspaceCheckoutAutoStart } from "./WorkspaceCheckoutAutoStart";
+import { WorkspacePlanChangeOpener } from "./WorkspacePlanChangeOpener";
+import { workspaceAutoStartDecision, parsePlanIntent, isWorkspaceIntent, planIntentAction, planIntentLabel } from "@/lib/onboarding/plan-intent";
+import { PastDueBanner } from "@/components/billing/PastDueBanner";
 import { BriefCard } from "./BriefCard";
 import { CurrencyPicker } from "./CurrencyPicker";
 import {
@@ -48,172 +52,11 @@ type SearchParams = Promise<{
   perr?: string;
   billing?: string;
   return?: string;
+  plan?: string;
+  interval?: string;
 }>;
 
-// ─── Design tokens (resolve to src/styles/admin-color-bridge.css, never page-local hex) ───
-const C = {
-  ink:        "var(--color-admin-ink)",
-  inkMuted:   "var(--color-admin-ink-muted)",
-  inkDim:     "var(--color-admin-ink-dim)",
-  border:     "var(--color-admin-border)",
-  borderSoft: "var(--color-admin-border-soft)",
-  cardBg:     "var(--color-admin-card)",
-  surface:    "var(--color-admin-surface)",
-  accent:     "var(--color-admin-brand)",
-  accentSoft: "var(--color-admin-brand-soft)",
-  green:      "var(--color-admin-green)",
-  amber:      "var(--color-admin-amber)",
-  amberSoft:  "var(--color-admin-amber-soft)",
-} as const;
-
-const FONT = 'var(--font-admin-body, "Inter", system-ui, sans-serif)';
-
-// ─── Plan meta ────────────────────────────────────────────────────────────────
-const PLAN_META: Record<WorkspacePlan, { label: string; bg: string; color: string }> = {
-  free:    { label: "Free",    bg: "rgba(11,11,13,0.07)",    color: "rgba(11,11,13,0.55)" },
-  website: { label: "Website", bg: "rgba(20,120,110,0.10)",  color: "#166F65" },
-  studio:  { label: "Studio",  bg: "rgba(180,130,20,0.10)",  color: "var(--color-admin-amber)" },
-  agency:  { label: "Agency",  bg: "rgba(30,80,160,0.10)",   color: "#2B5F8A" },
-  network: { label: "Network", bg: "rgba(100,50,200,0.10)",  color: "#6B3EC2" },
-};
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-function SectionHead({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      style={{
-        fontFamily: FONT,
-        fontSize: 10.5,
-        fontWeight: 700,
-        letterSpacing: 0.7,
-        textTransform: "uppercase" as const,
-        color: C.inkDim,
-        marginBottom: 8,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        padding: "11px 16px",
-        fontFamily: FONT,
-      }}
-    >
-      <span
-        style={{
-          flexShrink: 0,
-          width: 140,
-          fontSize: 12,
-          color: C.inkMuted,
-        }}
-      >
-        {label}
-      </span>
-      <span
-        style={{
-          flex: 1,
-          minWidth: 0,
-          fontSize: 13,
-          fontWeight: 500,
-          color: C.ink,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {value}
-      </span>
-    </div>
-  );
-}
-
-function RosterUsageBar({ count, limit, t }: { count: number; limit: number | null; t: (k: string) => string }) {
-  if (limit === null) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          padding: "11px 16px",
-          fontFamily: FONT,
-        }}
-      >
-        <span style={{ flexShrink: 0, width: 140, fontSize: 12, color: C.inkMuted }}>{t("admin.account.rosterLabel")}</span>
-        <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: C.ink, fontVariantNumeric: "tabular-nums" }}>
-            {count}
-          </span>
-          <span style={{ fontSize: 12, color: C.inkMuted }}>{t("admin.account.ofUnlimited")}</span>
-        </div>
-      </div>
-    );
-  }
-
-  const pct = limit > 0 ? Math.min((count / limit) * 100, 100) : 0;
-  const nearLimit = pct >= 80;
-  const barColor = nearLimit ? C.amber : C.accent;
-  const countColor = nearLimit ? C.amber : C.ink;
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        padding: "11px 16px",
-        fontFamily: FONT,
-      }}
-    >
-      <span style={{ flexShrink: 0, width: 140, fontSize: 12, color: C.inkMuted }}>{t("admin.account.rosterLabel")}</span>
-      <div className="flex-1 min-w-0">
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
-          <span
-            style={{
-              fontSize: 13,
-              fontWeight: 600,
-              color: countColor,
-              fontVariantNumeric: "tabular-nums",
-            }}
-          >
-            {count}
-          </span>
-          <span style={{ fontSize: 12, color: C.inkMuted }}>{t("admin.account.of")} {limit}</span>
-        </div>
-        <div
-          style={{
-            height: 4,
-            borderRadius: 999,
-            background: "rgba(11,11,13,0.08)",
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              height: "100%",
-              width: `${pct}%`,
-              background: barColor,
-              borderRadius: 999,
-              transition: "width 0.4s ease",
-            }}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Divider() {
-  return <div style={{ height: 1, background: C.borderSoft, margin: "0 16px" }} />;
-}
+import { C, FONT, PLAN_META, SectionHead, DetailRow, RosterUsageBar, Divider } from "./AccountPageParts";
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default async function WorkspaceAccountPage({
@@ -309,8 +152,43 @@ export default async function WorkspaceAccountPage({
       })
     : null;
 
+  // TUL-828: /pricing -> /start?plan= -> here. Start the chosen checkout once;
+  // the component falls back to this page on any failure.
+  const autoStart = workspaceAutoStartDecision({
+    plan: resolvedSearch.plan,
+    interval: resolvedSearch.interval,
+    canManageBilling,
+    hasActiveSubscription,
+    stripeEnabled,
+  });
+
+  // TUL-831: an existing subscriber with a plan intent gets the in-app plan
+  // change confirm instead of a second checkout.
+  const rawIntent = parsePlanIntent(resolvedSearch.plan, resolvedSearch.interval);
+  const planChangeIntent =
+    canManageBilling && stripeEnabled && isWorkspaceIntent(rawIntent) &&
+    planIntentAction({
+      hasSubscription: hasActiveSubscription,
+      currentPlan: summary?.plan ?? null,
+      currentInterval: null,
+      intent: rawIntent,
+    }) === "plan_change"
+      ? rawIntent
+      : null;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 28, fontFamily: FONT }}>
+      {planChangeIntent ? (
+        <WorkspacePlanChangeOpener
+          planKey={planChangeIntent.plan}
+          interval={planChangeIntent.interval}
+          planName={planIntentLabel(planChangeIntent)}
+          tenantSlug={tenantSlug}
+        />
+      ) : null}
+      {autoStart.action === "start" && autoStart.intent ? (
+        <WorkspaceCheckoutAutoStart plan={autoStart.intent.plan} interval={autoStart.intent.interval} tenantSlug={tenantSlug} />
+      ) : null}
       {billingNotice ? (
         <div style={{ border: `1px solid ${C.border}`, background: C.accentSoft, color: C.accent, borderRadius: 10, padding: "10px 12px", fontSize: 12.5 }}>
           {billingNotice}
@@ -476,6 +354,15 @@ export default async function WorkspaceAccountPage({
               <Divider />
               <RosterUsageBar count={summary.talentCount} limit={summary.talentLimit} t={t} />
 
+              {billingState && (
+                <PastDueBanner
+                  scope="workspace"
+                  tenantSlug={tenantSlug}
+                  status={billingState.status}
+                  pastDueSince={billingState.pastDueSince}
+                  locale={locale}
+                />
+              )}
               {/* Subscription state rows (only when there's a Stripe record) */}
               {billingState && (
                 <>
