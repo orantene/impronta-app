@@ -13,6 +13,7 @@ import {
   type TenantCatalogRisk,
 } from "../../../../tenant-catalog-data";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { catalogPlanLabel } from "../../hq-kit";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
 
@@ -156,7 +157,7 @@ const PLAN_COLORS: Record<string, { bg: string; color: string }> = {
   network: { bg: "rgba(160,122,224,0.15)", color: "#A07AE0" },
 };
 
-function PlanChip({ plan }: { plan: string }) {
+function PlanChip({ plan, locale }: { plan: string; locale: string }) {
   const c = PLAN_COLORS[plan] ?? PLAN_COLORS.free;
   return (
     <span
@@ -173,7 +174,7 @@ function PlanChip({ plan }: { plan: string }) {
         fontFamily: F,
       }}
     >
-      {plan}
+      {catalogPlanLabel(locale, plan)}
     </span>
   );
 }
@@ -367,7 +368,8 @@ export default async function TenantCatalogPage({ params }: { params: PageParams
   }
 
   const h = posture.header;
-  const t = createTranslator(await getRequestLocale());
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
 
   return (
     <div style={{ fontFamily: F, color: HQ.ink, padding: 4 }}>
@@ -450,7 +452,7 @@ export default async function TenantCatalogPage({ params }: { params: PageParams
             {h.entityType}
           </span>
           <span style={{ color: HQ.inkDim }}>·</span>
-          <PlanChip plan={h.plan} />
+          <PlanChip plan={h.plan} locale={locale} />
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
           <Stat label={t(`${CP}.statOverriddenFields`)} value={posture.fieldOverrides.length} />

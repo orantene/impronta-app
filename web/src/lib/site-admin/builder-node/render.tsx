@@ -193,6 +193,7 @@ import { renderAlertBandBlock } from "./alert-band-block";
 import { renderTaskPickerBlock } from "./task-picker-block";
 import { renderNailDesignerBlock } from "./nail-designer-block";
 import { NextFreeChipView } from "./next-free-chip";
+import { renderPromoBlock } from "./promo-block";
 import { headerLogoDeclarations } from "../header-logo-limits";
 import type { LiveStatusRenderContext } from "@/lib/talent/live-status-render";
 
@@ -353,12 +354,11 @@ export interface BuilderNodeRenderDataSources {
   /**
    * Posts v1 (PO1) — each `posts_feed` node's cards, keyed by node id, resolved
    * by the SERVER caller for the rendering site's scope. The renderer never
-   * queries and only shows demo example posts in the builder or on a demo
-   * account (`postsFeedDemo`).
+   * queries and never invents posts: a demo account's example posts arrive here
+   * already resolved (`PostsFeedNodeData.demo`), and the builder canvas fetches
+   * its own through a small island (TUL-1164).
    */
   postsFeedByNodeId?: Readonly<Record<string, import("./posts-feed-model").PostsFeedNodeData>>;
-  /** True on a demo account's site (theme previews): empty widgets show example posts. */
-  postsFeedDemo?: boolean;
   /**
    * Visit facts — service areas / languages / hours for `visit` nodes.
    * Resolved by the SERVER caller; the renderer never invents facts.
@@ -404,6 +404,12 @@ export interface BuilderNodeRenderDataSources {
   };
   /** Present only when at least one visible offering needs a "≈ US$" line; a failed/skipped fetch omits the field rather than guessing. */
   talentOfferingsUsdRates?: UsdRates;
+  /**
+   * Promo widgets (TUL-1051 part B): the talent's LIVE, non-personal promos,
+   * resolved by the SERVER caller (`loadPromoWidgetData`). Absent = every
+   * `promo` block renders hidden. `preview` is set only by the editor preview.
+   */
+  promoWidgets?: import("@/lib/promos/widgets/types").PromoWidgetData;
   /** Promos v1: live-promo card prices by offering id (see catalogPromoPrices). Omitted = list prices. */
   talentOfferingsPromoPrices?: CatalogPromoPrices;
   /** Saved `category_order` from the talent profile. Missing names append after. */
@@ -6216,6 +6222,10 @@ function renderBuilderNodeElement(
                 matrix={layout === "matrix"}
                 liveStatus={options.dataSources.liveStatus ?? null}
                 promoPrices={options.dataSources.talentOfferingsPromoPrices}
+                signedIn={
+                  options.dataSources.headerWidgets?.account?.signedIn === true ||
+                  options.visibilityContext?.signedIn === true
+                }
               />
             </CatalogIslandBoundary>
           )}
@@ -6252,7 +6262,6 @@ function renderBuilderNodeElement(
         <PostsFeedBlockView
           node={localizeBlockNode(node, options.contentLocale)}
           data={options.dataSources?.postsFeedByNodeId?.[node.id]}
-          allowDemo={editorPreview || options.dataSources?.postsFeedDemo === true}
           locale={locale}
           hrefFor={(path) =>
             postsFeedHref(path, {
@@ -6374,6 +6383,15 @@ function renderBuilderNodeElement(
           styleAttr={sharedNodeStyle(node.props.style)}
         />
       );
+    }
+    case "promo": {
+      return renderPromoBlock({
+        node: localizeBlockNode(node, options.contentLocale),
+        data: options.dataSources?.promoWidgets,
+        locale: options.visitorLocale ?? options.contentLocale?.locale,
+        signedIn: options.visibilityContext?.signedIn,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
     }
     case "menu_board": {
       const p = node.props;

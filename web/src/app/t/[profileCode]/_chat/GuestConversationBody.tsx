@@ -193,7 +193,8 @@ export function GuestConversationBody({
               pick specific talent OR let the agency recommend. The Talent section
               auto-opens below (railOpenToSection="talent"), exposing the roster
               search + "Let the agency recommend". Otherwise the normal opener. */}
-          {talentPickFirst
+          {/* TUL-1153: a single-talent site never gets the directory "find the right talent" lead. */}
+          {talentPickFirst && !brand.soloTalent
             ? t("public.guestChat.greetingTalentPickFirst")
             : brand.greeting?.trim()
               ? brand.greeting.trim()

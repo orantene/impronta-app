@@ -21,6 +21,7 @@ import {
   SIGNUP_AI_MODEL,
   type SignupCopyGenerateFn,
 } from "./signup-ai-draft";
+import { afterResponse } from "@/lib/server/after-response";
 
 export async function resolveSignupStarterTreeForOnboard(
   client: SupabaseClient,
@@ -52,7 +53,7 @@ export async function resolveSignupStarterTreeForOnboard(
       maxTokens: call.maxTokens,
       model: SIGNUP_AI_MODEL,
     });
-    void recordAiGenerationUsage({
+    afterResponse(() => recordAiGenerationUsage({
       provider: adapter.id,
       model: result.ok ? (result.model ?? SIGNUP_AI_MODEL) : SIGNUP_AI_MODEL,
       usage: result.ok ? result.usage : undefined,
@@ -63,7 +64,7 @@ export async function resolveSignupStarterTreeForOnboard(
       tenantId: input.tenantId,
     }).catch((err) => {
       logServerError("signupAiDraft.recordUsage", err);
-    });
+    }));
     return result.ok ? result.text : null;
   };
 

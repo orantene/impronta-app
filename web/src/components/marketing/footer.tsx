@@ -125,20 +125,23 @@ export async function MarketingFooter({ priceCurrency = null }: { priceCurrency?
                 wired into `sameAs` / `twitter:site`. */}
           </div>
 
-          {COLUMNS.map((col) => (
+          {COLUMNS.map((col, colIndex) => (
             <div key={col.label}>
-              <h4
+              {/* A group label, not a heading: as an h4 it followed an h2/h1 and skipped a
+                  level on every page (axe heading-order, TUL-1084). The list is named by it. */}
+              <p
+                id={`mkt-footer-col-${colIndex}`}
                 className="plt-mono text-[0.6875rem] font-medium uppercase tracking-[0.22em]"
                 style={{ color: "var(--plt-muted)" }}
               >
                 {col.label}
-              </h4>
-              <ul className="mt-5 space-y-3">
+              </p>
+              <ul className="mt-5 space-y-3" aria-labelledby={`mkt-footer-col-${colIndex}`}>
                 {col.items.map((item) => (
                   <li key={item.href}>
                     <Link
                       href={item.href}
-                      className="inline-block text-[0.9375rem] transition-colors hover:text-[var(--plt-forest)]"
+                      className="inline-flex min-h-6 items-center text-[0.9375rem] transition-colors hover:text-[var(--plt-forest)]"
                       style={{ color: "var(--plt-ink-soft)" }}
                     >
                       {item.label}

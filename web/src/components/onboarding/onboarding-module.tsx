@@ -59,6 +59,7 @@ import { SaveStep } from "./steps/save-step";
 import { CodeStep } from "./steps/code-step";
 import { BuildingStep } from "./steps/building-step";
 import { ArrivalFailed, ArrivalStep } from "./steps/arrival-step";
+import type { PlanIntent } from "@/lib/onboarding/plan-intent";
 import type { ArrivalPayload } from "@/lib/onboarding/arrival";
 import { ResumeCard } from "./steps/resume-card";
 import { TooLittleStep } from "./steps/too-little-step";
@@ -75,6 +76,7 @@ export function OnboardingModule({
   onClose,
   variant = "modal",
   startChoice = null,
+  planIntent = null,
   onLocaleChange,
 }: {
   locale: "en" | "es";
@@ -83,6 +85,8 @@ export function OnboardingModule({
   variant?: "modal" | "page";
   /** A choice carried in the URL (`/start?choice=`); applied when nothing is saved yet. */
   startChoice?: OnboardingChoice | null;
+  /** A paid plan carried from /pricing (`/start?plan=&interval=`); offered as "Finish upgrading" on arrival. */
+  planIntent?: PlanIntent | null;
   onLocaleChange?: (locale: FlowLocale) => void;
   /** `saved` is true when there is progress worth a "saved on this phone" toast. */
   onClose: (result: { saved: boolean }) => void;
@@ -492,6 +496,7 @@ export function OnboardingModule({
         onText={(text) => dispatch({ type: "textChanged", text })}
         onDictation={(on) => dispatch({ type: "dictation", on })}
         onReview={() => dispatch({ type: "reviewWords" })}
+        onSendTyped={() => void send(state.text)}
         onSendLink={(url) => void send(url)}
         busy={state.busy}
         error={state.error}
@@ -617,6 +622,7 @@ export function OnboardingModule({
       <ArrivalStep
         t={t}
         arrival={state.arrival}
+        planIntent={planIntent}
         busy={state.busy}
         onRetry={() => {
           dispatch({ type: "buildRetry" });

@@ -96,6 +96,7 @@ export function SetupStep({
         <Label>{c.services[choice]}</Label>
         <p className="mb-2 text-[0.8125rem]" style={{ color: "var(--tl-ink-soft)" }}>{c.servicesHint}</p>
         <SetupServices copy={c} currency={currency} onCurrency={(cur) => { setEdited(true); setChosenCurrency(cur); }} services={e.services} onChange={(services) => change({ services })} />
+        {show("confirmPrices") ? <Notice tone="error" testId="onb-confirm-prices">{c.errors.confirmPrices}</Notice> : null}
         {show("services") ? <Notice tone="error">{c.errors.services}</Notice> : null}
       </section>
 

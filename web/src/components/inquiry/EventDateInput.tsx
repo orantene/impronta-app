@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useId, useState, type CSSProperties } from "react";
 import { useT } from "@/i18n/use-t";
 
 /**
@@ -12,6 +12,7 @@ export function EventDateInput({
 }: { value: string; onChange: (v: string) => void; style: CSSProperties }) {
   const t = useT();
   const [incomplete, setIncomplete] = useState(false);
+  const errorId = useId();
   return (
     <>
       <input
@@ -22,10 +23,12 @@ export function EventDateInput({
           onChange(e.target.value);
         }}
         onBlur={(e) => setIncomplete(e.target.validity.badInput)}
+        aria-invalid={incomplete || undefined}
+        aria-describedby={incomplete ? errorId : undefined}
         style={style}
       />
       {incomplete ? (
-        <p role="alert" style={{ margin: "4px 0 0", fontSize: 12, color: "#b3261e" }}>
+        <p id={errorId} role="alert" style={{ margin: "4px 0 0", fontSize: 12, color: "#b3261e" }}>
           {t("public.inquiryDrawer.dateIncompleteError")}
         </p>
       ) : null}

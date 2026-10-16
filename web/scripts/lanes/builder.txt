@@ -66,4 +66,5 @@ src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/
 src/components/talent/site/theme-gallery/manager-theme-pick-dialog.static.test.ts
 src/lib/talent-site/theme-releases/builder-lab-errors.test.ts
 src/components/talent/site/theme-gallery/theme-gallery-builtin-copy.test.ts
+src/lib/analytics/talent-presence-stats.test.ts
 src/lib/talent-site/theme-releases/superseded-rows.test.ts
