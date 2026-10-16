@@ -1,7 +1,10 @@
 import "server-only";
 
+import { permanentRedirect } from "next/navigation";
+
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { resolveTalentHubCustomDomainHomeRedirect } from "@/lib/talent-site/hub-custom-domain-redirect";
+import { loadTalentPublicSiteByProfileCode } from "@/lib/talent-site/server/public-load";
 
 /**
  * Resolve the hub `/t/<code>` → custom-domain home 308 target for a profile.
@@ -61,4 +64,27 @@ export async function loadTalentHubCustomDomainHomeRedirect(input: {
   } catch {
     return null;
   }
+}
+
+/**
+ * D1: hub `/t/<code>` → ACTIVE primary custom domain home (308). Staff keep the
+ * hub via `?preview=1`; never fires on a modal or when the domain is not
+ * active. Lives here, not in profile-view.tsx, which is on the file-size ratchet.
+ */
+export async function redirectHubProfileToCustomDomain(input: {
+  profileCode: string;
+  platformHost: boolean;
+  isModal: boolean;
+  preview: string | undefined | null;
+}): Promise<void> {
+  if (!input.platformHost || input.isModal || input.preview === "1") return;
+  const publicSite = await loadTalentPublicSiteByProfileCode(input.profileCode);
+  if (publicSite.kind === "not_found") return;
+  const customHome = await loadTalentHubCustomDomainHomeRedirect({
+    talentProfileId: publicSite.talentProfileId,
+    platformHost: true,
+    isModal: false,
+    preview: input.preview,
+  });
+  if (customHome) permanentRedirect(customHome);
 }
