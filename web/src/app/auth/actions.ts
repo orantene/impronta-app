@@ -472,7 +472,7 @@ export async function signUpTalentInPlace(
       // redirect rather than being deleted.
       emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(
         "/talent/profile/fields",
-      )}`,
+      )}&lang=${String(formData.get("locale") ?? "en") === "es" ? "es" : "en"}`,
       data: { signup_intent: "talent" },
     },
   });
