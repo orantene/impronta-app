@@ -16,13 +16,11 @@ import {
 } from "@/lib/server-actions/admin-stripe-connect";
 import type { ConnectAccountStatus } from "@/lib/payments/stripe-connect";
 import { ConnectEmbeddedOnboarding } from "@/components/payments/ConnectEmbeddedOnboarding";
-import { PAYOUT_COUNTRIES, CONNECT_PAYOUT_COUNTRIES } from "@/lib/payments/payout-countries";
+import { payoutComingSoonLabel, payoutPickerRows } from "@/lib/payments/payout-countries";
 
-// The agency payout leg is always Stripe Connect, so the workspace country
-// picker must only offer Connect-supported countries (US/UK/CA/CH + EEA).
-// Previously it showed the full PAYOUT_COUNTRIES list incl. MX/AR/BR, letting an
-// admin pick a country Stripe rejects at accounts.create with a confusing error.
-const CONNECT_COUNTRY_OPTIONS = PAYOUT_COUNTRIES.filter((c) => CONNECT_PAYOUT_COUNTRIES.has(c.iso2));
+// The agency payout leg is always Stripe Connect. The picker offers only the
+// live countries (NEXT_PUBLIC_PAYOUT_COUNTRIES_LIVE); the rest show disabled
+// as "coming soon" and the server refuses them too.
 import { createTranslator } from "@/i18n/messages";
 import { payoutSetupErrorText } from "@/lib/payments/connect-account-setup";
 
@@ -208,9 +206,14 @@ export function PayoutsActionsClient({
             }}
           >
             <option value="">Select your country…</option>
-            {CONNECT_COUNTRY_OPTIONS.map((c) => (
+            {payoutPickerRows("en").selectable.map((c) => (
               <option key={c.iso2} value={c.iso2}>{c.flag} {c.label}</option>
             ))}
+            <optgroup label={payoutComingSoonLabel("en")}>
+              {payoutPickerRows("en").comingSoon.map((c) => (
+                <option key={c.iso2} value={c.iso2} disabled>{c.flag} {c.label}</option>
+              ))}
+            </optgroup>
           </select>
           <div className="flex gap-2">
             <button type="button" onClick={onSubmitCountry} disabled={pending} style={primaryBtn(pending)}>

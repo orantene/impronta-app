@@ -3,6 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { loadBookingCommissionSnapshots } from "@/lib/billing/commission-engine";
+import { checkoutCardFeeLineEnabled, processorFeeRatesForCurrency } from "@/lib/billing/fee-config";
 import { bookingClientFeeLines, type FeeLine } from "@/lib/billing/processing-fee-payer";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -31,7 +32,12 @@ export async function loadPayLinkFeeLines(
     }
     const bookingId = (data as { id?: string } | null)?.id;
     if (!bookingId) return [];
-    return bookingClientFeeLines(await loadBookingCommissionSnapshots(admin, bookingId), chargeCents);
+    const snaps = await loadBookingCommissionSnapshots(admin, bookingId);
+    // One flag (default off = today's lines): memo of the card fee inside the price.
+    const cardFeeMemoRates = checkoutCardFeeLineEnabled()
+      ? processorFeeRatesForCurrency(snaps[0]?.currency_code ?? "")
+      : null;
+    return bookingClientFeeLines(snaps, chargeCents, { cardFeeMemoRates });
   } catch (err) {
     logServerError("payments.payLinkFeeLines", err);
     return [];

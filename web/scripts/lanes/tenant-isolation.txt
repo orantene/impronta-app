@@ -12,6 +12,7 @@ src/lib/saas/admin-workspace-scope.security.test.ts
 src/lib/saas/tenant-isolation.test.ts
 src/lib/saas/code-snippets-tenant-isolation.test.ts
 src/lib/saas/surface-allow-list.test.ts
+src/lib/saas/surface-allow-list.posts.test.ts
 src/lib/saas/surface-allow-list-hub-media.test.ts
 src/lib/support/desk-flag.test.ts
 src/lib/health/prod-gating-flags.test.ts
