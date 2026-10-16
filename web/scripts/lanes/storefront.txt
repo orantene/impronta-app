@@ -65,6 +65,7 @@ src/components/edit-chrome/selection-focus.test.ts
 src/lib/admin/website-editor-base-url.test.ts
 src/components/edit-chrome/mobile-edit-panel-tablet.static.test.ts
 src/lib/client-account/guest-activate.test.ts
+src/lib/client-account/guest-activate-pay-only.test.ts
 src/lib/client-account/claim-landing.test.ts
 src/app/client/client-root-discover-origin.static.test.ts
 src/lib/client-account/client-root-landing.static.test.ts
@@ -75,6 +76,7 @@ src/lib/talent-site/hub-book-hash.test.ts
 src/lib/talent-site/server/max-site-loader-timing.test.ts
 src/lib/talent-site/server/public-site-data-cache.static.test.ts
 src/lib/talent-site/server/render-max-site.perf.static.test.ts
+src/lib/talent-site/server/render-max-site-request-memo.static.test.ts
 src/components/talent/site/talent-change-design-path.static.test.ts
 src/lib/talent-site/demos/demo-money-copy.test.ts
 src/lib/pricing/usd-equivalent.test.ts
@@ -85,3 +87,16 @@ src/lib/site-admin/builder-node/tul-532-theme-visuals.test.ts
 src/lib/talent-site/header-brand-name.test.ts
 src/lib/talent-site/seo-description-fallback.test.ts
 src/app/(public)/book/book-page-empty.test.tsx
+src/lib/client-account/agency-account-site-pure.test.ts
+src/lib/client-account/published-shell-account-chrome.test.ts
+src/lib/talent-site/live-text-services.test.ts
+src/lib/talent-site/hero-proof-line.test.ts
+src/lib/talent/location-kind.test.ts
+src/lib/talent/dashboard-status.test.ts
+src/lib/talent/google-business-profile-guide.test.ts
+src/lib/talent/google-site-verification.test.ts
+src/lib/talent-site/server/site-metadata-verification.test.ts
+src/components/marketing/footer-tap-targets.static.test.ts
+src/lib/talent-site/server/my-presence-load-parallel.static.test.ts
+src/components/edit-chrome/section-display-name-i18n.test.ts
+src/lib/quality/gsc-token-input.static.test.ts

@@ -10,9 +10,11 @@ import type { CSSProperties, ReactNode } from "react";
 import { timed } from "@/lib/server/perf-trace";
 import { withHeaderSiteChrome } from "./render-max-site-demo";
 import { MaxSiteDemoBadge, MaxSiteDemoFooter } from "@/lib/talent-site/max-site-demo-chrome";
+import { loadPromoWidgetData } from "@/lib/promos/widgets/load.server";
 import { splitShell } from "./render-max-site-shell";
 import { builderTreeHasFaqBind, builderTreeHasKind } from "./builder-tree-has-kind";
 import { collectSocialFeedProviders } from "@/lib/site-admin/builder-node/social-feed-source";
+import { collectNativeDataBlockNeeds } from "@/lib/site-admin/builder-node/native-data-block-needs";
 import { pruneEmptyBoundSections } from "@/lib/talent-site/my-content-prune";
 import { pruneDeadSectionLinks } from "@/lib/talent-site/dead-section-links";
 import { headerOverlayAllowed } from "@/lib/talent-site/header-overlay";
@@ -170,9 +172,13 @@ export async function renderMaxSiteDocument(args: {
   const pageNeedsCompCard = builderTreeHasKind(blocks, "comp_card");
   const pageNeedsFaq = builderTreeHasFaqBind(blocks);
   const pageNeedsNextFreeChip = builderTreeHasKind(blocks, "next_free_chip");
+  // Promo widgets (TUL-1051 part B) may sit in the page body or in the shell (a banner or floating button).
+  const pageNeedsPromoWidgets = builderTreeHasKind(blocks, "promo") || builderTreeHasKind(shellTree, "promo");
   const pageNeedsTalentOfferings =
     pageNeedsServicesCatalog || pageNeedsPortfolio || pageNeedsNextFreeChip;
   const pageSocialFeedProviders = collectSocialFeedProviders(blocks);
+  // Posts v1 (PO1): `posts_feed` nodes read this talent's own posts.
+  const pagePostsFeeds = collectNativeDataBlockNeeds(blocks).postsFeeds;
 
   // Codex P2: catalogBookingLive=false mounts demo booking on published free vanity; own-work Path A uses the platform hub (like Agenda).
   let bookingTenantId: string | null = tenantId;
@@ -184,7 +190,7 @@ export async function renderMaxSiteDocument(args: {
   // Published vanity with a booking tenant always resolves captcha for catalog.
   const resolveCaptcha = Boolean(bookingTenantId) && (pageNeedsCaptcha || !draftPreview);
 
-  const [dataSources, components, platformDefault, experimentContext, pageCaptcha, captchaEnforced, talentOfferings, liveStatusRow, askVisible] =
+  const [dataSources, components, platformDefault, experimentContext, pageCaptcha, captchaEnforced, talentOfferings, liveStatusRow, askVisible, promoWidgets] =
     await Promise.all([
       timed("maxSite.dataSources", () =>
         tenantId
@@ -194,7 +200,8 @@ export async function renderMaxSiteDocument(args: {
               pageNeedsVisit ||
               pageNeedsCompCard ||
               pageNeedsFaq ||
-              pageSocialFeedProviders.length > 0
+              pageSocialFeedProviders.length > 0 ||
+              pagePostsFeeds.length > 0
             ? loadPersonalMaxNativeSources({
                 talentProfileId,
                 locale,
@@ -207,6 +214,7 @@ export async function renderMaxSiteDocument(args: {
                 compCard: pageNeedsCompCard,
                 talentFaq: pageNeedsFaq,
                 socialFeedProviders: pageSocialFeedProviders,
+                postsFeeds: pagePostsFeeds,
               })
             : Promise.resolve({} as BuilderNodeRenderDataSources),
       ),
@@ -241,6 +249,10 @@ export async function renderMaxSiteDocument(args: {
         return admin ? loadTalentLiveStatus(admin, talentProfileId) : { ...DEFAULT_TALENT_LIVE_STATUS };
       }),
       timed("maxSite.askVisible", () => loadTalentAskVisible(talentProfileId)),
+      // Only when a `promo` block is on the page: one owner-scoped read, degrades to "no promos".
+      pageNeedsPromoWidgets
+        ? timed("maxSite.promoWidgets", () => loadPromoWidgetData(talentProfileId))
+        : Promise.resolve(undefined),
     ]);
   // Expiry is applied here, at render time: a lapsed flag renders as off.
   const liveStatus = toLiveStatusRenderContext(liveStatusRow, new Date());
@@ -254,6 +266,8 @@ export async function renderMaxSiteDocument(args: {
   // agency `tenantId` (so `loadBuilderNodeDataSources` is skipped). Merge them
   // onto the render dataSources — otherwise `services_catalog` always renders
   // the empty state on solo talent sites.
+  // The shell (header / footer) draws promo blocks from the same one read as the page body.
+  const promoShell = promoWidgets ? { promoWidgets } : {};
   const pricedDataSources = {
     ...dataSources,
     talentOfferings:
@@ -271,6 +285,7 @@ export async function renderMaxSiteDocument(args: {
       : talentSiteLocalePath("/", locale, args.localeCtx.settings.defaultLocale, args.localeCtx.settings.supportedLocales).replace(/\/+$/, ""),
     onlineCollectReady: isPlatformCheckoutReady(),
     liveStatus,
+    ...(promoWidgets ? { promoWidgets } : {}),
   };
 
   // Forms keep tenant captcha; booking alone follows HQ guest_captcha_enforced.
@@ -392,7 +407,7 @@ export async function renderMaxSiteDocument(args: {
                 mode: "freeform",
                 includeRendererStyles: false,
                 includeFontLinks: false,
-                dataSources: { liveStatus, siteLocales: headerSiteLocales },
+                dataSources: { liveStatus, siteLocales: headerSiteLocales, ...promoShell },
                 captcha: formCaptchaConfig,
                 bookingCaptcha: bookingCaptchaConfig,
                 visitorLocale: locale,
@@ -411,7 +426,7 @@ export async function renderMaxSiteDocument(args: {
           mode: "freeform",
           includeRendererStyles: false,
           includeFontLinks: false,
-          dataSources: { liveStatus, siteLocales: headerSiteLocales },
+          dataSources: { liveStatus, siteLocales: headerSiteLocales, ...promoShell },
           captcha: formCaptchaConfig,
           bookingCaptcha: bookingCaptchaConfig,
           visitorLocale: locale,
@@ -482,7 +497,9 @@ export async function renderMaxSiteDocument(args: {
       />
       <BuilderNodeFontLinks nodes={[...shellTree, ...blocks]} components={components} />
       {hasTokens ? <GoogleFontsLink tokens={effectiveTokens} /> : null}
-      <TypeSystemStyle systems={typeSystemSheetsForTokens(effectiveTokens)} />
+      <TypeSystemStyle
+        systems={hasTokens ? typeSystemSheetsForTokens(effectiveTokens) : ["motion"]}
+      />
 
       {draftPreview ? (
         <div
@@ -524,7 +541,7 @@ export async function renderMaxSiteDocument(args: {
               mode: "freeform",
               includeRendererStyles: false,
               includeFontLinks: false,
-              dataSources: { liveStatus, siteLocales: headerSiteLocales },
+              dataSources: { liveStatus, siteLocales: headerSiteLocales, ...promoShell },
               captcha: formCaptchaConfig,
               bookingCaptcha: bookingCaptchaConfig,
               visitorLocale: locale,
@@ -560,7 +577,7 @@ export async function renderMaxSiteDocument(args: {
         <footer data-talent-max-site-footer="">
           {renderBuilderNodes(liveFooterTree, {
             publicPathPrefix,
-            mode: "freeform", dataSources: { socialLinks: footerSocialLinks, liveStatus }, // her own links
+            mode: "freeform", dataSources: { socialLinks: footerSocialLinks, liveStatus, ...promoShell }, // her own links
             includeRendererStyles: false,
             includeFontLinks: false,
             captcha: formCaptchaConfig,

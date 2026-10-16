@@ -1,9 +1,9 @@
 /**
  * TUL-583 (guide step): pure builder for the "Google Search Console" card.
  * No Google API calls. Custom domains verify with a DNS TXT record; Tulala
- * addresses verify with the HTML tag. The platform only emits a
- * google-site-verification tag per tenant (see site-verification-resolver),
- * not per talent, so `tagSupported` is false and the copy says so.
+ * addresses verify with the HTML tag. TUL-1021: each talent site now emits its
+ * own google-site-verification tag (talent_sites.google_site_verification, set
+ * from the Get Found field), so `tagSupported` is true and the copy points there.
  */
 
 export type GscLang = "en" | "es";
@@ -40,14 +40,14 @@ const COPY = {
     open: ["Open Search Console", "Sign in with the Google account you want to own this data."],
     add: ["Add your site", "Choose URL prefix and paste your site URL from above."],
     txt: ["Verify with a DNS TXT record", "Pick the domain option, copy the TXT value Google shows, add it as a TXT record at your domain provider, then press Verify."],
-    tag: ["Verify with the HTML tag", "Pick HTML tag. Tulala adds this tag to Tulala addresses, but it is not self-serve yet: connect your own domain to verify now, or ask us."],
+    tag: ["Verify with the HTML tag", "Pick HTML tag, copy the code Google shows you, and paste it in 'Verify with the HTML tag' below. We add it to your site, then press Verify in Google."],
     sitemap: ["Submit your sitemap", "Open Sitemaps, paste the sitemap URL from above and press Submit."],
   },
   es: {
     open: ["Abre Search Console", "Entra con la cuenta de Google que quieres que sea dueña de estos datos."],
     add: ["Agrega tu sitio", "Elige prefijo de URL y pega la URL de tu sitio de arriba."],
     txt: ["Verifica con un registro TXT de DNS", "Elige la opción de dominio, copia el valor TXT que muestra Google, agrégalo como registro TXT con tu proveedor de dominio y presiona Verificar."],
-    tag: ["Verifica con la etiqueta HTML", "Elige etiqueta HTML. Tulala agrega esta etiqueta a las direcciones de Tulala, pero aún no es autoservicio: conecta tu propio dominio para verificar ya, o pídenosla."],
+    tag: ["Verifica con la etiqueta HTML", "Elige etiqueta HTML, copia el código que te muestra Google y pégalo abajo en 'Verificar con la etiqueta HTML'. Lo agregamos a tu sitio; luego presiona Verificar en Google."],
     sitemap: ["Envía tu sitemap", "Abre Sitemaps, pega la URL del sitemap de arriba y presiona Enviar."],
   },
 } as const;
@@ -61,7 +61,7 @@ export function buildGscGuide(input: { siteUrl?: string | null }, lang: GscLang)
     mode,
     siteUrl: site?.url ?? null,
     sitemapUrl: site ? `${site.url}/sitemap.xml` : null,
-    tagSupported: false,
+    tagSupported: true,
     steps: [
       step("open", c.open),
       step("add", c.add),

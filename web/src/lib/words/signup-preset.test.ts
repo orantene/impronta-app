@@ -90,6 +90,9 @@ test("TUL-612: cafeteria, coffee shop and bakery signups derive restaurant", () 
   ]) {
     assert.equal(pickSignupPreset({ businessDescription }), "restaurant", businessDescription);
   }
+  // The city "Playa del Carmen" is not a beach club; a beach cabaña still is.
+  assert.equal(pickSignupPreset({ businessDescription: "Cafetería en Playa del Carmen" }), "restaurant");
+  assert.equal(pickSignupPreset({ businessDescription: "Cabaña frente a la playa" }), "beach_club");
   // Ordering: a bar still wins over the diner row, a barber shop is still a salon.
   assert.equal(pickSignupPreset({ businessDescription: "Cocktail bar" }), "bar_club");
   assert.equal(pickSignupPreset({ businessDescription: "Barber shop" }), "salon_barber");

@@ -15,7 +15,6 @@ import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 import type { BookableOffering } from "@/components/public-booking/pick-bookable-offering";
 import { createInstantBookingAction } from "@/lib/server-actions/instant-book-action";
 import type { TalentBookingMode } from "@/lib/scheduling/booking-surface";
-import { translatorFor, useT } from "@/i18n/use-t";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { GuestInstantContact } from "@/components/public-booking/GuestInstantContact";
 import {
@@ -23,6 +22,8 @@ import {
   type GuestCaptchaConfig,
 } from "@/components/public-booking/GuestCaptchaField";
 import { shouldSkipGuestCaptchaOnHost } from "@/components/public-booking/catalog-booking-live-slots";
+import { usePublicT } from "@/i18n/use-public-t";
+import { translatorFor } from "@/i18n/translator-for";
 
 export type { BookableOffering };
 
@@ -39,6 +40,12 @@ function baseIntent(offering: BookableOffering): InquiryIntent {
   };
 }
 
+export type BookableComposerClient = {
+  displayName?: string | null;
+  email?: string | null;
+  phone?: string | null;
+};
+
 export function BookableComposer({
   tenantSlug,
   tenantId,
@@ -48,6 +55,7 @@ export function BookableComposer({
   bookingMode = "request",
   showInlinePicker = true,
   signedIn = false,
+  client = null,
   captcha = null,
   locale: localeProp,
   contactHref = null,
@@ -60,13 +68,15 @@ export function BookableComposer({
   bookingMode?: TalentBookingMode;
   showInlinePicker?: boolean;
   signedIn?: boolean;
+  /** TUL-62: signed-in client contact for InquiryDrawer prefill. */
+  client?: BookableComposerClient | null;
   captcha?: GuestCaptchaConfig | null;
   /** Page locale (CMS Live booking / /book). Prefer over dashboard cookie. */
   locale?: string | null;
   /** Empty-slot escape hatch for the inline picker (TUL-698). */
   contactHref?: string | null;
 }) {
-  const cookieT = useT();
+  const cookieT = usePublicT();
   const dashboardLocale = useDashboardLocale();
   const pageLocale = (localeProp?.trim() || dashboardLocale || "en").startsWith("es")
     ? "es"
@@ -310,9 +320,19 @@ export function BookableComposer({
           tenantSlug={tenantSlug}
           agencyName={agencyName}
           soloTalentName={soloTalentName}
-          client={null}
+          client={
+            signedIn && client
+              ? {
+                  displayName: client.displayName ?? undefined,
+                  email: client.email ?? undefined,
+                  phone: client.phone ?? undefined,
+                  trust_level: "verified",
+                }
+              : null
+          }
           enableDraftAutosave={false}
           bookableOffering={active}
+          followUpOnSite
           initialIntent={initialIntent}
           onClose={() => setOpen(false)}
         />

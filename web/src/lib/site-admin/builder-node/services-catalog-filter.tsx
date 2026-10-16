@@ -95,6 +95,7 @@ export function ServicesCatalogFilter({
   matrix = false,
   liveStatus = null,
   promoPrices,
+  signedIn = false,
 }: {
   /** TUL-792: offering id -> its own service page; absent where no such page exists. */
   serviceHrefs?: Record<string, string>;
@@ -140,6 +141,8 @@ export function ServicesCatalogFilter({
   /** layout "matrix": one comparison table (wide) / stacked cards (narrow). */
   matrix?: boolean;
   liveStatus?: LiveStatusRenderContext | null;
+  /** TUL-62: signed-in catalog purchase skips empty guest contact fields. */
+  signedIn?: boolean;
 }) {
   // Include the uncategorised bucket so "Otros" is a real chip (pills/tabs/rail),
   // not only a jump/sections heading.
@@ -384,7 +387,7 @@ export function ServicesCatalogFilter({
       ) : null}
 
       <div className="site-builder-node--services-catalog-groups">
-      {matrix ? <CatalogMatrix items={groups.flatMap((g) => g.items.filter(matchesSearch))} locale={locale} confirmsByHand={confirmsByHand} bookingPosture={bookingPosture} ctaLabel={ctaLabel} liveStatus={liveStatus} selectedIds={dock.picked.map((p) => p.id)} onSelect={(item) => onRowAction(item)} /> : groups.map((g) => {
+      {matrix ? <CatalogMatrix items={groups.flatMap((g) => g.items.filter(matchesSearch))} locale={locale} confirmsByHand={confirmsByHand} bookingPosture={bookingPosture} ctaLabel={ctaLabel} liveStatus={liveStatus} selectedIds={dock.picked.map((p) => p.id)} serviceHrefs={serviceHrefs} onSelect={(item) => onRowAction(item)} /> : groups.map((g) => {
         // Changing filter must not clear selectedId / booking sheet state (brief §7).
         const tabKey = catalogGroupTabKey(g.name);
         const hidden = filterNav && active !== null && active !== tabKey;
@@ -539,6 +542,7 @@ export function ServicesCatalogFilter({
         captcha={captcha}
         mode={bookingMode}
         onlineCollectReady={onlineCollectReady}
+        signedIn={signedIn}
       />
     </div>
   );

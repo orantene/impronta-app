@@ -20,7 +20,7 @@ import { FOLIO_STYLE_TOKEN_DEFAULTS } from "./folio-defaults";
 import { MAGAZINE_TYPE_SYSTEM_CSS } from "./design-type-system";
 
 const PINS = {
-  editorial: "e9575657639ee44a", // TUL-537 SPRINT-348-NAILS: photo-less menu rows drop the 64px thumb column. Was 8e8ebb03a63e214c (TUL-528: soft catalog-groups pad uses var(--cb-bar-h)); before e11afe5bba3a69fe (TUL-121 Maison v2 #3116)
+  editorial: "c6e686a58c156740", // TUL-549 AA muted text in the editorial type system (hash from CI). Was e9575657639ee44a; before that: TUL-537 SPRINT-348-NAILS: photo-less menu rows drop the 64px thumb column. Was 8e8ebb03a63e214c (TUL-528: soft catalog-groups pad uses var(--cb-bar-h)); before e11afe5bba3a69fe (TUL-121 Maison v2 #3116)
   utility: "3884c61692ea6f35", // TUL-532 phone ≥16px gutter on utility chrome. Was fe78b6ccfefe12ed (TUL-528: work_order pad uses var(--cb-bar-h)); before 5450f057f44cf0b4 (TUL-474)
   highlight: "154aa0752c478aa5", // TUL-474: TITLE_HOOKS includes .sb-area-title
   booking: "d0b8ff4d6dc7b695",

@@ -22,7 +22,7 @@
  * not reach `<head>`.
  */
 
-import { isTalentPortfolioTier } from "@/lib/access/talent-membership";
+import { hasEntitlement } from "@/lib/access/talent-entitlements";
 
 import { isOwnCanonical } from "./canonical-own-host";
 
@@ -92,7 +92,7 @@ export function buildTalentPageSeo(args: {
 
   // Non-Portfolio: no overrides reach <head>. Byte-identical to the behavior
   // this route had before the SEO columns were read at all.
-  if (!isTalentPortfolioTier(args.planKey)) {
+  if (!hasEntitlement(args.planKey, "profile.pageSeo")) {
     return { title: pageTitle, noindex: false };
   }
 

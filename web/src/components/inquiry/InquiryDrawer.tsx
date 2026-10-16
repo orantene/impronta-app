@@ -23,6 +23,7 @@
 import { useState, useEffect, useRef, useTransition, useMemo, useCallback } from "react";
 import { useActionState } from "react";
 import Image from "next/image";
+import { useRefreshOnClose } from "./use-refresh-on-close";
 import {
   type InquiryIntent,
   type InquirySource,
@@ -46,7 +47,7 @@ import {
   type InquirySubmitAttachmentResult,
 } from "@/lib/client/signed-upload";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
-import { useT } from "@/i18n/use-t";
+import { usePublicT } from "@/i18n/use-public-t";
 import { interpolate } from "@/i18n/interpolate";
 import { sentCopyKeys } from "@/lib/inquiry/reserve-slot-taken";
 import { SlotTakenChips } from "./SlotTakenChips";
@@ -124,7 +125,7 @@ export type InquiryDrawerProps = {
    * When the offering resolves bookable, Compose swaps the date picker for
    * SlotPicker and hides event-only sections (budget / brief / wardrobe).
    */
-  bookableOffering?: BookableOffering | null;
+  bookableOffering?: BookableOffering | null; followUpOnSite?: boolean;
   onClose: () => void;
 };
 
@@ -141,10 +142,11 @@ export function InquiryDrawer({
   bindToInquiryCart = false,
   talentToolsSlot,
   representsPeople,
-  bookableOffering = null,
-  onClose,
+  bookableOffering = null, followUpOnSite = false,
+  onClose: onCloseProp,
 }: InquiryDrawerProps) {
-  const t = useT();
+  const t = usePublicT();
+  const [onClose, noteSubmitted] = useRefreshOnClose(onCloseProp); // TUL-966
   // ─ Body scroll lock + ESC ──────────────────────────────────────────────────
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -232,6 +234,7 @@ export function InquiryDrawer({
     FormData
   >(submitInquiryNowAction, { kind: "idle" });
   const submitted = submitState.kind === "submitted";
+  useEffect(() => noteSubmitted(submitted), [noteSubmitted, submitted]);
   const sentKeys = sentCopyKeys(soloTalentName);
   const sentVars = { agency: agencyName, talent: soloTalentName ?? agencyName };
 
@@ -463,7 +466,7 @@ export function InquiryDrawer({
         <div style={{ flex: 1, overflowY: "auto", padding: "16px 22px 24px" }}>
           {submitState.kind === "submitted" ? (
             <>
-              <SubmittedView state={submitState} agencyName={agencyName} soloTalentName={soloTalentName} />
+              <SubmittedView state={submitState} agencyName={agencyName} soloTalentName={soloTalentName} followUpOnSite={followUpOnSite} />
               <AttachmentStatus phase={attachmentPhase} />
             </>
           ) : step === "compose" ? (
@@ -699,7 +702,7 @@ export function RequesterSection({
   onChange: (v: InquiryRequester) => void;
   client: InquiryDrawerProps["client"];
 }) {
-  const t = useT();
+  const t = usePublicT();
   const isLoggedIn = !!client?.user_id || !!client?.email; // TUL-965: hub sheet passes no user_id
   return (
     <Section title={t("public.inquiryDrawer.requesterTitle")} subtitle={t("public.inquiryDrawer.requesterSubtitle")}>
@@ -724,7 +727,7 @@ export function RequesterSection({
 }
 
 function TrustCard({ isLoggedIn, client }: { isLoggedIn: boolean; client: InquiryDrawerProps["client"] }) {
-  const t = useT();
+  const t = usePublicT();
   if (isLoggedIn) {
     const bookings = client?.previous_bookings_count ?? 0;
     return (
@@ -769,7 +772,7 @@ export function ClientSection({
   /** See `InquiryDrawerProps.representsPeople`. */
   representsPeople?: boolean;
 }) {
-  const t = useT();
+  const t = usePublicT();
   const sameAsRequester = value.same_as_requester !== false; // default checked
   return (
     <Section title={t("public.inquiryDrawer.clientTitle")} subtitle={t(representsPeople
@@ -853,7 +856,7 @@ export function CityAutocomplete({
   value: string;
   onSelect: (city: string, countryIso2: string) => void;
 }) {
-  const t = useT();
+  const t = usePublicT();
   const [draft, setDraft] = useState(value);
   const [suggestions, setSuggestions] = useState<CitySuggestion[]>([]);
   const [open, setOpen] = useState(false);
@@ -956,7 +959,7 @@ export function CityAutocomplete({
 export function LocationSection({
   value, onChange,
 }: { value: InquiryLocation; onChange: (v: InquiryLocation) => void }) {
-  const t = useT();
+  const t = usePublicT();
   return (
     <Section title={t("public.inquiryDrawer.locationTitle")} subtitle={t("public.inquiryDrawer.locationSubtitle")}>
       <FieldRow>
@@ -1024,7 +1027,7 @@ export function LocationSection({
 export function DateSection({
   value, onChange,
 }: { value: InquiryDate; onChange: (v: InquiryDate) => void }) {
-  const t = useT();
+  const t = usePublicT();
   return (
     <Section title={t("public.inquiryDrawer.dateTitle")} subtitle={t("public.inquiryDrawer.dateSubtitle")}>
       <FieldRow>
@@ -1082,7 +1085,7 @@ export function TalentSection({
   /** B2 — extra add-talent tools (directory quick-add) shown with the list. */
   toolsSlot?: React.ReactNode;
 }) {
-  const t = useT();
+  const t = usePublicT();
   const selected = value.selected_ids ?? [];
   const isAgencyMode = value.selection_mode === "agency_recommends" || selected.length === 0;
 
@@ -1223,7 +1226,7 @@ export function BudgetSection({
   onChange: (v: InquiryBudget) => void;
   talentCount: number;
 }) {
-  const t = useT();
+  const t = usePublicT();
   const pref = value.preference ?? "agency_recommends";
   const amountLabelKey =
     pref === "total_budget"
@@ -1309,7 +1312,7 @@ export function BriefSection({
   onChange: (v: InquiryBrief) => void;
   context: BriefContext;
 }) {
-  const t = useT();
+  const t = usePublicT();
   const [expanded, setExpanded] = useState(false);
   const [aiState, setAiState] = useState<"idle" | "loading" | "error">("idle");
   const [aiError, setAiError] = useState<string | null>(null);
@@ -1484,7 +1487,7 @@ export function FilesLinksSection({
   stagedFiles: File[];
   onStagedFiles: (v: File[]) => void;
 }) {
-  const t = useT();
+  const t = usePublicT();
   const [linkDraft, setLinkDraft] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fileWarning, setFileWarning] = useState<string | null>(null);
@@ -1648,7 +1651,7 @@ const BUDGET_PREFERENCE_LABEL_KEYS: Record<string, string> = {
 };
 
 function Review({ intent, agencyName, stagedFiles }: { intent: InquiryIntent; agencyName: string; stagedFiles: File[] }) {
-  const t = useT();
+  const t = usePublicT();
   const sameAsRequester = intent.client?.same_as_requester !== false;
   const empty = t("public.inquiryDrawer.reviewEmpty");
   const fileCount = stagedFiles.length;
@@ -1761,7 +1764,7 @@ function AttachmentStatus({
     | { kind: "uploading"; done: number; total: number }
     | { kind: "done"; uploaded: number; failed: InquirySubmitAttachmentResult[] };
 }) {
-  const t = useT();
+  const t = usePublicT();
   if (phase.kind === "idle") return null;
 
   const box: React.CSSProperties = {
@@ -2143,7 +2146,7 @@ export function InquiryDrawerShell({
   children: React.ReactNode;
   footer?: React.ReactNode;
 }) {
-  const t = useT();
+  const t = usePublicT();
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";

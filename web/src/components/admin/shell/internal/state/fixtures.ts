@@ -55,6 +55,7 @@ export const TALENT_PAGES: TalentPage[] = [
   "money",
   "profile",
   "public-page",
+  "posts",
   "services",
   "reviews",
   "settings",
@@ -73,6 +74,7 @@ export const TALENT_MOBILE_MORE: TalentPage[] = [
   "clients",
   "profile",
   "public-page",
+  "posts",
   "services",
   "reviews",
   "settings",
@@ -318,6 +320,7 @@ export const TALENT_PAGE_META: Record<TalentPage, { label: string }> = {
   clients:     { label: "Clients" },
   payouts:     { label: "Payouts" },       // in-shell section, reached from Settings
   "public-page": { label: "My presence" }, // canonical URL segment: /talent/site
+  posts:       { label: "Posts" },        // Posts v1: /talent/posts
   settings:    { label: "Settings" },
 };
 
@@ -2251,14 +2254,14 @@ export const TALENT_TIER_META: Record<
   pro: {
     label: "Pro",
     tagline: "Get seen, keep more",
-    monthlyPrice: "$9 / mo",
+    monthlyPrice: "$9 USD / mo",
     blurb: "Template choices, video + social embeds, press band, media kit, priority discovery, and a lower Tulala fee on direct bookings.",
     accent: "gold",
   },
   max: {
     label: "Web Office",
     tagline: "Your own brand",
-    monthlyPrice: "$15 / mo",
+    monthlyPrice: "$15 USD / mo",
     blurb: "Template choices, video + social embeds, press band, media kit, priority discovery, a multi-section page builder, custom domain, SEO controls, branded invoices, full analytics, and the lowest fee on direct bookings.",
     accent: "deep",
   },
@@ -5025,6 +5028,8 @@ export function mergeWebsiteStateFromBridge(
       // Same resolution as pages' lastEditedBy: raw profile UUID → display
       // name, "" when unresolvable so no surface prints a UUID.
       lastEditedBy: (p.updatedBy && memberNameById.get(p.updatedBy)) || "",
+      takenDown: p.takenDown === true,
+      takenDownReason: p.takenDownReason ?? undefined,
     };
   });
 

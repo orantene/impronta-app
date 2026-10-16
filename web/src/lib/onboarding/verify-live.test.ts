@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { combineLiveChecks, resolveLiveCheckOrigin, verifyLivePage, verifyLivePageWithRetry } from "./verify-live";
+import { combineLiveChecks, isProtectionWall, protectionBypassHeaders, resolveLiveCheckOrigin, verifyLivePage, verifyLivePageWithRetry } from "./verify-live";
 
 test("combineLiveChecks: ready only when the workspace AND the talent site are real", () => {
   assert.deepEqual(combineLiveChecks({ ok: true }, null), { ok: true });
@@ -10,7 +10,7 @@ test("combineLiveChecks: ready only when the workspace AND the talent site are r
 });
 
 const res = (status: number, body: string) => ({ status, text: async () => body }) as unknown as Response;
-const stub = (fn: () => Promise<Response>) => fn as unknown as typeof fetch;
+const stub = (fn: (...args: unknown[]) => Promise<Response>) => fn as unknown as typeof fetch;
 
 test("passes on 200 containing the name (accent and case insensitive)", async () => {
   const r = await verifyLivePage({ url: "https://x.test", name: "Jose Perez", fetchImpl: stub(async () => res(200, "<h1>JOSÉ Pérez</h1>")) });
@@ -132,4 +132,35 @@ test("with LIVE_CHECK_ORIGIN the page is fetched from the local server and route
     if (prev.v === undefined) delete process.env.VERCEL_ENV; else process.env.VERCEL_ENV = prev.v;
     await new Promise((r) => server.close(r));
   }
+});
+
+// TUL-818 · staging's Vercel Authentication wall made every new site "fail" to publish.
+test("TUL-818: a Vercel Authentication wall is reported as protected, not as a missing page", async () => {
+  const r = await verifyLivePage({ url: "https://qa-x.staging.tulala.digital", name: "Ana", bypassSecret: null, fetchImpl: stub(async () => res(401, "<title>Authentication Required</title>")) });
+  assert.deepEqual(r, { ok: false, reason: "protected", status: 401 });
+  const r2 = await verifyLivePage({ url: "https://qa-x.staging.tulala.digital", name: "Ana", bypassSecret: null, fetchImpl: stub(async () => res(200, "Protected by Vercel Authentication")) });
+  assert.equal(r2.ok, false);
+  assert.equal(!r2.ok && r2.reason, "protected");
+});
+
+test("TUL-818: the bypass secret rides only to our own hosts and lets the check through", async () => {
+  assert.deepEqual(protectionBypassHeaders("https://qa-x.staging.tulala.digital/", "s3"), { "x-vercel-protection-bypass": "s3" });
+  assert.deepEqual(protectionBypassHeaders("https://tulala.digital/w/x", "s3"), { "x-vercel-protection-bypass": "s3" });
+  assert.deepEqual(protectionBypassHeaders("https://evil-tulala.digital.example.com/", "s3"), {});
+  assert.deepEqual(protectionBypassHeaders("https://x.tulala.digital", null), {});
+  let seen: string | undefined;
+  const r = await verifyLivePage({
+    url: "https://qa-x.staging.tulala.digital", name: "Ana", bypassSecret: "s3",
+    fetchImpl: stub(async (...args: unknown[]) => {
+      seen = ((args[1] as RequestInit).headers as Record<string, string>)["x-vercel-protection-bypass"];
+      return res(200, "<h1>Ana</h1>");
+    }),
+  });
+  assert.deepEqual(r, { ok: true });
+  assert.equal(seen, "s3");
+});
+
+test("TUL-818: an SSO redirect target counts as a protection wall", () => {
+  assert.equal(isProtectionWall(200, "", "https://vercel.com/sso-api?url=x"), true);
+  assert.equal(isProtectionWall(404, "Page not found", "https://x.tulala.digital/"), false);
 });

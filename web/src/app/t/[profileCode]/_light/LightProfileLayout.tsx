@@ -17,6 +17,7 @@
  * Server component — pure presentational, no hooks or client-side state.
  */
 
+import { worksLabel } from "./group-labels";
 import Image from "next/image";
 import Link from "next/link";
 import { pickLocale } from "@/lib/i18n/pick-locale";
@@ -448,7 +449,7 @@ export function LightProfileLayout({
                   className="plt-mono text-[0.625rem] uppercase tracking-[0.14em]"
                   style={{ color: "var(--plt-muted-soft)" }}
                 >
-                  {galleryItems.length} works
+                  {worksLabel(galleryItems.length, locale)}
                 </span>
               ) : null}
             </div>

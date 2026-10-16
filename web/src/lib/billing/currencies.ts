@@ -53,7 +53,22 @@ export type TalentCurrencyCode = DefaultCurrencyCode | "CHF";
 // CHF is talent-pricing only: kept out of DEFAULT_CURRENCY_OPTIONS so the
 // marketing currency picker and the platform tier-price admin do not offer a
 // currency that has no tier prices.
-export const TALENT_CURRENCY_OPTIONS = ["MXN", "USD", "GBP", "CAD", "EUR", "CHF"] as const satisfies readonly TalentCurrencyCode[];
+/** The full approved list (Oran, TUL-654): live only once checkout can settle each code. */
+export const TALENT_LOCAL_CURRENCY_OPTIONS = ["MXN", "USD", "GBP", "CAD", "EUR", "CHF"] as const satisfies readonly TalentCurrencyCode[];
+
+/** Option (a): MXN and USD only, because the charge lanes settle only those (LANE_CURRENCIES). */
+export const TALENT_CHARGEABLE_CURRENCY_OPTIONS = ["MXN", "USD"] as const satisfies readonly TalentCurrencyCode[];
+
+/**
+ * The picker and the server gate share one list. Default is MXN/USD: a talent
+ * who priced in EUR would be refused at checkout (seller-currency-guard), a dead
+ * end for the client. Set NEXT_PUBLIC_TALENT_LOCAL_CURRENCIES=1 to open the full
+ * approved list once checkout supports it.
+ */
+export const TALENT_CURRENCY_OPTIONS: readonly TalentCurrencyCode[] =
+  process.env.NEXT_PUBLIC_TALENT_LOCAL_CURRENCIES === "1"
+    ? TALENT_LOCAL_CURRENCY_OPTIONS
+    : TALENT_CHARGEABLE_CURRENCY_OPTIONS;
 
 /** Server gate for a talent-owned offering's currency (the picker is only the UI gate). */
 export function isTalentCurrency(candidate: unknown): boolean {

@@ -46,7 +46,10 @@
   /* ── Admin ink (body text) ─────────────────────────────────────── */
   --color-admin-ink: #0B0B0D;
   --color-admin-ink-muted: rgba(11, 11, 13, 0.72);
-  --color-admin-ink-dim: rgba(11, 11, 13, 0.38);
+  /* TUL-1189: 0.38 measured 2.5:1 on white and the admin surfaces (WCAG AA needs
+   * 4.5:1 for text). 0.60 is >= 4.99:1 on card, surface, surface-alt and the
+   * coral/green soft tints, and stays below ink-muted (0.72) so the hierarchy holds. */
+  --color-admin-ink-dim: rgba(11, 11, 13, 0.60);
 
   /* ── Admin borders ─────────────────────────────────────────────── */
   --color-admin-border: rgba(24, 24, 27, 0.10);

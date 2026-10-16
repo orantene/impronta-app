@@ -180,6 +180,8 @@ import { ServicesCatalogStaticFallback } from "./services-catalog-static-fallbac
 import { orderCategoryNames, renderItalicMarkedTitle } from "./services-catalog-title";
 import { renderPortfolioBlock } from "./portfolio-block";
 import { ReviewsBlockView } from "./reviews-block";
+import { PostsFeedBlockView } from "./posts-feed-block";
+import { postsFeedHref } from "./posts-feed-href";
 import { renderVisitBlock } from "./visit-block";
 import { renderContentsBlock } from "./contents-block";
 import { renderMastheadBlock } from "./masthead-block";
@@ -191,6 +193,7 @@ import { renderAlertBandBlock } from "./alert-band-block";
 import { renderTaskPickerBlock } from "./task-picker-block";
 import { renderNailDesignerBlock } from "./nail-designer-block";
 import { NextFreeChipView } from "./next-free-chip";
+import { renderPromoBlock } from "./promo-block";
 import { headerLogoDeclarations } from "../header-logo-limits";
 import type { LiveStatusRenderContext } from "@/lib/talent/live-status-render";
 
@@ -349,6 +352,14 @@ export interface BuilderNodeRenderDataSources {
    */
   talentReviews?: ReadonlyArray<import("./reviews-types").TalentSiteReview>;
   /**
+   * Posts v1 (PO1) — each `posts_feed` node's cards, keyed by node id, resolved
+   * by the SERVER caller for the rendering site's scope. The renderer never
+   * queries and never invents posts: a demo account's example posts arrive here
+   * already resolved (`PostsFeedNodeData.demo`), and the builder canvas fetches
+   * its own through a small island (TUL-1164).
+   */
+  postsFeedByNodeId?: Readonly<Record<string, import("./posts-feed-model").PostsFeedNodeData>>;
+  /**
    * Visit facts — service areas / languages / hours for `visit` nodes.
    * Resolved by the SERVER caller; the renderer never invents facts.
    */
@@ -393,6 +404,12 @@ export interface BuilderNodeRenderDataSources {
   };
   /** Present only when at least one visible offering needs a "≈ US$" line; a failed/skipped fetch omits the field rather than guessing. */
   talentOfferingsUsdRates?: UsdRates;
+  /**
+   * Promo widgets (TUL-1051 part B): the talent's LIVE, non-personal promos,
+   * resolved by the SERVER caller (`loadPromoWidgetData`). Absent = every
+   * `promo` block renders hidden. `preview` is set only by the editor preview.
+   */
+  promoWidgets?: import("@/lib/promos/widgets/types").PromoWidgetData;
   /** Promos v1: live-promo card prices by offering id (see catalogPromoPrices). Omitted = list prices. */
   talentOfferingsPromoPrices?: CatalogPromoPrices;
   /** Saved `category_order` from the talent profile. Missing names append after. */
@@ -1043,7 +1060,7 @@ const BUILDER_NODE_CAROUSEL_HERO_CSS = `
 .site-bn-hero__sub{margin-top:26px;font-size:clamp(1rem,1.4vw,1.2rem);max-width:46ch;color:rgba(255,255,255,0.84);font-weight:300;line-height:1.55}
 .site-bn-hero__cta{margin-top:40px;display:flex;gap:14px;flex-wrap:wrap}
 .site-bn-hero__btn{display:inline-flex;align-items:center;justify-content:center;padding:0.95rem 1.8rem;border-radius:var(--site-radius-base,2px);font-size:0.8rem;letter-spacing:0.12em;text-transform:uppercase;font-weight:500;text-decoration:none;transition:transform .4s var(--bn-ease),filter .4s var(--bn-ease)}
-.site-bn-hero__btn--primary{background:linear-gradient(135deg,color-mix(in srgb,var(--token-color-primary,#c6a14e) 80%,#fff),var(--token-color-primary,#c6a14e) 55%,color-mix(in srgb,var(--token-color-primary,#c6a14e) 72%,#000));color:#1a1408}
+.site-bn-hero__btn--primary{background:linear-gradient(135deg,color-mix(in srgb,var(--token-color-primary,#c6a14e) 80%,#fff),var(--token-color-primary,#c6a14e) 55%,color-mix(in srgb,var(--token-color-primary,#c6a14e) 72%,#000));color:#1a1408;color:oklch(from var(--token-color-primary,#c6a14e) clamp(0,(.6 - l)*1000,1) 0 0)}
 .site-bn-hero__btn--secondary{border:1px solid color-mix(in srgb,var(--token-color-primary,#c6a14e) 60%,transparent);color:#fff}
 .site-bn-hero__btn:hover{transform:translateY(-2px);filter:brightness(1.08)}
 .site-bn-hero__meta{position:absolute;z-index:6;right:clamp(20px,5vw,88px);bottom:clamp(74px,11vh,134px);display:flex;flex-direction:column;gap:14px;align-items:flex-end}
@@ -6205,6 +6222,10 @@ function renderBuilderNodeElement(
                 matrix={layout === "matrix"}
                 liveStatus={options.dataSources.liveStatus ?? null}
                 promoPrices={options.dataSources.talentOfferingsPromoPrices}
+                signedIn={
+                  options.dataSources.headerWidgets?.account?.signedIn === true ||
+                  options.visibilityContext?.signedIn === true
+                }
               />
             </CatalogIslandBoundary>
           )}
@@ -6231,6 +6252,26 @@ function renderBuilderNodeElement(
           styleAttr={sharedNodeStyle(node.props.style)}
           locale={options.contentLocale?.locale ?? options.visitorLocale}
           editorPreview={options.contentLocale?.editorPreview === true}
+        />
+      );
+    }
+    case "posts_feed": {
+      const editorPreview = options.contentLocale?.editorPreview === true;
+      const locale = options.contentLocale?.locale ?? options.visitorLocale ?? "en";
+      return (
+        <PostsFeedBlockView
+          node={localizeBlockNode(node, options.contentLocale)}
+          data={options.dataSources?.postsFeedByNodeId?.[node.id]}
+          locale={locale}
+          hrefFor={(path) =>
+            postsFeedHref(path, {
+              locale,
+              defaultLocale: options.contentLocale?.defaultLocale ?? locale,
+              pathPrefix: options.publicPathPrefix ?? "",
+            })
+          }
+          styleAttr={sharedNodeStyle(node.props.style)}
+          editorPreview={editorPreview}
         />
       );
     }
@@ -6342,6 +6383,15 @@ function renderBuilderNodeElement(
           styleAttr={sharedNodeStyle(node.props.style)}
         />
       );
+    }
+    case "promo": {
+      return renderPromoBlock({
+        node: localizeBlockNode(node, options.contentLocale),
+        data: options.dataSources?.promoWidgets,
+        locale: options.visitorLocale ?? options.contentLocale?.locale,
+        signedIn: options.visibilityContext?.signedIn,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
     }
     case "menu_board": {
       const p = node.props;

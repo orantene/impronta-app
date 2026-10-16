@@ -3,11 +3,11 @@ import { notFound } from "next/navigation";
 import { GoogleFontsLink } from "@/app/google-fonts-link";
 import { ClientAccountArea, type AreaData } from "@/components/client-account/ClientAccountArea";
 import { TalentSiteHtmlTokens } from "@/components/talent/site/TalentSiteHtmlTokens";
-import { getRequestLocale } from "@/i18n/request-locale";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { resolveGatedTalentProfileId } from "@/lib/talent-site/server/talent-site-host-gate";
 
 import { accountAreaGate, accountAudience, type AccountView } from "./area-pure";
+import { resolveAccountLocale } from "./account-locale.server";
 import { loadAccountSite, readAccountHost } from "./area-site.server";
 import {
   loadAccountProfile, loadOwedPayLinks, loadReceiptDetail, loadReceipts, loadThread, loadThreads,
@@ -37,14 +37,14 @@ export async function renderClientAccountPage(view: AccountView) {
     notFound();
   }
   if ((view.kind === "visit" || view.kind === "thread") && !UUID.test(view.id)) notFound();
-  const [locale, session, site, tenant] = await Promise.all([
-    getRequestLocale(),
+  const [session, site, tenant] = await Promise.all([
     getCachedActorSession(),
     loadAccountSite(talentProfileId),
     resolveAccountTenant(),
   ]);
   if (!tenant) notFound();
   const userId = session.user?.id ?? null;
+  const locale = await resolveAccountLocale(userId); // TUL-1191: cookie / saved language, not the path-derived header
   const audience = accountAudience({ userId, appRole: session.profile?.app_role ?? null });
 
   const data: AreaData = {};
@@ -61,7 +61,9 @@ export async function renderClientAccountPage(view: AccountView) {
         loadOwedPayLinks(userId, tenantId),
         loadReceipts(userId, tenantId),
       ]);
-    } else data.profile = await loadAccountProfile(userId);
+    }
+    // TUL-777: every tab needs the profile for the name prompt.
+    if (view.kind === "home") data.profile = await loadAccountProfile(userId);
   }
   const hasTokens = Object.keys(site.cssVars).length > 0;
   return (

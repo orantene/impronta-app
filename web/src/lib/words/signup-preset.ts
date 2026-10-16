@@ -116,7 +116,8 @@ const KEYWORD_PRESETS: ReadonlyArray<{
 
 /** Same normalisation as `signup-design-pick`, so the two read alike. */
 function normalizeHaystack(description: string): string {
-  return ` ${description.toLowerCase().replace(/[^a-z0-9áéíóúüñ]+/gi, " ")} `;
+  // "Playa del Carmen" is a city, not a beach club: a cafetería there is a restaurant.
+  return ` ${description.toLowerCase().replace(/playa del carmen/g, " ").replace(/[^a-z0-9áéíóúüñ]+/gi, " ")} `;
 }
 
 function hasWord(haystack: string, word: string): boolean {

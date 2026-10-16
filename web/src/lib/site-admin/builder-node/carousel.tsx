@@ -242,7 +242,7 @@ function HeroCarousel({
       ) : null}
       {ctl.scrollCue ? (
         <div className="site-bn-hero__cue" aria-hidden>
-          <span>Scroll</span>
+          <span>{labels.scrollCue}</span>
         </div>
       ) : null}
     </div>

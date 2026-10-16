@@ -11,6 +11,13 @@
 import { themeUpdateCopy } from "@/lib/talent-site/theme-releases/manager/notify";
 import { translateDashboardText } from "./dashboard-i18n";
 
+const DAY_OF_TITLES_ES: Record<string, string> = {
+  "Your event is tomorrow": "Tu evento es mañana",
+  "Your appointment is tomorrow": "Tu cita es mañana",
+  "Reminder: your event is tomorrow": "Recordatorio: tu evento es mañana",
+  "Reminder: your appointment is tomorrow": "Recordatorio: tu cita es mañana",
+};
+
 const THEME_UPDATE_TITLE = /^(.+) (?:has an update|tiene una actualización)$/u;
 
 /**
@@ -75,6 +82,16 @@ export function localizeNotificationText(
   if (offerSent) return `${offerSent[1]}: oferta enviada. Esperando aprobaciones.`;
   const offerWaiting = text.match(/^(.+): (.+)\. Waiting on approvals\.$/u);
   if (offerWaiting) return `${offerWaiting[1]}: ${offerWaiting[2]}. Esperando aprobaciones.`;
+  // TUL-721: day-of reminder bells (title + body). The body carries a raw ISO date.
+  const dayOf = DAY_OF_TITLES_ES[text];
+  if (dayOf) return dayOf;
+  if (text === "Your booking is tomorrow.") return "Tu reserva es mañana.";
+  const dayOfBody = text.match(/^Your booking on (\d{4})-(\d{2})-(\d{2}) is tomorrow\.$/u);
+  if (dayOfBody) {
+    const d = new Date(Date.UTC(Number(dayOfBody[1]), Number(dayOfBody[2]) - 1, Number(dayOfBody[3])));
+    const label = d.toLocaleDateString("es", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+    return `Tu reserva del ${label} es mañana.`;
+  }
   const ticket = text.match(/^New support ticket #(\d+)$/u);
   if (ticket) return `Nuevo ticket de soporte #${ticket[1]}`;
   return text;

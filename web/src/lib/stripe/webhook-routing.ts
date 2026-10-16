@@ -89,6 +89,10 @@ export type StripeAction =
     }
   | { kind: "subscription_checkout"; subscriptionId: string }
   | { kind: "subscription_lifecycle_talent" }
+  /** TUL-831: a price/plan change (in-app plan change, or a schedule phase).
+   *  The handler RE-FETCHES the subscription and runs the single writer, so a
+   *  late or replayed event can never write a stale price into the plan row. */
+  | { kind: "subscription_plan_resync"; subscriptionId: string; source: string }
   | { kind: "subscription_lifecycle_workspace"; planKey: string }
   | { kind: "subscription_unknown"; checkoutType: string | null; planKey: string | null }
   | { kind: "invoice_payment_failed"; subscriptionId: string }
@@ -358,9 +362,15 @@ export function classifyStripeEvent(event: Stripe.Event): StripeAction {
       };
     }
 
+    // TUL-836: created is routed too, so a subscription made outside our
+    // checkout (dashboard, portal) still lands in the plan-state row.
+    case "customer.subscription.created":
     case "customer.subscription.updated":
     case "customer.subscription.deleted": {
       const sub = event.data.object as Stripe.Subscription;
+      if (event.type === "customer.subscription.updated" && isPlanChangeUpdate(event)) {
+        return { kind: "subscription_plan_resync", subscriptionId: sub.id, source: event.type };
+      }
       const checkoutType = sub.metadata?.checkout_type ?? null;
       const planKey = sub.metadata?.plan_key ?? null;
 
@@ -376,6 +386,19 @@ export function classifyStripeEvent(event: Stripe.Event): StripeAction {
         return { kind: "subscription_lifecycle_workspace", planKey };
       }
       return { kind: "subscription_unknown", checkoutType, planKey };
+    }
+
+    // TUL-831: period-end plan changes run through subscription schedules.
+    case "subscription_schedule.created":
+    case "subscription_schedule.updated":
+    case "subscription_schedule.released":
+    case "subscription_schedule.canceled":
+    case "subscription_schedule.completed":
+    case "subscription_schedule.aborted": {
+      const schedule = event.data.object as Stripe.SubscriptionSchedule;
+      const subId = refId(schedule.subscription) ?? refId(schedule.released_subscription);
+      if (!subId) return { kind: "ignore" };
+      return { kind: "subscription_plan_resync", subscriptionId: subId, source: event.type };
     }
 
     case "customer.subscription.trial_will_end": {
@@ -593,6 +616,19 @@ export function classifyStripeEvent(event: Stripe.Event): StripeAction {
     default:
       return { kind: "ignore" };
   }
+}
+
+/**
+ * TUL-831: an `updated` whose previous_attributes show the price (items) or
+ * the plan metadata changed. Other updates (status, period roll) keep the
+ * existing lifecycle routing.
+ */
+export function isPlanChangeUpdate(event: Stripe.Event): boolean {
+  const prev = (event.data as { previous_attributes?: Record<string, unknown> }).previous_attributes;
+  if (!prev) return false;
+  if ("items" in prev) return true;
+  const meta = prev.metadata as Record<string, unknown> | undefined;
+  return !!meta && ("plan_key" in meta || "billing_interval" in meta);
 }
 
 // ─── Idempotency-claim error classification ───────────────────────────────────────

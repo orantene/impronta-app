@@ -7,7 +7,7 @@ import {
   type SendEmailCodeDeps,
 } from "./send-email-code-core";
 
-type Call = { email: string; options: { shouldCreateUser: boolean; emailRedirectTo: string; data?: { full_name: string } } };
+type Call = { email: string; options: { shouldCreateUser: boolean; emailRedirectTo: string; data?: Record<string, unknown> } };
 
 function fakeClient(error: unknown): { client: OtpSendClient; calls: Call[] } {
   const calls: Call[] = [];
@@ -129,6 +129,15 @@ test("durable limiter blocks before any email is sent; resend stays on the code 
     email: "x@example.com",
   });
   assert.equal(calls.length, 0);
+});
+
+test("TUL-814: the signup language rides on the new user so the email hook can still pick ES", async () => {
+  const { client, calls } = fakeClient(null);
+  await sendEmailCodeCore({ email: "a@b.co", ip: "1.2.3.4", resent: false, shouldCreateUser: true }, deps(client, { newUserData: { lang: "es" } }));
+  assert.deepEqual(calls[0].options.data, { lang: "es" });
+  const plain = fakeClient(null);
+  await sendEmailCodeCore({ email: "a@b.co", ip: "1.2.3.4", resent: false, shouldCreateUser: true }, deps(plain.client));
+  assert.equal("data" in plain.calls[0].options, false);
 });
 
 test("TUL-762: sign-up sends the typed name as full_name; login never does", async () => {

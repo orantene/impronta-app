@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TulalaWordmark } from "@/components/brand/tulala-logo";
 import { DirectoryInquiryModalProvider } from "@/components/directory/directory-inquiry-modal-context";
 import { getPublicHostContext, getPublicPathPrefix } from "@/lib/saas/scope";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
@@ -90,7 +91,8 @@ export default async function NotFound() {
   const isAgency = brand !== null;
   const locale = await getRequestLocale();
   const copy = notFoundCopy(locale, brand ? brand.name : null);
-  const eyebrow = isAgency && brand ? brand.name.toUpperCase() : "TULALA";
+  const eyebrow = isAgency && brand ? brand.name.toUpperCase() : "";
+  const BRAND_INK = "#0B0B0D";
   const { heading, body } = copy;
   // Tenant 404: links keep the /w/<slug> prefix and the tenant's own locale
   // grammar; the platform 404 keeps the platform defaults.
@@ -127,19 +129,25 @@ export default async function NotFound() {
           padding: "32px 32px",
         }}
       >
-        <p
-          style={{
-            fontFamily: '"Inter", system-ui, sans-serif',
-            fontSize: 11,
-            fontWeight: 600,
-            color: "rgba(11,11,13,0.38)",
-            letterSpacing: 0.8,
-            textTransform: "uppercase" as const,
-            margin: 0,
-          }}
-        >
-          {eyebrow}
-        </p>
+        {isAgency ? (
+          <p
+            style={{
+              fontFamily: '"Inter", system-ui, sans-serif',
+              fontSize: 11,
+              fontWeight: 600,
+              color: "rgba(11,11,13,0.38)",
+              letterSpacing: 0.8,
+              textTransform: "uppercase" as const,
+              margin: 0,
+            }}
+          >
+            {eyebrow}
+          </p>
+        ) : (
+          <div style={{ color: BRAND_INK, lineHeight: 0 }}>
+            <TulalaWordmark height={26} />
+          </div>
+        )}
         <h1
           style={{
             fontFamily: '"Inter", system-ui, sans-serif',

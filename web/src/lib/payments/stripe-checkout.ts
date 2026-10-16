@@ -48,6 +48,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getStripe, getStripeFor, withObjectPlatformFallback, type StripeAccountKey } from "@/lib/stripe/client";
 import { recordChargePlatform, resolveSellerPlatformForTransaction } from "@/lib/stripe/charge-platform";
 import { checkTransactionChargeCurrency, type ChargeCurrencyGuard } from "@/lib/payments/seller-currency-guard";
+import { checkTransactionConnectedAccount, type ConnectedAccountCheck } from "@/lib/payments/connected-account-guard";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { paymentsMockAllowed } from "@/lib/payments/mock-guard";
 import { logServerError } from "@/lib/server/safe-error";
@@ -176,6 +177,8 @@ export async function createCheckoutSessionForTransaction(
     stripe?: Stripe | null;
     platform?: StripeAccountKey;
     currencyGuard?: ChargeCurrencyGuard;
+    /** Tests: TUL-483 connected-account guard. */
+    accountGuard?: (transactionId: string, stripe: Stripe) => Promise<ConnectedAccountCheck>;
     /** Tests: injected DB client for the guard, platform resolution and the platform stamp. */
     sb?: SupabaseClient | null;
     /** Tests: per-platform Stripe client factory. */
@@ -225,6 +228,19 @@ export async function createCheckoutSessionForTransaction(
 
     if (input.amountCents <= 0) {
       return { ok: false, error: "Amount must be positive." };
+    }
+
+    // TUL-483: refuse before Stripe work when the seller's connected account
+    // does not exist on this platform (read-only `accounts.retrieve`).
+    const accountGuard = deps.accountGuard ?? (deps.stripe !== undefined && !deps.sb
+      ? null
+      : (txId: string, client: Stripe) => checkTransactionConnectedAccount(deps.sb ?? createServiceRoleClient(), (id) => client.accounts.retrieve(id), txId));
+    if (accountGuard) {
+      const acct = await accountGuard(input.transactionId, stripe);
+      if (!acct.ok) {
+        logServerError("payments.stripe.connectedAccountRefused", `transaction ${input.transactionId}: ${acct.code}`);
+        return { ok: false, error: acct.message, uncertain: false };
+      }
     }
 
     // Unix seconds, and only when the caller named one that parses. A bad
