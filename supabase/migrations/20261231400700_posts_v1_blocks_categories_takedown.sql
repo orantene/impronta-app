@@ -133,6 +133,13 @@ ALTER TABLE public.talent_sites
 -- posts are scoped by talent_profile_id; tenant_id stays NULL on those rows.
 -- PM decision 2026-10-14 (TUL-1003 comment).
 
+-- tenant_id is NOT NULL on cms_posts and cms_redirects (20260601200700 enforced
+-- it for every tenant table). A talent-owned row has tenant_id NULL, so the
+-- constraint has to go BEFORE the scope CHECK below means anything: without
+-- this every talent post / redirect INSERT fails at runtime.
+ALTER TABLE public.cms_posts ALTER COLUMN tenant_id DROP NOT NULL;
+ALTER TABLE public.cms_redirects ALTER COLUMN tenant_id DROP NOT NULL;
+
 ALTER TABLE public.cms_posts
   ADD COLUMN IF NOT EXISTS talent_profile_id uuid REFERENCES public.talent_profiles (id) ON DELETE CASCADE;
 ALTER TABLE public.cms_posts DROP CONSTRAINT IF EXISTS cms_posts_scope_present;
@@ -156,6 +163,16 @@ CREATE UNIQUE INDEX IF NOT EXISTS cms_post_categories_talent_locale_slug_key
 
 ALTER TABLE public.cms_redirects
   ADD COLUMN IF NOT EXISTS talent_profile_id uuid REFERENCES public.talent_profiles (id) ON DELETE CASCADE;
+-- Same scope rule as posts (NOT VALID: existing rows all carry a tenant_id, and
+-- new rows are checked). Duplicate protection for talent rows mirrors the tenant
+-- index (cms_redirects_tenant_old_path_active_key), which ignores NULL tenants.
+ALTER TABLE public.cms_redirects DROP CONSTRAINT IF EXISTS cms_redirects_scope_present;
+ALTER TABLE public.cms_redirects
+  ADD CONSTRAINT cms_redirects_scope_present
+  CHECK (tenant_id IS NOT NULL OR talent_profile_id IS NOT NULL) NOT VALID;
+CREATE UNIQUE INDEX IF NOT EXISTS cms_redirects_talent_old_path_active_key
+  ON public.cms_redirects (talent_profile_id, old_path)
+  WHERE active = true AND talent_profile_id IS NOT NULL;
 
 -- Web Office = any paid talent plan key (talent_portfolio + grandfathered talent_pro).
 -- SECURITY DEFINER to read talent_profiles; never executable by anon.
