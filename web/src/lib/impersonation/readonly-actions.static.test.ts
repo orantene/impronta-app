@@ -118,6 +118,7 @@ const BASE_ALLOW: AllowEntry[] = [
     ["loadTalentPayoutSnapshot", "loadTalentStablecoinEligibility", "loadTalentGpStatus", "loadTalentGpPrefillAction", "loadTalentGpMethods"],
     READ,
   ],
+  ["talent/settings/payouts/payout-waitlist-actions.ts", ["loadPayoutWaitlist"], READ],
   ["talent/inbox/[id]/actions.ts", ["loadTalentInquiryThread", "loadTalentInquiryLineupCount"], READ],
   ["talent/inbox/[id]/guest-trust-loader.ts", ["loadTalentInquiryGuestTrust"], READ],
   [

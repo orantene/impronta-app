@@ -95,6 +95,7 @@
 
 import { baseReservationFee, floorTopUp, splitTake } from "./commission-take-shape";
 import { CommissionResolutionError } from "./commission-errors";
+import { CLIENT_SERVICE_FEE_BPS } from "./fee-config";
 import {
   estimateProcessorFeeCents,
   grossUpForProcessorFee,
@@ -128,9 +129,9 @@ export interface ProcessorFeeRates {
   tax_on_fee?: number;
 }
 
-export { DEFAULT_PROCESSOR_FEE_RATES, processorFeeRatesForCurrency } from "./processor-fee-rates";
-/** Default client-only surcharge (bps) in pass_through mode. */
-export const PASS_THROUGH_DEFAULT_TAKE_BPS = 150;
+export { DEFAULT_PROCESSOR_FEE_RATES, processorFeeRatesForCurrency } from "./fee-config";
+/** Default client-only surcharge (bps) in pass_through mode. Source: fee-config.ts. */
+export const PASS_THROUGH_DEFAULT_TAKE_BPS = CLIENT_SERVICE_FEE_BPS;
 
 export type WorkspacePlanTier = "free" | "studio" | "agency" | "network";
 

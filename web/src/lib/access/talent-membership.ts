@@ -1,5 +1,5 @@
 import type { CapabilityKey } from "./capabilities";
-import type { PlanKey } from "./plan-catalog";
+import { planGrantsPosts, type PlanKey } from "./plan-catalog";
 import { isTalentFreeWebsiteEnabled } from "./talent-free-website";
 import { talentTierLabel } from "./talent-tier-label";
 import { isTalentSiteTierExpansionEnabled } from "./talent-site-tier-expansion";
@@ -22,6 +22,8 @@ export type TalentPlanCapability =
   /** @deprecated Alias of `personalSiteSections` — kept so existing callers compile. */
   | "personalSiteCustomBuilder"
   | "personalSiteCustomDomain"
+  /** Posts v1 — publish / edit live posts. Every Web Office key (plan-catalog `planGrantsPosts`). */
+  | "talentPosts"
   | TalentSiteCapability;
 
 /**
@@ -225,9 +227,15 @@ export function talentPlanGrantsCapability(
  */
 export function talentPlanGrantsSiteCapability(
   planKey: string | null | undefined,
-  capability: TalentSiteCapability,
+  capability: TalentSiteCapability | "talentPosts",
 ): boolean {
   const normalized = normalizeTalentPlanKey(planKey);
+  // Posts is NOT part of the Phase 1 dark switch: it is granted by every Web
+  // Office key (talent_portfolio AND talent_pro) in both switch positions,
+  // matching the DB gate `talent_profile_has_web_office()`. It is also kept
+  // out of TALENT_SITE_CAPABILITY_KEYS so the flags-off parity record is
+  // byte-stable.
+  if (capability === "talentPosts") return planGrantsPosts(normalized);
   if (!isTalentFreeWebsiteEnabled()) {
     return normalized === "talent_portfolio";
   }
