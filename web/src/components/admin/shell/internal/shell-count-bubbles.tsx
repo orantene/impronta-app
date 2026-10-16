@@ -7,8 +7,8 @@
  * top bar. Hide at zero; 99+ cap; stable order. Built on `CountBadge` with
  * class fills (coral / forest / slate) — no gold or rust, no inline styles.
  *
- * Click opens the notifications center filtered by category (drawer payload
- * for TUL-390 tabs). Counts prefer `shellCounts` from the bridge (TUL-387);
+ * Money and Attention open the notifications center filtered by category
+ * (drawer payload for TUL-390 tabs); Messages goes to the messages page (TUL-718). Counts prefer `shellCounts` from the bridge (TUL-387);
  * talent attention also counts inquiries awaiting the talent (TUL-519 / 385).
  */
 
@@ -21,6 +21,7 @@ import {
   countTalentAwaitingInquiries,
   formatShellBubbleCount,
   shellAttentionTooltip,
+  shellBubbleClickTarget,
   SHELL_BUBBLE_FILL_CLASS,
   visibleShellCountBubbles,
   type ShellBubbleCount,
@@ -68,6 +69,8 @@ export function ShellCountBubbles({
   const {
     state,
     openDrawer,
+    setPage,
+    setTalentPage,
     totalUnread,
     bridgeTalentUnread,
     shellCounts,
@@ -112,7 +115,6 @@ export function ShellCountBubbles({
   if (visible.length === 0) return null;
 
   const iconSize = size === "sm" ? 14 : 15;
-  const drawerId = inWorkspace ? "notifications" : "talent-notifications";
 
   return (
     <div
@@ -132,7 +134,15 @@ export function ShellCountBubbles({
             data-shell-count-bubble={kind}
             aria-label={aria}
             title={title}
-            onClick={() => openDrawer(drawerId, { category: kind })}
+            onClick={() => {
+              const target = shellBubbleClickTarget(kind, inWorkspace ? "workspace" : "talent");
+              if (target.type === "page") {
+                if (inWorkspace) setPage(target.page);
+                else setTalentPage(target.page);
+                return;
+              }
+              openDrawer(target.drawerId, target.payload);
+            }}
             className={cn(
               "relative inline-flex shrink-0 cursor-pointer items-center justify-center rounded-[8px] border border-admin-border-soft bg-white text-admin-ink-muted outline-none hover:border-admin-border hover:text-admin-ink [transition:border-color_var(--transition-admin-micro),color_var(--transition-admin-micro)]",
               size === "sm" ? "h-[28px] w-[28px]" : "h-[32px] w-[32px]",

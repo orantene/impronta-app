@@ -9,6 +9,7 @@
 // Bodies copied byte-for-byte from talent-drawers.tsx; no behavior change.
 // ════════════════════════════════════════════════════════════════════
 
+import { openUpgrade } from "@/components/talent/upgrade/open-upgrade";
 import { useCallback, useEffect, useState } from "react";
 import { useT } from "@/i18n/use-t";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
@@ -496,7 +497,8 @@ export function TalentPageTemplateDrawer() {
               key={tpl.id}
               onClick={() => {
                 if (isLocked) {
-                  openDrawer("talent-tier-compare");
+                  closeDrawer();
+                  openUpgrade({ feature: sigLocked ? "extra-sections" : "template-picker", from: "template-drawer" });
                 }
               }}
               style={{
