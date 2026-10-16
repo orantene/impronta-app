@@ -25,6 +25,7 @@ src/lib/auth/return-host-kind.test.ts
 src/lib/inquiry/claim-return-url.test.ts
 src/lib/auth/client-ip.test.ts
 src/lib/saas/staging-gate.test.ts
+src/lib/client-account/client-entry-es-en.static.test.ts
 src/lib/auth/cross-tab-sign-out.test.ts
 src/lib/auth-flow-client-landing.test.ts
 src/lib/auth/auth-labels.static.test.ts

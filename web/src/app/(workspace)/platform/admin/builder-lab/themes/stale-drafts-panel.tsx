@@ -22,9 +22,9 @@ const btn =
 
 type Pending = { kind: "publish" | "discard"; row: StaleDraftRow };
 
-/** Publishing is offered only where the draft holds design changes on the newest snapshot. */
+/** Publishing is offered where the draft holds design OR copy changes on the newest snapshot (TUL-365). */
 function canPublish(r: StaleDraftRow): boolean {
-  return r.differs && (r.designChanges ?? 0) > 0 && r.reason !== "behind-latest" && r.reason !== "no-base";
+  return r.differs && (r.designChanges ?? 0) + (r.copyChanges ?? 0) > 0 && r.reason !== "behind-latest" && r.reason !== "no-base";
 }
 
 /** Super-admin list of open factory drafts with publish-to-demos and discard. */

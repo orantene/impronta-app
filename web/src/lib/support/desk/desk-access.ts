@@ -24,6 +24,22 @@ export function decideDeskAccess(input: {
 }
 
 /**
+ * Language for the forbidden page. `/desk` has no locale prefix, so the
+ * request locale is the platform default unless the visitor chose one (the
+ * locale cookie). Without that choice, the signed-in person's saved language
+ * wins, so a Spanish talent is not told "no access" in English.
+ */
+export function deskForbiddenLocale(input: {
+  cookieLocale: string | null | undefined;
+  savedLocale: string | null | undefined;
+  requestLocale: string;
+}): string {
+  if (input.cookieLocale?.trim()) return input.requestLocale;
+  const saved = input.savedLocale?.trim().toLowerCase();
+  return saved === "es" || saved === "en" ? saved : input.requestLocale;
+}
+
+/**
  * One-shot cookie rescope on Desk hosts: a host-only talent/client session can
  * shadow a parent-domain (`Domain=.tulala.digital`) platform-admin session.
  * Middleware clears host-only auth cookies once and retries `/desk`.

@@ -42,6 +42,7 @@ export const CARD_DESIGN_TOKEN_KEYS: string[] = [
   "profile.reviews-visibility",
   // Card features that shipped after the Studio's first cut.
   "directory.card.show-starting-from-price",
+  "directory.card.show-talent-promo-badges",
   "directory.card.show-quick-view",
   "directory.card.profile-popup",
   // Action ceilings (favorite / inquiry) + the tenant's favorite glyph.

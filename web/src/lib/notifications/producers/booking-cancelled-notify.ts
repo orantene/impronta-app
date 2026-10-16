@@ -2,6 +2,7 @@ import "server-only";
 
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { logServerError } from "@/lib/server/safe-error";
+import { afterResponse } from "@/lib/server/after-response";
 
 /**
  * Emit `booking.cancelled` (spec §6.4) when a workspace cancels a booking. The
@@ -23,7 +24,7 @@ export function notifyBookingCancelled(params: {
   inquiryId: string;
   bookingId: string;
 }): void {
-  void dispatchEventNotifications({
+  afterResponse(() => dispatchEventNotifications({
     type: "booking.cancelled",
     tenantId: params.tenantId,
     inquiryId: params.inquiryId,
@@ -32,5 +33,5 @@ export function notifyBookingCancelled(params: {
     payload: { bookingId: params.bookingId },
   }).catch((err) => {
     logServerError("notifyBookingCancelled", err);
-  });
+  }));
 }

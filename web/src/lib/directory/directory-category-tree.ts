@@ -2,6 +2,7 @@ import { unstable_cache } from "next/cache";
 
 import { CACHE_TAG_DIRECTORY, CACHE_TAG_TAXONOMY } from "@/lib/cache-tags";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { normalizeSpanishTypeName } from "@/lib/directory/talent-type-labels";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { listTalentIdsOnTenantRoster } from "@/lib/saas/talent-roster";
 import { loadTenantTaxonomyVisibility } from "@/lib/directory/taxonomy-tenant-safety";
@@ -58,12 +59,13 @@ function chunk<T>(arr: T[], size: number): T[][] {
 
 function termLabel(t: TermRow, locale: string): string {
   const i18n = t.name_i18n ?? {};
-  return (
+  const label =
     pickLocale(locale, {
       en: i18n.en ?? t.slug,
       es: i18n.es ?? undefined,
-    }) || t.slug
-  );
+    }) || t.slug;
+  // TUL-738: same display-side casing as the cards, only when the Spanish name was used.
+  return locale.slice(0, 2).toLowerCase() === "es" && i18n.es ? normalizeSpanishTypeName(label) : label;
 }
 
 async function loadCategoryTreeUncached(

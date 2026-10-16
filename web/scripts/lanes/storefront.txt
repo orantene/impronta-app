@@ -88,4 +88,6 @@ src/app/(public)/book/book-page-empty.test.tsx
 src/lib/talent-site/live-text-services.test.ts
 src/lib/talent-site/hero-proof-line.test.ts
 src/lib/talent/location-kind.test.ts
+src/lib/talent/google-site-verification.test.ts
+src/lib/talent-site/server/site-metadata-verification.test.ts
 src/components/marketing/footer-tap-targets.static.test.ts
