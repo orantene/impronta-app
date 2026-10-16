@@ -1,6 +1,9 @@
 import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomains";
 import { resolveMyWebsiteTarget } from "@/lib/talent-site/my-website-target";
-import { loadOwnedBusinessWorkspace } from "@/lib/talent-site/server/workspace-site-context";
+import {
+  loadOwnedBusinessWorkspace,
+  type OwnedBusinessWorkspace,
+} from "@/lib/talent-site/server/workspace-site-context";
 import { resolveWorkspaceSitePublicUrl } from "@/lib/talent-site/workspace-site-editor-url";
 import { talentSitePathUrl, talentSitePublicUrl } from "@/lib/talent-site/site-public-url";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -20,15 +23,31 @@ export function siteUrl(slug: string | null, isDemo = false): string | null {
 }
 
 /** TUL-347: business owners see the workspace live URL as "My website". */
+/**
+ * PERF-SITE: the owned-workspace lookup depends only on the user id, so the
+ * manager loader starts it in the same parallel step as its site reads and
+ * hands the promise to `resolveManagerPublicSiteUrl` (no serial memberships +
+ * cms_pages round trips after the reads).
+ */
+export function startOwnedWorkspaceLoad(
+  userId: string | null | undefined,
+): Promise<OwnedBusinessWorkspace> | null {
+  const admin = createServiceRoleClient();
+  if (!admin || !userId) return null;
+  return loadOwnedBusinessWorkspace(admin, userId);
+}
+
 export async function resolveManagerPublicSiteUrl(input: {
   personalSiteUrl: string | null;
   userId: string | null | undefined;
   siteExists: boolean;
+  /** Pre-started via `startOwnedWorkspaceLoad`; omitted = load it here. */
+  ownedPromise?: Promise<OwnedBusinessWorkspace> | null;
 }): Promise<string | null> {
   if (!input.personalSiteUrl && !input.userId) return input.personalSiteUrl;
   const admin = createServiceRoleClient();
   if (!admin || !input.userId) return input.personalSiteUrl;
-  const owned = await loadOwnedBusinessWorkspace(admin, input.userId);
+  const owned = await (input.ownedPromise ?? loadOwnedBusinessWorkspace(admin, input.userId));
   const target = resolveMyWebsiteTarget({
     ownsBusinessWorkspace: owned.ownsBusinessWorkspace,
     hasWorkspaceSite: owned.hasWorkspaceSite,

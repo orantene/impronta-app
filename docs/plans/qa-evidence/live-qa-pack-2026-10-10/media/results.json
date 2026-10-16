@@ -1,0 +1,2501 @@
+{
+  "config": {
+    "configFile": "/workspace/web/playwright.live-qa-pack.config.ts",
+    "rootDir": "/workspace/web/e2e-isolated",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": "/workspace/web/e2e-isolated/live-qa-pack-setup.ts",
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "isolated-desktop",
+        "name": "isolated-desktop",
+        "testDir": "/workspace/web/e2e-isolated",
+        "testIgnore": [],
+        "testMatch": [
+          "/live-qa-pack\\.spec\\.ts/"
+        ],
+        "timeout": 240000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "docs/plans/qa-evidence/live-qa-pack-2026-10-10/results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.59.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "live-qa-pack.spec.ts",
+      "file": "live-qa-pack.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "TUL-62 · client /account: visit list row names the service, shows the booking's date and status, and the visit can be cancelled or rescheduled",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 40898,
+                  "error": {
+                    "message": "TimeoutError: locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: /^Seleccionar$/ }).first()\u001b[22m\n",
+                    "stack": "TimeoutError: locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: /^Seleccionar$/ }).first()\u001b[22m\n\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:172:69",
+                    "location": {
+                      "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                      "column": 69,
+                      "line": 172
+                    },
+                    "snippet": "  170 |   const { ctx, page } = await openAs(browser, created.clientUserId!, { width: 1440, height: 900 }, host);\n  171 |   await go(page, siteUrl(host), 9000);\n> 172 |   await page.getByRole(\"button\", { name: /^Seleccionar$/ }).first().click();\n      |                                                                     ^\n  173 |   await page.getByRole(\"button\", { name: /^Continuar$/ }).first().click();\n  174 |   const days = page.getByRole(\"button\", { name: /^(LUN|MAR|MI[ÉE]|JUE|VIE|S[ÁA]B|DOM)\\s*\\d/i });\n  175 |   await days.nth(4).click();"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                        "column": 69,
+                        "line": 172
+                      },
+                      "message": "TimeoutError: locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: /^Seleccionar$/ }).first()\u001b[22m\n\n\n  170 |   const { ctx, page } = await openAs(browser, created.clientUserId!, { width: 1440, height: 900 }, host);\n  171 |   await go(page, siteUrl(host), 9000);\n> 172 |   await page.getByRole(\"button\", { name: /^Seleccionar$/ }).first().click();\n      |                                                                     ^\n  173 |   await page.getByRole(\"button\", { name: /^Continuar$/ }).first().click();\n  174 |   const days = page.getByRole(\"button\", { name: /^(LUN|MAR|MI[ÉE]|JUE|VIE|S[ÁA]B|DOM)\\s*\\d/i });\n  175 |   await days.nth(4).click();\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:172:69"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:09:36.899Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-62-·-clie-f5563-be-cancelled-or-rescheduled-isolated-desktop/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-62-·-clie-f5563-be-cancelled-or-rescheduled-isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-62-·-clie-f5563-be-cancelled-or-rescheduled-isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-62-·-clie-f5563-be-cancelled-or-rescheduled-isolated-desktop/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                    "column": 69,
+                    "line": 172
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "8e325637730c020768c3-9968e88465dff8b66bc5",
+          "file": "live-qa-pack.spec.ts",
+          "line": 165,
+          "column": 5
+        },
+        {
+          "title": "TUL-64 · an active, onboarded client is not bounced to /start or /onboarding/role on the app host",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 10683,
+                  "error": {
+                    "message": "Error: client lands on an account page, not the pro onboarding\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mnot\u001b[2m.\u001b[22mtoMatch\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected pattern: not \u001b[32m/^\\/(start|onboarding)/\u001b[39m\nReceived string:      \u001b[31m\"\u001b[7m/start\u001b[27m\"\u001b[39m",
+                    "stack": "Error: client lands on an account page, not the pro onboarding\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mnot\u001b[2m.\u001b[22mtoMatch\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected pattern: not \u001b[32m/^\\/(start|onboarding)/\u001b[39m\nReceived string:      \u001b[31m\"\u001b[7m/start\u001b[27m\"\u001b[39m\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:206:79",
+                    "location": {
+                      "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                      "column": 79,
+                      "line": 206
+                    },
+                    "snippet": "  204 |   await shot(page, \"TUL-64\");\n  205 |   const path = new URL(page.url()).pathname;\n> 206 |   expect(path, \"client lands on an account page, not the pro onboarding\").not.toMatch(/^\\/(start|onboarding)/);\n      |                                                                               ^\n  207 |   await ctx.close();\n  208 | });\n  209 |"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                        "column": 79,
+                        "line": 206
+                      },
+                      "message": "Error: client lands on an account page, not the pro onboarding\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mnot\u001b[2m.\u001b[22mtoMatch\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected pattern: not \u001b[32m/^\\/(start|onboarding)/\u001b[39m\nReceived string:      \u001b[31m\"\u001b[7m/start\u001b[27m\"\u001b[39m\n\n  204 |   await shot(page, \"TUL-64\");\n  205 |   const path = new URL(page.url()).pathname;\n> 206 |   expect(path, \"client lands on an account page, not the pro onboarding\").not.toMatch(/^\\/(start|onboarding)/);\n      |                                                                               ^\n  207 |   await ctx.close();\n  208 | });\n  209 |\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:206:79"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:10:21.089Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-64-·-an-a-c7a0f-arding-role-on-the-app-host-isolated-desktop/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-64-·-an-a-c7a0f-arding-role-on-the-app-host-isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-64-·-an-a-c7a0f-arding-role-on-the-app-host-isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-64-·-an-a-c7a0f-arding-role-on-the-app-host-isolated-desktop/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                    "column": 79,
+                    "line": 206
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "8e325637730c020768c3-917ca4fd8ec2af83332d",
+          "file": "live-qa-pack.spec.ts",
+          "line": 201,
+          "column": 5
+        },
+        {
+          "title": "TUL-116 · guest chat: a price question gets an instant answer with price and duration, no contact gate first",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 39707,
+                  "error": {
+                    "message": "TimeoutError: locator.evaluate: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[aria-label^=\"Enviar mensaje a\"]').first()\u001b[22m\n",
+                    "stack": "TimeoutError: locator.evaluate: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[aria-label^=\"Enviar mensaje a\"]').first()\u001b[22m\n\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:214:66",
+                    "location": {
+                      "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                      "column": 66,
+                      "line": 214
+                    },
+                    "snippet": "  212 |   const { ctx, page } = await guestPage(browser);\n  213 |   await go(page, siteUrl(fx.siteHost), 9000);\n> 214 |   await page.locator('[aria-label^=\"Enviar mensaje a\"]').first().evaluate((el) => (el as HTMLElement).click());\n      |                                                                  ^\n  215 |   await page.waitForTimeout(3000);\n  216 |   await page.locator(\"textarea, input[type=text]\").last().fill(\"¿Cuánto cuesta y cuánto dura?\");\n  217 |   await page.keyboard.press(\"Enter\");"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                        "column": 66,
+                        "line": 214
+                      },
+                      "message": "TimeoutError: locator.evaluate: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[aria-label^=\"Enviar mensaje a\"]').first()\u001b[22m\n\n\n  212 |   const { ctx, page } = await guestPage(browser);\n  213 |   await go(page, siteUrl(fx.siteHost), 9000);\n> 214 |   await page.locator('[aria-label^=\"Enviar mensaje a\"]').first().evaluate((el) => (el as HTMLElement).click());\n      |                                                                  ^\n  215 |   await page.waitForTimeout(3000);\n  216 |   await page.locator(\"textarea, input[type=text]\").last().fill(\"¿Cuánto cuesta y cuánto dura?\");\n  217 |   await page.keyboard.press(\"Enter\");\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:214:66"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:10:34.167Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-116-·-gue-f6448-ation-no-contact-gate-first-isolated-desktop/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-116-·-gue-f6448-ation-no-contact-gate-first-isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-116-·-gue-f6448-ation-no-contact-gate-first-isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-116-·-gue-f6448-ation-no-contact-gate-first-isolated-desktop/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                    "column": 66,
+                    "line": 214
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "8e325637730c020768c3-f3e2d5fe4cd20eb66521",
+          "file": "live-qa-pack.spec.ts",
+          "line": 210,
+          "column": 5
+        },
+        {
+          "title": "TUL-401 · guest chat dock is present on a freshly added talent host within 30 s",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 31357,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeAttached\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('[aria-label^=\"Enviar mensaje a\"]').first()\nExpected: attached\nTimeout: 30000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeAttached\" with timeout 30000ms\u001b[22m\n\u001b[2m  - waiting for locator('[aria-label^=\"Enviar mensaje a\"]').first()\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeAttached\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('[aria-label^=\"Enviar mensaje a\"]').first()\nExpected: attached\nTimeout: 30000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeAttached\" with timeout 30000ms\u001b[22m\n\u001b[2m  - waiting for locator('[aria-label^=\"Enviar mensaje a\"]').first()\u001b[22m\n\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:231:74",
+                    "location": {
+                      "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                      "column": 74,
+                      "line": 231
+                    },
+                    "snippet": "  229 |   const { ctx, page } = await guestPage(browser);\n  230 |   await page.goto(siteUrl(fx.siteHost), { waitUntil: \"domcontentloaded\" });\n> 231 |   await expect(page.locator('[aria-label^=\"Enviar mensaje a\"]').first()).toBeAttached({ timeout: 30_000 });\n      |                                                                          ^\n  232 |   await shot(page, \"TUL-401\");\n  233 |   await ctx.close();\n  234 | });"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                        "column": 74,
+                        "line": 231
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeAttached\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('[aria-label^=\"Enviar mensaje a\"]').first()\nExpected: attached\nTimeout: 30000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeAttached\" with timeout 30000ms\u001b[22m\n\u001b[2m  - waiting for locator('[aria-label^=\"Enviar mensaje a\"]').first()\u001b[22m\n\n\n  229 |   const { ctx, page } = await guestPage(browser);\n  230 |   await page.goto(siteUrl(fx.siteHost), { waitUntil: \"domcontentloaded\" });\n> 231 |   await expect(page.locator('[aria-label^=\"Enviar mensaje a\"]').first()).toBeAttached({ timeout: 30_000 });\n      |                                                                          ^\n  232 |   await shot(page, \"TUL-401\");\n  233 |   await ctx.close();\n  234 | });\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:231:74"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:11:16.246Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-401-·-gue-f4c04-ded-talent-host-within-30-s-isolated-desktop/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-401-·-gue-f4c04-ded-talent-host-within-30-s-isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-401-·-gue-f4c04-ded-talent-host-within-30-s-isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-401-·-gue-f4c04-ded-talent-host-within-30-s-isolated-desktop/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                    "column": 74,
+                    "line": 231
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "8e325637730c020768c3-59a9e2c03a27b086368a",
+          "file": "live-qa-pack.spec.ts",
+          "line": 227,
+          "column": 5
+        },
+        {
+          "title": "TUL-182 · dashboard money reads '<symbol><amount> <CODE>' everywhere; never 'MX$' or a bare '$' for a talent-currency amount",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 14078,
+                  "error": {
+                    "message": "Error: /talent/services has no bare $ amounts\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // deep equality\u001b[22m\n\n\u001b[32m- Expected  - 1\u001b[39m\n\u001b[31m+ Received  + 4\u001b[39m\n\n\u001b[32m- Array []\u001b[39m\n\u001b[31m+ Array [\u001b[39m\n\u001b[31m+   \"$85\",\u001b[39m\n\u001b[31m+   \"$50\",\u001b[39m\n\u001b[31m+ ]\u001b[39m",
+                    "stack": "Error: /talent/services has no bare $ amounts\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // deep equality\u001b[22m\n\n\u001b[32m- Expected  - 1\u001b[39m\n\u001b[31m+ Received  + 4\u001b[39m\n\n\u001b[32m- Array []\u001b[39m\n\u001b[31m+ Array [\u001b[39m\n\u001b[31m+   \"$85\",\u001b[39m\n\u001b[31m+   \"$50\",\u001b[39m\n\u001b[31m+ ]\u001b[39m\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:245:51",
+                    "location": {
+                      "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                      "column": 51,
+                      "line": 245
+                    },
+                    "snippet": "  243 |     expect(t, `${path} has no MX$`).not.toMatch(/MX\\$/);\n  244 |     const bare = [...t.matchAll(/(?<![A-Z]|\\w)\\$\\s?\\d[\\d.,]*(?!\\s?(MXN|USD|EUR))/g)].map((m) => m[0]);\n> 245 |     expect(bare, `${path} has no bare $ amounts`).toEqual([]);\n      |                                                   ^\n  246 |   }\n  247 |   await ctx.close();\n  248 | });"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                        "column": 51,
+                        "line": 245
+                      },
+                      "message": "Error: /talent/services has no bare $ amounts\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // deep equality\u001b[22m\n\n\u001b[32m- Expected  - 1\u001b[39m\n\u001b[31m+ Received  + 4\u001b[39m\n\n\u001b[32m- Array []\u001b[39m\n\u001b[31m+ Array [\u001b[39m\n\u001b[31m+   \"$85\",\u001b[39m\n\u001b[31m+   \"$50\",\u001b[39m\n\u001b[31m+ ]\u001b[39m\n\n  243 |     expect(t, `${path} has no MX$`).not.toMatch(/MX\\$/);\n  244 |     const bare = [...t.matchAll(/(?<![A-Z]|\\w)\\$\\s?\\d[\\d.,]*(?!\\s?(MXN|USD|EUR))/g)].map((m) => m[0]);\n> 245 |     expect(bare, `${path} has no bare $ amounts`).toEqual([]);\n      |                                                   ^\n  246 |   }\n  247 |   await ctx.close();\n  248 | });\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:245:51"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:11:49.978Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-182-·-das-e0cd6-or-a-talent-currency-amount-isolated-desktop/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-182-·-das-e0cd6-or-a-talent-currency-amount-isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-182-·-das-e0cd6-or-a-talent-currency-amount-isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-182-·-das-e0cd6-or-a-talent-currency-amount-isolated-desktop/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                    "column": 51,
+                    "line": 245
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "8e325637730c020768c3-1254c1ae21959dcea356",
+          "file": "live-qa-pack.spec.ts",
+          "line": 236,
+          "column": 5
+        },
+        {
+          "title": "TUL-378 · dual owner: the Talent | Admin switch is reachable in both shells on desktop AND on a phone",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 5,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 13921,
+                  "error": {
+                    "message": "Error: desktop: a visible way to the admin side from /talent\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeTruthy\u001b[2m()\u001b[22m\n\nReceived: \u001b[31mfalse\u001b[39m",
+                    "stack": "Error: desktop: a visible way to the admin side from /talent\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeTruthy\u001b[2m()\u001b[22m\n\nReceived: \u001b[31mfalse\u001b[39m\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:262:79",
+                    "location": {
+                      "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                      "column": 79,
+                      "line": 262
+                    },
+                    "snippet": "  260 |     await shot(page, `TUL-378-${label}`);\n  261 |     const visible = await page.getByText(/^(Admin|Negocio|Ir al negocio)$/).first().isVisible().catch(() => false);\n> 262 |     expect(visible, `${label}: a visible way to the admin side from /talent`).toBeTruthy();\n      |                                                                               ^\n  263 |     await ctx.close();\n  264 |   }\n  265 | });"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                        "column": 79,
+                        "line": 262
+                      },
+                      "message": "Error: desktop: a visible way to the admin side from /talent\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeTruthy\u001b[2m()\u001b[22m\n\nReceived: \u001b[31mfalse\u001b[39m\n\n  260 |     await shot(page, `TUL-378-${label}`);\n  261 |     const visible = await page.getByText(/^(Admin|Negocio|Ir al negocio)$/).first().isVisible().catch(() => false);\n> 262 |     expect(visible, `${label}: a visible way to the admin side from /talent`).toBeTruthy();\n      |                                                                               ^\n  263 |     await ctx.close();\n  264 |   }\n  265 | });\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:262:79"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:12:06.614Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-378-·-dua-d2dbb-s-on-desktop-AND-on-a-phone-isolated-desktop/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-378-·-dua-d2dbb-s-on-desktop-AND-on-a-phone-isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-378-·-dua-d2dbb-s-on-desktop-AND-on-a-phone-isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-378-·-dua-d2dbb-s-on-desktop-AND-on-a-phone-isolated-desktop/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                    "column": 79,
+                    "line": 262
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "8e325637730c020768c3-fd7706b3fcf280982b30",
+          "file": "live-qa-pack.spec.ts",
+          "line": 250,
+          "column": 5
+        },
+        {
+          "title": "TUL-255 · staff impersonating a client: portal pages show the client's data with the banner, and /client does not loop",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [
+                {
+                  "type": "skip",
+                  "description": "IMPERSONATION_COOKIE_SECRET (+ IMPERSONATION_QA_CLIENT_USER_ID) must be set on the stack under test",
+                  "location": {
+                    "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                    "line": 272,
+                    "column": 8
+                  }
+                }
+              ],
+              "expectedStatus": "skipped",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "skipped",
+                  "duration": 2,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:12:22.807Z",
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "IMPERSONATION_COOKIE_SECRET (+ IMPERSONATION_QA_CLIENT_USER_ID) must be set on the stack under test",
+                      "location": {
+                        "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                        "line": 272,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "8e325637730c020768c3-7800bea4d6dd642b89d2",
+          "file": "live-qa-pack.spec.ts",
+          "line": 267,
+          "column": 5
+        },
+        {
+          "title": "TUL-398 · builder 'Agregar diseños' on a Spanish studio: Spanish search works, defaults are Spanish, no roster sections",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 58570,
+                  "error": {
+                    "message": "TimeoutError: locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText(/^Agregar$/).first()\u001b[22m\n",
+                    "stack": "TimeoutError: locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText(/^Agregar$/).first()\u001b[22m\n\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:300:45",
+                    "location": {
+                      "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                      "column": 45,
+                      "line": 300
+                    },
+                    "snippet": "  298 |   const { ctx, page } = await openAs(browser, fx.userId, { width: 1440, height: 1000 });\n  299 |   await go(page, `http://localhost:${SITE_PORT}/w/${fx.slug}?edit=1`, 25_000);\n> 300 |   await page.getByText(/^Agregar$/).first().click();\n      |                                             ^\n  301 |   await page.waitForTimeout(3000);\n  302 |   const panel = await bodyText(page);\n  303 |   expect(panel).not.toMatch(/Featured Talent|Talent Roster|Talento destacado|Plantel/);"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                        "column": 45,
+                        "line": 300
+                      },
+                      "message": "TimeoutError: locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText(/^Agregar$/).first()\u001b[22m\n\n\n  298 |   const { ctx, page } = await openAs(browser, fx.userId, { width: 1440, height: 1000 });\n  299 |   await go(page, `http://localhost:${SITE_PORT}/w/${fx.slug}?edit=1`, 25_000);\n> 300 |   await page.getByText(/^Agregar$/).first().click();\n      |                                             ^\n  301 |   await page.waitForTimeout(3000);\n  302 |   const panel = await bodyText(page);\n  303 |   expect(panel).not.toMatch(/Featured Talent|Talent Roster|Talento destacado|Plantel/);\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:300:45"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:12:23.252Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-398-·-bui-91596--Spanish-no-roster-sections-isolated-desktop/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-398-·-bui-91596--Spanish-no-roster-sections-isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-398-·-bui-91596--Spanish-no-roster-sections-isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-398-·-bui-91596--Spanish-no-roster-sections-isolated-desktop/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                    "column": 45,
+                    "line": 300
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "8e325637730c020768c3-b4e56aeaedacf89ab1f0",
+          "file": "live-qa-pack.spec.ts",
+          "line": 295,
+          "column": 5
+        },
+        {
+          "title": "TUL-81 · builder: 'Borrador guardado' toast is readable and on top; the photo pill ends within 200 s",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 7,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 40102,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('[data-edit-overlay=\"draft-saved-toast\"]').first()\nExpected: visible\nTimeout: 15000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for locator('[data-edit-overlay=\"draft-saved-toast\"]').first()\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('[data-edit-overlay=\"draft-saved-toast\"]').first()\nExpected: visible\nTimeout: 15000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for locator('[data-edit-overlay=\"draft-saved-toast\"]').first()\u001b[22m\n\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:341:23",
+                    "location": {
+                      "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                      "column": 23,
+                      "line": 341
+                    },
+                    "snippet": "  339 |   // Stable hook from EditToast overlayId=\"draft-saved-toast\" (not a generic live region).\n  340 |   const toast = page.locator('[data-edit-overlay=\"draft-saved-toast\"]').first();\n> 341 |   await expect(toast).toBeVisible({ timeout: 15_000 });\n      |                       ^\n  342 |   await expect(toast).toContainText(/Borrador guardado/);\n  343 |   const probe = await toast.evaluate((el) => {\n  344 |     const cs = getComputedStyle(el as HTMLElement);"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                        "column": 23,
+                        "line": 341
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('[data-edit-overlay=\"draft-saved-toast\"]').first()\nExpected: visible\nTimeout: 15000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for locator('[data-edit-overlay=\"draft-saved-toast\"]').first()\u001b[22m\n\n\n  339 |   // Stable hook from EditToast overlayId=\"draft-saved-toast\" (not a generic live region).\n  340 |   const toast = page.locator('[data-edit-overlay=\"draft-saved-toast\"]').first();\n> 341 |   await expect(toast).toBeVisible({ timeout: 15_000 });\n      |                       ^\n  342 |   await expect(toast).toContainText(/Borrador guardado/);\n  343 |   const probe = await toast.evaluate((el) => {\n  344 |     const cs = getComputedStyle(el as HTMLElement);\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:341:23"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:13:25.376Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-81-·-buil-c967a-hoto-pill-ends-within-200-s-isolated-desktop/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-81-·-buil-c967a-hoto-pill-ends-within-200-s-isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-81-·-buil-c967a-hoto-pill-ends-within-200-s-isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-81-·-buil-c967a-hoto-pill-ends-within-200-s-isolated-desktop/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                    "column": 23,
+                    "line": 341
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "8e325637730c020768c3-f8495dd4370487857316",
+          "file": "live-qa-pack.spec.ts",
+          "line": 321,
+          "column": 5
+        },
+        {
+          "title": "TUL-381 · talent offer draft editor: fits its panel, Spanish labels, no typo",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [
+                {
+                  "type": "skip",
+                  "description": "fixture missing: offerDraft talent has no inbox thread",
+                  "location": {
+                    "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                    "line": 368,
+                    "column": 8
+                  }
+                }
+              ],
+              "expectedStatus": "skipped",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 8,
+                  "parallelIndex": 0,
+                  "status": "skipped",
+                  "duration": 15694,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:14:07.974Z",
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "fixture missing: offerDraft talent has no inbox thread",
+                      "location": {
+                        "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                        "line": 368,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-381-·-tal-e544a-anel-Spanish-labels-no-typo-isolated-desktop/test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "8e325637730c020768c3-500936fce8515299d634",
+          "file": "live-qa-pack.spec.ts",
+          "line": 362,
+          "column": 5
+        },
+        {
+          "title": "TUL-519 · talent count bubble equals the inbox 'esperando tu respuesta' count and Hoy agrees",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 8,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 32487,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:14:24.149Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-519-·-tal-ed36d-puesta-count-and-Hoy-agrees-isolated-desktop/test-finished-1.png"
+                    },
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-519-·-tal-ed36d-puesta-count-and-Hoy-agrees-isolated-desktop/test-finished-2.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "8e325637730c020768c3-2ee5be8ccb898e15b0e2",
+          "file": "live-qa-pack.spec.ts",
+          "line": 387,
+          "column": 5
+        },
+        {
+          "title": "FIRST-RUN · a new studio's dashboard greets a person, has no restaurant POS rail, and the first publish has zero blockers",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 8,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 17541,
+                  "error": {
+                    "message": "Error: greeting is not the account handle\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mnot\u001b[2m.\u001b[22mtoContain\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // indexOf\u001b[22m\n\nExpected substring: not \u001b[32m\"qa-onb-choice-studio-desktop-baffsd\"\u001b[39m\nReceived string:        \u001b[31m\"Saltar al contenido principal VENDE LO QUE HACES, NO LO QUE ENVÍAS ES Estudio studio desktop baffsd Plan Gratis Resumen OPERAR Mensajes Calendario Citas y clases Pedidos Proyectos Incidencias VENDER Y GESTIONAR Menú y catálogo Espacios y recursos RELACIONES Clientes Equipo Reseñas DINERO Ventas Pagos CRECER Analíticas Sitio web Ajustes Estudio studio desktop baffsd Resumen Oficina POS · Mostrador ES 4 Gratis Buenos días, \u001b[7mqa-onb-choice-studio-desktop-baffsd\u001b[27m sáb 10 oct · 0 llegadas hoy · 0 cosas te necesitan Abrir POS Nueva cita Hoy COBRADO HOY $0 USD Efectivo $0 USD · Tarjeta $0 USD SALDOS PENDIENTES $0 USD 0 pedidos · 0 vencen hoy LLEGADAS 0 0 en servicio · 0 con retraso PEDIDOS ABIERTOS 0 0 en preparación · 0 listos EXCEPCIONES 0 Nada incierto Te necesita ahora Ordenado por consecuencia Nada te necesita ahora mismo. Hoy Llegadas Clases Mesas No se espera a nadie hoy. Configuración · 4 de 8 Falta: alguien reservable · horas reservables · una política de reserva · destino de los pagos Terminar configuración\"\u001b[39m",
+                    "stack": "Error: greeting is not the account handle\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mnot\u001b[2m.\u001b[22mtoContain\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // indexOf\u001b[22m\n\nExpected substring: not \u001b[32m\"qa-onb-choice-studio-desktop-baffsd\"\u001b[39m\nReceived string:        \u001b[31m\"Saltar al contenido principal VENDE LO QUE HACES, NO LO QUE ENVÍAS ES Estudio studio desktop baffsd Plan Gratis Resumen OPERAR Mensajes Calendario Citas y clases Pedidos Proyectos Incidencias VENDER Y GESTIONAR Menú y catálogo Espacios y recursos RELACIONES Clientes Equipo Reseñas DINERO Ventas Pagos CRECER Analíticas Sitio web Ajustes Estudio studio desktop baffsd Resumen Oficina POS · Mostrador ES 4 Gratis Buenos días, \u001b[7mqa-onb-choice-studio-desktop-baffsd\u001b[27m sáb 10 oct · 0 llegadas hoy · 0 cosas te necesitan Abrir POS Nueva cita Hoy COBRADO HOY $0 USD Efectivo $0 USD · Tarjeta $0 USD SALDOS PENDIENTES $0 USD 0 pedidos · 0 vencen hoy LLEGADAS 0 0 en servicio · 0 con retraso PEDIDOS ABIERTOS 0 0 en preparación · 0 listos EXCEPCIONES 0 Nada incierto Te necesita ahora Ordenado por consecuencia Nada te necesita ahora mismo. Hoy Llegadas Clases Mesas No se espera a nadie hoy. Configuración · 4 de 8 Falta: alguien reservable · horas reservables · una política de reserva · destino de los pagos Terminar configuración\"\u001b[39m\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:411:55",
+                    "location": {
+                      "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                      "column": 55,
+                      "line": 411
+                    },
+                    "snippet": "  409 |   const t = await bodyText(page);\n  410 |   await shot(page, \"FIRST-RUN-dashboard\");\n> 411 |   expect(t, \"greeting is not the account handle\").not.toContain(email.split(\"@\")[0]!);\n      |                                                       ^\n  412 |   expect(t, \"no restaurant-only surfaces for a service studio\").not.toMatch(/Abrir POS|Mesas|Pedidos/);\n  413 |   await go(page, `http://localhost:${SITE_PORT}/w/${fx.slug}?edit=1`, 25_000);\n  414 |   await page.getByRole(\"button\", { name: /^Publicar$/ }).first().click();"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                        "column": 55,
+                        "line": 411
+                      },
+                      "message": "Error: greeting is not the account handle\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mnot\u001b[2m.\u001b[22mtoContain\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // indexOf\u001b[22m\n\nExpected substring: not \u001b[32m\"qa-onb-choice-studio-desktop-baffsd\"\u001b[39m\nReceived string:        \u001b[31m\"Saltar al contenido principal VENDE LO QUE HACES, NO LO QUE ENVÍAS ES Estudio studio desktop baffsd Plan Gratis Resumen OPERAR Mensajes Calendario Citas y clases Pedidos Proyectos Incidencias VENDER Y GESTIONAR Menú y catálogo Espacios y recursos RELACIONES Clientes Equipo Reseñas DINERO Ventas Pagos CRECER Analíticas Sitio web Ajustes Estudio studio desktop baffsd Resumen Oficina POS · Mostrador ES 4 Gratis Buenos días, \u001b[7mqa-onb-choice-studio-desktop-baffsd\u001b[27m sáb 10 oct · 0 llegadas hoy · 0 cosas te necesitan Abrir POS Nueva cita Hoy COBRADO HOY $0 USD Efectivo $0 USD · Tarjeta $0 USD SALDOS PENDIENTES $0 USD 0 pedidos · 0 vencen hoy LLEGADAS 0 0 en servicio · 0 con retraso PEDIDOS ABIERTOS 0 0 en preparación · 0 listos EXCEPCIONES 0 Nada incierto Te necesita ahora Ordenado por consecuencia Nada te necesita ahora mismo. Hoy Llegadas Clases Mesas No se espera a nadie hoy. Configuración · 4 de 8 Falta: alguien reservable · horas reservables · una política de reserva · destino de los pagos Terminar configuración\"\u001b[39m\n\n  409 |   const t = await bodyText(page);\n  410 |   await shot(page, \"FIRST-RUN-dashboard\");\n> 411 |   expect(t, \"greeting is not the account handle\").not.toContain(email.split(\"@\")[0]!);\n      |                                                       ^\n  412 |   expect(t, \"no restaurant-only surfaces for a service studio\").not.toMatch(/Abrir POS|Mesas|Pedidos/);\n  413 |   await go(page, `http://localhost:${SITE_PORT}/w/${fx.slug}?edit=1`, 25_000);\n  414 |   await page.getByRole(\"button\", { name: /^Publicar$/ }).first().click();\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:411:55"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:14:56.658Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-FIRST-RUN-·-a-23eb6-t-publish-has-zero-blockers-isolated-desktop/test-failed-1.png"
+                    },
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-FIRST-RUN-·-a-23eb6-t-publish-has-zero-blockers-isolated-desktop/test-failed-2.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-FIRST-RUN-·-a-23eb6-t-publish-has-zero-blockers-isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-FIRST-RUN-·-a-23eb6-t-publish-has-zero-blockers-isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-FIRST-RUN-·-a-23eb6-t-publish-has-zero-blockers-isolated-desktop/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                    "column": 55,
+                    "line": 411
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "8e325637730c020768c3-dc66516e2d652edd56ef",
+          "file": "live-qa-pack.spec.ts",
+          "line": 403,
+          "column": 5
+        },
+        {
+          "title": "T1/DS-62 · header primary CTA on a talent site points at something that exists, on the home page and on /politicas",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 9,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 19934,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:15:17.906Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-T1-DS-62-·-he-69dfc--home-page-and-on-politicas-isolated-desktop/test-finished-1.png"
+                    },
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-T1-DS-62-·-he-69dfc--home-page-and-on-politicas-isolated-desktop/test-finished-2.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "8e325637730c020768c3-38cec526c6c22e192cfd",
+          "file": "live-qa-pack.spec.ts",
+          "line": 423,
+          "column": 5
+        },
+        {
+          "title": "TUL-117 · three choices journey: covered by e2e/onboarding/choices-journey.spec.ts (run with --project=chromium; the WebKit project drops the localhost guest cookie)",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [
+                {
+                  "type": "skip",
+                  "description": "delegated to the journeys spec; run it in the same sitting and record the table",
+                  "location": {
+                    "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                    "line": 445,
+                    "column": 8
+                  }
+                }
+              ],
+              "expectedStatus": "skipped",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 9,
+                  "parallelIndex": 0,
+                  "status": "skipped",
+                  "duration": 1,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:15:38.380Z",
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "delegated to the journeys spec; run it in the same sitting and record the table",
+                      "location": {
+                        "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                        "line": 445,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "8e325637730c020768c3-aadb71daa88c1a72a58e",
+          "file": "live-qa-pack.spec.ts",
+          "line": 444,
+          "column": 5
+        },
+        {
+          "title": "TUL-120 · support AI answers a Spanish ticket in Spanish",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [
+                {
+                  "type": "skip",
+                  "description": "needs platform_settings.workspace_support_enabled and settings.ai_support_enabled on fxlank: a shared-row change that needs the PM's yes, backed up and restored (QA_PACK_AI_SUPPORT=1 only inside that window)",
+                  "location": {
+                    "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                    "line": 449,
+                    "column": 8
+                  }
+                }
+              ],
+              "expectedStatus": "skipped",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 9,
+                  "parallelIndex": 0,
+                  "status": "skipped",
+                  "duration": 0,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:15:38.389Z",
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "needs platform_settings.workspace_support_enabled and settings.ai_support_enabled on fxlank: a shared-row change that needs the PM's yes, backed up and restored (QA_PACK_AI_SUPPORT=1 only inside that window)",
+                      "location": {
+                        "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                        "line": 449,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "8e325637730c020768c3-01fbc4f34cc408d551a9",
+          "file": "live-qa-pack.spec.ts",
+          "line": 448,
+          "column": 5
+        },
+        {
+          "title": "TUL-421 · theme A to B to A: business data identical and the live page restored byte for byte",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [
+                {
+                  "type": "skip",
+                  "description": "publishes to the fixture site and back: set QA_PACK_THEME_ROUNDTRIP=1 on a throwaway talent",
+                  "location": {
+                    "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                    "line": 454,
+                    "column": 8
+                  }
+                }
+              ],
+              "expectedStatus": "skipped",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 9,
+                  "parallelIndex": 0,
+                  "status": "skipped",
+                  "duration": 1,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:15:38.400Z",
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "publishes to the fixture site and back: set QA_PACK_THEME_ROUNDTRIP=1 on a throwaway talent",
+                      "location": {
+                        "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                        "line": 454,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "8e325637730c020768c3-74bbecd077021ff899a8",
+          "file": "live-qa-pack.spec.ts",
+          "line": 452,
+          "column": 5
+        },
+        {
+          "title": "TUL-39 · free talent Apps: premium Nail Designer shows Web Office badge and Upgrade to use",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 9,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 34163,
+                  "error": {
+                    "message": "Error: Nail Designer is listed\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoMatch\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected pattern: \u001b[32m/Nail Designer|Diseñador de uñas/i\u001b[39m\nReceived string:  \u001b[31m\"Saltar al contenido principal VENDE LO QUE HACES, NO LO QUE ENVÍAS Sitio en vivo /t/TAL-93132 ES EN 6 Hoy TRABAJO Mensajes Calendario Clientes Dinero PRESENCIA Perfil Mi presencia Servicios Reseñas Plan GRATIS Vista previa del perfil Ajustes Mi sitio Administra tu perfil/sitio Tulala y consulta las listas de agencias donde los clientes pueden encontrarte. Ajustes del sitio Dirección, logo, páginas, reservas, pagos y cancelaciones › YOUR MULTI-PAGE WEBSITE A full website with its own link, header, logo and footer, separate from your discovery profile. The starter gallery below sets up its home page and shell. PORTFOLIO FEATURE Your own website Upgrade to Portfolio to build a full multi-page website with your own header, logo, footer, and a custom address — published at its own link, separate from your discovery profile. See plans YOUR DISCOVERY PROFILE The single page clients land on from Discover, at /t/<your code>. The template here restyles that profile — it does not change your multi-page website above. Mi perfil Tulala Digital Incluido con Free. Publica tu perfil básico con la plantilla Tulala Digital. URL /t/TAL-93132 ↗ STATUS PUBLISHED DRAFT UPDATED 9/10/2026, 11:26:49 p.m. LAST PUBLISHED 9/10/2026, 11:26:49 p.m. VERSION v3 View published site ↗ Preview draft (owner) ↗ Standard profile ↗ SITE TITLE META DESCRIPTION INTRO TAGLINE Save draft Publish Unpublish TEMPLATE Tulala Digital — Incluido Included with Free. A clean, focused service profile on Tulala with a split hero, about section, portfolio gallery and contact call to action. Mejora a Web Office para elegir plantillas premium. Mejora a Web Office para personalizar secciones y crear un sitio de servicios completo. Connected content Pull approved YouTube, Spotify, SoundCloud, Vimeo or social links into your page builder only when each provider switch is on. Manage SEO controls Coming soon Page analytics Coming soon Dónde apareces 0 fichas activas · 1 otra conexión OTRAS CONEXIONES Perfil de Tulala Sin página pública Tu perfil en Tulala · lo manejas tú Sin dirección pública No hay página pública, así que no hay link ni visitas que mostrar. Eso no es un cero. Ocultar todo tu perfil está en Ajustes, en cosas difíciles de deshacer. Cada lugar cuenta sus visitas por separado y no se suman. Ocultar una página nunca cancela una reserva, reembolsa un pago ni termina una relación.\"\u001b[39m",
+                    "stack": "Error: Nail Designer is listed\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoMatch\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected pattern: \u001b[32m/Nail Designer|Diseñador de uñas/i\u001b[39m\nReceived string:  \u001b[31m\"Saltar al contenido principal VENDE LO QUE HACES, NO LO QUE ENVÍAS Sitio en vivo /t/TAL-93132 ES EN 6 Hoy TRABAJO Mensajes Calendario Clientes Dinero PRESENCIA Perfil Mi presencia Servicios Reseñas Plan GRATIS Vista previa del perfil Ajustes Mi sitio Administra tu perfil/sitio Tulala y consulta las listas de agencias donde los clientes pueden encontrarte. Ajustes del sitio Dirección, logo, páginas, reservas, pagos y cancelaciones › YOUR MULTI-PAGE WEBSITE A full website with its own link, header, logo and footer, separate from your discovery profile. The starter gallery below sets up its home page and shell. PORTFOLIO FEATURE Your own website Upgrade to Portfolio to build a full multi-page website with your own header, logo, footer, and a custom address — published at its own link, separate from your discovery profile. See plans YOUR DISCOVERY PROFILE The single page clients land on from Discover, at /t/<your code>. The template here restyles that profile — it does not change your multi-page website above. Mi perfil Tulala Digital Incluido con Free. Publica tu perfil básico con la plantilla Tulala Digital. URL /t/TAL-93132 ↗ STATUS PUBLISHED DRAFT UPDATED 9/10/2026, 11:26:49 p.m. LAST PUBLISHED 9/10/2026, 11:26:49 p.m. VERSION v3 View published site ↗ Preview draft (owner) ↗ Standard profile ↗ SITE TITLE META DESCRIPTION INTRO TAGLINE Save draft Publish Unpublish TEMPLATE Tulala Digital — Incluido Included with Free. A clean, focused service profile on Tulala with a split hero, about section, portfolio gallery and contact call to action. Mejora a Web Office para elegir plantillas premium. Mejora a Web Office para personalizar secciones y crear un sitio de servicios completo. Connected content Pull approved YouTube, Spotify, SoundCloud, Vimeo or social links into your page builder only when each provider switch is on. Manage SEO controls Coming soon Page analytics Coming soon Dónde apareces 0 fichas activas · 1 otra conexión OTRAS CONEXIONES Perfil de Tulala Sin página pública Tu perfil en Tulala · lo manejas tú Sin dirección pública No hay página pública, así que no hay link ni visitas que mostrar. Eso no es un cero. Ocultar todo tu perfil está en Ajustes, en cosas difíciles de deshacer. Cada lugar cuenta sus visitas por separado y no se suman. Ocultar una página nunca cancela una reserva, reembolsa un pago ni termina una relación.\"\u001b[39m\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:498:40",
+                    "location": {
+                      "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                      "column": 40,
+                      "line": 498
+                    },
+                    "snippet": "  496 |   const t = await bodyText(page);\n  497 |   await shot(page, \"TUL-39-apps\");\n> 498 |   expect(t, \"Nail Designer is listed\").toMatch(/Nail Designer|Diseñador de uñas/i);\n      |                                        ^\n  499 |   expect(t, \"Web Office / Oficina Web badge on premium\").toMatch(/Web Office|Oficina Web/);\n  500 |   expect(t, \"free plan sees Upgrade to use (or Spanish equivalent)\").toMatch(/Upgrade to use|Mejorar para usar|Actualizar para usar/i);\n  501 |   await ctx.close();"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                        "column": 40,
+                        "line": 498
+                      },
+                      "message": "Error: Nail Designer is listed\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoMatch\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected pattern: \u001b[32m/Nail Designer|Diseñador de uñas/i\u001b[39m\nReceived string:  \u001b[31m\"Saltar al contenido principal VENDE LO QUE HACES, NO LO QUE ENVÍAS Sitio en vivo /t/TAL-93132 ES EN 6 Hoy TRABAJO Mensajes Calendario Clientes Dinero PRESENCIA Perfil Mi presencia Servicios Reseñas Plan GRATIS Vista previa del perfil Ajustes Mi sitio Administra tu perfil/sitio Tulala y consulta las listas de agencias donde los clientes pueden encontrarte. Ajustes del sitio Dirección, logo, páginas, reservas, pagos y cancelaciones › YOUR MULTI-PAGE WEBSITE A full website with its own link, header, logo and footer, separate from your discovery profile. The starter gallery below sets up its home page and shell. PORTFOLIO FEATURE Your own website Upgrade to Portfolio to build a full multi-page website with your own header, logo, footer, and a custom address — published at its own link, separate from your discovery profile. See plans YOUR DISCOVERY PROFILE The single page clients land on from Discover, at /t/<your code>. The template here restyles that profile — it does not change your multi-page website above. Mi perfil Tulala Digital Incluido con Free. Publica tu perfil básico con la plantilla Tulala Digital. URL /t/TAL-93132 ↗ STATUS PUBLISHED DRAFT UPDATED 9/10/2026, 11:26:49 p.m. LAST PUBLISHED 9/10/2026, 11:26:49 p.m. VERSION v3 View published site ↗ Preview draft (owner) ↗ Standard profile ↗ SITE TITLE META DESCRIPTION INTRO TAGLINE Save draft Publish Unpublish TEMPLATE Tulala Digital — Incluido Included with Free. A clean, focused service profile on Tulala with a split hero, about section, portfolio gallery and contact call to action. Mejora a Web Office para elegir plantillas premium. Mejora a Web Office para personalizar secciones y crear un sitio de servicios completo. Connected content Pull approved YouTube, Spotify, SoundCloud, Vimeo or social links into your page builder only when each provider switch is on. Manage SEO controls Coming soon Page analytics Coming soon Dónde apareces 0 fichas activas · 1 otra conexión OTRAS CONEXIONES Perfil de Tulala Sin página pública Tu perfil en Tulala · lo manejas tú Sin dirección pública No hay página pública, así que no hay link ni visitas que mostrar. Eso no es un cero. Ocultar todo tu perfil está en Ajustes, en cosas difíciles de deshacer. Cada lugar cuenta sus visitas por separado y no se suman. Ocultar una página nunca cancela una reserva, reembolsa un pago ni termina una relación.\"\u001b[39m\n\n  496 |   const t = await bodyText(page);\n  497 |   await shot(page, \"TUL-39-apps\");\n> 498 |   expect(t, \"Nail Designer is listed\").toMatch(/Nail Designer|Diseñador de uñas/i);\n      |                                        ^\n  499 |   expect(t, \"Web Office / Oficina Web badge on premium\").toMatch(/Web Office|Oficina Web/);\n  500 |   expect(t, \"free plan sees Upgrade to use (or Spanish equivalent)\").toMatch(/Upgrade to use|Mejorar para usar|Actualizar para usar/i);\n  501 |   await ctx.close();\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:498:40"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:15:38.411Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-39-·-free-442f3-ce-badge-and-Upgrade-to-use-isolated-desktop/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-39-·-free-442f3-ce-badge-and-Upgrade-to-use-isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-39-·-free-442f3-ce-badge-and-Upgrade-to-use-isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-39-·-free-442f3-ce-badge-and-Upgrade-to-use-isolated-desktop/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                    "column": 40,
+                    "line": 498
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "8e325637730c020768c3-0da392a49284c5d0aca5",
+          "file": "live-qa-pack.spec.ts",
+          "line": 488,
+          "column": 5
+        },
+        {
+          "title": "TUL-67 · client receipt/email path: seller block and fee line are present in the render fixture",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [
+                {
+                  "type": "skip",
+                  "description": "fixture missing: client has no visit for receipt proof",
+                  "location": {
+                    "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                    "line": 512,
+                    "column": 8
+                  }
+                }
+              ],
+              "expectedStatus": "skipped",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 10,
+                  "parallelIndex": 0,
+                  "status": "skipped",
+                  "duration": 11475,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:16:16.751Z",
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "fixture missing: client has no visit for receipt proof",
+                      "location": {
+                        "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                        "line": 512,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-67-·-clie-ab3b1-esent-in-the-render-fixture-isolated-desktop/test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "8e325637730c020768c3-a778d1671c51f26973cc",
+          "file": "live-qa-pack.spec.ts",
+          "line": 504,
+          "column": 5
+        },
+        {
+          "title": "TUL-77 · myself site: public services list + /book offers real slots (not inquiry-only)",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 10,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 23879,
+                  "error": {
+                    "message": "Error: slots or service picker present\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoMatch\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected pattern: \u001b[32m/Seleccionar|Continuar|Reservar|:\\d{2}|No open times|Sin horarios/i\u001b[39m\nReceived string:  \u001b[31m\"Cookies & analytics × We use cookies and analytics to understand how this site is used. Ads and tracking pixels stay off unless you accept. Privacy policy · Cookie policy Decline Accept TULALA This domain isn't connected yet If you're looking for a talent or business page, it may have moved. Try searching on tulala.digital. Go to tulala.digital\"\u001b[39m",
+                    "stack": "Error: slots or service picker present\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoMatch\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected pattern: \u001b[32m/Seleccionar|Continuar|Reservar|:\\d{2}|No open times|Sin horarios/i\u001b[39m\nReceived string:  \u001b[31m\"Cookies & analytics × We use cookies and analytics to understand how this site is used. Ads and tracking pixels stay off unless you accept. Privacy policy · Cookie policy Decline Accept TULALA This domain isn't connected yet If you're looking for a talent or business page, it may have moved. Try searching on tulala.digital. Go to tulala.digital\"\u001b[39m\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:542:51",
+                    "location": {
+                      "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                      "column": 51,
+                      "line": 542
+                    },
+                    "snippet": "  540 |   await shot(page, \"TUL-77-book\");\n  541 |   expect(book, \"book page is not inquiry-only\").not.toMatch(/preferred date|fecha preferida.*mensaje/i);\n> 542 |   expect(book, \"slots or service picker present\").toMatch(/Seleccionar|Continuar|Reservar|:\\d{2}|No open times|Sin horarios/i);\n      |                                                   ^\n  543 |   // Done-when requires real slots for a bookable myself; \"No open times\" is FAIL until fixed.\n  544 |   expect(book, \"real open times (not empty)\").not.toMatch(/No open times|Sin horarios disponibles/i);\n  545 |   await ctx.close();"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                        "column": 51,
+                        "line": 542
+                      },
+                      "message": "Error: slots or service picker present\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoMatch\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected pattern: \u001b[32m/Seleccionar|Continuar|Reservar|:\\d{2}|No open times|Sin horarios/i\u001b[39m\nReceived string:  \u001b[31m\"Cookies & analytics × We use cookies and analytics to understand how this site is used. Ads and tracking pixels stay off unless you accept. Privacy policy · Cookie policy Decline Accept TULALA This domain isn't connected yet If you're looking for a talent or business page, it may have moved. Try searching on tulala.digital. Go to tulala.digital\"\u001b[39m\n\n  540 |   await shot(page, \"TUL-77-book\");\n  541 |   expect(book, \"book page is not inquiry-only\").not.toMatch(/preferred date|fecha preferida.*mensaje/i);\n> 542 |   expect(book, \"slots or service picker present\").toMatch(/Seleccionar|Continuar|Reservar|:\\d{2}|No open times|Sin horarios/i);\n      |                                                   ^\n  543 |   // Done-when requires real slots for a bookable myself; \"No open times\" is FAIL until fixed.\n  544 |   expect(book, \"real open times (not empty)\").not.toMatch(/No open times|Sin horarios disponibles/i);\n  545 |   await ctx.close();\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:542:51"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:16:28.746Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-77-·-myse-ad6ff-eal-slots-not-inquiry-only--isolated-desktop/test-failed-1.png"
+                    },
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-77-·-myse-ad6ff-eal-slots-not-inquiry-only--isolated-desktop/test-failed-2.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-77-·-myse-ad6ff-eal-slots-not-inquiry-only--isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-77-·-myse-ad6ff-eal-slots-not-inquiry-only--isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-77-·-myse-ad6ff-eal-slots-not-inquiry-only--isolated-desktop/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                    "column": 51,
+                    "line": 542
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "8e325637730c020768c3-a115fe38aa791d85137b",
+          "file": "live-qa-pack.spec.ts",
+          "line": 527,
+          "column": 5
+        },
+        {
+          "title": "TUL-79 · builder: device switch shows skeleton then content; hero not cut off on desktop",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 11,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 21948,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:16:54.846Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-79-·-buil-660c1-hero-not-cut-off-on-desktop-isolated-desktop/test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "8e325637730c020768c3-02fa0b4fb3bc4618723b",
+          "file": "live-qa-pack.spec.ts",
+          "line": 548,
+          "column": 5
+        },
+        {
+          "title": "TUL-93 · confirmed booking on the fixture talent has guest + talent notification dispatch rows",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 11,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 229,
+                  "error": {
+                    "message": "Error: at least one dispatch row for the booking inquiry\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m0\u001b[39m\nReceived:   \u001b[31m0\u001b[39m",
+                    "stack": "Error: at least one dispatch row for the booking inquiry\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m0\u001b[39m\nReceived:   \u001b[31m0\u001b[39m\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:588:90",
+                    "location": {
+                      "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                      "column": 90,
+                      "line": 588
+                    },
+                    "snippet": "  586 |     .limit(20);\n  587 |   writeFileSync(join(evidence, \"TUL-93-dispatches.json\"), JSON.stringify(dispatches ?? [], null, 2));\n> 588 |   expect((dispatches ?? []).length, \"at least one dispatch row for the booking inquiry\").toBeGreaterThan(0);\n      |                                                                                          ^\n  589 |   const skipped = (dispatches ?? []).filter((d) => String(d.status).includes(\"skipped\") || /not configured/i.test(String(d.status)));\n  590 |   expect(skipped, \"no 'channel not configured' skips for this inquiry\").toEqual([]);\n  591 | });"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                        "column": 90,
+                        "line": 588
+                      },
+                      "message": "Error: at least one dispatch row for the booking inquiry\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m0\u001b[39m\nReceived:   \u001b[31m0\u001b[39m\n\n  586 |     .limit(20);\n  587 |   writeFileSync(join(evidence, \"TUL-93-dispatches.json\"), JSON.stringify(dispatches ?? [], null, 2));\n> 588 |   expect((dispatches ?? []).length, \"at least one dispatch row for the booking inquiry\").toBeGreaterThan(0);\n      |                                                                                          ^\n  589 |   const skipped = (dispatches ?? []).filter((d) => String(d.status).includes(\"skipped\") || /not configured/i.test(String(d.status)));\n  590 |   expect(skipped, \"no 'channel not configured' skips for this inquiry\").toEqual([]);\n  591 | });\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:588:90"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:17:17.229Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-93-·-conf-521a7--notification-dispatch-rows-isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-93-·-conf-521a7--notification-dispatch-rows-isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-93-·-conf-521a7--notification-dispatch-rows-isolated-desktop/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                    "column": 90,
+                    "line": 588
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "8e325637730c020768c3-112a3e6cc2e9cc6b11a4",
+          "file": "live-qa-pack.spec.ts",
+          "line": 570,
+          "column": 5
+        },
+        {
+          "title": "TUL-146 · Spanish talent chrome: profile/settings/services have no English shell strings",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 12,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 41960,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:17:18.944Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-146-·-Spa-1a80a-ve-no-English-shell-strings-isolated-desktop/test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "8e325637730c020768c3-21b95f6580d1dcad27b6",
+          "file": "live-qa-pack.spec.ts",
+          "line": 593,
+          "column": 5
+        },
+        {
+          "title": "TUL-279 · isolated /start understand-your-words step accepts a short valid brief",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 12,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 58583,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:18:01.351Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-279-·-iso-8682e-accepts-a-short-valid-brief-isolated-desktop/test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "8e325637730c020768c3-d7329c231d59ff0bb4a5",
+          "file": "live-qa-pack.spec.ts",
+          "line": 609,
+          "column": 5
+        },
+        {
+          "title": "TUL-312 · /start redirects stay on the local marketing origin (never production tulala.digital)",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 12,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 5325,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:18:59.943Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-312-·-sta-db016--production-tulala-digital--isolated-desktop/test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "8e325637730c020768c3-571cf8215bef0d641576",
+          "file": "live-qa-pack.spec.ts",
+          "line": 628,
+          "column": 5
+        },
+        {
+          "title": "TUL-325 · after gallery design apply, Publish CTA is visible and primary",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [
+                {
+                  "type": "skip",
+                  "description": "fixture missing: design gallery entry",
+                  "location": {
+                    "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                    "line": 649,
+                    "column": 8
+                  }
+                }
+              ],
+              "expectedStatus": "skipped",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 12,
+                  "parallelIndex": 0,
+                  "status": "skipped",
+                  "duration": 15702,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:19:05.291Z",
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "fixture missing: design gallery entry",
+                      "location": {
+                        "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                        "line": 649,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-325-·-aft-ead65--CTA-is-visible-and-primary-isolated-desktop/test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "8e325637730c020768c3-9789b312c780f59bfc55",
+          "file": "live-qa-pack.spec.ts",
+          "line": 644,
+          "column": 5
+        },
+        {
+          "title": "TUL-358 · Horario y días libres exposes Zona horaria and an hours form",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 12,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 18784,
+                  "error": {
+                    "message": "Error: Zona horaria control present\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoMatch\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected pattern: \u001b[32m/Zona horaria|Timezone|America\\//i\u001b[39m\nReceived string:  \u001b[31m\"Saltar al contenido principal VENDE LO QUE HACES, NO LO QUE ENVÍAS Sitio en vivo /t/TAL-93132 ES EN 6 Hoy TRABAJO Mensajes Calendario Clientes Dinero PRESENCIA Perfil Mi presencia Servicios Reseñas Plan GRATIS Vista previa del perfil Ajustes 42% Termina de configurar tu perfil 8 campos para terminar tu perfil. Continuar configuración → Configuración guiada Fotos · 0 de 3 Agregar fotos Tu bio Reescribir Más corta Más larga Más cálida Más profesional 104 / 600 Guardar + Nombre + Apellido + Número de teléfono + Género + Fecha de nacimiento + De origen + Vive en + Medios del portafolio 6 asuntos esperan tu respuesta. QA Pack Cliente lleva más tiempo esperando, empieza ahí. Playa del Carmen · Solo local Responder ahora → Disponibilidad Confirmado 0 aún nada Pagado este mes $0 MXN Aún sin pagos este mes Perfil 42% toca para terminar Esperan tu respuesta 6 ofertas Abrir bandeja → QA Pack Cliente · Direct inquiry Oferta 2026-10-15 · — hace 7 h Invitada QA Chat · Hola, ¿tienen lugar mañana por la tarde? Oferta 2026-10-10 · — hace 11 h Invitada QA Chat · Hola, ¿tienen lugar mañana por la tarde? Oferta 2026-10-10 · — hace 11 h Cliente QA · Direct inquiry Oferta 2026-10-14 · — hace 12 h Cliente QA · Direct inquiry Oferta 2026-10-09 · — hace 12 h Invitada QA · Direct inquiry Oferta 2026-10-09 · — hace 13 h Próximo en el calendario Ver calendario → Calendario despejado Aún no hay reservas confirmadas. La primera siempre llega antes de lo que crees. Esta semana Oct 5 – Oct 11 Abrir calendario → MON 5 Gratis TUE 6 Gratis WED 7 Gratis THU 8 Gratis FRI 9 Gratis SAT 10 Hoy SUN 11 Gratis INGRESOS $0 MXN 0 pagos · Este mes Mes Trim Año Aún no hay reservas pagadas. Tus ingresos aparecerán aquí cuando un cliente pague. Ver todos los ingresos → Analítica de carrera Analítica de agencia Disponibilidad Dónde estás, para qué estás disponible y las fechas en las que no puedes trabajar. Visible para tus agencies. ACEPTANDO TRABAJO Recibiendo nuevas reservas Actívalo para que los clientes puedan reservarte en tu página pública. Fechas bloqueadas · 0 Bloquea fechas no disponibles para que las agencias no te propongan trabajos que no puedes tomar. Gestionar en Calendario Cerrar\"\u001b[39m",
+                    "stack": "Error: Zona horaria control present\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoMatch\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected pattern: \u001b[32m/Zona horaria|Timezone|America\\//i\u001b[39m\nReceived string:  \u001b[31m\"Saltar al contenido principal VENDE LO QUE HACES, NO LO QUE ENVÍAS Sitio en vivo /t/TAL-93132 ES EN 6 Hoy TRABAJO Mensajes Calendario Clientes Dinero PRESENCIA Perfil Mi presencia Servicios Reseñas Plan GRATIS Vista previa del perfil Ajustes 42% Termina de configurar tu perfil 8 campos para terminar tu perfil. Continuar configuración → Configuración guiada Fotos · 0 de 3 Agregar fotos Tu bio Reescribir Más corta Más larga Más cálida Más profesional 104 / 600 Guardar + Nombre + Apellido + Número de teléfono + Género + Fecha de nacimiento + De origen + Vive en + Medios del portafolio 6 asuntos esperan tu respuesta. QA Pack Cliente lleva más tiempo esperando, empieza ahí. Playa del Carmen · Solo local Responder ahora → Disponibilidad Confirmado 0 aún nada Pagado este mes $0 MXN Aún sin pagos este mes Perfil 42% toca para terminar Esperan tu respuesta 6 ofertas Abrir bandeja → QA Pack Cliente · Direct inquiry Oferta 2026-10-15 · — hace 7 h Invitada QA Chat · Hola, ¿tienen lugar mañana por la tarde? Oferta 2026-10-10 · — hace 11 h Invitada QA Chat · Hola, ¿tienen lugar mañana por la tarde? Oferta 2026-10-10 · — hace 11 h Cliente QA · Direct inquiry Oferta 2026-10-14 · — hace 12 h Cliente QA · Direct inquiry Oferta 2026-10-09 · — hace 12 h Invitada QA · Direct inquiry Oferta 2026-10-09 · — hace 13 h Próximo en el calendario Ver calendario → Calendario despejado Aún no hay reservas confirmadas. La primera siempre llega antes de lo que crees. Esta semana Oct 5 – Oct 11 Abrir calendario → MON 5 Gratis TUE 6 Gratis WED 7 Gratis THU 8 Gratis FRI 9 Gratis SAT 10 Hoy SUN 11 Gratis INGRESOS $0 MXN 0 pagos · Este mes Mes Trim Año Aún no hay reservas pagadas. Tus ingresos aparecerán aquí cuando un cliente pague. Ver todos los ingresos → Analítica de carrera Analítica de agencia Disponibilidad Dónde estás, para qué estás disponible y las fechas en las que no puedes trabajar. Visible para tus agencies. ACEPTANDO TRABAJO Recibiendo nuevas reservas Actívalo para que los clientes puedan reservarte en tu página pública. Fechas bloqueadas · 0 Bloquea fechas no disponibles para que las agencias no te propongan trabajos que no puedes tomar. Gestionar en Calendario Cerrar\"\u001b[39m\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:675:45",
+                    "location": {
+                      "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                      "column": 45,
+                      "line": 675
+                    },
+                    "snippet": "  673 |   const t = await bodyText(page);\n  674 |   await shot(page, \"TUL-358-horario\");\n> 675 |   expect(t, \"Zona horaria control present\").toMatch(/Zona horaria|Timezone|America\\//i);\n      |                                             ^\n  676 |   expect(t, \"hours form / day rows present\").toMatch(/Lunes|Monday|09:00|Cerrado|Closed|Disponibilidad/i);\n  677 |   await ctx.close();\n  678 | });"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                        "column": 45,
+                        "line": 675
+                      },
+                      "message": "Error: Zona horaria control present\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoMatch\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected pattern: \u001b[32m/Zona horaria|Timezone|America\\//i\u001b[39m\nReceived string:  \u001b[31m\"Saltar al contenido principal VENDE LO QUE HACES, NO LO QUE ENVÍAS Sitio en vivo /t/TAL-93132 ES EN 6 Hoy TRABAJO Mensajes Calendario Clientes Dinero PRESENCIA Perfil Mi presencia Servicios Reseñas Plan GRATIS Vista previa del perfil Ajustes 42% Termina de configurar tu perfil 8 campos para terminar tu perfil. Continuar configuración → Configuración guiada Fotos · 0 de 3 Agregar fotos Tu bio Reescribir Más corta Más larga Más cálida Más profesional 104 / 600 Guardar + Nombre + Apellido + Número de teléfono + Género + Fecha de nacimiento + De origen + Vive en + Medios del portafolio 6 asuntos esperan tu respuesta. QA Pack Cliente lleva más tiempo esperando, empieza ahí. Playa del Carmen · Solo local Responder ahora → Disponibilidad Confirmado 0 aún nada Pagado este mes $0 MXN Aún sin pagos este mes Perfil 42% toca para terminar Esperan tu respuesta 6 ofertas Abrir bandeja → QA Pack Cliente · Direct inquiry Oferta 2026-10-15 · — hace 7 h Invitada QA Chat · Hola, ¿tienen lugar mañana por la tarde? Oferta 2026-10-10 · — hace 11 h Invitada QA Chat · Hola, ¿tienen lugar mañana por la tarde? Oferta 2026-10-10 · — hace 11 h Cliente QA · Direct inquiry Oferta 2026-10-14 · — hace 12 h Cliente QA · Direct inquiry Oferta 2026-10-09 · — hace 12 h Invitada QA · Direct inquiry Oferta 2026-10-09 · — hace 13 h Próximo en el calendario Ver calendario → Calendario despejado Aún no hay reservas confirmadas. La primera siempre llega antes de lo que crees. Esta semana Oct 5 – Oct 11 Abrir calendario → MON 5 Gratis TUE 6 Gratis WED 7 Gratis THU 8 Gratis FRI 9 Gratis SAT 10 Hoy SUN 11 Gratis INGRESOS $0 MXN 0 pagos · Este mes Mes Trim Año Aún no hay reservas pagadas. Tus ingresos aparecerán aquí cuando un cliente pague. Ver todos los ingresos → Analítica de carrera Analítica de agencia Disponibilidad Dónde estás, para qué estás disponible y las fechas en las que no puedes trabajar. Visible para tus agencies. ACEPTANDO TRABAJO Recibiendo nuevas reservas Actívalo para que los clientes puedan reservarte en tu página pública. Fechas bloqueadas · 0 Bloquea fechas no disponibles para que las agencias no te propongan trabajos que no puedes tomar. Gestionar en Calendario Cerrar\"\u001b[39m\n\n  673 |   const t = await bodyText(page);\n  674 |   await shot(page, \"TUL-358-horario\");\n> 675 |   expect(t, \"Zona horaria control present\").toMatch(/Zona horaria|Timezone|America\\//i);\n      |                                             ^\n  676 |   expect(t, \"hours form / day rows present\").toMatch(/Lunes|Monday|09:00|Cerrado|Closed|Disponibilidad/i);\n  677 |   await ctx.close();\n  678 | });\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:675:45"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:19:21.004Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-358-·-Hor-fb289-a-horaria-and-an-hours-form-isolated-desktop/test-failed-2.png"
+                    },
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-358-·-Hor-fb289-a-horaria-and-an-hours-form-isolated-desktop/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-358-·-Hor-fb289-a-horaria-and-an-hours-form-isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-358-·-Hor-fb289-a-horaria-and-an-hours-form-isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-358-·-Hor-fb289-a-horaria-and-an-hours-form-isolated-desktop/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                    "column": 45,
+                    "line": 675
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "8e325637730c020768c3-b9bb9434176ee6133524",
+          "file": "live-qa-pack.spec.ts",
+          "line": 665,
+          "column": 5
+        },
+        {
+          "title": "TUL-379 · Spanish /talent/inbox has no English chrome and uses 24h times",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 13,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 15676,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:19:42.355Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-379-·-Spa-7d2f6-h-chrome-and-uses-24h-times-isolated-desktop/test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "8e325637730c020768c3-8143e1d42b126de6a60b",
+          "file": "live-qa-pack.spec.ts",
+          "line": 680,
+          "column": 5
+        },
+        {
+          "title": "TUL-391 · money/approval notification catalog includes refund.failed, payment.needs_attention, offer-pending-approval",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [
+                {
+                  "type": "skip",
+                  "description": "fixture missing: notification_catalog unreadable (Could not find the table 'public.notification_catalog' in the schema cache)",
+                  "location": {
+                    "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                    "line": 697,
+                    "column": 10
+                  }
+                }
+              ],
+              "expectedStatus": "skipped",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 13,
+                  "parallelIndex": 0,
+                  "status": "skipped",
+                  "duration": 124,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:19:58.476Z",
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "fixture missing: notification_catalog unreadable (Could not find the table 'public.notification_catalog' in the schema cache)",
+                      "location": {
+                        "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                        "line": 697,
+                        "column": 10
+                      }
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "8e325637730c020768c3-d56757df7a4fa7e6e7a0",
+          "file": "live-qa-pack.spec.ts",
+          "line": 691,
+          "column": 5
+        },
+        {
+          "title": "TUL-397 · builder device switch: content returns; inspector does not cover the whole canvas",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 13,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 41383,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('iframe, [data-edit-canvas]').first()\nExpected: visible\nTimeout: 20000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 20000ms\u001b[22m\n\u001b[2m  - waiting for locator('iframe, [data-edit-canvas]').first()\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('iframe, [data-edit-canvas]').first()\nExpected: visible\nTimeout: 20000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 20000ms\u001b[22m\n\u001b[2m  - waiting for locator('iframe, [data-edit-canvas]').first()\u001b[22m\n\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:716:24",
+                    "location": {
+                      "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                      "column": 24,
+                      "line": 716
+                    },
+                    "snippet": "  714 |   }\n  715 |   const canvas = page.locator(\"iframe, [data-edit-canvas]\").first();\n> 716 |   await expect(canvas).toBeVisible({ timeout: 20_000 });\n      |                        ^\n  717 |   const canvasBox = await canvas.boundingBox();\n  718 |   const inspector = page.locator(\"[data-edit-inspector], [data-edit-drawer]\").first();\n  719 |   if (canvasBox && (await inspector.count())) {"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                        "column": 24,
+                        "line": 716
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('iframe, [data-edit-canvas]').first()\nExpected: visible\nTimeout: 20000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 20000ms\u001b[22m\n\u001b[2m  - waiting for locator('iframe, [data-edit-canvas]').first()\u001b[22m\n\n\n  714 |   }\n  715 |   const canvas = page.locator(\"iframe, [data-edit-canvas]\").first();\n> 716 |   await expect(canvas).toBeVisible({ timeout: 20_000 });\n      |                        ^\n  717 |   const canvasBox = await canvas.boundingBox();\n  718 |   const inspector = page.locator(\"[data-edit-inspector], [data-edit-drawer]\").first();\n  719 |   if (canvasBox && (await inspector.count())) {\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:716:24"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:19:58.610Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-397-·-bui-ac2d1--not-cover-the-whole-canvas-isolated-desktop/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-397-·-bui-ac2d1--not-cover-the-whole-canvas-isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-397-·-bui-ac2d1--not-cover-the-whole-canvas-isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-397-·-bui-ac2d1--not-cover-the-whole-canvas-isolated-desktop/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                    "column": 24,
+                    "line": 716
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "8e325637730c020768c3-e226c436f71f74f071d1",
+          "file": "live-qa-pack.spec.ts",
+          "line": 706,
+          "column": 5
+        },
+        {
+          "title": "TUL-420 · theme update on a customized site surfaces a keep/update/conflict decision before apply",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [
+                {
+                  "type": "skip",
+                  "description": "fixture missing: theme update / gallery entry",
+                  "location": {
+                    "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                    "line": 734,
+                    "column": 8
+                  }
+                }
+              ],
+              "expectedStatus": "skipped",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 14,
+                  "parallelIndex": 0,
+                  "status": "skipped",
+                  "duration": 16180,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:20:42.102Z",
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "fixture missing: theme update / gallery entry",
+                      "location": {
+                        "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                        "line": 734,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-420-·-the-5abdb-flict-decision-before-apply-isolated-desktop/test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "8e325637730c020768c3-75b10be01af2808b68aa",
+          "file": "live-qa-pack.spec.ts",
+          "line": 729,
+          "column": 5
+        },
+        {
+          "title": "TUL-441 · starter-content failure shows clear retry state (not empty success)",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [
+                {
+                  "type": "skip",
+                  "description": "set QA_PACK_STARTER_FAIL=1 on a throwaway that triggers starter failure",
+                  "location": {
+                    "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                    "line": 746,
+                    "column": 8
+                  }
+                }
+              ],
+              "expectedStatus": "skipped",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 14,
+                  "parallelIndex": 0,
+                  "status": "skipped",
+                  "duration": 62,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:20:58.733Z",
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "set QA_PACK_STARTER_FAIL=1 on a throwaway that triggers starter failure",
+                      "location": {
+                        "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                        "line": 746,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-441-·-sta-bb322-ry-state-not-empty-success--isolated-desktop/test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "8e325637730c020768c3-59affd203a06af5615a5",
+          "file": "live-qa-pack.spec.ts",
+          "line": 743,
+          "column": 5
+        },
+        {
+          "title": "TUL-449 · talent site secondary-read degrade: public home stays 200 (not a whole-page 500)",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 14,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 8920,
+                  "error": {
+                    "message": "Error: main talent/site row answers 200\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m404\u001b[39m",
+                    "stack": "Error: main talent/site row answers 200\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m404\u001b[39m\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:763:62",
+                    "location": {
+                      "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                      "column": 62,
+                      "line": 763
+                    },
+                    "snippet": "  761 |   await page.waitForTimeout(8000);\n  762 |   await shot(page, \"TUL-449-home\");\n> 763 |   expect(resp?.status(), \"main talent/site row answers 200\").toBe(200);\n      |                                                              ^\n  764 |   const t = await bodyText(page);\n  765 |   expect(t).not.toMatch(/Something broke|Algo sali[oó] mal|Internal Server Error/i);\n  766 |   await ctx.close();"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                        "column": 62,
+                        "line": 763
+                      },
+                      "message": "Error: main talent/site row answers 200\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m200\u001b[39m\nReceived: \u001b[31m404\u001b[39m\n\n  761 |   await page.waitForTimeout(8000);\n  762 |   await shot(page, \"TUL-449-home\");\n> 763 |   expect(resp?.status(), \"main talent/site row answers 200\").toBe(200);\n      |                                                              ^\n  764 |   const t = await bodyText(page);\n  765 |   expect(t).not.toMatch(/Something broke|Algo sali[oó] mal|Internal Server Error/i);\n  766 |   await ctx.close();\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:763:62"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:20:58.815Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-449-·-tal-76b44-s-200-not-a-whole-page-500--isolated-desktop/test-failed-1.png"
+                    },
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-449-·-tal-76b44-s-200-not-a-whole-page-500--isolated-desktop/test-failed-2.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-449-·-tal-76b44-s-200-not-a-whole-page-500--isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-449-·-tal-76b44-s-200-not-a-whole-page-500--isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-449-·-tal-76b44-s-200-not-a-whole-page-500--isolated-desktop/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                    "column": 62,
+                    "line": 763
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "8e325637730c020768c3-cc0fcea0491f2e7061b0",
+          "file": "live-qa-pack.spec.ts",
+          "line": 757,
+          "column": 5
+        },
+        {
+          "title": "TUL-458 · hub guest chat: second message after Solicitud recibida is sent (composer clears)",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 15,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 41078,
+                  "error": {
+                    "message": "TimeoutError: locator.evaluate: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[aria-label^=\"Enviar mensaje a\"]').first()\u001b[22m\n",
+                    "stack": "TimeoutError: locator.evaluate: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[aria-label^=\"Enviar mensaje a\"]').first()\u001b[22m\n\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:773:66",
+                    "location": {
+                      "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                      "column": 66,
+                      "line": 773
+                    },
+                    "snippet": "  771 |   const { ctx, page } = await guestPage(browser);\n  772 |   await go(page, siteUrl(fx.siteHost), 10_000);\n> 773 |   await page.locator('[aria-label^=\"Enviar mensaje a\"]').first().evaluate((el) => (el as HTMLElement).click());\n      |                                                                  ^\n  774 |   await page.waitForTimeout(3000);\n  775 |   const name = page.getByLabel(/Nombre/i).or(page.locator('input[name*=name i]')).first();\n  776 |   if (await name.isVisible().catch(() => false)) {"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                        "column": 66,
+                        "line": 773
+                      },
+                      "message": "TimeoutError: locator.evaluate: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[aria-label^=\"Enviar mensaje a\"]').first()\u001b[22m\n\n\n  771 |   const { ctx, page } = await guestPage(browser);\n  772 |   await go(page, siteUrl(fx.siteHost), 10_000);\n> 773 |   await page.locator('[aria-label^=\"Enviar mensaje a\"]').first().evaluate((el) => (el as HTMLElement).click());\n      |                                                                  ^\n  774 |   await page.waitForTimeout(3000);\n  775 |   const name = page.getByLabel(/Nombre/i).or(page.locator('input[name*=name i]')).first();\n  776 |   if (await name.isVisible().catch(() => false)) {\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:773:66"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:21:09.804Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-458-·-hub-2d9e6-da-is-sent-composer-clears--isolated-desktop/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-458-·-hub-2d9e6-da-is-sent-composer-clears--isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-458-·-hub-2d9e6-da-is-sent-composer-clears--isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-458-·-hub-2d9e6-da-is-sent-composer-clears--isolated-desktop/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                    "column": 66,
+                    "line": 773
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "8e325637730c020768c3-c95479d7a54cfb687755",
+          "file": "live-qa-pack.spec.ts",
+          "line": 769,
+          "column": 5
+        },
+        {
+          "title": "TUL-472 · offer flow: Oferta tab shows draft after reload; no sticky Error al guardar",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [
+                {
+                  "type": "skip",
+                  "description": "fixture missing: no inbox thread for offer flow",
+                  "location": {
+                    "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                    "line": 799,
+                    "column": 8
+                  }
+                }
+              ],
+              "expectedStatus": "skipped",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 16,
+                  "parallelIndex": 0,
+                  "status": "skipped",
+                  "duration": 16098,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:21:53.171Z",
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "fixture missing: no inbox thread for offer flow",
+                      "location": {
+                        "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                        "line": 799,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-472-·-off-87e4d--no-sticky-Error-al-guardar-isolated-desktop/test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "8e325637730c020768c3-4993404c3b40f642f707",
+          "file": "live-qa-pack.spec.ts",
+          "line": 794,
+          "column": 5
+        },
+        {
+          "title": "TUL-473 · /admin/work/<bookingId> for a paid booking is not Something broke",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [
+                {
+                  "type": "skip",
+                  "description": "fixture missing: paidBooking",
+                  "location": {
+                    "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                    "line": 69,
+                    "column": 8
+                  }
+                }
+              ],
+              "expectedStatus": "skipped",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 16,
+                  "parallelIndex": 0,
+                  "status": "skipped",
+                  "duration": 58,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:22:09.781Z",
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "fixture missing: paidBooking",
+                      "location": {
+                        "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                        "line": 69,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-473-·-adm-65f69-king-is-not-Something-broke-isolated-desktop/test-finished-1.png"
+                    }
+                  ]
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "8e325637730c020768c3-4306cd9f13d832ef14c5",
+          "file": "live-qa-pack.spec.ts",
+          "line": 817,
+          "column": 5
+        },
+        {
+          "title": "TUL-503 · client hub/agency /account visit rows show each visit's talent booking zone label",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 16,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 14749,
+                  "error": {
+                    "message": "Error: zone label present (not a single tenant zone only)\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoMatch\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected pattern: \u001b[32m/zona|zone|America\\/|UTC|GMT|Canc[uú]n|CDMX/i\u001b[39m\nReceived string:  \u001b[31m\"Cookies & analytics × We use cookies and analytics to understand how this site is used. Ads and tracking pixels stay off unless you accept. Privacy policy · Cookie policy Decline Accept Tulala QR QA Rich Client / Client Today WORK Messages Inquiries Bookings FIND TALENT Discover Favorites Shortlists Pitches ACCOUNT Reviews ALL AGENCIES All agencies Trust BASIC Settings QA PAID OWNER Welcome, QA. You're all set. Send a booking inquiry when you have a brief ready. New inquiry ACTIVE 0 in progress NEEDS YOUR REPLY 0 you're up to date CONFIRMED 0 confirmed bookings TOTAL 0 all time 📋 No inquiries yet Send your first booking inquiry now, or browse the roster first if you want to pick a specific talent. Start inquiry Browse roster\"\u001b[39m",
+                    "stack": "Error: zone label present (not a single tenant zone only)\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoMatch\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected pattern: \u001b[32m/zona|zone|America\\/|UTC|GMT|Canc[uú]n|CDMX/i\u001b[39m\nReceived string:  \u001b[31m\"Cookies & analytics × We use cookies and analytics to understand how this site is used. Ads and tracking pixels stay off unless you accept. Privacy policy · Cookie policy Decline Accept Tulala QR QA Rich Client / Client Today WORK Messages Inquiries Bookings FIND TALENT Discover Favorites Shortlists Pitches ACCOUNT Reviews ALL AGENCIES All agencies Trust BASIC Settings QA PAID OWNER Welcome, QA. You're all set. Send a booking inquiry when you have a brief ready. New inquiry ACTIVE 0 in progress NEEDS YOUR REPLY 0 you're up to date CONFIRMED 0 confirmed bookings TOTAL 0 all time 📋 No inquiries yet Send your first booking inquiry now, or browse the roster first if you want to pick a specific talent. Start inquiry Browse roster\"\u001b[39m\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:836:67",
+                    "location": {
+                      "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                      "column": 67,
+                      "line": 836
+                    },
+                    "snippet": "  834 |   await shot(page, \"TUL-503-account\");\n  835 |   test.skip(!/visita|visit|reserva|booking/i.test(t), \"fixture missing: client has no visits on hub account\");\n> 836 |   expect(t, \"zone label present (not a single tenant zone only)\").toMatch(/zona|zone|America\\/|UTC|GMT|Canc[uú]n|CDMX/i);\n      |                                                                   ^\n  837 |   await ctx.close();\n  838 | });\n  839 |"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                        "column": 67,
+                        "line": 836
+                      },
+                      "message": "Error: zone label present (not a single tenant zone only)\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoMatch\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected pattern: \u001b[32m/zona|zone|America\\/|UTC|GMT|Canc[uú]n|CDMX/i\u001b[39m\nReceived string:  \u001b[31m\"Cookies & analytics × We use cookies and analytics to understand how this site is used. Ads and tracking pixels stay off unless you accept. Privacy policy · Cookie policy Decline Accept Tulala QR QA Rich Client / Client Today WORK Messages Inquiries Bookings FIND TALENT Discover Favorites Shortlists Pitches ACCOUNT Reviews ALL AGENCIES All agencies Trust BASIC Settings QA PAID OWNER Welcome, QA. You're all set. Send a booking inquiry when you have a brief ready. New inquiry ACTIVE 0 in progress NEEDS YOUR REPLY 0 you're up to date CONFIRMED 0 confirmed bookings TOTAL 0 all time 📋 No inquiries yet Send your first booking inquiry now, or browse the roster first if you want to pick a specific talent. Start inquiry Browse roster\"\u001b[39m\n\n  834 |   await shot(page, \"TUL-503-account\");\n  835 |   test.skip(!/visita|visit|reserva|booking/i.test(t), \"fixture missing: client has no visits on hub account\");\n> 836 |   expect(t, \"zone label present (not a single tenant zone only)\").toMatch(/zona|zone|America\\/|UTC|GMT|Canc[uú]n|CDMX/i);\n      |                                                                   ^\n  837 |   await ctx.close();\n  838 | });\n  839 |\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:836:67"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:22:09.860Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-503-·-cli-5828a-s-talent-booking-zone-label-isolated-desktop/test-failed-1.png"
+                    },
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-503-·-cli-5828a-s-talent-booking-zone-label-isolated-desktop/test-failed-2.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-503-·-cli-5828a-s-talent-booking-zone-label-isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-503-·-cli-5828a-s-talent-booking-zone-label-isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-503-·-cli-5828a-s-talent-booking-zone-label-isolated-desktop/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                    "column": 67,
+                    "line": 836
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "8e325637730c020768c3-d4dfc1540f2ef6f5465a",
+          "file": "live-qa-pack.spec.ts",
+          "line": 829,
+          "column": 5
+        },
+        {
+          "title": "TUL-505 · both/studio workspace site: header and hero links return 200 in the site language",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 240000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "isolated-desktop",
+              "projectName": "isolated-desktop",
+              "results": [
+                {
+                  "workerIndex": 17,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 28749,
+                  "error": {
+                    "message": "Error: header/hero links must be 200; bad=/directory→404\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // deep equality\u001b[22m\n\n\u001b[32m- Expected  - 1\u001b[39m\n\u001b[31m+ Received  + 3\u001b[39m\n\n\u001b[32m- Array []\u001b[39m\n\u001b[31m+ Array [\u001b[39m\n\u001b[31m+   \"/directory→404\",\u001b[39m\n\u001b[31m+ ]\u001b[39m",
+                    "stack": "Error: header/hero links must be 200; bad=/directory→404\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // deep equality\u001b[22m\n\n\u001b[32m- Expected  - 1\u001b[39m\n\u001b[31m+ Received  + 3\u001b[39m\n\n\u001b[32m- Array []\u001b[39m\n\u001b[31m+ Array [\u001b[39m\n\u001b[31m+   \"/directory→404\",\u001b[39m\n\u001b[31m+ ]\u001b[39m\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:860:71",
+                    "location": {
+                      "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                      "column": 71,
+                      "line": 860
+                    },
+                    "snippet": "  858 |   }\n  859 |   await shot(page, \"TUL-505-nav\");\n> 860 |   expect(bad, `header/hero links must be 200; bad=${bad.join(\", \")}`).toEqual([]);\n      |                                                                       ^\n  861 |   await ctx.close();\n  862 | });\n  863 |"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                        "column": 71,
+                        "line": 860
+                      },
+                      "message": "Error: header/hero links must be 200; bad=/directory→404\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // deep equality\u001b[22m\n\n\u001b[32m- Expected  - 1\u001b[39m\n\u001b[31m+ Received  + 3\u001b[39m\n\n\u001b[32m- Array []\u001b[39m\n\u001b[31m+ Array [\u001b[39m\n\u001b[31m+   \"/directory→404\",\u001b[39m\n\u001b[31m+ ]\u001b[39m\n\n  858 |   }\n  859 |   await shot(page, \"TUL-505-nav\");\n> 860 |   expect(bad, `header/hero links must be 200; bad=${bad.join(\", \")}`).toEqual([]);\n      |                                                                       ^\n  861 |   await ctx.close();\n  862 | });\n  863 |\n    at /workspace/web/e2e-isolated/live-qa-pack.spec.ts:860:71"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-10T07:22:26.800Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-505-·-bot-31a3f-rn-200-in-the-site-language-isolated-desktop/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-505-·-bot-31a3f-rn-200-in-the-site-language-isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-505-·-bot-31a3f-rn-200-in-the-site-language-isolated-desktop/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/workspace/web/docs/plans/qa-evidence/live-qa-pack-2026-10-10/artifacts/live-qa-pack-TUL-505-·-bot-31a3f-rn-200-in-the-site-language-isolated-desktop/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/workspace/web/e2e-isolated/live-qa-pack.spec.ts",
+                    "column": 71,
+                    "line": 860
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "8e325637730c020768c3-a63aaf262fe658203c6f",
+          "file": "live-qa-pack.spec.ts",
+          "line": 840,
+          "column": 5
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-10T07:09:34.866Z",
+    "duration": 803486.264,
+    "expected": 7,
+    "skipped": 12,
+    "unexpected": 18,
+    "flaky": 0
+  }
+}
