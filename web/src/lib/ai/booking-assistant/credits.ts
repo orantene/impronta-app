@@ -8,10 +8,12 @@
  * handoff reason `gated`.
  */
 
+import { hasEntitlement } from "@/lib/access/talent-entitlements";
+
 export type BookingAssistantPlanBand = "free" | "paid";
 
 export function bookingAssistantPlanBand(planKey: string | null | undefined): BookingAssistantPlanBand {
-  if (planKey === "talent_pro" || planKey === "talent_portfolio") return "paid";
+  if (hasEntitlement(planKey, "ai.paidCredits")) return "paid";
   return "free";
 }
 

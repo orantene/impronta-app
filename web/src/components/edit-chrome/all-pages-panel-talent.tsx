@@ -9,6 +9,7 @@
  */
 import { DockFloatingPanel } from "./dock-floating-panel";
 import { CHROME } from "./kit/tokens";
+import { TalentPostsTreeGroup } from "./posts-tree-group-talent";
 import { useEditorLocale } from "./use-editor-locale";
 
 export function TalentAllPagesPanel({
@@ -20,7 +21,7 @@ export function TalentAllPagesPanel({
   onClose: () => void;
   onHistory: () => void;
 }) {
-  const { t } = useEditorLocale();
+  const { t, locale } = useEditorLocale();
   return (
     <DockFloatingPanel
       panelId="all-pages"
@@ -57,6 +58,7 @@ export function TalentAllPagesPanel({
           {t("Editing now")}
         </span>
       </div>
+      <TalentPostsTreeGroup open={open} locale={locale} onNavigate={onClose} />
     </div>
     </DockFloatingPanel>
   );

@@ -148,6 +148,8 @@ const NATIVE_DATA_BLOCK_KINDS = [
   "session_picker",
   "ticket_picker",
   "qr_code",
+  // Posts v1 (PO1): live posts of the rendering site, resolved per node.
+  "posts_feed",
 ] as const;
 
 // ── registry + insertability ────────────────────────────────────────────────

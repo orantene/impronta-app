@@ -14,7 +14,7 @@ import {
   Chip,
   PlanChip,
   RoleChip,
-  PLAN_TIER_LABEL_KEY,
+  catalogPlanLabel,
   WORKSPACE_ROLE_LABEL_KEY,
 } from "./hq-kit";
 import {
@@ -30,7 +30,6 @@ import {
 } from "./tenant-section-kit";
 import {
   OVERRIDE_DURATIONS,
-  PLAN_TIER_LABEL,
   WORKSPACE_PLAN_TIERS,
   type WorkspacePlanOverride,
   type WorkspacePlanTier,
@@ -49,18 +48,14 @@ import {
   actionTransferWorkspaceOwner,
 } from "./actions";
 import { useT } from "@/i18n/use-t";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { interpolate } from "@/i18n/interpolate";
 
 type Translate = (key: string) => string;
 
-function planChipLabel(t: Translate, plan: string): string | undefined {
-  const key = PLAN_TIER_LABEL_KEY[plan];
-  return key ? t(key) : undefined;
-}
-
-function planText(t: Translate, plan: string): string {
-  const key = PLAN_TIER_LABEL_KEY[plan];
-  return key ? t(key) : PLAN_TIER_LABEL[plan as WorkspacePlanTier] ?? plan;
+// TUL-817: plan names come from the plan catalog only.
+function planText(locale: string, plan: string): string {
+  return catalogPlanLabel(locale, plan);
 }
 
 function roleChipLabel(t: Translate, role: string): string | undefined {
@@ -424,6 +419,7 @@ export function MembersSection({ detail, onChanged, defaultOpen }: SectionProps)
 
 function OverrideCard({ override }: { override: WorkspacePlanOverride }) {
   const t = useT();
+  const locale = useDashboardLocale();
   const d = daysUntil(override.expiresAt);
   const expiresLine = override.expiresAt
     ? `${interpolate(t("dashboard.platform.tenants.overrideExpires"), { date: fmtDate(override.expiresAt) })}${
@@ -449,12 +445,12 @@ function OverrideCard({ override }: { override: WorkspacePlanOverride }) {
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <PlanChip plan={override.overridePlanTier} label={planChipLabel(t, override.overridePlanTier)} />
+        <PlanChip plan={override.overridePlanTier} label={planText(locale, override.overridePlanTier)} />
         <span style={{ fontSize: 12, color: HQ.ink, fontWeight: 600 }}>
           {t("dashboard.platform.tenants.overrideActiveShort")}
         </span>
         <span style={{ flex: 1 }} />
-        <Chip outline>{interpolate(t("dashboard.platform.tenants.overrideFrom"), { plan: planText(t, override.basePlanTier) })}</Chip>
+        <Chip outline>{interpolate(t("dashboard.platform.tenants.overrideFrom"), { plan: planText(locale, override.basePlanTier) })}</Chip>
       </div>
       <div style={{ marginTop: 6, fontSize: 11.5, color: HQ.inkMuted }}>
         {expiresLine}
@@ -471,7 +467,7 @@ function OverrideCard({ override }: { override: WorkspacePlanOverride }) {
         })}
       </div>
       <div style={{ marginTop: 6, fontSize: 10.5, color: HQ.inkDim }}>
-        {interpolate(t("dashboard.platform.tenants.overrideReturnsTo"), { plan: planText(t, override.basePlanTier) })}
+        {interpolate(t("dashboard.platform.tenants.overrideReturnsTo"), { plan: planText(locale, override.basePlanTier) })}
       </div>
     </div>
   );
@@ -483,6 +479,7 @@ export function PlanOverrideSection({
   defaultOpen,
 }: SectionProps) {
   const t = useT();
+  const locale = useDashboardLocale();
   const { override } = detail;
   const [tier, setTier] = useState<WorkspacePlanTier>("studio");
   const [grantKind, setGrantKind] = useState<"comp" | "trial" | "promo">("comp");
@@ -590,7 +587,7 @@ export function PlanOverrideSection({
               >
                 {WORKSPACE_PLAN_TIERS.map((pt) => (
                   <option key={pt} value={pt}>
-                    {planText(t, pt)}
+                    {planText(locale, pt)}
                   </option>
                 ))}
               </select>
@@ -711,7 +708,7 @@ export function PlanOverrideSection({
                   color: HQ.inkMuted,
                 }}
               >
-                <PlanChip plan={o.overridePlanTier} label={planChipLabel(t, o.overridePlanTier)} />
+                <PlanChip plan={o.overridePlanTier} label={planText(locale, o.overridePlanTier)} />
                 <span>{o.status}</span>
                 <span style={{ flex: 1 }} />
                 <span style={{ color: HQ.inkDim }}>
@@ -731,9 +728,9 @@ export function PlanOverrideSection({
         body={
           override
             ? interpolate(t("dashboard.platform.tenants.removeOverrideBody"), {
-                plan: planText(t, override.overridePlanTier),
+                plan: planText(locale, override.overridePlanTier),
                 workspace: detail.name,
-                base: planText(t, override.basePlanTier),
+                base: planText(locale, override.basePlanTier),
               })
             : ""
         }

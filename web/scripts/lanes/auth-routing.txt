@@ -25,3 +25,11 @@ src/lib/auth/return-host-kind.test.ts
 src/lib/inquiry/claim-return-url.test.ts
 src/lib/auth/client-ip.test.ts
 src/lib/saas/staging-gate.test.ts
+src/lib/auth/cross-tab-sign-out.test.ts
+src/lib/auth-flow-client-landing.test.ts
+src/lib/auth/auth-labels.static.test.ts
+src/lib/auth/code-step-url.test.ts
+src/lib/auth/email-not-confirmed.test.ts
+src/lib/auth/signup-name-wiring.static.test.ts
+src/lib/auth/signup-name.test.ts
+src/lib/impersonation/client-portal-effective-user.static.test.ts

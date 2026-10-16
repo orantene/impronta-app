@@ -99,4 +99,21 @@ describe("desk shell wiring", () => {
     assert.match(src, /export async function hqReopenTicketAction/);
     assert.match(src, /supportEngine\.reopenTicket/);
   });
+
+  it("TUL-51: /desk client widgets follow the request locale, tab title is localized", () => {
+    const layout = readFileSync(join(WEB_SRC, "app/desk/layout.tsx"), "utf8");
+    assert.match(layout, /DashboardLocaleProvider locale=\{locale\}/);
+    assert.match(layout, /getRequestLocale\(\)/);
+    const page = readFileSync(join(WEB_SRC, "app/desk/page.tsx"), "utf8");
+    assert.match(page, /export async function generateMetadata/);
+    assert.match(page, /dashboard\.platform\.support\.deskBrand/);
+  });
+
+  it("TUL-51: Spanish Desk copy has no English 'Support Desk'", () => {
+    const es = JSON.parse(readFileSync(join(process.cwd(), "messages/es.json"), "utf8"));
+    const support = es.dashboard.platform.support as Record<string, unknown>;
+    const leaks = Object.entries(support).filter(([, v]) => typeof v === "string" && /Support Desk/.test(v));
+    assert.deepEqual(leaks, []);
+    assert.equal(support.deskBrand, "Mesa de soporte");
+  });
 });

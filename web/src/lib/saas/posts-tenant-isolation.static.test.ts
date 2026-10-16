@@ -114,3 +114,27 @@ test("the server actions resolve the tenant from the session scope, never from c
     assert.equal(source, "g.tenantId", `lib-layer tenantId must come from the guard, saw "${source}"`);
   }
 });
+
+// ---- Posts v1 writer (TUL-1006/1007) ----------------------------------------
+// The writer serves two owners (workspace tenant, talent personal site). Its
+// ONLY table access is the `scoped()` helper, which picks tenantScopedQuery or
+// talentScopedQuery from a server-resolved PostScope.
+/** Code only: the headers document the forbidden pattern in prose. */
+const stripComments = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+const WRITER = stripComments(readFileSync(join(SRC_ROOT, "lib/cms/posts-writer.ts"), "utf8"));
+const WRITER_ACTIONS = readFileSync(join(SRC_ROOT, "lib/server-actions/posts-writer-actions.ts"), "utf8");
+
+test("posts writer: no raw .from() at all; every query goes through scoped()", () => {
+  assert.ok(!/\.from\(/.test(WRITER), "posts-writer.ts must reach tables only through scoped()");
+  assert.ok(/tenantScopedQuery\(supabase, table, scope\.tenantId\)/.test(WRITER));
+  assert.ok(/talentScopedQuery\(supabase, table, scope\.talentProfileId\)/.test(WRITER));
+  const scopedCalls = [...WRITER.matchAll(/scoped\(ctx\.supabase, "(cms_posts|cms_redirects)", ctx\.scope\)/g)];
+  assert.ok(scopedCalls.length >= 5, `expected >= 5 scoped() call sites, saw ${scopedCalls.length}`);
+});
+
+test("posts writer actions: scope comes from the server, never from client input", () => {
+  assert.ok(!/\.from\(\s*["'`]cms_posts/.test(WRITER_ACTIONS));
+  assert.ok(!/input\.(tenantId|talentProfileId|scope)/.test(WRITER_ACTIONS));
+  assert.ok(/resolvePostScope\(/.test(WRITER_ACTIONS), "talent actions must resolve scope via resolvePostScope");
+  assert.ok(/requireTenantScope\(\)/.test(WRITER_ACTIONS), "workspace actions must use requireTenantScope()");
+});

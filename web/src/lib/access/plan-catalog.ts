@@ -318,6 +318,81 @@ export function planDisplayName(key: PlanKey): string {
   return getPlan(key).displayName;
 }
 
+/**
+ * TUL-839 Spanish plan names (approved tier table, 2026-10-14). A key missing
+ * here reads the English name, which is the right answer for brand-like names
+ * ("Pro", "Studio", "Network").
+ */
+const PLAN_DISPLAY_NAME_ES: Partial<Record<PlanKey, string>> = {
+  free: "Gratis",
+  website: "Sitio web",
+  agency: "Agencia",
+  legacy: "Heredado",
+  talent_basic: "Gratis",
+};
+
+/** Spanish names for the talent-tier labels, keyed by the English display name (covers the dark-build overlay). */
+const TALENT_DISPLAY_NAME_ES: Readonly<Record<string, string>> = {
+  "Web Office": "Oficina Web",
+  Portfolio: "Portafolio",
+};
+
+/**
+ * The plan name in the reader's language. Every screen that prints a plan name
+ * (pricing, platform admin) reads it here, never from a local map.
+ */
+export function planDisplayNameFor(key: PlanKey, locale: string | null | undefined): string {
+  const en = planDisplayName(key);
+  if (!isSpanish(locale)) return en;
+  return PLAN_DISPLAY_NAME_ES[key] ?? TALENT_DISPLAY_NAME_ES[en] ?? en;
+}
+
+/**
+ * Older keys some tables still carry: `product_tiers` slugs (`pro`, `max`,
+ * `hub`) and the bare `basic` alias. They name catalog plans.
+ */
+const PLAN_KEY_ALIASES: Readonly<Record<string, PlanKey>> = {
+  basic: "talent_basic",
+  pro: "talent_pro",
+  max: "talent_portfolio",
+  hub: "network",
+};
+
+/** A plan key, catalog slug or alias, resolved to its catalog key (null when unknown). */
+export function resolvePlanKey(key: string | null | undefined): PlanKey | null {
+  const k = (key ?? "").trim();
+  if (isKnownPlan(k)) return k;
+  return PLAN_KEY_ALIASES[k] ?? null;
+}
+
+function isSpanish(locale: string | null | undefined): boolean {
+  return (locale ?? "").trim().toLowerCase().startsWith("es");
+}
+
+/**
+ * Name for a raw plan key read from the database (server side; follows the
+ * talent tier rename switch). Unknown keys print as-is so nothing is hidden.
+ */
+export function planLabel(key: string | null | undefined, locale?: string | null): string {
+  const resolved = resolvePlanKey(key);
+  if (resolved) return planDisplayNameFor(resolved, locale);
+  return (key ?? "").trim();
+}
+
+/**
+ * CLIENT-SAFE plan name (TUL-817): the raw catalog value, which is the
+ * post-rename name, with no env read, so a "use client" platform-admin screen
+ * renders the same label on the server and on hydration. Every platform-admin
+ * plan label (Health, Catalog, Revenue, Tenants) comes from here.
+ */
+export function planCatalogLabel(key: string | null | undefined, locale?: string | null): string {
+  const resolved = resolvePlanKey(key);
+  if (!resolved) return (key ?? "").trim();
+  const en = PLAN_CATALOG[resolved].displayName;
+  if (!isSpanish(locale)) return en;
+  return PLAN_DISPLAY_NAME_ES[resolved] ?? TALENT_DISPLAY_NAME_ES[en] ?? en;
+}
+
 /** Plans visible on the public pricing page, in display order. Workspace audience. */
 export function getVisibleWorkspacePlans(): PlanDef[] {
   return Object.values(PLAN_CATALOG)
@@ -366,4 +441,32 @@ export function getUpgradePathFromPlan(currentPlan: PlanKey): PlanDef[] {
         p.rank > current.rank,
     )
     .sort((a, b) => a.rank - b.rank);
+}
+
+/**
+ * Posts v1 (TUL-1007) — the plan keys whose holders may PUBLISH posts (and
+ * edit a post that is live). Same idiom as `EXCLUSIVE_PLAN_KEYS`: the one
+ * commercial list, read through `planGrantsPosts`, never re-derived.
+ *
+ *   workspace  `website` and every package above it. `free` drafts + previews.
+ *   talent     every Web Office key: `talent_portfolio` and the grandfathered
+ *              `talent_pro` (one paid talent package). The talent-side reader
+ *              is the `talentPosts` site capability (talent-membership.ts).
+ *
+ * Mirrored at the DB by `talent_profile_has_web_office()` (migration
+ * 20261014205812) for the talent half.
+ */
+export const POSTS_PUBLISH_PLAN_KEYS: readonly PlanKey[] = [
+  "website",
+  "studio",
+  "agency",
+  "network",
+  "legacy",
+  "talent_pro",
+  "talent_portfolio",
+] as const;
+
+/** Does this plan grant Posts publishing? Raw column value; null/unknown fails closed. */
+export function planGrantsPosts(planKey: string | null | undefined): boolean {
+  return !!planKey && isKnownPlan(planKey) && POSTS_PUBLISH_PLAN_KEYS.includes(planKey);
 }

@@ -27,7 +27,7 @@ import type { AccessProfileWithDisplayName } from "@/lib/access-profile";
 
 import { resolveWorkspaceFinishUrl } from "./finish-url";
 import { combineLiveChecks, verifyLivePageWithRetry, type LiveCheck } from "./verify-live";
-import { arrivalFromStamp, parseArrivalStamp, type ArrivalPayload } from "./arrival";
+import { applyRetryCheck, arrivalFromStamp, parseArrivalStamp, type ArrivalPayload } from "./arrival";
 import { buildUnderstanding } from "./understanding";
 import { pathToChoice, resolveBuildPath } from "./choice";
 import { resolveEssentialsForBuild } from "./essentials-resolve";
@@ -62,6 +62,15 @@ export async function runOnboardingBuild(input: {
   const existing = parseBuildStatus(input.state.build);
   // done → return it (a second tap creates nothing). failed → retry (the
   // provisioner is idempotent on the lead). building → in flight, unless stale.
+  // TUL-818: a stored draft (the address check failed) is re-checked on retry;
+  // replaying the stored record made "Intentar de nuevo" fail forever.
+  if (existing?.status === "done" && existing.arrival?.variant === "draft_saved" && existing.arrival.link) {
+    const a = existing.arrival;
+    const check = await verifyLivePageWithRetry({ url: a.link!.href, name: a.businessName ?? a.headlineName });
+    if (!check.ok) logServerError("onboarding.build.verifyLive", new Error(`retry:${check.reason}`));
+    const arrival = applyRetryCheck(a, check);
+    return done(input, { ...existing, arrival, finishedAt: new Date().toISOString() });
+  }
   if (existing?.status === "done") return existing;
   if (existing?.status === "building" && Date.now() - Date.parse(existing.startedAt) < 3 * 60 * 1000) return existing;
 
@@ -135,7 +144,7 @@ export async function runOnboardingBuild(input: {
       // 1D: "ready" only when the real page opens with the person's own name.
       const liveCheck = await verifyLivePageWithRetry({ url: talent?.siteUrl ?? null, name: person.name });
       if (!liveCheck.ok) logServerError("onboarding.build.verifyLive", new Error(`talent:${liveCheck.reason}`));
-      const arrival = arrivalFromStamp({ path, stamp: null, person, businessName: null, services, unpricedServices, site: null, talent, liveCheck, firstService });
+      const arrival = arrivalFromStamp({ path, stamp: null, person, businessName: null, services, unpricedServices, site: null, talent, liveCheck, firstService, published: !!talent?.siteUrl });
       return done(input, { status: "done", path, talentProfileId, arrival, finishedAt: new Date().toISOString() });
     }
 
@@ -183,7 +192,7 @@ export async function runOnboardingBuild(input: {
     const arrival = arrivalFromStamp({
       path, stamp, person, businessName: finishName, services, unpricedServices,
       site: { publicUrl, editorUrl, adminPath: `${appUrl}${result.adminPath}` },
-      talent, liveCheck, urlDiffers: finish.differs, firstService,
+      talent, liveCheck, urlDiffers: finish.differs, firstService, published: true,
       ownerProvides: choice === "studio" && !!prov.talent,
     });
     return done(input, { status: "done", path, tenantId: result.tenantId, tenantSlug: result.tenantSlug, talentProfileId, arrival, finishedAt: new Date().toISOString() });

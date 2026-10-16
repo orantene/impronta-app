@@ -57,31 +57,20 @@ export function workspaceLocaleSeedPlan(
 
 /** True when `pathname` is this tenant's admin, in either URL shape (`/admin/...` on its own host, `/{slug}/admin/...` on the app host). */
 /**
- * Next sends `RSC: 1` on client-side (soft) navigations and prefetches; a hard
- * load or a reload is a document request without it.
- */
-export function isRscRequest(rscHeader: string | null | undefined): boolean {
-  return rscHeader === "1";
-}
-
-/**
- * Whether the admin layout may hop through the seed route for THIS request.
- * Same checks as before (no recent attempt, a real original-pathname header, a
- * seedable admin path) plus one: never on an RSC request. After sign-in the
- * login form soft-navigates to the admin; a layout redirect() to the seed
- * Route Handler inside that RSC render made the client router bounce between
- * the seed route and the admin page without settling (290 requests in 8 s,
- * blank until a reload), although the attempt cookie was already set. The hop
- * still runs on a hard load, so first-visit seeding is unchanged.
+ * Whether the admin layout may hop through the seed route for THIS request: no
+ * recent attempt (loop breaker), a real original-pathname header (never guess
+ * the return URL) and a seedable admin path. The hop itself is a HARD browser
+ * navigation (see LocaleSeedHardRedirect): a layout `redirect()` to the seed
+ * Route Handler during the post-sign-in soft navigation made the client router
+ * re-apply the redirect forever (TUL-1182). An `RSC` request-header guard was
+ * tried first and never matched in the layout under Next 16, so it is gone.
  */
 export function workspaceLocaleSeedHopPossible(input: {
   attemptCookie: string | null | undefined;
   originalPathnameHeader: string | null | undefined;
   pathname: string | null | undefined;
   tenantSlug: string;
-  rscHeader: string | null | undefined;
 }): boolean {
-  if (isRscRequest(input.rscHeader)) return false;
   if (input.attemptCookie) return false;
   if (!input.originalPathnameHeader) return false;
   return isWorkspaceSeedablePath(input.pathname, input.tenantSlug);
