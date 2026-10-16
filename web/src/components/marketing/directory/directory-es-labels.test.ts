@@ -19,3 +19,15 @@ test("a stored 'Independent' agency reads Independiente in ES", () => {
   assert.equal(agencyLine("Independent", false, DIRECTORY_COPY_ES), "Independiente");
   assert.equal(agencyLine(null, false, DIRECTORY_COPY_ES), "Independiente");
 });
+
+test("a city label that already ends with the country localizes that country in ES", () => {
+  assert.equal(
+    locationLine("Cancún, Quintana Roo, Mexico", "Mexico", "es"),
+    "Cancún, Quintana Roo, México",
+  );
+  assert.equal(locationLine("Tulum, Mexico", "MX", "es"), "Tulum, México");
+  assert.equal(
+    locationLine("Cancún, Quintana Roo, Mexico", "Mexico"),
+    "Cancún, Quintana Roo, Mexico",
+  );
+});
