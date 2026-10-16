@@ -36,3 +36,14 @@ test("DesktopMenu trigger does not open on focus", () => {
   assert.ok(body.includes("aria-haspopup"));
   assert.ok(!/\bonFocus=\{onOpen\}/.test(body), "menu trigger must not onFocus=onOpen");
 });
+
+// TUL-1162: signed in at 390px the header cluster (logo, favourites, cart, language, support,
+// account, menu) ran 16px past the viewport and clipped the menu button.
+test("TUL-1162: Support yields and the cluster gap tightens below 400px so the menu button stays on screen", () => {
+  const support = readFileSync(
+    join(process.cwd(), "src/components/marketing/marketing-support-menu.tsx"),
+    "utf8",
+  );
+  assert.match(support, /className="relative max-\[399px\]:hidden"/);
+  assert.match(header, /gap-0\.5 min-\[400px\]:gap-1 sm:gap-2/);
+});

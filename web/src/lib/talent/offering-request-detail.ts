@@ -29,9 +29,9 @@ export type OfferingRequestDetail = {
   cancellationHours?: number | null;
   imageUrl: string | null;
   /** D4 — selectable options (client picks one; null price = base applies). */
-  variants?: { id: string; label: string; amountCents: number | null }[];
+  variants?: { id: string; label: string; labelI18n?: Record<string, string | null | undefined>; amountCents: number | null }[];
   /** D4 — stackable extras (client picks any). */
-  addOns?: { id: string; label: string; amountCents: number; durationMinutes?: number | null }[];
+  addOns?: { id: string; label: string; labelI18n?: Record<string, string | null | undefined>; amountCents: number; durationMinutes?: number | null }[];
   /** D5 — null = unlimited; products with stock cap the qty stepper. */
   inventoryQty?: number | null;
   /** Set when the offering sells from a capacity pool; null = unlimited. */
@@ -63,17 +63,33 @@ export type OfferingRequestDetail = {
   slotStart?: string;
 };
 
+/**
+ * TUL-548 GRK-065: older home-visit rows carry no `where`, only an optional neighbourhood
+ * question ("Colonia", "Neighborhood or city") in their intake. That question is the sign the
+ * visit happens at the client's place.
+ */
+export function homeVisitNeighbourhoodKeys(intake: readonly { key: string; label: string; type: string }[] | null | undefined): string[] {
+  if (!Array.isArray(intake)) return [];
+  return intake
+    .filter((q) => q.type === "text" && (/^(col|area)$/.test(q.key) || /colonia|neighbou?rhood/i.test(q.label)))
+    .map((q) => q.key);
+}
+
 /** Read `attributes.where` without inventing schema. Unknown entries are dropped. */
 export function offeringWhereFromAttributes(
   attributes: Record<string, unknown> | null | undefined,
 ): OfferingDeliveryWhere[] {
   const raw = attributes?.where;
-  if (!Array.isArray(raw)) return [];
   const out: OfferingDeliveryWhere[] = [];
-  for (const item of raw) {
-    if (typeof item === "string" && WHERE_KEYS.has(item)) {
-      out.push(item as OfferingDeliveryWhere);
+  if (Array.isArray(raw)) {
+    for (const item of raw) {
+      if (typeof item === "string" && WHERE_KEYS.has(item)) {
+        out.push(item as OfferingDeliveryWhere);
+      }
     }
+  }
+  if (out.length === 0 && homeVisitNeighbourhoodKeys(attributes?.intake as IntakeQuestion[] | undefined).length > 0) {
+    return ["client"];
   }
   return out;
 }

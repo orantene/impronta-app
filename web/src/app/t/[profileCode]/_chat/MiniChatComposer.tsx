@@ -143,7 +143,7 @@ export function MiniChatComposer({
           const key = { key: e.key, shiftKey: e.shiftKey, metaKey: e.metaKey, ctrlKey: e.ctrlKey, isComposing: e.nativeEvent.isComposing };
           if (composerKeyAction(key) === "submit") {
             e.preventDefault();
-            onSubmit();
+            if (!sendDisabled) onSubmit();
           }
         }}
         placeholder={placeholder}

@@ -25,6 +25,10 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import type { DefaultCurrencyCode } from "@/lib/billing/currencies";
 import {
+  resolveIntervalPrice,
+  type ResolvedIntervalPrice,
+} from "./interval-pricing";
+import {
   formatUnitAmount,
   intervalSuffix,
   type PricingInterval,
@@ -422,6 +426,11 @@ export type MarketingTier = {
   /** Phase 5 — formatted canonical (non-sale) price for strike-through.
    *  Equal to `price` when isOnSale=false. */
   canonicalPrice: string;
+  /** TUL-828: monthly catalog price, null for tiers with no monthly row. */
+  monthly: ResolvedIntervalPrice | null;
+  /** TUL-828: yearly price, from a catalog row when one exists, else a
+   *  `source: "placeholder"` derivation (see interval-pricing.ts). */
+  yearly: ResolvedIntervalPrice | null;
 };
 
 const CADENCE_BY_INTERVAL: Record<PricingInterval, string> = {
@@ -485,6 +494,8 @@ export async function loadMarketingTiers(
       fellBackToUSD: Boolean(t.headline?.fellBackToUSD),
       isOnSale,
       canonicalPrice,
+      monthly: resolveIntervalPrice(t.prices, "month"),
+      yearly: resolveIntervalPrice(t.prices, "year"),
     };
   });
 }

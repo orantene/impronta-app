@@ -28,6 +28,7 @@ import { pickLocale } from "@/lib/i18n/pick-locale";
 import { GuestInstantContact } from "@/components/public-booking/GuestInstantContact";
 import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptchaField";
 import { instantRequiresSlot } from "@/lib/scheduling/instant-book-gates";
+import { instantMountShouldHandle } from "@/lib/talent-site/profile-booking-owner";
 import { PolicyLinkSheet } from "@/components/public-booking/PolicyLinkSheet";
 
 const INK = "#101211";
@@ -43,6 +44,7 @@ export function OfferingInstantMount({
   captcha = null,
   hasBookableHours = false,
   requestOnly = false,
+  catalogSheetMounted = false,
 }: {
   tenantId: string | null;
   sourcePage: string;
@@ -52,6 +54,8 @@ export function OfferingInstantMount({
   hasBookableHours?: boolean;
   /** Free and Pro never charge from this sheet. She confirms by hand. */
   requestOnly?: boolean;
+  /** TUL-707: CatalogBookingSheet is mounted and owns non-purchase bookings. */
+  catalogSheetMounted?: boolean;
 }) {
   const [sheet, setSheet] = useState<OfferingRequestDetail | null>(null);
   const [busy, setBusy] = useState(false);
@@ -70,6 +74,7 @@ export function OfferingInstantMount({
     const onInstant = (e: Event) => {
       const d = (e as CustomEvent).detail as OfferingRequestDetail | undefined;
       if (!d) return;
+      if (!instantMountShouldHandle(d, catalogSheetMounted)) return;
       if (
         instantRequiresSlot({
           kind: d.kind,
@@ -88,7 +93,7 @@ export function OfferingInstantMount({
     };
     window.addEventListener("tulala:offering-instant", onInstant);
     return () => window.removeEventListener("tulala:offering-instant", onInstant);
-  }, [tenantId, hasBookableHours]);
+  }, [tenantId, hasBookableHours, catalogSheetMounted]);
 
   if (!tenantId || !sheet) {
     // Invisible marker so QA can confirm the mount rendered + hydrated.
@@ -119,7 +124,14 @@ export function OfferingInstantMount({
   const addOnCents = addOns.filter((a) => addOnIds.includes(a.id)).reduce((s, a) => s + a.amountCents, 0);
   const totalCents = baseCents != null ? baseCents * effQty + addOnCents : null;
 
-  const price = totalCents != null ? formatOfferingPrice(totalCents, d.currency, locale) : "";
+  const price =
+    totalCents == null
+      ? ""
+      : totalCents <= 0
+        ? locale.toLowerCase().startsWith("es")
+          ? "Consultar"
+          : "Ask"
+        : formatOfferingPrice(totalCents, d.currency, locale);
   const depositAmount =
     d.reserveMode === "deposit" && d.depositPct && totalCents
       ? formatOfferingPrice(Math.round((totalCents * d.depositPct) / 100), d.currency, locale)
@@ -342,7 +354,7 @@ export function OfferingInstantMount({
             href={`/login?next=${encodeURIComponent(sourcePage)}`}
             style={{ ...btn(true), textAlign: "center", textDecoration: "none", marginBottom: 8 }}
           >
-            {pickLocale(locale, { en: "Sign in to book", es: "Inicia sesion para reservar" })}
+            {pickLocale(locale, { en: "Sign in to book", es: "Inicia sesión para reservar" })}
           </a>
         ) : null}
         {!signedIn && !d.requireAccountToBook ? (

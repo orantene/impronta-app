@@ -1,4 +1,5 @@
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { spanishPlaceName } from "@/lib/i18n/place-names-es";
 
 /**
  * Read-side helpers for canonical profile locations (residence + origin city rows).
@@ -50,9 +51,10 @@ export function formatCityCountryLabel(
   const loc = normalizeEmbed(row);
   if (!loc) return "";
   const i18n = loc.display_name_i18n ?? {};
-  const city = chain
+  const rawCity = chain
     ? ([...chain, "en"].map((c) => i18n[c]?.trim()).find(Boolean) ?? "")
     : pickLocale(locale, { en: i18n.en?.trim() ?? "", es: i18n.es?.trim() || undefined });
+  const city = spanishPlaceName(rawCity, locale);
   const country = loc.country_code?.trim() ?? "";
   if (city && country) return `${city}, ${country}`;
   return city || country;

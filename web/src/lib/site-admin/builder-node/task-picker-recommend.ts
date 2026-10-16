@@ -55,7 +55,7 @@ const MODE_LABELS: Record<TaskPickerMode, { en: string; es: string }> = {
 const FALLBACK_KICKER = { en: "Start here", es: "Empieza aquí" };
 const FALLBACK_HINT = {
   en: "Not sure what it is? Pick what you see and we will tell you what to book. If in doubt, start with this.",
-  es: "¿No sabes qué es? Elige lo que ves y te decimos qué pedir. Si no estás seguro, empieza por esto.",
+  es: "¿No sabes qué es? Elige lo que ves y te decimos qué pedir. Si te queda duda, empieza por esto.",
 };
 
 export function taskPickerMode(

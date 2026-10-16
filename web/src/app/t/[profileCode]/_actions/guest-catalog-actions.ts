@@ -14,7 +14,11 @@ import { z } from "zod";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadItemsCatalog } from "@/lib/messages-v5/items-catalog";
 import { categoryOrderForPreset, groupCatalog, type CatalogGroup, type ItemCategory } from "@/lib/messages-v5/items-picker";
+import { dedupeCatalogRows } from "@/lib/messages-v5/guest-catalog-dedupe";
 import { logServerError } from "@/lib/server/safe-error";
+import { getPublicHostContext } from "@/lib/saas/scope";
+import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
+import { guestCatalogTenantAllowed } from "@/lib/messages-v5/guest-catalog-tenant-guard";
 
 export type GuestCatalogRow = {
   id: string;
@@ -32,6 +36,10 @@ export type GuestCatalogRow = {
   eventSlug: string | null;
   startsAt: string | null;
   partySize: number | null;
+  /** Length in minutes, when the offering has one (TUL-1064 duration filter). */
+  durationMinutes: number | null;
+  /** Who offers it, on multi-owner (agency/hub) catalogs. */
+  ownerName: string | null;
 };
 
 export type GuestCatalogGroup = { category: ItemCategory; rows: GuestCatalogRow[] };
@@ -43,16 +51,18 @@ export type GetGuestCatalogResult =
 const inputSchema = z.object({
   tenantSlug: z.string().min(1),
   inquiryId: z.string().uuid().nullable().optional(),
+  /** The talent page the dock sits on (`/t/<code>`); narrows the catalog to that talent. */
+  profileCode: z.string().min(1).max(64).nullable().optional(),
 });
 
-export async function getGuestItemsCatalog(raw: { tenantSlug: string; inquiryId?: string | null }): Promise<GetGuestCatalogResult> {
+export async function getGuestItemsCatalog(raw: { tenantSlug: string; inquiryId?: string | null; profileCode?: string | null }): Promise<GetGuestCatalogResult> {
   const parsed = inputSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: "invalid" };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "unavailable" };
   const { data: tenant, error: tenantError } = await admin
     .from("agencies")
-    .select("id, status")
+    .select("id, status, kind")
     .eq("slug", parsed.data.tenantSlug.trim().toLowerCase())
     .limit(1)
     .maybeSingle();
@@ -60,20 +70,38 @@ export async function getGuestItemsCatalog(raw: { tenantSlug: string; inquiryId?
     logServerError("guest-catalog-actions.tenant", tenantError);
     return { ok: false, error: "unavailable" };
   }
+  const tenantKind = (tenant as { kind?: string } | null)?.kind ?? null;
   const tenantId = (tenant as { id?: string; status?: string } | null)?.id ?? null;
   if (!tenantId) return { ok: false, error: "not_found" };
+  // TUL-1063: the slug is client-sent; it must match the tenant this host serves.
+  {
+    const [host, hub] = await Promise.all([getPublicHostContext(), getPlatformHubTenant()]);
+    if (!guestCatalogTenantAllowed(host, tenantId, hub?.tenantId ?? null)) {
+      return { ok: false, error: "not_found" };
+    }
+  }
   try {
     // A missing inquiry only means "no date": the catalog still loads.
-    const catalog = await loadItemsCatalog(admin, { tenantId, inquiryId: parsed.data.inquiryId ?? "00000000-0000-0000-0000-000000000000" });
+    // P0: on a per-talent page the catalog is that talent's own. A code that does not
+    // resolve to a public profile fails closed (empty), never falls back to the whole tenant.
+    let pageTalentId: string | null = null;
+    // Only a hub (no roster of its own) narrows to the page's talent; an agency page keeps its own tenant catalog.
+    if (parsed.data.profileCode && tenantKind === "hub") {
+      pageTalentId = await publicProfileIdByCode(admin, parsed.data.profileCode);
+      if (!pageTalentId) return { ok: true, groups: [] };
+    }
+    const catalog = await loadItemsCatalog(admin, { tenantId, inquiryId: parsed.data.inquiryId ?? "00000000-0000-0000-0000-000000000000", talentProfileId: pageTalentId });
     const codes = await profileCodes(admin, catalog.rows.map((r) => r.talentProfileId).filter((v): v is string => Boolean(v)));
     // The shared reader lists the whole roster for staff. A visitor sees only
     // what the public directory shows (D-MSG-222): a person the directory
     // hides is not offered in the dock either.
-    const rows = catalog.rows.filter((r) => !r.talentProfileId || codes.has(r.talentProfileId));
+    // Identical package/service rows (same owner, title, price) show once (TUL-1065).
+    const rows = dedupeCatalogRows(catalog.rows.filter((r) => !r.talentProfileId || codes.has(r.talentProfileId)));
     const groups: CatalogGroup[] = groupCatalog(rows, categoryOrderForPreset(catalog.preset));
     return {
       ok: true,
-      groups: groups.map((g) => ({
+      // groupCatalog already drops empty groups; the filter keeps that true after any row-level pruning.
+      groups: groups.filter((g) => g.rows.length > 0).map((g) => ({
         category: g.category,
         rows: g.rows.map((r) => ({
           id: r.id,
@@ -90,6 +118,8 @@ export async function getGuestItemsCatalog(raw: { tenantSlug: string; inquiryId?
           eventSlug: r.eventSlug ?? null,
           startsAt: r.startsAt ?? null,
           partySize: r.partySize ?? null,
+          durationMinutes: r.durationMinutes ?? null,
+          ownerName: r.ownerName ?? null,
         })),
       })),
     };
@@ -97,6 +127,23 @@ export async function getGuestItemsCatalog(raw: { tenantSlug: string; inquiryId?
     logServerError("guest-catalog-actions.getGuestItemsCatalog", err);
     return { ok: false, error: "unavailable" };
   }
+}
+
+async function publicProfileIdByCode(admin: NonNullable<ReturnType<typeof createServiceRoleClient>>, code: string): Promise<string | null> {
+  const { data, error } = await admin
+    .from("talent_profiles")
+    .select("id")
+    .eq("profile_code", code)
+    .is("deleted_at", null)
+    .eq("is_publicly_hidden", false)
+    .eq("is_publicly_listed", true)
+    .neq("profile_kind", "resource")
+    .maybeSingle();
+  if (error) {
+    logServerError("guest-catalog-actions.publicProfileIdByCode", error);
+    return null;
+  }
+  return (data as { id?: string } | null)?.id ?? null;
 }
 
 /**

@@ -69,7 +69,7 @@ test("Apple finalize shares attach path; guards impersonation; never redirects",
   assert.match(actions, /shouldClaimInquiriesForSignIn/);
   assert.doesNotMatch(actions, /from "next\/navigation"/);
   assert.doesNotMatch(actions, /\bredirect\(/);
-  assert.match(actions, /claimInquiriesByConfirmedEmail/);
+  assert.match(actions, /claimAndActivateVerifiedClient/);
   assert.match(actions, /ensureTenantClientRelationship/);
   // assertNotImpersonating is the first await in Apple finalize (before getUser / attach).
   const appleFn = actions.slice(actions.indexOf("export async function finalizeClientAccountAppleSession"));

@@ -88,6 +88,7 @@ export function demoSiteSwitchColumns(profileCode: string): {
     greeting: string | null;
     browseServices: boolean;
     aiBookingAssistantEnabled: boolean;
+    agentBookingEnabled: boolean;
   };
 } {
   const s = demoSiteSettingsFor(profileCode);
@@ -99,6 +100,7 @@ export function demoSiteSwitchColumns(profileCode: string): {
       greeting: s.chatConfig.greeting,
       browseServices: s.chatConfig.browseServices,
       aiBookingAssistantEnabled: s.chatConfig.aiBookingAssistantEnabled,
+      agentBookingEnabled: s.chatConfig.agentBookingEnabled,
     },
   };
 }

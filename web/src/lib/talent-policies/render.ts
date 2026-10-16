@@ -6,6 +6,7 @@
  */
 
 import type { PolicyAnswers } from "./answers";
+import { platformOrigin } from "@/lib/legal/platform-origin";
 import type { InPersonMethod, PolicyFacts, WorkPlace } from "./facts";
 
 export type PolicyLocale = "es" | "en";
@@ -24,8 +25,8 @@ export const POLICY_TEMPLATE_VERSION = 3;
 
 /** D3: Tulala's own documents open off-host. */
 export const TULALA_DOC_LINKS = {
-  terms: "https://tulala.digital/legal/terms",
-  privacy: "https://tulala.digital/legal/privacy",
+  terms: `${platformOrigin()}/legal/terms`,
+  privacy: `${platformOrigin()}/legal/privacy`,
 } as const;
 
 const METHOD_LABEL: Record<PolicyLocale, Record<InPersonMethod, string>> = {

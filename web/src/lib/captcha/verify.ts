@@ -54,7 +54,8 @@
 import "server-only";
 
 import { envCaptchaFallback } from "@/lib/captcha/env-fallback";
-import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
+import { currentRequestHost, resolveTenantCaptcha } from "@/lib/integrations/resolve";
+import { isPlatformCaptchaHost } from "@/lib/captcha/platform-hosts";
 
 // ---------------------------------------------------------------------------
 // Result types
@@ -108,7 +109,10 @@ async function verifyHcaptcha(token: string, secret: string): Promise<boolean> {
 // Public API
 // ---------------------------------------------------------------------------
 
-export type CaptchaResolver = (tenantId: string) => Promise<{
+export type CaptchaResolver = (
+  tenantId: string,
+  opts?: { host?: string | null },
+) => Promise<{
   provider: "hcaptcha" | "turnstile" | "none";
   getSecret: () => Promise<string | null>;
 }>;
@@ -117,8 +121,12 @@ export type CaptchaResolver = (tenantId: string) => Promise<{
 async function resolveFor(
   tenantId: string | null | undefined,
   resolver: CaptchaResolver,
+  host?: string | null,
 ): Promise<{ provider: "hcaptcha" | "turnstile" | "none"; getSecret: () => Promise<string | null> }> {
-  if (tenantId) return resolver(tenantId);
+  if (tenantId) return resolver(tenantId, host !== undefined ? { host } : {});
+  // Env keys are platform keys: same per-host rule as the tenant path.
+  const h = host !== undefined ? host : await currentRequestHost();
+  if (!isPlatformCaptchaHost(h)) return { provider: "none", getSecret: async () => null };
   const env = envCaptchaFallback(process.env);
   return { provider: env.provider, getSecret: async () => env.secret };
 }
@@ -136,10 +144,12 @@ export async function verifyCaptchaToken(opts: {
   ip?: string | null;
   tenantId?: string | null;
   resolver?: CaptchaResolver;
+  /** Request host; omitted = read from request headers (same rule as the widget). */
+  host?: string | null;
 }): Promise<CaptchaVerifyResult> {
   let cfg;
   try {
-    cfg = await resolveFor(opts.tenantId, opts.resolver ?? resolveTenantCaptcha);
+    cfg = await resolveFor(opts.tenantId, opts.resolver ?? resolveTenantCaptcha, opts.host);
   } catch {
     return { ok: false, code: "captcha_failed", message: "Challenge failed — please try again." };
   }

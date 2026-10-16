@@ -9,6 +9,7 @@
 // card 3f32c5ee974381b6ae7ec3f6b8347f49).
 
 import { Suspense } from "react";
+import { loginUrlKeepingSupport } from "@/lib/support/login-next-support";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 
@@ -28,7 +29,7 @@ export default async function PlatformTalentLayout({
 }) {
   const session = await getCachedActorSession();
   if (!session.supabase) redirect("/login?error=config");
-  if (!session.user) redirect("/login?next=/talent/today");
+  if (!session.user) redirect(loginUrlKeepingSupport("/talent/today", await headers()));
 
   const hdrs = await headers();
   const pathname = hdrs.get("x-impronta-original-pathname") ?? "/talent/today";
@@ -39,6 +40,12 @@ export default async function PlatformTalentLayout({
   // freeform Page Builder editor chrome) opt OUT of the dashboard shell so the
   // editor renders bare. The route itself enforces auth + the Max-tier gate.
   if (pathname.startsWith("/talent/page-builder")) {
+    return <>{children}</>;
+  }
+
+  // Posts v1 writer (/talent/posts/<id>) is full-screen and owns its viewport,
+  // like the page builder. The list at /talent/posts stays inside the shell.
+  if (pathname.startsWith("/talent/posts/")) {
     return <>{children}</>;
   }
 

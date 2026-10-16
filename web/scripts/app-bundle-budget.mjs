@@ -1,5 +1,11 @@
 /**
- * ADMIN + POS JAVASCRIPT BUDGET.
+ * ADMIN + POS + TALENT JAVASCRIPT BUDGET.
+ *
+ * TUL-1142: the public talent site and the /talent shell are budgeted too, as a GROWTH budget:
+ * the baseline records the measured bytes and the gate fails when a build is more than
+ * `maxGrowthPct` (10) over it. The 914 and 920 regressions (loading shell, hydration) grew these
+ * bundles with no ceiling to trip. Admin and POS keep their absolute `maxBytes` ceilings.
+
  *
  * The plan's finding: "the perf budget covers seven static builder designs
  * only — not admin, not POS". Those two are the surfaces where weight actually
@@ -60,6 +66,9 @@ const MANIFEST_FILE = "page_client-reference-manifest.js";
 
 const KB = 1024;
 
+/** TUL-1142: how far a growth-budgeted bundle may exceed its recorded baseline. */
+const GROWTH_PCT = 10;
+
 /**
  * Each budget names a set of app-router routes by prefix.
  *
@@ -78,6 +87,19 @@ const BUDGETS = [
     id: "pos",
     label: "POS register",
     match: "/(workspace)/[tenantSlug]/admin/pos",
+  },
+  {
+    // The talent's public site: the host-root renderer (app/_talent-site) and the /t/site/... routes.
+    id: "talent-site",
+    label: "Talent site (public)",
+    match: ["/_talent-site", "/t/site"],
+    growthPct: GROWTH_PCT,
+  },
+  {
+    id: "talent-shell",
+    label: "Talent shell (/talent)",
+    match: "/(workspace)/talent",
+    growthPct: GROWTH_PCT,
   },
 ];
 
@@ -116,17 +138,57 @@ export function discoverRouteManifests(appDir, readDir) {
  * no `process` and no timers — the file's only statement is an assignment.
  */
 export function chunksFromManifestSource(source) {
+  return parseManifestSource(source).chunks;
+}
+
+/**
+ * Same parse, plus the attribution: which client modules (source file paths,
+ * export stripped) name each chunk. Chunk file names are hashes, so this is
+ * what makes the largest chunks readable (TUL-1178).
+ */
+export function parseManifestSource(source) {
   const sandbox = {};
   sandbox.globalThis = sandbox;
   createContext(sandbox);
   runInContext(source, sandbox, { timeout: 10_000 });
   const chunks = new Set();
+  const owners = new Map();
   for (const entry of Object.values(sandbox.__RSC_MANIFEST ?? {})) {
-    for (const mod of Object.values(entry?.clientModules ?? {})) {
-      for (const chunk of mod?.chunks ?? []) chunks.add(chunk);
+    for (const [modKey, mod] of Object.entries(entry?.clientModules ?? {})) {
+      const file = String(modKey).split("#")[0];
+      for (const chunk of mod?.chunks ?? []) {
+        chunks.add(chunk);
+        let set = owners.get(chunk);
+        if (!set) owners.set(chunk, (set = new Set()));
+        set.add(file);
+      }
     }
   }
-  return chunks;
+  return { chunks, owners };
+}
+
+/**
+ * The N largest chunks of one budget's route union, each with the client
+ * modules that name it. Pure given its inputs. Report only: it never affects a
+ * budget verdict.
+ */
+export function largestChunks(routes, budget, sizer, n = 12) {
+  const prefixes = [budget.match].flat();
+  const chunks = new Set();
+  const owners = new Map();
+  for (const entry of routes) {
+    if (!prefixes.some((prefix) => entry.route.startsWith(prefix))) continue;
+    for (const chunk of entry.chunks) chunks.add(chunk);
+    for (const [chunk, files] of entry.owners ?? []) {
+      let set = owners.get(chunk);
+      if (!set) owners.set(chunk, (set = new Set()));
+      for (const file of files) set.add(file);
+    }
+  }
+  return [...chunks]
+    .map((chunk) => ({ chunk, bytes: sizer(chunk) ?? 0, files: [...(owners.get(chunk) ?? [])].sort() }))
+    .sort((a, b) => b.bytes - a.bytes)
+    .slice(0, n);
 }
 
 // ── Measuring ────────────────────────────────────────────────────────────────
@@ -138,7 +200,8 @@ export function chunksFromManifestSource(source) {
  */
 export function measure(routes, budgets, sizer) {
   return budgets.map((budget) => {
-    const matched = routes.filter((entry) => entry.route.startsWith(budget.match));
+    const prefixes = [budget.match].flat();
+    const matched = routes.filter((entry) => prefixes.some((prefix) => entry.route.startsWith(prefix)));
     const chunks = new Set();
     for (const entry of matched) for (const chunk of entry.chunks) chunks.add(chunk);
     let bytes = 0;
@@ -195,19 +258,42 @@ export function evaluate(reports, baseline) {
       });
       continue;
     }
-    if (report.bytes > recorded.maxBytes) {
+    // TUL-1142: a growth budget stores the measured baseline and a percentage; an absolute
+    // budget stores `maxBytes`. The ceiling is whichever the entry declares.
+    const ceiling = ceilingFor(recorded);
+    if (ceiling === null) {
+      violations.push({
+        id: report.id,
+        kind: "unrecorded",
+        message: `"${report.id}" has neither maxBytes nor baselineBytes + maxGrowthPct recorded.`,
+      });
+      continue;
+    }
+    if (report.bytes > ceiling) {
+      const growth = recorded.baselineBytes
+        ? ` (${(((report.bytes - recorded.baselineBytes) / recorded.baselineBytes) * 100).toFixed(1)}% over the ${fmt(recorded.baselineBytes)} baseline, limit ${recorded.maxGrowthPct}%)`
+        : "";
       violations.push({
         id: report.id,
         kind: "over",
         actual: report.bytes,
-        max: recorded.maxBytes,
+        max: ceiling,
         message:
-          `${report.label} is ${fmt(report.bytes)}, over the ${fmt(recorded.maxBytes)} ` +
-          `ceiling by ${fmt(report.bytes - recorded.maxBytes)}.`,
+          `${report.label} is ${fmt(report.bytes)}, over the ${fmt(ceiling)} ` +
+          `ceiling by ${fmt(report.bytes - ceiling)}${growth}.`,
       });
     }
   }
   return violations;
+}
+
+/** Byte ceiling of one baseline entry: absolute `maxBytes`, or `baselineBytes` grown by `maxGrowthPct`. */
+export function ceilingFor(recorded) {
+  if (typeof recorded?.maxBytes === "number") return recorded.maxBytes;
+  if (typeof recorded?.baselineBytes === "number" && typeof recorded?.maxGrowthPct === "number") {
+    return Math.floor(recorded.baselineBytes * (1 + recorded.maxGrowthPct / 100));
+  }
+  return null;
 }
 
 function fmt(bytes) {
@@ -235,7 +321,7 @@ function readRoutes() {
   );
   return manifests.map(({ route, file }) => ({
     route,
-    chunks: chunksFromManifestSource(readFileSync(file, "utf8")),
+    ...parseManifestSource(readFileSync(file, "utf8")),
   }));
 }
 
@@ -265,10 +351,15 @@ function runEnforce(mode) {
       JSON.stringify(
         {
           budgets: Object.fromEntries(
-            reports.map((report) => [
-              report.id,
-              { maxBytes: report.bytes, measuredBytes: report.bytes, why: "TODO" },
-            ]),
+            reports.map((report) => {
+              const growthPct = BUDGETS.find((budget) => budget.id === report.id)?.growthPct;
+              return [
+                report.id,
+                growthPct
+                  ? { baselineBytes: report.bytes, maxGrowthPct: growthPct, measuredBytes: report.bytes, why: "TODO" }
+                  : { maxBytes: report.bytes, measuredBytes: report.bytes, why: "TODO" },
+              ];
+            }),
           ),
         },
         null,
@@ -297,15 +388,36 @@ function runEnforce(mode) {
       const ok = !violations.some((violation) => violation.id === report.id);
       console.log(
         `${ok ? "✓" : "✗"} ${report.label.padEnd(30)} ${fmt(report.bytes).padStart(10)}` +
-          `  (≤ ${recorded ? fmt(recorded.maxBytes) : "unrecorded"}; ` +
+          `  (≤ ${ceilingFor(recorded) === null ? "unrecorded" : fmt(ceilingFor(recorded))}; ` +
           `${report.routeCount} route(s), ${report.chunkCount} chunk(s))`,
       );
+    }
+    // TUL-1178: the biggest admin chunks and who names them, so a reduction pass starts from data.
+    // Report only; it never changes the verdict.
+    const adminBudget = BUDGETS.find((budget) => budget.id === "admin");
+    if (adminBudget) {
+      console.log(`\n[perf:app-budget] Largest chunks in the ${adminBudget.label} union:`);
+      for (const top of largestChunks(routes, adminBudget, diskSizer)) {
+        // The bundler merges chunks, so owner lists are mostly node_modules; show the app's own modules first.
+        const own = top.files.filter((file) => /\/src\//.test(file) && !/\bnode_modules\b/.test(file));
+        const shown = own.slice(0, 6).map((file) => file.replace(/^.*\/src\//, "src/"));
+        const more = own.length > shown.length ? ` +${own.length - shown.length} more` : "";
+        const lib = top.files.length - own.length;
+        console.log(
+          `   ${fmt(top.bytes).padStart(10)}  ${top.chunk.replace(/^\/_next\/static\/chunks\//, "")}  ` +
+            `[${own.length} src module(s), ${lib} other] ${shown.join(", ")}${more}`,
+        );
+      }
     }
     if (violations.length === 0) {
       console.log(`\n✓ App bundle budget OK.`);
     } else {
       console.error(`\n✗ App bundle budget FAILED — ${violations.length} finding(s):`);
       for (const violation of violations) console.error(`   · ${violation.message}`);
+      if (violations.some((violation) => violation.kind === "no-routes")) {
+        console.error(`\nRoutes in the build that mention "talent" (to fix a stale prefix):`);
+        for (const entry of routes.filter((r) => /talent/i.test(r.route)).slice(0, 40)) console.error(`   ${entry.route}`);
+      }
       console.error(
         `\nIf the growth is deliberate, raise the ceiling in ` +
           `scripts/app-bundle-budget.baseline.json IN THE SAME COMMIT that spends it, ` +
@@ -317,13 +429,13 @@ function runEnforce(mode) {
 }
 
 /**
- * Prove the gate can fail, with no build on disk. Five checks:
+ * Prove the gate can fail, with no build on disk. Five checks (plus the attribution report, check 8):
  *   1. unique chunks are unioned across routes, not summed per route,
  *   2. a narrower prefix does not pick up its siblings,
  *   3. an over-ceiling measurement produces a violation,
  *   4. an at-ceiling measurement does not,
  *   5. a prefix matching no route is reported rather than passing,
- * plus the manifest parser against a synthetic manifest, because a parser that
+ * plus (6) the manifest parser and (7) the growth budget, against a synthetic manifest, because a parser that
  * silently returns an empty set turns every budget into 0 bytes and green.
  */
 function runSelfTest() {
@@ -358,11 +470,11 @@ function runSelfTest() {
   if (admin.bytes !== 111) failures.push(`unioned chunk sum was ${admin.bytes}, expected 111`);
   if (admin.routeCount !== 2) failures.push(`admin matched ${admin.routeCount} routes, expected 2`);
   if (admin.chunkCount !== 3) failures.push(`admin saw ${admin.chunkCount} chunks, expected 3`);
-  console.log(`[1/6] chunks unioned once → admin = ${admin.bytes} B over ${admin.chunkCount} chunk(s)`);
+  console.log(`[1/7] chunks unioned once → admin = ${admin.bytes} B over ${admin.chunkCount} chunk(s)`);
 
   const pos = reports.find((report) => report.id === "pos");
   if (pos.bytes !== 101) failures.push(`pos measured ${pos.bytes}, expected 101 (no admin.js leak)`);
-  console.log(`[2/6] narrower prefix stays narrow → pos = ${pos.bytes} B`);
+  console.log(`[2/7] narrower prefix stays narrow → pos = ${pos.bytes} B`);
 
   const over = evaluate(reports, {
     budgets: { admin: { maxBytes: 100 }, pos: { maxBytes: 1000 }, ghost: { maxBytes: 1 } },
@@ -370,19 +482,19 @@ function runSelfTest() {
   if (!over.some((violation) => violation.id === "admin" && violation.kind === "over")) {
     failures.push("an over-ceiling admin bundle did not fail");
   }
-  console.log(`[3/6] over-ceiling → ${over.filter((v) => v.kind === "over").length} 'over' finding(s)`);
+  console.log(`[3/7] over-ceiling → ${over.filter((v) => v.kind === "over").length} 'over' finding(s)`);
 
   const atLimit = evaluate(
     reports.filter((report) => report.id === "admin"),
     { budgets: { admin: { maxBytes: 111 } } },
   );
   if (atLimit.length !== 0) failures.push(`at-the-ceiling produced ${atLimit.length} false positive(s)`);
-  console.log(`[4/6] at-the-ceiling → ${atLimit.length} false positive(s)`);
+  console.log(`[4/7] at-the-ceiling → ${atLimit.length} false positive(s)`);
 
   if (!over.some((violation) => violation.id === "ghost" && violation.kind === "no-routes")) {
     failures.push("a budget matching zero routes passed silently");
   }
-  console.log(`[5/6] stale prefix → reported`);
+  console.log(`[5/7] stale prefix → reported`);
 
   const parsed = chunksFromManifestSource(
     `globalThis.__RSC_MANIFEST = globalThis.__RSC_MANIFEST || {};` +
@@ -391,7 +503,38 @@ function runSelfTest() {
       `"b":{"chunks":["/_next/static/chunks/one.js"]}}};`,
   );
   if (parsed.size !== 2) failures.push(`manifest parser returned ${parsed.size} chunk(s), expected 2`);
-  console.log(`[6/6] manifest parser → ${parsed.size} unique chunk(s)`);
+  console.log(`[6/7] manifest parser → ${parsed.size} unique chunk(s)`);
+
+  // TUL-1142: growth budgets. 1000 B baseline at 10% allows 1100 B and not 1101 B.
+  const growth = { baselineBytes: 1000, maxGrowthPct: 10 };
+  if (ceilingFor(growth) !== 1100) failures.push(`growth ceiling was ${ceilingFor(growth)}, expected 1100`);
+  const grew = (bytes) => evaluate([{ id: "t", label: "t", routeCount: 1, chunkCount: 1, bytes, missing: [] }], { budgets: { t: growth } });
+  if (grew(1100).length !== 0) failures.push("a bundle exactly 10% over baseline failed");
+  const grewOver = grew(1101);
+  if (grewOver.length !== 1 || grewOver[0].kind !== "over") failures.push("a bundle more than 10% over baseline did not fail");
+  if (!/10\.1% over/.test(grewOver[0]?.message ?? "")) failures.push(`growth message did not state the percentage: ${grewOver[0]?.message}`);
+  const arrays = measure(
+    [{ route: "/a/x", chunks: new Set(["/_next/a.js"]) }, { route: "/b/y", chunks: new Set(["/_next/b.js"]) }, { route: "/c", chunks: new Set(["/_next/c.js"]) }],
+    [{ id: "multi", label: "multi", match: ["/a", "/b"] }],
+    (chunk) => ({ "/_next/a.js": 1, "/_next/b.js": 2, "/_next/c.js": 4 })[chunk] ?? null,
+  )[0];
+  if (arrays.routeCount !== 2 || arrays.bytes !== 3) failures.push(`array match measured ${arrays.bytes} B over ${arrays.routeCount} route(s), expected 3 B over 2`);
+  console.log(`[7/7] growth budget → ceiling ${ceilingFor(growth)} B, array prefixes → ${arrays.bytes} B`);
+
+  // [8] the attribution report (TUL-1178): biggest chunks first, each with the client modules that name it, and a
+  // parse of a synthetic manifest that strips the export suffix. Report only, so it must never move a verdict.
+  const manifest = parseManifestSource(
+    'globalThis.__RSC_MANIFEST = { "/a/page": { clientModules: { "/w/src/big.tsx#default": { chunks: ["/_next/big.js"] }, "/w/src/small.tsx#X": { chunks: ["/_next/small.js", "/_next/big.js"] } } } };',
+  );
+  const top = largestChunks(
+    [{ route: "/(workspace)/[tenantSlug]/admin", chunks: manifest.chunks, owners: manifest.owners }],
+    { id: "admin", label: "admin", match: "/(workspace)/[tenantSlug]/admin" },
+    (chunk) => ({ "/_next/big.js": 50, "/_next/small.js": 5 })[chunk] ?? null,
+    1,
+  );
+  if (top.length !== 1 || top[0].chunk !== "/_next/big.js") failures.push(`largestChunks returned ${JSON.stringify(top)}, expected only big.js`);
+  else if (top[0].files.join(",") !== "/w/src/big.tsx,/w/src/small.tsx") failures.push(`largestChunks owners were ${top[0].files.join(",")}`);
+  console.log(`[8/8] attribution report → top chunk ${top[0]?.chunk} named by ${top[0]?.files.length} module(s)`);
 
   if (failures.length > 0) {
     console.error(`\n✗ Self-test FAILED — this gate would not catch bundle growth:`);

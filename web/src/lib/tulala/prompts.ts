@@ -51,7 +51,7 @@ const VOICE = [
  * claim about their own business.
  */
 export function buildExtractionPrompt(
-  options: { pack?: IndustryPack | null } = {},
+  options: { pack?: IndustryPack | null; locale?: "en" | "es" } = {},
 ): string {
   // Physical attributes are offered ONLY inside the modelling pack. Withholding
   // the key is the enforcement: the model cannot record a description of
@@ -65,17 +65,28 @@ export function buildExtractionPrompt(
     "RULES",
     "1. Only use keys from the list below. Never invent a key.",
     "2. Only record what they actually said or clearly implied. Do not fill gaps.",
+    "2b. NEVER guess a phone, WhatsApp number, email or person name. Record one only when it appears in their words, exactly as typed. Otherwise leave it out.",
     "3. If you are guessing, lower the confidence. Below 0.4, leave it out.",
     "4. `quote` must be their exact words, copied, not paraphrased. Empty if there is no phrase to quote.",
     "5. Booleans are exactly 'true' or 'false'. Numbers are digits. Lists are comma separated.",
     "6. For keys with an allowed list, use one of those values exactly.",
+    "7. Keep the person's language. If they wrote in Spanish, record work.services, work.industry, work.discipline, and free-text values in Spanish; do not translate to English.",
+    "8. business.name: copy the name they gave, trimmed only. Never paraphrase, translate, or invent a brand name.",
     "",
+    ...(options.locale === "es"
+      ? [
+          "LANGUAGE",
+          "Write descriptive values (work.industry, work.discipline, service and menu names, business kind) in Spanish, whatever language the person used. Keep `quote` exact and proper names unchanged.",
+          "",
+        ]
+      : []),
     "COMMON MISTAKES TO AVOID",
     "- 'I work at a spa' does NOT mean they own a spa. That is business.works_from = someone_elses_premises.",
     "- 'I do nails at home' does NOT mean they have a business. Do not set business.exists.",
     "- Someone mentioning colleagues does NOT mean they employ them. Leave the arrangement unset until they say.",
     "- A number of people means total headcount only if they say 'including me'. Otherwise record what they said and let the follow-up settle it.",
     "- brand.visual_direction only from style words they used ('luxury', 'family', 'on the beach', 'minimal'); never from the trade or the name, and never above 0.6.",
+    "- Do not rewrite 'Salón Luna' as 'Luna Salon' or invent English service lists (Haircuts/Color) when they spoke Spanish.",
     "",
     ...(options.pack
       ? [

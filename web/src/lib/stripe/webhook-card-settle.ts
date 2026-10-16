@@ -21,6 +21,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { markFailed, markPaid } from "@/lib/bookings/transactions";
 import { unwindClosedCheckoutSession } from "@/lib/orders/unwind-failed-checkout";
 import { closePaymentLinkForClosedCheckout } from "@/lib/payments/link-settlement";
+import { releasePromoHoldsForClosedCheckout } from "@/lib/promos/redemption/order-redemptions";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type { StripeAccountKey } from "@/lib/stripe/client";
 import { loadChargePlatformForTransaction, recordChargePlatform } from "@/lib/stripe/charge-platform";
@@ -155,6 +156,8 @@ export async function settleCheckoutPayment(
   return { ok: false, error: `markPaid(${action.transactionId}): ${result.error}` };
 }
 
+const UUID_TXN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function closeCheckoutSession(action: {
   transactionId: string;
   reason: "expired" | "async_payment_failed";
@@ -173,5 +176,8 @@ export async function closeCheckoutSession(action: {
     const unwound = await unwindClosedCheckoutSession(sb, action);
     if (!unwound.ok) return { ok: false, error: `checkout_session_closed(${action.transactionId}): unwind incomplete` };
   }
+  // Promos v1: an abandoned instant checkout frees its held promo now (the
+  // sweep cron covers anything this misses). Best effort, never a retry.
+  if (UUID_TXN.test(action.transactionId)) await releasePromoHoldsForClosedCheckout(sb, action.transactionId);
   return { ok: true };
 }

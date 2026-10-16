@@ -77,6 +77,7 @@ export function SelectionDock({
   toast,
   onUndo,
   liveStatus = null,
+  askOnly = false,
 }: {
   items: SelectionDockItem[];
   show: boolean;
@@ -94,6 +95,8 @@ export function SelectionDock({
    * alone), so every other design and the off state render the original markup.
    */
   liveStatus?: LiveStatusRenderContext | null;
+  /** GRK-042: the front service is quote / request only, so Continuar opens the chat. */
+  askOnly?: boolean;
 }) {
   const copy = selectionDockCopy(locale);
   const emergenciesOn = useEmergenciesToday(liveStatus);
@@ -194,8 +197,16 @@ export function SelectionDock({
           <b>{name}</b>
           <span>{line}</span>
         </div>
-        <button type="button" ref={continueRef} className="cb-dock-go" onClick={onContinue}>
-          {emergenciesOn ? (
+        <button
+          type="button"
+          ref={continueRef}
+          className="cb-dock-go"
+          data-ask-only={askOnly ? "true" : undefined}
+          onClick={onContinue}
+        >
+          {askOnly ? (
+            copy.askOnlyLabel
+          ) : emergenciesOn ? (
             <>
               <span className="cb-dock-lbl-off">{copy.continueLabel}</span>
               <span className="cb-dock-lbl-on" data-dock-live="on" hidden>{copy.liveLabel}</span>

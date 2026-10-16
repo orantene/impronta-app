@@ -154,7 +154,7 @@ export function SupportCardRenderer({
 
   if (kind === "attachment") {
     const attachmentId = typeof payload.attachmentId === "string" ? payload.attachmentId : "";
-    const name = typeof payload.name === "string" ? payload.name : "Image";
+    const name = typeof payload.name === "string" ? payload.name : t("dashboard.adminSupport.attachmentFallbackName");
     return <AttachmentCard attachmentId={attachmentId} name={name} tone={tone} />;
   }
 

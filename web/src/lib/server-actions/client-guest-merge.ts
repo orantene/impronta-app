@@ -12,7 +12,7 @@ import { verifyGuestCookie } from "@/lib/guest-cookie";
 import { backfillCartFromClaimedInquiries } from "@/lib/inquiry/cart-selected-ids-projection";
 import { claimGuestSupportOnAuth } from "@/lib/support/guest-claim-auth";
 import { verifiedEmailForGuestClaim } from "@/lib/support/guest-claim-email";
-import { claimInquiriesByConfirmedEmail } from "@/lib/inquiry/claim-by-email";
+import { claimAndActivateVerifiedClient } from "@/lib/client-account/after-verified-sign-in.server";
 import type { ServerActionResult } from "@/lib/server-actions/result";
 
 const GUEST_COOKIE = "impronta_guest";
@@ -123,11 +123,8 @@ export async function mergeGuestActivity(
   }
 
   if (admin && verifiedEmail) {
-    await claimInquiriesByConfirmedEmail({
-      admin,
-      userId: user.id,
-      verifiedEmail,
-    });
+    // G3: same claim + activation as every sign-in path.
+    await claimAndActivateVerifiedClient({ userId: user.id, email: verifiedEmail, emailProven: true, admin });
   }
 
   if (!sessionKey || !guestSessionId) {

@@ -30,7 +30,7 @@ test("AUD-042: desktop list rows pin price + CTA right", () => {
 test("SPRINT-GRIDLINE-MATRIX: a start-aligned stack container still gives the catalog the full row", () => {
   assert.ok(
     css.includes(
-      '.site-builder-node--container:not([data-builder-layout="row"]):not([data-builder-layout="grid"]):not([data-builder-display="grid"])>.site-builder-node--services-catalog{align-self:stretch}',
+      '.site-builder-node--container:not([data-builder-layout="row"]):not([data-builder-layout="grid"]):not([data-builder-display="grid"])>.site-builder-node--services-catalog{align-self:stretch;min-width:0}',
     ),
   );
 });

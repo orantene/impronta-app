@@ -83,6 +83,8 @@ export default async function BookPage() {
     const identity = await loadPublicIdentity(tenantId);
     if (identity?.public_name?.trim()) agencyName = identity.public_name.trim();
   }
+  // Respects /w/<slug>; agency hosts serve the contact page at the root.
+  const pathPrefix = host.kind === "agency" ? "" : await getPublicPathPrefix();
   const guestChrome = await loadGuestInstantChrome(tenantId || null);
 
   return (
@@ -99,8 +101,10 @@ export default async function BookPage() {
           agencyName={agencyName}
           offerings={offerings}
           signedIn={guestChrome.signedIn}
+          client={guestChrome.client}
           captcha={guestChrome.captcha}
           locale={locale}
+          contactHref={`${pathPrefix}/contact`}
         />
       </main>
       <PublicFooter className="mt-auto border-t border-border px-4 py-8 sm:px-6 lg:px-8" />

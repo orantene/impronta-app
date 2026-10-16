@@ -8,6 +8,7 @@ import {
   normalizeOptionalNextPath,
   resolveAuthenticatedDestination,
 } from "@/lib/auth-flow";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import {
   buildWorkspaceOnboardingPath,
   isWorkspaceOnboardingPath,
@@ -152,7 +153,7 @@ export default async function OnboardingRolePage({
     const target = legacySignupRedirect({
       flagOn: true,
       surface: "role",
-      siteUrl: getSiteUrl(),
+      siteUrl: resolveMarketingOrigin(),
       lang: await legacyFlowLang(),
       hostKind: (await getPublicHostContext()).kind,
       next: nextPath ?? null,

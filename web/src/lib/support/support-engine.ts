@@ -9,7 +9,7 @@ import {
 import { auditHq, auditTenant, notify } from "./support-engine-emit";
 import { supportFrom } from "./support-from";
 import { deriveTicketSubject } from "./ticket-title";
-import { requestSupportLocale, supportHandoffBody } from "./support-handoff-copy";
+import { requestSupportLocale, supportHandoffBody, ticketHandoffLocale } from "./support-handoff-copy";
 import { assignEscalationOwner } from "./escalation-owner";
 import {
   mapEventRow,
@@ -71,7 +71,7 @@ export async function createTicket(input: {
   const now = new Date().toISOString();
   const subject = input.messageOranDirectly && !(input.subject ?? "").trim()
     ? "Direct message" // only the panel's canned body; a typed subject/message wins
-    : deriveTicketSubject({ subject: input.subject, body: input.body });
+    : deriveTicketSubject({ subject: input.subject, body: input.body, typed: true });
 
   const insertRow: Record<string, unknown> = {
     tenant_id: input.tenantId,
@@ -575,7 +575,7 @@ export async function escalateTicket(input: {
     authorUserId: null,
     messageKind: "card",
     skipNotify: true,
-    body: supportHandoffBody(await requestSupportLocale()),
+    body: supportHandoffBody(ticketHandoffLocale(ticket.metadata, await requestSupportLocale())),
     cardPayload: {
       kind: "handoff",
       ticketId: ticket.id,

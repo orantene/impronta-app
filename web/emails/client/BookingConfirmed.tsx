@@ -3,13 +3,17 @@ import * as React from "react";
 import { Button } from "../components/Button";
 import { FieldTable } from "../components/FieldTable";
 import { Layout, type EmailBrand } from "../components/Layout";
-import { getEmailCopy, interpolate } from "@/lib/notifications/email-copy";
+import { getEmailCopy } from "@/lib/notifications/email-copy";
+import { bookingGreeting } from "@/lib/notifications/booking-confirmed-email";
 
 interface Props {
   clientName: string | null;
   contactName: string | null;
   eventDate: string | null;
   eventLocation: string | null;
+  /** TUL-852: the service booked and its price in the booking currency. */
+  serviceName?: string | null;
+  priceLabel?: string | null;
   bookingUrl: string;
   /** The business the client booked with; shown under the brand mark. */
   sellerName?: string | null;
@@ -23,6 +27,8 @@ export default function BookingConfirmed({
   contactName,
   eventDate,
   eventLocation,
+  serviceName,
+  priceLabel,
   bookingUrl,
   sellerName,
   brand,
@@ -30,11 +36,12 @@ export default function BookingConfirmed({
   categoryLabel,
 }: Props) {
   const t = getEmailCopy(brand?.locale)["client.booking_confirmed"];
-  const name = clientName ?? "there";
-  const event = contactName ?? "your booking";
+  const greeting = bookingGreeting(t, clientName ?? contactName);
 
   const fields = [
+    serviceName ? { label: t.serviceLabel, value: serviceName } : null,
     eventDate ? { label: t.dateLabel, value: eventDate } : null,
+    priceLabel ? { label: t.priceLabel, value: priceLabel } : null,
     eventLocation ? { label: t.locationLabel, value: eventLocation } : null,
   ].filter(Boolean) as { label: string; value: string }[];
 
@@ -47,7 +54,7 @@ export default function BookingConfirmed({
       sellerName={sellerName}
     >
       <Heading style={h2}>{t.heading}</Heading>
-      <Text style={body}>{interpolate(t.intro, { name, event })}</Text>
+      <Text style={body}>{`${greeting} ${t.intro}`}</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
       <Text style={note}>{t.note}</Text>
       <Button brand={brand} href={bookingUrl}>{t.button}</Button>

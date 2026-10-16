@@ -203,12 +203,14 @@ function computeToolbarPosition(
   // True viewport centre is the predictable default. The clamps stay as pure
   // collision guards: never under the left rail / zoom bar, never under the
   // inspector. They only bite on a narrow window, where something has to give.
-  const leftLimit = Math.max(
-    VIEWPORT_LEFT_GUTTER,
-    CANVAS_FLOATING_BAR.leftReserve,
-  );
+  // Phones (<=640px): the rails are slide-in drawers, so reserve nothing.
+  const phone = viewportWidth <= 640;
+  const leftLimit = phone
+    ? VIEWPORT_LEFT_GUTTER
+    : Math.max(VIEWPORT_LEFT_GUTTER, CANVAS_FLOATING_BAR.leftReserve);
   const centeredLeft = (viewportWidth - widthEstimate) / 2;
-  const maxLeft = viewportWidth - rightReservePx - widthEstimate;
+  const maxLeft =
+    viewportWidth - (phone ? VIEWPORT_EDGE_GUTTER : rightReservePx) - widthEstimate;
   const left = Math.max(leftLimit, Math.min(centeredLeft, maxLeft));
   // F81: lift above the zoom bar / first-paint tip when they share the band.
   const bottom =

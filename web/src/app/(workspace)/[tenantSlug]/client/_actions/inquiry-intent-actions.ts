@@ -17,8 +17,8 @@
  * Returns flat ActionState objects compatible with React's useActionState.
  */
 
+import { normalizeTalentPageIntent } from "@/lib/inquiry/talent-page-intent";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
-import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -247,7 +247,8 @@ export async function submitInquiryNowAction(
   const intentJson = String(formData.get("intent") ?? "");
   let intent: InquiryIntent;
   try {
-    intent = JSON.parse(intentJson);
+    // TUL-964: from a talent's page, route to that talent like the guest path.
+    intent = normalizeTalentPageIntent(JSON.parse(intentJson));
   } catch {
     return { kind: "error", message: "Malformed intent payload." };
   }
@@ -634,10 +635,11 @@ function finalizeSubmit(
     return { kind: "error", message: result.error ?? "Could not send inquiry." };
   }
 
-  // Revalidate the surfaces that show inquiries.
-  revalidatePath(`/${tenantSlug}/client/messages`);
-  revalidatePath(`/${tenantSlug}/client/today`);
-  revalidatePath(`/${tenantSlug}/client/inquiries`);
+  // TUL-966: no revalidatePath here. The drawer that called this is often open
+  // on /client/today, /client/inquiries or /client/messages, and revalidating
+  // that page re-rendered it into the loading skeleton before the in-place
+  // confirmation below could show. InquiryDrawer refreshes the page when the
+  // confirmation is closed.
 
   // Per spec §15 the inquiry opens in the Messages shell — but the drawer
   // is also mounted on public guest surfaces (directory, /t/[code]) where

@@ -8,6 +8,7 @@
  */
 
 import type { CSSProperties, ReactNode } from "react";
+import { planCatalogLabel, resolvePlanKey } from "@/lib/access/plan-catalog";
 
 /**
  * Each value reads a `--hq-*` custom property and falls back to the dark HQ
@@ -87,12 +88,43 @@ export function Chip({
 // resolve a label with the maps below and pass it as the `label` prop; callers
 // that have no translator fall back to the chip's built-in text.
 
+/** @deprecated See `catalogPlanLabel`; kept for support/users screens. */
 export const PLAN_TIER_LABEL_KEY: Record<string, string> = {
   free: "dashboard.platform.tier.free",
   studio: "dashboard.platform.tier.studio",
   agency: "dashboard.platform.tier.agency",
   network: "dashboard.platform.tier.network",
+  // Catalog/billing slugs and talent plan keys resolve to the same names the
+  // customer reads (Studio/Agency/Network, Web Office), never the raw slug.
+  website: "dashboard.platform.tier.website",
+  legacy: "dashboard.platform.tier.legacy",
+  hub: "dashboard.platform.tier.network",
+  pro: "dashboard.platform.tier.pro",
+  max: "dashboard.platform.tier.max",
+  talent_basic: "dashboard.platform.tier.free",
+  talent_pro: "dashboard.platform.tier.pro",
+  talent_portfolio: "dashboard.platform.tier.max",
 };
+
+/**
+ * TUL-817: THE plan name on the platform-admin Health / Catalog / Revenue /
+ * Tenants screens. Reads the plan catalog (`planCatalogLabel`), never a local
+ * map, so every screen prints the same name the customer sees. `fallback`
+ * covers a catalog row whose slug is not a plan (prints its own name).
+ */
+export function catalogPlanLabel(locale: string, plan: string, fallback?: string): string {
+  if (fallback !== undefined && !resolvePlanKey(plan)) return fallback;
+  return planCatalogLabel(plan, locale);
+}
+
+/**
+ * @deprecated i18n-key lookup still used by the support and users screens
+ * (outside TUL-817). New code calls `catalogPlanLabel`.
+ */
+export function planTierLabel(t: (key: string) => string, plan: string): string {
+  const key = PLAN_TIER_LABEL_KEY[plan];
+  return key ? t(key) : plan;
+}
 
 export const WORKSPACE_ROLE_LABEL_KEY: Record<string, string> = {
   owner: "dashboard.platform.role.owner",
@@ -122,6 +154,11 @@ const PLAN_COLORS: Record<string, { bg: string; color: string }> = {
   studio: { bg: "rgba(122,183,224,0.15)", color: HQ.blue },
   agency: { bg: HQ.greenSoft, color: HQ.green },
   network: { bg: "rgba(160,122,224,0.15)", color: HQ.purple },
+  hub: { bg: "rgba(160,122,224,0.15)", color: HQ.purple },
+  max: { bg: HQ.greenSoft, color: HQ.green },
+  talent_portfolio: { bg: HQ.greenSoft, color: HQ.green },
+  pro: { bg: "rgba(122,183,224,0.15)", color: HQ.blue },
+  talent_pro: { bg: "rgba(122,183,224,0.15)", color: HQ.blue },
 };
 
 export function PlanChip({

@@ -41,18 +41,22 @@ export function PrimaryButton({
   disabled,
   type = "button",
   testId,
+  describedBy,
 }: {
   children: ReactNode;
   onClick?: () => void;
   disabled?: boolean;
   type?: "button" | "submit";
   testId?: string;
+  /** id of the text that says why the button is held (read out with the disabled state). */
+  describedBy?: string;
 }) {
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
+      aria-describedby={describedBy}
       data-testid={testId}
       className="inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-[0.9375rem] font-semibold transition-opacity disabled:opacity-40"
       style={{ background: "var(--tl-forest)", color: "var(--tl-forest-on)" }}
@@ -104,8 +108,14 @@ export function GhostLink({ children, onClick, testId }: { children: ReactNode; 
 export function Notice({ children, tone = "muted", testId }: { children: ReactNode; tone?: "muted" | "warn" | "error"; testId?: string }) {
   const color = tone === "error" ? "var(--tl-error)" : tone === "warn" ? "var(--tl-warning)" : "var(--tl-muted)";
   const bg = tone === "error" ? "var(--tl-error-bg)" : tone === "warn" ? "var(--tl-warning-bg)" : "var(--tl-stone-soft)";
+  const ref = useRef<HTMLParagraphElement>(null);
+  // An error that lands below the fold is brought into view (TUL-16).
+  useEffect(() => {
+    if (tone === "error") ref.current?.scrollIntoView?.({ block: "center", behavior: "smooth" });
+  }, [tone, children]);
   return (
     <p
+      ref={ref}
       role={tone === "error" ? "alert" : undefined}
       aria-live="polite"
       data-testid={testId}

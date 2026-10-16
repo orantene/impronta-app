@@ -90,6 +90,9 @@ test("TUL-612: cafeteria, coffee shop and bakery signups derive restaurant", () 
   ]) {
     assert.equal(pickSignupPreset({ businessDescription }), "restaurant", businessDescription);
   }
+  // The city "Playa del Carmen" is not a beach club; a beach cabaña still is.
+  assert.equal(pickSignupPreset({ businessDescription: "Cafetería en Playa del Carmen" }), "restaurant");
+  assert.equal(pickSignupPreset({ businessDescription: "Cabaña frente a la playa" }), "beach_club");
   // Ordering: a bar still wins over the diner row, a barber shop is still a salon.
   assert.equal(pickSignupPreset({ businessDescription: "Cocktail bar" }), "bar_club");
   assert.equal(pickSignupPreset({ businessDescription: "Barber shop" }), "salon_barber");
@@ -161,4 +164,11 @@ test("portfolio actually carries the editorial design", () => {
   assert.equal(words.preset.designId, "editorial");
   assert.equal(words.preset.representsPeople, true);
   assert.equal(words.headerVerbLabel(), "Get in touch");
+});
+
+test("pet grooming wins over the salon row it shares words with", () => {
+  for (const businessDescription of ["Pet grooming in Cancun", "Peluquería canina", "Dog groomer", "Estética canina"]) {
+    assert.equal(pickSignupPreset({ audience: "business", businessDescription }), "pet_grooming", businessDescription);
+  }
+  assert.equal(pickSignupPreset({ audience: "business", businessDescription: "Hair salon" }), "salon_barber");
 });

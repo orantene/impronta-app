@@ -822,6 +822,12 @@ html[data-token-typography-scale-preset="editorial"] {
 [data-section-container="editorial"]   > *[class*="__inner"] { width: min(1240px, 100% - 48px) !important; }
 [data-section-container="full-bleed"]  > * > *[class*="__inner"],
 [data-section-container="full-bleed"]  > *[class*="__inner"] { width: 100% !important; max-width: 100% !important; padding-inline: 0 !important; }
+/* GRK-073: site_header is chrome, not a content band — full-bleed must not
+ * wipe its side gutter (brand flush to x=0 on phone demos). ≥16px floor. */
+.site-header[data-section-container="full-bleed"] > .site-header__inner,
+.site-header[data-section-container="full-bleed"] > .site-header__inner--freeform {
+  padding-inline: clamp(16px, 3vw, 44px) !important;
+}
 
 /* Alignment (applies to text children). */
 [data-section-align="left"]   { text-align: left; }
@@ -911,6 +917,10 @@ html[data-token-typography-scale-preset="editorial"] {
   [data-section-tablet-container="editorial"]  > *[class*="__inner"] { width: min(960px, 100% - 32px) !important; }
   [data-section-tablet-container="full-bleed"] > * > *[class*="__inner"],
   [data-section-tablet-container="full-bleed"] > *[class*="__inner"] { width: 100% !important; max-width: 100% !important; padding-inline: 0 !important; }
+  .site-header[data-section-tablet-container="full-bleed"] > .site-header__inner,
+  .site-header[data-section-tablet-container="full-bleed"] > .site-header__inner--freeform {
+    padding-inline: clamp(16px, 3vw, 44px) !important;
+  }
 
   /* Tablet alignment. */
   [data-section-tablet-align="left"]   { text-align: left; }
@@ -955,6 +965,10 @@ html[data-token-typography-scale-preset="editorial"] {
   [data-section-mobile-container="editorial"]  > *[class*="__inner"] { width: 100% !important; max-width: calc(100% - 16px); }
   [data-section-mobile-container="full-bleed"] > * > *[class*="__inner"],
   [data-section-mobile-container="full-bleed"] > *[class*="__inner"] { width: 100% !important; max-width: 100% !important; padding-inline: 0 !important; }
+  .site-header[data-section-mobile-container="full-bleed"] > .site-header__inner,
+  .site-header[data-section-mobile-container="full-bleed"] > .site-header__inner--freeform {
+    padding-inline: clamp(16px, 3vw, 44px) !important;
+  }
 
   /* Mobile alignment. */
   [data-section-mobile-align="left"]   { text-align: left; }
@@ -2600,7 +2614,10 @@ html[data-token-card-chips-max="5"] [data-card-chip]:nth-child(n + 6) { display:
 html[data-token-shell-header-variant="editorial-sticky"] .public-header {
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  background: rgba(246, 241, 234, 0.92);
+  /* TUL-697: bar paint comes from the theme --background (the pair of the
+   * --foreground the brand/nav text uses). A hard-coded cream made cream brand
+   * text sit on a cream bar on dark-palette sites. */
+  background: color-mix(in srgb, var(--background) 92%, transparent);
   border-bottom: 1px solid var(--token-color-line);
 }
 html[data-token-shell-header-variant="espresso-column"] .public-header {
@@ -3889,6 +3906,23 @@ body { font-size: var(--token-typography-body-size, revert); }
 .site-post__hero img { width: 100%; height: auto; display: block; border-radius: 6px; }
 .site-post__body { display: flex; flex-direction: column; gap: 18px; color: var(--token-color-ink); font-size: 17px; line-height: 1.7; }
 .site-post__pullquote { margin-block: 32px; padding-inline-start: 18px; border-inline-start: 3px solid var(--token-color-accent, var(--token-color-ink)); font-family: var(--site-heading-font); font-style: italic; font-size: clamp(20px, 2.4vw, 26px); color: var(--token-color-ink); line-height: 1.4; }
+.site-post__block { min-width: 0; }
+.site-post__figure img, .site-post__gallery img { width: 100%; height: auto; display: block; border-radius: 6px; }
+.site-post__figure figcaption, .site-post__pullquote cite { margin-top: 8px; font-size: 13px; color: var(--token-color-muted); font-style: normal; }
+.site-post__pullquote cite { display: block; }
+.site-post__gallery { display: grid; gap: 8px; grid-template-columns: repeat(2, 1fr); }
+.site-post__gallery img { aspect-ratio: 1; object-fit: cover; }
+.site-post__video { aspect-ratio: 16 / 9; }
+.site-post__video iframe { width: 100%; height: 100%; border: 0; border-radius: 6px; }
+.site-post__divider { border: 0; border-top: 1px solid color-mix(in srgb, var(--token-color-ink) 15%, transparent); margin-block: 8px; }
+.site-post__service { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; padding: 16px; border: 1px solid color-mix(in srgb, var(--token-color-ink) 15%, transparent); border-radius: 8px; }
+.site-post__service-name { font-family: var(--site-heading-font); }
+.site-post__service-price { color: var(--token-color-muted); }
+.site-post__book { text-align: center; }
+.site-post__faq { padding-block: 12px; border-bottom: 1px solid color-mix(in srgb, var(--token-color-ink) 15%, transparent); }
+.site-post__faq summary { cursor: pointer; font-weight: 600; }
+.site-post__faq p { margin-top: 8px; }
+@media (min-width: 640px) { .site-post__gallery { grid-template-columns: repeat(3, 1fr); } }
 
 .site-mag { padding-block: var(--site-section-y); }
 /* Phase E Batch 3 (halfway) — site-mag {__inner / __head / __headline} collapsed into primitives. */
@@ -5809,6 +5843,24 @@ html[data-theme="dark"] [data-tone="light"] {
 @media (prefers-reduced-motion: reduce) {
   [data-cms-section][data-section-type-key="site_header"] .site-header[data-tone="transparent"] { transition: none; }
 }
+/* TUL-883: a transparent header paints white text, so it must never sit on a bare light page.
+   Unscrolled: a soft dark scrim keeps the white nav legible even where there is no hero photo.
+   Scrolled: every control inside the near-black bar is white, not just the brand (nav links, language
+   codes, the burger and buttons otherwise inherit dark theme ink). Anchored sections keep clear of the
+   fixed bar through scroll-padding so a heading is never hidden under it. */
+.site-header[data-tone="transparent"]:not([data-scrolled="true"]) {
+  background-image: linear-gradient(to bottom, rgba(10, 9, 12, 0.55), rgba(10, 9, 12, 0.2) 70%, transparent);
+}
+.site-header[data-tone="transparent"][data-scrolled="true"] a,
+.site-header[data-tone="transparent"][data-scrolled="true"] button,
+.site-header[data-tone="transparent"][data-scrolled="true"] .site-header__lang-code:not([data-active]),
+.site-header[data-tone="transparent"][data-scrolled="true"] .site-header__lang-sep,
+.site-header[data-tone="transparent"][data-scrolled="true"] .site-header__burger {
+  color: #ffffff;
+}
+html:has(.site-header[data-tone="transparent"]) {
+  scroll-padding-top: 84px;
+}
 
 /* =========================================================================
  * WF-5 — freeform header (left / center / right regions). Owner-composed
@@ -5820,7 +5872,8 @@ html[data-theme="dark"] [data-tone="light"] {
 .site-header[data-variant="freeform"] .site-header__region { display: flex; align-items: center; gap: clamp(10px, 1.6vw, 20px); min-width: 0; }
 .site-header[data-variant="freeform"] .site-header__region[data-region="center"] { flex: 1 1 auto; justify-content: center; }
 .site-header[data-variant="freeform"] .site-header__region[data-region="right"] { justify-content: flex-end; }
-.site-header[data-variant="freeform"] .site-header__ritem { display: inline-flex; align-items: center; gap: 0.5em; text-decoration: none; color: inherit; white-space: nowrap; }
+.site-header[data-variant="freeform"] .site-header__ritem { display: inline-flex; align-items: center; gap: 0.5em; text-decoration: none; white-space: nowrap; }
+.site-header[data-variant="freeform"] .site-header__ritem:not(.site-btn) { color: inherit; }
 /* One row, always: the base `.site-header__inner` wraps, so a long name pushed the section switcher
    onto a second row. The lockup (left) is the part that gives way: it shrinks and its name gets an ellipsis. */
 .site-header[data-variant="freeform"] .site-header__inner--freeform { flex-wrap: nowrap; }
@@ -5898,6 +5951,17 @@ html[data-theme="dark"] [data-tone="light"] {
 @keyframes site-secsw-up { from { transform: translateY(100%); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes site-secsw-down { from { transform: translateY(-100%); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes site-secsw-line { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+/* Phone header crowding (max-talent, /w sites): the 44vw cap on the section switcher lives in an earlier media
+   block, and the unscoped 190px rule just above won the cascade, so the switcher took ~190px of a 390px bar
+   and the brand name was squeezed to "A Fixture...". Scoped here so it wins: a narrower switcher, no index
+   number on the smallest phones, and a floor under the brand so the name always keeps room to read. */
+@media (max-width: 767px) {
+  .site-header .site-header__secsw-btn { max-width: min(150px, 38vw); }
+  .site-header[data-variant="freeform"] .site-header__region[data-region="left"] { min-width: 96px; }
+}
+@media (max-width: 480px) {
+  .site-header .site-header__secsw-idx { display: none; }
+}
 @media (prefers-reduced-motion: reduce) {
   .site-header__secsw-name, .site-header__secsw-line { animation: none; }
   .site-header__secsw-chev { transition: none; }
@@ -5909,7 +5973,8 @@ html[data-theme="dark"] [data-tone="light"] {
 .site-header[data-variant="minimal"] .site-header__inner { flex-direction: column; align-items: center; gap: 8px; padding-block: 8px; }
 
 .site-header__brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: var(--token-color-ink); font-family: var(--site-heading-font); font-weight: 600; letter-spacing: -0.005em; opacity: 1; }
-.site-header__brand-mark { width: clamp(20px, 2vw, 28px); height: clamp(20px, 2vw, 28px); object-fit: contain; }
+/* TUL-532: height-led so a wide wordmark keeps its proportions (a fixed square drew a 533x174 logo at 26x8px). */
+.site-header__brand-mark { width: auto; height: clamp(36px, 3.2vw, 44px); min-height: 30px; max-height: 72px; max-width: min(240px, 50vw); object-fit: contain; }
 /* TUL-524: name must stay full-ink readable on every theme header band. */
 .site-header__brand-label { font-size: clamp(14px, 1.1vw, 16px); color: inherit; opacity: 1; font-weight: 600; }
 .site-header[data-tone="surface"] .site-header__brand,
@@ -6399,7 +6464,7 @@ html[data-theme="dark"] [data-tone="light"] {
 }
 
 /* ---- Optional density controls (only match when operator set them) --- */
-.site-header[data-logo-scale="sm"] .site-header__brand-mark { height: clamp(24px, 2.4vw, 30px); }
+.site-header[data-logo-scale="sm"] .site-header__brand-mark { height: clamp(30px, 2.6vw, 34px); }
 .site-header[data-logo-scale="lg"] .site-header__brand-mark { height: clamp(38px, 4vw, 52px); }
 .site-header[data-logo-scale="xl"] .site-header__brand-mark { height: clamp(46px, 5vw, 64px); }
 .site-header[data-logo-scale="sm"] .site-header__brand-label { font-size: clamp(0.95rem, 1.7vw, 1.25rem); }

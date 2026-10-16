@@ -20,6 +20,7 @@ import {
 } from "@/lib/site-admin/sections/directory/card-data";
 import type { CardDesign } from "@/lib/site-admin/server/card-design-shape";
 import { DIRECTORY_COPY_EN, type DirectoryCopy } from "./directory-copy";
+import { spanishPlaceName } from "@/lib/i18n/place-names-es";
 
 export type {
   DiscoverTalentListItem,
@@ -129,6 +130,11 @@ export function attachCardDesigns<
   });
 }
 
+/** TUL-875: a profile link keeps the directory's locale (`/es/t/<code>` on ES); EN stays unprefixed. */
+export function directoryProfileHref(profileCode: string, locale: "en" | "es" = "en"): string {
+  return `${locale === "es" ? "/es" : ""}/t/${profileCode}`;
+}
+
 /**
  * Map a directory row to the canonical `<TalentCard>` data shape. The marketing
  * directory is browse-only, so availability is rendered as the restrained
@@ -146,11 +152,11 @@ export function toCanonicalCardData(
     id: talent.profileCode ?? talent.displayName,
     name: talent.displayName,
     profileCode: talent.profileCode,
-    profileHref: talent.profileCode ? `/t/${talent.profileCode}` : "",
+    profileHref: talent.profileCode ? directoryProfileHref(talent.profileCode, copy.locale) : "",
     primaryType: talent.primaryTypeLabel,
-    location: locationLine(talent.homeCity, talent.homeCountry),
+    location: locationLine(talent.homeCity, talent.homeCountry, copy.locale),
     photoUrl: talent.headshotUrl,
-    agencyName: talent.agencyName,
+    agencyName: localizeIndependent(talent.agencyName, copy),
     isExclusive: talent.isExclusive,
     // The portrait/profile "Verified" badge reads this boolean; the trust
     // ladder ("basic" | "verified" | "silver" | "gold") already carries the
@@ -271,6 +277,11 @@ export function initialsOf(name: string): string {
     .join("");
 }
 
+/** A stored agency name that is just the word "Independent" reads in the page locale. */
+function localizeIndependent(name: string | null, copy: DirectoryCopy): string | null {
+  return name && name.trim().toLowerCase() === "independent" ? copy.independent : name;
+}
+
 /** Subtle agency attribution string. Product decision: "show agency, subtle".
  *  Independent talents read "Independent"; exclusive rosters get a quiet tag. */
 export function agencyLine(
@@ -278,8 +289,9 @@ export function agencyLine(
   isExclusive: boolean,
   copy: DirectoryCopy = DIRECTORY_COPY_EN,
 ): string {
-  if (!agencyName) return copy.independent;
-  return isExclusive ? `${agencyName} · ${copy.exclusiveSuffix}` : agencyName;
+  const name = localizeIndependent(agencyName, copy);
+  if (!name) return copy.independent;
+  return isExclusive ? `${name} · ${copy.exclusiveSuffix}` : name;
 }
 
 /** Restrained availability copy. Never buyer-framed; "on request" when the
@@ -303,27 +315,99 @@ export function availabilityLine(
  * capitalized. Commas, hyphens, apostrophes and spacing survive because we only
  * transform letter/number runs in place.
  */
+/** Lowercase connectors inside a place name ("Ciudad de México", "Playa del Carmen"). */
+const LOWER_PARTICLES = new Set(["de", "del", "la", "las", "los", "y", "da", "do", "dos"]);
+
 export function smartTitleCase(input: string): string {
-  return input.replace(/[\p{L}\p{N}]+/gu, (token) =>
-    token === token.toLowerCase()
+  return input.replace(/[\p{L}\p{N}]+/gu, (token, offset: number) => {
+    if (offset > 0 && LOWER_PARTICLES.has(token)) return token;
+    return token === token.toLowerCase()
       ? token.charAt(0).toUpperCase() + token.slice(1)
-      : token,
-  );
+      : token;
+  });
 }
 
-export function locationLine(city: string | null, country: string | null): string | null {
-  const c = (city ?? "").trim();
-  const co = (country ?? "").trim();
+let enRegionIndex: Map<string, string> | null = null;
+
+/**
+ * Render a stored country in the page locale. Accepts an ISO 3166 code
+ * ("MX") or the English name ("Mexico"); anything unrecognised is returned
+ * untouched. English keeps the stored text exactly as before.
+ */
+export function localizeCountry(country: string, locale: "en" | "es"): string {
+  const raw = country.trim();
+  if (!raw || locale === "en") return raw;
+  try {
+    const es = new Intl.DisplayNames(["es"], { type: "region" });
+    if (/^[A-Za-z]{2}$/.test(raw)) return es.of(raw.toUpperCase()) ?? raw;
+    if (!enRegionIndex) {
+      const en = new Intl.DisplayNames(["en"], { type: "region" });
+      enRegionIndex = new Map();
+      for (let a = 65; a <= 90; a++) {
+        for (let b = 65; b <= 90; b++) {
+          const code = String.fromCharCode(a, b);
+          const name = en.of(code);
+          if (name && name !== code) enRegionIndex.set(name.toLowerCase(), code);
+        }
+      }
+    }
+    const code = enRegionIndex.get(raw.toLowerCase());
+    return code ? (es.of(code) ?? raw) : raw;
+  } catch {
+    return raw;
+  }
+}
+
+/** The country text a stored city label already ends with (localized, raw, or English name of an ISO code). */
+function trailingCountry(city: string, country: string, localized: string): string | null {
+  const raw = country.trim();
+  let en = "";
+  if (/^[A-Za-z]{2}$/.test(raw)) {
+    try {
+      en = new Intl.DisplayNames(["en"], { type: "region" }).of(raw.toUpperCase()) ?? "";
+    } catch {}
+  }
+  const lc = city.toLowerCase();
+  return [localized, raw, en].find((t) => t && lc.endsWith(t.toLowerCase())) ?? null;
+}
+
+/**
+ * TUL-738: stored city labels reach the marketing directory in English or
+ * without accents ("Mexico City", "Cancun, Quintana Roo, Mexico"). On a Spanish
+ * page each comma-separated part goes through the shared place-name table
+ * (Ciudad de México, Cancún, México); unknown parts pass through untouched and
+ * English is never changed.
+ */
+export function localizeCityLabel(city: string, locale: "en" | "es"): string {
+  if (locale !== "es" || !city) return city;
+  return city
+    .split(",")
+    .map((part) => {
+      const lead = part.match(/^\s*/)?.[0] ?? "";
+      return lead + spanishPlaceName(part.trim(), locale);
+    })
+    .join(",");
+}
+
+export function locationLine(
+  city: string | null,
+  country: string | null,
+  locale: "en" | "es" = "en",
+): string | null {
+  const c = localizeCityLabel((city ?? "").trim(), locale);
+  const co = localizeCountry(country ?? "", locale);
   let line: string;
   if (!c) {
     if (co.length === 0) return null;
     line = co;
   } else if (!co) {
     line = c;
-  } else if (c.toLowerCase().endsWith(co.toLowerCase())) {
+  } else if (trailingCountry(c, country ?? "", co)) {
     // Stored city labels sometimes already include the country
-    // ("Cancún, Quintana Roo, Mexico") — don't append it a second time.
-    line = c;
+    // ("Cancún, Quintana Roo, Mexico") — don't append it a second time, and
+    // read that trailing country in the page locale (ES: "México").
+    const tail = trailingCountry(c, country ?? "", co)!;
+    line = `${c.slice(0, c.length - tail.length)}${co}`;
   } else {
     line = `${c}, ${co}`;
   }

@@ -9,6 +9,8 @@
 // skeleton painted as blank on phone Hoy after sign-in. rgb() (not a hash
 // hex) keeps the always-available paint without tripping the hex ratchets.
 
+import { SkeletonCaption } from "@/components/talent/skeleton-caption";
+
 function Block({ className }: { className: string }) {
   return <div className={`animate-pulse rounded-[10px] bg-black/[0.06] ${className}`} />;
 }
@@ -42,6 +44,7 @@ export function TalentShellSkeleton() {
           data-talent-shell-skeleton="hoy"
           className="mx-auto w-full max-w-[1240px] space-y-4 px-[16px] pb-[96px] pt-[28px] min-[721px]:px-[28px]"
         >
+          <SkeletonCaption />
           <Block className="h-8 w-56 rounded-lg" />
           <Block className="h-4 w-40 rounded" />
           <Block className="h-28 rounded-2xl" />
