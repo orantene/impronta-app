@@ -22,7 +22,7 @@ const CHUNK = 100;
  */
 export async function supersedeStaleUpdateRows(admin: SupabaseClient, sites: ReadonlyArray<PinnedSite>): Promise<number> {
   try {
-    const pinned = sites.filter((s) => typeof s.pin === "number");
+    const pinned = [...sites];
     let closed = 0;
     for (let i = 0; i < pinned.length; i += CHUNK) {
       const batch = pinned.slice(i, i + CHUNK);
@@ -60,11 +60,14 @@ export async function supersedeStaleUpdateRows(admin: SupabaseClient, sites: Rea
           .map((r) => {
             const rel = relById.get(r.release_id);
             // A release of another design says nothing about this pin.
+            // Switched away from that design: its notice is closed outright.
+            const same = !!rel && rel.design_slug === site.designSlug;
             return {
               id: r.id,
               state: r.state,
               report: r.report ?? null,
-              toVersion: rel && rel.design_slug === site.designSlug ? rel.to_version : null,
+              toVersion: same ? rel.to_version : null,
+              otherDesign: !!rel && !same,
             };
           });
         const changes = planSupersede(site.pin, candidates);
