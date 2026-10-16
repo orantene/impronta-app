@@ -151,6 +151,19 @@ export function CatalogBookingSheet({
 
   const days = useMemo(() => catalogNextDays(), []);
   const { trapRef, captureOpener, clearStaleOpener } = useBookingSheetFocusTrap(detail !== null);
+  // TUL-553: opening the sheet lands on its first real step (the first option, else Continue), not the close X.
+  const openedOffering = detail?.offeringId ?? null;
+  useEffect(() => {
+    if (!openedOffering) return;
+    const id = window.setTimeout(() => {
+      const root = trapRef.current;
+      const target =
+        root?.querySelector<HTMLElement>('input[name="cb-variant"]:not([disabled])') ??
+        root?.querySelector<HTMLElement>('[data-catalog-continue]:not([disabled])');
+      target?.focus();
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [openedOffering, trapRef]);
   const money = useCallback(
     (cents: number, currency: string) => formatMoney(cents, currency, locale),
     [locale],
