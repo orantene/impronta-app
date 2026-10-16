@@ -195,7 +195,7 @@ export function StatusSheet({ open, data, onClose, t }: Props) {
         <Section label={tx("dashboard.adminThread.statusSectionStage", "Stage")}>
           <Row primary={label(data.stage, STAGE_LABEL_KEY)} />
           {data.stageHistory && data.stageHistory.length > 0 && (
-            <div style={{ marginTop: 6, paddingLeft: 8, fontSize: 11, color: "rgba(11,11,13,0.55)" }}>
+            <div style={{ marginTop: 6, paddingLeft: 8, fontSize: 11, color: "rgba(11,11,13,0.6)" }}>
               {data.stageHistory.map((h, i) => (
                 <div key={i} style={{ display: "flex", gap: 6 }}>
                   <span aria-hidden style={{ color: "rgba(11,11,13,0.30)" }}>•</span>
@@ -300,7 +300,7 @@ function WorkflowStepper({ currentStage, t }: { currentStage: StageStatus; t?: T
         background: "rgba(11,11,13,0.04)",
         border: "1px solid rgba(11,11,13,0.10)",
         borderRadius: 10,
-        fontSize: 12, color: "rgba(11,11,13,0.55)",
+        fontSize: 12, color: "rgba(11,11,13,0.6)",
       }}>
         {tx("dashboard.adminThread.stepper.cancelled", "This inquiry was cancelled.")}
       </div>
@@ -335,7 +335,7 @@ function WorkflowStepper({ currentStage, t }: { currentStage: StageStatus; t?: T
           ? "rgba(11,11,13,0.55)"
           : active
             ? "#0B0B0D"
-            : "rgba(11,11,13,0.35)";
+            : "rgba(11,11,13,0.6)";
         return (
           <div
             key={s.key}
@@ -408,7 +408,7 @@ function Section({ label, children }: { label: string; children: ReactNode }) {
         fontWeight: 700,
         letterSpacing: 0.5,
         textTransform: "uppercase",
-        color: "rgba(11,11,13,0.55)",
+        color: "rgba(11,11,13,0.6)",
         marginBottom: 6,
       }}>{label}</div>
       <div style={{
@@ -452,7 +452,7 @@ function Row({
       )}
       {hint && (
         <span style={{
-          fontSize: 11, color: "rgba(11,11,13,0.45)",
+          fontSize: 11, color: "rgba(11,11,13,0.6)",
           marginLeft: secondary ? 8 : "auto",
         }}>{hint}</span>
       )}
