@@ -42,7 +42,39 @@ export function groupVisits(rows: readonly MeRow[], nowMs: number) {
   return { upcoming: m.upcoming, waiting: m.waitingOnYou, past: m.past };
 }
 
-const CLOSED = new Set(["cancelled", "completed", "archived", "declined", "expired", "closed"]);
+export const CLOSED_BOOKING_STATUSES = ["cancelled", "completed", "archived", "declined", "expired", "closed"] as const;
+const CLOSED = new Set<string>(CLOSED_BOOKING_STATUSES);
+
+/**
+ * What the client still owes on one booking, in cents: the booking price less
+ * money the ledger holds as paid. 0 for a closed or already-paid booking, or one
+ * with no price: there is nothing to put on a pay link.
+ */
+export function owedCents(input: {
+  bookingStatus: string | null;
+  paymentStatus: string | null;
+  amountCents: number | null;
+  paidCents: number;
+}): number {
+  if (CLOSED.has((input.bookingStatus ?? "").toLowerCase())) return 0;
+  if (input.paymentStatus !== "unpaid" && input.paymentStatus !== "partial") return 0;
+  if (input.amountCents == null || !Number.isFinite(input.amountCents)) return 0;
+  return Math.max(0, Math.round(input.amountCents) - Math.max(0, Math.round(input.paidCents)));
+}
+
+/**
+ * The booking a visit page shows, from every booking on the inquiry (newest
+ * first): the client's own open booking, then the client's own closed one,
+ * then the newest. A re-quote can leave an older draft without a client on the
+ * inquiry; it must not hide the booking the client actually owns.
+ */
+export function pickClientBooking<T extends { client_user_id: string | null; status: string | null }>(
+  rows: readonly T[],
+  userId: string,
+): T | null {
+  const mine = rows.filter((r) => r.client_user_id === userId);
+  return mine.find((r) => !CLOSED.has((r.status ?? "").toLowerCase())) ?? mine[0] ?? rows[0] ?? null;
+}
 
 export type ManageBookingFacts = {
   bookingTenantId: string | null;
@@ -90,6 +122,11 @@ export function formatZonedWhen(iso: string | null | undefined, timeZone: string
   const ms = iso ? Date.parse(iso) : NaN;
   if (!Number.isFinite(ms)) return null;
   const loc = locale === "es" ? "es-MX" : "en-US";
+  // A bare `YYYY-MM-DD` is a calendar day with no time: no zone shift, no clock.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso ?? "")) {
+    const date = new Intl.DateTimeFormat(loc, { timeZone: "UTC", weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(ms);
+    return { date, time: "", tzLabel: "" };
+  }
   const run = (zone: string) => {
     const date = new Intl.DateTimeFormat(loc, { timeZone: zone, weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(ms);
     const time = new Intl.DateTimeFormat(loc, { timeZone: zone, hour: "numeric", minute: "2-digit" }).format(ms);
