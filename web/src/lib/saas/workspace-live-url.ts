@@ -113,14 +113,11 @@ export function resolveWorkspaceLiveAddress(input: {
   slug: string;
   planTier: string | null | undefined;
   domains?: WorkspaceDomainRegistry | null;
-  /** Server callers on a QA/staging/localhost stack pass `resolveMarketingOrigin()`; omitted = production. */
-  pathOrigin?: string;
 }): WorkspacePublicAddress {
   return resolveWorkspacePublicAddress({
     slug: input.slug,
     plan: normalizeWorkspaceUrlPlan(input.planTier),
     domainState: resolveLiveDomainState(input.domains),
-    pathOrigin: input.pathOrigin,
   });
 }
 
@@ -138,7 +135,6 @@ export function workspaceLiveUrl(input: {
   slug: string;
   planTier: string | null | undefined;
   domains?: WorkspaceDomainRegistry | null;
-  pathOrigin?: string;
 }): string {
   return resolveWorkspaceLiveAddress(input).primaryUrl;
 }

@@ -47,7 +47,6 @@ export async function resolveWorkspaceSiteEditorUrl(
       ? workspaceLiveUrl({
           slug,
           planTier,
-          pathOrigin: resolveMarketingOrigin(),
           domains: {
             subdomains: rows
               .filter((r) => r.kind === "subdomain")
@@ -66,8 +65,11 @@ export async function resolveWorkspaceSiteEditorUrl(
           },
         })
       : workspacePathUrl(slug, resolveMarketingOrigin());
+  // TUL-1188: the path address defaults to production; keep it on this stack's origin.
+  const baseUrl =
+    liveUrl === workspacePathUrl(slug) ? workspacePathUrl(slug, resolveMarketingOrigin()) : liveUrl;
 
-  return buildEditorPanelUrl({ editorBaseUrl: liveUrl, panel: "sections" });
+  return buildEditorPanelUrl({ editorBaseUrl: baseUrl, panel: "sections" });
 }
 
 /** Public storefront URL only (no ?edit=1) — for "My website" address display. */
