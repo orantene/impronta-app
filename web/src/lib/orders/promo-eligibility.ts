@@ -24,6 +24,11 @@ export type PromoScope = {
   /** NULL scope = the whole workspace. */
   eventId?: string | null;
   variantId?: string | null;
+  /**
+   * The talent that owns the line's offering. A talent's promo only ever
+   * covers that talent's lines (hub talents share one tenant).
+   */
+  talentProfileId?: string | null;
 };
 
 export type EligibleLine = {

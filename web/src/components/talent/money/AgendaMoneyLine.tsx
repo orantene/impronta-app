@@ -63,21 +63,21 @@ export function AgendaMoneyLine({
       >
         {row.amountCents != null ? money(row.amountCents, row.currency) : t("Amount not set")}
       </span>
-      <div className="flex flex-wrap gap-2">
-        <button type="button" className={`${btnSec} flex-1 whitespace-nowrap`} onClick={() => router.push(row.bookingHref)}>
+      <div className="flex flex-wrap gap-2 sm:shrink-0 sm:flex-nowrap">
+        <button type="button" className={`${btnSec} flex-1 whitespace-nowrap sm:flex-none`} onClick={() => router.push(row.bookingHref)}>
           {row.kind === "offer" ? t("Open conversation") : t("Open booking")}
         </button>
         {row.kind === "refund_pending" ? (
           <button
             type="button"
-            className={`${btnPri} flex-1 whitespace-nowrap`}
+            className={`${btnPri} flex-1 whitespace-nowrap sm:flex-none`}
             disabled={refundBusy}
             onClick={() => onRefund?.(row)}
           >
             {refundBusy ? t("Refunding…") : t("Refund")}
           </button>
         ) : row.kind === "offer" ? null : (
-          <button type="button" className={`${btnSec} flex-1 whitespace-nowrap`} onClick={() => onRequest(row)}>
+          <button type="button" className={`${btnSec} flex-1 whitespace-nowrap sm:flex-none`} onClick={() => onRequest(row)}>
             {t("Send a payment link")}
           </button>
         )}
