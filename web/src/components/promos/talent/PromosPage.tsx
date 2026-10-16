@@ -256,8 +256,9 @@ export function PromosPage() {
           promoId={shareItem.id}
           promoName={shareItem.name}
           slug={shareItem.link_slug}
-          origin={typeof window === "undefined" ? "" : window.location.origin}
-          profileCode={data.profileCode || null}
+          origin={data.siteOrigin ?? (typeof window === "undefined" ? "" : window.location.origin)}
+          profileCode={data.siteOrigin ? null : data.profileCode || null}
+          host={data.siteOrigin ? new URL(data.siteOrigin).host : null}
           defaultLang={copy.locale}
           captions={{
             es: buildCaption({ promo: shareItem.promo, lang: "es", link: "{link}" }),
