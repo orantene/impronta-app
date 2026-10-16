@@ -138,3 +138,58 @@ Do **Option A** now (5-minute dashboard config, zero risk, gets Resend
 deliverability + tracking + the branded templates). Adopt **Option B** later only
 if you specifically want auth emails in the platform send-log. Either way the
 sender domain must stay the verified `tulala.digital`.
+
+---
+
+## Isolated QA (fxlank) — TUL-333 Option B (disable Send Email hook)
+
+> **Different “Option B” than above.** Prod Option B wires the Send Email Hook to
+> `/api/hooks/auth-email`. **TUL-333 Option B** is the opposite for the
+> **isolated** Supabase project only: turn that hook **off** and rely on
+> Supabase’s built-in mailer + a higher Auth email rate limit so QA journeys can
+> send OTP / recovery / signup codes.
+>
+> **Project ref (fxlank only):** `fxlankepwnvelxjrahwk`  
+> Dashboard: `https://supabase.com/dashboard/project/fxlankepwnvelxjrahwk`  
+> Do **not** apply these steps to production (`pluhdapdnuiulvxmyspd`).
+
+### Why
+On fxlank, an enabled Send Email Hook that lacks a valid signing secret (or a
+reachable HTTPS endpoint) rejects auth mail with errors like `Hook requires
+authorization token`. After the hook is fixed or removed, the hosted default
+Auth email rate limit still blocks burst QA (`email rate limit exceeded`).
+Local `supabase/config.toml` `[auth.rate_limit] email_sent = 2` applies to
+**local** Supabase only — it does **not** ship to hosted projects.
+
+### PM decision (Option B)
+1. Disable the Send Email hook on fxlank.
+2. Raise the built-in Auth email rate limit for QA volume.
+3. Do **not** set `SEND_EMAIL_HOOK_SECRET` on journeys / Preview for this path
+   (that belongs to prod Option B / a future fxlank Option A hook wiring).
+
+### Dashboard steps (human / owner)
+
+1. Open the fxlank project → **Authentication → Hooks**.
+2. Find **Send Email** (Send Email Hook). **Disable** it (toggle off / disable).
+   Leave it disabled while Option B is in force. Do not point it at
+   `https://app.tulala.digital/api/hooks/auth-email` on this project.
+3. Open **Authentication → Rate Limits** (Auth rate limits).
+4. Raise the **email** / emails-sent rate limit enough for QA bursts (journeys,
+   OTP code sends, recovery). Pick a value that clears `email rate limit
+   exceeded` under normal journey volume; leave production untouched.
+5. **Verify:** from an app pointed at fxlank, trigger an auth code send
+   (email OTP / signup / recovery). Expect success — no
+   `Hook requires authorization token`, and no immediate
+   `email rate limit exceeded`.
+
+### Product notes
+- **Journeys / QA auth** use the **email-code** path as a fallback when mail
+  delivery is imperfect; Option B unblocks that path on the built-in mailer.
+- **TUL-93** (guest booking confirmation and other transactional mail that
+  must actually land in an inbox) still needs real email delivery. When you
+  later choose **Option A** for fxlank (custom SMTP and/or a correctly wired
+  Send Email Hook + secret), revisit this section — re-enable the hook only
+  after the HTTPS endpoint and `SEND_EMAIL_HOOK_SECRET` are ready for that
+  project.
+- No app code change is required for TUL-333 Option B; this is dashboard-only
+  on `fxlankepwnvelxjrahwk`.

@@ -2,22 +2,38 @@
  * consent.ts — the single client-side source of truth for analytics consent.
  *
  * Stored in localStorage (`impronta_analytics_consent`: granted | denied) and
- * mirrored into a first-party cookie (`tulala_consent=analytics`, only while
- * granted) so the server, which cannot read localStorage, can tell whether it
- * may set optional cookies such as the experiment visitor id.
+ * mirrored into a first-party cookie so the server, which cannot read
+ * localStorage, can tell whether it may set optional cookies such as the
+ * experiment visitor id — and so a choice made on tulala.digital is visible
+ * on app.tulala.digital (and sibling *.tulala.digital hosts).
+ *
+ * Cookie values:
+ *   - `tulala_consent=analytics` while granted (server gating unchanged)
+ *   - `tulala_consent=denied` while denied (so decline also crosses hosts;
+ *     previously Max-Age=0 left nothing for the other host to read)
+ *
+ * Cookie domain: same parent scoping as auth (`cookieDomainForHost`) →
+ * `.tulala.digital` on production platform hosts; host-only elsewhere.
  *
  * Global Privacy Control: when the browser sends GPC and the visitor has made
  * no explicit choice, consent resolves to "denied" and the banner is not shown
  * (the signal is treated as the choice). An explicit choice always wins, and
  * the "Privacy choices" link lets the visitor change it.
  *
+ * Region: visitors outside the EU/EEA, UK and Switzerland get a notice
+ * instead of the card, and with no choice and no GPC analytics may run.
+ *
  * Every storage touch is wrapped: private mode and blocked storage must never
  * break a page.
  */
 
+import { cookieDomainForHost } from "@/lib/supabase/cookie-domain";
+
 export const CONSENT_STORAGE_KEY = "impronta_analytics_consent";
 export const CONSENT_COOKIE = "tulala_consent";
 export const CONSENT_COOKIE_VALUE = "analytics";
+/** Cookie value when the visitor explicitly declined (shared across hosts). */
+export const CONSENT_COOKIE_DENIED = "denied";
 export const CONSENT_COOKIE_MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
 /** Fired on window after the choice changes. detail: { consent }. */
 export const CONSENT_CHANGE_EVENT = "tulala:consent-change";
@@ -27,11 +43,49 @@ export const PRIVACY_CHOICES_EVENT = "tulala:privacy-choices";
 export type StoredConsent = "granted" | "denied";
 export type Consent = StoredConsent | null;
 
-/** Pure: what consent applies given a stored value and the GPC signal. */
-export function resolveConsent(stored: unknown, gpc: boolean): Consent {
-  if (stored === "granted" || stored === "denied") return stored;
-  return gpc ? "denied" : null;
+/**
+ * "strict": the full card, analytics off until an explicit Accept.
+ * "notice": a one-line notice; analytics run unless the visitor declines
+ * (via Privacy choices) or the browser sends GPC.
+ */
+export type ConsentRegion = "strict" | "notice";
+
+/** `<html data-consent-region>`: set by the root layout from the request country. */
+export const CONSENT_REGION_ATTR = "data-consent-region";
+
+/** EU/EEA (with EU outermost regions that carry their own ISO code), UK, Switzerland. */
+const STRICT_CONSENT_COUNTRIES = new Set([
+  "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IE", "IT", "LV",
+  "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE",
+  "AX", "GF", "GP", "MQ", "RE", "YT", "MF",
+  "IS", "LI", "NO",
+  "GB", "CH",
+]);
+
+/** Pure: an unknown country (no geo header, e.g. off Vercel) is treated as strict. */
+export function consentRegionForCountry(country: string | null | undefined): ConsentRegion {
+  const code = country?.trim().toUpperCase();
+  if (!code || code.length !== 2) return "strict";
+  return STRICT_CONSENT_COUNTRIES.has(code) ? "strict" : "notice";
 }
+
+/** Pure: what consent applies given a stored value, the GPC signal and the region. */
+export function resolveConsent(stored: unknown, gpc: boolean, region: ConsentRegion = "strict"): Consent {
+  if (stored === "granted" || stored === "denied") return stored;
+  if (gpc) return "denied";
+  return region === "notice" ? "granted" : null;
+}
+
+/**
+ * The same decision for the inline tag snippets that run before React: a JS
+ * expression that is true when analytics may run. Keep in step with
+ * `resolveConsent`.
+ *
+ * One template literal on purpose: SWC's server minifier folds
+ * `` `a${x}b` + `c${y}d` `` into "a" + x + "c" + y + "d", dropping the first
+ * tail, which shipped a SyntaxError on every page (TUL-534).
+ */
+export const ANALYTICS_ALLOWED_JS = `(function(){try{var s=localStorage.getItem('${CONSENT_STORAGE_KEY}');if(s==='granted'||s==='denied')return s==='granted';}catch(e){}return document.documentElement.getAttribute('${CONSENT_REGION_ATTR}')==='notice'&&navigator.globalPrivacyControl!==true;})()`;
 
 /** Pure: should the banner appear on its own (no reopen request)? */
 export function shouldShowBanner(stored: unknown, gpc: boolean): boolean {
@@ -51,7 +105,7 @@ export function isConsentBannerSuppressedPath(pathname: string | null | undefine
   return /^\/(prototypes|template-preview|start)(\/|$)/.test(pathname);
 }
 
-/** Pure: may optional analytics storage / pixels run? Only on explicit grant. */
+/** Pure: may optional analytics storage / pixels run? */
 export function isAnalyticsAllowed(consent: Consent): boolean {
   return consent === "granted";
 }
@@ -61,12 +115,62 @@ export function cookieGrantsAnalytics(cookieValue: string | undefined | null): b
   return cookieValue === CONSENT_COOKIE_VALUE;
 }
 
+/** Pure: map a cookie value to a stored choice (or null if absent / junk). */
+export function consentFromCookieValue(cookieValue: string | undefined | null): StoredConsent | null {
+  if (cookieValue === CONSENT_COOKIE_VALUE) return "granted";
+  if (cookieValue === CONSENT_COOKIE_DENIED) return "denied";
+  return null;
+}
+
+/**
+ * Pure: `document.cookie` assignment strings for a consent choice on `hostname`.
+ * Production platform hosts get `Domain=.tulala.digital` so apex ↔ app share
+ * one cookie; localhost / custom domains stay host-only. When a parent domain
+ * is used, also emit a host-only Max-Age=0 clear so a legacy host-only cookie
+ * cannot shadow the shared one.
+ */
+export function buildConsentCookieAssignments(args: {
+  next: StoredConsent;
+  hostname: string | null | undefined;
+  secure: boolean;
+}): string[] {
+  const domain = cookieDomainForHost(args.hostname);
+  const secure = args.secure ? "; Secure" : "";
+  const value = args.next === "granted" ? CONSENT_COOKIE_VALUE : CONSENT_COOKIE_DENIED;
+  const domainAttr = domain ? `; Domain=${domain}` : "";
+  const out: string[] = [
+    `${CONSENT_COOKIE}=${value}; Path=/; Max-Age=${CONSENT_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax${domainAttr}${secure}`,
+  ];
+  if (domain) {
+    // Expire any pre-fix host-only shadow (same name, no Domain attribute).
+    out.push(`${CONSENT_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax${secure}`);
+  }
+  return out;
+}
+
 export function isGpcEnabled(): boolean {
   if (typeof navigator === "undefined") return false;
   return (navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl === true;
 }
 
-export function readStoredConsent(): StoredConsent | null {
+function readConsentCookieRaw(): string | null {
+  if (typeof document === "undefined") return null;
+  try {
+    const m = /(?:^|;\s*)tulala_consent=([^;]*)/.exec(document.cookie || "");
+    if (!m) return null;
+    let value = m[1] ?? "";
+    try {
+      value = decodeURIComponent(value);
+    } catch {
+      /* keep raw */
+    }
+    return value;
+  } catch {
+    return null;
+  }
+}
+
+function readLocalStorageConsent(): StoredConsent | null {
   try {
     const v = localStorage.getItem(CONSENT_STORAGE_KEY);
     if (v === "granted" || v === "denied") return v;
@@ -76,10 +180,35 @@ export function readStoredConsent(): StoredConsent | null {
   return null;
 }
 
-/** Effective consent for this browser (stored choice, else GPC, else null). */
+export function readConsentRegion(): ConsentRegion {
+  if (typeof document === "undefined") return "strict";
+  return document.documentElement.getAttribute(CONSENT_REGION_ATTR) === "notice" ? "notice" : "strict";
+}
+
+/**
+ * Explicit choice from localStorage, else from the shared parent-domain cookie
+ * (hydrating localStorage when the cookie is the only signal — the case when
+ * the visitor chose on the other host).
+ */
+export function readStoredConsent(): StoredConsent | null {
+  const local = readLocalStorageConsent();
+  if (local) return local;
+  const fromCookie = consentFromCookieValue(readConsentCookieRaw());
+  if (fromCookie) {
+    try {
+      localStorage.setItem(CONSENT_STORAGE_KEY, fromCookie);
+    } catch {
+      /* ignore */
+    }
+    return fromCookie;
+  }
+  return null;
+}
+
+/** Effective consent for this browser (stored choice, else GPC, else the region default). */
 export function readConsent(): Consent {
   if (typeof window === "undefined") return null;
-  return resolveConsent(readStoredConsent(), isGpcEnabled());
+  return resolveConsent(readStoredConsent(), isGpcEnabled(), readConsentRegion());
 }
 
 /** True only when the visitor explicitly granted analytics. Safe on the server. */
@@ -90,11 +219,16 @@ export function hasAnalyticsConsent(): boolean {
 function mirrorCookie(next: StoredConsent) {
   try {
     if (typeof document === "undefined") return;
-    const secure = typeof location !== "undefined" && location.protocol === "https:" ? "; Secure" : "";
-    if (next === "granted") {
-      document.cookie = `${CONSENT_COOKIE}=${CONSENT_COOKIE_VALUE}; Path=/; Max-Age=${CONSENT_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax${secure}`;
-    } else {
-      document.cookie = `${CONSENT_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax${secure}`;
+    const hostname =
+      typeof location !== "undefined" ? location.hostname : undefined;
+    const secure =
+      typeof location !== "undefined" && location.protocol === "https:";
+    for (const assignment of buildConsentCookieAssignments({
+      next,
+      hostname,
+      secure,
+    })) {
+      document.cookie = assignment;
     }
   } catch {
     /* ignore */
@@ -132,8 +266,8 @@ export function writeConsent(next: StoredConsent): void {
 
 /** Keep the cookie in step with a choice made before the cookie existed. */
 export function syncConsentCookie(): void {
-  const stored = readStoredConsent();
-  if (stored) mirrorCookie(stored);
+  const effective = readConsent();
+  if (effective) mirrorCookie(effective);
 }
 
 /** Reopen the consent banner (used by the footer "Privacy choices" link). */

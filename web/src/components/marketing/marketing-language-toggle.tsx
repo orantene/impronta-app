@@ -1,3 +1,4 @@
+import { languageToggleGroupLabel } from "@/i18n/language-toggle-label";
 import { withLocalePath } from "@/i18n/pathnames";
 import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 import { cn } from "@/lib/utils";
@@ -43,7 +44,7 @@ export function MarketingLanguageToggle({
   return (
     <div
       role="group"
-      aria-label="Language"
+      aria-label={languageToggleGroupLabel(activeLocale)}
       className={cn("inline-flex items-center gap-0.5 rounded-lg p-0.5", className)}
       style={{
         border: "1px solid var(--plt-hairline)",
@@ -58,13 +59,14 @@ export function MarketingLanguageToggle({
             key={code}
             href={withLocalePath(pathnameWithoutLocale, code, settings)}
             aria-current={active ? "true" : undefined}
-            className="rounded-[5px] px-1.5 py-1 text-[0.6875rem] font-semibold uppercase leading-none tracking-[0.06em] transition-colors"
+            hrefLang={code}
+            className="relative rounded-[5px] px-3 py-1 text-[0.6875rem] before:absolute before:inset-x-0 before:-inset-y-[13px] before:content-[''] font-semibold uppercase leading-none tracking-[0.06em] transition-colors"
             style={{
               background: active ? "var(--plt-forest)" : "transparent",
               color: active ? "var(--plt-forest-on)" : "var(--plt-muted)",
             }}
           >
-            {code}
+            {code.toUpperCase()}
           </a>
         );
       })}

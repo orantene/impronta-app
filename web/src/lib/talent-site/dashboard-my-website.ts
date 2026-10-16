@@ -1,0 +1,93 @@
+/**
+ * TUL-180 Option A — dashboard "My website" primary target.
+ *
+ * For dual owners (business workspace site + personal talent site), the
+ * primary surface is the business workspace. Personal stays findable under
+ * Website settings → Other websites (`?site=personal`). Pure so UI + tests
+ * share one rule.
+ */
+
+import {
+  CREATE_WEBSITE_HREF,
+  PERSONAL_BUILDER_HREF,
+  workspaceSiteBuilderHref,
+} from "@/lib/talent-site/my-website-target";
+import type { TalentSiteDashboardState, TalentSiteStatus } from "@/lib/talent-site/types";
+
+export const PERSONAL_SITE_BUILDER_HREF = `${PERSONAL_BUILDER_HREF}?site=personal`;
+
+export type DashboardMyWebsiteKind = "workspace" | "personal" | "hub" | "create";
+
+export type DashboardMyWebsite = {
+  kind: DashboardMyWebsiteKind;
+  /** Public URL to open in a new tab (absolute or root-relative). */
+  publicUrl: string | null;
+  /** In-app editor href. */
+  editHref: string;
+  /** Workspace design picker (TUL-559); null when the gallery lives on Mi sitio itself. */
+  designHref: string | null;
+  /** talent_sites status when primary is personal; null for workspace/hub/create. */
+  personalStatus: TalentSiteStatus | null;
+};
+
+export function resolveTalentDashboardMyWebsite(
+  state: Pick<
+    TalentSiteDashboardState,
+    "publicSiteUrl" | "personalPublicSiteUrl" | "workspaceSite" | "site" | "profileCode"
+  >,
+): DashboardMyWebsite {
+  const workspace = state.workspaceSite;
+  if (workspace) {
+    return {
+      kind: "workspace",
+      publicUrl: workspace.publicUrl,
+      editHref: workspace.adminHref || workspaceSiteBuilderHref(workspace.slug),
+      designHref: `${workspaceSiteBuilderHref(workspace.slug)}/design`,
+      personalStatus: null,
+    };
+  }
+
+  if (state.site) {
+    const isHubOnly =
+      Boolean(state.publicSiteUrl) &&
+      !state.personalPublicSiteUrl &&
+      Boolean(state.profileCode) &&
+      (state.publicSiteUrl === `/t/${state.profileCode}` ||
+        state.publicSiteUrl?.endsWith(`/t/${state.profileCode}`));
+    return {
+      kind: isHubOnly ? "hub" : "personal",
+      publicUrl: state.publicSiteUrl,
+      editHref: PERSONAL_BUILDER_HREF,
+      designHref: null,
+      personalStatus: state.site.status,
+    };
+  }
+
+  return {
+    kind: "create",
+    publicUrl: state.publicSiteUrl,
+    editHref: CREATE_WEBSITE_HREF,
+    designHref: null,
+    personalStatus: null,
+  };
+}
+
+/**
+ * TUL-371: Hoy "Website live" pill. For a business owner the workspace site IS
+ * the website, so the pill is live only once it has a published page and it
+ * opens that URL. It never falls back to the personal `<slug>-2` site, even
+ * when that one is published.
+ */
+export function resolveTalentDashboardLivePill(
+  state: Pick<TalentSiteDashboardState, "publicSiteUrl" | "workspaceSite">,
+  personalPublished: boolean,
+): { isLive: boolean; siteUrl: string | null } {
+  const workspace = state.workspaceSite;
+  if (workspace) {
+    return {
+      isLive: workspace.isPublished,
+      siteUrl: workspace.isPublished ? workspace.publicUrl : null,
+    };
+  }
+  return { isLive: personalPublished, siteUrl: state.publicSiteUrl };
+}

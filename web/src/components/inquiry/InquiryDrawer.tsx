@@ -23,6 +23,7 @@
 import { useState, useEffect, useRef, useTransition, useMemo, useCallback } from "react";
 import { useActionState } from "react";
 import Image from "next/image";
+import { useRefreshOnClose } from "./use-refresh-on-close";
 import {
   type InquiryIntent,
   type InquirySource,
@@ -34,7 +35,7 @@ import {
   type InquiryBudget,
   type InquiryBrief,
   type InquiryAttachment,
-  validateIntentForSubmit,
+  validateIntentForSubmit, missingFieldLabels,
 } from "@/lib/inquiry/inquiry-intent";
 import {
   saveDraftAction,
@@ -64,6 +65,7 @@ const INQUIRY_DRAFT_AUTOSAVE_MS = 10_000;
 import { C, FONT, FONT_DISPLAY, primaryBtn, primaryLinkStyle, type RosterLiteItem } from "./inquiry-drawer-tokens";
 export type { RosterLiteItem } from "./inquiry-drawer-tokens";
 import { SubmittedView } from "./InquirySubmittedView";
+import { EventDateInput } from "./EventDateInput";
 
 // ─── Drawer props ────────────────────────────────────────────────────────────
 export type InquiryDrawerProps = {
@@ -123,7 +125,7 @@ export type InquiryDrawerProps = {
    * When the offering resolves bookable, Compose swaps the date picker for
    * SlotPicker and hides event-only sections (budget / brief / wardrobe).
    */
-  bookableOffering?: BookableOffering | null;
+  bookableOffering?: BookableOffering | null; followUpOnSite?: boolean;
   onClose: () => void;
 };
 
@@ -140,10 +142,11 @@ export function InquiryDrawer({
   bindToInquiryCart = false,
   talentToolsSlot,
   representsPeople,
-  bookableOffering = null,
-  onClose,
+  bookableOffering = null, followUpOnSite = false,
+  onClose: onCloseProp,
 }: InquiryDrawerProps) {
   const t = useT();
+  const [onClose, noteSubmitted] = useRefreshOnClose(onCloseProp); // TUL-966
   // ─ Body scroll lock + ESC ──────────────────────────────────────────────────
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -231,6 +234,7 @@ export function InquiryDrawer({
     FormData
   >(submitInquiryNowAction, { kind: "idle" });
   const submitted = submitState.kind === "submitted";
+  useEffect(() => noteSubmitted(submitted), [noteSubmitted, submitted]);
   const sentKeys = sentCopyKeys(soloTalentName);
   const sentVars = { agency: agencyName, talent: soloTalentName ?? agencyName };
 
@@ -462,7 +466,7 @@ export function InquiryDrawer({
         <div style={{ flex: 1, overflowY: "auto", padding: "16px 22px 24px" }}>
           {submitState.kind === "submitted" ? (
             <>
-              <SubmittedView state={submitState} agencyName={agencyName} soloTalentName={soloTalentName} />
+              <SubmittedView state={submitState} agencyName={agencyName} soloTalentName={soloTalentName} followUpOnSite={followUpOnSite} />
               <AttachmentStatus phase={attachmentPhase} />
             </>
           ) : step === "compose" ? (
@@ -521,7 +525,7 @@ export function InquiryDrawer({
             {submitted
               ? interpolate(t(sentKeys.footer), sentVars)
               : !canSubmit && step === "compose"
-                ? t("public.inquiryDrawer.footerNeedMore")
+                ? (validation.ok ? t("public.inquiryDrawer.footerNeedMore") : interpolate(t("public.inquiryDrawer.footerMissing"), { fields: missingFieldLabels(validation.missingFields, t) }))
                 : submitState.kind === "slot_taken"
                   ? <span style={{ color: C.amber }}>{t(submitState.nextFreeTimes.length > 0 ? "public.inquiryDrawer.slotTakenIntro" : "public.inquiryDrawer.slotTakenNone")}</span>
                 : submitState.kind === "error"
@@ -699,7 +703,7 @@ export function RequesterSection({
   client: InquiryDrawerProps["client"];
 }) {
   const t = useT();
-  const isLoggedIn = !!client?.user_id;
+  const isLoggedIn = !!client?.user_id || !!client?.email; // TUL-965: hub sheet passes no user_id
   return (
     <Section title={t("public.inquiryDrawer.requesterTitle")} subtitle={t("public.inquiryDrawer.requesterSubtitle")}>
       {/* Trust card — always shown, content differs by state */}
@@ -1041,11 +1045,7 @@ export function DateSection({
           />
         </Field>
         <Field label={t("public.inquiryDrawer.dateEventDateLabel")}>
-          <Input
-            type="date"
-            value={value.event_date ?? ""}
-            onChange={(v) => onChange({ ...value, event_date: v })}
-          />
+          <EventDateInput value={value.event_date ?? ""} onChange={(v) => onChange({ ...value, event_date: v })} style={inputStyle} />
         </Field>
       </FieldRow>
       <FieldRow>

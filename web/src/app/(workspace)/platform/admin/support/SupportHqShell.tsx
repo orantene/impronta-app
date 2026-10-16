@@ -12,6 +12,7 @@ import { SupportQueueClient } from "./SupportQueueClient";
 import { SupportIdeasView } from "./SupportIdeasView";
 import { SupportInsightsView } from "./SupportInsightsView";
 import { SupportCannedEditor } from "./SupportCannedEditor";
+import { useRequestHost } from "@/lib/support/desk/use-request-host";
 import { supportDeskOpenFromHqHref } from "@/lib/support/desk/desk-url";
 
 export function SupportHqShell({
@@ -35,6 +36,7 @@ export function SupportHqShell({
   deskEnabled?: boolean;
 }) {
   const t = useT();
+  const requestHost = useRequestHost();
   const [view, setView] = useState<"queue" | "insights" | "ideas">(initialView);
   const [cannedOpen, setCannedOpen] = useState(false);
   // Local copy so a save refreshes the composer popover without a reload.
@@ -123,7 +125,7 @@ export function SupportHqShell({
       </button>
       {deskEnabled ? (
         <a
-          href={supportDeskOpenFromHqHref()}
+          href={supportDeskOpenFromHqHref(requestHost)}
           target="_blank"
           rel="noopener noreferrer"
           style={{

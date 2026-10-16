@@ -40,8 +40,9 @@ import {
   shell,
   tuneHeading,
 } from "./design-parts";
-import { buildWithAuthoredOverlay } from "./authored";
+import { buildWithAuthoredOverlay, loadAuthoredOverlay } from "./authored";
 import { seedI18nPayload } from "../seed-i18n";
+import { withPostsBand } from "../section-kit-bands";
 import { buildGridlinePayload } from "./gridline";
 import { buildMaisonV2Payload } from "./maison-v2";
 
@@ -135,7 +136,7 @@ export function buildFramePayload(): DesignPayload {
       navChrome: "filter_bar",
       navLinks: [
         { label: "Work", href: "#gallery" },
-        { label: "Book", href: "#services" },
+        { label: "Book", href: "#book" },
         { label: "Contact", href: "#contact" },
         { label: "About", href: "#about" },
       ],
@@ -395,6 +396,8 @@ function entry(
   sort: number,
   buildPayload: () => DesignPayload,
 ): BuiltinDesignEntry {
+  const withBand = (p: DesignPayload): DesignPayload =>
+    loadAuthoredOverlay(slug) ? p : withPostsBand(p, slug);
   return {
     kind: "design",
     slug,
@@ -406,10 +409,14 @@ function entry(
     sort_order: sort,
     is_new_until: null,
     preview: {},
-    buildPayloadRaw: buildPayload,
+    // Posts v1 (PO1): every Design ships the live posts band in code, EXCEPT
+    // designs with an authored overlay: authored overlay: adding the posts band
+    // is a theme release, pending approval (their code payload + hash must stay
+    // byte-identical). The Posts widget is still in the add gallery for them.
+    buildPayloadRaw: () => withBand(buildPayload()),
     // Seeded copy ships es + en. Applied AFTER the authored overlay so the
     // raw payload keeps reproducing the editor snapshot hash (see seed-i18n.ts).
-    buildPayload: () => seedI18nPayload(buildWithAuthoredOverlay(slug, buildPayload)),
+    buildPayload: () => seedI18nPayload(buildWithAuthoredOverlay(slug, () => withBand(buildPayload()))),
   };
 }
 
@@ -479,16 +486,7 @@ export function isCollectionDesignSlug(slug: string): boolean {
 }
 
 /** Spanish summaries for the gallery cards (en lives on each entry). */
-export const COLLECTION_DESIGN_SUMMARY_ES: Readonly<Record<string, string>> = {
-  "maison-v2":
-    "Portada dividida, trabajos recientes primero, un menú con fotos y una franja suave para tu visita. La nueva versión de Maison.",
-  solace: "Tranquilo y amplio: portada a todo lo ancho, una presentación breve y servicios en una sola columna sin prisa.",
-  mono: "Una frase y una lista de precios rápida. Para clientes que ya saben lo que quieren.",
-  frame: "Tu trabajo primero: portada con retrato, una cuadrícula de trabajos y servicios en tarjetas.",
-  folio: "Portada de revista con tu nombre como cabecera, un libro de trabajos y una tarifa clara.",
-  gridline:
-    "Barra de utilidad con botón de llamada, portada con ficha técnica, un selector de tareas y una comparación clara de servicios. Para oficios que reciben llamadas.",
-};
+export { COLLECTION_DESIGN_SUMMARY_ES } from "./design-summaries-es";
 
 /** What each design still needs from shared widgets (mockup → today). */
 export const COLLECTION_DESIGN_GAPS: Readonly<Record<string, readonly string[]>> = {

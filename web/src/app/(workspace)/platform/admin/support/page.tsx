@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { loadHqSupportQueue } from "@/lib/support/load-hq";
@@ -20,10 +21,13 @@ export default async function PlatformSupportPage({
 
   // When Desk is enabled, retire this page: Support nav lands on the portal.
   if (isSupportDeskEnabled()) {
+    const h = await headers();
+    const host = h.get("x-forwarded-host") ?? h.get("host");
     redirect(
       supportDeskPortalRedirectHref({
         ticketId: openTicketId ?? null,
         view: view ?? null,
+        host,
       }),
     );
   }

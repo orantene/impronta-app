@@ -14,6 +14,7 @@ import { sendOfferAction, counterOfferAction, loadBookingCommissionSnapshotActio
 } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import { loadCoordinatorInquiryOffer } from "@/app/(workspace)/[tenantSlug]/talent/inbox/[id]/coordinator-offer-loader";
 import type { PersistedBookingCommissionSnapshot } from "@/lib/billing/commission";
+import { useDashboardText } from "../../dashboard-i18n";
 import { useAdminShell, COLORS, FONTS } from "../../state";
 import { type Conversation } from "../../talent";
 import { applyRowOverrides, setRowOverride, useRowOverrideSubscription } from "../conversation-stash";
@@ -21,6 +22,7 @@ import { STAGE_LABEL, STAGE_LABEL_KEYS, fmtMoney, getOffer, nextActionFor, rowSu
 import type { OfferPov } from "./machinery-10";
 import { CreateOfferButton, OfferDraftEditor } from "./machinery-11";
 import { TalentOfferApprovalCard } from "./talent-offer-approval-card";
+import { talentPayoutLabel } from "./talent-payout-label";
 import { selectTalentOfferView } from "./talent-offer-view";
 import type { SendGateResult } from "./offer-save-state";
 import { OfferTermsSummary } from "./offer-terms-ui";
@@ -434,6 +436,7 @@ function CommissionRow({ label, value, strong }: { label: string; value: string;
 
 export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
   const { toast, effectiveMessagesInquiries, effectiveTenant } = useAdminShell();
+  const copy = useDashboardText();
   const router = useRouter();
   const t = useT();
   // B7 — talent counter-rate handler. Sends a tagged [Counter request]
@@ -538,20 +541,24 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
       const hasOffer =
         isBooked || isApproved || conv.stage === "hold" ||
         !!(liveOffer && liveOffer.status === "sent");
-      const heading = isBooked
-        ? "You're booked"
-        : isApproved
-        ? "You approved this offer"
-        : hasOffer
-        ? "You've received an offer"
-        : "Submit your rate";
-      const blurb = isBooked
-        ? "This job is booked and confirmed. Your take-home below is on its way to your connected payout account."
-        : isApproved
-        ? "You've approved this offer. We're just waiting on the other parties before it converts to a booking."
-        : hasOffer
-        ? "The coordinator has sent you an offer for this job. Review your take-home below, then use Approve or Decline in the action bar."
-        : "The coordinator is waiting on your number. You'll see the agency fee + platform fee deducted before take-home, so quote what you actually need to walk out with, plus a small margin for usage.";
+      const heading = copy.t(
+        isBooked
+          ? "You're booked"
+          : isApproved
+          ? "You approved this offer"
+          : hasOffer
+          ? "You've received an offer"
+          : "Submit your rate",
+      );
+      const blurb = copy.t(
+        isBooked
+          ? "This job is booked and confirmed. Your take-home below is on its way to your connected payout account."
+          : isApproved
+          ? "You've approved this offer. We're just waiting on the other parties before it converts to a booking."
+          : hasOffer
+          ? "The coordinator has sent you an offer for this job. Review your take-home below, then use Approve or Decline in the action bar."
+          : "The coordinator is waiting on your number. You'll see the agency fee + platform fee deducted before take-home, so quote what you actually need to walk out with, plus a small margin for usage.",
+      );
       const stubView = realInquiryId && !isBooked
         ? selectTalentOfferView({ stage: conv.stage, myApprovalStatus: conv.myApprovalStatus, hasSentOffer: !!(liveOffer && liveOffer.status === "sent") })
         : "draft_cta";
@@ -579,32 +586,32 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
                 always sits next to the payout status. */}
             {takeHome && hasOffer && !isBooked && (
               <div className="text-admin-ink-muted text-admin-13h">
-                Your take-home:{" "}
+                {copy.t("Your take-home:")}{" "}
                 <strong className="text-admin-ink">{fmtMoney(takeHome.takeHomeCents / 100, takeHome.currency)}</strong>{" "}
-                <span className="text-admin-11">(after the agency + platform fee)</span>
+                <span className="text-admin-11">{copy.t("(after the agency + platform fee)")}</span>
               </div>
             )}
             {isBooked ? (
               <div className="text-admin-ink-muted text-admin-13h">
-                Your take-home:{" "}
+                {copy.t("Your take-home:")}{" "}
                 {takeHome ? (
                   <strong className="text-admin-ink">{fmtMoney(takeHome.takeHomeCents / 100, takeHome.currency)}</strong>
                 ) : (
-                  <strong className="text-admin-ink">{talentPayout ? "—" : "loading…"}</strong>
+                  <strong className="text-admin-ink">{talentPayout ? "—" : copy.t("loading…")}</strong>
                 )}{" "}
                 <span className="text-admin-11">· {talentPayoutLabel(talentPayout)}</span>
               </div>
             ) : isApproved ? (
               <div className="text-admin-ink-muted text-admin-11">
-                Status <strong className="text-admin-ink">awaiting the other parties</strong>
+                {copy.t("Status")} <strong className="text-admin-ink">{copy.t("awaiting the other parties")}</strong>
               </div>
             ) : hasOffer ? (
               <div className="text-admin-ink-muted text-admin-11">
-                Status <strong className="text-admin-ink">awaiting your approval</strong>
+                {copy.t("Status")} <strong className="text-admin-ink">{copy.t("awaiting your approval")}</strong>
               </div>
             ) : (
               <div className="text-admin-ink-muted text-admin-11">
-                No offer yet. Your coordinator will send one when it&apos;s ready.
+                {copy.t("No offer yet. Your coordinator will send one when it's ready.")}
               </div>
             )}
           </div>
@@ -950,23 +957,6 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
       )}
     </div>
   );
-}
-
-/** Human payout-status phrase for the talent's booked take-home line. */
-function talentPayoutLabel(snap: TalentPayoutSnapshot | null): string {
-  if (!snap || !snap.hasProfile) return "set up your payout account to get paid";
-  switch (snap.status) {
-    case "enabled":
-      return "on its way to your connected payout account";
-    case "pending":
-      return "payout account verification pending";
-    case "restricted":
-      return "payout account needs attention";
-    case "disabled":
-      return "payout account disabled, contact support";
-    default:
-      return "connect a payout account to get paid";
-  }
 }
 
 export function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {

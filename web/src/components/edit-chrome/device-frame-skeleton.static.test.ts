@@ -38,9 +38,10 @@ test("C1: phone vs tablet body layouts differ (narrow stack vs two-up)", () => {
 
 test("C1: DeviceFrameSurface paints skeleton until active tier load (warm-keep)", () => {
   assert.match(shellSrc, /DeviceFrameSkeleton/);
-  assert.match(shellSrc, /useDeviceFrameLoadTracking/);
+  assert.match(shellSrc, /useDeviceFrameWarmKeep/);
   assert.match(shellSrc, /markTierLoaded/);
   assert.match(shellSrc, /onLoad=\{\(\) => markTierLoaded\(d\)\}/);
+  assert.match(shellSrc, /showSkeleton/);
   // Frame-matching UI lives in the extracted module — shell must not grow.
   assert.doesNotMatch(shellSrc, /readyTiers|markTierReadyFromSource|editor:ready/);
 });

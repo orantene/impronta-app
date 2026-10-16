@@ -188,16 +188,21 @@ describe("MAIN vs SECONDARY read timeouts (TUL-449)", () => {
     assert.equal(result.mainCalls, 1);
   });
 
-  it("talent-site public routes stay force-no-store so a degraded paint is never cached", () => {
+  it("discovery /t/site routes stay force-no-store; host route uses short revalidate (TUL-445)", () => {
     const root = join(new URL(".", import.meta.url).pathname, "../../app");
+    // Discovery paths: a SECONDARY degrade must never be CDN-cached.
     for (const rel of [
-      "%5Ftalent-site/[[...pageSlug]]/page.tsx",
       "t/site/[siteSlug]/page.tsx",
       "t/site/[siteSlug]/[pageSlug]/page.tsx",
     ]) {
       const src = readFileSync(join(root, rel), "utf8");
       assert.match(src, /fetchCache\s*=\s*"force-no-store"/, rel);
     }
+    // Custom-domain / vanity host rewrite: TUL-445 CDN-caches cookieless GETs
+    // (proxy s-maxage=60); cookied/signed-in stay private, no-store at proxy.
+    const hostSrc = readFileSync(join(root, "%5Ftalent-site/[[...pageSlug]]/page.tsx"), "utf8");
+    assert.match(hostSrc, /export const revalidate\s*=\s*60/);
+    assert.doesNotMatch(hostSrc, /fetchCache\s*=\s*"force-no-store"/);
   });
 
   it("personal Max secondary widgets load under withSecondaryReadDegrade", () => {

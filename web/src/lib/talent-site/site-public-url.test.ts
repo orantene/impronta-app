@@ -81,9 +81,49 @@ test("demo hosts append the -demo suffix without renaming site_slug", () => {
   );
   assert.equal(
     talentDemoBareHostRedirectHost({
+      hostname: "folio-demo.tulala.digital",
+      siteSlug: "mateo-ferrer",
+      isDemo: true,
+    }),
+    "mateo-ferrer-demo.tulala.digital",
+  );
+  assert.equal(
+    talentDemoBareHostRedirectHost({
+      hostname: "gridline-demo.tulala.digital",
+      siteSlug: "alex-trevino",
+      isDemo: true,
+    }),
+    "alex-trevino-demo.tulala.digital",
+  );
+  assert.equal(
+    talentDemoBareHostRedirectHost({
+      hostname: "maison-v2-demo.tulala.digital",
+      siteSlug: "alba-nail-artist",
+      isDemo: true,
+    }),
+    "alba-nail-artist-demo.tulala.digital",
+  );
+  assert.equal(
+    talentDemoBareHostRedirectHost({
+      hostname: "valeria-baila-demo.tulala.digital",
+      siteSlug: "valeria-baila",
+      isDemo: true,
+    }),
+    null,
+  );
+  assert.equal(
+    talentDemoBareHostRedirectHost({
       hostname: "sofia.tulala.digital",
       siteSlug: "sofia",
       isDemo: false,
+    }),
+    null,
+  );
+  assert.equal(
+    talentDemoBareHostRedirectHost({
+      hostname: "folio-demo.tulala.digital",
+      siteSlug: null,
+      isDemo: true,
     }),
     null,
   );
@@ -202,4 +242,42 @@ test("talentSitePathRedirectTarget never redirects a preview request", () => {
     }),
     "https://sofia.tulala.digital",
   );
+});
+
+// TUL-750: staging mirrors talent sites on <slug>.staging.tulala.digital.
+import { resolveTalentSiteRootDomain } from "./site-public-url";
+
+test("TALENT_SITE_ROOT_DOMAIN defaults to the production root", () => {
+  assert.equal(resolveTalentSiteRootDomain({}), "tulala.digital");
+  assert.equal(resolveTalentSiteRootDomain({ TALENT_SITE_ROOT_DOMAIN: "  " }), "tulala.digital");
+});
+
+test("TALENT_SITE_ROOT_DOMAIN is honoured off production for a *.tulala.digital root", () => {
+  assert.equal(resolveTalentSiteRootDomain({ TALENT_SITE_ROOT_DOMAIN: "staging.tulala.digital", VERCEL_ENV: "preview" }), "staging.tulala.digital");
+  assert.equal(resolveTalentSiteRootDomain({ TALENT_SITE_ROOT_DOMAIN: "Staging.Tulala.Digital" }), "staging.tulala.digital");
+});
+
+test("production never reads a staging root", () => {
+  assert.equal(resolveTalentSiteRootDomain({ TALENT_SITE_ROOT_DOMAIN: "staging.tulala.digital", VERCEL_ENV: "production" }), "tulala.digital");
+});
+
+test("a malformed or foreign root falls back to production", () => {
+  for (const bad of ["evil.com", "https://staging.tulala.digital", "staging.tulala.digital:3000", "*.tulala.digital", "a..tulala.digital", "tulala.digital.evil.com"]) {
+    assert.equal(resolveTalentSiteRootDomain({ TALENT_SITE_ROOT_DOMAIN: bad }), "tulala.digital", bad);
+  }
+});
+
+test("with a staging root configured, hosts and URLs use it and the old roots still parse", () => {
+  const prev = { r: process.env.TALENT_SITE_ROOT_DOMAIN, v: process.env.VERCEL_ENV };
+  process.env.TALENT_SITE_ROOT_DOMAIN = "staging.tulala.digital";
+  delete process.env.VERCEL_ENV;
+  try {
+    assert.equal(talentSitePublicUrl("sofia"), "https://sofia.staging.tulala.digital");
+    assert.deepEqual(splitTalentSiteHost("sofia.staging.tulala.digital"), { label: "sofia", root: "staging.tulala.digital" });
+    assert.deepEqual(splitTalentSiteHost("sofia.tulala.digital"), { label: "sofia", root: "tulala.digital" });
+    assert.equal(splitTalentSiteHost("a.b.staging.tulala.digital"), null);
+  } finally {
+    if (prev.r === undefined) delete process.env.TALENT_SITE_ROOT_DOMAIN; else process.env.TALENT_SITE_ROOT_DOMAIN = prev.r;
+    if (prev.v === undefined) delete process.env.VERCEL_ENV; else process.env.VERCEL_ENV = prev.v;
+  }
 });

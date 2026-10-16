@@ -19,6 +19,7 @@ import { createPortal } from "react-dom";
 import { CASE_STUDY_PHOTOS, type MarketingPhoto } from "@/lib/marketing/photography";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 import { getMarketingCopy, type MarketingCopy } from "@/lib/marketing/copy";
+import { marketingReadStoryNamedLabel } from "@/lib/marketing/chrome-aria";
 import { getCaseStudies, type CaseStudy, type Motion } from "./case-studies-data";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 import { EditorialFrame } from "./editorial-image";
@@ -99,6 +100,7 @@ export function CaseStudiesSection({ locale = "en" }: { locale?: string }) {
               study={study}
               onOpen={() => open(study)}
               readStory={copy.readStory}
+              locale={locale}
             />
           ))}
         </div>
@@ -146,10 +148,12 @@ function CaseStudyCard({
   study,
   onOpen,
   readStory,
+  locale,
 }: {
   study: CaseStudy;
   onOpen: () => void;
   readStory: string;
+  locale: string;
 }) {
   return (
     <article
@@ -189,7 +193,7 @@ function CaseStudyCard({
           className="mt-4 flex items-center gap-1.5 pt-1 text-[0.8125rem] font-medium"
           style={{ color: "var(--plt-forest)" }}
         >
-          <span>{study.persona}</span>
+          <span className="whitespace-nowrap">{study.persona}</span>
           <span style={{ color: "var(--plt-hairline-strong)" }}>·</span>
           <span style={{ color: "var(--plt-muted)" }}>{study.role}</span>
         </div>
@@ -206,7 +210,7 @@ function CaseStudyCard({
         type="button"
         onClick={onOpen}
         className="absolute inset-0 rounded-[20px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)]"
-        aria-label={`Read ${study.persona}'s story`}
+        aria-label={marketingReadStoryNamedLabel(locale, study.persona)}
       />
     </article>
   );
@@ -309,7 +313,7 @@ function CaseStudyModal({
                 className="plt-display mt-3 text-[1.5rem] font-semibold leading-[1.1] tracking-[-0.02em] sm:text-[1.875rem]"
                 style={{ color: "var(--plt-on-inverse)" }}
               >
-                {study.persona}
+                <span className="whitespace-nowrap">{study.persona}</span>
               </p>
               <p className="mt-1 text-[0.875rem]" style={{ color: "rgba(241,237,227,0.82)" }}>
                 {study.role} · {study.location}
@@ -385,7 +389,7 @@ function CaseStudyModal({
                   &ldquo;{study.quote}&rdquo;
                 </p>
                 <footer className="mt-2 text-[0.8125rem]" style={{ color: "var(--plt-muted)" }}>
-                  — {study.persona}, {study.role}
+                  — <span className="whitespace-nowrap">{study.persona}</span>, {study.role}
                 </footer>
               </blockquote>
 

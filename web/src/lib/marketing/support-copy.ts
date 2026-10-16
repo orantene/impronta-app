@@ -39,6 +39,10 @@ const en = {
   emailConsent:
     "By leaving your email you agree we can send replies about this conversation. You can unsubscribe from any message. We delete unconverted chats after 90 days.",
   askHuman: `Talk to ${SUPPORT_AGENT.name}`,
+  resumeTitle: `Your conversation with ${SUPPORT_AGENT.name}`,
+  resumeOpen: "Open the conversation",
+  resumeExpired:
+    "This reply link has expired or is no longer valid. Write to us below and we will pick it up.",
   contactTitle: "Contact us",
   contactBody: "Write to the team. This goes to a person, not the chat bot.",
   topicLabel: "Topic",
@@ -63,7 +67,7 @@ const es: MarketingSupportCopy = {
   launcherAria: "Haz una pregunta",
   panelTitle: "Pregunta a Tulala",
   panelSubtitle: "Preguntas de producto. Una persona si la necesitas.",
-  composerPlaceholder: "Pregunta por planes, funciones o como empezar",
+  composerPlaceholder: "Pregunta por planes, funciones o cómo empezar",
   send: "Enviar",
   newChat: "Nueva pregunta",
   emptyHome: "Pregunta lo que quieras sobre Tulala. Primero respondemos.",
@@ -83,13 +87,17 @@ const es: MarketingSupportCopy = {
   statusWaitingYou: "Pendiente de ti",
   statusClosed: "Cerrada",
   emailPrompt:
-    `Quieres esta respuesta por email, guardar el hilo, o hablar con ${SUPPORT_AGENT.name}? Deja un email.`,
+    `¿Quieres esta respuesta por email, guardar el hilo, o hablar con ${SUPPORT_AGENT.name}? Deja un email.`,
   emailLabel: "Email",
   nameLabel: "Nombre (opcional)",
   saveEmail: "Guardar email",
   emailConsent:
-    "Al dejar tu email aceptas que te enviemos respuestas sobre esta conversacion. Puedes cancelar el email cuando quieras. Borramos los chats no convertidos a los 90 dias.",
+    "Al dejar tu email aceptas que te enviemos respuestas sobre esta conversación. Puedes cancelar el email cuando quieras. Borramos los chats no convertidos a los 90 días.",
   askHuman: `Hablar con ${SUPPORT_AGENT.name}`,
+  resumeTitle: `Tu conversación con ${SUPPORT_AGENT.name}`,
+  resumeOpen: "Abrir la conversación",
+  resumeExpired:
+    "Este enlace de respuesta venció o ya no es válido. Escríbenos abajo y lo retomamos.",
   contactTitle: "Contacto",
   contactBody: "Escribe al equipo. Esto llega a una persona, no al chat.",
   topicLabel: "Tema",
@@ -98,7 +106,7 @@ const es: MarketingSupportCopy = {
   topicDemo: "Demo o recorrido",
   topicOther: "Otra cosa",
   messageLabel: "Mensaje",
-  phoneLabel: "Telefono (opcional)",
+  phoneLabel: "Teléfono (opcional)",
   submit: "Enviar mensaje",
   submitting: "Enviando…",
   successTitle: "Listo",
@@ -117,4 +125,22 @@ export const TULALA_SUPPORT_OPEN_EVENT = "tulala:support:open";
 export function openMarketingSupport(ticketId?: string): void {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent(TULALA_SUPPORT_OPEN_EVENT, { detail: { ticketId } }));
+}
+
+/**
+ * TUL-922 (PM decision): Ask Tulala's starters and placeholder follow the PAGE
+ * CONTEXT, never screen size and never sign-in: public pages get the sales set,
+ * surfaces inside a dashboard get the support set. Desktop and mobile match.
+ */
+export type SupportSurface = "public" | "dashboard";
+
+export function supportStarters(surface: SupportSurface, copy: MarketingSupportCopy): string[] {
+  return surface === "dashboard"
+    ? [copy.starterBroken, copy.starterBilling, copy.starterAccount, copy.starterHuman]
+    : [copy.starterPricing, copy.starterDomain, copy.starterPayments, copy.starterHuman];
+}
+
+/** Composer placeholder for the same page context. */
+export function supportComposerPlaceholder(surface: SupportSurface, copy: MarketingSupportCopy): string {
+  return surface === "dashboard" ? copy.composerPlaceholderSignedIn : copy.composerPlaceholder;
 }

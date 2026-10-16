@@ -19,8 +19,11 @@ import { computeCaptionNorms } from "@/lib/directory/caption-norms";
 import { DirectoryTalentCard } from "./DirectoryTalentCard";
 import { DirectoryTalentRow } from "./DirectoryTalentRow";
 import { MarketingDirectoryMap } from "./MarketingDirectoryMap";
+import { directoryCopy } from "./directory-copy";
+import { DirectoryCopyProvider, useDirectoryCopy } from "./directory-copy-context";
 
 type Props = {
+  locale: string;
   view: DirectoryView;
   sort: DiscoverSort;
   facets: DirectoryFacets;
@@ -43,7 +46,16 @@ type Props = {
   pageWindow: DirectoryPageWindow;
 };
 
-export function MarketingDirectoryShell({
+export function MarketingDirectoryShell(props: Props) {
+  const copy = useMemo(() => directoryCopy(props.locale), [props.locale]);
+  return (
+    <DirectoryCopyProvider value={copy}>
+      <DirectoryShellBody {...props} />
+    </DirectoryCopyProvider>
+  );
+}
+
+function DirectoryShellBody({
   view,
   sort,
   facets,
@@ -57,6 +69,7 @@ export function MarketingDirectoryShell({
   mapApiKey,
   pageWindow,
 }: Props) {
+  const copy = useDirectoryCopy();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -68,14 +81,14 @@ export function MarketingDirectoryShell({
     () =>
       computeCaptionNorms(
         items.map((t) => ({
-          locationLabel: locationLine(t.homeCity, t.homeCountry),
+          locationLabel: locationLine(t.homeCity, t.homeCountry, copy.locale),
           availabilityLabel:
             typeof t.availableDaysInNext30 === "number" && t.availableDaysInNext30 > 0
-              ? availabilityLine(t.availableDaysInNext30).text
+              ? availabilityLine(t.availableDaysInNext30, copy).text
               : null,
         })),
       ),
-    [items],
+    [items, copy],
   );
   const [total, setTotal] = useState(initialTotal);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -163,6 +176,7 @@ export function MarketingDirectoryShell({
         // starts at row 48, so passing items.length alone would re-fetch page 1
         // and append duplicates under the page-3 heading.
         pageWindow.offset + items.length,
+        copy.locale,
       );
       setItems((prev) => {
         const seen = new Set(prev.map((t) => t.id));
@@ -174,7 +188,7 @@ export function MarketingDirectoryShell({
     } finally {
       setLoadingMore(false);
     }
-  }, [activeFilters, sort, items.length, loadingMore]);
+  }, [activeFilters, sort, items.length, loadingMore, copy.locale]);
 
   const renderFilters = (variant: "rail" | "sheet") => (
     <DirectoryFilters
@@ -194,7 +208,9 @@ export function MarketingDirectoryShell({
   const showEmpty = view !== "map" && !isPending && items.length === 0;
 
   return (
-    <MarketingContainer size="wide" className="pb-24">
+    <MarketingContainer size="wide" className="pb-[calc(8rem+env(safe-area-inset-bottom))]">
+      {/* TUL-879: on a phone the 2-up grid puts a save heart under the chat launcher in the right column; park the launcher on the left here. */}
+      <style>{`@media (max-width: 639px){[data-guest-chat-launcher]{left:16px!important;right:auto!important}}`}</style>
       <div className="flex flex-col gap-5">
         <DirectorySearch value={activeFilters.q} onCommit={(v) => updateParams({ q: v })} />
         <DirectoryTypeBar
@@ -210,12 +226,10 @@ export function MarketingDirectoryShell({
         </aside>
 
         <div className="min-w-0 flex-1">
-          <h2 className="sr-only">Directory results</h2>
+          <h2 className="sr-only">{copy.resultsHeading}</h2>
           {/* Announce result-count / loading changes to screen readers. */}
           <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-            {isPending
-              ? "Updating results…"
-              : `${total.toLocaleString()} ${total === 1 ? "profile" : "profiles"}`}
+            {isPending ? copy.updatingResults : copy.profiles(total)}
           </p>
           <DirectoryToolbar
             total={total}
@@ -227,7 +241,14 @@ export function MarketingDirectoryShell({
             onOpenFilters={() => setSheetOpen(true)}
           />
 
-          <div className="mt-6" aria-busy={isPending}>
+          <div
+            className={
+              isPending && items.length > 0
+                ? "mt-6 opacity-60 transition-opacity"
+                : "mt-6 transition-opacity"
+            }
+            aria-busy={isPending}
+          >
             {view === "map" ? (
               <MarketingDirectoryMap
                 points={mapPoints}
@@ -235,7 +256,7 @@ export function MarketingDirectoryShell({
                 unmappedCount={mapUnmappedCount}
                 onBackToGrid={() => updateParams({ view: null })}
               />
-            ) : isPending ? (
+            ) : isPending && items.length === 0 ? (
               <DirectorySkeleton view={view} />
             ) : showEmpty ? (
               <DirectoryEmpty
@@ -271,7 +292,7 @@ export function MarketingDirectoryShell({
             {view !== "map" && pageWindow.totalPages > 1 ? (
               <nav
                 className="mt-10 flex flex-wrap items-center justify-center gap-1.5"
-                aria-label="Directory pages"
+                aria-label={copy.pagesLabel}
               >
                 {pageWindow.prev ? (
                   <Link
@@ -280,7 +301,7 @@ export function MarketingDirectoryShell({
                     className="rounded-full px-3 py-2 text-[0.8125rem]"
                     style={{ color: "var(--plt-muted)" }}
                   >
-                    Previous
+                    {copy.previous}
                   </Link>
                 ) : null}
                 {pageWindow.pages.map((p, i) =>
@@ -316,7 +337,7 @@ export function MarketingDirectoryShell({
                     className="rounded-full px-3 py-2 text-[0.8125rem]"
                     style={{ color: "var(--plt-muted)" }}
                   >
-                    Next
+                    {copy.next}
                   </Link>
                 ) : null}
               </nav>
@@ -335,11 +356,11 @@ export function MarketingDirectoryShell({
                     color: "var(--plt-ink)",
                   }}
                 >
-                  {loadingMore ? "Loading…" : `Show more (${total - items.length} left)`}
+                  {loadingMore ? copy.loading : copy.showMore(total - items.length)}
                 </button>
                 {loadMoreError ? (
                   <p className="text-[0.8125rem]" style={{ color: "var(--plt-muted)" }} role="alert">
-                    Couldn&apos;t load more. Tap to try again.
+                    {copy.loadMoreError}
                   </p>
                 ) : null}
               </div>
@@ -363,7 +384,7 @@ export function MarketingDirectoryShell({
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="Filters"
+          aria-label={copy.filters}
           className="absolute left-0 top-0 flex h-full w-[86%] max-w-sm flex-col transition-transform duration-300"
           style={{
             background: "var(--plt-bg)",
@@ -376,13 +397,13 @@ export function MarketingDirectoryShell({
             style={{ borderBottom: "1px solid var(--plt-hairline)" }}
           >
             <span className="plt-display text-[1.0625rem] font-semibold" style={{ color: "var(--plt-ink)" }}>
-              Filters
+              {copy.filters}
             </span>
             <button
               ref={sheetCloseRef}
               type="button"
               onClick={() => setSheetOpen(false)}
-              aria-label="Close filters"
+              aria-label={copy.closeFilters}
               className={`flex h-9 w-9 items-center justify-center rounded-full ${FOCUS_RING}`}
               style={{ border: "1px solid var(--plt-hairline-strong)", color: "var(--plt-ink)" }}
             >
@@ -399,7 +420,7 @@ export function MarketingDirectoryShell({
               className={`inline-flex h-12 w-full items-center justify-center rounded-full text-[0.9375rem] font-semibold ${FOCUS_RING}`}
               style={{ background: "var(--plt-forest)", color: "var(--plt-forest-on)" }}
             >
-              Show {total.toLocaleString()} {total === 1 ? "profile" : "profiles"}
+              {copy.showProfiles(total)}
             </button>
           </div>
         </div>
@@ -480,6 +501,7 @@ function Shimmer({ className }: { className?: string }) {
 }
 
 function DirectoryEmpty({ hasFilters, onClear }: { hasFilters: boolean; onClear: () => void }) {
+  const t = useDirectoryCopy();
   return (
     <div
       className="flex flex-col items-center justify-center gap-3 rounded-[22px] px-6 py-20 text-center"
@@ -496,12 +518,10 @@ function DirectoryEmpty({ hasFilters, onClear }: { hasFilters: boolean; onClear:
         </svg>
       </span>
       <h3 className="plt-display text-[1.25rem] font-semibold" style={{ color: "var(--plt-ink)" }}>
-        No profiles match yet
+        {t.emptyTitle}
       </h3>
       <p className="max-w-md text-[0.9375rem] leading-relaxed" style={{ color: "var(--plt-muted)" }}>
-        {hasFilters
-          ? "Try widening your filters. Fewer constraints surface more of the network."
-          : "The directory is still filling in. Talent control their own visibility, so new profiles appear here as they opt in."}
+        {hasFilters ? t.emptyFiltered : t.emptyUnfiltered}
       </p>
       {hasFilters ? (
         <button
@@ -510,7 +530,7 @@ function DirectoryEmpty({ hasFilters, onClear }: { hasFilters: boolean; onClear:
           className={`mt-1 inline-flex h-11 items-center rounded-full px-6 text-[0.875rem] font-semibold ${FOCUS_RING}`}
           style={{ background: "var(--plt-forest)", color: "var(--plt-forest-on)" }}
         >
-          Clear filters
+          {t.clearFilters}
         </button>
       ) : null}
     </div>

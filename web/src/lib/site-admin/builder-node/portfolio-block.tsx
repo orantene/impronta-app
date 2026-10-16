@@ -21,9 +21,8 @@ import { MAGAZINE_ROOT_VARS } from "./magazine-edition";
 import { eyebrowDuplicatesHeading } from "./portfolio-eyebrow";
 import { PORTFOLIO_FRAMED_CSS } from "./portfolio-framed-css";
 import { filterShotsForPortfolio } from "./portfolio-selection";
-import { bookEntryFrom, listBookableOfferings } from "@/lib/talent-site/book-entry";
+import { bookEntryFrom, listBookableOfferings, openIntentFor } from "@/lib/talent-site/book-entry";
 import type { OpenIntent } from "@/lib/talent-site/open-intent-queue";
-import { stickyBarAction, stickyBarIntent } from "@/lib/talent-site/sticky-bar-tap";
 import { buildPortfolioGallery, generalBookLabel, type PortfolioGallery } from "./portfolio-lightbox-logic";
 import { captionLanguageHint } from "./portfolio-caption-hint";
 import { NotShownOnSiteBadge } from "./not-shown-on-site-badge";
@@ -48,15 +47,23 @@ export const PORTFOLIO_MAGAZINE_CSS = `
 .sb-portfolio[data-edition="magazine"] .sb-portfolio-item--pair .sb-portfolio-frame{aspect-ratio:3/4}
 .sb-portfolio[data-edition="magazine"] .sb-portfolio-cap{position:absolute;left:8px;bottom:8px;margin:0;padding:3px 6px;font:600 9.5px/1.2 var(--sb-mag-label);letter-spacing:.16em;text-transform:uppercase;color:white;background:color-mix(in srgb,black 35%,transparent)}
 .sb-portfolio[data-edition="magazine"] .sb-portfolio-service{display:none}
+/* TUL-476: no ghost gap under a short Editorial set (collapse trailing chapter air). */
+.sb-portfolio[data-edition="magazine"] .sb-portfolio-chapter{margin:0 0 28px;padding:0}
+.sb-portfolio[data-edition="magazine"] .sb-portfolio-chapter:last-child{margin-bottom:0}
 @media (min-width:900px){
   .sb-portfolio[data-edition="magazine"]{padding:90px 40px 0}
-  .sb-portfolio[data-edition="magazine"] .sb-portfolio-chapter{display:grid;grid-template-columns:320px minmax(0,1fr);gap:40px;align-items:start}
+  .sb-portfolio[data-edition="magazine"] .sb-portfolio-chapter{display:grid;grid-template-columns:320px minmax(0,1fr);gap:40px;align-items:start;margin-bottom:48px}
   .sb-portfolio[data-edition="magazine"] .sb-portfolio-chapter-head{display:block;border:0;padding:0;margin:0;position:sticky;top:80px}
   .sb-portfolio[data-edition="magazine"] .sb-portfolio-chapter-num{display:block;font-size:120px}
   .sb-portfolio[data-edition="magazine"] .sb-portfolio-chapter-title{margin-top:6px;font-size:var(--token-type-group-title-size-desktop,56px)}
   .sb-portfolio[data-edition="magazine"] .sb-portfolio-credit{margin-top:12px}
   .sb-portfolio[data-edition="magazine"] .sb-portfolio--chapter{grid-template-columns:1.4fr 1fr 1fr;gap:10px}
+  /* TUL-476: 1–2 shots must not leave an empty third column under Editorial. */
+  .sb-portfolio[data-edition="magazine"] .sb-portfolio--chapter:has(>:only-child){grid-template-columns:minmax(0,1fr)}
+  .sb-portfolio[data-edition="magazine"] .sb-portfolio--chapter:has(>:nth-child(2):last-child){grid-template-columns:1.4fr minmax(0,1fr)}
+  .sb-portfolio[data-edition="magazine"] .sb-portfolio--chapter:has(>:nth-child(2):last-child) .sb-portfolio-item--hero{grid-row:auto}
   .sb-portfolio[data-edition="magazine"] .sb-portfolio-item--hero{grid-column:auto;grid-row:span 2}
+  .sb-portfolio[data-edition="magazine"] .sb-portfolio--chapter:has(>:only-child) .sb-portfolio-item--hero{grid-column:1;grid-row:auto}
   .sb-portfolio[data-edition="magazine"] .sb-portfolio-item--hero .sb-portfolio-frame{aspect-ratio:auto}
   .sb-portfolio[data-edition="magazine"] .sb-portfolio-item--pair .sb-portfolio-frame{aspect-ratio:4/5}
 }
@@ -67,10 +74,14 @@ export const PORTFOLIO_CSS = `
 .sb-portfolio-header{margin-bottom:1rem}
 .sb-portfolio-eyebrow{margin:0 0 0.35rem;font-size:0.75rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--token-color-muted)}
 .sb-portfolio-title{margin:0;font-size:clamp(1.35rem,2.5vw,1.85rem);font-weight:600;letter-spacing:-0.02em;line-height:1.15}
-.sb-portfolio-empty{padding:2rem 0;color:var(--token-color-muted);font-size:0.95rem}
+.sb-portfolio-empty{padding:2rem 0;color:var(--token-color-muted);font-size:0.95rem;min-height:12rem}
 .sb-portfolio-shot{position:relative;display:block;overflow:hidden;border:0;padding:0;margin:0;background:var(--token-color-surface-raised,transparent);color:inherit;text-align:left;cursor:pointer;text-decoration:none;width:100%}
 .sb-portfolio-shot:focus-visible{outline:2px solid var(--token-color-ink);outline-offset:2px}
-.sb-portfolio-shot img{display:block;width:100%;height:100%;object-fit:cover}
+/* TUL-532 / GRK-076: prefer faces; center crop often clips the head. */
+.sb-portfolio-shot img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 18%}
+/* Reserve frame height before decode so gallery tiles do not jump (GRK-044). */
+.sb-portfolio--grid,.sb-portfolio--contact_sheet{min-height:min(52vw,22rem);content-visibility:auto}
+.sb-portfolio--grid .sb-portfolio-frame,.sb-portfolio--contact_sheet .sb-portfolio-frame{background:color-mix(in srgb,var(--token-color-ink) 6%,transparent)}
 .sb-portfolio-cap{display:block;margin-top:0.4rem;font-size:0.8125rem;line-height:1.35;color:var(--token-color-muted)}
 .sb-portfolio-service{display:block;font-size:0.75rem;letter-spacing:0.04em;text-transform:uppercase;color:var(--token-color-ink);margin-top:0.15rem}
 .sb-portfolio--filmstrip{display:flex;gap:0.75rem;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;padding-bottom:0.25rem}
@@ -83,8 +94,8 @@ export const PORTFOLIO_CSS = `
 .sb-portfolio--staggered .sb-portfolio-shot{background:none}
 .sb-portfolio--staggered .sb-portfolio-shot img{transition:transform .5s ease}
 .sb-portfolio--staggered .sb-portfolio-shot:hover img{transform:scale(1.04)}
-/* Phone filmstrip bleeds to the screen edge (Maison staggered default). */
-@media (max-width:899px){.sb-portfolio--staggered{margin:0 -18px;padding:0 18px 6px}}
+/* Phone strip keeps an 18px gutter so the first card does not hug the edge (TUL-475). */
+@media (max-width:899px){.sb-portfolio--staggered{margin:0;padding:0 18px 6px}}
 @media (min-width:900px){
   .sb-portfolio--staggered{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));overflow:visible;padding:0;margin:0;align-items:center}
   .sb-portfolio--staggered .sb-portfolio-item:nth-child(2),.sb-portfolio--staggered .sb-portfolio-item:nth-child(4){margin-top:40px}
@@ -179,7 +190,7 @@ function ShotFigure({
   /** Magazine: 1-based plate number shown as "01 · caption". */
   magazineIndex?: number;
   es?: boolean;
-  /** TUL-15: "(en español)" under a caption shown in another language than the visitor's. */
+  /** TUL-187: "Disponible en español" under a caption shown in another language than the visitor's. */
   captionHint?: string | null;
 }) {
   const hint = captionHint ? (
@@ -196,6 +207,43 @@ function ShotFigure({
     wantLabel && shot.offeringId && shot.caption?.trim()
       ? wantLabel
       : shot.offeringTitle?.trim() || null;
+
+  // TUL-532 / GRK-044: captions stay outside the lightbox <button> (figcaption
+  // inside a button is invalid HTML and some browsers strip the click target).
+  // TUL-475: framed cards always show a name — bare shots fall back to Work N.
+  const caption =
+    showCaptions && magazineIndex ? (
+      <figcaption className="sb-portfolio-cap">
+        {[String(magazineIndex).padStart(2, "0"), shot.caption?.trim() || serviceLine]
+          .filter(Boolean)
+          .join(" · ")}
+        {hint}
+      </figcaption>
+    ) : showCaptions && framed ? (
+      <figcaption className="sb-portfolio-cap">
+        <span className="sb-portfolio-name">
+          {shot.caption?.trim() ||
+            shot.offeringTitle?.trim() ||
+            serviceLine ||
+            (es ? `Trabajo ${gallery.index + 1}` : `Work ${gallery.index + 1}`)}
+          {hint}
+        </span>
+        {shot.offeringId ? (
+          <>
+            <span className="sb-portfolio-arrow" aria-hidden="true">
+              {"\u2192"}
+            </span>
+            <span className="sb-portfolio-sr">{serviceLine}</span>
+          </>
+        ) : null}
+      </figcaption>
+    ) : showCaptions && (shot.caption?.trim() || serviceLine) ? (
+      <figcaption className="sb-portfolio-cap">
+        {shot.caption?.trim() || null}
+        {hint}
+        {serviceLine ? <span className="sb-portfolio-service">{serviceLine}</span> : null}
+      </figcaption>
+    ) : null;
 
   return (
     <figure
@@ -226,33 +274,8 @@ function ShotFigure({
           {/* eslint-disable-next-line @next/next/no-img-element -- public CDN URLs; sizes vary by layout */}
           <img src={shot.url} alt={shot.alt || label} loading="lazy" decoding="async" />
         </span>
-        {showCaptions && magazineIndex ? (
-          <figcaption className="sb-portfolio-cap">
-            {[String(magazineIndex).padStart(2, "0"), shot.caption?.trim() || serviceLine]
-              .filter(Boolean)
-              .join(" · ")}
-            {hint}
-          </figcaption>
-        ) : showCaptions && framed && (shot.caption?.trim() || shot.offeringTitle?.trim() || shot.offeringId) ? (
-          <figcaption className="sb-portfolio-cap">
-            <span className="sb-portfolio-name">{shot.caption?.trim() || shot.offeringTitle?.trim() || null}{hint}</span>
-            {shot.offeringId ? (
-              <>
-                <span className="sb-portfolio-arrow" aria-hidden="true">
-                  {"\u2192"}
-                </span>
-                <span className="sb-portfolio-sr">{serviceLine}</span>
-              </>
-            ) : null}
-          </figcaption>
-        ) : showCaptions && (shot.caption?.trim() || serviceLine) ? (
-          <figcaption className="sb-portfolio-cap">
-            {shot.caption?.trim() || null}
-            {hint}
-            {serviceLine ? <span className="sb-portfolio-service">{serviceLine}</span> : null}
-          </figcaption>
-        ) : null}
       </PortfolioShotLink>
+      {caption}
     </figure>
   );
 }
@@ -307,13 +330,27 @@ export function renderPortfolioBlock(args: {
   const magazine = isChapter && p.edition === "magazine";
 
   const workOrder = layout === "work_order";
-  // TUL-440: the header CTA's decision (one service: its sheet; several: the picker; none: hidden).
+  // TUL-440: lightbox general Book follows `#book` (preferred sheet when bookable).
   const bookable = listBookableOfferings({ offerings: args.offerings ?? [], confirmsByHand: args.confirmsByHand ?? true });
-  const generalIntent = stickyBarIntent(stickyBarAction(bookable.length), bookEntryFrom(bookable));
-  const galleryItems = buildPortfolioGallery(visible, (id) => byOffering.has(id), es, showCaptions ? (shot) => {
-    const full = visible.find((v) => v.id === shot.id);
-    return captionLanguageHint({ caption: full?.caption, captionI18n: full?.captionI18n, locale: args.locale, primaryLocale: args.primaryLocale });
-  } : undefined);
+  const entry = bookEntryFrom(bookable);
+  const generalIntent: OpenIntent | null = entry.kind === "sheet" ? openIntentFor("book", entry) : null;
+  const languageHintFor = (shot: { id: string; caption?: string | null; captionI18n?: TalentPortfolioShot["captionI18n"] }) => {
+    const full = visible.find((v) => v.id === shot.id) ?? shot;
+    return captionLanguageHint({
+      caption: full.caption,
+      captionI18n: full.captionI18n,
+      locale: args.locale,
+      primaryLocale: args.primaryLocale,
+    });
+  };
+  // Work-order tiles always show their caption (Gridline jobs); other layouts
+  // honour showCaptions. Either way a cross-language caption never stays silent.
+  const galleryItems = buildPortfolioGallery(
+    visible,
+    (id) => byOffering.has(id),
+    es,
+    workOrder || showCaptions ? (shot) => languageHintFor(shot) : undefined,
+  );
   const shotNodes = visible.map((shot, index) => workOrder ? (
     <WorkOrderFigure
       key={shot.id}
@@ -322,6 +359,7 @@ export function renderPortfolioBlock(args: {
       es={es}
       locale={args.locale}
       generalIntent={generalIntent}
+      captionHint={languageHintFor(shot)}
     />
   ) : (
     <ShotFigure
@@ -335,16 +373,7 @@ export function renderPortfolioBlock(args: {
       framed={framed}
       magazineIndex={magazine ? index + 1 : undefined}
       es={es}
-      captionHint={
-        showCaptions
-          ? captionLanguageHint({
-              caption: shot.caption,
-              captionI18n: shot.captionI18n,
-              locale: args.locale,
-              primaryLocale: args.primaryLocale,
-            })
-          : null
-      }
+      captionHint={showCaptions ? languageHintFor(shot) : null}
       gallery={{ items: galleryItems, index }}
       generalIntent={generalIntent}
     />

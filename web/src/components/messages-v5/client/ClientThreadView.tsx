@@ -10,6 +10,9 @@
  * column centred at 560 (`.cx-col`).
  */
 
+import type { ReactNode } from "react";
+
+import { PLATFORM_FALLBACK_CURRENCY } from "@/lib/inquiry/offer-currency";
 import type { MessagingRefusal, ThreadMessage } from "@/lib/messaging/types";
 import {
   buildClientStream,
@@ -18,6 +21,7 @@ import {
   formatClientDate,
   formatClientTime,
   offerCardMessageIds,
+  threadPaymentState,
   readChange,
   readChoices,
   readConfirmation,
@@ -35,7 +39,6 @@ import { Avatar, Btn, Icon } from "../kit/primitives";
 import { OkLine, RefusalLine } from "../kit/RefusalLine";
 import { ChoicesCard, ClientChangeCard, ClientConfirmedCard, ClientDraftCard, ClientOfferCard, ClientOutcomeFromMessage, ClientPaymentCard, ClientTimesCard, type CardPhase } from "./ClientCards";
 import type { ClientCopy } from "./copy";
-import { PLATFORM_FALLBACK_CURRENCY } from "@/lib/inquiry/offer-currency";
 
 export type ComposerPhase = "idle" | "sending" | "failed" | "sent";
 export type SaveEmailPhase = "idle" | "sending" | "sent" | "failed";
@@ -80,6 +83,15 @@ export type ClientThreadViewProps = {
   readonly fromEmail?: boolean;
   /** ISO expiry of THIS `/c/t/[token]` link (D-MSG-208c). */
   readonly threadTokenExpiresAt?: string | null;
+  /**
+   * W5-10 / TUL-280: unsigned guests on `/c/t` see "Sign in to accept" instead
+   * of a plain Accept that dead-ends on `not_allowed`.
+   */
+  readonly offerAcceptLabel?: string;
+  readonly offerSignInOfferId?: string | null;
+  readonly offerSignInPanel?: ReactNode;
+  /** TUL-G4: "Save your bookings" block for a signed-out guest; null/absent renders nothing. */
+  readonly saveBookingsSlot?: ReactNode;
 };
 
 export function ClientThreadView(p: ClientThreadViewProps) {
@@ -87,6 +99,7 @@ export function ClientThreadView(p: ClientThreadViewProps) {
   const name = business.name;
   const items = buildClientStream(p.messages, p.offers);
   const offerCards = offerCardMessageIds(p.messages, p.offers);
+  const payment = threadPaymentState(p.messages);
   const act = (key: string): CardActivity => p.activity?.[key] ?? { phase: "idle" };
   const savePhase = p.saveEmail ?? "idle";
 
@@ -127,7 +140,7 @@ export function ClientThreadView(p: ClientThreadViewProps) {
               const offerId = typeof it.message.payload?.offer_id === "string" ? it.message.payload.offer_id : typeof it.message.payload?.offerId === "string" ? it.message.payload.offerId : null;
               const recordId = typeof it.message.payload?.recordId === "string" ? it.message.payload.recordId : null;
               const epoch = act(it.message.id).epoch ?? (offerId ? act(offerId).epoch : null) ?? (recordId ? act(recordId).epoch : null) ?? 0;
-              return <div key={`${it.key}:${epoch}`}>{renderCard(p, it.message, it.cardKind, act, offerCards)}</div>;
+              return <div key={`${it.key}:${epoch}`}>{renderCard(p, it.message, it.cardKind, act, offerCards, payment)}</div>;
             })
           )}
         </main>
@@ -147,6 +160,7 @@ export function ClientThreadView(p: ClientThreadViewProps) {
                 <Btn size="sm" onClick={p.onSaveToEmail ?? undefined}>{copy.composer.retry}</Btn>
               </div>
             ) : null}
+            {p.saveBookingsSlot ?? null}
             {p.threadTokenExpiresAt ? (
               <div data-client-link-expiry>
                 {fill(copy.footer.expires, { date: formatClientDate(p.threadTokenExpiresAt, locale) })}
@@ -159,7 +173,7 @@ export function ClientThreadView(p: ClientThreadViewProps) {
   );
 }
 
-function renderCard(p: ClientThreadViewProps, message: ThreadMessage, kind: ClientCardKind, act: (key: string) => CardActivity, offerCards: ReadonlySet<string>) {
+function renderCard(p: ClientThreadViewProps, message: ThreadMessage, kind: ClientCardKind, act: (key: string) => CardActivity, offerCards: ReadonlySet<string>, payment: "paid" | "refunded" | null) {
   const { copy, kit, locale, business, now } = p;
   const name = business.name;
   const payload = message.payload;
@@ -193,7 +207,27 @@ function renderCard(p: ClientThreadViewProps, message: ThreadMessage, kind: Clie
         return <SystemLine key={message.id} text={message.body || copy.generic.message} variant="mobile" />;
       }
       const a = act(offer.id);
-      return <ClientOfferCard offer={offer} offers={p.offers} copy={copy} kit={kit} business={name} locale={locale} now={now} phase={a.phase} refusal={a.refusal} payCode={p.payCode} onAccept={p.onAcceptOffer} onDecline={p.onDeclineOffer} onChange={p.onChangeOffer} onPay={p.onPay} />;
+      return (
+        <ClientOfferCard
+          offer={offer}
+          offers={p.offers}
+          copy={copy}
+          kit={kit}
+          business={name}
+          locale={locale}
+          now={now}
+          phase={a.phase}
+          refusal={a.refusal}
+          payCode={p.payCode}
+          payment={payment}
+          onAccept={p.onAcceptOffer}
+          onDecline={p.onDeclineOffer}
+          onChange={p.onChangeOffer}
+          onPay={p.onPay}
+          acceptLabel={p.offerAcceptLabel}
+          signInPanel={p.offerSignInOfferId === offer.id ? p.offerSignInPanel : null}
+        />
+      );
     }
     case "payment_request":
       return <ClientPaymentCard view={readPayment(payload)} copy={copy} business={name} locale={locale} now={now} onPay={p.onPay} />;

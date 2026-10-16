@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { DirectoryCardRow } from "./shared";
-import { agencyLine, locationLine, FOCUS_RING } from "./shared";
+import { agencyLine, directoryProfileHref, locationLine, FOCUS_RING } from "./shared";
 import { TalentAvatar, TrustBadge, AvailabilityLine } from "./DirectoryAtoms";
+import { useDirectoryCopy } from "./directory-copy-context";
 import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
 
 /**
@@ -11,8 +12,10 @@ import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
  * views feed off one row shape.
  */
 export function DirectoryTalentRow({ talent }: { talent: DirectoryCardRow }) {
-  const loc = locationLine(talent.homeCity, talent.homeCountry);
-  const href = talent.profileCode ? `/t/${talent.profileCode}` : null;
+  const t = useDirectoryCopy();
+  const agency = agencyLine(talent.agencyName, talent.isExclusive, t);
+  const loc = locationLine(talent.homeCity, talent.homeCountry, t.locale);
+  const href = talent.profileCode ? directoryProfileHref(talent.profileCode, t.locale) : null;
   // STANDING chip — verified review aggregate off the discover matview, shown
   // only past the credibility floor (>= 3 verified reviews) so a thin record is
   // never oversold. Absence is neutral (no chip).
@@ -44,7 +47,7 @@ export function DirectoryTalentRow({ talent }: { talent: DirectoryCardRow }) {
                 border: "1px solid var(--plt-hairline)",
                 color: "var(--plt-ink-soft)",
               }}
-              title={`Verified standing from ${talent.ratingCount} completed bookings`}
+              title={t.standingTitle(talent.ratingCount ?? 0)}
             >
               <span aria-hidden style={{ color: "var(--plt-forest, #4a6b52)" }}>
                 ★
@@ -64,9 +67,9 @@ export function DirectoryTalentRow({ talent }: { talent: DirectoryCardRow }) {
         <span
           className="truncate text-[0.8125rem]"
           style={{ color: "var(--plt-ink-soft)" }}
-          title={agencyLine(talent.agencyName, talent.isExclusive)}
+          title={agency}
         >
-          {agencyLine(talent.agencyName, talent.isExclusive)}
+          {agency}
         </span>
         <AvailabilityLine availableDaysInNext30={talent.availableDaysInNext30} />
       </div>

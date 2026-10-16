@@ -9,11 +9,12 @@
  * applied, so the publish gate (`maisonDesignBlocker`) refuses it with
  * "Apply a design before publishing" (TUL-89).
  *
- * A site is TOUCHED only when it is still an untouched starter:
+ * A site is TOUCHED only when it is still an untouched starter on a **demo**
+ * profile (`is_demo === true`), unless --include-test adds QA/test accounts:
  *   - design is null,
  *   - never published (`site_published_at` null) and no page has a live body,
  *   - no talent edit in its history (`talent_site_history.kind = 'edit'`),
- *   - not a demo or test account (unless --include-test),
+ *   - real (non-demo) profiles are skipped (`not_demo`; onboarding applies default design at publish),
  *   - not TAL-93938 / book-jorgelina, ever.
  * Everything else is listed with its reason, so the card's "0 rows or each
  * deliberately excluded with a reason" can be answered from the report.
@@ -52,6 +53,7 @@ export type SkipReason =
   | "talent_edited_draft"
   | "no_home_page"
   | "demo_or_test"
+  | "not_demo"
   | "not_in_only";
 
 export interface PlanEntry {
@@ -106,8 +108,9 @@ export function isForbidden(c: Pick<SiteCandidate, "profileCode" | "siteSlug">):
   return FORBIDDEN_PROFILE_CODES.includes(c.profileCode) || (c.siteSlug !== null && FORBIDDEN_SITE_SLUGS.includes(c.siteSlug));
 }
 
-export function isDemoOrTest(c: SiteCandidate): boolean {
-  return c.isDemo === true || c.isTestAccount === true || KNOWN_TEST_PROFILE_CODES.includes(c.profileCode);
+/** QA / test flag profiles; demos are handled separately (default touch set). */
+export function isTestOrQa(c: Pick<SiteCandidate, "profileCode" | "isTestAccount">): boolean {
+  return c.isTestAccount === true || KNOWN_TEST_PROFILE_CODES.includes(c.profileCode);
 }
 
 export function planBackfill(candidates: readonly SiteCandidate[], opts: Pick<Options, "only" | "includeTest">): PlanEntry[] {
@@ -117,7 +120,13 @@ export function planBackfill(candidates: readonly SiteCandidate[], opts: Pick<Op
     if (isForbidden(c)) return skip("forbidden");
     if (only.size > 0 && !only.has(c.profileCode.toUpperCase())) return skip("not_in_only");
     if (c.themeDesignSlug && c.themeDesignSlug.trim()) return skip("already_has_design");
-    if (isDemoOrTest(c) && !opts.includeTest) return skip("demo_or_test");
+    if (c.isDemo !== true) {
+      if (isTestOrQa(c)) {
+        if (!opts.includeTest) return skip("demo_or_test");
+      } else {
+        return skip("not_demo");
+      }
+    }
     if (c.sitePublishedAt) return skip("published_site");
     if (c.hasLivePages) return skip("live_pages");
     if (c.hasTalentEdits) return skip("talent_edited_draft");
@@ -134,7 +143,8 @@ export const REASON_TEXT: Record<SkipReason, string> = {
   live_pages: "has a live page body of its own; left alone",
   talent_edited_draft: "talent edited the draft; applying would overwrite their work",
   no_home_page: "no home page, the signup never got a site; needs its own fix (nothing to apply a design to)",
-  demo_or_test: "demo or test account (use --include-test to include)",
+  demo_or_test: "test or QA account (use --include-test to include)",
+  not_demo: "not a demo account (real starters get default design at onboarding publish)",
   not_in_only: "not in --only",
 };
 

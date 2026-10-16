@@ -15,6 +15,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { WEBSITE_SETTINGS_ES_TEXT } from "@/components/admin/shell/internal/dashboard-i18n-website-settings";
+import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
+import { PERSONAL_SITE_BUILDER_HREF } from "@/lib/talent-site/dashboard-my-website";
 import {
   loadSellingDefaults,
   saveSellingDefaults,
@@ -26,6 +28,8 @@ import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { resolveEffectiveMinNoticeMin } from "@/lib/scheduling/instant-book-gates";
 import { MaxSiteSettingsPanels } from "@/components/talent/site/TalentMaxSiteSettingsPanels";
 import { settle } from "./settle";
+import { loadBookingAssistantUsageAction } from "./booking-assistant-usage-action";
+import { bookingAssistantUsageLine, type BookingAssistantUsage } from "@/lib/ai/booking-assistant/usage-format";
 import { loadHoursMinNoticeAction } from "./website-settings-gate-action";
 import { loadSiteSwitchesAction, saveSiteSwitchesAction, type SiteSwitchesSnapshot } from "./website-settings-switches-action";
 import {
@@ -82,12 +86,14 @@ export function WebsiteSettingsScreen({
 }: {
   talentId: string;
   onClose: () => void;
-  /** Deep link (PR 7): open straight on a group, e.g. "lang". */
-  initialView?: "lang";
+  /** Deep link (PR 7 / card 36): open straight on a group, e.g. "lang" or "chat". */
+  initialView?: "lang" | "chat";
   /** Parent sheet registers the guarded close (back / Escape / backdrop). */
   onRegisterClose?: (close: (() => void) | null) => void;
 }) {
   const copy = useDashboardText();
+  const siteDash = useTalentSiteDashboardInitialLoad();
+  const isDualSiteOwner = Boolean(siteDash?.ok && siteDash.state.isDualSiteOwner);
   // Screen strings live in the lazy chunk, not the global admin map.
   // Stable per locale: the load effect below depends on it, and a new function
   // every render re-ran the load and wiped the unsaved draft (~3 s after a tap).
@@ -110,6 +116,16 @@ export function WebsiteSettingsScreen({
   const [swReadiness, setSwReadiness] = useState<SiteSwitchesSnapshot["readiness"] | null>(null);
   /** A save that stored some parts and failed others. */
   const [partial, setPartial] = useState(false);
+  const [aiUsage, setAiUsage] = useState<BookingAssistantUsage | null>(null);
+  useEffect(() => {
+    let live = true;
+    void loadBookingAssistantUsageAction()
+      .then((u) => live && setAiUsage(u))
+      .catch(() => null);
+    return () => {
+      live = false;
+    };
+  }, []);
 
   useEffect(() => {
     let live = true;
@@ -376,6 +392,29 @@ export function WebsiteSettingsScreen({
     <div className="mx-auto max-w-xl px-4 font-admin-body">
       {header}
       {view === "home" ? <LiveStatusCard t={t} /> : null}
+      {view === "home" && isDualSiteOwner ? (
+        <div className="mb-4 overflow-hidden rounded-xl border border-admin-border-soft bg-white" data-testid="other-websites">
+          <div className="border-b border-admin-border-soft px-3.5 py-2.5">
+            <p className="m-0 text-[11px] font-bold uppercase tracking-[0.06em] text-admin-ink-muted">
+              {t("Other websites")}
+            </p>
+            <p className="m-0 mt-1 text-[12.5px] text-admin-ink-muted">
+              {t("Edit your personal site separately from your business site.")}
+            </p>
+          </div>
+          <NavRow
+            title={t("Personal site")}
+            summary={
+              siteDash?.ok && siteDash.state.personalPublicSiteUrl
+                ? siteDash.state.personalPublicSiteUrl.replace(/^https?:\/\//, "")
+                : t("Open personal site editor")
+            }
+            onOpen={() => {
+              window.open(PERSONAL_SITE_BUILDER_HREF, "_blank", "noopener,noreferrer");
+            }}
+          />
+        </div>
+      ) : null}
       {view === "home" ? (
         <div className="overflow-hidden rounded-xl border border-admin-border-soft bg-white">
           <NavRow
@@ -442,7 +481,11 @@ export function WebsiteSettingsScreen({
           before={<AcceptBookingsCard {...switchProps} />}
         />
       ) : null}
-      {view === "chat" ? <ChatInquiriesGroup {...switchProps} strandedTitles={strandedTitles} /> : null}
+      {view === "chat" ? <ChatInquiriesGroup
+          {...switchProps}
+          strandedTitles={strandedTitles}
+          usageLine={aiUsage ? bookingAssistantUsageLine(aiUsage, copy.isSpanish ? "es" : "en") : null}
+        /> : null}
       {view === "vis" ? <VisibilityGroup {...switchProps} /> : null}
       {view === "contact" ? <CallNumberGroup t={t} /> : null}
       {status === "failed" && partial ? (

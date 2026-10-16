@@ -3,6 +3,7 @@ import {
   addDirectorySearchValueMatches,
   DIRECTORY_SEARCHABLE_KEYS,
 } from "@/lib/field-engine/read-source-directory-search";
+import { applyPublicListingGate } from "@/lib/directory/public-listing-predicate";
 
 function escapeIlike(input: string): string {
   return input.replaceAll(",", " ").replace(/\s+/g, " ").trim();
@@ -34,11 +35,7 @@ export async function fetchLegacyDirectorySearchTalentIds(
     { data: locationMatches, error: locationError },
     { data: taxonomyTermMatches, error: termError },
   ] = await Promise.all([
-    supabase
-      .from("talent_profiles")
-      .select("id")
-      .is("deleted_at", null)
-      .eq("is_publicly_hidden", false)
+    applyPublicListingGate(supabase.from("talent_profiles").select("id"))
       .or(
         `display_name.ilike.%${term}%,first_name.ilike.%${term}%,last_name.ilike.%${term}%,profile_code.ilike.%${term}%,short_bio.ilike.%${term}%,bio_i18n->>en.ilike.%${term}%,bio_i18n->>es.ilike.%${term}%`,
       ),
@@ -68,11 +65,9 @@ export async function fetchLegacyDirectorySearchTalentIds(
 
   const locationIds = ((locationMatches ?? []) as { id: string }[]).map((row) => row.id);
   if (locationIds.length > 0) {
-    const { data: locationTalentRows, error: locationTalentError } = await supabase
-      .from("talent_profiles")
-      .select("id")
-      .is("deleted_at", null)
-      .eq("is_publicly_hidden", false)
+    const { data: locationTalentRows, error: locationTalentError } = await applyPublicListingGate(
+      supabase.from("talent_profiles").select("id"),
+    )
       .or(orResidenceOrLegacyLocationMatches(locationIds));
 
     if (locationTalentError) {

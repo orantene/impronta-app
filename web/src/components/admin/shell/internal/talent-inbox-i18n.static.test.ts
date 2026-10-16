@@ -116,5 +116,68 @@ describe("talent inbox i18n", () => {
 
   it("generated inbox previews have ES rows", () => {
     assert.notEqual(translateDashboardText("Awaiting your response.", "es"), "Awaiting your response.");
+    assert.equal(
+      translateDashboardText("Awaiting your response.", "es"),
+      "Esperando tu respuesta.",
+    );
+    assert.equal(
+      translateDashboardText("Booking confirmed. Check logistics tab.", "es"),
+      "Reserva confirmada. Revisa la pestaña de logística.",
+    );
+    assert.equal(
+      translateDashboardText("Booking confirmed. Check the logistics tab.", "es"),
+      "Reserva confirmada. Revisa la pestaña de logística.",
+    );
+  });
+
+  it("Today checklist chip labels have ES rows (TUL-519 card 146)", () => {
+    for (const [en, es] of [
+      ["Originally from", "De origen"],
+      ["Lives in", "Vive en"],
+      ["Talent type", "Tipo de talento"],
+    ] as const) {
+      assert.equal(translateDashboardText(en, "es"), es, en);
+    }
+  });
+
+  it("talent thread empty states have ES rows (TUL-519 cards 379+500)", () => {
+    assert.equal(translateDashboardText("No activity yet", "es"), "Aún no hay actividad");
+    assert.notEqual(
+      translateDashboardText(
+        "Start the conversation below. Your message will go to the right people in this thread.",
+        "es",
+      ),
+      "Start the conversation below. Your message will go to the right people in this thread.",
+    );
+  });
+
+  it("open thread panel offer/empty chrome has ES rows and no raw Loading (TUL-536 / TUL-500)", () => {
+    for (const [en, es] of [
+      ["Submit your rate", "Envía tu tarifa"],
+      ["No offer yet. Your coordinator will send one when it's ready.", "Aún no hay oferta. Tu coordinador enviará una cuando esté lista."],
+      ["No offer yet", "Aún no hay oferta"],
+      ["Offer sent", "Oferta enviada"],
+      ["Loading…", "Cargando..."],
+      ["Identified", "Identificado"],
+      ["Block", "Bloquear"],
+      ["Report", "Reportar"],
+    ] as const) {
+      assert.equal(translateDashboardText(en, "es"), es, en);
+    }
+    const stream = readFileSync(
+      join(DIR, "../../../talent/talent-thread-stream.tsx"),
+      "utf8",
+    );
+    assert.match(stream, /copy\.t\("Loading…"\)/);
+    assert.doesNotMatch(stripComments(stream), /(?<!copy\.t\()["']Loading…["']/);
+    const deal = stripComments(read("messages/shared/machinery-12.tsx"));
+    assert.match(deal, /copy\.t\(\s*(?:isBooked[\s\S]*?)?"Submit your rate"/);
+  });
+
+  it("synthetic talent previews use system sender so inboxPreviewText can translate", () => {
+    const adapter = read("talent/shared/conversation-adapter-1.tsx");
+    assert.match(adapter, /sender:\s*"system"/);
+    assert.match(adapter, /INBOX_PREVIEW_AWAITING/);
+    assert.match(adapter, /INBOX_PREVIEW_BOOKED/);
   });
 });

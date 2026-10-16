@@ -45,7 +45,24 @@ test("draft survives close/reopen for the same service", () => {
   const key = bookingDraftKey(null);
   assert.equal(key, "tulala:booking-draft:book-jorgelina.tulala.digital");
   saveBookingDraft(key, draft);
-  assert.deepEqual(loadBookingDraft(key, "off-1"), draft);
+  // TUL-705: the picks survive, personal contact fields never do.
+  assert.deepEqual(loadBookingDraft(key, "off-1"), { ...draft, name: "", email: "", phone: "" });
+});
+
+test("TUL-705: contact PII is never written to storage", () => {
+  const key = bookingDraftKey("t1");
+  saveBookingDraft(key, draft);
+  const raw = mem.get(key) ?? "";
+  assert.ok(!raw.includes("Ana"), "name leaked into storage");
+  assert.ok(!raw.includes("ana@example.com"), "email leaked into storage");
+  assert.ok(!raw.includes("5551234567"), "phone leaked into storage");
+});
+
+test("TUL-705: a legacy stored draft with PII loads with empty contact fields", () => {
+  const key = bookingDraftKey("t1");
+  mem.set(key, JSON.stringify(draft));
+  const d = loadBookingDraft(key, "off-1");
+  assert.deepEqual([d?.name, d?.email, d?.phone], ["", "", ""]);
 });
 
 test("a different service starts fresh", () => {
@@ -74,10 +91,19 @@ test("selected date label is localized", () => {
 });
 
 test("timezone label uses the city, falling back to the zone name", () => {
-  assert.equal(catalogTimezoneLabel("America/Mexico_City", true), "Hora de Mexico City");
+  // TUL-533: Spanish pages must not leak the English city name from the IANA id.
+  assert.equal(catalogTimezoneLabel("America/Mexico_City", true), "Hora de Ciudad de México");
   assert.equal(catalogTimezoneLabel("America/Mexico_City", false), "Mexico City time");
   assert.equal(catalogTimezoneLabel("America/Cancun", true), "Hora de Cancún");
   assert.equal(catalogTimezoneLabel("America/Cancun", false), "Cancún time");
+  assert.equal(catalogTimezoneLabel("America/New_York", true), "Hora de Nueva York");
+  assert.equal(catalogTimezoneLabel("America/New_York", false), "New York time");
+  // Place city wins over the IANA namesake (Houston ≠ Chicago; Morelia ≠ Mexico City).
+  assert.equal(catalogTimezoneLabel("America/Chicago", false, "Houston"), "Houston time");
+  assert.equal(catalogTimezoneLabel("America/Chicago", true, "Houston"), "Hora de Houston");
+  assert.equal(catalogTimezoneLabel("America/Mexico_City", true, "Morelia"), "Hora de Morelia");
+  assert.equal(catalogTimezoneLabel("America/Mexico_City", false, "Morelia"), "Morelia time");
+  assert.equal(catalogTimezoneLabel("America/Mexico_City", true, "Mexico City"), "Hora de Ciudad de México");
   assert.equal(catalogTimezoneLabel("UTC", false), "UTC time");
   assert.equal(catalogTimezoneLabel("", true), "");
 });

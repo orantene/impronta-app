@@ -8,6 +8,7 @@ import { stripLocaleFromPathname, withLocaleHref } from "@/i18n/pathnames";
 import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 import { PrivacyChoicesLink } from "@/components/analytics/privacy-choices-link";
 import { CurrencyPicker } from "./currency-picker";
+import { currencyPickerCopy } from "./currency-picker-copy";
 import { MarketingLanguageToggle } from "./marketing-language-toggle";
 import { resolveCurrency } from "@/lib/pricing/currency-resolver";
 import { FEATURE_NAV_ITEMS } from "@/lib/marketing/features/feature-nav-items";
@@ -52,13 +53,13 @@ const FOOTER_FEATURE_KEYS = [
   "premium-support",
 ] as const;
 
-export async function MarketingFooter() {
+export async function MarketingFooter({ priceCurrency = null }: { priceCurrency?: string | null } = {}) {
   // L50 Phase 2: every marketing footer ends with a currency picker so
   // any page is the gateway to changing the displayed currency. The
   // footer doesn't know which page it's on, so it resolves from cookie
   // + IP only (no URL param).
-  const { currency, source } = await resolveCurrency(null);
   const locale = await getRequestLocale();
+  const { currency, source } = await resolveCurrency(null, locale);
   const copy = getMarketingCopy(locale).footer;
   const brand = getMarketingCopy(locale).brand;
   const h = await headers();
@@ -124,20 +125,23 @@ export async function MarketingFooter() {
                 wired into `sameAs` / `twitter:site`. */}
           </div>
 
-          {COLUMNS.map((col) => (
+          {COLUMNS.map((col, colIndex) => (
             <div key={col.label}>
-              <h4
+              {/* A group label, not a heading: as an h4 it followed an h2/h1 and skipped a
+                  level on every page (axe heading-order, TUL-1084). The list is named by it. */}
+              <p
+                id={`mkt-footer-col-${colIndex}`}
                 className="plt-mono text-[0.6875rem] font-medium uppercase tracking-[0.22em]"
                 style={{ color: "var(--plt-muted)" }}
               >
                 {col.label}
-              </h4>
-              <ul className="mt-5 space-y-3">
+              </p>
+              <ul className="mt-5 space-y-3" aria-labelledby={`mkt-footer-col-${colIndex}`}>
                 {col.items.map((item) => (
                   <li key={item.href}>
                     <Link
                       href={item.href}
-                      className="inline-block text-[0.9375rem] transition-colors hover:text-[var(--plt-forest)]"
+                      className="inline-flex min-h-6 items-center text-[0.9375rem] transition-colors hover:text-[var(--plt-forest)]"
                       style={{ color: "var(--plt-ink-soft)" }}
                     >
                       {item.label}
@@ -166,7 +170,14 @@ export async function MarketingFooter() {
               activeLocale={locale}
               pathnameWithoutLocale={pathnameWithoutLocale}
             />
-            <CurrencyPicker current={currency} source={source} locale={locale} />
+            {priceCurrency ? (
+              // TUL-707: a talent profile prices in its own currency; no picker.
+              <span>
+                {currencyPickerCopy(locale).showing} <strong>{priceCurrency}</strong>
+              </span>
+            ) : (
+              <CurrencyPicker current={currency} source={source} locale={locale} />
+            )}
             <span className="inline-flex items-center gap-2">
               <span
                 className="inline-block h-1.5 w-1.5 rounded-full"

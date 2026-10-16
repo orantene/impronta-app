@@ -44,6 +44,7 @@ import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
 
 import { ProfileFooterSocket } from "../_shared/ProfileFooterSocket";
 import type { LightProfileLayoutProps } from "../_light/LightProfileLayout";
+import { PROTECTED_PROFILE_CODES } from "@/lib/talent-site/theme-releases/repair-stale-theme-state";
 import { MAISON_DEFAULT_TOKENS } from "./maison-tokens";
 import {
   derivedVisiting,
@@ -169,6 +170,8 @@ export function MaisonProfileLayout(props: MaisonProfileLayoutProps) {
       id="main-content"
       className="mn-root"
       data-profile-template="maison"
+      // TUL-578: protected real sites keep the original hero inset offset.
+      data-mn-legacy-hero={PROTECTED_PROFILE_CODES.includes(props.profileCode) ? "" : undefined}
       // The document language belongs to the app shell, which may be serving a
       // different locale than the talent writes in. Declaring it here means a
       // screen reader pronounces her Spanish copy with a Spanish voice even on
@@ -568,6 +571,7 @@ export function MaisonProfileLayout(props: MaisonProfileLayoutProps) {
         <ProfileFooterSocket
           locale={locale}
           whitelabel={props.whitelabel}
+          profileCode={props.profileCode}
           tokens={{ surface: "var(--mn-white)", ink: "var(--mn-ink)", line: "var(--mn-line)" }}
         />
       ) : null}

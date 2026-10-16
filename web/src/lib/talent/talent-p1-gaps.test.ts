@@ -53,6 +53,7 @@ test("tenant-branded twins hop straight to the canonical route (one redirect)", 
     ["payouts", "payouts"],
     ["activity", "activity"],
     ["reach", "reach"],
+    ["promos", "promos"],
   ];
   for (const [twin, target] of twins) {
     const s = app(`[tenantSlug]/talent/${twin}/page.tsx`);

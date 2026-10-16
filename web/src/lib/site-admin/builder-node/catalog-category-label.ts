@@ -23,3 +23,32 @@ export function categoryLabelFor(
   }
   return undefined;
 }
+
+export type CatalogCategoryGroup = { name: string; label?: string; keys: string[] };
+
+/**
+ * `categories` (already ordered) as the groups a visitor sees. Two keys that
+ * read the same on the page (the platform's "nails" shown as "Uñas" next to a
+ * talent's own "Uñas") are one group: it keeps the first key's position, name
+ * and note, and collects the services of every key.
+ */
+export function mergeCategoriesByLabel(
+  items: ReadonlyArray<Pick<TalentOffering, "category" | "categoryLabel">>,
+  categories: ReadonlyArray<string>,
+): CatalogCategoryGroup[] {
+  const groups: CatalogCategoryGroup[] = [];
+  const byShown = new Map<string, CatalogCategoryGroup>();
+  for (const name of categories) {
+    const label = categoryLabelFor(items, name);
+    const shown = (label ?? name).trim().toLocaleLowerCase();
+    const existing = byShown.get(shown);
+    if (existing) {
+      existing.keys.push(name);
+      continue;
+    }
+    const group: CatalogCategoryGroup = { name, ...(label ? { label } : {}), keys: [name] };
+    byShown.set(shown, group);
+    groups.push(group);
+  }
+  return groups;
+}

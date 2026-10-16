@@ -7,6 +7,7 @@ import { useDashboardText } from "./dashboard-i18n";
 import { EmptyState, Icon, useRovingTabindex } from "./primitives";
 import { TALENT_SIDEBAR_ICON } from "./talent-nav-icons";
 import { RailModeSwitch } from "./page-modules/RailModeSwitch";
+import { leaveRailHat } from "./page-modules/rail-mode-switch-action";
 import { COLORS, FONTS, MY_TALENT_PROFILE, TALENT_PAGE_META, TALENT_TIER_META, useAdminShell, type TalentPage } from "./state";
 import { PageHeader } from "./talent/shared/page-chrome-1";
 import { ProfilePageSkeleton } from "./talent/pages/ProfilePageSkeleton";
@@ -36,6 +37,7 @@ import { pinNextConversation } from "./messages/conversation-pending";
 const CalendarPage = dynamic(() => import("./talent/pages/CalendarPage").then((m) => ({ default: m.CalendarPage })), { loading: () => null });
 const MyProfilePage = dynamic(() => import("./talent/pages/MyProfilePage").then((m) => ({ default: m.MyProfilePage })), { loading: () => <ProfilePageSkeleton /> });
 const PublicPageEditor = dynamic(() => import("./talent/pages/PublicPageEditor").then((m) => ({ default: m.PublicPageEditor })), { loading: () => null });
+const PromosPage = dynamic(() => import("@/components/promos/talent/PromosPage").then((m) => ({ default: m.PromosPage })), { loading: () => null });
 const ReviewsPage = dynamic(() => import("./talent/pages/ReviewsPage").then((m) => ({ default: m.ReviewsPage })), { loading: () => null });
 const ServicesPage = dynamic(() => import("./talent/pages/ServicesPage").then((m) => ({ default: m.ServicesPage })), { loading: () => null });
 const SettingsPage = dynamic(() => import("./talent/pages/SettingsPage").then((m) => ({ default: m.SettingsPage })), { loading: () => null });
@@ -43,6 +45,7 @@ const TalentPayoutsPage = dynamic(() => import("./page-modules/TalentPayoutsPage
 const TalentTodayPage = dynamic(() => import("./talent/pages/TodayPage").then((m) => ({ default: m.TalentTodayPage })), { loading: () => <TodaySkeleton /> });
 const TalentMessagesPage = dynamic(() => import("./talent/pages/messages/MessagesPage").then((m) => ({ default: m.TalentMessagesPage })), { loading: () => null });
 const MoneyPage = dynamic(() => import("@/components/talent/money/MoneyPage").then((m) => ({ default: m.MoneyPage })), { loading: () => null });
+const TalentPostsListPage = dynamic(() => import("@/components/posts/TalentPostsListPage").then((m) => ({ default: m.TalentPostsListPage })), { loading: () => null });
 const TalentClientsPage = dynamic(() => import("./talent/pages/ClientsPage").then((m) => ({ default: m.TalentClientsPage })), { loading: () => null });
 const AgendaAttentionPage = dynamic(() => import("./talent/agenda/AgendaAttentionPage").then((m) => ({ default: m.AgendaAttentionPage })), { loading: () => null });
 const AgendaCalendarPage = dynamic(() => import("./talent/agenda/AgendaCalendarPage").then((m) => ({ default: m.AgendaCalendarPage })), { loading: () => null });
@@ -100,7 +103,7 @@ export function TalentSurface() {
 const TALENT_SIDEBAR_GROUPS: Array<{ label: string | null; pages: TalentPage[] }> = [
   { label: null, pages: ["today"] },
   { label: "Work", pages: ["messages", "calendar", "clients", "money"] },
-  { label: "Presence", pages: ["profile", "public-page", "services", "reviews"] },
+  { label: "Presence", pages: ["profile", "public-page", "posts", "services", "reviews"] },
 ];
 
 function TalentSidebarNavButton({
@@ -172,7 +175,10 @@ function TalentSidebar() {
   const previewResolved = bridgeTalentSelfProfile?.profileCode
     ? resolveTalentPublicPreviewDestinations({
         profileCode: bridgeTalentSelfProfile.profileCode,
-        publicSiteUrl: siteLoad?.ok ? siteLoad.state.publicSiteUrl : null,
+        // TUL-180: dual owners prefer the business workspace URL.
+        publicSiteUrl: siteLoad?.ok
+          ? (siteLoad.state.workspaceSite?.publicUrl ?? siteLoad.state.publicSiteUrl)
+          : null,
         currentOrigin: origin,
       })
     : null;
@@ -233,17 +239,14 @@ function TalentSidebar() {
         <RailModeSwitch
           active="talent"
           adminUnread={bridgeWorkspaceUnread ?? 0}
-          onSwitch={() => {
-            if (state.alsoTalent) {
-              flipMode();
-              return;
-            }
-            // isHybrid is per-tenant: on the hub a dual owner has no membership here, so go to the
-            // workspace they own directly (the admin rail's switch does the mirror with /talent/today).
-            // admin-href-allow: cross-tenant switch — target is another workspace
-            // (bridgeOwnedWorkspaceSlug), so the slug is required. adminBasePath here is the hub.
-            window.location.assign(`/${bridgeOwnedWorkspaceSlug}/admin`);
-          }}
+          onSwitch={() =>
+            leaveRailHat({
+              active: "talent",
+              alsoTalent: state.alsoTalent,
+              ownedWorkspaceSlug: bridgeOwnedWorkspaceSlug,
+              flipMode,
+            })
+          }
         />
       )}
       <nav ref={railNavRef} aria-label={copy.t("Talent sections")} className="flex flex-col gap-[2px]">
@@ -252,7 +255,7 @@ function TalentSidebar() {
             {group.label && (
               <div
                 aria-hidden
-                className="px-[10px] pb-[4px] pt-[10px] text-[10px] font-bold uppercase tracking-[0.14em] text-admin-ink-dim"
+                className="px-[10px] pb-[4px] pt-[10px] text-[10px] font-bold uppercase tracking-[0.14em] text-admin-ink-muted"
               >
                 {copy.t(group.label)}
               </div>
@@ -300,7 +303,7 @@ function TalentSidebar() {
         {/* Support Center launcher portals in here instead of floating. */}
         <div
           data-tulala-support-slot="rail"
-          data-ready={supportSlotReady ? "" : undefined}
+          data-ready={supportSlotReady ? "true" : undefined}
           className="contents"
         />
         {renderItem("settings")}
@@ -389,6 +392,9 @@ function TalentRouter() {
       break;
     case "reviews":
       page = <ReviewsPage />;
+      break;
+    case "promos":
+      page = <PromosPage />;
       break;
     case "inbox":
       // Legacy alias → the real Messages shell. The old InboxPage rendered a
@@ -516,6 +522,10 @@ function TalentRouter() {
       break;
     case "payouts":
       page = <TalentPayoutsPage />;
+      break;
+    case "posts":
+      // Posts v1 (TUL-1007) — Website -> Posts list
+      page = <TalentPostsListPage />;
       break;
     case "public-page":
       // WS-8.2 — new canonical page

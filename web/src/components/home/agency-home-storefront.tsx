@@ -35,6 +35,8 @@ import {
 } from "@/lib/site-admin/builder-node";
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
 import { jsonLdDocumentToScript } from "@/lib/site-admin/cms-seo";
+import { businessLocalBusinessJsonLd } from "@/lib/seo/business-workspace-seo";
+import { getPublicHostContext, getPublicPathPrefix } from "@/lib/saas/scope";
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
 import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
@@ -281,10 +283,36 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
   // P4-SEO — operator-authored schema.org JSON-LD, emitted as a structured-data
   // script in the page tree (same pattern as the talent profile page). Suppress
   // in preview/edit so draft structured data is never served to crawlers.
-  const jsonLdScript =
+  // TUL-591: a business workspace with no operator JSON-LD gets a default LocalBusiness block built
+  // from its identity (never in preview/edit, never for an unnamed workspace).
+  let jsonLdScript =
     !previewActive && !editActive
       ? jsonLdDocumentToScript(cmsHomepage?.jsonLd ?? null)
       : "";
+  if (!jsonLdScript && !previewActive && !editActive && tenantWords && !tenantWords.preset.representsPeople) {
+    const hostCtx = await getPublicHostContext();
+    const prefix = await getPublicPathPrefix();
+    if (hostCtx.hostname) {
+      const lb = businessLocalBusinessJsonLd({
+        name: identity?.public_name ?? "",
+        url: `https://${hostCtx.hostname}${prefix}/`,
+        description: identity?.seo_default_description ?? identity?.tagline,
+        phone: identity?.contact_phone,
+        email: identity?.contact_email,
+        city: identity?.address_city,
+        country: identity?.address_country,
+        sameAs: [
+          identity?.social_instagram,
+          identity?.social_facebook,
+          identity?.social_tiktok,
+          identity?.social_linkedin,
+          identity?.social_youtube,
+          identity?.social_x,
+        ].filter((u) => /^https?:\/\//i.test(u?.trim() ?? "")),
+      });
+      if (lb) jsonLdScript = JSON.stringify(lb).replace(/</g, "\\u003c");
+    }
+  }
 
   return (
     <div
@@ -334,7 +362,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
           <BuilderNodeRendererStyles kinds={storefrontScopedKinds} nodes={storefrontBodyTree} />
         ) : null}
         {/* A11Y-2 — skip link must be first focusable element before any nav. */}
-        <SkipToContent />
+        <SkipToContent locale={locale} />
         {/* ANALYTICS-2 — first-party page-view for the storefront home (slug "/")
             so storefront feeds the SAME view_site_page stream + admin loader as
             talent-profile/talent-site. Suppressed under edit/preview chrome so

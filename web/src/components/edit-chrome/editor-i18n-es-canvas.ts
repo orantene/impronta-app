@@ -18,6 +18,8 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   "Collapse inspector": "Contraer inspector",
   "Hide inspector": "Ocultar inspector",
   "Open inspector": "Abrir inspector",
+  "Open section editor tabs": "Abrir pestañas del editor",
+  "Collapse section editor tabs": "Plegar pestañas del editor",
   "Show inspector tab": "Mostrar pestaña del inspector",
   // ── WAVE 4.3 — AI panels (rewrite, translate, brief, revise, image) ───
   Apply: "Aplicar",
@@ -297,6 +299,7 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   "Delete section...": "Eliminar sección...",
   "Close menu": "Cerrar menú",
   "Add block": "Agregar bloque",
+  "Page layers": "Capas de la página",
   "Show nested blocks ({count})": "Mostrar bloques anidados ({count})",
   "Select the parent ({label})": "Seleccionar el bloque padre ({label})",
   "Parent is selected": "El bloque padre está seleccionado",
@@ -447,6 +450,17 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   // TUL-456: tablet/mobile HUD banner was English on Spanish chrome.
   "Tablet editing": "Edición en tableta",
   "Mobile editing": "Edición móvil",
+  // TUL-519: empty structure hint + phone-menu card in the mobile/tablet HUD.
+  "on the canvas to hide it on {device} or change its {device} order. Style edits already apply to this breakpoint.":
+    "en el lienzo para ocultarlo en {device} o cambiar su orden en {device}. Los cambios de estilo ya se aplican a este punto de quiebre.",
+  "device tablet": "tableta",
+  "device mobile": "móvil",
+  "Phone menu": "Menú del teléfono",
+  "Open on canvas": "Abrir en el lienzo",
+  // "{count} links" + Navigation already live in inspector catalogs; keep one.
+  "{count} link": "{count} enlace",
+  "Opens the menu on the canvas so you can style it while you look at it. Nothing is saved by opening it.":
+    "Abre el menú en el lienzo para que puedas estilizarlo mientras lo ves. Abrirlo no guarda nada.",
   "Mobile-first editing": "Edición centrada en móvil",
   "Hide and reorder apply to tablet":
     "Ocultar y reordenar se aplican a la tableta",

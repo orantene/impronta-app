@@ -5,6 +5,7 @@ import {
   WORKSPACE_LOCALE_SEED_ROUTE,
   isWorkspaceSeedablePath,
   safeWorkspaceNextPath,
+  workspaceLocaleSeedHopPossible,
   workspaceLocaleSeedHref,
   workspaceLocaleSeedMayApply,
   workspaceLocaleSeedPlan,
@@ -114,4 +115,25 @@ test("seed href carries the slug and the guarded next path", () => {
     workspaceLocaleSeedHref("https://evil.example", "acme"),
     "/api/admin/locale-seed?slug=acme&next=%2Facme%2Fadmin",
   );
+});
+
+// ── The seed hop decision (TUL-1182) ────────────────────────────────────────
+// The hop itself is a hard navigation (LocaleSeedHardRedirect); this only
+// decides WHETHER it may run.
+const hop = {
+  attemptCookie: undefined,
+  originalPathnameHeader: "/rosa/admin",
+  pathname: "/rosa/admin",
+  tenantSlug: "rosa",
+};
+
+test("a first visit to an admin path may hop", () => {
+  assert.equal(workspaceLocaleSeedHopPossible(hop), true);
+  assert.equal(workspaceLocaleSeedHopPossible({ ...hop, pathname: "/rosa/admin/messages" }), true);
+});
+
+test("the guards hold: attempt cookie, no original header, non-admin path", () => {
+  assert.equal(workspaceLocaleSeedHopPossible({ ...hop, attemptCookie: "1" }), false);
+  assert.equal(workspaceLocaleSeedHopPossible({ ...hop, originalPathnameHeader: null }), false);
+  assert.equal(workspaceLocaleSeedHopPossible({ ...hop, pathname: "/rosa/client" }), false);
 });

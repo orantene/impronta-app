@@ -17,6 +17,7 @@
  * `section-meta-live-data.test.ts` (W0-T5d), which also asserts this module's
  * derived set equals the canonical async-derived set.
  */
+import { blogIndexMeta } from "./blog_index/meta";
 import { directoryMeta } from "./directory/meta";
 import { featuredTalentMeta } from "./featured_talent/meta";
 import { heroSearchMeta } from "./hero_search/meta";
@@ -40,6 +41,7 @@ import type { SectionMeta } from "./types";
  * still `queueRouterRefresh()` for them.
  */
 const LIVE_DATA_METAS: ReadonlyArray<SectionMeta> = [
+  blogIndexMeta,
   directoryMeta,
   featuredTalentMeta,
   heroSearchMeta,

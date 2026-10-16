@@ -43,9 +43,9 @@
  * (event_date, event_location, quantity) already exist on inquiries.
  */
 
-import { headers } from "next/headers";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { ensureGuestSessionId } from "@/lib/guest/guest-session";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "@/lib/inquiry/inquiry-events";
 import { isGuestChipWritableStatus } from "@/lib/inquiry/guest-chip-write-policy";
@@ -73,8 +73,6 @@ import { formatChipLocation } from "./guest-chip-location";
 // is self-contained and compile-standalone without importing private helpers.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const GUEST_HEADER = "x-impronta-guest";
-
 function fail(
   code: GuestChatErrorCode,
   message: string,
@@ -83,7 +81,7 @@ function fail(
   return { ok: false, code, message, ...extra };
 }
 
-/** Resolve guest_sessions.id from the x-impronta-guest cookie (server-side only). */
+/** Resolve guest_sessions.id, minting the guest cookie on first write (TUL-445). */
 async function resolveGuestSessionId(): Promise<
   { ok: true; admin: SupabaseClient; guestSessionId: string } | { ok: false; failure: GuestChatFailure }
 > {
@@ -95,30 +93,7 @@ async function resolveGuestSessionId(): Promise<
     };
   }
 
-  const guestKey = (await headers()).get(GUEST_HEADER);
-  if (!guestKey) {
-    return {
-      ok: false,
-      failure: fail("forbidden", "We couldn't identify your session. Please refresh and try again."),
-    };
-  }
-
-  await admin.rpc("ensure_guest_session", { p_session_key: guestKey });
-  const { data: guestRow, error } = await admin
-    .from("guest_sessions")
-    .select("id")
-    .eq("session_key", guestKey)
-    .maybeSingle();
-
-  if (error) {
-    logServerError("guest-detail-chips-actions.resolveGuestSessionId", error);
-    return {
-      ok: false,
-      failure: fail("engine_error", "Could not start a session. Please try again."),
-    };
-  }
-
-  const guestSessionId = (guestRow?.id as string | undefined) ?? null;
+  const guestSessionId = await ensureGuestSessionId();
   if (!guestSessionId) {
     return {
       ok: false,

@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getAppUrl } from "@/lib/auth-flow";
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { logServerError } from "@/lib/server/safe-error";
+import { afterResponse } from "@/lib/server/after-response";
 
 /**
  * Tenant Registration Engine notifications (S5). Fire-and-forget; the dispatcher
@@ -55,12 +56,12 @@ export async function notifyRosterJoinRequested(params: {
     const reviewUrl = slug
       ? `${getAppUrl()}/${encodeURIComponent(slug)}/admin/settings?focus=registration`
       : `${getAppUrl()}`;
-    void dispatchEventNotifications({
+    afterResponse(() => dispatchEventNotifications({
       type: "roster.join_requested",
       tenantId,
       eventId: `roster-join-req:${tenantId}:${talentProfileId}`,
       payload: { talentName: talent.displayName, reviewUrl },
-    }).catch((err) => logServerError("notifyRosterJoinRequested.dispatch", err));
+    }).catch((err) => logServerError("notifyRosterJoinRequested.dispatch", err)));
   } catch (err) {
     logServerError("notifyRosterJoinRequested", err);
   }
@@ -79,7 +80,7 @@ export async function notifyRosterJoinApproved(params: {
       loadTalent(admin, talentProfileId),
     ]);
     if (!talent.userId) return; // unclaimed — nobody to notify
-    void dispatchEventNotifications({
+    afterResponse(() => dispatchEventNotifications({
       type: "roster.join_approved",
       tenantId,
       userId: talent.userId,
@@ -89,7 +90,7 @@ export async function notifyRosterJoinApproved(params: {
         workspaceName: workspace.displayName,
         dashboardUrl: `${getAppUrl()}/talent`,
       },
-    }).catch((err) => logServerError("notifyRosterJoinApproved.dispatch", err));
+    }).catch((err) => logServerError("notifyRosterJoinApproved.dispatch", err)));
   } catch (err) {
     logServerError("notifyRosterJoinApproved", err);
   }
@@ -108,7 +109,7 @@ export async function notifyRosterJoinRejected(params: {
       loadTalent(admin, talentProfileId),
     ]);
     if (!talent.userId) return;
-    void dispatchEventNotifications({
+    afterResponse(() => dispatchEventNotifications({
       type: "roster.join_rejected",
       tenantId,
       userId: talent.userId,
@@ -118,7 +119,7 @@ export async function notifyRosterJoinRejected(params: {
         workspaceName: workspace.displayName,
         exploreUrl: `${getAppUrl()}/talent/discover-agencies`,
       },
-    }).catch((err) => logServerError("notifyRosterJoinRejected.dispatch", err));
+    }).catch((err) => logServerError("notifyRosterJoinRejected.dispatch", err)));
   } catch (err) {
     logServerError("notifyRosterJoinRejected", err);
   }

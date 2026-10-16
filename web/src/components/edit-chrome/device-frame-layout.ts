@@ -98,6 +98,9 @@ export function resolveDeviceFrameHostPadding(
   return { left: base.left + hud, right: base.right };
 }
 
+/** Tablet + mobile — the two warm-kept device-preview iframes. */
+export const DEVICE_PREVIEW_TIERS = ["tablet", "mobile"] as const;
+
 /** True once this warm-kept iframe has fired `load` at least once. */
 export function isDeviceIframeReady(
   loadedTiers: ReadonlySet<DeviceFrameTier>,
@@ -107,16 +110,52 @@ export function isDeviceIframeReady(
 }
 
 /**
- * Show the translated skeleton when the ACTIVE non-desktop tier has not
- * finished its first load. Warm-kept already-loaded tiers flip instantly.
+ * Which iframe paints while the operator's selected tier may still be
+ * loading. Prefer the active ready tier; otherwise hold the last ready
+ * frame so the host never shows a blank card on device switch (TUL-397).
+ */
+export function resolveDisplayedDeviceTier(input: {
+  activeDevice: DeviceFrameTier;
+  loadedTiers: ReadonlySet<DeviceFrameTier>;
+  holdTier: DeviceFrameTier | null;
+}): DeviceFrameTier {
+  const { activeDevice, loadedTiers, holdTier } = input;
+  if (activeDevice === "desktop" || activeDevice === "wide") return activeDevice;
+  if (isDeviceIframeReady(loadedTiers, activeDevice)) return activeDevice;
+  if (
+    holdTier &&
+    holdTier !== "desktop" &&
+    holdTier !== "wide" &&
+    isDeviceIframeReady(loadedTiers, holdTier)
+  ) {
+    return holdTier;
+  }
+  return activeDevice;
+}
+
+/**
+ * Show the translated skeleton only when there is nothing ready to hold —
+ * first paint of the first device tier. Once any tier has loaded, device
+ * switches keep the previous frame up (no blank / skeleton flash).
  */
 export function shouldShowDeviceFrameSkeleton(input: {
   device: DeviceFrameTier;
   loadedTiers: ReadonlySet<DeviceFrameTier>;
+  holdTier?: DeviceFrameTier | null;
 }): boolean {
   // desktop + wide share the live storefront DOM (no warm-kept iframe).
   if (input.device === "desktop" || input.device === "wide") return false;
-  return !isDeviceIframeReady(input.loadedTiers, input.device);
+  if (isDeviceIframeReady(input.loadedTiers, input.device)) return false;
+  const hold = input.holdTier ?? null;
+  if (
+    hold &&
+    hold !== "desktop" &&
+    hold !== "wide" &&
+    isDeviceIframeReady(input.loadedTiers, hold)
+  ) {
+    return false;
+  }
+  return true;
 }
 
 /** Collapse helper used by tests — mirrors navigator collapsed rail. */

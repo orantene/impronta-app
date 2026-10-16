@@ -59,6 +59,12 @@ test("a free plan and Portfolio can both book a time", () => {
   assert.equal(contactCopyForPlan("talent_portfolio"), CONTACT_COPY.bookInstant);
 });
 
+test("GRK-068: accepting_bookings off never promises a bookable slot", () => {
+  assert.equal(contactCopyForPlan("talent_portfolio", false), CONTACT_COPY.bookingsPaused);
+  assert.equal(contactCopyForPlan("talent_basic", false), CONTACT_COPY.bookingsPaused);
+  assert.equal(contactCopyForPlan("talent_portfolio", true), CONTACT_COPY.bookInstant);
+});
+
 test("WhatsApp uses her number or a published link; email is a mailto only", () => {
   // Privacy: the profile phone alone never becomes a WhatsApp link.
   assert.deepEqual(talentContactHrefs({ phone: "+52 998 111 2233", phoneE164: "+529981112233" }), {
@@ -82,8 +88,9 @@ test("WhatsApp uses her number or a published link; email is a mailto only", () 
 });
 
 test("the guest dock opens in place for an ask, without a pending service", () => {
+  // TUL-246: the launcher's open listeners live in its use-offering-request-open hook.
   const launcher = readFileSync(
-    new URL("../../app/t/[profileCode]/_chat/TalentProfileChatLauncher.tsx", import.meta.url),
+    new URL("../../app/t/[profileCode]/_chat/use-offering-request-open.ts", import.meta.url),
     "utf8",
   );
   assert.match(launcher, /tulala:open-guest-chat/);
@@ -101,4 +108,7 @@ test("contact copy is in EN, ES, and FR", () => {
   assert.match(en, /Ask a question/);
   assert.match(es, /Hacer una pregunta/);
   assert.match(fr, /Poser une question/);
+  assert.match(en, /Not taking new bookings right now/);
+  assert.match(es, /No estoy tomando nuevas reservas por ahora/);
+  assert.match(fr, /Je ne prends pas de nouvelles réservations pour le moment/);
 });

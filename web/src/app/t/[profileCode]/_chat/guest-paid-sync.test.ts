@@ -15,3 +15,10 @@ test("poll reloads the thread on settled-money rows only", () => {
   assert.equal(pollNeedsFullReload([{ kind: "payment_paid" }]), true);
   assert.equal(pollNeedsFullReload([{ kind: "payment_request", payload: { state: "paid" } }]), true);
 });
+
+test("TUL-280: a freshly polled offer row reloads the thread so the v5 offer summaries (and Accept) arrive", () => {
+  assert.equal(pollNeedsFullReload([{ kind: "offer_event" }]), true);
+  assert.equal(pollNeedsFullReload([{ kind: "offer_review" }]), true);
+  assert.equal(pollNeedsFullReload([{ kind: "offer_state" }]), true);
+  assert.equal(pollNeedsFullReload([{ kind: "text" }, { kind: "professional_times" }]), false);
+});

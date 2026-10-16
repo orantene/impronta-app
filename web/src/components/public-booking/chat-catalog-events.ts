@@ -8,9 +8,15 @@ export const CHAT_ADD_SERVICE_EVENT = "tulala:chat-add-service";
 
 export type ChatAddServiceDetail = { offeringId: string };
 
-export function requestChatAddService(offeringId: string): void {
-  if (typeof window === "undefined") return;
-  window.dispatchEvent(
-    new window.CustomEvent<ChatAddServiceDetail>(CHAT_ADD_SERVICE_EVENT, { detail: { offeringId } }),
+/**
+ * Returns true when a catalog island on the page took the request (its listener
+ * cancels the event), false when nothing on this page owns that offering. Callers
+ * that have a fallback (TUL-1068: the dock's Select link) use it; the rest ignore it.
+ */
+export function requestChatAddService(offeringId: string): boolean {
+  if (typeof window === "undefined") return false;
+  const handled = !window.dispatchEvent(
+    new window.CustomEvent<ChatAddServiceDetail>(CHAT_ADD_SERVICE_EVENT, { detail: { offeringId }, cancelable: true }),
   );
+  return handled;
 }

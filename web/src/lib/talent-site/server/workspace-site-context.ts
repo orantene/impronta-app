@@ -7,7 +7,10 @@ import { isRetiredWorkspaceStatus } from "@/lib/saas/workspace-lifecycle";
 
 export type OwnedBusinessWorkspace = {
   ownsBusinessWorkspace: boolean;
+  /** Any non-archived cms_pages row (draft or published): enough to edit. */
   hasWorkspaceSite: boolean;
+  /** At least one published cms_pages row: the site is live (TUL-371). */
+  hasPublishedWorkspaceSite: boolean;
   workspaceSlug: string | null;
   /** Owning business workspace tenant id when known (for live URL / editor resolve). */
   tenantId: string | null;
@@ -16,6 +19,7 @@ export type OwnedBusinessWorkspace = {
 const NONE: OwnedBusinessWorkspace = {
   ownsBusinessWorkspace: false,
   hasWorkspaceSite: false,
+  hasPublishedWorkspaceSite: false,
   workspaceSlug: null,
   tenantId: null,
 };
@@ -43,24 +47,27 @@ export async function loadOwnedBusinessWorkspace(
   for (const row of (data ?? []) as unknown as Array<{ tenant_id: string; agencies: AgencyJoin | AgencyJoin[] | null }>) {
     const agency = Array.isArray(row.agencies) ? row.agencies[0] ?? null : row.agencies;
     if (!agency?.slug || agency.workspace_type !== "business" || isRetiredWorkspaceStatus(agency.status)) continue;
-    const { data: page, error: pageErr } = await admin
+    const { data: pages, error: pageErr } = await admin
       .from("cms_pages")
-      .select("id")
+      .select("status")
       .eq("tenant_id", row.tenant_id)
       .neq("status", "archived")
-      .limit(1);
+      .limit(100);
     if (pageErr) {
       logServerError("talentSite.workspaceContext.pages", pageErr);
       return {
         ownsBusinessWorkspace: true,
         hasWorkspaceSite: false,
+        hasPublishedWorkspaceSite: false,
         workspaceSlug: agency.slug,
         tenantId: row.tenant_id,
       };
     }
+    const rows = (pages ?? []) as Array<{ status: string | null }>;
     return {
       ownsBusinessWorkspace: true,
-      hasWorkspaceSite: (page ?? []).length > 0,
+      hasWorkspaceSite: rows.length > 0,
+      hasPublishedWorkspaceSite: rows.some((p) => p.status === "published"),
       workspaceSlug: agency.slug,
       tenantId: row.tenant_id,
     };

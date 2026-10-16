@@ -15,7 +15,7 @@ import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { loadPublishedFaqForProfile } from "@/lib/talent/faq-public";
 import { talentOffersInstantBooking } from "@/lib/scheduling/talent-booking-mode";
 import { parseSellingBookingSettings } from "@/lib/talent/selling-booking-settings";
-import { needsUsdRates } from "@/lib/pricing/usd-equivalent";
+import { needsUsdRates, showsUsdEquivalent } from "@/lib/pricing/usd-equivalent";
 import { loadUsdRates } from "@/lib/pricing/usd-rates";
 import {
   collectBuilderCollectionSourceKeys,
@@ -27,6 +27,7 @@ import { fetchFeaturedTalentForSection } from "@/lib/site-admin/sections/feature
 import { listBuilderImageMediaAssets } from "@/lib/site-admin/media/assets";
 import { resolveCollectionDataSources } from "@/lib/site-admin/collections/server";
 import { resolveSocialFeedDataSources } from "@/lib/social-embed/feed-cache";
+import { resolveTalentSocialFeedDataSources } from "@/lib/social-embed/talent-feed-cache";
 import { collectSocialFeedProviders } from "@/lib/site-admin/builder-node/social-feed-source";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { withSecondaryReadDegrade } from "@/lib/supabase/bounded-fetch-scope";
@@ -43,8 +44,13 @@ import {
   fetchNativeFeaturedTalentByNodeId,
 } from "@/lib/site-admin/server/native-directory-source";
 import { collectNativeDataBlockNeeds } from "@/lib/site-admin/builder-node/native-data-block-needs";
+import { loadPortfolioAltContext } from "@/lib/site-admin/builder-node/portfolio-alt-context";
 import { loadPortfolioSources } from "@/lib/site-admin/builder-node/portfolio-sources";
 import { loadReviewsSources } from "@/lib/site-admin/builder-node/reviews-sources";
+import { loadPostsFeedSources } from "@/lib/site-admin/builder-node/posts-feed-sources";
+import type { NativePostsFeedNeed } from "@/lib/site-admin/builder-node/native-data-block-needs";
+import { loadPublicPromosForTalent, priceContext } from "@/lib/promos/public-promos.server";
+import { catalogPromoPrices } from "@/lib/promos/catalog-promo-prices";
 import { loadVisitSources } from "@/lib/site-admin/builder-node/visit-sources";
 import { loadCompCardSources } from "@/lib/site-admin/builder-node/comp-card-sources";
 import {
@@ -159,6 +165,16 @@ export async function loadBuilderNodeDataSources(
   const socialFeedProviders = collectSocialFeedProviders(nodes);
   // WS7 Phase 0 — native data blocks.
   const nativeNeeds = collectNativeDataBlockNeeds(nodes);
+  // Posts v1 (PO1): `posts_feed` reads the RENDERING site's posts, talent scope
+  // on a talent site (even when rostered), else the workspace tenant. Started
+  // here so the no-other-needs early return below carries it too.
+  const postsFeedPromise = loadPostsFeedSources({
+    needs: nativeNeeds.postsFeeds,
+    talentProfileId:
+      talentProfileId ?? (previewSubject?.kind === "talent" ? previewSubject.id : null),
+    tenantId: dataTenantId,
+    locale,
+  });
   // BUILDER 2027 · P2B — a native `directory` node renders its category chips
   // from `directoryShortcuts`, but carries no `dataBinding`, so the binding
   // walk above never saw it and every native directory rendered chip-less.
@@ -210,7 +226,7 @@ export async function loadBuilderNodeDataSources(
     //
     // An identity that every block may read must not be conditional on
     // whether some OTHER block needed a query.
-    return { tenantId: dataTenantId, publicOrigin };
+    return { tenantId: dataTenantId, publicOrigin, ...(await postsFeedPromise) };
   }
   // The storefront read bypasses RLS (service role) for media + collections.
   const serviceSupabase =
@@ -220,6 +236,8 @@ export async function loadBuilderNodeDataSources(
       ? createServiceRoleClient()
       : null;
   const mediaSupabase = mediaIds.length > 0 ? serviceSupabase : null;
+  const feedTalentId =
+    talentProfileId ?? (previewSubject?.kind === "talent" ? previewSubject.id : null);
 
   const [
     featuredTalentProfiles,
@@ -326,9 +344,12 @@ export async function loadBuilderNodeDataSources(
       : Promise.resolve(undefined),
     // Phase 3 — one cache read per connected provider, scoped to the tenant
     // whose page this is (never the preview subject: the feed belongs to the
-    // workspace that connected the account).
+    // workspace that connected the account). TUL-562: a talent's own site reads
+    // the talent's cache instead, even when an agency manages the talent.
     serviceSupabase && socialFeedProviders.length > 0
-      ? resolveSocialFeedDataSources(serviceSupabase, tenantId, socialFeedProviders)
+      ? feedTalentId
+        ? resolveTalentSocialFeedDataSources(serviceSupabase, feedTalentId, socialFeedProviders)
+        : resolveSocialFeedDataSources(serviceSupabase, tenantId, socialFeedProviders)
       : Promise.resolve(undefined),
     // TUL-77: live published catalog + real booking flow inputs.
     nativeNeeds.liveBooking
@@ -399,7 +420,7 @@ export async function loadBuilderNodeDataSources(
       ? // TUL-187: primaryLocale lets caption_i18n fall back and the language hint name the source language.
         await withSecondaryReadDegrade(
           "gallery",
-          () => loadPortfolioSources(catalogTalentId, { locale, primaryLocale: portfolioPrimaryLocale ?? null }),
+          async () => loadPortfolioSources(catalogTalentId, { locale, primaryLocale: portfolioPrimaryLocale ?? null, ...(await loadPortfolioAltContext(catalogTalentId)) }),
           { talentPortfolioShots: [] },
         )
       : {}),
@@ -419,6 +440,7 @@ export async function loadBuilderNodeDataSources(
     ...(nativeNeeds.talentFaq && catalogTalentId
       ? { talentFaqItems: await loadPublishedFaqForProfile(catalogTalentId, locale) }
       : {}),
+    ...(await postsFeedPromise),
   };
 }
 
@@ -448,6 +470,7 @@ export async function loadServicesCatalogSources(
     | "talentOfferingsConfirmsByHand"
     | "talentOfferingsBookingSettings"
     | "talentOfferingsUsdRates"
+    | "talentOfferingsPromoPrices"
     | "talentOfferingsCategoryOrder"
     | "talentOfferingsCategoryNotes"
     | "onlineCollectReady"
@@ -490,7 +513,7 @@ export async function loadServicesCatalogSources(
       };
     }
   }
-  const usdRates = needsUsdRates(offerings) ? await loadUsdRates() : null;
+  const usdRates = showsUsdEquivalent(locale) && needsUsdRates(offerings) ? await loadUsdRates() : null;
   // WSF-C §8: the same switches the offerings loader applied, for the banner.
   const talentSitePause = admin && channel === "direct"
     ? publicContactMode(await loadTalentSiteSwitches(admin, talentProfileId))
@@ -499,10 +522,18 @@ export async function loadServicesCatalogSources(
   const onlineCollectReady = resolveOnlineCollectReady({
     platformCheckoutReady: isPlatformCheckoutReady(),
   });
+  // Promos v1 (TUL-937): live auto promos price the home cards through
+  // displayPrice, like the service page. Direct channel only; any failure
+  // degrades to list prices (EMPTY promos), never to a thrown error.
+  const promoPrices =
+    channel === "direct"
+      ? catalogPromoPrices(offerings, priceContext(await loadPublicPromosForTalent(talentProfileId), locale))
+      : {};
   return {
     talentOfferings: offerings,
     talentOfferingsConfirmsByHand: confirmsByHand,
     onlineCollectReady,
+    ...(Object.keys(promoPrices).length ? { talentOfferingsPromoPrices: promoPrices } : {}),
     ...(bookingSettings ? { talentOfferingsBookingSettings: bookingSettings } : {}),
     ...(usdRates ? { talentOfferingsUsdRates: usdRates } : {}),
     ...(categoryOrder.length ? { talentOfferingsCategoryOrder: categoryOrder } : {}),
@@ -528,21 +559,34 @@ export async function loadPersonalMaxNativeSources(args: {
   compCard?: boolean;
   /** An accordion bound to `talent_faq_items` (the agency path already loads it). */
   talentFaq?: boolean;
+  /** Connected `social_feed` providers on the tree (TUL-562 talent Instagram cache). */
+  socialFeedProviders?: ReadonlyArray<"instagram" | "tiktok">;
+  /** Posts v1 (PO1): every `posts_feed` node (talent scope). */
+  postsFeeds?: ReadonlyArray<NativePostsFeedNeed>;
 }): Promise<BuilderNodeRenderDataSources> {
   const needCatalog = args.servicesCatalog || args.portfolio || args.nextFreeChip;
+  const feedProviders = args.socialFeedProviders ?? [];
   if (
     !needCatalog &&
     !args.portfolio &&
     !args.reviews &&
     !args.visit &&
     !args.compCard &&
-    !args.talentFaq
+    !args.talentFaq &&
+    feedProviders.length === 0 &&
+    (args.postsFeeds ?? []).length === 0
   ) {
     return {};
   }
+  const feedAdmin = feedProviders.length > 0 ? createServiceRoleClient() : null;
   // TUL-449: reviews / gallery / chip-only catalog degrade on timeout; the page stays 200.
   const catalogOnlyForChip = args.nextFreeChip && !args.servicesCatalog && !args.portfolio;
-  const [catalog, portfolio, reviews, visit, compCard, faq] = await Promise.all([
+  const postsFeedPromise = loadPostsFeedSources({
+    needs: args.postsFeeds ?? [],
+    talentProfileId: args.talentProfileId,
+    locale: args.locale,
+  });
+  const [catalog, portfolio, reviews, visit, compCard, faq, socialFeeds] = await Promise.all([
     needCatalog
       ? catalogOnlyForChip
         ? withSecondaryReadDegrade(
@@ -555,7 +599,7 @@ export async function loadPersonalMaxNativeSources(args: {
     args.portfolio
       ? withSecondaryReadDegrade(
           "gallery",
-          () => loadPortfolioSources(args.talentProfileId, { locale: args.locale, primaryLocale: args.primaryLocale ?? null }),
+          async () => loadPortfolioSources(args.talentProfileId, { locale: args.locale, primaryLocale: args.primaryLocale ?? null, ...(await loadPortfolioAltContext(args.talentProfileId)) }),
           { talentPortfolioShots: [] },
         )
       : {},
@@ -571,6 +615,18 @@ export async function loadPersonalMaxNativeSources(args: {
     args.talentFaq
       ? loadPublishedFaqForProfile(args.talentProfileId, args.locale).then((talentFaqItems) => ({ talentFaqItems }))
       : {},
+    feedAdmin
+      ? resolveTalentSocialFeedDataSources(feedAdmin, args.talentProfileId, feedProviders)
+      : undefined,
   ]);
-  return { ...catalog, ...portfolio, ...reviews, ...visit, ...compCard, ...faq };
+  return {
+    ...catalog,
+    ...portfolio,
+    ...reviews,
+    ...visit,
+    ...compCard,
+    ...faq,
+    ...(socialFeeds ? { socialFeeds } : {}),
+    ...(await postsFeedPromise),
+  };
 }

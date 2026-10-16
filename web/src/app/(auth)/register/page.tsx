@@ -13,10 +13,10 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import {
   getAppUrl,
-  getSiteUrl,
   isTalentSignupNext,
   normalizeOptionalNextPath,
 } from "@/lib/auth-flow";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import {
   readRegisterIntent,
   registerCopyKeys,
@@ -201,7 +201,7 @@ export default async function RegisterPage({
     const target = legacySignupRedirect({
       flagOn: true,
       surface: "register",
-      siteUrl: getSiteUrl(),
+      siteUrl: resolveMarketingOrigin(),
       lang: await legacyFlowLang(),
       hostKind: (await getPublicHostContext()).kind,
       intent: requestedIntent,
@@ -317,6 +317,8 @@ export default async function RegisterPage({
             nextPath={nextPath}
             locale={locale}
             defaultEmail={defaultEmail}
+            collectName
+            clientSignup
             submitLabel={t("public.auth.passwordless.emailSubmit")}
             passwordFallback={
               <RegisterForm
@@ -324,6 +326,8 @@ export default async function RegisterPage({
                 submitLabel={t(keys.submit)}
                 locale={locale}
                 defaultEmail={defaultEmail}
+                collectName
+                clientSignup
                 hideFooter
               />
             }

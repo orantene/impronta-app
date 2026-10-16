@@ -12,6 +12,7 @@ import "server-only";
 // dedupes instead of re-alerting.
 
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
+import { afterResponse } from "@/lib/server/after-response";
 
 /** Alert platform admins that a new workspace signed up — platform.new_workspace. */
 export function notifyPlatformNewWorkspace(args: {
@@ -20,7 +21,7 @@ export function notifyPlatformNewWorkspace(args: {
   ownerEmail: string;
   planLabel: string;
 }): void {
-  void dispatchEventNotifications({
+  afterResponse(() => dispatchEventNotifications({
     type: "workspace.created",
     tenantId: null,
     eventId: `workspace-created:${args.tenantId}`,
@@ -29,7 +30,7 @@ export function notifyPlatformNewWorkspace(args: {
       ownerEmail: args.ownerEmail,
       planLabel: args.planLabel,
     },
-  });
+  }));
 }
 
 /** Alert platform admins that a signup failed — platform.workspace_signup_failed. */
@@ -38,7 +39,7 @@ export function notifyPlatformSignupFailed(args: {
   attemptedEmail: string;
   reason: string;
 }): void {
-  void dispatchEventNotifications({
+  afterResponse(() => dispatchEventNotifications({
     type: "platform.workspace_signup_failed",
     tenantId: null,
     eventId: `signup-failed:${args.leadId}`,
@@ -46,5 +47,5 @@ export function notifyPlatformSignupFailed(args: {
       attemptedEmail: args.attemptedEmail,
       reason: args.reason,
     },
-  });
+  }));
 }

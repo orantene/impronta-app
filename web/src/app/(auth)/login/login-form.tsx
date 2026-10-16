@@ -11,7 +11,10 @@ import {
   AuthNotice,
   AuthSubmitButton,
 } from "@/components/auth/auth-ui";
+import { pickAuthEmail, readAuthEmailDraft, writeAuthEmailDraft } from "@/lib/auth/email-draft";
+import { useFocusFirstInvalidOnError } from "@/lib/auth/use-focus-first-invalid";
 import { createTranslator } from "@/i18n/messages";
+import { withLocaleHref } from "@/i18n/pathnames";
 
 const REMEMBER_STORAGE_KEY = "tulala.login.remember";
 
@@ -55,6 +58,8 @@ export function LoginForm({
     FormData
   >(signInWithEmail, undefined);
   const [remember, setRemember] = useState(true);
+  // TUL-768: React resets uncontrolled fields after a form action, so a failed login wiped the typed email.
+  const [email, setEmail] = useState(pickAuthEmail(readAuthEmailDraft(), defaultEmail));
 
   useEffect(() => {
     try {
@@ -75,15 +80,16 @@ export function LoginForm({
   };
 
   const friendlyError = friendlyAuthError(state?.error, t);
+  useFocusFirstInvalidOnError(friendlyError);
 
   return (
-    <form action={formAction} className="space-y-3.5">
+    <form action={formAction} noValidate className="space-y-3.5">
       {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="remember" value={remember ? "1" : "0"} />
 
       {friendlyError ? (
-        <AuthNotice tone="error">{friendlyError}</AuthNotice>
+        <AuthNotice tone="error" id="login-error">{friendlyError}</AuthNotice>
       ) : null}
 
       {state?.message ? (
@@ -97,8 +103,14 @@ export function LoginForm({
           type="email"
           autoComplete="email"
           required
-          defaultValue={defaultEmail}
-          placeholder="you@studio.com"
+          aria-invalid={friendlyError ? true : undefined}
+          aria-describedby={friendlyError ? "login-error" : undefined}
+          value={email}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            writeAuthEmailDraft(e.target.value);
+          }}
+          placeholder={t("public.auth.form.emailPlaceholder")}
           className={AUTH_INPUT_CLASS}
           style={AUTH_INPUT_STYLE}
         />
@@ -109,7 +121,7 @@ export function LoginForm({
         htmlFor="password"
         rightSlot={
           <Link
-            href="/forgot-password"
+            href={withLocaleHref("/forgot-password", locale)}
             className="plt-mono text-[0.6875rem] font-semibold uppercase tracking-[0.14em] transition-colors hover:text-[var(--plt-forest)]"
             style={{ color: "var(--plt-muted)" }}
           >
@@ -123,7 +135,6 @@ export function LoginForm({
           type="password"
           autoComplete="current-password"
           required
-          placeholder="••••••••"
           className={AUTH_INPUT_CLASS}
           style={AUTH_INPUT_STYLE}
         />

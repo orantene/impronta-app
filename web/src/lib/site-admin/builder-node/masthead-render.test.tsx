@@ -75,3 +75,24 @@ test("masthead skips empty lines", () => {
   assert.match(html, /Only/);
   assert.equal((html.match(/class="sb-masthead-line"/g) ?? []).length, 1);
 });
+
+test("magazine masthead cover statement ships with TUL-476 crop + scrim CSS", () => {
+  const node = createBuilderNode("masthead") as BuilderMastheadNode;
+  Object.assign(node.props, {
+    edition: "magazine",
+    lines: ["Mateo Ferrer"],
+    splitWords: true,
+    showCover: true,
+    coverSrc: "https://cdn.example/mateo.jpg",
+    coverLine: "Modelo",
+    coverStatement: "Editorial, runway y campañas",
+    bio: "Intro line for phone clearance.",
+  });
+  const html = render([node]);
+  assert.match(html, /data-edition="magazine"/);
+  assert.match(html, /Editorial, runway y campañas/);
+  assert.match(html, /object-position:center 18%/);
+  assert.match(html, /\.sb-mag-cover::after\{/);
+  assert.match(html, /scroll-margin-top:72px/);
+  assert.doesNotMatch(html, /\u2014|\u2013/);
+});

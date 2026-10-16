@@ -36,6 +36,7 @@ import type { ThreadTabId } from "./shared/machinery-8";
 import { MOCK_FILES_FOR_CONV, ThreadTabBar, isTalentCoordOnOffer, talentCoordCombinedTotal } from "./shared/machinery-9";
 import type { Offer } from "./shared/machinery-9";
 import { TalentJobShellHeader } from "./talent-1";
+import { isSoloOwnerThread } from "@/components/admin/offer/offer-solo-seller";
 
 // ── TalentWhosTurnBanner (D4) ────────────────────────────────────────
 // A slim status-aware banner shown at the top of the Chat tab that tells
@@ -194,7 +195,7 @@ function TalentReadOnlyLineup({ conv }: { conv: Conversation }) {
 // ── Talent JOB DETAIL — the heart of the talent shell ──
 // Layout (top-down): unified header → tabs → conversation
 export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: () => void }) {
-  const { toast, effectiveTenant } = useAdminShell();
+  const { toast, effectiveTenant, state: shellState } = useAdminShell();
   const t = useT();
   const router = useRouter();
   // C4 — capture pending to no-op duplicate clicks during in-flight
@@ -282,6 +283,7 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
   // the Group tab vanishes from the row; redirect to a tab that still
   // exists (Client for a coordinator, else the always-present Activity).
   const groupHidden = lineupTotal !== undefined && lineupTotal < 2;
+  const soloOwner = isSoloOwnerThread({ workspaceType: shellState.workspaceType, lineupTotal });
   useEffect(() => {
     if (activeTab === "group" && groupHidden) {
       setActiveTab(isCoordinator ? "client" : "activity");
@@ -336,6 +338,7 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
         conv={conv}
         yourRate={yourRate}
         onBack={onBack}
+        hideCoordPill={soloOwner}
         coordCommissionLabel={(() => {
           // Item #17 wiring: when this talent is also a coordinator on
           // the same offer they earn BOTH lanes. Surface the coord
@@ -363,7 +366,7 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
           they're running this booking (client chat + offer + booking). The
           provenance clause ("Handed to you by…") is omitted gracefully when
           conv.coordinatorHandoff is absent (optional WS5 plumbing). */}
-      {isCoordinator && (
+      {isCoordinator && !soloOwner && (
         <div style={{
           padding: "7px 12px", fontSize: 11.5, lineHeight: 1.4,
           background: COLORS.indigoSoft, color: COLORS.indigoDeep ?? COLORS.indigo,
@@ -441,6 +444,19 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
         )}
         {/* F2: Group tab — the booking-team coordination channel. */}
         {activeTab === "group" && (
+          <>
+          {/* TUL-955: the guest's original request leads the thread (it was only in the list preview). */}
+          {conv.brief ? (
+            <div
+              data-original-inquiry=""
+              className="mx-3 mt-3 rounded-lg border border-admin-border-soft bg-admin-surface-muted px-3 py-2 text-[13px] text-admin-ink"
+            >
+              <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-admin-ink-muted">
+                {t("dashboard.talentThread.originalRequest")}
+              </div>
+              <div className="whitespace-pre-wrap [overflow-wrap:anywhere]">{conv.brief}</div>
+            </div>
+          ) : null}
           <ConversationTab
             conv={conv}
             threadKey={`${conv.id}:talent`}
@@ -451,6 +467,7 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
             povCanSeeCoordNote={true}
             mode="chat"
           />
+          </>
         )}
         {/* F2: Activity tab — the job's money/booking timeline (offer →
             payment → booking) as read-only timestamped cards. Same

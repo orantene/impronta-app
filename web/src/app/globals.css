@@ -1227,7 +1227,11 @@ html[data-public-font-preset="editorial"] {
   --plt-ink-soft: var(--tl-ink-soft);
   --plt-ink-strong: var(--tl-ink-strong);
   --plt-muted: var(--tl-muted);
-  --plt-muted-soft: var(--tl-muted-soft);
+  /* TUL-1084: was var(--tl-muted-soft) #8e938a, 2.74:1 on bone. #62675c clears AA 4.5:1 on
+     bone, surface, surface-deep and white (5.07 / 5.39 / 4.59 / 5.81), so tertiary text on the
+     profile and marketing pages passes Lighthouse. --tl-muted-soft itself is unchanged: it also
+     colours placeholders and an admin screen. */
+  --plt-muted-soft: #62675c;
   --plt-on-inverse: var(--tl-on-inverse);
   --plt-on-inverse-muted: var(--tl-on-inverse-muted);
   --plt-on-inverse-soft: var(--tl-on-inverse-soft);
@@ -1512,6 +1516,46 @@ html[data-public-font-preset="editorial"] {
    numbers version read as a calendar. Interaction is a lift plus a warmed
    border, and the icon tile answers with it, which is enough movement for a
    grid of twenty one without any of them shouting. */
+
+/* A band is centred rows of equal-width cards. Card width is always the
+   four/three/two-up width of the full row; a band that uses fewer columns
+   (bandColumns) narrows itself instead, so short rows centre and no band ends
+   on one lone card. Breakpoints match Tailwind sm / lg / xl. */
+.mkt-band {
+  --gap: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--gap);
+  margin-inline: auto;
+}
+.mkt-band > * {
+  width: 100%;
+}
+@media (min-width: 640px) {
+  .mkt-band {
+    max-width: calc((100% - var(--gap)) / 2 * var(--cols-sm) + (var(--cols-sm) - 1) * var(--gap));
+  }
+  .mkt-band > * {
+    width: calc((100% - (var(--cols-sm) - 1) * var(--gap)) / var(--cols-sm));
+  }
+}
+@media (min-width: 1024px) {
+  .mkt-band {
+    max-width: calc((100% - 2 * var(--gap)) / 3 * var(--cols-lg) + (var(--cols-lg) - 1) * var(--gap));
+  }
+  .mkt-band > * {
+    width: calc((100% - (var(--cols-lg) - 1) * var(--gap)) / var(--cols-lg));
+  }
+}
+@media (min-width: 1280px) {
+  .mkt-band {
+    max-width: calc((100% - 3 * var(--gap)) / 4 * var(--cols-xl) + (var(--cols-xl) - 1) * var(--gap));
+  }
+  .mkt-band > * {
+    width: calc((100% - (var(--cols-xl) - 1) * var(--gap)) / var(--cols-xl));
+  }
+}
 
 .mkt-feature-card {
   transition:

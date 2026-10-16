@@ -24,6 +24,7 @@ import { talentPlanGrantsSiteCapability } from "@/lib/access/talent-membership";
 import { readI18n } from "@/lib/i18n/i18n-columns";
 import type { BuilderNode, BuilderNavLink } from "@/lib/site-admin/builder-node/types";
 import { mirrorPropsI18nOntoNodes } from "@/lib/site-admin/builder-node/i18n-overlay";
+import { ensureHeaderCta } from "./header-ensure-cta";
 
 /** Effective tier for the gate. `talent_portfolio` is the Max plan key. */
 export const TALENT_MAX_PLAN_KEY = "talent_portfolio";
@@ -84,6 +85,42 @@ export interface MaxSiteNavItem {
   slug: string;
   label: string;
   isHome: boolean;
+}
+
+/**
+ * Seeded home-page title used when a site is first created (`title: "Home"`).
+ * `hydrateShellNav` injects page titles into the header AFTER design-label
+ * localisation, so without this map an ES site keeps showing "Home".
+ * Only the untouched seed is rewritten; a talent-edited nav label stays.
+ */
+const SEEDED_HOME_NAV_LABEL: Readonly<Record<"en" | "es", string>> = {
+  en: "Home",
+  es: "Inicio",
+};
+
+/**
+ * Localise the seeded home nav label for the visitor locale.
+ * Only the current home item (`isHome`) is rewritten — after "Set home", a
+ * former home can stay in the nav with `navLabel: "Home"` and `isHome: false`;
+ * rewriting every Home/Inicio label would mislabel that page.
+ */
+export function localiseMaxSiteNavLabel(
+  label: string,
+  locale: string | null | undefined,
+  isHome = false,
+): string {
+  if (!isHome) return label;
+  const key = (locale ?? "").trim().toLowerCase().slice(0, 2);
+  const target = key === "es" ? "es" : key === "en" ? "en" : null;
+  if (!target) return label;
+  const trimmed = label.trim();
+  if (
+    trimmed === SEEDED_HOME_NAV_LABEL.en ||
+    trimmed === SEEDED_HOME_NAV_LABEL.es
+  ) {
+    return SEEDED_HOME_NAV_LABEL[target];
+  }
+  return label;
 }
 
 /**
@@ -194,16 +231,26 @@ export function selectMaxSitePage(
  */
 export function buildMaxSiteNav(
   pages: readonly MaxSitePageRow[],
+  locale?: string | null,
+  chain?: readonly string[],
 ): MaxSiteNavItem[] {
+  const loc = locale?.trim() || null;
+  const locChain = chain ?? (loc ? [loc] : undefined);
   return pages
     .filter((p) => p.status === "published")
     .slice()
     .sort((a, b) => a.sortOrder - b.sortOrder || a.slug.localeCompare(b.slug))
-    .map((p) => ({
-      slug: p.slug,
-      label: p.navLabel?.trim() || p.title?.trim() || p.slug,
-      isHome: p.isHome,
-    }));
+    .map((p) => {
+      const title = loc
+        ? readI18n(p.titleI18n, p.title, loc, locChain ?? [loc])
+        : p.title;
+      const raw = p.navLabel?.trim() || title?.trim() || p.slug;
+      return {
+        slug: p.slug,
+        label: localiseMaxSiteNavLabel(raw, loc, p.isHome),
+        isHome: p.isHome,
+      };
+    });
 }
 
 /**
@@ -299,7 +346,7 @@ const SITE_HEADER_MAX_NAV_LABEL = 60;
  * page set so a multi-page site's header reflects the talent's pages without the
  * talent hand-maintaining links.
  *
- * TWO header shapes are hydrated, because the shell was refactored underneath
+ * THREE header shapes are hydrated, because the shell was refactored underneath
  * this function and it silently stopped working:
  *
  *  1. a `nav` BUILDER NODE (`props.links`) — the original shape, still valid for
@@ -311,10 +358,15 @@ const SITE_HEADER_MAX_NAV_LABEL = 60;
  *     than holding links itself. Walking only for `kind === "nav"` matched
  *     nothing here, so every multi-page talent Max site rendered a header
  *     containing just the seeded "Home".
+ *  3. a Gridline `utility_bar` (`props.homeHref`) — logo + name brand control;
+ *     same site-home rewrite as `site_header.brand.href`.
+ *  4. kit-shell brand `heading`/`image` (`props.href`) — stale solace/frame
+ *     shells that never adopted `site_header` still need a way home.
  *
  * PURE + non-mutating — returns a new tree (structural clone of the touched
- * branches). A shell with neither shape is returned unchanged. When the site has
- * no published pages, existing links are preserved (never blanked).
+ * branches). A shell with none of these shapes is returned unchanged. When the
+ * site has no published pages, existing links are preserved (never blanked).
+ * After nav rewrite, `ensureHeaderCta` fills any missing header CTA (GRK-081).
  */
 export function hydrateShellNav(
   tree: readonly BuilderNode[],
@@ -322,8 +374,10 @@ export function hydrateShellNav(
   siteSlug: string,
   publicPathPrefix = "",
   hrefMode: MaxSiteHrefMode = "path",
+  /** Site-language label for a header CTA this fills in (default "Book"). */
+  ctaLabel?: string,
 ): BuilderNode[] {
-  if (nav.length === 0) return tree.slice();
+  if (nav.length === 0) return ensureHeaderCta(tree.slice(), ctaLabel);
 
   const links: BuilderNavLink[] = nav.map((item) => ({
     id: `maxsite-nav-${item.slug}`,
@@ -398,14 +452,39 @@ export function hydrateShellNav(
         },
       } as BuilderNode;
     }
+    // Shape 3 — Gridline `utility_bar`: logo + name must link home (same as
+    // site_header.brand.href). Seeded `homeHref: "/"` is rewritten here.
+    if (node.kind === "utility_bar") {
+      return {
+        ...node,
+        props: {
+          ...node.props,
+          homeHref: brandHref,
+        },
+      } as BuilderNode;
+    }
     const children = (node as { children?: BuilderNode[] }).children;
     if (Array.isArray(children) && children.length > 0) {
-      return { ...node, children: children.map(visit) } as BuilderNode;
+      const visited = children.map(visit);
+      // Shape 4 — kit shell: brand heading/image sibling of `nav` → home.
+      const hasNav = visited.some((c) => c.kind === "nav");
+      if (hasNav) {
+        return {
+          ...node,
+          children: visited.map((c) => {
+            if (c.kind !== "heading" && c.kind !== "image") return c;
+            const layer = String(((c.props ?? {}) as { layerLabel?: unknown }).layerLabel ?? "");
+            if (layer && layer !== "Wordmark" && layer !== "Logo") return c;
+            return { ...c, props: { ...c.props, href: brandHref } } as BuilderNode;
+          }),
+        } as BuilderNode;
+      }
+      return { ...node, children: visited } as BuilderNode;
     }
     return node;
   };
 
-  return tree.map(visit);
+  return ensureHeaderCta(tree.map(visit), ctaLabel);
 }
 
 /**

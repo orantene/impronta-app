@@ -11,8 +11,19 @@ export type SetupCopy = {
   serviceName: string;
   minutes: string;
   price: string;
+  currencyLabel: string;
   quote: string;
   quoteOn: string;
+  hiddenUntilPriced: string;
+  /** TUL-805: shown when "price on quote" is chosen. */
+  quoteShown: string;
+  priceFixed: string;
+  priceQuote: string;
+  suggested: string;
+  confirm: string;
+  confirmed: string;
+  confirmAll: string;
+  quoteLive: string;
   addService: string;
   remove: string;
   hours: string;
@@ -24,6 +35,7 @@ export type SetupCopy = {
   place: string;
   placeModes: { studio: string; home: string; client: string };
   area: string;
+  areaClient: string;
   areaHint: string;
   homePrivate: string;
   timezone: string;
@@ -33,7 +45,10 @@ export type SetupCopy = {
   providerEmail: string;
   providerLater: string;
   providerNote: string;
-  errors: { services: string; hours: string; place: string; timezone: string; providerEmail: string; save: string };
+  /** Studio only: the owner also takes clients (default on) / does not. */
+  ownerProvides: string;
+  ownerProvidesHint: string;
+  errors: { services: string; confirmPrices: string; hours: string; place: string; timezone: string; providerEmail: string; save: string };
   next: string;
 };
 
@@ -50,8 +65,18 @@ export const SETUP_COPY: Record<FlowLocale, SetupCopy> = {
     serviceName: "Service name",
     minutes: "Minutes",
     price: "Price",
+    currencyLabel: "Currency",
     quote: "Price on quote",
     quoteOn: "On quote",
+    hiddenUntilPriced: "No price yet: add one, or choose price on quote.",
+    quoteShown: "Shown on your site as Price on request, with a button to ask you for a quote.",
+    priceFixed: "Fixed price",
+    priceQuote: "Get a quote",
+    suggested: "Suggested · tap to change",
+    confirm: "Confirm",
+    confirmed: "Confirmed",
+    confirmAll: "Confirm all prices",
+    quoteLive: "Clients will see a Request a quote button. Add a price later to take bookings.",
     addService: "Add a service",
     remove: "Remove",
     hours: "Your hours",
@@ -63,6 +88,7 @@ export const SETUP_COPY: Record<FlowLocale, SetupCopy> = {
     place: "Where do you work?",
     placeModes: { studio: "At my studio", home: "At home", client: "I go to the client" },
     area: "Area clients see",
+    areaClient: "Service area",
     areaHint: "Neighborhood or city",
     homePrivate: "Only the area is public. Your exact address is never shown; you share it after a booking.",
     timezone: "Your time zone",
@@ -72,8 +98,11 @@ export const SETUP_COPY: Record<FlowLocale, SetupCopy> = {
     providerEmail: "Their email",
     providerLater: "Add later",
     providerNote: "Bookings start when a provider is added.",
+    ownerProvides: "I also take clients myself",
+    ownerProvidesHint: "Your site takes bookings from day one, with the hours above. Turn it off if other people take the clients: it then takes enquiries until a provider joins.",
     errors: {
       services: "Add at least one service with a name.",
+      confirmPrices: "Confirm or change each suggested price to continue.",
       hours: "Open at least one day.",
       place: "Choose where you work.",
       timezone: "Choose your time zone.",
@@ -94,8 +123,18 @@ export const SETUP_COPY: Record<FlowLocale, SetupCopy> = {
     serviceName: "Nombre del servicio",
     minutes: "Minutos",
     price: "Precio",
+    currencyLabel: "Moneda",
     quote: "Precio a cotizar",
     quoteOn: "A cotizar",
+    hiddenUntilPriced: "Sin precio: agrégalo o elige precio a cotizar.",
+    quoteShown: "Se muestra en tu sitio como Precio a cotizar, con un botón para pedirte una cotización.",
+    priceFixed: "Precio fijo",
+    priceQuote: "Pedir cotización",
+    suggested: "Sugerido · toca para cambiar",
+    confirm: "Confirmar",
+    confirmed: "Confirmado",
+    confirmAll: "Confirmar todos los precios",
+    quoteLive: "Tus clientes verán un botón para pedir cotización. Agrega un precio después para recibir reservas.",
     addService: "Agregar un servicio",
     remove: "Quitar",
     hours: "Tu horario",
@@ -107,6 +146,7 @@ export const SETUP_COPY: Record<FlowLocale, SetupCopy> = {
     place: "¿Dónde trabajas?",
     placeModes: { studio: "En mi estudio", home: "En casa", client: "Voy con el cliente" },
     area: "Zona que ven tus clientes",
+    areaClient: "Zona de servicio",
     areaHint: "Colonia o ciudad",
     homePrivate: "Solo la zona es pública. Tu dirección exacta nunca se muestra; la compartes después de una reserva.",
     timezone: "Tu zona horaria",
@@ -116,8 +156,11 @@ export const SETUP_COPY: Record<FlowLocale, SetupCopy> = {
     providerEmail: "Su correo",
     providerLater: "Agregar después",
     providerNote: "Las reservas empiezan cuando agregas a un proveedor.",
+    ownerProvides: "Yo también atiendo clientes",
+    ownerProvidesHint: "Tu sitio recibe reservas desde el primer día, con el horario de arriba. Desactívalo si otras personas atienden a los clientes: entonces recibe consultas hasta que se una un proveedor.",
     errors: {
       services: "Agrega al menos un servicio con nombre.",
+      confirmPrices: "Confirma o cambia cada precio sugerido para continuar.",
       hours: "Abre al menos un día.",
       place: "Elige dónde trabajas.",
       timezone: "Elige tu zona horaria.",

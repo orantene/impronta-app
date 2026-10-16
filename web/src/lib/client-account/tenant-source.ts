@@ -6,9 +6,10 @@ import type { ClientAccountHostKind } from "./flag";
  * - talent_site (her own website): the talent's tenant, from the proxy-set
  *   talent-profile header. Flag name `talent`.
  * - hub / agency (the `/t/<code>` profile page is not a website): the tenant of
- *   the host itself, from the proxy-set tenant header. Flag `app`.
+ *   the host itself, from the proxy-set tenant header. Flag matches the host
+ *   kind (`agency` / `hub`) so CLIENT_ACCOUNT_HOSTS=agency enables the surface.
  * - app / marketing apex (tulala.digital, no tenant of its own, the public face
- *   of the Tulala hub): the platform hub tenant. Flag `app`.
+ *   of the Tulala hub): the platform hub tenant. Flag matches the host kind.
  * - anything else: null (fail closed).
  *
  * Nothing here reads a browser value or a profile code.
@@ -30,8 +31,12 @@ export function decideAccountTenantSource(input: {
     return input.talentProfileId?.trim() ? { source: "talent_profile", flag: "talent" } : null;
   }
   if (hostKind === "hub" || hostKind === "agency") {
-    return input.hostTenantId && UUID.test(input.hostTenantId.trim()) ? { source: "host_tenant", flag: "app" } : null;
+    return input.hostTenantId && UUID.test(input.hostTenantId.trim())
+      ? { source: "host_tenant", flag: hostKind }
+      : null;
   }
-  if (hostKind === "app" || hostKind === "marketing") return { source: "platform_hub", flag: "app" };
+  if (hostKind === "app" || hostKind === "marketing") {
+    return { source: "platform_hub", flag: hostKind };
+  }
   return null;
 }

@@ -7,6 +7,8 @@ import { createBuilderSectionEmbed } from "./section-embed-presets";
 import { makeId, randomUuid } from "./make-id";
 import { createGridlineNode } from "./create-gridline";
 import { cloneNailDesignerDefaultProps } from "./nail-designer-model";
+import { PROMO_DEFAULT_PROPS } from "./promo-defaults";
+import { POSTS_FEED_DEFAULT_PROPS } from "./posts-feed-model";
 // Re-exported so existing `import { makeId } from "./create"` consumers keep
 // working; the canonical home is now the dependency-light `./make-id`.
 // randomUuid is the secure-context-safe raw-id generator (see make-id.ts).
@@ -254,6 +256,9 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
     case "comp_card":
     case "next_free_chip":
       return createGridlineNode(kind);
+    case "promo": return { id: makeId("promo"), kind: "promo", props: { ...PROMO_DEFAULT_PROPS } };
+    case "posts_feed":
+      return { id: makeId("posts_feed"), kind: "posts_feed", props: { ...POSTS_FEED_DEFAULT_PROPS } };
     // cornerStyle/showShortLink omitted: render reads undefined as square/shown.
     case "qr_code": return { id: makeId("qr_code"), kind: "qr_code", props: { linkCode: "" } };
     case "ticket_picker": return { id: makeId("ticket_picker"), kind: "ticket_picker", props: { eventId: "", title: "" } };

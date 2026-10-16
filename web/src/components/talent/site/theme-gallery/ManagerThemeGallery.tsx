@@ -18,7 +18,11 @@
  */
 import { useEffect, useState } from "react";
 
-import { applySiteDesignAction, applySiteLookAction } from "@/lib/talent-site/server/theme-actions";
+import {
+  applySiteDesignAction,
+  applySiteLookAction,
+  previewSiteDesignSwitchAction,
+} from "@/lib/talent-site/server/theme-actions";
 import { publishMaxSiteAction } from "@/lib/talent-site/server/site-management-actions";
 import type { ThemeActionErrorCode } from "@/lib/talent-site/server/theme-action-types";
 import {
@@ -28,7 +32,7 @@ import {
 import { ThemeGallery } from "./ThemeGallery";
 import { themeGalleryCopy, type ThemeGalleryCopyKey, type ThemeGalleryLocale } from "./theme-gallery-i18n";
 import type { ThemeGalleryApplyInput, ThemeGalleryApplyResult } from "./types";
-import { ThemePickDraftDialog } from "./ThemePickDraftDialog";
+import { ThemePickDraftDialog, type ThemePickWarn } from "./ThemePickDraftDialog";
 import {
   buildLiveDesignChangeSummary,
   paletteDisplayName,
@@ -72,6 +76,7 @@ export function ManagerThemeGallery({
   const [bootstrap, setBootstrap] = useState<ThemeGalleryBootstrap | null>(null);
   const [ask, setAsk] = useState<{
     summary: LiveDesignChangeSummary;
+    warn: ThemePickWarn | null;
     resolve: (choice: "draft" | "publish" | "cancel") => void;
   } | null>(null);
 
@@ -93,7 +98,13 @@ export function ManagerThemeGallery({
   const current = bootstrap;
 
   async function onApply({ designSlug, lookSlug }: ThemeGalleryApplyInput): Promise<ThemeGalleryApplyResult> {
-    const fail = (code: string) => ({ ok: false, error: themeGalleryCopy(locale, themeErrorCopyKey(code)) });
+    const fail = (code: string, serverError?: string) => ({
+      ok: false,
+      error:
+        code === "unreleased_version" && serverError
+          ? serverError
+          : themeGalleryCopy(locale, themeErrorCopyKey(code)),
+    });
     // Re-applying the Design the site already has would rebuild the home page
     // from the talent's profile and throw away their edits, so a Look-only
     // change never touches the Design (and never asks to replace content).
@@ -113,8 +124,13 @@ export function ManagerThemeGallery({
         }),
         counts: null,
       });
+      // TUL-536: dry-run so the sheet can list what hides / stays. A failed
+      // preview just shows the sheet without the list.
+      const warn: ThemePickWarn | null = await previewSiteDesignSwitchAction({ designSlug: designToApply })
+        .then((p) => (p.ok ? p.data : null))
+        .catch(() => null);
       const choice = await new Promise<"draft" | "publish" | "cancel">((resolve) =>
-        setAsk({ summary, resolve }),
+        setAsk({ summary, warn, resolve }),
       );
       setAsk(null);
       if (choice === "cancel") return { ok: false, cancelled: true };
@@ -122,7 +138,7 @@ export function ManagerThemeGallery({
     }
     if (designToApply) {
       const res = await runThemeApply(() => applySiteDesignAction({ designSlug: designToApply }));
-      if (!res.ok) return fail(res.code);
+      if (!res.ok) return fail(res.code, res.error);
       setBootstrap({ ...current, currentDesignSlug: designToApply });
     }
     if (lookSlug) {
@@ -161,6 +177,7 @@ export function ManagerThemeGallery({
         <ThemePickDraftDialog
           locale={locale}
           summary={ask.summary}
+          warn={ask.warn}
           onConfirm={() => ask.resolve("draft")}
           onPublishNow={() => ask.resolve("publish")}
           onCancel={() => ask.resolve("cancel")}

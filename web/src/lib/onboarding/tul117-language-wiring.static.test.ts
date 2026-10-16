@@ -59,3 +59,9 @@ test("the seed route sits under a prefix the app and agency hosts serve", async 
   assert.equal(isPathAllowedForHostKind("app", "/api/admin/locale-seed"), true);
   assert.equal(isPathAllowedForHostKind("agency", "/api/admin/locale-seed"), true);
 });
+
+test("TUL-540: the resumed card keeps the flow locale (hours in Spanish on ES)", () => {
+  const src = read("src/lib/server-actions/onboarding-module.ts");
+  const cardFor = src.slice(src.indexOf("async function cardFor("), src.indexOf("export async function understandOnboardingInput"));
+  assert.match(cardFor, /locale:\s*state\.locale/);
+});

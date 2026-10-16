@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 import {
+  clientActingAsBannerCopy,
+  resolveClientActingAs,
   resolveTalentActingAs,
   shouldShowTalentActingChip,
   talentActingAsBannerCopy,
@@ -50,6 +52,11 @@ test("banner copy is en + es, names the person, and has no em dashes", () => {
   for (const copy of [en, es]) {
     for (const value of Object.values(copy)) assert.ok(!/[—–]/.test(value), value);
   }
+  const clientEn = clientActingAsBannerCopy("en", "Ana Client");
+  const clientEs = clientActingAsBannerCopy("es", "Ana Client");
+  assert.equal(clientEn.roleLabel, "Client");
+  assert.equal(clientEs.roleLabel, "Cliente");
+  assert.equal(resolveClientActingAs({ isImpersonating: true, effectiveProfile: profile("Ana") })?.name, "Ana");
 });
 
 test("wiring: layout renders the banner from the real identity; chip is gated", () => {
@@ -62,4 +69,42 @@ test("wiring: layout renders the banner from the real identity; chip is gated", 
   assert.doesNotMatch(bar, /\(inWorkspace \|\| inTalent\) && \(/);
   const dict = read("src/components/admin/shell/internal/dashboard-i18n.ts");
   assert.match(dict, /"Acting as another user": "Actuando como otro usuario"/);
+});
+
+test("wiring: client layout mounts ImpersonationBanner with Exit; platform hosts WorkspaceSwitcher", () => {
+  const clientLayout = read("src/app/(workspace)/[tenantSlug]/client/layout.tsx");
+  assert.match(clientLayout, /resolveDashboardIdentity\(\)/);
+  assert.match(clientLayout, /<ImpersonationBanner/);
+  assert.match(clientLayout, /clientActingAsBannerCopy/);
+  assert.doesNotMatch(clientLayout, /readOnlyViewingAs/);
+  const clientRoot = read("src/app/client/page.tsx");
+  assert.match(clientRoot, /effectiveReadContext\(/);
+  assert.match(clientRoot, /loadClientPrimaryTenantSlug\(subjectUserId\)/);
+  assert.doesNotMatch(clientRoot, /loadClientPrimaryTenantSlug\(session\.user\.id\)/);
+  const platform = read("src/app/(workspace)/platform/admin/layout.tsx");
+  assert.match(platform, /<WorkspaceSwitcher/);
+  assert.match(platform, /qaClientUserIdEnv\(\)/);
+  assert.match(platform, /startImpersonationAsQaClient|workspaceClientQa/);
+  const startAction = read("src/lib/server-actions/admin-impersonation.ts");
+  assert.match(startAction, /loadClientPrimaryTenantSlug\(target\)/);
+});
+
+test("TUL-255: a broken QA persona id returns a friendly state instead of throwing", () => {
+  const startAction = read("src/lib/server-actions/admin-impersonation.ts");
+  assert.doesNotMatch(startAction, /throw new Error/);
+  // TUL-669: every failure is now a named reason via fail(), never a bare unavailable.
+  assert.equal((startAction.match(/return \{ error: "unavailable" \}/g) ?? []).length, 0);
+  assert.ok((startAction.match(/return fail\(/g) ?? []).length >= 6);
+  const switcher = read("src/components/dashboard/workspace-switcher.tsx");
+  assert.match(switcher, /<QaImpersonationButton[\s\S]*action=\{startImpersonationAsQaClient\}/);
+  assert.doesNotMatch(switcher, /<form action=\{startImpersonationAsQa/);
+  const button = read("src/components/dashboard/qa-impersonation-button.tsx");
+  assert.match(button, /useActionState\(action/);
+  assert.match(button, /role="alert"/);
+  const platform = read("src/app/(workspace)/platform/admin/layout.tsx");
+  assert.match(platform, /unavailableLabel=\{t\("dashboard\.workspaceQaUnavailable"\)\}/);
+  for (const locale of ["en", "es"]) {
+    const messages = JSON.parse(read(`messages/${locale}.json`)) as { dashboard: Record<string, string> };
+    assert.ok(messages.dashboard.workspaceQaUnavailable, `${locale} workspaceQaUnavailable`);
+  }
 });

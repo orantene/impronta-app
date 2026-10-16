@@ -8,11 +8,13 @@
  * service-role client (auth.role() = service_role).
  */
 
-import { headers } from "next/headers";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { getRequestLocaleUrlSettings } from "@/i18n/tenant-url-locale";
+import { buildCheckoutReturnUrls } from "@/lib/payments/checkout-return-urls";
 import { createCheckoutSessionForTransaction } from "@/lib/payments/stripe-checkout";
+import { publicOrigin } from "@/lib/storefront/request-context";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
 import {
   convertClientForActor,
@@ -24,7 +26,7 @@ import { placeInstantPurchase } from "@/lib/scheduling/instant-purchase";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { isDirectTalentChannel } from "@/lib/talent/accepting-readiness";
 import { runResolvedInstantBook } from "@/lib/scheduling/instant-book-run";
-import { resolveGuestSessionId } from "@/lib/guest/guest-session";
+import { ensureGuestSessionId } from "@/lib/guest/guest-session";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadTalentPreferredLocale } from "@/lib/site-admin/server/talent-locale";
 import { normalizeBookingLocale, resolveBookingLocale } from "@/lib/scheduling/booking-locale";
@@ -32,6 +34,7 @@ import { unwindFailedCheckout } from "@/lib/orders/unwind-failed-checkout";
 import { serviceAddressCopy } from "@/components/public-booking/service-address-copy";
 import { loadOfferingWhere, resolveBookingLocation } from "@/lib/scheduling/service-address-server";
 import { notifyBookingConfirmed } from "@/lib/notifications/producers/booking-confirmed-notify";
+import { anyDemoTalent, DEMO_SUBMIT_REFUSAL } from "@/lib/talent/demo-talent";
 
 export type {
   InstantBookActionResult,
@@ -40,6 +43,10 @@ export type {
 import type { InstantBookActionResult, InstantBookFormPayload } from "./instant-book-types";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { localizedBookingRefusal } from "@/lib/scheduling/instant-book-refusal-copy";
+import { readSiteReturnUrl } from "@/lib/inquiry/claim-return-url.server";
+import { cookies } from "next/headers";
+import { PROMO_COOKIE, PROMO_VIA_COOKIE } from "@/lib/promos/share/cookies";
+import { bookingPromoRequest, instantPaymentStep, promoRefusal } from "@/lib/scheduling/instant-book-promo";
 
 export async function createInstantBookingAction(
   payload: InstantBookFormPayload,
@@ -48,6 +55,9 @@ export async function createInstantBookingAction(
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return { ok: false, error: "Service unavailable. Please try again." };
+    if (await anyDemoTalent(createServiceRoleClient() ?? supabase, [payload.talentProfileId])) {
+      return { ok: false, error: DEMO_SUBMIT_REFUSAL };
+    }
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -86,6 +96,17 @@ export async function createInstantBookingAction(
     const { operatingCurrency } = await loadPlatformOperatingCurrency();
     const convertClient =
       actor.kind === "fail" ? supabase : convertClientForActor(supabase, actor);
+
+    // Promos v1: live promos are priced and HELD inside the purchase pipeline,
+    // before the payment row and the Stripe session below exist.
+    const jar = await cookies();
+    const promoRequest = bookingPromoRequest({
+      promoCode: payload.promoCode,
+      promoShownDiscountCents: payload.promoShownDiscountCents,
+      linkCookie: jar.get(PROMO_COOKIE)?.value ?? null,
+      viaCookie: jar.get(PROMO_VIA_COOKIE)?.value ?? null,
+      flow: "instant",
+    });
 
     const res = await runResolvedInstantBook({
       actor,
@@ -136,14 +157,20 @@ export async function createInstantBookingAction(
           clientOrderKey: `instant:${engineInput.tenantId}:${offeringId}:${engineInput.contactEmail}`,
           // Instant bookings are worked in Messages exactly as before.
           openThread: true,
-          guestSessionId: await resolveGuestSessionId(),
+          guestSessionId: await ensureGuestSessionId(),
           brief: payload.brief ?? null,
           locale: bookingLocale,
           // TUL-426: the sheet's place, trimmed and capped here (visitor text).
           eventLocation: place.eventLocation,
+          bookingPromo: promoRequest,
         });
 
         if (!booked.ok) {
+          // Promos v1: the offer ran out (or the code did not apply) BEFORE any
+          // payment was opened. Typed, so the sheet shows the regular price and
+          // asks again; never a silent full-price charge.
+          const promo = promoRefusal(booked.reason, { locale: bookingLocale, code: promoRequest.code ?? null });
+          if (promo) return { ok: false as const, reason: promo.reason, error: promo.error };
           // The pipeline's reasons are its own. `slot_taken` and the policy
           // refusals are customer-facing states; everything else is ours.
           const customerFacing =
@@ -184,11 +211,36 @@ export async function createInstantBookingAction(
           };
         }
         let checkoutUrl: string | null = null;
-        if (booked.collectCents > 0 && booked.transactionId && booked.bookingId) {
-          const hdrs = await headers();
-          const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "localhost";
-          const proto = hdrs.get("x-forwarded-proto") ?? "https";
-          const origin = process.env.NEXT_PUBLIC_BASE_URL ?? `${proto}://${host}`;
+        if (instantPaymentStep(booked) === "checkout" && booked.transactionId && booked.bookingId) {
+          // TUL-350 slice 1: return to the host + locale the guest paid from,
+          // never NEXT_PUBLIC_BASE_URL (that dropped talent branding).
+          const origin = await publicOrigin();
+          if (!origin) {
+            // Booking + hold already placed; without an origin nobody can pay.
+            // Unwind the same way as a refused Stripe session.
+            const admin = createServiceRoleClient();
+            if (admin) {
+              await unwindFailedCheckout(admin, {
+                orderId: booked.orderId,
+                transactionId: booked.transactionId,
+                bookingId: booked.bookingId,
+                allocationIds: booked.allocationIds,
+                reservationHoldId: booked.reservationHoldId,
+                why: "checkout_origin_unavailable",
+              });
+            }
+            return {
+              ok: false as const,
+              reason: "engine_error" as const,
+              error: "Could not open payment.",
+            };
+          }
+          const localeSettings = await getRequestLocaleUrlSettings();
+          const { successUrl, cancelUrl } = buildCheckoutReturnUrls({
+            origin,
+            locale: bookingLocale,
+            localeSettings,
+          });
           const session = await createCheckoutSessionForTransaction({
             transactionId: booked.transactionId,
             amountCents: booked.collectCents,
@@ -203,8 +255,8 @@ export async function createInstantBookingAction(
             bookingId: booked.bookingId,
             // Stripe fills the session id; /checkout/success reads the
             // transaction it paid and only says paid once it is settled.
-            successUrl: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-            cancelUrl: `${origin}/checkout/cancel`,
+            successUrl,
+            cancelUrl,
             description: "Booking deposit",
             locale: bookingLocale,
           });
@@ -224,6 +276,7 @@ export async function createInstantBookingAction(
               await unwindFailedCheckout(admin, {
                 orderId: booked.orderId,
                 transactionId: booked.transactionId,
+                bookingId: booked.bookingId,
                 allocationIds: booked.allocationIds,
                 reservationHoldId: booked.reservationHoldId,
                 why: "checkout_session_refused",
@@ -242,11 +295,21 @@ export async function createInstantBookingAction(
           // Emit it here so the guest gets the confirmation email and the
           // talent gets the new-booking notification. Paid bookings keep
           // firing from `markPaid` (same stable eventId, so no duplicate).
-          notifyBookingConfirmed({
+          // Awaited (never rejects): a detached dispatch can be frozen with the
+          // function once the action returns, which wrote zero dispatch rows.
+          await notifyBookingConfirmed({
             tenantId: engineInput.tenantId,
             inquiryId: booked.inquiryId,
             bookingId: booked.bookingId,
           });
+        } else if (booked.bookingId) {
+          // A booking exists but its conversation (best-effort in the purchase
+          // pipeline) did not open, so there is no inquiry to hydrate the
+          // audience from. Say so instead of silently telling nobody.
+          logServerError(
+            "instantBookAction.confirmNotify",
+            new Error(`booking ${booked.bookingId} has no inquiry; booking.confirmed not dispatched`),
+          );
         }
         return {
           ok: true,
@@ -260,6 +323,7 @@ export async function createInstantBookingAction(
           kind: resolved.kind,
           email: resolved.contactEmail,
           tenantId: payload.tenantId,
+          returnUrl: await readSiteReturnUrl(),
         });
       },
     });

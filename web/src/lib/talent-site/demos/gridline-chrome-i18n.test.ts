@@ -36,6 +36,22 @@ function enBag(n: Node | undefined): Record<string, string> {
   return i18n?.en ?? {};
 }
 
+function applyAlex() {
+  const f = loadDemoContentFixture(findDemo("TAL-93030")!.contentFixture!);
+  const ids = new Map(f.services.map((s, i) => [s.id, `off-${i}`]));
+  const copy = gridlineCopyFromFixture(f, (id) => ids.get(id));
+  const payload = buildGridlinePayload();
+  let n = 0;
+  const out = applyDemoSiteCopy(
+    payload.shellTree as never,
+    payload.homeTree as never,
+    { gridline: copy },
+    () => null,
+    () => `a-${++n}`,
+  );
+  return { f, copy, out };
+}
+
 function applyRamon() {
   const f = loadDemoContentFixture(findDemo("TAL-93212")!.contentFixture!);
   const ids = new Map(f.services.map((s, i) => [s.id, `off-${i}`]));
@@ -51,6 +67,33 @@ function applyRamon() {
   );
   return { f, copy, out };
 }
+
+test("gridlineCopyFromFixture: Alex reference carries overlays.en once translations.en exists", () => {
+  const f = loadDemoContentFixture(findDemo("TAL-93030")!.contentFixture!);
+  const copy = gridlineCopyFromFixture(f, () => "x");
+  const en = copy.overlays?.en;
+  assert.ok(en, "overlays.en");
+  assert.equal(en!.topBar?.subtitle, "Electrician · Monterrey");
+  assert.equal(en!.hero?.ctas?.[0], "See times");
+  assert.equal(en!.tasks?.title, "What is going on?");
+  assert.equal(en!.services?.subtitle, "Prices in MXN");
+  assert.ok(copy.hero?.factsI18n?.en?.length);
+  assert.ok(f.translations?.en?.services?.rev?.name);
+});
+
+test("site-copy writes props.i18n.en on Alex reference chrome (Gridline)", () => {
+  const { out } = applyAlex();
+  const bar = findKind(out.shell as Node[], "utility_bar")!;
+  assert.match((bar.props as { subtitle: string }).subtitle, /Electricista/);
+  assert.equal(enBag(bar).subtitle, "Electrician · Monterrey");
+  assert.equal(enBag(bar).statusOnLabel, "Emergencies today");
+
+  const picker = findKind(out.home as Node[], "task_picker")!;
+  assert.equal(enBag(picker).title, "What is going on?");
+
+  const stats = findKind(out.home as Node[], "stats")!;
+  assert.equal(enBag(stats)["items.0.label"], "Response");
+});
 
 test("gridlineCopyFromFixture: bilingual Ramon carries overlays.en for every chrome field", () => {
   const f = loadDemoContentFixture(findDemo("TAL-93212")!.contentFixture!);
@@ -136,4 +179,21 @@ test("no em dash in Ramon English chrome", () => {
   const f = loadDemoContentFixture(findDemo("TAL-93212")!.contentFixture!);
   const en = f.translations!.en!;
   assert.ok(!/—|–/.test(JSON.stringify(en)));
+});
+
+test("TUL-574: the area note is written per language on the area visit node and resolves on /en", async () => {
+  const { localizeBlockNode } = await import("@/lib/site-admin/builder-node/block-i18n");
+  for (const { f, out } of [applyAlex(), applyRamon()]) {
+    let area: Node | undefined;
+    walk([...(out.shell as Node[]), ...(out.home as Node[])], (n) => {
+      if (!area && n.kind === "visit" && n.props?.layout === "area") area = n;
+    });
+    assert.ok(area, `${f.profileCode} area node`);
+    assert.equal(area!.props!.arrivalNote, f.location!.arrivalNote);
+    assert.equal(enBag(area).arrivalNote, f.translations!.en!.arrivalNote);
+    const en = localizeBlockNode(area as never, { locale: "en", defaultLocale: "es", chain: ["es"] }) as Node;
+    assert.equal(en.props!.arrivalNote, "Outside this area, travel is added to the quote.");
+    const es = localizeBlockNode(area as never, { locale: "es", defaultLocale: "es", chain: [] }) as Node;
+    assert.equal(es.props!.arrivalNote, f.location!.arrivalNote);
+  }
 });

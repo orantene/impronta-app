@@ -24,8 +24,9 @@ export const MAISON_V2_TOKEN_DEFAULTS: Readonly<Record<string, string>> = {
   "type.section-title-size-desktop": "58px",
   "type.lede-size": "15.5px",
   "type.lede-size-desktop": "18px",
-  "type.logo-size": "24px",
-  "type.logo-size-desktop": "28px",
+  // TUL-475: 24/28 read as a tiny lockup on phone + desktop; mockup scale is ~32/40.
+  "type.logo-size": "32px",
+  "type.logo-size-desktop": "40px",
   "type.nav-size": "13.5px",
   "type.quote-size": "19px",
   "type.group-title-size": "22px",

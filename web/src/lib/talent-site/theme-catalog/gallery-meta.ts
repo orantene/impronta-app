@@ -407,10 +407,8 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
     demos: [
       // Featured Folio demo = Mateo Ferrer (artifact).
       talentDemo("fashion-model", { en: "Fashion Model", es: "Modelo de moda" }, ["model"], "stone", "TAL-93011", "mateo-ferrer", "Mateo Ferrer"),
-      // The guide's seven Folio demos (Lucía live, six drafts).
+      // Guide Folio demos (models + mixologist, photographer, designer).
       ...guideDemos("folio"),
-      planned("portrait-photographer", { en: "Portrait Photographer", es: "Fotógrafo de retrato" }, ["photographer"], "stone"),
-      planned("graphic-designer", { en: "Graphic Designer", es: "Diseñador gráfico" }, ["designer"], "light"),
       planned("illustrator", { en: "Illustrator", es: "Ilustrador" }, ["illustrator"], "stone"),
       planned("interior-designer", { en: "Interior Designer", es: "Diseñador de interiores" }, ["interior_designer"], "light"),
     ],
@@ -432,13 +430,16 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
 // ── Visibility: finished designs only ───────────────────────────────────────
 
 /**
- * Designs that are finished (10/10) and offered in the gallery by default.
- * Solace, Mono and Frame stay in code (previews, saved sites keep working)
- * but are hidden until they reach the bar. Set
+ * Designs that are finished (10/10) and offered in the gallery by default:
+ * exactly Maison v2, Folio and Gridline (product catalog + theme gallery plan
+ * of record, 2026-10-08). Maison v1 (MAISON_THEME_KEY) is not on the list, but
+ * stays in GALLERY_DESIGNS: sites pinned to it keep rendering and it appears
+ * wherever all designs are listed. Solace, Mono and Frame stay in code
+ * (previews, saved sites keep working) but are hidden until they reach the bar. Set
  * `TALENT_GALLERY_EXTRA_DESIGNS=1` (server) or
  * `NEXT_PUBLIC_TALENT_GALLERY_EXTRA_DESIGNS=1` (client bundle) to show them.
  */
-export const FINISHED_GALLERY_SLUGS: readonly string[] = [MAISON_THEME_KEY, "maison-v2", "folio", "gridline"];
+export const FINISHED_GALLERY_SLUGS: readonly string[] = ["maison-v2", "folio", "gridline"];
 
 export function galleryExtraDesignsEnabled(): boolean {
   return (

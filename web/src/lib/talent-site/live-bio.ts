@@ -9,13 +9,14 @@
  * Fallback chain: visitor locale, then her fallback chain, then her primary
  * locale, then English, then the base short bio. When the shown text is a
  * DIFFERENT language than the visitor's, a small muted line follows it
- * ("(Text in Spanish)", from `bio-language-hint.ts`).
+ * ("Disponible en español", from `bio-language-hint.ts`).
  *
  * Pure: the loader seam is `server/load-live-text.server.ts`.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 
 import { bioLanguageHint } from "./bio-language-hint";
+import { tagLineFromVisibleServices, type ServiceVisibility } from "./live-text-services";
 import type { LocalizedMapLike } from "./talent-locale-swaps";
 
 export interface LiveBioInput {
@@ -29,12 +30,14 @@ export interface LiveBioInput {
   chain?: readonly string[];
   /** Her main language. */
   primary?: string | null;
+  /** TUL-847: when set, a drafted `short_bio` naming a hidden service is rebuilt from the visible ones. */
+  services?: ServiceVisibility | null;
 }
 
 export interface LiveBio {
   /** The bio to show, "" when she has none. */
   text: string;
-  /** The "(Text in Spanish)" line, "" when the visitor reads her own language. */
+  /** The "Disponible en español" line, "" when the visitor reads her own language. */
   hint: string;
 }
 
@@ -48,8 +51,10 @@ export function resolveLiveBio(i: LiveBioInput): LiveBio {
     if (text) return { text, hint: bioLanguageHint(i.bioI18n, visitor, chain) ?? "" };
   }
   // Last resort: the base short bio of her main language. Treat it as primary so
-  // an English visitor still gets "(Text in Spanish)" instead of silent Spanish.
-  const short = i.shortBio?.trim() ?? "";
+  // an English visitor still gets "Disponible en español" instead of silent Spanish.
+  const rawShort = i.shortBio?.trim() ?? "";
+  // Only this drafted fallback is rebuilt; a bio she wrote herself (bioI18n) is hers.
+  const short = i.services ? tagLineFromVisibleServices(rawShort, i.services, visitor === "es" ? "es" : "en") : rawShort;
   if (!short) return { text: "", hint: "" };
   const primary = key(i.primary) || key(chain.find((c) => key(c) && key(c) !== visitor)) || "";
   const asMap = { ...(i.bioI18n ?? {}), ...(primary ? { [primary]: short } : {}) };

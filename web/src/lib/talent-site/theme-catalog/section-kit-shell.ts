@@ -99,16 +99,26 @@ export function buildKitShell(
 ): BuilderNode[] {
   const homeHref = opts.homeHref ?? "/";
 
+  const ctaLabel = (opts.primaryCtaLabel ?? opts.utilityBar?.ctaLabel ?? "Book").trim() || "Book";
+  const ctaHref = opts.utilityBar?.ctaHref ?? "#book";
+
   const brand: BuilderNode = opts.logoUrl
     ? ({
         id: makeId(),
         kind: "image",
-        props: { src: opts.logoUrl, alt: opts.displayName, layerLabel: "Logo", priority: true },
+        props: {
+          src: opts.logoUrl,
+          alt: opts.displayName,
+          layerLabel: "Logo",
+          priority: true,
+          // Kit-shell wordmark/logo must link home (stale solace/frame demos).
+          href: homeHref,
+        },
       } as BuilderNode)
     : ({
         id: makeId(),
         kind: "heading",
-        props: { text: opts.displayName, level: 2, layerLabel: "Wordmark" },
+        props: { text: opts.displayName, level: 2, layerLabel: "Wordmark", href: homeHref },
       } as BuilderNode);
 
   const headerJustify =
@@ -150,6 +160,7 @@ export function buildKitShell(
             props: {
               name: opts.displayName,
               subtitle: opts.utilityBar.subtitle ?? "",
+              homeHref,
               ...(opts.logoUrl ? { logoUrl: opts.logoUrl } : {}),
               showStatus: true,
               ...(opts.utilityBar.statusOnLabel ? { statusOnLabel: opts.utilityBar.statusOnLabel } : {}),
@@ -157,8 +168,8 @@ export function buildKitShell(
               showCall: true,
               callHref: "{{callHref}}",
               ...(opts.utilityBar.callLabel ? { callLabel: opts.utilityBar.callLabel } : {}),
-              ctaLabel: opts.utilityBar.ctaLabel ?? opts.primaryCtaLabel ?? "",
-              ctaHref: opts.utilityBar.ctaHref ?? "/contact",
+              ctaLabel: (opts.utilityBar.ctaLabel ?? opts.primaryCtaLabel ?? "").trim() || ctaLabel,
+              ctaHref: (opts.utilityBar.ctaHref ?? "").trim() || ctaHref,
             },
           },
         ],
@@ -186,6 +197,18 @@ export function buildKitShell(
             : {}),
         },
       },
+      // Every theme header needs a primary CTA (GRK-081); kit shells without
+      // utility_bar previously shipped heading+nav only.
+      {
+        id: makeId(),
+        kind: "button",
+        props: {
+          label: ctaLabel,
+          href: ctaHref,
+          tone: "primary",
+          layerLabel: "Header CTA",
+        },
+      } as BuilderNode,
     ],
   } as BuilderNode);
 
@@ -243,6 +266,12 @@ export function withAccountItem(header: BuilderNode | undefined): BuilderNode | 
       out[zone] = [...items.slice(0, at + 1), { type: "account", responsive: { mobile: "show" } }, ...items.slice(at + 1)];
       done = true;
     } else out[zone] = items;
+  }
+  if (!done) {
+    // No `language` item (single-language or custom header): the entry still shows, in the right region.
+    const zone = Array.isArray(out.right) ? "right" : Object.keys(out).reverse().find((k) => Array.isArray(out[k]));
+    if (!zone) return header;
+    out[zone] = [...(out[zone] as unknown[]), { type: "account", responsive: { mobile: "show" } }];
   }
   return { ...header, props: { ...props, sectionProps: { ...sectionProps, regions: out } } } as unknown as BuilderNode;
 }

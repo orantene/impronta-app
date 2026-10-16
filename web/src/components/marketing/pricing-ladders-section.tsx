@@ -33,11 +33,12 @@
  * seeded tier can never blank a card.
  */
 import { getRequestLocale } from "@/i18n/request-locale";
-import { withLocaleHref } from "@/i18n/pathnames";
 import {
   getPricingLaddersCopy,
-  localizeTierName,
+  localizeTierCadence,
   localizeTierPrice,
+  pricingTierFeatured,
+  pricingTierName,
   type PricingLaddersCopy,
 } from "@/lib/marketing/pricing-ladders-copy";
 import {
@@ -51,34 +52,23 @@ import {
   type MarketingTier,
 } from "@/lib/pricing/get-active-prices";
 import type { DefaultCurrencyCode } from "@/lib/billing/currencies";
+import { createTranslator } from "@/i18n/messages";
+import { formatUnitAmount } from "@/lib/pricing/pricing-types";
+import {
+  type BillingInterval,
+  maxYearlySavingsPercent,
+  yearlySavingsPercent,
+} from "@/lib/pricing/interval-pricing";
+import { resolvePricingViewer } from "@/lib/pricing/pricing-viewer";
+import { BillingIntervalToggle } from "./billing-interval-toggle";
+import {
+  buildPricingCtaHref,
+  type PricingPackageSlug,
+  type PricingViewer,
+} from "@/lib/pricing/pricing-cta-href";
 
 type LadderCopy = PricingLaddersCopy;
 type TierCopy = LadderCopy["talent"]["free"];
-
-/**
- * The funnel URL for each tier slug. Kept in code (not the catalog) because
- * the destination is surface-specific, not pricing data.
- *
- * Every href lands on `/get-started`. Talent checkout is not reachable yet and
- * the `website` plan key is not purchasable yet, so no card promises a checkout
- * that does not exist; `?tier=` is a hint the funnel reads, and an unknown
- * value falls back to the default get-started copy.
- */
-const TALENT_HREF: Partial<Record<string, string>> = {
-  free: "/get-started?tier=free",
-  pro: "/get-started",
-  max: "/get-started",
-};
-
-const WORKSPACE_HREF: Partial<Record<string, string>> = {
-  free: "/get-started?tier=free",
-  website: "/get-started?tier=website",
-  studio: "/get-started?tier=studio",
-  agency: "/get-started?tier=agency",
-  // The catalog slug is `hub`; the funnel param stays `network` for
-  // backward-compat with links already in the wild.
-  hub: "/get-started?tier=network",
-};
 
 /** Ladder = one column of the page: a label, a blurb, and its tier cards. */
 type Ladder = {
@@ -98,46 +88,77 @@ type Card = {
   featured: boolean;
   isOnSale: boolean;
   canonicalPrice: string;
-  cta: { label: string; href: string; intent: string };
+  /** TUL-828: yearly variant, null when the tier has no recurring price. */
+  yearly: {
+    perMonth: string;
+    billedLine: string;
+    savePct: number;
+    source: "catalog" | "placeholder";
+  } | null;
+  monthlyLine: string;
+  cta: {
+    label: string;
+    /** One href per interval; the toggle shows the matching one. */
+    hrefs: { month: string; year: string };
+    intent: string;
+  };
 };
 
-/**
- * `loadMarketingTiers` pre-formats cadence in English (it is shared with
- * surfaces that are English-only). Re-key it off the known English strings so
- * the Spanish page never leaks "per month".
- */
-function localizeCadence(cadence: string, c: LadderCopy): string {
-  if (cadence === "per month") return c.cadence.month;
-  if (cadence === "per year") return c.cadence.year;
-  if (cadence === "forever") return c.cadence.free;
-  return "";
-}
+type IntervalCopy = {
+  perMonth: string;
+  billedYearly: string;
+  billedMonthly: string;
+  savePct: string;
+  popular: string;
+};
 
 function buildCards(
+  viewer: PricingViewer,
   rows: MarketingTier[],
   copyByKey: Partial<Record<string, TierCopy>>,
-  hrefByKey: Partial<Record<string, string>>,
+  packageSlug: PricingPackageSlug,
   c: LadderCopy,
   locale: string,
+  ic: IntervalCopy,
 ): Card[] {
   return rows.map((t) => {
     const tierCopy = copyByKey[t.key];
     // A sales-led tier has no catalog price; `loadMarketingTiers` renders the
     // English placeholder "Talk to us". Never show it a dollar figure.
     const salesLed = t.cadence === "" && !/\d/.test(t.price);
+    const m = t.monthly;
+    const y = t.yearly;
+    const yearly =
+      !salesLed && m && y
+        ? {
+            perMonth: formatUnitAmount(y.perMonthAmount, y.currency),
+            billedLine: ic.billedYearly.replace(
+              "{amount}",
+              formatUnitAmount(y.unitAmount, y.currency),
+            ),
+            savePct: yearlySavingsPercent(m.unitAmount, y.unitAmount),
+            source: y.source,
+          }
+        : null;
     return {
       key: t.key,
-      name: localizeTierName(t.name, locale),
+      // TUL-839: name, bullets and "most popular" come from the plan catalog.
+      name: pricingTierName(packageSlug, t.key, t.name, locale),
       price: salesLed ? c.salesLed : localizeTierPrice(t.price, locale),
-      cadence: salesLed ? "" : localizeCadence(t.cadence, c),
+      cadence: salesLed ? "" : localizeTierCadence(t.cadence, locale),
       line: tierCopy?.line ?? t.tagline,
       bullets: tierCopy ? [...tierCopy.bullets] : t.highlights,
-      featured: t.featured,
+      featured: pricingTierFeatured(packageSlug, t.key, t.featured),
       isOnSale: t.isOnSale && !salesLed,
       canonicalPrice: t.canonicalPrice,
+      yearly,
+      monthlyLine: yearly ? ic.billedMonthly : "",
       cta: {
         label: tierCopy?.cta ?? c.talent.free.cta,
-        href: withLocaleHref(hrefByKey[t.key] ?? "/get-started", locale),
+        hrefs: {
+          month: buildPricingCtaHref({ packageSlug, tierKey: t.key, interval: "month", viewer }),
+          year: buildPricingCtaHref({ packageSlug, tierKey: t.key, interval: "year", viewer }),
+        },
         intent: t.key,
       },
     };
@@ -146,11 +167,23 @@ function buildCards(
 
 export async function PricingLaddersSection({
   currency,
+  interval = "month",
 }: {
   currency: DefaultCurrencyCode;
+  /** From the page's ?interval= searchParam (server-parsed, no flash). */
+  interval?: BillingInterval;
 }) {
+  const viewer = await resolvePricingViewer();
   const locale = await getRequestLocale();
   const c = getPricingLaddersCopy(locale);
+  const t = createTranslator(locale);
+  const ic: IntervalCopy = {
+    perMonth: t("public.pricingInterval.perMonth"),
+    billedYearly: t("public.pricingInterval.billedYearly"),
+    billedMonthly: t("public.pricingInterval.billedMonthly"),
+    savePct: t("public.pricingInterval.savePct"),
+    popular: t("public.pricingInterval.popular"),
+  };
   const [talentRows, workspaceRows] = await Promise.all([
     loadMarketingTiers("talent", currency),
     loadMarketingTiers("workspace", currency),
@@ -161,18 +194,34 @@ export async function PricingLaddersSection({
       id: "person",
       label: c.person.label,
       blurb: c.person.blurb,
-      cards: buildCards(talentRows, c.talent, TALENT_HREF, c, locale),
+      cards: buildCards(viewer, talentRows, c.talent, "talent", c, locale, ic),
     },
     {
       id: "business",
       label: c.business.label,
       blurb: c.business.blurb,
-      cards: buildCards(workspaceRows, c.workspace, WORKSPACE_HREF, c, locale),
+      cards: buildCards(viewer, workspaceRows, c.workspace, "workspace", c, locale, ic),
     },
   ];
   // A package with no active tiers (or a catalog read that failed) drops its
   // whole ladder rather than rendering an empty labelled block.
   const ladders = allLadders.filter((l) => l.cards.length > 0);
+  const bestSave = maxYearlySavingsPercent(
+    [...talentRows, ...workspaceRows].flatMap((r) =>
+      r.monthly && r.yearly
+        ? [{ monthly: r.monthly.unitAmount, yearly: r.yearly.unitAmount }]
+        : [],
+    ),
+  );
+  const toggleCopy = {
+    groupLabel: t("public.pricingInterval.groupLabel"),
+    monthly: t("public.pricingInterval.monthly"),
+    yearly: t("public.pricingInterval.yearly"),
+    saveBadge:
+      bestSave > 0
+        ? t("public.pricingInterval.saveUpTo").replace("{pct}", String(bestSave))
+        : "",
+  };
 
   return (
     <MarketingSection id="pricing">
@@ -193,10 +242,14 @@ export async function PricingLaddersSection({
           </p>
         </div>
 
-        <div className="mt-14 space-y-16">
-          {ladders.map((ladder) => (
-            <LadderBlock key={ladder.id} ladder={ladder} />
-          ))}
+        <div className="mt-10">
+          <BillingIntervalToggle copy={toggleCopy} initialInterval={interval}>
+            <div className="mt-12 space-y-16">
+              {ladders.map((ladder) => (
+                <LadderBlock key={ladder.id} ladder={ladder} ic={ic} />
+              ))}
+            </div>
+          </BillingIntervalToggle>
         </div>
 
         <p
@@ -223,7 +276,7 @@ function gridClassFor(count: number): string {
   return "grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 lg:gap-5";
 }
 
-function LadderBlock({ ladder }: { ladder: Ladder }) {
+function LadderBlock({ ladder, ic }: { ladder: Ladder; ic: IntervalCopy }) {
   return (
     <section aria-labelledby={`ladder-${ladder.id}`}>
       <div className="flex flex-col gap-1.5 sm:flex-row sm:items-baseline sm:gap-4">
@@ -245,17 +298,21 @@ function LadderBlock({ ladder }: { ladder: Ladder }) {
       />
       <div className={`mt-6 ${gridClassFor(ladder.cards.length)}`}>
         {ladder.cards.map((card) => (
-          <TierCard key={`${ladder.id}-${card.key}`} card={card} />
+          <TierCard key={`${ladder.id}-${card.key}`} card={card} ic={ic} />
         ))}
       </div>
     </section>
   );
 }
 
-function TierCard({ card }: { card: Card }) {
+function TierCard({ card, ic }: { card: Card; ic: IntervalCopy }) {
   const featured = card.featured;
+  const muted = featured ? "rgba(241,237,227,0.7)" : "var(--plt-muted)";
+  const y = card.yearly;
   return (
     <article
+      data-testid="pricing-tier-card"
+      data-tier-key={card.key}
       className="group relative flex h-full flex-col overflow-hidden rounded-[24px] p-6 sm:p-7"
       style={{
         background: featured
@@ -274,37 +331,74 @@ function TierCard({ card }: { card: Card }) {
         className="plt-display text-[1.25rem] font-semibold leading-[1.1] tracking-[-0.025em]"
         style={{ color: featured ? "var(--plt-on-inverse)" : "var(--plt-ink)" }}
       >
-        {card.name}
+        <span className="flex flex-wrap items-center justify-between gap-2">
+          {card.name}
+          {featured ? (
+            <span
+              className="plt-mono rounded-full px-2.5 py-1 text-[0.6875rem] font-medium uppercase tracking-[0.14em]"
+              style={{
+                background: "rgba(241,237,227,0.16)",
+                color: "var(--plt-on-inverse)",
+              }}
+            >
+              {ic.popular}
+            </span>
+          ) : null}
+        </span>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-baseline gap-2">
-        <span
-          className="plt-display text-[2rem] font-semibold leading-none tracking-[-0.03em]"
-          style={{ color: featured ? "var(--plt-on-inverse)" : "var(--plt-ink)" }}
-        >
-          {card.price}
-        </span>
-        {card.cadence ? (
-          <span
-            className="text-[0.8125rem]"
-            style={{
-              color: featured ? "rgba(241,237,227,0.7)" : "var(--plt-muted)",
-            }}
-          >
-            {card.cadence}
-          </span>
-        ) : null}
-        {card.isOnSale && card.canonicalPrice !== card.price ? (
-          <span
-            className="text-[0.9375rem] line-through"
-            style={{
-              color: featured ? "rgba(241,237,227,0.55)" : "var(--plt-muted)",
-            }}
-          >
-            {card.canonicalPrice}
-          </span>
-        ) : null}
+      {/* Monthly variant (default, and the no-JS render). */}
+      <div
+        data-testid="price-monthly"
+        className={y ? "group-data-[interval=year]/billing:hidden" : undefined}
+      >
+        <PriceLine
+          price={card.price}
+          cadence={card.cadence}
+          strike={
+            card.isOnSale && card.canonicalPrice !== card.price
+              ? card.canonicalPrice
+              : null
+          }
+          featured={featured}
+        />
+        <p className="mt-2 min-h-5 text-[0.8125rem]" style={{ color: muted }}>
+          {card.monthlyLine}
+        </p>
       </div>
+      {y ? (
+        <div
+          data-testid="price-yearly"
+          className="hidden group-data-[interval=year]/billing:block"
+          data-yearly-source={y.source}
+        >
+          <PriceLine
+            price={y.perMonth}
+            cadence={ic.perMonth}
+            strike={null}
+            featured={featured}
+          />
+          <p
+            className="mt-2 flex min-h-5 flex-wrap items-center gap-2 text-[0.8125rem]"
+            style={{ color: muted }}
+          >
+            <span>{y.billedLine}</span>
+            {y.savePct > 0 ? (
+              <span
+                className="rounded-full px-2 py-0.5 text-[0.75rem] font-semibold"
+                style={{
+                  background: featured
+                    ? "rgba(241,237,227,0.16)"
+                    : "rgba(31,74,58,0.12)",
+                  color: featured ? "var(--plt-on-inverse)" : "var(--plt-forest)",
+                }}
+              >
+                {ic.savePct.replace("{pct}", String(y.savePct))}
+              </span>
+            ) : null}
+          </p>
+        </div>
+      ) : null}
 
       <p
         className="mt-4 text-[0.875rem] leading-[1.5]"
@@ -331,18 +425,68 @@ function TierCard({ card }: { card: Card }) {
       </ul>
 
       <div className="mt-auto pt-7">
-        <MarketingCta
-          href={card.cta.href}
-          variant={featured ? "inverse" : "secondary"}
-          size="md"
-          eventSource="pricing-ladders"
-          eventIntent={card.cta.intent}
-          className="w-full"
-        >
-          {card.cta.label}
-        </MarketingCta>
+        {(["month", "year"] as const).map((iv) => (
+          <div
+            key={iv}
+            className={
+              iv === "month"
+                ? "group-data-[interval=year]/billing:hidden"
+                : "hidden group-data-[interval=year]/billing:block"
+            }
+          >
+            <MarketingCta
+              href={card.cta.hrefs[iv]}
+              variant={featured ? "inverse" : "secondary"}
+              size="md"
+              eventSource="pricing-ladders"
+              eventIntent={card.cta.intent}
+              className="w-full"
+            >
+              {card.cta.label}
+            </MarketingCta>
+          </div>
+        ))}
       </div>
     </article>
+  );
+}
+
+function PriceLine({
+  price,
+  cadence,
+  strike,
+  featured,
+}: {
+  price: string;
+  cadence: string;
+  strike: string | null;
+  featured: boolean;
+}) {
+  return (
+    <div className="mt-3 flex flex-wrap items-baseline gap-2">
+      <span
+        className="plt-display text-[2.25rem] font-semibold leading-none tracking-[-0.03em] tabular-nums"
+        style={{ color: featured ? "var(--plt-on-inverse)" : "var(--plt-ink)" }}
+      >
+        {price}
+      </span>
+      {cadence ? (
+        <span
+          className="text-[0.8125rem]"
+          style={{ color: featured ? "rgba(241,237,227,0.7)" : "var(--plt-muted)" }}
+        >
+          {cadence}
+        </span>
+      ) : null}
+      {strike ? (
+        <span
+          className="text-[0.9375rem] line-through"
+          style={{ color: featured ? "rgba(241,237,227,0.55)" : "var(--plt-muted)" }}
+        >
+          {strike}
+        </span>
+      ) : null}
+    </div>
   );
 }
 

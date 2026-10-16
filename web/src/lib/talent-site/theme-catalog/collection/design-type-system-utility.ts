@@ -54,7 +54,7 @@ export const UTILITY_TYPE_SYSTEM_CSS = [
   // TUL-474: keep work_order captions + later bands clear of sticky See-services / Continuar chrome
   // (soft chrome already clears the services island; utility's gallery sits below it).
   `html:has([data-theme-canvas-root][data-token-type-system="utility"]):has(.cb-dock[data-show="true"],.cb-bar[data-show="true"]){scroll-padding-bottom:calc(92px + env(safe-area-inset-bottom,0px))}`,
-  `body:has(.cb-dock[data-show="true"],.cb-bar[data-show="true"]) ${U} .sb-portfolio[data-portfolio-layout="work_order"]{padding-bottom:calc(72px + env(safe-area-inset-bottom,0px))}`,
+  `body:has(.cb-dock[data-show="true"],.cb-bar[data-show="true"]) ${U} .sb-portfolio[data-portfolio-layout="work_order"]{padding-bottom:var(--cb-bar-h,calc(86px + env(safe-area-inset-bottom,0px)))}`,
   // TUL-474: keep the hero status-dot kicker on one line (seed still says wrap; CSS wins at render).
   `${U} #hero .site-builder-node--container[data-builder-layout="row"]{flex-wrap:nowrap}`,
   `${U} #hero .site-builder-node--container[data-builder-layout="row"] > .site-builder-node--paragraph{align-self:center}`,

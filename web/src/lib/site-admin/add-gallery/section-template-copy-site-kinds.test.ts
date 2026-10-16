@@ -77,10 +77,23 @@ test("business workspace on an es site gets business Spanish FAQ copy, no agency
   assert.ok(out.includes("Cada reserva incluye agenda"));
 });
 
-// Structure "Add block" search: accents in both directions, and by template key.
-const ES2: Record<string, string> = { "Testimonials Trio": "Trío de reseñas", "FAQ Accordion": "Acordeón de preguntas frecuentes" };
+// Structure "Add block" search: accents, UI labels, and EN/ES aliases (even when
+// the translated label is "testimonios" rather than "reseñas").
+const ES2: Record<string, string> = {
+  "Testimonials Trio": "Trío de testimonios",
+  "FAQ Accordion": "Acordeón de preguntas frecuentes",
+  "Gallery Grid": "Cuadrícula de galería",
+};
 const tr2 = (en: string) => ES2[en] ?? en;
 test("structure search is accent-insensitive in both directions and matches by key", () => {
-  for (const q of ["resenas", "reseñas", "acordeon", "ACORDEÓN"]) assert.ok(searchSections(q, tr2).length > 0, q);
+  for (const q of ["resenas", "reseñas", "acordeon", "ACORDEÓN", "testimonios", "galeria"]) {
+    assert.ok(searchSections(q, tr2).length > 0, q);
+  }
   assert.ok(searchSections("faq-accordion", tr2).length > 0, "by template key");
+});
+test("structure search matches UI-language aliases without a Spanish label hit", () => {
+  const identity = (en: string) => en;
+  for (const q of ["reseñas", "preguntas frecuentes", "fotos"]) {
+    assert.ok(searchSections(q, identity).length > 0, q);
+  }
 });
