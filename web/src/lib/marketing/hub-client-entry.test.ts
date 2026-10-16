@@ -38,3 +38,18 @@ test("TUL-856/863: ES page sends /es/login and an /es/t next on the public host;
   assert.match(en.signInHref, /^https:\/\/app\.tulala\.digital\/login\?/);
   assert.ok(!en.signInHref.includes("%2Fes%2F"));
 });
+
+// TUL-694: Entrar must open the client sign-in popover in place; the app-host
+// /login link stays only as the no-JS fallback.
+test("TUL-694: hub Entrar opens the client sign-in popover instead of navigating", () => {
+  const h = read("src/components/marketing/header.tsx");
+  assert.match(h, /ClientAccountButton/);
+  assert.match(h, /CLIENT_ACCOUNT_OPEN_EVENT/);
+  // Both Entrar anchors (desktop + mobile menu) prevent default and open the popover.
+  const entrar = h.match(/href=\{clientEntry\.signInHref\}[\s\S]{0,260}?onClick=/g) ?? [];
+  assert.equal(entrar.length, 2);
+  const btn = read("src/components/client-account/ClientAccountButton.tsx");
+  assert.match(btn, /export const CLIENT_ACCOUNT_OPEN_EVENT/);
+  assert.match(btn, /addEventListener\(CLIENT_ACCOUNT_OPEN_EVENT/);
+  assert.match(btn, /hideTrigger/);
+});

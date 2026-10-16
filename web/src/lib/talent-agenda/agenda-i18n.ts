@@ -697,7 +697,7 @@ const ES: Record<string, string> = {
   "Nothing has happened on this booking yet.": "Aún no ha pasado nada en esta reserva.",
   "Add a booking you arranged yourself": "Agrega una reserva que acordaste tú",
   "Search clients or add a new one": "Busca clientas o agrega una nueva",
-  "Add a new client": "Agregar clienta nueva",
+  "Add a new client": "Agregar cliente nuevo",
   "as a new client": "como clienta nueva",
   Change: "Cambiar",
   "Existing client": "Clienta existente",

@@ -110,3 +110,51 @@ test("field visibility offers no Agency audience to an independent Profesional",
   assert.match(forms, /solo \? \["public", "private"\]/);
   assert.match(forms, /has\("agency"\) && !solo/);
 });
+
+// TUL-721: the passkey card was fully English on the Spanish admin.
+test("the passkey card follows the dashboard language", () => {
+  const card = read("modern-features.tsx");
+  assert.match(card, /useDashboardText/);
+  for (const en of ["Sign in with passkey", "Set up a passkey", "Remove passkey", "Sign in to test"]) {
+    assert.match(card, new RegExp(`copy\\.t\\(.*${en}`), en);
+    assert.notEqual(translateDashboardText(en, "es"), en, en);
+  }
+});
+
+// TUL-721: the Clientes button said the feminine "Agregar clienta".
+test("Add client reads as the inclusive Agregar cliente", () => {
+  for (const en of ["Add client", "Add a client", "Add a new client"]) {
+    assert.doesNotMatch(translateDashboardText(en, "es"), /clienta/i, en);
+  }
+});
+
+// TUL-702: the locked cards on Clientes read "Unlock →" and "Studio · $29/mo" in English.
+test("locked cards translate the unlock label and the plan chip", () => {
+  const cards = read("primitives/cards.tsx");
+  const locked = cards.slice(cards.indexOf("export function LockedCard"), cards.indexOf("export function StarterCard"));
+  assert.match(locked, /useDashboardText/);
+  assert.match(locked, /copy\.t\(affordance\)/);
+  assert.doesNotMatch(locked, /\{PLAN_META\[requiredPlan\]\.label\} · \{planPriceCompact/);
+  assert.equal(translateDashboardText("Unlock", "es"), "Desbloquear");
+});
+
+// TUL-702: the Valores predeterminados deposit sentences lived only in the lazy
+// website-settings dictionary, so the services defaults screen showed English.
+test("services defaults deposit sentences resolve to Spanish", () => {
+  const src = readFileSync(join(here, "../../../talent/services/DefaultsScreen.tsx"), "utf8");
+  assert.match(src, /WEBSITE_SETTINGS_ES_TEXT/);
+  assert.doesNotMatch(src, /copy\s*\.t\("Inside \{hours\} hours the deposit is kept/);
+  assert.doesNotMatch(src, /copy\s*\.t\("The deposit moves to the new date/);
+});
+
+// TUL-702: jargon, a split Analítica/Analíticas heading, and a doubled empty state.
+test("workspace admin ES: no jargon, one Analíticas spelling, empty sales body adds information", () => {
+  const all = [...strings(es)];
+  for (const [k, v] of all) {
+    assert.doesNotMatch(v, /tareas de fondo|\bid externo\b|registro del POS/i, k);
+  }
+  assert.deepEqual(all.filter(([, v]) => v === "Analítica").map(([k]) => k), []);
+  for (const k of ["dashboard.sales.empty", "dashboard.sales.emptyTitle"]) assert.equal(typeof at(es, k), "string");
+  assert.notEqual(String(at(es, "dashboard.sales.empty")).replace(/[.]$/, ""), at(es, "dashboard.sales.emptyTitle"));
+  assert.doesNotMatch(translateDashboardText("Pages, posts, redirects, custom code, tracking, SEO, domain", "es"), /tracking/);
+});
