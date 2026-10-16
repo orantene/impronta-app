@@ -17388,6 +17388,7 @@
     "projects": {
       "pageTitle": "Projects",
       "pageIntro": "Commissioned work from inquiry to closure",
+      "listLoading": "Loading projects",
       "unavailable": "We could not load your projects. Nothing was changed. Try again in a moment.",
       "empty": "No commissioned projects yet.",
       "emptyHint": "A project appears here when a client accepts an offer on an inquiry. Sales taken at the counter stay on Orders.",

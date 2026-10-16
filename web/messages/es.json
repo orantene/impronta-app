@@ -17388,6 +17388,7 @@
     "projects": {
       "pageTitle": "Proyectos",
       "pageIntro": "Trabajo por encargo, de la consulta al cierre",
+      "listLoading": "Cargando proyectos",
       "unavailable": "No pudimos cargar tus proyectos. No se cambio nada. Intenta de nuevo en un momento.",
       "empty": "Todavía no hay proyectos por encargo.",
       "emptyHint": "Un proyecto aparece aquí cuando un cliente acepta una oferta en una consulta. Las ventas del mostrador siguen en Pedidos.",
