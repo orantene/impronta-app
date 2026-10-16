@@ -135,6 +135,13 @@ test("event: share does not pin; unknown via is dropped", async () => {
   assert.equal((inserted[0] as { via: unknown }).via, null);
 });
 
+test("event: reveal (promo widget) is recorded and never pins the promo", async () => {
+  const { d, inserted } = deps();
+  const r = await handlePromoEvent(d, ev({ kind: "reveal", via: "site" }));
+  assert.deepEqual(r, { ok: true, applyCookie: false, via: "site", promoId: base.id });
+  assert.deepEqual(inserted, [{ promo_id: base.id, tenant_id: "t1", kind: "reveal", session_hash: "h", via: "site" }]);
+});
+
 test("event: validation, 404, rate limit, db failure", async () => {
   assert.deepEqual(await handlePromoEvent(deps().d, ev({ promoId: "x" })), { ok: false, status: 400 });
   assert.deepEqual(await handlePromoEvent(deps().d, ev({ kind: "code_fail" })), { ok: false, status: 400 });
