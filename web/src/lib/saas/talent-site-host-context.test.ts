@@ -17,7 +17,13 @@ function clientReturning(
 
 test("resolves an active talent custom domain to a talent_site context", async () => {
   const client = clientReturning([
-    { talent_profile_id: "talent-42", site_slug: "jane", domain: "jane.com" },
+    {
+      talent_profile_id: "talent-42",
+      site_slug: "jane",
+      domain: "jane.com",
+      is_primary: true,
+      primary_domain: "jane.com",
+    },
   ]);
   const ctx = await resolveTalentSiteContext(client, "jane.com");
   assert.deepEqual(ctx, {
@@ -30,7 +36,26 @@ test("resolves an active talent custom domain to a talent_site context", async (
     hostKind: "custom",
     isDemo: false,
     siteSlug: "jane",
+    isPrimary: true,
+    canonicalHost: null,
+    canonicalHostKind: null,
   });
+});
+
+test("non-primary custom domain carries canonicalHost for apex↔www 308", async () => {
+  const client = clientReturning([
+    {
+      talent_profile_id: "talent-42",
+      site_slug: "jane",
+      domain: "www.jane.com",
+      is_primary: false,
+      primary_domain: "jane.com",
+    },
+  ]);
+  const ctx = await resolveTalentSiteContext(client, "www.jane.com");
+  assert.equal(ctx?.isPrimary, false);
+  assert.equal(ctx?.canonicalHost, "jane.com");
+  assert.equal(ctx?.canonicalHostKind, "custom");
 });
 
 test("tolerates the RPC returning a single object instead of an array", async () => {

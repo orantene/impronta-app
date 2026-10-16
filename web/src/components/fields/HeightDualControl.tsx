@@ -21,7 +21,7 @@ import { cmToFtIn, ftInToCm, HEIGHT_CM_FIELD_KEY } from "@/lib/fields/height-con
 export { HEIGHT_CM_FIELD_KEY };
 
 const INK_MUTED = "#5A5A60";
-const INK_DIM = "rgba(11,11,13,0.38)";
+const INK_DIM = "rgba(11,11,13,0.6)";
 const FONT = "Inter, system-ui, sans-serif";
 
 export function HeightDualControl({

@@ -8,6 +8,7 @@ import { GoogleBusinessGuide } from "@/components/talent/get-found/GoogleBusines
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
+import { loadTalentGoogleSiteVerification } from "@/lib/talent-site/server/load-google-site-verification.server";
 import { buildGbpGuide } from "@/lib/talent/google-business-profile-guide";
 import { buildSeoScore } from "@/lib/talent/seo-score";
 import { buildGscGuide } from "@/lib/talent/search-console-guide";
@@ -36,6 +37,7 @@ export default async function PlatformTalentGetFoundPage() {
   );
 
   const gscGuide = buildGscGuide({ siteUrl }, lang);
+  const gscToken = await loadTalentGoogleSiteVerification(profile.id);
 
   // TUL-581: three cheap reads (one row each / head counts), service role like the profile loader.
   const admin = createServiceRoleClient();
@@ -83,7 +85,7 @@ export default async function PlatformTalentGetFoundPage() {
     <>
       <SeoScoreCard seo={seo} lang={lang} />
       <GoogleBusinessGuide guide={guide} lang={lang} />
-      <SearchConsoleGuide guide={gscGuide} lang={lang} />
+      <SearchConsoleGuide guide={gscGuide} lang={lang} initialToken={gscToken} />
       <div className="mx-auto max-w-2xl px-6 pb-6 text-sm">
         <Link href="/talent/site" className="text-neutral-500 underline">
           {lang === "es" ? "Volver a Mi presencia" : "Back to My presence"}

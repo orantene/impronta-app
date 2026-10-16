@@ -36,7 +36,7 @@ const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui,
 const C = {
   ink: "#0B0B0D",
   inkMuted: "rgba(11,11,13,0.55)",
-  inkDim: "rgba(11,11,13,0.35)",
+  inkDim: "rgba(11,11,13,0.6)",
   border: "rgba(24,24,27,0.10)",
   borderSoft: "rgba(24,24,27,0.06)",
   card: "#FFFFFF",

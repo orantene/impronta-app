@@ -5,6 +5,7 @@ import type { NextRequest } from "next/server";
 import { createBoundedFetch, SUPABASE_EDGE_LOOKUP_TIMEOUT_MS } from "@/lib/supabase/bounded-fetch";
 import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomains";
 import { splitTalentSiteHost } from "@/lib/talent-site/site-public-url";
+import { talentSiteCanonicalFieldsFromLookup } from "@/lib/saas/talent-site-canonical-redirect";
 
 /**
  * SaaS unified host resolver — THE single source of truth for
@@ -79,6 +80,15 @@ export type HostContext =
       isDemo: boolean;
       /** Canonical `talent_sites.site_slug` (unsuffixed), when the RPC returns it. */
       siteSlug: string | null;
+      /**
+       * D1 — agency-shaped primary-host fields for
+       * `resolveCanonicalCustomDomainRedirectHost`. Populated only when an
+       * ACTIVE primary custom domain exists; otherwise isPrimary stays true
+       * and canonicalHost is null so the proxy never redirects on a break.
+       */
+      isPrimary: boolean;
+      canonicalHost: string | null;
+      canonicalHostKind: "subdomain" | "custom" | null;
     }
   | { kind: "not_found"; tenantId: null; hostname: string };
 
@@ -449,11 +459,17 @@ export type TalentSiteEdgeClient = {
           talent_profile_id?: string | null;
           site_slug?: string | null;
           is_demo?: boolean | null;
+          is_primary?: boolean | null;
+          primary_domain?: string | null;
+          primary_custom_domain?: string | null;
         }>
       | {
           talent_profile_id?: string | null;
           site_slug?: string | null;
           is_demo?: boolean | null;
+          is_primary?: boolean | null;
+          primary_domain?: string | null;
+          primary_custom_domain?: string | null;
         }
       | null;
     error: unknown;
@@ -483,6 +499,12 @@ export async function resolveTalentSiteContext(
     const row = Array.isArray(data) ? data[0] : data;
     const talentProfileId = row?.talent_profile_id;
     if (!talentProfileId || typeof talentProfileId !== "string") return null;
+    const canonical = talentSiteCanonicalFieldsFromLookup({
+      hostname,
+      hostKind: "custom",
+      isPrimary: row?.is_primary,
+      primaryDomain: typeof row?.primary_domain === "string" ? row.primary_domain : null,
+    });
     return {
       kind: "talent_site",
       tenantId: null,
@@ -491,6 +513,7 @@ export async function resolveTalentSiteContext(
       hostKind: "custom",
       isDemo: false,
       siteSlug: typeof row?.site_slug === "string" ? row.site_slug : null,
+      ...canonical,
     };
   } catch {
     return null;
@@ -528,6 +551,12 @@ export async function resolveTalentSubdomainContext(
     const row = Array.isArray(data) ? data[0] : data;
     const talentProfileId = row?.talent_profile_id;
     if (!talentProfileId || typeof talentProfileId !== "string") return null;
+    const canonical = talentSiteCanonicalFieldsFromLookup({
+      hostname,
+      hostKind: "subdomain",
+      primaryCustomDomain:
+        typeof row?.primary_custom_domain === "string" ? row.primary_custom_domain : null,
+    });
     return {
       kind: "talent_site",
       tenantId: null,
@@ -536,6 +565,7 @@ export async function resolveTalentSubdomainContext(
       hostKind: "subdomain",
       isDemo: row?.is_demo === true,
       siteSlug: typeof row?.site_slug === "string" ? row.site_slug : null,
+      ...canonical,
     };
   } catch {
     return null;
