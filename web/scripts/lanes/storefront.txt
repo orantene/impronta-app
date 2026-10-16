@@ -37,6 +37,13 @@ src/lib/talent-site/demo-english-plan.test.ts
 src/app/t/?profileCode?/hub-book-slots.render.test.tsx
 src/lib/talent-site/server/no-silent-site-creation.static.test.ts
 src/lib/talent-site/server/page-builder-no-silent-site.static.test.ts
+src/lib/seo/en-meta-description-no-spanish.test.ts
+src/lib/seo/hub-profile-es-head.test.ts
+src/lib/seo/hub-service-area-es.render.test.tsx
+src/lib/seo/service-page-metadata.test.ts
+src/lib/seo/home-service-cards-links.render.test.tsx
+src/lib/talent-site/service-page-wiring.test.ts
+src/lib/talent-site/service-page-sections.test.tsx
 src/lib/client-account/dock-viewer-identity.test.ts
 src/lib/talent/missing-english.test.ts
 src/lib/client-account/signin-methods.static.test.ts
