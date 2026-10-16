@@ -141,7 +141,7 @@ export async function MarketingFooter({ priceCurrency = null }: { priceCurrency?
                   <li key={item.href}>
                     <Link
                       href={item.href}
-                      className="inline-block text-[0.9375rem] transition-colors hover:text-[var(--plt-forest)]"
+                      className="inline-flex min-h-6 items-center text-[0.9375rem] transition-colors hover:text-[var(--plt-forest)]"
                       style={{ color: "var(--plt-ink-soft)" }}
                     >
                       {item.label}
