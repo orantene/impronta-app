@@ -256,6 +256,7 @@ export function SplitScreenComponent({
   props,
   sectionId,
   builderNodeBindings,
+  aboveFold = false,
 }: SectionComponentProps<SplitScreenV1>) {
   const {
     eyebrow,
@@ -351,7 +352,8 @@ export function SplitScreenComponent({
       className="site-split__media-el"
       src={imageUrl}
       alt={imageAlt ?? ""}
-      loading="lazy"
+      loading={aboveFold ? "eager" : "lazy"}
+      fetchPriority={aboveFold ? "high" : undefined}
     />
   ) : null;
 
