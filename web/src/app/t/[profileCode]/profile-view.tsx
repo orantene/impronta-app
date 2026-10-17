@@ -3,10 +3,7 @@ import { loadProfileStorefrontPayload } from "./profile-storefront-payload";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { SOLO_PROFILE_BRAND, profilePriceCurrency, withSoloProfileCopy } from "./solo-profile-copy";
 import { pickByChain } from "@/lib/talent-site/talent-profile-locale";
-import {
-  resolveTalentProfileLocale,
-  talentProfileLocaleMetadata,
-} from "@/lib/talent-site/talent-profile-locale.server";
+import { resolveTalentProfileLocale, talentProfileLocaleMetadata } from "@/lib/talent-site/talent-profile-locale.server";
 import { humaniseFieldToken } from "./humanise-field-token";
 import { resolveSharperBanner } from "./banner-source";
 import type { Metadata } from "next";
@@ -155,6 +152,7 @@ import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
 import { resolvePlatformTalentSiteForProfile } from "@/lib/talent-site/resolve-platform-talent-site";
 import { liveTalentProfileCode } from "@/lib/talent/profile-code-redirect.server";
 import { loadTalentMaxSiteLink } from "@/lib/talent-site/server/load-max-site-link";
+import { redirectHubProfileToCustomDomain } from "@/lib/talent-site/server/load-hub-custom-domain-redirect";
 import { TALENT_SITE_TEMPLATES } from "@/lib/talent-site/templates/registry";
 import type { TalentSiteTemplateKey } from "@/lib/talent-site/templates/types";
 import {
@@ -1546,6 +1544,7 @@ export async function TalentProfileView({
   ]);
 
   const platformHost = isTalentProfilePlatformHost(hostCtx.kind);
+  await redirectHubProfileToCustomDomain({ profileCode, platformHost, isModal, preview });
   // The freeform platform site carries its own full chrome (PublicHeader +
   // footer), which must never render inside the directory quick-open overlay —
   // the modal falls through to the template dispatcher, whose modal variant

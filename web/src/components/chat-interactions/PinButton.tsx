@@ -78,7 +78,7 @@ export function PinButton({
         border: `1px solid ${pinned ? activeBorder : "transparent"}`,
         borderRadius: 999,
         cursor: busy ? "wait" : "pointer",
-        color: pinned ? accent : "rgba(11,11,13,0.45)",
+        color: pinned ? accent : "rgba(11,11,13,0.6)",
         fontSize: 11,
         fontWeight: 600,
         fontFamily: '"Inter", system-ui, sans-serif',

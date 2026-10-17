@@ -97,16 +97,16 @@ function InquiryStatusChip({ status, t }: { status: string; t: (k: string) => st
     approved:      { bg: C.accentSoft,           color: C.accent,  labelKey: "admin.work.detail.inquiryStatus.approved" },
     booked:        { bg: "rgba(26,115,72,0.10)", color: "#1A7348", labelKey: "admin.work.detail.inquiryStatus.booked" },
     converted:     { bg: "rgba(26,115,72,0.10)", color: "#1A7348", labelKey: "admin.work.detail.inquiryStatus.booked" },
-    rejected:      { bg: "rgba(11,11,13,0.05)",  color: "rgba(11,11,13,0.45)", labelKey: "admin.work.detail.inquiryStatus.rejected" },
-    expired:       { bg: "rgba(11,11,13,0.05)",  color: "rgba(11,11,13,0.45)", labelKey: "admin.work.detail.inquiryStatus.expired" },
-    draft:         { bg: "rgba(11,11,13,0.05)",  color: "rgba(11,11,13,0.45)", labelKey: "admin.work.detail.inquiryStatus.draft" },
+    rejected:      { bg: "rgba(11,11,13,0.05)",  color: "rgba(11,11,13,0.6)", labelKey: "admin.work.detail.inquiryStatus.rejected" },
+    expired:       { bg: "rgba(11,11,13,0.05)",  color: "rgba(11,11,13,0.6)", labelKey: "admin.work.detail.inquiryStatus.expired" },
+    draft:         { bg: "rgba(11,11,13,0.05)",  color: "rgba(11,11,13,0.6)", labelKey: "admin.work.detail.inquiryStatus.draft" },
   };
   const entry = map[status];
   const s = entry
     ? { bg: entry.bg, color: entry.color, label: t(entry.labelKey) }
     : {
         bg: "rgba(11,11,13,0.05)",
-        color: "rgba(11,11,13,0.45)",
+        color: "rgba(11,11,13,0.6)",
         label: status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
       };
   return (

@@ -151,9 +151,9 @@ export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
     "Agrega una duración a este servicio para activar la reserva inmediata",
   // PAY-2 Option B — platform Checkout readiness, not Connect.
   "Turn on online payments to take deposits": "Activa el pago en línea para cobrar señas",
-  // LEGAL_REVIEW_PENDING: merchant of record + 18+ (owner decision 2026-10-01)
-  "You are the merchant of record for card payments from your clients, through your own Stripe Connect account. Chargebacks and tax invoicing (CFDI in Mexico) are yours. You and your paying clients must be 18 or older.":
-    "Tú eres el comerciante registrado de los pagos con tarjeta de tus clientes, a través de tu propia cuenta de Stripe Connect. Los contracargos y la facturación fiscal (CFDI en México) son tuyos. Tú y tus clientes que pagan deben tener 18 años o más.",
+  // LEGAL_REVIEW_PENDING: seller / collect-and-pay-out + 18+ (owner decision 2026-10-01)
+  "You are the seller. Tulala collects your clients' card payments and pays out your share. Tax invoicing for your services (CFDI in Mexico) is yours. You and your paying clients must be 18 or older.":
+    "Tú eres el vendedor. Tulala cobra los pagos con tarjeta de tus clientes y te paga tu parte. La facturación fiscal de tus servicios (CFDI en México) es tuya. Tú y tus clientes que pagan deben tener 18 años o más.",
   // G3a / G4 — emergencies today + public call number.
   "Taking emergencies today": "Atiendo emergencias hoy",
   "Shows on your website right away and turns itself off at the end of your day.":

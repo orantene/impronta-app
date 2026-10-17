@@ -80,7 +80,7 @@ const SHARED_INK: Pick<
 > = {
   ink: "#0B0B0D",
   inkMuted: "rgba(11,11,13,0.62)",
-  inkDim: "rgba(11,11,13,0.38)",
+  inkDim: "rgba(11,11,13,0.6)",
   surface: "#FCFBF7",
   surfaceRaised: "#FFFFFF",
   border: "rgba(11,11,13,0.10)",

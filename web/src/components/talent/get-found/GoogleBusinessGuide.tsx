@@ -96,7 +96,7 @@ export function GoogleBusinessGuide({ guide, lang }: { guide: GbpGuide; lang: Gb
                   <div className="text-sm text-amber-700">{t.missing}</div>
                 )}
                 {f.alternatives.length > 0 ? (
-                  <div className="truncate text-xs text-neutral-400">{f.alternatives.join(", ")}</div>
+                  <div className="truncate text-xs text-neutral-600">{f.alternatives.join(", ")}</div>
                 ) : null}
               </div>
               {f.value ? (
@@ -124,7 +124,7 @@ export function GoogleBusinessGuide({ guide, lang }: { guide: GbpGuide; lang: Gb
               </span>
               <div className="flex items-center gap-1 text-sm">
                 {s.title}
-                <span title={s.hint} aria-label={s.hint} role="img" tabIndex={0} className="text-neutral-400">
+                <span title={s.hint} aria-label={s.hint} role="img" tabIndex={0} className="text-neutral-600">
                   <Info size={12} aria-hidden />
                 </span>
               </div>

@@ -12,6 +12,8 @@ import { selectStyle } from "./WorkspaceTopbar";
 import { Grid, PageHeader } from "./pages-shared";
 import { clientsInquiryCard } from "./clients-inquiry-card";
 import { byName } from "@/lib/field-engine/sort-comparators";
+import { isSoloTalentWorkspace, showAgencyUpsell } from "@/lib/workspace/agency-upsell";
+import { normalizeWorkspaceType } from "@/lib/saas/workspace-type";
 
 
 // ════════════════════════════════════════════════════════════════════
@@ -20,12 +22,22 @@ import { byName } from "@/lib/field-engine/sort-comparators";
 
 export function ClientsPage() {
   const t = useT();
-  const { state, openDrawer, openUpgrade, toast, effectiveClients, importedClients, effectiveMessagesInquiries } = useAdminShell();
+  const { state, openDrawer, openUpgrade, toast, effectiveClients, importedClients, effectiveMessagesInquiries, effectiveRoster, bridgeTenantIdentity } = useAdminShell();
   // Phase 3.12 — use bridge clients when available, fall back to mock.
   // importedClients (CSV imports from proto state) are always merged in.
   const clients = [...effectiveClients, ...importedClients];
   const canEdit = meetsRole(state.role, "manager");
   const isFree = state.plan === "free";
+  // TUL-734: a solo talent (roster of one, talent workspace, no studio/agency plan)
+  // never sees the Agency / Studio upsell cards; see lib/workspace/agency-upsell.ts.
+  const agencyUpsell = showAgencyUpsell({
+    plan: state.plan,
+    soloTalent: isSoloTalentWorkspace({
+      rosterCount: effectiveRoster.length,
+      workspaceType: normalizeWorkspaceType(bridgeTenantIdentity?.workspaceType),
+      plan: state.plan,
+    }),
+  });
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "dormant">("all");
   const [sort, setSort] = useState<"name" | "bookings" | "status">("name");
@@ -93,44 +105,48 @@ export function ClientsPage() {
               }
             />
           )}
-          <LockedCard
-            title={t("dashboard.adminClients.ownedListTitle")}
-            description={t("dashboard.adminClients.ownedListDesc")}
-            requiredPlan="studio"
-            onClick={() =>
-              openUpgrade({
-                feature: t("dashboard.adminClients.upOwnedListFeature"),
-                why: t("dashboard.adminClients.upOwnedListWhy"),
-                requiredPlan: "studio",
-                unlocks: [t("dashboard.adminClients.upOwnedListUnlock1"), t("dashboard.adminClients.upOwnedListUnlock2"), t("dashboard.adminClients.upOwnedListUnlock3")],
-              })
-            }
-          />
+          {agencyUpsell ? (
+            <LockedCard
+              title={t("dashboard.adminClients.ownedListTitle")}
+              description={t("dashboard.adminClients.ownedListDesc")}
+              requiredPlan="studio"
+              onClick={() =>
+                openUpgrade({
+                  feature: t("dashboard.adminClients.upOwnedListFeature"),
+                  why: t("dashboard.adminClients.upOwnedListWhy"),
+                  requiredPlan: "studio",
+                  unlocks: [t("dashboard.adminClients.upOwnedListUnlock1"), t("dashboard.adminClients.upOwnedListUnlock2"), t("dashboard.adminClients.upOwnedListUnlock3")],
+                })
+              }
+            />
+          ) : null}
         </Grid>
-        <MoreWithSection plan="agency">
-          <CompactLockedCard
-            title={t("dashboard.adminClients.lockPerClientHistory")}
-            requiredPlan="agency"
-            onClick={() =>
-              openUpgrade({
-                feature: t("dashboard.adminClients.upClientHistoryFeature"),
-                why: t("dashboard.adminClients.upClientHistoryWhy"),
-                requiredPlan: "agency",
-              })
-            }
-          />
-          <CompactLockedCard
-            title={t("dashboard.adminClients.lockCustomFields")}
-            requiredPlan="agency"
-            onClick={() =>
-              openUpgrade({
-                feature: t("dashboard.adminClients.upFieldCatalogFeature"),
-                why: t("dashboard.adminClients.upFieldCatalogWhyFree"),
-                requiredPlan: "agency",
-              })
-            }
-          />
-        </MoreWithSection>
+        {agencyUpsell ? (
+          <MoreWithSection plan="agency">
+            <CompactLockedCard
+              title={t("dashboard.adminClients.lockPerClientHistory")}
+              requiredPlan="agency"
+              onClick={() =>
+                openUpgrade({
+                  feature: t("dashboard.adminClients.upClientHistoryFeature"),
+                  why: t("dashboard.adminClients.upClientHistoryWhy"),
+                  requiredPlan: "agency",
+                })
+              }
+            />
+            <CompactLockedCard
+              title={t("dashboard.adminClients.lockCustomFields")}
+              requiredPlan="agency"
+              onClick={() =>
+                openUpgrade({
+                  feature: t("dashboard.adminClients.upFieldCatalogFeature"),
+                  why: t("dashboard.adminClients.upFieldCatalogWhyFree"),
+                  requiredPlan: "agency",
+                })
+              }
+            />
+          </MoreWithSection>
+        ) : null}
       </>
     );
   }
@@ -322,7 +338,7 @@ export function ClientsPage() {
         ))}
       </div>
 
-      {state.plan === "studio" && (
+      {state.plan === "studio" && agencyUpsell && (
         <MoreWithSection plan="agency">
           <CompactLockedCard
             title={t("dashboard.adminClients.lockCustomFields")}

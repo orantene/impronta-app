@@ -47,7 +47,7 @@ export function SeoScoreCard({ seo, lang }: { seo: SeoScore; lang: SeoLang }) {
             {it.done ? (
               <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
             ) : (
-              <Circle className="mt-0.5 h-4 w-4 shrink-0 text-neutral-300" aria-hidden="true" />
+              <Circle className="mt-0.5 h-4 w-4 shrink-0 text-neutral-500" aria-hidden="true" />
             )}
             <div className="min-w-0 flex-1">
               <p className={it.done ? "text-neutral-500" : "font-medium"}>{it.label}</p>

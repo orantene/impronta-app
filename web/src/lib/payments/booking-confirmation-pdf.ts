@@ -259,6 +259,8 @@ export async function generateBookingConfirmationPdf(
     `This confirms payment for the booking above, arranged through ${brand}. Keep this document for your records.`,
     { size: 8, color: muted },
   );
+  cursor += 12;
+  text("This is a payment confirmation, not a tax invoice (no CFDI is issued here).", { size: 8, color: muted });
 
   return await pdf.save();
 }
